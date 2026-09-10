@@ -612,8 +612,56 @@ function ReceiverOf _
                 dim as FB.Array( of ulong ) aargs
                 aargs.Push( cast( ulong, hself.kind ) )
                 aargs.Push( cast( ulong, hself.id ) )
-                dim as MirValue av = EmitDirectCall_( c, aop, MT_PTR, aargs )
-                if av.kind <> cast( ubyte, MV_NONE ) then return av
+                '' 'operator ->' RETURNS BY VALUE UNLESS IT SAYS 'byref as', and MT_PTR
+                '' was hard-coded here. Measured, fbc's C for
+                '' 'operator -> ( byref lhs as foo ) as foo':
+                ''
+                ''     struct $3FOO _ZptR3FOO( struct $3FOO* );
+                ''     struct $3FOO vr$2 = _ZptR3FOO( &F$0 );
+                ''
+                '' -- a STRUCT returned by value, into a temporary the member access then
+                '' reads out of. tiko emitted 'call ptr _ZptR3FOO(@f)' against a
+                '' definition it had correctly lowered as 'func agg', so the two
+                '' disagreed about the return; the ABI pass then declined the function
+                '' and the emitter died with 'a function returning an aggregate by value;
+                '' the ABI pass has not run'. Six corpus files, all of which fbc compiles.
+                ''
+                '' A DECLARED-BYREF one still returns a pointer -- that is what the
+                '' NF_BYREF test says, and the unary path in lowerswap.bas already reads
+                '' it the same way.
+                dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
+                dim as MirType armt = MT_PTR
+                dim as Tko.TypeId aort = Tko.TYPE_NONE
+                if aos <> 0 then
+                    aort = aos->type_
+                    dim as Tko.NodeId apn = cast( Tko.NodeId, aos->payload )
+                    dim as boolean aByref = false
+                    if apn <> Tko.NODE_NONE then
+                        aByref = ((c.ast->nodes[cast( long, apn )].flags and _
+                                   Tko.NF_BYREF) <> 0)
+                    end if
+                    if (aByref = false) andalso (aort <> Tko.TYPE_NONE) then
+                        armt = LowerType( aort, *c.types )
+                    end if
+                end if
+
+                dim as MirValue av = EmitDirectCall_( c, aop, armt, aargs )
+                if av.kind <> cast( ubyte, MV_NONE ) then
+                    '' A VALUE HAS NO ADDRESS, and this path owes one: the member access
+                    '' offsets from it. fbc materialises the same temporary.
+                    if armt <> MT_PTR then
+                        dim as long asz = SizeOfType( c, aort )
+                        if asz <= 0 then return v
+                        dim as long aslot = NewTempLocal( c, armt, asz )
+                        dim as MirValue atmp
+                        atmp.kind = cast( ubyte, MV_LOCAL )
+                        atmp.ty = cast( ubyte, MT_PTR )
+                        atmp.id = aslot
+                        StoreThrough( c, atmp, av )
+                        return atmp
+                    end if
+                    return av
+                end if
             end if
             return v
         end if

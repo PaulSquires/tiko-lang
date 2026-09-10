@@ -34,6 +34,13 @@ type EmitCtx
     '' whose tail is the user's own arguments and may hold a double -- 'i64 %t7' over
     '' a double is not a coercion, it is IR clang rejects.
     as FB.Array( of ubyte )  tempTy
+    '' AND ITS SIZE, when that type is an aggregate. A temp has no slot to be sized
+    '' by, so the only place the width is known is the instruction that DEFINED it --
+    '' the load's address, the callee's declared return. Without this every aggregate
+    '' that lived in a temp reached ValType with nothing to measure and became
+    '' "an aggregate value with no size", which is the largest single class the
+    '' codegen scan reports.
+    as FB.Array( of long )   tempAggSize
 end type
 
 '' Forward, because EmitGlobal dispatches to it and FreeBASIC resolves a private
@@ -139,6 +146,12 @@ private function ValType( byref e as EmitCtx, byref v as MirValue ) as string
     if v.kind = cast( ubyte, MV_GLOBAL ) then
         if cast( long, v.id ) < e.m->globals.Count then
             return AggType( e.m->globals[cast( long, v.id )].size )
+        end if
+    end if
+    if v.kind = cast( ubyte, MV_TEMP ) then
+        dim as long tid2 = cast( long, v.id )
+        if (tid2 >= 0) andalso (tid2 < e.tempAggSize.Count) then
+            if e.tempAggSize[tid2] > 0 then return AggType( e.tempAggSize[tid2] )
         end if
     end if
     '' An aggregate VALUE with no storage behind it to size. The ABI pass is what
@@ -378,6 +391,22 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         dim as long rid = cast( long, ins.result )
         if (rid >= 0) andalso (rid < e.tempTy.Count) then
             e.tempTy[rid] = cast( ubyte, rt )
+            '' See tempAggSize: recorded HERE, beside the type, because this is the
+            '' one point that sees the defining instruction.
+            if rt = MT_AGG then
+                dim as long asz = 0
+                select case op
+                case M_LOAD
+                    asz = AggSizeOfAddr( e, ins.a, ins.imm )
+                case M_CALL, M_CALL_RTL
+                    dim as long ci2 = cast( long, ins.callee )
+                    if (ci2 >= 0) andalso (ci2 < e.m->functions.Count) then
+                        dim as MirFunction ptr cf2 = e.m->functions[ci2]
+                        if cf2 <> 0 then asz = cf2->retSize
+                    end if
+                end select
+                if rid < e.tempAggSize.Count then e.tempAggSize[rid] = asz
+            end if
         end if
     end if
 
@@ -442,6 +471,18 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     case M_STORE
         dim as MirType vt = cast( MirType, ins.b.ty )
         dim as long sz = AggSizeOfAddr( e, ins.a, ins.imm )
+        '' THE STORED TYPE IS THE VALUE'S, not the destination's. Where the address is
+        '' a TEMP there is no slot to size it by, and LLVM compares the two: a store of
+        '' an 8-byte temp through an unsized address emitted 'store [0 x i8] %t6' and
+        '' was rejected against the temp's own definition. The value knows its width;
+        '' the address does not have to.
+        if (vt = MT_AGG) andalso (sz <= 0) andalso _
+           (ins.b.kind = cast( ubyte, MV_TEMP )) then
+            dim as long bt = cast( long, ins.b.id )
+            if (bt >= 0) andalso (bt < e.tempAggSize.Count) then
+                if e.tempAggSize[bt] > 0 then sz = e.tempAggSize[bt]
+            end if
+        end if
         Line( e, "store " & LlvmType( vt, sz ) & " " & ValStr( e, ins.b ) & _
                  ", ptr " & ValStr( e, ins.a ) & _
                  ", align " & str( AlignOf( e, vt, sz ) ) )
@@ -841,11 +882,13 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     e.isConst.Clear( )
     e.allocaSlot.Clear( )
     e.tempTy.Clear( )
+    e.tempAggSize.Clear( )
     for i as long = 0 to f->nextTemp
         e.constText.Push( "" )
         e.isConst.Push( 0 )
         e.allocaSlot.Push( -1 )
         e.tempTy.Push( cast( ubyte, MT_VOID ) )
+        e.tempAggSize.Push( 0 )
     next
 
     for bi as long = 0 to f->blocks.Count - 1

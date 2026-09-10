@@ -109,7 +109,7 @@ func void SOME<13>(ptr $0, f64 $1) {
   entry0:
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
-    store @x, $0
+    store @x, $1
     %3 = alloca ptr r
     %4 = field.addr @r, 0
     %5 = load @x

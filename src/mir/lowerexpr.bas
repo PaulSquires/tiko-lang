@@ -184,6 +184,16 @@ function LowerExpr _
         ins.op = cast( ushort, M_LOAD )
         ins.ty = cast( ubyte, mt )
         ins.a = addr
+        '' AN AGGREGATE LOAD CARRIES ITS SIZE, because the address alone cannot answer
+        '' for it: reading a BYREF UDT parameter loads through a TEMP holding the
+        '' pointer, and a temp has no slot to be sized by. It emitted
+        '' '%4 = load [0 x i8], ptr %t3' -- a zero-byte load clang rejects against the
+        '' 8-byte store beside it. Measured on 'operator ->( byref lhs as foo ) as foo'
+        '' returning lhs, which is exactly that shape.
+        if mt = MT_AGG then
+            dim as long asz = SizeOfType( c, ft )
+            if asz > 0 then ins.imm = cast( longint, asz )
+        end if
         return Emit( c, ins )
 
     case Tko.N_ADDROF

@@ -853,6 +853,15 @@ function Run( byref args as Tko.StrVec ) as long
                 '' produces the file that was asked for. 'tiko foo.bas -o foo.exe' is
                 '' the spelling that matters and it used to report "not implemented".
                 dim as boolean doCodegen = ctx.options.emitIr orelse wantsOutput
+                '' NOT AFTER AN ERROR. A compile that reported one produces no object
+                '' either way -- the driver exits EXIT_USER_ERROR -- so running the
+                '' emitter over a module the frontend already declined buys nothing
+                '' and costs an ICE on top of the real diagnostic. Measured: 42 of the
+                '' 48 "alloca of a void slot" failures the codegen scan reported are
+                '' files that ALSO print a TKO error, '#lang "qb"' among them -- the
+                '' void slot IS the declined declaration, and the message the user
+                '' needs is the one above it.
+                if ctx.diags.HasErrors( ) then doCodegen = false
                 if doCodegen then
                     dim as Tko.Codegen.TargetDescription td = _
                         Tko.Codegen.TargetFor( ctx.options.target )

@@ -102,13 +102,11 @@ func i64 SOME<6>(i32 $0) {
     %13 = load @$abi3
     ret %13
 }
-func void SOME<13>(f64 $0) {
+func agg SOME<13>(f64 $0) {
   local agg $tmp0 size 16
   local f64 x
   local agg r size 16
-  local agg $abi3 size 16
   entry0:
-    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -124,9 +122,7 @@ func void SOME<13>(f64 $0) {
     %10 = load @r
     store @$tmp0, %10
     %11 = load @$tmp0
-    store @$abi3, %11
-    %13 = load @$abi3
-    ret %13
+    ret %11
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -138,11 +134,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg od size 16
   local agg $abi7 size 2
   local agg $abi8 size 8
-  local agg $abi9 size 16
   entry0:
     %35 = alloca ptr $abi7
     %37 = alloca ptr $abi8
-    %39 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -179,9 +173,7 @@ func i32 main(i32 $0, ptr $1) {
     %23 = load @dd
     %24 = load @dd
     %25 = call f64 _Z4PICKdd(%23, %24)
-    %40 = call void SOME<13>(%25)
-    store @$abi9, %40
-    %26 = load @$abi9
+    %26 = call agg SOME<13>(%25)
     store @od, %26
     %27 = field.addr @ob, 1
     %28 = load %27
@@ -202,9 +194,5 @@ declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
-verify: 4 FAILURES
-  SOME<13>:0:17 load: opcode with no result carries a result temp
-  SOME<13>:0:17 load: non-call opcode produces void
-  main:0:39 call: opcode with no result carries a result temp
-  main:0:40 store: uses %40 before it is defined
+verify: ok
 lowered: 7 functions, 7 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance

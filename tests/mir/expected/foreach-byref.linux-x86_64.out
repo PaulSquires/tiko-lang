@@ -60,13 +60,11 @@ func void _ZN4ITER8MOVENEXTEv(ptr $0) {
     store %3, %7
     ret
 }
-func void _ZN3BAG11GETITERATOREv(ptr $0) {
+func agg _ZN3BAG11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 16
   local ptr this
   local agg it size 16
-  local agg $abi3 size 16
   entry0:
-    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr this
     store @this, $0
@@ -80,9 +78,7 @@ func void _ZN3BAG11GETITERATOREv(ptr $0) {
     %8 = load @it
     store @$tmp0, %8
     %9 = load @$tmp0
-    store @$abi3, %9
-    %11 = load @$abi3
-    ret %11
+    ret %9
 }
 func i32 SUMOF(ptr $0) {
   local i32 $tmp0
@@ -90,9 +86,7 @@ func i32 SUMOF(ptr $0) {
   local i32 s
   local i32 e
   local agg $tmp4 size 16
-  local agg $abi5 size 16
   entry0:
-    %15 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -102,9 +96,7 @@ func i32 SUMOF(ptr $0) {
     %5 = alloca ptr e
     %6 = load @a
     %7 = alloca ptr $tmp4
-    %16 = call void _ZN3BAG11GETITERATOREv(%6)
-    store @$abi5, %16
-    %8 = load @$abi5
+    %8 = call agg _ZN3BAG11GETITERATOREv(%6)
     store @$tmp4, %8
     br each.test3
   each.body1:
@@ -131,9 +123,7 @@ func i32 SUMOFVAL(ptr $0) {
   local i32 s
   local i32 e
   local agg $tmp4 size 16
-  local agg $abi5 size 16
   entry0:
-    %15 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -143,9 +133,7 @@ func i32 SUMOFVAL(ptr $0) {
     %5 = alloca ptr e
     %6 = load @a
     %7 = alloca ptr $tmp4
-    %16 = call void _ZN3BAG11GETITERATOREv(%6)
-    store @$abi5, %16
-    %8 = load @$abi5
+    %8 = call agg _ZN3BAG11GETITERATOREv(%6)
     store @$tmp4, %8
     br each.test3
   each.body1:
@@ -166,11 +154,5 @@ func i32 SUMOFVAL(ptr $0) {
     %14 = load @s
     ret %14
 }
-verify: 6 FAILURES
-  _ZN3BAG11GETITERATOREv:0:15 load: opcode with no result carries a result temp
-  _ZN3BAG11GETITERATOREv:0:15 load: non-call opcode produces void
-  SUMOF:0:10 call: opcode with no result carries a result temp
-  SUMOF:0:11 store: uses %16 before it is defined
-  SUMOFVAL:0:10 call: opcode with no result carries a result temp
-  SUMOFVAL:0:11 store: uses %16 before it is defined
+verify: ok
 lowered: 6 functions, 14 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance

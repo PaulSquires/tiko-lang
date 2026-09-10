@@ -16,6 +16,31 @@ function DirectIntType( byval sizeBytes as long ) as MirType
     return MT_VOID
 end function
 
+'' A SysV RETURN THIS PASS CANNOT MODEL YET.
+''
+'' SysV returns an aggregate of sixteen bytes or fewer in REGISTERS, one per eightbyte,
+'' and clang spells that as a literal struct -- '{ i64, i64 }' for two INTEGER
+'' eightbytes. MIR has no pair type and the emitter has no coerced return type, so the
+'' only sizes this pass can actually produce are the ones that fit a SINGLE integer.
+'' Everything else was silently taken down the direct path anyway, where
+'' DirectIntType( 16 ) is MT_VOID -- and the result was '%34 = call void MK(@x)'
+'' followed by a store of %34: a call with no value, and a use of it.
+''
+'' Measured on tests/mir/src/udt-return.bas and on a plain two-field UDT at
+'' -target linux-x86_64: eight verifier failures, "opcode with no result carries a
+'' result temp" and "uses %30 before it is defined". Declining leaves the return
+'' exactly as it was and the emitter says so, which is the rule for a half-modelled
+'' ABI. THE EIGHTBYTE MACHINERY FOR PARAMETERS IS COMPLETE and is not touched here;
+'' it is only the RETURN that has no representation.
+private function SysvReturnUnmodelled_ _
+    ( byval sizeBytes as long, byref target as TargetDescription ) as boolean
+
+    if target.abi = ABI_WIN64 then return false
+    if sizeBytes <= 0 then return false
+    if sizeBytes > 16 then return false
+    return (DirectIntType( sizeBytes ) = MT_VOID)
+end function
+
 function ClassifyAggregate _
     ( byval sizeBytes as long, byref target as TargetDescription ) as AbiClassKind
 
@@ -308,6 +333,14 @@ private sub RewriteCallReturn _
         return
     end if
 
+    '' See SysvReturnUnmodelled_. The SIGNATURE declines the same size, so the two
+    '' halves stay in step.
+    if SysvReturnUnmodelled_( sz, *r.tgt ) then
+        r.st->declined += 1
+        r.outp.Push( ins )
+        return
+    end if
+
     dim as long slot = NewAggSlot( r, sz, names )
     dim as ulong oldResult = ins.result
 
@@ -571,6 +604,16 @@ private sub RewriteSignature _
         st.declined += 1
         return
     end if
+    if SysvReturnUnmodelled_( f->retSize, target ) then
+        '' ZEROED, because that is what "declined" means everywhere else in this pass:
+        '' WalkBody skips the return rewrite on it and the emitter reports the
+        '' untouched aggregate. Leaving the size in place rewrote the body against a
+        '' signature the call sites had already declined.
+        f->retSize = 0
+        f->retClass = 0
+        st.declined += 1
+        return
+    end if
     if ClassifyAggregate( f->retSize, target ) = ABIC_DIRECT_INT then
         f->retTy = cast( ubyte, DirectIntType( f->retSize ) )
         return
@@ -692,11 +735,60 @@ private sub WalkCalls _
     FlushAllocas( r )
 end sub
 
+'' THE BODY STILL NAMES PARAMETERS BY THEIR OLD INDEX. Inserting the hidden result
+'' pointer at position ZERO shifts every other parameter right, and RewriteParamStore
+'' only rewrites the stores whose DESTINATION IS AN AGGREGATE SLOT -- so a plain BYREF
+'' parameter kept its old number and silently became the sret pointer:
+''
+''     func void _ZptR3UDT(ptr $0, ptr $1)
+''       store @l, $0          '' l is now the caller's destination, not the argument
+''
+'' Measured on tests/mir/src/arrow-field-deref.bas: fbc prints 123/123/-1 and the
+'' unremapped body segfaulted. paramOrig maps each NEW parameter back to the original
+'' it came from, so the inverse of it is the renumbering.
+private function NewParamIndex_ _
+    ( byref r as Rewriter, byval oldIdx as long ) as long
+
+    for j as long = 0 to r.f->paramOrig.Count - 1
+        if r.f->paramOrig[j] = oldIdx then
+            if r.f->paramPart[j] = 0 then return j
+        end if
+    next
+    return oldIdx
+end function
+
+private sub RemapParamVal_( byref r as Rewriter, byref v as MirValue )
+    if v.kind <> cast( ubyte, MV_PARAM ) then return
+    v.id = cast( ulong, NewParamIndex_( r, cast( long, v.id ) ) )
+end sub
+
+private sub RemapParamsIn_( byref r as Rewriter, byref ins as MirInst )
+    RemapParamVal_( r, ins.a )
+    RemapParamVal_( r, ins.b )
+    dim as MirOp op = cast( MirOp, ins.op )
+    if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso (op <> M_CALL_IND) then return
+    dim as long base_ = cast( long, ins.first ) * 2
+    for k as long = 0 to cast( long, ins.count ) - 1
+        dim as long ki = base_ + k * 2
+        if (ki + 1) >= r.m->argPool.Count then exit for
+        if r.m->argPool[ki] = cast( ulong, MV_PARAM ) then
+            r.m->argPool[ki + 1] = _
+                cast( ulong, NewParamIndex_( r, cast( long, r.m->argPool[ki + 1] ) ) )
+        end if
+    next
+end sub
+
 private sub WalkBody _
     ( byref r as Rewriter, byref names as Tko.Interner )
 
     dim as boolean indirectRet = r.f->hasSretParam
     dim as long retSz = r.f->retSize
+    '' Only when the numbering actually moved -- otherwise the map is the identity and
+    '' walking it per operand is work for nothing.
+    dim as boolean renumbered = false
+    for j as long = 0 to r.f->paramOrig.Count - 1
+        if r.f->paramOrig[j] <> j then renumbered = true
+    next
     for bi as long = 0 to r.f->blocks.Count - 1
         dim as MirBlock ptr b = @r.f->blocks[bi]
         r.outp.Clear( )
@@ -707,6 +799,8 @@ private sub WalkBody _
                 RewriteParamStore( r, ins, changed )
                 if changed then continue for
             end if
+            '' AFTER RewriteParamStore, which reads the OLD index by design.
+            if renumbered then RemapParamsIn_( r, ins )
             r.outp.Push( ins )
         next
         '' The terminator's value, if this function returns an aggregate at all.

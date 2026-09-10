@@ -1,9 +1,7 @@
-func void F() {
+func agg F() {
   local agg $tmp0 size 12
   local agg p size 12
-  local agg $abi2 size 12
   entry0:
-    %14 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = alloca ptr p
     %3 = field.addr @p, 0
@@ -21,9 +19,7 @@ func void F() {
     %12 = load @p
     store @$tmp0, %12
     %13 = load @$tmp0
-    store @$abi2, %13
-    %15 = load @$abi2
-    ret %15
+    ret %13
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -31,9 +27,7 @@ func i32 main(i32 $0, ptr $1) {
   local i32 b
   local agg $tmp3 size 12
   local ptr $tmp4
-  local agg $abi5 size 12
   entry0:
-    %19 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -41,9 +35,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr a
     %5 = alloca ptr b
-    %20 = call void F()
-    store @$abi5, %20
-    %6 = load @$abi5
+    %6 = call agg F()
     %7 = alloca ptr $tmp3
     store @$tmp3, %6
     %8 = alloca ptr $tmp4
@@ -68,9 +60,5 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
-verify: 4 FAILURES
-  F:0:19 load: opcode with no result carries a result temp
-  F:0:19 load: non-call opcode produces void
-  main:0:8 call: opcode with no result carries a result temp
-  main:0:9 store: uses %20 before it is defined
+verify: ok
 lowered: 2 functions, 2 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance

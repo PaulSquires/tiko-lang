@@ -7,9 +7,9 @@ func void _Zv25+<15>R7BOX<15>S0_(ptr $0, ptr $1, ptr $2) {
   entry0:
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
-    store @x, $0
+    store @x, $1
     %3 = alloca ptr y
-    store @y, $1
+    store @y, $2
     %4 = alloca ptr r
     call void _ZN7BOX<15>C1Ev(@r)
     %5 = field.addr @r, 0

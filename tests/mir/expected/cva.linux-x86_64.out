@@ -45,7 +45,7 @@ func void OPENED(ptr $0, i64 $1, ...) {
   entry0:
     %1 = alloca ptr $tmp0
     %2 = alloca ptr n
-    store @n, $0
+    store @n, $1
     %3 = alloca ptr args
     %4 = load @n
     va.start @args, %4

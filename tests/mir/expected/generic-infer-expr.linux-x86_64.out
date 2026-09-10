@@ -1,10 +1,8 @@
-func void MK<8>(ptr $0) {
+func agg MK<8>(ptr $0) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
-  local agg $abi3 size 16
   entry0:
-    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -21,9 +19,7 @@ func void MK<8>(ptr $0) {
     %11 = load @r
     store @$tmp0, %11
     %12 = load @$tmp0
-    store @$abi3, %12
-    %14 = load @$abi3
-    ret %14
+    ret %12
 }
 func i64 G<8>(i64 $0) {
   local i64 $tmp0
@@ -37,13 +33,11 @@ func i64 G<8>(i64 $0) {
     %4 = const i64 1
     ret %4
 }
-func void MK<13>(ptr $0) {
+func agg MK<13>(ptr $0) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
-  local agg $abi3 size 16
   entry0:
-    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -60,9 +54,7 @@ func void MK<13>(ptr $0) {
     %11 = load @r
     store @$tmp0, %11
     %12 = load @$tmp0
-    store @$abi3, %12
-    %14 = load @$abi3
-    ret %14
+    ret %12
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -74,13 +66,7 @@ func i32 main(i32 $0, ptr $1) {
   local i64 z
   local agg d size 16
   local f64 $tmp8
-  local agg $abi9 size 16
-  local agg $abi10 size 16
-  local agg $abi11 size 16
   entry0:
-    %38 = alloca ptr $abi9
-    %40 = alloca ptr $abi10
-    %42 = alloca ptr $abi11
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -93,9 +79,7 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const i64 3
     store @b, %7
     %8 = alloca ptr p
-    %39 = call void MK<8>(@a)
-    store @$abi9, %39
-    %9 = load @$abi9
+    %9 = call agg MK<8>(@a)
     store @p, %9
     %10 = alloca ptr w
     %11 = load @a
@@ -103,9 +87,7 @@ func i32 main(i32 $0, ptr $1) {
     %13 = add %11, %12
     %14 = alloca ptr $tmp5
     store @$tmp5, %13
-    %41 = call void MK<8>(@$tmp5)
-    store @$abi10, %41
-    %15 = load @$abi10
+    %15 = call agg MK<8>(@$tmp5)
     store @w, %15
     %16 = alloca ptr z
     %17 = load @a
@@ -121,9 +103,7 @@ func i32 main(i32 $0, ptr $1) {
     %26 = fdiv %24, %25
     %27 = alloca ptr $tmp8
     store @$tmp8, %26
-    %43 = call void MK<13>(@$tmp8)
-    store @$abi11, %43
-    %28 = load @$abi11
+    %28 = call agg MK<13>(@$tmp8)
     store @d, %28
     %29 = field.addr @p, 8
     %30 = load %29
@@ -145,15 +125,5 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
-verify: 10 FAILURES
-  MK<8>:0:18 load: opcode with no result carries a result temp
-  MK<8>:0:18 load: non-call opcode produces void
-  MK<13>:0:18 load: opcode with no result carries a result temp
-  MK<13>:0:18 load: non-call opcode produces void
-  main:0:15 call: opcode with no result carries a result temp
-  main:0:16 store: uses %39 before it is defined
-  main:0:25 call: opcode with no result carries a result temp
-  main:0:26 store: uses %41 before it is defined
-  main:0:43 call: opcode with no result carries a result temp
-  main:0:44 store: uses %43 before it is defined
+verify: ok
 lowered: 4 functions, 4 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance
