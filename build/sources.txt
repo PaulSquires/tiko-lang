@@ -57,6 +57,7 @@ src/mir/lowerdesc.bas
 src/mir/lowervtab.bas
 src/mir/lowerfieldinit.bas
 src/mir/lowerimpl.bas
+src/mir/lowermodinit.bas
 src/mir/lowergfx.bas
 src/mir/lowerclean.bas
 src/mir/lowerdata.bas

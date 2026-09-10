@@ -34,6 +34,45 @@ declare function StrSwapKind_ _
 
 #include once "mir/lowerinit.bas"
 
+'' THE SRET TEMPORARY A CALL RESULT WAS MOVED OUT OF, unregistered so nothing
+'' destroys it.
+''
+'' 'dim a as Box = makeBox( )' over a type holding a dynamic array takes the plain
+'' store, and that store IS the move: the destination adopts the returned descriptor,
+'' buffer and all. The call site had already registered its sret temporary for
+'' destruction, so the array was erased out from under the variable that had just
+'' adopted it and the variable's own destructor then erased it again -- the probe
+'' printed the right element and exited 127.
+''
+'' fbc does NOT move here: it copy-constructs, and its SYNTHESISED copy constructor
+'' deep-copies the array with fb_ArrayRedimTo and an element loop before destroying
+'' the temporary. tiko synthesises no such constructor on purpose -- see
+'' ByvalUdtCopyArg_, which says why -- so the move is the model it actually has, and
+'' a move that destroys its source is not one.
+''
+'' THE OBSERVABLE DIFFERENCE THAT REMAINS is one destructor call fewer than fbc for
+'' this shape. It is recorded rather than hidden; closing it means synthesising the
+'' deep copy.
+''
+'' The FIRST entry added since 'from_' whose type is the destination's is the
+'' outermost call's sret slot: LowerCall pushes it before it lowers any argument.
+private sub DropMovedTemp_ _
+    ( byref c as Ctx, byval from_ as long, byval t as Tko.TypeId )
+
+    if t = Tko.TYPE_NONE then return
+    for i as long = from_ to c.udtTemps.Count - 1
+        if c.udtTempTypes[i] = cast( ulong, t ) then
+            for k as long = i to c.udtTemps.Count - 2
+                c.udtTemps[k] = c.udtTemps[k + 1]
+                c.udtTempTypes[k] = c.udtTempTypes[k + 1]
+            next
+            c.udtTemps.Pop( )
+            c.udtTempTypes.Pop( )
+            return
+        end if
+    next
+end sub
+
 sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
     if id = Tko.NODE_NONE then return
     '' A DEAD CURSOR STOPS EVERYTHING EXCEPT A LABEL, and the exception is the point: a
@@ -673,9 +712,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 dim as Tko.TypeId dstT = Tko.TYPE_NONE
                 dim as Tko.Symbol ptr dsym = c.syms->SymbolAt( sid )
                 if dsym <> 0 then dstT = dsym->type_
+                '' See DropMovedTemp_: what this expression registers for destruction
+                '' has to be known before it is lowered.
+                dim as long tmark = c.udtTemps.Count
                 if UserConvToScalar_( c, ip->b, dstT, val ) = false then
                     val = LowerExpr( c, ip->b )
                 end if
+                '' A MOVE, not a copy -- so the source must not be destroyed.
+                dim as boolean movedFrom = (c.ast->Kind( ip->b ) = Tko.N_CALL)
+                if movedFrom then movedFrom = (dstT <> Tko.TYPE_NONE)
+                if movedFrom then movedFrom = (c.types->Kind( dstT ) = Tko.TK_UDT)
+                if movedFrom then movedFrom = HasDynArrayMember_( c, dstT )
+                if movedFrom then DropMovedTemp_( c, tmark, dstT )
                 '' AN INITIALISER THAT WOULD NOT LOWER IS A DECLINE, and was silent:
                 '' the store was simply skipped, so 'dim as integer r = iif( c, 10,
                 '' 20 )' allocated r, stored nothing, and printed whatever the stack

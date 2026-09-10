@@ -923,13 +923,42 @@ private sub CopyMember_ _
     '' value is loaded and stored, which is what an aggregate assignment is in this IR.
     dim as MirType mt = LowerType( ft, *c.types )
     if mt = MT_VOID then mt = MT_AGG
-    dim as MirValue v = LowerExprLoad( c, src, mt )
+    '' AN AGGREGATE FIELD CARRIES ITS SIZE, and this one did not.
+    ''
+    '' Both addresses here are FIELD ADDRESSES -- temps -- and the emitter sizes an
+    '' aggregate from its STORAGE: a local's slot, a global's size, or the
+    '' instruction's own imm. A temp is none of those, so it answered zero and the
+    '' copy came out as
+    ''
+    ''     %t3 = load [0 x i8], ptr %t1
+    ''     store [0 x i8] %t3, ptr %t2
+    ''
+    '' -- ZERO BYTES MOVED. Measured on a plain UDT holding a nested struct beside a
+    '' string: fbc prints '7 8 n' for 'y = x' and tiko printed '0 0 n'. The string
+    '' field was fine, because it goes through fb_StrAssign above; only the
+    '' aggregate one was silently dropped. Nothing declined and nothing verified
+    '' wrong -- this is a synthesised 'operator let', so it reaches every UDT that
+    '' has a nested aggregate field and no written assignment.
+    dim as longint fsz = 0
+    if mt = MT_AGG then fsz = cast( longint, SizeOfType( c, ft ) )
+    dim as MirValue v
+    if fsz > 0 then
+        dim as MirInst ld
+        ld.op = cast( ushort, M_LOAD )
+        ld.ty = cast( ubyte, MT_AGG )
+        ld.a = src
+        ld.imm = fsz
+        v = Emit( c, ld )
+    else
+        v = LowerExprLoad( c, src, mt )
+    end if
     if v.kind = cast( ubyte, MV_NONE ) then return
     dim as MirInst st
     st.op = cast( ushort, M_STORE )
     st.ty = cast( ubyte, MT_VOID )
     st.a = dst
     st.b = v
+    if fsz > 0 then st.imm = fsz
     Emit( c, st )
 end sub
 
@@ -1305,87 +1334,6 @@ sub EmitArrayElemsAt_ _
     next
 end sub
 
-'' THE MODULE INITIALISER AND FINALISER.
-''
-'' fbc emits '_GLOBAL__I' and '_GLOBAL__D' carrying GCC's constructor and destructor
-'' attributes, runs the globals in DECLARATION order in the first and in EXACT REVERSE
-'' in the second -- measured, including the reversal within an array.
-''
-'' Without them 'dim shared as T g' over a type holding a string left the descriptor
-'' uninitialised for the whole program, and the first assignment through it freed
-'' whatever was in the image at that address.
-sub EmitModuleInit_( byref c as Ctx )
-    if c.modInitGlobal.Count = 0 then return
-
-    for pass as long = 0 to 1
-        dim as boolean isCtor = (pass = 0)
-        dim as Tko.InternId nm = c.names->GetString( iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" ) )
-        dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
-        f->isDefinition = true
-        f->isModuleCtor = isCtor
-        f->isModuleDtor = (isCtor = false)
-
-        dim as MirFunction ptr savedF = c.f
-        dim as long savedB = c.curBlock
-        c.f = f
-        c.st->functions += 1
-        c.curBlock = NewBlock( c, "entry" )
-
-        dim as long n = c.modInitGlobal.Count
-        for k as long = 0 to n - 1
-            dim as long i = iif( isCtor, k, n - 1 - k )
-            dim as Tko.TypeId gt = cast( Tko.TypeId, c.modInitType[i] )
-            dim as MirValue ga
-            ga.kind = cast( ubyte, MV_GLOBAL )
-            ga.ty = cast( ubyte, MT_PTR )
-            ga.id = c.modInitGlobal[i]
-
-            if c.types->Kind( gt ) = Tko.TK_UDT then
-                if isCtor then
-                    '' A NAMED CONSTRUCTOR FIRST. See the note in InitSharedGlobal: the
-                    '' declaration chose one, and the zero-arity lookup below would run
-                    '' a different constructor and drop the arguments.
-                    dim as Tko.NodeId mic = Tko.NODE_NONE
-                    if i < c.modInitCall.Count then
-                        mic = cast( Tko.NodeId, c.modInitCall[i] )
-                    end if
-                    if mic <> Tko.NODE_NONE then
-                        if CtorCallOnAddr_( c, ga, gt, mic ) then continue for
-                    end if
-                    dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
-                    if ct <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) none1
-                        EmitStructorCall( c, ct, -1, @ga, @none1 )
-                    elseif TypeNeedsInit_( c, gt ) then
-                        CallImplicitCtor_( c, gt, ga )
-                    end if
-                else
-                    dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, gt, "__dtor" ), 0 )
-                    if dt <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) none2
-                        EmitStructorCall( c, dt, -1, @ga, @none2 )
-                    elseif TypeNeedsDtor_( c, gt ) then
-                        CallImplicitDtor_( c, gt, ga )
-                    end if
-                end if
-            else
-                '' AN ARRAY OF THEM, element by element -- and the reversal applies
-                '' WITHIN the array too, which is what fbc's own _GLOBAL__D does.
-                dim as boolean wants = false
-                if isCtor then
-                    wants = ArrayElemNeedsInit_( c, gt )
-                else
-                    wants = ArrayElemNeedsDtor_( c, gt )
-                end if
-                if wants then EmitArrayElemsAt_( c, ga, gt, isCtor )
-            end if
-        next
-
-        Terminate( c, MTERM_RET, -1, -1, NoVal( ) )
-        c.f = savedF
-        c.curBlock = savedB
-    next
-end sub
 
 '' Every implicit structor this unit needs.
 ''
