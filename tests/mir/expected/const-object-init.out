@@ -68,5 +68,23 @@ func void _ZN2T1C1Ev(ptr $0) {
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void _ZN2T2C1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
+func void _ZN2T2D1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+declare void fb_StrDelete(ptr $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance

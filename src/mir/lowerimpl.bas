@@ -1061,6 +1061,17 @@ end sub
 sub WantImplicit_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval k as long )
 
+    '' UNQUALIFIED, because the NAME already is and the two have to agree.
+    '' ImplStructorName_ unqualifies before it mangles, so 'const T2' and 'T2' both
+    '' ask for '_ZN2T2C1Ev'; this list did not, and EmitImplicitStructors looks the
+    '' recorded id up with 'c.udts->Find( t )', which is keyed on the unqualified one.
+    '' So 'dim as const T2 c2 = T2( )' over a T2 holding a string emitted the CALL and
+    '' never the BODY -- 'undefined symbol: T2::T2()' -- while the same program
+    '' without the word linked and ran. It compiled clean either way, which is why
+    '' only build/linkscan.sh found it; const-object-init.out had carried the two
+    '' bare 'declare's since that golden was written.
+    t = c.types->Unqualify( t )
+
     for i as long = 0 to c.implWantedType.Count - 1
         if (c.implWantedType[i] = cast( ulong, t )) andalso (c.implWantedKind[i] = k) then
             return

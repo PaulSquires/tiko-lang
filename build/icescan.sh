@@ -71,7 +71,17 @@ xargs -a build/.icecorpus.lst -d '
     else
         tag=ok
     fi
-    grep -iE "ICE:|clang: error|lld[^:]*: error|internal compiler" "$raw" \
+    # THE PATTERN HAS TO MATCH clang, NOT JUST THE DRIVER LINE. It read
+    # "clang: error" and missed every ORDINARY clang diagnostic, which is spelled
+    #
+    #     <file>:2013:18: error: %t28 defined with type [0 x i8] but expected [8 x i8]
+    #
+    # -- no "clang:" anywhere on it. This scan therefore reported ZERO over a corpus
+    # that still had real codegen faults in it; build/runscan.sh found them by
+    # BUILDING the same files and is what exposed the hole. "error TKO" is excluded
+    # on purpose: a frontend diagnostic is mirsweep material, not this census.
+    grep -iE "ICE:|clang: error|lld[^:]*: error|internal compiler|: error: |tiko: clang failed|tiko: link failed" "$raw" \
+    | grep -v "error TKO" \
         | sed "s|^|$tag $1: |" > "build/.iceparts/$key" || true
     rm -f "$raw" "$out"
 ' _ {}
@@ -92,7 +102,12 @@ neg=$(grep -c '^neg ' build/.ice.out || true)
 echo "icescan: $want files compiled, $total codegen failures in $files files"
 echo "icescan: $neg of them are in files fbc REJECTS too (TEST_MODE fail); the rest are not"
 echo "icescan: --- by message ---"
+# THE OBJECT PATH IS NOT PART OF THE MESSAGE. clang names the .ll file it was
+# reading, which is per-file, so every diagnostic was its own class and the census
+# grouped nothing at all.
 cut -d' ' -f3- build/.ice.out \
+    | sed -E "s|build/\\.iceobj/[^ ]*\\.ll:[0-9]+:[0-9]+: |: |" \
+    | sed -E "s|'build/\\.iceobj/[^']*'|OBJ|" \
     | sed -E "s/[0-9]+/N/g" \
     | sort | uniq -c | sort -rn | head -12 | sed 's/^/icescan:  /'
 echo "icescan: --- the files fbc ACCEPTS, worst first ---"
