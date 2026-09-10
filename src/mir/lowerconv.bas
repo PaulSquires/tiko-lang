@@ -370,7 +370,31 @@ function LowerConvIntrinsic _
     ''
     '' THE DESTINATION COMES FROM THE TYPEREF when the call has no type of its own,
     '' for the same reason StrIdentityConvOperand_ above reads it from there.
-    if isCastLike then
+    '' ...AND THE 'cXXX' FAMILY REACHES IT TOO, over a UDT.
+    ''
+    '' 'isCastLike' gated this block to 'cast' and 'cptr', so 'cint( u )' over a type
+    '' declaring 'operator cast( ) as integer' fell through every string-parsing row
+    '' to a bare aggregate load and the assignment then declined. Measured, fbc emits
+    '' the SAME call for both spellings and prints 4 for both:
+    ''
+    ''     a = cast( integer, an )    -> 4      b = cint( an )   -> 4
+    ''
+    '' while tiko gave 4 and 0. The IMPLICIT spelling 'c = an' was right all along,
+    '' which is what made this look like an intrinsic problem rather than a cast one.
+    ''
+    '' ONLY WHERE THE OPERATOR ACTUALLY MATCHES. ExactCastOverload_ below asks for one
+    '' whose result IS the destination, and fbc is just as strict: with only
+    '' 'operator cast( ) as integer' declared, 'clngint( an )' and 'cdbl( an )' are
+    '' its error 20, Type mismatch -- so a cXXX whose width does not match keeps
+    '' declining, which is what it already did.
+    dim as boolean udtCastLike = isCastLike
+    if udtCastLike = false then
+        dim as Tko.TypeId uat = c.types->Unqualify( c.info->TypeOf_( arg ) )
+        if uat <> Tko.TYPE_NONE then
+            udtCastLike = (c.types->Kind( uat ) = Tko.TK_UDT)
+        end if
+    end if
+    if udtCastLike then
         dim as Tko.TypeId dstT = c.info->TypeOf_( id )
         if dstT = Tko.TYPE_NONE then
             dim as Tko.NodeId tn3 = cast( Tko.NodeId, c.ast->children[cp->first] )
