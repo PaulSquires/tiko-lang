@@ -522,8 +522,47 @@ function EmitTypeCtorInto_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval slot as long, _
       byval cp as Tko.ListPayload ptr ) as boolean
 
-    dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), _
-                                                  cp->count )
+    '' PICKED BY THE ARGUMENT TYPES, with arity as the fallback.
+    ''
+    '' Arity alone answers only when one overload has that arity. Measured on fbc:
+    ''
+    ''     type LV
+    ''         declare constructor( byval v as boolean )
+    ''         declare constructor( byref v as string )
+    ''     end type
+    ''     take( LV( s ) )        '' s is a STRING -- fbc prints 3
+    ''
+    '' Both take one argument, the chain head is the BOOLEAN one, and tiko called it --
+    '' coercing a string descriptor with a 'sext'. It lowered and it verified; the
+    '' emitter only choked because the coercion had no width to report.
+    '' fb/logger.bi's 'LogValue( v.Message( ) )' is the same shape over nine
+    '' constructors, and is one of the corpus's codegen failures.
+    ''
+    '' PickCtor is the cost model overload resolution itself uses. An argument Check
+    '' could not type has no cost, so that case keeps the arity answer rather than
+    '' inventing one.
+    dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
+    if (t <> Tko.TYPE_NONE) andalso (cp->count > 0) then
+        if c.types->Kind( t ) = Tko.TK_UDT then
+            dim as FB.Array( of ulong ) ctArgT
+            dim as boolean ctTyped = true
+            for i as long = 0 to cp->count - 1
+                dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+                dim as Tko.TypeId at3 = c.info->TypeOf_( an )
+                if at3 = Tko.TYPE_NONE then
+                    ctTyped = false
+                    exit for
+                end if
+                ctArgT.Push( cast( ulong, at3 ) )
+            next
+            if ctTyped then
+                ctor = PickCtor( c, StructorOf( c, t, "__ctor" ), ctArgT )
+            end if
+        end if
+    end if
+    if ctor = Tko.SYMBOL_NONE then
+        ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), cp->count )
+    end if
 
     '' 'UDT( )' WITH NO WRITTEN CONSTRUCTOR runs the SYNTHESISED one. fbc accepts the
     '' empty spelling exactly when the type has a constructor at all, and measurably so:
@@ -600,9 +639,11 @@ function PushCtorArgs_ _
             continue for
         end if
 
-        dim as MirValue av = LowerExpr( c, ae )
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-        '' The matching parameter, counted over N_PARAM children only.
+        '' The matching parameter, counted over N_PARAM children only. FOUND FIRST,
+        '' because what to lower depends on it: 'byref s as string' wants a
+        '' DESCRIPTOR and a plain LowerExpr hands back the 24-byte value.
+        '' 'call _ZN2LVC1ER8FBSTRING(ptr %s2, ptr %t7)' with %t7 defined as
+        '' '[24 x i8]' is what that produced -- clang's own words.
         dim as Tko.TypeId pt = Tko.TYPE_NONE
         dim as long seen = 0
         for k as long = 0 to pp->count - 1
@@ -615,10 +656,12 @@ function PushCtorArgs_ _
             seen += 1
         next
         pi += 1
-        if pt <> Tko.TYPE_NONE then
-            av = CoerceTy( c, av, LowerType( pt, *c.types ), pt)
-            if av.kind = cast( ubyte, MV_NONE ) then return false
-        end if
+        '' CtorArgValue_ IS THE SHARED RULE, and this loop had its own: the string,
+        '' zstring-pointer and wide cases it knows were all reached through the other
+        '' constructor path and not through this one.
+        dim as MirValue av
+        if CtorArgValue_( c, ae, pt, av ) = false then return false
+        if av.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     next
 

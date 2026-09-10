@@ -41,6 +41,11 @@ type EmitCtx
     '' "an aggregate value with no size", which is the largest single class the
     '' codegen scan reports.
     as FB.Array( of long )   tempAggSize
+    '' WHERE THE EMITTER IS, so an ICE names it. "an aggregate value with no size" is
+    '' true and useless on its own: the corpus file it came from has three thousand
+    '' instructions and the message pointed at none of them.
+    as string                curFn
+    as string                curOp
 end type
 
 '' Forward, because EmitGlobal dispatches to it and FreeBASIC resolves a private
@@ -55,7 +60,9 @@ declare function ByvalAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as long ) as string
 
 private sub Ice( byref e as EmitCtx, byref why as string )
-    if len( e.ice ) = 0 then e.ice = why
+    if len( e.ice ) > 0 then return
+    e.ice = why
+    if len( e.curFn ) > 0 then e.ice += " (in " & e.curFn & ", " & e.curOp & ")"
 end sub
 
 '' ---------------------------------------------------------------- names
@@ -380,6 +387,7 @@ end function
 
 private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     dim as MirOp op = cast( MirOp, ins.op )
+    e.curOp = OpName( op ) & " %" & str( ins.result )
     dim as MirType rt = cast( MirType, ins.ty )
     dim as string res = TempName( ins.result )
     dim as string ty = LlvmType( rt )
@@ -834,6 +842,7 @@ end function
 
 private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     e.f = f
+    e.curFn = e.names->Spelling( f->name )
     dim as string ret = LlvmType( cast( MirType, f->retTy ) )
     '' AN AGGREGATE RETURN HAS NO SIZE HERE. Returning one by value is what the ABI
     '' pass removes -- it becomes a hidden pointer -- so reaching this with one means

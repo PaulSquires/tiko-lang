@@ -63,6 +63,7 @@ src/mir/lowerctor.bas
 src/mir/lowercall.bas
 src/mir/lowerfor.bas
 src/mir/lowerproc.bas
+src/mir/lowersig.bas
 src/mir/lowercva.bas
 src/mir/lowerudtlit.bas
 src/mir/lowerterm.bas

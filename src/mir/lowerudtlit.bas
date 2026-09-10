@@ -308,7 +308,44 @@ function LowerUdtParenInit_ _
     '' The overload is picked by ARITY, which is what 'T( args )' -- the other spelling
     '' of the same construction -- already does, so the two agree. That is not full
     '' overload resolution and neither path claims to be.
-    dim as Tko.SymbolId lct = CtorOf_( c, t, pl0->count )
+    '' PICKED BY THE ARGUMENT TYPES, with arity as the fallback.
+    ''
+    '' "The overload is picked by ARITY" was true and it was wrong, and the comment
+    '' above says so without saying what it cost. Measured on fbc:
+    ''
+    ''     type LV
+    ''         declare constructor( byval v as boolean )
+    ''         declare constructor( byref v as string )
+    ''     end type
+    ''     take( LV( s ) )        '' s is a STRING -- fbc prints 3
+    ''
+    '' Both constructors take one argument, so the chain head won and tiko called the
+    '' BOOLEAN one, coercing a string descriptor with a 'sext'. It lowered, it
+    '' verified, and the emitter only choked on it because the coercion had no width.
+    '' fb/logger.bi's 'LogValue( v.Message( ) )' is the same shape over nine
+    '' constructors.
+    ''
+    '' PickCtor is the cost model overload resolution itself uses. An argument Check
+    '' could not type has no cost, so that case keeps the arity answer rather than
+    '' guessing at one.
+    dim as Tko.SymbolId lct = Tko.SYMBOL_NONE
+    if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( t ) = Tko.TK_UDT) then
+        dim as FB.Array( of ulong ) lcArgT
+        dim as boolean allTyped = true
+        for i as long = 0 to pl0->count - 1
+            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[pl0->first + i] )
+            dim as Tko.TypeId at = c.info->TypeOf_( an )
+            if at = Tko.TYPE_NONE then
+                allTyped = false
+                exit for
+            end if
+            lcArgT.Push( cast( ulong, at ) )
+        next
+        if allTyped then
+            lct = PickCtor( c, StructorOf( c, t, "__ctor" ), lcArgT )
+        end if
+    end if
+    if lct = Tko.SYMBOL_NONE then lct = CtorOf_( c, t, pl0->count )
     if lct <> Tko.SYMBOL_NONE then
         dim as FB.Array( of ulong ) lca
         if PushCtorArgs_( c, lct, pl0->first, pl0->count, lca ) then

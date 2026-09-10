@@ -67,42 +67,38 @@ func i32 main(i32 $0, ptr $1) {
     %16 = alloca ptr libname
     %17 = call.rtl ptr fb_StrInit(@libname, -1, @@$str0, 2, 0)
     %18 = alloca ptr d
-    %19 = load @libname
-    %20 = zext %19
-    %21 = bitcast %20
-    %22 = call.rtl ptr fb_DylibLoad(%21)
-    store @d, %22
-    %23 = alloca ptr p
+    %19 = call.rtl ptr fb_DylibLoad(@libname)
+    store @d, %19
+    %20 = alloca ptr p
+    %21 = load @d
+    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    %23 = call.rtl ptr fb_DylibSymbol(%21, %22)
+    store @p, %23
     %24 = load @d
-    %25 = call.rtl ptr fb_DylibSymbol(%24, @@$str1)
-    store @p, %25
-    %26 = load @d
-    call.rtl void fb_DylibFree(%26)
-    %27 = alloca ptr cmd
-    %28 = call.rtl ptr fb_StrInit(@cmd, -1, @@$str2, 2, 0)
-    %29 = alloca ptr rc
-    %30 = load @cmd
-    %31 = zext %30
-    %32 = bitcast %31
-    %33 = call.rtl i32 fb_Chain(%32)
-    store @rc, %33
-    %34 = load @rc
-    call.rtl void fb_PrintInt(0, %34, 1)
+    call.rtl void fb_DylibFree(%24)
+    %25 = alloca ptr cmd
+    %26 = call.rtl ptr fb_StrInit(@cmd, -1, @@$str2, 2, 0)
+    %27 = alloca ptr rc
+    %28 = call.rtl i32 fb_Chain(@cmd)
+    store @rc, %28
+    %29 = load @rc
+    call.rtl void fb_PrintInt(0, %29, 1)
     call.rtl void fb_StrDelete(@cmd)
     call.rtl void fb_StrDelete(@libname)
-    %35 = const i32 0
-    call.rtl void fb_End(%35)
-    %36 = load @$tmp0
-    ret %36
+    %30 = const i32 0
+    call.rtl void fb_End(%30)
+    %31 = load @$tmp0
+    ret %31
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_DylibLoad(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare ptr fb_DylibSymbol(ptr $0, ptr $1)
 declare void fb_DylibFree(ptr $0)
 declare i32 fb_Chain(ptr $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance

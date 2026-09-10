@@ -260,6 +260,35 @@ function LowerBuiltinProc _
         '' The RTL signature cannot say this: every one of these parameters is 'p'.
         dim as boolean wantsStrDesc = false
         if i = 0 then wantsStrDesc = (r = RTL_BSAVE) orelse (r = RTL_BLOAD)
+        '' ...AND THE DYNAMIC-LIBRARY PAIR, whose parameters read 'p' in the RTL table
+        '' and are FBSTRING* in fbc's own C. Measured:
+        ''
+        ''     void* fb_DylibLoad( FBSTRING* );
+        ''     void* fb_DylibSymbol( void*, FBSTRING* );
+        ''     vr$1 = fb_DylibLoad( (FBSTRING*)vr$0 );
+        ''     vr$3 = fb_DylibSymbol( D$0, (FBSTRING*)vr$2 );
+        ''
+        '' fb_Run and fb_Chain are the same fact, measured in the same run:
+        ''
+        ''     int32 fb_Run( FBSTRING*, FBSTRING* );
+        ''     int32 fb_Chain( FBSTRING* );
+        ''     vr$4  = fb_Run( (FBSTRING*)&S$0, (FBSTRING*)vr$2 );
+        ''     vr$12 = fb_Chain( (FBSTRING*)&S$0 );
+        ''
+        '' -- a temporary descriptor for a literal, the variable's own address for a
+        '' variable. Without it the descriptor was lowered as a VALUE and coerced to a
+        '' pointer, which came out as 'bitcast' then 'trunc' then 'zext' over a
+        '' 24-byte aggregate: two of the corpus's codegen failures, and a call that
+        '' would have handed the runtime rubbish had it reached one.
+        if i = 0 then
+            if r = RTL_DYLIB_LOAD then wantsStrDesc = true
+            if r = RTL_CHAIN then wantsStrDesc = true
+            if r = RTL_RUN then wantsStrDesc = true
+        end if
+        if i = 1 then
+            if r = RTL_DYLIB_SYMBOL then wantsStrDesc = true
+            if r = RTL_RUN then wantsStrDesc = true
+        end if
         if wantsStrDesc then
             dim as MirValue sdv
             if StrDescriptorOf_( c, a, sdv ) then

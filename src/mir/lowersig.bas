@@ -1,0 +1,90 @@
+'' lowersig.bas -- SignatureFromProc: the signature of a procedure this module does
+'' not define. Split out of lowerproc.bas on 2026-09-10 for the 1500-line cap; nothing
+'' about the code changed in the move.
+
+#include once "mir/lowerctx.bi"
+
+namespace Tko.Mir
+
+'' THE SIGNATURE OF A PROCEDURE THIS MODULE DOES NOT DEFINE.
+''
+'' The definition path records a signature from the parameter SLOTS, which is the
+'' authority -- a slot's type is what the body actually reads. A declaration has no
+'' slots, so the types come from the DECLARED types instead, through ParamMirType,
+'' which is the rule the slots were built with. One rule, two entry points.
+''
+'' The two hidden parameters are the caller's business and are passed in rather than
+'' re-derived here: given only a proc node this cannot see whether the call site
+'' decided to pass a hidden result pointer, and guessing would put the arity of the
+'' declaration and the arity of the call out of step.
+sub SignatureFromProc _
+    ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
+      byval withSret as boolean, byval withThis as boolean )
+
+    if f = 0 then return
+    if withSret then
+        f->AddParam( MT_PTR )
+        f->hasSretParam = true
+    end if
+    if withThis then f->AddParam( MT_PTR )
+    if pn = Tko.NODE_NONE then return
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return
+    '' AN AGGREGATE RETURN NEEDS ITS SIZE HERE TOO. The DEFINITION path records it;
+    '' this one -- every DECLARATION, so every callee this module only calls -- did
+    '' not, and a retSize of zero is exactly what both halves of the ABI pass read as
+    '' "decline". 'declare agg _ZplRK11UDT_DEFAULTS1_(ptr, ptr)' then reached the
+    '' emitter untouched: two of the corpus's codegen failures, an operator+ and
+    '' fb/vector.bi's Conjugate.
+    if cast( MirType, f->retTy ) = MT_AGG then
+        if f->retSize <= 0 then
+            dim as Tko.SymbolId rsid = c.info->RefOf( pn )
+            dim as Tko.Symbol ptr rs = c.syms->SymbolAt( rsid )
+            if rs <> 0 then
+                if rs->type_ <> Tko.TYPE_NONE then
+                    f->retSize = SizeOfType( c, rs->type_ )
+                    f->retClass = ClassifyEightbytes( c, rs->type_ )
+                end if
+            end if
+        end if
+    end if
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
+    if sp = 0 then return
+
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        '' THE ELLIPSIS IS AN N_PARAM and is not a parameter: it carries no type and
+        '' contributes no argument. LLVM spells it in the signature's tail instead.
+        if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+            f->isVariadic = true
+            continue for
+        end if
+        '' THE TYPE IS ON THE TYPEREF CHILD, not on the N_PARAM -- which carries none,
+        '' so reading it there gives TYPE_NONE and every parameter comes out 'void'.
+        '' ParamTypeAt has always read it this way; this is the same fact.
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        '' BYREF IS ON THE PARAMETER, NOT IN THE TYPEREF. The typeref carries the bare
+        '' type either way; Resolve settles byref -- including the DEFAULT, which is
+        '' byref for a UDT or a string and byval for everything else -- by writing
+        '' NF_BYREF onto this node and making the SYMBOL's type a reference. The slot
+        '' path reads the symbol and so sees a pointer; reading the typeref alone does
+        '' not, and 'byref q as Pt' came out an aggregate passed by value.
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            f->AddParam( MT_PTR )
+        else
+            '' The SIZE only where it is genuinely an aggregate -- see the definition
+            '' path above for what recording it otherwise did.
+            dim as MirType smt = ParamMirType( c, pt )
+            dim as ulong ssz = 0
+            dim as ulong scl = 0
+            if smt = MT_AGG then
+                ssz = cast( ulong, SizeOfType( c, pt ) )
+                scl = ClassifyEightbytes( c, pt )
+            end if
+            f->AddParam( smt, ssz, scl )
+        end if
+    next
+    f->callConv = ProcCallConv_( c, pn )
+end sub
+
+end namespace

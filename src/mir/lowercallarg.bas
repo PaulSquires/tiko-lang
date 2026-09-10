@@ -117,7 +117,32 @@ private function UdtConvTemp_ _
     dim as long sz = SizeOfType( c, pt )
     if sz <= 0 then return false
 
-    dim as Tko.SymbolId cv = ConvCtorFor_( c, pt )
+    '' BY THE ARGUMENT'S TYPE, not by position in the chain. ConvCtorFor_ answers
+    '' "some arity-1 constructor that is not the copy one", which is the right question
+    '' only when there is EXACTLY ONE. Measured on fbc:
+    ''
+    ''     type LV
+    ''         declare constructor( byval v as boolean )
+    ''         declare constructor( byref v as string )
+    ''     end type
+    ''     take( LV( s ) )        '' s is a STRING
+    ''
+    '' fbc prints 3 -- the string constructor -- and the chain head is the boolean one,
+    '' so tiko coerced a string descriptor to a boolean with a 'sext' and called the
+    '' wrong constructor. It lowered and it verified. fb/logger.bi's
+    '' 'LogValue( v.Message( ) )' is the same shape, nine constructors deep.
+    ''
+    '' PickCtor is the cost model overload resolution itself uses; the chain walk is
+    '' kept as the fallback for an argument Check could not type, where a cost cannot
+    '' be computed and the old answer is still the best available.
+    dim as Tko.SymbolId cv = Tko.SYMBOL_NONE
+    dim as Tko.TypeId argt0 = c.info->TypeOf_( argNode )
+    if argt0 <> Tko.TYPE_NONE then
+        dim as FB.Array( of ulong ) one
+        one.Push( cast( ulong, argt0 ) )
+        cv = PickCtor( c, StructorOf( c, pt, "__ctor" ), one )
+    end if
+    if cv = Tko.SYMBOL_NONE then cv = ConvCtorFor_( c, pt )
     if cv = Tko.SYMBOL_NONE then return false
     dim as Tko.TypeId cpt = ParamTypeAt( c, cv, 0 )
     if cpt = Tko.TYPE_NONE then return false
