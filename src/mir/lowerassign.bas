@@ -253,6 +253,44 @@ private sub LowerAssign _
         return
     end if
 
+    '' 'let (a, b) = expr' -- N assignments from the elements of ONE evaluation, not an
+    '' assignment of one thing to another. An N_TUPLE target is not an lvalue and has no
+    '' address, so the whole statement declined.
+    ''
+    '' AHEAD OF THE UDT COPY-ASSIGN PATH BELOW, not after it. Check types an N_TUPLE
+    '' target as the TUPLE TYPE, so for '(x, y) = p' over an addressable 'p' the
+    '' equality test below held, and LowerAddr on an N_TUPLE does not answer MV_NONE --
+    '' it MATERIALISES A TEMPORARY out of the targets' current values. The copy-assign
+    '' then ran the statement BACKWARDS, assigning p into that temporary:
+    ''
+    ''     %19 = alloca ptr $tmp4
+    ''     %20 = load @x
+    ''     %21 = field.addr @$tmp4, 0
+    ''     store %21, %20
+    ''     %22 = field.addr @$tmp4, 8
+    ''     %23 = call.rtl ptr fb_StrAssign(%22, -1, @y, -1, 0)
+    ''     call void _ZN9$TUP:6:15aSERKS_(@$tmp4, @p)
+    ''
+    '' Measured, 'dim p as (long, string)' filled with 1/"one" then '(x, y) = p':
+    '' fbc-modern prints 'x= 1 y=one', tiko printed 'x=-99 y=unset' -- the names were
+    '' never written and nothing declined to say so. With TWO STRING elements it was
+    '' worse than a no-op: $tmp4 gets no constructor call either, so fb_StrAssign into
+    '' its uninitialised descriptor is an access violation -- '(u, v) = s' over
+    '' 'dim s as (string, string)' exited 127 with no output.
+    ''
+    '' BOTH conditions had to hold, which is why '(x,y) = (7,"seven")' (right side not
+    '' addressable) and '(x,y) = p' over '(long, long)' (nothing needing a let body)
+    '' were correct all along and hid this.
+    if LowerDestructure( c, target, value ) then return
+    '' AND AN N_TUPLE TARGET IS NEVER ANYTHING ELSE. Falling through to the value
+    '' path below built a temporary out of the NAMES' CURRENT VALUES and stored the
+    '' right side into that -- assigning nothing to any of them, with no decline to
+    '' say so. A destructuring this cannot lower is a decline.
+    if c.ast->Kind( target ) = Tko.N_TUPLE then
+        SkipHere( c )
+        return
+    end if
+
     '' A UDT WITH AN ASSIGNMENT OPERATOR IS A CALL, not a store. 'x = y' over a type
     '' holding a string copied the DESCRIPTOR bitwise and left two objects owning one
     '' buffer -- a double free at scope exit, not a leak. fbc emits
@@ -371,20 +409,6 @@ private sub LowerAssign _
     if LowerBareTypeLiteralAssign_( c, target, value ) then return
 
     if LowerBitfieldStore( c, target, value ) then return
-
-
-    '' 'let (a, b) = expr' -- N assignments from the elements of ONE evaluation, not an
-    '' assignment of one thing to another. An N_TUPLE target is not an lvalue and has no
-    '' address, so the whole statement declined.
-    if LowerDestructure( c, target, value ) then return
-    '' AND AN N_TUPLE TARGET IS NEVER ANYTHING ELSE. Falling through to the value
-    '' path below built a temporary out of the NAMES' CURRENT VALUES and stored the
-    '' right side into that -- assigning nothing to any of them, with no decline to
-    '' say so. A destructuring this cannot lower is a decline.
-    if c.ast->Kind( target ) = Tko.N_TUPLE then
-        SkipHere( c )
-        return
-    end if
 
     dim as MirValue addr = LowerAddr( c, target )
     '' A UDT VALUE ASSIGNED TO A SCALAR IS ITS 'operator cast', not its bytes. See

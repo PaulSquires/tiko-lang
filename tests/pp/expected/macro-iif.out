@@ -30,7 +30,7 @@ func i32 main(i32 $0, ptr $1) {
     %16 = icmp.eq %14, %15
     condbr %16, if.then5, if.else6
   if.then2:
-    %10 = const i64 11
+    %10 = const i64 18
     call.rtl void fb_Assert(@@$str0, %10, @@$str1, @@$str2)
     br if.join1
   if.else3:
@@ -44,7 +44,7 @@ func i32 main(i32 $0, ptr $1) {
     %23 = icmp.eq %21, %22
     condbr %23, if.then8, if.else9
   if.then5:
-    %17 = const i64 11
+    %17 = const i64 19
     call.rtl void fb_Assert(@@$str0, %17, @@$str1, @@$str3)
     br if.join4
   if.else6:
@@ -58,7 +58,7 @@ func i32 main(i32 $0, ptr $1) {
     %30 = icmp.eq %28, %29
     condbr %30, if.then11, if.else12
   if.then8:
-    %24 = const i64 11
+    %24 = const i64 20
     call.rtl void fb_Assert(@@$str0, %24, @@$str1, @@$str3)
     br if.join7
   if.else9:
@@ -72,7 +72,7 @@ func i32 main(i32 $0, ptr $1) {
     %37 = icmp.eq %35, %36
     condbr %37, if.then14, if.else15
   if.then11:
-    %31 = const i64 11
+    %31 = const i64 22
     call.rtl void fb_Assert(@@$str0, %31, @@$str1, @@$str3)
     br if.join10
   if.else12:
@@ -86,7 +86,7 @@ func i32 main(i32 $0, ptr $1) {
     %44 = icmp.eq %42, %43
     condbr %44, if.then17, if.else18
   if.then14:
-    %38 = const i64 11
+    %38 = const i64 23
     call.rtl void fb_Assert(@@$str0, %38, @@$str1, @@$str3)
     br if.join13
   if.else15:
@@ -100,7 +100,7 @@ func i32 main(i32 $0, ptr $1) {
     %51 = icmp.eq %49, %50
     condbr %51, if.then20, if.else21
   if.then17:
-    %45 = const i64 11
+    %45 = const i64 24
     call.rtl void fb_Assert(@@$str0, %45, @@$str1, @@$str2)
     br if.join16
   if.else18:
@@ -114,7 +114,7 @@ func i32 main(i32 $0, ptr $1) {
     %58 = icmp.eq %57, %56
     condbr %58, if.then23, if.else24
   if.then20:
-    %52 = const i64 11
+    %52 = const i64 27
     call.rtl void fb_Assert(@@$str0, %52, @@$str1, @@$str4)
     br if.join19
   if.else21:
@@ -128,7 +128,7 @@ func i32 main(i32 $0, ptr $1) {
     %65 = icmp.eq %63, %64
     condbr %65, if.then26, if.else27
   if.then23:
-    %59 = const i64 11
+    %59 = const i64 31
     call.rtl void fb_Assert(@@$str0, %59, @@$str1, @@$str6)
     br if.join22
   if.else24:
@@ -139,7 +139,7 @@ func i32 main(i32 $0, ptr $1) {
     %68 = load @$tmp0
     ret %68
   if.then26:
-    %66 = const i64 11
+    %66 = const i64 39
     call.rtl void fb_Assert(@@$str0, %66, @@$str1, @@$str7)
     br if.join25
   if.else27:

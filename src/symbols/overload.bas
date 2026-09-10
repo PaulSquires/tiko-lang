@@ -336,6 +336,54 @@ private function UserBinaryOp_ _
             m2 = ms2->nextInScope
         wend
     next
+
+    '' ...AND FROM THE MODULE SCOPE WHEN A UDT OPERAND IS DECLARED IN THE GLOBAL ONE.
+    '' A TUPLE has no declaration to walk out from: TupleUdtFor synthesises it into
+    '' SCOPE_GLOBAL under a structural key, and SCOPE_GLOBAL holds only the builtins --
+    '' the trap noted at the top of this walk. With BOTH operands tuples both iterations
+    '' landed there, 'heads' stayed EMPTY, and a global operator over tuples was never a
+    '' candidate at all.
+    ''
+    '' Measured, fbc-modern against tiko, 'type P as (long, long)' with a global
+    '' 'operator =( byref a as P, byref b as P )' counting its own calls:
+    ''
+    ''     fbc-modern:  x=y ->  1  ran= 1
+    ''     tiko:        x=y ->  0  ran= 0
+    ''
+    '' -- tiko silently fell back to the built-in element-wise compare. The same shape
+    '' with 'operator +' was worse than silent: '--dump-ir' reported '1 statements not
+    '' lowered / unlowered N_INTRINSIC KW_PRINT', so the PRINT of it vanished entirely.
+    '' ONE tuple operand and one ordinary UDT already worked, because that UDT's own
+    '' declaring scope IS the module scope -- which is why every operand had to be a
+    '' tuple for the failure to appear.
+    ''
+    '' The user operator WINS over the built-in tuple compare wherever it is viable, and
+    '' the built-in still stands where it is not -- measured: with only an 'operator ='
+    '' over a 3-element tuple declared, 2-element compares stay element-wise
+    '' ('x=y -> 0', 'x=z -> 1'), while the 3-element one calls the operator.
+    ''
+    '' Restricted to a UDT operand whose declaring scope is exactly SCOPE_GLOBAL, so a
+    '' type declared at module or namespace level reaches nothing it did not already.
+    for si as long = 0 to 1
+        dim as Tko.TypeId ot3 = iif( si = 0, lt, rt )
+        if IsUdtOperand_( c, ot3 ) = false then continue for
+        dim as Tko.ScopeId sc3 = _
+            cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot3 ) ) )
+        if sc3 <> Tko.SCOPE_GLOBAL then continue for
+        for mi as long = 0 to c.syms->scopes.Count - 1
+            dim as Tko.ScopeId msc = cast( Tko.ScopeId, mi )
+            dim as Tko.SymScope ptr ms3 = c.syms->ScopeAt( msc )
+            if ms3 = 0 then continue for
+            if ms3->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then continue for
+            dim as Tko.SymbolId h5 = c.syms->LookupLocal( msc, fold )
+            if h5 = Tko.SYMBOL_NONE then continue for
+            dim as boolean dup3 = false
+            for k as long = 0 to heads.Count - 1
+                if cast( Tko.SymbolId, heads[k] ) = h5 then dup3 = true
+            next
+            if dup3 = false then heads.Push( cast( ulong, h5 ) )
+        next
+    next
     if heads.Count = 0 then return Tko.SYMBOL_NONE
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE

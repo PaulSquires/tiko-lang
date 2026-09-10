@@ -22,6 +22,25 @@ type PpFrame
     '' The position TryTailJoin_ has already looked at and refused, so a peek that
     '' happens ten times over the same token re-lexes the pair once. -1 is "not yet".
     as long      joinTried
+    '' WHERE THE MACRO NAME THAT OPENED THIS FRAME WAS WRITTEN. LOC_NONE for a file
+    '' frame and for the internal buffers that are not a macro use.
+    ''
+    '' __LINE__ and __FILE__ inside a macro body have to answer for the USE site, and
+    '' the body token's own loc is the DEFINITION site. Measured on fbc 1.10, with the
+    '' body on line 1 of the file:
+    ''
+    ''     #define where_(e) print __LINE__       used on lines 3 and 4
+    ''                                            fbc: 3 then 4    tiko-lang: 1 twice
+    ''     #define inner_ __LINE__ / #define outer_ inner_   in an INCLUDED header
+    ''                                            fbc: the includER's line, and
+    ''                                            __FILE__ likewise names the
+    ''                                            includER -- tiko-lang named the .bi
+    ''
+    '' So it is the OUTERMOST expansion that answers, not the innermost, which is why
+    '' this is a per-frame field read from the bottom of the expansion stack rather
+    '' than the 'use' token PpExpandBuiltin already has. Every fbcunit assertion in the
+    '' corpus reported its '#define' line instead of the failing line without it.
+    as SourceLoc useLoc
 end type
 
 type PpCond
@@ -190,7 +209,8 @@ end sub
 
 private sub PushFrame _
     ( byref e as PpEngine, byval toks as TokenVec ptr, byval hides as InternId, _
-      byval file as FileId, byval owned as boolean )
+      byval file as FileId, byval owned as boolean, _
+      byval useLoc as SourceLoc = LOC_NONE )
 
     if e.frames.Count >= PP_MAX_FRAMES then
         Report( e, TKO0304, LOC_NONE, str( PP_MAX_FRAMES ) )
@@ -205,9 +225,40 @@ private sub PushFrame _
     f.hides = hides
     f.file = file
     f.owned = owned
+    f.useLoc = useLoc
     e.frames.Push( f )
     if e.frames.Count > e.outp->maxDepth then e.outp->maxDepth = e.frames.Count
 end sub
+
+'' Where the source WROTE the thing being expanded -- the loc __LINE__, __FILE__ and
+'' __PATH__ have to answer for.
+''
+'' The OUTERMOST expansion wins, so this walks down to the innermost FILE frame and
+'' takes the first recorded use site above it. Measured on fbc 1.10: with '#define
+'' inner_ __LINE__' and '#define outer_ inner_' both in an included header, 'outer_'
+'' on line 4 of the includer prints 4 -- not the header's line, and not inner_'s. The
+'' innermost frame's own use site would give inner_'s line inside outer_'s body,
+'' which is a line in the header again.
+''
+'' Falls back to the token's own loc, which is right for a builtin used directly in a
+'' file and is what every non-macro path already did.
+private function UseSiteLoc_ _
+    ( byref e as PpEngine, byref use as Token ) as SourceLoc
+
+    dim as long fileAt = -1
+    for i as long = e.frames.Count - 1 to 0 step -1
+        if e.frames[i].file <> FILE_NONE then
+            fileAt = i
+            exit for
+        end if
+    next
+    if fileAt < 0 then return use.loc
+
+    for i as long = fileAt + 1 to e.frames.Count - 1
+        if e.frames[i].useLoc <> LOC_NONE then return e.frames[i].useLoc
+    next
+    return use.loc
+end function
 
 private sub PopFrame( byref e as PpEngine )
     if e.frames.IsEmpty( ) then return

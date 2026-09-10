@@ -410,6 +410,16 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             return r
         end if
 
+        '' TRUE and FALSE CARRY A VALUE HERE, because fbc's are boolean consts in the
+        '' symbol table (symb-keyword.bas: -1 and 0) and its '#if' reads them like any
+        '' other const. Measured on fbc 1.10 and fbc-modern: '#if TRUE' takes the true
+        '' branch and '#if FALSE' does not. They arrive as identifiers rather than as a
+        '' value because PPB_SELF refuses to expand them -- which is what keeps them
+        '' BOOLEAN for the parser -- so without this both were 0 and '#if TRUE'
+        '' silently selected the false half.
+        if nm = "true" then return PxNum( -1 )
+        if nm = "false" then return PxNum( 0 )
+
         '' An identifier that survived expansion is an undefined macro, which is 0.
         return PxNum( 0 )
 

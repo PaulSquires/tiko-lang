@@ -12,7 +12,14 @@ function PpExpandBuiltin _
 
     Advance( e )
 
-    dim as DecodedLoc d = e.src->Decode( use.loc )
+    '' THE USE SITE, NOT THE BODY TOKEN'S OWN LOC. Inside a macro body 'use' is the
+    '' token as it sits in the DEFINITION, so __LINE__ reported the '#define' line for
+    '' every expansion -- measured against fbc 1.10, which reports 3 and 4 for two uses
+    '' of a macro defined on line 1, where tiko-lang reported 1 twice. __FILE__ was the
+    '' same bug: a macro defined in a header named the HEADER wherever it was used.
+    '' See UseSiteLoc_ in pp.bas for why the outermost expansion is the one that
+    '' answers. Nothing else here is position-dependent, so nothing else changes.
+    dim as DecodedLoc d = e.src->Decode( UseSiteLoc_( e, use ) )
     dim as TokenVec ptr buf = new TokenVec
 
     select case as const m->builtin
@@ -340,6 +347,6 @@ function PpExpandBuiltin _
         return true
     end if
     e.outp->expansionCount += 1
-    PushFrame( e, buf, m->name, FILE_NONE, true )
+    PushFrame( e, buf, m->name, FILE_NONE, true, use.loc )
     return true
 end function

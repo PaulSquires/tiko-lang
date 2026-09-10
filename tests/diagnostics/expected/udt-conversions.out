@@ -444,7 +444,7 @@ lowered: 14 functions, 14 blocks, 328 insts, 8 statements not lowered, 0 scope i
   amb-assign-val N_IDENT 1
   skip-site src\mir\lowerutil.bas:40 6
   skip-site src\mir\lowerassign.bas:154 1
-  skip-site src\mir\lowerassign.bas:397 1
+  skip-site src\mir\lowerassign.bas:421 1
 tests/diagnostics/src/udt-conversions.bas(48,1): error TKO0738: no conversion between these two types
      |
   48 | c = a

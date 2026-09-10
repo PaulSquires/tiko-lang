@@ -127,8 +127,20 @@ xargs -a build/.runcorpus.lst -d '
     fi
     timeout 30 "$d/t.exe" > "$d/t.out" 2>&1 < /dev/null
     trc=$?
-    if [ $trc -ge 124 ]; then
+    # A TIMEOUT IS 124, AND ONLY 124. 'timeout' reports 124 when it fires and 137 when
+    # it has to SIGKILL; 127 is not a timeout at all -- under this shell a Windows
+    # process that dies on a fatal exception reports it, and so does an exe that will
+    # not start. Lumping 127 in with the timeouts labelled twelve files "hang" when
+    # tuple/equality.bas was in fact exiting 0xC0000374, heap corruption, in under a
+    # second. Measured by running the same binary under PowerShell, which reports the
+    # real status word.
+    if [ $trc -eq 124 ] || [ $trc -eq 137 ]; then
         echo "hang $1: [$ref] tiko build runs past 30s where the reference exited $frc" > "$part"
+        rm -rf "$d"
+        exit 0
+    fi
+    if [ $trc -eq 127 ]; then
+        echo "crash $1: [$ref] tiko build died or would not start; the reference exited $frc" > "$part"
         rm -rf "$d"
         exit 0
     fi
@@ -160,12 +172,15 @@ rm -rf build/.runbin 2>/dev/null || true
 fbcfail=$(grep -c '^fbcfail ' build/.run.out || true)
 bld=$(grep -c '^build ' build/.run.out || true)
 hang=$(grep -c '^hang ' build/.run.out || true)
+crash=$(grep -c '^crash ' build/.run.out || true)
 exitn=$(grep -c '^exit ' build/.run.out || true)
 outn=$(grep -c '^output ' build/.run.out || true)
-ok=$((want - fbcfail - bld - hang - exitn - outn))
+ok=$((want - fbcfail - bld - hang - crash - exitn - outn))
 echo "runscan: $want files tagged COMPILE_AND_RUN_OK"
 echo "runscan: $ok match the reference byte for byte, $fbcfail no reference can build or run"
-echo "runscan: $bld tiko will not build, $hang hang, $exitn differ in EXIT CODE, $outn in OUTPUT"
+echo "runscan: $bld tiko will not build, $hang hang, $crash CRASH, $exitn differ in EXIT CODE, $outn in OUTPUT"
+echo "runscan: --- crashes ---"
+grep '^crash ' build/.run.out | sed 's/^/runscan:  /' | head -15
 echo "runscan: --- output mismatches ---"
 grep '^output ' build/.run.out | sed 's/^/runscan:  /' | head -25
 echo "runscan: --- exit-code mismatches ---"

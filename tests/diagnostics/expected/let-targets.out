@@ -50,8 +50,8 @@ verify: ok
 lowered: 1 functions, 1 blocks, 35 insts, 4 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 4
   skip-site src\mir\lowerutil.bas:40 1
-  skip-site src\mir\lowerassign.bas:397 2
-  skip-site src\mir\lowerassign.bas:385 1
+  skip-site src\mir\lowerassign.bas:421 2
+  skip-site src\mir\lowerassign.bas:290 1
 tests/diagnostics/src/let-targets.bas(13,6): error TKO0652: a literal cannot be assigned to
      |
   13 | let( 0 ) = x

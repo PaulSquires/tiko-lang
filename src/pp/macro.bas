@@ -158,6 +158,13 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     '' exclusive-LOOKING guards 1,500 lines apart -- and it was not one. A probe
     '' inserted at the first definition proved tiko-lang knew the target was 64-bit there.
     dim as boolean wasDefined = m->isDefined
+    '' ...EXCEPT OVER TRUE AND FALSE, WHICH MAY BE REDEFINED FREELY. fbc marks both
+    '' consts symbSetCanRedef (symb-keyword.bas) and answers a '#define TRUE 1' with
+    '' 'warning 39(1): Redefinition of intrinsic' -- measured -- not an error, and the
+    '' new value then wins: 'print TRUE' is 1 and '#if TRUE' is still taken. Headers
+    '' write that unguarded, so reporting TKO0305 here would fail every one of them,
+    '' which is what defining the pair in the first place did until this line.
+    dim as boolean wasRedefinable = (m->builtin = PPB_SELF)
     dim as boolean oldIsFunc = m->isFunc
     dim as TokenVec oldBody
     if wasDefined then
@@ -181,7 +188,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
 
     if isBlock = false then
         CollectLine( e, m->body, true )
-        if wasDefined then
+        if wasDefined andalso (wasRedefinable = false) then
             if IdenticalRedefinition_( m, oldIsFunc, oldBody ) = false then
                 Report( e, TKO0305, at, e.names->Spelling( id ) )
             end if
@@ -1373,6 +1380,15 @@ declare function PpExpandBuiltin _
 private function PpExpand _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
 
+    '' PPB_SELF -- TRUE and FALSE -- IS DEFINED BUT NEVER EXPANDS. Returning false
+    '' means "the name was not consumed", so every caller falls through to its own
+    '' Advance-and-emit and the identifier reaches the parser unchanged, where the
+    '' symbol table resolves it as the BOOLEAN const it is in fbc (symb-keyword.bas,
+    '' -1 and 0). Emitting the name from an expansion frame instead cannot work:
+    '' IsHidden always returns false -- fbc has no hide set, measured -- so a
+    '' self-emitting expansion re-enters itself and dies at PP_MAX_FRAMES, which is
+    '' what '#if TRUE' did on the first attempt at this.
+    if m->builtin = PPB_SELF then return false
     if m->builtin <> PPB_NONE then return PpExpandBuiltin( e, m, use )
 
     '' A function-like macro not followed by '(' is just an identifier, as in C.
@@ -1415,7 +1431,7 @@ private function PpExpand _
         PpSubstitute( e, m, args, use.loc, *buf )
         TrimExpansionTail_( use, *buf )
         e.outp->expansionCount += 1
-        PushFrame( e, buf, m->name, FILE_NONE, true )
+        PushFrame( e, buf, m->name, FILE_NONE, true, use.loc )
         return true
     end if
 
@@ -1424,7 +1440,7 @@ private function PpExpand _
     dim as ArgList empty
     PpSubstitute( e, m, empty, use.loc, *buf )
     e.outp->expansionCount += 1
-    PushFrame( e, buf, m->name, FILE_NONE, true )
+    PushFrame( e, buf, m->name, FILE_NONE, true, use.loc )
     return true
 end function
 

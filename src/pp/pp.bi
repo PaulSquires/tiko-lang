@@ -68,6 +68,34 @@ namespace Tko
         PPB_DATE_ISO        '' __DATE_ISO__ -- YYYY-MM-DD, where __DATE__ is MM-DD-YYYY
         PPB_TIME
         PPB_FUNCTION         '' __FUNCTION__ -- parser territory; passed through
+        '' DEFINED, AND NEVER EXPANDING -- how TRUE and FALSE are modelled.
+        ''
+        '' fbc has no macro for either: symb-keyword.bas's symbKeywordConstsInit adds
+        '' them as boolean CONSTS (-1 and 0) marked CanRedef, and fbc's '#ifdef' asks
+        '' the whole symbol table rather than the define table. Measured on fbc 1.10
+        '' and fbc-modern with one probe, identical output from both:
+        ''
+        ''   #ifdef TRUE / #ifdef FALSE      both DEFINED
+        ''   #ifndef TRUE                    not taken
+        ''   defined( TRUE )                 yes
+        ''   #if TRUE / #if FALSE            taken / not taken
+        ''   #print TRUE                     prints TRUE
+        ''
+        '' tiko-lang answered "not defined" to all of them, and the damage was not the
+        '' '#ifdef' but what it let through: win/ntdef.bi guards 'const TRUE = 1' with
+        '' '#ifndef TRUE', so every file including any win/ header got an INTEGER 1
+        '' shadowing the boolean literal. Measured over win/objbase.bi --
+        '' 'dim as boolean b = true : print (b = TRUE)' printed fbc's 'true' and
+        '' tiko-lang's ' 0', the integer comparison of -1 against 1.
+        ''
+        '' A macro whose BODY is its own name cannot express this: fbc rejects one
+        '' (error 89, Recursive DEFINE not allowed) and tiko-lang has no hide set --
+        '' see IsHidden in pp.bas, which is measured and deliberate -- so it would
+        '' expand until PP_MAX_FRAMES. PpExpand therefore refuses the name outright and
+        '' the identifier reaches the parser untouched, where the symbol table resolves
+        '' it as the BOOLEAN it is. '#if TRUE' is answered in ppexpr.bas, where fbc
+        '' answers it from the const's value.
+        PPB_SELF
     end enum
 
     type IdVec as FB.Array( of ulong )

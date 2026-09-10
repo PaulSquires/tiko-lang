@@ -1139,6 +1139,15 @@ private sub PpDefineBuiltins( byref e as PpEngine )
         PpDefineFunc1( e, "hiword", "(cuint(x) shr 16)" )
     end if
 
+    '' TRUE AND FALSE ARE DEFINED TO THE PREPROCESSOR. Measured on fbc 1.10 and
+    '' fbc-modern: '#ifdef TRUE' and '#ifdef FALSE' both take the true branch, and
+    '' '#ifndef TRUE' takes neither. tiko-lang answered "not defined" to all three,
+    '' which let win/ntdef.bi's '#ifndef TRUE / const TRUE = 1' through -- an INTEGER
+    '' 1 shadowing the boolean literal in every file that includes any win/ header, so
+    '' 'boolean = TRUE' compared -1 against 1 and was false. See PPB_SELF in pp.bi.
+    PpDefineBuiltinMacro( e, "true", PPB_SELF, false )
+    PpDefineBuiltinMacro( e, "false", PPB_SELF, false )
+
     '' Builtins that manipulate tokens rather than carry a value.
     PpDefineBuiltinMacro( e, "__FILE__", PPB_FILE, false )
     PpDefineBuiltinMacro( e, "__FILE_NQ__", PPB_FILE_NQ, false )
