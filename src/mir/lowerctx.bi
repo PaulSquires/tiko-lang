@@ -515,6 +515,9 @@ declare function EmitRtl _
     '' lower.bas alone because lowerwstr.bas is its OWN compilation unit and could
     '' not see them: the wide concatenation test needs the same 'a character plus a
     '' number is arithmetic' rule the narrow one has.
+    '' lowermember.bas -- one field's initialisation, for the synthesised structors.
+    declare sub InitMember_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
     declare function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
     declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
