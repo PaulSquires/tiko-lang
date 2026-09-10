@@ -205,6 +205,28 @@ function LowerExpr _
         '' that would not lower skipped its store without counting it.
         dim as Tko.UnaryPayload ptr ap = _
             @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' '@this' IS THE OBJECT'S ADDRESS, which is the slot's VALUE and not the
+        '' slot. The receiver is held as a POINTER -- IsThisPointerIdent_ exists
+        '' because several sites need to know it -- so LowerAddr answers with the
+        '' slot's own address, and '@this' handed back a pointer to a pointer.
+        ''
+        '' Measured: fbc writes 'fb$result$1 = (void*)THIS$1;' and '@p' and
+        '' 'p.Addr( )' compare EQUAL; under tiko they differed by the frame offset
+        '' of the receiver slot. '@this.field' was right all along -- only the bare
+        '' spelling was wrong -- and every fb/*.bi iterator is built on it
+        '' ('it.src = @this' in array.bi, set.bi, map.bi, channel.bi, orderedmap.bi),
+        '' so 'for each' over any container walked from the wrong address.
+        ''
+        '' NOT IN AddrOfVar, which is where the pointer-ness is otherwise handled:
+        '' its four callers that pass the receiver symbol ALREADY follow it with a
+        '' load of their own, and moving the load inside would make every one of
+        '' them read through the object instead of to it.
+        if IsThisPointerIdent_( c, ap->operand ) then
+            dim as MirValue tsl = LowerAddr( c, ap->operand )
+            if tsl.kind <> cast( ubyte, MV_NONE ) then
+                return LowerExprLoad( c, tsl, MT_PTR )
+            end if
+        end if
         '' A UDT MAY OVERLOAD '@', and then '@f' is a CALL. Measured, fbc emits
         '' 'int64* vr$2 = _ZN3FOOadEv( &F$0 );' and prints the field the operator
         '' points at, 999, where the object's own address reads the one before it,

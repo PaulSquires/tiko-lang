@@ -17,9 +17,10 @@ func ptr _ZN7SELFOPSadEv(ptr $0) {
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0
-    store @$tmp0, @this
-    %4 = load @$tmp0
-    ret %4
+    %4 = load @this
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    ret %5
 }
 func void _ZN9PUBLICOPSpLERS_(ptr $0, ptr $1) {
   local ptr this
@@ -40,9 +41,10 @@ func ptr _ZN9PUBLICOPSadEv(ptr $0) {
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0
-    store @$tmp0, @this
-    %4 = load @$tmp0
-    ret %4
+    %4 = load @this
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    ret %5
 }
 func ptr _ZN5ALLOCnwEu8UINTEGER(i64 $0) {
   local ptr $tmp0
@@ -347,7 +349,7 @@ declare void free(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 16 functions, 26 blocks, 202 insts, 3 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 26 blocks, 204 insts, 3 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   inside N_FOR 1
   skip-site src\mir\lowerfor.bas:80 1

@@ -1064,13 +1064,35 @@ sub LowerIf _
         else
             Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
         end if
+        '' AN ARM IS A SCOPE, and neither of them was one.
+        ''
+        '' Every other block-forming construct in this compiler brackets its body
+        '' with PushScope/CloseScope -- LowerSelect, LowerDo, LowerFor, N_SCOPE, the
+        '' loop bodies -- and IF did not. So a destructor or a 'defer' registered
+        '' inside an arm stayed on the cleanup list until the PROCEDURE scope closed,
+        '' and because nothing popped it BOTH arms' cleanups were still there:
+        ''
+        ''     if n = 1 then : dim t as Tr : ... : else : dim u as Tr : ... : end if
+        ''
+        '' printed 'then-body|after-if~T~T' where fbc prints 'then-body~T|after-if'.
+        '' The second destructor ran over an object that was NEVER CONSTRUCTED, and
+        '' over a type holding a string that is a release of a descriptor nothing
+        '' wrote -- the probe crashed. Measured against fbc, which destroys at the
+        '' END OF THE ARM, before the statement after the IF.
         c.curBlock = thenB
+        PushScope( c )
         LowerBlock( c, bp->b )
+        CloseScope( c )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
         c.curBlock = elseB
     next
 
-    if sp->c <> Tko.NODE_NONE then LowerBlock( c, sp->c )
+    '' ...AND THE ELSE BODY, for the same reason.
+    if sp->c <> Tko.NODE_NONE then
+        PushScope( c )
+        LowerBlock( c, sp->c )
+        CloseScope( c )
+    end if
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
     c.curBlock = joinB
 end sub

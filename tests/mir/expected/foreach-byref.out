@@ -71,15 +71,16 @@ func void _ZN3BAG11GETITERATOREv(ptr $0, ptr $1) {
     %3 = alloca ptr it
     %4 = call.rtl ptr memset(@it, 0, 16)
     %5 = field.addr @it, 0
-    store %5, @this
-    %6 = field.addr @it, 8
-    %7 = const i64 0
-    %8 = trunc %7
-    store %6, %8
-    %9 = load @it
-    store @$tmp0, %9
-    %10 = load @$tmp0
-    store $0, %10
+    %6 = load @this
+    store %5, %6
+    %7 = field.addr @it, 8
+    %8 = const i64 0
+    %9 = trunc %8
+    store %7, %9
+    %10 = load @it
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    store $0, %11
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -91,7 +92,7 @@ func i32 SUMOF(ptr $0) {
   local agg $tmp4 size 16
   local agg $abi5 size 16
   entry0:
-    %16 = alloca ptr $abi5
+    %17 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -107,22 +108,23 @@ func i32 SUMOF(ptr $0) {
     store @$tmp4, %9
     br each.test3
   each.body1:
-    %10 = call i32 _ZN4ITER5VALUEEv(@$tmp4)
-    store @e, %10
-    %11 = load @s
-    %12 = load @e
-    %13 = add %11, %12
-    store @s, %13
+    %10 = call ptr _ZN4ITER5VALUEEv(@$tmp4)
+    %11 = load %10
+    store @e, %11
+    %12 = load @s
+    %13 = load @e
+    %14 = add %12, %13
+    store @s, %14
     br each.cont2
   each.cont2:
     call void _ZN4ITER8MOVENEXTEv(@$tmp4)
     br each.test3
   each.test3:
-    %14 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
-    condbr %14, each.body1, each.exit4
+    %15 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
+    condbr %15, each.body1, each.exit4
   each.exit4:
-    %15 = load @s
-    ret %15
+    %16 = load @s
+    ret %16
 }
 func i32 SUMOFVAL(ptr $0) {
   local i32 $tmp0
@@ -132,7 +134,7 @@ func i32 SUMOFVAL(ptr $0) {
   local agg $tmp4 size 16
   local agg $abi5 size 16
   entry0:
-    %16 = alloca ptr $abi5
+    %17 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -148,22 +150,23 @@ func i32 SUMOFVAL(ptr $0) {
     store @$tmp4, %9
     br each.test3
   each.body1:
-    %10 = call i32 _ZN4ITER5VALUEEv(@$tmp4)
-    store @e, %10
-    %11 = load @s
-    %12 = load @e
-    %13 = add %11, %12
-    store @s, %13
+    %10 = call ptr _ZN4ITER5VALUEEv(@$tmp4)
+    %11 = load %10
+    store @e, %11
+    %12 = load @s
+    %13 = load @e
+    %14 = add %12, %13
+    store @s, %14
     br each.cont2
   each.cont2:
     call void _ZN4ITER8MOVENEXTEv(@$tmp4)
     br each.test3
   each.test3:
-    %14 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
-    condbr %14, each.body1, each.exit4
+    %15 = call i8 _ZN4ITER7ISVALIDEv(@$tmp4)
+    condbr %15, each.body1, each.exit4
   each.exit4:
-    %15 = load @s
-    ret %15
+    %16 = load @s
+    ret %16
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -181,4 +184,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 15 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 15 blocks, 111 insts, 0 statements not lowered, 0 scope imbalance

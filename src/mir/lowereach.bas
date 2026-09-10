@@ -96,7 +96,28 @@ function LowerForEachIter _
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = bodyB
-    dim as MirValue ev = EmitMemberCall( c, valueOf, iaddr, emt )
+    '' A BYREF Value( ) HANDS BACK A POINTER, and the element is what it points at.
+    ''
+    '' RFC-0002's iterator protocol allows either -- fb/array.bi, set.bi, map.bi and
+    '' their siblings all declare 'function Value( ) byref as T' so the caller can
+    '' write through it -- and this asked for the ELEMENT's type regardless, so the
+    '' returned ADDRESS was stored into the loop variable. Measured on a header-free
+    '' iterator over three longs: fbc prints 3, 6, 9 and tiko printed three
+    '' consecutive addresses four bytes apart. It lowered, it verified, and the loop
+    '' ran the right number of times.
+    dim as boolean vByref = false
+    dim as Tko.NodeId vpn = cast( Tko.NodeId, vs2->payload )
+    if vpn <> Tko.NODE_NONE then
+        vByref = ((c.ast->nodes[cast( long, vpn )].flags and Tko.NF_BYREF) <> 0)
+    end if
+    dim as MirValue ev
+    if vByref then
+        dim as MirValue evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        if evp.kind = cast( ubyte, MV_NONE ) then return false
+        ev = LowerExprLoad( c, evp, emt )
+    else
+        ev = EmitMemberCall( c, valueOf, iaddr, emt )
+    end if
     if ev.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirInst stv
     stv.op = cast( ushort, M_STORE )
