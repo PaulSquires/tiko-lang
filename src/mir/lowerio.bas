@@ -732,6 +732,30 @@ function PrintOne _
                                    (c.ast->Kind( it ) = Tko.N_IDENT) orelse _
                                    (c.ast->Kind( it ) = Tko.N_INTRINSIC) orelse _
                                    (c.ast->Kind( it ) = Tko.N_STRCAT)
+        '' ...AND A MEMBER THAT IS A PROPERTY, because that is a CALL. 'print a.first'
+        '' over 'property first( ) as string' is string-typed, so this branch claimed it
+        '' and then fell to LowerAddr -- whose answer for a name that resolves to a
+        '' PROCEDURE is the GETTER'S CODE ADDRESS, printed as a descriptor, and an
+        '' access violation. TESTED ON THE MEMBER'S OWN SYMBOL: adding N_MEMBER
+        '' unconditionally made generics/generic-procptr-typearg.bas fail its ViaSlot
+        '' assertion, and a hand-cut reduction of that file reads uninitialised memory
+        '' and answers either way, so it was bisected against the file itself.
+        if isCallish = false then
+            if c.ast->Kind( it ) = Tko.N_MEMBER then
+                dim as Tko.Symbol ptr pmy = c.syms->SymbolAt( c.info->RefOf( it ) )
+                if pmy <> 0 then
+                    if pmy->kind = cast( ubyte, Tko.SYM_PROC ) then
+                        dim as Tko.NodeId ppn4 = cast( Tko.NodeId, pmy->payload )
+                        if ppn4 <> Tko.NODE_NONE then
+                            if c.ast->Kind( ppn4 ) = Tko.N_PROC then
+                                isCallish = (StmtOf( c, ppn4 )->op = _
+                                    cast( ushort, Tko.KW_PROPERTY ))
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
         if isCallish then
             dim as MirValue cd
             if StrDescriptorOf_( c, it, cd ) then

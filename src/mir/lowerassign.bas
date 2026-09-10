@@ -146,6 +146,25 @@ private sub LowerAssign _
     if LowerWideAssign( c, target, value ) then return
     if LowerWideToNarrow( c, target, value ) then return
 
+    '' A STRING-VALUED PROPERTY IS A CALL, and the string branch below would claim it.
+    ''
+    '' 'a.first = \"zero\"' over 'property first( byval x as string )' is string-typed,
+    '' so LowerStringAssign took it and asked its target for an ADDRESS -- and the
+    '' target names a PROCEDURE:
+    ''
+    ''     %5 = func.addr ptr _ZN4ARR312FIRST__get__Ev
+    ''     %6 = call.rtl ptr fb_StrAssign(%5, -1, @@$str0, 5, 0)
+    ''
+    '' -- a descriptor written OVER THE GETTER'S MACHINE CODE, and 0xC0000374. The
+    '' setter was emitted correctly and never called. A property of any OTHER type was
+    '' right all along, because only the string branch runs this early -- which is why
+    '' the test goes HERE and not at the top: moving the general property call ahead of
+    '' every flavour test made it claim 's.fn = @Less' over a GENERIC procedure-pointer
+    '' FIELD, and generic-procptr-typearg.bas went from passing to failing.
+    if IsStringType( c, c.info->TypeOf_( target ) ) then
+        if LowerPropertySet_( c, target, value ) then return
+    end if
+
     if IsStringType( c, c.info->TypeOf_( target ) ) then
         '' SkipHere, NOT a bare counter bump. This site incremented 'skipped'
         '' directly, so its declines had NO trace line, NO skip-site and NO source

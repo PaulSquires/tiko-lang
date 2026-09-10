@@ -97,7 +97,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 4 functions, 4 blocks, 57 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lowerassign.bas:421 1
+  skip-site src\mir\lowerassign.bas:439 1
 tests/diagnostics/src/arrow-iif-union-base.bas(27,9): error TKO0717: 'base.f( )' calls an abstract method, which has no body
      |
   27 |     base.f( )

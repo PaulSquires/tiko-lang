@@ -116,13 +116,13 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN3FOOC1Ev(@f)
     %5 = field.addr @f, 0
     %6 = call.rtl ptr fb_StrAssign(%5, -1, @@$str2, 3, 0)
-    %7 = func.addr ptr _ZN3FOO10BAR__get__Ev
+    %7 = call ptr _ZN3FOO10BAR__get__Ev(@f)
     call.rtl void fb_PrintString(0, %7, 1)
     %8 = alloca ptr b
     call void _ZN3BAZC1Ev(@b)
     %9 = field.addr @b, 0
     %10 = call.rtl ptr fb_StrAssign(%9, -1, @@$str3, 3, 0)
-    %11 = func.addr ptr _ZN3BAZ10QUX__get__Ev
+    %11 = call ptr _ZN3BAZ10QUX__get__Ev(@b)
     call.rtl void fb_PrintString(0, %11, 1)
     %12 = alloca ptr g
     %13 = call.rtl ptr memset(@g, 0, 8)

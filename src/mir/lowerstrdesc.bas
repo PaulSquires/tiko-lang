@@ -143,6 +143,54 @@ function StrDescriptorOf_ _
         return true
     end if
 
+    '' A STRING-VALUED PROPERTY IS A CALL, and the type test below would swallow it.
+    ''
+    '' 'a.first' over 'property first( ) as string' IS string-typed, so the branch
+    '' below claimed it and asked LowerAddr for an address -- and the thing it names
+    '' is a PROCEDURE, so the answer was the GETTER'S CODE ADDRESS:
+    ''
+    ''     %6 = func.addr ptr _ZN4ARR312FIRST__get__Ev
+    ''     call.rtl void fb_PrintString(0, %6, 1)
+    ''
+    '' -- the function's machine code printed as a descriptor, and an access
+    '' violation. A property of any other type was right all along, because
+    '' LowerExpr's N_MEMBER case asks LowerPropertyGet_ first; only the STRING read
+    '' comes through here instead. Measured: fbc prints 'zero'.
+    ''
+    '' The same ordering trap as the bare-proc call just above -- a recogniser placed
+    '' after the type test that would swallow it. Sixth occurrence.
+    '' ONLY WHEN THE MEMBER REALLY IS A PROPERTY, tested on its OWN symbol rather than
+    '' left to LowerPropertyGet_. That helper walks the member's whole OVERLOAD CHAIN
+    '' looking for an accessor, and inside a generic instantiation the chain reaches
+    '' one that does not belong to this member: it claimed 's.fn' -- a
+    '' PROCEDURE-POINTER FIELD of 'Slot( of F )' -- and
+    '' tests/vendor/fbc-tests/generics/generic-procptr-typearg.bas went from passing to
+    '' failing its ViaSlot assertion. Bisected against that file, which is the only
+    '' reliable signal here: a hand-cut reduction of it reads uninitialised memory and
+    '' answers either way.
+    if c.ast->Kind( id ) = Tko.N_MEMBER then
+        dim as Tko.Symbol ptr msy3 = c.syms->SymbolAt( c.info->RefOf( id ) )
+        dim as boolean isProp3 = false
+        if msy3 <> 0 then
+            if msy3->kind = cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.NodeId mpn3 = cast( Tko.NodeId, msy3->payload )
+                if mpn3 <> Tko.NODE_NONE then
+                    if c.ast->Kind( mpn3 ) = Tko.N_PROC then
+                        isProp3 = (StmtOf( c, mpn3 )->op = _
+                            cast( ushort, Tko.KW_PROPERTY ))
+                    end if
+                end if
+            end if
+        end if
+        if isProp3 then
+            dim as MirValue pgv2
+            if LowerPropertyGet_( c, id, pgv2 ) then
+                outv = pgv2
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+    end if
+
     if IsStringType( c, c.info->TypeOf_( id ) ) then
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true

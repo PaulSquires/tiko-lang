@@ -1036,7 +1036,16 @@ function LowerPropertyGet_ _
     '' '_ZN3FOO10BAR__get__Eu7INTEGER( &F$, 0ll )'.
     dim as FB.Array( of ulong ) gargs
     if PushPropIndexArgs_( c, g, gFirst, gCount, gargs ) = false then return false
-    outv = EmitMemberCallArgs_( c, g, self_, LowerType( gs->type_, *c.types ), @gargs )
+    '' A STRING-VALUED PROPERTY RETURNS A POINTER, which is what every
+    '' string-returning procedure in this compiler returns -- the value leaves through
+    '' fb_StrAllocTempResult, and the getter is lowered as 'func ptr' accordingly.
+    '' Asking for the property's OWN type gave MT_AGG against a definition that
+    '' returns ptr, so the call would not lower and the caller fell back to
+    '' LowerAddr -- which answered with the GETTER'S CODE ADDRESS and printed the
+    '' function's machine code as a descriptor.
+    dim as MirType gmt = LowerType( gs->type_, *c.types )
+    if IsStringType( c, gs->type_ ) then gmt = MT_PTR
+    outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
@@ -1072,9 +1081,26 @@ function LowerPropertySet_ _
     if PushPropIndexArgs_( c, sset, sFirst, sCount, args ) = false then
     end if
 
-    dim as MirValue v = LowerExpr( c, value )
-    if v.kind = cast( ubyte, MV_NONE ) then return false
+    '' A STRING PARAMETER TAKES A DESCRIPTOR, not the bytes.
+    ''
+    '' The setter is lowered as '__set__E8FBSTRING(ptr, ptr)' and its body hands the
+    '' second argument straight to fb_StrAssign, so it must be a DESCRIPTOR. LowerExpr
+    '' over a literal answers with the literal's own global -- its BYTES -- and
+    '' fb_StrAssign then read a descriptor out of \"zero\", took a garbage length, and
+    '' stored nothing: 'a.first = \"zero\"' followed by 'print a.first' printed an
+    '' empty line where fbc prints 'zero'. StrDescriptorOf_ is what borrows a
+    '' temporary descriptor for a literal, and it is what every other string-argument
+    '' site in this compiler already uses.
+    dim as MirValue v
+    dim as boolean gotV = false
     if pt <> Tko.TYPE_NONE then
+        if IsStringType( c, pt ) then
+            gotV = StrDescriptorOf_( c, value, v )
+        end if
+    end if
+    if gotV = false then v = LowerExpr( c, value )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if gotV = false andalso (pt <> Tko.TYPE_NONE) then
         dim as MirType vmt = LowerType( pt, *c.types )
         if (vmt <> MT_VOID) andalso (vmt <> MT_AGG) then
             v = CoerceTy( c, v, vmt, pt)
