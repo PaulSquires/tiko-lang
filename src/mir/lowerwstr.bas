@@ -691,6 +691,30 @@ end function
 function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
+    '' A CHARACTER PLUS A NUMBER IS ARITHMETIC, not a concatenation, and the wide
+    '' half did not know it. Measured, fbc prints 97 for both
+    ''
+    ''     print *p + 0        '' p is a zstring ptr
+    ''     print *pw + 0       '' pw is a wstring ptr
+    ''
+    '' and tiko printed 97 for the narrow one and 'abc0' for the wide one --
+    '' fb_WstrConcatWA over the whole string. The comparison path in lowerexpr.bas
+    '' has carried exactly this rule since quirk/zwstr-deref.bas was written; this
+    '' is the same rule on the ADDITIVE side, and the file that measures it
+    '' (tests/mir/src/zstring-deref-arith.bas) already says the narrow case was
+    '' fixed and its wide twin was not.
+    dim as Tko.BinaryPayload ptr cbp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if cast( Tko.TokenKind, cbp->op ) = Tko.TK_PLUS then
+        dim as boolean lIsChar = (CharLvalueTy_( c, cbp->lhs ) <> MT_VOID)
+        dim as boolean rIsChar = (CharLvalueTy_( c, cbp->rhs ) <> MT_VOID)
+        dim as boolean lNum = NumericTerm_( c, cbp->lhs )
+        dim as boolean rNum = NumericTerm_( c, cbp->rhs )
+        dim as boolean arith = false
+        if lIsChar andalso rNum then arith = true
+        if rIsChar andalso lNum then arith = true
+        if arith then return false
+    end if
     dim as FB.Array( of ulong ) vt
     FlattenConcat( c, e, vt )
     for k as long = 0 to vt.Count - 1

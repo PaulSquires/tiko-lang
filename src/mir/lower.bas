@@ -8,8 +8,8 @@ namespace Tko.Mir
 declare function LowerCtorReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 declare function DerefCharTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
-declare function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
-declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+'' CharLvalueTy_ and NumericTerm_ are declared in lowerctx.bi, because lowerwstr.bas
+'' is its own compilation unit and needs them too.
 declare function StaticMemberSym_ _
     ( byref c as Ctx, byval stmt as Tko.NodeId, byval item as Tko.NodeId ) as Tko.SymbolId
 declare function InitArgCount_( byref c as Ctx, byval e as Tko.NodeId ) as long

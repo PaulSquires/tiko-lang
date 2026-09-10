@@ -100,8 +100,8 @@ func i32 main(i32 $0, ptr $1) {
   local agg $abi5 size 4
   local agg $abi6 size 4
   entry0:
-    %54 = alloca ptr $abi5
-    %56 = alloca ptr $abi6
+    %52 = alloca ptr $abi5
+    %54 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -111,15 +111,15 @@ func i32 main(i32 $0, ptr $1) {
     %5 = field.addr @a, 0
     %6 = const i64 1
     %7 = trunc %6
-    %55 = call i32 MKU(%7)
-    store @$abi5, %55
+    %53 = call i32 MKU(%7)
+    store @$abi5, %53
     %8 = load @$abi5
     store %5, %8
     %9 = field.addr @a, 4
     %10 = const i64 2
     %11 = trunc %10
-    %57 = call i32 MKU(%11)
-    store @$abi6, %57
+    %55 = call i32 MKU(%11)
+    store @$abi6, %55
     %12 = load @$abi6
     store %9, %12
     %13 = const i64 0
@@ -146,41 +146,39 @@ func i32 main(i32 $0, ptr $1) {
     %30 = const i64 1
     %31 = trunc %30
     %32 = call ptr MKC(@$tmp3, %31)
-    %33 = load @$tmp3
-    call void _ZN1CC1ERKS_(%28, %33)
-    %34 = field.addr @b, 24
-    %35 = alloca ptr $tmp4
-    %36 = const i64 2
-    %37 = trunc %36
-    %38 = call ptr MKC(@$tmp4, %37)
-    %39 = load @$tmp4
-    call void _ZN1CC1ERKS_(%34, %39)
+    call void _ZN1CC1ERKS_(%28, @$tmp3)
+    %33 = field.addr @b, 24
+    %34 = alloca ptr $tmp4
+    %35 = const i64 2
+    %36 = trunc %35
+    %37 = call ptr MKC(@$tmp4, %36)
+    call void _ZN1CC1ERKS_(%33, @$tmp4)
     call void _ZN1CD1Ev(@$tmp4)
     call void _ZN1CD1Ev(@$tmp3)
-    %40 = const i64 0
-    %41 = const i64 24
-    %42 = mul %40, %41
-    %43 = ptr.add @b, %42
-    %44 = field.addr %43, 0
-    call.rtl void fb_PrintString(0, %44, 2)
-    %45 = const i64 1
-    %46 = const i64 24
-    %47 = mul %45, %46
-    %48 = ptr.add @b, %47
-    %49 = field.addr %48, 0
-    call.rtl void fb_PrintString(0, %49, 1)
-    %50 = field.addr @b, 24
-    call void _ZN1CD1Ev(%50)
-    %51 = field.addr @b, 0
-    call void _ZN1CD1Ev(%51)
-    %52 = const i32 0
-    call.rtl void fb_End(%52)
-    %53 = load @$tmp0
-    ret %53
+    %38 = const i64 0
+    %39 = const i64 24
+    %40 = mul %38, %39
+    %41 = ptr.add @b, %40
+    %42 = field.addr %41, 0
+    call.rtl void fb_PrintString(0, %42, 2)
+    %43 = const i64 1
+    %44 = const i64 24
+    %45 = mul %43, %44
+    %46 = ptr.add @b, %45
+    %47 = field.addr %46, 0
+    call.rtl void fb_PrintString(0, %47, 1)
+    %48 = field.addr @b, 24
+    call void _ZN1CD1Ev(%48)
+    %49 = field.addr @b, 0
+    call void _ZN1CD1Ev(%49)
+    %50 = const i32 0
+    call.rtl void fb_End(%50)
+    %51 = load @$tmp0
+    ret %51
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 126 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 124 insts, 0 statements not lowered, 0 scope imbalance

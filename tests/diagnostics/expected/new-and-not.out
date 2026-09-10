@@ -41,16 +41,17 @@ func i32 main(i32 $0, ptr $1) {
     %17 = const i64 0
     %18 = bitcast %17
     %19 = icmp.eq %16, %18
-    %31 = alloca ptr $tmp6
-    %35 = alloca ptr $tmp7
-    %42 = alloca ptr $tmp8
-    %46 = alloca ptr $tmp9
-    %50 = alloca ptr $tmp10
+    %32 = alloca ptr $tmp6
+    %36 = alloca ptr $tmp7
+    %43 = alloca ptr $tmp8
+    %47 = alloca ptr $tmp9
+    %51 = alloca ptr $tmp10
     condbr %19, if.then2, if.else3
   if.join1:
     %21 = load @n
-    %22 = not %21
-    condbr %22, if.then6, if.else7
+    %22 = sext %21
+    %23 = not %22
+    condbr %23, if.then6, if.else7
   if.then2:
     %20 = const i32 0
     call.rtl void fb_End(%20)
@@ -60,66 +61,66 @@ func i32 main(i32 $0, ptr $1) {
   end.after4:
     br if.join1
   if.join5:
-    %24 = load @ip
-    %25 = const i64 1
-    %26 = bitcast %25
-    %27 = const ptr 8
-    %28 = mul %26, %27
-    %29 = add %24, %28
-    store @ip, %29
-    %30 = call.rtl ptr calloc(1, 1)
-    store @$tmp6, %30
-    %32 = load @$tmp6
-    %33 = bitcast %32
-    call.rtl void fb_PrintULongint(0, %33, 1)
-    %34 = call.rtl ptr calloc(2, 1)
-    store @$tmp7, %34
-    %36 = load @$tmp7
-    %37 = bitcast %36
-    call.rtl void fb_PrintULongint(0, %37, 1)
-    %38 = const i64 10
-    %39 = const i64 1
-    %40 = mul %38, %39
-    %41 = call.rtl ptr calloc(%40, 1)
-    store @$tmp8, %41
-    %43 = load @$tmp8
-    %44 = bitcast %43
-    call.rtl void fb_PrintULongint(0, %44, 1)
-    %45 = call.rtl ptr calloc(10, 1)
-    store @$tmp9, %45
-    %47 = load @$tmp9
-    %48 = bitcast %47
-    call.rtl void fb_PrintULongint(0, %48, 1)
-    %49 = call.rtl ptr calloc(10, 1)
-    store @$tmp10, %49
-    %51 = load @$tmp10
-    %52 = bitcast %51
-    call.rtl void fb_PrintULongint(0, %52, 1)
-    %53 = load @ip
+    %25 = load @ip
+    %26 = const i64 1
+    %27 = bitcast %26
+    %28 = const ptr 8
+    %29 = mul %27, %28
+    %30 = add %25, %29
+    store @ip, %30
+    %31 = call.rtl ptr calloc(1, 1)
+    store @$tmp6, %31
+    %33 = load @$tmp6
+    %34 = bitcast %33
+    call.rtl void fb_PrintULongint(0, %34, 1)
+    %35 = call.rtl ptr calloc(2, 1)
+    store @$tmp7, %35
+    %37 = load @$tmp7
+    %38 = bitcast %37
+    call.rtl void fb_PrintULongint(0, %38, 1)
+    %39 = const i64 10
+    %40 = const i64 1
+    %41 = mul %39, %40
+    %42 = call.rtl ptr calloc(%41, 1)
+    store @$tmp8, %42
+    %44 = load @$tmp8
+    %45 = bitcast %44
+    call.rtl void fb_PrintULongint(0, %45, 1)
+    %46 = call.rtl ptr calloc(10, 1)
+    store @$tmp9, %46
+    %48 = load @$tmp9
+    %49 = bitcast %48
+    call.rtl void fb_PrintULongint(0, %49, 1)
+    %50 = call.rtl ptr calloc(10, 1)
+    store @$tmp10, %50
+    %52 = load @$tmp10
+    %53 = bitcast %52
+    call.rtl void fb_PrintULongint(0, %53, 1)
+    %54 = load @ip
     br if.then10
   if.then6:
-    %23 = const i32 0
-    call.rtl void fb_End(%23)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
     unreachable
   if.else7:
     br if.join5
   end.after8:
     br if.join5
   if.join9:
-    %55 = load @pp_
-    %56 = const i64 1
-    %57 = bitcast %56
-    %58 = const ptr 8
-    %59 = mul %57, %58
-    %60 = add %55, %59
-    store @pp_, %60
-    %61 = const i32 0
-    call.rtl void fb_End(%61)
-    %62 = load @$tmp0
-    ret %62
+    %56 = load @pp_
+    %57 = const i64 1
+    %58 = bitcast %57
+    %59 = const ptr 8
+    %60 = mul %58, %59
+    %61 = add %56, %60
+    store @pp_, %61
+    %62 = const i32 0
+    call.rtl void fb_End(%62)
+    %63 = load @$tmp0
+    ret %63
   if.then10:
-    %54 = const i32 0
-    call.rtl void fb_End(%54)
+    %55 = const i32 0
+    call.rtl void fb_End(%55)
     unreachable
   if.else11:
     br if.join9
@@ -131,7 +132,7 @@ declare ptr calloc(i64 $0, i64 $1)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 14 blocks, 85 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 14 blocks, 86 insts, 2 statements not lowered, 0 scope imbalance
   inside N_IF 2
   skip-site src\mir\lowerutil.bas:50 1
   skip-site src\mir\lowerctl.bas:1062 1

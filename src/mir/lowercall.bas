@@ -1105,6 +1105,15 @@ function LowerCallParts _
     '' LowerAddr has no N_CALL case, so there is no address to take an offset from,
     '' and inventing one would mean lowering the call twice.
     if sretTmp.kind <> cast( ubyte, MV_NONE ) then
+        '' ...UNLESS THE CALLER ASKED FOR THE ADDRESS, and LowerAddr does. The comment
+        '' above says 'F( ).field' is not covered because LowerAddr has no N_CALL
+        '' case; it has had one for some time, and it asks for MT_PTR precisely so it
+        '' can offset a field from the temporary. Handing it the LOADED AGGREGATE
+        '' instead produced 'getelementptr i8, ptr %t10' over a value --
+        '' "'%t10' defined with type '[8 x i8]' but expected 'ptr'" -- on every
+        '' 'f( ).g( ).field' chain. The temporary's slot IS its address, so there is
+        '' nothing to emit.
+        if mt = MT_PTR then return sretTmp
         return LowerExprLoad( c, sretTmp, MT_AGG )
     end if
     if byrefRet then return LowerExprLoad( c, cv, mt )

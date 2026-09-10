@@ -82,29 +82,33 @@ func i32 main(i32 $0, ptr $1) {
     %20 = call i64 IDENT<8>(%19)
     call.rtl void fb_PrintLongint(0, %20, 1)
     %21 = load @n
-    %22 = neg %21
-    %23 = call i64 IDENT<8>(%22)
-    call.rtl void fb_PrintLongint(0, %23, 1)
-    %24 = load @f
-    %25 = neg %24
-    %26 = call f32 IDENT<12>(%25)
-    call.rtl void fb_PrintSingle(0, %26, 1)
-    %27 = load @n
-    %28 = not %27
-    %29 = call i64 IDENT<8>(%28)
-    call.rtl void fb_PrintLongint(0, %29, 1)
-    %30 = load @uq
-    %31 = not %30
-    %32 = call i64 IDENT<9>(%31)
-    call.rtl void fb_PrintULongint(0, %32, 1)
-    %33 = load @bo
-    %34 = not %33
-    %35 = call i8 IDENT<14>(%34)
-    call.rtl void fb_PrintBool(0, %35, 1)
-    %36 = const i32 0
-    call.rtl void fb_End(%36)
-    %37 = load @$tmp0
-    ret %37
+    %22 = sext %21
+    %23 = neg %22
+    %24 = call i64 IDENT<8>(%23)
+    call.rtl void fb_PrintLongint(0, %24, 1)
+    %25 = load @f
+    %26 = neg %25
+    %27 = call f32 IDENT<12>(%26)
+    call.rtl void fb_PrintSingle(0, %27, 1)
+    %28 = load @n
+    %29 = sext %28
+    %30 = not %29
+    %31 = call i64 IDENT<8>(%30)
+    call.rtl void fb_PrintLongint(0, %31, 1)
+    %32 = load @uq
+    %33 = not %32
+    %34 = call i64 IDENT<9>(%33)
+    call.rtl void fb_PrintULongint(0, %34, 1)
+    %35 = load @bo
+    %36 = const i8 0
+    %37 = icmp.ne %35, %36
+    %38 = not %37
+    %39 = call i8 IDENT<14>(%38)
+    call.rtl void fb_PrintBool(0, %39, 1)
+    %40 = const i32 0
+    call.rtl void fb_End(%40)
+    %41 = load @$tmp0
+    ret %41
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -113,4 +117,4 @@ declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance

@@ -413,6 +413,20 @@ function LowerExpr _
             x = LowerExpr( c, up->operand )
         end if
         if x.kind = cast( ubyte, MV_NONE ) then return v
+        '' THE OPERAND IS COERCED TO THE RESULT'S TYPE, which the BINARY path has
+        '' always done and this one did not. Check types 'not flags' over a ULONG as a
+        '' 64-bit value while the operand stays i32, and the instruction was emitted
+        '' with the node's type over the operand's:
+        ''
+        ''     %t14 = load i32, ptr %s3
+        ''     %t15 = xor i64 %t14, -1     <- i32 operand, i64 instruction
+        ''
+        '' -- "'%t14' defined with type 'i32' but expected 'i64'", which is fourteen
+        '' of the corpus's codegen failures, every one of them fb/tui's input-mode
+        '' mask. The widening follows the OPERAND's signedness, so a ULONG
+        '' zero-extends and a LONG sign-extends.
+        x = CoerceTy( c, x, mt, c.info->TypeOf_( up->operand ), ft )
+        if x.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins
         ins.ty = cast( ubyte, mt )
         ins.a = x

@@ -511,6 +511,12 @@ declare function EmitRtl _
           byref outv as MirValue ) as boolean
     declare function ConcatToTempDesc_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' lowerinit.bas -- the two CHARACTER predicates. Declared here rather than in
+    '' lower.bas alone because lowerwstr.bas is its OWN compilation unit and could
+    '' not see them: the wide concatenation test needs the same 'a character plus a
+    '' number is arithmetic' rule the narrow one has.
+    declare function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+    declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
