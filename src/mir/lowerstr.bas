@@ -1020,6 +1020,46 @@ function LowerLen _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' 'ustring * N' IS STILL A RUNTIME CALL, and it is the one string flavour no
+    '' branch here claimed. Measured from fbc-modern's own C ('-r'), over
+    '' 'dim as ustring * 8 f = "hello"':
+    ''
+    ''     fb_UStrLen( (void*)F$0, -9223372036854775801ll )
+    ''
+    '' -- the buffer's address and the TAGGED length '&h8000000000000000 or (N - 1)',
+    '' the N-1 capacity StrSwapKind_ already reports as kind 4, never N and never a
+    '' byte size.
+    ''
+    '' It is a TK_ARRAY of TY_FIXUSTR, so IsWideString_ says no (TY_WSTRING alone),
+    '' IsStringType says no (TK_BUILTIN alone) and the 'string * N' fold above wants
+    '' kind 3 -- so it fell past every string branch into the size fallback and FOLDED
+    '' to the buffer's bytes. Measured, before -> after against fbc:
+    ''
+    ''     len( f )       fbc 5   tiko 16 -> 5    'ustring * 8', 16 bytes of buffer
+    ''     len( emoji )   fbc 2   tiko  8 -> 2    'ustring * 4', one surrogate pair
+    ''     len( arr(1) )  fbc 4   tiko 16 -> 4    an ELEMENT of a 'ustring * 8' array
+    ''
+    '' No call and no decline: a constant that is plausible and wrong, so
+    '' 'if len( f ) = 0' was dead code and every length-driven loop over one ran to
+    '' the buffer's end rather than to its contents.
+    if (isSizeof = false) andalso (lenOfType = false) then
+        dim as longint un
+        if StrSwapKind_( c, at, un ) = 4 then
+            dim as MirValue ua = LowerAddr( c, a )
+            if ua.kind <> cast( ubyte, MV_NONE ) then
+                dim as FB.Array( of ulong ) uargs
+                uargs.Push( cast( ulong, ua.kind ) )
+                uargs.Push( cast( ulong, ua.id ) )
+                '' PushStrLen_, NOT a bare push: the tagged length has the SIGN BIT
+                '' set and the 32-bit inline constant field drops it, which would
+                '' turn "N-1 fixed characters" into a plain count.
+                PushStrLen_( c, uargs, un )
+                outv = EmitRtl( c, RTL_USTR_LEN, uargs )
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+    end if
+
     '' NARROW: a descriptor passes -1, a fixed ZSTRING its element count.
     dim as longint zn = -1
     dim as boolean narrow = false
@@ -1156,231 +1196,6 @@ function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 end function
 
 
-function LowerWstrOf _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-
-    if c.ast->Kind( id ) <> Tko.N_CALL then return false
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if lp->count <> 1 then return false
-    if lp->target = Tko.NODE_NONE then return false
-    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "wstr" then return false
-
-    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
-
-    '' A STRING LITERAL is FOLDED, not converted. Measured: fbc emits L"abc" and no
-    '' call at all -- 'wstr( "  ab  " )' becomes '(uint16*)L"  ab  "'. Sending it
-    '' through fb_StrToWstr would have needed a descriptor the literal does not have,
-    '' which is why this declined: 2,496 corpus statements, all of them
-    '' 'dim w as wstring * 50 = trim( wstr( "..." ) )' and its relatives.
-    if c.ast->Kind( a ) = Tko.N_STRING_LIT then
-        '' Through the wide reader, so a '\uXXXX' is a CODE UNIT here and not six
-        '' characters of spelling.
-        dim as long wch2 = 0
-        dim as long wg2 = WideLitGlobal_( c, a, wch2 )
-        if wg2 < 0 then return false
-        outv.kind = cast( ubyte, MV_GLOBAL )
-        outv.ty = cast( ubyte, MT_PTR )
-        outv.id = wg2
-        return true
-    end if
-
-    '' THE ARGUMENT MAY BE A WIDE CONCATENATION, which has no type of its own -- so
-    '' asking for one and giving up is how 'wstr(  & wstr( w ) &  )' declined:
-    '' the inner conversions lowered and the wstr around them did not.
-    if ConcatHasWideTerm_( c, a ) then
-        if WideOperand_( c, a, outv ) then return true
-    end if
-
-    dim as Tko.TypeId at = c.info->TypeOf_( a )
-    if at = Tko.TYPE_NONE then return false
-
-    '' AN ALREADY-WIDE ARGUMENT IS THE IDENTITY, and fbc emits no call at all:
-    '' 'print wstr( cmp )' over a 'wstring * 20' is 'fb_PrintWstr( 0, (uint16*)CMP, 1 )'.
-    '' Falling through instead made the whole expression decline.
-    if IsWideString_( c, at ) then
-        outv = LowerAddr( c, a )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
-    end if
-
-    '' A NARROW STRING: the raw data pointer, not the descriptor.
-    dim as longint zn
-    dim as long sk = StrSwapKind_( c, at, zn )
-    if sk = 0 then
-        dim as MirValue d = LowerAddr( c, a )
-        '' A NARROW CONCATENATION HAS NO ADDRESS. Measured, fbc builds it into a
-        '' temporary descriptor and converts THAT:
-        ''
-        ''     vr$6 = fb_StrConcat( &TMP$4$0, "asd", 4, vr$3, -1 );
-        ''     vr$8 = fb_StrToWstr( (char*)*(char**)&TMP$5$0 );
-        ''
-        '' -- which is 'wstr( "asd" + chr( 0 ) )', the shape wstring/instr_0.bas is
-        '' written out of. Asking only for an address declined every one of them.
-        if d.kind = cast( ubyte, MV_NONE ) then
-            if ConcatToTemp_( c, a, d ) = false then
-                '' NOR HAS A CALL. 'f( hex( 1 ) )' against a 'byref w as wstring'
-                '' parameter is measured as a NARROW temporary and then the
-                '' conversion:
-                ''
-                ''     vr$20 = fb_HEX_l( 1 );
-                ''     fb_StrAssign( &TMP$6$0, -1, vr$20, -1, 0 );
-                ''     vr$22 = fb_StrToWstr( (char*)*(char**)&TMP$6$0 );
-                ''
-                '' -- the same temporary a byval string parameter gets. Without it
-                '' every narrow RVALUE handed to a wide parameter declined:
-                '' functions/temp-strings.bas writes the shape twelve times.
-                dim as long nslot = _
-                    NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-                if nslot < 0 then return false
-                dim as MirValue nd
-                nd.kind = cast( ubyte, MV_LOCAL )
-                nd.ty = cast( ubyte, MT_PTR )
-                nd.id = nslot
-                ZeroStrDescriptor( c, nd )
-                if StrInitFrom_( c, nd, a ) = false then return false
-                '' Released at the END OF THE STATEMENT, beside the other string
-                '' temporaries, which is the life fbc gives it.
-                c.strTemps.Push( cast( ulong, nslot ) )
-                d = nd
-            end if
-        end if
-        if d.kind = cast( ubyte, MV_NONE ) then return false
-        '' Field 0 of the descriptor is its data pointer.
-        dim as MirInst fa
-        fa.op = cast( ushort, M_FIELD_ADDR )
-        fa.ty = cast( ubyte, MT_PTR )
-        fa.a = d
-        fa.imm = 0
-        dim as MirValue pa = Emit( c, fa )
-        if pa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue raw = LowerExprLoad( c, pa, MT_PTR )
-        if raw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sargs
-        sargs.Push( cast( ulong, raw.kind ) ) : sargs.Push( cast( ulong, raw.id ) )
-        '' AND THE RESULT IS OWNED. fbc writes 'vr = fb_StrToWstr( ... )' and a
-        '' matching fb_WstrDelete at the end of the statement -- measured over all
-        '' three narrow shapes, six conversions and six deletes. EmitRtl alone
-        '' dropped the pointer, so every 'wstr( s )' leaked.
-        return WideConcatStep_( c, sargs, RTL_STR_TO_WSTR, outv )
-    elseif sk = 1 then
-        '' A ZSTRING * N IS already a char array: its address is the char*.
-        dim as MirValue za = LowerAddr( c, a )
-        if za.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) zargs
-        zargs.Push( cast( ulong, za.kind ) ) : zargs.Push( cast( ulong, za.id ) )
-        return WideConcatStep_( c, zargs, RTL_STR_TO_WSTR, outv )
-    elseif sk = 3 then
-        '' A 'string * N' IS NOT A CHAR ARRAY THE WAY A ZSTRING IS: it is SPACE-PADDED
-        '' and carries no terminator, so its N bytes cannot be handed to fb_StrToWstr
-        '' as a C string. Measured, fbc copies it into a var-length temporary first and
-        '' converts THAT:
-        ''
-        ''   fb_StrAssign( &TMP$2$0, -1ll, (void*)FS$0, -9223372036854775798ll, 0 );
-        ''   vr$6 = fb_StrToWstr( (char*)*(char**)&TMP$2$0 );
-        ''
-        '' -- the second argument being the TAGGED length of the fixed string, which is
-        '' what tells the runtime to stop at N bytes and trim the padding.
-        ''
-        '' fbc emits a third call after those two, copying the temporary BACK into the
-        '' fixed string, which is its general byref-temp protocol; nothing here writes
-        '' the temporary, so it is a no-op and is not reproduced.
-        ''
-        '' Without this row 'wstr( fs )' produced nothing, and it takes the enclosing
-        '' statement with it: overload/strings_ptr.bas is twelve calls that each pass
-        '' one.
-        dim as MirValue fa2 = LowerAddr( c, a )
-        if fa2.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long fslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-        if fslot < 0 then return false
-        dim as MirValue fd
-        fd.kind = cast( ubyte, MV_LOCAL )
-        fd.ty = cast( ubyte, MT_PTR )
-        fd.id = fslot
-        ZeroStrDescriptor( c, fd )
-        dim as FB.Array( of ulong ) faa
-        faa.Push( cast( ulong, fd.kind ) ) : faa.Push( cast( ulong, fd.id ) )
-        faa.Push( cast( ulong, MV_CONST_INT ) )
-        faa.Push( cast( ulong, cast( ulongint, -1 ) ) )
-        faa.Push( cast( ulong, fa2.kind ) ) : faa.Push( cast( ulong, fa2.id ) )
-        '' ALREADY ENCODED: StrSwapKind_ hands back a FIXSTR's length in the tagged
-        '' form, because that is the only form any runtime call wants it in --
-        '' encoding it a second time here would set the tag bit on a value that
-        '' already has it. And it is a 64-BIT constant, so it goes through
-        '' PushStrLen_: pushing it as a ulong truncates the tag away and the runtime
-        '' reads a plain length of 10.
-        PushStrLen_( c, faa, zn )
-        faa.Push( cast( ulong, MV_CONST_INT ) ) : faa.Push( 0 )
-        EmitRtl( c, RTL_STR_ASSIGN, faa )
-        '' Released at the END OF THE STATEMENT, with the other string temporaries.
-        c.strTemps.Push( cast( ulong, fslot ) )
-
-        dim as MirInst ffa
-        ffa.op = cast( ushort, M_FIELD_ADDR )
-        ffa.ty = cast( ubyte, MT_PTR )
-        ffa.a = fd
-        ffa.imm = 0
-        dim as MirValue fpa = Emit( c, ffa )
-        if fpa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue fraw = LowerExprLoad( c, fpa, MT_PTR )
-        if fraw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) fargs
-        fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
-        return WideConcatStep_( c, fargs, RTL_STR_TO_WSTR, outv )
-    end if
-
-    '' A UDT WITH 'operator cast'. 'wstr( u )' over one whose cast yields a WSTRING is
-    '' the identity, and over one that yields a narrow string it is the ordinary
-    '' conversion -- WideOperand_ knows the first and NarrowToWideTemp_ the second.
-    if c.types->Kind( at ) = Tko.TK_UDT then
-        if WideOperand_( c, a, outv ) then return true
-        return NarrowToWideTemp_( c, a, outv )
-    end if
-
-    '' A SCALAR. Which entry point, and what the argument widens to, both come from the
-    '' operand's own type.
-    '' A POINTER RENDERS AS ITS ADDRESS, unsigned -- measured, 'wstr( p )' is
-    '' 'fb_ULongintToWstr( (uint64)P$0 )' for every pointer type. It is not a
-    '' BUILTIN, so the test below refused it and the call came out untyped.
-    dim as boolean atPtr = (c.types->Kind( at ) = Tko.TK_POINTER)
-    if (c.types->Kind( at ) <> Tko.TK_BUILTIN) andalso (atPtr = false) then return false
-    dim as RtlId r = RTL_NONE
-    dim as MirType want = MT_I32
-    if atPtr then r = RTL_ULONGINT_TO_WSTR : want = MT_I64
-    if atPtr = false then
-        select case c.types->BuiltinOf( at )
-    '' BOOLEAN IS ITS OWN RENDERER, not an integer one -- measured, 'wstr( b )' is
-    '' 'fb_BoolToWstr( B$0 )', and fb_IntToWstr writes -1 and 0 where fbc writes
-    '' "true" and "false". The narrow half of this table already had the distinction.
-    case Tko.TY_BOOLEAN
-        r = RTL_BOOL_TO_WSTR : want = MT_I8
-    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG
-        r = RTL_INT_TO_WSTR
-    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG
-        r = RTL_UINT_TO_WSTR
-    case Tko.TY_INTEGER, Tko.TY_LONGINT
-        r = RTL_LONGINT_TO_WSTR : want = MT_I64
-    case Tko.TY_UINTEGER, Tko.TY_ULONGINT
-        r = RTL_ULONGINT_TO_WSTR : want = MT_I64
-    case Tko.TY_SINGLE
-        r = RTL_FLOAT_TO_WSTR : want = MT_F32
-    case Tko.TY_DOUBLE
-        r = RTL_DOUBLE_TO_WSTR : want = MT_F64
-    case else
-        return false
-    end select
-    end if
-
-    dim as MirValue av = LowerExpr( c, a )
-    if av.kind = cast( ubyte, MV_NONE ) then return false
-    av = CoerceTy( c, av, want, at)
-    dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
-    outv = EmitRtl( c, r, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
-end function
 
 
 '' One store, which SWAP needs three of.

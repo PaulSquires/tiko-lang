@@ -55,6 +55,54 @@ private function PointerCost_ _
         '' what is left is a mismatch.
         dim as Tko.TypeId di = types.Inner( to_ )
         dim as Tko.TypeId si = types.Inner( from_ )
+        '' THE ADDRESS OF A 'zstring * n' / 'wstring * n' IS A POINTER TO THAT STRING
+        '' FLAVOUR, not an opaque pointer to an array. Its pointee is the ARRAY type,
+        '' so every test below -- the exact test in the caller, Unqualify, TK_BUILTIN,
+        '' BaseDistance, PointeeNear_ -- said no, and only the destination-side TY_ANY
+        '' arm survived. Measured with fbc64 1.10.1 on win64, 'dim as zstring * 8 z':
+        ''
+        ''   { any ptr, zstring ptr, wstring ptr } + @z  ->  zstring ptr
+        ''   { any ptr, zstring ptr, wstring ptr } + @w  ->  wstring ptr
+        ''   { any ptr, const zstring ptr }        + @z  ->  const zstring ptr
+        ''   { zstring ptr, const zstring ptr }    + @z  ->  zstring ptr
+        ''
+        '' so the OWN-FLAVOUR pointer is cheaper than 'any ptr' -- CONV_STRPTR_SAME,
+        '' the same tier the value form of this very preference already uses -- and
+        '' the pointee's added const is the usual step of its own. Without it tiko
+        '' answered 'any ptr' to all three, and with the 'any ptr' overload removed
+        '' answered TKO0632 'no overload matches': @z was not out-ranked, it was not
+        '' VIABLE, because CONV_PTR_OTHER is CONV_NONE once overloaded.
+        ''
+        '' EVERY OTHER DESTINATION IS THE ELEMENT'S ORDINARY POINTER TIER, reached by
+        '' substituting the element below rather than by a string rule of its own.
+        '' Measured, and none of it survives a rule that ranks the flavours:
+        ''
+        ''   { ubyte ptr, any ptr }   + @z  ->  any ptr      (near 250 > any 200)
+        ''   { ubyte ptr, single ptr} + @z  ->  ubyte ptr    (near beats not-near)
+        ''   { wstring ptr, ubyte ptr}+ @z  ->  ubyte ptr    (wstring is 2 bytes)
+        ''   { wstring ptr, long ptr }+ @z  ->  REFUSED      (both merely 'other')
+        ''   { short ptr, any ptr }   + @w  ->  any ptr
+        ''   { zstring ptr, any ptr } + @w  ->  any ptr
+        ''
+        '' 'string * n' IS NOT IN THIS RULE. Its element is TY_FIXSTR and fbc gives it
+        '' NO string-pointer preference at all: { any ptr, zstring ptr } + @s answers
+        '' any ptr, and { zstring ptr, ubyte ptr } + @s is refused outright.
+        dim as Tko.TypeId sfe = FixedStringElem( types.Unqualify( si ), types )
+        if sfe <> Tko.TYPE_NONE then
+            dim as Tko.BuiltinType eb = types.BuiltinOf( types.Unqualify( sfe ) )
+            if (eb = Tko.TY_ZSTRING) orelse (eb = Tko.TY_WSTRING) then
+                if types.Kind( di ) = Tko.TK_BUILTIN then
+                    if types.BuiltinOf( types.Unqualify( di ) ) = eb then
+                        if types.IsConst( di ) andalso _
+                           (types.IsConst( si ) = false) then
+                            return CONV_STRPTR_SAME + CONV_CONST_ADD
+                        end if
+                        return CONV_STRPTR_SAME
+                    end if
+                end if
+                si = sfe
+            end if
+        end if
         '' 'const T ptr' TAKES A 'T ptr'. The POINTEE's constness is a step of its own,
         '' and the caller's exact test cannot have answered it: the two pointer types
         '' are distinct ids and unqualifying THEM strips nothing, because the const is
