@@ -14,16 +14,19 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr ev
-    %5 = alloca ptr scalar
-    %6 = const i32 0
-    call.rtl void fb_End(%6)
-    %7 = load @$tmp0
-    ret %7
+    %5 = call.rtl ptr memset(@ev, 0, 8)
+    %6 = alloca ptr scalar
+    %7 = call.rtl ptr memset(@scalar, 0, 8)
+    %8 = const i32 0
+    call.rtl void fb_End(%8)
+    %9 = load @$tmp0
+    ret %9
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 10 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 12 insts, 2 statements not lowered, 0 scope imbalance
   inside N_VAR 2
   skip-site src\mir\lower.bas:215 1
   skip-site src\mir\lower.bas:182 1

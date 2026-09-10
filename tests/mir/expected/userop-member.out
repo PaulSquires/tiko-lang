@@ -59,31 +59,32 @@ func i32 _ZplR5SMALLS0_(ptr $0, ptr $1) {
   local agg r size 4
   local agg $abi4 size 4
   entry0:
-    %18 = alloca ptr $abi4
+    %19 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
     %3 = alloca ptr y
     store @y, $1
     %4 = alloca ptr r
-    %5 = field.addr @r, 0
-    %6 = load @x
-    %7 = field.addr %6, 0
-    %8 = load %7
-    %9 = load @y
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = sext %8
-    %13 = sext %11
-    %14 = add %12, %13
-    %15 = trunc %14
-    store %5, %15
-    %16 = load @r
-    store @$tmp0, %16
-    %17 = load @$tmp0
-    store @$abi4, %17
-    %19 = load @$abi4
-    ret %19
+    %5 = call.rtl ptr memset(@r, 0, 4)
+    %6 = field.addr @r, 0
+    %7 = load @x
+    %8 = field.addr %7, 0
+    %9 = load %8
+    %10 = load @y
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = sext %9
+    %14 = sext %12
+    %15 = add %13, %14
+    %16 = trunc %15
+    store %6, %16
+    %17 = load @r
+    store @$tmp0, %17
+    %18 = load @$tmp0
+    store @$abi4, %18
+    %20 = load @$abi4
+    ret %20
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -97,7 +98,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp8 size 4
   local agg $abi9 size 4
   entry0:
-    %22 = alloca ptr $abi9
+    %24 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -108,36 +109,38 @@ func i32 main(i32 $0, ptr $1) {
     %5 = alloca ptr q
     call void _ZN3BIGC1Ev(@q)
     %6 = alloca ptr u
-    %7 = alloca ptr v
-    %8 = alloca ptr r1
-    %9 = alloca ptr $tmp6
-    %10 = call ptr _ZplR3BIGS0_(@$tmp6, @p, @q)
-    %11 = field.addr @$tmp6, 0
-    %12 = load %11
-    store @r1, %12
-    %13 = alloca ptr r2
-    %23 = call i32 _ZplR5SMALLS0_(@u, @v)
-    store @$abi9, %23
-    %14 = load @$abi9
-    %15 = alloca ptr $tmp8
-    store @$tmp8, %14
-    %16 = field.addr @$tmp8, 0
-    %17 = load %16
-    store @r2, %17
-    %18 = load @r1
-    call.rtl void fb_PrintLongint(0, %18, 2)
-    %19 = load @r2
-    call.rtl void fb_PrintInt(0, %19, 1)
+    %7 = call.rtl ptr memset(@u, 0, 4)
+    %8 = alloca ptr v
+    %9 = call.rtl ptr memset(@v, 0, 4)
+    %10 = alloca ptr r1
+    %11 = alloca ptr $tmp6
+    %12 = call ptr _ZplR3BIGS0_(@$tmp6, @p, @q)
+    %13 = field.addr @$tmp6, 0
+    %14 = load %13
+    store @r1, %14
+    %15 = alloca ptr r2
+    %25 = call i32 _ZplR5SMALLS0_(@u, @v)
+    store @$abi9, %25
+    %16 = load @$abi9
+    %17 = alloca ptr $tmp8
+    store @$tmp8, %16
+    %18 = field.addr @$tmp8, 0
+    %19 = load %18
+    store @r2, %19
+    %20 = load @r1
+    call.rtl void fb_PrintLongint(0, %20, 2)
+    %21 = load @r2
+    call.rtl void fb_PrintInt(0, %21, 1)
     call void _ZN3BIGD1Ev(@q)
     call void _ZN3BIGD1Ev(@p)
-    %20 = const i32 0
-    call.rtl void fb_End(%20)
-    %21 = load @$tmp0
-    ret %21
+    %22 = const i32 0
+    call.rtl void fb_End(%22)
+    %23 = load @$tmp0
+    ret %23
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

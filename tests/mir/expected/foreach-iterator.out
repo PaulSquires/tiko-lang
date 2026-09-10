@@ -56,23 +56,25 @@ func i64 _ZN4COLL11GETITERATOREv(ptr $0) {
   local agg t size 8
   local agg $abi3 size 8
   entry0:
-    %10 = alloca ptr $abi3
+    %11 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr this
     store @this, $0
     %3 = alloca ptr t
-    %4 = field.addr @t, 4
-    %5 = load @this
-    %6 = field.addr %5, 0
-    %7 = load %6
-    store %4, %7
-    %8 = load @t
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    store @$abi3, %9
-    %11 = load @$abi3
-    ret %11
+    %4 = call.rtl ptr memset(@t, 0, 8)
+    %5 = field.addr @t, 4
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load %7
+    store %5, %8
+    %9 = load @t
+    store @$tmp0, %9
+    %10 = load @$tmp0
+    store @$abi3, %10
+    %12 = load @$abi3
+    ret %12
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void P() {
   local agg c size 4
   local i32 total
@@ -83,70 +85,72 @@ func void P() {
   local agg $abi6 size 8
   local agg $abi7 size 8
   entry0:
-    %27 = alloca ptr $abi6
-    %29 = alloca ptr $abi7
+    %29 = alloca ptr $abi6
+    %31 = alloca ptr $abi7
     %1 = alloca ptr c
-    %2 = alloca ptr total
-    %3 = alloca ptr x
-    %4 = alloca ptr $tmp3
-    %28 = call i64 _ZN4COLL11GETITERATOREv(@c)
-    store @$abi6, %28
-    %5 = load @$abi6
-    store @$tmp3, %5
-    %11 = alloca ptr y
-    %12 = alloca ptr $tmp5
+    %2 = call.rtl ptr memset(@c, 0, 4)
+    %3 = alloca ptr total
+    %4 = call.rtl ptr memset(@total, 0, 4)
+    %5 = alloca ptr x
+    %6 = alloca ptr $tmp3
+    %30 = call i64 _ZN4COLL11GETITERATOREv(@c)
+    store @$abi6, %30
+    %7 = load @$abi6
+    store @$tmp3, %7
+    %13 = alloca ptr y
+    %14 = alloca ptr $tmp5
     br each.test3
   each.body1:
-    %6 = call i32 _ZN4ITER5VALUEEv(@$tmp3)
-    store @x, %6
-    %7 = load @total
-    %8 = load @x
-    %9 = add %7, %8
-    store @total, %9
+    %8 = call i32 _ZN4ITER5VALUEEv(@$tmp3)
+    store @x, %8
+    %9 = load @total
+    %10 = load @x
+    %11 = add %9, %10
+    store @total, %11
     br each.cont2
   each.cont2:
     call void _ZN4ITER8MOVENEXTEv(@$tmp3)
     br each.test3
   each.test3:
-    %10 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
-    condbr %10, each.body1, each.exit4
+    %12 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
+    condbr %12, each.body1, each.exit4
   each.exit4:
-    %30 = call i64 _ZN4COLL11GETITERATOREv(@c)
-    store @$abi7, %30
-    %13 = load @$abi7
-    store @$tmp5, %13
+    %32 = call i64 _ZN4COLL11GETITERATOREv(@c)
+    store @$abi7, %32
+    %15 = load @$abi7
+    store @$tmp5, %15
     br each.test7
   each.body5:
-    %14 = call i32 _ZN4ITER5VALUEEv(@$tmp5)
-    store @y, %14
-    %15 = load @y
-    %16 = const i64 20
-    %17 = sext %15
-    %18 = icmp.eq %17, %16
-    condbr %18, if.then10, if.else11
+    %16 = call i32 _ZN4ITER5VALUEEv(@$tmp5)
+    store @y, %16
+    %17 = load @y
+    %18 = const i64 20
+    %19 = sext %17
+    %20 = icmp.eq %19, %18
+    condbr %20, if.then10, if.else11
   each.cont6:
     call void _ZN4ITER8MOVENEXTEv(@$tmp5)
     br each.test7
   each.test7:
-    %26 = call i8 _ZN4ITER7ISVALIDEv(@$tmp5)
-    condbr %26, each.body5, each.exit8
+    %28 = call i8 _ZN4ITER7ISVALIDEv(@$tmp5)
+    condbr %28, each.body5, each.exit8
   each.exit8:
     ret
   if.join9:
-    %19 = load @y
-    %20 = const i64 40
-    %21 = sext %19
-    %22 = icmp.eq %21, %20
-    condbr %22, if.then13, if.else14
+    %21 = load @y
+    %22 = const i64 40
+    %23 = sext %21
+    %24 = icmp.eq %23, %22
+    condbr %24, if.then13, if.else14
   if.then10:
     br each.cont6
   if.else11:
     br if.join9
   if.join12:
-    %23 = load @total
-    %24 = load @y
-    %25 = add %23, %24
-    store @total, %25
+    %25 = load @total
+    %26 = load @y
+    %27 = add %25, %26
+    store @total, %27
     br each.cont6
   if.then13:
     br each.exit8
@@ -169,4 +173,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 20 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 20 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

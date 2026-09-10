@@ -8,8 +8,10 @@ func void REFUSED() {
   local i64 n
   entry0:
     %1 = alloca ptr n
+    %2 = call.rtl ptr memset(@n, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void ACCEPTED() {
   local agg s8 size 24
   local ptr p
@@ -17,12 +19,13 @@ func void ACCEPTED() {
     %1 = alloca ptr s8
     %2 = call.rtl ptr fb_StrInit(@s8, -1, @@$str1, 4, 0)
     %3 = alloca ptr p
-    %4 = load @p
-    %5 = const ptr 0
-    %6 = icmp.ne %4, %5
-    condbr %6, del.body1, del.join2
+    %4 = call.rtl ptr memset(@p, 0, 8)
+    %5 = load @p
+    %6 = const ptr 0
+    %7 = icmp.ne %5, %6
+    condbr %7, del.body1, del.join2
   del.body1:
-    call.rtl void free(%4)
+    call.rtl void free(%5)
     br del.join2
   del.join2:
     call.rtl void fb_StrDelete(@s8)
@@ -55,7 +58,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 5 blocks, 23 insts, 4 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 5 blocks, 25 insts, 4 statements not lowered, 0 scope imbalance
   unlowered N_DELETE_STMT 1
   inside N_DELETE_STMT 1
   inside N_VAR 3

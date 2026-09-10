@@ -66,14 +66,15 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, @a2, 0)
     call.rtl void fb_PrintString(0, @a3, 1)
     %35 = alloca ptr r
-    %36 = field.addr @r, 0
-    store %36, 0
-    %37 = field.addr @r, 8
+    %36 = call.rtl ptr memset(@r, 0, 24)
+    %37 = field.addr @r, 0
     store %37, 0
-    %38 = field.addr @r, 16
+    %38 = field.addr @r, 8
     store %38, 0
-    %39 = call.rtl ptr fb_StrAssign(@r, -1, @b, -1, 0)
-    %40 = call.rtl ptr fb_StrConcatAssign(@r, -1, @c, -1, 0)
+    %39 = field.addr @r, 16
+    store %39, 0
+    %40 = call.rtl ptr fb_StrAssign(@r, -1, @b, -1, 0)
+    %41 = call.rtl ptr fb_StrConcatAssign(@r, -1, @c, -1, 0)
     call.rtl void fb_PrintString(0, @r, 1)
     call.rtl void fb_StrDelete(@r)
     call.rtl void fb_StrDelete(@a3)
@@ -82,17 +83,18 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@a0)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
-    %41 = const i32 0
-    call.rtl void fb_End(%41)
-    %42 = load @$tmp0
-    ret %42
+    %42 = const i32 0
+    call.rtl void fb_End(%42)
+    %43 = load @$tmp0
+    ret %43
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 72 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance

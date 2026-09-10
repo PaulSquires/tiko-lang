@@ -5,25 +5,28 @@ func void ASSIGN() {
   local agg b size 24
   entry0:
     %1 = alloca ptr a
-    %2 = field.addr @a, 0
-    store %2, 0
-    %3 = field.addr @a, 8
+    %2 = call.rtl ptr memset(@a, 0, 24)
+    %3 = field.addr @a, 0
     store %3, 0
-    %4 = field.addr @a, 16
+    %4 = field.addr @a, 8
     store %4, 0
-    %5 = alloca ptr b
-    %6 = field.addr @b, 0
-    store %6, 0
-    %7 = field.addr @b, 8
-    store %7, 0
-    %8 = field.addr @b, 16
+    %5 = field.addr @a, 16
+    store %5, 0
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 24)
+    %8 = field.addr @b, 0
     store %8, 0
-    %9 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
-    %10 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
+    %9 = field.addr @b, 8
+    store %9, 0
+    %10 = field.addr @b, 16
+    store %10, 0
+    %11 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %12 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
@@ -35,21 +38,23 @@ func void SCOPED(i32 $0) {
     %1 = alloca ptr f
     store @f, $0
     %2 = alloca ptr outer_
-    %3 = field.addr @outer_, 0
-    store %3, 0
-    %4 = field.addr @outer_, 8
+    %3 = call.rtl ptr memset(@outer_, 0, 24)
+    %4 = field.addr @outer_, 0
     store %4, 0
-    %5 = field.addr @outer_, 16
+    %5 = field.addr @outer_, 8
     store %5, 0
-    %6 = alloca ptr inner_
-    %7 = field.addr @inner_, 0
-    store %7, 0
-    %8 = field.addr @inner_, 8
-    store %8, 0
-    %9 = field.addr @inner_, 16
+    %6 = field.addr @outer_, 16
+    store %6, 0
+    %7 = alloca ptr inner_
+    %8 = call.rtl ptr memset(@inner_, 0, 24)
+    %9 = field.addr @inner_, 0
     store %9, 0
-    %10 = load @f
-    condbr %10, if.then2, if.else3
+    %10 = field.addr @inner_, 8
+    store %10, 0
+    %11 = field.addr @inner_, 16
+    store %11, 0
+    %12 = load @f
+    condbr %12, if.then2, if.else3
   if.join1:
     call.rtl void fb_StrDelete(@inner_)
     call.rtl void fb_StrDelete(@outer_)
@@ -67,32 +72,35 @@ func void CONCAT() {
   local agg c size 24
   entry0:
     %1 = alloca ptr a
-    %2 = field.addr @a, 0
-    store %2, 0
-    %3 = field.addr @a, 8
+    %2 = call.rtl ptr memset(@a, 0, 24)
+    %3 = field.addr @a, 0
     store %3, 0
-    %4 = field.addr @a, 16
+    %4 = field.addr @a, 8
     store %4, 0
-    %5 = alloca ptr b
-    %6 = field.addr @b, 0
-    store %6, 0
-    %7 = field.addr @b, 8
-    store %7, 0
-    %8 = field.addr @b, 16
+    %5 = field.addr @a, 16
+    store %5, 0
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 24)
+    %8 = field.addr @b, 0
     store %8, 0
-    %9 = alloca ptr c
-    %10 = field.addr @c, 0
+    %9 = field.addr @b, 8
+    store %9, 0
+    %10 = field.addr @b, 16
     store %10, 0
-    %11 = field.addr @c, 8
-    store %11, 0
-    %12 = field.addr @c, 16
-    store %12, 0
-    %13 = call.rtl ptr fb_StrAssign(@a, -1, @@$str0, 2, 0)
-    %14 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
-    %15 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
-    %16 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
-    %17 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
-    %18 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
+    %11 = alloca ptr c
+    %12 = call.rtl ptr memset(@c, 0, 24)
+    %13 = field.addr @c, 0
+    store %13, 0
+    %14 = field.addr @c, 8
+    store %14, 0
+    %15 = field.addr @c, 16
+    store %15, 0
+    %16 = call.rtl ptr fb_StrAssign(@a, -1, @@$str0, 2, 0)
+    %17 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %18 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
+    %19 = call.rtl ptr fb_StrAssign(@a, -1, @b, -1, 0)
+    %20 = call.rtl ptr fb_StrConcatAssign(@a, -1, @c, -1, 0)
+    %21 = call.rtl ptr fb_StrConcatAssign(@a, -1, @b, -1, 0)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
@@ -104,22 +112,24 @@ func void VIATEMP() {
   local agg $tmp2 size 24
   entry0:
     %1 = alloca ptr a
-    %2 = field.addr @a, 0
-    store %2, 0
-    %3 = field.addr @a, 8
+    %2 = call.rtl ptr memset(@a, 0, 24)
+    %3 = field.addr @a, 0
     store %3, 0
-    %4 = field.addr @a, 16
+    %4 = field.addr @a, 8
     store %4, 0
-    %5 = alloca ptr b
-    %6 = field.addr @b, 0
-    store %6, 0
-    %7 = field.addr @b, 8
-    store %7, 0
-    %8 = field.addr @b, 16
+    %5 = field.addr @a, 16
+    store %5, 0
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 24)
+    %8 = field.addr @b, 0
     store %8, 0
-    %9 = alloca ptr $tmp2
-    %10 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
-    %11 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
+    %9 = field.addr @b, 8
+    store %9, 0
+    %10 = field.addr @b, 16
+    store %10, 0
+    %11 = alloca ptr $tmp2
+    %12 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
+    %13 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
     ret
@@ -131,53 +141,56 @@ func void COMPARE_() {
   local i32 r
   entry0:
     %1 = alloca ptr a
-    %2 = field.addr @a, 0
-    store %2, 0
-    %3 = field.addr @a, 8
+    %2 = call.rtl ptr memset(@a, 0, 24)
+    %3 = field.addr @a, 0
     store %3, 0
-    %4 = field.addr @a, 16
+    %4 = field.addr @a, 8
     store %4, 0
-    %5 = alloca ptr b
-    %6 = field.addr @b, 0
-    store %6, 0
-    %7 = field.addr @b, 8
-    store %7, 0
-    %8 = field.addr @b, 16
+    %5 = field.addr @a, 16
+    store %5, 0
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 24)
+    %8 = field.addr @b, 0
     store %8, 0
-    %9 = alloca ptr r
-    %10 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
-    %11 = icmp.eq %10, 0
-    condbr %11, if.then2, if.else3
+    %9 = field.addr @b, 8
+    store %9, 0
+    %10 = field.addr @b, 16
+    store %10, 0
+    %11 = alloca ptr r
+    %12 = call.rtl ptr memset(@r, 0, 4)
+    %13 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+    %14 = icmp.eq %13, 0
+    condbr %14, if.then2, if.else3
   if.join1:
-    %14 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
-    %15 = icmp.slt %14, 0
-    condbr %15, if.then5, if.else6
+    %17 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+    %18 = icmp.slt %17, 0
+    condbr %18, if.then5, if.else6
   if.then2:
-    %12 = const i64 1
-    %13 = trunc %12
-    store @r, %13
+    %15 = const i64 1
+    %16 = trunc %15
+    store @r, %16
     br if.join1
   if.else3:
     br if.join1
   if.join4:
-    %18 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
-    %19 = icmp.sge %18, 0
-    condbr %19, if.then8, if.else9
+    %21 = call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
+    %22 = icmp.sge %21, 0
+    condbr %22, if.then8, if.else9
   if.then5:
-    %16 = const i64 2
-    %17 = trunc %16
-    store @r, %17
+    %19 = const i64 2
+    %20 = trunc %19
+    store @r, %20
     br if.join4
   if.else6:
     br if.join4
   if.join7:
-    %22 = call.rtl i32 fb_StrCompare(@a, -1, @@$str1, 4)
-    %23 = icmp.eq %22, 0
-    condbr %23, if.then11, if.else12
+    %25 = call.rtl i32 fb_StrCompare(@a, -1, @@$str1, 4)
+    %26 = icmp.eq %25, 0
+    condbr %26, if.then11, if.else12
   if.then8:
-    %20 = const i64 3
-    %21 = trunc %20
-    store @r, %21
+    %23 = const i64 3
+    %24 = trunc %23
+    store @r, %24
     br if.join7
   if.else9:
     br if.join7
@@ -186,9 +199,9 @@ func void COMPARE_() {
     call.rtl void fb_StrDelete(@a)
     ret
   if.then11:
-    %24 = const i64 4
-    %25 = trunc %24
-    store @r, %25
+    %27 = const i64 4
+    %28 = trunc %27
+    store @r, %28
     br if.join10
   if.else12:
     br if.join10
@@ -210,4 +223,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 21 blocks, 133 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 21 blocks, 145 insts, 0 statements not lowered, 0 scope imbalance

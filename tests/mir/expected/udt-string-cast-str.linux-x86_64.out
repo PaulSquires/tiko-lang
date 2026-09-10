@@ -43,42 +43,45 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr zv
-    %5 = alloca ptr wv
-    %6 = alloca ptr a
-    %7 = call ptr _ZN1ZcvcEv(@zv)
-    %8 = call.rtl ptr fb_StrToWstr(%7)
-    %9 = alloca ptr $tmp4
-    store @$tmp4, %8
-    %10 = load @$tmp4
-    %11 = call.rtl ptr fb_WstrAssign(@a, 10, %10)
+    %5 = call.rtl ptr memset(@zv, 0, 2)
+    %6 = alloca ptr wv
+    %7 = call.rtl ptr memset(@wv, 0, 8)
+    %8 = alloca ptr a
+    %9 = call ptr _ZN1ZcvcEv(@zv)
+    %10 = call.rtl ptr fb_StrToWstr(%9)
+    %11 = alloca ptr $tmp4
+    store @$tmp4, %10
     %12 = load @$tmp4
-    call.rtl void fb_WstrDelete(%12)
-    %13 = alloca ptr b
-    %14 = call ptr _ZN1ZcvcEv(@zv)
-    %15 = call.rtl ptr fb_StrAllocTempDescZ(%14)
-    %16 = call.rtl ptr fb_StrInit(@b, -1, %15, -1, 0)
-    %17 = alloca ptr d
-    %18 = call ptr _ZN1WcvwEv(@wv)
-    %19 = call.rtl ptr fb_WstrToStr(%18)
-    %20 = call.rtl ptr fb_StrInit(@d, -1, %19, -1, 0)
-    %21 = alloca ptr e
-    %22 = call ptr _ZN1WcvwEv(@wv)
-    %23 = call.rtl ptr fb_WstrToStr(%22)
-    %24 = call.rtl ptr fb_StrInit(@e, 10, %23, -1, 0)
-    %25 = call ptr _ZN1WcvwEv(@wv)
-    %26 = call.rtl ptr fb_WstrToStr(%25)
-    call.rtl void fb_PrintString(0, %26, 1)
-    %27 = alloca ptr f
-    %28 = call ptr _ZN1WcvwEv(@wv)
-    %29 = call.rtl ptr fb_WstrAssign(@f, 10, %28)
+    %13 = call.rtl ptr fb_WstrAssign(@a, 10, %12)
+    %14 = load @$tmp4
+    call.rtl void fb_WstrDelete(%14)
+    %15 = alloca ptr b
+    %16 = call ptr _ZN1ZcvcEv(@zv)
+    %17 = call.rtl ptr fb_StrAllocTempDescZ(%16)
+    %18 = call.rtl ptr fb_StrInit(@b, -1, %17, -1, 0)
+    %19 = alloca ptr d
+    %20 = call ptr _ZN1WcvwEv(@wv)
+    %21 = call.rtl ptr fb_WstrToStr(%20)
+    %22 = call.rtl ptr fb_StrInit(@d, -1, %21, -1, 0)
+    %23 = alloca ptr e
+    %24 = call ptr _ZN1WcvwEv(@wv)
+    %25 = call.rtl ptr fb_WstrToStr(%24)
+    %26 = call.rtl ptr fb_StrInit(@e, 10, %25, -1, 0)
+    %27 = call ptr _ZN1WcvwEv(@wv)
+    %28 = call.rtl ptr fb_WstrToStr(%27)
+    call.rtl void fb_PrintString(0, %28, 1)
+    %29 = alloca ptr f
+    %30 = call ptr _ZN1WcvwEv(@wv)
+    %31 = call.rtl ptr fb_WstrAssign(@f, 10, %30)
     call.rtl void fb_StrDelete(@d)
     call.rtl void fb_StrDelete(@b)
-    %30 = const i32 0
-    call.rtl void fb_End(%30)
-    %31 = load @$tmp0
-    ret %31
+    %32 = const i32 0
+    call.rtl void fb_End(%32)
+    %33 = load @$tmp0
+    ret %33
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrToWstr(ptr $0)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 declare void fb_WstrDelete(ptr $0)
@@ -89,4 +92,4 @@ declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

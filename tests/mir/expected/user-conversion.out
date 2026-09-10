@@ -112,7 +112,7 @@ func void S1() {
   local i32 w
   local agg $abi6 size 4
   entry0:
-    %22 = alloca ptr $abi6
+    %24 = alloca ptr $abi6
     %1 = const i64 1122
     %2 = trunc %1
     %3 = alloca ptr $tmp0
@@ -125,29 +125,31 @@ func void S1() {
     call void _ZN5PLAINC1Ei(@$tmp1, %5)
     %7 = load @$tmp1
     store @$abi6, %7
-    %23 = load @$abi6
-    call void TAKESPLAIN(%23)
+    %25 = load @$abi6
+    call void TAKESPLAIN(%25)
     %8 = alloca ptr q
-    %9 = field.addr @q, 0
-    %10 = const i64 5
-    %11 = trunc %10
-    store %9, %11
-    %12 = alloca ptr a
-    %13 = call i32 _ZN5CASTScviEv(@q)
-    store @a, %13
-    %14 = alloca ptr b
-    %15 = call i32 _ZN5CASTScviEv(@q)
-    store @b, %15
-    %16 = alloca ptr w
+    %9 = call.rtl ptr memset(@q, 0, 4)
+    %10 = field.addr @q, 0
+    %11 = const i64 5
+    %12 = trunc %11
+    store %10, %12
+    %13 = alloca ptr a
+    %14 = call i32 _ZN5CASTScviEv(@q)
+    store @a, %14
+    %15 = alloca ptr b
+    %16 = call.rtl ptr memset(@b, 0, 4)
     %17 = call i32 _ZN5CASTScviEv(@q)
-    %18 = call i32 _Z5WANTSi(%17)
-    store @w, %18
-    %19 = load @a
-    call.rtl void fb_PrintInt(0, %19, 2)
-    %20 = load @b
-    call.rtl void fb_PrintInt(0, %20, 2)
-    %21 = load @w
-    call.rtl void fb_PrintInt(0, %21, 1)
+    store @b, %17
+    %18 = alloca ptr w
+    %19 = call i32 _ZN5CASTScviEv(@q)
+    %20 = call i32 _Z5WANTSi(%19)
+    store @w, %20
+    %21 = load @a
+    call.rtl void fb_PrintInt(0, %21, 2)
+    %22 = load @b
+    call.rtl void fb_PrintInt(0, %22, 2)
+    %23 = load @w
+    call.rtl void fb_PrintInt(0, %23, 1)
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -167,4 +169,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 10 blocks, 99 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance

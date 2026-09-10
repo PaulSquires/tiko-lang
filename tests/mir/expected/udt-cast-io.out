@@ -53,25 +53,27 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr l
-    %5 = field.addr @l, 0
-    %6 = const i64 3
-    %7 = trunc %6
-    store %5, %7
-    %8 = call ptr _ZN1Tcv8FBSTRINGEv(@l)
-    call.rtl void fb_PrintString(0, %8, 1)
+    %5 = call.rtl ptr memset(@l, 0, 4)
+    %6 = field.addr @l, 0
+    %7 = const i64 3
+    %8 = trunc %7
+    store %6, %8
     %9 = call ptr _ZN1Tcv8FBSTRINGEv(@l)
-    call.rtl void fb_WriteString(0, %9, 1)
-    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
-    %11 = call.rtl i32 fb_PrintUsingInit(%10)
-    %12 = call f64 _ZN1TcvdEv(@l)
-    %13 = call.rtl i32 fb_PrintUsingDouble(0, %12, -2147483647)
-    %14 = call.rtl i32 fb_PrintUsingEnd(0)
-    %15 = const i32 0
-    call.rtl void fb_End(%15)
-    %16 = load @$tmp0
-    ret %16
+    call.rtl void fb_PrintString(0, %9, 1)
+    %10 = call ptr _ZN1Tcv8FBSTRINGEv(@l)
+    call.rtl void fb_WriteString(0, %10, 1)
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
+    %12 = call.rtl i32 fb_PrintUsingInit(%11)
+    %13 = call f64 _ZN1TcvdEv(@l)
+    %14 = call.rtl i32 fb_PrintUsingDouble(0, %13, -2147483647)
+    %15 = call.rtl i32 fb_PrintUsingEnd(0)
+    %16 = const i32 0
+    call.rtl void fb_End(%16)
+    %17 = load @$tmp0
+    ret %17
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_WriteString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
@@ -80,4 +82,4 @@ declare i32 fb_PrintUsingDouble(i32 $0, f64 $1, i32 $2)
 declare i32 fb_PrintUsingEnd(i32 $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance

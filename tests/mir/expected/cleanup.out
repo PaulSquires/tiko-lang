@@ -2,44 +2,47 @@ func void ORDERING() {
   local i32 x
   entry0:
     %1 = alloca ptr x
-    %2 = const i64 3
-    %3 = trunc %2
-    store @x, %3
-    %4 = const i64 2
-    %5 = trunc %4
-    store @x, %5
-    %6 = const i64 1
-    %7 = trunc %6
-    store @x, %7
+    %2 = call.rtl ptr memset(@x, 0, 4)
+    %3 = const i64 3
+    %4 = trunc %3
+    store @x, %4
+    %5 = const i64 2
+    %6 = trunc %5
+    store @x, %6
+    %7 = const i64 1
+    %8 = trunc %7
+    store @x, %8
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void PERITERATION() {
   local i32 x
   local i64 i
   entry0:
     %1 = alloca ptr x
-    %2 = alloca ptr i
-    %3 = const i64 1
-    store @i, %3
+    %2 = call.rtl ptr memset(@x, 0, 4)
+    %3 = alloca ptr i
+    %4 = const i64 1
+    store @i, %4
     br for.head1
   for.head1:
-    %4 = load @i
-    %5 = const i64 2
-    %6 = icmp.sle %4, %5
-    condbr %6, for.body2, for.exit4
+    %5 = load @i
+    %6 = const i64 2
+    %7 = icmp.sle %5, %6
+    condbr %7, for.body2, for.exit4
   for.body2:
-    %7 = const i64 9
-    %8 = trunc %7
-    store @x, %8
-    %9 = const i64 8
-    %10 = trunc %9
-    store @x, %10
+    %8 = const i64 9
+    %9 = trunc %8
+    store @x, %9
+    %10 = const i64 8
+    %11 = trunc %10
+    store @x, %11
     br for.step3
   for.step3:
-    %11 = load @i
-    %12 = const i64 1
-    %13 = add %11, %12
-    store @i, %13
+    %12 = load @i
+    %13 = const i64 1
+    %14 = add %12, %13
+    store @i, %14
     br for.head1
   for.exit4:
     ret
@@ -51,26 +54,27 @@ func void THROUGHSCOPES(i32 $0) {
     %1 = alloca ptr f
     store @f, $0
     %2 = alloca ptr x
-    %3 = load @f
-    condbr %3, if.then2, if.else3
+    %3 = call.rtl ptr memset(@x, 0, 4)
+    %4 = load @f
+    condbr %4, if.then2, if.else3
   if.join1:
-    %8 = const i64 5
-    %9 = trunc %8
-    store @x, %9
-    %10 = const i64 6
-    %11 = trunc %10
-    store @x, %11
-    %12 = const i64 4
-    %13 = trunc %12
-    store @x, %13
+    %9 = const i64 5
+    %10 = trunc %9
+    store @x, %10
+    %11 = const i64 6
+    %12 = trunc %11
+    store @x, %12
+    %13 = const i64 4
+    %14 = trunc %13
+    store @x, %14
     ret
   if.then2:
-    %4 = const i64 5
-    %5 = trunc %4
-    store @x, %5
-    %6 = const i64 4
-    %7 = trunc %6
-    store @x, %7
+    %5 = const i64 5
+    %6 = trunc %5
+    store @x, %6
+    %7 = const i64 4
+    %8 = trunc %7
+    store @x, %8
     ret
   if.else3:
     br if.join1
@@ -79,13 +83,14 @@ func void MEMBERS() {
   local agg r size 16
   entry0:
     %1 = alloca ptr r
-    %2 = field.addr @r, 0
-    %3 = const i64 1
-    %4 = trunc %3
-    store %2, %4
-    %5 = field.addr @r, 8
-    %6 = const f64 2.5
-    store %5, %6
+    %2 = call.rtl ptr memset(@r, 0, 16)
+    %3 = field.addr @r, 0
+    %4 = const i64 1
+    %5 = trunc %4
+    store %3, %5
+    %6 = field.addr @r, 8
+    %7 = const f64 2.5
+    store %6, %7
     ret
 }
 func void _ZN3RESC1Ev(ptr $0) {
@@ -103,7 +108,6 @@ func void _ZN3RESC1Ev(ptr $0) {
     store %6, %8
     ret
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN3RESD1Ev(ptr $0) {
   local ptr this
   entry0:
@@ -226,4 +230,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 12 functions, 22 blocks, 135 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 12 functions, 22 blocks, 139 insts, 0 statements not lowered, 0 scope imbalance

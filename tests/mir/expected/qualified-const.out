@@ -17,15 +17,17 @@ func void P() {
     %8 = trunc %7
     %9 = call.rtl ptr fb_ErrorThrowEx(%8, 33, @@$str0, 0, 0)
     %10 = alloca ptr f
-    %11 = alloca ptr g
+    %12 = alloca ptr g
     unreachable
   error.after1:
-    %12 = field.addr @f, 4
-    %13 = load %12
-    store @g, %13
+    %11 = call.rtl ptr memset(@f, 0, 8)
+    %13 = field.addr @f, 4
+    %14 = load %13
+    store @g, %14
     ret
 }
 declare ptr fb_ErrorThrowEx(i32 $0, i32 $1, ptr $2, ptr $3, ptr $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -42,4 +44,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 3 blocks, 24 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 3 blocks, 25 insts, 0 statements not lowered, 0 scope imbalance

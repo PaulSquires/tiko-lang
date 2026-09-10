@@ -37,68 +37,74 @@ func i32 main(i32 $0, ptr $1) {
     %6 = alloca ptr p
     %7 = call.rtl ptr fb_StrInit(@p, -1, @@$str1, 2, 0)
     %8 = alloca ptr w
-    %9 = alloca ptr q
-    %10 = alloca ptr uw
-    %11 = alloca ptr uq
-    %12 = alloca ptr a
-    %13 = call.rtl ptr fb_WstrAssign(@w, 20, @@$wstr2)
-    %14 = call.rtl ptr fb_WstrAssign(@q, 20, @@$wstr3)
-    %15 = call.rtl i64 fb_StrInstr(1, @s, @p)
-    store @a, %15
-    %16 = const i64 2
-    %17 = call.rtl i64 fb_StrInstr(%16, @s, @p)
-    store @a, %17
-    %18 = call.rtl i64 fb_StrInstrAny(1, @s, @p)
-    store @a, %18
-    %19 = const i64 2
-    %20 = call.rtl i64 fb_StrInstrAny(%19, @s, @p)
+    %9 = call.rtl ptr memset(@w, 0, 80)
+    %10 = alloca ptr q
+    %11 = call.rtl ptr memset(@q, 0, 80)
+    %12 = alloca ptr uw
+    %13 = call.rtl ptr memset(@uw, 0, 200)
+    %14 = alloca ptr uq
+    %15 = call.rtl ptr memset(@uq, 0, 200)
+    %16 = alloca ptr a
+    %17 = call.rtl ptr memset(@a, 0, 8)
+    %18 = call.rtl ptr fb_WstrAssign(@w, 20, @@$wstr2)
+    %19 = call.rtl ptr fb_WstrAssign(@q, 20, @@$wstr3)
+    %20 = call.rtl i64 fb_StrInstr(1, @s, @p)
     store @a, %20
-    %21 = call.rtl i64 fb_StrInstrRev(@s, @p, -1)
-    store @a, %21
-    %22 = const i64 3
-    %23 = call.rtl i64 fb_StrInstrRev(@s, @p, %22)
+    %21 = const i64 2
+    %22 = call.rtl i64 fb_StrInstr(%21, @s, @p)
+    store @a, %22
+    %23 = call.rtl i64 fb_StrInstrAny(1, @s, @p)
     store @a, %23
-    %24 = call.rtl i64 fb_StrInstrRevAny(@s, @p, -1)
-    store @a, %24
-    %25 = const i64 3
-    %26 = call.rtl i64 fb_StrInstrRevAny(@s, @p, %25)
+    %24 = const i64 2
+    %25 = call.rtl i64 fb_StrInstrAny(%24, @s, @p)
+    store @a, %25
+    %26 = call.rtl i64 fb_StrInstrRev(@s, @p, -1)
     store @a, %26
-    %27 = call.rtl i64 fb_WstrInstr(1, @w, @q)
-    store @a, %27
-    %28 = const i64 2
-    %29 = call.rtl i64 fb_WstrInstr(%28, @w, @q)
+    %27 = const i64 3
+    %28 = call.rtl i64 fb_StrInstrRev(@s, @p, %27)
+    store @a, %28
+    %29 = call.rtl i64 fb_StrInstrRevAny(@s, @p, -1)
     store @a, %29
     %30 = const i64 3
-    %31 = call.rtl i64 fb_WstrInstrRev(@w, @q, %30)
+    %31 = call.rtl i64 fb_StrInstrRevAny(@s, @p, %30)
     store @a, %31
-    %32 = call.rtl i64 fb_WstrInstrRevAny(@w, @q, -1)
+    %32 = call.rtl i64 fb_WstrInstr(1, @w, @q)
     store @a, %32
-    %33 = call ptr _ZN2UWcvwEv(@uw)
-    %34 = call.rtl i64 fb_WstrInstr(1, %33, @q)
+    %33 = const i64 2
+    %34 = call.rtl i64 fb_WstrInstr(%33, @w, @q)
     store @a, %34
-    %35 = call ptr _ZN2UWcvwEv(@uq)
-    %36 = call.rtl i64 fb_WstrInstr(1, @w, %35)
+    %35 = const i64 3
+    %36 = call.rtl i64 fb_WstrInstrRev(@w, @q, %35)
     store @a, %36
-    %37 = call ptr _ZN2UWcvwEv(@uw)
-    %38 = call ptr _ZN2UWcvwEv(@uq)
-    %39 = call.rtl i64 fb_WstrInstr(1, %37, %38)
+    %37 = call.rtl i64 fb_WstrInstrRevAny(@w, @q, -1)
+    store @a, %37
+    %38 = call ptr _ZN2UWcvwEv(@uw)
+    %39 = call.rtl i64 fb_WstrInstr(1, %38, @q)
     store @a, %39
-    %40 = call ptr _ZN2UWcvwEv(@uw)
-    %41 = call ptr _ZN2UWcvwEv(@uq)
-    %42 = const i64 2
-    %43 = call.rtl i64 fb_WstrInstrRev(%40, %41, %42)
-    store @a, %43
-    %44 = load @a
-    call.rtl void fb_PrintLongint(0, %44, 1)
+    %40 = call ptr _ZN2UWcvwEv(@uq)
+    %41 = call.rtl i64 fb_WstrInstr(1, @w, %40)
+    store @a, %41
+    %42 = call ptr _ZN2UWcvwEv(@uw)
+    %43 = call ptr _ZN2UWcvwEv(@uq)
+    %44 = call.rtl i64 fb_WstrInstr(1, %42, %43)
+    store @a, %44
+    %45 = call ptr _ZN2UWcvwEv(@uw)
+    %46 = call ptr _ZN2UWcvwEv(@uq)
+    %47 = const i64 2
+    %48 = call.rtl i64 fb_WstrInstrRev(%45, %46, %47)
+    store @a, %48
+    %49 = load @a
+    call.rtl void fb_PrintLongint(0, %49, 1)
     call.rtl void fb_StrDelete(@p)
     call.rtl void fb_StrDelete(@s)
-    %45 = const i32 0
-    call.rtl void fb_End(%45)
-    %46 = load @$tmp0
-    ret %46
+    %50 = const i32 0
+    call.rtl void fb_End(%50)
+    %51 = load @$tmp0
+    ret %51
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 declare i64 fb_StrInstr(i64 $0, ptr $1, ptr $2)
 declare i64 fb_StrInstrAny(i64 $0, ptr $1, ptr $2)
@@ -111,4 +117,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance

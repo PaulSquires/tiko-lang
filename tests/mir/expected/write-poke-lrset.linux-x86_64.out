@@ -16,42 +16,49 @@ func void P() {
     %3 = alloca ptr s2
     %4 = call.rtl ptr fb_StrInit(@s2, -1, @@$str1, 2, 0)
     %5 = alloca ptr z
-    %6 = alloca ptr w
-    %7 = alloca ptr w2
-    %8 = alloca ptr l
-    %9 = alloca ptr dd
-    %10 = alloca ptr b
-    %11 = alloca ptr p
-    %12 = load @l
-    call.rtl void fb_WriteInt(0, %12, 2)
+    %6 = call.rtl ptr memset(@z, 0, 8)
+    %7 = alloca ptr w
+    %8 = call.rtl ptr memset(@w, 0, 32)
+    %9 = alloca ptr w2
+    %10 = call.rtl ptr memset(@w2, 0, 32)
+    %11 = alloca ptr l
+    %12 = call.rtl ptr memset(@l, 0, 4)
+    %13 = alloca ptr dd
+    %14 = call.rtl ptr memset(@dd, 0, 8)
+    %15 = alloca ptr b
+    %16 = call.rtl ptr memset(@b, 0, 1)
+    %17 = alloca ptr p
+    %18 = call.rtl ptr memset(@p, 0, 8)
+    %19 = load @l
+    call.rtl void fb_WriteInt(0, %19, 2)
     call.rtl void fb_WriteString(0, @s1, 2)
-    %13 = load @dd
-    call.rtl void fb_WriteDouble(0, %13, 2)
-    %14 = load @b
-    call.rtl void fb_WriteByte(0, %14, 1)
-    %15 = const i64 1
-    %16 = trunc %15
-    %17 = load @l
-    call.rtl void fb_WriteInt(%16, %17, 2)
-    call.rtl void fb_WriteString(%16, @s1, 1)
+    %20 = load @dd
+    call.rtl void fb_WriteDouble(0, %20, 2)
+    %21 = load @b
+    call.rtl void fb_WriteByte(0, %21, 1)
+    %22 = const i64 1
+    %23 = trunc %22
+    %24 = load @l
+    call.rtl void fb_WriteInt(%23, %24, 2)
+    call.rtl void fb_WriteString(%23, @s1, 1)
     call.rtl void fb_WriteVoid(0, 1)
-    %18 = load @l
-    call.rtl void fb_WriteInt(0, %18, 2)
-    %19 = const i64 5
-    %20 = trunc %19
-    %21 = field.addr @p, 0
-    store %21, %20
-    %22 = const i64 7
-    %23 = field.addr @p, 0
-    store %23, %22
-    %24 = const i64 3
-    %25 = trunc %24
-    %26 = field.addr @p, 0
-    store %26, %25
+    %25 = load @l
+    call.rtl void fb_WriteInt(0, %25, 2)
+    %26 = const i64 5
+    %27 = trunc %26
+    %28 = field.addr @p, 0
+    store %28, %27
+    %29 = const i64 7
+    %30 = field.addr @p, 0
+    store %30, %29
+    %31 = const i64 3
+    %32 = trunc %31
+    %33 = field.addr @p, 0
+    store %33, %32
     call.rtl void fb_StrLset(@s1, @s2)
     call.rtl void fb_StrRset(@s1, @s2)
-    %27 = call.rtl ptr fb_StrAllocTempDescZ(@z)
-    call.rtl void fb_StrLset(%27, @s2)
+    %34 = call.rtl ptr fb_StrAllocTempDescZ(@z)
+    call.rtl void fb_StrLset(%34, @s2)
     call.rtl void fb_WstrLset(@w, @w2)
     call.rtl void fb_WstrRset(@w, @w2)
     call.rtl void fb_StrDelete(@s2)
@@ -59,6 +66,7 @@ func void P() {
     ret
 }
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_WriteInt(i32 $0, i32 $1, i32 $2)
 declare void fb_WriteString(i32 $0, ptr $1, i32 $2)
 declare void fb_WriteDouble(i32 $0, f64 $1, i32 $2)
@@ -86,4 +94,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance

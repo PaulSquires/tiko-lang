@@ -40,37 +40,39 @@ func i32 main(i32 $0, ptr $1) {
     %11 = load @_ab
     call.rtl void fb_PrintInt(0, %11, 1)
     %12 = alloca ptr y
-    %13 = const i64 1
-    %14 = const i64 2
-    %15 = add %13, %14
-    %16 = trunc %15
-    store @y, %16
-    %17 = load @y
-    call.rtl void fb_PrintInt(0, %17, 1)
-    %18 = const i64 1
-    call.rtl void fb_PrintLongint(0, %18, 2)
-    %19 = const i64 2
+    %13 = call.rtl ptr memset(@y, 0, 4)
+    %14 = const i64 1
+    %15 = const i64 2
+    %16 = add %14, %15
+    %17 = trunc %16
+    store @y, %17
+    %18 = load @y
+    call.rtl void fb_PrintInt(0, %18, 1)
+    %19 = const i64 1
     call.rtl void fb_PrintLongint(0, %19, 2)
-    %20 = const i64 3
-    call.rtl void fb_PrintLongint(0, %20, 1)
-    %21 = const i64 10
-    call.rtl void fb_PrintLongint(0, %21, 2)
-    %22 = const i64 20
+    %20 = const i64 2
+    call.rtl void fb_PrintLongint(0, %20, 2)
+    %21 = const i64 3
+    call.rtl void fb_PrintLongint(0, %21, 1)
+    %22 = const i64 10
     call.rtl void fb_PrintLongint(0, %22, 2)
-    %23 = const i64 30
-    call.rtl void fb_PrintLongint(0, %23, 1)
-    %24 = const i64 41
-    %25 = trunc %24
-    %26 = call i32 _Z4FOO_i(%25)
-    call.rtl void fb_PrintInt(0, %26, 1)
-    %27 = const i32 0
-    call.rtl void fb_End(%27)
-    %28 = load @$tmp0
-    ret %28
+    %23 = const i64 20
+    call.rtl void fb_PrintLongint(0, %23, 2)
+    %24 = const i64 30
+    call.rtl void fb_PrintLongint(0, %24, 1)
+    %25 = const i64 41
+    %26 = trunc %25
+    %27 = call i32 _Z4FOO_i(%26)
+    call.rtl void fb_PrintInt(0, %27, 1)
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

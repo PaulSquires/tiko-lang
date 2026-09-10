@@ -5,32 +5,34 @@ func i32 _ZplRK1US1_(ptr $0, ptr $1) {
   local agg t size 4
   local agg $abi4 size 4
   entry0:
-    %18 = alloca ptr $abi4
+    %19 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr lhs
     store @lhs, $0
     %3 = alloca ptr rhs
     store @rhs, $1
     %4 = alloca ptr t
-    %5 = field.addr @t, 0
-    %6 = load @lhs
-    %7 = field.addr %6, 0
-    %8 = load %7
-    %9 = load @rhs
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = sext %8
-    %13 = sext %11
-    %14 = add %12, %13
-    %15 = trunc %14
-    store %5, %15
-    %16 = load @t
-    store @$tmp0, %16
-    %17 = load @$tmp0
-    store @$abi4, %17
-    %19 = load @$abi4
-    ret %19
+    %5 = call.rtl ptr memset(@t, 0, 4)
+    %6 = field.addr @t, 0
+    %7 = load @lhs
+    %8 = field.addr %7, 0
+    %9 = load %8
+    %10 = load @rhs
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = sext %9
+    %14 = sext %12
+    %15 = add %13, %14
+    %16 = trunc %15
+    store %6, %16
+    %17 = load @t
+    store @$tmp0, %17
+    %18 = load @$tmp0
+    store @$abi4, %18
+    %20 = load @$abi4
+    ret %20
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 _ZmiRK1US1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr lhs
@@ -38,31 +40,32 @@ func i32 _ZmiRK1US1_(ptr $0, ptr $1) {
   local agg t size 4
   local agg $abi4 size 4
   entry0:
-    %18 = alloca ptr $abi4
+    %19 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr lhs
     store @lhs, $0
     %3 = alloca ptr rhs
     store @rhs, $1
     %4 = alloca ptr t
-    %5 = field.addr @t, 0
-    %6 = load @lhs
-    %7 = field.addr %6, 0
-    %8 = load %7
-    %9 = load @rhs
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = sext %8
-    %13 = sext %11
-    %14 = sub %12, %13
-    %15 = trunc %14
-    store %5, %15
-    %16 = load @t
-    store @$tmp0, %16
-    %17 = load @$tmp0
-    store @$abi4, %17
-    %19 = load @$abi4
-    ret %19
+    %5 = call.rtl ptr memset(@t, 0, 4)
+    %6 = field.addr @t, 0
+    %7 = load @lhs
+    %8 = field.addr %7, 0
+    %9 = load %8
+    %10 = load @rhs
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = sext %9
+    %14 = sext %12
+    %15 = sub %13, %14
+    %16 = trunc %15
+    store %6, %16
+    %17 = load @t
+    store @$tmp0, %17
+    %18 = load @$tmp0
+    store @$abi4, %18
+    %20 = load @$abi4
+    ret %20
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -74,56 +77,59 @@ func i32 main(i32 $0, ptr $1) {
   local agg $abi6 size 4
   local agg $abi7 size 4
   entry0:
-    %26 = alloca ptr $abi5
-    %28 = alloca ptr $abi6
-    %30 = alloca ptr $abi7
+    %29 = alloca ptr $abi5
+    %31 = alloca ptr $abi6
+    %33 = alloca ptr $abi7
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr a
-    %5 = alloca ptr b
-    %6 = alloca ptr r
-    %7 = field.addr @a, 0
-    %8 = const i64 7
-    %9 = trunc %8
-    store %7, %9
-    %10 = field.addr @b, 0
-    %11 = const i64 2
+    %5 = call.rtl ptr memset(@a, 0, 4)
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 4)
+    %8 = alloca ptr r
+    %9 = call.rtl ptr memset(@r, 0, 4)
+    %10 = field.addr @a, 0
+    %11 = const i64 7
     %12 = trunc %11
     store %10, %12
-    %27 = call i32 _ZplRK1US1_(@a, @b)
-    store @$abi5, %27
-    %13 = load @$abi5
-    store @r, %13
-    %14 = field.addr @r, 0
-    %15 = load %14
-    call.rtl void fb_PrintInt(0, %15, 1)
-    %29 = call i32 _ZmiRK1US1_(@a, @b)
-    store @$abi6, %29
-    %16 = load @$abi6
+    %13 = field.addr @b, 0
+    %14 = const i64 2
+    %15 = trunc %14
+    store %13, %15
+    %30 = call i32 _ZplRK1US1_(@a, @b)
+    store @$abi5, %30
+    %16 = load @$abi5
     store @r, %16
     %17 = field.addr @r, 0
     %18 = load %17
     call.rtl void fb_PrintInt(0, %18, 1)
-    %19 = alloca ptr ca
-    %20 = load @a
-    store @ca, %20
-    %31 = call i32 _ZplRK1US1_(@ca, @b)
-    store @$abi7, %31
-    %21 = load @$abi7
-    store @r, %21
-    %22 = field.addr @r, 0
-    %23 = load %22
-    call.rtl void fb_PrintInt(0, %23, 1)
-    %24 = const i32 0
-    call.rtl void fb_End(%24)
-    %25 = load @$tmp0
-    ret %25
+    %32 = call i32 _ZmiRK1US1_(@a, @b)
+    store @$abi6, %32
+    %19 = load @$abi6
+    store @r, %19
+    %20 = field.addr @r, 0
+    %21 = load %20
+    call.rtl void fb_PrintInt(0, %21, 1)
+    %22 = alloca ptr ca
+    %23 = load @a
+    store @ca, %23
+    %34 = call i32 _ZplRK1US1_(@ca, @b)
+    store @$abi7, %34
+    %24 = load @$abi7
+    store @r, %24
+    %25 = field.addr @r, 0
+    %26 = load %25
+    call.rtl void fb_PrintInt(0, %26, 1)
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

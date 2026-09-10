@@ -4,28 +4,29 @@ func void S1() {
   local ptr $tmp1
   entry0:
     %1 = alloca ptr local_i
-    %2 = const i64 0
-    %3 = trunc %2
-    %4 = const i64 8
-    %5 = call.rtl ptr memset(@local_i, %3, %4)
-    %6 = const i64 0
-    %7 = trunc %6
-    %8 = const i64 8
-    %9 = call.rtl ptr memset(@@global_i, %7, %8)
-    %10 = alloca ptr $tmp1
+    %2 = call.rtl ptr memset(@local_i, 0, 8)
+    %3 = const i64 0
+    %4 = trunc %3
+    %5 = const i64 8
+    %6 = call.rtl ptr memset(@local_i, %4, %5)
+    %7 = const i64 0
+    %8 = trunc %7
+    %9 = const i64 8
+    %10 = call.rtl ptr memset(@@global_i, %8, %9)
+    %11 = alloca ptr $tmp1
     store @$tmp1, @local_i
-    %11 = const i64 0
-    %12 = trunc %11
-    %13 = const i64 8
-    %14 = call.rtl ptr memset(@$tmp1, %12, %13)
-    %15 = const i64 0
-    %16 = trunc %15
-    %17 = const i64 8
-    %18 = call.rtl ptr memset(@@global_i, %16, %17)
-    %19 = const i64 0
-    %20 = trunc %19
-    %21 = const i64 8
-    %22 = call.rtl ptr memset(0, %20, %21)
+    %12 = const i64 0
+    %13 = trunc %12
+    %14 = const i64 8
+    %15 = call.rtl ptr memset(@$tmp1, %13, %14)
+    %16 = const i64 0
+    %17 = trunc %16
+    %18 = const i64 8
+    %19 = call.rtl ptr memset(@@global_i, %17, %18)
+    %20 = const i64 0
+    %21 = trunc %20
+    %22 = const i64 8
+    %23 = call.rtl ptr memset(0, %21, %22)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -45,4 +46,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance

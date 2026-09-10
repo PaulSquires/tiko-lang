@@ -11,93 +11,103 @@ func void P() {
   local i64 uq
   entry0:
     %1 = alloca ptr s
-    %2 = field.addr @s, 0
-    store %2, 0
-    %3 = field.addr @s, 8
+    %2 = call.rtl ptr memset(@s, 0, 24)
+    %3 = field.addr @s, 0
     store %3, 0
-    %4 = field.addr @s, 16
+    %4 = field.addr @s, 8
     store %4, 0
-    %5 = alloca ptr b
-    %6 = alloca ptr ub
-    %7 = alloca ptr sh
-    %8 = alloca ptr ush
-    %9 = alloca ptr l
-    %10 = alloca ptr ul
-    %11 = alloca ptr q
-    %12 = alloca ptr uq
-    %13 = load @b
-    %14 = call.rtl ptr fb_HEX_b(%13)
-    %15 = call.rtl ptr fb_StrAssign(@s, -1, %14, -1, 0)
-    %16 = load @ub
-    %17 = call.rtl ptr fb_HEX_b(%16)
-    %18 = call.rtl ptr fb_StrAssign(@s, -1, %17, -1, 0)
-    %19 = load @sh
-    %20 = call.rtl ptr fb_HEX_s(%19)
-    %21 = call.rtl ptr fb_StrAssign(@s, -1, %20, -1, 0)
-    %22 = load @ush
-    %23 = call.rtl ptr fb_HEX_s(%22)
+    %5 = field.addr @s, 16
+    store %5, 0
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 1)
+    %8 = alloca ptr ub
+    %9 = call.rtl ptr memset(@ub, 0, 1)
+    %10 = alloca ptr sh
+    %11 = call.rtl ptr memset(@sh, 0, 2)
+    %12 = alloca ptr ush
+    %13 = call.rtl ptr memset(@ush, 0, 2)
+    %14 = alloca ptr l
+    %15 = call.rtl ptr memset(@l, 0, 4)
+    %16 = alloca ptr ul
+    %17 = call.rtl ptr memset(@ul, 0, 4)
+    %18 = alloca ptr q
+    %19 = call.rtl ptr memset(@q, 0, 8)
+    %20 = alloca ptr uq
+    %21 = call.rtl ptr memset(@uq, 0, 8)
+    %22 = load @b
+    %23 = call.rtl ptr fb_HEX_b(%22)
     %24 = call.rtl ptr fb_StrAssign(@s, -1, %23, -1, 0)
-    %25 = load @l
-    %26 = call.rtl ptr fb_HEX_i(%25)
+    %25 = load @ub
+    %26 = call.rtl ptr fb_HEX_b(%25)
     %27 = call.rtl ptr fb_StrAssign(@s, -1, %26, -1, 0)
-    %28 = load @ul
-    %29 = call.rtl ptr fb_HEX_i(%28)
+    %28 = load @sh
+    %29 = call.rtl ptr fb_HEX_s(%28)
     %30 = call.rtl ptr fb_StrAssign(@s, -1, %29, -1, 0)
-    %31 = load @q
-    %32 = call.rtl ptr fb_HEX_l(%31)
+    %31 = load @ush
+    %32 = call.rtl ptr fb_HEX_s(%31)
     %33 = call.rtl ptr fb_StrAssign(@s, -1, %32, -1, 0)
-    %34 = load @uq
-    %35 = call.rtl ptr fb_HEX_l(%34)
+    %34 = load @l
+    %35 = call.rtl ptr fb_HEX_i(%34)
     %36 = call.rtl ptr fb_StrAssign(@s, -1, %35, -1, 0)
-    %37 = load @l
-    %38 = const i64 4
-    %39 = trunc %38
-    %40 = call.rtl ptr fb_HEXEx_i(%37, %39)
-    %41 = call.rtl ptr fb_StrAssign(@s, -1, %40, -1, 0)
-    %42 = load @l
-    %43 = call.rtl ptr fb_OCT_i(%42)
-    %44 = call.rtl ptr fb_StrAssign(@s, -1, %43, -1, 0)
-    %45 = load @uq
-    %46 = call.rtl ptr fb_OCT_l(%45)
-    %47 = call.rtl ptr fb_StrAssign(@s, -1, %46, -1, 0)
-    %48 = load @l
-    %49 = const i64 4
-    %50 = trunc %49
-    %51 = call.rtl ptr fb_OCTEx_i(%48, %50)
-    %52 = call.rtl ptr fb_StrAssign(@s, -1, %51, -1, 0)
-    %53 = load @l
-    %54 = call.rtl ptr fb_BIN_i(%53)
-    %55 = call.rtl ptr fb_StrAssign(@s, -1, %54, -1, 0)
-    %56 = load @uq
-    %57 = call.rtl ptr fb_BIN_l(%56)
-    %58 = call.rtl ptr fb_StrAssign(@s, -1, %57, -1, 0)
-    %59 = load @l
-    %60 = const i64 4
-    %61 = trunc %60
-    %62 = call.rtl ptr fb_BINEx_i(%59, %61)
-    %63 = call.rtl ptr fb_StrAssign(@s, -1, %62, -1, 0)
-    %64 = const i64 65
-    %65 = call.rtl ptr fb_CHR(1, %64)
-    %66 = call.rtl ptr fb_StrAssign(@s, -1, %65, -1, 0)
-    %67 = const i64 65
-    %68 = const i64 66
-    %69 = call.rtl ptr fb_CHR(2, %67, %68)
-    %70 = call.rtl ptr fb_StrAssign(@s, -1, %69, -1, 0)
-    %71 = const i64 4
-    %72 = call.rtl ptr fb_SPACE(%71)
-    %73 = call.rtl ptr fb_StrAssign(@s, -1, %72, -1, 0)
-    %74 = const i64 4
-    %75 = const i64 65
-    %76 = trunc %75
-    %77 = call.rtl ptr fb_StrFill1(%74, %76)
-    %78 = call.rtl ptr fb_StrAssign(@s, -1, %77, -1, 0)
-    %79 = const i64 4
-    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    %81 = call.rtl ptr fb_StrFill2(%79, %80)
+    %37 = load @ul
+    %38 = call.rtl ptr fb_HEX_i(%37)
+    %39 = call.rtl ptr fb_StrAssign(@s, -1, %38, -1, 0)
+    %40 = load @q
+    %41 = call.rtl ptr fb_HEX_l(%40)
+    %42 = call.rtl ptr fb_StrAssign(@s, -1, %41, -1, 0)
+    %43 = load @uq
+    %44 = call.rtl ptr fb_HEX_l(%43)
+    %45 = call.rtl ptr fb_StrAssign(@s, -1, %44, -1, 0)
+    %46 = load @l
+    %47 = const i64 4
+    %48 = trunc %47
+    %49 = call.rtl ptr fb_HEXEx_i(%46, %48)
+    %50 = call.rtl ptr fb_StrAssign(@s, -1, %49, -1, 0)
+    %51 = load @l
+    %52 = call.rtl ptr fb_OCT_i(%51)
+    %53 = call.rtl ptr fb_StrAssign(@s, -1, %52, -1, 0)
+    %54 = load @uq
+    %55 = call.rtl ptr fb_OCT_l(%54)
+    %56 = call.rtl ptr fb_StrAssign(@s, -1, %55, -1, 0)
+    %57 = load @l
+    %58 = const i64 4
+    %59 = trunc %58
+    %60 = call.rtl ptr fb_OCTEx_i(%57, %59)
+    %61 = call.rtl ptr fb_StrAssign(@s, -1, %60, -1, 0)
+    %62 = load @l
+    %63 = call.rtl ptr fb_BIN_i(%62)
+    %64 = call.rtl ptr fb_StrAssign(@s, -1, %63, -1, 0)
+    %65 = load @uq
+    %66 = call.rtl ptr fb_BIN_l(%65)
+    %67 = call.rtl ptr fb_StrAssign(@s, -1, %66, -1, 0)
+    %68 = load @l
+    %69 = const i64 4
+    %70 = trunc %69
+    %71 = call.rtl ptr fb_BINEx_i(%68, %70)
+    %72 = call.rtl ptr fb_StrAssign(@s, -1, %71, -1, 0)
+    %73 = const i64 65
+    %74 = call.rtl ptr fb_CHR(1, %73)
+    %75 = call.rtl ptr fb_StrAssign(@s, -1, %74, -1, 0)
+    %76 = const i64 65
+    %77 = const i64 66
+    %78 = call.rtl ptr fb_CHR(2, %76, %77)
+    %79 = call.rtl ptr fb_StrAssign(@s, -1, %78, -1, 0)
+    %80 = const i64 4
+    %81 = call.rtl ptr fb_SPACE(%80)
     %82 = call.rtl ptr fb_StrAssign(@s, -1, %81, -1, 0)
+    %83 = const i64 4
+    %84 = const i64 65
+    %85 = trunc %84
+    %86 = call.rtl ptr fb_StrFill1(%83, %85)
+    %87 = call.rtl ptr fb_StrAssign(@s, -1, %86, -1, 0)
+    %88 = const i64 4
+    %89 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    %90 = call.rtl ptr fb_StrFill2(%88, %89)
+    %91 = call.rtl ptr fb_StrAssign(@s, -1, %90, -1, 0)
     call.rtl void fb_StrDelete(@s)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_HEX_b(i8 $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_HEX_s(i16 $0)
@@ -132,4 +142,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 103 insts, 0 statements not lowered, 0 scope imbalance

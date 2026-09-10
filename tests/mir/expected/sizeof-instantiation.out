@@ -29,27 +29,29 @@ func i32 main(i32 $0, ptr $1) {
     %15 = trunc %14
     store @n4, %15
     %16 = alloca ptr b
-    %17 = alloca ptr n5
-    %18 = const i64 4
-    %19 = trunc %18
-    store @n5, %19
-    %20 = load @n1
-    call.rtl void fb_PrintInt(0, %20, 2)
-    %21 = load @n2
+    %17 = call.rtl ptr memset(@b, 0, 4)
+    %18 = alloca ptr n5
+    %19 = const i64 4
+    %20 = trunc %19
+    store @n5, %20
+    %21 = load @n1
     call.rtl void fb_PrintInt(0, %21, 2)
-    %22 = load @n3
+    %22 = load @n2
     call.rtl void fb_PrintInt(0, %22, 2)
-    %23 = load @n4
+    %23 = load @n3
     call.rtl void fb_PrintInt(0, %23, 2)
-    %24 = load @n5
-    call.rtl void fb_PrintInt(0, %24, 1)
-    %25 = const i32 0
-    call.rtl void fb_End(%25)
-    %26 = load @$tmp0
-    ret %26
+    %24 = load @n4
+    call.rtl void fb_PrintInt(0, %24, 2)
+    %25 = load @n5
+    call.rtl void fb_PrintInt(0, %25, 1)
+    %26 = const i32 0
+    call.rtl void fb_End(%26)
+    %27 = load @$tmp0
+    ret %27
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance

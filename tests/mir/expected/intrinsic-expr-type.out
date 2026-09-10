@@ -18,63 +18,65 @@ func i32 main(i32 $0, ptr $1) {
     %8 = const f64 1
     store @d, %8
     %9 = alloca ptr buf
-    %10 = const i64 1
-    %11 = trunc %10
-    %12 = call.rtl i32 fb_FileClose(%11)
-    call.rtl void fb_PrintInt(0, %12, 1)
-    %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
-    %14 = const i64 1
-    %15 = trunc %14
-    %16 = const i32 0
-    %17 = const i32 2
-    %18 = const i32 0
+    %10 = call.rtl ptr memset(@buf, 0, 8)
+    %11 = const i64 1
+    %12 = trunc %11
+    %13 = call.rtl i32 fb_FileClose(%12)
+    call.rtl void fb_PrintInt(0, %13, 1)
+    %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %15 = const i64 1
+    %16 = trunc %15
+    %17 = const i32 0
+    %18 = const i32 2
     %19 = const i32 0
-    %20 = call.rtl i32 fb_FileOpen(%13, %17, %18, %19, %15, %16)
-    call.rtl void fb_PrintInt(0, %20, 1)
-    %21 = const i64 1
-    %22 = trunc %21
-    %23 = const i64 0
-    %24 = const i64 1
-    %25 = const i64 8
-    %26 = call.rtl i32 fb_FileGetLarge(%22, %24, @buf, %25)
-    call.rtl void fb_PrintInt(0, %26, 1)
-    %27 = const i64 3
-    %28 = const i32 0
-    %29 = call.rtl ptr fb_FileStrInput(%27, %28)
-    call.rtl void fb_PrintString(0, %29, 1)
-    %30 = const i64 3
-    %31 = const i32 0
-    %32 = call.rtl ptr fb_FileWstrInput(%30, %31)
-    call.rtl void fb_PrintWstr(0, %32, 1)
-    %33 = const i64 1
-    %34 = trunc %33
-    %35 = const i64 2
-    %36 = trunc %35
-    %37 = const i32 0
-    %38 = call.rtl i32 fb_ReadXY(%36, %34, %37)
-    call.rtl void fb_PrintUInt(0, %38, 1)
-    %39 = const i64 1
-    %40 = trunc %39
-    %41 = const i64 2
-    %42 = trunc %41
-    %43 = const i64 1
-    %44 = trunc %43
-    %45 = call.rtl i32 fb_ReadXY(%42, %40, %44)
-    call.rtl void fb_PrintUInt(0, %45, 1)
-    %46 = load @f
+    %20 = const i32 0
+    %21 = call.rtl i32 fb_FileOpen(%14, %18, %19, %20, %16, %17)
+    call.rtl void fb_PrintInt(0, %21, 1)
+    %22 = const i64 1
+    %23 = trunc %22
+    %24 = const i64 0
+    %25 = const i64 1
+    %26 = const i64 8
+    %27 = call.rtl i32 fb_FileGetLarge(%23, %25, @buf, %26)
+    call.rtl void fb_PrintInt(0, %27, 1)
+    %28 = const i64 3
+    %29 = const i32 0
+    %30 = call.rtl ptr fb_FileStrInput(%28, %29)
+    call.rtl void fb_PrintString(0, %30, 1)
+    %31 = const i64 3
+    %32 = const i32 0
+    %33 = call.rtl ptr fb_FileWstrInput(%31, %32)
+    call.rtl void fb_PrintWstr(0, %33, 1)
+    %34 = const i64 1
+    %35 = trunc %34
+    %36 = const i64 2
+    %37 = trunc %36
+    %38 = const i32 0
+    %39 = call.rtl i32 fb_ReadXY(%37, %35, %38)
+    call.rtl void fb_PrintUInt(0, %39, 1)
+    %40 = const i64 1
+    %41 = trunc %40
+    %42 = const i64 2
+    %43 = trunc %42
+    %44 = const i64 1
+    %45 = trunc %44
+    %46 = call.rtl i32 fb_ReadXY(%43, %41, %45)
+    call.rtl void fb_PrintUInt(0, %46, 1)
     %47 = load @f
-    %48 = call.rtl f32 atan2f(%46, %47)
-    call.rtl void fb_PrintSingle(0, %48, 1)
-    %49 = load @d
+    %48 = load @f
+    %49 = call.rtl f32 atan2f(%47, %48)
+    call.rtl void fb_PrintSingle(0, %49, 1)
     %50 = load @d
-    %51 = call.rtl f64 atan2(%49, %50)
-    call.rtl void fb_PrintDouble(0, %51, 1)
-    %52 = const i32 0
-    call.rtl void fb_End(%52)
-    %53 = load @$tmp0
-    ret %53
+    %51 = load @d
+    %52 = call.rtl f64 atan2(%50, %51)
+    call.rtl void fb_PrintDouble(0, %52, 1)
+    %53 = const i32 0
+    call.rtl void fb_End(%53)
+    %54 = load @$tmp0
+    ret %54
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 fb_FileClose(i32 $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
@@ -92,4 +94,4 @@ declare f64 atan2(f64 $0, f64 $1)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 67 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance

@@ -32,116 +32,124 @@ func i32 main(i32 $0, ptr $1) {
     %6 = trunc %5
     store @code_, %6
     %7 = alloca ptr w
-    %8 = load @code_
-    %9 = sext %8
-    %10 = call.rtl ptr fb_WstrChr(1, %9)
-    %11 = call.rtl ptr fb_WstrAssign(@w, 8, %10)
-    %12 = load @code_
-    %13 = sext %12
-    %14 = load @code_
-    %15 = sext %14
-    %16 = call.rtl ptr fb_WstrChr(2, %13, %15)
-    %17 = call.rtl ptr fb_WstrAssign(@w, 8, %16)
-    %18 = alloca ptr cur
-    %19 = field.addr @cur, 0
-    store %19, 0
-    %20 = field.addr @cur, 8
-    store %20, 0
-    %21 = field.addr @cur, 16
+    %8 = call.rtl ptr memset(@w, 0, 16)
+    %9 = load @code_
+    %10 = sext %9
+    %11 = call.rtl ptr fb_WstrChr(1, %10)
+    %12 = call.rtl ptr fb_WstrAssign(@w, 8, %11)
+    %13 = load @code_
+    %14 = sext %13
+    %15 = load @code_
+    %16 = sext %15
+    %17 = call.rtl ptr fb_WstrChr(2, %14, %16)
+    %18 = call.rtl ptr fb_WstrAssign(@w, 8, %17)
+    %19 = alloca ptr cur
+    %20 = call.rtl ptr memset(@cur, 0, 24)
+    %21 = field.addr @cur, 0
     store %21, 0
-    %22 = load @code_
-    %23 = sext %22
-    %24 = call.rtl ptr fb_WstrChr(1, %23)
-    %25 = call.rtl ptr fb_WstrToUStr(%24)
-    %26 = call.rtl ptr fb_UStrConcatAssign(@cur, -1, %25, -1, 0)
-    %27 = alloca ptr x
-    %28 = load @code_
-    %29 = sext %28
-    %30 = call.rtl ptr fb_WstrChr(1, %29)
-    %31 = call.rtl ptr fb_WstrToUStr(%30)
-    %32 = call.rtl ptr fb_UStrInit(@x, -1, %31, -1, 0)
+    %22 = field.addr @cur, 8
+    store %22, 0
+    %23 = field.addr @cur, 16
+    store %23, 0
+    %24 = load @code_
+    %25 = sext %24
+    %26 = call.rtl ptr fb_WstrChr(1, %25)
+    %27 = call.rtl ptr fb_WstrToUStr(%26)
+    %28 = call.rtl ptr fb_UStrConcatAssign(@cur, -1, %27, -1, 0)
+    %29 = alloca ptr x
+    %30 = load @code_
+    %31 = sext %30
+    %32 = call.rtl ptr fb_WstrChr(1, %31)
+    %33 = call.rtl ptr fb_WstrToUStr(%32)
+    %34 = call.rtl ptr fb_UStrInit(@x, -1, %33, -1, 0)
     call.rtl void fb_PrintWstr(0, @w, 2)
     call.rtl void fb_PrintUStr(0, @cur, 2)
     call.rtl void fb_PrintUStr(0, @x, 1)
-    %33 = alloca ptr s2
-    %34 = call.rtl ptr fb_StrInit(@s2, -1, @@$str0, 3, 0)
-    %35 = alloca ptr w2
-    %36 = alloca ptr $tmp7
-    %37 = field.addr @$tmp7, 0
-    store %37, 0
-    %38 = field.addr @$tmp7, 8
-    store %38, 0
-    %39 = field.addr @$tmp7, 16
-    store %39, 0
-    %40 = const i64 65
-    %41 = call.rtl ptr fb_CHR(1, %40)
-    %42 = call.rtl ptr fb_StrConcat(@$tmp7, @@$str1, 4, %41, -1)
-    %43 = field.addr @$tmp7, 0
-    %44 = load %43
-    %45 = call.rtl ptr fb_StrToWstr(%44)
-    %46 = alloca ptr $tmp8
-    store @$tmp8, %45
-    %47 = load @$tmp8
-    %48 = call.rtl ptr fb_WstrAssign(@w2, 16, %47)
-    %49 = load @$tmp8
-    call.rtl void fb_WstrDelete(%49)
-    %50 = alloca ptr $tmp9
-    %51 = field.addr @$tmp9, 0
-    store %51, 0
-    %52 = field.addr @$tmp9, 8
-    store %52, 0
-    %53 = field.addr @$tmp9, 16
-    store %53, 0
-    %54 = call.rtl ptr fb_StrConcat(@$tmp9, @s2, -1, @@$str2, 2)
-    %55 = field.addr @$tmp9, 0
-    %56 = load %55
-    %57 = call.rtl ptr fb_StrToWstr(%56)
-    %58 = alloca ptr $tmp10
-    store @$tmp10, %57
-    %59 = load @$tmp10
-    %60 = call.rtl ptr fb_WstrAssign(@w2, 16, %59)
-    %61 = load @$tmp10
-    call.rtl void fb_WstrDelete(%61)
+    %35 = alloca ptr s2
+    %36 = call.rtl ptr fb_StrInit(@s2, -1, @@$str0, 3, 0)
+    %37 = alloca ptr w2
+    %38 = call.rtl ptr memset(@w2, 0, 32)
+    %39 = alloca ptr $tmp7
+    %40 = field.addr @$tmp7, 0
+    store %40, 0
+    %41 = field.addr @$tmp7, 8
+    store %41, 0
+    %42 = field.addr @$tmp7, 16
+    store %42, 0
+    %43 = const i64 65
+    %44 = call.rtl ptr fb_CHR(1, %43)
+    %45 = call.rtl ptr fb_StrConcat(@$tmp7, @@$str1, 4, %44, -1)
+    %46 = field.addr @$tmp7, 0
+    %47 = load %46
+    %48 = call.rtl ptr fb_StrToWstr(%47)
+    %49 = alloca ptr $tmp8
+    store @$tmp8, %48
+    %50 = load @$tmp8
+    %51 = call.rtl ptr fb_WstrAssign(@w2, 16, %50)
+    %52 = load @$tmp8
+    call.rtl void fb_WstrDelete(%52)
+    %53 = alloca ptr $tmp9
+    %54 = field.addr @$tmp9, 0
+    store %54, 0
+    %55 = field.addr @$tmp9, 8
+    store %55, 0
+    %56 = field.addr @$tmp9, 16
+    store %56, 0
+    %57 = call.rtl ptr fb_StrConcat(@$tmp9, @s2, -1, @@$str2, 2)
+    %58 = field.addr @$tmp9, 0
+    %59 = load %58
+    %60 = call.rtl ptr fb_StrToWstr(%59)
+    %61 = alloca ptr $tmp10
+    store @$tmp10, %60
+    %62 = load @$tmp10
+    %63 = call.rtl ptr fb_WstrAssign(@w2, 16, %62)
+    %64 = load @$tmp10
+    call.rtl void fb_WstrDelete(%64)
     call.rtl void fb_PrintWstr(0, @w2, 1)
-    %62 = alloca ptr z0
-    %63 = alloca ptr w0
-    %64 = alloca ptr pz
+    %65 = alloca ptr z0
+    %66 = call.rtl ptr memset(@z0, 0, 8)
+    %67 = alloca ptr w0
+    %68 = call.rtl ptr memset(@w0, 0, 16)
+    %69 = alloca ptr pz
     store @pz, @z0
-    %65 = alloca ptr pw
+    %70 = alloca ptr pw
     store @pw, @w0
-    %66 = call.rtl ptr fb_StrAssign(@z0, 8, @@$str3, 4, 0)
-    %67 = call.rtl ptr fb_WstrAssign(@w0, 8, @@$wstr4)
-    %68 = alloca ptr dv
-    %69 = alloca ptr nv
-    %70 = load @pz
-    %71 = load %70
-    %72 = uitofp %71
-    store @dv, %72
-    %73 = load @pz
-    %74 = load %73
-    %75 = zext %74
-    store @nv, %75
-    %76 = load @pw
-    %77 = load %76
-    %78 = uitofp %77
-    store @dv, %78
-    %79 = load @pw
-    %80 = load %79
-    %81 = zext %80
-    store @nv, %81
-    %82 = load @dv
-    call.rtl void fb_PrintDouble(0, %82, 2)
-    %83 = load @nv
-    call.rtl void fb_PrintInt(0, %83, 1)
+    %71 = call.rtl ptr fb_StrAssign(@z0, 8, @@$str3, 4, 0)
+    %72 = call.rtl ptr fb_WstrAssign(@w0, 8, @@$wstr4)
+    %73 = alloca ptr dv
+    %74 = call.rtl ptr memset(@dv, 0, 8)
+    %75 = alloca ptr nv
+    %76 = call.rtl ptr memset(@nv, 0, 4)
+    %77 = load @pz
+    %78 = load %77
+    %79 = uitofp %78
+    store @dv, %79
+    %80 = load @pz
+    %81 = load %80
+    %82 = zext %81
+    store @nv, %82
+    %83 = load @pw
+    %84 = load %83
+    %85 = uitofp %84
+    store @dv, %85
+    %86 = load @pw
+    %87 = load %86
+    %88 = zext %87
+    store @nv, %88
+    %89 = load @dv
+    call.rtl void fb_PrintDouble(0, %89, 2)
+    %90 = load @nv
+    call.rtl void fb_PrintInt(0, %90, 1)
     call.rtl void fb_StrDelete(@s2)
     call.rtl void fb_UStrDelete(@x)
     call.rtl void fb_UStrDelete(@cur)
-    %84 = const i32 0
-    call.rtl void fb_End(%84)
-    %85 = load @$tmp0
-    ret %85
+    %91 = const i32 0
+    call.rtl void fb_End(%91)
+    %92 = load @$tmp0
+    ret %92
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_WstrChr(i32 $0, ...)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 declare ptr fb_WstrToUStr(ptr $0)
@@ -161,4 +169,4 @@ declare void fb_StrDelete(ptr $0)
 declare void fb_UStrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 117 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 124 insts, 0 statements not lowered, 0 scope imbalance

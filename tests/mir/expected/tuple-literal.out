@@ -21,99 +21,102 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr a
-    %5 = alloca ptr b
-    %6 = alloca ptr $tmp3
-    %7 = const i64 1
-    %8 = const i64 2
-    %9 = field.addr @$tmp3, 0
-    store %9, %7
-    %10 = field.addr @$tmp3, 8
-    store %10, %8
-    %11 = alloca ptr $tmp4
+    %5 = call.rtl ptr memset(@a, 0, 4)
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 4)
+    %8 = alloca ptr $tmp3
+    %9 = const i64 1
+    %10 = const i64 2
+    %11 = field.addr @$tmp3, 0
+    store %11, %9
+    %12 = field.addr @$tmp3, 8
+    store %12, %10
+    %13 = alloca ptr $tmp4
     store @$tmp4, @$tmp3
-    %12 = load @$tmp4
-    %13 = field.addr %12, 0
-    %14 = load %13
-    %15 = trunc %14
-    store @a, %15
-    %16 = load @$tmp4
-    %17 = field.addr %16, 8
-    %18 = load %17
-    %19 = trunc %18
-    store @b, %19
-    %20 = load @a
-    call.rtl void fb_PrintInt(0, %20, 0)
-    %21 = load @b
-    call.rtl void fb_PrintInt(0, %21, 1)
-    %22 = alloca ptr $tmp5
-    %23 = const i64 3
-    %24 = const i64 4
-    %25 = field.addr @$tmp5, 0
-    store %25, %23
-    %26 = field.addr @$tmp5, 8
-    store %26, %24
-    %27 = alloca ptr $tmp6
+    %14 = load @$tmp4
+    %15 = field.addr %14, 0
+    %16 = load %15
+    %17 = trunc %16
+    store @a, %17
+    %18 = load @$tmp4
+    %19 = field.addr %18, 8
+    %20 = load %19
+    %21 = trunc %20
+    store @b, %21
+    %22 = load @a
+    call.rtl void fb_PrintInt(0, %22, 0)
+    %23 = load @b
+    call.rtl void fb_PrintInt(0, %23, 1)
+    %24 = alloca ptr $tmp5
+    %25 = const i64 3
+    %26 = const i64 4
+    %27 = field.addr @$tmp5, 0
+    store %27, %25
+    %28 = field.addr @$tmp5, 8
+    store %28, %26
+    %29 = alloca ptr $tmp6
     store @$tmp6, @$tmp5
-    %28 = load @$tmp6
-    %29 = field.addr %28, 0
-    %30 = load %29
-    %31 = trunc %30
-    store @a, %31
-    %32 = load @$tmp6
-    %33 = field.addr %32, 8
-    %34 = load %33
-    %35 = trunc %34
-    store @b, %35
-    %36 = load @a
-    call.rtl void fb_PrintInt(0, %36, 0)
-    %37 = load @b
-    call.rtl void fb_PrintInt(0, %37, 1)
-    %38 = alloca ptr $tmp7
+    %30 = load @$tmp6
+    %31 = field.addr %30, 0
+    %32 = load %31
+    %33 = trunc %32
+    store @a, %33
+    %34 = load @$tmp6
+    %35 = field.addr %34, 8
+    %36 = load %35
+    %37 = trunc %36
+    store @b, %37
+    %38 = load @a
+    call.rtl void fb_PrintInt(0, %38, 0)
     %39 = load @b
-    %40 = load @a
-    %41 = field.addr @$tmp7, 0
-    store %41, %39
-    %42 = field.addr @$tmp7, 4
-    store %42, %40
-    %43 = alloca ptr $tmp8
+    call.rtl void fb_PrintInt(0, %39, 1)
+    %40 = alloca ptr $tmp7
+    %41 = load @b
+    %42 = load @a
+    %43 = field.addr @$tmp7, 0
+    store %43, %41
+    %44 = field.addr @$tmp7, 4
+    store %44, %42
+    %45 = alloca ptr $tmp8
     store @$tmp8, @$tmp7
-    %44 = load @$tmp8
-    %45 = field.addr %44, 0
-    %46 = load %45
-    store @a, %46
-    %47 = load @$tmp8
-    %48 = field.addr %47, 4
-    %49 = load %48
-    store @b, %49
-    %50 = load @a
-    call.rtl void fb_PrintInt(0, %50, 0)
-    %51 = load @b
-    call.rtl void fb_PrintInt(0, %51, 1)
-    %52 = alloca ptr s1
-    %53 = call.rtl ptr fb_StrInit(@s1, -1, @@$str0, 2, 0)
-    %54 = alloca ptr s2
-    %55 = call.rtl ptr fb_StrInit(@s2, -1, @@$str1, 2, 0)
-    %56 = alloca ptr $tmp11
-    %57 = field.addr @$tmp11, 0
-    %58 = call.rtl ptr fb_StrAssign(%57, -1, @s1, -1, 0)
-    %59 = field.addr @$tmp11, 24
-    %60 = call.rtl ptr fb_StrAssign(%59, -1, @s2, -1, 0)
-    %61 = alloca ptr $tmp12
-    %62 = field.addr @$tmp12, 0
-    %63 = call.rtl ptr fb_StrAssign(%62, -1, @s2, -1, 0)
-    %64 = field.addr @$tmp12, 24
-    %65 = call.rtl ptr fb_StrAssign(%64, -1, @s1, -1, 0)
+    %46 = load @$tmp8
+    %47 = field.addr %46, 0
+    %48 = load %47
+    store @a, %48
+    %49 = load @$tmp8
+    %50 = field.addr %49, 4
+    %51 = load %50
+    store @b, %51
+    %52 = load @a
+    call.rtl void fb_PrintInt(0, %52, 0)
+    %53 = load @b
+    call.rtl void fb_PrintInt(0, %53, 1)
+    %54 = alloca ptr s1
+    %55 = call.rtl ptr fb_StrInit(@s1, -1, @@$str0, 2, 0)
+    %56 = alloca ptr s2
+    %57 = call.rtl ptr fb_StrInit(@s2, -1, @@$str1, 2, 0)
+    %58 = alloca ptr $tmp11
+    %59 = field.addr @$tmp11, 0
+    %60 = call.rtl ptr fb_StrAssign(%59, -1, @s1, -1, 0)
+    %61 = field.addr @$tmp11, 24
+    %62 = call.rtl ptr fb_StrAssign(%61, -1, @s2, -1, 0)
+    %63 = alloca ptr $tmp12
+    %64 = field.addr @$tmp12, 0
+    %65 = call.rtl ptr fb_StrAssign(%64, -1, @s2, -1, 0)
+    %66 = field.addr @$tmp12, 24
+    %67 = call.rtl ptr fb_StrAssign(%66, -1, @s1, -1, 0)
     call void _ZN10$TUP:15:15aSERKS_(@$tmp11, @$tmp12)
     call.rtl void fb_PrintString(0, @s1, 0)
     call.rtl void fb_PrintString(0, @s2, 1)
     call.rtl void fb_StrDelete(@s2)
     call.rtl void fb_StrDelete(@s1)
-    %66 = const i32 0
-    call.rtl void fb_End(%66)
-    %67 = load @$tmp0
-    ret %67
+    %68 = const i32 0
+    call.rtl void fb_End(%68)
+    %69 = load @$tmp0
+    ret %69
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -132,4 +135,4 @@ func void _ZN10$TUP:15:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 2 functions, 2 blocks, 102 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 104 insts, 0 statements not lowered, 0 scope imbalance

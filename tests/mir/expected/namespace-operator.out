@@ -79,36 +79,41 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr a
-    %5 = alloca ptr b
-    %6 = field.addr @a, 0
-    %7 = const i64 3
-    store %6, %7
-    %8 = field.addr @b, 0
-    %9 = const i64 7
+    %5 = call.rtl ptr memset(@a, 0, 8)
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 8)
+    %8 = field.addr @a, 0
+    %9 = const i64 3
     store %8, %9
-    %10 = alloca ptr x
-    %11 = alloca ptr y
-    %12 = field.addr @x, 0
-    %13 = const i64 5
-    store %12, %13
-    %14 = field.addr @y, 0
-    %15 = const i64 7
-    store %14, %15
+    %10 = field.addr @b, 0
+    %11 = const i64 7
+    store %10, %11
+    %12 = alloca ptr x
+    %13 = call.rtl ptr memset(@x, 0, 8)
+    %14 = alloca ptr y
+    %15 = call.rtl ptr memset(@y, 0, 8)
+    %16 = field.addr @x, 0
+    %17 = const i64 5
+    store %16, %17
+    %18 = field.addr @y, 0
+    %19 = const i64 7
+    store %18, %19
     call void _ZN1VpLERS_(@x, @y)
-    %16 = call i64 _ZN2OPplERNS_3UDTES1_(@a, @b)
-    call.rtl void fb_PrintLongint(0, %16, 2)
-    %17 = call i64 _ZN2OPmiERNS_3UDTES1_(@a, @b)
-    call.rtl void fb_PrintLongint(0, %17, 2)
-    %18 = field.addr @x, 0
-    %19 = load %18
-    call.rtl void fb_PrintLongint(0, %19, 1)
-    %20 = const i32 0
-    call.rtl void fb_End(%20)
-    %21 = load @$tmp0
-    ret %21
+    %20 = call i64 _ZN2OPplERNS_3UDTES1_(@a, @b)
+    call.rtl void fb_PrintLongint(0, %20, 2)
+    %21 = call i64 _ZN2OPmiERNS_3UDTES1_(@a, @b)
+    call.rtl void fb_PrintLongint(0, %21, 2)
+    %22 = field.addr @x, 0
+    %23 = load %22
+    call.rtl void fb_PrintLongint(0, %23, 1)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

@@ -50,41 +50,43 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN1TC1Ev(@x)
     call void _ZN1TD1Ev(@x)
     %5 = alloca ptr a
-    %6 = const i64 -1
-    call.rtl void fb_PrintLongint(0, %6, 2)
-    %7 = const i64 0
+    %6 = call.rtl ptr memset(@a, 0, 24)
+    %7 = const i64 -1
     call.rtl void fb_PrintLongint(0, %7, 2)
-    %8 = const i64 1
+    %8 = const i64 0
     call.rtl void fb_PrintLongint(0, %8, 2)
     %9 = const i64 1
-    call.rtl void fb_PrintLongint(0, %9, 1)
-    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
-    %11 = call.rtl i32 fb_PrintUsingInit(%10)
-    %12 = const f64 1
-    %13 = call.rtl i32 fb_PrintUsingDouble(0, %12, -2147483647)
-    %14 = call.rtl i32 fb_PrintUsingEnd(0)
-    %15 = alloca ptr f
-    %16 = call.rtl ptr fb_StrInit(@f, -1, @@$str2, 2, 0)
-    %17 = alloca ptr b
-    %18 = const i64 1
-    %19 = trunc %18
-    %20 = call ptr fb_Command(%19)
-    %21 = call.rtl i32 fb_StrCompare(%20, -1, @@$str3, 4)
-    %22 = icmp.eq %21, 0
-    condbr %22, if.then2, if.else3
+    call.rtl void fb_PrintLongint(0, %9, 2)
+    %10 = const i64 1
+    call.rtl void fb_PrintLongint(0, %10, 1)
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
+    %12 = call.rtl i32 fb_PrintUsingInit(%11)
+    %13 = const f64 1
+    %14 = call.rtl i32 fb_PrintUsingDouble(0, %13, -2147483647)
+    %15 = call.rtl i32 fb_PrintUsingEnd(0)
+    %16 = alloca ptr f
+    %17 = call.rtl ptr fb_StrInit(@f, -1, @@$str2, 2, 0)
+    %18 = alloca ptr b
+    %19 = call.rtl ptr memset(@b, 0, 8)
+    %20 = const i64 1
+    %21 = trunc %20
+    %22 = call ptr fb_Command(%21)
+    %23 = call.rtl i32 fb_StrCompare(%22, -1, @@$str3, 4)
+    %24 = icmp.eq %23, 0
+    condbr %24, if.then2, if.else3
   if.join1:
     call.rtl void fb_StrDelete(@f)
     call void _ZN1TD1Ev(@x)
-    %27 = const i32 0
-    call.rtl void fb_End(%27)
-    %28 = load @$tmp0
-    ret %28
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
   if.then2:
-    %23 = load @b
-    %24 = call.rtl i32 fb_GfxBsave(@f, %23, 0, 0)
-    %25 = const i64 1
-    %26 = trunc %25
-    call.rtl void fb_End(%26)
+    %25 = load @b
+    %26 = call.rtl i32 fb_GfxBsave(@f, %25, 0, 0)
+    %27 = const i64 1
+    %28 = trunc %27
+    call.rtl void fb_End(%28)
     br if.join1
   if.else3:
     br if.join1
@@ -102,4 +104,4 @@ declare i32 fb_GfxBsave(ptr $0, ptr $1, i32 $2, ptr $3)
 declare void fb_End(i32 $0)
 declare void fb_StrDelete(ptr $0)
 verify: ok
-lowered: 4 functions, 7 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 7 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance

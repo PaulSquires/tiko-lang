@@ -58,22 +58,24 @@ func i32 main(i32 $0, ptr $1) {
     %37 = const i64 2
     store @b, %37
     %38 = alloca ptr c2
-    %39 = load @a
-    %40 = load @b
-    %41 = not %39
-    %42 = or %41, %40
-    store @c2, %42
-    %43 = load @a
-    %44 = load @b
-    %45 = xor %43, %44
-    %46 = not %45
-    store @c2, %46
-    %47 = const i32 0
-    call.rtl void fb_End(%47)
-    %48 = load @$tmp0
-    ret %48
+    %39 = call.rtl ptr memset(@c2, 0, 8)
+    %40 = load @a
+    %41 = load @b
+    %42 = not %40
+    %43 = or %42, %41
+    store @c2, %43
+    %44 = load @a
+    %45 = load @b
+    %46 = xor %44, %45
+    %47 = not %46
+    store @c2, %47
+    %48 = const i32 0
+    call.rtl void fb_End(%48)
+    %49 = load @$tmp0
+    ret %49
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance

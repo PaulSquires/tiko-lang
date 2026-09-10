@@ -66,47 +66,53 @@ func i32 main(i32 $0, ptr $1) {
     %51 = call.rtl ptr fb_GfxImageCreate(%43, %45, %47, %49, %50)
     store @d, %51
     %52 = alloca ptr c
-    %53 = const ptr 0
-    %54 = const i64 1
-    %55 = sitofp %54
-    %56 = const i64 2
-    %57 = sitofp %56
-    %58 = call.rtl i32 fb_GfxPoint(%53, %55, %57)
-    store @c, %58
-    %59 = const ptr 0
-    %60 = const i64 0
-    %61 = sitofp %60
-    %62 = const f32 -8388607
-    %63 = call.rtl i32 fb_GfxPoint(%59, %61, %62)
-    store @c, %63
-    %64 = const ptr 0
-    %65 = load @a
-    %66 = const i64 1
-    %67 = sitofp %66
-    %68 = const i64 2
-    %69 = sitofp %68
-    %70 = call.rtl i32 fb_GfxPoint(%65, %67, %69)
-    store @c, %70
-    %71 = alloca ptr q
-    %72 = alloca ptr r
-    %73 = alloca ptr pp
+    %53 = call.rtl ptr memset(@c, 0, 4)
+    %54 = const ptr 0
+    %55 = const i64 1
+    %56 = sitofp %55
+    %57 = const i64 2
+    %58 = sitofp %57
+    %59 = call.rtl i32 fb_GfxPoint(%54, %56, %58)
+    store @c, %59
+    %60 = const ptr 0
+    %61 = const i64 0
+    %62 = sitofp %61
+    %63 = const f32 -8388607
+    %64 = call.rtl i32 fb_GfxPoint(%60, %62, %63)
+    store @c, %64
+    %65 = const ptr 0
+    %66 = load @a
+    %67 = const i64 1
+    %68 = sitofp %67
+    %69 = const i64 2
+    %70 = sitofp %69
+    %71 = call.rtl i32 fb_GfxPoint(%66, %68, %70)
+    store @c, %71
+    %72 = alloca ptr q
+    %73 = call.rtl ptr memset(@q, 0, 1024)
+    %74 = alloca ptr r
+    %75 = call.rtl ptr memset(@r, 0, 2048)
+    %76 = alloca ptr pp
+    %77 = call.rtl ptr memset(@pp, 0, 8)
     call.rtl void fb_GfxPaletteGetUsing(@q)
     call.rtl void fb_GfxPaletteGetUsing64(@r)
     call.rtl void fb_GfxPaletteUsing64(@r)
-    %74 = load @pp
-    call.rtl void fb_GfxPaletteGetUsing(%74)
-    %75 = alloca ptr v
-    %76 = const i64 1
-    %77 = trunc %76
-    call.rtl void fb_GfxPaletteGet(%77, @v, 0, 0)
-    %78 = const i32 0
-    call.rtl void fb_End(%78)
-    %79 = load @$tmp0
-    ret %79
+    %78 = load @pp
+    call.rtl void fb_GfxPaletteGetUsing(%78)
+    %79 = alloca ptr v
+    %80 = call.rtl ptr memset(@v, 0, 4)
+    %81 = const i64 1
+    %82 = trunc %81
+    call.rtl void fb_GfxPaletteGet(%82, @v, 0, 0)
+    %83 = const i32 0
+    call.rtl void fb_End(%83)
+    %84 = load @$tmp0
+    ret %84
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_GfxScreen(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4)
 declare ptr fb_GfxImageCreate(i32 $0, i32 $1, i32 $2, i32 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 fb_GfxPoint(ptr $0, f32 $1, f32 $2)
 declare void fb_GfxPaletteGetUsing(ptr $0)
 declare void fb_GfxPaletteGetUsing64(ptr $0)
@@ -114,4 +120,4 @@ declare void fb_GfxPaletteUsing64(ptr $0)
 declare void fb_GfxPaletteGet(i32 $0, ptr $1, ptr $2, ptr $3)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 93 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 98 insts, 0 statements not lowered, 0 scope imbalance

@@ -112,29 +112,31 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr uu
     call void _ZN2TUC1Ev(@uu)
     %5 = alloca ptr vv
-    %6 = alloca ptr res
-    %7 = alloca ptr $tmp4
+    %6 = call.rtl ptr memset(@vv, 0, 4)
+    %7 = alloca ptr res
+    %8 = alloca ptr $tmp4
     call void _ZN2TUC1ER2TV(@$tmp4, @vv)
-    %8 = call i64 _ZneR2TUS0_(@uu, @$tmp4)
+    %9 = call i64 _ZneR2TUS0_(@uu, @$tmp4)
     call void _ZN2TUD1Ev(@$tmp4)
-    store @res, %8
-    %9 = load @res
-    call.rtl void fb_PrintLongint(0, %9, 1)
-    %10 = alloca ptr cvv
-    %11 = alloca ptr res2
-    %12 = call ptr _ZN2CVcv2TUEv(@cvv)
-    %13 = call i64 _ZneR2TUS0_(@uu, %12)
-    store @res2, %13
-    %14 = load @res2
-    call.rtl void fb_PrintLongint(0, %14, 1)
+    store @res, %9
+    %10 = load @res
+    call.rtl void fb_PrintLongint(0, %10, 1)
+    %11 = alloca ptr cvv
+    %12 = call.rtl ptr memset(@cvv, 0, 4)
+    %13 = alloca ptr res2
+    %14 = call ptr _ZN2CVcv2TUEv(@cvv)
+    %15 = call i64 _ZneR2TUS0_(@uu, %14)
+    store @res2, %15
+    %16 = load @res2
+    call.rtl void fb_PrintLongint(0, %16, 1)
     call void _ZN2TUD1Ev(@uu)
-    %15 = const i32 0
-    call.rtl void fb_End(%15)
-    %16 = load @$tmp0
-    ret %16
+    %17 = const i32 0
+    call.rtl void fb_End(%17)
+    %18 = load @$tmp0
+    ret %18
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 9 blocks, 83 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 9 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

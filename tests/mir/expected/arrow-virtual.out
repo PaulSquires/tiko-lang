@@ -100,85 +100,89 @@ func i32 main(i32 $0, ptr $1) {
     %7 = trunc %6
     store %5, %7
     %8 = alloca ptr hh
-    %9 = field.addr @hh, 0
-    store %9, @im
-    %10 = call ptr _ZptR1H(@hh)
-    %11 = load %10
-    %12 = field.addr %11, 0
-    %13 = load %12
-    %14 = call.ind i32 %13(%10)
-    %15 = const i64 0
-    %16 = sext %14
-    %17 = icmp.sgt %16, %15
-    %33 = alloca ptr q
-    %39 = alloca ptr bx
-    %40 = alloca ptr pv
-    %47 = alloca ptr got
-    condbr %17, if.then2, if.else3
+    %9 = call.rtl ptr memset(@hh, 0, 8)
+    %10 = field.addr @hh, 0
+    store %10, @im
+    %11 = call ptr _ZptR1H(@hh)
+    %12 = load %11
+    %13 = field.addr %12, 0
+    %14 = load %13
+    %15 = call.ind i32 %14(%11)
+    %16 = const i64 0
+    %17 = sext %15
+    %18 = icmp.sgt %17, %16
+    %34 = alloca ptr q
+    %40 = alloca ptr bx
+    %42 = alloca ptr pv
+    %50 = alloca ptr got
+    condbr %18, if.then2, if.else3
   if.join1:
-    %19 = call ptr _ZdeR1H(@hh)
-    %20 = load %19
-    %21 = field.addr %20, 0
-    %22 = load %21
-    %23 = call.ind i32 %22(%19)
-    %24 = const i64 0
-    %25 = sext %23
-    %26 = icmp.sgt %25, %24
-    condbr %26, if.then5, if.else6
+    %20 = call ptr _ZdeR1H(@hh)
+    %21 = load %20
+    %22 = field.addr %21, 0
+    %23 = load %22
+    %24 = call.ind i32 %23(%20)
+    %25 = const i64 0
+    %26 = sext %24
+    %27 = icmp.sgt %26, %25
+    condbr %27, if.then5, if.else6
   if.then2:
-    %18 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 5)
-    call.rtl void fb_PrintString(0, %18, 1)
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 5)
+    call.rtl void fb_PrintString(0, %19, 1)
     br if.join1
   if.else3:
     br if.join1
   if.join4:
-    %28 = call ptr _ZptR1H(@hh)
-    %29 = load %28
-    %30 = field.addr %29, 0
-    %31 = load %30
-    %32 = call.ind i32 %31(%28)
-    call.rtl void fb_PrintInt(0, %32, 1)
+    %29 = call ptr _ZptR1H(@hh)
+    %30 = load %29
+    %31 = field.addr %30, 0
+    %32 = load %31
+    %33 = call.ind i32 %32(%29)
+    call.rtl void fb_PrintInt(0, %33, 1)
     store @q, @im
-    %34 = load @q
-    %35 = load %34
-    %36 = field.addr %35, 0
-    %37 = load %36
-    %38 = call.ind i32 %37(%34)
-    call.rtl void fb_PrintInt(0, %38, 1)
-    %41 = load @pv
-    %42 = call i32 GRAB<6>(%41, @bx)
-    %43 = const i64 5
-    %44 = sext %42
-    %45 = icmp.eq %44, %43
-    condbr %45, if.then8, if.else9
+    %35 = load @q
+    %36 = load %35
+    %37 = field.addr %36, 0
+    %38 = load %37
+    %39 = call.ind i32 %38(%35)
+    call.rtl void fb_PrintInt(0, %39, 1)
+    %41 = call.rtl ptr memset(@bx, 0, 4)
+    %43 = call.rtl ptr memset(@pv, 0, 8)
+    %44 = load @pv
+    %45 = call i32 GRAB<6>(%44, @bx)
+    %46 = const i64 5
+    %47 = sext %45
+    %48 = icmp.eq %47, %46
+    condbr %48, if.then8, if.else9
   if.then5:
-    %27 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
-    call.rtl void fb_PrintString(0, %27, 1)
+    %28 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    call.rtl void fb_PrintString(0, %28, 1)
     br if.join4
   if.else6:
     br if.join4
   if.join7:
-    %48 = load @pv
-    %49 = call i32 GRAB<6>(%48, @bx)
-    store @got, %49
-    %50 = load @got
-    call.rtl void fb_PrintInt(0, %50, 2)
-    %51 = field.addr @bx, 0
-    %52 = load %51
-    call.rtl void fb_PrintInt(0, %52, 1)
-    %53 = const i32 0
-    call.rtl void fb_End(%53)
-    %54 = load @$tmp0
-    ret %54
+    %51 = load @pv
+    %52 = call i32 GRAB<6>(%51, @bx)
+    store @got, %52
+    %53 = load @got
+    call.rtl void fb_PrintInt(0, %53, 2)
+    %54 = field.addr @bx, 0
+    %55 = load %54
+    call.rtl void fb_PrintInt(0, %55, 1)
+    %56 = const i32 0
+    call.rtl void fb_End(%56)
+    %57 = load @$tmp0
+    ret %57
   if.then8:
-    %46 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 4)
-    call.rtl void fb_PrintString(0, %46, 1)
+    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 4)
+    call.rtl void fb_PrintString(0, %49, 1)
     br if.join7
   if.else9:
     br if.join7
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN4IMPLC1Ev(ptr $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
@@ -194,7 +198,6 @@ func void _ZN4IMPLC1Ev(ptr $0) {
     ret
 }
 declare void _ZN5IFACEC1Ev(ptr $0)
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN5IFACEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -205,4 +208,4 @@ func void _ZN5IFACEC1Ev(ptr $0) {
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
-lowered: 7 functions, 16 blocks, 125 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 16 blocks, 128 insts, 0 statements not lowered, 0 scope imbalance

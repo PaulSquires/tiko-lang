@@ -25,7 +25,7 @@
 '' fb_StrCompare, then the operator applied against ZERO -- measured from fbc:
 ''     int32 vr$5 = fb_StrCompare( &A$1, -1ll, &B$1, -1ll );
 '' EXPECT-OUT: call.rtl i32 fb_StrCompare(@a, -1, @b, -1)
-'' EXPECT-OUT: icmp.eq %10, 0
+'' EXPECT-OUT: icmp.eq %13, 0
 '' EXPECT-OUT: icmp.slt
 '' EXPECT-OUT: icmp.sge
 

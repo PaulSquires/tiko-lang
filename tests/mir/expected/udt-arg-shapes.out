@@ -4,21 +4,23 @@ func i64 _ZN2NS5STAMP9FROMTICKSEx(i64 $0) {
   local agg r size 8
   local agg $abi3 size 8
   entry0:
-    %8 = alloca ptr $abi3
+    %9 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr v
     store @v, $0
     %3 = alloca ptr r
-    %4 = field.addr @r, 0
-    %5 = load @v
-    store %4, %5
-    %6 = load @r
-    store @$tmp0, %6
-    %7 = load @$tmp0
-    store @$abi3, %7
-    %9 = load @$abi3
-    ret %9
+    %4 = call.rtl ptr memset(@r, 0, 8)
+    %5 = field.addr @r, 0
+    %6 = load @v
+    store %5, %6
+    %7 = load @r
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    store @$abi3, %8
+    %10 = load @$abi3
+    ret %10
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 _ZN2NS5STAMP8MIDNIGHTEv() {
   local agg $tmp0 size 8
   local agg $abi1 size 8
@@ -52,7 +54,6 @@ func void _ZN3FOOC1Ev(ptr $0) {
     store %6, %8
     ret
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN3FOOC1ERa(ptr $0, ptr $1) {
   local ptr this
   local ptr v
@@ -178,4 +179,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 10 blocks, 96 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance

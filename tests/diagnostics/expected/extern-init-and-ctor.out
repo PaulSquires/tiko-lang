@@ -56,10 +56,11 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i64 1
     store @externinit, %5
     %6 = alloca ptr externplain
-    %7 = const i32 0
-    call.rtl void fb_End(%7)
-    %8 = load @$tmp0
-    ret %8
+    %7 = call.rtl ptr memset(@externplain, 0, 8)
+    %8 = const i32 0
+    call.rtl void fb_End(%8)
+    %9 = load @$tmp0
+    ret %9
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
@@ -76,7 +77,7 @@ func void _GLOBAL__D() {
     ret
 }
 verify: ok
-lowered: 6 functions, 6 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 33 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/extern-init-and-ctor.bas(50,9): error TKO0653: 'badstr' and its initializer disagree about being a string
      |
   50 |     dim badStr as string = 1

@@ -20,65 +20,68 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr p
-    %5 = alloca ptr x
-    %6 = alloca ptr a
-    %7 = const i64 4
-    %8 = trunc %7
-    store @a, %8
-    %9 = alloca ptr b
-    %10 = const i64 24
-    %11 = trunc %10
-    store @b, %11
-    %12 = alloca ptr c
-    %13 = const i64 4
-    %14 = trunc %13
-    store @c, %14
-    %15 = alloca ptr s
-    %16 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
-    %17 = alloca ptr n
-    %18 = const i64 5
-    %19 = trunc %18
-    store @n, %19
-    %20 = alloca ptr r
-    %21 = call.rtl ptr fb_StrInit(@r, -1, @s, -1, 0)
-    %22 = alloca ptr m
-    %23 = load @n
-    store @m, %23
-    %24 = alloca ptr d
+    %5 = call.rtl ptr memset(@p, 0, 8)
+    %6 = alloca ptr x
+    %7 = call.rtl ptr memset(@x, 0, 4)
+    %8 = alloca ptr a
+    %9 = const i64 4
+    %10 = trunc %9
+    store @a, %10
+    %11 = alloca ptr b
+    %12 = const i64 24
+    %13 = trunc %12
+    store @b, %13
+    %14 = alloca ptr c
+    %15 = const i64 4
+    %16 = trunc %15
+    store @c, %16
+    %17 = alloca ptr s
+    %18 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
+    %19 = alloca ptr n
+    %20 = const i64 5
+    %21 = trunc %20
+    store @n, %21
+    %22 = alloca ptr r
+    %23 = call.rtl ptr fb_StrInit(@r, -1, @s, -1, 0)
+    %24 = alloca ptr m
     %25 = load @n
-    %26 = sitofp %25
-    store @d, %26
-    %27 = alloca ptr q
-    %28 = field.addr @q, 0
-    store %28, 0
-    %29 = field.addr @q, 8
-    store %29, 0
-    %30 = field.addr @q, 16
+    store @m, %25
+    %26 = alloca ptr d
+    %27 = load @n
+    %28 = sitofp %27
+    store @d, %28
+    %29 = alloca ptr q
+    %30 = field.addr @q, 0
     store %30, 0
-    %31 = call.rtl ptr fb_StrAssign(@q, -1, @s, -1, 0)
-    %32 = call.rtl ptr fb_StrConcatAssign(@q, -1, @@$str1, 4, 0)
-    %33 = call.rtl ptr fb_StrConcatAssign(@q, -1, @s, -1, 0)
-    %34 = load @a
-    call.rtl void fb_PrintInt(0, %34, 2)
-    %35 = load @b
-    call.rtl void fb_PrintInt(0, %35, 2)
-    %36 = load @c
+    %31 = field.addr @q, 8
+    store %31, 0
+    %32 = field.addr @q, 16
+    store %32, 0
+    %33 = call.rtl ptr fb_StrAssign(@q, -1, @s, -1, 0)
+    %34 = call.rtl ptr fb_StrConcatAssign(@q, -1, @@$str1, 4, 0)
+    %35 = call.rtl ptr fb_StrConcatAssign(@q, -1, @s, -1, 0)
+    %36 = load @a
     call.rtl void fb_PrintInt(0, %36, 2)
-    call.rtl void fb_PrintString(0, @r, 2)
-    %37 = load @m
+    %37 = load @b
     call.rtl void fb_PrintInt(0, %37, 2)
-    %38 = load @d
-    call.rtl void fb_PrintDouble(0, %38, 2)
+    %38 = load @c
+    call.rtl void fb_PrintInt(0, %38, 2)
+    call.rtl void fb_PrintString(0, @r, 2)
+    %39 = load @m
+    call.rtl void fb_PrintInt(0, %39, 2)
+    %40 = load @d
+    call.rtl void fb_PrintDouble(0, %40, 2)
     call.rtl void fb_PrintString(0, @q, 1)
     call.rtl void fb_StrDelete(@q)
     call.rtl void fb_StrDelete(@r)
     call.rtl void fb_StrDelete(@s)
-    %39 = const i32 0
-    call.rtl void fb_End(%39)
-    %40 = load @$tmp0
-    ret %40
+    %41 = const i32 0
+    call.rtl void fb_End(%41)
+    %42 = load @$tmp0
+    ret %42
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -88,4 +91,4 @@ declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance

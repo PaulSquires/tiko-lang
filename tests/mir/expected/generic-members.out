@@ -5,20 +5,23 @@ func void P() {
   local f64 s
   entry0:
     %1 = alloca ptr a
-    %2 = alloca ptr b
-    %3 = const i64 7
-    %4 = trunc %3
-    call void _ZN6BOX<6>3PUTEi(@a, %4)
-    %5 = const f64 2.5
-    call void _ZN7BOX<13>3PUTEd(@b, %5)
-    %6 = alloca ptr r
-    %7 = call i32 _ZN6BOX<6>3GETEv(@a)
-    store @r, %7
-    %8 = alloca ptr s
-    %9 = call f64 _ZN7BOX<13>3GETEv(@b)
-    store @s, %9
+    %2 = call.rtl ptr memset(@a, 0, 4)
+    %3 = alloca ptr b
+    %4 = call.rtl ptr memset(@b, 0, 8)
+    %5 = const i64 7
+    %6 = trunc %5
+    call void _ZN6BOX<6>3PUTEi(@a, %6)
+    %7 = const f64 2.5
+    call void _ZN7BOX<13>3PUTEd(@b, %7)
+    %8 = alloca ptr r
+    %9 = call i32 _ZN6BOX<6>3GETEv(@a)
+    store @r, %9
+    %10 = alloca ptr s
+    %11 = call f64 _ZN7BOX<13>3GETEv(@b)
+    store @s, %11
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN6BOX<6>3PUTEi(ptr $0, i32 $1)
 declare void _ZN7BOX<13>3PUTEd(ptr $0, f64 $1)
 declare i32 _ZN6BOX<6>3GETEv(ptr $0)
@@ -95,4 +98,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

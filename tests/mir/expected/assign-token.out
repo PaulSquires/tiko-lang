@@ -43,59 +43,62 @@ func void S1() {
   local i64 j
   entry0:
     %1 = alloca ptr i
-    %2 = const i64 5
-    store @i, %2
-    %3 = load @i
-    call.rtl void fb_PrintLongint(0, %3, 1)
+    %2 = call.rtl ptr memset(@i, 0, 8)
+    %3 = const i64 5
+    store @i, %3
     %4 = load @i
-    %5 = const i64 5
-    %6 = add %4, %5
-    store @i, %6
-    %7 = load @i
-    call.rtl void fb_PrintLongint(0, %7, 1)
+    call.rtl void fb_PrintLongint(0, %4, 1)
+    %5 = load @i
+    %6 = const i64 5
+    %7 = add %5, %6
+    store @i, %7
     %8 = load @i
-    %9 = const i64 12
-    %10 = and %8, %9
-    store @i, %10
-    %11 = load @i
-    call.rtl void fb_PrintLongint(0, %11, 1)
-    %12 = alloca ptr t
-    %13 = const i64 0
-    store @t, %13
-    %14 = alloca ptr j
-    %15 = const i64 1
-    store @j, %15
+    call.rtl void fb_PrintLongint(0, %8, 1)
+    %9 = load @i
+    %10 = const i64 12
+    %11 = and %9, %10
+    store @i, %11
+    %12 = load @i
+    call.rtl void fb_PrintLongint(0, %12, 1)
+    %13 = alloca ptr t
+    %14 = const i64 0
+    store @t, %14
+    %15 = alloca ptr j
+    %16 = call.rtl ptr memset(@j, 0, 8)
+    %17 = const i64 1
+    store @j, %17
     br for.head1
   for.head1:
-    %16 = load @j
-    %17 = const i64 3
-    %18 = icmp.sle %16, %17
-    condbr %18, for.body2, for.exit4
+    %18 = load @j
+    %19 = const i64 3
+    %20 = icmp.sle %18, %19
+    condbr %20, for.body2, for.exit4
   for.body2:
-    %19 = load @t
-    %20 = load @j
-    %21 = add %19, %20
-    store @t, %21
+    %21 = load @t
+    %22 = load @j
+    %23 = add %21, %22
+    store @t, %23
     br for.step3
   for.step3:
-    %22 = load @j
-    %23 = const i64 1
-    %24 = add %22, %23
-    store @j, %24
+    %24 = load @j
+    %25 = const i64 1
+    %26 = add %24, %25
+    store @j, %26
     br for.head1
   for.exit4:
-    %25 = load @t
-    call.rtl void fb_PrintLongint(0, %25, 1)
-    %26 = const i64 456
-    call void TAKESDEFAULT(%26)
-    %27 = call ptr REFI()
-    %28 = load %27
-    call.rtl void fb_PrintLongint(0, %28, 2)
-    %29 = call ptr REFJ()
+    %27 = load @t
+    call.rtl void fb_PrintLongint(0, %27, 1)
+    %28 = const i64 456
+    call void TAKESDEFAULT(%28)
+    %29 = call ptr REFI()
     %30 = load %29
-    call.rtl void fb_PrintLongint(0, %30, 1)
+    call.rtl void fb_PrintLongint(0, %30, 2)
+    %31 = call ptr REFJ()
+    %32 = load %31
+    call.rtl void fb_PrintLongint(0, %32, 1)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -113,4 +116,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 9 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 9 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance

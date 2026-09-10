@@ -39,164 +39,167 @@ func void T(ptr $0, ptr $1, ptr $2, ptr $3) {
     %4 = alloca ptr z
     store @z, $3
     %5 = alloca ptr u
-    %6 = field.addr @u, 0
-    store %6, 0
-    %7 = field.addr @u, 8
+    %6 = call.rtl ptr memset(@u, 0, 24)
+    %7 = field.addr @u, 0
     store %7, 0
-    %8 = field.addr @u, 16
+    %8 = field.addr @u, 8
     store %8, 0
-    %9 = alloca ptr v
-    %10 = field.addr @v, 0
-    store %10, 0
-    %11 = field.addr @v, 8
-    store %11, 0
-    %12 = field.addr @v, 16
+    %9 = field.addr @u, 16
+    store %9, 0
+    %10 = alloca ptr v
+    %11 = call.rtl ptr memset(@v, 0, 24)
+    %12 = field.addr @v, 0
     store %12, 0
-    %13 = alloca ptr s
-    %14 = field.addr @s, 0
+    %13 = field.addr @v, 8
+    store %13, 0
+    %14 = field.addr @v, 16
     store %14, 0
-    %15 = field.addr @s, 8
-    store %15, 0
-    %16 = field.addr @s, 16
-    store %16, 0
-    %17 = load @q
-    %18 = call.rtl ptr fb_UStrAssignFromA(@u, -1, %17, -1, 0, 0)
-    %19 = load @z
-    %20 = call.rtl ptr fb_UStrAssignFromA(@u, -1, %19, 0, 0, 0)
-    %21 = load @p
-    %22 = call.rtl ptr fb_WstrToUStr(%21)
-    %23 = call.rtl ptr fb_UStrAssign(@u, -1, %22, -1, 0)
-    %24 = call.rtl ptr fb_UStrAssignToA(@s, -1, @u, -1, 0, 0)
-    %25 = alloca ptr $tmp7
-    %26 = load @q
-    %27 = load @q
-    %28 = call.rtl ptr fb_StrConcat(@$tmp7, %26, -1, %27, -1)
-    %29 = call.rtl ptr fb_UStrAssignFromA(@u, -1, %28, -1, 0, 0)
-    %30 = alloca ptr $tmp8
-    %31 = load @q
-    %32 = call.rtl ptr fb_UStrConcatUA(@$tmp8, @u, -1, %31, -1)
-    %33 = call.rtl ptr fb_UStrAssign(@u, -1, %32, -1, 0)
-    %34 = alloca ptr $tmp9
-    %35 = load @q
-    %36 = call.rtl ptr fb_UStrConcatAU(@$tmp9, %35, -1, @u, -1)
-    %37 = call.rtl ptr fb_UStrAssign(@u, -1, %36, -1, 0)
-    %38 = alloca ptr $tmp10
-    %39 = load @q
-    %40 = call.rtl ptr fb_UStrConcatUA(@$tmp10, @u, -1, %39, -1)
-    %41 = call.rtl ptr fb_UStrAssign(@u, -1, %40, -1, 0)
-    %42 = alloca ptr $tmp11
-    %43 = load @q
-    %44 = call.rtl ptr fb_UStrConcatAU(@$tmp11, %43, -1, @u, -1)
-    %45 = alloca ptr $tmp12
-    %46 = load @r
-    %47 = call.rtl ptr fb_UStrConcatUA(@$tmp12, %44, -1, %46, -1)
-    %48 = call.rtl ptr fb_UStrAssign(@v, -1, %47, -1, 0)
-    %49 = alloca ptr $tmp13
-    %50 = load @q
-    %51 = load @r
-    %52 = call.rtl ptr fb_StrConcat(@$tmp13, %50, -1, %51, -1)
-    %53 = alloca ptr $tmp14
-    %54 = call.rtl ptr fb_UStrConcatAU(@$tmp14, %52, -1, @u, -1)
-    %55 = call.rtl ptr fb_UStrAssign(@v, -1, %54, -1, 0)
-    %56 = alloca ptr $tmp15
-    %57 = load @q
-    %58 = call.rtl ptr fb_UStrConcatUA(@$tmp15, @u, -1, %57, -1)
-    %59 = alloca ptr $tmp16
-    %60 = load @r
-    %61 = call.rtl ptr fb_UStrConcatUA(@$tmp16, %58, -1, %60, -1)
-    %62 = call.rtl ptr fb_UStrAssign(@v, -1, %61, -1, 0)
-    %63 = alloca ptr $tmp17
-    %64 = load @q
-    %65 = call.rtl ptr fb_StrConcat(@$tmp17, @@$str0, 4, %64, -1)
-    %66 = alloca ptr $tmp18
-    %67 = call.rtl ptr fb_UStrConcatAU(@$tmp18, %65, -1, @u, -1)
-    %68 = call.rtl ptr fb_UStrAssign(@v, -1, %67, -1, 0)
-    %69 = alloca ptr $tmp19
-    %70 = load @p
-    %71 = call.rtl ptr fb_WstrToUStr(%70)
-    %72 = call.rtl ptr fb_UStrConcat(@$tmp19, %71, -1, @u, -1)
-    %73 = call.rtl ptr fb_UStrAssign(@v, -1, %72, -1, 0)
-    %74 = alloca ptr $tmp20
-    %75 = load @p
-    %76 = call.rtl ptr fb_WstrToUStr(%75)
-    %77 = call.rtl ptr fb_UStrConcat(@$tmp20, @u, -1, %76, -1)
-    %78 = call.rtl ptr fb_UStrAssign(@v, -1, %77, -1, 0)
-    %79 = alloca ptr $tmp21
-    %80 = load @q
-    %81 = call.rtl ptr fb_UStrConcatAU(@$tmp21, %80, -1, @u, -1)
-    %82 = alloca ptr $tmp22
-    %83 = load @r
-    %84 = call.rtl ptr fb_UStrConcatUA(@$tmp22, %81, -1, %83, -1)
-    %85 = call.rtl ptr fb_UStrAssignToA(@s, -1, %84, -1, 0, 0)
-    %86 = alloca ptr d1
-    %87 = load @q
-    %88 = call.rtl ptr fb_UStrAssignFromA(@d1, -1, %87, -1, 0, -1)
-    %89 = alloca ptr d2
-    %90 = field.addr @d2, 0
-    store %90, 0
-    %91 = field.addr @d2, 8
-    store %91, 0
-    %92 = field.addr @d2, 16
-    store %92, 0
-    %93 = alloca ptr $tmp25
-    %94 = load @q
-    %95 = load @q
-    %96 = call.rtl ptr fb_StrConcat(@$tmp25, %94, -1, %95, -1)
-    %97 = call.rtl ptr fb_UStrAssignFromA(@d2, -1, %96, -1, 0, -1)
-    %98 = alloca ptr d3
-    %99 = load @p
-    %100 = call.rtl ptr fb_WstrToUStr(%99)
-    %101 = call.rtl ptr fb_UStrInit(@d3, -1, %100, -1, 0)
-    %102 = alloca ptr d4
-    %103 = call.rtl ptr fb_UStrAssignToA(@d4, -1, @u, -1, 0, -1)
-    %104 = load @q
-    %105 = call.rtl ptr fb_StrToUStr(%104, -1)
-    %106 = call.rtl i32 fb_UStrCompare(@u, -1, %105, -1)
-    %107 = icmp.eq %106, 0
-    condbr %107, if.then2, if.else3
+    %15 = alloca ptr s
+    %16 = call.rtl ptr memset(@s, 0, 24)
+    %17 = field.addr @s, 0
+    store %17, 0
+    %18 = field.addr @s, 8
+    store %18, 0
+    %19 = field.addr @s, 16
+    store %19, 0
+    %20 = load @q
+    %21 = call.rtl ptr fb_UStrAssignFromA(@u, -1, %20, -1, 0, 0)
+    %22 = load @z
+    %23 = call.rtl ptr fb_UStrAssignFromA(@u, -1, %22, 0, 0, 0)
+    %24 = load @p
+    %25 = call.rtl ptr fb_WstrToUStr(%24)
+    %26 = call.rtl ptr fb_UStrAssign(@u, -1, %25, -1, 0)
+    %27 = call.rtl ptr fb_UStrAssignToA(@s, -1, @u, -1, 0, 0)
+    %28 = alloca ptr $tmp7
+    %29 = load @q
+    %30 = load @q
+    %31 = call.rtl ptr fb_StrConcat(@$tmp7, %29, -1, %30, -1)
+    %32 = call.rtl ptr fb_UStrAssignFromA(@u, -1, %31, -1, 0, 0)
+    %33 = alloca ptr $tmp8
+    %34 = load @q
+    %35 = call.rtl ptr fb_UStrConcatUA(@$tmp8, @u, -1, %34, -1)
+    %36 = call.rtl ptr fb_UStrAssign(@u, -1, %35, -1, 0)
+    %37 = alloca ptr $tmp9
+    %38 = load @q
+    %39 = call.rtl ptr fb_UStrConcatAU(@$tmp9, %38, -1, @u, -1)
+    %40 = call.rtl ptr fb_UStrAssign(@u, -1, %39, -1, 0)
+    %41 = alloca ptr $tmp10
+    %42 = load @q
+    %43 = call.rtl ptr fb_UStrConcatUA(@$tmp10, @u, -1, %42, -1)
+    %44 = call.rtl ptr fb_UStrAssign(@u, -1, %43, -1, 0)
+    %45 = alloca ptr $tmp11
+    %46 = load @q
+    %47 = call.rtl ptr fb_UStrConcatAU(@$tmp11, %46, -1, @u, -1)
+    %48 = alloca ptr $tmp12
+    %49 = load @r
+    %50 = call.rtl ptr fb_UStrConcatUA(@$tmp12, %47, -1, %49, -1)
+    %51 = call.rtl ptr fb_UStrAssign(@v, -1, %50, -1, 0)
+    %52 = alloca ptr $tmp13
+    %53 = load @q
+    %54 = load @r
+    %55 = call.rtl ptr fb_StrConcat(@$tmp13, %53, -1, %54, -1)
+    %56 = alloca ptr $tmp14
+    %57 = call.rtl ptr fb_UStrConcatAU(@$tmp14, %55, -1, @u, -1)
+    %58 = call.rtl ptr fb_UStrAssign(@v, -1, %57, -1, 0)
+    %59 = alloca ptr $tmp15
+    %60 = load @q
+    %61 = call.rtl ptr fb_UStrConcatUA(@$tmp15, @u, -1, %60, -1)
+    %62 = alloca ptr $tmp16
+    %63 = load @r
+    %64 = call.rtl ptr fb_UStrConcatUA(@$tmp16, %61, -1, %63, -1)
+    %65 = call.rtl ptr fb_UStrAssign(@v, -1, %64, -1, 0)
+    %66 = alloca ptr $tmp17
+    %67 = load @q
+    %68 = call.rtl ptr fb_StrConcat(@$tmp17, @@$str0, 4, %67, -1)
+    %69 = alloca ptr $tmp18
+    %70 = call.rtl ptr fb_UStrConcatAU(@$tmp18, %68, -1, @u, -1)
+    %71 = call.rtl ptr fb_UStrAssign(@v, -1, %70, -1, 0)
+    %72 = alloca ptr $tmp19
+    %73 = load @p
+    %74 = call.rtl ptr fb_WstrToUStr(%73)
+    %75 = call.rtl ptr fb_UStrConcat(@$tmp19, %74, -1, @u, -1)
+    %76 = call.rtl ptr fb_UStrAssign(@v, -1, %75, -1, 0)
+    %77 = alloca ptr $tmp20
+    %78 = load @p
+    %79 = call.rtl ptr fb_WstrToUStr(%78)
+    %80 = call.rtl ptr fb_UStrConcat(@$tmp20, @u, -1, %79, -1)
+    %81 = call.rtl ptr fb_UStrAssign(@v, -1, %80, -1, 0)
+    %82 = alloca ptr $tmp21
+    %83 = load @q
+    %84 = call.rtl ptr fb_UStrConcatAU(@$tmp21, %83, -1, @u, -1)
+    %85 = alloca ptr $tmp22
+    %86 = load @r
+    %87 = call.rtl ptr fb_UStrConcatUA(@$tmp22, %84, -1, %86, -1)
+    %88 = call.rtl ptr fb_UStrAssignToA(@s, -1, %87, -1, 0, 0)
+    %89 = alloca ptr d1
+    %90 = load @q
+    %91 = call.rtl ptr fb_UStrAssignFromA(@d1, -1, %90, -1, 0, -1)
+    %92 = alloca ptr d2
+    %93 = field.addr @d2, 0
+    store %93, 0
+    %94 = field.addr @d2, 8
+    store %94, 0
+    %95 = field.addr @d2, 16
+    store %95, 0
+    %96 = alloca ptr $tmp25
+    %97 = load @q
+    %98 = load @q
+    %99 = call.rtl ptr fb_StrConcat(@$tmp25, %97, -1, %98, -1)
+    %100 = call.rtl ptr fb_UStrAssignFromA(@d2, -1, %99, -1, 0, -1)
+    %101 = alloca ptr d3
+    %102 = load @p
+    %103 = call.rtl ptr fb_WstrToUStr(%102)
+    %104 = call.rtl ptr fb_UStrInit(@d3, -1, %103, -1, 0)
+    %105 = alloca ptr d4
+    %106 = call.rtl ptr fb_UStrAssignToA(@d4, -1, @u, -1, 0, -1)
+    %107 = load @q
+    %108 = call.rtl ptr fb_StrToUStr(%107, -1)
+    %109 = call.rtl i32 fb_UStrCompare(@u, -1, %108, -1)
+    %110 = icmp.eq %109, 0
+    condbr %110, if.then2, if.else3
   if.join1:
-    %109 = load @p
-    %110 = call.rtl ptr fb_WstrToUStr(%109)
-    %111 = call.rtl i32 fb_UStrCompare(@u, -1, %110, -1)
-    %112 = icmp.eq %111, 0
-    condbr %112, if.then5, if.else6
+    %112 = load @p
+    %113 = call.rtl ptr fb_WstrToUStr(%112)
+    %114 = call.rtl i32 fb_UStrCompare(@u, -1, %113, -1)
+    %115 = icmp.eq %114, 0
+    condbr %115, if.then5, if.else6
   if.then2:
-    %108 = const i64 1
-    call.rtl void fb_PrintLongint(0, %108, 1)
+    %111 = const i64 1
+    call.rtl void fb_PrintLongint(0, %111, 1)
     br if.join1
   if.else3:
     br if.join1
   if.join4:
-    %114 = load @q
-    %115 = call.rtl ptr fb_StrToUStr(%114, -1)
-    %116 = call.rtl i32 fb_UStrCompare(@u, -1, %115, -1)
-    %117 = icmp.slt %116, 0
-    condbr %117, if.then8, if.else9
+    %117 = load @q
+    %118 = call.rtl ptr fb_StrToUStr(%117, -1)
+    %119 = call.rtl i32 fb_UStrCompare(@u, -1, %118, -1)
+    %120 = icmp.slt %119, 0
+    condbr %120, if.then8, if.else9
   if.then5:
-    %113 = const i64 2
-    call.rtl void fb_PrintLongint(0, %113, 1)
+    %116 = const i64 2
+    call.rtl void fb_PrintLongint(0, %116, 1)
     br if.join4
   if.else6:
     br if.join4
   if.join7:
-    %119 = const i64 -9223372036854775805
-    %120 = call.rtl i32 fb_UStrCompare(@u, -1, @@$wstr1, %119)
-    %121 = icmp.eq %120, 0
-    condbr %121, if.then11, if.else12
+    %122 = const i64 -9223372036854775805
+    %123 = call.rtl i32 fb_UStrCompare(@u, -1, @@$wstr1, %122)
+    %124 = icmp.eq %123, 0
+    condbr %124, if.then11, if.else12
   if.then8:
-    %118 = const i64 3
-    call.rtl void fb_PrintLongint(0, %118, 1)
+    %121 = const i64 3
+    call.rtl void fb_PrintLongint(0, %121, 1)
     br if.join7
   if.else9:
     br if.join7
   if.join10:
-    %123 = call.rtl ptr fb_StrToUStr(@s, -1)
-    %124 = call.rtl i32 fb_UStrCompare(%123, -1, @u, -1)
-    %125 = icmp.eq %124, 0
-    condbr %125, if.then14, if.else15
+    %126 = call.rtl ptr fb_StrToUStr(@s, -1)
+    %127 = call.rtl i32 fb_UStrCompare(%126, -1, @u, -1)
+    %128 = icmp.eq %127, 0
+    condbr %128, if.then14, if.else15
   if.then11:
-    %122 = const i64 4
-    call.rtl void fb_PrintLongint(0, %122, 1)
+    %125 = const i64 4
+    call.rtl void fb_PrintLongint(0, %125, 1)
     br if.join10
   if.else12:
     br if.join10
@@ -217,12 +220,13 @@ func void T(ptr $0, ptr $1, ptr $2, ptr $3) {
     call.rtl void fb_UStrDelete(@u)
     ret
   if.then14:
-    %126 = const i64 5
-    call.rtl void fb_PrintLongint(0, %126, 1)
+    %129 = const i64 5
+    call.rtl void fb_PrintLongint(0, %129, 1)
     br if.join13
   if.else15:
     br if.join13
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_UStrAssignFromA(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4, i32 $5)
 declare ptr fb_WstrToUStr(ptr $0)
 declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -255,4 +259,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 17 blocks, 169 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 17 blocks, 172 insts, 0 statements not lowered, 0 scope imbalance

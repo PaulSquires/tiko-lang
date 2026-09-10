@@ -117,31 +117,34 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr pb
-    %5 = alloca ptr pd
-    %6 = alloca ptr vb
+    %5 = call.rtl ptr memset(@pb, 0, 8)
+    %6 = alloca ptr pd
+    %7 = call.rtl ptr memset(@pd, 0, 8)
+    %8 = alloca ptr vb
     call void _ZN1BC1Ev(@vb)
-    %7 = alloca ptr vd
+    %9 = alloca ptr vd
     call void _ZN1DC1Ev(@vd)
-    %8 = load @pd
-    call void WANTSBPTR(%8)
+    %10 = load @pd
+    call void WANTSBPTR(%10)
     call void WANTSB(@vd)
-    %9 = alloca ptr cf
-    %10 = const i64 3
-    %11 = field.addr @cf, 0
-    %12 = load %11
-    call.rtl void fb_PrintLongint(0, %12, 1)
+    %11 = alloca ptr cf
+    %12 = const i64 3
     %13 = field.addr @cf, 0
-    %14 = const i64 4
-    store %13, %14
-    %15 = load @pb
-    call void WANTSDPTR(%15)
+    %14 = load %13
+    call.rtl void fb_PrintLongint(0, %14, 1)
+    %15 = field.addr @cf, 0
+    %16 = const i64 4
+    store %15, %16
+    %17 = load @pb
+    call void WANTSDPTR(%17)
     call void WANTSD(@vb)
-    %16 = const i32 0
-    call.rtl void fb_End(%16)
-    %17 = load @$tmp0
-    ret %17
+    %18 = const i32 0
+    call.rtl void fb_End(%18)
+    %19 = load @$tmp0
+    ret %19
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN1BC1Ev(ptr $0)
 declare void _ZN1DC1Ev(ptr $0)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -157,7 +160,6 @@ func void _ZN1BC1Ev(ptr $0) {
     ret
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN1DC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -169,7 +171,7 @@ func void _ZN1DC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 16 functions, 16 blocks, 67 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 16 blocks, 69 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
   skip-site src\mir\lowerutil.bas:40 1
 tests/diagnostics/src/member-and-call-rules.bas(66,5): error TKO0619: 'local2' is declared inside a procedure and cannot have methods

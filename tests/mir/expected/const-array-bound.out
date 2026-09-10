@@ -4,27 +4,29 @@ func void S() {
   local agg u size 12
   entry0:
     %1 = alloca ptr u
-    %2 = const i64 3
-    %3 = const i64 4
-    %4 = mul %2, %3
-    %5 = const i64 4
-    %6 = sub %4, %5
-    %7 = ptr.add @u, %6
-    %8 = const i64 9
-    %9 = trunc %8
-    store %7, %9
-    %10 = const i64 3
-    call.rtl void fb_PrintLongint(0, %10, 0)
+    %2 = call.rtl ptr memset(@u, 0, 12)
+    %3 = const i64 3
+    %4 = const i64 4
+    %5 = mul %3, %4
+    %6 = const i64 4
+    %7 = sub %5, %6
+    %8 = ptr.add @u, %7
+    %9 = const i64 9
+    %10 = trunc %9
+    store %8, %10
     %11 = const i64 3
-    %12 = const i64 4
-    %13 = mul %11, %12
-    %14 = const i64 4
-    %15 = sub %13, %14
-    %16 = ptr.add @u, %15
-    %17 = load %16
-    call.rtl void fb_PrintInt(0, %17, 1)
+    call.rtl void fb_PrintLongint(0, %11, 0)
+    %12 = const i64 3
+    %13 = const i64 4
+    %14 = mul %12, %13
+    %15 = const i64 4
+    %16 = sub %14, %15
+    %17 = ptr.add @u, %16
+    %18 = load %17
+    call.rtl void fb_PrintInt(0, %18, 1)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -101,4 +103,4 @@ declare ptr fb_StrAllocTempDescZ(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

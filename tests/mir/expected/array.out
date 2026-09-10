@@ -5,52 +5,57 @@ func void P() {
   local i32 v
   entry0:
     %1 = alloca ptr a
-    %2 = alloca ptr b
-    %3 = alloca ptr i
-    %4 = alloca ptr v
-    %5 = const i64 2
-    %6 = const i64 4
-    %7 = mul %5, %6
-    %8 = ptr.add @a, %7
-    %9 = const i64 7
-    %10 = trunc %9
-    store %8, %10
-    %11 = load @i
-    %12 = sext %11
-    %13 = const i64 4
-    %14 = mul %12, %13
-    %15 = ptr.add @a, %14
-    %16 = load %15
-    store @v, %16
-    %17 = const i64 1
-    %18 = const i64 16
-    %19 = mul %17, %18
-    %20 = const i64 2
-    %21 = const i64 4
-    %22 = mul %20, %21
-    %23 = add %19, %22
-    %24 = const i64 20
-    %25 = sub %23, %24
-    %26 = ptr.add @b, %25
-    %27 = const i64 5
-    %28 = trunc %27
-    store %26, %28
-    %29 = load @i
-    %30 = sext %29
-    %31 = const i64 16
-    %32 = mul %30, %31
+    %2 = call.rtl ptr memset(@a, 0, 40)
+    %3 = alloca ptr b
+    %4 = call.rtl ptr memset(@b, 0, 48)
+    %5 = alloca ptr i
+    %6 = call.rtl ptr memset(@i, 0, 4)
+    %7 = alloca ptr v
+    %8 = call.rtl ptr memset(@v, 0, 4)
+    %9 = const i64 2
+    %10 = const i64 4
+    %11 = mul %9, %10
+    %12 = ptr.add @a, %11
+    %13 = const i64 7
+    %14 = trunc %13
+    store %12, %14
+    %15 = load @i
+    %16 = sext %15
+    %17 = const i64 4
+    %18 = mul %16, %17
+    %19 = ptr.add @a, %18
+    %20 = load %19
+    store @v, %20
+    %21 = const i64 1
+    %22 = const i64 16
+    %23 = mul %21, %22
+    %24 = const i64 2
+    %25 = const i64 4
+    %26 = mul %24, %25
+    %27 = add %23, %26
+    %28 = const i64 20
+    %29 = sub %27, %28
+    %30 = ptr.add @b, %29
+    %31 = const i64 5
+    %32 = trunc %31
+    store %30, %32
     %33 = load @i
     %34 = sext %33
-    %35 = const i64 4
+    %35 = const i64 16
     %36 = mul %34, %35
-    %37 = add %32, %36
-    %38 = const i64 20
-    %39 = sub %37, %38
-    %40 = ptr.add @b, %39
-    %41 = load %40
-    store @v, %41
+    %37 = load @i
+    %38 = sext %37
+    %39 = const i64 4
+    %40 = mul %38, %39
+    %41 = add %36, %40
+    %42 = const i64 20
+    %43 = sub %41, %42
+    %44 = ptr.add @b, %43
+    %45 = load %44
+    store @v, %45
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -67,4 +72,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

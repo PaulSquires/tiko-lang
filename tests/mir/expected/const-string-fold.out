@@ -8,27 +8,29 @@ func void S1() {
   local agg s size 24
   entry0:
     %1 = alloca ptr s
-    %2 = field.addr @s, 0
-    store %2, 0
-    %3 = field.addr @s, 8
+    %2 = call.rtl ptr memset(@s, 0, 24)
+    %3 = field.addr @s, 0
     store %3, 0
-    %4 = field.addr @s, 16
+    %4 = field.addr @s, 8
     store %4, 0
-    %5 = call.rtl ptr fb_StrAssign(@s, -1, @@$str0, 3, 0)
+    %5 = field.addr @s, 16
+    store %5, 0
+    %6 = call.rtl ptr fb_StrAssign(@s, -1, @@$str0, 3, 0)
     call.rtl void fb_PrintString(0, @s, 1)
-    %6 = call.rtl ptr fb_StrAssign(@s, -1, @@$str1, 3, 0)
+    %7 = call.rtl ptr fb_StrAssign(@s, -1, @@$str1, 3, 0)
     call.rtl void fb_PrintString(0, @s, 1)
-    %7 = call.rtl ptr fb_StrAssign(@s, -1, @@$str2, 2, 0)
+    %8 = call.rtl ptr fb_StrAssign(@s, -1, @@$str2, 2, 0)
     call.rtl void fb_PrintString(0, @s, 1)
-    %8 = call.rtl ptr fb_StrAssign(@s, -1, @@$str3, 4, 0)
+    %9 = call.rtl ptr fb_StrAssign(@s, -1, @@$str3, 4, 0)
     call.rtl void fb_PrintString(0, @s, 1)
-    %9 = call.rtl ptr fb_StrAssign(@s, -1, @@$str4, 6, 0)
+    %10 = call.rtl ptr fb_StrAssign(@s, -1, @@$str4, 6, 0)
     call.rtl void fb_PrintString(0, @s, 1)
-    %10 = call.rtl ptr fb_StrAssign(@s, -1, @@$str5, 4, 0)
+    %11 = call.rtl ptr fb_StrAssign(@s, -1, @@$str5, 4, 0)
     call.rtl void fb_PrintString(0, @s, 1)
     call.rtl void fb_StrDelete(@s)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
@@ -49,4 +51,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 29 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance

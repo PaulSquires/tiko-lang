@@ -18,11 +18,10 @@ func i32 main(i32 $0, ptr $1) {
     %7 = alloca ptr pb
     store @pb, @b
     %8 = alloca ptr i
-    %9 = alloca ptr d
-    %10 = load @b
-    call.rtl void fb_PrintUByte(0, %10, 1)
-    %11 = load @pb
-    %12 = load %11
+    %9 = call.rtl ptr memset(@i, 0, 4)
+    %10 = alloca ptr d
+    %11 = call.rtl ptr memset(@d, 0, 8)
+    %12 = load @b
     call.rtl void fb_PrintUByte(0, %12, 1)
     %13 = load @pb
     %14 = load %13
@@ -30,47 +29,52 @@ func i32 main(i32 $0, ptr $1) {
     %15 = load @pb
     %16 = load %15
     call.rtl void fb_PrintUByte(0, %16, 1)
-    %17 = load @i
-    call.rtl void fb_PrintLongint(0, %17, 1)
-    %18 = load @d
-    call.rtl void fb_PrintDouble(0, %18, 1)
-    %19 = alloca ptr array
-    %20 = const i64 0
-    %21 = const i64 8
-    %22 = mul %20, %21
-    %23 = ptr.add @array, %22
-    %24 = load @pb
-    store %23, %24
-    %25 = const i64 0
-    %26 = const i64 8
-    %27 = mul %25, %26
-    %28 = ptr.add @array, %27
-    %29 = load %28
-    %30 = load %29
-    call.rtl void fb_PrintUByte(0, %30, 1)
-    %31 = const i64 0
-    %32 = const i64 8
-    %33 = mul %31, %32
-    %34 = ptr.add @array, %33
-    %35 = load %34
-    %36 = load %35
-    call.rtl void fb_PrintUByte(0, %36, 1)
-    %37 = const i64 0
-    %38 = const i64 8
-    %39 = mul %37, %38
-    %40 = ptr.add @array, %39
-    %41 = load %40
-    %42 = load %41
-    call.rtl void fb_PrintUByte(0, %42, 1)
-    %43 = const i32 0
-    call.rtl void fb_End(%43)
-    %44 = load @$tmp0
-    ret %44
+    %17 = load @pb
+    %18 = load %17
+    call.rtl void fb_PrintUByte(0, %18, 1)
+    %19 = load @i
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    %20 = load @d
+    call.rtl void fb_PrintDouble(0, %20, 1)
+    %21 = alloca ptr array
+    %22 = call.rtl ptr memset(@array, 0, 16)
+    %23 = const i64 0
+    %24 = const i64 8
+    %25 = mul %23, %24
+    %26 = ptr.add @array, %25
+    %27 = load @pb
+    store %26, %27
+    %28 = const i64 0
+    %29 = const i64 8
+    %30 = mul %28, %29
+    %31 = ptr.add @array, %30
+    %32 = load %31
+    %33 = load %32
+    call.rtl void fb_PrintUByte(0, %33, 1)
+    %34 = const i64 0
+    %35 = const i64 8
+    %36 = mul %34, %35
+    %37 = ptr.add @array, %36
+    %38 = load %37
+    %39 = load %38
+    call.rtl void fb_PrintUByte(0, %39, 1)
+    %40 = const i64 0
+    %41 = const i64 8
+    %42 = mul %40, %41
+    %43 = ptr.add @array, %42
+    %44 = load %43
+    %45 = load %44
+    call.rtl void fb_PrintUByte(0, %45, 1)
+    %46 = const i32 0
+    call.rtl void fb_End(%46)
+    %47 = load @$tmp0
+    ret %47
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 59 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance

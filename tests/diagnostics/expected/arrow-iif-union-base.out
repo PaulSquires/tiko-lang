@@ -55,42 +55,47 @@ func i32 main(i32 $0, ptr $1) {
     %7 = alloca ptr p
     store @p, @x
     %8 = alloca ptr un
-    %9 = alloca ptr a
-    %10 = alloca ptr b
-    %11 = alloca ptr cond
-    %12 = load @p
-    %13 = field.addr %12, 0
-    %14 = load %13
-    call.rtl void fb_PrintLongint(0, %14, 1)
-    %15 = load @p
-    %16 = field.addr %15, 0
-    %17 = load %16
-    call.rtl void fb_PrintLongint(0, %17, 1)
-    %18 = load @p
-    %19 = field.addr %18, 0
-    %20 = load %19
-    call.rtl void fb_PrintLongint(0, %20, 1)
-    %21 = const i64 0
-    %22 = alloca ptr $tmp7
+    %9 = call.rtl ptr memset(@un, 0, 8)
+    %10 = alloca ptr a
+    %11 = call.rtl ptr memset(@a, 0, 8)
+    %12 = alloca ptr b
+    %13 = call.rtl ptr memset(@b, 0, 8)
+    %14 = alloca ptr cond
+    %15 = call.rtl ptr memset(@cond, 0, 8)
+    %16 = load @p
+    %17 = field.addr %16, 0
+    %18 = load %17
+    call.rtl void fb_PrintLongint(0, %18, 1)
+    %19 = load @p
+    %20 = field.addr %19, 0
+    %21 = load %20
+    call.rtl void fb_PrintLongint(0, %21, 1)
+    %22 = load @p
+    %23 = field.addr %22, 0
+    %24 = load %23
+    call.rtl void fb_PrintLongint(0, %24, 1)
+    %25 = const i64 0
+    %26 = alloca ptr $tmp7
     store @$tmp7, @un
-    %23 = load @$tmp7
-    %24 = field.addr %23, 0
-    %25 = load %24
-    store @a, %25
-    %26 = load @$tmp7
-    %27 = field.addr %26, 0
-    %28 = load %27
-    store @b, %28
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %27 = load @$tmp7
+    %28 = field.addr %27, 0
+    %29 = load %28
+    store @a, %29
+    %30 = load @$tmp7
+    %31 = field.addr %30, 0
+    %32 = load %31
+    store @b, %32
+    %33 = const i32 0
+    call.rtl void fb_End(%33)
+    %34 = load @$tmp0
+    ret %34
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 53 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 57 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   skip-site src\mir\lowerassign.bas:397 1
 tests/diagnostics/src/arrow-iif-union-base.bas(27,9): error TKO0717: 'base.f( )' calls an abstract method, which has no body

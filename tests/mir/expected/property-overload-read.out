@@ -125,19 +125,21 @@ func i32 main(i32 $0, ptr $1) {
     %11 = func.addr ptr _ZN3BAZ10QUX__get__Ev
     call.rtl void fb_PrintString(0, %11, 1)
     %12 = alloca ptr g
+    %13 = call.rtl ptr memset(@g, 0, 8)
     call void _ZN4METH3BAREv(@g)
-    %13 = const i64 3
-    %14 = call i64 _ZN4METH3BAREu7INTEGER(@g, %13)
+    %14 = const i64 3
+    %15 = call i64 _ZN4METH3BAREu7INTEGER(@g, %14)
     call void _ZN3BAZD1Ev(@b)
     call void _ZN3FOOD1Ev(@f)
-    %15 = const i32 0
-    call.rtl void fb_End(%15)
-    %16 = load @$tmp0
-    ret %16
+    %16 = const i32 0
+    call.rtl void fb_End(%16)
+    %17 = load @$tmp0
+    ret %17
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN3FOOC1Ev(ptr $0)
 declare void _ZN3BAZC1Ev(ptr $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN3BAZD1Ev(ptr $0)
 declare void _ZN3FOOD1Ev(ptr $0)
 declare void fb_End(i32 $0)
@@ -177,4 +179,4 @@ func void _ZN3FOOD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 11 functions, 11 blocks, 102 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 103 insts, 0 statements not lowered, 0 scope imbalance

@@ -25,113 +25,116 @@ func void P(i64 $0) {
     %4 = alloca ptr b
     %5 = call.rtl ptr fb_StrInit(@b, -1, @@$str1, 2, 0)
     %6 = alloca ptr r
-    %7 = field.addr @r, 0
-    store %7, 0
-    %8 = field.addr @r, 8
+    %7 = call.rtl ptr memset(@r, 0, 24)
+    %8 = field.addr @r, 0
     store %8, 0
-    %9 = field.addr @r, 16
+    %9 = field.addr @r, 8
     store %9, 0
-    %10 = load @c
-    %11 = alloca ptr $tmp4
-    %17 = alloca ptr $tmp5
-    %23 = alloca ptr $tmp6
-    %28 = alloca ptr $tmp7
-    %33 = alloca ptr $tmp8
-    %37 = alloca ptr n
-    %39 = alloca ptr $tmp10
-    %44 = alloca ptr $tmp11
-    condbr %10, iif.then1, iif.else2
+    %10 = field.addr @r, 16
+    store %10, 0
+    %11 = load @c
+    %12 = alloca ptr $tmp4
+    %18 = alloca ptr $tmp5
+    %24 = alloca ptr $tmp6
+    %29 = alloca ptr $tmp7
+    %34 = alloca ptr $tmp8
+    %38 = alloca ptr n
+    %41 = alloca ptr $tmp10
+    %46 = alloca ptr $tmp11
+    condbr %11, iif.then1, iif.else2
   iif.then1:
-    %12 = call.rtl ptr fb_StrInit(@$tmp4, -1, @a, -1, 0)
+    %13 = call.rtl ptr fb_StrInit(@$tmp4, -1, @a, -1, 0)
     br iif.join3
   iif.else2:
-    %13 = call.rtl ptr fb_StrInit(@$tmp4, -1, @b, -1, 0)
+    %14 = call.rtl ptr fb_StrInit(@$tmp4, -1, @b, -1, 0)
     br iif.join3
   iif.join3:
-    %14 = call.rtl ptr fb_StrAssign(@r, -1, @$tmp4, -1, 0)
+    %15 = call.rtl ptr fb_StrAssign(@r, -1, @$tmp4, -1, 0)
     call.rtl void fb_StrDelete(@$tmp4)
-    %15 = call.rtl ptr fb_StrAssign(@r, -1, @a, -1, 0)
-    %16 = load @c
-    condbr %16, iif.then4, iif.else5
+    %16 = call.rtl ptr fb_StrAssign(@r, -1, @a, -1, 0)
+    %17 = load @c
+    condbr %17, iif.then4, iif.else5
   iif.then4:
-    %18 = call.rtl ptr fb_StrInit(@$tmp5, -1, @a, -1, 0)
+    %19 = call.rtl ptr fb_StrInit(@$tmp5, -1, @a, -1, 0)
     br iif.join6
   iif.else5:
-    %19 = call.rtl ptr fb_StrInit(@$tmp5, -1, @b, -1, 0)
+    %20 = call.rtl ptr fb_StrInit(@$tmp5, -1, @b, -1, 0)
     br iif.join6
   iif.join6:
-    %20 = call.rtl ptr fb_StrConcatAssign(@r, -1, @$tmp5, -1, 0)
-    %21 = call.rtl ptr fb_StrConcatAssign(@r, -1, @@$str2, 2, 0)
+    %21 = call.rtl ptr fb_StrConcatAssign(@r, -1, @$tmp5, -1, 0)
+    %22 = call.rtl ptr fb_StrConcatAssign(@r, -1, @@$str2, 2, 0)
     call.rtl void fb_StrDelete(@$tmp5)
-    %22 = load @c
-    condbr %22, iif.then7, iif.else8
+    %23 = load @c
+    condbr %23, iif.then7, iif.else8
   iif.then7:
-    %24 = call.rtl ptr fb_StrInit(@$tmp6, -1, @a, -1, 0)
+    %25 = call.rtl ptr fb_StrInit(@$tmp6, -1, @a, -1, 0)
     br iif.join9
   iif.else8:
-    %25 = call.rtl ptr fb_StrInit(@$tmp6, -1, @b, -1, 0)
+    %26 = call.rtl ptr fb_StrInit(@$tmp6, -1, @b, -1, 0)
     br iif.join9
   iif.join9:
     call.rtl void fb_PrintString(0, @$tmp6, 1)
     call.rtl void fb_StrDelete(@$tmp6)
-    %26 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
-    call.rtl void fb_PrintString(0, %26, 0)
-    %27 = load @c
-    condbr %27, iif.then10, iif.else11
+    %27 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
+    call.rtl void fb_PrintString(0, %27, 0)
+    %28 = load @c
+    condbr %28, iif.then10, iif.else11
   iif.then10:
-    %29 = call.rtl ptr fb_StrInit(@$tmp7, -1, @a, -1, 0)
+    %30 = call.rtl ptr fb_StrInit(@$tmp7, -1, @a, -1, 0)
     br iif.join12
   iif.else11:
-    %30 = call.rtl ptr fb_StrInit(@$tmp7, -1, @b, -1, 0)
+    %31 = call.rtl ptr fb_StrInit(@$tmp7, -1, @b, -1, 0)
     br iif.join12
   iif.join12:
     call.rtl void fb_PrintString(0, @$tmp7, 0)
-    %31 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
-    call.rtl void fb_PrintString(0, %31, 1)
+    %32 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    call.rtl void fb_PrintString(0, %32, 1)
     call.rtl void fb_StrDelete(@$tmp7)
-    %32 = load @c
-    condbr %32, iif.then13, iif.else14
+    %33 = load @c
+    condbr %33, iif.then13, iif.else14
   iif.then13:
-    %34 = call.rtl ptr fb_StrInit(@$tmp8, -1, @@$str5, 4, 0)
+    %35 = call.rtl ptr fb_StrInit(@$tmp8, -1, @@$str5, 4, 0)
     br iif.join15
   iif.else14:
-    %35 = call.rtl ptr fb_StrInit(@$tmp8, -1, @b, -1, 0)
+    %36 = call.rtl ptr fb_StrInit(@$tmp8, -1, @b, -1, 0)
     br iif.join15
   iif.join15:
-    %36 = call.rtl ptr fb_StrAssign(@r, -1, @$tmp8, -1, 0)
+    %37 = call.rtl ptr fb_StrAssign(@r, -1, @$tmp8, -1, 0)
     call.rtl void fb_StrDelete(@$tmp8)
-    %38 = load @c
-    condbr %38, iif.then16, iif.else17
+    %39 = call.rtl ptr memset(@n, 0, 8)
+    %40 = load @c
+    condbr %40, iif.then16, iif.else17
   iif.then16:
-    %40 = const i64 1
-    store @$tmp10, %40
+    %42 = const i64 1
+    store @$tmp10, %42
     br iif.join18
   iif.else17:
-    %41 = const i64 2
-    store @$tmp10, %41
+    %43 = const i64 2
+    store @$tmp10, %43
     br iif.join18
   iif.join18:
-    %42 = load @$tmp10
-    store @n, %42
-    %43 = load @c
-    condbr %43, iif.then19, iif.else20
+    %44 = load @$tmp10
+    store @n, %44
+    %45 = load @c
+    condbr %45, iif.then19, iif.else20
   iif.then19:
-    %45 = const i64 1
-    store @$tmp11, %45
+    %47 = const i64 1
+    store @$tmp11, %47
     br iif.join21
   iif.else20:
-    %46 = const i64 2
-    store @$tmp11, %46
+    %48 = const i64 2
+    store @$tmp11, %48
     br iif.join21
   iif.join21:
-    %47 = load @$tmp11
-    call.rtl void fb_PrintLongint(0, %47, 1)
+    %49 = load @$tmp11
+    call.rtl void fb_PrintLongint(0, %49, 1)
     call.rtl void fb_StrDelete(@r)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
     ret
 }
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -158,101 +161,104 @@ func void Q(i64 $0) {
     %1 = alloca ptr c
     store @c, $0
     %2 = alloca ptr a
-    %3 = alloca ptr b
-    %4 = alloca ptr r
-    %5 = load @c
-    %6 = alloca ptr $tmp4
-    %10 = alloca ptr z
-    %12 = alloca ptr $tmp6
-    %17 = alloca ptr y
-    %19 = alloca ptr $tmp8
-    %21 = alloca ptr $tmp9
-    %28 = alloca ptr v
-    %30 = alloca ptr $tmp11
-    %34 = alloca ptr q2
-    %37 = alloca ptr d
-    %39 = alloca ptr $tmp14
-    condbr %5, iif.then1, iif.else2
+    %3 = call.rtl ptr memset(@a, 0, 16)
+    %4 = alloca ptr b
+    %5 = call.rtl ptr memset(@b, 0, 16)
+    %6 = alloca ptr r
+    %7 = call.rtl ptr memset(@r, 0, 16)
+    %8 = load @c
+    %9 = alloca ptr $tmp4
+    %13 = alloca ptr z
+    %15 = alloca ptr $tmp6
+    %20 = alloca ptr y
+    %22 = alloca ptr $tmp8
+    %24 = alloca ptr $tmp9
+    %31 = alloca ptr v
+    %33 = alloca ptr $tmp11
+    %37 = alloca ptr q2
+    %40 = alloca ptr d
+    %42 = alloca ptr $tmp14
+    condbr %8, iif.then1, iif.else2
   iif.then1:
-    %7 = load @a
-    store @$tmp4, %7
+    %10 = load @a
+    store @$tmp4, %10
     br iif.join3
   iif.else2:
-    %8 = load @b
-    store @$tmp4, %8
+    %11 = load @b
+    store @$tmp4, %11
     br iif.join3
   iif.join3:
-    %9 = load @$tmp4
-    store @r, %9
-    %11 = load @c
-    condbr %11, iif.then4, iif.else5
+    %12 = load @$tmp4
+    store @r, %12
+    %14 = load @c
+    condbr %14, iif.then4, iif.else5
   iif.then4:
-    %13 = load @a
-    store @$tmp6, %13
+    %16 = load @a
+    store @$tmp6, %16
     br iif.join6
   iif.else5:
-    %14 = load @b
-    store @$tmp6, %14
+    %17 = load @b
+    store @$tmp6, %17
     br iif.join6
   iif.join6:
-    %15 = field.addr @$tmp6, 0
-    %16 = load %15
-    store @z, %16
-    %18 = load @c
-    condbr %18, iif.then7, iif.else8
+    %18 = field.addr @$tmp6, 0
+    %19 = load %18
+    store @z, %19
+    %21 = load @c
+    condbr %21, iif.then7, iif.else8
   iif.then7:
-    %20 = load @c
-    condbr %20, iif.then10, iif.else11
+    %23 = load @c
+    condbr %23, iif.then10, iif.else11
   iif.else8:
-    %25 = load @a
-    store @$tmp8, %25
+    %28 = load @a
+    store @$tmp8, %28
     br iif.join9
   iif.join9:
-    %26 = field.addr @$tmp8, 8
-    %27 = load %26
-    store @y, %27
-    %29 = load @c
-    condbr %29, iif.then13, iif.else14
+    %29 = field.addr @$tmp8, 8
+    %30 = load %29
+    store @y, %30
+    %32 = load @c
+    condbr %32, iif.then13, iif.else14
   iif.then10:
-    %22 = load @a
-    store @$tmp9, %22
+    %25 = load @a
+    store @$tmp9, %25
     br iif.join12
   iif.else11:
-    %23 = load @b
-    store @$tmp9, %23
+    %26 = load @b
+    store @$tmp9, %26
     br iif.join12
   iif.join12:
-    %24 = load @$tmp9
-    store @$tmp8, %24
+    %27 = load @$tmp9
+    store @$tmp8, %27
     br iif.join9
   iif.then13:
-    %31 = const i64 1
-    store @$tmp11, %31
+    %34 = const i64 1
+    store @$tmp11, %34
     br iif.join15
   iif.else14:
-    %32 = const i64 2
-    store @$tmp11, %32
+    %35 = const i64 2
+    store @$tmp11, %35
     br iif.join15
   iif.join15:
-    %33 = load @$tmp11
-    store @v, %33
-    %35 = load @v
-    %36 = trunc %35
-    store @q2, %36
-    %38 = load @c
-    condbr %38, iif.then16, iif.else17
+    %36 = load @$tmp11
+    store @v, %36
+    %38 = load @v
+    %39 = trunc %38
+    store @q2, %39
+    %41 = load @c
+    condbr %41, iif.then16, iif.else17
   iif.then16:
-    %40 = const i64 1
-    %41 = sitofp %40
-    store @$tmp14, %41
+    %43 = const i64 1
+    %44 = sitofp %43
+    store @$tmp14, %44
     br iif.join18
   iif.else17:
-    %42 = const f64 2.5
-    store @$tmp14, %42
+    %45 = const f64 2.5
+    store @$tmp14, %45
     br iif.join18
   iif.join18:
-    %43 = load @$tmp14
-    store @d, %43
+    %46 = load @$tmp14
+    store @d, %46
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -271,4 +277,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 42 blocks, 139 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 42 blocks, 144 insts, 0 statements not lowered, 0 scope imbalance

@@ -77,50 +77,51 @@ func void S1() {
     %2 = alloca ptr y
     call void _ZN2C2C1Ev(@y)
     %3 = alloca ptr pp
-    %4 = field.addr @pp, 0
-    %5 = const i64 9
-    store %4, %5
-    %6 = field.addr @pp, 8
-    %7 = const i64 8
-    store %6, %7
-    %8 = alloca ptr z
-    %9 = load @pp
-    call void _ZN2C3C1ER1P(@z, %9)
-    %10 = alloca ptr w
+    %4 = call.rtl ptr memset(@pp, 0, 24)
+    %5 = field.addr @pp, 0
+    %6 = const i64 9
+    store %5, %6
+    %7 = field.addr @pp, 8
+    %8 = const i64 8
+    store %7, %8
+    %9 = alloca ptr z
+    %10 = load @pp
+    call void _ZN2C3C1ER1P(@z, %10)
+    %11 = alloca ptr w
     call void _ZN2C4C1Ev(@w)
-    %11 = field.addr @x, 0
-    %12 = load %11
-    call.rtl void fb_PrintLongint(0, %12, 2)
-    %13 = field.addr @x, 8
-    %14 = load %13
-    call.rtl void fb_PrintLongint(0, %14, 2)
-    %15 = field.addr @x, 16
-    %16 = load %15
-    call.rtl void fb_PrintLongint(0, %16, 1)
-    %17 = field.addr @y, 0
-    %18 = load %17
-    call.rtl void fb_PrintLongint(0, %18, 2)
-    %19 = field.addr @y, 8
-    %20 = load %19
-    call.rtl void fb_PrintLongint(0, %20, 2)
-    %21 = field.addr @y, 16
-    %22 = load %21
-    call.rtl void fb_PrintLongint(0, %22, 1)
-    %23 = field.addr @z, 0
-    %24 = load %23
-    call.rtl void fb_PrintLongint(0, %24, 2)
-    %25 = field.addr @z, 8
-    %26 = load %25
-    call.rtl void fb_PrintLongint(0, %26, 2)
-    %27 = field.addr @z, 16
-    %28 = load %27
-    call.rtl void fb_PrintLongint(0, %28, 1)
-    %29 = field.addr @w, 0
-    %30 = load %29
-    call.rtl void fb_PrintLongint(0, %30, 2)
-    %31 = field.addr @w, 24
-    %32 = load %31
-    call.rtl void fb_PrintLongint(0, %32, 1)
+    %12 = field.addr @x, 0
+    %13 = load %12
+    call.rtl void fb_PrintLongint(0, %13, 2)
+    %14 = field.addr @x, 8
+    %15 = load %14
+    call.rtl void fb_PrintLongint(0, %15, 2)
+    %16 = field.addr @x, 16
+    %17 = load %16
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = field.addr @y, 0
+    %19 = load %18
+    call.rtl void fb_PrintLongint(0, %19, 2)
+    %20 = field.addr @y, 8
+    %21 = load %20
+    call.rtl void fb_PrintLongint(0, %21, 2)
+    %22 = field.addr @y, 16
+    %23 = load %22
+    call.rtl void fb_PrintLongint(0, %23, 1)
+    %24 = field.addr @z, 0
+    %25 = load %24
+    call.rtl void fb_PrintLongint(0, %25, 2)
+    %26 = field.addr @z, 8
+    %27 = load %26
+    call.rtl void fb_PrintLongint(0, %27, 2)
+    %28 = field.addr @z, 16
+    %29 = load %28
+    call.rtl void fb_PrintLongint(0, %29, 1)
+    %30 = field.addr @w, 0
+    %31 = load %30
+    call.rtl void fb_PrintLongint(0, %31, 2)
+    %32 = field.addr @w, 24
+    %33 = load %32
+    call.rtl void fb_PrintLongint(0, %33, 1)
     ret
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -141,4 +142,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 103 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 104 insts, 0 statements not lowered, 0 scope imbalance

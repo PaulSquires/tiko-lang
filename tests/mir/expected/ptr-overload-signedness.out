@@ -85,35 +85,40 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr pll
-    %5 = alloca ptr pull
-    %6 = alloca ptr pi
-    %7 = alloca ptr pui
-    %8 = load @pull
-    %9 = call ptr _Z1FPx(%8)
-    call.rtl void fb_PrintString(0, %9, 0)
-    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
-    call.rtl void fb_PrintString(0, %10, 0)
-    %11 = load @pui
-    %12 = call ptr _Z1FPu7INTEGER(%11)
-    call.rtl void fb_PrintString(0, %12, 0)
-    %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
+    %5 = call.rtl ptr memset(@pll, 0, 8)
+    %6 = alloca ptr pull
+    %7 = call.rtl ptr memset(@pull, 0, 8)
+    %8 = alloca ptr pi
+    %9 = call.rtl ptr memset(@pi, 0, 8)
+    %10 = alloca ptr pui
+    %11 = call.rtl ptr memset(@pui, 0, 8)
+    %12 = load @pull
+    %13 = call ptr _Z1FPx(%12)
     call.rtl void fb_PrintString(0, %13, 0)
-    %14 = load @pi
-    %15 = call ptr _Z1JPx(%14)
-    call.rtl void fb_PrintString(0, %15, 0)
-    %16 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
+    %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
+    call.rtl void fb_PrintString(0, %14, 0)
+    %15 = load @pui
+    %16 = call ptr _Z1FPu7INTEGER(%15)
     call.rtl void fb_PrintString(0, %16, 0)
-    %17 = load @pui
-    %18 = call ptr _Z1JPy(%17)
-    call.rtl void fb_PrintString(0, %18, 1)
-    %19 = const i32 0
-    call.rtl void fb_End(%19)
-    %20 = load @$tmp0
-    ret %20
+    %17 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
+    call.rtl void fb_PrintString(0, %17, 0)
+    %18 = load @pi
+    %19 = call ptr _Z1JPx(%18)
+    call.rtl void fb_PrintString(0, %19, 0)
+    %20 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
+    call.rtl void fb_PrintString(0, %20, 0)
+    %21 = load @pui
+    %22 = call ptr _Z1JPy(%21)
+    call.rtl void fb_PrintString(0, %22, 1)
+    %23 = const i32 0
+    call.rtl void fb_End(%23)
+    %24 = load @$tmp0
+    ret %24
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

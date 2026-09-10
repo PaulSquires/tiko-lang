@@ -46,44 +46,45 @@ func i32 main(i32 $0, ptr $1) {
     %8 = field.addr @okellipsis, 8
     store %8, %7
     %9 = alloca ptr badfixed
-    %10 = alloca ptr baddyn
-    %11 = const ptr 0
-    %12 = field.addr @baddyn, 0
-    store %12, %11
-    %13 = field.addr @baddyn, 8
-    store %13, %11
-    %14 = const i64 0
-    %15 = field.addr @baddyn, 16
-    store %15, %14
-    %16 = const i64 8
-    %17 = field.addr @baddyn, 24
-    store %17, %16
-    %18 = const i64 1
-    %19 = field.addr @baddyn, 32
-    store %19, %18
-    %20 = const i64 17
-    %21 = field.addr @baddyn, 40
-    store %21, %20
-    %22 = const i64 0
-    %23 = field.addr @baddyn, 48
-    store %23, %22
-    %24 = const i64 0
-    %25 = field.addr @baddyn, 56
-    store %25, %24
-    %26 = const i64 0
-    %27 = field.addr @baddyn, 64
-    store %27, %26
-    %28 = call.rtl i32 fb_ArrayErase(@baddyn)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %10 = call.rtl ptr memset(@badfixed, 0, 32)
+    %11 = alloca ptr baddyn
+    %12 = const ptr 0
+    %13 = field.addr @baddyn, 0
+    store %13, %12
+    %14 = field.addr @baddyn, 8
+    store %14, %12
+    %15 = const i64 0
+    %16 = field.addr @baddyn, 16
+    store %16, %15
+    %17 = const i64 8
+    %18 = field.addr @baddyn, 24
+    store %18, %17
+    %19 = const i64 1
+    %20 = field.addr @baddyn, 32
+    store %20, %19
+    %21 = const i64 17
+    %22 = field.addr @baddyn, 40
+    store %22, %21
+    %23 = const i64 0
+    %24 = field.addr @baddyn, 48
+    store %24, %23
+    %25 = const i64 0
+    %26 = field.addr @baddyn, 56
+    store %26, %25
+    %27 = const i64 0
+    %28 = field.addr @baddyn, 64
+    store %28, %27
+    %29 = call.rtl i32 fb_ArrayErase(@baddyn)
+    %30 = const i32 0
+    call.rtl void fb_End(%30)
+    %31 = load @$tmp0
+    ret %31
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_ArrayErase(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 62 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 63 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   amb call-nocode 1
   skip-site lowercall.bas:289 1

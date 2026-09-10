@@ -78,47 +78,48 @@ func void ALLOCS() {
   local ptr $tmp2
   entry0:
     %1 = alloca ptr arr
-    %2 = field.addr @arr, 0
-    call void _ZN6HASSTRC1Ev(%2)
-    %3 = field.addr @arr, 32
+    %2 = call.rtl ptr memset(@arr, 0, 96)
+    %3 = field.addr @arr, 0
     call void _ZN6HASSTRC1Ev(%3)
-    %4 = field.addr @arr, 64
+    %4 = field.addr @arr, 32
     call void _ZN6HASSTRC1Ev(%4)
-    %5 = const i64 1
-    %6 = const i64 32
-    %7 = mul %5, %6
-    %8 = ptr.add @arr, %7
-    %9 = field.addr %8, 8
-    %10 = call.rtl ptr fb_StrAssign(%9, -1, @@$str1, 2, 0)
-    %11 = alloca ptr p
-    %12 = call.rtl ptr calloc(32, 1)
-    %13 = alloca ptr $tmp2
-    store @$tmp2, %12
-    %14 = load @$tmp2
-    %15 = const ptr 0
-    %16 = icmp.ne %14, %15
-    condbr %16, new.ctor1, new.join2
+    %5 = field.addr @arr, 64
+    call void _ZN6HASSTRC1Ev(%5)
+    %6 = const i64 1
+    %7 = const i64 32
+    %8 = mul %6, %7
+    %9 = ptr.add @arr, %8
+    %10 = field.addr %9, 8
+    %11 = call.rtl ptr fb_StrAssign(%10, -1, @@$str1, 2, 0)
+    %12 = alloca ptr p
+    %13 = call.rtl ptr calloc(32, 1)
+    %14 = alloca ptr $tmp2
+    store @$tmp2, %13
+    %15 = load @$tmp2
+    %16 = const ptr 0
+    %17 = icmp.ne %15, %16
+    condbr %17, new.ctor1, new.join2
   new.ctor1:
-    call void _ZN6HASSTRC1Ev(%14)
+    call void _ZN6HASSTRC1Ev(%15)
     br new.join2
   new.join2:
-    %17 = load @$tmp2
-    store @p, %17
-    %18 = load @p
-    %19 = const ptr 0
-    %20 = icmp.ne %18, %19
-    condbr %20, del.body3, del.join4
+    %18 = load @$tmp2
+    store @p, %18
+    %19 = load @p
+    %20 = const ptr 0
+    %21 = icmp.ne %19, %20
+    condbr %21, del.body3, del.join4
   del.body3:
-    call void _ZN6HASSTRD1Ev(%18)
-    call.rtl void free(%18)
+    call void _ZN6HASSTRD1Ev(%19)
+    call.rtl void free(%19)
     br del.join4
   del.join4:
-    %21 = field.addr @arr, 64
-    call void _ZN6HASSTRD1Ev(%21)
-    %22 = field.addr @arr, 32
+    %22 = field.addr @arr, 64
     call void _ZN6HASSTRD1Ev(%22)
-    %23 = field.addr @arr, 0
+    %23 = field.addr @arr, 32
     call void _ZN6HASSTRD1Ev(%23)
+    %24 = field.addr @arr, 0
+    call void _ZN6HASSTRD1Ev(%24)
     ret
 }
 declare ptr calloc(i64 $0, i64 $1)
@@ -136,11 +137,12 @@ func void USE() {
     %4 = alloca ptr q
     call void _ZN6HASARRC1Ev(@q)
     %5 = alloca ptr p
-    %6 = field.addr @p, 0
-    %7 = const i64 1
-    %8 = trunc %7
-    store %6, %8
-    %9 = alloca ptr d
+    %6 = call.rtl ptr memset(@p, 0, 8)
+    %7 = field.addr @p, 0
+    %8 = const i64 1
+    %9 = trunc %8
+    store %7, %9
+    %10 = alloca ptr d
     call void _ZN8DERIVEDWC1Ev(@d)
     call void _ZN8DERIVEDWD1Ev(@d)
     call void _ZN6HASARRD1Ev(@q)
@@ -272,4 +274,4 @@ func void _ZN6HASARRD1Ev(ptr $0) {
 }
 declare i32 fb_ArrayErase(ptr $0)
 verify: ok
-lowered: 16 functions, 20 blocks, 166 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 20 blocks, 168 insts, 0 statements not lowered, 0 scope imbalance

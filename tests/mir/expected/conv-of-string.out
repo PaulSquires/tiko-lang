@@ -103,23 +103,24 @@ func i32 main(i32 $0, ptr $1) {
     %36 = alloca ptr cx
     %37 = call.rtl ptr fb_StrInit(@cx, -1, @@$str2, 5, 0)
     %38 = alloca ptr cy
-    %39 = field.addr @cy, 0
-    store %39, 0
-    %40 = field.addr @cy, 8
+    %39 = call.rtl ptr memset(@cy, 0, 24)
+    %40 = field.addr @cy, 0
     store %40, 0
-    %41 = field.addr @cy, 16
+    %41 = field.addr @cy, 8
     store %41, 0
-    %42 = call.rtl ptr fb_StrAssign(@cy, -1, @cx, -1, 0)
+    %42 = field.addr @cy, 16
+    store %42, 0
+    %43 = call.rtl ptr fb_StrAssign(@cy, -1, @cx, -1, 0)
     call.rtl void fb_PrintString(0, @cy, 1)
     call.rtl void fb_StrDelete(@cy)
     call.rtl void fb_StrDelete(@cx)
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
     call.rtl void fb_StrDelete(@x)
-    %43 = const i32 0
-    call.rtl void fb_End(%43)
-    %44 = load @$tmp0
-    ret %44
+    %44 = const i32 0
+    call.rtl void fb_End(%44)
+    %45 = load @$tmp0
+    ret %45
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -139,6 +140,7 @@ declare f64 fb_VAL(ptr $0)
 declare void fb_PrintSingle(i32 $0, f32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare ptr fb_LEFT(ptr $0, i64 $1)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 96 insts, 0 statements not lowered, 0 scope imbalance

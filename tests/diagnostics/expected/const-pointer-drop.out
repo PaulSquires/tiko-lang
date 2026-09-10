@@ -101,37 +101,40 @@ func i32 main(i32 $0, ptr $1) {
     %52 = load @r3
     store @k10, %52
     %53 = alloca ptr a1
-    %54 = alloca ptr a2
-    %55 = load @r1
-    store @a1, %55
-    %56 = load @r2
-    store @a1, %56
-    %57 = load @r3
-    store @a2, %57
-    %58 = load @r1
-    call void TAKESPTR(%58)
-    %59 = load @r2
-    call void TAKESPTR(%59)
+    %54 = call.rtl ptr memset(@a1, 0, 8)
+    %55 = alloca ptr a2
+    %56 = call.rtl ptr memset(@a2, 0, 8)
+    %57 = load @r1
+    store @a1, %57
+    %58 = load @r2
+    store @a1, %58
+    %59 = load @r3
+    store @a2, %59
     %60 = load @r1
-    call void TAKESCONSTPTR(%60)
+    call void TAKESPTR(%60)
+    %61 = load @r2
+    call void TAKESPTR(%61)
+    %62 = load @r1
+    call void TAKESCONSTPTR(%62)
     call void TAKESREF(@r3)
-    %61 = alloca ptr cv
-    %62 = const i64 0
-    store @cv, %62
+    %63 = alloca ptr cv
+    %64 = const i64 0
+    store @cv, %64
     call void TAKESINTPTR(@cv)
-    %63 = const i32 0
-    call.rtl void fb_End(%63)
-    %64 = load @$tmp0
-    ret %64
+    %65 = const i32 0
+    call.rtl void fb_End(%65)
+    %66 = load @$tmp0
+    ret %66
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void TAKESPTR(ptr $0)
 declare void TAKESCONSTPTR(ptr $0)
 declare void TAKESREF(ptr $0)
 declare void TAKESINTPTR(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 99 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/const-pointer-drop.bas(14,5): error TKO0747: this drops a pointee's 'const'
      |
   14 | dim l1 as ubyte ptr = r1

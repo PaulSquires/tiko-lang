@@ -61,15 +61,17 @@ func ptr BAD4() {
     %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr x
-    %4 = field.addr @x, 0
-    %5 = const i64 0
-    %6 = const i64 8
-    %7 = mul %5, %6
-    %8 = ptr.add %4, %7
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    ret %9
+    %4 = call.rtl ptr memset(@x, 0, 16)
+    %5 = field.addr @x, 0
+    %6 = const i64 0
+    %7 = const i64 8
+    %8 = mul %6, %7
+    %9 = ptr.add %5, %8
+    store @$tmp0, %9
+    %10 = load @$tmp0
+    ret %10
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -86,7 +88,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/byref-result-type.bas(25,16): error TKO0667: a byref result must be assigned something of exactly its type
      |
   25 |     function = d

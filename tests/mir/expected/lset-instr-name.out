@@ -23,49 +23,51 @@ func i32 main(i32 $0, ptr $1) {
     %6 = alloca ptr y
     %7 = call.rtl ptr fb_StrInit(@y, -1, @@$str1, 3, 0)
     %8 = alloca ptr fx
-    %9 = call.rtl ptr memset(@fx, 32, 10)
-    %10 = alloca ptr fy
-    %11 = call.rtl ptr memset(@fy, 32, 10)
-    %12 = alloca ptr s
-    %13 = call.rtl ptr fb_StrInit(@s, -1, @@$str2, 6, 0)
+    %9 = call.rtl ptr memset(@fx, 0, 10)
+    %10 = call.rtl ptr memset(@fx, 32, 10)
+    %11 = alloca ptr fy
+    %12 = call.rtl ptr memset(@fy, 0, 10)
+    %13 = call.rtl ptr memset(@fy, 32, 10)
+    %14 = alloca ptr s
+    %15 = call.rtl ptr fb_StrInit(@s, -1, @@$str2, 6, 0)
     call.rtl void fb_StrLset(@x, @y)
     call.rtl void fb_StrRset(@x, @y)
-    %14 = const i64 -9223372036854775798
-    %15 = call.rtl ptr fb_StrAssign(@fx, %14, @@$str0, 7, -1)
     %16 = const i64 -9223372036854775798
-    %17 = call.rtl ptr fb_StrAssign(@fy, %16, @@$str1, 3, -1)
+    %17 = call.rtl ptr fb_StrAssign(@fx, %16, @@$str0, 7, -1)
     %18 = const i64 -9223372036854775798
-    %19 = call.rtl ptr fb_StrAllocTempDescF(@fy, %18)
+    %19 = call.rtl ptr fb_StrAssign(@fy, %18, @@$str1, 3, -1)
     %20 = const i64 -9223372036854775798
-    call.rtl void fb_StrLsetANA(@fx, %20, %19)
-    %21 = const i64 -9223372036854775798
-    %22 = call.rtl ptr fb_StrAllocTempDescF(@fy, %21)
+    %21 = call.rtl ptr fb_StrAllocTempDescF(@fy, %20)
+    %22 = const i64 -9223372036854775798
+    call.rtl void fb_StrLsetANA(@fx, %22, %21)
     %23 = const i64 -9223372036854775798
-    call.rtl void fb_StrRsetANA(@fx, %23, %22)
-    %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
-    %25 = const i64 1
-    %26 = call.rtl i64 fb_StrInstr(%25, @s, %24)
-    call.rtl void fb_PrintLongint(0, %26, 1)
-    %27 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
-    %28 = const i64 1
-    %29 = call.rtl i64 fb_StrInstrAny(%28, @s, %27)
-    call.rtl void fb_PrintLongint(0, %29, 1)
-    %30 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
-    %31 = call.rtl i64 fb_StrInstrAny(1, @s, %30)
+    %24 = call.rtl ptr fb_StrAllocTempDescF(@fy, %23)
+    %25 = const i64 -9223372036854775798
+    call.rtl void fb_StrRsetANA(@fx, %25, %24)
+    %26 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
+    %27 = const i64 1
+    %28 = call.rtl i64 fb_StrInstr(%27, @s, %26)
+    call.rtl void fb_PrintLongint(0, %28, 1)
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
+    %30 = const i64 1
+    %31 = call.rtl i64 fb_StrInstrAny(%30, @s, %29)
     call.rtl void fb_PrintLongint(0, %31, 1)
-    %32 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
-    %33 = const i64 3
-    %34 = call.rtl i64 fb_StrInstrRev(@s, %32, %33)
-    call.rtl void fb_PrintLongint(0, %34, 1)
-    %35 = call.rtl i32 rename(@@$str5, @@$str6)
-    call.rtl void fb_PrintInt(0, %35, 1)
+    %32 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 2)
+    %33 = call.rtl i64 fb_StrInstrAny(1, @s, %32)
+    call.rtl void fb_PrintLongint(0, %33, 1)
+    %34 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %35 = const i64 3
+    %36 = call.rtl i64 fb_StrInstrRev(@s, %34, %35)
+    call.rtl void fb_PrintLongint(0, %36, 1)
+    %37 = call.rtl i32 rename(@@$str5, @@$str6)
+    call.rtl void fb_PrintInt(0, %37, 1)
     call.rtl void fb_StrDelete(@s)
     call.rtl void fb_StrDelete(@y)
     call.rtl void fb_StrDelete(@x)
-    %36 = const i32 0
-    call.rtl void fb_End(%36)
-    %37 = load @$tmp0
-    ret %37
+    %38 = const i32 0
+    call.rtl void fb_End(%38)
+    %39 = load @$tmp0
+    ret %39
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -86,4 +88,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 52 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 54 insts, 0 statements not lowered, 0 scope imbalance

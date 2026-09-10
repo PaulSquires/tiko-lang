@@ -23,21 +23,23 @@ L0:
   %t7 = ptrtoint ptr %t6 to i64
   call void @"fb_PrintULongint"(i32 0, i64 %t7, i32 1)
   %s2 = alloca ptr, align 8
-  %t9 = load ptr, ptr %s2, align 8
-  %t10 = ptrtoint ptr %t9 to i64
-  call void @"fb_PrintULongint"(i32 0, i64 %t10, i32 1)
+  %t9 = call ptr @"memset"(ptr %s2, i32 0, i64 8)
+  %t10 = load ptr, ptr %s2, align 8
+  %t11 = ptrtoint ptr %t10 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t11, i32 1)
   %s3 = alloca ptr, align 8
-  %t12 = load ptr, ptr %s3, align 8
-  %t13 = ptrtoint ptr %t12 to i64
-  call void @"fb_PrintULongint"(i32 0, i64 %t13, i32 1)
+  %t13 = call ptr @"memset"(ptr %s3, i32 0, i64 8)
+  %t14 = load ptr, ptr %s3, align 8
+  %t15 = ptrtoint ptr %t14 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t15, i32 1)
   %s4 = alloca ptr, align 8
   store ptr @"F", ptr %s4, align 8
-  %t16 = load ptr, ptr %s4, align 8
-  %t17 = ptrtoint ptr %t16 to i64
-  call void @"fb_PrintULongint"(i32 0, i64 %t17, i32 1)
+  %t18 = load ptr, ptr %s4, align 8
+  %t19 = ptrtoint ptr %t18 to i64
+  call void @"fb_PrintULongint"(i32 0, i64 %t19, i32 1)
   call void @"fb_End"(i32 0)
-  %t19 = load i32, ptr %s0, align 4
-  ret i32 %t19
+  %t21 = load i32, ptr %s0, align 4
+  ret i32 %t21
 
 }
 
@@ -52,4 +54,5 @@ L0:
 
 declare void @"fb_Init"(i32, ptr, i32)
 declare void @"fb_PrintULongint"(i32, i64, i32)
+declare ptr @"memset"(ptr, i32, i64)
 declare void @"fb_End"(i32)

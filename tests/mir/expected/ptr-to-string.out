@@ -24,38 +24,43 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr wsp
-    %5 = alloca ptr ap
-    %6 = alloca ptr lp
-    %7 = alloca ptr r
-    %8 = load @wsp
-    %9 = bitcast %8
-    %10 = call.rtl ptr fb_ULongintToStr(%9)
-    call.rtl void fb_PrintString(0, %10, 1)
-    %11 = load @ap
-    %12 = bitcast %11
-    %13 = call.rtl ptr fb_ULongintToStr(%12)
-    call.rtl void fb_PrintString(0, %13, 1)
-    %14 = load @lp
-    %15 = bitcast %14
-    %16 = call.rtl ptr fb_ULongintToStr(%15)
-    call.rtl void fb_PrintString(0, %16, 1)
-    %17 = load @wsp
-    %18 = bitcast %17
-    %19 = call.rtl ptr fb_ULongintToWstr(%18)
-    call.rtl void fb_PrintWstr(0, %19, 1)
-    %20 = load @wsp
-    %21 = bitcast %20
-    %22 = call.rtl ptr fb_ULongintToWstr(%21)
-    %23 = call i32 PW(%22)
-    store @r, %23
-    %24 = load @r
-    call.rtl void fb_PrintInt(0, %24, 1)
-    %25 = const i32 0
-    call.rtl void fb_End(%25)
-    %26 = load @$tmp0
-    ret %26
+    %5 = call.rtl ptr memset(@wsp, 0, 8)
+    %6 = alloca ptr ap
+    %7 = call.rtl ptr memset(@ap, 0, 8)
+    %8 = alloca ptr lp
+    %9 = call.rtl ptr memset(@lp, 0, 8)
+    %10 = alloca ptr r
+    %11 = call.rtl ptr memset(@r, 0, 4)
+    %12 = load @wsp
+    %13 = bitcast %12
+    %14 = call.rtl ptr fb_ULongintToStr(%13)
+    call.rtl void fb_PrintString(0, %14, 1)
+    %15 = load @ap
+    %16 = bitcast %15
+    %17 = call.rtl ptr fb_ULongintToStr(%16)
+    call.rtl void fb_PrintString(0, %17, 1)
+    %18 = load @lp
+    %19 = bitcast %18
+    %20 = call.rtl ptr fb_ULongintToStr(%19)
+    call.rtl void fb_PrintString(0, %20, 1)
+    %21 = load @wsp
+    %22 = bitcast %21
+    %23 = call.rtl ptr fb_ULongintToWstr(%22)
+    call.rtl void fb_PrintWstr(0, %23, 1)
+    %24 = load @wsp
+    %25 = bitcast %24
+    %26 = call.rtl ptr fb_ULongintToWstr(%25)
+    %27 = call i32 PW(%26)
+    store @r, %27
+    %28 = load @r
+    call.rtl void fb_PrintInt(0, %28, 1)
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_ULongintToStr(i64 $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_ULongintToWstr(i64 $0)
@@ -63,4 +68,4 @@ declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 42 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

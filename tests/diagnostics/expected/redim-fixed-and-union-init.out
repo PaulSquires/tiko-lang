@@ -120,52 +120,55 @@ func i32 main(i32 $0, ptr $1) {
     %63 = field.addr @dyn, 232
     store %63, %62
     %64 = alloca ptr fixed_
-    %65 = alloca ptr x
+    %65 = call.rtl ptr memset(@fixed_, 0, 16)
+    %66 = alloca ptr x
     call void _ZN3UDTC1Ev(@x)
-    %66 = alloca ptr i
-    %67 = alloca ptr pi
+    %67 = alloca ptr i
+    %68 = call.rtl ptr memset(@i, 0, 8)
+    %69 = alloca ptr pi
     store @pi, @i
-    %68 = const i64 0
-    %69 = const i64 0
-    %70 = const i64 3
-    %71 = call.rtl i32 fb_ArrayRedimEx(@dyn, 8, -1, 0, 1, %69, %70)
-    %72 = field.addr @x, 16
-    %73 = const i64 0
-    %74 = const i64 0
-    %75 = const i64 3
-    %76 = call.rtl i32 fb_ArrayRedimEx(%72, 8, -1, 0, 1, %74, %75)
-    %77 = alloca ptr oku
-    %78 = const i64 1
-    %79 = field.addr @oku, 0
-    store %79, %78
-    %80 = alloca ptr bad1
-    %81 = const i64 1
-    %82 = const i64 2
-    %83 = field.addr @bad1, 0
-    store %83, %81
-    %84 = field.addr @bad1, 0
-    store %84, %82
-    %85 = alloca ptr bad2
-    %86 = alloca ptr $tmp9
-    %87 = const i64 1
-    %88 = const i64 2
-    %89 = const i64 3
-    %90 = field.addr @$tmp9, 0
-    store %90, %87
-    %91 = field.addr @$tmp9, 8
-    store %91, %88
-    %92 = field.addr @$tmp9, 16
+    %70 = const i64 0
+    %71 = const i64 0
+    %72 = const i64 3
+    %73 = call.rtl i32 fb_ArrayRedimEx(@dyn, 8, -1, 0, 1, %71, %72)
+    %74 = field.addr @x, 16
+    %75 = const i64 0
+    %76 = const i64 0
+    %77 = const i64 3
+    %78 = call.rtl i32 fb_ArrayRedimEx(%74, 8, -1, 0, 1, %76, %77)
+    %79 = alloca ptr oku
+    %80 = const i64 1
+    %81 = field.addr @oku, 0
+    store %81, %80
+    %82 = alloca ptr bad1
+    %83 = const i64 1
+    %84 = const i64 2
+    %85 = field.addr @bad1, 0
+    store %85, %83
+    %86 = field.addr @bad1, 0
+    store %86, %84
+    %87 = alloca ptr bad2
+    %88 = alloca ptr $tmp9
+    %89 = const i64 1
+    %90 = const i64 2
+    %91 = const i64 3
+    %92 = field.addr @$tmp9, 0
     store %92, %89
-    %93 = load @$tmp9
-    store @bad2, %93
+    %93 = field.addr @$tmp9, 8
+    store %93, %90
+    %94 = field.addr @$tmp9, 16
+    store %94, %91
+    %95 = load @$tmp9
+    store @bad2, %95
     call void _ZN3UDTD1Ev(@x)
-    %94 = call.rtl i32 fb_ArrayErase(@dyn)
-    %95 = const i32 0
-    call.rtl void fb_End(%95)
-    %96 = load @$tmp0
-    ret %96
+    %96 = call.rtl i32 fb_ArrayErase(@dyn)
+    %97 = const i32 0
+    call.rtl void fb_End(%97)
+    %98 = load @$tmp0
+    ret %98
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN3UDTC1Ev(ptr $0)
 declare void _ZN3UDTD1Ev(ptr $0)
 declare i32 fb_ArrayErase(ptr $0)
@@ -203,7 +206,6 @@ func void _ZN3UDTC1Ev(ptr $0) {
     store %20, %19
     ret
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN3UDTD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 16
@@ -211,7 +213,7 @@ func void _ZN3UDTD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 4 blocks, 178 insts, 5 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 180 insts, 5 statements not lowered, 0 scope imbalance
   inside N_VAR 5
   skip-site src\mir\lower.bas:182 5
 tests/diagnostics/src/redim-fixed-and-union-init.bas(33,17): error TKO0618: too many expressions in the initializer for 'bad2'

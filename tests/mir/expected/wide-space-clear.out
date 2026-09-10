@@ -7,46 +7,47 @@ func void S1() {
   local i64 lj
   entry0:
     %1 = alloca ptr e
-    %2 = const i64 5
-    %3 = call.rtl ptr fb_WstrSpace(%2)
-    %4 = alloca ptr $tmp1
-    store @$tmp1, %3
-    %5 = load @$tmp1
-    %6 = call.rtl ptr fb_WstrAssign(@e, 50, %5)
-    %7 = load @$tmp1
-    call.rtl void fb_WstrDelete(%7)
-    %8 = call.rtl i64 fb_WstrLen(@e)
-    call.rtl void fb_PrintLongint(0, %8, 1)
-    %9 = alloca ptr a
-    %10 = call.rtl ptr fb_WstrAssign(@a, 40, @@$wstr0)
+    %2 = call.rtl ptr memset(@e, 0, 100)
+    %3 = const i64 5
+    %4 = call.rtl ptr fb_WstrSpace(%3)
+    %5 = alloca ptr $tmp1
+    store @$tmp1, %4
+    %6 = load @$tmp1
+    %7 = call.rtl ptr fb_WstrAssign(@e, 50, %6)
+    %8 = load @$tmp1
+    call.rtl void fb_WstrDelete(%8)
+    %9 = call.rtl i64 fb_WstrLen(@e)
+    call.rtl void fb_PrintLongint(0, %9, 1)
+    %10 = alloca ptr a
+    %11 = call.rtl ptr fb_WstrAssign(@a, 40, @@$wstr0)
     call.rtl void fb_PrintWstr(0, @a, 1)
-    %11 = alloca ptr li
-    %12 = const i64 7
-    store @li, %12
-    %13 = const i64 0
-    %14 = trunc %13
-    %15 = const i64 8
-    %16 = call.rtl ptr memset(@li, %14, %15)
-    %17 = load @li
-    call.rtl void fb_PrintLongint(0, %17, 1)
-    %18 = alloca ptr lj
-    %19 = const i64 9
-    store @lj, %19
-    %20 = const i64 0
-    %21 = trunc %20
-    %22 = const i64 8
-    %23 = call.rtl ptr memset(@lj, %21, %22)
-    %24 = load @lj
-    call.rtl void fb_PrintLongint(0, %24, 1)
+    %12 = alloca ptr li
+    %13 = const i64 7
+    store @li, %13
+    %14 = const i64 0
+    %15 = trunc %14
+    %16 = const i64 8
+    %17 = call.rtl ptr memset(@li, %15, %16)
+    %18 = load @li
+    call.rtl void fb_PrintLongint(0, %18, 1)
+    %19 = alloca ptr lj
+    %20 = const i64 9
+    store @lj, %20
+    %21 = const i64 0
+    %22 = trunc %21
+    %23 = const i64 8
+    %24 = call.rtl ptr memset(@lj, %22, %23)
+    %25 = load @lj
+    call.rtl void fb_PrintLongint(0, %25, 1)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_WstrSpace(i64 $0)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 declare void fb_WstrDelete(ptr $0)
 declare i64 fb_WstrLen(ptr $0)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -64,4 +65,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 42 insts, 0 statements not lowered, 0 scope imbalance

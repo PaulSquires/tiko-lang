@@ -6,33 +6,39 @@ func void P() {
   local agg b2 size 4
   entry0:
     %1 = alloca ptr b
-    %2 = alloca ptr d
-    %3 = alloca ptr n
-    %4 = alloca ptr pr
-    %5 = field.addr @b, 0
-    %6 = const i64 1
-    %7 = trunc %6
-    store %5, %7
-    %8 = field.addr @d, 0
-    %9 = const f64 2.5
-    store %8, %9
-    %10 = field.addr @n, 0
-    %11 = field.addr %10, 0
-    %12 = const i64 3
-    %13 = trunc %12
-    store %11, %13
-    %14 = field.addr @pr, 0
-    %15 = const i64 4
-    %16 = trunc %15
-    store %14, %16
-    %17 = field.addr @pr, 8
-    %18 = const f64 5.5
-    store %17, %18
-    %19 = alloca ptr b2
-    %20 = load @b
-    store @b2, %20
+    %2 = call.rtl ptr memset(@b, 0, 4)
+    %3 = alloca ptr d
+    %4 = call.rtl ptr memset(@d, 0, 8)
+    %5 = alloca ptr n
+    %6 = call.rtl ptr memset(@n, 0, 4)
+    %7 = alloca ptr pr
+    %8 = call.rtl ptr memset(@pr, 0, 16)
+    %9 = field.addr @b, 0
+    %10 = const i64 1
+    %11 = trunc %10
+    store %9, %11
+    %12 = field.addr @d, 0
+    %13 = const f64 2.5
+    store %12, %13
+    %14 = field.addr @n, 0
+    %15 = field.addr %14, 0
+    %16 = const i64 3
+    %17 = trunc %16
+    store %15, %17
+    %18 = field.addr @pr, 0
+    %19 = const i64 4
+    %20 = trunc %19
+    store %18, %20
+    %21 = field.addr @pr, 8
+    %22 = const f64 5.5
+    store %21, %22
+    %23 = alloca ptr b2
+    %24 = call.rtl ptr memset(@b2, 0, 4)
+    %25 = load @b
+    store @b2, %25
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -49,4 +55,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 39 insts, 0 statements not lowered, 0 scope imbalance

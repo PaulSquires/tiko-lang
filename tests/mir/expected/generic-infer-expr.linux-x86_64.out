@@ -7,20 +7,22 @@ func agg MK<8>(ptr $0) {
     %2 = alloca ptr x
     store @x, $0
     %3 = alloca ptr r
-    %4 = field.addr @r, 0
-    %5 = load @x
-    %6 = load %5
-    store %4, %6
-    %7 = field.addr @r, 8
-    %8 = const i8 -1
-    %9 = const i8 0
-    %10 = icmp.ne %8, %9
-    store %7, %10
-    %11 = load @r
-    store @$tmp0, %11
-    %12 = load @$tmp0
-    ret %12
+    %4 = call.rtl ptr memset(@r, 0, 16)
+    %5 = field.addr @r, 0
+    %6 = load @x
+    %7 = load %6
+    store %5, %7
+    %8 = field.addr @r, 8
+    %9 = const i8 -1
+    %10 = const i8 0
+    %11 = icmp.ne %9, %10
+    store %8, %11
+    %12 = load @r
+    store @$tmp0, %12
+    %13 = load @$tmp0
+    ret %13
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 G<8>(i64 $0) {
   local i64 $tmp0
   local i64 x
@@ -42,19 +44,20 @@ func agg MK<13>(ptr $0) {
     %2 = alloca ptr x
     store @x, $0
     %3 = alloca ptr r
-    %4 = field.addr @r, 0
-    %5 = load @x
-    %6 = load %5
-    store %4, %6
-    %7 = field.addr @r, 8
-    %8 = const i8 -1
-    %9 = const i8 0
-    %10 = icmp.ne %8, %9
-    store %7, %10
-    %11 = load @r
-    store @$tmp0, %11
-    %12 = load @$tmp0
-    ret %12
+    %4 = call.rtl ptr memset(@r, 0, 16)
+    %5 = field.addr @r, 0
+    %6 = load @x
+    %7 = load %6
+    store %5, %7
+    %8 = field.addr @r, 8
+    %9 = const i8 -1
+    %10 = const i8 0
+    %11 = icmp.ne %9, %10
+    store %8, %11
+    %12 = load @r
+    store @$tmp0, %12
+    %13 = load @$tmp0
+    ret %13
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -126,4 +129,4 @@ declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

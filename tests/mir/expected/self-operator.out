@@ -71,24 +71,27 @@ func void S1() {
   local agg v size 4
   entry0:
     %1 = alloca ptr u
-    %2 = alloca ptr v
-    %3 = field.addr @v, 0
-    %4 = const i64 3
-    %5 = trunc %4
-    store %3, %5
-    call void _ZN1TpLERS_(@u, @v)
-    %6 = const i64 10
+    %2 = call.rtl ptr memset(@u, 0, 4)
+    %3 = alloca ptr v
+    %4 = call.rtl ptr memset(@v, 0, 4)
+    %5 = field.addr @v, 0
+    %6 = const i64 3
     %7 = trunc %6
-    call void _ZN1TpLEi(@u, %7)
-    call void _ZN1TmIERS_(@u, @v)
-    %8 = const i64 2
+    store %5, %7
+    call void _ZN1TpLERS_(@u, @v)
+    %8 = const i64 10
     %9 = trunc %8
-    call void _ZN1TlSEi(@u, %9)
-    %10 = field.addr @u, 0
-    %11 = load %10
-    call.rtl void fb_PrintInt(0, %11, 1)
+    call void _ZN1TpLEi(@u, %9)
+    call void _ZN1TmIERS_(@u, @v)
+    %10 = const i64 2
+    %11 = trunc %10
+    call void _ZN1TlSEi(@u, %11)
+    %12 = field.addr @u, 0
+    %13 = load %12
+    call.rtl void fb_PrintInt(0, %13, 1)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -107,4 +110,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 72 insts, 0 statements not lowered, 0 scope imbalance

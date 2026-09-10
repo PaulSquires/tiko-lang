@@ -26,6 +26,22 @@ void   __cdecl exit( int code );
 /* Bracketing the .CRT$X fragments, defined in msvccrt.c. */
 extern tkort_pvfv tkort_xi_a[], tkort_xi_z[];
 extern tkort_pvfv tkort_xc_a[], tkort_xc_z[];
+extern tkort_pvfv tkort_xt_a[], tkort_xt_z[];
+
+int    __cdecl atexit( tkort_pvfv fn );
+
+/* THE MODULE DESTRUCTORS. LLVM puts '@llvm.global_dtors' into .CRT$XTX on this
+** target, and the real MSVC CRT walks that range inside exit(). We reach the
+** UCRT's exit, which knows nothing about our fragments, so the walk is
+** registered as an ordinary atexit handler.
+**
+** REGISTERED FIRST, so that it runs LAST: atexit handlers run in reverse order
+** of registration, and a module destructor is what fbc's
+** '__attribute__(( destructor ))' means -- after everything else. */
+static void __cdecl tkort_run_terminators( void )
+{
+    _initterm( tkort_xt_a, tkort_xt_z );
+}
 
 extern int main( int argc, char **argv );
 
@@ -37,6 +53,8 @@ int mainCRTStartup( void )
     ** program built by MSVC gets by default. */
     _configure_narrow_argv( 2 );
     _initialize_narrow_environment( );
+
+    atexit( tkort_run_terminators );
 
     _initterm( tkort_xi_a, tkort_xi_z );
     _initterm( tkort_xc_a, tkort_xc_z );

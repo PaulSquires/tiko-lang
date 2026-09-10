@@ -32,18 +32,19 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN3HASC1Ev(@h)
     call void _ZN3HASD1Ev(@h)
     %5 = alloca ptr b
-    %6 = alloca ptr pb
+    %6 = call.rtl ptr memset(@b, 0, 8)
+    %7 = alloca ptr pb
     store @pb, @b
     call void _ZN3HASD1Ev(@h)
-    %7 = const i32 0
-    call.rtl void fb_End(%7)
-    %8 = load @$tmp0
-    ret %8
+    %8 = const i32 0
+    call.rtl void fb_End(%8)
+    %9 = load @$tmp0
+    ret %9
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 23 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 24 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb call-unbound 2
   skip-site lowercall.bas:235 2

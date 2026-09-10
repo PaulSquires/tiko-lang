@@ -8,20 +8,22 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr x
-    %5 = const i64 0
-    call.rtl void fb_PrintInt(0, %5, 2)
-    %6 = const i64 1
-    call.rtl void fb_PrintInt(0, %6, 1)
-    %7 = const i64 8
-    call.rtl void fb_PrintLongint(0, %7, 1)
-    %8 = const i32 0
-    call.rtl void fb_End(%8)
-    %9 = load @$tmp0
-    ret %9
+    %5 = call.rtl ptr memset(@x, 0, 4)
+    %6 = const i64 0
+    call.rtl void fb_PrintInt(0, %6, 2)
+    %7 = const i64 1
+    call.rtl void fb_PrintInt(0, %7, 1)
+    %8 = const i64 8
+    call.rtl void fb_PrintLongint(0, %8, 1)
+    %9 = const i32 0
+    call.rtl void fb_End(%9)
+    %10 = load @$tmp0
+    ret %10
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 15 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 16 insts, 0 statements not lowered, 0 scope imbalance

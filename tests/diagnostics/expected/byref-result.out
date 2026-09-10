@@ -8,11 +8,13 @@ func ptr LOCALFIELD() {
     %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr x
-    %4 = field.addr @x, 0
-    store @$tmp0, %4
-    %5 = load @$tmp0
-    ret %5
+    %4 = call.rtl ptr memset(@x, 0, 8)
+    %5 = field.addr @x, 0
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func ptr LOCALARRAY() {
   local ptr $tmp0
   local agg arr size 16
@@ -22,14 +24,16 @@ func ptr LOCALARRAY() {
     %2 = const ptr 0
     store @$tmp0, %2
     %3 = alloca ptr arr
-    %4 = alloca ptr i
-    %5 = load @i
-    %6 = const i64 8
-    %7 = mul %5, %6
-    %8 = ptr.add @arr, %7
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    ret %9
+    %4 = call.rtl ptr memset(@arr, 0, 16)
+    %5 = alloca ptr i
+    %6 = call.rtl ptr memset(@i, 0, 8)
+    %7 = load @i
+    %8 = const i64 8
+    %9 = mul %7, %8
+    %10 = ptr.add @arr, %9
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    ret %11
 }
 func ptr CALLRESULT() {
   local ptr $tmp0
@@ -101,9 +105,9 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 54 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 57 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:676 1
+  skip-site src\mir\lower.bas:742 1
 tests/diagnostics/src/byref-result.bas(31,17): error TKO0650: a byref result cannot return a local
      |
   31 |     function = x.i

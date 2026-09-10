@@ -17,7 +17,7 @@
 
 '' The subject is evaluated ONCE into a slot. Re-reading it per case would call a
 '' function once per branch tested, which is observable whenever it has side effects.
-'' EXPECT-OUT: store @$tmp2, %3
+'' EXPECT-OUT: store @$tmp2, %4
 
 '' 'case 4 to 6' is inclusive at both ends, so it is two comparisons and an and.
 '' EXPECT-OUT: icmp.sge

@@ -15,48 +15,51 @@ func void GO() {
     %5 = const i64 -9223372036854775806
     %6 = call.rtl ptr fb_UStrInit(@v, -1, @@$wstr1, %5, 0)
     %7 = alloca ptr r
-    %8 = field.addr @r, 0
-    store %8, 0
-    %9 = field.addr @r, 8
+    %8 = call.rtl ptr memset(@r, 0, 24)
+    %9 = field.addr @r, 0
     store %9, 0
-    %10 = field.addr @r, 16
+    %10 = field.addr @r, 8
     store %10, 0
-    %11 = alloca ptr i
-    %12 = call.rtl ptr fb_UStrUcase(@u, -1)
-    %13 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %12, -1, 0, 0)
-    %14 = call.rtl ptr fb_UStrLcase(@u, -1)
+    %11 = field.addr @r, 16
+    store %11, 0
+    %12 = alloca ptr i
+    %13 = call.rtl ptr memset(@i, 0, 4)
+    %14 = call.rtl ptr fb_UStrUcase(@u, -1)
     %15 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %14, -1, 0, 0)
-    %16 = call.rtl ptr fb_UStrTrim(@u, -1)
+    %16 = call.rtl ptr fb_UStrLcase(@u, -1)
     %17 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %16, -1, 0, 0)
-    %18 = call.rtl ptr fb_UStrLTrim(@u, -1)
+    %18 = call.rtl ptr fb_UStrTrim(@u, -1)
     %19 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %18, -1, 0, 0)
-    %20 = call.rtl ptr fb_UStrRTrim(@u, -1)
+    %20 = call.rtl ptr fb_UStrLTrim(@u, -1)
     %21 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %20, -1, 0, 0)
-    %22 = const i64 2
-    %23 = const i64 3
-    %24 = call.rtl ptr fb_UStrMid(@u, -1, %22, %23)
-    %25 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %24, -1, 0, 0)
-    %26 = const i64 3
-    %27 = call.rtl ptr fb_UStrLeftD(@u, %26)
-    %28 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %27, -1, 0, 0)
-    %29 = const i64 3
-    %30 = call.rtl ptr fb_UStrRightD(@u, %29)
-    %31 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %30, -1, 0, 0)
-    %32 = call.rtl i64 fb_UStrInstr(1, @u, -1, @v, -1)
-    %33 = trunc %32
-    store @i, %33
-    %34 = call.rtl i64 fb_UStrInstrRev(@u, -1, @v, -1, -1)
+    %22 = call.rtl ptr fb_UStrRTrim(@u, -1)
+    %23 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %22, -1, 0, 0)
+    %24 = const i64 2
+    %25 = const i64 3
+    %26 = call.rtl ptr fb_UStrMid(@u, -1, %24, %25)
+    %27 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %26, -1, 0, 0)
+    %28 = const i64 3
+    %29 = call.rtl ptr fb_UStrLeftD(@u, %28)
+    %30 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %29, -1, 0, 0)
+    %31 = const i64 3
+    %32 = call.rtl ptr fb_UStrRightD(@u, %31)
+    %33 = call.rtl ptr fb_UStrAssignFromA(@r, -1, %32, -1, 0, 0)
+    %34 = call.rtl i64 fb_UStrInstr(1, @u, -1, @v, -1)
     %35 = trunc %34
     store @i, %35
+    %36 = call.rtl i64 fb_UStrInstrRev(@u, -1, @v, -1, -1)
+    %37 = trunc %36
+    store @i, %37
     call.rtl void fb_PrintUStr(0, @r, 0)
-    %36 = load @i
-    call.rtl void fb_PrintInt(0, %36, 1)
+    %38 = load @i
+    call.rtl void fb_PrintInt(0, %38, 1)
     call.rtl void fb_UStrDelete(@r)
     call.rtl void fb_UStrDelete(@v)
     call.rtl void fb_UStrDelete(@u)
     ret
 }
 declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_UStrUcase(ptr $0, i64 $1)
 declare ptr fb_UStrAssignFromA(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4, i32 $5)
 declare ptr fb_UStrLcase(ptr $0, i64 $1)
@@ -82,27 +85,29 @@ func void NARROW() {
     %3 = alloca ptr t
     %4 = call.rtl ptr fb_StrInit(@t, -1, @@$str3, 3, 0)
     %5 = alloca ptr r
-    %6 = field.addr @r, 0
-    store %6, 0
-    %7 = field.addr @r, 8
+    %6 = call.rtl ptr memset(@r, 0, 24)
+    %7 = field.addr @r, 0
     store %7, 0
-    %8 = field.addr @r, 16
+    %8 = field.addr @r, 8
     store %8, 0
-    %9 = alloca ptr i
-    %10 = call.rtl ptr fb_StrUcase2(@s, 0)
-    %11 = call.rtl ptr fb_StrAssign(@r, -1, %10, -1, 0)
-    %12 = call.rtl ptr fb_TRIM(@s)
+    %9 = field.addr @r, 16
+    store %9, 0
+    %10 = alloca ptr i
+    %11 = call.rtl ptr memset(@i, 0, 4)
+    %12 = call.rtl ptr fb_StrUcase2(@s, 0)
     %13 = call.rtl ptr fb_StrAssign(@r, -1, %12, -1, 0)
-    %14 = const i64 2
-    %15 = const i64 3
-    %16 = call.rtl ptr fb_StrMid(@s, %14, %15)
-    %17 = call.rtl ptr fb_StrAssign(@r, -1, %16, -1, 0)
-    %18 = call.rtl i64 fb_StrInstr(1, @s, @t)
-    %19 = trunc %18
-    store @i, %19
+    %14 = call.rtl ptr fb_TRIM(@s)
+    %15 = call.rtl ptr fb_StrAssign(@r, -1, %14, -1, 0)
+    %16 = const i64 2
+    %17 = const i64 3
+    %18 = call.rtl ptr fb_StrMid(@s, %16, %17)
+    %19 = call.rtl ptr fb_StrAssign(@r, -1, %18, -1, 0)
+    %20 = call.rtl i64 fb_StrInstr(1, @s, @t)
+    %21 = trunc %20
+    store @i, %21
     call.rtl void fb_PrintString(0, @r, 0)
-    %20 = load @i
-    call.rtl void fb_PrintInt(0, %20, 1)
+    %22 = load @i
+    call.rtl void fb_PrintInt(0, %22, 1)
     call.rtl void fb_StrDelete(@r)
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
@@ -134,4 +139,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance

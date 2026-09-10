@@ -12,49 +12,53 @@ func i32 ADD(i32 $0, i32 $1) {
     %4 = alloca ptr b
     store @b, $1
     %5 = alloca ptr r
-    %6 = load @a
-    %7 = load @b
-    %8 = sext %6
+    %6 = call.rtl ptr memset(@r, 0, 4)
+    %7 = load @a
+    %8 = load @b
     %9 = sext %7
-    %10 = add %8, %9
-    %11 = trunc %10
-    store @r, %11
-    %12 = load @r
-    ret %12
+    %10 = sext %8
+    %11 = add %9, %10
+    %12 = trunc %11
+    store @r, %12
+    %13 = load @r
+    ret %13
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void COUNTED() {
   local i32 i
   local i32 total
   entry0:
     %1 = alloca ptr i
-    %2 = alloca ptr total
-    %3 = const i64 0
-    %4 = trunc %3
-    store @total, %4
-    %5 = const i64 1
+    %2 = call.rtl ptr memset(@i, 0, 4)
+    %3 = alloca ptr total
+    %4 = call.rtl ptr memset(@total, 0, 4)
+    %5 = const i64 0
     %6 = trunc %5
-    store @i, %6
+    store @total, %6
+    %7 = const i64 1
+    %8 = trunc %7
+    store @i, %8
     br for.head1
   for.head1:
-    %7 = load @i
-    %8 = const i64 10
-    %9 = trunc %8
-    %10 = icmp.sle %7, %9
-    condbr %10, for.body2, for.exit4
+    %9 = load @i
+    %10 = const i64 10
+    %11 = trunc %10
+    %12 = icmp.sle %9, %11
+    condbr %12, for.body2, for.exit4
   for.body2:
-    %11 = load @total
-    %12 = load @i
-    %13 = sext %11
-    %14 = sext %12
-    %15 = add %13, %14
-    %16 = trunc %15
-    store @total, %16
+    %13 = load @total
+    %14 = load @i
+    %15 = sext %13
+    %16 = sext %14
+    %17 = add %15, %16
+    %18 = trunc %17
+    store @total, %18
     br for.step3
   for.step3:
-    %17 = load @i
-    %18 = const i32 1
-    %19 = add %17, %18
-    store @i, %19
+    %19 = load @i
+    %20 = const i32 1
+    %21 = add %19, %20
+    store @i, %21
     br for.head1
   for.exit4:
     ret
@@ -66,22 +70,23 @@ func void BRANCH(i32 $0) {
     %1 = alloca ptr x
     store @x, $0
     %2 = alloca ptr y
-    %3 = load @x
-    %4 = const i64 0
-    %5 = sext %3
-    %6 = icmp.sgt %5, %4
-    condbr %6, if.then2, if.else3
+    %3 = call.rtl ptr memset(@y, 0, 4)
+    %4 = load @x
+    %5 = const i64 0
+    %6 = sext %4
+    %7 = icmp.sgt %6, %5
+    condbr %7, if.then2, if.else3
   if.join1:
     ret
   if.then2:
-    %7 = const i64 1
-    %8 = trunc %7
-    store @y, %8
+    %8 = const i64 1
+    %9 = trunc %8
+    store @y, %9
     br if.join1
   if.else3:
-    %9 = const i64 2
-    %10 = trunc %9
-    store @y, %10
+    %10 = const i64 2
+    %11 = trunc %10
+    store @y, %11
     br if.join1
 }
 func void LOOPING(i32 $0) {
@@ -91,27 +96,28 @@ func void LOOPING(i32 $0) {
     %1 = alloca ptr n
     store @n, $0
     %2 = alloca ptr i
-    %3 = const i64 0
-    %4 = trunc %3
-    store @i, %4
+    %3 = call.rtl ptr memset(@i, 0, 4)
+    %4 = const i64 0
+    %5 = trunc %4
+    store @i, %5
     br while.head1
   while.head1:
-    %5 = load @i
-    %6 = load @n
-    %7 = icmp.slt %5, %6
-    condbr %7, while.body2, while.exit3
+    %6 = load @i
+    %7 = load @n
+    %8 = icmp.slt %6, %7
+    condbr %8, while.body2, while.exit3
   while.body2:
-    %8 = load @i
-    %9 = const i64 1
-    %10 = sext %8
-    %11 = add %10, %9
-    %12 = trunc %11
-    store @i, %12
-    %13 = load @i
-    %14 = const i64 5
-    %15 = sext %13
-    %16 = icmp.eq %15, %14
-    condbr %16, if.then5, if.else6
+    %9 = load @i
+    %10 = const i64 1
+    %11 = sext %9
+    %12 = add %11, %10
+    %13 = trunc %12
+    store @i, %13
+    %14 = load @i
+    %15 = const i64 5
+    %16 = sext %14
+    %17 = icmp.eq %16, %15
+    condbr %17, if.then5, if.else6
   while.exit3:
     br do.body8
   if.join4:
@@ -123,12 +129,12 @@ func void LOOPING(i32 $0) {
   do.head7:
     br do.body8
   do.body8:
-    %17 = load @i
-    %18 = const i64 1
-    %19 = sext %17
-    %20 = sub %19, %18
-    %21 = trunc %20
-    store @i, %21
+    %18 = load @i
+    %19 = const i64 1
+    %20 = sext %18
+    %21 = sub %20, %19
+    %22 = trunc %21
+    store @i, %22
     br do.head7
   do.exit9:
     ret
@@ -149,4 +155,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 21 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 21 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance

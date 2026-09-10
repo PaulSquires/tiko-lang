@@ -90,6 +90,25 @@ __declspec(allocate(".CRT$XIZ")) tkort_pvfv tkort_xi_z[] = { 0 };
 __declspec(allocate(".CRT$XCA")) tkort_pvfv tkort_xc_a[] = { 0 };
 __declspec(allocate(".CRT$XCZ")) tkort_pvfv tkort_xc_z[] = { 0 };
 
+/* THE TERMINATOR RANGE, and it was missing outright.
+**
+** LLVM lowers '@llvm.global_dtors' on a Windows-MSVC target into .CRT$XTX --
+** the same mechanism .CRT$XC* is for initialisers -- and nothing here bracketed
+** or ran it, so a module destructor was EMITTED CORRECTLY AND NEVER CALLED.
+**
+** Measured on tests/vendor/fbc-tests/scopes/dtor_eol_eof1.bas: fbc emits
+** 'void CHECK( void ) __attribute__(( destructor ));' and the program prints
+** '1  1'; the tiko build printed nothing at all and exited 0. It compiled, it
+** linked, and it was silent -- which is why only build/runscan.sh could see it.
+**
+** The real MSVC CRT walks this range inside exit(); we reach the UCRT's exit,
+** which knows nothing about our fragments, so msvccrtexe.c registers a handler
+** that walks it. */
+#pragma section( ".CRT$XTA", read )
+#pragma section( ".CRT$XTZ", read )
+__declspec(allocate(".CRT$XTA")) tkort_pvfv tkort_xt_a[] = { 0 };
+__declspec(allocate(".CRT$XTZ")) tkort_pvfv tkort_xt_z[] = { 0 };
+
 /* THE STACK PROBE.  The backend emits 'call __chkstk' in the prologue of any
 ** function whose frame exceeds a page, and on this target nothing defines it:
 ** it lives in Visual Studio's libcmt, and clang's own clang_rt.builtins does

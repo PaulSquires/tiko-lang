@@ -87,32 +87,34 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr u
     call void _ZN2TUC1Ev(@u)
     %5 = alloca ptr v
-    %6 = alloca ptr result
-    %7 = call ptr _ZN2TVcv8FBSTRINGEv(@v)
-    %8 = alloca ptr $tmp4
-    call void _ZN2TUC1ER8FBSTRING(@$tmp4, %7)
-    %9 = call i64 _ZneR2TUS0_(@u, @$tmp4)
+    %6 = call.rtl ptr memset(@v, 0, 8)
+    %7 = alloca ptr result
+    %8 = call.rtl ptr memset(@result, 0, 1)
+    %9 = call ptr _ZN2TVcv8FBSTRINGEv(@v)
+    %10 = alloca ptr $tmp4
+    call void _ZN2TUC1ER8FBSTRING(@$tmp4, %9)
+    %11 = call i64 _ZneR2TUS0_(@u, @$tmp4)
     call void _ZN2TUD1Ev(@$tmp4)
-    %14 = alloca ptr $tmp5
-    condbr %9, if.then2, if.else3
+    %16 = alloca ptr $tmp5
+    condbr %11, if.then2, if.else3
   if.join1:
-    %13 = call ptr _ZN2TVcv8FBSTRINGEv(@v)
-    call void _ZN2TUC1ER8FBSTRING(@$tmp5, %13)
-    %15 = call i64 _ZneR2TUS0_(@u, @$tmp5)
+    %15 = call ptr _ZN2TVcv8FBSTRINGEv(@v)
+    call void _ZN2TUC1ER8FBSTRING(@$tmp5, %15)
+    %17 = call i64 _ZneR2TUS0_(@u, @$tmp5)
     call void _ZN2TUD1Ev(@$tmp5)
-    %16 = const i64 0
-    %17 = icmp.ne %15, %16
-    store @result, %17
+    %18 = const i64 0
+    %19 = icmp.ne %17, %18
+    store @result, %19
     call void _ZN2TUD1Ev(@u)
-    %18 = const i32 0
-    call.rtl void fb_End(%18)
-    %19 = load @$tmp0
-    ret %19
+    %20 = const i32 0
+    call.rtl void fb_End(%20)
+    %21 = load @$tmp0
+    ret %21
   if.then2:
-    %10 = const i8 -1
-    %11 = const i8 0
-    %12 = icmp.ne %10, %11
-    store @result, %12
+    %12 = const i8 -1
+    %13 = const i8 0
+    %14 = icmp.ne %12, %13
+    store @result, %14
     br if.join1
   if.else3:
     br if.join1
@@ -120,4 +122,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 9 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 9 blocks, 72 insts, 0 statements not lowered, 0 scope imbalance

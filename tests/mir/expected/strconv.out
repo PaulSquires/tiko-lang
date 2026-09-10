@@ -15,117 +15,131 @@ func void P() {
   local i32 n
   entry0:
     %1 = alloca ptr s
-    %2 = field.addr @s, 0
-    store %2, 0
-    %3 = field.addr @s, 8
+    %2 = call.rtl ptr memset(@s, 0, 24)
+    %3 = field.addr @s, 0
     store %3, 0
-    %4 = field.addr @s, 16
+    %4 = field.addr @s, 8
     store %4, 0
-    %5 = alloca ptr t
-    %6 = field.addr @t, 0
-    store %6, 0
-    %7 = field.addr @t, 8
-    store %7, 0
-    %8 = field.addr @t, 16
+    %5 = field.addr @s, 16
+    store %5, 0
+    %6 = alloca ptr t
+    %7 = call.rtl ptr memset(@t, 0, 24)
+    %8 = field.addr @t, 0
     store %8, 0
-    %9 = alloca ptr b
-    %10 = alloca ptr ub
-    %11 = alloca ptr sh
-    %12 = alloca ptr ush
-    %13 = alloca ptr l
-    %14 = alloca ptr ul
-    %15 = alloca ptr q
-    %16 = alloca ptr uq
-    %17 = alloca ptr f
-    %18 = alloca ptr dd
-    %19 = alloca ptr bo
-    %20 = alloca ptr n
-    %21 = const i64 3
-    %22 = trunc %21
-    store @n, %22
-    %23 = load @b
-    %24 = sext %23
-    %25 = call.rtl ptr fb_IntToStr(%24)
-    %26 = call.rtl ptr fb_StrAssign(@s, -1, %25, -1, 0)
-    %27 = load @ub
-    %28 = zext %27
-    %29 = call.rtl ptr fb_UIntToStr(%28)
-    %30 = call.rtl ptr fb_StrAssign(@s, -1, %29, -1, 0)
-    %31 = load @sh
-    %32 = sext %31
-    %33 = call.rtl ptr fb_IntToStr(%32)
-    %34 = call.rtl ptr fb_StrAssign(@s, -1, %33, -1, 0)
-    %35 = load @ush
-    %36 = zext %35
-    %37 = call.rtl ptr fb_UIntToStr(%36)
-    %38 = call.rtl ptr fb_StrAssign(@s, -1, %37, -1, 0)
-    %39 = load @l
-    %40 = call.rtl ptr fb_IntToStr(%39)
-    %41 = call.rtl ptr fb_StrAssign(@s, -1, %40, -1, 0)
-    %42 = load @ul
-    %43 = call.rtl ptr fb_UIntToStr(%42)
-    %44 = call.rtl ptr fb_StrAssign(@s, -1, %43, -1, 0)
-    %45 = load @q
-    %46 = call.rtl ptr fb_LongintToStr(%45)
+    %9 = field.addr @t, 8
+    store %9, 0
+    %10 = field.addr @t, 16
+    store %10, 0
+    %11 = alloca ptr b
+    %12 = call.rtl ptr memset(@b, 0, 1)
+    %13 = alloca ptr ub
+    %14 = call.rtl ptr memset(@ub, 0, 1)
+    %15 = alloca ptr sh
+    %16 = call.rtl ptr memset(@sh, 0, 2)
+    %17 = alloca ptr ush
+    %18 = call.rtl ptr memset(@ush, 0, 2)
+    %19 = alloca ptr l
+    %20 = call.rtl ptr memset(@l, 0, 4)
+    %21 = alloca ptr ul
+    %22 = call.rtl ptr memset(@ul, 0, 4)
+    %23 = alloca ptr q
+    %24 = call.rtl ptr memset(@q, 0, 8)
+    %25 = alloca ptr uq
+    %26 = call.rtl ptr memset(@uq, 0, 8)
+    %27 = alloca ptr f
+    %28 = call.rtl ptr memset(@f, 0, 4)
+    %29 = alloca ptr dd
+    %30 = call.rtl ptr memset(@dd, 0, 8)
+    %31 = alloca ptr bo
+    %32 = call.rtl ptr memset(@bo, 0, 1)
+    %33 = alloca ptr n
+    %34 = const i64 3
+    %35 = trunc %34
+    store @n, %35
+    %36 = load @b
+    %37 = sext %36
+    %38 = call.rtl ptr fb_IntToStr(%37)
+    %39 = call.rtl ptr fb_StrAssign(@s, -1, %38, -1, 0)
+    %40 = load @ub
+    %41 = zext %40
+    %42 = call.rtl ptr fb_UIntToStr(%41)
+    %43 = call.rtl ptr fb_StrAssign(@s, -1, %42, -1, 0)
+    %44 = load @sh
+    %45 = sext %44
+    %46 = call.rtl ptr fb_IntToStr(%45)
     %47 = call.rtl ptr fb_StrAssign(@s, -1, %46, -1, 0)
-    %48 = load @uq
-    %49 = call.rtl ptr fb_ULongintToStr(%48)
-    %50 = call.rtl ptr fb_StrAssign(@s, -1, %49, -1, 0)
-    %51 = load @f
-    %52 = call.rtl ptr fb_FloatToStr(%51)
-    %53 = call.rtl ptr fb_StrAssign(@s, -1, %52, -1, 0)
-    %54 = load @dd
-    %55 = call.rtl ptr fb_DoubleToStr(%54)
-    %56 = call.rtl ptr fb_StrAssign(@s, -1, %55, -1, 0)
-    %57 = load @bo
-    %58 = call.rtl ptr fb_BoolToStr(%57)
-    %59 = call.rtl ptr fb_StrAssign(@s, -1, %58, -1, 0)
-    %60 = call.rtl i32 fb_ASC(@s, 1)
-    store @n, %60
-    %61 = load @n
-    %62 = sext %61
-    %63 = call.rtl i32 fb_ASC(@s, %62)
-    store @n, %63
-    %64 = call.rtl i64 fb_StrInstr(1, @s, @t)
-    %65 = trunc %64
-    store @n, %65
-    %66 = load @n
-    %67 = sext %66
-    %68 = call.rtl i64 fb_StrInstr(%67, @s, @t)
-    %69 = trunc %68
-    store @n, %69
-    %70 = call.rtl i64 fb_StrInstrAny(1, @s, @t)
-    %71 = trunc %70
-    store @n, %71
-    %72 = call.rtl i64 fb_StrInstrRev(@s, @t, -1)
-    %73 = trunc %72
+    %48 = load @ush
+    %49 = zext %48
+    %50 = call.rtl ptr fb_UIntToStr(%49)
+    %51 = call.rtl ptr fb_StrAssign(@s, -1, %50, -1, 0)
+    %52 = load @l
+    %53 = call.rtl ptr fb_IntToStr(%52)
+    %54 = call.rtl ptr fb_StrAssign(@s, -1, %53, -1, 0)
+    %55 = load @ul
+    %56 = call.rtl ptr fb_UIntToStr(%55)
+    %57 = call.rtl ptr fb_StrAssign(@s, -1, %56, -1, 0)
+    %58 = load @q
+    %59 = call.rtl ptr fb_LongintToStr(%58)
+    %60 = call.rtl ptr fb_StrAssign(@s, -1, %59, -1, 0)
+    %61 = load @uq
+    %62 = call.rtl ptr fb_ULongintToStr(%61)
+    %63 = call.rtl ptr fb_StrAssign(@s, -1, %62, -1, 0)
+    %64 = load @f
+    %65 = call.rtl ptr fb_FloatToStr(%64)
+    %66 = call.rtl ptr fb_StrAssign(@s, -1, %65, -1, 0)
+    %67 = load @dd
+    %68 = call.rtl ptr fb_DoubleToStr(%67)
+    %69 = call.rtl ptr fb_StrAssign(@s, -1, %68, -1, 0)
+    %70 = load @bo
+    %71 = call.rtl ptr fb_BoolToStr(%70)
+    %72 = call.rtl ptr fb_StrAssign(@s, -1, %71, -1, 0)
+    %73 = call.rtl i32 fb_ASC(@s, 1)
     store @n, %73
-    %74 = call.rtl f64 fb_VAL(@s)
-    %75 = nearbyint %74
-    %76 = fptosi %75
-    store @b, %76
-    %77 = call.rtl f64 fb_VAL(@s)
-    %78 = nearbyint %77
-    %79 = fptosi %78
-    store @l, %79
-    %80 = call.rtl i64 fb_VALLNG(@s)
-    store @q, %80
-    %81 = call.rtl i64 fb_VALULNG(@s)
-    store @uq, %81
-    %82 = call.rtl f64 fb_VAL(@s)
-    store @dd, %82
-    %83 = call.rtl f64 fb_VAL(@s)
-    %84 = fptrunc %83
-    store @f, %84
-    %85 = call.rtl i32 fb_VALINT(@s)
-    store @n, %85
-    %86 = call.rtl i32 fb_VALUINT(@s)
-    %87 = zext %86
-    store @uq, %87
+    %74 = load @n
+    %75 = sext %74
+    %76 = call.rtl i32 fb_ASC(@s, %75)
+    store @n, %76
+    %77 = call.rtl i64 fb_StrInstr(1, @s, @t)
+    %78 = trunc %77
+    store @n, %78
+    %79 = load @n
+    %80 = sext %79
+    %81 = call.rtl i64 fb_StrInstr(%80, @s, @t)
+    %82 = trunc %81
+    store @n, %82
+    %83 = call.rtl i64 fb_StrInstrAny(1, @s, @t)
+    %84 = trunc %83
+    store @n, %84
+    %85 = call.rtl i64 fb_StrInstrRev(@s, @t, -1)
+    %86 = trunc %85
+    store @n, %86
+    %87 = call.rtl f64 fb_VAL(@s)
+    %88 = nearbyint %87
+    %89 = fptosi %88
+    store @b, %89
+    %90 = call.rtl f64 fb_VAL(@s)
+    %91 = nearbyint %90
+    %92 = fptosi %91
+    store @l, %92
+    %93 = call.rtl i64 fb_VALLNG(@s)
+    store @q, %93
+    %94 = call.rtl i64 fb_VALULNG(@s)
+    store @uq, %94
+    %95 = call.rtl f64 fb_VAL(@s)
+    store @dd, %95
+    %96 = call.rtl f64 fb_VAL(@s)
+    %97 = fptrunc %96
+    store @f, %97
+    %98 = call.rtl i32 fb_VALINT(@s)
+    store @n, %98
+    %99 = call.rtl i32 fb_VALUINT(@s)
+    %100 = zext %99
+    store @uq, %100
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_IntToStr(i32 $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_UIntToStr(i32 $0)
@@ -160,4 +174,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 118 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance

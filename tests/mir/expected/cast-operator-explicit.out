@@ -65,32 +65,35 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr x
-    %5 = field.addr @x, 0
-    %6 = const i64 5
-    store %5, %6
-    %7 = call i64 _ZN1Vcvu7INTEGEREv(@x)
-    call.rtl void fb_PrintLongint(0, %7, 1)
-    %8 = alloca ptr r
-    %9 = call i64 _ZN1Vcvu7INTEGEREv(@x)
-    store @r, %9
-    %10 = load @r
-    call.rtl void fb_PrintLongint(0, %10, 1)
-    %11 = alloca ptr p
-    %12 = field.addr @p, 0
-    %13 = const i64 7
-    store %12, %13
-    %14 = call i64 _ZN4PAIRcvu7INTEGEREv(@p)
-    call.rtl void fb_PrintLongint(0, %14, 1)
-    %15 = call f64 _ZN4PAIRcvdEv(@p)
-    call.rtl void fb_PrintDouble(0, %15, 1)
-    %16 = const i32 0
-    call.rtl void fb_End(%16)
-    %17 = load @$tmp0
-    ret %17
+    %5 = call.rtl ptr memset(@x, 0, 8)
+    %6 = field.addr @x, 0
+    %7 = const i64 5
+    store %6, %7
+    %8 = call i64 _ZN1Vcvu7INTEGEREv(@x)
+    call.rtl void fb_PrintLongint(0, %8, 1)
+    %9 = alloca ptr r
+    %10 = call i64 _ZN1Vcvu7INTEGEREv(@x)
+    store @r, %10
+    %11 = load @r
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = alloca ptr p
+    %13 = call.rtl ptr memset(@p, 0, 8)
+    %14 = field.addr @p, 0
+    %15 = const i64 7
+    store %14, %15
+    %16 = call i64 _ZN4PAIRcvu7INTEGEREv(@p)
+    call.rtl void fb_PrintLongint(0, %16, 1)
+    %17 = call f64 _ZN4PAIRcvdEv(@p)
+    call.rtl void fb_PrintDouble(0, %17, 1)
+    %18 = const i32 0
+    call.rtl void fb_End(%18)
+    %19 = load @$tmp0
+    ret %19
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance

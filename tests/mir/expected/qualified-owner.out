@@ -88,15 +88,16 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr d
-    %5 = alloca ptr u
+    %5 = call.rtl ptr memset(@d, 0, 8)
+    %6 = alloca ptr u
     call void _ZN2NS3UDTC1Ev(@u)
     call void _ZN2NS3UDTD1Ev(@u)
-    %6 = const i32 0
-    call.rtl void fb_End(%6)
-    %7 = load @$tmp0
-    ret %7
+    %7 = const i32 0
+    call.rtl void fb_End(%7)
+    %8 = load @$tmp0
+    ret %8
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 54 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance

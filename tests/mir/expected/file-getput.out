@@ -16,92 +16,96 @@ func i32 main(i32 $0, ptr $1) {
     %5 = call i32 fb_FileFree()
     store @f, %5
     %6 = alloca ptr b
-    %7 = alloca ptr l
-    %8 = alloca ptr rc
-    %9 = load @f
-    %10 = const i64 0
-    %11 = const i64 1
-    %12 = const i64 1
-    %13 = call.rtl i32 fb_FilePutLarge(%9, %11, @b, %12)
-    %14 = load @f
-    %15 = const i64 0
-    %16 = const i64 1
-    %17 = const i64 4
-    %18 = call.rtl i32 fb_FilePutLarge(%14, %16, @l, %17)
-    %19 = load @f
-    %20 = const i64 0
-    %21 = const i64 1
-    %22 = const i64 8
-    %23 = call.rtl i32 fb_FilePutLarge(%19, %21, @rc, %22)
-    %24 = load @f
-    %25 = const i64 0
-    %26 = const i64 1
-    %27 = const i64 1
-    %28 = call.rtl i32 fb_FileGetLarge(%24, %26, @b, %27)
-    %29 = load @f
-    %30 = const i64 0
-    %31 = const i64 1
-    %32 = const i64 4
-    %33 = call.rtl i32 fb_FileGetLarge(%29, %31, @l, %32)
-    %34 = load @f
-    %35 = const i64 0
-    %36 = const i64 1
-    %37 = const i64 8
-    %38 = call.rtl i32 fb_FileGetLarge(%34, %36, @rc, %37)
-    %39 = load @f
-    %40 = const i64 0
-    %41 = const i64 1
-    %42 = call.rtl i32 fb_FileGetLarge(%39, %40, @b, %41)
-    %43 = load @f
-    %44 = const i64 0
-    %45 = const i64 1
-    %46 = call.rtl i32 fb_FilePutLarge(%43, %44, @b, %45)
-    %47 = alloca ptr r0
-    %48 = load @f
-    %49 = const i64 0
-    %50 = const i64 1
-    %51 = const i64 1
-    %52 = call.rtl i32 fb_FileGetLarge(%48, %50, @b, %51)
-    store @r0, %52
-    %53 = load @f
-    %54 = const i64 0
-    %55 = const i64 2
-    %56 = const i64 1
-    %57 = call.rtl i32 fb_FileGetLarge(%53, %55, @b, %56)
-    store @r0, %57
-    %58 = load @f
-    %59 = const i64 0
-    %60 = const i64 3
-    %61 = const i64 1
-    %62 = call.rtl i32 fb_FilePutLarge(%58, %60, @b, %61)
-    store @r0, %62
-    %63 = load @f
-    %64 = const i64 0
-    %65 = const i64 4
-    %66 = const i64 1
-    %67 = call.rtl i32 fb_FileGetLarge(%63, %65, @b, %66)
-    %68 = const i64 0
-    %69 = sext %67
-    %70 = icmp.eq %69, %68
-    condbr %70, if.then2, if.else3
+    %7 = call.rtl ptr memset(@b, 0, 1)
+    %8 = alloca ptr l
+    %9 = call.rtl ptr memset(@l, 0, 4)
+    %10 = alloca ptr rc
+    %11 = call.rtl ptr memset(@rc, 0, 8)
+    %12 = load @f
+    %13 = const i64 0
+    %14 = const i64 1
+    %15 = const i64 1
+    %16 = call.rtl i32 fb_FilePutLarge(%12, %14, @b, %15)
+    %17 = load @f
+    %18 = const i64 0
+    %19 = const i64 1
+    %20 = const i64 4
+    %21 = call.rtl i32 fb_FilePutLarge(%17, %19, @l, %20)
+    %22 = load @f
+    %23 = const i64 0
+    %24 = const i64 1
+    %25 = const i64 8
+    %26 = call.rtl i32 fb_FilePutLarge(%22, %24, @rc, %25)
+    %27 = load @f
+    %28 = const i64 0
+    %29 = const i64 1
+    %30 = const i64 1
+    %31 = call.rtl i32 fb_FileGetLarge(%27, %29, @b, %30)
+    %32 = load @f
+    %33 = const i64 0
+    %34 = const i64 1
+    %35 = const i64 4
+    %36 = call.rtl i32 fb_FileGetLarge(%32, %34, @l, %35)
+    %37 = load @f
+    %38 = const i64 0
+    %39 = const i64 1
+    %40 = const i64 8
+    %41 = call.rtl i32 fb_FileGetLarge(%37, %39, @rc, %40)
+    %42 = load @f
+    %43 = const i64 0
+    %44 = const i64 1
+    %45 = call.rtl i32 fb_FileGetLarge(%42, %43, @b, %44)
+    %46 = load @f
+    %47 = const i64 0
+    %48 = const i64 1
+    %49 = call.rtl i32 fb_FilePutLarge(%46, %47, @b, %48)
+    %50 = alloca ptr r0
+    %51 = load @f
+    %52 = const i64 0
+    %53 = const i64 1
+    %54 = const i64 1
+    %55 = call.rtl i32 fb_FileGetLarge(%51, %53, @b, %54)
+    store @r0, %55
+    %56 = load @f
+    %57 = const i64 0
+    %58 = const i64 2
+    %59 = const i64 1
+    %60 = call.rtl i32 fb_FileGetLarge(%56, %58, @b, %59)
+    store @r0, %60
+    %61 = load @f
+    %62 = const i64 0
+    %63 = const i64 3
+    %64 = const i64 1
+    %65 = call.rtl i32 fb_FilePutLarge(%61, %63, @b, %64)
+    store @r0, %65
+    %66 = load @f
+    %67 = const i64 0
+    %68 = const i64 4
+    %69 = const i64 1
+    %70 = call.rtl i32 fb_FileGetLarge(%66, %68, @b, %69)
+    %71 = const i64 0
+    %72 = sext %70
+    %73 = icmp.eq %72, %71
+    condbr %73, if.then2, if.else3
   if.join1:
-    %72 = const i32 0
-    call.rtl void fb_End(%72)
-    %73 = load @$tmp0
-    ret %73
+    %75 = const i32 0
+    call.rtl void fb_End(%75)
+    %76 = load @$tmp0
+    ret %76
   if.then2:
-    %71 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 4)
-    call.rtl void fb_PrintString(0, %71, 1)
+    %74 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 4)
+    call.rtl void fb_PrintString(0, %74, 1)
     br if.join1
   if.else3:
     br if.join1
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_FileFree()
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 fb_FilePutLarge(i32 $0, i64 $1, ptr $2, i64 $3)
 declare i32 fb_FileGetLarge(i32 $0, i64 $1, ptr $2, i64 $3)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 4 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

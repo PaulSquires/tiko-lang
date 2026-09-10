@@ -40,26 +40,28 @@ func i32 main(i32 $0, ptr $1) {
     %13 = load @rb
     store @pq, %13
     %14 = alloca ptr s
-    %15 = field.addr @s, 0
-    store %15, 0
-    %16 = field.addr @s, 8
+    %15 = call.rtl ptr memset(@s, 0, 24)
+    %16 = field.addr @s, 0
     store %16, 0
-    %17 = field.addr @s, 16
+    %17 = field.addr @s, 8
     store %17, 0
-    %18 = alloca ptr rs
+    %18 = field.addr @s, 16
+    store %18, 0
+    %19 = alloca ptr rs
     store @rs, @s
-    %19 = load @rs
-    %20 = call.rtl ptr fb_StrAssign(%19, -1, @@$str2, 2, 0)
+    %20 = load @rs
+    %21 = call.rtl ptr fb_StrAssign(%20, -1, @@$str2, 2, 0)
     store @@rg, @@g
     call.rtl void fb_StrDelete(@s)
-    %21 = const i32 0
-    call.rtl void fb_End(%21)
-    %22 = load @$tmp0
-    ret %22
+    %22 = const i32 0
+    call.rtl void fb_End(%22)
+    %23 = load @$tmp0
+    ret %23
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 41 insts, 0 statements not lowered, 0 scope imbalance

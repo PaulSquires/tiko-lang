@@ -19,25 +19,28 @@ func i32 main(i32 $0, ptr $1) {
     %10 = const i64 7
     %11 = call.rtl i32 fb_ArrayRedimEx(@@arr, 8, -1, 0, 1, %9, %10)
     %12 = alloca ptr ext
-    %13 = alloca ptr extarr
-    %14 = const i64 0
+    %13 = call.rtl ptr memset(@ext, 0, 8)
+    %14 = alloca ptr extarr
     %15 = const i64 0
-    %16 = const i64 2
-    %17 = call.rtl i32 fb_ArrayRedimEx(@extarr, 8, -1, 0, 1, %15, %16)
-    %18 = const i64 0
-    %19 = const i64 8
-    %20 = const i64 9
-    %21 = call.rtl i32 fb_ArrayRedimEx(@@arr, 8, -1, 0, 1, %19, %20)
-    %22 = const i32 0
-    call.rtl void fb_End(%22)
-    %23 = load @$tmp0
-    ret %23
+    %16 = const i64 0
+    %17 = const i64 2
+    %18 = call.rtl i32 fb_ArrayRedimEx(@extarr, 8, -1, 0, 1, %16, %17)
+    %19 = const i64 0
+    %20 = const i64 8
+    %21 = const i64 9
+    %22 = call.rtl i32 fb_ArrayRedimEx(@@arr, 8, -1, 0, 1, %20, %21)
+    %23 = call.rtl ptr memset(@ext, 0, 8)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 26 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 28 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/outside-definitions.bas(28,14): error TKO0761: 'ns.arr' is declared SHARED from outside its namespace
      |
   28 | redim shared ns.arr( 8 to 9 ) as integer

@@ -28,77 +28,85 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr i
-    %5 = alloca ptr l
+    %5 = call.rtl ptr memset(@i, 0, 8)
+    %6 = alloca ptr l
+    %7 = call.rtl ptr memset(@l, 0, 4)
     call void _Z3p64Ru7INTEGER(@i)
     call void _Z3p32Ri(@l)
     call void _Z3p64Ru7INTEGER(@i)
-    %6 = alloca ptr a
-    %7 = alloca ptr b
-    %8 = alloca ptr la
-    %9 = alloca ptr lb
-    %10 = const i64 0
-    %11 = trunc %10
-    %12 = alloca ptr $tmp7
-    store @$tmp7, %11
-    %13 = const i64 0
-    %14 = trunc %13
-    %15 = alloca ptr $tmp8
-    store @$tmp8, %14
+    %8 = alloca ptr a
+    %9 = call.rtl ptr memset(@a, 0, 8)
+    %10 = alloca ptr b
+    %11 = call.rtl ptr memset(@b, 0, 8)
+    %12 = alloca ptr la
+    %13 = call.rtl ptr memset(@la, 0, 4)
+    %14 = alloca ptr lb
+    %15 = call.rtl ptr memset(@lb, 0, 4)
     %16 = const i64 0
     %17 = trunc %16
-    %18 = alloca ptr $tmp9
-    store @$tmp9, %17
+    %18 = alloca ptr $tmp7
+    store @$tmp7, %17
     %19 = const i64 0
     %20 = trunc %19
-    %21 = alloca ptr $tmp10
-    store @$tmp10, %20
-    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
-    call void fb_GfxScreenInfo32(@la, @lb, @$tmp7, @$tmp8, @$tmp9, @$tmp10, %22)
-    %23 = const i64 0
-    %24 = alloca ptr $tmp11
-    store @$tmp11, %23
+    %21 = alloca ptr $tmp8
+    store @$tmp8, %20
+    %22 = const i64 0
+    %23 = trunc %22
+    %24 = alloca ptr $tmp9
+    store @$tmp9, %23
     %25 = const i64 0
-    %26 = alloca ptr $tmp12
-    store @$tmp12, %25
-    %27 = const i64 0
-    %28 = alloca ptr $tmp13
-    store @$tmp13, %27
+    %26 = trunc %25
+    %27 = alloca ptr $tmp10
+    store @$tmp10, %26
+    %28 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    call void fb_GfxScreenInfo32(@la, @lb, @$tmp7, @$tmp8, @$tmp9, @$tmp10, %28)
     %29 = const i64 0
-    %30 = alloca ptr $tmp14
-    store @$tmp14, %29
-    %31 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
-    call void fb_GfxScreenInfo64(@a, @b, @$tmp11, @$tmp12, @$tmp13, @$tmp14, %31)
-    %32 = alloca ptr r
+    %30 = alloca ptr $tmp11
+    store @$tmp11, %29
+    %31 = const i64 0
+    %32 = alloca ptr $tmp12
+    store @$tmp12, %31
     %33 = const i64 0
-    %34 = bitcast %33
+    %34 = alloca ptr $tmp13
+    store @$tmp13, %33
     %35 = const i64 0
-    %36 = trunc %35
-    %37 = alloca ptr $tmp16
-    store @$tmp16, %36
-    %38 = const i64 0
-    %39 = trunc %38
-    %40 = alloca ptr $tmp17
-    store @$tmp17, %39
-    %41 = const i64 0
-    %42 = trunc %41
-    %43 = alloca ptr $tmp18
-    store @$tmp18, %42
-    %44 = const i64 0
-    %45 = bitcast %44
-    %46 = alloca ptr $tmp19
-    store @$tmp19, %45
-    %47 = const i64 0
-    %48 = trunc %47
-    %49 = alloca ptr $tmp20
-    store @$tmp20, %48
-    %50 = call i32 fb_GfxImageInfo32(%34, @la, @$tmp16, @$tmp17, @$tmp18, @$tmp19, @$tmp20)
-    store @r, %50
-    %51 = const i32 0
-    call.rtl void fb_End(%51)
-    %52 = load @$tmp0
-    ret %52
+    %36 = alloca ptr $tmp14
+    store @$tmp14, %35
+    %37 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    call void fb_GfxScreenInfo64(@a, @b, @$tmp11, @$tmp12, @$tmp13, @$tmp14, %37)
+    %38 = alloca ptr r
+    %39 = call.rtl ptr memset(@r, 0, 4)
+    %40 = const i64 0
+    %41 = bitcast %40
+    %42 = const i64 0
+    %43 = trunc %42
+    %44 = alloca ptr $tmp16
+    store @$tmp16, %43
+    %45 = const i64 0
+    %46 = trunc %45
+    %47 = alloca ptr $tmp17
+    store @$tmp17, %46
+    %48 = const i64 0
+    %49 = trunc %48
+    %50 = alloca ptr $tmp18
+    store @$tmp18, %49
+    %51 = const i64 0
+    %52 = bitcast %51
+    %53 = alloca ptr $tmp19
+    store @$tmp19, %52
+    %54 = const i64 0
+    %55 = trunc %54
+    %56 = alloca ptr $tmp20
+    store @$tmp20, %55
+    %57 = call i32 fb_GfxImageInfo32(%41, @la, @$tmp16, @$tmp17, @$tmp18, @$tmp19, @$tmp20)
+    store @r, %57
+    %58 = const i32 0
+    call.rtl void fb_End(%58)
+    %59 = load @$tmp0
+    ret %59
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _Z3p64Ru7INTEGER(ptr $0)
 declare void _Z3p32Ri(ptr $0)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
@@ -107,4 +115,4 @@ declare void fb_GfxScreenInfo64(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, 
 declare i32 fb_GfxImageInfo32(ptr $0, ptr $1, ptr $2, ptr $3, ptr $4, ptr $5, ptr $6)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance

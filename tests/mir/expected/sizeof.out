@@ -5,48 +5,53 @@ func void P() {
   local i32 n
   entry0:
     %1 = alloca ptr s
-    %2 = field.addr @s, 0
-    store %2, 0
-    %3 = field.addr @s, 8
+    %2 = call.rtl ptr memset(@s, 0, 24)
+    %3 = field.addr @s, 0
     store %3, 0
-    %4 = field.addr @s, 16
+    %4 = field.addr @s, 8
     store %4, 0
-    %5 = alloca ptr z
-    %6 = alloca ptr t
-    %7 = alloca ptr n
-    %8 = const i64 4
-    %9 = trunc %8
-    store @n, %9
-    %10 = const i64 24
-    %11 = trunc %10
-    store @n, %11
-    %12 = const i64 8
+    %5 = field.addr @s, 16
+    store %5, 0
+    %6 = alloca ptr z
+    %7 = call.rtl ptr memset(@z, 0, 8)
+    %8 = alloca ptr t
+    %9 = call.rtl ptr memset(@t, 0, 16)
+    %10 = alloca ptr n
+    %11 = call.rtl ptr memset(@n, 0, 4)
+    %12 = const i64 4
     %13 = trunc %12
     store @n, %13
-    %14 = const i64 16
+    %14 = const i64 24
     %15 = trunc %14
     store @n, %15
-    %16 = const i64 16
+    %16 = const i64 8
     %17 = trunc %16
     store @n, %17
-    %18 = const i64 8
+    %18 = const i64 16
     %19 = trunc %18
     store @n, %19
-    %20 = const i64 8
+    %20 = const i64 16
     %21 = trunc %20
     store @n, %21
-    %22 = call.rtl i64 fb_StrLen(@s, -1)
+    %22 = const i64 8
     %23 = trunc %22
     store @n, %23
-    %24 = call.rtl i64 fb_StrLen(@z, 8)
+    %24 = const i64 8
     %25 = trunc %24
     store @n, %25
-    %26 = const i64 16
+    %26 = call.rtl i64 fb_StrLen(@s, -1)
     %27 = trunc %26
     store @n, %27
+    %28 = call.rtl i64 fb_StrLen(@z, 8)
+    %29 = trunc %28
+    store @n, %29
+    %30 = const i64 16
+    %31 = trunc %30
+    store @n, %31
     call.rtl void fb_StrDelete(@s)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i64 fb_StrLen(ptr $0, i64 $1)
 declare void fb_StrDelete(ptr $0)
 func i32 main(i32 $0, ptr $1) {
@@ -65,4 +70,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance

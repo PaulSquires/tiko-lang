@@ -8,71 +8,73 @@ func void SEL(i32 $0) {
     %1 = alloca ptr n
     store @n, $0
     %2 = alloca ptr r
-    %3 = load @n
-    %4 = alloca ptr $tmp2
-    store @$tmp2, %3
-    %5 = const i64 1
-    %6 = trunc %5
-    %7 = load @$tmp2
-    %8 = icmp.eq %7, %6
-    condbr %8, sel.body2, sel.next3
+    %3 = call.rtl ptr memset(@r, 0, 4)
+    %4 = load @n
+    %5 = alloca ptr $tmp2
+    store @$tmp2, %4
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = load @$tmp2
+    %9 = icmp.eq %8, %7
+    condbr %9, sel.body2, sel.next3
   sel.join1:
     ret
   sel.body2:
-    %9 = const i64 1
-    %10 = trunc %9
-    store @r, %10
+    %10 = const i64 1
+    %11 = trunc %10
+    store @r, %11
     br sel.join1
   sel.next3:
-    %11 = const i64 2
-    %12 = trunc %11
-    %13 = load @$tmp2
-    %14 = icmp.eq %13, %12
-    condbr %14, sel.body4, sel.alt6
+    %12 = const i64 2
+    %13 = trunc %12
+    %14 = load @$tmp2
+    %15 = icmp.eq %14, %13
+    condbr %15, sel.body4, sel.alt6
   sel.body4:
-    %19 = const i64 2
-    %20 = trunc %19
-    store @r, %20
+    %20 = const i64 2
+    %21 = trunc %20
+    store @r, %21
     br sel.join1
   sel.next5:
-    %21 = const i64 4
-    %22 = trunc %21
-    %23 = load @$tmp2
-    %24 = icmp.sge %23, %22
-    %25 = const i64 6
-    %26 = trunc %25
-    %27 = load @$tmp2
-    %28 = icmp.sle %27, %26
-    %29 = and %24, %28
-    condbr %29, sel.body7, sel.next8
+    %22 = const i64 4
+    %23 = trunc %22
+    %24 = load @$tmp2
+    %25 = icmp.sge %24, %23
+    %26 = const i64 6
+    %27 = trunc %26
+    %28 = load @$tmp2
+    %29 = icmp.sle %28, %27
+    %30 = and %25, %29
+    condbr %30, sel.body7, sel.next8
   sel.alt6:
-    %15 = const i64 3
-    %16 = trunc %15
-    %17 = load @$tmp2
-    %18 = icmp.eq %17, %16
-    condbr %18, sel.body4, sel.next5
+    %16 = const i64 3
+    %17 = trunc %16
+    %18 = load @$tmp2
+    %19 = icmp.eq %18, %17
+    condbr %19, sel.body4, sel.next5
   sel.body7:
-    %30 = const i64 3
-    %31 = trunc %30
-    store @r, %31
+    %31 = const i64 3
+    %32 = trunc %31
+    store @r, %32
     br sel.join1
   sel.next8:
-    %32 = load @$tmp2
-    %33 = const i64 10
-    %34 = trunc %33
-    %35 = icmp.sgt %32, %34
-    condbr %35, sel.body9, sel.next10
+    %33 = load @$tmp2
+    %34 = const i64 10
+    %35 = trunc %34
+    %36 = icmp.sgt %33, %35
+    condbr %36, sel.body9, sel.next10
   sel.body9:
-    %36 = const i64 4
-    %37 = trunc %36
-    store @r, %37
+    %37 = const i64 4
+    %38 = trunc %37
+    store @r, %38
     br sel.join1
   sel.next10:
-    %38 = const i64 5
-    %39 = trunc %38
-    store @r, %39
+    %39 = const i64 5
+    %40 = trunc %39
+    store @r, %40
     br sel.join1
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void JUMP(i32 $0) {
   local i32 n
   local i32 r
@@ -81,38 +83,39 @@ func void JUMP(i32 $0) {
     %1 = alloca ptr n
     store @n, $0
     %2 = alloca ptr r
-    %3 = load @n
-    %4 = const i64 1
-    %5 = sext %3
-    %6 = icmp.eq %5, %4
-    %7 = alloca ptr s
-    condbr %6, if.then2, if.else3
+    %3 = call.rtl ptr memset(@r, 0, 4)
+    %4 = load @n
+    %5 = const i64 1
+    %6 = sext %4
+    %7 = icmp.eq %6, %5
+    %8 = alloca ptr s
+    condbr %7, if.then2, if.else3
   if.join1:
-    %8 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
-    %9 = load @n
-    %10 = const i64 2
-    %11 = sext %9
-    %12 = icmp.eq %11, %10
-    condbr %12, if.then7, if.else8
+    %9 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
+    %10 = load @n
+    %11 = const i64 2
+    %12 = sext %10
+    %13 = icmp.eq %12, %11
+    condbr %13, if.then7, if.else8
   if.then2:
     br lbl.done4
   if.else3:
     br if.join1
   lbl.done4:
-    %17 = const i64 3
-    %18 = trunc %17
-    store @r, %18
+    %18 = const i64 3
+    %19 = trunc %18
+    store @r, %19
     ret
   goto.after5:
     br if.join1
   if.join6:
-    %13 = const i64 1
-    %14 = trunc %13
-    store @r, %14
+    %14 = const i64 1
+    %15 = trunc %14
+    store @r, %15
     call.rtl void fb_StrDelete(@s)
-    %15 = const i64 2
-    %16 = trunc %15
-    store @r, %16
+    %16 = const i64 2
+    %17 = trunc %16
+    store @r, %17
     br lbl.done4
   if.then7:
     call.rtl void fb_StrDelete(@s)
@@ -131,16 +134,17 @@ func void DUP(i32 $0) {
     %1 = alloca ptr n
     store @n, $0
     %2 = alloca ptr r
+    %3 = call.rtl ptr memset(@r, 0, 4)
     br lbl.dup1
   lbl.dup1:
-    %3 = const i64 1
-    %4 = trunc %3
-    store @r, %4
+    %4 = const i64 1
+    %5 = trunc %4
+    store @r, %5
     br lbl.dup2
   lbl.dup2:
-    %5 = const i64 2
-    %6 = trunc %5
-    store @r, %6
+    %6 = const i64 2
+    %7 = trunc %6
+    store @r, %7
     ret
 }
 func void ENDING(i32 $0) {
@@ -216,4 +220,4 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 verify: ok
-lowered: 7 functions, 36 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 36 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance

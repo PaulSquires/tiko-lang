@@ -96,26 +96,28 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr f
-    %5 = const i64 0
-    %6 = const i64 1234
-    call void _ZN3FOO10BAR__set__Eu7INTEGERS0_(@f, %5, %6)
-    %7 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    %8 = const i64 5678
-    call void _ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER(@f, %7, %8)
-    %9 = const i64 0
-    %10 = call i64 _ZN3FOO10BAR__get__Eu7INTEGER(@f, %9)
-    call.rtl void fb_PrintLongint(0, %10, 2)
-    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    %12 = call i64 _ZN3FOO10BAR__get__ER8FBSTRING(@f, %11)
-    call.rtl void fb_PrintLongint(0, %12, 1)
-    %13 = const i32 0
-    call.rtl void fb_End(%13)
-    %14 = load @$tmp0
-    ret %14
+    %5 = call.rtl ptr memset(@f, 0, 80)
+    %6 = const i64 0
+    %7 = const i64 1234
+    call void _ZN3FOO10BAR__set__Eu7INTEGERS0_(@f, %6, %7)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    %9 = const i64 5678
+    call void _ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER(@f, %8, %9)
+    %10 = const i64 0
+    %11 = call i64 _ZN3FOO10BAR__get__Eu7INTEGER(@f, %10)
+    call.rtl void fb_PrintLongint(0, %11, 2)
+    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    %13 = call i64 _ZN3FOO10BAR__get__ER8FBSTRING(@f, %12)
+    call.rtl void fb_PrintLongint(0, %13, 1)
+    %14 = const i32 0
+    call.rtl void fb_End(%14)
+    %15 = load @$tmp0
+    ret %15
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance

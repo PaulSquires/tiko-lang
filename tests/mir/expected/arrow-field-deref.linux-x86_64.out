@@ -27,45 +27,47 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr x
-    %5 = alloca ptr a1
+    %5 = call.rtl ptr memset(@x, 0, 16)
+    %6 = alloca ptr a1
     store @a1, @@globali
-    %6 = alloca ptr a2
+    %7 = alloca ptr a2
     store @a2, @a1
-    %7 = field.addr @x, 0
-    store %7, @@globali
-    %8 = field.addr @x, 8
-    store %8, @a2
-    %9 = call agg _ZptR3UDT(@x)
-    %10 = alloca ptr $tmp4
-    store @$tmp4, %9
-    %11 = field.addr @$tmp4, 0
-    %12 = load %11
+    %8 = field.addr @x, 0
+    store %8, @@globali
+    %9 = field.addr @x, 8
+    store %9, @a2
+    %10 = call agg _ZptR3UDT(@x)
+    %11 = alloca ptr $tmp4
+    store @$tmp4, %10
+    %12 = field.addr @$tmp4, 0
     %13 = load %12
-    call.rtl void fb_PrintLongint(0, %13, 1)
-    %14 = call agg _ZptR3UDT(@x)
-    %15 = alloca ptr $tmp5
-    store @$tmp5, %14
-    %16 = field.addr @$tmp5, 8
-    %17 = load %16
+    %14 = load %13
+    call.rtl void fb_PrintLongint(0, %14, 1)
+    %15 = call agg _ZptR3UDT(@x)
+    %16 = alloca ptr $tmp5
+    store @$tmp5, %15
+    %17 = field.addr @$tmp5, 8
     %18 = load %17
     %19 = load %18
     %20 = load %19
-    call.rtl void fb_PrintLongint(0, %20, 1)
-    %21 = call agg _ZptR3UDT(@x)
-    %22 = alloca ptr $tmp6
-    store @$tmp6, %21
-    %23 = field.addr @$tmp6, 0
-    %24 = load %23
-    %25 = icmp.eq %24, @@globali
-    %26 = neg %25
-    call.rtl void fb_PrintLongint(0, %26, 1)
-    %27 = const i32 0
-    call.rtl void fb_End(%27)
-    %28 = load @$tmp0
-    ret %28
+    %21 = load %20
+    call.rtl void fb_PrintLongint(0, %21, 1)
+    %22 = call agg _ZptR3UDT(@x)
+    %23 = alloca ptr $tmp6
+    store @$tmp6, %22
+    %24 = field.addr @$tmp6, 0
+    %25 = load %24
+    %26 = icmp.eq %25, @@globali
+    %27 = neg %26
+    call.rtl void fb_PrintLongint(0, %27, 1)
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

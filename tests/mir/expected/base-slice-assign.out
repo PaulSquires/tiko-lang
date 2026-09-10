@@ -23,21 +23,24 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr x
-    %5 = alloca ptr y
-    %6 = field.addr @y, 0
-    %7 = const i64 7
-    store %6, %7
+    %5 = call.rtl ptr memset(@x, 0, 16)
+    %6 = alloca ptr y
+    %7 = call.rtl ptr memset(@y, 0, 8)
+    %8 = field.addr @y, 0
+    %9 = const i64 7
+    store %8, %9
     call void _ZN4UDT31MER4UDT2(@x, @y)
-    %8 = field.addr @x, 0
-    %9 = load %8
-    call.rtl void fb_PrintLongint(0, %9, 1)
-    %10 = const i32 0
-    call.rtl void fb_End(%10)
-    %11 = load @$tmp0
-    ret %11
+    %10 = field.addr @x, 0
+    %11 = load %10
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 25 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 27 insts, 0 statements not lowered, 0 scope imbalance

@@ -127,36 +127,37 @@ func i32 main(i32 $0, ptr $1) {
     %12 = load %11
     call.rtl void fb_PrintInt(0, %12, 1)
     %13 = alloca ptr h
-    %14 = field.addr @h, 0
-    %15 = const i64 9
-    %16 = trunc %15
-    store %14, %16
-    %17 = call i32 _ZN4H<6>3GETEv(@h)
-    call.rtl void fb_PrintInt(0, %17, 1)
-    %18 = alloca ptr p
+    %14 = call.rtl ptr memset(@h, 0, 4)
+    %15 = field.addr @h, 0
+    %16 = const i64 9
+    %17 = trunc %16
+    store %15, %17
+    %18 = call i32 _ZN4H<6>3GETEv(@h)
+    call.rtl void fb_PrintInt(0, %18, 1)
+    %19 = alloca ptr p
     call void _ZN4K<6>C1Ev(@p)
-    %19 = alloca ptr q
-    %20 = const i64 7
-    %21 = trunc %20
-    call void _ZN4K<6>C1Ei(@q, %21)
-    %22 = field.addr @p, 0
-    %23 = load %22
-    call.rtl void fb_PrintInt(0, %23, 2)
-    %24 = field.addr @q, 0
-    %25 = load %24
-    call.rtl void fb_PrintInt(0, %25, 1)
+    %20 = alloca ptr q
+    %21 = const i64 7
+    %22 = trunc %21
+    call void _ZN4K<6>C1Ei(@q, %22)
+    %23 = field.addr @p, 0
+    %24 = load %23
+    call.rtl void fb_PrintInt(0, %24, 2)
+    %25 = field.addr @q, 0
+    %26 = load %25
+    call.rtl void fb_PrintInt(0, %26, 1)
     call void _ZN4K<6>D1Ev(@q)
     call void _ZN4K<6>D1Ev(@p)
     call void _ZN4G<6>D1Ev(@c)
     call void _ZN4G<6>D1Ev(@b)
     call void _ZN4G<6>D1Ev(@a)
-    %26 = const i32 0
-    call.rtl void fb_End(%26)
-    %27 = load @$tmp0
-    ret %27
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance

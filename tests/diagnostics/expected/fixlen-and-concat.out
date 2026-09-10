@@ -4,26 +4,31 @@ func void CONCATREFUSED() {
   local f64 d
   entry0:
     %1 = alloca ptr i
-    %2 = alloca ptr d
+    %2 = call.rtl ptr memset(@i, 0, 8)
+    %3 = alloca ptr d
+    %4 = call.rtl ptr memset(@d, 0, 8)
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void CONCATACCEPTED() {
   local agg s size 24
   local i64 i
   entry0:
     %1 = alloca ptr s
-    %2 = field.addr @s, 0
-    store %2, 0
-    %3 = field.addr @s, 8
+    %2 = call.rtl ptr memset(@s, 0, 24)
+    %3 = field.addr @s, 0
     store %3, 0
-    %4 = field.addr @s, 16
+    %4 = field.addr @s, 8
     store %4, 0
-    %5 = alloca ptr i
-    %6 = call.rtl ptr fb_StrConcatAssign(@s, -1, @@$str0, 2, 0)
-    %7 = load @i
-    %8 = const i64 1
-    %9 = add %7, %8
-    store @i, %9
+    %5 = field.addr @s, 16
+    store %5, 0
+    %6 = alloca ptr i
+    %7 = call.rtl ptr memset(@i, 0, 8)
+    %8 = call.rtl ptr fb_StrConcatAssign(@s, -1, @@$str0, 2, 0)
+    %9 = load @i
+    %10 = const i64 1
+    %11 = add %9, %10
+    store @i, %11
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -45,12 +50,12 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 24 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 28 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb assign 2
   amb-assign-kind 1 2
   amb-assign-val N_INT_LIT 2
-  skip-site src\mir\lower.bas:732 2
+  skip-site src\mir\lower.bas:798 2
 tests/diagnostics/src/fixlen-and-concat.bas(32,5): error TKO0635: '&=' concatenates, so its target must be a string
      |
   32 |     i &= 1

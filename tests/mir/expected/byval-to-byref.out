@@ -67,26 +67,28 @@ func i32 main(i32 $0, ptr $1) {
     %21 = bitcast %20
     call.rtl void fb_PrintULongint(0, %21, 1)
     %22 = alloca ptr x
-    %23 = alloca ptr y
-    %24 = const i64 7
-    %25 = trunc %24
-    store @y, %25
-    %26 = alloca ptr px
+    %23 = call.rtl ptr memset(@x, 0, 4)
+    %24 = alloca ptr y
+    %25 = const i64 7
+    %26 = trunc %25
+    store @y, %26
+    %27 = alloca ptr px
     store @px, @x
     call void G(@x, @y)
-    %27 = load @px
-    call void G(%27, @y)
-    %28 = load @x
-    call.rtl void fb_PrintInt(0, %28, 1)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %28 = load @px
+    call void G(%28, @y)
+    %29 = load @x
+    call.rtl void fb_PrintInt(0, %29, 1)
+    %30 = const i32 0
+    call.rtl void fb_End(%30)
+    %31 = load @$tmp0
+    ret %31
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 60 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance

@@ -16,51 +16,53 @@ func void GO() {
     %4 = alloca ptr s
     %5 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 3, 0)
     %6 = alloca ptr r
-    %7 = load @s
-    %8 = call i32 T(%7)
-    store @r, %8
-    %9 = call i32 T(@@$str1)
+    %7 = call.rtl ptr memset(@r, 0, 4)
+    %8 = load @s
+    %9 = call i32 T(%8)
     store @r, %9
-    %10 = load @n
-    %11 = call.rtl ptr fb_IntToStr(%10)
-    %12 = alloca ptr $tmp3
-    %13 = field.addr @$tmp3, 0
-    store %13, 0
-    %14 = field.addr @$tmp3, 8
+    %10 = call i32 T(@@$str1)
+    store @r, %10
+    %11 = load @n
+    %12 = call.rtl ptr fb_IntToStr(%11)
+    %13 = alloca ptr $tmp3
+    %14 = field.addr @$tmp3, 0
     store %14, 0
-    %15 = field.addr @$tmp3, 16
+    %15 = field.addr @$tmp3, 8
     store %15, 0
-    %16 = call.rtl ptr fb_StrAssign(@$tmp3, -1, %11, -1, 0)
-    %17 = load @$tmp3
-    %18 = call i32 T(%17)
-    store @r, %18
+    %16 = field.addr @$tmp3, 16
+    store %16, 0
+    %17 = call.rtl ptr fb_StrAssign(@$tmp3, -1, %12, -1, 0)
+    %18 = load @$tmp3
+    %19 = call i32 T(%18)
+    store @r, %19
     call.rtl void fb_StrDelete(@$tmp3)
-    %19 = alloca ptr $tmp4
-    %20 = field.addr @$tmp4, 0
-    store %20, 0
-    %21 = field.addr @$tmp4, 8
+    %20 = alloca ptr $tmp4
+    %21 = field.addr @$tmp4, 0
     store %21, 0
-    %22 = field.addr @$tmp4, 16
+    %22 = field.addr @$tmp4, 8
     store %22, 0
-    %23 = call.rtl ptr fb_StrConcat(@$tmp4, @s, -1, @@$str2, 2)
-    %24 = alloca ptr $tmp5
-    %25 = field.addr @$tmp5, 0
-    store %25, 0
-    %26 = field.addr @$tmp5, 8
+    %23 = field.addr @$tmp4, 16
+    store %23, 0
+    %24 = call.rtl ptr fb_StrConcat(@$tmp4, @s, -1, @@$str2, 2)
+    %25 = alloca ptr $tmp5
+    %26 = field.addr @$tmp5, 0
     store %26, 0
-    %27 = field.addr @$tmp5, 16
+    %27 = field.addr @$tmp5, 8
     store %27, 0
-    %28 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @$tmp4, -1, 0)
-    %29 = load @$tmp5
-    %30 = call i32 T(%29)
-    store @r, %30
+    %28 = field.addr @$tmp5, 16
+    store %28, 0
+    %29 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @$tmp4, -1, 0)
+    %30 = load @$tmp5
+    %31 = call i32 T(%30)
+    store @r, %31
     call.rtl void fb_StrDelete(@$tmp5)
-    %31 = load @r
-    call.rtl void fb_PrintInt(0, %31, 1)
+    %32 = load @r
+    call.rtl void fb_PrintInt(0, %32, 1)
     call.rtl void fb_StrDelete(@s)
     ret
 }
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 T(ptr $0)
 declare ptr fb_IntToStr(i32 $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -83,4 +85,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance

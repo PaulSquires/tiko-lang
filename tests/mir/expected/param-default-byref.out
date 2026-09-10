@@ -39,43 +39,45 @@ func i32 main(i32 $0, ptr $1) {
   local agg t size 24
   local agg $abi3 size 4
   entry0:
-    %17 = alloca ptr $abi3
+    %18 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr a
-    %5 = field.addr @a, 0
-    %6 = const i64 1
-    %7 = trunc %6
-    store %5, %7
+    %5 = call.rtl ptr memset(@a, 0, 4)
+    %6 = field.addr @a, 0
+    %7 = const i64 1
+    %8 = trunc %7
+    store %6, %8
     call void MUT(@a)
-    %8 = field.addr @a, 0
-    %9 = load %8
-    call.rtl void fb_PrintInt(0, %9, 1)
-    %10 = alloca ptr t
-    %11 = call.rtl ptr fb_StrInit(@t, -1, @@$str1, 2, 0)
+    %9 = field.addr @a, 0
+    %10 = load %9
+    call.rtl void fb_PrintInt(0, %10, 1)
+    %11 = alloca ptr t
+    %12 = call.rtl ptr fb_StrInit(@t, -1, @@$str1, 2, 0)
     call void MUTS(@t)
     call.rtl void fb_PrintString(0, @t, 1)
-    %12 = load @a
-    store @$abi3, %12
-    %18 = load @$abi3
-    call void KEEPS(%18)
-    %13 = field.addr @a, 0
-    %14 = load %13
-    call.rtl void fb_PrintInt(0, %14, 1)
+    %13 = load @a
+    store @$abi3, %13
+    %19 = load @$abi3
+    call void KEEPS(%19)
+    %14 = field.addr @a, 0
+    %15 = load %14
+    call.rtl void fb_PrintInt(0, %15, 1)
     call.rtl void fb_StrDelete(@t)
-    %15 = const i32 0
-    call.rtl void fb_End(%15)
-    %16 = load @$tmp0
-    ret %16
+    %16 = const i32 0
+    call.rtl void fb_End(%16)
+    %17 = load @$tmp0
+    ret %17
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance

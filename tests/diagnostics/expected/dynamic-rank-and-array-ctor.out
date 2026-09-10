@@ -159,139 +159,140 @@ func i32 main(i32 $0, ptr $1) {
     %107 = const i64 1
     %108 = call.rtl i32 fb_ArrayRedimEx(%101, 8, -1, 0, 2, %103, %104, %106, %107)
     %109 = alloca ptr badfixed
-    %110 = alloca ptr baddyn
-    %111 = const ptr 0
-    %112 = field.addr @baddyn, 0
-    store %112, %111
-    %113 = field.addr @baddyn, 8
-    store %113, %111
-    %114 = const i64 0
-    %115 = field.addr @baddyn, 16
-    store %115, %114
-    %116 = const i64 8
-    %117 = field.addr @baddyn, 24
-    store %117, %116
-    %118 = const i64 0
-    %119 = field.addr @baddyn, 32
-    store %119, %118
-    %120 = const i64 8
-    %121 = field.addr @baddyn, 40
-    store %121, %120
-    %122 = const i64 0
-    %123 = field.addr @baddyn, 48
-    store %123, %122
-    %124 = const i64 0
-    %125 = field.addr @baddyn, 56
-    store %125, %124
-    %126 = const i64 0
-    %127 = field.addr @baddyn, 64
-    store %127, %126
-    %128 = const i64 0
-    %129 = field.addr @baddyn, 72
-    store %129, %128
-    %130 = const i64 0
-    %131 = field.addr @baddyn, 80
-    store %131, %130
-    %132 = const i64 0
-    %133 = field.addr @baddyn, 88
-    store %133, %132
-    %134 = const i64 0
-    %135 = field.addr @baddyn, 96
-    store %135, %134
-    %136 = const i64 0
-    %137 = field.addr @baddyn, 104
-    store %137, %136
-    %138 = const i64 0
-    %139 = field.addr @baddyn, 112
-    store %139, %138
-    %140 = const i64 0
-    %141 = field.addr @baddyn, 120
-    store %141, %140
-    %142 = const i64 0
-    %143 = field.addr @baddyn, 128
-    store %143, %142
-    %144 = const i64 0
-    %145 = field.addr @baddyn, 136
-    store %145, %144
-    %146 = const i64 0
-    %147 = field.addr @baddyn, 144
-    store %147, %146
-    %148 = const i64 0
-    %149 = field.addr @baddyn, 152
-    store %149, %148
-    %150 = const i64 0
-    %151 = field.addr @baddyn, 160
-    store %151, %150
-    %152 = const i64 0
-    %153 = field.addr @baddyn, 168
-    store %153, %152
-    %154 = const i64 0
-    %155 = field.addr @baddyn, 176
-    store %155, %154
-    %156 = const i64 0
-    %157 = field.addr @baddyn, 184
-    store %157, %156
-    %158 = const i64 0
-    %159 = field.addr @baddyn, 192
-    store %159, %158
-    %160 = const i64 0
-    %161 = field.addr @baddyn, 200
-    store %161, %160
-    %162 = const i64 0
-    %163 = field.addr @baddyn, 208
-    store %163, %162
-    %164 = const i64 0
-    %165 = field.addr @baddyn, 216
-    store %165, %164
-    %166 = const i64 0
-    %167 = field.addr @baddyn, 224
-    store %167, %166
-    %168 = const i64 0
-    %169 = field.addr @baddyn, 232
-    store %169, %168
-    %170 = alloca ptr badredim
-    %171 = const ptr 0
-    %172 = field.addr @badredim, 0
-    store %172, %171
-    %173 = field.addr @badredim, 8
-    store %173, %171
-    %174 = const i64 0
-    %175 = field.addr @badredim, 16
-    store %175, %174
-    %176 = const i64 8
-    %177 = field.addr @badredim, 24
-    store %177, %176
-    %178 = const i64 1
-    %179 = field.addr @badredim, 32
-    store %179, %178
-    %180 = const i64 17
-    %181 = field.addr @badredim, 40
-    store %181, %180
-    %182 = const i64 0
-    %183 = field.addr @badredim, 48
-    store %183, %182
-    %184 = const i64 0
-    %185 = field.addr @badredim, 56
-    store %185, %184
-    %186 = const i64 0
-    %187 = field.addr @badredim, 64
-    store %187, %186
-    %188 = const i64 0
+    %110 = call.rtl ptr memset(@badfixed, 0, 8)
+    %111 = alloca ptr baddyn
+    %112 = const ptr 0
+    %113 = field.addr @baddyn, 0
+    store %113, %112
+    %114 = field.addr @baddyn, 8
+    store %114, %112
+    %115 = const i64 0
+    %116 = field.addr @baddyn, 16
+    store %116, %115
+    %117 = const i64 8
+    %118 = field.addr @baddyn, 24
+    store %118, %117
+    %119 = const i64 0
+    %120 = field.addr @baddyn, 32
+    store %120, %119
+    %121 = const i64 8
+    %122 = field.addr @baddyn, 40
+    store %122, %121
+    %123 = const i64 0
+    %124 = field.addr @baddyn, 48
+    store %124, %123
+    %125 = const i64 0
+    %126 = field.addr @baddyn, 56
+    store %126, %125
+    %127 = const i64 0
+    %128 = field.addr @baddyn, 64
+    store %128, %127
+    %129 = const i64 0
+    %130 = field.addr @baddyn, 72
+    store %130, %129
+    %131 = const i64 0
+    %132 = field.addr @baddyn, 80
+    store %132, %131
+    %133 = const i64 0
+    %134 = field.addr @baddyn, 88
+    store %134, %133
+    %135 = const i64 0
+    %136 = field.addr @baddyn, 96
+    store %136, %135
+    %137 = const i64 0
+    %138 = field.addr @baddyn, 104
+    store %138, %137
+    %139 = const i64 0
+    %140 = field.addr @baddyn, 112
+    store %140, %139
+    %141 = const i64 0
+    %142 = field.addr @baddyn, 120
+    store %142, %141
+    %143 = const i64 0
+    %144 = field.addr @baddyn, 128
+    store %144, %143
+    %145 = const i64 0
+    %146 = field.addr @baddyn, 136
+    store %146, %145
+    %147 = const i64 0
+    %148 = field.addr @baddyn, 144
+    store %148, %147
+    %149 = const i64 0
+    %150 = field.addr @baddyn, 152
+    store %150, %149
+    %151 = const i64 0
+    %152 = field.addr @baddyn, 160
+    store %152, %151
+    %153 = const i64 0
+    %154 = field.addr @baddyn, 168
+    store %154, %153
+    %155 = const i64 0
+    %156 = field.addr @baddyn, 176
+    store %156, %155
+    %157 = const i64 0
+    %158 = field.addr @baddyn, 184
+    store %158, %157
+    %159 = const i64 0
+    %160 = field.addr @baddyn, 192
+    store %160, %159
+    %161 = const i64 0
+    %162 = field.addr @baddyn, 200
+    store %162, %161
+    %163 = const i64 0
+    %164 = field.addr @baddyn, 208
+    store %164, %163
+    %165 = const i64 0
+    %166 = field.addr @baddyn, 216
+    store %166, %165
+    %167 = const i64 0
+    %168 = field.addr @baddyn, 224
+    store %168, %167
+    %169 = const i64 0
+    %170 = field.addr @baddyn, 232
+    store %170, %169
+    %171 = alloca ptr badredim
+    %172 = const ptr 0
+    %173 = field.addr @badredim, 0
+    store %173, %172
+    %174 = field.addr @badredim, 8
+    store %174, %172
+    %175 = const i64 0
+    %176 = field.addr @badredim, 16
+    store %176, %175
+    %177 = const i64 8
+    %178 = field.addr @badredim, 24
+    store %178, %177
+    %179 = const i64 1
+    %180 = field.addr @badredim, 32
+    store %180, %179
+    %181 = const i64 17
+    %182 = field.addr @badredim, 40
+    store %182, %181
+    %183 = const i64 0
+    %184 = field.addr @badredim, 48
+    store %184, %183
+    %185 = const i64 0
+    %186 = field.addr @badredim, 56
+    store %186, %185
+    %187 = const i64 0
+    %188 = field.addr @badredim, 64
+    store %188, %187
     %189 = const i64 0
     %190 = const i64 0
-    %191 = func.addr ptr _ZN1TC1Eu7INTEGER
-    %192 = call.rtl i32 fb_ArrayRedimObj(@badredim, 8, %191, 0, 1, %189, %190)
-    %193 = func.addr ptr _ZN1TC1Eu7INTEGER
-    %194 = call.rtl i32 fb_ArrayEraseObj(@badredim, %193, 0)
-    %195 = func.addr ptr _ZN1TC1Eu7INTEGER
-    %196 = call.rtl i32 fb_ArrayEraseObj(@baddyn, %195, 0)
+    %191 = const i64 0
+    %192 = func.addr ptr _ZN1TC1Eu7INTEGER
+    %193 = call.rtl i32 fb_ArrayRedimObj(@badredim, 8, %192, 0, 1, %190, %191)
+    %194 = func.addr ptr _ZN1TC1Eu7INTEGER
+    %195 = call.rtl i32 fb_ArrayEraseObj(@badredim, %194, 0)
+    %196 = func.addr ptr _ZN1TC1Eu7INTEGER
+    %197 = call.rtl i32 fb_ArrayEraseObj(@baddyn, %196, 0)
     call void _ZN6HOLDERD1Ev(@h)
-    %197 = call.rtl i32 fb_ArrayErase(@a2)
-    %198 = call.rtl i32 fb_ArrayErase(@a1)
-    %199 = const i32 0
-    call.rtl void fb_End(%199)
-    %200 = load @$tmp0
-    ret %200
+    %198 = call.rtl i32 fb_ArrayErase(@a2)
+    %199 = call.rtl i32 fb_ArrayErase(@a1)
+    %200 = const i32 0
+    call.rtl void fb_End(%200)
+    %201 = load @$tmp0
+    ret %201
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN6HOLDERC1Ev(ptr $0)
@@ -340,7 +341,7 @@ func void _ZN6HOLDERD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 4 functions, 4 blocks, 305 insts, 3 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 306 insts, 3 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 3
   inside N_INTRINSIC 3
   unlowered intrinsic KW_PRINT 3

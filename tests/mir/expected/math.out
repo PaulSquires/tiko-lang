@@ -11,116 +11,119 @@ func void P() {
     %3 = fptrunc %2
     store @f, %3
     %4 = alloca ptr g
-    %5 = alloca ptr x
-    %6 = const f64 5
-    store @x, %6
-    %7 = alloca ptr y
-    %8 = alloca ptr q
-    %9 = const i64 3
-    %10 = neg %9
-    store @q, %10
-    %11 = alloca ptr n
-    %12 = const i64 3
-    %13 = neg %12
-    %14 = trunc %13
-    store @n, %14
-    %15 = load @x
-    %16 = floor %15
-    %17 = nearbyint %16
-    %18 = fptosi %17
-    store @n, %18
-    %19 = load @x
-    %20 = floor %19
-    store @y, %20
-    %21 = load @f
+    %5 = call.rtl ptr memset(@g, 0, 4)
+    %6 = alloca ptr x
+    %7 = const f64 5
+    store @x, %7
+    %8 = alloca ptr y
+    %9 = call.rtl ptr memset(@y, 0, 8)
+    %10 = alloca ptr q
+    %11 = const i64 3
+    %12 = neg %11
+    store @q, %12
+    %13 = alloca ptr n
+    %14 = const i64 3
+    %15 = neg %14
+    %16 = trunc %15
+    store @n, %16
+    %17 = load @x
+    %18 = floor %17
+    %19 = nearbyint %18
+    %20 = fptosi %19
+    store @n, %20
+    %21 = load @x
     %22 = floor %21
-    store @g, %22
+    store @y, %22
     %23 = load @f
-    %24 = call.rtl f32 fb_FIXSingle(%23)
+    %24 = floor %23
     store @g, %24
-    %25 = load @x
-    %26 = call.rtl f64 fb_FIXDouble(%25)
-    store @y, %26
-    %27 = load @f
-    %28 = call.rtl f32 fb_FRACf(%27)
-    store @g, %28
-    %29 = load @x
-    %30 = call.rtl f64 fb_FRACd(%29)
-    store @y, %30
-    %31 = load @n
-    %32 = sext %31
-    %33 = iabs %32
-    %34 = trunc %33
-    store @n, %34
-    %35 = load @x
-    %36 = fabs %35
-    store @y, %36
-    %37 = load @f
+    %25 = load @f
+    %26 = call.rtl f32 fb_FIXSingle(%25)
+    store @g, %26
+    %27 = load @x
+    %28 = call.rtl f64 fb_FIXDouble(%27)
+    store @y, %28
+    %29 = load @f
+    %30 = call.rtl f32 fb_FRACf(%29)
+    store @g, %30
+    %31 = load @x
+    %32 = call.rtl f64 fb_FRACd(%31)
+    store @y, %32
+    %33 = load @n
+    %34 = sext %33
+    %35 = iabs %34
+    %36 = trunc %35
+    store @n, %36
+    %37 = load @x
     %38 = fabs %37
-    store @g, %38
+    store @y, %38
     %39 = load @f
-    %40 = call.rtl i32 fb_SGNSingle(%39)
-    store @n, %40
-    %41 = load @x
-    %42 = call.rtl i32 fb_SGNDouble(%41)
+    %40 = fabs %39
+    store @g, %40
+    %41 = load @f
+    %42 = call.rtl i32 fb_SGNSingle(%41)
     store @n, %42
-    %43 = load @q
-    %44 = call.rtl i32 fb_SGNl(%43)
+    %43 = load @x
+    %44 = call.rtl i32 fb_SGNDouble(%43)
     store @n, %44
-    %45 = load @n
-    %46 = sext %45
-    %47 = call.rtl i32 fb_SGNl(%46)
-    store @n, %47
-    %48 = load @x
-    %49 = sqrt %48
-    store @y, %49
+    %45 = load @q
+    %46 = call.rtl i32 fb_SGNl(%45)
+    store @n, %46
+    %47 = load @n
+    %48 = sext %47
+    %49 = call.rtl i32 fb_SGNl(%48)
+    store @n, %49
     %50 = load @x
-    %51 = sin %50
+    %51 = sqrt %50
     store @y, %51
     %52 = load @x
-    %53 = cos %52
+    %53 = sin %52
     store @y, %53
     %54 = load @x
-    %55 = tan %54
+    %55 = cos %54
     store @y, %55
     %56 = load @x
-    %57 = asin %56
+    %57 = tan %56
     store @y, %57
     %58 = load @x
-    %59 = acos %58
+    %59 = asin %58
     store @y, %59
     %60 = load @x
-    %61 = atan %60
+    %61 = acos %60
     store @y, %61
     %62 = load @x
-    %63 = log %62
+    %63 = atan %62
     store @y, %63
     %64 = load @x
-    %65 = exp %64
+    %65 = log %64
     store @y, %65
     %66 = load @x
-    %67 = load @x
-    %68 = call.rtl f64 atan2(%66, %67)
-    store @y, %68
+    %67 = exp %66
+    store @y, %67
+    %68 = load @x
     %69 = load @x
-    %70 = load @y
-    %71 = call.rtl f64 pow(%69, %70)
-    store @y, %71
-    %72 = load @n
-    %73 = load @n
-    %74 = sitofp %72
-    %75 = sitofp %73
-    %76 = call.rtl f64 pow(%74, %75)
-    store @y, %76
-    %77 = load @f
-    %78 = load @f
-    %79 = fpext %77
-    %80 = fpext %78
-    %81 = call.rtl f64 pow(%79, %80)
-    %82 = fptrunc %81
-    store @g, %82
+    %70 = call.rtl f64 atan2(%68, %69)
+    store @y, %70
+    %71 = load @x
+    %72 = load @y
+    %73 = call.rtl f64 pow(%71, %72)
+    store @y, %73
+    %74 = load @n
+    %75 = load @n
+    %76 = sitofp %74
+    %77 = sitofp %75
+    %78 = call.rtl f64 pow(%76, %77)
+    store @y, %78
+    %79 = load @f
+    %80 = load @f
+    %81 = fpext %79
+    %82 = fpext %80
+    %83 = call.rtl f64 pow(%81, %82)
+    %84 = fptrunc %83
+    store @g, %84
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare f32 fb_FIXSingle(f32 $0)
 declare f64 fb_FIXDouble(f64 $0)
 declare f32 fb_FRACf(f32 $0)
@@ -146,4 +149,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 121 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance

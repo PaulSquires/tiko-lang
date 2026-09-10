@@ -41,12 +41,14 @@ func void PLAINFIELDS() {
   local agg g size 16
   entry0:
     %1 = alloca ptr g
+    %2 = call.rtl ptr memset(@g, 0, 16)
     ret
 }
 func void PLAINUNION() {
   local agg h size 8
   entry0:
     %1 = alloca ptr h
+    %2 = call.rtl ptr memset(@h, 0, 8)
     ret
 }
 func void _ZN13ATMODULELEVEL1FEv(ptr $0) {
@@ -72,7 +74,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 12 functions, 12 blocks, 17 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 12 functions, 12 blocks, 19 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/type-in-proc.bas(24,5): error TKO0619: 'a' is declared inside a procedure and cannot have methods
      |
   24 |     type A

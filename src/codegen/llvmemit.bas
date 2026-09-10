@@ -1234,6 +1234,34 @@ function EmitLlvm _
                   " x { i32, ptr, ptr }] [" & ctors & "]" & chr( 10 )
     end if
 
+    '' ...AND MODULE-LIFETIME DESTRUCTORS, which were not emitted at all. MIR has
+    '' carried isModuleDtor since 'sub f( ) destructor' was parsed, dump.bas prints
+    '' 'attribute destructor' beside the function, and the emitter ignored it -- so the
+    '' procedure was written out correctly and NOTHING EVER CALLED IT.
+    ''
+    '' Measured, fbc emits 'void CHECK( void ) __attribute__(( destructor ));' and the
+    '' program prints '1  1'; tiko's printed nothing at all and exited 0, which is why
+    '' only build/runscan.sh could see it -- it compiles, it links, and it is silent.
+    '' tests/vendor/fbc-tests/scopes/dtor_eol_eof1.bas is the corpus file that says so.
+    ''
+    '' THE SAME SHAPE AS THE CONSTRUCTOR LIST: priority 65535 is the default, and the
+    '' third field is null because these belong to the module and not to an object.
+    dim as string dtors
+    dim as long ndtor = 0
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+        if f->isModuleDtor = false then continue for
+        if ndtor > 0 then dtors += ", "
+        dtors += "{ i32, ptr, ptr } { i32 65535, ptr " & GlobalName( e, f->name ) & _
+                 ", ptr null }"
+        ndtor += 1
+    next
+    if ndtor > 0 then
+        e.outp += "@llvm.global_dtors = appending global [" & str( ndtor ) & _
+                  " x { i32, ptr, ptr }] [" & dtors & "]" & chr( 10 )
+    end if
+
     if len( e.ice ) > 0 then
         res.ok = false
         res.ice = e.ice

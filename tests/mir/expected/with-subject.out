@@ -41,102 +41,104 @@ func i32 main(i32 $0, ptr $1) {
     %6 = trunc %5
     store @i, %6
     %7 = alloca ptr one
-    %8 = alloca ptr $tmp3
+    %8 = call.rtl ptr memset(@one, 0, 16)
+    %9 = alloca ptr $tmp3
     store @$tmp3, @one
-    %9 = load @$tmp3
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = const i64 1
-    %13 = trunc %12
-    %14 = add %11, %13
-    store %10, %14
-    %15 = load @$tmp3
-    %16 = field.addr %15, 0
-    %17 = load %16
-    call.rtl void fb_PrintInt(0, %17, 1)
-    %18 = load @i
-    %19 = sext %18
-    %20 = const i64 16
-    %21 = mul %19, %20
-    %22 = ptr.add @@status, %21
-    %23 = alloca ptr $tmp4
-    store @$tmp4, %22
-    %24 = load @$tmp4
-    %25 = field.addr %24, 0
-    %26 = load %25
-    %27 = const i64 1
-    %28 = trunc %27
-    %29 = add %26, %28
-    store %25, %29
-    %30 = load @$tmp4
-    %31 = field.addr %30, 0
-    %32 = load %31
-    call.rtl void fb_PrintInt(0, %32, 1)
-    %33 = load @i
-    %34 = sext %33
-    %35 = const i64 16
-    %36 = mul %34, %35
-    %37 = ptr.add @@status, %36
-    %38 = alloca ptr $tmp5
-    store @$tmp5, %37
-    %39 = load @$tmp5
-    %40 = field.addr %39, 0
-    %41 = const i64 5
-    %42 = trunc %41
-    store %40, %42
-    %43 = load @$tmp5
-    %44 = field.addr %43, 8
-    %45 = const i64 0
-    %46 = bitcast %45
-    store %44, %46
-    %47 = load @$tmp5
-    %48 = field.addr %47, 0
-    %49 = load %48
-    call.rtl void fb_PrintInt(0, %49, 1)
-    %50 = load @i
-    %51 = call i32 SLOT(%50)
-    %52 = sext %51
-    %53 = const i64 16
-    %54 = mul %52, %53
-    %55 = ptr.add @@status, %54
-    %56 = alloca ptr $tmp6
-    store @$tmp6, %55
-    %57 = load @$tmp6
-    %58 = field.addr %57, 0
-    %59 = load %58
-    %60 = const i64 1
-    %61 = trunc %60
-    %62 = add %59, %61
-    store %58, %62
-    %63 = load @$tmp6
-    %64 = field.addr %63, 8
-    store %64, @one
-    %65 = load @$tmp6
-    %66 = field.addr %65, 0
-    %67 = load %66
-    call.rtl void fb_PrintInt(0, %67, 1)
-    %68 = alloca ptr $tmp7
-    %69 = const i64 9
-    %70 = trunc %69
-    %71 = const i64 0
-    %72 = bitcast %71
-    %73 = field.addr @$tmp7, 0
-    store %73, %70
-    %74 = field.addr @$tmp7, 8
-    store %74, %72
-    %75 = alloca ptr $tmp8
+    %10 = load @$tmp3
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = const i64 1
+    %14 = trunc %13
+    %15 = add %12, %14
+    store %11, %15
+    %16 = load @$tmp3
+    %17 = field.addr %16, 0
+    %18 = load %17
+    call.rtl void fb_PrintInt(0, %18, 1)
+    %19 = load @i
+    %20 = sext %19
+    %21 = const i64 16
+    %22 = mul %20, %21
+    %23 = ptr.add @@status, %22
+    %24 = alloca ptr $tmp4
+    store @$tmp4, %23
+    %25 = load @$tmp4
+    %26 = field.addr %25, 0
+    %27 = load %26
+    %28 = const i64 1
+    %29 = trunc %28
+    %30 = add %27, %29
+    store %26, %30
+    %31 = load @$tmp4
+    %32 = field.addr %31, 0
+    %33 = load %32
+    call.rtl void fb_PrintInt(0, %33, 1)
+    %34 = load @i
+    %35 = sext %34
+    %36 = const i64 16
+    %37 = mul %35, %36
+    %38 = ptr.add @@status, %37
+    %39 = alloca ptr $tmp5
+    store @$tmp5, %38
+    %40 = load @$tmp5
+    %41 = field.addr %40, 0
+    %42 = const i64 5
+    %43 = trunc %42
+    store %41, %43
+    %44 = load @$tmp5
+    %45 = field.addr %44, 8
+    %46 = const i64 0
+    %47 = bitcast %46
+    store %45, %47
+    %48 = load @$tmp5
+    %49 = field.addr %48, 0
+    %50 = load %49
+    call.rtl void fb_PrintInt(0, %50, 1)
+    %51 = load @i
+    %52 = call i32 SLOT(%51)
+    %53 = sext %52
+    %54 = const i64 16
+    %55 = mul %53, %54
+    %56 = ptr.add @@status, %55
+    %57 = alloca ptr $tmp6
+    store @$tmp6, %56
+    %58 = load @$tmp6
+    %59 = field.addr %58, 0
+    %60 = load %59
+    %61 = const i64 1
+    %62 = trunc %61
+    %63 = add %60, %62
+    store %59, %63
+    %64 = load @$tmp6
+    %65 = field.addr %64, 8
+    store %65, @one
+    %66 = load @$tmp6
+    %67 = field.addr %66, 0
+    %68 = load %67
+    call.rtl void fb_PrintInt(0, %68, 1)
+    %69 = alloca ptr $tmp7
+    %70 = const i64 9
+    %71 = trunc %70
+    %72 = const i64 0
+    %73 = bitcast %72
+    %74 = field.addr @$tmp7, 0
+    store %74, %71
+    %75 = field.addr @$tmp7, 8
+    store %75, %73
+    %76 = alloca ptr $tmp8
     store @$tmp8, @$tmp7
-    %76 = load @$tmp8
-    %77 = field.addr %76, 0
-    %78 = load %77
-    call.rtl void fb_PrintInt(0, %78, 1)
-    %79 = const i32 0
-    call.rtl void fb_End(%79)
-    %80 = load @$tmp0
-    ret %80
+    %77 = load @$tmp8
+    %78 = field.addr %77, 0
+    %79 = load %78
+    call.rtl void fb_PrintInt(0, %79, 1)
+    %80 = const i32 0
+    call.rtl void fb_End(%80)
+    %81 = load @$tmp0
+    ret %81
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 115 insts, 0 statements not lowered, 0 scope imbalance

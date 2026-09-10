@@ -27,113 +27,118 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr i
-    %5 = alloca ptr ptrtoconst
+    %5 = call.rtl ptr memset(@i, 0, 8)
+    %6 = alloca ptr ptrtoconst
     store @ptrtoconst, @i
-    %6 = alloca ptr constptr
+    %7 = alloca ptr constptr
     store @constptr, @i
-    %7 = alloca ptr ca
-    %8 = const i64 1
-    store @ca, %8
-    %9 = alloca ptr cb
-    %10 = const i64 2
-    store @cb, %10
-    %11 = alloca ptr va
-    %12 = const i64 3
-    store @va, %12
-    %13 = alloca ptr vb
-    %14 = const i64 4
-    store @vb, %14
-    %15 = alloca ptr cs
-    %16 = call.rtl ptr fb_StrInit(@cs, -1, @@$str0, 2, 0)
-    %17 = alloca ptr vs
-    %18 = call.rtl ptr fb_StrInit(@vs, -1, @@$str1, 2, 0)
-    %19 = alloca ptr constimage
-    %20 = alloca ptr image
-    %21 = alloca ptr wcf
+    %8 = alloca ptr ca
+    %9 = const i64 1
+    store @ca, %9
+    %10 = alloca ptr cb
+    %11 = const i64 2
+    store @cb, %11
+    %12 = alloca ptr va
+    %13 = const i64 3
+    store @va, %13
+    %14 = alloca ptr vb
+    %15 = const i64 4
+    store @vb, %15
+    %16 = alloca ptr cs
+    %17 = call.rtl ptr fb_StrInit(@cs, -1, @@$str0, 2, 0)
+    %18 = alloca ptr vs
+    %19 = call.rtl ptr fb_StrInit(@vs, -1, @@$str1, 2, 0)
+    %20 = alloca ptr constimage
+    %21 = call.rtl ptr memset(@constimage, 0, 8)
+    %22 = alloca ptr image
+    %23 = call.rtl ptr memset(@image, 0, 8)
+    %24 = alloca ptr wcf
     call void _ZN14WITHCONSTFIELDC1Ev(@wcf)
-    %22 = load @ptrtoconst
-    %23 = const i64 1
-    store %22, %23
-    %24 = const i64 1
-    store @i, %24
     %25 = load @ptrtoconst
-    %26 = const i64 123
+    %26 = const i64 1
     store %25, %26
-    %27 = load @constptr
-    %28 = const i64 1
-    store %27, %28
-    %29 = alloca ptr $tmp13
-    %30 = load @ca
-    store @$tmp13, %30
-    %31 = load @cb
-    store @ca, %31
-    %32 = load @$tmp13
-    store @cb, %32
-    %33 = alloca ptr $tmp14
-    %34 = load @va
-    store @$tmp14, %34
-    %35 = load @cb
-    store @va, %35
-    %36 = load @$tmp14
-    store @cb, %36
-    %37 = alloca ptr $tmp15
-    %38 = load @va
-    store @$tmp15, %38
-    %39 = load @vb
-    store @va, %39
-    %40 = load @$tmp15
-    store @vb, %40
-    %41 = alloca ptr u
-    %42 = load @u
-    %43 = load @u
-    %44 = const i64 1
-    %45 = const i64 1
-    %46 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_StrAssignMid(@cs, %44, %45, %46)
-    %47 = load @ca
+    %27 = const i64 1
+    store @i, %27
+    %28 = load @ptrtoconst
+    %29 = const i64 123
+    store %28, %29
+    %30 = load @constptr
+    %31 = const i64 1
+    store %30, %31
+    %32 = alloca ptr $tmp13
+    %33 = load @ca
+    store @$tmp13, %33
+    %34 = load @cb
+    store @ca, %34
+    %35 = load @$tmp13
+    store @cb, %35
+    %36 = alloca ptr $tmp14
+    %37 = load @va
+    store @$tmp14, %37
+    %38 = load @cb
+    store @va, %38
+    %39 = load @$tmp14
+    store @cb, %39
+    %40 = alloca ptr $tmp15
+    %41 = load @va
+    store @$tmp15, %41
+    %42 = load @vb
+    store @va, %42
+    %43 = load @$tmp15
+    store @vb, %43
+    %44 = alloca ptr u
+    %45 = call.rtl ptr memset(@u, 0, 8)
+    %46 = load @u
+    %47 = load @u
     %48 = const i64 1
-    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_StrAssignMid(@vs, %47, %48, %49)
-    %50 = load @constimage
-    %51 = const i64 0
-    %52 = sitofp %51
-    %53 = const i64 0
-    %54 = sitofp %53
-    %55 = const i64 1
+    %49 = const i64 1
+    %50 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_StrAssignMid(@cs, %48, %49, %50)
+    %51 = load @ca
+    %52 = const i64 1
+    %53 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_StrAssignMid(@vs, %51, %52, %53)
+    %54 = load @constimage
+    %55 = const i64 0
     %56 = sitofp %55
-    %57 = const i64 1
+    %57 = const i64 0
     %58 = sitofp %57
-    %59 = const i64 0
-    %60 = trunc %59
-    %61 = const i32 65535
-    call.rtl void fb_GfxLine(%50, %52, %54, %56, %58, %60, 0, %61, 0)
-    %62 = load @image
+    %59 = const i64 1
+    %60 = sitofp %59
+    %61 = const i64 1
+    %62 = sitofp %61
     %63 = const i64 0
-    %64 = sitofp %63
-    %65 = const i64 0
-    %66 = sitofp %65
-    %67 = const i64 1
+    %64 = trunc %63
+    %65 = const i32 65535
+    call.rtl void fb_GfxLine(%54, %56, %58, %60, %62, %64, 0, %65, 0)
+    %66 = load @image
+    %67 = const i64 0
     %68 = sitofp %67
-    %69 = const i64 1
+    %69 = const i64 0
     %70 = sitofp %69
-    %71 = const i64 0
-    %72 = trunc %71
-    %73 = const i32 65535
-    call.rtl void fb_GfxLine(%62, %64, %66, %68, %70, %72, 0, %73, 0)
-    %74 = alloca ptr pcf
-    %75 = field.addr @wcf, 0
-    store @pcf, %75
-    %76 = load @pcf
-    %77 = const i64 0
-    store %76, %77
+    %71 = const i64 1
+    %72 = sitofp %71
+    %73 = const i64 1
+    %74 = sitofp %73
+    %75 = const i64 0
+    %76 = trunc %75
+    %77 = const i32 65535
+    call.rtl void fb_GfxLine(%66, %68, %70, %72, %74, %76, 0, %77, 0)
+    %78 = alloca ptr pcf
+    %79 = field.addr @wcf, 0
+    store @pcf, %79
+    %80 = load @pcf
+    %81 = const i64 0
+    store %80, %81
     call.rtl void fb_StrDelete(@vs)
     call.rtl void fb_StrDelete(@cs)
-    %78 = const i32 0
-    call.rtl void fb_End(%78)
-    %79 = load @$tmp0
-    ret %79
+    %82 = const i32 0
+    call.rtl void fb_End(%82)
+    %83 = load @$tmp0
+    ret %83
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void _ZN14WITHCONSTFIELDC1Ev(ptr $0)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
@@ -149,7 +154,7 @@ func void _ZN14WITHCONSTFIELDC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 2 functions, 2 blocks, 113 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 117 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   skip-site src\mir\lowerutil.bas:40 2
 tests/diagnostics/src/const-write.bas(22,1): error TKO0617: cannot modify '': it is a constant

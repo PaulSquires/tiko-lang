@@ -13,131 +13,133 @@ func void P(i32 $0) {
     %1 = alloca ptr s
     store @s, $0
     %2 = alloca ptr n
-    %3 = alloca ptr i
-    %4 = const i64 1
-    %5 = trunc %4
-    store @i, %5
-    %6 = alloca ptr $tmp3
-    %7 = load @s
-    store @$tmp3, %7
-    %8 = alloca ptr $tmp4
-    %9 = load @$tmp3
-    %10 = const i32 0
-    %11 = icmp.sge %9, %10
-    store @$tmp4, %11
-    %25 = alloca ptr j
-    %28 = alloca ptr $tmp6
-    %42 = alloca ptr k
-    %45 = alloca ptr $tmp8
-    %60 = alloca ptr m
+    %3 = call.rtl ptr memset(@n, 0, 4)
+    %4 = alloca ptr i
+    %5 = const i64 1
+    %6 = trunc %5
+    store @i, %6
+    %7 = alloca ptr $tmp3
+    %8 = load @s
+    store @$tmp3, %8
+    %9 = alloca ptr $tmp4
+    %10 = load @$tmp3
+    %11 = const i32 0
+    %12 = icmp.sge %10, %11
+    store @$tmp4, %12
+    %26 = alloca ptr j
+    %29 = alloca ptr $tmp6
+    %43 = alloca ptr k
+    %46 = alloca ptr $tmp8
+    %61 = alloca ptr m
     br for.head1
   for.head1:
-    %12 = load @i
-    %13 = const i64 10
-    %14 = trunc %13
-    %15 = load @$tmp4
-    condbr %15, for.up5, for.down6
+    %13 = load @i
+    %14 = const i64 10
+    %15 = trunc %14
+    %16 = load @$tmp4
+    condbr %16, for.up5, for.down6
   for.body2:
-    %18 = load @n
-    %19 = const i64 1
-    %20 = trunc %19
-    %21 = add %18, %20
-    store @n, %21
+    %19 = load @n
+    %20 = const i64 1
+    %21 = trunc %20
+    %22 = add %19, %21
+    store @n, %22
     br for.step3
   for.step3:
-    %22 = load @i
-    %23 = load @$tmp3
-    %24 = add %22, %23
-    store @i, %24
+    %23 = load @i
+    %24 = load @$tmp3
+    %25 = add %23, %24
+    store @i, %25
     br for.head1
   for.exit4:
-    %26 = const i64 1
-    %27 = trunc %26
-    store @j, %27
-    %29 = const i64 2
-    %30 = trunc %29
-    store @$tmp6, %30
+    %27 = const i64 1
+    %28 = trunc %27
+    store @j, %28
+    %30 = const i64 2
+    %31 = trunc %30
+    store @$tmp6, %31
     br for.head7
   for.up5:
-    %16 = icmp.sle %12, %14
-    condbr %16, for.body2, for.exit4
-  for.down6:
-    %17 = icmp.sge %12, %14
+    %17 = icmp.sle %13, %15
     condbr %17, for.body2, for.exit4
+  for.down6:
+    %18 = icmp.sge %13, %15
+    condbr %18, for.body2, for.exit4
   for.head7:
-    %31 = load @j
-    %32 = const i64 10
-    %33 = trunc %32
-    %34 = icmp.sle %31, %33
-    condbr %34, for.body8, for.exit10
+    %32 = load @j
+    %33 = const i64 10
+    %34 = trunc %33
+    %35 = icmp.sle %32, %34
+    condbr %35, for.body8, for.exit10
   for.body8:
-    %35 = load @n
-    %36 = const i64 1
-    %37 = trunc %36
-    %38 = add %35, %37
-    store @n, %38
+    %36 = load @n
+    %37 = const i64 1
+    %38 = trunc %37
+    %39 = add %36, %38
+    store @n, %39
     br for.step9
   for.step9:
-    %39 = load @j
-    %40 = load @$tmp6
-    %41 = add %39, %40
-    store @j, %41
+    %40 = load @j
+    %41 = load @$tmp6
+    %42 = add %40, %41
+    store @j, %42
     br for.head7
   for.exit10:
-    %43 = const i64 10
-    %44 = trunc %43
-    store @k, %44
-    %46 = const i64 1
-    %47 = neg %46
-    %48 = trunc %47
-    store @$tmp8, %48
+    %44 = const i64 10
+    %45 = trunc %44
+    store @k, %45
+    %47 = const i64 1
+    %48 = neg %47
+    %49 = trunc %48
+    store @$tmp8, %49
     br for.head11
   for.head11:
-    %49 = load @k
-    %50 = const i64 1
-    %51 = trunc %50
-    %52 = icmp.sge %49, %51
-    condbr %52, for.body12, for.exit14
+    %50 = load @k
+    %51 = const i64 1
+    %52 = trunc %51
+    %53 = icmp.sge %50, %52
+    condbr %53, for.body12, for.exit14
   for.body12:
-    %53 = load @n
-    %54 = const i64 1
-    %55 = trunc %54
-    %56 = add %53, %55
-    store @n, %56
+    %54 = load @n
+    %55 = const i64 1
+    %56 = trunc %55
+    %57 = add %54, %56
+    store @n, %57
     br for.step13
   for.step13:
-    %57 = load @k
-    %58 = load @$tmp8
-    %59 = add %57, %58
-    store @k, %59
+    %58 = load @k
+    %59 = load @$tmp8
+    %60 = add %58, %59
+    store @k, %60
     br for.head11
   for.exit14:
-    %61 = const i64 1
-    %62 = trunc %61
-    store @m, %62
+    %62 = const i64 1
+    %63 = trunc %62
+    store @m, %63
     br for.head15
   for.head15:
-    %63 = load @m
-    %64 = const i64 10
-    %65 = trunc %64
-    %66 = icmp.sle %63, %65
-    condbr %66, for.body16, for.exit18
+    %64 = load @m
+    %65 = const i64 10
+    %66 = trunc %65
+    %67 = icmp.sle %64, %66
+    condbr %67, for.body16, for.exit18
   for.body16:
-    %67 = load @n
-    %68 = const i64 1
-    %69 = trunc %68
-    %70 = add %67, %69
-    store @n, %70
+    %68 = load @n
+    %69 = const i64 1
+    %70 = trunc %69
+    %71 = add %68, %70
+    store @n, %71
     br for.step17
   for.step17:
-    %71 = load @m
-    %72 = const i32 1
-    %73 = add %71, %72
-    store @m, %73
+    %72 = load @m
+    %73 = const i32 1
+    %74 = add %72, %73
+    store @m, %74
     br for.head15
   for.exit18:
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -154,4 +156,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 20 blocks, 98 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 20 blocks, 99 insts, 0 statements not lowered, 0 scope imbalance

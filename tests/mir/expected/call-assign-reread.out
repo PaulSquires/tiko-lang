@@ -97,50 +97,53 @@ func i32 main(i32 $0, ptr $1) {
     %17 = load %16
     call.rtl void fb_PrintLongint(0, %17, 1)
     %18 = alloca ptr a
-    %19 = const i64 2
-    %20 = trunc %19
-    %21 = call ptr _ZN1T2ATEi(@a, %20)
-    %22 = load %21
-    %23 = const i64 88
-    %24 = trunc %23
-    store %22, %24
-    %25 = const i64 2
-    %26 = trunc %25
-    %27 = call ptr _ZN1T2ATEi(@a, %26)
-    %28 = load %27
-    call.rtl void fb_PrintInt(0, %28, 1)
-    %29 = const i64 3
-    %30 = trunc %29
-    %31 = call ptr _ZN1TixEi(@a, %30)
-    %32 = const i64 99
-    %33 = trunc %32
-    store %31, %33
-    %34 = const i64 3
-    %35 = trunc %34
-    %36 = call ptr _ZN1TixEi(@a, %35)
-    %37 = load %36
-    call.rtl void fb_PrintInt(0, %37, 1)
-    %38 = alloca ptr q
-    %39 = const i64 2
-    %40 = const i64 8
-    %41 = mul %39, %40
-    %42 = ptr.add @q, %41
-    %43 = const i64 7
-    store %42, %43
-    %44 = const i64 2
-    %45 = const i64 8
-    %46 = mul %44, %45
-    %47 = ptr.add @q, %46
-    %48 = load %47
-    call.rtl void fb_PrintLongint(0, %48, 1)
-    %49 = const i32 0
-    call.rtl void fb_End(%49)
-    %50 = load @$tmp0
-    ret %50
+    %19 = call.rtl ptr memset(@a, 0, 40)
+    %20 = const i64 2
+    %21 = trunc %20
+    %22 = call ptr _ZN1T2ATEi(@a, %21)
+    %23 = load %22
+    %24 = const i64 88
+    %25 = trunc %24
+    store %23, %25
+    %26 = const i64 2
+    %27 = trunc %26
+    %28 = call ptr _ZN1T2ATEi(@a, %27)
+    %29 = load %28
+    call.rtl void fb_PrintInt(0, %29, 1)
+    %30 = const i64 3
+    %31 = trunc %30
+    %32 = call ptr _ZN1TixEi(@a, %31)
+    %33 = const i64 99
+    %34 = trunc %33
+    store %32, %34
+    %35 = const i64 3
+    %36 = trunc %35
+    %37 = call ptr _ZN1TixEi(@a, %36)
+    %38 = load %37
+    call.rtl void fb_PrintInt(0, %38, 1)
+    %39 = alloca ptr q
+    %40 = call.rtl ptr memset(@q, 0, 32)
+    %41 = const i64 2
+    %42 = const i64 8
+    %43 = mul %41, %42
+    %44 = ptr.add @q, %43
+    %45 = const i64 7
+    store %44, %45
+    %46 = const i64 2
+    %47 = const i64 8
+    %48 = mul %46, %47
+    %49 = ptr.add @q, %48
+    %50 = load %49
+    call.rtl void fb_PrintLongint(0, %50, 1)
+    %51 = const i32 0
+    call.rtl void fb_End(%51)
+    %52 = load @$tmp0
+    ret %52
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance

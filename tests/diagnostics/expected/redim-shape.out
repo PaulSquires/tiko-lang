@@ -206,181 +206,183 @@ func i32 main(i32 $0, ptr $1) {
     %123 = field.addr @ext, 232
     store %123, %122
     %124 = alloca ptr scalar
-    %125 = alloca ptr first
-    %126 = const ptr 0
-    %127 = field.addr @first, 0
-    store %127, %126
-    %128 = field.addr @first, 8
-    store %128, %126
-    %129 = const i64 0
-    %130 = field.addr @first, 16
-    store %130, %129
-    %131 = const i64 8
-    %132 = field.addr @first, 24
-    store %132, %131
-    %133 = const i64 1
-    %134 = field.addr @first, 32
-    store %134, %133
-    %135 = const i64 17
-    %136 = field.addr @first, 40
-    store %136, %135
-    %137 = const i64 0
-    %138 = field.addr @first, 48
-    store %138, %137
-    %139 = const i64 0
-    %140 = field.addr @first, 56
-    store %140, %139
-    %141 = const i64 0
-    %142 = field.addr @first, 64
-    store %142, %141
-    %143 = const i64 0
-    %144 = const i64 1
-    %145 = const i64 2
-    %146 = call.rtl i32 fb_ArrayRedimEx(@first, 8, -1, 0, 1, %144, %145)
-    %147 = const i64 0
+    %125 = call.rtl ptr memset(@scalar, 0, 8)
+    %126 = alloca ptr first
+    %127 = const ptr 0
+    %128 = field.addr @first, 0
+    store %128, %127
+    %129 = field.addr @first, 8
+    store %129, %127
+    %130 = const i64 0
+    %131 = field.addr @first, 16
+    store %131, %130
+    %132 = const i64 8
+    %133 = field.addr @first, 24
+    store %133, %132
+    %134 = const i64 1
+    %135 = field.addr @first, 32
+    store %135, %134
+    %136 = const i64 17
+    %137 = field.addr @first, 40
+    store %137, %136
+    %138 = const i64 0
+    %139 = field.addr @first, 48
+    store %139, %138
+    %140 = const i64 0
+    %141 = field.addr @first, 56
+    store %141, %140
+    %142 = const i64 0
+    %143 = field.addr @first, 64
+    store %143, %142
+    %144 = const i64 0
+    %145 = const i64 1
+    %146 = const i64 2
+    %147 = call.rtl i32 fb_ArrayRedimEx(@first, 8, -1, 0, 1, %145, %146)
     %148 = const i64 0
-    %149 = const i64 3
-    %150 = call.rtl i32 fb_ArrayRedimEx(@first, 8, -1, 0, 1, %148, %149)
-    %151 = const i64 0
+    %149 = const i64 0
+    %150 = const i64 3
+    %151 = call.rtl i32 fb_ArrayRedimEx(@first, 8, -1, 0, 1, %149, %150)
     %152 = const i64 0
-    %153 = const i64 2
-    %154 = call.rtl i32 fb_ArrayRedimEx(@declared, 8, -1, 0, 1, %152, %153)
-    %155 = const i64 0
+    %153 = const i64 0
+    %154 = const i64 2
+    %155 = call.rtl i32 fb_ArrayRedimEx(@declared, 8, -1, 0, 1, %153, %154)
     %156 = const i64 0
-    %157 = const i64 2
-    %158 = call.rtl i32 fb_ArrayRedimEx(@ext, 8, -1, 0, 1, %156, %157)
-    %159 = alloca ptr fresh
-    %160 = const ptr 0
-    %161 = field.addr @fresh, 0
-    store %161, %160
-    %162 = field.addr @fresh, 8
-    store %162, %160
-    %163 = const i64 0
-    %164 = field.addr @fresh, 16
-    store %164, %163
-    %165 = const i64 8
-    %166 = field.addr @fresh, 24
-    store %166, %165
-    %167 = const i64 0
-    %168 = field.addr @fresh, 32
-    store %168, %167
-    %169 = const i64 8
-    %170 = field.addr @fresh, 40
-    store %170, %169
-    %171 = const i64 0
-    %172 = field.addr @fresh, 48
-    store %172, %171
-    %173 = const i64 0
-    %174 = field.addr @fresh, 56
-    store %174, %173
-    %175 = const i64 0
-    %176 = field.addr @fresh, 64
-    store %176, %175
-    %177 = const i64 0
-    %178 = field.addr @fresh, 72
-    store %178, %177
-    %179 = const i64 0
-    %180 = field.addr @fresh, 80
-    store %180, %179
-    %181 = const i64 0
-    %182 = field.addr @fresh, 88
-    store %182, %181
-    %183 = const i64 0
-    %184 = field.addr @fresh, 96
-    store %184, %183
-    %185 = const i64 0
-    %186 = field.addr @fresh, 104
-    store %186, %185
-    %187 = const i64 0
-    %188 = field.addr @fresh, 112
-    store %188, %187
-    %189 = const i64 0
-    %190 = field.addr @fresh, 120
-    store %190, %189
-    %191 = const i64 0
-    %192 = field.addr @fresh, 128
-    store %192, %191
-    %193 = const i64 0
-    %194 = field.addr @fresh, 136
-    store %194, %193
-    %195 = const i64 0
-    %196 = field.addr @fresh, 144
-    store %196, %195
-    %197 = const i64 0
-    %198 = field.addr @fresh, 152
-    store %198, %197
-    %199 = const i64 0
-    %200 = field.addr @fresh, 160
-    store %200, %199
-    %201 = const i64 0
-    %202 = field.addr @fresh, 168
-    store %202, %201
-    %203 = const i64 0
-    %204 = field.addr @fresh, 176
-    store %204, %203
-    %205 = const i64 0
-    %206 = field.addr @fresh, 184
-    store %206, %205
-    %207 = const i64 0
-    %208 = field.addr @fresh, 192
-    store %208, %207
-    %209 = const i64 0
-    %210 = field.addr @fresh, 200
-    store %210, %209
-    %211 = const i64 0
-    %212 = field.addr @fresh, 208
-    store %212, %211
-    %213 = const i64 0
-    %214 = field.addr @fresh, 216
-    store %214, %213
-    %215 = const i64 0
-    %216 = field.addr @fresh, 224
-    store %216, %215
-    %217 = const i64 0
-    %218 = field.addr @fresh, 232
-    store %218, %217
-    %219 = alloca ptr noparens
-    %220 = const ptr 0
-    %221 = field.addr @noparens, 0
-    store %221, %220
-    %222 = field.addr @noparens, 8
-    store %222, %220
-    %223 = const i64 0
-    %224 = field.addr @noparens, 16
-    store %224, %223
-    %225 = const i64 8
-    %226 = field.addr @noparens, 24
-    store %226, %225
-    %227 = const i64 1
-    %228 = field.addr @noparens, 32
-    store %228, %227
-    %229 = const i64 17
-    %230 = field.addr @noparens, 40
-    store %230, %229
-    %231 = const i64 0
-    %232 = field.addr @noparens, 48
-    store %232, %231
-    %233 = const i64 0
-    %234 = field.addr @noparens, 56
-    store %234, %233
-    %235 = const i64 0
-    %236 = field.addr @noparens, 64
-    store %236, %235
-    %237 = call.rtl i32 fb_ArrayErase(@noparens)
-    %238 = call.rtl i32 fb_ArrayErase(@fresh)
-    %239 = call.rtl i32 fb_ArrayErase(@first)
-    %240 = call.rtl i32 fb_ArrayErase(@ext)
-    %241 = call.rtl i32 fb_ArrayErase(@declared)
-    %242 = const i32 0
-    call.rtl void fb_End(%242)
-    %243 = load @$tmp0
-    ret %243
+    %157 = const i64 0
+    %158 = const i64 2
+    %159 = call.rtl i32 fb_ArrayRedimEx(@ext, 8, -1, 0, 1, %157, %158)
+    %160 = alloca ptr fresh
+    %161 = const ptr 0
+    %162 = field.addr @fresh, 0
+    store %162, %161
+    %163 = field.addr @fresh, 8
+    store %163, %161
+    %164 = const i64 0
+    %165 = field.addr @fresh, 16
+    store %165, %164
+    %166 = const i64 8
+    %167 = field.addr @fresh, 24
+    store %167, %166
+    %168 = const i64 0
+    %169 = field.addr @fresh, 32
+    store %169, %168
+    %170 = const i64 8
+    %171 = field.addr @fresh, 40
+    store %171, %170
+    %172 = const i64 0
+    %173 = field.addr @fresh, 48
+    store %173, %172
+    %174 = const i64 0
+    %175 = field.addr @fresh, 56
+    store %175, %174
+    %176 = const i64 0
+    %177 = field.addr @fresh, 64
+    store %177, %176
+    %178 = const i64 0
+    %179 = field.addr @fresh, 72
+    store %179, %178
+    %180 = const i64 0
+    %181 = field.addr @fresh, 80
+    store %181, %180
+    %182 = const i64 0
+    %183 = field.addr @fresh, 88
+    store %183, %182
+    %184 = const i64 0
+    %185 = field.addr @fresh, 96
+    store %185, %184
+    %186 = const i64 0
+    %187 = field.addr @fresh, 104
+    store %187, %186
+    %188 = const i64 0
+    %189 = field.addr @fresh, 112
+    store %189, %188
+    %190 = const i64 0
+    %191 = field.addr @fresh, 120
+    store %191, %190
+    %192 = const i64 0
+    %193 = field.addr @fresh, 128
+    store %193, %192
+    %194 = const i64 0
+    %195 = field.addr @fresh, 136
+    store %195, %194
+    %196 = const i64 0
+    %197 = field.addr @fresh, 144
+    store %197, %196
+    %198 = const i64 0
+    %199 = field.addr @fresh, 152
+    store %199, %198
+    %200 = const i64 0
+    %201 = field.addr @fresh, 160
+    store %201, %200
+    %202 = const i64 0
+    %203 = field.addr @fresh, 168
+    store %203, %202
+    %204 = const i64 0
+    %205 = field.addr @fresh, 176
+    store %205, %204
+    %206 = const i64 0
+    %207 = field.addr @fresh, 184
+    store %207, %206
+    %208 = const i64 0
+    %209 = field.addr @fresh, 192
+    store %209, %208
+    %210 = const i64 0
+    %211 = field.addr @fresh, 200
+    store %211, %210
+    %212 = const i64 0
+    %213 = field.addr @fresh, 208
+    store %213, %212
+    %214 = const i64 0
+    %215 = field.addr @fresh, 216
+    store %215, %214
+    %216 = const i64 0
+    %217 = field.addr @fresh, 224
+    store %217, %216
+    %218 = const i64 0
+    %219 = field.addr @fresh, 232
+    store %219, %218
+    %220 = alloca ptr noparens
+    %221 = const ptr 0
+    %222 = field.addr @noparens, 0
+    store %222, %221
+    %223 = field.addr @noparens, 8
+    store %223, %221
+    %224 = const i64 0
+    %225 = field.addr @noparens, 16
+    store %225, %224
+    %226 = const i64 8
+    %227 = field.addr @noparens, 24
+    store %227, %226
+    %228 = const i64 1
+    %229 = field.addr @noparens, 32
+    store %229, %228
+    %230 = const i64 17
+    %231 = field.addr @noparens, 40
+    store %231, %230
+    %232 = const i64 0
+    %233 = field.addr @noparens, 48
+    store %233, %232
+    %234 = const i64 0
+    %235 = field.addr @noparens, 56
+    store %235, %234
+    %236 = const i64 0
+    %237 = field.addr @noparens, 64
+    store %237, %236
+    %238 = call.rtl i32 fb_ArrayErase(@noparens)
+    %239 = call.rtl i32 fb_ArrayErase(@fresh)
+    %240 = call.rtl i32 fb_ArrayErase(@first)
+    %241 = call.rtl i32 fb_ArrayErase(@ext)
+    %242 = call.rtl i32 fb_ArrayErase(@declared)
+    %243 = const i32 0
+    call.rtl void fb_End(%243)
+    %244 = load @$tmp0
+    ret %244
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 fb_ArrayErase(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 361 insts, 7 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 362 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7
   skip-site src\mir\lower.bas:182 7
 tests/diagnostics/src/redim-shape.bas(18,7): error TKO0751: a REDIM that declares 'undeclared' must write its type

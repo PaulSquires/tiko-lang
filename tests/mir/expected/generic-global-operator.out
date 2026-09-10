@@ -5,25 +5,27 @@ func i64 _Zv25+<23>R7BOX<23>S0_(ptr $0, ptr $1) {
   local agg r size 8
   local agg $abi4 size 8
   entry0:
-    %11 = alloca ptr $abi4
+    %12 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
     store @a, $0
     %3 = alloca ptr b
     store @b, $1
     %4 = alloca ptr r
-    %5 = field.addr @r, 0
-    %6 = load @a
-    %7 = field.addr %6, 0
-    %8 = load %7
-    store %5, %8
-    %9 = load @r
-    store @$tmp0, %9
-    %10 = load @$tmp0
-    store @$abi4, %10
-    %12 = load @$abi4
-    ret %12
+    %5 = call.rtl ptr memset(@r, 0, 8)
+    %6 = field.addr @r, 0
+    %7 = load @a
+    %8 = field.addr %7, 0
+    %9 = load %8
+    store %6, %9
+    %10 = load @r
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    store @$abi4, %11
+    %13 = load @$abi4
+    ret %13
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func ptr _Zv15*<23>R7BOX<23>(ptr $0) {
   local ptr $tmp0
   local ptr a
@@ -65,64 +67,67 @@ func i32 main(i32 $0, ptr $1) {
   local agg px size 8
   local agg $abi6 size 8
   entry0:
-    %38 = alloca ptr $abi6
+    %41 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr pay
-    %5 = alloca ptr x
-    %6 = alloca ptr y
-    %7 = field.addr @x, 0
-    store %7, @pay
-    %8 = field.addr @y, 0
-    store %8, @pay
-    %9 = alloca ptr z
-    %39 = call i64 _Zv25+<23>R7BOX<23>S0_(@x, @y)
-    store @$abi6, %39
-    %10 = load @$abi6
-    store @z, %10
-    %11 = field.addr @z, 0
-    %12 = load %11
-    %13 = const i64 0
-    %14 = bitcast %13
-    %15 = icmp.ne %12, %14
-    %16 = neg %15
-    call.rtl void fb_PrintLongint(0, %16, 1)
-    %17 = alloca ptr px
-    %18 = call ptr _Zv15*<23>R7BOX<23>(@x)
-    %19 = load %18
-    store @px, %19
-    %20 = call ptr _Zv16-><23>R7BOX<23>(@x)
-    %21 = field.addr %20, 0
-    %22 = const i64 11
-    %23 = trunc %22
-    store %21, %23
-    %24 = call ptr _Zv16-><23>R7BOX<23>(@x)
-    %25 = field.addr %24, 4
-    %26 = const i64 22
-    %27 = trunc %26
-    store %25, %27
-    %28 = call ptr _Zv16-><23>R7BOX<23>(@x)
-    %29 = field.addr %28, 0
-    %30 = load %29
-    call.rtl void fb_PrintInt(0, %30, 2)
+    %5 = call.rtl ptr memset(@pay, 0, 8)
+    %6 = alloca ptr x
+    %7 = call.rtl ptr memset(@x, 0, 8)
+    %8 = alloca ptr y
+    %9 = call.rtl ptr memset(@y, 0, 8)
+    %10 = field.addr @x, 0
+    store %10, @pay
+    %11 = field.addr @y, 0
+    store %11, @pay
+    %12 = alloca ptr z
+    %42 = call i64 _Zv25+<23>R7BOX<23>S0_(@x, @y)
+    store @$abi6, %42
+    %13 = load @$abi6
+    store @z, %13
+    %14 = field.addr @z, 0
+    %15 = load %14
+    %16 = const i64 0
+    %17 = bitcast %16
+    %18 = icmp.ne %15, %17
+    %19 = neg %18
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    %20 = alloca ptr px
+    %21 = call ptr _Zv15*<23>R7BOX<23>(@x)
+    %22 = load %21
+    store @px, %22
+    %23 = call ptr _Zv16-><23>R7BOX<23>(@x)
+    %24 = field.addr %23, 0
+    %25 = const i64 11
+    %26 = trunc %25
+    store %24, %26
+    %27 = call ptr _Zv16-><23>R7BOX<23>(@x)
+    %28 = field.addr %27, 4
+    %29 = const i64 22
+    %30 = trunc %29
+    store %28, %30
     %31 = call ptr _Zv16-><23>R7BOX<23>(@x)
-    %32 = field.addr %31, 4
+    %32 = field.addr %31, 0
     %33 = load %32
     call.rtl void fb_PrintInt(0, %33, 2)
-    %34 = field.addr @px, 0
-    %35 = load %34
-    call.rtl void fb_PrintInt(0, %35, 1)
-    %36 = const i32 0
-    call.rtl void fb_End(%36)
-    %37 = load @$tmp0
-    ret %37
+    %34 = call ptr _Zv16-><23>R7BOX<23>(@x)
+    %35 = field.addr %34, 4
+    %36 = load %35
+    call.rtl void fb_PrintInt(0, %36, 2)
+    %37 = field.addr @px, 0
+    %38 = load %37
+    call.rtl void fb_PrintInt(0, %38, 1)
+    %39 = const i32 0
+    call.rtl void fb_End(%39)
+    %40 = load @$tmp0
+    ret %40
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 88 insts, 0 statements not lowered, 0 scope imbalance

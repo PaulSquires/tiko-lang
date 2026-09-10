@@ -33,48 +33,50 @@ func i32 main(i32 $0, ptr $1) {
     %6 = trunc %5
     store @n, %6
     %7 = alloca ptr a
-    %8 = load @n
-    call.rtl void fb_PrintInt(0, %8, 1)
+    %8 = call.rtl ptr memset(@a, 0, 16)
     %9 = load @n
     call.rtl void fb_PrintInt(0, %9, 1)
-    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 2)
-    call.rtl void fb_PrintString(0, %10, 1)
-    %11 = alloca ptr $tmp3
-    %12 = field.addr @$tmp3, 0
-    store %12, @a
-    %13 = field.addr @$tmp3, 8
+    %10 = load @n
+    call.rtl void fb_PrintInt(0, %10, 1)
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 2)
+    call.rtl void fb_PrintString(0, %11, 1)
+    %12 = alloca ptr $tmp3
+    %13 = field.addr @$tmp3, 0
     store %13, @a
-    %14 = const i64 16
-    %15 = field.addr @$tmp3, 16
-    store %15, %14
-    %16 = const i64 8
-    %17 = field.addr @$tmp3, 24
-    store %17, %16
-    %18 = const i64 1
-    %19 = field.addr @$tmp3, 32
-    store %19, %18
-    %20 = const i64 49
-    %21 = field.addr @$tmp3, 40
-    store %21, %20
-    %22 = const i64 2
-    %23 = field.addr @$tmp3, 48
-    store %23, %22
-    %24 = const i64 0
-    %25 = field.addr @$tmp3, 56
-    store %25, %24
-    %26 = const i64 1
-    %27 = field.addr @$tmp3, 64
-    store %27, %26
+    %14 = field.addr @$tmp3, 8
+    store %14, @a
+    %15 = const i64 16
+    %16 = field.addr @$tmp3, 16
+    store %16, %15
+    %17 = const i64 8
+    %18 = field.addr @$tmp3, 24
+    store %18, %17
+    %19 = const i64 1
+    %20 = field.addr @$tmp3, 32
+    store %20, %19
+    %21 = const i64 49
+    %22 = field.addr @$tmp3, 40
+    store %22, %21
+    %23 = const i64 2
+    %24 = field.addr @$tmp3, 48
+    store %24, %23
+    %25 = const i64 0
+    %26 = field.addr @$tmp3, 56
+    store %26, %25
+    %27 = const i64 1
+    %28 = field.addr @$tmp3, 64
+    store %28, %27
     call void T(@$tmp3)
-    %28 = const i32 0
-    call.rtl void fb_End(%28)
-    %29 = load @$tmp0
-    ret %29
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

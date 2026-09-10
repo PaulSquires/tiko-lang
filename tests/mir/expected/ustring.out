@@ -24,90 +24,92 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i64 -9223372036854775807
     %6 = call.rtl ptr fb_UStrInit(@a, -1, @@$wstr0, %5, 0)
     %7 = alloca ptr b
-    %8 = field.addr @b, 0
-    store %8, 0
-    %9 = field.addr @b, 8
+    %8 = call.rtl ptr memset(@b, 0, 24)
+    %9 = field.addr @b, 0
     store %9, 0
-    %10 = field.addr @b, 16
+    %10 = field.addr @b, 8
     store %10, 0
-    %11 = call.rtl ptr fb_UStrAssign(@b, -1, @a, -1, 0)
-    %12 = const i64 -9223372036854775807
-    %13 = call.rtl ptr fb_UStrAssign(@b, -1, @@$wstr1, %12, 0)
-    %14 = call.rtl ptr fb_UStrAssign(@b, -1, @a, -1, 0)
-    %15 = const i64 -9223372036854775807
-    %16 = call.rtl ptr fb_UStrConcatAssign(@b, -1, @@$wstr1, %15, 0)
-    %17 = const i64 -9223372036854775807
-    %18 = call.rtl ptr fb_UStrConcatAssign(@b, -1, @@$wstr2, %17, 0)
-    %19 = alloca ptr n
-    %20 = call.rtl i64 fb_UStrLen(@a, -1)
-    %21 = trunc %20
-    store @n, %21
-    %22 = alloca ptr c
-    %23 = const i64 0
-    %24 = trunc %23
-    store @c, %24
-    %25 = const i64 -9223372036854775807
-    %26 = call.rtl i32 fb_UStrCompare(@a, -1, @@$wstr0, %25)
-    %27 = icmp.eq %26, 0
-    %32 = alloca ptr uf
-    %39 = alloca ptr fromfixed
-    %42 = alloca ptr $tmp7
-    %47 = alloca ptr catlen
-    %48 = alloca ptr $tmp9
-    condbr %27, if.then2, if.else3
+    %11 = field.addr @b, 16
+    store %11, 0
+    %12 = call.rtl ptr fb_UStrAssign(@b, -1, @a, -1, 0)
+    %13 = const i64 -9223372036854775807
+    %14 = call.rtl ptr fb_UStrAssign(@b, -1, @@$wstr1, %13, 0)
+    %15 = call.rtl ptr fb_UStrAssign(@b, -1, @a, -1, 0)
+    %16 = const i64 -9223372036854775807
+    %17 = call.rtl ptr fb_UStrConcatAssign(@b, -1, @@$wstr1, %16, 0)
+    %18 = const i64 -9223372036854775807
+    %19 = call.rtl ptr fb_UStrConcatAssign(@b, -1, @@$wstr2, %18, 0)
+    %20 = alloca ptr n
+    %21 = call.rtl i64 fb_UStrLen(@a, -1)
+    %22 = trunc %21
+    store @n, %22
+    %23 = alloca ptr c
+    %24 = const i64 0
+    %25 = trunc %24
+    store @c, %25
+    %26 = const i64 -9223372036854775807
+    %27 = call.rtl i32 fb_UStrCompare(@a, -1, @@$wstr0, %26)
+    %28 = icmp.eq %27, 0
+    %33 = alloca ptr uf
+    %40 = alloca ptr fromfixed
+    %43 = alloca ptr $tmp7
+    %48 = alloca ptr catlen
+    %49 = alloca ptr $tmp9
+    condbr %28, if.then2, if.else3
   if.join1:
     call.rtl void fb_PrintUStr(0, @a, 2)
     call.rtl void fb_PrintUStr(0, @b, 2)
-    %30 = load @n
-    call.rtl void fb_PrintInt(0, %30, 2)
-    %31 = load @c
-    call.rtl void fb_PrintInt(0, %31, 1)
-    %33 = const i64 -9223372036854775793
-    %34 = const i64 -9223372036854775799
-    %35 = call.rtl ptr fb_UStrAssign(@uf, %33, @@$wstr3, %34, -1)
-    %36 = const i64 -9223372036854775793
-    %37 = const i64 -9223372036854775807
-    %38 = call.rtl ptr fb_UStrAssign(@uf, %36, @@$wstr4, %37, -1)
-    %40 = const i64 -9223372036854775793
-    %41 = call.rtl ptr fb_UStrInit(@fromfixed, -1, @uf, %40, 0)
+    %31 = load @n
+    call.rtl void fb_PrintInt(0, %31, 2)
+    %32 = load @c
+    call.rtl void fb_PrintInt(0, %32, 1)
+    %34 = const i64 -9223372036854775793
+    %35 = const i64 -9223372036854775799
+    %36 = call.rtl ptr fb_UStrAssign(@uf, %34, @@$wstr3, %35, -1)
+    %37 = const i64 -9223372036854775793
+    %38 = const i64 -9223372036854775807
+    %39 = call.rtl ptr fb_UStrAssign(@uf, %37, @@$wstr4, %38, -1)
+    %41 = const i64 -9223372036854775793
+    %42 = call.rtl ptr fb_UStrInit(@fromfixed, -1, @uf, %41, 0)
     call.rtl void fb_PrintUStr(0, @fromfixed, 1)
-    %43 = field.addr @$tmp7, 0
-    store %43, 0
-    %44 = field.addr @$tmp7, 8
+    %44 = field.addr @$tmp7, 0
     store %44, 0
-    %45 = field.addr @$tmp7, 16
+    %45 = field.addr @$tmp7, 8
     store %45, 0
-    %46 = call.rtl ptr fb_UStrConcat(@$tmp7, @a, -1, @b, -1)
+    %46 = field.addr @$tmp7, 16
+    store %46, 0
+    %47 = call.rtl ptr fb_UStrConcat(@$tmp7, @a, -1, @b, -1)
     call void UTAKE(@$tmp7)
-    %49 = field.addr @$tmp9, 0
-    store %49, 0
-    %50 = field.addr @$tmp9, 8
+    %50 = field.addr @$tmp9, 0
     store %50, 0
-    %51 = field.addr @$tmp9, 16
+    %51 = field.addr @$tmp9, 8
     store %51, 0
-    %52 = call.rtl ptr fb_UStrConcat(@$tmp9, @a, -1, @b, -1)
-    %53 = call.rtl i64 fb_UStrLen(@$tmp9, -1)
-    %54 = trunc %53
-    store @catlen, %54
-    %55 = load @catlen
-    call.rtl void fb_PrintInt(0, %55, 1)
+    %52 = field.addr @$tmp9, 16
+    store %52, 0
+    %53 = call.rtl ptr fb_UStrConcat(@$tmp9, @a, -1, @b, -1)
+    %54 = call.rtl i64 fb_UStrLen(@$tmp9, -1)
+    %55 = trunc %54
+    store @catlen, %55
+    %56 = load @catlen
+    call.rtl void fb_PrintInt(0, %56, 1)
     call.rtl void fb_UStrDelete(@fromfixed)
     call.rtl void fb_UStrDelete(@b)
     call.rtl void fb_UStrDelete(@a)
-    %56 = const i32 0
-    call.rtl void fb_End(%56)
-    %57 = load @$tmp0
-    ret %57
+    %57 = const i32 0
+    call.rtl void fb_End(%57)
+    %58 = load @$tmp0
+    ret %58
   if.then2:
-    %28 = const i64 1
-    %29 = trunc %28
-    store @c, %29
+    %29 = const i64 1
+    %30 = trunc %29
+    store @c, %30
     br if.join1
   if.else3:
     br if.join1
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_UStrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare i64 fb_UStrLen(ptr $0, i64 $1)
@@ -119,4 +121,4 @@ declare void UTAKE(ptr $0)
 declare void fb_UStrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 4 blocks, 83 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 4 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance

@@ -136,19 +136,20 @@ func i32 main(i32 $0, ptr $1) {
     store %73, 0
     %74 = call.rtl ptr fb_WstrAssignToA_Init(@c8, -1, @w, 0)
     %75 = alloca ptr r
-    %76 = field.addr @r, 0
-    store %76, 0
-    %77 = field.addr @r, 8
+    %76 = call.rtl ptr memset(@r, 0, 24)
+    %77 = field.addr @r, 0
     store %77, 0
-    %78 = field.addr @r, 16
+    %78 = field.addr @r, 8
     store %78, 0
-    %79 = call.rtl ptr fb_WstrConcatWA(@w, @s, -1)
-    %80 = alloca ptr $tmp20
-    store @$tmp20, %79
-    %81 = load @$tmp20
-    %82 = call.rtl ptr fb_WstrAssignToA(@r, -1, %81, 0)
-    %83 = load @$tmp20
-    call.rtl void fb_WstrDelete(%83)
+    %79 = field.addr @r, 16
+    store %79, 0
+    %80 = call.rtl ptr fb_WstrConcatWA(@w, @s, -1)
+    %81 = alloca ptr $tmp20
+    store @$tmp20, %80
+    %82 = load @$tmp20
+    %83 = call.rtl ptr fb_WstrAssignToA(@r, -1, %82, 0)
+    %84 = load @$tmp20
+    call.rtl void fb_WstrDelete(%84)
     call.rtl void fb_PrintString(0, @c1, 0)
     call.rtl void fb_PrintString(0, @c2, 0)
     call.rtl void fb_PrintString(0, @c3, 0)
@@ -168,10 +169,10 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@c2)
     call.rtl void fb_StrDelete(@c1)
     call.rtl void fb_StrDelete(@s)
-    %84 = const i32 0
-    call.rtl void fb_End(%84)
-    %85 = load @$tmp0
-    ret %85
+    %85 = const i32 0
+    call.rtl void fb_End(%85)
+    %86 = load @$tmp0
+    ret %86
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -183,9 +184,10 @@ declare ptr fb_WstrAssignToA_Init(ptr $0, i64 $1, ptr $2, i64 $3)
 declare void fb_WstrDelete(ptr $0)
 declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
 declare ptr fb_WstrConcat(ptr $0, ptr $1)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_WstrAssignToA(ptr $0, i64 $1, ptr $2, i32 $3)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 147 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 148 insts, 0 statements not lowered, 0 scope imbalance

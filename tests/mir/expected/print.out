@@ -9,30 +9,34 @@ func void P() {
     %1 = alloca ptr s
     %2 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
     %3 = alloca ptr n
-    %4 = alloca ptr d
-    %5 = alloca ptr p
+    %4 = call.rtl ptr memset(@n, 0, 4)
+    %5 = alloca ptr d
+    %6 = call.rtl ptr memset(@d, 0, 8)
+    %7 = alloca ptr p
+    %8 = call.rtl ptr memset(@p, 0, 8)
     call.rtl void fb_PrintVoid(0, 1)
     call.rtl void fb_PrintString(0, @s, 1)
-    %6 = load @n
-    call.rtl void fb_PrintInt(0, %6, 1)
-    %7 = load @d
-    call.rtl void fb_PrintDouble(0, %7, 1)
-    %8 = load @p
-    %9 = bitcast %8
-    call.rtl void fb_PrintULongint(0, %9, 1)
-    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
-    call.rtl void fb_PrintString(0, %10, 1)
+    %9 = load @n
+    call.rtl void fb_PrintInt(0, %9, 1)
+    %10 = load @d
+    call.rtl void fb_PrintDouble(0, %10, 1)
+    %11 = load @p
+    %12 = bitcast %11
+    call.rtl void fb_PrintULongint(0, %12, 1)
+    %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
+    call.rtl void fb_PrintString(0, %13, 1)
     call.rtl void fb_PrintString(0, @s, 0)
-    %11 = load @n
-    call.rtl void fb_PrintInt(0, %11, 1)
+    %14 = load @n
+    call.rtl void fb_PrintInt(0, %14, 1)
     call.rtl void fb_PrintString(0, @s, 2)
-    %12 = load @n
-    call.rtl void fb_PrintInt(0, %12, 1)
+    %15 = load @n
+    call.rtl void fb_PrintInt(0, %15, 1)
     call.rtl void fb_PrintString(0, @s, 0)
     call.rtl void fb_StrDelete(@s)
     ret
 }
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintVoid(i32 $0, i32 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
@@ -56,4 +60,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 35 insts, 0 statements not lowered, 0 scope imbalance

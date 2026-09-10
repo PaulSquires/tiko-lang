@@ -23,73 +23,74 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const i64 0
     store @n, %7
     %8 = alloca ptr x
-    %9 = alloca ptr px
+    %9 = call.rtl ptr memset(@x, 0, 8)
+    %10 = alloca ptr px
     store @px, @x
-    %10 = alloca ptr $tmp5
+    %11 = alloca ptr $tmp5
     store @$tmp5, @s
-    %11 = load @$tmp5
-    %12 = call.rtl i32 fb_StrCompare(%11, -1, @@$str0, 2)
-    %13 = const i32 0
-    %14 = icmp.eq %12, %13
-    %16 = alloca ptr $tmp6
-    %27 = alloca ptr $tmp7
-    %29 = alloca ptr $tmp8
-    %30 = alloca ptr $tmp9
-    %38 = alloca ptr $tmp10
-    condbr %14, sel.body2, sel.next3
+    %12 = load @$tmp5
+    %13 = call.rtl i32 fb_StrCompare(%12, -1, @@$str0, 2)
+    %14 = const i32 0
+    %15 = icmp.eq %13, %14
+    %17 = alloca ptr $tmp6
+    %28 = alloca ptr $tmp7
+    %30 = alloca ptr $tmp8
+    %31 = alloca ptr $tmp9
+    %39 = alloca ptr $tmp10
+    condbr %15, sel.body2, sel.next3
   sel.join1:
-    %15 = load @n
-    store @$tmp6, %15
-    %17 = const i64 0
-    %18 = load @$tmp6
-    %19 = icmp.eq %18, %17
-    condbr %19, sel.body5, sel.alt7
+    %16 = load @n
+    store @$tmp6, %16
+    %18 = const i64 0
+    %19 = load @$tmp6
+    %20 = icmp.eq %19, %18
+    condbr %20, sel.body5, sel.alt7
   sel.body2:
     br sel.join1
   sel.next3:
     br sel.join1
   sel.join4:
     store @$tmp7, @x
-    %28 = load @px
-    store @$tmp8, %28
+    %29 = load @px
+    store @$tmp8, %29
     store @$tmp9, @s
-    %31 = load @$tmp9
-    %32 = const i64 0
-    %33 = call.rtl ptr fb_LongintToStr(%32)
-    %34 = call.rtl i32 fb_StrCompare(%31, -1, %33, -1)
-    %35 = const i32 0
-    %36 = icmp.eq %34, %35
-    condbr %36, sel.body9, sel.next10
+    %32 = load @$tmp9
+    %33 = const i64 0
+    %34 = call.rtl ptr fb_LongintToStr(%33)
+    %35 = call.rtl i32 fb_StrCompare(%32, -1, %34, -1)
+    %36 = const i32 0
+    %37 = icmp.eq %35, %36
+    condbr %37, sel.body9, sel.next10
   sel.body5:
     br sel.join4
   sel.next6:
     br sel.join4
   sel.alt7:
-    %20 = const i64 1
-    %21 = load @$tmp6
-    %22 = icmp.sge %21, %20
-    %23 = const i64 3
-    %24 = load @$tmp6
-    %25 = icmp.sle %24, %23
-    %26 = and %22, %25
-    condbr %26, sel.body5, sel.next6
+    %21 = const i64 1
+    %22 = load @$tmp6
+    %23 = icmp.sge %22, %21
+    %24 = const i64 3
+    %25 = load @$tmp6
+    %26 = icmp.sle %25, %24
+    %27 = and %23, %26
+    condbr %27, sel.body5, sel.next6
   sel.join8:
-    %37 = load @n
-    store @$tmp10, %37
-    %39 = bitcast @@$str0
-    %40 = load @$tmp10
-    %41 = icmp.eq %40, %39
-    condbr %41, sel.body12, sel.next13
+    %38 = load @n
+    store @$tmp10, %38
+    %40 = bitcast @@$str0
+    %41 = load @$tmp10
+    %42 = icmp.eq %41, %40
+    condbr %42, sel.body12, sel.next13
   sel.body9:
     br sel.join8
   sel.next10:
     br sel.join8
   sel.join11:
     call.rtl void fb_StrDelete(@s)
-    %42 = const i32 0
-    call.rtl void fb_End(%42)
-    %43 = load @$tmp0
-    ret %43
+    %43 = const i32 0
+    call.rtl void fb_End(%43)
+    %44 = load @$tmp0
+    ret %44
   sel.body12:
     br sel.join11
   sel.next13:
@@ -97,12 +98,13 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
 declare ptr fb_LongintToStr(i64 $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 14 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 14 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/select-and-with.bas(23,6): error TKO0714: this case value is not the kind the select subject is
      |
   23 | case 0

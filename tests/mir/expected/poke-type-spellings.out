@@ -9,66 +9,68 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr b
-    %5 = alloca ptr pb
+    %5 = call.rtl ptr memset(@b, 0, 1)
+    %6 = alloca ptr pb
     store @pb, @b
-    %6 = const i64 0
-    %7 = trunc %6
-    store @b, %7
-    %8 = const i64 123
-    %9 = trunc %8
-    %10 = field.addr @b, 0
-    store %10, %9
-    %11 = load @b
-    call.rtl void fb_PrintUByte(0, %11, 1)
-    %12 = const i64 0
-    %13 = trunc %12
-    store @b, %13
-    %14 = load @pb
-    %15 = const i64 123
-    %16 = trunc %15
-    store %14, %16
-    %17 = load @b
-    call.rtl void fb_PrintUByte(0, %17, 1)
-    %18 = const i64 0
-    %19 = trunc %18
-    store @b, %19
-    %20 = load @pb
-    %21 = const i64 123
-    %22 = trunc %21
-    store %20, %22
-    %23 = load @b
-    call.rtl void fb_PrintUByte(0, %23, 1)
-    %24 = const i64 0
-    %25 = trunc %24
-    store @b, %25
-    %26 = load @pb
-    %27 = const i64 123
-    %28 = trunc %27
-    store %26, %28
-    %29 = load @b
-    call.rtl void fb_PrintUByte(0, %29, 1)
-    %30 = const i64 0
-    %31 = trunc %30
-    store @b, %31
-    %32 = const i64 123
-    %33 = trunc %32
-    %34 = field.addr @b, 0
-    store %34, %33
-    %35 = load @b
-    call.rtl void fb_PrintUByte(0, %35, 1)
-    %36 = load @pb
-    %37 = load %36
-    call.rtl void fb_PrintUByte(0, %37, 2)
-    %38 = load @pb
-    %39 = load %38
-    call.rtl void fb_PrintUByte(0, %39, 1)
-    %40 = const i32 0
-    call.rtl void fb_End(%40)
-    %41 = load @$tmp0
-    ret %41
+    %7 = const i64 0
+    %8 = trunc %7
+    store @b, %8
+    %9 = const i64 123
+    %10 = trunc %9
+    %11 = field.addr @b, 0
+    store %11, %10
+    %12 = load @b
+    call.rtl void fb_PrintUByte(0, %12, 1)
+    %13 = const i64 0
+    %14 = trunc %13
+    store @b, %14
+    %15 = load @pb
+    %16 = const i64 123
+    %17 = trunc %16
+    store %15, %17
+    %18 = load @b
+    call.rtl void fb_PrintUByte(0, %18, 1)
+    %19 = const i64 0
+    %20 = trunc %19
+    store @b, %20
+    %21 = load @pb
+    %22 = const i64 123
+    %23 = trunc %22
+    store %21, %23
+    %24 = load @b
+    call.rtl void fb_PrintUByte(0, %24, 1)
+    %25 = const i64 0
+    %26 = trunc %25
+    store @b, %26
+    %27 = load @pb
+    %28 = const i64 123
+    %29 = trunc %28
+    store %27, %29
+    %30 = load @b
+    call.rtl void fb_PrintUByte(0, %30, 1)
+    %31 = const i64 0
+    %32 = trunc %31
+    store @b, %32
+    %33 = const i64 123
+    %34 = trunc %33
+    %35 = field.addr @b, 0
+    store %35, %34
+    %36 = load @b
+    call.rtl void fb_PrintUByte(0, %36, 1)
+    %37 = load @pb
+    %38 = load %37
+    call.rtl void fb_PrintUByte(0, %38, 2)
+    %39 = load @pb
+    %40 = load %39
+    call.rtl void fb_PrintUByte(0, %40, 1)
+    %41 = const i32 0
+    call.rtl void fb_End(%41)
+    %42 = load @$tmp0
+    ret %42
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 63 insts, 0 statements not lowered, 0 scope imbalance

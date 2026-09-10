@@ -37,29 +37,31 @@ func i64 _Zv24+<8>R6BOX<8>S0_(ptr $0, ptr $1) {
   local agg r size 8
   local agg $abi4 size 8
   entry0:
-    %15 = alloca ptr $abi4
+    %16 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
     %3 = alloca ptr y
     store @y, $1
     %4 = alloca ptr r
-    %5 = field.addr @r, 0
-    %6 = load @x
-    %7 = field.addr %6, 0
-    %8 = load %7
-    %9 = load @y
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = add %8, %11
-    store %5, %12
-    %13 = load @r
-    store @$tmp0, %13
-    %14 = load @$tmp0
-    store @$abi4, %14
-    %16 = load @$abi4
-    ret %16
+    %5 = call.rtl ptr memset(@r, 0, 8)
+    %6 = field.addr @r, 0
+    %7 = load @x
+    %8 = field.addr %7, 0
+    %9 = load %8
+    %10 = load @y
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = add %9, %12
+    store %6, %13
+    %14 = load @r
+    store @$tmp0, %14
+    %15 = load @$tmp0
+    store @$abi4, %15
+    %17 = load @$abi4
+    ret %17
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s1 size 24
@@ -68,7 +70,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg m size 8
   local agg $abi5 size 8
   entry0:
-    %20 = alloca ptr $abi5
+    %22 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -79,28 +81,30 @@ func i32 main(i32 $0, ptr $1) {
     %5 = field.addr @s1, 0
     %6 = call.rtl ptr fb_StrAssign(%5, -1, @@$str0, 3, 0)
     %7 = alloca ptr i1
-    %8 = alloca ptr i2
-    %9 = field.addr @i1, 0
-    %10 = const i64 3
-    store %9, %10
-    %11 = field.addr @i2, 0
-    %12 = const i64 4
+    %8 = call.rtl ptr memset(@i1, 0, 8)
+    %9 = alloca ptr i2
+    %10 = call.rtl ptr memset(@i2, 0, 8)
+    %11 = field.addr @i1, 0
+    %12 = const i64 3
     store %11, %12
-    %13 = alloca ptr m
-    %21 = call i64 _Zv24+<8>R6BOX<8>S0_(@i1, @i2)
-    store @$abi5, %21
-    %14 = load @$abi5
-    store @m, %14
-    %15 = field.addr @m, 0
-    %16 = load %15
-    call.rtl void fb_PrintLongint(0, %16, 2)
-    %17 = field.addr @s1, 0
-    call.rtl void fb_PrintString(0, %17, 1)
+    %13 = field.addr @i2, 0
+    %14 = const i64 4
+    store %13, %14
+    %15 = alloca ptr m
+    %23 = call i64 _Zv24+<8>R6BOX<8>S0_(@i1, @i2)
+    store @$abi5, %23
+    %16 = load @$abi5
+    store @m, %16
+    %17 = field.addr @m, 0
+    %18 = load %17
+    call.rtl void fb_PrintLongint(0, %18, 2)
+    %19 = field.addr @s1, 0
+    call.rtl void fb_PrintString(0, %19, 1)
     call void _ZN7BOX<15>D1Ev(@s1)
-    %18 = const i32 0
-    call.rtl void fb_End(%18)
-    %19 = load @$tmp0
-    ret %19
+    %20 = const i32 0
+    call.rtl void fb_End(%20)
+    %21 = load @$tmp0
+    ret %21
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -125,4 +129,4 @@ func void _ZN7BOX<15>D1Ev(ptr $0) {
 }
 declare void fb_StrDelete(ptr $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 74 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

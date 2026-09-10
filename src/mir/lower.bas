@@ -274,6 +274,72 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             dim as boolean constructed = false
             dim as boolean strInited = false
 
+            '' EVERY LOCAL WITH NO INITIALISER IS ZEROED, and none of them were.
+            ''
+            '' Measured, fbc emits one memset per uninitialised local and NONE for a
+            '' local that has an initialiser or is STATIC:
+            ''
+            ''     int32 A$1;   __builtin_memset( &A$1, 0, 4ll );
+            ''     int32 B$1;   B$1 = 5;                    '' no memset
+            ''     static int32 S$1;                        '' no memset, .bss
+            ''     struct $3POD U$1;  __builtin_memset( &U$1, 0, 8ll );
+            ''     int32 ARR$1[4];    __builtin_memset( ARR$1, 0, 16ll );
+            ''     FBSTRING S$1;      __builtin_memset( &S$1, 0, 24ll );
+            ''
+            '' tiko emitted nothing at all, so a local read before assignment saw
+            '' whatever the frame held. Measured on a probe that dirties the stack
+            '' first: fbc prints 0 and 0 where tiko printed -559038737 and
+            '' 16045690984833335023. It is the widest silent-wrongness class the
+            '' run-stage scan found -- a null-pointer test on an uninitialised
+            '' pointer field is what tests/vendor/fbc-tests/generics/recursive-generic.bas
+            '' fails on, and it is not a generics fault at all.
+            ''
+            '' BEFORE EVERYTHING ELSE, which is where fbc puts it: a constructor, a
+            '' descriptor setup or an initialiser store all run over the zeroed
+            '' bytes. Zeroing on top of a synthesised constructor that memsets too
+            '' is redundant and harmless; zeroing AFTER one would undo it.
+            '' ...AND NOT WHERE A CONSTRUCTOR WILL RUN, which is also measured. fbc
+            '' emits NO memset for a UDT local whose constructor runs, because the
+            '' constructor memsets THIS itself:
+            ''
+            ''     void _ZN8WITHCTORC1Ev( struct $8WITHCTOR* THIS$1 )
+            ''     { __builtin_memset( (int32*)THIS$1, 0, 4ll ); *(int32*)THIS$1 = 3; }
+            ''     void P( void ) { struct $8WITHCTOR W$1; _ZN8WITHCTORC1Ev( &W$1 ); }
+            ''
+            '' A DYNAMIC ARRAY is left alone for the same reason: its slot is a
+            '' DESCRIPTOR and InitDynArrayDesc writes every field of it.
+            dim as boolean zSkip = false
+            if (slot >= 0) andalso (vs <> 0) then
+                if c.types->IsDynArray( vs->type_ ) then zSkip = true
+                if c.types->Kind( vs->type_ ) = Tko.TK_UDT then
+                    if TypeNeedsInit_( c, vs->type_ ) then zSkip = true
+                    if StructorWithArity( c, _
+                        StructorOf( c, vs->type_, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE then
+                        zSkip = true
+                    end if
+                end if
+            end if
+            dim as boolean zWant = (slot >= 0)
+            if zWant then zWant = (vs <> 0)
+            if zWant then zWant = (ip->b = Tko.NODE_NONE)
+            if zWant then zWant = (zSkip = false)
+            if zWant then
+                dim as long zsz = SizeOfType( c, vs->type_ )
+                if zsz > 0 then
+                    dim as MirValue zva
+                    zva.kind = cast( ubyte, MV_LOCAL )
+                    zva.ty = cast( ubyte, MT_PTR )
+                    zva.id = slot
+                    dim as FB.Array( of ulong ) zargs
+                    zargs.Push( cast( ulong, zva.kind ) )
+                    zargs.Push( cast( ulong, zva.id ) )
+                    zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+                    zargs.Push( cast( ulong, MV_CONST_INT ) )
+                    zargs.Push( cast( ulong, zsz ) )
+                    EmitRtl( c, RTL_MEMSET, zargs )
+                end if
+            end if
+
             '' A DYNAMIC array's slot holds a DESCRIPTOR, which has to be filled in
             '' before anything can redim or erase it, and erased on the way out --
             '' fbc erases every local dynamic array at scope exit whatever its element
