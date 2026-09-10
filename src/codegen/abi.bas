@@ -323,7 +323,7 @@ end sub
 '' passes it as a hidden FIRST argument, and the call returns nothing.
 private sub RewriteCallReturn _
     ( byref r as Rewriter, byref ins as MirInst, byval callee as MirFunction ptr, _
-      byref names as Tko.Interner )
+      byref names as Tko.Interner, byval discard as boolean = false )
 
     dim as long sz = 0
     if callee <> 0 then sz = callee->retSize
@@ -360,13 +360,18 @@ private sub RewriteCallReturn _
         s.a = LocalVal( slot )
         s.b = TempVal( c.result, it )
         r.outp.Push( s )
-        dim as MirInst l
-        l.op = cast( ushort, M_LOAD )
-        l.ty = cast( ubyte, MT_AGG )
-        l.a = LocalVal( slot )
-        l.imm = sz
-        l.result = oldResult
-        r.outp.Push( l )
+        '' A DISCARDED RESULT HAS NO TEMP TO LOAD INTO. 'Conjugate( z )' as a
+        '' statement is a call whose MIR type is VOID; reading the aggregate back out
+        '' would name result temp zero, which belongs to something else.
+        if discard = false then
+            dim as MirInst l
+            l.op = cast( ushort, M_LOAD )
+            l.ty = cast( ubyte, MT_AGG )
+            l.a = LocalVal( slot )
+            l.imm = sz
+            l.result = oldResult
+            r.outp.Push( l )
+        end if
         r.st->coercedReturns += 1
         return
     end if
@@ -389,14 +394,16 @@ private sub RewriteCallReturn _
     c2.first = newFirst
     c2.count = ins.count + 1
     r.outp.Push( c2 )
-    '' ...and the value is what landed in the slot.
-    dim as MirInst l2
-    l2.op = cast( ushort, M_LOAD )
-    l2.ty = cast( ubyte, MT_AGG )
-    l2.a = LocalVal( slot )
-    l2.imm = sz
-    l2.result = oldResult
-    r.outp.Push( l2 )
+    '' ...and the value is what landed in the slot -- unless nothing wanted it.
+    if discard = false then
+        dim as MirInst l2
+        l2.op = cast( ushort, M_LOAD )
+        l2.ty = cast( ubyte, MT_AGG )
+        l2.a = LocalVal( slot )
+        l2.imm = sz
+        l2.result = oldResult
+        r.outp.Push( l2 )
+    end if
     r.st->sretReturns += 1
 end sub
 
@@ -720,8 +727,25 @@ private sub WalkCalls _
                 callee = r.m->functions[ci]
             end if
             RewriteCallArgs( r, ins, callee, names )
+            '' A CALL WHOSE RESULT IS DISCARDED STILL HAS THE CALLEE'S CONVENTION.
+            '' 'Conjugate( z )' written as a statement is 'call void CONJUGATE(@z)'
+            '' over a definition that returns an aggregate: the hidden destination
+            '' pointer is still a parameter, and passing nothing for it hands the
+            '' callee the FIRST REAL ARGUMENT to write its result through.
+            '' math/vector.bas is that call, and DeclineInconsistentReturns used to
+            '' read the VOID as the disagreement it is not.
+            dim as boolean discardAgg = false
+            if cast( MirType, ins.ty ) = MT_VOID then
+                if callee <> 0 then
+                    if cast( MirType, callee->retTy ) = MT_AGG then
+                        discardAgg = (callee->retSize > 0)
+                    end if
+                end if
+            end if
             if cast( MirType, ins.ty ) = MT_AGG then
                 RewriteCallReturn( r, ins, callee, names )
+            elseif discardAgg then
+                RewriteCallReturn( r, ins, callee, names, true )
             else
                 r.outp.Push( ins )
             end if
@@ -847,6 +871,11 @@ private sub DeclineInconsistentReturns _
                 if callee = 0 then continue for
                 if cast( MirType, callee->retTy ) <> MT_AGG then continue for
                 if cast( MirType, ins->ty ) = MT_AGG then continue for
+                '' ...AND A VOID CALL IS NOT A DISAGREEMENT. It is a result nobody
+                '' wanted, and WalkCalls rewrites it against the callee's real
+                '' convention like any other. Reading it as one declined every
+                '' aggregate-returning function called as a statement.
+                if cast( MirType, ins->ty ) = MT_VOID then continue for
                 if callee->retSize <> 0 then
                     callee->retSize = 0
                     '' ...and its classification with it. Declining means "leave this

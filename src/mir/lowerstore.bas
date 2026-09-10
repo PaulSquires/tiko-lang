@@ -30,6 +30,14 @@ declare function StrSwapKind_ _
 '' One function now, recursive so an array of arrays of UDT works too.
 function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
     if t = Tko.TYPE_NONE then return 0
+    '' CONST IS NOT A SIZE. The qualifier makes a DIFFERENT TypeId, and the UDT layout
+    '' table is keyed on the unqualified one -- so 'byval x as const T1' and
+    '' 'dim cx as const T1' both found nothing and came out ZERO BYTES, while the same
+    '' type without the word was eight. overload/byval-as-const.bas is that pair,
+    '' and the emitter's "an aggregate parameter passed by value" was the first thing
+    '' to notice: a zero-sized slot allocates nothing and every field access into it
+    '' reads whatever the stack held.
+    t = c.types->Unqualify( t )
     dim as long ui = c.udts->Find( t )
     if ui >= 0 then return c.udts->udts[ui].size
     if c.types->Kind( t ) = Tko.TK_ARRAY then
@@ -94,6 +102,20 @@ function LocalFor _
     dim as boolean indirectUdtParam = false
     l.frontendType = s->type_
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
+    '' A SLOT OF NO TYPE IS A DECLINE, not an alloca of nothing.
+    ''
+    '' The type is TYPE_NONE when the frontend could not resolve it -- a name from a
+    '' header this build did not parse, 'dim as t x' over 'type t as t', a QB suffix
+    '' in the fb dialect. resolvetype.bas says why none of those is REPORTED here:
+    '' "a type may come from a header this build did not parse, and drowning the
+    '' output in those would hide the real signal."
+    ''
+    '' What must not happen is emitting storage for it anyway. 'local void x' followed
+    '' by an alloca is IR the emitter cannot write, and it was 48 of the corpus's
+    '' codegen failures: the ICE named the alloca and never the declaration. Declining
+    '' puts it where every other unlowerable statement already is -- counted, with a
+    '' skip-site -- and mirsweep's census is where it then shows up.
+    if cast( MirType, l.ty ) = MT_VOID then return -1
     '' A BYDESC ARRAY PARAMETER'S SLOT HOLDS A POINTER, not a descriptor. fbc's own
     '' signature says so -- 'void P( struct $7FBARRAYI1RE* ROWS$1 )' -- and giving it
     '' the descriptor's own 72 bytes described a local the caller never passed.

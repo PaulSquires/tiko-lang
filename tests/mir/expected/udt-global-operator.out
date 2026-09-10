@@ -69,7 +69,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg a size 4
   local agg b size 4
   local agg r size 4
-  local agg ca size 0
+  local agg ca size 4
   local agg $abi5 size 4
   local agg $abi6 size 4
   local agg $abi7 size 4

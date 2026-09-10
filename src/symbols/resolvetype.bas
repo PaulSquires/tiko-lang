@@ -377,6 +377,25 @@ function ResolveTypeRef _
         end if
     end select
 
+    '' A BARE ZSTRING OR WSTRING OUT OF A 'typeof' IS ONE CHARACTER.
+    ''
+    '' Measured: fbc REFUSES 'dim z as zstring' -- error 28, "Expected pointer" -- and
+    '' ACCEPTS 'dim v as typeof( *pz )' over a 'zstring ptr', giving sizeof 1;
+    '' the wide twin gives 2. So the unbounded builtin is not a variable type, and what
+    '' the dereference yields is the single-element fixed one.
+    ''
+    '' Without this the variable came out TYPE_NONE and lowered to 'local void',
+    '' which the emitter reports as "an alloca of a void slot" -- quirk/typeof.bas,
+    '' where the corpus checks exactly these two lines.
+    if (k = Tko.KW_TYPEOF) andalso (base_ <> Tko.TYPE_NONE) then
+        if c.types->Kind( base_ ) = Tko.TK_BUILTIN then
+            dim as Tko.BuiltinType bk = c.types->BuiltinOf( base_ )
+            if (bk = Tko.TY_ZSTRING) orelse (bk = Tko.TY_WSTRING) then
+                base_ = c.types->ArrayOf( base_, 1, 1 )
+            end if
+        end if
+    end if
+
     '' 'zstring * 5' is FIVE BYTES, and 'wstring * 4' is four code units -- eight
     '' bytes on Windows, sixteen on Linux. Both are modelled as an ARRAY of the
     '' element, which is exactly what they are, so the layout falls out of the array

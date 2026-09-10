@@ -58,14 +58,11 @@ func i32 main(i32 $0, ptr $1) {
   local agg scalars size 8
   local i32 $fe1
   local i64 $tmp7
-  local void a1
-  local void b1
   local agg pairs size 64
   local agg $fe2 size 32
-  local i64 $tmp12
+  local i64 $tmp10
   local i32 a2
   local agg b2 size 24
-  local void c2
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -83,14 +80,11 @@ func i32 main(i32 $0, ptr $1) {
     %12 = const i64 2
     %13 = alloca ptr $tmp7
     store @$tmp7, %11
-    %21 = alloca ptr a1
-    %22 = alloca ptr b1
-    %26 = alloca ptr pairs
-    %29 = alloca ptr $fe2
-    %32 = alloca ptr $tmp12
-    %39 = alloca ptr a2
-    %42 = alloca ptr b2
-    %45 = alloca ptr c2
+    %24 = alloca ptr pairs
+    %27 = alloca ptr $fe2
+    %30 = alloca ptr $tmp10
+    %37 = alloca ptr a2
+    %40 = alloca ptr b2
     br each.head1
   each.head1:
     %14 = load @$tmp7
@@ -105,53 +99,53 @@ func i32 main(i32 $0, ptr $1) {
     store @$fe1, %20
     br each.step3
   each.step3:
-    %23 = load @$tmp7
-    %24 = const i64 1
-    %25 = add %23, %24
-    store @$tmp7, %25
+    %21 = load @$tmp7
+    %22 = const i64 1
+    %23 = add %21, %22
+    store @$tmp7, %23
     br each.head1
   each.exit4:
-    %27 = field.addr @pairs, 0
-    call void _ZN9$TUP:6:15C1Ev(%27)
-    %28 = field.addr @pairs, 32
-    call void _ZN9$TUP:6:15C1Ev(%28)
-    %30 = const i64 0
-    %31 = const i64 2
-    store @$tmp12, %30
+    %25 = field.addr @pairs, 0
+    call void _ZN9$TUP:6:15C1Ev(%25)
+    %26 = field.addr @pairs, 32
+    call void _ZN9$TUP:6:15C1Ev(%26)
+    %28 = const i64 0
+    %29 = const i64 2
+    store @$tmp10, %28
     br each.head5
   each.head5:
-    %33 = load @$tmp12
-    %34 = icmp.slt %33, %31
-    condbr %34, each.body6, each.exit8
+    %31 = load @$tmp10
+    %32 = icmp.slt %31, %29
+    condbr %32, each.body6, each.exit8
   each.body6:
-    %35 = load @$tmp12
-    %36 = const i64 32
-    %37 = mul %35, %36
-    %38 = ptr.add @pairs, %37
-    call void _ZN9$TUP:6:15C1ERKS_(@$fe2, %38)
-    %40 = field.addr @$fe2, 0
-    %41 = load %40
-    store @a2, %41
-    %43 = field.addr @$fe2, 8
-    %44 = call.rtl ptr fb_StrInit(@b2, -1, %43, -1, 0)
+    %33 = load @$tmp10
+    %34 = const i64 32
+    %35 = mul %33, %34
+    %36 = ptr.add @pairs, %35
+    call void _ZN9$TUP:6:15C1ERKS_(@$fe2, %36)
+    %38 = field.addr @$fe2, 0
+    %39 = load %38
+    store @a2, %39
+    %41 = field.addr @$fe2, 8
+    %42 = call.rtl ptr fb_StrInit(@b2, -1, %41, -1, 0)
     call.rtl void fb_StrDelete(@b2)
     call void _ZN9$TUP:6:15D1Ev(@$fe2)
     br each.step7
   each.step7:
-    %46 = load @$tmp12
-    %47 = const i64 1
-    %48 = add %46, %47
-    store @$tmp12, %48
+    %43 = load @$tmp10
+    %44 = const i64 1
+    %45 = add %43, %44
+    store @$tmp10, %45
     br each.head5
   each.exit8:
-    %49 = field.addr @pairs, 32
-    call void _ZN9$TUP:6:15D1Ev(%49)
-    %50 = field.addr @pairs, 0
-    call void _ZN9$TUP:6:15D1Ev(%50)
-    %51 = const i32 0
-    call.rtl void fb_End(%51)
-    %52 = load @$tmp0
-    ret %52
+    %46 = field.addr @pairs, 32
+    call void _ZN9$TUP:6:15D1Ev(%46)
+    %47 = field.addr @pairs, 0
+    call void _ZN9$TUP:6:15D1Ev(%47)
+    %48 = const i32 0
+    call.rtl void fb_End(%48)
+    %49 = load @$tmp0
+    ret %49
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -208,12 +202,10 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 8 functions, 16 blocks, 123 insts, 7 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 16 blocks, 120 insts, 4 statements not lowered, 0 scope imbalance
   unlowered N_FOREACH 4
   inside N_FOREACH 4
-  inside N_VAR 3
   skip-site src\mir\lowerctl.bas:206 4
-  skip-site src\mir\lower.bas:598 3
 tests/diagnostics/src/foreach-errors.bas(41,1): error TKO0609: 'for each' cannot walk a fixed-length string: it carries no length
      |
   41 | for each ch in z

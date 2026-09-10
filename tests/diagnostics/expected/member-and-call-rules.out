@@ -109,7 +109,7 @@ func i32 main(i32 $0, ptr $1) {
   local ptr pd
   local agg vb size 16
   local agg vd size 24
-  local agg cf size 0
+  local agg cf size 8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0

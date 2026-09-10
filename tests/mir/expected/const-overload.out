@@ -77,7 +77,7 @@ func i64 _Z1HPK2T1(ptr $0) {
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x1 size 8
-  local agg cx1 size 0
+  local agg cx1 size 8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0

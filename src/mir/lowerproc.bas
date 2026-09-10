@@ -494,13 +494,13 @@ sub LowerProc _
         '' comes out a pointer and 'this.field' reaches through it like any other
         '' pointer base. It is what fbc's own C says: 'struct $1T* THIS$1'.
         dim as long tslot = LocalFor( c, thisSym )
-        if tslot < 0 then tslot = 0
-        '' AN UNTYPED 'this' gets a VOID slot, and storing the receiver into it is
+        '' AN UNTYPED 'this' HAS NO SLOT AT ALL, and storing the receiver into one is
         '' malformed. That happens when the structor's owner does not name a type here
         '' -- which is now TKO0323 -- so the error is already reported and the store
-        '' would only add a verify failure on top of it.
-        dim as boolean thisTyped = true
-        if tslot < c.f->locals.Count then
+        '' would only add a verify failure on top of it. LocalFor answers -1 rather
+        '' than a void slot; substituting zero pointed at somebody else's local.
+        dim as boolean thisTyped = (tslot >= 0)
+        if thisTyped andalso (tslot < c.f->locals.Count) then
             thisTyped = (c.f->locals[tslot].ty <> cast( ubyte, MT_VOID ))
         end if
         if thisTyped = false then
@@ -514,21 +514,28 @@ sub LowerProc _
     if thisSym <> Tko.SYMBOL_NONE then
         f->AddParam( MT_PTR )
         dim as long tslot = LocalFor( c, thisSym )
-        if tslot < 0 then tslot = 0
-        dim as MirValue taddr
-        taddr.kind = cast( ubyte, MV_LOCAL )
-        taddr.ty = cast( ubyte, MT_PTR )
-        taddr.id = tslot
-        dim as MirValue tpv
-        tpv.kind = cast( ubyte, MV_PARAM )
-        tpv.ty = cast( ubyte, MT_PTR )
-        tpv.id = pidx
-        dim as MirInst tins
-        tins.op = cast( ushort, M_STORE )
-        tins.ty = cast( ubyte, MT_VOID )
-        tins.a = taddr
-        tins.b = tpv
-        Emit( c, tins )
+        '' NO SLOT MEANS NO STORE. 'this' has no slot when its owner does not name a
+        '' type here -- TKO0323, already reported -- and substituting slot ZERO wrote
+        '' the receiver into whatever local happened to be first, or into no local at
+        '' all: 'store @?0, $0' in a function that has none. The PARAMETER is still
+        '' declared and still counted, because the arity is the caller's business and
+        '' does not change with a diagnostic.
+        if tslot >= 0 then
+            dim as MirValue taddr
+            taddr.kind = cast( ubyte, MV_LOCAL )
+            taddr.ty = cast( ubyte, MT_PTR )
+            taddr.id = tslot
+            dim as MirValue tpv
+            tpv.kind = cast( ubyte, MV_PARAM )
+            tpv.ty = cast( ubyte, MT_PTR )
+            tpv.id = pidx
+            dim as MirInst tins
+            tins.op = cast( ushort, M_STORE )
+            tins.ty = cast( ubyte, MT_VOID )
+            tins.a = taddr
+            tins.b = tpv
+            Emit( c, tins )
+        end if
         pidx += 1
     end if
     for i as long = 0 to sp->count - 1

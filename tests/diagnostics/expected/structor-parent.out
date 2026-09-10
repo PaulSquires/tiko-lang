@@ -17,15 +17,11 @@ func void _ZN2NS3UDTD1Ev(ptr $0) {
     ret
 }
 func void NS(ptr $0) {
-  local void this
   entry0:
-    %1 = alloca ptr this
     ret
 }
 func void NS(ptr $0) {
-  local void this
   entry0:
-    %1 = alloca ptr this
     ret
 }
 func void _ZN5PLAINC1Ev(ptr $0) {
@@ -39,7 +35,7 @@ func void _ZN5PLAINC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 5 functions, 5 blocks, 14 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 12 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/structor-parent.bas(28,1): error TKO0323: 'ns' does not name a type here, so it cannot own this constructor or destructor
      |
   28 | constructor ns( )

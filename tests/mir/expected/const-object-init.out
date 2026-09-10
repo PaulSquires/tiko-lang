@@ -4,8 +4,8 @@ global ptrs _ZTSN2T1E [ 0, @$str1, @__fb_ZTS6Object ]
 global ptrs _ZTVN2T1E [ 0, @_ZTSN2T1E ]
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
-  local agg c1 size 0
-  local agg c2 size 0
+  local agg c1 size 16
+  local agg c2 size 24
   local agg n1 size 16
   local agg p1 size 8
   entry0:

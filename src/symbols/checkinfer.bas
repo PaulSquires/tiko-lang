@@ -71,6 +71,22 @@ private function RepairTypeofRef_ _
     if tt = Tko.TYPE_NONE then return Tko.TYPE_NONE
     '' A REFERENCE is transparent, as it is in an expression.
     if c.types->Kind( tt ) = Tko.TK_REFERENCE then tt = c.types->Inner( tt )
+    '' A BARE ZSTRING OR WSTRING IS ONE CHARACTER HERE, and is not a variable type
+    '' anywhere else. Measured: fbc REFUSES 'dim z as zstring' -- error 28, "Expected
+    '' pointer" -- and ACCEPTS 'dim v as typeof( *pz )' over a 'zstring ptr', giving
+    '' sizeof 1; the wide twin gives 2. So what the dereference yields is the
+    '' SINGLE-ELEMENT fixed string, which is an array of the element exactly as
+    '' 'zstring * N' is.
+    ''
+    '' Without it the variable stayed TYPE_NONE and lowered to 'local void', which the
+    '' emitter reports as "an alloca of a void slot" -- quirk/typeof.bas, where the
+    '' corpus checks these two lines and nothing else in the file was wrong.
+    if c.types->Kind( tt ) = Tko.TK_BUILTIN then
+        dim as Tko.BuiltinType bk = c.types->BuiltinOf( tt )
+        if (bk = Tko.TY_ZSTRING) orelse (bk = Tko.TY_WSTRING) then
+            tt = c.types->ArrayOf( tt, 1, 1 )
+        end if
+    end if
     return tt
 end function
 
