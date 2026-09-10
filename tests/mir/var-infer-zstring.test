@@ -1,0 +1,13 @@
+'' A 'var' inferred from a narrow string source is a STRING, not an untyped slot.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/var-infer-zstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The slot has a type at all -- it was 'local void s4' before, which the emitter cannot
+'' allocate. A var-len string is a 24-byte descriptor here.
+'' EXPECT-NOT: local void
+'' EXPECT-OUT: local agg s4 size 24
+
+'' Built and RUN against fbc on this source: both print 'fOObAR   abc'.
+'' GOLDEN: expected/var-infer-zstring.out

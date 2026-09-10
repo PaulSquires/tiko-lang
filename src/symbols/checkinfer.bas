@@ -141,6 +141,33 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
         if c.ast->Kind( ip->b ) = Tko.N_STRING_LIT then
             vt = c.types->Builtin( Tko.TY_STRING )
         end if
+
+        '' 'var s = *pz' OVER A 'zstring ptr' IS A STRING. Measured with fbc's own
+        '' typeof: '*pz' is ZSTRING and 'var s = *pz' is STRING -- a var cannot hold an
+        '' UNSIZED zstring, so it copies into a var-len one. The same is true of a
+        '' SIZED source: 'var zf = zb' over a 'zstring * 8' is STRING too.
+        ''
+        '' Untyped, the symbol reached lowering with no type and the emitter met
+        '' 'local void s4' -- 'ICE: an alloca of a void slot'. It reported 0 statements
+        '' not lowered and passed the verifier; build/icescan.sh is what found it,
+        '' because --dump-ir stops before codegen.
+        ''
+        '' THE WIDE TWIN IS NOT THE SAME RULE and is deliberately left alone here:
+        '' 'var w = *pw' and 'var wf = wb' are both fbc ERROR 24, Invalid data types.
+        '' Inferring WSTRING for them would accept two programs fbc refuses; they are
+        '' an over-acceptance of tiko's own and want a diagnostic, not an inference.
+        if vt <> Tko.TYPE_NONE then
+            dim as Tko.TypeId vu = c.types->Unqualify( vt )
+            dim as Tko.TypeId ve = vu
+            if c.types->Kind( ve ) = Tko.TK_ARRAY then ve = c.types->Inner( ve )
+            if ve <> Tko.TYPE_NONE then
+                if c.types->Kind( ve ) = Tko.TK_BUILTIN then
+                    if c.types->BuiltinOf( ve ) = Tko.TY_ZSTRING then
+                        vt = c.types->Builtin( Tko.TY_STRING )
+                    end if
+                end if
+            end if
+        end if
         if vt <> Tko.TYPE_NONE then s->type_ = RefWrapIfAlias_( c, s, vt )
     next
 end sub

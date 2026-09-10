@@ -1,3 +1,9 @@
+'' THIS GOLDEN HAD FROZEN MEANINGLESS IR. Line 118 is 'for i as Counter = ct to ct step
+'' ct' -- a UDT loop counter -- and the FOR lowering treated it as a number: the recorded
+'' output contained 'add' over two aggregates and 'icmp.sle' comparing them. It passed the
+'' verifier and counted as fully lowered. That statement declines honestly now, which is
+'' what the golden records; implementing fbc's operator FOR/STEP/NEXT protocol is the
+'' real fix and is written up in HANDOFF.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/operator-visibility.bas
 '' EXPECT-EXIT: 1

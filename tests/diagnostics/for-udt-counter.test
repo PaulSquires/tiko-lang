@@ -1,0 +1,10 @@
+'' A FOR loop over a UDT counter declines instead of emitting aggregate arithmetic.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/for-udt-counter.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 1 statements not lowered
+
+'' What must NOT come back: a CONSTANT AGGREGATE, which is what the scalar FOR emitted
+'' for the implicit step and is meaningless on any input. An 'icmp.sle' is NOT an
+'' assertion here -- 'operator next' compares two integers in its own body, and asserting
+'' its absence would fail for the right code.

@@ -55,6 +55,32 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         return
     end if
 
+    '' A UDT COUNTER IS THE OPERATOR PROTOCOL, NOT ARITHMETIC -- and everything below
+    '' this line assumes a scalar. 'for i as T = T(1) to T(3)' over a type declaring
+    '' 'operator for/step/next' was lowered as though T were a number:
+    ''
+    ''     %12 = load @i          an AGGREGATE loaded as a value
+    ''     %14 = icmp.sle %12, %13    two aggregates compared with an integer compare
+    ''     %18 = const agg 1          a constant aggregate of value 1
+    ''     %19 = add %17, %18         two aggregates ADDED
+    ''
+    '' -- which is not wrong so much as meaningless. It reported '0 statements not
+    '' lowered', it PASSED THE VERIFIER, and then the LLVM emitter met an aggregate with
+    '' no storage and died with 'ICE: an aggregate value with no size'. mirsweep never
+    '' saw any of it, because --dump-ir stops before codegen; build/icescan.sh is what
+    '' found it.
+    ''
+    '' Declining is not the answer, it is the honest placeholder. fbc's protocol is
+    '' measured and written down in HANDOFF: construct the counter and the limit, call
+    '' 'operator for' on the counter, TEST FIRST through 'operator next( counter, limit )',
+    '' body, 'operator step', test again. Building that needs a member call that yields a
+    '' RESULT -- EmitStructorCall is a sub and 'next' returns an integer -- which is the
+    '' piece this does not have yet.
+    if ity = MT_AGG then
+        SkipHere( c )
+        return
+    end if
+
     '' init
     dim as MirValue init_ = CoerceTy( c, LowerExpr( c, fromE ), ity, c.info->TypeOf_( fromE ) )
     if init_.kind <> cast( ubyte, MV_NONE ) then
