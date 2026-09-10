@@ -266,4 +266,43 @@ void * __cdecl localtime( long long const *src )
     return _localtime64( src );
 }
 
+/* THE INTERLOCKED INTRINSICS THE WINDOWS HEADERS DECLARE AS FUNCTIONS.
+**
+** fbc-modern's win/intrin.bi declares '_InterlockedExchangeAdd' and its 64-bit twin as
+** ordinary externs, and builds '_InterlockedAdd' on top of them in FB. On MinGW those
+** names are real symbols in libmingwex; under the MSVC ABI they are COMPILER
+** intrinsics, expanded inline by the C frontend and present in no library at all -- so
+** an FB program that reaches one gets 'lld-link: error: undefined symbol:
+** _InterlockedExchangeAdd', which is 24 of the corpus link failures build/linkscan.sh
+** reports, every file that uses fb/comptr.bi.
+**
+** __atomic_fetch_add WITH SEQ_CST, which is what the Windows contract says: the
+** Interlocked family is a full barrier in both directions, and __ATOMIC_SEQ_CST is the
+** only ordering that promises that. The return value is the OLD value, which is what
+** both the intrinsic and the FB declaration expect.
+**
+** Named without the leading underscore in the generated call is NOT a possibility: the
+** header declares the underscored spelling and that is the symbol the linker asks for.
+*/
+/* THE NAME IS AN ASM LABEL, not the C identifier. clang REFUSES a definition of a name
+** it knows as a builtin -- "definition of builtin function
+** '_InterlockedExchangeAdd'" -- and there is no per-function way to turn that off. So
+** the function is called something else in C and CARRIES the intrinsic's symbol name
+** into the object, which is the only thing the linker looks at. */
+long __cdecl tkort_interlocked_xadd32( long volatile *Addend, long Value )
+    __asm__( "_InterlockedExchangeAdd" );
+long __cdecl tkort_interlocked_xadd32( long volatile *Addend, long Value )
+{
+    return __atomic_fetch_add( Addend, Value, __ATOMIC_SEQ_CST );
+}
+
+long long __cdecl tkort_interlocked_xadd64( long long volatile *Addend,
+                                            long long Value )
+    __asm__( "_InterlockedExchangeAdd64" );
+long long __cdecl tkort_interlocked_xadd64( long long volatile *Addend,
+                                            long long Value )
+{
+    return __atomic_fetch_add( Addend, Value, __ATOMIC_SEQ_CST );
+}
+
 #endif /* TKORT_MSVC */

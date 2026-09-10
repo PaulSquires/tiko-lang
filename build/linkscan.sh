@@ -149,5 +149,24 @@ echo "linkscan: --- by message ---"
 cut -d' ' -f3- build/.link.real \
     | sed -E "s/[0-9]+/N/g" \
     | sort | uniq -c | sort -rn | head -15 | sed 's/^/linkscan:  /'
+# UNDEFINED USER SYMBOL vs UNDEFINED RUNTIME SYMBOL, and the difference decides
+# whether it is a finding at all.
+#
+# fbc's suite compiles the WHOLE corpus to objects and links ONE fbc-tests.exe
+# (unit-tests.mk), so a file may legitimately reference a symbol defined in a
+# SIBLING module -- uzstring-fixed.bas is the implementation half of
+# udt-zstring-fixed.bas, and every UZSTRING_FIXED error below is that pair, not a
+# tiko fault. This scan links each file ALONE and cannot tell the two apart by
+# linking; the NAME is what tells them apart.
+#
+# fb_*, __*, _* and the crt spellings are the RUNTIME's, and one of those
+# undefined IS a finding: it is a symbol tiko emitted a call to and tiko-rt does
+# not define.
+rt=$(grep -h "undefined symbol" build/.link.real      | sed -E "s/.*undefined symbol: //"      | grep -cE "^(fb_|_|__)" || true)
+usr=$(grep -hc "undefined symbol" build/.link.real || true)
+usr=$((usr - rt))
+echo "linkscan: of the undefined symbols, $rt are RUNTIME names and $usr are USER names"
+echo "linkscan: a USER name is usually the other half of a pair -- fbc links the whole"
+echo "linkscan: corpus into one binary, and this scan links each file alone"
 echo "linkscan: --- the files fbc ACCEPTS, worst first ---"
 grep '^ok ' build/.link.real | cut -d' ' -f2 | sort | uniq -c | sort -rn | head -20 | sed 's/^/linkscan:  /'
