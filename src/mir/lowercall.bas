@@ -976,6 +976,22 @@ function LowerCallParts _
         '' the arity mismatch meant the program did not link in the first place.
         if cs <> 0 then
             if c.types->Kind( cs->type_ ) = Tko.TK_UDT then byrefRet = false
+            '' ...AND A VAR-LENGTH STRING REFERENT, which is the third case and was
+            '' missing. A string's VALUE in this IR is already a pointer to its
+            '' DESCRIPTOR, so the returned address IS what every consumer wants and a
+            '' load through it yields the descriptor's 'data' field -- a char* handed
+            '' on as though it were a descriptor.
+            ''
+            '' Measured, fbc uses the pointer directly:
+            ''
+            ''     FBSTRING* vr$13 = _ZN3BOX6REFSTREv( &B$0 );
+            ''     fb_StrInit( (void*)&C$0, -1ll, (void*)vr$13, -1ll, 0 );
+            ''
+            '' while tiko inserted '%23 = load %22' between them. 'dim as string c =
+            '' b.RefStr( )' printed an EMPTY string where fbc prints 'boom', and the
+            '' byref-LONG twin beside it was right -- which is what kept this looking
+            '' like a string problem rather than a byref one.
+            if IsStringType( c, cs->type_ ) then byrefRet = false
         end if
         '' ...and a DISCARDED result has nothing to read through. 'f1( 123 )' as a
         '' statement asks for no type, and loading MT_VOID answers with nothing --
