@@ -1,0 +1,15 @@
+'' An enum member gives up the unqualified name to any other declaration, either order.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/enum-member-yields.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The declaration that follows the enum is NOT a duplicate.
+'' EXPECT-NOT: TKO0600
+'' EXPECT-NOT: already declared in this scope
+
+'' Built and RUN against fbc on this source: both print
+''     7  9 / 1  5 / 3  3
+'' The GOLDEN is what pins WHICH value each spelling resolves to -- 7 and 9 are both in
+'' the file, and a substring cannot say which one 'K' became.
+'' GOLDEN: expected/enum-member-yields.out

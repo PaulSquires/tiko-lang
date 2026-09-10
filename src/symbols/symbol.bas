@@ -379,7 +379,27 @@ function SymbolTable.DeclareSym _
         '' knows which class it wants walks the pair rather than the table.
         dim as boolean split = (IsTypeNameKind( cast( SymbolKind, e->kind ) ) <> _
                                 IsTypeNameKind( k ))
-        if split andalso (e->altClass = SYMBOL_NONE) then
+        '' AN ENUM MEMBER YIELDS THE UNQUALIFIED NAME TO ANYTHING ELSE, in either
+        '' declaration order, and stays reachable as 'E.K'. Measured on fbc, and the
+        '' member never wins:
+        ''
+        ''     enum E : K = 9 : end enum : dim shared K as long = 7
+        ''         K -> 7    E.K -> 9        and the same with the DIM written first
+        ''     enum E : K = 9 : end enum : const K = 1
+        ''         K -> 1    E.K -> 9
+        ''     enum E : K = 9 : end enum : sub K( ) ... end sub      accepted
+        ''     the member alone                     K -> 9
+        ''
+        '' Collect already implements the enum-LAST half -- N_ENUM_ITEM declines to
+        '' publish unqualified when the name is taken -- and this is the other order,
+        '' which reported 'already declared in this scope' for a program fbc compiles.
+        '' Overwriting the slot is safe because the member has its OWN copy in the
+        '' enum's scope: the enclosing binding is the unqualified convenience alone.
+        dim as boolean enumYields = (e->kind = cast( ubyte, SYM_ENUMCONST )) andalso _
+                                    (k <> SYM_ENUMCONST)
+        if enumYields then
+            existing = SYMBOL_NONE
+        elseif split andalso (e->altClass = SYMBOL_NONE) then
             chainTo = existing
         elseif bothProcs = false then
             duplicate = true
