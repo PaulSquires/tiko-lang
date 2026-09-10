@@ -297,6 +297,40 @@ private sub InitMember_ _
         InitDynArrayDesc( c, addr, ft )
         return
     end if
+
+    '' A FIXED ARRAY FIELD, and this branch was simply missing.
+    ''
+    '' DestroyMember_ below grew a TK_ARRAY branch -- it destroys every element of a
+    '' fixed array of strings through fb_ArrayDestructStr -- and its twin here did
+    '' not. So a type holding 'as string items(0 to 3)' got a synthesised
+    '' constructor that emitted NOTHING and a destructor that freed four descriptors
+    '' nobody had written: 'dim as B3 a' then one assignment exits 0xC0000374 where
+    '' fbc prints and returns 0. The missing half turned a leak into a crash.
+    ''
+    '' Measured, fbc zeroes the WHOLE FIELD in one go and does nothing else:
+    ''
+    ''     static void _ZN2B3C1Ev( struct $2B3* THIS$1 )
+    ''     { __builtin_memset( (FBSTRING*)THIS$1, 0, 96ll ); }
+    ''
+    '' -- 96 bytes, four 24-byte descriptors, no per-element call. A UDT ELEMENT with
+    '' a real constructor still needs its own loop and is NOT modelled here: fbc
+    '' emits one, and which shape a FIELD should take is the same open choice
+    '' DestroyMember_ records for its own UDT-element case. Zeroing is right for the
+    '' string element that crashes today and harmless under a constructor that would
+    '' overwrite it, so the zero-fill goes in and the element loop stays owed.
+    if c.types->Kind( ft ) = Tko.TK_ARRAY then
+        dim as long asz2 = SizeOfType( c, ft )
+        if asz2 <= 0 then return
+        dim as FB.Array( of ulong ) zargs2
+        zargs2.Push( cast( ulong, addr.kind ) )
+        zargs2.Push( cast( ulong, addr.id ) )
+        zargs2.Push( cast( ulong, MV_CONST_INT ) ) : zargs2.Push( 0 )
+        zargs2.Push( cast( ulong, MV_CONST_INT ) )
+        zargs2.Push( cast( ulong, asz2 ) )
+        EmitRtl( c, RTL_MEMSET, zargs2 )
+        return
+    end if
+
     if c.types->Kind( ft ) <> Tko.TK_UDT then return
 
     dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, ft, "__ctor" ), 0 )

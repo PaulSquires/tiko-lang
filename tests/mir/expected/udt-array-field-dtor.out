@@ -90,6 +90,7 @@ declare void fb_End(i32 $0)
 func void _ZN12WITHSTRARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 240)
     ret
 }
 func void _ZN12WITHSTRARRAYD1Ev(ptr $0) {
@@ -129,6 +130,7 @@ declare void fb_ArrayDestructStr(ptr $0)
 func void _ZN13WITHUSTRARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 96)
     ret
 }
 func void _ZN13WITHUSTRARRAYD1Ev(ptr $0) {
@@ -168,6 +170,7 @@ declare void fb_ArrayDestructUStr(ptr $0)
 func void _ZN12WITHUDTARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 96)
     ret
 }
 func void _ZN12WITHUDTARRAYD1Ev(ptr $0) {
@@ -192,4 +195,4 @@ func void _ZN4ELEMD1Ev(ptr $0) {
 }
 declare void fb_StrDelete(ptr $0)
 verify: ok
-lowered: 12 functions, 12 blocks, 119 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 12 functions, 12 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance
