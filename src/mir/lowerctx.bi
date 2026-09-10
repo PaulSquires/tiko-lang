@@ -96,6 +96,11 @@ type Ctx
     '' globals in DECLARATION order in the first and in exact reverse in the second.
     '' Recorded as declarations are seen, so the order is the source's.
     as FB.Array( of long )  modInitGlobal
+    '' The INITIALISER NODE for a module global constructed by a named constructor --
+    '' 'dim shared f as foo = foo( 7 )' -- or NODE_NONE for the default-constructed
+    '' ones. Parallel to modInitGlobal. fbc emits the chosen call in its module
+    '' initialiser: '_ZN3FOOC1Eu7INTEGER( &F$, 7ll )'.
+    as FB.Array( of ulong ) modInitCall
     as FB.Array( of ulong ) modInitType
     '' The virtual method tables, for emitting them and for dispatching through one.
     as Tko.VTables ptr      vts
@@ -919,6 +924,12 @@ declare function EmitRtl _
     '' zero fill and its member constructor as well as the store.
     declare function FieldInitIsAny_ _
         ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' 'T( args )' constructed ON AN ADDRESS -- a field's, or a shared global's. The
+    '' chosen constructor, its arguments coerced to that overload's parameters, and no
+    '' temporary of T anywhere.
+    declare function CtorCallOnAddr_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+          byval init as Tko.NodeId ) as boolean
     '' lowerimpl.bas -- the structors fbc writes for you.
     declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean

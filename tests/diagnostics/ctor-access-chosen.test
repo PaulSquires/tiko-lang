@@ -1,0 +1,6 @@
+'' A private constructor named by an initialiser is refused, even though a public
+'' default constructor exists.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-access-chosen.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0633

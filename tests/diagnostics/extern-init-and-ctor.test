@@ -2,6 +2,11 @@
 '' default one cannot be declared without an initialiser; and a declaration may not cross
 '' the string/number divide, for a variable exactly as for a constant. A STATIC MEMBER is
 '' really an extern, and a DYNAMIC ARRAY cannot be a union member.
+''
+'' THIS GOLDEN HAD FROZEN A DECLINE. 'dim shared constructed as NeedsArg = NeedsArg( 1 )'
+'' on line 57 could not be folded to bytes, so it declined at lowerstore.bas and the
+'' golden recorded that. It is constructed in the module initialiser now, the way fbc
+'' does it, and the file is at 0 statements not lowered.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/extern-init-and-ctor.bas
 '' EXPECT-EXIT: 1

@@ -1,0 +1,13 @@
+'' A module global constructed by a named constructor, in the module initialiser.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/shared-ctor-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The chosen constructor, called on the global, inside the module initialiser.
+'' EXPECT-OUT: _GLOBAL__I
+'' EXPECT-OUT: _ZN3FOOC1Eu7INTEGER
+
+'' Built and RUN against fbc on this source: both print 7. Before this it printed 0 --
+'' the global was default-constructed and the 7 was dropped.
+'' GOLDEN: expected/shared-ctor-init.out

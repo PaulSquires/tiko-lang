@@ -63,10 +63,20 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
+attribute constructor
+func void _GLOBAL__I() {
+  entry0:
+    %1 = const i64 1
+    call void _ZN8NEEDSARGC1Eu7INTEGER(@@constructed, %1)
+    ret
+}
+attribute destructor
+func void _GLOBAL__D() {
+  entry0:
+    ret
+}
 verify: ok
-lowered: 4 functions, 4 blocks, 30 insts, 1 statements not lowered, 0 scope imbalance
-  inside N_VAR 1
-  skip-site src\mir\lowerstore.bas:1025 1
+lowered: 6 functions, 6 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/extern-init-and-ctor.bas(50,9): error TKO0653: 'badstr' and its initializer disagree about being a string
      |
   50 |     dim badStr as string = 1

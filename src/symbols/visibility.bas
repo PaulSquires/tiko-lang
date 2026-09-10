@@ -19,6 +19,9 @@
 
 #include once "symbols/visibility.bi"
 #include once "diag/diagids.bi"
+'' ConversionCost, for the constructor pick in latechecks.bas -- see CtorChosenBy_.
+'' Declarations only; check.bas is its own compilation unit.
+#include once "symbols/check.bi"
 
 namespace Tko.Vis
 

@@ -72,6 +72,99 @@ function FieldInitIsAny_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
 end function
 
+'' 'as A a = A( "456" )' -- A CONSTRUCTOR CALL AS A FIELD INITIALISER.
+''
+'' Measured, and fbc calls the chosen constructor ON THE FIELD ITSELF, building no
+'' temporary A at all:
+''
+''     FBSTRING TMP; memset( &TMP, 0, 24 );
+''     fb_StrAssign( &TMP, -1, "456", 4, 0 );
+''     _ZN1AC1ER8FBSTRING( (struct $1A*)THIS, &TMP );
+''     fb_StrDelete( &TMP );
+''
+'' -- and A's DEFAULT constructor is NOT called first: the chosen one REPLACES the
+'' default initialisation rather than following it. See the matching skip in
+'' EmitCtorPrologue_, without which the field is constructed twice and the second run
+'' overwrites a string descriptor that already owns a buffer.
+''
+'' LowerConvCtorInit_ IS NOT THE HELPER, and reaching for it cost a miscompile the first
+'' time: with a -1 slot and the field's address it RETURNED TRUE AND EMITTED NOTHING, so
+'' _ZN1BC1Ev came out as one dead field.addr and a ret, the field was left uninitialised
+'' and the program printed garbage where fbc prints 456. A counted decline had become a
+'' silent wrong answer. This is the LowerBaseCtorCall_ shape instead -- lower the
+'' arguments, PickCtor over the field type's chain, EmitStructorCall on the field's
+'' address -- which is the same machinery 'base( ... )' uses.
+function CtorCallOnAddr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    if c.ast->Kind( init ) <> Tko.N_CALL then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( ft )
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
+
+    dim as Tko.SymbolId ctors = StructorOf( c, ut, "__ctor" )
+    if ctors = Tko.SYMBOL_NONE then return false
+
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+
+    '' Argument VALUES first, then the pick: the types are needed to choose, and the
+    '' values must be evaluated in source order whichever overload wins. Same order
+    '' LowerBaseCtorCall_ uses, and for the same reason.
+    dim as FB.Array( of ulong ) argT
+    dim as FB.Array( of ulong ) argKind
+    dim as FB.Array( of ulong ) argId
+    for i as long = 0 to cp->count - 1
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        '' A STRING ARGUMENT IS A DESCRIPTOR, not the literal's bytes. 'A( "456" )' over
+        '' 'constructor A( byref as string )' passed the literal's global straight
+        '' through, so the constructor read a descriptor out of string data and
+        '' 'this.s = s' copied nothing -- the program printed an EMPTY line where fbc
+        '' prints 456. It lowered, it verified, and only running it said so. fbc builds
+        '' a temporary FBSTRING and passes its address.
+        dim as MirValue av
+        dim as Tko.TypeId at = c.info->TypeOf_( a )
+        dim as boolean gotArg = false
+        if IsStringType( c, at ) then gotArg = StrDescriptorOf_( c, a, av )
+        if gotArg = false then av = LowerExpr( c, a )
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        argT.Push( cast( ulong, at ) )
+        argKind.Push( cast( ulong, av.kind ) )
+        argId.Push( cast( ulong, av.id ) )
+    next
+
+    dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
+    if pick = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
+    if pn = Tko.NODE_NONE then return false
+
+    '' Coerced to the chosen overload's PARAMETER types: MIR has no implicit
+    '' conversions, and the overload was picked knowing one would be needed.
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as long ai = 0
+    dim as FB.Array( of ulong ) cargs
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if ai >= argT.Count then exit for
+        dim as MirValue av
+        av.kind = cast( ubyte, argKind[ai] )
+        av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
+        av.id = argId[ai]
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        dim as MirValue cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
+        if cv.kind = cast( ubyte, MV_NONE ) then return false
+        cargs.Push( cast( ulong, cv.kind ) ) : cargs.Push( cast( ulong, cv.id ) )
+        ai += 1
+    next
+    if ai <> cast( long, argT.Count ) then return false
+
+    EmitStructorCall( c, pick, -1, @addr, @cargs )
+    return true
+end function
+
 '' The '= value' stored into one field, after that field's default initialisation.
 ''
 '' fbc runs these inside the constructor -- implicit or written -- which is why they
@@ -153,6 +246,7 @@ sub EmitFieldInit_ _
     '' static-local path needed one first.
     if c.types->Kind( c.types->Unqualify( ft ) ) = Tko.TK_UDT then
         if LowerUdtParenInit_( c, -1, ft, init, @addr ) then return
+        if CtorCallOnAddr_( c, addr, ft, init ) then return
     end if
 
     dim as MirType mt = LowerType( ft, *c.types )

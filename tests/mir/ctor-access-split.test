@@ -1,0 +1,7 @@
+'' A constructor set split across access modes: the initialiser names the public one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-access-split.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0633
+'' EXPECT-NOT: not accessible here

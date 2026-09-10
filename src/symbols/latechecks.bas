@@ -698,6 +698,117 @@ private sub CheckCopyStructor_ _
     c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
 end sub
 
+'' THE CONSTRUCTOR A DECLARATION'S INITIALISER SELECTS, or SYMBOL_NONE when that cannot
+'' be decided here.
+''
+'' 'dim f as foo = foo( 1 )' names a constructor, and the accessibility question is about
+'' THAT one. CheckImplicitStructors_ asked whether a reachable DEFAULT constructor exists
+'' whichever was written, so it was wrong in BOTH directions -- measured, three cases one
+'' line apart:
+''
+''     private ctor( ), public ctor( i ) : dim f as foo = foo(1)  fbc ACCEPTS, tiko refused
+''     public ctor( ), PRIVATE ctor( i ) : dim f as foo = foo(1)  fbc err 205, tiko accepted
+''     private ctor( ), public ctor( i ) : dim f as foo           fbc err 204, tiko refuses
+''
+'' The winner does not exist to be read: for a type-call 'foo( 1 )' Check binds the callee
+'' to the UDT and types the expression WITHOUT resolving which constructor runs -- its own
+'' comment says so, and PickCtor does that costing in the MIR layer long afterwards. An
+'' earlier attempt that read RefOf on the call was reverted because it never fires.
+''
+'' So the pick is done here, and NARROWLY: it exists only to decide accessibility, so
+'' anything it cannot settle returns SYMBOL_NONE and the caller falls back to the old
+'' default-constructor question. Silence beats a new false refusal.
+private function CtorChosenBy_ _
+    ( byref c as Ctx, byval udt as TypeId, byval callNode as NodeId ) as SymbolId
+
+    if callNode = NODE_NONE then return SYMBOL_NONE
+    if c.ast->Kind( callNode ) <> N_CALL then return SYMBOL_NONE
+    '' The chain HEAD's own id, which StructorOf_ does not hand back -- it returns a
+    '' pointer. Re-done here by the same lookup so the walk can carry ids.
+    dim as InternId tn = c.types->NameOf( udt )
+    if tn = 0 then return SYMBOL_NONE
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr tsy = c.syms->SymbolAt( ts )
+    if tsy = 0 then return SYMBOL_NONE
+    if tsy->inner = SCOPE_NONE then return SYMBOL_NONE
+    dim as SymbolId headId = c.syms->LookupLocal( tsy->inner, _
+        c.names->Fold( c.names->GetString( "__ctor" ) ) )
+    if headId = SYMBOL_NONE then return SYMBOL_NONE
+
+    dim as ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, callNode )].data )]
+
+    '' Argument types. An untyped one makes the whole pick undecidable, which is the
+    '' same rule ResolveCall_ follows.
+    dim as NodeIdVec argT
+    for i as long = 0 to cp->count - 1
+        dim as NodeId a = cast( NodeId, c.ast->children[cp->first + i] )
+        dim as TypeId at = c.info->TypeOf_( a )
+        if at = TYPE_NONE then return SYMBOL_NONE
+        argT.Push( cast( ulong, at ) )
+    next
+
+    dim as SymbolId best = SYMBOL_NONE
+    dim as long bestCost = 0
+    dim as long ties = 0
+    dim as SymbolId walkId = headId
+    dim as long guard = 0
+    while (walkId <> SYMBOL_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as Symbol ptr walk = c.syms->SymbolAt( walkId )
+        if walk = 0 then exit while
+        dim as NodeId decl = cast( NodeId, walk->payload )
+        dim as long req = RequiredParams_( c, decl )
+        dim as long total = ParamCount_( c, decl )
+        dim as boolean fits = (req >= 0) andalso (total >= 0) andalso _
+                              (cast( long, argT.Count ) >= req) andalso _
+                              (cast( long, argT.Count ) <= total)
+        if fits then
+            dim as long cost = 0
+            dim as boolean ok = true
+            dim as StmtPayload ptr dp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+            dim as long ai = 0
+            for i as long = 0 to dp->count - 1
+                dim as NodeId prm = cast( NodeId, c.ast->children[dp->first + i] )
+                if c.ast->Kind( prm ) <> N_PARAM then continue for
+                if ai >= cast( long, argT.Count ) then exit for
+                dim as StmtPayload ptr pp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+                dim as TypeId pt = c.info->TypeOf_( pp->a )
+                if pt = TYPE_NONE then
+                    ok = false
+                    exit for
+                end if
+                dim as long one = Tko.Check.ConversionCost( cast( TypeId, argT[ai] ), pt, *c.types, true )
+                if one < 0 then
+                    ok = false
+                    exit for
+                end if
+                cost += one
+                ai += 1
+            next
+            if ok then
+                if (best = SYMBOL_NONE) orelse (cost < bestCost) then
+                    best = walkId
+                    bestCost = cost
+                    ties = 0
+                elseif cost = bestCost then
+                    ties += 1
+                end if
+            end if
+        end if
+        walkId = walk->nextOverload
+    wend
+
+    '' A TIE IS NOT A PICK. Check reports its own ambiguity diagnostic for that; saying
+    '' nothing here leaves it to the pass that owns the question.
+    if ties > 0 then return SYMBOL_NONE
+    return best
+end function
+
 private sub CheckImplicitStructors_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -745,7 +856,28 @@ private sub CheckImplicitStructors_( byref c as Ctx )
                 end if
             end if
         end if
-        if copies then
+        '' AN INITIALISER THAT NAMES A CONSTRUCTOR is asked about THAT constructor.
+        '' See CtorChosenBy_ for the three measured cases and why the pick is done there
+        '' rather than read off the node.
+        dim as SymbolId chosenCtor = SYMBOL_NONE
+        if s->payload <> 0 then
+            dim as NodeId it3 = cast( NodeId, s->payload )
+            if c.ast->Kind( it3 ) = N_VAR_ITEM then
+                dim as StmtPayload ptr ip3 = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, it3 )].data )]
+                if copies = false then chosenCtor = CtorChosenBy_( c, u, ip3->b )
+            end if
+        end if
+
+        if chosenCtor <> SYMBOL_NONE then
+            dim as Symbol ptr ccs = c.syms->SymbolAt( chosenCtor )
+            if ccs <> 0 then
+                if StructorReachable_( c, ccs, u, here ) = false then
+                    c.diags->Report( TKO0633, PointRange( s->loc ), _
+                                     c.names->Spelling( s->name ) )
+                end if
+            end if
+        elseif copies then
             CheckCopyStructor_( c, u, here, s->loc, s->name )
         else
             CheckOneStructor_( c, u, "__ctor", here, s->loc, s->name )

@@ -528,7 +528,18 @@ sub EmitCtorPrologue_ _
             continue for
         end if
 
-        if needsInit then InitMember_( c, fa, f->type_ )
+        '' A CONSTRUCTOR CALL AS THE INITIALISER REPLACES THE DEFAULT CONSTRUCTION.
+        '' Measured: fbc's body for 'as A a = A( "456" )' is the chosen constructor and
+        '' nothing before it. Running InitMember_ as well constructs the field TWICE --
+        '' and for a type whose default constructor assigns a string, the second run
+        '' overwrites a descriptor that already owns a buffer.
+        dim as boolean fiIsCtorCall = false
+        if fi <> Tko.NODE_NONE then
+            if c.types->Kind( c.types->Unqualify( f->type_ ) ) = Tko.TK_UDT then
+                fiIsCtorCall = (c.ast->Kind( fi ) = Tko.N_CALL)
+            end if
+        end if
+        if needsInit andalso (fiIsCtorCall = false) then InitMember_( c, fa, f->type_ )
         '' AFTER the default initialisation, not instead of it: a field that needs a
         '' descriptor built still needs it, and the declared value goes on top.
         if fi <> Tko.NODE_NONE then EmitFieldInit_( c, fa, f->type_, fi )
@@ -1320,6 +1331,16 @@ sub EmitModuleInit_( byref c as Ctx )
 
             if c.types->Kind( gt ) = Tko.TK_UDT then
                 if isCtor then
+                    '' A NAMED CONSTRUCTOR FIRST. See the note in InitSharedGlobal: the
+                    '' declaration chose one, and the zero-arity lookup below would run
+                    '' a different constructor and drop the arguments.
+                    dim as Tko.NodeId mic = Tko.NODE_NONE
+                    if i < c.modInitCall.Count then
+                        mic = cast( Tko.NodeId, c.modInitCall[i] )
+                    end if
+                    if mic <> Tko.NODE_NONE then
+                        if CtorCallOnAddr_( c, ga, gt, mic ) then continue for
+                    end if
                     dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
                     if ct <> Tko.SYMBOL_NONE then
                         dim as FB.Array( of ulong ) none1

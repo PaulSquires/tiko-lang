@@ -920,6 +920,17 @@ sub InitSharedGlobal _
                 wants = ArrayElemNeedsInit_( c, gs->type_ ) orelse _
                         ArrayElemNeedsDtor_( c, gs->type_ )
             end if
+            '' ...AND A NAMED CONSTRUCTOR IS ITSELF A REASON TO BE IN THE LIST, whatever
+            '' the type would otherwise want. 'dim shared f as foo = foo( 7 )' over a
+            '' type with a single one-argument constructor and an integer field needs no
+            '' default initialisation at all, so 'wants' was false and the global was
+            '' never recorded -- the declaration then declined at the aggregate folder
+            '' and the program printed 0 where fbc prints 7.
+            if init <> Tko.NODE_NONE then
+                if c.ast->Kind( init ) = Tko.N_CALL then
+                    if c.types->Kind( gs->type_ ) = Tko.TK_UDT then wants = true
+                end if
+            end if
             if wants then
                 dim as boolean already = false
                 for i as long = 0 to c.modInitGlobal.Count - 1
@@ -928,6 +939,23 @@ sub InitSharedGlobal _
                 if already = false then
                     c.modInitGlobal.Push( g )
                     c.modInitType.Push( cast( ulong, gs->type_ ) )
+                    '' 'dim shared f as foo = foo( 7 )' NAMES ITS CONSTRUCTOR, and the
+                    '' module initialiser must call THAT one rather than the zero-arity
+                    '' one -- measured, fbc's '_GLOBAL__I' equivalent contains
+                    '' '_ZN3FOOC1Eu7INTEGER( &F$, 7ll )' and nothing else. Recorded here
+                    '' because this is where the initialiser node is in hand; emitted in
+                    '' EmitModuleInit_. Without it the declaration reached the aggregate
+                    '' folder below, which cannot fold a CALL, and declined -- so the
+                    '' global was default-constructed and the argument thrown away.
+                    dim as Tko.NodeId ctorCall = Tko.NODE_NONE
+                    if init <> Tko.NODE_NONE then
+                        if c.ast->Kind( init ) = Tko.N_CALL then
+                            if c.types->Kind( gs->type_ ) = Tko.TK_UDT then
+                                ctorCall = init
+                            end if
+                        end if
+                    end if
+                    c.modInitCall.Push( cast( ulong, ctorCall ) )
                 end if
             end if
         end if
@@ -1022,6 +1050,15 @@ sub InitSharedGlobal _
             c.m->globals[g].hasInit = true
             return
         end if
+        '' ...UNLESS THE MODULE INITIALISER IS GOING TO CONSTRUCT IT. A constructor call
+        '' is not foldable to bytes and never will be; it was recorded above and is
+        '' emitted in EmitModuleInit_, so declining here would count a statement that is
+        '' in fact lowered.
+        for i as long = 0 to c.modInitGlobal.Count - 1
+            if c.modInitGlobal[i] = g then
+                if cast( Tko.NodeId, c.modInitCall[i] ) <> Tko.NODE_NONE then return
+            end if
+        next
         SkipHere( c )
         return
     end if
