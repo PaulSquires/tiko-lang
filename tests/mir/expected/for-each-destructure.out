@@ -28,6 +28,7 @@ func void _ZN8PAIRITER5VALUEEv(ptr $0, ptr $1) {
     %2 = alloca ptr this
     store @this, $1
     %3 = alloca ptr $tmp2
+    call void _ZN9$TUP:6:15C1Ev(@$tmp2)
     %4 = load @this
     %5 = field.addr %4, 0
     %6 = load %5
@@ -46,6 +47,7 @@ func void _ZN8PAIRITER5VALUEEv(ptr $0, ptr $1) {
     store $0, %16
     ret
 }
+declare void _ZN9$TUP:6:15C1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_IntToStr(i32 $0)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -235,5 +237,18 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    %4 = field.addr %3, 0
+    store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
+    ret
+}
 verify: ok
-lowered: 6 functions, 20 blocks, 132 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 21 blocks, 142 insts, 0 statements not lowered, 0 scope imbalance

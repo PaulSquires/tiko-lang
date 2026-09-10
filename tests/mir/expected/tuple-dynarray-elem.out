@@ -16,20 +16,22 @@ func void F(ptr $0) {
     %8 = trunc %7
     store %6, %8
     %9 = alloca ptr $tmp3
+    call void _ZN9$TUP:6:23C1Ev(@$tmp3)
     %10 = load @k
-    %11 = load @d
-    %12 = field.addr @$tmp3, 0
-    store %12, %10
-    %13 = field.addr @$tmp3, 8
-    store %13, %11
-    %14 = load @$tmp3
-    store @$tmp0, %14
+    %11 = field.addr @$tmp3, 0
+    store %11, %10
+    %12 = field.addr @$tmp3, 8
+    call void _ZN3DYNC1ERKS_(%12, @d)
+    %13 = load @$tmp3
+    store @$tmp0, %13
     call void _ZN3DYND1Ev(@d)
-    %15 = load @$tmp0
-    store $0, %15
+    %14 = load @$tmp0
+    store $0, %14
     ret
 }
 declare void _ZN3DYNC1Ev(ptr $0)
+declare void _ZN9$TUP:6:23C1Ev(ptr $0)
+declare void _ZN3DYNC1ERKS_(ptr $0, ptr $1)
 declare void _ZN3DYND1Ev(ptr $0)
 func void S1() {
   local agg t size 88
@@ -51,7 +53,6 @@ func void S1() {
     call void _ZN9$TUP:6:23D1Ev(@t)
     ret
 }
-declare void _ZN9$TUP:6:23C1Ev(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void _ZN9$TUP:6:23D1Ev(ptr $0)
 func i32 main(i32 $0, ptr $1) {
@@ -104,13 +105,6 @@ func void _ZN3DYNC1Ev(ptr $0) {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func void _ZN3DYND1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = call.rtl i32 fb_ArrayErase(%1)
-    ret
-}
-declare i32 fb_ArrayErase(ptr $0)
 func void _ZN9$TUP:6:23C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -119,11 +113,75 @@ func void _ZN9$TUP:6:23C1Ev(ptr $0) {
     call void _ZN3DYNC1Ev(%3)
     ret
 }
+func void _ZN3DYNC1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 4
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    %19 = field.addr $0, 72
+    %20 = call.rtl ptr memset(%19, 0, 4)
+    call void _ZN3DYNaSERKS_($0, $1)
+    ret
+}
+declare void _ZN3DYNaSERKS_(ptr $0, ptr $1)
+func void _ZN3DYND1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+declare i32 fb_ArrayErase(ptr $0)
 func void _ZN9$TUP:6:23D1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call void _ZN3DYND1Ev(%1)
     ret
 }
+func void _ZN3DYNaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = const ptr 0
+    %4 = const i32 0
+    %5 = call.rtl i32 fb_ArrayRedimTo(%2, %1, %4, %3, %3)
+    %6 = field.addr %2, 8
+    %7 = load %6
+    %8 = field.addr %1, 8
+    %9 = load %8
+    %10 = field.addr %1, 16
+    %11 = load %10
+    %12 = call.rtl ptr memcpy(%7, %9, %11)
+    %13 = field.addr $1, 72
+    %14 = field.addr $0, 72
+    %15 = load %13
+    store %14, %15
+    ret
+}
+declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
+declare ptr memcpy(ptr $0, ptr $1, i64 $2)
 verify: ok
-lowered: 7 functions, 7 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 9 functions, 9 blocks, 126 insts, 0 statements not lowered, 0 scope imbalance

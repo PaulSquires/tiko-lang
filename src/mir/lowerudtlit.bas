@@ -80,6 +80,34 @@ function UdtLiteralSlot_ _
 
     dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, lt ) )
     if slot < 0 then return -1
+
+    '' THE TEMPORARY IS CONSTRUCTED FIRST, exactly as a NAMED local of the same type is.
+    '' NewTempLocal only reserves bytes; a STRING field's descriptor in them is whatever
+    '' the stack held, and the field store below assigns THROUGH it. Measured on
+    ''
+    ''     dim as string s1 = "x", s2 = "y"
+    ''     (s1, s2) = (s2, s1)
+    ''
+    '' -- tiko exited 0xC0000374 (heap corruption) because fb_StrAssign freed a garbage
+    '' pointer read out of the temp; fbc-modern prints "yx" and exits 0. fbc reaches the
+    '' same place by emitting fb_StrInit for the temp's fields instead of fb_StrAssign
+    '' (its -r output for the program above), which is fb_StrAssign over a ZEROED
+    '' descriptor -- so zeroing here, through the same synthesised constructor a local
+    '' gets, is that store and nothing more. Costs nothing for a tuple of scalars:
+    '' TypeNeedsInit_ is false and no call is emitted.
+    ''
+    '' NOT FOR THE EMPTY FORM. 'type<A>( )' IS a constructor call and
+    '' LowerUdtParenInit_ emits it below; constructing here as well put TWO
+    '' '_ZN1AC1Ev( @$tmp4 )' calls in tests/diagnostics/abstract-expression's dump where
+    '' fbc emits one.
+    if (lp->count > 0) andalso TypeNeedsInit_( c, lt ) then
+        dim as MirValue cselfv
+        cselfv.kind = cast( ubyte, MV_LOCAL )
+        cselfv.ty = cast( ubyte, MT_PTR )
+        cselfv.id = slot
+        CallImplicitCtor_( c, lt, cselfv )
+    end if
+
     if LowerUdtParenInit_( c, slot, lt, id ) = false then return -1
     return slot
 end function
@@ -393,6 +421,11 @@ function LowerUdtParenInit_ _
     '' takes fb_StrInit rather than a store and there is no value to hold here.
     dim as FB.Array( of ulong ) sNode
     dim as FB.Array( of ulong ) sOff
+    '' A WHOLE-OBJECT LEAF WHOSE TYPE OWNS A STRING is recorded the same way and copied
+    '' by its assignment, not by a store, for the same reason: there is no value to hold.
+    dim as FB.Array( of ulong ) cNode
+    dim as FB.Array( of ulong ) cOff
+    dim as FB.Array( of ulong ) cTy
     for i as long = 0 to vCount - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
         if cur >= fCount then return false
@@ -403,6 +436,53 @@ function LowerUdtParenInit_ _
             cur += 1
             continue for
         end if
+
+        '' AN AGGREGATE ELEMENT THAT OWNS A STRING IS ASSIGNED, NOT LOADED AND STORED.
+        '' M_STORE of an MT_AGG is a bitwise copy, so the element and the destination
+        '' field ended up holding ONE string pointer and both freed it. Measured on
+        ''
+        ''     dim inner as (long, string) = (1, "n")
+        ''     dim s1 as ((long, string), long) = (inner, 3)
+        ''
+        '' -- tiko exited 0xC0000374 (heap corruption) at scope end where fbc-modern
+        '' exits 0, and it is why tests/vendor/fbc-tests/tuple/equality.bas died. fbc
+        '' reaches the deep copy through the tuple's copy constructor:
+        ''
+        ''     __builtin_memcpy( &TMP$4$0, &INNER$0, 32 );
+        ''     _ZN8FBTUPLE2I8FBTUPLE2Ii8FBSTRINGEiEC1ERKS3_( &S1$0, &TMP$4$0 );
+        ''
+        '' -- whose body is an fb_StrAssign per string field, which is what
+        '' CallImplicitCopy_ emits. Only when NeedsLetBody_ says the type owns
+        '' something: a tuple of scalars keeps the single store it always had.
+        ''
+        '' A DYNAMIC ARRAY IS THE SAME BUG and the same fix. The note in
+        '' tests/mir/src/tuple-dynarray-elem.bas reads fbc's memcpy of the element into
+        '' its TEMPORARY as the whole copy; the deep one is the copy constructor that
+        '' follows it, and tiko elides the temporary, so the shallow store landed in the
+        '' real object. Measured on that file's 'return (k, d)' with the array actually
+        '' REDIMmed: before this, 0xC0000374 at scope end -- 'd' and the tuple freeing
+        '' one buffer -- against fbc's exit 0. An empty array hides it, which is why the
+        '' file as written passed either way.
+        dim as Tko.TypeId et = c.info->TypeOf_( e )
+        if et <> Tko.TYPE_NONE then
+            if (c.types->Kind( et ) = Tko.TK_UDT) andalso NeedsLetBody_( c, et ) then
+                dim as long esz = SizeOfType( c, et )
+                if esz <= 0 then return false
+                dim as long estop = cast( long, fOff[cur] ) + esz
+                dim as long espan = 0
+                while (cur + espan < fCount) andalso _
+                      (cast( long, fOff[cur + espan] ) < estop)
+                    espan += 1
+                wend
+                if espan < 1 then return false
+                cNode.Push( cast( ulong, e ) )
+                cOff.Push( fOff[cur] )
+                cTy.Push( cast( ulong, et ) )
+                cur += espan
+                continue for
+            end if
+        end if
+
         dim as MirValue v = LowerExpr( c, e )
         if v.kind = cast( ubyte, MV_NONE ) then return false
         dim as long span = 1
@@ -472,6 +552,20 @@ function LowerUdtParenInit_ _
         if saddr.kind = cast( ubyte, MV_NONE ) then return false
         if LowerStringAssignTo( c, saddr, Tko.NODE_NONE, _
                                 cast( Tko.NodeId, sNode[i] ) ) = false then return false
+    next
+
+    '' ...AND THE WHOLE-OBJECT LEAVES, by assignment. See the note at the record site.
+    for i as long = 0 to cast( long, cOff.Count ) - 1
+        dim as MirInst cfa
+        cfa.op = cast( ushort, M_FIELD_ADDR )
+        cfa.ty = cast( ubyte, MT_PTR )
+        cfa.a = base_
+        cfa.imm = cast( long, cOff[i] )
+        dim as MirValue cdstv = Emit( c, cfa )
+        if cdstv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue csrcv = LowerAddr( c, cast( Tko.NodeId, cNode[i] ) )
+        if csrcv.kind = cast( ubyte, MV_NONE ) then return false
+        CallImplicitCopy_( c, cast( Tko.TypeId, cTy[i] ), cdstv, csrcv )
     next
 
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
