@@ -1,0 +1,13 @@
+'' An overload set split across access modes: the call picks the public one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-access-split.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The private overload takes no arguments and was never a candidate. Refusing the call
+'' on it is what this fixes.
+'' EXPECT-NOT: TKO0625
+'' EXPECT-NOT: is not accessible here
+
+'' ...and the PUBLIC one is what gets called.
+'' EXPECT-OUT: _ZN3FOO3BAREu7INTEGER

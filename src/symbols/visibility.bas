@@ -37,6 +37,9 @@ type Ctx
     as NodeIdVec             redimSym
     as NodeIdVec             redimRank
     as NodeIdVec             redimItem
+    '' The overload each CALLEE node's call chose, indexed by node id -- see
+    '' RecordChosenOverloads_. Local to this pass on purpose.
+    as NodeIdVec             chosenFor
     as NodeId                root
 end type
 
@@ -95,10 +98,66 @@ private function ProcOwner_ ( byref c as Ctx, byval id as NodeId ) as TypeId
     return OwningType_( c, c.syms->SymbolAt( psid ) )
 end function
 
+'' THE OVERLOAD THE ARGUMENTS CHOSE, per callee node.
+''
+'' Resolve binds a name to the HEAD of its overload chain; only Check's costing knows
+'' which overload a particular call selected, and it records that on the N_CALL. This
+'' pass asks "is this accessible" of the symbol on the CALLEE -- the N_MEMBER or
+'' N_IDENT -- which is still the head. An overload set split across access modes was
+'' therefore refused on a member that was never a candidate:
+''
+''     private: declare function bar( ) as integer
+''     public:  declare function bar( i as integer ) as integer
+''     f.bar( 1 )        tiko: 'bar' is not accessible here.  fbc: ACCEPTED
+''
+'' -- the private one takes NO arguments.
+''
+'' THIS IS NOT ACCESSIBILITY-FILTERED OVERLOADING, and the difference was measured
+'' before this was written: with 'private s( integer )' and 'public s( double )',
+'' 'x.s( 1 )' is fbc's error 202. It picks the private one on argument cost and THEN
+'' refuses it rather than falling back to the reachable overload. Choose first, check
+'' second -- so this reads the winner rather than making the private one invisible.
+''
+'' BUILT HERE RATHER THAN WRITTEN ONTO THE CALLEE NODE IN overload.bas. That was tried
+'' and it broke four tests -- mir/byref-args, byref-overload, property-overload-read and
+'' spawn -- because lowering reads the callee's binding and walks the chain from it, so
+'' replacing the head with the winner loses the other overloads. A map local to this
+'' pass cannot reach lowering at all.
+private sub RecordChosenOverloads_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as NodeId n = cast( NodeId, i )
+        if c.ast->Kind( n ) <> N_CALL then continue for
+        dim as SymbolId chosen = c.info->RefOf( n )
+        if chosen = SYMBOL_NONE then continue for
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if lp->target = NODE_NONE then continue for
+        select case c.ast->Kind( lp->target )
+        case N_MEMBER, N_IDENT
+        case else
+            continue for
+        end select
+        while c.chosenFor.Count <= cast( long, lp->target )
+            c.chosenFor.Push( 0 )
+        wend
+        c.chosenFor[cast( long, lp->target )] = cast( ulong, chosen )
+    next
+end sub
+
+'' The symbol a node's ACCESSIBILITY should be judged on: the overload the call chose
+'' when there was one, and otherwise whatever Resolve bound.
+private function AccessSymOf_( byref c as Ctx, byval id as NodeId ) as SymbolId
+    if cast( long, id ) < c.chosenFor.Count then
+        dim as SymbolId s = cast( SymbolId, c.chosenFor[cast( long, id )] )
+        if s <> SYMBOL_NONE then return s
+    end if
+    return c.info->RefOf( id )
+end function
+
 private sub CheckMember_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
 
-    dim as SymbolId sid = c.info->RefOf( id )
+    dim as SymbolId sid = AccessSymOf_( c, id )
     if sid = SYMBOL_NONE then return
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return
@@ -1339,6 +1398,7 @@ sub Run _
     c.baseName = names.GetString( "base" )
     c.root = root
     RecordFirstRedims_( c )
+    RecordChosenOverloads_( c )
     Walk_( c, root, TYPE_NONE )
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.

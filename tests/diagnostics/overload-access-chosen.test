@@ -1,0 +1,6 @@
+'' An inaccessible overload is CHOSEN and then refused -- not skipped over.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/overload-access-chosen.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0625
+'' EXPECT-OUT: 's' is not accessible here
