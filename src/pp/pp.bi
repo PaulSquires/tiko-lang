@@ -106,6 +106,13 @@ namespace Tko
         '' every header. The corpus branches on __FB_64BIT__ alone 214 times.
         as boolean    targetIsWindows
         as boolean    targetIs64
+        '' WHETHER THE TARGET USES THE MSVC ABI, which is the same kind of fact and
+        '' the same kind of silent failure. fbc-modern's crt/win32/stdio.bi branches
+        '' on __FB_MSVC__ and hard-codes MinGW's spellings otherwise: __iob_func,
+        '' which the UCRT does not have and no shim can supply -- MinGW hands out a
+        '' FILE ARRAY and the macros index it, while the UCRT hands out one stream
+        '' per call from __acrt_iob_func.
+        as boolean    targetIsMsvc
         '' '-mt'. Seeds __FB_MT__, which is the same kind of fact as the two above:
         '' a header that branches on it selects a different half of itself, and
         '' getting it wrong compiles quietly.

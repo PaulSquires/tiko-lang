@@ -140,8 +140,23 @@ func void BADDEFAULT(i64 $0) {
     store @n, $0
     ret
 }
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 16 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 17 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/return-style-mix.bas(47,38): error TKO0675: a parameter default names 'notdeclaredanywhere', which is not declared
      |
   47 | sub badDefault( byval n as integer = notDeclaredAnywhere )

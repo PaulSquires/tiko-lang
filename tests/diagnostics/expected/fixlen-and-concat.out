@@ -29,13 +29,28 @@ func void CONCATACCEPTED() {
 }
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 16 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 24 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb assign 2
   amb-assign-kind 1 2
   amb-assign-val N_INT_LIT 2
-  skip-site src\mir\lower.bas:712 2
+  skip-site src\mir\lower.bas:732 2
 tests/diagnostics/src/fixlen-and-concat.bas(32,5): error TKO0635: '&=' concatenates, so its target must be a string
      |
   32 |     i &= 1

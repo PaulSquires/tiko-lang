@@ -199,6 +199,7 @@ private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfi
     cfg.defines = @ctx.options.defines
     cfg.targetIsWindows = Tko.TargetIsWindows( ctx.options.target )
     cfg.targetIs64 = Tko.TargetIs64( ctx.options.target )
+    cfg.targetIsMsvc = (ctx.options.target = Tko.TARGET_WIN64_MSVC)
     cfg.threadSafe = ctx.options.threadSafe
     cfg.errLevel = ctx.options.errLevel
     cfg.reportUnsupported = true
@@ -826,6 +827,23 @@ function Run( byref args as Tko.StrVec ) as long
                     isMain = (Tko.Text.LowerAscii( modName ) = _
                               Tko.Text.LowerAscii( ctx.options.mainModule ))
                 elseif ctx.options.compileOnly then
+                    isMain = false
+                elseif ctx.options.outKind <> Tko.OUT_EXE then
+                    '' A LIBRARY AND A DLL HAVE NO MAIN MODULE unless one is NAMED.
+                    '' Measured, over a first module that has top-level code:
+                    ''
+                    ''     fbc -lib lc.bas lb.bas   static void fb_ctor__lc( void )
+                    ''                              __attribute__(( constructor ))
+                    ''     fbc -dll lc.bas          the same
+                    ''     fbc -lib -m lc lc.bas    int32 main( int32, char** )
+                    ''
+                    '' -- so the top-level code becomes a module CONSTRUCTOR, exactly as
+                    '' it does in any non-main module, and only -m brings a main back.
+                    '' tiko made the FIRST source the main module regardless, so every
+                    '' static library carried a main: linking one into a program is then
+                    '' 'lld-link: error: duplicate symbol: main', which is 77 of the
+                    '' corpus link failures build/linkscan.sh reports -- every file that
+                    '' links against a tiko-built libfbcunit.a.
                     isMain = false
                 else
                     isMain = (i = 1)

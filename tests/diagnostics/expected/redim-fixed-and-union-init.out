@@ -213,7 +213,7 @@ func void _ZN3UDTD1Ev(ptr $0) {
 verify: ok
 lowered: 4 functions, 4 blocks, 178 insts, 5 statements not lowered, 0 scope imbalance
   inside N_VAR 5
-  skip-site src\mir\lower.bas:162 5
+  skip-site src\mir\lower.bas:182 5
 tests/diagnostics/src/redim-fixed-and-union-init.bas(33,17): error TKO0618: too many expressions in the initializer for 'bad2'
      |
   33 | dim as U bad2 = ( 1, ( 2, 3 ) )

@@ -1048,6 +1048,24 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     end if
     PpDefineValue( e, "__FB_PCOS__", "" )
 
+    '' __FB_MSVC__ -- EMPTY-BODIED, and defined only on the MSVC-ABI target.
+    ''
+    '' fbc-modern's own crt/win32/stdio.bi branches on it and takes MinGW's
+    '' spellings otherwise: 'declare function __iob_func() as FILE ptr' with
+    '' 'stdout' as '@(__iob_func())[1]'. The UCRT has no __iob_func at all, and no
+    '' link-level shim can supply one -- MinGW hands out a FILE ARRAY and the macros
+    '' INDEX it, while the UCRT hands out ONE STREAM PER CALL from __acrt_iob_func,
+    '' whose entries are 88 bytes apart where that header's FILE is 48. The SHAPE
+    '' differs, not just the name.
+    ''
+    '' tiko-lang defaults to win64-msvc and defined nothing, so every crt header took
+    '' the MinGW half: 512 of the corpus link failures build/linkscan.sh reports are
+    '' 'undefined symbol: __iob_func', one for every file that reaches stdout or
+    '' stderr through fbcunit.
+    if e.cfg <> 0 then
+        if e.cfg->targetIsMsvc then PpDefineValue( e, "__FB_MSVC__", "" )
+    end if
+
     '' The instruction set, empty-bodied like the rest of this group. fbc defines it
     '' on x86 and x86-64 alike; 11 corpus references, every one an '#ifdef' or a
     '' 'defined( )', and tiko-lang defined it NOWHERE -- so all eleven took the wrong branch.

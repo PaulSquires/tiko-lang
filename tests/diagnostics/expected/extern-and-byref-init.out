@@ -163,7 +163,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 111 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
-  skip-site src\mir\lower.bas:162 1
+  skip-site src\mir\lower.bas:182 1
 tests/diagnostics/src/extern-and-byref-init.bas(7,5): error TKO0600: 'a2' is already declared in this scope
      |
    7 | dim a2(0 to 0) as integer

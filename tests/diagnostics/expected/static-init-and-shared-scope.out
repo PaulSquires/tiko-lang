@@ -171,8 +171,8 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 140 insts, 3 statements not lowered, 0 scope imbalance
   inside N_VAR 3
-  skip-site src\mir\lowerstore.bas:1045 2
-  skip-site src\mir\lowerstore.bas:1025 1
+  skip-site src\mir\lowerstore.bas:1152 2
+  skip-site src\mir\lowerstore.bas:1132 1
 tests/diagnostics/src/static-init-and-shared-scope.bas(31,10): error TKO0658: 'arr' is indexed with the wrong number of subscripts
      |
   31 | print arr(0, 0)

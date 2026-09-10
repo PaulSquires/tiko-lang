@@ -161,5 +161,20 @@ func i32 SUMOFVAL(ptr $0) {
     %14 = load @s
     ret %14
 }
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 14 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 15 blocks, 105 insts, 0 statements not lowered, 0 scope imbalance

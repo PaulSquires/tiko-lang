@@ -1039,7 +1039,22 @@ sub LowerMainModule _
 
     '' Nothing to run means no entry point at all, rather than an empty one: a module
     '' compiled as a library has none, and emitting one would collide at link time.
-    if ModuleHasCode( c, root ) = false then return
+    ''
+    '' THE MAIN MODULE IS THE EXCEPTION, and it is fbc's. Measured, over a file whose
+    '' whole content is 'sub s1() : print 1 : end sub':
+    ''
+    ''     fbc -r nomain.bas          static void fb_ctor__nomain( void ) only
+    ''     fbc -r -m nomain nomain.bas   int32 main( int32, char** ) as well
+    ''
+    '' -- so the empty main IS emitted for the module that is the program's, and only
+    '' for that one. Without it a test whose top level is nothing but SUITE macros --
+    '' which expand to module constructors and declarations and no statement at all --
+    '' produced an object with no entry point, and lld answered 'subsystem must be
+    '' defined'. 622 of the corpus, every fbcunit test in it, and build/linkscan.sh
+    '' is what made that visible: icescan stops at -c, where fbc emits no main either.
+    if isMainModule = false then
+        if ModuleHasCode( c, root ) = false then return
+    end if
 
     '' ONE FUNCTION, TWO SHAPES. The body below is identical either way -- it is the
     '' PROLOGUE and EPILOGUE that differ, so the two are parameterised here rather
