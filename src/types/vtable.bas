@@ -464,8 +464,21 @@ private function BuildOne_ _
         dim as long bi = store.Find( bt )
         if bi >= 0 then
             dim as VtInfo ptr b = @store.types_[bi]
+            '' COPIED TO A LOCAL FIRST. 'store.slots.Push( store.slots[ i ] )' pushes an
+            '' element of an array INTO ITSELF: the argument is a reference into the
+            '' vector, and the Push that reallocates it leaves that reference dangling
+            '' BEFORE the copy is made. The slot that landed held whatever the freed
+            '' block did -- and it looked like a real entry, so a type that inherits
+            '' more slots than its base's vector had room for got a vtable with a
+            '' PROCEDURE in it that mangled to the empty string: 'ptr @""', which
+            '' clang reports as 'use of undefined value'.
+            ''
+            '' IShellItem_ is the smallest shape in the corpus: three inherited slots
+            '' from ComUnknown and five of its own, all eight abstract, and slot 0
+            '' came out non-abstract with no name.
             for i as long = 0 to b->count - 1
-                store.slots.Push( store.slots[b->first + i] )
+                dim as VtSlot bs = store.slots[b->first + i]
+                store.slots.Push( bs )
                 v.count += 1
             next
         end if

@@ -833,7 +833,11 @@ private function ParseProc _
             '' ...AND AN EMPTY LIB NAME IS fbc's 305, the same mistake one keyword over.
             if Peek( p ) = Tko.TK_STRING_LIT then
                 dim as Tko.Token libTok = Cur( p )
-                EmptyAliasCheck( p, StringLitText( p ), libTok, true )
+                dim as Tko.InternId lbn = StringLitText( p )
+                EmptyAliasCheck( p, lbn, libTok, true )
+                '' THE NAME IS KEPT. It was read and discarded, so the clause asked
+                '' for a library and nothing linked one -- see ParserState.declLibs.
+                if lbn <> 0 then p.declLibs.Push( cast( ulong, lbn ) )
                 Advance( p )
             end if
             ate = true

@@ -49,6 +49,12 @@ namespace Tko
         '' worth keeping, so the two cases are told apart by this rather than by
         '' silently accepting both.
         as long                 aggDepth
+        '' THE LIBRARIES 'declare ... lib "name"' ASKS FOR. The clause was parsed and
+        '' the name THROWN AWAY, so 'declare function SHCreateItemFromParsingName lib
+        '' "shell32"' linked against nothing -- 'undefined symbol', with the library
+        '' sitting in the toolchain all along. Interned ids, drained by the driver
+        '' into the same list '#inclib' feeds.
+        as FB.Array( of ulong ) declLibs
         as long                 errors
         as boolean              silent      '' suppress cascades after an error
         '' LAMBDAS, HOISTED. 'function( ) as long ... end function' written where an

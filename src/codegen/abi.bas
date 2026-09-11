@@ -385,8 +385,14 @@ private sub RewriteCallReturn _
     for i as long = 0 to ins.count - 1
         dim as long k = (ins.first + i) * 2
         if (k + 1) >= r.m->argPool.Count then exit for
-        r.m->argPool.Push( r.m->argPool[k] )
-        r.m->argPool.Push( r.m->argPool[k + 1] )
+        '' COPIED TO LOCALS FIRST: pushing an element of a vector INTO ITSELF passes a
+        '' reference into the vector, and the Push that reallocates leaves it dangling
+        '' before the copy is made. The same shape in types/vtable.bas put garbage in
+        '' a vtable slot; here it would put garbage in an argument.
+        dim as ulong ak = r.m->argPool[k]
+        dim as ulong ak1 = r.m->argPool[k + 1]
+        r.m->argPool.Push( ak )
+        r.m->argPool.Push( ak1 )
     next
     dim as MirInst c2 = ins
     c2.ty = cast( ubyte, MT_VOID )

@@ -704,6 +704,15 @@ function Run( byref args as Tko.StrVec ) as long
             for k as long = 0 to pr.incLibs.Count - 1
                 ctx.options.pragmaLibs.Push( pr.incLibs[k] )
             next
+            '' ...AND WHAT A 'declare ... lib "name"' ASKED FOR, which is the same
+            '' request in the other spelling. The clause was parsed and the name
+            '' discarded, so 'declare function SHCreateItemFromParsingName lib
+            '' "shell32"' left an undefined symbol with shell32 sitting unused in
+            '' the toolchain.
+            for k as long = 0 to p.declLibs.Count - 1
+                ctx.options.pragmaLibs.Push( _
+                    ctx.names.Spelling( cast( Tko.InternId, p.declLibs[k] ) ) )
+            next
             for k as long = 0 to pr.libPaths.Count - 1
                 ctx.options.pragmaLibPaths.Push( pr.libPaths[k] )
             next

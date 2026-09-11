@@ -1,0 +1,6 @@
+'' Inherited vtable slots survive the copy: every abstract slot stays abstract, and
+'' none of them acquires a procedure with no name.
+'' TEST: cli
+'' ARGS: --dump-vtable tests/types/src/inherited-vtable-slots.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/inherited-vtable-slots.out
