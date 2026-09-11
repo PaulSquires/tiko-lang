@@ -157,11 +157,15 @@ function LocalFor _
     return c.f->locals.Count - 1
 end function
 
-'' Whether a symbol is DIM SHARED, and so lives in module storage rather than a frame.
+'' Whether a symbol lives in MODULE storage rather than a frame.
 function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = 0 then return false
-    return ((s->flags and Tko.SYMF_SHARED) <> 0)
+    '' EXTERN AND COMMON ARE MODULE STORAGE TOO. SYMF_SHARED alone made an 'extern X
+    '' as T' a FRAME SLOT -- a zeroed local, with no reference to the real symbol
+    '' emitted, so it LINKED. See HANDOFF 7c.
+    dim as ulong mf = Tko.SYMF_SHARED or Tko.SYMF_EXTERN or Tko.SYMF_COMMON
+    return ((s->flags and mf) <> 0)
 end function
 
 '' A STATIC local: procedure scope, but MODULE lifetime.
@@ -238,13 +242,17 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
             nm = StaticName( c, sid )
         end if
     end if
+    '' AN EXTERN LINKS BY ITS OWN NAME, and is DECLARED rather than defined.
+    dim as boolean isExt = ((s->flags and Tko.SYMF_EXTERN) <> 0)
+    if isExt andalso (s->linkName <> 0) then nm = s->linkName
     dim as long sz = SizeOfType( c, s->type_ )
     '' The storage NAME must still be unique, because it is what a linker and a golden
     '' diff see. A collision here means two distinct symbols wanted the same spelling,
     '' so the later one is suffixed rather than silently sharing.
-    nm = UniqueGlobalName( c, nm )
+    if isExt = false then nm = UniqueGlobalName( c, nm )
 
     dim as long g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
+    if isExt then c.m->globals[g].isExternal = true
     c.gvarSym.Push( cast( ulong, sid ) )
     c.gvarSlot.Push( g )
     return g

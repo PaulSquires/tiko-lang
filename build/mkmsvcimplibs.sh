@@ -58,7 +58,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 
 export LLVM_BIN="$LLVM"
-made=0; empty=0; failed=0; codes=0; datas=0
+made=0; empty=0; failed=0; codes=0; datas=0; datalibs=0
 for f in "$FROM"/*.dll.a; do
     [ -f "$f" ] || continue
     base=$(basename "$f" .dll.a)          # libkernel32
@@ -75,13 +75,38 @@ for f in "$FROM"/*.dll.a; do
             echo "mkmsvcimplibs: FAILED $name" >&2
         fi
     else
-        # An import library with no exports at all. Real: fbc's tree carries a
-        # few placeholder archives. Nothing to generate, and a .lib with no
-        # members would only be a file that resolves nothing.
-        empty=$(( empty + 1 ))
+        # NO EXPORTS BECAUSE IT IS NOT AN IMPORT LIBRARY AT ALL. Eighteen of fbc's
+        # lib*.dll.a are STATIC archives of DATA OBJECTS wearing the import-library
+        # name: uuid, dxguid, ksguid, strmiids, mfuuid, wbemuuid, dmoguids,
+        # portabledeviceguids, wmcodecdspuuid, amstrmid, sapi, taskschd,
+        # locationapi, sensorsapi, dxerr8, dxerr9, scrnsave, scrnsavw. They hold
+        # the GUID CONSTANTS -- CLSID_ShellLink and every IID with it -- which no
+        # DLL exports and which the MSVC world ships in uuid.lib.
+        #
+        # Skipping them was SILENT and expensive: 'extern CLSID_ShellLink as const
+        # GUID' linked against nothing, CoCreateInstance was handed sixteen bytes
+        # of whatever, and it answered REGDB_E_CLASSNOTREG. No COM program could
+        # name a class.
+        #
+        # COPIED, NOT CONVERTED. There is nothing to convert -- a data object is
+        # already COFF and lld-link reads it. The archives beside them that are
+        # excluded on purpose (libfb.a, libgcc.a, the CRT objects) carry MinGW CRT
+        # dependencies; a GUID object references nothing at all, which is what
+        # makes this safe where copying libmingwex would not be.
+        if "$LLVM/llvm-nm.exe" "$f" 2>/dev/null | grep -qE '^[0-9a-f]+ [RrDd] '; then
+            cp "$f" "$TO/$name.lib"
+            made=$(( made + 1 ))
+            datalibs=$(( datalibs + 1 ))
+        else
+            # An import library with no exports at all. Real: fbc's tree carries a
+            # few placeholder archives. Nothing to generate, and a .lib with no
+            # members would only be a file that resolves nothing.
+            empty=$(( empty + 1 ))
+        fi
     fi
 done
 
 echo "mkmsvcimplibs: $made libraries, $codes code exports, $datas data exports"
+echo "mkmsvcimplibs: $datalibs static GUID archives copied through"
 echo "mkmsvcimplibs: $empty with no exports (skipped), $failed failed"
 [ "$failed" = "0" ] || die "$failed conversions failed"

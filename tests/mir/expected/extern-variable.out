@@ -1,0 +1,31 @@
+global var i32 PLAINTHING$
+global var i32 CThing
+global var i32 WThing
+func void USE_() {
+  entry0:
+    %1 = load @@PLAINTHING$
+    call.rtl void fb_PrintInt(0, %1, 2)
+    %2 = load @@CThing
+    call.rtl void fb_PrintInt(0, %2, 2)
+    %3 = load @@WThing
+    call.rtl void fb_PrintInt(0, %3, 1)
+    ret
+}
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 2 blocks, 14 insts, 0 statements not lowered, 0 scope imbalance

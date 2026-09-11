@@ -476,7 +476,21 @@ sub WalkNode _
                 '' comma, which belongs to that item rather than to the declaration.
                 if ((n->flags or w.ast->nodes[cast( long, item )].flags) and _
                     Tko.NF_BYREF) <> 0 then s->flags or= Tko.SYMF_BYREF
-                if isExtern then s->flags or= Tko.SYMF_EXTERN
+                if isExtern then
+                    s->flags or= Tko.SYMF_EXTERN
+                    '' ...AND THE NAME IT LINKS BY. Measured on fbc's object file:
+                    '' 'extern MyThing as long' leaves an undefined 'MYTHING$', and
+                    '' the same declaration inside 'extern "C"' leaves 'MyThing',
+                    '' case preserved and unsuffixed. win/shobjidl.bi declares every
+                    '' CLSID and IID the second way.
+                    if (sp->extra and Tko.PF_FOREIGN) <> 0 then
+                        s->linkName = ip->rawName
+                        if s->linkName = 0 then s->linkName = ip->name
+                    else
+                        s->linkName = w.names->GetString( _
+                            Tko.Text.UpperAscii( w.names->Spelling( ip->name ) ) & "$" )
+                    end if
+                end if
                 if isCommon then s->flags or= Tko.SYMF_COMMON
                 if k = Tko.N_CONST then s->flags or= Tko.SYMF_CONST
                 '' 'private:' / 'protected:' on a CONST or STATIC member. The

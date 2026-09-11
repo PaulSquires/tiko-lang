@@ -981,7 +981,12 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
     '' DECLARED HERE, DEFINED ELSEWHERE -- 'object's RTTI record lives in the runtime.
     '' Without 'external' an empty table would read as a real one with no entries.
     if g.isExternal then
-        e.outp += nm & " = external global ptr" & chr( 10 )
+        '' ...AND AN EXTERN VARIABLE, whose type is its own rather than a pointer:
+        '' 'extern CLSID_ShellLink as const GUID' is 16 bytes, and declaring it as a
+        '' pointer would let a read of it take 8.
+        dim as string ety = "ptr"
+        if g.isVar then ety = LlvmType( cast( MirType, g.ty ), g.size )
+        e.outp += nm & " = external global " & ety & chr( 10 )
         return
     end if
 

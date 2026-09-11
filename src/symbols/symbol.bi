@@ -187,6 +187,11 @@ namespace Tko
         '' UNION. One bit could not carry it: an anonymous TYPE inside an anonymous
         '' UNION is sequential at its own level and overlapping at its parent's.
         as ushort    anonUnionMask
+        '' THE EMITTED SPELLING OF AN EXTERN VARIABLE, or 0. A variable defined in
+        '' another module links by a name the folded one does not give: measured,
+        '' 'extern MyThing as long' is 'MYTHING$' and the same line inside an
+        '' 'extern "C"' block is 'MyThing', case preserved and no suffix.
+        as InternId  linkName
         as ubyte     callConv
     end type
 

@@ -1,0 +1,12 @@
+'' An extern variable is module storage, declared not defined, and links by the
+'' spelling fbc uses -- uppercase + '$' plainly, the source spelling in a foreign block.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/extern-variable.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: PLAINTHING$
+'' EXPECT-OUT: CThing
+'' EXPECT-OUT: WThing
+'' No frame slot for any of them.
+'' EXPECT-NOT: local i32 plainthing
+'' GOLDEN: expected/extern-variable.out

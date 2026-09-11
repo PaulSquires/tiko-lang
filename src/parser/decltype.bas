@@ -340,6 +340,14 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
             sp.count = members.Count
             for i as long = 0 to members.Count - 1
                 dim as Tko.NodeId m = cast( Tko.NodeId, members[i] )
+                '' A FOREIGN BLOCK NAMES ITS VARIABLES TOO, not only its procedures.
+                '' 'extern "Windows" : extern CLSID_ShellLink as const GUID' links by
+                '' the source spelling; the same line outside a block is 'CLSID_SHELLLINK$'.
+                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_VAR) then
+                    dim as Tko.StmtPayload ptr vp = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                    vp->extra or= Tko.PF_FOREIGN
+                end if
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_PROC) then
                     dim as Tko.StmtPayload ptr mp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]

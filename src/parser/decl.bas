@@ -229,6 +229,12 @@ private function VarItem _
     end if
 
     dim as Tko.Token headTok = Cur( p )
+    '' THE SOURCE SPELLING, CASE PRESERVED. An EXTERN variable inside an
+    '' 'extern "C"' block links by exactly what was written -- measured, fbc's
+    '' object holds an undefined 'CLSID_ShellLink', while the same declaration
+    '' outside a block is 'MYTHING$', uppercased with a suffix. Only a procedure
+    '' kept its raw spelling before this.
+    sp.rawName = RawSpelling( p )
     if DeclName( p, sp.name ) = false then return ErrorNode( p, Tko.TKO0406 )
 
     '' 'dim UDT.i as integer' -- a qualified name defines a static member.
