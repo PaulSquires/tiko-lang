@@ -72,6 +72,25 @@ private function CtorArgValue_ _
         if IsStringType( c, u ) then
             if StrDescriptorOf_( c, argNode, outv ) then return true
         end if
+
+        '' A BYREF UDT PARAMETER TAKES AN ADDRESS. The parameter's type IS a
+        '' reference, and lowering one gives MT_PTR -- so the tail below 'coerced'
+        '' the loaded aggregate to a pointer instead of taking the object's address.
+        '' Measured: 'WeakPtr( of T )( sp )' over a 'byref rhs as SharedPtr( of T )'
+        '' emitted 'ptr %t945' where %t945 is 'load [8 x i8]', and clang refused it.
+        ''
+        '' STRINGS FIRST, because a byref string parameter wants the DESCRIPTOR that
+        '' StrDescriptorOf_ above knows how to find, not a plain address.
+        if c.types->Kind( u ) = Tko.TK_REFERENCE then
+            dim as Tko.TypeId rin = c.types->Unqualify( c.types->Inner( u ) )
+            if c.types->Kind( rin ) = Tko.TK_UDT then
+                dim as MirValue ra = LowerAddr( c, argNode )
+                if ra.kind <> cast( ubyte, MV_NONE ) then
+                    outv = ra
+                    return true
+                end if
+            end if
+        end if
     end if
 
     outv = LowerExpr( c, argNode )
@@ -231,16 +250,37 @@ function LowerConvCtorInit_ _
 
     '' The parameter's type, for the conversion the argument needs.
     dim as Tko.TypeId pt = Tko.TYPE_NONE
+    dim as boolean ptByref = false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        ptByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
         exit for
     next
 
     dim as MirValue av
-    if fromArray then
+    '' A BYREF UDT PARAMETER TAKES AN ADDRESS, and the ARGUMENT'S OWN TYPE says so:
+    '' the parameter's does NOT, because a reference is transparent to Check and
+    '' TypeOf_ answers with the referent. So this asked CtorArgValue_ for a value,
+    '' got the loaded aggregate, and 'coerced' it to the pointer the signature
+    '' wanted. Measured: 'dim as WeakPtr( of Probe ) w = a' over a
+    '' 'byref rhs as SharedPtr( of Probe )' emitted 'ptr %t945' with %t945 defined
+    '' as 'load [8 x i8]', and clang refused the module.
+    dim as boolean tookAddr = false
+    if (fromArray = false) andalso ptByref then
+        dim as Tko.TypeId iu = c.types->Unqualify( it )
+        if c.types->Kind( iu ) = Tko.TK_UDT then
+            dim as MirValue ra = LowerAddr( c, init_ )
+            if ra.kind <> cast( ubyte, MV_NONE ) then
+                av = ra
+                tookAddr = true
+            end if
+        end if
+    end if
+    if tookAddr then
+    elseif fromArray then
         av = adv
     elseif CtorArgValue_( c, init_, pt, av ) = false then
         return false
@@ -297,19 +337,39 @@ function LowerUserLetConv_ _
 
     '' The parameter's type, for the conversion the argument needs.
     dim as Tko.TypeId pt = Tko.TYPE_NONE
+    dim as boolean ulByref = false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if pp = 0 then return false
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        ulByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
         exit for
     next
 
     dim as MirValue da = LowerAddr( c, target )
     if da.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue av
-    if CtorArgValue_( c, value, pt, av ) = false then return false
+    '' A BYREF UDT PARAMETER TAKES AN ADDRESS -- see LowerConvCtorInit_ for the
+    '' same trap: the parameter's TYPE does not say byref, because a reference is
+    '' transparent to Check, so only the N_PARAM's own flag can. Measured:
+    '' 'w = a' over 'operator let( byref rhs as SharedPtr( of Probe ) )' passed the
+    '' loaded aggregate where the signature wants a pointer.
+    dim as boolean ulTook = false
+    if ulByref then
+        dim as Tko.TypeId vu = c.types->Unqualify( c.info->TypeOf_( value ) )
+        if c.types->Kind( vu ) = Tko.TK_UDT then
+            dim as MirValue ura = LowerAddr( c, value )
+            if ura.kind <> cast( ubyte, MV_NONE ) then
+                av = ura
+                ulTook = true
+            end if
+        end if
+    end if
+    if (ulTook = false) andalso (CtorArgValue_( c, value, pt, av ) = false) then
+        return false
+    end if
     dim as FB.Array( of ulong ) largs
     largs.Push( cast( ulong, av.kind ) )
     largs.Push( cast( ulong, av.id ) )
@@ -444,6 +504,27 @@ function LowerCtorInit _
         av.id = argId[ai2]
         dim as Tko.StmtPayload ptr sp3 = StmtOf( c, prm )
         dim as Tko.TypeId pty = c.info->TypeOf_( sp3->a )
+
+        '' A BYREF PARAMETER TAKES AN ADDRESS, and this passed the loaded VALUE.
+        '' Measured: 'WeakPtr( of T )( sp )' over a
+        '' 'byref rhs as SharedPtr( of T )' emitted
+        '' 'call ... (ptr %s41, ptr %t945)' where %t945 is 'load [8 x i8]' -- an
+        '' aggregate where a pointer belongs, and clang refused the module.
+        ''
+        '' The ordinary call path has taken addresses for byref parameters since it
+        '' existed; the constructor path coerced every argument to the parameter's
+        '' MIR type instead, and for a reference that type is a POINTER -- so the
+        '' aggregate was 'converted' to one rather than having its address taken.
+        if ParamIsByref( c, pick, ai2 ) then
+            dim as MirValue ba = LowerAddr( c, cast( Tko.NodeId, argNode[ai2] ) )
+            if ba.kind <> cast( ubyte, MV_NONE ) then
+                argKind[ai2] = cast( ulong, ba.kind )
+                argId[ai2] = cast( ulong, ba.id )
+                argT[ai2] = cast( ulong, pty )
+                ai2 += 1
+                continue for
+            end if
+        end if
 
         '' A BYVAL VAR-LENGTH STRING PARAMETER TAKES A DESCRIPTOR THE CALLER BUILDS,
         '' and this path passed the argument's raw operand instead: for
@@ -792,7 +873,13 @@ private function LowerBaseFieldInit_ _
         if ot2 = c.types->Unqualify( bt ) then
             dim as MirValue src = LowerAddr( c, only_ )
             if src.kind = cast( ubyte, MV_NONE ) then return false
-            dim as MirValue whole = LowerExprLoad( c, src, MT_AGG )
+            '' WITH THE BASE'S SIZE. 'src' is a computed address -- for
+            '' 'constructor C3( byref p0 as P )' doing 'base( p0 )' it is the
+            '' pointer loaded out of the reference -- and a temp has no storage for
+            '' the emitter to size an aggregate from. It loaded '[0 x i8]' and
+            '' stored nothing: the program printed two stack addresses where fbc
+            '' prints 9 and 8.
+            dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, bsz )
             if whole.kind = cast( ubyte, MV_NONE ) then return false
             StoreThrough( c, selfAddr, whole )
             return true

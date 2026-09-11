@@ -190,8 +190,22 @@ function LowerExpr _
         '' '%4 = load [0 x i8], ptr %t3' -- a zero-byte load clang rejects against the
         '' 8-byte store beside it. Measured on 'operator ->( byref lhs as foo ) as foo'
         '' returning lhs, which is exactly that shape.
+        '' ...AND A REFERENCE IS SIZED BY ITS REFERENT. 'ft' for a byref parameter
+        '' is the REFERENCE type, whose own size is a pointer's or nothing at all,
+        '' so the guard below saw no size and the load went out '[0 x i8]' again --
+        '' one unwrap short of the fix this comment describes. Measured on
+        '' 'base( p0 )' inside 'constructor C3( byref p0 as P )', which copies the
+        '' base subobject out of the reference: the program printed two stack
+        '' addresses where fbc prints 9 and 8.
         if mt = MT_AGG then
-            dim as long asz = SizeOfType( c, ft )
+            dim as Tko.TypeId aft = ft
+            if aft <> Tko.TYPE_NONE then
+                dim as Tko.TypeId afu = c.types->Unqualify( aft )
+                if c.types->Kind( afu ) = Tko.TK_REFERENCE then
+                    aft = c.types->Inner( afu )
+                end if
+            end if
+            dim as long asz = SizeOfType( c, aft )
             if asz > 0 then ins.imm = cast( longint, asz )
         end if
         return Emit( c, ins )

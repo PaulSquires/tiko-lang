@@ -86,7 +86,7 @@ func void S1() {
     store %7, %8
     %9 = alloca ptr z
     %10 = load @pp
-    call void _ZN2C3C1ER1P(@z, %10)
+    call void _ZN2C3C1ER1P(@z, @pp)
     %11 = alloca ptr w
     call void _ZN2C4C1Ev(@w)
     %12 = field.addr @x, 0
