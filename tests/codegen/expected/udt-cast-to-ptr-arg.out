@@ -1,0 +1,171 @@
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-w64-windows-gnu"
+
+
+@"id_count" = global i64 0, align 8
+@"id_ctor" = global i64 0, align 8
+@"id_cast_ptr" = global i64 0, align 8
+@"id_cast_str" = global i64 0, align 8
+@"$str4" = private unnamed_addr constant [1 x i8] c"\00", align 1
+@"$str5" = private unnamed_addr constant [7 x i8] c"byval \00", align 1
+@"$str6" = private unnamed_addr constant [7 x i8] c"byref \00", align 1
+@"__fb_ZTS6Object" = external global ptr
+@"$str8" = private unnamed_addr constant [4 x i8] c"2TU\00", align 1
+@"_ZTSN2TUE" = global [3 x ptr] [ptr null, ptr @"$str8", ptr @"__fb_ZTS6Object"], align 8
+@"_ZTVN2TUE" = global [2 x ptr] [ptr null, ptr @"_ZTSN2TUE"], align 8
+
+define void @"_ZN2TVC1EP2TU"(ptr %p0, ptr %p1) nounwind {
+L0:
+  %s0 = alloca ptr, align 8
+  store ptr %p0, ptr %s0, align 8
+  %s1 = alloca ptr, align 8
+  store ptr %p1, ptr %s1, align 8
+  %t3 = load ptr, ptr %s0, align 8
+  %t4 = getelementptr i8, ptr %t3, i64 0
+  %t5 = call ptr @"memset"(ptr %t4, i32 0, i64 8)
+  %t6 = load ptr, ptr %s0, align 8
+  %t7 = getelementptr i8, ptr %t6, i64 0
+  %t8 = load ptr, ptr %s1, align 8
+  store ptr %t8, ptr %t7, align 8
+  %t9 = load i64, ptr @"id_count", align 8
+  %t11 = add i64 %t9, 1
+  store i64 %t11, ptr @"id_count", align 8
+  %t12 = load i64, ptr @"id_count", align 8
+  store i64 %t12, ptr @"id_ctor", align 8
+  ret void
+
+}
+
+define ptr @"_ZN2TVcvP2TUEv"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca ptr, align 8
+  store ptr null, ptr %s0, align 8
+  %s1 = alloca ptr, align 8
+  store ptr %p0, ptr %s1, align 8
+  %t4 = load i64, ptr @"id_count", align 8
+  %t6 = add i64 %t4, 1
+  store i64 %t6, ptr @"id_count", align 8
+  %t7 = load i64, ptr @"id_count", align 8
+  store i64 %t7, ptr @"id_cast_ptr", align 8
+  %t8 = load ptr, ptr %s1, align 8
+  %t9 = getelementptr i8, ptr %t8, i64 0
+  %t10 = load ptr, ptr %t9, align 8
+  ret ptr %t10
+
+}
+
+define ptr @"_ZN2TVcv8FBSTRINGEv"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca [24 x i8], align 8
+  %t2 = getelementptr i8, ptr %s0, i64 0
+  store i64 0, ptr %t2, align 8
+  %t3 = getelementptr i8, ptr %s0, i64 8
+  store i64 0, ptr %t3, align 8
+  %t4 = getelementptr i8, ptr %s0, i64 16
+  store i64 0, ptr %t4, align 8
+  %s1 = alloca ptr, align 8
+  store ptr %p0, ptr %s1, align 8
+  %t6 = load i64, ptr @"id_count", align 8
+  %t8 = add i64 %t6, 1
+  store i64 %t8, ptr @"id_count", align 8
+  %t9 = load i64, ptr @"id_count", align 8
+  store i64 %t9, ptr @"id_cast_str", align 8
+  %t10 = call ptr @"fb_StrAssign"(ptr %s0, i64 -1, ptr @"$str4", i64 1, i32 0)
+  %t11 = call ptr @"fb_StrAllocTempResult"(ptr %s0)
+  ret ptr %t11
+
+}
+
+define void @"TEST_BYVAL"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca ptr, align 8
+  store ptr %p0, ptr %s0, align 8
+  %t2 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str5", i64 6)
+  call void @"fb_PrintString"(i32 0, ptr %t2, i32 0)
+  %t3 = load ptr, ptr %s0, align 8
+  %t5 = inttoptr i64 3134197178 to ptr
+  %t6.c = icmp eq ptr %t3, %t5
+  %t6 = zext i1 %t6.c to i64
+  %t7 = sub i64 0, %t6
+  call void @"fb_PrintLongint"(i32 0, i64 %t7, i32 1)
+  ret void
+
+}
+
+define void @"TEST_BYREF"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca ptr, align 8
+  store ptr %p0, ptr %s0, align 8
+  %t2 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str6", i64 6)
+  call void @"fb_PrintString"(i32 0, ptr %t2, i32 0)
+  %t3 = load ptr, ptr %s0, align 8
+  %t4 = load ptr, ptr %t3, align 8
+  %t6 = inttoptr i64 3134197178 to ptr
+  %t7.c = icmp eq ptr %t4, %t6
+  %t7 = zext i1 %t7.c to i64
+  %t8 = sub i64 0, %t7
+  call void @"fb_PrintLongint"(i32 0, i64 %t8, i32 1)
+  ret void
+
+}
+
+define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+L0:
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+  %s1 = alloca [8 x i8], align 8
+  %t6 = inttoptr i64 3134197178 to ptr
+  call void @"_ZN2TVC1EP2TU"(ptr %s1, ptr %t6)
+  %t7 = load i64, ptr @"id_count", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t7, i32 0)
+  %t8 = load i64, ptr @"id_ctor", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t8, i32 0)
+  %t9 = load i64, ptr @"id_cast_ptr", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t9, i32 0)
+  %t10 = load i64, ptr @"id_cast_str", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t10, i32 1)
+  store i64 0, ptr @"id_count", align 8
+  store i64 0, ptr @"id_ctor", align 8
+  store i64 0, ptr @"id_cast_ptr", align 8
+  store i64 0, ptr @"id_cast_str", align 8
+  %t15 = call ptr @"_ZN2TVcvP2TUEv"(ptr %s1)
+  call void @"TEST_BYVAL"(ptr %t15)
+  %t16 = load i64, ptr @"id_count", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t16, i32 0)
+  %t17 = load i64, ptr @"id_ctor", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t17, i32 0)
+  %t18 = load i64, ptr @"id_cast_ptr", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t18, i32 0)
+  %t19 = load i64, ptr @"id_cast_str", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t19, i32 1)
+  store i64 0, ptr @"id_count", align 8
+  store i64 0, ptr @"id_ctor", align 8
+  store i64 0, ptr @"id_cast_ptr", align 8
+  store i64 0, ptr @"id_cast_str", align 8
+  %t24 = call ptr @"_ZN2TVcvP2TUEv"(ptr %s1)
+  %s2 = alloca ptr, align 8
+  store ptr %t24, ptr %s2, align 8
+  call void @"TEST_BYREF"(ptr %s2)
+  %t26 = load i64, ptr @"id_count", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t26, i32 0)
+  %t27 = load i64, ptr @"id_ctor", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t27, i32 0)
+  %t28 = load i64, ptr @"id_cast_ptr", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t28, i32 0)
+  %t29 = load i64, ptr @"id_cast_str", align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t29, i32 1)
+  call void @"fb_End"(i32 0)
+  %t31 = load i32, ptr %s0, align 4
+  ret i32 %t31
+
+}
+
+declare ptr @"memset"(ptr, i32, i64)
+declare ptr @"fb_StrAssign"(ptr, i64, ptr, i64, i32)
+declare ptr @"fb_StrAllocTempResult"(ptr)
+declare ptr @"fb_StrAllocTempDescZEx"(ptr, i64)
+declare void @"fb_PrintString"(i32, ptr, i32)
+declare void @"fb_PrintLongint"(i32, i64, i32)
+declare void @"fb_Init"(i32, ptr, i32)
+declare void @"fb_End"(i32)

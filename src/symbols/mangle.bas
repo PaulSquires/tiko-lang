@@ -751,9 +751,16 @@ private function ProcNameCore _
     end if
 
     '' Rule 2: an ALIAS replaces the identifier and KEEPS ITS CASE.
+    ''
+    '' ...AND SO DOES A PROCEDURE INSIDE 'extern "C++"'. Measured, 'sub g2( byval
+    '' n as integer )' there is _Z2g2u7INTEGER and the same line outside it is
+    '' plain 'H' -- the C++ block mangles, and mangles what was WRITTEN.
+    dim as boolean isCxx = ((sp->extra and Tko.PF_CXX) <> 0)
     dim as string ident = ""
     if aliased then
         ident = names.Spelling( aliasNm )
+    elseif isCxx then
+        ident = written
     else
         ident = Tko.Text.UpperAscii( written )
     end if
@@ -790,7 +797,10 @@ private function ProcNameCore _
     '' function literally named '-', which no linker would accept and no call site
     '' could name.
     dim as boolean isOp = (kw = cast( ushort, Tko.KW_OPERATOR ))
-    if (nested = false) andalso (overloaded = false) andalso (isOp = false) then
+    '' AN 'extern "C++"' PROCEDURE IS NEVER THAT EITHER: the whole point of the
+    '' block is that its members carry the C++ mangling, overloaded or not.
+    if (nested = false) andalso (overloaded = false) andalso (isOp = false) andalso _
+       (isCxx = false) then
         return ident
     end if
 

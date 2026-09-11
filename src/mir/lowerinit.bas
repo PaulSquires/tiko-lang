@@ -101,39 +101,6 @@ end function
 
 
 '' An expression lowered as a CONDITION -- see Ctx.rawCmpNode.
-'' A POINTER-RETURNING 'operator cast' SERVES A CONDITION TOO. UserCastToNum_ looks
-'' for a NUMERIC result, because its other callers need a width to convert to --
-'' but 'if x then' only has to test the value, and a pointer tests perfectly well.
-'' Without this the pointer half of structs/bool_expr_cast emitted
-'' 'icmp ne [8 x i8] %t9, 0' over the loaded aggregate, which is not an
-'' instruction; the numeric half beside it lowered.
-''
-'' The FIRST pointer-returning overload, not a best-ranked one: all pointers test
-'' the same way, so there is nothing to rank.
-private function UserCastToPtr_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-
-    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
-    if t = Tko.TYPE_NONE then return false
-    if c.types->Kind( t ) <> Tko.TK_UDT then return false
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
-        if rt <> Tko.TYPE_NONE then
-            if c.types->Kind( rt ) = Tko.TK_POINTER then
-                dim as MirValue self_ = LowerAddr( c, id )
-                if self_.kind = cast( ubyte, MV_NONE ) then return false
-                outv = EmitMemberCall( c, cur, self_, MT_PTR )
-                return (outv.kind <> cast( ubyte, MV_NONE ))
-            end if
-        end if
-        cur = cse->nextOverload
-    wend
-    return false
-end function
-
 function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
     dim as Tko.NodeId saved = c.rawCmpNode
     '' THROUGH THE PARENTHESES, which is how the condition is usually written:

@@ -1,0 +1,34 @@
+'' 'extern "C++"' MANGLES; IT IS NOT A FOREIGN BLOCK.
+''
+'' A FOREIGN block -- "C", "Windows" -- takes the spelling VERBATIM and ignores
+'' OVERLOAD. tiko read "C++" as one of those, so four overloads that differ only in a
+'' function-pointer parameter's RESULT came out as four functions all named 'f1' and
+'' clang refused the module: no object for
+'' tests/vendor/fbc-tests/functions/return-byref.bas.
+''
+'' Measured against fbc, which mangles and mangles WHAT WAS WRITTEN:
+''
+''     sub g2( byval n as integer )   inside the block   _Z2g2u7INTEGER
+''     sub h( byval n as integer )    outside it         H
+''
+'' so the two cannot share a flag: PF_FOREIGN says "verbatim", PF_CXX says "mangled,
+'' source case". An ordinary FB procedure at module scope is neither nested nor
+'' overloaded and returns its uppercased spelling; a C++ one never takes that path.
+''
+'' THE NAMESPACE KEEPS ITS CASE TOO, and it is not itself a declaration: the block's
+'' one member is the namespace, so marking only the immediate children left g4 as an
+'' ordinary FB procedure -- _ZN2NN2G4Ev against fbc's _ZN2nn2g4Ev, a name that differs
+'' from the definition only in case and fails at link time.
+''
+'' THE BYREF RESULT OF A FUNCTION-POINTER PARAMETER IS PART OF THE MANGLING, which is
+'' what the two g1 overloads are here to say: 'R' before the result type, and without
+'' it the two are one name.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/extern-cxx.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _Z2g1PFu7INTEGERvE
+'' EXPECT-OUT: _Z2g1PFRu7INTEGERvE
+'' EXPECT-OUT: _Z2g2u7INTEGER
+'' EXPECT-OUT: _ZN2nn2g4Ev
+'' EXPECT-OUT: H
+'' GOLDEN: expected/extern-cxx.out

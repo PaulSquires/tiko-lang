@@ -1051,6 +1051,37 @@ end function
 '' them declined, because the arithmetic path asked the UDT for a value and a UDT has
 '' none: structs/udt-comp-ops-1.bas and -2.bas are written entirely in this shape.
 ''
+'' A POINTER-RETURNING 'operator cast'. UserCastToNum_ looks for a NUMERIC result,
+'' because its other callers need a width to convert to; a CONDITION only has to
+'' test the value, and an ARGUMENT whose parameter is a pointer wants exactly this
+'' overload. Without it the pointer half of structs/bool_expr_cast emitted
+'' 'icmp ne [8 x i8] %t9, 0' over the loaded aggregate, and structs/udt-ops-4
+'' passed a TV to a 'TU ptr' parameter with no operand at all -- 'emit: ICE: an
+'' operand with no kind'.
+function UserCastToPtr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if c.types->Kind( rt ) = Tko.TK_POINTER then
+                dim as MirValue self_ = LowerAddr( c, id )
+                if self_.kind = cast( ubyte, MV_NONE ) then return false
+                outv = EmitMemberCall( c, cur, self_, MT_PTR )
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    return false
+end function
+
 '' THE OVERLOAD THAT YIELDS A NUMBER, exactly as UserCastToStr_ picks the one that
 '' yields a string: 'operator cast' may be declared several times over different
 '' targets and they hang off one symbol as a chain.
@@ -1079,6 +1110,15 @@ function UserConvToScalar_ _
     if c.types->Kind( st ) <> Tko.TK_UDT then return false
     dim as MirType dm = LowerType( d, *c.types )
     if (dm = MT_VOID) orelse (dm = MT_AGG) then return false
+    '' A POINTER DESTINATION WANTS THE POINTER-RETURNING OVERLOAD. UserCastToNum_
+    '' takes only a BUILTIN or an ENUM result, so a type declaring 'operator cast(  )
+    '' as TU ptr' matched nothing, this returned false, and the caller lowered the
+    '' UDT itself -- which has no value -- and handed the call an operand with no
+    '' kind. structs/udt-ops-4.bas passes exactly that, and the ICE names the
+    '' enclosing procedure rather than the argument.
+    if c.types->Kind( d ) = Tko.TK_POINTER then
+        if UserCastToPtr_( c, id, outv ) then return true
+    end if
     return UserCastToNum_( c, id, outv )
 end function
 

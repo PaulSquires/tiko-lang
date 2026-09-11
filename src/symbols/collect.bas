@@ -537,7 +537,11 @@ sub WalkNode _
             '' '_ZN12DIGITALCLOCKC1EP9FBQWidget': the OWNER uppercased, the PARAMETER's
             '' type in its own case.
             dim as Tko.InternId traw = 0
-            if (sp->extra and Tko.PF_FOREIGN) <> 0 then traw = sp->rawName
+            '' A C++ BLOCK KEEPS THE SPELLING TOO, for the same reason -- it is
+            '' the one thing 'extern "C++"' and 'extern "C"' agree on.
+            if (sp->extra and (Tko.PF_FOREIGN or Tko.PF_CXX)) <> 0 then
+                traw = sp->rawName
+            end if
             s->type_ = w.types->NamedType( Tko.TK_UDT, sp->name, _
                                            cast( ulong, scope_ ), traw )
             '' The DECLARATION NODE, so a generic can be instantiated later: Resolve
@@ -1055,6 +1059,14 @@ sub WalkNode _
             '' clause without carrying it here would have emitted the wrong name for
             '' every procedure in the namespace, silently.
             if sp->aliasName <> 0 then s->payload = cast( long, sp->aliasName )
+            '' ...AND A NAMESPACE INSIDE 'extern "C++"' KEEPS ITS OWN SPELLING,
+            '' for the same reason and through the same slot. Measured, fbc emits
+            '' _ZN2nn2g4Ev there where the plain form gives _ZN2NN2G4Ev -- a name
+            '' that differs from the definition only in case.
+            if (sp->aliasName = 0) andalso (sp->rawName <> 0) andalso _
+               ((sp->extra and Tko.PF_CXX) <> 0) then
+                s->payload = cast( longint, sp->rawName )
+            end if
             w.info->SetScope( id, s->inner )
             WalkChildren( w, sp->first, sp->count, s->inner )
         end if

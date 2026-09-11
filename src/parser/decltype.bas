@@ -214,6 +214,33 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
     return MakeStmt( p, Tko.N_ENUM, t.loc, sp )
 end function
 
+'' MARK A DECLARATION AS BEING INSIDE 'extern "C++"'.
+''
+'' RECURSIVE, because a NAMESPACE inside the block is not itself a declaration:
+'' 'extern "C++" : namespace nn : sub g4( ) : ...' has one member, the namespace,
+'' and marking only the block's immediate children left g4 mangled as an ordinary
+'' FB procedure -- _ZN2NN2G4Ev where fbc writes _ZN2nn2g4Ev, a name that differs
+'' from the definition only in case and fails at link time.
+''
+'' A NESTED 'extern' BLOCK IS LEFT ALONE: it states its own linkage, and an
+'' 'extern "C"' inside a C++ one means C.
+private sub MarkCxx_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if n = Tko.NODE_NONE then return
+    select case p.ast->Kind( n )
+    case Tko.N_PROC, Tko.N_TYPE, Tko.N_VAR
+        dim as Tko.StmtPayload ptr mp = _
+            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+        mp->extra or= Tko.PF_CXX
+    case Tko.N_NAMESPACE
+        dim as Tko.StmtPayload ptr np = _
+            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+        np->extra or= Tko.PF_CXX
+        for i as long = 0 to np->count - 1
+            MarkCxx_( p, cast( Tko.NodeId, p.ast->children[np->first + i] ) )
+        next
+    end select
+end sub
+
 private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     Advance( p )
@@ -221,7 +248,12 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' SUITE macro expands to exactly this, and keeping only the last component made
     '' every generated procedure mangle three qualifiers short of fbc's.
     dim as FB.Array( of ulong ) parts
+    '' THE SOURCE SPELLING OF EACH COMPONENT. A namespace inside 'extern "C++"'
+    '' mangles by what was WRITTEN -- measured, fbc emits _ZN2nn2g4Ev where the
+    '' same namespace outside gives _ZN2NN2G4Ev. Unread anywhere else.
+    dim as FB.Array( of ulong ) rawParts
     dim as Tko.StmtPayload sp
+    dim as Tko.InternId nsRaw = RawSpelling( p )
     DeclName( p, sp.name )
 
     '' AN ANONYMOUS NAMESPACE IS NAMED AFTER ITS LINE. 'namespace' with no name is
@@ -260,10 +292,13 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
     parts.Push( cast( ulong, sp.name ) )
+    rawParts.Push( cast( ulong, nsRaw ) )
     while Peek( p ) = Tko.TK_DOT
         Advance( p )
+        nsRaw = RawSpelling( p )
         DeclName( p, sp.name )
         parts.Push( cast( ulong, sp.name ) )
+        rawParts.Push( cast( ulong, nsRaw ) )
     wend
 
     dim as Tko.NodeIdVec members
@@ -286,10 +321,12 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' Innermost first: each outer level wraps the one below as its single member.
     sp.name = cast( Tko.InternId, parts[parts.Count - 1] )
+    sp.rawName = cast( Tko.InternId, rawParts[rawParts.Count - 1] )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_NAMESPACE, t.loc, sp )
     for i as long = parts.Count - 2 to 0 step -1
         dim as Tko.StmtPayload outer
         outer.name = cast( Tko.InternId, parts[i] )
+        outer.rawName = cast( Tko.InternId, rawParts[i] )
         outer.first = p.ast->children.Count
         outer.count = 1
         p.ast->children.Push( cast( ulong, n ) )
@@ -348,9 +385,18 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
                 end if
             end if
             EndOfStatement( p )
+            '' 'C++' IS NOT A FOREIGN BLOCK. A foreign one takes the spelling
+            '' VERBATIM and ignores OVERLOAD; a C++ one MANGLES, and mangles the
+            '' SOURCE spelling. Measured, 'sub g2( byval n as integer )' inside
+            '' 'extern "C++"' is _Z2g2u7INTEGER to fbc and the same line outside it
+            '' is plain 'H'. Reading "C++" as foreign gave four overloads all named
+            '' 'f1', which clang refused outright -- functions/return-byref.bas.
             dim as boolean foreign_ = false
+            dim as boolean cxx_ = false
             if lang <> 0 then
-                foreign_ = (Tko.Text.LowerAscii( p.names->Spelling( lang ) ) <> "fb")
+                dim as string lgl = Tko.Text.LowerAscii( p.names->Spelling( lang ) )
+                cxx_ = (lgl = "c++")
+                foreign_ = (lgl <> "fb") andalso (cxx_ = false)
             end if
 
             dim as Tko.NodeIdVec members
@@ -371,16 +417,21 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
                 '' A FOREIGN BLOCK NAMES ITS VARIABLES TOO, not only its procedures.
                 '' 'extern "Windows" : extern CLSID_ShellLink as const GUID' links by
                 '' the source spelling; the same line outside a block is 'CLSID_SHELLLINK$'.
-                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_TYPE) then
+                if (foreign_ orelse cxx_) andalso (p.ast->Kind( m ) = Tko.N_TYPE) then
                     dim as Tko.StmtPayload ptr tp2 = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
-                    tp2->extra or= Tko.PF_FOREIGN
+                    if cxx_ then
+                        tp2->extra or= Tko.PF_CXX
+                    else
+                        tp2->extra or= Tko.PF_FOREIGN
+                    end if
                 end if
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_VAR) then
                     dim as Tko.StmtPayload ptr vp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
                     vp->extra or= Tko.PF_FOREIGN
                 end if
+                if cxx_ then MarkCxx_( p, m )
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_PROC) then
                     dim as Tko.StmtPayload ptr mp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]

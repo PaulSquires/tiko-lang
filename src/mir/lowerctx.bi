@@ -493,6 +493,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function UserCastToNum_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UserCastToPtr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     declare function UdtMemberNamed_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
@@ -689,6 +691,8 @@ declare function EmitRtl _
     '' its own -- lowercall.bas.
     declare function ByrefTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
+    declare function ByrefTempOf_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pt as Tko.TypeId ) as MirValue
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId

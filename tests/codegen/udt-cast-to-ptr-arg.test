@@ -1,0 +1,35 @@
+'' A UDT FLOWING INTO A POINTER PARAMETER IS ITS 'operator cast', BOTH WAYS ROUND.
+''
+'' UserConvToScalar_ takes only a BUILTIN or an ENUM result -- it ends in
+'' UserCastToNum_ -- so a type declaring 'operator cast( ) as TU ptr' matched nothing.
+'' The BYVAL call then lowered the UDT itself, which has no value, and handed the call
+'' an operand with no kind:
+''
+''     emit: ICE: an operand with no kind (in ...CHECK, call %0)
+''
+'' The BYREF call was worse, because it produced an object. A UDT HAS AN ADDRESS OF ITS
+'' OWN, so LowerAddr answered with it and the operator was never called -- &x went into
+'' a 'byref as TU ptr' parameter and the callee read the first field as the pointer. It
+'' happens to be the right eight bytes here; a different first field and it is a wrong
+'' pointer with nothing at all to say so. structs/udt-ops-4.bas is the corpus file that
+'' COUNTS the calls, which is the only reason the byref half was visible.
+''
+'' Measured against fbc, which prints
+''
+''     1 1 0 0      the constructor, once
+''     1 0 1 0      the byval call: the POINTER cast, once
+''     1 0 1 0      the byref call: the same
+''
+'' -- so the cast's RESULT is what the byref parameter binds, a temporary, and the
+'' STRING cast declared beside it is never chosen.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/udt-cast-to-ptr-arg.bas
+'' EXPECT-EXIT: 0
+
+'' THE POINTER CAST IS CALLED. Its mangling names the result type, so this cannot
+'' match the string one by accident.
+'' EXPECT-OUT: @"_ZN2TVcvP2TUEv"
+
+'' AND THE STRING CAST IS NOT. It is declared, and picking it would compile.
+'' EXPECT-NOT: call ptr @"_ZN2TVcv7FBSTRINGEv"
+'' GOLDEN: expected/udt-cast-to-ptr-arg.out

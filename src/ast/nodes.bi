@@ -274,6 +274,19 @@ namespace Tko
     '' anything added here goes above PF_MODDTOR.
     const PF_EXPORT         as ulong = &h00040000
 
+    '' INSIDE 'extern "C++"', which is NOT the same as PF_FOREIGN. A foreign block
+    '' takes the spelling VERBATIM and ignores OVERLOAD; a C++ one MANGLES, and
+    '' mangles the SOURCE SPELLING rather than the uppercased name. Measured:
+    ''
+    ''     sub g2( byval n as integer )        inside extern "C++"'
+    ''         -> _Z2g2u7INTEGER
+    ''     sub h( byval n as integer )         outside it
+    ''         -> H
+    ''
+    '' so the two cannot share a bit: reading "C++" as foreign emitted four
+    '' overloads all named 'f1' and clang refused the module.
+    const PF_CXX            as ulong = &h00080000
+
     type UnaryPayload
         as ushort op                '' TokenKind
         as NodeId operand
