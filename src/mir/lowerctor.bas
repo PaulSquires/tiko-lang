@@ -82,13 +82,20 @@ private function CtorArgValue_ _
         '' STRINGS FIRST, because a byref string parameter wants the DESCRIPTOR that
         '' StrDescriptorOf_ above knows how to find, not a plain address.
         if c.types->Kind( u ) = Tko.TK_REFERENCE then
-            dim as Tko.TypeId rin = c.types->Unqualify( c.types->Inner( u ) )
-            if c.types->Kind( rin ) = Tko.TK_UDT then
-                dim as MirValue ra = LowerAddr( c, argNode )
-                if ra.kind <> cast( ubyte, MV_NONE ) then
-                    outv = ra
-                    return true
-                end if
+            '' A BYREF SCALAR TAKES AN ADDRESS TOO. This asked for a UDT, so
+            '' 'constructor UDT( byref as const integer )' -- which is what an
+            '' 'extern "C++"' class writes -- was handed the VALUE and clang
+            '' refused 'call void @_ZN3UDTC1ERKi(ptr %s4, ptr %t11)' against a %t11
+            '' defined as i32. BYREF is a property of the PARAMETER, not of the
+            '' type it refers to.
+            ''
+            '' An argument with no address of its own -- a literal, an rvalue --
+            '' falls through to the value path, which is what LowerAddr answering
+            '' nothing means.
+            dim as MirValue ra = LowerAddr( c, argNode )
+            if ra.kind <> cast( ubyte, MV_NONE ) then
+                outv = ra
+                return true
             end if
         end if
     end if
@@ -270,9 +277,26 @@ function LowerConvCtorInit_ _
     '' as 'load [8 x i8]', and clang refused the module.
     dim as boolean tookAddr = false
     if (fromArray = false) andalso ptByref then
+        '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
+        '' 'constructor UDT( byref rhs as const long )' -- which is how an
+        '' 'extern "C++"' class spells a converting constructor -- handed the VALUE
+        '' where the signature wants an address: clang refused
+        '' 'call void @_ZN3UDTC1ERKi(ptr %s4, ptr %t11)' against a %t11 defined as
+        '' i32. BYREF belongs to the PARAMETER, not to the type it refers to.
+        ''
+        '' A STRING keeps the descriptor path below, and an argument with no address
+        '' of its own falls through to the value path -- which is what LowerAddr
+        '' answering nothing means.
         dim as Tko.TypeId iu = c.types->Unqualify( it )
-        if c.types->Kind( iu ) = Tko.TK_UDT then
+        if IsStringType( c, iu ) = false then
             dim as MirValue ra = LowerAddr( c, init_ )
+            '' ...AND AN RVALUE GETS A TEMPORARY. 'dim c as UDT = 2' over a byref
+            '' parameter has no address to take, and fbc materialises one: measured,
+            '' 'TMP$ = 2; _ZN3UDTC1ERKi( &C, &TMP$ )'. ByrefTemp_ is the same
+            '' borrowing every ordinary byref argument already uses.
+            if ra.kind = cast( ubyte, MV_NONE ) then
+                if pt <> Tko.TYPE_NONE then ra = ByrefTemp_( c, init_, pt )
+            end if
             if ra.kind <> cast( ubyte, MV_NONE ) then
                 av = ra
                 tookAddr = true
