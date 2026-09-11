@@ -19,62 +19,58 @@ func i32 main(i32 $0, ptr $1) {
     %9 = call.rtl ptr memset(@r, 0, 8)
     %10 = load @p
     %11 = const i64 1
-    %12 = bitcast %11
-    %13 = const ptr 2
-    %14 = mul %12, %13
-    %15 = add %10, %14
-    store @p, %15
-    %16 = load @q
-    %17 = const i64 1
-    %18 = bitcast %17
-    %19 = add %16, %18
-    store @q, %19
-    %20 = load @r
-    %21 = const i64 2
-    %22 = bitcast %21
-    %23 = const ptr 8
-    %24 = mul %22, %23
-    %25 = sub %20, %24
-    store @r, %25
-    %26 = load @p
-    %27 = const i64 3
-    %28 = bitcast %27
-    %29 = const ptr 2
-    %30 = mul %28, %29
-    %31 = add %26, %30
-    store @p, %31
-    %32 = load @p
+    %12 = const i64 2
+    %13 = mul %11, %12
+    %14 = ptr.add %10, %13
+    store @p, %14
+    %15 = load @q
+    %16 = const i64 1
+    %17 = ptr.add %15, %16
+    store @q, %17
+    %18 = load @r
+    %19 = const i64 2
+    %20 = const i64 8
+    %21 = mul %19, %20
+    %22 = const i64 0
+    %23 = sub %22, %21
+    %24 = ptr.add %18, %23
+    store @r, %24
+    %25 = load @p
+    %26 = const i64 3
+    %27 = const i64 2
+    %28 = mul %26, %27
+    %29 = ptr.add %25, %28
+    store @p, %29
+    %30 = load @p
+    %31 = bitcast %30
+    call.rtl void fb_PrintULongint(0, %31, 2)
+    %32 = load @q
     %33 = bitcast %32
     call.rtl void fb_PrintULongint(0, %33, 2)
-    %34 = load @q
+    %34 = load @r
     %35 = bitcast %34
-    call.rtl void fb_PrintULongint(0, %35, 2)
-    %36 = load @r
-    %37 = bitcast %36
-    call.rtl void fb_PrintULongint(0, %37, 1)
-    %38 = alloca ptr i
-    %39 = const i64 100
-    store @i, %39
-    %40 = alloca ptr pt
+    call.rtl void fb_PrintULongint(0, %35, 1)
+    %36 = alloca ptr i
+    %37 = const i64 100
+    store @i, %37
+    %38 = alloca ptr pt
     store @pt, @i
-    %41 = load @pt
-    %42 = const i64 1
-    %43 = bitcast %42
-    %44 = const ptr 2
-    %45 = mul %43, %44
-    %46 = add %41, %45
-    store @pt, %46
-    %47 = load @pt
-    %48 = const i64 2
-    %49 = bitcast %48
-    %50 = add @i, %49
-    %51 = icmp.eq %47, %50
-    %52 = neg %51
-    call.rtl void fb_PrintLongint(0, %52, 1)
-    %53 = const i32 0
-    call.rtl void fb_End(%53)
-    %54 = load @$tmp0
-    ret %54
+    %39 = load @pt
+    %40 = const i64 1
+    %41 = const i64 2
+    %42 = mul %40, %41
+    %43 = ptr.add %39, %42
+    store @pt, %43
+    %44 = load @pt
+    %45 = const i64 2
+    %46 = ptr.add @i, %45
+    %47 = icmp.eq %44, %46
+    %48 = neg %47
+    call.rtl void fb_PrintLongint(0, %48, 1)
+    %49 = const i32 0
+    call.rtl void fb_End(%49)
+    %50 = load @$tmp0
+    ret %50
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -82,4 +78,4 @@ declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance

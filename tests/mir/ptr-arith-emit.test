@@ -1,0 +1,7 @@
+'' Pointer + integer emits a scaled M_PTR_ADD, not an 'add' over two pointers.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ptr-arith-emit.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ptr-arith-emit.out

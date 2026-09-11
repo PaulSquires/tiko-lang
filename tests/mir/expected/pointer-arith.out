@@ -80,83 +80,81 @@ func i32 main(i32 $0, ptr $1) {
     %53 = load @p
     %54 = load @n
     %55 = sext %54
-    %56 = bitcast %55
-    %57 = const ptr 4
-    %58 = mul %56, %57
-    %59 = add %53, %58
-    %60 = load %59
-    call.rtl void fb_PrintInt(0, %60, 1)
-    %61 = load @n
-    %62 = load @p
-    %63 = sext %61
-    %64 = bitcast %63
-    %65 = const ptr 4
-    %66 = mul %64, %65
-    %67 = add %66, %62
-    %68 = load %67
-    call.rtl void fb_PrintInt(0, %68, 1)
-    %69 = load @q
-    %70 = load @n
-    %71 = sext %70
-    %72 = bitcast %71
-    %73 = const ptr 4
-    %74 = mul %72, %73
-    %75 = sub %69, %74
-    %76 = load %75
-    call.rtl void fb_PrintInt(0, %76, 1)
-    %77 = alloca ptr t
-    %78 = load @p
-    %79 = const i64 2
-    %80 = bitcast %79
-    %81 = const ptr 4
-    %82 = mul %80, %81
-    %83 = add %78, %82
-    store @t, %83
-    %84 = load @t
-    %85 = load %84
-    call.rtl void fb_PrintInt(0, %85, 1)
-    %86 = alloca ptr d
-    %87 = load @q
-    %88 = load @p
-    %89 = bitcast %87
-    %90 = bitcast %88
-    %91 = sub %89, %90
-    %92 = const i64 4
-    %93 = sdiv %91, %92
-    %94 = trunc %93
-    store @d, %94
-    %95 = load @d
-    call.rtl void fb_PrintInt(0, %95, 1)
-    %96 = load @p
-    %97 = const i64 0
-    %98 = bitcast %97
-    %99 = icmp.ne %96, %98
-    condbr %99, if.then2, if.else3
+    %56 = const i64 4
+    %57 = mul %55, %56
+    %58 = ptr.add %53, %57
+    %59 = load %58
+    call.rtl void fb_PrintInt(0, %59, 1)
+    %60 = load @n
+    %61 = load @p
+    %62 = sext %60
+    %63 = const i64 4
+    %64 = mul %62, %63
+    %65 = ptr.add %61, %64
+    %66 = load %65
+    call.rtl void fb_PrintInt(0, %66, 1)
+    %67 = load @q
+    %68 = load @n
+    %69 = sext %68
+    %70 = const i64 4
+    %71 = mul %69, %70
+    %72 = const i64 0
+    %73 = sub %72, %71
+    %74 = ptr.add %67, %73
+    %75 = load %74
+    call.rtl void fb_PrintInt(0, %75, 1)
+    %76 = alloca ptr t
+    %77 = load @p
+    %78 = const i64 2
+    %79 = const i64 4
+    %80 = mul %78, %79
+    %81 = ptr.add %77, %80
+    store @t, %81
+    %82 = load @t
+    %83 = load %82
+    call.rtl void fb_PrintInt(0, %83, 1)
+    %84 = alloca ptr d
+    %85 = load @q
+    %86 = load @p
+    %87 = bitcast %85
+    %88 = bitcast %86
+    %89 = sub %87, %88
+    %90 = const i64 4
+    %91 = sdiv %89, %90
+    %92 = trunc %91
+    store @d, %92
+    %93 = load @d
+    call.rtl void fb_PrintInt(0, %93, 1)
+    %94 = load @p
+    %95 = const i64 0
+    %96 = bitcast %95
+    %97 = icmp.ne %94, %96
+    condbr %97, if.then2, if.else3
   if.join1:
-    %101 = load @p
-    %102 = load @q
-    %103 = icmp.slt %101, %102
-    condbr %103, if.then5, if.else6
+    %99 = load @p
+    %100 = load @q
+    %101 = icmp.slt %99, %100
+    condbr %101, if.then5, if.else6
   if.then2:
-    %100 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 7)
-    call.rtl void fb_PrintString(0, %100, 1)
+    %98 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 7)
+    call.rtl void fb_PrintString(0, %98, 1)
     br if.join1
   if.else3:
     br if.join1
   if.join4:
-    %105 = load @p
-    %106 = const i64 0
-    %107 = bitcast %106
-    %108 = icmp.eq %105, %107
-    %109 = neg %108
-    call.rtl void fb_PrintLongint(0, %109, 1)
-    %110 = const i32 0
-    call.rtl void fb_End(%110)
-    %111 = load @$tmp0
-    ret %111
+    %103 = load @p
+    %104 = const i64 0
+    %105 = bitcast %104
+    %106 = icmp.eq %103, %105
+    %107 = neg %106
+    call.rtl void fb_PrintLongint(0, %107, 1)
+    %108 = const i32 0
+    call.rtl void fb_End(%108)
+    %109 = load @$tmp0
+    ret %109
   if.then5:
-    %104 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 6)
-    call.rtl void fb_PrintString(0, %104, 1)
+    %102 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 6)
+    call.rtl void fb_PrintString(0, %102, 1)
     br if.join4
   if.else6:
     br if.join4
@@ -168,4 +166,4 @@ declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 7 blocks, 136 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 7 blocks, 134 insts, 0 statements not lowered, 0 scope imbalance

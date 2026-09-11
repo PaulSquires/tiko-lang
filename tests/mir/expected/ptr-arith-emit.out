@@ -1,0 +1,193 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg s size 16
+  local i32 i
+  local ptr p
+  local i32 n
+  local ptr q
+  local ptr bp_
+  local ptr ap
+  local ptr w
+  local ptr ay
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr s
+    %5 = call.rtl ptr memset(@s, 0, 16)
+    %6 = alloca ptr i
+    %7 = const i64 0
+    %8 = trunc %7
+    store @i, %8
+    %26 = alloca ptr p
+    %31 = alloca ptr n
+    %53 = alloca ptr q
+    %78 = alloca ptr bp_
+    %84 = alloca ptr ap
+    %102 = alloca ptr w
+    %123 = alloca ptr ay
+    br for.head1
+  for.head1:
+    %9 = load @i
+    %10 = const i64 7
+    %11 = trunc %10
+    %12 = icmp.sle %9, %11
+    condbr %12, for.body2, for.exit4
+  for.body2:
+    %13 = load @i
+    %14 = sext %13
+    %15 = const i64 2
+    %16 = mul %14, %15
+    %17 = ptr.add @s, %16
+    %18 = load @i
+    %19 = const i64 10
+    %20 = sext %18
+    %21 = mul %20, %19
+    %22 = trunc %21
+    store %17, %22
+    br for.step3
+  for.step3:
+    %23 = load @i
+    %24 = const i32 1
+    %25 = add %23, %24
+    store @i, %25
+    br for.head1
+  for.exit4:
+    %27 = const i64 0
+    %28 = const i64 2
+    %29 = mul %27, %28
+    %30 = ptr.add @s, %29
+    store @p, %30
+    %32 = const i64 3
+    %33 = trunc %32
+    store @n, %33
+    %34 = load @p
+    %35 = load @n
+    %36 = sext %35
+    %37 = const i64 2
+    %38 = mul %36, %37
+    %39 = ptr.add %34, %38
+    %40 = load %39
+    call.rtl void fb_PrintShort(0, %40, 2)
+    %41 = load @p
+    %42 = const i64 3
+    %43 = const i64 2
+    %44 = mul %42, %43
+    %45 = ptr.add %41, %44
+    %46 = load %45
+    call.rtl void fb_PrintShort(0, %46, 2)
+    %47 = const i64 3
+    %48 = load @p
+    %49 = const i64 2
+    %50 = mul %47, %49
+    %51 = ptr.add %48, %50
+    %52 = load %51
+    call.rtl void fb_PrintShort(0, %52, 1)
+    %54 = load @p
+    %55 = const i64 5
+    %56 = const i64 2
+    %57 = mul %55, %56
+    %58 = ptr.add %54, %57
+    store @q, %58
+    %59 = load @q
+    %60 = load %59
+    call.rtl void fb_PrintShort(0, %60, 2)
+    %61 = load @q
+    %62 = const i64 2
+    %63 = const i64 2
+    %64 = mul %62, %63
+    %65 = const i64 0
+    %66 = sub %65, %64
+    %67 = ptr.add %61, %66
+    %68 = load %67
+    call.rtl void fb_PrintShort(0, %68, 2)
+    %69 = load @q
+    %70 = load @n
+    %71 = sext %70
+    %72 = const i64 2
+    %73 = mul %71, %72
+    %74 = const i64 0
+    %75 = sub %74, %73
+    %76 = ptr.add %69, %75
+    %77 = load %76
+    call.rtl void fb_PrintShort(0, %77, 1)
+    %79 = load @p
+    store @bp_, %79
+    %80 = load @bp_
+    %81 = const i64 2
+    %82 = ptr.add %80, %81
+    %83 = load %82
+    call.rtl void fb_PrintUByte(0, %83, 1)
+    %85 = load @p
+    %86 = const i64 4
+    %87 = ptr.add %85, %86
+    store @ap, %87
+    %88 = load @ap
+    %89 = load %88
+    call.rtl void fb_PrintShort(0, %89, 1)
+    %90 = load @q
+    %91 = bitcast %90
+    %92 = load @p
+    %93 = bitcast %92
+    %94 = sub %91, %93
+    call.rtl void fb_PrintLongint(0, %94, 2)
+    %95 = load @q
+    %96 = load @p
+    %97 = bitcast %95
+    %98 = bitcast %96
+    %99 = sub %97, %98
+    %100 = const i64 2
+    %101 = sdiv %99, %100
+    call.rtl void fb_PrintLongint(0, %101, 1)
+    %103 = const i64 0
+    %104 = const i64 2
+    %105 = mul %103, %104
+    %106 = ptr.add @s, %105
+    store @w, %106
+    %107 = load @w
+    %108 = const i64 2
+    %109 = const i64 2
+    %110 = mul %108, %109
+    %111 = ptr.add %107, %110
+    store @w, %111
+    %112 = load @w
+    %113 = load %112
+    call.rtl void fb_PrintShort(0, %113, 1)
+    %114 = load @w
+    %115 = const i64 1
+    %116 = const i64 2
+    %117 = mul %115, %116
+    %118 = const i64 0
+    %119 = sub %118, %117
+    %120 = ptr.add %114, %119
+    store @w, %120
+    %121 = load @w
+    %122 = load %121
+    call.rtl void fb_PrintShort(0, %122, 1)
+    %124 = const i64 0
+    %125 = const i64 2
+    %126 = mul %124, %125
+    %127 = ptr.add @s, %126
+    store @ay, %127
+    %128 = load @ay
+    %129 = const i64 3
+    %130 = ptr.add %128, %129
+    store @ay, %130
+    %131 = load @ay
+    %132 = load %131
+    call.rtl void fb_PrintUByte(0, %132, 1)
+    %133 = const i32 0
+    call.rtl void fb_End(%133)
+    %134 = load @$tmp0
+    ret %134
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintShort(i32 $0, i16 $1, i32 $2)
+declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 5 blocks, 163 insts, 0 statements not lowered, 0 scope imbalance

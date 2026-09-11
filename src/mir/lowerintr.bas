@@ -381,7 +381,21 @@ function LowerCompoundAssign _
     cur = CoerceTy( c, cur, wt, tt)
     dim as MirValue rhs = LowerExpr( c, value )
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
-    rhs = CoerceTy( c, rhs, wt, c.info->TypeOf_( value ))
+    '' A POINTER TARGET KEEPS ITS OFFSET AN INTEGER. Coercing the right-hand side to
+    '' the TARGET's type makes it a POINTER, and the scale and the add then came out
+    '' as 'mul ptr' and 'add ptr' -- neither is an LLVM instruction, so 'p += n' over
+    '' any pointer refused to emit. M_PTR_ADD below takes a byte offset.
+    dim as boolean ptrTarget = (PtrArithElem_( c, tt ) > 0)
+    if ptrTarget then
+        ptrTarget = (bop = Tko.TK_PLUS) orelse (bop = Tko.TK_MINUS)
+    end if
+    dim as MirType offT = MT_I64
+    if c.types->target.pointerBits = 32 then offT = MT_I32
+    if ptrTarget then
+        rhs = CoerceTy( c, rhs, offT, c.info->TypeOf_( value ))
+    else
+        rhs = CoerceTy( c, rhs, wt, c.info->TypeOf_( value ))
+    end if
 
     '' POINTER ARITHMETIC IS SCALED BY THE POINTEE HERE TOO. 'p += 1' over a
     '' 'short ptr' is '(uint8*)P$0 + 2ll' to fbc and was a one-BYTE add here --
@@ -389,18 +403,37 @@ function LowerCompoundAssign _
     '' language. The element size comes from the ASSIGNMENT TARGET'S type, which
     '' is what makes 'cptr( short ptr, pt ) += 1' advance by two even though pt
     '' is an 'any ptr'.
-    dim as boolean ptrAddSub = (bop = Tko.TK_PLUS) orelse (bop = Tko.TK_MINUS)
-    if ptrAddSub then
+    if ptrTarget then
         dim as long pesz = PtrArithElem_( c, tt )
         if pesz > 1 then
             dim as MirInst psc
             psc.op = cast( ushort, M_MUL )
-            psc.ty = cast( ubyte, wt )
+            psc.ty = cast( ubyte, offT )
             psc.a = rhs
-            psc.b = ConstInt( c, pesz, wt )
+            psc.b = ConstInt( c, pesz, offT )
             rhs = Emit( c, psc )
             if rhs.kind = cast( ubyte, MV_NONE ) then return false
         end if
+        '' 'p -= n' IS 'p + (-n)': M_PTR_ADD has no subtracting form, and fbc
+        '' writes the same -- 'r -= 2' over an 'integer ptr' is '(uint8*)R + -16'.
+        if bop = Tko.TK_MINUS then
+            dim as MirInst png
+            png.op = cast( ushort, M_SUB )
+            png.ty = cast( ubyte, offT )
+            png.a = ConstInt( c, 0, offT )
+            png.b = rhs
+            rhs = Emit( c, png )
+            if rhs.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+        dim as MirInst ppa
+        ppa.op = cast( ushort, M_PTR_ADD )
+        ppa.ty = cast( ubyte, MT_PTR )
+        ppa.a = Coerce( c, cur, MT_PTR, false )
+        ppa.b = rhs
+        dim as MirValue pres = Emit( c, ppa )
+        if pres.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, addr, pres )
+        return true
     end if
 
     dim as MirValue res

@@ -631,6 +631,69 @@ function LowerExpr _
         '' type, not the result's: a comparison yields an integer either way.
         dim as Tko.TypeId lt = c.info->TypeOf_( bp->lhs )
         dim as Tko.TypeId rt = c.info->TypeOf_( bp->rhs )
+        '' POINTER PLUS INTEGER IS M_PTR_ADD, and it has to be decided BEFORE the
+        '' operands are widened: the widening below brings both to the WIDER type,
+        '' which for a pointer operand is MT_PTR, so the integer was bitcast to a
+        '' pointer and the two were added as pointers --
+        ''
+        ''     %t16 = add ptr %t12, %t15
+        ''
+        '' -- which is not an LLVM instruction. 'print *(p + 1)' over any pointer at
+        '' all was 'invalid operand type for instruction' and the module was refused.
+        '' NOT A NARROW CASE: every '+' and '-' between a pointer and an integer, of
+        '' any width, constant or not. What kept it hidden is that 'p[ i ]' takes the
+        '' INDEX path and emits M_PTR_ADD properly, and that is how the corpus and
+        '' the runtime headers spell a pointer walk almost everywhere.
+        ''
+        '' The scaling is the same measured rule as before -- the byte offset is the
+        '' index times the POINTEE's size, an ANY pointee being 1 -- and M_PTR_ADD
+        '' takes a byte offset already, so nothing scales twice.
+        dim as boolean lpA = PtrArithElem_( c, lt ) > 0
+        dim as boolean rpA = PtrArithElem_( c, rt ) > 0
+        dim as boolean addSubA = (tk = Tko.TK_PLUS) orelse (tk = Tko.TK_MINUS)
+        if addSubA andalso (lpA <> rpA) then
+            dim as MirType offTy = MT_I64
+            if c.types->target.pointerBits = 32 then offTy = MT_I32
+            dim as MirValue pv = l
+            dim as MirValue ov = r
+            dim as Tko.TypeId ot = rt
+            if lpA = false then
+                pv = r
+                ov = l
+                ot = lt
+            end if
+            pv = Coerce( c, pv, MT_PTR, false )
+            ov = CoerceTy( c, ov, offTy, ot )
+            dim as long eszA = PtrArithElem_( c, iif( lpA, lt, rt ) )
+            if eszA > 1 then
+                dim as MirInst scA
+                scA.op = cast( ushort, M_MUL )
+                scA.ty = cast( ubyte, offTy )
+                scA.a = ov
+                scA.b = ConstInt( c, eszA, offTy )
+                ov = Emit( c, scA )
+                if ov.kind = cast( ubyte, MV_NONE ) then return v
+            end if
+            '' 'p - n' IS 'p + (-n)'. M_PTR_ADD has no subtracting form and fbc
+            '' writes the same thing: 'r - 2' over an 'integer ptr' is
+            '' '(uint8*)R + -16'.
+            if tk = Tko.TK_MINUS then
+                dim as MirInst ngA
+                ngA.op = cast( ushort, M_SUB )
+                ngA.ty = cast( ubyte, offTy )
+                ngA.a = ConstInt( c, 0, offTy )
+                ngA.b = ov
+                ov = Emit( c, ngA )
+                if ov.kind = cast( ubyte, MV_NONE ) then return v
+            end if
+            dim as MirInst paA
+            paA.op = cast( ushort, M_PTR_ADD )
+            paA.ty = cast( ubyte, MT_PTR )
+            paA.a = pv
+            paA.b = ov
+            return Emit( c, paA )
+        end if
+
         dim as MirType opTy = LowerType( lt, *c.types )
         '' Both operands are brought to the WIDER of the two; the frontend's measured
         '' promotion rules already decided what the result type is.

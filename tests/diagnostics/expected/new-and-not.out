@@ -43,11 +43,11 @@ func i32 main(i32 $0, ptr $1) {
     %19 = const i64 0
     %20 = bitcast %19
     %21 = icmp.eq %18, %20
-    %34 = alloca ptr $tmp6
-    %38 = alloca ptr $tmp7
-    %45 = alloca ptr $tmp8
-    %49 = alloca ptr $tmp9
-    %53 = alloca ptr $tmp10
+    %33 = alloca ptr $tmp6
+    %37 = alloca ptr $tmp7
+    %44 = alloca ptr $tmp8
+    %48 = alloca ptr $tmp9
+    %52 = alloca ptr $tmp10
     condbr %21, if.then2, if.else3
   if.join1:
     %23 = load @n
@@ -65,40 +65,39 @@ func i32 main(i32 $0, ptr $1) {
   if.join5:
     %27 = load @ip
     %28 = const i64 1
-    %29 = bitcast %28
-    %30 = const ptr 8
-    %31 = mul %29, %30
-    %32 = add %27, %31
-    store @ip, %32
-    %33 = call.rtl ptr calloc(1, 1)
-    store @$tmp6, %33
-    %35 = load @$tmp6
-    %36 = bitcast %35
-    call.rtl void fb_PrintULongint(0, %36, 1)
-    %37 = call.rtl ptr calloc(2, 1)
-    store @$tmp7, %37
-    %39 = load @$tmp7
-    %40 = bitcast %39
-    call.rtl void fb_PrintULongint(0, %40, 1)
-    %41 = const i64 10
-    %42 = const i64 1
-    %43 = mul %41, %42
-    %44 = call.rtl ptr calloc(%43, 1)
-    store @$tmp8, %44
-    %46 = load @$tmp8
-    %47 = bitcast %46
-    call.rtl void fb_PrintULongint(0, %47, 1)
-    %48 = call.rtl ptr calloc(10, 1)
-    store @$tmp9, %48
-    %50 = load @$tmp9
-    %51 = bitcast %50
-    call.rtl void fb_PrintULongint(0, %51, 1)
-    %52 = call.rtl ptr calloc(10, 1)
-    store @$tmp10, %52
-    %54 = load @$tmp10
-    %55 = bitcast %54
-    call.rtl void fb_PrintULongint(0, %55, 1)
-    %56 = load @ip
+    %29 = const i64 8
+    %30 = mul %28, %29
+    %31 = ptr.add %27, %30
+    store @ip, %31
+    %32 = call.rtl ptr calloc(1, 1)
+    store @$tmp6, %32
+    %34 = load @$tmp6
+    %35 = bitcast %34
+    call.rtl void fb_PrintULongint(0, %35, 1)
+    %36 = call.rtl ptr calloc(2, 1)
+    store @$tmp7, %36
+    %38 = load @$tmp7
+    %39 = bitcast %38
+    call.rtl void fb_PrintULongint(0, %39, 1)
+    %40 = const i64 10
+    %41 = const i64 1
+    %42 = mul %40, %41
+    %43 = call.rtl ptr calloc(%42, 1)
+    store @$tmp8, %43
+    %45 = load @$tmp8
+    %46 = bitcast %45
+    call.rtl void fb_PrintULongint(0, %46, 1)
+    %47 = call.rtl ptr calloc(10, 1)
+    store @$tmp9, %47
+    %49 = load @$tmp9
+    %50 = bitcast %49
+    call.rtl void fb_PrintULongint(0, %50, 1)
+    %51 = call.rtl ptr calloc(10, 1)
+    store @$tmp10, %51
+    %53 = load @$tmp10
+    %54 = bitcast %53
+    call.rtl void fb_PrintULongint(0, %54, 1)
+    %55 = load @ip
     br if.then10
   if.then6:
     %26 = const i32 0
@@ -109,20 +108,19 @@ func i32 main(i32 $0, ptr $1) {
   end.after8:
     br if.join5
   if.join9:
-    %58 = load @pp_
-    %59 = const i64 1
-    %60 = bitcast %59
-    %61 = const ptr 8
-    %62 = mul %60, %61
-    %63 = add %58, %62
-    store @pp_, %63
-    %64 = const i32 0
-    call.rtl void fb_End(%64)
-    %65 = load @$tmp0
-    ret %65
+    %57 = load @pp_
+    %58 = const i64 1
+    %59 = const i64 8
+    %60 = mul %58, %59
+    %61 = ptr.add %57, %60
+    store @pp_, %61
+    %62 = const i32 0
+    call.rtl void fb_End(%62)
+    %63 = load @$tmp0
+    ret %63
   if.then10:
-    %57 = const i32 0
-    call.rtl void fb_End(%57)
+    %56 = const i32 0
+    call.rtl void fb_End(%56)
     unreachable
   if.else11:
     br if.join9
@@ -135,10 +133,10 @@ declare ptr calloc(i64 $0, i64 $1)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 14 blocks, 88 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 14 blocks, 86 insts, 2 statements not lowered, 0 scope imbalance
   inside N_IF 2
   skip-site src\mir\lowerutil.bas:50 1
-  skip-site src\mir\lowerctl.bas:1084 1
+  skip-site src\mir\lowerctl.bas:1087 1
 tests/diagnostics/src/new-and-not.bas(17,7): error TKO0705: 'new' of a bare zstring or wstring allocates nothing
      |
   17 | print new zstring
