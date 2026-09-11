@@ -919,7 +919,25 @@ function LowerSretResult _
         end if
     end if
     if bareLit then bareLit = (c.info->TypeOf_( valueE ) = Tko.TYPE_NONE)
-    if (bareLit orelse namedLit) andalso (c.resultType <> Tko.TYPE_NONE) then
+
+    '' A BARE TUPLE LIST IS THE THIRD SPELLING: it HAS a type of its own and still
+    '' means "build this as the destination". 'return ( Counted( 7 ), 8 )' out of a
+    '' '(Counted, long)' typed the literal (Counted, INTEGER) -- 16 bytes against
+    '' the result's 8 -- and copied all sixteen into the hidden pointer. ONLY for a
+    '' TUPLE result: over a UDT a list is the field-list initialiser.
+    dim as boolean tupleLit = false
+    if (bareLit = false) andalso (namedLit = false) then
+        if c.ast->Kind( valueE ) = Tko.N_TUPLE then
+            if (c.ast->nodes[cast( long, valueE )].flags and _
+                Tko.NF_TYPE_LITERAL) = 0 then
+                if c.resultType <> Tko.TYPE_NONE then
+                    tupleLit = IsTupleType_( c, c.types->Unqualify( c.resultType ) )
+                end if
+            end if
+        end if
+    end if
+    if (bareLit orelse namedLit orelse tupleLit) andalso _
+       (c.resultType <> Tko.TYPE_NONE) then
         dim as Tko.TypeId lt = c.types->Unqualify( c.resultType )
         '' RETURN CONSTRUCTS STRAIGHT INTO THE HIDDEN POINTER; 'function =' does
         '' not. The measurement above is of the ASSIGNMENT form and is right for it;
@@ -945,10 +963,15 @@ function LowerSretResult _
             dim as MirValue rdst = LowerExprLoad( c, rsa, MT_PTR )
             if rdst.kind <> cast( ubyte, MV_NONE ) then
                 if LowerCtorInit( c, -1, lt, valueE, @rdst ) then return true
+                '' THE HIDDEN POINTER'S STORAGE IS RAW, and a field list ASSIGNS into
+                '' its leaves. Assigning into a field nobody constructed is one
+                '' constructor short of the destructor that will run for it:
+                '' 'return ( Counted( 7 ), 8 )' gave 2 and 3 where fbc gives 2 and 2.
+                if TypeNeedsInit_( c, lt ) then CallImplicitCtor_( c, lt, rdst )
                 if LowerUdtParenInit_( c, -1, lt, valueE, @rdst ) then return true
             end if
         end if
-        if bareLit andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
+        if (bareLit orelse tupleLit) andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
             dim as long lsz = SizeOfType( c, lt )
             if lsz > 0 then
                 dim as long lslot = NewTempLocal( c, MT_AGG, lsz )
@@ -1436,6 +1459,7 @@ function ProcCallConv_ _
     if (sp->extra and Tko.PF_PASCAL) <> 0 then return TKO_CC_PASCAL
     return TKO_CC_CDECL
 end function
+
 
 private function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean

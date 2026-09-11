@@ -15,6 +15,79 @@
 
 
 
+'' 'u = ( a, b )' -- A BARE TUPLE LIST ASSIGNED TO A TUPLE VARIABLE.
+''
+'' THE DESTINATION DECIDES THE TYPE, and the literal's own inferred type is not just
+'' unhelpful, it is WRONG: '( Counted( 3 ), 4 )' types its second element INTEGER, so
+'' the literal is a 16-byte tuple where '(Counted, long)' is 8. Lowered as itself and
+'' stored, that is a 16-byte load into an 8-byte slot -- clang refused the module.
+''
+'' Measured, fbc builds the temporary AS THE TARGET'S TYPE and assigns it:
+''
+''     _ZN8FBTUPLE2I7COUNTEDiEC1Ev( &U )
+''     _ZN7COUNTEDC1Ei( &TMP2, 3 )
+''     memcpy( &TMP3, &TMP2, 4 )                       field 0
+''     *(int32*)((uint8*)&TMP3 + 4) = 4                field 1
+''     _ZN8FBTUPLE2I7COUNTEDiEaSERKS1_( &U, &TMP3 )    operator let, not a store
+''
+'' -- note 'i' in the mangled name: the TARGET's LONG, not the literal's INTEGER.
+''
+'' NOT THE DECLARATION FORM, which has the type written one line up and already
+'' worked, and not 'x = type( )', which LowerBareTypeLiteralAssign_ below owns.
+private function LowerTupleListAssign_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    if value = Tko.NODE_NONE then return false
+    if c.ast->Kind( value ) <> Tko.N_TUPLE then return false
+    if (c.ast->nodes[cast( long, value )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+        return false
+    end if
+    '' A TUPLE TARGET is destructuring -- 'let (a, b) = e' -- and is handled ahead
+    '' of here.
+    if c.ast->Kind( target ) = Tko.N_TUPLE then return false
+
+    dim as Tko.TypeId dt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if dt = Tko.TYPE_NONE then return false
+    if c.types->Kind( dt ) <> Tko.TK_UDT then return false
+    if IsTupleType_( c, dt ) = false then return false
+    dim as long sz = SizeOfType( c, dt )
+    if sz <= 0 then return false
+
+    dim as MirValue daddr = LowerAddr( c, target )
+    if daddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long tslot = NewTempLocal( c, MT_AGG, sz )
+    if tslot < 0 then return false
+    dim as MirValue tv
+    tv.kind = cast( ubyte, MV_LOCAL )
+    tv.ty = cast( ubyte, MT_PTR )
+    tv.id = tslot
+    if TypeNeedsInit_( c, dt ) then CallImplicitCtor_( c, dt, tv )
+    if LowerUdtParenInit_( c, tslot, dt, value ) = false then return false
+    if TypeNeedsDtor_( c, dt ) then
+        c.udtTemps.Push( cast( ulong, tslot ) )
+        c.udtTempTypes.Push( cast( ulong, dt ) )
+    end if
+
+    '' ASSIGNED, not stored: a tuple whose half owns something has an 'operator let'
+    '' and a raw copy would skip it.
+    dim as Tko.SymbolId lt = StructorOf( c, dt, "let" )
+    if lt <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) largs
+        largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
+        EmitStructorCall( c, lt, -1, @daddr, @largs )
+        return true
+    end if
+    if NeedsLetBody_( c, dt ) then
+        CallImplicitLet_( c, dt, daddr, tv )
+        return true
+    end if
+    dim as MirValue whole = LowerExprLoad( c, tv, MT_AGG, sz )
+    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, daddr, whole )
+    return true
+end function
+
 '' 'x = type( )' -- a BARE type literal assigned to an existing variable.
 ''
 '' Recognised by SHAPE: an empty N_TUPLE marked as a type literal, with no type name of
@@ -425,6 +498,9 @@ private sub LowerAssign _
     '' -- construct a temporary, copy it in, destroy it. Constructing straight into the
     '' destination would skip that destructor, which structs/temp-var-dtors.bas exists
     '' to count.
+    '' A BARE TUPLE LIST TAKES THE DESTINATION'S TYPE -- see LowerTupleListAssign_.
+    if LowerTupleListAssign_( c, target, value ) then return
+
     if LowerBareTypeLiteralAssign_( c, target, value ) then return
 
     if LowerBitfieldStore( c, target, value ) then return

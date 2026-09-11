@@ -518,6 +518,24 @@ function LowerUdtParenInit_ _
             v = CoerceTy( c, v, fmt, c.info->TypeOf_( e ))
             if v.kind = cast( ubyte, MV_NONE ) then return false
         end if
+        '' COERCED TO THE FIELD'S TYPE, which this never did. The values are the
+        '' ones the ELEMENTS have; the fields' types are the DESTINATION's, and for
+        '' a tuple literal the two routinely differ. Measured:
+        '' 'takesDD( (4, 5) )' against 'byval p as (double, double)' stored two
+        '' INTEGER bit patterns into two doubles and printed 1.97e-323 and
+        '' 2.47e-323 where fbc prints 4 and 5.
+        ''
+        '' A WHOLE-OBJECT value spanning several leaves is left alone: it is copied
+        '' by the aggregate paths above, and 'coercing' one to a leaf's scalar type
+        '' is the sign-extended-aggregate bug this file already records.
+        if (span = 1) andalso (cast( MirType, v.ty ) <> MT_AGG) then
+            dim as MirType lmt = cast( MirType, fTy[cur] )
+            if (lmt <> MT_VOID) andalso (lmt <> MT_AGG) then
+                dim as Tko.TypeId lft = cast( Tko.TypeId, fFt[cur] )
+                dim as MirValue cvv = CoerceTy( c, v, lmt, lft )
+                if cvv.kind <> cast( ubyte, MV_NONE ) then v = cvv
+            end if
+        end if
         vOff.Push( cast( ulong, fOff[cur] ) )
         vals.Push( cast( ulong, v.kind ) )
         vals.Push( cast( ulong, v.id ) )

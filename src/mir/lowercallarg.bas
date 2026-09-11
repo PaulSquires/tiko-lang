@@ -82,23 +82,53 @@ private function BareTypeLiteralArg_ _
 
     outSlot = -1
     if argNode = Tko.NODE_NONE then return false
+    '' '( 4, 5 )' WRITTEN AS AN ARGUMENT keeps the parentheses it was written with:
+    '' the list arrives wrapped in an N_PAREN, where the same text on the right of
+    '' an '=' does not. Testing for N_TUPLE alone saw nothing here.
+    argNode = Unparen_( c, argNode )
     if c.ast->Kind( argNode ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( long, argNode )].flags and Tko.NF_TYPE_LITERAL) = 0 then
-        return false
-    end if
-    if c.info->TypeOf_( argNode ) <> Tko.TYPE_NONE then return false
     if pt = Tko.TYPE_NONE then return false
     dim as Tko.TypeId dt = c.types->Unqualify( pt )
     if c.types->Kind( dt ) = Tko.TK_REFERENCE then
         dt = c.types->Unqualify( c.types->Inner( dt ) )
     end if
     if c.types->Kind( dt ) <> Tko.TK_UDT then return false
+
+    '' A BARE TUPLE LIST IS THE SAME RULE ONE STEP ALONG: the PARAMETER decides the
+    '' type. 'takesDD( (4, 5) )' against 'byval p as (double, double)' types the
+    '' literal (INTEGER, INTEGER) on its own, and passing THAT reinterprets two
+    '' integers as two doubles -- measured, tiko printed 1.97e-323 and 2.47e-323
+    '' where fbc prints 4 and 5. The literal's own type is not a hint here, it is
+    '' wrong, and the same is true of its SIZE: '( Counted( 3 ), 4 )' is 16 bytes
+    '' against a 'byval p as (Counted, long)' that is 8.
+    ''
+    '' ONLY FOR A TUPLE PARAMETER. Against an ordinary UDT a parenthesised list is
+    '' the field-list initialiser, which has its own path and its own rules about
+    '' which constructors it may skip.
+    dim as boolean bareLit = _
+        ((c.ast->nodes[cast( long, argNode )].flags and Tko.NF_TYPE_LITERAL) <> 0)
+    if bareLit then
+        if c.info->TypeOf_( argNode ) <> Tko.TYPE_NONE then return false
+    else
+        if IsTupleType_( c, dt ) = false then return false
+    end if
     dim as long sz = SizeOfType( c, dt )
     if sz <= 0 then return false
 
     dim as long tslot = NewTempLocal( c, MT_AGG, sz )
     if tslot < 0 then return false
-    if LowerCtorInit( c, tslot, dt, argNode ) = false then return false
+    '' LowerCtorInit WANTS A CONSTRUCTOR, and a plain tuple of scalars has none --
+    '' which is why this declined for '(double, double)' and the argument fell
+    '' through to being lowered as its own type. A field list is the other way to
+    '' fill one, and it is the same one the declaration form uses.
+    if LowerCtorInit( c, tslot, dt, argNode ) = false then
+        dim as MirValue tinit
+        tinit.kind = cast( ubyte, MV_LOCAL )
+        tinit.ty = cast( ubyte, MT_PTR )
+        tinit.id = tslot
+        if TypeNeedsInit_( c, dt ) then CallImplicitCtor_( c, dt, tinit )
+        if LowerUdtParenInit_( c, tslot, dt, argNode ) = false then return false
+    end if
     if TypeNeedsDtor_( c, dt ) then
         c.udtTemps.Push( cast( ulong, tslot ) )
         c.udtTempTypes.Push( cast( ulong, dt ) )
@@ -339,6 +369,18 @@ private function ArgNeedsUdtConv_ _
     if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
     pt = c.types->Unqualify( pt )
     if c.types->Kind( pt ) <> Tko.TK_UDT then return false
+
+    '' A BARE TUPLE LIST IS NOT A CONVERSION. '( 4, 5 )' has a type of its own --
+    '' (INTEGER, INTEGER) -- but it is not a value being converted FROM: it is a
+    '' list of elements to be built AS the parameter's type, which is what
+    '' BareTypeLiteralArg_ does. Treated as a conversion it built a temporary of
+    '' the right SIZE and filled it with the wrong values: 'takesDD( (4, 5) )'
+    '' stored two integer bit patterns into two doubles.
+    if c.ast->Kind( argNode ) = Tko.N_TUPLE then
+        if (c.ast->nodes[cast( long, argNode )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+            if IsTupleType_( c, pt ) then return false
+        end if
+    end if
 
     dim as Tko.TypeId at = c.info->TypeOf_( argNode )
     if at = Tko.TYPE_NONE then return false

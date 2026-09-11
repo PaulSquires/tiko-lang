@@ -34,24 +34,21 @@ func i64 GIVESLL() {
 }
 func ptr GIVESLS(ptr $0) {
   local ptr $tmp0
-  local agg $tmp1 size 32
   entry0:
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
-    %2 = alloca ptr $tmp1
-    call void _ZN9$TUP:8:15C1Ev(@$tmp1)
+    %2 = load @$tmp0
+    call void _ZN9$TUP:6:15C1Ev(%2)
     %3 = const i64 5
-    %4 = field.addr @$tmp1, 0
-    store %4, %3
-    %5 = field.addr @$tmp1, 8
-    %6 = call.rtl ptr fb_StrAssign(%5, -1, @@$str1, 5, 0)
-    %7 = load @$tmp1
+    %4 = trunc %3
+    %5 = field.addr %2, 0
+    store %5, %4
+    %6 = field.addr %2, 8
+    %7 = call.rtl ptr fb_StrAssign(%6, -1, @@$str1, 5, 0)
     %8 = load @$tmp0
-    store %8, %7
-    %9 = load @$tmp0
-    ret %9
+    ret %8
 }
-declare void _ZN9$TUP:8:15C1Ev(ptr $0)
+declare void _ZN9$TUP:6:15C1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -198,13 +195,12 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void _ZN9$TUP:6:15D1Ev(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
-declare void _ZN9$TUP:6:15C1Ev(ptr $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
-func void _ZN9$TUP:8:15C1Ev(ptr $0) {
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
-    %2 = call.rtl ptr memset(%1, 0, 8)
+    %2 = call.rtl ptr memset(%1, 0, 4)
     %3 = field.addr $0, 8
     %4 = field.addr %3, 0
     store %4, 0
@@ -220,18 +216,5 @@ func void _ZN9$TUP:6:15D1Ev(ptr $0) {
     call.rtl void fb_StrDelete(%1)
     ret
 }
-func void _ZN9$TUP:6:15C1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = call.rtl ptr memset(%1, 0, 4)
-    %3 = field.addr $0, 8
-    %4 = field.addr %3, 0
-    store %4, 0
-    %5 = field.addr %3, 8
-    store %5, 0
-    %6 = field.addr %3, 16
-    store %6, 0
-    ret
-}
 verify: ok
-lowered: 6 functions, 7 blocks, 160 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 6 blocks, 149 insts, 0 statements not lowered, 0 scope imbalance
