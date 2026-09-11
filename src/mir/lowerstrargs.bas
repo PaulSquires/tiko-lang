@@ -57,6 +57,94 @@ function NarrowStrArg_ _
     return (c.ast->Kind( e ) = Tko.N_BINARY)
 end function
 
+'' IS THIS CALLEE A RUNTIME ENTRY POINT RATHER THAN A PROCEDURE?
+''
+'' It decides which shape a byref string argument takes, and the two are opposites.
+'' fbc hands a RUNTIME entry point a POOL descriptor -- 'fb_GfxScreenInfo32( ...,
+'' fb_StrAllocTempDescZEx( "", 0 ) )' -- because the entry point consumes it before
+'' returning and the slot is free again immediately. It hands a USER procedure a
+'' real temporary, because the callee's own string work would recycle that slot
+'' underneath it.
+''
+'' ASKED OF THE ALIAS, because that is what the distinction actually is. SCREENINFO,
+'' IMAGEINFO, GETMOUSE and their siblings reach lowering as ordinary declarations --
+'' the prelude writes them with 'alias "fb_GfxScreenInfo32"' so that overload
+'' resolution can pick between the 32- and 64-bit forms -- so nothing about the CALL
+'' says which kind it is. The alias does: a procedure bound to a libfb symbol is
+'' libfb, wherever its declaration was written.
+private function RuntimeEntryCallee_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+
+    if callee = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr sym = c.syms->SymbolAt( callee )
+    if sym = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, sym->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+    if sp->aliasName = 0 then return false
+    dim as string al = c.names->Spelling( sp->aliasName )
+    if left( al, 3 ) = "fb_" then return true
+    return (left( al, 5 ) = "__fb_")
+end function
+
+'' DOES THIS ARGUMENT PASS ITS OWN DESCRIPTOR TO A BYREF STRING PARAMETER?
+''
+'' Measured, and the rule is narrower than it looks: ONLY A VAR-LENGTH STRING
+'' LVALUE does. Everything else -- a literal, a 'zstring * N', a 'string * N', a
+'' concatenation, a function result, '*pz' -- gets a zeroed temporary, fb_StrAssign
+'' in, the call, and fb_StrDelete after; the two fixed kinds also get a copy BACK.
+'' One probe, seven arguments, fbc's own C:
+''
+''     P( "lit" )   memset TMP; fb_StrAssign( &TMP, -1, "lit", 4, 0 ); P( &TMP ); delete
+''     P( v )       P( &V )                    -- and ONLY this one
+''     P( z )       temp, call, fb_StrAssign( Z, 8, &TMP, -1, 0 ), delete
+''     P( fx )      temp, call, fb_StrAssign( FX, tag, &TMP, -1, -1 ), delete
+''     P( v & "c" ) concat into TMP11, fb_StrAssign into TMP12, P( &TMP12 ), delete
+''     P( F( ) )    temp, call, delete
+''     P( *pz )     temp, call, delete
+''
+'' WHY IT MATTERS, and it is not tidiness. tiko-lang answered every one of those
+'' with fb_StrAllocTempDescZEx or fb_StrAllocTempDescF -- descriptors from libfb's
+'' small ROTATING POOL. A pool slot is meant to live until the runtime call that
+'' consumes it; handed to a USER function it stays live across the whole body, and
+'' the callee's own string work recycles the very slot its parameter points at.
+'' Measured: 'sub P( byref s as string )' printing 's' saw the text of a literal
+'' from its OWN print statement, and 'P( "xx" )' reported len 4.
+''
+'' CROSS-FLAVOUR IS NOT DECIDED HERE. A var-length USTRING against a byref STRING
+'' parameter is left on the path it was on: fbc converts it through
+'' fb_UStrAssignToA, tiko-lang does something else, and neither has been measured
+'' against the other. Refusing to answer beats answering half a rule.
+private function StrArgOwnDescriptor_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+
+    if e = Tko.NODE_NONE then return true
+    dim as Tko.TypeId at = c.info->TypeOf_( e )
+    '' NO TYPE is a concatenation or an intrinsic's result -- string-shaped by the
+    '' time it gets here, and one of the shapes fbc copies.
+    if at = Tko.TYPE_NONE then return false
+    at = c.types->Unqualify( at )
+    if IsStringType( c, at ) = false then
+        '' A FIXED NARROW STRING is copied; anything that is not a string at all is
+        '' NOT THIS RULE'S BUSINESS. 'takesS( 0 )' is an error the checker already
+        '' reports, and building it a temporary out of fb_LongintToStr would lower a
+        '' call the compiler had just refused -- an implicit conversion tiko-lang
+        '' does not have, emitted underneath a diagnostic.
+        dim as longint fn_
+        dim as long fk = StrSwapKind_( c, at, fn_ )
+        return (fk <> 1) andalso (fk <> 3)
+    end if
+    '' The unmeasured corner, above.
+    if IsUStringType( c, at ) <> IsUStringType( c, pt ) then return true
+    select case c.ast->Kind( e )
+    case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+        return true
+    end select
+    return false
+end function
+
 '' THE CALLER-BUILT DESCRIPTOR for one byval var-length string argument: zeroed,
 '' assigned from the source, and passed by ADDRESS. The slot comes back so the call
 '' site can delete it afterwards.
@@ -205,7 +293,13 @@ private sub CopyBackUStrArgs_ _
     for k as long = nodes.Count - 1 to 0 step -1
         dim as Tko.NodeId an = cast( Tko.NodeId, nodes[k] )
         dim as longint tag
-        if StrSwapKind_( c, c.info->TypeOf_( an ), tag ) <> 4 then continue for
+        '' THE FIXED KINDS, all three. fbc copies the temporary back into a
+        '' 'ustring * N', a 'zstring * N' and a 'string * N' alike -- the
+        '' parameter is byref, so a callee that writes through it must be seen.
+        '' The trailing flag is the one fbc emits for each: 0 for the narrow
+        '' kinds' own assignment and -1 for the space-padded one.
+        dim as long fk = StrSwapKind_( c, c.info->TypeOf_( an ), tag )
+        if (fk <> 4) andalso (fk <> 1) andalso (fk <> 3) then continue for
         dim as MirValue dst = LowerAddr( c, an )
         if dst.kind = cast( ubyte, MV_NONE ) then continue for
         dim as MirValue src
@@ -217,8 +311,16 @@ private sub CopyBackUStrArgs_ _
         PushStrLen_( c, args, tag )
         args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
         PushStrLen_( c, args, -1 )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
-        EmitRtl( c, RTL_USTR_ASSIGN, args )
+        if fk = 4 then
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
+            EmitRtl( c, RTL_USTR_ASSIGN, args )
+        else
+            dim as longint bflag = 0
+            if fk = 3 then bflag = -1
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, bflag ) ) )
+            EmitRtl( c, RTL_STR_ASSIGN, args )
+        end if
     next
 end sub
 

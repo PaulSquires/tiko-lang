@@ -4,6 +4,8 @@ func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg bx size 4
   local i32 r1
+  local agg $tmp3 size 24
+  local agg $tmp4 size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -13,27 +15,44 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr bx
     %5 = call.rtl ptr memset(@bx, 0, 4)
     %6 = alloca ptr r1
-    %7 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 5)
-    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)
-    %9 = call i8 _ZN2NS7has_strERK8FBSTRINGS2_(%7, %8)
-    %10 = const i8 0
-    %11 = icmp.ne %9, %10
-    %12 = const i8 0
-    %13 = sub %12, %11
-    %14 = sext %13
-    store @r1, %14
-    %15 = load @r1
-    call.rtl void fb_PrintInt(0, %15, 1)
-    %16 = const i32 0
-    call.rtl void fb_End(%16)
-    %17 = load @$tmp0
-    ret %17
+    %7 = alloca ptr $tmp3
+    %8 = field.addr @$tmp3, 0
+    store %8, 0
+    %9 = field.addr @$tmp3, 8
+    store %9, 0
+    %10 = field.addr @$tmp3, 16
+    store %10, 0
+    %11 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str0, 6, 0)
+    %12 = alloca ptr $tmp4
+    %13 = field.addr @$tmp4, 0
+    store %13, 0
+    %14 = field.addr @$tmp4, 8
+    store %14, 0
+    %15 = field.addr @$tmp4, 16
+    store %15, 0
+    %16 = call.rtl ptr fb_StrAssign(@$tmp4, -1, @@$str1, 4, 0)
+    %17 = call i8 _ZN2NS7has_strERK8FBSTRINGS2_(@$tmp3, @$tmp4)
+    call.rtl void fb_StrDelete(@$tmp4)
+    call.rtl void fb_StrDelete(@$tmp3)
+    %18 = const i8 0
+    %19 = icmp.ne %17, %18
+    %20 = const i8 0
+    %21 = sub %20, %19
+    %22 = sext %21
+    store @r1, %22
+    %23 = load @r1
+    call.rtl void fb_PrintInt(0, %23, 1)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare i8 _ZN2NS7has_strERK8FBSTRINGS2_(ptr $0, ptr $1)
+declare void fb_StrDelete(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 22 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 38 insts, 0 statements not lowered, 0 scope imbalance

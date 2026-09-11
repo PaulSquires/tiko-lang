@@ -67,6 +67,7 @@ func i32 _Z2TXRKw(ptr $0) {
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
+  local agg $tmp1 size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -80,20 +81,29 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const f64 3.5
     %8 = call f64 _Z2PRd(%7)
     call.rtl void fb_PrintDouble(0, %8, 1)
-    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 3)
-    %10 = call i32 _Z2TXRK8FBSTRING(%9)
-    call.rtl void fb_PrintInt(0, %10, 2)
-    %11 = call i32 _Z2TXRKw(@@$wstr1)
-    call.rtl void fb_PrintInt(0, %11, 1)
-    %12 = const i32 0
-    call.rtl void fb_End(%12)
-    %13 = load @$tmp0
-    ret %13
+    %9 = alloca ptr $tmp1
+    %10 = field.addr @$tmp1, 0
+    store %10, 0
+    %11 = field.addr @$tmp1, 8
+    store %11, 0
+    %12 = field.addr @$tmp1, 16
+    store %12, 0
+    %13 = call.rtl ptr fb_StrAssign(@$tmp1, -1, @@$str0, 4, 0)
+    %14 = call i32 _Z2TXRK8FBSTRING(@$tmp1)
+    call.rtl void fb_StrDelete(@$tmp1)
+    call.rtl void fb_PrintInt(0, %14, 2)
+    %15 = call i32 _Z2TXRKw(@@$wstr1)
+    call.rtl void fb_PrintInt(0, %15, 1)
+    %16 = const i32 0
+    call.rtl void fb_End(%16)
+    %17 = load @$tmp0
+    ret %17
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 63 insts, 0 statements not lowered, 0 scope imbalance

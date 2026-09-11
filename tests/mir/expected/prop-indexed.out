@@ -89,6 +89,7 @@ func void _ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER(ptr $0, ptr $1, i64 $2) {
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg f size 80
+  local agg $tmp2 size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -106,18 +107,28 @@ func i32 main(i32 $0, ptr $1) {
     %10 = const i64 0
     %11 = call i64 _ZN3FOO10BAR__get__Eu7INTEGER(@f, %10)
     call.rtl void fb_PrintLongint(0, %11, 2)
-    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    %13 = call i64 _ZN3FOO10BAR__get__ER8FBSTRING(@f, %12)
-    call.rtl void fb_PrintLongint(0, %13, 1)
-    %14 = const i32 0
-    call.rtl void fb_End(%14)
-    %15 = load @$tmp0
-    ret %15
+    %12 = alloca ptr $tmp2
+    %13 = field.addr @$tmp2, 0
+    store %13, 0
+    %14 = field.addr @$tmp2, 8
+    store %14, 0
+    %15 = field.addr @$tmp2, 16
+    store %15, 0
+    %16 = call.rtl ptr fb_StrAssign(@$tmp2, -1, @@$str0, 2, 0)
+    %17 = call i64 _ZN3FOO10BAR__get__ER8FBSTRING(@f, @$tmp2)
+    call.rtl void fb_StrDelete(@$tmp2)
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = const i32 0
+    call.rtl void fb_End(%18)
+    %19 = load @$tmp0
+    ret %19
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 80 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 88 insts, 0 statements not lowered, 0 scope imbalance

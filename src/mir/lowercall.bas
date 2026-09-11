@@ -567,6 +567,31 @@ function LowerCallParts _
                     ustrBackSlot.Push( cast( ulong, tempSlot ) )
                 end if
             end if
+            '' EVERY OTHER SHAPE IS A TEMPORARY -- see StrArgOwnDescriptor_ for the
+            '' probe. Only a var-length string LVALUE passes its own descriptor; a
+            '' literal, a fixed-length string, a concatenation, a function result
+            '' and '*pz' all had a POOL descriptor handed to a user function, and a
+            '' pool slot does not survive the callee's own string work.
+            ''
+            '' NARROW PARAMETERS ONLY. A ustring parameter already has its three
+            '' arms above and they were measured one at a time; folding them into
+            '' this one would re-open the branch order 5z closed.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i + pbase )
+                if (IsUStringType( c, spt ) = false) andalso _
+                   (RuntimeEntryCallee_( c, callee ) = false) then
+                    if StrArgOwnDescriptor_( c, argNode, spt ) = false then
+                        dim as Tko.TypeId npt = c.types->Builtin( Tko.TY_STRING )
+                        if ByvalStrTemp_( c, argNode, npt, a, tempSlot ) then
+                            strTemps.Push( cast( ulong, tempSlot ) )
+                            strTempTypes.Push( cast( ulong, npt ) )
+                            ustrBackNode.Push( cast( ulong, argNode ) )
+                            ustrBackSlot.Push( cast( ulong, tempSlot ) )
+                        end if
+                    end if
+                end if
+            end if
+
             if a.kind = cast( ubyte, MV_NONE ) then
                 if StrDescriptorOf_( c, argNode, a ) = false then
                     a = LowerAddr( c, argNode )

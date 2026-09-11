@@ -31,6 +31,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg nf size 24
   local agg uf size 48
   local agg $tmp3 size 24
+  local agg $tmp4 size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -45,36 +46,46 @@ func i32 main(i32 $0, ptr $1) {
     %9 = const i64 -9223372036854775785
     %10 = const i64 -9223372036854775807
     %11 = call.rtl ptr fb_UStrAssign(@uf, %9, @@$wstr1, %10, -1)
-    %12 = const i64 -9223372036854775784
-    %13 = call.rtl ptr fb_StrAllocTempDescF(@nf, %12)
-    %14 = call i32 _Z1GRK8FBSTRING(%13)
-    call.rtl void fb_PrintInt(0, %14, 2)
-    %15 = alloca ptr $tmp3
-    %16 = field.addr @$tmp3, 0
-    store %16, 0
-    %17 = field.addr @$tmp3, 8
-    store %17, 0
-    %18 = field.addr @$tmp3, 16
-    store %18, 0
-    %19 = const i64 -9223372036854775785
-    %20 = call.rtl ptr fb_UStrAssign(@$tmp3, -1, @uf, %19, 0)
-    %21 = call i32 _Z1GRK9FBUSTRING(@$tmp3)
-    %22 = const i64 -9223372036854775785
-    %23 = call.rtl ptr fb_UStrAssign(@uf, %22, @$tmp3, -1, -1)
-    call.rtl void fb_UStrDelete(@$tmp3)
-    call.rtl void fb_PrintInt(0, %21, 1)
-    %24 = const i32 0
-    call.rtl void fb_End(%24)
-    %25 = load @$tmp0
-    ret %25
+    %12 = alloca ptr $tmp3
+    %13 = field.addr @$tmp3, 0
+    store %13, 0
+    %14 = field.addr @$tmp3, 8
+    store %14, 0
+    %15 = field.addr @$tmp3, 16
+    store %15, 0
+    %16 = const i64 -9223372036854775784
+    %17 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @nf, %16, 0)
+    %18 = call i32 _Z1GRK8FBSTRING(@$tmp3)
+    %19 = const i64 -9223372036854775784
+    %20 = call.rtl ptr fb_StrAssign(@nf, %19, @$tmp3, -1, -1)
+    call.rtl void fb_StrDelete(@$tmp3)
+    call.rtl void fb_PrintInt(0, %18, 2)
+    %21 = alloca ptr $tmp4
+    %22 = field.addr @$tmp4, 0
+    store %22, 0
+    %23 = field.addr @$tmp4, 8
+    store %23, 0
+    %24 = field.addr @$tmp4, 16
+    store %24, 0
+    %25 = const i64 -9223372036854775785
+    %26 = call.rtl ptr fb_UStrAssign(@$tmp4, -1, @uf, %25, 0)
+    %27 = call i32 _Z1GRK9FBUSTRING(@$tmp4)
+    %28 = const i64 -9223372036854775785
+    %29 = call.rtl ptr fb_UStrAssign(@uf, %28, @$tmp4, -1, -1)
+    call.rtl void fb_UStrDelete(@$tmp4)
+    call.rtl void fb_PrintInt(0, %27, 1)
+    %30 = const i32 0
+    call.rtl void fb_End(%30)
+    %31 = load @$tmp0
+    ret %31
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
+declare void fb_StrDelete(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_UStrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance
