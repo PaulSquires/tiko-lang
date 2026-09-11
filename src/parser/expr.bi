@@ -69,6 +69,12 @@ namespace Tko
         as boolean              inProcPtrArg
         as NodeIdVec            lambdas
         as long                 lambdaSeq
+        '' HOW MANY ANONYMOUS NAMESPACES have been opened. 'namespace' with no name
+        '' is legal, and two of them are two DIFFERENT namespaces -- fbc names them
+        '' LABEL$2, LABEL$7 from a counter of its own. A LINE NUMBER will not do:
+        '' every token of a macro expansion carries the INVOCATION's location, so
+        '' 508 expansions of one macro all report the same line and collide.
+        as long                 anonNsSeq
         '' How many GENERIC procedure bodies enclose the cursor. A lambda written
         '' inside one is a TEMPLATE like the body around it -- its own body names the
         '' generic's type parameters, which stand for nothing at module level -- so it

@@ -1,0 +1,9 @@
+'' Two anonymous namespaces are two namespaces: a private 'f' in each gets its own name.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/anon-namespace.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: _ZN7LABEL$11FEi
+'' EXPECT-OUT: _ZN7LABEL$21FEd
+'' EXPECT-OUT: _ZN7LABEL$31FEs
+'' GOLDEN: expected/anon-namespace.out

@@ -224,6 +224,29 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.StmtPayload sp
     DeclName( p, sp.name )
 
+    '' AN ANONYMOUS NAMESPACE IS NAMED AFTER ITS LINE. 'namespace' with no name is
+    '' legal FreeBASIC, and two of them are two DIFFERENT namespaces: measured, fbc
+    '' emits '_ZN7LABEL$21FEi' and '_ZN7LABEL$71FEd' for a private 'f' in each.
+    ''
+    '' A COUNTER, NOT A LINE NUMBER. fbc's own numbers are 2 and 7 for namespaces on
+    '' lines 1 and 8, so its LABEL$ is a sequence rather than a location -- and a
+    '' line would not work anyway: every token of a macro expansion carries the
+    '' INVOCATION's location, so const-overflow's 508 expansions of one macro all
+    '' report line 14 and collided again one name along.
+    ''
+    '' The spelling need not match fbc's: these are PRIVATE symbols, unique within
+    '' the module and linked against by nothing outside it.
+
+    ''
+    '' Unnamed, every one of them was the module scope, so a macro that wraps its
+    '' helpers in one -- which is exactly what warnings/const-overflow does, 508
+    '' times -- declared 'f' again and again under a single name: clang's 'invalid
+    '' redefinition of function F'.
+    if sp.name = 0 then
+        p.anonNsSeq += 1
+        sp.name = p.names->Fold( p.names->GetString( "LABEL$" & str( p.anonNsSeq ) ) )
+    end if
+
     '' 'namespace aaa alias "aaa"' -- a MANGLING control, exactly as it is on a
     '' procedure. Measured: fbc accepts it, and REJECTS an empty one with error 304,
     '' "ALIAS name string is empty" -- which the corpus tests, so the string is kept
