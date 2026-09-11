@@ -486,13 +486,37 @@ end function
 declare function TypeOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
-'' An integer literal is the narrowest of INTEGER / LONGINT that holds it, matching
-'' fbc: small literals are INTEGER, which is pointer-sized, not LONG.
+'' An integer literal is INTEGER -- pointer-sized, not LONG -- UNLESS IT CARRIES A
+'' SUFFIX, which this ignored entirely. Measured against fbc, one probe:
+''
+''     2      INTEGER   8 signed        2u     UINTEGER  8 unsigned
+''     2%     INTEGER   8 signed        2ul    ULONG     4 unsigned
+''     2L 2&  LONG      4 signed        2ull   ULONGINT  8 unsigned
+''     2LL    LONGINT   8 signed
+''
+'' Answering INTEGER for all of them is not a rounding error. 'Some( 2L )' against
+'' 'dim o as Optional( of long )' inferred T = INTEGER, so the call returned a
+'' 16-byte Optional( of integer ) into an 8-byte slot and clang refused the module:
+'' "'%t19' defined with type '[16 x i8]' but expected '[8 x i8]'". Eighteen corpus
+'' files would not build, and every one of them was this.
+''
+'' THE CONSTANT FOLDER ALREADY KNEW -- LitBits_ and SuffixUnsigned_ beside each other
+'' in constfold.bas, with the same measurements written above them. Only the TYPE
+'' question was never asked.
 private function LiteralType_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
     select case c.ast->Kind( id )
     case Tko.N_INT_LIT
+        dim as Tko.LiteralPayload ptr lp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        select case cast( Tko.NumSuffix, lp->suffix )
+        case Tko.NSUF_LONG     : return c.types->Builtin( Tko.TY_LONG )
+        case Tko.NSUF_ULONG    : return c.types->Builtin( Tko.TY_ULONG )
+        case Tko.NSUF_LONGINT  : return c.types->Builtin( Tko.TY_LONGINT )
+        case Tko.NSUF_ULONGINT : return c.types->Builtin( Tko.TY_ULONGINT )
+        case Tko.NSUF_UINTEGER : return c.types->Builtin( Tko.TY_UINTEGER )
+        end select
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT
         return c.types->Builtin( Tko.TY_DOUBLE )

@@ -261,6 +261,20 @@ private function InferArgType_ _
         '' instantiates over the closure struct and the program prints 5.
         return c.info->TypeOf_( a )
     case Tko.N_INT_LIT
+        '' THE SUFFIX DECIDES, as it does in Check's LiteralType_ -- and this is the
+        '' place it matters most, because the answer becomes a TYPE ARGUMENT.
+        '' 'dim o as Optional( of long ) = Some( 2L )' inferred T = INTEGER, so the
+        '' call returned a 16-byte Optional( of integer ) into an 8-byte slot and
+        '' clang refused the whole module.
+        dim as Tko.LiteralPayload ptr ilp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )]
+        select case cast( Tko.NumSuffix, ilp->suffix )
+        case Tko.NSUF_LONG     : return c.types->Builtin( Tko.TY_LONG )
+        case Tko.NSUF_ULONG    : return c.types->Builtin( Tko.TY_ULONG )
+        case Tko.NSUF_LONGINT  : return c.types->Builtin( Tko.TY_LONGINT )
+        case Tko.NSUF_ULONGINT : return c.types->Builtin( Tko.TY_ULONGINT )
+        case Tko.NSUF_UINTEGER : return c.types->Builtin( Tko.TY_UINTEGER )
+        end select
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT
         return c.types->Builtin( Tko.TY_DOUBLE )
