@@ -12,13 +12,13 @@ func ptr _ZN8WIDECASTcvwEv(ptr $0) {
     %3 = alloca ptr this
     store @this, $0
     %4 = load @this
-    %5 = field.addr %4, 4
+    %5 = field.addr %4, 0
     store @$tmp0, %5
     %6 = load @$tmp0
     ret %6
 }
 func void S1() {
-  local agg u size 52
+  local agg u size 48
   local i64 k1
   local i64 k2
   local agg w size 40
@@ -29,8 +29,8 @@ func void S1() {
   local ptr $tmp8
   entry0:
     %1 = alloca ptr u
-    %2 = call.rtl ptr memset(@u, 0, 52)
-    %3 = field.addr @u, 4
+    %2 = call.rtl ptr memset(@u, 0, 48)
+    %3 = field.addr @u, 0
     %4 = call.rtl ptr fb_WstrAssign(%3, 12, @@$wstr0)
     %5 = alloca ptr k1
     %6 = call ptr _ZN8WIDECASTcvwEv(@u)
@@ -58,7 +58,7 @@ func void S1() {
     %23 = const i64 2
     %24 = call ptr _ZN8WIDECASTcvwEv(@u)
     call.rtl void fb_WstrAssignMid(%24, 0, %23, -1, @rep)
-    %25 = field.addr @u, 4
+    %25 = field.addr @u, 0
     call.rtl void fb_PrintWstr(0, %25, 1)
     %26 = alloca ptr f
     %27 = call.rtl ptr memset(@f, 32, 10)

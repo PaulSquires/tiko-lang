@@ -41,15 +41,15 @@ declare function StrSwapKind_ _
 ''
 '' The walk is over the BASE field, transitively: udt-zstring's own type is
 '' 'UZSTRING_FIXED extends UZSTRING_FIXED_BASE extends zstring', two levels.
-private function ExtendsZstring_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+private function ExtendsStrKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.BuiltinType ) as boolean
 
     dim as Tko.TypeId cur = c.types->Unqualify( t )
     dim as long guard = 0
     while (cur <> Tko.TYPE_NONE) andalso (guard < 32)
         guard += 1
         if c.types->Kind( cur ) = Tko.TK_BUILTIN then
-            return (c.types->BuiltinOf( cur ) = Tko.TY_ZSTRING)
+            return (c.types->BuiltinOf( cur ) = want)
         end if
         if c.types->Kind( cur ) <> Tko.TK_UDT then return false
         dim as Tko.SymbolId bs = UdtMemberNamed_( c, cur, "base" )
@@ -59,6 +59,19 @@ private function ExtendsZstring_ _
         cur = c.types->Unqualify( bsy->type_ )
     wend
     return false
+end function
+
+private function ExtendsZstring_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    return ExtendsStrKind_( c, t, Tko.TY_ZSTRING )
+end function
+
+'' ...AND THE WIDE ONE. 'type UWSTRING_FIXED_BASE extends wstring' is what
+'' udt-wstring/conversion.bas writes, and the whole VAL family over it went
+'' through the aggregate instead.
+private function ExtendsWstring_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    return ExtendsStrKind_( c, t, Tko.TY_WSTRING )
 end function
 
 '' The intrinsic's spelling, or "" when this call is not one of them.
@@ -226,9 +239,27 @@ function LowerConvIntrinsic _
         '' literal's ADDRESS. Verifier clean, 0 statements not lowered, and the answer
         '' was a pointer. This is the same hole the narrow rows below were written to
         '' close, left open on the wide side.
-        if IsWideString_( c, at2 ) then
+        '' A UDT THAT CASTS TO A WSTRING IS A WIDE OPERAND TOO. The narrow rows
+        '' below have asked this since they were written; the wide branch did not, so
+        '' 'cint( u )' over 'type B extends wstring' declaring
+        '' 'operator cast( ) byref as const wstring' compared the OBJECT to zero --
+        '' 'icmp ne [34 x i8] %t7, 0', which is not an instruction, so no module.
+        ''
+        '' ONLY WHEN IT EXTENDS WSTRING, for the same reason the narrow side insists:
+        '' the cast alone is fbc's error 20, so accepting it would compute an answer
+        '' for a program fbc refuses.
+        dim as boolean udtWide = false
+        if (IsWideString_( c, at2 ) = false) andalso _
+           (c.types->Kind( at2 ) = Tko.TK_UDT) then
+            udtWide = ExtendsWstring_( c, at2 )
+        end if
+        if IsWideString_( c, at2 ) orelse udtWide then
             dim as MirValue wd
-            if WideOperand_( c, arg, wd ) = false then return v
+            if udtWide then
+                if UserCastToWstr_( c, arg, wd ) = false then return v
+            else
+                if WideOperand_( c, arg, wd ) = false then return v
+            end if
             if wd.kind = cast( ubyte, MV_NONE ) then return v
             dim as FB.Array( of ulong ) wargs
             wargs.Push( cast( ulong, wd.kind ) ) : wargs.Push( cast( ulong, wd.id ) )

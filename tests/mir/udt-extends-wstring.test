@@ -1,0 +1,35 @@
+'' A UDT THAT EXTENDS A STRING: THE BASE IS A MARKER, NOT STORAGE, AND THE WIDE
+'' CONVERSIONS GO THROUGH THE CAST.
+''
+'' Two independent defects, both in tests/vendor/fbc-tests/udt-wstring/conversion.bas,
+'' whose UWSTRING_FIXED_BASE is 'extends wstring'.
+''
+'' THE CONVERSION. The narrow rows of the VAL family have asked "is this a UDT that
+'' casts to a string" since they were written; the WIDE branch did not. 'cint( u )'
+'' over a type declaring 'operator cast( ) byref as const wstring' compared the OBJECT
+'' to zero -- 'icmp ne [34 x i8] %t7, 0', which is not an instruction, so clang refused
+'' the module. ONLY WHEN IT EXTENDS WSTRING, for the reason the narrow side gives: the
+'' cast alone is fbc's error 20, so accepting it would answer a program fbc refuses.
+''
+'' THE LAYOUT. Measured, fbc:
+''
+''     type C extends wstring : x as byte : end type    sizeof 1
+''     type D extends zstring : x as byte : end type    sizeof 1
+''
+'' -- the base occupies NOTHING and contributes no alignment either. What it buys is
+'' that the string family's conversions accept the type at all. tiko counted it as the
+'' 2 (or 1) bytes a bare wstring or zstring reports, so every such type was too long
+'' and every field after the base sat at the WRONG OFFSET. Six MIR goldens held that,
+'' and all six programs differential clean against fbc after the change -- they had
+'' never been built.
+''
+'' Differenced against fbc: '32 / 123 / true / 32' and then '1 1'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-extends-wstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+
+'' THE WIDE VAL ENTRY POINTS, reached through the cast rather than over the aggregate.
+'' EXPECT-OUT: fb_WstrValLng
+'' GOLDEN: expected/udt-extends-wstring.out

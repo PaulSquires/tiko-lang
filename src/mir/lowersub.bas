@@ -1038,6 +1038,55 @@ function UserCastToStr_ _
     return true
 end function
 
+'' THE SAME QUESTION ON THE WIDE SIDE: the 'operator cast' that yields a WSTRING.
+''
+'' UserCastToStr_ answers for 'string' and 'zstring' only, and the wide half of the
+'' rule was simply absent. Measured, fbc accepts
+''
+''     type B extends wstring
+''         declare operator cast( ) byref as const wstring
+''     end type
+''     print cint( bv )        -- 123, through the cast
+''
+'' and tiko compared the OBJECT to zero instead: 'icmp ne [34 x i8] %t7, 0', which is
+'' not an instruction, so the module was refused.
+''
+'' A BYREF WIDE RESULT IS ALREADY A 'uint16*', which is exactly what the wide VAL
+'' entry points take -- there is no descriptor to borrow, and so no raw/temp
+'' distinction of the kind the narrow path needs.
+function UserCastToWstr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
+        '' Through a REFERENCE or a POINTER: 'byref as wstring' is either spelling
+        '' by the time it reaches here, and both mean the same buffer.
+        if c.types->Kind( rt ) = Tko.TK_REFERENCE then
+            rt = c.types->Unqualify( c.types->Inner( rt ) )
+        elseif c.types->Kind( rt ) = Tko.TK_POINTER then
+            rt = c.types->Unqualify( c.types->Inner( rt ) )
+        end if
+        if rt <> Tko.TYPE_NONE then
+            if c.types->Kind( rt ) = Tko.TK_BUILTIN then
+                if c.types->BuiltinOf( rt ) = Tko.TY_WSTRING then
+                    dim as MirValue self_ = LowerAddr( c, id )
+                    if self_.kind = cast( ubyte, MV_NONE ) then return false
+                    outv = EmitMemberCall( c, cur, self_, MT_PTR )
+                    return (outv.kind <> cast( ubyte, MV_NONE ))
+                end if
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    return false
+end function
+
 '' A UDT OPERAND IN A NUMERIC EXPRESSION, through its own 'operator cast'.
 ''
 '' Measured: 'result = u <> 0' over a type that declares 'operator cast( ) as integer'

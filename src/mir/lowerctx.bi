@@ -495,6 +495,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function UserCastToPtr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UserCastToWstr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     declare function UdtMemberNamed_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId

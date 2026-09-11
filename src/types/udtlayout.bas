@@ -198,6 +198,31 @@ private sub PlaceGroup _
         dim as long fa = natural
         if (pack > 0) andalso (fa > pack) then fa = pack
         dim as long fs = MemberSize( f->type_, types, store )
+        '' A BASE THAT IS A BARE STRING TYPE OCCUPIES NOTHING. Measured, fbc:
+        ''
+        ''     type C extends wstring : x as byte : end type    sizeof 1
+        ''     type D extends zstring : x as byte : end type    sizeof 1
+        ''
+        '' -- the base is a MARKER, not storage: what it buys is that the whole
+        '' string family's conversions accept the type. tiko counted it as the 2 (or
+        '' 1) bytes a bare wstring or zstring reports, so every such type was too
+        '' long and every field after the base sat at the wrong offset.
+        '' udt-wstring/conversion.bas's UWSTRING_FIXED is 34 bytes that way and 32
+        '' to fbc.
+        if f->name = store.baseName then
+            if types.Kind( f->type_ ) = TK_BUILTIN then
+                select case types.BuiltinOf( f->type_ )
+                case TY_ZSTRING, TY_WSTRING
+                    fs = 0
+                    fa = 1
+                    '' AND THE ALIGNMENT TOO: the UDT's own alignment is the widest
+                    '' member's, and a base that occupies nothing contributes
+                    '' none. Leaving it at 2 made 'extends wstring' with one
+                    '' BYTE field 2 bytes long where fbc says 1.
+                    natural = 1
+                end select
+            end if
+        end if
 
         dim as long bw = 0
         if (f->flags and SYMF_BITFIELD) <> 0 then bw = f->payload
