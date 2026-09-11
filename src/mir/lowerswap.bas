@@ -937,7 +937,20 @@ function LowerUserUnaryOp_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
       byval mt as MirType, byref outv as MirValue ) as boolean
 
-    dim as Tko.SymbolId op = c.info->RefOf( id )
+    return LowerUserUnaryOpSym_( c, c.info->RefOf( id ), up->operand, mt, outv )
+end function
+
+'' THE SAME OPERATOR CALL, GIVEN THE SYMBOL RATHER THAN THE NODE.
+''
+'' An N_UNARY is bound to its operator by Check, and the rule above reads the
+'' binding. A MATH INTRINSIC over a UDT is not an N_UNARY at all -- 'sqr( t )'
+'' parses as a CALL -- and nothing binds it, so the caller finds the operator by
+'' NAME and hands it here. One implementation, because everything after the
+'' binding is identical and a second copy would drift from it.
+function LowerUserUnaryOpSym_ _
+    ( byref c as Ctx, byval op as Tko.SymbolId, byval operand as Tko.NodeId, _
+      byval mt as MirType, byref outv as MirValue ) as boolean
+
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
     if os = 0 then return false
@@ -973,7 +986,7 @@ function LowerUserUnaryOp_ _
     if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
 
     if np = 0 then
-        dim as MirValue self_ = LowerAddr( c, up->operand )
+        dim as MirValue self_ = LowerAddr( c, operand )
         if self_.kind = cast( ubyte, MV_NONE ) then return false
         outv = EmitMemberCall( c, op, self_, rmt )
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -983,7 +996,7 @@ function LowerUserUnaryOp_ _
     dim as FB.Array( of ulong ) args
     dim as FB.Array( of ulong ) unTmpSlots
     dim as FB.Array( of ulong ) unTmpTypes
-    if OperandValue_( c, up->operand, pt, isRef, args, unTmpSlots, unTmpTypes ) = false then
+    if OperandValue_( c, operand, pt, isRef, args, unTmpSlots, unTmpTypes ) = false then
         return false
     end if
      '' NO HIDDEN RESULT POINTER on this path: the unary operator does not push a

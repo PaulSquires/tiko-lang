@@ -1,0 +1,30 @@
+'' THE MATH FAMILY CAN BE OVERLOADED ON A TYPE, AND THE INTRINSIC MUST STAND ASIDE.
+''
+'' fbc accepts 'operator sqr( byref x as const TSQR ) as single' and calls it;
+'' optimizations/inline-ops.bas declares one and checks the cooked value comes back.
+'' tiko took the intrinsic path over the UDT: Coerce refused to make a double of an
+'' aggregate and answered NOTHING, and that nothing went out as the operand of an
+'' sqrt -- 'emit: ICE: an operand with no kind'.
+''
+'' FOUND BY NAME, because nothing BINDS it. 'sqr( t )' parses as a CALL and Check types
+'' the INTRINSIC; the symbol an 'operator sqr' declares is spelled exactly 'sqr'. ABS
+'' is here beside it because it takes a different branch of the same rule -- per-width
+'' builtins rather than the shared double one -- and would have gone on declining.
+''
+'' AND A LIBM NAME THE PROGRAM DECLARES ITSELF. The four libm functions with no LLVM
+'' intrinsic are declared by scanning the emitted TEXT for a call, and a call the
+'' program wrote looks exactly like one the emitter made: 'declare function asinf
+'' alias "asinf"' beside tiko's own ASIN gave two declarations of one name and clang
+'' refused the module -- 'invalid redefinition of function asinf'. That is the same
+'' corpus file, one error further on.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/user-math-operator.bas
+'' EXPECT-EXIT: 0
+
+'' THE OPERATORS ARE CALLED.
+'' EXPECT-OUT: call float @"_Zv13sqrRK4TSQR"
+'' EXPECT-OUT: call float @"_Zv13absRK4TABS"
+
+'' AND NO INTRINSIC IS EMITTED OVER THE AGGREGATE.
+'' EXPECT-NOT: llvm.sqrt.f64
+'' GOLDEN: expected/user-math-operator.out

@@ -665,6 +665,9 @@ declare function EmitRtl _
     declare function LowerUserUnaryOp_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
           byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerUserUnaryOpSym_ _
+        ( byref c as Ctx, byval op as Tko.SymbolId, byval operand as Tko.NodeId, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
     declare function LowerUserBinaryOp_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval mt as MirType, byref outv as MirValue ) as boolean

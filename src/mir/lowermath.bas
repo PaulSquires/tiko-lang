@@ -46,6 +46,25 @@ function LowerMathCall_ _
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as Tko.TypeId at = c.info->TypeOf_( a0 )
     if at = Tko.TYPE_NONE then return false
+
+    '' A UDT ARGUMENT IS A USER 'operator sqr' -- or abs, or sgn, or any of them.
+    '' fbc allows the whole math family to be overloaded on a type, and
+    '' optimizations/inline-ops.bas declares 'operator sqr( byref x as const TSQR )
+    '' as single' and calls it. The intrinsic path lowered the UDT, Coerce refused
+    '' to make a double of an aggregate and answered NOTHING, and that nothing was
+    '' emitted as the operand of an sqrt: 'ICE: an operand with no kind'.
+    ''
+    '' BY NAME, because nothing BINDS it: 'sqr( t )' parses as a CALL and Check
+    '' types the intrinsic, not the operator. The symbol an 'operator sqr' declares
+    '' is spelled exactly 'sqr', which is what the parser folds it under.
+    if c.types->Kind( c.types->Unqualify( at ) ) = Tko.TK_UDT then
+        dim as Tko.SymbolId uop = c.syms->Lookup( _
+            c.info->ScopeOf( id ), c.names->Fold( c.names->GetString( nm ) ) )
+        if uop = Tko.SYMBOL_NONE then return false
+        dim as MirType urt = LowerType( c.info->TypeOf_( id ), *c.types )
+        if urt = MT_VOID then urt = MT_F64
+        return LowerUserUnaryOpSym_( c, uop, a0, urt, outv )
+    end if
     dim as MirType amt = LowerType( at, *c.types )
     dim as boolean isFlt = (amt = MT_F32) orelse (amt = MT_F64)
     dim as boolean uns = IsUnsignedType( c, at )

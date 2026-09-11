@@ -1,0 +1,67 @@
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-w64-windows-gnu"
+
+declare double @"asin"(double) nounwind
+
+define float @"_Zv13sqrRK4TSQR"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca float, align 4
+  store float 0x0000000000000000, ptr %s0, align 4
+  %s1 = alloca ptr, align 8
+  store ptr %p0, ptr %s1, align 8
+  %t5 = sitofp i64 16 to float
+  store float %t5, ptr %s0, align 4
+  %t6 = load float, ptr %s0, align 4
+  ret float %t6
+
+}
+
+define float @"_Zv13absRK4TABS"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca float, align 4
+  store float 0x0000000000000000, ptr %s0, align 4
+  %s1 = alloca ptr, align 8
+  store ptr %p0, ptr %s1, align 8
+  %t5 = sitofp i64 7 to float
+  store float %t5, ptr %s0, align 4
+  %t6 = load float, ptr %s0, align 4
+  ret float %t6
+
+}
+
+define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+L0:
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+  %s1 = alloca [8 x i8], align 8
+  %t5 = call ptr @"memset"(ptr %s1, i32 0, i64 8)
+  %s2 = alloca [8 x i8], align 8
+  %t7 = call ptr @"memset"(ptr %s2, i32 0, i64 8)
+  %t8 = call float @"_Zv13sqrRK4TSQR"(ptr %s1)
+  call void @"fb_PrintSingle"(i32 0, float %t8, i32 1)
+  %t9 = call float @"_Zv13absRK4TABS"(ptr %s2)
+  call void @"fb_PrintSingle"(i32 0, float %t9, i32 1)
+  %s3 = alloca float, align 4
+  %t12 = fptrunc double 0x3FE0000000000000 to float
+  %t13 = call float @"asinf"(float %t12)
+  store float %t13, ptr %s3, align 4
+  %t15 = call double @"asin"(double 0x3FE0000000000000)
+  %t16 = load float, ptr %s3, align 4
+  %t17 = fptrunc double %t15 to float
+  %t18 = fpext float %t17 to double
+  %t19 = fpext float %t16 to double
+  %t20 = fsub double %t18, %t19
+  call void @"fb_PrintDouble"(i32 0, double %t20, i32 1)
+  call void @"fb_End"(i32 0)
+  %t22 = load i32, ptr %s0, align 4
+  ret i32 %t22
+
+}
+
+declare void @"fb_Init"(i32, ptr, i32)
+declare ptr @"memset"(ptr, i32, i64)
+declare void @"fb_PrintSingle"(i32, float, i32)
+declare float @"asinf"(float)
+declare void @"fb_PrintDouble"(i32, double, i32)
+declare void @"fb_End"(i32)

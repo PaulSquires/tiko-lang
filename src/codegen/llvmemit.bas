@@ -1253,7 +1253,22 @@ end sub
 '' known once every function has been emitted. So the body is built first and the
 '' declarations are prepended -- which is also why the emitter builds one string and
 '' writes it once rather than streaming to a file.
-private function IntrinsicDecls( byref body as string ) as string
+'' Does this module carry a function of its own under that LINKER NAME?
+''
+'' The intrinsic declarations below are chosen by scanning the emitted TEXT, and
+'' a call the program wrote itself looks exactly like one this emitter made. The
+'' MirFunction table tells them apart.
+private function ModuleDeclares_( byref e as EmitCtx, byref nm as string ) as boolean
+    for i as long = 0 to e.m->functions.Count - 1
+        dim as MirFunction ptr f = e.m->functions[i]
+        if f = 0 then continue for
+        if e.names->Spelling( f->name ) = nm then return true
+    next
+    return false
+end function
+
+private function IntrinsicDecls _
+    ( byref e as EmitCtx, byref body as string ) as string
     dim as string r
     '' The full set this emitter can produce, each declared only if it appears. A
     '' declaration that is never called is harmless but noisy, and noise in emitted IR
@@ -1296,11 +1311,21 @@ private function IntrinsicDecls( byref body as string ) as string
     dim as string libm( ... ) = { "tan", "asin", "acos", "atan" }
     for i as long = lbound( libm ) to ubound( libm )
         dim as string n = libm( i )
-        if instr( body, "@""" & n & """(" ) > 0 then
-            r += "declare double @""" & n & """(double) nounwind" & chr( 10 )
+        '' ...UNLESS THE MODULE DECLARES IT ITSELF. A program may write
+        '' 'declare function asinf cdecl alias "asinf"( byval as single ) as single'
+        '' and call it -- optimizations/inline-ops.bas does, to check tiko's own
+        '' ASIN against libm's -- and then there are TWO declarations of one name:
+        '' 'invalid redefinition of function asinf'. The module's own is the one
+        '' that stays: it is what its call sites were emitted against.
+        if ModuleDeclares_( e, n ) = false then
+            if instr( body, "@""" & n & """(" ) > 0 then
+                r += "declare double @""" & n & """(double) nounwind" & chr( 10 )
+            end if
         end if
-        if instr( body, "@""" & n & "f""(" ) > 0 then
-            r += "declare float @""" & n & "f""(float) nounwind" & chr( 10 )
+        if ModuleDeclares_( e, n & "f" ) = false then
+            if instr( body, "@""" & n & "f""(" ) > 0 then
+                r += "declare float @""" & n & "f""(float) nounwind" & chr( 10 )
+            end if
         end if
     next
     return r
@@ -1441,7 +1466,7 @@ function EmitLlvm _
         "target datalayout = """ & target.dataLayout & """" & chr( 10 ) & _
         "target triple = """ & target.triple & """" & chr( 10 ) & chr( 10 )
     res.ok = true
-    res.text = hdr & IntrinsicDecls( e.outp ) & chr( 10 ) & e.outp
+    res.text = hdr & IntrinsicDecls( e, e.outp ) & chr( 10 ) & e.outp
     return res
 end function
 
