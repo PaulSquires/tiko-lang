@@ -3,29 +3,34 @@ global str $str1 "from-var"
 global str $str2 "!"
 func i64 COUNTED() {
   local agg $tmp0 size 8
-  local agg $tmp1 size 16
+  local agg $abi1 size 8
   local agg $abi2 size 8
   entry0:
-    %13 = alloca ptr $abi2
+    %14 = alloca ptr $abi1
+    %16 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = load @@calls
     %3 = const i64 1
     %4 = trunc %3
     %5 = add %2, %4
     store @@calls, %5
-    %6 = alloca ptr $tmp1
-    %7 = const i64 20
+    %6 = const i64 20
+    %7 = trunc %6
     %8 = const i64 22
-    %9 = field.addr @$tmp1, 0
-    store %9, %7
-    %10 = field.addr @$tmp1, 8
-    store %10, %8
-    %11 = load @$tmp1
-    store @$tmp0, %11
+    %9 = trunc %8
+    %10 = field.addr @$tmp0, 0
+    store %10, %7
+    %11 = field.addr @$tmp0, 4
+    store %11, %9
     %12 = load @$tmp0
-    store @$abi2, %12
-    %14 = load @$abi2
-    ret %14
+    store @$abi1, %12
+    %15 = load @$abi1
+    ret %15
+  after1:
+    %13 = load @$tmp0
+    store @$abi2, %13
+    %17 = load @$abi2
+    ret %17
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -219,4 +224,4 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 6 functions, 7 blocks, 152 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 8 blocks, 152 insts, 0 statements not lowered, 0 scope imbalance

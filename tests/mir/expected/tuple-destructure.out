@@ -3,35 +3,41 @@ global str $str1 "five"
 global str $str2 "x"
 func i64 GIVESLL() {
   local agg $tmp0 size 8
-  local agg $tmp1 size 16
+  local agg $abi1 size 8
   local agg $abi2 size 8
   entry0:
-    %13 = alloca ptr $abi2
+    %14 = alloca ptr $abi1
+    %16 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = load @@calls
     %3 = const i64 1
     %4 = trunc %3
     %5 = add %2, %4
     store @@calls, %5
-    %6 = alloca ptr $tmp1
-    %7 = const i64 20
+    %6 = const i64 20
+    %7 = trunc %6
     %8 = const i64 22
-    %9 = field.addr @$tmp1, 0
-    store %9, %7
-    %10 = field.addr @$tmp1, 8
-    store %10, %8
-    %11 = load @$tmp1
-    store @$tmp0, %11
+    %9 = trunc %8
+    %10 = field.addr @$tmp0, 0
+    store %10, %7
+    %11 = field.addr @$tmp0, 4
+    store %11, %9
     %12 = load @$tmp0
-    store @$abi2, %12
-    %14 = load @$abi2
-    ret %14
+    store @$abi1, %12
+    %15 = load @$abi1
+    ret %15
+  after1:
+    %13 = load @$tmp0
+    store @$abi2, %13
+    %17 = load @$abi2
+    ret %17
 }
-func void GIVESLS(ptr $0) {
-  local agg $tmp0 size 32
+func ptr GIVESLS(ptr $0) {
+  local ptr $tmp0
   local agg $tmp1 size 32
   entry0:
     %1 = alloca ptr $tmp0
+    store @$tmp0, $0
     %2 = alloca ptr $tmp1
     call void _ZN9$TUP:8:15C1Ev(@$tmp1)
     %3 = const i64 5
@@ -40,10 +46,10 @@ func void GIVESLS(ptr $0) {
     %5 = field.addr @$tmp1, 8
     %6 = call.rtl ptr fb_StrAssign(%5, -1, @@$str1, 5, 0)
     %7 = load @$tmp1
-    store @$tmp0, %7
     %8 = load @$tmp0
-    store $0, %8
-    ret
+    store %8, %7
+    %9 = load @$tmp0
+    ret %9
 }
 declare void _ZN9$TUP:8:15C1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -66,12 +72,10 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp15 size 8
   local ptr $tmp16
   local agg $abi17 size 8
-  local agg $abi18 size 32
-  local agg $abi19 size 8
+  local agg $abi18 size 8
   entry0:
     %76 = alloca ptr $abi17
     %78 = alloca ptr $abi18
-    %79 = alloca ptr $abi19
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -112,10 +116,8 @@ func i32 main(i32 $0, ptr $1) {
     store %25, 0
     %26 = field.addr @v, 16
     store %26, 0
-    call void GIVESLS(@$abi18)
-    %27 = load @$abi18
-    %28 = alloca ptr $tmp7
-    store @$tmp7, %27
+    %27 = alloca ptr $tmp7
+    %28 = call ptr GIVESLS(@$tmp7)
     %29 = alloca ptr $tmp8
     store @$tmp8, @$tmp7
     %30 = load @$tmp8
@@ -125,6 +127,7 @@ func i32 main(i32 $0, ptr $1) {
     %33 = load @$tmp8
     %34 = field.addr %33, 8
     %35 = call.rtl ptr fb_StrAssign(@v, -1, %34, -1, 0)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp7)
     %36 = load @u
     call.rtl void fb_PrintInt(0, %36, 2)
     call.rtl void fb_PrintString(0, @v, 1)
@@ -165,9 +168,9 @@ func i32 main(i32 $0, ptr $1) {
     %61 = call.rtl ptr memset(@c1, 0, 4)
     %62 = alloca ptr c2
     %63 = call.rtl ptr memset(@c2, 0, 4)
-    %80 = call i64 GIVESLL()
-    store @$abi19, %80
-    %64 = load @$abi19
+    %79 = call i64 GIVESLL()
+    store @$abi18, %79
+    %64 = load @$abi18
     %65 = alloca ptr $tmp15
     store @$tmp15, %64
     %66 = alloca ptr $tmp16
@@ -193,28 +196,15 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void _ZN9$TUP:6:15D1Ev(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void _ZN9$TUP:6:15C1Ev(ptr $0)
 declare void fb_StrDelete(ptr $0)
-declare void _ZN9$TUP:6:15D1Ev(ptr $0)
 declare void fb_End(i32 $0)
 func void _ZN9$TUP:8:15C1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 8)
-    %3 = field.addr $0, 8
-    %4 = field.addr %3, 0
-    store %4, 0
-    %5 = field.addr %3, 8
-    store %5, 0
-    %6 = field.addr %3, 16
-    store %6, 0
-    ret
-}
-func void _ZN9$TUP:6:15C1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = call.rtl ptr memset(%1, 0, 4)
     %3 = field.addr $0, 8
     %4 = field.addr %3, 0
     store %4, 0
@@ -230,5 +220,18 @@ func void _ZN9$TUP:6:15D1Ev(ptr $0) {
     call.rtl void fb_StrDelete(%1)
     ret
 }
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    %4 = field.addr %3, 0
+    store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
+    ret
+}
 verify: ok
-lowered: 6 functions, 6 blocks, 158 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 7 blocks, 160 insts, 0 statements not lowered, 0 scope imbalance

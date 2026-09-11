@@ -223,7 +223,32 @@ function LowerTupleReturn_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if (c.ast->Kind( e ) <> Tko.N_TUPLE) andalso (c.ast->Kind( e ) <> Tko.N_PAREN) then
         return false
     end if
-    if c.info->TypeOf_( e ) <> Tko.TYPE_NONE then return false
+    '' A LITERAL OF A DIFFERENT TUPLE TYPE IS STILL BUILT INTO THE RESULT SLOT.
+    ''
+    '' This asked for a literal with NO type at all, and Check gives every tuple
+    '' literal one now -- built from its ELEMENTS. An integer literal is a LONGINT, so
+    '' 'return (20, 22)' out of a 'function ( ) as (long, long)' typed itself
+    '' '(longint, longint)': sixteen bytes for an eight-byte result.
+    ''
+    ''     func i64 GIVESLL() {
+    ''       local agg $tmp0 size 8      '' the result slot, correct
+    ''       local agg $tmp1 size 16     '' the literal, its own type
+    ''       %11 = load @$tmp1  ...  store @$tmp0, %11
+    ''
+    '' -- "'%t11' defined with type '[16 x i8]' but expected '[8 x i8]'". Measured, fbc
+    '' builds it as the RESULT's type: its own comment in
+    '' tests/mir/src/tuple-destructure.bas records 'struct FBTUPLE2Iii vr = GIVESLL( )'
+    '' -- Iii, two int32s, eight bytes.
+    ''
+    '' LowerUdtParenInit_ writes each element into the destination's own field, coerced
+    '' to that field's type, which is exactly the conversion the literal needed. So the
+    '' test is not 'has no type' but 'is not already the result type'.
+    dim as Tko.TypeId tle = c.info->TypeOf_( e )
+    if tle <> Tko.TYPE_NONE then
+        if c.types->Unqualify( tle ) = c.types->Unqualify( c.resultType ) then
+            return false
+        end if
+    end if
     if LowerUdtParenInit_( c, c.resultSlot, c.resultType, e ) = false then return false
     EmitCleanupsTo( c, 0 )
     dim as MirValue ura0

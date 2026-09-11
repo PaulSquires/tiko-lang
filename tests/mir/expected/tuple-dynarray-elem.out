@@ -1,10 +1,11 @@
-func void F(ptr $0) {
-  local agg $tmp0 size 88
+func ptr F(ptr $0) {
+  local ptr $tmp0
   local i32 k
   local agg d size 80
   local agg $tmp3 size 88
   entry0:
     %1 = alloca ptr $tmp0
+    store @$tmp0, $0
     %2 = alloca ptr k
     %3 = const i64 1
     %4 = trunc %3
@@ -22,34 +23,34 @@ func void F(ptr $0) {
     store %11, %10
     %12 = field.addr @$tmp3, 8
     call void _ZN3DYNC1ERKS_(%12, @d)
-    %13 = load @$tmp3
-    store @$tmp0, %13
+    %13 = load @$tmp0
+    call void _ZN9$TUP:6:23C1ERKS_(%13, @$tmp3)
     call void _ZN3DYND1Ev(@d)
     %14 = load @$tmp0
-    store $0, %14
-    ret
+    ret %14
 }
 declare void _ZN3DYNC1Ev(ptr $0)
 declare void _ZN9$TUP:6:23C1Ev(ptr $0)
 declare void _ZN3DYNC1ERKS_(ptr $0, ptr $1)
+declare void _ZN9$TUP:6:23C1ERKS_(ptr $0, ptr $1)
 declare void _ZN3DYND1Ev(ptr $0)
 func void S1() {
   local agg t size 88
-  local agg $abi1 size 88
+  local agg $tmp1 size 88
   entry0:
-    %8 = alloca ptr $abi1
     %1 = alloca ptr t
     call void _ZN9$TUP:6:23C1Ev(@t)
-    call void F(@$abi1)
-    %2 = load @$abi1
-    store @t, %2
-    %3 = field.addr @t, 0
-    %4 = load %3
-    call.rtl void fb_PrintInt(0, %4, 2)
-    %5 = field.addr @t, 8
-    %6 = field.addr %5, 72
-    %7 = load %6
-    call.rtl void fb_PrintInt(0, %7, 1)
+    %2 = alloca ptr $tmp1
+    %3 = call ptr F(@$tmp1)
+    %4 = load @$tmp1
+    store @t, %4
+    %5 = field.addr @t, 0
+    %6 = load %5
+    call.rtl void fb_PrintInt(0, %6, 2)
+    %7 = field.addr @t, 8
+    %8 = field.addr %7, 72
+    %9 = load %8
+    call.rtl void fb_PrintInt(0, %9, 1)
     call void _ZN9$TUP:6:23D1Ev(@t)
     ret
 }
@@ -148,6 +149,16 @@ func void _ZN3DYNC1ERKS_(ptr $0, ptr $1) {
     ret
 }
 declare void _ZN3DYNaSERKS_(ptr $0, ptr $1)
+func void _ZN9$TUP:6:23C1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    call void _ZN3DYNC1Ev(%3)
+    call void _ZN9$TUP:6:23aSERKS_($0, $1)
+    ret
+}
+declare void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1)
 func void _ZN3DYND1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -183,5 +194,16 @@ func void _ZN3DYNaSERKS_(ptr $0, ptr $1) {
 }
 declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
 declare ptr memcpy(ptr $0, ptr $1, i64 $2)
+func void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = load %1
+    store %2, %3
+    %4 = field.addr $1, 8
+    %5 = field.addr $0, 8
+    call void _ZN3DYNaSERKS_(%5, %4)
+    ret
+}
 verify: ok
-lowered: 9 functions, 9 blocks, 126 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance

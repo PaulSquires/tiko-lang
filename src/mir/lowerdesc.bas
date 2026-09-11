@@ -194,6 +194,27 @@ function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     if StructorOf( c, t, "__dtor" ) <> Tko.SYMBOL_NONE then return true
+    '' ...AND AN IMPLICIT ONE, which is what the comment above has always said and the
+    '' code did not do. A type owning a dynamic array or a var-length string has a
+    '' SYNTHESISED destructor and copy, and answering 'false' for it sent the result
+    '' down the TRIVIAL path: a whole-aggregate store into the result slot, then the
+    '' local's destructor, then a second bitwise copy at the call site and a second
+    '' destructor -- one buffer with two owners, freed twice.
+    ''
+    ''     type Bag : as long items( any ) : end type
+    ''     function Make( ) as Bag : dim r as Bag : redim r.items(0 to 3) : ...
+    ''     dim a as Bag = Make( )
+    ''
+    '' printed the right element and then exited 0xC0000374. Measured, fbc DOES use
+    '' the hidden pointer for exactly this type and copy-CONSTRUCTS into it:
+    ''
+    ''     struct $3BAG* MAKE( struct $3BAG* tmp$5$1 ) {
+    ''         ... _ZN3BAGC1ERKS_( tmp$5$1, &R$1 ); _ZN3BAGD1Ev( &R$1 ); }
+    ''     struct $3BAG A$1;  MAKE( &A$1 );
+    ''
+    '' -- no separate default constructor for A and no second copy: the caller's object
+    '' IS the hidden pointer.
+    if TypeNeedsDtor_( c, t ) then return true
     '' A COPY CONSTRUCTOR is a constructor taking one argument of its own type. Any
     '' other one-argument constructor is a conversion, not a copy.
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
