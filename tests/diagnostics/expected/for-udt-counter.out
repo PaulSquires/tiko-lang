@@ -26,14 +26,14 @@ func void _ZN1TC1Eu7INTEGER(ptr $0, i64 $1) {
     store %7, %8
     ret
 }
-func void _ZN1Tv13forEv(ptr $0) {
+func void _ZN1Tv03forEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1Tv14stepEv(ptr $0) {
+func void _ZN1Tv04stepEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -46,7 +46,7 @@ func void _ZN1Tv14stepEv(ptr $0) {
     store %3, %6
     ret
 }
-func i64 _ZN1Tv24nextERS_(ptr $0, ptr $1) {
+func i64 _ZN1Tv14nextERS_(ptr $0, ptr $1) {
   local i64 $tmp0
   local ptr this
   local ptr end_cond
@@ -84,7 +84,7 @@ func i32 main(i32 $0, ptr $1) {
     %6 = alloca ptr $tmp2
     %7 = const i64 3
     call void _ZN1TC1Eu7INTEGER(@$tmp2, %7)
-    call void _ZN1Tv13forEv(@i)
+    call void _ZN1Tv03forEv(@i)
     br for.test3
   for.body1:
     %8 = field.addr @i, 0
@@ -92,10 +92,10 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %9, 1)
     br for.step2
   for.step2:
-    call void _ZN1Tv14stepEv(@i)
+    call void _ZN1Tv04stepEv(@i)
     br for.test3
   for.test3:
-    %10 = call i32 _ZN1Tv24nextERS_(@i, @$tmp2)
+    %10 = call i32 _ZN1Tv14nextERS_(@i, @$tmp2)
     condbr %10, for.body1, for.exit4
   for.exit4:
     %11 = const i32 0

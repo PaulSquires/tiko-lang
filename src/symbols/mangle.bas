@@ -396,6 +396,17 @@ end function
 '' word -- fbc accepts 'static' on the DECLARE only. They take no receiver, which two
 '' places have to know: the arity that picks a unary code from a binary one, and win32's
 '' stdcall '@N'. Measured: '_ZN5MGOPS4OPNWnwEm@4', one 4-byte argument, not @8.
+'' The three FOR-protocol operators, which do NOT count their receiver -- see the
+'' arity rule in OperatorCode.
+private function IsLoopOperator_ _
+    ( byref names as Tko.Interner, byval nm as Tko.InternId ) as boolean
+
+    select case Tko.Text.LowerAscii( names.Spelling( nm ) )
+    case "for", "step", "next" : return true
+    end select
+    return false
+end function
+
 private function IsAllocOperator_ _
     ( byref names as Tko.Interner, byval nm as Tko.InternId ) as boolean
 
@@ -473,6 +484,19 @@ private function OperatorCode _
         dim as boolean memb = (aqt[aqt.Count - 1] <> 0)
         memb = memb andalso ((sp->extra and Tko.PF_STATIC) = 0)
         memb = memb andalso (IsAllocOperator_( names, sp->name ) = false)
+        '' ...AND NEITHER DO THE THREE LOOP OPERATORS. Measured, in ONE type, which is
+        '' what makes the rule a rule rather than a guess:
+        ''
+        ''     operator ^=( byval v as integer )    _ZN1Tv27selfpowEu7INTEGER   arity 2
+        ''     operator for( )                      _ZN1Tv03forEv               arity 0
+        ''     operator step( )                     _ZN1Tv04stepEv              arity 0
+        ''     operator next( byref e as T )        _ZN1Tv14nextERS_            arity 1
+        ''
+        '' -- '^=' counts its receiver and 'for', 'step' and 'next' do not. tiko wrote
+        '' v1/v1/v2 for the three, which is a name fbc never emits: a tiko object and
+        '' an fbc object of the same type could not be linked together, and the ABI
+        '' this file exists to reproduce was wrong for every type with a FOR protocol.
+        memb = memb andalso (IsLoopOperator_( names, sp->name ) = false)
         if memb then arity += 1
     end if
 

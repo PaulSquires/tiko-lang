@@ -82,7 +82,7 @@ func i64 _ZN4CONVcvu7INTEGEREv(ptr $0) {
     %5 = load @$tmp0
     ret %5
 }
-func void _ZN7COUNTERv23forERS_(ptr $0, ptr $1) {
+func void _ZN7COUNTERv13forERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr x
   entry0:
@@ -92,7 +92,7 @@ func void _ZN7COUNTERv23forERS_(ptr $0, ptr $1) {
     store @x, $1
     ret
 }
-func i64 _ZN7COUNTERv34nextERS_S0_(ptr $0, ptr $1, ptr $2) {
+func i64 _ZN7COUNTERv24nextERS_S0_(ptr $0, ptr $1, ptr $2) {
   local i64 $tmp0
   local ptr this
   local ptr cond
@@ -110,7 +110,7 @@ func i64 _ZN7COUNTERv34nextERS_S0_(ptr $0, ptr $1, ptr $2) {
     %6 = const i64 0
     ret %6
 }
-func void _ZN7COUNTERv24stepERS_(ptr $0, ptr $1) {
+func void _ZN7COUNTERv14stepERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr stp
   entry0:
@@ -351,7 +351,7 @@ verify: ok
 lowered: 16 functions, 26 blocks, 203 insts, 3 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   inside N_FOR 1
-  skip-site src\mir\lowerfor.bas:196 1
+  skip-site src\mir\lowerfor.bas:268 1
   skip-site src\mir\lowerutil.bas:40 2
 tests/diagnostics/src/operator-visibility.bas(102,24): error TKO0625: 'myconst' is not accessible here
      |

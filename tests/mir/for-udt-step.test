@@ -1,0 +1,36 @@
+'' A UDT FOR COUNTER WITH A STEP, AND ONE WITHOUT THE 'T( x )' SPELLING.
+''
+'' The operator protocol was implemented for the no-step form only, and a written STEP
+'' returned false from the first line of it. Declining a FOR is not a decline anyone
+'' sees: the program LINKS and prints NOTHING where fbc prints '0 1 2 3 4'.
+'' compound/for_UDT_counter.bas writes 'step stp' for every one of its types, and three
+'' of its loops were the corpus's worst declining lines.
+''
+'' Measured from fbc's own C for 'for cnt as foo = 0 to 4 step stp':
+''
+''     _ZN3FOOC1Eu7INTEGER( &CNT, 0 )                the counter
+''     _ZN3FOOC1Eu7INTEGER( &TMP4, 4 )               the limit, once
+''     _ZN3FOOC1ERS_( &TMP5, &STP )                  THE STEP, once, a COPY
+''     _ZN3FOOv13forERS_( &CNT, &TMP5 )              operator for( stp )
+''     ... body ...
+''     _ZN3FOOv14stepERS_( &CNT, &TMP5 )             operator step( stp )
+''     _ZN3FOOv24nextERS_S0_( &CNT, &TMP4, &TMP5 )   operator next( limit, stp )
+''
+'' -- a written step selects the OTHER overload of all three, and the no-step protocol
+'' is the same shape one argument shorter.
+''
+'' THREE SHAPES OF INITIALISER, and the corpus writes all three. 'foo( 1 )' is
+'' LowerCtorInit's; a bare '0' is the CONVERTING constructor, which only
+'' LowerConvCtorInit_ finds and which the no-step form was already declining; and
+'' 'step stp' over a foo is a COPY, which is neither.
+''
+'' Differenced against fbc: '0 1 2 3 4' three times over, the last one descending.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/for-udt-step.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+
+'' THE TWO-ARGUMENT 'next', which is what a written step selects.
+'' EXPECT-OUT: _ZN3FOOv24nextERS_S0_
+'' GOLDEN: expected/for-udt-step.out

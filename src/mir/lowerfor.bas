@@ -35,7 +35,6 @@ private function LowerForUdt_ _
       byval fromE as Tko.NodeId, byval toE as Tko.NodeId, _
       byval stepE as Tko.NodeId ) as boolean
 
-    if stepE <> Tko.NODE_NONE then return false
     if (fromE = Tko.NODE_NONE) orelse (toE = Tko.NODE_NONE) then return false
     if addr.kind <> cast( ubyte, MV_LOCAL ) then return false
 
@@ -43,12 +42,29 @@ private function LowerForUdt_ _
     if ct = Tko.TYPE_NONE then return false
     if c.types->Kind( ct ) <> Tko.TK_UDT then return false
 
+    '' A WRITTEN STEP SELECTS THE OTHER THREE OVERLOADS. Measured from fbc's own C
+    '' for 'for cnt as foo = 0 to 4 step stp':
+    ''
+    ''     _ZN3FOOC1Eu7INTEGER( &CNT, 0 )        the counter
+    ''     _ZN3FOOC1Eu7INTEGER( &TMP4, 4 )       the limit, once
+    ''     _ZN3FOOC1ERS_( &TMP5, &STP )          THE STEP, once, into a temporary
+    ''     _ZN3FOOv13forERS_( &CNT, &TMP5 )      operator for( stp )
+    ''     ... body ...
+    ''     _ZN3FOOv14stepERS_( &CNT, &TMP5 )     operator step( stp )
+    ''     _ZN3FOOv24nextERS_S0_( &CNT, &TMP4, &TMP5 )   operator next( limit, stp )
+    ''
+    '' -- the step is a COPY, made once, and all three take it. The no-step protocol
+    '' is the same shape one argument shorter. Declining a written step declined the
+    '' whole loop, and declined it SILENTLY: the program linked and printed nothing
+    '' where fbc prints '0 1 2 3 4'.
+    dim as boolean hasStep = (stepE <> Tko.NODE_NONE)
+    dim as long nArg = iif( hasStep, 1, 0 )
     dim as Tko.SymbolId forOp = _
-        StructorWithArity( c, StructorOf( c, ct, "for" ), 0 )
+        StructorWithArity( c, StructorOf( c, ct, "for" ), nArg )
     dim as Tko.SymbolId stepOp = _
-        StructorWithArity( c, StructorOf( c, ct, "step" ), 0 )
+        StructorWithArity( c, StructorOf( c, ct, "step" ), nArg )
     dim as Tko.SymbolId nextOp = _
-        StructorWithArity( c, StructorOf( c, ct, "next" ), 1 )
+        StructorWithArity( c, StructorOf( c, ct, "next" ), nArg + 1 )
     '' ALL THREE OR NONE. A type with only some of them is the checker's error
     '' TKO0746, already reported; lowering half a protocol would emit a loop that
     '' never advances.
@@ -58,7 +74,15 @@ private function LowerForUdt_ _
 
     '' THE COUNTER, constructed in its own slot from the start expression -- the
     '' same thing 'dim i as T = fromE' does.
-    if LowerCtorInit( c, addr.id, ct, fromE ) = false then return false
+    '' ...OR CONVERTED INTO IT. 'for cnt as foo = 0 to 4' over a type with
+    '' 'constructor foo( byval rhs as integer )' is not the 'foo( 0 )' shape
+    '' LowerCtorInit answers for; it is the converting constructor, and only
+    '' LowerConvCtorInit_ finds that. Without it the whole FOR declined -- and
+    '' DECLINED SILENTLY: the program linked and printed nothing at all where fbc
+    '' prints '0 1 2 3 4'. compound/for_UDT_counter.bas writes it this way.
+    if LowerCtorInit( c, addr.id, ct, fromE ) = false then
+        if LowerConvCtorInit_( c, addr.id, ct, fromE, 0 ) = false then return false
+    end if
 
     '' THE LIMIT, constructed ONCE into a temporary. Once, because 'operator next'
     '' is called on every test and re-evaluating 'T( f( ) )' would call f each time.
@@ -70,9 +94,47 @@ private function LowerForUdt_ _
     limAddr.kind = cast( ubyte, MV_LOCAL )
     limAddr.ty = cast( ubyte, MT_PTR )
     limAddr.id = limSlot
-    if LowerCtorInit( c, limSlot, ct, toE ) = false then return false
+    if LowerCtorInit( c, limSlot, ct, toE ) = false then
+        if LowerConvCtorInit_( c, limSlot, ct, toE, 0 ) = false then return false
+    end if
 
-    EmitMemberCall( c, forOp, addr, MT_VOID )
+    '' THE STEP, constructed ONCE into a temporary of its own, for the same reason
+    '' the limit is: all three operators read it, on every iteration.
+    dim as MirValue stpAddr
+    dim as FB.Array( of ulong ) stpArgs
+    if hasStep then
+        dim as long stpSlot = NewTempLocal( c, MT_AGG, lsz )
+        if stpSlot < 0 then return false
+        stpAddr.kind = cast( ubyte, MV_LOCAL )
+        stpAddr.ty = cast( ubyte, MT_PTR )
+        stpAddr.id = stpSlot
+        '' THREE SHAPES, and the corpus writes the third. 'step foo( 1 )' is
+        '' LowerCtorInit's; 'step 1' is the converting constructor; and 'step stp'
+        '' over a foo is a COPY, which is neither -- fbc emits
+        '' '_ZN3FOOC1ERS_( &TMP5, &STP )'. Without the copy the loop declined, and
+        '' declined silently: compound/for_UDT_counter.bas writes 'step stp' for
+        '' every one of its types.
+        if LowerCtorInit( c, stpSlot, ct, stepE ) = false then
+            if LowerConvCtorInit_( c, stpSlot, ct, stepE, 0 ) = false then
+                dim as MirValue sv = LowerAddr( c, stepE )
+                if sv.kind = cast( ubyte, MV_NONE ) then return false
+                dim as Tko.SymbolId scc = CopyCtorOf_( c, ct )
+                if scc <> Tko.SYMBOL_NONE then
+                    dim as FB.Array( of ulong ) scargs
+                    scargs.Push( cast( ulong, sv.kind ) )
+                    scargs.Push( cast( ulong, sv.id ) )
+                    EmitStructorCall( c, scc, -1, @stpAddr, @scargs )
+                else
+                    CallImplicitCopy_( c, ct, stpAddr, sv )
+                end if
+            end if
+        end if
+        stpArgs.Push( cast( ulong, stpAddr.kind ) )
+        stpArgs.Push( cast( ulong, stpAddr.id ) )
+        EmitMemberCallArgs_( c, forOp, addr, MT_VOID, @stpArgs )
+    else
+        EmitMemberCall( c, forOp, addr, MT_VOID )
+    end if
 
     dim as long bodyB = NewBlock( c, "for.body" )
     dim as long stepB = NewBlock( c, "for.step" )
@@ -95,13 +157,21 @@ private function LowerForUdt_ _
     Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
 
     c.curBlock = stepB
-    EmitMemberCall( c, stepOp, addr, MT_VOID )
+    if hasStep then
+        EmitMemberCallArgs_( c, stepOp, addr, MT_VOID, @stpArgs )
+    else
+        EmitMemberCall( c, stepOp, addr, MT_VOID )
+    end if
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = testB
     dim as FB.Array( of ulong ) nargs
     nargs.Push( cast( ulong, limAddr.kind ) )
     nargs.Push( cast( ulong, limAddr.id ) )
+    if hasStep then
+        nargs.Push( cast( ulong, stpAddr.kind ) )
+        nargs.Push( cast( ulong, stpAddr.id ) )
+    end if
     dim as MirValue more = _
         EmitMemberCallArgs_( c, nextOp, addr, MT_I32, @nargs )
     if more.kind = cast( ubyte, MV_NONE ) then return false
@@ -117,8 +187,10 @@ private function LowerForUdt_ _
         if ldt <> Tko.SYMBOL_NONE then
             dim as FB.Array( of ulong ) none_
             EmitStructorCall( c, ldt, -1, @limAddr, @none_ )
+            if hasStep then EmitStructorCall( c, ldt, -1, @stpAddr, @none_ )
         else
             CallImplicitDtor_( c, ct, limAddr )
+            if hasStep then CallImplicitDtor_( c, ct, stpAddr )
         end if
     end if
     return true
