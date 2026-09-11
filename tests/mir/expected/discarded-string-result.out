@@ -19,7 +19,7 @@ func void GO() {
   local agg s size 24
   local i32 i
   entry0:
-    %1 = call agg F()
+    %1 = call ptr F()
     %2 = call.rtl i32 fb_hStrDelTemp(%1)
     %3 = alloca ptr s
     %4 = call ptr F()

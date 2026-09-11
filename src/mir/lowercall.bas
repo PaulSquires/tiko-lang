@@ -985,6 +985,22 @@ function LowerCallParts _
     dim as MirType callTy = mt
     if sretTmp.kind <> cast( ubyte, MV_NONE ) then callTy = MT_PTR
 
+    '' A VAR-LENGTH STRING RESULT IS A POINTER, and the call took its type from the
+    '' EXPRESSION -- where a string is the 24-byte descriptor, MT_AGG. The
+    '' definition returns a pointer, so the two disagreed and clang refused the
+    '' module: "'%t4' defined with type '[0 x i8]' but expected 'ptr'".
+    ''
+    '' It only shows where the result is DISCARDED. 'dim s = F( )' and 'print F( )'
+    '' both consume the call through a string path that asks for MT_PTR itself;
+    '' 'F( )' written as a STATEMENT asks LowerExpr with no type at all, and every
+    '' string-returning function called that way was a module clang would not take.
+    if (callTy = MT_AGG) andalso (cs <> 0) then
+        dim as longint srn
+        dim as boolean srStr = IsStringType( c, cs->type_ )
+        if srStr then srStr = (StrSwapKind_( c, cs->type_, srn ) = 0)
+        if srStr then callTy = MT_PTR
+    end if
+
     '' A BYREF RESULT IS AN ADDRESS, and the call's own type said otherwise.
     '' 'function pick( ... ) byref as long' is 'int32* PICK( ... )' to fbc and every
     '' call site reads '*vr'. Here the CALL took its type from the expression --
