@@ -366,7 +366,20 @@ function LowerExpr _
             if ixsy0 = 0 then return v
             dim as MirType rmt = LowerType( ixsy0->type_, *c.types )
             if rmt = MT_VOID then return v
-            return LowerExprLoad( c, ixv, rmt )
+            '' AN AGGREGATE NEEDS ITS SIZE HERE. The address is the CALL'S RESULT, a
+            '' temp with no slot to measure, so the load came out 'load [0 x i8]' and
+            '' the store of it into a real 16-byte slot was refused. The operator's
+            '' RETURN TYPE is the size -- a byref result is a reference to the
+            '' element, so the referent is what crosses.
+            dim as long rsz = 0
+            if rmt = MT_AGG then
+                dim as Tko.TypeId ret0 = c.types->Unqualify( ixsy0->type_ )
+                if c.types->Kind( ret0 ) = Tko.TK_REFERENCE then
+                    ret0 = c.types->Unqualify( c.types->Inner( ret0 ) )
+                end if
+                rsz = SizeOfType( c, ret0 )
+            end if
+            return LowerExprLoad( c, ixv, rmt, rsz )
         end if
 
         dim as MirType imt = mt
@@ -538,7 +551,14 @@ function LowerExpr _
             dim as longint fcn
             dim as long lk = StrSwapKind_( c, c.info->TypeOf_( bp->lhs ), fcn )
             dim as long rk = StrSwapKind_( c, c.info->TypeOf_( bp->rhs ), fcn )
-            cmpStr = (lk = 1) orelse (lk = 3) orelse (rk = 1) orelse (rk = 3)
+            '' ...AND THE UTF FLAVOURS, 2 and 4. 'ustring * 4' is an ARRAY of the
+            '' fixustr builtin, which is neither IsStringType nor IsWideString_, so
+            '' 'return ( text = o.text )' over two of them fell to the NUMERIC path
+            '' and emitted 'icmp eq [8 x i8]' -- not an instruction, so the module
+            '' was refused. fb/tuibuffer.bi's TuiCell.Equals is that line.
+            dim as boolean lStr = (lk >= 1) andalso (lk <= 4)
+            dim as boolean rStr = (rk >= 1) andalso (rk <= 4)
+            cmpStr = lStr orelse rStr
         end if
         '' AND BY SHAPE, for the calls Check gives no type at all: 'wbin( b ) =
         '' wstr( "10000000" )' is two of them, so neither side looked like a string and

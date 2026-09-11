@@ -1,0 +1,9 @@
+'' An aggregate's size reaches the call site: through an 'operator []' that returns
+'' byref, and as the argument and the result of an INDIRECT call. Differenced against
+'' fbc, which is the only way the ABI half of it could be checked at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/agg-size-at-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/agg-size-at-call.out

@@ -404,9 +404,30 @@ private function CallArgs _
            (v.kind = cast( ubyte, MV_GLOBAL )) then
             pt = MT_PTR
         end if
+        '' AN AGGREGATE ARGUMENT NEEDS ITS SIZE. Without one it rendered '[0 x i8]',
+        '' and LLVM matches a call's argument type against the value's own
+        '' definition: passing a 16-byte temp through a virtual method emitted
+        '' 'call void %t58(..., [0 x i8] %t55)' against a %t55 defined as
+        '' '[16 x i8]'. The callee records the size where there is a callee; an
+        '' INDIRECT call has none, so the value's producer is the authority -- the
+        '' same rule the type above already follows.
+        dim as long asz = 0
+        if pt = MT_AGG then
+            if callee <> 0 then
+                if i < callee->paramAggs.Count then
+                    asz = cast( long, callee->paramAggs[i] )
+                end if
+            end if
+            if (asz <= 0) andalso (v.kind = cast( ubyte, MV_TEMP )) then
+                dim as long tsz = cast( long, v.id )
+                if (tsz >= 0) andalso (tsz < e.tempAggSize.Count) then
+                    asz = e.tempAggSize[tsz]
+                end if
+            end if
+        end if
         v.ty = cast( ubyte, pt )
         if len( r ) > 0 then r += ", "
-        r += LlvmType( pt ) & attr & " " & ValStr( e, v )
+        r += LlvmType( pt, asz ) & attr & " " & ValStr( e, v )
     next
     return r
 end function
@@ -432,6 +453,10 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
                 select case op
                 case M_LOAD
                     asz = AggSizeOfAddr( e, ins.a, ins.imm )
+                '' AN INDIRECT CALL CARRIES ITS OWN. There is no callee to ask, so
+                '' lowering writes the aggregate return's size into 'imm'.
+                case M_CALL_IND
+                    asz = ins.imm
                 case M_CALL, M_CALL_RTL
                     dim as long ci2 = cast( long, ins.callee )
                     if (ci2 >= 0) andalso (ci2 < e.m->functions.Count) then
@@ -680,6 +705,14 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         dim as string target_
         if op = M_CALL_IND then
             target_ = ValStr( e, ins.a )
+            '' ...AND ITS SIGNATURE, where lowering knew one. The call still goes
+            '' THROUGH THE POINTER; the declaration is only there to type the
+            '' arguments, which LLVM matches against each value's own definition.
+            '' Recorded PLUS ONE, because zero is function 0.
+            dim as long si2 = cast( long, ins.callee ) - 1
+            if (si2 >= 0) andalso (si2 < e.m->functions.Count) then
+                cf = e.m->functions[si2]
+            end if
         else
             dim as long ci = cast( long, ins.callee )
             if (ci < 0) orelse (ci >= e.m->functions.Count) then
@@ -689,13 +722,28 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
             cf = e.m->functions[ci]
             target_ = GlobalName( e, cf->name )
         end if
+        '' AN AGGREGATE RETURN NEEDS ITS SIZE TOO, and an INDIRECT call has no callee
+        '' to ask. 'call [0 x i8] %t79(ptr %t76)' through a vtable slot was refused
+        '' against the 8-byte slot its result was stored into. The RESULT TEMP's
+        '' recorded size is the same authority the argument rule above uses.
+        if rt = MT_AGG then
+            dim as long rsz2 = 0
+            if cf <> 0 then rsz2 = cast( long, cf->retSize )
+            if rsz2 <= 0 then
+                dim as long rti = cast( long, ins.result )
+                if (rti >= 0) andalso (rti < e.tempAggSize.Count) then
+                    rsz2 = e.tempAggSize[rti]
+                end if
+            end if
+            if rsz2 > 0 then ty = LlvmType( rt, rsz2 )
+        end if
         dim as string args = CallArgs( e, ins, cf )
         '' A VARIADIC CALLEE NEEDS ITS FULL SIGNATURE AT THE CALL SITE, not just the
         '' return type: LLVM has to be told where the fixed parameters stop, and on
         '' win64 that is what decides whether a float argument is duplicated into a
         '' general-purpose register as well as an XMM one.
         dim as string sig = ty
-        if cf <> 0 then
+        if (cf <> 0) andalso (op <> M_CALL_IND) then
             if cf->isVariadic then
                 sig = ty & " ("
                 for i as long = 0 to cf->paramTys.Count - 1

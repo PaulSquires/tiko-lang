@@ -85,8 +85,16 @@ private function InferArgType_ _
         '' A PARAMETER too. Inside a macro-expanded 'AbsChecked( byval a as T )' the
         '' argument to 'Some( a )' IS the parameter, which is most of what the checked
         '' arithmetic family passes.
-        if (sy->kind <> cast( ubyte, Tko.SYM_VARIABLE )) andalso _
-           (sy->kind <> cast( ubyte, Tko.SYM_PARAMETER )) then return Tko.TYPE_NONE
+        '' A FIELD too, for the implicit 'this.' spelling. 'return Some( items[cur] )'
+        '' inside a method names a FIELD of the enclosing type with no qualifier, and
+        '' refusing it made the generic decline: the call bound to the TEMPLATE and
+        '' went out as 'call [0 x i8] @_ZN2FB4SOMEERv' -- a zero-sized aggregate
+        '' return, which clang then refused against the 16-byte slot it was stored
+        '' into. fb/tuiwidget.bi's TuiFocusRing.Current is that line.
+        dim as boolean okKind = (sy->kind = cast( ubyte, Tko.SYM_VARIABLE ))
+        if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+        if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_FIELD ))
+        if okKind = false then return Tko.TYPE_NONE
         dim as Tko.TypeId t = sy->type_
         if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
         if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )

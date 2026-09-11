@@ -718,11 +718,28 @@ private sub WalkCalls _
             dim as MirInst ins = b->insts[i]
             dim as MirOp op = cast( MirOp, ins.op )
             if (op <> M_CALL) andalso (op <> M_CALL_RTL) then
-                '' A CALL THROUGH A POINTER has no callee entry to classify against.
-                '' The signature is on the pointee's type, which MIR does not carry
-                '' here, so it is declined rather than approximated.
+                '' A CALL THROUGH A POINTER MAY STILL CARRY ITS SIGNATURE. A VIRTUAL
+                '' call reaches its target through the vptr, and the DECLARATION it
+                '' was mangled from is known at the call site: lowering records that
+                '' function's index in 'callee', PLUS ONE, because zero is function 0
+                '' and an indirect call that carries nothing has to be
+                '' distinguishable from one that names it.
+                ''
+                '' Without it there was nothing to classify against, and a 16-byte
+                '' argument went in a register where the definition takes a pointer:
+                '' 'call void %t16(ptr %t12, [16 x i8] %t13)' against 'define void
+                '' @TAKE(ptr %p0, ptr %p1)'. The callee then read its parameter as an
+                '' address and the program crashed.
                 if op = M_CALL_IND then
-                    if cast( MirType, ins.ty ) = MT_AGG then r.st->declined += 1
+                    dim as long si = cast( long, ins.callee ) - 1
+                    if (si >= 0) andalso (si < r.m->functions.Count) then
+                        RewriteCallArgs( r, ins, r.m->functions[si], names )
+                        r.st->callsRewritten += 1
+                    elseif cast( MirType, ins.ty ) = MT_AGG then
+                        '' The signature is on the pointee's type, which MIR does not
+                        '' carry here, so it is declined rather than approximated.
+                        r.st->declined += 1
+                    end if
                 end if
                 r.outp.Push( ins )
                 continue for

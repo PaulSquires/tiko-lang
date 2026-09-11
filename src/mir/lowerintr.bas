@@ -1031,11 +1031,20 @@ function LowerShortCircuitParts_ _
         '' FreeBASIC says -1 -- a wrong answer that lowered, verified and looked
         '' entirely ordinary. When the operand IS a comparison the two agree, which
         '' is why every test written with one passed.
+        '' A FLOAT OPERAND COMPARES WITH fcmp. 'CU_ASSERT( (0.0 andalso 0.0) = 0 )'
+        '' emitted 'icmp ne double 0.0, 0.0' -- which is not an instruction, so the
+        '' module was refused. The CONDITION half of this same operator already used
+        '' fcmp; only the normalising test on the taken side did not.
         dim as MirInst nz
-        nz.op = cast( ushort, M_ICMP_NE )
+        dim as boolean rFlt = IsFloatTy( cast( MirType, r.ty ) )
+        nz.op = cast( ushort, iif( rFlt, M_FCMP_NE, M_ICMP_NE ) )
         nz.ty = cast( ubyte, MT_I32 )
         nz.a = r
-        nz.b = ConstInt( c, 0, cast( MirType, r.ty ) )
+        if rFlt then
+            nz.b = ConstFloat( c, 0.0, cast( MirType, r.ty ) )
+        else
+            nz.b = ConstInt( c, 0, cast( MirType, r.ty ) )
+        end if
         dim as MirValue bv = Emit( c, nz )
         if bv.kind <> cast( ubyte, MV_NONE ) then
             dim as MirInst ng

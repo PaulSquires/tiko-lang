@@ -183,6 +183,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN4IMPLC1Ev(ptr $0)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare i32 _ZN5IFACE4POKEEv(ptr $0)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)

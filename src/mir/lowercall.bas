@@ -162,6 +162,42 @@ end function
 
 
 
+'' THE MODULE'S DECLARATION FOR A CALLEE, found or made. Split out because an
+'' INDIRECT call needs one too: a virtual call reaches its target through the vptr,
+'' but the DECLARATION it was mangled from is in hand, and without a signature the
+'' ABI pass has nothing to classify against -- it passed a 16-byte argument in a
+'' register where the definition takes a pointer, which built and then corrupted
+'' the callee's frame.
+''
+'' Finding the function object is a linear scan for now; it is a map when it
+'' matters.
+function DeclIndexFor_ _
+    ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
+      byval cs as Tko.Symbol ptr, byval withSret as boolean, _
+      byval withThis as boolean ) as long
+
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = cnm then return i
+    next
+    dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
+    if decl = 0 then return -1
+    '' The return's SIZE, where it is an aggregate -- the ABI pass classifies by
+    '' byte count and a declaration is where that number would otherwise be lost.
+    if (callTy = MT_AGG) andalso (cs <> 0) then
+        decl->retSize = SizeOfType( c, cs->type_ )
+        decl->retClass = ClassifyEightbytes( c, cs->type_ )
+    end if
+    decl->isDefinition = false
+    '' THE SIGNATURE, from the procedure this call resolved to. The two hidden
+    '' parameters are reported rather than re-derived: whether a hidden result
+    '' pointer and a receiver were passed was decided by the CALL, and the
+    '' declaration has to agree with the argument list it is built beside.
+    if cs <> 0 then
+        SignatureFromProc( c, decl, cast( Tko.NodeId, cs->payload ), withSret, withThis )
+    end if
+    return c.m->functions.Count - 1
+end function
+
 function LowerCallParts _
     ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long, _
@@ -1094,6 +1130,28 @@ function LowerCallParts _
                 vc.a = vfp
                 vc.first = first
                 vc.count = n
+                '' AN AGGREGATE RETURN CARRIES ITS SIZE. An indirect call has no
+                '' callee for the emitter to ask, so 'call [0 x i8] %t79(...)' came
+                '' out unsized and was refused against the slot it was stored into.
+                if (callTy = MT_AGG) andalso (cs <> 0) then
+                    vc.imm = SizeOfType( c, cs->type_ )
+                end if
+                '' ...AND ITS SIGNATURE, which a VIRTUAL call does know: the slot is
+                '' reached through the vptr but the DECLARATION it was mangled from
+                '' is in hand. Without it the ABI pass has nothing to classify
+                '' against and passed a 16-byte argument in a register where the
+                '' definition takes a pointer -- which built, and corrupted the
+                '' callee's frame.
+                ''
+                '' PLUS ONE, because 'callee' is a ulong whose zero is function 0:
+                '' an M_CALL_IND that carries no signature has to be distinguishable
+                '' from one that names the first function in the module.
+                if cs <> 0 then
+                    dim as long sidx = DeclIndexFor_( c, cnm, callTy, cs, _
+                        (sretTmp.kind <> cast( ubyte, MV_NONE )), _
+                        (self_.kind <> cast( ubyte, MV_NONE )) )
+                    if sidx >= 0 then vc.callee = cast( ulong, sidx + 1 )
+                end if
                 dim as MirValue vr = Emit( c, vc )
                 DestroyArgTemps_( c, tempSlots, tempTypes )
                 CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
@@ -1136,6 +1194,11 @@ function LowerCallParts _
         ic.a = Coerce( c, fp, MT_PTR )
         ic.first = first
         ic.count = n
+        '' ...and the same for a call THROUGH A PROCEDURE POINTER. See the virtual
+        '' path above.
+        if (callTy = MT_AGG) andalso (cs <> 0) then
+            ic.imm = SizeOfType( c, cs->type_ )
+        end if
         dim as MirValue iv = Emit( c, ic )
         DestroyArgTemps_( c, tempSlots, tempTypes )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
@@ -1150,35 +1213,9 @@ function LowerCallParts _
         return iv
     end if
 
-    '' Finding the function object is a linear scan for now; it is a map when it
-    '' matters.
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = cnm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
-        '' The return's SIZE, where it is an aggregate -- the ABI pass classifies by
-        '' byte count and a declaration is where that number would otherwise be lost.
-        if (callTy = MT_AGG) andalso (cs <> 0) then
-            decl->retSize = SizeOfType( c, cs->type_ )
-            decl->retClass = ClassifyEightbytes( c, cs->type_ )
-        end if
-        decl->isDefinition = false
-        '' THE SIGNATURE, from the procedure this call resolved to. The two hidden
-        '' parameters are reported rather than re-derived: whether a hidden result
-        '' pointer and a receiver were passed was decided ABOVE, by this call, and the
-        '' declaration has to agree with the argument list that is about to be built.
-        if cs <> 0 then
-            SignatureFromProc( c, decl, cast( Tko.NodeId, cs->payload ), _
-                               (sretTmp.kind <> cast( ubyte, MV_NONE )), _
-                               (self_.kind <> cast( ubyte, MV_NONE )) )
-        end if
-        fidx = c.m->functions.Count - 1
-    end if
+    dim as long fidx = DeclIndexFor_( c, cnm, callTy, cs, _
+        (sretTmp.kind <> cast( ubyte, MV_NONE )), _
+        (self_.kind <> cast( ubyte, MV_NONE )) )
 
     dim as MirInst ins
     ins.op = cast( ushort, M_CALL )
