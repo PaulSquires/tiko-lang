@@ -9,6 +9,121 @@ namespace Tko.Mir
 
 using Tko
 
+'' A UDT COUNTER IS THE OPERATOR PROTOCOL. Measured from fbc, for
+'' 'for i as T = T(1) to T(3)' over a type declaring 'operator for/step/next':
+''
+''     _ZN1TC1Eu7INTEGER( &I, 1 )      the counter, constructed from the start value
+''     _ZN1TC1Eu7INTEGER( &TMP, 3 )    the limit, constructed ONCE
+''     _ZN1Tv03forEv( &I )             operator FOR on the counter
+''     goto TEST                       -- the loop is TEST-FIRST
+''     BODY:  ...
+''     STEP:  _ZN1Tv04stepEv( &I )     operator STEP on the counter
+''     TEST:  vr = _ZN1Tv14nextERS_( &I, &TMP )   operator NEXT( counter, limit )
+''            if vr <> 0 goto BODY
+''
+'' What used to block this was a member call that yields a RESULT -- 'operator next'
+'' returns an integer and EmitStructorCall is a sub. EmitMemberCallArgs_ answers that
+'' now, and it is the same entry point FOR EACH's protocol already calls.
+''
+'' A WRITTEN STEP DECLINES, and says so rather than guessing: the step-taking
+'' overloads are 'operator for( stp )', 'operator step( stp )' and
+'' 'operator next( end, stp )' -- the same shape with the step value appended -- but
+'' the step's own TYPE need not be the counter's, and nothing here has measured which
+'' conversions fbc applies to it. The corpus's two uses are both step-free.
+private function LowerForUdt_ _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref addr as MirValue, _
+      byval fromE as Tko.NodeId, byval toE as Tko.NodeId, _
+      byval stepE as Tko.NodeId ) as boolean
+
+    if stepE <> Tko.NODE_NONE then return false
+    if (fromE = Tko.NODE_NONE) orelse (toE = Tko.NODE_NONE) then return false
+    if addr.kind <> cast( ubyte, MV_LOCAL ) then return false
+
+    dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+    if ct = Tko.TYPE_NONE then return false
+    if c.types->Kind( ct ) <> Tko.TK_UDT then return false
+
+    dim as Tko.SymbolId forOp = _
+        StructorWithArity( c, StructorOf( c, ct, "for" ), 0 )
+    dim as Tko.SymbolId stepOp = _
+        StructorWithArity( c, StructorOf( c, ct, "step" ), 0 )
+    dim as Tko.SymbolId nextOp = _
+        StructorWithArity( c, StructorOf( c, ct, "next" ), 1 )
+    '' ALL THREE OR NONE. A type with only some of them is the checker's error
+    '' TKO0746, already reported; lowering half a protocol would emit a loop that
+    '' never advances.
+    if forOp = Tko.SYMBOL_NONE then return false
+    if stepOp = Tko.SYMBOL_NONE then return false
+    if nextOp = Tko.SYMBOL_NONE then return false
+
+    '' THE COUNTER, constructed in its own slot from the start expression -- the
+    '' same thing 'dim i as T = fromE' does.
+    if LowerCtorInit( c, addr.id, ct, fromE ) = false then return false
+
+    '' THE LIMIT, constructed ONCE into a temporary. Once, because 'operator next'
+    '' is called on every test and re-evaluating 'T( f( ) )' would call f each time.
+    dim as long lsz = SizeOfType( c, ct )
+    if lsz <= 0 then return false
+    dim as long limSlot = NewTempLocal( c, MT_AGG, lsz )
+    if limSlot < 0 then return false
+    dim as MirValue limAddr
+    limAddr.kind = cast( ubyte, MV_LOCAL )
+    limAddr.ty = cast( ubyte, MT_PTR )
+    limAddr.id = limSlot
+    if LowerCtorInit( c, limSlot, ct, toE ) = false then return false
+
+    EmitMemberCall( c, forOp, addr, MT_VOID )
+
+    dim as long bodyB = NewBlock( c, "for.body" )
+    dim as long stepB = NewBlock( c, "for.step" )
+    dim as long testB = NewBlock( c, "for.test" )
+    dim as long exitB = NewBlock( c, "for.exit" )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = bodyB
+    c.breakTo.Push( exitB )
+    c.contTo.Push( stepB )
+    c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
+    PushScope( c )
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
+    c.loopKind.Pop( )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
+
+    c.curBlock = stepB
+    EmitMemberCall( c, stepOp, addr, MT_VOID )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = testB
+    dim as FB.Array( of ulong ) nargs
+    nargs.Push( cast( ulong, limAddr.kind ) )
+    nargs.Push( cast( ulong, limAddr.id ) )
+    dim as MirValue more = _
+        EmitMemberCallArgs_( c, nextOp, addr, MT_I32, @nargs )
+    if more.kind = cast( ubyte, MV_NONE ) then return false
+    Terminate( c, MTERM_CONDBR, bodyB, exitB, more )
+
+    c.curBlock = exitB
+
+    '' THE LIMIT IS DESTROYED AFTER THE LOOP, not at the end of the statement: the
+    '' statement is the whole loop, and the temporary is live across all of it.
+    if TypeNeedsDtor_( c, ct ) then
+        dim as Tko.SymbolId ldt = _
+            StructorWithArity( c, StructorOf( c, ct, "__dtor" ), 0 )
+        if ldt <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) none_
+            EmitStructorCall( c, ldt, -1, @limAddr, @none_ )
+        else
+            CallImplicitDtor_( c, ct, limAddr )
+        end if
+    end if
+    return true
+end function
+
 sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     '' children are [from, to, step]; any may be absent.
@@ -77,6 +192,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' RESULT -- EmitStructorCall is a sub and 'next' returns an integer -- which is the
     '' piece this does not have yet.
     if ity = MT_AGG then
+        if LowerForUdt_( c, sp, addr, fromE, toE, stepE ) then return
         SkipHere( c )
         return
     end if

@@ -13,11 +13,15 @@
 '' tests/diagnostics/operator-visibility's golden had FROZEN the meaningless IR.
 '' build/icescan.sh is the instrument that found it.
 ''
-'' This DECLINES now, which is honest rather than right. fbc's protocol is measured and
-'' in HANDOFF: construct the counter and the limit, call 'operator for' on the counter,
-'' TEST FIRST through 'operator next( counter, limit )', body, 'operator step', test
-'' again. Building it needs a member call that yields a RESULT -- EmitStructorCall is a
-'' sub and 'next' returns an integer.
+'' IT DRIVES THE PROTOCOL NOW, which is fbc's, measured: construct the counter and the
+'' limit, call 'operator for' on the counter, TEST FIRST through
+'' 'operator next( counter, limit )', body, 'operator step', test again. What used to
+'' block building it was a member call that yields a RESULT -- 'operator next' returns
+'' an integer and EmitStructorCall is a sub; EmitMemberCallArgs_ answers that.
+''
+'' A WRITTEN STEP still declines. The step-taking overloads are the same shape with the
+'' step value appended, but the step's own type need not be the counter's and nothing
+'' has measured which conversions fbc applies to it.
 ''
 '' fbc compiles and runs this file, printing 1 2 3.
 type T

@@ -1,10 +1,16 @@
-'' A FOR loop over a UDT counter declines instead of emitting aggregate arithmetic.
+'' A FOR loop over a UDT counter drives the operator protocol.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/for-udt-counter.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: 1 statements not lowered
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/for-udt-counter.out
 
-'' What must NOT come back: a CONSTANT AGGREGATE, which is what the scalar FOR emitted
-'' for the implicit step and is meaningless on any input. An 'icmp.sle' is NOT an
-'' assertion here -- 'operator next' compares two integers in its own body, and asserting
-'' its absence would fail for the right code.
+'' It DECLINED until the protocol was built, and this file asserted the decline -- one
+'' statement not lowered. What it is really guarding against is the thing that came
+'' BEFORE the decline: a CONSTANT AGGREGATE for the implicit step, an aggregate ADD and
+'' an aggregate compare, all of which passed the verifier and then killed the emitter.
+'' The golden now pins the calls instead -- 'operator for' once, then a test-first loop
+'' through 'operator next( counter, limit )' with 'operator step' on the back edge.
+
+'' An 'icmp.sle' is NOT an assertion here -- 'operator next' compares two integers in
+'' its own body, and asserting its absence would fail for the right code.
