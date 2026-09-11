@@ -176,12 +176,38 @@ private function IntAsPtr( byval n as longint ) as string
     return "inttoptr (i64 " & str( n ) & " to ptr)"
 end function
 
+'' Does this rendered constant read as a plain integer? A folded temp carries TEXT,
+'' not a kind, so this is the only way to tell one from a float or an expression.
+private function IsIntegerText_( byref t as string ) as boolean
+    if len( t ) = 0 then return false
+    for i as long = 0 to len( t ) - 1
+        dim as ubyte ch = t[i]
+        if (i = 0) andalso ((ch = 45) orelse (ch = 43)) then continue for
+        if (ch < 48) orelse (ch > 57) then return false
+    next
+    return true
+end function
+
 private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
     select case v.kind
     case MV_TEMP
         dim as long id = cast( long, v.id )
         if (id >= 0) andalso (id < e.isConst.Count) then
-            if e.isConst[id] <> 0 then return e.constText[id]
+            if e.isConst[id] <> 0 then
+                '' A FOLDED CONSTANT IN A POINTER POSITION IS STILL A POINTER.
+                '' MV_CONST_INT below already knows this; a temp whose value was
+                '' folded to a number carries its text and not its kind, so a
+                '' null argument came out 'ptr 0' and clang refused the module:
+                '' "integer constant must have integer type". Measured on
+                '' 'FBQLCDNUMBER( 0 )' against a 'byval as FBQWIDGET ptr'.
+                if cast( MirType, v.ty ) = MT_PTR then
+                    dim as string ct = e.constText[id]
+                    if IsIntegerText_( ct ) then
+                        return IntAsPtr( vallng( ct ) )
+                    end if
+                end if
+                return e.constText[id]
+            end if
             if e.allocaSlot[id] >= 0 then return SlotName( e.allocaSlot[id] )
         end if
         return TempName( v.id )
