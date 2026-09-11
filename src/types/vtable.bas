@@ -416,6 +416,28 @@ private sub CheckImplicitDtorConv_ _
     NoteMismatch_( store, tn, VTM_IMPL_DTOR_CC )
 end sub
 
+'' THE TEMPLATE'S OWN SCOPE, for a generic INSTANTIATION -- or SCOPE_NONE for anything
+'' else. An instantiation shares the template's declaration node (generic.bas sets
+'' 'isym->payload = gn'), so the node is the way back to it; the two are told apart by
+'' the NAME, since the instantiation is declared under a structural key, 'Root<8>'.
+private function TemplateScopeOf_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byval s as Symbol ptr ) as ScopeId
+
+    if s = 0 then return SCOPE_NONE
+    dim as NodeId dn = cast( NodeId, s->payload )
+    if dn = NODE_NONE then return SCOPE_NONE
+    if ast.Kind( dn ) <> N_TYPE then return SCOPE_NONE
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, dn )].data )]
+    if sp->b = NODE_NONE then return SCOPE_NONE
+    if sp->name = 0 then return SCOPE_NONE
+    if s->name = sp->name then return SCOPE_NONE
+    dim as SymbolId gt = syms.LookupLocalTyped( s->parent, sp->name, true )
+    dim as Symbol ptr gs = syms.SymbolAt( gt )
+    if gs = 0 then return SCOPE_NONE
+    if gs->kind <> cast( ubyte, SYM_UDT ) then return SCOPE_NONE
+    return gs->inner
+end function
+
 private function BuildOne_ _
     ( byval t as TypeId, byref ast as AstArena, byref syms as SymbolTable, _
       byref types as TypeContext, byref info as SemanticInfo, _
@@ -452,8 +474,29 @@ private function BuildOne_ _
     '' This type's own procedures, IN DECLARATION ORDER. Overload chains hang off the
     '' symbol in the scope list, and each link is its own declaration, so both are
     '' walked: two overloads of one virtual name are two slots.
-    if s->inner <> SCOPE_NONE then
-        dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+    '' TWO SCOPES, IN THIS ORDER, for a generic instantiation.
+    ''
+    '' 'type Root( of T ) extends object' writes 'declare virtual function nm( )' and
+    '' 'declare abstract function tag( )' INSIDE the type, and those lines are never
+    '' re-parsed: InstantiateGeneric_ walks the body for FIELDS, and the member symbols
+    '' of the instantiation come from the out-of-line DEFINITIONS -- which carry neither
+    '' 'virtual' nor 'abstract', because that is not where FreeBASIC spells them. So
+    '' every instantiation that declared a virtual of its OWN got a table with NO SLOTS:
+    '' 'r->tag( )' through a 'Root( of integer ) ptr' lowered to a DIRECT call and the
+    '' link failed on 'ROOT::TAG()', a name only the template would have defined.
+    ''
+    '' The template's scope supplies the SLOTS and their abstractness; the
+    '' instantiation's supplies the definitions, which land on those slots as ordinary
+    '' overrides and carry the mangled name that actually exists. An instantiation whose
+    '' virtuals all override an inherited slot -- 'Sq( of T ) extends Shape' -- is
+    '' unchanged by this: the template pass matches the same inherited slots and the
+    '' instantiation pass replaces them again.
+    dim as ScopeId tmplScope = TemplateScopeOf_( ast, syms, s )
+    for pass_ as long = 0 to 1
+        dim as ScopeId msc = s->inner
+        if pass_ = 0 then msc = tmplScope
+        if msc = SCOPE_NONE then continue for
+        dim as SymScope ptr sc = syms.ScopeAt( msc )
         if sc <> 0 then
             dim as SymbolId cur = sc->firstSym
             dim as long guard = 0
@@ -512,12 +555,30 @@ private function BuildOne_ _
                 cur = nextInScope
             wend
         end if
-    end if
+    next
 
     CheckImplicitDtorConv_( ast, syms, types, store, ts, bt )
 
     store.types_.Push( v )
     return true
+end function
+
+'' A GENERIC TEMPLATE HAS NO VTABLE. 'type Sq( of T ) extends Shape' is a pattern, not
+'' a type: its methods are re-parsed once per instantiation and only those exist as
+'' procedures. Building a table for the template emitted '@_ZTVN2SQE' whose slots named
+'' '_ZN2SQ2NMEv' -- the template's own declaration node mangled -- and nobody defines
+'' that, so clang refused the module. The INSTANTIATIONS get their own tables beside it
+'' and always did; this only stops the template getting one too.
+private function IsGenericTemplateUdt_ _
+    ( byref ast as AstArena, byval s as Symbol ptr ) as boolean
+
+    if s = 0 then return false
+    dim as NodeId dn = cast( NodeId, s->payload )
+    if dn = NODE_NONE then return false
+    if ast.Kind( dn ) <> N_TYPE then return false
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, dn )].data )]
+    if sp->b = NODE_NONE then return false
+    return (s->name = sp->name)
 end function
 
 function ComputeVTables _
@@ -540,6 +601,7 @@ function ComputeVTables _
             if s->kind <> cast( ubyte, SYM_UDT ) then continue for
             if s->type_ = TYPE_NONE then continue for
             if store.Find( s->type_ ) >= 0 then continue for
+            if IsGenericTemplateUdt_( ast, s ) then continue for
             if ExtendsObject_( syms, types, s->type_, store.baseName, objNm ) = false then
                 continue for
             end if

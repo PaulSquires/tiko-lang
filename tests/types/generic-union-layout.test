@@ -1,0 +1,5 @@
+'' A generic union instantiates as a union, not as a struct.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/generic-union-layout.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-union-layout.out

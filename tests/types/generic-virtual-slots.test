@@ -1,0 +1,6 @@
+'' A generic's own virtuals reach its instantiation's vtable, and the template gets
+'' no table of its own.
+'' TEST: cli
+'' ARGS: --dump-vtable tests/types/src/generic-virtual-slots.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/generic-virtual-slots.out

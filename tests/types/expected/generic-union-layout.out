@@ -1,0 +1,9 @@
+plainpun size 8 align 8
+  plainpun off a 0
+  plainpun off b 0
+object size 8 align 8
+  object off vptr 0
+pun<13> size 8 align 8
+  pun<13> off a 0
+  pun<13> off b 0
+udts: 3

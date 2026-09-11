@@ -108,6 +108,13 @@ function InstantiateGeneric_ _
         Tko.SYM_UDT, c.ast->Loc( id ), dup )
     dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
     if isym = 0 then return Tko.TYPE_NONE
+    '' A GENERIC UNION INSTANTIATES AS A UNION. Collect marks an ordinary one from the
+    '' declaration's NF_IS_UNION and the layout pass reads SYMF_UNION_KIND off the
+    '' symbol; nothing set it here, so 'union Pun( of T )' laid out as a STRUCT --
+    '' fields that must overlap did not and sizeof came out double, with no diagnostic.
+    if (c.ast->nodes[cast( long, gn )].flags and Tko.NF_IS_UNION) <> 0 then
+        isym->flags or= Tko.SYMF_UNION_KIND
+    end if
     dim as Tko.ScopeId iin = c.syms->OpenScope( Tko.SCOPEK_TYPE, ghome, isid )
     isym->inner = iin
     isym->type_ = c.types->NamedType( Tko.TK_UDT, inm, cast( ulong, ghome ) )
@@ -1003,6 +1010,32 @@ end sub
 '' The generic's own 'declare' lines are not instantiated at all. The DEFINITION carries
 '' the whole signature, and Collect declares a member it finds no declaration for, so
 '' one pass over the definitions is the complete job.
+'' THE 'virtual' AND 'abstract' MODIFIERS OF A GENERIC'S MEMBER, which live on the
+'' DECLARATION INSIDE THE TYPE and nowhere else.
+''
+'' FreeBASIC spells them once -- 'declare virtual function nm( ) as string' -- and the
+'' out-of-line 'function Box( of T ).nm( ) as string' repeats neither. An instantiation
+'' re-parses only the DEFINITIONS, so every instantiated member came out with neither
+'' flag: the vtable pass gave the instantiation a table with no slots of its own, and
+'' the call site -- which decides virtualness from the bound declaration's own
+'' modifiers -- emitted 'call _ZN6BOX<8>2NMEv' where an IntBox was in hand and printed
+'' "Box". Both halves read the flags off the node this puts them on.
+private function TypeBodyProcMods_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval mname as Tko.InternId ) as ulong
+
+    if (gnode = Tko.NODE_NONE) orelse (mname = 0) then return 0
+    if c.ast->Kind( gnode ) <> Tko.N_TYPE then return 0
+    dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
+    for i as long = 0 to tp->count - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[tp->first + i] )
+        if c.ast->Kind( m ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
+        if mp->name <> mname then continue for
+        return mp->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)
+    next
+    return 0
+end function
+
 private sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
@@ -1106,6 +1139,8 @@ private sub InstantiateMembers_ _
         '' as a template. The instantiated body is a concrete procedure; leaving the
         '' flag on meant every one was declared, called, and never emitted.
         fp2->extra and= not Tko.PF_GENERIC_PROC
+        '' ...AND THE VIRTUAL MODIFIERS GO ON. See TypeBodyProcMods_.
+        fp2->extra or= TypeBodyProcMods_( c, gnode, fp2->name )
         dim as Tko.InternId mname = fp2->name
         dim as ushort mop = fp2->op
 
