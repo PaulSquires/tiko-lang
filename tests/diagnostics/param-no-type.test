@@ -1,0 +1,18 @@
+'' A PARAMETER WITH NO TYPE IS THE DEFAULT-TYPE FEATURE, and tiko-lang does not have
+'' it. fbc, measured:
+''
+''     sub mysub( byval s$ )
+''     error 147: Default types or suffixes are only valid in -lang deprecated or
+''                fblite or qb
+''
+'' tiko left the parameter UNTYPED and carried on: it reached the emitter as
+'' 'define void @"MYSUB"(void %p0)' and clang answered "void type only allowed for
+'' function results". The N_VAR arm has reported this since TKO0320 was added -- its
+'' comment even names 'byval s$' as an example -- and the PARAMETER path never did.
+''
+'' Both spellings are here: the suffix one, and the bare name, which is the same rule.
+'' TEST: cli
+'' ARGS: --emit-ir tests/diagnostics/src/param-no-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0320
+'' EXPECT-NOT: void %p0

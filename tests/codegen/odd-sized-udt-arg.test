@@ -1,0 +1,29 @@
+'' AN AGGREGATE LOAD CARRIES ITS SIZE, AND TWO SHAPES HAD NONE.
+''
+'' MIR keeps an aggregate's width beside the value rather than in its type, and the
+'' emitter recovers it from the address's SLOT when the instruction does not say. A
+'' deref and a pointer subscript both produce a computed TEMP -- there is no slot --
+'' so both wrote '[0 x i8]':
+''
+''     %t65 = load [0 x i8], ptr %t64
+''     store [1 x i8] %t65, ptr %s91
+''
+'' clang refused the module: no object for
+'' tests/vendor/fbc-tests/functions/odd-arg.bas, which passes an odd-sized UDT four
+'' ways. '*p' takes its size from the node's own type; 'p[j]' from the target's
+'' ELEMENT type, because Check does not type an N_INDEX at all.
+''
+'' ALL FOUR ARGUMENT SHAPES ARE HERE -- a local, a deref, an array element and a
+'' pointer subscript -- because only two of them were wrong and a test of one would
+'' have passed before the fix.
+''
+'' Sizes 1, 2, 3, 5, 7 and 8: the odd ones are the point. Differenced against fbc,
+'' which prints the same '1 2 3 5 7 8' and the same silence from the checks.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/odd-sized-udt-arg.bas
+'' EXPECT-EXIT: 0
+
+'' NO ZERO-WIDTH AGGREGATE ANYWHERE. This is the assertion that failed before the
+'' fix, and it is the one that stays true whatever the slot numbering does.
+'' EXPECT-NOT: [0 x i8]
+'' GOLDEN: expected/odd-sized-udt-arg.out

@@ -427,7 +427,33 @@ function LowerExpr _
         if imt = MT_VOID then return v
         dim as MirValue ia = LowerAddr( c, id )
         if ia.kind = cast( ubyte, MV_NONE ) then return v
-        return LowerExprLoad( c, ia, imt )
+        '' AND AN AGGREGATE ELEMENT NEEDS ITS SIZE. The address is a computed
+        '' temp -- a getelementptr -- so the emitter has no slot to measure and
+        '' wrote '[0 x i8]'; 'f( pre, parray[j], post )' over a one-byte UDT
+        '' stored that into a real [1 x i8] slot and clang refused the module.
+        '' Check does not type an N_INDEX, so the ELEMENT type comes from the
+        '' target's when the node itself has none.
+        dim as long ixsz = 0
+        if imt = MT_AGG then
+            dim as Tko.TypeId iet = c.info->TypeOf_( id )
+            if iet = Tko.TYPE_NONE then
+                dim as Tko.ListPayload ptr xp2 = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+                dim as Tko.TypeId xt2 = c.info->TypeOf_( xp2->target )
+                if xt2 <> Tko.TYPE_NONE then
+                    dim as Tko.TypeId bt2 = c.types->Unqualify( xt2 )
+                    if c.types->Kind( bt2 ) = Tko.TK_REFERENCE then
+                        bt2 = c.types->Unqualify( c.types->Inner( bt2 ) )
+                    end if
+                    select case c.types->Kind( bt2 )
+                    case Tko.TK_POINTER, Tko.TK_ARRAY
+                        iet = c.types->Inner( bt2 )
+                    end select
+                end if
+            end if
+            if iet <> Tko.TYPE_NONE then ixsz = SizeOfType( c, iet )
+        end if
+        return LowerExprLoad( c, ia, imt, ixsz )
 
     case Tko.N_DEREF
         '' A USER 'operator *' THAT RETURNS BY VALUE IS THE VALUE, not an address.
@@ -480,6 +506,19 @@ function LowerExpr _
         '' The widening is the CONSUMER's, and unsigned -- see IsUnsignedType.
         dim as MirType cmt = DerefCharTy_( c, id )
         if cmt <> MT_VOID then return LowerExprLoad( c, da, cmt )
+        '' AN AGGREGATE LOAD NEEDS ITS SIZE, and this one had no way to get it:
+        '' the address is a TEMP, so the emitter cannot size it from a slot and
+        '' wrote '[0 x i8]'. 'f( pre, *p, post )' over a one-byte UDT emitted
+        ''
+        ''     %t65 = load [0 x i8], ptr %t64
+        ''     store [1 x i8] %t65, ptr %s91
+        ''
+        '' and clang refused the module. MIR carries an aggregate's width beside
+        '' the value rather than in its type, so the load has to be told.
+        if mt = MT_AGG then
+            return LowerExprLoad( c, da, mt, _
+                                  SizeOfType( c, c.info->TypeOf_( id ) ) )
+        end if
         return LowerExprLoad( c, da, mt )
 
     case Tko.N_UNARY

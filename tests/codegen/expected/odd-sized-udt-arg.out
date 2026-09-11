@@ -1,0 +1,1922 @@
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-w64-windows-gnu"
+
+
+@"$str0" = private unnamed_addr constant [8 x i8] c"PRE BAD\00", align 1
+@"$str1" = private unnamed_addr constant [9 x i8] c"POST BAD\00", align 1
+@"$str2" = private unnamed_addr constant [8 x i8] c"VAL BAD\00", align 1
+@"$str3" = private unnamed_addr constant [5 x i8] c"done\00", align 1
+
+define void @"FUDT1"(i64 %p0, i8 %p1, i64 %p2) nounwind {
+L0:
+  %s0 = alloca i64, align 8
+  store i64 %p0, ptr %s0, align 8
+  %s1 = alloca [1 x i8], align 1
+  store i8 %p1, ptr %s1, align 1
+  %s2 = alloca i64, align 8
+  store i64 %p2, ptr %s2, align 8
+  %t4 = load i64, ptr %s0, align 8
+  %t6.c = icmp ne i64 %t4, 2864425659
+  %t6 = zext i1 %t6.c to i64
+  %s3 = alloca i64, align 8
+  %b0.c = icmp ne i64 %t6, 0
+  br i1 %b0.c, label %L2, label %L3
+
+L1:
+  %t9 = load i64, ptr %s2, align 8
+  %t11.c = icmp ne i64 %t9, 3437087965
+  %t11 = zext i1 %t11.c to i64
+  %b1.c = icmp ne i64 %t11, 0
+  br i1 %b1.c, label %L5, label %L6
+
+L2:
+  %t7 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str0", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t7, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 1, i32 1)
+  br label %L1
+
+L3:
+  br label %L1
+
+L4:
+  store i64 0, ptr %s3, align 8
+  br label %L7
+
+L5:
+  %t12 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str1", i64 8)
+  call void @"fb_PrintString"(i32 0, ptr %t12, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 1, i32 1)
+  br label %L4
+
+L6:
+  br label %L4
+
+L7:
+  %t16 = load i64, ptr %s3, align 8
+  %t19 = sub i64 1, 1
+  %t20.c = icmp sle i64 %t16, %t19
+  %t20 = zext i1 %t20.c to i8
+  %b7.c = icmp ne i8 %t20, 0
+  br i1 %b7.c, label %L8, label %L10
+
+L8:
+  %t21 = getelementptr i8, ptr %s1, i64 0
+  %t22 = load i64, ptr %s3, align 8
+  %t23 = getelementptr i8, ptr %t21, i64 %t22
+  %t24 = load i8, ptr %t23, align 1
+  %t25 = load i64, ptr %s3, align 8
+  %t27 = add i64 %t25, 1
+  %t28 = sext i8 %t24 to i64
+  %t29.c = icmp ne i64 %t28, %t27
+  %t29 = zext i1 %t29.c to i64
+  %b8.c = icmp ne i64 %t29, 0
+  br i1 %b8.c, label %L12, label %L13
+
+L9:
+  %t37 = load i64, ptr %s3, align 8
+  %t39 = add i64 %t37, 1
+  store i64 %t39, ptr %s3, align 8
+  br label %L7
+
+L10:
+  ret void
+
+L11:
+  br label %L9
+
+L12:
+  %t30 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str2", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t30, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 1, i32 0)
+  %t32 = load i64, ptr %s3, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t32, i32 0)
+  %t33 = getelementptr i8, ptr %s1, i64 0
+  %t34 = load i64, ptr %s3, align 8
+  %t35 = getelementptr i8, ptr %t33, i64 %t34
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  br label %L11
+
+L13:
+  br label %L11
+
+}
+
+define void @"FUDT2"(i64 %p0, i16 %p1, i64 %p2) nounwind {
+L0:
+  %s0 = alloca i64, align 8
+  store i64 %p0, ptr %s0, align 8
+  %s1 = alloca [2 x i8], align 2
+  store i16 %p1, ptr %s1, align 2
+  %s2 = alloca i64, align 8
+  store i64 %p2, ptr %s2, align 8
+  %t4 = load i64, ptr %s0, align 8
+  %t6.c = icmp ne i64 %t4, 2864425659
+  %t6 = zext i1 %t6.c to i64
+  %s3 = alloca i64, align 8
+  %b0.c = icmp ne i64 %t6, 0
+  br i1 %b0.c, label %L2, label %L3
+
+L1:
+  %t9 = load i64, ptr %s2, align 8
+  %t11.c = icmp ne i64 %t9, 3437087965
+  %t11 = zext i1 %t11.c to i64
+  %b1.c = icmp ne i64 %t11, 0
+  br i1 %b1.c, label %L5, label %L6
+
+L2:
+  %t7 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str0", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t7, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 2, i32 1)
+  br label %L1
+
+L3:
+  br label %L1
+
+L4:
+  store i64 0, ptr %s3, align 8
+  br label %L7
+
+L5:
+  %t12 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str1", i64 8)
+  call void @"fb_PrintString"(i32 0, ptr %t12, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 2, i32 1)
+  br label %L4
+
+L6:
+  br label %L4
+
+L7:
+  %t16 = load i64, ptr %s3, align 8
+  %t19 = sub i64 2, 1
+  %t20.c = icmp sle i64 %t16, %t19
+  %t20 = zext i1 %t20.c to i8
+  %b7.c = icmp ne i8 %t20, 0
+  br i1 %b7.c, label %L8, label %L10
+
+L8:
+  %t21 = getelementptr i8, ptr %s1, i64 0
+  %t22 = load i64, ptr %s3, align 8
+  %t23 = getelementptr i8, ptr %t21, i64 %t22
+  %t24 = load i8, ptr %t23, align 1
+  %t25 = load i64, ptr %s3, align 8
+  %t27 = add i64 %t25, 1
+  %t28 = sext i8 %t24 to i64
+  %t29.c = icmp ne i64 %t28, %t27
+  %t29 = zext i1 %t29.c to i64
+  %b8.c = icmp ne i64 %t29, 0
+  br i1 %b8.c, label %L12, label %L13
+
+L9:
+  %t37 = load i64, ptr %s3, align 8
+  %t39 = add i64 %t37, 1
+  store i64 %t39, ptr %s3, align 8
+  br label %L7
+
+L10:
+  ret void
+
+L11:
+  br label %L9
+
+L12:
+  %t30 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str2", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t30, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 2, i32 0)
+  %t32 = load i64, ptr %s3, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t32, i32 0)
+  %t33 = getelementptr i8, ptr %s1, i64 0
+  %t34 = load i64, ptr %s3, align 8
+  %t35 = getelementptr i8, ptr %t33, i64 %t34
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  br label %L11
+
+L13:
+  br label %L11
+
+}
+
+define void @"FUDT3"(i64 %p0, ptr %p1, i64 %p2) nounwind {
+L0:
+  %s0 = alloca i64, align 8
+  store i64 %p0, ptr %s0, align 8
+  %s1 = alloca [3 x i8], align 2
+  %t40 = load [3 x i8], ptr %p1, align 2
+  store [3 x i8] %t40, ptr %s1, align 2
+  %s2 = alloca i64, align 8
+  store i64 %p2, ptr %s2, align 8
+  %t4 = load i64, ptr %s0, align 8
+  %t6.c = icmp ne i64 %t4, 2864425659
+  %t6 = zext i1 %t6.c to i64
+  %s3 = alloca i64, align 8
+  %b0.c = icmp ne i64 %t6, 0
+  br i1 %b0.c, label %L2, label %L3
+
+L1:
+  %t9 = load i64, ptr %s2, align 8
+  %t11.c = icmp ne i64 %t9, 3437087965
+  %t11 = zext i1 %t11.c to i64
+  %b1.c = icmp ne i64 %t11, 0
+  br i1 %b1.c, label %L5, label %L6
+
+L2:
+  %t7 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str0", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t7, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 3, i32 1)
+  br label %L1
+
+L3:
+  br label %L1
+
+L4:
+  store i64 0, ptr %s3, align 8
+  br label %L7
+
+L5:
+  %t12 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str1", i64 8)
+  call void @"fb_PrintString"(i32 0, ptr %t12, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 3, i32 1)
+  br label %L4
+
+L6:
+  br label %L4
+
+L7:
+  %t16 = load i64, ptr %s3, align 8
+  %t19 = sub i64 3, 1
+  %t20.c = icmp sle i64 %t16, %t19
+  %t20 = zext i1 %t20.c to i8
+  %b7.c = icmp ne i8 %t20, 0
+  br i1 %b7.c, label %L8, label %L10
+
+L8:
+  %t21 = getelementptr i8, ptr %s1, i64 0
+  %t22 = load i64, ptr %s3, align 8
+  %t23 = getelementptr i8, ptr %t21, i64 %t22
+  %t24 = load i8, ptr %t23, align 1
+  %t25 = load i64, ptr %s3, align 8
+  %t27 = add i64 %t25, 1
+  %t28 = sext i8 %t24 to i64
+  %t29.c = icmp ne i64 %t28, %t27
+  %t29 = zext i1 %t29.c to i64
+  %b8.c = icmp ne i64 %t29, 0
+  br i1 %b8.c, label %L12, label %L13
+
+L9:
+  %t37 = load i64, ptr %s3, align 8
+  %t39 = add i64 %t37, 1
+  store i64 %t39, ptr %s3, align 8
+  br label %L7
+
+L10:
+  ret void
+
+L11:
+  br label %L9
+
+L12:
+  %t30 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str2", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t30, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 3, i32 0)
+  %t32 = load i64, ptr %s3, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t32, i32 0)
+  %t33 = getelementptr i8, ptr %s1, i64 0
+  %t34 = load i64, ptr %s3, align 8
+  %t35 = getelementptr i8, ptr %t33, i64 %t34
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  br label %L11
+
+L13:
+  br label %L11
+
+}
+
+define void @"FUDT5"(i64 %p0, ptr %p1, i64 %p2) nounwind {
+L0:
+  %s0 = alloca i64, align 8
+  store i64 %p0, ptr %s0, align 8
+  %s1 = alloca [5 x i8], align 4
+  %t40 = load [5 x i8], ptr %p1, align 4
+  store [5 x i8] %t40, ptr %s1, align 4
+  %s2 = alloca i64, align 8
+  store i64 %p2, ptr %s2, align 8
+  %t4 = load i64, ptr %s0, align 8
+  %t6.c = icmp ne i64 %t4, 2864425659
+  %t6 = zext i1 %t6.c to i64
+  %s3 = alloca i64, align 8
+  %b0.c = icmp ne i64 %t6, 0
+  br i1 %b0.c, label %L2, label %L3
+
+L1:
+  %t9 = load i64, ptr %s2, align 8
+  %t11.c = icmp ne i64 %t9, 3437087965
+  %t11 = zext i1 %t11.c to i64
+  %b1.c = icmp ne i64 %t11, 0
+  br i1 %b1.c, label %L5, label %L6
+
+L2:
+  %t7 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str0", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t7, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 5, i32 1)
+  br label %L1
+
+L3:
+  br label %L1
+
+L4:
+  store i64 0, ptr %s3, align 8
+  br label %L7
+
+L5:
+  %t12 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str1", i64 8)
+  call void @"fb_PrintString"(i32 0, ptr %t12, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 5, i32 1)
+  br label %L4
+
+L6:
+  br label %L4
+
+L7:
+  %t16 = load i64, ptr %s3, align 8
+  %t19 = sub i64 5, 1
+  %t20.c = icmp sle i64 %t16, %t19
+  %t20 = zext i1 %t20.c to i8
+  %b7.c = icmp ne i8 %t20, 0
+  br i1 %b7.c, label %L8, label %L10
+
+L8:
+  %t21 = getelementptr i8, ptr %s1, i64 0
+  %t22 = load i64, ptr %s3, align 8
+  %t23 = getelementptr i8, ptr %t21, i64 %t22
+  %t24 = load i8, ptr %t23, align 1
+  %t25 = load i64, ptr %s3, align 8
+  %t27 = add i64 %t25, 1
+  %t28 = sext i8 %t24 to i64
+  %t29.c = icmp ne i64 %t28, %t27
+  %t29 = zext i1 %t29.c to i64
+  %b8.c = icmp ne i64 %t29, 0
+  br i1 %b8.c, label %L12, label %L13
+
+L9:
+  %t37 = load i64, ptr %s3, align 8
+  %t39 = add i64 %t37, 1
+  store i64 %t39, ptr %s3, align 8
+  br label %L7
+
+L10:
+  ret void
+
+L11:
+  br label %L9
+
+L12:
+  %t30 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str2", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t30, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 5, i32 0)
+  %t32 = load i64, ptr %s3, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t32, i32 0)
+  %t33 = getelementptr i8, ptr %s1, i64 0
+  %t34 = load i64, ptr %s3, align 8
+  %t35 = getelementptr i8, ptr %t33, i64 %t34
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  br label %L11
+
+L13:
+  br label %L11
+
+}
+
+define void @"FUDT7"(i64 %p0, ptr %p1, i64 %p2) nounwind {
+L0:
+  %s0 = alloca i64, align 8
+  store i64 %p0, ptr %s0, align 8
+  %s1 = alloca [7 x i8], align 4
+  %t40 = load [7 x i8], ptr %p1, align 4
+  store [7 x i8] %t40, ptr %s1, align 4
+  %s2 = alloca i64, align 8
+  store i64 %p2, ptr %s2, align 8
+  %t4 = load i64, ptr %s0, align 8
+  %t6.c = icmp ne i64 %t4, 2864425659
+  %t6 = zext i1 %t6.c to i64
+  %s3 = alloca i64, align 8
+  %b0.c = icmp ne i64 %t6, 0
+  br i1 %b0.c, label %L2, label %L3
+
+L1:
+  %t9 = load i64, ptr %s2, align 8
+  %t11.c = icmp ne i64 %t9, 3437087965
+  %t11 = zext i1 %t11.c to i64
+  %b1.c = icmp ne i64 %t11, 0
+  br i1 %b1.c, label %L5, label %L6
+
+L2:
+  %t7 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str0", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t7, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 7, i32 1)
+  br label %L1
+
+L3:
+  br label %L1
+
+L4:
+  store i64 0, ptr %s3, align 8
+  br label %L7
+
+L5:
+  %t12 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str1", i64 8)
+  call void @"fb_PrintString"(i32 0, ptr %t12, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 7, i32 1)
+  br label %L4
+
+L6:
+  br label %L4
+
+L7:
+  %t16 = load i64, ptr %s3, align 8
+  %t19 = sub i64 7, 1
+  %t20.c = icmp sle i64 %t16, %t19
+  %t20 = zext i1 %t20.c to i8
+  %b7.c = icmp ne i8 %t20, 0
+  br i1 %b7.c, label %L8, label %L10
+
+L8:
+  %t21 = getelementptr i8, ptr %s1, i64 0
+  %t22 = load i64, ptr %s3, align 8
+  %t23 = getelementptr i8, ptr %t21, i64 %t22
+  %t24 = load i8, ptr %t23, align 1
+  %t25 = load i64, ptr %s3, align 8
+  %t27 = add i64 %t25, 1
+  %t28 = sext i8 %t24 to i64
+  %t29.c = icmp ne i64 %t28, %t27
+  %t29 = zext i1 %t29.c to i64
+  %b8.c = icmp ne i64 %t29, 0
+  br i1 %b8.c, label %L12, label %L13
+
+L9:
+  %t37 = load i64, ptr %s3, align 8
+  %t39 = add i64 %t37, 1
+  store i64 %t39, ptr %s3, align 8
+  br label %L7
+
+L10:
+  ret void
+
+L11:
+  br label %L9
+
+L12:
+  %t30 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str2", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t30, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 7, i32 0)
+  %t32 = load i64, ptr %s3, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t32, i32 0)
+  %t33 = getelementptr i8, ptr %s1, i64 0
+  %t34 = load i64, ptr %s3, align 8
+  %t35 = getelementptr i8, ptr %t33, i64 %t34
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  br label %L11
+
+L13:
+  br label %L11
+
+}
+
+define void @"FUDT8"(i64 %p0, i64 %p1, i64 %p2) nounwind {
+L0:
+  %s0 = alloca i64, align 8
+  store i64 %p0, ptr %s0, align 8
+  %s1 = alloca [8 x i8], align 8
+  store i64 %p1, ptr %s1, align 8
+  %s2 = alloca i64, align 8
+  store i64 %p2, ptr %s2, align 8
+  %t4 = load i64, ptr %s0, align 8
+  %t6.c = icmp ne i64 %t4, 2864425659
+  %t6 = zext i1 %t6.c to i64
+  %s3 = alloca i64, align 8
+  %b0.c = icmp ne i64 %t6, 0
+  br i1 %b0.c, label %L2, label %L3
+
+L1:
+  %t9 = load i64, ptr %s2, align 8
+  %t11.c = icmp ne i64 %t9, 3437087965
+  %t11 = zext i1 %t11.c to i64
+  %b1.c = icmp ne i64 %t11, 0
+  br i1 %b1.c, label %L5, label %L6
+
+L2:
+  %t7 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str0", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t7, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 8, i32 1)
+  br label %L1
+
+L3:
+  br label %L1
+
+L4:
+  store i64 0, ptr %s3, align 8
+  br label %L7
+
+L5:
+  %t12 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str1", i64 8)
+  call void @"fb_PrintString"(i32 0, ptr %t12, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 8, i32 1)
+  br label %L4
+
+L6:
+  br label %L4
+
+L7:
+  %t16 = load i64, ptr %s3, align 8
+  %t19 = sub i64 8, 1
+  %t20.c = icmp sle i64 %t16, %t19
+  %t20 = zext i1 %t20.c to i8
+  %b7.c = icmp ne i8 %t20, 0
+  br i1 %b7.c, label %L8, label %L10
+
+L8:
+  %t21 = getelementptr i8, ptr %s1, i64 0
+  %t22 = load i64, ptr %s3, align 8
+  %t23 = getelementptr i8, ptr %t21, i64 %t22
+  %t24 = load i8, ptr %t23, align 1
+  %t25 = load i64, ptr %s3, align 8
+  %t27 = add i64 %t25, 1
+  %t28 = sext i8 %t24 to i64
+  %t29.c = icmp ne i64 %t28, %t27
+  %t29 = zext i1 %t29.c to i64
+  %b8.c = icmp ne i64 %t29, 0
+  br i1 %b8.c, label %L12, label %L13
+
+L9:
+  %t37 = load i64, ptr %s3, align 8
+  %t39 = add i64 %t37, 1
+  store i64 %t39, ptr %s3, align 8
+  br label %L7
+
+L10:
+  ret void
+
+L11:
+  br label %L9
+
+L12:
+  %t30 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str2", i64 7)
+  call void @"fb_PrintString"(i32 0, ptr %t30, i32 0)
+  call void @"fb_PrintLongint"(i32 0, i64 8, i32 0)
+  %t32 = load i64, ptr %s3, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 %t32, i32 0)
+  %t33 = getelementptr i8, ptr %s1, i64 0
+  %t34 = load i64, ptr %s3, align 8
+  %t35 = getelementptr i8, ptr %t33, i64 %t34
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  br label %L11
+
+L13:
+  br label %L11
+
+}
+
+define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+L0:
+  %s73 = alloca [1 x i8], align 1
+  %s74 = alloca [1 x i8], align 1
+  %s75 = alloca [1 x i8], align 1
+  %s76 = alloca [1 x i8], align 1
+  %s77 = alloca [2 x i8], align 2
+  %s78 = alloca [2 x i8], align 2
+  %s79 = alloca [2 x i8], align 2
+  %s80 = alloca [2 x i8], align 2
+  %s81 = alloca [3 x i8], align 2
+  %s82 = alloca [3 x i8], align 2
+  %s83 = alloca [3 x i8], align 2
+  %s84 = alloca [3 x i8], align 2
+  %s85 = alloca [5 x i8], align 4
+  %s86 = alloca [5 x i8], align 4
+  %s87 = alloca [5 x i8], align 4
+  %s88 = alloca [5 x i8], align 4
+  %s89 = alloca [7 x i8], align 4
+  %s90 = alloca [7 x i8], align 4
+  %s91 = alloca [7 x i8], align 4
+  %s92 = alloca [7 x i8], align 4
+  %s93 = alloca [8 x i8], align 8
+  %s94 = alloca [8 x i8], align 8
+  %s95 = alloca [8 x i8], align 8
+  %s96 = alloca [8 x i8], align 8
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+  %s1 = alloca i64, align 8
+  store i64 2864425659, ptr %s1, align 8
+  %s2 = alloca i64, align 8
+  store i64 3437087965, ptr %s2, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 1, i32 0)
+  %s3 = alloca [1 x i8], align 1
+  %t10 = call ptr @"memset"(ptr %s3, i32 0, i64 1)
+  %s4 = alloca i64, align 8
+  store i64 0, ptr %s4, align 8
+  %s5 = alloca ptr, align 8
+  %s6 = alloca i64, align 8
+  %s7 = alloca [8 x i8], align 8
+  %s8 = alloca i64, align 8
+  %s9 = alloca i64, align 8
+  %s10 = alloca ptr, align 8
+  %s11 = alloca i64, align 8
+  %s12 = alloca i64, align 8
+  %s13 = alloca i64, align 8
+  %s14 = alloca i64, align 8
+  %s15 = alloca [2 x i8], align 2
+  %s16 = alloca i64, align 8
+  %s17 = alloca ptr, align 8
+  %s18 = alloca i64, align 8
+  %s19 = alloca [16 x i8], align 8
+  %s20 = alloca i64, align 8
+  %s21 = alloca i64, align 8
+  %s22 = alloca ptr, align 8
+  %s23 = alloca i64, align 8
+  %s24 = alloca i64, align 8
+  %s25 = alloca i64, align 8
+  %s26 = alloca i64, align 8
+  %s27 = alloca [3 x i8], align 2
+  %s28 = alloca i64, align 8
+  %s29 = alloca ptr, align 8
+  %s30 = alloca i64, align 8
+  %s31 = alloca [24 x i8], align 8
+  %s32 = alloca i64, align 8
+  %s33 = alloca i64, align 8
+  %s34 = alloca ptr, align 8
+  %s35 = alloca i64, align 8
+  %s36 = alloca i64, align 8
+  %s37 = alloca i64, align 8
+  %s38 = alloca i64, align 8
+  %s39 = alloca [5 x i8], align 4
+  %s40 = alloca i64, align 8
+  %s41 = alloca ptr, align 8
+  %s42 = alloca i64, align 8
+  %s43 = alloca [40 x i8], align 8
+  %s44 = alloca i64, align 8
+  %s45 = alloca i64, align 8
+  %s46 = alloca ptr, align 8
+  %s47 = alloca i64, align 8
+  %s48 = alloca i64, align 8
+  %s49 = alloca i64, align 8
+  %s50 = alloca i64, align 8
+  %s51 = alloca [7 x i8], align 4
+  %s52 = alloca i64, align 8
+  %s53 = alloca ptr, align 8
+  %s54 = alloca i64, align 8
+  %s55 = alloca [56 x i8], align 8
+  %s56 = alloca i64, align 8
+  %s57 = alloca i64, align 8
+  %s58 = alloca ptr, align 8
+  %s59 = alloca i64, align 8
+  %s60 = alloca i64, align 8
+  %s61 = alloca i64, align 8
+  %s62 = alloca i64, align 8
+  %s63 = alloca [8 x i8], align 8
+  %s64 = alloca i64, align 8
+  %s65 = alloca ptr, align 8
+  %s66 = alloca i64, align 8
+  %s67 = alloca [64 x i8], align 8
+  %s68 = alloca i64, align 8
+  %s69 = alloca i64, align 8
+  %s70 = alloca ptr, align 8
+  %s71 = alloca i64, align 8
+  %s72 = alloca i64, align 8
+  br label %L1
+
+L1:
+  %t13 = load i64, ptr %s4, align 8
+  %t16 = sub i64 1, 1
+  %t17.c = icmp sle i64 %t13, %t16
+  %t17 = zext i1 %t17.c to i8
+  %b1.c = icmp ne i8 %t17, 0
+  br i1 %b1.c, label %L2, label %L4
+
+L2:
+  %t18 = getelementptr i8, ptr %s3, i64 0
+  %t19 = load i64, ptr %s4, align 8
+  %t20 = getelementptr i8, ptr %t18, i64 %t19
+  %t21 = load i64, ptr %s4, align 8
+  %t23 = add i64 %t21, 1
+  %t24 = trunc i64 %t23 to i8
+  store i8 %t24, ptr %t20, align 1
+  br label %L3
+
+L3:
+  %t25 = load i64, ptr %s4, align 8
+  %t27 = add i64 %t25, 1
+  store i64 %t27, ptr %s4, align 8
+  br label %L1
+
+L4:
+  %t28 = load i64, ptr %s1, align 8
+  %t29 = load [1 x i8], ptr %s3, align 1
+  %t30 = load i64, ptr %s2, align 8
+  store [1 x i8] %t29, ptr %s73, align 1
+  %t810 = load i8, ptr %s73, align 1
+  call void @"FUDT1"(i64 %t28, i8 %t810, i64 %t30)
+  %t33 = call ptr @"calloc"(i64 1, i64 1)
+  store ptr %t33, ptr %s5, align 8
+  store i64 0, ptr %s6, align 8
+  br label %L5
+
+L5:
+  %t36 = load i64, ptr %s6, align 8
+  %t39 = sub i64 1, 1
+  %t40.c = icmp sle i64 %t36, %t39
+  %t40 = zext i1 %t40.c to i8
+  %b5.c = icmp ne i8 %t40, 0
+  br i1 %b5.c, label %L6, label %L8
+
+L6:
+  %t41 = load ptr, ptr %s5, align 8
+  %t42 = getelementptr i8, ptr %t41, i64 0
+  %t43 = load i64, ptr %s6, align 8
+  %t44 = getelementptr i8, ptr %t42, i64 %t43
+  %t45 = load i64, ptr %s6, align 8
+  %t47 = add i64 %t45, 1
+  %t48 = trunc i64 %t47 to i8
+  store i8 %t48, ptr %t44, align 1
+  br label %L7
+
+L7:
+  %t49 = load i64, ptr %s6, align 8
+  %t51 = add i64 %t49, 1
+  store i64 %t51, ptr %s6, align 8
+  br label %L5
+
+L8:
+  %t52 = load i64, ptr %s1, align 8
+  %t53 = load ptr, ptr %s5, align 8
+  %t54 = load [1 x i8], ptr %t53, align 1
+  %t55 = load i64, ptr %s2, align 8
+  store [1 x i8] %t54, ptr %s74, align 1
+  %t812 = load i8, ptr %s74, align 1
+  call void @"FUDT1"(i64 %t52, i8 %t812, i64 %t55)
+  %t56 = load ptr, ptr %s5, align 8
+  call void @"free"(ptr %t56)
+  %t58 = call ptr @"memset"(ptr %s7, i32 0, i64 8)
+  store i64 0, ptr %s8, align 8
+  br label %L9
+
+L9:
+  %t61 = load i64, ptr %s8, align 8
+  %t63.c = icmp sle i64 %t61, 7
+  %t63 = zext i1 %t63.c to i8
+  %b9.c = icmp ne i8 %t63, 0
+  br i1 %b9.c, label %L10, label %L12
+
+L10:
+  store i64 0, ptr %s9, align 8
+  br label %L13
+
+L11:
+  %t88 = load i64, ptr %s8, align 8
+  %t90 = add i64 %t88, 1
+  store i64 %t90, ptr %s8, align 8
+  br label %L9
+
+L12:
+  %t94 = mul i64 1, 8
+  %t95 = call ptr @"calloc"(i64 %t94, i64 1)
+  store ptr %t95, ptr %s10, align 8
+  store i64 0, ptr %s11, align 8
+  br label %L17
+
+L13:
+  %t66 = load i64, ptr %s9, align 8
+  %t69 = sub i64 1, 1
+  %t70.c = icmp sle i64 %t66, %t69
+  %t70 = zext i1 %t70.c to i8
+  %b13.c = icmp ne i8 %t70, 0
+  br i1 %b13.c, label %L14, label %L16
+
+L14:
+  %t71 = load i64, ptr %s8, align 8
+  %t72 = getelementptr i8, ptr %s7, i64 %t71
+  %t73 = getelementptr i8, ptr %t72, i64 0
+  %t74 = load i64, ptr %s9, align 8
+  %t75 = getelementptr i8, ptr %t73, i64 %t74
+  %t76 = load i64, ptr %s9, align 8
+  %t78 = add i64 %t76, 1
+  %t79 = trunc i64 %t78 to i8
+  store i8 %t79, ptr %t75, align 1
+  br label %L15
+
+L15:
+  %t80 = load i64, ptr %s9, align 8
+  %t82 = add i64 %t80, 1
+  store i64 %t82, ptr %s9, align 8
+  br label %L13
+
+L16:
+  %t83 = load i64, ptr %s1, align 8
+  %t84 = load i64, ptr %s8, align 8
+  %t85 = getelementptr i8, ptr %s7, i64 %t84
+  %t86 = load [1 x i8], ptr %t85, align 1
+  %t87 = load i64, ptr %s2, align 8
+  store [1 x i8] %t86, ptr %s75, align 1
+  %t814 = load i8, ptr %s75, align 1
+  call void @"FUDT1"(i64 %t83, i8 %t814, i64 %t87)
+  br label %L11
+
+L17:
+  %t98 = load i64, ptr %s11, align 8
+  %t100.c = icmp sle i64 %t98, 7
+  %t100 = zext i1 %t100.c to i8
+  %b17.c = icmp ne i8 %t100, 0
+  br i1 %b17.c, label %L18, label %L20
+
+L18:
+  store i64 0, ptr %s12, align 8
+  br label %L21
+
+L19:
+  %t127 = load i64, ptr %s11, align 8
+  %t129 = add i64 %t127, 1
+  store i64 %t129, ptr %s11, align 8
+  br label %L17
+
+L20:
+  %t130 = load ptr, ptr %s10, align 8
+  call void @"free"(ptr %t130)
+  store i64 2864425659, ptr %s13, align 8
+  store i64 3437087965, ptr %s14, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 2, i32 0)
+  %t137 = call ptr @"memset"(ptr %s15, i32 0, i64 2)
+  store i64 0, ptr %s16, align 8
+  br label %L25
+
+L21:
+  %t103 = load i64, ptr %s12, align 8
+  %t106 = sub i64 1, 1
+  %t107.c = icmp sle i64 %t103, %t106
+  %t107 = zext i1 %t107.c to i8
+  %b21.c = icmp ne i8 %t107, 0
+  br i1 %b21.c, label %L22, label %L24
+
+L22:
+  %t108 = load ptr, ptr %s10, align 8
+  %t109 = load i64, ptr %s11, align 8
+  %t110 = getelementptr i8, ptr %t108, i64 %t109
+  %t111 = getelementptr i8, ptr %t110, i64 0
+  %t112 = load i64, ptr %s12, align 8
+  %t113 = getelementptr i8, ptr %t111, i64 %t112
+  %t114 = load i64, ptr %s12, align 8
+  %t116 = add i64 %t114, 1
+  %t117 = trunc i64 %t116 to i8
+  store i8 %t117, ptr %t113, align 1
+  br label %L23
+
+L23:
+  %t118 = load i64, ptr %s12, align 8
+  %t120 = add i64 %t118, 1
+  store i64 %t120, ptr %s12, align 8
+  br label %L21
+
+L24:
+  %t121 = load i64, ptr %s1, align 8
+  %t122 = load ptr, ptr %s10, align 8
+  %t123 = load i64, ptr %s11, align 8
+  %t124 = getelementptr i8, ptr %t122, i64 %t123
+  %t125 = load [1 x i8], ptr %t124, align 1
+  %t126 = load i64, ptr %s2, align 8
+  store [1 x i8] %t125, ptr %s76, align 1
+  %t816 = load i8, ptr %s76, align 1
+  call void @"FUDT1"(i64 %t121, i8 %t816, i64 %t126)
+  br label %L19
+
+L25:
+  %t140 = load i64, ptr %s16, align 8
+  %t143 = sub i64 2, 1
+  %t144.c = icmp sle i64 %t140, %t143
+  %t144 = zext i1 %t144.c to i8
+  %b25.c = icmp ne i8 %t144, 0
+  br i1 %b25.c, label %L26, label %L28
+
+L26:
+  %t145 = getelementptr i8, ptr %s15, i64 0
+  %t146 = load i64, ptr %s16, align 8
+  %t147 = getelementptr i8, ptr %t145, i64 %t146
+  %t148 = load i64, ptr %s16, align 8
+  %t150 = add i64 %t148, 1
+  %t151 = trunc i64 %t150 to i8
+  store i8 %t151, ptr %t147, align 1
+  br label %L27
+
+L27:
+  %t152 = load i64, ptr %s16, align 8
+  %t154 = add i64 %t152, 1
+  store i64 %t154, ptr %s16, align 8
+  br label %L25
+
+L28:
+  %t155 = load i64, ptr %s13, align 8
+  %t156 = load [2 x i8], ptr %s15, align 2
+  %t157 = load i64, ptr %s14, align 8
+  store [2 x i8] %t156, ptr %s77, align 2
+  %t818 = load i16, ptr %s77, align 2
+  call void @"FUDT2"(i64 %t155, i16 %t818, i64 %t157)
+  %t160 = call ptr @"calloc"(i64 2, i64 1)
+  store ptr %t160, ptr %s17, align 8
+  store i64 0, ptr %s18, align 8
+  br label %L29
+
+L29:
+  %t163 = load i64, ptr %s18, align 8
+  %t166 = sub i64 2, 1
+  %t167.c = icmp sle i64 %t163, %t166
+  %t167 = zext i1 %t167.c to i8
+  %b29.c = icmp ne i8 %t167, 0
+  br i1 %b29.c, label %L30, label %L32
+
+L30:
+  %t168 = load ptr, ptr %s17, align 8
+  %t169 = getelementptr i8, ptr %t168, i64 0
+  %t170 = load i64, ptr %s18, align 8
+  %t171 = getelementptr i8, ptr %t169, i64 %t170
+  %t172 = load i64, ptr %s18, align 8
+  %t174 = add i64 %t172, 1
+  %t175 = trunc i64 %t174 to i8
+  store i8 %t175, ptr %t171, align 1
+  br label %L31
+
+L31:
+  %t176 = load i64, ptr %s18, align 8
+  %t178 = add i64 %t176, 1
+  store i64 %t178, ptr %s18, align 8
+  br label %L29
+
+L32:
+  %t179 = load i64, ptr %s13, align 8
+  %t180 = load ptr, ptr %s17, align 8
+  %t181 = load [2 x i8], ptr %t180, align 2
+  %t182 = load i64, ptr %s14, align 8
+  store [2 x i8] %t181, ptr %s78, align 2
+  %t820 = load i16, ptr %s78, align 2
+  call void @"FUDT2"(i64 %t179, i16 %t820, i64 %t182)
+  %t183 = load ptr, ptr %s17, align 8
+  call void @"free"(ptr %t183)
+  %t185 = call ptr @"memset"(ptr %s19, i32 0, i64 16)
+  store i64 0, ptr %s20, align 8
+  br label %L33
+
+L33:
+  %t188 = load i64, ptr %s20, align 8
+  %t190.c = icmp sle i64 %t188, 7
+  %t190 = zext i1 %t190.c to i8
+  %b33.c = icmp ne i8 %t190, 0
+  br i1 %b33.c, label %L34, label %L36
+
+L34:
+  store i64 0, ptr %s21, align 8
+  br label %L37
+
+L35:
+  %t219 = load i64, ptr %s20, align 8
+  %t221 = add i64 %t219, 1
+  store i64 %t221, ptr %s20, align 8
+  br label %L33
+
+L36:
+  %t225 = mul i64 2, 8
+  %t226 = call ptr @"calloc"(i64 %t225, i64 1)
+  store ptr %t226, ptr %s22, align 8
+  store i64 0, ptr %s23, align 8
+  br label %L41
+
+L37:
+  %t193 = load i64, ptr %s21, align 8
+  %t196 = sub i64 2, 1
+  %t197.c = icmp sle i64 %t193, %t196
+  %t197 = zext i1 %t197.c to i8
+  %b37.c = icmp ne i8 %t197, 0
+  br i1 %b37.c, label %L38, label %L40
+
+L38:
+  %t198 = load i64, ptr %s20, align 8
+  %t200 = mul i64 %t198, 2
+  %t201 = getelementptr i8, ptr %s19, i64 %t200
+  %t202 = getelementptr i8, ptr %t201, i64 0
+  %t203 = load i64, ptr %s21, align 8
+  %t204 = getelementptr i8, ptr %t202, i64 %t203
+  %t205 = load i64, ptr %s21, align 8
+  %t207 = add i64 %t205, 1
+  %t208 = trunc i64 %t207 to i8
+  store i8 %t208, ptr %t204, align 1
+  br label %L39
+
+L39:
+  %t209 = load i64, ptr %s21, align 8
+  %t211 = add i64 %t209, 1
+  store i64 %t211, ptr %s21, align 8
+  br label %L37
+
+L40:
+  %t212 = load i64, ptr %s13, align 8
+  %t213 = load i64, ptr %s20, align 8
+  %t215 = mul i64 %t213, 2
+  %t216 = getelementptr i8, ptr %s19, i64 %t215
+  %t217 = load [2 x i8], ptr %t216, align 2
+  %t218 = load i64, ptr %s14, align 8
+  store [2 x i8] %t217, ptr %s79, align 2
+  %t822 = load i16, ptr %s79, align 2
+  call void @"FUDT2"(i64 %t212, i16 %t822, i64 %t218)
+  br label %L35
+
+L41:
+  %t229 = load i64, ptr %s23, align 8
+  %t231.c = icmp sle i64 %t229, 7
+  %t231 = zext i1 %t231.c to i8
+  %b41.c = icmp ne i8 %t231, 0
+  br i1 %b41.c, label %L42, label %L44
+
+L42:
+  store i64 0, ptr %s24, align 8
+  br label %L45
+
+L43:
+  %t262 = load i64, ptr %s23, align 8
+  %t264 = add i64 %t262, 1
+  store i64 %t264, ptr %s23, align 8
+  br label %L41
+
+L44:
+  %t265 = load ptr, ptr %s22, align 8
+  call void @"free"(ptr %t265)
+  store i64 2864425659, ptr %s25, align 8
+  store i64 3437087965, ptr %s26, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 3, i32 0)
+  %t272 = call ptr @"memset"(ptr %s27, i32 0, i64 3)
+  store i64 0, ptr %s28, align 8
+  br label %L49
+
+L45:
+  %t234 = load i64, ptr %s24, align 8
+  %t237 = sub i64 2, 1
+  %t238.c = icmp sle i64 %t234, %t237
+  %t238 = zext i1 %t238.c to i8
+  %b45.c = icmp ne i8 %t238, 0
+  br i1 %b45.c, label %L46, label %L48
+
+L46:
+  %t239 = load ptr, ptr %s22, align 8
+  %t240 = load i64, ptr %s23, align 8
+  %t242 = mul i64 %t240, 2
+  %t243 = getelementptr i8, ptr %t239, i64 %t242
+  %t244 = getelementptr i8, ptr %t243, i64 0
+  %t245 = load i64, ptr %s24, align 8
+  %t246 = getelementptr i8, ptr %t244, i64 %t245
+  %t247 = load i64, ptr %s24, align 8
+  %t249 = add i64 %t247, 1
+  %t250 = trunc i64 %t249 to i8
+  store i8 %t250, ptr %t246, align 1
+  br label %L47
+
+L47:
+  %t251 = load i64, ptr %s24, align 8
+  %t253 = add i64 %t251, 1
+  store i64 %t253, ptr %s24, align 8
+  br label %L45
+
+L48:
+  %t254 = load i64, ptr %s13, align 8
+  %t255 = load ptr, ptr %s22, align 8
+  %t256 = load i64, ptr %s23, align 8
+  %t258 = mul i64 %t256, 2
+  %t259 = getelementptr i8, ptr %t255, i64 %t258
+  %t260 = load [2 x i8], ptr %t259, align 2
+  %t261 = load i64, ptr %s14, align 8
+  store [2 x i8] %t260, ptr %s80, align 2
+  %t824 = load i16, ptr %s80, align 2
+  call void @"FUDT2"(i64 %t254, i16 %t824, i64 %t261)
+  br label %L43
+
+L49:
+  %t275 = load i64, ptr %s28, align 8
+  %t278 = sub i64 3, 1
+  %t279.c = icmp sle i64 %t275, %t278
+  %t279 = zext i1 %t279.c to i8
+  %b49.c = icmp ne i8 %t279, 0
+  br i1 %b49.c, label %L50, label %L52
+
+L50:
+  %t280 = getelementptr i8, ptr %s27, i64 0
+  %t281 = load i64, ptr %s28, align 8
+  %t282 = getelementptr i8, ptr %t280, i64 %t281
+  %t283 = load i64, ptr %s28, align 8
+  %t285 = add i64 %t283, 1
+  %t286 = trunc i64 %t285 to i8
+  store i8 %t286, ptr %t282, align 1
+  br label %L51
+
+L51:
+  %t287 = load i64, ptr %s28, align 8
+  %t289 = add i64 %t287, 1
+  store i64 %t289, ptr %s28, align 8
+  br label %L49
+
+L52:
+  %t290 = load i64, ptr %s25, align 8
+  %t291 = load [3 x i8], ptr %s27, align 2
+  %t292 = load i64, ptr %s26, align 8
+  store [3 x i8] %t291, ptr %s81, align 2
+  call void @"FUDT3"(i64 %t290, ptr %s81, i64 %t292)
+  %t295 = call ptr @"calloc"(i64 3, i64 1)
+  store ptr %t295, ptr %s29, align 8
+  store i64 0, ptr %s30, align 8
+  br label %L53
+
+L53:
+  %t298 = load i64, ptr %s30, align 8
+  %t301 = sub i64 3, 1
+  %t302.c = icmp sle i64 %t298, %t301
+  %t302 = zext i1 %t302.c to i8
+  %b53.c = icmp ne i8 %t302, 0
+  br i1 %b53.c, label %L54, label %L56
+
+L54:
+  %t303 = load ptr, ptr %s29, align 8
+  %t304 = getelementptr i8, ptr %t303, i64 0
+  %t305 = load i64, ptr %s30, align 8
+  %t306 = getelementptr i8, ptr %t304, i64 %t305
+  %t307 = load i64, ptr %s30, align 8
+  %t309 = add i64 %t307, 1
+  %t310 = trunc i64 %t309 to i8
+  store i8 %t310, ptr %t306, align 1
+  br label %L55
+
+L55:
+  %t311 = load i64, ptr %s30, align 8
+  %t313 = add i64 %t311, 1
+  store i64 %t313, ptr %s30, align 8
+  br label %L53
+
+L56:
+  %t314 = load i64, ptr %s25, align 8
+  %t315 = load ptr, ptr %s29, align 8
+  %t316 = load [3 x i8], ptr %t315, align 2
+  %t317 = load i64, ptr %s26, align 8
+  store [3 x i8] %t316, ptr %s82, align 2
+  call void @"FUDT3"(i64 %t314, ptr %s82, i64 %t317)
+  %t318 = load ptr, ptr %s29, align 8
+  call void @"free"(ptr %t318)
+  %t320 = call ptr @"memset"(ptr %s31, i32 0, i64 24)
+  store i64 0, ptr %s32, align 8
+  br label %L57
+
+L57:
+  %t323 = load i64, ptr %s32, align 8
+  %t325.c = icmp sle i64 %t323, 7
+  %t325 = zext i1 %t325.c to i8
+  %b57.c = icmp ne i8 %t325, 0
+  br i1 %b57.c, label %L58, label %L60
+
+L58:
+  store i64 0, ptr %s33, align 8
+  br label %L61
+
+L59:
+  %t354 = load i64, ptr %s32, align 8
+  %t356 = add i64 %t354, 1
+  store i64 %t356, ptr %s32, align 8
+  br label %L57
+
+L60:
+  %t360 = mul i64 3, 8
+  %t361 = call ptr @"calloc"(i64 %t360, i64 1)
+  store ptr %t361, ptr %s34, align 8
+  store i64 0, ptr %s35, align 8
+  br label %L65
+
+L61:
+  %t328 = load i64, ptr %s33, align 8
+  %t331 = sub i64 3, 1
+  %t332.c = icmp sle i64 %t328, %t331
+  %t332 = zext i1 %t332.c to i8
+  %b61.c = icmp ne i8 %t332, 0
+  br i1 %b61.c, label %L62, label %L64
+
+L62:
+  %t333 = load i64, ptr %s32, align 8
+  %t335 = mul i64 %t333, 3
+  %t336 = getelementptr i8, ptr %s31, i64 %t335
+  %t337 = getelementptr i8, ptr %t336, i64 0
+  %t338 = load i64, ptr %s33, align 8
+  %t339 = getelementptr i8, ptr %t337, i64 %t338
+  %t340 = load i64, ptr %s33, align 8
+  %t342 = add i64 %t340, 1
+  %t343 = trunc i64 %t342 to i8
+  store i8 %t343, ptr %t339, align 1
+  br label %L63
+
+L63:
+  %t344 = load i64, ptr %s33, align 8
+  %t346 = add i64 %t344, 1
+  store i64 %t346, ptr %s33, align 8
+  br label %L61
+
+L64:
+  %t347 = load i64, ptr %s25, align 8
+  %t348 = load i64, ptr %s32, align 8
+  %t350 = mul i64 %t348, 3
+  %t351 = getelementptr i8, ptr %s31, i64 %t350
+  %t352 = load [3 x i8], ptr %t351, align 2
+  %t353 = load i64, ptr %s26, align 8
+  store [3 x i8] %t352, ptr %s83, align 2
+  call void @"FUDT3"(i64 %t347, ptr %s83, i64 %t353)
+  br label %L59
+
+L65:
+  %t364 = load i64, ptr %s35, align 8
+  %t366.c = icmp sle i64 %t364, 7
+  %t366 = zext i1 %t366.c to i8
+  %b65.c = icmp ne i8 %t366, 0
+  br i1 %b65.c, label %L66, label %L68
+
+L66:
+  store i64 0, ptr %s36, align 8
+  br label %L69
+
+L67:
+  %t397 = load i64, ptr %s35, align 8
+  %t399 = add i64 %t397, 1
+  store i64 %t399, ptr %s35, align 8
+  br label %L65
+
+L68:
+  %t400 = load ptr, ptr %s34, align 8
+  call void @"free"(ptr %t400)
+  store i64 2864425659, ptr %s37, align 8
+  store i64 3437087965, ptr %s38, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 5, i32 0)
+  %t407 = call ptr @"memset"(ptr %s39, i32 0, i64 5)
+  store i64 0, ptr %s40, align 8
+  br label %L73
+
+L69:
+  %t369 = load i64, ptr %s36, align 8
+  %t372 = sub i64 3, 1
+  %t373.c = icmp sle i64 %t369, %t372
+  %t373 = zext i1 %t373.c to i8
+  %b69.c = icmp ne i8 %t373, 0
+  br i1 %b69.c, label %L70, label %L72
+
+L70:
+  %t374 = load ptr, ptr %s34, align 8
+  %t375 = load i64, ptr %s35, align 8
+  %t377 = mul i64 %t375, 3
+  %t378 = getelementptr i8, ptr %t374, i64 %t377
+  %t379 = getelementptr i8, ptr %t378, i64 0
+  %t380 = load i64, ptr %s36, align 8
+  %t381 = getelementptr i8, ptr %t379, i64 %t380
+  %t382 = load i64, ptr %s36, align 8
+  %t384 = add i64 %t382, 1
+  %t385 = trunc i64 %t384 to i8
+  store i8 %t385, ptr %t381, align 1
+  br label %L71
+
+L71:
+  %t386 = load i64, ptr %s36, align 8
+  %t388 = add i64 %t386, 1
+  store i64 %t388, ptr %s36, align 8
+  br label %L69
+
+L72:
+  %t389 = load i64, ptr %s25, align 8
+  %t390 = load ptr, ptr %s34, align 8
+  %t391 = load i64, ptr %s35, align 8
+  %t393 = mul i64 %t391, 3
+  %t394 = getelementptr i8, ptr %t390, i64 %t393
+  %t395 = load [3 x i8], ptr %t394, align 2
+  %t396 = load i64, ptr %s26, align 8
+  store [3 x i8] %t395, ptr %s84, align 2
+  call void @"FUDT3"(i64 %t389, ptr %s84, i64 %t396)
+  br label %L67
+
+L73:
+  %t410 = load i64, ptr %s40, align 8
+  %t413 = sub i64 5, 1
+  %t414.c = icmp sle i64 %t410, %t413
+  %t414 = zext i1 %t414.c to i8
+  %b73.c = icmp ne i8 %t414, 0
+  br i1 %b73.c, label %L74, label %L76
+
+L74:
+  %t415 = getelementptr i8, ptr %s39, i64 0
+  %t416 = load i64, ptr %s40, align 8
+  %t417 = getelementptr i8, ptr %t415, i64 %t416
+  %t418 = load i64, ptr %s40, align 8
+  %t420 = add i64 %t418, 1
+  %t421 = trunc i64 %t420 to i8
+  store i8 %t421, ptr %t417, align 1
+  br label %L75
+
+L75:
+  %t422 = load i64, ptr %s40, align 8
+  %t424 = add i64 %t422, 1
+  store i64 %t424, ptr %s40, align 8
+  br label %L73
+
+L76:
+  %t425 = load i64, ptr %s37, align 8
+  %t426 = load [5 x i8], ptr %s39, align 4
+  %t427 = load i64, ptr %s38, align 8
+  store [5 x i8] %t426, ptr %s85, align 4
+  call void @"FUDT5"(i64 %t425, ptr %s85, i64 %t427)
+  %t430 = call ptr @"calloc"(i64 5, i64 1)
+  store ptr %t430, ptr %s41, align 8
+  store i64 0, ptr %s42, align 8
+  br label %L77
+
+L77:
+  %t433 = load i64, ptr %s42, align 8
+  %t436 = sub i64 5, 1
+  %t437.c = icmp sle i64 %t433, %t436
+  %t437 = zext i1 %t437.c to i8
+  %b77.c = icmp ne i8 %t437, 0
+  br i1 %b77.c, label %L78, label %L80
+
+L78:
+  %t438 = load ptr, ptr %s41, align 8
+  %t439 = getelementptr i8, ptr %t438, i64 0
+  %t440 = load i64, ptr %s42, align 8
+  %t441 = getelementptr i8, ptr %t439, i64 %t440
+  %t442 = load i64, ptr %s42, align 8
+  %t444 = add i64 %t442, 1
+  %t445 = trunc i64 %t444 to i8
+  store i8 %t445, ptr %t441, align 1
+  br label %L79
+
+L79:
+  %t446 = load i64, ptr %s42, align 8
+  %t448 = add i64 %t446, 1
+  store i64 %t448, ptr %s42, align 8
+  br label %L77
+
+L80:
+  %t449 = load i64, ptr %s37, align 8
+  %t450 = load ptr, ptr %s41, align 8
+  %t451 = load [5 x i8], ptr %t450, align 4
+  %t452 = load i64, ptr %s38, align 8
+  store [5 x i8] %t451, ptr %s86, align 4
+  call void @"FUDT5"(i64 %t449, ptr %s86, i64 %t452)
+  %t453 = load ptr, ptr %s41, align 8
+  call void @"free"(ptr %t453)
+  %t455 = call ptr @"memset"(ptr %s43, i32 0, i64 40)
+  store i64 0, ptr %s44, align 8
+  br label %L81
+
+L81:
+  %t458 = load i64, ptr %s44, align 8
+  %t460.c = icmp sle i64 %t458, 7
+  %t460 = zext i1 %t460.c to i8
+  %b81.c = icmp ne i8 %t460, 0
+  br i1 %b81.c, label %L82, label %L84
+
+L82:
+  store i64 0, ptr %s45, align 8
+  br label %L85
+
+L83:
+  %t489 = load i64, ptr %s44, align 8
+  %t491 = add i64 %t489, 1
+  store i64 %t491, ptr %s44, align 8
+  br label %L81
+
+L84:
+  %t495 = mul i64 5, 8
+  %t496 = call ptr @"calloc"(i64 %t495, i64 1)
+  store ptr %t496, ptr %s46, align 8
+  store i64 0, ptr %s47, align 8
+  br label %L89
+
+L85:
+  %t463 = load i64, ptr %s45, align 8
+  %t466 = sub i64 5, 1
+  %t467.c = icmp sle i64 %t463, %t466
+  %t467 = zext i1 %t467.c to i8
+  %b85.c = icmp ne i8 %t467, 0
+  br i1 %b85.c, label %L86, label %L88
+
+L86:
+  %t468 = load i64, ptr %s44, align 8
+  %t470 = mul i64 %t468, 5
+  %t471 = getelementptr i8, ptr %s43, i64 %t470
+  %t472 = getelementptr i8, ptr %t471, i64 0
+  %t473 = load i64, ptr %s45, align 8
+  %t474 = getelementptr i8, ptr %t472, i64 %t473
+  %t475 = load i64, ptr %s45, align 8
+  %t477 = add i64 %t475, 1
+  %t478 = trunc i64 %t477 to i8
+  store i8 %t478, ptr %t474, align 1
+  br label %L87
+
+L87:
+  %t479 = load i64, ptr %s45, align 8
+  %t481 = add i64 %t479, 1
+  store i64 %t481, ptr %s45, align 8
+  br label %L85
+
+L88:
+  %t482 = load i64, ptr %s37, align 8
+  %t483 = load i64, ptr %s44, align 8
+  %t485 = mul i64 %t483, 5
+  %t486 = getelementptr i8, ptr %s43, i64 %t485
+  %t487 = load [5 x i8], ptr %t486, align 4
+  %t488 = load i64, ptr %s38, align 8
+  store [5 x i8] %t487, ptr %s87, align 4
+  call void @"FUDT5"(i64 %t482, ptr %s87, i64 %t488)
+  br label %L83
+
+L89:
+  %t499 = load i64, ptr %s47, align 8
+  %t501.c = icmp sle i64 %t499, 7
+  %t501 = zext i1 %t501.c to i8
+  %b89.c = icmp ne i8 %t501, 0
+  br i1 %b89.c, label %L90, label %L92
+
+L90:
+  store i64 0, ptr %s48, align 8
+  br label %L93
+
+L91:
+  %t532 = load i64, ptr %s47, align 8
+  %t534 = add i64 %t532, 1
+  store i64 %t534, ptr %s47, align 8
+  br label %L89
+
+L92:
+  %t535 = load ptr, ptr %s46, align 8
+  call void @"free"(ptr %t535)
+  store i64 2864425659, ptr %s49, align 8
+  store i64 3437087965, ptr %s50, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 7, i32 0)
+  %t542 = call ptr @"memset"(ptr %s51, i32 0, i64 7)
+  store i64 0, ptr %s52, align 8
+  br label %L97
+
+L93:
+  %t504 = load i64, ptr %s48, align 8
+  %t507 = sub i64 5, 1
+  %t508.c = icmp sle i64 %t504, %t507
+  %t508 = zext i1 %t508.c to i8
+  %b93.c = icmp ne i8 %t508, 0
+  br i1 %b93.c, label %L94, label %L96
+
+L94:
+  %t509 = load ptr, ptr %s46, align 8
+  %t510 = load i64, ptr %s47, align 8
+  %t512 = mul i64 %t510, 5
+  %t513 = getelementptr i8, ptr %t509, i64 %t512
+  %t514 = getelementptr i8, ptr %t513, i64 0
+  %t515 = load i64, ptr %s48, align 8
+  %t516 = getelementptr i8, ptr %t514, i64 %t515
+  %t517 = load i64, ptr %s48, align 8
+  %t519 = add i64 %t517, 1
+  %t520 = trunc i64 %t519 to i8
+  store i8 %t520, ptr %t516, align 1
+  br label %L95
+
+L95:
+  %t521 = load i64, ptr %s48, align 8
+  %t523 = add i64 %t521, 1
+  store i64 %t523, ptr %s48, align 8
+  br label %L93
+
+L96:
+  %t524 = load i64, ptr %s37, align 8
+  %t525 = load ptr, ptr %s46, align 8
+  %t526 = load i64, ptr %s47, align 8
+  %t528 = mul i64 %t526, 5
+  %t529 = getelementptr i8, ptr %t525, i64 %t528
+  %t530 = load [5 x i8], ptr %t529, align 4
+  %t531 = load i64, ptr %s38, align 8
+  store [5 x i8] %t530, ptr %s88, align 4
+  call void @"FUDT5"(i64 %t524, ptr %s88, i64 %t531)
+  br label %L91
+
+L97:
+  %t545 = load i64, ptr %s52, align 8
+  %t548 = sub i64 7, 1
+  %t549.c = icmp sle i64 %t545, %t548
+  %t549 = zext i1 %t549.c to i8
+  %b97.c = icmp ne i8 %t549, 0
+  br i1 %b97.c, label %L98, label %L100
+
+L98:
+  %t550 = getelementptr i8, ptr %s51, i64 0
+  %t551 = load i64, ptr %s52, align 8
+  %t552 = getelementptr i8, ptr %t550, i64 %t551
+  %t553 = load i64, ptr %s52, align 8
+  %t555 = add i64 %t553, 1
+  %t556 = trunc i64 %t555 to i8
+  store i8 %t556, ptr %t552, align 1
+  br label %L99
+
+L99:
+  %t557 = load i64, ptr %s52, align 8
+  %t559 = add i64 %t557, 1
+  store i64 %t559, ptr %s52, align 8
+  br label %L97
+
+L100:
+  %t560 = load i64, ptr %s49, align 8
+  %t561 = load [7 x i8], ptr %s51, align 4
+  %t562 = load i64, ptr %s50, align 8
+  store [7 x i8] %t561, ptr %s89, align 4
+  call void @"FUDT7"(i64 %t560, ptr %s89, i64 %t562)
+  %t565 = call ptr @"calloc"(i64 7, i64 1)
+  store ptr %t565, ptr %s53, align 8
+  store i64 0, ptr %s54, align 8
+  br label %L101
+
+L101:
+  %t568 = load i64, ptr %s54, align 8
+  %t571 = sub i64 7, 1
+  %t572.c = icmp sle i64 %t568, %t571
+  %t572 = zext i1 %t572.c to i8
+  %b101.c = icmp ne i8 %t572, 0
+  br i1 %b101.c, label %L102, label %L104
+
+L102:
+  %t573 = load ptr, ptr %s53, align 8
+  %t574 = getelementptr i8, ptr %t573, i64 0
+  %t575 = load i64, ptr %s54, align 8
+  %t576 = getelementptr i8, ptr %t574, i64 %t575
+  %t577 = load i64, ptr %s54, align 8
+  %t579 = add i64 %t577, 1
+  %t580 = trunc i64 %t579 to i8
+  store i8 %t580, ptr %t576, align 1
+  br label %L103
+
+L103:
+  %t581 = load i64, ptr %s54, align 8
+  %t583 = add i64 %t581, 1
+  store i64 %t583, ptr %s54, align 8
+  br label %L101
+
+L104:
+  %t584 = load i64, ptr %s49, align 8
+  %t585 = load ptr, ptr %s53, align 8
+  %t586 = load [7 x i8], ptr %t585, align 4
+  %t587 = load i64, ptr %s50, align 8
+  store [7 x i8] %t586, ptr %s90, align 4
+  call void @"FUDT7"(i64 %t584, ptr %s90, i64 %t587)
+  %t588 = load ptr, ptr %s53, align 8
+  call void @"free"(ptr %t588)
+  %t590 = call ptr @"memset"(ptr %s55, i32 0, i64 56)
+  store i64 0, ptr %s56, align 8
+  br label %L105
+
+L105:
+  %t593 = load i64, ptr %s56, align 8
+  %t595.c = icmp sle i64 %t593, 7
+  %t595 = zext i1 %t595.c to i8
+  %b105.c = icmp ne i8 %t595, 0
+  br i1 %b105.c, label %L106, label %L108
+
+L106:
+  store i64 0, ptr %s57, align 8
+  br label %L109
+
+L107:
+  %t624 = load i64, ptr %s56, align 8
+  %t626 = add i64 %t624, 1
+  store i64 %t626, ptr %s56, align 8
+  br label %L105
+
+L108:
+  %t630 = mul i64 7, 8
+  %t631 = call ptr @"calloc"(i64 %t630, i64 1)
+  store ptr %t631, ptr %s58, align 8
+  store i64 0, ptr %s59, align 8
+  br label %L113
+
+L109:
+  %t598 = load i64, ptr %s57, align 8
+  %t601 = sub i64 7, 1
+  %t602.c = icmp sle i64 %t598, %t601
+  %t602 = zext i1 %t602.c to i8
+  %b109.c = icmp ne i8 %t602, 0
+  br i1 %b109.c, label %L110, label %L112
+
+L110:
+  %t603 = load i64, ptr %s56, align 8
+  %t605 = mul i64 %t603, 7
+  %t606 = getelementptr i8, ptr %s55, i64 %t605
+  %t607 = getelementptr i8, ptr %t606, i64 0
+  %t608 = load i64, ptr %s57, align 8
+  %t609 = getelementptr i8, ptr %t607, i64 %t608
+  %t610 = load i64, ptr %s57, align 8
+  %t612 = add i64 %t610, 1
+  %t613 = trunc i64 %t612 to i8
+  store i8 %t613, ptr %t609, align 1
+  br label %L111
+
+L111:
+  %t614 = load i64, ptr %s57, align 8
+  %t616 = add i64 %t614, 1
+  store i64 %t616, ptr %s57, align 8
+  br label %L109
+
+L112:
+  %t617 = load i64, ptr %s49, align 8
+  %t618 = load i64, ptr %s56, align 8
+  %t620 = mul i64 %t618, 7
+  %t621 = getelementptr i8, ptr %s55, i64 %t620
+  %t622 = load [7 x i8], ptr %t621, align 4
+  %t623 = load i64, ptr %s50, align 8
+  store [7 x i8] %t622, ptr %s91, align 4
+  call void @"FUDT7"(i64 %t617, ptr %s91, i64 %t623)
+  br label %L107
+
+L113:
+  %t634 = load i64, ptr %s59, align 8
+  %t636.c = icmp sle i64 %t634, 7
+  %t636 = zext i1 %t636.c to i8
+  %b113.c = icmp ne i8 %t636, 0
+  br i1 %b113.c, label %L114, label %L116
+
+L114:
+  store i64 0, ptr %s60, align 8
+  br label %L117
+
+L115:
+  %t667 = load i64, ptr %s59, align 8
+  %t669 = add i64 %t667, 1
+  store i64 %t669, ptr %s59, align 8
+  br label %L113
+
+L116:
+  %t670 = load ptr, ptr %s58, align 8
+  call void @"free"(ptr %t670)
+  store i64 2864425659, ptr %s61, align 8
+  store i64 3437087965, ptr %s62, align 8
+  call void @"fb_PrintLongint"(i32 0, i64 8, i32 0)
+  %t677 = call ptr @"memset"(ptr %s63, i32 0, i64 8)
+  store i64 0, ptr %s64, align 8
+  br label %L121
+
+L117:
+  %t639 = load i64, ptr %s60, align 8
+  %t642 = sub i64 7, 1
+  %t643.c = icmp sle i64 %t639, %t642
+  %t643 = zext i1 %t643.c to i8
+  %b117.c = icmp ne i8 %t643, 0
+  br i1 %b117.c, label %L118, label %L120
+
+L118:
+  %t644 = load ptr, ptr %s58, align 8
+  %t645 = load i64, ptr %s59, align 8
+  %t647 = mul i64 %t645, 7
+  %t648 = getelementptr i8, ptr %t644, i64 %t647
+  %t649 = getelementptr i8, ptr %t648, i64 0
+  %t650 = load i64, ptr %s60, align 8
+  %t651 = getelementptr i8, ptr %t649, i64 %t650
+  %t652 = load i64, ptr %s60, align 8
+  %t654 = add i64 %t652, 1
+  %t655 = trunc i64 %t654 to i8
+  store i8 %t655, ptr %t651, align 1
+  br label %L119
+
+L119:
+  %t656 = load i64, ptr %s60, align 8
+  %t658 = add i64 %t656, 1
+  store i64 %t658, ptr %s60, align 8
+  br label %L117
+
+L120:
+  %t659 = load i64, ptr %s49, align 8
+  %t660 = load ptr, ptr %s58, align 8
+  %t661 = load i64, ptr %s59, align 8
+  %t663 = mul i64 %t661, 7
+  %t664 = getelementptr i8, ptr %t660, i64 %t663
+  %t665 = load [7 x i8], ptr %t664, align 4
+  %t666 = load i64, ptr %s50, align 8
+  store [7 x i8] %t665, ptr %s92, align 4
+  call void @"FUDT7"(i64 %t659, ptr %s92, i64 %t666)
+  br label %L115
+
+L121:
+  %t680 = load i64, ptr %s64, align 8
+  %t683 = sub i64 8, 1
+  %t684.c = icmp sle i64 %t680, %t683
+  %t684 = zext i1 %t684.c to i8
+  %b121.c = icmp ne i8 %t684, 0
+  br i1 %b121.c, label %L122, label %L124
+
+L122:
+  %t685 = getelementptr i8, ptr %s63, i64 0
+  %t686 = load i64, ptr %s64, align 8
+  %t687 = getelementptr i8, ptr %t685, i64 %t686
+  %t688 = load i64, ptr %s64, align 8
+  %t690 = add i64 %t688, 1
+  %t691 = trunc i64 %t690 to i8
+  store i8 %t691, ptr %t687, align 1
+  br label %L123
+
+L123:
+  %t692 = load i64, ptr %s64, align 8
+  %t694 = add i64 %t692, 1
+  store i64 %t694, ptr %s64, align 8
+  br label %L121
+
+L124:
+  %t695 = load i64, ptr %s61, align 8
+  %t696 = load [8 x i8], ptr %s63, align 8
+  %t697 = load i64, ptr %s62, align 8
+  store [8 x i8] %t696, ptr %s93, align 8
+  %t838 = load i64, ptr %s93, align 8
+  call void @"FUDT8"(i64 %t695, i64 %t838, i64 %t697)
+  %t700 = call ptr @"calloc"(i64 8, i64 1)
+  store ptr %t700, ptr %s65, align 8
+  store i64 0, ptr %s66, align 8
+  br label %L125
+
+L125:
+  %t703 = load i64, ptr %s66, align 8
+  %t706 = sub i64 8, 1
+  %t707.c = icmp sle i64 %t703, %t706
+  %t707 = zext i1 %t707.c to i8
+  %b125.c = icmp ne i8 %t707, 0
+  br i1 %b125.c, label %L126, label %L128
+
+L126:
+  %t708 = load ptr, ptr %s65, align 8
+  %t709 = getelementptr i8, ptr %t708, i64 0
+  %t710 = load i64, ptr %s66, align 8
+  %t711 = getelementptr i8, ptr %t709, i64 %t710
+  %t712 = load i64, ptr %s66, align 8
+  %t714 = add i64 %t712, 1
+  %t715 = trunc i64 %t714 to i8
+  store i8 %t715, ptr %t711, align 1
+  br label %L127
+
+L127:
+  %t716 = load i64, ptr %s66, align 8
+  %t718 = add i64 %t716, 1
+  store i64 %t718, ptr %s66, align 8
+  br label %L125
+
+L128:
+  %t719 = load i64, ptr %s61, align 8
+  %t720 = load ptr, ptr %s65, align 8
+  %t721 = load [8 x i8], ptr %t720, align 8
+  %t722 = load i64, ptr %s62, align 8
+  store [8 x i8] %t721, ptr %s94, align 8
+  %t840 = load i64, ptr %s94, align 8
+  call void @"FUDT8"(i64 %t719, i64 %t840, i64 %t722)
+  %t723 = load ptr, ptr %s65, align 8
+  call void @"free"(ptr %t723)
+  %t725 = call ptr @"memset"(ptr %s67, i32 0, i64 64)
+  store i64 0, ptr %s68, align 8
+  br label %L129
+
+L129:
+  %t728 = load i64, ptr %s68, align 8
+  %t730.c = icmp sle i64 %t728, 7
+  %t730 = zext i1 %t730.c to i8
+  %b129.c = icmp ne i8 %t730, 0
+  br i1 %b129.c, label %L130, label %L132
+
+L130:
+  store i64 0, ptr %s69, align 8
+  br label %L133
+
+L131:
+  %t759 = load i64, ptr %s68, align 8
+  %t761 = add i64 %t759, 1
+  store i64 %t761, ptr %s68, align 8
+  br label %L129
+
+L132:
+  %t765 = mul i64 8, 8
+  %t766 = call ptr @"calloc"(i64 %t765, i64 1)
+  store ptr %t766, ptr %s70, align 8
+  store i64 0, ptr %s71, align 8
+  br label %L137
+
+L133:
+  %t733 = load i64, ptr %s69, align 8
+  %t736 = sub i64 8, 1
+  %t737.c = icmp sle i64 %t733, %t736
+  %t737 = zext i1 %t737.c to i8
+  %b133.c = icmp ne i8 %t737, 0
+  br i1 %b133.c, label %L134, label %L136
+
+L134:
+  %t738 = load i64, ptr %s68, align 8
+  %t740 = mul i64 %t738, 8
+  %t741 = getelementptr i8, ptr %s67, i64 %t740
+  %t742 = getelementptr i8, ptr %t741, i64 0
+  %t743 = load i64, ptr %s69, align 8
+  %t744 = getelementptr i8, ptr %t742, i64 %t743
+  %t745 = load i64, ptr %s69, align 8
+  %t747 = add i64 %t745, 1
+  %t748 = trunc i64 %t747 to i8
+  store i8 %t748, ptr %t744, align 1
+  br label %L135
+
+L135:
+  %t749 = load i64, ptr %s69, align 8
+  %t751 = add i64 %t749, 1
+  store i64 %t751, ptr %s69, align 8
+  br label %L133
+
+L136:
+  %t752 = load i64, ptr %s61, align 8
+  %t753 = load i64, ptr %s68, align 8
+  %t755 = mul i64 %t753, 8
+  %t756 = getelementptr i8, ptr %s67, i64 %t755
+  %t757 = load [8 x i8], ptr %t756, align 8
+  %t758 = load i64, ptr %s62, align 8
+  store [8 x i8] %t757, ptr %s95, align 8
+  %t842 = load i64, ptr %s95, align 8
+  call void @"FUDT8"(i64 %t752, i64 %t842, i64 %t758)
+  br label %L131
+
+L137:
+  %t769 = load i64, ptr %s71, align 8
+  %t771.c = icmp sle i64 %t769, 7
+  %t771 = zext i1 %t771.c to i8
+  %b137.c = icmp ne i8 %t771, 0
+  br i1 %b137.c, label %L138, label %L140
+
+L138:
+  store i64 0, ptr %s72, align 8
+  br label %L141
+
+L139:
+  %t802 = load i64, ptr %s71, align 8
+  %t804 = add i64 %t802, 1
+  store i64 %t804, ptr %s71, align 8
+  br label %L137
+
+L140:
+  %t805 = load ptr, ptr %s70, align 8
+  call void @"free"(ptr %t805)
+  call void @"fb_PrintVoid"(i32 0, i32 1)
+  %t806 = call ptr @"fb_StrAllocTempDescZEx"(ptr @"$str3", i64 4)
+  call void @"fb_PrintString"(i32 0, ptr %t806, i32 1)
+  call void @"fb_End"(i32 0)
+  %t808 = load i32, ptr %s0, align 4
+  ret i32 %t808
+
+L141:
+  %t774 = load i64, ptr %s72, align 8
+  %t777 = sub i64 8, 1
+  %t778.c = icmp sle i64 %t774, %t777
+  %t778 = zext i1 %t778.c to i8
+  %b141.c = icmp ne i8 %t778, 0
+  br i1 %b141.c, label %L142, label %L144
+
+L142:
+  %t779 = load ptr, ptr %s70, align 8
+  %t780 = load i64, ptr %s71, align 8
+  %t782 = mul i64 %t780, 8
+  %t783 = getelementptr i8, ptr %t779, i64 %t782
+  %t784 = getelementptr i8, ptr %t783, i64 0
+  %t785 = load i64, ptr %s72, align 8
+  %t786 = getelementptr i8, ptr %t784, i64 %t785
+  %t787 = load i64, ptr %s72, align 8
+  %t789 = add i64 %t787, 1
+  %t790 = trunc i64 %t789 to i8
+  store i8 %t790, ptr %t786, align 1
+  br label %L143
+
+L143:
+  %t791 = load i64, ptr %s72, align 8
+  %t793 = add i64 %t791, 1
+  store i64 %t793, ptr %s72, align 8
+  br label %L141
+
+L144:
+  %t794 = load i64, ptr %s61, align 8
+  %t795 = load ptr, ptr %s70, align 8
+  %t796 = load i64, ptr %s71, align 8
+  %t798 = mul i64 %t796, 8
+  %t799 = getelementptr i8, ptr %t795, i64 %t798
+  %t800 = load [8 x i8], ptr %t799, align 8
+  %t801 = load i64, ptr %s62, align 8
+  store [8 x i8] %t800, ptr %s96, align 8
+  %t844 = load i64, ptr %s96, align 8
+  call void @"FUDT8"(i64 %t794, i64 %t844, i64 %t801)
+  br label %L139
+
+}
+
+declare ptr @"fb_StrAllocTempDescZEx"(ptr, i64)
+declare void @"fb_PrintString"(i32, ptr, i32)
+declare void @"fb_PrintLongint"(i32, i64, i32)
+declare void @"fb_PrintByte"(i32, i8, i32)
+declare void @"fb_Init"(i32, ptr, i32)
+declare ptr @"memset"(ptr, i32, i64)
+declare ptr @"calloc"(i64, i64)
+declare void @"free"(ptr)
+declare void @"fb_PrintVoid"(i32, i32)
+declare void @"fb_End"(i32)

@@ -559,6 +559,29 @@ function BindParamType_ _
         end if
     end if
 
+    '' A PARAMETER WITH NO TYPE WRITTEN AT ALL is the DEFAULT-TYPE feature, the
+    '' same one 'dim a' is, and fbc refuses it outside -lang deprecated/fblite/qb:
+    ''
+    ''     sub mysub( byval s$ )
+    ''     error 147: Default types or suffixes are only valid in -lang
+    ''                deprecated or fblite or qb
+    ''
+    '' tiko-lang implements #lang "fb" only, and left the parameter untyped: it
+    '' reached the emitter as 'define void @"MYSUB"(void %p0)' and clang answered
+    '' "void type only allowed for function results". The N_VAR arm has said this
+    '' since TKO0320 was added -- its comment even names 'byval s$' -- and the
+    '' parameter path never did.
+    ''
+    '' Only when there is NO TYPE REFERENCE. An unresolved type NAME stays silent
+    '' for the same reason it does there: it may come from a header this build did
+    '' not read. The ELLIPSIS is not a parameter and carries no type by design.
+    if (t = Tko.TYPE_NONE) andalso (sp->a = Tko.NODE_NONE) andalso _
+       (sp->op <> cast( ushort, Tko.TK_ELLIPSIS )) then
+        c.diags->Report( Tko.TKO0320, _
+            Tko.PointRange( c.ast->Loc( id ) ), _
+            c.names->Spelling( sp->name ) )
+    end if
+
     if (t <> Tko.TYPE_NONE) andalso _
        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0) then
         t = c.types->Reference( t )
