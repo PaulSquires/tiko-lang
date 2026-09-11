@@ -1,0 +1,6 @@
+'' An identical macro redefinition is accepted, including one whose body holds a
+'' string or a float -- the literal VALUES are what must match, not their pool indices.
+'' TEST: cli
+'' ARGS: --pp-only tests/pp/src/redefine-identical.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0305

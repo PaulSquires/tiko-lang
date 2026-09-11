@@ -1,0 +1,8 @@
+'' A user type may take the name of a graphics intrinsic the prelude declares.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/prelude-shadow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: TKO0600
+'' EXPECT-NOT: TKO0603
+'' GOLDEN: expected/prelude-shadow.out

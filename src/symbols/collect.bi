@@ -16,11 +16,15 @@
 namespace Tko.Collect
 
     '' Returns the number of duplicate declarations reported.
+    '' 'src' IS OPTIONAL AND ONLY THE DRIVER PASSES IT. It is needed for ONE
+    '' question -- did this symbol come from the PRELUDE? -- and a generic
+    '' instantiation, which is what One serves, never asks it.
     declare function Run _
         ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
           byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
           byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
-          byref info as Tko.SemanticInfo ) as long
+          byref info as Tko.SemanticInfo, _
+          byval src as Tko.SourceManager ptr = 0 ) as long
 
     '' COLLECT ONE NODE into an existing scope, for a declaration that did not exist
     '' when Run walked the unit: an instantiated generic member. Run itself cannot be

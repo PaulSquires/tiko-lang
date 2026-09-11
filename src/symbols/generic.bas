@@ -1299,6 +1299,23 @@ sub BackpatchTypedefs( byref c as Ctx )
         if progress = false then exit for
     next
 
+
+    '' PARAMETERS AND RESULTS, revisited the same way. See BindParamType_.
+    for i as long = 0 to c.pendParam.Count - 1
+        BindParamType_( c, cast( Tko.NodeId, c.pendParam[i] ), _
+                        cast( Tko.ScopeId, c.pendParamScope[i] ) )
+    next
+    for i as long = 0 to c.pendResultProc.Count - 1
+        dim as Tko.NodeId pn2 = cast( Tko.NodeId, c.pendResultProc[i] )
+        dim as Tko.StmtPayload ptr psp = StmtOf( c, pn2 )
+        dim as Tko.TypeId rt3 = _
+            ResolveTypeRef( c, psp->a, cast( Tko.ScopeId, c.pendResultProcScope[i] ) )
+        if rt3 = Tko.TYPE_NONE then continue for
+        dim as Tko.Symbol ptr rs2 = c.syms->SymbolAt( c.info->RefOf( pn2 ) )
+        if rs2 = 0 then continue for
+        if rs2->type_ = Tko.TYPE_NONE then rs2->type_ = rt3
+    next
+
     for i as long = 0 to c.pendingItem.Count - 1
         dim as Tko.NodeId item = cast( Tko.NodeId, c.pendingItem[i] )
         dim as Tko.ScopeId here = cast( Tko.ScopeId, c.pendingScope[i] )

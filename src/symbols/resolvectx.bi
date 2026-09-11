@@ -29,6 +29,15 @@ type Ctx
     '' because of one.
     as FB.Array( of ulong )  typedefNode
     as FB.Array( of ulong )  typedefScope
+    '' PARAMETERS whose typeref would not resolve on the first pass, revisited after
+    '' BackpatchTypedefs -- the same treatment pendingItem gives a variable. Every
+    '' mingw binding needs it: win/windef.bi writes 'type WPARAM as UINT_PTR'
+    '' before including the header that declares UINT_PTR.
+    as FB.Array( of ulong )  pendParam
+    as FB.Array( of ulong )  pendParamScope
+    '' PROCEDURES whose RESULT typeref would not resolve, for the same reason.
+    as FB.Array( of ulong )  pendResultProc
+    as FB.Array( of ulong )  pendResultProcScope
     as FB.Array( of ulong )  pendingItem
     as FB.Array( of ulong )  pendingScope
     '' The generic type parameters currently in scope, innermost binding last: the
@@ -101,6 +110,8 @@ declare function ArrayFromBoundsNode _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
+declare function BindParamType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as Tko.TypeId
 declare function ForwardTypedefTarget_ _
     ( byref c as Ctx, byval tsp as Tko.StmtPayload ptr, _
       byval here as Tko.ScopeId ) as Tko.TypeId

@@ -1,0 +1,9 @@
+'' A parameter and a result whose typedef is declared later in the unit are revisited.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/forward-typedef-param.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' Neither the parameters nor the result may be void.
+'' EXPECT-NOT: void $
+'' GOLDEN: expected/forward-typedef-param.out

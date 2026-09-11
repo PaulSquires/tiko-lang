@@ -1137,73 +1137,16 @@ sub WalkStmt _
         return
 
     case Tko.N_PARAM
+        '' THE WHOLE RULE IS IN BindParamType_, because a parameter whose type is
+        '' not resolvable YET has to be bound again later -- see the pending list
+        '' below and the second half of BackpatchTypedefs.
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        dim as Tko.TypeId t = ResolveTypeRef( c, sp->a, here )
-        '' 'sub Q( a( ) as long )' TAKES AN ARRAY, not a long. The parser records the
-        '' empty subscript as NF_ARRAY and nothing read it, so the parameter was typed
-        '' as its ELEMENT: 'redim a( ... )' inside the body found no array to
-        '' re-dimension and 'a( 0 ) = 1' had no descriptor to index through. A DYNAMIC
-        '' array, because bounds set by the caller are exactly what a bydesc parameter
-        '' does not know.
-        if (t <> Tko.TYPE_NONE) andalso _
-           ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0) then
-            '' THE RANK THE PARAMETER WAS WRITTEN WITH, which the parser now
-            '' records on the N_PARAM's unused 'count'. Hard-coded 1, every
-            '' 'a( any, any )' parameter was a ONE-dimensional array and the
-            '' two-subscript reads inside the body declined on a rank mismatch.
-            '' 'a( )' is rank ZERO -- unspecified -- and the subscript count at
-            '' the use decides, which is what fbc does with it.
-            t = c.types->DynArrayOf( t, cast( long, sp->extra ) )
-        end if
-        '' NEITHER KEYWORD WRITTEN IS NOT BYVAL. Measured from the signatures fbc
-        '' emits:
-        ''
-        ''   n as integer   int64 N$1          a as string    FBSTRING* A$1
-        ''   d as double    double D$1         a as zstring   char* A$1
-        ''   e as ENUM      $1E E$1            a as wstring   uint16* A$1
-        ''   p as U ptr     struct $1U* P$1    a as ustring   FBUSTRING* A$1
-        ''   u as U         struct $1U* U$1
-        ''
-        '' -- BYREF for a UDT and for every string kind, BYVAL for everything else,
-        '' and 'z as zstring * 8' is error 324, "Fixed-length string combined with
-        '' BYREF", which is fbc saying the default it chose there was byref.
-        ''
-        '' tiko read the absence of the keyword as byval, so 'sub mut( u as U )'
-        '' received a COPY: 'u.k = 99' wrote to it and the caller's object was
-        '' unchanged, with no decline and nothing in the IR to say so. Every
-        '' unannotated UDT and string parameter in the corpus and in the shipped
-        '' headers was passed the wrong way.
-        ''
-        '' An ARRAY parameter is exempt: byval and byref are both ILLEGAL on one, so
-        '' the passing mode never enters into it and a descriptor crosses either way.
-        if t <> Tko.TYPE_NONE then
-            dim as ushort pflags = c.ast->nodes[cast( long, id )].flags
-            dim as boolean written = ((pflags and Tko.NF_BYREF) <> 0)
-            written = written orelse ((pflags and Tko.NF_BYVAL_WRITTEN) <> 0)
-            written = written orelse ((pflags and Tko.NF_ARRAY) <> 0)
-            if written = false then
-                dim as Tko.TypeId bare = c.types->Unqualify( t )
-                dim as boolean wantsRef = (c.types->Kind( bare ) = Tko.TK_UDT)
-                if wantsRef = false then
-                    if c.types->Kind( bare ) = Tko.TK_BUILTIN then
-                        select case c.types->BuiltinOf( bare )
-                        case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, _
-                             Tko.TY_USTRING
-                            wantsRef = true
-                        end select
-                    end if
-                end if
-                if wantsRef then
-                    c.ast->nodes[cast( long, id )].flags or= Tko.NF_BYREF
-                end if
+        if BindParamType_( c, id, here ) = Tko.TYPE_NONE then
+            if sp->a <> Tko.NODE_NONE then
+                c.pendParam.Push( cast( ulong, id ) )
+                c.pendParamScope.Push( cast( ulong, here ) )
             end if
         end if
-
-        if (t <> Tko.TYPE_NONE) andalso _
-           ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0) then
-            t = c.types->Reference( t )
-        end if
-        BindDeclType( c, here, sp->name, t, false )
         WalkStmt( c, sp->b, here )
         return
 
@@ -1443,6 +1386,13 @@ sub WalkStmt _
         if (ps <> 0) andalso (ret <> Tko.TYPE_NONE) andalso _
            (ps->type_ = Tko.TYPE_NONE) then
             ps->type_ = ret
+        end if
+        '' ...AND A RESULT THAT WILL NOT RESOLVE YET IS REVISITED. 'as LRESULT' over
+        '' 'type LRESULT as LONG_PTR' declared later in the unit came out VOID and
+        '' stayed void; see BindParamType_ for the parameter half of the same fact.
+        if (ret = Tko.TYPE_NONE) andalso (sp->a <> Tko.NODE_NONE) then
+            c.pendResultProc.Push( cast( ulong, id ) )
+            c.pendResultProcScope.Push( cast( ulong, here ) )
         end if
         BindThis( c, here, sp->ownerName )
         for i as long = 0 to sp->count - 1

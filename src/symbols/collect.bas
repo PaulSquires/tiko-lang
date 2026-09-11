@@ -16,6 +16,9 @@
 namespace Tko.Collect
 
 type Walker
+    '' The SOURCE MANAGER, for one question only: did this symbol come from the
+    '' PRELUDE? Optional -- a generic instantiation never asks.
+    as Tko.SourceManager ptr src
     as Tko.AstArena ptr     ast
     as Tko.SymbolTable ptr  syms
     as Tko.DiagnosticEngine ptr diags
@@ -78,6 +81,42 @@ private function Declare_ _
     dim as boolean dup = false
     dim as Tko.SymbolId id = w.syms->DeclareSym( scope_, nm, k, loc, dup )
     if dup then
+        '' A USER DECLARATION SHADOWS A PRELUDE ONE. fbc's graphics statements are
+        '' QUIRK KEYWORDS and a user declaration of the same name simply replaces
+        '' them: measured, 'type IMAGEINFO as _II' compiles and the type wins, and
+        '' win/commctrl.bi writes exactly that. tiko declares the same names from a
+        '' real prelude buffer, so the header collided with the intrinsic -- two
+        '' errors, and every file that reaches commctrl.bi through windows.bi.
+        ''
+        '' The overload chain goes with it: the prelude declares IMAGEINFO twice,
+        '' 32-bit and 64-bit, and a shadowing declaration replaces the whole name.
+        '' EITHER ORDER. The prelude is a VIRTUAL FILE appended to the unit, so its
+        '' declarations are usually collected AFTER the user's includes -- the
+        '' diagnostic pointed at '<builtin>' and named the header's type as the one
+        '' already declared. Whichever side is the prelude's loses.
+        dim as Tko.Symbol ptr old = w.syms->SymbolAt( id )
+        if (old <> 0) andalso (w.src <> 0) then
+            dim as boolean oldIsPrelude = w.src->IsBuiltin( old->loc )
+            dim as boolean newIsPrelude = w.src->IsBuiltin( loc )
+            if newIsPrelude andalso (oldIsPrelude = false) then
+                '' THE WHOLE DECLARATION IS DISCARDED, not just its symbol: returning
+                '' the existing one let the prelude's 'declare function imageinfo'
+                '' carry on configuring the header's TYPE, which answered with
+                '' 'calling convention does not match'. SYMBOL_NONE is what every
+                '' caller already reads as 'nothing was declared'.
+                return Tko.SYMBOL_NONE
+            end if
+            if oldIsPrelude andalso (newIsPrelude = false) then
+                old->kind = cast( ubyte, k )
+                old->loc = loc
+                old->payload = 0
+                old->type_ = Tko.TYPE_NONE
+                old->inner = Tko.SCOPE_NONE
+                old->nextOverload = Tko.SYMBOL_NONE
+                old->flags = 0
+                return id
+            end if
+        end if
         w.duplicates += 1
         dim as Tko.SourceRange r = Tko.PointRange( loc )
         w.diags->Report( Tko.TKO0600, r, w.names->Spelling( nm ) )
@@ -1316,9 +1355,11 @@ function Run _
     ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
-      byref info as Tko.SemanticInfo ) as long
+      byref info as Tko.SemanticInfo, _
+      byval src as Tko.SourceManager ptr = 0 ) as long
 
     dim as Walker w
+    w.src = src
     w.types = @types
     w.ast = @ast
     w.syms = @syms

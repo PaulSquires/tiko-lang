@@ -92,15 +92,66 @@ end sub
 '' Is this redefinition the same as the one before it? Only an OBJECT-LIKE macro may
 '' be redefined at all, and only with the same tokens. Whitespace is not compared --
 '' 'X   _Y' and 'X _Y' are the same macro, measured.
+'' THE LITERAL POOL INDEX IS NOT THE LITERAL. A string literal is stored as a RAW SPAN
+'' -- file, offset, length -- so the same text written twice is two pool entries with
+'' two indices, and comparing the indices called every such redefinition DIFFERENT.
+''
+'' win/shobjidl.bi writes
+''
+''     #define STR_AVOID_DRIVE_RESTRICTION_POLICY wstr("Avoid Drive Restriction Policy")
+''     #define STR_AVOID_DRIVE_RESTRICTION_POLICY wstr("Avoid Drive Restriction Policy")
+''
+'' on consecutive lines, and fbc accepts it: measured, '#define A 1' twice is fine and
+'' '#define B 1' then '#define B 2' is error 4. The VALUES are what has to match.
+private function SameLiteral_ _
+    ( byref e as PpEngine, byval a as ulong, byval b as ulong ) as boolean
+
+    if a = b then return true
+    if e.outp = 0 then return false
+    dim as long ia = cast( long, a )
+    dim as long ib = cast( long, b )
+    if (ia < 0) orelse (ia >= e.outp->literals.Count) then return false
+    if (ib < 0) orelse (ib >= e.outp->literals.Count) then return false
+    dim as Literal ptr la = @e.outp->literals[ia]
+    dim as Literal ptr lb = @e.outp->literals[ib]
+    if la->kind <> lb->kind then return false
+    if la->strKind <> lb->strKind then return false
+    if la->suffix <> lb->suffix then return false
+    dim as boolean isStr = (la->kind = cast( ubyte, TK_STRING_LIT ))
+    if isStr = false then
+        if la->intValue <> lb->intValue then return false
+        return (la->fltValue = lb->fltValue)
+    end if
+    '' THE TEXT, from each literal's OWN file and span.
+    if la->textLength <> lb->textLength then return false
+    if la->textLength = 0 then return true
+    dim as SourceFile ptr fa = e.src->FileAt( cast( FileId, la->textFile ) )
+    dim as SourceFile ptr fb2 = e.src->FileAt( cast( FileId, lb->textFile ) )
+    if (fa = 0) orelse (fb2 = 0) then return false
+    if (la->textOffset + la->textLength) > fa->text.Count then return false
+    if (lb->textOffset + lb->textLength) > fb2->text.Count then return false
+    return (memcmp( @fa->text[la->textOffset], @fb2->text[lb->textOffset], _
+                    la->textLength ) = 0)
+end function
+
 private function IdenticalRedefinition_ _
-    ( byval m as PpMacro ptr, byval oldIsFunc as boolean, _
+    ( byref e as PpEngine, byval m as PpMacro ptr, byval oldIsFunc as boolean, _
       byref oldBody as TokenVec ) as boolean
 
     if m->isFunc orelse oldIsFunc then return false
     if m->body.Count <> oldBody.Count then return false
     for i as long = 0 to m->body.Count - 1
         if m->body[i].kind <> oldBody[i].kind then return false
-        if m->body[i].literal <> oldBody[i].literal then return false
+        dim as TokenKind bk = cast( TokenKind, m->body[i].kind )
+        dim as boolean isLit = (bk = TK_INT_LIT) orelse (bk = TK_FLOAT_LIT)
+        if isLit = false then isLit = (bk = TK_STRING_LIT)
+        if isLit then
+            if SameLiteral_( e, m->body[i].literal, oldBody[i].literal ) = false then
+                return false
+            end if
+        elseif m->body[i].literal <> oldBody[i].literal then
+            return false
+        end if
     next
     return true
 end function
@@ -189,7 +240,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     if isBlock = false then
         CollectLine( e, m->body, true )
         if wasDefined andalso (wasRedefinable = false) then
-            if IdenticalRedefinition_( m, oldIsFunc, oldBody ) = false then
+            if IdenticalRedefinition_( e, m, oldIsFunc, oldBody ) = false then
                 Report( e, TKO0305, at, e.names->Spelling( id ) )
             end if
         end if
