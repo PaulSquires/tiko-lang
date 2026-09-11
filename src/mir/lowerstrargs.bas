@@ -148,7 +148,7 @@ end function
 '' THE CALLER-BUILT DESCRIPTOR for one byval var-length string argument: zeroed,
 '' assigned from the source, and passed by ADDRESS. The slot comes back so the call
 '' site can delete it afterwards.
-private function ByvalStrTemp_ _
+function ByvalStrTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
 

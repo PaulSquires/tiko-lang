@@ -972,6 +972,9 @@ declare function EmitRtl _
     declare function ByvalStrIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ParamIsIndirectStr_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+    declare function ByvalStrTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as long ) as boolean
     declare function NeedsDtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare sub EmitCtorPrologue_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _

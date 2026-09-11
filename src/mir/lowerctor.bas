@@ -391,8 +391,12 @@ function LowerCtorInit _
     '' picked: 'garr( )' is an empty call over a name whose type is an ARRAY, and
     '' nothing else is.
     dim as FB.Array( of ulong ) argDesc
+    '' ...AND THE NODES THEY CAME FROM, because a byval STRING parameter needs the
+    '' argument again once the overload is known: see the temporary below.
+    dim as FB.Array( of ulong ) argNode
     for i as long = 0 to cp->count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        argNode.Push( cast( ulong, a ) )
         dim as MirValue adv
         if ArrayDescArg_( c, a, true, adv ) then
             argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
@@ -422,6 +426,9 @@ function LowerCtorInit _
     '' implicit conversions, and the overload was selected knowing a conversion would
     '' be needed, so it has to be written down.
     dim as Tko.StmtPayload ptr cpp = StmtOf( c, pn )
+    '' The caller-built string descriptors, deleted after the call returns.
+    dim as FB.Array( of ulong ) strTmp
+    dim as FB.Array( of ulong ) strTmpTy
     dim as long ai2 = 0
     for i as long = 0 to cpp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
@@ -436,10 +443,47 @@ function LowerCtorInit _
         av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
         av.id = argId[ai2]
         dim as Tko.StmtPayload ptr sp3 = StmtOf( c, prm )
-        dim as MirValue cv = Coerce( c, av, _
-            LowerType( c.info->TypeOf_( sp3->a ), *c.types ) )
+        dim as Tko.TypeId pty = c.info->TypeOf_( sp3->a )
+
+        '' A BYVAL VAR-LENGTH STRING PARAMETER TAKES A DESCRIPTOR THE CALLER BUILDS,
+        '' and this path passed the argument's raw operand instead: for
+        '' 'Res( of string )( "abc" )' that is the address of the LITERAL, where an
+        '' FBSTRING* belongs, so the constructor read a descriptor out of the text.
+        '' It linked, it verified, and 's.v' came back empty.
+        ''
+        '' The rule and the entry point are the ordinary call path's -- see
+        '' ParamIsIndirectStr_ and ByvalStrTemp_ in lowercall.bas, and HANDOFF 6b for
+        '' the measurement. Only the constructor path had never been given them.
+        if ParamIsIndirectStr_( c, pick, ai2 ) then
+            dim as MirValue sa
+            dim as long sslot = -1
+            if ByvalStrTemp_( c, cast( Tko.NodeId, argNode[ai2] ), pty, sa, sslot ) then
+                argKind[ai2] = cast( ulong, sa.kind )
+                argId[ai2] = cast( ulong, sa.id )
+                argT[ai2] = cast( ulong, pty )
+                strTmp.Push( cast( ulong, sslot ) )
+                strTmpTy.Push( cast( ulong, pty ) )
+                ai2 += 1
+                continue for
+            end if
+        end if
+
+        dim as MirValue cv = Coerce( c, av, LowerType( pty, *c.types ) )
         argKind[ai2] = cv.kind
         argId[ai2] = cv.id
+        '' ...AND THE RECORDED TYPE MOVES WITH THE VALUE. The declaration emitted
+        '' below is built from 'argT', so coercing the value and leaving the type
+        '' behind wrote a prototype that disagrees with the definition. Measured:
+        '' 'Res( of long )( 7 )' put
+        ''
+        ''     declare void _ZN6RES<6>C1Ei(ptr, i64)
+        ''     func    void _ZN6RES<6>C1Ei(ptr, i32)
+        ''
+        '' in one module, and clang refused it: "'%t3' defined with type 'i32' but
+        '' expected 'i64'". The literal is INTEGER and the parameter is T = LONG, so
+        '' the two only disagree when a generic's parameter is narrower than the
+        '' argument -- which is why it took a generic to show.
+        if pty <> Tko.TYPE_NONE then argT[ai2] = cast( ulong, pty )
         ai2 += 1
     next
 
@@ -512,6 +556,19 @@ function LowerCtorInit _
     ins.count = argT.Count + 1
     ins.callee = fidx
     Emit( c, ins )
+
+    '' ...AND RELEASED, in reverse, which is the order the ordinary call path uses
+    '' when there is more than one.
+    for k as long = strTmp.Count - 1 to 0 step -1
+        dim as MirValue sd
+        sd.kind = cast( ubyte, MV_LOCAL )
+        sd.ty = cast( ubyte, MT_PTR )
+        sd.id = cast( long, strTmp[k] )
+        dim as FB.Array( of ulong ) dargs
+        dargs.Push( cast( ulong, sd.kind ) ) : dargs.Push( cast( ulong, sd.id ) )
+        EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, strTmpTy[k] ), RTL_STR_DELETE ), _
+                 dargs )
+    next
     return true
 end function
 

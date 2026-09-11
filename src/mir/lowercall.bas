@@ -16,9 +16,7 @@ declare function ArgParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
       byval idx as long ) as Tko.TypeId
 
-declare function ByvalStrTemp_ _
-    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long ) as boolean
+'' ByvalStrTemp_ is declared in lowerctx.bi now -- lowerctor.bas needs it too.
 declare function FixedUStrArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
