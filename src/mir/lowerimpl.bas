@@ -1398,7 +1398,9 @@ sub EmitImplicitStructors( byref c as Ctx )
         case 2
             written = (StructorOf( c, t, "let" ) <> Tko.SYMBOL_NONE)
         case else
-            written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 ) <> Tko.SYMBOL_NONE)
+            '' THE WHOLE CHAIN -- see CopyCtorOf_. A type whose copy constructor is
+            '' not the first one-argument one was given a SYNTHESISED copy as well.
+            written = (CopyCtorOf_( c, t ) <> Tko.SYMBOL_NONE)
         end select
         if written then continue while
         EmitOneImplicit_( c, t, kind_ )
@@ -1430,12 +1432,7 @@ function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     '' A WRITTEN copy constructor, by SHAPE: the one-argument constructor whose
     '' parameter is this same type. Any other one-argument constructor is a conversion
     '' and says nothing about how the type is passed.
-    dim as Tko.SymbolId cc = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
-    if cc = Tko.SYMBOL_NONE then return false
-    dim as Tko.TypeId pt = ParamTypeAt( c, cc, 0 )
-    if pt = Tko.TYPE_NONE then return false
-    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
-    return (c.types->Unqualify( pt ) = c.types->Unqualify( t ))
+    return (CopyCtorOf_( c, t ) <> Tko.SYMBOL_NONE)
 end function
 
 '' A BYVAL VAR-LENGTH STRING PARAMETER IS INDIRECT TOO, and for the same reason: the

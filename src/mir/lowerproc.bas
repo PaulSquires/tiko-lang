@@ -1441,15 +1441,9 @@ private function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
 
     if c.types->Kind( rt ) <> Tko.TK_UDT then return false
-    dim as Tko.SymbolId cc = StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 1 )
-    dim as boolean written = false
-    if cc <> Tko.SYMBOL_NONE then
-        dim as Tko.TypeId cpt = ParamTypeAt( c, cc, 0 )
-        if cpt <> Tko.TYPE_NONE then
-            if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Inner( cpt )
-            written = (c.types->Unqualify( cpt ) = c.types->Unqualify( rt ))
-        end if
-    end if
+    '' The whole overload chain -- see CopyCtorOf_.
+    dim as Tko.SymbolId cc = CopyCtorOf_( c, rt )
+    dim as boolean written = (cc <> Tko.SYMBOL_NONE)
     if (written = false) andalso (NeedsLetBody_( c, rt ) = false) then return false
 
     '' AND THE SOURCE MUST BE ONE OF THESE. 'return T( 1 )' constructs a temporary

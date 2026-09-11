@@ -371,15 +371,16 @@ private function ByvalUdtCopyArg_ _
     '' instruction, and the statement then reads as lowered with the call missing from
     '' it. That is the shape this whole sweep exists to find.
     ''   2  the written copy constructor      1  the synthesised one      0  memcpy
-    dim as Tko.SymbolId cc = StructorWithArity( c, StructorOf( c, pt, "__ctor" ), 1 )
+    '' CopyCtorOf_ RATHER THAN THE FIRST ONE-ARGUMENT CONSTRUCTOR. 'ComPtr( of T )'
+    '' declares 'constructor( byval raw as T ptr )' BEFORE its copy constructor, so
+    '' the shape test met the pointer one, said 'not a copy constructor' and fell
+    '' through to memcpy -- and the callee's destructor then Released an object the
+    '' caller still owned. Measured: 'TakesByval( a, seen )' over an owning ComPtr
+    '' reported one reference where fbc reports two, and left the caller's handle
+    '' pointing at a freed object.
+    dim as Tko.SymbolId cc = CopyCtorOf_( c, pt )
     dim as long how = 0
-    if cc <> Tko.SYMBOL_NONE then
-        dim as Tko.TypeId cpt = ParamTypeAt( c, cc, 0 )
-        if cpt <> Tko.TYPE_NONE then
-            if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Inner( cpt )
-            if c.types->Unqualify( cpt ) = c.types->Unqualify( pt ) then how = 2
-        end if
-    end if
+    if cc <> Tko.SYMBOL_NONE then how = 2
     if (how = 0) andalso NeedsLetBody_( c, pt ) then how = 1
     '' A DYNAMIC ARRAY MEMBER AND NO WRITTEN COPY CONSTRUCTOR IS A DECLINE.
     ''

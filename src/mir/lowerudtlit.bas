@@ -235,21 +235,8 @@ function LowerUdtParenInit_ _
                 if (c.ast->nodes[cast( long, init )].flags and _
                     Tko.NF_TYPE_LITERAL) <> 0 then
                     dim as MirValue cdst = self_
-                    dim as Tko.SymbolId lcc = _
-                        StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
-                    if lcc <> Tko.SYMBOL_NONE then
-                        dim as Tko.TypeId lpt = ParamTypeAt( c, lcc, 0 )
-                        if lpt <> Tko.TYPE_NONE then
-                            if c.types->Kind( lpt ) = Tko.TK_REFERENCE then
-                                lpt = c.types->Inner( lpt )
-                            end if
-                            if c.types->Unqualify( lpt ) <> c.types->Unqualify( t ) then
-                                lcc = Tko.SYMBOL_NONE
-                            end if
-                        else
-                            lcc = Tko.SYMBOL_NONE
-                        end if
-                    end if
+                    '' The whole overload chain -- see CopyCtorOf_.
+                    dim as Tko.SymbolId lcc = CopyCtorOf_( c, t )
                     dim as MirValue csrc = LowerAddr( c, only_ )
                     if csrc.kind = cast( ubyte, MV_NONE ) then return false
                     if lcc <> Tko.SYMBOL_NONE then
