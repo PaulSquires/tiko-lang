@@ -580,6 +580,19 @@ function ReceiverOf _
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
     if cs = 0 then return v
+    '' ONLY A PROCEDURE HAS A RECEIVER. A FIELD whose type is a function pointer
+    '' is called through, not called ON: 's.fn( 1, 2 )' loads the pointer out of
+    '' 's' and calls it with two arguments, and there is no hidden THIS anywhere
+    '' in the signature it was declared with.
+    ''
+    '' The test below asks whether the callee's PARENT SCOPE is a TYPE, and a
+    '' field's is -- so 's.fn( 1, 2 )' pushed '@s' as parameter zero, the two
+    '' written arguments shifted one along, and the comparison read whatever was
+    '' in the register beyond them. Measured: ViaSlot in
+    '' generics/generic-procptr-typearg.bas answers 'false' where fbc answers
+    '' 'true', and in the vendored file itself it answers either way from run to
+    '' run, because what it actually reads is uninitialised.
+    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return v
     dim as Tko.SymScope ptr owner = c.syms->ScopeAt( cs->parent )
     if owner = 0 then return v
     if owner->kind <> cast( ubyte, Tko.SCOPEK_TYPE ) then return v

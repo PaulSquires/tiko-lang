@@ -55,7 +55,7 @@ func i32 main(i32 $0, ptr $1) {
     %18 = load %17
     %19 = field.addr @d, 0
     %20 = load %19
-    call.ind void %20(@d, %18)
+    call.ind void %20(%18)
     %21 = alloca ptr c
     %22 = const i64 0
     store @c, %22

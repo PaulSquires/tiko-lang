@@ -1056,6 +1056,49 @@ sub EmitVarGlobal _
     dim as string ty = LlvmType( vt, g.size )
     dim as string init_ = "zeroinitializer"
 
+    '' A VARIABLE MAY CARRY A POINTER TABLE TOO, and only the vtable branch above
+    '' knew how to write one. 'static as fntype fn = ( @subr_cb, @func_cb )' over a
+    '' UDT of two procedure pointers reaches lowering as ptrKinds/ptrRefs -- the
+    '' MIR dump prints '= [ SUBR_CB, FUNC_CB ]' -- and then came out here as
+    '' 'zeroinitializer', because the byte-image branch below cannot hold a
+    '' relocation and the single-relocation branch after it holds exactly one.
+    ''
+    '' So the record was all zeroes and 'fn.s( )' called a null pointer. Nothing
+    '' said so: tests/mir/static-ptr-record checks the MIR, where the words are
+    '' present, and stops there.
+    ''
+    '' ONLY WHEN THE WORDS ARE THE WHOLE OBJECT. A UDT with a pointer field and an
+    '' integer one is not a table, and writing it as '[n x ptr]' would shorten it.
+    if g.ptrCount > 0 then
+        dim as long pw = e.tgt->layout.pointerBits \ 8
+        if (g.ptrCount * pw) = g.size then
+            dim as string tbody
+            for i as long = 0 to g.ptrCount - 1
+                if i > 0 then tbody += ", "
+                dim as long k = e.m->ptrKinds[g.ptrFirst + i]
+                dim as ulong ref = e.m->ptrRefs[g.ptrFirst + i]
+                select case k
+                case 0
+                    tbody += "ptr null"
+                case 1
+                    if cast( long, ref ) >= e.m->globals.Count then
+                        Ice( e, "a pointer word naming a global that does not exist" )
+                        return
+                    end if
+                    tbody += "ptr " & GlobalName( e, e.m->globals[cast( long, ref )].name )
+                case 2
+                    tbody += "ptr @""" & e.names->Spelling( cast( Tko.InternId, ref ) ) & """"
+                case else
+                    Ice( e, "a pointer word of an unknown kind" )
+                    return
+                end select
+            next
+            e.outp += nm & " = global [" & str( g.ptrCount ) & " x ptr] [" & tbody & _
+                      "], align " & str( pw ) & chr( 10 )
+            return
+        end if
+    end if
+
     if vt <> MT_AGG then
         if g.hasInit then
             select case vt
