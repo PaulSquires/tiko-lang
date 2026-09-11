@@ -1353,6 +1353,36 @@ function EmitLlvm _
         EmitFunction( e, f )
     next
 
+    '' A VTABLE SLOT NAMES A FUNCTION THAT MAY HAVE NO MirFunction AT ALL. Taking
+    '' a function's address in LLVM still needs it declared, and a pointer-table
+    '' entry writes the name straight out: 'declare virtual sub v( ) override'
+    '' with no body anywhere in the module filled a slot with
+    '' @_ZN11PARSER_PROC1Q1VEv and clang answered 'use of undefined value'. fbc
+    '' accepts the same source -- the slot is a link-time question, not a
+    '' compile-time one -- so the object has to be producible.
+    ''
+    '' void( ) IS ENOUGH. Nothing calls through the declaration: the vtable is
+    '' loaded and called indirectly with the call site's own signature, and a
+    '' name this module does call has a MirFunction and is skipped here.
+    for gi as long = 0 to m.globals.Count - 1
+        dim as MirGlobal ptr g = @m.globals[gi]
+        if g->isPtrTable = false then continue for
+        for i as long = 0 to g->ptrCount - 1
+            if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
+            dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
+            dim as boolean known = false
+            for fi as long = 0 to m.functions.Count - 1
+                dim as MirFunction ptr f = m.functions[fi]
+                if f = 0 then continue for
+                if f->name = pn then known = true : exit for
+            next
+            if known then continue for
+            dim as string pns = names.Spelling( pn )
+            if instr( e.outp, "declare void @""" & pns & """()" ) > 0 then continue for
+            e.outp += "declare void @""" & pns & """()" & chr( 10 )
+        next
+    next
+
     '' MODULE-LIFETIME CONSTRUCTORS. gcc spells this an attribute and LLVM spells it a
     '' list; the priority 65535 is the default one, and the third field -- the data a
     '' constructor is associated with -- is null because these belong to the module

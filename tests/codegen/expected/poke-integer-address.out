@@ -1,0 +1,52 @@
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-w64-windows-gnu"
+
+
+define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+L0:
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+  %s1 = alloca [8 x i8], align 8
+  %t5 = call ptr @"memset"(ptr %s1, i32 0, i64 8)
+  %s2 = alloca i64, align 8
+  %t8 = getelementptr i8, ptr %s1, i64 0
+  %t9 = ptrtoint ptr %t8 to i64
+  store i64 %t9, ptr %s2, align 8
+  %t10 = load i64, ptr %s2, align 8
+  %t12 = trunc i64 65 to i8
+  %t13 = inttoptr i64 %t10 to ptr
+  store i8 %t12, ptr %t13, align 1
+  %t14 = load i64, ptr %s2, align 8
+  %t16 = add i64 %t14, 1
+  %t18 = trunc i64 66 to i8
+  %t19 = inttoptr i64 %t16 to ptr
+  store i8 %t18, ptr %t19, align 1
+  %t21 = getelementptr i8, ptr %s1, i64 2
+  %t23 = trunc i64 67 to i8
+  store i8 %t23, ptr %t21, align 1
+  %t24 = load i64, ptr %s2, align 8
+  %t25 = inttoptr i64 %t24 to ptr
+  %t26 = load i8, ptr %t25, align 1
+  call void @"fb_PrintUByte"(i32 0, i8 %t26, i32 0)
+  %t27 = load i64, ptr %s2, align 8
+  %t29 = add i64 %t27, 1
+  %t30 = inttoptr i64 %t29 to ptr
+  %t31 = load i8, ptr %t30, align 1
+  call void @"fb_PrintUByte"(i32 0, i8 %t31, i32 0)
+  %t32 = load i64, ptr %s2, align 8
+  %t34 = add i64 %t32, 2
+  %t35 = inttoptr i64 %t34 to ptr
+  %t36 = load i8, ptr %t35, align 1
+  call void @"fb_PrintByte"(i32 0, i8 %t36, i32 1)
+  call void @"fb_End"(i32 0)
+  %t38 = load i32, ptr %s0, align 4
+  ret i32 %t38
+
+}
+
+declare void @"fb_Init"(i32, ptr, i32)
+declare ptr @"memset"(ptr, i32, i64)
+declare void @"fb_PrintUByte"(i32, i8, i32)
+declare void @"fb_PrintByte"(i32, i8, i32)
+declare void @"fb_End"(i32)

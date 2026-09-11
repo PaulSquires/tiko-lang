@@ -1,0 +1,20 @@
+'' A VTABLE SLOT NAMES A FUNCTION THIS MODULE MAY NEVER SEE THE BODY OF.
+''
+'' 'declare virtual sub v( ) override' with no body anywhere put
+'' @_ZN...1Q1VEv into Q's vtable, and clang answered "use of undefined value": taking
+'' a function's address in LLVM needs it declared, and a pointer-table entry writes
+'' the name straight out with no MirFunction behind it.
+''
+'' fbc ACCEPTS the same source -- an undefined virtual is a link-time question, not a
+'' compile-time one -- so the object has to be producible. It is what
+'' tests/vendor/fbc-tests/warnings/suffix-fb.bas writes, and the line that declines
+'' does not mention a vtable.
+''
+'' void( ) is enough for the declaration: nothing calls through it. The vtable is
+'' loaded and called indirectly with the call site's own signature, and a name this
+'' module really does call has a MirFunction of its own and is not declared here.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/vtable-undefined-virtual.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare void @"_ZN1Q1VEv"()
+'' GOLDEN: expected/vtable-undefined-virtual.out

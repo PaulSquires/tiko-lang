@@ -1,0 +1,51 @@
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-w64-windows-gnu"
+
+
+@"__fb_ZTS6Object" = external global ptr
+@"$str1" = private unnamed_addr constant [3 x i8] c"1T\00", align 1
+@"_ZTSN1TE" = global [3 x ptr] [ptr null, ptr @"$str1", ptr @"__fb_ZTS6Object"], align 8
+@"_ZTVN1TE" = global [3 x ptr] [ptr null, ptr @"_ZTSN1TE", ptr @"_ZN1T1VEv"], align 8
+@"$str4" = private unnamed_addr constant [3 x i8] c"1Q\00", align 1
+@"_ZTSN1QE" = global [3 x ptr] [ptr null, ptr @"$str4", ptr @"_ZTSN1TE"], align 8
+@"_ZTVN1QE" = global [3 x ptr] [ptr null, ptr @"_ZTSN1QE", ptr @"_ZN1Q1VEv"], align 8
+
+define void @"_ZN1T1VEv"(ptr %p0) nounwind {
+L0:
+  %s0 = alloca ptr, align 8
+  store ptr %p0, ptr %s0, align 8
+  ret void
+
+}
+
+define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+L0:
+  %s0 = alloca i32, align 4
+  store i32 0, ptr %s0, align 4
+  call void @"fb_Init"(i32 %p0, ptr %p1, i32 0)
+  %s1 = alloca [8 x i8], align 8
+  call void @"_ZN1TC1Ev"(ptr %s1)
+  %t5 = load ptr, ptr %s1, align 8
+  %t6 = getelementptr i8, ptr %t5, i64 0
+  %t7 = load ptr, ptr %t6, align 8
+  call void %t7(ptr %s1)
+  call void @"fb_End"(i32 0)
+  %t9 = load i32, ptr %s0, align 4
+  ret i32 %t9
+
+}
+
+define void @"_ZN1TC1Ev"(ptr %p0) nounwind {
+L0:
+  %t1 = getelementptr i8, ptr %p0, i64 0
+  call void @"_ZN10fb_Object$C1Ev"(ptr %t1)
+  %t2 = getelementptr i8, ptr @"_ZTVN1TE", i64 16
+  store ptr %t2, ptr %p0, align 8
+  ret void
+
+}
+
+declare void @"fb_Init"(i32, ptr, i32)
+declare void @"fb_End"(i32)
+declare void @"_ZN10fb_Object$C1Ev"(ptr)
+declare void @"_ZN1Q1VEv"()

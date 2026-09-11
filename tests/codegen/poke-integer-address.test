@@ -1,0 +1,26 @@
+'' POKE'S DESTINATION IS AN INTEGER ADDRESS, AND THE STORE NEEDS A POINTER.
+''
+'' 'poke b, b' passes an INTEGER -- that is the whole point of POKE -- and it lowered
+'' to an i64 temp used straight as the store's pointer operand:
+''
+''     %t950 = load i64, ptr %s45
+''     store i8 %t952, ptr %t950
+''
+'' which clang refused with "'%t950' defined with type 'i64' but expected 'ptr'". No
+'' object at all, for tests/vendor/fbc-tests/warnings/suffix-fb.bas among others.
+''
+'' PEEK ALREADY COERCED ITS ADDRESS the same way; the two halves of one intrinsic pair
+'' gave different answers, and only the half nothing in the suite exercised was wrong.
+''
+'' The '@buf(2)' form is here beside the two integer ones because it takes the OTHER
+'' branch -- a slot reference materialised through a zero-offset field address -- and
+'' the fix must not disturb it.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/poke-integer-address.bas
+'' EXPECT-EXIT: 0
+
+'' THE CONVERSION ITSELF. 'inttoptr' is what Coerce emits for the integer-to-pointer
+'' direction, and asserting the store alone would pass again the moment the operand
+'' went back to being an i64: the store TEXT is 'ptr %tN' either way.
+'' EXPECT-OUT: = inttoptr i64
+'' GOLDEN: expected/poke-integer-address.out
