@@ -1225,6 +1225,9 @@ sub WalkStmt _
         c.typedefNode.Push( cast( ulong, id ) )
         c.typedefScope.Push( cast( ulong, here ) )
         dim as Tko.TypeId aliased = ResolveTypeRef( c, tsp->a, here )
+        '' ...OR A FORWARD REFERENCE TO A TYPE NOBODY DEFINES -- and HERE, not in
+        '' the backpatch: see ForwardTypedefTarget_.
+        if aliased = Tko.TYPE_NONE then aliased = ForwardTypedefTarget_( c, tsp, here )
         if (aliased <> Tko.TYPE_NONE) andalso (tsp->name <> 0) then
             '' The TYPEDEF, not a variable of the same name -- when the variable was
             '' declared first it holds the slot, and the typedef never got its type.

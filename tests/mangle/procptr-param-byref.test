@@ -1,0 +1,14 @@
+'' A procedure type's parameters take the byref default, and a typedef to an undefined
+'' type is a forward reference. Both names measured against fbc's object symbols.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/procptr-param-byref.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _Z2G1PFvR4UDT1E
+'' EXPECT-OUT: _Z2G1PFvR8FWDREF1_E
+'' EXPECT-OUT: _Z2G1PFvR8FWDREF2_E
+'' EXPECT-OUT: _Z2G1PFvR8FBSTRINGE
+'' EXPECT-OUT: _Z2G1PFviE
+'' An explicit BYVAL is not the default and is a different type.
+'' EXPECT-OUT: _Z2G1PFv4UDT1E
+'' EXPECT-NOT: _Z2G1PFvvE
+'' GOLDEN: expected/procptr-param-byref.out

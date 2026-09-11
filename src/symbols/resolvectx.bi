@@ -101,6 +101,9 @@ declare function ArrayFromBoundsNode _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
+declare function ForwardTypedefTarget_ _
+    ( byref c as Ctx, byval tsp as Tko.StmtPayload ptr, _
+      byval here as Tko.ScopeId ) as Tko.TypeId
 declare sub BackpatchTypedefs( byref c as Ctx )
 declare function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId

@@ -1230,6 +1230,55 @@ end sub
 '' link. Bounded, because a round that binds nothing stops. Then the declarations that
 '' could not be typed the first time -- only those, because a second full walk would
 '' report every diagnostic twice.
+'' A TYPEDEF WHOSE TARGET IS NEVER DEFINED IS A FORWARD REFERENCE, not nothing.
+''
+'' 'type FWDREF1 as FWDREF1_' with no FWDREF1_ anywhere is how FreeBASIC spells an
+'' OPAQUE HANDLE, and fbc creates an incomplete UDT of that name: measured, it mangles
+'' 'sub f1( byval p as sub( as FWDREF1 ) )' as '_Z2F1PFvR8FWDREF1_E' -- a reference to
+'' a type called FWDREF1_. tiko left the alias with no type at all, so the
+'' procedure-pointer parameter came out VOID and two overloads differing only in it
+'' mangled to the same name: 'invalid redefinition of function _Z2F1PFvvE'. Silently,
+'' with no diagnostic anywhere before the emitter.
+''
+'' DONE HERE AND NOT IN BackpatchTypedefs, which is where it was written first: the
+'' PROCEDURE TYPE of 'sub( as FWDREF1 )' is built when the parameter is resolved, long
+'' before the backpatch, and a built proc type is not revisited. Fixing the typedef
+'' afterwards changed nothing at all.
+''
+'' NARROW ON PURPOSE. Only a BARE NAME is forward-declared -- not a pointer, an array,
+'' a procedure type or an instantiation -- and only when the name is declared NOWHERE:
+'' Collect has already walked the whole unit, so a target declared later in the file
+'' is found by the lookup and the real type wins. The forward type has no layout,
+'' TK_FORWARD, NOT TK_UDT: 'named but not yet complete' is exactly what this is, and
+'' the completeness checks already read that kind. Declared as a UDT it looked
+'' COMPLETE, and 'declare sub f( byref x as fwd = 0 )' -- fbc error 71, a byref
+'' default with nowhere to live -- stopped being reported.
+function ForwardTypedefTarget_ _
+    ( byref c as Ctx, byval tsp as Tko.StmtPayload ptr, _
+      byval here as Tko.ScopeId ) as Tko.TypeId
+
+    if tsp = 0 then return Tko.TYPE_NONE
+    dim as Tko.NodeId an = tsp->a
+    if an = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( an ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
+    dim as ushort afl = c.ast->nodes[cast( long, an )].flags
+    if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then
+        return Tko.TYPE_NONE
+    end if
+    dim as Tko.StmtPayload ptr ap = StmtOf( c, an )
+    if ap->name = 0 then return Tko.TYPE_NONE
+    if ap->count <> 0 then return Tko.TYPE_NONE
+    if ap->name = tsp->name then return Tko.TYPE_NONE
+    if c.syms->Lookup( here, ap->name ) <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as boolean fdup = false
+    dim as Tko.SymbolId usid = c.syms->DeclareSym( here, ap->name, _
+        Tko.SYM_UDT, c.ast->Loc( an ), fdup )
+    dim as Tko.Symbol ptr us = c.syms->SymbolAt( usid )
+    if us = 0 then return Tko.TYPE_NONE
+    us->type_ = c.types->NamedType( Tko.TK_FORWARD, ap->name, cast( ulong, here ) )
+    return us->type_
+end function
+
 sub BackpatchTypedefs( byref c as Ctx )
     for r as long = 1 to c.typedefNode.Count
         dim as boolean progress = false

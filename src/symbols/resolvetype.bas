@@ -71,9 +71,38 @@ function ResolveTypeRef _
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
             dim as Tko.TypeId pt = ResolveTypeRef( c, pp->a, scope_ )
-            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
-                pt = c.types->Reference( pt )
+            '' A PROCEDURE TYPE'S PARAMETERS TAKE THE SAME DEFAULT A PROCEDURE'S DO:
+            '' byref for a UDT or a string, byval for everything else. WalkStmt
+            '' settles it for a real declaration by writing NF_BYREF onto the node;
+            '' these N_PARAMs belong to a TYPEREF and it never reaches them, so
+            '' 'sub( as UDT1 )' came out taking a UDT BY VALUE. Measured -- fbc
+            '' mangles it '_Z2G1PFvR4UDT1E', with the R.
+            dim as ushort pfl = c.ast->nodes[cast( long, prm )].flags
+            dim as boolean pRef = ((pfl and Tko.NF_BYREF) <> 0)
+            dim as boolean pWritten = pRef
+            if pWritten = false then pWritten = ((pfl and Tko.NF_BYVAL_WRITTEN) <> 0)
+            if pWritten = false then pWritten = ((pfl and Tko.NF_ARRAY) <> 0)
+            if (pWritten = false) andalso (pt <> Tko.TYPE_NONE) then
+                dim as Tko.TypeId pbare = c.types->Unqualify( pt )
+                '' A FORWARD-DECLARED TYPE COUNTS AS A UDT HERE. Measured: fbc
+                '' mangles 'sub( as FWDREF1 )' over 'type FWDREF1 as FWDREF1_' as
+                '' 'PFvR8FWDREF1_E', with the R, exactly as it does a complete one.
+                pRef = (c.types->Kind( pbare ) = Tko.TK_UDT)
+                if pRef = false then pRef = (c.types->Kind( pbare ) = Tko.TK_FORWARD)
+                if pRef = false then
+                    if c.types->Kind( pbare ) = Tko.TK_BUILTIN then
+                        select case c.types->BuiltinOf( pbare )
+                        case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, _
+                             Tko.TY_USTRING
+                            pRef = true
+                        end select
+                    end if
+                end if
+                if pRef then
+                    c.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYREF
+                end if
             end if
+            if pRef then pt = c.types->Reference( pt )
             ps.Push( cast( ulong, pt ) )
         next
         dim as Tko.TypeId pf = c.types->Pointer_( c.types->ProcType( ret, ps ) )
