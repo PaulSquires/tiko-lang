@@ -56,6 +56,11 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
 
+    '' THE SOURCE SPELLING, CASE PRESERVED. A UDT declared inside an 'extern "C++"'
+    '' block mangles by what was WRITTEN, not by the folded name -- see
+    '' TypeInfo.rawName. Harmless everywhere else: nothing reads it unless the
+    '' declaration is marked foreign.
+    sp.rawName = RawSpelling( p )
     if fieldClause orelse (DeclName( p, sp.name ) = false) then
         '' An ANONYMOUS union or type, which is legal inside another aggregate and
         '' nowhere else. Its members belong to the enclosing type, so it carries no
@@ -343,6 +348,11 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
                 '' A FOREIGN BLOCK NAMES ITS VARIABLES TOO, not only its procedures.
                 '' 'extern "Windows" : extern CLSID_ShellLink as const GUID' links by
                 '' the source spelling; the same line outside a block is 'CLSID_SHELLLINK$'.
+                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_TYPE) then
+                    dim as Tko.StmtPayload ptr tp2 = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                    tp2->extra or= Tko.PF_FOREIGN
+                end if
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_VAR) then
                     dim as Tko.StmtPayload ptr vp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]

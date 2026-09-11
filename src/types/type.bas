@@ -378,13 +378,16 @@ end function
 
 function TypeContext.NamedType _
     ( byval k as TypeKind, byval nm as InternId, _
-      byval declScope as ulong = 0 ) as TypeId
+      byval declScope as ulong = 0, byval rawNm as InternId = 0 ) as TypeId
 
     if nm = 0 then return TYPE_NONE
     for i as long = 1 to this.types.Count - 1
         dim as TypeInfo ptr t = @this.types[i]
         if (t->kind = cast( ubyte, k )) andalso (t->name = nm) andalso _
            (t->declScope = declScope) then
+            '' A LATER SIGHTING MAY BE THE ONE THAT KNOWS THE SPELLING: the type is
+            '' created by whatever names it first, which can be a forward reference.
+            if (rawNm <> 0) andalso (t->rawName = 0) then t->rawName = rawNm
             return cast( TypeId, i )
         end if
     next
@@ -392,6 +395,7 @@ function TypeContext.NamedType _
     n.kind = cast( ubyte, k )
     n.flags = TF_COMPLETE
     n.name = nm
+    n.rawName = rawNm
     n.declScope = declScope
     this.types.Push( n )
     return cast( TypeId, this.types.Count - 1 )

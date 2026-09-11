@@ -139,6 +139,14 @@ namespace Tko
         as ushort   flags
         as TypeId   inner          '' pointee / referent / element / return type
         as InternId name           '' UDT, enum, typedef
+        '' THE SOURCE SPELLING, CASE PRESERVED, for a UDT declared inside an
+        '' 'extern "C++"' block -- 0 for everything else. FreeBASIC folds a name and
+        '' the mangler uppercases it, which is right for an FB type and wrong for a
+        '' C++ one: measured, fbc writes 'DigitalClock( byval as FBQWidget ptr )' as
+        '' '_ZN12DIGITALCLOCKC1EP9FBQWidget' -- the OWNER uppercased because it is an
+        '' FB type, and the PARAMETER's type in its own case because it is not.
+        as InternId rawName
+
         as long     first          '' element list (tuple, proc params), into a pool
                                    '' TK_ARRAY: (lo, hi) pairs, into boundPool
         as long     count
@@ -238,7 +246,7 @@ namespace Tko
         '' two unrelated types into one.
         declare function NamedType _
             ( byval k as TypeKind, byval nm as InternId, _
-              byval declScope as ulong = 0 ) as TypeId
+              byval declScope as ulong = 0, byval rawNm as InternId = 0 ) as TypeId
         declare function NameOf( byval t as TypeId ) as InternId
         declare function ElemCount( byval t as TypeId ) as long
         declare function ProcParamCount( byval t as TypeId ) as long

@@ -530,7 +530,16 @@ sub WalkNode _
             if (n->flags and Tko.NF_IS_UNION) <> 0 then s->flags or= Tko.SYMF_UNION_KIND
             '' The TypeId exists from the DECLARATION, not from the first use: a
             '' member's signature can name its own type, so waiting would deadlock.
-            s->type_ = w.types->NamedType( Tko.TK_UDT, sp->name, cast( ulong, scope_ ) )
+            '' A UDT DECLARED INSIDE AN 'extern "C++"' BLOCK CARRIES ITS OWN
+            '' SPELLING. The mangler uppercases a UDT name, which is right for an FB
+            '' type and wrong for a C++ one -- measured, fbc mangles
+            '' 'DigitalClock( byval as FBQWidget ptr )' as
+            '' '_ZN12DIGITALCLOCKC1EP9FBQWidget': the OWNER uppercased, the PARAMETER's
+            '' type in its own case.
+            dim as Tko.InternId traw = 0
+            if (sp->extra and Tko.PF_FOREIGN) <> 0 then traw = sp->rawName
+            s->type_ = w.types->NamedType( Tko.TK_UDT, sp->name, _
+                                           cast( ulong, scope_ ), traw )
             '' The DECLARATION NODE, so a generic can be instantiated later: Resolve
             '' needs the parameter names and the field list, and the symbol is the
             '' only handle it has on them.

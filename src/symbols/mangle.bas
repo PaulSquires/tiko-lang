@@ -51,7 +51,8 @@ end function
 private sub QualifierChain _
     ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
       byref names as Tko.Interner, byref outp as FB.Array( of string ), _
-      byref outTypes as FB.Array( of ulong ) )
+      byref outTypes as FB.Array( of ulong ), _
+      byval types as Tko.TypeContext ptr = 0 )
 
     dim as FB.Array( of string ) rev
     dim as FB.Array( of ulong ) revT
@@ -67,6 +68,20 @@ private sub QualifierChain _
                 '' plain namespace is uppercased. Measured: 'namespace aaa alias "zzz"'
                 '' gives _ZN3zzz1FEv, not _ZN3AAA1FEv.
                 dim as string qual = Tko.Text.UpperAscii( names.Spelling( owner->name ) )
+                '' ...AND A UDT DECLARED IN AN 'extern "C++"' BLOCK KEEPS ITS OWN
+                '' SPELLING, for the same reason a namespace alias does. Measured:
+                '' fbc mangles FBQLCDNumber's constructor '_ZN12FBQLCDNumberC1E...',
+                '' and the CALL SITE has to agree with the definition or the link
+                '' fails on a name that differs from it only in case.
+                if types <> 0 then
+                    if owner->type_ <> Tko.TYPE_NONE then
+                        dim as long oi = cast( long, owner->type_ )
+                        if (oi > 0) andalso (oi < types->types.Count) then
+                            dim as Tko.InternId orw = types->types[oi].rawName
+                            if orw <> 0 then qual = names.Spelling( orw )
+                        end if
+                    end if
+                end if
                 if owner->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
                     if owner->payload <> 0 then
                         qual = names.Spelling( cast( Tko.InternId, owner->payload ) )
@@ -277,14 +292,25 @@ function TypeCode _
 
     case Tko.TK_UDT, Tko.TK_ENUM, Tko.TK_FORWARD, Tko.TK_TYPEDEF
         dim as string nm = ""
-        if ti <> 0 then nm = Tko.Text.UpperAscii( names.Spelling( ti->name ) )
+        if ti <> 0 then
+            '' THE SOURCE SPELLING WINS WHERE THERE IS ONE. It is set only for a UDT
+            '' declared inside an 'extern "C++"' block, whose name a C++ linker
+            '' spells as written; every FB type is folded and uppercased as before.
+            if ti->rawName <> 0 then
+                nm = names.Spelling( ti->rawName )
+            else
+                nm = Tko.Text.UpperAscii( names.Spelling( ti->name ) )
+            end if
+        end if
         if len( nm ) = 0 then return "v"
         '' A UDT inside a namespace is a NESTED NAME: N <prefix> <name> E, and the
         '' prefix is usually a substitution because the procedure's own qualifiers
         '' already emitted it -- 'byref as Vec' in namespace BYVAL_OK is NS2_3VECE.
         dim as FB.Array( of string ) q
         dim as FB.Array( of ulong ) qt
-        if ti <> 0 then QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, q, qt )
+        if ti <> 0 then
+            QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, q, qt, @types )
+        end if
         if q.Count = 0 then
             enc = SrcName( nm )
         else
@@ -442,7 +468,7 @@ private function OperatorCode _
     '' ^' with two is v23pow. 'this' is not in the parameter list, so it is added here.
     dim as FB.Array( of string ) aq
     dim as FB.Array( of ulong ) aqt
-    QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt )
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt, @types )
     if aqt.Count > 0 then
         dim as boolean memb = (aqt[aqt.Count - 1] <> 0)
         memb = memb andalso ((sp->extra and Tko.PF_STATIC) = 0)
@@ -588,7 +614,7 @@ private function DecorateWin32 _
     '' 'TB.B30( )' is @0 too.
     dim as FB.Array( of string ) q
     dim as FB.Array( of ulong ) qt
-    QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt )
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt, @types )
     dim as boolean hasThis = false
     if qt.Count > 0 then
         '' Hoisted: an 'andalso' chain mixing a boolean with a masked flag is
@@ -751,7 +777,7 @@ private function ProcNameCore _
 
     dim as FB.Array( of string ) quals
     dim as FB.Array( of ulong ) qualTypes
-    QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes )
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes, @types )
 
     dim as boolean nested = (quals.Count > 0)
     dim as boolean overloaded = ((sp->extra and Tko.PF_OVERLOAD) <> 0)

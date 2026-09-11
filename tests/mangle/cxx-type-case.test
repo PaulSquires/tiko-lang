@@ -1,0 +1,11 @@
+'' A UDT declared inside an 'extern "C++"' block keeps its source spelling, both as a
+'' parameter's type and as the OWNER of a member. Measured against fbc's object file.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/cxx-type-case.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _ZN12DIGITALCLOCKC1EP9FBQWidget
+'' EXPECT-OUT: _ZN9FBQObjectC1EPS_
+'' EXPECT-OUT: _ZN12FBQLCDNumberC1EP9FBQWidget
+'' EXPECT-NOT: FBQWIDGET
+'' EXPECT-NOT: FBQLCDNUMBER
+'' GOLDEN: expected/cxx-type-case.out
