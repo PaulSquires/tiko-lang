@@ -432,7 +432,7 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_ArrayClearObj(ptr $0, ptr $1, ptr $2)
-declare void TAKESANY(void $0)
+declare void TAKESANY(ptr $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
@@ -443,8 +443,8 @@ lowered: 14 functions, 14 blocks, 328 insts, 8 statements not lowered, 0 scope i
   amb-assign-kind 1 1
   amb-assign-val N_IDENT 1
   skip-site src\mir\lowerutil.bas:40 6
-  skip-site src\mir\lowerassign.bas:173 1
-  skip-site src\mir\lowerassign.bas:440 1
+  skip-site src\mir\lowerassign.bas:246 1
+  skip-site src\mir\lowerassign.bas:516 1
 tests/diagnostics/src/udt-conversions.bas(48,1): error TKO0738: no conversion between these two types
      |
   48 | c = a

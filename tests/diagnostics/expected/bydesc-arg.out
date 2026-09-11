@@ -9,7 +9,7 @@ func void REFUSED() {
     call void TAKESARRAY(%5)
     ret
 }
-declare void TAKESARRAY(i64 $0)
+declare void TAKESARRAY(ptr $0)
 func void ACCEPTED() {
   local agg $tmp0 size 72
   entry0:

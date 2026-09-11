@@ -223,8 +223,8 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare ptr DESCOF(void $0)
-declare i64 SUMOF(i64 $0)
+declare ptr DESCOF(ptr $0)
+declare i64 SUMOF(ptr $0)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)

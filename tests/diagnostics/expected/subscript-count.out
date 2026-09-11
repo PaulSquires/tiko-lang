@@ -56,7 +56,7 @@ func void ACCEPTED() {
     ret
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-declare void TAKESARRAY(i64 $0)
+declare void TAKESARRAY(ptr $0)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {

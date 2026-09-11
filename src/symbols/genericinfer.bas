@@ -19,6 +19,11 @@
 '' AN OVERLOADED NAME IS REFUSED. Choosing between overloads is overload
 '' resolution, which runs later and with the parameter type in hand; picking one
 '' here would be a guess, and a wrong instantiation is worse than none.
+'' Declared ahead of its definition: generic.bas includes this file BEFORE
+'' TypeMemberNamed_ is written, and the N_INDEX arm below needs it.
+declare function TypeMemberNamed_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
 private function ProcPtrTypeOfName_ _
     ( byref c as Ctx, byval n as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -119,6 +124,31 @@ private function InferArgType_ _
         if c.ast->Kind( ctgt ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.InternId cn = IdentNameOf( c, ctgt )
         if cn = 0 then return Tko.TYPE_NONE
+        '' 'Doubled( a( 1 ) )' -- AN ARRAY SUBSCRIPT IS SPELLED WITH PARENTHESES and
+        '' parses as a CALL. The lookup below wants a PROCEDURE, so an element passed
+        '' to a generic inferred nothing and the call went out to the template. The
+        '' bracket spelling is N_INDEX and has its own arm above; this is the same
+        '' question in the other syntax.
+        if cqual = false then
+            dim as Tko.Symbol ptr avs = c.syms->SymbolAt( c.syms->Lookup( scope_, cn ) )
+            if avs <> 0 then
+                dim as boolean avVar = (avs->kind = cast( ubyte, Tko.SYM_VARIABLE ))
+                if avVar = false then
+                    avVar = (avs->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+                end if
+                if avVar andalso (avs->type_ <> Tko.TYPE_NONE) then
+                    dim as Tko.TypeId avu = c.types->Unqualify( avs->type_ )
+                    if c.types->Kind( avu ) = Tko.TK_REFERENCE then
+                        avu = c.types->Unqualify( c.types->Inner( avu ) )
+                    end if
+                    if c.types->Kind( avu ) = Tko.TK_ARRAY then
+                        dim as Tko.TypeId ael = c.types->Inner( avu )
+                        if ael = Tko.TYPE_NONE then return Tko.TYPE_NONE
+                        return c.types->Unqualify( ael )
+                    end if
+                end if
+            end if
+        end if
         '' A CONVERSION INTRINSIC IS ITS OWN TYPE. 'csng( x )' parses as a CALL over an
         '' N_IDENT that has no symbol at all -- it is a builtin -- so the ordinary-call
         '' lookup below answered nothing and the type argument was never inferred:
@@ -252,6 +282,41 @@ private function InferArgType_ _
         if brt = Tko.TYPE_NONE then return Tko.TYPE_NONE
         return Tko.Check.BinaryResult( _
             cast( Tko.TokenKind, bip->op ), blt, brt, *c.types )
+    case Tko.N_INDEX
+        '' 'Sort( outer_[ i ] )' -- AN ELEMENT IS AN ARGUMENT TOO, and nothing here
+        '' answered for one: the type argument was never inferred, the generic never
+        '' instantiated, and the call went out to 'FB::SORT(FB::ARRAY&)' -- the
+        '' TEMPLATE, which has no body. container-sort's last two scopes are this and
+        '' nothing else, and every other Sort in the same file instantiated, which is
+        '' what kept it looking like a container problem.
+        ''
+        '' A POINTER OR ARRAY SUBSCRIPT IS ITS ELEMENT; over a UDT it is the type's own
+        '' 'operator []', whose BYREF result is a reference to the element -- the same
+        '' rule Check's N_INDEX arm applies, and the reason every container in the
+        '' runtime headers is read this way.
+        dim as Tko.ListPayload ptr xp = ListOf( c, a )
+        if xp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+        dim as Tko.TypeId bt2 = InferArgType_( c, xp->target, scope_ )
+        if bt2 = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        dim as Tko.TypeId bu = c.types->Unqualify( bt2 )
+        if c.types->Kind( bu ) = Tko.TK_REFERENCE then
+            bu = c.types->Unqualify( c.types->Inner( bu ) )
+        end if
+        select case c.types->Kind( bu )
+        case Tko.TK_POINTER, Tko.TK_ARRAY
+            dim as Tko.TypeId el2 = c.types->Inner( bu )
+            if el2 = Tko.TYPE_NONE then return Tko.TYPE_NONE
+            return c.types->Unqualify( el2 )
+        case Tko.TK_UDT
+            dim as Tko.SymbolId ix = TypeMemberNamed_( c, bu, "[]" )
+            dim as Tko.Symbol ptr ixs = c.syms->SymbolAt( ix )
+            if ixs = 0 then return Tko.TYPE_NONE
+            dim as Tko.TypeId rt2 = ixs->type_
+            if rt2 = Tko.TYPE_NONE then return Tko.TYPE_NONE
+            if c.types->Kind( rt2 ) = Tko.TK_REFERENCE then rt2 = c.types->Inner( rt2 )
+            return c.types->Unqualify( rt2 )
+        end select
+        return Tko.TYPE_NONE
     case Tko.N_CLOSURE
         '' A CAPTURING LAMBDA IS AN OBJECT, and its type is the closure UDT Resolve
         '' built for it. Only the NON-capturing form was answered -- that one is '@'

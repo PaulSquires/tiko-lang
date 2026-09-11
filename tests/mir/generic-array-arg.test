@@ -1,0 +1,7 @@
+'' An array parameter is a descriptor pointer in a declaration too.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-array-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-array-arg.out

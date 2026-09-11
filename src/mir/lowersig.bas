@@ -69,7 +69,19 @@ sub SignatureFromProc _
         '' NF_BYREF onto this node and making the SYMBOL's type a reference. The slot
         '' path reads the symbol and so sees a pointer; reading the typeref alone does
         '' not, and 'byref q as Pt' came out an aggregate passed by value.
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+        '' AN ARRAY PARAMETER TAKES A DESCRIPTOR POINTER, and says so nowhere else.
+        '' 'b( ) as T' carries the ELEMENT's type on its typeref and no NF_BYREF, so
+        '' this read it as a byval T: 'declare void TAKE<23>(i32, i32)' against a
+        '' definition '(i32, ptr)', and the ABI pass then copied the caller's 72-byte
+        '' descriptor into a 4-byte aggregate. The callee read lbound 0, ubound -1 and
+        '' the program segfaulted.
+        ''
+        '' ORDER IS WHAT HID IT. The DEFINITION path records the signature from the
+        '' parameter SLOTS, where an array slot is already a pointer, so this only
+        '' shows when the CALL is lowered before the callee's body -- which is what a
+        '' generic calling a generic does. The same call from module scope was right.
+        dim as boolean isArr = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
+        if isArr orelse ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0) then
             f->AddParam( MT_PTR )
         else
             '' The SIZE only where it is genuinely an aggregate -- see the definition

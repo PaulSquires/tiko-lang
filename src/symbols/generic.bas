@@ -679,9 +679,6 @@ sub InstantiatePendingProcs_( byref c as Ctx )
     wend
 end sub
 
-declare function TypeMemberNamed_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
-
 '' THE ELEMENT TYPE OF A USER COLLECTION -- the RFC-0002 iterator protocol.
 ''
 '' STRUCTURAL, not nominal: a collection is anything with GetIterator( ), and its
