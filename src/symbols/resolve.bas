@@ -1331,6 +1331,22 @@ sub WalkStmt _
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         if sp->c <> Tko.NODE_NONE then
             dim as Tko.TypeId t = ResolveTypeRef( c, sp->c, here )
+            '' 'for each BYREF v as long in a' BINDS THE ELEMENT, not a copy of it.
+            '' The parser records the keyword in the statement's own 'op' and
+            '' nothing read it, so the variable was an ordinary local and 'v *= 10'
+            '' multiplied a copy thrown away -- fbc leaves the array 10, 50 and
+            '' tiko-lang left it 1, 5.
+            ''
+            '' A REFERENCE TYPE is how every other alias is spelled here -- a byref
+            '' parameter, 'dim byref r = x' -- so the rest of the compiler needs
+            '' nothing new: it already reads and writes through one.
+            if (k = Tko.N_FOREACH) andalso (t <> Tko.TYPE_NONE) then
+                if cast( Tko.TokenKind, sp->op ) = Tko.KW_BYREF then
+                    if c.types->Kind( t ) <> Tko.TK_REFERENCE then
+                        t = c.types->Reference( t )
+                    end if
+                end if
+            end if
             if (sp->a <> Tko.NODE_NONE) andalso _
                (c.ast->Kind( sp->a ) = Tko.N_IDENT) then
                 dim as Tko.IdentPayload ptr ip = _
@@ -1394,6 +1410,16 @@ sub WalkStmt _
                             '' CONDITION at all, which went out as a conditional
                             '' branch with nothing to branch on.
                             vsym->type_ = IterElemType_( c, seqT )
+                        end if
+                    end if
+                    '' ...AND BYREF WITH NO 'as' CLAUSE IS STILL BYREF. The wrap
+                    '' above only runs when a type was WRITTEN, and
+                    '' 'for each byref v in d' writes none.
+                    if cast( Tko.TokenKind, sp->op ) = Tko.KW_BYREF then
+                        if vsym->type_ <> Tko.TYPE_NONE then
+                            if c.types->Kind( vsym->type_ ) <> Tko.TK_REFERENCE then
+                                vsym->type_ = c.types->Reference( vsym->type_ )
+                            end if
                         end if
                     end if
                 end if

@@ -129,6 +129,71 @@ function LowerForEachIter _
     if vpn <> Tko.NODE_NONE then
         vByref = ((c.ast->nodes[cast( long, vpn )].flags and Tko.NF_BYREF) <> 0)
     end if
+    '' A BYREF LOOP VARIABLE BINDS WHAT Value( ) HANDED BACK. Its type is a
+    '' REFERENCE, so its slot holds an ADDRESS and the body reads and writes
+    '' through it -- 'for each byref v as long in bl' then '+= 100' changes the
+    '' collection, which is the whole point of a byref Value( ).
+    ''
+    '' Storing the loaded ELEMENT into it instead writes through whatever the slot
+    '' happened to hold: the corpus segfaulted there.
+    dim as Tko.TypeId lvt = Tko.TYPE_NONE
+    dim as Tko.Symbol ptr lvs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if lvs <> 0 then lvt = lvs->type_
+    dim as boolean varIsRef = false
+    if lvt <> Tko.TYPE_NONE then
+        varIsRef = (c.types->Kind( lvt ) = Tko.TK_REFERENCE)
+    end if
+    if varIsRef then
+        dim as MirValue rp
+        if vByref then
+            rp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        else
+            '' Value( ) returns BY VALUE, so the only address there is belongs to
+            '' the sret temporary -- which lives exactly as long as the iteration
+            '' that made it. Binding it is honest; writing through it changes a
+            '' copy, which is what a byval Value( ) can offer.
+            dim as MirValue tmpv = EmitMemberCall( c, valueOf, iaddr, emt )
+            if tmpv.kind = cast( ubyte, MV_NONE ) then return false
+            if c.udtTemps.Count > umark then
+                rp.kind = cast( ubyte, MV_LOCAL )
+                rp.ty = cast( ubyte, MT_PTR )
+                rp.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+            end if
+        end if
+        if rp.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long rslot = LocalFor( c, c.info->RefOf( sp->a ) )
+        if rslot < 0 then return false
+        dim as MirValue rsa
+        rsa.kind = cast( ubyte, MV_LOCAL )
+        rsa.ty = cast( ubyte, MT_PTR )
+        rsa.id = rslot
+        dim as MirInst rst
+        rst.op = cast( ushort, M_STORE )
+        rst.ty = cast( ubyte, MT_VOID )
+        rst.a = rsa
+        rst.b = rp
+        Emit( c, rst )
+        ReleaseUdtTemps_( c, umark )
+        LowerBlock( c, sp->b )
+        CloseScope( c )
+        c.loopScope.Pop( )
+        c.loopKind.Pop( )
+        c.breakTo.Pop( )
+        c.contTo.Pop( )
+        Terminate( c, MTERM_BR, contB, -1, NoVal( ) )
+
+        c.curBlock = contB
+        EmitMemberCall( c, moveNext, iaddr, MT_VOID )
+        Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+        c.curBlock = testB
+        dim as MirValue rok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
+        if rok.kind = cast( ubyte, MV_NONE ) then return false
+        Terminate( c, MTERM_CONDBR, bodyB, exitB, rok )
+        c.curBlock = exitB
+        return true
+    end if
+
     dim as MirValue ev
     if vByref then
         dim as MirValue evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
@@ -351,7 +416,41 @@ private function EachEmit_ _
     c.loopKind.Push( cast( long, Tko.KW_FOR ) )
     PushScope( c )
 
-    if sq.elIsStr then
+    '' A BYREF LOOP VARIABLE IS BOUND, not filled. Its type is a REFERENCE -- see
+    '' resolve.bas -- so its slot holds the ELEMENT'S ADDRESS and every read and
+    '' write in the body goes through it, which is how 'for each byref v in a'
+    '' modifies the array. Measured: fbc leaves the array 10, 50 after 'v *= 10'
+    '' and tiko-lang left it 1, 5 -- it multiplied a copy and threw it away.
+    ''
+    '' Copy-constructing into it would store an element where a pointer belongs and
+    '' register a destructor for something the loop does not own.
+    dim as boolean boundByref = false
+    '' THE SYMBOL'S type, not the expression's: a reference is TRANSPARENT in an
+    '' expression, so TypeOf_ answers with the REFERENT's type and the test never
+    '' fired.
+    dim as Tko.TypeId vrt = Tko.TYPE_NONE
+    dim as Tko.Symbol ptr vrs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if vrs <> 0 then vrt = vrs->type_
+    if vrt <> Tko.TYPE_NONE then
+        if c.types->Kind( vrt ) = Tko.TK_REFERENCE then
+            dim as long vslot = LocalFor( c, c.info->RefOf( sp->a ) )
+            if vslot < 0 then return false
+            dim as MirValue vsa
+            vsa.kind = cast( ubyte, MV_LOCAL )
+            vsa.ty = cast( ubyte, MT_PTR )
+            vsa.id = vslot
+            dim as MirInst bst
+            bst.op = cast( ushort, M_STORE )
+            bst.ty = cast( ubyte, MT_VOID )
+            bst.a = vsa
+            bst.b = ea
+            Emit( c, bst )
+            boundByref = true
+        end if
+    end if
+
+    if boundByref then
+    elseif sq.elIsStr then
         '' A STRING ELEMENT IS COPY-CONSTRUCTED, not stored: the loop variable is its
         '' own descriptor owning its own data, so writing to it does not write into the
         '' array. Measured -- fbc emits fb_StrInit from the element's ADDRESS and
