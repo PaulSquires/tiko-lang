@@ -276,6 +276,9 @@ sub LowerExitLike _
         (want = Tko.KW_DESTRUCTOR) orelse (want = Tko.KW_OPERATOR)
     if isExit andalso isProcExit then
         dim as MirValue rv = LoadResult( c )
+        '' See lower.bas: a return's temporaries cannot wait for the statement
+        '' to end, because the terminator ends the block first.
+        ReleaseUdtTemps_( c, c.stmtUdtMark )
         EmitCleanupsTo( c, 0 )
         Terminate( c, MTERM_RET, -1, -1, rv )
         c.curBlock = -1

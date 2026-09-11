@@ -113,9 +113,12 @@ sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
     dim as long tmpMark = c.strTemps.Count
     dim as long wtmpMark = c.wstrTemps.Count
     dim as long utmpMark = c.udtTemps.Count
+    dim as long savedUdtMark = c.stmtUdtMark
+    c.stmtUdtMark = utmpMark
 
     LowerStmtInner( c, id )
 
+    c.stmtUdtMark = savedUdtMark
     ReleaseUdtTemps_( c, utmpMark )
 
     while c.strTemps.Count > tmpMark
@@ -1207,6 +1210,14 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 end if
                 if copied = false then SkipHere( c )
             end if
+            '' A RETURN'S OWN TEMPORARIES DIE HERE, not at the end of the statement: the
+            '' terminator below ends the block, and ReleaseUdtTemps_ refuses to emit into a
+            '' dead cursor -- so everything the return expression built was leaked. Measured:
+            '' 'function Value( ) as (Counted, long)' returning '( Counted( this.i ), this.i )'
+            '' ran two constructors per call and no destructor at all.
+            ''
+            '' AFTER the result has been copied out, because the result is often one of them.
+            ReleaseUdtTemps_( c, c.stmtUdtMark )
             EmitCleanupsTo( c, 0 )
             dim as MirValue ura2
             ura2.kind = cast( ubyte, MV_LOCAL )
@@ -1224,6 +1235,14 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             if sp->a <> Tko.NODE_NONE then
                 if LowerSretResult( c, sp->a, true ) = false then SkipHere( c )
             end if
+            '' A RETURN'S OWN TEMPORARIES DIE HERE, not at the end of the statement: the
+            '' terminator below ends the block, and ReleaseUdtTemps_ refuses to emit into a
+            '' dead cursor -- so everything the return expression built was leaked. Measured:
+            '' 'function Value( ) as (Counted, long)' returning '( Counted( this.i ), this.i )'
+            '' ran two constructors per call and no destructor at all.
+            ''
+            '' AFTER the result has been copied out, because the result is often one of them.
+            ReleaseUdtTemps_( c, c.stmtUdtMark )
             EmitCleanupsTo( c, 0 )
             dim as MirValue spa
             spa.kind = cast( ubyte, MV_LOCAL )
@@ -1258,6 +1277,14 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         dim as boolean retByval = c.byrefResult andalso (sp->a <> Tko.NODE_NONE)
         if retByval then
             if LowerByrefResult_( c, sp->a ) then
+                '' A RETURN'S OWN TEMPORARIES DIE HERE, not at the end of the statement: the
+                '' terminator below ends the block, and ReleaseUdtTemps_ refuses to emit into a
+                '' dead cursor -- so everything the return expression built was leaked. Measured:
+                '' 'function Value( ) as (Counted, long)' returning '( Counted( this.i ), this.i )'
+                '' ran two constructors per call and no destructor at all.
+                ''
+                '' AFTER the result has been copied out, because the result is often one of them.
+                ReleaseUdtTemps_( c, c.stmtUdtMark )
                 EmitCleanupsTo( c, 0 )
                 Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
                 c.curBlock = -1
@@ -1278,6 +1305,14 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         end if
         '' A RETURN leaves every open scope, so every open scope's actions run,
         '' innermost first, BEFORE the terminator.
+        '' A RETURN'S OWN TEMPORARIES DIE HERE, not at the end of the statement: the
+        '' terminator below ends the block, and ReleaseUdtTemps_ refuses to emit into a
+        '' dead cursor -- so everything the return expression built was leaked. Measured:
+        '' 'function Value( ) as (Counted, long)' returning '( Counted( this.i ), this.i )'
+        '' ran two constructors per call and no destructor at all.
+        ''
+        '' AFTER the result has been copied out, because the result is often one of them.
+        ReleaseUdtTemps_( c, c.stmtUdtMark )
         EmitCleanupsTo( c, 0 )
         Terminate( c, MTERM_RET, -1, -1, rv )
         '' The cursor goes DEAD rather than opening a block nothing branches to.

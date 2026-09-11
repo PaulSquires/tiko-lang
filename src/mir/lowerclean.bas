@@ -157,6 +157,25 @@ end sub
 '' A LOOP HEAD releases its own before branching, because the condition runs again on
 '' every iteration and the slot is reused: waiting for the statement to end would
 '' destroy the last one and leak the rest.
+'' A TEMPORARY WHOSE CONTENTS HAVE BEEN MOVED OUT is not destroyed: the buffers it
+'' held now belong to whatever the bitwise copy wrote them into, and running the
+'' destructor would hand that owner freed memory. Measured: 'return (5, "five")'
+'' builds the tuple in a temporary and STORES it into the hidden pointer, so with
+'' the temporary registered the caller's string was already gone -- 0xC0000374.
+sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
+    for i as long = c.udtTemps.Count - 1 to 0 step -1
+        if cast( long, c.udtTemps[i] ) = slot then
+            for k as long = i to c.udtTemps.Count - 2
+                c.udtTemps[k] = c.udtTemps[k + 1]
+                c.udtTempTypes[k] = c.udtTempTypes[k + 1]
+            next
+            c.udtTemps.Pop( )
+            c.udtTempTypes.Pop( )
+            return
+        end if
+    next
+end sub
+
 sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
     while c.udtTemps.Count > mark
         dim as long slot = cast( long, c.udtTemps[c.udtTemps.Count - 1] )

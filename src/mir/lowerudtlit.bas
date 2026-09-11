@@ -109,6 +109,21 @@ function UdtLiteralSlot_ _
     end if
 
     if LowerUdtParenInit_( c, slot, lt, id ) = false then return -1
+
+    '' ...AND DESTROYED AT THE END OF THE STATEMENT, which nothing here did. A tuple
+    '' literal whose halves have destructors is an object like any other temporary:
+    '' measured, 'function Value( ) as (Counted, long)' returning
+    '' '( Counted( this.i ), this.i )' ran two constructors and NO destructor, so a
+    '' for-each over four elements leaked eight objects and the corpus's
+    '' 'ctors = dtors' failed by exactly that.
+    ''
+    '' One registration, here, rather than at the call sites: the narrow one that
+    '' used to sit in the constructor-argument path below was this same rule seen
+    '' through one case, and having both would destroy the temporary twice.
+    if TypeNeedsDtor_( c, lt ) then
+        c.udtTemps.Push( cast( ulong, slot ) )
+        c.udtTempTypes.Push( cast( ulong, lt ) )
+    end if
     return slot
 end function
 
@@ -299,11 +314,11 @@ function LowerUdtParenInit_ _
                     srcIsLit = ((c.ast->nodes[cast( long, only_ )].flags and _
                                  Tko.NF_TYPE_LITERAL) <> 0)
                 end if
+                '' REGISTERED IN UdtLiteralSlot_ NOW, for every tuple literal rather
+                '' than this one shape. 'srcIsLit' is kept because the comment above
+                '' is still the reason a NAMED variable must not be registered.
                 dim as boolean srcIsLocal = (ssrc.kind = cast( ubyte, MV_LOCAL ))
-                if srcIsLit andalso srcIsLocal andalso _
-                   TypeNeedsDtor_( c, ot ) then
-                    c.udtTemps.Push( cast( ulong, ssrc.id ) )
-                    c.udtTempTypes.Push( cast( ulong, ot ) )
+                if srcIsLit andalso srcIsLocal then
                 end if
                 dim as FB.Array( of ulong ) mca
                 mca.Push( cast( ulong, self_.kind ) )
@@ -465,7 +480,16 @@ function LowerUdtParenInit_ _
         '' file as written passed either way.
         dim as Tko.TypeId et = c.info->TypeOf_( e )
         if et <> Tko.TYPE_NONE then
-            if (c.types->Kind( et ) = Tko.TK_UDT) andalso NeedsLetBody_( c, et ) then
+            '' A TYPE WITH A DESTRUCTOR TAKES THE SAME ROUTE. NeedsLetBody_ asks
+            '' whether the type OWNS something -- a string, a dynamic array -- and a
+            '' counted type owns nothing, so 'Counted( 1 )' was lowered to a value,
+            '' stored a field at a time, and the temporary it was built in was never
+            '' destroyed. Measured: one constructor and no destructor per element.
+            dim as boolean cDeep = false
+            if c.types->Kind( et ) = Tko.TK_UDT then
+                cDeep = NeedsLetBody_( c, et ) orelse TypeNeedsDtor_( c, et )
+            end if
+            if cDeep then
                 dim as long esz = SizeOfType( c, et )
                 if esz <= 0 then return false
                 dim as long estop = cast( long, fOff[cur] ) + esz
@@ -565,7 +589,35 @@ function LowerUdtParenInit_ _
         if cdstv.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue csrcv = LowerAddr( c, cast( Tko.NodeId, cNode[i] ) )
         if csrcv.kind = cast( ubyte, MV_NONE ) then return false
-        CallImplicitCopy_( c, cast( Tko.TypeId, cTy[i] ), cdstv, csrcv )
+        '' THE USER'S OWN COPY CONSTRUCTOR FIRST. CallImplicitCopy_ always names
+        '' '<T>C1ERKS_' and the synthesised body is not emitted for a type that
+        '' declares its own -- so a type with a written copy constructor linked
+        '' against a symbol nobody defines. Measured: 'undefined symbol:
+        '' COUNTED::COUNTED(COUNTED const&)'.
+        '' A WRITTEN 'operator let' FIRST OF ALL, because the destination field has
+        '' already been CONSTRUCTED -- UdtLiteralSlot_ ran the type's implicit
+        '' constructor over the whole object before any value reached it. Running a
+        '' COPY CONSTRUCTOR over it as well constructs the same field twice and
+        '' destroys it once, which is a leak of exactly one object per element and
+        '' what the corpus's 'ctors = dtors' was still short by.
+        dim as Tko.SymbolId ulet = StructorOf( c, cast( Tko.TypeId, cTy[i] ), "let" )
+        if ulet <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) ulargs
+            ulargs.Push( cast( ulong, csrcv.kind ) )
+            ulargs.Push( cast( ulong, csrcv.id ) )
+            EmitStructorCall( c, ulet, -1, @cdstv, @ulargs )
+            continue for
+        end if
+
+        dim as Tko.SymbolId ucc = CopyCtorOf_( c, cast( Tko.TypeId, cTy[i] ) )
+        if ucc <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) ccargs
+            ccargs.Push( cast( ulong, csrcv.kind ) )
+            ccargs.Push( cast( ulong, csrcv.id ) )
+            EmitStructorCall( c, ucc, -1, @cdstv, @ccargs )
+        else
+            CallImplicitCopy_( c, cast( Tko.TypeId, cTy[i] ), cdstv, csrcv )
+        end if
     next
 
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first

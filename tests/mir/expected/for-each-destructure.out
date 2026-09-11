@@ -44,6 +44,7 @@ func ptr _ZN8PAIRITER5VALUEEv(ptr $0, ptr $1) {
     %14 = call.rtl ptr fb_StrConcatAssign(%8, -1, %13, -1, 0)
     %15 = load @$tmp0
     call void _ZN9$TUP:6:15C1ERKS_(%15, @$tmp2)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp2)
     %16 = load @$tmp0
     ret %16
 }
@@ -52,6 +53,7 @@ declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_IntToStr(i32 $0)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1)
+declare void _ZN9$TUP:6:15D1Ev(ptr $0)
 func void _ZN8PAIRITER8MOVENEXTEv(ptr $0) {
   local ptr this
   entry0:
@@ -137,7 +139,8 @@ func void S1() {
   each.body1:
     %12 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp5, @$tmp4)
     %13 = load @$tmp5
-    store @$fe1, %13
+    call void _ZN9$TUP:6:15C1ERKS_(@$fe1, @$tmp5)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp5)
     %15 = field.addr @$fe1, 0
     %16 = load %15
     store @k, %16
@@ -149,6 +152,7 @@ func void S1() {
     store @keys, %22
     %23 = call.rtl ptr fb_StrConcatAssign(@vals, -1, @v, -1, 0)
     call.rtl void fb_StrDelete(@v)
+    call void _ZN9$TUP:6:15D1Ev(@$fe1)
     br each.cont2
   each.cont2:
     call void _ZN8PAIRITER8MOVENEXTEv(@$tmp4)
@@ -157,7 +161,6 @@ func void S1() {
     %24 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp4)
     condbr %24, each.body1, each.exit4
   each.exit4:
-    call void _ZN9$TUP:6:15D1Ev(@$tmp5)
     %26 = const i64 0
     %27 = trunc %26
     store @seen, %27
@@ -169,7 +172,8 @@ func void S1() {
   each.body5:
     %32 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp11, @$tmp10)
     %33 = load @$tmp11
-    store @$fe2, %33
+    call void _ZN9$TUP:6:15C1ERKS_(@$fe2, @$tmp11)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp11)
     %35 = field.addr @$fe2, 0
     %36 = load %35
     store @k2, %36
@@ -187,7 +191,6 @@ func void S1() {
     %52 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp10)
     condbr %52, each.body5, each.exit8
   each.exit8:
-    call void _ZN9$TUP:6:15D1Ev(@$tmp11)
     %53 = load @keys
     call.rtl void fb_PrintInt(0, %53, 2)
     call.rtl void fb_PrintString(0, @vals, 2)
@@ -203,6 +206,7 @@ func void S1() {
     condbr %47, if.then13, if.else14
   if.then10:
     call.rtl void fb_StrDelete(@v2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
     br each.cont6
   if.else11:
     br if.join9
@@ -213,16 +217,17 @@ func void S1() {
     %51 = add %48, %50
     store @seen, %51
     call.rtl void fb_StrDelete(@v2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
     br each.cont6
   if.then13:
     call.rtl void fb_StrDelete(@v2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
     br each.exit8
   if.else14:
     br if.join12
 }
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
-declare void _ZN9$TUP:6:15D1Ev(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -287,4 +292,4 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 10 functions, 24 blocks, 168 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 24 blocks, 173 insts, 0 statements not lowered, 0 scope imbalance

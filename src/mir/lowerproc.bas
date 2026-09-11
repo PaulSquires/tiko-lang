@@ -954,10 +954,18 @@ function LowerSretResult _
                 dim as long lslot = NewTempLocal( c, MT_AGG, lsz )
                 if lslot >= 0 then
                     if LowerCtorInit( c, lslot, lt, valueE ) then
-                        if TypeNeedsDtor_( c, lt ) then
-                            c.udtTemps.Push( cast( ulong, lslot ) )
-                            c.udtTempTypes.Push( cast( ulong, lt ) )
-                        end if
+                        '' NOT REGISTERED FOR DESTRUCTION. The store below is a
+                        '' BITWISE move into the caller's storage, so the
+                        '' temporary's buffers leave with it -- destroying it here
+                        '' hands the caller a descriptor pointing at freed memory.
+                        '' It used to be registered and it never showed, because a
+                        '' RETURN terminates the block before the statement-end
+                        '' release could emit anything; the moment that hole was
+                        '' closed, 'return (5, "five")' exited 0xC0000374.
+                        ''
+                        '' A LEAK IF THE CALLER DOES NOT TAKE IT, which is the same
+                        '' trade fbc makes for its own move of a bare literal into
+                        '' the hidden pointer.
                         dim as MirValue laddr2
                         laddr2.kind = cast( ubyte, MV_LOCAL )
                         laddr2.ty = cast( ubyte, MT_PTR )
@@ -987,13 +995,33 @@ function LowerSretResult _
 
     '' The VALUE first, the address only as a fallback: 'function = F( )' has no
     '' address to take, and a call result is already an aggregate value here.
+    '' A TEMPORARY BUILT HERE IS MOVED, NOT COPIED. The store below is bitwise, so
+    '' whatever the temporary owned leaves with it; destroying it afterwards would
+    '' hand the caller a descriptor pointing at freed memory. Measured:
+    '' 'return (5, "five")' out of a '(long, string)' builds the tuple in a
+    '' temporary and stores it, and with that temporary on the destruction list the
+    '' program exited 0xC0000374 after printing the right answer.
+    ''
+    '' ONLY THE ONE THIS EXPRESSION BUILT, which is why the mark is taken here.
+    dim as long smark = c.udtTemps.Count
     dim as MirValue val = LowerExpr( c, valueE )
+    dim as MirValue movedFrom
     if val.kind = cast( ubyte, MV_NONE ) then
         dim as MirValue src = LowerAddr( c, valueE )
         if src.kind = cast( ubyte, MV_NONE ) then return false
+        movedFrom = src
         val = LowerExprLoad( c, src, MT_AGG )
     end if
     if val.kind = cast( ubyte, MV_NONE ) then return false
+    '' THE OUTERMOST temporary the expression built, which is the object whose bytes
+    '' the store moves. Anything deeper -- an argument's temporary, say -- was
+    '' consumed inside and still has to be destroyed.
+    if movedFrom.kind = cast( ubyte, MV_LOCAL ) then
+        ForgetUdtTemp_( c, movedFrom.id )
+    elseif (c.udtTemps.Count > smark) andalso _
+           (c.ast->Kind( valueE ) = Tko.N_TUPLE) then
+        ForgetUdtTemp_( c, cast( long, c.udtTemps[c.udtTemps.Count - 1] ) )
+    end if
 
     dim as MirValue sa
     sa.kind = cast( ubyte, MV_LOCAL )

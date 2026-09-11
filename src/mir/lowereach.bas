@@ -105,6 +105,25 @@ function LowerForEachIter _
     '' iterator over three longs: fbc prints 3, 6, 9 and tiko printed three
     '' consecutive addresses four bytes apart. It lowered, it verified, and the loop
     '' ran the right number of times.
+    '' THE BODY'S SCOPE OPENS BEFORE THE ELEMENT IS BOUND, which is what makes the
+    '' element's destructor run once per iteration and run on 'exit for' too. The
+    '' array path already does this; the iterator path bound the element OUTSIDE
+    '' any scope and registered no cleanup at all.
+    c.breakTo.Push( exitB )
+    c.contTo.Push( contB )
+    c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
+    PushScope( c )
+
+    '' VALUE( ) RETURNS BY VALUE, so its result lands in an sret temporary that the
+    '' call registers for destruction. Registered where? In the ENCLOSING scope,
+    '' because nothing here marked the list -- so a collection of a counted type ran
+    '' four constructors and ONE destructor, and the loop leaked an object per
+    '' iteration. The slot is the same one every time round, so the mark is taken
+    '' here and released as soon as the element has been copied out of it: exactly
+    '' what a loop HEAD does with a condition's temporaries.
+    dim as long umark = c.udtTemps.Count
+
     dim as boolean vByref = false
     dim as Tko.NodeId vpn = cast( Tko.NodeId, vs2->payload )
     if vpn <> Tko.NODE_NONE then
@@ -119,20 +138,64 @@ function LowerForEachIter _
         ev = EmitMemberCall( c, valueOf, iaddr, emt )
     end if
     if ev.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirInst stv
-    stv.op = cast( ushort, M_STORE )
-    stv.ty = cast( ubyte, MT_VOID )
-    stv.a = vaddr
-    stv.b = ev
-    Emit( c, stv )
+
+    '' AN AGGREGATE ELEMENT IS COPY-CONSTRUCTED, not stored. A load and a store is a
+    '' SHALLOW copy: a tuple half that is a string would share its buffer with the
+    '' temporary and then be freed twice, and a counted type would never see its
+    '' copy constructor at all. Measured against fbc over a collection yielding
+    '' '(Counted, long)': fbc runs 12 constructors and 12 destructors across four
+    '' iterations, tiko-lang ran 16 and 5.
+    ''
+    '' THE SOURCE IS THE SRET TEMPORARY, which is on the udtTemps list this call
+    '' just pushed to. A type with no destructor pushes nothing and needs no copy
+    '' constructor either, so the plain store below still serves it.
+    dim as boolean bound = false
+    if (emt = MT_AGG) andalso (c.udtTemps.Count > umark) andalso _
+       (vaddr.kind = cast( ubyte, MV_LOCAL )) then
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+        dim as Tko.SymbolId cc = CopyCtorOf_( c, elT )
+        if cc <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) cargs
+            cargs.Push( cast( ulong, sa.kind ) )
+            cargs.Push( cast( ulong, sa.id ) )
+            EmitStructorCall( c, cc, -1, @vaddr, @cargs )
+            bound = true
+        elseif NeedsLetBody_( c, elT ) then
+            CallImplicitCopy_( c, elT, vaddr, sa )
+            bound = true
+        end if
+    end if
+
+    if bound = false then
+        dim as MirInst stv
+        stv.op = cast( ushort, M_STORE )
+        stv.ty = cast( ubyte, MT_VOID )
+        stv.a = vaddr
+        stv.b = ev
+        Emit( c, stv )
+    end if
+
+    ReleaseUdtTemps_( c, umark )
+
+    if bound then
+        dim as Tko.SymbolId edt = _
+            StructorWithArity( c, StructorOf( c, elT, "__dtor" ), 0 )
+        if edt <> Tko.SYMBOL_NONE then
+            c.cleanupNode.Push( cast( ulong, edt ) )
+            c.cleanupSlot.Push( vaddr.id )
+            c.cleanupType.Push( 0 )
+        elseif TypeNeedsDtor_( c, elT ) then
+            c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
+            c.cleanupSlot.Push( vaddr.id )
+            c.cleanupType.Push( cast( ulong, elT ) )
+        end if
+    end if
 
     '' CONTINUE FOR lands on the MoveNext block, not on the test, which is what makes
     '' 'continue for' advance the iterator instead of spinning on the same element.
-    c.breakTo.Push( exitB )
-    c.contTo.Push( contB )
-    c.loopScope.Push( c.scopeMark.Count )
-    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )

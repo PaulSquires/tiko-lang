@@ -536,6 +536,18 @@ function LowerTypeCtorTempAddr_ _
     dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
     if slot < 0 then return false
     if EmitTypeCtorInto_( c, t, slot, cp ) = false then return false
+
+    '' DESTROYED AT THE END OF THE STATEMENT. 'T( args )' written as an EXPRESSION
+    '' builds a real object here, and nothing was ever going to destroy it: the
+    '' other temporary-building paths -- a byval UDT argument, a UDT assignment, a
+    '' tuple literal -- all register, and this one was the gap. Measured:
+    '' 'dim as (Counted, long) t = ( Counted( 1 ), 2 )' ran two constructors and one
+    '' destructor, and a for-each over a collection yielding such a tuple failed the
+    '' corpus's 'ctors = dtors' by exactly one object per element.
+    if TypeNeedsDtor_( c, t ) then
+        c.udtTemps.Push( cast( ulong, slot ) )
+        c.udtTempTypes.Push( cast( ulong, t ) )
+    end if
     outv.kind = cast( ubyte, MV_LOCAL )
     outv.ty = cast( ubyte, MT_PTR )
     outv.id = slot

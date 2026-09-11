@@ -9,14 +9,35 @@
 '' same type. StructorWithArity answers any one-argument constructor at all, which is
 '' not the same question -- a type whose only constructor takes a long had that one
 '' chosen to copy it with.
+'' THE COPY CONSTRUCTOR: the one-argument constructor whose argument is the TYPE.
+''
+'' ASKED OF THE WHOLE OVERLOAD CHAIN, not of the first one-argument constructor in
+'' it. A type with both
+''
+''     declare constructor( byval n as long )
+''     declare constructor( byref rhs as Counted )
+''
+'' answered with the LONG one, whose parameter is not the type, and the question came
+'' back 'there is no copy constructor' -- so every caller fell through to the
+'' SYNTHESISED '<T>C1ERKS_', which is not emitted for a type that declares its own.
+'' Measured: 'lld-link: error: undefined symbol: COUNTED::COUNTED(COUNTED const&)'.
 function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
-    dim as Tko.SymbolId s = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 1 )
-    if s = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-    dim as Tko.TypeId pt = ParamTypeAt( c, s, 0 )
-    if pt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
-    if c.types->Unqualify( pt ) <> c.types->Unqualify( t ) then return Tko.SYMBOL_NONE
-    return s
+    dim as Tko.SymbolId cur = StructorOf( c, t, "__ctor" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 10000)
+        guard += 1
+        dim as Tko.SymbolId one = StructorWithArity( c, cur, 1 )
+        if one = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+        dim as Tko.TypeId pt = ParamTypeAt( c, one, 0 )
+        if pt <> Tko.TYPE_NONE then
+            if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
+            if c.types->Unqualify( pt ) = c.types->Unqualify( t ) then return one
+        end if
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( one )
+        if os = 0 then return Tko.SYMBOL_NONE
+        cur = os->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
 end function
 
 '' A FIELD LIST ASSIGNED TO THE RESULT -- 'function = ( 1, 2 )' and 'function =

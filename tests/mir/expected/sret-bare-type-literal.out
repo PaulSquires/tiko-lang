@@ -50,7 +50,6 @@ func ptr F1(ptr $0) {
     %3 = load @$tmp1
     %4 = load @$tmp0
     store %4, %3
-    call void _ZN8CLASSUDTD1Ev(@$tmp1)
     %5 = load @$tmp0
     ret %5
 }
@@ -64,6 +63,7 @@ func ptr F2(ptr $0) {
     call void _ZN8CLASSUDTC1Ev(@$tmp1)
     %3 = load @$tmp0
     call void _ZN8CLASSUDTC1ERS_(%3, @$tmp1)
+    call void _ZN8CLASSUDTD1Ev(@$tmp1)
     %4 = load @$tmp0
     ret %4
 }

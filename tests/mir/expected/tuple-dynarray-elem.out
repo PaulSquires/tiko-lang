@@ -25,6 +25,7 @@ func ptr F(ptr $0) {
     call void _ZN3DYNC1ERKS_(%12, @d)
     %13 = load @$tmp0
     call void _ZN9$TUP:6:23C1ERKS_(%13, @$tmp3)
+    call void _ZN9$TUP:6:23D1Ev(@$tmp3)
     call void _ZN3DYND1Ev(@d)
     %14 = load @$tmp0
     ret %14
@@ -33,6 +34,7 @@ declare void _ZN3DYNC1Ev(ptr $0)
 declare void _ZN9$TUP:6:23C1Ev(ptr $0)
 declare void _ZN3DYNC1ERKS_(ptr $0, ptr $1)
 declare void _ZN9$TUP:6:23C1ERKS_(ptr $0, ptr $1)
+declare void _ZN9$TUP:6:23D1Ev(ptr $0)
 declare void _ZN3DYND1Ev(ptr $0)
 func void S1() {
   local agg t size 88
@@ -55,7 +57,6 @@ func void S1() {
     ret
 }
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-declare void _ZN9$TUP:6:23D1Ev(ptr $0)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -159,6 +160,12 @@ func void _ZN9$TUP:6:23C1ERKS_(ptr $0, ptr $1) {
     ret
 }
 declare void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1)
+func void _ZN9$TUP:6:23D1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 8
+    call void _ZN3DYND1Ev(%1)
+    ret
+}
 func void _ZN3DYND1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -166,12 +173,6 @@ func void _ZN3DYND1Ev(ptr $0) {
     ret
 }
 declare i32 fb_ArrayErase(ptr $0)
-func void _ZN9$TUP:6:23D1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 8
-    call void _ZN3DYND1Ev(%1)
-    ret
-}
 func void _ZN3DYNaSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
@@ -206,4 +207,4 @@ func void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 11 functions, 11 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 142 insts, 0 statements not lowered, 0 scope imbalance

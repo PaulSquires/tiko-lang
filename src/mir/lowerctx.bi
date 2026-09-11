@@ -144,6 +144,11 @@ type Ctx
     '' STATEMENT that consumed it, which is shorter than any scope, so it belongs
     '' beside the string temporaries and not on the cleanup list.
     as FB.Array( of ulong ) udtTemps
+    '' WHERE THE CURRENT STATEMENT'S UDT TEMPORARIES START. LowerStmt releases
+    '' everything above it once the statement ends, but a RETURN never gets there:
+    '' it terminates the block, and the release then has nowhere to emit. The
+    '' return paths use this mark to let go of them BEFORE they terminate.
+    as long stmtUdtMark
     as FB.Array( of ulong ) udtTempTypes
     '' DATA. The head of the module's block chain (-1 when it has none), and the
     '' label -> block map a 'restore lbl' resolves through. Both are built by a
@@ -228,6 +233,7 @@ declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirV
 '' statement dispatcher, and from a LOOP HEAD, where waiting for the statement to end
 '' would leak one per iteration.
 declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
+declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
 declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
 declare function StmtOf _
