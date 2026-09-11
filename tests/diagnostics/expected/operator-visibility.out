@@ -249,11 +249,11 @@ func i32 main(i32 $0, ptr $1) {
     %59 = alloca ptr hc
     %60 = alloca ptr cp
     %62 = alloca ptr $tmp21
-    %68 = alloca ptr hf
-    %71 = alloca ptr hf2
-    %74 = alloca ptr pf
-    %77 = alloca ptr hf3
-    %80 = alloca ptr pf3
+    %67 = alloca ptr hf
+    %70 = alloca ptr hf2
+    %73 = alloca ptr pf
+    %76 = alloca ptr hf3
+    %79 = alloca ptr pf3
     condbr %24, del.body1, del.join2
   del.body1:
     call.rtl void free(%22)
@@ -312,36 +312,35 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN10HIDDENCOPYC1Ev(@hc)
     %61 = call.rtl ptr calloc(8, 1)
     store @$tmp21, %61
-    %63 = load @hc
-    %64 = load @$tmp21
-    %65 = const ptr 0
-    %66 = icmp.ne %64, %65
-    condbr %66, new.ctor9, new.join10
+    %63 = load @$tmp21
+    %64 = const ptr 0
+    %65 = icmp.ne %63, %64
+    condbr %65, new.ctor9, new.join10
   new.ctor9:
-    call void _ZN10HIDDENCOPYC1ERS_(%64, %63)
+    call void _ZN10HIDDENCOPYC1ERS_(%63, @hc)
     br new.join10
   new.join10:
-    %67 = load @$tmp21
-    store @cp, %67
-    %69 = const i64 3
-    %70 = field.addr @hf, 0
-    store %70, %69
-    %72 = const i64 3
-    %73 = field.addr @hf2, 0
-    store %73, %72
-    %75 = const i64 3
-    %76 = field.addr @pf, 0
-    store %76, %75
-    %78 = call.rtl ptr memset(@hf3, 0, 8)
-    %79 = load @hf3
-    %81 = call.rtl ptr memset(@pf3, 0, 8)
-    %82 = load @pf3
-    %83 = const i64 123
-    call.rtl void fb_PrintInt(0, %83, 1)
-    %84 = const i32 0
-    call.rtl void fb_End(%84)
-    %85 = load @$tmp0
-    ret %85
+    %66 = load @$tmp21
+    store @cp, %66
+    %68 = const i64 3
+    %69 = field.addr @hf, 0
+    store %69, %68
+    %71 = const i64 3
+    %72 = field.addr @hf2, 0
+    store %72, %71
+    %74 = const i64 3
+    %75 = field.addr @pf, 0
+    store %75, %74
+    %77 = call.rtl ptr memset(@hf3, 0, 8)
+    %78 = load @hf3
+    %80 = call.rtl ptr memset(@pf3, 0, 8)
+    %81 = load @pf3
+    %82 = const i64 123
+    call.rtl void fb_PrintInt(0, %82, 1)
+    %83 = const i32 0
+    call.rtl void fb_End(%83)
+    %84 = load @$tmp0
+    ret %84
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr calloc(i64 $0, i64 $1)
@@ -349,10 +348,10 @@ declare void free(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 16 functions, 26 blocks, 204 insts, 3 statements not lowered, 0 scope imbalance
+lowered: 16 functions, 26 blocks, 203 insts, 3 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   inside N_FOR 1
-  skip-site src\mir\lowerfor.bas:80 1
+  skip-site src\mir\lowerfor.bas:196 1
   skip-site src\mir\lowerutil.bas:40 2
 tests/diagnostics/src/operator-visibility.bas(102,24): error TKO0625: 'myconst' is not accessible here
      |

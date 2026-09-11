@@ -783,16 +783,29 @@ function PushCtorArgs_ _
         '' 'call _ZN2LVC1ER8FBSTRING(ptr %s2, ptr %t7)' with %t7 defined as
         '' '[24 x i8]' is what that produced -- clang's own words.
         dim as Tko.TypeId pt = Tko.TYPE_NONE
+        dim as boolean ptByref = false
         dim as long seen = 0
         for k as long = 0 to pp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             if seen = pi then
                 pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+                ptByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
                 exit for
             end if
             seen += 1
         next
+        '' A REFERENCE IS TRANSPARENT TO TypeOf_, so the typeref above answers with the
+        '' REFERENT and CtorArgValue_'s byref-UDT arm never fired through this path.
+        '' 'new T( v )' over 'constructor( byref o as T )' passed the LOADED AGGREGATE
+        '' where the signature wants an address: clang's '%t7 defined with type
+        '' [4 x i8] but expected ptr'. LowerUdtInitCtor_ already asks the N_PARAM's own
+        '' flag for the same reason; this is that rule, in the other constructor path.
+        if ptByref andalso (pt <> Tko.TYPE_NONE) then
+            if c.types->Kind( c.types->Unqualify( pt ) ) <> Tko.TK_REFERENCE then
+                pt = c.types->Reference( pt )
+            end if
+        end if
         pi += 1
         '' CtorArgValue_ IS THE SHARED RULE, and this loop had its own: the string,
         '' zstring-pointer and wide cases it knows were all reached through the other

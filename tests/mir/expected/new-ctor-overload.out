@@ -1,0 +1,104 @@
+func void _ZN1PC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 4)
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void _ZN1PC1Ei(ptr $0, i32 $1) {
+  local ptr this
+  local i32 x
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr x
+    store @x, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 4)
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load @x
+    store %7, %8
+    ret
+}
+func void _ZN1PC1ERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 4)
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load @o
+    %9 = field.addr %8, 0
+    %10 = load %9
+    store %7, %10
+    ret
+}
+func ptr MKA<23>(ptr $0) {
+  local ptr $tmp0
+  local ptr v
+  local ptr $tmp2
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr v
+    store @v, $0
+    %4 = call.rtl ptr calloc(4, 1)
+    %5 = alloca ptr $tmp2
+    store @$tmp2, %4
+    %6 = load @v
+    %7 = load @$tmp2
+    %8 = const ptr 0
+    %9 = icmp.ne %7, %8
+    condbr %9, new.ctor1, new.join2
+  new.ctor1:
+    call void _ZN1PC1ERS_(%7, %6)
+    br new.join2
+  new.join2:
+    %10 = load @$tmp2
+    ret %10
+}
+declare ptr calloc(i64 $0, i64 $1)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg seed size 4
+  local ptr a
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr seed
+    %5 = const i64 7
+    %6 = trunc %5
+    call void _ZN1PC1Ei(@seed, %6)
+    %7 = alloca ptr a
+    %8 = call ptr MKA<23>(@seed)
+    store @a, %8
+    %9 = load @a
+    %10 = field.addr %9, 0
+    %11 = load %10
+    call.rtl void fb_PrintInt(0, %11, 1)
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 5 functions, 7 blocks, 62 insts, 0 statements not lowered, 0 scope imbalance

@@ -292,7 +292,33 @@ function LowerNew_ _
     '' allocated the object and constructed nothing -- calloc's zeroing happens to
     '' leave a valid empty descriptor, so it survived, but a type with a base, a vptr
     '' or a nested constructor got none of them and the vptr in particular stayed null.
-    dim as Tko.SymbolId ctor = CtorOf_( c, el, argCount )
+    '' PICKED BY THE ARGUMENT TYPES, with arity as the fallback -- the same rule, and
+    '' for the same reason, as LowerUdtParenInit_ in lowerctor.bas.
+    ''
+    '' CtorOf_ takes the first constructor in the overload chain with that ARITY. A
+    '' type with both 'constructor( byval x as long )' and 'constructor( byref o as T )'
+    '' has two of arity one, so which one 'new T( v )' called depended on WHICH WAS
+    '' DECLARED FIRST. With the copy constructor last, 'new T( v )' loaded v as a VALUE
+    '' for the long parameter, then fell out of the lowering entirely: no constructor
+    '' call, no result, and a function whose 'ret' carried nothing against a signature
+    '' returning a pointer -- 'ret void' in a 'func ptr'. fb/sharedptr.bi's
+    '' MakeSharedFrom is exactly 'new T( v )'.
+    dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
+    if (argCount > 0) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
+        dim as FB.Array( of ulong ) ctArgT
+        dim as boolean ctTyped = true
+        for i as long = 0 to argCount - 1
+            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+            dim as Tko.TypeId at3 = c.info->TypeOf_( an )
+            if at3 = Tko.TYPE_NONE then
+                ctTyped = false
+                exit for
+            end if
+            ctArgT.Push( cast( ulong, at3 ) )
+        next
+        if ctTyped then ctor = PickCtor( c, StructorOf( c, el, "__ctor" ), ctArgT )
+    end if
+    if ctor = Tko.SYMBOL_NONE then ctor = CtorOf_( c, el, argCount )
     dim as boolean implCtor = false
     if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 0) then
         implCtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsInit_( c, el )
