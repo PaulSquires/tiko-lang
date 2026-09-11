@@ -510,8 +510,14 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' an 8-byte temp through an unsized address emitted 'store [0 x i8] %t6' and
         '' was rejected against the temp's own definition. The value knows its width;
         '' the address does not have to.
-        if (vt = MT_AGG) andalso (sz <= 0) andalso _
-           (ins.b.kind = cast( ubyte, MV_TEMP )) then
+        '' ...AND IT WINS OVER THE DESTINATION'S, not only where there is none. A
+        '' store into the BASE SUBOBJECT of a derived variable -- 'cast( udt1, u21 )
+        '' = u11', which is how the corpus writes it -- has a 16-byte value and a
+        '' 48-byte slot, and taking the slot's size emitted 'store [48 x i8] %t41'
+        '' against a %t41 defined as '[16 x i8]'. LLVM compares the two and refuses
+        '' the module. The destination is a POINTER and the write is the value's
+        '' width; a partial store is exactly what an upcast assignment is.
+        if (vt = MT_AGG) andalso (ins.b.kind = cast( ubyte, MV_TEMP )) then
             dim as long bt = cast( long, ins.b.id )
             if (bt >= 0) andalso (bt < e.tempAggSize.Count) then
                 if e.tempAggSize[bt] > 0 then sz = e.tempAggSize[bt]

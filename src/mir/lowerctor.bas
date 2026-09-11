@@ -1012,6 +1012,7 @@ function LowerBaseCtorCall_ _
     dim as FB.Array( of ulong ) argT
     dim as FB.Array( of ulong ) argKind
     dim as FB.Array( of ulong ) argId
+    dim as FB.Array( of ulong ) argNode
     for i as long = 0 to cp->count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         dim as MirValue av = LowerExpr( c, a )
@@ -1019,6 +1020,7 @@ function LowerBaseCtorCall_ _
         argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
         argKind.Push( cast( ulong, av.kind ) )
         argId.Push( cast( ulong, av.id ) )
+        argNode.Push( cast( ulong, a ) )
     next
 
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
@@ -1042,7 +1044,27 @@ function LowerBaseCtorCall_ _
         av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
         av.id = argId[ai]
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        dim as MirValue cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
+        '' A BYREF UDT PARAMETER TAKES AN ADDRESS, and the parameter's own type does
+        '' NOT say so: a reference is transparent to TypeOf_, which answers with the
+        '' referent. 'constructor udt4( byref u3 as udt3, ... )' doing 'base( u3 )'
+        '' passed the LOADED 72-byte aggregate where the signature wants a pointer,
+        '' and clang refused it. The same rule PushCtorArgs_ and LowerUdtInitCtor_
+        '' already ask the N_PARAM's NF_BYREF flag for.
+        dim as MirValue cv
+        dim as boolean tookAddr = false
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            dim as Tko.TypeId pu = c.types->Unqualify( pt )
+            if c.types->Kind( pu ) = Tko.TK_UDT then
+                dim as MirValue ra = LowerAddr( c, cast( Tko.NodeId, argNode[ai] ) )
+                if ra.kind <> cast( ubyte, MV_NONE ) then
+                    cv = ra
+                    tookAddr = true
+                end if
+            end if
+        end if
+        if tookAddr = false then
+            cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
+        end if
         if cv.kind = cast( ubyte, MV_NONE ) then return false
         cargs.Push( cast( ulong, cv.kind ) ) : cargs.Push( cast( ulong, cv.id ) )
         ai += 1

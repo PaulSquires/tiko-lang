@@ -922,7 +922,18 @@ function LowerCallParts _
             if callee <> Tko.SYMBOL_NONE then
                 argCast = UserConvToScalar_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
             end if
-            if argCast = false then a = LowerExpr( c, argNode )
+            if argCast = false then
+                '' 's1( c0, 2 )' OVER 'byval p as parent' WITH A CHILD ARGUMENT is an
+                '' UPCAST: only the base subobject crosses, and LowerExpr hands back
+                '' the whole derived aggregate. The ABI pass then stores sixteen
+                '' bytes into the eight-byte slot the PARAMETER sized, which clang
+                '' refuses. See UpcastAggInit_ -- the same rule an initialiser needs.
+                if UpcastAggInit_( c, argNode, _
+                                   ArgParamType_( c, callee, calleeSigT, i + pbase ), _
+                                   a ) = false then
+                    a = LowerExpr( c, argNode )
+                end if
+            end if
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be
             '' pushed anyway, so the call went out with a malformed operand in it.
             ''

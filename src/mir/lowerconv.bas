@@ -178,6 +178,16 @@ function LowerConvIntrinsic _
 
     dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first + vi] )
 
+    '' 'cast( parent, c )' OVER A DERIVED VALUE IS AN UPCAST, and only the base
+    '' subobject crosses. Everything below this coerces a SCALAR; an aggregate fell
+    '' through whole, and 's1( cast( parent, c0 ), 2 )' then stored sixteen bytes
+    '' into the eight-byte slot the parameter sized. See UpcastAggInit_ -- the same
+    '' rule an initialiser and a plain argument need.
+    if (nm = "cast") orelse (nm = "ctype") then
+        dim as MirValue uv
+        if UpcastAggInit_( c, arg, c.info->TypeOf_( id ), uv ) then return uv
+    end if
+
     '' A STRING OPERAND IS PARSED, NOT COERCED. There was no case for one at all, so
     '' 'm = cuint( x )' over a string LOADED THE DESCRIPTOR'S FIRST EIGHT BYTES -- the
     '' char* data pointer -- and zero-extended THAT into the integer. A heap address

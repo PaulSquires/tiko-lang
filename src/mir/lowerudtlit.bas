@@ -127,6 +127,62 @@ function UdtLiteralSlot_ _
     return slot
 end function
 
+'' AN UPCAST COPIES THE BASE SUBOBJECT, NOT THE WHOLE DERIVED VALUE.
+''
+'' 'dim as parent p = c' over a 'child' loaded ALL SIXTEEN BYTES of the child and
+'' stored them into the eight-byte parent slot:
+''
+''     %t68 = load [16 x i8], ptr %s9
+''     store [8 x i8] %t68, ptr %s8
+''
+'' -- which clang refuses outright, so the module did not build. The base subobject is
+'' at offset 0 (that is what EXTENDS is: a field named 'base' declared first), so the
+'' copy is the DESTINATION's size taken from the source's ADDRESS.
+''
+'' Fifteen of icescan's codegen failures are this one shape, across udt-upcast-1/2/3
+'' and udt-init-5/6/7/8.
+''
+'' Answers false when this is not an upcast at all, which is every ordinary
+'' initialiser -- so it must be cheap to say no.
+function UpcastAggInit_ _
+    ( byref c as Ctx, byval srcNode as Tko.NodeId, byval dstT as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if (srcNode = Tko.NODE_NONE) orelse (dstT = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId du = c.types->Unqualify( dstT )
+    if c.types->Kind( du ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId st = c.info->TypeOf_( srcNode )
+    if st = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId su = c.types->Unqualify( st )
+    if c.types->Kind( su ) = Tko.TK_REFERENCE then
+        su = c.types->Unqualify( c.types->Inner( su ) )
+    end if
+    if c.types->Kind( su ) <> Tko.TK_UDT then return false
+    if su = du then return false
+    '' THE DESTINATION MUST BE A BASE OF THE SOURCE, walked rather than assumed: two
+    '' unrelated UDTs of different sizes are a type error, not an upcast.
+    dim as boolean isBase = false
+    dim as Tko.TypeId walk = su
+    dim as long guard = 0
+    while (walk <> Tko.TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        dim as Tko.TypeId nb = c.types->BaseOf( walk )
+        if nb = Tko.TYPE_NONE then exit while
+        if c.types->Unqualify( nb ) = du then
+            isBase = true
+            exit while
+        end if
+        walk = nb
+    wend
+    if isBase = false then return false
+    dim as long dsz = SizeOfType( c, du )
+    if dsz <= 0 then return false
+    dim as MirValue sa = LowerAddr( c, srcNode )
+    if sa.kind = cast( ubyte, MV_NONE ) then return false
+    outv = LowerExprLoad( c, sa, MT_AGG, dsz )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function LowerUdtLiteralValue_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

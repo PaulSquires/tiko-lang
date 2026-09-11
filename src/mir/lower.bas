@@ -737,7 +737,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' has to be known before it is lowered.
                 dim as long tmark = c.udtTemps.Count
                 if UserConvToScalar_( c, ip->b, dstT, val ) = false then
-                    val = LowerExpr( c, ip->b )
+                    '' 'dim as parent p = c' OVER A DERIVED VALUE COPIES THE BASE
+                    '' SUBOBJECT ONLY -- see UpcastAggInit_. LowerExpr hands back the
+                    '' whole derived aggregate, and storing sixteen bytes into an
+                    '' eight-byte slot is not an instruction clang will take.
+                    if UpcastAggInit_( c, ip->b, dstT, val ) = false then
+                        val = LowerExpr( c, ip->b )
+                    end if
                 end if
                 '' A MOVE, not a copy -- so the source must not be destroyed.
                 dim as boolean movedFrom = (c.ast->Kind( ip->b ) = Tko.N_CALL)

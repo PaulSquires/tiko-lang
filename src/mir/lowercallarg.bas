@@ -459,7 +459,12 @@ private function ByvalUdtCopyArg_ _
     case else
         '' fbc emits '__builtin_memcpy( &TMP$4$0, &D$0, 4 )' and nothing else for a
         '' type whose only claim on this path is a destructor.
-        dim as MirValue whole = LowerExprLoad( c, src, MT_AGG )
+        '' SIZED TO THE PARAMETER, NOT TO THE ARGUMENT. 's1( c0, 2 )' over
+        '' 'byval p as parent' with a CHILD argument loaded all sixteen bytes of the
+        '' child and stored them into the eight-byte temporary -- an upcast, and the
+        '' base subobject is at offset 0, so the parameter's size is the whole copy.
+        '' clang refuses the mismatched store, so the module did not build.
+        dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, sz )
         if whole.kind = cast( ubyte, MV_NONE ) then return false
         StoreThrough( c, dst, whole )
     end select

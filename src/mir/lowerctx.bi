@@ -604,6 +604,11 @@ declare function EmitRtl _
           byval size_ as long, byref outBytes as string ) as boolean
 
     '' 'type<T>( ... )' as a value or an address -- lowersub.bas.
+    '' An UPCAST initialiser: the base subobject of a derived value, sized to the
+    '' destination. False when this is not an upcast, which is every ordinary one.
+    declare function UpcastAggInit_ _
+        ( byref c as Ctx, byval srcNode as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
     declare function LowerUdtLiteralValue_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerUdtLiteralAddr_ _
