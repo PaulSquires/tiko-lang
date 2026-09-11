@@ -430,6 +430,43 @@ function LowerExpr _
         return LowerExprLoad( c, ia, imt )
 
     case Tko.N_DEREF
+        '' A USER 'operator *' THAT RETURNS BY VALUE IS THE VALUE, not an address.
+        ''
+        '' LowerAddr calls the operator and hands back its result AS AN ADDRESS,
+        '' which is right for the BYREF form that fb/sharedptr.bi and fb/comptr.bi
+        '' declare -- the load below then reaches the object. A BY-VALUE operator
+        '' returns the thing itself, and loading through it read memory at the
+        '' integer it answered: 'operator *( byref lhs as foo ) as integer' gave
+        '' '%t23 = load i64, ptr %t22' over a %t22 defined as i64.
+        ''
+        '' The two are spelled with the same token, so only the operator's OWN
+        '' result type tells them apart.
+        dim as Tko.SymbolId dop = c.info->RefOf( id )
+        if dop <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr dos = c.syms->SymbolAt( dop )
+            if dos <> 0 then
+                '' BYREF-NESS IS ON THE DECLARATION NODE'S FLAGS, which is where
+                '' LowerCall reads it too -- NF_BYREF on the N_PROC. NOT the
+                '' symbol's type: a procedure's symbol carries its RESULT type, and
+                '' 'byref as integer' leaves that an integer, so asking the type
+                '' made every BYREF operator take the by-value path and print the
+                '' ADDRESS -- 23711448096 where fbc prints 7.
+                dim as boolean byrefRes = false
+                dim as Tko.NodeId don = cast( Tko.NodeId, dos->payload )
+                if don <> Tko.NODE_NONE then
+                    if c.ast->Kind( don ) = Tko.N_PROC then
+                        byrefRes = ((c.ast->nodes[cast( long, don )].flags and _
+                                     Tko.NF_BYREF) <> 0)
+                    end if
+                end if
+                if byrefRes = false then
+                    dim as Tko.UnaryPayload ptr dvp = _
+                        @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+                    dim as MirValue dvv
+                    if LowerUserUnaryOp_( c, id, dvp, mt, dvv ) then return dvv
+                end if
+            end if
+        end if
         '' '*p' is a LOAD THROUGH the pointer. LowerAddr already knows the shape --
         '' the address is the pointer's VALUE -- so this is the load around it.
         dim as MirValue da = LowerAddr( c, id )
@@ -770,6 +807,15 @@ function LowerExpr _
         dim as MirInst ins
         ins.op = cast( ushort, op )
         ins.ty = cast( ubyte, iif( mt = MT_VOID, opTy, mt ) )
+        '' A COMPARISON'S RESULT IS AN INTEGER, whatever the expression around it
+        '' wants. Taking the EXPRESSION's type typed the compare itself as a float
+        '' where one was expected -- 'zext i1 %t51.c to double', which is not a cast
+        '' LLVM has, so the module was refused. The conversion to the wanted type
+        '' happens AFTER the negation below, which is where it belongs: fbc writes
+        '' '-(A < B)' and then converts that.
+        if IsCmpOp_( op ) andalso IsFloatTy( cast( MirType, ins.ty ) ) then
+            ins.ty = cast( ubyte, MT_I32 )
+        end if
 
         '' THE OPERANDS ARE WIDENED TO THE RESULT, for an operation whose result IS a
         '' value of that type. The result type comes from what Check decided the
@@ -861,7 +907,16 @@ function LowerExpr _
             neg.op = cast( ushort, M_NEG )
             neg.ty = ins.ty
             neg.a = res
-            return Emit( c, neg )
+            res = Emit( c, neg )
+            if res.kind = cast( ubyte, MV_NONE ) then return v
+            '' ...AND THEN CONVERTED, for the float case the compare could not
+            '' carry itself. -1 and 0 become -1.0 and 0.0.
+            if (mt <> MT_VOID) andalso (mt <> MT_AGG) then
+                if cast( MirType, res.ty ) <> mt then
+                    res = Coerce( c, res, mt, false )
+                end if
+            end if
+            return res
         end if
         return res
 

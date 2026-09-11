@@ -1,0 +1,83 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local f64 a
+  local f64 b
+  local f64 c
+  local f64 r1
+  local f64 r2
+  local f64 r3
+  local f32 s1
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const f64 123
+    store @a, %5
+    %6 = alloca ptr b
+    %7 = const f64 123
+    store @b, %7
+    %8 = alloca ptr c
+    %9 = const f64 7
+    store @c, %9
+    %10 = alloca ptr r1
+    %11 = load @a
+    %12 = load @b
+    %13 = fcmp.eq %11, %12
+    %14 = neg %13
+    %15 = sitofp %14
+    store @r1, %15
+    %16 = alloca ptr r2
+    %17 = load @a
+    %18 = load @c
+    %19 = fcmp.eq %17, %18
+    %20 = neg %19
+    %21 = sitofp %20
+    store @r2, %21
+    %22 = alloca ptr r3
+    %23 = load @a
+    %24 = load @c
+    %25 = fcmp.lt %23, %24
+    %26 = neg %25
+    %27 = sitofp %26
+    store @r3, %27
+    %28 = load @r1
+    call.rtl void fb_PrintDouble(0, %28, 0)
+    %29 = load @r2
+    call.rtl void fb_PrintDouble(0, %29, 0)
+    %30 = load @r3
+    call.rtl void fb_PrintDouble(0, %30, 1)
+    %31 = alloca ptr s1
+    %32 = load @a
+    %33 = load @b
+    %34 = fcmp.eq %32, %33
+    %35 = neg %34
+    %36 = sitofp %35
+    store @s1, %36
+    %37 = load @s1
+    call.rtl void fb_PrintSingle(0, %37, 1)
+    %38 = load @a
+    %39 = load @b
+    %40 = fcmp.eq %38, %39
+    %41 = neg %40
+    %42 = neg %41
+    call.rtl void fb_PrintLongint(0, %42, 0)
+    %43 = load @a
+    %44 = load @c
+    %45 = fcmp.ne %43, %44
+    %46 = neg %45
+    call.rtl void fb_PrintLongint(0, %46, 1)
+    %47 = const i32 0
+    call.rtl void fb_End(%47)
+    %48 = load @$tmp0
+    ret %48
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_PrintSingle(i32 $0, f32 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 1 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance

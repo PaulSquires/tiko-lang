@@ -1,0 +1,8 @@
+'' A by-value 'operator *' yields the value; a byref one yields an address that is
+'' loaded through, and assigned through. Differenced against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/deref-operator-byval.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/deref-operator-byval.out
