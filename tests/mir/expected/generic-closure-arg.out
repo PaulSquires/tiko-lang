@@ -40,6 +40,23 @@ func i32 __TKO_LAMBDA_2E76842F_1(i32 $0) {
     %8 = trunc %7
     ret %8
 }
+func i32 APPLYR<24>(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 v
+  local ptr f
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr v
+    store @v, $0
+    %4 = alloca ptr f
+    store @f, $1
+    %5 = load @f
+    %6 = load @v
+    %7 = call i32 __TKO_LAMBDA_2E76842F_0(%5, %6)
+    ret %7
+}
 func i32 APPLYR<26>(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 v
@@ -57,23 +74,6 @@ func i32 APPLYR<26>(i32 $0, ptr $1) {
     %7 = load %6
     %8 = call.ind i32 %7(%5)
     ret %8
-}
-func i32 APPLYR<24>(i32 $0, ptr $1) {
-  local i32 $tmp0
-  local i32 v
-  local ptr f
-  entry0:
-    %1 = alloca ptr $tmp0
-    %2 = const i32 0
-    store @$tmp0, %2
-    %3 = alloca ptr v
-    store @v, $0
-    %4 = alloca ptr f
-    store @f, $1
-    %5 = load @f
-    %6 = load @v
-    %7 = call i32 __TKO_LAMBDA_2E76842F_0(%5, %6)
-    ret %7
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0

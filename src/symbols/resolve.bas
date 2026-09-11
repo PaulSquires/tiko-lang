@@ -666,6 +666,17 @@ private sub WalkExpr _
         '' : p( )' reached lowering with no callee at all and was counted as unbound.
         '' The target is a VARIABLE here, and that is exactly what says the call is
         '' indirect.
+        for i as long = 0 to lp->count - 1
+            dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+            '' 'cast( long, x )' and 'cptr( any ptr, x )' put a TYPE in argument
+            '' position. WalkExpr has nothing to say about one, and leaving it
+            '' unresolved left every cast untyped -- the type argument IS the result.
+            if c.ast->Kind( arg ) = Tko.N_TYPEREF then
+                ResolveTypeRef( c, arg, scope_ )
+            else
+                WalkExpr( c, arg, scope_ )
+            end if
+        next
         if c.ast->Kind( id ) = Tko.N_CALL then
             '' 'Ok( of Decimal, FinanceError )( v )' -- A GENERIC PROCEDURE, whose type
             '' arguments the parser recorded against this node. Tried BEFORE the
@@ -681,17 +692,6 @@ private sub WalkExpr _
                 c.info->SetRef( id, c.info->RefOf( lp->target ) )
             end if
         end if
-        for i as long = 0 to lp->count - 1
-            dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[lp->first + i] )
-            '' 'cast( long, x )' and 'cptr( any ptr, x )' put a TYPE in argument
-            '' position. WalkExpr has nothing to say about one, and leaving it
-            '' unresolved left every cast untyped -- the type argument IS the result.
-            if c.ast->Kind( arg ) = Tko.N_TYPEREF then
-                ResolveTypeRef( c, arg, scope_ )
-            else
-                WalkExpr( c, arg, scope_ )
-            end if
-        next
     end select
 end sub
 #include once "symbols/resolveamb.bas"
