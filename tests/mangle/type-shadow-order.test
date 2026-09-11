@@ -1,0 +1,32 @@
+'' A TYPE NAME MEANS WHAT IT MEANT AT THAT POINT IN THE SOURCE.
+''
+'' A scope may declare a type with a name an ENCLOSING scope already uses, and a
+'' reference written BEFORE that declaration means the OUTER one. The lookup was
+'' innermost-first with no regard for position, so both overloads below took the INNER
+'' T1 and collapsed to one name:
+''
+''     invalid redefinition of function '_ZN7NESTED19OVERLOAD1EPFvRNS_2T1EE'
+''
+'' Measured against fbc, which gives them the two names this asserts. The corpus file
+'' this is reduced from -- tests/vendor/fbc-tests/pointers/procptr-namespaces.bas --
+'' says so in its own comment: "it's a different T1 now, so the overloads are different
+'' aswell".
+''
+'' THE VISIBLE HALF is the refused module. The quiet half is every declaration above
+'' such a redeclaration silently taking the wrong type, which nothing would report.
+''
+'' ONLY WHEN AN OUTER SCOPE HAS ONE TOO: a forward reference with nothing else to bind
+'' to keeps the later declaration, which is an ordinary incomplete type. And within ONE
+'' FILE only -- across two, the include order decides and a raw comparison of positions
+'' would be guessing.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/type-shadow-order.bas
+'' EXPECT-EXIT: 0
+
+'' R2T1E -- a reference to the GLOBAL T1, unqualified.
+'' EXPECT-OUT: _ZN7NESTED19OVERLOAD1EPFvR2T1E
+
+'' RNS_2T1EE -- a reference to nested1's own, through the substitution for the
+'' enclosing namespace.
+'' EXPECT-OUT: _ZN7NESTED19OVERLOAD1EPFvRNS_2T1EE
+'' GOLDEN: expected/type-shadow-order.out

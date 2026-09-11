@@ -26,6 +26,71 @@ private function TypeLitTargetType_ _
     return true
 end function
 
+'' THE TYPE OF THIS NAME AS SEEN FROM THIS POINT IN THE SOURCE.
+''
+'' A scope may declare a type with a name an ENCLOSING scope already uses, and a
+'' reference written BEFORE that declaration means the OUTER one. Measured, over
+'' pointers/procptr-namespaces.bas, where 'nested1' redeclares the enclosing 'T1'
+'' halfway down:
+''
+''     _ZN7NESTED19OVERLOAD1EPFvR2T1E        the declarations above it
+''     _ZN7NESTED19OVERLOAD1EPFvRNS_2T1EE    the ones below
+''
+'' -- two DIFFERENT overloads, which is what the file's own comment says they are.
+'' A plain innermost-first lookup gave both the inner T1, so the two collapsed to one
+'' name and clang refused the module. That is the visible half; the quiet half is
+'' every declaration above such a redeclaration silently taking the wrong type.
+''
+'' ONLY WHEN AN OUTER SCOPE HAS ONE TOO. A forward reference with nothing else to
+'' bind to keeps the later declaration -- that is an ordinary incomplete type, which
+'' the revisit machinery already handles -- so this never turns a resolved name into
+'' an unresolved one.
+''
+'' SAME FILE ONLY. Locations order within a file; across two files the include order
+'' is what decides and a raw comparison would be guessing.
+private function LookupTypeAtPoint_ _
+    ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval at as Tko.NodeId ) as Tko.SymbolId
+
+    dim as Tko.SymbolId plain = c.syms->LookupTyped( scope_, nm, true )
+    if plain = Tko.SYMBOL_NONE then return plain
+    if at = Tko.NODE_NONE then return plain
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( plain )
+    if ps = 0 then return plain
+    if ps->loc = Tko.LOC_NONE then return plain
+    dim as Tko.SourceLoc rl = c.ast->Loc( at )
+    if rl = Tko.LOC_NONE then return plain
+    dim as Tko.DecodedLoc dd = c.srcMgr->Decode( ps->loc )
+    dim as Tko.DecodedLoc dr = c.srcMgr->Decode( rl )
+    if dd.file <> dr.file then return plain
+    if dd.offset <= dr.offset then return plain
+
+    '' The candidate is declared BELOW the reference. Walk outward for one that is
+    '' not, starting above the scope the candidate was found in.
+    dim as Tko.ScopeId sc = scope_
+    while sc <> Tko.SCOPE_NONE
+        dim as Tko.SymScope ptr s = c.syms->ScopeAt( sc )
+        if s = 0 then exit while
+        dim as Tko.SymbolId cand = c.syms->LookupLocalTyped( sc, nm, true )
+        if cand <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cand )
+            if cs <> 0 then
+                if cs->loc <> Tko.LOC_NONE then
+                    dim as Tko.DecodedLoc dc = c.srcMgr->Decode( cs->loc )
+                    dim as boolean below = (dc.file = dr.file) andalso _
+                                           (dc.offset > dr.offset)
+                    if below = false then return cand
+                else
+                    return cand
+                end if
+            end if
+        end if
+        sc = s->parent
+    wend
+    return plain
+end function
+
+
 function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -397,7 +462,9 @@ function ResolveTypeRef _
                 sid = c.syms->LookupLocalTyped( sc, sp->name, true )
             end if
         end if
-        if sid = Tko.SYMBOL_NONE then sid = c.syms->LookupTyped( scope_, sp->name, true )
+        if sid = Tko.SYMBOL_NONE then
+            sid = LookupTypeAtPoint_( c, scope_, sp->name, id )
+        end if
 
         '' AN INSTANTIATION -- 'Box( of long )'. One type per (generic, arguments),
         '' cached, built in the GLOBAL scope. See InstantiateGeneric_.
