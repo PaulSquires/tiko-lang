@@ -1,0 +1,146 @@
+global str $str0 "false:"
+global str $str1 "true: "
+global str $str2 "else: "
+global str $str3 "endif:"
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 a
+  local i32 b
+  local i32 c
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = call.rtl ptr memset(@a, 0, 4)
+    %6 = alloca ptr b
+    %7 = call.rtl ptr memset(@b, 0, 4)
+    %8 = alloca ptr c
+    %9 = call.rtl ptr memset(@c, 0, 4)
+    %10 = const i64 0
+    %11 = trunc %10
+    store @a, %11
+    %12 = const i64 0
+    %13 = trunc %12
+    store @b, %13
+    %14 = const i64 0
+    condbr %14, if.then2, if.else3
+  if.join1:
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 6)
+    call.rtl void fb_PrintString(0, %19, 0)
+    %20 = load @a
+    call.rtl void fb_PrintInt(0, %20, 0)
+    %21 = load @b
+    call.rtl void fb_PrintInt(0, %21, 1)
+    %22 = const i64 0
+    %23 = trunc %22
+    store @a, %23
+    %24 = const i64 0
+    %25 = trunc %24
+    store @b, %25
+    %26 = const i64 1
+    %27 = neg %26
+    condbr %27, if.then5, if.else6
+  if.then2:
+    %15 = const i64 1
+    %16 = trunc %15
+    store @a, %16
+    %17 = const i64 2
+    %18 = trunc %17
+    store @b, %18
+    br if.join1
+  if.else3:
+    br if.join1
+  if.join4:
+    %32 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 6)
+    call.rtl void fb_PrintString(0, %32, 0)
+    %33 = load @a
+    call.rtl void fb_PrintInt(0, %33, 0)
+    %34 = load @b
+    call.rtl void fb_PrintInt(0, %34, 1)
+    %35 = const i64 0
+    %36 = trunc %35
+    store @a, %36
+    %37 = const i64 0
+    %38 = trunc %37
+    store @b, %38
+    %39 = const i64 0
+    %40 = trunc %39
+    store @c, %40
+    %41 = const i64 0
+    condbr %41, if.then8, if.else9
+  if.then5:
+    %28 = const i64 1
+    %29 = trunc %28
+    store @a, %29
+    %30 = const i64 2
+    %31 = trunc %30
+    store @b, %31
+    br if.join4
+  if.else6:
+    br if.join4
+  if.join7:
+    %50 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 6)
+    call.rtl void fb_PrintString(0, %50, 0)
+    %51 = load @a
+    call.rtl void fb_PrintInt(0, %51, 0)
+    %52 = load @b
+    call.rtl void fb_PrintInt(0, %52, 0)
+    %53 = load @c
+    call.rtl void fb_PrintInt(0, %53, 1)
+    %54 = const i64 0
+    %55 = trunc %54
+    store @a, %55
+    %56 = const i64 0
+    %57 = trunc %56
+    store @b, %57
+    %58 = const i64 0
+    condbr %58, if.then11, if.else12
+  if.then8:
+    %42 = const i64 1
+    %43 = trunc %42
+    store @a, %43
+    %44 = const i64 2
+    %45 = trunc %44
+    store @b, %45
+    %46 = const i64 3
+    %47 = trunc %46
+    store @c, %47
+    br if.join7
+  if.else9:
+    %48 = const i64 7
+    %49 = trunc %48
+    store @a, %49
+    br if.join7
+  if.join10:
+    %61 = const i64 9
+    %62 = trunc %61
+    store @b, %62
+    %63 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 6)
+    call.rtl void fb_PrintString(0, %63, 0)
+    %64 = load @a
+    call.rtl void fb_PrintInt(0, %64, 0)
+    %65 = load @b
+    call.rtl void fb_PrintInt(0, %65, 1)
+    %66 = const i32 0
+    call.rtl void fb_End(%66)
+    %67 = load @$tmp0
+    ret %67
+  if.then11:
+    %59 = const i64 1
+    %60 = trunc %59
+    store @a, %60
+    br if.join10
+  if.else12:
+    br if.join10
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 13 blocks, 102 insts, 0 statements not lowered, 0 scope imbalance

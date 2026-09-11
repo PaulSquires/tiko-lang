@@ -244,9 +244,49 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
             '' nests one of these inside another and the ELSE binds to the INNER if.
             dim as boolean savedSAE = p.stopAtElse
             p.stopAtElse = true
-            dim as Tko.NodeId s = Statement( p )
+            '' EVERY STATEMENT ON THE LINE, not just the first. 'if c then a : b'
+            '' puts BOTH in the then-branch -- one statement was taken and 'b' fell
+            '' out into the enclosing block, where it ran UNCONDITIONALLY.
+            ''
+            '' Measured, and it is the corpus's own idiom:
+            ''
+            ''     if( n = 0 ) then g_destroyed += 1 : deallocate( s )
+            ''
+            '' -- com/comptr-noimport.bas's Release_. The deallocate ran on EVERY
+            '' call, so the first Release freed the object and the second wrote
+            '' through it: 0xC0000374, heap corruption, with the right answer
+            '' printed on the way past.
+            ''
+            '' ':' AND A NEWLINE BOTH LEX AS AN EOL, and the SEPARATOR THE LAST
+            '' STATEMENT ATE is what says which. TF_COLON exists for exactly this
+            '' question -- 'name:' is a label and 'name' alone is a call -- and it
+            '' survives macro expansion, which the physical line does NOT: every
+            '' token of an expansion carries the invocation's location, so three
+            '' consecutive 'assert_( ... )' lines looked like one line and the
+            '' second and third were swallowed into the first's then-branch.
+            dim as long slGuard = 0
+            do
+                slGuard += 1
+                if slGuard > 10000 then exit do
+                dim as Tko.NodeId s = Statement( p )
+                if s <> Tko.NODE_NONE then one.Push( cast( ulong, s ) )
+                if s = Tko.NODE_NONE then exit do
+                if AtEnd( p ) then exit do
+                if p.pos <= 0 then exit do
+                if (p.toks->At( p.pos - 1 ).flags and Tko.TF_COLON) = 0 then exit do
+                if Peek( p ) = Tko.KW_ELSE then exit do
+                '' 'if c then s : end if' closes the IF; 'if c then end' is the END
+                '' STATEMENT and is this branch's last statement, so only the pair
+                '' stops the loop.
+                if Peek( p ) = Tko.KW_END then
+                    if HasTok( p, p.pos + 1 ) then
+                        if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
+                            exit do
+                        end if
+                    end if
+                end if
+            loop
             p.stopAtElse = savedSAE
-            if s <> Tko.NODE_NONE then one.Push( cast( ulong, s ) )
         end if
         first_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, one )
         branches.Push( cast( ulong, MakeStmt( p, Tko.N_IF_BRANCH, t.loc, first_ ) ) )

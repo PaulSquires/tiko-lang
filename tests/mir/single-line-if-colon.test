@@ -1,0 +1,6 @@
+'' A single-line IF takes every statement on the line. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/single-line-if-colon.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/single-line-if-colon.out
