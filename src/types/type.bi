@@ -126,6 +126,12 @@ namespace Tko
 
     const TF_CONST    as ushort = &h0001
     const TF_COMPLETE as ushort = &h0002
+    '' A PROCEDURE TYPE THAT ENDS IN '...'. Part of the TYPE, not of a declaration:
+    '' 'sub cdecl( byval as integer, ... )' and 'sub cdecl( byval as integer )' are
+    '' two different procedure-pointer types and fbc mangles them apart -- '...zE'
+    '' against nothing -- so two overloads distinguished only by the ellipsis
+    '' collided on one symbol.
+    const TF_VARIADIC as ushort = &h0004
 
     type TypeInfo
         as ubyte    kind
@@ -252,7 +258,8 @@ namespace Tko
         '' 'Qualify( t, 0 )' silently returns t unchanged.
         declare function Unqualify( byval t as TypeId ) as TypeId
         declare function ProcType _
-            ( byval ret as TypeId, byref params as TypeIdVec2 ) as TypeId
+            ( byval ret as TypeId, byref params as TypeIdVec2, _
+              byval variadic as boolean = false ) as TypeId
 
         declare function Kind( byval t as TypeId ) as TypeKind
         declare function BuiltinOf( byval t as TypeId ) as BuiltinType

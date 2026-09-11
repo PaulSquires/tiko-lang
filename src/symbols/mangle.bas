@@ -291,6 +291,18 @@ function TypeCode _
             enc = "N" & EmitPrefix( q, qt, subs ) & SrcName( nm ) & "E"
         end if
 
+    case Tko.TK_ARRAY
+        '' AN ARRAY INSIDE A PROCEDURE TYPE. The FBARRAY template, rank and all, but
+        '' WITHOUT the leading 'R' -- a procedure type's array parameter is built as a
+        '' REFERENCE to this, and the TK_REFERENCE arm above adds the R. A parameter
+        '' written on a real procedure takes the ArrayParamCode path instead, which
+        '' has its own substitution bookkeeping.
+        dim as string aanm = "FBARRAY"
+        dim as long arnk = types.DynRank( t )
+        if arnk > 0 then aanm += str( arnk )
+        enc = str( len( aanm ) ) & aanm & "I" & _
+              TypeCode( types.Inner( t ), types, syms, names, subs ) & "E"
+
     case Tko.TK_PROC
         '' F <return> <params...> E. A function TYPE encodes its return type, unlike
         '' a procedure NAME, which never does.
@@ -304,6 +316,13 @@ function TypeCode _
                 dim as Tko.TypeId pt = cast( Tko.TypeId, types.pool[ti->first + i] )
                 body += TypeCode( pt, types, syms, names, subs )
             next
+        end if
+        '' ...AND THE ELLIPSIS, which is 'z' and comes last. Measured: fbc writes
+        '' 'sub cdecl( byval as integer, ... )' as 'PFvu7INTEGERzE'. Without it the
+        '' variadic overload was the same symbol as the one beside it that takes only
+        '' the integer, and clang refused the redefinition.
+        if ti <> 0 then
+            if (ti->flags and Tko.TF_VARIADIC) <> 0 then body += "z"
         end if
         enc = body & "E"
 
@@ -626,21 +645,37 @@ end function
 '' KEYED BY THE ELEMENT TYPE, not by the encoding: the second occurrence of the
 '' element is itself substituted, so the string built the second time round never
 '' equals the one stored the first.
+'' ...AND THE RANK IS IN THE TEMPLATE'S NAME. Measured, and it is a separate
+'' instantiation each time:
+''
+''   a( ) as integer            R7FBARRAYIu7INTEGERE     -- unspecified
+''   a( any ) as integer        R8FBARRAY1Iu7INTEGERE
+''   a( any, any ) as integer   R8FBARRAY2Iu7INTEGERE
+''   eight dimensions           R8FBARRAY8Iu7INTEGERE
+''
+'' Every rank was written '7FBARRAY', so 'k2( a(any) as integer )' and
+'' 'k3( a(any,any) as integer )' were ONE SYMBOL -- ordinary code, no generics and no
+'' procedure pointers, and nothing said so until a file declared both.
 private function ArrayParamCode _
     ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
-      byref subs as Substitutions ) as string
+      byref subs as Substitutions, byval rank as long = 0 ) as string
 
     for i as long = 0 to subs.arrKeys.Count - 1
-        if subs.arrKeys[i] = cast( ulong, elem ) then return SubRef( subs.arrIdx[i] )
+        if subs.arrKeys[i] <> cast( ulong, elem ) then continue for
+        if subs.arrRank[i] <> rank then continue for
+        return SubRef( subs.arrIdx[i] )
     next
-    dim as string tmpl = "7FBARRAYI" & _
+    dim as string anm = "FBARRAY"
+    if rank > 0 then anm += str( rank )
+    dim as string tmpl = str( len( anm ) ) & anm & "I" & _
         TypeCode( elem, types, syms, names, subs ) & "E"
     subs.items.Push( tmpl )
     subs.keys.Push( 0 )
     subs.items.Push( "R" & tmpl )
     subs.keys.Push( 0 )
     subs.arrKeys.Push( cast( ulong, elem ) )
+    subs.arrRank.Push( rank )
     subs.arrIdx.Push( subs.items.Count - 1 )
     return "R" & tmpl
 end function
@@ -772,7 +807,8 @@ private function ProcNameCore _
         dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
         dim as Tko.TypeId pt = info.TypeOf_( pp->a )
         if (ast.nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
-            outp += ArrayParamCode( pt, types, syms, names, subs )
+            outp += ArrayParamCode( pt, types, syms, names, subs, _
+                                    cast( long, pp->extra ) )
             emitted += 1
             continue for
         end if

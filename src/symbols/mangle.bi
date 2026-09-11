@@ -48,6 +48,9 @@ namespace Tko.Mangle
         '' key because the second occurrence of the element is itself substituted.
         as FB.Array( of ulong )  arrKeys
         as FB.Array( of long )   arrIdx
+        '' THE RANK IS PART OF THE KEY: 'a(any)' and 'a(any,any)' are FBARRAY1 and
+        '' FBARRAY2, two different template instantiations over the same element.
+        as FB.Array( of long )   arrRank
 
         declare function Find( byref enc as string ) as long
         declare function FindType( byval t as Tko.TypeId ) as long

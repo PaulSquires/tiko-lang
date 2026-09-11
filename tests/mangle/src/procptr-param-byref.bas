@@ -22,3 +22,21 @@ sub g1 overload( byval p as sub( as FWDREF2  ) ) : end sub
 sub g1 overload( byval p as sub( as string   ) ) : end sub
 sub g1 overload( byval p as sub( as long     ) ) : end sub
 sub g1 overload( byval p as sub( byval as UDT1 ) ) : end sub
+
+'' AN ARRAY PARAMETER IS A REFERENCE TO THE FBARRAY TEMPLATE, AND THE RANK IS IN THE
+'' TEMPLATE'S NAME. Every rank was written '7FBARRAY', so two overloads differing only
+'' in it were ONE SYMBOL -- ordinary code, no generics and no procedure pointers.
+sub k1 overload( a( ) as integer ) : end sub
+sub k2 overload( a( any ) as integer ) : end sub
+sub k3 overload( a( any, any ) as integer ) : end sub
+
+'' ...and the same inside a PROCEDURE TYPE, where the parameter was dropped entirely.
+sub m1 overload( byval p as sub( array( ) as integer ) ) : end sub
+sub m2 overload( byval p as sub( array( any ) as integer ) ) : end sub
+sub m3 overload( byval p as sub( array( any, any ) as integer ) ) : end sub
+
+'' AN ELLIPSIS IN A PROCEDURE TYPE IS PART OF THE TYPE. It carries no argument, but
+'' 'sub cdecl( byval as integer, ... )' and 'sub cdecl( byval as integer )' are two
+'' different procedure-pointer types.
+sub n1 overload( byval p as sub cdecl( byval as integer ) ) : end sub
+sub n2 overload( byval p as sub cdecl( byval as integer, ... ) ) : end sub

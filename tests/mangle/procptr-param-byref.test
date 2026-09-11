@@ -11,4 +11,15 @@
 '' An explicit BYVAL is not the default and is a different type.
 '' EXPECT-OUT: _Z2G1PFv4UDT1E
 '' EXPECT-NOT: _Z2G1PFvvE
+'' The RANK is part of the FBARRAY template's name, on a real parameter...
+'' EXPECT-OUT: _Z2K1R7FBARRAYIu7INTEGERE
+'' EXPECT-OUT: _Z2K2R8FBARRAY1Iu7INTEGERE
+'' EXPECT-OUT: _Z2K3R8FBARRAY2Iu7INTEGERE
+'' ...and inside a procedure type, where the parameter used to be dropped.
+'' EXPECT-OUT: _Z2M1PFvR7FBARRAYIu7INTEGEREE
+'' EXPECT-OUT: _Z2M2PFvR8FBARRAY1Iu7INTEGEREE
+'' EXPECT-OUT: _Z2M3PFvR8FBARRAY2Iu7INTEGEREE
+'' An ellipsis in a procedure type is 'z' and makes a different type.
+'' EXPECT-OUT: _Z2N1PFvu7INTEGERE
+'' EXPECT-OUT: _Z2N2PFvu7INTEGERzE
 '' GOLDEN: expected/procptr-param-byref.out

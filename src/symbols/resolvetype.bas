@@ -66,9 +66,18 @@ function ResolveTypeRef _
             if ret <> Tko.TYPE_NONE then ret = c.types->Reference( ret )
         end if
         dim as Tko.TypeIdVec2 ps
+        dim as boolean pVariadic = false
         for i as long = 0 to sp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            '' THE ELLIPSIS IS AN N_PARAM AND IS NOT A PARAMETER. It carries no type
+            '' and contributes no argument, but it IS part of the procedure type:
+            '' fbc mangles it 'z' and two overloads differing only in it are two
+            '' symbols. Dropped silently, they became one.
+            if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+                pVariadic = true
+                continue for
+            end if
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
             dim as Tko.TypeId pt = ResolveTypeRef( c, pp->a, scope_ )
             '' A PROCEDURE TYPE'S PARAMETERS TAKE THE SAME DEFAULT A PROCEDURE'S DO:
@@ -102,10 +111,24 @@ function ResolveTypeRef _
                     c.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYREF
                 end if
             end if
-            if pRef then pt = c.types->Reference( pt )
+            '' AN ARRAY PARAMETER IS A REFERENCE TO THE FBARRAY TEMPLATE, rank and
+            '' all -- byval and byref are both ILLEGAL on one, so the passing mode
+            '' never enters into it. Built as a dynamic array of the element so the
+            '' mangler and everything downstream see an ARRAY rather than a lone
+            '' element: 'sub( array(any) as integer )' and 'sub( array(any,any) as
+            '' integer )' were the same type, and four f4 overloads collapsed to one
+            '' symbol. The rank the parser recorded on the N_PARAM is what tells them
+            '' apart; 0 means 'unspecified', which is its own encoding.
+            if ((pfl and Tko.NF_ARRAY) <> 0) andalso (pt <> Tko.TYPE_NONE) then
+                pt = c.types->Reference( _
+                    c.types->DynArrayOf( pt, cast( long, pp->extra ) ) )
+            elseif pRef then
+                pt = c.types->Reference( pt )
+            end if
             ps.Push( cast( ulong, pt ) )
         next
-        dim as Tko.TypeId pf = c.types->Pointer_( c.types->ProcType( ret, ps ) )
+        dim as Tko.TypeId pf = _
+            c.types->Pointer_( c.types->ProcType( ret, ps, pVariadic ) )
         if (n->flags and Tko.NF_CONST) <> 0 then
             pf = c.types->Qualify( pf, Tko.TF_CONST )
         end if

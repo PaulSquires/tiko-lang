@@ -453,13 +453,19 @@ end function
 
 '' A procedure type: the return type in 'inner', the parameter types in the pool.
 function TypeContext.ProcType _
-    ( byval ret as TypeId, byref params as TypeIdVec2 ) as TypeId
+    ( byval ret as TypeId, byref params as TypeIdVec2, _
+      byval variadic as boolean = false ) as TypeId
+
+    '' THE ELLIPSIS IS PART OF THE KEY. Two procedure types with the same parameters
+    '' and a different tail are different types; sharing the cache entry made them one.
 
     for i as long = 1 to this.types.Count - 1
         dim as TypeInfo ptr t = @this.types[i]
         if t->kind <> cast( ubyte, TK_PROC ) then continue for
         if t->inner <> ret then continue for
         if t->count <> params.Count then continue for
+        dim as boolean tv = ((t->flags and TF_VARIADIC) <> 0)
+        if tv <> variadic then continue for
         dim as boolean same = true
         for j as long = 0 to t->count - 1
             if this.pool[t->first + j] <> params[j] then
@@ -473,6 +479,7 @@ function TypeContext.ProcType _
     dim as TypeInfo n
     n.kind = cast( ubyte, TK_PROC )
     n.flags = TF_COMPLETE
+    if variadic then n.flags or= TF_VARIADIC
     n.inner = ret
     n.first = this.pool.Count
     n.count = params.Count
