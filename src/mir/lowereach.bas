@@ -133,7 +133,11 @@ function LowerForEachIter _
     if vByref then
         dim as MirValue evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
         if evp.kind = cast( ubyte, MV_NONE ) then return false
-        ev = LowerExprLoad( c, evp, emt )
+        '' THE ELEMENT'S SIZE TRAVELS WITH THE LOAD: what Value( ) handed back is a
+        '' POINTER in a temp, and a temp has no storage for the emitter to size an
+        '' aggregate from. Without it, 'for each v in c' over a collection of a
+        '' 24-byte element loaded '[0 x i8]' and clang refused the module.
+        ev = LowerExprLoad( c, evp, emt, SizeOfType( c, elT ) )
     else
         ev = EmitMemberCall( c, valueOf, iaddr, emt )
     end if

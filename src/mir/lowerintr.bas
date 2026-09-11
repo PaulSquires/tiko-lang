@@ -1278,7 +1278,11 @@ function LowerCallExpr_ _
     if IsArrayIndex( c, id ) then
         dim as MirValue addr = LowerArrayIndex( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v
-        return LowerExprLoad( c, addr, LowerType( c.info->TypeOf_( id ), *c.types ) )
+        '' THE ELEMENT'S SIZE TRAVELS WITH THE LOAD -- the address is computed, so
+        '' nothing else can answer for it. See LowerExprLoad.
+        dim as Tko.TypeId ixt = c.info->TypeOf_( id )
+        return LowerExprLoad( c, addr, LowerType( ixt, *c.types ), _
+                              SizeOfType( c, ixt ) )
     end if
     return LowerCall( c, id, mt )
 end function

@@ -1194,14 +1194,6 @@ function LoadResult( byref c as Ctx ) as MirValue
     return LowerExprLoad( c, addr, cast( MirType, c.resultTy ) )
 end function
 
-function LowerExprLoad _
-    ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
-    dim as MirInst ins
-    ins.op = cast( ushort, M_LOAD )
-    ins.ty = cast( ubyte, t )
-    ins.a = addr
-    return Emit( c, ins )
-end function
 
 function ParamCountOf( byref c as Ctx, byval callee as Tko.SymbolId ) as long
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )

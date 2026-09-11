@@ -284,7 +284,8 @@ declare function EmitRtl _
     declare sub CloseScope( byref c as Ctx )
     declare sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
     declare function LowerExprLoad _
-        ( byref c as Ctx, byref addr as MirValue, byval t as MirType ) as MirValue
+    ( byref c as Ctx, byref addr as MirValue, byval t as MirType, _
+      byval sizeBytes as long = 0 ) as MirValue
     declare function LoadResult( byref c as Ctx ) as MirValue
     '' lowerproc.bas -- the two procedure lowerings.
     declare sub LowerProc( byref c as Ctx, byval id as Tko.NodeId )

@@ -450,6 +450,29 @@ end function
 
 '' An anonymous slot, for a value with no name in the source. The alloca goes in the
 '' entry block like any other local, so nothing downstream has to treat it specially.
+'' Moved here from lowerstore.bas, which hit the 1500-line lint cap.
+'' AN AGGREGATE LOAD CARRIES ITS SIZE when the caller can supply one. The emitter
+'' sizes an aggregate from its STORAGE -- a local's slot, a global's size -- and a
+'' COMPUTED address has none, so the load came out '[0 x i8]' and clang refused the
+'' module against the 8-byte store beside it.
+''
+'' Measured on 'r = arr( n )' over a fixed array of an 8-byte UDT with a VARIABLE
+'' subscript: a constant one folds into the slot and is sized, which is why every
+'' test written with a literal index passed. Array( of T ).Pop is the corpus's
+'' version -- 'r = this.items( this.num )'.
+function LowerExprLoad _
+    ( byref c as Ctx, byref addr as MirValue, byval t as MirType, _
+      byval sizeBytes as long = 0 ) as MirValue
+    dim as MirInst ins
+    ins.op = cast( ushort, M_LOAD )
+    ins.ty = cast( ubyte, t )
+    ins.a = addr
+    if (t = MT_AGG) andalso (sizeBytes > 0) then
+        ins.imm = cast( longint, sizeBytes )
+    end if
+    return Emit( c, ins )
+end function
+
 function NewTempLocal _
     ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
 
