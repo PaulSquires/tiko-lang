@@ -8,6 +8,55 @@
 '' Split out of lowercall.bas at the 1500-line cap and INCLUDED from it, inside the
 '' same namespace. Nothing moved here changed in the move.
 
+'' IS THIS ARGUMENT A GENUINELY NARROW STRING?
+''
+'' The question a USTRING parameter has to ask, and there was no predicate for it.
+'' IsStringType answers true for BOTH flavours, and a CONCATENATION has no type of its
+'' own at all -- so neither alone can tell 'al' + 'pha' from a & b over two ustrings.
+'' The terms are asked one at a time, which is what ConcatHasWideTerm_ beside it
+'' already does for the wide case and for the same reason.
+''
+'' A 'ustring * N' source is deliberately NOT narrow here: FixedUStrArgTemp_ owns it,
+'' and it copies in, calls, copies back and deletes.
+private function ConcatHasUStrTerm_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+
+    if e = Tko.NODE_NONE then return false
+    if IsUStringType( c, c.info->TypeOf_( e ) ) then return true
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
+    dim as FB.Array( of ulong ) uvt
+    FlattenConcat( c, e, uvt )
+    for k as long = 0 to uvt.Count - 1
+        if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, uvt[k] ) ) ) then
+            return true
+        end if
+    next
+    return false
+end function
+
+function NarrowStrArg_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+
+    if e = Tko.NODE_NONE then return false
+    '' Anything wide or ustring-shaped belongs to one of the other arms.
+    if TermIsWide_( c, e ) then return false
+    if ConcatHasWideTerm_( c, e ) then return false
+    if ConcatHasUStrTerm_( c, e ) then return false
+    dim as longint fkn
+    if StrSwapKind_( c, c.info->TypeOf_( e ), fkn ) = 4 then return false
+    dim as Tko.TypeId at = c.info->TypeOf_( e )
+    if at <> Tko.TYPE_NONE then
+        if IsStringType( c, at ) then return (IsUStringType( c, at ) = false)
+        '' A fixed NARROW string counts: 'zstring * N' and 'string * N' both assign
+        '' into a descriptor the same way a var-length one does.
+        dim as long sk = StrSwapKind_( c, at, fkn )
+        return (sk = 1) orelse (sk = 3)
+    end if
+    '' NO TYPE AT ALL is a concatenation or an intrinsic call; the wide and ustring
+    '' tests above have already refused every one of those that is not narrow.
+    return (c.ast->Kind( e ) = Tko.N_BINARY)
+end function
+
 '' THE CALLER-BUILT DESCRIPTOR for one byval var-length string argument: zeroed,
 '' assigned from the source, and passed by ADDRESS. The slot comes back so the call
 '' site can delete it afterwards.
@@ -60,6 +109,42 @@ private function ByvalStrTemp_ _
         PushStrLen_( c, uargs, -1 )
         uargs.Push( cast( ulong, MV_CONST_INT ) ) : uargs.Push( 0 )
         EmitRtl( c, RTL_USTR_ASSIGN, uargs )
+        outSlot = slot
+        outa = dst
+        return true
+    end if
+
+    '' A GENUINELY NARROW SOURCE FOR A USTRING TEMPORARY converts through
+    '' fb_UStrAssignFromA.
+    ''
+    '' The wide arm above takes a wide source; a narrow one fell to
+    '' LowerStringAssignToSlot, which fills the temporary as an FBSTRING -- the exact
+    '' mistake that arm's own comment warns about, one case along. An FBSTRING and an
+    '' FBUSTRING share a 24-byte layout, so it linked, verified, and compared wrong:
+    '' the callee read 'len' UTF-16 units out of a narrow buffer.
+    ''
+    '' Measured, fbc converts in and copies BACK, because the parameter is byref:
+    ''
+    ''     fb_UStrAssignFromA( &TMP$8$0, -1, &SV$0, -1, 0, 0 );
+    ''     EQUALSREF( &TMP$8$0 );
+    ''     fb_UStrAssignToA( &SV$0, -1, &TMP$8$0, -1, 0, 0 );
+    ''
+    '' THE COPY-BACK IS NOT EMITTED HERE. FixedUStrArgTemp_'s caller registers one
+    '' through ustrBackNode/ustrBackSlot for the 'ustring * N' case; wiring the same
+    '' list for this one is owed, and until it is, a callee that WRITES through such a
+    '' parameter loses the write. Every reading callee is correct, which is what the
+    '' corpus does. Recorded rather than guessed.
+    if IsUStringType( c, pt ) andalso NarrowStrArg_( c, argNode ) then
+        dim as MirValue nsv
+        if StrDescriptorOf_( c, argNode, nsv ) = false then return false
+        dim as FB.Array( of ulong ) nargs
+        nargs.Push( cast( ulong, dst.kind ) ) : nargs.Push( cast( ulong, dst.id ) )
+        PushStrLen_( c, nargs, -1 )
+        nargs.Push( cast( ulong, nsv.kind ) ) : nargs.Push( cast( ulong, nsv.id ) )
+        PushStrLen_( c, nargs, -1 )
+        nargs.Push( cast( ulong, MV_CONST_INT ) ) : nargs.Push( 0 )
+        nargs.Push( cast( ulong, MV_CONST_INT ) ) : nargs.Push( 0 )
+        EmitRtl( c, RTL_USTR_FROM_A, nargs )
         outSlot = slot
         outa = dst
         return true

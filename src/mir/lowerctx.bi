@@ -522,6 +522,7 @@ declare function EmitRtl _
     declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function NarrowStrArg_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function WideToNarrowTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean

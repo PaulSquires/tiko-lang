@@ -516,6 +516,32 @@ function LowerCallParts _
                     strTempTypes.Push( cast( ulong, wsp ) )
                 end if
             end if
+            '' A NARROW ARGUMENT AGAINST A USTRING PARAMETER IS ALSO A TEMPORARY.
+            ''
+            '' The wide arm above owns a wide source and the fixed arm below owns a
+            '' 'ustring * N'; a plain narrow one -- a literal, a 'string' variable, a
+            '' concatenation of them -- owned by neither, fell to StrDescriptorOf_ and
+            '' had its NARROW descriptor's address passed where an FBUSTRING* belongs.
+            '' The two descriptors are the same 24 bytes, so it linked and verified and
+            '' the callee read UTF-16 out of a narrow buffer. Measured against fbc, the
+            '' three narrow rows of the probe answered 'false' where fbc answers 'true'.
+            ''
+            '' ORDER IS THE WHOLE FIX, and the reason the earlier attempts broke
+            '' 'UTake( a & b )': a concatenation of two USTRINGS has no type of its own,
+            '' so a test built on 'the parameter is ustring' alone swallowed it and
+            '' converted it as narrow. NarrowStrArg_ asks the TERMS instead, and that
+            '' case reaches StrDescriptorOf_ below exactly as it did.
+            if a.kind = cast( ubyte, MV_NONE ) then
+                if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, _
+                                                    i + pbase ) ) andalso _
+                   NarrowStrArg_( c, argNode ) then
+                    dim as Tko.TypeId nsp = c.types->Builtin( Tko.TY_USTRING )
+                    if ByvalStrTemp_( c, argNode, nsp, a, tempSlot ) then
+                        strTemps.Push( cast( ulong, tempSlot ) )
+                        strTempTypes.Push( cast( ulong, nsp ) )
+                    end if
+                end if
+            end if
             '' A FIXED 'ustring * N' AGAINST A BYREF USTRING IS A COPY, not an
             '' address. There is no ustring temp-descriptor borrow in the
             '' runtime at all -- libfb has fb_StrAllocTempDescF and no
