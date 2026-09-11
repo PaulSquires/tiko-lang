@@ -162,15 +162,10 @@ end function
 
 
 
-'' THE MODULE'S DECLARATION FOR A CALLEE, found or made. Split out because an
-'' INDIRECT call needs one too: a virtual call reaches its target through the vptr,
-'' but the DECLARATION it was mangled from is in hand, and without a signature the
-'' ABI pass has nothing to classify against -- it passed a 16-byte argument in a
-'' register where the definition takes a pointer, which built and then corrupted
-'' the callee's frame.
-''
-'' Finding the function object is a linear scan for now; it is a map when it
-'' matters.
+'' THE MODULE'S DECLARATION FOR A CALLEE, found or made. An INDIRECT call needs one
+'' too: a virtual call reaches its target through the vptr, but the DECLARATION it
+'' was mangled from is in hand, and without a signature the ABI pass has nothing to
+'' classify against. See HANDOFF 7g. The scan is linear for now.
 function DeclIndexFor_ _
     ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
       byval cs as Tko.Symbol ptr, byval withSret as boolean, _
@@ -1041,11 +1036,22 @@ function LowerCallParts _
     '' both consume the call through a string path that asks for MT_PTR itself;
     '' 'F( )' written as a STATEMENT asks LowerExpr with no type at all, and every
     '' string-returning function called that way was a module clang would not take.
-    if (callTy = MT_AGG) andalso (cs <> 0) then
-        dim as longint srn
-        dim as boolean srStr = IsStringType( c, cs->type_ )
-        if srStr then srStr = (StrSwapKind_( c, cs->type_, srn ) = 0)
-        if srStr then callTy = MT_PTR
+    '' A CALL THROUGH A PROCEDURE POINTER HAS NO SYMBOL; the same fact is on its TYPE.
+    '' 'dim as function( ) as string p : p( )' emitted 'call [8 x i8] %t1256()'.
+    if callTy = MT_AGG then
+        dim as Tko.TypeId srT = Tko.TYPE_NONE
+        '' THE SIGNATURE FIRST: through a pointer 'cs' is the VARIABLE holding it.
+        if calleeSigT <> Tko.TYPE_NONE then
+            srT = c.types->Inner( calleeSigT )
+        elseif cs <> 0 then
+            srT = cs->type_
+        end if
+        if srT <> Tko.TYPE_NONE then
+            dim as longint srn
+            dim as boolean srStr = IsStringType( c, srT )
+            if srStr then srStr = (StrSwapKind_( c, srT, srn ) = 0)
+            if srStr then callTy = MT_PTR
+        end if
     end if
 
     '' A BYREF RESULT IS AN ADDRESS, and the call's own type said otherwise.
@@ -1136,16 +1142,10 @@ function LowerCallParts _
                 if (callTy = MT_AGG) andalso (cs <> 0) then
                     vc.imm = SizeOfType( c, cs->type_ )
                 end if
-                '' ...AND ITS SIGNATURE, which a VIRTUAL call does know: the slot is
-                '' reached through the vptr but the DECLARATION it was mangled from
-                '' is in hand. Without it the ABI pass has nothing to classify
-                '' against and passed a 16-byte argument in a register where the
-                '' definition takes a pointer -- which built, and corrupted the
-                '' callee's frame.
-                ''
-                '' PLUS ONE, because 'callee' is a ulong whose zero is function 0:
-                '' an M_CALL_IND that carries no signature has to be distinguishable
-                '' from one that names the first function in the module.
+                '' ...AND ITS SIGNATURE, which a VIRTUAL call does know. PLUS ONE,
+                '' because 'callee' is a ulong whose zero is function 0: an
+                '' M_CALL_IND carrying no signature has to be distinguishable from
+                '' one that names the first function. See DeclIndexFor_.
                 if cs <> 0 then
                     dim as long sidx = DeclIndexFor_( c, cnm, callTy, cs, _
                         (sretTmp.kind <> cast( ubyte, MV_NONE )), _

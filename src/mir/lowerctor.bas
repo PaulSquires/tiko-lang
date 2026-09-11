@@ -578,11 +578,28 @@ function LowerCtorInit _
         if dseen >= argT.Count then
             dim as Tko.StmtPayload ptr dsp = StmtOf( c, prm )
             if dsp->b = Tko.NODE_NONE then return false
-            dim as MirValue dv = LowerExpr( c, dsp->b )
-            if dv.kind = cast( ubyte, MV_NONE ) then return false
             dim as Tko.TypeId dt = c.info->TypeOf_( dsp->a )
-            dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt)
-            if dv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue dv
+            dim as boolean dref = false
+            '' A BYREF DEFAULT IS AN ADDRESS. The parameter's own type does not say so
+            '' -- a reference is transparent to TypeOf_ -- so 'constructor T( i as
+            '' integer, byref impl as X )' called as 'T( 420 )' loaded the default's
+            '' VALUE and passed the aggregate where the signature wants a pointer.
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+                if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
+                    dim as MirValue da = LowerAddr( c, dsp->b )
+                    if da.kind <> cast( ubyte, MV_NONE ) then
+                        dv = da
+                        dref = true
+                    end if
+                end if
+            end if
+            if dref = false then
+                dv = LowerExpr( c, dsp->b )
+                if dv.kind = cast( ubyte, MV_NONE ) then return false
+                dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt)
+                if dv.kind = cast( ubyte, MV_NONE ) then return false
+            end if
             argT.Push( cast( ulong, dt ) )
             argKind.Push( cast( ulong, dv.kind ) )
             argId.Push( cast( ulong, dv.id ) )
@@ -828,12 +845,29 @@ function PushCtorArgs_ _
         if seen2 >= pi then
             dim as Tko.StmtPayload ptr dp = StmtOf( c, prm )
             if dp->b = Tko.NODE_NONE then return false
-            dim as MirValue dv = LowerExpr( c, dp->b )
-            if dv.kind = cast( ubyte, MV_NONE ) then return false
             dim as Tko.TypeId dt = c.info->TypeOf_( dp->a )
-            if dt <> Tko.TYPE_NONE then
-                dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt )
+            dim as MirValue dv
+            dim as boolean dref2 = false
+            '' A BYREF DEFAULT IS AN ADDRESS here too -- see the other half of this
+            '' same rule above.
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+                if dt <> Tko.TYPE_NONE then
+                    if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
+                        dim as MirValue da2 = LowerAddr( c, dp->b )
+                        if da2.kind <> cast( ubyte, MV_NONE ) then
+                            dv = da2
+                            dref2 = true
+                        end if
+                    end if
+                end if
+            end if
+            if dref2 = false then
+                dv = LowerExpr( c, dp->b )
                 if dv.kind = cast( ubyte, MV_NONE ) then return false
+                if dt <> Tko.TYPE_NONE then
+                    dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt )
+                    if dv.kind = cast( ubyte, MV_NONE ) then return false
+                end if
             end if
             args.Push( cast( ulong, dv.kind ) ) : args.Push( cast( ulong, dv.id ) )
         end if

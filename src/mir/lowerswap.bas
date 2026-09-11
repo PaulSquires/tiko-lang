@@ -1098,10 +1098,12 @@ function LowerPropertySet_ _
     '' the value to the INDEX's type.
     dim as Tko.TypeId pt = Tko.TYPE_NONE
     dim as long np2 = 0
+    dim as boolean ptByref = false
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) = Tko.N_PARAM then
             pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+            ptByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
             np2 += 1
         end if
     next
@@ -1125,6 +1127,19 @@ function LowerPropertySet_ _
     if pt <> Tko.TYPE_NONE then
         if IsStringType( c, pt ) then
             gotV = StrDescriptorOf_( c, value, v )
+        end if
+    end if
+    '' A BYREF UDT VALUE TAKES AN ADDRESS, and the parameter's own type does not say
+    '' so: a reference is transparent to TypeOf_. 'p( 0 ) = a' over a
+    '' 'property p( byval i as long, byref v as A )' passed the LOADED aggregate
+    '' where the setter's signature wants a pointer.
+    if (gotV = false) andalso ptByref andalso (pt <> Tko.TYPE_NONE) then
+        if c.types->Kind( c.types->Unqualify( pt ) ) = Tko.TK_UDT then
+            dim as MirValue pa = LowerAddr( c, value )
+            if pa.kind <> cast( ubyte, MV_NONE ) then
+                v = pa
+                gotV = true
+            end if
         end if
     end if
     if gotV = false then v = LowerExpr( c, value )
