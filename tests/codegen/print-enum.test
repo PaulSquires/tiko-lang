@@ -1,0 +1,27 @@
+'' AN ENUM IS INTEGER-SIZED, AND ITS PRINT ENTRY POINT HAS TO BE TOO.
+''
+'' Measured against fbc:
+''
+''     enum E : A = 1 : B = 4000000000 : end enum
+''     print sizeof( E )   ->  8            on win64
+''     print E.B           ->  4000000000
+''
+'' PrintRtlFor sent every enum through fb_PrintInt, the 32-bit entry point, while the
+'' operand itself was i64. That is not a wrong number: clang refused the module with
+'' "'%t6' defined with type 'i64' but expected 'i32'", so nothing printed at all. It is
+'' what 'FsError.Code( )' printed through in the corpus, and the line that declined
+'' does not mention an enum.
+''
+'' THE VALUE had a second, independent truncation behind it: an enum member's value
+'' lives in Symbol.payload, which was a LONG, and the constant folder read it back at
+'' 32 bits. Both widened, 'print E.B' gives 4000000000 rather than -294967296.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/print-enum.bas
+'' EXPECT-EXIT: 0
+
+'' THE ENTRY POINT, declared at its own width.
+'' EXPECT-OUT: declare void @"fb_PrintLongint"(i32, i64, i32)
+
+'' AND NOT the 32-bit one, which is what the enum used to take.
+'' EXPECT-NOT: @"fb_PrintInt"(i32 0, i32
+'' GOLDEN: expected/print-enum.out

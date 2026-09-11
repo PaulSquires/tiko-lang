@@ -783,7 +783,18 @@ function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
     case Tko.TK_POINTER, Tko.TK_PROC
         if c.types->target.pointerBits = 32 then return RTL_PRINT_UINT
         return RTL_PRINT_ULONGINT
-    case Tko.TK_ENUM                 : return RTL_PRINT_INT
+    '' AN ENUM IS INTEGER-SIZED, not LONG. Measured against fbc:
+    ''
+    ''     enum E : A = 1 : B = 4000000000 : end enum
+    ''     print sizeof( E )    ->  8   on win64
+    ''     print E.B            ->  4000000000
+    ''
+    '' so it takes the same width branch UINTEGER and INTEGER take. Sending it
+    '' through the 32-bit entry point handed clang an i64 operand where an i32
+    '' was declared and the whole module was refused -- no truncation, no print.
+    case Tko.TK_ENUM
+        if c.types->target.pointerBits = 32 then return RTL_PRINT_INT
+        return RTL_PRINT_LONGINT
     case Tko.TK_BUILTIN
         select case c.types->BuiltinOf( t )
         case Tko.TY_BYTE      : return RTL_PRINT_BYTE

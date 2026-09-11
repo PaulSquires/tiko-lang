@@ -966,7 +966,7 @@ sub WalkStmt _
             if es <> 0 then
                 if es->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
                     '' On a SYM_ENUMCONST 'payload' is THE VALUE ITSELF, not a node id.
-                    es->payload = cast( long, enumNext )
+                    es->payload = enumNext
                     '' And its TYPE is the enum, which is what fbc says: '#print
                     '' typeof( B )' for a member of 'enum E2' prints E2. Without it the
                     '' member was untyped and anything reading it -- a PRINT item, a

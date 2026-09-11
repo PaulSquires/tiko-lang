@@ -336,7 +336,7 @@ func i32 main(i32 $0, ptr $1) {
     %80 = call.rtl ptr memset(@pf3, 0, 8)
     %81 = load @pf3
     %82 = const i64 123
-    call.rtl void fb_PrintInt(0, %82, 1)
+    call.rtl void fb_PrintLongint(0, %82, 1)
     %83 = const i32 0
     call.rtl void fb_End(%83)
     %84 = load @$tmp0
@@ -345,7 +345,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr calloc(i64 $0, i64 $1)
 declare void free(ptr $0)
-declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 16 functions, 26 blocks, 203 insts, 3 statements not lowered, 0 scope imbalance

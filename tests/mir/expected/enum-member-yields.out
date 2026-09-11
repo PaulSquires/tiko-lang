@@ -10,15 +10,15 @@ func i32 main(i32 $0, ptr $1) {
     %4 = load @@k
     call.rtl void fb_PrintInt(0, %4, 2)
     %5 = const i64 9
-    call.rtl void fb_PrintInt(0, %5, 1)
+    call.rtl void fb_PrintLongint(0, %5, 1)
     %6 = const i64 1
     call.rtl void fb_PrintLongint(0, %6, 2)
     %7 = const i64 5
-    call.rtl void fb_PrintInt(0, %7, 1)
+    call.rtl void fb_PrintLongint(0, %7, 1)
     %8 = const i64 3
-    call.rtl void fb_PrintInt(0, %8, 2)
+    call.rtl void fb_PrintLongint(0, %8, 2)
     %9 = const i64 3
-    call.rtl void fb_PrintInt(0, %9, 1)
+    call.rtl void fb_PrintLongint(0, %9, 1)
     %10 = const i32 0
     call.rtl void fb_End(%10)
     %11 = load @$tmp0

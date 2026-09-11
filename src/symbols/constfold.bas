@@ -696,7 +696,11 @@ function ConstOf _
         '' id. The symbol kind is what says which, and reading one as the other indexes
         '' the wrong pool.
         if cs->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
-            return CVW_( cast( longint, cs->payload ), 32 )
+            '' 64, not 32. An enum is INTEGER-sized -- measured, 'print sizeof( E )'
+            '' is 8 on win64 and fbc prints a member declared 4000000000 back
+            '' unchanged. Folding it at 32 sign-truncated the value here, so the
+            '' member came out -294967296 before anything could print it.
+            return CVW_( cs->payload, 64 )
         end if
         if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return CVNone_( )
 

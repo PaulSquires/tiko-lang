@@ -161,7 +161,11 @@ namespace Tko
         as SymbolId  altClass      '' the same name in the OTHER class, or SYMBOL_NONE
         as SymbolId  nextInScope   '' declaration order within the parent scope
         as ScopeId   inner         '' the scope this symbol opens, if any
-        as long      payload       '' AST node, enum value, parameter index ...
+        '' LONGINT, not LONG. Every other user of this field fits in 32 bits, but an
+        '' ENUM MEMBER'S VALUE IS INTEGER-WIDE: fbc accepts 'B = 4000000000' in an
+        '' enum and prints it back, where truncating to a signed long turned it into
+        '' -294967296 with nothing to say so.
+        as longint   payload       '' AST node, enum value, parameter index ...
         '' SYM_PROC: the calling convention, resolved across the declaration and the
         '' definition. CC_NONE means neither wrote one, and the TARGET decides what
         '' that means -- stdcall on win32, nothing at all on win64.

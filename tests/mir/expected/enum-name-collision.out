@@ -10,17 +10,17 @@ func i32 main(i32 $0, ptr $1) {
     %4 = const i64 111
     call.rtl void fb_PrintLongint(0, %4, 1)
     %5 = const i64 2
-    call.rtl void fb_PrintInt(0, %5, 1)
+    call.rtl void fb_PrintLongint(0, %5, 1)
     %6 = const i64 1
-    call.rtl void fb_PrintInt(0, %6, 1)
+    call.rtl void fb_PrintLongint(0, %6, 1)
     %7 = const i64 5
-    call.rtl void fb_PrintInt(0, %7, 1)
+    call.rtl void fb_PrintLongint(0, %7, 1)
     %8 = const i64 6
-    call.rtl void fb_PrintInt(0, %8, 1)
+    call.rtl void fb_PrintLongint(0, %8, 1)
     %9 = alloca ptr z
     %10 = call.rtl ptr memset(@z, 0, 8)
     %11 = load @z
-    call.rtl void fb_PrintInt(0, %11, 1)
+    call.rtl void fb_PrintLongint(0, %11, 1)
     %12 = const i32 0
     call.rtl void fb_End(%12)
     %13 = load @$tmp0
@@ -28,7 +28,6 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
