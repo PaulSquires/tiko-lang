@@ -101,13 +101,66 @@ end function
 
 
 '' An expression lowered as a CONDITION -- see Ctx.rawCmpNode.
+'' A POINTER-RETURNING 'operator cast' SERVES A CONDITION TOO. UserCastToNum_ looks
+'' for a NUMERIC result, because its other callers need a width to convert to --
+'' but 'if x then' only has to test the value, and a pointer tests perfectly well.
+'' Without this the pointer half of structs/bool_expr_cast emitted
+'' 'icmp ne [8 x i8] %t9, 0' over the loaded aggregate, which is not an
+'' instruction; the numeric half beside it lowered.
+''
+'' The FIRST pointer-returning overload, not a best-ranked one: all pointers test
+'' the same way, so there is nothing to rank.
+private function UserCastToPtr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if c.types->Kind( rt ) = Tko.TK_POINTER then
+                dim as MirValue self_ = LowerAddr( c, id )
+                if self_.kind = cast( ubyte, MV_NONE ) then return false
+                outv = EmitMemberCall( c, cur, self_, MT_PTR )
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    return false
+end function
+
 function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
     dim as Tko.NodeId saved = c.rawCmpNode
     '' THROUGH THE PARENTHESES, which is how the condition is usually written:
     '' 'if (a < b) then' is the same branch as 'if a < b then', and taking the PAREN
     '' node as the raw one left the comparison inside it negated and then branched on.
     c.rawCmpNode = Unparen_( c, e )
-    dim as MirValue r = LowerExpr( c, e )
+    '' A UDT IN A CONDITION IS ITS 'operator cast', not its bytes. 'if x then' over
+    '' a type declaring one loaded the AGGREGATE and compared it to zero --
+    '' 'icmp ne [1 x i8] %t7, 0', which is not an instruction, so the module was
+    '' refused. The same rule an assignment, an argument and an initialiser already
+    '' follow; the condition was the one place that did not ask.
+    ''
+    '' TYPE_NONE as the destination, because a condition names no type: what is
+    '' wanted is whatever scalar the operator yields, and the branch tests it
+    '' against zero whatever its width.
+    dim as MirValue r
+    dim as boolean gotCast = false
+    dim as Tko.TypeId ct = c.info->TypeOf_( e )
+    if ct <> Tko.TYPE_NONE then
+        if c.types->Kind( c.types->Unqualify( ct ) ) = Tko.TK_UDT then
+            '' UserCastToNum_ RATHER THAN UserConvToScalar_, which wants a
+            '' DESTINATION type to check against and a condition names none.
+            gotCast = UserCastToNum_( c, e, r )
+            if gotCast = false then gotCast = UserCastToPtr_( c, e, r )
+        end if
+    end if
+    if gotCast = false then r = LowerExpr( c, e )
     c.rawCmpNode = saved
     return r
 end function

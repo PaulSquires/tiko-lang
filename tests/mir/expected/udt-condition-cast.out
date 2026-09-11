@@ -1,0 +1,109 @@
+global str $str0 "true"
+global str $str1 "false"
+global str $str2 "ptr-true"
+global str $str3 "ptr-false"
+global str $str4 "ptr-true2"
+global str $str5 "ptr-false2"
+func i8 _ZN2BTcvaEv(ptr $0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
+}
+func ptr _ZN2PTcvPaEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg x size 1
+  local agg p size 8
+  local i8 bb
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x
+    %5 = call.rtl ptr memset(@x, 0, 1)
+    %6 = field.addr @x, 0
+    %7 = const i64 1
+    %8 = neg %7
+    %9 = trunc %8
+    store %6, %9
+    %10 = call i8 _ZN2BTcvaEv(@x)
+    %13 = alloca ptr p
+    %21 = alloca ptr bb
+    condbr %10, if.then2, if.else3
+  if.join1:
+    %14 = call.rtl ptr memset(@p, 0, 8)
+    %15 = field.addr @p, 0
+    %16 = const i64 0
+    %17 = bitcast %16
+    store %15, %17
+    %18 = call ptr _ZN2PTcvPaEv(@p)
+    condbr %18, if.then5, if.else6
+  if.then2:
+    %11 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 4)
+    call.rtl void fb_PrintString(0, %11, 1)
+    br if.join1
+  if.else3:
+    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    call.rtl void fb_PrintString(0, %12, 1)
+    br if.join1
+  if.join4:
+    %22 = const i64 7
+    %23 = trunc %22
+    store @bb, %23
+    %24 = field.addr @p, 0
+    store %24, @bb
+    %25 = call ptr _ZN2PTcvPaEv(@p)
+    condbr %25, if.then8, if.else9
+  if.then5:
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 8)
+    call.rtl void fb_PrintString(0, %19, 1)
+    br if.join4
+  if.else6:
+    %20 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 9)
+    call.rtl void fb_PrintString(0, %20, 1)
+    br if.join4
+  if.join7:
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
+  if.then8:
+    %26 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 9)
+    call.rtl void fb_PrintString(0, %26, 1)
+    br if.join7
+  if.else9:
+    %27 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 10)
+    call.rtl void fb_PrintString(0, %27, 1)
+    br if.join7
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 3 functions, 12 blocks, 58 insts, 0 statements not lowered, 0 scope imbalance
