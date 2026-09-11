@@ -287,6 +287,23 @@ end function
 '' This is NOT cosmetic. A string local always registers an fb_StrDelete for its scope
 '' exit, so a descriptor that was never written would hand the runtime a wild pointer
 '' to free.
+'' THE SAME ZEROING, BUT IN THE ENTRY BLOCK, for a TEMPORARY descriptor.
+''
+'' A temporary made inside a loop body is ONE slot reused every iteration, and the
+'' runtime concatenation entry points reallocate whatever buffer they find in the
+'' destination. Zeroing it where it is used therefore does the right thing on the
+'' first pass and LEAKS the buffer on every pass after; zeroing it where it was
+'' allocated does the right thing once and lets the runtime reuse the buffer, which
+'' is the shape fbc emits -- its temporaries are cleared function locals.
+''
+'' NewTempLocal already places its alloca in block 0 for the same reason.
+sub ZeroStrTempAtEntry_( byref c as Ctx, byref dst as MirValue )
+    dim as long saved = c.curBlock
+    c.curBlock = 0
+    ZeroStrDescriptor( c, dst )
+    c.curBlock = saved
+end sub
+
 sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
     for off as long = 0 to 16 step 8
         dim as MirInst fa

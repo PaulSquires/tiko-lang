@@ -626,6 +626,14 @@ function LowerUStrChain _
         tmp.kind = cast( ubyte, MV_LOCAL )
         tmp.ty = cast( ubyte, MT_PTR )
         tmp.id = slot
+        '' AN UNCLEARED DESCRIPTOR IS A WILD POINTER. fb_StrConcat and its ustring
+        '' siblings REALLOCATE the destination's buffer, so a fresh 24-byte alloca
+        '' full of stack leftovers is handed to the allocator as a live block.
+        '' Measured: 'dim as ustring k = "k" + str( 1 )' exits 0xC0000374, heap
+        '' corruption, when the surrounding frame happens to leave a plausible
+        '' pointer there -- and prints correctly when it does not, which is why the
+        '' whole corpus ran green over it.
+        ZeroStrTempAtEntry_( c, tmp )
 
         dim as FB.Array( of ulong ) args
         args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
@@ -695,6 +703,9 @@ function LowerNarrowChainToU_ _
     tmp.kind = cast( ubyte, MV_LOCAL )
     tmp.ty = cast( ubyte, MT_PTR )
     tmp.id = slot
+    '' See the sibling above: fb_StrConcat reallocates its destination, so the
+    '' descriptor has to be cleared before the first term reaches it.
+    ZeroStrTempAtEntry_( c, tmp )
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )

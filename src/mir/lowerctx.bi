@@ -315,6 +315,7 @@ declare function EmitRtl _
     declare sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
 
     declare sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    declare sub ZeroStrTempAtEntry_( byref c as Ctx, byref dst as MirValue )
     '' The (pointer, length) pair for one term of a concatenation, appended to 'args'.
     declare function EmitStrTerm _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), _
