@@ -526,6 +526,24 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         end if
                     end if
                 end if
+                '' A CLOSURE IS BUILT IN PLACE. Lowered as a value it goes into a
+                '' temporary and is copied out bitwise, which leaves the variable's
+                '' own default-constructed captures unclaimed: a counted capture
+                '' came out three constructed and two destroyed. Building into the
+                '' slot is one object, constructed once -- and it is also what
+                '' 'constructed' means here, so no default constructor follows.
+                if constructed = false then
+                    if c.ast->Kind( ip->b ) = Tko.N_CLOSURE then
+                        dim as MirValue clo
+                        clo.kind = cast( ubyte, MV_LOCAL )
+                        clo.ty = cast( ubyte, MT_PTR )
+                        clo.id = slot
+                        dim as MirValue cout
+                        if LowerClosureAddr_( c, ip->b, cout, @clo ) then
+                            constructed = true
+                        end if
+                    end if
+                end if
                 if constructed = false then
                     constructed = LowerCtorInit( c, slot, vs->type_, ip->b )
                 end if

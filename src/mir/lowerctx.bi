@@ -552,7 +552,8 @@ declare function EmitRtl _
     declare function NumberToStrDesc_ _
         ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerClosureAddr_ _
-        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval dstv as MirValue ptr = 0 ) as boolean
     declare function LowerClosure_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function ConstStringTextOf_ _

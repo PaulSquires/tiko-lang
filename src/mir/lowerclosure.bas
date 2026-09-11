@@ -29,8 +29,15 @@
 '' Split from the value form below because a BYREF argument needs the address and a
 '' byval one needs the load, and building the object twice for the two would be
 '' wrong as well as wasteful.
+'' A DESTINATION MAY BE GIVEN, and 'var f = sub[ ... ] ... end sub' gives one: the
+'' variable's own slot. Without it the object is built in a TEMPORARY and copied out
+'' bitwise, so a capture that owns something is constructed in the temporary, moved
+'' into the variable, and the variable's OWN default-constructed field is never
+'' destroyed. Measured on a counted type: three constructors and two destructors
+'' where fbc balances at three each.
 function LowerClosureAddr_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byval dstv as MirValue ptr = 0 ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_CLOSURE then return false
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
@@ -40,13 +47,17 @@ function LowerClosureAddr_ _
     if c.types->Kind( cu ) <> Tko.TK_UDT then return false
     dim as long sz = SizeOfType( c, cu )
     if sz <= 0 then return false
-    dim as long slot = NewTempLocal( c, MT_AGG, sz )
-    if slot < 0 then return false
 
     dim as MirValue base_
-    base_.kind = cast( ubyte, MV_LOCAL )
-    base_.ty = cast( ubyte, MT_PTR )
-    base_.id = slot
+    if dstv <> 0 then
+        base_ = *dstv
+    else
+        dim as long slot = NewTempLocal( c, MT_AGG, sz )
+        if slot < 0 then return false
+        base_.kind = cast( ubyte, MV_LOCAL )
+        base_.ty = cast( ubyte, MT_PTR )
+        base_.id = slot
+    end if
 
     for k as long = 0 to sp->count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
@@ -76,6 +87,51 @@ function LowerClosureAddr_ _
             '' ...and a BYVAL capture a COPY made there, which the body then mutates
             '' IN THE OBJECT. Measured by running it: two calls to a 'sub[ byval n ]'
             '' doing 'n += v' print 11 then 12 while the outer n stays 10.
+            ''
+            '' A VAR-LENGTH STRING IS ASSIGNED, NOT STORED. The field is a whole
+            '' FBSTRING and a bitwise copy of a descriptor gives the closure and the
+            '' captured variable ONE buffer: measured, 'sub[ byval needle ]' then
+            '' 'needle = "zzz"' had the closure searching for zzz -- fbc's own C is
+            '' 'fb_StrAssign( &TMP + 8, -1, &NEEDLE, -1, 0 )' into a zeroed field,
+            '' with a generated destructor that fb_StrDeletes it.
+            dim as Tko.TypeId cvt = c.info->TypeOf_( cn )
+            dim as longint cvn
+            if IsStringType( c, cvt ) andalso (StrSwapKind_( c, cvt, cvn ) = 0) then
+                ZeroStrDescriptor( c, dst )
+                if LowerStringAssignTo( c, dst, Tko.NODE_NONE, cn ) = false then
+                    return false
+                end if
+                continue for
+            end if
+            '' A UDT THAT OWNS SOMETHING IS COPY-CONSTRUCTED, for the same reason and
+            '' with worse consequences: 'sub[ byval orig ]' over an
+            '' 'Array( of long )' stored the descriptor bitwise, so the closure and
+            '' the array owned ONE buffer and both destructors erased it --
+            '' 0xC0000374. The rule is the byval ARGUMENT's, one construct along:
+            '' the written copy constructor if there is one, else the synthesised
+            '' copy, else the bitwise store that serves a type owning nothing.
+            if cvt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId cvu = c.types->Unqualify( cvt )
+                if c.types->Kind( cvu ) = Tko.TK_UDT then
+                    dim as Tko.SymbolId ccc = CopyCtorOf_( c, cvu )
+                    if ccc <> Tko.SYMBOL_NONE then
+                        dim as MirValue csrc = LowerAddr( c, cn )
+                        if csrc.kind = cast( ubyte, MV_NONE ) then return false
+                        dim as FB.Array( of ulong ) ccargs
+                        ccargs.Push( cast( ulong, csrc.kind ) )
+                        ccargs.Push( cast( ulong, csrc.id ) )
+                        EmitStructorCall( c, ccc, -1, @dst, @ccargs )
+                        continue for
+                    end if
+                    if NeedsLetBody_( c, cvu ) then
+                        dim as MirValue csrc2 = LowerAddr( c, cn )
+                        if csrc2.kind = cast( ubyte, MV_NONE ) then return false
+                        if TypeNeedsInit_( c, cvu ) then CallImplicitCtor_( c, cvu, dst )
+                        CallImplicitLet_( c, cvu, dst, csrc2 )
+                        continue for
+                    end if
+                end if
+            end if
             v = LowerExpr( c, cn )
             if v.kind = cast( ubyte, MV_NONE ) then return false
         end if
