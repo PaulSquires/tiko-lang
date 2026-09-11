@@ -1,0 +1,82 @@
+global var i64 F3$f = @g
+global var i64 g = 7
+global var i64 F4$f = SUBP
+global var ptr F5$f = SUBP
+func i64 F3() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = load @@F3$f
+    ret %3
+}
+func void SUBP() {
+  entry0:
+    ret
+}
+func i64 F4() {
+  local i64 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = load @@F4$f
+    ret %3
+}
+func ptr F5() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = load @@F5$f
+    ret %3
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i64 want
+  local i64 want2
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr want
+    %5 = bitcast @@g
+    store @want, %5
+    %6 = call i64 F3()
+    %7 = load @want
+    %8 = icmp.eq %6, %7
+    %9 = neg %8
+    call.rtl void fb_PrintLongint(0, %9, 1)
+    %10 = call i64 F3()
+    call.rtl void fb_PrintULongint(0, %10, 1)
+    %11 = load @want
+    call.rtl void fb_PrintULongint(0, %11, 1)
+    %12 = alloca ptr want2
+    %13 = func.addr ptr SUBP
+    %14 = bitcast %13
+    store @want2, %14
+    %15 = call i64 F4()
+    %16 = load @want2
+    %17 = icmp.eq %15, %16
+    %18 = neg %17
+    call.rtl void fb_PrintLongint(0, %18, 1)
+    %19 = call ptr F5()
+    %20 = func.addr ptr SUBP
+    %21 = icmp.eq %19, %20
+    %22 = neg %21
+    call.rtl void fb_PrintLongint(0, %22, 1)
+    %23 = const i32 0
+    call.rtl void fb_End(%23)
+    %24 = load @$tmp0
+    ret %24
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 5 functions, 5 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

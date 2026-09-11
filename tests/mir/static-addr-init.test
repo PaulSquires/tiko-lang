@@ -1,0 +1,11 @@
+'' A static whose initialiser is an ADDRESS written into an INTEGER slot emits a
+'' ptrtoint constant expression; the pointer-typed spelling beside it is a bare symbol.
+'' The comparisons are differenced against fbc -- the ADDRESSES themselves differ
+'' between the two builds, which is why the test prints whether they match and not what
+'' they are.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-addr-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/static-addr-init.out

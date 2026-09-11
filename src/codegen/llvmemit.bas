@@ -1232,6 +1232,17 @@ sub EmitVarGlobal _
         init_ = "@""" & e.names->Spelling( g.initRelocFn ) & """"
     end if
 
+    '' AN ADDRESS IN AN INTEGER SLOT IS A ptrtoint. 'static f as uinteger =
+    '' cptr( uinteger, @s )' is an address written into an INTEGER global, and a bare
+    '' symbol there is 'global variable reference must have pointer type' -- LLVM
+    '' will not narrow a relocation implicitly. It is a constant expression, which
+    '' is what a static initialiser has to be.
+    dim as boolean isReloc = (g.initReloc >= 0)
+    if isReloc = false then isReloc = (g.initRelocFn <> 0)
+    if isReloc andalso (vt <> MT_PTR) andalso (vt <> MT_AGG) then
+        init_ = "ptrtoint (ptr " & init_ & " to " & LlvmType( vt ) & ")"
+    end if
+
     e.outp += nm & " = global " & ty & " " & init_ & _
               ", align " & str( AlignOf( e, vt, g.size ) ) & chr( 10 )
 end sub

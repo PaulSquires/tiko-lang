@@ -1,0 +1,160 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg a size 12
+  local ptr first_
+  local ptr last_
+  local ptr p
+  local ptr $tmp5
+  local ptr p$6
+  local ptr $tmp7
+  local ptr $tmp8
+  local ptr p$9
+  local ptr $tmp10
+  local ptr $tmp11
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const i64 10
+    %6 = field.addr @a, 0
+    %7 = trunc %5
+    store %6, %7
+    %8 = const i64 20
+    %9 = field.addr @a, 2
+    %10 = trunc %8
+    store %9, %10
+    %11 = const i64 30
+    %12 = field.addr @a, 4
+    %13 = trunc %11
+    store %12, %13
+    %14 = const i64 40
+    %15 = field.addr @a, 6
+    %16 = trunc %14
+    store %15, %16
+    %17 = const i64 50
+    %18 = field.addr @a, 8
+    %19 = trunc %17
+    store %18, %19
+    %20 = const i64 60
+    %21 = field.addr @a, 10
+    %22 = trunc %20
+    store %21, %22
+    %23 = alloca ptr first_
+    %24 = const i64 0
+    %25 = const i64 2
+    %26 = mul %24, %25
+    %27 = ptr.add @a, %26
+    store @first_, %27
+    %28 = alloca ptr last_
+    %29 = const i64 5
+    %30 = const i64 2
+    %31 = mul %29, %30
+    %32 = ptr.add @a, %31
+    store @last_, %32
+    %33 = alloca ptr p
+    %34 = load @first_
+    store @p, %34
+    %35 = alloca ptr $tmp5
+    %36 = load @last_
+    store @$tmp5, %36
+    %48 = alloca ptr p$6
+    %50 = alloca ptr $tmp7
+    %52 = alloca ptr $tmp8
+    %67 = alloca ptr p$9
+    %69 = alloca ptr $tmp10
+    %71 = alloca ptr $tmp11
+    br for.head1
+  for.head1:
+    %37 = load @p
+    %38 = load @$tmp5
+    %39 = icmp.sle %37, %38
+    condbr %39, for.body2, for.exit4
+  for.body2:
+    %40 = load @p
+    %41 = load %40
+    call.rtl void fb_PrintShort(0, %41, 0)
+    br for.step3
+  for.step3:
+    %42 = load @p
+    %43 = const ptr 1
+    %44 = bitcast %43
+    %45 = const i64 2
+    %46 = mul %44, %45
+    %47 = ptr.add %42, %46
+    store @p, %47
+    br for.head1
+  for.exit4:
+    call.rtl void fb_PrintVoid(0, 1)
+    %49 = load @last_
+    store @p$6, %49
+    %51 = load @first_
+    store @$tmp7, %51
+    %53 = const i64 1
+    %54 = neg %53
+    %55 = bitcast %54
+    store @$tmp8, %55
+    br for.head5
+  for.head5:
+    %56 = load @p$6
+    %57 = load @$tmp7
+    %58 = icmp.sge %56, %57
+    condbr %58, for.body6, for.exit8
+  for.body6:
+    %59 = load @p$6
+    %60 = load %59
+    call.rtl void fb_PrintShort(0, %60, 0)
+    br for.step7
+  for.step7:
+    %61 = load @p$6
+    %62 = load @$tmp8
+    %63 = bitcast %62
+    %64 = const i64 2
+    %65 = mul %63, %64
+    %66 = ptr.add %61, %65
+    store @p$6, %66
+    br for.head5
+  for.exit8:
+    call.rtl void fb_PrintVoid(0, 1)
+    %68 = load @first_
+    store @p$9, %68
+    %70 = load @last_
+    store @$tmp10, %70
+    %72 = const i64 2
+    %73 = bitcast %72
+    store @$tmp11, %73
+    br for.head9
+  for.head9:
+    %74 = load @p$9
+    %75 = load @$tmp10
+    %76 = icmp.sle %74, %75
+    condbr %76, for.body10, for.exit12
+  for.body10:
+    %77 = load @p$9
+    %78 = load %77
+    call.rtl void fb_PrintShort(0, %78, 0)
+    br for.step11
+  for.step11:
+    %79 = load @p$9
+    %80 = load @$tmp11
+    %81 = bitcast %80
+    %82 = const i64 2
+    %83 = mul %81, %82
+    %84 = ptr.add %79, %83
+    store @p$9, %84
+    br for.head9
+  for.exit12:
+    call.rtl void fb_PrintVoid(0, 1)
+    %85 = const i32 0
+    call.rtl void fb_End(%85)
+    %86 = load @$tmp0
+    ret %86
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintShort(i32 $0, i16 $1, i32 $2)
+declare void fb_PrintVoid(i32 $0, i32 $1)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 13 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance

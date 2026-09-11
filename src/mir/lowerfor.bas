@@ -399,12 +399,43 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     else
         inc = ConstInt( c, 1, ity )
     end if
-    dim as MirInst add_
-    add_.op = cast( ushort, M_ADD )
-    add_.ty = cast( ubyte, ity )
-    add_.a = cur2
-    add_.b = inc
-    dim as MirValue nxt = Emit( c, add_ )
+    '' A POINTER COUNTER STEPS WITH M_PTR_ADD. A loop over a pointer advanced
+    '' with a plain add over two pointers -- 'add ptr %t70, inttoptr (i64 1 to ptr)'
+    '' -- which is not an LLVM instruction, the same fault the binary operator had
+    '' before 7b. M_PTR_ADD takes a BYTE offset and the step is already scaled by the
+    '' pointee, so nothing scales twice.
+    dim as MirValue nxt
+    if ity = MT_PTR then
+        '' ...AND SCALED BY THE POINTEE. M_PTR_ADD takes a BYTE offset, and the step
+        '' of a pointer counter is in ELEMENTS: 'for p as short ptr = f to l' walked
+        '' one BYTE at a time and printed 10, 5120, 20, 7680 -- every value and the
+        '' half of the next one -- where fbc prints 10 20 30 40 50 60.
+        dim as MirType offT = MT_I64
+        if c.types->target.pointerBits = 32 then offT = MT_I32
+        dim as MirValue off = Coerce( c, inc, offT, false )
+        dim as long pesz = PtrArithElem_( c, c.info->TypeOf_( sp->a ) )
+        if pesz > 1 then
+            dim as MirInst sc
+            sc.op = cast( ushort, M_MUL )
+            sc.ty = cast( ubyte, offT )
+            sc.a = off
+            sc.b = ConstInt( c, pesz, offT )
+            off = Emit( c, sc )
+        end if
+        dim as MirInst pa
+        pa.op = cast( ushort, M_PTR_ADD )
+        pa.ty = cast( ubyte, MT_PTR )
+        pa.a = cur2
+        pa.b = off
+        nxt = Emit( c, pa )
+    else
+        dim as MirInst add_
+        add_.op = cast( ushort, M_ADD )
+        add_.ty = cast( ubyte, ity )
+        add_.a = cur2
+        add_.b = inc
+        nxt = Emit( c, add_ )
+    end if
     dim as MirInst st1
     st1.op = cast( ushort, M_STORE )
     st1.ty = cast( ubyte, MT_VOID )
