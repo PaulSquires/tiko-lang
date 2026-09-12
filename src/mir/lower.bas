@@ -1228,7 +1228,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' LowerAddr no address to take. See LowerCtorReturn_.
                 if LowerCtorReturn_( c, sp->a ) then return
 
-                dim as MirValue uval = LowerExpr( c, sp->a )
+                '' 'return this' IS THE OBJECT, not the receiver pointer -- see
+                '' ThisObjectAddr_. LowerExpr below yields the POINTER and it was
+                '' stored straight into the result slot.
+                dim as MirValue uval
+                dim as Tko.TypeId uthT = Tko.TYPE_NONE
+                dim as MirValue uthA
+                if ThisObjectAddr_( c, sp->a, uthT, uthA ) then
+                    dim as long uthSz = SizeOfType( c, uthT )
+                    if uthSz > 0 then uval = LowerExprLoad( c, uthA, MT_AGG, uthSz )
+                else
+                    uval = LowerExpr( c, sp->a )
+                end if
                 dim as boolean copied = false
                 if uval.kind = cast( ubyte, MV_NONE ) then
                     dim as MirValue usrc = LowerAddr( c, sp->a )

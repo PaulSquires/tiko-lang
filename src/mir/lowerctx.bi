@@ -234,6 +234,9 @@ declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirV
 '' would leak one per iteration.
 declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
 declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
+declare function ThisObjectAddr_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId, _
+      byref outAddr as MirValue, byval typeOnly as boolean = false ) as boolean
 declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
 declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )

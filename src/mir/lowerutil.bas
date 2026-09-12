@@ -209,6 +209,47 @@ function NormaliseBool _
     return Emit( c, ne )
 end function
 
+'' 'this' AS A VALUE: the ADDRESS OF THE OBJECT and the object's TYPE.
+''
+'' 'this' is bound as a POINTER -- that is what makes every member access a load
+'' through it -- so LowerExpr on the bare receiver yields the POINTER, and a
+'' result path that stores what LowerExpr gave it stored an address where the
+'' object belongs. Measured: 'function B3.Copy( ) as B3 : return this' handed back
+'' the pointer, and the caller read its three LONGs out of whatever the stack
+'' held -- three runs, three different wrong answers, and one of them looked
+'' right.
+''
+'' False for anything that is not the receiver, so a caller can try it first and
+'' carry on.
+'' typeOnly ANSWERS WITHOUT EMITTING, because a caller that may still DECLINE has to
+'' ask before it commits: taking the address first left a built temporary behind in
+'' front of a 'return false', which is the trap the comment in UdtConvTemp_ names.
+function ThisObjectAddr_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId, _
+      byref outAddr as MirValue, byval typeOnly as boolean = false ) as boolean
+
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_IDENT then return false
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( t ) <> Tko.TK_POINTER then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if ip->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
+    dim as Tko.TypeId pin = c.types->Unqualify( c.types->Inner( t ) )
+    if pin = Tko.TYPE_NONE then return false
+    if c.types->Kind( pin ) <> Tko.TK_UDT then return false
+    outT = pin
+    if typeOnly then return true
+    '' THE SLOT HOLDS THE POINTER, so the object's address is the slot's VALUE.
+    dim as MirValue sa = LowerAddr( c, e )
+    if sa.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue pv = LowerExprLoad( c, sa, MT_PTR )
+    if pv.kind = cast( ubyte, MV_NONE ) then return false
+    outT = pin
+    outAddr = pv
+    return true
+end function
+
 function CoerceTy _
     ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
       byval srcTid as Tko.TypeId, _

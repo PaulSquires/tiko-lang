@@ -93,9 +93,21 @@ private function SretCopyResult_ _
 
     '' AND THE SOURCE MUST BE ONE OF THESE. 'return T( 1 )' constructs a temporary
     '' somewhere this cannot see, and 'return' with no value has nothing to copy.
-    dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+    '' 'this' IS THE OBJECT AND ITS ADDRESS IS THE POINTER'S VALUE -- see
+    '' ThisObjectAddr_. Its TypeOf_ is a POINTER, so the test below refused it and
+    '' the generic path stored the address as the result.
+    '' THE TYPE FIRST AND THE ADDRESS AFTER, because this can still decline: asking
+    '' for the address first built a tuple temporary in front of a 'return false'.
+    dim as Tko.TypeId vt = Tko.TYPE_NONE
+    dim as MirValue src
+    dim as boolean isThis = ThisObjectAddr_( c, valueE, vt, src, true )
+    if isThis = false then vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
     if vt <> c.types->Unqualify( rt ) then return false
-    dim as MirValue src = LowerAddr( c, valueE )
+    if isThis then
+        if ThisObjectAddr_( c, valueE, vt, src ) = false then return false
+    else
+        src = LowerAddr( c, valueE )
+    end if
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirValue sa
@@ -125,9 +137,21 @@ function SretAssignResult_ _
 
     if c.sretParam < 0 then return false
     if c.types->Kind( rt ) <> Tko.TK_UDT then return false
-    dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+    '' 'this' IS THE OBJECT AND ITS ADDRESS IS THE POINTER'S VALUE -- see
+    '' ThisObjectAddr_. Its TypeOf_ is a POINTER, so the test below refused it and
+    '' the generic path stored the address as the result.
+    '' THE TYPE FIRST AND THE ADDRESS AFTER, because this can still decline: asking
+    '' for the address first built a tuple temporary in front of a 'return false'.
+    dim as Tko.TypeId vt = Tko.TYPE_NONE
+    dim as MirValue src
+    dim as boolean isThis = ThisObjectAddr_( c, valueE, vt, src, true )
+    if isThis = false then vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
     if vt <> c.types->Unqualify( rt ) then return false
-    dim as MirValue src = LowerAddr( c, valueE )
+    if isThis then
+        if ThisObjectAddr_( c, valueE, vt, src ) = false then return false
+    else
+        src = LowerAddr( c, valueE )
+    end if
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirValue sa
