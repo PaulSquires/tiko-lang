@@ -13,20 +13,21 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr i
     store @i, @@$str0
     %5 = load @i
-    call.rtl void fb_PrintString(0, %5, 1)
-    %6 = alloca ptr rz
+    %6 = call.rtl ptr fb_StrAllocTempDescZ(%5)
+    call.rtl void fb_PrintString(0, %6, 1)
+    %7 = alloca ptr rz
     store @rz, @@$str1
-    %7 = load @rz
-    %8 = call.rtl ptr fb_StrAllocTempDescZ(%7)
-    call.rtl void fb_PrintString(0, %8, 1)
-    %9 = const i32 0
-    call.rtl void fb_End(%9)
-    %10 = load @$tmp0
-    ret %10
+    %8 = load @rz
+    %9 = call.rtl ptr fb_StrAllocTempDescZ(%8)
+    call.rtl void fb_PrintString(0, %9, 1)
+    %10 = const i32 0
+    call.rtl void fb_End(%10)
+    %11 = load @$tmp0
+    ret %11
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 17 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 18 insts, 0 statements not lowered, 0 scope imbalance

@@ -15,8 +15,15 @@
 # an output difference. A file NEITHER builds is silent: the diagnostics tests are
 # meant not to compile, and so are several MIR sources.
 #
+# TIMEOUT AND </dev/null ON EVERY RUN, because a test source may be INTERACTIVE.
+# tests/mir/src/intrinsic-expr-type.bas writes 'print input( 3 )', and INPUT blocks on
+# the console in BOTH compilers -- measured, fbc times out too with stdin at /dev/null.
+# Without the guard this script simply stopped there, one binary spinning at 100% for
+# over an hour. A file that times out under EITHER compiler is reported and skipped: it
+# is not a differential, it is a source this instrument cannot run.
+#
 # Not a gate: it is slow (two compilers over 500 files) and some sources are
-# deliberately partial. Read the three counts.
+# deliberately partial. Read the counts.
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -26,7 +33,8 @@ WK=${TMPDIR:-/tmp}/goldenrun.$$
 mkdir -p "$WK"
 export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/win64-msvc"
 
-nboth=0; nsame=0; ndiff=0; ntonly=0; nfonly=0; nneither=0
+RUNTIMEOUT=${RUNTIMEOUT:-10}
+nboth=0; nsame=0; ndiff=0; ntonly=0; nfonly=0; nneither=0; nhang=0
 for f in tests/*/src/*.bas ; do
     n=$(basename "$f" .bas)
     tok=0; fbk=0
@@ -34,9 +42,13 @@ for f in tests/*/src/*.bas ; do
     "$FBC" "$f" -x "$WK/f_$n.exe" >/dev/null 2>&1 && [ -f "$WK/f_$n.exe" ] && fbk=1
     if [ $tok = 1 ] && [ $fbk = 1 ] ; then
         nboth=$((nboth+1))
-        ( cd "$WK" && ./t_$n.exe > t_$n.txt 2>&1 ; echo $? > t_$n.rc )
-        ( cd "$WK" && ./f_$n.exe > f_$n.txt 2>&1 ; echo $? > f_$n.rc )
-        if cmp -s "$WK/t_$n.txt" "$WK/f_$n.txt" && cmp -s "$WK/t_$n.rc" "$WK/f_$n.rc" ; then
+        ( cd "$WK" && timeout "$RUNTIMEOUT" ./t_$n.exe < /dev/null > t_$n.txt 2>&1 ; echo $? > t_$n.rc )
+        ( cd "$WK" && timeout "$RUNTIMEOUT" ./f_$n.exe < /dev/null > f_$n.txt 2>&1 ; echo $? > f_$n.rc )
+        # 124 is timeout(1)'s own exit code.
+        if [ "$(cat "$WK/t_$n.rc")" = 124 ] || [ "$(cat "$WK/f_$n.rc")" = 124 ] ; then
+            nhang=$((nhang+1))
+            echo "goldenrun: TIMEOUT   $f (tiko=$(cat "$WK/t_$n.rc") fbc=$(cat "$WK/f_$n.rc"))"
+        elif cmp -s "$WK/t_$n.txt" "$WK/f_$n.txt" && cmp -s "$WK/t_$n.rc" "$WK/f_$n.rc" ; then
             nsame=$((nsame+1))
         else
             ndiff=$((ndiff+1))
@@ -54,6 +66,6 @@ for f in tests/*/src/*.bas ; do
         nneither=$((nneither+1))
     fi
 done
-echo "goldenrun: $nboth both build, $nsame match, $ndiff DIFFER"
+echo "goldenrun: $nboth both build, $nsame match, $ndiff DIFFER, $nhang timed out"
 echo "goldenrun: $ntonly only tiko builds, $nfonly only fbc builds, $nneither neither"
 rm -rf "$WK"

@@ -154,8 +154,29 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
         '' Inferred only. A 'dim as T x' whose T did not resolve stays untyped.
         if ip->b = Tko.NODE_NONE then continue for
         dim as Tko.TypeId vt = TypeOf_( c, ip->b )
+        '' A STRING LITERAL INFERS A STRING -- UNLESS THE VAR IS AN ALIAS, and then it
+        '' infers a ZSTRING. Measured, in one file so the two cannot drift:
+        ''
+        ''     var s = "abc"          #print typeof( s )   STRING
+        ''     var byref i = "abc"    #print typeof( i )   ZSTRING
+        ''
+        '' A VALUE var COPIES the literal into a descriptor; a BYREF one BINDS to the
+        '' literal's own storage, which is a zstring and has no descriptor at all.
+        '' Typing the alias STRING put a 'char*' in the slot and then passed it to
+        '' fb_PrintString, which takes an FBSTRING* -- 'print i' SEGFAULTED. The
+        '' 'dim byref rz as zstring = "foo"' on the next line of the same test was
+        '' right, because it says its type rather than inferring one, and its print
+        '' borrows a temporary descriptor as it should.
+        ''
+        '' NOT VISIBLE TO ANY EXISTING INSTRUMENT: it lowers, it verifies, it links,
+        '' and --dump-ir stops before the emitter. build/goldenrun.sh is what found
+        '' it, by RUNNING the test's own source against fbc.
         if c.ast->Kind( ip->b ) = Tko.N_STRING_LIT then
-            vt = c.types->Builtin( Tko.TY_STRING )
+            if (s->flags and Tko.SYMF_BYREF) <> 0 then
+                vt = c.types->Builtin( Tko.TY_ZSTRING )
+            else
+                vt = c.types->Builtin( Tko.TY_STRING )
+            end if
         end if
 
         '' 'var s = *pz' OVER A 'zstring ptr' IS A STRING. Measured with fbc's own
@@ -178,7 +199,13 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
             if c.types->Kind( ve ) = Tko.TK_ARRAY then ve = c.types->Inner( ve )
             if ve <> Tko.TYPE_NONE then
                 if c.types->Kind( ve ) = Tko.TK_BUILTIN then
-                    if c.types->BuiltinOf( ve ) = Tko.TY_ZSTRING then
+                    '' ...AND NOT FOR AN ALIAS, which BINDS rather than copies: the
+                    '' whole reason 'var s = *pz' becomes a STRING is that a var
+                    '' cannot HOLD an unsized zstring, and a reference does not hold
+                    '' it at all. Without the exemption this rewrote the ZSTRING the
+                    '' literal rule above had just chosen, straight back to STRING.
+                    if (c.types->BuiltinOf( ve ) = Tko.TY_ZSTRING) andalso _
+                       ((s->flags and Tko.SYMF_BYREF) = 0) then
                         vt = c.types->Builtin( Tko.TY_STRING )
                     end if
                 end if
