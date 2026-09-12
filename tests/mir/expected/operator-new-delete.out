@@ -80,7 +80,7 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr p1
-    %5 = call.rtl ptr calloc(8, 1)
+    %5 = call ptr _ZN3BARnwEu8UINTEGER(8)
     %6 = alloca ptr $tmp2
     store @$tmp2, %5
     %7 = load @$tmp2
@@ -92,13 +92,13 @@ func i32 main(i32 $0, ptr $1) {
     %16 = alloca ptr $tmp4
     condbr %10, del.body1, del.join2
   del.body1:
-    call.rtl void free(%8)
+    call void _ZN3BARdlEPv(%8)
     br del.join2
   del.join2:
     %12 = const i64 2
     %13 = const i64 8
     %14 = mul %12, %13
-    %15 = call.rtl ptr calloc(%14, 1)
+    %15 = call ptr _ZN3BARnaEu8UINTEGER(%14)
     store @$tmp4, %15
     %17 = load @$tmp4
     store @p2, %17
@@ -107,7 +107,7 @@ func i32 main(i32 $0, ptr $1) {
     %20 = icmp.ne %18, %19
     condbr %20, del.body3, del.join4
   del.body3:
-    call.rtl void free(%18)
+    call void _ZN3BARdaEPv(%18)
     br del.join4
   del.join4:
     %21 = const i32 0
@@ -116,7 +116,6 @@ func i32 main(i32 $0, ptr $1) {
     ret %22
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare ptr calloc(i64 $0, i64 $1)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 9 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

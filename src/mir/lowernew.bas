@@ -89,10 +89,22 @@ private function LowerNewArray_ _
         if raw.kind = cast( ubyte, MV_NONE ) then return false
         raw = Coerce( c, raw, MT_PTR, true )
     else
-        dim as FB.Array( of ulong ) aa
-        aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
-        aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-        raw = EmitRtl( c, RTL_CALLOC, aa )
+        '' ...AND THE ARRAY FORM TAKES 'operator new[]', which is a DIFFERENT operator
+        '' with its own Itanium code -- _ZN3BARnaEu8UINTEGER against the scalar's
+        '' _ZN3BARnwEu8UINTEGER. Measured, fbc calls it with the WHOLE byte count,
+        '' header included: 'new bar[2]' over an 8-byte bar is new[]16.
+        dim as Tko.SymbolId opNewA = _
+            StructorWithArity( c, StructorOf( c, el, "new[]" ), 1 )
+        if opNewA <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) nb
+            nb.Push( cast( ulong, bytes_.kind ) ) : nb.Push( cast( ulong, bytes_.id ) )
+            raw = EmitDirectCall_( c, opNewA, MT_PTR, nb )
+        else
+            dim as FB.Array( of ulong ) aa
+            aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
+            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+            raw = EmitRtl( c, RTL_CALLOC, aa )
+        end if
     end if
     if raw.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -262,12 +274,34 @@ function LowerNew_ _
         if raw.kind = cast( ubyte, MV_NONE ) then return false
         raw = Coerce( c, raw, MT_PTR, true )
     else
-        '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
-        '' passes 1, folding the whole size into the first -- not the other way round.
-        dim as FB.Array( of ulong ) aa
-        aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
-        aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-        raw = EmitRtl( c, RTL_CALLOC, aa )
+        '' A TYPE'S OWN 'operator new' IS THE ALLOCATOR, and it was never asked for.
+        '' Measured, fbc calls it and prints from inside it:
+        ''
+        ''     type bar : declare static operator new( byval size as uinteger ) ...
+        ''     dim as bar ptr p = new bar     ->  _ZN3BARnwEu8UINTEGER( 8 )
+        ''
+        '' tiko emitted the runtime calloc instead, so a type that manages its own
+        '' storage silently got the wrong allocator -- and its operator, which tiko
+        '' already mangles and EMITS correctly, was never called by anything.
+        '' tests/mir/src/operator-new-delete.bas printed nothing at all where fbc
+        '' prints four lines.
+        ''
+        '' STATIC, so there is no receiver: 'void* _ZN3BARnwEu8UINTEGER( uint64 )'
+        '' takes the BYTE SIZE and nothing else.
+        dim as Tko.SymbolId opNew = _
+            StructorWithArity( c, StructorOf( c, el, "new" ), 1 )
+        if opNew <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) na
+            na.Push( cast( ulong, MV_CONST_INT ) ) : na.Push( cast( ulong, esz ) )
+            raw = EmitDirectCall_( c, opNew, MT_PTR, na )
+        else
+            '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
+            '' passes 1, folding the whole size into the first -- not the other way round.
+            dim as FB.Array( of ulong ) aa
+            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
+            aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
+            raw = EmitRtl( c, RTL_CALLOC, aa )
+        end if
     end if
     if raw.kind = cast( ubyte, MV_NONE ) then return false
 

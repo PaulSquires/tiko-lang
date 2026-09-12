@@ -216,7 +216,12 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if dtor = Tko.SYMBOL_NONE then
         implDtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsDtor_( c, el )
     end if
-    dim as boolean isArray = ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARRAY) <> 0)
+    '' THE PARSER RECORDS 'delete[]' IN 'extra', NOT IN THE NODE FLAGS -- see the
+    '' KW_DELETE case, which writes 'sp.extra = 1' for the bracketed form. Reading
+    '' NF_ARRAY here answered FALSE for every 'delete[]' there has ever been, so the
+    '' array form chose the SCALAR 'operator delete' and the guard below that refuses
+    '' an array delete over a type with a destructor never fired either.
+    dim as boolean isArray = (sp->extra <> 0)
     '' Hoisted to a boolean local: 'x <> y orelse b' mixes a comparison with a boolean
     '' and fbc warns 38 on it.
     dim as boolean anyDtor = (dtor <> Tko.SYMBOL_NONE)
@@ -258,9 +263,26 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         EmitRtl( c, StrRtlFor_( c, el, RTL_STR_DELETE ), sda )
     end if
 
-    dim as FB.Array( of ulong ) fargs
-    fargs.Push( cast( ulong, p.kind ) ) : fargs.Push( cast( ulong, p.id ) )
-    EmitRtl( c, RTL_FREE, fargs )
+    '' A TYPE'S OWN 'operator delete' IS THE DEALLOCATOR, the mirror of the
+    '' 'operator new' lowernew.bas now calls. Measured, fbc calls it:
+    ''
+    ''     delete p    ->  _ZN3BARdlEPv( (void*)P$0 )
+    ''
+    '' and tiko emitted the runtime free instead, so a type that allocated through
+    '' its own operator was released through a different one. STATIC, so the pointer
+    '' is the only argument. The DESTRUCTOR above still runs either way: the two are
+    '' separate obligations and fbc emits both.
+    dim as Tko.SymbolId opDel = _
+        StructorWithArity( c, StructorOf( c, el, iif( isArray, "delete[]", "delete" ) ), 1 )
+    if opDel <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) da
+        da.Push( cast( ulong, p.kind ) ) : da.Push( cast( ulong, p.id ) )
+        EmitDirectCall_( c, opDel, MT_VOID, da )
+    else
+        dim as FB.Array( of ulong ) fargs
+        fargs.Push( cast( ulong, p.kind ) ) : fargs.Push( cast( ulong, p.id ) )
+        EmitRtl( c, RTL_FREE, fargs )
+    end if
 
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
     c.curBlock = joinB

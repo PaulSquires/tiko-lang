@@ -229,7 +229,7 @@ func i32 main(i32 $0, ptr $1) {
     %17 = call ptr _ZN9PUBLICOPSadEv(@po)
     store @pp1, %17
     %18 = alloca ptr ap
-    %19 = call.rtl ptr calloc(8, 1)
+    %19 = call ptr _ZN5ALLOCnwEu8UINTEGER(8)
     %20 = alloca ptr $tmp9
     store @$tmp9, %19
     %21 = load @$tmp9
@@ -256,7 +256,7 @@ func i32 main(i32 $0, ptr $1) {
     %79 = alloca ptr pf3
     condbr %24, del.body1, del.join2
   del.body1:
-    call.rtl void free(%22)
+    call void _ZN5ALLOCdlEPS_(%22)
     br del.join2
   del.join2:
     %25 = call i64 _ZN4CONVcvu7INTEGEREv(@cv)
@@ -344,7 +344,6 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr calloc(i64 $0, i64 $1)
-declare void free(ptr $0)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
