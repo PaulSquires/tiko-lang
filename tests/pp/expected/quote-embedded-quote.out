@@ -8,7 +8,7 @@ global str $str6 ""x""
 global str $str7 "$"""x""" = """x""""
 global str $str8 "a b"
 global str $str9 "$"a b" = "a b""
-global str $str10 "LEN( $"""a\b""" ) = 5"
+global str $str10 "len( $"""a\b""" ) = 5"
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:

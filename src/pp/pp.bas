@@ -666,7 +666,34 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
     end if
 
     dim as string spellText = TokenKindText( k )
-    if len( spellText ) > 0 then return spellText
+    if len( spellText ) > 0 then
+        '' A KEYWORD IS SPELLED AS IT WAS WRITTEN, not as the table spells it.
+        '' TokenKindText is UPPERCASE, so a stringize of one came back shouting:
+        ''
+        ''     #define S( x ) #x
+        ''     S( integer ptr )     fbc: 'integer ptr'   tiko: 'INTEGER PTR'
+        ''
+        '' The IDENTIFIER branch above has read the source span since it was
+        '' written -- which is why 'S( Hello World )' was right all along and
+        '' only the keywords were wrong.
+        ''
+        '' THE SAME GUARD IT USES: take the span only when it FOLDS TO the
+        '' canonical text. A synthesised or pasted token has its loc repointed at
+        '' the use site, so the span there is somebody else's source, and the
+        '' table's spelling is the right answer for it.
+        dim as DecodedLoc kd = e.src->Decode( t.loc )
+        dim as SourceFile ptr kf = e.src->FileAt( kd.file )
+        if (kf <> 0) andalso (t.length > 0) then
+            if (kd.offset + t.length) <= kf->text.Count then
+                dim as string ks = space( t.length )
+                memcpy( strptr( ks ), @kf->text[kd.offset], t.length )
+                if Text.LowerAscii( ks ) = Text.LowerAscii( spellText ) then
+                    return ks
+                end if
+            end if
+        end if
+        return spellText
+    end if
 
     '' A LITERAL's text comes from ITS OWN recorded file and span, never from the token's
     '' loc. RelexInto repoints synthesised tokens at the use site so diagnostics land

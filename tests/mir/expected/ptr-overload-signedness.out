@@ -1,6 +1,6 @@
-global str $str0 "LONGINT PTR"
-global str $str1 "INTEGER PTR"
-global str $str2 "ULONGINT PTR"
+global str $str0 "longint ptr"
+global str $str1 "integer ptr"
+global str $str2 "ulongint ptr"
 global str $str3 "|"
 func ptr _Z1FPx(ptr $0) {
   local agg $tmp0 size 24
