@@ -89,15 +89,30 @@ xargs -a build/.runcorpus.lst -d '
 
     # THE REFERENCE FIRST, because a file neither compiler will build is not a finding
     # and there is no point paying for the tiko half.
+    #
+    # ...AND WITH THE DIALECT THE FILE IS WRITTEN IN. The corpus keeps its non-fb
+    # dialects in directories, the way fbcs own runner does, and most of those files
+    # carry no #lang line at all -- the RUNNER is expected to pass -lang. Without it
+    # the reference failed on eighteen files and this scan recorded them as
+    # "neither compiler builds it", which was a claim about fbc that is not true:
+    # fbc64 -lang qb qb/rnd.bas builds clean, and so does every one of the four
+    # deprecated/ files under -lang deprecated. They belong in the tiko column --
+    # tiko-lang is fb-dialect only and declines them -- not in fbcs.
+    dialect=""
+    case "$1" in
+        */qb/*)         dialect="-lang qb" ;;
+        */fblite/*)     dialect="-lang fblite" ;;
+        */deprecated/*) dialect="-lang deprecated" ;;
+    esac
     ref=fbc
-    if ! timeout 120 "$FBC" $FBCUNIT "$1" -x "$d/f.exe" > "$d/f.build" 2>&1 ; then
+    if ! timeout 120 "$FBC" $dialect $FBCUNIT "$1" -x "$d/f.exe" > "$d/f.build" 2>&1 ; then
         ref=fbcm
         if [ ! -x "$FBCM" ]; then
             echo "fbcfail $1: fbc will not build it and fbc-modern is not installed" > "$part"
             rm -rf "$d"
             exit 0
         fi
-        if ! timeout 120 "$FBCM" $FBCUNIT "$1" -x "$d/f.exe" > "$d/f.build" 2>&1 ; then
+        if ! timeout 120 "$FBCM" $dialect $FBCUNIT "$1" -x "$d/f.exe" > "$d/f.build" 2>&1 ; then
             why=$(grep -m1 -iE "error [0-9]+" "$d/f.build" | cut -c1-80)
             [ -n "$why" ] || why="no diagnostic"
             echo "fbcfail $1: neither compiler builds it -- $why" > "$part"
@@ -176,9 +191,19 @@ crash=$(grep -c '^crash ' build/.run.out || true)
 exitn=$(grep -c '^exit ' build/.run.out || true)
 outn=$(grep -c '^output ' build/.run.out || true)
 ok=$((want - fbcfail - bld - hang - crash - exitn - outn))
+# THE DIALECT FILES, COUNTED SEPARATELY. tiko-lang is fb-dialect only, so a qb,
+# fblite or deprecated file is out of scope by decision rather than by defect --
+# and it goes wrong in TWO ways, which is why they are counted rather than skipped.
+# One carries a #lang line and is declined outright; one carries none, because the
+# runner is meant to pass -lang, and tiko compiles it as fb and gives a DIFFERENT
+# ANSWER in silence. Folding either into the plain totals made the score look like a
+# statement about correctness when it is a statement about scope.
+dialectfiles=$(grep -cE "/(qb|fblite|deprecated)/|-(qb|fblite)[.]bas" build/.runcorpus.lst)
+dialectbad=$(grep -E "^(build|exit|output|hang|crash) " build/.run.out | grep -cE "/(qb|fblite|deprecated)/|-(qb|fblite)[.]bas")
 echo "runscan: $want files tagged COMPILE_AND_RUN_OK"
 echo "runscan: $ok match the reference byte for byte, $fbcfail no reference can build or run"
 echo "runscan: $bld tiko will not build, $hang hang, $crash CRASH, $exitn differ in EXIT CODE, $outn in OUTPUT"
+echo "runscan: of those, $dialectfiles are qb/fblite/deprecated DIALECT files -- out of scope; $dialectbad of them do not match"
 echo "runscan: --- crashes ---"
 grep '^crash ' build/.run.out | sed 's/^/runscan:  /' | head -15
 echo "runscan: --- output mismatches ---"

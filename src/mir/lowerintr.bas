@@ -96,12 +96,21 @@ end function
 '' resume labels that are null in -lang fb. The return value is the address of the
 '' installed handler, and fbc jumps to it.
 ''
-'' tiko-lang does not implement ON ERROR -- there is no indirect-branch terminator in MIR and
-'' no address-of-label value -- so no handler is ever installed, the runtime aborts, and
-'' the call does not return. The block therefore ends UNREACHABLE. That is exactly right
-'' for all 191 corpus sites, every one of which is an abort path in a runtime header
-'' (comptr.bi, result.bi, channel.bi, optional.bi), and it would be WRONG for a program
-'' that installed a handler -- which tiko-lang already cannot compile, and still declines.
+'' THE RETURN VALUE IS THE JUMP, and it was being thrown away. This block ended
+'' UNREACHABLE, on the reasoning that tiko-lang had neither an indirect-branch
+'' terminator nor an address-of-label value and so could not install a handler at
+'' all. Both have existed since the -exx bounds checks were lowered: ON ERROR GOTO
+'' already emits fb_ErrorSetHandler with a real 'blockaddr', and a failed bounds
+'' check already jumps through EmitErrorJump_. Only 'error n' was left behind.
+''
+'' So every program with a handler ran off the end of the throw: measured, an eight
+'' line 'on error goto caught : error( 5 )' printed NOTHING and exited 3 under
+'' tiko-lang where fbc prints 'caught ok', and com/comptr-error-path.bas -- which
+'' raises inside a sub -- exited 139.
+''
+'' WHERE THE PROCEDURE HAS NO HANDLER NOTHING CHANGES: ResolveErrorJumps_ turns an
+'' indirect jump with no destinations back into UNREACHABLE, which is what the 191
+'' abort sites in the runtime headers were relying on and still get.
 function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then return false
@@ -122,9 +131,16 @@ function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     args.Push( cast( ulong, c.m->AddStringLiteral( fname, *c.names ) ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    EmitRtl( c, RTL_ERROR_THROW, args )
+    dim as MirValue jr = EmitRtl( c, RTL_ERROR_THROW, args )
 
-    Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    if jr.kind = cast( ubyte, MV_NONE ) then
+        Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    else
+        '' The destinations are patched in at the end of the procedure, because a
+        '' raise can be lowered BEFORE the ON ERROR that installs the handler.
+        c.errIndirectBlocks.Push( cast( ulong, c.curBlock ) )
+        Terminate( c, MTERM_INDIRECTBR, -1, -1, jr )
+    end if
     c.curBlock = NewBlock( c, "error.after" )
     return true
 end function
