@@ -96,6 +96,44 @@ private function LitBits_ _
     return 64
 end function
 
+'' THE SCOPE A DOTTED PREFIX NAMES -- 'a' in 'a.C', 'a.b' in 'a.b.C'. Walked one
+'' segment at a time, because a namespace symbol carries the scope it opens in
+'' 'inner' and nothing else relates the two. SCOPE_NONE for anything that is not a
+'' scope-opening name, which is the honest answer for 'someUdtValue.field'.
+private function DottedScope_ _
+    ( byref ast as Tko.AstArena, byval syms as Tko.SymbolTable ptr, _
+      byval scope_ as Tko.ScopeId, byval id as Tko.NodeId, _
+      byval depth as long ) as Tko.ScopeId
+
+    if syms = 0 then return Tko.SCOPE_NONE
+    if id = Tko.NODE_NONE then return Tko.SCOPE_NONE
+    if depth > 16 then return Tko.SCOPE_NONE
+    select case ast.Kind( id )
+    case Tko.N_IDENT
+        dim as Tko.InternId nm = _
+            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
+        dim as Tko.SymbolId sid = syms->Lookup( scope_, nm )
+        if sid = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
+        dim as Tko.Symbol ptr s = syms->SymbolAt( sid )
+        if s = 0 then return Tko.SCOPE_NONE
+        return s->inner
+    case Tko.N_MEMBER
+        dim as Tko.BinaryPayload ptr mb = _
+            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+        dim as Tko.ScopeId outer = DottedScope_( ast, syms, scope_, mb->lhs, depth + 1 )
+        if outer = Tko.SCOPE_NONE then return Tko.SCOPE_NONE
+        if ast.Kind( mb->rhs ) <> Tko.N_IDENT then return Tko.SCOPE_NONE
+        dim as Tko.InternId rn = _
+            ast.idents[cast( long, ast.nodes[cast( long, mb->rhs )].data )].name
+        dim as Tko.SymbolId rid = syms->LookupLocal( outer, rn )
+        if rid = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
+        dim as Tko.Symbol ptr rs = syms->SymbolAt( rid )
+        if rs = 0 then return Tko.SCOPE_NONE
+        return rs->inner
+    end select
+    return Tko.SCOPE_NONE
+end function
+
 private function CVNone_( ) as ConstVal
     dim as ConstVal r
     return r
@@ -714,6 +752,48 @@ function ConstOf _
         dim as longint iv = cast( longint, lp->intValue )
         return CVWU_( iv, LitBits_( lp->suffix, iv, intBits ), _
                       SuffixUnsigned_( lp->suffix ) )
+
+    case Tko.N_MEMBER
+        '' A QUALIFIED NAMED CONSTANT -- 'Ns.EA'. The unqualified form has folded
+        '' since the N_IDENT case below existed; the dotted one had no case at all,
+        '' so it was 'not a constant' and every construct that demands one refused
+        '' it. Measured: 'select case as const k : case Ns.EA' is TKO0614 where fbc
+        '' compiles it -- and tiko-lang's OWN parser writes exactly that over
+        '' Tko.KW_PRIVATE, which is how the bootstrap attempt found it.
+        ''
+        '' THE LEFT SIDE NAMES A SCOPE, walked one segment at a time so 'a.b.C'
+        '' works: a namespace symbol carries the scope it opens in 'inner'.
+        if syms = 0 then return CVNone_( )
+        if depth >= 16 then return CVNone_( )
+        dim as Tko.BinaryPayload ptr qm = _
+            @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
+        if ast.Kind( qm->rhs ) <> Tko.N_IDENT then return CVNone_( )
+        dim as Tko.ScopeId qs = DottedScope_( ast, syms, scope_, qm->lhs, 0 )
+        if qs = Tko.SCOPE_NONE then return CVNone_( )
+        dim as Tko.InternId qn = _
+            ast.idents[cast( long, ast.nodes[cast( long, qm->rhs )].data )].name
+        dim as Tko.SymbolId qsid = syms->LookupLocal( qs, qn )
+        if qsid = Tko.SYMBOL_NONE then return CVNone_( )
+        dim as Tko.Symbol ptr qsy = syms->SymbolAt( qsid )
+        if qsy = 0 then return CVNone_( )
+        '' An ENUM MEMBER keeps THE VALUE in 'payload' -- see the N_IDENT case.
+        if qsy->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
+            return CVW_( qsy->payload, 64 )
+        end if
+        '' A qualified 'const' is the ordinary constant path, re-entered at the
+        '' declaration's own scope so ITS initialiser folds in the right place.
+        if qsy->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return CVNone_( )
+        if (qsy->flags and Tko.SYMF_BUILTIN) <> 0 then
+            return CVW_( cast( longint, qsy->payload ), 32 )
+        end if
+        if qsy->payload = 0 then return CVNone_( )
+        dim as Tko.NodeId qitem = cast( Tko.NodeId, qsy->payload )
+        if ast.Kind( qitem ) <> Tko.N_VAR_ITEM then return CVNone_( )
+        dim as Tko.StmtPayload ptr qip = _
+            @ast.stmts[cast( long, ast.nodes[cast( long, qitem )].data )]
+        dim as ConstVal qvv = ConstOf( ast, qip->b, src, names, intBits, syms, _
+                                       qsy->parent, depth + 1, types, info )
+        return ClampConstToTypeRef( ast, qip->a, qvv, intBits )
 
     case Tko.N_IDENT
         '' A NAMED CONSTANT in a constant expression. 'const MAX = 9' followed by
