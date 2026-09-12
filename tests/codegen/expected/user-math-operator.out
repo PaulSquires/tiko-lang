@@ -43,19 +43,17 @@ L0:
   %t9 = call float @"_Zv13absRK4TABS"(ptr %s2)
   call void @"fb_PrintSingle"(i32 0, float %t9, i32 1)
   %s3 = alloca float, align 4
-  %t12 = fptrunc double 0x3FE0000000000000 to float
-  %t13 = call float @"asinf"(float %t12)
-  store float %t13, ptr %s3, align 4
-  %t15 = call double @"asin"(double 0x3FE0000000000000)
+  %t12 = call float @"asinf"(float 0x3FE0000000000000)
+  store float %t12, ptr %s3, align 4
+  %t14 = fpext float 0x3FE0000000000000 to double
+  %t15 = call double @"asin"(double %t14)
   %t16 = load float, ptr %s3, align 4
   %t17 = fptrunc double %t15 to float
-  %t18 = fpext float %t17 to double
-  %t19 = fpext float %t16 to double
-  %t20 = fsub double %t18, %t19
-  call void @"fb_PrintDouble"(i32 0, double %t20, i32 1)
+  %t18 = fsub float %t17, %t16
+  call void @"fb_PrintSingle"(i32 0, float %t18, i32 1)
   call void @"fb_End"(i32 0)
-  %t22 = load i32, ptr %s0, align 4
-  ret i32 %t22
+  %t20 = load i32, ptr %s0, align 4
+  ret i32 %t20
 
 }
 
@@ -63,5 +61,4 @@ declare void @"fb_Init"(i32, ptr, i32)
 declare ptr @"memset"(ptr, i32, i64)
 declare void @"fb_PrintSingle"(i32, float, i32)
 declare float @"asinf"(float)
-declare void @"fb_PrintDouble"(i32, double, i32)
 declare void @"fb_End"(i32)

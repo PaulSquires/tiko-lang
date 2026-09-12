@@ -128,8 +128,14 @@ func void VIATEMP() {
     %10 = field.addr @b, 16
     store %10, 0
     %11 = alloca ptr $tmp2
-    %12 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
-    %13 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
+    %12 = field.addr @$tmp2, 0
+    store %12, 0
+    %13 = field.addr @$tmp2, 8
+    store %13, 0
+    %14 = field.addr @$tmp2, 16
+    store %14, 0
+    %15 = call.rtl ptr fb_StrConcat(@$tmp2, @b, -1, @a, -1)
+    %16 = call.rtl ptr fb_StrAssign(@a, -1, @$tmp2, -1, 0)
     call.rtl void fb_StrDelete(@b)
     call.rtl void fb_StrDelete(@a)
     ret
@@ -223,4 +229,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 21 blocks, 145 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 21 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance

@@ -519,6 +519,16 @@ private function LiteralType_ _
         end select
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT
+        '' THE SUFFIX TYPES IT, exactly as it does for an integer literal one arm
+        '' above. '1.0f' and '1.0!' are SINGLE and were read as DOUBLE, so an
+        '' overload set with both picked the double one: fbc answers 'single single
+        '' double' for 'u( 1.0f ), u( 1.0! ), u( 1.0 )' and tiko answered double
+        '' three times. The lexer already records NSUF_SINGLE; nothing read it.
+        dim as Tko.LiteralPayload ptr fp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if cast( Tko.NumSuffix, fp->suffix ) = Tko.NSUF_SINGLE then
+            return c.types->Builtin( Tko.TY_SINGLE )
+        end if
         return c.types->Builtin( Tko.TY_DOUBLE )
     case Tko.N_STRING_LIT, Tko.N_STRCAT
         return c.types->Builtin( Tko.TY_STRING )

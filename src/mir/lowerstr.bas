@@ -41,10 +41,24 @@ private function LowerConcatViaTemp _
 
     if terms.Count < 2 then return false
     dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
     dim as MirValue tmp
     tmp.kind = cast( ubyte, MV_LOCAL )
     tmp.ty = cast( ubyte, MT_PTR )
     tmp.id = slot
+    '' ZEROED BEFORE ANYTHING IS HANDED IT, which fbc spells 'memset( &TMP, 0, 24 )'
+    '' -- the comment below already records that and this function did not do it,
+    '' while its twin ConcatTermsToTempDesc_ always has. A descriptor full of stack
+    '' garbage goes to fb_StrAssign, which FREES the pointer it finds there:
+    ''
+    ''     dim as string s
+    ''     dim as string f = str( 5 )
+    ''     f = "0" + f            -- segfault; fbc prints 05
+    ''
+    '' ONE string local alone does not show it, because the slot happens to be
+    '' zero; the second one leaves something that looks like a pointer. It reaches
+    '' fb/currency.bi and fb/decimal.bi, both of which write 's = "0" + s'.
+    ZeroStrDescriptor( c, tmp )
 
     dim as boolean isU = ConcatTermsAreU_( c, terms )
 

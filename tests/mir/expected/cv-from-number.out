@@ -49,14 +49,13 @@ func i32 main(i32 $0, ptr $1) {
     %28 = const f64 1.583980010380482e+40
     %29 = call.rtl i64 fb_CVLONGINTFROMD(%28)
     call.rtl void fb_PrintLongint(0, %29, 1)
-    %30 = const f64 781.03521
-    %31 = fptrunc %30
-    %32 = call.rtl i32 fb_CVLFROMS(%31)
-    call.rtl void fb_PrintInt(0, %32, 1)
-    %33 = const i32 0
-    call.rtl void fb_End(%33)
-    %34 = load @$tmp0
-    ret %34
+    %30 = const f32 781.03521
+    %31 = call.rtl i32 fb_CVLFROMS(%30)
+    call.rtl void fb_PrintInt(0, %31, 1)
+    %32 = const i32 0
+    call.rtl void fb_End(%32)
+    %33 = load @$tmp0
+    ret %33
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i64 fb_CVLONGINTFROMD(f64 $0)
@@ -69,4 +68,4 @@ declare f32 fb_CVSFROML(i32 $0)
 declare void fb_PrintSingle(i32 $0, f32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance

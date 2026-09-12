@@ -299,7 +299,28 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         '' BOTH SHAPES REACH HERE: an EMPTY then-branch leaves the cursor on the
         '' 'else' because nothing ate the line, and a then-STATEMENT leaves it there
         '' because 'stopAtElse' told EndOfStatement to stop short of it.
-        if Peek( p ) = Tko.KW_ELSE then
+        '' ...AND ONLY IF THE LINE DID NOT END FIRST. The 'end if' test below already
+        '' applies that rule; the ELSE did not, so a SINGLE-LINE if nested inside a
+        '' BLOCK if stole the block's else:
+        ''
+        ''   if( c ) then / if( i > 0 ) then return -1 / else / b = 9 / end if
+        '' fbc answers 9, -1, 3 for the three inputs and tiko answered 3, -1, 9 --
+        '' the arms swapped. That is verbatim the shape of IPowChecked in
+        '' fb/mathint.bi, so a SHIPPED HEADER was being miscompiled.
+        ''
+        '' ':' and a newline both lex as an EOL and TF_COLON tells them apart; a '_'
+        '' continuation produces NO token at all. So 'a : b else' and 'a _ else' are
+        '' ours and 'a <newline> else' is not. A PHYSICAL-LINE test cannot draw this
+        '' line -- the continued form spans several physical lines and is one
+        '' statement.
+        dim as boolean elseIsOurs = (Peek( p ) = Tko.KW_ELSE)
+        if elseIsOurs andalso (p.pos > 0) then
+            dim as Tko.Token ptr pv = @p.toks->At( p.pos - 1 )
+            if pv->kind = cast( ubyte, Tko.TK_EOL ) then
+                elseIsOurs = ((pv->flags and Tko.TF_COLON) <> 0)
+            end if
+        end if
+        if elseIsOurs then
             Advance( p )
             '' EVERY STATEMENT ON THE LINE HERE TOO. The then-branch above already
             '' loops; the else-branch took ONE statement and the rest fell out into
