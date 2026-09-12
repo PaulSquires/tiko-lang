@@ -18,6 +18,7 @@ src/symbols/symbol.bas
 src/symbols/collect.bas
 src/symbols/collectdump.bas
 src/symbols/resolve.bas
+src/symbols/resolveacc.bas
 src/symbols/generic.bas
 src/symbols/mangle.bas
 src/symbols/constfold.bas

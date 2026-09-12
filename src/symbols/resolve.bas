@@ -110,24 +110,6 @@ private function FileScopeOf_ _
     return Tko.SCOPE_GLOBAL
 end function
 
-function StmtOf _
-    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    if id = Tko.NODE_NONE then return 0
-    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-end function
-
-function ListOf _
-    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.ListPayload ptr
-    if id = Tko.NODE_NONE then return 0
-    return @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-end function
-
-function IdentNameOf _
-    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
-    if c.ast->Kind( id ) <> Tko.N_IDENT then return Tko.INTERN_NONE
-    return c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )].name
-end function
-
 '' ------------------------------------------------------------- type references
 
 '' A syntactic TypeRef becomes a semantic TypeId. Builtin spellings map straight to
@@ -451,14 +433,22 @@ private sub WalkExpr _
         WalkExpr( c, c.ast->unaries[cast( long, n->data )].operand, scope_ )
 
     case Tko.N_BINARY
+        '' BOTH OPERANDS READ BEFORE EITHER IS WALKED. A payload pointer points INTO
+        '' the AST arena and resolving a generic RE-PARSES its members into fresh
+        '' nodes, so the arena moves and 'bp' dangles: 'bp->rhs' after the walk is
+        '' whatever occupies the freed block -- a NodeId out of range, indexed
+        '' without a bound. Confirmed, not reasoned: reserving every arena so it
+        '' cannot reallocate makes the crash disappear.
         dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, n->data )]
-        WalkExpr( c, bp->lhs, scope_ )
+        dim as Tko.NodeId blhs = bp->lhs
+        dim as Tko.NodeId brhs = bp->rhs
+        WalkExpr( c, blhs, scope_ )
         '' 'a IS T' HAS A TYPE ON THE RIGHT. Walking it as an expression leaves the
         '' type unresolved, and the test then has nothing to compare against.
-        if c.ast->Kind( bp->rhs ) = Tko.N_TYPEREF then
-            ResolveTypeRef( c, bp->rhs, scope_ )
+        if c.ast->Kind( brhs ) = Tko.N_TYPEREF then
+            ResolveTypeRef( c, brhs, scope_ )
         else
-            WalkExpr( c, bp->rhs, scope_ )
+            WalkExpr( c, brhs, scope_ )
         end if
         DivByConstZero_( c, id, scope_ )
 
@@ -509,7 +499,10 @@ private sub WalkExpr _
                 end if
             end if
         end if
-        WalkExpr( c, mb->lhs, scope_ )
+        '' OPERANDS BEFORE THE WALK -- same reason as N_BINARY above.
+        dim as Tko.NodeId mlhs = mb->lhs
+        dim as Tko.NodeId mrhs = mb->rhs
+        WalkExpr( c, mlhs, scope_ )
 
         '' EXCEPT when the base is a NAMESPACE. 'ns.Greet' is a QUALIFIED NAME, not a
         '' member access on a value, so the member is looked up in the namespace's own
@@ -522,12 +515,12 @@ private sub WalkExpr _
         '' '..x' -- the base is the GLOBAL SCOPE itself, so the member is looked up
         '' there. A chain '..a.b.v' needs nothing more: '..a' binds to the namespace
         '' here, and the enclosing member access then takes the namespace path below.
-        if c.ast->Kind( mb->lhs ) = Tko.N_GLOBALSCOPE then
-            if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+        if c.ast->Kind( mlhs ) = Tko.N_GLOBALSCOPE then
+            if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                 dim as Tko.SymbolId gsid = c.syms->LookupInNamespace( _
-                    FileScopeOf_( c, scope_ ), IdentNameOf( c, mb->rhs ) )
+                    FileScopeOf_( c, scope_ ), IdentNameOf( c, mrhs ) )
                 if gsid <> Tko.SYMBOL_NONE then
-                    c.info->SetRef( mb->rhs, gsid )
+                    c.info->SetRef( mrhs, gsid )
                     c.info->SetRef( id, gsid )
                 end if
             end if
@@ -547,13 +540,13 @@ private sub WalkExpr _
         ''
         '' ONLY WHEN THE TYPE ACTUALLY HAS THE MEMBER, so a genuine call whose
         '' result is reached into is untouched.
-        if c.ast->Kind( mb->lhs ) = Tko.N_IDENT then
-            dim as Tko.Symbol ptr bp0 = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
+        if c.ast->Kind( mlhs ) = Tko.N_IDENT then
+            dim as Tko.Symbol ptr bp0 = c.syms->SymbolAt( c.info->RefOf( mlhs ) )
             if bp0 <> 0 then
                 if bp0->kind = cast( ubyte, Tko.SYM_PROC ) then
-                    if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                    if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                         dim as Tko.SymbolId tsid3 = c.syms->LookupTyped( _
-                            scope_, IdentNameOf( c, mb->lhs ), true )
+                            scope_, IdentNameOf( c, mlhs ), true )
                         dim as Tko.Symbol ptr ty3 = c.syms->SymbolAt( tsid3 )
                         if ty3 <> 0 then
                             dim as boolean isUdt = _
@@ -561,9 +554,9 @@ private sub WalkExpr _
                             dim as boolean hasIn = (ty3->inner <> Tko.SCOPE_NONE)
                             if isUdt andalso hasIn then
                                 dim as Tko.SymbolId m3 = c.syms->LookupLocal( _
-                                    ty3->inner, IdentNameOf( c, mb->rhs ) )
+                                    ty3->inner, IdentNameOf( c, mrhs ) )
                                 if m3 <> Tko.SYMBOL_NONE then
-                                    c.info->SetRef( mb->lhs, tsid3 )
+                                    c.info->SetRef( mlhs, tsid3 )
                                 end if
                             end if
                         end if
@@ -572,11 +565,11 @@ private sub WalkExpr _
             end if
         end if
 
-        dim as Tko.SymbolId bsid = c.info->RefOf( mb->lhs )
+        dim as Tko.SymbolId bsid = c.info->RefOf( mlhs )
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
         if bs <> 0 then
             if bs->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
-                if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                     '' IdentNameOf, not StmtOf: an N_IDENT is not a statement payload,
                     '' and reading it as one is the pool mistake this codebase keeps
                     '' making.
@@ -584,9 +577,9 @@ private sub WalkExpr _
                     '' name from its OWN using, and a single hash probe never sees
                     '' one.
                     dim as Tko.SymbolId msid = _
-                        c.syms->LookupInNamespace( bs->inner, IdentNameOf( c, mb->rhs ) )
+                        c.syms->LookupInNamespace( bs->inner, IdentNameOf( c, mrhs ) )
                     if msid <> Tko.SYMBOL_NONE then
-                        c.info->SetRef( mb->rhs, msid )
+                        c.info->SetRef( mrhs, msid )
                         c.info->SetRef( id, msid )
                     end if
                 end if
@@ -594,11 +587,11 @@ private sub WalkExpr _
                 '' 'E.elem' -- AN ENUM MEMBER NAMED THROUGH ITS ENUM, which is the
                 '' only spelling an EXPLICIT enum has. Unbound, the expression was
                 '' untyped and everything built on it declined.
-                if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                     dim as Tko.SymbolId esid = _
-                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
+                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mrhs ) )
                     if esid <> Tko.SYMBOL_NONE then
-                        c.info->SetRef( mb->rhs, esid )
+                        c.info->SetRef( mrhs, esid )
                         c.info->SetRef( id, esid )
                     end if
                 end if
@@ -613,9 +606,9 @@ private sub WalkExpr _
                 '' here would lower a member call with NO RECEIVER, silently. Leaving
                 '' it unbound keeps the existing diagnostic: the wrong message for the
                 '' right outcome, which is the safe half to be wrong on.
-                if c.ast->Kind( mb->rhs ) = Tko.N_IDENT then
+                if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                     dim as Tko.SymbolId msid = _
-                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mb->rhs ) )
+                        c.syms->LookupLocal( bs->inner, IdentNameOf( c, mrhs ) )
 
                     '' ...AND THEN IN WHAT THE TYPE EXTENDS. A STATIC member is called
                     '' through a type NAME, and it may be the DERIVED one: fbc compiles
@@ -630,7 +623,7 @@ private sub WalkExpr _
                     do while (msid = Tko.SYMBOL_NONE) andalso (bdepth < 32)
                         bsc = BaseScopeOf_( c, bsc )
                         if bsc = Tko.SCOPE_NONE then exit do
-                        msid = c.syms->LookupLocal( bsc, IdentNameOf( c, mb->rhs ) )
+                        msid = c.syms->LookupLocal( bsc, IdentNameOf( c, mrhs ) )
                         bdepth += 1
                     loop
 
@@ -656,7 +649,7 @@ private sub WalkExpr _
                     end if
 
                     if IsStaticProc_( c, msid ) orelse isConstMember then
-                        c.info->SetRef( mb->rhs, msid )
+                        c.info->SetRef( mrhs, msid )
                         c.info->SetRef( id, msid )
                     end if
                 end if
