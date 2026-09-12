@@ -56,8 +56,8 @@ func void P() {
     br while.head4
   while.exit6:
     %18 = call ptr MAKE_(@$tmp4)
-    call void _ZN1SC1ERKS_(@q, @$tmp4)
-    call void _ZN1SD1Ev(@$tmp4)
+    %19 = load @$tmp4
+    store @q, %19
     call void _ZN1SD1Ev(@q)
     ret
 }
@@ -65,7 +65,6 @@ declare ptr MAKE_(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
-declare void _ZN1SC1ERKS_(ptr $0, ptr $1)
 func ptr G(ptr $0) {
   local ptr $tmp0
   local agg t size 24
@@ -81,6 +80,7 @@ func ptr G(ptr $0) {
     ret %4
 }
 declare void _ZN1SC1Ev(ptr $0)
+declare void _ZN1SC1ERKS_(ptr $0, ptr $1)
 func ptr MAKE_(ptr $0) {
   local ptr $tmp0
   local agg r size 24
@@ -111,6 +111,17 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
+func void _ZN1SC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
 func void _ZN1SC1ERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
@@ -124,17 +135,6 @@ func void _ZN1SC1ERKS_(ptr $0, ptr $1) {
     ret
 }
 declare void _ZN1SaSERKS_(ptr $0, ptr $1)
-func void _ZN1SC1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = field.addr %1, 0
-    store %2, 0
-    %3 = field.addr %1, 8
-    store %3, 0
-    %4 = field.addr %1, 16
-    store %4, 0
-    ret
-}
 func void _ZN1SaSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0

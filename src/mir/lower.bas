@@ -511,8 +511,44 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                             dsa.kind = cast( ubyte, MV_LOCAL )
                             dsa.ty = cast( ubyte, MT_PTR )
                             dsa.id = slot
+                            '' WHAT THE INITIALISER REGISTERS FOR DESTRUCTION has to
+                            '' be known before it is lowered -- see DropMovedTemp_.
+                            dim as long cmark = c.udtTemps.Count
                             dim as MirValue ssa = LowerAddr( c, ip->b )
-                            if ssa.kind <> cast( ubyte, MV_NONE ) then
+                            '' A CALL'S HIDDEN-POINTER TEMPORARY IS MOVED, NOT
+                            '' COPIED. 'dim as C r = f( )' built the result in a
+                            '' temporary, COPY-CONSTRUCTED r out of it and destroyed
+                            '' the temporary -- one copy and one destructor more
+                            '' than fbc, which hands the callee the destination and
+                            '' builds the object there once. The temporary is an
+                            '' rvalue nobody else can reach, so adopting its bytes
+                            '' and unregistering it gives the same counts.
+                            ''
+                            '' ONLY A TEMPORARY THIS EXPRESSION JUST REGISTERED. A
+                            '' BYREF-returning call hands back somebody else's
+                            '' object and registers nothing, so it still copies.
+                            dim as boolean movedRes = false
+                            if (c.ast->Kind( ip->b ) = Tko.N_CALL) andalso _
+                               (ssa.kind = cast( ubyte, MV_LOCAL )) then
+                                for k as long = cmark to c.udtTemps.Count - 1
+                                    if cast( long, c.udtTemps[k] ) = ssa.id then
+                                        movedRes = true
+                                        exit for
+                                    end if
+                                next
+                            end if
+                            if movedRes then
+                                dim as long msz = SizeOfType( c, ivt )
+                                dim as MirValue mv
+                                if msz > 0 then mv = LowerExprLoad( c, ssa, MT_AGG, msz )
+                                if mv.kind <> cast( ubyte, MV_NONE ) then
+                                    StoreThrough( c, dsa, mv )
+                                    ForgetUdtTemp_( c, ssa.id )
+                                    constructed = true
+                                end if
+                            end if
+                            if (movedRes = false) andalso _
+                               (ssa.kind <> cast( ubyte, MV_NONE )) then
                                 if ucp <> Tko.SYMBOL_NONE then
                                     dim as FB.Array( of ulong ) cargs
                                     cargs.Push( cast( ulong, ssa.kind ) )

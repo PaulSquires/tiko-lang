@@ -509,6 +509,10 @@ declare function EmitRtl _
     declare sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     declare sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     declare function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function BodyAssignsResult_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    declare function SretAssignResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
     declare function LowerSretResult _
         ( byref c as Ctx, byval valueE as Tko.NodeId, _
           byval isReturn as boolean = false ) as boolean

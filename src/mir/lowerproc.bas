@@ -410,6 +410,25 @@ sub LowerProc _
         sins.a = sa
         sins.b = spv
         Emit( c, sins )
+
+        '' THE RESULT IS DEFAULT-CONSTRUCTED AT ENTRY when the body writes it with
+        '' 'function = expr', because that statement is an ASSIGNMENT and an
+        '' assignment needs something to assign to. fbc emits '_ZN1CC1Ev( tmp )' as
+        '' the first thing in such a procedure and nothing at all in one that only
+        '' uses 'return' -- so the scan is what tells the two apart.
+        if BodyAssignsResult_( c, sp->b ) then
+            dim as MirValue rdst = LowerExprLoad( c, sa, MT_PTR )
+            if rdst.kind <> cast( ubyte, MV_NONE ) then
+                dim as Tko.SymbolId rct = _
+                    StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 0 )
+                if rct <> Tko.SYMBOL_NONE then
+                    dim as FB.Array( of ulong ) rnone
+                    EmitStructorCall( c, rct, -1, @rdst, @rnone )
+                elseif TypeNeedsInit_( c, rt ) then
+                    CallImplicitCtor_( c, rt, rdst )
+                end if
+            end if
+        end if
     end if
 
     '' A TRIVIAL UDT RESULT -- no destructor, no copy constructor -- is returned BY
@@ -893,8 +912,16 @@ function LowerSretResult _
     '' and the local's destructor then freed it -- so the caller was handed a
     '' descriptor pointing at released memory. It lowered, it verified, and every
     '' function returning a string-holding type had it.
+    '' ...AND ONLY FOR 'return'. 'function = expr' ASSIGNS into a result that was
+    '' default-constructed at entry -- see BodyAssignsResult_ for fbc's own C beside
+    '' this one -- so copy-constructing there ran one constructor too few and one
+    '' copy too many, on every 'function =' over a type with a destructor.
     if c.resultType <> Tko.TYPE_NONE then
-        if SretCopyResult_( c, valueE, c.resultType ) then return true
+        if isReturn then
+            if SretCopyResult_( c, valueE, c.resultType ) then return true
+        else
+            if SretAssignResult_( c, valueE, c.resultType ) then return true
+        end if
     end if
 
     '' 'function = type( )' -- A BARE TYPE LITERAL has no type of its own, so LowerExpr

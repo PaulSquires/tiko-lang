@@ -116,4 +116,113 @@ private function SretCopyResult_ _
     return true
 end function
 
+'' 'function = expr' IS AN ASSIGNMENT INTO THE RESULT, not a construction of it.
+'' fbc's C for a type with no assignment operator is '__builtin_memcpy( tmp, &t, 4 )'
+'' after the result has been default-constructed at entry; a type that declares
+'' 'operator let' gets that call instead. Same ladder an ordinary assignment walks.
+function SretAssignResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+
+    if c.sretParam < 0 then return false
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+    if vt <> c.types->Unqualify( rt ) then return false
+    dim as MirValue src = LowerAddr( c, valueE )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue sa
+    sa.kind = cast( ubyte, MV_LOCAL )
+    sa.ty = cast( ubyte, MT_PTR )
+    sa.id = c.sretParam
+    dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as FB.Array( of ulong ) letT
+    letT.Push( cast( ulong, rt ) )
+    dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, rt, "let" ), letT )
+    if ulet <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) largs
+        largs.Push( cast( ulong, src.kind ) )
+        largs.Push( cast( ulong, src.id ) )
+        EmitStructorCall( c, ulet, -1, @dst, @largs )
+        return true
+    end if
+    if NeedsLetBody_( c, rt ) then
+        CallImplicitLet_( c, rt, dst, src )
+        return true
+    end if
+    '' THE BITWISE COPY NEEDS ITS SIZE: M_LOAD of an MT_AGG carries the byte count
+    '' in its immediate, and the destination here is a raw pointer with no slot for
+    '' the emitter to read one off.
+    dim as long rsz = SizeOfType( c, rt )
+    if rsz <= 0 then return false
+    dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, rsz )
+    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, dst, whole )
+    return true
+end function
+
+'' Does this body write its result with 'function = expr' rather than 'return expr'?
+''
+'' THE TWO ARE NOT THE SAME STATEMENT, and fbc's own C says so. For a type with a
+'' constructor, a copy constructor and a destructor:
+''
+''     function = t            _ZN1CC1Ev( tmp );          <- the result is
+''                             ... t built ...               DEFAULT-CONSTRUCTED
+''                             memcpy( tmp, &t, 4 );        at entry and then
+''                             _ZN1CD1Ev( &t );             ASSIGNED to
+''
+''     return t                ... t built ...             <- COPY-CONSTRUCTED,
+''                             _ZN1CC1ERS_( tmp, &t );        with no default
+''                             _ZN1CD1Ev( &t );               construction at all
+''
+'' -- two constructors and no copy for the first, one constructor and one copy for
+'' the second. tiko copy-constructed for BOTH, so every 'function =' over a type
+'' with a destructor ran one constructor too few and one copy too many. It is the
+'' single largest cluster in structs/temp-var-dtors.bas.
+''
+'' 'exit function' COUNTS AS AN ASSIGNMENT for this purpose: it leaves through the
+'' result variable, which must therefore exist. The same pair of questions is asked
+'' in Check -- see ScanReturnStyles_ in latesweeps.bas -- and this is the lowering
+'' half of it.
+function BodyAssignsResult_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if depth > 256 then return false
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+    '' A nested procedure is its own result, and FreeBASIC has none inside a body.
+    if k = Tko.N_PROC then return false
+    if k = Tko.N_AMBIGUOUS then
+        if c.info->AmbiguousOf( id ) = Tko.AMB_RESULT then return true
+    end if
+    if k = Tko.N_EXIT then
+        dim as Tko.StmtPayload ptr xp = StmtOf( c, id )
+        select case cast( Tko.TokenKind, xp->op )
+        case Tko.KW_FUNCTION, Tko.KW_OPERATOR, Tko.KW_PROPERTY
+            return true
+        end select
+    end if
+    if Tko.NodeKindCategory( k ) = Tko.NCAT_EXPR then return false
+    if Tko.NodeKindCategory( k ) = Tko.NCAT_TYPE then return false
+    if (k = Tko.N_MODULE) orelse (k = Tko.N_BLOCK) then
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            if BodyAssignsResult_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+                                   depth + 1 ) then return true
+        next
+        return false
+    end if
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp = 0 then return false
+    if BodyAssignsResult_( c, sp->b, depth + 1 ) then return true
+    if BodyAssignsResult_( c, sp->c, depth + 1 ) then return true
+    for i as long = 0 to sp->count - 1
+        if BodyAssignsResult_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), _
+                               depth + 1 ) then return true
+    next
+    return false
+end function
+
 end namespace
