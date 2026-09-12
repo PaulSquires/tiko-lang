@@ -352,6 +352,10 @@ namespace Tko.Mir
         '' linker-visible at all, so the two cannot both be true.
         as boolean  isExported
         as boolean  isModuleDtor
+        '' AN INSTANTIATED GENERIC, emitted by every unit that uses it. Its
+        '' definition goes out with weak, foldable linkage so the duplicates
+        '' collapse instead of failing the link.
+        as boolean  isWeak
         as boolean  isDefinition    '' false for a declaration with no body
         '' THE SIGNATURE. docs/plan/09 gives every function and extern a signature and a
         '' calling convention; nothing consumed them until the backend, so until now only

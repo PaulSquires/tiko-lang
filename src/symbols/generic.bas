@@ -668,7 +668,8 @@ sub InstantiatePendingProcs_( byref c as Ctx )
                 if isym->payload = 0 then isym->payload = msym->payload
                 if isym->type_ = Tko.TYPE_NONE then isym->type_ = msym->type_
                 isym->inner = msym->inner
-                isym->flags or= Tko.SYMF_DEFINED
+                isym->flags or= Tko.SYMF_DEFINED or Tko.SYMF_GENERIC_INST
+                msym->flags or= Tko.SYMF_GENERIC_INST
             end if
         end if
 
@@ -1184,7 +1185,7 @@ private sub InstantiateMembers_ _
                     '' and this instantiation's signature is on this instantiation's
                     '' own node, not the generic's.
                     msym->payload = cast( long, fresh )
-                    msym->flags or= Tko.SYMF_DEFINED
+                    msym->flags or= Tko.SYMF_DEFINED or Tko.SYMF_GENERIC_INST
                 end if
             end if
         end select

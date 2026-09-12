@@ -109,7 +109,27 @@ function DeclIndexFor_ _
       byval withThis as boolean ) as long
 
     for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = cnm then return i
+        if c.m->functions[i]->name = cnm then
+            '' AN EXISTING DECLARATION MAY HAVE BEEN BUILT WITHOUT THE RECEIVER. The
+            '' name is the only key, so an entry made where 'withThis' was false
+            '' stayed that way and a later member call went out with one argument
+            '' against a signature declaring none -- 'calls ARRAY<7>::COUNT with 1
+            '' arguments, which declares 0', twelve times, in the module that only
+            '' CALLS an instantiation it did not instantiate. A DEFINITION is never
+            '' rewritten: its signature came from its own body.
+            dim as MirFunction ptr have = c.m->functions[i]
+            if (have->isDefinition = false) andalso (cs <> 0) then
+                dim as long wantN = 0
+                if withSret then wantN += 1
+                if withThis then wantN += 1
+                if have->paramTys.Count < wantN then
+                    have->paramTys.Clear( )
+                    SignatureFromProc( c, have, cast( Tko.NodeId, cs->payload ), _
+                                       withSret, withThis )
+                end if
+            end if
+            return i
+        end if
     next
     dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
     if decl = 0 then return -1

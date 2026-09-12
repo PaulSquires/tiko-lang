@@ -172,6 +172,16 @@ sub LowerProc _
     '' same source, tiko gave 'T'.
     if (sp->extra and Tko.PF_PRIVATE) <> 0 then f->isPrivate = true
     if (sp->extra and Tko.PF_EXPORT) <> 0 then f->isExported = true
+    '' AN INSTANTIATED GENERIC IS EMITTED BY EVERY UNIT THAT USES IT, so its
+    '' definition needs weak, foldable linkage. Without it the first attempt to
+    '' compile tiko-lang with tiko-lang failed the LINK on twenty duplicate
+    '' symbols, every one an Array( of T ) member.
+    if sid <> Tko.SYMBOL_NONE then
+        dim as Tko.Symbol ptr gsy = c.syms->SymbolAt( sid )
+        if gsy <> 0 then
+            if (gsy->flags and Tko.SYMF_GENERIC_INST) <> 0 then f->isWeak = true
+        end if
+    end if
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym

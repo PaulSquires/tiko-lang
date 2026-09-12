@@ -140,6 +140,11 @@ namespace Tko
     '' MEMBER is visible only inside its own type.
     const SYMF_MEMB_PRIVATE   as ulong = &h00020000
     const SYMF_MEMB_PROTECTED as ulong = &h00040000
+    '' AN INSTANTIATED GENERIC. Every translation unit that uses 'Array( of long )'
+    '' instantiates it, so the same definition is emitted more than once -- twenty
+    '' duplicate symbols on the first attempt to compile tiko-lang with tiko-lang.
+    '' The definition needs weak, foldable linkage, which is what COMDAT is for.
+    const SYMF_GENERIC_INST   as ulong = &h00080000
 
     type Symbol
         as ubyte     kind

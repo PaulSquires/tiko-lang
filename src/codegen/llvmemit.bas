@@ -965,8 +965,28 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     '' export. If both were somehow set, internal wins and the export is dropped
     '' rather than producing a module clang rejects.
     if f->isExported andalso (f->isPrivate = false) then linkage = "dllexport "
+    '' AN INSTANTIATED GENERIC GOES OUT WEAK AND FOLDABLE. Every translation unit
+    '' that names 'Array( of long )' instantiates it, so the same definition is
+    '' emitted by each of them; with external linkage the linker sees duplicates and
+    '' refuses -- twenty of them on the first attempt to compile tiko-lang with
+    '' tiko-lang, every one an Array( of T ) member.
+    ''
+    '' 'linkonce_odr' is the linkage and COMDAT is what COFF needs to act on it: the
+    '' key is declared beside the definition and every copy after the first is
+    '' dropped. A PRIVATE instantiation is already module-local and needs neither.
+    dim as string cmdt = ""
+    if f->isWeak andalso (f->isPrivate = false) then
+        linkage = "linkonce_odr "
+        dim as string gn = GlobalName( e, f->name )
+        dim as string key = "$" & mid( gn, 2 )
+        e.outp += key & " = comdat any" & chr( 10 )
+        '' AFTER the function attributes, which is where LLVM's grammar puts it:
+        '' 'define ... ( args ) nounwind comdat {'. Written before them it is
+        '' "expected '{' in function body", 71 modules deep.
+        cmdt = " comdat"
+    end if
     e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
-              "(" & ParamList( e, f, true ) & ") nounwind {" & chr( 10 )
+              "(" & ParamList( e, f, true ) & ") nounwind" & cmdt & " {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest
     '' temp the function can name.
