@@ -1,0 +1,102 @@
+'' lowerparam.bas -- reading a declared PARAMETER back off its N_PARAM node.
+''
+'' Split out of lowerstore.bas at the 1500-line lint cap. These four answer the same
+'' kind of question -- what did the DECLARATION say about parameter n -- and none of
+'' them is about storage, which is what the rest of that file is.
+
+#include once "mir/lowerctx.bi"
+
+namespace Tko.Mir
+
+
+'' The DEFAULT VALUE expression of parameter 'idx', or nothing. Parsed onto the
+'' N_PARAM as 'b' and, until now, never read.
+function ParamDefaultAt _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
+
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Tko.NODE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.NODE_NONE
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then return StmtOf( c, prm )->b
+        seen += 1
+    next
+    return Tko.NODE_NONE
+end function
+
+function ParamTypeAt _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
+
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then return c.info->TypeOf_( StmtOf( c, prm )->a )
+        seen += 1
+    next
+    return Tko.TYPE_NONE
+end function
+
+function ParamIsByref _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
+    '' COUNTING PARAMETERS, not children. An N_PROC's children are not all
+    '' N_PARAM -- a BLOCK sits among them -- so indexing straight by 'idx' read
+    '' whatever was in that slot and answered NO for a byref parameter whenever
+    '' the list did not start at child zero. ParamTypeAt and ParamIsArray beside
+    '' this one both walk; this one did not.
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then
+            return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        end if
+        seen += 1
+    next
+    return false
+end function
+
+'' Is parameter 'idx' declared as an ARRAY -- 'sub Q( a( ) as long )'? Its TYPE is the
+'' ELEMENT's, so the type cannot answer this; the empty subscript is a FLAG on the
+'' N_PARAM and that is the only record of it.
+function ParamIsArray _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to psp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then
+            return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
+        end if
+        seen += 1
+    next
+    return false
+end function
+
+end namespace

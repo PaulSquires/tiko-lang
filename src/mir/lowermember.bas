@@ -51,6 +51,36 @@ sub InitMember_ _
     if c.types->Kind( ft ) = Tko.TK_ARRAY then
         dim as long asz2 = SizeOfType( c, ft )
         if asz2 <= 0 then return
+        '' A 'string * N' FIELD IS SPACE-PADDED, NOT ZERO-FILLED. Measured: a bare
+        '' 'dim x as T1' over 'as string * 10 a' gives ten bytes of 32 under fbc
+        '' and 'x.a = space( 10 )' is true; tiko zeroed them with the blanket fill
+        '' below, and the comparison was false. There is NO terminator -- the field
+        '' is exactly N bytes -- which is what separates it from 'zstring * N',
+        '' where the zero fill is right and stays.
+        ''
+        '' A LOCAL of the same type was already correct; only the FIELD path took
+        '' the blanket memset. The working case beside the broken one again.
+        dim as Tko.TypeId inner_ = ft
+        do while c.types->Kind( inner_ ) = Tko.TK_ARRAY
+            dim as Tko.TypeId nx = c.types->Inner( inner_ )
+            if nx = Tko.TYPE_NONE then exit do
+            inner_ = nx
+        loop
+        dim as long fill = 0
+        if c.types->Kind( inner_ ) = Tko.TK_BUILTIN then
+            if c.types->BuiltinOf( inner_ ) = Tko.TY_FIXSTR then fill = 32
+        end if
+        if fill <> 0 then
+            dim as FB.Array( of ulong ) sargs
+            sargs.Push( cast( ulong, addr.kind ) )
+            sargs.Push( cast( ulong, addr.id ) )
+            sargs.Push( cast( ulong, MV_CONST_INT ) )
+            sargs.Push( cast( ulong, fill ) )
+            sargs.Push( cast( ulong, MV_CONST_INT ) )
+            sargs.Push( cast( ulong, asz2 ) )
+            EmitRtl( c, RTL_MEMSET, sargs )
+            return
+        end if
         dim as FB.Array( of ulong ) zargs2
         zargs2.Push( cast( ulong, addr.kind ) )
         zargs2.Push( cast( ulong, addr.id ) )

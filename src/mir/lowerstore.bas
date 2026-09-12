@@ -165,7 +165,25 @@ function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     '' as T' a FRAME SLOT -- a zeroed local, with no reference to the real symbol
     '' emitted, so it LINKED. See HANDOFF 7c.
     dim as ulong mf = Tko.SYMF_SHARED or Tko.SYMF_EXTERN or Tko.SYMF_COMMON
-    return ((s->flags and mf) <> 0)
+    if (s->flags and mf) <> 0 then return true
+
+    '' SO IS A 'dim' INSIDE A NAMESPACE with no SHARED on it -- and ONLY inside one.
+    '' Measured, fbc's own C for the two spellings:
+    ''
+    ''     dim as integer t1 = 1                  int64 T1$0;  -- a LOCAL of main
+    ''     namespace a : dim as integer foo = 1   static int64 _ZN1A4FOO$E = 1ll;
+    ''
+    '' so the bare module-level DIM really is a frame slot and stays one. The
+    '' namespace one was a frame slot too, and a procedure reading it -- QUALIFIED,
+    '' which fbc accepts -- read the stack: 'a.foo' printed 1 at module level and
+    '' 2578727081104 inside a sub. Twelve corpus suites are that shape, because
+    '' SUITE( x ) is 'namespace x' and the state is read from the TEST procedures.
+    ''
+    '' THE STORAGE ONLY. Hiding the unqualified name from a procedure is fbc's
+    '' error 42 and belongs with the undeclared-name policy still owed.
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = 0 then return false
+    return (cast( Tko.ScopeKind, sc->kind ) = Tko.SCOPEK_NAMESPACE)
 end function
 
 '' A STATIC local: procedure scope, but MODULE lifetime.
@@ -1235,96 +1253,6 @@ function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boole
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if StmtOf( c, prm )->op = cast( ushort, Tko.TK_ELLIPSIS ) then return true
-    next
-    return false
-end function
-
-'' The DEFAULT VALUE expression of parameter 'idx', or nothing. Parsed onto the
-'' N_PARAM as 'b' and, until now, never read.
-function ParamDefaultAt _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
-
-    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Tko.NODE_NONE
-    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-    if pn = Tko.NODE_NONE then return Tko.NODE_NONE
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.NODE_NONE
-    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-    dim as long seen = 0
-    for i as long = 0 to psp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if seen = idx then return StmtOf( c, prm )->b
-        seen += 1
-    next
-    return Tko.NODE_NONE
-end function
-
-function ParamTypeAt _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
-
-    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Tko.TYPE_NONE
-    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
-    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-    dim as long seen = 0
-    for i as long = 0 to psp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if seen = idx then return c.info->TypeOf_( StmtOf( c, prm )->a )
-        seen += 1
-    next
-    return Tko.TYPE_NONE
-end function
-
-function ParamIsByref _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
-
-    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
-    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-    if pn = Tko.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
-    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-    '' COUNTING PARAMETERS, not children. An N_PROC's children are not all
-    '' N_PARAM -- a BLOCK sits among them -- so indexing straight by 'idx' read
-    '' whatever was in that slot and answered NO for a byref parameter whenever
-    '' the list did not start at child zero. ParamTypeAt and ParamIsArray beside
-    '' this one both walk; this one did not.
-    dim as long seen = 0
-    for i as long = 0 to psp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if seen = idx then
-            return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
-        end if
-        seen += 1
-    next
-    return false
-end function
-
-'' Is parameter 'idx' declared as an ARRAY -- 'sub Q( a( ) as long )'? Its TYPE is the
-'' ELEMENT's, so the type cannot answer this; the empty subscript is a FLAG on the
-'' N_PARAM and that is the only record of it.
-function ParamIsArray _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
-
-    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
-    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-    if pn = Tko.NODE_NONE then return false
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
-    dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-    dim as long seen = 0
-    for i as long = 0 to psp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
-        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if seen = idx then
-            return ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
-        end if
-        seen += 1
     next
     return false
 end function

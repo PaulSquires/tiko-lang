@@ -80,7 +80,30 @@ function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if IsStringType( c, t ) then return true
     if c.types->IsDynArray( t ) then return true
-    if c.types->Kind( t ) = Tko.TK_ARRAY then return TypeNeedsInit_( c, c.types->Inner( t ) )
+    if c.types->Kind( t ) = Tko.TK_ARRAY then
+        '' A 'string * N' IS SPACE-FILLED, so it is work. Measured, fbc synthesises
+        '' a constructor that fills each field with the right byte:
+        ''
+        ''     memset( (int64*)THIS, 0, 8 );              as integer n
+        ''     memset( (uint8*)THIS + 8, 32, 4 );          as string * 4 a
+        ''     memset( (int64*)(THIS + 16), 0, 8 );        as integer m
+        ''
+        '' Without this an all-fixed-string UDT answered 'nothing to initialise',
+        '' no constructor was synthesised, and the blanket zero-fill left NULs
+        '' where fbc leaves spaces: 'dim x as T1' over 'as string * 10 a' compared
+        '' unequal to space( 10 ). A LOCAL of the same type was already right,
+        '' which is why it survived. 'zstring * N' and 'wstring * N' stay zeroed.
+        dim as Tko.TypeId el = t
+        do while c.types->Kind( el ) = Tko.TK_ARRAY
+            dim as Tko.TypeId nx = c.types->Inner( el )
+            if nx = Tko.TYPE_NONE then exit do
+            el = nx
+        loop
+        if c.types->Kind( el ) = Tko.TK_BUILTIN then
+            if c.types->BuiltinOf( el ) = Tko.TY_FIXSTR then return true
+        end if
+        return TypeNeedsInit_( c, c.types->Inner( t ) )
+    end if
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
 
     '' A TABLE MEANS A VPTR, and the vptr is stored by the constructor.

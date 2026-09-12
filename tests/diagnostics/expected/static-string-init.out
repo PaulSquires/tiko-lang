@@ -1,5 +1,6 @@
 global var agg REFUSED$s4 size 24
 global str $str1 "foo"
+global var agg s1 size 24
 global var agg s2 size 24
 global var agg s3 size 24
 global var agg z size 8 = bytes 66 6F 6F 00 00 00 00 00
@@ -36,7 +37,6 @@ declare void free(ptr $0)
 declare void fb_StrDelete(ptr $0)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
-  local agg s1 size 24
   local agg s5 size 24
   local agg s6 size 24
   entry0:
@@ -45,29 +45,26 @@ func i32 main(i32 $0, ptr $1) {
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
-    %4 = alloca ptr s1
-    %5 = call.rtl ptr fb_StrInit(@s1, -1, @@$str1, 4, 0)
-    %6 = alloca ptr s5
-    %7 = call.rtl ptr fb_StrInit(@s5, -1, @@$str1, 4, 0)
-    %8 = alloca ptr s6
-    %9 = call.rtl ptr fb_StrInit(@s6, -1, @@$str1, 4, 0)
+    %4 = alloca ptr s5
+    %5 = call.rtl ptr fb_StrInit(@s5, -1, @@$str1, 4, 0)
+    %6 = alloca ptr s6
+    %7 = call.rtl ptr fb_StrInit(@s6, -1, @@$str1, 4, 0)
     call.rtl void fb_StrDelete(@s6)
     call.rtl void fb_StrDelete(@s5)
-    call.rtl void fb_StrDelete(@s1)
-    %10 = const i32 0
-    call.rtl void fb_End(%10)
-    %11 = load @$tmp0
-    ret %11
+    %8 = const i32 0
+    call.rtl void fb_End(%8)
+    %9 = load @$tmp0
+    ret %9
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 5 blocks, 28 insts, 4 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 5 blocks, 25 insts, 5 statements not lowered, 0 scope imbalance
   unlowered N_DELETE_STMT 1
   inside N_DELETE_STMT 1
-  inside N_VAR 3
-  skip-site src\mir\lowerstore.bas:1153 3
-  skip-site src\mir\lowerctl.bas:206 1
+  inside N_VAR 4
+  skip-site src\mir\lowerstore.bas:1171 4
+  skip-site src\mir\lowerctl.bas:207 1
 tests/diagnostics/src/static-string-init.bas(32,12): error TKO0629: 'delete' takes a pointer
      |
   32 |     delete n

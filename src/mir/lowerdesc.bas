@@ -692,7 +692,22 @@ private function RedimOne_ _
         '' The TYPEREF is what says this one declares: 'redim d( 0 to 2 )' over an
         '' array declared elsewhere has none, and must not be re-initialised or
         '' registered twice.
-        if ip->a <> Tko.NODE_NONE then
+        ''
+        '' A TYPEREF IS NOT ENOUGH, because the type clause may be RE-SPELLED on a
+        '' later REDIM of the same array -- 'redim preserve as integer d( 0 to 1 )'
+        '' after 'redim preserve as integer d( 0 to 3 )' is the corpus's own
+        '' spelling. Re-initialising there ZEROED the data pointer and the element
+        '' size before fb_ArrayRedimPresvEx read them, so PRESERVE preserved
+        '' nothing: the array came back full of zeroes. Dropping the second 'as
+        '' integer' made it correct, which is what named the typeref as the fault.
+        ''
+        '' The symbol carries its DECLARING item, so the question has an exact
+        '' answer: this REDIM declares only if it IS that item.
+        dim as boolean declares = (ip->a <> Tko.NODE_NONE)
+        if declares andalso (vs <> 0) andalso (vs->payload <> 0) then
+            declares = (cast( Tko.NodeId, vs->payload ) = item)
+        end if
+        if declares then
             InitDynArrayDesc( c, desc, aty )
             '' ...and erased at SCOPE EXIT, which only a LOCAL has. A module-level
             '' array outlives every scope there is and is released the way every other

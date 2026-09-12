@@ -540,6 +540,24 @@ function LowerCtorInit _
         '' MIR type instead, and for a reference that type is a POINTER -- so the
         '' aggregate was 'converted' to one rather than having its address taken.
         if ParamIsByref( c, pick, ai2 ) then
+            '' A BYREF STRING PARAMETER TAKES THE DESCRIPTOR, NOT AN ADDRESS. A
+            '' LITERAL has no descriptor of its own, so LowerAddr handed over the
+            '' address of the TEXT: 'dim as C c2 = C( "234" )' over a
+            '' 'constructor C( byref v as string )' emitted
+            '' '_ZN1CC1ER8FBSTRING( @c2, @$str0 )' and fb_StrAssign read three
+            '' characters as an FBSTRING. It linked, it verified, and c2.s came
+            '' back empty. StrDescriptorOf_ is what the byval string path two
+            '' branches down already uses, and what an ordinary call uses.
+            if IsStringType( c, c.types->Unqualify( pty ) ) then
+                dim as MirValue sd
+                if StrDescriptorOf_( c, cast( Tko.NodeId, argNode[ai2] ), sd ) then
+                    argKind[ai2] = cast( ulong, sd.kind )
+                    argId[ai2] = cast( ulong, sd.id )
+                    argT[ai2] = cast( ulong, pty )
+                    ai2 += 1
+                    continue for
+                end if
+            end if
             dim as MirValue ba = LowerAddr( c, cast( Tko.NodeId, argNode[ai2] ) )
             if ba.kind <> cast( ubyte, MV_NONE ) then
                 argKind[ai2] = cast( ulong, ba.kind )

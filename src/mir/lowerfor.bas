@@ -30,6 +30,53 @@ using Tko
 '' 'operator next( end, stp )' -- the same shape with the step value appended -- but
 '' the step's own TYPE need not be the counter's, and nothing here has measured which
 '' conversions fbc applies to it. The corpus's two uses are both step-free.
+'' Register one of the FOR protocol's objects for destruction at the end of the
+'' scope that encloses the loop. Same three pushes FOR EACH makes for its element.
+private sub RegisterForUdtDtor_ _
+    ( byref c as Ctx, byval ct as Tko.TypeId, byval slot as long )
+
+    if slot < 0 then return
+    dim as Tko.SymbolId dt = _
+        StructorWithArity( c, StructorOf( c, ct, "__dtor" ), 0 )
+    if dt <> Tko.SYMBOL_NONE then
+        c.cleanupNode.Push( cast( ulong, dt ) )
+        c.cleanupSlot.Push( slot )
+        c.cleanupType.Push( 0 )
+    elseif TypeNeedsDtor_( c, ct ) then
+        c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
+        c.cleanupSlot.Push( slot )
+        c.cleanupType.Push( cast( ulong, ct ) )
+    end if
+end sub
+
+'' ONE INITIALISER FOR ALL THREE OF COUNTER, LIMIT AND STEP. The step already had
+'' the three-way answer -- 'T( e )', the converting constructor, then a COPY -- and
+'' the counter and the limit stopped after the first two. So an lvalue of the
+'' counter's OWN type declined, and declined SILENTLY: 'dim ev = T( 3 ) : for i as
+'' T = 1 to ev' linked and ran NO LOOP AT ALL where fbc runs three iterations.
+'' Worse, the counter had already been constructed when the LIMIT declined, so the
+'' program was left with one extra construction and no loop.
+private function ForUdtInit_ _
+    ( byref c as Ctx, byval slot as long, byval ct as Tko.TypeId, _
+      byval e as Tko.NodeId, byref dst as MirValue ) as boolean
+
+    if LowerCtorInit( c, slot, ct, e ) then return true
+    if LowerConvCtorInit_( c, slot, ct, e, 0 ) then return true
+    '' A COPY. fbc emits '_ZN1TC1ERS_( &DST, &SRC )' for an lvalue of the type.
+    dim as MirValue sv = LowerAddr( c, e )
+    if sv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as Tko.SymbolId cc = CopyCtorOf_( c, ct )
+    if cc <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) ccargs
+        ccargs.Push( cast( ulong, sv.kind ) )
+        ccargs.Push( cast( ulong, sv.id ) )
+        EmitStructorCall( c, cc, -1, @dst, @ccargs )
+    else
+        CallImplicitCopy_( c, ct, dst, sv )
+    end if
+    return true
+end function
+
 private function LowerForUdt_ _
     ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref addr as MirValue, _
       byval fromE as Tko.NodeId, byval toE as Tko.NodeId, _
@@ -80,9 +127,7 @@ private function LowerForUdt_ _
     '' LowerConvCtorInit_ finds that. Without it the whole FOR declined -- and
     '' DECLINED SILENTLY: the program linked and printed nothing at all where fbc
     '' prints '0 1 2 3 4'. compound/for_UDT_counter.bas writes it this way.
-    if LowerCtorInit( c, addr.id, ct, fromE ) = false then
-        if LowerConvCtorInit_( c, addr.id, ct, fromE, 0 ) = false then return false
-    end if
+    if ForUdtInit_( c, addr.id, ct, fromE, addr ) = false then return false
 
     '' THE LIMIT, constructed ONCE into a temporary. Once, because 'operator next'
     '' is called on every test and re-evaluating 'T( f( ) )' would call f each time.
@@ -94,9 +139,7 @@ private function LowerForUdt_ _
     limAddr.kind = cast( ubyte, MV_LOCAL )
     limAddr.ty = cast( ubyte, MT_PTR )
     limAddr.id = limSlot
-    if LowerCtorInit( c, limSlot, ct, toE ) = false then
-        if LowerConvCtorInit_( c, limSlot, ct, toE, 0 ) = false then return false
-    end if
+    if ForUdtInit_( c, limSlot, ct, toE, limAddr ) = false then return false
 
     '' THE STEP, constructed ONCE into a temporary of its own, for the same reason
     '' the limit is: all three operators read it, on every iteration.
@@ -114,27 +157,33 @@ private function LowerForUdt_ _
         '' '_ZN3FOOC1ERS_( &TMP5, &STP )'. Without the copy the loop declined, and
         '' declined silently: compound/for_UDT_counter.bas writes 'step stp' for
         '' every one of its types.
-        if LowerCtorInit( c, stpSlot, ct, stepE ) = false then
-            if LowerConvCtorInit_( c, stpSlot, ct, stepE, 0 ) = false then
-                dim as MirValue sv = LowerAddr( c, stepE )
-                if sv.kind = cast( ubyte, MV_NONE ) then return false
-                dim as Tko.SymbolId scc = CopyCtorOf_( c, ct )
-                if scc <> Tko.SYMBOL_NONE then
-                    dim as FB.Array( of ulong ) scargs
-                    scargs.Push( cast( ulong, sv.kind ) )
-                    scargs.Push( cast( ulong, sv.id ) )
-                    EmitStructorCall( c, scc, -1, @stpAddr, @scargs )
-                else
-                    CallImplicitCopy_( c, ct, stpAddr, sv )
-                end if
-            end if
-        end if
+        if ForUdtInit_( c, stpSlot, ct, stepE, stpAddr ) = false then return false
         stpArgs.Push( cast( ulong, stpAddr.kind ) )
         stpArgs.Push( cast( ulong, stpAddr.id ) )
         EmitMemberCallArgs_( c, forOp, addr, MT_VOID, @stpArgs )
     else
         EmitMemberCall( c, forOp, addr, MT_VOID )
     end if
+
+    '' COUNTER, LIMIT AND STEP ARE DESTROYED AS SCOPE CLEANUPS, in a scope that
+    '' encloses the whole loop. Two things were wrong with the dtors that used to
+    '' sit inline at the exit block:
+    ''
+    ''   THE COUNTER WAS NEVER DESTROYED AT ALL -- only the limit and the step were,
+    ''   so a loop over a type with a destructor ran one dtor short of fbc.
+    ''
+    ''   ONLY THE FALL-THROUGH PATH RAN THEM. 'exit do' out of an enclosing loop,
+    ''   'return' and 'goto' all leave without passing through the exit block, and
+    ''   every one of them leaked all three. compound/for_UDT_counter3.bas counts
+    ''   three destructions and got zero.
+    ''
+    '' A SCOPE answers both: CloseScope emits in reverse registration order, which
+    '' is fbc's step-limit-counter, and EmitCleanupsTo is what every non-local exit
+    '' already walks.
+    PushScope( c )
+    RegisterForUdtDtor_( c, ct, addr.id )
+    RegisterForUdtDtor_( c, ct, limSlot )
+    if hasStep then RegisterForUdtDtor_( c, ct, stpAddr.id )
 
     dim as long bodyB = NewBlock( c, "for.body" )
     dim as long stepB = NewBlock( c, "for.step" )
@@ -174,25 +223,16 @@ private function LowerForUdt_ _
     end if
     dim as MirValue more = _
         EmitMemberCallArgs_( c, nextOp, addr, MT_I32, @nargs )
-    if more.kind = cast( ubyte, MV_NONE ) then return false
+    if more.kind = cast( ubyte, MV_NONE ) then
+        CloseScope( c )
+        return false
+    end if
     Terminate( c, MTERM_CONDBR, bodyB, exitB, more )
 
     c.curBlock = exitB
-
-    '' THE LIMIT IS DESTROYED AFTER THE LOOP, not at the end of the statement: the
-    '' statement is the whole loop, and the temporary is live across all of it.
-    if TypeNeedsDtor_( c, ct ) then
-        dim as Tko.SymbolId ldt = _
-            StructorWithArity( c, StructorOf( c, ct, "__dtor" ), 0 )
-        if ldt <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) none_
-            EmitStructorCall( c, ldt, -1, @limAddr, @none_ )
-            if hasStep then EmitStructorCall( c, ldt, -1, @stpAddr, @none_ )
-        else
-            CallImplicitDtor_( c, ct, limAddr )
-            if hasStep then CallImplicitDtor_( c, ct, stpAddr )
-        end if
-    end if
+    '' The three temporaries are live across the WHOLE loop, so this is where the
+    '' scope holding them closes.
+    CloseScope( c )
     return true
 end function
 

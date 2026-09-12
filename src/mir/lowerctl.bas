@@ -17,7 +17,8 @@ const LABEL_AMBIGUOUS = -2
 '' Local to this file.
 declare function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
-      byval isUns as boolean, byval val as Tko.NodeId ) as MirValue
+      byval isUns as boolean, byval val as Tko.NodeId, _
+      byval subjT as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
 declare function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
 declare function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
 
@@ -447,7 +448,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             if strMode >= 0 then
                 cond = LowerStrCaseTest_( c, slotAddr, (strMode = 1), val )
             else
-                cond = LowerCaseTest( c, slotAddr, mt, isUns, val )
+                cond = LowerCaseTest( c, slotAddr, mt, isUns, val, subjT )
             end if
             if cond.kind = cast( ubyte, MV_NONE ) then
                 SkipHere( c )
@@ -581,7 +582,8 @@ end function
 '' One CASE value against the subject: an equality, a range, or a relational test.
 private function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
-      byval isUns as boolean, byval val as Tko.NodeId ) as MirValue
+      byval isUns as boolean, byval val as Tko.NodeId, _
+      byval subjT as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
 
     dim as MirValue none_
     if val = Tko.NODE_NONE then return none_
@@ -592,7 +594,8 @@ private function LowerCaseTest _
         if op <> 0 then
             '' 'case is > 10' -- a relational test against one operand.
             dim as MirValue cur = LowerExprLoad( c, slotAddr, mt )
-            dim as MirValue rhs = Coerce( c, LowerExpr( c, rp->a ), mt )
+            dim as MirValue rhs = CoerceTy( c, LowerExpr( c, rp->a ), mt, _
+                                            c.info->TypeOf_( rp->a ), subjT )
             if rhs.kind = cast( ubyte, MV_NONE ) then return none_
             dim as MirInst ins
             ins.op = cast( ushort, BinOpFor( op, mt, isUns ) )
@@ -604,7 +607,8 @@ private function LowerCaseTest _
         end if
 
         '' 'case 4 to 6' -- inclusive at both ends.
-        dim as MirValue lo = Coerce( c, LowerExpr( c, rp->a ), mt )
+        dim as MirValue lo = CoerceTy( c, LowerExpr( c, rp->a ), mt, _
+                                       c.info->TypeOf_( rp->a ), subjT )
         dim as MirValue c1 = none_
         if lo.kind <> cast( ubyte, MV_NONE ) then
             dim as MirInst i1
@@ -614,7 +618,8 @@ private function LowerCaseTest _
             i1.b = lo
             c1 = Emit( c, i1 )
         end if
-        dim as MirValue hi = Coerce( c, LowerExpr( c, rp->b ), mt )
+        dim as MirValue hi = CoerceTy( c, LowerExpr( c, rp->b ), mt, _
+                                       c.info->TypeOf_( rp->b ), subjT )
         if (c1.kind = cast( ubyte, MV_NONE )) orelse (hi.kind = cast( ubyte, MV_NONE )) then
             return none_
         end if
@@ -632,7 +637,13 @@ private function LowerCaseTest _
         return Emit( c, i3 )
     end if
 
-    dim as MirValue rhs2 = Coerce( c, LowerExpr( c, val ), mt )
+    '' TO THE SUBJECT'S TYPE, not merely to its width. A BOOLEAN subject holds 0 or
+    '' 1 and the corpus writes 'case TRUE' with TRUE defined as -1, so the plain
+    '' width coercion compared 1 against 255 and every such case fell to 'case
+    '' else'. CoerceTy with the subject's type id narrows the way a store into a
+    '' boolean does, which is what fbc compares.
+    dim as MirValue rhs2 = CoerceTy( c, LowerExpr( c, val ), mt, _
+                                     c.info->TypeOf_( val ), subjT )
     if rhs2.kind = cast( ubyte, MV_NONE ) then return none_
     dim as MirInst ins2
     ins2.op = cast( ushort, BinOpFor( Tko.TK_EQ, mt, isUns ) )
