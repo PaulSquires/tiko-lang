@@ -430,9 +430,14 @@ function LowerPredeclared _
         dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return v
         dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+        '' WITH types AND info: a 'cast' in the initialiser NARROWS, and needs the
+        '' named type to narrow to. Without them
+        '' 'const E_FAIL = cast( long, &h80004005 )' folded to the unnarrowed
+        '' 2147500037, and so did every constant built on it.
         dim as Tko.Check.ConstVal cv = _
             Tko.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names, _
-                               c.types->target.pointerBits, c.syms, s->parent )
+                               c.types->target.pointerBits, c.syms, s->parent, _
+                               0, c.types, c.info )
         '' AT THE CONSTANT'S OWN DECLARED WIDTH. The INITIALISER is what was folded
         '' and it knows nothing about the type it is declared as, so
         '' 'const v as ubyte = not u' read back as -1 where fbc has 255 -- and it
@@ -968,6 +973,49 @@ function LowerLen _
     if (lenNm <> "len") andalso (isSizeof = false) then return false
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
+
+    '' A USER-DEFINED 'operator len' WINS OVER THE INTRINSIC. Measured:
+    ''
+    ''     operator len( byref a as mytype ) as integer : return a.value
+    ''     print len( m )        fbc: 1      tiko: 8
+    ''
+    '' 8 is sizeof( mytype ): LEN was folded to the type's SIZE before any
+    '' overload lookup ran, so the operator was emitted and reached by nothing.
+    '' The five other user operators in the same corpus file -- '-', '+', ABS,
+    '' FIX, SGN -- are all correct, which is what made this look like a LEN
+    '' question rather than a dispatch one.
+    ''
+    '' FOUND BY NAME, because nothing BINDS it: 'len( m )' parses as a CALL and
+    '' Check types the intrinsic. The same shape 'operator sqr' has -- see
+    '' lowermath.bas, which asks the identical question.
+    ''
+    '' SIZEOF IS NOT OVERLOADABLE and must not ask: it is always the type's size.
+    if isSizeof = false then
+        dim as Tko.TypeId lat = c.types->Unqualify( c.info->TypeOf_( a ) )
+        if lat <> Tko.TYPE_NONE then
+            if c.types->Kind( lat ) = Tko.TK_UDT then
+                '' FROM THE TYPE'S OWN DECLARING SCOPE, not the expression's:
+                '' Check records no scope on an expression node inside a
+                '' procedure -- Collect never walks a body -- and a type and the
+                '' operators over it are declared together. The same lookup
+                '' UserBinaryOp_ makes, and for the same reason.
+                dim as Tko.ScopeId lsc = _
+                    cast( Tko.ScopeId, c.types->DeclScopeOf( lat ) )
+                dim as Tko.SymbolId lop = Tko.SYMBOL_NONE
+                if lsc <> Tko.SCOPE_NONE then
+                    lop = c.syms->Lookup( lsc, _
+                        c.names->Fold( c.names->GetString( "len" ) ) )
+                end if
+                if lop <> Tko.SYMBOL_NONE then
+                    dim as MirValue lov
+                    if LowerUserUnaryOpSym_( c, lop, a, MT_I64, lov ) then
+                        outv = lov
+                        return true
+                    end if
+                end if
+            end if
+        end if
+    end if
 
     '' A DOTTED PATH THROUGH A TYPE NAME IS A COMPILE-TIME SIZE, and there is no object
     '' to measure -- see LowerStaticMemberLen_, which is also where the phantom instance

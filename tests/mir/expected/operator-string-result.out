@@ -169,7 +169,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %13, 1)
     %14 = call ptr _Zv13absR6MYTYPE(@a)
     call.rtl void fb_PrintString(0, %14, 1)
-    %15 = const i64 8
+    %15 = call i64 _Zv13lenR6MYTYPE(@a)
     call.rtl void fb_PrintLongint(0, %15, 1)
     %16 = alloca ptr s
     %17 = field.addr @s, 0

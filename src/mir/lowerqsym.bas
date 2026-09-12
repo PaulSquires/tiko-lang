@@ -162,9 +162,17 @@ private function QSymConstOf_ _
             if sy->payload <> 0 then
                 dim as Tko.NodeId item = cast( Tko.NodeId, sy->payload )
                 if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
+                    '' WITH types AND info, because a 'cast' in the initialiser
+                    '' NARROWS and needs the named type to narrow to. Without
+                    '' them 'const E_FAIL = cast( long, &h80004005 )' folded to
+                    '' the unnarrowed 2147500037, and every constant built on it
+                    '' -- 'const BOTH = S_OK + E_FAIL' -- carried that value.
+                    '' A USE narrowed it back, so 'dim as long z = BOTH' was
+                    '' right and only the PRINT of the constant was wrong.
                     dim as Tko.Check.ConstVal icv = Tko.Check.ConstOf( _
                         *c.ast, StmtOf( c, item )->b, *c.srcMgr, *c.names, _
-                        c.types->target.pointerBits, c.syms, sy->parent )
+                        c.types->target.pointerBits, c.syms, sy->parent, 0, _
+                        c.types, c.info )
                     '' ...at the constant's DECLARED width, as everywhere else.
                     icv = Tko.Check.ClampConstToTypeRef( _
                         *c.ast, StmtOf( c, item )->a, icv, c.types->target.pointerBits )

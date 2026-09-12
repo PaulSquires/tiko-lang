@@ -48,6 +48,24 @@ private function CVW_( byval v as longint, byval bits as long ) as ConstVal
     return r
 end function
 
+'' A FOLDED VALUE NARROWED TO THE TYPE A 'cast' NAMED. Measured against fbc, which
+'' narrows AT THE CAST rather than at the use: 'cast( long, &h80004005 )' IS
+'' -2147467259 and stays that through any further constant arithmetic.
+private function NarrowConstTo_ _
+    ( byref v as ConstVal, byval bt as Tko.BuiltinType ) as ConstVal
+
+    select case bt
+    case Tko.TY_BYTE     : return CV_( cast( longint, cast( byte,   v.value ) ) )
+    case Tko.TY_UBYTE    : return CV_( cast( longint, cast( ubyte,  v.value ) ) )
+    case Tko.TY_SHORT    : return CV_( cast( longint, cast( short,  v.value ) ) )
+    case Tko.TY_USHORT   : return CV_( cast( longint, cast( ushort, v.value ) ) )
+    case Tko.TY_LONG     : return CVW_( cast( longint, cast( long,  v.value ) ), 32 )
+    case Tko.TY_ULONG    : return CVW_( cast( longint, cast( ulong, v.value ) ), 64 )
+    case Tko.TY_BOOLEAN  : return CV_( iif( v.value <> 0, -1, 0 ) )
+    end select
+    return v
+end function
+
 '' The width a binary operator folds at: the WIDER of its operands.
 private function WiderOf_( byref a as ConstVal, byref b as ConstVal ) as long
     dim as long wa = iif( a.bits = 0, 64, a.bits )
@@ -448,8 +466,32 @@ private function ConstCall_ _
     '' S_OK', 'if failed( hr )', '*ppv = 0 : return E_POINTER'. The line the count
     '' pointed at never mentioned a cast.
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
-        return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), src, _
+        dim as ConstVal cvv = ConstOf( ast, _
+                        cast( Tko.NodeId, ast.children[cp->first + 1] ), src, _
                         names, intBits, syms, scope_, depth, types, info)
+        '' ...BUT THE CAST NARROWS, and the value it yields is the NARROWED one.
+        '' The note above said narrowing was the caller's business; measured, it
+        '' is not. inc/win/winerror.bi declares
+        ''
+        ''     const E_FAIL = cast( HRESULT, &h80004005 )
+        ''     const BOTH   = S_OK + E_FAIL
+        ''
+        '' and fbc prints -2147467259 for BOTH, as it does for E_FAIL alone.
+        '' Keeping the unnarrowed 2147500037 was right wherever a USE narrowed
+        '' it -- 'dim as long z = BOTH' printed correctly all along -- and wrong
+        '' wherever the constant IS the answer, which is every PRINT of one and
+        '' every further fold built on it.
+        if (cvv.known) andalso (types <> 0) andalso (info <> 0) then
+            dim as Tko.NodeId cta = cast( Tko.NodeId, ast.children[cp->first] )
+            dim as Tko.TypeId ctt = info->TypeOf_( cta )
+            if ctt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId ctu = types->Unqualify( ctt )
+                if types->Kind( ctu ) = Tko.TK_BUILTIN then
+                    return NarrowConstTo_( cvv, types->BuiltinOf( ctu ) )
+                end if
+            end if
+        end if
+        return cvv
     end if
 
     if cp->count <> 1 then return CVNone_( )
