@@ -1,4 +1,4 @@
-global var i32 v1
+global var i32 v1 = 7
 global str $str1 "#.##"
 global str $str2 "x"
 global str $str3 "zzz"

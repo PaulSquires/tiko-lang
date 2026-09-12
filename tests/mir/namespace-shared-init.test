@@ -1,0 +1,35 @@
+'' A SHARED INITIALISER INSIDE A NAMESPACE WAS RUN BY NOBODY.
+''
+'' N_NAMESPACE and N_EXTERN_BLOCK both sat in the statement dispatch's DECLARATIONS
+'' list, on the grounds that the MODULE WALK handles them. WalkTop lowers N_PROC and
+'' nothing else, so a shared variable nested in either got its storage and NO
+'' initialising store at all:
+''
+''     namespace o : dim shared as long a = 7 : end namespace
+''     print o.a          fbc: 7      tiko: 0
+''
+'' A WRONG VALUE, silently, in a program that compiles, verifies and links -- and the
+'' same for 'extern "C"', whose own note in lower.bas claimed it was handled. Measured,
+'' it was not. A NESTED namespace is here too, which is why the walk recurses rather
+'' than looking one level down.
+''
+'' Neither block may hold anything executable -- fbc's error 96 -- so only the
+'' declarations are descended into and every other child stays the module walk's.
+''
+'' Found by build/goldenrun.sh: two MIR goldens held the missing initialiser, and both
+'' of those tests print the variable, so RUNNING them is what said so.
+''
+'' Differenced against fbc: 7 / 7 / 1.5 / 9 / 5.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/namespace-shared-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+
+'' EVERY ONE OF THEM CARRIES ITS VALUE, including the one at module scope that always
+'' did -- so a regression that dropped the lot would still fail here.
+'' EXPECT-OUT: global var i32 top = 7
+'' EXPECT-OUT: global var i32 a = 7
+'' EXPECT-OUT: global var i32 deep = 9
+'' EXPECT-OUT: global var i32 ex = 5
+'' GOLDEN: expected/namespace-shared-init.out

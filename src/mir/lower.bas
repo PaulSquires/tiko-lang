@@ -1350,8 +1350,34 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
     case Tko.N_CONTINUE
         LowerExitLike( c, id, false )
 
-    case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, Tko.N_NAMESPACE, _
-         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM, Tko.N_EXTERN_BLOCK, _
+    case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+        '' A 'dim shared ... = <init>' INSIDE ONE STILL HAS AN INITIALISER, and
+        '' nobody was running it. Both kinds used to sit in the declarations list
+        '' below on the grounds that the MODULE WALK handles them -- but WalkTop
+        '' lowers N_PROC and nothing else, so a shared variable nested in either got
+        '' its storage and NO initialising store at all. Measured:
+        ''
+        ''     namespace o : dim shared as long a = 7 : end namespace
+        ''     print o.a          fbc: 7      tiko: 0
+        ''
+        '' A WRONG VALUE, silently, in a program that compiles, verifies and links.
+        '' The same for 'extern "C"', whose own note in this file claimed it was
+        '' handled -- measured, it was not -- and for a NESTED namespace, which is
+        '' why this recurses rather than looking one level down.
+        ''
+        '' ONLY THE DECLARATIONS: neither block may hold anything executable (fbc's
+        '' error 96), so every other child is a declaration the module walk owns.
+        dim as Tko.StmtPayload ptr nsp = StmtOf( c, id )
+        for i as long = 0 to nsp->count - 1
+            dim as Tko.NodeId nch = cast( Tko.NodeId, c.ast->children[nsp->first + i] )
+            select case c.ast->Kind( nch )
+            case Tko.N_VAR, Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+                LowerStmt( c, nch )
+            end select
+        next
+
+    case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
+         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM, _
          Tko.N_USING, Tko.N_ASSERT
         '' Declarations: handled by the module walk, not inside a body.
         ''

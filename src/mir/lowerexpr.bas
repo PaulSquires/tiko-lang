@@ -30,6 +30,21 @@ end function
 
 
 
+'' THE BITWISE AND SHIFT OPERATORS, as tokens. MIR needs the question for its own
+'' reason -- neither has a FLOAT form, so a float operand is converted rather than
+'' widened to -- and check.bas's IsBitwise_ is private to that pass.
+private function IsBitwiseTk_( byval tk as Tko.TokenKind ) as boolean
+    select case tk
+    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_EQV, Tko.KW_IMP
+        return true
+    end select
+    return false
+end function
+
+private function IsShiftTk_( byval tk as Tko.TokenKind ) as boolean
+    return (tk = Tko.KW_SHL) orelse (tk = Tko.KW_SHR)
+end function
+
 function LowerExpr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
@@ -797,6 +812,26 @@ function LowerExpr _
             opTy = cast( MirType, r.ty )
         end if
         if IsFloatTy( cast( MirType, r.ty ) ) then opTy = cast( MirType, r.ty )
+        '' ...BUT A BITWISE OPERATOR HAS NO FLOAT FORM. Measured, in one probe:
+        ''
+        ''     #print typeof( a ^ b )        DOUBLE
+        ''     #print typeof( a ^ b xor c )  INTEGER
+        ''     print a ^ b xor c             13      -- (2^3) xor 5, 8 xor 5
+        ''
+        '' '^' is POWER and answers a double, and XOR over it converts to an INTEGER
+        '' first. Widening to the float operand emitted 'xor double', which is not an
+        '' instruction: clang refused the module and tests/parser/src/prec.bas -- 121
+        '' lines of exactly these pairings -- produced no executable at all.
+        ''
+        '' Check ALREADY answers INTEGER for the expression, so the node's own type
+        '' is the width to use; MT_I64 only if the node has none.
+        if (IsBitwiseTk_( tk ) orelse IsShiftTk_( tk )) andalso IsFloatTy( opTy ) then
+            if (mt <> MT_VOID) andalso (IsFloatTy( mt ) = false) then
+                opTy = mt
+            else
+                opTy = MT_I64
+            end if
+        end if
         l = CoerceTy( c, l, opTy, lt)
         r = CoerceTy( c, r, opTy, rt)
 

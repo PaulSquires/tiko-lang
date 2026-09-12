@@ -76,7 +76,6 @@ extern "c"   '' NON-FBCALL: the list helpers and the string lock are all
 	declare function tkrt_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
 		( byval dev as zstring ptr, byval w as long, byval cur as long ) as long
 
-	declare function crt_strdup alias "strdup" ( byval s as zstring ptr ) as zstring ptr
 end extern
 
 extern "rtlib"   '' FBCALL: both are decorated, and the win32 archive spells
@@ -100,6 +99,21 @@ dim shared as FB_LIST ptr tkort_dev_info_widths
 
 extern "rtlib"   '' FBCALL: fb_console.h decorates fb_WidthDev, and the win32
                  '' archive spells it `_fb_WidthDev@8`.
+
+'' strdup IS WRITTEN OUT for the same reason devcomopen.bas and format.bas write it
+'' out: the CRT binding spells it _strdup on MinGW and MSVC and strdup on glibc, so
+'' an alias to the bare name is an UNDEFINED SYMBOL at link time on Windows. This
+'' file was the one that did not get the memo -- 'width lpt1, 80' left
+'' lld-link: undefined symbol: strdup, and no executable at all.
+''
+'' A failed allocation returns NULL, exactly as strdup does.
+private function hStrDup( byval s as zstring ptr ) as zstring ptr
+	dim as uinteger n = strlen( s )
+	dim as zstring ptr p = cast( zstring ptr, malloc( n + 1 ) )
+	if( p = 0 ) then return 0
+	memcpy( p, s, n + 1 )
+	return p
+end function
 
 function tkort_WidthDev alias "fb_WidthDev" _
 	( byval dev as FBSTRING ptr, byval width_ as long ) as long
@@ -153,7 +167,7 @@ function tkort_WidthDev alias "fb_WidthDev" _
 			'' the list element must start zeroed.
 			node = cptr( TKORT_DEVWIDTH ptr, calloc( 1, sizeof( TKORT_DEVWIDTH ) ) )
 			if( node <> 0 ) then
-				node->device = crt_strdup( device )
+				node->device = hStrDup( device )
 				node->width_ = width_
 				tkrt_hListDynElemAdd( tkort_dev_info_widths, @node->elem )
 			end if

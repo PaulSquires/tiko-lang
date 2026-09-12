@@ -1,6 +1,6 @@
 global var i64 r
-global var i64 v2
-global var i64 v1
+global var i64 v2 = 2
+global var i64 v1 = 1
 func void S1() {
   entry0:
     %1 = load @@v2

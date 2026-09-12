@@ -19,8 +19,8 @@ namespace Tko
     enum Precedence
         PREC_NONE     = 0
         PREC_ANDALSO  = 1      '' andalso, orelse -- ONE level, left-associative
-        PREC_IMP      = 2
-        PREC_EQV      = 3
+        PREC_IMP      = 2      '' imp, eqv -- ONE level, left-associative
+        PREC_EQV      = 2      '' measured: 'a imp b eqv c' is '(a imp b) eqv c'
         PREC_XOR      = 4
         PREC_OR       = 5
         PREC_AND      = 6
