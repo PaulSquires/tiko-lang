@@ -113,10 +113,21 @@ end function
 '' Measured: 'sub P( byref s as string )' printing 's' saw the text of a literal
 '' from its OWN print statement, and 'P( "xx" )' reported len 4.
 ''
-'' CROSS-FLAVOUR IS NOT DECIDED HERE. A var-length USTRING against a byref STRING
-'' parameter is left on the path it was on: fbc converts it through
-'' fb_UStrAssignToA, tiko-lang does something else, and neither has been measured
-'' against the other. Refusing to answer beats answering half a rule.
+'' A USTRING AGAINST A NARROW PARAMETER IS A TEMPORARY TOO. Measured, for a
+'' var-length ustring passed to 'byref s as string' and to 'byref s as const string'
+'' alike -- fbc's own C:
+''
+''     memset TMP; vr = fb_UStrToStr( &U, -1 ); fb_StrAssign( &TMP, -1, vr, -1, 0 )
+''     P( &TMP ); fb_StrDelete( &TMP )           -- and NO copy back
+''
+'' This used to answer 'owns its descriptor' for every cross-flavour pair, calling
+'' that refusing to answer. It was not: the ustring's FBUSTRING went to the callee as
+'' an FBSTRING, which read its UTF-16 buffer as narrow text -- 'AB' arrived as 'A',
+'' NUL. The self-hosted compiler read TKO_LIBPATH that way into its library list and
+'' could not find libfb, and printed every file name it had been handed as mojibake.
+''
+'' The OTHER direction -- a narrow argument against a ustring parameter -- is decided
+'' before this is asked, by its own arm in lowercall.bas.
 private function StrArgOwnDescriptor_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
 
@@ -136,7 +147,8 @@ private function StrArgOwnDescriptor_ _
         dim as long fk = StrSwapKind_( c, at, fn_ )
         return (fk <> 1) andalso (fk <> 3)
     end if
-    '' The unmeasured corner, above.
+    '' A ustring into a narrow parameter is copied -- see above.
+    if IsUStringType( c, at ) andalso (IsUStringType( c, pt ) = false) then return false
     if IsUStringType( c, at ) <> IsUStringType( c, pt ) then return true
     select case c.ast->Kind( e )
     case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
