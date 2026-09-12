@@ -804,6 +804,32 @@ function ZstrDataOf_ _
         return true
     end if
 
+    '' ADJACENT LITERALS ARE ONE LITERAL, and they must reach a ZSTRING PTR
+    '' PARAMETER as a plain pointer into the literal pool -- which is what fbc
+    '' emits for both spellings: 'f( "a" "b" )' and 'f( "ab" )' are the same
+    '' 'F( (char*)"ab" )'. Only N_STRING_LIT was folded here; N_STRCAT fell through
+    '' to the descriptor path and took a slot out of the runtime's TEMP DESCRIPTOR
+    '' POOL -- and nothing gave it back, because the borrow-and-delete guard below
+    '' fires only for an rvalue and a concatenation of constants is not one.
+    ''
+    '' THE POOL IS 256 SLOTS (lib/rt/src/inc/config.bi, FB_STR_TMPDESCRIPTORS) and
+    '' it never refills. fbcunit's CU_ASSERT builds '"CU_ASSERT(" #a ")"' -- three
+    '' adjacent literals -- for a 'byval as zstring ptr', so EVERY assertion leaked
+    '' one. The 256th exhausted the pool, fb_hStrAllocTempDesc returned NULL, and
+    '' from there the program printed '(null)', empty numbers and NO NEWLINES AT
+    '' ALL. Measured: 255 asserts clean, 256 corrupt. It was reported as two
+    '' unrelated codegen faults in select_const.bas and odd-arg.bas, which share
+    '' nothing except having more than 256 assertions.
+    if c.ast->Kind( id ) = Tko.N_STRCAT then
+        dim as string ct
+        if ConstStringTextOf_( c, id, ct ) then
+            outv.kind = cast( ubyte, MV_GLOBAL )
+            outv.ty = cast( ubyte, MT_PTR )
+            outv.id = c.m->AddStringLiteral( ct, *c.names )
+            return true
+        end if
+    end if
+
     '' AN 'iif' IS ASKED BEFORE THE KIND TESTS, not after them. Measured, fbc builds
     '' ONE var-length temporary, initialises it in EACH BRANCH, and takes the data
     '' pointer out of it:

@@ -956,7 +956,11 @@ function LowerCallParts _
             elseif (pt <> Tko.TYPE_NONE) andalso (a.kind <> cast( ubyte, MV_NONE )) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
-                    a = CoerceTy( c, a, pmt, pt)
+                    '' ARGUMENT'S TYPE IS THE SOURCE, PARAMETER'S THE DESTINATION.
+                    '' 'pt' went in the srcTid slot, so CoerceTy never saw a BOOLEAN
+                    '' destination and narrowing to a boolean TRUNCATED: 'foo( 256 )'
+                    '' over a 'byval as boolean' passed FALSE, 256 and 0xFF being 0.
+                    a = CoerceTy( c, a, pmt, c.info->TypeOf_( argNode ), pt )
                 end if
             end if
         end if
@@ -1336,8 +1340,11 @@ function BinOpFor _
     case Tko.TK_NE        : return iif( f, M_FCMP_NE, M_ICMP_NE )
     case Tko.TK_LT        : return iif( f, M_FCMP_LT, iif( isUnsigned, M_ICMP_ULT, M_ICMP_SLT ) )
     case Tko.TK_GT        : return iif( f, M_FCMP_GT, iif( isUnsigned, M_ICMP_UGT, M_ICMP_SGT ) )
-    case Tko.TK_LE        : return iif( f, M_FCMP_LE, M_ICMP_SLE )
-    case Tko.TK_GE        : return iif( f, M_FCMP_GE, M_ICMP_SGE )
+    '' UNSIGNED '<=' AND '>=' WERE SIGNED COMPARES -- '<' and '>' already asked, and
+    '' it bites only at the type's full width. 'dim as ulongint a = &hFFFFFFFFFFFFFFFF
+    '' : a <= 1' answered TRUE, -1 <= 1 signed; fbc says false.
+    case Tko.TK_LE        : return iif( f, M_FCMP_LE, iif( isUnsigned, M_ICMP_ULE, M_ICMP_SLE ) )
+    case Tko.TK_GE        : return iif( f, M_FCMP_GE, iif( isUnsigned, M_ICMP_UGE, M_ICMP_SGE ) )
     end select
     return M_NONE
 end function

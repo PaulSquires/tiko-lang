@@ -5,7 +5,9 @@ func i8 _ZN2NS11ISSUPPORTEDEv() {
     %2 = const i8 0
     store @$tmp0, %2
     %3 = const i8 -1
-    ret %3
+    %4 = const i8 0
+    %5 = icmp.ne %3, %4
+    ret %5
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -28,4 +30,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 16 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 18 insts, 0 statements not lowered, 0 scope imbalance

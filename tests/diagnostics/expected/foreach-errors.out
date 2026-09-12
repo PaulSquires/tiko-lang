@@ -15,8 +15,9 @@ func i8 _ZN6NEARLY7ISVALIDEv(ptr $0) {
     %8 = sext %6
     %9 = icmp.slt %8, %7
     %10 = neg %9
-    %11 = trunc %10
-    ret %11
+    %11 = const i64 0
+    %12 = icmp.ne %10, %11
+    ret %12
 }
 func i32 _ZN6NEARLY5VALUEEv(ptr $0) {
   local i32 $tmp0
@@ -208,7 +209,7 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 8 functions, 16 blocks, 126 insts, 4 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 16 blocks, 127 insts, 4 statements not lowered, 0 scope imbalance
   unlowered N_FOREACH 4
   inside N_FOREACH 4
   skip-site src\mir\lowerctl.bas:206 4

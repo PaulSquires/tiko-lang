@@ -76,6 +76,8 @@ namespace Tko.Mir
         OP( M_ICMP_SGE,   "icmp.sge",   2, true  )
         OP( M_ICMP_ULT,   "icmp.ult",   2, true  )
         OP( M_ICMP_UGT,   "icmp.ugt",   2, true  )
+        OP( M_ICMP_ULE,   "icmp.ule",   2, true  )
+        OP( M_ICMP_UGE,   "icmp.uge",   2, true  )
         OP( M_FCMP_EQ,    "fcmp.eq",    2, true  )
         OP( M_FCMP_NE,    "fcmp.ne",    2, true  )
         OP( M_FCMP_LT,    "fcmp.lt",    2, true  )

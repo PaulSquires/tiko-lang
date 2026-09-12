@@ -177,26 +177,27 @@ func i32 main(i32 $0, ptr $1) {
     %13 = call i64 _Z2Q2x(%12)
     call.rtl void fb_PrintLongint(0, %13, 2)
     %14 = load @i
-    %15 = trunc %14
-    %16 = call i64 _Z2R2b(%15)
-    call.rtl void fb_PrintLongint(0, %16, 1)
-    %17 = load @i
-    %18 = call i64 ONLY_(%17)
-    call.rtl void fb_PrintLongint(0, %18, 1)
-    %19 = load @ev
-    %20 = call i64 _Z2S2u7INTEGER(%19)
-    call.rtl void fb_PrintLongint(0, %20, 2)
-    %21 = load @ev
-    %22 = call i64 _Z2T2u7INTEGER(%21)
-    call.rtl void fb_PrintLongint(0, %22, 1)
-    %23 = const i32 0
-    call.rtl void fb_End(%23)
-    %24 = load @$tmp0
-    ret %24
+    %15 = const i64 0
+    %16 = icmp.ne %14, %15
+    %17 = call i64 _Z2R2b(%16)
+    call.rtl void fb_PrintLongint(0, %17, 1)
+    %18 = load @i
+    %19 = call i64 ONLY_(%18)
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    %20 = load @ev
+    %21 = call i64 _Z2S2u7INTEGER(%20)
+    call.rtl void fb_PrintLongint(0, %21, 2)
+    %22 = load @ev
+    %23 = call i64 _Z2T2u7INTEGER(%22)
+    call.rtl void fb_PrintLongint(0, %23, 1)
+    %24 = const i32 0
+    call.rtl void fb_End(%24)
+    %25 = load @$tmp0
+    ret %25
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 12 functions, 12 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 12 functions, 12 blocks, 124 insts, 0 statements not lowered, 0 scope imbalance

@@ -16,8 +16,9 @@ func i8 LESS(ptr $0, ptr $1) {
     %8 = load %7
     %9 = icmp.slt %6, %8
     %10 = neg %9
-    %11 = trunc %10
-    ret %11
+    %11 = const i64 0
+    %12 = icmp.ne %10, %11
+    ret %12
 }
 func void SBYTE_(i8 $0) {
   local i8 b
@@ -69,8 +70,9 @@ func i8 __TKO_LAMBDA_B9179CFB_0(ptr $0, ptr $1) {
     %8 = load %7
     %9 = icmp.sgt %6, %8
     %10 = neg %9
-    %11 = trunc %10
-    ret %11
+    %11 = const i64 0
+    %12 = icmp.ne %10, %11
+    ret %12
 }
 func void APPLY_<28>(ptr $0) {
   local ptr f
@@ -132,4 +134,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance

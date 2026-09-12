@@ -227,7 +227,7 @@ end function
 function IsCmpOp_( byval op as MirOp ) as boolean
     select case op
     case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
-         M_ICMP_ULT, M_ICMP_UGT, _
+         M_ICMP_ULT, M_ICMP_UGT, M_ICMP_ULE, M_ICMP_UGE, _
          M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, M_FCMP_LE, M_FCMP_GE
         return true
     end select

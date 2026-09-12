@@ -314,6 +314,8 @@ private function CmpPred _
     case M_ICMP_SGE : return "sge"
     case M_ICMP_ULT : return "ult"
     case M_ICMP_UGT : return "ugt"
+    case M_ICMP_ULE : return "ule"
+    case M_ICMP_UGE : return "uge"
     end select
     return ""
 end function
@@ -608,7 +610,8 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         Line( e, res & " = xor " & ty & " " & ValStr( e, ins.a ) & ", -1" )
 
     case M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
-         M_ICMP_ULT, M_ICMP_UGT, M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, _
+         M_ICMP_ULT, M_ICMP_UGT, M_ICMP_ULE, M_ICMP_UGE, _
+         M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, _
          M_FCMP_LE, M_FCMP_GE
         dim as boolean cmpFloat = false
         dim as string pred = CmpPred( op, cmpFloat )

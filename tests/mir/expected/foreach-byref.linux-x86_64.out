@@ -14,8 +14,9 @@ func i8 _ZN4ITER7ISVALIDEv(ptr $0) {
     %8 = sext %6
     %9 = icmp.slt %8, %7
     %10 = neg %9
-    %11 = trunc %10
-    ret %11
+    %11 = const i64 0
+    %12 = icmp.ne %10, %11
+    ret %12
 }
 func ptr _ZN4ITER5VALUEEv(ptr $0) {
   local ptr $tmp0
@@ -177,4 +178,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 15 blocks, 111 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 15 blocks, 112 insts, 0 statements not lowered, 0 scope imbalance

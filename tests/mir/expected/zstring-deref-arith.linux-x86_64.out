@@ -87,14 +87,14 @@ func i32 main(i32 $0, ptr $1) {
     %55 = load %54
     %56 = const i64 65
     %57 = zext %55
-    %58 = icmp.sge %57, %56
+    %58 = icmp.uge %57, %56
     %59 = neg %58
     call.rtl void fb_PrintLongint(0, %59, 0)
     %60 = load @p
     %61 = load %60
     %62 = const i64 98
     %63 = zext %61
-    %64 = icmp.sge %63, %62
+    %64 = icmp.uge %63, %62
     %65 = neg %64
     call.rtl void fb_PrintLongint(0, %65, 0)
     %66 = load @p
@@ -116,14 +116,14 @@ func i32 main(i32 $0, ptr $1) {
     %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     %81 = call.rtl i32 fb_ASC(%80, 1)
     %82 = zext %79
-    %83 = icmp.sge %82, %81
+    %83 = icmp.uge %82, %81
     %84 = neg %83
     %85 = load @p
     %86 = load %85
     %87 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
     %88 = call.rtl i32 fb_ASC(%87, 1)
     %89 = zext %86
-    %90 = icmp.sle %89, %88
+    %90 = icmp.ule %89, %88
     %91 = neg %90
     %92 = and %84, %91
     %93 = load @p
@@ -131,14 +131,14 @@ func i32 main(i32 $0, ptr $1) {
     %95 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
     %96 = call.rtl i32 fb_ASC(%95, 1)
     %97 = zext %94
-    %98 = icmp.sge %97, %96
+    %98 = icmp.uge %97, %96
     %99 = neg %98
     %100 = load @p
     %101 = load %100
     %102 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 1)
     %103 = call.rtl i32 fb_ASC(%102, 1)
     %104 = zext %101
-    %105 = icmp.sle %104, %103
+    %105 = icmp.ule %104, %103
     %106 = neg %105
     %107 = and %99, %106
     %108 = or %92, %107

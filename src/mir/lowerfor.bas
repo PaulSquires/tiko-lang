@@ -269,6 +269,24 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         return
     end if
 
+    '' THE COMPARISON'S SIGNEDNESS FOLLOWS THE COUNTER, and the STEP'S DIRECTION
+    '' follows the STEP'S OWN TYPE. Both were signed unconditionally, and each half
+    '' had its own wrong answer, measured against fbc:
+    ''
+    ''   a UBYTE counter, 0 to 1, stepping '1u shl 7' -- signed 'sle' read the
+    ''       counter's 128 as -128, so it never passed the limit and the loop
+    ''       NEVER ENDED.
+    ''   the same loop with the step in a UBYTE VARIABLE holding 128 -- the signed
+    ''       sign test read 128 as negative, chose the descending arm, and the loop
+    ''       ran ZERO times where fbc runs it once.
+    ''
+    '' A NEGATIVE LITERAL STEP OVER AN UNSIGNED COUNTER still descends -- a UINTEGER
+    '' counter running 10 down to 0 with a step of -1 is fbc's descending loop,
+    '' because the STEP is signed there even though the counter is not. That is
+    '' why the two questions are asked of two different types.
+    dim as boolean unsCtr = (IsFloatTy( ity ) = false) andalso _
+                            IsUnsignedType( c, c.info->TypeOf_( sp->a ) )
+
     '' init
     dim as MirValue init_ = CoerceTy( c, LowerExpr( c, fromE ), ity, c.info->TypeOf_( fromE ) )
     if init_.kind <> cast( ubyte, MV_NONE ) then
@@ -340,7 +358,16 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         dim as Tko.Check.ConstVal sv = Tko.Check.ConstOf( *c.ast, stepE, *c.srcMgr, *c.names, _
                                    c.types->target.pointerBits )
         stepConst = sv.known
-        if sv.known then negStep = (sv.value < 0)
+        '' A CONSTANT STEP OF AN UNSIGNED TYPE IS NEVER NEGATIVE either -- the same
+        '' question the runtime sign test below asks, and the constant path was
+        '' asking it of the folded LONGINT: '1ull shl 63' is 2^63, which reads as
+        '' negative at 64 bits, so the loop chose the descending arm and ran ZERO
+        '' times where fbc runs it once.
+        if sv.known then
+            negStep = (sv.value < 0)
+            if (IsFloatTy( ity ) = false) andalso _
+               IsUnsignedType( c, c.info->TypeOf_( stepE ) ) then negStep = false
+        end if
 
         stepSlot = NewTempLocal( c, ity, 8 )
         if stepSlot < 0 then
@@ -379,7 +406,11 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         signAddr.id = signSlot
         dim as MirValue sload = LowerExprLoad( c, stepAddr, ity )
         dim as MirInst scmp
-        scmp.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_GE, M_ICMP_SGE ) )
+        '' AN UNSIGNED STEP IS NEVER NEGATIVE, so its sign is asked unsigned.
+        dim as boolean unsStep = (IsFloatTy( ity ) = false) andalso _
+                                 IsUnsignedType( c, c.info->TypeOf_( stepE ) )
+        scmp.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_GE, _
+                                     iif( unsStep, M_ICMP_UGE, M_ICMP_SGE ) ) )
         scmp.ty = cast( ubyte, MT_I8 )
         scmp.a = sload
         scmp.b = ZeroOf( c, ity )
@@ -423,7 +454,8 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
 
         c.curBlock = upB
         dim as MirInst cu
-        cu.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_LE, M_ICMP_SLE ) )
+        cu.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_LE, _
+                                   iif( unsCtr, M_ICMP_ULE, M_ICMP_SLE ) ) )
         cu.ty = cast( ubyte, MT_I8 )
         cu.a = cur
         cu.b = lim
@@ -431,7 +463,8 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
 
         c.curBlock = downB
         dim as MirInst cd
-        cd.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_GE, M_ICMP_SGE ) )
+        cd.op = cast( ushort, iif( IsFloatTy( ity ), M_FCMP_GE, _
+                                   iif( unsCtr, M_ICMP_UGE, M_ICMP_SGE ) ) )
         cd.ty = cast( ubyte, MT_I8 )
         cd.a = cur
         cd.b = lim
@@ -440,7 +473,8 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         dim as MirInst cmp
         cmp.op = cast( ushort, iif( IsFloatTy( ity ), _
                                     iif( negStep, M_FCMP_GE, M_FCMP_LE ), _
-                                    iif( negStep, M_ICMP_SGE, M_ICMP_SLE ) ) )
+                                    iif( negStep, iif( unsCtr, M_ICMP_UGE, M_ICMP_SGE ), _
+                                                  iif( unsCtr, M_ICMP_ULE, M_ICMP_SLE ) ) ) )
         cmp.ty = cast( ubyte, MT_I8 )
         cmp.a = cur
         cmp.b = lim

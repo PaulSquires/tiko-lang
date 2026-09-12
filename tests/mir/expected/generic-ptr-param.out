@@ -16,8 +16,9 @@ func i8 LESS(ptr $0, ptr $1) {
     %8 = load %7
     %9 = icmp.slt %6, %8
     %10 = neg %9
-    %11 = trunc %10
-    ret %11
+    %11 = const i64 0
+    %12 = icmp.ne %10, %11
+    ret %12
 }
 func i64 DEREF<8>(ptr $0) {
   local i64 $tmp0
@@ -102,4 +103,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance

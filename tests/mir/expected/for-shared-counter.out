@@ -53,7 +53,9 @@ func i8 F() {
     br for.head1
   for.exit4:
     %12 = const i8 0
-    ret %12
+    %13 = const i8 0
+    %14 = icmp.ne %12, %13
+    ret %14
 }
 func void H() {
   local i16 k
@@ -97,4 +99,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 16 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 16 blocks, 51 insts, 0 statements not lowered, 0 scope imbalance

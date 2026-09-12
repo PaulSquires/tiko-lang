@@ -301,9 +301,38 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         '' because 'stopAtElse' told EndOfStatement to stop short of it.
         if Peek( p ) = Tko.KW_ELSE then
             Advance( p )
+            '' EVERY STATEMENT ON THE LINE HERE TOO. The then-branch above already
+            '' loops; the else-branch took ONE statement and the rest fell out into
+            '' the ENCLOSING block, where they ran unconditionally:
+            ''
+            ''     b = 2 : if 0 then b = 3 else dim as integer a = 5: b = a
+            ''
+            '' left 'b = a' at module level, so b kept 2 where fbc gives 5. It is
+            '' the corpus's own idiom -- compound/if.bas's test_singleline_scope
+            '' writes all three arms that way over line continuations.
             dim as Tko.NodeIdVec eone
-            dim as Tko.NodeId es = Statement( p )
-            if es <> Tko.NODE_NONE then eone.Push( cast( ulong, es ) )
+            dim as long elGuard = 0
+            do
+                elGuard += 1
+                if elGuard > 10000 then exit do
+                dim as Tko.NodeId es = Statement( p )
+                if es <> Tko.NODE_NONE then eone.Push( cast( ulong, es ) )
+                if es = Tko.NODE_NONE then exit do
+                if AtEnd( p ) then exit do
+                if p.pos <= 0 then exit do
+                '' The SEPARATOR THE LAST STATEMENT ATE says whether the line went
+                '' on -- ':' and a newline lex alike, and only TF_COLON tells them
+                '' apart. Same rule as the then-branch's loop.
+                if (p.toks->At( p.pos - 1 ).flags and Tko.TF_COLON) = 0 then exit do
+                if Peek( p ) = Tko.KW_ELSE then exit do
+                if Peek( p ) = Tko.KW_END then
+                    if HasTok( p, p.pos + 1 ) then
+                        if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
+                            exit do
+                        end if
+                    end if
+                end if
+            loop
             sp.c = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, eone )
         end if
         '' 'if c then s : end if' terminates explicitly. ':' and a newline both lex

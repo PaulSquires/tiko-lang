@@ -58,8 +58,25 @@ for f in $(grep -rl "END_SUITE" tests/vendor/fbc-tests --include='*.bas' | sort)
         && [ -f "$WK/t_$n.exe" ] && tok=1
     if [ $fok = 1 ] && [ $tok = 1 ] ; then
         nrun=$((nrun+1))
-        ( cd "$WK" && timeout "$RUNTIMEOUT" "./f_$n.exe" </dev/null >"f_$n.txt" 2>&1 )
-        ( cd "$WK" && timeout "$RUNTIMEOUT" "./t_$n.exe" </dev/null >"t_$n.txt" 2>&1 )
+        # FROM A COPY OF THE TEST FILE'S OWN DIRECTORY. The exes ran in $WK, which
+        # has none of the corpus's data files, so every suite that opens one relative
+        # to itself -- file/*.bas, filesystem/*.bas -- failed its TRUE assertions
+        # under BOTH compilers and reported dozens of defects that are the harness's.
+        #
+        # A COPY, not the directory itself: these suites WRITE files as well as read
+        # them, and tests/vendor is fbc's own suite -- never edited, not even by a
+        # test run. Copied once per directory and reused.
+        # ONE COPY PER COMPILER, so a file the fbc run WRITES is not there for the
+        # tiko run to read -- that would compare two different inputs.
+        d=$(dirname "$f")
+        for side in f t ; do
+            if [ ! -d "$WK/rd/$side/$d" ] ; then
+                mkdir -p "$WK/rd/$side/$d"
+                cp "$d"/* "$WK/rd/$side/$d"/ 2>/dev/null
+            fi
+        done
+        ( cd "$WK/rd/f/$d" && timeout "$RUNTIMEOUT" "$WK/f_$n.exe" </dev/null >"$WK/f_$n.txt" 2>&1 )
+        ( cd "$WK/rd/t/$d" && timeout "$RUNTIMEOUT" "$WK/t_$n.exe" </dev/null >"$WK/t_$n.txt" 2>&1 )
         if cmp -s "$WK/f_$n.txt" "$WK/t_$n.txt" ; then
             nsame=$((nsame+1))
         else

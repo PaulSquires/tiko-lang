@@ -1299,18 +1299,50 @@ sub LowerMainModule _
 end sub
 
 '' Whether a module has anything to run, as opposed to only declarations.
+''
+'' A NAMESPACE IS NOT A LEAF. It was counted as a declaration and not looked
+'' inside, so a module whose every top-level item sits in one answered 'no code'
+'' -- and a SECONDARY module that answers that gets no module constructor at all,
+'' which means its 'dim shared ... = init' never runs. Measured:
+''
+''     ' mod.bas, compiled alongside a main module
+''     namespace ns
+''         dim shared as integer g = 123
+''     end namespace
+''
+'' read back 0 under tiko-lang and 123 under fbc. The same declaration OUTSIDE a
+'' namespace was already right, and so was one inside a namespace in the MAIN
+'' module -- which is why it survived: the working case sat beside the broken one.
+'' It is the corpus's own shape, because SUITE( x ) expands to 'namespace x' and
+'' the suite file is always the secondary module.
+private function TopItemIsCode_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    select case c.ast->Kind( id )
+    case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
+         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM
+        '' A declaration; it does not put anything in main.
+        return false
+    case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+        '' Its BODY decides, exactly as WalkTop below descends into one.
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        for i as long = 0 to sp->count - 1
+            if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) then
+                return true
+            end if
+        next
+        return false
+    end select
+    return true
+end function
+
 function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     for i as long = 0 to lp->count - 1
-        select case c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
-        case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, Tko.N_NAMESPACE, _
-             Tko.N_EXTERN_BLOCK, Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM
-            '' A declaration; it does not put anything in main.
-        case else
+        if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then
             return true
-        end select
+        end if
     next
     return false
 end function

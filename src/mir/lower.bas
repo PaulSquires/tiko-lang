@@ -1324,6 +1324,17 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' so a function returned whatever the ABI happened to leave behind. Every
             '' other decline in this file is counted; this one was not.
             if rv.kind = cast( ubyte, MV_NONE ) then SkipHere( c )
+            '' TO THE RESULT'S TYPE. 'return expr' coerced nothing at all, so a
+            '' narrowing result took whatever width the expression had and the
+            '' emitter truncated it: 'function f( i as integer ) as boolean :
+            '' return i' answered FALSE for 256, where 'function = i' -- which
+            '' does coerce -- answers true. fbc gives true for both.
+            if rv.kind <> cast( ubyte, MV_NONE ) then
+                dim as MirType rmt = cast( MirType, c.resultTy )
+                if (rmt <> MT_VOID) andalso (rmt <> MT_AGG) then
+                    rv = CoerceTy( c, rv, rmt, c.info->TypeOf_( sp->a ), c.resultType )
+                end if
+            end if
         else
             rv = LoadResult( c )
         end if
