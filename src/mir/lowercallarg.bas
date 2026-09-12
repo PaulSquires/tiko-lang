@@ -312,7 +312,29 @@ function UserConvOperand_ _
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then
         pu = c.types->Unqualify( c.types->Inner( pu ) )
     end if
-    if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    '' A UDT OPERAND INTO A SCALAR PARAMETER IS THE OTHER DIRECTION, and it was not
+    '' modelled at all: everything below converts INTO a UDT. Measured, fbc accepts
+    ''
+    ''     operator - ( byref l as foo, byval r as single ) as foo
+    ''     print l - r      '' r is a foo with 'operator cast( ) as double'
+    ''
+    '' and calls the operator. Check SELECTS it -- the cost model prices the cast --
+    '' and then lowering could not build the argument, so LowerUserBinaryOp_ declined
+    '' and the expression fell back to casting BOTH operands to a number and doing
+    '' built-in arithmetic. That is not a decline anyone sees: it emits, it verifies,
+    '' and it answers whatever the built-in answers. overload/tostring.bas is written
+    '' to catch exactly this and could not: its operator computes the same number the
+    '' built-in does, and only the PRINT of the UDT result told them apart.
+    if c.types->Kind( pu ) <> Tko.TK_UDT then
+        dim as Tko.TypeId es = c.types->Unqualify( c.info->TypeOf_( e ) )
+        if c.types->Kind( es ) = Tko.TK_REFERENCE then
+            es = c.types->Unqualify( c.types->Inner( es ) )
+        end if
+        if c.types->Kind( es ) <> Tko.TK_UDT then return false
+        if UserConvToScalar_( c, e, pu, outa ) = false then return false
+        outa = CoerceTy( c, outa, LowerType( pu, *c.types ), pu )
+        return (outa.kind <> cast( ubyte, MV_NONE ))
+    end if
     dim as Tko.TypeId et = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->Kind( et ) = Tko.TK_REFERENCE then
         et = c.types->Unqualify( c.types->Inner( et ) )

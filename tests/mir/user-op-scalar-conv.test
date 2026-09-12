@@ -1,0 +1,38 @@
+'' A UDT OPERAND INTO A SCALAR PARAMETER, AND THE OPERATOR THAT NEEDED IT.
+''
+'' fbc accepts, and calls the operator:
+''
+''     operator - ( byref l as foo, byval r as single ) as foo
+''     print l - r            '' r is a foo declaring 'operator cast( ) as double'
+''
+'' Check SELECTS the operator -- the cost model prices the cast, and did already --
+'' and then LOWERING could not build the argument: UserConvOperand_ models converting
+'' INTO a UDT parameter and nothing else, so it refused, LowerUserBinaryOp_ declined,
+'' and the expression fell back to casting BOTH operands to a number and doing
+'' BUILT-IN ARITHMETIC.
+''
+'' THAT IS NOT A DECLINE ANYONE SEES. It emits, it verifies, it links, and it answers
+'' whatever the built-in answers -- which for tests/vendor/fbc-tests/overload/
+'' tostring.bas is the same number the operator computes. The file exists to catch
+'' exactly this and could not: only the PRINT of the UDT RESULT told them apart, and
+'' that print was declining for a second reason.
+''
+'' THE SECOND REASON. An 'operator cast' is a MEMBER call and needs a receiver, so
+'' every caller asked LowerAddr -- which answers for a variable and not for an RVALUE.
+'' 'print l - r' had no address to take, the cast was never found, and the PRINT
+'' vanished: fbc prints three lines and tiko printed the third.
+''
+'' Differenced against fbc, which prints -1, a quoted 3, and 3.00.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/user-op-scalar-conv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+
+'' THE OPERATORS ARE CALLED -- '-' and '+', each with a cast on one operand.
+'' EXPECT-OUT: _ZmiR3FOOf
+'' EXPECT-OUT: _ZplfR3FOO
+
+'' AND THE STRING CAST, which is what PRINT and WRITE of the result take.
+'' EXPECT-OUT: _ZN3FOOcv8FBSTRINGEv
+'' GOLDEN: expected/user-op-scalar-conv.out

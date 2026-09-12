@@ -963,6 +963,40 @@ end function
 '' Returns the character-data pointer in 'raw' when the operator's result was a bare
 '' char*, so a caller that wants (pointer, length) rather than a descriptor -- an
 '' assignment, where fbc passes length 0 -- can use it directly.
+'' THE ADDRESS OF A UDT OPERAND, even when it has none.
+''
+'' An 'operator cast' is a MEMBER call and needs a receiver, so every caller here
+'' asked LowerAddr -- which answers for a VARIABLE and not for an RVALUE. 'print
+'' l - r' over a type declaring 'operator cast( ) as string', where 'operator -'
+'' returns that type, had no address to take, the cast was never found, and the
+'' PRINT DECLINED SILENTLY: fbc prints '-1' and a quoted 3 for the two statements
+'' overload/tostring.bas writes, and tiko printed neither and said nothing.
+''
+'' The value goes into a temporary of the type's own size, which is what has to
+'' happen to any UDT rvalue that must be addressed.
+function UdtSelfAddr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    outv = LowerAddr( c, id )
+    if outv.kind <> cast( ubyte, MV_NONE ) then return true
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as long sz = SizeOfType( c, t )
+    if sz <= 0 then return false
+    dim as MirValue rv = LowerExpr( c, id )
+    if rv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, sz )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+    StoreThrough( c, tmp, rv )
+    outv = tmp
+    return true
+end function
+
 function UserCastToStr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
       byref raw as boolean ) as boolean
@@ -1023,8 +1057,8 @@ function UserCastToStr_ _
     wend
     if want = Tko.SYMBOL_NONE then return false
 
-    dim as MirValue self_ = LowerAddr( c, id )
-    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue self_
+    if UdtSelfAddr_( c, id, self_ ) = false then return false
     dim as MirValue r = EmitMemberCall( c, want, self_, MT_PTR )
     if r.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -1075,8 +1109,8 @@ function UserCastToWstr_ _
         if rt <> Tko.TYPE_NONE then
             if c.types->Kind( rt ) = Tko.TK_BUILTIN then
                 if c.types->BuiltinOf( rt ) = Tko.TY_WSTRING then
-                    dim as MirValue self_ = LowerAddr( c, id )
-                    if self_.kind = cast( ubyte, MV_NONE ) then return false
+                    dim as MirValue self_
+                    if UdtSelfAddr_( c, id, self_ ) = false then return false
                     outv = EmitMemberCall( c, cur, self_, MT_PTR )
                     return (outv.kind <> cast( ubyte, MV_NONE ))
                 end if
@@ -1120,8 +1154,8 @@ function UserCastToPtr_ _
         dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
         if rt <> Tko.TYPE_NONE then
             if c.types->Kind( rt ) = Tko.TK_POINTER then
-                dim as MirValue self_ = LowerAddr( c, id )
-                if self_.kind = cast( ubyte, MV_NONE ) then return false
+                dim as MirValue self_
+                if UdtSelfAddr_( c, id, self_ ) = false then return false
                 outv = EmitMemberCall( c, cur, self_, MT_PTR )
                 return (outv.kind <> cast( ubyte, MV_NONE ))
             end if
@@ -1253,8 +1287,8 @@ function UserCastToNum_ _
     wend
     if want = Tko.SYMBOL_NONE then return false
 
-    dim as MirValue self_ = LowerAddr( c, id )
-    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue self_
+    if UdtSelfAddr_( c, id, self_ ) = false then return false
     outv = EmitMemberCall( c, want, self_, wantTy )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
