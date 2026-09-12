@@ -12,28 +12,28 @@ func void P() {
     %1 = alloca ptr a
     %2 = const i64 7
     %3 = trunc %2
-    %13 = call i32 MK<6>(%3)
+    %13 = call i32 _Z2MkIiEi(%3)
     store @$abi3, %13
     %4 = load @$abi3
     store @a, %4
     %5 = alloca ptr d
     %6 = const f64 2.5
-    %15 = call i64 MK<13>(%6)
+    %15 = call i64 _Z2MkIdEd(%6)
     store @$abi4, %15
     %7 = load @$abi4
     store @d, %7
     %8 = alloca ptr a2
     %9 = const i64 9
     %10 = trunc %9
-    %17 = call i32 MK<6>(%10)
+    %17 = call i32 _Z2MkIiEi(%10)
     store @$abi5, %17
     %11 = load @$abi5
     store @a2, %11
     ret
 }
-declare i32 MK<6>(i32 $0)
-declare i64 MK<13>(f64 $0)
-func i32 MK<6>(i32 $0) {
+declare i32 _Z2MkIiEi(i32 $0)
+declare i64 _Z2MkIdEd(f64 $0)
+func i32 _Z2MkIiEi(i32 $0) {
   local agg $tmp0 size 4
   local i32 x
   local agg b size 4
@@ -56,7 +56,7 @@ func i32 MK<6>(i32 $0) {
     ret %10
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func i64 MK<13>(f64 $0) {
+func i64 _Z2MkIdEd(f64 $0) {
   local agg $tmp0 size 8
   local f64 x
   local agg b size 8

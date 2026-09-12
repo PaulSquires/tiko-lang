@@ -45,7 +45,7 @@ func void _ZN1PC1ERS_(ptr $0, ptr $1) {
     store %7, %10
     ret
 }
-func ptr MKA<23>(ptr $0) {
+func ptr _Z3MkAI1PERS0_(ptr $0) {
   local ptr $tmp0
   local ptr v
   local ptr $tmp2
@@ -86,7 +86,7 @@ func i32 main(i32 $0, ptr $1) {
     %6 = trunc %5
     call void _ZN1PC1Ei(@seed, %6)
     %7 = alloca ptr a
-    %8 = call ptr MKA<23>(@seed)
+    %8 = call ptr _Z3MkAI1PERS0_(@seed)
     store @a, %8
     %9 = load @a
     %10 = field.addr %9, 0

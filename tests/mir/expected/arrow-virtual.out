@@ -58,7 +58,7 @@ func ptr _ZdeR1H(ptr $0) {
     %7 = load @$tmp0
     ret %7
 }
-func i32 GRAB<6>(ptr $0, ptr $1) {
+func i32 _Z4GrabIiEPvR3BoxIiE(ptr $0, ptr $1) {
   local i32 $tmp0
   local ptr src
   local ptr dst
@@ -149,7 +149,7 @@ func i32 main(i32 $0, ptr $1) {
     %41 = call.rtl ptr memset(@bx, 0, 4)
     %43 = call.rtl ptr memset(@pv, 0, 8)
     %44 = load @pv
-    %45 = call i32 GRAB<6>(%44, @bx)
+    %45 = call i32 _Z4GrabIiEPvR3BoxIiE(%44, @bx)
     %46 = const i64 5
     %47 = sext %45
     %48 = icmp.eq %47, %46
@@ -162,7 +162,7 @@ func i32 main(i32 $0, ptr $1) {
     br if.join4
   if.join7:
     %51 = load @pv
-    %52 = call i32 GRAB<6>(%51, @bx)
+    %52 = call i32 _Z4GrabIiEPvR3BoxIiE(%51, @bx)
     store @got, %52
     %53 = load @got
     call.rtl void fb_PrintInt(0, %53, 2)

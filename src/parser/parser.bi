@@ -23,6 +23,7 @@ namespace Tko.Parse
 
     '' One statement, or NODE_NONE at end of input.
     declare function Statement( byref p as Tko.ParserState ) as Tko.NodeId
+    declare function CallStatement( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' A syntactic type reference: 'integer', 'Foo ptr ptr', 'sub( byval as long )'.
     declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId

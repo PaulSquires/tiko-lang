@@ -19,7 +19,7 @@ func void __TKO_LAMBDA_5B527DDB_0(ptr $0, i32 $1) {
     store %7, %10
     ret
 }
-func void APPLY<25>(i32 $0, ptr $1) {
+func void _Z5ApplyI24__TKO_CLOSURE_5B527DDB_0EiRS0_(i32 $0, ptr $1) {
   local i32 n
   local ptr f
   local i32 i
@@ -75,7 +75,7 @@ func i32 main(i32 $0, ptr $1) {
     %9 = alloca ptr $tmp2
     %10 = field.addr @$tmp2, 0
     store %10, @sum_
-    call void APPLY<25>(%8, @$tmp2)
+    call void _Z5ApplyI24__TKO_CLOSURE_5B527DDB_0EiRS0_(%8, @$tmp2)
     %11 = load @sum_
     call.rtl void fb_PrintInt(0, %11, 1)
     %12 = const i32 0

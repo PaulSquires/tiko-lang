@@ -8,14 +8,14 @@ func void P(f64 $0) {
     store @q, $0
     %2 = alloca ptr d
     %3 = load @q
-    %6 = call i64 WRAP<13>(%3)
+    %6 = call i64 _Z4WrapIdEd(%3)
     store @$abi2, %6
     %4 = load @$abi2
     store @d, %4
     ret
 }
-declare i64 WRAP<13>(f64 $0)
-func i32 WRAP<6>(i32 $0) {
+declare i64 _Z4WrapIdEd(f64 $0)
+func i32 _Z4WrapIiEi(i32 $0) {
   local agg $tmp0 size 4
   local i32 x
   local agg r size 4
@@ -38,7 +38,7 @@ func i32 WRAP<6>(i32 $0) {
     ret %10
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func i64 WRAP<8>(i64 $0) {
+func i64 _Z4WrapIu7INTEGERES0_(i64 $0) {
   local agg $tmp0 size 8
   local i64 x
   local agg r size 8
@@ -60,7 +60,7 @@ func i64 WRAP<8>(i64 $0) {
     %10 = load @$abi3
     ret %10
 }
-func i8 WRAP<3>(i8 $0) {
+func i8 _Z4WrapIhEh(i8 $0) {
   local agg $tmp0 size 1
   local i8 x
   local agg r size 1
@@ -82,7 +82,7 @@ func i8 WRAP<3>(i8 $0) {
     %10 = load @$abi3
     ret %10
 }
-func i64 WRAP<13>(f64 $0) {
+func i64 _Z4WrapIdEd(f64 $0) {
   local agg $tmp0 size 8
   local f64 x
   local agg r size 8
@@ -131,26 +131,26 @@ func i32 main(i32 $0, ptr $1) {
     store @n, %6
     %7 = alloca ptr a
     %8 = load @n
-    %23 = call i32 WRAP<6>(%8)
+    %23 = call i32 _Z4WrapIiEi(%8)
     store @$abi6, %23
     %9 = load @$abi6
     store @a, %9
     %10 = alloca ptr b
     %11 = const i64 3
-    %25 = call i64 WRAP<8>(%11)
+    %25 = call i64 _Z4WrapIu7INTEGERES0_(%11)
     store @$abi7, %25
     %12 = load @$abi7
     store @b, %12
     %13 = alloca ptr c
     %14 = load @n
     %15 = trunc %14
-    %27 = call i8 WRAP<3>(%15)
+    %27 = call i8 _Z4WrapIhEh(%15)
     store @$abi8, %27
     %16 = load @$abi8
     store @c, %16
     %17 = alloca ptr e
     %18 = load @n
-    %29 = call i32 WRAP<6>(%18)
+    %29 = call i32 _Z4WrapIiEi(%18)
     store @$abi9, %29
     %19 = load @$abi9
     store @e, %19

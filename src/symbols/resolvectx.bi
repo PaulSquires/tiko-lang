@@ -121,6 +121,8 @@ declare function IdentNameOf _
 declare function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 declare sub InstantiatePendingProcs_( byref c as Ctx )
+declare function RewriteShadowedIntrinsic_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
 declare sub DiscoverInstantiations_ _
     ( byref c as Ctx, byref ast as Tko.AstArena, byval root as Tko.NodeId, _
       byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo )

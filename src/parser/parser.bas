@@ -1233,7 +1233,18 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' the ordinary call-or-assign ambiguity, which Resolve decides.
             n = ParseAmbiguous( p )
         elseif Tko.IsStatementIntrinsic( k ) then
+            dim as long intrTok0 = p.pos
             n = ParseIntrinsic( p )
+            '' THE TOKENS ARE KEPT so Resolve can read the statement again as a CALL. A
+            '' statement keyword is not reserved from procedure names: fbc accepts
+            '' 'private sub Line( byref e as EmitCtx, byref t as string )' inside a
+            '' namespace and 'Line( e, "x" )' there calls it -- measured, all three of
+            '' 'Line( e, "a" )', 'Line e, "b"' and a call from a later block of the same
+            '' namespace. Only the symbol table can say which this is, and the parser
+            '' runs before there is one. See RewriteShadowedIntrinsic_.
+            if (n <> Tko.NODE_NONE) andalso (p.pos > intrTok0) then
+                p.ast->RecordTokens( n, intrTok0, p.pos - 1 )
+            end if
         elseif SpawnStatementHead_( p, k ) then
             '' The whole statement is the CALL: 'spawn' contributes nothing but the
             '' keyword, so the node holds one child and every later pass reads the
@@ -1383,6 +1394,13 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
 
     if consumesLine then EndOfStatement( p )
     return n
+end function
+
+'' A STATEMENT READ AS A CALL OR AN ASSIGNMENT, whatever its first token looks like.
+'' Resolve re-reads a statement-keyword statement through this once the keyword's
+'' spelling turns out to name a procedure of the program's own.
+function CallStatement( byref p as Tko.ParserState ) as Tko.NodeId
+    return ParseAmbiguous( p )
 end function
 
 #include once "parser/prelude.bas"

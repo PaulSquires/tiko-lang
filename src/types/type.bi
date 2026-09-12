@@ -221,6 +221,18 @@ namespace Tko
         as FB.Array( of longint ) boundPool   '' TK_ARRAY (lo, hi) pairs
         as Interner ptr  names
         as TargetLayout  target
+        '' GENERIC INSTANTIATIONS, FOR THE MANGLER. An instantiation's NAME is a
+        '' structural key -- 'BOX<3>', the numbers TypeIds -- and it was mangled as if it
+        '' were a source name: '_ZN7BOX<15>3PUTE8FBSTRING' where fbc writes
+        '' '_ZN3BoxI8FBSTRINGE3PUTES0_'. Only the tiko-built side could link to it, so
+        '' no tiko object could be linked against an fbc-built one that used a generic.
+        '' Keyed by that folded name; the declared spelling and the argument TypeIds
+        '' are what the Itanium template form needs. See Mangle.RegisterInst.
+        as FB.Array( of ulong ) instName
+        as FB.Array( of ulong ) instSpell
+        as FB.Array( of long )  instArgFirst
+        as FB.Array( of long )  instArgCount
+        as FB.Array( of ulong ) instArgs
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr, byref tgt as TargetLayout )

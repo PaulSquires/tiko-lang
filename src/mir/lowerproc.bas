@@ -182,16 +182,16 @@ sub LowerProc _
             if (gsy->flags and Tko.SYMF_GENERIC_INST) <> 0 then f->isWeak = true
         end if
     end if
-    '' ...AND BY THE MANGLED NAME, because the FLAG does not reach every path. An
-    '' instantiation is created in three places -- a generic TYPE's members, a generic
-    '' PROCEDURE, and the re-parsed body Collect declares for one -- and the symbol the
-    '' N_PROC node refers to is not always the one that got flagged. The mangled name
-    '' is unambiguous: '<' is put there by the instantiation key and a user cannot write
-    '' it in an identifier. Without this the bootstrap's link still failed on
-    '' FB::FSFAIL<N> and FB::FAIL<N,M>, fb/fsresult.bi's error helpers, called from many
-    '' modules and so defined in each of them.
+    '' ...AND BY THE INSTANTIATION REGISTRY, because the FLAG does not reach every
+    '' path. An instantiation is created in three places -- a generic TYPE's members, a
+    '' generic PROCEDURE, and the re-parsed body Collect declares for one -- and the
+    '' symbol the N_PROC node refers to is not always the one that got flagged. Without
+    '' this the bootstrap's link failed on fb/fsresult.bi's Fail( of T, E ) helpers,
+    '' called from many modules and so defined in each of them. It asked whether the
+    '' MANGLED name held a '<' until instantiations were mangled as Itanium templates,
+    '' which have none -- lld let the duplicates through and GNU ld did not.
     if f->isWeak = false then
-        if instr( c.names->Spelling( nm ), "<" ) > 0 then f->isWeak = true
+        if Tko.Mangle.IsInstName( *c.types, sp->name ) then f->isWeak = true
     end if
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock

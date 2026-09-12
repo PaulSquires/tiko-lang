@@ -40,7 +40,7 @@ func i32 __TKO_LAMBDA_2E76842F_1(i32 $0) {
     %8 = trunc %7
     ret %8
 }
-func i32 APPLYR<24>(i32 $0, ptr $1) {
+func i32 _Z6ApplyRI24__TKO_CLOSURE_2E76842F_0EiRS0_(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 v
   local ptr f
@@ -57,7 +57,7 @@ func i32 APPLYR<24>(i32 $0, ptr $1) {
     %7 = call i32 __TKO_LAMBDA_2E76842F_0(%5, %6)
     ret %7
 }
-func i32 APPLYR<26>(i32 $0, ptr $1) {
+func i32 _Z6ApplyRIPFiiEEiRS1_(i32 $0, ptr $1) {
   local i32 $tmp0
   local i32 v
   local ptr f
@@ -99,7 +99,7 @@ func i32 main(i32 $0, ptr $1) {
     %11 = field.addr @$tmp3, 0
     %12 = load @bias
     store %11, %12
-    %13 = call i32 APPLYR<24>(%9, @$tmp3)
+    %13 = call i32 _Z6ApplyRI24__TKO_CLOSURE_2E76842F_0EiRS0_(%9, @$tmp3)
     store @got, %13
     %14 = load @got
     call.rtl void fb_PrintInt(0, %14, 1)
@@ -109,7 +109,7 @@ func i32 main(i32 $0, ptr $1) {
     %18 = func.addr ptr __TKO_LAMBDA_2E76842F_1
     %19 = alloca ptr $tmp5
     store @$tmp5, %18
-    %20 = call i32 APPLYR<26>(%17, @$tmp5)
+    %20 = call i32 _Z6ApplyRIPFiiEEiRS1_(%17, @$tmp5)
     store @got2, %20
     %21 = load @got2
     call.rtl void fb_PrintInt(0, %21, 1)

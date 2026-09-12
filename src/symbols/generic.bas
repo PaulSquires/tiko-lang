@@ -4,6 +4,7 @@
 #include once "symbols/check.bi"
 #include once "symbols/collect.bi"
 #include once "parser/parser.bi"
+#include once "symbols/mangle.bi"
 
 namespace Tko.Resolve
 
@@ -118,6 +119,12 @@ function InstantiateGeneric_ _
     dim as Tko.ScopeId iin = c.syms->OpenScope( Tko.SCOPEK_TYPE, ghome, isid )
     isym->inner = iin
     isym->type_ = c.types->NamedType( Tko.TK_UDT, inm, cast( ulong, ghome ) )
+    '' FOR THE MANGLER, which spells this 3BoxI8FBSTRINGE by the DECLARED name.
+    scope
+        dim as Tko.InternId gspell = StmtOf( c, gn )->rawName
+        if gspell = 0 then gspell = gs->name
+        Tko.Mangle.RegisterInst( *c.types, inm, gspell, argTypes )
+    end scope
     '' The symbol is published BEFORE the fields are walked, so a generic that refers
     '' to itself behind a pointer -- 'as Node( of T ) ptr nxt' -- finds the cache
     '' rather than recursing for ever.
@@ -196,6 +203,86 @@ function InstantiateGeneric_ _
 end function
 
 #include once "symbols/genericinfer.bas"
+
+'' A STATEMENT KEYWORD SPELLING A PROCEDURE OF THE PROGRAM'S OWN. The parser sent
+'' 'Line( e, "ret void" )' to the graphics LINE because LINE is a statement keyword and
+'' nothing else was known yet; fbc, which looks the name up, calls the procedure.
+'' Measured over a namespace holding 'private sub Line( byref e as Ctx, byref t as
+'' string )': 'Line( e, "a" )', 'Line e, "b"' and a call from a later block of the same
+'' namespace print [a][b][c]. A GLOBAL 'sub Line' is fbc's error 4, which is Collect's
+'' question and not this one.
+''
+'' THE BOOTSTRAP FOUND IT: codegen/llvmemit.bas writes every instruction through its own
+'' 'Line', so the self-hosted compiler emitted each function as a label and a closing
+'' brace -- and clang said "expected instruction opcode". None of the 3,230 vendored
+'' files declares a procedure of that name.
+''
+'' AN OPERATOR DOES NOT COUNT, for the reason it does not in IntrinsicCallType_. Only a
+'' statement whose tokens the parser kept is considered, and the keyword token is
+'' RETAGGED as an identifier before it is re-read, so the call parser takes it as a
+'' name; a generic body re-parsed later sees the same identifier.
+function RewriteShadowedIntrinsic_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
+
+    if c.parser = 0 then return false
+    dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
+    if p0->toks = 0 then return false
+    dim as Tko.TokenKind kw = cast( Tko.TokenKind, StmtOf( c, id )->op )
+    if Tko.IsKeywordKind( kw ) = false then return false
+    dim as long t0, t1
+    if c.ast->TokensOf( id, t0, t1 ) = false then return false
+    if (t0 < 0) orelse (t0 >= p0->toks->Count) then return false
+    if cast( Tko.TokenKind, p0->toks->At( t0 ).kind ) <> kw then return false
+
+    dim as string spell = Tko.TokenKindText( kw )
+    if len( spell ) = 0 then return false
+    '' LOWERCASE, which is how MakeIdent interns an identifier built from a keyword token
+    '' -- the uppercase spelling is a different InternId, and an identifier carrying it
+    '' bound to nothing: the rewrite fired and every call came out 'unresolved: LINE'.
+    dim as Tko.InternId raw = c.names->GetString( Tko.Text.LowerAscii( spell ) )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.syms->Lookup( scope_, c.names->Fold( raw ) ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
+    if decl <> Tko.NODE_NONE then
+        if c.ast->Kind( decl ) = Tko.N_PROC then
+            if StmtOf( c, decl )->op = cast( ushort, Tko.KW_OPERATOR ) then return false
+        end if
+    end if
+
+    dim as ushort oldKind = p0->toks->At( t0 ).kind
+    dim as ulong oldLit = p0->toks->At( t0 ).literal
+    p0->toks->At( t0 ).kind = cast( ushort, Tko.TK_IDENT )
+    p0->toks->At( t0 ).literal = cast( ulong, raw )
+
+    dim as Tko.ParserState q
+    q.toks = p0->toks
+    q.stream = 0
+    q.litPool = p0->litPool
+    q.ast = c.ast
+    q.src = c.srcMgr
+    q.names = c.names
+    q.diags = c.diags
+    q.pos = t0
+    q.silent = true
+    q.lambdaSeq = p0->lambdaSeq
+    dim as Tko.NodeId fresh = Tko.Parse.CallStatement( q )
+    p0->lambdaSeq = q.lambdaSeq
+
+    dim as boolean ok = (fresh <> Tko.NODE_NONE)
+    if ok then ok = (c.ast->Kind( fresh ) <> Tko.N_ERROR)
+    if ok = false then
+        p0->toks->At( t0 ).kind = oldKind
+        p0->toks->At( t0 ).literal = oldLit
+        return false
+    end if
+
+    c.info->Resize( c.ast->Count( ) )
+    dim as Tko.SourceLoc keepLoc = c.ast->nodes[cast( long, id )].loc
+    c.ast->nodes[cast( long, id )] = c.ast->nodes[cast( long, fresh )]
+    c.ast->nodes[cast( long, id )].loc = keepLoc
+    return true
+end function
 
 '' INFER THE TYPE ARGUMENTS from the call's own arguments, for a call that wrote none.
 ''
@@ -542,6 +629,12 @@ function InstantiateProcAt_ _
     '' FB::FAIL<N,M> -- fb/fsresult.bi's error helpers, called from many modules.
     dim as Tko.Symbol ptr ipsym = c.syms->SymbolAt( isid )
     if ipsym <> 0 then ipsym->flags or= Tko.SYMF_GENERIC_INST
+    '' FOR THE MANGLER: _Z5IdentI8FBSTRINGES0_, by the DECLARED name.
+    scope
+        dim as Tko.InternId pspell = StmtOf( c, gn )->rawName
+        if pspell = 0 then pspell = gname
+        Tko.Mangle.RegisterInst( *c.types, inm, pspell, argTypes )
+    end scope
     c.procInstKey.Push( cast( ulong, ikey ) )
     c.procInstSym.Push( cast( ulong, isid ) )
 

@@ -10,23 +10,23 @@ func void P() {
     %4 = call.rtl ptr memset(@b, 0, 8)
     %5 = const i64 7
     %6 = trunc %5
-    call void _ZN6BOX<6>3PUTEi(@a, %6)
+    call void _ZN3BoxIiE3PUTEi(@a, %6)
     %7 = const f64 2.5
-    call void _ZN7BOX<13>3PUTEd(@b, %7)
+    call void _ZN3BoxIdE3PUTEd(@b, %7)
     %8 = alloca ptr r
-    %9 = call i32 _ZN6BOX<6>3GETEv(@a)
+    %9 = call i32 _ZN3BoxIiE3GETEv(@a)
     store @r, %9
     %10 = alloca ptr s
-    %11 = call f64 _ZN7BOX<13>3GETEv(@b)
+    %11 = call f64 _ZN3BoxIdE3GETEv(@b)
     store @s, %11
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare void _ZN6BOX<6>3PUTEi(ptr $0, i32 $1)
-declare void _ZN7BOX<13>3PUTEd(ptr $0, f64 $1)
-declare i32 _ZN6BOX<6>3GETEv(ptr $0)
-declare f64 _ZN7BOX<13>3GETEv(ptr $0)
-func void _ZN6BOX<6>3PUTEi(ptr $0, i32 $1) {
+declare void _ZN3BoxIiE3PUTEi(ptr $0, i32 $1)
+declare void _ZN3BoxIdE3PUTEd(ptr $0, f64 $1)
+declare i32 _ZN3BoxIiE3GETEv(ptr $0)
+declare f64 _ZN3BoxIdE3GETEv(ptr $0)
+func void _ZN3BoxIiE3PUTEi(ptr $0, i32 $1) {
   local ptr this
   local i32 x
   entry0:
@@ -40,7 +40,7 @@ func void _ZN6BOX<6>3PUTEi(ptr $0, i32 $1) {
     store %4, %5
     ret
 }
-func i32 _ZN6BOX<6>3GETEv(ptr $0) {
+func i32 _ZN3BoxIiE3GETEv(ptr $0) {
   local i32 $tmp0
   local ptr this
   entry0:
@@ -54,7 +54,7 @@ func i32 _ZN6BOX<6>3GETEv(ptr $0) {
     %6 = load %5
     ret %6
 }
-func void _ZN7BOX<13>3PUTEd(ptr $0, f64 $1) {
+func void _ZN3BoxIdE3PUTEd(ptr $0, f64 $1) {
   local ptr this
   local f64 x
   entry0:
@@ -68,7 +68,7 @@ func void _ZN7BOX<13>3PUTEd(ptr $0, f64 $1) {
     store %4, %5
     ret
 }
-func f64 _ZN7BOX<13>3GETEv(ptr $0) {
+func f64 _ZN3BoxIdE3GETEv(ptr $0) {
   local f64 $tmp0
   local ptr this
   entry0:

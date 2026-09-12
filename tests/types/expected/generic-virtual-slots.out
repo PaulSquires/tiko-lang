@@ -1,8 +1,8 @@
 object vtable 0 slot(s)
 root<8> vtable 2 slot(s)
-  slot 0 _ZN7ROOT<8>2NMEv
+  slot 0 _ZN4RootIu7INTEGERE2NMEv
   slot 1 <abstract>
 der<8> vtable 2 slot(s)
-  slot 0 _ZN6DER<8>2NMEv
-  slot 1 _ZN6DER<8>3TAGEv
+  slot 0 _ZN3DerIu7INTEGERE2NMEv
+  slot 1 _ZN3DerIu7INTEGERE3TAGEv
 vtables: 3

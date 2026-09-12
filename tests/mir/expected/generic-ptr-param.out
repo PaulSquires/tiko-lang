@@ -20,7 +20,7 @@ func i8 LESS(ptr $0, ptr $1) {
     %12 = icmp.ne %10, %11
     ret %12
 }
-func i64 DEREF<8>(ptr $0) {
+func i64 _Z5DerefIu7INTEGEREPS0_(ptr $0) {
   local i64 $tmp0
   local ptr p
   entry0:
@@ -33,7 +33,7 @@ func i64 DEREF<8>(ptr $0) {
     %5 = load %4
     ret %5
 }
-func f64 DEREF<13>(ptr $0) {
+func f64 _Z5DerefIdEPd(ptr $0) {
   local f64 $tmp0
   local ptr p
   entry0:
@@ -46,7 +46,7 @@ func f64 DEREF<13>(ptr $0) {
     %5 = load %4
     ret %5
 }
-func void APPLY_<29>(ptr $0) {
+func void _Z6apply_IPFbRiS_EERS2_(ptr $0) {
   local ptr f
   local i32 $tmp1
   local i32 $tmp2
@@ -82,17 +82,17 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr v
     %5 = const i64 99
     store @v, %5
-    %6 = call i64 DEREF<8>(@v)
+    %6 = call i64 _Z5DerefIu7INTEGEREPS0_(@v)
     call.rtl void fb_PrintLongint(0, %6, 1)
     %7 = alloca ptr d
     %8 = const f64 1.5
     store @d, %8
-    %9 = call f64 DEREF<13>(@d)
+    %9 = call f64 _Z5DerefIdEPd(@d)
     call.rtl void fb_PrintDouble(0, %9, 1)
     %10 = func.addr ptr LESS
     %11 = alloca ptr $tmp3
     store @$tmp3, %10
-    call void APPLY_<29>(@$tmp3)
+    call void _Z6apply_IPFbRiS_EERS2_(@$tmp3)
     %12 = const i32 0
     call.rtl void fb_End(%12)
     %13 = load @$tmp0

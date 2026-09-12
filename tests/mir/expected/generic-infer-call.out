@@ -35,7 +35,7 @@ func i64 F() {
     %2 = load @$abi2
     %3 = alloca ptr $tmp1
     store @$tmp1, %2
-    %9 = call i64 SOME<23>(@$tmp1)
+    %9 = call i64 _Z4SomeI1TERS0_(@$tmp1)
     store @$abi3, %9
     %4 = load @$abi3
     store @$tmp0, %4
@@ -44,8 +44,8 @@ func i64 F() {
     %11 = load @$abi4
     ret %11
 }
-declare i64 SOME<23>(ptr $0)
-func i64 SOME<23>(ptr $0) {
+declare i64 _Z4SomeI1TERS0_(ptr $0)
+func i64 _Z4SomeI1TERS0_(ptr $0) {
   local agg $tmp0 size 8
   local ptr v
   local agg r size 8

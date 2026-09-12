@@ -1,4 +1,4 @@
-func void OUTER_<23>(i32 $0, i32 $1) {
+func void _Z6Outer_I3RECES0_i(i32 $0, i32 $1) {
   local agg tag size 4
   local i32 n
   local agg buf size 72
@@ -52,7 +52,7 @@ func void OUTER_<23>(i32 $0, i32 $1) {
     %32 = load @tag
     store @$abi3, %32
     %35 = load @$abi3
-    call void TAKE<23>(%35, @buf)
+    call void _Z4TakeI3RECES0_R7FBARRAYIS0_E(%35, @buf)
     %33 = call.rtl i32 fb_ArrayErase(@buf)
     ret
 }
@@ -60,9 +60,9 @@ declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare i64 fb_ArrayLBound(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare i64 fb_ArrayUBound(ptr $0, i64 $1)
-declare void TAKE<23>(i32 $0, ptr $1)
+declare void _Z4TakeI3RECES0_R7FBARRAYIS0_E(i32 $0, ptr $1)
 declare i32 fb_ArrayErase(ptr $0)
-func void TAKE<23>(i32 $0, ptr $1) {
+func void _Z4TakeI3RECES0_R7FBARRAYIS0_E(i32 $0, ptr $1) {
   local agg tag size 4
   local ptr b
   entry0:
@@ -98,7 +98,7 @@ func i32 main(i32 $0, ptr $1) {
     %8 = trunc %7
     store @$abi2, %6
     %12 = load @$abi2
-    call void OUTER_<23>(%12, %8)
+    call void _Z6Outer_I3RECES0_i(%12, %8)
     %9 = const i32 0
     call.rtl void fb_End(%9)
     %10 = load @$tmp0

@@ -16,7 +16,7 @@ func ptr _ZN3BOXixEi(ptr $0, i32 $1) {
     %7 = load @$tmp0
     ret %7
 }
-func i32 DOUBLED<6>(i32 $0) {
+func i32 _Z7DoubledIiEi(i32 $0) {
   local i32 $tmp0
   local i32 x
   entry0:
@@ -54,7 +54,7 @@ func i32 main(i32 $0, ptr $1) {
     %10 = trunc %9
     %11 = call ptr _ZN3BOXixEi(@b, %10)
     %12 = load %11
-    %13 = call i32 DOUBLED<6>(%12)
+    %13 = call i32 _Z7DoubledIiEi(%12)
     call.rtl void fb_PrintInt(0, %13, 1)
     %14 = alloca ptr a
     %15 = call.rtl ptr memset(@a, 0, 16)
@@ -70,7 +70,7 @@ func i32 main(i32 $0, ptr $1) {
     %24 = mul %22, %23
     %25 = ptr.add @a, %24
     %26 = load %25
-    %27 = call i32 DOUBLED<6>(%26)
+    %27 = call i32 _Z7DoubledIiEi(%26)
     call.rtl void fb_PrintInt(0, %27, 1)
     %28 = alloca ptr p
     %29 = const i64 2
@@ -84,7 +84,7 @@ func i32 main(i32 $0, ptr $1) {
     %36 = mul %34, %35
     %37 = ptr.add %33, %36
     %38 = load %37
-    %39 = call i32 DOUBLED<6>(%38)
+    %39 = call i32 _Z7DoubledIiEi(%38)
     call.rtl void fb_PrintInt(0, %39, 1)
     %40 = const i32 0
     call.rtl void fb_End(%40)

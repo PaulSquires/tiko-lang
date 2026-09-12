@@ -50,7 +50,7 @@ func f64 _Z4PICKdd(f64 $0, f64 $1) {
     %7 = mul %5, %6
     ret %7
 }
-func i16 SOME<2>(i8 $0) {
+func i16 _Z4SomeIaEa(i8 $0) {
   local agg $tmp0 size 2
   local i8 x
   local agg r size 2
@@ -78,7 +78,7 @@ func i16 SOME<2>(i8 $0) {
     ret %14
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func i64 SOME<6>(i32 $0) {
+func i64 _Z4SomeIiEi(i32 $0) {
   local agg $tmp0 size 8
   local i32 x
   local agg r size 8
@@ -105,7 +105,7 @@ func i64 SOME<6>(i32 $0) {
     %14 = load @$abi3
     ret %14
 }
-func void SOME<13>(ptr $0, f64 $1) {
+func void _Z4SomeIdEd(ptr $0, f64 $1) {
   local agg $tmp0 size 16
   local f64 x
   local agg r size 16
@@ -164,7 +164,7 @@ func i32 main(i32 $0, ptr $1) {
     %13 = load @bb
     %14 = load @bb
     %15 = call i8 _Z4PICKaa(%13, %14)
-    %36 = call i16 SOME<2>(%15)
+    %36 = call i16 _Z4SomeIaEa(%15)
     store @$abi7, %36
     %16 = load @$abi7
     store @ob, %16
@@ -172,7 +172,7 @@ func i32 main(i32 $0, ptr $1) {
     %18 = load @ll
     %19 = load @ll
     %20 = call i32 _Z4PICKii(%18, %19)
-    %38 = call i64 SOME<6>(%20)
+    %38 = call i64 _Z4SomeIiEi(%20)
     store @$abi8, %38
     %21 = load @$abi8
     store @ol, %21
@@ -180,7 +180,7 @@ func i32 main(i32 $0, ptr $1) {
     %23 = load @dd
     %24 = load @dd
     %25 = call f64 _Z4PICKdd(%23, %24)
-    call void SOME<13>(@$abi9, %25)
+    call void _Z4SomeIdEd(@$abi9, %25)
     %26 = load @$abi9
     store @od, %26
     %27 = field.addr @ob, 1

@@ -74,7 +74,7 @@ func i8 __TKO_LAMBDA_B9179CFB_0(ptr $0, ptr $1) {
     %12 = icmp.ne %10, %11
     ret %12
 }
-func void APPLY_<28>(ptr $0) {
+func void _Z6apply_IPFbRiS_EERS2_(ptr $0) {
   local ptr f
   local i32 $tmp1
   local i32 $tmp2
@@ -121,11 +121,11 @@ func i32 main(i32 $0, ptr $1) {
     %11 = func.addr ptr LESS
     %12 = alloca ptr $tmp3
     store @$tmp3, %11
-    call void APPLY_<28>(@$tmp3)
+    call void _Z6apply_IPFbRiS_EERS2_(@$tmp3)
     %13 = func.addr ptr __TKO_LAMBDA_B9179CFB_0
     %14 = alloca ptr $tmp4
     store @$tmp4, %13
-    call void APPLY_<28>(@$tmp4)
+    call void _Z6apply_IPFbRiS_EERS2_(@$tmp4)
     %15 = const i32 0
     call.rtl void fb_End(%15)
     %16 = load @$tmp0

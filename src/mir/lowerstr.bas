@@ -985,6 +985,26 @@ function LowerLen _
     '' is how the corpus writes an allocation.
     dim as boolean isSizeof = (lenNm = "sizeof")
     if (lenNm <> "len") andalso (isSizeof = false) then return false
+    '' A PROCEDURE OF THE PROGRAM'S OWN SPELLED LEN IS A CALL. 'namespace NS : function
+    '' Len( byref s as St ) as short' called unqualified from inside NS printed 4 --
+    '' sizeof( St ) -- where fbc calls it and prints -3. The same rule
+    '' IntrinsicCallType_ applies to the TYPE; an operator stays the intrinsic's.
+    scope
+        dim as Tko.Symbol ptr usym = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if usym <> 0 then
+            if usym->kind = cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.NodeId udecl = cast( Tko.NodeId, usym->payload )
+                dim as boolean uop = false
+                if udecl <> Tko.NODE_NONE then
+                    if c.ast->Kind( udecl ) = Tko.N_PROC then
+                        uop = (c.ast->stmts[cast( long, c.ast->nodes[cast( long, udecl )].data )].op _
+                               = cast( ushort, Tko.KW_OPERATOR ))
+                    end if
+                end if
+                if uop = false then return false
+            end if
+        end if
+    end scope
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
 

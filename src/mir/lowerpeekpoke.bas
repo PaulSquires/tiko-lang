@@ -171,6 +171,14 @@ function LowerPeek _
     dim as Tko.IdentPayload ptr tip = _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
     if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "peek" then return false
+    '' ...AND NOT A PROCEDURE OF THE PROGRAM'S OWN that happens to be spelled PEEK --
+    '' see IntrinsicCallType_, which types the call by the same rule.
+    scope
+        dim as Tko.Symbol ptr psym = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+        if psym <> 0 then
+            if psym->kind = cast( ubyte, Tko.SYM_PROC ) then return false
+        end if
+    end scope
 
     dim as long base_ = cp->first
     dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )

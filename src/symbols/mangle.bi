@@ -55,7 +55,21 @@ namespace Tko.Mangle
         declare function Find( byref enc as string ) as long
         declare function FindType( byval t as Tko.TypeId ) as long
         declare sub Add( byref enc as string, byval t as Tko.TypeId = 0 )
+        '' A candidate pushed WITHOUT the duplicate test. A template's arguments are
+        '' candidates in their own right even when one repeats: measured, fbc spells
+        '' 'Pair( of string, string )' 4PairI8FBSTRING8FBSTRINGE and its copy
+        '' assignment refers back to the whole as S2_, which counts both.
+        declare sub AddRaw( byref enc as string, byval t as Tko.TypeId = 0 )
     end type
+
+    '' Record an instantiation for the mangler: 'nm' is its folded structural name,
+    '' 'spell' the generic's DECLARED spelling, 'args' its type arguments in order.
+    '' Whether 'nm' names a generic instantiation -- a TYPE or a PROCEDURE.
+    declare function IsInstName _
+        ( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as boolean
+    declare sub RegisterInst _
+        ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
+          byval spell as Tko.InternId, byref args as FB.Array( of ulong ) )
 
     '' The emitted symbol name for one procedure declaration.
     declare function ProcName _

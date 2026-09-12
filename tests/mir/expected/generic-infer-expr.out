@@ -1,4 +1,4 @@
-func void MK<8>(ptr $0, ptr $1) {
+func void _Z2MkIu7INTEGERERS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
@@ -24,7 +24,7 @@ func void MK<8>(ptr $0, ptr $1) {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func i64 G<8>(i64 $0) {
+func i64 _Z1GIu7INTEGERES0_(i64 $0) {
   local i64 $tmp0
   local i64 x
   entry0:
@@ -36,7 +36,7 @@ func i64 G<8>(i64 $0) {
     %4 = const i64 1
     ret %4
 }
-func void MK<13>(ptr $0, ptr $1) {
+func void _Z2MkIdERd(ptr $0, ptr $1) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
@@ -90,7 +90,7 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const i64 3
     store @b, %7
     %8 = alloca ptr p
-    call void MK<8>(@$abi9, @a)
+    call void _Z2MkIu7INTEGERERS0_(@$abi9, @a)
     %9 = load @$abi9
     store @p, %9
     %10 = alloca ptr w
@@ -99,14 +99,14 @@ func i32 main(i32 $0, ptr $1) {
     %13 = add %11, %12
     %14 = alloca ptr $tmp5
     store @$tmp5, %13
-    call void MK<8>(@$abi10, @$tmp5)
+    call void _Z2MkIu7INTEGERERS0_(@$abi10, @$tmp5)
     %15 = load @$abi10
     store @w, %15
     %16 = alloca ptr z
     %17 = load @a
     %18 = load @b
     %19 = mul %17, %18
-    %20 = call i64 G<8>(%19)
+    %20 = call i64 _Z1GIu7INTEGERES0_(%19)
     store @z, %20
     %21 = alloca ptr d
     %22 = load @a
@@ -116,7 +116,7 @@ func i32 main(i32 $0, ptr $1) {
     %26 = fdiv %24, %25
     %27 = alloca ptr $tmp8
     store @$tmp8, %26
-    call void MK<13>(@$abi11, @$tmp8)
+    call void _Z2MkIdERd(@$abi11, @$tmp8)
     %28 = load @$abi11
     store @d, %28
     %29 = field.addr @p, 8

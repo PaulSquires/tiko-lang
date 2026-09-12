@@ -293,3 +293,38 @@ private sub ResolveAmbiguous _
         c.st->calls += 1
     end select
 end sub
+
+'' A TYPE BUILT OVER SOMETHING NOT RESOLVED YET.
+''
+'' 'type t as u const ptr' written before 'type u as integer' resolves to a POINTER
+'' TO NOTHING -- non-NONE, so 'dim as t p' looked resolved and never landed on the
+'' pending list. BackpatchTypedefs then fixed the TYPEDEF and never came back to the
+'' variable, whose slot stayed void: '*p = 0' had an untyped target and declined.
+''
+'' Refusing to BUILD the pointer was tried and is far too blunt -- 'any ptr' has no
+'' element type either, and an unresolved 'typeof' none yet -- so it left those
+'' declarations untyped instead and cost 540 corpus statements. The type is built as
+'' before; this only says the declaration is worth revisiting.
+private function TypeIsIncomplete_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    dim as Tko.TypeId u = t
+    for depth as long = 0 to 15
+        if u = Tko.TYPE_NONE then return false
+        u = c.types->Unqualify( u )
+        select case c.types->Kind( u )
+        case Tko.TK_POINTER, Tko.TK_REFERENCE, Tko.TK_ARRAY
+            dim as Tko.TypeId inner = c.types->Inner( u )
+            '' THE POINTEE IS MISSING -- which is what an unresolved element leaves.
+            '' 'any ptr' is NOT this: its element is the ANY builtin, a real type.
+            if inner = Tko.TYPE_NONE then return true
+            u = inner
+        case Tko.TK_TYPEDEF
+            '' The placeholder Collect gives every typedef, still unfilled.
+            return true
+        case else
+            return false
+        end select
+    next
+    return false
+end function

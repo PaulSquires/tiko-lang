@@ -30,6 +30,39 @@ sub Substitutions.Add( byref enc as string, byval t as Tko.TypeId = 0 )
     keys.Push( cast( ulong, t ) )
 end sub
 
+sub Substitutions.AddRaw( byref enc as string, byval t as Tko.TypeId = 0 )
+    items.Push( enc )
+    keys.Push( cast( ulong, t ) )
+end sub
+
+'' ------------------------------------------------------- generic instantiations
+
+private function FindInst_( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as long
+    if nm = 0 then return -1
+    for i as long = 0 to types.instName.Count - 1
+        if types.instName[i] = cast( ulong, nm ) then return i
+    next
+    return -1
+end function
+
+function IsInstName( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as boolean
+    return FindInst_( types, nm ) >= 0
+end function
+
+sub RegisterInst _
+    ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
+      byval spell as Tko.InternId, byref args as FB.Array( of ulong ) )
+
+    if FindInst_( types, nm ) >= 0 then return
+    types.instName.Push( cast( ulong, nm ) )
+    types.instSpell.Push( cast( ulong, spell ) )
+    types.instArgFirst.Push( types.instArgs.Count )
+    types.instArgCount.Push( args.Count )
+    for i as long = 0 to args.Count - 1
+        types.instArgs.Push( args[i] )
+    next
+end sub
+
 '' S_ is candidate 0, S0_ is candidate 1, S1_ is candidate 2: the number in the
 '' encoding is one LESS than the index, and the first candidate has none at all.
 private function SubRef( byval idx as long ) as string
@@ -224,20 +257,93 @@ private function IsSubstitutable( byref enc as string ) as boolean
     return len( enc ) > 1
 end function
 
+'' AN INSTANTIATION IS AN ITANIUM TEMPLATE: <name> I <args> E. Measured against fbc
+'' over probes of Box, Pair, NS.Cell, a nested Box( of Box( of long ) ), and the
+'' generic procedures Ident and NS.Twice:
+''
+''     Box( of string ).Put( byval x as T )     _ZN3BoxI8FBSTRINGE3PUTES0_
+''     Pair( of Plain, Plain ).Touch( a, b )    _ZN4PairI5PLAIN5PLAINE5TOUCHES0_S0_
+''     NS.Cell( of Plain ).Touch( byref Cell )  _ZN4CellI5PLAINE5TOUCHERS1_
+''     Box( of Box( of long ) ).Put             _ZN3BoxI3BoxIiEE3PUTES1_
+''     NS.Twice( of long )                      _Z5TwiceIiEi
+''
+'' Four facts, each visible above. The NAME keeps its DECLARED case -- 'BOX( of long )'
+'' at the use site still gives 3Box. No NAMESPACE is written: NS.Cell is 4Cell and
+'' FB.ArrayIterator is 13ArrayIterator. The arguments are ordinary type codes but are
+'' NEVER substituted, not against each other (5PLAIN5PLAIN) and not against the name
+'' (the inner 3Box). And the candidates are pushed in order, name first, then every
+'' argument's own, duplicates and all -- then the caller pushes the whole, which is
+'' why the nested Box's parameter is S1_ and Pair's is S0_.
+private function TemplateCode_ _
+    ( byval ix as long, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions ) as string
+
+    dim as string nm = SrcName( names.Spelling( cast( Tko.InternId, types.instSpell[ix] ) ) )
+    subs.AddRaw( nm )
+    dim as string enc = nm & "I"
+    dim as long af = types.instArgFirst[ix]
+    dim as long an = types.instArgCount[ix]
+    for i as long = 0 to an - 1
+        '' A FRESH TABLE per argument is what 'never substituted' means; its
+        '' candidates are then appended to the real one in the order they were made.
+        dim as Substitutions tmp
+        enc += TypeCode( cast( Tko.TypeId, types.instArgs[af + i] ), types, syms, names, tmp )
+        for k as long = 0 to tmp.items.Count - 1
+            subs.AddRaw( tmp.items[k], cast( Tko.TypeId, tmp.keys[k] ) )
+        next
+    next
+    return enc & "E"
+end function
+
 '' Emit a nested-name prefix, substituting the LONGEST cumulative prefix already
 '' seen. The lookup key is always the full literal encoding: once a component has
 '' been replaced by S_, appending the next component to that abbreviation produces a
 '' key that matches nothing, and every later component gets spelled out in full.
 private function EmitPrefix _
     ( byref quals as FB.Array( of string ), byref qualTypes as FB.Array( of ulong ), _
-      byref subs as Substitutions ) as string
+      byref subs as Substitutions, byval types as Tko.TypeContext ptr = 0, _
+      byval syms as Tko.SymbolTable ptr = 0, byval names as Tko.Interner ptr = 0 ) as string
+
+    '' AN INSTANTIATION OWNS NO NAMESPACE (see TemplateCode_): everything outside the
+    '' innermost one is dropped, so a member of FB.Array( of T ) starts at the template.
+    dim as long start = 0
+    dim as long instAt = -1
+    dim as long instIx = -1
+    if (types <> 0) andalso (syms <> 0) andalso (names <> 0) then
+        for i as long = quals.Count - 1 to 0 step -1
+            dim as long qi = cast( long, qualTypes[i] )
+            if (qi > 0) andalso (qi < types->types.Count) then
+                dim as long ix = FindInst_( *types, types->types[qi].name )
+                if ix >= 0 then
+                    start = i
+                    instAt = i
+                    instIx = ix
+                    exit for
+                end if
+            end if
+        next
+    end if
 
     dim as string full = ""      '' the literal cumulative prefix -- the KEY
     dim as string body = ""      '' what actually gets emitted
-    for i as long = 0 to quals.Count - 1
+    for i as long = start to quals.Count - 1
+        dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
+        if i = instAt then
+            dim as long ihit = subs.FindType( qt )
+            if ihit >= 0 then
+                body = SubRef( ihit )
+                full = "#" & str( cast( long, qt ) )
+            else
+                dim as string tc = TemplateCode_( instIx, *types, *syms, *names, subs )
+                body += tc
+                full = tc
+                subs.Add( full, qt )
+            end if
+            continue for
+        end if
         dim as string comp = SrcName( quals[i] )
         full += comp
-        dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
         dim as long hit = -1
         if qt <> 0 then
             hit = subs.FindType( qt )
@@ -291,6 +397,12 @@ function TypeCode _
         enc = "R" & TypeCode( types.Inner( t ), types, syms, names, subs )
 
     case Tko.TK_UDT, Tko.TK_ENUM, Tko.TK_FORWARD, Tko.TK_TYPEDEF
+        dim as long instIx = -1
+        if ti <> 0 then instIx = FindInst_( types, ti->name )
+        if instIx >= 0 then
+            enc = TemplateCode_( instIx, types, syms, names, subs )
+            exit select
+        end if
         dim as string nm = ""
         if ti <> 0 then
             '' THE SOURCE SPELLING WINS WHERE THERE IS ONE. It is set only for a UDT
@@ -314,7 +426,7 @@ function TypeCode _
         if q.Count = 0 then
             enc = SrcName( nm )
         else
-            enc = "N" & EmitPrefix( q, qt, subs ) & SrcName( nm ) & "E"
+            enc = "N" & EmitPrefix( q, qt, subs, @types, @syms, @names ) & SrcName( nm ) & "E"
         end if
 
     case Tko.TK_ARRAY
@@ -810,7 +922,21 @@ private function ProcNameCore _
     dim as FB.Array( of ulong ) qualTypes
     QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes, @types )
 
-    dim as boolean nested = (quals.Count > 0)
+    '' AN INSTANTIATED GENERIC PROCEDURE is a template name and never nested -- fbc
+    '' writes NS.Twice( of long ) as _Z5TwiceIiEi. An OPERATOR is not: fb/comptr.bi's
+    '' generic arrow is _ZptR8ComPtrI6IFAKEBE, the operator code and no argument list.
+    ''
+    '' NOR IS A CONSTRUCTOR OR DESTRUCTOR, whose NAME is the type's -- which for an
+    '' instantiation is the very key the registry holds. Matched, LinkedList( of long )'s
+    '' two structors both came out _Z10LinkedListIiEv, a redefinition clang refused in
+    '' every container and ComPtr file; fbc writes _ZN10LinkedListIiEC1Ev and ...D1Ev.
+    dim as long procInst = -1
+    if (aliased = false) andalso (kw <> cast( ushort, Tko.KW_OPERATOR )) andalso _
+       (isCtor = false) andalso (isDtor = false) then
+        procInst = FindInst_( types, sp->name )
+    end if
+
+    dim as boolean nested = (quals.Count > 0) andalso (procInst < 0)
     dim as boolean overloaded = ((sp->extra and Tko.PF_OVERLOAD) <> 0)
 
     '' Rule 1: not nested and no OVERLOAD -- the uppercased spelling, nothing more.
@@ -824,7 +950,7 @@ private function ProcNameCore _
     '' AN 'extern "C++"' PROCEDURE IS NEVER THAT EITHER: the whole point of the
     '' block is that its members carry the C++ mangling, overloaded or not.
     if (nested = false) andalso (overloaded = false) andalso (isOp = false) andalso _
-       (isCxx = false) then
+       (isCxx = false) andalso (procInst < 0) then
         return ident
     end if
 
@@ -841,7 +967,7 @@ private function ProcNameCore _
         '' the same, and fbc emits 8BOOLEAN_8BOOLEAN_ rather than substituting the
         '' second: they are different PREFIXES. Matching per component produced
         '' 8BOOLEAN_S1_ and a name no linker would ever resolve.
-        outp += EmitPrefix( quals, qualTypes, subs )
+        outp += EmitPrefix( quals, qualTypes, subs, @types, @syms, @names )
         if isCtor then
             outp += "C1"
         elseif isDtor then
@@ -854,6 +980,8 @@ private function ProcNameCore _
         outp += "E"
     elseif isOp then
         outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
+    elseif procInst >= 0 then
+        outp += TemplateCode_( procInst, types, syms, names, subs )
     else
         outp += SrcName( ident )
     end if

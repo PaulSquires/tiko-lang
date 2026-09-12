@@ -31,8 +31,8 @@ func void GO() {
   local agg ib size 72
   entry0:
     %1 = alloca ptr b
-    call void _ZN7BOX<23>C1Ev(@b)
-    call void _ZN7BOX<23>6SHRINKEv(@b)
+    call void _ZN3BoxI1EEC1Ev(@b)
+    call void _ZN3BoxI1EE6SHRINKEv(@b)
     %2 = alloca ptr p
     call void _ZN5PLAINC1Ev(@p)
     %3 = field.addr @p, 0
@@ -66,11 +66,11 @@ func void GO() {
     call void _ZN5IBOX2D1Ev(@ib)
     call void _ZN4UBOXD1Ev(@ub)
     call void _ZN5PLAIND1Ev(@p)
-    call void _ZN7BOX<23>D1Ev(@b)
+    call void _ZN3BoxI1EED1Ev(@b)
     ret
 }
-declare void _ZN7BOX<23>C1Ev(ptr $0)
-declare void _ZN7BOX<23>6SHRINKEv(ptr $0)
+declare void _ZN3BoxI1EEC1Ev(ptr $0)
+declare void _ZN3BoxI1EE6SHRINKEv(ptr $0)
 declare void _ZN5PLAINC1Ev(ptr $0)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare void _ZN4UBOXC1Ev(ptr $0)
@@ -82,8 +82,8 @@ declare i32 fb_ArrayRedimPresvObj(ptr $0, i64 $1, ptr $2, ptr $3, i64 $4, ...)
 declare void _ZN5IBOX2D1Ev(ptr $0)
 declare void _ZN4UBOXD1Ev(ptr $0)
 declare void _ZN5PLAIND1Ev(ptr $0)
-declare void _ZN7BOX<23>D1Ev(ptr $0)
-func void _ZN7BOX<23>6SHRINKEv(ptr $0) {
+declare void _ZN3BoxI1EED1Ev(ptr $0)
+func void _ZN3BoxI1EE6SHRINKEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -137,7 +137,7 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
-func void _ZN7BOX<23>C1Ev(ptr $0) {
+func void _ZN3BoxI1EEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = const ptr 0
@@ -303,7 +303,7 @@ func void _ZN5PLAIND1Ev(ptr $0) {
     ret
 }
 declare i32 fb_ArrayErase(ptr $0)
-func void _ZN7BOX<23>D1Ev(ptr $0) {
+func void _ZN3BoxI1EED1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = func.addr ptr _ZN1EC1Ev

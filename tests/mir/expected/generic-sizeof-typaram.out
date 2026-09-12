@@ -1,4 +1,4 @@
-func void _ZN9HOLDER<6>2B1Eu8UINTEGER(ptr $0, i64 $1) {
+func void _ZN6HolderIiE2B1Eu8UINTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   local i64 k
@@ -15,7 +15,7 @@ func void _ZN9HOLDER<6>2B1Eu8UINTEGER(ptr $0, i64 $1) {
     ret
 }
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
-func void _ZN9HOLDER<6>2B2Eu8UINTEGER(ptr $0, i64 $1) {
+func void _ZN6HolderIiE2B2Eu8UINTEGER(ptr $0, i64 $1) {
   local ptr this
   local i64 n
   entry0:
@@ -29,7 +29,7 @@ func void _ZN9HOLDER<6>2B2Eu8UINTEGER(ptr $0, i64 $1) {
     call.rtl void fb_PrintULongint(0, %5, 1)
     ret
 }
-func i64 SZOF<13>() {
+func i64 _Z4SzOfIdEv() {
   local i64 $tmp0
   entry0:
     %1 = alloca ptr $tmp0
@@ -50,10 +50,10 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr h
     %5 = call.rtl ptr memset(@h, 0, 8)
     %6 = const i64 4
-    call void _ZN9HOLDER<6>2B1Eu8UINTEGER(@h, %6)
+    call void _ZN6HolderIiE2B1Eu8UINTEGER(@h, %6)
     %7 = const i64 4
-    call void _ZN9HOLDER<6>2B2Eu8UINTEGER(@h, %7)
-    %8 = call i64 SZOF<13>()
+    call void _ZN6HolderIiE2B2Eu8UINTEGER(@h, %7)
+    %8 = call i64 _Z4SzOfIdEv()
     call.rtl void fb_PrintULongint(0, %8, 1)
     %9 = const i32 0
     call.rtl void fb_End(%9)
