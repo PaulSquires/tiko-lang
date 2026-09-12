@@ -144,6 +144,27 @@ end function
 ''
 '' Answers false when this is not an upcast at all, which is every ordinary
 '' initialiser -- so it must be cheap to say no.
+'' Is 'baseT' a base of 'derivedT' -- walked, not assumed? Two unrelated UDTs of
+'' different sizes are a type error, not an upcast, and the same question decides
+'' whether an initialiser or an assignment is a BASE SLICE.
+function IsBaseOf_ _
+    ( byref c as Ctx, byval baseT as Tko.TypeId, byval derivedT as Tko.TypeId ) as boolean
+
+    if (baseT = Tko.TYPE_NONE) orelse (derivedT = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId bu = c.types->Unqualify( baseT )
+    dim as Tko.TypeId walk = c.types->Unqualify( derivedT )
+    if bu = walk then return false
+    dim as long guard = 0
+    while (walk <> Tko.TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        dim as Tko.TypeId nb = c.types->BaseOf( walk )
+        if nb = Tko.TYPE_NONE then exit while
+        if c.types->Unqualify( nb ) = bu then return true
+        walk = nb
+    wend
+    return false
+end function
+
 function UpcastAggInit_ _
     ( byref c as Ctx, byval srcNode as Tko.NodeId, byval dstT as Tko.TypeId, _
       byref outv as MirValue ) as boolean
@@ -161,20 +182,7 @@ function UpcastAggInit_ _
     if su = du then return false
     '' THE DESTINATION MUST BE A BASE OF THE SOURCE, walked rather than assumed: two
     '' unrelated UDTs of different sizes are a type error, not an upcast.
-    dim as boolean isBase = false
-    dim as Tko.TypeId walk = su
-    dim as long guard = 0
-    while (walk <> Tko.TYPE_NONE) andalso (guard < 64)
-        guard += 1
-        dim as Tko.TypeId nb = c.types->BaseOf( walk )
-        if nb = Tko.TYPE_NONE then exit while
-        if c.types->Unqualify( nb ) = du then
-            isBase = true
-            exit while
-        end if
-        walk = nb
-    wend
-    if isBase = false then return false
+    if IsBaseOf_( c, du, su ) = false then return false
     dim as long dsz = SizeOfType( c, du )
     if dsz <= 0 then return false
     dim as MirValue sa = LowerAddr( c, srcNode )

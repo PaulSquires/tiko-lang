@@ -461,14 +461,35 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 end if
                 if (ip->b <> Tko.NODE_NONE) andalso (initIsLiteral = false) then
                     dim as Tko.TypeId ivt = c.info->TypeOf_( ip->b )
-                    if (ivt <> Tko.TYPE_NONE) andalso (ivt = vs->type_) andalso _
+                    '' ...AND AN UPCAST IS A COPY OF THE BASE SUBOBJECT, which sits at
+                    '' offset zero -- so the source address needs no adjustment and
+                    '' every question below is asked of the DESTINATION type. The
+                    '' exact-equality test sent 'dim d as A = <a B>' past this block
+                    '' to UpcastAggInit_, which is a BITWISE base-slice copy: over a
+                    '' base owning a string the two objects were left sharing one
+                    '' buffer and both destructors freed it -- 0xC0000374 after
+                    '' printing the right answer. Measured, fbc copy-constructs and
+                    '' default-constructs nothing: '_ZN1AC1ERKS_( &D6, (A*)vr )'.
+                    ''
+                    '' UpcastAggInit_ is not wrong -- it exists for the SIZE problem,
+                    '' clang refusing a 56-byte store into a 32-byte slot -- it was
+                    '' simply being reached for types a bitwise copy cannot serve.
+                    dim as boolean ivtUpcast = false
+                    if (ivt <> Tko.TYPE_NONE) andalso (vs->type_ <> Tko.TYPE_NONE) then
+                        ivtUpcast = IsBaseOf_( c, vs->type_, ivt )
+                    end if
+                    if (ivt <> Tko.TYPE_NONE) andalso _
+                       ((ivt = vs->type_) orelse ivtUpcast) andalso _
                        (c.types->Kind( ivt ) = Tko.TK_UDT) then
+                        '' THE DESTINATION'S TYPE, not the source's: an upcast copies
+                        '' with the BASE's copy constructor.
+                        dim as Tko.TypeId dvt = vs->type_
                         '' AND ITS PARAMETER MUST BE THE TYPE ITSELF. StructorWithArity
                         '' answers ANY one-argument constructor, so a type declaring
                         '' 'constructor( byval n as long )' and nothing else had that
                         '' one picked as its copy constructor -- and was handed an
                         '' ADDRESS where a long belonged.
-                        dim as Tko.SymbolId ucp = CopyCtorOf_( c, ivt )
+                        dim as Tko.SymbolId ucp = CopyCtorOf_( c, dvt )
                         '' A FUNCTION RESULT IS ALREADY A TEMPORARY, so it is MOVED
                         '' and not copied. fbc hands the callee the destination and
                         '' the object is built there once -- 'F( &T$1 )' with no copy
@@ -485,8 +506,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         '' would alias its buffer exactly the way it would here. The
                         '' array case has no such history to preserve: its store was
                         '' the move all along.
-                        dim as boolean wantImplCopy = NeedsLetBody_( c, ivt )
-                        if initIsCall andalso HasDynArrayMember_( c, ivt ) then
+                        dim as boolean wantImplCopy = NeedsLetBody_( c, dvt )
+                        if initIsCall andalso HasDynArrayMember_( c, dvt ) then
                             wantImplCopy = false
                         end if
                         if (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
@@ -510,8 +531,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                             '' ONLY A TEMPORARY THIS EXPRESSION JUST REGISTERED. A
                             '' BYREF-returning call hands back somebody else's
                             '' object and registers nothing, so it still copies.
+                            '' NOT FOR AN UPCAST. Adopting the temporary's bytes is
+                            '' only a move when the two are the SAME object; for a
+                            '' base slice fbc still copy-constructs and THEN destroys
+                            '' the temporary, so it has to stay registered.
                             dim as boolean movedRes = false
                             if (c.ast->Kind( ip->b ) = Tko.N_CALL) andalso _
+                               (ivt = vs->type_) andalso _
                                (ssa.kind = cast( ubyte, MV_LOCAL )) then
                                 for k as long = cmark to c.udtTemps.Count - 1
                                     if cast( long, c.udtTemps[k] ) = ssa.id then
@@ -521,7 +547,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                                 next
                             end if
                             if movedRes then
-                                dim as long msz = SizeOfType( c, ivt )
+                                dim as long msz = SizeOfType( c, dvt )
                                 dim as MirValue mv
                                 if msz > 0 then mv = LowerExprLoad( c, ssa, MT_AGG, msz )
                                 if mv.kind <> cast( ubyte, MV_NONE ) then
@@ -538,7 +564,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                                     cargs.Push( cast( ulong, ssa.id ) )
                                     EmitStructorCall( c, ucp, slot, 0, @cargs )
                                 else
-                                    CallImplicitCopy_( c, ivt, dsa, ssa )
+                                    CallImplicitCopy_( c, dvt, dsa, ssa )
                                 end if
                                 constructed = true
                             end if

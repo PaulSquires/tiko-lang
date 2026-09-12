@@ -485,7 +485,22 @@ private sub LowerAssign _
         end if
     end if
 
-    if (atl <> Tko.TYPE_NONE) andalso (atl = c.info->TypeOf_( value )) then
+    '' ...AND AN UPCAST IS THIS TOO. 'd = v' where v's type DERIVES from d's is a
+    '' copy of the base subobject, and the base subobject is at offset zero -- so
+    '' every question below is asked of the DESTINATION type and the source address
+    '' needs no adjustment. The exact-equality test sent it past this block to the
+    '' ordinary aggregate store, which is a BITWISE copy: over a base owning a
+    '' string, the two objects were left sharing one buffer and both destructors
+    '' freed it -- 0xC0000374 after printing the right answer.
+    ''
+    '' fbc emits '_ZN1AC1Ev( &D8 ); _ZN1AaSERKS_( &D8, (A*)&V )' for exactly this,
+    '' which is the default constructor and then the implicit LET below.
+    dim as boolean atlUpcast = false
+    if atl <> Tko.TYPE_NONE then
+        atlUpcast = IsBaseOf_( c, atl, c.info->TypeOf_( value ) )
+    end if
+    if (atl <> Tko.TYPE_NONE) andalso _
+       ((atl = c.info->TypeOf_( value )) orelse atlUpcast) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as boolean handled = false
             '' THE OVERLOAD THAT TAKES THIS TYPE, not the first one declared. The
