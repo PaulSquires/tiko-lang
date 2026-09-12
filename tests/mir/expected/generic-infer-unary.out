@@ -102,13 +102,16 @@ func i32 main(i32 $0, ptr $1) {
     %35 = load @bo
     %36 = const i8 0
     %37 = icmp.ne %35, %36
-    %38 = not %37
-    %39 = call i8 IDENT<14>(%38)
-    call.rtl void fb_PrintBool(0, %39, 1)
-    %40 = const i32 0
-    call.rtl void fb_End(%40)
-    %41 = load @$tmp0
-    ret %41
+    %38 = const i8 0
+    %39 = icmp.eq %37, %38
+    %40 = const i8 0
+    %41 = icmp.ne %39, %40
+    %42 = call i8 IDENT<14>(%41)
+    call.rtl void fb_PrintBool(0, %42, 1)
+    %43 = const i32 0
+    call.rtl void fb_End(%43)
+    %44 = load @$tmp0
+    ret %44
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -117,4 +120,4 @@ declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 79 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance

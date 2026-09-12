@@ -573,7 +573,33 @@ function LowerExpr _
         select case cast( Tko.TokenKind, up->op )
         case Tko.TK_MINUS : ins.op = cast( ushort, M_NEG )
         case Tko.TK_PLUS  : return x
-        case Tko.KW_NOT   : ins.op = cast( ushort, M_NOT )
+        case Tko.KW_NOT
+            '' 'NOT' OVER A BOOLEAN IS A LOGICAL NEGATION, not a bitwise one.
+            '' Measured:
+            ''
+            ''     dim as boolean t = true
+            ''     print cint( not t )      fbc: 0      tiko: -1
+            ''
+            '' A BOOLEAN IS STORED AS 1, not as -1: complementing it gives -2,
+            '' which is still non-zero and so still TRUE. 'not t' answered TRUE
+            '' for a true operand -- and answered correctly for a FALSE one,
+            '' which is why every probe that started from false agreed with fbc.
+            '' The INTEGER 'not' is right and stays: 'not -1' is 0 in both.
+            ''
+            '' Found by build/suiterun.sh: the corpus asserts it in four files at
+            '' once -- str( not b1 ), wstr( not b1 ), 'not b1 or b2' and
+            '' 'not (a)' -- and every one of them had been compiled and never run.
+            if IsBooleanType( c, c.info->TypeOf_( up->operand ) ) then
+                dim as MirInst bz
+                bz.op = cast( ushort, M_ICMP_EQ )
+                bz.ty = cast( ubyte, MT_I8 )
+                bz.a = x
+                bz.b = ConstInt( c, 0, cast( MirType, x.ty ) )
+                dim as MirValue bv = Emit( c, bz )
+                if bv.kind = cast( ubyte, MV_NONE ) then return v
+                return CoerceTy( c, bv, mt, c.info->TypeOf_( id ), ft )
+            end if
+            ins.op = cast( ushort, M_NOT )
         case else         : return v
         end select
         return Emit( c, ins )
