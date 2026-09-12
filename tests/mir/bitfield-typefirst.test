@@ -1,0 +1,33 @@
+'' THE TYPE-FIRST BITFIELD SPELLING LOST ITS WIDTH, AND WITH IT THE PACKING.
+''
+'' fbc accepts TWO spellings and rejects a third -- measured:
+''
+''     a : 3 as ulong      accepted
+''     as ulong a : 3      accepted
+''     a as ulong : 3      error 14, Expected identifier
+''
+'' Only the NAME-FIRST branch read the width. The type-first field came out an ORDINARY
+'' field of its declared type, so nothing packed and every field took its own unit:
+''
+''     type BF : as ulong a : 3 : as ulong b : 5 : end type
+''     print sizeof( BF )      fbc: 4      tiko: 8
+''
+'' A WRONG LAYOUT. The values read back correctly -- that is what hid it -- so what was
+'' wrong was sizeof and the OFFSET OF EVERYTHING AFTER IT. A UDT matched against a C or
+'' Win32 header is wrong at runtime with nothing said, and so is anything written to a
+'' file or passed to an API.
+''
+'' The three-field TypeFirst is here because two fields can pack by accident into one
+'' unit of the declared width; 3 + 5 + 24 is exactly 32 and cannot.
+''
+'' A ':' AFTER A FIELD IS NORMALLY A STATEMENT SEPARATOR -- 'as integer x : as integer y'
+'' is two fields on one line, 16 bytes -- so the width is read only when a NUMBER
+'' follows, and the position is put back when one does not.
+''
+'' Differenced against fbc: '4 4 16' and then '5 17 999'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bitfield-typefirst.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/bitfield-typefirst.out

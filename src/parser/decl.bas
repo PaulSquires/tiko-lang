@@ -1174,6 +1174,37 @@ private function ParseAggregateBody _
                 end if
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
+                '' A BITFIELD IN THE TYPE-FIRST SPELLING: 'as ulong a : 3'.
+                '' fbc accepts TWO spellings and rejects a third -- measured,
+                '' 'a : 3 as ulong' and 'as ulong a : 3' both compile and
+                '' 'a as ulong : 3' is its error 14 -- and only the name-first
+                '' one read the width here. The type-first field came out an
+                '' ORDINARY field of its declared type, so
+                ''
+                ''     type BF : as ulong a : 3 : as ulong b : 5 : end type
+                ''     print sizeof( BF )      fbc: 4      tiko: 8
+                ''
+                '' -- nothing packed, every field its own unit. A WRONG LAYOUT:
+                '' the values read back correctly, so only sizeof and the offset
+                '' of everything after it were wrong, and a UDT matched against a
+                '' C or Win32 header is wrong at runtime with nothing said.
+                ''
+                '' The lexer turns ':' into a TK_EOL marked TF_COLON, which is
+                '' why this asks IsColonHere rather than accepting a TK_COLON --
+                '' the same note the name-first branch carries.
+                if IsColonHere( p ) then
+                    dim as long fsave = p.pos
+                    Advance( p )
+                    '' ...AND ONLY WHEN A WIDTH FOLLOWS. A ':' after a field is
+                    '' normally a STATEMENT SEPARATOR -- 'as integer x : as
+                    '' integer y' is two fields on one line -- so a non-numeric
+                    '' follower puts the position back and leaves it alone.
+                    if Peek( p ) = Tko.TK_INT_LIT then
+                        fp.b = Expression( p )
+                    else
+                        p.pos = fsave
+                    end if
+                end if
                 '' A FIELD INITIALISER, which the loop did not read -- so the '='
                 '' was not a comma, the loop stopped, and every declarator AFTER
                 '' the first was DROPPED. 'dim as short a = any, b = any' laid out
