@@ -104,3 +104,32 @@ function ByrefTempOf_ _
     StoreThrough( c, tmp, v2 )
     return tmp
 end function
+
+'' A PROCEDURE NAMED WITHOUT ITS PARENTHESES, PASSED BYREF, IS A CALL. Measured, over
+'' 'sub P( byref x as long )':
+''
+''     P( Free )  P( NS.Fn )  P( T.SFn )     fbc: 40 41 42 -- each one CALLED
+''     'Selfy = 5 : P( Selfy )' inside Selfy  fbc: 7 -- a recursive call, not the result
+''     a.Push( c.Count )  over FB.Array     vr = COUNT( &C ); TMP = vr; PUSH( &A, &TMP )
+''
+'' LowerAddr answers an identifier or member bound to a procedure with the procedure's
+'' own address -- right for '@NS.Tramp' -- and every one of those handed the callee its
+'' CODE: the value read back as 283935560, which is 48 83 EC 10, 'sub rsp, 16'. A
+'' property getter is the same shape. The self-hosted compiler's generic registry
+'' pushes 'instArgs.Count' like this, and so does most of tiko-lang.
+''
+'' True when the argument IS such a name; 'outa' is then the temporary, or nothing if
+'' the value would not lower -- and the caller declines rather than pass the address.
+function ParenlessProcTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue ) as boolean
+
+    if argNode = Tko.NODE_NONE then return false
+    dim as Tko.NodeKind k = c.ast->Kind( argNode )
+    if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( argNode ) )
+    if ps = 0 then return false
+    if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    outa = ByrefTemp_( c, argNode, pt )
+    return true
+end function

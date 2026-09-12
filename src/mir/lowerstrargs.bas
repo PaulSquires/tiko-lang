@@ -405,3 +405,32 @@ private sub DeleteStrArgTemps_ _
     next
 end sub
 
+
+'' Moved from lowercall.bas at the 1500-line cap; nothing in them changed.
+'' Does parameter 'idx' declare 'byref as wstring'? The referent is what decides, and
+'' a REFERENCE type has to be unwrapped to see it -- the recurring lesson in this
+'' codebase, that a reference is transparent to TypeOf_.
+function ParamWantsWideRef_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+      byval idx as long ) as boolean
+
+    dim as Tko.TypeId pt = ArgParamType_( c, callee, sigT, idx )
+    if pt = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+        pu = c.types->Unqualify( c.types->Inner( pu ) )
+    end if
+    if c.types->Kind( pu ) <> Tko.TK_BUILTIN then return false
+    return (c.types->BuiltinOf( pu ) = Tko.TY_WSTRING)
+end function
+
+'' A NARROW string argument: a var-length one, or a zstring in either spelling. The
+'' wide kinds answer false -- they need no conversion.
+function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if IsStringType( c, t ) then return true
+    dim as longint zn
+    dim as long k = StrSwapKind_( c, t, zn )
+    return (k = 0) orelse (k = 1) orelse (k = 3)
+end function
+
