@@ -708,6 +708,21 @@ private function ExprIntrinsicType_ _
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right"
         if isStr = false then return NotAString_( c, cp, nm, a0 )
+        '' A USTRING GIVES A USTRING. Measured, all five of them:
+        ''
+        ''     #print typeof( ucase( u ) )    USTRING
+        ''     #print typeof( left( u, 2 ) )  USTRING   -- and lcase, ltrim, mid
+        ''
+        '' Falling through to the narrow STRING below cost it TWICE, and both were
+        '' silent. 'print ucase( u )' went to fb_PrintString and printed the raw
+        '' UTF-16 -- five BYTES of it where five CHARACTERS were meant, so HELLO
+        '' came out cut off at three. And 'dim as ustring r = ucase( u )' assigned
+        '' through fb_UStrAssignFromA, which reads those wide bytes as narrow ones.
+        '' A plain 'dim as ustring s = u' was right all along, which is what made it
+        '' look like a PRINT problem.
+        if ab = Tko.TY_USTRING then
+            return c.types->Builtin( Tko.TY_USTRING )
+        end if
         '' A WIDE ARGUMENT GIVES 'WSTRING * 1', not a bare WSTRING. The two are
         '' different types to fbc -- '*p' over a 'wstring ptr' prints WSTRING and
         '' 'trim( w )' prints WSTRING * 1 -- and the bare one is what a byref

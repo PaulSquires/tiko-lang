@@ -14,13 +14,13 @@ func ptr WIDE() {
     %5 = alloca ptr u
     %6 = const i64 -9223372036854775806
     %7 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr0, %6, 0)
-    %8 = call.rtl ptr fb_UStrAssignToA(@$tmp0, -1, @u, -1, 0, 0)
+    %8 = call.rtl ptr fb_UStrAssign(@$tmp0, -1, @u, -1, 0)
     call.rtl void fb_UStrDelete(@u)
     %9 = call.rtl ptr fb_UStrAllocTempResult(@$tmp0)
     ret %9
 }
 declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare ptr fb_UStrAssignToA(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4, i32 $5)
+declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_UStrDelete(ptr $0)
 declare ptr fb_UStrAllocTempResult(ptr $0)
 func ptr NARROW() {
