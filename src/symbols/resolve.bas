@@ -1424,7 +1424,12 @@ sub WalkStmt _
         c.currentProc = c.info->RefOf( id )
         '' The RETURN type belongs on the procedure's symbol, or a call to it can
         '' never be typed. Parameters are bound by the N_PARAM case below.
-        dim as Tko.TypeId ret = ResolveTypeRef( c, sp->a, here )
+        dim as Tko.NodeId retRef = sp->a
+        dim as Tko.TypeId ret = ResolveTypeRef( c, retRef, here )
+        '' RE-FETCHED, because ResolveTypeRef may have INSTANTIATED A GENERIC, which
+        '' re-parses into fresh nodes and moves ast.stmts -- leaving the 'sp' above
+        '' pointing into a freed block that everything below reads.
+        sp = StmtOf( c, id )
         dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.currentProc )
         if (ps <> 0) andalso (ret <> Tko.TYPE_NONE) andalso _
            (ps->type_ = Tko.TYPE_NONE) then
@@ -1433,7 +1438,7 @@ sub WalkStmt _
         '' ...AND A RESULT THAT WILL NOT RESOLVE YET IS REVISITED. 'as LRESULT' over
         '' 'type LRESULT as LONG_PTR' declared later in the unit came out VOID and
         '' stayed void; see BindParamType_ for the parameter half of the same fact.
-        if (ret = Tko.TYPE_NONE) andalso (sp->a <> Tko.NODE_NONE) then
+        if (ret = Tko.TYPE_NONE) andalso (retRef <> Tko.NODE_NONE) then
             c.pendResultProc.Push( cast( ulong, id ) )
             c.pendResultProcScope.Push( cast( ulong, here ) )
         end if

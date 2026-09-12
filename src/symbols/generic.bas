@@ -1,6 +1,4 @@
-'' generic.bas -- instantiating a generic TYPE.
-''
-'' Split out of resolve.bas, which is at its size limit.
+'' generic.bas -- instantiating a generic TYPE. Split out of resolve.bas.
 
 #include once "symbols/resolvectx.bi"
 #include once "symbols/check.bi"
@@ -34,6 +32,8 @@ declare sub InstantiateMembers_ _
 function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
       byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
+    '' READ ONCE: resolving an argument below can move the arena 'sp' points into.
+    dim as long spCount = sp->count, spFirst = sp->first
 
     '' THE GENERIC IS PASSED IN, already resolved -- including through a namespace
     '' qualifier, which is where every container in the runtime headers lives. Looking
@@ -53,7 +53,7 @@ function InstantiateGeneric_ _
     if c.ast->Kind( gp->b ) <> Tko.N_BLOCK then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr plist = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->b )].data )]
-    if plist->count <> sp->count then return Tko.TYPE_NONE
+    if plist->count <> spCount then return Tko.TYPE_NONE
 
     '' The ARGUMENTS, resolved in the scope that wrote them. One that does not resolve
     '' means no instantiation rather than a wrong one -- every use then declines, which
@@ -72,8 +72,8 @@ function InstantiateGeneric_ _
     '' spelling and every call site linked to nothing.
     dim as string key = c.names->Spelling( gs->name ) & "<"
     dim as FB.Array( of ulong ) argTypes
-    for i as long = 0 to sp->count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+    for i as long = 0 to spCount - 1
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[spFirst + i] )
         dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
         if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
         argTypes.Push( cast( ulong, at ) )
@@ -125,7 +125,7 @@ function InstantiateGeneric_ _
 
     '' The parameters bind for as long as the fields are being resolved.
     dim as long gmark = c.gparamName.Count
-    for i as long = 0 to sp->count - 1
+    for i as long = 0 to spCount - 1
         dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plist->first + i] )
         if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr pip = _
@@ -150,7 +150,7 @@ function InstantiateGeneric_ _
 
     '' THE MEMBERS, AFTER THE WALK. See Ctx.pendInst for why this cannot happen here.
     dim as long argFirst = c.pendInstArgs.Count
-    for i as long = 0 to sp->count - 1
+    for i as long = 0 to spCount - 1
         c.pendInstArgs.Push( argTypes[i] )
     next
     c.pendInst.Push( cast( ulong, gn ) )
@@ -167,7 +167,7 @@ function InstantiateGeneric_ _
     if gscope = Tko.SCOPE_NONE then gscope = scope_
     c.pendInst.Push( cast( ulong, gscope ) )
     c.pendInst.Push( cast( ulong, argFirst ) )
-    c.pendInst.Push( cast( ulong, sp->count ) )
+    c.pendInst.Push( cast( ulong, spCount ) )
 
     while c.gparamName.Count > gmark
         c.gparamName.Pop( )
