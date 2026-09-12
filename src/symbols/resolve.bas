@@ -1443,10 +1443,11 @@ sub WalkStmt _
             c.pendResultProcScope.Push( cast( ulong, here ) )
         end if
         BindThis( c, here, sp->ownerName )
-        for i as long = 0 to sp->count - 1
-            WalkStmt( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
+        dim as long pCount = sp->count, pFirst = sp->first, pBody = sp->b
+        for i as long = 0 to pCount - 1
+            WalkStmt( c, cast( Tko.NodeId, c.ast->children[pFirst + i] ), here )
         next
-        WalkStmt( c, sp->b, here )
+        WalkStmt( c, pBody, here )
         c.currentProc = saved
         return
     end select

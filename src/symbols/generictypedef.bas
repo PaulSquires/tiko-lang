@@ -1,0 +1,286 @@
+'' generictypedef.bas -- typedef backpatching and the array-bounds helpers.
+''
+'' Split out of generic.bas at the 1500-line lint cap. None of it instantiates
+'' anything; they are the type-shaping helpers instantiation happens to call.
+
+#include once "symbols/resolvectx.bi"
+#include once "symbols/check.bi"
+
+namespace Tko.Resolve
+
+
+'' TYPEDEFS THAT NAME A TYPE DECLARED LATER, and the declarations waiting on them.
+''
+''     type t as u : type u as integer : dim as t i
+''
+'' A FIXPOINT, not one extra pass: 'a as b / b as c / c as integer' needs one round per
+'' link. Bounded, because a round that binds nothing stops. Then the declarations that
+'' could not be typed the first time -- only those, because a second full walk would
+'' report every diagnostic twice.
+'' A TYPEDEF WHOSE TARGET IS NEVER DEFINED IS A FORWARD REFERENCE, not nothing.
+''
+'' 'type FWDREF1 as FWDREF1_' with no FWDREF1_ anywhere is how FreeBASIC spells an
+'' OPAQUE HANDLE, and fbc creates an incomplete UDT of that name: measured, it mangles
+'' 'sub f1( byval p as sub( as FWDREF1 ) )' as '_Z2F1PFvR8FWDREF1_E' -- a reference to
+'' a type called FWDREF1_. tiko left the alias with no type at all, so the
+'' procedure-pointer parameter came out VOID and two overloads differing only in it
+'' mangled to the same name: 'invalid redefinition of function _Z2F1PFvvE'. Silently,
+'' with no diagnostic anywhere before the emitter.
+''
+'' DONE HERE AND NOT IN BackpatchTypedefs, which is where it was written first: the
+'' PROCEDURE TYPE of 'sub( as FWDREF1 )' is built when the parameter is resolved, long
+'' before the backpatch, and a built proc type is not revisited. Fixing the typedef
+'' afterwards changed nothing at all.
+''
+'' NARROW ON PURPOSE. Only a BARE NAME is forward-declared -- not a pointer, an array,
+'' a procedure type or an instantiation -- and only when the name is declared NOWHERE:
+'' Collect has already walked the whole unit, so a target declared later in the file
+'' is found by the lookup and the real type wins. The forward type has no layout,
+'' TK_FORWARD, NOT TK_UDT: 'named but not yet complete' is exactly what this is, and
+'' the completeness checks already read that kind. Declared as a UDT it looked
+'' COMPLETE, and 'declare sub f( byref x as fwd = 0 )' -- fbc error 71, a byref
+'' default with nowhere to live -- stopped being reported.
+function ForwardTypedefTarget_ _
+    ( byref c as Ctx, byval tsp as Tko.StmtPayload ptr, _
+      byval here as Tko.ScopeId ) as Tko.TypeId
+
+    if tsp = 0 then return Tko.TYPE_NONE
+    dim as Tko.NodeId an = tsp->a
+    if an = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( an ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
+    dim as ushort afl = c.ast->nodes[cast( long, an )].flags
+    if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then
+        return Tko.TYPE_NONE
+    end if
+    dim as Tko.StmtPayload ptr ap = StmtOf( c, an )
+    if ap->name = 0 then return Tko.TYPE_NONE
+    if ap->count <> 0 then return Tko.TYPE_NONE
+    if ap->name = tsp->name then return Tko.TYPE_NONE
+    if c.syms->Lookup( here, ap->name ) <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as boolean fdup = false
+    dim as Tko.SymbolId usid = c.syms->DeclareSym( here, ap->name, _
+        Tko.SYM_UDT, c.ast->Loc( an ), fdup )
+    dim as Tko.Symbol ptr us = c.syms->SymbolAt( usid )
+    if us = 0 then return Tko.TYPE_NONE
+    us->type_ = c.types->NamedType( Tko.TK_FORWARD, ap->name, cast( ulong, here ) )
+    return us->type_
+end function
+
+sub BackpatchTypedefs( byref c as Ctx )
+    for r as long = 1 to c.typedefNode.Count
+        dim as boolean progress = false
+        for i as long = 0 to c.typedefNode.Count - 1
+            dim as Tko.NodeId id = cast( Tko.NodeId, c.typedefNode[i] )
+            dim as Tko.ScopeId here = cast( Tko.ScopeId, c.typedefScope[i] )
+            dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
+            if tsp->name = 0 then continue for
+            dim as Tko.Symbol ptr ts = _
+                c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
+            if ts = 0 then continue for
+            if ts->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then continue for
+            dim as Tko.TypeId al = ResolveTypeRef( c, tsp->a, here )
+            if (al = Tko.TYPE_NONE) orelse (al = ts->type_) then continue for
+            ts->type_ = al
+            progress = true
+        next
+        if progress = false then exit for
+    next
+
+
+    '' PARAMETERS AND RESULTS, revisited the same way. See BindParamType_.
+    for i as long = 0 to c.pendParam.Count - 1
+        BindParamType_( c, cast( Tko.NodeId, c.pendParam[i] ), _
+                        cast( Tko.ScopeId, c.pendParamScope[i] ) )
+    next
+    for i as long = 0 to c.pendResultProc.Count - 1
+        dim as Tko.NodeId pn2 = cast( Tko.NodeId, c.pendResultProc[i] )
+        dim as Tko.StmtPayload ptr psp = StmtOf( c, pn2 )
+        dim as Tko.TypeId rt3 = _
+            ResolveTypeRef( c, psp->a, cast( Tko.ScopeId, c.pendResultProcScope[i] ) )
+        if rt3 = Tko.TYPE_NONE then continue for
+        dim as Tko.Symbol ptr rs2 = c.syms->SymbolAt( c.info->RefOf( pn2 ) )
+        if rs2 = 0 then continue for
+        if rs2->type_ = Tko.TYPE_NONE then rs2->type_ = rt3
+    next
+
+    for i as long = 0 to c.pendingItem.Count - 1
+        dim as Tko.NodeId item = cast( Tko.NodeId, c.pendingItem[i] )
+        dim as Tko.ScopeId here = cast( Tko.ScopeId, c.pendingScope[i] )
+        dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+        dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
+        if t = Tko.TYPE_NONE then continue for
+        BindDeclType( c, here, ip->name, _
+            ArrayFromBoundsNode( c, t, ip->c, ip->b, here ), true )
+    next
+end sub
+
+'' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.
+function ArrayFromBoundsNode _
+    ( byref c as Ctx, byval base_ as Tko.TypeId, byval id as Tko.NodeId, _
+      byval init as Tko.NodeId = Tko.NODE_NONE, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
+
+    if id = Tko.NODE_NONE then return base_
+    if c.ast->Kind( id ) <> Tko.N_BLOCK then return base_
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as FB.Array( of ulong ) los, his
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( d ) = Tko.N_CASE_RANGE then
+            '' 'a(0 to 9)' -- both bounds written out.
+            dim as Tko.StmtPayload ptr dp = StmtOf( c, d )
+            los.Push( cast( ulong, dp->a ) )
+            his.Push( cast( ulong, dp->b ) )
+        else
+            '' 'a(9)' -- a bare expression, which is the UPPER bound with an implicit
+            '' lower bound of 0. It is not an N_CASE_RANGE at all, so a loop that only
+            '' accepts one silently gives the array no dimensions and drops it back to
+            '' its element type.
+            los.Push( cast( ulong, Tko.NODE_NONE ) )
+            his.Push( cast( ulong, d ) )
+        end if
+    next
+    return ArrayFromPairs( c, base_, los, his, init, true, scope_ )
+end function
+
+'' 'init' is the declaration's initializer, or NODE_NONE. It is needed because an
+'' ellipsis bound takes its size from there and from nowhere else -- fbc refuses
+'' 'dim a(0 to ...)' with no initializer outright (error 281).
+''
+'' Getting this wrong would not be a decline. An unknown bound makes this return the
+'' ELEMENT type, so the array becomes eight bytes where twenty-four were needed and
+'' nothing says so -- which is exactly what parsing '...' without inferring it did.
+'' 'scope_' IS WHAT LETS A NAMED CONSTANT BE A BOUND. ConstOf returns "unknown" for
+'' every N_IDENT when it is handed no symbol table -- its first line is 'if syms = 0
+'' then return CVNone_( )' -- so 'const N = 2 : dim a(0 to N)' had an unknown bound and
+'' fell to DynArrayOf below. That is not a decline: it made 'a' a 72-byte DESCRIPTOR
+'' that NOTHING EVER INITIALISES, so every element access dereferenced a garbage data
+'' pointer, with 0 statements not lowered and verify ok. fbc writes 'static int32
+'' T$[3];' and, run, prints ' 0 2 10 20 30' for lbound/ubound and the three elements.
+'' THE TYPEREFS INSIDE A BOUND, RESOLVED BEFORE IT IS FOLDED. A bound is folded HERE, to
+'' build the array's type, and the expression it sits in is not walked until afterwards --
+'' so 'sizeof( zstring * 16 )' inside one reached ConstOf with its N_TYPEREF still untyped
+'' and answered nothing. The array then had no constant size and became DYNAMIC.
+private sub ResolveBoundTypeRefs_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId, _
+      byval depth as long = 0 )
+
+    if id = Tko.NODE_NONE then return
+    if depth > 16 then return
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+    if k = Tko.N_TYPEREF then
+        ResolveTypeRef( c, id, scope_ )
+        return
+    end if
+    '' Only the shapes a bound is built from, spelled out: 'data' indexes one of four
+    '' pools and the node kind is the only thing that says which.
+    select case k
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        ResolveBoundTypeRefs_( c, bp->lhs, scope_, depth + 1 )
+        ResolveBoundTypeRefs_( c, bp->rhs, scope_, depth + 1 )
+    case Tko.N_UNARY
+        dim as Tko.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        ResolveBoundTypeRefs_( c, up->operand, scope_, depth + 1 )
+    case Tko.N_CALL, Tko.N_PAREN, Tko.N_INDEX, Tko.N_TUPLE
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            ResolveBoundTypeRefs_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+                                   scope_, depth + 1 )
+        next
+    end select
+end sub
+
+function ArrayFromPairs _
+    ( byref c as Ctx, byval base_ as Tko.TypeId, _
+      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
+      byval init as Tko.NodeId = Tko.NODE_NONE, _
+      byval emptyIsDynamic as boolean = false, _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
+
+    dim as Tko.ScopeId cscope = scope_
+    if cscope = Tko.SCOPE_NONE then cscope = Tko.SCOPE_GLOBAL
+
+    if base_ = Tko.TYPE_NONE then return base_
+
+    '' EMPTY PARENS -- 'dim as long a()' -- is a DYNAMIC array with its dimension count
+    '' left open. It is not 'no array at all', which is what returning the element type
+    '' here used to make it: 'a' became a plain LONG, so its declaration reserved four
+    '' bytes instead of a descriptor and every later 'redim a(...)' had nothing to
+    '' redim. Rank 0 means unspecified; fbc gives such a descriptor eight dimtb slots.
+    '' 'emptyIsDynamic' is what tells the two callers apart. A DECLARATION with empty
+    '' parens is a dynamic array; a plain TYPE FIELD reaches here with no bound pairs
+    '' either, and is not an array at all. Without the distinction 'as long h' inside a
+    '' TYPE became a 240-byte descriptor -- caught by the cleanup golden.
+    if los.Count = 0 then
+        if emptyIsDynamic then return c.types->DynArrayOf( base_, 0 )
+        return base_
+    end if
+
+    '' A LONGINT, and that is not caution. 'dim as byte t(0 to &h7FFFFFFF)' is
+    '' 2147483648 elements, which overflowed a LONG to a negative -- and the
+    '' 'total <= 0' test below then turned the whole declaration into a DYNAMIC
+    '' array, silently. fbc says error 50, 'Array too big'.
+    dim as longint total = 1
+    dim as boolean known = true
+    dim as FB.Array( of longint ) bounds
+    for i as long = 0 to los.Count - 1
+        dim as longint lo = 0
+        dim as Tko.NodeId loN = cast( Tko.NodeId, los[i] )
+        ResolveBoundTypeRefs_( c, loN, cscope )
+        ResolveBoundTypeRefs_( c, cast( Tko.NodeId, his[i] ), cscope )
+        if loN <> Tko.NODE_NONE then
+            dim as Tko.Check.ConstVal lv = _
+                Tko.Check.ConstOf( *c.ast, loN, *c.srcMgr, *c.names, _
+                                   c.types->target.pointerBits, c.syms, cscope, 0, _
+                                   c.types, c.info )
+            if lv.known then lo = lv.value else known = false
+        end if
+        dim as longint hi = lo - 1
+        dim as Tko.NodeId hiN = cast( Tko.NodeId, his[i] )
+        if (hiN <> Tko.NODE_NONE) andalso (c.ast->Kind( hiN ) = Tko.N_ELLIPSIS) then
+            '' The bound the initializer implies: lbound + count - 1, per dimension.
+            dim as long got = InitCountAt( c, init, i )
+            if got > 0 then hi = lo + got - 1 else known = false
+        elseif hiN <> Tko.NODE_NONE then
+            '' 'types' AND 'info' ARE FOR 'sizeof( T )'. The corpus writes an array at
+            '' the size limit as 'LIMIT \ sizeof( zstring * 16 )', and without them that
+            '' bound is not constant -- so the declaration silently became a DYNAMIC array
+            '' and the size check had nothing to check.
+            dim as Tko.Check.ConstVal hv = _
+                Tko.Check.ConstOf( *c.ast, hiN, *c.srcMgr, *c.names, _
+                                   c.types->target.pointerBits, c.syms, cscope, 0, _
+                                   c.types, c.info )
+            if hv.known then hi = hv.value else known = false
+        else
+            known = false
+        end if
+        if known then total *= (hi - lo + 1)
+        bounds.Push( lo )
+        bounds.Push( hi )
+    next
+    '' A BOUND THAT IS NOT A COMPILE-TIME CONSTANT makes the array DYNAMIC -- 'dim
+    '' a(any)', 'dim a(0 to n)'. The rank is still written down, and it is what decides
+    '' how many dimtb slots the descriptor carries, so it is kept.
+    if (known = false) orelse (total <= 0) then return c.types->DynArrayOf( base_, los.Count )
+    '' TOO MANY ELEMENTS TO COUNT IN A LONG is already over fbc's limit, whatever
+    '' the element size: the limit is 2147483647 BYTES and an element is at least
+    '' one. Reported here rather than later because the type cannot carry the
+    '' count -- TypeRecord.elems is a long -- so nothing downstream could see it.
+    '' OVER THE LIMIT, and the type still has to carry the BOUNDS: a count of 1
+    '' keeps TypeRecord.elems honest -- it is a long and cannot hold the real
+    '' one -- while ArrayTooBig_ recomputes from those bounds in 64 bits and
+    '' reports. Reporting HERE instead gave the error twice, because a
+    '' declaration whose type is not yet complete is revisited.
+    if total > 2147483647 then
+        return c.types->ArrayOf( base_, los.Count, 1, @bounds )
+    end if
+    return c.types->ArrayOf( base_, los.Count, cast( long, total ), @bounds )
+end function
+
+
+end namespace

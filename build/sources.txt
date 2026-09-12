@@ -20,6 +20,7 @@ src/symbols/collectdump.bas
 src/symbols/resolve.bas
 src/symbols/resolveacc.bas
 src/symbols/generic.bas
+src/symbols/generictypedef.bas
 src/symbols/mangle.bas
 src/symbols/constfold.bas
 src/symbols/check.bas

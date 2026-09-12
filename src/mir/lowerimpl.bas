@@ -1261,6 +1261,12 @@ private sub EmitOneImplicit_ _
     dim as boolean twoArgs = (kind_ >= 2)
     dim as MirFunction ptr f = c.m->AddFunction( id, MT_VOID )
     f->isDefinition = true
+    '' WEAK, FOR THE REASON AN INSTANTIATED GENERIC IS. A SYNTHESISED structor is
+    '' emitted by every translation unit that needs one, so two modules using the same
+    '' UDT each define it and the linker sees duplicates -- twenty of them on the
+    '' bootstrap, all constructors, copy constructors, assignment operators and
+    '' destructors that nobody wrote. COMDAT folds them.
+    f->isWeak = true
     f->AddParam( MT_PTR )
     if twoArgs then f->AddParam( MT_PTR )
 

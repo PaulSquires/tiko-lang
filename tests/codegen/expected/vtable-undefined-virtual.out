@@ -35,7 +35,8 @@ L0:
 
 }
 
-define void @"_ZN1TC1Ev"(ptr %p0) nounwind {
+$"_ZN1TC1Ev" = comdat any
+define linkonce_odr void @"_ZN1TC1Ev"(ptr %p0) nounwind comdat {
 L0:
   %t1 = getelementptr i8, ptr %p0, i64 0
   call void @"_ZN10fb_Object$C1Ev"(ptr %t1)
