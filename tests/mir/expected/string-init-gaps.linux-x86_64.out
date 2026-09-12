@@ -5,8 +5,8 @@ global str $str3 "abc"
 global str $str4 "def"
 global str $str5 "ghi"
 global str $str6 "jkl"
-global str $str7 "123"
-global str $str8 "456"
+global wstr $wstr7 "123"
+global wstr $wstr8 "456"
 global var agg S1$s1z size 8 = bytes 61 62 00 00 63 64 00 00
 global var agg S1$s1f size 10 = bytes 78 78 20 20 20 79 79 20 20 20
 global var agg S1$s1w size 48 = bytes 31 00 32 00 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 34 00 35 00 36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
@@ -97,9 +97,9 @@ func void S1() {
     %52 = call.rtl ptr fb_StrAssign(%51, 10, @@$str6, 4, 0)
     %53 = alloca ptr w1
     %54 = field.addr @w1, 0
-    %55 = call.rtl ptr fb_StrAssign(%54, 6, @@$str7, 4, 0)
+    %55 = call.rtl ptr fb_WstrAssign(%54, 6, @@$wstr7)
     %56 = field.addr @w1, 24
-    %57 = call.rtl ptr fb_StrAssign(%56, 6, @@$str8, 4, 0)
+    %57 = call.rtl ptr fb_WstrAssign(%56, 6, @@$wstr8)
     %58 = field.addr @w1, 48
     %59 = call.rtl ptr memset(%58, 0, 24)
     %60 = const i64 0

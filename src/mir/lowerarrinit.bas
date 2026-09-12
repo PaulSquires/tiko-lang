@@ -25,7 +25,7 @@ declare function StrSwapKind_ _
 declare function LowerFixStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval n as longint, byval isU as boolean, _
-      byval selfv as MirValue ptr = 0 ) as boolean
+      byval selfv as MirValue ptr = 0, byval isW as boolean = false ) as boolean
 
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
@@ -95,7 +95,8 @@ function LowerArrayInit _
     '' a wide fixed-string array fell through to the aggregate test below, was not a UDT,
     '' and declined -- while the narrow twin one line away lowered.
     if (fek = 1) orelse (fek = 2) orelse (fek = 3) orelse (fek = 4) then
-        return LowerFixStrArrayInit_( c, slot, t, init, fen, (fek = 4), selfv )
+        return LowerFixStrArrayInit_( c, slot, t, init, fen, (fek = 4), selfv, _
+                                      (fek = 2) )
     end if
 
     '' A UDT ELEMENT lowers as an aggregate, which the test below rejected outright:
@@ -173,7 +174,7 @@ end function
 private function LowerFixStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval n as longint, byval isU as boolean, _
-      byval selfv as MirValue ptr = 0 ) as boolean
+      byval selfv as MirValue ptr = 0, byval isW as boolean = false ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     dim as long esz = SizeOfType( c, el )
@@ -214,7 +215,18 @@ private function LowerFixStrArrayInit_ _
         fa.imm = i * esz
         dim as MirValue ea = Emit( c, fa )
         if ea.kind = cast( ubyte, MV_NONE ) then return false
-        if LowerZstrAssignTo( c, ea, n, e, true, isU ) = false then return false
+        '' A WIDE ELEMENT TAKES THE WIDE ASSIGN. LowerZstrAssignTo is a two-way
+        '' switch -- narrow or USTRING -- and a 'wstring * N' element has no arm
+        '' in it, so every one went out through fb_StrAssign with a NARROW
+        '' literal. Measured, the SCALAR declaration one line away emits
+        '' 'fb_WstrAssign( @w, 6, @@$wstr2 )' and is right; the array element
+        '' printed '123' as narrow bytes where fbc prints them wide, and the
+        '' element after it leaked whatever the frame held.
+        if isW then
+            if LowerWideAssignTo( c, ea, cast( long, n ), e ) = false then return false
+        else
+            if LowerZstrAssignTo( c, ea, n, e, true, isU ) = false then return false
+        end if
         written = i + 1
     next
 

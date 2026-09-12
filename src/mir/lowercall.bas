@@ -15,6 +15,10 @@ declare function SigParamIsRef_ _
 declare function ArgParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
       byval idx as long ) as Tko.TypeId
+declare function ParamWantsWideRef_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+      byval idx as long ) as boolean
+declare function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 
 '' ByvalStrTemp_ is declared in lowerctx.bi now -- lowerctor.bas needs it too.
 declare function FixedUStrArgTemp_ _
@@ -562,7 +566,20 @@ function LowerCallParts _
             '' NOTHING TO PASS IS NOT AN ARGUMENT.
             if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsWide then
-            if WideOperand_( c, argNode, a ) = false then a = LowerAddr( c, argNode )
+            '' A NARROW LVALUE IS CONVERTED, NOT ADDRESSED. LowerAddr answers for a
+            '' string VARIABLE -- with its DESCRIPTOR's address -- so the fallback
+            '' below succeeded and the conversion under it was never reached:
+            '' 'f1( s )' against 'byref w as wstring' handed the callee an FBSTRING
+            '' to read as UTF-16, and 'a' compared FALSE against 'a' with a LEN of
+            '' 3. Measured, fbc converts: 'fb_StrToWstr( (char*)*(char**)&S$0 )'.
+            '' The RVALUE half of this was already right -- it has no address to
+            '' fall back on, which is exactly what hid the lvalue half.
+            if WideOperand_( c, argNode, a ) = false then
+                if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) then
+                    NarrowToWideTemp_( c, argNode, a )
+                end if
+                if a.kind = cast( ubyte, MV_NONE ) then a = LowerAddr( c, argNode )
+            end if
             '' A NARROW ARGUMENT IS CONVERTED, and an RVALUE has no address to fall
             '' back on. Measured -- 'f( hex( 1 ) )' against 'byref w as wstring' is a
             '' narrow temporary, fb_StrToWstr over its data pointer, and the call:
@@ -1445,5 +1462,32 @@ end function
 '' The string TEMPORARIES an argument list builds, split out at the 1500-line cap.
 #include once "mir/lowerstrargs.bas"
 #include once "mir/lowerthread.bas"
+
+'' Does parameter 'idx' declare 'byref as wstring'? The referent is what decides, and
+'' a REFERENCE type has to be unwrapped to see it -- the recurring lesson in this
+'' codebase, that a reference is transparent to TypeOf_.
+function ParamWantsWideRef_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+      byval idx as long ) as boolean
+
+    dim as Tko.TypeId pt = ArgParamType_( c, callee, sigT, idx )
+    if pt = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+        pu = c.types->Unqualify( c.types->Inner( pu ) )
+    end if
+    if c.types->Kind( pu ) <> Tko.TK_BUILTIN then return false
+    return (c.types->BuiltinOf( pu ) = Tko.TY_WSTRING)
+end function
+
+'' A NARROW string argument: a var-length one, or a zstring in either spelling. The
+'' wide kinds answer false -- they need no conversion.
+function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if IsStringType( c, t ) then return true
+    dim as longint zn
+    dim as long k = StrSwapKind_( c, t, zn )
+    return (k = 0) orelse (k = 1) orelse (k = 3)
+end function
 
 end namespace
