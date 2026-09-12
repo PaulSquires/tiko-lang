@@ -121,24 +121,7 @@ sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
     c.stmtUdtMark = savedUdtMark
     ReleaseUdtTemps_( c, utmpMark )
 
-    while c.strTemps.Count > tmpMark
-        dim as long slot = cast( long, c.strTemps[c.strTemps.Count - 1] )
-        c.strTemps.Pop( )
-        '' A dead cursor means the statement ended in a terminator -- a RETURN or a
-        '' GOTO -- and anything emitted here would land in no block at all. fbc has
-        '' the same hole and leaks the temporary; matching it beats emitting an
-        '' instruction with nowhere to go.
-        if c.curBlock >= 0 then
-            dim as MirValue addr
-            addr.kind = cast( ubyte, MV_LOCAL )
-            addr.ty = cast( ubyte, MT_PTR )
-            addr.id = slot
-            dim as FB.Array( of ulong ) args
-            args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
-            EmitRtl( c, StrRtlFor_( c, c.f->locals[slot].frontendType, _
-                                    RTL_STR_DELETE ), args )
-        end if
-    wend
+    ReleaseStrTemps_( c, tmpMark )
 
     '' A WIDE temporary's slot holds a POINTER to an allocation, so what is released is
     '' the pointer LOADED from it -- not the slot's address, which is where the pointer

@@ -540,18 +540,36 @@ function LowerStringIif_ _
     taddr.kind = cast( ubyte, MV_LOCAL )
     taddr.ty = cast( ubyte, MT_PTR )
     taddr.id = slot
+    '' ZEROED BEFORE THE BRANCH, and that is not tidiness. The slot is registered
+    '' for deletion at the end of the statement, and a NESTED iif puts one of these
+    '' inside an ARM -- so on the path that arm does not take, fb_StrDelete runs on
+    '' a descriptor no fb_StrInit ever wrote and frees whatever the stack held:
+    ''
+    ''     d = iif( 0, iif( 0, a, b ), c )      fbc prints c; tiko segfaulted
+    ''
+    '' A string LOCAL has been zeroed since it existed; only these temporaries were
+    '' not. Emitted here, in the block before the CONDBR, so both paths see it.
+    ZeroStrDescriptor( c, taddr )
 
     dim as long thenB = NewBlock( c, "iif.then" )
     dim as long elseB = NewBlock( c, "iif.else" )
     dim as long joinB = NewBlock( c, "iif.join" )
     Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
 
+    '' AN ARM'S OWN STRING TEMPORARIES DIE IN THAT ARM. A NESTED iif registers its
+    '' slot inside one of these blocks, and the statement-end flush emits every
+    '' delete in the JOIN -- which the other path also reaches. Same rule the UDT
+    '' arms were given, and the same symptom: a free of stack garbage.
     c.curBlock = thenB
+    dim as long stm = c.strTemps.Count
     if StrInitFrom_( c, taddr, thenE ) = false then return false
+    ReleaseStrTemps_( c, stm )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
+    dim as long sem = c.strTemps.Count
     if StrInitFrom_( c, taddr, elseE ) = false then return false
+    ReleaseStrTemps_( c, sem )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB

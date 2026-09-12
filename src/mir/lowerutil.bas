@@ -419,6 +419,22 @@ function Coerce _
         '' 2^63 )' was a signed conversion of a value one past its maximum.
         if dstUnsigned andalso (TyWidth( want ) = 64) then
             ins.op = cast( ushort, M_FPTOUI )
+        elseif dstUnsigned andalso (TyWidth( want ) < 64) then
+            '' ...AND A NARROWER UNSIGNED TARGET CONVERTS AT 64 AND TRUNCATES, which
+            '' is what the comment above already quotes fbc doing -- '(uint32)
+            '' fb_D2L( d )' for 'culng( d )' -- and what the code did not do. A
+            '' direct 'fptosi double to i32' is out of range for anything above
+            '' 2^31, and LLVM poisons it: 'culng( 4294967295.0 )' came back
+            '' 2147483648 where fbc prints 4294967295. cuint, being 64-bit, was
+            '' right all along.
+            dim as MirInst wide
+            wide.op = cast( ushort, M_FPTOSI )
+            wide.ty = cast( ubyte, MT_I64 )
+            wide.a = ins.a
+            dim as MirValue wv = Emit( c, wide )
+            if wv.kind = cast( ubyte, MV_NONE ) then return wv
+            ins.op = cast( ushort, M_TRUNC )
+            ins.a = wv
         else
             ins.op = cast( ushort, M_FPTOSI )
         end if

@@ -176,6 +176,31 @@ sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
     next
 end sub
 
+'' THE STRING TEMPORARIES MADE SINCE 'mark', DELETED HERE. Factored out of LowerStmt,
+'' which released them at the end of the statement and nowhere else -- so a
+'' temporary made inside ONE ARM of an 'iif' was deleted in the JOIN, on the path
+'' that never built it. See LowerStringIif_.
+sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
+    while c.strTemps.Count > mark
+        dim as long slot = cast( long, c.strTemps[c.strTemps.Count - 1] )
+        c.strTemps.Pop( )
+        '' A dead cursor means the statement ended in a terminator -- a RETURN or
+        '' a GOTO -- and anything emitted here would land in no block at all. fbc
+        '' has the same hole and leaks the temporary; matching it beats emitting
+        '' an instruction with nowhere to go.
+        if c.curBlock >= 0 then
+            dim as MirValue addr
+            addr.kind = cast( ubyte, MV_LOCAL )
+            addr.ty = cast( ubyte, MT_PTR )
+            addr.id = slot
+            dim as FB.Array( of ulong ) args
+            args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
+            EmitRtl( c, StrRtlFor_( c, c.f->locals[slot].frontendType, _
+                                    RTL_STR_DELETE ), args )
+        end if
+    wend
+end sub
+
 sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
     while c.udtTemps.Count > mark
         dim as long slot = cast( long, c.udtTemps[c.udtTemps.Count - 1] )

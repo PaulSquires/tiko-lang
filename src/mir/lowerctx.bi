@@ -233,6 +233,7 @@ declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirV
 '' statement dispatcher, and from a LOOP HEAD, where waiting for the statement to end
 '' would leak one per iteration.
 declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
+declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
 declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
 declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )

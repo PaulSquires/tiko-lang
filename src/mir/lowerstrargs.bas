@@ -300,6 +300,20 @@ private sub CopyBackUStrArgs_ _
         '' kinds' own assignment and -1 for the space-padded one.
         dim as long fk = StrSwapKind_( c, c.info->TypeOf_( an ), tag )
         if (fk <> 4) andalso (fk <> 1) andalso (fk <> 3) then continue for
+        '' A FIXED KIND WITH NO DECLARED LENGTH IS NOT ONE. An UNSIZED zstring --
+        '' what a 'zstring ptr' points at, and what '*p' is -- reports kind 1 with a
+        '' tag of 0, and copying back through it WROTE INTO WHATEVER THE POINTER
+        '' NAMED. For a literal that is read-only memory:
+        ''
+        ''     dim as zstring ptr p = @"abc" : takes( *p )     -- segfault
+        ''
+        '' fbc emits the copy-back only for a SIZED lvalue -- 'fb_StrAssign( Z$0,
+        '' 8ll, ... )' for a 'zstring * 8' -- and none at all for '*p'. It is
+        '' fbcunit's own report_init_file( *filename ), so ex09 died in the harness.
+        '' EXACTLY ZERO, not 'not positive': a real fixed length arrives ENCODED --
+        '' FixedStrLenArg_ sets the high bit, so 'zstring * 8' carries
+        '' -9223372036854775784 -- and only the UNSIZED form reports a plain 0.
+        if tag = 0 then continue for
         dim as MirValue dst = LowerAddr( c, an )
         if dst.kind = cast( ubyte, MV_NONE ) then continue for
         dim as MirValue src

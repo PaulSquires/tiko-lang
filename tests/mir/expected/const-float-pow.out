@@ -74,31 +74,33 @@ func i32 main(i32 $0, ptr $1) {
     %54 = load @dv
     %55 = nearbyint %54
     %56 = fptosi %55
-    store @u3, %56
-    %57 = alloca ptr s1
-    %58 = load @dv
-    %59 = nearbyint %58
-    %60 = fptosi %59
-    store @s1, %60
-    %61 = alloca ptr u4
-    %62 = load @dv
-    %63 = nearbyint %62
-    %64 = fptosi %63
-    store @u4, %64
-    %65 = load @u1
-    call.rtl void fb_PrintULongint(0, %65, 2)
-    %66 = load @u2
-    call.rtl void fb_PrintULongint(0, %66, 2)
-    %67 = load @u3
-    call.rtl void fb_PrintUInt(0, %67, 2)
-    %68 = load @s1
-    call.rtl void fb_PrintLongint(0, %68, 2)
-    %69 = load @u4
-    call.rtl void fb_PrintUShort(0, %69, 1)
-    %70 = const i32 0
-    call.rtl void fb_End(%70)
-    %71 = load @$tmp0
-    ret %71
+    %57 = trunc %56
+    store @u3, %57
+    %58 = alloca ptr s1
+    %59 = load @dv
+    %60 = nearbyint %59
+    %61 = fptosi %60
+    store @s1, %61
+    %62 = alloca ptr u4
+    %63 = load @dv
+    %64 = nearbyint %63
+    %65 = fptosi %64
+    %66 = trunc %65
+    store @u4, %66
+    %67 = load @u1
+    call.rtl void fb_PrintULongint(0, %67, 2)
+    %68 = load @u2
+    call.rtl void fb_PrintULongint(0, %68, 2)
+    %69 = load @u3
+    call.rtl void fb_PrintUInt(0, %69, 2)
+    %70 = load @s1
+    call.rtl void fb_PrintLongint(0, %70, 2)
+    %71 = load @u4
+    call.rtl void fb_PrintUShort(0, %71, 1)
+    %72 = const i32 0
+    call.rtl void fb_End(%72)
+    %73 = load @$tmp0
+    ret %73
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare f64 pow(f64 $0, f64 $1)
@@ -109,4 +111,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintUShort(i32 $0, i16 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

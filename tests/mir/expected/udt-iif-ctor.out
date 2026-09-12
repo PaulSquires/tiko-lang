@@ -86,47 +86,59 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr a1
     %13 = load @@expr
     %14 = alloca ptr $tmp6
-    %18 = alloca ptr a2
-    %20 = alloca ptr $tmp8
-    %24 = alloca ptr r1
-    %27 = alloca ptr r2
+    %15 = field.addr @$tmp6, 0
+    store %15, 0
+    %16 = field.addr @$tmp6, 8
+    store %16, 0
+    %17 = field.addr @$tmp6, 16
+    store %17, 0
+    %21 = alloca ptr a2
+    %23 = alloca ptr $tmp8
+    %30 = alloca ptr r1
+    %33 = alloca ptr r2
     condbr %13, iif.then1, iif.else2
   iif.then1:
-    %15 = call.rtl ptr fb_StrInit(@$tmp6, -1, @t1, 50, 0)
+    %18 = call.rtl ptr fb_StrInit(@$tmp6, -1, @t1, 50, 0)
     br iif.join3
   iif.else2:
-    %16 = call.rtl ptr fb_StrInit(@$tmp6, -1, @t2, 50, 0)
+    %19 = call.rtl ptr fb_StrInit(@$tmp6, -1, @t2, 50, 0)
     br iif.join3
   iif.join3:
-    %17 = load @$tmp6
-    call void _ZN1UC1EPKc(@a1, %17)
+    %20 = load @$tmp6
+    call void _ZN1UC1EPKc(@a1, %20)
     call.rtl void fb_StrDelete(@$tmp6)
-    %19 = load @@expr
-    condbr %19, iif.then4, iif.else5
+    %22 = load @@expr
+    %24 = field.addr @$tmp8, 0
+    store %24, 0
+    %25 = field.addr @$tmp8, 8
+    store %25, 0
+    %26 = field.addr @$tmp8, 16
+    store %26, 0
+    condbr %22, iif.then4, iif.else5
   iif.then4:
-    %21 = call.rtl ptr fb_StrInit(@$tmp8, -1, @v1, -1, 0)
+    %27 = call.rtl ptr fb_StrInit(@$tmp8, -1, @v1, -1, 0)
     br iif.join6
   iif.else5:
-    %22 = call.rtl ptr fb_StrInit(@$tmp8, -1, @v2, -1, 0)
+    %28 = call.rtl ptr fb_StrInit(@$tmp8, -1, @v2, -1, 0)
     br iif.join6
   iif.join6:
-    %23 = load @$tmp8
-    call void _ZN1UC1EPKc(@a2, %23)
+    %29 = load @$tmp8
+    call void _ZN1UC1EPKc(@a2, %29)
     call.rtl void fb_StrDelete(@$tmp8)
-    %25 = call ptr _ZN1UcvcEv(@a1)
-    %26 = call.rtl ptr fb_StrInit(@r1, 50, %25, 0, 0)
-    %28 = call ptr _ZN1UcvcEv(@a2)
-    %29 = call.rtl ptr fb_StrInit(@r2, 50, %28, 0, 0)
-    %30 = call.rtl ptr fb_StrAllocTempDescZ(@r1)
-    call.rtl void fb_PrintString(0, %30, 2)
-    %31 = call.rtl ptr fb_StrAllocTempDescZ(@r2)
-    call.rtl void fb_PrintString(0, %31, 1)
+    %31 = call ptr _ZN1UcvcEv(@a1)
+    %32 = call.rtl ptr fb_StrInit(@r1, 50, %31, 0, 0)
+    %34 = call ptr _ZN1UcvcEv(@a2)
+    %35 = call.rtl ptr fb_StrInit(@r2, 50, %34, 0, 0)
+    %36 = call.rtl ptr fb_StrAllocTempDescZ(@r1)
+    call.rtl void fb_PrintString(0, %36, 2)
+    %37 = call.rtl ptr fb_StrAllocTempDescZ(@r2)
+    call.rtl void fb_PrintString(0, %37, 1)
     call.rtl void fb_StrDelete(@v2)
     call.rtl void fb_StrDelete(@v1)
-    %32 = const i32 0
-    call.rtl void fb_End(%32)
-    %33 = load @$tmp0
-    ret %33
+    %38 = const i32 0
+    call.rtl void fb_End(%38)
+    %39 = load @$tmp0
+    ret %39
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -135,4 +147,4 @@ declare ptr fb_StrAllocTempDescZ(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 13 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 13 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance
