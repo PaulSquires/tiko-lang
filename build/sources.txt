@@ -65,6 +65,7 @@ src/mir/lowerclean.bas
 src/mir/lowerdata.bas
 src/mir/lowerctor.bas
 src/mir/lowercall.bas
+src/mir/lowerop.bas
 src/mir/lowerfor.bas
 src/mir/lowerproc.bas
 src/mir/lowersig.bas

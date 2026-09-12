@@ -198,12 +198,34 @@ function LowerCvaArg _
         return false
     end if
 
+    '' A VARIADIC INTEGER SLOT IS EIGHT BYTES, whatever the written type is. Reading
+    '' one at its own width advanced the cursor by one, two or four bytes instead
+    '' of by the slot, so the FIRST read was right and every later one drifted:
+    ''
+    ''     va 3, cubyte( 0 ), cubyte( 127 ), cubyte( 255 )   0 127 255 -> 0 38 93
+    ''     vl 3, clng( -1 ), clng( &h7FFFFFFF ), clng( 5 )   -1 2147483647 5
+    ''                                                    -> -1 0 2147483647
+    ''
+    '' and in functions/var_args-gcc.bas the drift walked off the stack and the
+    '' program exited 139. Read at 64 and TRUNCATE. Measured on win64 against fbc;
+    '' linux-x86_64 passes integer varargs in eight-byte units too, but that half
+    '' is reasoned rather than run.
+    dim as MirType readTy = mt
+    select case readTy
+    case MT_I8, MT_I16, MT_I32
+        readTy = MT_I64
+    end select
     dim as MirInst ins
     ins.op = cast( ushort, M_VA_ARG )
-    ins.ty = cast( ubyte, mt )
+    ins.ty = cast( ubyte, readTy )
     ins.a = av
     outv = Emit( c, ins )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    if outv.kind = cast( ubyte, MV_NONE ) then return false
+    if readTy <> mt then
+        outv = Coerce( c, outv, mt, IsUnsignedType( c, rt ) )
+        if outv.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+    return true
 end function
 
 end namespace

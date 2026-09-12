@@ -42,9 +42,11 @@ func void _ZN1T2ROEv(ptr $0) {
     store %15, %16
     %17 = alloca ptr other
     %18 = call.rtl ptr memset(@other, 0, 8)
-    %19 = load @other
-    %20 = load @this
-    call void _ZN1T2RWEv(%20)
+    %19 = load @this
+    %20 = load @other
+    store %19, %20
+    %21 = load @this
+    call void _ZN1T2RWEv(%21)
     ret
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -66,9 +68,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 40 insts, 1 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 1
-  skip-site src\mir\lowerutil.bas:40 1
+lowered: 4 functions, 4 blocks, 42 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/const-method.bas(25,5): error TKO0664: 'value' cannot be written from a const method
      |
   25 |     value = 4

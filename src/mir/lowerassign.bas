@@ -399,6 +399,61 @@ private sub LowerAssign _
     '' whose type is an ARRAY -- because building the descriptor is code, and code
     '' emitted for an overload that then does not exist is dead.
     dim as Tko.TypeId atl = c.info->TypeOf_( target )
+    '' 'this = o' IS AN ASSIGNMENT TO THE OBJECT, and 'this' is a POINTER: its
+    '' symbol's type is Pointer_( owner ), so the same-type test below compared a
+    '' pointer against a UDT, never matched, and the statement fell to the generic
+    '' store -- where CoerceTy answers nothing for an aggregate and Emit dropped it.
+    '' 'constructor P( byref o as P ) : this = o : end constructor' copied NOTHING,
+    '' silently: one statement not lowered and a zeroed object.
+    dim as MirValue thisDst
+    if c.ast->Kind( target ) = Tko.N_IDENT then
+        if c.types->Kind( c.types->Unqualify( atl ) ) = Tko.TK_POINTER then
+            dim as Tko.IdentPayload ptr tip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
+            if tip->name = c.names->Fold( c.names->GetString( "this" ) ) then
+                dim as Tko.TypeId pin2 = c.types->Inner( c.types->Unqualify( atl ) )
+                if pin2 <> Tko.TYPE_NONE then
+                    if c.types->Kind( c.types->Unqualify( pin2 ) ) = Tko.TK_UDT then
+                        '' THIS HOLDS A POINTER, so the destination is its VALUE.
+                        dim as Tko.TypeId ot = c.types->Unqualify( pin2 )
+                        if ot = c.types->Unqualify( c.info->TypeOf_( value ) ) then
+                            dim as MirValue tsa = LowerAddr( c, target )
+                            dim as MirValue ssa = LowerAddr( c, value )
+                            if (tsa.kind <> cast( ubyte, MV_NONE )) andalso _
+                               (ssa.kind <> cast( ubyte, MV_NONE )) then
+                                thisDst = LowerExprLoad( c, tsa, MT_PTR )
+                                if thisDst.kind <> cast( ubyte, MV_NONE ) then
+                                    dim as FB.Array( of ulong ) tlT
+                                    tlT.Push( cast( ulong, ot ) )
+                                    dim as Tko.SymbolId tlet = _
+                                        PickCtor( c, StructorOf( c, ot, "let" ), tlT )
+                                    if tlet <> Tko.SYMBOL_NONE then
+                                        dim as FB.Array( of ulong ) tla
+                                        tla.Push( cast( ulong, ssa.kind ) )
+                                        tla.Push( cast( ulong, ssa.id ) )
+                                        EmitStructorCall( c, tlet, -1, @thisDst, @tla )
+                                    elseif NeedsLetBody_( c, ot ) then
+                                        CallImplicitLet_( c, ot, thisDst, ssa )
+                                    else
+                                        '' fbc's answer for a type with no
+                                        '' assignment operator is the bitwise copy.
+                                        dim as MirValue sv2 = _
+                                            LowerExprLoad( c, ssa, MT_AGG, SizeOfType( c, ot ) )
+                                        if sv2.kind = cast( ubyte, MV_NONE ) then
+                                            SkipHere( c )
+                                            return
+                                        end if
+                                        StoreThrough( c, thisDst, sv2 )
+                                    end if
+                                    return
+                                end if
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
     if (atl <> Tko.TYPE_NONE) andalso (c.ast->Kind( value ) = Tko.N_CALL) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as Tko.ListPayload ptr vlp = _
