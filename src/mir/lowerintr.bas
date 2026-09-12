@@ -12,7 +12,8 @@ namespace Tko.Mir
 
 
 declare function AggIifArm_ _
-    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId, _
+      byval slot as long = -1, byval ft as Tko.TypeId = Tko.TYPE_NONE ) as boolean
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
@@ -669,12 +670,26 @@ function LowerAggIif_ _
     dim as long joinB = NewBlock( c, "iif.join" )
     Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
 
+    '' THE RESULT IS A TEMPORARY AND IS DESTROYED LIKE ONE. It was never registered,
+    '' so '( iif( c, C( 1 ), C( 2 ) ) ).i' constructed an object and destroyed
+    '' nothing at all -- a leak, and for a type owning a buffer a lost one.
+    if TypeNeedsDtor_( c, ft ) then
+        c.udtTemps.Push( cast( ulong, slot ) )
+        c.udtTempTypes.Push( cast( ulong, ft ) )
+    end if
+
+    '' ...AND EACH ARM'S OWN TEMPORARIES DIE IN THAT ARM, exactly as the scalar
+    '' form's do: the flush runs in the join, which both arms reach.
     c.curBlock = thenB
-    if AggIifArm_( c, taddr, thenE ) = false then return false
+    dim as long atm = c.udtTemps.Count
+    if AggIifArm_( c, taddr, thenE, slot, ft ) = false then return false
+    ReleaseUdtTemps_( c, atm )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
-    if AggIifArm_( c, taddr, elseE ) = false then return false
+    dim as long aem = c.udtTemps.Count
+    if AggIifArm_( c, taddr, elseE, slot, ft ) = false then return false
+    ReleaseUdtTemps_( c, aem )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB
@@ -682,10 +697,46 @@ function LowerAggIif_ _
     return true
 end function
 
-'' One arm: the whole aggregate copied into the temporary. The VALUE first and the
-'' address only as a fallback, so a nested iif or a call result works.
+'' One arm, INTO the temporary -- constructed there where it can be, copied where it
+'' cannot, and bit-copied only as the last resort it always was.
+''
+'' Measured against fbc, which draws the line at whether the arm is a TEMPORARY:
+''
+''     ( iif( c, C( 1 ), C( 2 ) ) ).i    ctors 1 copies 0 dtors 1  -- built IN PLACE
+''     z = iif( c, a, b )                ctors 0 copies 1 dtors 4  -- a is an LVALUE
+''
+'' tiko bit-copied in both: the second ran NO copy constructor, so a type owning a
+'' buffer left the slot and the local sharing one pointer.
 private function AggIifArm_ _
-    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId, _
+      byval slot as long = -1, byval ft as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+
+    '' A CONSTRUCTOR CALL OR A TYPE LITERAL IS BUILT WHERE IT LANDS. Lowered as a
+    '' value it goes into a temporary of its own and is copied out, which is one
+    '' construction and one destruction more than fbc runs.
+    if (slot >= 0) andalso (ft <> Tko.TYPE_NONE) then
+        if LowerCtorInit( c, slot, ft, e ) then return true
+    end if
+    '' AN LVALUE OF THE TYPE IS COPY-CONSTRUCTED, not stored over.
+    if ft <> Tko.TYPE_NONE then
+        if c.types->Unqualify( c.info->TypeOf_( e ) ) = c.types->Unqualify( ft ) then
+            dim as Tko.SymbolId acc = CopyCtorOf_( c, ft )
+            if (acc <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, ft ) then
+                dim as MirValue asrc = LowerAddr( c, e )
+                if asrc.kind <> cast( ubyte, MV_NONE ) then
+                    if acc <> Tko.SYMBOL_NONE then
+                        dim as FB.Array( of ulong ) aargs
+                        aargs.Push( cast( ulong, asrc.kind ) )
+                        aargs.Push( cast( ulong, asrc.id ) )
+                        EmitStructorCall( c, acc, -1, @dst, @aargs )
+                    else
+                        CallImplicitCopy_( c, ft, dst, asrc )
+                    end if
+                    return true
+                end if
+            end if
+        end if
+    end if
 
     dim as MirValue v = LowerExpr( c, e )
     if v.kind = cast( ubyte, MV_NONE ) then
@@ -797,7 +848,21 @@ function LowerIif _
     dim as long joinB = NewBlock( c, "iif.join" )
     Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
 
+    '' AN ARM'S OWN TEMPORARIES DIE IN THAT ARM, not at the end of the statement.
+    '' Both arms push onto the one flat udtTemps list and the statement-end flush
+    '' emits every destructor in the JOIN block -- so the arm that DID NOT RUN had
+    '' its temporary destroyed anyway, on storage no constructor ever touched.
+    '' Measured against fbc, which runs neither:
+    ''
+    ''     iif( c0, (type<C>( )).i, 456 )     ctors 0 dtors 0 -> ctors 0 dtors 1
+    ''     iif( c0, (type<C>( )).i, (type<C>( )).i )   1 and 1 -> 1 and 2
+    ''
+    '' That is not a miscount: it is a destructor call on an unconstructed object,
+    '' and for a type that frees a buffer it is a free of whatever the stack held.
+    '' The loop head already draws exactly this line -- see lowerctl.bas, where a
+    '' condition's temporaries die inside the head because the head runs again.
     c.curBlock = thenB
+    dim as long tmark = c.udtTemps.Count
     dim as MirValue tv = LowerExpr( c, thenE )
     if tv.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst ts
@@ -807,9 +872,11 @@ function LowerIif _
         ts.b = CoerceTy( c, tv, rt, c.info->TypeOf_( thenE ))
         Emit( c, ts )
     end if
+    ReleaseUdtTemps_( c, tmark )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
+    dim as long emark = c.udtTemps.Count
     dim as MirValue ev = LowerExpr( c, elseE )
     if ev.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst es
@@ -819,6 +886,7 @@ function LowerIif _
         es.b = CoerceTy( c, ev, rt, c.info->TypeOf_( elseE ))
         Emit( c, es )
     end if
+    ReleaseUdtTemps_( c, emark )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB
@@ -1060,7 +1128,13 @@ function LowerShortCircuitParts_ _
         Terminate( c, MTERM_CONDBR, shortB, rhsB, l )
     end if
 
+    '' THE RIGHT SIDE'S TEMPORARIES DIE IN THE RIGHT SIDE'S BLOCK, for the reason
+    '' LowerIif gives above: the statement-end flush runs in the JOIN, which the
+    '' SHORT-CIRCUIT path also reaches, so a temporary the right side never built
+    '' was destroyed anyway. 'if c0 andalso (type<C>( )).i' ran one destructor on
+    '' unconstructed storage where fbc runs none.
     c.curBlock = rhsB
+    dim as long rmark = c.udtTemps.Count
     dim as MirValue r = LowerExpr( c, rhsE )
     if r.kind <> cast( ubyte, MV_NONE ) then
         '' NORMALISED, and it is not optional: measured, fbc writes
@@ -1099,6 +1173,7 @@ function LowerShortCircuitParts_ _
         st1.b = Coerce( c, r, rty, false )
         Emit( c, st1 )
     end if
+    ReleaseUdtTemps_( c, rmark )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = shortB

@@ -99,25 +99,25 @@ func i32 main(i32 $0, ptr $1) {
     %37 = load @cond
     condbr %37, iif.then13, iif.else14
   iif.then13:
-    %39 = load @bs
-    store @$tmp12, %39
+    call void _ZN7PARENT_C1ERKS_(@$tmp12, @bs)
     br iif.join15
   iif.else14:
-    %40 = load @dv
-    store @$tmp12, %40
+    %39 = load @dv
+    store @$tmp12, %39
     br iif.join15
   iif.join15:
-    %41 = load @$tmp12
-    store @bs, %41
-    %42 = const i32 0
-    call.rtl void fb_End(%42)
-    %43 = load @$tmp0
-    ret %43
+    %40 = load @$tmp12
+    store @bs, %40
+    %41 = const i32 0
+    call.rtl void fb_End(%41)
+    %42 = load @$tmp0
+    ret %42
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN7PARENT_C1Ev(ptr $0)
 declare void _ZN7DERIVEDC1Ev(ptr $0)
+declare void _ZN7PARENT_C1ERKS_(ptr $0, ptr $1)
 declare void fb_End(i32 $0)
 func void _ZN7PARENT_C1Ev(ptr $0) {
   entry0:
@@ -138,8 +138,32 @@ func void _ZN7DERIVEDC1Ev(ptr $0) {
     store $0, %2
     ret
 }
+func void _ZN7PARENT_C1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN10fb_Object$C1Ev(%1)
+    %2 = field.addr $0, 8
+    %3 = call.rtl ptr memset(%2, 0, 8)
+    %4 = field.addr @@_ZTVN7PARENT_E, 16
+    store $0, %4
+    call void _ZN7PARENT_aSERKS_($0, $1)
+    ret
+}
+declare void _ZN7PARENT_aSERKS_(ptr $0, ptr $1)
+func void _ZN7PARENT_aSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = load %1
+    store %2, %3
+    %4 = field.addr $1, 8
+    %5 = field.addr $0, 8
+    %6 = load %4
+    store %5, %6
+    ret
+}
 verify: ok
-lowered: 3 functions, 18 blocks, 72 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 20 blocks, 86 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   skip-site src\mir\lowerutil.bas:40 1
 tests/diagnostics/src/iif-udt-arms.bas(27,8): error TKO0655: the two arms of 'iif' have incompatible types
