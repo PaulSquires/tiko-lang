@@ -322,7 +322,21 @@ private function UsingOne_ _
             '' expands cmp to a QT() concat at every one of its 20 call sites.
             desc = LowerAddr( c, Unparen_( c, it ) )
             if desc.kind = cast( ubyte, MV_NONE ) then
-                if ConcatToTempDesc_( c, Unparen_( c, it ), desc ) = false then
+                '' A STRING-RETURNING CALL IS ALREADY A DESCRIPTOR. Measured:
+                ''
+                ''     vr = fb_HEXEx_l( 255, 8 ); fb_PrintUsingStr( 0, vr, mask )
+                ''     vr = F2( 3, 4 );           fb_PrintUsingStr( 0, vr, 0 )
+                ''
+                '' It has no address and is not a concatenation, so the item
+                '' declined -- and the statement with it, after Init had gone out:
+                '' 'print using "A=& B=&"; 1; hex( 255, 8 )' printed 'A=1 B=' and no
+                '' newline. The self-hosted compiler's --dump-source line is one.
+                dim as Tko.NodeId ui = Unparen_( c, it )
+                if c.ast->Kind( ui ) = Tko.N_CALL then
+                    '' THE RUNTIME'S OWN FIRST -- hex, str, trim -- through the same
+                    '' LowerStrRvalue plain PRINT uses; a user function after it.
+                    if LowerStrRvalue( c, ui, desc ) = false then desc = LowerExpr( c, ui )
+                elseif ConcatToTempDesc_( c, ui, desc ) = false then
                     return false
                 end if
             end if

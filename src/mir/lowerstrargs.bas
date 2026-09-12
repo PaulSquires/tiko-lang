@@ -250,6 +250,45 @@ function ByvalStrTemp_ _
         return true
     end if
 
+    '' A USTRING SOURCE FOR A USTRING TEMPORARY IS A USTRING ASSIGNMENT. Measured, for a
+    '' var-length ustring passed to 'byval s as ustring':
+    ''
+    ''     memset( &TMP, 0, 24 ); fb_UStrAssign( &TMP, -1, &U, -1, 0 ); TAKEU( &TMP )
+    ''     fb_UStrDelete( &TMP )
+    ''
+    '' Neither arm above owns it -- the source is not wide and not narrow -- so it fell
+    '' to LowerStringAssignToSlot, which filled the temporary through fb_UStrAssignToA:
+    '' a NARROW descriptor the callee then read as UTF-16. The self-hosted compiler's
+    '' Text.UStringToUtf8( byval s as ustring ) returned mojibake that way, so
+    '' SourceManager.Find never matched a header it had already loaded and every
+    '' '#include once' included it again.
+    ''
+    '' AN ADDRESSABLE USTRING ONLY, looked through a byref -- 'byref absPath as ustring'
+    '' is exactly the shape Find passes on. A ustring RVALUE is not measured here and
+    '' declines rather than take the narrow path it used to.
+    scope
+        dim as Tko.TypeId uat = c.types->Unqualify( c.info->TypeOf_( argNode ) )
+        if uat <> Tko.TYPE_NONE then
+            if c.types->Kind( uat ) = Tko.TK_REFERENCE then
+                uat = c.types->Unqualify( c.types->Inner( uat ) )
+            end if
+        end if
+        if IsUStringType( c, pt ) andalso IsUStringType( c, uat ) then
+            dim as MirValue usrc = LowerAddr( c, argNode )
+            if usrc.kind = cast( ubyte, MV_NONE ) then return false
+            dim as FB.Array( of ulong ) usa
+            usa.Push( cast( ulong, dst.kind ) ) : usa.Push( cast( ulong, dst.id ) )
+            PushStrLen_( c, usa, -1 )
+            usa.Push( cast( ulong, usrc.kind ) ) : usa.Push( cast( ulong, usrc.id ) )
+            PushStrLen_( c, usa, -1 )
+            usa.Push( cast( ulong, MV_CONST_INT ) ) : usa.Push( 0 )
+            EmitRtl( c, RTL_USTR_ASSIGN, usa )
+            outSlot = slot
+            outa = dst
+            return true
+        end if
+    end scope
+
     if LowerWideToNarrowSlot( c, slot, pt, argNode ) then
     elseif LowerStringAssignToSlot( c, slot, argNode ) = false then
         return false
