@@ -307,6 +307,9 @@ function LowerCallParts _
     '' verified clean, which is what made it look like a destructor problem rather
     '' than a byref one.
     dim as boolean calleeByrefRet = false
+    '' The callee returns BYREF and its referent is a UDT: the pointer is handed
+    '' back raw, and a consumer that wants the OBJECT has to load through it.
+    dim as boolean byrefUdtRef = false
     if cs <> 0 then
         dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
         if cpn <> Tko.NODE_NONE then
@@ -1080,7 +1083,10 @@ function LowerCallParts _
         '' a byref return: before that byrefRet was never computed here at all, and
         '' the arity mismatch meant the program did not link in the first place.
         if cs <> 0 then
-            if c.types->Kind( cs->type_ ) = Tko.TK_UDT then byrefRet = false
+            if c.types->Kind( cs->type_ ) = Tko.TK_UDT then
+                byrefRet = false
+                byrefUdtRef = true
+            end if
             '' ...AND A VAR-LENGTH STRING REFERENT, which is the third case and was
             '' missing. A string's VALUE in this IR is already a pointer to its
             '' DESCRIPTOR, so the returned address IS what every consumer wants and a
@@ -1254,6 +1260,24 @@ function LowerCallParts _
     if byrefRet then
         if wantRef then return cv
         return LowerExprLoad( c, cv, mt )
+    end if
+    '' A BYREF UDT RESULT ASKED FOR AS A VALUE IS A LOAD THROUGH THE ADDRESS. The
+    '' clause above hands the raw pointer back, which is what a FIELD ACCESS and an
+    '' initialiser want -- both take the address -- and is wrong for every consumer
+    '' that asked for the object. Measured:
+    ''
+    ''     function BV( ) as Box : return Ref( ) : end function
+    ''
+    '' stored the POINTER as the result and printed it back as two LONGs, and
+    '' 'Take Ref( )' over a 'byval b as Box' emitted 'store [12 x i8] %t7' over a
+    '' ptr, which clang refused outright. 'v = Ref( )' and 'Ref( ).a' were right
+    '' the whole time, which is what kept this looking like a return-path problem.
+    ''
+    '' fb/decimal.bi returns 'this' and a byref Value( ) that way, so all eight
+    '' finance suites were built on it.
+    if byrefUdtRef andalso (mt = MT_AGG) andalso (wantRef = false) then
+        dim as long rsz = SizeOfType( c, cs->type_ )
+        if rsz > 0 then return LowerExprLoad( c, cv, MT_AGG, rsz )
     end if
     return cv
 end function

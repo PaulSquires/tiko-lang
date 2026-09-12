@@ -1067,6 +1067,22 @@ function LowerLen _
     dim as Tko.TypeId at = c.info->TypeOf_( a )
     if at = Tko.TYPE_NONE then return false
 
+    '' 'sizeof( this )' IS THE OBJECT'S SIZE, NOT THE POINTER'S. 'this' is bound as
+    '' a POINTER to the enclosing type -- that is what makes every member access a
+    '' load through it -- and this read TypeOf_ verbatim, so a 24-byte type answered
+    '' 8. Measured against fbc, which answers 24. The receiver is the one place the
+    '' pointer is not the value.
+    if c.ast->Kind( a ) = Tko.N_IDENT then
+        if c.types->Kind( c.types->Unqualify( at ) ) = Tko.TK_POINTER then
+            dim as Tko.IdentPayload ptr lip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, a )].data )]
+            if lip->name = c.names->Fold( c.names->GetString( "this" ) ) then
+                dim as Tko.TypeId pin = c.types->Inner( c.types->Unqualify( at ) )
+                if pin <> Tko.TYPE_NONE then at = pin
+            end if
+        end if
+    end if
+
     '' 'len( string )' NAMES A TYPE, not a value, and folds to that type's SIZE like
     '' SIZEOF does: measured, fbc emits 24 for 'len( string )' -- the descriptor -- and
     '' 2 for 'len( wstring )'. The string branches below asked a TYPE REFERENCE for an

@@ -292,6 +292,23 @@ end function
 '' THE TYPE BOUND TO A GENERIC PARAMETER OF THIS NAME, or nothing. The stack is
 '' searched from the top so an inner instantiation shadows an outer one, which is the
 '' same walk ResolveTypeRef makes for a type reference.
+'' Is this symbol an OUTER name -- one declared in a namespace, a module or the global
+'' scope -- rather than something the procedure or its own type owns? That is the
+'' only case an inherited member is allowed to beat.
+private function SymbolIsOuterName_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = 0 then return false
+    select case cast( Tko.ScopeKind, sc->kind )
+    case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE, Tko.SCOPEK_NAMESPACE
+        return true
+    end select
+    return false
+end function
+
 private function GparamTypeOf_( byref c as Ctx, byval nm as Tko.InternId ) as Tko.TypeId
     if nm = 0 then return Tko.TYPE_NONE
     for gi as long = c.gparamName.Count - 1 to 0 step -1
@@ -331,7 +348,40 @@ private sub WalkExpr _
         ''
         '' LookupTyped falls back to the plain lookup when no value of that name
         '' exists, so a type reference that does reach here still resolves.
+        '' THE ENCLOSING TYPE COMES BEFORE THE MODULE, AND AFTER THE PROCEDURE'S OWN
+        '' LOCALS. LookupTyped walks locals and then straight out to the namespace,
+        '' and a method's scope chain does NOT pass through its own type -- the type
+        '' is reached by InheritedMember_, which was only tried when the whole walk
+        '' had already failed. So a member body naming something the type inherits
+        '' bound to a module-level name of the same spelling instead:
+        ''
+        ''     private sub f( )            <- module level
+        ''     sub B.test_proc( ) : f( )   <- fbc calls A.f, tiko called the global
+        ''
+        '' It is the ordinary shape of an inherited helper, and nine corpus suites
+        '' are built on it. The locals still win: a parameter or a DIM named the
+        '' same thing shadows the member, which is why the search is in three steps
+        '' rather than two.
         dim as Tko.SymbolId sid = c.syms->LookupTyped( scope_, nm, false )
+        '' ...AND AN INHERITED MEMBER BEATS A MODULE-LEVEL NAME. The walk above
+        '' reaches the procedure's locals and its OWN type's members, and then goes
+        '' straight out to the namespace; an INHERITED member is not on that chain
+        '' at all -- the base's scope is the type of a field named 'base' -- so it
+        '' was only ever consulted when the whole walk had already failed. A module
+        '' level name of the same spelling therefore won:
+        ''
+        ''     private sub f( )            <- module level
+        ''     sub B.test_proc( ) : f( )   <- fbc calls A.f, tiko called the global
+        ''
+        '' ONLY WHEN THE HIT IS AN OUTER ONE: a local, a parameter and the type's own
+        '' member all still win. Searching the base chain first made 'f( )' inside B
+        '' call A.f even where B DECLARES ITS OWN f -- the virtual-dispatch golden.
+        if sid <> Tko.SYMBOL_NONE then
+            if SymbolIsOuterName_( c, sid ) then
+                dim as Tko.SymbolId inh = Tko.SYMBOL_NONE
+                if InheritedMember_( c, scope_, nm, inh ) then sid = inh
+            end if
+        end if
         if sid <> Tko.SYMBOL_NONE then
             c.info->SetRef( id, sid )
             c.st->references += 1

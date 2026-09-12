@@ -411,6 +411,15 @@ private function ArgNeedsUdtConv_ _
     if at = pt then return false
     '' A DERIVED OBJECT IS NOT A CONVERSION -- it is the base subobject at offset zero,
     '' which the ordinary path already passes.
+    ''
+    '' THIS IS TOO BROAD AND IS KNOWN TO BE. It refuses EVERY UDT argument, so a
+    '' type with a CONVERTING CONSTRUCTOR taking another UDT never runs it and the
+    '' source object's bytes are passed where the destination belongs --
+    '' 'fval( bv )' over 'constructor foo( byval v as bar )' gives 0 where fbc gives
+    '' 13. Narrowing it to a real base walk turns that into a DECLINE rather than a
+    '' fix, because UdtConvTemp_ then refuses the byval UDT parameter at the MT_AGG
+    '' test below -- so the conversion path has to learn to pass an aggregate before
+    '' this test is allowed to let one through.
     if c.types->Kind( at ) = Tko.TK_UDT then return false
     return true
 end function
