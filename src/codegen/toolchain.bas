@@ -172,6 +172,17 @@ function LinkExe _
     '' the runtime uses, not a flag.
     dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
 
+    '' A REPRODUCIBLE LINK. lld writes the wall clock into the COFF header's TimeDateStamp,
+    '' and that was the ONLY difference left between stage3 and stage4 of the bootstrap:
+    '' four bytes at offset 128, with every other byte of 4,178,432 identical. The MinGW
+    '' driver takes --no-insert-timestamp and writes zero; lld-link takes /Brepro and
+    '' writes a hash of the image instead. ELF carries no link time at all.
+    if target.id = TARGET_WIN64_MSVC then
+        cmd += " -Xlinker /Brepro"
+    elseif target.objFormat = OBJ_COFF then
+        cmd += " -Wl,--no-insert-timestamp"
+    end if
+
     '' A DLL, AND ITS IMPORT LIBRARY. Spelled through -Xlinker rather than with
     '' clang's own -shared, because the import library has no clang spelling and
     '' both halves belong together.
