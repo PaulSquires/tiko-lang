@@ -552,6 +552,15 @@ private function TypeArgCall _
         if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
             dim as long savedGp = p.pos
             Advance( p )
+            '' A QUALIFIED GENERIC is a type too: 'sizeof( NS.Cell( of short ) )' is 2 to fbc,
+            '' and only the unqualified name was looked past, so the dotted one parsed as a
+            '' CALL, had no type, and the statement declined. So did 'sizeof( FB.Array( of
+            '' string ) )' -- 80 to fbc -- while an alias of the same type worked.
+            while (Peek( p ) = Tko.TK_DOT) andalso HasTok( p, p.pos + 1 )
+                if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_IDENT then exit while
+                Advance( p )
+                Advance( p )
+            wend
             looksLikeType = IsGenericArgs( p )
             p.pos = savedGp
         end if
