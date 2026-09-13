@@ -1,0 +1,9 @@
+'' 'return T( args )' into a hidden-pointer UDT result with a copy constructor constructs
+'' straight into the result, with no temporary to copy from and destroy. Runtime output
+'' was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sret-return-ctor-inplace.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/sret-return-ctor-inplace.out

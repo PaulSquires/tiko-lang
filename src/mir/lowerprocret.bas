@@ -120,6 +120,46 @@ private function SretCopyResult_ _
     dim as boolean written = (cc <> Tko.SYMBOL_NONE)
     if (written = false) andalso (NeedsLetBody_( c, rt ) = false) then return false
 
+    '' 'return T( args )' CONSTRUCTS STRAIGHT INTO THE HIDDEN POINTER. Measured, fbc's C for
+    '' 'return CC( n )', 'return type<CC>( n )' and 'return CC( o )' is one call each --
+    ''
+    ''     _ZN2CCC1Ei( tmp$2$1, N$1 );
+    ''     _ZN2CCC1ERS_( tmp$6$1, O$1 );
+    ''
+    '' -- and taking the ADDRESS of the call below built a temporary, copy-constructed the
+    '' result from it and destroyed it: one copy and one destructor per return that fbc
+    '' does not run. A type with no copy constructor never got here, which is why only
+    '' this shape showed it. THE OVERLOAD IS PICKED FIRST, off the arguments' types as
+    '' LowerCtorInit picks it, because that lowers the arguments before choosing and a
+    '' decline after it would evaluate them a second time on the path below.
+    scope
+        dim as Tko.TypeId irt = c.types->Unqualify( rt )
+        dim as boolean inPlace = (TypeCtorTypeOf_( c, valueE ) = irt)
+        if (inPlace = false) andalso (c.ast->Kind( valueE ) = Tko.N_TUPLE) then
+            if (c.ast->nodes[cast( long, valueE )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+                inPlace = (c.types->Unqualify( c.info->TypeOf_( valueE ) ) = irt)
+            end if
+        end if
+        if inPlace then
+            dim as Tko.ListPayload ptr icp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, valueE )].data )]
+            dim as FB.Array( of ulong ) iT
+            for i as long = 0 to icp->count - 1
+                iT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[icp->first + i] ) ) ) )
+            next
+            if PickCtor( c, StructorOf( c, irt, "__ctor" ), iT ) <> Tko.SYMBOL_NONE then
+                dim as MirValue isa
+                isa.kind = cast( ubyte, MV_LOCAL )
+                isa.ty = cast( ubyte, MT_PTR )
+                isa.id = c.sretParam
+                dim as MirValue idst = LowerExprLoad( c, isa, MT_PTR )
+                if idst.kind <> cast( ubyte, MV_NONE ) then
+                    if LowerCtorInit( c, -1, irt, valueE, @idst ) then return true
+                end if
+            end if
+        end if
+    end scope
+
     '' AND THE SOURCE MUST BE ONE OF THESE. 'return T( 1 )' constructs a temporary
     '' somewhere this cannot see, and 'return' with no value has nothing to copy.
     '' 'this' IS THE OBJECT AND ITS ADDRESS IS THE POINTER'S VALUE -- see
