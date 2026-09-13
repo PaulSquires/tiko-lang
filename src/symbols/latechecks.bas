@@ -281,6 +281,160 @@ end sub
 
 #include once "symbols/procptrdecl.bas"
 
+'' The class of a VALUE type for ProcPtrArgBad_: 1 a string of any kind, 2 a number, 3 a
+'' boolean, 0 anything else.
+private function ArgClass_ ( byref c as Ctx, byval t as TypeId ) as long
+    if t = TYPE_NONE then return 0
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_ARRAY then
+        '' 'string * N', 'zstring * N' and 'wstring * N' are arrays of a character builtin.
+        dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
+        if c.types->Kind( el ) <> TK_BUILTIN then return 0
+        select case c.types->BuiltinOf( el )
+        case TY_FIXSTR, TY_FIXUSTR, TY_ZSTRING, TY_WSTRING
+            return 1
+        end select
+        return 0
+    end if
+    if c.types->Kind( u ) <> TK_BUILTIN then return 0
+    select case c.types->BuiltinOf( u )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return 1
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
+         TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE
+        return 2
+    case TY_BOOLEAN
+        return 3
+    end select
+    return 0
+end function
+
+private function IsFloatBuiltin_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if c.types->Kind( t ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case TY_SINGLE, TY_DOUBLE
+        return true
+    end select
+    return false
+end function
+
+'' A NAMED VALUE, which a byref parameter binds directly -- a literal or an expression
+'' binds a temporary of the parameter's own type instead.
+private function NamedLvalue_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    select case c.ast->Kind( n )
+    case N_DEREF, N_INDEX
+        return true
+    case N_IDENT, N_MEMBER
+        dim as SymbolId sid = c.info->RefOf( n )
+        if (sid = SYMBOL_NONE) andalso (c.ast->Kind( n ) = N_MEMBER) then
+            sid = c.info->RefOf( c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )].rhs )
+        end if
+        dim as Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = 0 then return false
+        select case cast( SymbolKind, s->kind )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+            return true
+        end select
+    case N_CALL
+        '' An ARRAY ELEMENT, and nothing else a call can be.
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if s = 0 then return false
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then return false
+        if s->type_ = TYPE_NONE then return false
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        if c.types->Kind( u ) = TK_ARRAY then return true
+        return c.types->IsDynArray( u )
+    end select
+    return false
+end function
+
+'' Does a UDT, or one of its bases, declare this member?
+private function UdtHasMember_ ( byref c as Ctx, byval u as TypeId, byref nm as string ) as boolean
+    dim as TypeId b = u
+    for guard as long = 0 to 16
+        if b = TYPE_NONE then exit for
+        if StructorOf_( c, b, nm ) <> 0 then return true
+        b = c.types->BaseOf( b )
+    next
+    return false
+end function
+
+'' DOES ARGUMENT 'arg' FAIL TO CONVERT TO PROCEDURE-POINTER PARAMETER TYPE 'pt'? fbc's
+'' error 58, over the shapes measured and nothing wider -- the table is
+'' tests/diagnostics/src/procptr-argtypes.bas. Mismatched POINTERS are fbc WARNINGS
+'' (1, 2 and 3), not errors, and are not this question.
+private function ProcPtrArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg as NodeId ) as boolean
+    if pt = TYPE_NONE then return false
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return false
+    '' 'f( byval 0 )' hands a byref parameter the address itself.
+    if c.ast->Kind( arg ) = N_UNARY then
+        dim as UnaryPayload ptr aup = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, arg )].data )]
+        if cast( TokenKind, aup->op ) = KW_BYVAL then return false
+    end if
+    dim as TypeId pv = c.types->Unqualify( pt )
+    dim as boolean isRef = (c.types->Kind( pv ) = TK_REFERENCE)
+    if isRef then pv = c.types->Unqualify( c.types->Inner( pv ) )
+    dim as TypeId av = c.types->Unqualify( at )
+    if c.types->Kind( av ) = TK_REFERENCE then av = c.types->Unqualify( c.types->Inner( av ) )
+    dim as TypeKind pk = c.types->Kind( pv )
+    dim as TypeKind ak = c.types->Kind( av )
+    dim as long pc = ArgClass_( c, pv )
+    dim as long ac = ArgClass_( c, av )
+
+    '' A UDT WITH NO CONSTRUCTOR is not built from a number, and one with no CAST does
+    '' not become one -- 'fu( 1 )' and 'fi( u1 )'. A constructor or a cast makes both
+    '' ordinary: 'fuc( 1 )' and 'fi( k1 )' are accepted.
+    if pk = TK_UDT then
+        if ac <> 2 then return false
+        return (UdtHasMember_( c, pv, "__ctor" ) = false)
+    end if
+    if ak = TK_UDT then
+        if (pc <> 2) andalso (pc <> 3) then return false
+        return (UdtHasMember_( c, av, "cast" ) = false)
+    end if
+
+    '' A STRING becomes no number, boolean, enum or non-character pointer.
+    if ac = 1 then
+        if (pc = 2) orelse (pc = 3) then return true
+        if pk = TK_ENUM then return true
+        if pk = TK_POINTER then
+            dim as TypeId pe = c.types->Unqualify( c.types->Inner( pv ) )
+            if c.types->Kind( pe ) <> TK_BUILTIN then return true
+            select case c.types->BuiltinOf( pe )
+            case TY_ZSTRING, TY_WSTRING
+                return false
+            end select
+            return true
+        end if
+        return false
+    end if
+
+    '' A NUMBER becomes no string, and a POINTER no var-len string.
+    if pc = 1 then
+        if ac = 2 then return true
+        if ak = TK_POINTER then return (c.types->BuiltinOf( pv ) = TY_STRING)
+        return false
+    end if
+
+    '' BYREF: a NAMED number binds only one of its own width and kind. 'fr( l )' over a
+    '' long and 'frd( x )' over an integer are refused; 'fr( ui )' over a uinteger, and
+    '' any literal or expression, are not.
+    if isRef then
+        if (pc >= 2) andalso (ac >= 2) then
+            if NamedLvalue_( c, arg ) then
+                if pc <> ac then return true
+                if IsFloatBuiltin_( c, pv ) <> IsFloatBuiltin_( c, av ) then return true
+                if c.types->Layout( pv ).size <> c.types->Layout( av ).size then return true
+            end if
+        end if
+    end if
+    return false
+end function
+
 '' A CALL THROUGH A PROCEDURE POINTER TAKES THE POINTER'S PARAMETERS -- fbc's error 1,
 '' "Argument count mismatch", for one argument too many and for an omitted one with no
 '' default (error 7 when the pointer takes none). Measured: 'fp()' and 'fp(1, 2)' over
@@ -322,6 +476,17 @@ private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
         end if
         return
     end if
+    '' ...EACH WRITTEN ARGUMENT CONVERTS TO ITS PARAMETER -- fbc's error 58, and nothing
+    '' judged a pointer call's arguments either: 'fi( "x" )' over 'byval as integer'
+    '' handed the callee a string descriptor's address as the number.
+    for i as long = 0 to lp->count - 1
+        dim as NodeId warg = cast( NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( warg ) = N_ELIDED then continue for
+        if ProcPtrArgBad_( c, c.types->ProcParam( sig, i ), warg ) then
+            c.diags->Report( TKO0698, PointRange( c.ast->Loc( warg ) ) )
+            return
+        end if
+    next
     dim as NodeId decl = NODE_NONE
     dim as boolean declAsked = false
     for i as long = 0 to np - 1

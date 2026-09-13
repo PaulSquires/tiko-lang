@@ -1,0 +1,36 @@
+'' An argument to a procedure pointer converts to its parameter or the call is refused.
+'' fbc gives error 58 for each of the twenty-eight 'refused' lines on its own and compiles
+'' the 'accepted' half clean; tiko passed every one of them through unchecked.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/procptr-argtypes.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: procptr-argtypes.bas(57,
+'' EXPECT-OUT: procptr-argtypes.bas(58,
+'' EXPECT-OUT: procptr-argtypes.bas(59,
+'' EXPECT-OUT: procptr-argtypes.bas(60,
+'' EXPECT-OUT: procptr-argtypes.bas(61,
+'' EXPECT-OUT: procptr-argtypes.bas(62,
+'' EXPECT-OUT: procptr-argtypes.bas(63,
+'' EXPECT-OUT: procptr-argtypes.bas(64,
+'' EXPECT-OUT: procptr-argtypes.bas(65,
+'' EXPECT-OUT: procptr-argtypes.bas(66,
+'' EXPECT-OUT: procptr-argtypes.bas(67,
+'' EXPECT-OUT: procptr-argtypes.bas(68,
+'' EXPECT-OUT: procptr-argtypes.bas(69,
+'' EXPECT-OUT: procptr-argtypes.bas(70,
+'' EXPECT-OUT: procptr-argtypes.bas(71,
+'' EXPECT-OUT: procptr-argtypes.bas(72,
+'' EXPECT-OUT: procptr-argtypes.bas(73,
+'' EXPECT-OUT: procptr-argtypes.bas(74,
+'' EXPECT-OUT: procptr-argtypes.bas(75,
+'' EXPECT-OUT: procptr-argtypes.bas(76,
+'' EXPECT-OUT: procptr-argtypes.bas(77,
+'' EXPECT-OUT: procptr-argtypes.bas(78,
+'' EXPECT-OUT: procptr-argtypes.bas(79,
+'' EXPECT-OUT: procptr-argtypes.bas(80,
+'' EXPECT-OUT: procptr-argtypes.bas(81,
+'' EXPECT-OUT: procptr-argtypes.bas(82,
+'' EXPECT-OUT: procptr-argtypes.bas(83,
+'' EXPECT-OUT: procptr-argtypes.bas(84,
+'' EXPECT-OUT: error TKO0698
+'' EXPECT-MAX-DIAG: 28
