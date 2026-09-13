@@ -26,3 +26,7 @@ if 1 then print endif
 if 1 then x = 1 : endif
 if% 1 then% print else% print end% if%
 #print a: b
+print "x" "y"; "z", 1
+print "a"; using "&"; "b"
+if 1 then print 1 end if
+if 1 then print 1 else print 2 end if

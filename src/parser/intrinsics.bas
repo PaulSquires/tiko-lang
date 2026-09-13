@@ -132,6 +132,11 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         dim as long before = p.pos
         items.Push( cast( ulong, Expression( p ) ) )
         if p.pos = before then exit do
+        '' AN ITEM ENDS AT A SEPARATOR OR THE END OF THE LIST. Measured: 'print 1 2',
+        '' 'print a b', 'print 1; 2 3; 4' and 'print "a" using "&"' are all fbc's error
+        '' 3, while 'print "x" "y"' is one item -- adjacent literals concatenate in the
+        '' expression. Reading the next item anyway accepted all four without a word.
+        if (Peek( p ) <> Tko.TK_SEMICOLON) andalso (Peek( p ) <> Tko.TK_COMMA) then exit do
     loop
 
     sp.first = p.ast->children.Count
