@@ -426,6 +426,7 @@ private function ExprIntrinsicType_ _
     case "offsetof"
         if cp->count <> 2 then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
+    case "allocate", "callocate", "reallocate" : return c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )  '' ANY PTR, measured -- untyped, 'iif( b, callocate( n ), allocate( n ) )' was DROPPED, and DWSTRING.ResizeBuffer with it
     case "len", "sizeof"
         '' ...EXCEPT over a UDT with a user OPERATOR LEN: measured, typeof is that operator's result.
         if (nm = "len") andalso (a0 <> Tko.TYPE_NONE) then
@@ -1162,7 +1163,6 @@ private function PeekTypeArg_ _
     end if
     return Tko.TYPE_NONE
 end function
-
 
 private function IntrinsicCallType_ _
     ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as Tko.TypeId

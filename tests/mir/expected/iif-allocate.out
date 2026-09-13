@@ -1,0 +1,156 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i8 b
+  local ptr p1
+  local ptr $tmp3
+  local ptr p2
+  local ptr $tmp5
+  local ptr p3
+  local ptr $tmp7
+  local ptr p4
+  local ptr $tmp9
+  local ptr pl
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr b
+    %5 = const i8 -1
+    %6 = const i8 0
+    %7 = icmp.ne %5, %6
+    store @b, %7
+    %8 = alloca ptr p1
+    %9 = load @b
+    %10 = alloca ptr $tmp3
+    %16 = alloca ptr p2
+    %19 = alloca ptr $tmp5
+    %26 = alloca ptr p3
+    %34 = alloca ptr $tmp7
+    %41 = alloca ptr p4
+    %43 = alloca ptr $tmp9
+    %48 = alloca ptr pl
+    condbr %9, iif.then1, iif.else2
+  iif.then1:
+    %11 = const i64 8
+    %12 = call.rtl ptr calloc(%11, 1)
+    store @$tmp3, %12
+    br iif.join3
+  iif.else2:
+    %13 = const i64 8
+    %14 = call.rtl ptr malloc(%13)
+    store @$tmp3, %14
+    br iif.join3
+  iif.join3:
+    %15 = load @$tmp3
+    store @p1, %15
+    %17 = call.rtl ptr memset(@p2, 0, 8)
+    %18 = load @b
+    condbr %18, iif.then4, iif.else5
+  iif.then4:
+    %20 = const i64 2
+    %21 = const i64 4
+    %22 = call.rtl ptr calloc(%20, %21)
+    store @$tmp5, %22
+    br iif.join6
+  iif.else5:
+    %23 = const i64 8
+    %24 = call.rtl ptr malloc(%23)
+    store @$tmp5, %24
+    br iif.join6
+  iif.join6:
+    %25 = load @$tmp5
+    store @p2, %25
+    %27 = load @b
+    %28 = const i8 0
+    %29 = icmp.ne %27, %28
+    %30 = const i8 0
+    %31 = icmp.eq %29, %30
+    %32 = const i8 0
+    %33 = icmp.ne %31, %32
+    condbr %33, iif.then7, iif.else8
+  iif.then7:
+    %35 = const i64 4
+    %36 = call.rtl ptr malloc(%35)
+    store @$tmp7, %36
+    br iif.join9
+  iif.else8:
+    %37 = load @p2
+    %38 = const i64 16
+    %39 = call.rtl ptr realloc(%37, %38)
+    store @$tmp7, %39
+    br iif.join9
+  iif.join9:
+    %40 = load @$tmp7
+    store @p3, %40
+    %42 = load @b
+    condbr %42, iif.then10, iif.else11
+  iif.then10:
+    %44 = const i64 4
+    %45 = call.rtl ptr calloc(%44, 1)
+    store @$tmp9, %45
+    br iif.join12
+  iif.else11:
+    %46 = load @p3
+    store @$tmp9, %46
+    br iif.join12
+  iif.join12:
+    %47 = load @$tmp9
+    store @p4, %47
+    %49 = load @p1
+    store @pl, %49
+    %50 = load @pl
+    %51 = const i64 0
+    %52 = const i64 4
+    %53 = mul %51, %52
+    %54 = ptr.add %50, %53
+    %55 = const i64 12
+    %56 = trunc %55
+    store %54, %56
+    %57 = load @p1
+    %58 = const i64 0
+    %59 = bitcast %58
+    %60 = icmp.ne %57, %59
+    %61 = neg %60
+    call.rtl void fb_PrintLongint(0, %61, 0)
+    %62 = load @p2
+    %63 = const i64 0
+    %64 = bitcast %63
+    %65 = icmp.ne %62, %64
+    %66 = neg %65
+    call.rtl void fb_PrintLongint(0, %66, 0)
+    %67 = load @p3
+    %68 = const i64 0
+    %69 = bitcast %68
+    %70 = icmp.ne %67, %69
+    %71 = neg %70
+    call.rtl void fb_PrintLongint(0, %71, 0)
+    %72 = load @p4
+    %73 = const i64 0
+    %74 = bitcast %73
+    %75 = icmp.ne %72, %74
+    %76 = neg %75
+    call.rtl void fb_PrintLongint(0, %76, 0)
+    %77 = load @pl
+    %78 = const i64 0
+    %79 = const i64 4
+    %80 = mul %78, %79
+    %81 = ptr.add %77, %80
+    %82 = load %81
+    call.rtl void fb_PrintInt(0, %82, 1)
+    %83 = const i32 0
+    call.rtl void fb_End(%83)
+    %84 = load @$tmp0
+    ret %84
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr calloc(i64 $0, i64 $1)
+declare ptr malloc(i64 $0)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr realloc(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 13 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance
