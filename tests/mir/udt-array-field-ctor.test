@@ -1,0 +1,9 @@
+'' The synthesised constructor of a type with a fixed array field of a constructible UDT
+'' constructs every element, not just zero-fills the field. Runtime output was checked
+'' against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-array-field-ctor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-array-field-ctor.out

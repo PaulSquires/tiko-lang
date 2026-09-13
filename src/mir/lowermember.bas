@@ -88,6 +88,12 @@ sub InitMember_ _
         zargs2.Push( cast( ulong, MV_CONST_INT ) )
         zargs2.Push( cast( ulong, asz2 ) )
         EmitRtl( c, RTL_MEMSET, zargs2 )
+        '' ...AND THEN EVERY ELEMENT OF A UDT THAT NEEDS ONE IS CONSTRUCTED -- the loop the
+        '' note above left owed. Measured with a counting constructor: a 'e(1 to 3) as EL'
+        '' field is three constructions under fbc and was NONE here, while the destructor
+        '' already destroyed all three. AfxNova's DWSTRING arrays in PsCalendar started
+        '' with null buffers and the first assignment wrote through one.
+        if ArrayElemNeedsInit_( c, ft ) then EmitArrayElemsAt_( c, addr, ft, true )
         return
     end if
 

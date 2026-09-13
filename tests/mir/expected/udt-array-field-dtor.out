@@ -171,8 +171,17 @@ func void _ZN12WITHUDTARRAYC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 96)
+    %3 = field.addr %1, 0
+    call void _ZN4ELEMC1Ev(%3)
+    %4 = field.addr %1, 24
+    call void _ZN4ELEMC1Ev(%4)
+    %5 = field.addr %1, 48
+    call void _ZN4ELEMC1Ev(%5)
+    %6 = field.addr %1, 72
+    call void _ZN4ELEMC1Ev(%6)
     ret
 }
+declare void _ZN4ELEMC1Ev(ptr $0)
 func void _ZN12WITHUDTARRAYD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -187,6 +196,17 @@ func void _ZN12WITHUDTARRAYD1Ev(ptr $0) {
     ret
 }
 declare void _ZN4ELEMD1Ev(ptr $0)
+func void _ZN4ELEMC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 0
+    store %2, 0
+    %3 = field.addr %1, 8
+    store %3, 0
+    %4 = field.addr %1, 16
+    store %4, 0
+    ret
+}
 func void _ZN4ELEMD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -195,4 +215,4 @@ func void _ZN4ELEMD1Ev(ptr $0) {
 }
 declare void fb_StrDelete(ptr $0)
 verify: ok
-lowered: 12 functions, 12 blocks, 122 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 13 functions, 13 blocks, 137 insts, 0 statements not lowered, 0 scope imbalance
