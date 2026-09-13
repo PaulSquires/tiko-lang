@@ -509,6 +509,111 @@ private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
     next
 end sub
 
+'' A PROCEDURE CALLED BY NAME IS JUDGED THE SAME WAY -- fbc's error 1 for the count, 7 for
+'' an argument to a procedure that takes none, and 58 for a type, on exactly the shapes
+'' measured through a pointer (tests/diagnostics/src/direct-call-args.bas). Overload
+'' resolution scores such a call unviable and binds nothing, but reports that only for
+'' an OVERLOAD SET -- see ResolveCall_ -- so 'gi( "x" )', 'gi( )' and 'gi( 1, 2 )'
+'' declined in silence. Only a procedure with ONE declaration is judged here, and only on
+'' the measured rules rather than on the scoring, which is the part ResolveCall_'s own
+'' comment declines to trust for a single candidate.
+private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId tgt = lp->target
+    if tgt = NODE_NONE then return
+    dim as NodeId nameNode = tgt
+    if c.ast->Kind( tgt ) = N_MEMBER then
+        nameNode = c.ast->binaries[cast( long, c.ast->nodes[cast( long, tgt )].data )].rhs
+    elseif c.ast->Kind( tgt ) <> N_IDENT then
+        return
+    end if
+    if c.ast->Kind( nameNode ) <> N_IDENT then return
+    '' A BUILTIN'S SPELLING is the builtin's call, however the program overloads it --
+    '' see CheckArgConversions_.
+    dim as InternId nm = _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, nameNode )].data )].name
+    if cast( long, nm ) <= TKO_KEYWORD_COUNT then return
+    dim as string lnm = Text.LowerAscii( c.names->Spelling( nm ) )
+    if (lnm = "left") orelse (lnm = "right") then return
+
+    dim as Symbol ptr head = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+    dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if callee = 0 then callee = head
+    if callee = 0 then return
+    if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    if callee->nextOverload <> SYMBOL_NONE then return
+    if head <> 0 then
+        if head <> callee then return
+    end if
+    dim as NodeId decl = cast( NodeId, callee->payload )
+    if decl = NODE_NONE then return
+    if c.ast->Kind( decl ) <> N_PROC then return
+    dim as StmtPayload ptr pp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    '' A SUB OR A FUNCTION. A property, an operator and a structor are called in shapes
+    '' of their own, and a generic's parameters name types not instantiated here.
+    select case cast( TokenKind, pp->op )
+    case KW_SUB, KW_FUNCTION
+    case else
+        return
+    end select
+    if (pp->extra and PF_GENERIC_PROC) <> 0 then return
+
+    dim as long np = 0
+    dim as boolean variadic = false
+    for i as long = 0 to pp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].op = _
+           cast( ushort, TK_ELLIPSIS ) then
+            variadic = true
+        else
+            np += 1
+        end if
+    next
+    dim as string shown = c.names->Spelling( nm )
+
+    if lp->count > np then
+        if variadic = false then
+            c.diags->Report( TKO0775, PointRange( c.ast->Loc( id ) ), _
+                             str( lp->count ), shown, str( np ) )
+            return
+        end if
+    end if
+    for i as long = 0 to np - 1
+        if i >= lp->count then exit for
+        dim as NodeId warg = cast( NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( warg ) = N_ELIDED then continue for
+        dim as NodeId prm = ProcDeclParam_( c.ast, decl, i )
+        if prm = NODE_NONE then exit for
+        if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) <> 0 then continue for
+        dim as NodeId pref = c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].a
+        if pref = NODE_NONE then continue for
+        dim as TypeId pt = c.info->TypeOf_( pref )
+        if pt = TYPE_NONE then continue for
+        if (c.ast->nodes[cast( long, prm )].flags and NF_BYREF) <> 0 then
+            pt = c.types->Reference( pt )
+        end if
+        if ProcPtrArgBad_( c, pt, warg ) then
+            c.diags->Report( TKO0698, PointRange( c.ast->Loc( warg ) ) )
+            return
+        end if
+    next
+    for i as long = 0 to np - 1
+        if i < lp->count then
+            dim as NodeId oarg = cast( NodeId, c.ast->children[lp->first + i] )
+            if c.ast->Kind( oarg ) <> N_ELIDED then continue for
+        end if
+        dim as NodeId prm = ProcDeclParam_( c.ast, decl, i )
+        if prm = NODE_NONE then return
+        if c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].b = NODE_NONE then
+            c.diags->Report( TKO0776, PointRange( c.ast->Loc( id ) ), str( i + 1 ), shown )
+            return
+        end if
+    next
+end sub
+
 '' AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
 '' method". The declaration says there is nothing to call.
 ''

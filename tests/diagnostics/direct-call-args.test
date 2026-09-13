@@ -1,0 +1,32 @@
+'' A procedure called by name takes its parameters. fbc refuses each of the twenty-five
+'' 'refused' lines on its own -- error 1 for a count, 7 for 'g0( 1 )', 58 for a type --
+'' and compiles the 'accepted' half clean; tiko declined every one without a word.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/direct-call-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: direct-call-args.bas(87,11): error TKO0776
+'' EXPECT-OUT: direct-call-args.bas(88,11): error TKO0775
+'' EXPECT-OUT: direct-call-args.bas(89,11): error TKO0775
+'' EXPECT-OUT: direct-call-args.bas(90,12): error TKO0776
+'' EXPECT-OUT: direct-call-args.bas(91,11): error TKO0775
+'' EXPECT-OUT: direct-call-args.bas(92,12): error TKO0776
+'' EXPECT-OUT: direct-call-args.bas(93,9): error TKO0776
+'' EXPECT-OUT: direct-call-args.bas(94,9): error TKO0775
+'' EXPECT-OUT: direct-call-args.bas(95,10): error TKO0776
+'' EXPECT-OUT: direct-call-args.bas(96,10): error TKO0775
+'' EXPECT-OUT: direct-call-args.bas(97,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(98,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(99,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(100,14): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(101,14): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(102,15): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(103,15): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(104,14): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(105,14): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(106,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(107,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(108,14): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(109,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(110,13): error TKO0698
+'' EXPECT-OUT: direct-call-args.bas(111,11): error TKO0698
+'' EXPECT-MAX-DIAG: 25

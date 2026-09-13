@@ -1182,7 +1182,12 @@ private sub Walk_ _
     if (k = N_CALL) orelse (k = N_INDEX) then CheckSubscriptCount_( c, id )
     if k = N_PARAM then CheckParamDefault_( c, id )
     if k = N_CALL then CheckBydescArgs_( c, id, here )
-    if k = N_CALL then CheckArgConversions_( c, id )
+    if k = N_CALL then
+        '' One report per call: the measured rules below overlap two of its own.
+        dim as long argErr0 = c.diags->ErrorCount( )
+        CheckArgConversions_( c, id )
+        if c.diags->ErrorCount( ) = argErr0 then CheckDirectCallArgs_( c, id )
+    end if
     if k = N_CALL then CheckBaseInitCount_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )
     if k = N_CALL then CheckCalledExpr_( c, id )

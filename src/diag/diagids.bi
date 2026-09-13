@@ -431,6 +431,9 @@
     '' call through a procedure pointer.
     DIAG( TKO0773, SEV_ERROR,   "this call passes %0 argument(s), but the procedure pointer takes %1" )
     DIAG( TKO0774, SEV_ERROR,   "argument %0 is left out, and the procedure pointer's declaration gives it no default" )
+    '' ...and the same two for a procedure called by name.
+    DIAG( TKO0775, SEV_ERROR,   "this call passes %0 argument(s), but '%1' takes %2" )
+    DIAG( TKO0776, SEV_ERROR,   "argument %0 of '%1' is left out, and it has no default" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.
