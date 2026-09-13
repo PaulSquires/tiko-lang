@@ -1,0 +1,8 @@
+'' A narrow literal subscript to an 'operator []' taking 'byref as ustring' is built into a
+'' ustring temporary first, as fbc does; runtime output is checked against fbc separately.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/opindex-ustring-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrAssignFromA

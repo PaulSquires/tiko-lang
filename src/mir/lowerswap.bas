@@ -460,7 +460,24 @@ function LowerUdtIndexOp_ _
         '' fixed-length string and a concatenation -- and is what an ordinary call's
         '' byref string argument already goes through.
         dim as boolean gotDesc = false
-        if IsStringType( c, ipt ) then gotDesc = StrDescriptorOf_( c, ie, iv )
+        '' ...BUT A NARROW KEY FOR A USTRING PARAMETER IS A CONVERSION, exactly as for an
+        '' ordinary call's argument. Measured, 'r[ "name" ]' over 'operator []( byref
+        '' wantedName as ustring )': fbc builds 'fb_UStrAssign( &TMP, -1, (uint16[]){...} )',
+        '' calls with &TMP and deletes it after the statement. Passing the literal's NARROW
+        '' descriptor found no column: fbsqlite's 'row[ "name" ]' read NULL every time.
+        dim as Tko.TypeId ipu = c.types->Unqualify( ipt )
+        if c.types->Kind( ipu ) = Tko.TK_REFERENCE then ipu = c.types->Unqualify( c.types->Inner( ipu ) )
+        if IsUStringType( c, ipu ) andalso NarrowStrArg_( c, ie ) then
+            dim as long kslot = -1
+            if ByvalStrTemp_( c, ie, c.types->Builtin( Tko.TY_USTRING ), iv, kslot ) then
+                gotDesc = true
+                if kslot >= 0 then
+                    c.f->locals[kslot].frontendType = c.types->Builtin( Tko.TY_USTRING )
+                    c.strTemps.Push( cast( ulong, kslot ) )
+                end if
+            end if
+        end if
+        if (gotDesc = false) andalso IsStringType( c, ipt ) then gotDesc = StrDescriptorOf_( c, ie, iv )
         if gotDesc = false then iv = LowerAddr( c, ie )
         '' AND A TEMPORARY FOR ANYTHING WITH NO ADDRESS, which is most subscripts:
         '' 'operator []( index as integer )' declares a BYREF parameter, because in the

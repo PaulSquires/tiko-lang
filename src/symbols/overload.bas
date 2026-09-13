@@ -937,7 +937,12 @@ private function ResolveCall_ _
                     total += cost
                 next
                 if viable then
-                    if total < bestCost then
+                    '' THE FIRST VIABLE CANDIDATE IS KEPT WHATEVER IT COSTS. Viability is
+                    '' decided per argument above; seeding the best with CONV_NONE made the SUM
+                    '' a ceiling too, so five user conversions at CONV_USERDEF each came to
+                    '' exactly CONV_NONE and the only candidate was dropped -- fbsqlite's
+                    '' 'Args( 1LL, ... 8LL )', TKO0632, where fbc binds the 8-parameter one.
+                    if (best = Tko.SYMBOL_NONE) orelse (total < bestCost) then
                         bestCost = total
                         best = cur
                         ties = 0
