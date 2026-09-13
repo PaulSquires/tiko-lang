@@ -47,6 +47,10 @@ namespace Tko.Codegen
         '' always shipped; nothing named the second one until 2026-09-07, so '-mt'
         '' selected the single-threaded runtime in silence.
         as boolean threadSafe
+        '' '-O<n>': handed to clang when the IR is compiled. It was parsed into DriverOptions
+        '' and read by nothing, so '-O2' produced a byte-identical executable to '-O0' --
+        '' measured over the whole of tiko-lang. 0 passes no flag at all.
+        as long optLevel
         '' Build a DLL rather than an executable, and where to write the import
         '' library that goes with it.
         as boolean buildDll

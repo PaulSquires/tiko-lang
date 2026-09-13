@@ -313,6 +313,9 @@ private function BuildFromIr _
         close #eh
         return Tko.EXIT_NO_TOOLCHAIN
     end if
+    '' THE OPTIMISATION LEVEL -- see ToolPaths.optLevel. The link does not need it; the
+    '' compile of each module's IR is where clang optimises.
+    tools.optLevel = ctx.options.optLevel
 
     '' THE INTERMEDIATE IS NAMED AFTER THE OBJECT, which is per-module. Naming it
     '' after the OUTPUT was the bug: two inputs producing one output raced for one

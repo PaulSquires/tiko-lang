@@ -29,6 +29,8 @@ cd "$(dirname "$0")/.."
 
 CORPUS_ROOT=tests/vendor/fbc-tests
 [ -d "$CORPUS_ROOT" ] || { echo "runscan: corpus not vendored" >&2; exit 3; }
+# TKO_RUNSCAN_FLAGS: extra tiko flags for every build -- "-O2", "-O3" -- for the Phase 11
+# corpus runs at each optimisation level. Unset is the ordinary run.
 [ -x ./bin/tiko.exe ] || { echo "runscan: build bin/tiko.exe first" >&2; exit 3; }
 
 FBC=${FBC:-/c/dev/tiko_editor/toolchains/FreeBASIC-1.10.1-winlibs-gcc-9.3.0/fbc64.exe}
@@ -128,7 +130,7 @@ xargs -a build/.runcorpus.lst -d '
         exit 0
     fi
 
-    if ! timeout 120 ./bin/tiko.exe $FBCUNIT "$1" -o "$d/t.exe" > "$d/t.build" 2>&1 ; then
+    if ! timeout 120 ./bin/tiko.exe $TKO_RUNSCAN_FLAGS $FBCUNIT "$1" -o "$d/t.exe" > "$d/t.build" 2>&1 ; then
         # THE FIRST LINE ONLY. A build failure here is already icescan or linkscan
         # material; what this census needs is that it happened and roughly why.
         # THE DIAGNOSTIC, not the first line. A build that reaches codegen prints the

@@ -133,6 +133,7 @@ function CompileIr _
     dim as string cmd = _
         "-target " & target.triple & " -Wno-override-module -c " & _
         Q( irPath ) & " -o " & Q( objPath )
+    if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
     dim as long rc = exec( t.clangExe, cmd )
     if keepTemps = false then
         if rc = 0 then kill( irPath )
