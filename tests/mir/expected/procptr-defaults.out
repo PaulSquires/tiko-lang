@@ -1,0 +1,268 @@
+func i32 F1(i32 $0) {
+  local i32 $tmp0
+  local i32 arg
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr arg
+    store @arg, $0
+    %4 = const i64 1000
+    %5 = load @arg
+    %6 = sext %5
+    %7 = add %4, %6
+    %8 = trunc %7
+    ret %8
+}
+func i32 F2(i32 $0) {
+  local i32 $tmp0
+  local i32 arg
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr arg
+    store @arg, $0
+    %4 = const i64 2000
+    %5 = load @arg
+    %6 = sext %5
+    %7 = add %4, %6
+    %8 = trunc %7
+    ret %8
+}
+func i32 F3(i32 $0) {
+  local i32 $tmp0
+  local i32 arg
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr arg
+    store @arg, $0
+    %4 = const i64 3000
+    %5 = load @arg
+    %6 = sext %5
+    %7 = add %4, %6
+    %8 = trunc %7
+    ret %8
+}
+func i64 G3(i64 $0, i64 $1) {
+  local i64 $tmp0
+  local i64 i
+  local i64 j
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i64 0
+    store @$tmp0, %2
+    %3 = alloca ptr i
+    store @i, $0
+    %4 = alloca ptr j
+    store @j, $1
+    %5 = load @i
+    %6 = const i64 100
+    %7 = mul %5, %6
+    %8 = load @j
+    %9 = add %7, %8
+    ret %9
+}
+func ptr H() {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = func.addr ptr G3
+    ret %3
+}
+func i32 F4(ptr $0) {
+  local i32 $tmp0
+  local ptr f
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr f
+    store @f, $0
+    %4 = const i64 4
+    %5 = trunc %4
+    %6 = load @f
+    %7 = call.ind i32 %6(%5)
+    ret %7
+}
+func i32 CHK(i32 $0, i32 $1) {
+  local i32 $tmp0
+  local i32 c
+  local i32 v
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr c
+    store @c, $0
+    %4 = alloca ptr v
+    store @v, $1
+    %5 = load @c
+    %6 = const i64 1000
+    %7 = sext %5
+    %8 = mul %7, %6
+    %9 = load @v
+    %10 = sext %9
+    %11 = add %8, %10
+    %12 = trunc %11
+    ret %12
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local ptr pf1
+  local ptr pf2
+  local ptr pf3
+  local ptr $tmp4
+  local ptr fq
+  local ptr fr
+  local ptr pfq
+  local agg fa size 16
+  local agg x size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr pf1
+    %5 = func.addr ptr F1
+    store @pf1, %5
+    %6 = alloca ptr pf2
+    %7 = func.addr ptr F2
+    store @pf2, %7
+    %8 = alloca ptr pf3
+    %9 = func.addr ptr F3
+    store @pf3, %9
+    %10 = const i64 1
+    %11 = trunc %10
+    %12 = load @pf1
+    %13 = call.ind i32 %12(%11)
+    call.rtl void fb_PrintInt(0, %13, 0)
+    %14 = const i64 2
+    %15 = trunc %14
+    %16 = load @pf2
+    %17 = call.ind i32 %16(%15)
+    call.rtl void fb_PrintInt(0, %17, 0)
+    %18 = const i64 3
+    %19 = trunc %18
+    %20 = load @pf3
+    %21 = call.ind i32 %20(%19)
+    call.rtl void fb_PrintInt(0, %21, 0)
+    %22 = const i64 5
+    %23 = trunc %22
+    %24 = load @pf2
+    %25 = call.ind i32 %24(%23)
+    call.rtl void fb_PrintInt(0, %25, 1)
+    %26 = alloca ptr $tmp4
+    %27 = load @pf2
+    store @$tmp4, %27
+    %28 = load @pf3
+    store @pf2, %28
+    %29 = load @$tmp4
+    store @pf3, %29
+    %30 = const i64 2
+    %31 = trunc %30
+    %32 = load @pf2
+    %33 = call.ind i32 %32(%31)
+    call.rtl void fb_PrintInt(0, %33, 0)
+    %34 = const i64 3
+    %35 = trunc %34
+    %36 = load @pf3
+    %37 = call.ind i32 %36(%35)
+    call.rtl void fb_PrintInt(0, %37, 1)
+    %38 = alloca ptr fq
+    %39 = func.addr ptr G3
+    store @fq, %39
+    %40 = alloca ptr fr
+    %41 = func.addr ptr G3
+    store @fr, %41
+    %42 = alloca ptr pfq
+    store @pfq, @fq
+    %43 = alloca ptr fa
+    %44 = call.rtl ptr memset(@fa, 0, 16)
+    %45 = const i64 0
+    %46 = const i64 8
+    %47 = mul %45, %46
+    %48 = ptr.add @fa, %47
+    %49 = func.addr ptr G3
+    store %48, %49
+    %50 = alloca ptr x
+    %51 = call.rtl ptr memset(@x, 0, 8)
+    %52 = field.addr @x, 0
+    %53 = func.addr ptr CHK
+    store %52, %53
+    %54 = const i64 7
+    %55 = const i64 1
+    %56 = load @fq
+    %57 = call.ind i64 %56(%55, %54)
+    call.rtl void fb_PrintLongint(0, %57, 0)
+    %58 = const i64 9
+    %59 = const i64 1
+    %60 = load @fr
+    %61 = call.ind i64 %60(%59, %58)
+    call.rtl void fb_PrintLongint(0, %61, 0)
+    %62 = const i64 7
+    %63 = const i64 2
+    %64 = load @pfq
+    %65 = load %64
+    %66 = call.ind i64 %65(%63, %62)
+    call.rtl void fb_PrintLongint(0, %66, 0)
+    %67 = const i64 7
+    %68 = const i64 3
+    %69 = load @pfq
+    %70 = const i64 0
+    %71 = const i64 8
+    %72 = mul %70, %71
+    %73 = ptr.add %69, %72
+    %74 = load %73
+    %75 = call.ind i64 %74(%68, %67)
+    call.rtl void fb_PrintLongint(0, %75, 0)
+    %76 = const i64 7
+    %77 = const i64 4
+    %78 = const i64 0
+    %79 = const i64 8
+    %80 = mul %78, %79
+    %81 = ptr.add @fa, %80
+    %82 = load %81
+    %83 = call.ind i64 %82(%77, %76)
+    call.rtl void fb_PrintLongint(0, %83, 0)
+    %84 = const i64 7
+    %85 = const i64 5
+    %86 = call ptr H()
+    %87 = call.ind i64 %86(%85, %84)
+    call.rtl void fb_PrintLongint(0, %87, 0)
+    %88 = load @pf1
+    %89 = call i32 F4(%88)
+    call.rtl void fb_PrintInt(0, %89, 0)
+    %90 = load @pf2
+    %91 = call i32 F4(%90)
+    call.rtl void fb_PrintInt(0, %91, 0)
+    %92 = const i64 123
+    %93 = trunc %92
+    %94 = const i64 6
+    %95 = trunc %94
+    %96 = field.addr @x, 0
+    %97 = load %96
+    %98 = call.ind i32 %97(%95, %93)
+    call.rtl void fb_PrintInt(0, %98, 0)
+    %99 = const i64 2
+    %100 = const i64 1
+    %101 = load @fq
+    %102 = call.ind i64 %101(%100, %99)
+    call.rtl void fb_PrintLongint(0, %102, 1)
+    %103 = const i32 0
+    call.rtl void fb_End(%103)
+    %104 = load @$tmp0
+    ret %104
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 8 functions, 8 blocks, 204 insts, 0 statements not lowered, 0 scope imbalance

@@ -589,6 +589,12 @@ function TypeContext.IsConst( byval t as TypeId ) as boolean
     return ((this.types[cast( long, t )].flags and TF_CONST) <> 0)
 end function
 
+function TypeContext.IsVariadic( byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    if cast( long, t ) >= this.types.Count then return false
+    return ((this.types[cast( long, t )].flags and TF_VARIADIC) <> 0)
+end function
+
 '' --------------------------------------------------------------------- layout
 
 function TypeContext.Layout( byval t as TypeId ) as TypeLayout

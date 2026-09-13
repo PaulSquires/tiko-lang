@@ -279,6 +279,71 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0772, PointRange( c.ast->Loc( id ) ) )
 end sub
 
+#include once "symbols/procptrdecl.bas"
+
+'' A CALL THROUGH A PROCEDURE POINTER TAKES THE POINTER'S PARAMETERS -- fbc's error 1,
+'' "Argument count mismatch", for one argument too many and for an omitted one with no
+'' default (error 7 when the pointer takes none). Measured: 'fp()' and 'fp(1, 2)' over
+'' a one-parameter pointer, '(fp)()', '(*pfp)()', 'fa(0)()', 'h(1)()', 't.f()' and
+'' 'fp(,)' are all refused, while 'fp2(1)' over 'byval as integer = 7' is not. Nothing
+'' checked a pointer call's arguments at all: the call went out short, and the callee
+'' read the rest off the stack.
+private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId tgt = lp->target
+    if tgt = NODE_NONE then return
+    '' A procedure NAME is an ordinary call, and overload resolution has it. Asked of a
+    '' NAME only: a call node carries its callee's binding too, so 'h( 1 )( 2 )' would
+    '' read as a call of h and go unchecked.
+    dim as NodeKind tk = c.ast->Kind( tgt )
+    if (tk = N_IDENT) orelse (tk = N_MEMBER) then
+        dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+        if ts <> 0 then
+            if ts->kind = cast( ubyte, SYM_PROC ) then return
+        end if
+        dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if cs <> 0 then
+            if cs->kind = cast( ubyte, SYM_PROC ) then return
+        end if
+    end if
+    dim as TypeId sig = c.info->TypeOf_( tgt )
+    if sig = TYPE_NONE then return
+    sig = c.types->Unqualify( sig )
+    if c.types->Kind( sig ) = TK_REFERENCE then sig = c.types->Unqualify( c.types->Inner( sig ) )
+    if c.types->Kind( sig ) = TK_POINTER then sig = c.types->Unqualify( c.types->Inner( sig ) )
+    if c.types->Kind( sig ) <> TK_PROC then return
+
+    dim as long np = c.types->ProcParamCount( sig )
+    if lp->count > np then
+        if c.types->IsVariadic( sig ) = false then
+            c.diags->Report( TKO0773, PointRange( c.ast->Loc( id ) ), _
+                             str( lp->count ), str( np ) )
+        end if
+        return
+    end if
+    dim as NodeId decl = NODE_NONE
+    dim as boolean declAsked = false
+    for i as long = 0 to np - 1
+        if i < lp->count then
+            dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + i] )
+            if c.ast->Kind( arg ) <> N_ELIDED then continue for
+        end if
+        if declAsked = false then
+            decl = ProcPtrDeclOf_( c.ast, c.syms, c.types, c.info, c.names, tgt )
+            declAsked = true
+        end if
+        '' NOT FOUND IS NOT EVIDENCE: lowering declines the call rather than guess.
+        if decl = NODE_NONE then return
+        dim as NodeId prm = ProcDeclParam_( c.ast, decl, i )
+        if prm = NODE_NONE then return
+        if c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].b = NODE_NONE then
+            c.diags->Report( TKO0774, PointRange( c.ast->Loc( id ) ), str( i + 1 ) )
+            return
+        end if
+    next
+end sub
+
 '' AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
 '' method". The declaration says there is nothing to call.
 ''

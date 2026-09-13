@@ -289,6 +289,8 @@ namespace Tko
         declare function DynRank( byval t as TypeId ) as long
         declare function Inner( byval t as TypeId ) as TypeId
         declare function IsConst( byval t as TypeId ) as boolean
+        '' A procedure type written with a trailing '...'.
+        declare function IsVariadic( byval t as TypeId ) as boolean
 
         declare function Layout( byval t as TypeId ) as TypeLayout
         declare function Name( byval t as TypeId ) as string

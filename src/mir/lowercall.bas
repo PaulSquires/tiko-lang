@@ -367,6 +367,7 @@ function LowerCallParts _
     '' closure's '__fbinvoke' does; counting it here would run the loop one past
     '' the written arguments and decline on a parameter that is already pushed.
     dim as long nparams = ParamCountOf( c, callee ) - pbase
+    dim as Tko.NodeId ptrDecl = PtrCallDecl_( c, viaPointer, calleeSigT, calleeNode, nparams )
     dim as long slots = argCount
     if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then slots = nparams
 
@@ -391,7 +392,7 @@ function LowerCallParts _
             argNode = cast( Tko.NodeId, c.ast->children[argFirst + i] )
             if c.ast->Kind( argNode ) = Tko.N_ELIDED then argNode = Tko.NODE_NONE
         end if
-        if argNode = Tko.NODE_NONE then argNode = ParamDefaultAt( c, callee, i + pbase )
+        if argNode = Tko.NODE_NONE then argNode = CallDefaultAt_( c, callee, ptrDecl, viaPointer, i + pbase )
         '' 'f( byval x )' AGAINST A BYREF PARAMETER: the value itself is the reference.
         '' The marker is unwrapped here and remembered, so everything below sees the
         '' expression it wraps.

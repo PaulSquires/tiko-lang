@@ -427,6 +427,10 @@
     '' fbc's errors 3, 7, 24, 73 and 1 -- one per context -- for '(x)(1)', 'P(3)(1)',
     '' '(array)(1)' and '(procname)(1)': only a procedure pointer is called that way.
     DIAG( TKO0772, SEV_ERROR,   "this expression is not a procedure pointer and cannot be called" )
+    '' fbc's error 1, "Argument count mismatch" (7 when the pointer takes none), for a
+    '' call through a procedure pointer.
+    DIAG( TKO0773, SEV_ERROR,   "this call passes %0 argument(s), but the procedure pointer takes %1" )
+    DIAG( TKO0774, SEV_ERROR,   "argument %0 is left out, and the procedure pointer's declaration gives it no default" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.

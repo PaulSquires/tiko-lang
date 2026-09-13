@@ -30,6 +30,38 @@ function ParamDefaultAt _
     return Tko.NODE_NONE
 end function
 
+#include once "symbols/procptrdecl.bas"
+
+'' A CALL THROUGH A PROCEDURE POINTER: its parameter count comes off the SIGNATURE and
+'' its defaults off the pointer's DECLARATION -- see symbols/procptrdecl.bas. Before
+'' this the count came off the callee SYMBOL, which for a pointer is the variable and
+'' has no parameters, so 'pf2()' went out with no argument where fbc passes the
+'' default. Answers the declaration or NODE_NONE, and leaves 'nparams' alone for any
+'' other call.
+function PtrCallDecl_ _
+    ( byref c as Ctx, byval viaPointer as boolean, byval sigT as Tko.TypeId, _
+      byval calleeNode as Tko.NodeId, byref nparams as long ) as Tko.NodeId
+
+    if viaPointer = false then return Tko.NODE_NONE
+    if sigT = Tko.TYPE_NONE then return Tko.NODE_NONE
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return Tko.NODE_NONE
+    nparams = c.types->ProcParamCount( sigT )
+    return ProcPtrDeclOf_( c.ast, c.syms, c.types, c.info, c.names, calleeNode )
+end function
+
+'' The default of parameter 'idx': off the pointer's declaration when the call goes
+'' through one, off the callee's otherwise. A pointer whose declaration was not found
+'' has none, and the call declines rather than go out short.
+function CallDefaultAt_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval ptrDecl as Tko.NodeId, _
+      byval viaPointer as boolean, byval idx as long ) as Tko.NodeId
+
+    if viaPointer = false then return ParamDefaultAt( c, callee, idx )
+    dim as Tko.NodeId prm = ProcDeclParam_( c.ast, ptrDecl, idx )
+    if prm = Tko.NODE_NONE then return Tko.NODE_NONE
+    return StmtOf( c, prm )->b
+end function
+
 function ParamTypeAt _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
 

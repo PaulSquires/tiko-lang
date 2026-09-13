@@ -145,6 +145,11 @@ function ResolveTypeRef _
             end if
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
             dim as Tko.TypeId pt = ResolveTypeRef( c, pp->a, scope_ )
+            '' A DEFAULT IS BOUND HERE TOO. A procedure's own parameters are walked as
+            '' statements and a procedure TYPE's never were, so 'fp as sub( f as
+            '' integer = c )' left 'c' unbound -- harmless while a pointer call ignored
+            '' defaults, and a declined call in structs/obj_init_toself.bas once not.
+            if pp->b <> Tko.NODE_NONE then WalkExpr( c, pp->b, scope_ )
             '' A PROCEDURE TYPE'S PARAMETERS TAKE THE SAME DEFAULT A PROCEDURE'S DO:
             '' byref for a UDT or a string, byval for everything else. WalkStmt
             '' settles it for a real declaration by writing NF_BYREF onto the node;

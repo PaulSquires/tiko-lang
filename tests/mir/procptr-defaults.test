@@ -1,0 +1,9 @@
+'' A call through a procedure pointer passes the defaults of the POINTER's declaration --
+'' var = procptr, swap, typedef, inline type, deref, index, array element, a function's
+'' result, a parameter and a field. Before, the call went out short.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-defaults.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/procptr-defaults.out

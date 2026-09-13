@@ -1,0 +1,22 @@
+'' A call through a procedure pointer takes the pointer's parameters. fbc refuses each of
+'' the fourteen 'refused' lines on its own (error 1, and 7 for 'fp0( 1 )') and compiles
+'' the 'accepted' half, defaults taken from the pointer's declaration. tiko checked no
+'' pointer call's arguments at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/procptr-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: procptr-args.bas(35,11): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(36,11): error TKO0773
+'' EXPECT-OUT: procptr-args.bas(37,13): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(38,15): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(39,14): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(40,15): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(41,13): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(42,11): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(43,12): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(44,12): error TKO0773
+'' EXPECT-OUT: procptr-args.bas(45,12): error TKO0773
+'' EXPECT-OUT: procptr-args.bas(46,11): error TKO0773
+'' EXPECT-OUT: procptr-args.bas(47,7): error TKO0774
+'' EXPECT-OUT: procptr-args.bas(48,7): error TKO0773
+'' EXPECT-MAX-DIAG: 14

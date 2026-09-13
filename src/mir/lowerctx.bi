@@ -906,6 +906,12 @@ declare function EmitRtl _
     declare function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
     declare function ParamDefaultAt _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
+    declare function PtrCallDecl_ _
+        ( byref c as Ctx, byval viaPointer as boolean, byval sigT as Tko.TypeId, _
+          byval calleeNode as Tko.NodeId, byref nparams as long ) as Tko.NodeId
+    declare function CallDefaultAt_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval ptrDecl as Tko.NodeId, _
+          byval viaPointer as boolean, byval idx as long ) as Tko.NodeId
     declare function ParamTypeAt _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
     declare function PushCtorArgs_ _
