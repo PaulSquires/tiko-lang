@@ -1,0 +1,7 @@
+'' 'x = f( <wide argument Check leaves untyped> )' calls x's same-type 'operator let' on the call's result, for one procedure and for overloads sharing a result type. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-let-untyped-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-let-untyped-arg.out

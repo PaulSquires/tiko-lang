@@ -437,7 +437,7 @@ declare function EmitRtl _
     declare function SretInPlaceInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
           byval e as Tko.NodeId ) as boolean
-    '' An untyped call's result, when it names a procedure with one overload.
+    '' An untyped call's result, when every overload of the procedure it names agrees.
     declare function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long

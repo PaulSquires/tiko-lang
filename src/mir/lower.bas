@@ -457,7 +457,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 end if
                 if (ip->b <> Tko.NODE_NONE) andalso (initIsLiteral = false) then
                     dim as Tko.TypeId ivt = c.info->TypeOf_( ip->b )
-                    '' ...AND A CALL CHECK LEFT UNTYPED is its one procedure's result:
+                    '' ...AND A CALL CHECK LEFT UNTYPED is the result its overloads share:
                     '' 'mk( a + " 2027" )' over a DWSTRING. See UntypedCallResult_.
                     if ivt = Tko.TYPE_NONE then ivt = UntypedCallResult_( c, ip->b )
                     '' ...AND AN UPCAST IS A COPY OF THE BASE SUBOBJECT, which sits at

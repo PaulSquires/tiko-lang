@@ -495,12 +495,21 @@ private sub LowerAssign _
     ''
     '' fbc emits '_ZN1AC1Ev( &D8 ); _ZN1AaSERKS_( &D8, (A*)&V )' for exactly this,
     '' which is the default constructor and then the implicit LET below.
+    ''
+    '' ...AND A CALL CHECK LEFT UNTYPED is the result its overloads share. 'c = mk( a +
+    '' " 2028" )' over a DWSTRING had no type on the right, so it missed this block and
+    '' reached the aggregate store: the result's bytes over c and that temporary destroyed
+    '' -- c's own buffer leaked, the new one freed twice, 0xC0000374. fbc calls the
+    '' operator, 'vr$10 = MK( &TMP$9541$1, TMP$9543$1 ); _ZN7AFXNOVA8DWSTRINGaSERS0_( &C$1,
+    '' vr$10 )', and destroys the temporary after. See UntypedCallResult_.
+    dim as Tko.TypeId avt = c.info->TypeOf_( value )
+    if avt = Tko.TYPE_NONE then avt = UntypedCallResult_( c, value )
     dim as boolean atlUpcast = false
     if atl <> Tko.TYPE_NONE then
-        atlUpcast = IsBaseOf_( c, atl, c.info->TypeOf_( value ) )
+        atlUpcast = IsBaseOf_( c, atl, avt )
     end if
     if (atl <> Tko.TYPE_NONE) andalso _
-       ((atl = c.info->TypeOf_( value )) orelse atlUpcast) then
+       ((atl = avt) orelse atlUpcast) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as boolean handled = false
             '' THE OVERLOAD THAT TAKES THIS TYPE, not the first one declared. The
