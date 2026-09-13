@@ -79,4 +79,39 @@ function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
     return false
 end function
 
+'' Is the cursor on an END that closes a DIFFERENT block from 'what'? Measured: 'end sub'
+'' inside an unclosed IF is fbc's error 32, "Expected 'END IF', found 'end'" -- the
+'' IF's error, and the SUB's close.
+function EndClosesOther_ _
+    ( byref p as Tko.ParserState, byval what as Tko.TokenKind ) as boolean
+
+    if Peek( p ) <> Tko.KW_END then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    dim as Tko.TokenKind nk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+    if nk = what then return false
+    return ClosesABlock( nk )
+end function
+
+'' TOKENS LEFT ON THE LINE AFTER A WHOLE STATEMENT are fbc's error 3, "Expected
+'' End-of-Line". EndOfStatement discards whatever it walks past, so 'foo 1 2' compiled
+'' as 'foo 1' and 'x = 1 2' as 'x = 1', in silence.
+''
+'' NOT after an earlier error in the same statement, which has already said what went
+'' wrong; and NOT at the ELSE, ENDIF or END IF that a single-line IF's then-branch
+'' stops at, because those belong to the IF -- see EndOfStatement.
+sub CheckEndOfStatement_( byref p as Tko.ParserState )
+    if p.silent then return
+    dim as boolean atEol = (Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)
+    if atEol then return
+    if p.stopAtElse then
+        select case Peek( p )
+        case Tko.KW_ELSE, Tko.KW_ENDIF
+            return
+        case Tko.KW_END
+            if NextTokIs_( p, Tko.KW_IF ) then return
+        end select
+    end if
+    ErrorNode( p, Tko.TKO0420 )
+end sub
+
 end namespace

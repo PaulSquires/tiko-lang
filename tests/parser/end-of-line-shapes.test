@@ -1,0 +1,7 @@
+'' Valid statements that used to leave tokens on their line: VIEW PRINT, NEW [n] {any},
+'' PUT's source area and CUSTOM parameter, a leading-dot or parenthesised REDIM with
+'' 'as', END IF / ENDIF after a single-line IF's else-branch, and '#print' past a ':'.
+'' TEST: cli
+'' ARGS: --parse-only tests/parser/src/end-of-line-shapes.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO04

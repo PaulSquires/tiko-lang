@@ -41,6 +41,7 @@ const PGFX_HASTARGET as ushort = &h0200
 const PGFX_PAL_GET   as ushort = &h0400
 const PGFX_PAL_USING as ushort = &h0800
 const PGFX_DRAWSTR   as ushort = &h1000
+const PGFX_VIEWPRINT as ushort = &h2000
 
 '' The n'th child of a graphics statement, or NOTHING when it was elided.
 private function GfxArg _
@@ -300,6 +301,18 @@ function LowerGfxView( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
     dim as boolean w = false
+    '' VIEW PRINT [top TO bottom] -- the console's text window, a different statement
+    '' and a different entry point. Measured: 'view print 10 to h - 5' is
+    '' fb_ConsoleView( 10, H - 5 ) and a bare 'view print' is fb_ConsoleView( 0, 0 ).
+    if (sp->extra and PGFX_VIEWPRINT) <> 0 then
+        dim as MirValue vtop = GfxInt( c, sp, 0, 0, w, ok )
+        dim as MirValue vbot = GfxInt( c, sp, 1, 0, w, ok )
+        if ok = false then return false
+        dim as FB.Array( of ulong ) va
+        PushV( va, vtop ) : PushV( va, vbot )
+        EmitRtl( c, RTL_CONSOLE_VIEW, va )
+        return true
+    end if
     dim as MirValue x1 = GfxInt( c, sp, 0, -32768, w, ok )
     dim as MirValue y1 = GfxInt( c, sp, 1, -32768, w, ok )
     dim as MirValue x2 = GfxInt( c, sp, 2, -32768, w, ok )
@@ -514,6 +527,26 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         end if
     end if
 
+    '' CUSTOM's user parameter is slot 4 and the source area slots 5 to 8, each only
+    '' when written -- see ParseGfxGetPut. Measured: 'put (1,2), a, (3,4)-(5,6),
+    '' custom, @cb, @k' passes 3, 4, 5, 6 and then &K$0 last.
+    dim as Tko.NodeId parN = GfxArg( c, sp, 4 )
+    dim as MirValue cparam
+    if parN <> Tko.NODE_NONE then
+        cparam = LowerExpr( c, parN )
+        if cparam.kind = cast( ubyte, MV_NONE ) then return false
+        cparam = Coerce( c, cparam, MT_PTR )
+    end if
+    dim as boolean hasArea = (GfxArg( c, sp, 5 ) <> Tko.NODE_NONE)
+    dim as MirValue area(0 to 3)
+    if hasArea then
+        for i as long = 0 to 3
+            dim as boolean aw = false
+            area(i) = GfxInt( c, sp, 5 + i, -65536, aw, ok )
+        next
+        if ok = false then return false
+    end if
+
     dim as MirValue bl = FuncAddrOfRtl( c, PutBlender( mode ) )
     if bl.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -522,7 +555,11 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     PushV( args, x ) : PushV( args, y )
     PushV( args, src )
     for i as long = 0 to 3
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -65536 ) )
+        if hasArea then
+            PushV( args, area(i) )
+        else
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -65536 ) )
+        end if
     next
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, GfxFlags2( sp->extra ) ) )
@@ -530,7 +567,11 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     PushV( args, bl )
     PushV( args, alpha )
     PushV( args, custom )
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    if parN <> Tko.NODE_NONE then
+        PushV( args, cparam )
+    else
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
     EmitRtl( c, RTL_GFX_PUT, args )
     return true
 end function

@@ -1,0 +1,6 @@
+'' Tokens left on the line after a whole statement are fbc's error 3, "Expected
+'' End-of-Line" -- 'foo 1 2' and 'x = 1 2' -- not a statement quietly cut short.
+'' TEST: cli
+'' ARGS: --parse-only tests/parser/broken/trailing-tokens.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0420

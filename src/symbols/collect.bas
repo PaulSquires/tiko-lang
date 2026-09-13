@@ -359,6 +359,9 @@ sub WalkNode _
             dim as boolean itemDyn = (sp->op = cast( ushort, Tko.KW_REDIM ))
             if itemDyn = false then itemDyn = IsDynArrayItem_( w, item )
             dim as boolean itemHasInit = (ip->b <> Tko.NODE_NONE)
+            '' ...AND A REDIM TARGET IS NOT ONE. 'redim x.a(0 to 1) as integer' and
+            '' 'redim (e)(0 to 0) as integer' keep the target in 'b', marked by 'extra'.
+            if ip->extra = cast( ushort, Tko.KW_REDIM ) then itemHasInit = false
             if itemDyn andalso itemHasInit then
                 w.diags->Report( Tko.TKO0612, _
                                  Tko.PointRange( w.ast->Loc( item ) ), _

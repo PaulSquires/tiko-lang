@@ -1003,12 +1003,19 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeId nty = TypeRef( p )
         dim as Tko.NodeIdVec nargs
         if nplace <> Tko.NODE_NONE then nargs.Push( cast( ulong, nplace ) )
-        dim as boolean nIsArray = false
+        dim as boolean nIsArray = false, nNoInit = false
         if Peek( p ) = Tko.TK_LBRACKET then
             Advance( p )
             nIsArray = true
             nargs.Push( cast( ulong, Expression( p ) ) )
             Expect( p, Tko.TK_RBRACKET, "]" )
+            '' '{ any }' LEAVES THE ARRAY UNINITIALISED -- the array form only: 'new U
+            '' {any}' is fbc's error 3. It was left on the line and never honoured.
+            if Accept( p, Tko.TK_LBRACE ) then
+                Expect( p, Tko.KW_ANY, "any" )
+                Expect( p, Tko.TK_RBRACE, "}" )
+                nNoInit = true
+            end if
         elseif Peek( p ) = Tko.TK_LPAREN then
             Advance( p )
             if Peek( p ) <> Tko.TK_RPAREN then
@@ -1021,6 +1028,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         dim as Tko.NodeId nn = MakeList( p, Tko.N_NEW, t.loc, nty, nargs )
         if nIsArray then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_ARRAY
+        if nNoInit then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_NOINIT
         if nplace <> Tko.NODE_NONE then
             p.ast->nodes[cast( long, nn )].flags or= Tko.NF_PLACEMENT
         end if
@@ -1290,7 +1298,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
             return PostfixChain( p, MakeIdent( p, wt ) )
         end if
     end if
-
+
     '' 'cvi<16>( s )' and 'mki<32>( n )' -- the same shape over the CV/MK family, and
     '' these two are the ONLY members that have it: 'cvs<32>' is fbc's error 6. The
     '' width names an entry point the compiler already reaches by another spelling --

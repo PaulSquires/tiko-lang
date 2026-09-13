@@ -545,25 +545,22 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
     case "undef"
         PpUndef( e, at )
 
-    case "error"
+    '' '#error' AND '#print' RUN TO THE END OF THE PHYSICAL LINE, ':' included. Measured:
+    '' '#print a: b' prints 'a: b' and '#error a: b' reports 'a: b'. Stopping at the
+    '' colon handed 'b' to the parser as a statement of its own.
+    case "error", "print"
         dim as TokenVec rest
-        CollectLine( e, rest )
+        CollectLine( e, rest, true )
         dim as string msg = ""
         for i as long = 0 to rest.Count - 1
             if i > 0 then msg += " "
-            msg += SpellOf( e, rest[i] )
+            if Tk( rest[i] ) = TK_EOL then
+                msg += ":"
+            else
+                msg += SpellOf( e, rest[i] )
+            end if
         next
-        Report( e, TKO0309, at, msg )
-
-    case "print"
-        dim as TokenVec rest
-        CollectLine( e, rest )
-        dim as string msg = ""
-        for i as long = 0 to rest.Count - 1
-            if i > 0 then msg += " "
-            msg += SpellOf( e, rest[i] )
-        next
-        Report( e, TKO0315, at, msg )
+        Report( e, iif( word = "error", TKO0309, TKO0315 ), at, msg )
 
     case "assert"
         '' NOT a preprocessor directive. fbc's '#assert' takes a COMPILE-TIME

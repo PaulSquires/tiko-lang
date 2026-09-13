@@ -67,6 +67,9 @@ const GFX_PAL_USING as ushort = &h0800   '' PALETTE USING
 '' up are PUT's blend mode and nothing else uses them, so DRAW may have one: the two
 '' statements can never both be this node.
 const GFX_DRAWSTR   as ushort = &h1000
+'' VIEW PRINT -- the console's text window, not the graphics viewport. Bit 13, for the
+'' same reason DRAW STRING may have bit 12: a VIEW is never a PUT.
+const GFX_VIEWPRINT as ushort = &h2000
 '' PUT's mode occupies bits 12..15: the code itself plus a bit saying one was written,
 '' because 0 is TRANS and cannot double as "absent".
 const GFX_PUTMODE_SHIFT as long = 12
@@ -159,6 +162,23 @@ function ParseGfxStmt _
       byval k as Tko.TokenKind, byref sp as Tko.StmtPayload ) as boolean
 
     dim as Tko.NodeIdVec items
+
+    '' 'VIEW PRINT [top TO bottom]' IS NOT THE GRAPHICS VIEW -- see LowerGfxView. Read
+    '' as one, PRINT ended the coordinate grammar at once, the rest of the line was
+    '' discarded, and the statement lowered as a graphics VIEW reset.
+    if (k = Tko.KW_VIEW) andalso (Peek( p ) = Tko.KW_PRINT) then
+        Advance( p )
+        sp.extra or= GFX_VIEWPRINT
+        dim as boolean vpBare = (Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)
+        if vpBare = false then
+            items.Push( cast( ulong, Expression( p ) ) )
+            Expect( p, Tko.KW_TO, "to" )
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+        GfxPad( p, items, 2 )
+        GfxFinish( p, sp, items )
+        return true
+    end if
 
     '' VIEW and WINDOW take an optional SCREEN before anything else.
     if (k = Tko.KW_VIEW) orelse (k = Tko.KW_WINDOW) then
@@ -366,6 +386,24 @@ function ParseGfxGetPut _
     GfxPad( p, items, iif( isPut, 3, 5 ) )
 
     if isPut then
+        '' A SOURCE AREA, '(x1,y1)-[STEP](x2,y2)', may follow the source. Measured:
+        ''
+        ''   put (1,2), a, (3,4)-(5,6), pset     fb_GfxPut( 0, 1f, 2f, A, 3, 4, 5, 6, 0, 1, ...
+        ''   put (1,2), a, (3,4)-step(5,6)       ... A, 3, 4, 5, 6, 1, 5, ...
+        ''
+        '' -- the STEP is the second-point bit, as GET's is, and 'step(3,4)-(5,6)' is
+        '' error 17: the first corner takes none. Left unread, the area and the mode
+        '' after it were discarded and the PUT blended the whole image with XOR.
+        dim as Tko.NodeIdVec area
+        if (Peek( p ) = Tko.TK_COMMA) andalso NextTokIs_( p, Tko.TK_LPAREN ) then
+            Advance( p )
+            dim as boolean a1 = false, a2 = false
+            GfxPoint( p, area, a1 )
+            Expect( p, Tko.TK_MINUS, "-" )
+            if GfxPoint( p, area, a2 ) then
+                if a2 then sp.extra or= GFX_STEP2
+            end if
+        end if
         '' THE MODE IS A WORD, not a number: fbc rejects 'put ..., 1'. Some of them are
         '' keywords and some are not, so it is read either way and matched by spelling.
         if Accept( p, Tko.TK_COMMA ) then
@@ -376,6 +414,9 @@ function ParseGfxGetPut _
             '' so the literal was silently ignored and the PUT blended as TRANS.
             if Peek( p ) = Tko.TK_STRING_LIT then
                 p.diags->Report( Tko.TKO0648, Tko.PointRange( Cur( p ).loc ) )
+                '' ONE ERROR, as fbc gives: the literal is left unread, and without
+                '' this it drew a second, TKO0420, on the same token.
+                p.silent = true
             end if
             sp.extra or= GfxPutMode( p ) shl 12
             '' ALPHA and CUSTOM each take one more argument -- a blend level and a
@@ -384,8 +425,23 @@ function ParseGfxGetPut _
             if GfxOption( p, o ) then
                 items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
             end if
+            '' ...AND CUSTOM TAKES A SECOND, the blender's user parameter. Measured:
+            '' 'put (1,2), a, custom, @cb, @k' passes &K$0 as fb_GfxPut's last argument.
+            if GfxOption( p, o ) then
+                GfxPad( p, items, 4 )
+                items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+            end if
         end if
         GfxPad( p, items, 4 )
+        '' Slots 5 to 8, and only when written, so a PUT without an area keeps the four
+        '' children every existing dump shows.
+        if area.Count > 0 then
+            GfxPad( p, items, 5 )
+            for i as long = 0 to area.Count - 1
+                items.Push( area[i] )
+            next
+            GfxPad( p, items, 9 )
+        end if
     end if
 
     GfxFinish( p, sp, items )

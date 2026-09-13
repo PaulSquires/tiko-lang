@@ -138,6 +138,8 @@
     DIAG( TKO0418, SEV_ERROR,   "'select case' needs at least one 'case'" )
     '' fbc's error 9. AS CONST builds a jump table, and a relation is not an index.
     DIAG( TKO0419, SEV_ERROR,   "'is' is not allowed in a 'select case as const'" )
+    '' fbc's error 3, "Expected End-of-Line": tokens left over after a whole statement.
+    DIAG( TKO0420, SEV_ERROR,   "expected the end of the statement" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

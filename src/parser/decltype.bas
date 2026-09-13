@@ -542,6 +542,13 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
         Advance( p )
         dim as Tko.StmtPayload sp
         DeclName( p, sp.name )
+        '' 'option base 1' TAKES A NUMBER. fbc refuses the statement in -lang fb (error
+        '' 146) but it is still one statement, and warnings/suffix-fblite.bas writes it.
+        if sp.name <> 0 then
+            if Tko.Text.LowerAscii( p.names->Spelling( sp.name ) ) = "base" then
+                sp.a = Expression( p )
+            end if
+        end if
         return MakeStmt( p, Tko.N_OPTION, t.loc, sp )
     end select
 

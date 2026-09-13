@@ -56,6 +56,9 @@ declare function NextTokIs_ _
 declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
 declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
+declare sub CheckEndOfStatement_( byref p as Tko.ParserState )
+declare function EndClosesOther_ _
+    ( byref p as Tko.ParserState, byval what as Tko.TokenKind ) as boolean
 
 '' Defined in selchan.bas, included after this file: 'select channel' and its test.
 declare function SelectIsChannel_( byref p as Tko.ParserState ) as boolean
@@ -152,9 +155,13 @@ private sub ExpectEnd _
         Advance( p )
         return
     end if
-    if Accept( p, Tko.KW_END ) then
-        if Peek( p ) = what then Advance( p )
-        return
+    '' ...NOT AN END CLOSING ANOTHER BLOCK: taken as ours, 'end sub' inside an unclosed
+    '' IF left SUB on the line and the SUB ran on to end of file.
+    if EndClosesOther_( p, what ) = false then
+        if Accept( p, Tko.KW_END ) then
+            if Peek( p ) = what then Advance( p )
+            return
+        end if
     end if
     ErrorNode( p, Tko.TKO0405, Tko.TokenKindText( what ) )
     if openedAt <> 0 then
@@ -228,7 +235,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                 if AtEnd( p ) then exit do
                 if p.pos <= 0 then exit do
                 if (p.toks->At( p.pos - 1 ).flags and Tko.TF_COLON) = 0 then exit do
-                if Peek( p ) = Tko.KW_ELSE then exit do
+                if (Peek( p ) = Tko.KW_ELSE) orelse (Peek( p ) = Tko.KW_ENDIF) then exit do
                 '' 'if c then s : end if' closes the IF; 'if c then end' is the END
                 '' STATEMENT and is this branch's last statement, so only the pair
                 '' stops the loop.
@@ -287,6 +294,10 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
             '' writes all three arms that way over line continuations.
             dim as Tko.NodeIdVec eone
             dim as long elGuard = 0
+            '' ...AND THE SAME STOP, so an 'end if' after the else-statement is left for
+            '' this IF below rather than walked past and discarded -- see EndOfStatement.
+            dim as boolean elSavedSAE = p.stopAtElse
+            p.stopAtElse = true
             do
                 elGuard += 1
                 if elGuard > 10000 then exit do
@@ -299,7 +310,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                 '' on -- ':' and a newline lex alike, and only TF_COLON tells them
                 '' apart. Same rule as the then-branch's loop.
                 if (p.toks->At( p.pos - 1 ).flags and Tko.TF_COLON) = 0 then exit do
-                if Peek( p ) = Tko.KW_ELSE then exit do
+                if (Peek( p ) = Tko.KW_ELSE) orelse (Peek( p ) = Tko.KW_ENDIF) then exit do
                 if Peek( p ) = Tko.KW_END then
                     if HasTok( p, p.pos + 1 ) then
                         if p.toks->At( p.pos + 1 ).kind = cast( ubyte, Tko.KW_IF ) then
@@ -308,6 +319,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                     end if
                 end if
             loop
+            p.stopAtElse = elSavedSAE
             sp.c = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, eone )
         end if
         '' 'if c then s : end if' terminates explicitly. ':' and a newline both lex
@@ -328,6 +340,13 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
                     Advance( p )
                     Advance( p )
                 end if
+            end if
+        end if
+        '' 'endif' is the same close in one word -- fbc accepts 'if 1 then print endif'
+        '' -- and was left for the enclosing block, which it then closed.
+        if Peek( p ) = Tko.KW_ENDIF then
+            if p.src->Decode( Cur( p ).loc ).physLine = p.src->Decode( t.loc ).physLine then
+                Advance( p )
             end if
         end if
 
@@ -1392,7 +1411,10 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end select
 
-    if consumesLine then EndOfStatement( p )
+    if consumesLine then
+        CheckEndOfStatement_( p )
+        EndOfStatement( p )
+    end if
     return n
 end function
 

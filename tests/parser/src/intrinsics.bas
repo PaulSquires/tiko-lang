@@ -12,7 +12,7 @@ input ; s
 input ; "name"; s
 line input ; s
 get #1, , n
-put (10, 20)-(30, 40), s
+put (10, 20), s, (30, 40)-step(50, 60), pset
 close #1, #2
 seek #1, 100
 data 1, "two", three

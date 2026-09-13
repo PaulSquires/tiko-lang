@@ -82,6 +82,15 @@ private function LowerNewArray_ _
     ''
     '' An element WITH a constructor gets the same count-down loop the ordinary form
     '' already emits, over the placement pointer.
+    '' 'new T[n] { any }' CHANGES ANYTHING ONLY OVER AN ELEMENT NOTHING CONSTRUCTS; over
+    '' one with a constructor fbc warns (19) that it has no effect. Measured: 'new V[3]
+    '' {any}' is malloc( 24 ) with no memset, and its placement form drops the memset.
+    dim as boolean noInit = ((c.ast->nodes[cast( long, id )].flags and Tko.NF_NOINIT) <> 0)
+    if noInit then noInit = (CtorOf_( c, el, 0 ) = Tko.SYMBOL_NONE)
+    if noInit then
+        if c.types->Kind( el ) = Tko.TK_UDT then noInit = (TypeNeedsInit_( c, el ) = false)
+    end if
+
     dim as MirValue raw
     if isPlace then
         dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->children[np->first] )
@@ -99,6 +108,10 @@ private function LowerNewArray_ _
             dim as FB.Array( of ulong ) nb
             nb.Push( cast( ulong, bytes_.kind ) ) : nb.Push( cast( ulong, bytes_.id ) )
             raw = EmitDirectCall_( c, opNewA, MT_PTR, nb )
+        elseif noInit then
+            dim as FB.Array( of ulong ) ma
+            ma.Push( cast( ulong, bytes_.kind ) ) : ma.Push( cast( ulong, bytes_.id ) )
+            raw = EmitRtl( c, RTL_MALLOC, ma )
         else
             dim as FB.Array( of ulong ) aa
             aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
@@ -128,6 +141,7 @@ private function LowerNewArray_ _
     '' A PLACEMENT ARRAY OF A TRIVIAL ELEMENT STILL HAS TO BE ZEROED: there is no
     '' calloc to have done it. Measured as one memset over the whole n * sizeof( T ).
     dim as boolean zeroArr = isPlace
+    if zeroArr then zeroArr = (noInit = false)
     if zeroArr then zeroArr = (ctor = Tko.SYMBOL_NONE)
     if zeroArr then zeroArr = (implCtor = false)
     if zeroArr then

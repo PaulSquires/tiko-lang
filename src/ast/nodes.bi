@@ -194,6 +194,9 @@ namespace Tko
     '' Shares its bit with NF_PRESERVE, which is REDIM's and can never appear on an
     '' N_NEW -- the same sharing NF_TYPE_LITERAL and NF_DESTRUCTURE already do.
     const NF_PLACEMENT as ushort = &h1000
+    '' N_NEW: 'new T[n] { any }', the array left uninitialised. Shares its bit with
+    '' NF_HAS_COMMA, which is N_TUPLE's and N_PAREN's and can never appear on an N_NEW.
+    const NF_NOINIT as ushort = &h0004
 
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.

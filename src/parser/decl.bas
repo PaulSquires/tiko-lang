@@ -203,6 +203,9 @@ private function VarItem _
         sp.b = dbase
         sp.extra = cast( ushort, Tko.KW_REDIM )
         ParseArrayBoundsInto( p, sp, t )
+        '' ...AND THE 'AS' CLAUSE, which the plain form reads further down and this one
+        '' left on the line: 'redim .array1(2 to 2) as integer' is namespace/redim-3.bas.
+        if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
         if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_ARRAY
         return dn
@@ -223,6 +226,7 @@ private function VarItem _
         Expect( p, Tko.TK_RPAREN, ")" )
         sp.extra = cast( ushort, Tko.KW_REDIM )
         ParseArrayBoundsInto( p, sp, t )
+        if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         dim as Tko.NodeId rn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
         if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( long, rn )].flags or= Tko.NF_ARRAY
         return rn
