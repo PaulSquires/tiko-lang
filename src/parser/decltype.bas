@@ -380,7 +380,12 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
             if Accept( p, Tko.KW_LIB ) then
                 if Peek( p ) = Tko.TK_STRING_LIT then
                     dim as Tko.Token lbTok = Cur( p )
-                    EmptyAliasCheck( p, StringLitText( p ), lbTok, true )
+                    dim as Tko.InternId blib = StringLitText( p )
+                    EmptyAliasCheck( p, blib, lbTok, true )
+                    '' ...AND LINKED, as a declare's own 'lib' clause is -- see
+                    '' ParserState.declLibs. AfxNova's AfxGdiPlus.bi names gdiplus
+                    '' ONLY here, so dropping it left every Gdip* call undefined.
+                    if blib <> 0 then p.declLibs.Push( cast( ulong, blib ) )
                     Advance( p )
                 end if
             end if

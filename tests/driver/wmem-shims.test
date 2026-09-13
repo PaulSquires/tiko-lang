@@ -1,0 +1,7 @@
+'' crt/wchar.bi's wide memory functions link against the win64-msvc runtime. See the
+'' source's header; fbc-modern prints zzllo-1108 and tiko's build prints the same.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/wmem-shims.bas -o tests/driver/wmemshims.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/wmemshims.exe
