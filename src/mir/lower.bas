@@ -506,7 +506,11 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         if initIsCall andalso HasDynArrayMember_( c, dvt ) then
                             wantImplCopy = false
                         end if
-                        if (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
+                        '' A HIDDEN-POINTER RESULT IS BUILT IN THE VARIABLE: no default
+                        '' constructor, no temporary, no copy -- see SretInPlaceInit_.
+                        if (ivt = vs->type_) andalso SretInPlaceInit_( c, slot, dvt, ip->b ) then
+                            constructed = true
+                        elseif (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
                             dim as MirValue dsa
                             dsa.kind = cast( ubyte, MV_LOCAL )
                             dsa.ty = cast( ubyte, MT_PTR )

@@ -68,22 +68,17 @@ func ptr MAKE(ptr $0) {
 }
 func void FROMCALL() {
   local agg c size 72
-  local agg $tmp1 size 72
   entry0:
     %1 = alloca ptr c
-    call void _ZN3BOXC1Ev(@c)
-    %2 = alloca ptr $tmp1
-    %3 = call ptr MAKE(@$tmp1)
-    %4 = load @$tmp1
-    store @c, %4
-    %5 = field.addr @c, 0
-    %6 = const i64 0
-    %7 = const i64 8
-    %8 = mul %6, %7
-    %9 = load %5
-    %10 = ptr.add %9, %8
-    %11 = load %10
-    call.rtl void fb_PrintDouble(0, %11, 1)
+    %2 = call ptr MAKE(@c)
+    %3 = field.addr @c, 0
+    %4 = const i64 0
+    %5 = const i64 8
+    %6 = mul %4, %5
+    %7 = load %3
+    %8 = ptr.add %7, %6
+    %9 = load %8
+    call.rtl void fb_PrintDouble(0, %9, 1)
     call void _ZN3BOXD1Ev(@c)
     ret
 }
@@ -194,4 +189,4 @@ func void _ZN3BOXaSERKS_(ptr $0, ptr $1) {
 declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
 declare ptr memcpy(ptr $0, ptr $1, i64 $2)
 verify: ok
-lowered: 8 functions, 8 blocks, 145 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance

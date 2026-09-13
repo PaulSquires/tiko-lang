@@ -66,39 +66,34 @@ func void P() {
   local agg a size 24
   local agg b size 24
   local agg c1 size 8
-  local agg $tmp3 size 8
   local agg c2 size 8
-  local agg $tmp5 size 8
+  local agg $tmp4 size 8
+  local agg $abi5 size 24
   local agg $abi6 size 24
-  local agg $abi7 size 24
   entry0:
-    %18 = alloca ptr $abi6
-    %19 = alloca ptr $abi7
+    %16 = alloca ptr $abi5
+    %17 = alloca ptr $abi6
     %1 = alloca ptr a
     %2 = const f64 1
-    call void MAKEV(@$abi6, %2)
-    %3 = load @$abi6
+    call void MAKEV(@$abi5, %2)
+    %3 = load @$abi5
     store @a, %3
     %4 = alloca ptr b
     %5 = call.rtl ptr memset(@b, 0, 24)
-    call void MAKEV2(@$abi7)
-    %6 = load @$abi7
+    call void MAKEV2(@$abi6)
+    %6 = load @$abi6
     store @b, %6
     %7 = alloca ptr c1
-    %8 = alloca ptr $tmp3
-    %9 = const i64 1
-    %10 = call ptr MAKED(@$tmp3, %9)
-    %11 = load @$tmp3
-    store @c1, %11
-    call void _ZN1DD1Ev(@$tmp3)
-    %12 = alloca ptr c2
-    %13 = call.rtl ptr memset(@c2, 0, 8)
-    %14 = alloca ptr $tmp5
-    %15 = const i64 2
-    %16 = call ptr MAKED(@$tmp5, %15)
-    %17 = load @$tmp5
-    store @c2, %17
-    call void _ZN1DD1Ev(@$tmp5)
+    %8 = const i64 1
+    %9 = call ptr MAKED(@c1, %8)
+    %10 = alloca ptr c2
+    %11 = call.rtl ptr memset(@c2, 0, 8)
+    %12 = alloca ptr $tmp4
+    %13 = const i64 2
+    %14 = call ptr MAKED(@$tmp4, %13)
+    %15 = load @$tmp4
+    store @c2, %15
+    call void _ZN1DD1Ev(@$tmp4)
     call void _ZN1DD1Ev(@c2)
     call void _ZN1DD1Ev(@c1)
     ret
@@ -119,4 +114,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance

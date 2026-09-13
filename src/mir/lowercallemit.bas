@@ -231,4 +231,120 @@ function EmitMemberCall _
     return EmitMemberCallArgs_( c, sym, self_, rt, 0 )
 end function
 
+'' WHERE A HIDDEN-POINTER RESULT LANDS: the variable a declaration has on offer, or a
+'' temporary -- registered for destruction at the end of the statement when asked.
+''
+'' The offer goes to the FIRST site that asks, and the asking withdraws it whatever the
+'' answer. LowerCallParts and LowerUserBinaryOp_ ask before they lower a single operand,
+'' so a call nested inside the initialiser never sees it.
+function SretResultSlot_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean ) as long
+
+    if c.sretIntoOn then
+        c.sretIntoOn = false
+        if c.types->Unqualify( t ) = c.sretIntoType then
+            c.sretIntoTaken = true
+            return c.sretIntoSlot
+        end if
+    end if
+    dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    if tslot < 0 then return tslot
+    if registerDtor then
+        if TypeNeedsDtor_( c, t ) then
+            c.udtTemps.Push( cast( ulong, tslot ) )
+            c.udtTempTypes.Push( cast( ulong, t ) )
+        end if
+    end if
+    return tslot
+end function
+
+'' 'dim as T x = f( )' CONSTRUCTS x IN PLACE when f's result travels through the hidden
+'' pointer. Measured, fbc passes the variable itself --
+''
+''   struct $2WS C$0;
+''   VIARETURN( &C$0, &A$0, &TMP$16$0 );
+''
+'' -- and the same for a global operator, '_ZplR1Hi( &Y$1, &X$1, 2 )', with or without a
+'' copy constructor. tiko default-constructed x, built the result in a temporary, stored
+'' its bytes over x and destroyed the temporary: for a type whose constructor allocates
+'' and whose destructor frees, a leak and a double free per declaration.
+''
+'' Offered only where the first site to ask is certain to be the initialiser itself: a
+'' call NAMING a procedure, or an operator bound to one, whose non-byref result is exactly
+'' T. True when x has been dealt with, and nothing may construct or store it after.
+function SretInPlaceInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval e as Tko.NodeId ) as boolean
+
+    if (slot < 0) orelse (e = Tko.NODE_NONE) then return false
+    dim as Tko.SymbolId callee = Tko.SYMBOL_NONE
+    select case c.ast->Kind( e )
+    case Tko.N_CALL
+        '' The binding LowerAddr's call arm reads; a TYPE's constructor is not one.
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if lp->target = Tko.NODE_NONE then return false
+        if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+        if TypeCtorTypeOf_( c, e ) <> Tko.TYPE_NONE then return false
+        callee = c.info->RefOf( e )
+        if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( lp->target )
+    case Tko.N_BINARY
+        callee = c.info->RefOf( e )
+    case else
+        return false
+    end select
+    if callee = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    if c.ast->Kind( e ) = Tko.N_BINARY then
+        if StmtOf( c, pn )->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
+    end if
+    if cs->type_ = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( t )
+    if c.types->Unqualify( cs->type_ ) <> ut then return false
+    if UsesSretReturn( c, cs->type_ ) = false then return false
+
+    c.sretIntoSlot = slot
+    c.sretIntoType = ut
+    c.sretIntoTaken = false
+    c.sretIntoOn = true
+    dim as MirValue ra = LowerAddr( c, e )
+    c.sretIntoOn = false
+    dim as boolean taken = c.sretIntoTaken
+    c.sretIntoTaken = false
+
+    if taken then
+        if (ra.kind = cast( ubyte, MV_LOCAL )) andalso (ra.id = slot) then return true
+        '' Something other than the initialiser took it, so x holds the wrong object.
+        '' Not reachable by the shapes above; declined rather than miscompiled.
+        SkipHere( c )
+        return true
+    end if
+    if ra.kind = cast( ubyte, MV_NONE ) then
+        SkipHere( c )
+        return true
+    end if
+    '' NOT TAKEN: the result sits in a temporary nobody else can reach, so its bytes are
+    '' MOVED into x and the temporary is not destroyed -- the counts building in place gives.
+    dim as long sz = SizeOfType( c, t )
+    dim as MirValue mv
+    if sz > 0 then mv = LowerExprLoad( c, ra, MT_AGG, sz )
+    if mv.kind = cast( ubyte, MV_NONE ) then
+        SkipHere( c )
+        return true
+    end if
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL )
+    dst.ty = cast( ubyte, MT_PTR )
+    dst.id = slot
+    StoreThrough( c, dst, mv )
+    if ra.kind = cast( ubyte, MV_LOCAL ) then ForgetUdtTemp_( c, ra.id )
+    return true
+end function
+
 end namespace

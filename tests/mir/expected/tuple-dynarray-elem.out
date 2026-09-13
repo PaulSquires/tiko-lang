@@ -39,21 +39,16 @@ declare void _ZN9$TUP:6:23D1Ev(ptr $0)
 declare void _ZN3DYND1Ev(ptr $0)
 func void S1() {
   local agg t size 88
-  local agg $tmp1 size 88
   entry0:
     %1 = alloca ptr t
-    call void _ZN9$TUP:6:23C1Ev(@t)
-    %2 = alloca ptr $tmp1
-    %3 = call ptr F(@$tmp1)
-    %4 = load @$tmp1
-    store @t, %4
-    %5 = field.addr @t, 0
-    %6 = load %5
-    call.rtl void fb_PrintInt(0, %6, 2)
-    %7 = field.addr @t, 8
-    %8 = field.addr %7, 72
-    %9 = load %8
-    call.rtl void fb_PrintInt(0, %9, 1)
+    %2 = call ptr F(@t)
+    %3 = field.addr @t, 0
+    %4 = load %3
+    call.rtl void fb_PrintInt(0, %4, 2)
+    %5 = field.addr @t, 8
+    %6 = field.addr %5, 72
+    %7 = load %6
+    call.rtl void fb_PrintInt(0, %7, 1)
     call void _ZN9$TUP:6:23D1Ev(@t)
     ret
 }
@@ -208,4 +203,4 @@ func void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 11 functions, 11 blocks, 143 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 139 insts, 0 statements not lowered, 0 scope imbalance

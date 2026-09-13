@@ -140,28 +140,27 @@ func i32 main(i32 $0, ptr $1) {
   local agg r size 520
   local agg $tmp4 size 520
   local agg s size 8
-  local agg $tmp6 size 8
+  local agg $abi6 size 512
   local agg $abi7 size 512
   local agg $abi8 size 512
   local agg $abi9 size 512
-  local agg $abi10 size 512
-  local agg $abi11 size 520
-  local agg $abi12 size 512
+  local agg $abi10 size 520
+  local agg $abi11 size 512
   entry0:
-    %55 = alloca ptr $abi7
-    %56 = alloca ptr $abi8
-    %57 = alloca ptr $abi9
-    %58 = alloca ptr $abi10
-    %59 = alloca ptr $abi11
-    %60 = alloca ptr $abi12
+    %53 = alloca ptr $abi6
+    %54 = alloca ptr $abi7
+    %55 = alloca ptr $abi8
+    %56 = alloca ptr $abi9
+    %57 = alloca ptr $abi10
+    %58 = alloca ptr $abi11
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr p
-    call void FPLAIN_NONE(@$abi7)
-    %5 = load @$abi7
+    call void FPLAIN_NONE(@$abi6)
+    %5 = load @$abi6
     store @p, %5
     %6 = field.addr @p, 0
     %7 = const i64 5
@@ -172,8 +171,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %11, 1)
     %12 = alloca ptr q
     call void _ZN5TCTORC1Ev(@q)
-    call void FCTOR_ASSIGN(@$abi8)
-    %13 = load @$abi8
+    call void FCTOR_ASSIGN(@$abi7)
+    %13 = load @$abi7
     store @q, %13
     %14 = field.addr @q, 0
     %15 = const i64 0
@@ -182,8 +181,8 @@ func i32 main(i32 $0, ptr $1) {
     %18 = ptr.add %14, %17
     %19 = load %18
     call.rtl void fb_PrintLongint(0, %19, 1)
-    call void FCTOR_NONE(@$abi9)
-    %20 = load @$abi9
+    call void FCTOR_NONE(@$abi8)
+    %20 = load @$abi8
     store @q, %20
     %21 = field.addr @q, 0
     %22 = const i64 0
@@ -193,8 +192,8 @@ func i32 main(i32 $0, ptr $1) {
     %26 = load %25
     call.rtl void fb_PrintLongint(0, %26, 1)
     %27 = const i64 1
-    call void FCTOR_EXIT(@$abi10, %27)
-    %28 = load @$abi10
+    call void FCTOR_EXIT(@$abi9, %27)
+    %28 = load @$abi9
     store @q, %28
     %29 = field.addr @q, 0
     %30 = const i64 0
@@ -204,8 +203,8 @@ func i32 main(i32 $0, ptr $1) {
     %34 = load %33
     call.rtl void fb_PrintLongint(0, %34, 1)
     %35 = alloca ptr r
-    call void FINIT_NONE(@$abi11)
-    %36 = load @$abi11
+    call void FINIT_NONE(@$abi10)
+    %36 = load @$abi10
     %37 = alloca ptr $tmp4
     store @$tmp4, %36
     call void _ZN5TINITC1ERKS_(@r, @$tmp4)
@@ -213,30 +212,25 @@ func i32 main(i32 $0, ptr $1) {
     %39 = load %38
     call.rtl void fb_PrintLongint(0, %39, 1)
     %40 = alloca ptr s
-    call void _ZN5TDTORC1Ev(@s)
-    %41 = alloca ptr $tmp6
-    %42 = call ptr FDTOR_NONE(@$tmp6)
-    %43 = load @$tmp6
-    store @s, %43
-    call void _ZN5TDTORD1Ev(@$tmp6)
-    %44 = field.addr @s, 0
-    %45 = load %44
-    call.rtl void fb_PrintLongint(0, %45, 1)
-    call void FCTOR_RETURN(@$abi12)
-    %46 = load @$abi12
-    store @q, %46
-    %47 = field.addr @q, 0
-    %48 = const i64 0
-    %49 = const i64 8
-    %50 = mul %48, %49
-    %51 = ptr.add %47, %50
-    %52 = load %51
-    call.rtl void fb_PrintLongint(0, %52, 1)
+    %41 = call ptr FDTOR_NONE(@s)
+    %42 = field.addr @s, 0
+    %43 = load %42
+    call.rtl void fb_PrintLongint(0, %43, 1)
+    call void FCTOR_RETURN(@$abi11)
+    %44 = load @$abi11
+    store @q, %44
+    %45 = field.addr @q, 0
+    %46 = const i64 0
+    %47 = const i64 8
+    %48 = mul %46, %47
+    %49 = ptr.add %45, %48
+    %50 = load %49
+    call.rtl void fb_PrintLongint(0, %50, 1)
     call void _ZN5TDTORD1Ev(@s)
-    %53 = const i32 0
-    call.rtl void fb_End(%53)
-    %54 = load @$tmp0
-    ret %54
+    %51 = const i32 0
+    call.rtl void fb_End(%51)
+    %52 = load @$tmp0
+    ret %52
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -529,4 +523,4 @@ func void _ZN5TINITaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 14 functions, 20 blocks, 410 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 14 functions, 20 blocks, 405 insts, 0 statements not lowered, 0 scope imbalance

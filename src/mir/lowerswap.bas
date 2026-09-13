@@ -897,7 +897,9 @@ function LowerUserBinaryOp_ _
     dim as boolean usesSret = false
     if os->type_ <> Tko.TYPE_NONE then
         if UsesSretReturn( c, os->type_ ) then
-            dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, os->type_ ) )
+            '' ...or the variable a declaration is building -- SretInPlaceInit_. The
+            '' temporary is not registered for destruction here, as it never was.
+            dim as long tslot = SretResultSlot_( c, os->type_, false )
             if tslot < 0 then return false
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )

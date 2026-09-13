@@ -253,15 +253,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp3 size 24
   local agg $tmp4 size 24
   local agg a size 24
-  local agg $tmp6 size 24
   local agg b size 24
-  local agg $tmp8 size 24
-  local agg $tmp9 size 24
-  local agg $abi10 size 24
-  local agg $abi11 size 24
+  local agg $tmp7 size 24
+  local agg $abi8 size 24
+  local agg $abi9 size 24
   entry0:
-    %68 = alloca ptr $abi10
-    %69 = alloca ptr $abi11
+    %64 = alloca ptr $abi8
+    %65 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -287,16 +285,16 @@ func i32 main(i32 $0, ptr $1) {
     %17 = call.rtl ptr fb_StrConcatAssign(@$tmp2, -1, @@$str9, 2, 0)
     call.rtl void fb_PrintString(0, @$tmp2, 0)
     %18 = const i64 0
-    call void G(@$abi10, %18)
-    %19 = load @$abi10
+    call void G(@$abi8, %18)
+    %19 = load @$abi8
     %20 = alloca ptr $tmp3
     store @$tmp3, %19
     %21 = field.addr @$tmp3, 16
     %22 = load %21
     call.rtl void fb_PrintLongint(0, %22, 0)
     %23 = const i64 1
-    call void G(@$abi11, %23)
-    %24 = load @$abi11
+    call void G(@$abi9, %23)
+    %24 = load @$abi9
     %25 = alloca ptr $tmp4
     store @$tmp4, %24
     %26 = field.addr @$tmp4, 16
@@ -323,42 +321,36 @@ func i32 main(i32 $0, ptr $1) {
     %41 = call ptr S2(%40)
     call.rtl void fb_PrintString(0, %41, 1)
     %42 = alloca ptr a
-    %43 = alloca ptr $tmp6
-    %44 = const i64 0
-    %45 = call ptr ENC(@$tmp6, %44)
-    %46 = load @$tmp6
-    store @a, %46
-    %47 = alloca ptr b
-    %48 = alloca ptr $tmp8
-    %49 = const i64 2
-    %50 = call ptr ENC(@$tmp8, %49)
-    %51 = load @$tmp8
-    store @b, %51
-    %52 = alloca ptr $tmp9
-    %53 = field.addr @$tmp9, 0
-    store %53, 0
-    %54 = field.addr @$tmp9, 8
-    store %54, 0
-    %55 = field.addr @$tmp9, 16
-    store %55, 0
-    %56 = field.addr @a, 0
-    %57 = call.rtl ptr fb_StrConcat(@$tmp9, @@$str7, 2, %56, -1)
-    %58 = call.rtl ptr fb_StrConcatAssign(@$tmp9, -1, @@$str8, 3, 0)
-    %59 = field.addr @b, 0
-    %60 = call.rtl ptr fb_StrConcatAssign(@$tmp9, -1, %59, -1, 0)
-    %61 = call.rtl ptr fb_StrConcatAssign(@$tmp9, -1, @@$str9, 2, 0)
-    call.rtl void fb_PrintString(0, @$tmp9, 1)
+    %43 = const i64 0
+    %44 = call ptr ENC(@a, %43)
+    %45 = alloca ptr b
+    %46 = const i64 2
+    %47 = call ptr ENC(@b, %46)
+    %48 = alloca ptr $tmp7
+    %49 = field.addr @$tmp7, 0
+    store %49, 0
+    %50 = field.addr @$tmp7, 8
+    store %50, 0
+    %51 = field.addr @$tmp7, 16
+    store %51, 0
+    %52 = field.addr @a, 0
+    %53 = call.rtl ptr fb_StrConcat(@$tmp7, @@$str7, 2, %52, -1)
+    %54 = call.rtl ptr fb_StrConcatAssign(@$tmp7, -1, @@$str8, 3, 0)
+    %55 = field.addr @b, 0
+    %56 = call.rtl ptr fb_StrConcatAssign(@$tmp7, -1, %55, -1, 0)
+    %57 = call.rtl ptr fb_StrConcatAssign(@$tmp7, -1, @@$str9, 2, 0)
+    call.rtl void fb_PrintString(0, @$tmp7, 1)
     call void _ZN2DSD1Ev(@b)
     call void _ZN2DSD1Ev(@a)
-    %62 = load @@ctors
-    %63 = load @@dtors
-    %64 = icmp.eq %62, %63
-    %65 = neg %64
-    call.rtl void fb_PrintLongint(0, %65, 1)
-    %66 = const i32 0
-    call.rtl void fb_End(%66)
-    %67 = load @$tmp0
-    ret %67
+    %58 = load @@ctors
+    %59 = load @@dtors
+    %60 = icmp.eq %58, %59
+    %61 = neg %60
+    call.rtl void fb_PrintLongint(0, %61, 1)
+    %62 = const i32 0
+    call.rtl void fb_End(%62)
+    %63 = load @$tmp0
+    ret %63
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
@@ -368,4 +360,4 @@ declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 25 blocks, 239 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 25 blocks, 233 insts, 0 statements not lowered, 0 scope imbalance

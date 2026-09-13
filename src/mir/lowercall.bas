@@ -335,13 +335,9 @@ function LowerCallParts _
     end if
     if (cs <> 0) andalso (cs->kind = cast( ubyte, Tko.SYM_PROC )) then
         if UsesSretReturn( c, cs->type_ ) andalso (calleeByrefRet = false) then
-            dim as long tslot = _
-                NewTempLocal( c, MT_AGG, SizeOfType( c, cs->type_ ) )
+            '' ...or the variable a declaration is building -- SretInPlaceInit_.
+            dim as long tslot = SretResultSlot_( c, cs->type_, true )
             if tslot < 0 then return CallFailed_( c, v, __LINE__ )
-            if TypeNeedsDtor_( c, cs->type_ ) then
-                c.udtTemps.Push( cast( ulong, tslot ) )
-                c.udtTempTypes.Push( cast( ulong, cs->type_ ) )
-            end if
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )
             sretTmp.id = tslot

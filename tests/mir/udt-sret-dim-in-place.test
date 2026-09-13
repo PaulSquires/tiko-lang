@@ -1,0 +1,9 @@
+'' 'dim as T x = f( ... )' builds x in place when f's UDT result travels through the hidden
+'' pointer: a function and a user global operator, with and without a copy constructor.
+'' Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-sret-dim-in-place.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-sret-dim-in-place.out

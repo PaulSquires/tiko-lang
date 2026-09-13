@@ -172,6 +172,12 @@ type Ctx
     as boolean              lastCallOk
     as long                 lastCallFailLine
     as long                 sretParam
+    '' A HIDDEN RESULT DESTINATION ON OFFER: 'dim as T x = f( )' hands x's slot to the
+    '' first hidden-pointer call that asks. SretResultSlot_ / SretInPlaceInit_.
+    as boolean              sretIntoOn
+    as boolean              sretIntoTaken
+    as long                 sretIntoSlot
+    as Tko.TypeId           sretIntoType
     as long                 dataHead
     as FB.Array( of ulong ) dataLabelName
     as FB.Array( of ulong ) dataLabelBlock
@@ -424,6 +430,13 @@ declare function EmitRtl _
     '' Whether a UDT return travels through an explicit hidden pointer. Measured:
     '' the type has a DESTRUCTOR or a COPY CONSTRUCTOR. Size plays no part.
     declare function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' A hidden result's storage: the declared variable on offer, or a temporary; and the
+    '' declaration that offers it. lowercallemit.bas.
+    declare function SretResultSlot_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean ) as long
+    declare function SretInPlaceInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval e as Tko.NodeId ) as boolean
     declare function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
     '' The SysV eightbyte classes of a type -- see mir/eightbyte.bas.
