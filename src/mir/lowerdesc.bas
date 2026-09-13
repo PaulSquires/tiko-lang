@@ -1032,40 +1032,57 @@ function LowerArrayBoundCall _
     '' unknown bound -- which is what an ELLIPSIS leaves -- declines rather than
     '' folding to whatever the table happens to hold.
     dim as Tko.TypeId at0 = c.info->TypeOf_( a0 )
+    dim as MirValue desc
     if c.types->IsDynArray( at0 ) = false then
         if c.types->Kind( at0 ) <> Tko.TK_ARRAY then return false
         dim as long dimIx = 0
+        dim as boolean constDim = true
         if cp->count = 2 then
             dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( _
                 *c.ast, d1, *c.srcMgr, *c.names, c.types->target.pointerBits )
-            if dcv.known = false then return false
-            dimIx = cast( long, dcv.value ) - 1
+            if dcv.known then
+                dimIx = cast( long, dcv.value ) - 1
+            else
+                constDim = false
+            end if
         end if
-        '' DIMENSION ZERO IS THE DIMENSION COUNT, and both bounds answer it.
-        '' Measured over 'dim a( 1 to 3 )': 'ubound( a, 0 )' and 'lbound( a, 0 )'
-        '' are both 1.
-        if dimIx < 0 then
-            outv = ConstInt( c, c.types->types[cast( long, at0 )].dims, MT_I64 )
+        if constDim then
+            '' DIMENSION ZERO IS THE DIMENSION COUNT, and both bounds answer it.
+            '' Measured over 'dim a( 1 to 3 )': 'ubound( a, 0 )' and 'lbound( a, 0 )'
+            '' are both 1.
+            if dimIx < 0 then
+                outv = ConstInt( c, c.types->types[cast( long, at0 )].dims, MT_I64 )
+                return true
+            end if
+            '' A DIMENSION PAST THE ARRAY'S RANK IS AN EMPTY ONE: measured, over the
+            '' same array 'ubound( a, 2 )' folds to -1 and 'lbound( a, 2 )' to 0 --
+            '' fbc emits the constants, not a runtime call. Declining instead took
+            '' the whole PRINT with it.
+            if dimIx >= c.types->types[cast( long, at0 )].dims then
+                dim as longint empty_ = 0
+                if nm = "ubound" then empty_ = -1
+                outv = ConstInt( c, empty_, MT_I64 )
+                return true
+            end if
+            dim as boolean known = false
+            dim as longint b = c.types->ArrayBound( at0, dimIx, (nm = "ubound"), known )
+            if known = false then return false
+            outv = ConstInt( c, b, MT_I64 )
             return true
         end if
-        '' A DIMENSION PAST THE ARRAY'S RANK IS AN EMPTY ONE: measured, over the
-        '' same array 'ubound( a, 2 )' folds to -1 and 'lbound( a, 2 )' to 0 --
-        '' fbc emits the constants, not a runtime call. Declining instead took
-        '' the whole PRINT with it.
-        if dimIx >= c.types->types[cast( long, at0 )].dims then
-            dim as longint empty_ = 0
-            if nm = "ubound" then empty_ = -1
-            outv = ConstInt( c, empty_, MT_I64 )
-            return true
-        end if
-        dim as boolean known = false
-        dim as longint b = c.types->ArrayBound( at0, dimIx, (nm = "ubound"), known )
-        if known = false then return false
-        outv = ConstInt( c, b, MT_I64 )
-        return true
+        '' A DIMENSION ONLY KNOWN AT RUN TIME goes to the runtime, over a descriptor
+        '' materialised for the fixed array -- the one a BYDESC argument gets. Measured:
+        ''
+        ''     struct FBARRAY2 tmp = { SA - 40, SA, 60, 4, 2, 50, 3, 1, 3, 5, 5, 9 }
+        ''     vr = G( 1 ); fb_ArrayLBound( &tmp, vr )
+        ''
+        '' tiko declined the whole statement: 'k = lbound( sa, G( 1 ) )' never called G
+        '' and left k as it was, where fbc prints 1, and ubound( sa, G( 0 ) ) is 2.
+        if ArrayDescArg_( c, a0, true, desc ) = false then return false
+    else
+        desc = LowerAddr( c, a0 )
     end if
-    dim as MirValue desc = LowerAddr( c, a0 )
     if desc.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirType zt = DescIntTy_( c )
