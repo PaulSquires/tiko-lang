@@ -506,3 +506,38 @@ function UStrOperandToNarrow_ _
     return true
 end function
 
+'' A NARROW ARGUMENT FOR A 'byref as ustring' PARAMETER, wherever that parameter is met
+'' outside the ordinary call path: a constructor called explicitly, one run for 'dim x as
+'' T = init', one run as an implicit conversion to a byval UDT, and 'operator []'.
+'' Measured, 'Take( "lit" )' over a byval DbValue with 'constructor( byref textValue as
+'' ustring )':
+''
+''     fb_UStrAssign( &TMP_u, -1, (uint16[]){...}, <len>, 0 )
+''     _ZN7DBVALUEC1ER9FBUSTRING( &TMP, &TMP_u )
+''
+'' lowercall.bas had this arm; none of these did, so a literal's ADDRESS or a narrow
+'' variable's own descriptor went where an FBUSTRING* belongs, and fbsqlite bound every
+'' text value as empty or garbage.
+''
+'' FALSE, touching nothing, when the parameter is not a ustring or the argument is not
+'' narrow. TRUE with 'outv' the temporary's address, on the statement's string
+'' temporaries with its USTRING flavour so that fb_UStrDelete releases it.
+function UStrParamArgTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if IsUStringType( c, pu ) = false then return false
+    if NarrowStrArg_( c, argNode ) = false then return false
+    dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
+    dim as long slot = -1
+    if ByvalStrTemp_( c, argNode, ut, outv, slot ) = false then return false
+    if slot >= 0 then
+        c.f->locals[slot].frontendType = ut
+        c.strTemps.Push( cast( ulong, slot ) )
+    end if
+    return true
+end function
+

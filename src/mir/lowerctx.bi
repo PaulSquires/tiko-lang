@@ -350,6 +350,11 @@ declare function EmitRtl _
     '' False when no term is a ustring. lowerstrargs.bas.
     declare function UStrOperandToNarrow_ _
         ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A narrow argument for a 'byref as ustring' parameter outside the ordinary call path:
+    '' the ustring temporary fbc builds first. False when neither applies. lowerstrargs.bas.
+    declare function UStrParamArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
           byval value as Tko.NodeId ) as boolean

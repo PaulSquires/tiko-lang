@@ -29,6 +29,8 @@ private function CtorArgValue_ _
 
     if argNode = Tko.NODE_NONE then return false
     dim as Tko.TypeId at = c.info->TypeOf_( argNode )
+    '' A NARROW ARGUMENT FOR A USTRING PARAMETER IS A CONVERSION -- UStrParamArgTemp_.
+    if UStrParamArgTemp_( c, argNode, pt, outv ) then return true
 
     if pt <> Tko.TYPE_NONE then
         dim as Tko.TypeId u = c.types->Unqualify( pt )
@@ -548,6 +550,15 @@ function LowerCtorInit _
             '' characters as an FBSTRING. It linked, it verified, and c2.s came
             '' back empty. StrDescriptorOf_ is what the byval string path two
             '' branches down already uses, and what an ordinary call uses.
+            '' ...AND A NARROW ONE FOR A USTRING PARAMETER IS CONVERSION -- UStrParamArgTemp_.
+            dim as MirValue usd
+            if UStrParamArgTemp_( c, cast( Tko.NodeId, argNode[ai2] ), pty, usd ) then
+                argKind[ai2] = cast( ulong, usd.kind )
+                argId[ai2] = cast( ulong, usd.id )
+                argT[ai2] = cast( ulong, pty )
+                ai2 += 1
+                continue for
+            end if
             if IsStringType( c, c.types->Unqualify( pty ) ) then
                 dim as MirValue sd
                 if StrDescriptorOf_( c, cast( Tko.NodeId, argNode[ai2] ), sd ) then

@@ -235,7 +235,8 @@ private function UdtConvTemp_ _
         if cself.kind = cast( ubyte, MV_NONE ) then return false
         av = EmitMemberCall( c, chainCast, cself, MT_PTR )
     elseif byrefP then
-        av = LowerAddr( c, argNode )
+        '' A NARROW ARGUMENT FOR A USTRING PARAMETER IS A CONVERSION -- UStrParamArgTemp_.
+        if UStrParamArgTemp_( c, argNode, cpt, av ) = false then av = LowerAddr( c, argNode )
         '' AN RVALUE HAS NO ADDRESS, AND THE CONVERSION STILL HAPPENS. The
         '' constructor that does it may take its operand BYREF -- fb's own
         '' 'constructor foo( byref v as byte )' is the corpus's shape -- and a

@@ -1,0 +1,7 @@
+'' A narrow argument for a 'byref as ustring' constructor parameter is converted through a
+'' ustring temporary in every constructor path; runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-ustring-narrow-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
