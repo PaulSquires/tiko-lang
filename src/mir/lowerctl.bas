@@ -388,6 +388,48 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             SkipHere( c )
             return
         end if
+        '' A SUBJECT THAT IS NOT ITS OWN DESCRIPTOR IS COPIED FIRST, and the copy is what
+        '' the cases compare. Measured, over 'select case lcase( Spell( id ) )':
+        ''
+        ''     vr = fb_StrLcase2( SPELL( ID ), 0 )
+        ''     fb_StrInit( &TMP, -1, vr, -1, 0 )
+        ''     fb_StrCompare( &TMP, -1, "new", 4 ) ... one per case value
+        ''     fb_StrDelete( &TMP )       -- on the RETURN out of a case as well
+        ''
+        '' The slot held the TEMPORARY'S POINTER instead, and fb_StrCompare releases a
+        '' temporary argument: the first case value freed it, and every later one used it
+        '' after the free and released it again. That corrupts the runtime's descriptor
+        '' pool for good -- after one fall-through over four values, every later str()
+        '' came back empty. The self-hosted compiler's IsAllocOperator_ is exactly this
+        '' select, so from its first operator on every mangled name lost its lengths.
+        ''
+        '' A fixed-length or zstring subject arrives as a pool descriptor too, and is
+        '' copied the same way; only a var-length string LVALUE is compared in place.
+        '' The copy is released by its scope, which a RETURN inside a case runs.
+        if (strMode = 0) andalso (IsUStringType( c, subjT ) = false) andalso _
+           (StrArgOwnDescriptor_( c, sp->a, subjT ) = false) then
+            dim as long dslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+            if dslot < 0 then
+                SkipHere( c )
+                return
+            end if
+            dim as MirValue dsc
+            dsc.kind = cast( ubyte, MV_LOCAL )
+            dsc.ty = cast( ubyte, MT_PTR )
+            dsc.id = dslot
+            ZeroStrTempAtEntry_( c, dsc )
+            dim as FB.Array( of ulong ) dargs
+            dargs.Push( cast( ulong, dsc.kind ) ) : dargs.Push( cast( ulong, dsc.id ) )
+            PushStrLen_( c, dargs, -1 )
+            dargs.Push( cast( ulong, sv.kind ) ) : dargs.Push( cast( ulong, sv.id ) )
+            PushStrLen_( c, dargs, -1 )
+            dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( 0 )
+            EmitRtl( c, RTL_STR_ASSIGN, dargs )
+            c.cleanupNode.Push( 0 )
+            c.cleanupSlot.Push( dslot )
+            c.cleanupType.Push( 0 )
+            sv = dsc
+        end if
         dim as long pslot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
         if pslot < 0 then
             SkipHere( c )

@@ -128,7 +128,7 @@ end function
 ''
 '' The OTHER direction -- a narrow argument against a ustring parameter -- is decided
 '' before this is asked, by its own arm in lowercall.bas.
-private function StrArgOwnDescriptor_ _
+function StrArgOwnDescriptor_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
 
     if e = Tko.NODE_NONE then return true

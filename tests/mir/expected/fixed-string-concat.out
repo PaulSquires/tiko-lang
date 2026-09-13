@@ -26,9 +26,10 @@ func i32 main(i32 $0, ptr $1) {
   local ptr $tmp13
   local ptr $tmp14
   local agg $tmp15 size 24
-  local ptr $tmp16
+  local agg $tmp16 size 24
   local ptr $tmp17
   local ptr $tmp18
+  local ptr $tmp19
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -125,8 +126,15 @@ func i32 main(i32 $0, ptr $1) {
     %65 = icmp.eq %64, 0
     %75 = alloca ptr $tmp15
     %80 = alloca ptr $tmp16
-    %87 = alloca ptr $tmp17
-    %89 = alloca ptr $tmp18
+    %81 = field.addr @$tmp16, 0
+    store %81, 0
+    %82 = field.addr @$tmp16, 8
+    store %82, 0
+    %83 = field.addr @$tmp16, 16
+    store %83, 0
+    %85 = alloca ptr $tmp17
+    %92 = alloca ptr $tmp18
+    %94 = alloca ptr $tmp19
     condbr %65, if.then2, if.else3
   if.join1:
     %67 = const i64 -9223372036854775800
@@ -158,12 +166,13 @@ func i32 main(i32 $0, ptr $1) {
     %78 = field.addr @$tmp15, 16
     store %78, 0
     %79 = call.rtl ptr fb_StrConcat(@$tmp15, @z, 8, @z, 8)
-    store @$tmp16, @$tmp15
-    %81 = load @$tmp16
-    %82 = call.rtl i32 fb_StrCompare(%81, -1, @@$str7, 5)
-    %83 = const i32 0
-    %84 = icmp.eq %82, %83
-    condbr %84, sel.body11, sel.next12
+    %84 = call.rtl ptr fb_StrAssign(@$tmp16, -1, @$tmp15, -1, 0)
+    store @$tmp17, @$tmp16
+    %86 = load @$tmp17
+    %87 = call.rtl i32 fb_StrCompare(%86, -1, @@$str7, 5)
+    %88 = const i32 0
+    %89 = icmp.eq %87, %88
+    condbr %89, sel.body11, sel.next12
   if.then8:
     %74 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 1)
     call.rtl void fb_PrintString(0, %74, 1)
@@ -171,36 +180,37 @@ func i32 main(i32 $0, ptr $1) {
   if.else9:
     br if.join7
   sel.join10:
-    %86 = call.rtl ptr fb_WstrConcat(@w, @w)
-    store @$tmp17, %86
-    %88 = load @$tmp17
-    store @$tmp18, %88
-    %90 = load @$tmp18
-    %91 = call.rtl i32 fb_WstrCompare(%90, @@$wstr9)
-    %92 = const i32 0
-    %93 = icmp.eq %91, %92
-    condbr %93, sel.body14, sel.next15
+    %91 = call.rtl ptr fb_WstrConcat(@w, @w)
+    store @$tmp18, %91
+    %93 = load @$tmp18
+    store @$tmp19, %93
+    %95 = load @$tmp19
+    %96 = call.rtl i32 fb_WstrCompare(%95, @@$wstr9)
+    %97 = const i32 0
+    %98 = icmp.eq %96, %97
+    condbr %98, sel.body14, sel.next15
   sel.body11:
-    %85 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 5)
-    call.rtl void fb_PrintString(0, %85, 1)
+    %90 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 5)
+    call.rtl void fb_PrintString(0, %90, 1)
     br sel.join10
   sel.next12:
     br sel.join10
   sel.join13:
-    %95 = load @$tmp17
-    call.rtl void fb_WstrDelete(%95)
+    %100 = load @$tmp18
+    call.rtl void fb_WstrDelete(%100)
+    call.rtl void fb_StrDelete(@$tmp16)
     call.rtl void fb_StrDelete(@r3)
     call.rtl void fb_StrDelete(@r2)
     call.rtl void fb_StrDelete(@r1)
     call.rtl void fb_StrDelete(@r0)
     call.rtl void fb_StrDelete(@s)
-    %96 = const i32 0
-    call.rtl void fb_End(%96)
-    %97 = load @$tmp0
-    ret %97
+    %101 = const i32 0
+    call.rtl void fb_End(%101)
+    %102 = load @$tmp0
+    ret %102
   sel.body14:
-    %94 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 5)
-    call.rtl void fb_PrintString(0, %94, 1)
+    %99 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 5)
+    call.rtl void fb_PrintString(0, %99, 1)
     br sel.join13
   sel.next15:
     br sel.join13
@@ -223,4 +233,4 @@ declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 16 blocks, 143 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 16 blocks, 152 insts, 0 statements not lowered, 0 scope imbalance
