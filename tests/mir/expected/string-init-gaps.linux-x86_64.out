@@ -151,10 +151,10 @@ func void S1() {
     call.rtl void fb_PrintString(0, %98, 2)
     %99 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
     call.rtl void fb_PrintString(0, %99, 2)
-    %100 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
-    %101 = const i64 1
-    %102 = trunc %101
-    %103 = call.rtl ptr fb_StrLcase2(%100, %102)
+    %100 = const i64 1
+    %101 = trunc %100
+    %102 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
+    %103 = call.rtl ptr fb_StrLcase2(%102, %101)
     call.rtl void fb_PrintString(0, %103, 1)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_UStrDelete(@u)

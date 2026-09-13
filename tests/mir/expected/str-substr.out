@@ -47,7 +47,7 @@ func void P(i32 $0) {
     %34 = sext %33
     %35 = load @n
     %36 = sext %35
-    %37 = call.rtl ptr fb_StrMid(@a, %34, %36)
+    %37 = call.rtl ptr fb_StrMid(@a, %36, %34)
     %38 = call.rtl ptr fb_StrAssign(@b, -1, %37, -1, 0)
     %39 = call.rtl ptr fb_StrUcase2(@a, 0)
     %40 = call.rtl ptr fb_StrAssign(@b, -1, %39, -1, 0)

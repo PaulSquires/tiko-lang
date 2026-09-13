@@ -142,10 +142,10 @@ func void G() {
     %41 = call.rtl ptr fb_StrMid(@s, %40, -1)
     %42 = call.rtl ptr fb_WstrAssignFromA(@rv, 50, %41, -1)
     %43 = alloca ptr ru
-    %44 = call ptr _ZN1UcvcEv(@u)
-    %45 = call.rtl ptr fb_StrAllocTempDescZ(%44)
-    %46 = const i64 1
-    %47 = call.rtl ptr fb_StrMid(%45, %46, -1)
+    %44 = const i64 1
+    %45 = call ptr _ZN1UcvcEv(@u)
+    %46 = call.rtl ptr fb_StrAllocTempDescZ(%45)
+    %47 = call.rtl ptr fb_StrMid(%46, %44, -1)
     %48 = call.rtl ptr fb_WstrAssignFromA(@ru, 50, %47, -1)
     %49 = alloca ptr rt
     %50 = call.rtl ptr memset(@rt, 0, 50)

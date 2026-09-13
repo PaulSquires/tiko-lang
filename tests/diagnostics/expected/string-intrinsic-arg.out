@@ -5,6 +5,8 @@ global var i64 n
 global var ptr w
 func void REFUSED() {
   entry0:
+    %1 = const i64 1
+    %2 = const i64 1
     ret
 }
 func void ACCEPTED() {
@@ -60,11 +62,11 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 29 insts, 6 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 31 insts, 6 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 6
   inside N_INTRINSIC 6
   unlowered intrinsic KW_PRINT 6
-  skip-site src\mir\lowerctl.bas:206 6
+  skip-site src\mir\lowerctl.bas:207 6
 tests/diagnostics/src/string-intrinsic-arg.bas(25,18): error TKO0626: 'lcase' takes a string
      |
   25 |     print lcase( 0 )

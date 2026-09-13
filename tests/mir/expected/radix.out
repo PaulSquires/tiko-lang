@@ -58,10 +58,10 @@ func void P() {
     %43 = load @uq
     %44 = call.rtl ptr fb_HEX_l(%43)
     %45 = call.rtl ptr fb_StrAssign(@s, -1, %44, -1, 0)
-    %46 = load @l
-    %47 = const i64 4
-    %48 = trunc %47
-    %49 = call.rtl ptr fb_HEXEx_i(%46, %48)
+    %46 = const i64 4
+    %47 = trunc %46
+    %48 = load @l
+    %49 = call.rtl ptr fb_HEXEx_i(%48, %47)
     %50 = call.rtl ptr fb_StrAssign(@s, -1, %49, -1, 0)
     %51 = load @l
     %52 = call.rtl ptr fb_OCT_i(%51)
@@ -69,10 +69,10 @@ func void P() {
     %54 = load @uq
     %55 = call.rtl ptr fb_OCT_l(%54)
     %56 = call.rtl ptr fb_StrAssign(@s, -1, %55, -1, 0)
-    %57 = load @l
-    %58 = const i64 4
-    %59 = trunc %58
-    %60 = call.rtl ptr fb_OCTEx_i(%57, %59)
+    %57 = const i64 4
+    %58 = trunc %57
+    %59 = load @l
+    %60 = call.rtl ptr fb_OCTEx_i(%59, %58)
     %61 = call.rtl ptr fb_StrAssign(@s, -1, %60, -1, 0)
     %62 = load @l
     %63 = call.rtl ptr fb_BIN_i(%62)
@@ -80,10 +80,10 @@ func void P() {
     %65 = load @uq
     %66 = call.rtl ptr fb_BIN_l(%65)
     %67 = call.rtl ptr fb_StrAssign(@s, -1, %66, -1, 0)
-    %68 = load @l
-    %69 = const i64 4
-    %70 = trunc %69
-    %71 = call.rtl ptr fb_BINEx_i(%68, %70)
+    %68 = const i64 4
+    %69 = trunc %68
+    %70 = load @l
+    %71 = call.rtl ptr fb_BINEx_i(%70, %69)
     %72 = call.rtl ptr fb_StrAssign(@s, -1, %71, -1, 0)
     %73 = const i64 65
     %74 = call.rtl ptr fb_CHR(1, %73)
@@ -95,14 +95,14 @@ func void P() {
     %80 = const i64 4
     %81 = call.rtl ptr fb_SPACE(%80)
     %82 = call.rtl ptr fb_StrAssign(@s, -1, %81, -1, 0)
-    %83 = const i64 4
-    %84 = const i64 65
-    %85 = trunc %84
-    %86 = call.rtl ptr fb_StrFill1(%83, %85)
+    %83 = const i64 65
+    %84 = trunc %83
+    %85 = const i64 4
+    %86 = call.rtl ptr fb_StrFill1(%85, %84)
     %87 = call.rtl ptr fb_StrAssign(@s, -1, %86, -1, 0)
-    %88 = const i64 4
-    %89 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
-    %90 = call.rtl ptr fb_StrFill2(%88, %89)
+    %88 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    %89 = const i64 4
+    %90 = call.rtl ptr fb_StrFill2(%89, %88)
     %91 = call.rtl ptr fb_StrAssign(@s, -1, %90, -1, 0)
     call.rtl void fb_StrDelete(@s)
     ret

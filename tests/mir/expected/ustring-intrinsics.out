@@ -98,9 +98,9 @@ func void NARROW() {
     %13 = call.rtl ptr fb_StrAssign(@r, -1, %12, -1, 0)
     %14 = call.rtl ptr fb_TRIM(@s)
     %15 = call.rtl ptr fb_StrAssign(@r, -1, %14, -1, 0)
-    %16 = const i64 2
-    %17 = const i64 3
-    %18 = call.rtl ptr fb_StrMid(@s, %16, %17)
+    %16 = const i64 3
+    %17 = const i64 2
+    %18 = call.rtl ptr fb_StrMid(@s, %17, %16)
     %19 = call.rtl ptr fb_StrAssign(@r, -1, %18, -1, 0)
     %20 = call.rtl i64 fb_StrInstr(1, @s, @t)
     %21 = trunc %20

@@ -72,10 +72,10 @@ func i32 main(i32 $0, ptr $1) {
     %26 = call.rtl ptr fb_StrAllocTempDescF(@fs, %25)
     %27 = call.rtl i32 fb_ASC(%26, 1)
     call.rtl void fb_PrintUInt(0, %27, 1)
-    %28 = const i64 -9223372036854775798
-    %29 = call.rtl ptr fb_StrAllocTempDescF(@fs, %28)
-    %30 = const i64 2
-    %31 = call.rtl ptr fb_LEFT(%29, %30)
+    %28 = const i64 2
+    %29 = const i64 -9223372036854775798
+    %30 = call.rtl ptr fb_StrAllocTempDescF(@fs, %29)
+    %31 = call.rtl ptr fb_LEFT(%30, %28)
     call.rtl void fb_PrintString(0, %31, 1)
     %32 = const i64 -9223372036854775798
     %33 = call.rtl ptr fb_StrAllocTempDescF(@fs, %32)

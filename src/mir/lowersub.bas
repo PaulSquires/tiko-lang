@@ -139,37 +139,41 @@ function LowerStrRvalue _
     end select
     if isAny andalso (secondIsStr = false) then return false
 
+    '' OPERANDS RIGHT TO LEFT, pushed in position order. Measured, over operands that
+    '' record their own evaluation: mid( s, a, b ) is 321 to fbc, left and right 21,
+    '' trim( s, t ) and trim( s, any t ) 21, ucase( s, mode ) 01. tiko went left to
+    '' right -- the rule LowerCallParts follows for an ordinary call applies here too.
+    dim as MirValue v2
+    if (r = RTL_STR_MID) andalso (cp->count = 3) then
+        dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+        v2 = LowerExpr( c, a2 )
+        if v2.kind = cast( ubyte, MV_NONE ) then return false
+        v2 = CoerceTy( c, v2, MT_I64, c.info->TypeOf_( a2 ))
+    end if
+    dim as MirValue v1
+    if a1 <> Tko.NODE_NONE then
+        if secondIsStr then
+            if StrDescriptorOf_( c, a1, v1 ) = false then return false
+        else
+            v1 = LowerExpr( c, a1 )
+            if v1.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirType nw = MT_I64
+            if secondIsMode then nw = MT_I32
+            v1 = CoerceTy( c, v1, nw, c.info->TypeOf_( a1 ))
+        end if
+    end if
     dim as MirValue s0
     if StrDescriptorOf_( c, a0, s0 ) = false then return false
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
-
     if a1 <> Tko.NODE_NONE then
-        if secondIsStr then
-            dim as MirValue s1
-            if StrDescriptorOf_( c, a1, s1 ) = false then return false
-            args.Push( cast( ulong, s1.kind ) ) : args.Push( cast( ulong, s1.id ) )
-        else
-            dim as MirValue n1 = LowerExpr( c, a1 )
-            if n1.kind = cast( ubyte, MV_NONE ) then return false
-            '' A COUNT is 64-bit; the case MODE is the int32 fbc declares.
-            dim as MirType nw = MT_I64
-            if secondIsMode then nw = MT_I32
-            n1 = CoerceTy( c, n1, nw, c.info->TypeOf_( a1 ))
-            args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
-        end if
+        args.Push( cast( ulong, v1.kind ) ) : args.Push( cast( ulong, v1.id ) )
     end if
 
     if r = RTL_STR_MID then
-        '' A 'mid' WITHOUT a length passes -1, not 0 -- 0 would silently produce an
-        '' empty string instead of the rest of the source.
         if cp->count = 3 then
-            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
-            dim as MirValue n2 = LowerExpr( c, a2 )
-            if n2.kind = cast( ubyte, MV_NONE ) then return false
-            n2 = CoerceTy( c, n2, MT_I64, c.info->TypeOf_( a2 ))
-            args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
+            args.Push( cast( ulong, v2.kind ) ) : args.Push( cast( ulong, v2.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) )
             args.Push( cast( ulong, cast( ulongint, -1 ) ) )
@@ -244,31 +248,32 @@ function LowerRadixCall_ _
     if (nm = "string") orelse (nm = "wstring") then
         if cp->count <> 2 then return false
         dim as boolean fillWide = (nm = "wstring")
+        '' THE FILL FIRST: string( G( 1 ), G( 2 ) + 64 ) and string( G( 1 ), GStr( 2 ) )
+        '' are both 21 to fbc.
+        dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)
+        if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
+        if fillWide then isStr = IsWideString_( c, c.info->TypeOf_( a1 ) )
+        dim as MirValue fv
+        if isStr then
+            if fillWide then
+                if WideOperand_( c, a1, fv ) = false then return false
+            elseif StrDescriptorOf_( c, a1, fv ) = false then
+                return false
+            end if
+        else
+            fv = LowerExpr( c, a1 )
+            if fv.kind = cast( ubyte, MV_NONE ) then return false
+            fv = CoerceTy( c, fv, MT_I32, c.info->TypeOf_( a1 ))
+        end if
         dim as MirValue n0 = LowerExpr( c, a0 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
         n0 = CoerceTy( c, n0, MT_I64, c.info->TypeOf_( a0 ))
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
-
-        '' A STRING SECOND ARGUMENT is a descriptor and a NUMERIC one a character
-        '' code -- two entry points, not one with a converted argument.
-        dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)
-        if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
-        if fillWide then isStr = IsWideString_( c, c.info->TypeOf_( a1 ) )
+        sa.Push( cast( ulong, fv.kind ) ) : sa.Push( cast( ulong, fv.id ) )
         if isStr then
-            dim as MirValue dv
-            if fillWide then
-                if WideOperand_( c, a1, dv ) = false then return false
-            elseif StrDescriptorOf_( c, a1, dv ) = false then
-                return false
-            end if
-            sa.Push( cast( ulong, dv.kind ) ) : sa.Push( cast( ulong, dv.id ) )
             outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL2, RTL_STR_FILL2 ), sa )
         else
-            dim as MirValue cv = LowerExpr( c, a1 )
-            if cv.kind = cast( ubyte, MV_NONE ) then return false
-            cv = CoerceTy( c, cv, MT_I32, c.info->TypeOf_( a1 ))
-            sa.Push( cast( ulong, cv.kind ) ) : sa.Push( cast( ulong, cv.id ) )
             outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL1, RTL_STR_FILL1 ), sa )
         end if
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -389,20 +394,20 @@ function LowerRadixCall_ _
         end select
     end if
 
+    '' THE DIGIT COUNT FIRST: hex( G( 1 ), G( 2 ) ) is 21 to fbc, oct the same.
+    dim as MirValue n1
+    if a1 <> Tko.NODE_NONE then
+        n1 = LowerExpr( c, a1 )
+        if n1.kind = cast( ubyte, MV_NONE ) then return false
+        n1 = CoerceTy( c, n1, MT_I32, c.info->TypeOf_( a1 ))
+    end if
     dim as MirValue v0 = LowerExpr( c, a0 )
     if v0.kind = cast( ubyte, MV_NONE ) then return false
-    '' UNSIGNED OF THE SAME WIDTH. Coercing to the SAME MIR type with the unsigned flag
-    '' set is the reinterpretation fbc's '(uint32)L' is; widening it would change the
-    '' answer, which is the whole reason the width was worked out first.
     v0 = Coerce( c, v0, amt, true )
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
-
     if a1 <> Tko.NODE_NONE then
-        dim as MirValue n1 = LowerExpr( c, a1 )
-        if n1.kind = cast( ubyte, MV_NONE ) then return false
-        n1 = CoerceTy( c, n1, MT_I32, c.info->TypeOf_( a1 ))
         args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
     end if
 
@@ -842,16 +847,26 @@ function LowerStrNumCall_ _
     isU = isU orelse IsUStringType( c, c.info->TypeOf_( tE ) )
     if isU andalso isWide then return false
 
-    dim as MirValue sd, td
-    if isWide then
-        if WideOperand_( c, sE, sd ) = false then return false
-        if WideOperand_( c, tE, td ) = false then return false
-    else
-        if StrDescriptorOf_( c, sE, sd ) = false then return false
-        if StrDescriptorOf_( c, tE, td ) = false then return false
+    '' OPERANDS RIGHT TO LEFT IN SOURCE ORDER. Measured: instr( G( 1 ), GStr( 2 ),
+    '' GStr( 3 ) ) is 321 to fbc, instr( s, t ) and instr( s, any t ) 21, instrrev( s,
+    '' t, G( 3 ) ) 321. The start is the FIRST source operand of instr and the LAST of
+    '' instrrev, so it is lowered last for one and first for the other.
+    dim as MirValue sd, td, stv
+    dim as boolean startFirst = isRev andalso (startE <> Tko.NODE_NONE)
+    dim as boolean startLast = (isRev = false) andalso (startE <> Tko.NODE_NONE)
+    if startFirst then
+        stv = LowerExpr( c, startE )
+        if stv.kind = cast( ubyte, MV_NONE ) then return false
+        stv = CoerceTy( c, stv, MT_I64, c.info->TypeOf_( startE ))
     end if
-    dim as MirValue stv
-    if startE <> Tko.NODE_NONE then
+    if isWide then
+        if WideOperand_( c, tE, td ) = false then return false
+        if WideOperand_( c, sE, sd ) = false then return false
+    else
+        if StrDescriptorOf_( c, tE, td ) = false then return false
+        if StrDescriptorOf_( c, sE, sd ) = false then return false
+    end if
+    if startLast then
         stv = LowerExpr( c, startE )
         if stv.kind = cast( ubyte, MV_NONE ) then return false
         stv = CoerceTy( c, stv, MT_I64, c.info->TypeOf_( startE ))
