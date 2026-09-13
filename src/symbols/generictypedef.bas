@@ -112,6 +112,24 @@ sub BackpatchTypedefs( byref c as Ctx )
         BindDeclType( c, here, ip->name, _
             ArrayFromBoundsNode( c, t, ip->c, ip->b, here ), true )
     next
+
+    '' TYPE FIELDS, revisited the same way. Measured on fbc: 'type LP as LPTR' written
+    '' BEFORE 'type LPTR as longint', then 'x as LP' inside a TYPE, compiles and the
+    '' type is 16 bytes. tiko left the field untyped, the UDT had no layout, and a
+    '' function returning one stopped the backend with an ICE -- win/windef.bi's
+    '' WPARAM and LPARAM are exactly that order, under REBARBANDINFOW. A synthesised
+    '' 'base' field is not revisited: its lookup starts one scope out on purpose.
+    dim as Tko.InternId baseNm = c.names->Fold( c.names->GetString( "base" ) )
+    for i as long = 0 to c.pendField.Count - 1
+        dim as Tko.NodeId fid = cast( Tko.NodeId, c.pendField[i] )
+        dim as Tko.ScopeId fhere = cast( Tko.ScopeId, c.pendFieldScope[i] )
+        dim as Tko.StmtPayload ptr fsp = StmtOf( c, fid )
+        if fsp->name = baseNm then continue for
+        dim as Tko.TypeId ft = ResolveTypeRef( c, fsp->a, fhere )
+        if ft = Tko.TYPE_NONE then continue for
+        BindDeclType( c, fhere, fsp->name, _
+            ArrayFromBounds( c, ft, fsp->first, fsp->count, fhere ), false )
+    next
 end sub
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.

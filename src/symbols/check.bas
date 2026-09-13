@@ -1374,7 +1374,7 @@ function TypeOf_ _
                 end if
             end if
             if (t = Tko.TYPE_NONE) andalso (inner <> Tko.TYPE_NONE) then
-                t = c.types->Pointer_( inner )
+                t = AddrOfType_( c, ap->operand, inner )
             end if
         end if
     end select

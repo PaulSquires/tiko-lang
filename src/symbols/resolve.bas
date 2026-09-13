@@ -1248,6 +1248,7 @@ sub WalkStmt _
             end if
         end if
         dim as Tko.TypeId t = ResolveTypeRef( c, sp->a, fhere )
+        if t = Tko.TYPE_NONE then c.pendField.Push( cast( ulong, id ) ) : c.pendFieldScope.Push( cast( ulong, here ) )
         '' ...AND IF IT STILL FOUND ITSELF, from one scope further out. A namespace
         '' holds the type being declared as well, so stepping out ONE level is not
         '' enough for 'namespace ns1 : type UDT1 extends UDT1'. Stepping out

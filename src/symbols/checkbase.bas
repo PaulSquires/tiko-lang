@@ -53,6 +53,28 @@ private function UdtBaseCost_ _
     return CONV_NONE
 end function
 
+'' '@x' IS A POINTER TO x -- EXCEPT '@this', which is the receiver's own address. 'this'
+'' is typed as the pointer it is held as, so wrapping it again made '@this' inside a
+'' method a 'T ptr ptr': overload resolution found no candidate for 'g.DrawImage( @this,
+'' @rc )' (TKO0632, where fbc calls the GpRect one), 'cast( CGpImage ptr, @this )' was
+'' refused, and lowering -- which always passed the right address -- was never asked.
+'' AfxNova's CGpBitmap.MakeTransparent is the shape, and PsCalendar reached it.
+private function AddrOfType_ _
+    ( byref c as Ctx, byval operand as Tko.NodeId, byval inner as Tko.TypeId ) as Tko.TypeId
+
+    if c.ast->Kind( operand ) = Tko.N_IDENT then
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( operand ) )
+        if s <> 0 then
+            if s->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
+                if s->name = c.names->Fold( c.names->GetString( "this" ) ) then
+                    if c.types->Kind( c.types->Unqualify( inner ) ) = Tko.TK_POINTER then return inner
+                end if
+            end if
+        end if
+    end if
+    return c.types->Pointer_( inner )
+end function
+
 '' A METHOD NAMED WITHOUT PARENTHESES OVER AN OVERLOAD SET IS A CALL OF THE ONE OVERLOAD
 '' THAT NEEDS NO ARGUMENT -- none, or a default for every parameter -- not of the chain's
 '' head. Measured on fbc-modern, over 'GetX( byval p as GD ptr ) as long' declared before

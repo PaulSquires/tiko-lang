@@ -38,6 +38,12 @@ type Ctx
     '' PROCEDURES whose RESULT typeref would not resolve, for the same reason.
     as FB.Array( of ulong )  pendResultProc
     as FB.Array( of ulong )  pendResultProcScope
+    '' TYPE FIELDS, for the same reason: 'wParam as WPARAM' inside a TYPE met the same
+    '' unresolved typedef, and a UDT with an untyped field gets NO LAYOUT -- so
+    '' REBARBANDINFOW, returned by value from AfxNova's AfxGetRebarBandInfo, reached the
+    '' backend with no size at all and stopped it with an ICE.
+    as FB.Array( of ulong )  pendField
+    as FB.Array( of ulong )  pendFieldScope
     as FB.Array( of ulong )  pendingItem
     as FB.Array( of ulong )  pendingScope
     '' The generic type parameters currently in scope, innermost binding last: the
