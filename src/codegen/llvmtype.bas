@@ -56,4 +56,68 @@ function LlvmFloatConst _
     return "0x" & h
 end function
 
+function LlvmPairType( byval t0 as MirType, byval t1 as MirType ) as string
+    return "{ " & LlvmType( t0 ) & ", " & LlvmType( t1 ) & " }"
+end function
+
+'' MIR compares into an INTEGER; LLVM compares into an i1.
+function CmpPred _
+    ( byval op as MirOp, byref isFloat as boolean ) as string
+
+    isFloat = true
+    select case op
+    '' ORDERED, EXCEPT FOR '<>'. That is C's rule and fbc emits C: 'a == b' is false
+    '' when either operand is NaN, and 'a <> b' is TRUE. Spelling the second one 'one'
+    '' rather than 'une' would make 'x <> x' false for a NaN, which is the one case
+    '' the ordered/unordered distinction exists for.
+    case M_FCMP_EQ : return "oeq"
+    case M_FCMP_NE : return "une"
+    case M_FCMP_LT : return "olt"
+    case M_FCMP_GT : return "ogt"
+    case M_FCMP_LE : return "ole"
+    case M_FCMP_GE : return "oge"
+    end select
+    isFloat = false
+    select case op
+    case M_ICMP_EQ  : return "eq"
+    case M_ICMP_NE  : return "ne"
+    case M_ICMP_SLT : return "slt"
+    case M_ICMP_SGT : return "sgt"
+    case M_ICMP_SLE : return "sle"
+    case M_ICMP_SGE : return "sge"
+    case M_ICMP_ULT : return "ult"
+    case M_ICMP_UGT : return "ugt"
+    case M_ICMP_ULE : return "ule"
+    case M_ICMP_UGE : return "uge"
+    end select
+    return ""
+end function
+
+'' The LLVM intrinsic a math opcode becomes, without its type suffix.
+function MathIntrinsic( byval op as MirOp ) as string
+    select case op
+    case M_FLOOR     : return "llvm.floor"
+    case M_SQRT      : return "llvm.sqrt"
+    case M_SIN       : return "llvm.sin"
+    case M_COS       : return "llvm.cos"
+    case M_LOG       : return "llvm.log"
+    case M_EXP       : return "llvm.exp"
+    case M_FABS      : return "llvm.fabs"
+    case M_NEARBYINT : return "llvm.nearbyint"
+    end select
+    return ""
+end function
+
+'' NO INTRINSIC EXISTS for these four, so they are ordinary libm calls -- which is
+'' what fbc emits for them too, with no builtin prefix at all.
+function LibmName( byval op as MirOp ) as string
+    select case op
+    case M_TAN  : return "tan"
+    case M_ASIN : return "asin"
+    case M_ACOS : return "acos"
+    case M_ATAN : return "atan"
+    end select
+    return ""
+end function
+
 end namespace

@@ -54,7 +54,7 @@ func i16 _Z4SomeIaEa(i8 $0) {
   local agg $tmp0 size 2
   local i8 x
   local agg r size 2
-  local agg $abi3 size 2
+  local agg $abi3 size 8
   entry0:
     %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
@@ -105,11 +105,13 @@ func i64 _Z4SomeIiEi(i32 $0) {
     %14 = load @$abi3
     ret %14
 }
-func agg _Z4SomeIdEd(f64 $0) {
+func f64,i64 _Z4SomeIdEd(f64 $0) {
   local agg $tmp0 size 16
   local f64 x
   local agg r size 16
+  local agg $abi3 size 16
   entry0:
+    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr x
     store @x, $0
@@ -126,7 +128,11 @@ func agg _Z4SomeIdEd(f64 $0) {
     %11 = load @r
     store @$tmp0, %11
     %12 = load @$tmp0
-    ret %12
+    store @$abi3, %12
+    %14 = load @$abi3
+    %15 = field.addr @$abi3, 8
+    %16 = load %15
+    ret %14, %16
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -136,11 +142,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg ob size 2
   local agg ol size 8
   local agg od size 16
-  local agg $abi7 size 2
+  local agg $abi7 size 8
   local agg $abi8 size 8
+  local agg $abi9 size 16
   entry0:
     %35 = alloca ptr $abi7
     %37 = alloca ptr $abi8
+    %39 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -177,7 +185,8 @@ func i32 main(i32 $0, ptr $1) {
     %23 = load @dd
     %24 = load @dd
     %25 = call f64 _Z4PICKdd(%24, %23)
-    %26 = call agg _Z4SomeIdEd(%25)
+    %40 = call f64 _Z4SomeIdEd(%25) into @$abi9
+    %26 = load @$abi9
     store @od, %26
     %27 = field.addr @ob, 1
     %28 = load %27

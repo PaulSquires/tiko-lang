@@ -294,6 +294,7 @@ namespace Tko.Mir
         as MirInstVec insts
         as ubyte    term        '' MirTermKind
         as MirValue cond        '' MTERM_CONDBR / MTERM_RET value
+        as MirValue ret2        '' MTERM_RET's second register, where retTy2 says so
         as long     target      '' MTERM_BR, or the TRUE arm of MTERM_CONDBR
         as long     target2     '' the FALSE arm
         '' MTERM_INDIRECTBR only: every block 'goto *p' may reach, as block indices.
@@ -327,6 +328,10 @@ namespace Tko.Mir
         as long     retSize
         '' ...and the return's, same encoding.
         as ulong    retClass
+        '' THE SECOND RETURN REGISTER, MT_VOID for none. Only the ABI pass sets it: a
+        '' SysV aggregate of nine to sixteen bytes comes back in two, and LLVM spells
+        '' that '{ retTy, retTy2 }'. See codegen/abi.bas.
+        as ubyte    retTy2
         as long     paramCount
         as MirLocalVec locals
         as MirBlockVec blocks

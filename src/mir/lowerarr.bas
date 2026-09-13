@@ -531,7 +531,17 @@ function LowerAddr _
         '' chrono/core.bas writes 'DateTime.MaxValue.Day' eleven times.
         dim as boolean calledBase = false
         dim as Tko.Symbol ptr bsy = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+        '' ...UNLESS IT RETURNS A POINTER. 'Free_->m' and 'TS.Ptr_->m' reach THROUGH the
+        '' result, which the pointer arm below does; called as an aggregate here it was
+        '' 'call agg FREE_( )' into an eight-byte slot, clang refused the module, and the
+        '' PRINT around it had already vanished. fbc prints 5.
+        dim as boolean ptrResult = false
         if bsy <> 0 then
+            if bsy->type_ <> Tko.TYPE_NONE then
+                ptrResult = (c.types->Kind( c.types->Unqualify( bsy->type_ ) ) = Tko.TK_POINTER)
+            end if
+        end if
+        if (bsy <> 0) andalso (ptrResult = false) then
             if LowerBareProcCall_( c, mp->lhs, MT_AGG, base_ ) then
                 bt = c.types->Unqualify( bsy->type_ )
                 '' An SRET result IS the temporary's address already; anything

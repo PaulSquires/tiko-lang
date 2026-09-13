@@ -813,8 +813,18 @@ function PropertyAt_ _
     dim as Tko.BinaryPayload ptr mp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, member )].data )]
     dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
+    '' A PAREN-LESS PROCEDURE AS THE BASE IS A CALL: 'TS.Big.Ticks' over 'static
+    '' function Big( ) as TS' reads the getter off Big's RESULT -- fbc prints 77, and
+    '' LowerAddr handed the getter Big's machine code.
+    dim as boolean procBase = false
+    if (c.ast->Kind( mp->lhs ) = Tko.N_IDENT) orelse (c.ast->Kind( mp->lhs ) = Tko.N_MEMBER) then
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+        if ls <> 0 then procBase = (ls->kind = cast( ubyte, Tko.SYM_PROC ))
+    end if
     if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
         self_ = LowerExpr( c, mp->lhs )
+    elseif procBase andalso (bt <> Tko.TYPE_NONE) then
+        self_ = ByrefTemp_( c, mp->lhs, bt )
     else
         self_ = LowerAddr( c, mp->lhs )
     end if
@@ -1031,7 +1041,18 @@ private function OperandValue_ _
     end if
 
     if byref_ then
-        v = LowerAddr( c, e )
+        '' A PAREN-LESS PROCEDURE IS A CALL, not an address: 'LocalDate.Invalid =
+        '' LocalDate.Invalid' compared the procedure's CODE with itself and said true.
+        dim as Tko.Symbol ptr es = 0
+        if (c.ast->Kind( e ) = Tko.N_IDENT) orelse (c.ast->Kind( e ) = Tko.N_MEMBER) then
+            es = c.syms->SymbolAt( c.info->RefOf( e ) )
+        end if
+        dim as MirValue pv
+        if es <> 0 then
+            if es->kind = cast( ubyte, Tko.SYM_PROC ) then pv = ByrefTemp_( c, e, pt )
+        end if
+        v = pv
+        if v.kind = cast( ubyte, MV_NONE ) then v = LowerAddr( c, e )
         if v.kind = cast( ubyte, MV_NONE ) then
             '' An operand with no address -- another operator's result -- gets a
             '' temporary, the same answer a byref call argument gets.

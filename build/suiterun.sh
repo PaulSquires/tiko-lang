@@ -22,6 +22,8 @@ set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 FBC=${FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+# TKO_SUITERUN_FLAGS: extra tiko flags for every compile -- "-O2" -- for the Phase 11 runs
+# at each optimisation level. Unset is the ordinary run.
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 AR=${AR:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/bin/win64/ar.exe}
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
@@ -42,7 +44,7 @@ fi
 if [ ! -f "$WK/tk/fbcunit.lib" ] ; then
     echo "suiterun: building fbcunit with tiko"
     for f in "$CU"/src/*.bas ; do
-        "$TKO" -c "$f" -i "$CU/inc" -i "$CU/src" -o "$WK/o/$(basename "$f" .bas).tko.o" || exit 1
+        "$TKO" ${TKO_SUITERUN_FLAGS:-} -c "$f" -i "$CU/inc" -i "$CU/src" -o "$WK/o/$(basename "$f" .bas).tko.o" || exit 1
     done
     "$AR" rcs "$WK/tk/fbcunit.lib" "$WK/o"/*.tko.o || exit 1
 fi
@@ -54,7 +56,7 @@ for f in $(grep -rl "END_SUITE" tests/vendor/fbc-tests --include='*.bas' | sort)
     fok=0; tok=0
     "$FBC"  "$DRV" "$f" -i "$CU/inc" -p "$WK/fb" -x "$WK/f_$n.exe" >/dev/null 2>&1 \
         && [ -f "$WK/f_$n.exe" ] && fok=1
-    "$TKO"  "$DRV" "$f" -i "$CU/inc" -p "$WK/tk" -o "$WK/t_$n.exe" >/dev/null 2>&1 \
+    "$TKO" ${TKO_SUITERUN_FLAGS:-} "$DRV" "$f" -i "$CU/inc" -p "$WK/tk" -o "$WK/t_$n.exe" >/dev/null 2>&1 \
         && [ -f "$WK/t_$n.exe" ] && tok=1
     if [ $fok = 1 ] && [ $tok = 1 ] ; then
         nrun=$((nrun+1))

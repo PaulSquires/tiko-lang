@@ -128,6 +128,10 @@ private function InstStr _
             s += ValStr( f, av, names, @m )
         next
         s += ")"
+        '' A PAIR RETURN's destination, which the ABI pass put in 'b'.
+        if (op <> M_CALL_IND) andalso (ins.b.kind = cast( ubyte, MV_LOCAL )) then
+            s += " into " & ValStr( f, ins.b, names, @m )
+        end if
 
     case else
         dim as long n = OpArity( op )
@@ -296,6 +300,9 @@ function DumpModule _
         if (cast( MirType, f->retTy ) = MT_AGG) andalso (f->retSize > 0) then
             rty += ":" & str( f->retSize ) & EbName( f->retClass )
         end if
+        if cast( MirType, f->retTy2 ) <> MT_VOID then
+            rty += "," & TypeName( cast( MirType, f->retTy2 ) )
+        end if
         outp += rty & " " & names.Spelling( f->name ) & "("
         '' THE PARAMETER'S TYPE, beside its number. The dump used to print '$0, $1'
         '' and nothing else, which is all there was to print; the signature is now
@@ -357,7 +364,11 @@ function DumpModule _
                 if b->cond.kind = cast( ubyte, MV_NONE ) then
                     outp += "    ret" & chr( 10 )
                 else
-                    outp += "    ret " & ValStr( *f, b->cond, names, @m ) & chr( 10 )
+                    outp += "    ret " & ValStr( *f, b->cond, names, @m )
+                    if b->ret2.kind <> cast( ubyte, MV_NONE ) then
+                        outp += ", " & ValStr( *f, b->ret2, names, @m )
+                    end if
+                    outp += chr( 10 )
                 end if
             case MTERM_BR
                 outp += "    br " & BlockName( *f, b->target, names ) & chr( 10 )

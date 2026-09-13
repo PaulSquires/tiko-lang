@@ -287,65 +287,7 @@ private sub Line( byref e as EmitCtx, byref t as string )
     e.outp += "  " & t & chr( 10 )
 end sub
 
-'' MIR compares into an INTEGER; LLVM compares into an i1.
-private function CmpPred _
-    ( byval op as MirOp, byref isFloat as boolean ) as string
-
-    isFloat = true
-    select case op
-    '' ORDERED, EXCEPT FOR '<>'. That is C's rule and fbc emits C: 'a == b' is false
-    '' when either operand is NaN, and 'a <> b' is TRUE. Spelling the second one 'one'
-    '' rather than 'une' would make 'x <> x' false for a NaN, which is the one case
-    '' the ordered/unordered distinction exists for.
-    case M_FCMP_EQ : return "oeq"
-    case M_FCMP_NE : return "une"
-    case M_FCMP_LT : return "olt"
-    case M_FCMP_GT : return "ogt"
-    case M_FCMP_LE : return "ole"
-    case M_FCMP_GE : return "oge"
-    end select
-    isFloat = false
-    select case op
-    case M_ICMP_EQ  : return "eq"
-    case M_ICMP_NE  : return "ne"
-    case M_ICMP_SLT : return "slt"
-    case M_ICMP_SGT : return "sgt"
-    case M_ICMP_SLE : return "sle"
-    case M_ICMP_SGE : return "sge"
-    case M_ICMP_ULT : return "ult"
-    case M_ICMP_UGT : return "ugt"
-    case M_ICMP_ULE : return "ule"
-    case M_ICMP_UGE : return "uge"
-    end select
-    return ""
-end function
-
-'' The LLVM intrinsic a math opcode becomes, without its type suffix.
-private function MathIntrinsic( byval op as MirOp ) as string
-    select case op
-    case M_FLOOR     : return "llvm.floor"
-    case M_SQRT      : return "llvm.sqrt"
-    case M_SIN       : return "llvm.sin"
-    case M_COS       : return "llvm.cos"
-    case M_LOG       : return "llvm.log"
-    case M_EXP       : return "llvm.exp"
-    case M_FABS      : return "llvm.fabs"
-    case M_NEARBYINT : return "llvm.nearbyint"
-    end select
-    return ""
-end function
-
-'' NO INTRINSIC EXISTS for these four, so they are ordinary libm calls -- which is
-'' what fbc emits for them too, with no builtin prefix at all.
-private function LibmName( byval op as MirOp ) as string
-    select case op
-    case M_TAN  : return "tan"
-    case M_ASIN : return "asin"
-    case M_ACOS : return "acos"
-    case M_ATAN : return "atan"
-    end select
-    return ""
-end function
+'' CmpPred, MathIntrinsic and LibmName -- opcode spellings -- live in llvmtype.bas.
 
 '' The argument list of a call, read out of the module's argument pool. The pool holds
 '' (kind, id) pairs and NO types, so each argument's type comes from the CALLEE's
@@ -757,6 +699,25 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
                 sig += "...)"
             end if
         end if
+        '' A PAIR RETURN: the ABI pass left the destination slot in 'b', and both
+        '' registers are written through it -- the first at 0, the second at 8.
+        if (cf <> 0) andalso (op <> M_CALL_IND) andalso (ins.b.kind = cast( ubyte, MV_LOCAL )) then
+            if cast( MirType, cf->retTy2 ) <> MT_VOID then
+                dim as MirType p0 = cast( MirType, cf->retTy )
+                dim as MirType p1 = cast( MirType, cf->retTy2 )
+                dim as string pty = LlvmPairType( p0, p1 )
+                dim as string dst = ValStr( e, ins.b )
+                Line( e, res & ".pair = call " & pty & " " & target_ & "(" & args & ")" )
+                Line( e, res & " = extractvalue " & pty & " " & res & ".pair, 0" )
+                Line( e, res & ".1 = extractvalue " & pty & " " & res & ".pair, 1" )
+                Line( e, "store " & LlvmType( p0 ) & " " & res & ", ptr " & dst & _
+                         ", align " & str( AlignOf( e, p0, 0 ) ) )
+                Line( e, res & ".p1 = getelementptr i8, ptr " & dst & ", i64 8" )
+                Line( e, "store " & LlvmType( p1 ) & " " & res & ".1, ptr " & res & _
+                         ".p1, align " & str( AlignOf( e, p1, 0 ) ) )
+                return
+            end if
+        end if
         if rt = MT_VOID then
             Line( e, "call " & sig & " " & target_ & "(" & args & ")" )
         else
@@ -798,6 +759,14 @@ private sub EmitBlock _
     case MTERM_RET
         if b.cond.kind = cast( ubyte, MV_NONE ) then
             Line( e, "ret void" )
+        elseif (e.f <> 0) andalso (b.ret2.kind <> cast( ubyte, MV_NONE )) then
+            '' TWO REGISTERS, packed into the literal struct the signature declares.
+            dim as string pty = LlvmPairType( cast( MirType, e.f->retTy ), _
+                                              cast( MirType, e.f->retTy2 ) )
+            dim as string rv = "%rv" & str( bi )
+            Line( e, rv & ".a = insertvalue " & pty & " undef, " & Operand( e, b.cond ) & ", 0" )
+            Line( e, rv & ".b = insertvalue " & pty & " " & rv & ".a, " & Operand( e, b.ret2 ) & ", 1" )
+            Line( e, "ret " & pty & " " & rv & ".b" )
         else
             Line( e, "ret " & Operand( e, b.cond ) )
         end if
@@ -945,6 +914,10 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
             return
         end if
     next
+    '' A SysV RETURN IN TWO REGISTERS -- see RetDirect_ in abi.bas.
+    if cast( MirType, f->retTy2 ) <> MT_VOID then
+        ret = LlvmPairType( cast( MirType, f->retTy ), cast( MirType, f->retTy2 ) )
+    end if
 
     if f->isDefinition = false then
         e.outp += "declare " & ret & " " & GlobalName( e, f->name ) & _

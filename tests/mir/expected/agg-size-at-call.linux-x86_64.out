@@ -48,11 +48,13 @@ func void _ZN8REALSINK4TAKEE3R16(ptr $0, i64 $1, i64 $2) {
     store %4, %9
     ret
 }
-func agg _ZN8REALSINK4MAKEEv(ptr $0) {
+func i64,i64 _ZN8REALSINK4MAKEEv(ptr $0) {
   local agg $tmp0 size 16
   local ptr this
   local agg r size 16
+  local agg $abi3 size 16
   entry0:
+    %11 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr this
     store @this, $0
@@ -67,7 +69,11 @@ func agg _ZN8REALSINK4MAKEEv(ptr $0) {
     %9 = load @r
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store @$abi3, %10
+    %12 = load @$abi3
+    %13 = field.addr @$abi3, 8
+    %14 = load %13
+    ret %12, %14
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -144,7 +150,7 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN8REALSINKC1Ev(ptr $0)
 declare void _ZN4SINK4TAKEE3R16(ptr $0, i64 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-declare agg _ZN4SINK4MAKEEv(ptr $0)
+declare i64,i64 _ZN4SINK4MAKEEv(ptr $0)
 declare void fb_End(i32 $0)
 func void _ZN8REALSINKC1Ev(ptr $0) {
   entry0:

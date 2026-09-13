@@ -1,0 +1,296 @@
+global str $str0 "v"
+global str $str1 ""
+func i8 _ZN8PAIRITER7ISVALIDEv(ptr $0) {
+  local i8 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i8 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 3
+    %8 = sext %6
+    %9 = icmp.slt %8, %7
+    %10 = neg %9
+    %11 = const i64 0
+    %12 = icmp.ne %10, %11
+    ret %12
+}
+func ptr _ZN8PAIRITER5VALUEEv(ptr $0, ptr $1) {
+  local ptr $tmp0
+  local ptr this
+  local agg $tmp2 size 32
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = alloca ptr this
+    store @this, $1
+    %3 = alloca ptr $tmp2
+    call void _ZN9$TUP:6:15C1Ev(@$tmp2)
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = field.addr @$tmp2, 0
+    store %7, %6
+    %8 = field.addr @$tmp2, 8
+    %9 = call.rtl ptr fb_StrAssign(%8, -1, @@$str0, 2, 0)
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = call.rtl ptr fb_IntToStr(%12)
+    %14 = call.rtl ptr fb_StrConcatAssign(%8, -1, %13, -1, 0)
+    %15 = load @$tmp0
+    call void _ZN9$TUP:6:15C1ERKS_(%15, @$tmp2)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp2)
+    %16 = load @$tmp0
+    ret %16
+}
+declare void _ZN9$TUP:6:15C1Ev(ptr $0)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_IntToStr(i32 $0)
+declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1)
+declare void _ZN9$TUP:6:15D1Ev(ptr $0)
+func void _ZN8PAIRITER8MOVENEXTEv(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    %5 = const i64 1
+    %6 = trunc %5
+    %7 = add %4, %6
+    store %3, %7
+    ret
+}
+func i32 _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
+  local agg $tmp0 size 4
+  local ptr this
+  local agg it size 4
+  local agg $abi3 size 8
+  entry0:
+    %10 = alloca ptr $abi3
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr this
+    store @this, $0
+    %3 = alloca ptr it
+    %4 = call.rtl ptr memset(@it, 0, 4)
+    %5 = field.addr @it, 0
+    %6 = const i64 0
+    %7 = trunc %6
+    store %5, %7
+    %8 = load @it
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void S1() {
+  local agg c size 4
+  local i32 keys
+  local agg vals size 24
+  local agg $fe1 size 32
+  local agg $tmp4 size 4
+  local agg $tmp5 size 32
+  local i32 k
+  local agg v size 24
+  local i32 seen
+  local agg $fe2 size 32
+  local agg $tmp10 size 4
+  local agg $tmp11 size 32
+  local i32 k2
+  local agg v2 size 24
+  local agg $abi14 size 8
+  local agg $abi15 size 8
+  entry0:
+    %55 = alloca ptr $abi14
+    %57 = alloca ptr $abi15
+    %1 = alloca ptr c
+    %2 = call.rtl ptr memset(@c, 0, 4)
+    %3 = alloca ptr keys
+    %4 = const i64 0
+    %5 = trunc %4
+    store @keys, %5
+    %6 = alloca ptr vals
+    %7 = call.rtl ptr fb_StrInit(@vals, -1, @@$str1, 1, 0)
+    %8 = alloca ptr $fe1
+    %9 = alloca ptr $tmp4
+    %56 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$abi14, %56
+    %10 = load @$abi14
+    store @$tmp4, %10
+    %11 = alloca ptr $tmp5
+    %14 = alloca ptr k
+    %17 = alloca ptr v
+    %25 = alloca ptr seen
+    %28 = alloca ptr $fe2
+    %29 = alloca ptr $tmp10
+    %31 = alloca ptr $tmp11
+    %34 = alloca ptr k2
+    %37 = alloca ptr v2
+    br each.test3
+  each.body1:
+    %12 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp5, @$tmp4)
+    %13 = load @$tmp5
+    call void _ZN9$TUP:6:15C1ERKS_(@$fe1, @$tmp5)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp5)
+    %15 = field.addr @$fe1, 0
+    %16 = load %15
+    store @k, %16
+    %18 = field.addr @$fe1, 8
+    %19 = call.rtl ptr fb_StrInit(@v, -1, %18, -1, 0)
+    %20 = load @keys
+    %21 = load @k
+    %22 = add %20, %21
+    store @keys, %22
+    %23 = call.rtl ptr fb_StrConcatAssign(@vals, -1, @v, -1, 0)
+    call.rtl void fb_StrDelete(@v)
+    call void _ZN9$TUP:6:15D1Ev(@$fe1)
+    br each.cont2
+  each.cont2:
+    call void _ZN8PAIRITER8MOVENEXTEv(@$tmp4)
+    br each.test3
+  each.test3:
+    %24 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp4)
+    condbr %24, each.body1, each.exit4
+  each.exit4:
+    %26 = const i64 0
+    %27 = trunc %26
+    store @seen, %27
+    %58 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$abi15, %58
+    %30 = load @$abi15
+    store @$tmp10, %30
+    br each.test7
+  each.body5:
+    %32 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp11, @$tmp10)
+    %33 = load @$tmp11
+    call void _ZN9$TUP:6:15C1ERKS_(@$fe2, @$tmp11)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp11)
+    %35 = field.addr @$fe2, 0
+    %36 = load %35
+    store @k2, %36
+    %38 = field.addr @$fe2, 8
+    %39 = call.rtl ptr fb_StrInit(@v2, -1, %38, -1, 0)
+    %40 = load @k2
+    %41 = const i64 0
+    %42 = sext %40
+    %43 = icmp.eq %42, %41
+    condbr %43, if.then10, if.else11
+  each.cont6:
+    call void _ZN8PAIRITER8MOVENEXTEv(@$tmp10)
+    br each.test7
+  each.test7:
+    %52 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp10)
+    condbr %52, each.body5, each.exit8
+  each.exit8:
+    %53 = load @keys
+    call.rtl void fb_PrintInt(0, %53, 2)
+    call.rtl void fb_PrintString(0, @vals, 2)
+    %54 = load @seen
+    call.rtl void fb_PrintInt(0, %54, 1)
+    call.rtl void fb_StrDelete(@vals)
+    ret
+  if.join9:
+    %44 = load @k2
+    %45 = const i64 2
+    %46 = sext %44
+    %47 = icmp.eq %46, %45
+    condbr %47, if.then13, if.else14
+  if.then10:
+    call.rtl void fb_StrDelete(@v2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
+    br each.cont6
+  if.else11:
+    br if.join9
+  if.join12:
+    %48 = load @seen
+    %49 = const i64 1
+    %50 = trunc %49
+    %51 = add %48, %50
+    store @seen, %51
+    call.rtl void fb_StrDelete(@v2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
+    br each.cont6
+  if.then13:
+    call.rtl void fb_StrDelete(@v2)
+    call void _ZN9$TUP:6:15D1Ev(@$fe2)
+    br each.exit8
+  if.else14:
+    br if.join12
+}
+declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void S1()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN9$TUP:6:15C1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    %4 = field.addr %3, 0
+    store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
+    ret
+}
+func void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 4)
+    %3 = field.addr $0, 8
+    %4 = field.addr %3, 0
+    store %4, 0
+    %5 = field.addr %3, 8
+    store %5, 0
+    %6 = field.addr %3, 16
+    store %6, 0
+    call void _ZN9$TUP:6:15aSERKS_($0, $1)
+    ret
+}
+declare void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1)
+func void _ZN9$TUP:6:15D1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 8
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
+func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = load %1
+    store %2, %3
+    %4 = field.addr $1, 8
+    %5 = field.addr $0, 8
+    %6 = call.rtl ptr fb_StrAssign(%5, -1, %4, -1, 0)
+    ret
+}
+verify: ok
+lowered: 10 functions, 24 blocks, 174 insts, 0 statements not lowered, 0 scope imbalance

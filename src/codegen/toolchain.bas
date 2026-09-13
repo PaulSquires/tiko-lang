@@ -31,7 +31,14 @@ function FindTools _
             ''    one, and a backend that silently used a DIFFERENT clang than the
             ''    datalayout was measured against is the failure this whole file exists
             ''    to avoid. An explicit path or the environment says which.
-            t.clangExe = "C:\Program Files\LLVM\bin\clang.exe"
+            ''    On Linux the conventional install is the distribution's, which is
+            ''    where Ubuntu's clang-18 package puts it; the Windows path is what a
+            ''    Linux build used to look for, and every link failed.
+            #ifdef __FB_WIN32__
+                t.clangExe = "C:\Program Files\LLVM\bin\clang.exe"
+            #else
+                t.clangExe = "/usr/bin/clang"
+            #endif
         end if
     end if
     '' llvm-ar FROM CLANG'S OWN DIRECTORY. Derived rather than searched: the two
@@ -172,6 +179,17 @@ function LinkExe _
     '' instead -- we ship an import library for it -- is a decision about which CRT
     '' the runtime uses, not a flag.
     dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
+    '' ...WHERE THERE IS ONE. Ubuntu's clang package does not carry lld, and on such a
+    '' host every link died with clang's 'invalid linker name in argument
+    '' -fuse-ld=lld'. Beside clang or on the system path it is used; otherwise clang
+    '' links with the platform's own ld. ELF records no link time either way.
+    #ifndef __FB_WIN32__
+        dim as long sl = instrrev( t.clangExe, "/" )
+        if (FileExists_( left( t.clangExe, sl ) & "ld.lld" ) = false) andalso _
+           (FileExists_( "/usr/bin/ld.lld" ) = false) then
+            cmd = "-target " & target.triple
+        end if
+    #endif
 
     '' A REPRODUCIBLE LINK. lld writes the wall clock into the COFF header's TimeDateStamp,
     '' and that was the ONLY difference left between stage3 and stage4 of the bootstrap:

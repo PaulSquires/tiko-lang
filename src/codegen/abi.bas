@@ -16,31 +16,6 @@ function DirectIntType( byval sizeBytes as long ) as MirType
     return MT_VOID
 end function
 
-'' A SysV RETURN THIS PASS CANNOT MODEL YET.
-''
-'' SysV returns an aggregate of sixteen bytes or fewer in REGISTERS, one per eightbyte,
-'' and clang spells that as a literal struct -- '{ i64, i64 }' for two INTEGER
-'' eightbytes. MIR has no pair type and the emitter has no coerced return type, so the
-'' only sizes this pass can actually produce are the ones that fit a SINGLE integer.
-'' Everything else was silently taken down the direct path anyway, where
-'' DirectIntType( 16 ) is MT_VOID -- and the result was '%34 = call void MK(@x)'
-'' followed by a store of %34: a call with no value, and a use of it.
-''
-'' Measured on tests/mir/src/udt-return.bas and on a plain two-field UDT at
-'' -target linux-x86_64: eight verifier failures, "opcode with no result carries a
-'' result temp" and "uses %30 before it is defined". Declining leaves the return
-'' exactly as it was and the emitter says so, which is the rule for a half-modelled
-'' ABI. THE EIGHTBYTE MACHINERY FOR PARAMETERS IS COMPLETE and is not touched here;
-'' it is only the RETURN that has no representation.
-private function SysvReturnUnmodelled_ _
-    ( byval sizeBytes as long, byref target as TargetDescription ) as boolean
-
-    if target.abi = ABI_WIN64 then return false
-    if sizeBytes <= 0 then return false
-    if sizeBytes > 16 then return false
-    return (DirectIntType( sizeBytes ) = MT_VOID)
-end function
-
 function ClassifyAggregate _
     ( byval sizeBytes as long, byref target as TargetDescription ) as AbiClassKind
 
@@ -80,6 +55,56 @@ function SysvEightbyteType _
     case 3, 4 : return MT_I32
     end select
     return MT_I64
+end function
+
+'' A RETURN IN REGISTERS, AND WHICH ONES.
+''
+'' SysV returns an aggregate of sixteen bytes or fewer in registers, one per eightbyte,
+'' and clang spells that as a literal struct -- '{ i64, i32 }' for a twelve-byte struct
+'' of integers, '{ double, double }' for two doubles in XMM0 and XMM1. MirFunction
+'' carries the second register in retTy2 and the emitter writes the pair.
+''
+'' ONLY THE SIZES ONE INTEGER FITS WERE MODELLED BEFORE, and every other one was
+'' declined -- first measured as eight verifier failures on tests/mir/src/udt-return.bas,
+'' then as 83 of the 85 modules of tiko-lang's own Linux bootstrap, every one of them
+'' 'Array( of T ).GetIterator'. And a struct holding one double went back in RAX where
+'' SysV says XMM0.
+''
+'' True, with the register types, when the return is direct. MEMORY, and anything over
+'' sixteen bytes, is not: those take the hidden pointer. An aggregate with NO recorded
+'' class keeps the size-only rule it always had -- a guessed class is a silent ABI
+'' mismatch.
+private function RetDirect_ _
+    ( byval sz as long, byval cls as ulong, byref target as TargetDescription, _
+      byref t0 as MirType, byref t1 as MirType ) as boolean
+
+    t1 = MT_VOID
+    t0 = DirectIntType( sz )
+    if target.abi = ABI_WIN64 then return (t0 <> MT_VOID)
+    if (sz > 16) orelse (cls = TKO_EB_MEMORY) then return false
+    if cls = 0 then return (t0 <> MT_VOID)
+    dim as long n0 = sz
+    if n0 > 8 then n0 = 8
+    t0 = SysvEightbyteType( TKO_EB0( cls ), n0 )
+    if sz > 8 then t1 = SysvEightbyteType( TKO_EB1( cls ), sz - 8 )
+    return true
+end function
+
+'' ...and the one SysV shape left with no answer: no class recorded, and a size no
+'' single integer fits. Declined, so the emitter says so.
+private function SysvReturnUnmodelled_ _
+    ( byval sz as long, byval cls as ulong, byref target as TargetDescription ) as boolean
+
+    if target.abi = ABI_WIN64 then return false
+    if (sz <= 0) orelse (sz > 16) then return false
+    return (cls = 0) andalso (DirectIntType( sz ) = MT_VOID)
+end function
+
+'' A SysV register slot is WHOLE EIGHTBYTES: a register is loaded out of it and stored
+'' into it at full width, and a thirteen-byte slot would take an i64 at offset 8.
+private function RegSlotSize_( byval sz as long, byref target as TargetDescription ) as long
+    if target.abi = ABI_WIN64 then return sz
+    return (sz + 7) and (not 7)
 end function
 
 '' ---------------------------------------------------------------- helpers
@@ -335,31 +360,39 @@ private sub RewriteCallReturn _
 
     '' See SysvReturnUnmodelled_. The SIGNATURE declines the same size, so the two
     '' halves stay in step.
-    if SysvReturnUnmodelled_( sz, *r.tgt ) then
+    if SysvReturnUnmodelled_( sz, callee->retClass, *r.tgt ) then
         r.st->declined += 1
         r.outp.Push( ins )
         return
     end if
 
-    dim as long slot = NewAggSlot( r, sz, names )
+    dim as MirType it, it2
+    dim as boolean direct = RetDirect_( sz, callee->retClass, *r.tgt, it, it2 )
+    dim as long slot = NewAggSlot( r, iif( direct, RegSlotSize_( sz, *r.tgt ), sz ), names )
     dim as ulong oldResult = ins.result
 
-    if ClassifyAggregate( sz, *r.tgt ) = ABIC_DIRECT_INT then
-        dim as MirType it = DirectIntType( sz )
+    if direct then
         dim as MirInst c = ins
         c.ty = cast( ubyte, it )
         c.result = r.f->nextTemp
         r.f->nextTemp += 1
-        r.outp.Push( c )
-        '' The integer goes into the slot, and the ORIGINAL result temp becomes a load
-        '' of the aggregate back out of it -- so whatever consumed the aggregate before
-        '' consumes the same thing now, at the same temp number.
-        dim as MirInst s
-        s.op = cast( ushort, M_STORE )
-        s.ty = cast( ubyte, MT_VOID )
-        s.a = LocalVal( slot )
-        s.b = TempVal( c.result, it )
-        r.outp.Push( s )
+        if it2 <> MT_VOID then
+            '' TWO REGISTERS: the emitter writes both through 'b', which a direct call
+            '' has no other use for.
+            c.b = LocalVal( slot )
+            r.outp.Push( c )
+        else
+            r.outp.Push( c )
+            '' The integer goes into the slot, and the ORIGINAL result temp becomes a
+            '' load of the aggregate back out of it -- so whatever consumed the
+            '' aggregate before consumes the same thing now, at the same temp number.
+            dim as MirInst s
+            s.op = cast( ushort, M_STORE )
+            s.ty = cast( ubyte, MT_VOID )
+            s.a = LocalVal( slot )
+            s.b = TempVal( c.result, it )
+            r.outp.Push( s )
+        end if
         '' A DISCARDED RESULT HAS NO TEMP TO LOAD INTO. 'Conjugate( z )' as a
         '' statement is a call whose MIR type is VOID; reading the aggregate back out
         '' would name result temp zero, which belongs to something else.
@@ -515,9 +548,13 @@ private sub RewriteReturn _
         return
     end if
 
-    dim as long slot = NewAggSlot( r, sz, names )
+    '' Register by register, against the signature already rewritten.
+    dim as long slot = NewAggSlot( r, RegSlotSize_( sz, *r.tgt ), names )
     StoreAggInto( r, slot, b.cond, sz )
-    b.cond = LoadAs( r, LocalVal( slot ), DirectIntType( sz ) )
+    b.cond = LoadAs( r, LocalVal( slot ), cast( MirType, r.f->retTy ) )
+    if cast( MirType, r.f->retTy2 ) <> MT_VOID then
+        b.ret2 = LoadAs( r, FieldAddr( r, LocalVal( slot ), 8 ), cast( MirType, r.f->retTy2 ) )
+    end if
 end sub
 
 '' Rewrite a function's SIGNATURE. Done for every function, defined here or not: a
@@ -617,7 +654,7 @@ private sub RewriteSignature _
         st.declined += 1
         return
     end if
-    if SysvReturnUnmodelled_( f->retSize, target ) then
+    if SysvReturnUnmodelled_( f->retSize, f->retClass, target ) then
         '' ZEROED, because that is what "declined" means everywhere else in this pass:
         '' WalkBody skips the return rewrite on it and the emitter reports the
         '' untouched aggregate. Leaving the size in place rewrote the body against a
@@ -627,8 +664,10 @@ private sub RewriteSignature _
         st.declined += 1
         return
     end if
-    if ClassifyAggregate( f->retSize, target ) = ABIC_DIRECT_INT then
-        f->retTy = cast( ubyte, DirectIntType( f->retSize ) )
+    dim as MirType rt0, rt1
+    if RetDirect_( f->retSize, f->retClass, target, rt0, rt1 ) then
+        f->retTy = cast( ubyte, rt0 )
+        f->retTy2 = cast( ubyte, rt1 )
         return
     end if
     '' INDIRECT: the hidden destination pointer becomes parameter ZERO and shifts every

@@ -1,7 +1,9 @@
-func agg F() {
+func i64,i32 F() {
   local agg $tmp0 size 12
   local agg p size 12
+  local agg $abi2 size 16
   entry0:
+    %15 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = alloca ptr p
     %3 = call.rtl ptr memset(@p, 0, 12)
@@ -20,7 +22,11 @@ func agg F() {
     %13 = load @p
     store @$tmp0, %13
     %14 = load @$tmp0
-    ret %14
+    store @$abi2, %14
+    %16 = load @$abi2
+    %17 = field.addr @$abi2, 8
+    %18 = load %17
+    ret %16, %18
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -29,7 +35,9 @@ func i32 main(i32 $0, ptr $1) {
   local i32 b
   local agg $tmp3 size 12
   local ptr $tmp4
+  local agg $abi5 size 16
   entry0:
+    %21 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -39,7 +47,8 @@ func i32 main(i32 $0, ptr $1) {
     %5 = call.rtl ptr memset(@a, 0, 4)
     %6 = alloca ptr b
     %7 = call.rtl ptr memset(@b, 0, 4)
-    %8 = call agg F()
+    %22 = call i64 F() into @$abi5
+    %8 = load @$abi5
     %9 = alloca ptr $tmp3
     store @$tmp3, %8
     %10 = alloca ptr $tmp4

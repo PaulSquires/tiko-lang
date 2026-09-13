@@ -727,6 +727,16 @@ function ReceiverOf _
             return v
         end if
     end if
+    '' A PAREN-LESS PROCEDURE AS THE BASE IS A CALL, and its result is the receiver.
+    '' 'TS.Big.Ticks' over 'static function Big( ) as TS': fbc prints 77, and LowerAddr
+    '' handed the getter the procedure's CODE -- 5516144493562382419. A field read off
+    '' the same base was already right; only a method or property call was not.
+    if (c.ast->Kind( mb->lhs ) = Tko.N_IDENT) orelse (c.ast->Kind( mb->lhs ) = Tko.N_MEMBER) then
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
+        if (ls <> 0) andalso (bt <> Tko.TYPE_NONE) then
+            if ls->kind = cast( ubyte, Tko.SYM_PROC ) then return ByrefTemp_( c, mb->lhs, bt )
+        end if
+    end if
     return LowerAddr( c, mb->lhs )
 end function
 

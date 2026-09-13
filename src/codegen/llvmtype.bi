@@ -42,6 +42,19 @@ namespace Tko.Codegen
     declare function LlvmFloatConst _
         ( byval v as double, byval isSingle as boolean ) as string
 
+    '' A SysV aggregate returned in TWO registers, spelled the way clang spells it:
+    '' '{ i64, i32 }' for a twelve-byte struct of integers. See abi.bas.
+    declare function LlvmPairType _
+        ( byval t0 as Tko.Mir.MirType, byval t1 as Tko.Mir.MirType ) as string
+
+    '' Opcode spellings: a comparison's predicate (isFloat says fcmp or icmp), a math
+    '' opcode's intrinsic without its type suffix, and the libm name of the four that
+    '' have no intrinsic.
+    declare function CmpPred _
+        ( byval op as Tko.Mir.MirOp, byref isFloat as boolean ) as string
+    declare function MathIntrinsic( byval op as Tko.Mir.MirOp ) as string
+    declare function LibmName( byval op as Tko.Mir.MirOp ) as string
+
 end namespace
 
 #endif

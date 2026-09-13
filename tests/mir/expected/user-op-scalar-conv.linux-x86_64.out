@@ -39,7 +39,7 @@ func ptr _ZN3FOOcv8FBSTRINGEv(ptr $0) {
 declare ptr fb_DoubleToStr(f64 $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrAllocTempResult(ptr $0)
-func i64 _ZmiR3FOOf(ptr $0, f32 $1) {
+func f64 _ZmiR3FOOf(ptr $0, f32 $1) {
   local agg $tmp0 size 8
   local ptr l
   local f32 r
@@ -73,7 +73,7 @@ func i64 _ZmiR3FOOf(ptr $0, f32 $1) {
     %18 = load @$abi4
     ret %18
 }
-func i64 _ZplfR3FOO(f32 $0, ptr $1) {
+func f64 _ZplfR3FOO(f32 $0, ptr $1) {
   local agg $tmp0 size 8
   local f32 l
   local ptr r
@@ -105,7 +105,7 @@ func i64 _ZplfR3FOO(f32 $0, ptr $1) {
     %16 = load @$abi4
     ret %16
 }
-func i64 _ZmlR3FOOS0_(ptr $0, ptr $1) {
+func f64 _ZmlR3FOOS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr l
   local ptr r
@@ -169,7 +169,7 @@ func i32 main(i32 $0, ptr $1) {
     store %11, %10
     %12 = call f64 _ZN3FOOcvdEv(@r)
     %13 = fptrunc %12
-    %32 = call i64 _ZmiR3FOOf(@l, %13)
+    %32 = call f64 _ZmiR3FOOf(@l, %13)
     store @$abi6, %32
     %14 = load @$abi6
     %15 = alloca ptr $tmp3
@@ -178,7 +178,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %16, 1)
     %17 = call f64 _ZN3FOOcvdEv(@l)
     %18 = fptrunc %17
-    %34 = call i64 _ZplfR3FOO(%18, @r)
+    %34 = call f64 _ZplfR3FOO(%18, @r)
     store @$abi7, %34
     %19 = load @$abi7
     %20 = alloca ptr $tmp4
@@ -187,7 +187,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_WriteString(0, %21, 1)
     %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 4)
     %23 = call.rtl i32 fb_PrintUsingInit(%22)
-    %36 = call i64 _ZmlR3FOOS0_(@l, @r)
+    %36 = call f64 _ZmlR3FOOS0_(@l, @r)
     store @$abi8, %36
     %24 = load @$abi8
     %25 = alloca ptr $tmp5
