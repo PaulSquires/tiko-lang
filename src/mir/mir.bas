@@ -282,4 +282,81 @@ function LowerType _
     return MT_VOID
 end function
 
+'' A USTRING'S LITERAL IS UTF-16 ON EVERY TARGET. Lowering shares one wide-literal pool
+'' between wstring and ustring consumers, and the emitter widened every entry to the
+'' target's wchar -- right for fb_Wstr*, and on Linux, where wchar is 4 bytes, wrong
+'' for fb_UStr*: 'dim as ustring u = "src/lexer.bas"' held one character, 's', and
+'' tiko-lang's own source manager could not open an include file.
+''
+'' So each wide global passed to an fb_UStr* entry point is swapped for a UTF-16 twin,
+'' made once per literal. The wchar original stays for any other use. A unit above
+'' U+FFFF would need a surrogate pair and a different length; that literal is left as
+'' it was rather than half-converted.
+sub MirModule.SplitUtf16Literals( byref names as Interner )
+    for fi as long = 0 to this.functions.Count - 1
+        dim as MirFunction ptr f = this.functions[fi]
+        if f = 0 then continue for
+        for bi as long = 0 to f->blocks.Count - 1
+            for ii as long = 0 to f->blocks[bi].insts.Count - 1
+                dim as MirInst ptr ins = @f->blocks[bi].insts[ii]
+                if cast( MirOp, ins->op ) <> M_CALL_RTL then continue for
+                dim as long ci = cast( long, ins->callee )
+                if (ci < 0) orelse (ci >= this.functions.Count) then continue for
+                if this.functions[ci] = 0 then continue for
+                if left( names.Spelling( this.functions[ci]->name ), 7 ) <> "fb_UStr" then continue for
+                for k as long = 0 to ins->count - 1
+                    dim as long ak = (ins->first + k) * 2
+                    if (ak + 1) >= this.argPool.Count then exit for
+                    if this.argPool[ak] <> cast( ulong, MV_GLOBAL ) then continue for
+                    dim as long gi = cast( long, this.argPool[ak + 1] )
+                    if (gi < 0) orelse (gi >= this.globals.Count) then continue for
+                    if (this.globals[gi].isWide = false) orelse this.globals[gi].isUtf16 then continue for
+                    '' The units, copied out first: pushing a pool element into its own
+                    '' pool hands Push a reference the reallocation invalidates.
+                    dim as FB.Array( of ulong ) units
+                    dim as boolean fits = true
+                    for u as long = 0 to this.globals[gi].wcharCount - 1
+                        dim as ulong cu = this.wcharPool[this.globals[gi].wcharFirst + u]
+                        if cu > &hFFFF then fits = false
+                        units.Push( cu )
+                    next
+                    if fits = false then continue for
+                    dim as long twin = -1
+                    for gj as long = 0 to this.globals.Count - 1
+                        if this.globals[gj].isUtf16 = false then continue for
+                        if this.globals[gj].wcharCount <> units.Count then continue for
+                        dim as boolean same = true
+                        for u as long = 0 to units.Count - 1
+                            if this.wcharPool[this.globals[gj].wcharFirst + u] <> units[u] then
+                                same = false
+                                exit for
+                            end if
+                        next
+                        if same then
+                            twin = gj
+                            exit for
+                        end if
+                    next
+                    if twin < 0 then
+                        dim as MirGlobal g
+                        g.bytes = this.globals[gi].bytes
+                        g.isString = true
+                        g.isWide = true
+                        g.isUtf16 = true
+                        g.wcharFirst = this.wcharPool.Count
+                        g.wcharCount = units.Count
+                        g.name = names.GetString( "$ustr" & str( this.globals.Count ) )
+                        for u as long = 0 to units.Count - 1
+                            this.wcharPool.Push( units[u] )
+                        next
+                        this.globals.Push( g )
+                        twin = this.globals.Count - 1
+                    end if
+                    this.argPool[ak + 1] = cast( ulong, twin )
+                next
+            next
+        next
+    next
+end sub
+
 end namespace

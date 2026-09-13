@@ -193,8 +193,8 @@ function DumpModule _
             '' above 255 both read back exactly. A unit that is printable ASCII
             '' prints as itself, which keeps the common case legible.
             if m.globals[i].isWide then
-                outp += "global wstr " & names.Spelling( m.globals[i].name ) & _
-                        " " & chr( 34 )
+                outp += iif( m.globals[i].isUtf16, "global u16str ", "global wstr " ) & _
+                        names.Spelling( m.globals[i].name ) & " " & chr( 34 )
                 for k as long = 0 to m.globals[i].wcharCount - 1
                     dim as ulong u = m.wcharPool[m.globals[i].wcharFirst + k]
                     if (u >= 32) andalso (u < 127) andalso (u <> 34) andalso _

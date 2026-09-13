@@ -2,6 +2,8 @@ global str $str0 "ab"
 global wstr $wstr1 "ab"
 global str $str2 "cd"
 global wstr $wstr3 "cd"
+global u16str $ustr4 "ab"
+global u16str $ustr5 "cd"
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 24
@@ -25,7 +27,7 @@ func i32 main(i32 $0, ptr $1) {
     %5 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 3, 0)
     %6 = alloca ptr u
     %7 = const i64 -9223372036854775806
-    %8 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr1, %7, 0)
+    %8 = call.rtl ptr fb_UStrInit(@u, -1, @@$ustr4, %7, 0)
     %9 = alloca ptr cp
     %10 = const i64 65
     %11 = trunc %10
@@ -85,7 +87,7 @@ func i32 main(i32 $0, ptr $1) {
     %59 = alloca ptr f
     %60 = const i64 -9223372036854775801
     %61 = const i64 -9223372036854775806
-    %62 = call.rtl ptr fb_UStrAssign(@f, %60, @@$wstr3, %61, -1)
+    %62 = call.rtl ptr fb_UStrAssign(@f, %60, @@$ustr5, %61, -1)
     %63 = const i64 0
     %64 = ptr.add @z, %63
     %65 = const i64 65

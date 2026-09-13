@@ -1031,6 +1031,7 @@ private function WideArray _
     ( byref e as EmitCtx, byref g as MirGlobal ) as string
 
     dim as long w = e.tgt->layout.wcharBytes
+    if g.isUtf16 then w = 2
     dim as string ety = "i16"
     if w = 4 then ety = "i32"
     dim as long n = g.wcharCount + 1        '' the terminating NUL
@@ -1071,7 +1072,7 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
     '' global half the size it should be.
     if g.isWide then
         e.outp += nm & " = private unnamed_addr constant " & WideArray( e, g ) & _
-                  ", align " & str( e.tgt->layout.wcharBytes ) & chr( 10 )
+                  ", align " & str( iif( g.isUtf16, 2, e.tgt->layout.wcharBytes ) ) & chr( 10 )
         return
     end if
 

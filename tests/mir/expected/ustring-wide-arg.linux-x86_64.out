@@ -1,6 +1,7 @@
 global wstr $wstr0 "q"
 global str $str1 "z"
 global wstr $wstr2 "qz"
+global u16str $ustr3 "qz"
 func i32 G(ptr $0) {
   local i32 $tmp0
   local ptr s
@@ -73,7 +74,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintInt(0, %27, 1)
     %28 = alloca ptr u
     %29 = const i64 -9223372036854775806
-    %30 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr2, %29, 0)
+    %30 = call.rtl ptr fb_UStrInit(@u, -1, @@$ustr3, %29, 0)
     %31 = alloca ptr r3
     %32 = const i64 0
     %33 = trunc %32

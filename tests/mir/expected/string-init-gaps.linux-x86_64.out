@@ -12,6 +12,7 @@ global var agg S1$s1f size 10 = bytes 78 78 20 20 20 79 79 20 20 20
 global var agg S1$s1w size 48 = bytes 31 00 32 00 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 34 00 35 00 36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 global str $str12 "xyz123"
 global str $str13 "XYZ123"
+global u16str $ustr14 "caf"
 func void S1() {
   local agg u size 24
   local agg $tmp1 size 24
@@ -41,7 +42,7 @@ func void S1() {
     store %8, 0
     %9 = const i64 -9223372036854775805
     %10 = call.rtl ptr fb_WstrToUStr(@@$wstr1)
-    %11 = call.rtl ptr fb_UStrConcat(@$tmp1, @@$wstr0, %9, %10, -1)
+    %11 = call.rtl ptr fb_UStrConcat(@$tmp1, @@$ustr14, %9, %10, -1)
     %12 = call.rtl ptr fb_UStrInit(@u, -1, %11, -1, 0)
     call.rtl void fb_PrintUStr(0, @u, 1)
     %13 = alloca ptr b

@@ -864,6 +864,7 @@ function Run( byref args as Tko.StrVec ) as long
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst, isMain, modName, _
                                ctx.options.errLevel )
+                if ctx.types.target.wcharBytes <> 2 then mm.SplitUtf16Literals( ctx.names )
                 '' THE ABI PASS, between lowering and emission (docs/plan/10 section
                 '' 3). It rewrites signatures and call sites so the emitted IR carries
                 '' no implicit ABI behaviour -- and it runs under '--dump-ir' too, so

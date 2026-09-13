@@ -4,6 +4,7 @@ global wstr $wstr2 "n=42"
 global wstr $wstr3 "q"
 global wstr $wstr4 "u"
 global str $str5 "s"
+global u16str $ustr6 "u"
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg w size 32
@@ -119,7 +120,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintBool(0, %66, 1)
     %67 = alloca ptr u
     %68 = const i64 -9223372036854775807
-    %69 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr4, %68, 0)
+    %69 = call.rtl ptr fb_UStrInit(@u, -1, @@$ustr6, %68, 0)
     %70 = alloca ptr s
     %71 = call.rtl ptr fb_StrInit(@s, -1, @@$str5, 2, 0)
     %72 = alloca ptr r1

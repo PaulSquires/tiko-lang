@@ -439,6 +439,11 @@ namespace Tko.Mir
         '' when the bytes are emitted, because wchar is 2 bytes on Windows and 4 on
         '' Linux and baking one in here would make the IR target-specific.
         as boolean  isWide
+        '' ...AND UTF-16 WHATEVER THE TARGET'S wchar, because a USTRING's units are
+        '' 16 bits everywhere. Measured on Linux, where wchar is 4 bytes: fbc hands
+        '' fb_UStrAssign '(uint16[]){...}' and fb_WstrAssign 'uint32*'. Set only by
+        '' SplitUtf16Literals, on a twin of the wchar literal.
+        as boolean  isUtf16
         '' A DATA BLOCK: a packed array of { int16 TYPE; ptr NODE }, indexing the
         '' module's dataTypes / dataRefs pools. A ref of -1 is a null pointer; any
         '' other value is the index of the global whose ADDRESS goes in that slot,
@@ -546,6 +551,9 @@ namespace Tko.Mir
         declare function AddVarGlobal _
             ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
               byval sizeBytes as long ) as long
+        '' Where wchar is not 16 bits: every wide literal handed to an fb_UStr* entry
+        '' point is redirected to a UTF-16 twin of itself. Run once, after lowering.
+        declare sub SplitUtf16Literals( byref names as Interner )
     end type
 
     declare function TypeName( byval t as MirType ) as string
