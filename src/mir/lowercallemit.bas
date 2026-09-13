@@ -154,6 +154,21 @@ function EmitMemberCallArgs_ _
     '' shape: adding a hidden pointer on a guess is the failure this comment describes,
     '' and the verifier's arity rule reports any that remain rather than hiding them.
     if fidx >= 0 then useSret = c.m->functions[fidx]->hasSretParam
+    '' ...AND A CALLEE NOT LOWERED YET IS ASKED THE DEFINITION'S OWN QUESTION, which is
+    '' not a guess: lowerproc gives a member the hidden pointer exactly when its result
+    '' is an aggregate that UsesSretReturn, it is not byref, and it is not a cast
+    '' operator (the static result above). A generic instantiation's members are lowered
+    '' AFTER the user procedures that call them, so 'for each entry in m' over an
+    '' 'FB.Map( of ustring, T )' inside any SUB called 'Value( )' with the receiver alone
+    '' against a definition taking the result pointer too, and handed clang a
+    '' zero-sized aggregate. At module level the definition already existed.
+    if (fidx < 0) andalso (s->type_ <> Tko.TYPE_NONE) then
+        dim as boolean isByrefRet = ((c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+        dim as boolean isCastOp = (StmtOf( c, pn )->name = c.names->Fold( c.names->GetString( "cast" ) ))
+        if (isByrefRet = false) andalso (isCastOp = false) then
+            if LowerType( s->type_, *c.types ) = MT_AGG then useSret = UsesSretReturn( c, s->type_ )
+        end if
+    end if
 
     dim as long first = c.m->argPool.Count \ 2
     dim as long nargs = 0
