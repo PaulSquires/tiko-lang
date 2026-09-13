@@ -705,7 +705,7 @@ private sub WalkExpr _
         '' initialiser, an argument, a parameter default -- then has nothing to build.
         if (lp->target <> Tko.NODE_NONE) andalso _
            (c.ast->Kind( lp->target ) = Tko.N_TYPEREF) then
-            ResolveTypeRef( c, lp->target, scope_ )
+            if ResolveTypeRef( c, lp->target, scope_ ) = Tko.TYPE_NONE then PendExprTypeRef_( c, lp->target, scope_ )
         else
             WalkExpr( c, lp->target, scope_ )
         end if
@@ -738,7 +738,7 @@ private sub WalkExpr _
             '' position. WalkExpr has nothing to say about one, and leaving it
             '' unresolved left every cast untyped -- the type argument IS the result.
             if c.ast->Kind( arg ) = Tko.N_TYPEREF then
-                ResolveTypeRef( c, arg, scope_ )
+                if ResolveTypeRef( c, arg, scope_ ) = Tko.TYPE_NONE then PendExprTypeRef_( c, arg, scope_ )
             else
                 WalkExpr( c, arg, scope_ )
             end if

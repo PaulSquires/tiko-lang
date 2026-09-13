@@ -44,6 +44,12 @@ type Ctx
     '' backend with no size at all and stopped it with an ICE.
     as FB.Array( of ulong )  pendField
     as FB.Array( of ulong )  pendFieldScope
+    '' TYPE ARGUMENTS IN EXPRESSIONS -- 'cast( LPARAM, p )', 'type<LPARAM>( 0 )' --
+    '' for the same reason. The cast's result type IS its typeref's, cached here, so
+    '' one resolved before its typedef leaves the call it is an argument of untyped:
+    '' AfxNova's AfxSetWindowIcon returned 'ret void' from a pointer function.
+    as FB.Array( of ulong )  pendExprType
+    as FB.Array( of ulong )  pendExprTypeScope
     as FB.Array( of ulong )  pendingItem
     as FB.Array( of ulong )  pendingScope
     '' The generic type parameters currently in scope, innermost binding last: the
@@ -101,6 +107,8 @@ declare function ListOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.ListPayload ptr
 declare function IterElemType_ _
     ( byref c as Ctx, byval seqT as Tko.TypeId ) as Tko.TypeId
+declare sub PendExprTypeRef_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval t as Tko.TypeId, byval force as boolean = false )

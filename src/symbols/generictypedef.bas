@@ -130,6 +130,21 @@ sub BackpatchTypedefs( byref c as Ctx )
         BindDeclType( c, fhere, fsp->name, _
             ArrayFromBounds( c, ft, fsp->first, fsp->count, fhere ), false )
     next
+
+    '' EXPRESSION TYPE ARGUMENTS, revisited the same way. ResolveTypeRef records the
+    '' type on the node when it succeeds, which is all Check reads. Measured on fbc:
+    '' 'type LP as LPTR' before 'type LPTR as longint', then 'f( cast( LP, p ) )',
+    '' prints the right value; tiko typed the call as nothing and emitted a void call.
+    for i as long = 0 to c.pendExprType.Count - 1
+        ResolveTypeRef( c, cast( Tko.NodeId, c.pendExprType[i] ), _
+                        cast( Tko.ScopeId, c.pendExprTypeScope[i] ) )
+    next
+end sub
+
+sub PendExprTypeRef_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+    c.pendExprType.Push( cast( ulong, id ) )
+    c.pendExprTypeScope.Push( cast( ulong, scope_ ) )
 end sub
 
 '' N_VAR_ITEM: an N_BLOCK of N_CASE_RANGE, one per dimension.

@@ -1,0 +1,9 @@
+'' 'cast( T, x )' and 'type<T>( ... )' over a typedef whose target is declared later are
+'' typed once the typedef is, so the call around them keeps its result. Runtime output
+'' was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/forward-typedef-cast.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/forward-typedef-cast.out
