@@ -1104,6 +1104,14 @@ declare function EmitRtl _
     declare function StringLitText_ _
         ( byref c as Ctx, byval id as Tko.NodeId ) as string
 
+    '' A UTF-8 source literal widened by CHARACTER, not by byte -- lowerterm.bas.
+    declare sub PushSourceUnit_ _
+        ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as long, _
+          byref units as FB.Array( of ulong ) )
+    declare function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function WideFoldedText_ _
+        ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as long ) as long
+
     '' Which half of a declined call statement is at fault, and the callee's name.
     declare sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
 

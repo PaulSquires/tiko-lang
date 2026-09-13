@@ -74,10 +74,20 @@ function MirModule.AddWideStringUnits _
     ( byref text as string, byref units as FB.Array( of ulong ), _
       byref names as Interner ) as long
 
+    '' ...AND THE SAME UNITS. A UTF-8 source's '"Ω"' decodes to one unit where a
+    '' byte-preserved file's same two bytes are two, so the text alone is not the key.
     for i as long = 0 to this.globals.Count - 1
         if this.globals[i].isString andalso this.globals[i].isWide andalso _
            (this.globals[i].bytes = text) then
-            return i
+            if this.globals[i].wcharCount <> units.Count then continue for
+            dim as boolean same = true
+            for u as long = 0 to units.Count - 1
+                if this.wcharPool[this.globals[i].wcharFirst + u] <> units[u] then
+                    same = false
+                    exit for
+                end if
+            next
+            if same then return i
         end if
     next
     dim as MirGlobal g

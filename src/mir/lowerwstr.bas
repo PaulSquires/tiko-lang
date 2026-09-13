@@ -1023,6 +1023,8 @@ private function WideLitUnits_ _
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = 0 then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
+    '' A UTF-8 SOURCE DECODES ITS CHARACTERS -- see PushSourceUnit_.
+    dim as boolean u8 = (f->encoding <> Tko.Text.ENC_BYTES)
 
     '' The RAW body, with '""' collapsed to one quote -- the same first step the
     '' narrow reader takes, and for the same reason: the span is source.
@@ -1039,18 +1041,20 @@ private function WideLitUnits_ _
     outText = body
 
     if lp->strKind <> cast( ubyte, Tko.STRK_ESCAPED ) then
-        '' Not an escaped literal: every byte is its own code unit.
-        for i as long = 0 to len( body ) - 1
-            outUnits.Push( cast( ulong, body[i] ) )
-        next
+        '' Not an escaped literal: every source CHARACTER is its own unit (or pair).
+        dim as long bi = 0
+        while bi < len( body )
+            PushSourceUnit_( c, u8, body, bi, outUnits )
+        wend
         return true
     end if
 
     dim as long p2 = 1
     while p2 <= len( body )
         if asc( mid( body, p2, 1 ) ) <> 92 then
-            outUnits.Push( cast( ulong, asc( mid( body, p2, 1 ) ) ) )
-            p2 += 1
+            dim as long ci = p2 - 1
+            PushSourceUnit_( c, u8, body, ci, outUnits )
+            p2 = ci + 1
             continue while
         end if
         dim as long nx = 0
@@ -1141,7 +1145,8 @@ function WideOperand_ _
             if ConstStringTextOf_( c, id, wct ) then
                 outv.kind = cast( ubyte, MV_GLOBAL )
                 outv.ty = cast( ubyte, MT_PTR )
-                outv.id = c.m->AddWideStringLiteral( wct, *c.names )
+                dim as long wcc = 0
+                outv.id = WideFoldedText_( c, id, wct, wcc )
                 return true
             end if
         end if

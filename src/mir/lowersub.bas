@@ -865,8 +865,17 @@ function LowerStrNumCall_ _
         if WideOperand_( c, tE, td ) = false then return false
         if WideOperand_( c, sE, sd ) = false then return false
     else
-        if StrDescriptorOf_( c, tE, td ) = false then return false
-        if StrDescriptorOf_( c, sE, sd ) = false then return false
+        '' A NARROW OPERAND BESIDE A USTRING IS CONVERTED -- UStrParamArgTemp_. Measured,
+        '' fbc passes 'instr( u, "cd" )' a UTF-16 literal and 'instr( u, nar )' a converted
+        '' temporary; tiko handed fb_UStrInstr the narrow descriptor, and every narrow
+        '' needle answered 0 -- ASCII or not (scratchpad uni/ui.bas).
+        dim as Tko.TypeId ust = c.types->Builtin( Tko.TY_USTRING )
+        if (isU = false) orelse (UStrParamArgTemp_( c, tE, ust, td ) = false) then
+            if StrDescriptorOf_( c, tE, td ) = false then return false
+        end if
+        if (isU = false) orelse (UStrParamArgTemp_( c, sE, ust, sd ) = false) then
+            if StrDescriptorOf_( c, sE, sd ) = false then return false
+        end if
     end if
     if startLast then
         stv = LowerExpr( c, startE )
@@ -1405,8 +1414,10 @@ function LowerZstrAssignTo _
         '' A USTRING DESTINATION TAKES A UTF-16 LITERAL, and its length is the tagged
         '' CHARACTER COUNT rather than the narrow family's len+1.
         if isU then
-            PushUStrLiteralArg( c, args, _
-                c.m->AddWideStringLiteral( lit, *c.names ), len( lit ) )
+            '' Decoded from a UTF-8 source -- see PushSourceUnit_.
+            dim as long lch = 0
+            dim as long lgi = WideFoldedText_( c, value, lit, lch )
+            PushUStrLiteralArg( c, args, lgi, lch )
         else
             args.Push( cast( ulong, MV_GLOBAL ) )
             args.Push( cast( ulong, c.m->AddStringLiteral( lit, *c.names ) ) )

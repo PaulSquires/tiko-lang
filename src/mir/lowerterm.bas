@@ -76,8 +76,9 @@ function EmitStrTerm _
         dim as string ct
         if ConstStringTextOf_( c, term, ct ) then
             if isU then
-                PushUStrLiteralArg( c, args, _
-                    c.m->AddWideStringLiteral( ct, *c.names ), len( ct ) )
+                dim as long cch = 0
+                dim as long cgi = WideFoldedText_( c, term, ct, cch )
+                PushUStrLiteralArg( c, args, cgi, cch )
             else
                 PushStrLiteralArg( args, c.m->AddStringLiteral( ct, *c.names ), len( ct ) )
             end if
@@ -92,8 +93,9 @@ function EmitStrTerm _
     dim as string catText
     if StrCatText_( c, term, catText ) then
         if isU then
-            PushUStrLiteralArg( c, args, _
-                c.m->AddWideStringLiteral( catText, *c.names ), len( catText ) )
+            dim as long kch = 0
+            dim as long kgi = WideFoldedText_( c, term, catText, kch )
+            PushUStrLiteralArg( c, args, kgi, kch )
         else
             PushStrLiteralArg( args, c.m->AddStringLiteral( catText, *c.names ), _
                                len( catText ) )
@@ -1150,6 +1152,92 @@ function StrCatText_ _
         end if
     next
     return true
+end function
+
+'' ONE SOURCE CHARACTER OF A LITERAL AS WIDE UNITS, 'i' (0-based) advanced past it.
+''
+'' FROM A UTF-8 SOURCE A BYTE >= &h80 STARTS A CHARACTER, not a unit. fbc-modern decodes a
+'' narrow literal as UTF-8 wherever it is widened; tiko widened it one unit per BYTE.
+'' Measured, 'Ω日' in a BOM-less UTF-8 file: 'dim w as wstring * 10 = lit' and 'wstr( lit )'
+'' are 2 characters under fbc and were 5, 'u &= "Ω"' 2 and was 3, 'instr( u, "Ω" )' 2 and
+'' was 0 -- fbsqlite's test_unicode built 5000 units where it asked for 2000. A file that is
+'' not valid UTF-8 (ENC_BYTES) keeps one unit per byte (u8 false), as before. Bytes below
+'' &h80 pass through unchanged, so an escape's own spelling is never touched.
+''
+'' Above U+FFFF a 2-byte wchar takes a surrogate pair; a 4-byte one takes the code point,
+'' and the UTF-16 twin pass in mir.bas already refuses to narrow that one.
+sub PushSourceUnit_ _
+    ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as long, _
+      byref units as FB.Array( of ulong ) )
+
+    dim as ubyte b = body[i]
+    dim as boolean plain = (b < &h80)
+    if (u8 = false) orelse plain then
+        units.Push( cast( ulong, b ) )
+        i += 1
+        return
+    end if
+    dim as ulong cp = Tko.Text.DecodeUtf8( cast( const ubyte ptr, strptr( body ) ), len( body ), i )
+    dim as boolean astral = (cp > &hFFFF)
+    if astral andalso (c.types->target.wcharBytes = 2) then
+        cp -= &h10000
+        units.Push( &hD800 + (cp shr 10) )
+        units.Push( &hDC00 + (cp and &h3FF) )
+    else
+        units.Push( cp )
+    end if
+end sub
+
+'' Whether a FOLDED string's text came only from PLAIN literals of UTF-8 sources: an
+'' unescaped N_STRING_LIT, adjacent ones (N_STRCAT), or a constant initialised by either.
+'' An escaped literal's text has its escapes already turned into bytes, and fbc-modern
+'' leaves an escape's bytes one unit each -- so that text is not decoded, and says false.
+function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    select case c.ast->Kind( id )
+    case Tko.N_STRING_LIT
+        dim as Tko.LiteralPayload ptr lp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if lp->strLength < 0 then return false
+        if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then return false
+        dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
+        if f = 0 then return false
+        return (f->encoding <> Tko.Text.ENC_BYTES)
+    case Tko.N_STRCAT
+        dim as Tko.ListPayload ptr sp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sp->count <= 0 then return false
+        for i as long = 0 to sp->count - 1
+            if PlainUtf8Text_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) = false then
+                return false
+            end if
+        next
+        return true
+    case Tko.N_IDENT, Tko.N_MEMBER
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if cs = 0 then return false
+        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+        if cs->payload = 0 then return false
+        dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
+        if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
+        return PlainUtf8Text_( c, StmtOf( c, item )->b )
+    end select
+    return false
+end function
+
+'' A FOLDED string's text as a WIDE global, decoded where PlainUtf8Text_ says so; the
+'' CHARACTER COUNT comes back beside it, since decoding makes it shorter than the text.
+function WideFoldedText_ _
+    ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as long ) as long
+
+    dim as FB.Array( of ulong ) units
+    dim as boolean u8 = PlainUtf8Text_( c, site )
+    dim as long i = 0
+    while i < len( txt )
+        PushSourceUnit_( c, u8, txt, i, units )
+    wend
+    outChars = cast( long, units.Count )
+    return c.m->AddWideStringUnits( txt, units, *c.names )
 end function
 
 

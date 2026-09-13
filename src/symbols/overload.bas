@@ -612,6 +612,29 @@ private function BareTypeLiteral_ _
     return (lp->target = Tko.NODE_NONE)
 end function
 
+'' Whether a string concatenation has a USTRING term anywhere in it -- see ResolveCall_.
+'' A '+' counts only where it is itself a string operation; 'u & (n + 1)' has none.
+private function ConcatHasUString_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.TypeId t = TypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType bt = c.types->BuiltinOf( u )
+    if bt = Tko.TY_USTRING then return true
+    if c.ast->Kind( id ) <> Tko.N_BINARY then return false
+    if bt <> Tko.TY_STRING then return false
+    dim as Tko.BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+    if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
+    if ConcatHasUString_( c, bp->lhs ) then return true
+    return ConcatHasUString_( c, bp->rhs )
+end function
+
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long ) as Tko.TypeId
@@ -639,6 +662,14 @@ private function ResolveCall_ _
             wend
             c.st->argUntypedKind[ak] += 1
             return Tko.TYPE_NONE
+        end if
+        '' A CONCATENATION WITH A USTRING TERM IS A USTRING, for choosing an overload.
+        '' Measured, fbc's typeof( u & "x" ), ( s & u ) and ( u & n ) are all USTRING,
+        '' and 'FB.StartsWith( u & "x", "  " )' calls fb_UStrStartsWith. Check keeps '&'
+        '' narrow (binresult.bas) because lowering decides the width per term, so the
+        '' narrow answer chose fb_StrStartsWith -- and lowering handed it two FBUSTRINGs.
+        if c.ast->Kind( a ) = Tko.N_BINARY then
+            if ConcatHasUString_( c, a ) then at = c.types->Builtin( Tko.TY_USTRING )
         end if
         argT.Push( cast( ulong, at ) )
     next

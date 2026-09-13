@@ -1,0 +1,6 @@
+'' A narrow literal in a UTF-8 source widens by character, an escape's bytes stay units, and a narrow needle for a ustring instr is converted. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/utf8-literal-widen.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
