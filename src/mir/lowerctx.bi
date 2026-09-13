@@ -346,6 +346,10 @@ declare function EmitRtl _
     '' Flatten a left-leaning '+'/'&' chain into its terms, in source order.
     declare sub FlattenConcat _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outp as FB.Array( of ulong ) )
+    '' 'str( u )' over a ustring operand: the narrow temporary fbc converts it into.
+    '' False when no term is a ustring. lowerstrargs.bas.
+    declare function UStrOperandToNarrow_ _
+        ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
           byval value as Tko.NodeId ) as boolean

@@ -469,3 +469,40 @@ function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     return (k = 0) orelse (k = 1) orelse (k = 3)
 end function
 
+'' 'str( u )' OVER A USTRING IS THE CONVERSION TO NARROW, not the identity. Measured:
+'' fbc emits 'fb_UStrAssignToA( &TMP, -1, U, -1, 0, -1 )' for a var-len ustring, a ustring
+'' rvalue ('u & "c"') and a 'ustring * N' alike -- the assignment 'dim s as string = u'
+'' makes. Taken as the identity, the UTF-16 buffer went out as narrow text ('ab' read as
+'' 'a', NUL) and a 'ustring * N' came back empty. fbsqlite's hToUtf8 is 'return str(
+'' textValue )', so every SQL string it built reached SQLite that way.
+''
+'' FALSE when no term of the operand is a ustring: the caller's identity path is right
+'' for those. TRUE otherwise, with 'outv' the narrow temporary -- or MV_NONE if it could
+'' not be filled, which the caller reports as a decline.
+function UStrOperandToNarrow_ _
+    ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, sa, terms )
+    dim as boolean anyU16 = false
+    for i as long = 0 to terms.Count - 1
+        if StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) ) = STF_UTF16 then anyU16 = true
+    next
+    if anyU16 = false then return false
+
+    dim as MirValue none_
+    outv = none_
+    dim as long uslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if uslot < 0 then return true
+    dim as MirValue ud
+    ud.kind = cast( ubyte, MV_LOCAL )
+    ud.ty = cast( ubyte, MT_PTR )
+    ud.id = uslot
+    ZeroStrDescriptor( c, ud )
+    if LowerStringAssignToSlot( c, uslot, sa ) = false then return true
+    '' Released at the END OF THE STATEMENT, beside the other string temporaries.
+    c.strTemps.Push( cast( ulong, uslot ) )
+    outv = ud
+    return true
+end function
+

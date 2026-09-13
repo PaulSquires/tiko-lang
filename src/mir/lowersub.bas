@@ -516,6 +516,8 @@ function LowerStrOf_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' ...and OVER A USTRING it converts too -- see UStrOperandToNarrow_.
+    if UStrOperandToNarrow_( c, sa, outv ) then return (outv.kind <> cast( ubyte, MV_NONE ))
     dim as longint sn
     if IsStringType( c, c.info->TypeOf_( sa ) ) orelse _
        (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) orelse _
