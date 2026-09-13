@@ -244,6 +244,19 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         '' that name) is what runs: the name's head symbol is just the first overload, and
         '' 'LEN( dwsOut )' judged against BSTRING's operator was a false TKO0698.
         if builtinNm andalso (c.info->RefOf( id ) = SYMBOL_NONE) then return
+        '' ...AND A USER OPERATOR BOUND TO IT is picked by the argument's UDT where it runs
+        '' (LowerLen), not by the chain head: 'LEN( dws )' beside BSTRING's OPERATOR LEN.
+        if builtinNm then
+            dim as Symbol ptr bops = c.syms->SymbolAt( c.info->RefOf( id ) )
+            if bops <> 0 then
+                if (bops->kind = cast( ubyte, SYM_PROC )) andalso (bops->payload <> 0) then
+                    dim as NodeId bpn = cast( NodeId, bops->payload )
+                    if c.ast->Kind( bpn ) = N_PROC then
+                        if c.ast->stmts[cast( long, c.ast->nodes[cast( long, bpn )].data )].op = cast( ushort, KW_OPERATOR ) then return
+                    end if
+                end if
+            end if
+        end if
         if builtinNm then
             dim as TypeId a0t = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
             if a0t <> TYPE_NONE then
