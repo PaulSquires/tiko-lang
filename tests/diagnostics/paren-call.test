@@ -1,0 +1,17 @@
+'' Only a procedure pointer is called through parentheses or through a call's result.
+'' fbc refuses exactly the ten 'refused' lines (errors 3, 73, 1, 24, 7 and 10 by
+'' context) and compiles the 'accepted' half; tiko declined the ten in silence.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/paren-call.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: paren-call.bas(27,14): error TKO0772
+'' EXPECT-OUT: paren-call.bas(28,14): error TKO0772
+'' EXPECT-OUT: paren-call.bas(29,15): error TKO0772
+'' EXPECT-OUT: paren-call.bas(30,16): error TKO0772
+'' EXPECT-OUT: paren-call.bas(31,14): error TKO0772
+'' EXPECT-OUT: paren-call.bas(32,14): error TKO0772
+'' EXPECT-OUT: paren-call.bas(33,18): error TKO0772
+'' EXPECT-OUT: paren-call.bas(34,15): error TKO0772
+'' EXPECT-OUT: paren-call.bas(35,18): error TKO0772
+'' EXPECT-OUT: paren-call.bas(36,8): error TKO0772
+'' EXPECT-MAX-DIAG: 10

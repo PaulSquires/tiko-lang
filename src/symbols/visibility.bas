@@ -1185,6 +1185,7 @@ private sub Walk_ _
     if k = N_CALL then CheckArgConversions_( c, id )
     if k = N_CALL then CheckBaseInitCount_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )
+    if k = N_CALL then CheckCalledExpr_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
     if k = N_PROC then CheckByrefResultAgrees_( c, id )

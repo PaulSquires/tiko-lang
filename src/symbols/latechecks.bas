@@ -222,6 +222,63 @@ private sub CheckBareArrayPrint_ ( byref c as Ctx, byval id as NodeId )
     next
 end sub
 
+'' A CALL THROUGH A PARENTHESISED EXPRESSION, OR THROUGH ANOTHER CALL'S RESULT, needs a
+'' procedure pointer there. fbc decides it while PARSING, from the type: '(fp)(1)',
+'' '(t.f)(1)', 'h(1)(2)' and 'fa(0)(1)' are calls, and anything else ends the expression
+'' at the '(' -- 'print (x)(1)' is error 3, 'x = g((1)(2))' error 7, 'P(3)(1)' error
+'' 24, '(a)(1)' over an array error 73, and '(g)(1)' over a procedure NAME error 1,
+'' because the parentheses already called g. tiko's parser has no types, so it built
+'' the call anyway and lowering declined it without a word.
+private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId tgt = lp->target
+    if tgt = NODE_NONE then return
+    dim as NodeKind tk = c.ast->Kind( tgt )
+    if (tk <> N_PAREN) andalso (tk <> N_CALL) then return
+
+    dim as boolean bad = false
+    if tk = N_PAREN then
+        dim as NodeId inner = tgt
+        while c.ast->Kind( inner ) = N_PAREN
+            dim as ListPayload ptr ip = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, inner )].data )]
+            if ip->count < 1 then return
+            inner = cast( NodeId, c.ast->children[ip->first] )
+        wend
+        if c.ast->Kind( inner ) = N_IDENT then
+            dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( inner ) )
+            if s <> 0 then bad = (s->kind = cast( ubyte, SYM_PROC ))
+        end if
+    end if
+
+    if bad = false then
+        '' UNTYPED IS NOT EVIDENCE: something upstream already failed or declined.
+        dim as TypeId ct = c.info->TypeOf_( tgt )
+        if ct = TYPE_NONE then return
+        ct = c.types->Unqualify( ct )
+        if c.types->Kind( ct ) = TK_REFERENCE then ct = c.types->Unqualify( c.types->Inner( ct ) )
+        '' The same unwrapping Check applies when it types a call through a pointer.
+        dim as TypeId pt = ct
+        if c.types->Kind( pt ) = TK_POINTER then pt = c.types->Unqualify( c.types->Inner( pt ) )
+        if c.types->Kind( pt ) = TK_PROC then return
+        '' A CLOSURE OBJECT is called through its '__fbinvoke'.
+        if c.types->Kind( ct ) = TK_UDT then
+            dim as Symbol ptr us = c.syms->SymbolAt( c.syms->LookupLocalTyped( _
+                cast( ScopeId, c.types->DeclScopeOf( ct ) ), c.types->NameOf( ct ), true ) )
+            if us <> 0 then
+                if us->inner <> SCOPE_NONE then
+                    dim as SymbolId inv = c.syms->LookupLocal( us->inner, _
+                        c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
+                    if inv <> SYMBOL_NONE then return
+                end if
+            end if
+        end if
+        bad = true
+    end if
+    c.diags->Report( TKO0772, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 '' AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
 '' method". The declaration says there is nothing to call.
 ''

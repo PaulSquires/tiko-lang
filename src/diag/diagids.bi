@@ -424,6 +424,9 @@
     '' fbc's error 24, "Invalid data types". A fixed-length string and a ustring are
     '' both accepted with '= any'; only a var-len STRING, or an array of one, is not.
     DIAG( TKO0771, SEV_ERROR,   "'%0' is a var-len string, which cannot be declared '= any'" )
+    '' fbc's errors 3, 7, 24, 73 and 1 -- one per context -- for '(x)(1)', 'P(3)(1)',
+    '' '(array)(1)' and '(procname)(1)': only a procedure pointer is called that way.
+    DIAG( TKO0772, SEV_ERROR,   "this expression is not a procedure pointer and cannot be called" )
     '' fbc's error 274. The limit is EIGHT, counted through typedefs.
     DIAG( TKO0760, SEV_ERROR,   "too many levels of pointer indirection (the limit is 8)" )
     '' fbc's error 158, twice over.
