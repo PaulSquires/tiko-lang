@@ -1,0 +1,6 @@
+'' 'procptr( T.m )' over an ABSTRACT member is a null pointer, as fbc folds it -- not the
+'' address of a declaration nothing defines.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-abstract.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/procptr-abstract.out

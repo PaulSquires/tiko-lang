@@ -262,6 +262,22 @@ function LowerProcPtr _
         if c.info->TypeOf_( id ) = Tko.TYPE_NONE then return false
     end if
 
+    '' AN ABSTRACT MEMBER HAS NO BODY, AND ITS PROCPTR IS NULL. Measured: fbc prints -1
+    '' for 'cint( procptr( B.proc1 ) ) = 0' over 'declare abstract sub proc1( )'. The
+    '' address of the declaration linked against nothing at -O0 and, at -O2, LLVM took
+    '' it as non-null and folded the test false (pointers/procptr-virtual.bas).
+    scope
+        dim as Tko.Symbol ptr aps = c.syms->SymbolAt( c.info->RefOf( fnE ) )
+        if aps <> 0 then
+            dim as Tko.NodeId apn = cast( Tko.NodeId, aps->payload )
+            if (apn <> Tko.NODE_NONE) andalso (c.ast->Kind( apn ) = Tko.N_PROC) then
+                if (StmtOf( c, apn )->extra and Tko.PF_ABSTRACT) <> 0 then
+                    outv = ConstInt( c, 0, MT_PTR )
+                    return (outv.kind <> cast( ubyte, MV_NONE ))
+                end if
+            end if
+        end if
+    end scope
     outv = FuncAddrOf( c, c.info->RefOf( fnE ) )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
