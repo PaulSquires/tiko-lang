@@ -1,0 +1,240 @@
+global var i64 nctor
+global var i64 ndtor
+global var i64 nlet
+global str $str3 "Janvier"
+global str $str4 "ctor="
+global str $str5 " dtor="
+global str $str6 " let="
+func void _ZN2WBC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @@nctor
+    %6 = const i64 1
+    %7 = add %5, %6
+    store @@nctor, %7
+    %8 = load @this
+    %9 = field.addr %8, 0
+    %10 = const i64 16
+    %11 = call.rtl ptr calloc(%10, 1)
+    store %9, %11
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr calloc(i64 $0, i64 $1)
+func void _ZN2WBC1ERKc(ptr $0, ptr $1) {
+  local ptr this
+  local ptr z
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr z
+    store @z, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
+    %6 = load @@nctor
+    %7 = const i64 1
+    %8 = add %6, %7
+    store @@nctor, %8
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = const i64 16
+    %12 = call.rtl ptr calloc(%11, 1)
+    store %10, %12
+    %13 = load @this
+    %14 = field.addr %13, 0
+    %15 = load %14
+    %16 = const i64 15
+    %17 = load @z
+    %18 = call.rtl ptr fb_StrAllocTempDescZ(%17)
+    %19 = call.rtl ptr fb_LEFT(%18, %16)
+    %20 = call.rtl ptr fb_StrAssign(%15, 0, %19, -1, 0)
+    ret
+}
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare ptr fb_LEFT(ptr $0, i64 $1)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void _ZN2WBC1ERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
+    %6 = load @@nctor
+    %7 = const i64 1
+    %8 = add %6, %7
+    store @@nctor, %8
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = const i64 16
+    %12 = call.rtl ptr calloc(%11, 1)
+    store %10, %12
+    %13 = load @this
+    %14 = field.addr %13, 0
+    %15 = load %14
+    %16 = load @o
+    %17 = field.addr %16, 0
+    %18 = load %17
+    %19 = call.rtl ptr fb_StrAssign(%15, 0, %18, 0, 0)
+    ret
+}
+func void _ZN2WBD1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @@ndtor
+    %3 = const i64 1
+    %4 = add %2, %3
+    store @@ndtor, %4
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    condbr %7, if.then2, if.else3
+  if.join1:
+    ret
+  if.then2:
+    %8 = load @this
+    %9 = field.addr %8, 0
+    %10 = load %9
+    call.rtl void free(%10)
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = const i64 0
+    %14 = bitcast %13
+    store %12, %14
+    br if.join1
+  if.else3:
+    br if.join1
+}
+declare void free(ptr $0)
+func void _ZN2WBaSERKc(ptr $0, ptr $1) {
+  local ptr this
+  local ptr z
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr z
+    store @z, $1
+    %3 = load @@nlet
+    %4 = const i64 1
+    %5 = add %3, %4
+    store @@nlet, %5
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = const i64 15
+    %10 = load @z
+    %11 = call.rtl ptr fb_StrAllocTempDescZ(%10)
+    %12 = call.rtl ptr fb_LEFT(%11, %9)
+    %13 = call.rtl ptr fb_StrAssign(%8, 0, %12, -1, 0)
+    ret
+}
+func void _ZN2WBaSERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @@nlet
+    %4 = const i64 1
+    %5 = add %3, %4
+    store @@nlet, %5
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = load @o
+    %10 = field.addr %9, 0
+    %11 = load %10
+    %12 = call.rtl ptr fb_StrAssign(%8, 0, %11, 0, 0)
+    ret
+}
+func ptr MNAME(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 m
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr m
+    store @m, $1
+    %4 = load @$tmp0
+    call void _ZN2WBC1ERKc(%4, @@$str3)
+    %5 = load @$tmp0
+    ret %5
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 i
+  local agg $tmp2 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr i
+    %5 = const i64 1
+    %6 = trunc %5
+    store @i, %6
+    %11 = alloca ptr $tmp2
+    br for.head1
+  for.head1:
+    %7 = load @i
+    %8 = const i64 3
+    %9 = trunc %8
+    %10 = icmp.sle %7, %9
+    condbr %10, for.body2, for.exit4
+  for.body2:
+    %12 = const i64 1
+    %13 = trunc %12
+    %14 = call ptr MNAME(@$tmp2, %13)
+    %15 = field.addr @$tmp2, 0
+    %16 = load %15
+    %17 = call.rtl ptr fb_StrAllocTempDescZ(%16)
+    call.rtl void fb_PrintString(0, %17, 1)
+    call void _ZN2WBD1Ev(@$tmp2)
+    br for.step3
+  for.step3:
+    %18 = load @i
+    %19 = const i32 1
+    %20 = add %18, %19
+    store @i, %20
+    br for.head1
+  for.exit4:
+    %21 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 5)
+    call.rtl void fb_PrintString(0, %21, 0)
+    %22 = load @@nctor
+    call.rtl void fb_PrintLongint(0, %22, 0)
+    %23 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 6)
+    call.rtl void fb_PrintString(0, %23, 0)
+    %24 = load @@ndtor
+    call.rtl void fb_PrintLongint(0, %24, 0)
+    %25 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 5)
+    call.rtl void fb_PrintString(0, %25, 0)
+    %26 = load @@nlet
+    call.rtl void fb_PrintLongint(0, %26, 1)
+    %27 = const i32 0
+    call.rtl void fb_End(%27)
+    %28 = load @$tmp0
+    ret %28
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 8 functions, 15 blocks, 159 insts, 0 statements not lowered, 0 scope imbalance

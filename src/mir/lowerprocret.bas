@@ -86,6 +86,35 @@ private function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
 
     if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    '' ANOTHER TYPE IS CONSTRUCTED INTO THE RESULT through its converting constructor, and
+    '' needs no copy constructor at all. 'return "Janvier"' out of a function returning a
+    '' type with 'constructor( byref z as const zstring )' is, measured, three constructors
+    '' and no lets over three calls -- fbc builds the caller's storage from the literal.
+    '' It fell through to the plain store, which wrote the LITERAL'S ADDRESS over the
+    '' object: AfxNova's DWSTRING came back holding a pointer to static text as its buffer,
+    '' its destructor freed that, and PsCalendar died in CAL_MonthName. The overload is
+    '' settled before the hidden pointer is loaded, so a type with none emits nothing.
+    scope
+        dim as Tko.TypeId xvt = Tko.TYPE_NONE
+        dim as MirValue xsrc
+        if ThisObjectAddr_( c, valueE, xvt, xsrc, true ) = false then
+            xvt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+            if (xvt <> Tko.TYPE_NONE) andalso (xvt <> c.types->Unqualify( rt )) then
+                dim as FB.Array( of ulong ) xT
+                xT.Push( cast( ulong, xvt ) )
+                if PickCtor( c, StructorOf( c, c.types->Unqualify( rt ), "__ctor" ), xT ) <> Tko.SYMBOL_NONE then
+                    dim as MirValue xsa
+                    xsa.kind = cast( ubyte, MV_LOCAL )
+                    xsa.ty = cast( ubyte, MT_PTR )
+                    xsa.id = c.sretParam
+                    dim as MirValue xdst = LowerExprLoad( c, xsa, MT_PTR )
+                    if xdst.kind <> cast( ubyte, MV_NONE ) then
+                        if LowerConvCtorInit_( c, -1, c.types->Unqualify( rt ), valueE, @xdst ) then return true
+                    end if
+                end if
+            end if
+        end if
+    end scope
     '' The whole overload chain -- see CopyCtorOf_.
     dim as Tko.SymbolId cc = CopyCtorOf_( c, rt )
     dim as boolean written = (cc <> Tko.SYMBOL_NONE)
