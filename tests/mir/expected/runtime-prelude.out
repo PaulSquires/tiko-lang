@@ -75,71 +75,70 @@ func i32 main(i32 $0, ptr $1) {
     call void fb_Locate(%52, %50, %48, %46, %44)
     %53 = const i64 0
     %54 = trunc %53
-    %55 = const f64 1
-    %56 = neg %55
-    call void fb_Randomize(%56, %54)
-    %57 = const i64 0
-    %58 = trunc %57
-    %59 = const i64 42
-    %60 = sitofp %59
-    call void fb_Randomize(%60, %58)
-    %61 = alloca ptr d
-    %62 = call f64 fb_Timer()
-    store @d, %62
-    %63 = call ptr fb_CurDir()
-    %64 = call.rtl ptr fb_StrAssign(@s, -1, %63, -1, 0)
-    %65 = const i64 1
-    %66 = neg %65
-    %67 = trunc %66
-    %68 = call ptr fb_Command(%67)
-    %69 = call.rtl ptr fb_StrAssign(@s, -1, %68, -1, 0)
-    %70 = const i64 0
-    %71 = trunc %70
-    %72 = call ptr fb_Command(%71)
-    %73 = call.rtl ptr fb_StrAssign(@s, -1, %72, -1, 0)
-    %74 = const i64 0
-    %75 = trunc %74
-    %76 = const i64 0
-    %77 = trunc %76
-    %78 = const i64 1
-    %79 = trunc %78
-    %80 = const i64 32
-    %81 = trunc %80
-    %82 = const i64 480
-    %83 = trunc %82
-    %84 = const i64 640
-    %85 = trunc %84
-    call void fb_GfxScreenRes(%85, %83, %81, %79, %77, %75)
-    %86 = alloca ptr im
-    %87 = call.rtl ptr memset(@im, 0, 8)
-    %88 = load @im
-    call void fb_GfxImageDestroy(%88)
-    %89 = const i64 1
-    %90 = neg %89
-    %91 = trunc %90
-    %92 = const i64 1
-    %93 = neg %92
-    %94 = trunc %93
-    call void fb_GfxFlip(%94, %91)
+    %55 = const f64 -1
+    call void fb_Randomize(%55, %54)
+    %56 = const i64 0
+    %57 = trunc %56
+    %58 = const i64 42
+    %59 = sitofp %58
+    call void fb_Randomize(%59, %57)
+    %60 = alloca ptr d
+    %61 = call f64 fb_Timer()
+    store @d, %61
+    %62 = call ptr fb_CurDir()
+    %63 = call.rtl ptr fb_StrAssign(@s, -1, %62, -1, 0)
+    %64 = const i64 1
+    %65 = neg %64
+    %66 = trunc %65
+    %67 = call ptr fb_Command(%66)
+    %68 = call.rtl ptr fb_StrAssign(@s, -1, %67, -1, 0)
+    %69 = const i64 0
+    %70 = trunc %69
+    %71 = call ptr fb_Command(%70)
+    %72 = call.rtl ptr fb_StrAssign(@s, -1, %71, -1, 0)
+    %73 = const i64 0
+    %74 = trunc %73
+    %75 = const i64 0
+    %76 = trunc %75
+    %77 = const i64 1
+    %78 = trunc %77
+    %79 = const i64 32
+    %80 = trunc %79
+    %81 = const i64 480
+    %82 = trunc %81
+    %83 = const i64 640
+    %84 = trunc %83
+    call void fb_GfxScreenRes(%84, %82, %80, %78, %76, %74)
+    %85 = alloca ptr im
+    %86 = call.rtl ptr memset(@im, 0, 8)
+    %87 = load @im
+    call void fb_GfxImageDestroy(%87)
+    %88 = const i64 1
+    %89 = neg %88
+    %90 = trunc %89
+    %91 = const i64 1
+    %92 = neg %91
+    %93 = trunc %92
+    call void fb_GfxFlip(%93, %90)
     call void fb_GfxLock()
-    %95 = const i64 1
-    %96 = neg %95
-    %97 = trunc %96
-    %98 = const i64 1
-    %99 = neg %98
-    %100 = trunc %99
-    call void fb_GfxUnlock(%100, %97)
-    %101 = const i64 1
-    %102 = trunc %101
-    %103 = call i32 fb_Multikey(%102)
-    store @r, %103
-    %104 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
-    call void fb_GfxSetWindowTitle(%104)
+    %94 = const i64 1
+    %95 = neg %94
+    %96 = trunc %95
+    %97 = const i64 1
+    %98 = neg %97
+    %99 = trunc %98
+    call void fb_GfxUnlock(%99, %96)
+    %100 = const i64 1
+    %101 = trunc %100
+    %102 = call i32 fb_Multikey(%101)
+    store @r, %102
+    %103 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
+    call void fb_GfxSetWindowTitle(%103)
     call.rtl void fb_StrDelete(@s)
-    %105 = const i32 0
-    call.rtl void fb_End(%105)
-    %106 = load @$tmp0
-    ret %106
+    %104 = const i32 0
+    call.rtl void fb_End(%104)
+    %105 = load @$tmp0
+    ret %105
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -164,4 +163,4 @@ declare void fb_GfxSetWindowTitle(ptr $0)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 130 insts, 0 statements not lowered, 0 scope imbalance

@@ -805,6 +805,16 @@ function TypeOf_ _
                 end if
             elseif (op = Tko.TK_MINUS) orelse (op = Tko.TK_PLUS) then
                 t = BinaryResult( Tko.TK_PLUS, inner, inner, *c.types )
+                '' NEGATION IS SIGNED: '-u' is -12 for u = 12 at every unsigned width, measured;
+                '' the 64-bit two printed 18446744073709551604.
+                if (op = Tko.TK_MINUS) andalso (t <> Tko.TYPE_NONE) then
+                    if c.types->Kind( t ) = Tko.TK_BUILTIN then
+                        select case c.types->BuiltinOf( t )
+                        case Tko.TY_UINTEGER : t = c.types->Builtin( Tko.TY_INTEGER )
+                        case Tko.TY_ULONGINT : t = c.types->Builtin( Tko.TY_LONGINT )
+                        end select
+                    end if
+                end if
             else
                 t = inner
             end if
@@ -1022,6 +1032,11 @@ function TypeOf_ _
                     c.info->SetRef( id, fs )
                     c.info->SetRef( mp->rhs, fs )
                     t = f->type_
+                    '' A BITFIELD READ IS UINTEGER, measured: 'sizeof( x.a )' is 8 for 'short
+                    '' a :4', and 'x.b - 20' over 12 is 18446744073709551608. See lowerbf.bas.
+                    if (f->flags and Tko.SYMF_BITFIELD) <> 0 then
+                        t = c.types->Builtin( Tko.TY_UINTEGER )
+                    end if
                 end if
             end if
         end if

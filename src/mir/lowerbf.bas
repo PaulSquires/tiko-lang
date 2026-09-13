@@ -123,7 +123,11 @@ function LowerBitfieldRead _
     dim as MirValue masked = Emit( c, an )
     if masked.kind = cast( ubyte, MV_NONE ) then return false
 
-    outv = Coerce( c, masked, unitTy )
+    '' At the NODE's type, which Check makes UINTEGER for every bitfield -- not at the
+    '' unit's. The masked value is never negative, so the widening is exact.
+    dim as MirType rty = LowerType( c.info->TypeOf_( id ), *c.types )
+    if (rty = MT_VOID) orelse (rty = MT_AGG) then rty = unitTy
+    outv = Coerce( c, masked, rty )
     return true
 end function
 

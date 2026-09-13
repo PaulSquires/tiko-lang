@@ -54,6 +54,20 @@ function LowerExpr _
     dim as Tko.TypeId ft = c.info->TypeOf_( id )
     dim as MirType mt = LowerType( ft, *c.types )
 
+    '' A CONSTANT FLOAT EXPRESSION IS FOLDED HERE, with the host's arithmetic, as fbc
+    '' folds it. Measured: '0.0 / 0.0' is 0xFFF8... -- x86's negative NaN -- under fbc's
+    '' gas64, gcc and llvm backends alike. Handed to LLVM as 'fdiv double 0.0, 0.0' it
+    '' was folded at -O2 to LLVM's canonical 0x7FF8... instead (numbers/infnan).
+    if (mt = MT_F32) orelse (mt = MT_F64) then
+        dim as Tko.NodeKind fk = c.ast->Kind( id )
+        if (fk = Tko.N_BINARY) orelse (fk = Tko.N_UNARY) then
+            dim as double fd
+            if Tko.Check.ConstFloatOf( *c.ast, id, fd, 0, c.syms, c.info->ScopeOf( id ) ) then
+                return ConstFloat( c, fd, mt )
+            end if
+        end if
+    end if
+
     select case c.ast->Kind( id )
     '' 'open( f for input as #1 )' IN EXPRESSION POSITION yields the error code. The
     '' parser builds the same N_INTRINSIC node either way, so the statement form's own

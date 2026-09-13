@@ -1,0 +1,122 @@
+global str $str0 " "
+global str $str1 "nan"
+global str $str2 "nan2"
+global str $str3 "negnan"
+global str $str4 "inf"
+global str $str5 "prod"
+func void BITS(ptr $0, f64 $1) {
+  local ptr label
+  local f64 d
+  entry0:
+    %1 = alloca ptr label
+    store @label, $0
+    %2 = alloca ptr d
+    store @d, $1
+    %3 = load @label
+    call.rtl void fb_PrintString(0, %3, 0)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 1)
+    call.rtl void fb_PrintString(0, %4, 0)
+    %5 = const i64 16
+    %6 = trunc %5
+    %7 = load @d
+    %8 = call.rtl ptr fb_HEXEx_l(%7, %6)
+    call.rtl void fb_PrintString(0, %8, 1)
+    ret
+}
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare ptr fb_HEXEx_l(i64 $0, i32 $1)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg $tmp1 size 24
+  local agg $tmp2 size 24
+  local agg $tmp3 size 24
+  local agg $tmp4 size 24
+  local agg $tmp5 size 24
+  local f32 s
+  local f64 m
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = const f64 nan
+    %5 = alloca ptr $tmp1
+    %6 = field.addr @$tmp1, 0
+    store %6, 0
+    %7 = field.addr @$tmp1, 8
+    store %7, 0
+    %8 = field.addr @$tmp1, 16
+    store %8, 0
+    %9 = call.rtl ptr fb_StrAssign(@$tmp1, -1, @@$str1, 4, 0)
+    call void BITS(@$tmp1, %4)
+    call.rtl void fb_StrDelete(@$tmp1)
+    %10 = const f64 nan
+    %11 = alloca ptr $tmp2
+    %12 = field.addr @$tmp2, 0
+    store %12, 0
+    %13 = field.addr @$tmp2, 8
+    store %13, 0
+    %14 = field.addr @$tmp2, 16
+    store %14, 0
+    %15 = call.rtl ptr fb_StrAssign(@$tmp2, -1, @@$str2, 5, 0)
+    call void BITS(@$tmp2, %10)
+    call.rtl void fb_StrDelete(@$tmp2)
+    %16 = const f64 nan
+    %17 = alloca ptr $tmp3
+    %18 = field.addr @$tmp3, 0
+    store %18, 0
+    %19 = field.addr @$tmp3, 8
+    store %19, 0
+    %20 = field.addr @$tmp3, 16
+    store %20, 0
+    %21 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str3, 7, 0)
+    call void BITS(@$tmp3, %16)
+    call.rtl void fb_StrDelete(@$tmp3)
+    %22 = const f64 -inf
+    %23 = alloca ptr $tmp4
+    %24 = field.addr @$tmp4, 0
+    store %24, 0
+    %25 = field.addr @$tmp4, 8
+    store %25, 0
+    %26 = field.addr @$tmp4, 16
+    store %26, 0
+    %27 = call.rtl ptr fb_StrAssign(@$tmp4, -1, @@$str4, 4, 0)
+    call void BITS(@$tmp4, %22)
+    call.rtl void fb_StrDelete(@$tmp4)
+    %28 = const f64 3
+    %29 = alloca ptr $tmp5
+    %30 = field.addr @$tmp5, 0
+    store %30, 0
+    %31 = field.addr @$tmp5, 8
+    store %31, 0
+    %32 = field.addr @$tmp5, 16
+    store %32, 0
+    %33 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @@$str5, 5, 0)
+    call void BITS(@$tmp5, %28)
+    call.rtl void fb_StrDelete(@$tmp5)
+    %34 = alloca ptr s
+    %35 = const f64 0.625
+    %36 = fptrunc %35
+    store @s, %36
+    %37 = load @s
+    call.rtl void fb_PrintSingle(0, %37, 1)
+    %38 = alloca ptr m
+    %39 = const f64 2.5
+    store @m, %39
+    %40 = load @m
+    call.rtl void fb_PrintDouble(0, %40, 1)
+    %41 = const i32 0
+    call.rtl void fb_End(%41)
+    %42 = load @$tmp0
+    ret %42
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare void fb_PrintSingle(i32 $0, f32 $1, i32 $2)
+declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 2 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance

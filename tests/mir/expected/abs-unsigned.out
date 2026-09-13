@@ -60,26 +60,25 @@ func i32 main(i32 $0, ptr $1) {
     %37 = trunc %36
     store @e, %37
     %38 = alloca ptr f
-    %39 = const f64 5.5
-    %40 = neg %39
-    %41 = fabs %40
-    store @f, %41
-    %42 = load @a
-    call.rtl void fb_PrintUInt(0, %42, 2)
-    %43 = load @b
-    call.rtl void fb_PrintULongint(0, %43, 2)
-    %44 = load @c2
-    call.rtl void fb_PrintUShort(0, %44, 2)
-    %45 = load @d
-    call.rtl void fb_PrintUByte(0, %45, 2)
-    %46 = load @e
-    call.rtl void fb_PrintInt(0, %46, 2)
-    %47 = load @f
-    call.rtl void fb_PrintDouble(0, %47, 1)
-    %48 = const i32 0
-    call.rtl void fb_End(%48)
-    %49 = load @$tmp0
-    ret %49
+    %39 = const f64 -5.5
+    %40 = fabs %39
+    store @f, %40
+    %41 = load @a
+    call.rtl void fb_PrintUInt(0, %41, 2)
+    %42 = load @b
+    call.rtl void fb_PrintULongint(0, %42, 2)
+    %43 = load @c2
+    call.rtl void fb_PrintUShort(0, %43, 2)
+    %44 = load @d
+    call.rtl void fb_PrintUByte(0, %44, 2)
+    %45 = load @e
+    call.rtl void fb_PrintInt(0, %45, 2)
+    %46 = load @f
+    call.rtl void fb_PrintDouble(0, %46, 1)
+    %47 = const i32 0
+    call.rtl void fb_End(%47)
+    %48 = load @$tmp0
+    ret %48
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
@@ -90,4 +89,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 67 insts, 0 statements not lowered, 0 scope imbalance

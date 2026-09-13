@@ -58,24 +58,22 @@ func i32 main(i32 $0, ptr $1) {
     %41 = ashr %39, %40
     %42 = const i64 255
     %43 = and %41, %42
-    %44 = trunc %43
-    call.rtl void fb_PrintShort(0, %44, 2)
-    %45 = field.addr @f, 2
-    %46 = load %45
-    %47 = sext %46
-    %48 = const i64 255
-    %49 = and %47, %48
-    %50 = trunc %49
-    call.rtl void fb_PrintShort(0, %50, 1)
-    %51 = const i32 0
-    call.rtl void fb_End(%51)
-    %52 = load @$tmp0
-    ret %52
+    call.rtl void fb_PrintULongint(0, %43, 2)
+    %44 = field.addr @f, 2
+    %45 = load %44
+    %46 = sext %45
+    %47 = const i64 255
+    %48 = and %46, %47
+    call.rtl void fb_PrintULongint(0, %48, 1)
+    %49 = const i32 0
+    call.rtl void fb_End(%49)
+    %50 = load @$tmp0
+    ret %50
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare void fb_PrintShort(i32 $0, i16 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance

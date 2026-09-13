@@ -133,21 +133,21 @@ func void S1() {
     %105 = load %104
     %106 = const i64 1
     %107 = and %105, %106
-    call.rtl void fb_PrintLongint(0, %107, 2)
+    call.rtl void fb_PrintULongint(0, %107, 2)
     %108 = field.addr @x, 0
     %109 = load %108
     %110 = const i64 1
     %111 = ashr %109, %110
     %112 = const i64 1
     %113 = and %111, %112
-    call.rtl void fb_PrintLongint(0, %113, 2)
+    call.rtl void fb_PrintULongint(0, %113, 2)
     %114 = field.addr @x, 0
     %115 = load %114
     %116 = const i64 2
     %117 = ashr %115, %116
     %118 = const i64 63
     %119 = and %117, %118
-    call.rtl void fb_PrintLongint(0, %119, 1)
+    call.rtl void fb_PrintULongint(0, %119, 1)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -155,6 +155,7 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare i64 fb_ArrayUBound(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:

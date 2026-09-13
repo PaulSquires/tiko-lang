@@ -57,67 +57,58 @@ func void F() {
     %50 = zext %49
     %51 = const i64 7
     %52 = and %50, %51
-    %53 = trunc %52
-    call.rtl void fb_PrintUInt(0, %53, 2)
-    %54 = field.addr @@x, 0
-    %55 = load %54
-    %56 = zext %55
-    %57 = const i64 3
-    %58 = ashr %56, %57
-    %59 = const i64 31
-    %60 = and %58, %59
-    %61 = trunc %60
-    call.rtl void fb_PrintUInt(0, %61, 2)
-    %62 = field.addr @@x, 0
-    %63 = load %62
-    %64 = sext %63
-    %65 = const i64 8
-    %66 = ashr %64, %65
-    %67 = const i64 15
-    %68 = and %66, %67
-    %69 = trunc %68
-    call.rtl void fb_PrintInt(0, %69, 2)
-    %70 = field.addr @@x, 1
-    %71 = load %70
-    %72 = zext %71
-    %73 = const i64 4
-    %74 = ashr %72, %73
-    %75 = const i64 1
-    %76 = and %74, %75
-    %77 = trunc %76
-    call.rtl void fb_PrintUByte(0, %77, 1)
-    %78 = field.addr @@x, 0
-    %79 = field.addr @@x, 0
-    %80 = load %79
-    %81 = zext %80
-    %82 = const i64 7
-    %83 = and %81, %82
-    %84 = trunc %83
-    %85 = const i64 1
-    %86 = zext %84
-    %87 = add %86, %85
-    %88 = field.addr @@x, 0
-    %89 = load %88
-    %90 = zext %89
-    %91 = const i64 -8
-    %92 = and %90, %91
-    %93 = const i64 7
-    %94 = and %87, %93
-    %95 = or %92, %94
-    %96 = trunc %95
-    store %88, %96
-    %97 = field.addr @@x, 0
-    %98 = load %97
-    %99 = zext %98
-    %100 = const i64 7
-    %101 = and %99, %100
-    %102 = trunc %101
-    call.rtl void fb_PrintUInt(0, %102, 1)
+    call.rtl void fb_PrintULongint(0, %52, 2)
+    %53 = field.addr @@x, 0
+    %54 = load %53
+    %55 = zext %54
+    %56 = const i64 3
+    %57 = ashr %55, %56
+    %58 = const i64 31
+    %59 = and %57, %58
+    call.rtl void fb_PrintULongint(0, %59, 2)
+    %60 = field.addr @@x, 0
+    %61 = load %60
+    %62 = sext %61
+    %63 = const i64 8
+    %64 = ashr %62, %63
+    %65 = const i64 15
+    %66 = and %64, %65
+    call.rtl void fb_PrintULongint(0, %66, 2)
+    %67 = field.addr @@x, 1
+    %68 = load %67
+    %69 = zext %68
+    %70 = const i64 4
+    %71 = ashr %69, %70
+    %72 = const i64 1
+    %73 = and %71, %72
+    call.rtl void fb_PrintULongint(0, %73, 1)
+    %74 = field.addr @@x, 0
+    %75 = field.addr @@x, 0
+    %76 = load %75
+    %77 = zext %76
+    %78 = const i64 7
+    %79 = and %77, %78
+    %80 = const i64 1
+    %81 = add %79, %80
+    %82 = field.addr @@x, 0
+    %83 = load %82
+    %84 = zext %83
+    %85 = const i64 -8
+    %86 = and %84, %85
+    %87 = const i64 7
+    %88 = and %81, %87
+    %89 = or %86, %88
+    %90 = trunc %89
+    store %82, %90
+    %91 = field.addr @@x, 0
+    %92 = load %91
+    %93 = zext %92
+    %94 = const i64 7
+    %95 = and %93, %94
+    call.rtl void fb_PrintULongint(0, %95, 1)
     ret
 }
-declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
-declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
+declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   entry0:
@@ -135,4 +126,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 121 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,0 +1,6 @@
+'' A constant float expression is folded by the compiler with x86 arithmetic, as fbc does,
+'' so '0.0 / 0.0' is the negative NaN rather than whatever an optimiser folds it to.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/float-const-fold.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/float-const-fold.out

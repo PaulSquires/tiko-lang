@@ -20,90 +20,63 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const f64 1.5
     %8 = fptrunc %7
     store @sv, %8
-    %9 = const i64 2
-    %10 = const i64 63
-    %11 = sitofp %9
-    %12 = sitofp %10
-    %13 = call.rtl f64 pow(%11, %12)
-    %14 = nearbyint %13
-    %15 = fptoui %14
-    call.rtl void fb_PrintULongint(0, %15, 1)
-    %16 = const i64 2
-    %17 = const i64 63
-    %18 = sitofp %16
-    %19 = sitofp %17
-    %20 = call.rtl f64 pow(%18, %19)
-    %21 = const f64 1.5
-    %22 = mul %20, %21
-    %23 = nearbyint %22
-    %24 = fptoui %23
-    call.rtl void fb_PrintULongint(0, %24, 1)
-    %25 = const i64 2
-    %26 = const i64 64
-    %27 = sitofp %25
-    %28 = sitofp %26
-    %29 = call.rtl f64 pow(%27, %28)
-    %30 = const i64 2
-    %31 = const i64 63
-    %32 = const i64 52
-    %33 = sub %31, %32
-    %34 = sitofp %30
-    %35 = sitofp %33
-    %36 = call.rtl f64 pow(%34, %35)
-    %37 = sub %29, %36
+    %9 = const f64 9.223372036854776e+18
+    %10 = nearbyint %9
+    %11 = fptoui %10
+    call.rtl void fb_PrintULongint(0, %11, 1)
+    %12 = const f64 1.383505805528216e+19
+    %13 = nearbyint %12
+    %14 = fptoui %13
+    call.rtl void fb_PrintULongint(0, %14, 1)
+    %15 = const f64 1.844674407370955e+19
+    %16 = nearbyint %15
+    %17 = fptoui %16
+    call.rtl void fb_PrintULongint(0, %17, 1)
+    %18 = const f64 1024
+    call.rtl void fb_PrintDouble(0, %18, 1)
+    %19 = alloca ptr u1
+    %20 = load @dv
+    %21 = nearbyint %20
+    %22 = fptoui %21
+    store @u1, %22
+    %23 = alloca ptr u2
+    %24 = load @sv
+    %25 = nearbyint %24
+    %26 = fptoui %25
+    store @u2, %26
+    %27 = alloca ptr u3
+    %28 = load @dv
+    %29 = nearbyint %28
+    %30 = fptosi %29
+    %31 = trunc %30
+    store @u3, %31
+    %32 = alloca ptr s1
+    %33 = load @dv
+    %34 = nearbyint %33
+    %35 = fptosi %34
+    store @s1, %35
+    %36 = alloca ptr u4
+    %37 = load @dv
     %38 = nearbyint %37
-    %39 = fptoui %38
-    call.rtl void fb_PrintULongint(0, %39, 1)
-    %40 = const i64 2
-    %41 = const i64 10
-    %42 = sitofp %40
-    %43 = sitofp %41
-    %44 = call.rtl f64 pow(%42, %43)
-    call.rtl void fb_PrintDouble(0, %44, 1)
-    %45 = alloca ptr u1
-    %46 = load @dv
-    %47 = nearbyint %46
-    %48 = fptoui %47
-    store @u1, %48
-    %49 = alloca ptr u2
-    %50 = load @sv
-    %51 = nearbyint %50
-    %52 = fptoui %51
-    store @u2, %52
-    %53 = alloca ptr u3
-    %54 = load @dv
-    %55 = nearbyint %54
-    %56 = fptosi %55
-    %57 = trunc %56
-    store @u3, %57
-    %58 = alloca ptr s1
-    %59 = load @dv
-    %60 = nearbyint %59
-    %61 = fptosi %60
-    store @s1, %61
-    %62 = alloca ptr u4
-    %63 = load @dv
-    %64 = nearbyint %63
-    %65 = fptosi %64
-    %66 = trunc %65
-    store @u4, %66
-    %67 = load @u1
-    call.rtl void fb_PrintULongint(0, %67, 2)
-    %68 = load @u2
-    call.rtl void fb_PrintULongint(0, %68, 2)
-    %69 = load @u3
-    call.rtl void fb_PrintUInt(0, %69, 2)
-    %70 = load @s1
-    call.rtl void fb_PrintLongint(0, %70, 2)
-    %71 = load @u4
-    call.rtl void fb_PrintUShort(0, %71, 1)
-    %72 = const i32 0
-    call.rtl void fb_End(%72)
-    %73 = load @$tmp0
-    ret %73
+    %39 = fptosi %38
+    %40 = trunc %39
+    store @u4, %40
+    %41 = load @u1
+    call.rtl void fb_PrintULongint(0, %41, 2)
+    %42 = load @u2
+    call.rtl void fb_PrintULongint(0, %42, 2)
+    %43 = load @u3
+    call.rtl void fb_PrintUInt(0, %43, 2)
+    %44 = load @s1
+    call.rtl void fb_PrintLongint(0, %44, 2)
+    %45 = load @u4
+    call.rtl void fb_PrintUShort(0, %45, 1)
+    %46 = const i32 0
+    call.rtl void fb_End(%46)
+    %47 = load @$tmp0
+    ret %47
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare f64 pow(f64 $0, f64 $1)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
@@ -111,4 +84,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintUShort(i32 $0, i16 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance
