@@ -427,6 +427,28 @@ private function ExprIntrinsicType_ _
         if cp->count <> 2 then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
     case "len", "sizeof"
+        '' ...EXCEPT over a UDT with a user OPERATOR LEN: measured, typeof is that operator's result.
+        if (nm = "len") andalso (a0 <> Tko.TYPE_NONE) then
+            dim as Tko.TypeId lu = c.types->Unqualify( a0 )
+            if c.types->Kind( lu ) = Tko.TK_REFERENCE then lu = c.types->Unqualify( c.types->Inner( lu ) )
+            if c.types->Kind( lu ) = Tko.TK_UDT then
+                dim as Tko.SymbolId lop = c.info->RefOf( cp->target )
+                while lop <> Tko.SYMBOL_NONE
+                    dim as Tko.Symbol ptr lsy = c.syms->SymbolAt( lop )
+                    if lsy = 0 then exit while
+                    if lsy->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+                    dim as Tko.TypeId lpt = ProcParamTypeAt_( c, lop, 0 )
+                    if lpt <> Tko.TYPE_NONE then
+                        dim as Tko.TypeId lpu = c.types->Unqualify( lpt )
+                        if c.types->Kind( lpu ) = Tko.TK_REFERENCE then
+                            lpu = c.types->Unqualify( c.types->Inner( lpu ) )
+                        end if
+                        if (lpu = lu) andalso (lsy->type_ <> Tko.TYPE_NONE) then return lsy->type_
+                    end if
+                    lop = lsy->nextOverload
+                wend
+            end if
+        end if
         return c.types->Builtin( Tko.TY_INTEGER )
     case "lbound", "ubound"
         if isArr = false then return Tko.TYPE_NONE
@@ -1181,7 +1203,15 @@ private function IntrinsicCallType_ _
                         isOperator = (bsp->op = cast( ushort, Tko.KW_OPERATOR ))
                     end if
                 end if
-                if isOperator = false then return Tko.TYPE_NONE
+                '' ...UNLESS a keyword/left/right name has a non-UDT argument: the builtin, UNBOUND below.
+                dim as boolean kwBuiltinArg = (cast( long, ip->name ) <= TKO_KEYWORD_COUNT) orelse (nm = "left") orelse (nm = "right")
+                if kwBuiltinArg andalso (cp->count >= 1) then
+                    dim as Tko.TypeId ka = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
+                    if c.types->Kind( ka ) = Tko.TK_REFERENCE then ka = c.types->Unqualify( c.types->Inner( ka ) )
+                    kwBuiltinArg = (ka <> Tko.TYPE_NONE) andalso (c.types->Kind( ka ) <> Tko.TK_UDT)
+                end if
+                if (isOperator = false) andalso (kwBuiltinArg = false) then return Tko.TYPE_NONE
+                if (isOperator = false) andalso kwBuiltinArg then c.info->SetRef( cp->target, Tko.SYMBOL_NONE )
             end if
         end if
     end scope

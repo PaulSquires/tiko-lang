@@ -494,6 +494,60 @@ sub EmitStructorCall _
     end if
     if self_.kind = cast( ubyte, MV_NONE ) then return
 
+    '' THE DEFAULTED ARGUMENTS ARE LOWERED FIRST, before anything goes into the pool: a
+    '' default that builds a temporary emits calls of its own, and those would land
+    '' between this call's arguments. See the loop below for what they are.
+    ''
+    '' A BYREF DEFAULT IS AN ADDRESS, not a value. Measured, fbc's C for
+    '' 'constructor( byref s as string = "" )' called as 'dim as T b':
+    ''
+    ''     fb_StrAssign( &TMP, -1ll, "", 1ll, 0 );   _ZN1TC1ER8FBSTRING( &B, &TMP );
+    ''
+    '' tiko passed the literal's own bytes where the FBSTRING* belongs, and the
+    '' constructor's first string operation crashed -- AfxNova's BSTRING declares
+    '' exactly that constructor (scratchpad afx/q1.bas).
+    dim as FB.Array( of ulong ) defv
+    dim as long written = 0
+    if args <> 0 then written = args->Count \ 2
+    dim as long declared = ParamCountOf( c, sym )
+    for i as long = written to declared - 1
+        dim as Tko.NodeId dv = ParamDefaultAt( c, sym, i )
+        if dv = Tko.NODE_NONE then exit for
+        dim as MirValue av
+        dim as Tko.TypeId dpt = ParamTypeAt( c, sym, i )
+        dim as boolean dref = ParamIsByref( c, sym, i )
+        if dref andalso (dpt <> Tko.TYPE_NONE) then
+            if IsStringType( c, dpt ) then
+                dim as long dslot = -1
+                if ByvalStrTemp_( c, dv, dpt, av, dslot ) = false then exit for
+                if dslot >= 0 then
+                    c.f->locals[dslot].frontendType = dpt
+                    c.strTemps.Push( cast( ulong, dslot ) )
+                end if
+            else
+                dim as MirType dmt = LowerType( dpt, *c.types )
+                dim as boolean dscalar = (dmt <> MT_VOID) andalso (dmt <> MT_AGG)
+                if dscalar then
+                    dim as MirValue dval = LowerExpr( c, dv )
+                    if dval.kind = cast( ubyte, MV_NONE ) then exit for
+                    dim as long vslot = NewTempLocal( c, dmt, SizeOfType( c, dpt ) )
+                    if vslot < 0 then exit for
+                    av.kind = cast( ubyte, MV_LOCAL )
+                    av.ty = cast( ubyte, MT_PTR )
+                    av.id = vslot
+                    StoreThrough( c, av, CoerceTy( c, dval, dmt, c.info->TypeOf_( dv ), dpt ) )
+                else
+                    av = LowerExpr( c, dv )
+                end if
+            end if
+        else
+            av = LowerExpr( c, dv )
+        end if
+        if av.kind = cast( ubyte, MV_NONE ) then exit for
+        defv.Push( cast( ulong, av.kind ) )
+        defv.Push( cast( ulong, av.id ) )
+    next
+
     dim as long first = c.m->argPool.Count \ 2
     c.m->argPool.Push( cast( ulong, self_.kind ) )
     c.m->argPool.Push( cast( ulong, self_.id ) )
@@ -509,6 +563,10 @@ sub EmitStructorCall _
         next
         nargs += args->Count \ 2
     end if
+    for i as long = 0 to defv.Count - 1
+        c.m->argPool.Push( defv[i] )
+    next
+    nargs += defv.Count \ 2
 
     '' THE DEFAULTS THE CONSTRUCTOR DECLARES, for every parameter no caller wrote.
     ''
@@ -531,19 +589,7 @@ sub EmitStructorCall _
     ''
     '' 'idx + 1' BECAUSE THE RECEIVER IS PARAMETER ZERO here, and ParamDefaultAt
     '' indexes the DECLARED parameters, which do not include it.
-    dim as long declared = ParamCountOf( c, sym )
-    dim as long written = nargs - 1
-    if declared > written then
-        for i as long = written to declared - 1
-            dim as Tko.NodeId dv = ParamDefaultAt( c, sym, i )
-            if dv = Tko.NODE_NONE then exit for
-            dim as MirValue av = LowerExpr( c, dv )
-            if av.kind = cast( ubyte, MV_NONE ) then exit for
-            c.m->argPool.Push( cast( ulong, av.kind ) )
-            c.m->argPool.Push( cast( ulong, av.id ) )
-            nargs += 1
-        next
-    end if
+    '' (Lowered before the pool was touched -- see 'defv' above.)
 
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )

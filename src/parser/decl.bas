@@ -1026,6 +1026,14 @@ private function IsFieldNamedByKeyword _
     if HasTok( p, p.pos + 1 ) = false then return false
     dim as Tko.TokenKind nx = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
     if nx = Tko.KW_AS then return true
+    '' ...AND THE BITFIELD FORM: 'Shared : 1 as ULONG_PTR', which win/psapi.bi writes twice.
+    '' Measured, fbc takes 'Shared : 3 as ulong' and 'Shared as long' alike (sizeof 8 over a
+    '' long beside it). The ':' lexes as a colon-flagged TK_EOL; a WIDTH must follow it, or
+    '' it is the statement separator it usually is.
+    if (nx = Tko.TK_EOL) andalso ((p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) <> 0) then
+        if HasTok( p, p.pos + 2 ) = false then return false
+        return (cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_INT_LIT)
+    end if
     if nx <> Tko.TK_LPAREN then return false
     '' THE TWO FORMS DO NOT ACCEPT THE SAME WORDS. Measured over all 247 keywords: the
     '' 'name as T' form takes 223 of them and the ARRAY form 'name( lo to hi ) as T'
@@ -1262,6 +1270,11 @@ private function ParseAggregateBody _
             '' tiko-lang made it 24 with 'b' at 16.
             ParseArrayBounds( p, fp )
             if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
+            '' 'Shared : 1 as ULONG_PTR' -- the bitfield width, as the name-first branch reads it.
+            if IsColonHere( p ) then
+                Advance( p )
+                fp.b = Expression( p )
+            end if
             if Accept( p, Tko.KW_AS ) then fp.a = TypeRef( p )
             fp.extra or= vis
             members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )

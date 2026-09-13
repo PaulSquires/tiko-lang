@@ -211,12 +211,19 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     dim as FileId got = FILE_NONE
     dim as ustring why = ""
 
-    dim as ustring firstTry = FB.PathJoin( dir_, rel )
+    '' A LEADING SLASH IS NOT A ROOT HERE. AfxNova writes '#include once "/crt/string.bi"'
+    '' and '"/fbc-int/array.bi"'; fbc finds both under its include path (measured,
+    '' scratchpad afx/inc1.bas), where joining the absolute spelling found nothing.
+    dim as ustring relJ = rel
+    if len( rel ) > 1 then
+        if (left( rel, 1 ) = "/") orelse (left( rel, 1 ) = "\") then relJ = mid( rel, 2 )
+    end if
+    dim as ustring firstTry = FB.PathJoin( dir_, relJ )
     got = e.src->LoadFile( firstTry, why )
 
     if got = FILE_NONE then
         for each p as string in *e.cfg->includePaths
-            dim as ustring cand = FB.PathJoin( p, rel )
+            dim as ustring cand = FB.PathJoin( p, relJ )
             got = e.src->LoadFile( cand, why )
             if got <> FILE_NONE then exit for
         next

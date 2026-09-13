@@ -1,0 +1,6 @@
+'' A fixed wide string passed through a procedure pointer is an argument, and LEN over a UDT is not judged against another type's OPERATOR LEN. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-fixed-wide-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

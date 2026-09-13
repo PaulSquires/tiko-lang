@@ -1094,6 +1094,8 @@ function TypeOf_ _
             '' A conversion intrinsic is a KEYWORD, so nothing was ever bound and the
             '' callee lookup below finds nothing. Its result is a measured table.
             t = IntrinsicCallType_( c, cp )
+            '' The builtin kept beside a user overload: the CALL's copied binding goes too (lowering reads it first).
+            if (t <> Tko.TYPE_NONE) andalso (c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE) then c.info->SetRef( id, Tko.SYMBOL_NONE )
             if t = Tko.TYPE_NONE then
                 dim as Tko.SymbolId callee = c.info->RefOf( cp->target )
                 '' 'P( 3 )' IS AN OBJECT OF TYPE P. The callee is bound to the UDT

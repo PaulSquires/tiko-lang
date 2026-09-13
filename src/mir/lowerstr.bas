@@ -1052,9 +1052,33 @@ function LowerLen _
                     lop = c.syms->Lookup( lsc, _
                         c.names->Fold( c.names->GetString( "len" ) ) )
                 end if
-                if lop <> Tko.SYMBOL_NONE then
+                '' THE OVERLOAD FOR THIS TYPE, not the chain's head, at ITS result width. With
+                '' 'operator len' over A (as uinteger) and over B (as long), 'len( b1 )' called
+                '' A's -- fbc prints -5, tiko printed 100 (tests/mir/operator-len-type).
+                dim as Tko.SymbolId lpick = lop
+                dim as Tko.SymbolId lwalk = lop
+                while lwalk <> Tko.SYMBOL_NONE
+                    dim as Tko.Symbol ptr lws = c.syms->SymbolAt( lwalk )
+                    if lws = 0 then exit while
+                    dim as Tko.TypeId lpu = c.types->Unqualify( ParamTypeAt( c, lwalk, 0 ) )
+                    if lpu <> Tko.TYPE_NONE then
+                        if c.types->Kind( lpu ) = Tko.TK_REFERENCE then lpu = c.types->Unqualify( c.types->Inner( lpu ) )
+                        if lpu = lat then
+                            lpick = lwalk
+                            exit while
+                        end if
+                    end if
+                    lwalk = lws->nextOverload
+                wend
+                if lpick <> Tko.SYMBOL_NONE then
                     dim as MirValue lov
-                    if LowerUserUnaryOpSym_( c, lop, a, MT_I64, lov ) then
+                    dim as MirType lrt = MT_I64
+                    dim as Tko.Symbol ptr lps = c.syms->SymbolAt( lpick )
+                    if lps <> 0 then
+                        if lps->type_ <> Tko.TYPE_NONE then lrt = LowerType( lps->type_, *c.types )
+                    end if
+                    if (lrt = MT_VOID) orelse (lrt = MT_AGG) then lrt = MT_I64
+                    if LowerUserUnaryOpSym_( c, lpick, a, lrt, lov ) then
                         outv = lov
                         return true
                     end if

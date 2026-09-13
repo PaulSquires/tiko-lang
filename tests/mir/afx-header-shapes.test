@@ -1,0 +1,6 @@
+'' A leading-slash include path, a keyword field name with a bitfield width, and a single leading dot in a type name all parse as fbc parses them. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/afx-header-shapes.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

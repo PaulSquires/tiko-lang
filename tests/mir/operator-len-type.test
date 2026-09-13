@@ -1,0 +1,6 @@
+'' LEN over a UDT with a user OPERATOR LEN takes that operator's result type, not the builtin's INTEGER. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/operator-len-type.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

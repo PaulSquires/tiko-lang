@@ -1,0 +1,6 @@
+'' '..LEN( t )' and '.LEN( t )' outside a WITH call the builtin, not a user OPERATOR LEN of the same name. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/builtin-global-qualified.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

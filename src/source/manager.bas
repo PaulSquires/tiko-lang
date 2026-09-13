@@ -70,6 +70,19 @@ end function
 '' --------------------------------------------------------------------- loading
 
 function SourceManager.Find( byref absPath as ustring ) as FileId
+    #ifdef __FB_WIN32__
+    '' THE SAME FILE UNDER ANOTHER CASE IS THE SAME FILE on Windows. AfxNova includes
+    '' 'win\ole2.bi' and 'AfxGdiPlus.inc' where other headers wrote 'win/Ole2.bi' and
+    '' 'AfxGdiplus.inc', and '#include once' loaded each twice: TKO0600 on every type in
+    '' it (PsCalendar). Linux names are case-sensitive, so the fold is Windows-only.
+    dim as string wantL = lcase( Tko.Text.UStringToUtf8( absPath ) )
+    for i as long = 0 to this.files.Count - 1
+        if lcase( this.names->Spelling( this.files[i]->path ) ) = wantL then
+            return cast( FileId, i + 1 )
+        end if
+    next
+    return FILE_NONE
+    #endif
     dim as InternId want = this.names->GetString( Tko.Text.UStringToUtf8( absPath ) )
     dim as long n = this.files.Count
     for i as long = 0 to n - 1

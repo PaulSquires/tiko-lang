@@ -15,8 +15,16 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean globalPrefix = false
     if Peek( p ) = Tko.TK_DOT then
         if HasTok( p, p.pos + 1 ) then
-            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_DOT then
+            dim as Tko.TokenKind gk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+            if gk = Tko.TK_DOT then
                 Advance( p )
+                Advance( p )
+                globalPrefix = true
+            elseif (gk = Tko.TK_IDENT) orelse Tko.IsKeywordKind( gk ) then
+                '' ...AND ONE DOT, which a TYPE position reads the same way: AfxNova writes
+                '' 'BYVAL hWin AS .HWND' and 'DIM hDC AS .HDC' inside its namespace to reach
+                '' the global Win32 names past its own. fbc accepts both; this said
+                '' 'expected an identifier' at the dot.
                 Advance( p )
                 globalPrefix = true
             end if

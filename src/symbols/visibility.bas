@@ -788,6 +788,11 @@ private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = 0 then return
     if ts->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    '' ...AND ONLY AN ARRAY VARIABLE is subscripted. A PROCEDURE POINTER is called:
+    '' AfxPath.inc's 'pPathCchRemoveBackslashEx( _wszPath, ... )' passes a 'wstring * N'
+    '' to a PCWSTR parameter through one, and that was refused as fbc's error 73.
+    if ts->type_ = TYPE_NONE then return
+    if c.types->Kind( c.types->Unqualify( ts->type_ ) ) <> TK_ARRAY then return
     for i as long = 0 to lp->count - 1
         dim as NodeId a2 = cast( NodeId, c.ast->children[lp->first + i] )
         dim as TypeId at2 = c.info->TypeOf_( a2 )

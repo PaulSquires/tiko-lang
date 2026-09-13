@@ -227,6 +227,32 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->target = NODE_NONE then return
+    '' A BUILTIN'S NAME OVERLOADED BY THE PROGRAM IS NOT THE CALLEE FOR A BUILTIN ARGUMENT.
+    '' AfxNova declares 'Left OVERLOAD( byref as DWSTRING, n )' and calls 'LEFT( w, 1 )' over
+    '' a 'byref as const wstring'; measured, fbc runs the builtin (scratchpad afx/ov.bas), and
+    '' lowering takes it by spelling. Judging the argument against the user overload's byref
+    '' parameter gave a false 181 (TKO0699). Only a keyword spelling whose first argument is
+    '' not a UDT is let through -- a UDT argument is the user overload's own call.
+    if (c.ast->Kind( lp->target ) = N_IDENT) andalso (lp->count >= 1) then
+        dim as IdentPayload ptr tip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        '' LEFT and RIGHT are not lexer keywords, so they are named; LEN and MID are.
+        dim as string tnm = Text.LowerAscii( c.names->Spelling( tip->name ) )
+        dim as boolean builtinNm = (cast( long, tip->name ) <= TKO_KEYWORD_COUNT)
+        if (tnm = "left") orelse (tnm = "right") then builtinNm = true
+        '' ...AND NOTHING BOUND TO THE CALL ITSELF means the builtin (or a user OPERATOR of
+        '' that name) is what runs: the name's head symbol is just the first overload, and
+        '' 'LEN( dwsOut )' judged against BSTRING's operator was a false TKO0698.
+        if builtinNm andalso (c.info->RefOf( id ) = SYMBOL_NONE) then return
+        if builtinNm then
+            dim as TypeId a0t = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
+            if a0t <> TYPE_NONE then
+                dim as TypeId a0u = c.types->Unqualify( a0t )
+                if c.types->Kind( a0u ) = TK_REFERENCE then a0u = c.types->Unqualify( c.types->Inner( a0u ) )
+                if c.types->Kind( a0u ) <> TK_UDT then return
+            end if
+        end if
+    end if
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
     if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if callee = 0 then return
