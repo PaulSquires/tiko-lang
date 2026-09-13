@@ -1,0 +1,8 @@
+'' A single literal, and a constant declared AS SINGLE, fold as their single values;
+'' the arithmetic over them is still done in double. See the source for fbc's bits.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/float-single-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/float-single-literal.out

@@ -200,6 +200,11 @@ private function LitNum_ _
     if lp = 0 then return false
     if k = Tko.N_FLOAT_LIT then
         d = lp->fltValue
+        '' A SINGLE LITERAL IS ITS SINGLE VALUE, and folding goes on in double from there.
+        '' Measured: '1.1f * 1.0' is 3FF19999A0000000 in fbc, and '1.1f * 2.4f * 5.4f'
+        '' is 41641895 -- the product of the three single values taken in DOUBLE, then
+        '' rounded -- where the exact decimals give 41641893.
+        if cast( Tko.NumSuffix, lp->suffix ) = Tko.NSUF_SINGLE then d = cast( single, d )
     else
         d = cast( double, cast( longint, lp->intValue ) )
     end if
@@ -296,7 +301,13 @@ function ConstFloatOf _
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return false
         dim as Tko.StmtPayload ptr cip = _
             @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
-        return ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent )
+        if ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent ) = false then
+            return false
+        end if
+        '' 'const KS as single = 1.1' holds the SINGLE value: 'fa * KS * 2.4f * 5.4f'
+        '' is 41641895 in fbc, as for a '1.1f' literal. A builtin's TypeId is its kind.
+        if cs->type_ = cast( Tko.TypeId, Tko.TY_SINGLE ) then outd = cast( single, outd )
+        return true
     end select
     return false
 end function
