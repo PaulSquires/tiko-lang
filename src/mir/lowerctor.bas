@@ -310,7 +310,25 @@ function LowerConvCtorInit_ _
     '' 'byref rhs as SharedPtr( of Probe )' emitted 'ptr %t945' with %t945 defined
     '' as 'load [8 x i8]', and clang refused the module.
     dim as boolean tookAddr = false
+    '' A BYREF WSTRING TAKES THE CHARACTERS, as at a call (lowercall.bas). A wide
+    '' argument is no IsStringType, so the scalar arm below stored the literal's POINTER
+    '' in a temporary and passed its address -- 'dim as WS a = wstr( "Fevrier" )' read
+    '' 16408 as the first character and crashed -- and a narrow one reached CtorArgValue_,
+    '' which passed its bytes or its loaded descriptor. fbc: '_ZN2WSC1ERw( &A$0, (uint16*)
+    '' L"Fevrier" )', a narrow literal widened in place, a variable via fb_StrToWstr.
     if (fromArray = false) andalso ptByref then
+        dim as Tko.TypeId wpu = c.types->Unqualify( pt )
+        if c.types->Kind( wpu ) = Tko.TK_REFERENCE then wpu = c.types->Unqualify( c.types->Inner( wpu ) )
+        if c.types->Kind( wpu ) = Tko.TK_BUILTIN then
+            if c.types->BuiltinOf( wpu ) = Tko.TY_WSTRING then
+                if WideOperand_( c, init_, av ) = false then
+                    if IsNarrowStrArg_( c, it ) then NarrowToWideTemp_( c, init_, av )
+                end if
+                tookAddr = (av.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+    end if
+    if (fromArray = false) andalso ptByref andalso (tookAddr = false) then
         '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
         '' 'constructor UDT( byref rhs as const long )' -- which is how an
         '' 'extern "C++"' class spells a converting constructor -- handed the VALUE
