@@ -1,0 +1,9 @@
+'' A generic candidate whose instantiation-typed parameter meets an argument inference
+'' cannot type is not bound on the other arguments alone; the concrete overloads resolve.
+'' TEST: cli
+'' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/generic-infer-untyped-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0632
+'' EXPECT-NOT: contains<

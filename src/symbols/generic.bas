@@ -412,7 +412,12 @@ private function InferProcTypeArgs_ _
                 if at_ < 0 then continue for
                 dim as Tko.TypeId argT = InferArgType_( c, _
                     cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_ )
-                if argT = Tko.TYPE_NONE then continue for
+                '' ...AND SO DOES AN ARGUMENT THIS CANNOT TYPE. Skipping it is the same
+                '' guess one step removed: 'FB.Contains( row.AsText( ), "x" )' -- a METHOD
+                '' call, which InferArgType_ does not type -- inferred T from the literal
+                '' alone and bound the array generic, so the three concrete overloads the
+                '' call is for were never scored (fbsqlite's tests, five files).
+                if argT = Tko.TYPE_NONE then return false
                 '' AN ARGUMENT THAT IS NOT AN INSTANTIATION AT ALL MAKES THE WHOLE
                 '' INFERENCE FAIL, rather than moving on to the next parameter.
                 ''
