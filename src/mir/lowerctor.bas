@@ -584,6 +584,11 @@ function LowerCtorInit _
             argDesc.Push( 1 )
             continue for
         end if
+        '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
+        if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
+            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
+            continue for
+        end if
         dim as MirValue av = LowerExpr( c, a )
         '' NOTHING TO PASS IS NOT AN ARGUMENT. Pushing it anyway put a hole in the
         '' call and counted the statement as fully lowered.
@@ -705,6 +710,7 @@ function LowerCtorInit _
             end if
         end if
 
+        if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai2] ) ) : av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
         dim as MirValue cv = Coerce( c, av, LowerType( pty, *c.types ) )
         argKind[ai2] = cv.kind
         argId[ai2] = cv.id
@@ -1205,6 +1211,12 @@ function LowerBaseCtorCall_ _
     dim as FB.Array( of ulong ) argNode
     for i as long = 0 to cp->count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
+        if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
+            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
+            argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
+            continue for
+        end if
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
         argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
@@ -1256,6 +1268,7 @@ function LowerBaseCtorCall_ _
             end if
         end if
         if tookAddr = false then
+            if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai] ) ) : av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
             cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
         end if
         if cv.kind = cast( ubyte, MV_NONE ) then return false

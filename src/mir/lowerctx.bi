@@ -741,6 +741,9 @@ declare function EmitRtl _
     declare function WideRefCtorArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outv as MirValue ) as boolean
+    declare function CtorLitArgIsWide_ _
+        ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as long, _
+          byval count as long, byval idx as long ) as boolean
     declare function ByrefTempOf_ _
         ( byref c as Ctx, byref rv as MirValue, byval pt as Tko.TypeId ) as MirValue
     declare function StrDescriptorOf_ _

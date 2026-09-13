@@ -1,36 +1,34 @@
-global str $str0 "Sept"
-global wstr $wstr1 "Sept"
-global wstr $wstr2 "Novembre"
-global str $str3 "show:"
-global str $str4 " "
-global wstr $wstr5 "Fevrier"
-global str $str6 "len:"
-global str $str7 "chr1:"
-global str $str8 "str: "
-global wstr $wstr9 "Mars"
-global str $str10 "b:"
-global wstr $wstr11 "Avril"
-global str $str12 "c:"
-global wstr $wstr13 "Mai"
-global str $str14 "d:"
-global str $str15 "Juin"
-global str $str16 "e:"
-global str $str17 "Juillet"
-global str $str18 "Mars"
-global str $str19 "f:"
-global str $str20 "g:"
-global str $str21 "!"
-global str $str22 "h:"
-global str $str23 "i:"
-global str $str24 "j:"
-global wstr $wstr25 "Aout"
-global str $str26 "a"
-global str $str27 "k:"
-global str $str28 "Octobre"
-global str $str29 "p:"
-global str $str30 "q:"
-global str $str31 "r:"
-global str $str32 "done"
+global wstr $wstr0 "Sept"
+global wstr $wstr1 "Novembre"
+global str $str2 "show:"
+global str $str3 " "
+global wstr $wstr4 "Fevrier"
+global str $str5 "len:"
+global str $str6 "chr1:"
+global str $str7 "str: "
+global wstr $wstr8 "Mars"
+global str $str9 "b:"
+global wstr $wstr10 "Avril"
+global str $str11 "c:"
+global wstr $wstr12 "Mai"
+global str $str13 "d:"
+global str $str14 "Juin"
+global str $str15 "e:"
+global str $str16 "Juillet"
+global str $str17 "f:"
+global str $str18 "g:"
+global str $str19 "!"
+global str $str20 "h:"
+global str $str21 "i:"
+global str $str22 "j:"
+global wstr $wstr23 "Aout"
+global str $str24 "a"
+global str $str25 "k:"
+global str $str26 "Octobre"
+global str $str27 "p:"
+global str $str28 "q:"
+global str $str29 "r:"
+global str $str30 "done"
 func void _ZN2WSC1ERw(ptr $0, ptr $1) {
   local ptr this
   local ptr w
@@ -112,7 +110,7 @@ func void _ZN2DWC1Ev(ptr $0) {
     %2 = load @this
     %3 = load @this
     %4 = field.addr %3, 0
-    call void _ZN2WUC1ERKw(%4, @@$wstr1)
+    call void _ZN2WUC1ERKw(%4, @@$wstr0)
     ret
 }
 func void _ZN2DWC1Eu7INTEGER(ptr $0, i64 $1) {
@@ -126,7 +124,7 @@ func void _ZN2DWC1Eu7INTEGER(ptr $0, i64 $1) {
     %3 = load @this
     %4 = load @this
     %5 = field.addr %4, 0
-    call void _ZN2WUC1ERKw(%5, @@$wstr2)
+    call void _ZN2WUC1ERKw(%5, @@$wstr1)
     ret
 }
 func i64 SHOW(ptr $0) {
@@ -138,13 +136,13 @@ func i64 SHOW(ptr $0) {
     store @$tmp0, %2
     %3 = alloca ptr u
     store @u, $0
-    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 5)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 5)
     call.rtl void fb_PrintString(0, %4, 0)
     %5 = load @u
     %6 = field.addr %5, 0
     %7 = call.rtl i64 fb_WstrLen(%6)
     call.rtl void fb_PrintLongint(0, %7, 0)
-    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %8, 0)
     %9 = load @u
     %10 = field.addr %9, 0
@@ -198,13 +196,13 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr a
-    call void _ZN2WSC1ERw(@a, @@$wstr5)
-    %5 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 4)
+    call void _ZN2WSC1ERw(@a, @@$wstr4)
+    %5 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 4)
     call.rtl void fb_PrintString(0, %5, 0)
     %6 = field.addr @a, 0
     %7 = call.rtl i64 fb_WstrLen(%6)
     call.rtl void fb_PrintLongint(0, %7, 1)
-    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 5)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 5)
     call.rtl void fb_PrintString(0, %8, 0)
     %9 = field.addr @a, 0
     %10 = const i64 0
@@ -213,19 +211,19 @@ func i32 main(i32 $0, ptr $1) {
     %13 = ptr.add %9, %12
     %14 = load %13
     call.rtl void fb_PrintUShort(0, %14, 1)
-    %15 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 5)
+    %15 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 5)
     call.rtl void fb_PrintString(0, %15, 0)
     %16 = field.addr @a, 0
     %17 = call.rtl ptr fb_WstrToStr(%16)
     call.rtl void fb_PrintString(0, %17, 1)
     %18 = alloca ptr b
-    call void _ZN2WUC1ERKw(@b, @@$wstr9)
-    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call void _ZN2WUC1ERKw(@b, @@$wstr8)
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 2)
     call.rtl void fb_PrintString(0, %19, 0)
     %20 = field.addr @b, 0
     %21 = call.rtl i64 fb_WstrLen(%20)
     call.rtl void fb_PrintLongint(0, %21, 0)
-    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %22, 0)
     %23 = field.addr @b, 0
     %24 = const i64 0
@@ -234,37 +232,37 @@ func i32 main(i32 $0, ptr $1) {
     %27 = ptr.add %23, %26
     %28 = load %27
     call.rtl void fb_PrintUShort(0, %28, 0)
-    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %29, 0)
     %30 = field.addr @b, 0
     %31 = call.rtl ptr fb_WstrToStr(%30)
     call.rtl void fb_PrintString(0, %31, 1)
     %32 = alloca ptr c
-    call void _ZN2WUC1ERKw(@c, @@$wstr11)
-    %33 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 2)
+    call void _ZN2WUC1ERKw(@c, @@$wstr10)
+    %33 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 2)
     call.rtl void fb_PrintString(0, %33, 0)
     %34 = field.addr @c, 0
     %35 = call.rtl i64 fb_WstrLen(%34)
     call.rtl void fb_PrintLongint(0, %35, 0)
-    %36 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %36 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %36, 0)
     %37 = field.addr @c, 0
     %38 = call.rtl ptr fb_WstrToStr(%37)
     call.rtl void fb_PrintString(0, %38, 1)
     %39 = alloca ptr d
-    call void _ZN2WSC1ERw(@d, @@$wstr13)
-    %40 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 2)
+    call void _ZN2WSC1ERw(@d, @@$wstr12)
+    %40 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 2)
     call.rtl void fb_PrintString(0, %40, 0)
     %41 = field.addr @d, 0
     %42 = call.rtl i64 fb_WstrLen(%41)
     call.rtl void fb_PrintLongint(0, %42, 0)
-    %43 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %43 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %43, 0)
     %44 = field.addr @d, 0
     %45 = call.rtl ptr fb_WstrToStr(%44)
     call.rtl void fb_PrintString(0, %45, 1)
     %46 = alloca ptr n
-    %47 = call.rtl ptr fb_StrInit(@n, -1, @@$str15, 5, 0)
+    %47 = call.rtl ptr fb_StrInit(@n, -1, @@$str14, 5, 0)
     %48 = alloca ptr e
     %49 = load @n
     %50 = call.rtl ptr fb_StrToWstr(%49)
@@ -274,26 +272,26 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN2WUC1ERKw(@e, %52)
     %53 = load @$tmp7
     call.rtl void fb_WstrDelete(%53)
-    %54 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str16, 2)
+    %54 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 2)
     call.rtl void fb_PrintString(0, %54, 0)
     %55 = field.addr @e, 0
     %56 = call.rtl i64 fb_WstrLen(%55)
     call.rtl void fb_PrintLongint(0, %56, 0)
-    %57 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %57 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %57, 0)
     %58 = field.addr @e, 0
     %59 = call.rtl ptr fb_WstrToStr(%58)
     call.rtl void fb_PrintString(0, %59, 1)
     %60 = alloca ptr z
-    %61 = call.rtl ptr fb_StrAssign(@z, 16, @@$str17, 8, 0)
+    %61 = call.rtl ptr fb_StrAssign(@z, 16, @@$str16, 8, 0)
     %62 = alloca ptr f
-    call void _ZN2WUC1ERKw(@f, @@$wstr9)
-    %63 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 2)
+    call void _ZN2WUC1ERKw(@f, @@$wstr8)
+    %63 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 2)
     call.rtl void fb_PrintString(0, %63, 0)
     %64 = field.addr @f, 0
     %65 = call.rtl i64 fb_WstrLen(%64)
     call.rtl void fb_PrintLongint(0, %65, 0)
-    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %66, 0)
     %67 = field.addr @f, 0
     %68 = call.rtl ptr fb_WstrToStr(%67)
@@ -308,12 +306,12 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN2WUC1ERKw(@g, %74)
     %75 = load @$tmp11
     call.rtl void fb_WstrDelete(%75)
-    %76 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str20, 2)
+    %76 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str18, 2)
     call.rtl void fb_PrintString(0, %76, 0)
     %77 = field.addr @g, 0
     %78 = call.rtl i64 fb_WstrLen(%77)
     call.rtl void fb_PrintLongint(0, %78, 0)
-    %79 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %79 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %79, 0)
     %80 = field.addr @g, 0
     %81 = call.rtl ptr fb_WstrToStr(%80)
@@ -327,7 +325,7 @@ func i32 main(i32 $0, ptr $1) {
     store %86, 0
     %87 = field.addr @$tmp14, 16
     store %87, 0
-    %88 = call.rtl ptr fb_StrConcat(@$tmp14, @n, -1, @@$str21, 2)
+    %88 = call.rtl ptr fb_StrConcat(@$tmp14, @n, -1, @@$str19, 2)
     %89 = alloca ptr $tmp15
     %90 = field.addr @$tmp15, 0
     store %90, 0
@@ -347,12 +345,12 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@$tmp15)
     %99 = load @$tmp16
     call.rtl void fb_WstrDelete(%99)
-    %100 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 2)
+    %100 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str20, 2)
     call.rtl void fb_PrintString(0, %100, 0)
     %101 = field.addr @h, 0
     %102 = call.rtl i64 fb_WstrLen(%101)
     call.rtl void fb_PrintLongint(0, %102, 0)
-    %103 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %103 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %103, 0)
     %104 = field.addr @h, 0
     %105 = call.rtl ptr fb_WstrToStr(%104)
@@ -365,12 +363,12 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN2WUC1ERKw(@i, %109)
     %110 = load @$tmp18
     call.rtl void fb_WstrDelete(%110)
-    %111 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str23, 2)
+    %111 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str21, 2)
     call.rtl void fb_PrintString(0, %111, 0)
     %112 = field.addr @i, 0
     %113 = call.rtl i64 fb_WstrLen(%112)
     call.rtl void fb_PrintLongint(0, %113, 0)
-    %114 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %114 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %114, 0)
     %115 = field.addr @i, 0
     %116 = call.rtl ptr fb_WstrToStr(%115)
@@ -384,12 +382,12 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN2WUC1ERKw(@j, %121)
     %122 = load @$tmp20
     call.rtl void fb_WstrDelete(%122)
-    %123 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str24, 2)
+    %123 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 2)
     call.rtl void fb_PrintString(0, %123, 0)
     %124 = field.addr @j, 0
     %125 = call.rtl i64 fb_WstrLen(%124)
     call.rtl void fb_PrintLongint(0, %125, 0)
-    %126 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %126 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %126, 0)
     %127 = field.addr @j, 0
     %128 = call.rtl ptr fb_WstrToStr(%127)
@@ -405,7 +403,7 @@ func i32 main(i32 $0, ptr $1) {
     %135 = load @$tmp22
     call.rtl void fb_WstrDelete(%135)
     %136 = alloca ptr $tmp23
-    call void _ZN2WUC1ERKw(@$tmp23, @@$wstr25)
+    call void _ZN2WUC1ERKw(@$tmp23, @@$wstr23)
     %137 = call i64 SHOW(@$tmp23)
     %138 = alloca ptr k
     %139 = alloca ptr $tmp25
@@ -415,7 +413,7 @@ func i32 main(i32 $0, ptr $1) {
     store %141, 0
     %142 = field.addr @$tmp25, 16
     store %142, 0
-    %143 = call.rtl ptr fb_StrConcat(@$tmp25, @@$str26, 2, @n, -1)
+    %143 = call.rtl ptr fb_StrConcat(@$tmp25, @@$str24, 2, @n, -1)
     %144 = alloca ptr $tmp26
     %145 = field.addr @$tmp26, 0
     store %145, 0
@@ -433,39 +431,39 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@$tmp26)
     %153 = load @$tmp27
     call.rtl void fb_WstrDelete(%153)
-    %154 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str27, 2)
+    %154 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str25, 2)
     call.rtl void fb_PrintString(0, %154, 0)
     %155 = field.addr @k, 0
     %156 = call.rtl i64 fb_WstrLen(%155)
     call.rtl void fb_PrintLongint(0, %156, 0)
-    %157 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %157 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %157, 0)
     %158 = field.addr @k, 0
     %159 = call.rtl ptr fb_WstrToStr(%158)
     call.rtl void fb_PrintString(0, %159, 1)
     %160 = alloca ptr o
-    %161 = call.rtl ptr fb_StrInit(@o, -1, @@$str28, 8, 0)
+    %161 = call.rtl ptr fb_StrInit(@o, -1, @@$str26, 8, 0)
     %162 = alloca ptr p
     %163 = load @o
     call void _ZN2DWC1ER8FBSTRING(@p, @o)
-    %164 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str29, 2)
+    %164 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str27, 2)
     call.rtl void fb_PrintString(0, %164, 0)
     %165 = field.addr @p, 0
     %166 = call.rtl i64 fb_WstrLen(%165)
     call.rtl void fb_PrintLongint(0, %166, 0)
-    %167 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %167 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %167, 0)
     %168 = field.addr @p, 0
     %169 = call.rtl ptr fb_WstrToStr(%168)
     call.rtl void fb_PrintString(0, %169, 1)
     %170 = alloca ptr q
     call void _ZN2DWC1Ev(@q)
-    %171 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str30, 2)
+    %171 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str28, 2)
     call.rtl void fb_PrintString(0, %171, 0)
     %172 = field.addr @q, 0
     %173 = call.rtl i64 fb_WstrLen(%172)
     call.rtl void fb_PrintLongint(0, %173, 0)
-    %174 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %174 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %174, 0)
     %175 = field.addr @q, 0
     %176 = call.rtl ptr fb_WstrToStr(%175)
@@ -473,17 +471,17 @@ func i32 main(i32 $0, ptr $1) {
     %177 = alloca ptr r
     %178 = const i64 11
     call void _ZN2DWC1Eu7INTEGER(@r, %178)
-    %179 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str31, 2)
+    %179 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str29, 2)
     call.rtl void fb_PrintString(0, %179, 0)
     %180 = field.addr @r, 0
     %181 = call.rtl i64 fb_WstrLen(%180)
     call.rtl void fb_PrintLongint(0, %181, 0)
-    %182 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
+    %182 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
     call.rtl void fb_PrintString(0, %182, 0)
     %183 = field.addr @r, 0
     %184 = call.rtl ptr fb_WstrToStr(%183)
     call.rtl void fb_PrintString(0, %184, 1)
-    %185 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str32, 4)
+    %185 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str30, 4)
     call.rtl void fb_PrintString(0, %185, 1)
     call.rtl void fb_StrDelete(@o)
     call.rtl void fb_StrDelete(@n)

@@ -225,3 +225,43 @@ function WideRefCtorArg_ _
     if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) = false then return false
     return NarrowToWideTemp_( c, argNode, outv )
 end function
+
+
+'' A STRING LITERAL BOUND FOR A 'byref as [const] wstring' CONSTRUCTOR PARAMETER is left out
+'' when the arguments are lowered ahead of the overload pick: WideRefCtorArg_ lowers it WIDE
+'' once the pick is made, and lowering it narrow first as well left a dead narrow global
+'' beside the wide one -- 'base( "Sept" )', 'WU( "Mars" )'. fbc emits only 'L"Sept"'. A
+'' literal has no side effect, so leaving it out reorders nothing. The pick is made here
+'' from the argument TYPES, which is all PickCtor reads; 'idx' counts arguments.
+function CtorLitArgIsWide_ _
+    ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as long, _
+      byval count as long, byval idx as long ) as boolean
+
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + idx] )
+    if c.ast->Kind( Unparen_( c, a ) ) <> Tko.N_STRING_LIT then return false
+    dim as FB.Array( of ulong ) argT
+    for i as long = 0 to count - 1
+        argT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[first_ + i] ) ) ) )
+    next
+    dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
+    if pick = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
+    if pn = Tko.NODE_NONE then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as long seen = 0
+    for k as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen = idx then
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0 then return false
+            dim as Tko.TypeId u = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
+            if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+            if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+            return (c.types->BuiltinOf( u ) = Tko.TY_WSTRING)
+        end if
+        seen += 1
+    next
+    return false
+end function
