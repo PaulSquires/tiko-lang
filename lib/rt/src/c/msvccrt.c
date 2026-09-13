@@ -274,6 +274,62 @@ int __cdecl fileno( void *stream )
     return _fileno( stream );
 }
 
+/* THE WIDE MEMORY FAMILY IS INLINE IN THE UCRT HEADERS, exactly as sprintf is, so none
+** of it is exported: checked against our ucrt.lib, ucrtbase.lib and msvcrt.lib with
+** llvm-nm, where wmemmove, wmemcpy, wmemset, wmemcmp and wmemchr all come back absent
+** while memmove, memcpy, memset and memcmp are present. crt/wchar.bi declares them
+** as ordinary functions and AfxNova's DWSTRING calls wmemmove from ResizeBuffer and
+** AppendBuffer, so PsCalendar's link stopped on 'undefined symbol: wmemmove'.
+**
+** wchar_t IS 16 BITS on this target, and the counts are in CHARACTERS, not bytes.
+** Declared with the compiler's own __WCHAR_TYPE__ and __SIZE_TYPE__ so the definitions
+** match clang's builtin signatures exactly; the header warning is silenced for the
+** same reason fprintf's is. tiko-rt itself never calls these -- see ustr/prim.bas. */
+typedef __WCHAR_TYPE__ tkort_wchar;
+void * __cdecl memmove( void *dst, void const *src, __SIZE_TYPE__ n );
+void * __cdecl memcpy( void *dst, void const *src, __SIZE_TYPE__ n );
+int    __cdecl memcmp( void const *a, void const *b, __SIZE_TYPE__ n );
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbuiltin-requires-header"
+tkort_wchar * __cdecl wmemmove( tkort_wchar *dst, tkort_wchar const *src, __SIZE_TYPE__ n )
+{
+    return (tkort_wchar *)memmove( dst, src, n * sizeof( tkort_wchar ) );
+}
+
+tkort_wchar * __cdecl wmemcpy( tkort_wchar *dst, tkort_wchar const *src, __SIZE_TYPE__ n )
+{
+    return (tkort_wchar *)memcpy( dst, src, n * sizeof( tkort_wchar ) );
+}
+
+tkort_wchar * __cdecl wmemset( tkort_wchar *dst, tkort_wchar c, __SIZE_TYPE__ n )
+{
+    __SIZE_TYPE__ i;
+    for( i = 0; i < n; i++ ) dst[i] = c;
+    return dst;
+}
+
+/* ORDERED BY CODE UNIT VALUE, not by memcmp's byte order: a little-endian byte
+** compare would rank 0x0100 below 0x00FF. */
+int __cdecl wmemcmp( tkort_wchar const *a, tkort_wchar const *b, __SIZE_TYPE__ n )
+{
+    __SIZE_TYPE__ i;
+    for( i = 0; i < n; i++ ) {
+        if( a[i] != b[i] ) return a[i] < b[i] ? -1 : 1;
+    }
+    return 0;
+}
+
+tkort_wchar * __cdecl wmemchr( tkort_wchar const *s, tkort_wchar c, __SIZE_TYPE__ n )
+{
+    __SIZE_TYPE__ i;
+    for( i = 0; i < n; i++ ) {
+        if( s[i] == c ) return (tkort_wchar *)( s + i );
+    }
+    return 0;
+}
+#pragma clang diagnostic pop
+
 /* time_t IS 64-BIT on x64, so these are renames rather than conversions. */
 long long __cdecl time( long long *dest )
 {
