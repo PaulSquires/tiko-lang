@@ -230,7 +230,27 @@ private function UdtConvTemp_ _
     end if
 
     dim as MirValue av
-    if chainCast <> Tko.SYMBOL_NONE then
+    '' A BYVAL UDT CONSTRUCTOR PARAMETER takes the argument the way any byval UDT parameter
+    '' does: a caller-built COPY through the copy constructor, destroyed after the call,
+    '' or the aggregate itself for a type that needs neither. Measured on fbc, over
+    '' 'constructor foo( byval v as bar )': 'bar copy', then the constructor, for a bar
+    '' with a copy constructor, and a plain memcpy for one without. This declined at the
+    '' MT_AGG test below, which ArgNeedsUdtConv_ used to be too broad to ever reach.
+    dim as boolean byvalUdt = false
+    dim as long copySlot = -1
+    dim as Tko.TypeId copyType = Tko.TYPE_NONE
+    if (byrefP = false) andalso (chainCast = Tko.SYMBOL_NONE) then
+        byvalUdt = (c.types->Kind( cpu ) = Tko.TK_UDT)
+    end if
+    if byvalUdt then
+        if ParamIsIndirectUdt_( c, cv, 0 ) then
+            if ByvalUdtCopyArg_( c, argNode, cpu, av, copySlot, copyType ) = false then return false
+        else
+            dim as MirValue srcA = LowerAddr( c, argNode )
+            if srcA.kind = cast( ubyte, MV_NONE ) then return false
+            av = LowerExprLoad( c, srcA, MT_AGG, SizeOfType( c, cpu ) )
+        end if
+    elseif chainCast <> Tko.SYMBOL_NONE then
         dim as MirValue cself = LowerAddr( c, argNode )
         if cself.kind = cast( ubyte, MV_NONE ) then return false
         av = EmitMemberCall( c, chainCast, cself, MT_PTR )
@@ -257,10 +277,12 @@ private function UdtConvTemp_ _
     end if
     if av.kind = cast( ubyte, MV_NONE ) then return false
     if (byrefP = false) andalso (chainCast = Tko.SYMBOL_NONE) then
-        dim as MirType cmt = LowerType( cpt, *c.types )
-        if (cmt = MT_VOID) orelse (cmt = MT_AGG) then return false
-        av = CoerceTy( c, av, cmt, c.info->TypeOf_( argNode ))
-        if av.kind = cast( ubyte, MV_NONE ) then return false
+        if byvalUdt = false then
+            dim as MirType cmt = LowerType( cpt, *c.types )
+            if (cmt = MT_VOID) orelse (cmt = MT_AGG) then return false
+            av = CoerceTy( c, av, cmt, c.info->TypeOf_( argNode ))
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+        end if
     end if
 
     dim as long slot = NewTempLocal( c, MT_AGG, sz )
@@ -274,6 +296,14 @@ private function UdtConvTemp_ _
     cargs.Push( cast( ulong, av.kind ) )
     cargs.Push( cast( ulong, av.id ) )
     EmitStructorCall( c, cv, -1, @dst, @cargs )
+    '' THE CONSTRUCTOR'S OWN BYVAL COPY LIVES TO THE END OF THE STATEMENT, not to the end of
+    '' the constructor call. Measured: over a bar with a destructor fbc prints 'ref 60'
+    '' from the outer call BEFORE 'bar dtor' -- the copy outlives the call it was built
+    '' for -- which is the statement-temporary list's lifetime.
+    if copySlot >= 0 then
+        c.udtTemps.Push( cast( ulong, copySlot ) )
+        c.udtTempTypes.Push( cast( ulong, copyType ) )
+    end if
 
     if TypeNeedsDtor_( c, pt ) then
         outSlot = slot
@@ -413,15 +443,16 @@ private function ArgNeedsUdtConv_ _
     '' A DERIVED OBJECT IS NOT A CONVERSION -- it is the base subobject at offset zero,
     '' which the ordinary path already passes.
     ''
-    '' THIS IS TOO BROAD AND IS KNOWN TO BE. It refuses EVERY UDT argument, so a
-    '' type with a CONVERTING CONSTRUCTOR taking another UDT never runs it and the
-    '' source object's bytes are passed where the destination belongs --
-    '' 'fval( bv )' over 'constructor foo( byval v as bar )' gives 0 where fbc gives
-    '' 13. Narrowing it to a real base walk turns that into a DECLINE rather than a
-    '' fix, because UdtConvTemp_ then refuses the byval UDT parameter at the MT_AGG
-    '' test below -- so the conversion path has to learn to pass an aggregate before
-    '' this test is allowed to let one through.
-    if c.types->Kind( at ) = Tko.TK_UDT then return false
+    '' ANY OTHER UDT IS ONE WHEN THE PARAMETER'S TYPE HAS A CONSTRUCTOR FOR IT. This
+    '' refused EVERY UDT argument, so the constructor never ran and the source object's
+    '' bytes were passed where the destination belongs: 'TakeDWv( b )' over 'byval d as
+    '' DW' with 'constructor DW( byref b as BS )' printed 100 where fbc prints 107. A
+    '' constructor that takes its UDT operand BYVAL still declines in UdtConvTemp_ (the
+    '' MT_AGG test) -- a decline where there was a wrong answer.
+    if c.types->Kind( at ) = Tko.TK_UDT then
+        if c.types->BaseDistance( at, pt ) >= 0 then return false
+        return HasUdtConvCtor_( c, pt, at )
+    end if
     return true
 end function
 

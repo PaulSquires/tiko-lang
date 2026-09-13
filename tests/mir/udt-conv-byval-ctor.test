@@ -1,0 +1,8 @@
+'' A converting constructor taking its UDT operand byval: the caller builds the copy
+'' through the copy constructor, and it is destroyed at the end of the statement.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-conv-byval-ctor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-conv-byval-ctor.out

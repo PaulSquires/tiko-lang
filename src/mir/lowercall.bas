@@ -714,7 +714,7 @@ function LowerCallParts _
                     if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
                 end if
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then a = LowerAddr( c, argNode )
+            if (a.kind = cast( ubyte, MV_NONE )) andalso (ByrefUdtArg_( c, argNode, brPt, a, tempSlots, tempTypes ) = false) then return CallFailed_( c, v, __LINE__ )
             '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
             '' DEFAULT of an omitted one -- still has to be passed by reference, and a
             '' value is not a pointer. fbc materialises a temporary, stores the value

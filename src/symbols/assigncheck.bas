@@ -49,8 +49,20 @@ private function PtrAssignBad_ _
     if c.types->Kind( rp ) = TK_POINTER then return false
     dim as boolean lHasBase = false
     dim as boolean rHasBase = false
-    if c.types->Kind( lp ) = TK_UDT then lHasBase = (BaseOf_( c, lp ) <> TYPE_NONE)
-    if c.types->Kind( rp ) = TK_UDT then rHasBase = (BaseOf_( c, rp ) <> TYPE_NONE)
+    '' A BUILTIN BASE IS NO HIERARCHY. 'type DW extends wstring' gives DW a base field of
+    '' type WSTRING, and two such types are as unrelated as two plain ones. Measured on
+    '' fbc-modern: 'Add( byref d as DW )' given a BS that also extends wstring binds a
+    '' temporary built by DW's constructor and prints 'dw 7' -- the same as when neither
+    '' extends anything. Counting WSTRING as a base refused AfxNova's 'this.Add( bs )' in
+    '' DWSTRING.+= and DWSTRING.&= (TKO0698), which PsCalendar reached twice.
+    if c.types->Kind( lp ) = TK_UDT then
+        dim as TypeId lb = BaseOf_( c, lp )
+        if lb <> TYPE_NONE then lHasBase = (c.types->Kind( c.types->Unqualify( lb ) ) = TK_UDT)
+    end if
+    if c.types->Kind( rp ) = TK_UDT then
+        dim as TypeId rb = BaseOf_( c, rp )
+        if rb <> TYPE_NONE then rHasBase = (c.types->Kind( c.types->Unqualify( rb ) ) = TK_UDT)
+    end if
     if (lHasBase orelse rHasBase) = false then return false
     '' THE UPCAST IS THE LEGAL DIRECTION: the right-hand pointee derives from the left's.
     if DerivesFrom_( c, rp, lp ) then return false

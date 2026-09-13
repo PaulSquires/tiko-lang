@@ -1,0 +1,9 @@
+'' A UDT argument for a parameter of another UDT type is built through the parameter
+'' type's converting constructor, byref and byval, with the temporary destroyed after
+'' the call -- the IR fbc's own output was compared against, run for run.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-conv-ctor-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-conv-ctor-arg.out

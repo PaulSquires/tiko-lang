@@ -133,3 +133,72 @@ function ParenlessProcTemp_ _
     outa = ByrefTemp_( c, argNode, pt )
     return true
 end function
+
+'' Does UDT 'pt' declare a one-parameter CONSTRUCTOR taking an 'at' -- or a base 'at'
+'' derives from? The copy constructor never qualifies here: both callers have already
+'' ruled out an 'at' that is 'pt' or derives from it.
+private function HasUdtConvCtor_ _
+    ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
+
+    dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if ParamCountOf( c, cur ) = 1 then
+            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                cpt = c.types->Unqualify( cpt )
+                if c.types->Kind( cpt ) = Tko.TK_REFERENCE then
+                    cpt = c.types->Unqualify( c.types->Inner( cpt ) )
+                end if
+                if c.types->Kind( cpt ) = Tko.TK_UDT then
+                    if c.types->BaseDistance( at, cpt ) >= 0 then return true
+                end if
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
+'' A UDT ARGUMENT FOR A BYREF PARAMETER OF ANOTHER UDT TYPE IS CONVERTED -- through the
+'' parameter type's constructor into a temporary, whose ADDRESS is bound and which is
+'' destroyed right after the call. Measured on fbc: 'TakeDW( b )' over 'byref d as DW'
+'' with 'constructor DW( byref b as BS )' prints 'take 107', and a type with a destructor
+'' prints 'dd 1', 'dtor', then 'after'. tiko bound '@b' -- the BS's own bytes read as a
+'' DW -- and printed 100; AfxNova's 'this.Add( bs )' in DWSTRING.+= is the same shape.
+''
+'' Every other argument takes its own address, as before. False only when a conversion
+'' is required and could not be built: the caller declines rather than pass the source.
+private function ByrefUdtArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref tempSlots as FB.Array( of ulong ), _
+      byref tempTypes as FB.Array( of ulong ) ) as boolean
+
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    dim as Tko.TypeId au = c.types->Unqualify( c.info->TypeOf_( argNode ) )
+    if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    dim as boolean conv = (c.types->Kind( pu ) = Tko.TK_UDT)
+    if conv then conv = (c.types->Kind( au ) = Tko.TK_UDT)
+    if conv then conv = (au <> pu)
+    if conv then conv = (c.types->BaseDistance( au, pu ) < 0)
+    if conv then conv = HasUdtConvCtor_( c, pu, au )
+    if conv = false then
+        outa = LowerAddr( c, argNode )
+        return true
+    end if
+    dim as long ts = -1
+    dim as Tko.TypeId tt = Tko.TYPE_NONE
+    if UdtConvTemp_( c, argNode, pu, outa, ts, tt ) = false then
+        c.blameNode = cast( ulong, argNode )
+        return false
+    end if
+    if ts >= 0 then
+        tempSlots.Push( cast( ulong, ts ) )
+        tempTypes.Push( cast( ulong, tt ) )
+    end if
+    return true
+end function
