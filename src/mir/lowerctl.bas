@@ -293,10 +293,28 @@ sub LowerExitLike _
         (want = Tko.KW_PROPERTY) orelse (want = Tko.KW_CONSTRUCTOR) orelse _
         (want = Tko.KW_DESTRUCTOR) orelse (want = Tko.KW_OPERATOR)
     if isExit andalso isProcExit then
-        dim as MirValue rv = LoadResult( c )
         '' See lower.bas: a return's temporaries cannot wait for the statement
         '' to end, because the terminator ends the block first.
         ReleaseUdtTemps_( c, c.stmtUdtMark )
+        '' A STRING RESULT LEAVES THROUGH fb_StrAllocTempResult, exactly as a bare
+        '' 'return' does. Loading the descriptor and returning IT gave 'ret [24 x i8]'
+        '' in a function declared to return a pointer, and clang refused the module --
+        '' AfxNova's DWStrAcode, 'if pwszStr = NULL then exit function'.
+        if LowerStringReturn( c, Tko.NODE_NONE ) then return
+        '' ...AND A UDT RETURNED THROUGH THE HIDDEN POINTER RETURNS THAT POINTER, as the
+        '' end of the body does. There is no result slot to load, so this said 'ret void'
+        '' -- AfxNova's DWStrBase64EncodeW, 'if bRes = 0 or cchStr = 0 then exit function'.
+        if (c.udtResult = false) andalso (c.sretParam >= 0) then
+            EmitCleanupsTo( c, 0 )
+            dim as MirValue xsp
+            xsp.kind = cast( ubyte, MV_LOCAL )
+            xsp.ty = cast( ubyte, MT_PTR )
+            xsp.id = c.sretParam
+            Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, xsp, MT_PTR ) )
+            c.curBlock = -1
+            return
+        end if
+        dim as MirValue rv = LoadResult( c )
         EmitCleanupsTo( c, 0 )
         Terminate( c, MTERM_RET, -1, -1, rv )
         c.curBlock = -1

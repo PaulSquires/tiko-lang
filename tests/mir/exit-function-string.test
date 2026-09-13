@@ -1,0 +1,10 @@
+'' 'exit function' in a STRING function returns through fb_StrAllocTempResult rather than
+'' the descriptor itself; UDT and pointer results are unchanged. Runtime output was
+'' checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/exit-function-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_StrAllocTempResult
+'' GOLDEN: expected/exit-function-string.out
