@@ -1,0 +1,6 @@
+'' A ustring call result is copied into a caller temporary and deleted after the call, and a
+'' chain with no ustring in it is built narrow and transcoded once -- fbc's shapes, measured.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-temp-release.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/ustr-temp-release.out

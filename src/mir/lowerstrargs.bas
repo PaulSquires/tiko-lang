@@ -274,7 +274,14 @@ function ByvalStrTemp_ _
             end if
         end if
         if IsUStringType( c, pt ) andalso IsUStringType( c, uat ) then
-            dim as MirValue usrc = LowerAddr( c, argNode )
+            dim as MirValue usrc
+            '' A CALL RESULT HAS NO ADDRESS: its value IS the descriptor pointer, and
+            '' fb_UStrAssign consumes it -- see the caller in lowercall.bas.
+            if c.ast->Kind( argNode ) = Tko.N_CALL then
+                usrc = LowerExpr( c, argNode )
+            else
+                usrc = LowerAddr( c, argNode )
+            end if
             if usrc.kind = cast( ubyte, MV_NONE ) then return false
             dim as FB.Array( of ulong ) usa
             usa.Push( cast( ulong, dst.kind ) ) : usa.Push( cast( ulong, dst.id ) )
@@ -296,6 +303,34 @@ function ByvalStrTemp_ _
     outSlot = slot
     outa = dst
     return true
+end function
+
+'' A USTRING CALL RESULT AGAINST A USTRING PARAMETER IS COPIED, CALLED ON AND DELETED.
+'' Measured, 'Take( Mk( 1 ) )' over 'byref s as const ustring':
+''
+''   vr = MK( 1 ); fb_UStrAssign( &TMP, -1, vr, -1, 0 )
+''   TAKE( &TMP ); fb_UStrDelete( &TMP )
+''
+'' tiko passed vr itself and nothing ever released it -- one runtime descriptor per
+'' call. fb/fsinfo.bi's AbsolutePath writes 'PathNormalize( PathJoin( r, p ) )', so on
+'' Linux tiko-lang's own source manager ran the pool dry after ~530 includes and
+'' PathJoin began handing back empty strings. Only a call to a declared PROCEDURE is
+'' asked: intrinsic runtime calls ('len', 'ucase') take the result raw in fbc too.
+function UStrResultArgTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as long ) as boolean
+
+    outSlot = -1
+    if IsUStringType( c, pt ) = false then return false
+    if c.ast->Kind( argNode ) <> Tko.N_CALL then return false
+    if IsUStringType( c, c.types->Unqualify( c.info->TypeOf_( argNode ) ) ) = false then return false
+    dim as Tko.ListPayload ptr ucp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+    if ucp->target = Tko.NODE_NONE then return false
+    dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( ucp->target ) )
+    if ucs = 0 then return false
+    if ucs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    return ByvalStrTemp_( c, argNode, c.types->Builtin( Tko.TY_USTRING ), outa, outSlot )
 end function
 
 '' A FIXED 'ustring * N' COPIED INTO A DESCRIPTOR, for a byref USTRING parameter.

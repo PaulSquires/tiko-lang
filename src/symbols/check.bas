@@ -905,7 +905,10 @@ function TypeOf_ _
                 '' resolved to nothing while the same member on a top-level type
                 '' worked. The N_CALL path already draws the type off a UDT symbol
                 '' the same way, for 'P( 3 ).v'.
-                case Tko.SYM_UDT, Tko.SYM_ENUM
+                '' ...AND A TYPE ALIAS, which was not: 'type BoxL as Box( of long )'
+                '' inside NS left 'sizeof( NS.BoxL )' untyped, and the PRINT around it
+                '' vanished without a word. fb/filesystem.bi's FB.FsResultUStr is one.
+                case Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_TYPEDEF
                     t = qs->type_
                     exit select
                 '' A NAMESPACE-QUALIFIED PROCEDURE NAMED WITHOUT PARENTHESES IS A

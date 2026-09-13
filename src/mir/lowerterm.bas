@@ -499,15 +499,36 @@ function StrChainNeedsConvert _
     ( byref c as Ctx, byval dstIsU as boolean, _
       byref terms as FB.Array( of ulong ) ) as boolean
 
+    dim as boolean anyUW = false, anyRendered = false
     for i as long = 0 to terms.Count - 1
-        dim as long tf = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
-        if tf = STF_NEUTRAL then continue for
+        dim as Tko.NodeId tn = cast( Tko.NodeId, terms[i] )
+        dim as long tf = StrTermFlavour_( c, tn )
+        if tf = STF_NEUTRAL then
+            '' A NEUTRAL term that is not a literal or a string constant is a value the
+            '' concatenation RENDERS -- 'n' in '"u" & n' -- and it renders NARROW.
+            dim as Tko.NodeId tu = Unparen_( c, tn )
+            if c.ast->Kind( tu ) <> Tko.N_STRING_LIT then
+                dim as string ctx_
+                if ConstStringTextOf_( c, tu, ctx_ ) = false then anyRendered = true
+            end if
+            continue for
+        end if
+        if (tf = STF_UTF16) orelse (tf = STF_WIDE) then anyUW = true
         if dstIsU then
             if tf <> STF_UTF16 then return true
         else
             if tf = STF_UTF16 then return true
         end if
     next
+    '' A USTRING DESTINATION FOR A CHAIN WITH NO USTRING IN IT. '"u" & n' is string &
+    '' integer, a NARROW string. Measured: fbc builds 'n & "x"' and '"a" & n & "b"'
+    '' with fb_StrConcat and transcodes ONCE, fb_UStrAssignFromA. tiko built a ustring
+    '' chain around fb_IntToStr's narrow temporary instead, and 'function Mk( n ) as
+    '' ustring : return "u" & n' ran the runtime out of descriptors after ~900 calls.
+    '' 'u & n', with the ustring in it, is fbc's fb_UStrConcatAssign and stays as it was.
+    if dstIsU andalso (terms.Count >= 2) andalso (anyUW = false) andalso anyRendered then
+        return true
+    end if
     return false
 end function
 

@@ -15,12 +15,7 @@ declare function SigParamIsRef_ _
 declare function ArgParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
       byval idx as long ) as Tko.TypeId
-declare function ParamWantsWideRef_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
-      byval idx as long ) as boolean
-declare function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-
-'' ByvalStrTemp_ is declared in lowerctx.bi now -- lowerctor.bas needs it too.
+'' ByvalStrTemp_, UStrResultArgTemp_, ParamWantsWideRef_ and IsNarrowStrArg_ are in lowerctx.bi.
 declare function FixedUStrArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
@@ -561,6 +556,12 @@ function LowerCallParts _
                     ustrBackNode.Push( cast( ulong, argNode ) )
                     ustrBackSlot.Push( cast( ulong, tempSlot ) )
                 end if
+            end if
+            '' A USTRING CALL RESULT IS COPIED, CALLED ON AND DELETED -- UStrResultArgTemp_.
+            if (a.kind = cast( ubyte, MV_NONE )) andalso UStrResultArgTemp_( c, argNode, _
+                    ArgParamType_( c, callee, calleeSigT, i + pbase ), a, tempSlot ) then
+                strTemps.Push( cast( ulong, tempSlot ) )
+                strTempTypes.Push( cast( ulong, c.types->Builtin( Tko.TY_USTRING ) ) )
             end if
             '' EVERY OTHER SHAPE IS A TEMPORARY -- see StrArgOwnDescriptor_ for the
             '' probe. Only a var-length string LVALUE passes its own descriptor; a
