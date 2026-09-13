@@ -1047,6 +1047,26 @@ private function OperandValue_ _
     end if
 
     if byref_ then
+        '' A 'byref as string' OPERAND THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, as
+        '' at a call -- see StrArgOwnDescriptor_. 'dws & " 2026"' over AfxNova's 'operator &
+        '' ( byref dws as DWSTRING, byref s as STRING )' stored the LITERAL'S BYTES in a
+        '' pointer temporary and passed that where a descriptor is read. Released with
+        '' the statement.
+        dim as Tko.TypeId snu = pt
+        if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
+        dim as boolean narrowStr = (c.types->Kind( snu ) = Tko.TK_BUILTIN)
+        if narrowStr then narrowStr = (c.types->BuiltinOf( snu ) = Tko.TY_STRING)
+        if narrowStr andalso (StrArgOwnDescriptor_( c, e, snu ) = false) then
+            dim as long sslot = -1
+            if ByvalStrTemp_( c, e, snu, v, sslot ) then
+                if sslot >= 0 then
+                    c.f->locals[sslot].frontendType = snu
+                    c.strTemps.Push( cast( ulong, sslot ) )
+                end if
+                args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+                return true
+            end if
+        end if
         '' A PAREN-LESS PROCEDURE IS A CALL, not an address: 'LocalDate.Invalid =
         '' LocalDate.Invalid' compared the procedure's CODE with itself and said true.
         dim as Tko.Symbol ptr es = 0

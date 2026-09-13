@@ -420,7 +420,18 @@ function LowerUserLetConv_ _
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.TypeId vt = c.info->TypeOf_( value )
-    if vt = Tko.TYPE_NONE then return false
+    '' A WIDE EXPRESSION CHECK LEFT UNTYPED is a WSTRING for choosing the overload.
+    '' AfxNova's 'operator & ( byref dws as DWSTRING, byref s as STRING )' is one line,
+    '' 'OPERATOR = dws + s': a DWSTRING has no '+' and reaches one through its
+    '' 'cast( ) byref as const wstring', and that concatenation has no Check type. So no
+    '' 'let' was chosen, the statement declined, and every DWSTRING concatenation came
+    '' back empty -- PsCalendar's calendar titles.
+    dim as boolean wideUntyped = false
+    if vt = Tko.TYPE_NONE then
+        if (TermIsWide_( c, value ) = false) andalso (ConcatHasWideTerm_( c, value ) = false) then return false
+        wideUntyped = true
+        vt = c.types->Builtin( Tko.TY_WSTRING )
+    end if
     '' The same type is the COPY the caller has already handled.
     if c.types->Unqualify( vt ) = c.types->Unqualify( t ) then return false
 
@@ -500,6 +511,15 @@ function LowerUserLetConv_ _
                 if wra.kind <> cast( ubyte, MV_NONE ) then
                     av = wra
                     ulTook = true
+                end if
+            end if
+            '' ...AND AN UNTYPED WIDE EXPRESSION -- the 'a + s' above -- is built into a
+            '' wide temporary and ITS characters are passed. The parameter's own type is
+            '' the bare builtin here, not a reference, so CtorArgValue_'s wide arm never
+            '' sees it and LowerExpr has no value for the concatenation.
+            if (ulTook = false) andalso wideUntyped andalso (c.types->Kind( pu ) = Tko.TK_BUILTIN) then
+                if c.types->BuiltinOf( pu ) = Tko.TY_WSTRING then
+                    if WideOperand_( c, value, av ) then ulTook = true
                 end if
             end if
         end if

@@ -1091,6 +1091,16 @@ function LowerSretResult _
         val = LowerExprLoad( c, src, MT_AGG )
     end if
     if val.kind = cast( ubyte, MV_NONE ) then return false
+    '' A USER OPERATOR'S HIDDEN RESULT IS ITS TEMPORARY'S ADDRESS -- see LowerUserBinaryOp_
+    '' -- and the object is the bytes behind it. 'return m & " " & str( y )' over a type
+    '' with no copy constructor stored the temporary's ADDRESS into the caller's object.
+    if val.kind = cast( ubyte, MV_LOCAL ) then
+        if c.f->locals[val.id].ty = cast( ubyte, MT_AGG ) then
+            movedFrom = val
+            val = LowerExprLoad( c, val, MT_AGG )
+            if val.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+    end if
     '' THE OUTERMOST temporary the expression built, which is the object whose bytes
     '' the store moves. Anything deeper -- an argument's temporary, say -- was
     '' consumed inside and still has to be destroyed.
