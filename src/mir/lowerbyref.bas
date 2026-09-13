@@ -202,3 +202,26 @@ private function ByrefUdtArg_ _
     end if
     return true
 end function
+
+
+'' A 'byref as [const] wstring' CONSTRUCTOR PARAMETER TAKES WIDE CHARACTERS, as at a call
+'' (lowercall.bas): what WideOperand_ gives -- a wide argument, or a narrow LITERAL
+'' widened in place -- else a narrow string through NarrowToWideTemp_. fbc passes
+'' '(uint16*)L"Mars"', or fb_StrToWstr into a temporary deleted after the call. False
+'' when 'pt' is no wstring or nothing could be passed. Every constructor path asks this:
+'' each took an ADDRESS instead -- of a pointer temporary for 'wstr( "Fevrier" )', of
+'' the text or the descriptor for a narrow argument -- and the body read garbage.
+'' Here rather than in lowerctor.bas, which is at its size limit.
+function WideRefCtorArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId u = c.types->Unqualify( pt )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    if c.types->BuiltinOf( u ) <> Tko.TY_WSTRING then return false
+    if WideOperand_( c, argNode, outv ) then return true
+    if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) = false then return false
+    return NarrowToWideTemp_( c, argNode, outv )
+end function

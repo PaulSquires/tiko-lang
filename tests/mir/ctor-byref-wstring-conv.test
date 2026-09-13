@@ -1,4 +1,4 @@
-'' A wide or narrow initialiser for a 'byref as [const] wstring' converting constructor passes wide characters, not a temporary's address or narrow bytes. Runtime output is checked against fbc.
+'' A string argument for a 'byref as [const] wstring' constructor parameter passes wide characters on every constructor path -- implicit, explicit, temporary and base() -- not a temporary's address, narrow bytes or a descriptor. Runtime output is checked against fbc.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/ctor-byref-wstring-conv.bas
 '' EXPECT-EXIT: 0
@@ -6,10 +6,8 @@
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-OUT: call void _ZN2WSC1ERw(@a, @@$wstr
 '' EXPECT-OUT: call void _ZN2WUC1ERKw(@b, @@$wstr
-'' EXPECT-OUT: call void _ZN2WUC1ERKw(@c, @@$wstr
-'' EXPECT-OUT: call void _ZN2WSC1ERw(@d, @@$wstr
-'' EXPECT-OUT: fb_StrToWstr
-'' EXPECT-OUT: fb_WstrDelete
+'' EXPECT-OUT: call void _ZN2WUC1ERKw(@f, @@$wstr
 '' EXPECT-NOT: _ZN2WSC1ERw(@a, @$tmp
-'' EXPECT-NOT: _ZN2WUC1ERKw(@b, @@$str
-'' EXPECT-NOT: _ZN2WUC1ERKw(@c, @$tmp
+'' EXPECT-NOT: _ZN2WUC1ERKw(@g, @n)
+'' EXPECT-NOT: _ZN2WUC1ERKw(@j, @z)
+'' GOLDEN: expected/ctor-byref-wstring-conv.out

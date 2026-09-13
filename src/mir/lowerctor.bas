@@ -132,19 +132,8 @@ private function CtorArgValue_ _
             '' const wstring )' had no address to pass and declined, so the constructor
             '' never ran and the object stayed empty (scratchpad gx/dl.bas -- fbc prints
             '' 'ctor(wstring)' and 'x'). AfxNova's user Left builds its result that way.
-            dim as Tko.TypeId rin = c.types->Unqualify( c.types->Inner( u ) )
-            if c.types->Kind( rin ) = Tko.TK_BUILTIN then
-                if c.types->BuiltinOf( rin ) = Tko.TY_WSTRING then
-                    dim as longint rsn
-                    dim as long rsk = StrSwapKind_( c, at, rsn )
-                    dim as boolean rwide = IsWideString_( c, at )
-                    if (rsk = 2) orelse (rsk = 4) then rwide = true
-                    if at = Tko.TYPE_NONE then rwide = true
-                    if rwide then
-                        if WideOperand_( c, argNode, outv ) then return true
-                    end if
-                end if
-            end if
+            '' A NARROW ONE IS WIDENED: 'WS( n & "!" )' was not lowered at all.
+            if WideRefCtorArg_( c, argNode, u, outv ) then return true
             dim as MirValue ra = LowerAddr( c, argNode )
             if ra.kind <> cast( ubyte, MV_NONE ) then
                 outv = ra
@@ -329,24 +318,9 @@ function LowerConvCtorInit_ _
     '' 'byref rhs as SharedPtr( of Probe )' emitted 'ptr %t945' with %t945 defined
     '' as 'load [8 x i8]', and clang refused the module.
     dim as boolean tookAddr = false
-    '' A BYREF WSTRING TAKES THE CHARACTERS, as at a call (lowercall.bas). A wide
-    '' argument is no IsStringType, so the scalar arm below stored the literal's POINTER
-    '' in a temporary and passed its address -- 'dim as WS a = wstr( "Fevrier" )' read
-    '' 16408 as the first character and crashed -- and a narrow one reached CtorArgValue_,
-    '' which passed its bytes or its loaded descriptor. fbc: '_ZN2WSC1ERw( &A$0, (uint16*)
-    '' L"Fevrier" )', a narrow literal widened in place, a variable via fb_StrToWstr.
-    if (fromArray = false) andalso ptByref then
-        dim as Tko.TypeId wpu = c.types->Unqualify( pt )
-        if c.types->Kind( wpu ) = Tko.TK_REFERENCE then wpu = c.types->Unqualify( c.types->Inner( wpu ) )
-        if c.types->Kind( wpu ) = Tko.TK_BUILTIN then
-            if c.types->BuiltinOf( wpu ) = Tko.TY_WSTRING then
-                if WideOperand_( c, init_, av ) = false then
-                    if IsNarrowStrArg_( c, it ) then NarrowToWideTemp_( c, init_, av )
-                end if
-                tookAddr = (av.kind <> cast( ubyte, MV_NONE ))
-            end if
-        end if
-    end if
+    '' A BYREF WSTRING FIRST -- WideRefCtorArg_. A wide argument is no IsStringType, so
+    '' the scalar arm below gave 'dim as WS a = wstr( "Fevrier" )' a pointer temporary.
+    if (fromArray = false) andalso ptByref then tookAddr = WideRefCtorArg_( c, init_, pt, av )
     if (fromArray = false) andalso ptByref andalso (tookAddr = false) then
         '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
         '' 'constructor UDT( byref rhs as const long )' -- which is how an
@@ -687,6 +661,16 @@ function LowerCtorInit _
                     ai2 += 1
                     continue for
                 end if
+            end if
+            '' ...AND A BYREF WSTRING TAKES WIDE CHARACTERS -- WideRefCtorArg_. LowerAddr
+            '' gave 'dim as WU f = WU( "Mars" )' the narrow text's own address.
+            dim as MirValue wra
+            if WideRefCtorArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, wra ) then
+                argKind[ai2] = cast( ulong, wra.kind )
+                argId[ai2] = cast( ulong, wra.id )
+                argT[ai2] = cast( ulong, pty )
+                ai2 += 1
+                continue for
             end if
             dim as MirValue ba = LowerAddr( c, cast( Tko.NodeId, argNode[ai2] ) )
             if ba.kind <> cast( ubyte, MV_NONE ) then
@@ -1259,6 +1243,9 @@ function LowerBaseCtorCall_ _
         dim as MirValue cv
         dim as boolean tookAddr = false
         if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            '' ...AND A BYREF WSTRING TAKES WIDE CHARACTERS -- WideRefCtorArg_. 'base( "Sept" )'
+            '' passed the narrow text, and 'base( s )' the loaded descriptor.
+            tookAddr = WideRefCtorArg_( c, cast( Tko.NodeId, argNode[ai] ), pt, cv )
             dim as Tko.TypeId pu = c.types->Unqualify( pt )
             if c.types->Kind( pu ) = Tko.TK_UDT then
                 dim as MirValue ra = LowerAddr( c, cast( Tko.NodeId, argNode[ai] ) )
