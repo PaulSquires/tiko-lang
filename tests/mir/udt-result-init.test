@@ -1,0 +1,12 @@
+'' A UDT result is zeroed or default-constructed at entry exactly where fbc does it:
+'' memset for a type with no constructor, the constructor for one with a constructor
+'' or field initialisers -- unless the body leaves through 'return expr'. The source
+'' lists fbc's C for each shape. functions/return_notreg is the second shape.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-result-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: memset
+'' EXPECT-OUT: _ZN5TCTORC1Ev
+'' GOLDEN: expected/udt-result-init.out

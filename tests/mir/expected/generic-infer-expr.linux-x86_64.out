@@ -4,29 +4,30 @@ func i64,i64 _Z2MkIu7INTEGERERS0_(ptr $0) {
   local agg r size 16
   local agg $abi3 size 16
   entry0:
-    %14 = alloca ptr $abi3
+    %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr x
+    %2 = call.rtl ptr memset(@$tmp0, 0, 16)
+    %3 = alloca ptr x
     store @x, $0
-    %3 = alloca ptr r
-    %4 = call.rtl ptr memset(@r, 0, 16)
-    %5 = field.addr @r, 0
-    %6 = load @x
-    %7 = load %6
-    store %5, %7
-    %8 = field.addr @r, 8
-    %9 = const i8 -1
-    %10 = const i8 0
-    %11 = icmp.ne %9, %10
-    store %8, %11
-    %12 = load @r
-    store @$tmp0, %12
-    %13 = load @$tmp0
-    store @$abi3, %13
-    %15 = load @$abi3
-    %16 = field.addr @$abi3, 8
-    %17 = load %16
-    ret %15, %17
+    %4 = alloca ptr r
+    %5 = call.rtl ptr memset(@r, 0, 16)
+    %6 = field.addr @r, 0
+    %7 = load @x
+    %8 = load %7
+    store %6, %8
+    %9 = field.addr @r, 8
+    %10 = const i8 -1
+    %11 = const i8 0
+    %12 = icmp.ne %10, %11
+    store %9, %12
+    %13 = load @r
+    store @$tmp0, %13
+    %14 = load @$tmp0
+    store @$abi3, %14
+    %16 = load @$abi3
+    %17 = field.addr @$abi3, 8
+    %18 = load %17
+    ret %16, %18
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 _Z1GIu7INTEGERES0_(i64 $0) {
@@ -47,29 +48,30 @@ func f64,i64 _Z2MkIdERd(ptr $0) {
   local agg r size 16
   local agg $abi3 size 16
   entry0:
-    %14 = alloca ptr $abi3
+    %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr x
+    %2 = call.rtl ptr memset(@$tmp0, 0, 16)
+    %3 = alloca ptr x
     store @x, $0
-    %3 = alloca ptr r
-    %4 = call.rtl ptr memset(@r, 0, 16)
-    %5 = field.addr @r, 0
-    %6 = load @x
-    %7 = load %6
-    store %5, %7
-    %8 = field.addr @r, 8
-    %9 = const i8 -1
-    %10 = const i8 0
-    %11 = icmp.ne %9, %10
-    store %8, %11
-    %12 = load @r
-    store @$tmp0, %12
-    %13 = load @$tmp0
-    store @$abi3, %13
-    %15 = load @$abi3
-    %16 = field.addr @$abi3, 8
-    %17 = load %16
-    ret %15, %17
+    %4 = alloca ptr r
+    %5 = call.rtl ptr memset(@r, 0, 16)
+    %6 = field.addr @r, 0
+    %7 = load @x
+    %8 = load %7
+    store %6, %8
+    %9 = field.addr @r, 8
+    %10 = const i8 -1
+    %11 = const i8 0
+    %12 = icmp.ne %10, %11
+    store %9, %12
+    %13 = load @r
+    store @$tmp0, %13
+    %14 = load @$tmp0
+    store @$abi3, %14
+    %16 = load @$abi3
+    %17 = field.addr @$abi3, 8
+    %18 = load %17
+    ret %16, %18
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -150,4 +152,4 @@ declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance

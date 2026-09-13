@@ -1,0 +1,532 @@
+func void _ZN5TCTORC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 512)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 0
+    %8 = const i64 8
+    %9 = mul %7, %8
+    %10 = ptr.add %6, %9
+    %11 = const i64 7
+    store %10, %11
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void _ZN5TDTORC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 3
+    store %6, %7
+    ret
+}
+func void _ZN5TDTORD1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void FPLAIN_NONE(ptr $0) {
+  local agg $tmp0 size 512
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = call.rtl ptr memset(@$tmp0, 0, 512)
+    %3 = load @$tmp0
+    store $0, %3
+    ret
+}
+func void FCTOR_ASSIGN(ptr $0) {
+  local agg $tmp0 size 512
+  local agg t0 size 512
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN5TCTORC1Ev(@$tmp0)
+    %2 = alloca ptr t0
+    call void _ZN5TCTORC1Ev(@t0)
+    %3 = const i64 0
+    %4 = const i64 1
+    %5 = icmp.eq %3, %4
+    condbr %5, if.then2, if.else3
+  if.join1:
+    %7 = load @$tmp0
+    store $0, %7
+    ret
+  if.then2:
+    %6 = load @t0
+    store @$tmp0, %6
+    br if.join1
+  if.else3:
+    br if.join1
+}
+func void FCTOR_NONE(ptr $0) {
+  local agg $tmp0 size 512
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN5TCTORC1Ev(@$tmp0)
+    %2 = load @$tmp0
+    store $0, %2
+    ret
+}
+func void FCTOR_EXIT(ptr $0, i64 $1) {
+  local agg $tmp0 size 512
+  local i64 k
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN5TCTORC1Ev(@$tmp0)
+    %2 = alloca ptr k
+    store @k, $1
+    %3 = load @k
+    condbr %3, if.then2, if.else3
+  if.join1:
+    %5 = load @$tmp0
+    store $0, %5
+    ret
+  if.then2:
+    %4 = load @$tmp0
+    store $0, %4
+    ret
+  if.else3:
+    br if.join1
+}
+func void FINIT_NONE(ptr $0) {
+  local agg $tmp0 size 520
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN5TINITC1Ev(@$tmp0)
+    %2 = load @$tmp0
+    store $0, %2
+    ret
+}
+declare void _ZN5TINITC1Ev(ptr $0)
+func ptr FDTOR_NONE(ptr $0) {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    call void _ZN5TDTORC1Ev(%2)
+    %3 = load @$tmp0
+    ret %3
+}
+func void FCTOR_RETURN(ptr $0) {
+  local agg $tmp0 size 512
+  local agg t size 512
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr t
+    call void _ZN5TCTORC1Ev(@t)
+    %3 = load @t
+    store @$tmp0, %3
+    %4 = load @$tmp0
+    store $0, %4
+    ret
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg p size 512
+  local agg q size 512
+  local agg r size 520
+  local agg $tmp4 size 520
+  local agg s size 8
+  local agg $tmp6 size 8
+  local agg $abi7 size 512
+  local agg $abi8 size 512
+  local agg $abi9 size 512
+  local agg $abi10 size 512
+  local agg $abi11 size 520
+  local agg $abi12 size 512
+  entry0:
+    %55 = alloca ptr $abi7
+    %56 = alloca ptr $abi8
+    %57 = alloca ptr $abi9
+    %58 = alloca ptr $abi10
+    %59 = alloca ptr $abi11
+    %60 = alloca ptr $abi12
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr p
+    call void FPLAIN_NONE(@$abi7)
+    %5 = load @$abi7
+    store @p, %5
+    %6 = field.addr @p, 0
+    %7 = const i64 5
+    %8 = const i64 8
+    %9 = mul %7, %8
+    %10 = ptr.add %6, %9
+    %11 = load %10
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = alloca ptr q
+    call void _ZN5TCTORC1Ev(@q)
+    call void FCTOR_ASSIGN(@$abi8)
+    %13 = load @$abi8
+    store @q, %13
+    %14 = field.addr @q, 0
+    %15 = const i64 0
+    %16 = const i64 8
+    %17 = mul %15, %16
+    %18 = ptr.add %14, %17
+    %19 = load %18
+    call.rtl void fb_PrintLongint(0, %19, 1)
+    call void FCTOR_NONE(@$abi9)
+    %20 = load @$abi9
+    store @q, %20
+    %21 = field.addr @q, 0
+    %22 = const i64 0
+    %23 = const i64 8
+    %24 = mul %22, %23
+    %25 = ptr.add %21, %24
+    %26 = load %25
+    call.rtl void fb_PrintLongint(0, %26, 1)
+    %27 = const i64 1
+    call void FCTOR_EXIT(@$abi10, %27)
+    %28 = load @$abi10
+    store @q, %28
+    %29 = field.addr @q, 0
+    %30 = const i64 0
+    %31 = const i64 8
+    %32 = mul %30, %31
+    %33 = ptr.add %29, %32
+    %34 = load %33
+    call.rtl void fb_PrintLongint(0, %34, 1)
+    %35 = alloca ptr r
+    call void FINIT_NONE(@$abi11)
+    %36 = load @$abi11
+    %37 = alloca ptr $tmp4
+    store @$tmp4, %36
+    call void _ZN5TINITC1ERKS_(@r, @$tmp4)
+    %38 = field.addr @r, 512
+    %39 = load %38
+    call.rtl void fb_PrintLongint(0, %39, 1)
+    %40 = alloca ptr s
+    call void _ZN5TDTORC1Ev(@s)
+    %41 = alloca ptr $tmp6
+    %42 = call ptr FDTOR_NONE(@$tmp6)
+    %43 = load @$tmp6
+    store @s, %43
+    call void _ZN5TDTORD1Ev(@$tmp6)
+    %44 = field.addr @s, 0
+    %45 = load %44
+    call.rtl void fb_PrintLongint(0, %45, 1)
+    call void FCTOR_RETURN(@$abi12)
+    %46 = load @$abi12
+    store @q, %46
+    %47 = field.addr @q, 0
+    %48 = const i64 0
+    %49 = const i64 8
+    %50 = mul %48, %49
+    %51 = ptr.add %47, %50
+    %52 = load %51
+    call.rtl void fb_PrintLongint(0, %52, 1)
+    call void _ZN5TDTORD1Ev(@s)
+    %53 = const i32 0
+    call.rtl void fb_End(%53)
+    %54 = load @$tmp0
+    ret %54
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void _ZN5TINITC1ERKS_(ptr $0, ptr $1)
+declare void fb_End(i32 $0)
+func void _ZN5TINITC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 512)
+    %3 = field.addr $0, 512
+    %4 = const i64 5
+    store %3, %4
+    ret
+}
+func void _ZN5TINITC1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 512)
+    %3 = field.addr $0, 512
+    %4 = const i64 5
+    store %3, %4
+    call void _ZN5TINITaSERKS_($0, $1)
+    ret
+}
+declare void _ZN5TINITaSERKS_(ptr $0, ptr $1)
+func void _ZN5TINITaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = field.addr %2, 0
+    %4 = field.addr %1, 0
+    %5 = load %4
+    store %3, %5
+    %6 = field.addr %2, 8
+    %7 = field.addr %1, 8
+    %8 = load %7
+    store %6, %8
+    %9 = field.addr %2, 16
+    %10 = field.addr %1, 16
+    %11 = load %10
+    store %9, %11
+    %12 = field.addr %2, 24
+    %13 = field.addr %1, 24
+    %14 = load %13
+    store %12, %14
+    %15 = field.addr %2, 32
+    %16 = field.addr %1, 32
+    %17 = load %16
+    store %15, %17
+    %18 = field.addr %2, 40
+    %19 = field.addr %1, 40
+    %20 = load %19
+    store %18, %20
+    %21 = field.addr %2, 48
+    %22 = field.addr %1, 48
+    %23 = load %22
+    store %21, %23
+    %24 = field.addr %2, 56
+    %25 = field.addr %1, 56
+    %26 = load %25
+    store %24, %26
+    %27 = field.addr %2, 64
+    %28 = field.addr %1, 64
+    %29 = load %28
+    store %27, %29
+    %30 = field.addr %2, 72
+    %31 = field.addr %1, 72
+    %32 = load %31
+    store %30, %32
+    %33 = field.addr %2, 80
+    %34 = field.addr %1, 80
+    %35 = load %34
+    store %33, %35
+    %36 = field.addr %2, 88
+    %37 = field.addr %1, 88
+    %38 = load %37
+    store %36, %38
+    %39 = field.addr %2, 96
+    %40 = field.addr %1, 96
+    %41 = load %40
+    store %39, %41
+    %42 = field.addr %2, 104
+    %43 = field.addr %1, 104
+    %44 = load %43
+    store %42, %44
+    %45 = field.addr %2, 112
+    %46 = field.addr %1, 112
+    %47 = load %46
+    store %45, %47
+    %48 = field.addr %2, 120
+    %49 = field.addr %1, 120
+    %50 = load %49
+    store %48, %50
+    %51 = field.addr %2, 128
+    %52 = field.addr %1, 128
+    %53 = load %52
+    store %51, %53
+    %54 = field.addr %2, 136
+    %55 = field.addr %1, 136
+    %56 = load %55
+    store %54, %56
+    %57 = field.addr %2, 144
+    %58 = field.addr %1, 144
+    %59 = load %58
+    store %57, %59
+    %60 = field.addr %2, 152
+    %61 = field.addr %1, 152
+    %62 = load %61
+    store %60, %62
+    %63 = field.addr %2, 160
+    %64 = field.addr %1, 160
+    %65 = load %64
+    store %63, %65
+    %66 = field.addr %2, 168
+    %67 = field.addr %1, 168
+    %68 = load %67
+    store %66, %68
+    %69 = field.addr %2, 176
+    %70 = field.addr %1, 176
+    %71 = load %70
+    store %69, %71
+    %72 = field.addr %2, 184
+    %73 = field.addr %1, 184
+    %74 = load %73
+    store %72, %74
+    %75 = field.addr %2, 192
+    %76 = field.addr %1, 192
+    %77 = load %76
+    store %75, %77
+    %78 = field.addr %2, 200
+    %79 = field.addr %1, 200
+    %80 = load %79
+    store %78, %80
+    %81 = field.addr %2, 208
+    %82 = field.addr %1, 208
+    %83 = load %82
+    store %81, %83
+    %84 = field.addr %2, 216
+    %85 = field.addr %1, 216
+    %86 = load %85
+    store %84, %86
+    %87 = field.addr %2, 224
+    %88 = field.addr %1, 224
+    %89 = load %88
+    store %87, %89
+    %90 = field.addr %2, 232
+    %91 = field.addr %1, 232
+    %92 = load %91
+    store %90, %92
+    %93 = field.addr %2, 240
+    %94 = field.addr %1, 240
+    %95 = load %94
+    store %93, %95
+    %96 = field.addr %2, 248
+    %97 = field.addr %1, 248
+    %98 = load %97
+    store %96, %98
+    %99 = field.addr %2, 256
+    %100 = field.addr %1, 256
+    %101 = load %100
+    store %99, %101
+    %102 = field.addr %2, 264
+    %103 = field.addr %1, 264
+    %104 = load %103
+    store %102, %104
+    %105 = field.addr %2, 272
+    %106 = field.addr %1, 272
+    %107 = load %106
+    store %105, %107
+    %108 = field.addr %2, 280
+    %109 = field.addr %1, 280
+    %110 = load %109
+    store %108, %110
+    %111 = field.addr %2, 288
+    %112 = field.addr %1, 288
+    %113 = load %112
+    store %111, %113
+    %114 = field.addr %2, 296
+    %115 = field.addr %1, 296
+    %116 = load %115
+    store %114, %116
+    %117 = field.addr %2, 304
+    %118 = field.addr %1, 304
+    %119 = load %118
+    store %117, %119
+    %120 = field.addr %2, 312
+    %121 = field.addr %1, 312
+    %122 = load %121
+    store %120, %122
+    %123 = field.addr %2, 320
+    %124 = field.addr %1, 320
+    %125 = load %124
+    store %123, %125
+    %126 = field.addr %2, 328
+    %127 = field.addr %1, 328
+    %128 = load %127
+    store %126, %128
+    %129 = field.addr %2, 336
+    %130 = field.addr %1, 336
+    %131 = load %130
+    store %129, %131
+    %132 = field.addr %2, 344
+    %133 = field.addr %1, 344
+    %134 = load %133
+    store %132, %134
+    %135 = field.addr %2, 352
+    %136 = field.addr %1, 352
+    %137 = load %136
+    store %135, %137
+    %138 = field.addr %2, 360
+    %139 = field.addr %1, 360
+    %140 = load %139
+    store %138, %140
+    %141 = field.addr %2, 368
+    %142 = field.addr %1, 368
+    %143 = load %142
+    store %141, %143
+    %144 = field.addr %2, 376
+    %145 = field.addr %1, 376
+    %146 = load %145
+    store %144, %146
+    %147 = field.addr %2, 384
+    %148 = field.addr %1, 384
+    %149 = load %148
+    store %147, %149
+    %150 = field.addr %2, 392
+    %151 = field.addr %1, 392
+    %152 = load %151
+    store %150, %152
+    %153 = field.addr %2, 400
+    %154 = field.addr %1, 400
+    %155 = load %154
+    store %153, %155
+    %156 = field.addr %2, 408
+    %157 = field.addr %1, 408
+    %158 = load %157
+    store %156, %158
+    %159 = field.addr %2, 416
+    %160 = field.addr %1, 416
+    %161 = load %160
+    store %159, %161
+    %162 = field.addr %2, 424
+    %163 = field.addr %1, 424
+    %164 = load %163
+    store %162, %164
+    %165 = field.addr %2, 432
+    %166 = field.addr %1, 432
+    %167 = load %166
+    store %165, %167
+    %168 = field.addr %2, 440
+    %169 = field.addr %1, 440
+    %170 = load %169
+    store %168, %170
+    %171 = field.addr %2, 448
+    %172 = field.addr %1, 448
+    %173 = load %172
+    store %171, %173
+    %174 = field.addr %2, 456
+    %175 = field.addr %1, 456
+    %176 = load %175
+    store %174, %176
+    %177 = field.addr %2, 464
+    %178 = field.addr %1, 464
+    %179 = load %178
+    store %177, %179
+    %180 = field.addr %2, 472
+    %181 = field.addr %1, 472
+    %182 = load %181
+    store %180, %182
+    %183 = field.addr %2, 480
+    %184 = field.addr %1, 480
+    %185 = load %184
+    store %183, %185
+    %186 = field.addr %2, 488
+    %187 = field.addr %1, 488
+    %188 = load %187
+    store %186, %188
+    %189 = field.addr %2, 496
+    %190 = field.addr %1, 496
+    %191 = load %190
+    store %189, %191
+    %192 = field.addr %2, 504
+    %193 = field.addr %1, 504
+    %194 = load %193
+    store %192, %194
+    %195 = field.addr $1, 512
+    %196 = field.addr $0, 512
+    %197 = load %195
+    store %196, %197
+    ret
+}
+verify: ok
+lowered: 14 functions, 20 blocks, 410 insts, 0 statements not lowered, 0 scope imbalance

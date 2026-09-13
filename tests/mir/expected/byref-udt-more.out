@@ -43,25 +43,26 @@ func i64 _ZN6HOLDER8P__get__Ei(ptr $0, i32 $1) {
   local i32 i
   local agg $abi3 size 8
   entry0:
-    %13 = alloca ptr $abi3
+    %14 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr this
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr this
     store @this, $0
-    %3 = alloca ptr i
+    %4 = alloca ptr i
     store @i, $1
-    %4 = load @this
-    %5 = field.addr %4, 0
-    %6 = load @i
-    %7 = sext %6
-    %8 = const i64 8
-    %9 = mul %7, %8
-    %10 = ptr.add %5, %9
-    %11 = load %10
-    store @$tmp0, %11
-    %12 = load @$tmp0
-    store @$abi3, %12
-    %14 = load @$abi3
-    ret %14
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load @i
+    %8 = sext %7
+    %9 = const i64 8
+    %10 = mul %8, %9
+    %11 = ptr.add %6, %10
+    %12 = load %11
+    store @$tmp0, %12
+    %13 = load @$tmp0
+    store @$abi3, %13
+    %15 = load @$abi3
+    ret %15
 }
 func void _ZN6HOLDER8P__set__EiR1X(ptr $0, i32 $1, ptr $2) {
   local ptr this
@@ -163,4 +164,4 @@ declare i32 fb_hStrDelTemp(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 105 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 106 insts, 0 statements not lowered, 0 scope imbalance

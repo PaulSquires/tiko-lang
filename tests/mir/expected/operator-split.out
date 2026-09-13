@@ -39,24 +39,25 @@ func i64 _ZplR2DTR2TS(ptr $0, ptr $1) {
   local ptr b
   local agg $abi3 size 8
   entry0:
-    %12 = alloca ptr $abi3
+    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %4 = load @a
-    %5 = field.addr %4, 0
-    %6 = load %5
-    %7 = load @b
-    %8 = field.addr %7, 0
-    %9 = load %8
-    %10 = add %6, %9
-    call void _ZN2DTC1Ex(@$tmp0, %10)
-    %11 = load @$tmp0
-    store @$abi3, %11
-    %13 = load @$abi3
-    ret %13
+    %5 = load @a
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @b
+    %9 = field.addr %8, 0
+    %10 = load %9
+    %11 = add %7, %10
+    call void _ZN2DTC1Ex(@$tmp0, %11)
+    %12 = load @$tmp0
+    store @$abi3, %12
+    %14 = load @$abi3
+    ret %14
 }
 func i64 _ZmiR2DTR2TS(ptr $0, ptr $1) {
   local agg $tmp0 size 8
@@ -64,24 +65,25 @@ func i64 _ZmiR2DTR2TS(ptr $0, ptr $1) {
   local ptr b
   local agg $abi3 size 8
   entry0:
-    %12 = alloca ptr $abi3
+    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %4 = load @a
-    %5 = field.addr %4, 0
-    %6 = load %5
-    %7 = load @b
-    %8 = field.addr %7, 0
-    %9 = load %8
-    %10 = sub %6, %9
-    call void _ZN2DTC1Ex(@$tmp0, %10)
-    %11 = load @$tmp0
-    store @$abi3, %11
-    %13 = load @$abi3
-    ret %13
+    %5 = load @a
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @b
+    %9 = field.addr %8, 0
+    %10 = load %9
+    %11 = sub %7, %10
+    call void _ZN2DTC1Ex(@$tmp0, %11)
+    %12 = load @$tmp0
+    store @$abi3, %12
+    %14 = load @$abi3
+    ret %14
 }
 func i64 _ZmiR2DTS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
@@ -89,24 +91,25 @@ func i64 _ZmiR2DTS0_(ptr $0, ptr $1) {
   local ptr b
   local agg $abi3 size 8
   entry0:
-    %12 = alloca ptr $abi3
+    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %4 = load @a
-    %5 = field.addr %4, 0
-    %6 = load %5
-    %7 = load @b
-    %8 = field.addr %7, 0
-    %9 = load %8
-    %10 = sub %6, %9
-    call void _ZN2TSC1Ex(@$tmp0, %10)
-    %11 = load @$tmp0
-    store @$abi3, %11
-    %13 = load @$abi3
-    ret %13
+    %5 = load @a
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @b
+    %9 = field.addr %8, 0
+    %10 = load %9
+    %11 = sub %7, %10
+    call void _ZN2TSC1Ex(@$tmp0, %11)
+    %12 = load @$tmp0
+    store @$abi3, %12
+    %14 = load @$abi3
+    ret %14
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -194,4 +197,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 111 insts, 0 statements not lowered, 0 scope imbalance

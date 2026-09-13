@@ -1,0 +1,9 @@
+'' An exact intrinsic over a constant folds to a constant -- in double, from the
+'' argument's own value -- and that constant takes part in the float regrouping.
+'' The source lists fbc's C for each shape.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/float-intrinsic-fold.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/float-intrinsic-fold.out

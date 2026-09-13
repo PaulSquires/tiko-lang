@@ -38,9 +38,9 @@ func f64 _ZN1TcvdEv(ptr $0) {
     %4 = load @this
     %5 = field.addr %4, 0
     %6 = load %5
-    %7 = const f64 0.5
-    %8 = sitofp %6
-    %9 = add %8, %7
+    %7 = sitofp %6
+    %8 = const f64 0.5
+    %9 = add %7, %8
     ret %9
 }
 func i32 main(i32 $0, ptr $1) {

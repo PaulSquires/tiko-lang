@@ -3,15 +3,17 @@ func void SIDEFX_BYVAL(ptr $0, ptr $1) {
   local agg a size 24
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
-    %5 = load $1
-    store @a, %5
-    %3 = load @a
-    store @$tmp0, %3
-    %4 = load @$tmp0
-    store $0, %4
+    %2 = call.rtl ptr memset(@$tmp0, 0, 24)
+    %3 = alloca ptr a
+    %6 = load $1
+    store @a, %6
+    %4 = load @a
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    store $0, %5
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void F(i64 $0, ...) {
   local i64 n
   local agg args size 24
@@ -38,7 +40,6 @@ func void F(i64 $0, ...) {
     va.end @args
     ret
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -59,4 +60,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 30 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance

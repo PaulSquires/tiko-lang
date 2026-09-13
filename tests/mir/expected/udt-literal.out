@@ -2,39 +2,42 @@ func i64 MAKEP() {
   local agg $tmp0 size 8
   local agg $abi1 size 8
   entry0:
-    %9 = alloca ptr $abi1
+    %10 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
-    %2 = const i64 1
-    %3 = trunc %2
-    %4 = const i64 2
-    %5 = trunc %4
-    %6 = field.addr @$tmp0, 0
-    store %6, %3
-    %7 = field.addr @$tmp0, 4
-    store %7, %5
-    %8 = load @$tmp0
-    store @$abi1, %8
-    %10 = load @$abi1
-    ret %10
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = const i64 2
+    %6 = trunc %5
+    %7 = field.addr @$tmp0, 0
+    store %7, %4
+    %8 = field.addr @$tmp0, 4
+    store %8, %6
+    %9 = load @$tmp0
+    store @$abi1, %9
+    %11 = load @$abi1
+    ret %11
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 MAKEPTYPED() {
   local agg $tmp0 size 8
   local agg $abi1 size 8
   entry0:
-    %9 = alloca ptr $abi1
+    %10 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
-    %2 = const i64 3
-    %3 = trunc %2
-    %4 = const i64 4
-    %5 = trunc %4
-    %6 = field.addr @$tmp0, 0
-    store %6, %3
-    %7 = field.addr @$tmp0, 4
-    store %7, %5
-    %8 = load @$tmp0
-    store @$abi1, %8
-    %10 = load @$abi1
-    ret %10
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 3
+    %4 = trunc %3
+    %5 = const i64 4
+    %6 = trunc %5
+    %7 = field.addr @$tmp0, 0
+    store %7, %4
+    %8 = field.addr @$tmp0, 4
+    store %8, %6
+    %9 = load @$tmp0
+    store @$abi1, %9
+    %11 = load @$abi1
+    ret %11
 }
 func void _ZN7CTORUDTC1Ev(ptr $0) {
   local ptr this
@@ -52,7 +55,6 @@ func void _ZN7CTORUDTC1Ev(ptr $0) {
     store %6, %9
     ret
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN7CTORUDTC1Ei(ptr $0, i32 $1) {
   local ptr this
   local i32 n
@@ -261,4 +263,4 @@ declare void R(ptr $0)
 declare void S(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 204 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 206 insts, 0 statements not lowered, 0 scope imbalance

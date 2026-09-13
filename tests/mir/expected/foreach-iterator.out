@@ -57,23 +57,24 @@ func i64 _ZN4COLL11GETITERATOREv(ptr $0) {
   local agg t size 8
   local agg $abi3 size 8
   entry0:
-    %11 = alloca ptr $abi3
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr this
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr this
     store @this, $0
-    %3 = alloca ptr t
-    %4 = call.rtl ptr memset(@t, 0, 8)
-    %5 = field.addr @t, 4
-    %6 = load @this
-    %7 = field.addr %6, 0
-    %8 = load %7
-    store %5, %8
-    %9 = load @t
-    store @$tmp0, %9
-    %10 = load @$tmp0
-    store @$abi3, %10
-    %12 = load @$abi3
-    ret %12
+    %4 = alloca ptr t
+    %5 = call.rtl ptr memset(@t, 0, 8)
+    %6 = field.addr @t, 4
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load %8
+    store %6, %9
+    %10 = load @t
+    store @$tmp0, %10
+    %11 = load @$tmp0
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void P() {
@@ -174,4 +175,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 20 blocks, 93 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 20 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance

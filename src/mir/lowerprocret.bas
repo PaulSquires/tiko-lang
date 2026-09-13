@@ -249,4 +249,80 @@ function BodyAssignsResult_ _
     return false
 end function
 
+'' DOES THE BODY LEAVE THROUGH 'return expr' ANYWHERE? Nested blocks count: 'scope :
+'' return t : end scope' under an IF is measured to suppress the entry construction as
+'' surely as a top-level one does.
+function BodyReturnsValue_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if depth > 256 then return false
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+    if k = Tko.N_PROC then return false
+    if k = Tko.N_RETURN then return true
+    if Tko.NodeKindCategory( k ) = Tko.NCAT_EXPR then return false
+    if Tko.NodeKindCategory( k ) = Tko.NCAT_TYPE then return false
+    if (k = Tko.N_MODULE) orelse (k = Tko.N_BLOCK) then
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            if BodyReturnsValue_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+                                  depth + 1 ) then return true
+        next
+        return false
+    end if
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp = 0 then return false
+    if BodyReturnsValue_( c, sp->b, depth + 1 ) then return true
+    if BodyReturnsValue_( c, sp->c, depth + 1 ) then return true
+    for i as long = 0 to sp->count - 1
+        if BodyReturnsValue_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), _
+                              depth + 1 ) then return true
+    next
+    return false
+end function
+
+'' THE RESULT AT ENTRY, measured over both return paths (fbc's C, first statements):
+''
+''     by value, no constructor         memset( &fb$result, 0, size )   ALWAYS, even when
+''                                                                       the body only
+''                                                                       RETURNs
+''     a constructor, or field          C1Ev( &fb$result ) / C1Ev( tmp ) -- for
+''     initialisers (an implicit one)   'function =', 'exit function', a name assignment
+''                                      and a body that sets nothing at all
+''     ...and 'return x' anywhere       NOTHING: the return copies into the result
+''     hidden pointer, no constructor   nothing (a destructor-only type)
+''
+'' fbc refuses 'function =' mixed with 'return' for a type with a constructor (error
+'' 179), so "no RETURN anywhere" is the whole test. functions/return_notreg is the second
+'' row: 'if 0 = 1 then function = type()' must still return the constructed object, and
+'' the slot was left holding whatever the stack held.
+sub InitResultAtEntry_ _
+    ( byref c as Ctx, byval rt as Tko.TypeId, byref dst as MirValue, _
+      byval body as Tko.NodeId, byval zeroTrivial as boolean )
+
+    if c.types->Kind( rt ) = Tko.TK_UDT then
+        dim as Tko.SymbolId rct = StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 0 )
+        dim as boolean needsCtor = (rct <> Tko.SYMBOL_NONE) orelse TypeNeedsInit_( c, rt )
+        if needsCtor then
+            if BodyReturnsValue_( c, body ) then exit sub
+            if rct <> Tko.SYMBOL_NONE then
+                dim as FB.Array( of ulong ) rnone
+                EmitStructorCall( c, rct, -1, @dst, @rnone )
+            else
+                CallImplicitCtor_( c, rt, dst )
+            end if
+            exit sub
+        end if
+    end if
+    if zeroTrivial = false then exit sub
+    dim as long sz = SizeOfType( c, rt )
+    if sz <= 0 then exit sub
+    dim as FB.Array( of ulong ) bz
+    bz.Push( cast( ulong, dst.kind ) ) : bz.Push( cast( ulong, dst.id ) )
+    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( 0 )
+    bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( cast( ulong, sz ) )
+    EmitRtl( c, RTL_MEMSET, bz )
+end sub
+
 end namespace

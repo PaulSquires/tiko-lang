@@ -221,7 +221,7 @@ end function
 function ConstFloatOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
       byval depth as long = 0, byval syms as Tko.SymbolTable ptr = 0, _
-      byval scope_ as Tko.ScopeId = 0 ) as boolean
+      byval scope_ as Tko.ScopeId = 0, byval names as Tko.Interner ptr = 0 ) as boolean
 
     if id = Tko.NODE_NONE then return false
     if depth > 32 then return false
@@ -235,12 +235,12 @@ function ConstFloatOf _
             @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
         if pp->count <> 1 then return false
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
-                             outd, depth + 1, syms, scope_ )
+                             outd, depth + 1, syms, scope_, names )
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
-        if ConstFloatOf( ast, up->operand, outd, depth + 1, syms, scope_ ) = false then
+        if ConstFloatOf( ast, up->operand, outd, depth + 1, syms, scope_, names ) = false then
             return false
         end if
         select case cast( Tko.TokenKind, up->op )
@@ -254,10 +254,10 @@ function ConstFloatOf _
         dim as Tko.BinaryPayload ptr bp = _
             @ast.binaries[cast( long, ast.nodes[cast( long, id )].data )]
         dim as double l, r
-        if ConstFloatOf( ast, bp->lhs, l, depth + 1, syms, scope_ ) = false then
+        if ConstFloatOf( ast, bp->lhs, l, depth + 1, syms, scope_, names ) = false then
             return false
         end if
-        if ConstFloatOf( ast, bp->rhs, r, depth + 1, syms, scope_ ) = false then
+        if ConstFloatOf( ast, bp->rhs, r, depth + 1, syms, scope_, names ) = false then
             return false
         end if
         select case cast( Tko.TokenKind, bp->op )
@@ -301,12 +301,64 @@ function ConstFloatOf _
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return false
         dim as Tko.StmtPayload ptr cip = _
             @ast.stmts[cast( long, ast.nodes[cast( long, citem )].data )]
-        if ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent ) = false then
+        if ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent, names ) = false then
             return false
         end if
         '' 'const KS as single = 1.1' holds the SINGLE value: 'fa * KS * 2.4f * 5.4f'
         '' is 41641895 in fbc, as for a '1.1f' literal. A builtin's TypeId is its kind.
         if cs->type_ = cast( Tko.TypeId, Tko.TY_SINGLE ) then outd = cast( single, outd )
+        return true
+
+    '' AN INTRINSIC OVER A CONSTANT IS A CONSTANT to fbc, and it joins the regrouping of
+    '' the arithmetic around it: 'a / (abs(42.3) + 1.5) * 1.7' is '(A / 43.8) * 1.7' in
+    '' fbc's C. Measured: the argument is its folded value -- a SINGLE one its single
+    '' value -- and the result is taken in DOUBLE and not rounded, so 'sqr( 2.0f ) *
+    '' 1.7f' accumulates sqrt of the single 2 exactly; only CSNG rounds. INT floors, FIX
+    '' truncates, FRAC is 'x - fix( x )', SGN is -1/0/1, 'abs( -0.0 )' is +0, and CINT
+    '' and CLNG round half to even. Only the exact ones: SIN, EXP and the rest are fbc's
+    '' HOST libm's answer, which nothing here has measured. An integer conversion
+    '' outside 32 bits would need its narrowing modelled, so it is not folded.
+    case Tko.N_CALL
+        if names = 0 then return false
+        dim as Tko.ListPayload ptr cp = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if (cp->target = Tko.NODE_NONE) orelse (cp->count <> 1) then return false
+        if ast.Kind( cp->target ) <> Tko.N_IDENT then return false
+        dim as Tko.IdentPayload ptr ip = _
+            @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
+        dim as string nm = Tko.Text.LowerAscii( names->Spelling( ip->name ) )
+        select case nm
+        case "abs", "sgn", "int", "fix", "frac", "sqr", "csng", "cdbl", "cint", "clng", "clngint"
+        case else
+            return false
+        end select
+        dim as double x
+        if ConstFloatOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), x, _
+                         depth + 1, syms, scope_, names ) = false then
+            return false
+        end if
+        select case nm
+        case "abs"  : outd = abs( x )
+        case "sgn"  : outd = sgn( x )
+        case "int"  : outd = int( x )
+        case "fix"  : outd = fix( x )
+        case "frac" : outd = x - fix( x )
+        case "sqr"
+            if x < 0 then return false
+            outd = sqr( x )
+        case "csng" : outd = cast( single, x )
+        case "cdbl" : outd = x
+        case else
+            if (x >= 2147483647.0) orelse (x <= -2147483648.0) then return false
+            dim as double fl = int( x )
+            dim as double diff = x - fl
+            if diff > 0.5 then
+                fl += 1
+            elseif diff = 0.5 then
+                if fix( fl / 2 ) * 2 <> fl then fl += 1
+            end if
+            outd = fl
+        end select
         return true
     end select
     return false
@@ -623,7 +675,7 @@ private function ConstCall_ _
     '' INTEGER constant keeps the exact integer path below rather than going round
     '' through a double it may not fit in.
     if (isNum = false) andalso (iv.known = false) then
-        isNum = ConstFloatOf( ast, a0, d, 0, syms, scope_ )
+        isNum = ConstFloatOf( ast, a0, d, 0, syms, scope_, @names )
     end if
 
     select case nm

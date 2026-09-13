@@ -27,27 +27,28 @@ func ptr _ZN8PAIRITER5VALUEEv(ptr $0, ptr $1) {
   entry0:
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
-    %2 = alloca ptr this
+    %2 = load @$tmp0
+    %3 = alloca ptr this
     store @this, $1
-    %3 = alloca ptr $tmp2
+    %4 = alloca ptr $tmp2
     call void _ZN9$TUP:6:15C1Ev(@$tmp2)
-    %4 = load @this
-    %5 = field.addr %4, 0
-    %6 = load %5
-    %7 = field.addr @$tmp2, 0
-    store %7, %6
-    %8 = field.addr @$tmp2, 8
-    %9 = call.rtl ptr fb_StrAssign(%8, -1, @@$str0, 2, 0)
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load %11
-    %13 = call.rtl ptr fb_IntToStr(%12)
-    %14 = call.rtl ptr fb_StrConcatAssign(%8, -1, %13, -1, 0)
-    %15 = load @$tmp0
-    call void _ZN9$TUP:6:15C1ERKS_(%15, @$tmp2)
-    call void _ZN9$TUP:6:15D1Ev(@$tmp2)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = field.addr @$tmp2, 0
+    store %8, %7
+    %9 = field.addr @$tmp2, 8
+    %10 = call.rtl ptr fb_StrAssign(%9, -1, @@$str0, 2, 0)
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.rtl ptr fb_IntToStr(%13)
+    %15 = call.rtl ptr fb_StrConcatAssign(%9, -1, %14, -1, 0)
     %16 = load @$tmp0
-    ret %16
+    call void _ZN9$TUP:6:15C1ERKS_(%16, @$tmp2)
+    call void _ZN9$TUP:6:15D1Ev(@$tmp2)
+    %17 = load @$tmp0
+    ret %17
 }
 declare void _ZN9$TUP:6:15C1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -75,22 +76,23 @@ func i32 _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
   local agg it size 4
   local agg $abi3 size 4
   entry0:
-    %10 = alloca ptr $abi3
+    %11 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr this
+    %2 = call.rtl ptr memset(@$tmp0, 0, 4)
+    %3 = alloca ptr this
     store @this, $0
-    %3 = alloca ptr it
-    %4 = call.rtl ptr memset(@it, 0, 4)
-    %5 = field.addr @it, 0
-    %6 = const i64 0
-    %7 = trunc %6
-    store %5, %7
-    %8 = load @it
-    store @$tmp0, %8
-    %9 = load @$tmp0
-    store @$abi3, %9
-    %11 = load @$abi3
-    ret %11
+    %4 = alloca ptr it
+    %5 = call.rtl ptr memset(@it, 0, 4)
+    %6 = field.addr @it, 0
+    %7 = const i64 0
+    %8 = trunc %7
+    store %6, %8
+    %9 = load @it
+    store @$tmp0, %9
+    %10 = load @$tmp0
+    store @$abi3, %10
+    %12 = load @$abi3
+    ret %12
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void S1() {
@@ -293,4 +295,4 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 10 functions, 24 blocks, 174 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 24 blocks, 176 insts, 0 statements not lowered, 0 scope imbalance

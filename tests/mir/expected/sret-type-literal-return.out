@@ -22,9 +22,10 @@ func ptr G1(ptr $0) {
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
     %2 = load @$tmp0
-    call void _ZN1TC1Ev(%2)
     %3 = load @$tmp0
-    ret %3
+    call void _ZN1TC1Ev(%3)
+    %4 = load @$tmp0
+    ret %4
 }
 func ptr G2(ptr $0) {
   local ptr $tmp0
@@ -32,9 +33,10 @@ func ptr G2(ptr $0) {
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
     %2 = load @$tmp0
-    call void _ZN1TC1Ev(%2)
     %3 = load @$tmp0
-    ret %3
+    call void _ZN1TC1Ev(%3)
+    %4 = load @$tmp0
+    ret %4
 }
 func ptr G3(ptr $0) {
   local ptr $tmp0
@@ -58,9 +60,10 @@ func ptr G4(ptr $0) {
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
     %2 = load @$tmp0
-    call void _ZN1TC1Ev(%2)
     %3 = load @$tmp0
-    ret %3
+    call void _ZN1TC1Ev(%3)
+    %4 = load @$tmp0
+    ret %4
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -131,4 +134,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 7 blocks, 87 insts, 0 statements not lowered, 0 scope imbalance

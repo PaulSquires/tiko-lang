@@ -46,33 +46,35 @@ func f64 _ZmiR3FOOf(ptr $0, f32 $1) {
   local agg $abi3 size 8
   local agg $abi4 size 8
   entry0:
-    %15 = alloca ptr $abi3
-    %17 = alloca ptr $abi4
+    %16 = alloca ptr $abi3
+    %18 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr l
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr l
     store @l, $0
-    %3 = alloca ptr r
+    %4 = alloca ptr r
     store @r, $1
-    %4 = load @l
-    %5 = field.addr %4, 0
-    %6 = load %5
-    %7 = load @r
-    %8 = fptrunc %6
-    %9 = fpext %8
-    %10 = fpext %7
-    %11 = sub %9, %10
-    %12 = field.addr @$tmp0, 0
-    store %12, %11
-    %13 = load @$tmp0
-    store @$abi3, %13
-    %16 = load @$abi3
-    ret %16
-  after1:
+    %5 = load @l
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @r
+    %9 = fptrunc %7
+    %10 = fpext %9
+    %11 = fpext %8
+    %12 = sub %10, %11
+    %13 = field.addr @$tmp0, 0
+    store %13, %12
     %14 = load @$tmp0
-    store @$abi4, %14
-    %18 = load @$abi4
-    ret %18
+    store @$abi3, %14
+    %17 = load @$abi3
+    ret %17
+  after1:
+    %15 = load @$tmp0
+    store @$abi4, %15
+    %19 = load @$abi4
+    ret %19
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func f64 _ZplfR3FOO(f32 $0, ptr $1) {
   local agg $tmp0 size 8
   local f32 l
@@ -80,52 +82,20 @@ func f64 _ZplfR3FOO(f32 $0, ptr $1) {
   local agg $abi3 size 8
   local agg $abi4 size 8
   entry0:
-    %13 = alloca ptr $abi3
-    %15 = alloca ptr $abi4
-    %1 = alloca ptr $tmp0
-    %2 = alloca ptr l
-    store @l, $0
-    %3 = alloca ptr r
-    store @r, $1
-    %4 = load @l
-    %5 = load @r
-    %6 = field.addr %5, 0
-    %7 = load %6
-    %8 = fpext %4
-    %9 = add %8, %7
-    %10 = field.addr @$tmp0, 0
-    store %10, %9
-    %11 = load @$tmp0
-    store @$abi3, %11
-    %14 = load @$abi3
-    ret %14
-  after1:
-    %12 = load @$tmp0
-    store @$abi4, %12
-    %16 = load @$abi4
-    ret %16
-}
-func f64 _ZmlR3FOOS0_(ptr $0, ptr $1) {
-  local agg $tmp0 size 8
-  local ptr l
-  local ptr r
-  local agg $abi3 size 8
-  local agg $abi4 size 8
-  entry0:
     %14 = alloca ptr $abi3
     %16 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr l
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr l
     store @l, $0
-    %3 = alloca ptr r
+    %4 = alloca ptr r
     store @r, $1
-    %4 = load @l
-    %5 = field.addr %4, 0
-    %6 = load %5
-    %7 = load @r
-    %8 = field.addr %7, 0
-    %9 = load %8
-    %10 = add %6, %9
+    %5 = load @l
+    %6 = load @r
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = fpext %5
+    %10 = add %9, %8
     %11 = field.addr @$tmp0, 0
     store %11, %10
     %12 = load @$tmp0
@@ -137,6 +107,40 @@ func f64 _ZmlR3FOOS0_(ptr $0, ptr $1) {
     store @$abi4, %13
     %17 = load @$abi4
     ret %17
+}
+func f64 _ZmlR3FOOS0_(ptr $0, ptr $1) {
+  local agg $tmp0 size 8
+  local ptr l
+  local ptr r
+  local agg $abi3 size 8
+  local agg $abi4 size 8
+  entry0:
+    %15 = alloca ptr $abi3
+    %17 = alloca ptr $abi4
+    %1 = alloca ptr $tmp0
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr l
+    store @l, $0
+    %4 = alloca ptr r
+    store @r, $1
+    %5 = load @l
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = load @r
+    %9 = field.addr %8, 0
+    %10 = load %9
+    %11 = add %7, %10
+    %12 = field.addr @$tmp0, 0
+    store %12, %11
+    %13 = load @$tmp0
+    store @$abi3, %13
+    %16 = load @$abi3
+    ret %16
+  after1:
+    %14 = load @$tmp0
+    store @$abi4, %14
+    %18 = load @$abi4
+    ret %18
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -209,4 +213,4 @@ declare i32 fb_PrintUsingDouble(i32 $0, f64 $1, i32 $2)
 declare i32 fb_PrintUsingEnd(i32 $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 9 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 9 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance

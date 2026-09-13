@@ -43,27 +43,30 @@ func i64 F3() {
   local agg $tmp0 size 8
   local agg $abi1 size 8
   entry0:
-    %4 = alloca ptr $abi1
+    %5 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
-    %2 = const i64 1
-    call void _ZN3UDTC1Eu7INTEGER(@$tmp0, %2)
-    %3 = load @$tmp0
-    store @$abi1, %3
-    %5 = load @$abi1
-    ret %5
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 1
+    call void _ZN3UDTC1Eu7INTEGER(@$tmp0, %3)
+    %4 = load @$tmp0
+    store @$abi1, %4
+    %6 = load @$abi1
+    ret %6
 }
 func i64 F4() {
   local agg $tmp0 size 8
   local agg $abi1 size 8
   entry0:
-    %4 = alloca ptr $abi1
+    %5 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
-    %2 = const i64 1
+    %2 = const i64 0
     call void _ZN9DEFAULTEDC1Eu7INTEGER(@$tmp0, %2)
-    %3 = load @$tmp0
-    store @$abi1, %3
-    %5 = load @$abi1
-    ret %5
+    %3 = const i64 1
+    call void _ZN9DEFAULTEDC1Eu7INTEGER(@$tmp0, %3)
+    %4 = load @$tmp0
+    store @$abi1, %4
+    %6 = load @$abi1
+    ret %6
 }
 func ptr F5() {
   local ptr $tmp0
@@ -158,9 +161,9 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 13 functions, 15 blocks, 71 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 13 functions, 15 blocks, 74 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:790 1
+  skip-site src\mir\lower.bas:862 1
 tests/diagnostics/src/proc-definition-shapes.bas(21,1): error TKO0732: 'f1' returns 'any', which is not a value
      |
   21 | function f1( ) as any

@@ -39,21 +39,22 @@ func i32 _Z2MkIiEi(i32 $0) {
   local agg b size 4
   local agg $abi3 size 8
   entry0:
-    %9 = alloca ptr $abi3
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr x
+    %2 = call.rtl ptr memset(@$tmp0, 0, 4)
+    %3 = alloca ptr x
     store @x, $0
-    %3 = alloca ptr b
-    %4 = call.rtl ptr memset(@b, 0, 4)
-    %5 = field.addr @b, 0
-    %6 = load @x
-    store %5, %6
-    %7 = load @b
-    store @$tmp0, %7
-    %8 = load @$tmp0
-    store @$abi3, %8
-    %10 = load @$abi3
-    ret %10
+    %4 = alloca ptr b
+    %5 = call.rtl ptr memset(@b, 0, 4)
+    %6 = field.addr @b, 0
+    %7 = load @x
+    store %6, %7
+    %8 = load @b
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func f64 _Z2MkIdEd(f64 $0) {
@@ -62,21 +63,22 @@ func f64 _Z2MkIdEd(f64 $0) {
   local agg b size 8
   local agg $abi3 size 8
   entry0:
-    %9 = alloca ptr $abi3
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr x
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr x
     store @x, $0
-    %3 = alloca ptr b
-    %4 = call.rtl ptr memset(@b, 0, 8)
-    %5 = field.addr @b, 0
-    %6 = load @x
-    store %5, %6
-    %7 = load @b
-    store @$tmp0, %7
-    %8 = load @$tmp0
-    store @$abi3, %8
-    %10 = load @$abi3
-    ret %10
+    %4 = alloca ptr b
+    %5 = call.rtl ptr memset(@b, 0, 8)
+    %6 = field.addr @b, 0
+    %7 = load @x
+    store %6, %7
+    %8 = load @b
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -94,4 +96,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 44 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

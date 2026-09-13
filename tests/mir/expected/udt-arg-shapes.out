@@ -4,21 +4,22 @@ func i64 _ZN2NS5STAMP9FROMTICKSEx(i64 $0) {
   local agg r size 8
   local agg $abi3 size 8
   entry0:
-    %9 = alloca ptr $abi3
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr v
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr v
     store @v, $0
-    %3 = alloca ptr r
-    %4 = call.rtl ptr memset(@r, 0, 8)
-    %5 = field.addr @r, 0
-    %6 = load @v
-    store %5, %6
-    %7 = load @r
-    store @$tmp0, %7
-    %8 = load @$tmp0
-    store @$abi3, %8
-    %10 = load @$abi3
-    ret %10
+    %4 = alloca ptr r
+    %5 = call.rtl ptr memset(@r, 0, 8)
+    %6 = field.addr @r, 0
+    %7 = load @v
+    store %6, %7
+    %8 = load @r
+    store @$tmp0, %8
+    %9 = load @$tmp0
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 _ZN2NS5STAMP8MIDNIGHTEv() {
@@ -26,18 +27,19 @@ func i64 _ZN2NS5STAMP8MIDNIGHTEv() {
   local agg $abi1 size 8
   local agg $abi2 size 8
   entry0:
-    %7 = alloca ptr $abi2
-    %5 = alloca ptr $abi1
+    %8 = alloca ptr $abi2
+    %6 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
-    %2 = const i64 0
-    %6 = call i64 _ZN2NS5STAMP9FROMTICKSEx(%2)
-    store @$abi1, %6
-    %3 = load @$abi1
-    store @$tmp0, %3
-    %4 = load @$tmp0
-    store @$abi2, %4
-    %8 = load @$abi2
-    ret %8
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 0
+    %7 = call i64 _ZN2NS5STAMP9FROMTICKSEx(%3)
+    store @$abi1, %7
+    %4 = load @$abi1
+    store @$tmp0, %4
+    %5 = load @$tmp0
+    store @$abi2, %5
+    %9 = load @$abi2
+    ret %9
 }
 func void _ZN3FOOC1Ev(ptr $0) {
   local ptr this
@@ -179,4 +181,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 10 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 99 insts, 0 statements not lowered, 0 scope imbalance

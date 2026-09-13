@@ -174,10 +174,12 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byval tref as Tko.NodeId, _
           byref v as ConstVal, byval intBits as long ) as ConstVal
 
+    '' 'names' is OPTIONAL and enables one thing: folding an exact INTRINSIC over a
+    '' constant ('abs( 42.3 )'), whose name has to be spelled to be recognised.
     declare function ConstFloatOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as double, _
           byval depth as long = 0, byval syms as Tko.SymbolTable ptr = 0, _
-          byval scope_ as Tko.ScopeId = 0 ) as boolean
+          byval scope_ as Tko.ScopeId = 0, byval names as Tko.Interner ptr = 0 ) as boolean
 
     '' Fold an expression to an integer constant, matching fbc bit for bit. The
     '' source manager is needed for LEN and ASC, whose argument is a string literal

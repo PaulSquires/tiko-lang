@@ -32,6 +32,7 @@ func i64 OKASSIGN() {
   entry0:
     %5 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
+    call void _ZN4CTORC1Ev(@$tmp0)
     %2 = alloca ptr x
     call void _ZN4CTORC1Ev(@x)
     %3 = load @x
@@ -156,7 +157,7 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 17 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 17 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/return-style-mix.bas(47,38): error TKO0675: a parameter default names 'notdeclaredanywhere', which is not declared
      |
   47 | sub badDefault( byval n as integer = notDeclaredAnywhere )

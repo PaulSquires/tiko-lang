@@ -3,19 +3,20 @@ func i64 _ZN2DT8MAXVALUEEv() {
   local agg r size 8
   local agg $abi2 size 8
   entry0:
-    %8 = alloca ptr $abi2
+    %9 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr r
-    %3 = call.rtl ptr memset(@r, 0, 8)
-    %4 = field.addr @r, 0
-    %5 = const i64 5
-    store %4, %5
-    %6 = load @r
-    store @$tmp0, %6
-    %7 = load @$tmp0
-    store @$abi2, %7
-    %9 = load @$abi2
-    ret %9
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr r
+    %4 = call.rtl ptr memset(@r, 0, 8)
+    %5 = field.addr @r, 0
+    %6 = const i64 5
+    store %5, %6
+    %7 = load @r
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    store @$abi2, %8
+    %10 = load @$abi2
+    ret %10
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 MK() {
@@ -23,19 +24,20 @@ func i64 MK() {
   local agg r size 8
   local agg $abi2 size 8
   entry0:
-    %8 = alloca ptr $abi2
+    %9 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr r
-    %3 = call.rtl ptr memset(@r, 0, 8)
-    %4 = field.addr @r, 0
-    %5 = const i64 7
-    store %4, %5
-    %6 = load @r
-    store @$tmp0, %6
-    %7 = load @$tmp0
-    store @$abi2, %7
-    %9 = load @$abi2
-    ret %9
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr r
+    %4 = call.rtl ptr memset(@r, 0, 8)
+    %5 = field.addr @r, 0
+    %6 = const i64 7
+    store %5, %6
+    %7 = load @r
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    store @$abi2, %8
+    %10 = load @$abi2
+    ret %10
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -107,4 +109,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 59 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance

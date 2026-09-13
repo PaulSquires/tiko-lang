@@ -2,53 +2,56 @@ func i64 MKP() {
   local agg $tmp0 size 8
   local agg $abi1 size 8
   entry0:
-    %9 = alloca ptr $abi1
+    %10 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
-    %2 = const i64 5
-    %3 = trunc %2
-    %4 = const i64 6
-    %5 = trunc %4
-    %6 = field.addr @$tmp0, 0
-    store %6, %3
-    %7 = field.addr @$tmp0, 4
-    store %7, %5
-    %8 = load @$tmp0
-    store @$abi1, %8
-    %10 = load @$abi1
-    ret %10
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = const i64 5
+    %4 = trunc %3
+    %5 = const i64 6
+    %6 = trunc %5
+    %7 = field.addr @$tmp0, 0
+    store %7, %4
+    %8 = field.addr @$tmp0, 4
+    store %8, %6
+    %9 = load @$tmp0
+    store @$abi1, %9
+    %11 = load @$abi1
+    ret %11
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 DIVMOD(i32 $0, i32 $1) {
   local agg $tmp0 size 8
   local i32 a
   local i32 b
   local agg $abi3 size 8
   entry0:
-    %19 = alloca ptr $abi3
+    %20 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %4 = load @a
-    %5 = load @b
-    %6 = sext %4
+    %5 = load @a
+    %6 = load @b
     %7 = sext %5
-    %8 = sdiv %6, %7
-    %9 = trunc %8
-    %10 = load @a
-    %11 = load @b
-    %12 = sext %10
+    %8 = sext %6
+    %9 = sdiv %7, %8
+    %10 = trunc %9
+    %11 = load @a
+    %12 = load @b
     %13 = sext %11
-    %14 = srem %12, %13
-    %15 = trunc %14
-    %16 = field.addr @$tmp0, 0
-    store %16, %9
-    %17 = field.addr @$tmp0, 4
-    store %17, %15
-    %18 = load @$tmp0
-    store @$abi3, %18
-    %20 = load @$abi3
-    ret %20
+    %14 = sext %12
+    %15 = srem %13, %14
+    %16 = trunc %15
+    %17 = field.addr @$tmp0, 0
+    store %17, %10
+    %18 = field.addr @$tmp0, 4
+    store %18, %16
+    %19 = load @$tmp0
+    store @$abi3, %19
+    %21 = load @$abi3
+    ret %21
 }
 func i64 DIVMODNAMED(i32 $0, i32 $1) {
   local agg $tmp0 size 8
@@ -56,32 +59,33 @@ func i64 DIVMODNAMED(i32 $0, i32 $1) {
   local i32 b
   local agg $abi3 size 8
   entry0:
-    %19 = alloca ptr $abi3
+    %20 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 8)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %4 = load @a
-    %5 = load @b
-    %6 = sext %4
+    %5 = load @a
+    %6 = load @b
     %7 = sext %5
-    %8 = sdiv %6, %7
-    %9 = trunc %8
-    %10 = load @a
-    %11 = load @b
-    %12 = sext %10
+    %8 = sext %6
+    %9 = sdiv %7, %8
+    %10 = trunc %9
+    %11 = load @a
+    %12 = load @b
     %13 = sext %11
-    %14 = srem %12, %13
-    %15 = trunc %14
-    %16 = field.addr @$tmp0, 0
-    store %16, %9
-    %17 = field.addr @$tmp0, 4
-    store %17, %15
-    %18 = load @$tmp0
-    store @$abi3, %18
-    %20 = load @$abi3
-    ret %20
+    %14 = sext %12
+    %15 = srem %13, %14
+    %16 = trunc %15
+    %17 = field.addr @$tmp0, 0
+    store %17, %10
+    %18 = field.addr @$tmp0, 4
+    store %18, %16
+    %19 = load @$tmp0
+    store @$abi3, %19
+    %21 = load @$abi3
+    ret %21
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -150,4 +154,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 97 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 100 insts, 0 statements not lowered, 0 scope imbalance

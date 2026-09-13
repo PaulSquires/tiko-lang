@@ -330,6 +330,11 @@ declare function EmitRtl _
     declare function BinOpFor _
         ( byval tk as Tko.TokenKind, byval t as MirType, _
           byval isUnsigned as boolean ) as MirOp
+    '' A float ADD/SUB/MUL chain with constants in it, regrouped as fbc regroups it.
+    '' False, before anything is lowered, when the chain is not one. lowerreassoc.bas.
+    declare function LowerFloatChain _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
     declare sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
 
     declare sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
@@ -522,6 +527,12 @@ declare function EmitRtl _
     declare function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     declare function BodyAssignsResult_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    declare function BodyReturnsValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    '' The result zeroed or default-constructed at entry, where fbc does it.
+    declare sub InitResultAtEntry_ _
+        ( byref c as Ctx, byval rt as Tko.TypeId, byref dst as MirValue, _
+          byval body as Tko.NodeId, byval zeroTrivial as boolean )
     declare function SretAssignResult_ _
         ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
     declare function LowerSretResult _

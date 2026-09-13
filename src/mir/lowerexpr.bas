@@ -62,7 +62,7 @@ function LowerExpr _
         dim as Tko.NodeKind fk = c.ast->Kind( id )
         if (fk = Tko.N_BINARY) orelse (fk = Tko.N_UNARY) then
             dim as double fd
-            if Tko.Check.ConstFloatOf( *c.ast, id, fd, 0, c.syms, c.info->ScopeOf( id ) ) then
+            if Tko.Check.ConstFloatOf( *c.ast, id, fd, 0, c.syms, c.info->ScopeOf( id ), c.names ) then
                 return ConstFloat( c, fd, mt )
             end if
         end if
@@ -641,6 +641,10 @@ function LowerExpr _
         '' subtracted the raw aggregates as integers -- emitted, verified, wrong.
         dim as MirValue uov
         if LowerUserBinaryOp_( c, id, bp, mt, uov ) then return uov
+
+        '' FLOAT CONSTANTS ARE REGROUPED AS fbc REGROUPS THEM -- lowerreassoc.bas.
+        dim as MirValue fcv
+        if LowerFloatChain( c, id, mt, fcv ) then return fcv
 
         '' TUPLE EQUALITY is a SHORT-CIRCUIT CHAIN over the elements, not a comparison
         '' of two objects -- see LowerTupleCompare for the shape fbc emits.

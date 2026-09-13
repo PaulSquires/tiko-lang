@@ -6,29 +6,30 @@ func ptr F(ptr $0) {
   entry0:
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
-    %2 = alloca ptr k
-    %3 = const i64 1
-    %4 = trunc %3
-    store @k, %4
-    %5 = alloca ptr d
+    %2 = load @$tmp0
+    %3 = alloca ptr k
+    %4 = const i64 1
+    %5 = trunc %4
+    store @k, %5
+    %6 = alloca ptr d
     call void _ZN3DYNC1Ev(@d)
-    %6 = field.addr @d, 72
-    %7 = const i64 9
-    %8 = trunc %7
-    store %6, %8
-    %9 = alloca ptr $tmp3
+    %7 = field.addr @d, 72
+    %8 = const i64 9
+    %9 = trunc %8
+    store %7, %9
+    %10 = alloca ptr $tmp3
     call void _ZN9$TUP:6:23C1Ev(@$tmp3)
-    %10 = load @k
-    %11 = field.addr @$tmp3, 0
-    store %11, %10
-    %12 = field.addr @$tmp3, 8
-    call void _ZN3DYNC1ERKS_(%12, @d)
-    %13 = load @$tmp0
-    call void _ZN9$TUP:6:23C1ERKS_(%13, @$tmp3)
+    %11 = load @k
+    %12 = field.addr @$tmp3, 0
+    store %12, %11
+    %13 = field.addr @$tmp3, 8
+    call void _ZN3DYNC1ERKS_(%13, @d)
+    %14 = load @$tmp0
+    call void _ZN9$TUP:6:23C1ERKS_(%14, @$tmp3)
     call void _ZN9$TUP:6:23D1Ev(@$tmp3)
     call void _ZN3DYND1Ev(@d)
-    %14 = load @$tmp0
-    ret %14
+    %15 = load @$tmp0
+    ret %15
 }
 declare void _ZN3DYNC1Ev(ptr $0)
 declare void _ZN9$TUP:6:23C1Ev(ptr $0)
@@ -207,4 +208,4 @@ func void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 11 functions, 11 blocks, 142 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 11 functions, 11 blocks, 143 insts, 0 statements not lowered, 0 scope imbalance

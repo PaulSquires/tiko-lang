@@ -437,23 +437,11 @@ sub LowerProc _
         sins.b = spv
         Emit( c, sins )
 
-        '' THE RESULT IS DEFAULT-CONSTRUCTED AT ENTRY when the body writes it with
-        '' 'function = expr', because that statement is an ASSIGNMENT and an
-        '' assignment needs something to assign to. fbc emits '_ZN1CC1Ev( tmp )' as
-        '' the first thing in such a procedure and nothing at all in one that only
-        '' uses 'return' -- so the scan is what tells the two apart.
-        if BodyAssignsResult_( c, sp->b ) then
-            dim as MirValue rdst = LowerExprLoad( c, sa, MT_PTR )
-            if rdst.kind <> cast( ubyte, MV_NONE ) then
-                dim as Tko.SymbolId rct = _
-                    StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 0 )
-                if rct <> Tko.SYMBOL_NONE then
-                    dim as FB.Array( of ulong ) rnone
-                    EmitStructorCall( c, rct, -1, @rdst, @rnone )
-                elseif TypeNeedsInit_( c, rt ) then
-                    CallImplicitCtor_( c, rt, rdst )
-                end if
-            end if
+        '' THE RESULT IS DEFAULT-CONSTRUCTED AT ENTRY unless the body leaves through
+        '' 'return expr' -- including a body that never sets it. See InitResultAtEntry_.
+        dim as MirValue rdst = LowerExprLoad( c, sa, MT_PTR )
+        if rdst.kind <> cast( ubyte, MV_NONE ) then
+            InitResultAtEntry_( c, rt, rdst, sp->b, false )
         end if
     end if
 
@@ -500,6 +488,12 @@ sub LowerProc _
         c.resultTy = cast( ubyte, MT_AGG )
         c.resultType = rt
         c.udtResult = true
+        '' Zeroed or constructed exactly where fbc does it -- see InitResultAtEntry_.
+        dim as MirValue ua
+        ua.kind = cast( ubyte, MV_LOCAL )
+        ua.ty = cast( ubyte, MT_PTR )
+        ua.id = c.resultSlot
+        InitResultAtEntry_( c, rt, ua, sp->b, true )
     end if
 
     if c.byrefResult then

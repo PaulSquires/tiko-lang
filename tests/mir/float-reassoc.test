@@ -1,0 +1,10 @@
+'' fbc REGROUPS CONSTANTS IN FLOAT ARITHMETIC before any backend sees the expression, and
+'' the regrouped result can differ from left-to-right by a ULP. lowerreassoc.bas models
+'' it; the source lists fbc's own C for each shape. The golden pins the rewritten
+'' arithmetic -- the accumulated constants and the order the operations are emitted in.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/float-reassoc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/float-reassoc.out

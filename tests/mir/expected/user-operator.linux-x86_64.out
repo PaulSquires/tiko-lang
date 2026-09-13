@@ -19,20 +19,21 @@ func i32 _ZmiR1DS0_(ptr $0, ptr $1) {
   local agg r size 4
   local agg $abi4 size 8
   entry0:
-    %8 = alloca ptr $abi4
+    %9 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 4)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr b
+    %4 = alloca ptr b
     store @b, $1
-    %4 = alloca ptr r
-    %5 = call.rtl ptr memset(@r, 0, 4)
-    %6 = load @r
-    store @$tmp0, %6
-    %7 = load @$tmp0
-    store @$abi4, %7
-    %9 = load @$abi4
-    ret %9
+    %5 = alloca ptr r
+    %6 = call.rtl ptr memset(@r, 0, 4)
+    %7 = load @r
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    store @$abi4, %8
+    %10 = load @$abi4
+    ret %10
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 _ZmlR1Di(ptr $0, i32 $1) {
@@ -42,20 +43,21 @@ func i32 _ZmlR1Di(ptr $0, i32 $1) {
   local agg r size 4
   local agg $abi4 size 8
   entry0:
-    %8 = alloca ptr $abi4
+    %9 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr a
+    %2 = call.rtl ptr memset(@$tmp0, 0, 4)
+    %3 = alloca ptr a
     store @a, $0
-    %3 = alloca ptr n
+    %4 = alloca ptr n
     store @n, $1
-    %4 = alloca ptr r
-    %5 = call.rtl ptr memset(@r, 0, 4)
-    %6 = load @r
-    store @$tmp0, %6
-    %7 = load @$tmp0
-    store @$abi4, %7
-    %9 = load @$abi4
-    ret %9
+    %5 = alloca ptr r
+    %6 = call.rtl ptr memset(@r, 0, 4)
+    %7 = load @r
+    store @$tmp0, %7
+    %8 = load @$tmp0
+    store @$abi4, %8
+    %10 = load @$abi4
+    ret %10
 }
 func void G() {
   local agg x size 4
@@ -109,4 +111,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 51 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance

@@ -4,15 +4,17 @@ func void _ZptR3UDT(ptr $0, ptr $1) {
   local ptr l
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr l
+    %2 = call.rtl ptr memset(@$tmp0, 0, 16)
+    %3 = alloca ptr l
     store @l, $1
-    %3 = load @l
-    %4 = load %3
-    store @$tmp0, %4
-    %5 = load @$tmp0
-    store $0, %5
+    %4 = load @l
+    %5 = load %4
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    store $0, %6
     ret
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg x size 16
@@ -76,8 +78,7 @@ func i32 main(i32 $0, ptr $1) {
     ret %29
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 50 insts, 0 statements not lowered, 0 scope imbalance

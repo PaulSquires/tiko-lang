@@ -79,9 +79,9 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@$tmp2)
     %16 = const f64 1.1
     %17 = fptrunc %16
-    %18 = const f64 1
-    %19 = fpext %17
-    %20 = mul %19, %18
+    %18 = fpext %17
+    %19 = const f64 1
+    %20 = mul %18, %19
     %21 = alloca ptr $tmp3
     %22 = field.addr @$tmp3, 0
     store %22, 0

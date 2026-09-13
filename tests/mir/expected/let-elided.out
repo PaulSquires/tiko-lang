@@ -3,24 +3,25 @@ func void F(ptr $0) {
   local agg p size 12
   entry0:
     %1 = alloca ptr $tmp0
-    %2 = alloca ptr p
-    %3 = call.rtl ptr memset(@p, 0, 12)
-    %4 = field.addr @p, 0
-    %5 = const i64 1
-    %6 = trunc %5
-    store %4, %6
-    %7 = field.addr @p, 4
-    %8 = const i64 2
-    %9 = trunc %8
-    store %7, %9
-    %10 = field.addr @p, 8
-    %11 = const i64 3
-    %12 = trunc %11
-    store %10, %12
-    %13 = load @p
-    store @$tmp0, %13
-    %14 = load @$tmp0
-    store $0, %14
+    %2 = call.rtl ptr memset(@$tmp0, 0, 12)
+    %3 = alloca ptr p
+    %4 = call.rtl ptr memset(@p, 0, 12)
+    %5 = field.addr @p, 0
+    %6 = const i64 1
+    %7 = trunc %6
+    store %5, %7
+    %8 = field.addr @p, 4
+    %9 = const i64 2
+    %10 = trunc %9
+    store %8, %10
+    %11 = field.addr @p, 8
+    %12 = const i64 3
+    %13 = trunc %12
+    store %11, %13
+    %14 = load @p
+    store @$tmp0, %14
+    %15 = load @$tmp0
+    store $0, %15
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -69,4 +70,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 48 insts, 0 statements not lowered, 0 scope imbalance

@@ -71,13 +71,14 @@ func ptr G(ptr $0) {
   entry0:
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
-    %2 = alloca ptr t
+    %2 = load @$tmp0
+    %3 = alloca ptr t
     call void _ZN1SC1Ev(@t)
-    %3 = load @$tmp0
-    call void _ZN1SC1ERKS_(%3, @t)
-    call void _ZN1SD1Ev(@t)
     %4 = load @$tmp0
-    ret %4
+    call void _ZN1SC1ERKS_(%4, @t)
+    call void _ZN1SD1Ev(@t)
+    %5 = load @$tmp0
+    ret %5
 }
 declare void _ZN1SC1Ev(ptr $0)
 declare void _ZN1SC1ERKS_(ptr $0, ptr $1)
@@ -87,13 +88,14 @@ func ptr MAKE_(ptr $0) {
   entry0:
     %1 = alloca ptr $tmp0
     store @$tmp0, $0
-    %2 = alloca ptr r
+    %2 = load @$tmp0
+    %3 = alloca ptr r
     call void _ZN1SC1Ev(@r)
-    %3 = load @$tmp0
-    call void _ZN1SC1ERKS_(%3, @r)
-    call void _ZN1SD1Ev(@r)
     %4 = load @$tmp0
-    ret %4
+    call void _ZN1SC1ERKS_(%4, @r)
+    call void _ZN1SD1Ev(@r)
+    %5 = load @$tmp0
+    ret %5
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -144,4 +146,4 @@ func void _ZN1SaSERKS_(ptr $0, ptr $1) {
 }
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 verify: ok
-lowered: 8 functions, 14 blocks, 75 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 14 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance
