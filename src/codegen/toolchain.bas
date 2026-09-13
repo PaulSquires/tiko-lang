@@ -322,7 +322,18 @@ function LinkExe _
         if len( named ) > 0 then
             cmd += " " & Q( named )
         else
-            cmd += " -l" & t.libs[i]
+            '' 'lib "dwmapi.dll"' IS A DLL NAME, and on this target the import library
+            '' drops the suffix. fbc passes '-ldwmapi.dll' too, and MinGW ld finds
+            '' libdwmapi.dll.a from it; lld-link asked for 'dwmapi.dll.lib', which no
+            '' SDK ships, and AfxNova's DWM and propsys bindings write the '.dll' 182
+            '' times -- PsCalendar's link stopped there.
+            dim as string ln = t.libs[i]
+            if target.id = TARGET_WIN64_MSVC then
+                if (len( ln ) > 4) andalso (lcase( right( ln, 4 ) ) = ".dll") then
+                    ln = left( ln, len( ln ) - 4 )
+                end if
+            end if
+            cmd += " -l" & ln
         end if
     next
 
