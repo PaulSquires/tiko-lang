@@ -1047,6 +1047,18 @@ sub WalkNode _
                 end if
             end if
         end if
+        '' A KEYWORD AS A DEFINITION'S PARAMETER NAME: all 247, measured as 'sub S( byval
+        '' <kw> as long )', are fbc errors; tiko accepted 245. A DECLARE's parameters and a
+        '' procedure TYPE's were not measured and are not asked.
+        if (w.inProcDecl = false) andalso (w.syms->ScopeAt( scope_ ) <> 0) then
+            if w.syms->ScopeAt( scope_ )->kind = cast( ubyte, Tko.SCOPEK_PROC ) then
+                if KeywordNameRejected_( w, scope_, sp->name, sp->rawName, true, w.ast->Loc( id ) ) then
+                    w.duplicates += 1
+                    w.diags->Report( Tko.TKO0600, Tko.PointRange( w.ast->Loc( id ) ), _
+                                     w.names->Spelling( sp->name ) )
+                end if
+            end if
+        end if
         Declare_( w, scope_, sp->name, Tko.SYM_PARAMETER, w.ast->Loc( id ) )
 
     case Tko.N_NAMESPACE

@@ -46,6 +46,11 @@ private function KeywordNameRejected_ _
         return isVariable orelse (intrinsic = false)
     case Tko.SCOPEK_TYPE
         return (isVariable = false) andalso (intrinsic = false)
+    '' A LOCAL, in a procedure or in a block inside one: every keyword. Measured over all
+    '' 247 as 'sub S( ) : dim as long <kw>' -- 247 fbc errors, where tiko accepted 242.
+    '' A local CONST was not measured and is not asked.
+    case Tko.SCOPEK_PROC, Tko.SCOPEK_BLOCK
+        return isVariable
     end select
     return false
 end function

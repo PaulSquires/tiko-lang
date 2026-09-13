@@ -50,6 +50,9 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     '' why only two of the eight files in this bucket failed on the descriptor itself.
     dim as Tko.TokenKind pk = Peek( p )
     if (pk <> Tko.KW_AS) andalso (pk <> Tko.TK_LPAREN) then
+        '' The raw spelling, 0 for a KEYWORD token -- which is how Collect tells 'byval
+        '' str as long' (fbc error 59) from a name '#undef' has freed.
+        sp.rawName = RawSpelling( p )
         if DeclName( p, sp.name ) = false then return ErrorNode( p, Tko.TKO0406 )
     end if
 
