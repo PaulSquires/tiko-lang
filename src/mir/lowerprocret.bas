@@ -146,6 +146,13 @@ function SretAssignResult_ _
     dim as MirValue src
     dim as boolean isThis = ThisObjectAddr_( c, valueE, vt, src, true )
     if isThis = false then vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+    '' ANOTHER TYPE GOES THROUGH A CONVERTING 'operator let', as 'x = <other type>'
+    '' does. Its bytes are not the object's: a 'wstring * 16' was copied over a STRING
+    '' descriptor and the program died with 0xC0000374 -- and AfxNova's
+    '' AfxPathRemoveBackslashEx copied a 65536-byte one, which crashed clang outright.
+    if (isThis = false) andalso (vt <> c.types->Unqualify( rt )) then
+        return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.sretParam )
+    end if
     if vt <> c.types->Unqualify( rt ) then return false
     if isThis then
         if ThisObjectAddr_( c, valueE, vt, src ) = false then return false

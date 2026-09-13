@@ -453,7 +453,7 @@ declare function EmitRtl _
     '' A CONVERTING 'operator let' -- 'x = 5' over a UDT. See lowerctor.bas.
     declare function LowerUserLetConv_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
-          byval value as Tko.NodeId ) as boolean
+          byval value as Tko.NodeId, byval sretSlot as long = -1 ) as boolean
     declare function LowerCtorInit _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
           byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean

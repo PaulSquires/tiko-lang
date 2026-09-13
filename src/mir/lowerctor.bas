@@ -372,7 +372,7 @@ end function
 '' LowerAddr, because an address emitted for an overload that does not exist is dead.
 function LowerUserLetConv_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
-      byval value as Tko.NodeId ) as boolean
+      byval value as Tko.NodeId, byval sretSlot as long = -1 ) as boolean
 
     if value = Tko.NODE_NONE then return false
     if t = Tko.TYPE_NONE then return false
@@ -406,7 +406,18 @@ function LowerUserLetConv_ _
         exit for
     next
 
-    dim as MirValue da = LowerAddr( c, target )
+    '' THE DESTINATION: the target's address, or -- for 'function =' into a result
+    '' returned through the hidden pointer -- that pointer. See SretAssignResult_.
+    dim as MirValue da
+    if sretSlot >= 0 then
+        dim as MirValue ssa
+        ssa.kind = cast( ubyte, MV_LOCAL )
+        ssa.ty = cast( ubyte, MT_PTR )
+        ssa.id = sretSlot
+        da = LowerExprLoad( c, ssa, MT_PTR )
+    else
+        da = LowerAddr( c, target )
+    end if
     if da.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue av
     '' A BYREF UDT PARAMETER TAKES AN ADDRESS -- see LowerConvCtorInit_ for the
