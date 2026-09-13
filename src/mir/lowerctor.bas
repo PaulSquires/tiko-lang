@@ -71,6 +71,30 @@ private function CtorArgValue_ _
                 end if
             end if
         end if
+        '' A STRING THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, exactly as at a call --
+        '' see StrArgOwnDescriptor_. 'dim as U u = str( n )' over 'constructor( byref s as
+        '' string )' handed the constructor fb_IntToStr's POOL temporary, and the runtime
+        '' frees one of those as soon as a string function reads it: measured, the body's
+        '' first 'len( s )' was 2 and its second 0, and 't = s' stored nothing, where fbc
+        '' prints '2 2 [42]'. AfxNova's DWSTRING( byref ansiStr as string ) reads the
+        '' length before converting, so every DWSTRING built from a narrow string was
+        '' empty -- PsCalendar's calendar titles. Released with the statement.
+        scope
+            dim as Tko.TypeId snu = u
+            if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
+            dim as boolean narrowStrParam = (c.types->Kind( snu ) = Tko.TK_BUILTIN)
+            if narrowStrParam then narrowStrParam = (c.types->BuiltinOf( snu ) = Tko.TY_STRING)
+            if narrowStrParam andalso (StrArgOwnDescriptor_( c, argNode, snu ) = false) then
+                dim as long sslot = -1
+                if ByvalStrTemp_( c, argNode, snu, outv, sslot ) then
+                    if sslot >= 0 then
+                        c.f->locals[sslot].frontendType = snu
+                        c.strTemps.Push( cast( ulong, sslot ) )
+                    end if
+                    return true
+                end if
+            end if
+        end scope
         if IsStringType( c, u ) then
             if StrDescriptorOf_( c, argNode, outv ) then return true
         end if
