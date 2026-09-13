@@ -1,0 +1,9 @@
+'' A dereferenced or fixed-length wide/narrow string for 'operator let( byref as wstring )'
+'' or '( byref as zstring )' is passed by its address, not loaded. Runtime output was
+'' checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-let-byref-wstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-let-byref-wstring.out

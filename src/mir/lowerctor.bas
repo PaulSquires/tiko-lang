@@ -411,6 +411,32 @@ function LowerUserLetConv_ _
                 ulTook = true
             end if
         end if
+        '' ...AND A 'byref as wstring' OR 'byref as zstring' PARAMETER TAKES WHERE THE
+        '' CHARACTERS ARE. 'dwsMsg = *pBuffer' over 'operator let( byref wszStr as
+        '' wstring )' -- AfxNova's CRegExp.GetErrorInfo -- names the characters, and
+        '' fbc-modern prints 'l:hello' for it. CtorArgValue_ loaded the first UTF-16 unit
+        '' and passed THAT, which clang refused ("defined with type 'i16' but expected
+        '' 'ptr'"); 'wstring * N' is an ARRAY of the builtin and went in as all 32 bytes.
+        '' Only for the SAME character type: a let taking 'byref as string' converts.
+        if ulTook = false then
+            dim as Tko.TypeId pu = c.types->Unqualify( pt )
+            dim as Tko.TypeId ve = vu
+            if c.types->Kind( ve ) = Tko.TK_ARRAY then ve = c.types->Unqualify( c.types->Inner( ve ) )
+            dim as boolean sameChars = (c.types->Kind( pu ) = Tko.TK_BUILTIN) andalso _
+                                       (c.types->Kind( ve ) = Tko.TK_BUILTIN)
+            if sameChars then
+                dim as Tko.BuiltinType pb = c.types->BuiltinOf( pu )
+                sameChars = ((pb = Tko.TY_ZSTRING) orelse (pb = Tko.TY_WSTRING)) andalso _
+                            (c.types->BuiltinOf( ve ) = pb)
+            end if
+            if sameChars then
+                dim as MirValue wra = LowerAddr( c, value )
+                if wra.kind <> cast( ubyte, MV_NONE ) then
+                    av = wra
+                    ulTook = true
+                end if
+            end if
+        end if
     end if
     if (ulTook = false) andalso (CtorArgValue_( c, value, pt, av ) = false) then
         return false
