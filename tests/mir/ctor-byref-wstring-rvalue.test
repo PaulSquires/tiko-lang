@@ -1,0 +1,6 @@
+'' A wide rvalue passed to a constructor's 'byref as const wstring' parameter reaches the constructor as its character pointer. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-byref-wstring-rvalue.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

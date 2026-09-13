@@ -94,6 +94,25 @@ private function CtorArgValue_ _
             '' An argument with no address of its own -- a literal, an rvalue --
             '' falls through to the value path, which is what LowerAddr answering
             '' nothing means.
+            ''
+            '' ...EXCEPT A BYREF WSTRING, which takes the CHARACTER POINTER, as the pointer
+            '' branch above does: 'DWS( left( src, 1 ) )' over 'constructor( byref w as
+            '' const wstring )' had no address to pass and declined, so the constructor
+            '' never ran and the object stayed empty (scratchpad gx/dl.bas -- fbc prints
+            '' 'ctor(wstring)' and 'x'). AfxNova's user Left builds its result that way.
+            dim as Tko.TypeId rin = c.types->Unqualify( c.types->Inner( u ) )
+            if c.types->Kind( rin ) = Tko.TK_BUILTIN then
+                if c.types->BuiltinOf( rin ) = Tko.TY_WSTRING then
+                    dim as longint rsn
+                    dim as long rsk = StrSwapKind_( c, at, rsn )
+                    dim as boolean rwide = IsWideString_( c, at )
+                    if (rsk = 2) orelse (rsk = 4) then rwide = true
+                    if at = Tko.TYPE_NONE then rwide = true
+                    if rwide then
+                        if WideOperand_( c, argNode, outv ) then return true
+                    end if
+                end if
+            end if
             dim as MirValue ra = LowerAddr( c, argNode )
             if ra.kind <> cast( ubyte, MV_NONE ) then
                 outv = ra
