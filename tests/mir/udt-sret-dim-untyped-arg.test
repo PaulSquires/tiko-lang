@@ -1,0 +1,7 @@
+'' 'dim as T x = f( <wide argument Check leaves untyped> )' builds x in place through the hidden pointer, from the one procedure the call can name. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-sret-dim-untyped-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-sret-dim-untyped-arg.out

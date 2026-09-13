@@ -347,4 +347,38 @@ function SretInPlaceInit_ _
     return true
 end function
 
+'' THE RESULT TYPE OF A CALL CHECK LEFT UNTYPED, when only one procedure can be meant.
+''
+'' ResolveCall_ types no call with an untyped argument, and a DWSTRING concatenation is
+'' one: 'a + " 2027"' runs through 'cast( ) byref as const wstring', which Check does not
+'' type. So 'dim as DWSTRING c = mk( a + " 2027" )' reached neither SretInPlaceInit_ nor
+'' the copy: the call was lowered and dropped, c default-constructed, the call lowered
+'' AGAIN and its bytes stored over c, and that temporary destroyed -- c's buffer freed
+'' twice, 0xC0000374 at the end of the scope. fbc builds it in place, 'MK( &C$1, TMP )'.
+''
+'' A procedure with no other overload has its result whatever the argument turns out to
+'' be. More than one is still undecided here and answers nothing. The same call shapes
+'' SretInPlaceInit_ accepts: a named procedure, not a byref result.
+function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    if e = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( e ) <> Tko.N_CALL then return Tko.TYPE_NONE
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+    if TypeCtorTypeOf_( c, e ) <> Tko.TYPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.SymbolId callee = c.info->RefOf( e )
+    if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( lp->target )
+    if callee = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Tko.TYPE_NONE
+    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    if cs->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
+    return cs->type_
+end function
+
 end namespace
