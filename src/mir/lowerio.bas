@@ -324,6 +324,11 @@ function PrintOne _
     '' SPC and TAB are POSITIONING items, not values: they take no mask and print
     '' nothing themselves, so they are recognised before anything asks for a type.
     if LowerPrintPos( c, it, chan ) then return true
+    '' PARENTHESES ARE NOT A VALUE. 'print "<"; (s2 & s1); ">"' hid the '&' chain the
+    '' shape test below recovers a type from, so the item declined and took the rest of
+    '' the statement with it -- '<' and nothing else. 47 of 48 differential-fuzz
+    '' mismatches were this.
+    it = Unparen_( c, it )
 
     dim as Tko.TypeId t = c.info->TypeOf_( it )
 

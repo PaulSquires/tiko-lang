@@ -1,0 +1,7 @@
+'' Packed bitfield layout: the end of a type closes an open run at its unit's width, and a
+'' new run's unit starts at the packed alignment containing the cursor. Sizes measured
+'' against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bitfield-packed-size.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/bitfield-packed-size.out

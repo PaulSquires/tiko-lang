@@ -138,6 +138,8 @@ private sub PlaceGroup _
     '' shapes by running fbc, and check-udt.sh holds six of them.
     dim as long bitRunSize = 0
     dim as long bitNext = 0
+    '' Where the open run's CURRENT unit starts, in bits from the start of the group.
+    dim as long bitRunStart = 0
 
     while idx < flds.Count
         dim as SymbolId sid = cast( SymbolId, flds[idx] )
@@ -241,19 +243,30 @@ private sub PlaceGroup _
             '' aligning the cursor UP to 32 instead pushed a into a second unit and
             '' made the type 12 bytes where fbc says 8.
             dim as long unitBits = fs * 8
+            dim as long unitStart = 0
             if bitRunSize > 0 then
                 '' A run is open: its width governs, whatever this field's type says.
                 unitBits = bitRunSize * 8
+                unitStart = bitRunStart
             else
                 '' A NEW run. Its width, and its alignment, come from THIS field --
                 '' the only bitfield in the run that contributes any alignment at all.
                 bitRunSize = fs
                 if natural > grpAlign then grpAlign = natural
+                '' ITS UNIT STARTS AT THE REGION CONTAINING THE CURSOR, and the region is
+                '' the PACKED alignment. Measured: 'field=1 : ubyte p : long x:3' is 5
+                '' bytes in fbc -- x's unit starts at byte 1 -- where anchoring on the
+                '' unit's own width put it at 0 and made the type 2. Unpacked, the packed
+                '' alignment IS the unit's, so nothing there moves.
+                dim as long anchorBits = fa * 8
+                if anchorBits < 8 then anchorBits = 8
+                unitStart = (bitNext \ anchorBits) * anchorBits
             end if
-            dim as long unitStart = (bitNext \ unitBits) * unitBits
             if (bitNext - unitStart) + bw > unitBits then
-                bitNext = unitStart + unitBits
+                unitStart += unitBits
+                bitNext = unitStart
             end if
+            bitRunStart = unitStart
 
             at2 = bitNext \ 8
             bitAt = bitNext mod 8
@@ -280,7 +293,7 @@ private sub PlaceGroup _
             '' not at the next free byte: 'a : 3 as ulong' then 'y as ubyte' puts y at
             '' 4. Closing the run here is what makes that happen.
             if bitRunSize > 0 then
-                off = AlignUp( bitNext, bitRunSize * 8 ) \ 8
+                off = (bitRunStart + bitRunSize * 8) \ 8
                 if off > grpSize then grpSize = off
                 bitRunSize = 0
                 bitNext = 0
@@ -312,6 +325,16 @@ private sub PlaceGroup _
         first = false
         idx += 1
     wend
+
+    '' AN OPEN RUN AT THE END OF THE TYPE CLOSES AT ITS UNIT'S FULL WIDTH, as it does when
+    '' an ordinary field follows. Measured, fbc: 'field=1 : short a:3, w:8, h:8' is 4 bytes,
+    '' 'field=1 : long x:3' is 4, 'field=2 : long x:3' is 4 -- tiko said 3, 1 and 2, and
+    '' a load of h's short unit ran a byte past the object, which only -O2 noticed
+    '' (structs/bitfield_conv). Unpacked, the alignment padding already gave the same size.
+    if (isUnion = false) andalso (bitRunSize > 0) then
+        dim as long closeAt = (bitRunStart + bitRunSize * 8) \ 8
+        if closeAt > grpSize then grpSize = closeAt
+    end if
 
     outSize = grpSize
     outAlign = grpAlign

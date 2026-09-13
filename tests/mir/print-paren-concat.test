@@ -1,0 +1,6 @@
+'' A parenthesised concatenation is a PRINT item like any other; it declined and lost the
+'' rest of its statement.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print-paren-concat.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/print-paren-concat.out
