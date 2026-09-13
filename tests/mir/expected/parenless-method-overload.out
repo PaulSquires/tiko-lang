@@ -23,17 +23,15 @@ func i32 _ZN1T4GETXEP2GD(ptr $0, ptr $1) {
     %12 = trunc %11
     ret %12
 }
-func i64,i64 _ZN1T4GETXEv(ptr $0) {
+func void _ZN1T4GETXEv(ptr $0, ptr $1) {
   local agg $tmp0 size 16
   local ptr this
   local agg g size 16
-  local agg $abi3 size 16
   entry0:
-    %11 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr this
-    store @this, $0
+    store @this, $1
     %4 = alloca ptr g
     %5 = const i64 1
     %6 = const i64 2
@@ -44,11 +42,8 @@ func i64,i64 _ZN1T4GETXEv(ptr $0) {
     %9 = load @g
     store @$tmp0, %9
     %10 = load @$tmp0
-    store @$abi3, %10
-    %12 = load @$abi3
-    %13 = field.addr @$abi3, 8
-    %14 = load %13
-    ret %12, %14
+    store $0, %10
+    ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 _ZN1T4GETYEu7INTEGER(ptr $0, i64 $1) {
@@ -67,20 +62,18 @@ func i32 _ZN1T4GETYEu7INTEGER(ptr $0, i64 $1) {
     %6 = trunc %5
     ret %6
 }
-func i64,i64 _ZN1T4GETYEi(ptr $0, i32 $1) {
+func void _ZN1T4GETYEi(ptr $0, ptr $1, i32 $2) {
   local agg $tmp0 size 16
   local ptr this
   local i32 k
   local agg g size 16
-  local agg $abi4 size 16
   entry0:
-    %13 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr this
-    store @this, $0
+    store @this, $1
     %4 = alloca ptr k
-    store @k, $1
+    store @k, $2
     %5 = alloca ptr g
     %6 = load @k
     %7 = sext %6
@@ -92,11 +85,8 @@ func i64,i64 _ZN1T4GETYEi(ptr $0, i32 $1) {
     %11 = load @g
     store @$tmp0, %11
     %12 = load @$tmp0
-    store @$abi4, %12
-    %14 = load @$abi4
-    %15 = field.addr @$abi4, 8
-    %16 = load %15
-    ret %14, %16
+    store $0, %12
+    ret
 }
 func i32 _ZN1T2SXEu7INTEGER(i64 $0) {
   local i32 $tmp0
@@ -111,12 +101,10 @@ func i32 _ZN1T2SXEu7INTEGER(i64 $0) {
     %5 = trunc %4
     ret %5
 }
-func i64,i64 _ZN1T2SXEv() {
+func void _ZN1T2SXEv(ptr $0) {
   local agg $tmp0 size 16
   local agg g size 16
-  local agg $abi2 size 16
   entry0:
-    %10 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr g
@@ -129,11 +117,8 @@ func i64,i64 _ZN1T2SXEv() {
     %8 = load @g
     store @$tmp0, %8
     %9 = load @$tmp0
-    store @$abi2, %9
-    %11 = load @$abi2
-    %12 = field.addr @$abi2, 8
-    %13 = load %12
-    ret %11, %13
+    store $0, %9
+    ret
 }
 func void TAKEGD(ptr $0) {
   local ptr g
@@ -170,15 +155,15 @@ func void _ZN1T4TESTEv(ptr $0) {
   local agg $abi11 size 16
   entry0:
     %42 = alloca ptr $abi7
-    %44 = alloca ptr $abi8
-    %46 = alloca ptr $abi9
-    %48 = alloca ptr $abi10
-    %50 = alloca ptr $abi11
+    %43 = alloca ptr $abi8
+    %44 = alloca ptr $abi9
+    %45 = alloca ptr $abi10
+    %46 = alloca ptr $abi11
     %1 = alloca ptr this
     store @this, $0
     %2 = alloca ptr r
     %3 = load @this
-    %43 = call i64 _ZN1T4GETXEv(%3) into @$abi7
+    call void _ZN1T4GETXEv(@$abi7, %3)
     %4 = load @$abi7
     store @r, %4
     %5 = field.addr @r, 0
@@ -202,7 +187,7 @@ func void _ZN1T4TESTEv(ptr $0) {
     %18 = const i64 5
     %19 = trunc %18
     %20 = load @this
-    %45 = call i64 _ZN1T4GETYEi(%20, %19) into @$abi8
+    call void _ZN1T4GETYEi(@$abi8, %20, %19)
     %21 = load @$abi8
     store @r2, %21
     %22 = field.addr @r2, 0
@@ -212,13 +197,13 @@ func void _ZN1T4TESTEv(ptr $0) {
     %25 = load %24
     call.rtl void fb_PrintLongint(0, %25, 1)
     %26 = load @this
-    %47 = call i64 _ZN1T4GETXEv(%26) into @$abi9
+    call void _ZN1T4GETXEv(@$abi9, %26)
     %27 = load @$abi9
     %28 = alloca ptr $tmp4
     store @$tmp4, %27
     call void TAKEGD(@$tmp4)
     %29 = alloca ptr r3
-    %49 = call i64 _ZN1T2SXEv() into @$abi10
+    call void _ZN1T2SXEv(@$abi10)
     %30 = load @$abi10
     store @r3, %30
     %31 = field.addr @r3, 0
@@ -229,7 +214,7 @@ func void _ZN1T4TESTEv(ptr $0) {
     call.rtl void fb_PrintLongint(0, %34, 1)
     %35 = alloca ptr r5
     %36 = load @this
-    %51 = call i64 _ZN1T4GETXEv(%36) into @$abi11
+    call void _ZN1T4GETXEv(@$abi11, %36)
     %37 = load @$abi11
     store @r5, %37
     %38 = field.addr @r5, 0
@@ -257,7 +242,7 @@ func i32 main(i32 $0, ptr $1) {
     %5 = call.rtl ptr memset(@t1, 0, 8)
     call void _ZN1T4TESTEv(@t1)
     %6 = alloca ptr r4
-    %15 = call i64 _ZN1T4GETXEv(@t1) into @$abi3
+    call void _ZN1T4GETXEv(@$abi3, @t1)
     %7 = load @$abi3
     store @r4, %7
     %8 = field.addr @r4, 0
