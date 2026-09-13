@@ -12,6 +12,8 @@
 ''     something that might be declared later.
 
 #include once "symbols/collect.bi"
+#include once "lexer/token.bi"
+#include once "support/text.bi"
 
 namespace Tko.Collect
 
@@ -72,6 +74,8 @@ private function ListOf _
     dim as Tko.AstNode ptr n = @w.ast->nodes[cast( long, id )]
     return @w.ast->lists[cast( long, n->data )]
 end function
+
+#include once "symbols/collectkw.bas"
 
 private function Declare_ _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
@@ -466,6 +470,19 @@ sub WalkNode _
                 end if
             end if
 
+            dim as boolean kwConstInType = (sk <> Tko.SYM_VARIABLE) andalso _
+                (w.syms->ScopeAt( scope_ ) <> 0)
+            if kwConstInType then
+                kwConstInType = (w.syms->ScopeAt( scope_ )->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+            end if
+            if kwConstInType = false then
+                if KeywordNameRejected_( w, scope_, ip->name, ip->rawName, _
+                                         (sk = Tko.SYM_VARIABLE), w.ast->Loc( item ) ) then
+                    w.duplicates += 1
+                    w.diags->Report( Tko.TKO0600, Tko.PointRange( w.ast->Loc( item ) ), _
+                                     w.names->Spelling( ip->name ) )
+                end if
+            end if
             dim as Tko.SymbolId sid = Declare_( w, scope_, ip->name, sk, _
                                                 w.ast->Loc( item ) )
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
@@ -774,6 +791,19 @@ sub WalkNode _
                 sid = UndefinedProcWithArity( w, scope_, declName, ProcArity( w, sp ) )
             end if
             if sid = Tko.SYMBOL_NONE then
+                '' ONLY A REAL SUB OR FUNCTION -- what was measured. An operator, a property and
+                '' a header the parser recovered from ('declare virtual const sub b1( )' names
+                '' itself 'sub') are not asked; fbc's syntax error is the right message there.
+                dim as boolean kwAsk = (sp->op = cast( ushort, Tko.KW_SUB )) orelse _
+                                       (sp->op = cast( ushort, Tko.KW_FUNCTION ))
+                if kwAsk then
+                    if KeywordNameRejected_( w, scope_, declName, sp->rawName, false, _
+                                             w.ast->Loc( id ) ) then
+                        w.duplicates += 1
+                        w.diags->Report( Tko.TKO0600, Tko.PointRange( w.ast->Loc( id ) ), _
+                                         w.names->Spelling( declName ) )
+                    end if
+                end if
                 sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
             end if
         end if
