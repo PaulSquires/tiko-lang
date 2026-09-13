@@ -1,0 +1,9 @@
+'' An untyped wide value into a UDT result: 'function =' through the wstring 'let' into a
+'' by-value result slot, 'return' through the converting constructor into the slot or the
+'' hidden pointer. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-wide-result-slot.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-wide-result-slot.out

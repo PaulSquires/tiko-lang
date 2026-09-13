@@ -883,6 +883,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' RESULT's type is the context, exactly as a declaration's is for
                 '' 'dim as P x = ( 1, 2 )'. Lowering it as an expression asked the tuple
                 '' for a type it has not got, so both declined.
+            elseif UdtConvResult_( c, sp->b, false ) then
+                '' Another type into a UDT result slot: the type's own 'let'. See UdtConvResult_.
             else
                 dim as MirValue rval = LowerExpr( c, sp->b )
                 if rval.kind = cast( ubyte, MV_NONE ) then
@@ -1263,14 +1265,18 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 dim as MirValue uval
                 dim as Tko.TypeId uthT = Tko.TYPE_NONE
                 dim as MirValue uthA
+                dim as boolean wideBuilt = false
                 if ThisObjectAddr_( c, sp->a, uthT, uthA ) then
                     dim as long uthSz = SizeOfType( c, uthT )
                     if uthSz > 0 then uval = LowerExprLoad( c, uthA, MT_AGG, uthSz )
+                elseif UdtConvResult_( c, sp->a, true ) then
+                    '' Another type is CONSTRUCTED into the slot -- see UdtConvResult_.
+                    wideBuilt = true
                 else
                     uval = LowerExpr( c, sp->a )
                 end if
-                dim as boolean copied = false
-                if uval.kind = cast( ubyte, MV_NONE ) then
+                dim as boolean copied = wideBuilt
+                if (uval.kind = cast( ubyte, MV_NONE )) andalso (wideBuilt = false) then
                     dim as MirValue usrc = LowerAddr( c, sp->a )
                     if usrc.kind <> cast( ubyte, MV_NONE ) then
                         uval = LowerExprLoad( c, usrc, MT_AGG )

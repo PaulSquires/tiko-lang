@@ -71,9 +71,8 @@ private function CtorArgValue_ _
                 end if
             end if
         end if
-        '' A STRING THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, as at a call. A POOL
-        '' temporary ('str( n )') is freed by the first string function that reads it, so
-        '' DWSTRING( byref as string ) came out empty. Released with the statement.
+        '' A STRING THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, as at a call: a POOL temporary
+        '' ('str( n )') dies at its first read, so DWSTRING( byref as string ) was empty.
         scope
             dim as Tko.TypeId snu = u
             if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
@@ -179,9 +178,7 @@ private function CharPtrCtorInit_ _
     '' calls the converting constructor with the wide temporary:
     '' '_ZN14UZSTRING_FIXEDC1EPKw( &U4$0, (uint16*)TMP$3$0 )'.
     ''
-    '' The iif test is gone rather than widened: what the branch actually needs
-    '' is a one-argument constructor over a character POINTER and an argument
-    '' CtorArgValue_ can build, and both are tested below.
+    '' What it needs is a one-argument character-POINTER constructor CtorArgValue_ can build.
     '' THE WIDTH DECIDES WHICH ONE. A type like the corpus's UZSTRING_FIXED
     '' declares BOTH -- 'constructor( byval rhs as const zstring const ptr )'
     '' and the wstring twin -- and taking the first arity-1 constructor picked
@@ -274,7 +271,9 @@ function LowerConvCtorInit_ _
     '' CtorArgValue_ is structural about iif in both. udt-wstring/iif.bas and
     '' udt-zstring/iif.bas write nothing else.
     if it = Tko.TYPE_NONE then
-        return CharPtrCtorInit_( c, slot, t, init_, selfv )
+        if CharPtrCtorInit_( c, slot, t, init_, selfv ) then return true
+        if (TermIsWide_( c, init_ ) orelse ConcatHasWideTerm_( c, init_ )) = false then return false
+        it = c.types->Builtin( Tko.TY_WSTRING )  '' an untyped WIDE expression: 'return a + s'
     end if
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
@@ -383,7 +382,7 @@ end function
 '' LowerAddr, because an address emitted for an overload that does not exist is dead.
 function LowerUserLetConv_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
-      byval value as Tko.NodeId, byval sretSlot as long = -1 ) as boolean
+      byval value as Tko.NodeId, byval sretSlot as long = -1, byval slotIsObject as boolean = false ) as boolean
 
     if value = Tko.NODE_NONE then return false
     if t = Tko.TYPE_NONE then return false
@@ -433,7 +432,8 @@ function LowerUserLetConv_ _
         ssa.kind = cast( ubyte, MV_LOCAL )
         ssa.ty = cast( ubyte, MT_PTR )
         ssa.id = sretSlot
-        da = LowerExprLoad( c, ssa, MT_PTR )
+        da = ssa  '' 'slotIsObject': a by-value UDT result slot IS the object
+        if slotIsObject = false then da = LowerExprLoad( c, ssa, MT_PTR )
     else
         da = LowerAddr( c, target )
     end if

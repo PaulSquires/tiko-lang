@@ -99,6 +99,10 @@ private function SretCopyResult_ _
         dim as MirValue xsrc
         if ThisObjectAddr_( c, valueE, xvt, xsrc, true ) = false then
             xvt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
+            '' ...and an UNTYPED WIDE value -- 'return dws + s' -- is a wstring for choosing it.
+            if xvt = Tko.TYPE_NONE then
+                if TermIsWide_( c, valueE ) orelse ConcatHasWideTerm_( c, valueE ) then xvt = c.types->Builtin( Tko.TY_WSTRING )
+            end if
             if (xvt <> Tko.TYPE_NONE) andalso (xvt <> c.types->Unqualify( rt )) then
                 dim as FB.Array( of ulong ) xT
                 xT.Push( cast( ulong, xvt ) )
@@ -195,6 +199,41 @@ private function SretCopyResult_ _
         CallImplicitCopy_( c, rt, dst, src )
     end if
     return true
+end function
+
+'' ANOTHER TYPE INTO A UDT RESULT HELD IN ITS OWN SLOT -- a type small enough to come back
+'' by value -- goes through the type's own conversion, as SretCopyResult_ does through the
+'' hidden pointer. 'a + s' through a 'cast( ) byref as const wstring' has no Check type and
+'' no value for LowerExpr; 'wstr( "lit" )' has a POINTER, which the plain store wrote over
+'' the object. Measured, fbc's 'function =' default-constructs at entry and calls the
+'' matching 'let'; 'return' runs the converting constructor on the raw result.
+function UdtConvResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, byval isReturn as boolean ) as boolean
+
+    if (c.udtResult = false) orelse (c.resultSlot < 0) then return false
+    if valueE = Tko.NODE_NONE then return false
+    if IsThisPointerIdent_( c, valueE ) then return false
+    dim as Tko.TypeId rt = c.types->Unqualify( c.resultType )
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId vt = c.info->TypeOf_( valueE )
+    if vt = Tko.TYPE_NONE then
+        if (TermIsWide_( c, valueE ) orelse ConcatHasWideTerm_( c, valueE )) = false then return false
+    else
+        '' A TYPED value only when the type has an overload that takes it; anything else
+        '' stays with the ordinary copy.
+        if c.types->Unqualify( vt ) = rt then return false
+        dim as FB.Array( of ulong ) argT
+        argT.Push( cast( ulong, vt ) )
+        dim as Tko.SymbolId over = Tko.SYMBOL_NONE
+        if isReturn then
+            over = PickCtor( c, StructorOf( c, rt, "__ctor" ), argT )
+        else
+            over = PickCtor( c, StructorOf( c, rt, "let" ), argT )
+        end if
+        if over = Tko.SYMBOL_NONE then return false
+    end if
+    if isReturn then return LowerConvCtorInit_( c, c.resultSlot, rt, valueE, 0 )
+    return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.resultSlot, true )
 end function
 
 '' 'function = expr' IS AN ASSIGNMENT INTO THE RESULT, not a construction of it.

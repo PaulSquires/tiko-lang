@@ -1,0 +1,479 @@
+global var i32 nctor
+global wstr $wstr1 ""
+global var i32 nlet
+global var i32 dctor
+global var i32 dlet
+global str $str5 "!"
+global wstr $wstr6 "lit"
+global wstr $wstr7 "wvar"
+global wstr $wstr8 "wasg"
+global wstr $wstr9 "Fevrier"
+global str $str10 " 2026"
+global str $str11 "b: "
+global str $str12 " 2027"
+global str $str13 "c: "
+global str $str14 "d: "
+global str $str15 "g: "
+global str $str16 "e: "
+global str $str17 "f: "
+global str $str18 "ws ctor="
+global str $str19 " let="
+global str $str20 " 2028"
+global str $str21 "h: "
+global str $str22 "wd ctor="
+func void _ZN2WSC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 256)
+    %5 = load @@nctor
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@nctor, %8
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = call.rtl ptr fb_WstrAssign(%10, 64, @@$wstr1)
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+func void _ZN2WSC1ERw(ptr $0, ptr $1) {
+  local ptr this
+  local ptr w
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr w
+    store @w, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 256)
+    %6 = load @@nctor
+    %7 = const i64 1
+    %8 = trunc %7
+    %9 = add %6, %8
+    store @@nctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = load @w
+    %13 = call.rtl ptr fb_WstrAssign(%11, 64, %12)
+    ret
+}
+func void _ZN2WSaSERw(ptr $0, ptr $1) {
+  local ptr this
+  local ptr w
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr w
+    store @w, $1
+    %3 = load @@nlet
+    %4 = const i64 1
+    %5 = trunc %4
+    %6 = add %3, %5
+    store @@nlet, %6
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load @w
+    %10 = call.rtl ptr fb_WstrAssign(%8, 64, %9)
+    ret
+}
+func ptr _ZN2WScvwEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void _ZN2WDC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 256)
+    %5 = load @@dctor
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@dctor, %8
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = call.rtl ptr fb_WstrAssign(%10, 64, @@$wstr1)
+    ret
+}
+func void _ZN2WDC1ERw(ptr $0, ptr $1) {
+  local ptr this
+  local ptr w
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr w
+    store @w, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 256)
+    %6 = load @@dctor
+    %7 = const i64 1
+    %8 = trunc %7
+    %9 = add %6, %8
+    store @@dctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = load @w
+    %13 = call.rtl ptr fb_WstrAssign(%11, 64, %12)
+    ret
+}
+func void _ZN2WDD1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    ret
+}
+func void _ZN2WDaSERw(ptr $0, ptr $1) {
+  local ptr this
+  local ptr w
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr w
+    store @w, $1
+    %3 = load @@dlet
+    %4 = const i64 1
+    %5 = trunc %4
+    %6 = add %3, %5
+    store @@dlet, %6
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load @w
+    %10 = call.rtl ptr fb_WstrAssign(%8, 64, %9)
+    ret
+}
+func ptr _ZN2WDcvwEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    store @$tmp0, %5
+    %6 = load @$tmp0
+    ret %6
+}
+func void _Zv21&R2WSR8FBSTRING(ptr $0, ptr $1, ptr $2) {
+  local agg $tmp0 size 256
+  local ptr a
+  local ptr s
+  local ptr $tmp3
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN2WSC1Ev(@$tmp0)
+    %2 = alloca ptr a
+    store @a, $1
+    %3 = alloca ptr s
+    store @s, $2
+    %4 = load @a
+    %5 = call ptr _ZN2WScvwEv(%4)
+    %6 = load @s
+    %7 = call.rtl ptr fb_WstrConcatWA(%5, %6, -1)
+    %8 = alloca ptr $tmp3
+    store @$tmp3, %7
+    %9 = load @$tmp3
+    call void _ZN2WSaSERw(@$tmp0, %9)
+    %10 = load @$tmp3
+    call.rtl void fb_WstrDelete(%10)
+    %11 = load @$tmp0
+    store $0, %11
+    ret
+}
+declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
+declare void fb_WstrDelete(ptr $0)
+func void VIARETURN(ptr $0, ptr $1, ptr $2) {
+  local agg $tmp0 size 256
+  local ptr a
+  local ptr s
+  local ptr $tmp3
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr a
+    store @a, $1
+    %3 = alloca ptr s
+    store @s, $2
+    %4 = load @a
+    %5 = call ptr _ZN2WScvwEv(%4)
+    %6 = load @s
+    %7 = call.rtl ptr fb_WstrConcatWA(%5, %6, -1)
+    %8 = alloca ptr $tmp3
+    store @$tmp3, %7
+    %9 = load @$tmp3
+    call void _ZN2WSC1ERw(@$tmp0, %9)
+    %10 = load @$tmp0
+    store $0, %10
+    ret
+}
+func void VIAASSIGN(ptr $0, ptr $1) {
+  local agg $tmp0 size 256
+  local ptr a
+  local ptr $tmp2
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN2WSC1Ev(@$tmp0)
+    %2 = alloca ptr a
+    store @a, $1
+    %3 = load @a
+    %4 = call ptr _ZN2WScvwEv(%3)
+    %5 = call.rtl ptr fb_WstrConcatWA(%4, @@$str5, 2)
+    %6 = alloca ptr $tmp2
+    store @$tmp2, %5
+    %7 = load @$tmp2
+    call void _ZN2WSaSERw(@$tmp0, %7)
+    %8 = load @$tmp2
+    call.rtl void fb_WstrDelete(%8)
+    %9 = load @$tmp0
+    store $0, %9
+    ret
+}
+func void RETLIT(ptr $0) {
+  local agg $tmp0 size 256
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN2WSC1ERw(@$tmp0, @@$wstr6)
+    %2 = load @$tmp0
+    store $0, %2
+    ret
+}
+func void RETVAR(ptr $0) {
+  local agg $tmp0 size 256
+  local agg w size 256
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = alloca ptr w
+    %3 = call.rtl ptr fb_WstrAssign(@w, 64, @@$wstr7)
+    call void _ZN2WSC1ERw(@$tmp0, @w)
+    %4 = load @$tmp0
+    store $0, %4
+    ret
+}
+func void ASGVAR(ptr $0) {
+  local agg $tmp0 size 256
+  local agg w size 256
+  entry0:
+    %1 = alloca ptr $tmp0
+    call void _ZN2WSC1Ev(@$tmp0)
+    %2 = alloca ptr w
+    %3 = call.rtl ptr fb_WstrAssign(@w, 64, @@$wstr8)
+    call void _ZN2WSaSERw(@$tmp0, @w)
+    %4 = load @$tmp0
+    store $0, %4
+    ret
+}
+func ptr VIARETURND(ptr $0, ptr $1, ptr $2) {
+  local ptr $tmp0
+  local ptr a
+  local ptr s
+  local ptr $tmp3
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr a
+    store @a, $1
+    %4 = alloca ptr s
+    store @s, $2
+    %5 = load @$tmp0
+    %6 = load @a
+    %7 = call ptr _ZN2WDcvwEv(%6)
+    %8 = load @s
+    %9 = call.rtl ptr fb_WstrConcatWA(%7, %8, -1)
+    %10 = alloca ptr $tmp3
+    store @$tmp3, %9
+    %11 = load @$tmp3
+    call void _ZN2WDC1ERw(%5, %11)
+    %12 = load @$tmp0
+    ret %12
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg a size 256
+  local agg b size 256
+  local agg $tmp3 size 24
+  local agg c size 256
+  local agg $tmp5 size 24
+  local agg d size 256
+  local agg g size 256
+  local agg e size 256
+  local agg f size 256
+  local agg ad size 256
+  local agg h size 256
+  local agg $tmp12 size 24
+  local agg $abi13 size 256
+  local agg $abi14 size 256
+  local agg $abi15 size 256
+  local agg $abi16 size 256
+  local agg $abi17 size 256
+  local agg $abi18 size 256
+  entry0:
+    %70 = alloca ptr $abi13
+    %71 = alloca ptr $abi14
+    %72 = alloca ptr $abi15
+    %73 = alloca ptr $abi16
+    %74 = alloca ptr $abi17
+    %75 = alloca ptr $abi18
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    call void _ZN2WSC1Ev(@a)
+    %5 = field.addr @a, 0
+    %6 = call.rtl ptr fb_WstrAssign(%5, 64, @@$wstr9)
+    %7 = alloca ptr b
+    call void _ZN2WSC1Ev(@b)
+    %8 = alloca ptr $tmp3
+    %9 = field.addr @$tmp3, 0
+    store %9, 0
+    %10 = field.addr @$tmp3, 8
+    store %10, 0
+    %11 = field.addr @$tmp3, 16
+    store %11, 0
+    %12 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str10, 6, 0)
+    call void _Zv21&R2WSR8FBSTRING(@$abi13, @a, @$tmp3)
+    %13 = load @$abi13
+    store @b, %13
+    call.rtl void fb_StrDelete(@$tmp3)
+    %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 3)
+    call.rtl void fb_PrintString(0, %14, 0)
+    %15 = field.addr @b, 0
+    %16 = call.rtl ptr fb_WstrToStr(%15)
+    call.rtl void fb_PrintString(0, %16, 1)
+    %17 = alloca ptr c
+    call void _ZN2WSC1Ev(@c)
+    %18 = alloca ptr $tmp5
+    %19 = field.addr @$tmp5, 0
+    store %19, 0
+    %20 = field.addr @$tmp5, 8
+    store %20, 0
+    %21 = field.addr @$tmp5, 16
+    store %21, 0
+    %22 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @@$str12, 6, 0)
+    call void VIARETURN(@$abi14, @a, @$tmp5)
+    %23 = load @$abi14
+    call.rtl void fb_StrDelete(@$tmp5)
+    store @c, %23
+    %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 3)
+    call.rtl void fb_PrintString(0, %24, 0)
+    %25 = field.addr @c, 0
+    %26 = call.rtl ptr fb_WstrToStr(%25)
+    call.rtl void fb_PrintString(0, %26, 1)
+    %27 = alloca ptr d
+    call void _ZN2WSC1Ev(@d)
+    call void VIAASSIGN(@$abi15, @a)
+    %28 = load @$abi15
+    store @d, %28
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 3)
+    call.rtl void fb_PrintString(0, %29, 0)
+    %30 = field.addr @d, 0
+    %31 = call.rtl ptr fb_WstrToStr(%30)
+    call.rtl void fb_PrintString(0, %31, 1)
+    %32 = alloca ptr g
+    call void _ZN2WSC1Ev(@g)
+    call void RETLIT(@$abi16)
+    %33 = load @$abi16
+    store @g, %33
+    %34 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 3)
+    call.rtl void fb_PrintString(0, %34, 0)
+    %35 = field.addr @g, 0
+    %36 = call.rtl ptr fb_WstrToStr(%35)
+    call.rtl void fb_PrintString(0, %36, 1)
+    %37 = alloca ptr e
+    call void _ZN2WSC1Ev(@e)
+    call void RETVAR(@$abi17)
+    %38 = load @$abi17
+    store @e, %38
+    %39 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str16, 3)
+    call.rtl void fb_PrintString(0, %39, 0)
+    %40 = field.addr @e, 0
+    %41 = call.rtl ptr fb_WstrToStr(%40)
+    call.rtl void fb_PrintString(0, %41, 1)
+    %42 = alloca ptr f
+    call void _ZN2WSC1Ev(@f)
+    call void ASGVAR(@$abi18)
+    %43 = load @$abi18
+    store @f, %43
+    %44 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 3)
+    call.rtl void fb_PrintString(0, %44, 0)
+    %45 = field.addr @f, 0
+    %46 = call.rtl ptr fb_WstrToStr(%45)
+    call.rtl void fb_PrintString(0, %46, 1)
+    %47 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str18, 8)
+    call.rtl void fb_PrintString(0, %47, 0)
+    %48 = load @@nctor
+    call.rtl void fb_PrintInt(0, %48, 0)
+    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 5)
+    call.rtl void fb_PrintString(0, %49, 0)
+    %50 = load @@nlet
+    call.rtl void fb_PrintInt(0, %50, 1)
+    %51 = alloca ptr ad
+    call void _ZN2WDC1Ev(@ad)
+    %52 = field.addr @ad, 0
+    %53 = call.rtl ptr fb_WstrAssign(%52, 64, @@$wstr9)
+    %54 = alloca ptr h
+    %55 = alloca ptr $tmp12
+    %56 = field.addr @$tmp12, 0
+    store %56, 0
+    %57 = field.addr @$tmp12, 8
+    store %57, 0
+    %58 = field.addr @$tmp12, 16
+    store %58, 0
+    %59 = call.rtl ptr fb_StrAssign(@$tmp12, -1, @@$str20, 6, 0)
+    %60 = call ptr VIARETURND(@h, @ad, @$tmp12)
+    call.rtl void fb_StrDelete(@$tmp12)
+    %61 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str21, 3)
+    call.rtl void fb_PrintString(0, %61, 0)
+    %62 = field.addr @h, 0
+    %63 = call.rtl ptr fb_WstrToStr(%62)
+    call.rtl void fb_PrintString(0, %63, 1)
+    %64 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 8)
+    call.rtl void fb_PrintString(0, %64, 0)
+    %65 = load @@dctor
+    call.rtl void fb_PrintInt(0, %65, 0)
+    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 5)
+    call.rtl void fb_PrintString(0, %66, 0)
+    %67 = load @@dlet
+    call.rtl void fb_PrintInt(0, %67, 1)
+    call void _ZN2WDD1Ev(@h)
+    call void _ZN2WDD1Ev(@ad)
+    %68 = const i32 0
+    call.rtl void fb_End(%68)
+    %69 = load @$tmp0
+    ret %69
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare void fb_StrDelete(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrToStr(ptr $0)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 17 functions, 17 blocks, 302 insts, 0 statements not lowered, 0 scope imbalance
