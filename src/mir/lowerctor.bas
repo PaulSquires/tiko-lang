@@ -71,14 +71,9 @@ private function CtorArgValue_ _
                 end if
             end if
         end if
-        '' A STRING THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, exactly as at a call --
-        '' see StrArgOwnDescriptor_. 'dim as U u = str( n )' over 'constructor( byref s as
-        '' string )' handed the constructor fb_IntToStr's POOL temporary, and the runtime
-        '' frees one of those as soon as a string function reads it: measured, the body's
-        '' first 'len( s )' was 2 and its second 0, and 't = s' stored nothing, where fbc
-        '' prints '2 2 [42]'. AfxNova's DWSTRING( byref ansiStr as string ) reads the
-        '' length before converting, so every DWSTRING built from a narrow string was
-        '' empty -- PsCalendar's calendar titles. Released with the statement.
+        '' A STRING THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, as at a call. A POOL
+        '' temporary ('str( n )') is freed by the first string function that reads it, so
+        '' DWSTRING( byref as string ) came out empty. Released with the statement.
         scope
             dim as Tko.TypeId snu = u
             if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
@@ -420,12 +415,9 @@ function LowerUserLetConv_ _
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.TypeId vt = c.info->TypeOf_( value )
-    '' A WIDE EXPRESSION CHECK LEFT UNTYPED is a WSTRING for choosing the overload.
-    '' AfxNova's 'operator & ( byref dws as DWSTRING, byref s as STRING )' is one line,
-    '' 'OPERATOR = dws + s': a DWSTRING has no '+' and reaches one through its
-    '' 'cast( ) byref as const wstring', and that concatenation has no Check type. So no
-    '' 'let' was chosen, the statement declined, and every DWSTRING concatenation came
-    '' back empty -- PsCalendar's calendar titles.
+    '' A WIDE EXPRESSION CHECK LEFT UNTYPED is a WSTRING for choosing the overload: DWSTRING's
+    '' 'OPERATOR = dws + s' concatenates through 'cast( ) byref as const wstring', which has
+    '' no Check type, so no 'let' was chosen and every DWSTRING concatenation was empty.
     dim as boolean wideUntyped = false
     if vt = Tko.TYPE_NONE then
         if (TermIsWide_( c, value ) = false) andalso (ConcatHasWideTerm_( c, value ) = false) then return false
@@ -513,14 +505,10 @@ function LowerUserLetConv_ _
                     ulTook = true
                 end if
             end if
-            '' ...AND AN UNTYPED WIDE EXPRESSION -- the 'a + s' above -- is built into a
-            '' wide temporary and ITS characters are passed. The parameter's own type is
-            '' the bare builtin here, not a reference, so CtorArgValue_'s wide arm never
-            '' sees it and LowerExpr has no value for the concatenation.
+            '' ...AND AN UNTYPED WIDE EXPRESSION passes a wide temporary's characters: 'pt' is the
+            '' bare builtin here, not a reference, so CtorArgValue_'s wide arm never sees it.
             if (ulTook = false) andalso wideUntyped andalso (c.types->Kind( pu ) = Tko.TK_BUILTIN) then
-                if c.types->BuiltinOf( pu ) = Tko.TY_WSTRING then
-                    if WideOperand_( c, value, av ) then ulTook = true
-                end if
+                if (c.types->BuiltinOf( pu ) = Tko.TY_WSTRING) andalso WideOperand_( c, value, av ) then ulTook = true
             end if
         end if
     end if
