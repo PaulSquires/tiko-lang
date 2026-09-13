@@ -5,6 +5,7 @@
 '' lower.bas keeps IF, the loops and the cleanup machinery they share.
 
 #include once "mir/lowerctx.bi"
+#include once "lexer/keywords.bi"
 
 namespace Tko.Mir
 
@@ -168,6 +169,22 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     end if
     c.st->ambCallUnbound += 1
     if target = Tko.NODE_NONE then return
+    '' AN UNDECLARED NAME CALLED AS A STATEMENT IS AN ERROR -- fbc's 42, "Variable not
+    '' declared". Measured: 'here', 'here is' and 'bar 1, 2' are all 42 to fbc; tiko dropped
+    '' the statement and built the program, so 'here is an error on line 4' compiled.
+    '' Reported HERE, not in Resolve, because only here is it known that no builtin claimed
+    '' the name either -- 'run', 'width' and 'color' reach lowering unbound and still lower.
+    '' A keyword spelling is not a declaration question and stays a silent decline.
+    if (c.diags <> 0) andalso (c.ast->Kind( target ) = Tko.N_IDENT) then
+        if c.info->RefOf( target ) = Tko.SYMBOL_NONE then
+            dim as Tko.IdentPayload ptr uip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
+            if cast( long, uip->name ) > TKO_KEYWORD_COUNT then
+                cast( Tko.DiagnosticEngine ptr, c.diags )->Report( Tko.TKO0743, _
+                    Tko.PointRange( c.ast->Loc( target ) ), c.names->Spelling( uip->name ) )
+            end if
+        end if
+    end if
     dim as long tk = cast( long, c.ast->Kind( target ) )
     while c.st->ambUnboundShape.Count <= tk
         c.st->ambUnboundShape.Push( 0 )

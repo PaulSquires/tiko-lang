@@ -118,7 +118,8 @@ namespace Tko.Mir
           byref m as MirModule, byref st as LowerStats, _
           byval isMainModule as boolean = true, _
           byref moduleName as string = "", _
-          byval errLevel as long = 0 ) as long
+          byval errLevel as long = 0, _
+          byval diags as any ptr = 0 ) as long
 
 end namespace
 

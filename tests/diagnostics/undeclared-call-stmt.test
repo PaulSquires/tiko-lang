@@ -1,0 +1,5 @@
+'' An undeclared name used as a call statement is refused -- it used to be dropped and the program built.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/undeclared-call-stmt.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0743

@@ -1,0 +1,5 @@
+'' Paren-less calls to real procedures and builtins do not draw the undeclared-name error.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/stmt-end-valid.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0743

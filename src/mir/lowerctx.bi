@@ -84,6 +84,9 @@ type Ctx
     as FB.Array( of ulong )  withKind
     as FB.Array( of ulong )  withId
     as Tko.SourceManager ptr srcMgr    '' only for the constant evaluator
+    '' THE DRIVER'S DiagnosticEngine, or 0 (tools call Lower without one). Lowering reports
+    '' almost nothing; see CountUnlowredCall for the one error it does.
+    as any ptr              diags
     as Tko.UdtLayouts ptr   udts      '' field offsets, for member access
     '' THE SYNTHESISED STRUCTORS THIS UNIT ACTUALLY ASKED FOR. fbc emits one only
     '' where something calls it -- a file declaring a type and never a variable of it
