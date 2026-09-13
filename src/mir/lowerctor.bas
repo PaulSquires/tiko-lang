@@ -74,6 +74,19 @@ private function CtorArgValue_ _
         if IsStringType( c, u ) then
             if StrDescriptorOf_( c, argNode, outv ) then return true
         end if
+        '' ...AND THE SAME FOR A 'byref as string' PARAMETER, whose type PushCtorArgs_
+        '' wraps in a REFERENCE, so the test above never matched it. The reference arm
+        '' below then took the LITERAL'S address and passed its raw characters where a
+        '' descriptor belongs: 'o = DS( "x" )' printed nothing, a second one crashed, and
+        '' 'o = DS( "val" & 2 )' was not lowered. The declaration spelling was right.
+        if c.types->Kind( u ) = Tko.TK_REFERENCE then
+            dim as Tko.TypeId sref = c.types->Unqualify( c.types->Inner( u ) )
+            if c.types->Kind( sref ) = Tko.TK_BUILTIN then
+                if c.types->BuiltinOf( sref ) = Tko.TY_STRING then
+                    if StrDescriptorOf_( c, argNode, outv ) then return true
+                end if
+            end if
+        end if
 
         '' A BYREF UDT PARAMETER TAKES AN ADDRESS. The parameter's type IS a
         '' reference, and lowering one gives MT_PTR -- so the tail below 'coerced'

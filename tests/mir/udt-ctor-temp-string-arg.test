@@ -1,0 +1,9 @@
+'' A string argument for a 'byref as string' constructor parameter, in a 'T( args )'
+'' temporary, is passed as a descriptor rather than as its raw characters. Runtime output
+'' was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-ctor-temp-string-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-ctor-temp-string-arg.out
