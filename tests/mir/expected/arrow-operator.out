@@ -107,10 +107,10 @@ func i32 main(i32 $0, ptr $1) {
     %28 = icmp.eq %27, %26
     condbr %28, if.then2, if.else3
   if.join1:
-    %30 = call ptr _ZptR6HOLDER(@h)
-    %31 = const i64 3
-    %32 = trunc %31
-    call void _ZN5INNER4BUMPEi(%30, %32)
+    %30 = const i64 3
+    %31 = trunc %30
+    %32 = call ptr _ZptR6HOLDER(@h)
+    call void _ZN5INNER4BUMPEi(%32, %31)
     %33 = call ptr _ZptR6HOLDER(@h)
     %34 = call i32 _ZN5INNER5TWICEEv(%33)
     call.rtl void fb_PrintInt(0, %34, 1)

@@ -24,12 +24,12 @@ func void NARROW(ptr $0, ptr $1) {
     %11 = alloca ptr p
     %12 = call.rtl ptr memset(@p, 0, 8)
     %13 = alloca ptr r
-    %14 = load @img
-    %15 = const i64 0
-    %16 = trunc %15
-    %17 = alloca ptr $tmp8
-    store @$tmp8, %16
-    %18 = call i32 fb_GfxImageInfo32(%14, @w, @h, @bpp, @pitch, @p, @$tmp8)
+    %14 = const i64 0
+    %15 = trunc %14
+    %16 = alloca ptr $tmp8
+    store @$tmp8, %15
+    %17 = load @img
+    %18 = call i32 fb_GfxImageInfo32(%17, @w, @h, @bpp, @pitch, @p, @$tmp8)
     store @r, %18
     %19 = load @r
     call.rtl void fb_PrintInt(0, %19, 1)
@@ -64,11 +64,11 @@ func void WIDE(ptr $0, ptr $1) {
     %11 = alloca ptr p
     %12 = call.rtl ptr memset(@p, 0, 8)
     %13 = alloca ptr r
-    %14 = load @img
-    %15 = const i64 0
-    %16 = alloca ptr $tmp8
-    store @$tmp8, %15
-    %17 = call i32 fb_GfxImageInfo64(%14, @w, @h, @bpp, @pitch, @p, @$tmp8)
+    %14 = const i64 0
+    %15 = alloca ptr $tmp8
+    store @$tmp8, %14
+    %16 = load @img
+    %17 = call i32 fb_GfxImageInfo64(%16, @w, @h, @bpp, @pitch, @p, @$tmp8)
     store @r, %17
     %18 = load @r
     call.rtl void fb_PrintInt(0, %18, 1)
@@ -96,12 +96,12 @@ func i32 main(i32 $0, ptr $1) {
     %12 = call.rtl ptr memset(@img, 0, 8)
     %13 = alloca ptr pix
     %14 = call.rtl ptr memset(@pix, 0, 8)
-    %15 = load @img
-    %16 = load @pix
-    call void NARROW(%15, %16)
-    %17 = load @img
-    %18 = load @pix
-    call void WIDE(%17, %18)
+    %15 = load @pix
+    %16 = load @img
+    call void NARROW(%16, %15)
+    %17 = load @pix
+    %18 = load @img
+    call void WIDE(%18, %17)
     %19 = const i32 0
     call.rtl void fb_End(%19)
     %20 = load @$tmp0

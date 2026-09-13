@@ -25,105 +25,105 @@ func i32 main(i32 $0, ptr $1) {
     %7 = trunc %6
     %8 = const i64 2
     %9 = trunc %8
-    call void F(%5, %7, %9)
-    %10 = const i64 2
+    call void F(%9, %7, %5)
+    %10 = const i64 4
     %11 = trunc %10
     %12 = const i64 3
     %13 = trunc %12
-    %14 = const i64 4
+    %14 = const i64 2
     %15 = trunc %14
-    call void F(%11, %13, %15)
-    %16 = const i64 1
+    call void F(%15, %13, %11)
+    %16 = const i64 5
     %17 = trunc %16
     %18 = const i64 5
     %19 = trunc %18
-    %20 = const i64 5
+    %20 = const i64 1
     %21 = trunc %20
-    call void F(%17, %19, %21)
+    call void F(%21, %19, %17)
     %22 = const i64 5
     %23 = trunc %22
     %24 = const i64 1
     %25 = trunc %24
     %26 = const i64 5
     %27 = trunc %26
-    call void F(%23, %25, %27)
-    %28 = const i64 3
+    call void F(%27, %25, %23)
+    %28 = const i64 5
     %29 = trunc %28
     %30 = const i64 3
     %31 = trunc %30
-    %32 = const i64 5
+    %32 = const i64 3
     %33 = trunc %32
-    call void F(%29, %31, %33)
-    %34 = const i64 1
+    call void F(%33, %31, %29)
+    %34 = const i64 5
     %35 = trunc %34
     %36 = const i64 5
     %37 = trunc %36
-    %38 = const i64 5
+    %38 = const i64 1
     %39 = trunc %38
-    call void F(%35, %37, %39)
+    call void F(%39, %37, %35)
     %40 = const i64 5
     %41 = trunc %40
     %42 = const i64 1
     %43 = trunc %42
     %44 = const i64 5
     %45 = trunc %44
-    call void F(%41, %43, %45)
+    call void F(%45, %43, %41)
     %46 = const i64 3
     %47 = trunc %46
     %48 = const i64 1
     %49 = trunc %48
     %50 = const i64 3
     %51 = trunc %50
-    call void F(%47, %49, %51)
-    %52 = const i64 2
+    call void F(%51, %49, %47)
+    %52 = const i64 3
     %53 = trunc %52
     %54 = const i64 2
     %55 = trunc %54
-    %56 = const i64 3
+    %56 = const i64 2
     %57 = trunc %56
-    call void F(%53, %55, %57)
-    %58 = const i64 1
+    call void F(%57, %55, %53)
+    %58 = const i64 3
     %59 = trunc %58
     %60 = const i64 3
     %61 = trunc %60
-    %62 = const i64 3
+    %62 = const i64 1
     %63 = trunc %62
-    call void F(%59, %61, %63)
+    call void F(%63, %61, %59)
     %64 = const i64 2
     %65 = trunc %64
     %66 = const i64 1
     %67 = trunc %66
     %68 = const i64 2
     %69 = trunc %68
-    call void F(%65, %67, %69)
+    call void F(%69, %67, %65)
     %70 = const i64 2
     %71 = trunc %70
     %72 = const i64 1
     %73 = trunc %72
     %74 = const i64 2
     %75 = trunc %74
-    call void F(%71, %73, %75)
+    call void F(%75, %73, %71)
     %76 = const i64 2
     %77 = trunc %76
     %78 = const i64 1
     %79 = trunc %78
     %80 = const i64 2
     %81 = trunc %80
-    call void F(%77, %79, %81)
-    %82 = const i64 1
+    call void F(%81, %79, %77)
+    %82 = const i64 3
     %83 = trunc %82
     %84 = const i64 3
     %85 = trunc %84
-    %86 = const i64 3
+    %86 = const i64 1
     %87 = trunc %86
-    call void F(%83, %85, %87)
-    %88 = const i64 0
+    call void F(%87, %85, %83)
+    %88 = const i64 33
     %89 = trunc %88
     %90 = const i64 22
     %91 = trunc %90
-    %92 = const i64 33
+    %92 = const i64 0
     %93 = trunc %92
-    call void F(%89, %91, %93)
+    call void F(%93, %91, %89)
     %94 = const i32 0
     call.rtl void fb_End(%94)
     %95 = load @$tmp0

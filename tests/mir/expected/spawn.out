@@ -102,9 +102,9 @@ func i32 main(i32 $0, ptr $1) {
     %13 = const i64 7
     %14 = trunc %13
     store %12, %14
-    %15 = func.addr ptr __TKO_SPAWNFN_6A0A042F_0
-    %16 = load @__tko_sf_6a0a042f_0
-    call void fb_Spawn(%15, %16)
+    %15 = load @__tko_sf_6a0a042f_0
+    %16 = func.addr ptr __TKO_SPAWNFN_6A0A042F_0
+    call void fb_Spawn(%16, %15)
     %17 = alloca ptr __tko_sf_6a0a042f_1
     %18 = call.rtl ptr calloc(24, 1)
     %19 = alloca ptr $tmp5
@@ -122,9 +122,9 @@ func i32 main(i32 $0, ptr $1) {
     %24 = load @__tko_sf_6a0a042f_1
     %25 = field.addr %24, 0
     call void _ZN1UaSERKS_(%25, @uu)
-    %26 = func.addr ptr __TKO_SPAWNFN_6A0A042F_1
-    %27 = load @__tko_sf_6a0a042f_1
-    call void fb_Spawn(%26, %27)
+    %26 = load @__tko_sf_6a0a042f_1
+    %27 = func.addr ptr __TKO_SPAWNFN_6A0A042F_1
+    call void fb_Spawn(%27, %26)
     %28 = const i64 200
     %29 = trunc %28
     call void fb_Sleep(%29)

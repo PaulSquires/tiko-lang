@@ -70,12 +70,12 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i64 0
     %6 = trunc %5
     store @sum_, %6
-    %7 = const i64 4
-    %8 = trunc %7
-    %9 = alloca ptr $tmp2
-    %10 = field.addr @$tmp2, 0
-    store %10, @sum_
-    call void _Z5ApplyI24__TKO_CLOSURE_5B527DDB_0EiRS0_(%8, @$tmp2)
+    %7 = alloca ptr $tmp2
+    %8 = field.addr @$tmp2, 0
+    store %8, @sum_
+    %9 = const i64 4
+    %10 = trunc %9
+    call void _Z5ApplyI24__TKO_CLOSURE_5B527DDB_0EiRS0_(%10, @$tmp2)
     %11 = load @sum_
     call.rtl void fb_PrintInt(0, %11, 1)
     %12 = const i32 0

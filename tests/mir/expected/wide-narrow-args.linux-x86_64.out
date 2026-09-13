@@ -111,37 +111,37 @@ func i32 main(i32 $0, ptr $1) {
     %7 = call.rtl ptr fb_StrAssign(@z, 4, @@$str0, 2, 0)
     %8 = alloca ptr w
     %9 = call.rtl ptr fb_WstrAssign(@w, 4, @@$wstr1)
-    %10 = alloca ptr $tmp4
-    %11 = field.addr @$tmp4, 0
-    store %11, 0
-    %12 = field.addr @$tmp4, 8
+    %10 = const i64 0
+    %11 = alloca ptr $tmp4
+    %12 = field.addr @$tmp4, 0
     store %12, 0
-    %13 = field.addr @$tmp4, 16
+    %13 = field.addr @$tmp4, 8
     store %13, 0
-    %14 = call.rtl ptr fb_WstrAssignToA(@$tmp4, -1, @w, 0)
-    %15 = const i64 0
-    %16 = call ptr G1(@$tmp4, %15)
+    %14 = field.addr @$tmp4, 16
+    store %14, 0
+    %15 = call.rtl ptr fb_WstrAssignToA(@$tmp4, -1, @w, 0)
+    %16 = call ptr G1(@$tmp4, %10)
     call.rtl void fb_StrDelete(@$tmp4)
     %17 = call.rtl i32 fb_StrCompare(%16, 0, @@$str0, 2)
     %18 = icmp.eq %17, 0
     %19 = neg %18
     %20 = sext %19
     call.rtl void fb_PrintLongint(0, %20, 1)
-    %21 = alloca ptr $tmp5
-    %22 = field.addr @$tmp5, 0
-    store %22, 0
-    %23 = field.addr @$tmp5, 8
+    %21 = const i64 0
+    %22 = alloca ptr $tmp5
+    %23 = field.addr @$tmp5, 0
     store %23, 0
-    %24 = field.addr @$tmp5, 16
+    %24 = field.addr @$tmp5, 8
     store %24, 0
-    %25 = const i64 1
-    %26 = call.rtl ptr fb_WstrHex_l(%25)
-    %27 = alloca ptr $tmp6
-    store @$tmp6, %26
-    %28 = load @$tmp6
-    %29 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, %28, 0)
-    %30 = const i64 0
-    %31 = call ptr G1(@$tmp5, %30)
+    %25 = field.addr @$tmp5, 16
+    store %25, 0
+    %26 = const i64 1
+    %27 = call.rtl ptr fb_WstrHex_l(%26)
+    %28 = alloca ptr $tmp6
+    store @$tmp6, %27
+    %29 = load @$tmp6
+    %30 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, %29, 0)
+    %31 = call ptr G1(@$tmp5, %21)
     call.rtl void fb_StrDelete(@$tmp5)
     %32 = call.rtl i32 fb_StrCompare(%31, 0, @@$str2, 2)
     %33 = icmp.eq %32, 0
@@ -157,23 +157,23 @@ func i32 main(i32 $0, ptr $1) {
     %41 = neg %40
     %42 = sext %41
     call.rtl void fb_PrintLongint(0, %42, 1)
-    %43 = alloca ptr $tmp7
-    %44 = field.addr @$tmp7, 0
-    store %44, 0
-    %45 = field.addr @$tmp7, 8
+    %43 = const i64 0
+    %44 = alloca ptr $tmp7
+    %45 = field.addr @$tmp7, 0
     store %45, 0
-    %46 = field.addr @$tmp7, 16
+    %46 = field.addr @$tmp7, 8
     store %46, 0
-    %47 = const i64 1
-    %48 = call.rtl ptr fb_WstrHex_l(%47)
-    %49 = alloca ptr $tmp8
-    store @$tmp8, %48
-    %50 = load @$tmp8
-    %51 = call.rtl ptr fb_WstrAssignToA(@$tmp7, -1, %50, 0)
-    %52 = field.addr @$tmp7, 0
-    %53 = load %52
-    %54 = const i64 0
-    %55 = call ptr G2(%53, %54)
+    %47 = field.addr @$tmp7, 16
+    store %47, 0
+    %48 = const i64 1
+    %49 = call.rtl ptr fb_WstrHex_l(%48)
+    %50 = alloca ptr $tmp8
+    store @$tmp8, %49
+    %51 = load @$tmp8
+    %52 = call.rtl ptr fb_WstrAssignToA(@$tmp7, -1, %51, 0)
+    %53 = field.addr @$tmp7, 0
+    %54 = load %53
+    %55 = call ptr G2(%54, %43)
     call.rtl void fb_StrDelete(@$tmp7)
     %56 = call.rtl i32 fb_StrCompare(%55, 0, @@$str2, 2)
     %57 = icmp.eq %56, 0
@@ -182,39 +182,39 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %59, 1)
     %60 = load @$tmp8
     call.rtl void fb_WstrDelete(%60)
-    %61 = alloca ptr $tmp9
-    %62 = field.addr @$tmp9, 0
-    store %62, 0
-    %63 = field.addr @$tmp9, 8
+    %61 = const i64 0
+    %62 = alloca ptr $tmp9
+    %63 = field.addr @$tmp9, 0
     store %63, 0
-    %64 = field.addr @$tmp9, 16
+    %64 = field.addr @$tmp9, 8
     store %64, 0
-    %65 = call.rtl ptr fb_WstrAssignToA(@$tmp9, -1, @w, 0)
-    %66 = load @$tmp9
-    %67 = const i64 0
-    %68 = call ptr G3(%66, %67)
+    %65 = field.addr @$tmp9, 16
+    store %65, 0
+    %66 = call.rtl ptr fb_WstrAssignToA(@$tmp9, -1, @w, 0)
+    %67 = load @$tmp9
+    %68 = call ptr G3(%67, %61)
     call.rtl void fb_StrDelete(@$tmp9)
     %69 = call.rtl i32 fb_StrCompare(%68, 0, @@$str0, 2)
     %70 = icmp.eq %69, 0
     %71 = neg %70
     %72 = sext %71
     call.rtl void fb_PrintLongint(0, %72, 1)
-    %73 = alloca ptr $tmp10
-    %74 = field.addr @$tmp10, 0
-    store %74, 0
-    %75 = field.addr @$tmp10, 8
+    %73 = const i64 0
+    %74 = alloca ptr $tmp10
+    %75 = field.addr @$tmp10, 0
     store %75, 0
-    %76 = field.addr @$tmp10, 16
+    %76 = field.addr @$tmp10, 8
     store %76, 0
-    %77 = const i64 1
-    %78 = call.rtl ptr fb_WstrHex_l(%77)
-    %79 = alloca ptr $tmp11
-    store @$tmp11, %78
-    %80 = load @$tmp11
-    %81 = call.rtl ptr fb_WstrAssignToA(@$tmp10, -1, %80, 0)
-    %82 = load @$tmp10
-    %83 = const i64 0
-    %84 = call ptr G3(%82, %83)
+    %77 = field.addr @$tmp10, 16
+    store %77, 0
+    %78 = const i64 1
+    %79 = call.rtl ptr fb_WstrHex_l(%78)
+    %80 = alloca ptr $tmp11
+    store @$tmp11, %79
+    %81 = load @$tmp11
+    %82 = call.rtl ptr fb_WstrAssignToA(@$tmp10, -1, %81, 0)
+    %83 = load @$tmp10
+    %84 = call ptr G3(%83, %73)
     call.rtl void fb_StrDelete(@$tmp10)
     %85 = call.rtl i32 fb_StrCompare(%84, 0, @@$str2, 2)
     %86 = icmp.eq %85, 0
@@ -223,13 +223,13 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %88, 1)
     %89 = load @$tmp11
     call.rtl void fb_WstrDelete(%89)
-    %90 = load @s
-    %91 = call.rtl ptr fb_StrToWstr(%90)
-    %92 = alloca ptr $tmp12
-    store @$tmp12, %91
-    %93 = load @$tmp12
-    %94 = const i64 0
-    %95 = call ptr F1(%93, %94)
+    %90 = const i64 0
+    %91 = load @s
+    %92 = call.rtl ptr fb_StrToWstr(%91)
+    %93 = alloca ptr $tmp12
+    store @$tmp12, %92
+    %94 = load @$tmp12
+    %95 = call ptr F1(%94, %90)
     %96 = call.rtl i32 fb_WstrCompare(%95, @@$wstr1)
     %97 = icmp.eq %96, 0
     %98 = neg %97
@@ -237,12 +237,12 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %99, 1)
     %100 = load @$tmp12
     call.rtl void fb_WstrDelete(%100)
-    %101 = call.rtl ptr fb_StrToWstr(@z)
-    %102 = alloca ptr $tmp13
-    store @$tmp13, %101
-    %103 = load @$tmp13
-    %104 = const i64 0
-    %105 = call ptr F1(%103, %104)
+    %101 = const i64 0
+    %102 = call.rtl ptr fb_StrToWstr(@z)
+    %103 = alloca ptr $tmp13
+    store @$tmp13, %102
+    %104 = load @$tmp13
+    %105 = call ptr F1(%104, %101)
     %106 = call.rtl i32 fb_WstrCompare(%105, @@$wstr1)
     %107 = icmp.eq %106, 0
     %108 = neg %107
@@ -250,23 +250,23 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %109, 1)
     %110 = load @$tmp13
     call.rtl void fb_WstrDelete(%110)
-    %111 = const i64 1
-    %112 = call.rtl ptr fb_HEX_l(%111)
-    %113 = alloca ptr $tmp14
-    %114 = field.addr @$tmp14, 0
-    store %114, 0
-    %115 = field.addr @$tmp14, 8
+    %111 = const i64 0
+    %112 = const i64 1
+    %113 = call.rtl ptr fb_HEX_l(%112)
+    %114 = alloca ptr $tmp14
+    %115 = field.addr @$tmp14, 0
     store %115, 0
-    %116 = field.addr @$tmp14, 16
+    %116 = field.addr @$tmp14, 8
     store %116, 0
-    %117 = call.rtl ptr fb_StrAssign(@$tmp14, -1, %112, -1, 0)
-    %118 = load @$tmp14
-    %119 = call.rtl ptr fb_StrToWstr(%118)
-    %120 = alloca ptr $tmp15
-    store @$tmp15, %119
-    %121 = load @$tmp15
-    %122 = const i64 0
-    %123 = call ptr F1(%121, %122)
+    %117 = field.addr @$tmp14, 16
+    store %117, 0
+    %118 = call.rtl ptr fb_StrAssign(@$tmp14, -1, %113, -1, 0)
+    %119 = load @$tmp14
+    %120 = call.rtl ptr fb_StrToWstr(%119)
+    %121 = alloca ptr $tmp15
+    store @$tmp15, %120
+    %122 = load @$tmp15
+    %123 = call ptr F1(%122, %111)
     %124 = call.rtl i32 fb_WstrCompare(%123, @@$wstr3)
     %125 = icmp.eq %124, 0
     %126 = neg %125
@@ -275,13 +275,13 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@$tmp14)
     %128 = load @$tmp15
     call.rtl void fb_WstrDelete(%128)
-    %129 = load @s
-    %130 = call.rtl ptr fb_StrToWstr(%129)
-    %131 = alloca ptr $tmp16
-    store @$tmp16, %130
-    %132 = load @$tmp16
-    %133 = const i64 0
-    %134 = call ptr F2(%132, %133)
+    %129 = const i64 0
+    %130 = load @s
+    %131 = call.rtl ptr fb_StrToWstr(%130)
+    %132 = alloca ptr $tmp16
+    store @$tmp16, %131
+    %133 = load @$tmp16
+    %134 = call ptr F2(%133, %129)
     %135 = call.rtl i32 fb_WstrCompare(%134, @@$wstr1)
     %136 = icmp.eq %135, 0
     %137 = neg %136
@@ -289,12 +289,12 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %138, 1)
     %139 = load @$tmp16
     call.rtl void fb_WstrDelete(%139)
-    %140 = call.rtl ptr fb_StrToWstr(@z)
-    %141 = alloca ptr $tmp17
-    store @$tmp17, %140
-    %142 = load @$tmp17
-    %143 = const i64 0
-    %144 = call ptr F2(%142, %143)
+    %140 = const i64 0
+    %141 = call.rtl ptr fb_StrToWstr(@z)
+    %142 = alloca ptr $tmp17
+    store @$tmp17, %141
+    %143 = load @$tmp17
+    %144 = call ptr F2(%143, %140)
     %145 = call.rtl i32 fb_WstrCompare(%144, @@$wstr1)
     %146 = icmp.eq %145, 0
     %147 = neg %146
@@ -302,23 +302,23 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %148, 1)
     %149 = load @$tmp17
     call.rtl void fb_WstrDelete(%149)
-    %150 = const i64 1
-    %151 = call.rtl ptr fb_HEX_l(%150)
-    %152 = alloca ptr $tmp18
-    %153 = field.addr @$tmp18, 0
-    store %153, 0
-    %154 = field.addr @$tmp18, 8
+    %150 = const i64 0
+    %151 = const i64 1
+    %152 = call.rtl ptr fb_HEX_l(%151)
+    %153 = alloca ptr $tmp18
+    %154 = field.addr @$tmp18, 0
     store %154, 0
-    %155 = field.addr @$tmp18, 16
+    %155 = field.addr @$tmp18, 8
     store %155, 0
-    %156 = call.rtl ptr fb_StrAssign(@$tmp18, -1, %151, -1, 0)
-    %157 = load @$tmp18
-    %158 = call.rtl ptr fb_StrToWstr(%157)
-    %159 = alloca ptr $tmp19
-    store @$tmp19, %158
-    %160 = load @$tmp19
-    %161 = const i64 0
-    %162 = call ptr F2(%160, %161)
+    %156 = field.addr @$tmp18, 16
+    store %156, 0
+    %157 = call.rtl ptr fb_StrAssign(@$tmp18, -1, %152, -1, 0)
+    %158 = load @$tmp18
+    %159 = call.rtl ptr fb_StrToWstr(%158)
+    %160 = alloca ptr $tmp19
+    store @$tmp19, %159
+    %161 = load @$tmp19
+    %162 = call ptr F2(%161, %150)
     %163 = call.rtl i32 fb_WstrCompare(%162, @@$wstr3)
     %164 = icmp.eq %163, 0
     %165 = neg %164

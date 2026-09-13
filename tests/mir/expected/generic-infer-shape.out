@@ -1,5 +1,5 @@
-global str $str0 "hello"
-global str $str1 "ell"
+global str $str0 "ell"
+global str $str1 "hello"
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg bx size 4
@@ -22,7 +22,7 @@ func i32 main(i32 $0, ptr $1) {
     store %9, 0
     %10 = field.addr @$tmp3, 16
     store %10, 0
-    %11 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str0, 6, 0)
+    %11 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str0, 4, 0)
     %12 = alloca ptr $tmp4
     %13 = field.addr @$tmp4, 0
     store %13, 0
@@ -30,8 +30,8 @@ func i32 main(i32 $0, ptr $1) {
     store %14, 0
     %15 = field.addr @$tmp4, 16
     store %15, 0
-    %16 = call.rtl ptr fb_StrAssign(@$tmp4, -1, @@$str1, 4, 0)
-    %17 = call i8 _ZN2NS7has_strERK8FBSTRINGS2_(@$tmp3, @$tmp4)
+    %16 = call.rtl ptr fb_StrAssign(@$tmp4, -1, @@$str1, 6, 0)
+    %17 = call i8 _ZN2NS7has_strERK8FBSTRINGS2_(@$tmp4, @$tmp3)
     call.rtl void fb_StrDelete(@$tmp4)
     call.rtl void fb_StrDelete(@$tmp3)
     %18 = const i8 0

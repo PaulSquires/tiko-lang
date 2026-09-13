@@ -163,7 +163,7 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr ob
     %13 = load @bb
     %14 = load @bb
-    %15 = call i8 _Z4PICKaa(%13, %14)
+    %15 = call i8 _Z4PICKaa(%14, %13)
     %36 = call i16 _Z4SomeIaEa(%15)
     store @$abi7, %36
     %16 = load @$abi7
@@ -171,7 +171,7 @@ func i32 main(i32 $0, ptr $1) {
     %17 = alloca ptr ol
     %18 = load @ll
     %19 = load @ll
-    %20 = call i32 _Z4PICKii(%18, %19)
+    %20 = call i32 _Z4PICKii(%19, %18)
     %38 = call i64 _Z4SomeIiEi(%20)
     store @$abi8, %38
     %21 = load @$abi8
@@ -179,7 +179,7 @@ func i32 main(i32 $0, ptr $1) {
     %22 = alloca ptr od
     %23 = load @dd
     %24 = load @dd
-    %25 = call f64 _Z4PICKdd(%23, %24)
+    %25 = call f64 _Z4PICKdd(%24, %23)
     call void _Z4SomeIdEd(@$abi9, %25)
     %26 = load @$abi9
     store @od, %26

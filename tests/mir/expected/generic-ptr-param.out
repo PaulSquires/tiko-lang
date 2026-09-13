@@ -53,17 +53,17 @@ func void _Z6apply_IPFbRiS_EERS2_(ptr $0) {
   entry0:
     %1 = alloca ptr f
     store @f, $0
-    %2 = const i64 3
+    %2 = const i64 4
     %3 = trunc %2
     %4 = alloca ptr $tmp1
     store @$tmp1, %3
-    %5 = const i64 4
+    %5 = const i64 3
     %6 = trunc %5
     %7 = alloca ptr $tmp2
     store @$tmp2, %6
     %8 = load @f
     %9 = load %8
-    %10 = call.ind i8 %9(@$tmp1, @$tmp2)
+    %10 = call.ind i8 %9(@$tmp2, @$tmp1)
     call.rtl void fb_PrintBool(0, %10, 1)
     ret
 }

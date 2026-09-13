@@ -64,70 +64,70 @@ func i32 main(i32 $0, ptr $1) {
     %4 = alloca ptr w
     %5 = call.rtl ptr memset(@w, 0, 16)
     %6 = call.rtl ptr fb_WstrAssign(@w, 8, @@$wstr0)
-    %7 = alloca ptr $tmp2
-    %8 = field.addr @$tmp2, 0
-    store %8, 0
-    %9 = field.addr @$tmp2, 8
+    %7 = const i64 0
+    %8 = alloca ptr $tmp2
+    %9 = field.addr @$tmp2, 0
     store %9, 0
-    %10 = field.addr @$tmp2, 16
+    %10 = field.addr @$tmp2, 8
     store %10, 0
-    %11 = const i64 255
-    %12 = call.rtl ptr fb_HEX_l(%11)
-    %13 = call.rtl ptr fb_StrAssign(@$tmp2, -1, %12, -1, 0)
-    %14 = const i64 0
-    call void TAKEBYVALSTRING(@$tmp2, %14)
+    %11 = field.addr @$tmp2, 16
+    store %11, 0
+    %12 = const i64 255
+    %13 = call.rtl ptr fb_HEX_l(%12)
+    %14 = call.rtl ptr fb_StrAssign(@$tmp2, -1, %13, -1, 0)
+    call void TAKEBYVALSTRING(@$tmp2, %7)
     call.rtl void fb_StrDelete(@$tmp2)
-    %15 = alloca ptr $tmp3
-    %16 = field.addr @$tmp3, 0
-    store %16, 0
-    %17 = field.addr @$tmp3, 8
+    %15 = const i64 0
+    %16 = alloca ptr $tmp3
+    %17 = field.addr @$tmp3, 0
     store %17, 0
-    %18 = field.addr @$tmp3, 16
+    %18 = field.addr @$tmp3, 8
     store %18, 0
-    %19 = const i64 255
-    %20 = call.rtl ptr fb_WstrHex_l(%19)
-    %21 = alloca ptr $tmp4
-    store @$tmp4, %20
-    %22 = load @$tmp4
-    %23 = call.rtl ptr fb_WstrAssignToA(@$tmp3, -1, %22, 0)
-    %24 = const i64 0
-    call void TAKEBYVALSTRING(@$tmp3, %24)
+    %19 = field.addr @$tmp3, 16
+    store %19, 0
+    %20 = const i64 255
+    %21 = call.rtl ptr fb_WstrHex_l(%20)
+    %22 = alloca ptr $tmp4
+    store @$tmp4, %21
+    %23 = load @$tmp4
+    %24 = call.rtl ptr fb_WstrAssignToA(@$tmp3, -1, %23, 0)
+    call void TAKEBYVALSTRING(@$tmp3, %15)
     call.rtl void fb_StrDelete(@$tmp3)
     %25 = load @$tmp4
     call.rtl void fb_WstrDelete(%25)
-    %26 = const i64 255
-    %27 = call.rtl ptr fb_HEX_l(%26)
-    %28 = alloca ptr $tmp5
-    %29 = field.addr @$tmp5, 0
-    store %29, 0
-    %30 = field.addr @$tmp5, 8
+    %26 = const i64 0
+    %27 = const i64 255
+    %28 = call.rtl ptr fb_HEX_l(%27)
+    %29 = alloca ptr $tmp5
+    %30 = field.addr @$tmp5, 0
     store %30, 0
-    %31 = field.addr @$tmp5, 16
+    %31 = field.addr @$tmp5, 8
     store %31, 0
-    %32 = call.rtl ptr fb_StrAssign(@$tmp5, -1, %27, -1, 0)
-    %33 = load @$tmp5
-    %34 = const i64 0
-    call void TAKEZSTRINGPTR(%33, %34)
+    %32 = field.addr @$tmp5, 16
+    store %32, 0
+    %33 = call.rtl ptr fb_StrAssign(@$tmp5, -1, %28, -1, 0)
+    %34 = load @$tmp5
+    call void TAKEZSTRINGPTR(%34, %26)
     call.rtl void fb_StrDelete(@$tmp5)
-    %35 = alloca ptr $tmp6
-    %36 = field.addr @$tmp6, 0
-    store %36, 0
-    %37 = field.addr @$tmp6, 8
+    %35 = const i64 0
+    %36 = alloca ptr $tmp6
+    %37 = field.addr @$tmp6, 0
     store %37, 0
-    %38 = field.addr @$tmp6, 16
+    %38 = field.addr @$tmp6, 8
     store %38, 0
-    %39 = call.rtl ptr fb_WstrAssignToA(@$tmp6, -1, @w, 0)
-    %40 = load @$tmp6
-    %41 = const i64 0
-    call void TAKEZSTRINGPTR(%40, %41)
+    %39 = field.addr @$tmp6, 16
+    store %39, 0
+    %40 = call.rtl ptr fb_WstrAssignToA(@$tmp6, -1, @w, 0)
+    %41 = load @$tmp6
+    call void TAKEZSTRINGPTR(%41, %35)
     call.rtl void fb_StrDelete(@$tmp6)
-    %42 = const i64 255
-    %43 = call.rtl ptr fb_WstrHex_l(%42)
-    %44 = alloca ptr $tmp7
-    store @$tmp7, %43
-    %45 = load @$tmp7
-    %46 = const i64 0
-    call void TAKEWSTRINGPTR(%45, %46)
+    %42 = const i64 0
+    %43 = const i64 255
+    %44 = call.rtl ptr fb_WstrHex_l(%43)
+    %45 = alloca ptr $tmp7
+    store @$tmp7, %44
+    %46 = load @$tmp7
+    call void TAKEWSTRINGPTR(%46, %42)
     %47 = load @$tmp7
     call.rtl void fb_WstrDelete(%47)
     %48 = const i32 0

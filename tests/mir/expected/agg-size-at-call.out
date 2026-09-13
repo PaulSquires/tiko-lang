@@ -106,16 +106,16 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN8REALSINKC1Ev(@rs)
     %21 = alloca ptr s
     store @s, @rs
-    %22 = load @s
-    %23 = const i64 2
-    %24 = trunc %23
-    %25 = call ptr _ZN6HOLDERixEi(@h, %24)
-    %26 = load %25
-    %27 = load %22
+    %22 = const i64 2
+    %23 = trunc %22
+    %24 = call ptr _ZN6HOLDERixEi(@h, %23)
+    %25 = load %24
+    %26 = load @s
+    %27 = load %26
     %28 = field.addr %27, 0
     %29 = load %28
-    store @$abi5, %26
-    call.ind void %29(%22, @$abi5)
+    store @$abi5, %25
+    call.ind void %29(%26, @$abi5)
     %30 = field.addr @rs, 8
     %31 = load %30
     call.rtl void fb_PrintLongint(0, %31, 1)

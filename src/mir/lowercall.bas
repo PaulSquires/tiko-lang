@@ -355,17 +355,10 @@ function LowerCallParts _
         end if
     end if
 
-    dim as MirValue self_ = ReceiverOf( c, calleeNode, callee )
-    if self_.kind <> cast( ubyte, MV_NONE ) then
-        argv.Push( cast( ulong, self_.kind ) )
-        argv.Push( cast( ulong, self_.id ) )
-    end if
+    '' THE RECEIVER IS LOWERED AFTER THE ARGUMENTS -- see the argument loop below.
+    dim as MirValue self_
     '' ...and the CLOSURE OBJECT, which is a written parameter rather than an
     '' implicit receiver -- so it is pushed here and counted by 'pbase' below.
-    if closureSelf.kind <> cast( ubyte, MV_NONE ) then
-        argv.Push( cast( ulong, closureSelf.kind ) )
-        argv.Push( cast( ulong, closureSelf.id ) )
-    end if
 
     '' DEFAULTED ARGUMENTS. A parameter's default was parsed onto its N_PARAM and then
     '' never used, so 'sleep' called fb_Sleep with NO arguments and 'locate 5, 10'
@@ -382,7 +375,20 @@ function LowerCallParts _
     dim as long slots = argCount
     if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then slots = nparams
 
-    for i as long = 0 to slots - 1
+    '' ARGUMENTS ARE EVALUATED RIGHT TO LEFT, AND THE RECEIVER LAST. Measured over a
+    '' 'G( n )' that records its own call, one probe per shape:
+    ''     Take3( G( 1 ), G( 2 ), G( 3 ) )              fbc 321
+    ''     Obj( 0 ).M( G( 1 ), G( 2 ) )                 fbc 210
+    ''     GetP( 0 )->M( G( 1 ), G( 2 ) )               fbc 21p0
+    ''     Two( Two( G( 1 ), G( 2 ) ), Two( G( 3 ), G( 4 ) ) )   fbc 4321
+    ''
+    '' tiko went left to right, receiver first -- all of the IR stage1 and stage2 still
+    '' disagreed on. Slots fill as arguments are evaluated; argv is built in POSITION
+    '' order after, the receiver lowered BEFORE 'first' reads argPool (it may be a call).
+    dim as FB.Array( of ulong ) slotKind
+    dim as FB.Array( of ulong ) slotId
+    for i as long = 0 to slots - 1 : slotKind.Push( cast( ulong, MV_NONE ) ) : slotId.Push( 0 ) : next
+    for i as long = slots - 1 to 0 step -1
         '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
         '' says the two are one rule and not two.
         dim as Tko.NodeId argNode = Tko.NODE_NONE
@@ -433,8 +439,8 @@ function LowerCallParts _
                 return CallFailed_( c, v, __LINE__ )
             end if
             bva = Coerce( c, bva, MT_PTR, false )
-            argv.Push( cast( ulong, bva.kind ) )
-            argv.Push( cast( ulong, bva.id ) )
+            slotKind[i] = cast( ulong, bva.kind )
+            slotId[i] = cast( ulong, bva.id )
             continue for
         end if
 
@@ -442,8 +448,8 @@ function LowerCallParts _
         '' parameter was spelled: the array-ness is the type's, not the passing mode's.
         dim as MirValue adv
         if ArrayDescArg_( c, argNode, ParamIsArray( c, callee, i + pbase ), adv ) then
-            argv.Push( cast( ulong, adv.kind ) )
-            argv.Push( cast( ulong, adv.id ) )
+            slotKind[i] = cast( ulong, adv.kind )
+            slotId[i] = cast( ulong, adv.id )
             continue for
         end if
 
@@ -665,8 +671,8 @@ function LowerCallParts _
             if c.ast->Kind( argNode ) = Tko.N_CLOSURE then
                 dim as MirValue cla
                 if LowerClosureAddr_( c, argNode, cla ) then
-                    argv.Push( cast( ulong, cla.kind ) )
-                    argv.Push( cast( ulong, cla.id ) )
+                    slotKind[i] = cast( ulong, cla.kind )
+                    slotId[i] = cast( ulong, cla.id )
                     continue for
                 end if
             end if
@@ -679,8 +685,8 @@ function LowerCallParts _
                 a.kind = cast( ubyte, MV_LOCAL )
                 a.ty = cast( ubyte, MT_PTR )
                 a.id = btSlot
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
             '' A UDT PASSED BYREF TO A PARAMETER OF ANOTHER TYPE IS ITS
@@ -794,8 +800,8 @@ function LowerCallParts _
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
                 end if
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
 
@@ -829,8 +835,8 @@ function LowerCallParts _
                     a = LowerExprLoad( c, zt, MT_PTR )
                     if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
                 end if
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
 
@@ -865,8 +871,8 @@ function LowerCallParts _
                 end if
                 strTemps.Push( cast( ulong, tempSlot ) )
                 strTempTypes.Push( cast( ulong, spt ) )
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
 
@@ -897,8 +903,8 @@ function LowerCallParts _
                         return CallFailed_( c, v, __LINE__ )
                     end if
                 end if
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
 
@@ -920,8 +926,8 @@ function LowerCallParts _
                         return CallFailed_( c, v, __LINE__ )
                     end if
                 end if
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
 
@@ -935,8 +941,8 @@ function LowerCallParts _
                     tempSlots.Push( cast( ulong, tempSlot ) )
                     tempTypes.Push( cast( ulong, tempType ) )
                 end if
-                argv.Push( cast( ulong, a.kind ) )
-                argv.Push( cast( ulong, a.id ) )
+                slotKind[i] = cast( ulong, a.kind )
+                slotId[i] = cast( ulong, a.id )
                 continue for
             end if
 
@@ -1009,10 +1015,23 @@ function LowerCallParts _
                 end select
             end if
         end if
-        argv.Push( cast( ulong, a.kind ) )
-        argv.Push( cast( ulong, a.id ) )
+        slotKind[i] = cast( ulong, a.kind )
+        slotId[i] = cast( ulong, a.id )
     next
 
+    self_ = ReceiverOf( c, calleeNode, callee )
+    if self_.kind <> cast( ubyte, MV_NONE ) then
+        argv.Push( cast( ulong, self_.kind ) )
+        argv.Push( cast( ulong, self_.id ) )
+    end if
+    if closureSelf.kind <> cast( ubyte, MV_NONE ) then
+        argv.Push( cast( ulong, closureSelf.kind ) )
+        argv.Push( cast( ulong, closureSelf.id ) )
+    end if
+    for i as long = 0 to slots - 1
+        argv.Push( slotKind[i] )
+        argv.Push( slotId[i] )
+    next
     dim as long first = c.m->argPool.Count \ 2
     dim as long n = argv.Count \ 2
     for i as long = 0 to argv.Count - 1

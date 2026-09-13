@@ -2,8 +2,10 @@
 '' shared argument pool was opened BEFORE its arguments were lowered, so 'F( G( 7 ), 9 )'
 '' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and dropped the 9 entirely. No
 '' decline, no diagnostic, wrong arguments.
+'' Arguments are evaluated RIGHT TO LEFT, as fbc does: the 9 is lowered before G( 7 ),
+'' and F still receives them in position order.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/nestedargs.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: %6 = call i32 G(%5)
-'' EXPECT-OUT: call void F(%6, %8)
+'' EXPECT-OUT: %8 = call i32 G(%7)
+'' EXPECT-OUT: call void F(%8, %5)

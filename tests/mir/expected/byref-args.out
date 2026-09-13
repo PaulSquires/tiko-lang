@@ -20,9 +20,9 @@ func i32 main(i32 $0, ptr $1) {
   local i32 $tmp14
   local i32 $tmp15
   local i32 $tmp16
-  local i32 $tmp17
+  local ptr $tmp17
   local i32 $tmp18
-  local ptr $tmp19
+  local i32 $tmp19
   local i32 $tmp20
   local i64 btns
   local f32 $tmp22
@@ -50,46 +50,46 @@ func i32 main(i32 $0, ptr $1) {
     %7 = call.rtl ptr memset(@b, 0, 4)
     %8 = alloca ptr r
     %9 = call.rtl ptr memset(@r, 0, 4)
-    %10 = const i64 0
-    %11 = trunc %10
-    %12 = alloca ptr $tmp4
-    store @$tmp4, %11
-    %13 = const i64 0
-    %14 = trunc %13
-    %15 = alloca ptr $tmp5
-    store @$tmp5, %14
-    %16 = const i64 0
-    %17 = trunc %16
-    %18 = alloca ptr $tmp6
-    store @$tmp6, %17
-    %19 = const i64 0
-    %20 = trunc %19
-    %21 = alloca ptr $tmp7
-    store @$tmp7, %20
-    %22 = const i64 0
-    %23 = trunc %22
-    %24 = alloca ptr $tmp8
-    store @$tmp8, %23
-    %25 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
-    call void fb_GfxScreenInfo32(@a, @$tmp4, @$tmp5, @$tmp6, @$tmp7, @$tmp8, %25)
-    %26 = const i64 0
-    %27 = trunc %26
-    %28 = alloca ptr $tmp9
-    store @$tmp9, %27
-    %29 = const i64 0
-    %30 = trunc %29
-    %31 = alloca ptr $tmp10
-    store @$tmp10, %30
-    %32 = const i64 0
-    %33 = trunc %32
-    %34 = alloca ptr $tmp11
-    store @$tmp11, %33
-    %35 = const i64 0
-    %36 = trunc %35
-    %37 = alloca ptr $tmp12
-    store @$tmp12, %36
-    %38 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
-    call void fb_GfxScreenInfo32(@a, @b, @$tmp9, @$tmp10, @$tmp11, @$tmp12, %38)
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %11 = const i64 0
+    %12 = trunc %11
+    %13 = alloca ptr $tmp4
+    store @$tmp4, %12
+    %14 = const i64 0
+    %15 = trunc %14
+    %16 = alloca ptr $tmp5
+    store @$tmp5, %15
+    %17 = const i64 0
+    %18 = trunc %17
+    %19 = alloca ptr $tmp6
+    store @$tmp6, %18
+    %20 = const i64 0
+    %21 = trunc %20
+    %22 = alloca ptr $tmp7
+    store @$tmp7, %21
+    %23 = const i64 0
+    %24 = trunc %23
+    %25 = alloca ptr $tmp8
+    store @$tmp8, %24
+    call void fb_GfxScreenInfo32(@a, @$tmp8, @$tmp7, @$tmp6, @$tmp5, @$tmp4, %10)
+    %26 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 0)
+    %27 = const i64 0
+    %28 = trunc %27
+    %29 = alloca ptr $tmp9
+    store @$tmp9, %28
+    %30 = const i64 0
+    %31 = trunc %30
+    %32 = alloca ptr $tmp10
+    store @$tmp10, %31
+    %33 = const i64 0
+    %34 = trunc %33
+    %35 = alloca ptr $tmp11
+    store @$tmp11, %34
+    %36 = const i64 0
+    %37 = trunc %36
+    %38 = alloca ptr $tmp12
+    store @$tmp12, %37
+    call void fb_GfxScreenInfo32(@a, @b, @$tmp12, @$tmp11, @$tmp10, @$tmp9, %26)
     %39 = const i64 0
     %40 = trunc %39
     %41 = alloca ptr $tmp13
@@ -102,83 +102,83 @@ func i32 main(i32 $0, ptr $1) {
     %46 = trunc %45
     %47 = alloca ptr $tmp15
     store @$tmp15, %46
-    %48 = call i32 fb_GetMouse(@a, @b, @$tmp13, @$tmp14, @$tmp15)
+    %48 = call i32 fb_GetMouse(@a, @b, @$tmp15, @$tmp14, @$tmp13)
     store @r, %48
     %49 = const i64 0
-    %50 = bitcast %49
-    %51 = const i64 0
-    %52 = trunc %51
-    %53 = alloca ptr $tmp16
-    store @$tmp16, %52
-    %54 = const i64 0
-    %55 = trunc %54
-    %56 = alloca ptr $tmp17
-    store @$tmp17, %55
-    %57 = const i64 0
-    %58 = trunc %57
-    %59 = alloca ptr $tmp18
-    store @$tmp18, %58
-    %60 = const i64 0
-    %61 = bitcast %60
-    %62 = alloca ptr $tmp19
-    store @$tmp19, %61
-    %63 = const i64 0
-    %64 = trunc %63
-    %65 = alloca ptr $tmp20
-    store @$tmp20, %64
-    %66 = call i32 fb_GfxImageInfo32(%50, @a, @$tmp16, @$tmp17, @$tmp18, @$tmp19, @$tmp20)
+    %50 = trunc %49
+    %51 = alloca ptr $tmp16
+    store @$tmp16, %50
+    %52 = const i64 0
+    %53 = bitcast %52
+    %54 = alloca ptr $tmp17
+    store @$tmp17, %53
+    %55 = const i64 0
+    %56 = trunc %55
+    %57 = alloca ptr $tmp18
+    store @$tmp18, %56
+    %58 = const i64 0
+    %59 = trunc %58
+    %60 = alloca ptr $tmp19
+    store @$tmp19, %59
+    %61 = const i64 0
+    %62 = trunc %61
+    %63 = alloca ptr $tmp20
+    store @$tmp20, %62
+    %64 = const i64 0
+    %65 = bitcast %64
+    %66 = call i32 fb_GfxImageInfo32(%65, @a, @$tmp20, @$tmp19, @$tmp18, @$tmp17, @$tmp16)
     store @r, %66
     %67 = alloca ptr btns
     %68 = call.rtl ptr memset(@btns, 0, 8)
     %69 = const i64 0
-    %70 = trunc %69
-    %71 = const i64 0
-    %72 = sitofp %71
-    %73 = alloca ptr $tmp22
-    store @$tmp22, %72
-    %74 = const i64 0
-    %75 = sitofp %74
-    %76 = alloca ptr $tmp23
-    store @$tmp23, %75
-    %77 = const i64 0
-    %78 = sitofp %77
-    %79 = alloca ptr $tmp24
-    store @$tmp24, %78
-    %80 = const i64 0
-    %81 = sitofp %80
-    %82 = alloca ptr $tmp25
-    store @$tmp25, %81
-    %83 = const i64 0
-    %84 = sitofp %83
-    %85 = alloca ptr $tmp26
-    store @$tmp26, %84
-    %86 = const i64 0
-    %87 = sitofp %86
-    %88 = alloca ptr $tmp27
-    store @$tmp27, %87
-    %89 = const i64 0
-    %90 = sitofp %89
-    %91 = alloca ptr $tmp28
-    store @$tmp28, %90
-    %92 = const i64 0
-    %93 = sitofp %92
-    %94 = alloca ptr $tmp29
-    store @$tmp29, %93
-    %95 = call i32 fb_GfxGetJoystick(%70, @btns, @$tmp22, @$tmp23, @$tmp24, @$tmp25, @$tmp26, @$tmp27, @$tmp28, @$tmp29)
+    %70 = sitofp %69
+    %71 = alloca ptr $tmp22
+    store @$tmp22, %70
+    %72 = const i64 0
+    %73 = sitofp %72
+    %74 = alloca ptr $tmp23
+    store @$tmp23, %73
+    %75 = const i64 0
+    %76 = sitofp %75
+    %77 = alloca ptr $tmp24
+    store @$tmp24, %76
+    %78 = const i64 0
+    %79 = sitofp %78
+    %80 = alloca ptr $tmp25
+    store @$tmp25, %79
+    %81 = const i64 0
+    %82 = sitofp %81
+    %83 = alloca ptr $tmp26
+    store @$tmp26, %82
+    %84 = const i64 0
+    %85 = sitofp %84
+    %86 = alloca ptr $tmp27
+    store @$tmp27, %85
+    %87 = const i64 0
+    %88 = sitofp %87
+    %89 = alloca ptr $tmp28
+    store @$tmp28, %88
+    %90 = const i64 0
+    %91 = sitofp %90
+    %92 = alloca ptr $tmp29
+    store @$tmp29, %91
+    %93 = const i64 0
+    %94 = trunc %93
+    %95 = call i32 fb_GfxGetJoystick(%94, @btns, @$tmp29, @$tmp28, @$tmp27, @$tmp26, @$tmp25, @$tmp24, @$tmp23, @$tmp22)
     store @r, %95
-    %96 = const i64 320
+    %96 = const i64 0
     %97 = trunc %96
-    %98 = const i64 200
+    %98 = const i64 0
     %99 = trunc %98
-    %100 = const i64 8
+    %100 = const i64 1
     %101 = trunc %100
-    %102 = const i64 1
+    %102 = const i64 8
     %103 = trunc %102
-    %104 = const i64 0
+    %104 = const i64 200
     %105 = trunc %104
-    %106 = const i64 0
+    %106 = const i64 320
     %107 = trunc %106
-    %108 = call i32 fb_GfxScreenRes(%97, %99, %101, %103, %105, %107)
+    %108 = call i32 fb_GfxScreenRes(%107, %105, %103, %101, %99, %97)
     store @r, %108
     %109 = const i64 5
     %110 = trunc %109

@@ -93,23 +93,23 @@ func i32 main(i32 $0, ptr $1) {
     %6 = trunc %5
     store @bias, %6
     %7 = alloca ptr got
-    %8 = const i64 3
-    %9 = trunc %8
-    %10 = alloca ptr $tmp3
-    %11 = field.addr @$tmp3, 0
-    %12 = load @bias
-    store %11, %12
-    %13 = call i32 _Z6ApplyRI24__TKO_CLOSURE_2E76842F_0EiRS0_(%9, @$tmp3)
+    %8 = alloca ptr $tmp3
+    %9 = field.addr @$tmp3, 0
+    %10 = load @bias
+    store %9, %10
+    %11 = const i64 3
+    %12 = trunc %11
+    %13 = call i32 _Z6ApplyRI24__TKO_CLOSURE_2E76842F_0EiRS0_(%12, @$tmp3)
     store @got, %13
     %14 = load @got
     call.rtl void fb_PrintInt(0, %14, 1)
     %15 = alloca ptr got2
-    %16 = const i64 3
-    %17 = trunc %16
-    %18 = func.addr ptr __TKO_LAMBDA_2E76842F_1
-    %19 = alloca ptr $tmp5
-    store @$tmp5, %18
-    %20 = call i32 _Z6ApplyRIPFiiEEiRS1_(%17, @$tmp5)
+    %16 = func.addr ptr __TKO_LAMBDA_2E76842F_1
+    %17 = alloca ptr $tmp5
+    store @$tmp5, %16
+    %18 = const i64 3
+    %19 = trunc %18
+    %20 = call i32 _Z6ApplyRIPFiiEEiRS1_(%19, @$tmp5)
     store @got2, %20
     %21 = load @got2
     call.rtl void fb_PrintInt(0, %21, 1)

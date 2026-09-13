@@ -18,14 +18,14 @@ func i32 PLAIN(i32 $0) {
     %8 = const i64 0
     %9 = trunc %8
     store @total, %9
-    %10 = load @x
-    %11 = alloca ptr $tmp4
-    %12 = field.addr @$tmp4, 0
-    store %12, @total
-    %13 = field.addr @$tmp4, 8
-    %14 = load @bias
-    store %13, %14
-    call void _Z8ForEach2Ii23__TKO_CLOSURE_11ED1ED_1EiRS0_(%10, @$tmp4)
+    %10 = alloca ptr $tmp4
+    %11 = field.addr @$tmp4, 0
+    store %11, @total
+    %12 = field.addr @$tmp4, 8
+    %13 = load @bias
+    store %12, %13
+    %14 = load @x
+    call void _Z8ForEach2Ii23__TKO_CLOSURE_11ED1ED_1EiRS0_(%14, @$tmp4)
     %15 = load @total
     ret %15
 }
@@ -123,14 +123,14 @@ func i32 _Z11WithCaptureIiEi(i32 $0) {
     %8 = const i64 0
     %9 = trunc %8
     store @total, %9
-    %10 = load @x
-    %11 = alloca ptr $tmp4
-    %12 = field.addr @$tmp4, 0
-    store %12, @total
-    %13 = field.addr @$tmp4, 8
-    %14 = load @bias
-    store %13, %14
-    call void _Z8ForEach2Ii23__TKO_CLOSURE_11ED1ED_2EiRS0_(%10, @$tmp4)
+    %10 = alloca ptr $tmp4
+    %11 = field.addr @$tmp4, 0
+    store %11, @total
+    %12 = field.addr @$tmp4, 8
+    %13 = load @bias
+    store %12, %13
+    %14 = load @x
+    call void _Z8ForEach2Ii23__TKO_CLOSURE_11ED1ED_2EiRS0_(%14, @$tmp4)
     %15 = load @total
     ret %15
 }

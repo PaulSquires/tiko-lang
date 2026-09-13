@@ -112,11 +112,11 @@ func i32 main(i32 $0, ptr $1) {
     %9 = load %8
     call.rtl void fb_PrintInt(0, %9, 1)
     %10 = alloca ptr d
-    %11 = const i64 7
+    %11 = const i64 2
     %12 = trunc %11
-    %13 = const i64 2
+    %13 = const i64 7
     %14 = trunc %13
-    %35 = call i64 DIVMOD(%12, %14)
+    %35 = call i64 DIVMOD(%14, %12)
     store @$abi5, %35
     %15 = load @$abi5
     store @d, %15
@@ -127,11 +127,11 @@ func i32 main(i32 $0, ptr $1) {
     %19 = load %18
     call.rtl void fb_PrintInt(0, %19, 1)
     %20 = alloca ptr n
-    %21 = const i64 7
+    %21 = const i64 2
     %22 = trunc %21
-    %23 = const i64 2
+    %23 = const i64 7
     %24 = trunc %23
-    %37 = call i64 DIVMODNAMED(%22, %24)
+    %37 = call i64 DIVMODNAMED(%24, %22)
     store @$abi6, %37
     %25 = load @$abi6
     store @n, %25
