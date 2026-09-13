@@ -231,6 +231,11 @@ function LinkExe _
     if (target.id <> TARGET_WIN64_MSVC) andalso t.stripSymbols then
         cmd += " -s"
     end if
+    '' '-g' ON THE MSVC TARGET: lld-link drops .debug_* unless told to keep them, and
+    '' the line tables are DWARF (llvmdebug.bi), not a PDB.
+    if (target.id = TARGET_WIN64_MSVC) andalso (t.stripSymbols = false) then
+        cmd += " -Xlinker -debug:dwarf"
+    end if
     for i as long = 0 to objs.Count - 1
         cmd += " " & Q( objs[i] )
     next

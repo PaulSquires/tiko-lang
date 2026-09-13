@@ -2,6 +2,7 @@
 
 #include once "codegen/llvmemit.bi"
 #include once "codegen/llvmtype.bi"
+#include once "codegen/llvmdebug.bi"
 
 namespace Tko.Codegen
 
@@ -46,6 +47,9 @@ type EmitCtx
     '' instructions and the message pointed at none of them.
     as string                curFn
     as string                curOp
+    '' '-g': the line tables, when asked for, and the line the next body line is on.
+    as DebugInfo ptr         dbg
+    as long                  dbgLine
 end type
 
 '' Forward, because EmitGlobal dispatches to it and FreeBASIC resolves a private
@@ -284,6 +288,12 @@ end function
 '' right the first time.
 
 private sub Line( byref e as EmitCtx, byref t as string )
+    '' EVERY body line carries a location under '-g', because the verifier refuses a
+    '' call without one in a function that has a subprogram.
+    if e.dbg <> 0 then
+        e.outp += "  " & t & DbgLocSuffix( *e.dbg, e.dbgLine ) & chr( 10 )
+        return
+    end if
     e.outp += "  " & t & chr( 10 )
 end sub
 
@@ -379,6 +389,7 @@ end function
 private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     dim as MirOp op = cast( MirOp, ins.op )
     e.curOp = OpName( op ) & " %" & str( ins.result )
+    if ins.dbgLine > 0 then e.dbgLine = ins.dbgLine
     dim as MirType rt = cast( MirType, ins.ty )
     dim as string res = TempName( ins.result )
     dim as string ty = LlvmType( rt )
@@ -958,8 +969,15 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         '' "expected '{' in function body", 71 modules deep.
         cmdt = " comdat"
     end if
+    '' The subprogram goes after the attributes and the comdat, LLVM's order.
+    dim as string dbgAttr = ""
+    if e.dbg <> 0 then
+        dbgAttr = " !dbg !" & str( DbgSubprogram( *e.dbg, e.names->Spelling( f->name ), _
+                                                  f->dbgFile, f->dbgLine ) )
+        e.dbgLine = f->dbgLine
+    end if
     e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
-              "(" & ParamList( e, f, true ) & ") nounwind" & cmdt & " {" & chr( 10 )
+              "(" & ParamList( e, f, true ) & ") nounwind" & cmdt & dbgAttr & " {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest
     '' temp the function can name.
@@ -981,6 +999,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     next
     e.outp += "}" & chr( 10 ) & chr( 10 )
     e.f = 0
+    if e.dbg <> 0 then e.dbg->curSp = -1
 end sub
 
 '' ---------------------------------------------------------------- globals
@@ -1329,13 +1348,19 @@ end function
 
 function EmitLlvm _
     ( byref m as MirModule, byref names as Tko.Interner, _
-      byref target as TargetDescription ) as EmitResult
+      byref target as TargetDescription, byval sm as Tko.SourceManager ptr, _
+      byval debugInfo as boolean, byval mainPath as string ) as EmitResult
 
     dim as EmitResult res
     dim as EmitCtx e
     e.m = @m
     e.names = @names
     e.tgt = @target
+    dim as DebugInfo dbg
+    if debugInfo then
+        DbgBegin( dbg, sm, mainPath )
+        e.dbg = @dbg
+    end if
 
     for gi as long = 0 to m.globals.Count - 1
         EmitGlobal( e, m.globals[gi] )
@@ -1463,6 +1488,7 @@ function EmitLlvm _
         "target triple = """ & target.triple & """" & chr( 10 ) & chr( 10 )
     res.ok = true
     res.text = hdr & IntrinsicDecls( e, e.outp ) & chr( 10 ) & e.outp
+    if e.dbg <> 0 then res.text += DbgFinish( dbg )
     return res
 end function
 

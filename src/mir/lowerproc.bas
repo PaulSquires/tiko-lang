@@ -197,6 +197,11 @@ sub LowerProc _
     dim as long savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym
     c.f = f
+    if c.srcMgr <> 0 then
+        dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( id ) )
+        f->dbgFile = cast( ulong, dbgAt.file ) + 1
+        f->dbgLine = dbgAt.physLine
+    end if
     c.curProcSym = sid
     c.st->functions += 1
 
@@ -1186,6 +1191,11 @@ sub LowerMainModule _
     dim as MirFunction ptr savedF = c.f
     dim as long savedB = c.curBlock
     c.f = f
+    if c.srcMgr <> 0 then
+        dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( root ) )
+        f->dbgFile = cast( ulong, dbgAt.file ) + 1
+        f->dbgLine = dbgAt.physLine
+    end if
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
 

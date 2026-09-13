@@ -79,6 +79,7 @@ src/mir/lowerterm.bas
 src/codegen/target.bas
 src/codegen/llvmtype.bas
 src/codegen/abi.bas
+src/codegen/llvmdebug.bas
 src/codegen/llvmemit.bas
 src/codegen/toolchain.bas
 src/driver/cmdline.bas

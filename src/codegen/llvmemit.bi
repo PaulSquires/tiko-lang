@@ -19,6 +19,7 @@
 #include once "tko.bi"
 #include once "mir/mir.bi"
 #include once "codegen/target.bi"
+#include once "source/manager.bi"
 
 namespace Tko.Codegen
 
@@ -30,9 +31,12 @@ namespace Tko.Codegen
         as string  ice
     end type
 
+    '' 'debugInfo' adds line tables (codegen/llvmdebug.bi); 'sm' names the files and
+    '' 'mainPath' is the module's own.
     declare function EmitLlvm _
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
-          byref target as TargetDescription ) as EmitResult
+          byref target as TargetDescription, byval sm as Tko.SourceManager ptr = 0, _
+          byval debugInfo as boolean = false, byval mainPath as string = "" ) as EmitResult
 
 end namespace
 

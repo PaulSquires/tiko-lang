@@ -200,6 +200,11 @@ type Ctx
     '' The statement being lowered, so a decline can name the SOURCE LINE it came
     '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
     as ulong                curStmtNode
+    '' The line Emit stamps on each instruction, decoded once per statement: the
+    '' statement and function it was decoded for, and the answer.
+    as ulong                dbgNode
+    as any ptr              dbgFn
+    as long                 dbgLine
     '' The sub-expression to BLAME for the next decline, when something narrower than
     '' the statement is known to be at fault. A statement written inside a MACRO reports
     '' the macro's own line, so 'CU_ASSERT( x )' attributed every failure in the corpus

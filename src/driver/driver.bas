@@ -897,7 +897,8 @@ function Run( byref args as Tko.StrVec ) as long
                     dim as Tko.Codegen.TargetDescription td = _
                         Tko.Codegen.TargetFor( ctx.options.target )
                     dim as Tko.Codegen.EmitResult er = _
-                        Tko.Codegen.EmitLlvm( mm, ctx.names, td )
+                        Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
+                                              ctx.options.debugInfo, ctx.sources.PathOf( id ) )
                     if er.ok then
                         '' AN OUTPUT PATH TURNS '--emit-ir' INTO A REAL BUILD: the IR
                         '' goes to a file beside it, clang makes the object, and the

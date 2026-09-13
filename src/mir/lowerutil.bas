@@ -60,6 +60,20 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
         ins.result = c.f->nextTemp
         c.f->nextTemp += 1
     end if
+    '' THE SOURCE LINE, for '-g'. Decoded once per statement, and only when the
+    '' statement is in the procedure's own file: a line from an included macro would
+    '' name a file the procedure's subprogram does not describe.
+    if (c.curStmtNode <> c.dbgNode) orelse (c.dbgFn <> c.f) then
+        c.dbgNode = c.curStmtNode
+        c.dbgFn = c.f
+        c.dbgLine = 0
+        if (c.curStmtNode <> 0) andalso (c.srcMgr <> 0) andalso (c.f->dbgFile > 0) then
+            dim as Tko.DecodedLoc dl = _
+                c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) )
+            if cast( ulong, dl.file ) + 1 = c.f->dbgFile then c.dbgLine = dl.physLine
+        end if
+    end if
+    ins.dbgLine = c.dbgLine
     c.f->blocks[c.curBlock].insts.Push( ins )
     c.st->insts += 1
     if makesValue then

@@ -281,6 +281,9 @@ namespace Tko.Mir
         as ulong    callee      '' M_CALL / M_CALL_RTL: index into functions/externs
         as longint  imm         '' M_CONST integer payload, M_ALLOCA slot index
         as double   fimm        '' M_CONST float payload
+        '' The SOURCE LINE of the statement it was lowered from, in the procedure's own
+        '' file, 0 when unknown -- what '-g' writes as a DILocation. Not dumped.
+        as long     dbgLine
     end type
 
     type MirInstVec as FB.Array( of MirInst )
@@ -332,6 +335,10 @@ namespace Tko.Mir
         '' SysV aggregate of nine to sixteen bytes comes back in two, and LLVM spells
         '' that '{ retTy, retTy2 }'. See codegen/abi.bas.
         as ubyte    retTy2
+        '' Where the procedure is, for '-g': its file as FileId + 1 (0 for none) and
+        '' the line it starts on. Instruction lines are only recorded in THAT file.
+        as ulong    dbgFile
+        as long     dbgLine
         as long     paramCount
         as MirLocalVec locals
         as MirBlockVec blocks
