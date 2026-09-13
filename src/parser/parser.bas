@@ -836,6 +836,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
     sp.a = Expression( p, Tko.PREC_POSTFIX )
+    MarkCallTarget_( p, sp.a )      '' an assigned or statement-called name is no paren-less read
 
     dim as Tko.TokenKind k = Peek( p )
     '' '=>' IS AN EXACT SYNONYM FOR '=' wherever an assignment is written -- measured,

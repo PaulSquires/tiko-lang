@@ -1,0 +1,10 @@
+'' A method named without parentheses over an overload set calls the one overload that
+'' needs no argument -- member, bare, static, as an argument -- while the parenthesised
+'' call is left to overload resolution. tiko's build prints what fbc-modern's prints.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/parenless-method-overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0738
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/parenless-method-overload.out

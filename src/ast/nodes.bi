@@ -197,6 +197,10 @@ namespace Tko
     '' N_NEW: 'new T[n] { any }', the array left uninitialised. Shares its bit with
     '' NF_HAS_COMMA, which is N_TUPLE's and N_PAREN's and can never appear on an N_NEW.
     const NF_NOINIT as ushort = &h0004
+    '' N_IDENT / N_MEMBER: the name is CALLED, addressed or taken by 'procptr' -- so it is
+    '' not a paren-less read, which picks its overload by arity (see ParenlessMethodOf_).
+    '' Same bit again: neither kind can carry NF_HAS_COMMA or NF_NOINIT.
+    const NF_CALL_TARGET as ushort = &h0004
 
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.

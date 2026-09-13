@@ -613,7 +613,7 @@ function TypeOf_ _
         end if
 
     case Tko.N_IDENT
-        dim as Tko.SymbolId sid = c.info->RefOf( id )
+        dim as Tko.SymbolId sid = ParenlessMethodOf_( c, c.info->RefOf( id ), id )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
         if s <> 0 then t = s->type_
 
@@ -930,7 +930,7 @@ function TypeOf_ _
                 '' member was a value of no type and the statement declined, while
                 '' 'NS.IsSupported( )' beside it lowered.
                 case Tko.SYM_PROC
-                    t = qs->type_
+                    t = c.syms->SymbolAt( ParenlessMethodOf_( c, qsid, id ) )->type_
                     exit select
                 end select
             end if
@@ -1023,7 +1023,7 @@ function TypeOf_ _
             '' A PROPERTY OVERLOAD SET'S HEAD MAY BE THE SETTER, and a setter has no
             '' result type -- so 'f.bar' READ came out untyped and the statement
             '' declined. See PropertyReadAccessor_.
-            if fs <> Tko.SYMBOL_NONE then fs = PropertyReadAccessor_( c, fs )
+            if fs <> Tko.SYMBOL_NONE then fs = ParenlessMethodOf_( c, PropertyReadAccessor_( c, fs ), id )
             if fs <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr f = c.syms->SymbolAt( fs )
                 if f <> 0 then

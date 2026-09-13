@@ -366,6 +366,12 @@ function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.No
     return Tko.NewNode( *p.ast, Tko.N_IDENT, t.loc, p.ast->idents.Count - 1 )
 end function
 
+'' NF_CALL_TARGET on a name that is called, addressed or assigned -- see nodes.bi.
+sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if n = Tko.NODE_NONE then return
+    dim as Tko.NodeKind k = p.ast->Kind( n )
+    if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->nodes[cast( long, n )].flags or= Tko.NF_CALL_TARGET
+end sub
 private function MakeUnary _
     ( byref p as Tko.ParserState, byval op as Tko.TokenKind, byval loc as Tko.SourceLoc, _
       byval operand as Tko.NodeId, byval kind as Tko.NodeKind = Tko.N_UNARY ) as Tko.NodeId
@@ -373,6 +379,7 @@ private function MakeUnary _
     dim as Tko.UnaryPayload up
     up.op = cast( ushort, op )
     up.operand = operand
+    if kind = Tko.N_ADDROF then MarkCallTarget_( p, operand )
     p.ast->unaries.Push( up )
     return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1 )
 end function
@@ -421,6 +428,15 @@ function MakeList _
         p.ast->children.Push( items[i] )
     next
     p.ast->lists.Push( lp )
+    '' A CALLED NAME, and 'procptr( name )': neither is a paren-less read -- NF_CALL_TARGET.
+    if kind = Tko.N_CALL then
+        MarkCallTarget_( p, target )
+        if (target <> Tko.NODE_NONE) andalso (items.Count > 0) then
+            if p.ast->Kind( target ) = Tko.N_IDENT then
+                if lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, target )].data )].name ) ) = "procptr" then MarkCallTarget_( p, cast( Tko.NodeId, items[0] ) )
+            end if
+        end if
+    end if
     return Tko.NewNode( *p.ast, kind, loc, p.ast->lists.Count - 1 )
 end function
 
