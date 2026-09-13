@@ -306,7 +306,6 @@ end function
 '' Nothing moved changed in the move.
 #include once "symbols/resolvesynth.bas"
 
-
 private sub WalkExpr _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -767,6 +766,7 @@ sub WalkStmt _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
     if id = Tko.NODE_NONE then return
+    c.syms->usePos = cast( ulong, id )    '' which side of an '#undef': see UndefSym
     dim as Tko.NodeKind k = c.ast->Kind( id )
     dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
 
@@ -1486,6 +1486,7 @@ sub Run _
 
     DiscoverInstantiations_( c, ast, root, diags, info )
     WalkStmt( c, root, Tko.SCOPE_GLOBAL )
+    syms.usePos = Tko.USEPOS_LATEST
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
     BackpatchTypedefs( c )

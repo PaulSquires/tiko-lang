@@ -543,7 +543,30 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         SkipToEol( e )
 
     case "undef"
-        PpUndef( e, at )
+        '' AN '#undef' OF A NAME THAT IS NOT A MACRO removes a DECLARED symbol -- a
+        '' procedure, a variable, a type, a namespace -- which the preprocessor cannot
+        '' see. Passed through for the parser the way '#assert' is, name only, and
+        '' applied by Collect in source order: see SymbolTable.UndefSym. Measured on
+        '' crt/string.bi's '#undef strstr' after shlwapi.bi's StrStr, where fbc calls
+        '' the CRT function and tiko kept both and called every use ambiguous.
+        dim as Token ut
+        dim as boolean passOn = false
+        if PeekOnLine( e, ut ) then
+            if Tk( ut ) = TK_IDENT then
+                dim as PpMacro ptr um = MacroFor( e, cast( InternId, ut.literal ) )
+                passOn = (um = 0)
+                if passOn = false then passOn = (um->isDefined = false)
+            end if
+        end if
+        if passOn then
+            EmitTok( e, hashTok )
+            EmitTok( e, w )
+            EmitTok( e, ut )
+            Advance( e )
+            SkipToEol( e )
+        else
+            PpUndef( e, at )
+        end if
 
     '' '#error' AND '#print' RUN TO THE END OF THE PHYSICAL LINE, ':' included. Measured:
     '' '#print a: b' prints 'a: b' and '#error a: b' reports 'a: b'. Stopping at the

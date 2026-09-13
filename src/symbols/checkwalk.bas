@@ -10,6 +10,7 @@ private sub WalkAll( byref c as Ctx )
     '' one linear pass types the whole tree without recursion into statements.
     for i as long = 1 to c.ast->Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        c.syms->usePos = cast( ulong, i )    '' which side of an '#undef': see UndefSym
         select case c.ast->Kind( n )
         case Tko.N_INT_LIT, Tko.N_FLOAT_LIT, Tko.N_STRING_LIT, Tko.N_STRCAT, _
              Tko.N_IDENT, Tko.N_PAREN, Tko.N_UNARY, Tko.N_BINARY, _
@@ -90,4 +91,5 @@ private sub WalkAll( byref c as Ctx )
             end if
         end select
     next
+    c.syms->usePos = Tko.USEPOS_LATEST
 end sub

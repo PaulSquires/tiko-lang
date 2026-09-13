@@ -1113,6 +1113,15 @@ private function ParseAggregateBody _
             if endsBody then exit do
         end if
 
+        '' AN '#undef' THE PREPROCESSOR PASSED THROUGH is not a member. What it removes
+        '' is not a member either, so it is skipped here rather than applied.
+        if Peek( p ) = Tko.TK_HASH then
+            while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
+                Advance( p )
+            wend
+            continue do
+        end if
+
         dim as long before = p.pos
         dim as Tko.TokenKind k = Peek( p )
 

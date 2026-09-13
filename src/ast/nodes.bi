@@ -97,6 +97,7 @@ namespace Tko
         NODE( N_ASM,          NCAT_STMT )   '' parsed only to reject (plan 01 s5.6)
         NODE( N_DELETE_STMT,  NCAT_STMT )   '' 'delete p' / 'delete[] p'
         NODE( N_ASSERT,       NCAT_STMT )   '' '#assert expr' -- compile-time, not PP
+        NODE( N_UNDEF,        NCAT_STMT )   '' '#undef name' of a DECLARED symbol
         NODE( N_ERROR_STMT,   NCAT_STMT )
 
         '' ---- declarations

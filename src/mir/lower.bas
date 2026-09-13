@@ -73,7 +73,21 @@ private sub DropMovedTemp_ _
     next
 end sub
 
+declare sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
+
+'' A STATEMENT LOOKS NAMES UP FROM WHERE IT IS WRITTEN. Lowering finds a declaration's
+'' own symbol by name, and after an '#undef' later in the same scope the newest
+'' generation is not that symbol: 'dim x as integer = 2' followed by '#undef x' stored
+'' nothing, and the local printed garbage. See SymbolTable.UndefSym. Restored, so a
+'' compound statement's own work after its body is judged from where it stands too.
 sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
+    dim as ulong savedPos = c.syms->usePos
+    c.syms->usePos = cast( ulong, id )
+    LowerStmtAt_( c, id )
+    c.syms->usePos = savedPos
+end sub
+
+sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
     if id = Tko.NODE_NONE then return
     '' A DEAD CURSOR STOPS EVERYTHING EXCEPT A LABEL, and the exception is the point: a
     '' label is precisely what makes the code after it reachable again. 'exit sub' and
@@ -1427,7 +1441,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
     case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
          Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM, _
-         Tko.N_USING, Tko.N_ASSERT
+         Tko.N_USING, Tko.N_ASSERT, Tko.N_UNDEF
         '' Declarations: handled by the module walk, not inside a body.
         ''
         '' N_EXTERN_BLOCK belongs here and was declining instead -- 1,238 of them, the

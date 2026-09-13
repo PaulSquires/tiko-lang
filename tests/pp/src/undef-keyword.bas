@@ -32,10 +32,10 @@
 ''   #undef NeverExisted
 ''       accepted, no diagnostic.
 ''
-'' NOT covered here, and NOT implemented: the other half of quirk/undef.bas, where
-'' '#undef f1' removes a PROCEDURE and '#undef N' a NAMESPACE. Those need the
-'' preprocessor to share the symbol table -- see HANDOFF, "The PREPROCESSOR CANNOT
-'' SEE DECLARED SYMBOLS".
+'' NOT covered here: the other half of quirk/undef.bas, where '#undef f1' removes a
+'' PROCEDURE and '#undef N' a NAMESPACE. The preprocessor passes those through and
+'' Collect applies them in source order -- see SymbolTable.UndefSym and
+'' tests/mir/src/undef-symbol.bas.
 
 #undef short
 type short as integer

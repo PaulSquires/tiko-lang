@@ -70,6 +70,8 @@ constructor SymbolTable( )
     g.count = 0
     this.scopes.Push( g )
 
+    this.usePos = USEPOS_LATEST
+    this.undefs = 0
     this.Rehash( SYMTAB_INITIAL_SLOTS )
 end constructor
 
@@ -122,8 +124,9 @@ sub SymbolTable.Rehash( byval newSlots as long )
     dim as long newMask = newSlots - 1
     for i as long = 1 to this.symbols.Count - 1
         dim as Symbol ptr s = @this.symbols[i]
-        '' Only the FIRST of an overload chain is indexed; the rest hang off it.
-        if s->flags and SYMF_OVERLOAD then continue for
+        '' Only the FIRST of an overload chain is indexed; the rest hang off it. And
+        '' only the NEWEST generation of a name: an older one hangs off that.
+        if (s->flags and (SYMF_OVERLOAD or SYMF_SUPERSEDED)) <> 0 then continue for
         dim as long slot = cast( long, ScopeNameHash( s->parent, s->name ) ) and newMask
         while fresh[slot] <> 0
             slot = (slot + 1) and newMask
@@ -159,7 +162,25 @@ function SymbolTable.LookupLocal _
 
     if scope_ = SCOPE_NONE then return SYMBOL_NONE
     dim as long slot = this.SlotFor( scope_, nm )
-    return cast( SymbolId, this.slots[slot] )
+    dim as SymbolId head = cast( SymbolId, this.slots[slot] )
+    if (this.undefs = 0) orelse (head = SYMBOL_NONE) then return head
+    return this.LiveGen( head )
+end function
+
+'' THE GENERATION OF A NAME VISIBLE FROM 'usePos' -- see UndefSym. Newest first: a
+'' symbol an '#undef' replaced hangs off its successor through 'olderGen', and each is
+'' visible from where it was born up to the '#undef' that removed it.
+function SymbolTable.LiveGen( byval id as SymbolId ) as SymbolId
+    dim as long guard = 0
+    while (id <> SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Symbol ptr s = @this.symbols[cast( long, id )]
+        dim as boolean born = (s->bornAt <= this.usePos)
+        dim as boolean alive = (s->diedAt = 0) orelse (this.usePos < s->diedAt)
+        if born andalso alive then return id
+        id = s->olderGen
+    wend
+    return SYMBOL_NONE
 end function
 
 '' A name inside a NAMESPACE, following that namespace's OWN usings.
@@ -264,8 +285,10 @@ function SymbolTable.LookupLocalTyped _
     if head = SYMBOL_NONE then return SYMBOL_NONE
     dim as Symbol ptr h = @this.symbols[cast( long, head )]
     if IsTypeNameKind( cast( SymbolKind, h->kind ) ) = wantType then return head
-    if h->altClass = SYMBOL_NONE then return head
-    return h->altClass
+    dim as SymbolId alt = h->altClass
+    if (alt <> SYMBOL_NONE) andalso (this.undefs > 0) then alt = this.LiveGen( alt )
+    if alt = SYMBOL_NONE then return head
+    return alt
 end function
 
 function SymbolTable.LookupTyped _
@@ -342,6 +365,80 @@ sub SymbolTable.AddUsing _
     this.usingInner.Push( cast( ulong, nsScope ) )
 end sub
 
+'' '#undef name' OF A DECLARED SYMBOL. fbc keeps macros and symbols in one table and
+'' '#undef' deletes the first entry its lookup finds. Measured on fbc-modern:
+''
+''     declare foo alias "fooA"( integer ) : #undef foo : declare foo alias "fooB"( string )
+''         a call after the '#undef' calls fooB; one written BEFORE it still calls fooA
+''     an OVERLOADED foo: one '#undef' removes the FIRST overload, a second the next
+''     a local x over a global x: '#undef x' in the sub, and 'print x' prints the global
+''     '#undef g' inside a sub removes the MODULE-LEVEL g for the rest of the file
+''     a TYPE and a VARIABLE of one name: the one declared LATER goes first
+''
+'' Nothing is deleted. Uses are bound after Collect, so the symbol stays and is dead from
+'' 'at' on: a lookup made from before 'at' still finds it, and a later declaration of the
+'' name starts a new generation in DeclareSym. crt/string.bi's '#undef strstr' over
+'' shlwapi's StrStr is the real-world case -- two overloads, and every call ambiguous.
+sub SymbolTable.UndefSym _
+    ( byval scope_ as ScopeId, byval nm as InternId, byval at as ulong )
+
+    if nm = INTERN_NONE then return
+    dim as ulong savePos = this.usePos
+    this.usePos = USEPOS_LATEST
+    dim as ScopeId sc = scope_
+    dim as SymbolId head = SYMBOL_NONE
+    dim as long guard = 0
+    while (sc <> SCOPE_NONE) andalso (guard < 1024)
+        guard += 1
+        head = this.LookupLocal( sc, nm )
+        if head <> SYMBOL_NONE then exit while
+        dim as SymScope ptr s_ = this.ScopeAt( sc )
+        if s_ = 0 then exit while
+        sc = s_->parent
+    wend
+    dim as SymbolId alt = SYMBOL_NONE
+    if head <> SYMBOL_NONE then
+        alt = this.symbols[cast( long, head )].altClass
+        if alt <> SYMBOL_NONE then alt = this.LiveGen( alt )
+    end if
+    this.usePos = savePos
+    if head = SYMBOL_NONE then return
+    this.undefs += 1
+
+    if alt > head then
+        this.symbols[cast( long, alt )].diedAt = at
+        return
+    end if
+
+    '' THE HEAD. Its next live overload of the same class becomes the head from 'at' on
+    '' -- or its partner of the other class, if it has none. The chain itself is left
+    '' alone, so a use before 'at' still sees every overload.
+    dim as Symbol ptr h = @this.symbols[cast( long, head )]
+    h->diedAt = at
+    dim as boolean headIsType = IsTypeNameKind( cast( SymbolKind, h->kind ) )
+    dim as SymbolId nx = h->nextOverload
+    guard = 0
+    while (nx <> SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Symbol ptr o = @this.symbols[cast( long, nx )]
+        dim as boolean sameClass = (IsTypeNameKind( cast( SymbolKind, o->kind ) ) = headIsType)
+        if sameClass andalso (o->diedAt = 0) then exit while
+        nx = o->nextOverload
+    wend
+    if nx = SYMBOL_NONE then nx = alt
+    if nx = SYMBOL_NONE then return
+    dim as Symbol ptr ns = @this.symbols[cast( long, nx )]
+    ns->flags and= not cast( ulong, SYMF_OVERLOAD )
+    ns->olderGen = head
+    ns->bornAt = at
+    if nx <> alt then
+        ns->altClass = alt
+        if alt <> SYMBOL_NONE then this.symbols[cast( long, alt )].altClass = nx
+    end if
+    h->flags or= SYMF_SUPERSEDED
+    this.slots[this.SlotFor( sc, nm )] = cast( ulong, nx )
+end sub
+
 '' -------------------------------------------------------------- construction
 
 function SymbolTable.OpenScope _
@@ -368,6 +465,32 @@ function SymbolTable.DeclareSym _
 
     dim as long slot = this.SlotFor( scope_, nm )
     dim as SymbolId existing = cast( SymbolId, this.slots[slot] )
+
+    '' AFTER AN '#undef' -- see UndefSym. Judged at the END of what has been collected,
+    '' never from a use position: a declaration is always the newest thing so far.
+    dim as SymbolId genOlder = SYMBOL_NONE     '' the dead slot head this one replaces
+    dim as SymbolId altOlder = SYMBOL_NONE     '' the dead partner this one may replace
+    dim as ulong genBorn = 0
+    if (existing <> SYMBOL_NONE) andalso (this.undefs > 0) then
+        dim as ulong savePos = this.usePos
+        this.usePos = USEPOS_LATEST
+        dim as Symbol ptr g = @this.symbols[cast( long, existing )]
+        if this.LiveGen( existing ) = SYMBOL_NONE then
+            genOlder = existing
+            genBorn = g->diedAt
+            if g->altClass <> SYMBOL_NONE then
+                dim as ulong ad = this.symbols[cast( long, g->altClass )].diedAt
+                if ad > genBorn then genBorn = ad
+            end if
+            existing = SYMBOL_NONE
+        elseif g->altClass <> SYMBOL_NONE then
+            if this.LiveGen( g->altClass ) = SYMBOL_NONE then
+                altOlder = g->altClass
+                genBorn = this.symbols[cast( long, altOlder )].diedAt
+            end if
+        end if
+        this.usePos = savePos
+    end if
 
     dim as SymbolId chainTo = SYMBOL_NONE
     if existing <> SYMBOL_NONE then
@@ -399,7 +522,7 @@ function SymbolTable.DeclareSym _
                                     (k <> SYM_ENUMCONST)
         if enumYields then
             existing = SYMBOL_NONE
-        elseif split andalso (e->altClass = SYMBOL_NONE) then
+        elseif split andalso ((e->altClass = SYMBOL_NONE) orelse (altOlder <> SYMBOL_NONE)) then
             chainTo = existing
         elseif bothProcs = false then
             duplicate = true
@@ -428,7 +551,14 @@ function SymbolTable.DeclareSym _
         this.symbols[cast( long, chainTo )].altClass = id
     end if
 
-    if existing <> SYMBOL_NONE then
+    if (chainTo <> SYMBOL_NONE) andalso (altOlder <> SYMBOL_NONE) then
+        '' A NEW PARTNER FOR A LIVE HEAD whose old one was '#undef'ed. NOT chained onto
+        '' the head's overload list, which still holds the old partner: seen from a use
+        '' before the '#undef', this one would look like another overload of it.
+        this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
+        this.symbols[cast( long, id )].olderGen = altOlder
+        this.symbols[cast( long, id )].bornAt = genBorn
+    elseif existing <> SYMBOL_NONE then
         '' Chain onto the end of the overload list; the head stays indexed.
         this.symbols[cast( long, id )].flags or= SYMF_OVERLOAD
         dim as SymbolId cur = existing
@@ -439,6 +569,13 @@ function SymbolTable.DeclareSym _
             if guard > 4096 then exit while
         wend
         this.symbols[cast( long, cur )].nextOverload = id
+    elseif genOlder <> SYMBOL_NONE then
+        '' A NEW GENERATION: every earlier symbol of this name here was '#undef'ed. It
+        '' takes the slot, and the old head stays reachable through it.
+        this.symbols[cast( long, genOlder )].flags or= SYMF_SUPERSEDED
+        this.symbols[cast( long, id )].olderGen = genOlder
+        this.symbols[cast( long, id )].bornAt = genBorn
+        this.slots[slot] = cast( ulong, id )
     else
         this.slots[slot] = cast( ulong, id )
         this.occupied += 1

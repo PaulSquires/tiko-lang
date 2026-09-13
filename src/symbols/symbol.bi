@@ -29,6 +29,7 @@ namespace Tko
     const SYMBOL_NONE as SymbolId = 0
     const SCOPE_NONE  as ScopeId  = 0
     const SCOPE_GLOBAL as ScopeId = 1
+    const USEPOS_LATEST as ulong = &hFFFFFFFF
 
     '' SYM( name, spelling )
     #macro TKO_SYMKIND_LIST( SYM )
@@ -145,6 +146,10 @@ namespace Tko
     '' duplicate symbols on the first attempt to compile tiko-lang with tiko-lang.
     '' The definition needs weak, foldable linkage, which is what COMDAT is for.
     const SYMF_GENERIC_INST   as ulong = &h00080000
+    '' AN EARLIER GENERATION OF A NAME, no longer the one the slot table indexes. See
+    '' SymbolTable.UndefSym: the symbol stays, because a use written BEFORE the '#undef'
+    '' still binds to it, and Rehash must not index it again over its successor.
+    const SYMF_SUPERSEDED     as ulong = &h00100000
 
     type Symbol
         as ubyte     kind
@@ -202,6 +207,14 @@ namespace Tko
         '' 'extern "C"' block is 'MyThing', case preserved and no suffix.
         as InternId  linkName
         as ubyte     callConv
+        '' '#undef' GENERATIONS -- see SymbolTable.UndefSym. Positions are NODE IDS: the
+        '' arena is built in source order, so a use lies on one side of an '#undef' or
+        '' the other. 'bornAt' is where this symbol becomes visible (0, from the start),
+        '' 'diedAt' the '#undef' that removed it (0, never), and 'olderGen' the symbol of
+        '' the same name that it replaced as the head of its slot or its class.
+        as ulong     bornAt
+        as ulong     diedAt
+        as SymbolId  olderGen
     end type
 
     '' Declaration order is a per-scope LINKED LIST, not a range: an inner scope can
@@ -227,6 +240,13 @@ namespace Tko
         as long       mask
         as long       occupied
         as Interner ptr names
+
+        '' THE NODE A LOOKUP IS MADE FROM, and how many '#undef's have removed a declared
+        '' symbol. Positions are only consulted once 'undefs' is non-zero, so a program
+        '' without one pays nothing. The Resolve and Check walks set 'usePos';
+        '' USEPOS_LATEST means after everything -- the newest generation of every name.
+        as ulong      usePos
+        as long       undefs
 
         '' 'using ns' -- the namespaces IMPORTED into a scope, as parallel arrays of
         '' (the scope the USING was written in, the namespace's own scope). A list
@@ -295,12 +315,18 @@ namespace Tko
         '' twice does not grow the list.
         declare sub AddUsing( byval scope_ as ScopeId, byval nsScope as ScopeId )
 
+        '' '#undef name' of a DECLARED symbol, written at node 'at'. Removes the first
+        '' symbol a lookup from 'scope_' finds, from 'at' on. See symbol.bas.
+        declare sub UndefSym _
+            ( byval scope_ as ScopeId, byval nm as InternId, byval at as ulong )
+
         declare function SymbolAt( byval id as SymbolId ) as Symbol ptr
         declare function ScopeAt( byval id as ScopeId ) as SymScope ptr
         declare function Count( ) as long
         declare function ScopeCount( ) as long
 
         private:
+        declare function LiveGen( byval id as SymbolId ) as SymbolId
         declare sub Rehash( byval newSlots as long )
         declare function SlotFor _
             ( byval scope_ as ScopeId, byval nm as InternId ) as long

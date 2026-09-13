@@ -1,0 +1,10 @@
+'' '#undef' of a DECLARED symbol -- a function, one overload, a local over a global, the
+'' later of a type and a variable, a namespace -- applied in source order. The runtime
+'' output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/undef-symbol.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: f1b
+'' GOLDEN: expected/undef-symbol.out

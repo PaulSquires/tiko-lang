@@ -1132,18 +1132,24 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     case Tko.TK_HASH
         '' '#assert' is passed through by the preprocessor because its expression is a
         '' COMPILE-TIME one that can name types ('#assert typeof( a ) = typeof( b )'),
-        '' so it belongs to the parser, not the PP. See probe P2.
+        '' so it belongs to the parser, not the PP. See probe P2. So is an '#undef' of a
+        '' name that is not a macro: it removes a DECLARED symbol -- see UndefSym.
         dim as long save = p.pos
         Advance( p )
-        dim as boolean isAssert = false
+        dim as string hw = ""
         if Peek( p ) = Tko.TK_IDENT then
-            isAssert = (p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) = "assert")
+            hw = p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) )
         end if
-        if isAssert then
+        dim as Tko.StmtPayload sp
+        if hw = "assert" then
             Advance( p )
-            dim as Tko.StmtPayload sp
             sp.a = Expression( p )
             n = MakeStmt( p, Tko.N_ASSERT, t.loc, sp )
+        elseif (hw = "undef") andalso NextTokIs_( p, Tko.TK_IDENT ) then
+            Advance( p )
+            sp.name = cast( Tko.InternId, Cur( p ).literal )
+            Advance( p )
+            n = MakeStmt( p, Tko.N_UNDEF, t.loc, sp )
         else
             p.pos = save
             n = ErrorNode( p, Tko.TKO0408 )

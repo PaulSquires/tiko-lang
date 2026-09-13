@@ -1064,6 +1064,10 @@ sub WalkNode _
         end if
         Declare_( w, scope_, sp->name, Tko.SYM_PARAMETER, w.ast->Loc( id ) )
 
+    case Tko.N_UNDEF
+        '' IN SOURCE ORDER, which this walk is: declarations before it are removable.
+        w.syms->UndefSym( scope_, StmtOf( w, id )->name, cast( ulong, id ) )
+
     case Tko.N_NAMESPACE
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
 
