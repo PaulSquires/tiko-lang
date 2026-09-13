@@ -9,7 +9,7 @@ end operator
 
 dim as string s = "hello", p = "l"
 dim as wstring * 20 w, q
-dim as UW uw, uq
+dim as UW wu, uq
 dim as integer a
 
 w = wstr( "hello" ) : q = wstr( "l" )
@@ -31,8 +31,8 @@ a = instr( w, q )
 a = instr( 2, w, q )
 a = instrrev( w, q, 3 )
 a = instrrev( w, any q )
-a = instr( uw, q )
+a = instr( wu, q )
 a = instr( w, uq )
-a = instr( uw, uq )
-a = instrrev( uw, uq, 2 )
+a = instr( wu, uq )
+a = instrrev( wu, uq, 2 )
 print a

@@ -1,6 +1,6 @@
 global var agg direct_ size 8
 global var agg inherited_ size 8
-global var agg partial_ size 8
+global var agg partly_ size 8
 global var ptr p
 global var agg done_ size 8
 extern ptrs __fb_ZTS6Object [ ]
@@ -57,7 +57,7 @@ func void _GLOBAL__I() {
   entry0:
     call void _ZN1AC1Ev(@@direct_)
     call void _ZN9INHERITS_C1Ev(@@inherited_)
-    call void _ZN8PARTIAL_C1Ev(@@partial_)
+    call void _ZN8PARTIAL_C1Ev(@@partly_)
     call void _ZN8COMPLETEC1Ev(@@done_)
     ret
 }
@@ -113,9 +113,9 @@ tests/diagnostics/src/abstract-instance.bas(42,25): error TKO0620: 'inherited_' 
      |
   42 | dim shared as Inherits_ inherited_
      |                         ^
-tests/diagnostics/src/abstract-instance.bas(43,25): error TKO0620: 'partial_' has an abstract type, which cannot be instantiated
+tests/diagnostics/src/abstract-instance.bas(43,25): error TKO0620: 'partly_' has an abstract type, which cannot be instantiated
      |
-  43 | dim shared as Partial_  partial_
+  43 | dim shared as Partial_  partly_
      |                         ^
 tests/diagnostics/src/abstract-instance.bas(46,5): error TKO0620: 'x' has an abstract type, which cannot be instantiated
      |

@@ -34,10 +34,10 @@ private constructor C( )
 end constructor
 
 private function Mk( byval idx as ubyte ) as C
-    dim as C c
-    c.kind = A1
-    c.r = idx and 15
-    return c
+    dim as C cv
+    cv.kind = A1
+    cv.r = idx and 15
+    return cv
 end function
 
 '' The call below must come out 'call agg', not 'call void'.

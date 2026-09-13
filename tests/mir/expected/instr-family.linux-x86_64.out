@@ -23,7 +23,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg p size 24
   local agg w size 80
   local agg q size 80
-  local agg uw size 200
+  local agg wu size 200
   local agg uq size 200
   local i64 a
   entry0:
@@ -40,8 +40,8 @@ func i32 main(i32 $0, ptr $1) {
     %9 = call.rtl ptr memset(@w, 0, 80)
     %10 = alloca ptr q
     %11 = call.rtl ptr memset(@q, 0, 80)
-    %12 = alloca ptr uw
-    %13 = call.rtl ptr memset(@uw, 0, 200)
+    %12 = alloca ptr wu
+    %13 = call.rtl ptr memset(@wu, 0, 200)
     %14 = alloca ptr uq
     %15 = call.rtl ptr memset(@uq, 0, 200)
     %16 = alloca ptr a
@@ -78,19 +78,19 @@ func i32 main(i32 $0, ptr $1) {
     store @a, %36
     %37 = call.rtl i64 fb_WstrInstrRevAny(@w, @q, -1)
     store @a, %37
-    %38 = call ptr _ZN2UWcvwEv(@uw)
+    %38 = call ptr _ZN2UWcvwEv(@wu)
     %39 = call.rtl i64 fb_WstrInstr(1, %38, @q)
     store @a, %39
     %40 = call ptr _ZN2UWcvwEv(@uq)
     %41 = call.rtl i64 fb_WstrInstr(1, @w, %40)
     store @a, %41
     %42 = call ptr _ZN2UWcvwEv(@uq)
-    %43 = call ptr _ZN2UWcvwEv(@uw)
+    %43 = call ptr _ZN2UWcvwEv(@wu)
     %44 = call.rtl i64 fb_WstrInstr(1, %43, %42)
     store @a, %44
     %45 = const i64 2
     %46 = call ptr _ZN2UWcvwEv(@uq)
-    %47 = call ptr _ZN2UWcvwEv(@uw)
+    %47 = call ptr _ZN2UWcvwEv(@wu)
     %48 = call.rtl i64 fb_WstrInstrRev(%47, %46, %45)
     store @a, %48
     %49 = load @a

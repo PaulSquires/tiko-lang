@@ -25,15 +25,15 @@ operator W.cast( ) byref as wstring
 end operator
 
 sub G( )
-    dim u as U
-    dim w as W
+    dim uu as U
+    dim ww as W
     dim as string s
     dim as long t = 5
 
     '' PRINT and STR of one: the conversion is what makes it a string at all.
-    print u
-    print str( u )
-    print w
+    print uu
+    print str( uu )
+    print ww
 
     '' 'dim u as U = s' IS A CONVERTING CONSTRUCTOR. Only the explicit 'U( s )'
     '' spelling was handled, so this fell through to the DEFAULT constructor and the
@@ -44,13 +44,13 @@ sub G( )
 
     '' A UDT whose cast yields a WSTRING is a WIDE term, and asking that has to cost a
     '' walk rather than an emission -- the concatenation path decides before it emits.
-    print w & ", " & wstr( "x" )
-    print wstr( w )
+    print ww & ", " & wstr( "x" )
+    print wstr( ww )
 
     '' A NARROW RVALUE ASSIGNED TO A WIDE VARIABLE: 'mid( s, 1 )' has no address, and
     '' every branch of the wide assignment asked for one.
     dim rv as wstring * 50 = mid( s, 1 )
-    dim ru as wstring * 50 = mid( u, 1 )
+    dim ru as wstring * 50 = mid( uu, 1 )
 
     '' A MIXED COMPARISON converts the narrow side -- fb_StrToWstr into a temporary,
     '' then fb_WstrCompare, and the temporary deleted afterwards.

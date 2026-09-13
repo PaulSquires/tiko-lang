@@ -1,11 +1,12 @@
-'' A PROPERTY ACCESS -- 't.V' with no parentheses, and 't.V = x'.
+'' A PROPERTY ACCESS -- 'tv.V' with no parentheses, and 'tv.V = x'. The variable is not
+'' called 't': a type with members does not share its name with a value (fbc error 4).
 ''
 '' BOTH ARE CALLS. fbc emits '_ZN1T8V__get__Ev( &T )' and '_ZN1T8V__set__Ei( &T, 5 )',
 '' and the mangler here already knew both suffixes -- it was LOWERING that had no case.
 '' A bare property read declined, and a property WRITE went to the ordinary store path,
 '' which looked for a field of that name, found a procedure and declined too.
 ''
-'' 't.V( )' WITH parentheses already worked, because that is an ordinary call. The whole
+'' 'tv.V( )' WITH parentheses already worked, because that is an ordinary call. The whole
 '' gap was the spelling without them -- which is the one properties are actually used in.
 '' 'd1.Year', 'd1.Month' and 'd1.Day' appear on one line of the chrono header, and the
 '' finance headers are built on it.
@@ -26,8 +27,8 @@ property T.V( byval n as long )
     this.v_ = n
 end property
 sub P( )
-    dim as T t
-    dim as long n = t.V
-    t.V = 5
-    n = t.V( )
+    dim as T tv
+    dim as long n = tv.V
+    tv.V = 5
+    n = tv.V( )
 end sub

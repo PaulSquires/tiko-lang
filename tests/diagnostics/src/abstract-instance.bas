@@ -40,7 +40,7 @@ end sub
 '' -- refused ------------------------------------------------------------------
 dim shared as A         direct_
 dim shared as Inherits_ inherited_
-dim shared as Partial_  partial_
+dim shared as Partial_  partly_
 
 type HoldsOne
     x as A

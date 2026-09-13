@@ -62,8 +62,8 @@ func ptr _ZN1WcvwEv(ptr $0) {
     ret %6
 }
 func void G() {
-  local agg u size 32
-  local agg w size 128
+  local agg uu size 32
+  local agg ww size 128
   local agg s size 24
   local i32 t
   local agg u1 size 32
@@ -78,10 +78,10 @@ func void G() {
   local i8 r
   local ptr $tmp14
   entry0:
-    %1 = alloca ptr u
-    call void _ZN1UC1Ev(@u)
-    %2 = alloca ptr w
-    %3 = call.rtl ptr memset(@w, 0, 128)
+    %1 = alloca ptr uu
+    call void _ZN1UC1Ev(@uu)
+    %2 = alloca ptr ww
+    %3 = call.rtl ptr memset(@ww, 0, 128)
     %4 = alloca ptr s
     %5 = call.rtl ptr memset(@s, 0, 24)
     %6 = field.addr @s, 0
@@ -94,13 +94,13 @@ func void G() {
     %10 = const i64 5
     %11 = trunc %10
     store @t, %11
-    %12 = call ptr _ZN1UcvcEv(@u)
+    %12 = call ptr _ZN1UcvcEv(@uu)
     %13 = call.rtl ptr fb_StrAllocTempDescZ(%12)
     call.rtl void fb_PrintString(0, %13, 1)
-    %14 = call ptr _ZN1UcvcEv(@u)
+    %14 = call ptr _ZN1UcvcEv(@uu)
     %15 = call.rtl ptr fb_StrAllocTempDescZ(%14)
     call.rtl void fb_PrintString(0, %15, 1)
-    %16 = call ptr _ZN1WcvwEv(@w)
+    %16 = call ptr _ZN1WcvwEv(@ww)
     call.rtl void fb_PrintWstr(0, %16, 1)
     %17 = alloca ptr u1
     %18 = load @s
@@ -121,7 +121,7 @@ func void G() {
     call.rtl void fb_StrDelete(@$tmp6)
     %28 = alloca ptr u3
     call void _ZN1UC1EPKc(@u3, @@$str0)
-    %29 = call ptr _ZN1WcvwEv(@w)
+    %29 = call ptr _ZN1WcvwEv(@ww)
     %30 = call.rtl ptr fb_WstrConcatWA(%29, @@$str1, 3)
     %31 = alloca ptr $tmp8
     store @$tmp8, %30
@@ -135,7 +135,7 @@ func void G() {
     call.rtl void fb_WstrDelete(%36)
     %37 = load @$tmp8
     call.rtl void fb_WstrDelete(%37)
-    %38 = call ptr _ZN1WcvwEv(@w)
+    %38 = call ptr _ZN1WcvwEv(@ww)
     call.rtl void fb_PrintWstr(0, %38, 1)
     %39 = alloca ptr rv
     %40 = const i64 1
@@ -143,7 +143,7 @@ func void G() {
     %42 = call.rtl ptr fb_WstrAssignFromA(@rv, 50, %41, -1)
     %43 = alloca ptr ru
     %44 = const i64 1
-    %45 = call ptr _ZN1UcvcEv(@u)
+    %45 = call ptr _ZN1UcvcEv(@uu)
     %46 = call.rtl ptr fb_StrAllocTempDescZ(%45)
     %47 = call.rtl ptr fb_StrMid(%46, %44, -1)
     %48 = call.rtl ptr fb_WstrAssignFromA(@ru, 50, %47, -1)

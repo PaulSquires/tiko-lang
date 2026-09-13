@@ -23,27 +23,27 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 _ZN1N2MKEh(i8 $0) {
   local agg $tmp0 size 4
   local i8 idx
-  local agg c size 4
+  local agg cv size 4
   local agg $abi3 size 8
   entry0:
     %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = alloca ptr idx
     store @idx, $0
-    %3 = alloca ptr c
-    call void _ZN1N1CC1Ev(@c)
-    %4 = field.addr @c, 0
+    %3 = alloca ptr cv
+    call void _ZN1N1CC1Ev(@cv)
+    %4 = field.addr @cv, 0
     %5 = const i64 1
     %6 = trunc %5
     store %4, %6
-    %7 = field.addr @c, 1
+    %7 = field.addr @cv, 1
     %8 = load @idx
     %9 = const i64 15
     %10 = zext %8
     %11 = and %10, %9
     %12 = trunc %11
     store %7, %12
-    %13 = load @c
+    %13 = load @cv
     store @$tmp0, %13
     %14 = load @$tmp0
     store @$abi3, %14

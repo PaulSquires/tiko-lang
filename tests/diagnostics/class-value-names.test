@@ -1,0 +1,30 @@
+'' A value may not take the name of a TYPE WITH MEMBERS -- a method, constructor, operator,
+'' property, const member, nested enum, static member or base. A plain-data type still may
+'' (tests/mir/type-value-names.test). Ten refusals and ten acceptances in one source, and
+'' the golden refuses the same ten lines fbc does.
+''
+'' MEASURED, fbc-modern 1.20.0 win64, 'fbc64 -maxerr 100 -c' on the source -- the whole
+'' output, source echo and caret lines aside:
+''
+''   tests\diagnostics\src\class-value-names.bas(17) error 4: Duplicated definition, c1 in 'dim as WS c1                                '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(23) error 4: Duplicated definition, c2 in 'const c2 = 2                                '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(28) error 4: Duplicated definition, c3 in 'var c3 = 3                                  '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(36) error 4: Duplicated definition, c4 in 'redim as integer c4( 2 )                    '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(42) error 4: Duplicated definition, c5 in 'dim shared as integer c5                    '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(50) error 4: Duplicated definition, c6 in 'dim as integer c6                   '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(58) error 4: Duplicated definition, at parameter 1 (c7) of S7() in 'sub s7( byval c7 as integer )               '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(65) error 120: Expected period ('.'), found ''' in 'dim as integer c8                           '' REFUSED -- fbc's error 120'
+''   tests\diagnostics\src\class-value-names.bas(73) error 4: Duplicated definition, c9 in 'for c9 as integer = 1 to 2                  '' REFUSED'
+''   tests\diagnostics\src\class-value-names.bas(82) error 4: Duplicated definition, c10 in 'dim as integer c10                  '' REFUSED'
+''
+'' Line 65 is fbc's error 120 rather than 4 because that type's only member is a STATIC
+'' variable; both are refusals, and tiko gives both TKO0777. The follow-on errors fbc adds
+'' at a later USE of the name (8, 42, 209) are not asked: the source makes no such use.
+''
+'' NOT COVERED, and still accepted by tiko: 'sub c( )' or 'declare sub c( )' after such a
+'' type, which fbc refuses with error 120.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/class-value-names.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 10
+'' GOLDEN: expected/class-value-names.out

@@ -445,6 +445,9 @@
     '' fbc's errors 9 and 94, over an array declaration.
     DIAG( TKO0765, SEV_ERROR,   "'%0' mixes 'any' with written bounds; use one or the other" )
     DIAG( TKO0766, SEV_ERROR,   "a type's array field is declared with 'dim', not 'redim'" )
+    '' fbc's error 4 (120 for a type with a static member): a value named like a TYPE
+    '' WITH MEMBERS OR A BASE. A plain-data type may share its name -- see collectdecl.bas.
+    DIAG( TKO0777, SEV_ERROR,   "'%0' is already the name of a type with members, which no value may share" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
