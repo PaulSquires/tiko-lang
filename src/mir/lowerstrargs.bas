@@ -305,32 +305,107 @@ function ByvalStrTemp_ _
     return true
 end function
 
-'' A USTRING CALL RESULT AGAINST A USTRING PARAMETER IS COPIED, CALLED ON AND DELETED.
-'' Measured, 'Take( Mk( 1 ) )' over 'byref s as const ustring':
+'' A USTRING RVALUE AGAINST A USTRING PARAMETER IS COPIED, CALLED ON AND DELETED. Measured,
+'' for a user sub and for fb/string.bi's runtime-aliased declarations alike:
 ''
-''   vr = MK( 1 ); fb_UStrAssign( &TMP, -1, vr, -1, 0 )
-''   TAKE( &TMP ); fb_UStrDelete( &TMP )
+''   vr = MK( 1 )             fb_UStrAssign( &TMP, -1, vr, -1, 0 )   TAKE( &TMP )
+''   vr = fb_UStrUcase( &U )  fb_UStrAssign( &TMP, -1, vr, -1, 0 )   TAKE( &TMP )
+''   vr = fb_UStrConcat( .. ) fb_UStrAssign( &TMP, -1, vr, -1, 0 )   fb_UStrStartsWith( &TMP, .. )
+''   ... fb_UStrDelete( &TMP ) after the statement
 ''
-'' tiko passed vr itself and nothing ever released it -- one runtime descriptor per
-'' call. fb/fsinfo.bi's AbsolutePath writes 'PathNormalize( PathJoin( r, p ) )', so on
-'' Linux tiko-lang's own source manager ran the pool dry after ~530 includes and
-'' PathJoin began handing back empty strings. Only a call to a declared PROCEDURE is
-'' asked: intrinsic runtime calls ('len', 'ucase') take the result raw in fbc too.
+'' -- ucase, lcase, trim, ltrim, rtrim, left, right, mid and a 'u & "x"' chain all the
+'' same. tiko passed vr itself: nothing released it (fb/fsinfo.bi's 'PathNormalize(
+'' PathJoin( r, p ) )' ran the Linux descriptor pool dry after ~530 includes), and the
+'' callee's first ustring assignment CONSUMED it, so 'dim s as string = u' then 'len( u )'
+'' read 0. This used to ask for a call to a declared PROCEDURE only; the rule is the
+'' argument's SHAPE. (A built-in intrinsic consuming a temporary directly -- 'len( ucase(
+'' u ) )' -- never comes through the call path.)
 function UStrResultArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
 
     outSlot = -1
+    if argNode = Tko.NODE_NONE then return false
     if IsUStringType( c, pt ) = false then return false
-    if c.ast->Kind( argNode ) <> Tko.N_CALL then return false
-    if IsUStringType( c, c.types->Unqualify( c.info->TypeOf_( argNode ) ) ) = false then return false
-    dim as Tko.ListPayload ptr ucp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
-    if ucp->target = Tko.NODE_NONE then return false
-    dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( ucp->target ) )
-    if ucs = 0 then return false
-    if ucs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
-    return ByvalStrTemp_( c, argNode, c.types->Builtin( Tko.TY_USTRING ), outa, outSlot )
+    dim as Tko.NodeId an = Unparen_( c, argNode )
+    '' UTF-16 only: a narrow or a wide rvalue has its own arm before this one.
+    dim as boolean isU = IsUStringType( c, c.types->Unqualify( c.info->TypeOf_( an ) ) )
+    dim as MirValue rv
+    '' AN LVALUE PASSES ITS OWN DESCRIPTOR; only something with no address is copied.
+    select case c.ast->Kind( an )
+    case Tko.N_CALL
+        '' A CALL, NOT AN ELEMENT: 'oldkeys( i )' is an N_CALL too, and has an address.
+        '' fb/map.bi's Reserve loaded the 24 bytes where a pointer belongs. A declared
+        '' procedure, or a built-in the resolver bound to nothing ('ucase( u )').
+        dim as Tko.ListPayload ptr ucp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, an )].data )]
+        if ucp->target = Tko.NODE_NONE then return false
+        '' THE STRING INTRINSICS are spelled as calls and decided by their FIRST ARGUMENT,
+        '' as LowerUStrIntrin_ decides them -- not by whatever the name binds to.
+        dim as boolean intrin = false
+        if (c.ast->Kind( ucp->target ) = Tko.N_IDENT) andalso (ucp->count >= 1) then
+            dim as Tko.IdentPayload ptr uip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, ucp->target )].data )]
+            select case Tko.Text.LowerAscii( c.names->Spelling( uip->name ) )
+            case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
+                intrin = IsUStringType( c, c.info->TypeOf_( _
+                    cast( Tko.NodeId, c.ast->children[ucp->first] ) ) )
+            end select
+        end if
+        if intrin then
+            '' The intrinsic's descriptor comes from LowerStrRvalue; LowerExpr has no arm
+            '' for it and answered nothing, so the argument declined back to vr itself.
+            if LowerStrRvalue( c, an, rv ) = false then return false
+        else
+            if isU = false then return false
+            dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( ucp->target ) )
+            if ucs = 0 then return false
+            if ucs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+            rv = LowerExpr( c, an )
+        end if
+    case Tko.N_INTRINSIC
+        if isU = false then return false
+        rv = LowerExpr( c, an )
+    case Tko.N_BINARY
+        dim as FB.Array( of ulong ) uterms
+        FlattenConcat( c, an, uterms )
+        if uterms.Count < 2 then return false
+        if ConcatTermsAreU_( c, uterms ) = false then return false
+        '' ALL UTF-16 ('UTake( a & b )') already builds its one temporary through
+        '' StrDescriptorOf_; only a MIXED chain ('u & "x"') came out wrong there.
+        dim as boolean mixed = false
+        for ti as long = 0 to uterms.Count - 1
+            if StrTermFlavour_( c, cast( Tko.NodeId, uterms[ti] ) ) <> STF_UTF16 then mixed = true
+        next
+        if mixed = false then return false
+        dim as long cslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if cslot < 0 then return false
+        dim as MirValue cdst
+        cdst.kind = cast( ubyte, MV_LOCAL ) : cdst.ty = cast( ubyte, MT_PTR ) : cdst.id = cslot
+        ZeroStrDescriptor( c, cdst )
+        if LowerUStrChain( c, cdst, true, uterms, false ) = false then return false
+        outSlot = cslot
+        outa = cdst
+        return true
+    case else
+        return false
+    end select
+    if rv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue dst
+    dst.kind = cast( ubyte, MV_LOCAL ) : dst.ty = cast( ubyte, MT_PTR ) : dst.id = slot
+    ZeroStrDescriptor( c, dst )
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    PushStrLen_( c, args, -1 )
+    args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
+    PushStrLen_( c, args, -1 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_USTR_ASSIGN, args )
+    outSlot = slot
+    outa = dst
+    return true
 end function
 
 '' A FIXED 'ustring * N' COPIED INTO A DESCRIPTOR, for a byref USTRING parameter.
@@ -530,10 +605,17 @@ function UStrParamArgTemp_ _
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
     if IsUStringType( c, pu ) = false then return false
-    if NarrowStrArg_( c, argNode ) = false then return false
     dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
     dim as long slot = -1
-    if ByvalStrTemp_( c, argNode, ut, outv, slot ) = false then return false
+    '' A USTRING RVALUE IS COPIED, as at a call -- UStrResultArgTemp_. Measured,
+    '' 'Val( ucase( u ) )' and 'Val( u & "!" )' over 'constructor( byref t as ustring )'
+    '' printed ' 4 [ROOM]' and ' 5 [room!]' under fbc and ' 0 []' under tiko:
+    '' test_functions' 'DbValue( ucase( cell.AsText( ) ) & "!" )' returned "".
+    if NarrowStrArg_( c, argNode ) = false then
+        if UStrResultArgTemp_( c, argNode, ut, outv, slot ) = false then return false
+    elseif ByvalStrTemp_( c, argNode, ut, outv, slot ) = false then
+        return false
+    end if
     if slot >= 0 then
         c.f->locals[slot].frontendType = ut
         c.strTemps.Push( cast( ulong, slot ) )

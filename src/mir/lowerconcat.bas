@@ -30,6 +30,30 @@ function LowerConcatAssignStmt _
         dim as MirValue dst = LowerAddr( c, target )
         if dst.kind = cast( ubyte, MV_NONE ) then return false
         dim as boolean isU = IsUStringType( c, tt )
+        '' A CHAIN APPENDED TO A USTRING IS FOLDED, like the three-term self chain it is.
+        '' Measured (every ustring row a fold and one assign):
+        ''
+        ''     t &= " (" & n & ")"   fb_UStrConcat, fb_UStrConcatUA, fb_UStrConcat, fb_UStrAssign
+        ''     t &= u2 & "x"         fb_UStrConcat, fb_UStrConcat, fb_UStrAssign
+        ''     t &= "a" & s2         fb_UStrConcat, fb_UStrConcatUA, fb_UStrAssign
+        ''
+        '' while a NARROW destination appends each term in place ('nar &= "a" & s2' is two
+        '' fb_StrConcatAssign), which the path below already does. Asking StrTermFlavour_
+        '' of the WHOLE chain gave NEUTRAL for 'u2 & "x"', and one fb_UStrConcatAssign of a
+        '' narrow build followed: 'Tu', NUL -- fbsqlite's DbError.ToString lost everything
+        '' after its first line ('text &= " [" & m_operation & "]"').
+        if isU then
+            dim as FB.Array( of ulong ) vterms
+            FlattenConcat( c, value, vterms )
+            if vterms.Count >= 2 then
+                dim as FB.Array( of ulong ) chain
+                chain.Push( cast( ulong, target ) )
+                for i as long = 0 to vterms.Count - 1
+                    chain.Push( vterms[i] )
+                next
+                return LowerUStrChain( c, dst, true, chain, false )
+            end if
+        end if
         '' 'u &= q' over a narrow source is fb_UStrConcatUA into a TEMPORARY and then an
         '' assign, not one concat-assign -- measured. Appending the narrow bytes through
         '' the UTF-16 entry point is what this used to do.
@@ -157,6 +181,41 @@ function LowerOffsetOf _
     dim as long off = c.udts->FieldOffset( ut, fip->name, found )
     if found = false then return false
     outv = ConstInt( c, off, MT_I64 )
+    return true
+end function
+
+'' A USTRING DESTINATION BUILT IN PLACE WHOSE CHAIN RENDERS A NUMBER. Measured, 'v = w & n &
+'' "z"' with w not v: fb_UStrAssign( v, w ), fb_StrToUStr( n ), fb_UStrConcatAssign, then
+'' ConcatAssign "z"; 'v = n & w': fb_UStrAssignFromA( v, n ), ConcatAssign w. The narrow
+'' digits concat-assigned unconverted read as UTF-16 -- '25' came out as U+3532.
+function LowerUStrInPlaceWithNumbers_ _
+    ( byref c as Ctx, byref dst as MirValue, byref terms as FB.Array( of ulong ) ) as boolean
+
+    for i as long = 0 to terms.Count - 1
+        dim as Tko.NodeId term = cast( Tko.NodeId, terms[i] )
+        dim as FB.Array( of ulong ) args
+        PushStrArg( args, dst )
+        if IsRenderedNumberTerm_( c, term ) then
+            dim as MirValue nv
+            if NumberToStrDesc_( c, term, nv ) = false then return false
+            if i = 0 then
+                PushStrArg( args, nv )
+                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+                EmitRtl( c, RTL_USTR_FROM_A, args )
+                continue for
+            end if
+            dim as FB.Array( of ulong ) cv
+            PushStrArg( cv, nv )
+            dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, cv )
+            if uv.kind = cast( ubyte, MV_NONE ) then return false
+            PushStrArg( args, uv )
+        else
+            if EmitStrTerm( c, args, term, true ) = false then return false
+        end if
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        EmitRtl( c, iif( i = 0, RTL_USTR_ASSIGN, RTL_USTR_CONCAT_ASSIGN ), args )
+    next
     return true
 end function
 

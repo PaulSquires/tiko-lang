@@ -822,6 +822,13 @@ declare function EmitRtl _
     declare function StrCatText_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
     declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
+    '' A NUMBER rendered into a string chain: NARROW, never neutral. lowerterm.bas.
+    declare function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    declare function ChainHasRenderedNumber_ _
+        ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+    '' A ustring destination built in place, each rendered number converted. lowerconcat.bas.
+    declare function LowerUStrInPlaceWithNumbers_ _
+        ( byref c as Ctx, byref dst as MirValue, byref terms as FB.Array( of ulong ) ) as boolean
     declare function UStrCmpOperand_ _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), _
           byval term as Tko.NodeId ) as boolean

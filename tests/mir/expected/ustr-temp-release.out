@@ -64,17 +64,17 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i64 42
     %6 = trunc %5
     store @n, %6
-    %7 = alloca ptr $tmp2
-    %8 = field.addr @$tmp2, 0
-    store %8, 0
-    %9 = field.addr @$tmp2, 8
-    store %9, 0
-    %10 = field.addr @$tmp2, 16
-    store %10, 0
-    %11 = const i64 1
-    %12 = trunc %11
-    %13 = call ptr MK(%12)
-    %14 = call.rtl ptr fb_UStrAssign(@$tmp2, -1, %13, -1, 0)
+    %7 = const i64 1
+    %8 = trunc %7
+    %9 = call ptr MK(%8)
+    %10 = alloca ptr $tmp2
+    %11 = field.addr @$tmp2, 0
+    store %11, 0
+    %12 = field.addr @$tmp2, 8
+    store %12, 0
+    %13 = field.addr @$tmp2, 16
+    store %13, 0
+    %14 = call.rtl ptr fb_UStrAssign(@$tmp2, -1, %9, -1, 0)
     call void TAKE(@$tmp2)
     call.rtl void fb_UStrDelete(@$tmp2)
     %15 = alloca ptr v

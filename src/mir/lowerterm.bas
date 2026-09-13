@@ -526,7 +526,8 @@ function StrChainNeedsConvert _
     '' chain around fb_IntToStr's narrow temporary instead, and 'function Mk( n ) as
     '' ustring : return "u" & n' ran the runtime out of descriptors after ~900 calls.
     '' 'u & n', with the ustring in it, is fbc's fb_UStrConcatAssign and stays as it was.
-    if dstIsU andalso (terms.Count >= 2) andalso (anyUW = false) andalso anyRendered then
+    dim as boolean multi = (terms.Count >= 2)
+    if dstIsU andalso multi andalso (anyUW = false) andalso anyRendered then
         return true
     end if
     return false
@@ -561,6 +562,29 @@ private function PushChainTerm_ _
     return EmitStrTerm( c, args, term, wantU )
 end function
 
+'' A NUMBER RENDERED INTO A CHAIN -- the term EmitStrTerm's number arm claims -- is NARROW,
+'' not neutral: fbc renders it with fb_LongintToStr and its siblings and joins it with
+'' fb_UStrConcatUA / AU, or converts it with fb_StrToUStr when building in place. A literal
+'' and a string constant are the neutral terms; a number never is. Measured, n = 25:
+'' 'dim v as ustring = w & n' is fb_UStrConcatUA, and treating the number as neutral
+'' concatenated its narrow digits as UTF-16 -- '25' printed as U+3532.
+function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    term = Unparen_( c, term )
+    if c.ast->Kind( term ) = Tko.N_STRING_LIT then return false
+    dim as Tko.TypeId tt = c.info->TypeOf_( term )
+    if tt = Tko.TYPE_NONE then return false
+    if IsStringType( c, tt ) then return false
+    dim as longint tsk
+    return (StrSwapKind_( c, tt, tsk ) = -1)
+end function
+
+function ChainHasRenderedNumber_( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+    for i as long = 0 to terms.Count - 1
+        if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then return true
+    next
+    return false
+end function
+
 '' A MIXED-FLAVOUR CHAIN, folded LEFT TO RIGHT with a fresh temporary per step. Every
 '' shape below was read out of what fbc emits:
 ''
@@ -589,7 +613,9 @@ function LowerUStrChain _
 
     dim as boolean hasN = false, hasW = false, hasU = false
     for i as long = 0 to terms.Count - 1
-        select case StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        dim as long tfc = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then tfc = STF_NARROW
+        select case tfc
         case STF_NARROW : hasN = true
         case STF_WIDE   : hasW = true
         case STF_UTF16  : hasU = true
@@ -628,6 +654,9 @@ function LowerUStrChain _
     dim as boolean accU = dstIsU
     for i as long = 0 to terms.Count - 1
         dim as long f0 = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        '' A RENDERED NUMBER STARTS A NARROW ACCUMULATOR: 'dim v as ustring = "q" & n & w'
+        '' is fb_StrConcat( "q", n ) then fb_UStrConcatAU, measured.
+        if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then f0 = STF_NARROW
         if f0 = STF_NEUTRAL then continue for
         accU = (f0 <> STF_NARROW)
         exit for
@@ -641,6 +670,9 @@ function LowerUStrChain _
         dim as long tf = StrTermFlavour_( c, tn )
         dim as boolean termU = (tf = STF_UTF16) orelse (tf = STF_WIDE)
         if tf = STF_NEUTRAL then termU = accU
+        '' ...and is joined as NARROW, never at the accumulator's flavour: 'w & n' is
+        '' fb_UStrConcatUA, where treating it as neutral chose fb_UStrConcat.
+        if IsRenderedNumberTerm_( c, tn ) then termU = false
 
         dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
         dim as MirValue tmp

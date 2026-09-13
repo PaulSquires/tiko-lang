@@ -140,6 +140,15 @@ function ConcatTermsToTempDesc_ _
 
     dim as boolean isU = ConcatTermsAreU_( c, terms )
 
+    '' A USTRING CHAIN RENDERING A NUMBER FOLDS by flavour -- measured, 'Show( w & " (" & n &
+    '' ")" )' is fb_UStrConcat, fb_UStrConcatUA, fb_UStrConcat. Concat-assigning the narrow
+    '' digits into this temporary as UTF-16 was every garbled "(expected N, got M)".
+    if isU andalso ChainHasRenderedNumber_( c, terms ) then
+        if LowerUStrChain( c, tmp, true, terms, false ) = false then return false
+        outv = tmp
+        return true
+    end if
+
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), isU ) = false then return false
@@ -615,7 +624,10 @@ function LowerStringInit _
         dim as boolean dIsU = false
         if slot >= 0 then dIsU = IsUStringType( c, c.f->locals[slot].frontendType )
         if dIsU = false then dIsU = IsUStringType( c, c.info->TypeOf_( target ) )
-        if StrChainNeedsConvert( c, dIsU, cterms ) then
+        '' ...AND A USTRING DECLARATION RENDERING A NUMBER FOLDS: 'dim v as ustring = w & n'
+        '' is fb_UStrConcatUA and fb_UStrInit, measured -- see IsRenderedNumberTerm_.
+        if StrChainNeedsConvert( c, dIsU, cterms ) orelse _
+           (dIsU andalso ChainHasRenderedNumber_( c, cterms ) andalso ConcatTermsAreU_( c, cterms )) then
             '' A DECLARATION's trailing flag is -1, so the conversion cannot go through
             '' the assignment path: it would pass 0 and the runtime would release a
             '' descriptor that was never written.
@@ -1372,6 +1384,20 @@ function LowerStringAssignTo _
     '' half of that model would be a wrong answer rather than a partial one.
     dim as boolean isU0 = IsUStringType( c, c.info->TypeOf_( target ) )
     if target = Tko.NODE_NONE then isU0 = IsUStringDest_( c, dst )
+    '' A RENDERED NUMBER IN A USTRING ASSIGNMENT -- see LowerUStrInPlaceWithNumbers_. A self
+    '' chain of three or more terms folds; two terms stay the unconverted append fbc emits.
+    '' A chain with NO ustring term ('return "u" & n') is a narrow fold and one
+    '' fb_UStrAssignFromA -- StrChainNeedsConvert below, measured.
+    dim as boolean numU = false
+    if isU0 andalso (terms.Count >= 2) then
+        numU = ChainHasRenderedNumber_( c, terms ) andalso ConcatTermsAreU_( c, terms )
+    end if
+    if numU then
+        dim as boolean selfFirst = false
+        if target <> Tko.NODE_NONE then selfFirst = SameLValue( c, target, cast( Tko.NodeId, terms[0] ) )
+        if selfFirst = false then return LowerUStrInPlaceWithNumbers_( c, dst, terms )
+        if terms.Count >= 3 then return LowerUStrChain( c, dst, true, terms, false )
+    end if
     if StrChainNeedsConvert( c, isU0, terms ) then
         if terms.Count = 1 then
             return LowerStrConvertTerm( c, dst, isU0, cast( Tko.NodeId, terms[0] ), false )

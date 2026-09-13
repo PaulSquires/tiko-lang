@@ -1,0 +1,6 @@
+'' A chain appended to a ustring with '&=' is folded and assigned once, as fbc does; a narrow destination still appends in place. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-append-chain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
