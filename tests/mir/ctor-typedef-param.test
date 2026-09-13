@@ -1,0 +1,9 @@
+'' A member definition whose parameter is spelled through a typedef is paired with the
+'' declaration it defines, so neither constructor's receiver comes from the other's
+'' scope: there is exactly one 'this' local in each.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-typedef-param.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: this$1

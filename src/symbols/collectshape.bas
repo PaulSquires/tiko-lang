@@ -238,6 +238,35 @@ private function LiteralLen_ _
     return true
 end function
 
+'' A PLAIN NAME THAT IS A TYPEDEF IS ITS TARGET, for pairing a member definition with
+'' its declaration. 'declare constructor( byref v as _TV )' over 'type _TV as TV' is
+'' the declaration 'constructor TU( byref v as TV )' defines -- fbc pairs them, and the
+'' spellings alone did not, so the definition fell back to the FIRST constructor and
+'' took over its scope: that constructor's 'this' became a second, never-stored local,
+'' and -O2 deleted the code that read it (structs/udt-comp-ops-2).
+''
+'' Only an unqualified name with no PTR or CONST of its own is followed -- a pointer's
+'' target is reached by the caller's own recursion -- and each step is taken from the
+'' typedef's OWN scope. What is not a typedef comes back unchanged.
+private function UnaliasWritten_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval t as Tko.NodeId ) as Tko.NodeId
+
+    dim as ushort mask = Tko.NF_PTR or Tko.NF_CONST or Tko.NF_PROC_TYPE
+    for depth as long = 0 to 8
+        if (t = Tko.NODE_NONE) orelse (scope_ = Tko.SCOPE_NONE) then return t
+        if w.ast->Kind( t ) <> Tko.N_TYPEREF then return t
+        if (w.ast->nodes[cast( long, t )].flags and mask) <> 0 then return t
+        dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
+        if tp->op <> cast( ushort, Tko.TK_IDENT ) then return t
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( w.syms->LookupTyped( scope_, tp->name, true ) )
+        if s = 0 then return t
+        if (s->kind <> cast( ubyte, Tko.SYM_TYPEDEF )) orelse (s->payload = 0) then return t
+        t = cast( Tko.NodeId, s->payload )
+        scope_ = s->parent
+    next
+    return t
+end function
+
 declare sub WalkNode _
     ( byref w as Walker, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 declare function Effective_( byval c as Tko.CallConv ) as Tko.CallConv

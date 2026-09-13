@@ -1239,11 +1239,14 @@ end sub
 '' OVERLOAD is the opposite question: 'the same as far as I can see' is not an answer,
 '' because acting on it moves a body onto the wrong declaration. So a builtin matches
 '' only the same builtin and a name only the same name, and anything it cannot decide
-'' is reported as DIFFERENT -- which costs nothing, because the caller falls back to
-'' the head of the chain, and the head is what it used before this existed.
+'' is reported as DIFFERENT. A TYPEDEF is not undecidable: its name is its target
+'' (UnaliasWritten_), or '_TV' against 'TV' fell back to the head of the chain.
 private function SameWrittenType_ _
-    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId, _
+      byval scope_ as Tko.ScopeId ) as boolean
 
+    a = UnaliasWritten_( w, scope_, a )
+    b = UnaliasWritten_( w, scope_, b )
     if (a = Tko.NODE_NONE) andalso (b = Tko.NODE_NONE) then return true
     if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return false
     if w.ast->Kind( a ) <> Tko.N_TYPEREF then return false
@@ -1260,23 +1263,23 @@ private function SameWrittenType_ _
     end if
     '' PTR nests another N_TYPEREF in 'a', so recursing compares the pointed-to type
     '' and, by arriving at different depths, the pointer depth with it.
-    return SameWrittenType_( w, ap->a, bp->a )
+    return SameWrittenType_( w, ap->a, bp->a, scope_ )
 end function
 
 '' The RETURN TYPE and every PARAMETER TYPE, as written, on two N_PROC payloads whose
 '' arities already agree.
 private function SameSignature_ _
     ( byref w as Walker, byval a as Tko.StmtPayload ptr, _
-      byval b as Tko.StmtPayload ptr ) as boolean
+      byval b as Tko.StmtPayload ptr, byval scope_ as Tko.ScopeId ) as boolean
 
-    if SameWrittenType_( w, a->a, b->a ) = false then return false
+    if SameWrittenType_( w, a->a, b->a, scope_ ) = false then return false
     if a->count <> b->count then return false
     for i as long = 0 to a->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
         dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
            (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
-        if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a ) = false then
+        if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a, scope_ ) = false then
             return false
         end if
     next
@@ -1314,7 +1317,7 @@ private function MemberDeclForDef_ _
         if (pn <> Tko.NODE_NONE) andalso (w.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr dp = StmtOf( w, pn )
             if ProcArity( w, dp ) = want then
-                if SameSignature_( w, dp, sp ) then
+                if SameSignature_( w, dp, sp, scope_ ) then
                     found = cur
                     hits += 1
                 end if
