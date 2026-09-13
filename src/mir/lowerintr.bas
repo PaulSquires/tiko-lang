@@ -879,8 +879,14 @@ function LowerIif _
     '' and for a type that frees a buffer it is a free of whatever the stack held.
     '' The loop head already draws exactly this line -- see lowerctl.bas, where a
     '' condition's temporaries die inside the head because the head runs again.
+    '' ...AND THE STRING TEMPORARIES WITH THEM. A wide 'right( w, 2 )' built in the arm
+    '' that did not run left its slot unwritten, and the statement-end fb_WstrDelete in
+    '' the join freed whatever the stack held -- the previous call's pointer, already
+    '' freed: 0xC0000374. fbc deletes an arm's temporary inside the arm.
     c.curBlock = thenB
     dim as long tmark = c.udtTemps.Count
+    dim as long tsmark = c.strTemps.Count
+    dim as long twmark = c.wstrTemps.Count
     dim as MirValue tv = LowerExpr( c, thenE )
     if tv.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst ts
@@ -891,10 +897,14 @@ function LowerIif _
         Emit( c, ts )
     end if
     ReleaseUdtTemps_( c, tmark )
+    ReleaseStrTemps_( c, tsmark )
+    ReleaseWstrTemps_( c, twmark )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
     dim as long emark = c.udtTemps.Count
+    dim as long esmark = c.strTemps.Count
+    dim as long ewmark = c.wstrTemps.Count
     dim as MirValue ev = LowerExpr( c, elseE )
     if ev.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst es
@@ -905,6 +915,8 @@ function LowerIif _
         Emit( c, es )
     end if
     ReleaseUdtTemps_( c, emark )
+    ReleaseStrTemps_( c, esmark )
+    ReleaseWstrTemps_( c, ewmark )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB
@@ -1151,8 +1163,12 @@ function LowerShortCircuitParts_ _
     '' SHORT-CIRCUIT path also reaches, so a temporary the right side never built
     '' was destroyed anyway. 'if c0 andalso (type<C>( )).i' ran one destructor on
     '' unconstructed storage where fbc runs none.
+    '' ...and the STRING temporaries too -- see LowerIif: fbc deletes right( )'s wide
+    '' temporary inside this branch, and a join-side delete freed a stale pointer.
     c.curBlock = rhsB
     dim as long rmark = c.udtTemps.Count
+    dim as long rsmark = c.strTemps.Count
+    dim as long rwmark = c.wstrTemps.Count
     dim as MirValue r = LowerExpr( c, rhsE )
     if r.kind <> cast( ubyte, MV_NONE ) then
         '' NORMALISED, and it is not optional: measured, fbc writes
@@ -1192,6 +1208,8 @@ function LowerShortCircuitParts_ _
         Emit( c, st1 )
     end if
     ReleaseUdtTemps_( c, rmark )
+    ReleaseStrTemps_( c, rsmark )
+    ReleaseWstrTemps_( c, rwmark )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = shortB

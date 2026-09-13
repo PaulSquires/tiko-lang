@@ -201,6 +201,28 @@ sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
     wend
 end sub
 
+'' A WIDE temporary's slot holds a POINTER to an allocation, so what is released is
+'' the pointer LOADED from it -- not the slot's address, which is where the pointer
+'' lives. fbc writes 'fb_WstrDelete( (uint16*)TMP$2$1 )'.
+sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )
+    while c.wstrTemps.Count > mark
+        dim as long wslot = cast( long, c.wstrTemps[c.wstrTemps.Count - 1] )
+        c.wstrTemps.Pop( )
+        if c.curBlock >= 0 then
+            dim as MirValue waddr
+            waddr.kind = cast( ubyte, MV_LOCAL )
+            waddr.ty = cast( ubyte, MT_PTR )
+            waddr.id = wslot
+            dim as MirValue wv = LowerExprLoad( c, waddr, MT_PTR )
+            if wv.kind <> cast( ubyte, MV_NONE ) then
+                dim as FB.Array( of ulong ) wargs
+                wargs.Push( cast( ulong, wv.kind ) ) : wargs.Push( cast( ulong, wv.id ) )
+                EmitRtl( c, RTL_WSTR_DELETE, wargs )
+            end if
+        end if
+    wend
+end sub
+
 sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
     while c.udtTemps.Count > mark
         dim as long slot = cast( long, c.udtTemps[c.udtTemps.Count - 1] )

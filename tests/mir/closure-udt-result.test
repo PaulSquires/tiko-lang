@@ -1,0 +1,6 @@
+'' A closure call's UDT result initialises a variable without a second owner of its buffers -- in place or moved, never stored over a default-constructed object. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/closure-udt-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

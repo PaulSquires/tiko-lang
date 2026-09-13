@@ -362,6 +362,29 @@ function LowerAddr _
                     end if
                 end if
             end if
+            '' A CALL ON A CLOSURE OBJECT whose UDT result travels through a hidden
+            '' pointer has that temporary's address, exactly as a named function's
+            '' does. The callee is a VARIABLE, so the SYM_PROC branch below never saw it,
+            '' and 'dim o as Res = f( )' and 'o = work( )' fell back to storing the
+            '' temporary's bytes over o and then destroying the temporary: two owners of
+            '' one buffer, 0xC0000374 (fbsqlite's WithTransaction). fbc builds o in place,
+            '' '__FBINVOKE( &O, F )'; lower.bas moves the temporary, which counts the same.
+            if bcs->kind <> cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.TypeId crt = c.info->TypeOf_( id )
+                dim as Tko.TypeId cot = c.types->Unqualify( bcs->type_ )
+                if c.types->Kind( cot ) = Tko.TK_REFERENCE then
+                    cot = c.types->Unqualify( c.types->Inner( cot ) )
+                end if
+                dim as boolean cloUdt = (crt <> Tko.TYPE_NONE)
+                if cloUdt then cloUdt = (c.types->Kind( c.types->Unqualify( crt ) ) = Tko.TK_UDT)
+                if cloUdt then cloUdt = (c.types->Kind( cot ) = Tko.TK_UDT)
+                if cloUdt then cloUdt = UsesSretReturn( c, crt )
+                if cloUdt then
+                    dim as MirValue cv = LowerCallParts( c, bl->target, bcal, _
+                                                        bl->first, bl->count, MT_PTR, true )
+                    if cv.kind <> cast( ubyte, MV_NONE ) then return cv
+                end if
+            end if
             if bcs->kind = cast( ubyte, Tko.SYM_PROC ) then
                 dim as Tko.NodeId bpn = cast( Tko.NodeId, bcs->payload )
                 if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) then

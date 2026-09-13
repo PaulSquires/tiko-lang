@@ -80,14 +80,26 @@ function LowerForEachIter _
     iaddr.ty = cast( ubyte, MT_PTR )
     iaddr.id = islot
 
+    '' ...UNLESS THE CALL ALREADY MADE ONE WITH A DESTRUCTOR, and then that temporary IS the
+    '' iterator. It was stored bitwise into the slot above, MoveNext ran on the copy -- a
+    '' 'cur = MakeRow( )' in it released buffers the temporary still pointed at -- and the
+    '' statement-end flush destroyed the TEMPORARY after the loop: a double free, and the
+    '' copy was never destroyed. fbc builds the iterator once and destroys it after the
+    '' loop, which is exactly the life the temporary already has (tests/mir
+    '' foreach-iterator-owner; fbsqlite's 'for each person in outer_').
+    dim as long gmark = c.udtTemps.Count
     dim as MirValue got = EmitMemberCall( c, getIt, cAddr, MT_AGG )
     if got.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirInst st0
-    st0.op = cast( ushort, M_STORE )
-    st0.ty = cast( ubyte, MT_VOID )
-    st0.a = iaddr
-    st0.b = got
-    Emit( c, st0 )
+    if c.udtTemps.Count > gmark then
+        iaddr.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+    else
+        dim as MirInst st0
+        st0.op = cast( ushort, M_STORE )
+        st0.ty = cast( ubyte, MT_VOID )
+        st0.a = iaddr
+        st0.b = got
+        Emit( c, st0 )
+    end if
 
     dim as long bodyB = NewBlock( c, "each.body" )
     dim as long contB = NewBlock( c, "each.cont" )
@@ -195,8 +207,9 @@ function LowerForEachIter _
     end if
 
     dim as MirValue ev
+    dim as MirValue evp
     if vByref then
-        dim as MirValue evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
         if evp.kind = cast( ubyte, MV_NONE ) then return false
         '' THE ELEMENT'S SIZE TRAVELS WITH THE LOAD: what Value( ) handed back is a
         '' POINTER in a temp, and a temp has no storage for the emitter to size an
@@ -234,6 +247,28 @@ function LowerForEachIter _
             bound = true
         elseif NeedsLetBody_( c, elT ) then
             CallImplicitCopy_( c, elT, vaddr, sa )
+            bound = true
+        end if
+    end if
+
+    '' ...AND A BYREF Value( ) HANDS BACK THE ELEMENT ITSELF, which a non-byref loop
+    '' variable copy-constructs from. Measured over an iterator whose Value( ) is 'byref
+    '' as Tracker': fbc prints 'T copy item1 / got item1 / T dtor item1' each time round.
+    '' The load-and-store below made the loop variable share the iterator's buffers and
+    '' nothing destroyed it per iteration -- fbsqlite's 'for each person in outer_' over a
+    '' Statement (a Row holds a Map and arrays) was 0xC0000374.
+    dim as boolean byrefAgg = (emt = MT_AGG)
+    dim as boolean varLocal = (vaddr.kind = cast( ubyte, MV_LOCAL ))
+    if (bound = false) andalso vByref andalso byrefAgg andalso varLocal then
+        dim as Tko.SymbolId bcc = CopyCtorOf_( c, elT )
+        if bcc <> Tko.SYMBOL_NONE then
+            dim as FB.Array( of ulong ) bargs
+            bargs.Push( cast( ulong, evp.kind ) )
+            bargs.Push( cast( ulong, evp.id ) )
+            EmitStructorCall( c, bcc, -1, @vaddr, @bargs )
+            bound = true
+        elseif NeedsLetBody_( c, elT ) then
+            CallImplicitCopy_( c, elT, vaddr, evp )
             bound = true
         end if
     end if

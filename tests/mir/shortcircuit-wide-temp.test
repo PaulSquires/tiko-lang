@@ -1,0 +1,6 @@
+'' A temporary built on one path of andalso / orelse / iif is released on that path, not in the join the other path also reaches. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/shortcircuit-wide-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

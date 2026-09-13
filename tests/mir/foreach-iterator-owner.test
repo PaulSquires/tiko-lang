@@ -1,0 +1,6 @@
+'' FOR EACH runs on the iterator GetIterator( ) returned and destroys that one object after the loop -- never a bitwise copy beside a temporary that is destroyed too. Runtime output is checked against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/foreach-iterator-owner.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
