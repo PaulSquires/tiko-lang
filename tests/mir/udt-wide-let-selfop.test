@@ -1,0 +1,16 @@
+'' A WIDE VALUE ASSIGNED OR APPENDED TO A UDT with AfxNova DWSTRING's overload set takes the
+'' wide-character member: 'let( byref as wstring )' and '+=( byval as wstring ptr )'. Neither
+'' had a single cheapest candidate for 'wchr( &h2713 )', '"#" + wstr( n )' or '" (" &
+'' wstr( n ) & "%)"', so each statement was dropped -- PsPopupMenu's and PsListTree's default
+'' glyphs, PsToolbar's overflow captions, PsChart's tooltip percentages. fbc-modern prints
+'' 'field let-wr 110003', 'cap let-wr #5' and 'v cat-wp 12 (33%)', as tiko-lang now does.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-wide-let-selfop.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' The members fbc calls: the wide reference 'let' for both assignments, the wide pointer
+'' '+=' for the append -- and the string 'let' only for the narrow literal.
+'' EXPECT-OUT: call void _ZN2WLaSERw(
+'' EXPECT-OUT: call void _ZN2WLpLEPw(
+'' EXPECT-OUT: call void _ZN2WLaSER8FBSTRING(

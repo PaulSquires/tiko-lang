@@ -64,6 +64,10 @@ private function CtorArgValue_ _
                     end if
                 end if
                 if c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
+                    '' A CONCATENATION WITH A WIDE TERM is wide whatever Check typed it:
+                    '' '"Delete?" + dws' over a DWSTRING is the UDT to Check and a WSTRING
+                    '' to fbc, which builds it with fb_WstrConcatAW.
+                    if wideArg = false then wideArg = ConcatHasWideTerm_( c, argNode )
                     if wideArg then return WideOperand_( c, argNode, outv )
                     if untyped then
                         if WideOperand_( c, argNode, outv ) then return true
@@ -226,7 +230,7 @@ end function
 '' BOTH -- over 'const zstring const ptr' and over the wstring twin -- and taking
 '' the first arity-1 constructor picked the narrow one for a wide argument, which
 '' then had no value to build.
-private function CharPtrCtorInit_ _
+function CharPtrCtorInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
 
@@ -243,6 +247,7 @@ private function CharPtrCtorInit_ _
     '' and the wstring twin -- and taking the first arity-1 constructor picked
     '' the narrow one for a wide argument, which then had no value to build.
     dim as boolean wantWide = TermIsWide_( c, init_ )
+    if wantWide = false then wantWide = ConcatHasWideTerm_( c, init_ )
     dim as Tko.SymbolId sc = Tko.SYMBOL_NONE
     dim as Tko.TypeId spt = Tko.TYPE_NONE
     dim as Tko.SymbolId sccur = StructorOf( c, t, "__ctor" )
@@ -479,14 +484,25 @@ function LowerUserLetConv_ _
         vt = c.types->Builtin( Tko.TY_WSTRING )
     end if
     if LitHasUnicodeEscape_( c, value ) then vt = c.types->Builtin( Tko.TY_WSTRING )
+    '' A WIDE VALUE THAT IS NOT ITSELF THE UDT takes the wide-character 'let' when the type has
+    '' one -- see WideCharOverload_. PickCtor costed 'wchr( &h2713 )' and '"#" + wstr( n )'
+    '' cheapest into DWSTRING's 'let( byref as string )', which then had no argument to build;
+    '' fbc calls 'let( byref as wstring )' for both.
+    dim as boolean wideLet = WideValueForCharMember_( c, value )
     '' The same type is the COPY the caller has already handled.
-    if c.types->Unqualify( vt ) = c.types->Unqualify( t ) then return false
+    dim as boolean sameType = (c.types->Unqualify( vt ) = c.types->Unqualify( t ))
+    if sameType andalso (wideLet = false) then return false
 
     dim as Tko.SymbolId lets = StructorOf( c, t, "let" )
     if lets = Tko.SYMBOL_NONE then return false
-    dim as FB.Array( of ulong ) argT
-    argT.Push( cast( ulong, vt ) )
-    dim as Tko.SymbolId pick = PickCtor( c, lets, argT )
+    dim as Tko.SymbolId pick = Tko.SYMBOL_NONE
+    if wideLet then pick = WideCharOverload_( c, lets )
+    wideLet = (pick <> Tko.SYMBOL_NONE)
+    if pick = Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) argT
+        argT.Push( cast( ulong, vt ) )
+        pick = PickCtor( c, lets, argT )
+    end if
     if pick = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
     if ps = 0 then return false
@@ -563,7 +579,8 @@ function LowerUserLetConv_ _
             end if
             '' ...AND AN UNTYPED WIDE EXPRESSION passes a wide temporary's characters: 'pt' is the
             '' bare builtin here, not a reference, so CtorArgValue_'s wide arm never sees it.
-            if (ulTook = false) andalso wideUntyped andalso (c.types->Kind( pu ) = Tko.TK_BUILTIN) then
+            '' ...AND SO DOES A WIDE VALUE WideCharOverload_ chose the 'let' for.
+            if (ulTook = false) andalso (wideUntyped orelse wideLet) andalso (c.types->Kind( pu ) = Tko.TK_BUILTIN) then
                 if (c.types->BuiltinOf( pu ) = Tko.TY_WSTRING) andalso WideOperand_( c, value, av ) then ulTook = true
             end if
         end if

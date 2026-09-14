@@ -163,6 +163,88 @@ private function HasUdtConvCtor_ _
     return false
 end function
 
+'' A WIDE STRING ARGUMENT FOR A UDT WITH A 'wstring ptr' CONSTRUCTOR is built through that
+'' constructor -- CharPtrCtorInit_ -- whatever else the type declares. Measured on AfxNova's
+'' DWSTRING, which has 'byref as const wstring', 'byval as wstring ptr' and 'byref as
+'' string' beside each other, fbc takes the pointer one for every wide argument:
+''
+''     _ZN7AFXNOVA8DWSTRINGC1EPw( &TMP, (uint16*)L"\x25BE" )         wchr( &h25BE )
+''     _ZN7AFXNOVA8DWSTRINGC1EPw( &TMP, (uint16*)W$0 )               a wstring * 4
+''     vr = fb_WstrConcatAW( "Delete?\x0A", 9ll, dws cast ); ...C1EPw  "Delete?" + chr( 10 ) + dws
+''
+'' PickCtor found no single cheapest candidate for any of them, so the argument declined
+'' and took its statement with it: ApexWealth's delete confirmations, its grid glyphs and
+'' its placeholder titles. A CONCATENATION with a wide term is wide even when Check typed it
+'' as the UDT; any other UDT value is a copy or another conversion, never this one.
+function WideArgCharPtrCtor_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+
+    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    if WideValueForCharMember_( c, argNode ) = false then return false
+    dim as Tko.SymbolId cur = StructorOf( c, pu, "__ctor" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if ParamCountOf( c, cur ) = 1 then
+            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                cpt = c.types->Unqualify( cpt )
+                if c.types->Kind( cpt ) = Tko.TK_POINTER then
+                    dim as Tko.TypeId cin = c.types->Unqualify( c.types->Inner( cpt ) )
+                    if c.types->Kind( cin ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( cin ) = Tko.TY_WSTRING then return true
+                    end if
+                end if
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
+'' THE WIDE-CHARACTER MEMBER of a one-argument 'let' or '+=' family, for a wide value no
+'' single candidate converts to most cheaply: a reference to wstring first, then a pointer
+'' to one. Measured on AfxNova's DWSTRING, whose 'let' has both and whose '+=' has only
+'' the pointer:
+''
+''     _ZN7AFXNOVA8DWSTRINGaSERw( &D, (uint16*)L"\x2713" )      d = wchr( &h2713 )
+''     _ZN7AFXNOVA8DWSTRINGaSERw( &D, TMP )                    d = "#" + wstr( n )
+''     _ZN7AFXNOVA8DWSTRINGpLEPw( &D, TMP )                    d += " (" & wstr( n ) & "%)"
+function WideCharOverload_ _
+    ( byref c as Ctx, byval first_ as Tko.SymbolId ) as Tko.SymbolId
+
+    dim as Tko.SymbolId ptrPick = Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = first_
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if ParamCountOf( c, cur ) = 1 then
+            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                cpt = c.types->Unqualify( cpt )
+                if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Unqualify( c.types->Inner( cpt ) )
+                if c.types->Kind( cpt ) = Tko.TK_BUILTIN then
+                    if c.types->BuiltinOf( cpt ) = Tko.TY_WSTRING then return cur
+                elseif (c.types->Kind( cpt ) = Tko.TK_POINTER) andalso (ptrPick = Tko.SYMBOL_NONE) then
+                    dim as Tko.TypeId cin = c.types->Unqualify( c.types->Inner( cpt ) )
+                    if c.types->Kind( cin ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( cin ) = Tko.TY_WSTRING then ptrPick = cur
+                    end if
+                end if
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return ptrPick
+end function
+
 '' A BYREF UDT PARAMETER GIVEN AN ARGUMENT OF ANOTHER TYPE IS A CONVERSION: the parameter
 '' type's constructor builds a temporary, its ADDRESS is bound, and it dies with the
 '' statement's other temporaries -- see ByvalUdtCopyArg_. Measured on fbc, over
@@ -193,6 +275,8 @@ function ByrefConvNeeded_ _
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
     if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    '' A wide string for a 'wstring ptr' constructor, typed or not -- WideArgCharPtrCtor_.
+    if WideArgCharPtrCtor_( c, argNode, pu ) then return true
     dim as Tko.TypeId at0 = c.info->TypeOf_( argNode )
     if at0 = Tko.TYPE_NONE then return false
     dim as Tko.TypeId au = c.types->Unqualify( at0 )

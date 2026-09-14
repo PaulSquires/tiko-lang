@@ -92,7 +92,10 @@ function SelfOpMemberCall_ _
     '' the parameter is declared with.
     dim as Tko.TypeId aet = ArrayArgElem_( c, value )
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
-    if (vt = Tko.TYPE_NONE) andalso (aet = Tko.TYPE_NONE) then return false
+    '' A WIDE VALUE may have no Check type at all -- see WideCharOverload_ below.
+    dim as boolean wideVal = WideValueForCharMember_( c, value )
+    dim as boolean noType = (vt = Tko.TYPE_NONE) andalso (aet = Tko.TYPE_NONE)
+    if noType andalso (wideVal = false) then return false
 
     '' SCORED, NOT MATCHED EXACTLY. 'u += 10' over a type declaring both
     '' 'operator +=( byref as T )' and 'operator +=( byval as long )' has to reach the
@@ -142,7 +145,7 @@ function SelfOpMemberCall_ _
                 dim as long cost = Tko.Check.CONV_NONE
                 if pu = vt then
                     cost = Tko.Check.CONV_EXACT
-                else
+                elseif vt <> Tko.TYPE_NONE then
                     cost = Tko.Check.ConversionCost( vt, pu, *c.types )
                 end if
                 if cost < best then
@@ -156,6 +159,19 @@ function SelfOpMemberCall_ _
         end if
         cur = os->nextOverload
     wend
+    '' A WIDE VALUE takes the wide-character member when the type has one, as fbc does: 'v += " ("
+    '' & wstr( n ) & "%)"' over DWSTRING is '_ZN7AFXNOVA8DWSTRINGpLEPw' with the fb_WstrConcatWA
+    '' result, where the scoring above can prefer '+=( byref as string )' and then has no
+    '' argument to build. PsChart's tooltip percentages were dropped.
+    dim as boolean wideChosen = false
+    if wideVal then
+        dim as Tko.SymbolId wcur = WideCharOverload_( c, UdtMemberNamed_( c, ut, opn ) )
+        if wcur <> Tko.SYMBOL_NONE then
+            want = wcur
+            ties = 0
+            wideChosen = true
+        end if
+    end if
     if want = Tko.SYMBOL_NONE then return false
     if ties > 0 then return false
 
@@ -163,9 +179,12 @@ function SelfOpMemberCall_ _
     if self_.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirValue av
+    if wideChosen then
+        '' The wide characters, for a 'byref as wstring' and a 'wstring ptr' parameter alike.
+        if WideOperand_( c, value, av ) = false then return false
     '' A BYDESC ARRAY ARGUMENT travels as a DESCRIPTOR POINTER, whichever way the
     '' parameter was spelled -- the same answer an ordinary call's arguments get.
-    if ArrayDescArg_( c, value, ParamIsArray( c, want, 0 ), av ) then
+    elseif ArrayDescArg_( c, value, ParamIsArray( c, want, 0 ), av ) then
     elseif ParamIsByref( c, want, 0 ) then
         av = LowerAddr( c, value )
     else

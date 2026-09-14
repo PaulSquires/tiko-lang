@@ -147,6 +147,22 @@ private function UdtConvTemp_ _
     dim as long sz = SizeOfType( c, pt )
     if sz <= 0 then return false
 
+    '' A WIDE STRING FOR A TYPE WITH A 'wstring ptr' CONSTRUCTOR takes that one, as fbc does --
+    '' see WideArgCharPtrCtor_. PickCtor has no single cheapest candidate to offer for it.
+    if WideArgCharPtrCtor_( c, argNode, pt ) then
+        dim as long wslot = NewTempLocal( c, MT_AGG, sz )
+        if wslot < 0 then return false
+        if CharPtrCtorInit_( c, wslot, pt, argNode ) = false then return false
+        if TypeNeedsDtor_( c, pt ) then
+            outSlot = wslot
+            outType = pt
+        end if
+        outa.kind = cast( ubyte, MV_LOCAL )
+        outa.ty = cast( ubyte, MT_PTR )
+        outa.id = wslot
+        return true
+    end if
+
     '' BY THE ARGUMENT'S TYPE, not by position in the chain. ConvCtorFor_ answers
     '' "some arity-1 constructor that is not the copy one", which is the right question
     '' only when there is EXACTLY ONE. Measured on fbc:
@@ -424,6 +440,20 @@ function UserConvOperand_ _
     return UdtConvTemp_( c, e, pu, outa, outSlot, outType )
 end function
 
+'' A WIDE VALUE THAT IS NOT ITSELF A UDT: a wstring, 'wchr( n )', or a concatenation with a
+'' wide term, whatever Check typed it. A lone UDT value is a copy or its own conversion, never
+'' the operand of a wide-character member. WideArgCharPtrCtor_ and the 'let' and '+=' picks
+'' ask it -- see WideCharOverload_.
+function WideValueForCharMember_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    dim as Tko.NodeId a = Unparen_( c, e )
+    if ConcatHasWideTerm_( c, a ) then return true
+    dim as Tko.TypeId au = c.types->Unqualify( c.info->TypeOf_( a ) )
+    if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    if c.types->Kind( au ) = Tko.TK_UDT then return false
+    return TermIsWide_( c, a )
+end function
+
 '' Whether argument 'i' of 'callee' has to be CONVERTED rather than passed. True only
 '' when the parameter is a UDT and the argument is not already one of that type -- an
 '' argument of the same type is a copy, and both other cases are somebody else's path.
@@ -450,6 +480,9 @@ private function ArgNeedsUdtConv_ _
             if IsTupleType_( c, pt ) then return false
         end if
     end if
+    '' A WIDE STRING for a type with a 'wstring ptr' constructor -- see WideArgCharPtrCtor_.
+    '' Asked before the type test: 'wchr( n )' and a wide concatenation may have none.
+    if WideArgCharPtrCtor_( c, argNode, pt ) then return true
 
     dim as Tko.TypeId at = c.info->TypeOf_( argNode )
     if at = Tko.TYPE_NONE then return false

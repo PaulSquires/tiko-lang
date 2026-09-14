@@ -789,6 +789,18 @@ declare function EmitRtl _
     declare function WideRefCtorArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outv as MirValue ) as boolean
+    '' A wide string argument for a UDT with a 'wstring ptr' constructor -- lowerbyref.bas --
+    '' and that constructor run into a slot or an address -- lowerctor.bas.
+    declare function WideArgCharPtrCtor_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function CharPtrCtorInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    '' The wide-character member of a one-argument 'let' or '+=' family -- lowerbyref.bas.
+    declare function WideCharOverload_ _
+        ( byref c as Ctx, byval first_ as Tko.SymbolId ) as Tko.SymbolId
+    '' A wide value that is not itself a UDT -- lowercallarg.bas.
+    declare function WideValueForCharMember_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function CtorLitArgIsWide_ _
         ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as long, _
           byval count as long, byval idx as long ) as boolean

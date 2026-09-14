@@ -34,7 +34,8 @@ declare sub FlattenInitLeaves_ _
 
 declare function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0, _
+      byval isU as boolean = false ) as boolean
 
 '' THE LEAF EXPRESSIONS OF A NESTED BRACE INITIALISER, in row-major order: a nested
 '' N_INITIALIZER is read through rather than treated as a value, which is what makes
@@ -73,10 +74,10 @@ function LowerArrayInit _
     '' measured. It lowers as an aggregate, which the size test below rejected --
     '' the whole initialiser was dropped and the array read back empty.
     if IsStringType( c, el ) then
-        '' NARROW ONLY. fb_StrInit over an FBUSTRING would write narrow bytes into
-        '' a UTF-16 descriptor; the UTF-16 form declines rather than doing that.
-        if IsUStringType( c, el ) then return false
-        return LowerStrArrayInit_( c, slot, t, init, selfv )
+        '' A USTRING ELEMENT IS fb_UStrInit, not fb_StrInit, which would write narrow bytes
+        '' into a UTF-16 descriptor. This declined instead, and 'dim as ustring labels_( 0 to
+        '' 9 ) = { "Date", ... }' -- ApexWealth's transaction dialog -- lost every label.
+        return LowerStrArrayInit_( c, slot, t, init, selfv, IsUStringType( c, el ) )
     end if
     '' A FIXED-LENGTH STRING ELEMENT -- 'dim as zstring * 32 z(0 to 1) = { "abcdef",
     '' "ghijkl" }' -- is an ARRAY OF ARRAYS, since 'zstring * N' is itself modelled as
@@ -252,12 +253,48 @@ private function LowerFixStrArrayInit_ _
     return true
 end function
 
+'' ONE USTRING ELEMENT: fb_UStrInit at the element's address, with a UTF-16 source.
+'' The single-term and chain arms of LowerStringInit, which takes a frame slot and has
+'' none to take here. Measured, 'dim as ustring l( 0 to 2 ) = { "Date", ... }' is
+''
+''     fb_UStrInit( (void*)L$1, -1ll, (void*)(uint16[]){0x0044,...}, -9223372036854775804ll, 0 );
+''
+'' once per element. A chain with no ustring form declines, as the whole array did.
+private function UStrElemInit_ _
+    ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
+
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, e, terms )
+    if terms.Count <> 1 then
+        ZeroStrDescriptor( c, dst )
+        return LowerUStrChain( c, dst, true, terms, true )
+    end if
+    dim as Tko.NodeId t0 = cast( Tko.NodeId, terms[0] )
+    dim as long tf0 = StrTermFlavour_( c, t0 )
+    if (tf0 <> STF_NEUTRAL) andalso (tf0 <> STF_UTF16) then
+        if LowerStrConvertTerm( c, dst, true, t0, true ) then return true
+        ZeroStrDescriptor( c, dst )
+        return false
+    end if
+    dim as FB.Array( of ulong ) args
+    PushStrArg( args, dst )
+    if EmitStrTerm( c, args, t0, true ) = false then
+        ZeroStrDescriptor( c, dst )
+        return false
+    end if
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( 0 )
+    EmitRtl( c, RTL_USTR_INIT, args )
+    return true
+end function
+
 '' ONE fb_StrInit PER ELEMENT, over an array whose descriptors have already been
 '' zeroed at the declaration. An element the initialiser does not name keeps that
 '' zeroed descriptor, which is the empty string -- fbc leaves it alone too.
 private function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0, _
+      byval isU as boolean = false ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     dim as long esz = c.types->Layout( el ).size
@@ -287,7 +324,11 @@ private function LowerStrArrayInit_ _
         if ea.kind = cast( ubyte, MV_NONE ) then return false
         '' THE ANSWER IS READ. An element that will not build is the whole
         '' initialiser declining, not a silently empty slot in the middle of it.
-        if StrInitFrom_( c, ea, e ) = false then return false
+        if isU then
+            if UStrElemInit_( c, ea, e ) = false then return false
+        elseif StrInitFrom_( c, ea, e ) = false then
+            return false
+        end if
     next
     return true
 end function

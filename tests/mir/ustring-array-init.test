@@ -1,0 +1,12 @@
+'' A BRACE INITIALISER OVER A USTRING ARRAY is one fb_UStrInit per element, from a UTF-16
+'' source. It declined -- fb_StrInit would have written narrow bytes into UTF-16
+'' descriptors -- so ApexWealth's transaction dialog lost all ten labels and its CSV importer
+'' its column names. fbc-modern prints 'Date|Account|Type| 0' and 'quantity|net amount' for
+'' the source, and so does tiko-lang now.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-array-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrInit(
+'' EXPECT-NOT: fb_StrInit(

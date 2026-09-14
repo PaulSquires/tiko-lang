@@ -919,8 +919,15 @@ function LowerOpenCall_ _
             fn = EmitRtl( c, RTL_STR_TEMPZ, ea )
         end if
         if fn.kind = cast( ubyte, MV_NONE ) then return false
-    elseif UStrToStrTemp_( c, sp->a, fn ) = false then   '' a ustring name: fb_UStrToStr first
-        if StrDescriptorOf_( c, sp->a, fn ) = false then return false
+    elseif UStrToStrTemp_( c, sp->a, fn ) then   '' a ustring name: fb_UStrToStr first
+    elseif TermIsWide_( c, sp->a ) orelse ConcatHasWideTerm_( c, sp->a ) then
+        '' A WIDE NAME -- a wstring, or a DWSTRING through its 'cast( ) as wstring' -- goes
+        '' into a narrow temporary. StrDescriptorOf_ has no descriptor to give for either, so
+        '' ApexWealth's 'open( frmMain_PlacementPath( ) for output as #f )' was dropped with
+        '' its IF. Measured: 'fb_WstrAssignToA( &TMP, -1ll, vr, 0 ); fb_FileOpen( &TMP, ... )'.
+        if WideToNarrowTemp_( c, sp->a, fn ) = false then return false
+    elseif StrDescriptorOf_( c, sp->a, fn ) = false then
+        return false
     end if
 
     dim as MirValue num = LowerExpr( c, sp->b )

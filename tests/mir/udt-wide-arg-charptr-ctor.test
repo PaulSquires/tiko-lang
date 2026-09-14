@@ -1,0 +1,16 @@
+'' A WIDE STRING ARGUMENT FOR A UDT WITH A 'wstring ptr' CONSTRUCTOR goes through that
+'' constructor, and a UDT that casts to a wstring is an OPEN file name through a narrow
+'' temporary. AfxNova's DWSTRING declares 'byref as const wstring', 'byval as wstring ptr'
+'' and 'byref as string'; PickCtor found no single cheapest one for 'wchr( n )', a
+'' 'wstring * 4' or '"Delete?" + chr( 10 ) + dws', so each call was dropped with its
+'' statement -- ApexWealth's delete confirmations, grid glyphs, placeholder titles and
+'' window-placement save. Measured, fbc-modern takes C1EPw for every wide argument and
+'' prints the same nine lines tiko-lang now prints, ending 'live 0'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-wide-arg-charptr-ctor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _ZN2WSC1EPw(
+'' EXPECT-OUT: fb_WstrConcatAW(
+'' EXPECT-OUT: fb_WstrAssignToA(
