@@ -109,11 +109,14 @@ case "$(uname -s)" in
         HOST=windows; EXT=".exe"; BINSUB=""
         TARGETS="win64-msvc win64"
         FBTC="$FBC_TREE/toolchains/fbc-modern-windows"
+        FBLIB="$FBTC/lib"
         ;;
     Linux)
         HOST=linux; EXT=""; BINSUB="bin/"
         TARGETS="linux-x86_64"
         FBTC="$FBC_TREE/toolchains/fbc-modern-linux"
+        # fbc's LINUX install nests its runtime one level deeper: lib/freebasic/<target>.
+        FBLIB="$FBTC/lib/freebasic"
         ;;
     *)  die "unsupported host '$(uname -s)' -- this packages Windows or Linux" ;;
 esac
@@ -163,6 +166,10 @@ if [ "$DO_BUILD" = "1" ]; then
     for t in $TARGETS; do
         gfx_has_target "$t" || continue
         note "building the graphics library [$CFG $t]"
+        # obj/ IS GITIGNORED, so a fresh clone or worktree has none -- and the redirect
+        # below then failed before build.sh ran, reporting a build failure that never
+        # happened and packaging whatever stale archive was lying about.
+        mkdir -p "$ROOT/lib/gfx/obj"
         if ! sh "$ROOT/lib/gfx/build/build.sh" "$CFG" "$t" >"$ROOT/lib/gfx/obj/package.log" 2>&1; then
             GFX_FAIL=$( grep -m1 -iE 'error|die|no ' "$ROOT/lib/gfx/obj/package.log" | cut -c1-120 )
             [ -n "$GFX_FAIL" ] || GFX_FAIL="see lib/gfx/obj/package.log"
@@ -301,14 +308,14 @@ for t in $TARGETS; do
     # program linked against lib/win64-msvc alone runs. Reporting that as the old
     # "links will not resolve" warning would be crying wolf on the one target where
     # the absence is correct.
-    if [ -d "$FBTC/lib/$t" ]; then
+    if [ -d "$FBLIB/$t" ]; then
         note "reference runtime -> lib/$t-fb/  (fbc's libfb, CRT, import libraries)"
         rm -rf "$OUT/lib/$t-fb"
-        cp -r "$FBTC/lib/$t" "$OUT/lib/$t-fb"
+        cp -r "$FBLIB/$t" "$OUT/lib/$t-fb"
     elif [ "$t" = "win64-msvc" ]; then
         note "no lib/$t-fb: fbc has no MSVC target, and this one links without it"
     else
-        note "WARNING: no reference libraries at $FBTC/lib/$t -- links will not resolve"
+        note "WARNING: no reference libraries at $FBLIB/$t -- links will not resolve"
     fi
 done
 
