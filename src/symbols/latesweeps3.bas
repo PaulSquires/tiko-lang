@@ -950,9 +950,11 @@ end sub
 ''
 '' tiko accepted every refused line and lowered it to storage nothing wrote: 'static as P
 '' v = mkp( 3 )' printed zeros. IT REPORTS ONLY WHAT IT CAN POSITIVELY ESTABLISH, as
-'' CheckConstBounds_ does. A builtin call, an IIF and a CAST are never judged -- 'iif( gx,
-'' 1, 2 )' and 'cast( long, gx )' are fbc's 11 too, but asking whether one folds would
-'' measure this compiler's folder, not fbc.
+'' CheckConstBounds_ does: a BUILTIN is judged by its ARGUMENTS -- 'cast( long, gx )',
+'' 'str( gx )', 'iif( gx, 1, 2 )' are 11 because gx is -- and never by asking whether it
+'' folds, which would measure this compiler's folder rather than fbc. So 'hex( 255 )' and
+'' 'val( "12" )', which fbc refuses over constants, are not reported, and neither is
+'' 'peek( long, @gx )'. See RunTimeLeaf_ for the builtins that evaluate nothing.
 
 '' Filled from the image: no constructor runs over it, written or implicit. Anything this
 '' does not recognise answers no, which only ever means not judged.
@@ -1063,8 +1065,7 @@ private function RunTimeLeaf_ _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
         return RunTimeLeaf_( c, mp->lhs, ptrTarget, depth + 1 )
     case N_CALL
-        '' A PROCEDURE'S call, or an array ELEMENT -- a builtin has no symbol, and a
-        '' type's constructor call is not a procedure.
+        '' A PROCEDURE'S call, or an array ELEMENT. A type's constructor call is neither.
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
         if lp->target = NODE_NONE then return NODE_NONE
@@ -1075,9 +1076,65 @@ private function RunTimeLeaf_ _
         end select
         dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( n ) )
         if cs = 0 then cs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if cs = 0 then return NODE_NONE
-        if (cs->kind = cast( ubyte, SYM_PROC )) orelse _
-           (cs->kind = cast( ubyte, SYM_VARIABLE )) then return n
+        if cs <> 0 then
+            if (cs->kind = cast( ubyte, SYM_PROC )) orelse _
+               (cs->kind = cast( ubyte, SYM_VARIABLE )) then return n
+            return NODE_NONE
+        end if
+
+        '' A BUILTIN has no symbol. 'iif', 'cast', 'cint' and 'str' all parse as a call
+        '' on the builtin's name, with the type of a 'cast' as an N_TYPEREF argument.
+        if c.ast->Kind( lp->target ) <> N_IDENT then return NODE_NONE
+        dim as string bn = Tko.Text.LowerAscii( c.names->Spelling( _
+            c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+        select case bn
+        case "sizeof", "lbound", "ubound", "offsetof", "typeof", _
+             "procptr", "varptr", "strptr", "sadd"
+            '' ANSWERED FROM A TYPE OR A DECLARATION, evaluating nothing: fbc accepts
+            '' 'sizeof( gx )', 'lbound( garr )' and 'offsetof( P, b )'.
+            return NODE_NONE
+        case "len"
+            '' ...and LEN over anything but a STRING is its size: 'len( gx )' is accepted,
+            '' 'len( gs )' and 'len( str( gx ) )' are fbc's 11.
+            if lp->count < 1 then return NODE_NONE
+            dim as NodeId la = cast( NodeId, c.ast->children[lp->first] )
+            dim as TypeId lt = c.info->TypeOf_( la )
+            if lt = TYPE_NONE then return NODE_NONE
+            dim as TypeId ludt
+            if SwapKindOf_( c, lt, ludt ) <> 2 then return NODE_NONE
+            return RunTimeLeaf_( c, la, ptrTarget, depth + 1 )
+        case "iif"
+            if lp->count <> 3 then return NODE_NONE
+            dim as NodeId ic = cast( NodeId, c.ast->children[lp->first] )
+            dim as NodeId ia = cast( NodeId, c.ast->children[lp->first + 1] )
+            dim as NodeId ib = cast( NodeId, c.ast->children[lp->first + 2] )
+            dim as NodeId cl = RunTimeLeaf_( c, ic, ptrTarget, depth + 1 )
+            if cl <> NODE_NONE then return cl
+            '' A CONSTANT CONDITION IS FOLDED AND ONLY THE ARM IT PICKS IS JUDGED --
+            '' measured, 'iif( 0, gx, 2 )' and 'iif( 1, 2, gx )' are accepted while
+            '' 'iif( 1, gx, 2 )' and 'iif( 0, 2, gx )' are 11. A WRITTEN integer is read
+            '' here; any other constant condition is judged only when BOTH arms are run
+            '' time, which is true whichever one it picks.
+            if c.ast->Kind( ic ) = N_INT_LIT then
+                if c.ast->literals[cast( long, c.ast->nodes[cast( long, ic )].data )].intValue <> 0 then
+                    return RunTimeLeaf_( c, ia, ptrTarget, depth + 1 )
+                end if
+                return RunTimeLeaf_( c, ib, ptrTarget, depth + 1 )
+            end if
+            dim as NodeId al = RunTimeLeaf_( c, ia, ptrTarget, depth + 1 )
+            if al = NODE_NONE then return NODE_NONE
+            if RunTimeLeaf_( c, ib, ptrTarget, depth + 1 ) = NODE_NONE then return NODE_NONE
+            return al
+        end select
+        '' EVERY OTHER BUILTIN EVALUATES ITS ARGUMENTS, so it is run time when one of them
+        '' is: 'cast( long, gx )', 'cint( gx )', 'str( gx )', 'chr( gx )', 'left( "abc", gx )',
+        '' 'asc( str( gx ) )', 'sin( gd )' -- all 11. 'cptr( long ptr, @gx )' and 'str( 1 )'
+        '' are accepted and have no run-time argument.
+        for i as long = 0 to lp->count - 1
+            dim as NodeId ba = RunTimeLeaf_( c, _
+                cast( NodeId, c.ast->children[lp->first + i] ), ptrTarget, depth + 1 )
+            if ba <> NODE_NONE then return ba
+        next
     case N_DEREF
         return n
     case N_BINARY

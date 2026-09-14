@@ -1,6 +1,7 @@
 '' A static-storage initialiser computed at run time -- a call, a variable, a field, an
 '' element, a dereference, an operator or literal over one -- is fbc error 11 over a type
-'' no constructor fills. Matches fbc on lines 74-95; the accepted() lines and the plain
+'' no constructor fills -- including through a builtin that evaluates one: iif, cast, cint,
+'' str, left, len over a string. Matches fbc on lines 74-110; the accepted() lines and the plain
 '' locals are refused by neither.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/static-init-const.bas

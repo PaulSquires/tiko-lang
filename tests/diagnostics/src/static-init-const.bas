@@ -4,7 +4,7 @@
 ''     (74) error 11: Expected constant in 'dim shared as P e1 = mkp( 3 )'
 ''     (75) error 11: Expected constant in 'static as P e2 = mkp( 3 )'
 ''     ...                                  one per line through
-''     (95) error 11: Expected constant in 'static as long e19 = -gx'
+''     (110) error 11: Expected constant in 'static as long e33 = cast( long, iif( gx, 1, 2 ) )'
 ''
 '' The accepted() lines are what fbc folds -- constants, an address, a builtin -- or run
 '' a constructor (HC written, SS and TZ implicit), and the last two are not static.
@@ -77,6 +77,7 @@ var shared e3 = f( )
 namespace ns2
     dim as P e4 = mkp( 3 )
 end namespace
+dim shared as string gstr
 sub refused( )
     static as long e5 = f( )
     static as long e6 = f
@@ -93,6 +94,20 @@ sub refused( )
     static as long e17 = ns.nv
     static as double e18 = f( ) * 1.5
     static as long e19 = -gx
+    static as long e20 = iif( gx, 1, 2 )
+    static as long e21 = iif( 1, gx, 2 )
+    static as long e22 = iif( 0, 2, f( ) )
+    static as long e23 = iif( KK, gx, f( ) )
+    static as long e24 = cast( long, gx )
+    static as long e25 = cint( gx )
+    static as double e26 = cdbl( f( ) )
+    static as zstring * 8 e27 = str( gx )
+    static as zstring * 8 e28 = chr( gx )
+    static as zstring * 8 e29 = left( "abc", gx )
+    static as long e30 = len( gstr )
+    static as long e31 = asc( str( gx ) )
+    static as double e32 = sin( gx )
+    static as long e33 = cast( long, iif( gx, 1, 2 ) )
 end sub
 
 sub accepted( )
@@ -109,6 +124,11 @@ sub accepted( )
     static as TZ k11 = mkz( )
     static as function( ) as long k12 = @f
     static as any ptr k13 = procptr( f )
+    static as long k17 = iif( 0, gx, 2 ) + iif( 1, 2, gx )
+    static as long k18 = cast( long, 2.5 ) + cint( 2.5 ) + cast( long, KK )
+    static as long ptr k19 = cptr( long ptr, @gx )
+    static as zstring * 8 k20 = str( 1 )
+    static as long k21 = len( gx ) + sizeof( gx ) + lbound( garr ) + ubound( garr ) + offsetof( P, b )
     dim as P k14 = mkp( 3 )
     static as P k15
 end sub
