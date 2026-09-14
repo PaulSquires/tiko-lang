@@ -1,0 +1,21 @@
+'' A bare '= value' over a UDT field with a converting constructor runs that constructor
+'' ON THE FIELD, in place of the default one. It declined into the aggregate SkipHere, so
+'' 'TwsHost as DWSTRING = "127.0.0.1"' was default-constructed and left empty and tracks
+'' could not connect to TWS. Measured, fbc-modern prints 'shared [default] 7496
+'' [s:127.0.0.1:0]', 'local [s:127.0.0.1:0]', 'new [s:127.0.0.1:0]' and 'default
+'' constructors: 3' -- the same lines tiko-lang now prints.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/field-init-convctor.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' The argument is a REAL descriptor, assigned, passed and deleted -- fbc's shape. A pool
+'' descriptor from fb_StrAllocTempDescZEx is never released by a user constructor, and
+'' tracks' grid built enough of them to drain the pool: every later temporary string
+'' came back empty.
+'' EXPECT-OUT: fb_StrAssign(@$tmp0, -1, @@$str13, 10, 0)
+'' EXPECT-OUT: call void _ZN1WC1ER8FBSTRINGj(%5, @$tmp0, %11)
+'' EXPECT-OUT: call.rtl void fb_StrDelete(@$tmp0)
+'' ...and NOT the default constructor before it: 'plain' at offset 0 gets one, 'host'
+'' does not.
+'' EXPECT-NOT: call void _ZN1WC1Ev(%5)

@@ -535,6 +535,12 @@ sub EmitCtorPrologue_ _
         if fi <> Tko.NODE_NONE then
             if c.types->Kind( c.types->Unqualify( f->type_ ) ) = Tko.TK_UDT then
                 fiIsCtorCall = (c.ast->Kind( fi ) = Tko.N_CALL)
+                '' ...and so does a bare value that picks a converting constructor:
+                '' 'host as DWSTRING = "127.0.0.1"' is fbc's DWSTRING( byref as string )
+                '' on the field and nothing before it. See FieldConvCtorPick_.
+                if fiIsCtorCall = false then
+                    fiIsCtorCall = (FieldConvCtorPick_( c, f->type_, fi ) <> Tko.SYMBOL_NONE)
+                end if
             end if
         end if
         if needsInit andalso (fiIsCtorCall = false) then InitMember_( c, fa, f->type_ )

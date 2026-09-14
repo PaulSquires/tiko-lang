@@ -94,19 +94,11 @@ end function
 '' silent wrong answer. This is the LowerBaseCtorCall_ shape instead -- lower the
 '' arguments, PickCtor over the field type's chain, EmitStructorCall on the field's
 '' address -- which is the same machinery 'base( ... )' uses.
-function CtorCallOnAddr_ _
-    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
-      byval init as Tko.NodeId ) as boolean
-
-    if c.ast->Kind( init ) <> Tko.N_CALL then return false
-    dim as Tko.TypeId ut = c.types->Unqualify( ft )
-    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
-
-    dim as Tko.SymbolId ctors = StructorOf( c, ut, "__ctor" )
-    if ctors = Tko.SYMBOL_NONE then return false
-
-    dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+'' THE CALL ITSELF, over argument NODES: 'A( "456" )' hands over its list, and a bare
+'' '= "456"' hands over the one node. Everything after the argument list is the same.
+private function CtorArgsOnAddr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval ctors as Tko.SymbolId, _
+      byref args as FB.Array( of ulong ) ) as boolean
 
     '' Argument VALUES first, then the pick: the types are needed to choose, and the
     '' values must be evaluated in source order whichever overload wins. Same order
@@ -114,18 +106,41 @@ function CtorCallOnAddr_ _
     dim as FB.Array( of ulong ) argT
     dim as FB.Array( of ulong ) argKind
     dim as FB.Array( of ulong ) argId
-    for i as long = 0 to cp->count - 1
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+    dim as FB.Array( of ulong ) strTemps
+    dim as FB.Array( of ulong ) strTempTypes
+    for i as long = 0 to args.Count - 1
+        dim as Tko.NodeId a = cast( Tko.NodeId, args[i] )
         '' A STRING ARGUMENT IS A DESCRIPTOR, not the literal's bytes. 'A( "456" )' over
         '' 'constructor A( byref as string )' passed the literal's global straight
         '' through, so the constructor read a descriptor out of string data and
         '' 'this.s = s' copied nothing -- the program printed an EMPTY line where fbc
         '' prints 456. It lowered, it verified, and only running it said so. fbc builds
         '' a temporary FBSTRING and passes its address.
+        ''
+        '' ...A REAL ONE, NOT A POOL DESCRIPTOR. This used to borrow one from the runtime
+        '' (fb_StrAllocTempDescZEx), and a pool descriptor is released only by a runtime
+        '' call that consumes it -- a user constructor that never does leaks the slot.
+        '' tracks' grid builds a 'wszText as DWSTRING = ""' per cell, the pool ran dry,
+        '' and from then on EVERY temporary string came back empty: '32d' drew as 'd' and
+        '' atoi( mid( ... ) ) read the TWS server version as 0. The same rule the call
+        '' path follows -- see StrArgOwnDescriptor_: only a var-length lvalue passes its
+        '' own descriptor; anything else is assigned into a temporary deleted after the
+        '' call, which is fbc's fb_StrAssign / fb_StrDelete pair.
         dim as MirValue av
         dim as Tko.TypeId at = c.info->TypeOf_( a )
         dim as boolean gotArg = false
-        if IsStringType( c, at ) then gotArg = StrDescriptorOf_( c, a, av )
+        if IsStringType( c, at ) then
+            if StrArgOwnDescriptor_( c, a, at ) then
+                gotArg = StrDescriptorOf_( c, a, av )
+            else
+                dim as long ts = -1
+                gotArg = ByvalStrTemp_( c, a, at, av, ts )
+                if ts >= 0 then
+                    strTemps.Push( cast( ulong, ts ) )
+                    strTempTypes.Push( cast( ulong, at ) )
+                end if
+            end if
+        end if
         if gotArg = false then av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
         argT.Push( cast( ulong, at ) )
@@ -162,7 +177,83 @@ function CtorCallOnAddr_ _
     if ai <> cast( long, argT.Count ) then return false
 
     EmitStructorCall( c, pick, -1, @addr, @cargs )
+
+    '' The temporaries die with the call, in reverse -- DeleteStrArgTemps_'s order. That
+    '' sub is the call path's own and private to it, so the release is spelled here.
+    for k as long = strTemps.Count - 1 to 0 step -1
+        dim as FB.Array( of ulong ) dargs
+        dargs.Push( cast( ulong, MV_LOCAL ) ) : dargs.Push( strTemps[k] )
+        EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, strTempTypes[k] ), RTL_STR_DELETE ), dargs )
+    next
     return true
+end function
+
+function CtorCallOnAddr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    if c.ast->Kind( init ) <> Tko.N_CALL then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( ft )
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
+
+    dim as Tko.SymbolId ctors = StructorOf( c, ut, "__ctor" )
+    if ctors = Tko.SYMBOL_NONE then return false
+
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    dim as FB.Array( of ulong ) args
+    for i as long = 0 to cp->count - 1
+        args.Push( cast( ulong, c.ast->children[cp->first + i] ) )
+    next
+    return CtorArgsOnAddr_( c, addr, ctors, args )
+end function
+
+'' 'host as DWSTRING = "127.0.0.1"' -- A BARE VALUE THAT PICKS A CONVERTING CONSTRUCTOR,
+'' or SYMBOL_NONE. Types only, nothing emitted: EmitCtorPrologue_ asks this BEFORE it
+'' decides whether to default-construct the field, and the answer has to match what
+'' ConvCtorOnAddr_ then does.
+''
+'' Measured with fbc -gen gcc -r over AfxNova's DWSTRING: a temporary FBSTRING, then
+'' _ZN7AFXNOVA8DWSTRINGC1ER8FBSTRINGj on the FIELD, then fb_StrDelete -- and no
+'' _ZN7AFXNOVA8DWSTRINGC1Ev before it. The same shape as 'A( "456" )' above, with the
+'' value as the one argument. This declined into the aggregate SkipHere instead: the
+'' field was default-constructed and the value dropped, so tracks' TWS host was an
+'' empty string and it could not connect.
+''
+'' NOT TAKEN HERE, each left to the path it already had: a paren or tuple list
+'' (LowerUdtParenInit_), a call (CtorCallOnAddr_), and a value of the field's own type,
+'' which is a copy rather than a conversion.
+function FieldConvCtorPick_ _
+    ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as Tko.SymbolId
+
+    if init = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    if FieldInitIsAny_( c, init ) then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId ut = c.types->Unqualify( ft )
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    select case c.ast->Kind( init )
+    case Tko.N_CALL, Tko.N_TUPLE, Tko.N_PAREN
+        return Tko.SYMBOL_NONE
+    end select
+
+    dim as Tko.TypeId at = c.info->TypeOf_( init )
+    if at = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Unqualify( at ) = ut then return Tko.SYMBOL_NONE
+
+    dim as Tko.SymbolId ctors = StructorOf( c, ut, "__ctor" )
+    if ctors = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as FB.Array( of ulong ) argT
+    argT.Push( cast( ulong, at ) )
+    return PickCtor( c, ctors, argT )
+end function
+
+private function ConvCtorOnAddr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    if FieldConvCtorPick_( c, ft, init ) = Tko.SYMBOL_NONE then return false
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, init ) )
+    return CtorArgsOnAddr_( c, addr, StructorOf( c, c.types->Unqualify( ft ), "__ctor" ), args )
 end function
 
 '' The '= value' stored into one field, after that field's default initialisation.
@@ -247,6 +338,7 @@ sub EmitFieldInit_ _
     if c.types->Kind( c.types->Unqualify( ft ) ) = Tko.TK_UDT then
         if LowerUdtParenInit_( c, -1, ft, init, @addr ) then return
         if CtorCallOnAddr_( c, addr, ft, init ) then return
+        if ConvCtorOnAddr_( c, addr, ft, init ) then return
     end if
 
     dim as MirType mt = LowerType( ft, *c.types )

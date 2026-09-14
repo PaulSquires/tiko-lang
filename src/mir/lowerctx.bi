@@ -1069,6 +1069,10 @@ declare function EmitRtl _
     declare function CtorCallOnAddr_ _
         ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
           byval init as Tko.NodeId ) as boolean
+    '' ...and the converting constructor a bare '= value' picks for a UDT field, or
+    '' SYMBOL_NONE. Types only: the prologue asks before it default-constructs.
+    declare function FieldConvCtorPick_ _
+        ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as Tko.SymbolId
     '' lowerimpl.bas -- the structors fbc writes for you.
     declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
