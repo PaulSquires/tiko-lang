@@ -1,0 +1,7 @@
+'' An END statement followed by 'scope' on the next line: the preprocessor's block
+'' tracker once kept the END across the line break, counted that 'scope' as a
+'' closer and undefined the macro -- every use of it was then silently dropped.
+'' TEST: cli
+'' ARGS: --dump-tokens=pp tests/pp/src/end-statement-scope.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: 'scoped_note'

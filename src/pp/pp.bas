@@ -1020,7 +1020,14 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
 
     '' Only KEYWORDS are remembered: an identifier between END and SUB is not a
     '' thing, and remembering every token would make 'end' stale.
-    if IsKeywordKind( k ) then e.prevKw = cast( ushort, k )
+    '' An END OF STATEMENT forgets it: in 'if x then end f( )' then 'scope' on the
+    '' next line, the END is the END statement, and keeping it turned that 'scope'
+    '' into a closer that undefined every macro of the enclosing depth.
+    if IsKeywordKind( k ) then
+        e.prevKw = cast( ushort, k )
+    elseif k = TK_EOL then
+        e.prevKw = 0
+    end if
 end sub
 
 '' Advance the engine until it has emitted at least one token, or input is done.
