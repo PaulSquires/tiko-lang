@@ -594,7 +594,7 @@ end function
 '' declares BOTH a 'byref as const zstring' and a 'byref as const wstring' cast is joined
 '' NARROW by fbc -- measured, 'dim as ustring t = "x=" & d' is 'x=narrow' -- so the wide
 '' claim in IsRenderedNumberTerm_ below has to know there is no narrow cast beside it.
-private function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )

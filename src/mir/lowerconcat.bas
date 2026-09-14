@@ -4,6 +4,37 @@
 
 
 
+'' THE WIDE HALF OF 's &= v' OVER A NARROW VAR-LENGTH STRING -- see the call site in
+'' LowerConcatAssignStmt. The value is built FIRST, as fbc builds it, so
+'' 'k &= mid( k, 2 ) & wz' reads k before the append changes it. Measured:
+''
+''     vr  = fb_WstrConcatAW( (void*)"a", 2ll, WZ )      '' the value, when a chain
+''     vr2 = fb_WstrConcatAW( (void*)&B, -1ll, vr )
+''     fb_WstrAssignToA( (void*)&B, -1ll, vr2, 0 )
+private function NarrowAppendWide_ _
+    ( byref c as Ctx, byref dst as MirValue, byval value as Tko.NodeId ) as boolean
+
+    dim as MirValue src
+    if ConcatHasWideTerm_( c, value ) then
+        if WideConcatToTemp_( c, value, src ) = false then return false
+    elseif (WideOperand_( c, value, src ) = false) orelse (src.kind = cast( ubyte, MV_NONE )) then
+        if UserCastToWide_( c, value, src ) = false then return false
+    end if
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) args
+    PushStrArg( args, dst )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    dim as MirValue joined
+    if WideConcatStep_( c, args, RTL_WSTR_CONCAT_AW, joined ) = false then return false
+    dim as FB.Array( of ulong ) aargs
+    aargs.Push( cast( ulong, dst.kind ) ) : aargs.Push( cast( ulong, dst.id ) )
+    PushStrLen_( c, aargs, -1 )
+    aargs.Push( cast( ulong, joined.kind ) ) : aargs.Push( cast( ulong, joined.id ) )
+    aargs.Push( cast( ulong, MV_CONST_INT ) ) : aargs.Push( 0 )
+    EmitRtl( c, RTL_WSTR_ASSIGN_TOA, aargs )
+    return true
+end function
+
 '' 'a &= b' AND 'a += b' OVER A STRING, which is the same statement: measured, fbc
 '' emits 'fb_StrConcatAssign( &S, -1ll, src, len, 0 )' for both spellings.
 ''
@@ -67,6 +98,47 @@ function LowerConcatAssignStmt _
         '' takes one and appends to the other. See WideAppendToU_.
         if isU andalso (vf = STF_WIDE) then
             if WideAppendToU_( c, dst, value ) then return true
+        end if
+
+        '' A WIDE VALUE APPENDED TO A NARROW STRING -- a wstring, a 'wstr( )', a UDT
+        '' casting to a wstring (AfxNova's DWSTRING) -- has no narrow form, so EmitStrTerm
+        '' declined it and the whole statement was DROPPED: tracks' 's &= "host=" &
+        '' this.Host & "|"' appended nothing. Measured, fbc builds the value wide, then
+        '' 'fb_WstrConcatAW( &S, -1ll, vr )' and 'fb_WstrAssignToA( &S, -1ll, vr2, 0 )'.
+        '' A USTRING in the same chain was worse: it lowered narrow over UTF-16 units and
+        '' 'h &= u & wz' held "nU w i". It takes the fold 'h = h & u & wz' already takes.
+        '' A UDT that ALSO casts to a narrow string stays narrow -- fbc picks that cast.
+        if (isU = false) andalso (vf = STF_WIDE) then
+            dim as FB.Array( of ulong ) wterms
+            FlattenConcat( c, value, wterms )
+            dim as boolean touchesU = false
+            dim as boolean wideOnly = false
+            dim as boolean hasDual = false
+            for i as long = 0 to wterms.Count - 1
+                dim as Tko.NodeId wt = cast( Tko.NodeId, wterms[i] )
+                if IsUStringType( c, c.info->TypeOf_( wt ) ) then touchesU = true
+                if TermIsWide_( c, wt ) then
+                    dim as Tko.TypeId wtt = c.info->TypeOf_( Unparen_( c, wt ) )
+                    if NarrowCastOverload_( c, wtt ) = Tko.SYMBOL_NONE then
+                        wideOnly = true
+                    else
+                        hasDual = true
+                    end if
+                end if
+            next
+            if touchesU then
+                dim as FB.Array( of ulong ) uchain
+                uchain.Push( cast( ulong, target ) )
+                for i as long = 0 to wterms.Count - 1
+                    uchain.Push( wterms[i] )
+                next
+                return LowerUStrChain( c, dst, false, uchain, false )
+            end if
+            '' ...AND NOT BESIDE ONE: fbc takes the narrow cast inside a wide chain as well --
+            '' 'b &= du & wz' is "nnarrowwide" -- where WideConcatToTemp_ would take the wide
+            '' one. That mix declines rather than guess.
+            if wideOnly andalso hasDual then return false
+            if wideOnly then return NarrowAppendWide_( c, dst, value )
         end if
 
         dim as boolean mism = false

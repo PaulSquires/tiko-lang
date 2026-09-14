@@ -901,6 +901,8 @@ declare function EmitRtl _
     declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     '' A NUMBER rendered into a string chain: NARROW, never neutral. lowerterm.bas.
     declare function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    '' A UDT's 'operator cast' to zstring or string, else SYMBOL_NONE. lowerterm.bas.
+    declare function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function ChainHasRenderedNumber_ _
         ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
     '' A ustring destination built in place, each rendered number converted. lowerconcat.bas.

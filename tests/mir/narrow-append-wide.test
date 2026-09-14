@@ -1,0 +1,24 @@
+'' A WIDE value appended to a NARROW var-length string -- a DWSTRING-shaped UDT, a plain wstring,
+'' a wstring deref, 'wstr( )', an rvalue UDT, a rendered number beside it, '+=', a value that
+'' reads the destination, and tracks' 's &= "host=" & this.Host & "|"' in a method. Every one
+'' was DROPPED (one more statement not lowered) because narrow EmitStrTerm has no form for a
+'' wide term; 'h &= u & wz', with a ustring in the chain, lowered and held "nU w i". Measured,
+'' fbc-modern prints the lines listed in the source's header; tiko prints the same lines now.
+''
+'' The dual-cast UDT stays NARROW, as fbc has it. One deliberate difference: fbc builds the DS
+'' chains through the user 'operator &' overloads, tiko through fb_WstrConcatAW -- the same text,
+'' since the destination is narrow either way, and no operator temporaries.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/narrow-append-wide.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call ptr _ZN2DScvwEv(@d)
+'' EXPECT-OUT: call.rtl ptr fb_WstrConcatAW(
+'' EXPECT-OUT: call.rtl ptr fb_WstrAssignToA(
+'' EXPECT-OUT: call.rtl ptr fb_UStrConcatAU(
+'' EXPECT-OUT: call.rtl ptr fb_UStrAssignToA(
+'' EXPECT-OUT: call ptr _ZN4DUALcv8FBSTRINGEv(@du)
+'' EXPECT-OUT: call.rtl ptr fb_StrConcatAssign(
+'' EXPECT-NOT: call ptr _Zv23cat
+'' EXPECT-NOT: call ptr _ZN4DUALcvwEv
