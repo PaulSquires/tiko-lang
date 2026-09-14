@@ -54,23 +54,25 @@ declare function StrSwapKind_ _
 '' this shape. It is recorded rather than hidden; closing it means synthesising the
 '' deep copy.
 ''
-'' The FIRST entry added since 'from_' whose type is the destination's is the
-'' outermost call's sret slot: LowerCall pushes it before it lowers any argument.
+'' The entry added since 'from_' whose type is the destination's and whose SLOT IS
+'' LOWEST is the outermost call's sret slot: LowerCall allocates it before its receiver
+'' and its arguments. Not the first on the list -- CallTempsInSourceOrder_ puts a
+'' receiver's temporaries ahead of it, as fbc does.
 private sub DropMovedTemp_ _
     ( byref c as Ctx, byval from_ as long, byval t as Tko.TypeId )
 
     if t = Tko.TYPE_NONE then return
+    dim as long lowest = -1
     for i as long = from_ to c.udtTemps.Count - 1
         if c.udtTempTypes[i] = cast( ulong, t ) then
-            for k as long = i to c.udtTemps.Count - 2
-                c.udtTemps[k] = c.udtTemps[k + 1]
-                c.udtTempTypes[k] = c.udtTempTypes[k + 1]
-            next
-            c.udtTemps.Pop( )
-            c.udtTempTypes.Pop( )
-            return
+            if lowest < 0 then
+                lowest = cast( long, c.udtTemps[i] )
+            elseif cast( long, c.udtTemps[i] ) < lowest then
+                lowest = cast( long, c.udtTemps[i] )
+            end if
         end if
     next
+    if lowest >= 0 then ForgetUdtTemp_( c, lowest )
 end sub
 
 declare sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
@@ -218,7 +220,12 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' would have given 1 here.
         dim as boolean isByrefLocal = _
             ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0)
+        '' EACH DECLARATOR IS A STATEMENT OF ITS OWN for its temporaries. Measured, fbc's
+        '' 'dim as long x1 = takeR( mkH( 6 ) ), y1 = cnt( )' has destroyed the first
+        '' declarator's temporary before the second one's initialiser runs.
+        dim as long vmark = c.udtTemps.Count
         for i as long = 0 to sp->count - 1
+            ReleaseUdtTemps_( c, vmark )
             dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, item )

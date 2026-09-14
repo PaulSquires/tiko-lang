@@ -117,8 +117,8 @@ func i32 main(i32 $0, ptr $1) {
     %8 = alloca ptr $tmp4
     call void _ZN2TUC1ER2TV(@$tmp4, @vv)
     %9 = call i64 _ZneR2TUS0_(@uu, @$tmp4)
-    call void _ZN2TUD1Ev(@$tmp4)
     store @res, %9
+    call void _ZN2TUD1Ev(@$tmp4)
     %10 = load @res
     call.rtl void fb_PrintLongint(0, %10, 1)
     %11 = alloca ptr cvv

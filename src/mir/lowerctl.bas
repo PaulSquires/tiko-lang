@@ -389,6 +389,12 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.TypeId subjT = c.info->TypeOf_( sp->a )
     dim as MirType mt = LowerType( subjT, *c.types )
 
+    '' THE SUBJECT'S TEMPORARIES DIE ONCE IT IS STORED, before the first CASE is tested.
+    '' Measured, the body under fbc's 'select case takeR( mkH( 7 ) )' already sees the
+    '' destructor's count, and so does the one under 'select case makeS( 5 ).s', whose
+    '' string is copied out first.
+    dim as long smark = c.udtTemps.Count
+
     '' A STRING SUBJECT IS COMPARED, NOT LOADED. 'select case s : case "a"' was
     '' loading the DESCRIPTOR'S first eight bytes and comparing them against the
     '' literal's ADDRESS truncated to 32 bits -- verifier-clean, no decline, and wrong
@@ -441,8 +447,14 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         '' A fixed-length or zstring subject arrives as a pool descriptor too, and is
         '' copied the same way; only a var-length string LVALUE is compared in place.
         '' The copy is released by its scope, which a RETURN inside a case runs.
-        if (strMode = 0) andalso (IsUStringType( c, subjT ) = false) andalso _
-           (StrArgOwnDescriptor_( c, sp->a, subjT ) = false) then
+        ''
+        '' ...AND A SUBJECT THAT BUILT A TEMPORARY IS COPIED EVEN WHEN IT OWNS ITS
+        '' DESCRIPTOR: 'makeS( 5 ).s' is a field of the object about to be destroyed.
+        dim as boolean copySubj = (strMode = 0) andalso (IsUStringType( c, subjT ) = false)
+        if copySubj andalso (c.udtTemps.Count = smark) then
+            copySubj = (StrArgOwnDescriptor_( c, sp->a, subjT ) = false)
+        end if
+        if copySubj then
             dim as long dslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
             if dslot < 0 then
                 SkipHere( c )
@@ -474,6 +486,9 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         slotAddr.ty = cast( ubyte, MT_PTR )
         slotAddr.id = pslot
         StoreThrough( c, slotAddr, sv )
+        '' A WIDE or USTRING subject, or a descriptor compared in place, still points into
+        '' what it came from, so only a copied subject lets its temporaries go here.
+        if copySubj then ReleaseUdtTemps_( c, smark )
     else
         if mt = MT_VOID then
             SkipHere( c )
@@ -494,6 +509,9 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         st0.a = slotAddr
         st0.b = subj
         Emit( c, st0 )
+        '' An AGGREGATE subject keeps them to the end of the statement: its bytes are
+        '' what the cases read.
+        if mt <> MT_AGG then ReleaseUdtTemps_( c, smark )
     end if
 
     dim as Tko.ListPayload ptr lp = _
@@ -521,12 +539,19 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             dim as Tko.NodeId val = cast( Tko.NodeId, c.ast->children[cp->first + v] )
             dim as long moreB = nextB
             if v < cp->count - 1 then moreB = NewBlock( c, "sel.alt" )
+            '' A CASE VALUE'S TEMPORARIES DIE BEFORE ITS BRANCH, on both edges. fbc puts the
+            '' destructor on the MATCH edge only, so a value that does not match leaks its
+            '' temporary -- and 'case takeR( mkH( 1 ) ) to takeR( mkH( 2 ) )' destroys the
+            '' second one on the edge that never built it, printing a garbage value. The
+            '' match edge is measured and matched; the other edge is a deliberate divergence.
+            dim as long vmark = c.udtTemps.Count
             dim as MirValue cond
             if strMode >= 0 then
                 cond = LowerStrCaseTest_( c, slotAddr, (strMode = 1), val )
             else
                 cond = LowerCaseTest( c, slotAddr, mt, isUns, val, subjT )
             end if
+            ReleaseUdtTemps_( c, vmark )
             if cond.kind = cast( ubyte, MV_NONE ) then
                 SkipHere( c )
                 Terminate( c, MTERM_BR, moreB, -1, NoVal( ) )
@@ -1170,7 +1195,14 @@ sub LowerIf _
         '' The branch still goes out, to the THEN side: an unconditional entry is no
         '' more wrong than a missing condition and keeps the block graph well formed,
         '' and the decline beside it is what says the test is missing.
+        ''
+        '' THE CONDITION'S TEMPORARIES DIE BEFORE THE BRANCH, on both edges. Measured, fbc
+        '' runs the destructor of the temporary in 'if takeR( mkH( 0 ) ) = 1' ahead of an
+        '' ELSEIF's own test, and ahead of a THEN body that reads the count. Waiting for the
+        '' end of the IF ran it after the body instead.
+        dim as long cmark = c.udtTemps.Count
         dim as MirValue cond = LowerCondition( c, bp->a )
+        ReleaseUdtTemps_( c, cmark )
         if cond.kind = cast( ubyte, MV_NONE ) then
             SkipHere( c )
             Terminate( c, MTERM_BR, thenB, -1, NoVal( ) )

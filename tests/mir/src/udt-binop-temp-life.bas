@@ -10,8 +10,8 @@
 ''
 '' H has no copy constructor and no 'let': the copy is bitwise and the temporary's destructor
 '' frees what x now holds, so fbc's own count ends 'double= 2'. That is the count to match.
-'' The counters are read in a statement of their own: fbc destroys an argument's temporary
-'' right after the call, tiko at the end of the statement, for any call.
+'' The counters are read in a statement of their own, so every count is taken after the
+'' statement's temporaries are gone -- see tests/mir/src/udt-stmt-temp-life.bas.
 ''
 '' Before the fix tiko printed:
 ''

@@ -593,8 +593,8 @@ func i32 main(i32 $0, ptr $1) {
     %36 = call ptr _ZplR1HS0_(@$tmp6, @$tmp7, @c)
     %37 = load @$tmp6
     store @x, %37
-    call void _ZN1HD1Ev(@$tmp7)
     call void _ZN1HD1Ev(@$tmp6)
+    call void _ZN1HD1Ev(@$tmp7)
     %38 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 5)
     call.rtl void fb_PrintString(0, %38, 0)
     %39 = field.addr @x, 0
@@ -739,8 +739,8 @@ func i32 main(i32 $0, ptr $1) {
     %122 = load @$tmp17
     store @$tmp18, %122
     %123 = call i32 TAKEV(@$tmp18)
-    call void _ZN1HD1Ev(@$tmp18)
     store @r9, %123
+    call void _ZN1HD1Ev(@$tmp18)
     call void _ZN1HD1Ev(@$tmp17)
     %124 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str23, 9)
     call.rtl void fb_PrintString(0, %124, 0)
@@ -889,8 +889,8 @@ func i32 main(i32 $0, ptr $1) {
     %202 = alloca ptr $tmp30
     call void _ZN2CCC1ERS_(@$tmp30, @$tmp29)
     %203 = call i32 TAKECV(@$tmp30)
-    call void _ZN2CCD1Ev(@$tmp30)
     store @r3, %203
+    call void _ZN2CCD1Ev(@$tmp30)
     call void _ZN2CCD1Ev(@$tmp29)
     %204 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str31, 9)
     call.rtl void fb_PrintString(0, %204, 0)

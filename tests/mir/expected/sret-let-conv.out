@@ -151,6 +151,7 @@ func i32 main(i32 $0, ptr $1) {
     %8 = call ptr FA(@$tmp2, @@$wstr3, %7)
     %9 = field.addr @$tmp2, 0
     call.rtl void fb_PrintString(0, %9, 0)
+    call void _ZN2DWD1Ev(@$tmp2)
     %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
     call.rtl void fb_PrintString(0, %10, 0)
     %11 = alloca ptr $tmp3
@@ -158,6 +159,7 @@ func i32 main(i32 $0, ptr $1) {
     %13 = call ptr FA(@$tmp3, @@$wstr5, %12)
     %14 = field.addr @$tmp3, 0
     call.rtl void fb_PrintString(0, %14, 0)
+    call void _ZN2DWD1Ev(@$tmp3)
     %15 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
     call.rtl void fb_PrintString(0, %15, 0)
     %16 = alloca ptr $tmp4
@@ -165,8 +167,6 @@ func i32 main(i32 $0, ptr $1) {
     %18 = field.addr @$tmp4, 0
     call.rtl void fb_PrintString(0, %18, 1)
     call void _ZN2DWD1Ev(@$tmp4)
-    call void _ZN2DWD1Ev(@$tmp3)
-    call void _ZN2DWD1Ev(@$tmp2)
     %19 = const i32 0
     call.rtl void fb_End(%19)
     %20 = load @$tmp0

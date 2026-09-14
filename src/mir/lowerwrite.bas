@@ -23,10 +23,15 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     chan.kind = cast( ubyte, MV_CONST_INT )
     chan.ty = cast( ubyte, MT_I32 )
     chan.id = 0
+    '' The channel's temporaries and each item's die as that part is written, as PRINT's
+    '' do -- see LowerPrint. Measured, fbc's 'write takeR( mkH( 1 ) ), cnt( ),
+    '' takeR( mkH( 2 ) ), cnt( )' writes '1,1,2,2'.
+    dim as long wmark = c.udtTemps.Count
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
+        ReleaseUdtTemps_( c, wmark )
     end if
 
     '' A bare 'write' is a newline on its own.
@@ -54,6 +59,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         end if
 
         if WriteOne_( c, it, mask, chan ) = false then return false
+        ReleaseUdtTemps_( c, wmark )
     next
     return true
 end function

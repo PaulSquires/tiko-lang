@@ -248,4 +248,54 @@ sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
     wend
 end sub
 
+'' A CALL'S TEMPORARIES, PUT IN THE ORDER FBC MAKES THEM. The arguments are lowered right to
+'' left and the receiver last, which is fbc's EVALUATION order, but fbc registers
+'' destructors in SOURCE order -- the receiver, the call's hidden result, then each
+'' argument left to right with its own temporaries together -- and runs them newest
+'' first. Measured:
+''
+''     mkK( 1 ).m( takeR( mkH( 2 ) ), takeR( mkH( 3 ) ) )    destroys 3, 2, the receiver
+''     takeR( mkK( 1 ).mh( takeR( mkH( 2 ) ) ) )             2, the result, the receiver
+''     f2( mkH( 1 ) + mkH( 2 ), mkH( 4 ) )                   4, 4, 3, 3, 2, 1
+''
+'' Everything from 'headMark' on is rewritten in place: the receiver's run (from
+'' 'recvMark'), the call's own result (up to 'argMark'), then argument 0's, 1's and so on.
+'' 'segFrom[i]' is where argument i's run began; argument 0 was lowered last, so its run
+'' ends where the receiver's begins. A list whose marks no longer nest -- something was
+'' forgotten out of order -- is left as it is.
+sub CallTempsInSourceOrder_ _
+    ( byref c as Ctx, byval headMark as long, byval argMark as long, _
+      byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
+
+    dim as long n = c.udtTemps.Count
+    if n - headMark < 2 then return
+    if (headMark > argMark) orelse (argMark > recvMark) orelse (recvMark > n) then return
+    dim as long prev = recvMark
+    for i as long = 0 to segFrom.Count - 1
+        dim as long s = cast( long, segFrom[i] )
+        if (s < argMark) orelse (s > prev) then return
+        prev = s
+    next
+
+    dim as FB.Array( of ulong ) ns
+    dim as FB.Array( of ulong ) nt
+    for k as long = recvMark to n - 1
+        ns.Push( c.udtTemps[k] ) : nt.Push( c.udtTempTypes[k] )
+    next
+    for k as long = headMark to argMark - 1
+        ns.Push( c.udtTemps[k] ) : nt.Push( c.udtTempTypes[k] )
+    next
+    for i as long = 0 to segFrom.Count - 1
+        dim as long stop_ = recvMark
+        if i > 0 then stop_ = cast( long, segFrom[i - 1] )
+        for k as long = cast( long, segFrom[i] ) to stop_ - 1
+            ns.Push( c.udtTemps[k] ) : nt.Push( c.udtTempTypes[k] )
+        next
+    next
+    for k as long = 0 to ns.Count - 1
+        c.udtTemps[headMark + k] = ns[k]
+        c.udtTempTypes[headMark + k] = nt[k]
+    next
+end sub
+
 end namespace

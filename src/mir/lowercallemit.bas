@@ -259,6 +259,18 @@ function SretResultSlot_ _
     return tslot
 end function
 
+'' ...REGISTERED LATE: a slot SretResultSlot_ handed out with registerDtor false, put on
+'' the statement's list now. An operator's result is made after its operands, so it has
+'' to die before their temporaries do. The variable a declaration offered is not a
+'' temporary and is left alone.
+sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
+    if slot < 0 then return
+    if c.sretIntoTaken andalso (slot = c.sretIntoSlot) then return
+    if TypeNeedsDtor_( c, t ) = false then return
+    c.udtTemps.Push( cast( ulong, slot ) )
+    c.udtTempTypes.Push( cast( ulong, t ) )
+end sub
+
 '' A PAREN-LESS PROPERTY'S GETTER: the one accessor on the member's chain that has a
 '' result and takes no index. Walked from the chain's HEAD, as PropertyAt_ walks it.
 '' Nothing when there is no such getter, or more than one.

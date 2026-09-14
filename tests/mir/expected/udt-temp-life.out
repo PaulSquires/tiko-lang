@@ -29,11 +29,11 @@ func void P() {
     %6 = field.addr @$tmp1, 0
     %7 = call.rtl i32 fb_StrCompare(%6, -1, @@$str0, 1)
     %8 = icmp.eq %7, 0
+    call void _ZN1SD1Ev(@$tmp1)
     %10 = alloca ptr $tmp2
     %16 = alloca ptr q
     condbr %8, if.then2, if.else3
   if.join1:
-    call void _ZN1SD1Ev(@$tmp1)
     br while.head4
   if.then2:
     %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 1)

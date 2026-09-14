@@ -400,14 +400,6 @@ function UserConvOperand_ _
     return UdtConvTemp_( c, e, pu, outa, outSlot, outType )
 end function
 
-'' The matching teardown: the same destructor pass a call makes over its own
-'' argument temporaries.
-sub DestroyOperandTemps_ _
-    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ) )
-    DestroyArgTemps_( c, slots, types )
-end sub
-
 '' Whether argument 'i' of 'callee' has to be CONVERTED rather than passed. True only
 '' when the parameter is a UDT and the argument is not already one of that type -- an
 '' argument of the same type is a copy, and both other cases are somebody else's path.
@@ -459,8 +451,16 @@ end function
 '' THE CALLER-BUILT COPY of one byval non-trivial UDT argument.
 ''
 '' Returns the address to pass, and the temporary's slot when one was made so the call
-'' site can destroy it afterwards. A slot of -1 means nothing needs destroying, which
-'' is the type with a copy constructor and no destructor.
+'' site can register it. A slot of -1 means nothing needs destroying, which is the type
+'' with a copy constructor and no destructor.
+''
+'' THE COPY IS A STATEMENT TEMPORARY, not the call's. The call site puts it on
+'' c.udtTemps the moment it is made, and it dies with the statement's other temporaries,
+'' in reverse order of making. Measured, fbc's 'print takeV( nm ) + cnt( ); cnt( )'
+'' prints ' 7[~7] 1', and 'f2( n1, mkFrom( n2 ) )' destroys the copy of mkFrom's
+'' result, mkFrom's own argument copy, mkFrom's result and then n1's copy. Destroying it
+'' straight after the call ran it before the rest of the expression. A conversion
+'' temporary (UdtConvTemp_) follows the same rule, byval, byref and as an operand.
 private function ByvalUdtCopyArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
@@ -539,25 +539,3 @@ private function ByvalUdtCopyArg_ _
     outa = dst
     return true
 end function
-
-'' The temporaries a call built for its byval UDT arguments, destroyed after it returns
-'' and in reverse -- which is the order fbc destroys them in when there is more than one.
-private sub DestroyArgTemps_ _
-    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ) )
-
-    for k as long = slots.Count - 1 to 0 step -1
-        dim as Tko.TypeId t = cast( Tko.TypeId, types[k] )
-        dim as MirValue a
-        a.kind = cast( ubyte, MV_LOCAL )
-        a.ty = cast( ubyte, MT_PTR )
-        a.id = cast( long, slots[k] )
-        dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 )
-        if dt <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) none_
-            EmitStructorCall( c, dt, -1, @a, @none_ )
-        else
-            CallImplicitDtor_( c, t, a )
-        end if
-    next
-end sub

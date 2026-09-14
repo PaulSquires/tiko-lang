@@ -847,9 +847,7 @@ end function
 '' argument; a global one takes both.
 declare function OperandValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
-      byval byref_ as boolean, byref args as FB.Array( of ulong ), _
-      byref tmpSlots as FB.Array( of ulong ), _
-      byref tmpTypes as FB.Array( of ulong ) ) as boolean
+      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
 
 function LowerUserBinaryOp_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
@@ -908,7 +906,11 @@ function LowerUserBinaryOp_ _
             ''
             '' -- as an assignment's source, through 'operator let', as an argument, under a
             '' member access and inside 'a + b + c'.
-            dim as long tslot = SretResultSlot_( c, os->type_, true, op )
+            ''
+            '' REGISTERED AFTER THE OPERANDS, which fbc builds first: the result dies BEFORE
+            '' its operands' temporaries. Measured, 'takeR( a + b + a )' destroys 4 and then
+            '' 3. The slot is taken now because the arguments need it; see SretResultSlotAfter_.
+            dim as long tslot = SretResultSlot_( c, os->type_, false, op )
             if tslot < 0 then return false
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )
@@ -924,8 +926,6 @@ function LowerUserBinaryOp_ _
         args.Push( cast( ulong, sretTmp.id ) )
     end if
     dim as long firstArg = 0
-    dim as FB.Array( of ulong ) opTmpSlots
-    dim as FB.Array( of ulong ) opTmpTypes
     if ptypes.Count = 1 then
         '' The RECEIVER is the left operand, by address.
         dim as MirValue self_ = LowerAddr( c, bp->lhs )
@@ -933,20 +933,21 @@ function LowerUserBinaryOp_ _
         args.Push( cast( ulong, self_.kind ) ) : args.Push( cast( ulong, self_.id ) )
     else
         if OperandValue_( c, bp->lhs, cast( Tko.TypeId, ptypes[0] ), _
-                          (prefs[0] <> 0), args, opTmpSlots, opTmpTypes ) = false then
+                          (prefs[0] <> 0), args ) = false then
             return false
         end if
         firstArg = 1
     end if
     if OperandValue_( c, bp->rhs, cast( Tko.TypeId, ptypes[firstArg] ), _
-                      (prefs[firstArg] <> 0), args, opTmpSlots, opTmpTypes ) = false then
+                      (prefs[firstArg] <> 0), args ) = false then
         return false
     end if
+    if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )
 
     outv = EmitDirectCall_( c, op, rmt, args, usesSret )
-    '' A CONVERTED OPERAND'S TEMPORARY IS DESTRUCTED AFTER THE OPERATOR, which is
-    '' where fbc puts it: '_ZN2TUD1Ev( &TMP$2$0 )' on the line after the call.
-    DestroyOperandTemps_( c, opTmpSlots, opTmpTypes )
+    '' A CONVERTED OPERAND'S TEMPORARY is a statement temporary -- see ByvalUdtCopyArg_.
+    '' fbc's '_ZN2TUD1Ev( &TMP$2$0 )' on the line after the call was an operator at the
+    '' top of its statement; 'print ( w1 + 9 ) + cnt( ); cnt( )' prints ' 10[~W9] 1'.
     if usesSret then
         '' The RESULT IS THE TEMPORARY, not what the call handed back: fbc returns the
         '' same pointer it was given, and reading the temporary is what every use of
@@ -1021,8 +1022,6 @@ function LowerUserUnaryOpSym_ _
     if np <> 1 then return false
 
     dim as FB.Array( of ulong ) args
-    dim as FB.Array( of ulong ) unTmpSlots
-    dim as FB.Array( of ulong ) unTmpTypes
     '' A UDT RESULT THROUGH THE HIDDEN POINTER, as the binary operator passes one. None was
     '' pushed, so '-h' over a type with a destructor called '_ZngR1H(@h)' against a
     '' definition taking the result pointer too -- the verifier's 'calls _ZngR1H with 1
@@ -1034,8 +1033,9 @@ function LowerUserUnaryOpSym_ _
         if UsesSretReturn( c, os->type_ ) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_. Destroyed at
             '' the end of the statement like a call's: measured, fbc destroys the '-x' in
-            '' '(-x).plus( 3 )' and in '-(-x)'.
-            dim as long tslot = SretResultSlot_( c, os->type_, true, op )
+            '' '(-x).plus( 3 )' and in '-(-x)'. Registered after the operand, as the binary
+            '' operator's is.
+            dim as long tslot = SretResultSlot_( c, os->type_, false, op )
             if tslot < 0 then return false
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )
@@ -1045,11 +1045,11 @@ function LowerUserUnaryOpSym_ _
             args.Push( cast( ulong, sretTmp.kind ) ) : args.Push( cast( ulong, sretTmp.id ) )
         end if
     end if
-    if OperandValue_( c, operand, pt, isRef, args, unTmpSlots, unTmpTypes ) = false then
+    if OperandValue_( c, operand, pt, isRef, args ) = false then
         return false
     end if
+    if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )
     outv = EmitDirectCall_( c, op, rmt, args, usesSret )
-    DestroyOperandTemps_( c, unTmpSlots, unTmpTypes )
     if usesSret then
         '' The RESULT IS THE TEMPORARY'S ADDRESS, exactly as for the binary operator.
         if outv.kind = cast( ubyte, MV_NONE ) then return false
@@ -1062,9 +1062,7 @@ end function
 '' One operator operand, pushed as the parameter wants it.
 private function OperandValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
-      byval byref_ as boolean, byref args as FB.Array( of ulong ), _
-      byref tmpSlots as FB.Array( of ulong ), _
-      byref tmpTypes as FB.Array( of ulong ) ) as boolean
+      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
 
     dim as MirValue v
 
@@ -1075,9 +1073,10 @@ private function OperandValue_ _
     dim as long ucSlot = -1
     dim as Tko.TypeId ucType = Tko.TYPE_NONE
     if UserConvOperand_( c, e, pt, v, ucSlot, ucType ) then
+        '' A statement temporary -- see ByvalUdtCopyArg_.
         if ucSlot >= 0 then
-            tmpSlots.Push( cast( ulong, ucSlot ) )
-            tmpTypes.Push( cast( ulong, ucType ) )
+            c.udtTemps.Push( cast( ulong, ucSlot ) )
+            c.udtTempTypes.Push( cast( ulong, ucType ) )
         end if
         args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
         return true

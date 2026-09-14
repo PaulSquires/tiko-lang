@@ -252,6 +252,10 @@ declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirV
 '' statement dispatcher, and from a LOOP HEAD, where waiting for the statement to end
 '' would leak one per iteration.
 declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
+declare sub CallTempsInSourceOrder_ _
+    ( byref c as Ctx, byval headMark as long, byval argMark as long, _
+      byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
+declare sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
 declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
 declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )
 declare function ThisObjectAddr_ _
@@ -952,9 +956,6 @@ declare function EmitRtl _
     declare function UserConvOperand_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
-    declare sub DestroyOperandTemps_ _
-        ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-          byref types as FB.Array( of ulong ) )
     declare function ArrayDescArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, _
           byval isArrayParam as boolean, byref outv as MirValue ) as boolean

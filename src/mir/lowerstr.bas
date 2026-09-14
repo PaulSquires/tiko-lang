@@ -715,10 +715,25 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     chan.kind = cast( ubyte, MV_CONST_INT )
     chan.ty = cast( ubyte, MT_I32 )
     chan.id = 0
+    '' EACH ITEM IS A STATEMENT OF ITS OWN FOR ITS TEMPORARIES, and so is the channel.
+    '' Measured, fbc emits one runtime call per item and destroys what that item built
+    '' right after it:
+    ''
+    ''     struct $1H* vr$4 = MKH( &TMP$17$0, 1 );
+    ''     int32 vr$5 = TAKER( vr$4 );
+    ''     fb_PrintInt( 0, vr$5, 0 );
+    ''     _ZN1HD1Ev( &TMP$17$0 );
+    ''     FBSTRING* vr$7 = fb_StrAllocTempDescZEx( (char*)" dtor=", 6ll );
+    ''
+    '' So a later item already sees the destructor, and so does every item after
+    '' 'print #takeR( mkH( 0 ) ),'. Inside ONE item nothing is released early:
+    '' 'takeR( mkH( 1 ) ) + takeR( mkH( 2 ) ) + cnt( )' reads the count before either.
+    dim as long pmark = c.udtTemps.Count
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
+        ReleaseUdtTemps_( c, pmark )
     end if
 
     '' No items at all is the bare 'print', a newline on its own.
@@ -793,6 +808,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         end if
 
         if PrintOne( c, it, mask, chan ) = false then return false
+        ReleaseUdtTemps_( c, pmark )
     next
     return true
 end function

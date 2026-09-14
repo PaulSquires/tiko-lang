@@ -328,6 +328,12 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
                             IsUnsignedType( c, c.info->TypeOf_( sp->a ) )
 
     '' init
+    ''
+    '' EACH OF THE THREE HEAD EXPRESSIONS LETS ITS TEMPORARIES GO AS SOON AS IT IS STORED.
+    '' Measured, fbc's 'for i = takeR( mkH( 1 ) ) to takeR( mkH( 5 ) ) + cnt( ) step
+    '' takeR( mkH( 2 ) ) + cnt( )' destroys 1, then 5, then 2, all before the first
+    '' iteration, and the limit and the step each see the destructors before them.
+    dim as long hmark = c.udtTemps.Count
     dim as MirValue init_ = CoerceTy( c, LowerExpr( c, fromE ), ity, c.info->TypeOf_( fromE ) )
     if init_.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst st0
@@ -337,6 +343,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         st0.b = init_
         Emit( c, st0 )
     end if
+    ReleaseUdtTemps_( c, hmark )
 
     '' THE LIMIT IS EVALUATED ONCE TOO, and BEFORE the step -- measured against fbc,
     '' which for 'for i = f( ) to g( ) step h( )' emits
@@ -383,6 +390,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
             lst.a = limAddr
             lst.b = lv0
             Emit( c, lst )
+            ReleaseUdtTemps_( c, hmark )
         end if
     end if
 
@@ -428,6 +436,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         sst.a = stepAddr
         sst.b = sv0
         Emit( c, sst )
+        ReleaseUdtTemps_( c, hmark )
     end if
 
     '' A RUNTIME STEP needs its SIGN tested once, also before the loop, because the

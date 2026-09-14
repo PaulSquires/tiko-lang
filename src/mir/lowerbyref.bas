@@ -165,7 +165,8 @@ end function
 
 '' A UDT ARGUMENT FOR A BYREF PARAMETER OF ANOTHER UDT TYPE IS CONVERTED -- through the
 '' parameter type's constructor into a temporary, whose ADDRESS is bound and which is
-'' destroyed right after the call. Measured on fbc: 'TakeDW( b )' over 'byref d as DW'
+'' destroyed with the statement's other temporaries -- see ByvalUdtCopyArg_; fbc's
+'' 'print takeDW( n1 ) + cnt( ); cnt( )' prints ' 1001[~DW1001] 1'. Measured on fbc: 'TakeDW( b )' over 'byref d as DW'
 '' with 'constructor DW( byref b as BS )' prints 'take 107', and a type with a destructor
 '' prints 'dd 1', 'dtor', then 'after'. tiko bound '@b' -- the BS's own bytes read as a
 '' DW -- and printed 100; AfxNova's 'this.Add( bs )' in DWSTRING.+= is the same shape.
@@ -174,8 +175,7 @@ end function
 '' is required and could not be built: the caller declines rather than pass the source.
 private function ByrefUdtArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref tempSlots as FB.Array( of ulong ), _
-      byref tempTypes as FB.Array( of ulong ) ) as boolean
+      byref outa as MirValue ) as boolean
 
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
@@ -197,8 +197,8 @@ private function ByrefUdtArg_ _
         return false
     end if
     if ts >= 0 then
-        tempSlots.Push( cast( ulong, ts ) )
-        tempTypes.Push( cast( ulong, tt ) )
+        c.udtTemps.Push( cast( ulong, ts ) )
+        c.udtTempTypes.Push( cast( ulong, tt ) )
     end if
     return true
 end function

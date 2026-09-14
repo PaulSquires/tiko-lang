@@ -144,8 +144,8 @@ func ptr TITLE(ptr $0, ptr $1, i32 $2) {
     %22 = load @$tmp3
     %23 = load @$tmp0
     store %23, %22
-    call void _ZN2WSD1Ev(@$tmp4)
     call void _ZN2WSD1Ev(@$tmp3)
+    call void _ZN2WSD1Ev(@$tmp4)
     %24 = load @$tmp0
     ret %24
 }

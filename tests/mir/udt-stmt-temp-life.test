@@ -1,0 +1,11 @@
+'' A statement-lifetime temporary dies where fbc flushes its destructor list: after each
+'' PRINT / WRITE / PRINT USING item, channel and format, each DIM declarator, each FOR head
+'' expression, and an IF, ELSEIF, SELECT subject or CASE value before its branch. A byval
+'' copy or a conversion temporary joins that list. Runtime output was checked against
+'' fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-stmt-temp-life.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-stmt-temp-life.out

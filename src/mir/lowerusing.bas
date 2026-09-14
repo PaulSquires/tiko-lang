@@ -80,10 +80,16 @@ function LowerPrintUsing _
     chan.kind = cast( ubyte, MV_CONST_INT )
     chan.ty = cast( ubyte, MT_I32 )
     chan.id = 0
+    '' THE CHANNEL'S TEMPORARIES, THE FORMAT'S AND EACH ITEM'S die as that part is done,
+    '' as PRINT's do -- see LowerPrint. Measured, fbc's 'print using str( takeR( mkH( 5 ) ) )
+    '' & ":## ##"; cnt( ); cnt( )' destroys the format's temporary after Init and prints
+    '' '5: 1  1'.
+    dim as long umark = c.udtTemps.Count
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue ch = LowerExpr( c, sp->a )
         if ch.kind = cast( ubyte, MV_NONE ) then return false
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
+        ReleaseUdtTemps_( c, umark )
     end if
 
     '' The format is an FBSTRING DESCRIPTOR. A literal has none, so it borrows a
@@ -201,6 +207,7 @@ function LowerPrintUsing _
         da.Push( cast( ulong, fd.kind ) ) : da.Push( cast( ulong, fd.id ) )
         EmitRtl( c, RTL_STR_DELETE, da )
     end if
+    ReleaseUdtTemps_( c, umark )
 
     for i as long = 0 to itemNode.Count - 1
         '' The last item carries 0x80000001; every earlier one carries 0. A TRAILING
@@ -218,6 +225,7 @@ function LowerPrintUsing _
             SkipHere( c )
             return true
         end if
+        ReleaseUdtTemps_( c, umark )
     next
 
     dim as FB.Array( of ulong ) ea

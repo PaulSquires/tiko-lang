@@ -1,6 +1,6 @@
 '' A UDT ARGUMENT FOR A PARAMETER OF ANOTHER UDT TYPE RUNS THE PARAMETER TYPE'S CONVERTING
 '' CONSTRUCTOR into a temporary -- byref and byval alike -- and a temporary with a destructor
-'' is destroyed right after the call. fbc prints, and tiko's build of this now prints too:
+'' dies with its statement's temporaries. fbc prints, and tiko's build of this now prints too:
 ''
 ''    take 107
 ''    takev 107

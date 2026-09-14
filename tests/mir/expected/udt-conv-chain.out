@@ -101,10 +101,10 @@ func i32 main(i32 $0, ptr $1) {
     %15 = call ptr _ZN2TVcv8FBSTRINGEv(@v)
     call void _ZN2TUC1ER8FBSTRING(@$tmp5, %15)
     %17 = call i64 _ZneR2TUS0_(@u, @$tmp5)
-    call void _ZN2TUD1Ev(@$tmp5)
     %18 = const i64 0
     %19 = icmp.ne %17, %18
     store @result, %19
+    call void _ZN2TUD1Ev(@$tmp5)
     call void _ZN2TUD1Ev(@u)
     %20 = const i32 0
     call.rtl void fb_End(%20)

@@ -39,9 +39,6 @@ declare function ArgNeedsUdtConv_ _
 declare function ByvalUdtCopyArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
-declare sub DestroyArgTemps_ _
-    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ) )
 
 
 using Tko
@@ -277,12 +274,10 @@ function LowerCallParts _
     '' lowered: 'F( G( 7 ), 9 )' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and
     '' dropped the 9 entirely. No decline, no diagnostic, wrong arguments.
     dim as FB.Array( of ulong ) argv
-    '' THE CALLER-BUILT COPIES of byval non-trivial UDT arguments, which are destroyed
-    '' AFTER the call returns and so cannot be dealt with where they are made.
-    dim as FB.Array( of ulong ) tempSlots
-    dim as FB.Array( of ulong ) tempTypes
-    '' ...and the STRING descriptors, which are released with the runtime rather than
-    '' with a destructor.
+    '' THE CALLER-BUILT COPIES of byval non-trivial UDT arguments, and the conversions,
+    '' are not collected here: each goes on the statement's temporary list the moment it
+    '' is made -- see ByvalUdtCopyArg_. The STRING descriptors are collected, and
+    '' released with the runtime right after the call rather than with a destructor.
     dim as FB.Array( of ulong ) strTemps
     dim as FB.Array( of ulong ) strTempTypes
     '' ...and the COPY-OUT a fixed USTRING argument needs. fbc copies a
@@ -333,6 +328,7 @@ function LowerCallParts _
             end if
         end if
     end if
+    dim as long headMark = c.udtTemps.Count
     if (cs <> 0) andalso (cs->kind = cast( ubyte, Tko.SYM_PROC )) then
         if UsesSretReturn( c, cs->type_ ) andalso (calleeByrefRet = false) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_.
@@ -379,8 +375,12 @@ function LowerCallParts _
     '' order after, the receiver lowered BEFORE 'first' reads argPool (it may be a call).
     dim as FB.Array( of ulong ) slotKind
     dim as FB.Array( of ulong ) slotId
-    for i as long = 0 to slots - 1 : slotKind.Push( cast( ulong, MV_NONE ) ) : slotId.Push( 0 ) : next
+    '' ...and where each argument's temporaries begin -- see CallTempsInSourceOrder_.
+    dim as FB.Array( of ulong ) segFrom
+    dim as long argMark = c.udtTemps.Count
+    for i as long = 0 to slots - 1 : slotKind.Push( cast( ulong, MV_NONE ) ) : slotId.Push( 0 ) : segFrom.Push( 0 ) : next
     for i as long = slots - 1 to 0 step -1
+        segFrom[i] = cast( ulong, c.udtTemps.Count )
         '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
         '' says the two are one rule and not two.
         dim as Tko.NodeId argNode = Tko.NODE_NONE
@@ -710,7 +710,7 @@ function LowerCallParts _
                     if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
                 end if
             end if
-            if (a.kind = cast( ubyte, MV_NONE )) andalso (ByrefUdtArg_( c, argNode, brPt, a, tempSlots, tempTypes ) = false) then return CallFailed_( c, v, __LINE__ )
+            if (a.kind = cast( ubyte, MV_NONE )) andalso (ByrefUdtArg_( c, argNode, brPt, a ) = false) then return CallFailed_( c, v, __LINE__ )
             '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
             '' DEFAULT of an omitted one -- still has to be passed by reference, and a
             '' value is not a pointer. fbc materialises a temporary, stores the value
@@ -884,9 +884,10 @@ function LowerCallParts _
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
                 end if
+                '' A statement temporary -- see ByvalUdtCopyArg_.
                 if tempSlot >= 0 then
-                    tempSlots.Push( cast( ulong, tempSlot ) )
-                    tempTypes.Push( cast( ulong, tempType ) )
+                    c.udtTemps.Push( cast( ulong, tempSlot ) )
+                    c.udtTempTypes.Push( cast( ulong, tempType ) )
                 end if
                 '' THE CALLEE TAKES WHAT IT WOULD HAVE TAKEN ANYWAY: the temporary's
                 '' ADDRESS when the type is passed indirectly, and the aggregate itself
@@ -935,9 +936,10 @@ function LowerCallParts _
                     c.blameNode = cast( ulong, argNode )
                     return CallFailed_( c, v, __LINE__ )
                 end if
+                '' A statement temporary, registered as it is made -- see ByvalUdtCopyArg_.
                 if tempSlot >= 0 then
-                    tempSlots.Push( cast( ulong, tempSlot ) )
-                    tempTypes.Push( cast( ulong, tempType ) )
+                    c.udtTemps.Push( cast( ulong, tempSlot ) )
+                    c.udtTempTypes.Push( cast( ulong, tempType ) )
                 end if
                 slotKind[i] = cast( ulong, a.kind )
                 slotId[i] = cast( ulong, a.id )
@@ -1017,7 +1019,9 @@ function LowerCallParts _
         slotId[i] = cast( ulong, a.id )
     next
 
+    dim as long recvMark = c.udtTemps.Count
     self_ = ReceiverOf( c, calleeNode, callee )
+    CallTempsInSourceOrder_( c, headMark, argMark, recvMark, segFrom )
     if self_.kind <> cast( ubyte, MV_NONE ) then
         argv.Push( cast( ulong, self_.kind ) )
         argv.Push( cast( ulong, self_.id ) )
@@ -1189,7 +1193,6 @@ function LowerCallParts _
                     if sidx >= 0 then vc.callee = cast( ulong, sidx + 1 )
                 end if
                 dim as MirValue vr = Emit( c, vc )
-                DestroyArgTemps_( c, tempSlots, tempTypes )
                 CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
@@ -1236,7 +1239,6 @@ function LowerCallParts _
             ic.imm = SizeOfType( c, cs->type_ )
         end if
         dim as MirValue iv = Emit( c, ic )
-        DestroyArgTemps_( c, tempSlots, tempTypes )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
@@ -1260,7 +1262,6 @@ function LowerCallParts _
     ins.count = n
     ins.callee = fidx
     dim as MirValue cv = Emit( c, ins )
-    DestroyArgTemps_( c, tempSlots, tempTypes )
     CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
     c.lastCallOk = true
