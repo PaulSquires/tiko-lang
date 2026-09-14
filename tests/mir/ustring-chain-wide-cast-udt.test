@@ -1,0 +1,25 @@
+'' A UDT that casts to a wstring (AfxNova's DWSTRING) in a USTRING chain -- declaration,
+'' assignment, compound append, an rvalue term, a rendered number beside it, and tracks' two
+'' settings lines. Every one was DROPPED: IsRenderedNumberTerm_ called the UDT a rendered number
+'' and LowerUStrChain forced it narrow. Measured, fbc-modern prints 'init [x=host]',
+'' 'assign [[x=host', 'append [[x=host', 'rvalue [[call=made', 'number [U25host]',
+'' 'narrow [x=hosthost]', 'TwsHost=127.0.0.1' and CATEGORY=0..2 for this source; tiko prints
+'' the same lines now.
+''
+'' TWO DELIBERATE DIFFERENCES from fbc, both from keeping every term UTF-16 instead of calling
+'' the user 'operator &': non-ANSI text in the ustring side stays intact where fbc returns its
+'' UTF-8 bytes as separate units, and the operator's temporaries are never built -- a counting
+'' DS constructs 4 and destroys 4 over 10000 CATEGORY statements where fbc constructs and
+'' destroys 60004. Balanced either way.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-chain-wide-cast-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call ptr _ZN2DScvwEv(@d)
+'' EXPECT-OUT: call.rtl ptr fb_WstrToUStr(
+'' EXPECT-OUT: fb_UStrInit(@t1, -1,
+'' EXPECT-OUT: call.rtl ptr fb_UStrConcatUA(
+'' EXPECT-OUT: call.rtl ptr fb_LongintToStr(
+'' EXPECT-NOT: call ptr _Zv23cat
+'' EXPECT-NOT: fb_UStrToStr

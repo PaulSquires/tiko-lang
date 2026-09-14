@@ -589,12 +589,53 @@ end function
 '' and a string constant are the neutral terms; a number never is. Measured, n = 25:
 '' 'dim v as ustring = w & n' is fb_UStrConcatUA, and treating the number as neutral
 '' concatenated its narrow digits as UTF-16 -- '25' printed as U+3532.
+'' A UDT's NARROW 'operator cast' -- to zstring or string, byref, pointer or value -- or
+'' SYMBOL_NONE. The same walk WideCastOverload_ makes, for the other width: a UDT that
+'' declares BOTH a 'byref as const zstring' and a 'byref as const wstring' cast is joined
+'' NARROW by fbc -- measured, 'dim as ustring t = "x=" & d' is 'x=narrow' -- so the wide
+'' claim in IsRenderedNumberTerm_ below has to know there is no narrow cast beside it.
+private function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        if cse->type_ <> Tko.TYPE_NONE then
+            dim as Tko.TypeId inner = c.types->Unqualify( cse->type_ )
+            if c.types->Kind( inner ) = Tko.TK_REFERENCE then
+                inner = c.types->Unqualify( c.types->Inner( inner ) )
+            end if
+            if c.types->Kind( inner ) = Tko.TK_POINTER then
+                inner = c.types->Unqualify( c.types->Inner( inner ) )
+            end if
+            if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( inner )
+                case Tko.TY_ZSTRING, Tko.TY_STRING
+                    return cur
+                end select
+            end if
+        end if
+        cur = cse->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
     term = Unparen_( c, term )
     if c.ast->Kind( term ) = Tko.N_STRING_LIT then return false
     dim as Tko.TypeId tt = c.info->TypeOf_( term )
     if tt = Tko.TYPE_NONE then return false
     if IsStringType( c, tt ) then return false
+    '' A UDT THAT CASTS TO A WSTRING IS NOT A NUMBER -- AfxNova's DWSTRING. StrSwapKind_ is -1
+    '' for every non-string, so this called it a rendered number, and LowerUStrChain let that
+    '' override StrTermFlavour_'s WIDE and forced it NARROW, where EmitStrTerm has no form
+    '' for a UDT. Every ustring chain holding one was dropped: tracks' 's &= "TwsHost=" &
+    '' this.TwsHost & nl' and its CATEGORY line lost their settings on each save. A UDT with
+    '' a NARROW cast as well is left alone -- fbc joins that one narrow; see above.
+    if WideCastOverload_( c, tt ) <> Tko.SYMBOL_NONE then
+        if NarrowCastOverload_( c, tt ) = Tko.SYMBOL_NONE then return false
+    end if
     dim as longint tsk
     return (StrSwapKind_( c, tt, tsk ) = -1)
 end function
@@ -622,10 +663,10 @@ end function
 '' rendered number -- takes the accumulator's flavour, which is what makes '"lit" + q'
 '' fold narrow before the ustring arrives.
 ''
-'' ONE MEASURED SHAPE IS REFUSED rather than approximated: a chain with a NARROW term, a
-'' WIDE one and a ustring folds the narrow prefix into a WIDE temporary first --
-'' 'fb_WstrConcatAW' then 'fb_WstrToUStr' -- which is the wide path's business and not
-'' this fold's. It declines.
+'' A chain with a NARROW term, a WIDE one and a ustring used to be refused here; it is
+'' folded now, left to right -- see 'A CHAIN CARRYING ALL THREE WIDTHS' below. A UDT that
+'' casts to a wstring (AfxNova's DWSTRING) is a WIDE term, not a rendered number: see
+'' IsRenderedNumberTerm_.
 function LowerUStrChain _
     ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
       byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
