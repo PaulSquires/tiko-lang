@@ -57,6 +57,11 @@ OUT=
 
 die( ) { echo "package: $*" >&2; exit 1; }
 note( ) { echo "package: $*"; }
+# THE MANIFEST IS WRITTEN WITH printf, NOT echo. dash -- Linux's /bin/sh -- expands
+# backslash escapes in echo's arguments, so the Windows clang path came out as
+# 'C:\Program Files\LLVMin': its '\b' was a backspace. Git Bash's sh does not, which
+# is why the Windows manifest never showed it.
+say( ) { printf '%s\n' "$*"; }
 
 usage( ) {
     sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
@@ -110,6 +115,7 @@ case "$(uname -s)" in
         TARGETS="win64-msvc win64"
         FBTC="$FBC_TREE/toolchains/fbc-modern-windows"
         FBLIB="$FBTC/lib"
+        CLANG_DEFAULT='C:\Program Files\LLVM\bin\clang.exe'
         ;;
     Linux)
         HOST=linux; EXT=""; BINSUB="bin/"
@@ -117,6 +123,8 @@ case "$(uname -s)" in
         FBTC="$FBC_TREE/toolchains/fbc-modern-linux"
         # fbc's LINUX install nests its runtime one level deeper: lib/freebasic/<target>.
         FBLIB="$FBTC/lib/freebasic"
+        # The compiler's own default on Linux -- see src/codegen/toolchain.bas.
+        CLANG_DEFAULT=/usr/bin/clang
         ;;
     *)  die "unsupported host '$(uname -s)' -- this packages Windows or Linux" ;;
 esac
@@ -431,8 +439,21 @@ fi
 # wrong answer. So every part records where it came from and at what commit, and
 # a dirty tree is marked as such.
 
-REV=$( cd "$ROOT" && git rev-parse --short HEAD 2>/dev/null || echo unknown )
-if [ -n "$( cd "$ROOT" && git status --porcelain 2>/dev/null | head -1 )" ]; then
+# UNDER WSL a worktree made by Windows git records its gitdir as 'C:/...', which
+# Linux git cannot open -- the Linux toolchain was stamped 'commit unknown'. Windows
+# git, reachable through WSL interop, answers for the same tree.
+git_in_root( ) {
+    if ( cd "$ROOT" && git rev-parse --git-dir >/dev/null 2>&1 ); then
+        ( cd "$ROOT" && git "$@" )
+    elif command -v git.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+        git.exe -C "$( wslpath -w "$ROOT" )" "$@" | tr -d '\r'
+    else
+        return 1
+    fi
+}
+REV=$( git_in_root rev-parse --short HEAD 2>/dev/null || echo unknown )
+[ -n "$REV" ] || REV=unknown
+if [ -n "$( git_in_root status --porcelain 2>/dev/null | head -1 )" ]; then
     REV="$REV+dirty"
 fi
 
@@ -440,73 +461,73 @@ NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l )
 SIZE=$( du -sh "$OUT" | cut -f1 )
 
 {
-    echo "tiko toolchain -- $HOST"
-    echo
-    echo "packaged       $(date -u '+%Y-%m-%d %H:%M:%SZ')"
-    echo "from           $ROOT"
-    echo "commit         $REV"
-    echo "configuration  $CFG"
-    echo "targets        $TARGETS"
-    echo "reference fbc  $FBTC"
-    echo "contents       $NFILES files, $SIZE"
-    echo
-    echo "-- what is NOT in here -------------------------------------------------"
-    echo "clang       REQUIRED, not bundled. The compiler runs it for both the"
-    echo "            .ll -> .o step and the link. Install LLVM, and point at it"
-    echo "            by setting TKO_CLANG if it is not at the default"
-    echo "            C:\\Program Files\\LLVM\\bin\\clang.exe."
-    echo
-    echo "-- libraries, per target -----------------------------------------------"
-    echo "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"
-    echo "                  where there is one -- the compiler looks for all"
-    echo "                  three in the same directory."
-    echo "lib/<target>-fb/  fbc's runtime, the CRT objects and the import"
-    echo "                  libraries, behind ours. Absent for win64-msvc:"
-    echo "                  fbc has no MSVC target and that one links without."
-    echo
-    echo "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
-    echo "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
-    echo "                  the MSVC linker looks for <name>.lib and would"
-    echo "                  otherwise fall back on an installed Visual Studio."
-    echo "                  build/mkmsvcimplibs.sh, rerunnable on its own."
-    echo
-    echo "import libraries: $IMPLIB_STATE"
-    echo
-    echo "graphics:$GFX_STATE"
-    echo
-    echo "-- verification --------------------------------------------------------"
-    echo "Each target below was checked by compiling AND RUNNING a program with"
-    echo "this tree, using exactly the invocation shown under 'linking'."
-    echo "$VERIFY_LINES"
-    echo
-    echo "-- linking -------------------------------------------------------------"
-    echo "Nothing has to be passed. tiko appends inc/ to the include search and"
-    echo "lib/<target>/ then lib/<target>-fb/ to the library search on its own,"
-    echo "all relative to the executable, as fbc does with inc/ and lib/<target>."
-    echo
-    echo "The -fb half has no fbc counterpart and is ours: tiko-rt is partial on"
-    echo "win64, its thread layer references fb_AtomicCasLong, and only fbc's"
-    echo "libfb defines that. OURS COMES FIRST -- a single -l resolves once, from"
-    echo "the first path holding the archive -- and that order is fixed in the"
-    echo "compiler, not left to the caller. win64-msvc needs no second directory"
-    echo "at all; it was measured linking against ours alone."
-    echo
-    echo "  tiko yourprogram.bas                  the default, win64-msvc"
+    say "tiko toolchain -- $HOST"
+    say
+    say "packaged       $(date -u '+%Y-%m-%d %H:%M:%SZ')"
+    say "from           $ROOT"
+    say "commit         $REV"
+    say "configuration  $CFG"
+    say "targets        $TARGETS"
+    say "reference fbc  $FBTC"
+    say "contents       $NFILES files, $SIZE"
+    say
+    say "-- what is NOT in here -------------------------------------------------"
+    say "clang       REQUIRED, not bundled. The compiler runs it for both the"
+    say "            .ll -> .o step and the link. Install LLVM, and point at it"
+    say "            by setting TKO_CLANG if it is not at the default"
+    say "            $CLANG_DEFAULT."
+    say
+    say "-- libraries, per target -----------------------------------------------"
+    say "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"
+    say "                  where there is one -- the compiler looks for all"
+    say "                  three in the same directory."
+    say "lib/<target>-fb/  fbc's runtime, the CRT objects and the import"
+    say "                  libraries, behind ours. Absent for win64-msvc:"
+    say "                  fbc has no MSVC target and that one links without."
+    say
+    say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
+    say "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
+    say "                  the MSVC linker looks for <name>.lib and would"
+    say "                  otherwise fall back on an installed Visual Studio."
+    say "                  build/mkmsvcimplibs.sh, rerunnable on its own."
+    say
+    say "import libraries: $IMPLIB_STATE"
+    say
+    say "graphics:$GFX_STATE"
+    say
+    say "-- verification --------------------------------------------------------"
+    say "Each target below was checked by compiling AND RUNNING a program with"
+    say "this tree, using exactly the invocation shown under 'linking'."
+    say "$VERIFY_LINES"
+    say
+    say "-- linking -------------------------------------------------------------"
+    say "Nothing has to be passed. tiko appends inc/ to the include search and"
+    say "lib/<target>/ then lib/<target>-fb/ to the library search on its own,"
+    say "all relative to the executable, as fbc does with inc/ and lib/<target>."
+    say
+    say "The -fb half has no fbc counterpart and is ours: tiko-rt is partial on"
+    say "win64, its thread layer references fb_AtomicCasLong, and only fbc's"
+    say "libfb defines that. OURS COMES FIRST -- a single -l resolves once, from"
+    say "the first path holding the archive -- and that order is fixed in the"
+    say "compiler, not left to the caller. win64-msvc needs no second directory"
+    say "at all; it was measured linking against ours alone."
+    say
+    say "  tiko yourprogram.bas                  the default, win64-msvc"
     for t in $TARGETS; do
-        echo "  tiko -target $t yourprogram.bas"
+        say "  tiko -target $t yourprogram.bas"
     done
-    echo
-    echo "GRAPHICS IS win64-msvc ONLY. libtkogfx is built for the Microsoft ABI"
-    echo "and there is no MinGW build of it, so a SCREEN or PSET program links"
-    echo "on the default target and nowhere else. That is why it is the default."
-    echo
-    echo "A -p of your own is searched BEFORE both, so it can override either."
-    echo "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."
-    echo
-    echo "-- licences ------------------------------------------------------------"
-    echo "licences/ holds the runtime's LGPL-2.1 notice and its provenance, and"
-    echo "FreeBASIC's own. This tree redistributes binaries built from LGPL"
-    echo "sources; distributing it carries the source-offer obligation."
+    say
+    say "GRAPHICS IS win64-msvc ONLY. libtkogfx is built for the Microsoft ABI"
+    say "and there is no MinGW build of it, so a SCREEN or PSET program links"
+    say "on the default target and nowhere else. That is why it is the default."
+    say
+    say "A -p of your own is searched BEFORE both, so it can override either."
+    say "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."
+    say
+    say "-- licences ------------------------------------------------------------"
+    say "licences/ holds the runtime's LGPL-2.1 notice and its provenance, and"
+    say "FreeBASIC's own. This tree redistributes binaries built from LGPL"
+    say "sources; distributing it carries the source-offer obligation."
 } > "$OUT/MANIFEST.txt"
 
 note "manifest -> MANIFEST.txt"
