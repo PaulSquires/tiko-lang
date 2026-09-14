@@ -1,0 +1,1327 @@
+global var i32 ector
+global var i32 ecopy
+global var i32 edtor
+global var i32 udtor
+global var i32 narg
+global str $str5 "E ctor="
+global str $str6 " copy="
+global str $str7 " dtor="
+global str $str8 " U dtor="
+global str $str9 " arg="
+global str $str10 " |"
+func void _ZN2ELC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 4)
+    %5 = load @@ector
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@ector, %8
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void _ZN2ELC1ERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 4)
+    %6 = load @@ecopy
+    %7 = const i64 1
+    %8 = trunc %7
+    %9 = add %6, %8
+    store @@ecopy, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = load @o
+    %13 = field.addr %12, 0
+    %14 = load %13
+    store %11, %14
+    ret
+}
+func void _ZN2ELD1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @@edtor
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = add %2, %4
+    store @@edtor, %5
+    ret
+}
+func void _ZN2M2C1Eii(ptr $0, i32 $1, i32 $2) {
+  local ptr this
+  local i32 r
+  local i32 c
+  local i32 i
+  local i32 $tmp4
+  local i32 j
+  local i32 $tmp6
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr r
+    store @r, $1
+    %3 = alloca ptr c
+    store @c, $2
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = const ptr 0
+    %7 = field.addr %5, 0
+    store %7, %6
+    %8 = field.addr %5, 8
+    store %8, %6
+    %9 = const i64 0
+    %10 = field.addr %5, 16
+    store %10, %9
+    %11 = const i64 4
+    %12 = field.addr %5, 24
+    store %12, %11
+    %13 = const i64 2
+    %14 = field.addr %5, 32
+    store %14, %13
+    %15 = const i64 18
+    %16 = field.addr %5, 40
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %5, 48
+    store %18, %17
+    %19 = const i64 0
+    %20 = field.addr %5, 56
+    store %20, %19
+    %21 = const i64 0
+    %22 = field.addr %5, 64
+    store %22, %21
+    %23 = const i64 0
+    %24 = field.addr %5, 72
+    store %24, %23
+    %25 = const i64 0
+    %26 = field.addr %5, 80
+    store %26, %25
+    %27 = const i64 0
+    %28 = field.addr %5, 88
+    store %28, %27
+    %29 = load @this
+    %30 = field.addr %29, 0
+    %31 = const i64 0
+    %32 = const i64 0
+    %33 = load @r
+    %34 = const i64 1
+    %35 = sext %33
+    %36 = sub %35, %34
+    %37 = const i64 0
+    %38 = const i64 0
+    %39 = load @c
+    %40 = const i64 1
+    %41 = sext %39
+    %42 = sub %41, %40
+    %43 = call.rtl i32 fb_ArrayRedimEx(%30, 4, -1, 0, 2, %32, %36, %38, %42)
+    %44 = alloca ptr i
+    %45 = const i64 0
+    %46 = trunc %45
+    store @i, %46
+    %47 = alloca ptr $tmp4
+    %48 = load @r
+    %49 = const i64 1
+    %50 = sext %48
+    %51 = sub %50, %49
+    %52 = trunc %51
+    store @$tmp4, %52
+    %56 = alloca ptr j
+    %59 = alloca ptr $tmp6
+    br for.head1
+  for.head1:
+    %53 = load @i
+    %54 = load @$tmp4
+    %55 = icmp.sle %53, %54
+    condbr %55, for.body2, for.exit4
+  for.body2:
+    %57 = const i64 0
+    %58 = trunc %57
+    store @j, %58
+    %60 = load @c
+    %61 = const i64 1
+    %62 = sext %60
+    %63 = sub %62, %61
+    %64 = trunc %63
+    store @$tmp6, %64
+    br for.head5
+  for.step3:
+    %97 = load @i
+    %98 = const i32 1
+    %99 = add %97, %98
+    store @i, %99
+    br for.head1
+  for.exit4:
+    ret
+  for.head5:
+    %65 = load @j
+    %66 = load @$tmp6
+    %67 = icmp.sle %65, %66
+    condbr %67, for.body6, for.exit8
+  for.body6:
+    %68 = load @this
+    %69 = field.addr %68, 0
+    %70 = load @i
+    %71 = sext %70
+    %72 = load @j
+    %73 = sext %72
+    %74 = field.addr %69, 72
+    %75 = load %74
+    %76 = mul %71, %75
+    %77 = add %76, %73
+    %78 = const i64 4
+    %79 = mul %77, %78
+    %80 = load %69
+    %81 = ptr.add %80, %79
+    %82 = load @i
+    %83 = const i64 1
+    %84 = sext %82
+    %85 = add %84, %83
+    %86 = const i64 10
+    %87 = mul %85, %86
+    %88 = load @j
+    %89 = sext %88
+    %90 = add %87, %89
+    %91 = const i64 1
+    %92 = add %90, %91
+    %93 = trunc %92
+    store %81, %93
+    br for.step7
+  for.step7:
+    %94 = load @j
+    %95 = const i32 1
+    %96 = add %94, %95
+    store @j, %96
+    br for.head5
+  for.exit8:
+    br for.step3
+}
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+func void _ZN3M3EC1Ei(ptr $0, i32 $1) {
+  local ptr this
+  local i32 n
+  local i32 i
+  local i32 j
+  local i32 $tmp4
+  local i32 k
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = const ptr 0
+    %6 = field.addr %4, 0
+    store %6, %5
+    %7 = field.addr %4, 8
+    store %7, %5
+    %8 = const i64 0
+    %9 = field.addr %4, 16
+    store %9, %8
+    %10 = const i64 4
+    %11 = field.addr %4, 24
+    store %11, %10
+    %12 = const i64 3
+    %13 = field.addr %4, 32
+    store %13, %12
+    %14 = const i64 19
+    %15 = field.addr %4, 40
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr %4, 48
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr %4, 56
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr %4, 64
+    store %21, %20
+    %22 = const i64 0
+    %23 = field.addr %4, 72
+    store %23, %22
+    %24 = const i64 0
+    %25 = field.addr %4, 80
+    store %25, %24
+    %26 = const i64 0
+    %27 = field.addr %4, 88
+    store %27, %26
+    %28 = const i64 0
+    %29 = field.addr %4, 96
+    store %29, %28
+    %30 = const i64 0
+    %31 = field.addr %4, 104
+    store %31, %30
+    %32 = const i64 0
+    %33 = field.addr %4, 112
+    store %33, %32
+    %34 = load @this
+    %35 = field.addr %34, 0
+    %36 = const i64 0
+    %37 = const i64 0
+    %38 = const i64 1
+    %39 = const i64 0
+    %40 = const i64 0
+    %41 = load @n
+    %42 = const i64 1
+    %43 = sext %41
+    %44 = sub %43, %42
+    %45 = const i64 0
+    %46 = const i64 1
+    %47 = const i64 2
+    %48 = func.addr ptr _ZN2ELC1Ev
+    %49 = func.addr ptr _ZN2ELD1Ev
+    %50 = call.rtl i32 fb_ArrayRedimObj(%35, 4, %48, %49, 3, %37, %38, %40, %44, %46, %47)
+    %51 = alloca ptr i
+    %52 = const i64 0
+    %53 = trunc %52
+    store @i, %53
+    %58 = alloca ptr j
+    %61 = alloca ptr $tmp4
+    %70 = alloca ptr k
+    br for.head1
+  for.head1:
+    %54 = load @i
+    %55 = const i64 1
+    %56 = trunc %55
+    %57 = icmp.sle %54, %56
+    condbr %57, for.body2, for.exit4
+  for.body2:
+    %59 = const i64 0
+    %60 = trunc %59
+    store @j, %60
+    %62 = load @n
+    %63 = const i64 1
+    %64 = sext %62
+    %65 = sub %64, %63
+    %66 = trunc %65
+    store @$tmp4, %66
+    br for.head5
+  for.step3:
+    %117 = load @i
+    %118 = const i32 1
+    %119 = add %117, %118
+    store @i, %119
+    br for.head1
+  for.exit4:
+    ret
+  for.head5:
+    %67 = load @j
+    %68 = load @$tmp4
+    %69 = icmp.sle %67, %68
+    condbr %69, for.body6, for.exit8
+  for.body6:
+    %71 = const i64 1
+    %72 = trunc %71
+    store @k, %72
+    br for.head9
+  for.step7:
+    %114 = load @j
+    %115 = const i32 1
+    %116 = add %114, %115
+    store @j, %116
+    br for.head5
+  for.exit8:
+    br for.step3
+  for.head9:
+    %73 = load @k
+    %74 = const i64 2
+    %75 = trunc %74
+    %76 = icmp.sle %73, %75
+    condbr %76, for.body10, for.exit12
+  for.body10:
+    %77 = load @this
+    %78 = field.addr %77, 0
+    %79 = load @i
+    %80 = sext %79
+    %81 = load @j
+    %82 = sext %81
+    %83 = field.addr %78, 72
+    %84 = load %83
+    %85 = mul %80, %84
+    %86 = add %85, %82
+    %87 = load @k
+    %88 = sext %87
+    %89 = field.addr %78, 96
+    %90 = load %89
+    %91 = mul %86, %90
+    %92 = add %91, %88
+    %93 = const i64 4
+    %94 = mul %92, %93
+    %95 = load %78
+    %96 = ptr.add %95, %94
+    %97 = field.addr %96, 0
+    %98 = load @i
+    %99 = const i64 100
+    %100 = sext %98
+    %101 = mul %100, %99
+    %102 = load @j
+    %103 = const i64 10
+    %104 = sext %102
+    %105 = mul %104, %103
+    %106 = add %101, %105
+    %107 = load @k
+    %108 = sext %107
+    %109 = add %106, %108
+    %110 = trunc %109
+    store %97, %110
+    br for.step11
+  for.step11:
+    %111 = load @k
+    %112 = const i32 1
+    %113 = add %111, %112
+    store @k, %113
+    br for.head9
+  for.exit12:
+    br for.step7
+}
+declare i32 fb_ArrayRedimObj(ptr $0, i64 $1, ptr $2, ptr $3, i64 $4, ...)
+func void _ZN3M3ED1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @@udtor
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = add %2, %4
+    store @@udtor, %5
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = func.addr ptr _ZN2ELC1Ev
+    %9 = func.addr ptr _ZN2ELD1Ev
+    %10 = call.rtl i32 fb_ArrayEraseObj(%7, %8, %9)
+    ret
+}
+declare i32 fb_ArrayEraseObj(ptr $0, ptr $1, ptr $2)
+func void _ZN3F2EC1Ei(ptr $0, i32 $1) {
+  local ptr this
+  local i32 n
+  local i32 i
+  local i32 j
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 24)
+    %6 = field.addr %4, 0
+    call void _ZN2ELC1Ev(%6)
+    %7 = field.addr %4, 4
+    call void _ZN2ELC1Ev(%7)
+    %8 = field.addr %4, 8
+    call void _ZN2ELC1Ev(%8)
+    %9 = field.addr %4, 12
+    call void _ZN2ELC1Ev(%9)
+    %10 = field.addr %4, 16
+    call void _ZN2ELC1Ev(%10)
+    %11 = field.addr %4, 20
+    call void _ZN2ELC1Ev(%11)
+    %12 = alloca ptr i
+    %13 = const i64 1
+    %14 = trunc %13
+    store @i, %14
+    %19 = alloca ptr j
+    br for.head1
+  for.head1:
+    %15 = load @i
+    %16 = const i64 2
+    %17 = trunc %16
+    %18 = icmp.sle %15, %17
+    condbr %18, for.body2, for.exit4
+  for.body2:
+    %20 = const i64 1
+    %21 = neg %20
+    %22 = trunc %21
+    store @j, %22
+    br for.head5
+  for.step3:
+    %56 = load @i
+    %57 = const i32 1
+    %58 = add %56, %57
+    store @i, %58
+    br for.head1
+  for.exit4:
+    ret
+  for.head5:
+    %23 = load @j
+    %24 = const i64 1
+    %25 = trunc %24
+    %26 = icmp.sle %23, %25
+    condbr %26, for.body6, for.exit8
+  for.body6:
+    %27 = load @this
+    %28 = field.addr %27, 0
+    %29 = load @i
+    %30 = sext %29
+    %31 = const i64 12
+    %32 = mul %30, %31
+    %33 = load @j
+    %34 = sext %33
+    %35 = const i64 4
+    %36 = mul %34, %35
+    %37 = add %32, %36
+    %38 = const i64 8
+    %39 = sub %37, %38
+    %40 = ptr.add %28, %39
+    %41 = field.addr %40, 0
+    %42 = load @n
+    %43 = load @i
+    %44 = const i64 10
+    %45 = sext %43
+    %46 = mul %45, %44
+    %47 = load @j
+    %48 = sext %47
+    %49 = add %46, %48
+    %50 = sext %42
+    %51 = mul %50, %49
+    %52 = trunc %51
+    store %41, %52
+    br for.step7
+  for.step7:
+    %53 = load @j
+    %54 = const i32 1
+    %55 = add %53, %54
+    store @j, %55
+    br for.head5
+  for.exit8:
+    br for.step3
+}
+func void _ZN3M2PC1Ei(ptr $0, i32 $1) {
+  local ptr this
+  local i32 n
+  local i32 j
+  local i32 i
+  local i32 $tmp4
+  local i32 j$5
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr n
+    store @n, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = const ptr 0
+    %6 = field.addr %4, 0
+    store %6, %5
+    %7 = field.addr %4, 8
+    store %7, %5
+    %8 = const i64 0
+    %9 = field.addr %4, 16
+    store %9, %8
+    %10 = const i64 4
+    %11 = field.addr %4, 24
+    store %11, %10
+    %12 = const i64 2
+    %13 = field.addr %4, 32
+    store %13, %12
+    %14 = const i64 18
+    %15 = field.addr %4, 40
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr %4, 48
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr %4, 56
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr %4, 64
+    store %21, %20
+    %22 = const i64 0
+    %23 = field.addr %4, 72
+    store %23, %22
+    %24 = const i64 0
+    %25 = field.addr %4, 80
+    store %25, %24
+    %26 = const i64 0
+    %27 = field.addr %4, 88
+    store %27, %26
+    %28 = load @this
+    %29 = field.addr %28, 0
+    %30 = const i64 0
+    %31 = const i64 0
+    %32 = const i64 0
+    %33 = const i64 0
+    %34 = const i64 0
+    %35 = const i64 2
+    %36 = func.addr ptr _ZN2ELC1Ev
+    %37 = func.addr ptr _ZN2ELD1Ev
+    %38 = call.rtl i32 fb_ArrayRedimObj(%29, 4, %36, %37, 2, %31, %32, %34, %35)
+    %39 = alloca ptr j
+    %40 = const i64 0
+    %41 = trunc %40
+    store @j, %41
+    %82 = alloca ptr i
+    %85 = alloca ptr $tmp4
+    %94 = alloca ptr j$5
+    br for.head1
+  for.head1:
+    %42 = load @j
+    %43 = const i64 2
+    %44 = trunc %43
+    %45 = icmp.sle %42, %44
+    condbr %45, for.body2, for.exit4
+  for.body2:
+    %46 = load @this
+    %47 = field.addr %46, 0
+    %48 = const i64 0
+    %49 = load @j
+    %50 = sext %49
+    %51 = field.addr %47, 72
+    %52 = load %51
+    %53 = mul %48, %52
+    %54 = add %53, %50
+    %55 = const i64 4
+    %56 = mul %54, %55
+    %57 = load %47
+    %58 = ptr.add %57, %56
+    %59 = field.addr %58, 0
+    %60 = load @j
+    %61 = const i64 1
+    %62 = sext %60
+    %63 = add %62, %61
+    %64 = trunc %63
+    store %59, %64
+    br for.step3
+  for.step3:
+    %65 = load @j
+    %66 = const i32 1
+    %67 = add %65, %66
+    store @j, %67
+    br for.head1
+  for.exit4:
+    %68 = load @this
+    %69 = field.addr %68, 0
+    %70 = const i64 0
+    %71 = const i64 0
+    %72 = load @n
+    %73 = const i64 1
+    %74 = sext %72
+    %75 = sub %74, %73
+    %76 = const i64 0
+    %77 = const i64 0
+    %78 = const i64 2
+    %79 = func.addr ptr _ZN2ELC1Ev
+    %80 = func.addr ptr _ZN2ELD1Ev
+    %81 = call.rtl i32 fb_ArrayRedimPresvObj(%69, 4, %79, %80, 2, %71, %75, %77, %78)
+    %83 = const i64 1
+    %84 = trunc %83
+    store @i, %84
+    %86 = load @n
+    %87 = const i64 1
+    %88 = sext %86
+    %89 = sub %88, %87
+    %90 = trunc %89
+    store @$tmp4, %90
+    br for.head5
+  for.head5:
+    %91 = load @i
+    %92 = load @$tmp4
+    %93 = icmp.sle %91, %92
+    condbr %93, for.body6, for.exit8
+  for.body6:
+    %95 = const i64 0
+    %96 = trunc %95
+    store @j$5, %96
+    br for.head9
+  for.step7:
+    %129 = load @i
+    %130 = const i32 1
+    %131 = add %129, %130
+    store @i, %131
+    br for.head5
+  for.exit8:
+    ret
+  for.head9:
+    %97 = load @j$5
+    %98 = const i64 2
+    %99 = trunc %98
+    %100 = icmp.sle %97, %99
+    condbr %100, for.body10, for.exit12
+  for.body10:
+    %101 = load @this
+    %102 = field.addr %101, 0
+    %103 = load @i
+    %104 = sext %103
+    %105 = load @j$5
+    %106 = sext %105
+    %107 = field.addr %102, 72
+    %108 = load %107
+    %109 = mul %104, %108
+    %110 = add %109, %106
+    %111 = const i64 4
+    %112 = mul %110, %111
+    %113 = load %102
+    %114 = ptr.add %113, %112
+    %115 = field.addr %114, 0
+    %116 = load @i
+    %117 = const i64 1
+    %118 = sext %116
+    %119 = add %118, %117
+    %120 = const i64 10
+    %121 = mul %119, %120
+    %122 = load @j$5
+    %123 = sext %122
+    %124 = add %121, %123
+    %125 = trunc %124
+    store %115, %125
+    br for.step11
+  for.step11:
+    %126 = load @j$5
+    %127 = const i32 1
+    %128 = add %126, %127
+    store @j$5, %128
+    br for.head9
+  for.exit12:
+    br for.step7
+}
+declare i32 fb_ArrayRedimPresvObj(ptr $0, i64 $1, ptr $2, ptr $3, i64 $4, ...)
+func i32 NEXTARG() {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = load @@narg
+    %4 = const i64 1
+    %5 = trunc %4
+    %6 = add %3, %5
+    store @@narg, %6
+    %7 = load @@narg
+    %8 = const i64 1
+    %9 = sext %7
+    %10 = add %9, %8
+    %11 = trunc %10
+    ret %11
+}
+func ptr BUILDM2(ptr $0, i32 $1, i32 $2) {
+  local ptr $tmp0
+  local i32 r
+  local i32 c
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr r
+    store @r, $1
+    %4 = alloca ptr c
+    store @c, $2
+    %5 = load @$tmp0
+    %6 = load @r
+    %7 = load @c
+    call void _ZN2M2C1Eii(%5, %6, %7)
+    %8 = load @$tmp0
+    ret %8
+}
+func ptr BUILDM3E(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = load @$tmp0
+    %5 = load @n
+    call void _ZN3M3EC1Ei(%4, %5)
+    %6 = load @$tmp0
+    ret %6
+}
+func ptr BUILDM3ELIT(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = load @$tmp0
+    %5 = load @n
+    call void _ZN3M3EC1Ei(%4, %5)
+    %6 = load @$tmp0
+    ret %6
+}
+func ptr BUILDM3EARG(ptr $0) {
+  local ptr $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = load @$tmp0
+    %4 = call i32 NEXTARG()
+    call void _ZN3M3EC1Ei(%3, %4)
+    %5 = load @$tmp0
+    ret %5
+}
+func ptr BUILDF2E(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = load @$tmp0
+    %5 = load @n
+    call void _ZN3F2EC1Ei(%4, %5)
+    %6 = load @$tmp0
+    ret %6
+}
+func ptr BUILDM2P(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = load @$tmp0
+    %5 = load @n
+    call void _ZN3M2PC1Ei(%4, %5)
+    %6 = load @$tmp0
+    ret %6
+}
+func void COUNTS() {
+  entry0:
+    %1 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 7)
+    call.rtl void fb_PrintString(0, %1, 0)
+    %2 = load @@ector
+    call.rtl void fb_PrintInt(0, %2, 0)
+    %3 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 6)
+    call.rtl void fb_PrintString(0, %3, 0)
+    %4 = load @@ecopy
+    call.rtl void fb_PrintInt(0, %4, 0)
+    %5 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 6)
+    call.rtl void fb_PrintString(0, %5, 0)
+    %6 = load @@edtor
+    call.rtl void fb_PrintInt(0, %6, 0)
+    %7 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 8)
+    call.rtl void fb_PrintString(0, %7, 0)
+    %8 = load @@udtor
+    call.rtl void fb_PrintInt(0, %8, 0)
+    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 5)
+    call.rtl void fb_PrintString(0, %9, 0)
+    %10 = load @@narg
+    call.rtl void fb_PrintInt(0, %10, 1)
+    ret
+}
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg a size 96
+  local agg b size 120
+  local agg c size 120
+  local agg d size 120
+  local agg f size 24
+  local agg p size 96
+  local agg $tmp7 size 120
+  local agg $tmp8 size 96
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    %5 = const i64 3
+    %6 = trunc %5
+    %7 = const i64 2
+    %8 = trunc %7
+    %9 = call ptr BUILDM2(@a, %8, %6)
+    %10 = alloca ptr b
+    %11 = const i64 2
+    %12 = trunc %11
+    %13 = call ptr BUILDM3E(@b, %12)
+    %14 = alloca ptr c
+    %15 = const i64 1
+    %16 = trunc %15
+    %17 = call ptr BUILDM3ELIT(@c, %16)
+    %18 = alloca ptr d
+    %19 = call ptr BUILDM3EARG(@d)
+    %20 = alloca ptr f
+    %21 = const i64 3
+    %22 = trunc %21
+    %23 = call ptr BUILDF2E(@f, %22)
+    %24 = alloca ptr p
+    %25 = const i64 3
+    %26 = trunc %25
+    %27 = call ptr BUILDM2P(@p, %26)
+    %28 = field.addr @a, 0
+    %29 = const i64 1
+    %30 = const i64 1
+    %31 = call.rtl i64 fb_ArrayUBound(%28, %30)
+    call.rtl void fb_PrintLongint(0, %31, 0)
+    %32 = field.addr @a, 0
+    %33 = const i64 1
+    %34 = const i64 2
+    %35 = call.rtl i64 fb_ArrayUBound(%32, %34)
+    call.rtl void fb_PrintLongint(0, %35, 0)
+    %36 = field.addr @a, 0
+    %37 = const i64 1
+    %38 = const i64 2
+    %39 = field.addr %36, 72
+    %40 = load %39
+    %41 = mul %37, %40
+    %42 = add %41, %38
+    %43 = const i64 4
+    %44 = mul %42, %43
+    %45 = load %36
+    %46 = ptr.add %45, %44
+    %47 = load %46
+    call.rtl void fb_PrintInt(0, %47, 0)
+    %48 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %48, 0)
+    %49 = field.addr @b, 0
+    %50 = const i64 1
+    %51 = const i64 2
+    %52 = call.rtl i64 fb_ArrayUBound(%49, %51)
+    call.rtl void fb_PrintLongint(0, %52, 0)
+    %53 = field.addr @b, 0
+    %54 = const i64 1
+    %55 = const i64 3
+    %56 = call.rtl i64 fb_ArrayLBound(%53, %55)
+    call.rtl void fb_PrintLongint(0, %56, 0)
+    %57 = field.addr @b, 0
+    %58 = const i64 1
+    %59 = const i64 1
+    %60 = field.addr %57, 72
+    %61 = load %60
+    %62 = mul %58, %61
+    %63 = add %62, %59
+    %64 = const i64 2
+    %65 = field.addr %57, 96
+    %66 = load %65
+    %67 = mul %63, %66
+    %68 = add %67, %64
+    %69 = const i64 4
+    %70 = mul %68, %69
+    %71 = load %57
+    %72 = ptr.add %71, %70
+    %73 = field.addr %72, 0
+    %74 = load %73
+    call.rtl void fb_PrintInt(0, %74, 0)
+    %75 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %75, 0)
+    %76 = field.addr @c, 0
+    %77 = const i64 1
+    %78 = const i64 2
+    %79 = call.rtl i64 fb_ArrayUBound(%76, %78)
+    call.rtl void fb_PrintLongint(0, %79, 0)
+    %80 = field.addr @c, 0
+    %81 = const i64 1
+    %82 = const i64 0
+    %83 = field.addr %80, 72
+    %84 = load %83
+    %85 = mul %81, %84
+    %86 = add %85, %82
+    %87 = const i64 1
+    %88 = field.addr %80, 96
+    %89 = load %88
+    %90 = mul %86, %89
+    %91 = add %90, %87
+    %92 = const i64 4
+    %93 = mul %91, %92
+    %94 = load %80
+    %95 = ptr.add %94, %93
+    %96 = field.addr %95, 0
+    %97 = load %96
+    call.rtl void fb_PrintInt(0, %97, 0)
+    %98 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %98, 0)
+    %99 = field.addr @d, 0
+    %100 = const i64 1
+    %101 = const i64 2
+    %102 = call.rtl i64 fb_ArrayUBound(%99, %101)
+    call.rtl void fb_PrintLongint(0, %102, 0)
+    %103 = field.addr @d, 0
+    %104 = const i64 0
+    %105 = const i64 1
+    %106 = field.addr %103, 72
+    %107 = load %106
+    %108 = mul %104, %107
+    %109 = add %108, %105
+    %110 = const i64 2
+    %111 = field.addr %103, 96
+    %112 = load %111
+    %113 = mul %109, %112
+    %114 = add %113, %110
+    %115 = const i64 4
+    %116 = mul %114, %115
+    %117 = load %103
+    %118 = ptr.add %117, %116
+    %119 = field.addr %118, 0
+    %120 = load %119
+    call.rtl void fb_PrintInt(0, %120, 1)
+    %121 = const i64 -1
+    call.rtl void fb_PrintLongint(0, %121, 0)
+    %122 = field.addr @f, 0
+    %123 = const i64 2
+    %124 = const i64 12
+    %125 = mul %123, %124
+    %126 = const i64 1
+    %127 = neg %126
+    %128 = const i64 4
+    %129 = mul %127, %128
+    %130 = add %125, %129
+    %131 = const i64 8
+    %132 = sub %130, %131
+    %133 = ptr.add %122, %132
+    %134 = field.addr %133, 0
+    %135 = load %134
+    call.rtl void fb_PrintInt(0, %135, 0)
+    %136 = field.addr @f, 0
+    %137 = const i64 1
+    %138 = const i64 12
+    %139 = mul %137, %138
+    %140 = const i64 1
+    %141 = const i64 4
+    %142 = mul %140, %141
+    %143 = add %139, %142
+    %144 = const i64 8
+    %145 = sub %143, %144
+    %146 = ptr.add %136, %145
+    %147 = field.addr %146, 0
+    %148 = load %147
+    call.rtl void fb_PrintInt(0, %148, 0)
+    %149 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %149, 0)
+    %150 = field.addr @p, 0
+    %151 = const i64 1
+    %152 = const i64 1
+    %153 = call.rtl i64 fb_ArrayUBound(%150, %152)
+    call.rtl void fb_PrintLongint(0, %153, 0)
+    %154 = field.addr @p, 0
+    %155 = const i64 0
+    %156 = const i64 2
+    %157 = field.addr %154, 72
+    %158 = load %157
+    %159 = mul %155, %158
+    %160 = add %159, %156
+    %161 = const i64 4
+    %162 = mul %160, %161
+    %163 = load %154
+    %164 = ptr.add %163, %162
+    %165 = field.addr %164, 0
+    %166 = load %165
+    call.rtl void fb_PrintInt(0, %166, 0)
+    %167 = field.addr @p, 0
+    %168 = const i64 2
+    %169 = const i64 1
+    %170 = field.addr %167, 72
+    %171 = load %170
+    %172 = mul %168, %171
+    %173 = add %172, %169
+    %174 = const i64 4
+    %175 = mul %173, %174
+    %176 = load %167
+    %177 = ptr.add %176, %175
+    %178 = field.addr %177, 0
+    %179 = load %178
+    call.rtl void fb_PrintInt(0, %179, 1)
+    call void COUNTS()
+    %180 = field.addr @a, 0
+    %181 = const i64 0
+    %182 = const i64 0
+    %183 = const i64 3
+    %184 = const i64 0
+    %185 = const i64 0
+    %186 = const i64 2
+    %187 = call.rtl i32 fb_ArrayRedimPresvEx(%180, 4, -1, 0, 2, %182, %183, %185, %186)
+    %188 = field.addr @a, 0
+    %189 = const i64 3
+    %190 = const i64 2
+    %191 = field.addr %188, 72
+    %192 = load %191
+    %193 = mul %189, %192
+    %194 = add %193, %190
+    %195 = const i64 4
+    %196 = mul %194, %195
+    %197 = load %188
+    %198 = ptr.add %197, %196
+    %199 = const i64 99
+    %200 = trunc %199
+    store %198, %200
+    %201 = field.addr @b, 0
+    %202 = const i64 0
+    %203 = const i64 0
+    %204 = const i64 2
+    %205 = const i64 0
+    %206 = const i64 0
+    %207 = const i64 1
+    %208 = const i64 0
+    %209 = const i64 1
+    %210 = const i64 2
+    %211 = func.addr ptr _ZN2ELC1Ev
+    %212 = func.addr ptr _ZN2ELD1Ev
+    %213 = call.rtl i32 fb_ArrayRedimPresvObj(%201, 4, %211, %212, 3, %203, %204, %206, %207, %209, %210)
+    %214 = field.addr @b, 0
+    %215 = const i64 2
+    %216 = const i64 1
+    %217 = field.addr %214, 72
+    %218 = load %217
+    %219 = mul %215, %218
+    %220 = add %219, %216
+    %221 = const i64 2
+    %222 = field.addr %214, 96
+    %223 = load %222
+    %224 = mul %220, %223
+    %225 = add %224, %221
+    %226 = const i64 4
+    %227 = mul %225, %226
+    %228 = load %214
+    %229 = ptr.add %228, %227
+    %230 = field.addr %229, 0
+    %231 = const i64 77
+    %232 = trunc %231
+    store %230, %232
+    %233 = field.addr @a, 0
+    %234 = const i64 1
+    %235 = const i64 1
+    %236 = call.rtl i64 fb_ArrayUBound(%233, %235)
+    call.rtl void fb_PrintLongint(0, %236, 0)
+    %237 = field.addr @a, 0
+    %238 = const i64 1
+    %239 = const i64 2
+    %240 = field.addr %237, 72
+    %241 = load %240
+    %242 = mul %238, %241
+    %243 = add %242, %239
+    %244 = const i64 4
+    %245 = mul %243, %244
+    %246 = load %237
+    %247 = ptr.add %246, %245
+    %248 = load %247
+    call.rtl void fb_PrintInt(0, %248, 0)
+    %249 = field.addr @a, 0
+    %250 = const i64 3
+    %251 = const i64 2
+    %252 = field.addr %249, 72
+    %253 = load %252
+    %254 = mul %250, %253
+    %255 = add %254, %251
+    %256 = const i64 4
+    %257 = mul %255, %256
+    %258 = load %249
+    %259 = ptr.add %258, %257
+    %260 = load %259
+    call.rtl void fb_PrintInt(0, %260, 0)
+    %261 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %261, 0)
+    %262 = field.addr @b, 0
+    %263 = const i64 1
+    %264 = const i64 1
+    %265 = call.rtl i64 fb_ArrayUBound(%262, %264)
+    call.rtl void fb_PrintLongint(0, %265, 0)
+    %266 = field.addr @b, 0
+    %267 = const i64 1
+    %268 = const i64 1
+    %269 = field.addr %266, 72
+    %270 = load %269
+    %271 = mul %267, %270
+    %272 = add %271, %268
+    %273 = const i64 2
+    %274 = field.addr %266, 96
+    %275 = load %274
+    %276 = mul %272, %275
+    %277 = add %276, %273
+    %278 = const i64 4
+    %279 = mul %277, %278
+    %280 = load %266
+    %281 = ptr.add %280, %279
+    %282 = field.addr %281, 0
+    %283 = load %282
+    call.rtl void fb_PrintInt(0, %283, 0)
+    %284 = field.addr @b, 0
+    %285 = const i64 2
+    %286 = const i64 1
+    %287 = field.addr %284, 72
+    %288 = load %287
+    %289 = mul %285, %288
+    %290 = add %289, %286
+    %291 = const i64 2
+    %292 = field.addr %284, 96
+    %293 = load %292
+    %294 = mul %290, %293
+    %295 = add %294, %291
+    %296 = const i64 4
+    %297 = mul %295, %296
+    %298 = load %284
+    %299 = ptr.add %298, %297
+    %300 = field.addr %299, 0
+    %301 = load %300
+    call.rtl void fb_PrintInt(0, %301, 1)
+    call void COUNTS()
+    %302 = alloca ptr $tmp7
+    %303 = const i64 1
+    %304 = trunc %303
+    %305 = call ptr BUILDM3E(@$tmp7, %304)
+    call void _ZN3M3EaSERKS_(@b, @$tmp7)
+    call void _ZN3M3ED1Ev(@$tmp7)
+    %306 = alloca ptr $tmp8
+    %307 = const i64 2
+    %308 = trunc %307
+    %309 = call ptr BUILDM2P(@$tmp8, %308)
+    call void _ZN3M2PaSERKS_(@p, @$tmp8)
+    call void _ZN3M2PD1Ev(@$tmp8)
+    %310 = field.addr @b, 0
+    %311 = const i64 1
+    %312 = const i64 2
+    %313 = call.rtl i64 fb_ArrayUBound(%310, %312)
+    call.rtl void fb_PrintLongint(0, %313, 0)
+    %314 = field.addr @b, 0
+    %315 = const i64 1
+    %316 = const i64 0
+    %317 = field.addr %314, 72
+    %318 = load %317
+    %319 = mul %315, %318
+    %320 = add %319, %316
+    %321 = const i64 2
+    %322 = field.addr %314, 96
+    %323 = load %322
+    %324 = mul %320, %323
+    %325 = add %324, %321
+    %326 = const i64 4
+    %327 = mul %325, %326
+    %328 = load %314
+    %329 = ptr.add %328, %327
+    %330 = field.addr %329, 0
+    %331 = load %330
+    call.rtl void fb_PrintInt(0, %331, 0)
+    %332 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %332, 0)
+    %333 = field.addr @p, 0
+    %334 = const i64 1
+    %335 = const i64 1
+    %336 = call.rtl i64 fb_ArrayUBound(%333, %335)
+    call.rtl void fb_PrintLongint(0, %336, 0)
+    %337 = field.addr @p, 0
+    %338 = const i64 1
+    %339 = const i64 2
+    %340 = field.addr %337, 72
+    %341 = load %340
+    %342 = mul %338, %341
+    %343 = add %342, %339
+    %344 = const i64 4
+    %345 = mul %343, %344
+    %346 = load %337
+    %347 = ptr.add %346, %345
+    %348 = field.addr %347, 0
+    %349 = load %348
+    call.rtl void fb_PrintInt(0, %349, 1)
+    call void COUNTS()
+    call void _ZN3M2PD1Ev(@p)
+    call void _ZN3F2ED1Ev(@f)
+    call void _ZN3M3ED1Ev(@d)
+    call void _ZN3M3ED1Ev(@c)
+    call void _ZN3M3ED1Ev(@b)
+    call void _ZN2M2D1Ev(@a)
+    call void COUNTS()
+    %350 = const i32 0
+    call.rtl void fb_End(%350)
+    %351 = load @$tmp0
+    ret %351
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare i64 fb_ArrayLBound(ptr $0, i64 $1)
+declare i32 fb_ArrayRedimPresvEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare void _ZN3M3EaSERKS_(ptr $0, ptr $1)
+declare void _ZN3M2PaSERKS_(ptr $0, ptr $1)
+declare void _ZN3M2PD1Ev(ptr $0)
+declare void _ZN3F2ED1Ev(ptr $0)
+declare void _ZN2M2D1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN3M3EaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = const ptr 0
+    %4 = const i32 0
+    %5 = func.addr ptr _ZN2ELC1Ev
+    %6 = func.addr ptr _ZN2ELD1Ev
+    %7 = call.rtl i32 fb_ArrayRedimTo(%2, %1, %4, %5, %6)
+    %8 = field.addr %2, 8
+    %9 = load %8
+    %10 = field.addr %1, 8
+    %11 = load %10
+    %12 = field.addr %1, 16
+    %13 = load %12
+    %14 = call.rtl ptr memcpy(%9, %11, %13)
+    ret
+}
+declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
+declare ptr memcpy(ptr $0, ptr $1, i64 $2)
+func void _ZN3M2PaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = const ptr 0
+    %4 = const i32 0
+    %5 = func.addr ptr _ZN2ELC1Ev
+    %6 = func.addr ptr _ZN2ELD1Ev
+    %7 = call.rtl i32 fb_ArrayRedimTo(%2, %1, %4, %5, %6)
+    %8 = field.addr %2, 8
+    %9 = load %8
+    %10 = field.addr %1, 8
+    %11 = load %10
+    %12 = field.addr %1, 16
+    %13 = load %12
+    %14 = call.rtl ptr memcpy(%9, %11, %13)
+    ret
+}
+func void _ZN3M2PD1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = func.addr ptr _ZN2ELC1Ev
+    %3 = func.addr ptr _ZN2ELD1Ev
+    %4 = call.rtl i32 fb_ArrayEraseObj(%1, %2, %3)
+    ret
+}
+func void _ZN3F2ED1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 20
+    call void _ZN2ELD1Ev(%2)
+    %3 = field.addr %1, 16
+    call void _ZN2ELD1Ev(%3)
+    %4 = field.addr %1, 12
+    call void _ZN2ELD1Ev(%4)
+    %5 = field.addr %1, 8
+    call void _ZN2ELD1Ev(%5)
+    %6 = field.addr %1, 4
+    call void _ZN2ELD1Ev(%6)
+    %7 = field.addr %1, 0
+    call void _ZN2ELD1Ev(%7)
+    ret
+}
+func void _ZN2M2D1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    ret
+}
+declare i32 fb_ArrayErase(ptr $0)
+verify: ok
+lowered: 22 functions, 62 blocks, 1074 insts, 0 statements not lowered, 0 scope imbalance
