@@ -336,7 +336,7 @@ function LowerCallParts _
     if (cs <> 0) andalso (cs->kind = cast( ubyte, Tko.SYM_PROC )) then
         if UsesSretReturn( c, cs->type_ ) andalso (calleeByrefRet = false) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_.
-            dim as long tslot = SretResultSlot_( c, cs->type_, true )
+            dim as long tslot = SretResultSlot_( c, cs->type_, true, callee )
             if tslot < 0 then return CallFailed_( c, v, __LINE__ )
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )

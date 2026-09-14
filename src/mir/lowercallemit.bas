@@ -173,14 +173,10 @@ function EmitMemberCallArgs_ _
     dim as long first = c.m->argPool.Count \ 2
     dim as long nargs = 0
     if useSret then
-        dim as long tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, s->type_ ) )
-        if tslot < 0 then return none_
         '' Destroyed at the end of the statement, beside every other temporary of a
-        '' type that needs it.
-        if TypeNeedsDtor_( c, s->type_ ) then
-            c.udtTemps.Push( cast( ulong, tslot ) )
-            c.udtTempTypes.Push( cast( ulong, s->type_ ) )
-        end if
+        '' type that needs it -- or the variable a declaration is building, SretInPlaceInit_.
+        dim as long tslot = SretResultSlot_( c, s->type_, true, sym )
+        if tslot < 0 then return none_
         sretTmp.kind = cast( ubyte, MV_LOCAL )
         sretTmp.ty = cast( ubyte, MT_PTR )
         sretTmp.id = tslot
@@ -221,6 +217,9 @@ function EmitMemberCallArgs_ _
     '' The call's VALUE is the TEMPORARY, not the pointer the callee handed back --
     '' the same contract LowerCallParts has: 'v = F( )' and 'F( ).field' both read
     '' from the storage the caller supplied.
+    '' ...EXCEPT THE DECLARED VARIABLE, which is built and has nothing to read: its address
+    '' goes back to SretInPlaceInit_, the only caller that offers one.
+    if useSret andalso c.sretIntoTaken andalso (sretTmp.id = c.sretIntoSlot) then return sretTmp
     if useSret then return LowerExprLoad( c, sretTmp, MT_AGG )
     return r
 end function
@@ -234,15 +233,17 @@ end function
 '' WHERE A HIDDEN-POINTER RESULT LANDS: the variable a declaration has on offer, or a
 '' temporary -- registered for destruction at the end of the statement when asked.
 ''
-'' The offer goes to the FIRST site that asks, and the asking withdraws it whatever the
-'' answer. LowerCallParts and LowerUserBinaryOp_ ask before they lower a single operand,
-'' so a call nested inside the initialiser never sees it.
+'' The offer names ONE CALLEE, and only a call to that symbol takes it. LowerCallParts and
+'' the operators ask before they lower a single operand, but a getter reached through
+'' EmitMemberCallArgs_ asks AFTER its receiver is lowered, and a call inside that receiver
+'' must not build x.
 function SretResultSlot_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean ) as long
+    ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean, _
+      byval sym as Tko.SymbolId ) as long
 
-    if c.sretIntoOn then
-        c.sretIntoOn = false
+    if c.sretIntoOn andalso (sym = c.sretIntoSym) then
         if c.types->Unqualify( t ) = c.sretIntoType then
+            c.sretIntoOn = false
             c.sretIntoTaken = true
             return c.sretIntoSlot
         end if
@@ -258,6 +259,41 @@ function SretResultSlot_ _
     return tslot
 end function
 
+'' A PAREN-LESS PROPERTY'S GETTER: the one accessor on the member's chain that has a
+'' result and takes no index. Walked from the chain's HEAD, as PropertyAt_ walks it.
+'' Nothing when there is no such getter, or more than one.
+private function SoleGetter_( byref c as Ctx, byval member as Tko.NodeId ) as Tko.SymbolId
+    dim as Tko.SymbolId sid = c.info->RefOf( member )
+    if sid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.Symbol ptr s0 = c.syms->SymbolAt( sid )
+    if s0 = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = c.syms->LookupLocal( s0->parent, s0->name )
+    if cur = Tko.SYMBOL_NONE then cur = sid
+    dim as Tko.SymbolId found = Tko.SYMBOL_NONE
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                if (pp->op = cast( ushort, Tko.KW_PROPERTY )) andalso (pp->a <> Tko.NODE_NONE) then
+                    dim as long np = 0
+                    for i as long = 0 to pp->count - 1
+                        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[pp->first + i] ) ) = Tko.N_PARAM then np += 1
+                    next
+                    if np = 0 then
+                        if found <> Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+                        found = cur
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return found
+end function
+
 '' 'dim as T x = f( )' CONSTRUCTS x IN PLACE when f's result travels through the hidden
 '' pointer. Measured, fbc passes the variable itself --
 ''
@@ -269,27 +305,44 @@ end function
 '' its bytes over x and destroyed the temporary: for a type whose constructor allocates
 '' and whose destructor frees, a leak and a double free per declaration.
 ''
-'' Offered only where the first site to ask is certain to be the initialiser itself: a
-'' call NAMING a procedure, or an operator bound to one, whose non-byref result is exactly
-'' T. True when x has been dealt with, and nothing may construct or store it after.
+'' ...and for a METHOD, through '.' or '->' or on the type, a paren-less PROPERTY and a
+'' UNARY operator:
+''
+''   _ZN3FAC2MKEi( &X2$1, PF$1, 2 );       _ZN3FAC3SMKEi( &X3$1, 3 );
+''   _ZN3FAC9HP__get__Ev( &X6$1, &OBJ$1 ); _ZngR1H( &X5$1, &X1$1 );
+''
+'' Offered only for a call naming a procedure or a method, an operator bound to one, or a
+'' property's sole getter, whose non-byref result is exactly T; and taken only by a call
+'' to that symbol (SretResultSlot_). True when x has been dealt with, and nothing may
+'' construct or store it after.
 function SretInPlaceInit_ _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval e as Tko.NodeId ) as boolean
 
     if (slot < 0) orelse (e = Tko.NODE_NONE) then return false
     dim as Tko.SymbolId callee = Tko.SYMBOL_NONE
+    dim as boolean isProp = false
+    dim as boolean isOp = false
     select case c.ast->Kind( e )
     case Tko.N_CALL
         '' The binding LowerAddr's call arm reads; a TYPE's constructor is not one.
         dim as Tko.ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
         if lp->target = Tko.NODE_NONE then return false
-        if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+        select case c.ast->Kind( lp->target )
+        case Tko.N_IDENT, Tko.N_MEMBER
+        case else
+            return false
+        end select
         if TypeCtorTypeOf_( c, e ) <> Tko.TYPE_NONE then return false
         callee = c.info->RefOf( e )
         if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( lp->target )
-    case Tko.N_BINARY
+    case Tko.N_BINARY, Tko.N_UNARY
         callee = c.info->RefOf( e )
+        isOp = true
+    case Tko.N_MEMBER
+        callee = SoleGetter_( c, e )
+        isProp = true
     case else
         return false
     end select
@@ -301,7 +354,7 @@ function SretInPlaceInit_ _
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
-    if c.ast->Kind( e ) = Tko.N_BINARY then
+    if isOp then
         if StmtOf( c, pn )->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
     end if
     if cs->type_ = Tko.TYPE_NONE then return false
@@ -309,11 +362,23 @@ function SretInPlaceInit_ _
     if c.types->Unqualify( cs->type_ ) <> ut then return false
     if UsesSretReturn( c, cs->type_ ) = false then return false
 
+    dim as long cmark = c.udtTemps.Count
     c.sretIntoSlot = slot
     c.sretIntoType = ut
+    c.sretIntoSym = callee
     c.sretIntoTaken = false
-    c.sretIntoOn = true
-    dim as MirValue ra = LowerAddr( c, e )
+    dim as MirValue ra
+    '' A GETTER HAS NO ADDRESS ARM in LowerAddr; its value path is LowerPropertyGet_, which
+    '' arms the offer itself once this node's receiver is lowered.
+    if isProp then
+        c.sretIntoNode = e
+        c.sretIntoAtNode = true
+        if LowerPropertyGet_( c, e, ra ) = false then ra.kind = cast( ubyte, MV_NONE )
+        c.sretIntoAtNode = false
+    else
+        c.sretIntoOn = true
+        ra = LowerAddr( c, e )
+    end if
     c.sretIntoOn = false
     dim as boolean taken = c.sretIntoTaken
     c.sretIntoTaken = false
@@ -331,9 +396,19 @@ function SretInPlaceInit_ _
     end if
     '' NOT TAKEN: the result sits in a temporary nobody else can reach, so its bytes are
     '' MOVED into x and the temporary is not destroyed -- the counts building in place gives.
-    dim as long sz = SizeOfType( c, t )
     dim as MirValue mv
-    if sz > 0 then mv = LowerExprLoad( c, ra, MT_AGG, sz )
+    if isProp then
+        '' A getter's value is already LOADED, out of the temporary it registered last.
+        mv = ra
+        if c.udtTemps.Count > cmark then
+            if c.types->Unqualify( cast( Tko.TypeId, c.udtTempTypes[c.udtTempTypes.Count - 1] ) ) = ut then
+                ForgetUdtTemp_( c, cast( long, c.udtTemps[c.udtTemps.Count - 1] ) )
+            end if
+        end if
+    else
+        dim as long sz = SizeOfType( c, t )
+        if sz > 0 then mv = LowerExprLoad( c, ra, MT_AGG, sz )
+    end if
     if mv.kind = cast( ubyte, MV_NONE ) then
         SkipHere( c )
         return true
@@ -343,7 +418,9 @@ function SretInPlaceInit_ _
     dst.ty = cast( ubyte, MT_PTR )
     dst.id = slot
     StoreThrough( c, dst, mv )
-    if ra.kind = cast( ubyte, MV_LOCAL ) then ForgetUdtTemp_( c, ra.id )
+    if isProp = false then
+        if ra.kind = cast( ubyte, MV_LOCAL ) then ForgetUdtTemp_( c, ra.id )
+    end if
     return true
 end function
 

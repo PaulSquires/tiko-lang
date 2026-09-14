@@ -1,0 +1,9 @@
+'' 'dim as T x = <method, static member, property, unary operator>' builds x in place when
+'' the UDT result travels through the hidden pointer. Runtime output was checked against
+'' fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-sret-dim-method-unary.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-sret-dim-method-unary.out

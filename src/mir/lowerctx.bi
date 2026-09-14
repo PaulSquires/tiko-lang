@@ -178,6 +178,11 @@ type Ctx
     as boolean              sretIntoTaken
     as long                 sretIntoSlot
     as Tko.TypeId           sretIntoType
+    as Tko.SymbolId         sretIntoSym
+    '' ...and for a GETTER, the member node whose own call it is: armed by
+    '' LowerPropertyGet_ only once that node's receiver is lowered.
+    as boolean              sretIntoAtNode
+    as Tko.NodeId           sretIntoNode
     as long                 dataHead
     as FB.Array( of ulong ) dataLabelName
     as FB.Array( of ulong ) dataLabelBlock
@@ -433,7 +438,8 @@ declare function EmitRtl _
     '' A hidden result's storage: the declared variable on offer, or a temporary; and the
     '' declaration that offers it. lowercallemit.bas.
     declare function SretResultSlot_ _
-        ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean ) as long
+        ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean, _
+          byval sym as Tko.SymbolId ) as long
     declare function SretInPlaceInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
           byval e as Tko.NodeId ) as boolean

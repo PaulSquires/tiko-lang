@@ -899,7 +899,7 @@ function LowerUserBinaryOp_ _
         if UsesSretReturn( c, os->type_ ) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_. The
             '' temporary is not registered for destruction here, as it never was.
-            dim as long tslot = SretResultSlot_( c, os->type_, false )
+            dim as long tslot = SretResultSlot_( c, os->type_, false, op )
             if tslot < 0 then return false
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )
@@ -1014,13 +1014,39 @@ function LowerUserUnaryOpSym_ _
     dim as FB.Array( of ulong ) args
     dim as FB.Array( of ulong ) unTmpSlots
     dim as FB.Array( of ulong ) unTmpTypes
+    '' A UDT RESULT THROUGH THE HIDDEN POINTER, as the binary operator passes one. None was
+    '' pushed, so '-h' over a type with a destructor called '_ZngR1H(@h)' against a
+    '' definition taking the result pointer too -- the verifier's 'calls _ZngR1H with 1
+    '' arguments, which declares 2', and clang refused the module. fbc emits
+    '' '_ZngR1H( &TMP, &H )'. A byref result is a pointer and takes none.
+    dim as MirValue sretTmp
+    dim as boolean usesSret = false
+    if (os->type_ <> Tko.TYPE_NONE) andalso ((c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) = 0) then
+        if UsesSretReturn( c, os->type_ ) then
+            '' ...or the variable a declaration is building -- SretInPlaceInit_. Destroyed at
+            '' the end of the statement like a call's: measured, fbc destroys the '-x' in
+            '' '(-x).plus( 3 )' and in '-(-x)'.
+            dim as long tslot = SretResultSlot_( c, os->type_, true, op )
+            if tslot < 0 then return false
+            sretTmp.kind = cast( ubyte, MV_LOCAL )
+            sretTmp.ty = cast( ubyte, MT_PTR )
+            sretTmp.id = tslot
+            usesSret = true
+            rmt = MT_PTR
+            args.Push( cast( ulong, sretTmp.kind ) ) : args.Push( cast( ulong, sretTmp.id ) )
+        end if
+    end if
     if OperandValue_( c, operand, pt, isRef, args, unTmpSlots, unTmpTypes ) = false then
         return false
     end if
-     '' NO HIDDEN RESULT POINTER on this path: the unary operator does not push a
-     '' destination temporary, so the declaration takes its parameters as written.
-    outv = EmitDirectCall_( c, op, rmt, args )
+    outv = EmitDirectCall_( c, op, rmt, args, usesSret )
     DestroyOperandTemps_( c, unTmpSlots, unTmpTypes )
+    if usesSret then
+        '' The RESULT IS THE TEMPORARY'S ADDRESS, exactly as for the binary operator.
+        if outv.kind = cast( ubyte, MV_NONE ) then return false
+        outv = sretTmp
+        return true
+    end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
@@ -1136,6 +1162,13 @@ function LowerPropertyGet_ _
     '' function's machine code as a descriptor.
     dim as MirType gmt = LowerType( gs->type_, *c.types )
     if IsStringType( c, gs->type_ ) then gmt = MT_PTR
+    '' THE DECLARATION'S OWN GETTER BUILDS x IN PLACE, armed only now that the receiver is
+    '' lowered: 'dim as H a = x.twin.twin' had the INNER getter -- the same symbol, called
+    '' for the receiver -- take x. SretInPlaceInit_.
+    if c.sretIntoAtNode andalso (c.sretIntoNode = node) then
+        c.sretIntoAtNode = false
+        c.sretIntoOn = true
+    end if
     outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
