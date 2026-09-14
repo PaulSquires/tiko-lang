@@ -1,0 +1,8 @@
+'' 'new T' fills a 'byref as const wstring' constructor default with a wide literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/new-default-wstring-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _ZN1TC1ERKw(
+'' EXPECT-NOT: , @@$str

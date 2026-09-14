@@ -380,4 +380,113 @@ long long __cdecl tkort_interlocked_xadd64( long long volatile *Addend,
     return __atomic_fetch_add( Addend, Value, __ATOMIC_SEQ_CST );
 }
 
+/* ...AND THE REST OF THE FAMILY, 2026-09-14. The two above were added for fb/comptr.bi;
+** tracks reaches '_InterlockedExchange' and '_InterlockedIncrement' through winbase.bi's
+** InterlockedExchange and InterlockedIncrement macros, and its link failed the same way.
+**
+** THE SET IS MEASURED, not recalled: every _Interlocked* name that mingw-w64's
+** libkernel32.dll.a DEFINES (llvm-nm over fbc-modern's lib/win64), which is exactly the
+** set a program fbc links is able to call. Two of that list are NOT here: _InterlockedAdd
+** and _InterlockedAdd64, which intrin.bi builds in FB over ExchangeAdd. The SList
+** functions are real kernel32.dll exports and need nothing.
+**
+** WHAT EACH RETURNS DIFFERS BY NAME, per the Windows contract: Increment and Decrement
+** give the NEW value; Exchange, CompareExchange and And/Or/Xor give the OLD one; the bit
+** tests give the tested bit's OLD state as 0 or 1. */
+/* THE GCC-STYLE __sync_* BUILTINS, not the __atomic_* family the two above use. This
+** clang has no __atomic_exchange of that shape and no __atomic_compare_exchange_strong
+** at all -- measured, both failed to compile -- while every __sync_* operation below is
+** a single lock-prefixed instruction: a full barrier, which is the Interlocked contract.
+** And their results already ARE the contract's: lock_test_and_set and
+** val_compare_and_swap return the value BEFORE, *_and_fetch the value AFTER. */
+#define TKORT_IL( ret_, cname_, sym_, params_ ) \
+    ret_ __cdecl cname_ params_ __asm__( sym_ ); \
+    ret_ __cdecl cname_ params_
+
+TKORT_IL( long, tkort_il_xchg32, "_InterlockedExchange", ( long volatile *Target, long Value ) )
+    { return __sync_lock_test_and_set( Target, Value ); }
+TKORT_IL( long long, tkort_il_xchg64, "_InterlockedExchange64",
+          ( long long volatile *Target, long long Value ) )
+    { return __sync_lock_test_and_set( Target, Value ); }
+TKORT_IL( void *, tkort_il_xchgp, "_InterlockedExchangePointer",
+          ( void * volatile *Target, void *Value ) )
+    { return __sync_lock_test_and_set( Target, Value ); }
+
+TKORT_IL( short, tkort_il_inc16, "_InterlockedIncrement16", ( short volatile *Addend ) )
+    { return __sync_add_and_fetch( Addend, 1 ); }
+TKORT_IL( long, tkort_il_inc32, "_InterlockedIncrement", ( long volatile *Addend ) )
+    { return __sync_add_and_fetch( Addend, 1 ); }
+TKORT_IL( long long, tkort_il_inc64, "_InterlockedIncrement64", ( long long volatile *Addend ) )
+    { return __sync_add_and_fetch( Addend, 1 ); }
+TKORT_IL( short, tkort_il_dec16, "_InterlockedDecrement16", ( short volatile *Addend ) )
+    { return __sync_sub_and_fetch( Addend, 1 ); }
+TKORT_IL( long, tkort_il_dec32, "_InterlockedDecrement", ( long volatile *Addend ) )
+    { return __sync_sub_and_fetch( Addend, 1 ); }
+TKORT_IL( long long, tkort_il_dec64, "_InterlockedDecrement64", ( long long volatile *Addend ) )
+    { return __sync_sub_and_fetch( Addend, 1 ); }
+
+/* ARGUMENT ORDER DIFFERS: the Windows call is ( destination, new, comparand ) and the
+** builtin is ( destination, comparand, new ). */
+TKORT_IL( short, tkort_il_cmpxchg16, "_InterlockedCompareExchange16",
+          ( short volatile *Destination, short ExChange, short Comperand ) )
+    { return __sync_val_compare_and_swap( Destination, Comperand, ExChange ); }
+TKORT_IL( long, tkort_il_cmpxchg32, "_InterlockedCompareExchange",
+          ( long volatile *Destination, long ExChange, long Comperand ) )
+    { return __sync_val_compare_and_swap( Destination, Comperand, ExChange ); }
+TKORT_IL( long long, tkort_il_cmpxchg64, "_InterlockedCompareExchange64",
+          ( long long volatile *Destination, long long ExChange, long long Comperand ) )
+    { return __sync_val_compare_and_swap( Destination, Comperand, ExChange ); }
+TKORT_IL( void *, tkort_il_cmpxchgp, "_InterlockedCompareExchangePointer",
+          ( void * volatile *Destination, void *ExChange, void *Comperand ) )
+    { return __sync_val_compare_and_swap( Destination, Comperand, ExChange ); }
+
+TKORT_IL( long, tkort_il_and32, "_InterlockedAnd", ( long volatile *Destination, long Value ) )
+    { return __sync_fetch_and_and( Destination, Value ); }
+TKORT_IL( long long, tkort_il_and64, "_InterlockedAnd64",
+          ( long long volatile *Destination, long long Value ) )
+    { return __sync_fetch_and_and( Destination, Value ); }
+TKORT_IL( long, tkort_il_or32, "_InterlockedOr", ( long volatile *Destination, long Value ) )
+    { return __sync_fetch_and_or( Destination, Value ); }
+TKORT_IL( long long, tkort_il_or64, "_InterlockedOr64",
+          ( long long volatile *Destination, long long Value ) )
+    { return __sync_fetch_and_or( Destination, Value ); }
+TKORT_IL( long, tkort_il_xor32, "_InterlockedXor", ( long volatile *Destination, long Value ) )
+    { return __sync_fetch_and_xor( Destination, Value ); }
+TKORT_IL( long long, tkort_il_xor64, "_InterlockedXor64",
+          ( long long volatile *Destination, long long Value ) )
+    { return __sync_fetch_and_xor( Destination, Value ); }
+
+/* The bit tests. An offset past the width is undefined in the contract; it is masked
+** here rather than shifting by more than the width, which would be undefined in C. */
+#define TKORT_BIT32( o_ ) ( (long)( 1UL << ( (o_) & 31 ) ) )
+#define TKORT_BIT64( o_ ) ( (long long)( 1ULL << ( (o_) & 63 ) ) )
+TKORT_IL( unsigned char, tkort_il_bts32, "_interlockedbittestandset",
+          ( long volatile *Base, long Offset ) )
+    { return (unsigned char)( ( (unsigned long)__sync_fetch_and_or( Base, TKORT_BIT32( Offset ) )
+                                >> ( Offset & 31 ) ) & 1 ); }
+TKORT_IL( unsigned char, tkort_il_btr32, "_interlockedbittestandreset",
+          ( long volatile *Base, long Offset ) )
+    { return (unsigned char)( ( (unsigned long)__sync_fetch_and_and( Base, ~TKORT_BIT32( Offset ) )
+                                >> ( Offset & 31 ) ) & 1 ); }
+TKORT_IL( unsigned char, tkort_il_btc32, "_interlockedbittestandcomplement",
+          ( long volatile *Base, long Offset ) )
+    { return (unsigned char)( ( (unsigned long)__sync_fetch_and_xor( Base, TKORT_BIT32( Offset ) )
+                                >> ( Offset & 31 ) ) & 1 ); }
+TKORT_IL( unsigned char, tkort_il_bts64, "_interlockedbittestandset64",
+          ( long long volatile *Base, long long Offset ) )
+    { return (unsigned char)( ( (unsigned long long)__sync_fetch_and_or( Base, TKORT_BIT64( Offset ) )
+                                >> ( Offset & 63 ) ) & 1 ); }
+TKORT_IL( unsigned char, tkort_il_btr64, "_interlockedbittestandreset64",
+          ( long long volatile *Base, long long Offset ) )
+    { return (unsigned char)( ( (unsigned long long)__sync_fetch_and_and( Base, ~TKORT_BIT64( Offset ) )
+                                >> ( Offset & 63 ) ) & 1 ); }
+TKORT_IL( unsigned char, tkort_il_btc64, "_interlockedbittestandcomplement64",
+          ( long long volatile *Base, long long Offset ) )
+    { return (unsigned char)( ( (unsigned long long)__sync_fetch_and_xor( Base, TKORT_BIT64( Offset ) )
+                                >> ( Offset & 63 ) ) & 1 ); }
+
+#undef TKORT_BIT64
+#undef TKORT_BIT32
+#undef TKORT_IL
+
 #endif /* TKORT_MSVC */

@@ -585,9 +585,11 @@ declare function EmitRtl _
           byval isReturn as boolean = false ) as boolean
     declare function LowerStringAssignToSlot _
         ( byref c as Ctx, byval slot as long, byval value as Tko.NodeId ) as boolean
+    '' 'dstFlavour' -1 derives the destination's flavour (the target's type, else the slot);
+    '' 0 says narrow and 1 USTRING, for an address -- a FIELD -- that carries neither.
     declare function LowerStringAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
-          byval value as Tko.NodeId ) as boolean
+          byval value as Tko.NodeId, byval dstFlavour as long = -1 ) as boolean
     declare function LowerInput _
         ( byref c as Ctx, byval id as Tko.NodeId, byval isLine as boolean ) as boolean
     declare function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
@@ -1112,6 +1114,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     declare function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string

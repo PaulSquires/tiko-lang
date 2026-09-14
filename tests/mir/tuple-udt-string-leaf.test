@@ -1,0 +1,7 @@
+'' 'return (kv.key, kv.value)' with a string-first UDT element copies the whole element
+'' rather than declining at the string store for its first leaf.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/tuple-udt-string-leaf.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

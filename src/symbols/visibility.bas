@@ -254,6 +254,12 @@ private sub CheckDeref_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
     dim as TokenKind op = cast( TokenKind, mp->op )
     if (op <> TK_DOT) andalso (op <> TK_ARROW) then return
+    '' THE FLAG SAYS WHICH WAS WRITTEN, NOT THE OPERATOR. REDIM builds 'p->items( 0 to n )'
+    '' as a '.' node carrying NF_ARROW (MakeMemberRef_, parser/decl.bas), and every other
+    '' reader of a member access keys on the flag -- so this one reported TKO0630 against
+    '' a statement that wrote the arrow. Measured 2026-09-14: fb/channel.bi and tracks'
+    '' PsPopupMenu both 'redim' through a pointer, and fbc accepts both.
+    if (c.ast->nodes[cast( long, id )].flags and NF_ARROW) <> 0 then op = TK_ARROW
     if mp->lhs = NODE_NONE then return
     dim as TypeId bt = c.info->TypeOf_( mp->lhs )
     '' UNTYPED IS NOT AN ERROR: a namespace-qualified name has no type at all, and an
@@ -553,8 +559,30 @@ private sub CheckSwapOperands_ ( byref c as Ctx, byval id as NodeId )
     next
 end sub
 
+'' The array type a whole-array argument names: a variable's own type, or an array
+'' PARAMETER's. The parameter SYMBOL is bound as the bare DynArrayOf( T ) (resolve.bas);
+'' only the procedure's SIGNATURE wraps it in a Reference, so a reference is stripped
+'' when present rather than required. TYPE_NONE for anything that is not an array.
+private function WholeArrayType_ ( byref c as Ctx, byval s as Symbol ptr ) as TypeId
+    if s = 0 then return TYPE_NONE
+    dim as TypeId t = c.types->Unqualify( s->type_ )
+    select case cast( SymbolKind, s->kind )
+    case SYM_VARIABLE
+    case SYM_PARAMETER
+        if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    case else
+        return TYPE_NONE
+    end select
+    if c.types->Kind( t ) <> TK_ARRAY then return TYPE_NONE
+    return t
+end function
+
 '' 'a( )' -- an EMPTY subscript list over an array variable, which is how a whole array
 '' is written at a call.
+''
+'' ...OR OVER AN ARRAY PARAMETER. Forwarding one is 'sub f( a( ) as T ) : g( a( ) )',
+'' which fbc accepts and which is how every recursive sort is written; accepting only a
+'' VARIABLE refused it with TKO0641. Measured 2026-09-14 on tracks: 19 of its 21 errors.
 private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as boolean
     if n = NODE_NONE then return false
     dim as NodeKind k = c.ast->Kind( n )
@@ -564,7 +592,8 @@ private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as bo
     if lp->count <> 0 then return false
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = 0 then return false
-    return ts->kind = cast( ubyte, SYM_VARIABLE )
+    if ts->kind = cast( ubyte, SYM_VARIABLE ) then return true
+    return WholeArrayType_( c, ts ) <> TYPE_NONE
 end function
 
 private sub CheckBydescArgs_ _
@@ -617,7 +646,10 @@ private sub CheckBydescArgs_ _
             dim as StmtPayload ptr prp = _
                 @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
             if (av <> 0) andalso (prp->a <> NODE_NONE) then
-                dim as TypeId avt = c.types->Unqualify( av->type_ )
+                '' Through WholeArrayType_, so a forwarded PARAMETER is held to the same
+                '' element rule: fbc gives error 58 for 'a() as P1' passed on to
+                '' 'b() as P2', and for integer to double, exactly as for a variable.
+                dim as TypeId avt = WholeArrayType_( c, av )
                 dim as TypeId pel = c.types->Unqualify( c.info->TypeOf_( prp->a ) )
                 if (c.types->Kind( avt ) = TK_ARRAY) andalso (pel <> TYPE_NONE) then
                     dim as TypeId ael = c.types->Unqualify( c.types->Inner( avt ) )

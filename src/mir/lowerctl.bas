@@ -450,7 +450,12 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         ''
         '' ...AND A SUBJECT THAT BUILT A TEMPORARY IS COPIED EVEN WHEN IT OWNS ITS
         '' DESCRIPTOR: 'makeS( 5 ).s' is a field of the object about to be destroyed.
-        dim as boolean copySubj = (strMode = 0) andalso (IsUStringType( c, subjT ) = false)
+        '' ...AND A USTRING TEMPORARY TOO. It was excluded, and fb_UStrCompare releases a
+        '' temporary argument exactly as fb_StrCompare does: 'select case lcase( s )' matched
+        '' its first case value and compared freed memory for the rest, so tracks' ticker
+        '' table refused every 'futures' and 'stock' row. fbc: fb_UStrInit into a temporary.
+        dim as boolean subjU = IsUStringType( c, subjT )
+        dim as boolean copySubj = (strMode = 0)
         if copySubj andalso (c.udtTemps.Count = smark) then
             copySubj = (StrArgOwnDescriptor_( c, sp->a, subjT ) = false)
         end if
@@ -460,6 +465,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
                 SkipHere( c )
                 return
             end if
+            if subjU then c.f->locals[dslot].frontendType = subjT
             dim as MirValue dsc
             dsc.kind = cast( ubyte, MV_LOCAL )
             dsc.ty = cast( ubyte, MT_PTR )
@@ -471,7 +477,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             dargs.Push( cast( ulong, sv.kind ) ) : dargs.Push( cast( ulong, sv.id ) )
             PushStrLen_( c, dargs, -1 )
             dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( 0 )
-            EmitRtl( c, RTL_STR_ASSIGN, dargs )
+            EmitRtl( c, iif( subjU, RTL_USTR_INIT, RTL_STR_ASSIGN ), dargs )
             c.cleanupNode.Push( 0 )
             c.cleanupSlot.Push( dslot )
             c.cleanupType.Push( 0 )
@@ -482,6 +488,11 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             SkipHere( c )
             return
         end if
+        '' THE SLOT CARRIES THE SUBJECT'S FLAVOUR: StrCaseCompare_ has only this slot to ask,
+        '' and a bare pointer temp answered "not ustring", so 'select case name_' over a
+        '' ustring compared UTF-16 with fb_StrCompare and matched nothing -- tracks' trade
+        '' database refused its own '#tradedb' header. fbc: fb_UStrCompare per case value.
+        if IsUStringType( c, subjT ) then c.f->locals[pslot].frontendType = subjT
         slotAddr.kind = cast( ubyte, MV_LOCAL )
         slotAddr.ty = cast( ubyte, MT_PTR )
         slotAddr.id = pslot

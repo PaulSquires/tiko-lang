@@ -198,6 +198,13 @@ function ByrefConvNeeded_ _
     dim as Tko.TypeId au = c.types->Unqualify( at0 )
     if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
     if au = pu then return false
+    '' ONE UDT UNDER TWO TYPE IDS is no conversion: 'FB.SortBy( this.m, @Less )' over a field
+    '' declared through an alias of 'FB.Array( of T )' reached here as a distinct id, took
+    '' the conversion arm, found no temporary to build and dropped the call -- tracks' grids
+    '' were never sorted. The UDT record is what both ids name.
+    if (c.types->Kind( au ) = Tko.TK_UDT) andalso (c.udts->Find( au ) >= 0) then
+        if c.udts->Find( au ) = c.udts->Find( pu ) then return false
+    end if
     if c.types->Kind( au ) = Tko.TK_UDT then
         if c.types->BaseDistance( au, pu ) >= 0 then return false
         if HasUdtConvCtor_( c, pu, au ) = false then return false
@@ -253,6 +260,27 @@ private function ByrefUdtArg_ _
     return true
 end function
 
+
+'' A LVALUE USTRING FOR A WIDE PARAMETER IS ITS DATA POINTER, which is already UTF-16.
+'' NarrowToWideTemp_ ran fb_StrToWstr over those bytes as narrow and stopped after one
+'' character -- tracks' notes panel showed "T". Measured, fbc passes the data pointer:
+'' 'len( wsz )' is 15 over "Tom trade #0542". False for anything else, emitting nothing.
+function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    if e = Tko.NODE_NONE then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( ut ) = Tko.TK_REFERENCE then ut = c.types->Unqualify( c.types->Inner( ut ) )
+    if c.types->Kind( ut ) <> Tko.TK_BUILTIN then return false
+    if c.types->BuiltinOf( ut ) <> Tko.TY_USTRING then return false
+    dim as MirValue ua = LowerAddr( c, e )
+    if ua.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst ufa
+    ufa.op = cast( ushort, M_FIELD_ADDR ) : ufa.ty = cast( ubyte, MT_PTR )
+    ufa.a = ua : ufa.imm = 0
+    dim as MirValue upa = Emit( c, ufa )
+    if upa.kind = cast( ubyte, MV_NONE ) then return false
+    outv = LowerExprLoad( c, upa, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
 
 '' A 'byref as [const] wstring' CONSTRUCTOR PARAMETER TAKES WIDE CHARACTERS, as at a call
 '' (lowercall.bas): what WideOperand_ gives -- a wide argument, or a narrow LITERAL

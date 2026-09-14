@@ -1,0 +1,8 @@
+'' A paren-less call whose UDT result casts to wstring is CALLED in a wide concatenation,
+'' and its result -- not the procedure's address -- is the cast operator's receiver.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/parenless-udt-wide-concat.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: func.addr ptr GETPATH

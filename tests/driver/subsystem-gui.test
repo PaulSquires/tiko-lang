@@ -1,0 +1,16 @@
+'' '-s gui' LINKS FOR THE WINDOWS SUBSYSTEM. fbc's option, measured there: no '-s' and
+'' '-s console' give PE subsystem 3, '-s gui' gives 2, and fbc hands ld '-subsystem
+'' windows'. On the MSVC target the entry point is named too -- lld-link pairs the
+'' windows subsystem with WinMainCRTStartup, and FreeBASIC's startup is mainCRTStartup,
+'' so a link that got that wrong fails here rather than producing an exe.
+''
+'' THE SUBSYSTEM VALUE ITSELF IS NOT ASSERTED. The runner can match bytes in a file but
+'' not a field at an offset, and '-v' -- which the help says echoes every tool
+'' invocation -- echoes none, so the link line cannot be read back either. Measured by
+'' hand 2026-09-14 from the PE header: 3 with no '-s', 3 with '-s console', 2 with
+'' '-s gui', the same three answers fbc gives.
+'' TEST: cli
+'' ARGS: -s gui -target win64-msvc tests/source/plain.bas -o tests/driver/subsysgui.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/subsysgui.exe

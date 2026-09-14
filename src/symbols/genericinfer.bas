@@ -325,6 +325,37 @@ private function InferArgType_ _
             return c.types->Unqualify( rt2 )
         end select
         return Tko.TYPE_NONE
+    case Tko.N_MEMBER
+        '' 'SortBy( this.m, @Less )' -- A FIELD REACHED THROUGH AN EXPRESSION is an argument
+        '' too, and nothing here answered for one: T was never inferred, the generic never
+        '' instantiated, and the call declined -- 'GenTake( b.m )' linked against a bare
+        '' 'GENTAKE'. tracks sorts every grid through a SortVector's private field, so none of
+        '' them was sorted. The base's type, through a reference or a pointer, names the UDT.
+        dim as Tko.BinaryPayload ptr mbp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+        if c.ast->Kind( mbp->rhs ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+        dim as Tko.TypeId mbt = InferArgType_( c, mbp->lhs, scope_ )
+        if mbt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        mbt = c.types->Unqualify( mbt )
+        if c.types->Kind( mbt ) = Tko.TK_REFERENCE then mbt = c.types->Unqualify( c.types->Inner( mbt ) )
+        if c.types->Kind( mbt ) = Tko.TK_POINTER then mbt = c.types->Unqualify( c.types->Inner( mbt ) )
+        dim as Tko.Symbol ptr mfs = c.syms->SymbolAt( _
+            TypeMemberNamed_( c, mbt, c.names->Spelling( IdentNameOf( c, mbp->rhs ) ) ) )
+        if mfs = 0 then return Tko.TYPE_NONE
+        if mfs->kind <> cast( ubyte, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
+        dim as Tko.TypeId mft = mfs->type_
+        if mft = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        if c.types->Kind( mft ) = Tko.TK_REFERENCE then mft = c.types->Inner( mft )
+        return mft
+    case Tko.N_DEREF
+        '' '*p' over a POINTER is its target -- the same question one level down.
+        dim as Tko.UnaryPayload ptr dup_ = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )]
+        dim as Tko.TypeId dpt = InferArgType_( c, dup_->operand, scope_ )
+        if dpt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        dpt = c.types->Unqualify( dpt )
+        if c.types->Kind( dpt ) <> Tko.TK_POINTER then return Tko.TYPE_NONE
+        return c.types->Unqualify( c.types->Inner( dpt ) )
     case Tko.N_CLOSURE
         '' A CAPTURING LAMBDA IS AN OBJECT, and its type is the closure UDT Resolve
         '' built for it. Only the NON-capturing form was answered -- that one is '@'

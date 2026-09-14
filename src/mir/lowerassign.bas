@@ -502,6 +502,15 @@ private sub LowerAssign _
     '' -- c's own buffer leaked, the new one freed twice, 0xC0000374. fbc calls the
     '' operator, 'vr$10 = MK( &TMP$9541$1, TMP$9543$1 ); _ZN7AFXNOVA8DWSTRINGaSERS0_( &C$1,
     '' vr$10 )', and destroys the temporary after. See UntypedCallResult_.
+    '' A UDT-TYPED PROPERTY IS A CALL TOO, and the same-type LET below would claim it:
+    '' 'pRegExp.Pattern = dwsMatch' over a getter 'as DWSTRING' took the target's address
+    '' -- the GETTER'S CODE -- and ran DWSTRING's 'operator let' over it. AfxNova's
+    '' DWStrRemove died there, in every tracks date function.
+    if (atl <> Tko.TYPE_NONE) andalso (c.ast->Kind( target ) = Tko.N_MEMBER) then
+        if c.types->Kind( atl ) = Tko.TK_UDT then
+            if LowerPropertySet_( c, target, value ) then return
+        end if
+    end if
     dim as Tko.TypeId avt = c.info->TypeOf_( value )
     if avt = Tko.TYPE_NONE then avt = UntypedCallResult_( c, value )
     dim as boolean atlUpcast = false

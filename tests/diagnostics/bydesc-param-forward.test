@@ -1,0 +1,9 @@
+'' An array PARAMETER forwarded whole is accepted, and still held to the element rule.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bydesc-param-forward.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-NOT: TKO0641
+'' EXPECT-OUT: bydesc-param-forward.bas(35,
+'' EXPECT-OUT: bydesc-param-forward.bas(39,
+'' EXPECT-OUT: TKO0687
+'' EXPECT-MAX-DIAG: 2

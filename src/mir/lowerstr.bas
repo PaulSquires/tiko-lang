@@ -143,7 +143,9 @@ function ConcatTermsToTempDesc_ _
     '' A USTRING CHAIN RENDERING A NUMBER FOLDS by flavour -- measured, 'Show( w & " (" & n &
     '' ")" )' is fb_UStrConcat, fb_UStrConcatUA, fb_UStrConcat. Concat-assigning the narrow
     '' digits into this temporary as UTF-16 was every garbled "(expected N, got M)".
-    if isU andalso ChainHasRenderedNumber_( c, terms ) then
+    '' ...AND SO DOES ANY USTRING CHAIN WITH A TERM TO CONVERT: 'print what & str( dws )'
+    '' concat-assigned the NARROW str( ) result as if it were UTF-16 -- a crash in test_dates.
+    if isU andalso (ChainHasRenderedNumber_( c, terms ) orelse StrChainNeedsConvert( c, true, terms )) then
         if LowerUStrChain( c, tmp, true, terms, false ) = false then return false
         outv = tmp
         return true
@@ -1395,7 +1397,7 @@ end function
 '' may be NODE_NONE when the destination is a slot with no node of its own.
 function LowerStringAssignTo _
     ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
-      byval value as Tko.NodeId ) as boolean
+      byval value as Tko.NodeId, byval dstFlavour as long ) as boolean
 
     '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_. Left
     '' in place it looked like a CONVERSION term and took the transcoding path, which
@@ -1424,6 +1426,7 @@ function LowerStringAssignTo _
     '' half of that model would be a wrong answer rather than a partial one.
     dim as boolean isU0 = IsUStringType( c, c.info->TypeOf_( target ) )
     if target = Tko.NODE_NONE then isU0 = IsUStringDest_( c, dst )
+    if dstFlavour >= 0 then isU0 = (dstFlavour = 1)
     '' A RENDERED NUMBER IN A USTRING ASSIGNMENT -- see LowerUStrInPlaceWithNumbers_. A self
     '' chain of three or more terms folds; two terms stay the unconverted append fbc emits.
     '' A chain with NO ustring term ('return "u" & n') is a narrow fold and one
@@ -1461,6 +1464,7 @@ function LowerStringAssignTo _
     '' ustring takes fb_UStrAssign and a UTF-16 literal with a tagged length.
     dim as boolean isU = IsUStringType( c, c.info->TypeOf_( target ) )
     if target = Tko.NODE_NONE then isU = IsUStringDest_( c, dst )
+    if dstFlavour >= 0 then isU = (dstFlavour = 1)
 
     '' The first term is assigned, every later one concatenated onto it. When the
     '' destination IS the first term, the assign is a self-assignment and is skipped.

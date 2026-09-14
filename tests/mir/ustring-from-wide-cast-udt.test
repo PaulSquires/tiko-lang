@@ -1,0 +1,9 @@
+'' A ustring declared from, or assigned, a UDT with 'operator cast( ) as wstring' goes
+'' through the cast and fb_WstrToUStr -- from a variable, a call and a field -- and no
+'' statement is dropped.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-from-wide-cast-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrToUStr

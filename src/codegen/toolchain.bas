@@ -236,6 +236,21 @@ function LinkExe _
     if (target.id = TARGET_WIN64_MSVC) andalso (t.stripSymbols = false) then
         cmd += " -Xlinker -debug:dwarf"
     end if
+    '' '-s gui': THE WINDOWS SUBSYSTEM, which fbc gives ld as '-subsystem windows'. An
+    '' executable only -- a DLL has no subsystem of its own to choose -- and COFF only.
+    ''
+    '' THE ENTRY POINT IS NAMED ON THE MSVC TARGET, and it has to be: lld-link pairs
+    '' /subsystem:windows with WinMainCRTStartup unless told otherwise, and a FreeBASIC
+    '' program's startup is msvccrt.c's mainCRTStartup, which calls main. The MinGW
+    '' startup in crt2.o serves both subsystems and needs only the flag.
+    dim as boolean wantGui = t.guiSubsystem andalso (t.buildDll = false)
+    if wantGui then
+        if target.id = TARGET_WIN64_MSVC then
+            cmd += " -Xlinker -subsystem:windows -Xlinker -entry:mainCRTStartup"
+        elseif target.objFormat = OBJ_COFF then
+            cmd += " -Wl,--subsystem,windows"
+        end if
+    end if
     for i as long = 0 to objs.Count - 1
         cmd += " " & Q( objs[i] )
     next

@@ -1,0 +1,7 @@
+'' select case over a ustring rvalue initialises its own ustring copy of the subject.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/select-ustring-rvalue.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrInit

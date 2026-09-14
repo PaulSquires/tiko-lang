@@ -59,6 +59,7 @@ constructor DriverOptions( )
     this.compileOnly = false
     this.debugInfo = false
     this.threadSafe = false
+    this.guiSubsystem = false
     this.optLevel = 0
     this.showHelp = false
     this.helpCategory = ""
@@ -446,6 +447,19 @@ function Parse _
         '' the whole line is read so that they do not depend on where they appear.
         case Tko.OPT_M64      : opts.widthOverride = 64
         case Tko.OPT_M32      : opts.widthOverride = 32
+
+        '' '-s gui' IS fbc's, and measured there: no '-s' and '-s console' both give PE
+        '' subsystem 3, '-s gui' gives 2, and fbc hands ld '-subsystem windows'. Without
+        '' it a GUI program -- tracks -- linked as a console one and opened a stray console
+        '' window beside its own. Any other value is refused rather than guessed at.
+        case Tko.OPT_SUBSYS
+            select case Tko.Text.LowerAscii( value )
+            case "gui"     : opts.guiSubsystem = true
+            case "console" : opts.guiSubsystem = false
+            case else
+                diags.ReportGlobal( Tko.TKO0106, value, "-s" )
+                ok = false
+            end select
 
         case Tko.OPT_WERROR   : opts.warningsAsErrors = true
         case Tko.OPT_WNO

@@ -1,0 +1,9 @@
+'' VAL over a UDT with 'operator cast( ) as wstring' takes the wide entry point, over a
+'' variable and over a function result alike, and nothing is dropped.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/val-udt-wide-cast.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrVal
+'' EXPECT-NOT: fb_VAL(

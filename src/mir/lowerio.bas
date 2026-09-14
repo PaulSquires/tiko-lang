@@ -314,6 +314,15 @@ end function
 '' bytes as if they were narrow -- which lowers, verifies and prints mojibake.
 private function PrintStrRtl_( byref c as Ctx, byval it as Tko.NodeId ) as RtlId
     if IsUStringType( c, c.info->TypeOf_( it ) ) then return RTL_PRINT_USTR
+    '' ...AND A CONCATENATION WITH A USTRING TERM. Check types every '&' as STRING, but
+    '' ConcatToTempDesc_ builds a USTRING temporary for one (ConcatTermsAreU_), so the
+    '' type said narrow while the bytes were UTF-16: 'print "FAIL: " & what' printed
+    '' "F A I L : ". fbc types that concatenation USTRING and calls fb_PrintUStr.
+    if c.ast->Kind( it ) = Tko.N_BINARY then
+        dim as FB.Array( of ulong ) pts
+        FlattenConcat( c, it, pts )
+        if ConcatTermsAreU_( c, pts ) then return RTL_PRINT_USTR
+    end if
     return RTL_PRINT_STRING
 end function
 

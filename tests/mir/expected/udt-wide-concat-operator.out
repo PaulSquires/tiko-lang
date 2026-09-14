@@ -72,7 +72,7 @@ func ptr _ZN2WScvwEv(ptr $0) {
     %6 = load @$tmp0
     ret %6
 }
-func ptr _Zv21&R2WSR8FBSTRING(ptr $0, ptr $1, ptr $2) {
+func ptr _Zv23catR2WSR8FBSTRING(ptr $0, ptr $1, ptr $2) {
   local ptr $tmp0
   local ptr a
   local ptr s
@@ -129,7 +129,7 @@ func ptr TITLE(ptr $0, ptr $1, i32 $2) {
     %11 = field.addr @$tmp5, 16
     store %11, 0
     %12 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @@$str1, 2, 0)
-    %13 = call ptr _Zv21&R2WSR8FBSTRING(@$tmp4, %7, @$tmp5)
+    %13 = call ptr _Zv23catR2WSR8FBSTRING(@$tmp4, %7, @$tmp5)
     %14 = alloca ptr $tmp6
     %15 = field.addr @$tmp6, 0
     store %15, 0
@@ -140,7 +140,7 @@ func ptr TITLE(ptr $0, ptr $1, i32 $2) {
     %18 = load @y
     %19 = call.rtl ptr fb_IntToStr(%18)
     %20 = call.rtl ptr fb_StrAssign(@$tmp6, -1, %19, -1, 0)
-    %21 = call ptr _Zv21&R2WSR8FBSTRING(@$tmp3, @$tmp4, @$tmp6)
+    %21 = call ptr _Zv23catR2WSR8FBSTRING(@$tmp3, @$tmp4, @$tmp6)
     %22 = load @$tmp3
     %23 = load @$tmp0
     store %23, %22
@@ -181,7 +181,7 @@ func i32 main(i32 $0, ptr $1) {
     %11 = field.addr @$tmp3, 16
     store %11, 0
     %12 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str3, 6, 0)
-    %13 = call ptr _Zv21&R2WSR8FBSTRING(@b, @a, @$tmp3)
+    %13 = call ptr _Zv23catR2WSR8FBSTRING(@b, @a, @$tmp3)
     call.rtl void fb_StrDelete(@$tmp3)
     %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
     call.rtl void fb_PrintString(0, %14, 0)
@@ -203,7 +203,7 @@ func i32 main(i32 $0, ptr $1) {
     %25 = field.addr @$tmp7, 16
     store %25, 0
     %26 = call.rtl ptr fb_StrAssign(@$tmp7, -1, @@$str1, 2, 0)
-    %27 = call ptr _Zv21&R2WSR8FBSTRING(@$tmp6, @a, @$tmp7)
+    %27 = call ptr _Zv23catR2WSR8FBSTRING(@$tmp6, @a, @$tmp7)
     %28 = alloca ptr $tmp8
     %29 = field.addr @$tmp8, 0
     store %29, 0
@@ -214,7 +214,7 @@ func i32 main(i32 $0, ptr $1) {
     %32 = load @y
     %33 = call.rtl ptr fb_IntToStr(%32)
     %34 = call.rtl ptr fb_StrAssign(@$tmp8, -1, %33, -1, 0)
-    %35 = call ptr _Zv21&R2WSR8FBSTRING(@c, @$tmp6, @$tmp8)
+    %35 = call ptr _Zv23catR2WSR8FBSTRING(@c, @$tmp6, @$tmp8)
     call void _ZN2WSD1Ev(@$tmp6)
     call.rtl void fb_StrDelete(@$tmp8)
     call.rtl void fb_StrDelete(@$tmp7)

@@ -843,6 +843,7 @@ end function
 function NarrowToWideTemp_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    if UStrDataArg_( c, e, outv ) then return true   '' already UTF-16 -- see UStrDataArg_
     dim as MirValue dp
     if ZstrDataOf_( c, e, dp ) = false then return false
     dim as FB.Array( of ulong ) args
@@ -1232,7 +1233,26 @@ function UserCastToWide_ _
     dim as Tko.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )
     if want = Tko.SYMBOL_NONE then return false
 
-    dim as MirValue self_ = LowerAddr( c, id )
+    '' A PAREN-LESS CALL IS A CALL: LowerAddr on a bare procedure name is its CODE address,
+    '' which 'AfxGetExePathName & "\x"' handed the cast as 'this' -- tracks died in wcslen.
+    '' Called as MT_AGG, what the definition returns (MT_PTR made the ABI pass decline the
+    '' function), then copied to a temporary for an address, as UdtSelfAddr_ does; the
+    '' call's own result slot is the one registered for destruction.
+    dim as MirValue self_, brv
+    dim as Tko.Symbol ptr bs = 0
+    dim as Tko.NodeKind ik = c.ast->Kind( id )
+    if (ik = Tko.N_IDENT) orelse (ik = Tko.N_MEMBER) then bs = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if (bs <> 0) andalso (bs->kind = cast( ubyte, Tko.SYM_PROC )) then
+        dim as long bsz = SizeOfType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) )
+        if bsz <= 0 then return false
+        if LowerBareProcCall_( c, id, MT_AGG, brv ) = false then return false
+        self_.kind = cast( ubyte, MV_LOCAL ) : self_.ty = cast( ubyte, MT_PTR )
+        self_.id = NewTempLocal( c, MT_AGG, bsz )
+        if cast( long, self_.id ) < 0 then return false
+        StoreThrough( c, self_, brv )
+    else
+        self_ = LowerAddr( c, id )
+    end if
     if self_.kind = cast( ubyte, MV_NONE ) then return false
     outv = EmitMemberCall( c, want, self_, MT_PTR )
     return (outv.kind <> cast( ubyte, MV_NONE ))

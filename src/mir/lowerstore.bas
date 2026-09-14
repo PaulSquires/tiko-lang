@@ -518,7 +518,15 @@ sub EmitStructorCall _
         dim as Tko.TypeId dpt = ParamTypeAt( c, sym, i )
         dim as boolean dref = ParamIsByref( c, sym, i )
         if dref andalso (dpt <> Tko.TYPE_NONE) then
-            if IsStringType( c, dpt ) then
+            '' A BYREF WSTRING DEFAULT IS WIDE: 'dim as CWindow w' passed the narrow "" as the class
+            '' name, and RegisterClassExW refused every window after the first. fbc passes L"".
+            dim as Tko.TypeId dpu = c.types->Unqualify( dpt )
+            if c.types->Kind( dpu ) = Tko.TK_REFERENCE then dpu = c.types->Unqualify( c.types->Inner( dpu ) )
+            dim as boolean dwide = false
+            if c.types->Kind( dpu ) = Tko.TK_BUILTIN then dwide = (c.types->BuiltinOf( dpu ) = Tko.TY_WSTRING)
+            if dwide then
+                if WideOperand_( c, dv, av ) = false then exit for
+            elseif IsStringType( c, dpt ) then
                 dim as long dslot = -1
                 if ByvalStrTemp_( c, dv, dpt, av, dslot ) = false then exit for
                 if dslot >= 0 then
@@ -1092,10 +1100,15 @@ sub InitSharedGlobal _
             '' default initialisation at all, so 'wants' was false and the global was
             '' never recorded -- the declaration then declined at the aggregate folder
             '' and the program printed 0 where fbc prints 7.
-            if init <> Tko.NODE_NONE then
-                if c.ast->Kind( init ) = Tko.N_CALL then
-                    if c.types->Kind( gs->type_ ) = Tko.TK_UDT then wants = true
-                end if
+            '' ...AND A CONVERTING ONE: 'dim shared as DWSTRING g = "abc"' was default-constructed.
+            dim as boolean convInit = false
+            if (init <> Tko.NODE_NONE) andalso (c.types->Kind( gs->type_ ) = Tko.TK_UDT) then
+                select case c.ast->Kind( init )
+                case Tko.N_CALL : wants = true
+                case Tko.N_TUPLE, Tko.N_INITIALIZER
+                case else : convInit = (StructorOf( c, gs->type_, "__ctor" ) <> Tko.SYMBOL_NONE)
+                end select
+                if convInit then wants = true
             end if
             if wants then
                 dim as boolean already = false
@@ -1120,6 +1133,7 @@ sub InitSharedGlobal _
                                 ctorCall = init
                             end if
                         end if
+                        if convInit then ctorCall = init
                     end if
                     c.modInitCall.Push( cast( ulong, ctorCall ) )
                 end if

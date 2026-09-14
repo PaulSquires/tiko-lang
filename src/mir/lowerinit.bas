@@ -40,6 +40,21 @@ function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     return Tko.SYMBOL_NONE
 end function
 
+'' Does the N_CALL E name a procedure declared 'byref as T'? Its result is then somebody
+'' else's object -- 'Result( of T, E ).Value( )' -- and never a temporary to move from.
+function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if c.ast->Kind( e ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->target = Tko.NODE_NONE then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    return ((c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+end function
+
 '' A FIELD LIST ASSIGNED TO THE RESULT -- 'function = ( 1, 2 )' and 'function =
 '' type( 1, 2 )'. The result slot IS the object, so this is the declaration
 '' initialiser with the result's type standing in for the declared one.

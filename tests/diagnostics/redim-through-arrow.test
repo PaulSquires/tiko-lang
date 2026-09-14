@@ -1,0 +1,7 @@
+'' 'redim p->items( ... )' through a pointer is not a dot through a pointer.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redim-through-arrow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0630
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

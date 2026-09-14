@@ -52,6 +52,12 @@ sub EmitModuleInit_( byref c as Ctx )
                     end if
                     if mic <> Tko.NODE_NONE then
                         if CtorCallOnAddr_( c, ga, gt, mic ) then continue for
+                        '' ...OR A VALUE FOR A CONVERTING ONE: 'dim shared as DWSTRING g = "abc"'.
+                        '' Its temporaries die here, since no statement end follows.
+                        dim as long sm = c.strTemps.Count, wm = c.wstrTemps.Count, um = c.udtTemps.Count
+                        dim as boolean conv = LowerConvCtorInit_( c, -1, gt, mic, @ga )
+                        ReleaseUdtTemps_( c, um ) : ReleaseWstrTemps_( c, wm ) : ReleaseStrTemps_( c, sm )
+                        if conv then continue for
                     end if
                     dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
                     if ct <> Tko.SYMBOL_NONE then

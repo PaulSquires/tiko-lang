@@ -513,7 +513,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         '' array case has no such history to preserve: its store was
                         '' the move all along.
                         dim as boolean wantImplCopy = NeedsLetBody_( c, dvt )
-                        if initIsCall andalso HasDynArrayMember_( c, dvt ) then
+                        '' ...NOT A BYREF RESULT, which is somebody else's object: 'dim as
+                        '' TdbDatabase db2 = back.Value( )' aliased it, freed twice.
+                        if initIsCall andalso HasDynArrayMember_( c, dvt ) andalso (CallReturnsByref_( c, ip->b ) = false) then
                             wantImplCopy = false
                         end if
                         '' A HIDDEN-POINTER RESULT IS BUILT IN THE VARIABLE: no default

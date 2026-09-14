@@ -1,0 +1,8 @@
+'' A ustring tuple leaf is assigned with fb_UStrAssign, not the narrowing fb_UStrAssignToA.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/tuple-ustring-leaf.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrAssign(
+'' EXPECT-NOT: fb_UStrAssignToA

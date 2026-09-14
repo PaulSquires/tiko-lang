@@ -1,0 +1,9 @@
+'' A user '&' chain over a wide-casting UDT mixed with narrow builtins lowers whole, and
+'' the operator is mangled 'cat' as fbc spells it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cat-operator-chain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _Zv23catR2DSR8FBSTRING
+'' EXPECT-NOT: _Zv21&

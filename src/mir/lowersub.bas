@@ -703,7 +703,12 @@ function LowerStrNumCall_ _
         '' than a descriptor. Without them 'valint( w )' declined -- and string/val.bas
         '' asks every one of the five of a wstring beside its narrow twin.
         dim as MirValue sd
-        if IsWideString_( c, c.info->TypeOf_( v0 ) ) then
+        '' ...AND A UDT WITH 'operator cast( ) as wstring' IS A WIDE OPERAND (TermIsWide_, as
+        '' asc below): AfxNova's DWSTRING asked for a narrow descriptor, had none, and
+        '' 'val( left( dws, 4 ) )' was dropped from the build unreported. VAL family only.
+        dim as boolean valFam = (vr = RTL_VAL) orelse (vr = RTL_VALLNG) orelse _
+            (vr = RTL_VALULNG) orelse (vr = RTL_VALINT) orelse (vr = RTL_VALUINT)
+        if IsWideString_( c, c.info->TypeOf_( v0 ) ) orelse (valFam andalso TermIsWide_( c, v0 )) then
             select case vr
             case RTL_VAL      : vr = RTL_WSTR_VAL
             case RTL_VALLNG   : vr = RTL_WSTR_VALLNG
@@ -752,7 +757,8 @@ function LowerStrNumCall_ _
         '' 'asc( u )' asked for a narrow descriptor, a UDT has none, and it declined --
         '' while 'w = u' and 'dim w as wstring * 10 = u' beside it both lowered, because
         '' WideOperand_ has known about the cast all along.
-        dim as RtlId ascR = RTL_STR_ASC
+        dim as boolean ascU = IsUStringType( c, c.info->TypeOf_( a0asc ) )  '' fb_UStrAsc( u, -1, n )
+        dim as RtlId ascR = RTL_STR_ASC : if ascU then ascR = RTL_USTR_ASC
         dim as MirValue sd
         if TermIsWide_( c, a0asc ) then
             ascR = RTL_WSTR_ASC
@@ -762,6 +768,7 @@ function LowerStrNumCall_ _
         end if
         dim as FB.Array( of ulong ) aa
         aa.Push( cast( ulong, sd.kind ) ) : aa.Push( cast( ulong, sd.id ) )
+        if ascR = RTL_USTR_ASC then PushStrLen_( c, aa, -1 )
         if cp->count = 2 then
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             dim as MirValue nv = LowerExpr( c, a1 )

@@ -215,6 +215,24 @@ function LowerUdtLiteralAddr_ _
     return true
 end function
 
+'' Does T hold, at byte offset OFF (nested fields included), a whole field of type WANT?
+'' A string-first UDT field flattens to a STRING LEAF at its own offset, and only this
+'' tells 'kv.value' (the whole Ent) from a string value meant for that leaf.
+private function UdtFieldAt_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval off as long, _
+      byval want as Tko.TypeId, byval depth as long ) as boolean
+    if depth > 8 then return false
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return false
+    for i as long = 0 to c.udts->udts[ui].count - 1
+        dim as Tko.UdtField ptr fld = @c.udts->fields[c.udts->udts[ui].first + i]
+        if (fld->offset > off) orelse (c.types->Kind( fld->type_ ) <> Tko.TK_UDT) then continue for
+        if (fld->offset = off) andalso (c.types->Unqualify( fld->type_ ) = want) then return true
+        if UdtFieldAt_( c, fld->type_, off - fld->offset, want, depth + 1 ) then return true
+    next
+    return false
+end function
+
 '' The destination is a SLOT or, for an ARRAY ELEMENT, an ADDRESS -- selfv. An element
 '' of a brace initialiser has no slot of its own, and building the object in a
 '' temporary of ITS OWN inferred type instead is how '{ ( 7, 8, 9 ) }' over a
@@ -487,6 +505,11 @@ function LowerUdtParenInit_ _
     '' takes fb_StrInit rather than a store and there is no value to hold here.
     dim as FB.Array( of ulong ) sNode
     dim as FB.Array( of ulong ) sOff
+    '' ...AND ITS FLAVOUR. The store has only a field ADDRESS to write through, which
+    '' names no type, so a USTRING leaf was stored as a narrow one: 'return (kv.key,
+    '' kv.value)' in fb/map.bi emitted fb_UStrAssignToA, and every key a Map's Pairs( )
+    '' produced came out as UTF-16 read from narrow bytes. tracks walks five such maps.
+    dim as FB.Array( of ulong ) sFt
     '' A WHOLE-OBJECT LEAF WHOSE TYPE OWNS A STRING is recorded the same way and copied
     '' by its assignment, not by a store, for the same reason: there is no value to hold.
     dim as FB.Array( of ulong ) cNode
@@ -496,9 +519,21 @@ function LowerUdtParenInit_ _
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
         if cur >= fCount then return false
         dim as MirType fmt = cast( MirType, fTy[cur] )
-        if IsStringType( c, cast( Tko.TypeId, fFt[cur] ) ) then
+        '' ...UNLESS THE VALUE IS THE WHOLE UDT FIELD that leaf opens. 'return (kv.key,
+        '' kv.value)' over a Map( of ustring, Ent ) fed the Ent to the string store, which
+        '' declined; every Pairs( ) value came out empty. The deep copy below takes it.
+        dim as boolean wholeUdt = false
+        scope
+            dim as Tko.TypeId wt = c.info->TypeOf_( e )
+            if wt <> Tko.TYPE_NONE then
+                wt = c.types->Unqualify( wt )
+                if c.types->Kind( wt ) = Tko.TK_UDT then wholeUdt = UdtFieldAt_( c, t, cast( long, fOff[cur] ), wt, 0 )
+            end if
+        end scope
+        if (wholeUdt = false) andalso IsStringType( c, cast( Tko.TypeId, fFt[cur] ) ) then
             sNode.Push( cast( ulong, e ) )
             sOff.Push( fOff[cur] )
+            sFt.Push( fFt[cur] )
             cur += 1
             continue for
         end if
@@ -643,8 +678,9 @@ function LowerUdtParenInit_ _
         sfa.imm = cast( long, sOff[i] )
         dim as MirValue saddr = Emit( c, sfa )
         if saddr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long sflav = iif( IsUStringType( c, cast( Tko.TypeId, sFt[i] ) ), 1, 0 )
         if LowerStringAssignTo( c, saddr, Tko.NODE_NONE, _
-                                cast( Tko.NodeId, sNode[i] ) ) = false then return false
+                                cast( Tko.NodeId, sNode[i] ), sflav ) = false then return false
     next
 
     '' ...AND THE WHOLE-OBJECT LEAVES, by assignment. See the note at the record site.

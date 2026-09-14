@@ -47,6 +47,9 @@ namespace Tko.Codegen
         '' always shipped; nothing named the second one until 2026-09-07, so '-mt'
         '' selected the single-threaded runtime in silence.
         as boolean threadSafe
+        '' '-s gui': link the executable for the WINDOWS subsystem rather than the console
+        '' one. Ignored for a DLL and off Windows, where there is no subsystem to pick.
+        as boolean guiSubsystem
         '' '-O<n>': handed to clang when the IR is compiled. It was parsed into DriverOptions
         '' and read by nothing, so '-O2' produced a byte-identical executable to '-O0' --
         '' measured over the whole of tiko-lang. 0 passes no flag at all.

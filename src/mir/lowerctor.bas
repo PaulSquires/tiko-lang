@@ -334,6 +334,7 @@ function LowerConvCtorInit_ _
         if (TermIsWide_( c, init_ ) orelse ConcatHasWideTerm_( c, init_ )) = false then return false
         it = c.types->Builtin( Tko.TY_WSTRING )  '' an untyped WIDE expression: 'return a + s'
     end if
+    if LitHasUnicodeEscape_( c, init_ ) then it = c.types->Builtin( Tko.TY_WSTRING )
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
     if c.types->Unqualify( it ) = c.types->Unqualify( t ) then return false
@@ -477,6 +478,7 @@ function LowerUserLetConv_ _
         wideUntyped = true
         vt = c.types->Builtin( Tko.TY_WSTRING )
     end if
+    if LitHasUnicodeEscape_( c, value ) then vt = c.types->Builtin( Tko.TY_WSTRING )
     '' The same type is the COPY the caller has already handled.
     if c.types->Unqualify( vt ) = c.types->Unqualify( t ) then return false
 
@@ -1140,6 +1142,12 @@ function PushCtorArgs_ _
                         if da2.kind <> cast( ubyte, MV_NONE ) then
                             dv = da2
                             dref2 = true
+                        end if
+                    elseif c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_BUILTIN then
+                        '' ...AND A WSTRING DEFAULT IS WIDE CHARACTERS: 'new CWindow' passed the
+                        '' narrow "" for its class name -- see EmitStructorCall.
+                        if c.types->BuiltinOf( c.types->Unqualify( dt ) ) = Tko.TY_WSTRING then
+                            if WideOperand_( c, dp->b, dv ) then dref2 = true
                         end if
                     end if
                 end if

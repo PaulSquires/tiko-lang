@@ -1,0 +1,5 @@
+'' '-s' takes console or gui and nothing else; a third value is refused, not guessed at.
+'' TEST: cli
+'' ARGS: -s native tests/source/plain.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: TKO0106: 'native' is not a recognised value for '-s'

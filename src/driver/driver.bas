@@ -435,6 +435,7 @@ private function LinkAll _
     '' It does NOT yet make the compiler emit debug information; that is Phase 11.
     tools.stripSymbols = (ctx.options.debugInfo = false)
     tools.threadSafe = ctx.options.threadSafe
+    tools.guiSubsystem = ctx.options.guiSubsystem
 
     '' THE IMPORT LIBRARY'S NAME FOLLOWS THE OUTPUT, not the source. Measured:
     '' 'fbc -dll thing.bas -x custom.dll' writes libcustom.dll.a. So it is built
@@ -961,7 +962,11 @@ function Run( byref args as Tko.StrVec ) as long
                         print "emit: ICE: " & er.ice
                         toolExit = Tko.EXIT_ICE
                     end if
-                else
+                '' ONLY WHEN '--dump-ir' ASKED. This was a bare 'else', so a BUILD that
+                '' reported an error fell into it and printed the whole module where the
+                '' diagnostics belonged -- measured 2026-09-14 on tracks, eight minutes of
+                '' string concatenation in DumpModule before the first error was shown.
+                elseif ctx.options.dumpIr then
                     print Tko.Mir.DumpModule( mm, ctx.names );
                 end if
                 '' THE REPORT GOES TO STDERR UNDER '--emit-ir', because stdout is

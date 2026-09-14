@@ -1,0 +1,8 @@
+'' An implicit constructor call fills a 'byref as const wstring' default with a wide literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-default-wstring-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: _ZN1TC1ERKw(@a, @@$str
+'' EXPECT-NOT: _ZN1TC1ERKw(@c, @@$str

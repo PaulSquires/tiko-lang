@@ -419,6 +419,14 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     if IsStringType( c, tt ) then return STF_NARROW
     dim as longint sn
     if StrSwapKind_( c, tt, sn ) >= 0 then return STF_NARROW
+    '' A UDT WITH 'operator cast( ) as wstring' IS WIDE -- AfxNova's DWSTRING. Answered
+    '' NEUTRAL, 'dim as ustring u = dws' saw no flavour to convert from, EmitStrTerm had
+    '' no descriptor for a UDT, and the initialiser was DROPPED: the ustring stayed empty
+    '' with nothing declined. Measured, fbc calls the cast, then fb_WstrToUStr, then
+    '' fb_UStrInit -- the conversion WideTermAsUStr_ already makes once it is asked.
+    '' tracks' 'dim as ustring path_ = this.ConfigFilename' was this, and every setting
+    '' failed to load with 'config: no such file or directory'.
+    if WideCastOverload_( c, tt ) <> Tko.SYMBOL_NONE then return STF_WIDE
     return STF_NEUTRAL
 end function
 

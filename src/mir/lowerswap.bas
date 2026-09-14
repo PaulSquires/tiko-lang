@@ -714,6 +714,13 @@ private function PropIndexCost_ _
         end if
         dim as long vc = Tko.Check.ConversionCost( _
             c.types->Unqualify( vat ), vpu, *c.types )
+        '' A UDT WITH A WIDE CAST reaches a WSTRING value parameter through that cast --
+        '' LowerPropertySet_ passes what it returns. Unscored, 'pRegExp.Pattern = dws' found
+        '' no setter and the same-type LET wrote over the getter's code.
+        if (vc >= Tko.Check.CONV_NONE) andalso (c.types->Kind( vpu ) = Tko.TK_BUILTIN) then
+            if (c.types->BuiltinOf( vpu ) = Tko.TY_WSTRING) andalso _
+               (WideCastOverload_( c, vat ) <> Tko.SYMBOL_NONE) then vc = Tko.Check.CONV_USERDEF
+        end if
         if vc >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
         total += vc
     end if
@@ -1092,6 +1099,17 @@ private function OperandValue_ _
         if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
         dim as boolean narrowStr = (c.types->Kind( snu ) = Tko.TK_BUILTIN)
         if narrowStr then narrowStr = (c.types->BuiltinOf( snu ) = Tko.TY_STRING)
+        '' A WIDE OPERAND FOR IT IS CONVERTED into a narrow temporary first -- measured, fbc
+        '' emits 'fb_WstrAssignToA( &TMP, -1, wide, 0 )' for AfxNova's 'dws & mid( dws, 5, 2 )',
+        '' which binds 'operator &( byref as DWSTRING, byref as STRING )'. Nothing here could
+        '' pass a wstring there: the operand declined, the statement was dropped, every retry
+        '' re-lowered the left side, and tracks' DateInsertHyphens returned garbage.
+        if narrowStr andalso TermIsWide_( c, e ) then
+            if WideToNarrowTemp_( c, e, v ) then
+                args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+                return true
+            end if
+        end if
         if narrowStr andalso (StrArgOwnDescriptor_( c, e, snu ) = false) then
             dim as long sslot = -1
             if ByvalStrTemp_( c, e, snu, v, sslot ) then
@@ -1227,7 +1245,18 @@ function LowerPropertySet_ _
     '' site in this compiler already uses.
     dim as MirValue v
     dim as boolean gotV = false
+    '' A UDT WITH A WIDE CAST, FOR A WSTRING PARAMETER, passes what its cast returns:
+    '' CRegExp's 'property Pattern( byref wszPattern as const wstring )' given a DWSTRING.
     if pt <> Tko.TYPE_NONE then
+        dim as Tko.TypeId upt = c.types->Unqualify( pt )
+        if c.types->Kind( upt ) = Tko.TK_BUILTIN then
+            if (c.types->BuiltinOf( upt ) = Tko.TY_WSTRING) andalso _
+               (WideCastOverload_( c, c.info->TypeOf_( value ) ) <> Tko.SYMBOL_NONE) then
+                gotV = UserCastToWide_( c, value, v )
+            end if
+        end if
+    end if
+    if (gotV = false) andalso (pt <> Tko.TYPE_NONE) then
         if IsStringType( c, pt ) then
             gotV = StrDescriptorOf_( c, value, v )
         end if

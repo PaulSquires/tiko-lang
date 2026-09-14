@@ -682,6 +682,10 @@ private function OperatorCode _
     select case nm
     case "\"  : return "v" & trim( str( arity ) ) & SrcName( "idiv" )
     case "^"  : return "v" & trim( str( arity ) ) & SrcName( "pow" )
+    '' ...and '&', FB's string concatenation, is 'cat' -- measured, '_Zv23catR1TR8FBSTRING'
+    '' for 'operator &( byref a as T, byref b as string )'. Spelled '_Zv21&', a tiko object
+    '' could not call AfxNova's DWSTRING '&' in an fbc-built one, nor the reverse.
+    case "&"  : return "v" & trim( str( arity ) ) & SrcName( "cat" )
     '' The five COMPOUND assignments C++ has no code for. Their vendor name is 'self'
     '' plus the operation and not the punctuation: measured, '\=' is v28selfidiv,
     '' '^=' is v27selfpow and '&=' -- FB's string concatenation -- is v27selfcat.

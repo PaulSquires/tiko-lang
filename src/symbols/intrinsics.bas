@@ -132,27 +132,25 @@ private function UdtCastResultOf_ _
 end function
 
 '' A BINARY OPERATION WITH A UDT OPERAND AND NO USER OPERATOR takes each UDT side's
-'' numeric 'operator cast' result and asks BinaryResult about THOSE. TYPE_NONE when
-'' neither side is substituted or the pair is still not allowed.
-''
-'' The MIR has done this since it was written -- UserCastToNum_ on each side -- but
-'' Check handed BinaryResult the UDT type, which answers TYPE_NONE, so the node and
-'' every call over it were UNTYPED: 'show( l + r )' lowered because the parameter's type
-'' supplied the context, while 'print l + r' and 'dim z = func( l + r )' declined.
-'' Measured: '#print typeof( l + r )' over a type casting to byte and double is DOUBLE.
+'' numeric 'operator cast' result and asks BinaryResult about THOSE; TYPE_NONE when
+'' neither side is substituted or the pair is still not allowed. Check handed it the UDT
+'' type, so 'print l + r' declined while 'show( l + r )' lowered. Measured: '#print
+'' typeof( l + r )' over a type casting to byte and double is DOUBLE.
+'' A COMPARISON FALLS BACK TO A STRING CAST: '( a = b )' over 'cast( ) byref as wstring'
+'' is fb_WstrCompare and INTEGER -- untyped, 'print ( a = b )' was dropped whole.
 private function UdtOperandBinaryType_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, _
       byval lt as Tko.TypeId, byval rt as Tko.TypeId ) as Tko.TypeId
 
     dim as Tko.TypeId lt2 = lt, rt2 = rt
-    if IsUdtOperand_( c, lt ) then
-        dim as Tko.TypeId lc = UdtCastResultOf_( c, lt, false )
-        if lc <> Tko.TYPE_NONE then lt2 = lc
-    end if
-    if IsUdtOperand_( c, rt ) then
-        dim as Tko.TypeId rc = UdtCastResultOf_( c, rt, false )
-        if rc <> Tko.TYPE_NONE then rt2 = rc
-    end if
+    for side as long = 0 to 1
+        dim as Tko.TypeId st = iif( side = 0, lt, rt )
+        if IsUdtOperand_( c, st ) = false then continue for
+        dim as Tko.TypeId sc = UdtCastResultOf_( c, st, false )
+        if (sc = Tko.TYPE_NONE) andalso IsComparison_( op ) then sc = UdtStringCastType_( c, st )
+        if sc = Tko.TYPE_NONE then continue for
+        if side = 0 then lt2 = sc else rt2 = sc
+    next
     if (lt2 = lt) andalso (rt2 = rt) then return Tko.TYPE_NONE
     return BinaryResult( op, lt2, rt2, *c.types )
 end function
@@ -349,7 +347,14 @@ private function ExprIntrinsicType_ _
         a0 = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) )
     end if
     dim as Tko.BuiltinType ab = Tko.TY_NONE
-    if a0 <> Tko.TYPE_NONE then
+    '' A CONCATENATION WITH A USTRING TERM IS A USTRING ARGUMENT, though '&' itself types
+    '' as STRING (binresult.bas). Measured: '#print typeof( trim( "  " & u ) )' and
+    '' 'right( "0" & u, 1 )' are USTRING. Typed STRING, tracks' money formatter returned
+    '' 'right( pad & str( kept ), 2 )' through a narrow conversion and printed "4".
+    if cp->count > 0 then
+        if ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) ) then ab = Tko.TY_USTRING
+    end if
+    if (a0 <> Tko.TYPE_NONE) andalso (ab = Tko.TY_NONE) then
         dim as Tko.TypeId fs = FixedStringElem( a0, *c.types )
         if fs <> Tko.TYPE_NONE then
             ab = c.types->BuiltinOf( fs )
@@ -365,11 +370,8 @@ private function ExprIntrinsicType_ _
             ''     val( narrow_udt )    DOUBLE       instr( narrow_udt, "a" )  INTEGER
             ''     trim( narrow_udt )   STRING       left( narrow_udt, 1 )     STRING
             ''
-            '' The acceptance test below reads the argument's BUILTIN type, and a UDT
-            '' has none -- so every one of those came out UNTYPED. That is not a
-            '' diagnostic: 'print asc( u )' declined for want of anything to print,
-            '' while 'dim k as integer = asc( u )' one line down lowered, because a
-            '' DECLARATION takes its type from the variable.
+            '' A UDT has no BUILTIN type, so every one of those came out UNTYPED:
+            '' 'print asc( u )' declined while 'dim k as integer = asc( u )' lowered.
             dim as Tko.TypeId sc = UdtStringCastType_( c, a0 )
             if sc <> Tko.TYPE_NONE then ab = c.types->BuiltinOf( sc )
         end if
@@ -389,15 +391,11 @@ private function ExprIntrinsicType_ _
     ''   asc( fs )       ULONG              left( fs, 2 ) STRING
     ''   trim( fs )      STRING             ucase( fs )   STRING
     ''
-    '' The cost of the omission was not a diagnostic: an untyped argument makes the
-    '' ENCLOSING call untypable too, so 'proc( wstr( fs ) )' declined with the failure
-    '' three layers from its cause -- the argument path asks IsWideString_ of the
-    '' argument's type and there was none.
+    '' Not a diagnostic: an untyped argument makes the ENCLOSING call untypable too, so
+    '' 'proc( wstr( fs ) )' declined three layers from its cause.
     ''
-    '' NARROWED TO THIS TABLE deliberately. IsStringy_ also feeds assignment legality,
-    '' binary-result typing and conversion cost, all of which are gated at 100% against
-    '' fbc and reach a fixed string by another route; widening it there is a separate
-    '' question with its own measurements to make.
+    '' NARROWED TO THIS TABLE deliberately: IsStringy_ also feeds assignment legality,
+    '' binary-result typing and conversion cost, each gated separately against fbc.
     dim as boolean isStr = IsStringy_( ab ) orelse (ab = Tko.TY_FIXSTR)
     dim as boolean isNum = IsInt_( ab ) orelse IsFloat_( ab ) orelse (ab = Tko.TY_BOOLEAN)
     '' An ARRAY or a POINTER counts as numeric for these: measured, fbc takes
@@ -488,9 +486,9 @@ private function ExprIntrinsicType_ _
     '' claimed UINTEGER; '#print typeof( asc( v_string ) )' says ULONG on win64, and
     '' so does the intrin truth table it is checked against. Typed a width too wide,
     '' every 'asc' fed a LONGINT where fbc has a LONG.
-    case "asc"
+    case "asc"      '' ...but LONG over a USTRING, whose fb_UStrAsc is int32: measured, typeof( asc( u ) )
         if isStr = false then return NotAString_( c, cp, nm, a0 )
-        return c.types->Builtin( Tko.TY_ULONG )
+        return c.types->Builtin( iif( ab = Tko.TY_USTRING, Tko.TY_LONG, Tko.TY_ULONG ) )
     '' THE VAL FAMILY, which was not in this table at all -- so 'print val( s )' had
     '' nothing to print and declined, while 'dim as double d = val( s )' lowered
     '' because the DECLARATION supplies the type. Measured with '#print typeof', and

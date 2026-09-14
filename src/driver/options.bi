@@ -64,6 +64,7 @@ namespace Tko
     OPT( OPT_TARGET,    "-target",    OPTK_VALUE, OPTCAT_TARGET,  "name",     "win64 or linux-x86_64" )
     OPT( OPT_M64,       "-m64",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "64-bit target (the only supported width)" )
     OPT( OPT_M32,       "-m32",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "rejected: 32-bit is not supported (x86-64 only)" )
+    OPT( OPT_SUBSYS,    "-s",         OPTK_VALUE, OPTCAT_TARGET,  "console|gui", "Windows subsystem of an executable; console is the default" )
 
     OPT( OPT_WERROR,    "-Werror",    OPTK_FLAG,  OPTCAT_DIAG,    "",         "treat warnings as errors" )
     OPT( OPT_WNO,       "-Wno-",      OPTK_JOINED,OPTCAT_DIAG,    "id",       "suppress one diagnostic id" )
@@ -177,6 +178,7 @@ namespace Tko
         as boolean compileOnly
         as boolean debugInfo
         as boolean threadSafe
+        as boolean guiSubsystem  '' -s gui; console (false) is fbc's default too
         as long    optLevel
 
         as boolean showHelp

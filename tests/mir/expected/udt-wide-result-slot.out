@@ -178,7 +178,7 @@ func ptr _ZN2WDcvwEv(ptr $0) {
     %6 = load @$tmp0
     ret %6
 }
-func void _Zv21&R2WSR8FBSTRING(ptr $0, ptr $1, ptr $2) {
+func void _Zv23catR2WSR8FBSTRING(ptr $0, ptr $1, ptr $2) {
   local agg $tmp0 size 128
   local ptr a
   local ptr s
@@ -356,7 +356,7 @@ func i32 main(i32 $0, ptr $1) {
     %11 = field.addr @$tmp3, 16
     store %11, 0
     %12 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str10, 6, 0)
-    call void _Zv21&R2WSR8FBSTRING(@$abi13, @a, @$tmp3)
+    call void _Zv23catR2WSR8FBSTRING(@$abi13, @a, @$tmp3)
     %13 = load @$abi13
     store @b, %13
     call.rtl void fb_StrDelete(@$tmp3)

@@ -37,7 +37,18 @@ function LowerUStrIntrin_ _
 
     '' THE FIRST ARGUMENT DECIDES, exactly as it does for the wide family.
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
-    if IsUStringType( c, c.info->TypeOf_( a0 ) ) = false then return false
+    '' ...AND A CONCATENATION WITH A USTRING TERM COUNTS. Check types '&' as STRING, so
+    '' 'trim( "  " & u & "  " )' was sent to the narrow fb_TRIM over the USTRING temporary
+    '' the chain builds. fbc types it USTRING and calls fb_UStrTrim.
+    dim as boolean a0U = IsUStringType( c, c.info->TypeOf_( a0 ) )
+    if a0U = false then
+        if c.ast->Kind( a0 ) = Tko.N_BINARY then
+            dim as FB.Array( of ulong ) a0t
+            FlattenConcat( c, a0, a0t )
+            if a0t.Count > 1 then a0U = ConcatTermsAreU_( c, a0t )
+        end if
+    end if
+    if a0U = false then return false
 
     dim as Tko.NodeId a1 = Tko.NODE_NONE
     if cp->count >= 2 then a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
@@ -58,17 +69,20 @@ function LowerUStrIntrin_ _
     '' (pointer, -1) pair every other entry point takes handed them -1 as the COUNT.
     dim as boolean takesLenTag = true
     select case nm
-    '' NO 'any' FORM HERE. fbc has no fb_UStrTrimAny and the two- argument trim over a
-    '' ustring is not modelled, so those decline rather than reach a narrow entry point.
+    '' THE 'any' FORM EXISTS. This said fbc had no fb_UStrTrimAny and declined the two-
+    '' argument trim, so 'trim( f[0], any " " )' was DROPPED and tracks' ticker table
+    '' loaded 27 rows with every field empty. Measured, fbc emits
+    '' 'fb_UStrTrimAny( S, -1, L" \t", len-tag )' and the L and R twins. A second argument
+    '' WITHOUT 'any' is fb_UStrTrimEx, which is not modelled and still declines.
     case "trim"
-        if cp->count <> 1 then return false
-        r = RTL_USTR_TRIM
+        if cp->count > 2 then return false
+        r = iif( cp->count = 2, RTL_USTR_TRIM_ANY, RTL_USTR_TRIM )
     case "ltrim"
-        if cp->count <> 1 then return false
-        r = RTL_USTR_LTRIM
+        if cp->count > 2 then return false
+        r = iif( cp->count = 2, RTL_USTR_LTRIM_ANY, RTL_USTR_LTRIM )
     case "rtrim"
-        if cp->count <> 1 then return false
-        r = RTL_USTR_RTRIM
+        if cp->count > 2 then return false
+        r = iif( cp->count = 2, RTL_USTR_RTRIM_ANY, RTL_USTR_RTRIM )
     case "left"
         if cp->count <> 2 then return false
         takesLenTag = false
@@ -95,6 +109,19 @@ function LowerUStrIntrin_ _
         return false
     end select
 
+    '' THE 'any' OPERAND, unwrapped before anything is emitted so a trim whose second
+    '' argument is not 'any' declines cleanly.
+    dim as Tko.NodeId anyChars = Tko.NODE_NONE
+    dim as boolean isAnyTrim = (r = RTL_USTR_TRIM_ANY) orelse (r = RTL_USTR_LTRIM_ANY) orelse _
+                               (r = RTL_USTR_RTRIM_ANY)
+    if isAnyTrim then
+        if c.ast->Kind( a1 ) <> Tko.N_UNARY then return false
+        dim as Tko.UnaryPayload ptr aup = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
+        if cast( Tko.TokenKind, aup->op ) <> Tko.KW_ANY then return false
+        anyChars = aup->operand
+    end if
+
     dim as MirValue s0
     if StrDescriptorOf_( c, a0, s0 ) = false then return false
 
@@ -104,6 +131,11 @@ function LowerUStrIntrin_ _
         PushStrArg( args, s0 )
     else
         args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
+    end if
+    '' ...and the characters as a USTRING pair: a literal as UTF-16, a narrow or wide
+    '' string converted -- the same operand rule a ustring comparison follows.
+    if isAnyTrim then
+        if UStrCmpOperand_( c, args, anyChars ) = false then return false
     end if
 
     '' The COUNT for left and right, and the START for mid. ucase and lcase take

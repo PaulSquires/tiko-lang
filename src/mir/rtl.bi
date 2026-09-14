@@ -475,6 +475,12 @@ namespace Tko.Mir
         RTL( RTL_USTR_TRIM,         "fb_UStrTrim",         "p",   "pz"    )
         RTL( RTL_USTR_LTRIM,        "fb_UStrLTrim",        "p",   "pz"    )
         RTL( RTL_USTR_RTRIM,        "fb_UStrRTrim",        "p",   "pz"    )
+        '' THE 'any' FORMS, which DO exist -- measured from fbc's C for 'trim( s, any !" \t" )':
+        '' 'fb_UStrTrimAny( (void*)S$1, -1ll, L" \t", &h8000000000000002 )'. Declined instead,
+        '' every 'trim( f[0], any " " )' in tracks' ticker loader left its field empty.
+        RTL( RTL_USTR_TRIM_ANY,     "fb_UStrTrimAny",      "p",   "pzpz"  )
+        RTL( RTL_USTR_LTRIM_ANY,    "fb_UStrLTrimAny",     "p",   "pzpz"  )
+        RTL( RTL_USTR_RTRIM_ANY,    "fb_UStrRTrimAny",     "p",   "pzpz"  )
         RTL( RTL_USTR_MID,          "fb_UStrMid",          "p",   "pzzz"  )
         RTL( RTL_USTR_LEFT,         "fb_UStrLeftD",        "p",   "pz"    )
         RTL( RTL_USTR_RIGHT,        "fb_UStrRightD",       "p",   "pz"    )
@@ -544,6 +550,9 @@ namespace Tko.Mir
         '' descriptor, source length) -- and its source is always a freshly transcoded
         '' FBUSTRING with length -1, never the raw operand. Measured:
         '' 'fb_UStrLset( (void*)US1, -9223372036854775759ll, (void*)vr$0, -1ll )'.
+        '' ASC OF A USTRING, measured from fbc's C: 'fb_UStrAsc( (void*)H$1, -1ll, 2ll )' --
+        '' descriptor, length, position. The narrow fb_ASC read UTF-16 as bytes: 0 for 't'.
+        RTL( RTL_USTR_ASC,          "fb_UStrAsc",          "l",   "pzz"   )
         RTL( RTL_USTR_LSET,         "fb_UStrLset",         "v",   "pzpz"  )
         RTL( RTL_USTR_RSET,         "fb_UStrRset",         "v",   "pzpz"  )
         '' ARRAY DESCRIPTOR routines. Only the ones a FIXED array needs are here; the
