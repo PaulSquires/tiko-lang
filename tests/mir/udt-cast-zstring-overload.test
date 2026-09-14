@@ -1,0 +1,8 @@
+'' A UDT casting 'byref as zstring' picks Put4( byref string ) over Put4( zstring ptr ).
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-zstring-overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _Z4PUT4R8FBSTRING
+'' EXPECT-OUT: call ptr _ZN1ZcvcEv
+'' EXPECT-NOT: call void _Z4PUT4Pc

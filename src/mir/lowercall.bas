@@ -587,7 +587,11 @@ function LowerCallParts _
 
             if a.kind = cast( ubyte, MV_NONE ) then
                 if StrDescriptorOf_( c, argNode, a ) = false then
-                    a = LowerAddr( c, argNode )
+                    '' A UDT CASTING ONLY TO A WSTRING -- see WideUdtStrArgTemp_.
+                    if WideUdtStrArgTemp_( c, argNode, ArgParamType_( c, callee, calleeSigT, _
+                            i + pbase ), a, strTemps, strTempTypes ) = false then
+                        a = LowerAddr( c, argNode )
+                    end if
                 end if
             end if
             '' NOTHING TO PASS IS NOT AN ARGUMENT.

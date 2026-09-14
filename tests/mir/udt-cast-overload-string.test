@@ -1,0 +1,9 @@
+'' A BSTRING-shaped UDT picks Add( byref string ) through its wide cast, never the any ptr cast.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-overload-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i8 _ZN1D3ADDER8FBSTRINGj
+'' EXPECT-OUT: call ptr _ZN1BcvwEv
+'' EXPECT-NOT: call i8 _ZN1D3ADDEPw
+'' EXPECT-NOT: call ptr _ZN1BcvPvEv

@@ -443,6 +443,37 @@ private function FixedUStrArgTemp_ _
     return true
 end function
 
+'' A UDT THAT CASTS ONLY TO A WSTRING, against a narrow 'byref as string', is a
+'' CONVERSION and not an address. Measured on fbc, a BSTRING-shaped type -- 'cast( )
+'' byref as const wstring' and 'cast( ) as any ptr' -- against 'byref s as string':
+''
+''     uint16* vr$1 = _ZN1BcvwEv( BS$1 );
+''     fb_WstrAssignToA( (void*)&TMP$2$1, -1ll, vr$1, 0 );
+''     _ZN1D3ADDER8FBSTRINGj( THIS$1, &TMP$2$1, 0u );
+''     fb_StrDelete( (FBSTRING*)&TMP$2$1 );
+''
+'' No arm of the call's string-parameter branch owned it -- the argument is not
+'' wide-typed -- so it reached LowerAddr and the callee was handed the OBJECT where an
+'' FBSTRING belongs. It lowered and verified. The caller tries StrDescriptorOf_ first,
+'' which keeps a narrow cast ahead of this one; a USTRING parameter is not measured and
+'' is left alone. fbc copies nothing back, so neither does this.
+function WideUdtStrArgTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref temps as FB.Array( of ulong ), _
+      byref tempTypes as FB.Array( of ulong ) ) as boolean
+
+    if argNode = Tko.NODE_NONE then return false
+    if IsUStringType( c, pt ) then return false
+    dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( argNode ) )
+    if WideCastOverload_( c, at ) = Tko.SYMBOL_NONE then return false
+    dim as Tko.TypeId nsp = c.types->Builtin( Tko.TY_STRING )
+    dim as long slot = -1
+    if ByvalStrTemp_( c, argNode, nsp, outa, slot ) = false then return false
+    temps.Push( cast( ulong, slot ) )
+    tempTypes.Push( cast( ulong, nsp ) )
+    return true
+end function
+
 '' ...and the COPY BACK, after the call. fbc emits it whether or not the parameter
 '' is CONST, so it is emitted here the same way rather than reasoned about: a
 '' const parameter makes it a no-op, and guessing which is which would be a

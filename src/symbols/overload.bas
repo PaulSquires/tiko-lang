@@ -151,7 +151,45 @@ private function UserConvCost_ _
                 if c.types->Kind( ru ) = Tko.TK_REFERENCE then
                     ru = c.types->Unqualify( c.types->Inner( ru ) )
                 end if
-                dim as long sc = ConversionCost( ru, t, *c.types )
+                '' AN 'operator cast( ) as any ptr' IS NEVER A CANDIDATE. Measured on fbc, over
+                '' a UDT whose only cast yields 'any ptr': 'f( uv )' binds when f is a single
+                '' procedure, and is error 99, "No matching overloaded function", once f is
+                '' overloaded -- against 'wstring ptr', 'long ptr' and even 'any ptr'. A
+                '' 'long ptr' cast still selects 'f( long ptr )'. Ranked as a pointer
+                '' conversion, AfxNova's BSTRING bound DWSTRING.Add( wstring ptr ) where fbc
+                '' takes Add( byref string ).
+                dim as boolean anyPtrCast = false
+                if c.types->Kind( ru ) = Tko.TK_POINTER then
+                    dim as Tko.TypeId rp = c.types->Unqualify( c.types->Inner( ru ) )
+                    if c.types->Kind( rp ) = Tko.TK_BUILTIN then
+                        anyPtrCast = (c.types->BuiltinOf( rp ) = Tko.TY_ANY)
+                    end if
+                end if
+                '' A BYREF RESULT IS ITS REFERENT, and it can arrive spelled as a pointer to
+                '' it -- 'byref as zstring' does -- so PF_BYREF_RESULT decides which it is.
+                dim as boolean byrefRes = false
+                dim as Tko.NodeId cpn = cast( Tko.NodeId, s->payload )
+                if (cpn <> Tko.NODE_NONE) andalso (c.ast->Kind( cpn ) = Tko.N_PROC) then
+                    byrefRes = ((StmtOf( c, cpn )->extra and Tko.PF_BYREF_RESULT) <> 0)
+                end if
+                if byrefRes andalso (c.types->Kind( ru ) = Tko.TK_POINTER) then
+                    ru = c.types->Unqualify( c.types->Inner( ru ) )
+                    anyPtrCast = false
+                end if
+                '' NOR DOES A STRING RESULT DECAY TO A STRING POINTER. Measured on fbc: a cast
+                '' yielding 'string', 'byref zstring' or 'byref const wstring' reaches no
+                '' 'zstring ptr' or 'wstring ptr' parameter -- error 58 on a single procedure,
+                '' error 99 overloaded -- although a plain wstring variable does, and offered
+                '' { zstring ptr, byref string } such a UDT takes the string.
+                dim as boolean strToPtr = false
+                if (c.types->Kind( t ) = Tko.TK_POINTER) andalso _
+                   (c.types->Kind( ru ) = Tko.TK_BUILTIN) then
+                    strToPtr = IsStringy_( c.types->BuiltinOf( ru ) )
+                end if
+                dim as long sc = CONV_NONE
+                if (anyPtrCast = false) andalso (strToPtr = false) then
+                    sc = ConversionCost( ru, t, *c.types )
+                end if
                 if sc < CONV_NONE then
                     if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
                 end if
