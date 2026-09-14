@@ -89,6 +89,9 @@ namespace Tko.Mir
         RTL( RTL_USTR_TO_A,          "fb_UStrAssignToA",    "p",   "pzpzll" )
         RTL( RTL_USTR_TO_W,          "fb_UStrAssignToW",    "p",   "pzpz"   )
         RTL( RTL_STR_TO_USTR,        "fb_StrToUStr",        "p",   "pz"     )
+        '' ...and back: a narrow TEMPORARY descriptor out of a ustring, for the entry points
+        '' that only have a narrow form. Measured, 'val( u )' is fb_VAL( fb_UStrToStr( &U, -1 ) ).
+        RTL( RTL_USTR_TO_STR,        "fb_UStrToStr",        "p",   "pz"     )
         RTL( RTL_WSTR_TO_USTR,       "fb_WstrToUStr",       "p",   "p"      )
         RTL( RTL_USTR_CONCAT_UA,     "fb_UStrConcatUA",     "p",   "ppzpz"  )
         RTL( RTL_USTR_CONCAT_AU,     "fb_UStrConcatAU",     "p",   "ppzpz"  )

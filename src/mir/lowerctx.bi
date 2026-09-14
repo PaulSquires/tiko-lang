@@ -673,6 +673,11 @@ declare function EmitRtl _
     declare function UStrRtl_( byval narrow as RtlId ) as RtlId
     declare function StrRtlFor_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId
+    '' A USTRING operand of the VAL family as the narrow temporary fb_VAL wants
+    '' (fb_UStrToStr), or false for anything that is not a ustring. lowerstrkind.bas.
+    declare function UStrValOperand_ _
+        ( byref c as Ctx, byval v0 as Tko.NodeId, byval v0t as Tko.TypeId, _
+          byref sd as MirValue ) as boolean
     declare sub PushUStrLiteralArg _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), byval gidx as long, _
           byval nchars as long )

@@ -14,4 +14,6 @@
 '' EXPECT-OUT: fb_ArrayRedimEx i32 (ptr, i64, i32, i32, i64, ...)
 '' EXPECT-OUT: fb_ThreadCreate ptr (ptr, ptr, i64)
 '' EXPECT-OUT: fb_StrAssignMid void (ptr, i64, i64, ptr)
-'' EXPECT-OUT: rtl: 519 entries
+'' fb_UStrToStr is the 520th: 'val( <ustring> )' converts through it (tests/mir/val-ustring).
+'' EXPECT-OUT: fb_UStrToStr ptr (ptr, i64)
+'' EXPECT-OUT: rtl: 520 entries

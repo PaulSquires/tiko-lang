@@ -1,0 +1,13 @@
+'' VAL and its four typed siblings over a USTRING convert it first. The UTF-16 descriptor
+'' went to the narrow entry point, which read one character: tracks matched IBKR positions
+'' on 'val( pLeg->strike_price )' and 57.5 read as 5, so nothing matched. Measured,
+'' fbc-modern prints 'val field 57.5', 'val ptr 57.5', then 42 for 'val local', 'valint',
+'' 'vallng', 'valuint' and 'valulng'; the old tiko printed 5, 5 and 4 for all five.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/val-ustring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_UStrToStr(
+'' EXPECT-NOT: fb_VAL(@q)
+'' EXPECT-NOT: fb_VALINT(@q)

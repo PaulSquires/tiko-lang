@@ -86,3 +86,26 @@ sub PushUStrLiteralArg _
     '' length that happens to look right.
     PushStrLen_( c, args, FixedStrLenArg_( c, nchars ) )
 end sub
+
+'' A USTRING OPERAND OF THE VAL FAMILY, converted first. Its descriptor is UTF-16, and
+'' handed straight to the narrow fb_VAL it read as one character: 'val( u )' over "57.5"
+'' answered 5. tracks keeps 'strike_price as ustring' and matches IBKR positions on
+'' 'val( pLeg->strike_price )', so no option position ever matched and every
+'' market-data request went out with conId 0. Measured, fbc converts for all five:
+''
+''     FBSTRING* vr = fb_UStrToStr( &U, -1 );   int32 n = fb_VALINT( vr );
+''
+'' The temporary fb_UStrToStr returns is the RUNTIME's, and the VAL entry consumes it.
+'' False for anything that is not a ustring, so the caller's other arms are unchanged.
+function UStrValOperand_ _
+    ( byref c as Ctx, byval v0 as Tko.NodeId, byval v0t as Tko.TypeId, _
+      byref sd as MirValue ) as boolean
+
+    if IsUStringType( c, v0t ) = false then return false
+    dim as MirValue ud
+    if StrDescriptorOf_( c, v0, ud ) = false then return false
+    dim as FB.Array( of ulong ) ua
+    PushStrArg( ua, ud )
+    sd = EmitRtl( c, RTL_USTR_TO_STR, ua )
+    return (sd.kind <> cast( ubyte, MV_NONE ))
+end function

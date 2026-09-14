@@ -708,7 +708,8 @@ function LowerStrNumCall_ _
         '' 'val( left( dws, 4 ) )' was dropped from the build unreported. VAL family only.
         dim as boolean valFam = (vr = RTL_VAL) orelse (vr = RTL_VALLNG) orelse _
             (vr = RTL_VALULNG) orelse (vr = RTL_VALINT) orelse (vr = RTL_VALUINT)
-        if IsWideString_( c, c.info->TypeOf_( v0 ) ) orelse (valFam andalso TermIsWide_( c, v0 )) then
+        if valFam andalso UStrValOperand_( c, v0, v0t, sd ) then   '' a ustring converts first
+        elseif IsWideString_( c, c.info->TypeOf_( v0 ) ) orelse (valFam andalso TermIsWide_( c, v0 )) then
             select case vr
             case RTL_VAL      : vr = RTL_WSTR_VAL
             case RTL_VALLNG   : vr = RTL_WSTR_VALLNG
