@@ -1,0 +1,10 @@
+'' 'return T( args )' into a hidden-pointer UDT result whose copy constructor is
+'' SYNTHESISED -- a string field, a member with its own copy constructor -- constructs
+'' straight into the result. Runtime output was checked against fbc-modern; see the
+'' source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sret-return-ctor-synthcopy.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/sret-return-ctor-synthcopy.out
