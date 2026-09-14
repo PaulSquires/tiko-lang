@@ -286,6 +286,31 @@ sub EmitFieldInit_ _
     dim as longint sn = 0
     dim as long sk = StrSwapKind_( c, ft, sn )
     if sk >= 0 then
+        '' A USTRING FIELD TAKES THE UTF-16 ENTRY POINTS, and it is decided before the
+        '' narrow arms below claim it. 'sym as ustring = "VIX"' went to fb_StrAssign --
+        '' narrow bytes in a UTF-16 descriptor -- and read back as bytes E4 A5 96 58 plus
+        '' whatever followed: tracks sent that to TWS as the VIX symbol. Measured, fbc writes
+        '' 'fb_UStrInit( THIS, -1, (uint16[]){ 'V','I','X',0 }, ... )', the same call a
+        '' local 'dim as ustring u = "VIX"' already made here. The descriptor is zeroed by
+        '' InitMember_ first, so this is the assignment form; a term that is not neutral
+        '' or UTF-16 converts, as it does for a local -- see LowerStringInitToSlot.
+        if (sk = 0) andalso IsUStringType( c, ft ) then
+            dim as long tfU = StrTermFlavour_( c, init )
+            if (tfU <> STF_NEUTRAL) andalso (tfU <> STF_UTF16) then
+                if LowerStrConvertTerm( c, addr, true, init, false ) = false then SkipHere( c )
+                return
+            end if
+            dim as FB.Array( of ulong ) uargs
+            PushStrArg( uargs, addr )
+            if EmitStrTerm( c, uargs, init, true ) = false then
+                SkipHere( c )
+                return
+            end if
+            uargs.Push( cast( ulong, MV_CONST_INT ) )
+            uargs.Push( cast( ulong, 0 ) )
+            EmitRtl( c, RTL_USTR_ASSIGN, uargs )
+            return
+        end if
         '' A WIDE SOURCE INTO A NARROW DESTINATION IS ITS OWN CALL, and it is tried
         '' first for both flavours: 'k as string = wstr( "fOoBaR" )' has no narrow term
         '' for the concatenation path to find, so it declined and the field stayed

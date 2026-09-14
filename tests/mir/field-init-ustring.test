@@ -1,0 +1,13 @@
+'' A ustring field default is assigned through the UTF-16 entry point. It went through
+'' fb_StrAssign -- narrow bytes in a UTF-16 descriptor -- and tracks sent the result to TWS
+'' as its VIX symbol. Measured, fbc-modern prints 'shared len 3 [VIX]', 'local len 3 [VIX]'
+'' and 'new len 3 [VIX]', the lines tiko-lang now prints; fbc's constructor is
+'' fb_UStrInit over a UTF-16 literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/field-init-ustring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func void _ZN8VIXQUOTEC1Ev(ptr $0) {
+'' EXPECT-OUT: call.rtl ptr fb_UStrAssign(
+'' EXPECT-NOT: call.rtl ptr fb_StrAssign(%1,
