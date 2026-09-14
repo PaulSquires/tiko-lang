@@ -1,0 +1,11 @@
+'' A wide argument for a byref-string let or constructor goes through fb_WstrAssignToA into a temporary.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-arg-byref-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrAssignToA(
+'' EXPECT-OUT: call void _ZN3DWSaSER8FBSTRING
+'' EXPECT-OUT: call void _ZN4DWS2C1ER8FBSTRING
+'' EXPECT-OUT: fb_StrDelete(
+'' EXPECT-NOT: _ZN3DWSaSER8FBSTRING(@d, @@$wstr
+'' EXPECT-NOT: _ZN3DWSaSER8FBSTRING(@d, @w)

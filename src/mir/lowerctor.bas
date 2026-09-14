@@ -78,7 +78,18 @@ private function CtorArgValue_ _
             if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
             dim as boolean narrowStrParam = (c.types->Kind( snu ) = Tko.TK_BUILTIN)
             if narrowStrParam then narrowStrParam = (c.types->BuiltinOf( snu ) = Tko.TY_STRING)
-            if narrowStrParam andalso (StrArgOwnDescriptor_( c, argNode, snu ) = false) then
+            '' ...AND A WIDE ONE ALWAYS IS, CONVERTED. StrArgOwnDescriptor_ answers true for a
+            '' wide string -- it is not a narrow one -- so 'd = w' over 'operator let( byref s
+            '' as string )' passed the 'wstring * 8' bytes as the FBSTRING* and clang refused
+            '' the module, and 'd = wstr( "xy" )' passed the wide literal's address and printed
+            '' nothing. Measured, fbc converts into a temporary and deletes it after the call:
+            ''     fb_WstrAssignToA( &TMP$4$0, -1ll, W$0, 0 ); _ZN3DWSaSER8FBSTRING( &D$0, &TMP$4$0 )
+            dim as boolean ownDesc = true
+            if narrowStrParam then
+                ownDesc = StrArgOwnDescriptor_( c, argNode, snu )
+                if ownDesc then ownDesc = (TermIsWide_( c, argNode ) = false)
+            end if
+            if narrowStrParam andalso (ownDesc = false) then
                 dim as long sslot = -1
                 if ByvalStrTemp_( c, argNode, snu, outv, sslot ) then
                     if sslot >= 0 then
@@ -368,7 +379,18 @@ function LowerConvCtorInit_ _
     '' A BYREF WSTRING FIRST -- WideRefCtorArg_. A wide argument is no IsStringType, so
     '' the scalar arm below gave 'dim as WS a = wstr( "Fevrier" )' a pointer temporary.
     if (fromArray = false) andalso ptByref then tookAddr = WideRefCtorArg_( c, init_, pt, av )
-    if (fromArray = false) andalso ptByref andalso (tookAddr = false) then
+    '' ...AND A WIDE ARGUMENT FOR A 'byref as string' IS CONVERTED, by CtorArgValue_ below.
+    '' The address arm handed 'dim as DWS2 f = w' the 'wstring * 8' buffer as the FBSTRING*
+    '' and the constructor saw an empty string; fbc builds the narrow temporary.
+    dim as boolean wideToNarrow = false
+    if ptByref andalso (tookAddr = false) andalso (pt <> Tko.TYPE_NONE) then
+        dim as Tko.TypeId wnu = c.types->Unqualify( pt )
+        if c.types->Kind( wnu ) = Tko.TK_REFERENCE then wnu = c.types->Unqualify( c.types->Inner( wnu ) )
+        if c.types->Kind( wnu ) = Tko.TK_BUILTIN then
+            if c.types->BuiltinOf( wnu ) = Tko.TY_STRING then wideToNarrow = TermIsWide_( c, init_ )
+        end if
+    end if
+    if (fromArray = false) andalso ptByref andalso (tookAddr = false) andalso (wideToNarrow = false) then
         '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
         '' 'constructor UDT( byref rhs as const long )' -- which is how an
         '' 'extern "C++"' class spells a converting constructor -- handed the VALUE
@@ -739,6 +761,24 @@ function LowerCtorInit _
                 continue for
             end if
             if IsStringType( c, c.types->Unqualify( pty ) ) then
+                '' ...A WIDE ONE IS CONVERTED INTO A TEMPORARY, deleted after the call.
+                '' 'DWS2( w )' over 'byref s as string' passed the wide buffer and the
+                '' constructor saw an empty string. See CtorArgValue_ for fbc's C.
+                if (IsUStringType( c, pty ) = false) andalso _
+                   TermIsWide_( c, cast( Tko.NodeId, argNode[ai2] ) ) then
+                    dim as MirValue wsa
+                    dim as long wslot = -1
+                    dim as Tko.TypeId wnt = c.types->Builtin( Tko.TY_STRING )
+                    if ByvalStrTemp_( c, cast( Tko.NodeId, argNode[ai2] ), wnt, wsa, wslot ) then
+                        argKind[ai2] = cast( ulong, wsa.kind )
+                        argId[ai2] = cast( ulong, wsa.id )
+                        argT[ai2] = cast( ulong, pty )
+                        strTmp.Push( cast( ulong, wslot ) )
+                        strTmpTy.Push( cast( ulong, wnt ) )
+                        ai2 += 1
+                        continue for
+                    end if
+                end if
                 dim as MirValue sd
                 if StrDescriptorOf_( c, cast( Tko.NodeId, argNode[ai2] ), sd ) then
                     argKind[ai2] = cast( ulong, sd.kind )

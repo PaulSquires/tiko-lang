@@ -75,7 +75,7 @@ end function
 '' the DOUBLE overload. Saturating instead would have made the two tie.
 private function UserConvCost_ _
     ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
-      byval depth as long = 0 ) as long
+      byval depth as long = 0, byval overloaded as boolean = false ) as long
 
     if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
     dim as Tko.TypeId f = c.types->Unqualify( from_ )
@@ -124,7 +124,7 @@ private function UserConvCost_ _
                         '' the recursion is bounded by the guard rather than by
                         '' hoping the type graph is acyclic.
                         if (sc >= CONV_NONE) andalso (depth = 0) then
-                            sc = UserConvCost_( c, f, pt, 1 )
+                            sc = UserConvCost_( c, f, pt, 1, overloaded )
                         end if
                         if sc < CONV_NONE then
                             if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
@@ -151,15 +151,17 @@ private function UserConvCost_ _
                 if c.types->Kind( ru ) = Tko.TK_REFERENCE then
                     ru = c.types->Unqualify( c.types->Inner( ru ) )
                 end if
-                '' AN 'operator cast( ) as any ptr' IS NEVER A CANDIDATE. Measured on fbc, over
-                '' a UDT whose only cast yields 'any ptr': 'f( uv )' binds when f is a single
-                '' procedure, and is error 99, "No matching overloaded function", once f is
-                '' overloaded -- against 'wstring ptr', 'long ptr' and even 'any ptr'. A
-                '' 'long ptr' cast still selects 'f( long ptr )'. Ranked as a pointer
-                '' conversion, AfxNova's BSTRING bound DWSTRING.Add( wstring ptr ) where fbc
-                '' takes Add( byref string ).
+                '' AN 'operator cast( ) as any ptr' IS NO CANDIDATE IN AN OVERLOAD SET. Measured
+                '' on fbc, over a UDT whose only cast yields 'any ptr': 'f( uv )' is error 99,
+                '' "No matching overloaded function", once f is overloaded -- against 'wstring
+                '' ptr', 'long ptr' and even 'any ptr' -- and a 'long ptr' cast still selects
+                '' 'f( long ptr )'. Ranked as a pointer conversion, AfxNova's BSTRING bound
+                '' DWSTRING.Add( wstring ptr ) where fbc takes Add( byref string ).
+                '' ON A SINGLE PROCEDURE fbc BINDS IT, and dropping it there too left AfxNova's
+                '' 'RETURN NOT SetEnvironmentVariable( dwsName, dwsValue )' untyped: the RETURN
+                '' had no value and clang refused PsCalendar's module.
                 dim as boolean anyPtrCast = false
-                if c.types->Kind( ru ) = Tko.TK_POINTER then
+                if overloaded andalso (c.types->Kind( ru ) = Tko.TK_POINTER) then
                     dim as Tko.TypeId rp = c.types->Unqualify( c.types->Inner( ru ) )
                     if c.types->Kind( rp ) = Tko.TK_BUILTIN then
                         anyPtrCast = (c.types->BuiltinOf( rp ) = Tko.TY_ANY)
@@ -1050,7 +1052,7 @@ private function ResolveCall_ _
                     '' ...AND THE USER-DEFINED CONVERSIONS, which ConversionCost cannot
                     '' see: it takes only a TypeContext, so it can look up neither a
                     '' conversion constructor nor an 'operator cast'. See UserConvCost_.
-                    if cost >= CONV_NONE then cost = UserConvCost_( c, at2, pt )
+                    if cost >= CONV_NONE then cost = UserConvCost_( c, at2, pt, 0, overloaded )
                     ai += 1
                     if cost >= CONV_NONE then
                         viable = false
