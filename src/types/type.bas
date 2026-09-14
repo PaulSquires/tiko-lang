@@ -170,7 +170,7 @@ constructor TypeContext( )
         bi.flags = TF_COMPLETE
         bi.inner = TYPE_NONE
         bi.dims = 0
-        this.types.Push( bi )
+        this.Push_( bi )
     next
 end constructor
 
@@ -185,17 +185,95 @@ end function
 
 '' ------------------------------------------------------------------ interning
 
+const TYPEINDEX_INITIAL_SLOTS as long = 1024
+
+constructor TypeIndex( )
+    '' TypeId 0 is TYPE_NONE and is never filed; its slot keeps 'chain' and 'hashes'
+    '' indexed by TypeId.
+    this.chain.Push( 0 )
+    this.hashes.Push( 0 )
+    this.Rehash( TYPEINDEX_INITIAL_SLOTS )
+end constructor
+
+sub TypeIndex.Link_( byval id as long )
+    dim as long b = cast( long, this.hashes[id] and cast( ulong, this.mask ) )
+    if this.buckets[b] = 0 then
+        this.buckets[b] = cast( ulong, id )
+    else
+        this.chain[cast( long, this.lasts[b] )] = cast( ulong, id )
+    end if
+    this.lasts[b] = cast( ulong, id )
+end sub
+
+sub TypeIndex.Rehash( byval slots as long )
+    this.buckets.Clear( )
+    this.lasts.Clear( )
+    this.buckets.Reserve( slots )
+    this.lasts.Reserve( slots )
+    for b as long = 0 to slots - 1
+        this.buckets.Push( 0 )
+        this.lasts.Push( 0 )
+    next
+    this.mask = slots - 1
+    '' RE-LINKED IN ASCENDING ORDER, so every chain stays sorted by TypeId.
+    for id as long = 1 to this.chain.Count - 1
+        this.chain[id] = 0
+        this.Link_( id )
+    next
+end sub
+
+sub TypeIndex.Add( byval id as TypeId, byval h as ulong )
+    this.chain.Push( 0 )
+    this.hashes.Push( h )
+    this.Link_( cast( long, id ) )
+    '' Grow at an average chain length of one.
+    if this.chain.Count - 1 > this.mask + 1 then this.Rehash( (this.mask + 1) * 2 )
+end sub
+
+function TypeIndex.Lookup( byval h as ulong ) as TypeId
+    return cast( TypeId, this.buckets[cast( long, h and cast( ulong, this.mask ) )] )
+end function
+
+function TypeIndex.After( byval id as TypeId ) as TypeId
+    return cast( TypeId, this.chain[cast( long, id )] )
+end function
+
+'' One index key: up to four fields, FNV-1a over their bytes -- the interner's hash.
+'' A signed field goes in as its bit pattern, so every caller casts it the same way.
+private function TypeKey_ _
+    ( byval a as ulong, byval b as ulong, byval c as ulong, byval d as ulong ) as ulong
+
+    dim as ulong k(0 to 3) = { a, b, c, d }
+    return HashBytes( cast( const ubyte ptr, @k(0) ), 16 )
+end function
+
+function TypeContext.Push_( byref n as TypeInfo ) as TypeId
+    this.types.Push( n )
+    dim as TypeId id = cast( TypeId, this.types.Count - 1 )
+    this.byShape.Add( id, TypeKey_( n.kind, n.inner, n.flags, cast( ulong, n.dims ) ) )
+    this.byArray.Add( id, TypeKey_( n.kind, n.inner, cast( ulong, n.dims ), _
+                                    cast( ulong, n.elems ) ) )
+    this.byBuiltin.Add( id, TypeKey_( n.kind, n.builtin, n.flags, 0 ) )
+    this.byName.Add( id, TypeKey_( n.kind, n.name, n.declScope, 0 ) )
+    this.byProc.Add( id, TypeKey_( n.kind, n.inner, cast( ulong, n.count ), _
+                                   n.flags and TF_VARIADIC ) )
+    return id
+end function
+
 function TypeContext.Find _
     ( byval wantKind as TypeKind, byval innerT as TypeId, byval fl as ushort, _
       byval rank as long ) as TypeId
 
-    for i as long = 1 to this.types.Count - 1
-        dim as TypeInfo ptr t = @this.types[i]
+    dim as ulong h = TypeKey_( cast( ulong, wantKind ), innerT, fl, cast( ulong, rank ) )
+    dim as TypeId i = this.byShape.Lookup( h )
+    while i <> TYPE_NONE
+        dim as TypeInfo ptr t = @this.types[cast( long, i )]
         dim as boolean same = (t->kind = cast( ubyte, wantKind )) andalso _
                               (t->inner = innerT) andalso _
                               (t->flags = fl) andalso (t->dims = rank)
-        if same then return cast( TypeId, i )
-    next
+        if same then return i
+        i = this.byShape.After( i )
+    wend
 
     dim as TypeInfo n
     n.kind = cast( ubyte, wantKind )
@@ -203,8 +281,7 @@ function TypeContext.Find _
     n.flags = fl
     n.inner = innerT
     n.dims = rank
-    this.types.Push( n )
-    return cast( TypeId, this.types.Count - 1 )
+    return this.Push_( n )
 end function
 
 function TypeContext.Builtin( byval b as BuiltinType ) as TypeId
@@ -265,8 +342,10 @@ function TypeContext.ArrayOf _
     '' element count and the same size, but different lbound biases, so indexing them
     '' produces different addresses. Sharing one type between them would fold the wrong
     '' bias into every subscript of one of the two.
-    for i as long = 1 to this.types.Count - 1
-        dim as TypeInfo ptr t = @this.types[i]
+    dim as ulong h = TypeKey_( TK_ARRAY, elem, cast( ulong, rank ), cast( ulong, elems ) )
+    dim as TypeId i = this.byArray.Lookup( h )
+    while i <> TYPE_NONE
+        dim as TypeInfo ptr t = @this.types[cast( long, i )]
         if (t->kind = cast( ubyte, TK_ARRAY )) andalso (t->inner = elem) andalso _
            (t->dims = rank) andalso (t->elems = elems) then
             dim as boolean same = true
@@ -281,9 +360,10 @@ function TypeContext.ArrayOf _
                     next
                 end if
             end if
-            if same then return cast( TypeId, i )
+            if same then return i
         end if
-    next
+        i = this.byArray.After( i )
+    wend
     dim as TypeInfo n
     n.kind = cast( ubyte, TK_ARRAY )
     n.flags = TF_COMPLETE
@@ -298,8 +378,7 @@ function TypeContext.ArrayOf _
         next
         n.count = bounds->Count
     end if
-    this.types.Push( n )
-    return cast( TypeId, this.types.Count - 1 )
+    return this.Push_( n )
 end function
 
 function TypeContext.ArrayBound _
@@ -326,16 +405,17 @@ function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
     if want = src->flags then return t
 
     if src->kind = cast( ubyte, TK_BUILTIN ) then
-        for i as long = 1 to this.types.Count - 1
-            dim as TypeInfo ptr c = @this.types[i]
+        dim as TypeId i = this.byBuiltin.Lookup( TypeKey_( src->kind, src->builtin, want, 0 ) )
+        while i <> TYPE_NONE
+            dim as TypeInfo ptr c = @this.types[cast( long, i )]
             dim as boolean same = (c->kind = src->kind) andalso _
                                   (c->builtin = src->builtin) andalso (c->flags = want)
-            if same then return cast( TypeId, i )
-        next
+            if same then return i
+            i = this.byBuiltin.After( i )
+        wend
         dim as TypeInfo n = *src
         n.flags = want
-        this.types.Push( n )
-        return cast( TypeId, this.types.Count - 1 )
+        return this.Push_( n )
     end if
 
     '' A UDT, AN ENUM AND A FORWARD ARE IDENTIFIED BY NAME, and Find compares kind,
@@ -350,10 +430,13 @@ function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
     select case cast( TypeKind, src->kind )
     case TK_UDT, TK_ENUM, TK_FORWARD
         dim as InternId nm = src->name
-        for i as long = 1 to this.types.Count - 1
-            dim as TypeInfo ptr c2 = @this.types[i]
-            if c2->kind <> src->kind then continue for
-            if c2->name <> nm then continue for
+        dim as TypeId i = this.byName.Lookup( TypeKey_( src->kind, nm, src->declScope, 0 ) )
+        while i <> TYPE_NONE
+            dim as TypeInfo ptr c2 = @this.types[cast( long, i )]
+            dim as TypeId here = i
+            i = this.byName.After( i )
+            if c2->kind <> src->kind then continue while
+            if c2->name <> nm then continue while
             '' ...AND THE SCOPE IT WAS DECLARED IN, which is part of a named type's
             '' IDENTITY -- NamedType already says so, and this re-find did not.
             '' Two SIBLING NAMESPACES each declaring a 'T1' is all it takes: adding or
@@ -362,13 +445,12 @@ function TypeContext.Qualify( byval t as TypeId, byval fl as ushort ) as TypeId
             '' ptr' and no argument of type 'B.T1 ptr' matched it. Six calls in
             '' overload/arg-upcasting.bas resolved to nothing, and moving namespace A
             '' below B made them work -- a pure declaration-order dependence.
-            if c2->declScope <> src->declScope then continue for
-            if c2->flags = want then return cast( TypeId, i )
-        next
+            if c2->declScope <> src->declScope then continue while
+            if c2->flags = want then return here
+        wend
         dim as TypeInfo n2 = *src
         n2.flags = want
-        this.types.Push( n2 )
-        return cast( TypeId, this.types.Count - 1 )
+        return this.Push_( n2 )
     end select
 
     return this.Find( cast( TypeKind, src->kind ), src->inner, want, src->dims )
@@ -381,24 +463,25 @@ function TypeContext.NamedType _
       byval declScope as ulong = 0, byval rawNm as InternId = 0 ) as TypeId
 
     if nm = 0 then return TYPE_NONE
-    for i as long = 1 to this.types.Count - 1
-        dim as TypeInfo ptr t = @this.types[i]
+    dim as TypeId i = this.byName.Lookup( TypeKey_( cast( ulong, k ), nm, declScope, 0 ) )
+    while i <> TYPE_NONE
+        dim as TypeInfo ptr t = @this.types[cast( long, i )]
         if (t->kind = cast( ubyte, k )) andalso (t->name = nm) andalso _
            (t->declScope = declScope) then
             '' A LATER SIGHTING MAY BE THE ONE THAT KNOWS THE SPELLING: the type is
             '' created by whatever names it first, which can be a forward reference.
             if (rawNm <> 0) andalso (t->rawName = 0) then t->rawName = rawNm
-            return cast( TypeId, i )
+            return i
         end if
-    next
+        i = this.byName.After( i )
+    wend
     dim as TypeInfo n
     n.kind = cast( ubyte, k )
     n.flags = TF_COMPLETE
     n.name = nm
     n.rawName = rawNm
     n.declScope = declScope
-    this.types.Push( n )
-    return cast( TypeId, this.types.Count - 1 )
+    return this.Push_( n )
 end function
 
 function TypeContext.Unqualify( byval t as TypeId ) as TypeId
@@ -408,16 +491,17 @@ function TypeContext.Unqualify( byval t as TypeId ) as TypeId
     if want = src->flags then return t
 
     if src->kind = cast( ubyte, TK_BUILTIN ) then
-        for i as long = 1 to this.types.Count - 1
-            dim as TypeInfo ptr c = @this.types[i]
+        dim as TypeId i = this.byBuiltin.Lookup( TypeKey_( src->kind, src->builtin, want, 0 ) )
+        while i <> TYPE_NONE
+            dim as TypeInfo ptr c = @this.types[cast( long, i )]
             dim as boolean same = (c->kind = src->kind) andalso _
                                   (c->builtin = src->builtin) andalso (c->flags = want)
-            if same then return cast( TypeId, i )
-        next
+            if same then return i
+            i = this.byBuiltin.After( i )
+        wend
         dim as TypeInfo n = *src
         n.flags = want
-        this.types.Push( n )
-        return cast( TypeId, this.types.Count - 1 )
+        return this.Push_( n )
     end if
     '' A UDT, AN ENUM AND A FORWARD ARE IDENTIFIED BY NAME, and Find compares kind,
     '' inner, flags and rank -- none of which tells two UDTs apart. So qualifying or
@@ -431,10 +515,13 @@ function TypeContext.Unqualify( byval t as TypeId ) as TypeId
     select case cast( TypeKind, src->kind )
     case TK_UDT, TK_ENUM, TK_FORWARD
         dim as InternId nm = src->name
-        for i as long = 1 to this.types.Count - 1
-            dim as TypeInfo ptr c2 = @this.types[i]
-            if c2->kind <> src->kind then continue for
-            if c2->name <> nm then continue for
+        dim as TypeId i = this.byName.Lookup( TypeKey_( src->kind, nm, src->declScope, 0 ) )
+        while i <> TYPE_NONE
+            dim as TypeInfo ptr c2 = @this.types[cast( long, i )]
+            dim as TypeId here = i
+            i = this.byName.After( i )
+            if c2->kind <> src->kind then continue while
+            if c2->name <> nm then continue while
             '' ...AND THE SCOPE IT WAS DECLARED IN, which is part of a named type's
             '' IDENTITY -- NamedType already says so, and this re-find did not.
             '' Two SIBLING NAMESPACES each declaring a 'T1' is all it takes: adding or
@@ -443,13 +530,12 @@ function TypeContext.Unqualify( byval t as TypeId ) as TypeId
             '' ptr' and no argument of type 'B.T1 ptr' matched it. Six calls in
             '' overload/arg-upcasting.bas resolved to nothing, and moving namespace A
             '' below B made them work -- a pure declaration-order dependence.
-            if c2->declScope <> src->declScope then continue for
-            if c2->flags = want then return cast( TypeId, i )
-        next
+            if c2->declScope <> src->declScope then continue while
+            if c2->flags = want then return here
+        wend
         dim as TypeInfo n2 = *src
         n2.flags = want
-        this.types.Push( n2 )
-        return cast( TypeId, this.types.Count - 1 )
+        return this.Push_( n2 )
     end select
 
     return this.Find( cast( TypeKind, src->kind ), src->inner, want, src->dims )
@@ -463,13 +549,19 @@ function TypeContext.ProcType _
     '' THE ELLIPSIS IS PART OF THE KEY. Two procedure types with the same parameters
     '' and a different tail are different types; sharing the cache entry made them one.
 
-    for i as long = 1 to this.types.Count - 1
-        dim as TypeInfo ptr t = @this.types[i]
-        if t->kind <> cast( ubyte, TK_PROC ) then continue for
-        if t->inner <> ret then continue for
-        if t->count <> params.Count then continue for
+    dim as ulong vflag = 0
+    if variadic then vflag = TF_VARIADIC
+    dim as TypeId i = this.byProc.Lookup( _
+        TypeKey_( TK_PROC, ret, cast( ulong, params.Count ), vflag ) )
+    while i <> TYPE_NONE
+        dim as TypeInfo ptr t = @this.types[cast( long, i )]
+        dim as TypeId here = i
+        i = this.byProc.After( i )
+        if t->kind <> cast( ubyte, TK_PROC ) then continue while
+        if t->inner <> ret then continue while
+        if t->count <> params.Count then continue while
         dim as boolean tv = ((t->flags and TF_VARIADIC) <> 0)
-        if tv <> variadic then continue for
+        if tv <> variadic then continue while
         dim as boolean same = true
         for j as long = 0 to t->count - 1
             if this.pool[t->first + j] <> params[j] then
@@ -477,8 +569,8 @@ function TypeContext.ProcType _
                 exit for
             end if
         next
-        if same then return cast( TypeId, i )
-    next
+        if same then return here
+    wend
 
     dim as TypeInfo n
     n.kind = cast( ubyte, TK_PROC )
@@ -487,11 +579,10 @@ function TypeContext.ProcType _
     n.inner = ret
     n.first = this.pool.Count
     n.count = params.Count
-    for i as long = 0 to params.Count - 1
-        this.pool.Push( params[i] )
+    for k as long = 0 to params.Count - 1
+        this.pool.Push( params[k] )
     next
-    this.types.Push( n )
-    return cast( TypeId, this.types.Count - 1 )
+    return this.Push_( n )
 end function
 
 function TypeContext.DeclScopeOf( byval t as TypeId ) as ulong

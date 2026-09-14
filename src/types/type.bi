@@ -215,12 +215,51 @@ namespace Tko
         as long align
     end type
 
+    '' A CHAINED HASH INDEX OVER THE TYPE TABLE, for one lookup key.
+    ''
+    '' Every finder in TypeContext used to scan the table from TypeId 1, so interning
+    '' was quadratic in the number of types. windows.bi plus AfxNova's CWindow.inc is
+    '' enough to make that the whole cost of a compile: measured 2026-09-14, resolve on
+    '' tracks ran past four minutes with every sample inside TypeContext.Find.
+    ''
+    '' It stores HASHES, not keys. A bucket's chain holds every TypeId whose key hashed
+    '' there, and the finder re-tests its own full predicate on each -- so a collision
+    '' costs a comparison, never a wrong answer. CHAINS ARE IN ASCENDING TypeId ORDER,
+    '' and that is the contract: the scans returned the FIRST match, a TypeId is an
+    '' identity, and the index must hand back the same one.
+    type TypeIndex
+        as TypeIdVec2  buckets     '' bucket -> first TypeId in it, 0 = empty
+        as TypeIdVec2  lasts       '' bucket -> last TypeId in it
+        as TypeIdVec2  chain       '' TypeId -> next TypeId in its bucket, 0 = end
+        as TypeIdVec2  hashes      '' TypeId -> its hash, kept for Rehash
+        as long        mask
+
+        declare constructor( )
+        '' 'id' must be the next TypeId: the table only ever appends.
+        declare sub Add( byval id as TypeId, byval h as ulong )
+        declare function Lookup( byval h as ulong ) as TypeId
+        declare function After( byval id as TypeId ) as TypeId
+
+        private:
+        declare sub Link_( byval id as long )
+        declare sub Rehash( byval slots as long )
+    end type
+
     type TypeContext
         as TypeVec       types
         as TypeIdVec2    pool        '' element lists
         as FB.Array( of longint ) boundPool   '' TK_ARRAY (lo, hi) pairs
         as Interner ptr  names
         as TargetLayout  target
+        '' THE INTERNING INDEXES, one per finder's key -- see TypeIndex. Push_ files every
+        '' entry under all five whatever its kind, so each covers exactly what the scan it
+        '' replaced covered. No key field is written after a push, which is what keeps an
+        '' index built at push time true.
+        as TypeIndex     byShape     '' kind, inner, flags, dims        Find
+        as TypeIndex     byArray     '' kind, inner, dims, elems        ArrayOf
+        as TypeIndex     byBuiltin   '' kind, builtin, flags            (Un)Qualify
+        as TypeIndex     byName      '' kind, name, declScope           NamedType, (Un)Qualify
+        as TypeIndex     byProc      '' kind, inner, count, variadic    ProcType
         '' GENERIC INSTANTIATIONS, FOR THE MANGLER. An instantiation's NAME is a
         '' structural key -- 'BOX<3>', the numbers TypeIds -- and it was mangled as if it
         '' were a source name: '_ZN7BOX<15>3PUTE8FBSTRING' where fbc writes
@@ -302,6 +341,8 @@ namespace Tko
         declare function Find _
             ( byval wantKind as TypeKind, byval innerT as TypeId, byval fl as ushort, _
               byval rank as long ) as TypeId
+        '' Appends one entry and files it under every index. The only way in after slot 0.
+        declare function Push_( byref n as TypeInfo ) as TypeId
     end type
 
     declare function BuiltinName( byval b as BuiltinType ) as string

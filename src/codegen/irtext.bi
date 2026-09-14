@@ -1,0 +1,54 @@
+'' irtext.bi -- the LLVM module's text, built by appending.
+''
+'' A STRING THAT ONLY GROWS AT THE END, in amortised constant time per append. The
+'' emitter wrote the module as 'e.outp += line' over a plain STRING field reached
+'' through a BYREF EmitCtx, and that is a concatenation into a new string followed by
+'' an assignment -- a copy of the whole module for every line written. Quadratic, and
+'' invisible on the suite's small modules: measured 2026-09-14 on tracks, emission ran
+'' past seven minutes with every stack sample inside fb_StrConcat under Line( ).
+''
+'' The capacity doubles and the bytes past 'used' are NULs, which no search needle
+'' contains -- so Contains can search the whole buffer without trimming it first.
+#pragma once
+#include once "tko.bi"
+
+namespace Tko.Codegen
+
+    type IrText
+        as string buf
+        as long   used
+
+        declare operator += ( byref s as string )
+        '' The text written so far. A copy: take it once, at the end.
+        declare operator cast( ) as string
+        '' Whether 'needle' occurs in the text, without copying it out.
+        declare function Contains( byref needle as string ) as boolean
+    end type
+
+    private operator IrText.+= ( byref s as string )
+        dim as long n = len( s )
+        if n = 0 then exit operator
+        if this.used + n > len( this.buf ) then
+            dim as long cap = len( this.buf ) * 2
+            if cap < 65536 then cap = 65536
+            while cap < this.used + n
+                cap *= 2
+            wend
+            dim as string grown = string( cap, 0 )
+            if this.used > 0 then memcpy( strptr( grown ), strptr( this.buf ), this.used )
+            swap this.buf, grown
+        end if
+        memcpy( strptr( this.buf ) + this.used, strptr( s ), n )
+        this.used += n
+    end operator
+
+    private operator IrText.cast( ) as string
+        return left( this.buf, this.used )
+    end operator
+
+    private function IrText.Contains( byref needle as string ) as boolean
+        if this.used = 0 then return false
+        return instr( this.buf, needle ) > 0
+    end function
+
+end namespace

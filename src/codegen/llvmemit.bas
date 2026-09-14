@@ -3,6 +3,7 @@
 #include once "codegen/llvmemit.bi"
 #include once "codegen/llvmtype.bi"
 #include once "codegen/llvmdebug.bi"
+#include once "codegen/irtext.bi"
 
 namespace Tko.Codegen
 
@@ -15,7 +16,7 @@ type EmitCtx
     as MirModule ptr    m
     as Tko.Interner ptr names
     as TargetDescription ptr tgt
-    as string           outp
+    as IrText           outp        '' appended to, never re-copied -- see irtext.bi
     as string           ice
     as MirFunction ptr  f
     '' A temp that is really a CONSTANT. M_CONST has no LLVM counterpart -- a constant
@@ -1425,7 +1426,7 @@ function EmitLlvm _
             next
             if known then continue for
             dim as string pns = names.Spelling( pn )
-            if instr( e.outp, "declare void @""" & pns & """()" ) > 0 then continue for
+            if e.outp.Contains( "declare void @""" & pns & """()" ) then continue for
             e.outp += "declare void @""" & pns & """()" & chr( 10 )
         next
     next
@@ -1488,7 +1489,8 @@ function EmitLlvm _
         "target datalayout = """ & target.dataLayout & """" & chr( 10 ) & _
         "target triple = """ & target.triple & """" & chr( 10 ) & chr( 10 )
     res.ok = true
-    res.text = hdr & IntrinsicDecls( e, e.outp ) & chr( 10 ) & e.outp
+    dim as string body_ = e.outp
+    res.text = hdr & IntrinsicDecls( e, body_ ) & chr( 10 ) & body_
     if e.dbg <> 0 then res.text += DbgFinish( dbg )
     return res
 end function
