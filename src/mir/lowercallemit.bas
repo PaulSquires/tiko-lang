@@ -451,7 +451,7 @@ function SretInPlaceInit_ _
     return true
 end function
 
-'' THE RESULT TYPE OF A CALL CHECK LEFT UNTYPED, when only one procedure can be meant.
+'' THE RESULT TYPE OF A CALL CHECK LEFT UNTYPED: the result of the procedure it calls.
 ''
 '' ResolveCall_ types no call with an untyped argument, and a DWSTRING concatenation is
 '' one: 'a + " 2027"' runs through 'cast( ) byref as const wstring', which Check does not
@@ -460,17 +460,23 @@ end function
 '' AGAIN and its bytes stored over c, and that temporary destroyed -- c's buffer freed
 '' twice, 0xC0000374 at the end of the scope. fbc builds it in place, 'MK( &C$1, TMP )'.
 ''
-'' A procedure with no other overload has its result whatever the argument turns out to
-'' be -- and so does an OVERLOADED one whose every overload returns the same type:
-'' 'mk( byref s as wstring ) as DWSTRING' beside 'mk( byval n as long ) as DWSTRING' is a
-'' DWSTRING whichever of the two the argument selects. Declining that sent the
-'' declaration to the same double lowering, and it died the same way. Overloads that
-'' disagree are still undecided here and answer nothing. The same call shapes
+'' THAT PROCEDURE IS THE CALL'S OWN BINDING. ResolveCall_ replaces the binding when it
+'' chooses an overload; when it cannot -- an untyped argument, a tie -- the binding is the
+'' one Resolve copied onto the call from the name, which is the FIRST overload declared
+'' (resolve.bas, symbol.bi). LowerCall, LowerAddr's call arm and SretInPlaceInit_ read it
+'' the same way, so it is the procedure the call lowers against, and any other overload's
+'' result would type the call as something it does not call. The same call shapes
 '' SretInPlaceInit_ accepts: a named procedure, not a byref result.
 ''
-'' WHICH overload the call then lowers against is NOT decided here. An unbound name is
-'' the first of its overloads and LowerCallParts calls that one, so 'mk' with its LONG
-'' overload declared first still declines where fbc calls the wstring one.
+'' THIS DOES NOT WALK THE OVERLOADS, and it once said it did: it claimed to answer only
+'' when every overload returned the same type. The walk ran for a call with NO binding,
+'' and Resolve leaves none -- traced over the gate, the corpus sweep and the AfxNova
+'' probes, it never ran once, so the first overload's result is what this has always
+'' answered.
+''
+'' WHICH overload a call binds is Check's decision: ConcatHasWideCastTerm_ (overload.bas)
+'' costs a DWSTRING concatenation as WSTRING, so 'mk( a + " 2029" )' binds the wstring
+'' overload in any declaration order. An argument Check still cannot type keeps the first.
 function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     if e = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( e ) <> Tko.N_CALL then return Tko.TYPE_NONE
@@ -480,31 +486,16 @@ function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.Type
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     if TypeCtorTypeOf_( c, e ) <> Tko.TYPE_NONE then return Tko.TYPE_NONE
     dim as Tko.SymbolId callee = c.info->RefOf( e )
-    '' A call Check bound is that one procedure; an unbound name is the FIRST of its
-    '' overloads (symbol.bi), so walking the chain from it asks every one of them.
-    dim as boolean walk = (callee = Tko.SYMBOL_NONE)
     if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( lp->target )
     if callee = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
-    dim as Tko.TypeId rt = Tko.TYPE_NONE
-    dim as Tko.SymbolId cur = callee
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then return Tko.TYPE_NONE
-        if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
-        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
-        if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
-        if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
-        if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
-        if cs->type_ = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        if rt = Tko.TYPE_NONE then
-            rt = cs->type_
-        elseif c.types->Unqualify( cs->type_ ) <> c.types->Unqualify( rt ) then
-            return Tko.TYPE_NONE
-        end if
-        if walk = false then exit while
-        cur = cs->nextOverload
-    wend
-    return rt
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return Tko.TYPE_NONE
+    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
+    return cs->type_
 end function
 
 end namespace

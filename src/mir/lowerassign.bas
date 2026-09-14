@@ -496,7 +496,7 @@ private sub LowerAssign _
     '' fbc emits '_ZN1AC1Ev( &D8 ); _ZN1AaSERKS_( &D8, (A*)&V )' for exactly this,
     '' which is the default constructor and then the implicit LET below.
     ''
-    '' ...AND A CALL CHECK LEFT UNTYPED is the result its overloads share. 'c = mk( a +
+    '' ...AND A CALL CHECK LEFT UNTYPED is its binding's result. 'c = mk( a +
     '' " 2028" )' over a DWSTRING had no type on the right, so it missed this block and
     '' reached the aggregate store: the result's bytes over c and that temporary destroyed
     '' -- c's own buffer leaked, the new one freed twice, 0xC0000374. fbc calls the
