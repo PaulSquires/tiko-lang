@@ -1,0 +1,10 @@
+'' A STATIC LOCAL initialised from a CALL returning its own type -- a function, a paren-less
+'' call, a method, a static method -- is called once behind its guard, copied into the static
+'' and the temporary destroyed, as fbc does. It was never initialised at all. Runtime output
+'' was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/static-call-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/static-call-init.out

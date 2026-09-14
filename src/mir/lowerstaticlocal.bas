@@ -8,6 +8,66 @@
 declare function EmitStaticDtorThunk_ _
     ( byref c as Ctx, byval g as long, byval t as Tko.TypeId ) as long
 
+'' A STATIC LOCAL COPIED OUT OF AN EXPRESSION OF ITS OWN TYPE -- 'static as H s = mk( 3 )',
+'' 'static as H s = mk', 'static as H s = obj.mk( 3 )'. LowerCtorInit takes a constructor
+'' call and nothing else, so a function result fell past it and the static was never
+'' initialised: the guard and the atexit thunk were emitted, the call was not, and it
+'' verified with nothing declined. The program then read zeroed storage.
+''
+'' Measured, fbc never builds a static in place. The result goes into a TEMPORARY, is
+'' COPIED into the static, and the temporary is destroyed after the atexit call:
+''
+''     MKFREE( &TMP$6$1, 3 );
+''     __builtin_memcpy( &tmp$8, &TMP$6$1, 4 );      no copy constructor: the bytes
+''     atexit( (void*)&LABEL$12 );
+''     _ZN1HD1Ev( &TMP$6$1 );
+''
+''     _ZN1CC1ERS_( &tmp$6, vr$1 );                  a written copy constructor
+''     _ZN1SC1ERKS_( &tmp$6, (struct $1S*)vr$1 );    a synthesised one, a string field
+''     S1$1 = vr$0;                                   no destructor: a register result
+''
+'' so a destructor runs once per such declaration, on the first call -- the move
+'' 'dim as H x = mk( 3 )' makes would run none.
+private function LowerStaticCopyInit_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval init_ as Tko.NodeId, _
+      byref ga as MirValue ) as boolean
+
+    dim as Tko.TypeId ivt = c.info->TypeOf_( init_ )
+    if ivt = Tko.TYPE_NONE then ivt = UntypedCallResult_( c, init_ )
+    if ivt = Tko.TYPE_NONE then return false
+    if c.types->Unqualify( ivt ) <> c.types->Unqualify( t ) then return false
+
+    '' A PAREN-LESS CALL is LowerBareProcCall_'s, asked for the address.
+    dim as MirValue sa
+    if LowerBareProcCall_( c, init_, MT_PTR, sa ) = false then sa = LowerAddr( c, init_ )
+    '' Declined, not dropped: falling back to the default constructor from here would
+    '' be the silent loss this exists to end.
+    if sa.kind = cast( ubyte, MV_NONE ) then
+        SkipHere( c )
+        return true
+    end if
+
+    dim as Tko.SymbolId ucp = CopyCtorOf_( c, t )
+    if ucp <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) cargs
+        cargs.Push( cast( ulong, sa.kind ) )
+        cargs.Push( cast( ulong, sa.id ) )
+        EmitStructorCall( c, ucp, -1, @ga, @cargs )
+    elseif NeedsLetBody_( c, t ) then
+        CallImplicitCopy_( c, t, ga, sa )
+    else
+        dim as MirValue mv
+        dim as long sz = SizeOfType( c, t )
+        if sz > 0 then mv = LowerExprLoad( c, sa, MT_AGG, sz )
+        if mv.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            return true
+        end if
+        StoreThrough( c, ga, mv )
+    end if
+    return true
+end function
+
 '' A STATIC LOCAL OBJECT, constructed LAZILY the first time control reaches it.
 ''
 '' Measured from what fbc emits for 'static as T a = T( 1 )' inside a procedure:
@@ -116,8 +176,15 @@ function LowerStaticLocalInit_ _
     '' as a local does; everything else takes the no-argument one, or the synthesised
     '' one for a type that needs initialising and declares none.
     dim as boolean constructed = false
+    '' The temporaries the initialiser makes die INSIDE the guarded block: see below.
+    dim as long smark = c.strTemps.Count
+    dim as long wmark = c.wstrTemps.Count
+    dim as long umark = c.udtTemps.Count
     if isUdt andalso (init_ <> Tko.NODE_NONE) then
         constructed = LowerCtorInit( c, -1, t, init_, @ga )
+    end if
+    if (constructed = false) andalso isUdt andalso (init_ <> Tko.NODE_NONE) then
+        constructed = LowerStaticCopyInit_( c, t, init_, ga )
     end if
     if constructed = false then
         if isUdt then
@@ -161,6 +228,14 @@ function LowerStaticLocalInit_ _
             end if
         end if
     end if
+
+    '' ...AND THE INITIALISER'S TEMPORARIES DIE HERE, after the atexit call and still
+    '' inside the guard -- measured, 'fb_StrDelete( &TMP$9$1 ); _ZN1HD1Ev( &TMP$6$1 );'
+    '' on the line before the label. The statement's own flush runs in the join, on
+    '' every call, over temporaries only the first call built.
+    ReleaseStrTemps_( c, smark )
+    ReleaseWstrTemps_( c, wmark )
+    ReleaseUdtTemps_( c, umark )
 
     Terminate( c, MTERM_BR, skipB, -1, NoVal( ) )
     c.curBlock = skipB
