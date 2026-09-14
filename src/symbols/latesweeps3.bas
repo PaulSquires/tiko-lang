@@ -921,3 +921,224 @@ private sub CheckAggregateInitFields_( byref c as Ctx )
                          c.names->Spelling( s->name ) )
     next
 end sub
+
+'' A STATIC-STORAGE INITIALISER IS A CONSTANT -- fbc error 11, "Expected constant" -- over
+'' every type fbc fills from the image rather than by running a constructor. Measured:
+''
+''     static as P v = mkp( 3 )               error 11    P plain data
+''     static as long v = f( )                error 11    ...a scalar, and 'f' paren-less
+''     dim shared as P v = mkp( 3 )           error 11    ...'static' at module level,
+''     namespace ns : dim as P v = mkp( 3 )   error 11       'var shared', a namespace
+''     static as P v = gm.mk( )               error 11    a method
+''     static as P v = gp                     error 11    a variable of the type
+''     static as P v = type<P>( gx, 2 )       error 11    a run-time value INSIDE a
+''     static as P v = ( 1, f( ) )            error 11       literal, a tuple, a { } list
+''     static as long v = gx + 1              error 11       or an operator
+''     static as long v = gp.a                error 11    a field of a variable
+''     static as long v = arr( 1 )            error 11    an element
+''     static as P v = *cast( P ptr, 0 )      error 11    a dereference
+''     static as TD v = makd( )               error 11    a DESTRUCTOR alone changes nothing
+''
+''     static as P v = type<P>( KK, 2 )       accepted    constants
+''     static as long ptr v = @gx             accepted    an address
+''     static as long v = len( f( ) )         accepted    and sizeof, asc, abs, cint, sgn,
+''     static as double v = atn( 1 ) * 4      accepted       rgb, sqr, sin, chr, iif( 1, 2, 3 )
+''     static as HC v = HC( gx )              accepted    A CONSTRUCTOR RUNS CODE: a written
+''     static as SS v = mkss( )               accepted       one, or the implicit one a string
+''                                                           field, a field initialiser, a
+''                                                           member with one or OBJECT brings
+''
+'' tiko accepted every refused line and lowered it to storage nothing wrote: 'static as P
+'' v = mkp( 3 )' printed zeros. IT REPORTS ONLY WHAT IT CAN POSITIVELY ESTABLISH, as
+'' CheckConstBounds_ does. A builtin call, an IIF and a CAST are never judged -- 'iif( gx,
+'' 1, 2 )' and 'cast( long, gx )' are fbc's 11 too, but asking whether one folds would
+'' measure this compiler's folder, not fbc.
+
+'' Filled from the image: no constructor runs over it, written or implicit. Anything this
+'' does not recognise answers no, which only ever means not judged.
+private function LoaderFilled_ _
+    ( byref c as Ctx, byval t as TypeId, byval depth as long ) as boolean
+
+    if (t = TYPE_NONE) orelse (depth > 8) then return false
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->IsDynArray( u ) then return false
+    select case c.types->Kind( u )
+    case TK_ARRAY
+        return LoaderFilled_( c, c.types->Inner( u ), depth + 1 )
+    case TK_POINTER
+        return true
+    case TK_BUILTIN
+        '' A VAR-LEN STRING cannot be initialised at all -- TKO0628, fbc's 87.
+        select case c.types->BuiltinOf( u )
+        case TY_STRING, TY_USTRING
+            return false
+        end select
+        return true
+    case TK_UDT
+    case else
+        return false
+    end select
+    if DeclaresAnywhere_( c, u, "__ctor" ) then return false
+    if ExtendsObject_( c, u ) then return false
+    dim as Symbol ptr ts = UdtSymbolOf_( c, u )
+    if ts = 0 then return false
+    if ts->inner = SCOPE_NONE then return false
+    dim as SymScope ptr sc = c.syms->ScopeAt( ts->inner )
+    if sc = 0 then return false
+    dim as SymbolId cur = sc->firstSym
+    dim as long guard = 0
+    while (cur <> SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit while
+        if f->kind = cast( ubyte, SYM_FIELD ) then
+            '' A FIELD INITIALISER is the implicit constructor's work. A BITFIELD's
+            '' payload is its width, not a node -- see AnyInitOf_.
+            if ((f->flags and SYMF_BITFIELD) = 0) andalso (f->payload <> 0) then
+                dim as NodeId fn = cast( NodeId, f->payload )
+                if c.ast->Kind( fn ) = N_FIELD then
+                    if c.ast->stmts[cast( long, c.ast->nodes[cast( long, fn )].data )].c <> NODE_NONE then
+                        return false
+                    end if
+                end if
+            end if
+            if LoaderFilled_( c, f->type_, depth + 1 ) = false then return false
+        end if
+        cur = f->nextInScope
+    wend
+    return true
+end function
+
+'' Static storage, as fbc means it here: SHARED or STATIC, or declared in a NAMESPACE. A
+'' TYPE's static member is another rule and not measured, so it answers no.
+private function StaticStorage_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
+    if (s->flags and (SYMF_EXTERN or SYMF_COMMON or SYMF_BYREF)) <> 0 then return false
+    dim as boolean flagged = ((s->flags and (SYMF_SHARED or SYMF_STATIC)) <> 0)
+    dim as ScopeId cur = s->parent
+    dim as long guard = 0
+    while (cur <> SCOPE_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as SymScope ptr sc = c.syms->ScopeAt( cur )
+        if sc = 0 then exit while
+        if sc->kind = cast( ubyte, SCOPEK_TYPE ) then return false
+        if sc->kind = cast( ubyte, SCOPEK_PROC ) then return flagged
+        if sc->kind = cast( ubyte, SCOPEK_NAMESPACE ) then return true
+        cur = sc->parent
+    wend
+    return flagged
+end function
+
+'' The first sub-expression POSITIVELY computed at run time, or NODE_NONE. Walked through
+'' operators, parentheses, tuples and { } lists only -- never into an address, a builtin
+'' call's arguments ('len( f( ) )' folds) or anything else.
+private function RunTimeLeaf_ _
+    ( byref c as Ctx, byval n as NodeId, byval ptrTarget as boolean, _
+      byval depth as long ) as NodeId
+
+    if (n = NODE_NONE) orelse (depth > 64) then return NODE_NONE
+    select case c.ast->Kind( n )
+    case N_IDENT
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if s = 0 then return NODE_NONE
+        select case s->kind
+        case cast( ubyte, SYM_VARIABLE ), cast( ubyte, SYM_PARAMETER )
+            return n
+        case cast( ubyte, SYM_PROC )
+            '' A paren-less CALL -- unless a procedure pointer is being initialised,
+            '' where a bare name is not measured.
+            if ptrTarget = false then return n
+        end select
+    case N_MEMBER
+        dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if ms <> 0 then
+            select case ms->kind
+            case cast( ubyte, SYM_VARIABLE ), cast( ubyte, SYM_PROC )
+                return n
+            case cast( ubyte, SYM_CONSTANT ), cast( ubyte, SYM_ENUMCONST )
+                return NODE_NONE
+            end select
+        end if
+        '' A FIELD reads its object: 'gp.a' is run time exactly when 'gp' is.
+        dim as BinaryPayload ptr mp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        return RunTimeLeaf_( c, mp->lhs, ptrTarget, depth + 1 )
+    case N_CALL
+        '' A PROCEDURE'S call, or an array ELEMENT -- a builtin has no symbol, and a
+        '' type's constructor call is not a procedure.
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if lp->target = NODE_NONE then return NODE_NONE
+        select case c.ast->Kind( lp->target )
+        case N_IDENT, N_MEMBER
+        case else
+            return NODE_NONE
+        end select
+        dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if cs = 0 then cs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if cs = 0 then return NODE_NONE
+        if (cs->kind = cast( ubyte, SYM_PROC )) orelse _
+           (cs->kind = cast( ubyte, SYM_VARIABLE )) then return n
+    case N_DEREF
+        return n
+    case N_BINARY
+        dim as BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as NodeId l = RunTimeLeaf_( c, bp->lhs, ptrTarget, depth + 1 )
+        if l <> NODE_NONE then return l
+        return RunTimeLeaf_( c, bp->rhs, ptrTarget, depth + 1 )
+    case N_UNARY
+        dim as UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        return RunTimeLeaf_( c, up->operand, ptrTarget, depth + 1 )
+    case N_PAREN, N_TUPLE, N_INITIALIZER
+        dim as ListPayload ptr tp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        for i as long = 0 to tp->count - 1
+            dim as NodeId e = RunTimeLeaf_( c, _
+                cast( NodeId, c.ast->children[tp->first + i] ), ptrTarget, depth + 1 )
+            if e <> NODE_NONE then return e
+        next
+    end select
+    return NODE_NONE
+end function
+
+private sub CheckStaticInitConst_( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        if (c.ast->nodes[cast( long, item )].flags and NF_BYREF) <> 0 then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->b = NODE_NONE then continue for
+        if StaticStorage_( c, s ) = false then continue for
+        if LoaderFilled_( c, s->type_, 0 ) = false then continue for
+        dim as TypeId vt = c.types->Unqualify( s->type_ )
+        if c.types->Kind( vt ) = TK_ARRAY then vt = c.types->Unqualify( c.types->Inner( vt ) )
+
+        '' A BARE VARIABLE is TKO0725, whose message says so. CheckStaticInitFromVar_
+        '' already reports the SHARED or STATIC scalar; the rest -- a variable of a UDT,
+        '' or any in a namespace -- is reported here, once.
+        if c.ast->Kind( ip->b ) = N_IDENT then
+            dim as Symbol ptr src = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
+            if src <> 0 then
+                if src->kind = cast( ubyte, SYM_VARIABLE ) then
+                    dim as boolean flagged = ((s->flags and (SYMF_SHARED or SYMF_STATIC)) <> 0)
+                    if flagged andalso (c.types->Kind( vt ) = TK_BUILTIN) then continue for
+                    c.diags->Report( TKO0725, PointRange( c.ast->Loc( item ) ), _
+                                     c.names->Spelling( s->name ) )
+                    continue for
+                end if
+            end if
+        end if
+
+        dim as boolean ptrTarget = (c.types->Kind( vt ) = TK_POINTER)
+        dim as NodeId leaf = RunTimeLeaf_( c, ip->b, ptrTarget, 0 )
+        if leaf = NODE_NONE then continue for
+        c.diags->Report( TKO0778, PointRange( c.ast->Loc( leaf ) ), _
+                         c.names->Spelling( s->name ) )
+    next
+end sub

@@ -448,6 +448,10 @@
     '' fbc's error 4 (120 for a type with a static member): a value named like a TYPE
     '' WITH MEMBERS OR A BASE. A plain-data type may share its name -- see collectdecl.bas.
     DIAG( TKO0777, SEV_ERROR,   "'%0' is already the name of a type with members, which no value may share" )
+    '' fbc's error 11 for a STATIC-STORAGE initialiser computed at run time -- a call, a
+    '' load, a dereference -- over a type no constructor fills. TKO0725 is the
+    '' bare-variable half of the same rule.
+    DIAG( TKO0778, SEV_ERROR,   "'%0' has static storage and must be initialised from a constant expression" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
