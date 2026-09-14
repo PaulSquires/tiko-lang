@@ -1,0 +1,12 @@
+'' '..NAME( )' OVER A NAME THAT IS BOTH A TYPE AND A PROCEDURE is the procedure, as a bare
+'' identifier in expression position is. The Windows headers declare 'type
+'' INITCOMMONCONTROLSEX' beside 'InitCommonControlsEx', and AfxNova's CWindow constructor
+'' calls '..InitCommonControlsEx( @icc )'. The '..' lookup took whichever symbol the slot held
+'' first -- the TYPE -- so the call statement was dropped (every CWindow skipped the
+'' common-controls initialisation) and the assignment form was refused with TKO0738.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/global-qual-call-type-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0738

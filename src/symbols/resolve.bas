@@ -511,13 +511,13 @@ private sub WalkExpr _
         '' reported as "'ns' is a namespace, not a procedure". fbcunit's CU_ASSERT
         '' expands to exactly that shape, which is why it accounted for the bulk of
         '' every unlowered count in the corpus.
-        '' '..x' -- the base is the GLOBAL SCOPE itself, so the member is looked up
-        '' there. A chain '..a.b.v' needs nothing more: '..a' binds to the namespace
-        '' here, and the enclosing member access then takes the namespace path below.
+        '' '..x' -- the base is the GLOBAL SCOPE itself, so the member is looked up there, VALUE class
+        '' first: 'type INITCOMMONCONTROLSEX' holds the slot CWindow's '..InitCommonControlsEx' needs.
+        '' A chain '..a.b.v' needs nothing more: '..a' binds to the namespace, then the path below.
         if c.ast->Kind( mlhs ) = Tko.N_GLOBALSCOPE then
             if c.ast->Kind( mrhs ) = Tko.N_IDENT then
-                dim as Tko.SymbolId gsid = c.syms->LookupInNamespace( _
-                    FileScopeOf_( c, scope_ ), IdentNameOf( c, mrhs ) )
+                dim as Tko.SymbolId gsid = c.syms->LookupLocalTyped( FileScopeOf_( c, scope_ ), IdentNameOf( c, mrhs ), false )
+                if gsid = Tko.SYMBOL_NONE then gsid = c.syms->LookupInNamespace( FileScopeOf_( c, scope_ ), IdentNameOf( c, mrhs ) )
                 if gsid <> Tko.SYMBOL_NONE then
                     c.info->SetRef( mrhs, gsid )
                     c.info->SetRef( id, gsid )
