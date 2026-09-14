@@ -16,6 +16,7 @@
 #include once "mir/verify.bi"
 #include once "codegen/abi.bi"
 #include once "codegen/toolchain.bi"
+#include once "codegen/objinfo.bi"
 #include once "codegen/llvmemit.bi"
 #include once "mir/rtl.bi"
 #include once "types/udtlayout.bi"
@@ -640,6 +641,10 @@ function Run( byref args as Tko.StrVec ) as long
         dim as Tko.StrVec tempObjs
         for i as long = 0 to objInputs.Count - 1
             linkObjs.Push( objInputs[i] )
+            '' ...AND WHAT IT ASKS THE LINK FOR -- its '.fbctinf', as fbc reads it. See
+            '' codegen/objinfo.bi; ApexWealth's network object named winhttp only there.
+            Tko.Codegen.ReadObjInfo( objInputs[i], ctx.options.pragmaLibs, _
+                                     ctx.options.pragmaLibPaths, ctx.options.threadSafe )
         next
 
         '' EVERY '.rc' BECOMES A '.res' AND JOINS THE LINK. lld-link consumes a
@@ -949,6 +954,13 @@ function Run( byref args as Tko.StrVec ) as long
                                 '' success, and a silent wrong answer beats a loud
                                 '' wrong one only from the compiler's point of view.
                                 objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
+                            end if
+                            '' AN OBJECT KEPT FOR ANOTHER LINK SAYS WHAT IT NEEDS, in the
+                            '' '.fbctinf' section fbc writes -- see codegen/objinfo.bi.
+                            if ctx.options.compileOnly then
+                                er.text += Tko.Codegen.ObjInfoIr( ctx.options.libs, _
+                                    ctx.options.pragmaLibs, ctx.options.libPaths, _
+                                    ctx.options.pragmaLibPaths, ctx.options.threadSafe )
                             end if
                             toolExit = BuildFromIr( ctx, er.text, td, objPath )
                             if toolExit = Tko.EXIT_OK then linkObjs.Push( objPath )

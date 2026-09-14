@@ -83,5 +83,6 @@ src/codegen/abi.bas
 src/codegen/llvmdebug.bas
 src/codegen/llvmemit.bas
 src/codegen/toolchain.bas
+src/codegen/objinfo.bas
 src/driver/cmdline.bas
 src/driver/driver.bas

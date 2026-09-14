@@ -1,0 +1,8 @@
+'' '-c' WRITES THE '.fbctinf' SECTION, as fbc does: the libraries the module asked for,
+'' for whichever link consumes the object later. See src/codegen/objinfo.bi.
+'' TEST: cli
+'' ARGS: -target win64-msvc -c tests/driver/src/objinfo-lib.bas -o tests/driver/objinfolib.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/objinfolib.o
+'' EXPECT-FILE-HAS: tests/driver/objinfolib.o :: .fbctinf
+'' EXPECT-FILE-HAS: tests/driver/objinfolib.o :: winhttp

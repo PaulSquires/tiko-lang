@@ -1,0 +1,35 @@
+'' objinfo.bi -- the '.fbctinf' section: what an OBJECT asks its link for.
+''
+'' fbc writes the libraries and library paths a module named ('-l', '#inclib', '-p',
+'' '#libpath') and '-mt' into a section of the object, and reads them back out of every
+'' object it LINKS. So 'fbc -c net.bas' followed by 'fbc app.bas net.o' links net's
+'' '#inclib "winhttp"' without being told. ApexWealth's build is exactly that, and tiko
+'' wrote no section and read none: 22 undefined WinHttp and BCrypt symbols at the link.
+''
+'' Measured on fbc-modern -gen llvm: a run of NUL-terminated words, command line first
+'' and then the source's -- '-l', 'foo', '-l', 'winhttp', '-p', 'C:/some/where', '-mt' --
+'' and a module that asks for nothing has NO section. Written only under '-c': an
+'' intermediate object is linked by the same run, which already holds the lists.
+
+#ifndef __TKO_OBJINFO_BI__
+#define __TKO_OBJINFO_BI__
+
+#include once "tko.bi"
+
+namespace Tko.Codegen
+
+    '' The section as LLVM IR to append to a module, or "" when there is nothing to say.
+    declare function ObjInfoIr _
+        ( byref libs as StrVec, byref pragmaLibs as StrVec, _
+          byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
+          byval threadSafe as boolean ) as string
+
+    '' Adds what an object file's section asks for. An unreadable file, another format or
+    '' no section adds nothing, and the link then says what is missing, as it did before.
+    declare sub ReadObjInfo _
+        ( byref path as string, byref libs as StrVec, _
+          byref libPaths as StrVec, byref threadSafe as boolean )
+
+end namespace
+
+#endif
