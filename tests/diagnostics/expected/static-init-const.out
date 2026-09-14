@@ -28,6 +28,21 @@ global var i32 REFUSED$e30
 global var i32 REFUSED$e31
 global var f64 REFUSED$e32
 global var i32 REFUSED$e33
+global var agg REFUSED$e34 size 8
+global var agg REFUSED$e35 size 8
+global var agg REFUSED$e36 size 8
+global var agg REFUSED$e37 size 16
+global var agg REFUSED$e38 size 16
+global var agg REFUSED$e39 size 16
+global var f64 REFUSED$e40
+global var i32 REFUSED$e41
+global var i64 REFUSED$e42
+global var i32 REFUSED$e43
+global var i64 REFUSED$e44
+global var i32 REFUSED$e45
+global var i32 REFUSED$e46
+global var agg REFUSED$e47 size 8
+global var i32 REFUSED$e48
 global var agg ACCEPTED$k1 size 8 = bytes 04 00 00 00 02 00 00 00
 global var ptr ACCEPTED$k2 = @gx
 global var i32 gx = 5
@@ -50,6 +65,7 @@ global var i32 ACCEPTED$k18
 global var ptr ACCEPTED$k19 = @gx
 global var agg ACCEPTED$k20 size 8
 global var i32 ACCEPTED$k21
+global var i32 ACCEPTED$k22
 global var agg ACCEPTED$k15 size 8
 global var agg gp size 8
 global var agg gm size 4
@@ -413,10 +429,10 @@ func void _ZN2TZaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 23 functions, 31 blocks, 173 insts, 37 statements not lowered, 0 scope imbalance
-  inside N_VAR 37
-  skip-site src\mir\lowerstore.bas:1247 25
-  skip-site src\mir\lowerstore.bas:1227 12
+lowered: 23 functions, 31 blocks, 173 insts, 53 statements not lowered, 0 scope imbalance
+  inside N_VAR 53
+  skip-site src\mir\lowerstore.bas:1247 34
+  skip-site src\mir\lowerstore.bas:1227 19
 tests/diagnostics/src/static-init-const.bas(74,25): error TKO0778: 'e1' has static storage and must be initialised from a constant expression
      |
   74 | dim shared as P e1 = mkp( 3 )
@@ -549,3 +565,63 @@ tests/diagnostics/src/static-init-const.bas(110,43): error TKO0778: 'e33' has st
      |
  110 |     static as long e33 = cast( long, iif( gx, 1, 2 ) )
      |                                           ^
+tests/diagnostics/src/static-init-const.bas(111,36): error TKO0778: 'e34' has static storage and must be initialised from a constant expression
+     |
+ 111 |     static as zstring * 8 e34 = hex( 255 )
+     |                                    ^
+tests/diagnostics/src/static-init-const.bas(112,36): error TKO0778: 'e35' has static storage and must be initialised from a constant expression
+     |
+ 112 |     static as zstring * 8 e35 = oct( KK, 4 )
+     |                                    ^
+tests/diagnostics/src/static-init-const.bas(113,36): error TKO0778: 'e36' has static storage and must be initialised from a constant expression
+     |
+ 113 |     static as zstring * 8 e36 = bin( 5, 8 )
+     |                                    ^
+tests/diagnostics/src/static-init-const.bas(114,37): error TKO0778: 'e37' has static storage and must be initialised from a constant expression
+     |
+ 114 |     static as wstring * 8 e37 = whex( 255 )
+     |                                     ^
+tests/diagnostics/src/static-init-const.bas(115,37): error TKO0778: 'e38' has static storage and must be initialised from a constant expression
+     |
+ 115 |     static as wstring * 8 e38 = woct( 8 )
+     |                                     ^
+tests/diagnostics/src/static-init-const.bas(116,37): error TKO0778: 'e39' has static storage and must be initialised from a constant expression
+     |
+ 116 |     static as wstring * 8 e39 = wbin( 5 )
+     |                                     ^
+tests/diagnostics/src/static-init-const.bas(117,31): error TKO0778: 'e40' has static storage and must be initialised from a constant expression
+     |
+ 117 |     static as double e40 = val( "12" )
+     |                               ^
+tests/diagnostics/src/static-init-const.bas(118,32): error TKO0778: 'e41' has static storage and must be initialised from a constant expression
+     |
+ 118 |     static as long e41 = valint( "0" )
+     |                                ^
+tests/diagnostics/src/static-init-const.bas(119,35): error TKO0778: 'e42' has static storage and must be initialised from a constant expression
+     |
+ 119 |     static as longint e42 = vallng( "12" )
+     |                                   ^
+tests/diagnostics/src/static-init-const.bas(120,34): error TKO0778: 'e43' has static storage and must be initialised from a constant expression
+     |
+ 120 |     static as ulong e43 = valuint( "12" )
+     |                                  ^
+tests/diagnostics/src/static-init-const.bas(121,37): error TKO0778: 'e44' has static storage and must be initialised from a constant expression
+     |
+ 121 |     static as ulongint e44 = valulng( "0" )
+     |                                     ^
+tests/diagnostics/src/static-init-const.bas(122,30): error TKO0778: 'e45' has static storage and must be initialised from a constant expression
+     |
+ 122 |     static as long e45 = peek( long, @gx )
+     |                              ^
+tests/diagnostics/src/static-init-const.bas(123,30): error TKO0778: 'e46' has static storage and must be initialised from a constant expression
+     |
+ 123 |     static as long e46 = peek( integer, 0 ) + 1
+     |                              ^
+tests/diagnostics/src/static-init-const.bas(124,42): error TKO0778: 'e47' has static storage and must be initialised from a constant expression
+     |
+ 124 |     static as zstring * 8 e47 = "x" & hex( 1 )
+     |                                          ^
+tests/diagnostics/src/static-init-const.bas(125,34): error TKO0778: 'e48' has static storage and must be initialised from a constant expression
+     |
+ 125 |     static as long e48 = len( hex( 1 ) )
+     |                                  ^

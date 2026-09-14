@@ -4,7 +4,7 @@
 ''     (74) error 11: Expected constant in 'dim shared as P e1 = mkp( 3 )'
 ''     (75) error 11: Expected constant in 'static as P e2 = mkp( 3 )'
 ''     ...                                  one per line through
-''     (110) error 11: Expected constant in 'static as long e33 = cast( long, iif( gx, 1, 2 ) )'
+''     (125) error 11: Expected constant in 'static as long e48 = len( hex( 1 ) )'
 ''
 '' The accepted() lines are what fbc folds -- constants, an address, a builtin -- or run
 '' a constructor (HC written, SS and TZ implicit), and the last two are not static.
@@ -108,6 +108,21 @@ sub refused( )
     static as long e31 = asc( str( gx ) )
     static as double e32 = sin( gx )
     static as long e33 = cast( long, iif( gx, 1, 2 ) )
+    static as zstring * 8 e34 = hex( 255 )
+    static as zstring * 8 e35 = oct( KK, 4 )
+    static as zstring * 8 e36 = bin( 5, 8 )
+    static as wstring * 8 e37 = whex( 255 )
+    static as wstring * 8 e38 = woct( 8 )
+    static as wstring * 8 e39 = wbin( 5 )
+    static as double e40 = val( "12" )
+    static as long e41 = valint( "0" )
+    static as longint e42 = vallng( "12" )
+    static as ulong e43 = valuint( "12" )
+    static as ulongint e44 = valulng( "0" )
+    static as long e45 = peek( long, @gx )
+    static as long e46 = peek( integer, 0 ) + 1
+    static as zstring * 8 e47 = "x" & hex( 1 )
+    static as long e48 = len( hex( 1 ) )
 end sub
 
 sub accepted( )
@@ -129,6 +144,7 @@ sub accepted( )
     static as long ptr k19 = cptr( long ptr, @gx )
     static as zstring * 8 k20 = str( 1 )
     static as long k21 = len( gx ) + sizeof( gx ) + lbound( garr ) + ubound( garr ) + offsetof( P, b )
+    static as long k22 = sizeof( hex( 1 ) ) + sizeof( peek( long, @gx ) )
     dim as P k14 = mkp( 3 )
     static as P k15
 end sub

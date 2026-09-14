@@ -952,9 +952,11 @@ end sub
 '' v = mkp( 3 )' printed zeros. IT REPORTS ONLY WHAT IT CAN POSITIVELY ESTABLISH, as
 '' CheckConstBounds_ does: a BUILTIN is judged by its ARGUMENTS -- 'cast( long, gx )',
 '' 'str( gx )', 'iif( gx, 1, 2 )' are 11 because gx is -- and never by asking whether it
-'' folds, which would measure this compiler's folder rather than fbc. So 'hex( 255 )' and
-'' 'val( "12" )', which fbc refuses over constants, are not reported, and neither is
-'' 'peek( long, @gx )'. See RunTimeLeaf_ for the builtins that evaluate nothing.
+'' folds, which would measure this compiler's folder rather than fbc. The exceptions are
+'' NAMED, each measured: the builtins that evaluate nothing, and hex, oct, bin, val and
+'' peek with their variants, which fbc never folds even over constants. Any other builtin
+'' fbc refuses over constants -- 'left( "abc", 1 )', 'space( 3 )', 'cvi( "abcd" )' -- is
+'' not reported. See RunTimeLeaf_.
 
 '' Filled from the image: no constructor runs over it, written or implicit. Anything this
 '' does not recognise answers no, which only ever means not judged.
@@ -1103,6 +1105,14 @@ private function RunTimeLeaf_ _
             dim as TypeId ludt
             if SwapKindOf_( c, lt, ludt ) <> 2 then return NODE_NONE
             return RunTimeLeaf_( c, la, ptrTarget, depth + 1 )
+        case "hex", "oct", "bin", "whex", "woct", "wbin", _
+             "val", "valint", "vallng", "valuint", "valulng", "peek"
+            '' NEVER FOLDED, EVEN OVER CONSTANTS. Measured, fbc gives 11 for 'hex( 255 )',
+            '' 'hex( KK )', 'oct( 8 )', 'bin( 5, 8 )', 'whex( 255 )', 'val( "12" )',
+            '' 'valint( "0" )', 'peek( long, @gx )' and 'peek( integer, 0 )' -- each of which
+            '' a plain local accepts -- while 'str( 1 )', 'chr( 65 )' and 'cint( 2.5 )' fold.
+            '' So the call is run time whatever its arguments are.
+            return n
         case "iif"
             if lp->count <> 3 then return NODE_NONE
             dim as NodeId ic = cast( NodeId, c.ast->children[lp->first] )
