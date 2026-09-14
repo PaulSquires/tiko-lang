@@ -860,7 +860,7 @@ function LowerCallParts _
             ''     fb_StrAssign( &TMP$4$0, -1, &V$0, -1, 0 );
             ''     TAKEBYVALSTRING( &TMP$4$0 );
             ''     fb_StrDelete( &TMP$4$0 );
-            if ParamIsIndirectStr_( c, callee, i + pbase ) then
+            if ParamIsIndirectStr_( c, callee, i + pbase, calleeSigT ) then
                 dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 if ByvalStrTemp_( c, argNode, spt, a, tempSlot ) = false then
                     c.blameNode = cast( ulong, argNode )
@@ -892,7 +892,7 @@ function LowerCallParts _
                 '' ADDRESS when the type is passed indirectly, and the aggregate itself
                 '' when it is not. Measured -- fbc writes 'F( TMP$2$0 )' for a type with
                 '' no destructor and 'F( &TMP$3$0 )' for one with.
-                if ParamIsIndirectUdt_( c, callee, i + pbase ) then
+                if ParamIsIndirectUdt_( c, callee, i + pbase, calleeSigT ) then
                     a = ca
                 else
                     a = LowerExprLoad( c, ca, MT_AGG )
@@ -915,7 +915,7 @@ function LowerCallParts _
                 bva.kind = cast( ubyte, MV_LOCAL )
                 bva.ty = cast( ubyte, MT_PTR )
                 bva.id = bvSlot
-                if ParamIsIndirectUdt_( c, callee, i + pbase ) then
+                if ParamIsIndirectUdt_( c, callee, i + pbase, calleeSigT ) then
                     a = bva
                 else
                     a = LowerExprLoad( c, bva, MT_AGG )
@@ -929,7 +929,7 @@ function LowerCallParts _
                 continue for
             end if
 
-            if ParamIsIndirectUdt_( c, callee, i + pbase ) then
+            if ParamIsIndirectUdt_( c, callee, i + pbase, calleeSigT ) then
                 if ByvalUdtCopyArg_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), _
                                      a, tempSlot, tempType ) = false then
                     c.blameNode = cast( ulong, argNode )
@@ -1237,6 +1237,7 @@ function LowerCallParts _
         if (callTy = MT_AGG) andalso (cs <> 0) then
             ic.imm = SizeOfType( c, cs->type_ )
         end if
+        if callTy = MT_AGG then ic.callee = cast( ulong, PtrCallSigIndex_( c, calleeSigT ) + 1 )   '' see lowersig.bas
         dim as MirValue iv = Emit( c, ic )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )

@@ -919,7 +919,7 @@ function LowerOpenCall_ _
             fn = EmitRtl( c, RTL_STR_TEMPZ, ea )
         end if
         if fn.kind = cast( ubyte, MV_NONE ) then return false
-    else
+    elseif UStrToStrTemp_( c, sp->a, fn ) = false then   '' a ustring name: fb_UStrToStr first
         if StrDescriptorOf_( c, sp->a, fn ) = false then return false
     end if
 

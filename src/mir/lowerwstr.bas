@@ -117,6 +117,7 @@ function LowerWideAssign _
 
     dim as MirValue dst = LowerAddr( c, target )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
+    if WideAssignViaTemp_( c, dst, n, target, value ) then return true   '' see lowerconcat.bas
     return LowerWideAssignTo( c, dst, n, value )
 end function
 

@@ -134,6 +134,59 @@ function SameLValue _
     return c.info->RefOf( a ) = c.info->RefOf( b )
 end function
 
+'' DOES THIS TERM READ THE TARGET ANYWHERE, not only as itself. 's = w & mid( s, 5 )' built
+'' in place assigned w into s and then took mid( s, 5 ) of the RESULT, so ApexWealth's token
+'' redaction kept its first '[redacted]' and lost the rest. Measured, fbc takes the
+'' substring first and concatenates into a temporary. The target is recognised as
+'' SameLValue recognises it, and a node kind not walked here is not searched.
+function TermReadsLValue_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
+
+    if (target = Tko.NODE_NONE) orelse (e = Tko.NODE_NONE) then return false
+    dim as ulong d = c.ast->nodes[cast( long, e )].data
+    select case c.ast->Kind( e )
+    case Tko.N_IDENT
+        return SameLValue( c, target, e )
+    case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
+        return TermReadsLValue_( c, target, c.ast->unaries[cast( long, d )].operand )
+    case Tko.N_BINARY, Tko.N_MEMBER
+        if TermReadsLValue_( c, target, c.ast->binaries[cast( long, d )].lhs ) then return true
+        return TermReadsLValue_( c, target, c.ast->binaries[cast( long, d )].rhs )
+    case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, d )]
+        if TermReadsLValue_( c, target, lp->target ) then return true
+        for i as long = 0 to lp->count - 1
+            if TermReadsLValue_( c, target, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then return true
+        next
+    end select
+    return false
+end function
+
+'' THE WIDE HALF, into a fixed wstring: 'x = ww & mid( x, 5 )'. Measured, fbc takes
+'' fb_WstrMid, concatenates into a temporary with fb_WstrConcat and fb_WstrAssigns that;
+'' built in place, ww went into x first and mid( x, 5 ) read the result. False, emitting
+'' nothing, when no term after the first reads the target.
+function WideAssignViaTemp_ _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, value, terms )
+    dim as boolean reads = false
+    for i as long = 1 to terms.Count - 1
+        if TermReadsLValue_( c, target, cast( Tko.NodeId, terms[i] ) ) then reads = true
+    next
+    if reads = false then return false
+    dim as MirValue src
+    if WideConcatToTemp_( c, value, src ) = false then return false
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    EmitRtl( c, RTL_WSTR_ASSIGN, args )
+    return true
+end function
+
 '' 'offsetof( T, field )' -- A COMPILE-TIME INTEGER, folded from the measured layout.
 ''
 '' Measured: over a type whose first two fields are INTEGERs, 'offsetof( E, i )' is 16

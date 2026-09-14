@@ -1,0 +1,14 @@
+'' 's = w & mid( s, 5 )' cannot be built in place: assigning w first and then reading
+'' mid( s, 5 ) reads the result. Measured, fbc takes fb_StrMid, concatenates into a
+'' temporary with fb_StrConcat and fb_StrAssigns that; the wide twin is fb_WstrMid,
+'' fb_WstrConcat, fb_WstrAssign. Built in place, both printed 'XY' where fbc prints
+'' 'XYefghij', and ApexWealth's token redaction lost every match after the first.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-assign-reads-target.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_StrConcat(
+'' EXPECT-OUT: fb_WstrConcat(
+'' EXPECT-NOT: fb_StrConcatAssign(
+'' EXPECT-NOT: fb_WstrConcatAssign(

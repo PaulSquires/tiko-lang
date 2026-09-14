@@ -1,0 +1,13 @@
+'' A CHAIN WITH A USTRING TERM IS A USTRING CHAIN, passed to a 'byref as ustring' parameter
+'' as much as assigned. Measured, fbc builds '"exactly " & wchr( 34 ) & wanted & ...' with
+'' fb_UStrConcat alone, the literals and the wchr as UTF-16. The wchr sent tiko down the WIDE
+'' route, which passed wanted's UTF-16 descriptor to fb_WstrConcatWA as narrow text: "VFV"
+'' came out "V", and ApexWealth's symbol-lookup error no longer named the symbol.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-ustring-wide-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrConcat(
+'' EXPECT-NOT: fb_WstrConcatWA(
+'' EXPECT-NOT: fb_WstrConcatAW(

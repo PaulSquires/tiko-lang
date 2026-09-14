@@ -1455,7 +1455,7 @@ function LowerStringAssignTo _
     dim as boolean needsTemp = false
     if target <> Tko.NODE_NONE then
         for i as long = 1 to terms.Count - 1
-            if SameLValue( c, target, cast( Tko.NodeId, terms[i] ) ) then needsTemp = true
+            if TermReadsLValue_( c, target, cast( Tko.NodeId, terms[i] ) ) then needsTemp = true
         next
     end if
     if needsTemp then return LowerConcatViaTemp( c, dst, terms )

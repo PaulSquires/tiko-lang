@@ -1,0 +1,11 @@
+'' A CALL THROUGH A PROCEDURE POINTER RETURNING A 24-BYTE STRUCT PASSES THE HIDDEN RESULT
+'' POINTER, as the procedure it reaches expects. The call had no signature, so the ABI pass
+'' declined its result and emitted 'call [24 x i8] %t...' -- the struct in registers -- while
+'' RealParse wrote through a pointer: fbc prints '42 43 44', tiko printed '42 0 <garbage>',
+'' and ApexWealth's quote provider came back failed before test_net crashed. The pointer's
+'' TYPE supplies the signature now (PtrCallSigIndex_), and the result is rewritten as a
+'' direct call's is.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/procptr-agg-return.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: call [24 x i8] %

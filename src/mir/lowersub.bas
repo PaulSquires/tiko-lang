@@ -718,6 +718,7 @@ function LowerStrNumCall_ _
             case RTL_VALUINT  : vr = RTL_WSTR_VALUINT
             end select
             if WideOperand_( c, v0, sd ) = false then return false
+        elseif valFam andalso UStrToStrTemp_( c, v0, sd ) then   '' see UStrToStrTemp_
         elseif StrDescriptorOf_( c, v0, sd ) = false then
             '' A UDT WITH 'operator cast' TO A ZSTRING HAS NO DESCRIPTOR, and
             '' StrDescriptorOf_ answers no for it -- so 'valint( u )' declined while

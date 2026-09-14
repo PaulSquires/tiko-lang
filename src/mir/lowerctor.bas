@@ -694,6 +694,13 @@ function LowerCtorInit _
             argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
             continue for
         end if
+        '' ...AND SO DOES A STRING, OR A CALL RETURNING A UDT -- CtorArgLowersLate_. The loop
+        '' below lowers it again from its node for the parameter it binds; a value taken here
+        '' was dead, and for a call it was a second evaluation.
+        if CtorArgLowersLate_( c, a ) then
+            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
+            continue for
+        end if
         dim as MirValue av = LowerExpr( c, a )
         '' NOTHING TO PASS IS NOT AN ARGUMENT. Pushing it anyway put a hole in the
         '' call and counted the statement as fully lowered.
@@ -766,8 +773,11 @@ function LowerCtorInit _
                 '' ...A WIDE ONE IS CONVERTED INTO A TEMPORARY, deleted after the call.
                 '' 'DWS2( w )' over 'byref s as string' passed the wide buffer and the
                 '' constructor saw an empty string. See CtorArgValue_ for fbc's C.
+                '' ...AND SO IS ONE THAT DOES NOT OWN ITS DESCRIPTOR, as CtorArgValue_ copies it:
+                '' 'U( str( n ) )' handed over the pool temporary, which its first read freed.
                 if (IsUStringType( c, pty ) = false) andalso _
-                   TermIsWide_( c, cast( Tko.NodeId, argNode[ai2] ) ) then
+                   (TermIsWide_( c, cast( Tko.NodeId, argNode[ai2] ) ) orelse _
+                    (StrArgOwnDescriptor_( c, cast( Tko.NodeId, argNode[ai2] ), c.types->Builtin( Tko.TY_STRING ) ) = false)) then
                     dim as MirValue wsa
                     dim as long wslot = -1
                     dim as Tko.TypeId wnt = c.types->Builtin( Tko.TY_STRING )
@@ -834,6 +844,7 @@ function LowerCtorInit _
         end if
 
         if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai2] ) ) : av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
+        if av.kind = cast( ubyte, MV_NONE ) then return false   '' a deferred argument that did not lower
         dim as MirValue cv = Coerce( c, av, LowerType( pty, *c.types ) )
         argKind[ai2] = cv.kind
         argId[ai2] = cv.id
@@ -1342,6 +1353,12 @@ function LowerBaseCtorCall_ _
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
         if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
+            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
+            argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
+            continue for
+        end if
+        '' ...AND SO DOES A STRING OR A UDT-RETURNING CALL -- CtorArgLowersLate_, as in LowerCtorInit.
+        if CtorArgLowersLate_( c, a ) then
             argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
             argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
             continue for

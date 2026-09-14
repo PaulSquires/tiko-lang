@@ -1,0 +1,11 @@
+'' A BYVAL UDT WITH A DESTRUCTOR, AND A BYVAL STRING, THROUGH A PROCEDURE POINTER, TRAVEL
+'' AS A POINTER TO A COPY the caller builds -- as they do in a direct call. ParamIsIndirectUdt_
+'' and ParamIsIndirectStr_ read the parameter off the callee SYMBOL, and a call through a
+'' pointer has none, so both answered no and the 24-byte value went by value where the
+'' procedure reads a pointer: fbc prints 'true 15 true 10', and tiko crashed. PsDatePicker's
+'' parse callback takes a byval DWSTRING, which is how ApexWealth reaches it. The pointer's
+'' TYPE answers now.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/procptr-byval-indirect-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: , [24 x i8] %

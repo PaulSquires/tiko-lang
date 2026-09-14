@@ -99,4 +99,42 @@ sub SignatureFromProc _
     f->callConv = ProcCallConv_( c, pn )
 end sub
 
+'' A SIGNATURE FOR A CALL THROUGH A PROCEDURE POINTER, off the pointer's TYPE. With no function
+'' to name, the ABI pass declined the call's aggregate result: 'p.parse_( body, id )' returned a
+'' 24-byte struct in registers while the procedure it reached wrote through a hidden pointer, so
+'' ApexWealth's quote provider came back failed and test_net crashed. The call names this
+'' declaration by index (plus one, as a virtual call does); nothing links against it. One per
+'' procedure type, found again by name. -1 when the type is not a procedure's.
+function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
+    if sigT = Tko.TYPE_NONE then return -1
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return -1
+    dim as Tko.InternId nm = c.names->GetString( "$tko.procsig." & str( cast( long, sigT ) ) )
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then return i
+    next
+    dim as Tko.TypeId rt = c.types->Inner( sigT )
+    dim as MirType rmt = MT_VOID
+    if rt <> Tko.TYPE_NONE then rmt = LowerType( rt, *c.types )
+    dim as MirFunction ptr f = c.m->AddFunction( nm, rmt )
+    if f = 0 then return -1
+    f->isDefinition = false
+    '' A STRING RESULT IS A POINTER at every call site -- see LowerCallParts -- so only a real
+    '' aggregate carries the size and class RewriteCallReturn reads.
+    if (rmt = MT_AGG) andalso (IsStringType( c, rt ) = false) then
+        f->retSize = SizeOfType( c, rt )
+        f->retClass = ClassifyEightbytes( c, rt )
+    end if
+    for i as long = 0 to c.types->ProcParamCount( sigT ) - 1
+        dim as Tko.TypeId pt = c.types->ProcParam( sigT, i )
+        if c.types->Kind( pt ) = Tko.TK_REFERENCE then
+            f->AddParam( MT_PTR )
+        elseif ParamMirType( c, pt ) = MT_AGG then
+            f->AddParam( MT_AGG, cast( ulong, SizeOfType( c, pt ) ), ClassifyEightbytes( c, pt ) )
+        else
+            f->AddParam( ParamMirType( c, pt ) )
+        end if
+    next
+    return c.m->functions.Count - 1
+end function
+
 end namespace

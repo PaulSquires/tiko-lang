@@ -435,6 +435,17 @@ end function
 function WideTermAsUStr_ _
     ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
 
+    '' A CHAIN WITH A USTRING TERM IS A USTRING CHAIN, whatever else is in it. Measured, fbc
+    '' builds '"exactly " & wchr( 34 ) & u' with fb_UStrConcat alone, the literals and the
+    '' wchr as UTF-16; the wide route below passed u's descriptor to fb_WstrConcatWA as
+    '' narrow text, so "VFV" came out "V" and ApexWealth's lookup error named nothing.
+    if c.ast->Kind( Unparen_( c, term ) ) = Tko.N_BINARY then
+        dim as FB.Array( of ulong ) uterms
+        FlattenConcat( c, Unparen_( c, term ), uterms )
+        if uterms.Count >= 2 then
+            if ConcatTermsAreU_( c, uterms ) then return ConcatTermsToTempDesc_( c, uterms, outv )
+        end if
+    end if
     dim as MirValue wp
     '' A CONCATENATION HAS NO ADDRESS AND NO SINGLE OPERAND. It is built into a
     '' wide temporary first and converted from THAT -- measured, 'u = w & "z"' is

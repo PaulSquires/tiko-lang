@@ -1,0 +1,11 @@
+'' A CALL RETURNING A UDT, PASSED TO A BYREF UDT CONSTRUCTOR PARAMETER, IS EVALUATED ONCE.
+'' LowerCtorInit lowered it for the overload pick and then took the address of the node
+'' again for the byref parameter, so FromInner ran twice: tiko printed 2 where fbc prints 1.
+'' Measured, fbc calls it once into 'TMP$3$1' and passes '&TMP$3$1'. The golden holds one
+'' call in ByrefUdt.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-udt-call-arg-once.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ctor-udt-call-arg-once.out

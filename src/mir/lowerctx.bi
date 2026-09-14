@@ -270,6 +270,13 @@ declare function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
 declare function SameLValue _
     ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+declare function TermReadsLValue_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
+declare function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+declare function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+declare function WideAssignViaTemp_ _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 declare function IsStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 declare function IsFixedStrArray_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 declare function LowerStringAssign _
@@ -390,6 +397,8 @@ declare function EmitRtl _
     declare sub SignatureFromProc _
         ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
           byval withSret as boolean, byval withThis as boolean )
+    '' A procedure POINTER's signature, as a declaration a call names by index -- lowersig.bas.
+    declare function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     declare function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     declare function IsStaticLocal( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     declare function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
@@ -1089,12 +1098,14 @@ declare function EmitRtl _
     '' A byval UDT parameter that fbc passes as a POINTER to a caller-built copy.
     declare function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ParamIsIndirectUdt_ _
-        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+          byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
     '' ...and a byval var-length STRING parameter, which is the same shape with the
     '' string runtime doing the copying.
     declare function ByvalStrIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ParamIsIndirectStr_ _
-        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+          byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
     declare function ByvalStrTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue, byref outSlot as long ) as boolean

@@ -282,6 +282,42 @@ function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirV
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' A USTRING READ BY A NARROW-ONLY ENTRY POINT IS CONVERTED FIRST. Measured, fbc lowers
+'' 'valint( u )' to 'fb_VALINT( fb_UStrToStr( u, -1 ) )', and val, vallng, valuint and
+'' valulng the same way. Handing fb_VALINT the ustring's own descriptor read its UTF-16
+'' bytes as narrow and stopped at the first NUL: "120" was 1, ApexWealth's saved window
+'' placement. False, emitting nothing, for anything that is not a ustring.
+function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    if e = Tko.NODE_NONE then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( ut ) = Tko.TK_REFERENCE then ut = c.types->Unqualify( c.types->Inner( ut ) )
+    if c.types->Kind( ut ) <> Tko.TK_BUILTIN then return false
+    if c.types->BuiltinOf( ut ) <> Tko.TY_USTRING then return false
+    dim as FB.Array( of ulong ) args
+    if EmitStrTerm( c, args, e, true ) = false then return false
+    outv = EmitRtl( c, RTL_USTR_TO_STR, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' A STRING ARGUMENT TO A CONSTRUCTOR, by type or -- an untyped wide call -- by shape.
+'' LowerCtorInit binds each to its parameter by lowering its NODE again (a descriptor, a
+'' temporary, a wide buffer), so the value its first pass took was dead -- and for a call a
+'' SECOND EVALUATION whose ustring pool temporary nothing freed. fbsqlite's 'DbValue(
+'' hFromUtf8( raw, n ) )' leaked one per text column until the 256-entry pool ran dry and
+'' every later trim, str and ustring result came back empty. Measured, fbc calls it once.
+''
+'' ...AND A CALL RETURNING A UDT, for the same reason: a byref UDT parameter takes the address
+'' of the node again, so 'HolderRU( FromInner( ) )' ran FromInner twice. Measured, fbc calls it
+'' once, into 'TMP$3$1', and passes '&TMP$3$1'.
+function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+    dim as Tko.TypeId t = c.info->TypeOf_( a )
+    if t = Tko.TYPE_NONE then return TermIsWide_( c, a )
+    if IsStringType( c, c.types->Unqualify( t ) ) then return true
+    if IsWideString_( c, t ) then return true
+    if c.ast->Kind( a ) <> Tko.N_CALL then return false
+    return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
+end function
+
 '' A 'byref as [const] wstring' CONSTRUCTOR PARAMETER TAKES WIDE CHARACTERS, as at a call
 '' (lowercall.bas): what WideOperand_ gives -- a wide argument, or a narrow LITERAL
 '' widened in place -- else a narrow string through NarrowToWideTemp_. fbc passes

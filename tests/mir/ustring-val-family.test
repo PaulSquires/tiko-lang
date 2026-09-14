@@ -1,0 +1,12 @@
+'' 'valint( u )' over a ustring is fb_VALINT( fb_UStrToStr( u, -1 ) ), measured, and so are
+'' val and vallng, over a variable and over an FB.Array element alike. fb_VALINT handed the
+'' UTF-16 descriptor read "120" as 1 -- ApexWealth's saved window placement.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-val-family.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrToStr(
+'' EXPECT-OUT: fb_VALINT(
+'' EXPECT-OUT: fb_VALLNG(
+'' EXPECT-OUT: fb_VAL(

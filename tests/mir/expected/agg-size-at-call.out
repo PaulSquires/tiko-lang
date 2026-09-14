@@ -78,8 +78,10 @@ func i32 main(i32 $0, ptr $1) {
   local ptr s
   local agg got size 16
   local agg $abi5 size 16
+  local agg $abi6 size 16
   entry0:
     %44 = alloca ptr $abi5
+    %45 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -125,7 +127,8 @@ func i32 main(i32 $0, ptr $1) {
     %34 = load %33
     %35 = field.addr %34, 8
     %36 = load %35
-    %37 = call.ind agg %36(%33)
+    call.ind void %36(@$abi6, %33)
+    %37 = load @$abi6
     store @got, %37
     %38 = field.addr @got, 0
     %39 = load %38

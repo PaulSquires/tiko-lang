@@ -80,9 +80,8 @@ func i32 main(i32 $0, ptr $1) {
   local agg u1 size 40
   local agg $tmp3 size 24
   local agg u2 size 40
-  local agg $tmp5 size 40
+  local agg $tmp5 size 24
   local agg $tmp6 size 24
-  local agg $tmp7 size 24
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -121,83 +120,63 @@ func i32 main(i32 $0, ptr $1) {
     %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
     call.rtl void fb_PrintString(0, %22, 1)
     %23 = alloca ptr u2
-    call void _ZN1UC1Ev(@u2)
     %24 = alloca ptr $tmp5
-    %25 = alloca ptr $tmp6
-    %26 = field.addr @$tmp6, 0
+    %25 = field.addr @$tmp5, 0
+    store %25, 0
+    %26 = field.addr @$tmp5, 8
     store %26, 0
-    %27 = field.addr @$tmp6, 8
+    %27 = field.addr @$tmp5, 16
     store %27, 0
-    %28 = field.addr @$tmp6, 16
-    store %28, 0
-    %29 = load @n
-    %30 = const i64 1
-    %31 = sext %29
-    %32 = add %31, %30
-    %33 = call.rtl ptr fb_LongintToStr(%32)
-    %34 = call.rtl ptr fb_StrAssign(@$tmp6, -1, %33, -1, 0)
-    call void _ZN1UC1ER8FBSTRING(@$tmp5, @$tmp6)
-    %35 = load @$tmp5
-    store @u2, %35
-    call.rtl void fb_StrDelete(@$tmp6)
-    %36 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 5)
-    call.rtl void fb_PrintString(0, %36, 0)
-    %37 = field.addr @u2, 0
+    %28 = load @n
+    %29 = const i64 1
+    %30 = sext %28
+    %31 = add %30, %29
+    %32 = call.rtl ptr fb_LongintToStr(%31)
+    %33 = call.rtl ptr fb_StrAssign(@$tmp5, -1, %32, -1, 0)
+    call void _ZN1UC1ER8FBSTRING(@u2, @$tmp5)
+    call.rtl void fb_StrDelete(@$tmp5)
+    %34 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 5)
+    call.rtl void fb_PrintString(0, %34, 0)
+    %35 = field.addr @u2, 0
+    %36 = load %35
+    call.rtl void fb_PrintLongint(0, %36, 0)
+    %37 = field.addr @u2, 8
     %38 = load %37
     call.rtl void fb_PrintLongint(0, %38, 0)
-    %39 = field.addr @u2, 8
-    %40 = load %39
-    call.rtl void fb_PrintLongint(0, %40, 0)
-    %41 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 2)
-    call.rtl void fb_PrintString(0, %41, 0)
-    %42 = field.addr @u2, 16
-    call.rtl void fb_PrintString(0, %42, 0)
-    %43 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_PrintString(0, %43, 1)
-    %44 = alloca ptr $tmp7
-    %45 = field.addr @$tmp7, 0
+    %39 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 2)
+    call.rtl void fb_PrintString(0, %39, 0)
+    %40 = field.addr @u2, 16
+    call.rtl void fb_PrintString(0, %40, 0)
+    %41 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_PrintString(0, %41, 1)
+    %42 = alloca ptr $tmp6
+    %43 = field.addr @$tmp6, 0
+    store %43, 0
+    %44 = field.addr @$tmp6, 8
+    store %44, 0
+    %45 = field.addr @$tmp6, 16
     store %45, 0
-    %46 = field.addr @$tmp7, 8
-    store %46, 0
-    %47 = field.addr @$tmp7, 16
-    store %47, 0
-    %48 = load @n
-    %49 = const i64 2
-    %50 = sext %48
-    %51 = add %50, %49
-    %52 = call.rtl ptr fb_LongintToStr(%51)
-    %53 = call.rtl ptr fb_StrAssign(@$tmp7, -1, %52, -1, 0)
-    call void VIASUB(@$tmp7)
-    call.rtl void fb_StrDelete(@$tmp7)
+    %46 = load @n
+    %47 = const i64 2
+    %48 = sext %46
+    %49 = add %48, %47
+    %50 = call.rtl ptr fb_LongintToStr(%49)
+    %51 = call.rtl ptr fb_StrAssign(@$tmp6, -1, %50, -1, 0)
+    call void VIASUB(@$tmp6)
+    call.rtl void fb_StrDelete(@$tmp6)
     call void _ZN1UD1Ev(@u2)
     call void _ZN1UD1Ev(@u1)
-    %54 = const i32 0
-    call.rtl void fb_End(%54)
-    %55 = load @$tmp0
-    ret %55
+    %52 = const i32 0
+    call.rtl void fb_End(%52)
+    %53 = load @$tmp0
+    ret %53
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_IntToStr(i32 $0)
 declare void fb_StrDelete(ptr $0)
-declare void _ZN1UC1Ev(ptr $0)
 declare ptr fb_LongintToStr(i64 $0)
 declare void _ZN1UD1Ev(ptr $0)
 declare void fb_End(i32 $0)
-func void _ZN1UC1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = call.rtl ptr memset(%1, 0, 8)
-    %3 = field.addr $0, 8
-    %4 = call.rtl ptr memset(%3, 0, 8)
-    %5 = field.addr $0, 16
-    %6 = field.addr %5, 0
-    store %6, 0
-    %7 = field.addr %5, 8
-    store %7, 0
-    %8 = field.addr %5, 16
-    store %8, 0
-    ret
-}
 func void _ZN1UD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 16
@@ -205,4 +184,4 @@ func void _ZN1UD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 5 functions, 5 blocks, 155 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 140 insts, 0 statements not lowered, 0 scope imbalance

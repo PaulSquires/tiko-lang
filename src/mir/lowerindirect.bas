@@ -57,17 +57,36 @@ end function
 
 '' The same question about a PARAMETER, which needs the passing mode as well as the
 '' type: a BYREF parameter is already a pointer and is not this.
-function ParamIsIndirectUdt_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+''
+'' THROUGH A PROCEDURE POINTER THE SIGNATURE ANSWERS, not the callee: the call has no
+'' procedure symbol to read a parameter off, so both of these said no, and a byval UDT with
+'' a destructor or a byval string went BY VALUE where the procedure reads a pointer to its
+'' copy. fbc prints the text; tiko crashed. PsDatePicker's parse callback takes a byval
+'' DWSTRING, which is how ApexWealth reaches it. A byref parameter's type there is a
+'' reference, and is not this.
+private function SigParamType_( byref c as Ctx, byval sigT as Tko.TypeId, byval idx as long ) as Tko.TypeId
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return Tko.TYPE_NONE
+    if (idx < 0) orelse (idx >= c.types->ProcParamCount( sigT )) then return Tko.TYPE_NONE
+    dim as Tko.TypeId pt = c.types->ProcParam( sigT, idx )
+    if c.types->Kind( pt ) = Tko.TK_REFERENCE then return Tko.TYPE_NONE
+    return pt
+end function
 
+function ParamIsIndirectUdt_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+      byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+
+    if sigT <> Tko.TYPE_NONE then return ByvalUdtIndirect_( c, SigParamType_( c, sigT, idx ) )
     if ParamIsByref( c, callee, idx ) then return false
     if ParamIsArray( c, callee, idx ) then return false
     return ByvalUdtIndirect_( c, ParamTypeAt( c, callee, idx ) )
 end function
 
 function ParamIsIndirectStr_ _
-    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+      byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
 
+    if sigT <> Tko.TYPE_NONE then return ByvalStrIndirect_( c, SigParamType_( c, sigT, idx ) )
     if ParamIsByref( c, callee, idx ) then return false
     if ParamIsArray( c, callee, idx ) then return false
     return ByvalStrIndirect_( c, ParamTypeAt( c, callee, idx ) )

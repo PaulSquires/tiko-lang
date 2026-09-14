@@ -1,0 +1,11 @@
+'' 'open( p for binary ... )' over a ustring p is fb_FileOpen( fb_UStrToStr( p, -1 ), ... ),
+'' measured, in both the function and the statement form. Passing the UTF-16 descriptor
+'' as the name opened "d" and failed with error 2 -- ApexWealth's test_parse read none
+'' of its captured bodies, and 17 checks silently never ran.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/open-ustring-filename.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrToStr(
+'' EXPECT-OUT: fb_FileOpen(

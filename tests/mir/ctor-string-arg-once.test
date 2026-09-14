@@ -1,0 +1,13 @@
+'' A STRING ARGUMENT TO A TYPE CONSTRUCTOR IS EVALUATED ONCE. LowerCtorInit lowered every
+'' argument for the overload pick and then lowered a string one AGAIN from its node for the
+'' parameter it binds, so 'dim as Holder h = Holder( FromNarrow( ) )' called FromNarrow
+'' twice and the first result -- a ustring pool temporary -- was never freed. fbsqlite's
+'' 'DbValue( hFromUtf8( raw, n ) )' did that per text column: after 256 of them every
+'' ustring trim, str and return in ApexWealth came back empty. Measured, fbc calls it once
+'' for a byref and a byval parameter alike. The golden holds one call per procedure.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-string-arg-once.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/ctor-string-arg-once.out

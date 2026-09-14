@@ -774,6 +774,13 @@ private sub WalkCalls _
                     if (si >= 0) andalso (si < r.m->functions.Count) then
                         RewriteCallArgs( r, ins, r.m->functions[si], names )
                         r.st->callsRewritten += 1
+                        '' ...AND ITS AGGREGATE RESULT, as a direct call's. A call through a procedure
+                        '' POINTER carries a signature now too (PtrCallSigIndex_), and a struct left
+                        '' in registers where the callee writes through a hidden pointer read garbage.
+                        if cast( MirType, ins.ty ) = MT_AGG then
+                            RewriteCallReturn( r, ins, r.m->functions[si], names )
+                            continue for
+                        end if
                     elseif cast( MirType, ins.ty ) = MT_AGG then
                         '' The signature is on the pointee's type, which MIR does not
                         '' carry here, so it is declined rather than approximated.
