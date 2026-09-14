@@ -256,7 +256,31 @@ private function UdtConvTemp_ _
         av = EmitMemberCall( c, chainCast, cself, MT_PTR )
     elseif byrefP then
         '' A NARROW ARGUMENT FOR A USTRING PARAMETER IS A CONVERSION -- UStrParamArgTemp_.
-        if UStrParamArgTemp_( c, argNode, cpt, av ) = false then av = LowerAddr( c, argNode )
+        if UStrParamArgTemp_( c, argNode, cpt, av ) = false then
+            '' ...A BYREF WSTRING PARAMETER TAKES THE CHARACTERS and a BYREF STRING a
+            '' DESCRIPTOR, as CtorArgValue_ has them. Both got an address, which a literal
+            '' has not got: ByrefTemp_ below then stored the literal's POINTER into a
+            '' 24-byte slot and the constructor read it as a descriptor. Measured,
+            '' 'takeWS( "q" )' over 'constructor WS( byref t as string )' crashed where
+            '' fbc writes 'fb_StrAssign( &TMP$32$0, -1, "q", 2, 0 );
+            '' _ZN2WSC1ER8FBSTRING( &TMP$33$0, &TMP$32$0 )' -- byval or byref WS alike.
+            if WideRefCtorArg_( c, argNode, cpu, av ) = false then
+                dim as boolean narrowStr = IsStringType( c, cpu ) andalso (IsUStringType( c, cpu ) = false)
+                if narrowStr andalso (StrArgOwnDescriptor_( c, argNode, cpu ) = false) then
+                    dim as long sslot = -1
+                    if ByvalStrTemp_( c, argNode, cpu, av, sslot ) then
+                        if sslot >= 0 then
+                            c.f->locals[sslot].frontendType = cpu
+                            c.strTemps.Push( cast( ulong, sslot ) )
+                        end if
+                    end if
+                elseif narrowStr then
+                    if StrDescriptorOf_( c, argNode, av ) = false then av = LowerAddr( c, argNode )
+                else
+                    av = LowerAddr( c, argNode )
+                end if
+            end if
+        end if
         '' AN RVALUE HAS NO ADDRESS, AND THE CONVERSION STILL HAPPENS. The
         '' constructor that does it may take its operand BYREF -- fb's own
         '' 'constructor foo( byref v as byte )' is the corpus's shape -- and a

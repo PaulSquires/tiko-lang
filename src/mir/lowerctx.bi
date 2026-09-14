@@ -471,6 +471,9 @@ declare function EmitRtl _
     declare function PickCtor _
         ( byref c as Ctx, byval ctors as Tko.SymbolId, _
           byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
+    '' A UDT parameter reached through that UDT's own constructor -- lowerctor.bas.
+    declare function CtorUserConvCost_ _
+        ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
     '' lowerctor.bas
     declare function LowerConvCtorInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
@@ -775,6 +778,12 @@ declare function EmitRtl _
           byval count as long, byval idx as long ) as boolean
     declare function ByrefTempOf_ _
         ( byref c as Ctx, byref rv as MirValue, byval pt as Tko.TypeId ) as MirValue
+    '' A byref UDT parameter's argument of another type, converted -- lowerbyref.bas.
+    declare function ByrefConvNeeded_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function ByrefConvArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId

@@ -704,12 +704,7 @@ function LowerCallParts _
             if UserConvToScalar_( c, argNode, brPt, brCast ) then
                 a = ByrefTempOf_( c, brCast, brPt )
             end if
-            '' A PAREN-LESS PROCEDURE IS A CALL -- see ParenlessProcTemp_.
-            if a.kind = cast( ubyte, MV_NONE ) then
-                if ParenlessProcTemp_( c, argNode, brPt, a ) then
-                    if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
-                end if
-            end if
+            '' A CONVERSION, A PAREN-LESS PROCEDURE, OR THE ADDRESS -- see ByrefUdtArg_.
             if (a.kind = cast( ubyte, MV_NONE )) andalso (ByrefUdtArg_( c, argNode, brPt, a ) = false) then return CallFailed_( c, v, __LINE__ )
             '' AN ARGUMENT WITH NO ADDRESS -- a literal, a computed value, or the
             '' DEFAULT of an omitted one -- still has to be passed by reference, and a

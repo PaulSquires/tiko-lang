@@ -1,0 +1,10 @@
+'' A byref UDT parameter given an argument of another type -- a scalar, a string, wide
+'' text, a paren-less call -- is converted through the parameter type's constructor into
+'' a statement temporary, at a call, a method, a SUB statement and a constructor's own
+'' parameter. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-byref-conv-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-byref-conv-arg.out

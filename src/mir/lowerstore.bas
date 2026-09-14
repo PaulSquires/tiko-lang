@@ -378,6 +378,7 @@ function PickCtor _
                         cost = Tko.Check.ConversionCost( ae, pt2, *c.types )
                     else
                         cost = Tko.Check.ConversionCost( at2, pt2, *c.types )
+                        if cost >= Tko.Check.CONV_NONE then cost = CtorUserConvCost_( c, at2, pt2 )
                     end if
                     ai += 1
                     if cost >= Tko.Check.CONV_NONE then

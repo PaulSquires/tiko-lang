@@ -115,6 +115,14 @@ private function CtorArgValue_ _
         '' STRINGS FIRST, because a byref string parameter wants the DESCRIPTOR that
         '' StrDescriptorOf_ above knows how to find, not a plain address.
         if c.types->Kind( u ) = Tko.TK_REFERENCE then
+            '' A BYREF UDT PARAMETER GIVEN ANOTHER TYPE CONVERTS FIRST -- see ByrefConvArg_.
+            '' Measured, fbc's 'dim as X xx = X( 13 )' over 'constructor X( byref w as W )'
+            '' is '_ZN1WC1Ei( &TMP$38$0, 13 );  _ZN1XC1ER1W( &XX$0, &TMP$38$0 )'. The
+            '' address arm below handed a variable its own address to be read as a W, and a
+            '' literal a bare W-sized temporary that no constructor ever ran on.
+            if ByrefConvArg_( c, argNode, u, outv ) then
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
             '' A BYREF SCALAR TAKES AN ADDRESS TOO. This asked for a UDT, so
             '' 'constructor UDT( byref as const integer )' -- which is what an
             '' 'extern "C++"' class writes -- was handed the VALUE and clang
@@ -150,6 +158,46 @@ private function CtorArgValue_ _
         end if
     end if
     return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' A UDT PARAMETER THE ARGUMENT REACHES THROUGH ONE OF THAT UDT'S OWN CONSTRUCTORS, for
+'' PickCtor. ConversionCost knows only the standard conversions, so 'dim as X x2 = 13'
+'' over 'constructor X( byref w as W )' and 'constructor W( byval v as long )' found no
+'' viable constructor and the declaration declined, where fbc writes
+'' '_ZN1WC1Ei( &TMP$38$0, 13 ); _ZN1XC1ER1W( &X2$0, &TMP$38$0 )'. Priced as the
+'' frontend's UserConvCost_ prices it -- CONV_USERDEF plus the standard conversion into
+'' the constructor's parameter -- and one level only: a copy constructor never counts.
+'' Here rather than beside PickCtor, which is at its size limit.
+function CtorUserConvCost_ _
+    ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+
+    if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return Tko.Check.CONV_NONE
+    dim as Tko.TypeId t = c.types->Unqualify( pt )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.Check.CONV_NONE
+    dim as long best = Tko.Check.CONV_NONE
+    dim as Tko.SymbolId cur = StructorOf( c, t, "__ctor" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if ParamCountOf( c, cur ) = 1 then
+            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                dim as Tko.TypeId cu = c.types->Unqualify( cpt )
+                if c.types->Kind( cu ) = Tko.TK_REFERENCE then cu = c.types->Unqualify( c.types->Inner( cu ) )
+                if cu <> t then
+                    dim as long sc = Tko.Check.ConversionCost( at, cpt, *c.types )
+                    if sc < Tko.Check.CONV_NONE then
+                        if (Tko.Check.CONV_USERDEF + sc) < best then best = Tko.Check.CONV_USERDEF + sc
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return best
 end function
 
 '' A CHARACTER-POINTER CONVERTING CONSTRUCTOR, chosen by the initialiser's WIDTH.
@@ -331,8 +379,18 @@ function LowerConvCtorInit_ _
         '' A STRING keeps the descriptor path below, and an argument with no address
         '' of its own falls through to the value path -- which is what LowerAddr
         '' answering nothing means.
+        ''
+        '' ...AND A BYREF UDT PARAMETER GIVEN ANOTHER TYPE CONVERTS FIRST, the rule a call's
+        '' argument follows -- see ByrefConvArg_. A string argument too, which the arm below
+        '' sends to the descriptor path.
+        dim as MirValue cva
+        if ByrefConvArg_( c, init_, pt, cva ) then
+            if cva.kind = cast( ubyte, MV_NONE ) then return false
+            av = cva
+            tookAddr = true
+        end if
         dim as Tko.TypeId iu = c.types->Unqualify( it )
-        if IsStringType( c, iu ) = false then
+        if (tookAddr = false) andalso (IsStringType( c, iu ) = false) then
             dim as MirValue ra = LowerAddr( c, init_ )
             '' ...AND AN RVALUE GETS A TEMPORARY. 'dim c as UDT = 2' over a byref
             '' parameter has no address to take, and fbc materialises one: measured,
@@ -549,6 +607,29 @@ function LowerCtorInit _
 
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return false
+
+    '' A BYREF UDT PARAMETER WHOSE ARGUMENT NEEDS CONVERTING is EmitTypeCtorInto_'s, and it
+    '' is decided BEFORE anything is lowered. This path lowers every argument as a plain
+    '' value and then binds a byref parameter to its address, so once PickCtor could see
+    '' 'constructor X( byref w as W )' as viable for 'X( 13 )' it passed an empty operand
+    '' (an ICE in the emitter) and 'X( n )' bound n's own address as the W. The other
+    '' path converts through CtorArgValue_; declining here costs nothing, nothing having
+    '' been emitted.
+    scope
+        dim as FB.Array( of ulong ) preT
+        for i as long = 0 to cp->count - 1
+            preT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
+        next
+        dim as Tko.SymbolId pre = PickCtor( c, ctors, preT )
+        if pre <> Tko.SYMBOL_NONE then
+            for i as long = 0 to cp->count - 1
+                if ParamIsByref( c, pre, i ) then
+                    dim as Tko.NodeId pa = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+                    if ByrefConvNeeded_( c, pa, ParamTypeAt( c, pre, i ) ) then return false
+                end if
+            next
+        end if
+    end scope
 
     '' Argument VALUES first, then the pick: the types are needed to choose, and the
     '' values must be evaluated in source order regardless of which overload wins.

@@ -163,43 +163,93 @@ private function HasUdtConvCtor_ _
     return false
 end function
 
-'' A UDT ARGUMENT FOR A BYREF PARAMETER OF ANOTHER UDT TYPE IS CONVERTED -- through the
-'' parameter type's constructor into a temporary, whose ADDRESS is bound and which is
-'' destroyed with the statement's other temporaries -- see ByvalUdtCopyArg_; fbc's
-'' 'print takeDW( n1 ) + cnt( ); cnt( )' prints ' 1001[~DW1001] 1'. Measured on fbc: 'TakeDW( b )' over 'byref d as DW'
-'' with 'constructor DW( byref b as BS )' prints 'take 107', and a type with a destructor
-'' prints 'dd 1', 'dtor', then 'after'. tiko bound '@b' -- the BS's own bytes read as a
-'' DW -- and printed 100; AfxNova's 'this.Add( bs )' in DWSTRING.+= is the same shape.
+'' A BYREF UDT PARAMETER GIVEN AN ARGUMENT OF ANOTHER TYPE IS A CONVERSION: the parameter
+'' type's constructor builds a temporary, its ADDRESS is bound, and it dies with the
+'' statement's other temporaries -- see ByvalUdtCopyArg_. Measured on fbc, over
+'' 'constructor W( byval v as long )' and 'byref wr as W':
 ''
-'' Every other argument takes its own address, as before. False only when a conversion
-'' is required and could not be built: the caller declines rather than pass the source.
-private function ByrefUdtArg_ _
+''     takeWR( 6 )     _ZN1WC1Ei( &TMP$15$0, 6 );  int32 vr$4 = TAKEWR( &TMP$15$0 );
+''     takeWR( n )     _ZN1WC1Ei( &TMP$19$0, N$0 );
+''     takeWR( d )     _ZN1WC1Ei( &TMP$23$0, fb_D2I( D$0 ) );
+''     takeWS( st )    _ZN2WSC1ER8FBSTRING( &TMP$44$0, &ST$0 );
+''
+'' -- a literal, a variable, a double and a string alike, and the same for 'byref as
+'' const W', a method's parameter and a SUB called as a statement. A UDT argument was
+'' the only one converted. A scalar took the other arms: a VARIABLE handed the callee its
+'' own address to read as a W, and a LITERAL was stored bare into a W-sized temporary, so
+'' 'takeWR( 6 )' printed 6 with no constructor and no destructor where fbc builds W( 6 ).
+'' 'TakeDW( b )' over 'constructor DW( byref b as BS )' is the UDT shape: tiko bound '@b',
+'' the BS's own bytes read as a DW; AfxNova's 'this.Add( bs )' in DWSTRING.+= is the same.
+''
+'' A UDT argument converts only when the parameter's type has a constructor for it -- a
+'' derived object is the base subobject, not a conversion -- and an untyped argument or
+'' a bare tuple list is somebody else's path. True when the argument needs converting;
+'' 'outa' is then the temporary's address, or nothing when it could not be built, and
+'' the caller declines rather than pass the source.
+function ByrefConvNeeded_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+
+    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId at0 = c.info->TypeOf_( argNode )
+    if at0 = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId au = c.types->Unqualify( at0 )
+    if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    if au = pu then return false
+    if c.types->Kind( au ) = Tko.TK_UDT then
+        if c.types->BaseDistance( au, pu ) >= 0 then return false
+        if HasUdtConvCtor_( c, pu, au ) = false then return false
+    elseif c.ast->Kind( Unparen_( c, argNode ) ) = Tko.N_TUPLE then
+        return false
+    end if
+    return true
+end function
+
+'' ...and the conversion itself, when ByrefConvNeeded_ says one is needed.
+function ByrefConvArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue ) as boolean
 
+    if ByrefConvNeeded_( c, argNode, pt ) = false then return false
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
-    dim as Tko.TypeId au = c.types->Unqualify( c.info->TypeOf_( argNode ) )
-    if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
-    dim as boolean conv = (c.types->Kind( pu ) = Tko.TK_UDT)
-    if conv then conv = (c.types->Kind( au ) = Tko.TK_UDT)
-    if conv then conv = (au <> pu)
-    if conv then conv = (c.types->BaseDistance( au, pu ) < 0)
-    if conv then conv = HasUdtConvCtor_( c, pu, au )
-    if conv = false then
-        outa = LowerAddr( c, argNode )
-        return true
-    end if
+
+    dim as MirValue none_
+    outa = none_
     dim as long ts = -1
     dim as Tko.TypeId tt = Tko.TYPE_NONE
     if UdtConvTemp_( c, argNode, pu, outa, ts, tt ) = false then
+        outa = none_
         c.blameNode = cast( ulong, argNode )
-        return false
+        return true
     end if
     if ts >= 0 then
         c.udtTemps.Push( cast( ulong, ts ) )
         c.udtTempTypes.Push( cast( ulong, tt ) )
     end if
+    return true
+end function
+
+'' The argument of a byref parameter that no earlier arm of the call took: converted when
+'' ByrefConvArg_ says so, a paren-less procedure's result in a temporary (see
+'' ParenlessProcTemp_), otherwise its own address. False when a conversion or a call is
+'' required and could not be built. THE CONVERSION IS ASKED FIRST: 'takeWR( getSeven )'
+'' over 'byref wr as W' is a call AND a conversion, and fbc writes both --
+'' 'vr = GETSEVEN( ); _ZN1WC1Ei( &TMP, vr )' -- where the procedure's arm stored the long
+'' bare into a W-sized temporary.
+private function ByrefUdtArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue ) as boolean
+
+    if ByrefConvArg_( c, argNode, pt, outa ) then
+        return (outa.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if ParenlessProcTemp_( c, argNode, pt, outa ) then
+        return (outa.kind <> cast( ubyte, MV_NONE ))
+    end if
+    outa = LowerAddr( c, argNode )
     return true
 end function
 
