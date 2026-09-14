@@ -1,0 +1,469 @@
+global var i32 hctor
+global var i32 hcopy
+global var i32 hdtor
+global var i32 hfree
+global var agg freed size 128
+global var i32 hdouble
+global var i32 hlet
+global wstr $wstr7 "n"
+global str $str8 "n"
+global var i32 skn
+global wstr $wstr10 "Mars 2030"
+global var i32 skw
+global wstr $wstr12 "Mars"
+global str $str13 " 2027"
+global wstr $wstr14 "Mars 2027"
+global str $str15 "dim ok"
+global str $str16 "dim bad"
+global str $str17 " 2028"
+global wstr $wstr18 "Mars 2028"
+global str $str19 "let ok"
+global str $str20 "let bad"
+global str $str21 " 2029"
+global wstr $wstr22 "Mars 2029"
+global str $str23 "nk ok"
+global str $str24 "nk bad"
+global str $str25 " 2030"
+global str $str26 "sk wide="
+global str $str27 " long="
+global str $str28 "hs ctor="
+global str $str29 " copy="
+global str $str30 " let="
+global str $str31 " dtor="
+global str $str32 " double="
+global str $str33 "done"
+func void _ZN2HSC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @@hctor
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@hctor, %8
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = const i64 256
+    %12 = call.rtl ptr calloc(%11, 1)
+    store %10, %12
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr calloc(i64 $0, i64 $1)
+func void _ZN2HSC1ERw(ptr $0, ptr $1) {
+  local ptr this
+  local ptr w
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr w
+    store @w, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
+    %6 = load @@hctor
+    %7 = const i64 1
+    %8 = trunc %7
+    %9 = add %6, %8
+    store @@hctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = const i64 256
+    %13 = call.rtl ptr calloc(%12, 1)
+    store %11, %13
+    %14 = load @this
+    %15 = field.addr %14, 0
+    %16 = load %15
+    %17 = load @w
+    %18 = call.rtl ptr fb_WstrAssign(%16, 0, %17)
+    ret
+}
+declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
+func void _ZN2HSC1ERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
+    %6 = load @@hcopy
+    %7 = const i64 1
+    %8 = trunc %7
+    %9 = add %6, %8
+    store @@hcopy, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = const i64 256
+    %13 = call.rtl ptr calloc(%12, 1)
+    store %11, %13
+    %14 = load @this
+    %15 = field.addr %14, 0
+    %16 = load %15
+    %17 = load @o
+    %18 = field.addr %17, 0
+    %19 = load %18
+    %20 = call.rtl ptr fb_WstrAssign(%16, 0, %19)
+    ret
+}
+func void _ZN2HSD1Ev(ptr $0) {
+  local ptr this
+  local i32 i
+  local i32 $tmp2
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @@hdtor
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = add %2, %4
+    store @@hdtor, %5
+    %6 = alloca ptr i
+    %7 = const i64 0
+    %8 = trunc %7
+    store @i, %8
+    %9 = alloca ptr $tmp2
+    %10 = load @@hfree
+    %11 = const i64 1
+    %12 = sext %10
+    %13 = sub %12, %11
+    %14 = trunc %13
+    store @$tmp2, %14
+    br for.head1
+  for.head1:
+    %15 = load @i
+    %16 = load @$tmp2
+    %17 = icmp.sle %15, %16
+    condbr %17, for.body2, for.exit4
+  for.body2:
+    %18 = load @i
+    %19 = sext %18
+    %20 = const i64 8
+    %21 = mul %19, %20
+    %22 = ptr.add @@freed, %21
+    %23 = load %22
+    %24 = load @this
+    %25 = field.addr %24, 0
+    %26 = load %25
+    %27 = icmp.eq %23, %26
+    condbr %27, if.then6, if.else7
+  for.step3:
+    %32 = load @i
+    %33 = const i32 1
+    %34 = add %32, %33
+    store @i, %34
+    br for.head1
+  for.exit4:
+    %35 = load @@hfree
+    %36 = sext %35
+    %37 = const i64 8
+    %38 = mul %36, %37
+    %39 = ptr.add @@freed, %38
+    %40 = load @this
+    %41 = field.addr %40, 0
+    %42 = load %41
+    store %39, %42
+    %43 = load @@hfree
+    %44 = const i64 1
+    %45 = trunc %44
+    %46 = add %43, %45
+    store @@hfree, %46
+    ret
+  if.join5:
+    br for.step3
+  if.then6:
+    %28 = load @@hdouble
+    %29 = const i64 1
+    %30 = trunc %29
+    %31 = add %28, %30
+    store @@hdouble, %31
+    ret
+  if.else7:
+    br if.join5
+}
+func void _ZN2HSaSERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @@hlet
+    %4 = const i64 1
+    %5 = trunc %4
+    %6 = add %3, %5
+    store @@hlet, %6
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = load %8
+    %10 = load @o
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = call.rtl ptr fb_WstrAssign(%9, 0, %12)
+    ret
+}
+func ptr _ZN2HScvwEv(ptr $0) {
+  local ptr $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const ptr 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    store @$tmp0, %6
+    %7 = load @$tmp0
+    ret %7
+}
+func ptr _Z2MKi(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = load @$tmp0
+    call void _ZN2HSC1ERw(%4, @@$wstr7)
+    %5 = load @$tmp0
+    ret %5
+}
+func ptr _Z2MKRw(ptr $0, ptr $1) {
+  local ptr $tmp0
+  local ptr s
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr s
+    store @s, $1
+    %4 = load @$tmp0
+    %5 = load @s
+    call void _ZN2HSC1ERw(%4, %5)
+    %6 = load @$tmp0
+    ret %6
+}
+func ptr _Z2NKi(i32 $0) {
+  local agg $tmp0 size 24
+  local i32 n
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = field.addr @$tmp0, 0
+    store %2, 0
+    %3 = field.addr @$tmp0, 8
+    store %3, 0
+    %4 = field.addr @$tmp0, 16
+    store %4, 0
+    %5 = alloca ptr n
+    store @n, $0
+    %6 = call.rtl ptr fb_StrAssign(@$tmp0, -1, @@$str8, 2, 0)
+    %7 = call.rtl ptr fb_StrAllocTempResult(@$tmp0)
+    ret %7
+}
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrAllocTempResult(ptr $0)
+func ptr _Z2NKRw(ptr $0, ptr $1) {
+  local ptr $tmp0
+  local ptr s
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr s
+    store @s, $1
+    %4 = load @$tmp0
+    %5 = load @s
+    call void _ZN2HSC1ERw(%4, %5)
+    %6 = load @$tmp0
+    ret %6
+}
+func void _Z2SKi(i32 $0) {
+  local i32 n
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = load @@skn
+    %3 = const i64 1
+    %4 = trunc %3
+    %5 = add %2, %4
+    store @@skn, %5
+    ret
+}
+func void _Z2SKRw(ptr $0) {
+  local ptr s
+  entry0:
+    %1 = alloca ptr s
+    store @s, $0
+    %2 = load @s
+    %3 = call.rtl i32 fb_WstrCompare(%2, @@$wstr10)
+    %4 = icmp.eq %3, 0
+    condbr %4, if.then2, if.else3
+  if.join1:
+    ret
+  if.then2:
+    %5 = load @@skw
+    %6 = const i64 1
+    %7 = trunc %6
+    %8 = add %5, %7
+    store @@skw, %8
+    br if.join1
+  if.else3:
+    br if.join1
+}
+declare i32 fb_WstrCompare(ptr $0, ptr $1)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg a size 8
+  local agg c size 8
+  local ptr $tmp3
+  local agg $tmp4 size 8
+  local ptr $tmp5
+  local agg d size 8
+  local ptr $tmp7
+  local ptr $tmp8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    call void _ZN2HSC1ERw(@a, @@$wstr12)
+    %5 = alloca ptr c
+    %6 = call ptr _ZN2HScvwEv(@a)
+    %7 = call.rtl ptr fb_WstrConcatWA(%6, @@$str13, 6)
+    %8 = alloca ptr $tmp3
+    store @$tmp3, %7
+    %9 = load @$tmp3
+    %10 = call ptr _Z2MKRw(@c, %9)
+    %11 = load @$tmp3
+    call.rtl void fb_WstrDelete(%11)
+    %12 = field.addr @c, 0
+    %13 = load %12
+    %14 = call.rtl i32 fb_WstrCompare(%13, @@$wstr14)
+    %15 = icmp.eq %14, 0
+    %18 = alloca ptr $tmp4
+    %21 = alloca ptr $tmp5
+    %31 = alloca ptr d
+    %34 = alloca ptr $tmp7
+    %46 = alloca ptr $tmp8
+    condbr %15, if.then2, if.else3
+  if.join1:
+    %19 = call ptr _ZN2HScvwEv(@a)
+    %20 = call.rtl ptr fb_WstrConcatWA(%19, @@$str17, 6)
+    store @$tmp5, %20
+    %22 = load @$tmp5
+    %23 = call ptr _Z2MKRw(@$tmp4, %22)
+    call void _ZN2HSaSERS_(@c, @$tmp4)
+    call void _ZN2HSD1Ev(@$tmp4)
+    %24 = load @$tmp5
+    call.rtl void fb_WstrDelete(%24)
+    %25 = field.addr @c, 0
+    %26 = load %25
+    %27 = call.rtl i32 fb_WstrCompare(%26, @@$wstr18)
+    %28 = icmp.eq %27, 0
+    condbr %28, if.then5, if.else6
+  if.then2:
+    %16 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 6)
+    call.rtl void fb_PrintString(0, %16, 1)
+    br if.join1
+  if.else3:
+    %17 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str16, 7)
+    call.rtl void fb_PrintString(0, %17, 1)
+    br if.join1
+  if.join4:
+    %32 = call ptr _ZN2HScvwEv(@a)
+    %33 = call.rtl ptr fb_WstrConcatWA(%32, @@$str21, 6)
+    store @$tmp7, %33
+    %35 = load @$tmp7
+    %36 = call ptr _Z2NKRw(@d, %35)
+    %37 = load @$tmp7
+    call.rtl void fb_WstrDelete(%37)
+    %38 = field.addr @d, 0
+    %39 = load %38
+    %40 = call.rtl i32 fb_WstrCompare(%39, @@$wstr22)
+    %41 = icmp.eq %40, 0
+    condbr %41, if.then8, if.else9
+  if.then5:
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 6)
+    call.rtl void fb_PrintString(0, %29, 1)
+    br if.join4
+  if.else6:
+    %30 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str20, 7)
+    call.rtl void fb_PrintString(0, %30, 1)
+    br if.join4
+  if.join7:
+    %44 = call ptr _ZN2HScvwEv(@a)
+    %45 = call.rtl ptr fb_WstrConcatWA(%44, @@$str25, 6)
+    store @$tmp8, %45
+    %47 = load @$tmp8
+    call void _Z2SKRw(%47)
+    %48 = load @$tmp8
+    call.rtl void fb_WstrDelete(%48)
+    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str26, 8)
+    call.rtl void fb_PrintString(0, %49, 0)
+    %50 = load @@skw
+    call.rtl void fb_PrintInt(0, %50, 0)
+    %51 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str27, 6)
+    call.rtl void fb_PrintString(0, %51, 0)
+    %52 = load @@skn
+    call.rtl void fb_PrintInt(0, %52, 1)
+    call void _ZN2HSD1Ev(@d)
+    call void _ZN2HSD1Ev(@c)
+    call void _ZN2HSD1Ev(@a)
+    %53 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str28, 8)
+    call.rtl void fb_PrintString(0, %53, 0)
+    %54 = load @@hctor
+    call.rtl void fb_PrintInt(0, %54, 0)
+    %55 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str29, 6)
+    call.rtl void fb_PrintString(0, %55, 0)
+    %56 = load @@hcopy
+    call.rtl void fb_PrintInt(0, %56, 0)
+    %57 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str30, 5)
+    call.rtl void fb_PrintString(0, %57, 0)
+    %58 = load @@hlet
+    call.rtl void fb_PrintInt(0, %58, 0)
+    %59 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str31, 6)
+    call.rtl void fb_PrintString(0, %59, 0)
+    %60 = load @@hdtor
+    call.rtl void fb_PrintInt(0, %60, 0)
+    %61 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str32, 8)
+    call.rtl void fb_PrintString(0, %61, 0)
+    %62 = load @@hdouble
+    call.rtl void fb_PrintInt(0, %62, 1)
+    %63 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str33, 4)
+    call.rtl void fb_PrintString(0, %63, 1)
+    %64 = const i32 0
+    call.rtl void fb_End(%64)
+    %65 = load @$tmp0
+    ret %65
+  if.then8:
+    %42 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str23, 5)
+    call.rtl void fb_PrintString(0, %42, 1)
+    br if.join7
+  if.else9:
+    %43 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str24, 6)
+    call.rtl void fb_PrintString(0, %43, 1)
+    br if.join7
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
+declare void fb_WstrDelete(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 13 functions, 32 blocks, 299 insts, 0 statements not lowered, 0 scope imbalance

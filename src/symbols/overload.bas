@@ -635,6 +635,53 @@ private function ConcatHasUString_ _
     return ConcatHasUString_( c, bp->rhs )
 end function
 
+'' Whether an UNTYPED '+' or '&' concatenation has a term whose UDT casts to WSTRING and
+'' to no other string -- see ResolveCall_. AfxNova's DWSTRING concatenates that way,
+'' through 'cast( ) byref as const wstring', and Check leaves the result untyped because
+'' lowering decides the width per term. fbc types it: measured, '#print typeof( a + " 2026" )'
+'' over such a type is WSTRING * 1, and 'mk( a + " 2027" )' calls the wstring overload
+'' of 'mk' even with a 'byval n as long' one declared first.
+private function ConcatHasWideCastTerm_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.TypeId t = TypeOf_( c, id )
+    if c.ast->Kind( id ) = Tko.N_BINARY then
+        '' A TYPED binary is some other operation -- a user 'operator +' among them.
+        if t <> Tko.TYPE_NONE then return false
+        dim as Tko.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+        if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
+        if ConcatHasWideCastTerm_( c, bp->lhs ) then return true
+        return ConcatHasWideCastTerm_( c, bp->rhs )
+    end if
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return false
+    dim as boolean hasWide = false
+    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
+    while cs <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
+        if cse = 0 then exit while
+        if cse->type_ <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+            if c.types->Kind( ru ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( ru )
+                case Tko.TY_WSTRING
+                    hasWide = true
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING
+                    return false
+                end select
+            end if
+        end if
+        cs = cse->nextOverload
+    wend
+    return hasWide
+end function
+
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long ) as Tko.TypeId
@@ -653,6 +700,12 @@ private function ResolveCall_ _
             continue for
         end if
         dim as Tko.TypeId at = TypeOf_( c, a )
+        '' AN UNTYPED CONCATENATION THROUGH A WSTRING CAST IS A WSTRING, for choosing an
+        '' overload -- ConcatHasWideCastTerm_. Left undecided, lowering called the FIRST
+        '' overload, and a 'byval n as long' one declared first declined the statement.
+        if at = Tko.TYPE_NONE then
+            if ConcatHasWideCastTerm_( c, a ) then at = c.types->Builtin( Tko.TY_WSTRING )
+        end if
         if at = Tko.TYPE_NONE then
             dim as Tko.NodeId leaf = UntypedLeaf_( c, a )
             NoteUntypedName_( c, leaf )

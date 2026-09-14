@@ -1,0 +1,7 @@
+'' An untyped wide argument ('a + " x"' through a 'cast( ) byref as const wstring') chooses the wstring overload even when a long overload is declared first: declaration, assignment, a different result type, and a sub. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-untyped-arg-overload-order.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-untyped-arg-overload-order.out
