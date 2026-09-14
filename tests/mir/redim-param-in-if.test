@@ -1,0 +1,9 @@
+'' REDIM OF AN ARRAY PARAMETER INSIDE AN IF. The lookup through enclosing scopes accepted a
+'' VARIABLE only, so 'srcRows() as integer' -- found directly at the procedure's own level --
+'' was not found one block down and both REDIMs were dropped: PsListTree's drag source kept
+'' every row. fbc-modern prints ' 4 3 0 60' for the source, as tiko-lang now does.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/redim-param-in-if.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

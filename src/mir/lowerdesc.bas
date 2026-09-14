@@ -667,6 +667,11 @@ private function RedimOne_ _
             dim as Tko.Symbol ptr us = c.syms->SymbolAt( up )
             if us <> 0 then
                 if us->kind = cast( ubyte, Tko.SYM_VARIABLE ) then sid = up
+                '' ...OR A PARAMETER. 'srcRows() as integer' is found by the procedure scope's
+                '' own lookup, so a REDIM at that level lowered and one inside an IF -- a scope
+                '' further down -- declined: PsListTree's 'if n > 0 then redim preserve
+                '' srcRows( 0 to n - 1 )' was dropped and the drag source kept every row.
+                if us->kind = cast( ubyte, Tko.SYM_PARAMETER ) then sid = up
             end if
         end if
     end if
