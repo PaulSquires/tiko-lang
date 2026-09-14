@@ -144,6 +144,7 @@ func ptr TITLE(ptr $0, ptr $1, i32 $2) {
     %22 = load @$tmp3
     %23 = load @$tmp0
     store %23, %22
+    call void _ZN2WSD1Ev(@$tmp4)
     %24 = load @$tmp0
     ret %24
 }
@@ -213,6 +214,7 @@ func i32 main(i32 $0, ptr $1) {
     %33 = call.rtl ptr fb_IntToStr(%32)
     %34 = call.rtl ptr fb_StrAssign(@$tmp8, -1, %33, -1, 0)
     %35 = call ptr _Zv21&R2WSR8FBSTRING(@c, @$tmp6, @$tmp8)
+    call void _ZN2WSD1Ev(@$tmp6)
     call.rtl void fb_StrDelete(@$tmp8)
     call.rtl void fb_StrDelete(@$tmp7)
     %36 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
@@ -246,4 +248,4 @@ declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 168 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 170 insts, 0 statements not lowered, 0 scope imbalance

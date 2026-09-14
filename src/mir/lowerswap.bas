@@ -897,9 +897,18 @@ function LowerUserBinaryOp_ _
     dim as boolean usesSret = false
     if os->type_ <> Tko.TYPE_NONE then
         if UsesSretReturn( c, os->type_ ) then
-            '' ...or the variable a declaration is building -- SretInPlaceInit_. The
-            '' temporary is not registered for destruction here, as it never was.
-            dim as long tslot = SretResultSlot_( c, os->type_, false, op )
+            '' ...or the variable a declaration is building -- SretInPlaceInit_. Destroyed at
+            '' the end of the statement like a call's, and it never was: 'x = a + b' leaked
+            '' the result, so a type whose destructor frees lost one block per assignment.
+            '' Measured, fbc destroys it after every use --
+            ''
+            ''   _ZplR1HR1H( &TMP$23$1, &A$1, &B$1 );
+            ''   __builtin_memcpy( &X$1, &TMP$23$1, 8 );
+            ''   _ZN1HD1Ev( &TMP$23$1 );
+            ''
+            '' -- as an assignment's source, through 'operator let', as an argument, under a
+            '' member access and inside 'a + b + c'.
+            dim as long tslot = SretResultSlot_( c, os->type_, true, op )
             if tslot < 0 then return false
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )

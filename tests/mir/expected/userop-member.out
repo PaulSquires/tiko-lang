@@ -120,6 +120,7 @@ func i32 main(i32 $0, ptr $1) {
     %13 = field.addr @$tmp6, 0
     %14 = load %13
     store @r1, %14
+    call void _ZN3BIGD1Ev(@$tmp6)
     %15 = alloca ptr r2
     %25 = call i32 _ZplR5SMALLS0_(@u, @v)
     store @$abi9, %25
@@ -145,4 +146,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

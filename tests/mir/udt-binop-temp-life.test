@@ -1,0 +1,9 @@
+'' A user binary operator's hidden result is destroyed at the end of the statement: an
+'' assignment's source, through 'operator let', an argument, a member access, a chain and
+'' 'return a + b'. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-binop-temp-life.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-binop-temp-life.out
