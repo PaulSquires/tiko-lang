@@ -11,6 +11,7 @@
 namespace Tko.Mir
 declare function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+declare function RetFromUserOp_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
 
 
 '' ------------------------------------------------------------------ the walk
@@ -1096,7 +1097,8 @@ function LowerSretResult _
     '' with no copy constructor stored the temporary's ADDRESS into the caller's object.
     if val.kind = cast( ubyte, MV_LOCAL ) then
         if c.f->locals[val.id].ty = cast( ubyte, MT_AGG ) then
-            movedFrom = val
+            '' ...COPIED, not moved, when an operator built it -- RetFromUserOp_.
+            if RetFromUserOp_( c, valueE ) = false then movedFrom = val
             val = LowerExprLoad( c, val, MT_AGG )
             if val.kind = cast( ubyte, MV_NONE ) then return false
         end if

@@ -145,6 +145,7 @@ func ptr TITLE(ptr $0, ptr $1, i32 $2) {
     %23 = load @$tmp0
     store %23, %22
     call void _ZN2WSD1Ev(@$tmp4)
+    call void _ZN2WSD1Ev(@$tmp3)
     %24 = load @$tmp0
     ret %24
 }
@@ -248,4 +249,4 @@ declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 170 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 171 insts, 0 statements not lowered, 0 scope imbalance

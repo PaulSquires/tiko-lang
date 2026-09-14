@@ -1,0 +1,9 @@
+'' 'return a + b' and 'return -a' copy the operator's result into the hidden pointer and
+'' destroy the temporary, as 'return f( )' does. Runtime output was checked against
+'' fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-sret-return-op-copy.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-sret-return-op-copy.out

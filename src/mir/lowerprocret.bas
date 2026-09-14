@@ -440,4 +440,22 @@ sub InitResultAtEntry_ _
     EmitRtl( c, RTL_MEMSET, bz )
 end sub
 
+'' 'return a + b' COPIES THE OPERATOR'S RESULT; it does not move it. LowerSretResult stores
+'' the temporary's bytes through the hidden pointer, and forgetting the temporary there meant
+'' it was never destroyed. Measured, over a type with no copy constructor fbc destroys it on
+'' the way out --
+''
+''     _ZplR1HS0_( &TMP$15$1, A$1, B$1 );
+''     __builtin_memcpy( tmp$14$1, &TMP$15$1, 8 );
+''     _ZN1HD1Ev( &TMP$15$1 );
+''
+'' -- and '-a' the same: exactly what 'return f( )' gets, whose value arrives loaded and
+'' whose temporary nothing forgot. A type WITH a copy constructor, written or implicit, is
+'' SretCopyResult_'s and never reaches the store.
+private function RetFromUserOp_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    dim as Tko.NodeId rop = Unparen_( c, valueE )
+    if (c.ast->Kind( rop ) <> Tko.N_BINARY) andalso (c.ast->Kind( rop ) <> Tko.N_UNARY) then return false
+    return (c.info->RefOf( rop ) <> Tko.SYMBOL_NONE)
+end function
+
 end namespace
