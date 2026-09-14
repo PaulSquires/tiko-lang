@@ -1,0 +1,15 @@
+'' strptr and sadd of a 'string * N' -- and a 'string * N' handed to a 'zstring ptr'
+'' parameter -- are the STORAGE ADDRESS. They were fb_StrAllocTempDescF: a slot of the
+'' runtime's 256-slot temporary-descriptor pool per call, never given back. tracks'
+'' recv loop drained it within seconds of live TWS data. Measured, fbc-modern prints
+'' ' 0 0 0 0', ' 0' and 'null buffers 0 pool alive 5' for this source; the old tiko
+'' printed ' 2748 0' for the last line -- 2748 NULL buffers, and a dead pool that had
+'' emptied its own labels.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/strptr-fixed-no-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i32 TAKEZ(@fs)
+'' EXPECT-OUT: call i32 TAKEZ(@temp_buffer)
+'' EXPECT-NOT: fb_StrAllocTempDescF(

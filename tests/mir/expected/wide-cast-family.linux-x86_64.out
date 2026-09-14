@@ -64,34 +64,28 @@ func void S1() {
     %27 = call.rtl ptr memset(@f, 32, 10)
     %28 = const i64 -9223372036854775798
     %29 = call.rtl ptr fb_StrAssign(@f, %28, @@$str3, 4, -1)
-    %30 = const i64 -9223372036854775798
-    %31 = call.rtl ptr fb_StrAllocTempDescF(@f, %30)
-    %32 = load %31
-    %33 = call.rtl ptr fb_StrToWstr(%32)
-    %34 = alloca ptr $tmp7
-    store @$tmp7, %33
-    %35 = load @$tmp7
-    %36 = call.rtl i32 fb_WstrCompare(@w, %35)
-    %37 = icmp.eq %36, 0
-    %38 = neg %37
-    %39 = sext %38
-    call.rtl void fb_PrintLongint(0, %39, 2)
-    %40 = const i64 -9223372036854775798
-    %41 = call.rtl ptr fb_StrAllocTempDescF(@f, %40)
-    %42 = load %41
-    %43 = call.rtl ptr fb_StrToWstr(%42)
-    %44 = alloca ptr $tmp8
-    store @$tmp8, %43
-    %45 = load @$tmp8
-    %46 = call.rtl i32 fb_WstrCompare(%45, @w)
-    %47 = icmp.eq %46, 0
-    %48 = neg %47
-    %49 = sext %48
-    call.rtl void fb_PrintLongint(0, %49, 1)
-    %50 = load @$tmp8
-    call.rtl void fb_WstrDelete(%50)
-    %51 = load @$tmp7
-    call.rtl void fb_WstrDelete(%51)
+    %30 = call.rtl ptr fb_StrToWstr(@f)
+    %31 = alloca ptr $tmp7
+    store @$tmp7, %30
+    %32 = load @$tmp7
+    %33 = call.rtl i32 fb_WstrCompare(@w, %32)
+    %34 = icmp.eq %33, 0
+    %35 = neg %34
+    %36 = sext %35
+    call.rtl void fb_PrintLongint(0, %36, 2)
+    %37 = call.rtl ptr fb_StrToWstr(@f)
+    %38 = alloca ptr $tmp8
+    store @$tmp8, %37
+    %39 = load @$tmp8
+    %40 = call.rtl i32 fb_WstrCompare(%39, @w)
+    %41 = icmp.eq %40, 0
+    %42 = neg %41
+    %43 = sext %42
+    call.rtl void fb_PrintLongint(0, %43, 1)
+    %44 = load @$tmp8
+    call.rtl void fb_WstrDelete(%44)
+    %45 = load @$tmp7
+    call.rtl void fb_WstrDelete(%45)
     call.rtl void fb_StrDelete(@s2)
     ret
 }
@@ -105,7 +99,6 @@ declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_WstrAssignMid(ptr $0, i64 $1, i64 $2, i64 $3, ptr $4)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
 declare ptr fb_StrToWstr(ptr $0)
 declare i32 fb_WstrCompare(ptr $0, ptr $1)
 declare void fb_WstrDelete(ptr $0)
@@ -127,4 +120,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 83 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 77 insts, 0 statements not lowered, 0 scope imbalance

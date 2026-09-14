@@ -943,9 +943,48 @@ function ZstrDataOf_ _
     ''
     '' Refusing it instead left the whole comparison unlowered, in both directions.
     if k = 3 then
+        '' ...BUT WHERE IT HAS STORAGE, THE BORROW BELOW WAS A LEAK, and the storage is
+        '' what it pointed at anyway. Measured inside a SUB, over a local 'string * 32' and
+        '' a field: 'strptr( fs )', 'sadd( fs )', 'strptr( h.fs )' and 'TakeZ( fs )' --
+        ''
+        ''     TAKEZ( (char*)FS$1 );     TAKEZ( (char*)((uint8*)&H$1 + 4ll) );
+        ''
+        '' NOT EVERY CALLER MATCHES fbc, and this does not claim to. For a MODULE-LEVEL
+        '' 'string * 10' handed to a 'byval as zstring ptr', and for the fb_StrToWstr of a
+        '' comparison, fbc copies into a TERMINATED temporary, passes that, copies back and
+        '' deletes it. tiko passed the unterminated buffer before this change (the borrow
+        '' wrapped it without copying) and passes it after; only the leak is gone. That
+        '' copy is a separate, pre-existing gap.
+        ''
+        '' tiko took fb_StrAllocTempDescF: a POOL slot wrapping that same buffer, so the
+        '' pointer value was identical -- and nothing ever gave the slot back. tracks
+        '' calls 'recv( s, strptr( temp_buffer ), ... )' on a local 'string * 8192' on
+        '' every loop pass; live market data drained the 256 slots in seconds, every
+        '' temporary string came back empty, the next strptr was NULL, recv failed and
+        '' the socket thread dropped the TWS connection.
+        ''
+        '' An RVALUE has no storage, so it is copied into a real temporary that dies with
+        '' the statement -- the k = 0 row's borrow, which CONSUMES the runtime's slot.
+        if ZstrTermIsRvalue_( c, id ) = false then
+            outv = LowerAddr( c, id )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
         dim as MirValue fda
         if StrDescriptorOf_( c, id, fda ) = false then return false
-        outv = LowerExprLoad( c, fda, MT_PTR )
+        dim as long ftmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if ftmp < 0 then return false
+        dim as MirValue fd
+        fd.kind = cast( ubyte, MV_LOCAL )
+        fd.ty = cast( ubyte, MT_PTR )
+        fd.id = ftmp
+        ZeroStrDescriptor( c, fd )
+        dim as FB.Array( of ulong ) fargs
+        PushStrArg( fargs, fd )
+        PushStrArg( fargs, fda )
+        fargs.Push( cast( ulong, MV_CONST_INT ) ) : fargs.Push( 0 )
+        EmitRtl( c, RTL_STR_ASSIGN, fargs )
+        c.strTemps.Push( cast( ulong, ftmp ) )
+        outv = LowerExprLoad( c, fd, MT_PTR )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
     if k = 0 then

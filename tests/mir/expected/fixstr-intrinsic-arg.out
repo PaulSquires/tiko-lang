@@ -105,17 +105,14 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_StrDelete(@$tmp5)
     %50 = load @$tmp6
     call.rtl void fb_WstrDelete(%50)
-    %51 = const i64 -9223372036854775798
-    %52 = call.rtl ptr fb_StrAllocTempDescF(@fs, %51)
-    %53 = load %52
-    %54 = call i32 PZ(%53)
-    store @r, %54
-    %55 = load @r
-    call.rtl void fb_PrintInt(0, %55, 1)
-    %56 = const i32 0
-    call.rtl void fb_End(%56)
-    %57 = load @$tmp0
-    ret %57
+    %51 = call i32 PZ(@fs)
+    store @r, %51
+    %52 = load @r
+    call.rtl void fb_PrintInt(0, %52, 1)
+    %53 = const i32 0
+    call.rtl void fb_End(%53)
+    %54 = load @$tmp0
+    ret %54
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -136,4 +133,4 @@ declare ptr fb_StrUcase2(ptr $0, i32 $1)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance
