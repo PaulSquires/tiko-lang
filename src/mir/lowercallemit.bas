@@ -311,8 +311,9 @@ end function
 ''   _ZN3FAC2MKEi( &X2$1, PF$1, 2 );       _ZN3FAC3SMKEi( &X3$1, 3 );
 ''   _ZN3FAC9HP__get__Ev( &X6$1, &OBJ$1 ); _ZngR1H( &X5$1, &X1$1 );
 ''
-'' Offered only for a call naming a procedure or a method, an operator bound to one, or a
-'' property's sole getter, whose non-byref result is exactly T; and taken only by a call
+'' Offered only for a call naming a procedure or a method -- with or without parentheses --
+'' an operator bound to one, or a property's sole getter, whose non-byref result is exactly
+'' T; and taken only by a call
 '' to that symbol (SretResultSlot_). True when x has been dealt with, and nothing may
 '' construct or store it after.
 function SretInPlaceInit_ _
@@ -323,6 +324,7 @@ function SretInPlaceInit_ _
     dim as Tko.SymbolId callee = Tko.SYMBOL_NONE
     dim as boolean isProp = false
     dim as boolean isOp = false
+    dim as boolean isBare = false
     select case c.ast->Kind( e )
     case Tko.N_CALL
         '' The binding LowerAddr's call arm reads; a TYPE's constructor is not one.
@@ -340,9 +342,30 @@ function SretInPlaceInit_ _
     case Tko.N_BINARY, Tko.N_UNARY
         callee = c.info->RefOf( e )
         isOp = true
-    case Tko.N_MEMBER
-        callee = SoleGetter_( c, e )
-        isProp = true
+    case Tko.N_IDENT, Tko.N_MEMBER
+        '' A PAREN-LESS PROPERTY is its getter. Any other paren-less PROCEDURE is a call
+        '' with every argument defaulted -- 'obj.mk0', measured '_ZN3FAC3MK0Ev( &Z1$1,
+        '' &OBJ$1 )' -- which LowerExpr sends to LowerBareProcCall_; one it would not
+        '' call is not offered, and neither is a variable.
+        if c.ast->Kind( e ) = Tko.N_MEMBER then callee = SoleGetter_( c, e )
+        if callee <> Tko.SYMBOL_NONE then
+            isProp = true
+        else
+            callee = c.info->RefOf( e )
+            if callee = Tko.SYMBOL_NONE then return false
+            dim as Tko.Symbol ptr bs = c.syms->SymbolAt( callee )
+            if bs = 0 then return false
+            if bs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+            dim as Tko.NodeId bpn = cast( Tko.NodeId, bs->payload )
+            if bpn = Tko.NODE_NONE then return false
+            if c.ast->Kind( bpn ) <> Tko.N_PROC then return false
+            if StmtOf( c, bpn )->op = cast( ushort, Tko.KW_PROPERTY ) then return false
+            if IsVariadicProc( c, callee ) then return false
+            for i as long = 0 to ParamCountOf( c, callee ) - 1
+                if ParamDefaultAt( c, callee, i ) = Tko.NODE_NONE then return false
+            next
+            isBare = true
+        end if
     case else
         return false
     end select
@@ -375,6 +398,10 @@ function SretInPlaceInit_ _
         c.sretIntoAtNode = true
         if LowerPropertyGet_( c, e, ra ) = false then ra.kind = cast( ubyte, MV_NONE )
         c.sretIntoAtNode = false
+    elseif isBare then
+        '' ...and a paren-less call's is LowerBareProcCall_, asked for the ADDRESS.
+        c.sretIntoOn = true
+        if LowerBareProcCall_( c, e, MT_PTR, ra ) = false then ra.kind = cast( ubyte, MV_NONE )
     else
         c.sretIntoOn = true
         ra = LowerAddr( c, e )

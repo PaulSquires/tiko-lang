@@ -378,6 +378,46 @@ func ptr _ZN3FAC9HP__get__Ev(ptr $0, ptr $1) {
     %14 = load @$tmp0
     ret %14
 }
+func ptr _ZN3FAC3MK0Ev(ptr $0, ptr $1) {
+  local ptr $tmp0
+  local ptr this
+  local agg $tmp2 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr this
+    store @this, $1
+    %4 = alloca ptr $tmp2
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load %6
+    call void _ZN1HC1Ei(@$tmp2, %7)
+    %8 = load @$tmp2
+    %9 = load @$tmp0
+    store %9, %8
+    %10 = load @$tmp0
+    ret %10
+}
+func ptr MKFREE(ptr $0, i32 $1) {
+  local ptr $tmp0
+  local i32 n
+  local agg $tmp2 size 8
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr n
+    store @n, $1
+    %4 = alloca ptr $tmp2
+    %5 = load @n
+    call void _ZN1HC1Ei(@$tmp2, %5)
+    %6 = load @$tmp2
+    %7 = load @$tmp0
+    store %7, %6
+    %8 = load @$tmp0
+    ret %8
+}
 func i32 MKFAC(i32 $0) {
   local agg $tmp0 size 4
   local i32 n
@@ -405,6 +445,7 @@ func void _ZN3FAC5INNEREv(ptr $0) {
   local ptr this
   local agg i1 size 8
   local agg i2 size 8
+  local agg i3 size 8
   entry0:
     %1 = alloca ptr this
     store @this, $0
@@ -418,16 +459,24 @@ func void _ZN3FAC5INNEREv(ptr $0) {
     %9 = trunc %8
     %10 = load @this
     %11 = call ptr _ZN3FAC2MKEi(@i2, %10, %9)
-    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 5)
-    call.rtl void fb_PrintString(0, %12, 0)
-    %13 = field.addr @i1, 0
-    %14 = load %13
-    %15 = load %14
-    call.rtl void fb_PrintInt(0, %15, 0)
-    %16 = field.addr @i2, 0
+    %12 = alloca ptr i3
+    %13 = load @this
+    %14 = call ptr _ZN3FAC3MK0Ev(@i3, %13)
+    %15 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 5)
+    call.rtl void fb_PrintString(0, %15, 0)
+    %16 = field.addr @i1, 0
     %17 = load %16
     %18 = load %17
-    call.rtl void fb_PrintInt(0, %18, 1)
+    call.rtl void fb_PrintInt(0, %18, 0)
+    %19 = field.addr @i2, 0
+    %20 = load %19
+    %21 = load %20
+    call.rtl void fb_PrintInt(0, %21, 0)
+    %22 = field.addr @i3, 0
+    %23 = load %22
+    %24 = load %23
+    call.rtl void fb_PrintInt(0, %24, 1)
+    call void _ZN1HD1Ev(@i3)
     call void _ZN1HD1Ev(@i2)
     call void _ZN1HD1Ev(@i1)
     ret
@@ -465,9 +514,12 @@ func i32 main(i32 $0, ptr $1) {
   local agg a7 size 8
   local agg $tmp27 size 8
   local agg $tmp28 size 8
-  local agg $abi29 size 4
+  local agg obj$29 size 4
+  local agg z1 size 8
+  local agg z2 size 8
+  local agg $abi32 size 4
   entry0:
-    %140 = alloca ptr $abi29
+    %156 = alloca ptr $abi32
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -574,9 +626,9 @@ func i32 main(i32 $0, ptr $1) {
     %79 = alloca ptr a4
     %80 = const i64 40
     %81 = trunc %80
-    %141 = call i32 MKFAC(%81)
-    store @$abi29, %141
-    %82 = load @$abi29
+    %157 = call i32 MKFAC(%81)
+    store @$abi32, %157
+    %82 = load @$abi32
     %83 = alloca ptr $tmp19
     store @$tmp19, %82
     %84 = call ptr _ZN3FAC9HP__get__Ev(@a4, @$tmp19)
@@ -642,36 +694,57 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN1HD1Ev(@a2)
     call void _ZN1HD1Ev(@a1)
     call void _ZN1HD1Ev(@x)
-    %126 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 7)
-    call.rtl void fb_PrintString(0, %126, 0)
-    %127 = load @@hctor
-    call.rtl void fb_PrintInt(0, %127, 0)
-    %128 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 6)
-    call.rtl void fb_PrintString(0, %128, 0)
-    %129 = load @@hdtor
-    call.rtl void fb_PrintInt(0, %129, 0)
-    %130 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 8)
-    call.rtl void fb_PrintString(0, %130, 0)
-    %131 = load @@hdouble
-    call.rtl void fb_PrintInt(0, %131, 1)
-    %132 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 8)
-    call.rtl void fb_PrintString(0, %132, 0)
-    %133 = load @@cctor
-    call.rtl void fb_PrintInt(0, %133, 0)
-    %134 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
-    call.rtl void fb_PrintString(0, %134, 0)
-    %135 = load @@ccopy
-    call.rtl void fb_PrintInt(0, %135, 0)
-    %136 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 6)
-    call.rtl void fb_PrintString(0, %136, 0)
-    %137 = load @@cdtor
-    call.rtl void fb_PrintInt(0, %137, 1)
-    %138 = const i32 0
-    call.rtl void fb_End(%138)
-    %139 = load @$tmp0
-    ret %139
+    %126 = alloca ptr obj$29
+    %127 = const i64 7
+    %128 = trunc %127
+    %129 = field.addr @obj$29, 0
+    store %129, %128
+    %130 = alloca ptr z1
+    %131 = call ptr _ZN3FAC3MK0Ev(@z1, @obj$29)
+    %132 = alloca ptr z2
+    %133 = const i64 3
+    %134 = trunc %133
+    %135 = call ptr MKFREE(@z2, %134)
+    %136 = field.addr @z1, 0
+    %137 = load %136
+    %138 = load %137
+    call.rtl void fb_PrintInt(0, %138, 0)
+    %139 = field.addr @z2, 0
+    %140 = load %139
+    %141 = load %140
+    call.rtl void fb_PrintInt(0, %141, 1)
+    call void _ZN1HD1Ev(@z2)
+    call void _ZN1HD1Ev(@z1)
+    %142 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 7)
+    call.rtl void fb_PrintString(0, %142, 0)
+    %143 = load @@hctor
+    call.rtl void fb_PrintInt(0, %143, 0)
+    %144 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 6)
+    call.rtl void fb_PrintString(0, %144, 0)
+    %145 = load @@hdtor
+    call.rtl void fb_PrintInt(0, %145, 0)
+    %146 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 8)
+    call.rtl void fb_PrintString(0, %146, 0)
+    %147 = load @@hdouble
+    call.rtl void fb_PrintInt(0, %147, 1)
+    %148 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 8)
+    call.rtl void fb_PrintString(0, %148, 0)
+    %149 = load @@cctor
+    call.rtl void fb_PrintInt(0, %149, 0)
+    %150 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
+    call.rtl void fb_PrintString(0, %150, 0)
+    %151 = load @@ccopy
+    call.rtl void fb_PrintInt(0, %151, 0)
+    %152 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 6)
+    call.rtl void fb_PrintString(0, %152, 0)
+    %153 = load @@cdtor
+    call.rtl void fb_PrintInt(0, %153, 1)
+    %154 = const i32 0
+    call.rtl void fb_End(%154)
+    %155 = load @$tmp0
+    ret %155
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 16 functions, 23 blocks, 498 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 18 functions, 25 blocks, 553 insts, 0 statements not lowered, 0 scope imbalance

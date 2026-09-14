@@ -14,15 +14,17 @@
 '' -- and clang refused the module.
 ''
 '' The second scope chains calls whose RECEIVER calls the same symbol -- 'x.twin.twin',
-'' '-(-x)', 'x.plus( 1 ).plus( 2 )'. Only the outermost call may build the variable.
+'' '-(-x)', 'x.plus( 1 ).plus( 2 )'. Only the outermost call may build the variable. The
+'' third calls without parentheses, 'obj.mk0' and 'mkfree'; so does 'mk0' inside 'inner'.
 ''
 '' fbc-modern prints:
 ''
-''    inner 1008 1009
+''    inner 1008 1009 1000
 ''     1001 1002 103 1011-1001 2000
 ''     1005-1005
 ''     8-2 5 80 20 11-10
-''    h ctor= 22 dtor= 22 double= 0
+''     7 3
+''    h ctor= 25 dtor= 25 double= 0
 ''    cc ctor= 2 copy= 0 dtor= 2
 '' H: allocates, records its "free", no copy constructor (hidden-pointer result)
 type H
@@ -89,6 +91,7 @@ type Fac
     declare static function smk( byval v as long ) as H
     declare function mkc( byval v as long ) as CC
     declare property hp( ) as H
+    declare function mk0( ) as H
     declare sub inner( )
 end type
 function Fac.mk( byval v as long ) as H
@@ -103,6 +106,12 @@ end function
 property Fac.hp( ) as H
     return H( base_ * 2 )
 end property
+function Fac.mk0( ) as H
+    return H( base_ )
+end function
+function mkfree( byval n as long = 3 ) as H
+    return H( n )
+end function
 function mkfac( byval n as long ) as Fac
     dim as Fac f
     f.base_ = n
@@ -111,7 +120,8 @@ end function
 sub Fac.inner( )
     dim as H i1 = mk( 8 )
     dim as H i2 = this.mk( 9 )
-    print "inner"; *i1.p; *i2.p
+    dim as H i3 = mk0
+    print "inner"; *i1.p; *i2.p; *i3.p
 end sub
 
 scope
@@ -141,6 +151,13 @@ scope
     dim as H a6 = x.twin.plus( 1 )
     dim as H a7 = -x.twin
     print *a1.p; *a2.p; *a3.p; *a4.p; *a5.p; *a6.p; *a7.p
+end scope
+'' A PAREN-LESS CALL -- every argument defaulted -- builds the variable in place too.
+scope
+    dim as Fac obj = ( 7 )
+    dim as H z1 = obj.mk0
+    dim as H z2 = mkfree
+    print *z1.p; *z2.p
 end scope
 print "h ctor="; hctor; " dtor="; hdtor; " double="; hdouble
 print "cc ctor="; cctor; " copy="; ccopy; " dtor="; cdtor
