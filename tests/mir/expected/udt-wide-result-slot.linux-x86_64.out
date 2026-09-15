@@ -30,13 +30,14 @@ func void _ZN2WSC1Ev(ptr $0) {
     %3 = field.addr %2, 0
     %4 = call.rtl ptr memset(%3, 0, 256)
     %5 = load @@nctor
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@nctor, %8
-    %9 = load @this
-    %10 = field.addr %9, 0
-    %11 = call.rtl ptr fb_WstrAssign(%10, 64, @@$wstr1)
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@nctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = call.rtl ptr fb_WstrAssign(%11, 64, @@$wstr1)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -53,14 +54,15 @@ func void _ZN2WSC1ERw(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 256)
     %6 = load @@nctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@nctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @w
-    %13 = call.rtl ptr fb_WstrAssign(%11, 64, %12)
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@nctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @w
+    %14 = call.rtl ptr fb_WstrAssign(%12, 64, %13)
     ret
 }
 func void _ZN2WSaSERw(ptr $0, ptr $1) {
@@ -72,14 +74,15 @@ func void _ZN2WSaSERw(ptr $0, ptr $1) {
     %2 = alloca ptr w
     store @w, $1
     %3 = load @@nlet
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@nlet, %6
-    %7 = load @this
-    %8 = field.addr %7, 0
-    %9 = load @w
-    %10 = call.rtl ptr fb_WstrAssign(%8, 64, %9)
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@nlet, %7
+    %8 = load @this
+    %9 = field.addr %8, 0
+    %10 = load @w
+    %11 = call.rtl ptr fb_WstrAssign(%9, 64, %10)
     ret
 }
 func ptr _ZN2WScvwEv(ptr $0) {
@@ -106,13 +109,14 @@ func void _ZN2WDC1Ev(ptr $0) {
     %3 = field.addr %2, 0
     %4 = call.rtl ptr memset(%3, 0, 256)
     %5 = load @@dctor
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@dctor, %8
-    %9 = load @this
-    %10 = field.addr %9, 0
-    %11 = call.rtl ptr fb_WstrAssign(%10, 64, @@$wstr1)
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@dctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = call.rtl ptr fb_WstrAssign(%11, 64, @@$wstr1)
     ret
 }
 func void _ZN2WDC1ERw(ptr $0, ptr $1) {
@@ -127,14 +131,15 @@ func void _ZN2WDC1ERw(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 256)
     %6 = load @@dctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@dctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @w
-    %13 = call.rtl ptr fb_WstrAssign(%11, 64, %12)
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@dctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @w
+    %14 = call.rtl ptr fb_WstrAssign(%12, 64, %13)
     ret
 }
 func void _ZN2WDD1Ev(ptr $0) {
@@ -153,14 +158,15 @@ func void _ZN2WDaSERw(ptr $0, ptr $1) {
     %2 = alloca ptr w
     store @w, $1
     %3 = load @@dlet
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@dlet, %6
-    %7 = load @this
-    %8 = field.addr %7, 0
-    %9 = load @w
-    %10 = call.rtl ptr fb_WstrAssign(%8, 64, %9)
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@dlet, %7
+    %8 = load @this
+    %9 = field.addr %8, 0
+    %10 = load @w
+    %11 = call.rtl ptr fb_WstrAssign(%9, 64, %10)
     ret
 }
 func ptr _ZN2WDcvwEv(ptr $0) {
@@ -476,4 +482,4 @@ declare ptr fb_WstrToStr(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 17 functions, 17 blocks, 302 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 17 functions, 17 blocks, 308 insts, 0 statements not lowered, 0 scope imbalance

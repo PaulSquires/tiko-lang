@@ -17,14 +17,15 @@ func void _ZN2CCC1Ei(ptr $0, i32 $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@cctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@cctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @n
-    store %11, %12
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@cctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @n
+    store %12, %13
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -40,16 +41,17 @@ func void _ZN2CCC1ERS_(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@ccopy
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@ccopy, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @o
-    %13 = field.addr %12, 0
-    %14 = load %13
-    store %11, %14
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@ccopy, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @o
+    %14 = field.addr %13, 0
+    %15 = load %14
+    store %12, %15
     ret
 }
 func void _ZN2CCD1Ev(ptr $0) {
@@ -58,10 +60,11 @@ func void _ZN2CCD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@cdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@cdtor, %5
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@cdtor, %6
     ret
 }
 func ptr MKC(ptr $0, i32 $1) {
@@ -225,4 +228,4 @@ declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 162 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 165 insts, 0 statements not lowered, 0 scope imbalance

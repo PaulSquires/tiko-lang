@@ -24,26 +24,27 @@ func i32 FROMINNER() {
   local agg i size 4
   local agg $abi2 size 8
   entry0:
-    %14 = alloca ptr $abi2
+    %15 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = load @@gcalls
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@gcalls, %6
-    %7 = alloca ptr i
-    %8 = call.rtl ptr memset(@i, 0, 4)
-    %9 = field.addr @i, 0
-    %10 = const i64 9
-    %11 = trunc %10
-    store %9, %11
-    %12 = load @i
-    store @$tmp0, %12
-    %13 = load @$tmp0
-    store @$abi2, %13
-    %15 = load @$abi2
-    ret %15
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@gcalls, %7
+    %8 = alloca ptr i
+    %9 = call.rtl ptr memset(@i, 0, 4)
+    %10 = field.addr @i, 0
+    %11 = const i64 9
+    %12 = trunc %11
+    store %10, %12
+    %13 = load @i
+    store @$tmp0, %13
+    %14 = load @$tmp0
+    store @$abi2, %14
+    %16 = load @$abi2
+    ret %16
 }
 func void BYREFUDT() {
   local agg h size 4
@@ -80,4 +81,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 45 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

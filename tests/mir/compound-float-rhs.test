@@ -1,0 +1,5 @@
+'' A compound assignment runs in the binary operator's result type, and converts the result.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/compound-float-rhs.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/compound-float-rhs.out

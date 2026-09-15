@@ -6,13 +6,14 @@ func i32 SIDEFX() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = load @@calls
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@calls, %6
-    %7 = const i64 3
-    %8 = trunc %7
-    ret %8
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@calls, %7
+    %8 = const i64 3
+    %9 = trunc %8
+    ret %9
 }
 func void _ZN1CC1Ev(ptr $0) {
   local ptr this
@@ -249,4 +250,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void free(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 21 blocks, 180 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 21 blocks, 181 insts, 0 statements not lowered, 0 scope imbalance

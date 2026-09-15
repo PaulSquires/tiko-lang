@@ -18,10 +18,11 @@ func void _ZN2ELC1Ev(ptr $0) {
     %3 = field.addr %2, 0
     %4 = call.rtl ptr memset(%3, 0, 4)
     %5 = load @@ector
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@ector, %8
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@ector, %9
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -37,16 +38,17 @@ func void _ZN2ELC1ERS_(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@ecopy
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@ecopy, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @o
-    %13 = field.addr %12, 0
-    %14 = load %13
-    store %11, %14
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@ecopy, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @o
+    %14 = field.addr %13, 0
+    %15 = load %14
+    store %12, %15
     ret
 }
 func void _ZN2ELD1Ev(ptr $0) {
@@ -55,10 +57,11 @@ func void _ZN2ELD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@edtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@edtor, %5
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@edtor, %6
     ret
 }
 func void _ZN2DPC1Ei(ptr $0, i32 $1) {
@@ -272,15 +275,16 @@ func void _ZN2DUD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@udtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@udtor, %5
-    %6 = load @this
-    %7 = field.addr %6, 0
-    %8 = func.addr ptr _ZN2ELC1Ev
-    %9 = func.addr ptr _ZN2ELD1Ev
-    %10 = call.rtl i32 fb_ArrayEraseObj(%7, %8, %9)
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@udtor, %6
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = func.addr ptr _ZN2ELC1Ev
+    %10 = func.addr ptr _ZN2ELD1Ev
+    %11 = call.rtl i32 fb_ArrayEraseObj(%8, %9, %10)
     ret
 }
 declare i32 fb_ArrayEraseObj(ptr $0, ptr $1, ptr $2)
@@ -462,16 +466,17 @@ func i32 NEXTARG() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = load @@narg
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@narg, %6
-    %7 = load @@narg
-    %8 = const i64 3
-    %9 = sext %7
-    %10 = add %9, %8
-    %11 = trunc %10
-    ret %11
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@narg, %7
+    %8 = load @@narg
+    %9 = const i64 3
+    %10 = sext %8
+    %11 = add %10, %9
+    %12 = trunc %11
+    ret %12
 }
 func ptr BUILDP(ptr $0, i32 $1) {
   local ptr $tmp0
@@ -928,4 +933,4 @@ func void _ZN2DPD1Ev(ptr $0) {
 }
 declare i32 fb_ArrayErase(ptr $0)
 verify: ok
-lowered: 22 functions, 38 blocks, 736 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 22 functions, 38 blocks, 741 insts, 0 statements not lowered, 0 scope imbalance

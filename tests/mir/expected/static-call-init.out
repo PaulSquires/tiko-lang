@@ -44,14 +44,15 @@ func void _ZN1HC1Ei(ptr $0, i32 $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@hctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@hctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @v
-    store %11, %12
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@hctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @v
+    store %12, %13
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -61,10 +62,11 @@ func void _ZN1HD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@hdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@hdtor, %5
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@hdtor, %6
     ret
 }
 func ptr MKH(ptr $0, i32 $1) {
@@ -150,14 +152,15 @@ func void _ZN1CC1Ei(ptr $0, i32 $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@cctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@cctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @v
-    store %11, %12
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@cctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @v
+    store %12, %13
     ret
 }
 func void _ZN1CC1ERS_(ptr $0, ptr $1) {
@@ -172,20 +175,21 @@ func void _ZN1CC1ERS_(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@ccopy
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@ccopy, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @o
-    %13 = field.addr %12, 0
-    %14 = load %13
-    %15 = const i64 100
-    %16 = sext %14
-    %17 = mul %16, %15
-    %18 = trunc %17
-    store %11, %18
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@ccopy, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @o
+    %14 = field.addr %13, 0
+    %15 = load %14
+    %16 = const i64 100
+    %17 = sext %15
+    %18 = mul %17, %16
+    %19 = trunc %18
+    store %12, %19
     ret
 }
 func void _ZN1CD1Ev(ptr $0) {
@@ -194,10 +198,11 @@ func void _ZN1CD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@cdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@cdtor, %5
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@cdtor, %6
     ret
 }
 func ptr MKC(ptr $0, i32 $1) {
@@ -259,14 +264,15 @@ func void _ZN1KC1Ei(ptr $0, i32 $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@kctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@kctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @v
-    store %11, %12
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@kctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @v
+    store %12, %13
     ret
 }
 func i32 MKK(i32 $0) {
@@ -296,14 +302,15 @@ func i32 LENOF(ptr $0) {
     %3 = alloca ptr txt
     store @txt, $0
     %4 = load @@lcalls
-    %5 = const i64 1
-    %6 = trunc %5
-    %7 = add %4, %6
-    store @@lcalls, %7
-    %8 = load @txt
-    %9 = call.rtl i64 fb_StrLen(%8, -1)
-    %10 = trunc %9
-    ret %10
+    %5 = sext %4
+    %6 = const i64 1
+    %7 = add %5, %6
+    %8 = trunc %7
+    store @@lcalls, %8
+    %9 = load @txt
+    %10 = call.rtl i64 fb_StrLen(%9, -1)
+    %11 = trunc %10
+    ret %11
 }
 declare i64 fb_StrLen(ptr $0, i64 $1)
 func void RUN1() {
@@ -318,7 +325,7 @@ func void RUN1() {
   local agg $tmp8 size 4
   local agg $abi9 size 4
   entry0:
-    %154 = alloca ptr $abi9
+    %160 = alloca ptr $abi9
     %1 = load @@RUN1$h1$init
     %2 = const i64 0
     %3 = icmp.ne %1, %2
@@ -464,8 +471,8 @@ func void RUN1() {
     store @@RUN1$k1$init, %86
     %87 = const i64 8
     %88 = trunc %87
-    %155 = call i32 MKK(%88)
-    store @$abi9, %155
+    %161 = call i32 MKK(%88)
+    store @$abi9, %161
     %89 = load @$abi9
     store @$tmp8, %89
     %91 = load @$tmp8
@@ -530,40 +537,46 @@ func void RUN1() {
     call.rtl void fb_PrintInt(0, %123, 1)
     %124 = field.addr @@RUN1$h1, 0
     %125 = load %124
-    %126 = const i64 1
-    %127 = trunc %126
-    %128 = add %125, %127
-    store %124, %128
-    %129 = field.addr @@RUN1$h2, 0
-    %130 = load %129
-    %131 = const i64 1
-    %132 = trunc %131
-    %133 = add %130, %132
-    store %129, %133
-    %134 = field.addr @@RUN1$h5, 0
-    %135 = load %134
-    %136 = const i64 1
-    %137 = trunc %136
-    %138 = add %135, %137
-    store %134, %138
-    %139 = field.addr @@RUN1$c1, 0
-    %140 = load %139
-    %141 = const i64 1
-    %142 = trunc %141
-    %143 = add %140, %142
-    store %139, %143
-    %144 = field.addr @@RUN1$s1, 24
-    %145 = load %144
-    %146 = const i64 1
+    %126 = sext %125
+    %127 = const i64 1
+    %128 = add %126, %127
+    %129 = trunc %128
+    store %124, %129
+    %130 = field.addr @@RUN1$h2, 0
+    %131 = load %130
+    %132 = sext %131
+    %133 = const i64 1
+    %134 = add %132, %133
+    %135 = trunc %134
+    store %130, %135
+    %136 = field.addr @@RUN1$h5, 0
+    %137 = load %136
+    %138 = sext %137
+    %139 = const i64 1
+    %140 = add %138, %139
+    %141 = trunc %140
+    store %136, %141
+    %142 = field.addr @@RUN1$c1, 0
+    %143 = load %142
+    %144 = sext %143
+    %145 = const i64 1
+    %146 = add %144, %145
     %147 = trunc %146
-    %148 = add %145, %147
-    store %144, %148
-    %149 = field.addr @@RUN1$k1, 0
-    %150 = load %149
+    store %142, %147
+    %148 = field.addr @@RUN1$s1, 24
+    %149 = load %148
+    %150 = sext %149
     %151 = const i64 1
-    %152 = trunc %151
-    %153 = add %150, %152
-    store %149, %153
+    %152 = add %150, %151
+    %153 = trunc %152
+    store %148, %153
+    %154 = field.addr @@RUN1$k1, 0
+    %155 = load %154
+    %156 = sext %155
+    %157 = const i64 1
+    %158 = add %156, %157
+    %159 = trunc %158
+    store %154, %159
     ret
 }
 func void RUN1$h1$dtor() {
@@ -676,4 +689,4 @@ func void _ZN1SaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 26 functions, 42 blocks, 444 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 26 functions, 42 blocks, 457 insts, 0 statements not lowered, 0 scope imbalance

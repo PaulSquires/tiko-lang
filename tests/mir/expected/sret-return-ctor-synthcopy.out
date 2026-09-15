@@ -31,20 +31,21 @@ func void _ZN2SSC1Ei(ptr $0, i32 $1) {
     %8 = field.addr %3, 24
     %9 = call.rtl ptr memset(%8, 0, 4)
     %10 = load @@sctor
-    %11 = const i64 1
-    %12 = trunc %11
-    %13 = add %10, %12
-    store @@sctor, %13
-    %14 = load @this
-    %15 = field.addr %14, 24
-    %16 = load @n
-    store %15, %16
-    %17 = load @this
-    %18 = field.addr %17, 0
-    %19 = call.rtl ptr fb_StrAssign(%18, -1, @@$str1, 3, 0)
-    %20 = load @n
-    %21 = call.rtl ptr fb_IntToStr(%20)
-    %22 = call.rtl ptr fb_StrConcatAssign(%18, -1, %21, -1, 0)
+    %11 = sext %10
+    %12 = const i64 1
+    %13 = add %11, %12
+    %14 = trunc %13
+    store @@sctor, %14
+    %15 = load @this
+    %16 = field.addr %15, 24
+    %17 = load @n
+    store %16, %17
+    %18 = load @this
+    %19 = field.addr %18, 0
+    %20 = call.rtl ptr fb_StrAssign(%19, -1, @@$str1, 3, 0)
+    %21 = load @n
+    %22 = call.rtl ptr fb_IntToStr(%21)
+    %23 = call.rtl ptr fb_StrConcatAssign(%19, -1, %22, -1, 0)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -57,13 +58,14 @@ func void _ZN2SSD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@sdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@sdtor, %5
-    %6 = load @this
-    %7 = field.addr %6, 0
-    call.rtl void fb_StrDelete(%7)
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@sdtor, %6
+    %7 = load @this
+    %8 = field.addr %7, 0
+    call.rtl void fb_StrDelete(%8)
     ret
 }
 declare void fb_StrDelete(ptr $0)
@@ -76,10 +78,11 @@ func void _ZN2MMC1Ev(ptr $0) {
     %3 = field.addr %2, 0
     %4 = call.rtl ptr memset(%3, 0, 4)
     %5 = load @@mctor
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@mctor, %8
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@mctor, %9
     ret
 }
 func void _ZN2MMC1ERS_(ptr $0, ptr $1) {
@@ -94,16 +97,17 @@ func void _ZN2MMC1ERS_(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 4)
     %6 = load @@mcopy
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@mcopy, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @o
-    %13 = field.addr %12, 0
-    %14 = load %13
-    store %11, %14
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@mcopy, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @o
+    %14 = field.addr %13, 0
+    %15 = load %14
+    store %12, %15
     ret
 }
 func void _ZN2MMD1Ev(ptr $0) {
@@ -112,10 +116,11 @@ func void _ZN2MMD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@mdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@mdtor, %5
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@mdtor, %6
     ret
 }
 func void _ZN2OOC1Ei(ptr $0, i32 $1) {
@@ -159,16 +164,17 @@ func i32 NEXTARG() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = load @@narg
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@narg, %6
-    %7 = load @@narg
-    %8 = const i64 10
-    %9 = sext %7
-    %10 = mul %9, %8
-    %11 = trunc %10
-    ret %11
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@narg, %7
+    %8 = load @@narg
+    %9 = const i64 10
+    %10 = sext %8
+    %11 = mul %10, %9
+    %12 = trunc %11
+    ret %12
 }
 func ptr MAKES(ptr $0, i32 $1) {
   local ptr $tmp0
@@ -410,4 +416,4 @@ func void _ZN2SSaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 14 functions, 14 blocks, 304 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 14 functions, 14 blocks, 310 insts, 0 statements not lowered, 0 scope imbalance

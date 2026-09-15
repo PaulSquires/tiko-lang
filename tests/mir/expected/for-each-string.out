@@ -42,7 +42,7 @@ func void S1() {
     %57 = alloca ptr $tmp11
     %69 = alloca ptr compat
     %72 = alloca ptr each
-    %88 = alloca ptr $tmp14
+    %91 = alloca ptr $tmp14
     br each.head1
   each.head1:
     %12 = load @$tmp3
@@ -142,50 +142,53 @@ func void S1() {
     condbr %78, for.body14, for.exit16
   for.body14:
     %79 = load @compat
-    %80 = load @each
-    %81 = add %79, %80
-    store @compat, %81
+    %80 = sext %79
+    %81 = load @each
+    %82 = sext %81
+    %83 = add %80, %82
+    %84 = trunc %83
+    store @compat, %84
     br for.step15
   for.step15:
-    %82 = load @each
-    %83 = const i32 1
-    %84 = add %82, %83
-    store @each, %84
+    %85 = load @each
+    %86 = const i32 1
+    %87 = add %85, %86
+    store @each, %87
     br for.head13
   for.exit16:
-    %85 = load @total
-    call.rtl void fb_PrintLongint(0, %85, 2)
-    %86 = load @n
-    call.rtl void fb_PrintLongint(0, %86, 2)
+    %88 = load @total
+    call.rtl void fb_PrintLongint(0, %88, 2)
+    %89 = load @n
+    call.rtl void fb_PrintLongint(0, %89, 2)
     call.rtl void fb_PrintString(0, @cat, 2)
-    %87 = load @compat
-    call.rtl void fb_PrintInt(0, %87, 1)
+    %90 = load @compat
+    call.rtl void fb_PrintInt(0, %90, 1)
     call.rtl void fb_StrDelete(@cat)
-    %89 = field.addr @$tmp14, 0
-    store %89, @strs
-    %90 = field.addr @$tmp14, 8
-    store %90, @strs
-    %91 = const i64 48
-    %92 = field.addr @$tmp14, 16
-    store %92, %91
-    %93 = const i64 24
-    %94 = field.addr @$tmp14, 24
-    store %94, %93
-    %95 = const i64 1
-    %96 = field.addr @$tmp14, 32
-    store %96, %95
-    %97 = const i64 49
-    %98 = field.addr @$tmp14, 40
-    store %98, %97
-    %99 = const i64 2
-    %100 = field.addr @$tmp14, 48
-    store %100, %99
-    %101 = const i64 0
-    %102 = field.addr @$tmp14, 56
-    store %102, %101
-    %103 = const i64 1
-    %104 = field.addr @$tmp14, 64
-    store %104, %103
+    %92 = field.addr @$tmp14, 0
+    store %92, @strs
+    %93 = field.addr @$tmp14, 8
+    store %93, @strs
+    %94 = const i64 48
+    %95 = field.addr @$tmp14, 16
+    store %95, %94
+    %96 = const i64 24
+    %97 = field.addr @$tmp14, 24
+    store %97, %96
+    %98 = const i64 1
+    %99 = field.addr @$tmp14, 32
+    store %99, %98
+    %100 = const i64 49
+    %101 = field.addr @$tmp14, 40
+    store %101, %100
+    %102 = const i64 2
+    %103 = field.addr @$tmp14, 48
+    store %103, %102
+    %104 = const i64 0
+    %105 = field.addr @$tmp14, 56
+    store %105, %104
+    %106 = const i64 1
+    %107 = field.addr @$tmp14, 64
+    store %107, %106
     call.rtl void fb_ArrayDestructStr(@$tmp14)
     call.rtl void fb_StrDelete(@empty_)
     call.rtl void fb_StrDelete(@txt)
@@ -217,4 +220,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 18 blocks, 147 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 18 blocks, 150 insts, 0 statements not lowered, 0 scope imbalance

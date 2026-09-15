@@ -315,10 +315,7 @@ end function
 '' through it, so an lvalue with a side effect -- 'arr( f( ) ) += 1' -- calls f once, as
 '' fbc does.
 ''
-'' The computation type is the TARGET's, with one exception measured against fbc:
-'' '/' is FLOATING division whatever the operands are. 'dim as integer a = 1 : a /= 2'
-'' prints 0 and 'a = 5 : a /= 2' prints 2 -- 0.5 and 2.5 rounded to even, not truncated
-'' -- so the division happens in double and the result converts back on the way in.
+'' It computes in the BINARY OPERATOR's result type -- 'x op= y' is 'x = x op y'.
 ''
 '' '^=' is absent on purpose: power needs a runtime call tiko-lang's inventory does not carry
 '' yet, and declining is the honest answer where inventing a shift would not be.
@@ -401,17 +398,18 @@ function LowerCompoundAssign _
     '' Measured -- fbc emits the whole read-modify-write in one line.
     if BitfieldCompound_( c, target, value, bop ) then return true
 
-    '' The type the arithmetic happens in. Every operator but '/' works in the
-    '' target's own type; '/' is float division, in single when the target already is
-    '' one and in double otherwise -- 'dim as single h = 1 : h /= 2' prints 0.5.
-    dim as MirType wt = mt
-    if bop = Tko.TK_SLASH then
-        wt = iif( mt = MT_F32, MT_F32, MT_F64 )
+    '' THE ARITHMETIC RUNS IN WHAT 'target op value' WOULD BE, by Check's table: the target's
+    '' type rounded a float operand first ('i += 0.5' printed 1, fbc 2) and worked '\' and
+    '' 'mod' unpromoted. A pointer target or a UDT operand keeps the target's type.
+    dim as Tko.TypeId rt = Tko.Check.BinaryResult( bop, tt, c.info->TypeOf_( value ), *c.types )
+    dim as MirType wt = MT_VOID
+    if rt <> Tko.TYPE_NONE then wt = LowerType( rt, *c.types )
+    if (wt = MT_VOID) orelse (wt = MT_AGG) orelse (wt = MT_PTR) then
+        rt = tt
+        wt = mt
+        if bop = Tko.TK_SLASH then wt = iif( mt = MT_F32, MT_F32, MT_F64 )
+        if bop = Tko.TK_CARET then wt = MT_F64
     end if
-    '' '^' IS ALWAYS A DOUBLE, whatever the target is: it is libc's pow, and fbc
-    '' converts BOTH operands to double and the result back -- 'I = fb_D2L( pow(
-    '' (double)I, (double)N ) )' over a LONG. Measured.
-    if bop = Tko.TK_CARET then wt = MT_F64
 
     dim as MirValue addr = LowerAddr( c, target )
     if addr.kind = cast( ubyte, MV_NONE ) then return false
@@ -496,7 +494,7 @@ function LowerCompoundAssign _
     elseif (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
         res = EmitImpEqv_( c, bop, wt, cur, rhs )
     else
-        dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, tt ) )
+        dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, rt ) )
         if mop = M_NONE then return false
         dim as MirInst bi
         bi.op = cast( ushort, mop )
@@ -507,11 +505,15 @@ function LowerCompoundAssign _
     end if
     if res.kind = cast( ubyte, MV_NONE ) then return false
 
+    '' THE RESULT CONVERTS AS AN ASSIGNMENT'S VALUE DOES -- rounded, unsigned, normalised
+    '' into a boolean ('bo and= 2' is true). A boolean result is already 0 or 1.
+    dim as MirValue sv = res
+    if IsBooleanType( c, rt ) = false then sv = CoerceTy( c, res, mt, rt, tt )
     dim as MirInst st
     st.op = cast( ushort, M_STORE )
     st.ty = cast( ubyte, MT_VOID )
     st.a = addr
-    st.b = Coerce( c, res, mt )
+    st.b = sv
     if smt <> mt then st.b = CoerceTy( c, st.b, smt, tt, sct )   '' back into the operand's own slot
     Emit( c, st )
     return true

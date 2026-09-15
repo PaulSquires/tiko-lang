@@ -75,45 +75,46 @@ func void P(i32 $0) {
     br static.done4
   static.done4:
     %14 = load @@P$n
-    %15 = const i64 1
-    %16 = trunc %15
-    %17 = add %14, %16
-    store @@P$n, %17
-    %18 = load @@P$n
-    call.rtl void fb_PrintInt(0, %18, 2)
-    %19 = field.addr @@P$a, 0
-    %20 = load %19
-    call.rtl void fb_PrintInt(0, %20, 2)
-    %21 = field.addr @@P$b, 0
-    %22 = load %21
-    call.rtl void fb_PrintInt(0, %22, 1)
-    %23 = load @q
-    %24 = const i64 0
-    %25 = sext %23
-    %26 = icmp.sgt %25, %24
-    condbr %26, if.then6, if.else7
+    %15 = sext %14
+    %16 = const i64 1
+    %17 = add %15, %16
+    %18 = trunc %17
+    store @@P$n, %18
+    %19 = load @@P$n
+    call.rtl void fb_PrintInt(0, %19, 2)
+    %20 = field.addr @@P$a, 0
+    %21 = load %20
+    call.rtl void fb_PrintInt(0, %21, 2)
+    %22 = field.addr @@P$b, 0
+    %23 = load %22
+    call.rtl void fb_PrintInt(0, %23, 1)
+    %24 = load @q
+    %25 = const i64 0
+    %26 = sext %24
+    %27 = icmp.sgt %26, %25
+    condbr %27, if.then6, if.else7
   if.join5:
     ret
   if.then6:
-    %27 = load @@P$c$init
-    %28 = const i64 0
-    %29 = icmp.ne %27, %28
-    condbr %29, static.done9, static.init8
+    %28 = load @@P$c$init
+    %29 = const i64 0
+    %30 = icmp.ne %28, %29
+    condbr %30, static.done9, static.init8
   if.else7:
     br if.join5
   static.init8:
-    %30 = const i64 1
-    store @@P$c$init, %30
-    %31 = const i64 2
-    %32 = trunc %31
-    call void _ZN2SOC1Ei(@@P$c, %32)
-    %33 = func.addr ptr P$c$dtor
-    %34 = call.rtl i32 atexit(%33)
+    %31 = const i64 1
+    store @@P$c$init, %31
+    %32 = const i64 2
+    %33 = trunc %32
+    call void _ZN2SOC1Ei(@@P$c, %33)
+    %34 = func.addr ptr P$c$dtor
+    %35 = call.rtl i32 atexit(%34)
     br static.done9
   static.done9:
-    %35 = field.addr @@P$c, 0
-    %36 = load %35
-    call.rtl void fb_PrintInt(0, %36, 1)
+    %36 = field.addr @@P$c, 0
+    %37 = load %36
+    call.rtl void fb_PrintInt(0, %37, 1)
     br if.join5
 }
 func void P$a$dtor() {
@@ -147,4 +148,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 16 blocks, 84 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 16 blocks, 85 insts, 0 statements not lowered, 0 scope imbalance

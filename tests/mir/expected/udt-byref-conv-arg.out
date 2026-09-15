@@ -55,10 +55,11 @@ func void _ZN1WC1Ei(ptr $0, i32 $1) {
     %8 = load @v
     store %7, %8
     %9 = load @@nctor
-    %10 = const i64 1
-    %11 = trunc %10
-    %12 = add %9, %11
-    store @@nctor, %12
+    %10 = sext %9
+    %11 = const i64 1
+    %12 = add %10, %11
+    %13 = trunc %12
+    store @@nctor, %13
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -84,10 +85,11 @@ func void _ZN1WC1ERS_(ptr $0, ptr $1) {
     %14 = trunc %13
     store %7, %14
     %15 = load @@nctor
-    %16 = const i64 1
-    %17 = trunc %16
-    %18 = add %15, %17
-    store @@nctor, %18
+    %16 = sext %15
+    %17 = const i64 1
+    %18 = add %16, %17
+    %19 = trunc %18
+    store @@nctor, %19
     ret
 }
 func void _ZN1WD1Ev(ptr $0) {
@@ -97,23 +99,24 @@ func void _ZN1WD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@ndtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@ndtor, %5
-    %6 = alloca ptr $tmp1
-    %7 = field.addr @$tmp1, 0
-    store %7, 0
-    %8 = field.addr @$tmp1, 8
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@ndtor, %6
+    %7 = alloca ptr $tmp1
+    %8 = field.addr @$tmp1, 0
     store %8, 0
-    %9 = field.addr @$tmp1, 16
+    %9 = field.addr @$tmp1, 8
     store %9, 0
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load %11
-    %13 = call.rtl ptr fb_IntToStr(%12)
-    %14 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str2, 4, %13, -1)
-    %15 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str3, 2, 0)
+    %10 = field.addr @$tmp1, 16
+    store %10, 0
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.rtl ptr fb_IntToStr(%13)
+    %15 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str2, 4, %14, -1)
+    %16 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str3, 2, 0)
     call.rtl void fb_PrintString(0, @$tmp1, 0)
     ret
 }
@@ -1016,4 +1019,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 21 functions, 25 blocks, 764 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 21 functions, 25 blocks, 767 insts, 0 statements not lowered, 0 scope imbalance

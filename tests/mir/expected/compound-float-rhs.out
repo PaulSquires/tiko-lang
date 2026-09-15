@@ -1,0 +1,110 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i64 i
+  local i32 l
+  local i32 ul
+  local i64 uli
+  local i8 ub
+  local f32 sf
+  local f32 sbig
+  local f64 d
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr i
+    %5 = call.rtl ptr memset(@i, 0, 8)
+    %6 = alloca ptr l
+    %7 = call.rtl ptr memset(@l, 0, 4)
+    %8 = alloca ptr ul
+    %9 = call.rtl ptr memset(@ul, 0, 4)
+    %10 = alloca ptr uli
+    %11 = call.rtl ptr memset(@uli, 0, 8)
+    %12 = alloca ptr ub
+    %13 = call.rtl ptr memset(@ub, 0, 1)
+    %14 = alloca ptr sf
+    %15 = call.rtl ptr memset(@sf, 0, 4)
+    %16 = alloca ptr sbig
+    %17 = call.rtl ptr memset(@sbig, 0, 4)
+    %18 = alloca ptr d
+    %19 = call.rtl ptr memset(@d, 0, 8)
+    %20 = load @i
+    %21 = sitofp %20
+    %22 = const f64 0.5
+    %23 = add %21, %22
+    %24 = nearbyint %23
+    %25 = fptosi %24
+    store @i, %25
+    %26 = load @l
+    %27 = sitofp %26
+    %28 = const f64 0.5
+    %29 = sub %27, %28
+    %30 = nearbyint %29
+    %31 = fptosi %30
+    store @l, %31
+    %32 = load @ul
+    %33 = uitofp %32
+    %34 = load @sbig
+    %35 = add %33, %34
+    %36 = nearbyint %35
+    %37 = fptosi %36
+    %38 = trunc %37
+    store @ul, %38
+    %39 = load @uli
+    %40 = uitofp %39
+    %41 = const f64 0.5
+    %42 = add %40, %41
+    %43 = nearbyint %42
+    %44 = fptoui %43
+    store @uli, %44
+    %45 = load @sf
+    %46 = fpext %45
+    %47 = load @d
+    %48 = add %46, %47
+    %49 = fptrunc %48
+    store @sf, %49
+    %50 = load @i
+    %51 = sitofp %50
+    %52 = const f32 2
+    %53 = fpext %52
+    %54 = fdiv %51, %53
+    %55 = nearbyint %54
+    %56 = fptosi %55
+    store @i, %56
+    %57 = load @i
+    %58 = const f64 3.5
+    %59 = nearbyint %58
+    %60 = fptosi %59
+    %61 = and %57, %60
+    store @i, %61
+    %62 = load @i
+    %63 = const f64 2.5
+    %64 = nearbyint %63
+    %65 = fptosi %64
+    %66 = shl %62, %65
+    store @i, %66
+    %67 = load @l
+    %68 = sext %67
+    %69 = const i64 4294967298
+    %70 = sdiv %68, %69
+    %71 = trunc %70
+    store @l, %71
+    %72 = load @ub
+    %73 = zext %72
+    %74 = const i64 3
+    %75 = neg %74
+    %76 = srem %73, %75
+    %77 = trunc %76
+    store @ub, %77
+    %78 = const i32 0
+    call.rtl void fb_End(%78)
+    %79 = load @$tmp0
+    ret %79
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 1 blocks, 92 insts, 0 statements not lowered, 0 scope imbalance

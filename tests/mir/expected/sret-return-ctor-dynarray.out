@@ -50,64 +50,65 @@ func void _ZN2DAC1Ei(ptr $0, i32 $1) {
     %22 = field.addr %3, 72
     %23 = call.rtl ptr memset(%22, 0, 4)
     %24 = load @@actor
-    %25 = const i64 1
-    %26 = trunc %25
-    %27 = add %24, %26
-    store @@actor, %27
-    %28 = load @this
-    %29 = field.addr %28, 72
-    %30 = load @n
-    store %29, %30
-    %31 = load @this
-    %32 = field.addr %31, 0
-    %33 = const i64 0
+    %25 = sext %24
+    %26 = const i64 1
+    %27 = add %25, %26
+    %28 = trunc %27
+    store @@actor, %28
+    %29 = load @this
+    %30 = field.addr %29, 72
+    %31 = load @n
+    store %30, %31
+    %32 = load @this
+    %33 = field.addr %32, 0
     %34 = const i64 0
-    %35 = load @n
-    %36 = const i64 1
-    %37 = sext %35
-    %38 = sub %37, %36
-    %39 = call.rtl i32 fb_ArrayRedimEx(%32, 4, -1, 0, 1, %34, %38)
-    %40 = alloca ptr i
-    %41 = const i64 0
-    %42 = trunc %41
-    store @i, %42
-    %43 = alloca ptr $tmp3
-    %44 = load @n
-    %45 = const i64 1
-    %46 = sext %44
-    %47 = sub %46, %45
-    %48 = trunc %47
-    store @$tmp3, %48
+    %35 = const i64 0
+    %36 = load @n
+    %37 = const i64 1
+    %38 = sext %36
+    %39 = sub %38, %37
+    %40 = call.rtl i32 fb_ArrayRedimEx(%33, 4, -1, 0, 1, %35, %39)
+    %41 = alloca ptr i
+    %42 = const i64 0
+    %43 = trunc %42
+    store @i, %43
+    %44 = alloca ptr $tmp3
+    %45 = load @n
+    %46 = const i64 1
+    %47 = sext %45
+    %48 = sub %47, %46
+    %49 = trunc %48
+    store @$tmp3, %49
     br for.head1
   for.head1:
-    %49 = load @i
-    %50 = load @$tmp3
-    %51 = icmp.sle %49, %50
-    condbr %51, for.body2, for.exit4
+    %50 = load @i
+    %51 = load @$tmp3
+    %52 = icmp.sle %50, %51
+    condbr %52, for.body2, for.exit4
   for.body2:
-    %52 = load @this
-    %53 = field.addr %52, 0
-    %54 = load @i
-    %55 = sext %54
-    %56 = const i64 4
-    %57 = mul %55, %56
-    %58 = load %53
-    %59 = ptr.add %58, %57
-    %60 = load @i
-    %61 = const i64 1
-    %62 = sext %60
-    %63 = add %62, %61
-    %64 = load @n
-    %65 = sext %64
-    %66 = mul %63, %65
-    %67 = trunc %66
-    store %59, %67
+    %53 = load @this
+    %54 = field.addr %53, 0
+    %55 = load @i
+    %56 = sext %55
+    %57 = const i64 4
+    %58 = mul %56, %57
+    %59 = load %54
+    %60 = ptr.add %59, %58
+    %61 = load @i
+    %62 = const i64 1
+    %63 = sext %61
+    %64 = add %63, %62
+    %65 = load @n
+    %66 = sext %65
+    %67 = mul %64, %66
+    %68 = trunc %67
+    store %60, %68
     br for.step3
   for.step3:
-    %68 = load @i
-    %69 = const i32 1
-    %70 = add %68, %69
-    store @i, %70
+    %69 = load @i
+    %70 = const i32 1
+    %71 = add %69, %70
+    store @i, %71
     br for.head1
   for.exit4:
     ret
@@ -120,13 +121,14 @@ func void _ZN2DAD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@adtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@adtor, %5
-    %6 = load @this
-    %7 = field.addr %6, 0
-    %8 = call.rtl i32 fb_ArrayErase(%7)
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@adtor, %6
+    %7 = load @this
+    %8 = field.addr %7, 0
+    %9 = call.rtl i32 fb_ArrayErase(%8)
     ret
 }
 declare i32 fb_ArrayErase(ptr $0)
@@ -169,59 +171,60 @@ func void _ZN2DSC1Ei(ptr $0, i32 $1) {
     %21 = field.addr %4, 64
     store %21, %20
     %22 = load @@sctor
-    %23 = const i64 1
-    %24 = trunc %23
-    %25 = add %22, %24
-    store @@sctor, %25
-    %26 = load @this
-    %27 = field.addr %26, 0
-    %28 = const i64 0
+    %23 = sext %22
+    %24 = const i64 1
+    %25 = add %23, %24
+    %26 = trunc %25
+    store @@sctor, %26
+    %27 = load @this
+    %28 = field.addr %27, 0
     %29 = const i64 0
-    %30 = load @n
-    %31 = const i64 1
-    %32 = sext %30
-    %33 = sub %32, %31
-    %34 = call.rtl i32 fb_ArrayRedimEx(%27, 24, -1, -1, 1, %29, %33)
-    %35 = alloca ptr i
-    %36 = const i64 0
-    %37 = trunc %36
-    store @i, %37
-    %38 = alloca ptr $tmp3
-    %39 = load @n
-    %40 = const i64 1
-    %41 = sext %39
-    %42 = sub %41, %40
-    %43 = trunc %42
-    store @$tmp3, %43
+    %30 = const i64 0
+    %31 = load @n
+    %32 = const i64 1
+    %33 = sext %31
+    %34 = sub %33, %32
+    %35 = call.rtl i32 fb_ArrayRedimEx(%28, 24, -1, -1, 1, %30, %34)
+    %36 = alloca ptr i
+    %37 = const i64 0
+    %38 = trunc %37
+    store @i, %38
+    %39 = alloca ptr $tmp3
+    %40 = load @n
+    %41 = const i64 1
+    %42 = sext %40
+    %43 = sub %42, %41
+    %44 = trunc %43
+    store @$tmp3, %44
     br for.head1
   for.head1:
-    %44 = load @i
-    %45 = load @$tmp3
-    %46 = icmp.sle %44, %45
-    condbr %46, for.body2, for.exit4
+    %45 = load @i
+    %46 = load @$tmp3
+    %47 = icmp.sle %45, %46
+    condbr %47, for.body2, for.exit4
   for.body2:
-    %47 = load @this
-    %48 = field.addr %47, 0
-    %49 = load @i
-    %50 = sext %49
-    %51 = const i64 24
-    %52 = mul %50, %51
-    %53 = load %48
-    %54 = ptr.add %53, %52
-    %55 = call.rtl ptr fb_StrAssign(%54, -1, @@$str3, 2, 0)
-    %56 = load @i
-    %57 = load @n
-    %58 = sext %56
+    %48 = load @this
+    %49 = field.addr %48, 0
+    %50 = load @i
+    %51 = sext %50
+    %52 = const i64 24
+    %53 = mul %51, %52
+    %54 = load %49
+    %55 = ptr.add %54, %53
+    %56 = call.rtl ptr fb_StrAssign(%55, -1, @@$str3, 2, 0)
+    %57 = load @i
+    %58 = load @n
     %59 = sext %57
-    %60 = mul %58, %59
-    %61 = call.rtl ptr fb_LongintToStr(%60)
-    %62 = call.rtl ptr fb_StrConcatAssign(%54, -1, %61, -1, 0)
+    %60 = sext %58
+    %61 = mul %59, %60
+    %62 = call.rtl ptr fb_LongintToStr(%61)
+    %63 = call.rtl ptr fb_StrConcatAssign(%55, -1, %62, -1, 0)
     br for.step3
   for.step3:
-    %63 = load @i
-    %64 = const i32 1
-    %65 = add %63, %64
-    store @i, %65
+    %64 = load @i
+    %65 = const i32 1
+    %66 = add %64, %65
+    store @i, %66
     br for.head1
   for.exit4:
     ret
@@ -236,16 +239,17 @@ func i32 NEXTARG() {
     %2 = const i32 0
     store @$tmp0, %2
     %3 = load @@narg
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@narg, %6
-    %7 = load @@narg
-    %8 = const i64 3
-    %9 = sext %7
-    %10 = add %9, %8
-    %11 = trunc %10
-    ret %11
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@narg, %7
+    %8 = load @@narg
+    %9 = const i64 3
+    %10 = sext %8
+    %11 = add %10, %9
+    %12 = trunc %11
+    ret %12
 }
 func ptr BUILDA(ptr $0, i32 $1) {
   local ptr $tmp0
@@ -575,4 +579,4 @@ func void _ZN2DSD1Ev(ptr $0) {
 }
 declare void fb_ArrayStrErase(ptr $0)
 verify: ok
-lowered: 12 functions, 23 blocks, 449 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 12 functions, 23 blocks, 453 insts, 0 statements not lowered, 0 scope imbalance

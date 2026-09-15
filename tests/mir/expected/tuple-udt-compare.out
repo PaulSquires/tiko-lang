@@ -12,19 +12,20 @@ func i64 _ZeqR7WATCHEDS0_(ptr $0, ptr $1) {
     %4 = alloca ptr b
     store @b, $1
     %5 = load @@cmps
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@cmps, %8
-    %9 = load @a
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = load @b
-    %13 = field.addr %12, 0
-    %14 = load %13
-    %15 = icmp.eq %11, %14
-    %16 = neg %15
-    ret %16
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@cmps, %9
+    %10 = load @a
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = load @b
+    %14 = field.addr %13, 0
+    %15 = load %14
+    %16 = icmp.eq %12, %15
+    %17 = neg %16
+    ret %17
 }
 func i64 _ZneR7WATCHEDS0_(ptr $0, ptr $1) {
   local i64 $tmp0
@@ -39,19 +40,20 @@ func i64 _ZneR7WATCHEDS0_(ptr $0, ptr $1) {
     %4 = alloca ptr b
     store @b, $1
     %5 = load @@cmps
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@cmps, %8
-    %9 = load @a
-    %10 = field.addr %9, 0
-    %11 = load %10
-    %12 = load @b
-    %13 = field.addr %12, 0
-    %14 = load %13
-    %15 = icmp.ne %11, %14
-    %16 = neg %15
-    ret %16
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@cmps, %9
+    %10 = load @a
+    %11 = field.addr %10, 0
+    %12 = load %11
+    %13 = load @b
+    %14 = field.addr %13, 0
+    %15 = load %14
+    %16 = icmp.ne %12, %15
+    %17 = neg %16
+    ret %17
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -252,4 +254,4 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 21 blocks, 181 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 21 blocks, 183 insts, 0 statements not lowered, 0 scope imbalance

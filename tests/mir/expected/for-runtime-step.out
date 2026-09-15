@@ -26,11 +26,11 @@ func void P(i32 $0) {
     %11 = const i32 0
     %12 = icmp.sge %10, %11
     store @$tmp4, %12
-    %26 = alloca ptr j
-    %29 = alloca ptr $tmp6
-    %43 = alloca ptr k
-    %46 = alloca ptr $tmp8
-    %61 = alloca ptr m
+    %27 = alloca ptr j
+    %30 = alloca ptr $tmp6
+    %45 = alloca ptr k
+    %48 = alloca ptr $tmp8
+    %64 = alloca ptr m
     br for.head1
   for.head1:
     %13 = load @i
@@ -40,24 +40,25 @@ func void P(i32 $0) {
     condbr %16, for.up5, for.down6
   for.body2:
     %19 = load @n
-    %20 = const i64 1
-    %21 = trunc %20
-    %22 = add %19, %21
-    store @n, %22
+    %20 = sext %19
+    %21 = const i64 1
+    %22 = add %20, %21
+    %23 = trunc %22
+    store @n, %23
     br for.step3
   for.step3:
-    %23 = load @i
-    %24 = load @$tmp3
-    %25 = add %23, %24
-    store @i, %25
+    %24 = load @i
+    %25 = load @$tmp3
+    %26 = add %24, %25
+    store @i, %26
     br for.head1
   for.exit4:
-    %27 = const i64 1
-    %28 = trunc %27
-    store @j, %28
-    %30 = const i64 2
-    %31 = trunc %30
-    store @$tmp6, %31
+    %28 = const i64 1
+    %29 = trunc %28
+    store @j, %29
+    %31 = const i64 2
+    %32 = trunc %31
+    store @$tmp6, %32
     br for.head7
   for.up5:
     %17 = icmp.sle %13, %15
@@ -66,75 +67,78 @@ func void P(i32 $0) {
     %18 = icmp.sge %13, %15
     condbr %18, for.body2, for.exit4
   for.head7:
-    %32 = load @j
-    %33 = const i64 10
-    %34 = trunc %33
-    %35 = icmp.sle %32, %34
-    condbr %35, for.body8, for.exit10
+    %33 = load @j
+    %34 = const i64 10
+    %35 = trunc %34
+    %36 = icmp.sle %33, %35
+    condbr %36, for.body8, for.exit10
   for.body8:
-    %36 = load @n
-    %37 = const i64 1
-    %38 = trunc %37
-    %39 = add %36, %38
-    store @n, %39
+    %37 = load @n
+    %38 = sext %37
+    %39 = const i64 1
+    %40 = add %38, %39
+    %41 = trunc %40
+    store @n, %41
     br for.step9
   for.step9:
-    %40 = load @j
-    %41 = load @$tmp6
-    %42 = add %40, %41
-    store @j, %42
+    %42 = load @j
+    %43 = load @$tmp6
+    %44 = add %42, %43
+    store @j, %44
     br for.head7
   for.exit10:
-    %44 = const i64 10
-    %45 = trunc %44
-    store @k, %45
-    %47 = const i64 1
-    %48 = neg %47
-    %49 = trunc %48
-    store @$tmp8, %49
+    %46 = const i64 10
+    %47 = trunc %46
+    store @k, %47
+    %49 = const i64 1
+    %50 = neg %49
+    %51 = trunc %50
+    store @$tmp8, %51
     br for.head11
   for.head11:
-    %50 = load @k
-    %51 = const i64 1
-    %52 = trunc %51
-    %53 = icmp.sge %50, %52
-    condbr %53, for.body12, for.exit14
+    %52 = load @k
+    %53 = const i64 1
+    %54 = trunc %53
+    %55 = icmp.sge %52, %54
+    condbr %55, for.body12, for.exit14
   for.body12:
-    %54 = load @n
-    %55 = const i64 1
-    %56 = trunc %55
-    %57 = add %54, %56
-    store @n, %57
+    %56 = load @n
+    %57 = sext %56
+    %58 = const i64 1
+    %59 = add %57, %58
+    %60 = trunc %59
+    store @n, %60
     br for.step13
   for.step13:
-    %58 = load @k
-    %59 = load @$tmp8
-    %60 = add %58, %59
-    store @k, %60
+    %61 = load @k
+    %62 = load @$tmp8
+    %63 = add %61, %62
+    store @k, %63
     br for.head11
   for.exit14:
-    %62 = const i64 1
-    %63 = trunc %62
-    store @m, %63
+    %65 = const i64 1
+    %66 = trunc %65
+    store @m, %66
     br for.head15
   for.head15:
-    %64 = load @m
-    %65 = const i64 10
-    %66 = trunc %65
-    %67 = icmp.sle %64, %66
-    condbr %67, for.body16, for.exit18
+    %67 = load @m
+    %68 = const i64 10
+    %69 = trunc %68
+    %70 = icmp.sle %67, %69
+    condbr %70, for.body16, for.exit18
   for.body16:
-    %68 = load @n
-    %69 = const i64 1
-    %70 = trunc %69
-    %71 = add %68, %70
-    store @n, %71
+    %71 = load @n
+    %72 = sext %71
+    %73 = const i64 1
+    %74 = add %72, %73
+    %75 = trunc %74
+    store @n, %75
     br for.step17
   for.step17:
-    %72 = load @m
-    %73 = const i32 1
-    %74 = add %72, %73
-    store @m, %74
+    %76 = load @m
+    %77 = const i32 1
+    %78 = add %76, %77
+    store @m, %78
     br for.head15
   for.exit18:
     ret
@@ -156,4 +160,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 20 blocks, 99 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 20 blocks, 103 insts, 0 statements not lowered, 0 scope imbalance

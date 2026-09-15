@@ -64,10 +64,11 @@ func void _ZN8PAIRITER8MOVENEXTEv(ptr $0) {
     %2 = load @this
     %3 = field.addr %2, 0
     %4 = load %3
-    %5 = const i64 1
-    %6 = trunc %5
-    %7 = add %4, %6
-    store %3, %7
+    %5 = sext %4
+    %6 = const i64 1
+    %7 = add %5, %6
+    %8 = trunc %7
+    store %3, %8
     ret
 }
 func i32 _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
@@ -113,8 +114,8 @@ func void S1() {
   local agg $abi14 size 8
   local agg $abi15 size 8
   entry0:
-    %55 = alloca ptr $abi14
-    %57 = alloca ptr $abi15
+    %59 = alloca ptr $abi14
+    %61 = alloca ptr $abi15
     %1 = alloca ptr c
     %2 = call.rtl ptr memset(@c, 0, 4)
     %3 = alloca ptr keys
@@ -125,19 +126,19 @@ func void S1() {
     %7 = call.rtl ptr fb_StrInit(@vals, -1, @@$str1, 1, 0)
     %8 = alloca ptr $fe1
     %9 = alloca ptr $tmp4
-    %56 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
-    store @$abi14, %56
+    %60 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$abi14, %60
     %10 = load @$abi14
     store @$tmp4, %10
     %11 = alloca ptr $tmp5
     %14 = alloca ptr k
     %17 = alloca ptr v
-    %25 = alloca ptr seen
-    %28 = alloca ptr $fe2
-    %29 = alloca ptr $tmp10
-    %31 = alloca ptr $tmp11
-    %34 = alloca ptr k2
-    %37 = alloca ptr v2
+    %28 = alloca ptr seen
+    %31 = alloca ptr $fe2
+    %32 = alloca ptr $tmp10
+    %34 = alloca ptr $tmp11
+    %37 = alloca ptr k2
+    %40 = alloca ptr v2
     br each.test3
   each.body1:
     %12 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp5, @$tmp4)
@@ -150,10 +151,13 @@ func void S1() {
     %18 = field.addr @$fe1, 8
     %19 = call.rtl ptr fb_StrInit(@v, -1, %18, -1, 0)
     %20 = load @keys
-    %21 = load @k
-    %22 = add %20, %21
-    store @keys, %22
-    %23 = call.rtl ptr fb_StrConcatAssign(@vals, -1, @v, -1, 0)
+    %21 = sext %20
+    %22 = load @k
+    %23 = sext %22
+    %24 = add %21, %23
+    %25 = trunc %24
+    store @keys, %25
+    %26 = call.rtl ptr fb_StrConcatAssign(@vals, -1, @v, -1, 0)
     call.rtl void fb_StrDelete(@v)
     call void _ZN9$TUP:6:15D1Ev(@$fe1)
     br each.cont2
@@ -161,52 +165,52 @@ func void S1() {
     call void _ZN8PAIRITER8MOVENEXTEv(@$tmp4)
     br each.test3
   each.test3:
-    %24 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp4)
-    condbr %24, each.body1, each.exit4
+    %27 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp4)
+    condbr %27, each.body1, each.exit4
   each.exit4:
-    %26 = const i64 0
-    %27 = trunc %26
-    store @seen, %27
-    %58 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
-    store @$abi15, %58
-    %30 = load @$abi15
-    store @$tmp10, %30
+    %29 = const i64 0
+    %30 = trunc %29
+    store @seen, %30
+    %62 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$abi15, %62
+    %33 = load @$abi15
+    store @$tmp10, %33
     br each.test7
   each.body5:
-    %32 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp11, @$tmp10)
-    %33 = load @$tmp11
+    %35 = call ptr _ZN8PAIRITER5VALUEEv(@$tmp11, @$tmp10)
+    %36 = load @$tmp11
     call void _ZN9$TUP:6:15C1ERKS_(@$fe2, @$tmp11)
     call void _ZN9$TUP:6:15D1Ev(@$tmp11)
-    %35 = field.addr @$fe2, 0
-    %36 = load %35
-    store @k2, %36
-    %38 = field.addr @$fe2, 8
-    %39 = call.rtl ptr fb_StrInit(@v2, -1, %38, -1, 0)
-    %40 = load @k2
-    %41 = const i64 0
-    %42 = sext %40
-    %43 = icmp.eq %42, %41
-    condbr %43, if.then10, if.else11
+    %38 = field.addr @$fe2, 0
+    %39 = load %38
+    store @k2, %39
+    %41 = field.addr @$fe2, 8
+    %42 = call.rtl ptr fb_StrInit(@v2, -1, %41, -1, 0)
+    %43 = load @k2
+    %44 = const i64 0
+    %45 = sext %43
+    %46 = icmp.eq %45, %44
+    condbr %46, if.then10, if.else11
   each.cont6:
     call void _ZN8PAIRITER8MOVENEXTEv(@$tmp10)
     br each.test7
   each.test7:
-    %52 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp10)
-    condbr %52, each.body5, each.exit8
+    %56 = call i8 _ZN8PAIRITER7ISVALIDEv(@$tmp10)
+    condbr %56, each.body5, each.exit8
   each.exit8:
-    %53 = load @keys
-    call.rtl void fb_PrintInt(0, %53, 2)
+    %57 = load @keys
+    call.rtl void fb_PrintInt(0, %57, 2)
     call.rtl void fb_PrintString(0, @vals, 2)
-    %54 = load @seen
-    call.rtl void fb_PrintInt(0, %54, 1)
+    %58 = load @seen
+    call.rtl void fb_PrintInt(0, %58, 1)
     call.rtl void fb_StrDelete(@vals)
     ret
   if.join9:
-    %44 = load @k2
-    %45 = const i64 2
-    %46 = sext %44
-    %47 = icmp.eq %46, %45
-    condbr %47, if.then13, if.else14
+    %47 = load @k2
+    %48 = const i64 2
+    %49 = sext %47
+    %50 = icmp.eq %49, %48
+    condbr %50, if.then13, if.else14
   if.then10:
     call.rtl void fb_StrDelete(@v2)
     call void _ZN9$TUP:6:15D1Ev(@$fe2)
@@ -214,11 +218,12 @@ func void S1() {
   if.else11:
     br if.join9
   if.join12:
-    %48 = load @seen
-    %49 = const i64 1
-    %50 = trunc %49
-    %51 = add %48, %50
-    store @seen, %51
+    %51 = load @seen
+    %52 = sext %51
+    %53 = const i64 1
+    %54 = add %52, %53
+    %55 = trunc %54
+    store @seen, %55
     call.rtl void fb_StrDelete(@v2)
     call void _ZN9$TUP:6:15D1Ev(@$fe2)
     br each.cont6
@@ -295,4 +300,4 @@ func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 10 functions, 24 blocks, 176 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 24 blocks, 181 insts, 0 statements not lowered, 0 scope imbalance

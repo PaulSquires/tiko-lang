@@ -90,29 +90,30 @@ func void _ZN1HD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@hdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@hdtor, %5
-    %6 = alloca ptr $tmp1
-    %7 = field.addr @$tmp1, 0
-    store %7, 0
-    %8 = field.addr @$tmp1, 8
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@hdtor, %6
+    %7 = alloca ptr $tmp1
+    %8 = field.addr @$tmp1, 0
     store %8, 0
-    %9 = field.addr @$tmp1, 16
+    %9 = field.addr @$tmp1, 8
     store %9, 0
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load %11
+    %10 = field.addr @$tmp1, 16
+    store %10, 0
+    %11 = load @this
+    %12 = field.addr %11, 0
     %13 = load %12
-    %14 = call.rtl ptr fb_IntToStr(%13)
-    %15 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str1, 3, %14, -1)
-    %16 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
+    %14 = load %13
+    %15 = call.rtl ptr fb_IntToStr(%14)
+    %16 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str1, 3, %15, -1)
+    %17 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
     call.rtl void fb_PrintString(0, @$tmp1, 0)
-    %17 = load @this
-    %18 = field.addr %17, 0
-    %19 = load %18
-    call.rtl void free(%19)
+    %18 = load @this
+    %19 = field.addr %18, 0
+    %20 = load %19
+    call.rtl void free(%20)
     ret
 }
 declare ptr fb_IntToStr(i32 $0)
@@ -144,23 +145,24 @@ func void _ZN1WD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@hdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@hdtor, %5
-    %6 = alloca ptr $tmp1
-    %7 = field.addr @$tmp1, 0
-    store %7, 0
-    %8 = field.addr @$tmp1, 8
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@hdtor, %6
+    %7 = alloca ptr $tmp1
+    %8 = field.addr @$tmp1, 0
     store %8, 0
-    %9 = field.addr @$tmp1, 16
+    %9 = field.addr @$tmp1, 8
     store %9, 0
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load %11
-    %13 = call.rtl ptr fb_IntToStr(%12)
-    %14 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str3, 4, %13, -1)
-    %15 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
+    %10 = field.addr @$tmp1, 16
+    store %10, 0
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.rtl ptr fb_IntToStr(%13)
+    %15 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str3, 4, %14, -1)
+    %16 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
     call.rtl void fb_PrintString(0, @$tmp1, 0)
     ret
 }
@@ -195,23 +197,24 @@ func void _ZN2DWD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@hdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@hdtor, %5
-    %6 = alloca ptr $tmp1
-    %7 = field.addr @$tmp1, 0
-    store %7, 0
-    %8 = field.addr @$tmp1, 8
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@hdtor, %6
+    %7 = alloca ptr $tmp1
+    %8 = field.addr @$tmp1, 0
     store %8, 0
-    %9 = field.addr @$tmp1, 16
+    %9 = field.addr @$tmp1, 8
     store %9, 0
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load %11
-    %13 = call.rtl ptr fb_IntToStr(%12)
-    %14 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str4, 5, %13, -1)
-    %15 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
+    %10 = field.addr @$tmp1, 16
+    store %10, 0
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.rtl ptr fb_IntToStr(%13)
+    %15 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str4, 5, %14, -1)
+    %16 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
     call.rtl void fb_PrintString(0, @$tmp1, 0)
     ret
 }
@@ -247,25 +250,26 @@ func void _ZN1SD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@hdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@hdtor, %5
-    %6 = alloca ptr $tmp1
-    %7 = field.addr @$tmp1, 0
-    store %7, 0
-    %8 = field.addr @$tmp1, 8
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@hdtor, %6
+    %7 = alloca ptr $tmp1
+    %8 = field.addr @$tmp1, 0
     store %8, 0
-    %9 = field.addr @$tmp1, 16
+    %9 = field.addr @$tmp1, 8
     store %9, 0
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str1, 3, %11, -1)
-    %13 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
+    %10 = field.addr @$tmp1, 16
+    store %10, 0
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = call.rtl ptr fb_StrConcat(@$tmp1, @@$str1, 3, %12, -1)
+    %14 = call.rtl ptr fb_StrConcatAssign(@$tmp1, -1, @@$str2, 2, 0)
     call.rtl void fb_PrintString(0, @$tmp1, 0)
-    %14 = load @this
-    %15 = field.addr %14, 0
-    call.rtl void fb_StrDelete(%15)
+    %15 = load @this
+    %16 = field.addr %15, 0
+    call.rtl void fb_StrDelete(%16)
     ret
 }
 declare void fb_StrDelete(ptr $0)
@@ -1160,17 +1164,18 @@ func void MAIN() {
     %405 = call i32 CNT()
     call.rtl void fb_PrintInt(0, %405, 1)
     %406 = load @k
-    %407 = const i64 1
-    %408 = trunc %407
-    %409 = add %406, %408
-    store @k, %409
+    %407 = sext %406
+    %408 = const i64 1
+    %409 = add %407, %408
+    %410 = trunc %409
+    store @k, %410
     br while.head27
   while.exit29:
-    %410 = const i64 0
-    %411 = trunc %410
-    store @@hdtor, %411
-    %412 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str33, 3)
-    call.rtl void fb_PrintString(0, %412, 1)
+    %411 = const i64 0
+    %412 = trunc %411
+    store @@hdtor, %412
+    %413 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str33, 3)
+    call.rtl void fb_PrintString(0, %413, 1)
     call.rtl void fb_StrDelete(@$tmp44)
     call void _ZN1WD1Ev(@w1)
     call void _ZN1HD1Ev(@nm)
@@ -1203,4 +1208,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 22 functions, 51 blocks, 907 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 22 functions, 51 blocks, 912 insts, 0 statements not lowered, 0 scope imbalance

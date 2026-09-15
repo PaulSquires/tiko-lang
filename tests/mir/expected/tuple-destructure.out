@@ -6,32 +6,33 @@ func i64 GIVESLL() {
   local agg $abi1 size 8
   local agg $abi2 size 8
   entry0:
-    %15 = alloca ptr $abi1
-    %17 = alloca ptr $abi2
+    %16 = alloca ptr $abi1
+    %18 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = load @@calls
-    %4 = const i64 1
-    %5 = trunc %4
-    %6 = add %3, %5
-    store @@calls, %6
-    %7 = const i64 20
-    %8 = trunc %7
-    %9 = const i64 22
-    %10 = trunc %9
-    %11 = field.addr @$tmp0, 0
-    store %11, %8
-    %12 = field.addr @$tmp0, 4
-    store %12, %10
-    %13 = load @$tmp0
-    store @$abi1, %13
-    %16 = load @$abi1
-    ret %16
-  after1:
+    %4 = sext %3
+    %5 = const i64 1
+    %6 = add %4, %5
+    %7 = trunc %6
+    store @@calls, %7
+    %8 = const i64 20
+    %9 = trunc %8
+    %10 = const i64 22
+    %11 = trunc %10
+    %12 = field.addr @$tmp0, 0
+    store %12, %9
+    %13 = field.addr @$tmp0, 4
+    store %13, %11
     %14 = load @$tmp0
-    store @$abi2, %14
-    %18 = load @$abi2
-    ret %18
+    store @$abi1, %14
+    %17 = load @$abi1
+    ret %17
+  after1:
+    %15 = load @$tmp0
+    store @$abi2, %15
+    %19 = load @$abi2
+    ret %19
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func ptr GIVESLS(ptr $0) {
@@ -219,4 +220,4 @@ func void _ZN9$TUP:6:15D1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 5 functions, 6 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 6 blocks, 152 insts, 0 statements not lowered, 0 scope imbalance

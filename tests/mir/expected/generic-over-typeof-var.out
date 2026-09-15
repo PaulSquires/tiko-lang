@@ -15,9 +15,12 @@ func void __TKO_LAMBDA_6951B67A_0(ptr $0, i32 $1) {
     store @total, %6
     %7 = load @total
     %8 = load %7
-    %9 = load @v
-    %10 = add %8, %9
-    store %7, %10
+    %9 = sext %8
+    %10 = load @v
+    %11 = sext %10
+    %12 = add %9, %11
+    %13 = trunc %12
+    store %7, %13
     ret
 }
 func i32 main(i32 $0, ptr $1) {
@@ -55,4 +58,4 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 37 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance

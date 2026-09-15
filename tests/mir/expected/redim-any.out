@@ -51,8 +51,8 @@ func void S1() {
     %31 = load @z
     %32 = alloca ptr $tmp3
     store @$tmp3, %29
-    %47 = alloca ptr w
-    %77 = alloca ptr q
+    %50 = alloca ptr w
+    %80 = alloca ptr q
     br each.head1
   each.head1:
     %33 = load @$tmp3
@@ -66,113 +66,116 @@ func void S1() {
     %39 = load %38
     store @v, %39
     %40 = load @t
-    %41 = load @v
-    %42 = add %40, %41
-    store @t, %42
+    %41 = sext %40
+    %42 = load @v
+    %43 = sext %42
+    %44 = add %41, %43
+    %45 = trunc %44
+    store @t, %45
     br each.step3
   each.step3:
-    %43 = load @$tmp3
-    %44 = const i64 1
-    %45 = add %43, %44
-    store @$tmp3, %45
+    %46 = load @$tmp3
+    %47 = const i64 1
+    %48 = add %46, %47
+    store @$tmp3, %48
     br each.head1
   each.exit4:
-    %46 = load @t
-    call.rtl void fb_PrintInt(0, %46, 1)
-    %48 = const ptr 0
-    %49 = field.addr @w, 0
-    store %49, %48
-    %50 = field.addr @w, 8
-    store %50, %48
-    %51 = const i64 0
-    %52 = field.addr @w, 16
+    %49 = load @t
+    call.rtl void fb_PrintInt(0, %49, 1)
+    %51 = const ptr 0
+    %52 = field.addr @w, 0
     store %52, %51
-    %53 = const i64 8
-    %54 = field.addr @w, 24
-    store %54, %53
-    %55 = const i64 2
-    %56 = field.addr @w, 32
-    store %56, %55
-    %57 = const i64 18
-    %58 = field.addr @w, 40
-    store %58, %57
-    %59 = const i64 0
-    %60 = field.addr @w, 48
-    store %60, %59
-    %61 = const i64 0
-    %62 = field.addr @w, 56
-    store %62, %61
-    %63 = const i64 0
-    %64 = field.addr @w, 64
-    store %64, %63
-    %65 = const i64 0
-    %66 = field.addr @w, 72
-    store %66, %65
-    %67 = const i64 0
-    %68 = field.addr @w, 80
-    store %68, %67
-    %69 = const i64 0
-    %70 = field.addr @w, 88
-    store %70, %69
-    %71 = const i64 1
-    %72 = const i64 1
-    %73 = call.rtl i64 fb_ArrayLBound(@w, %72)
-    call.rtl void fb_PrintLongint(0, %73, 2)
+    %53 = field.addr @w, 8
+    store %53, %51
+    %54 = const i64 0
+    %55 = field.addr @w, 16
+    store %55, %54
+    %56 = const i64 8
+    %57 = field.addr @w, 24
+    store %57, %56
+    %58 = const i64 2
+    %59 = field.addr @w, 32
+    store %59, %58
+    %60 = const i64 18
+    %61 = field.addr @w, 40
+    store %61, %60
+    %62 = const i64 0
+    %63 = field.addr @w, 48
+    store %63, %62
+    %64 = const i64 0
+    %65 = field.addr @w, 56
+    store %65, %64
+    %66 = const i64 0
+    %67 = field.addr @w, 64
+    store %67, %66
+    %68 = const i64 0
+    %69 = field.addr @w, 72
+    store %69, %68
+    %70 = const i64 0
+    %71 = field.addr @w, 80
+    store %71, %70
+    %72 = const i64 0
+    %73 = field.addr @w, 88
+    store %73, %72
     %74 = const i64 1
     %75 = const i64 1
-    %76 = call.rtl i64 fb_ArrayUBound(@w, %75)
-    call.rtl void fb_PrintLongint(0, %76, 1)
-    %78 = const ptr 0
-    %79 = field.addr @q, 0
-    store %79, %78
-    %80 = field.addr @q, 8
-    store %80, %78
-    %81 = const i64 0
-    %82 = field.addr @q, 16
+    %76 = call.rtl i64 fb_ArrayLBound(@w, %75)
+    call.rtl void fb_PrintLongint(0, %76, 2)
+    %77 = const i64 1
+    %78 = const i64 1
+    %79 = call.rtl i64 fb_ArrayUBound(@w, %78)
+    call.rtl void fb_PrintLongint(0, %79, 1)
+    %81 = const ptr 0
+    %82 = field.addr @q, 0
     store %82, %81
-    %83 = const i64 4
-    %84 = field.addr @q, 24
-    store %84, %83
-    %85 = const i64 1
-    %86 = field.addr @q, 32
-    store %86, %85
-    %87 = const i64 17
-    %88 = field.addr @q, 40
-    store %88, %87
-    %89 = const i64 0
-    %90 = field.addr @q, 48
-    store %90, %89
-    %91 = const i64 0
-    %92 = field.addr @q, 56
-    store %92, %91
-    %93 = const i64 0
-    %94 = field.addr @q, 64
-    store %94, %93
-    %95 = const i64 0
+    %83 = field.addr @q, 8
+    store %83, %81
+    %84 = const i64 0
+    %85 = field.addr @q, 16
+    store %85, %84
+    %86 = const i64 4
+    %87 = field.addr @q, 24
+    store %87, %86
+    %88 = const i64 1
+    %89 = field.addr @q, 32
+    store %89, %88
+    %90 = const i64 17
+    %91 = field.addr @q, 40
+    store %91, %90
+    %92 = const i64 0
+    %93 = field.addr @q, 48
+    store %93, %92
+    %94 = const i64 0
+    %95 = field.addr @q, 56
+    store %95, %94
     %96 = const i64 0
-    %97 = const i64 3
-    %98 = call.rtl i32 fb_ArrayRedimEx(@q, 4, -1, 0, 1, %96, %97)
-    %99 = const i64 2
-    %100 = const i64 4
-    %101 = mul %99, %100
-    %102 = load @q
-    %103 = ptr.add %102, %101
-    %104 = const i64 5
-    %105 = trunc %104
-    store %103, %105
-    %106 = const i64 1
-    %107 = call.rtl i64 fb_ArrayUBound(@q, %106)
-    call.rtl void fb_PrintLongint(0, %107, 2)
-    %108 = const i64 2
-    %109 = const i64 4
-    %110 = mul %108, %109
-    %111 = load @q
-    %112 = ptr.add %111, %110
-    %113 = load %112
-    call.rtl void fb_PrintInt(0, %113, 1)
-    %114 = call.rtl i32 fb_ArrayErase(@q)
-    %115 = call.rtl i32 fb_ArrayErase(@w)
-    %116 = call.rtl i32 fb_ArrayErase(@z)
+    %97 = field.addr @q, 64
+    store %97, %96
+    %98 = const i64 0
+    %99 = const i64 0
+    %100 = const i64 3
+    %101 = call.rtl i32 fb_ArrayRedimEx(@q, 4, -1, 0, 1, %99, %100)
+    %102 = const i64 2
+    %103 = const i64 4
+    %104 = mul %102, %103
+    %105 = load @q
+    %106 = ptr.add %105, %104
+    %107 = const i64 5
+    %108 = trunc %107
+    store %106, %108
+    %109 = const i64 1
+    %110 = call.rtl i64 fb_ArrayUBound(@q, %109)
+    call.rtl void fb_PrintLongint(0, %110, 2)
+    %111 = const i64 2
+    %112 = const i64 4
+    %113 = mul %111, %112
+    %114 = load @q
+    %115 = ptr.add %114, %113
+    %116 = load %115
+    call.rtl void fb_PrintInt(0, %116, 1)
+    %117 = call.rtl i32 fb_ArrayErase(@q)
+    %118 = call.rtl i32 fb_ArrayErase(@w)
+    %119 = call.rtl i32 fb_ArrayErase(@z)
     ret
 }
 declare i64 fb_ArrayLBound(ptr $0, i64 $1)
@@ -198,4 +201,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 6 blocks, 168 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 6 blocks, 171 insts, 0 statements not lowered, 0 scope imbalance

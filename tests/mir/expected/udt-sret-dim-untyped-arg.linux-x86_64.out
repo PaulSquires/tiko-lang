@@ -33,13 +33,14 @@ func void _ZN2WSC1Ev(ptr $0) {
     %3 = field.addr %2, 0
     %4 = call.rtl ptr memset(%3, 0, 256)
     %5 = load @@nctor
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@nctor, %8
-    %9 = load @this
-    %10 = field.addr %9, 0
-    %11 = call.rtl ptr fb_WstrAssign(%10, 64, @@$wstr1)
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@nctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = call.rtl ptr fb_WstrAssign(%11, 64, @@$wstr1)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -56,14 +57,15 @@ func void _ZN2WSC1ERw(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 256)
     %6 = load @@nctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@nctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @w
-    %13 = call.rtl ptr fb_WstrAssign(%11, 64, %12)
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@nctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @w
+    %14 = call.rtl ptr fb_WstrAssign(%12, 64, %13)
     ret
 }
 func void _ZN2WSC1ERS_(ptr $0, ptr $1) {
@@ -78,15 +80,16 @@ func void _ZN2WSC1ERS_(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 256)
     %6 = load @@ncopy
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@ncopy, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = load @o
-    %13 = field.addr %12, 0
-    %14 = call.rtl ptr fb_WstrAssign(%11, 64, %13)
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@ncopy, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = load @o
+    %14 = field.addr %13, 0
+    %15 = call.rtl ptr fb_WstrAssign(%12, 64, %14)
     ret
 }
 func void _ZN2WSD1Ev(ptr $0) {
@@ -95,10 +98,11 @@ func void _ZN2WSD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@ndtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@ndtor, %5
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@ndtor, %6
     ret
 }
 func ptr _ZN2WScvwEv(ptr $0) {
@@ -140,15 +144,16 @@ func void _ZN2HSC1Ev(ptr $0) {
     %3 = field.addr %2, 0
     %4 = call.rtl ptr memset(%3, 0, 8)
     %5 = load @@hctor
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = add %5, %7
-    store @@hctor, %8
-    %9 = load @this
-    %10 = field.addr %9, 0
-    %11 = const i64 256
-    %12 = call.rtl ptr calloc(%11, 1)
-    store %10, %12
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = add %6, %7
+    %9 = trunc %8
+    store @@hctor, %9
+    %10 = load @this
+    %11 = field.addr %10, 0
+    %12 = const i64 256
+    %13 = call.rtl ptr calloc(%12, 1)
+    store %11, %13
     ret
 }
 declare ptr calloc(i64 $0, i64 $1)
@@ -164,20 +169,21 @@ func void _ZN2HSC1ERw(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 8)
     %6 = load @@hctor
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@hctor, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = const i64 256
-    %13 = call.rtl ptr calloc(%12, 1)
-    store %11, %13
-    %14 = load @this
-    %15 = field.addr %14, 0
-    %16 = load %15
-    %17 = load @w
-    %18 = call.rtl ptr fb_WstrAssign(%16, 0, %17)
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@hctor, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = const i64 256
+    %14 = call.rtl ptr calloc(%13, 1)
+    store %12, %14
+    %15 = load @this
+    %16 = field.addr %15, 0
+    %17 = load %16
+    %18 = load @w
+    %19 = call.rtl ptr fb_WstrAssign(%17, 0, %18)
     ret
 }
 func void _ZN2HSC1ERS_(ptr $0, ptr $1) {
@@ -192,22 +198,23 @@ func void _ZN2HSC1ERS_(ptr $0, ptr $1) {
     %4 = field.addr %3, 0
     %5 = call.rtl ptr memset(%4, 0, 8)
     %6 = load @@hcopy
-    %7 = const i64 1
-    %8 = trunc %7
-    %9 = add %6, %8
-    store @@hcopy, %9
-    %10 = load @this
-    %11 = field.addr %10, 0
-    %12 = const i64 256
-    %13 = call.rtl ptr calloc(%12, 1)
-    store %11, %13
-    %14 = load @this
-    %15 = field.addr %14, 0
-    %16 = load %15
-    %17 = load @o
-    %18 = field.addr %17, 0
-    %19 = load %18
-    %20 = call.rtl ptr fb_WstrAssign(%16, 0, %19)
+    %7 = sext %6
+    %8 = const i64 1
+    %9 = add %7, %8
+    %10 = trunc %9
+    store @@hcopy, %10
+    %11 = load @this
+    %12 = field.addr %11, 0
+    %13 = const i64 256
+    %14 = call.rtl ptr calloc(%13, 1)
+    store %12, %14
+    %15 = load @this
+    %16 = field.addr %15, 0
+    %17 = load %16
+    %18 = load @o
+    %19 = field.addr %18, 0
+    %20 = load %19
+    %21 = call.rtl ptr fb_WstrAssign(%17, 0, %20)
     ret
 }
 func void _ZN2HSD1Ev(ptr $0) {
@@ -218,69 +225,72 @@ func void _ZN2HSD1Ev(ptr $0) {
     %1 = alloca ptr this
     store @this, $0
     %2 = load @@hdtor
-    %3 = const i64 1
-    %4 = trunc %3
-    %5 = add %2, %4
-    store @@hdtor, %5
-    %6 = alloca ptr i
-    %7 = const i64 0
-    %8 = trunc %7
-    store @i, %8
-    %9 = alloca ptr $tmp2
-    %10 = load @@hfree
-    %11 = const i64 1
-    %12 = sext %10
-    %13 = sub %12, %11
-    %14 = trunc %13
-    store @$tmp2, %14
+    %3 = sext %2
+    %4 = const i64 1
+    %5 = add %3, %4
+    %6 = trunc %5
+    store @@hdtor, %6
+    %7 = alloca ptr i
+    %8 = const i64 0
+    %9 = trunc %8
+    store @i, %9
+    %10 = alloca ptr $tmp2
+    %11 = load @@hfree
+    %12 = const i64 1
+    %13 = sext %11
+    %14 = sub %13, %12
+    %15 = trunc %14
+    store @$tmp2, %15
     br for.head1
   for.head1:
-    %15 = load @i
-    %16 = load @$tmp2
-    %17 = icmp.sle %15, %16
-    condbr %17, for.body2, for.exit4
+    %16 = load @i
+    %17 = load @$tmp2
+    %18 = icmp.sle %16, %17
+    condbr %18, for.body2, for.exit4
   for.body2:
-    %18 = load @i
-    %19 = sext %18
-    %20 = const i64 8
-    %21 = mul %19, %20
-    %22 = ptr.add @@freed, %21
-    %23 = load %22
-    %24 = load @this
-    %25 = field.addr %24, 0
-    %26 = load %25
-    %27 = icmp.eq %23, %26
-    condbr %27, if.then6, if.else7
+    %19 = load @i
+    %20 = sext %19
+    %21 = const i64 8
+    %22 = mul %20, %21
+    %23 = ptr.add @@freed, %22
+    %24 = load %23
+    %25 = load @this
+    %26 = field.addr %25, 0
+    %27 = load %26
+    %28 = icmp.eq %24, %27
+    condbr %28, if.then6, if.else7
   for.step3:
-    %32 = load @i
-    %33 = const i32 1
-    %34 = add %32, %33
-    store @i, %34
+    %34 = load @i
+    %35 = const i32 1
+    %36 = add %34, %35
+    store @i, %36
     br for.head1
   for.exit4:
-    %35 = load @@hfree
-    %36 = sext %35
-    %37 = const i64 8
-    %38 = mul %36, %37
-    %39 = ptr.add @@freed, %38
-    %40 = load @this
-    %41 = field.addr %40, 0
-    %42 = load %41
-    store %39, %42
-    %43 = load @@hfree
-    %44 = const i64 1
-    %45 = trunc %44
-    %46 = add %43, %45
-    store @@hfree, %46
+    %37 = load @@hfree
+    %38 = sext %37
+    %39 = const i64 8
+    %40 = mul %38, %39
+    %41 = ptr.add @@freed, %40
+    %42 = load @this
+    %43 = field.addr %42, 0
+    %44 = load %43
+    store %41, %44
+    %45 = load @@hfree
+    %46 = sext %45
+    %47 = const i64 1
+    %48 = add %46, %47
+    %49 = trunc %48
+    store @@hfree, %49
     ret
   if.join5:
     br for.step3
   if.then6:
-    %28 = load @@hdouble
-    %29 = const i64 1
-    %30 = trunc %29
-    %31 = add %28, %30
-    store @@hdouble, %31
+    %29 = load @@hdouble
+    %30 = sext %29
+    %31 = const i64 1
+    %32 = add %30, %31
+    %33 = trunc %32
+    store @@hdouble, %33
     ret
   if.else7:
     br if.join5
@@ -427,4 +437,4 @@ declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 13 functions, 26 blocks, 284 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 13 functions, 26 blocks, 294 insts, 0 statements not lowered, 0 scope imbalance

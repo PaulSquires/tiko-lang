@@ -20,10 +20,11 @@ func void _ZN3STRC1Ev(ptr $0) {
     %8 = call.rtl ptr calloc(%7, 1)
     store %6, %8
     %9 = load @@live
-    %10 = const i64 1
-    %11 = trunc %10
-    %12 = add %9, %11
-    store @@live, %12
+    %10 = sext %9
+    %11 = const i64 1
+    %12 = add %10, %11
+    %13 = trunc %12
+    store @@live, %13
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -53,10 +54,11 @@ func void _ZN3STRC1ERKc(ptr $0, ptr $1) {
     %16 = load @s
     %17 = call.rtl ptr fb_StrAssign(%15, 0, %16, 0, 0)
     %18 = load @@live
-    %19 = const i64 1
-    %20 = trunc %19
-    %21 = add %18, %20
-    store @@live, %21
+    %19 = sext %18
+    %20 = const i64 1
+    %21 = add %19, %20
+    %22 = trunc %21
+    store @@live, %22
     ret
 }
 declare i64 fb_StrLen(ptr $0, i64 $1)
@@ -90,10 +92,11 @@ func void _ZN3STRC1Eu7INTEGER(ptr $0, i64 $1) {
     %20 = trunc %19
     store %14, %20
     %21 = load @@live
-    %22 = const i64 1
-    %23 = trunc %22
-    %24 = add %21, %23
-    store @@live, %24
+    %22 = sext %21
+    %23 = const i64 1
+    %24 = add %22, %23
+    %25 = trunc %24
+    store @@live, %25
     ret
 }
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
@@ -140,10 +143,11 @@ func void _ZN3STRD1Ev(ptr $0) {
     %4 = load %3
     call.rtl void free(%4)
     %5 = load @@live
-    %6 = const i64 1
-    %7 = trunc %6
-    %8 = sub %5, %7
-    store @@live, %8
+    %6 = sext %5
+    %7 = const i64 1
+    %8 = sub %6, %7
+    %9 = trunc %8
+    store @@live, %9
     ret
 }
 func void PROBE() {
@@ -238,4 +242,4 @@ func void _ZN6HOLDERD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 9 functions, 9 blocks, 167 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 9 functions, 9 blocks, 171 insts, 0 statements not lowered, 0 scope imbalance
