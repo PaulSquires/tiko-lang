@@ -1110,6 +1110,13 @@ function LowerLen _
     '' this used to allocate came from. Tried before the type test below because a
     '' string CONSTANT member has no type of its own to report.
     if LowerStaticMemberLen_( c, a, isSizeof, outv ) then return true
+    '' ...AND 'sizeof' OF A STRING CONSTANT IS ITS BYTES AND THE NUL: 'sizeof( "ab" )' is 3, not the
+    '' 24 of the literal's STRING type. Narrow only, and not an escaped literal ('\u' stays raw).
+    dim as Tko.NodeId sza = Unparen_( c, a )
+    dim as boolean szEsc = false
+    if c.ast->Kind( sza ) = Tko.N_STRING_LIT then szEsc = (c.ast->literals[cast( long, c.ast->nodes[cast( long, sza )].data )].strKind = cast( ubyte, Tko.STRK_ESCAPED ))
+    dim as string szt
+    if isSizeof andalso (szEsc = false) andalso (TermIsWide_( c, a ) = false) andalso ConstStringTextOf_( c, a, szt ) then outv = ConstInt( c, len( szt ) + 1, MT_I64 ) : return (outv.kind <> cast( ubyte, MV_NONE ))
 
     '' A NAME THAT IS BOTH A TYPE AND A PROCEDURE is, inside SIZEOF, the TYPE.
     '' An identifier in expression position prefers the VALUE class, so

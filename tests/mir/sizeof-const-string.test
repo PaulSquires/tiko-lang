@@ -1,0 +1,18 @@
+'' 'sizeof' of a compile-time string -- a literal, an empty literal, a named constant, a constant
+'' built from one, a parenthesised fixed length and wininet.bi's INTERNET_MAX_URL_LENGTH shape,
+'' '#assert' and an enum initialiser -- beside a string VARIABLE, which keeps its descriptor's 24.
+'' Nothing folded any of them: the literal's STRING type answered 24, and a fixed length with no
+'' value silently became one character. Measured, fbc-modern prints 6, 24, 3, 1, 4, 4, 2085, 3 and 5;
+'' so does tiko. The sizes are asserted through zstring, whose width is the same on every target.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sizeof-const-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: const i64 6
+'' EXPECT-OUT: const i64 24
+'' EXPECT-OUT: const i64 3
+'' EXPECT-OUT: const i64 1
+'' EXPECT-OUT: const i64 4
+'' EXPECT-OUT: const i64 2085
+'' EXPECT-OUT: const i64 5

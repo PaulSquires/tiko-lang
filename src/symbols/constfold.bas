@@ -545,6 +545,19 @@ private function ConstCall_ _
         return CVNone_( )
     end if
 
+    '' 'sizeof' OF A COMPILE-TIME STRING IS ITS BYTES AND THE NUL. Measured: 'sizeof( "://" )'
+    '' is 4, 'sizeof( "" )' 1, and 'sizeof( CS )' over 'const CS = "hello"' 6. The operand
+    '' parses as an expression, not an N_TYPEREF, so the arm above never saw it and nothing
+    '' folded it: wininet.bi's INTERNET_MAX_URL_LENGTH -- '(32 + sizeof( "://" )) + 2048' --
+    '' had no value, 'wstring * INTERNET_MAX_URL_LENGTH + 1' silently became ONE character,
+    '' and fifteen AfxUrl* functions dropped the call that fills it. A string VARIABLE is not
+    '' ConstStrLen_'s business, so 'sizeof( s )' keeps its descriptor's size.
+    if (nm = "sizeof") andalso (cp->count = 1) then
+        dim as long zl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+                                       src, names, syms, scope_, depth )
+        if zl >= 0 then return CVW_( cast( longint, zl + 1 ), 32 )
+    end if
+
     if (nm = "iif") andalso (cp->count = 3) then
         dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
                                      src, names, intBits, syms, scope_, depth, _
