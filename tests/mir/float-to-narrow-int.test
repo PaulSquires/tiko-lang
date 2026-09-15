@@ -1,0 +1,21 @@
+'' A FLOAT INTO A NARROW INTEGER CONVERTS WIDER AND TRUNCATES, at a DIM and at an
+'' assignment, not only under an explicit 'culng'. Measured, fbc's C:
+''
+''   dim as ulong    ul = s     UL$1 = (uint32)fb_F2L( S$1 );
+''   dim as ushort   uw = s     UW$1 = (uint16)fb_F2I( S$1 );
+''   dim as byte     sb = s     SB$1 = (int8)fb_F2I( S$1 );
+''   dim as long     sl = s     SL$1 = fb_F2I( S$1 );
+''   dim as ulongint uq = d     UQ$1 = fb_D2UL( D$1 );
+''
+'' CoerceTy never passed the destination's signedness on, so 'dim as ulong v = s'
+'' was a direct 'fptosi' to i32 -- LLVM poisons it above 2^31, and 3e9 printed
+'' 2147483648 -- and a BYTE or SHORT target was a direct 'fptosi' to i8 or i16,
+'' out of range for 200.5 into a byte, where fbc's (int8)(int32) gives -56.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/float-to-narrow-int.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fptoui
+'' EXPECT-OUT: trunc
+'' GOLDEN: expected/float-to-narrow-int.out

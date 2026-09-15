@@ -12,7 +12,8 @@ func i8 _ZN3FOOcvaEv(ptr $0) {
     %6 = load %5
     %7 = nearbyint %6
     %8 = fptosi %7
-    ret %8
+    %9 = trunc %8
+    ret %9
 }
 func f64 _ZN3FOOcvdEv(ptr $0) {
   local f64 $tmp0
@@ -114,4 +115,4 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 72 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance

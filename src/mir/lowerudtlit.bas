@@ -614,7 +614,10 @@ function LowerUdtParenInit_ _
             wend
             if span < 1 then return false
         else
-            v = CoerceTy( c, v, fmt, c.info->TypeOf_( e ))
+            '' THE FIELD'S TYPE AS THE DESTINATION, or the float conversion is decided
+            '' here without it and the coercion below sees an integer already: 'dim as
+            '' T t = ( <single 3e9> )' into a ULONG field printed 2147483648.
+            v = CoerceTy( c, v, fmt, c.info->TypeOf_( e ), cast( Tko.TypeId, fFt[cur] ) )
             if v.kind = cast( ubyte, MV_NONE ) then return false
         end if
         '' COERCED TO THE FIELD'S TYPE, which this never did. The values are the

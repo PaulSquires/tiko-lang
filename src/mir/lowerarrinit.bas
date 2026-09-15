@@ -161,7 +161,9 @@ function LowerArrayInit _
         st.op = cast( ushort, M_STORE )
         st.ty = cast( ubyte, MT_VOID )
         st.a = ea
-        st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ))
+        '' THE ELEMENT TYPE AS THE DESTINATION: '{ <single 3e9> }' into a ULONG array
+        '' is fbc's '(uint32)fb_F2L( s )', and without it a signed i32 conversion.
+        st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ), el )
         Emit( c, st )
     next
     return true

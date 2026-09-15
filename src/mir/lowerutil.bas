@@ -369,7 +369,14 @@ function CoerceTy _
     '' Coerce, NOT CoerceTy. The mechanical rewrite that introduced this function
     '' ran over this file too and turned its own tail call into a call to itself --
     '' infinite recursion, and the compiler segfaulted on the first boolean it saw.
-    return Coerce( c, v, want, IsUnsignedType( c, srcTid ) )
+    '' THE DESTINATION'S SIGNEDNESS GOES ON TOO. Only the explicit 'culng' family
+    '' passed it, so every IMPLICIT store of a float into an unsigned target -- a DIM,
+    '' an assignment, a field, an argument, a RETURN -- was a signed conversion: 'dim
+    '' as ulong v = <single 3e9>' printed 2147483648 and 'dim as ulongint u = <double
+    '' 1e19>' 9223372036854775808, where fbc emits '(uint32)fb_F2L( S )' and
+    '' 'fb_D2UL( D )' and prints 3000000000 and 10000000000000000000. It changes
+    '' nothing but a float source; with no dstTid it answers false, as before.
+    return Coerce( c, v, want, IsUnsignedType( c, srcTid ), IsUnsignedType( c, dstTid ) )
 end function
 
 function Coerce _
@@ -472,9 +479,19 @@ function Coerce _
         '' bits does the unsigned range run past what the signed conversion can
         '' express, so that is the only width that changes. Without it 'culngint(
         '' 2^63 )' was a signed conversion of a value one past its maximum.
+        '' BYTE AND SHORT CONVERT AT 32, of either signedness, which is why that row
+        '' needs no dstUnsigned. Measured, fbc's C for every width:
+        ''
+        ''     ubyte, byte      (uint8)fb_F2I( s )      ulong       (uint32)fb_F2L( s )
+        ''     ushort, short    (int16)fb_F2I( s )      long        fb_F2I( s )
+        ''
+        '' A direct 'fptosi' to i8 or i16 is out of range for 'dim as byte b = 200.5',
+        '' where fbc's (int8)(int32) gives -56 -- LLVM's poison, not a wrap.
+        dim as boolean narrow32 = (TyWidth( want ) < 32)
+        dim as boolean narrow64 = dstUnsigned andalso (TyWidth( want ) < 64)
         if dstUnsigned andalso (TyWidth( want ) = 64) then
             ins.op = cast( ushort, M_FPTOUI )
-        elseif dstUnsigned andalso (TyWidth( want ) < 64) then
+        elseif narrow32 orelse narrow64 then
             '' ...AND A NARROWER UNSIGNED TARGET CONVERTS AT 64 AND TRUNCATES, which
             '' is what the comment above already quotes fbc doing -- '(uint32)
             '' fb_D2L( d )' for 'culng( d )' -- and what the code did not do. A
@@ -484,7 +501,7 @@ function Coerce _
             '' right all along.
             dim as MirInst wide
             wide.op = cast( ushort, M_FPTOSI )
-            wide.ty = cast( ubyte, MT_I64 )
+            wide.ty = cast( ubyte, iif( narrow32, MT_I32, MT_I64 ) )
             wide.a = ins.a
             dim as MirValue wv = Emit( c, wide )
             if wv.kind = cast( ubyte, MV_NONE ) then return wv

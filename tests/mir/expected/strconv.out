@@ -116,25 +116,26 @@ func void P() {
     %87 = call.rtl f64 fb_VAL(@s)
     %88 = nearbyint %87
     %89 = fptosi %88
-    store @b, %89
-    %90 = call.rtl f64 fb_VAL(@s)
-    %91 = nearbyint %90
-    %92 = fptosi %91
-    store @l, %92
-    %93 = call.rtl i64 fb_VALLNG(@s)
-    store @q, %93
-    %94 = call.rtl i64 fb_VALULNG(@s)
-    store @uq, %94
-    %95 = call.rtl f64 fb_VAL(@s)
-    store @dd, %95
+    %90 = trunc %89
+    store @b, %90
+    %91 = call.rtl f64 fb_VAL(@s)
+    %92 = nearbyint %91
+    %93 = fptosi %92
+    store @l, %93
+    %94 = call.rtl i64 fb_VALLNG(@s)
+    store @q, %94
+    %95 = call.rtl i64 fb_VALULNG(@s)
+    store @uq, %95
     %96 = call.rtl f64 fb_VAL(@s)
-    %97 = fptrunc %96
-    store @f, %97
-    %98 = call.rtl i32 fb_VALINT(@s)
-    store @n, %98
-    %99 = call.rtl i32 fb_VALUINT(@s)
-    %100 = zext %99
-    store @uq, %100
+    store @dd, %96
+    %97 = call.rtl f64 fb_VAL(@s)
+    %98 = fptrunc %97
+    store @f, %98
+    %99 = call.rtl i32 fb_VALINT(@s)
+    store @n, %99
+    %100 = call.rtl i32 fb_VALUINT(@s)
+    %101 = zext %100
+    store @uq, %101
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
     ret
@@ -174,4 +175,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 131 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 132 insts, 0 statements not lowered, 0 scope imbalance
