@@ -70,8 +70,10 @@ private function LowerTupleListAssign_ _
     end if
 
     '' ASSIGNED, not stored: a tuple whose half owns something has an 'operator let'
-    '' and a raw copy would skip it.
-    dim as Tko.SymbolId lt = StructorOf( c, dt, "let" )
+    '' and a raw copy would skip it. The same-type one -- the temp is a dt.
+    dim as FB.Array( of ulong ) tletT
+    tletT.Push( cast( ulong, dt ) )
+    dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, dt, "let" ), tletT )
     if lt <> Tko.SYMBOL_NONE then
         dim as FB.Array( of ulong ) largs
         largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )

@@ -976,7 +976,16 @@ private sub CopyMember_ _
     end if
 
     if c.types->Kind( ft ) = Tko.TK_UDT then
-        dim as Tko.SymbolId lt = StructorOf( c, ft, "let" )
+        '' THE FIELD'S SAME-TYPE LET, not the head of its chain -- the rule LowerAssign
+        '' already follows for 'y = x'. AfxNova's DWSTRING declares 'let( byref as
+        '' wstring )' first, so a synthesised let over a DWSTRING field called THAT with
+        '' the source field's address, and the copy read the descriptor's own bytes as
+        '' text: tracks' 'result = frmCalendar_Show( ... )' came back with a 3-character
+        '' date. No same-type overload falls through to the implicit let or a byte copy,
+        '' as it does for a whole assignment.
+        dim as FB.Array( of ulong ) sletT
+        sletT.Push( cast( ulong, ft ) )
+        dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, ft, "let" ), sletT )
         if lt <> Tko.SYMBOL_NONE then
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
@@ -1309,7 +1318,11 @@ private sub EmitOneImplicit_ _
         '' is zeroed and then assigned rather than assigned over a descriptor that was
         '' never initialised.
         EmitCtorPrologue_( c, t, selfv )
-        dim as Tko.SymbolId lt = StructorOf( c, t, "let" )
+        '' The same-type let, for the reason CopyMember_ gives: a converting let
+        '' declared first would be handed the source object's address.
+        dim as FB.Array( of ulong ) sletT
+        sletT.Push( cast( ulong, t ) )
+        dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, t, "let" ), sletT )
         if lt <> Tko.SYMBOL_NONE then
             dim as FB.Array( of ulong ) args
             args.Push( cast( ulong, rhs.kind ) ) : args.Push( cast( ulong, rhs.id ) )

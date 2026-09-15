@@ -1,0 +1,8 @@
+'' A synthesised let or copy constructor calls a field's SAME-TYPE 'operator let', not the
+'' first one declared. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-field-let-same-type.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-field-let-same-type.out

@@ -1,0 +1,386 @@
+global str $str0 "abc"
+global str $str1 "let: "
+global str $str2 "copy: "
+global str $str3 "xyz"
+global str $str4 "array: "
+global str $str5 " "
+global str $str6 "nested: "
+global str $str7 "result: "
+func void _ZN3FLDC1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = call.rtl ptr memset(%3, 0, 8)
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 1
+    %8 = call.rtl ptr calloc(%7, 1)
+    store %6, %8
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare ptr calloc(i64 $0, i64 $1)
+func void _ZN3FLDC1ERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = call.rtl ptr memset(%4, 0, 8)
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load @o
+    %9 = field.addr %8, 0
+    %10 = load %9
+    %11 = call.rtl i64 fb_StrLen(%10, 0)
+    %12 = const i64 1
+    %13 = add %11, %12
+    %14 = call.rtl ptr calloc(%13, 1)
+    store %7, %14
+    %15 = load @this
+    %16 = field.addr %15, 0
+    %17 = load %16
+    %18 = load @o
+    %19 = field.addr %18, 0
+    %20 = load %19
+    %21 = call.rtl ptr fb_StrAssign(%17, 0, %20, 0, 0)
+    ret
+}
+declare i64 fb_StrLen(ptr $0, i64 $1)
+declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+func void _ZN3FLDaSERKc(ptr $0, ptr $1) {
+  local ptr this
+  local ptr s
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr s
+    store @s, $1
+    %3 = load @this
+    %4 = field.addr %3, 0
+    %5 = load %4
+    call.rtl void free(%5)
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load @s
+    %9 = call.rtl i64 fb_StrLen(%8, 0)
+    %10 = const i64 1
+    %11 = add %9, %10
+    %12 = call.rtl ptr calloc(%11, 1)
+    store %7, %12
+    %13 = load @this
+    %14 = field.addr %13, 0
+    %15 = load %14
+    %16 = load @s
+    %17 = call.rtl ptr fb_StrAssign(%15, 0, %16, 0, 0)
+    ret
+}
+declare void free(ptr $0)
+func void _ZN3FLDaSERS_(ptr $0, ptr $1) {
+  local ptr this
+  local ptr o
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr o
+    store @o, $1
+    %3 = load @this
+    %4 = load @o
+    %5 = icmp.eq %3, %4
+    condbr %5, if.then2, if.else3
+  if.join1:
+    %6 = load @this
+    %7 = field.addr %6, 0
+    %8 = load %7
+    call.rtl void free(%8)
+    %9 = load @this
+    %10 = field.addr %9, 0
+    %11 = load @o
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.rtl i64 fb_StrLen(%13, 0)
+    %15 = const i64 1
+    %16 = add %14, %15
+    %17 = call.rtl ptr calloc(%16, 1)
+    store %10, %17
+    %18 = load @this
+    %19 = field.addr %18, 0
+    %20 = load %19
+    %21 = load @o
+    %22 = field.addr %21, 0
+    %23 = load %22
+    %24 = call.rtl ptr fb_StrAssign(%20, 0, %23, 0, 0)
+    ret
+  if.then2:
+    ret
+  if.else3:
+    br if.join1
+}
+func void _ZN3FLDD1Ev(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = load %3
+    call.rtl void free(%4)
+    ret
+}
+func ptr MAKEH(ptr $0) {
+  local ptr $tmp0
+  local agg h size 16
+  entry0:
+    %1 = alloca ptr $tmp0
+    store @$tmp0, $0
+    %2 = load @$tmp0
+    %3 = alloca ptr h
+    call void _ZN6HOLDERC1Ev(@h)
+    %4 = field.addr @h, 0
+    call void _ZN3FLDaSERKc(%4, @@$str0)
+    %5 = load @$tmp0
+    call void _ZN6HOLDERC1ERKS_(%5, @h)
+    call void _ZN6HOLDERD1Ev(@h)
+    %6 = load @$tmp0
+    ret %6
+}
+declare void _ZN6HOLDERC1Ev(ptr $0)
+declare void _ZN6HOLDERC1ERKS_(ptr $0, ptr $1)
+declare void _ZN6HOLDERD1Ev(ptr $0)
+func void PROBE() {
+  local agg a size 16
+  local agg b size 16
+  local agg c size 16
+  local agg p1 size 16
+  local agg p2 size 16
+  local agg o1 size 16
+  local agg o2 size 16
+  local agg r size 16
+  local agg $tmp8 size 16
+  entry0:
+    %1 = alloca ptr a
+    call void _ZN6HOLDERC1Ev(@a)
+    %2 = field.addr @a, 0
+    call void _ZN3FLDaSERKc(%2, @@$str0)
+    %3 = alloca ptr b
+    call void _ZN6HOLDERC1Ev(@b)
+    call void _ZN6HOLDERaSERKS_(@b, @a)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 5)
+    call.rtl void fb_PrintString(0, %4, 0)
+    %5 = field.addr @b, 0
+    %6 = field.addr %5, 0
+    %7 = load %6
+    %8 = call.rtl ptr fb_StrAllocTempDescZ(%7)
+    call.rtl void fb_PrintString(0, %8, 1)
+    %9 = alloca ptr c
+    call void _ZN6HOLDERC1ERKS_(@c, @a)
+    %10 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 6)
+    call.rtl void fb_PrintString(0, %10, 0)
+    %11 = field.addr @c, 0
+    %12 = field.addr %11, 0
+    %13 = load %12
+    %14 = call.rtl ptr fb_StrAllocTempDescZ(%13)
+    call.rtl void fb_PrintString(0, %14, 1)
+    %15 = alloca ptr p1
+    call void _ZN4PAIRC1Ev(@p1)
+    %16 = alloca ptr p2
+    call void _ZN4PAIRC1Ev(@p2)
+    %17 = field.addr @p1, 0
+    %18 = const i64 0
+    %19 = const i64 8
+    %20 = mul %18, %19
+    %21 = ptr.add %17, %20
+    call void _ZN3FLDaSERKc(%21, @@$str0)
+    %22 = field.addr @p1, 0
+    %23 = const i64 1
+    %24 = const i64 8
+    %25 = mul %23, %24
+    %26 = ptr.add %22, %25
+    call void _ZN3FLDaSERKc(%26, @@$str3)
+    call void _ZN4PAIRaSERKS_(@p2, @p1)
+    %27 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 7)
+    call.rtl void fb_PrintString(0, %27, 0)
+    %28 = field.addr @p2, 0
+    %29 = const i64 0
+    %30 = const i64 8
+    %31 = mul %29, %30
+    %32 = ptr.add %28, %31
+    %33 = field.addr %32, 0
+    %34 = load %33
+    %35 = call.rtl ptr fb_StrAllocTempDescZ(%34)
+    call.rtl void fb_PrintString(0, %35, 0)
+    %36 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
+    call.rtl void fb_PrintString(0, %36, 0)
+    %37 = field.addr @p2, 0
+    %38 = const i64 1
+    %39 = const i64 8
+    %40 = mul %38, %39
+    %41 = ptr.add %37, %40
+    %42 = field.addr %41, 0
+    %43 = load %42
+    %44 = call.rtl ptr fb_StrAllocTempDescZ(%43)
+    call.rtl void fb_PrintString(0, %44, 1)
+    %45 = alloca ptr o1
+    call void _ZN5OUTERC1Ev(@o1)
+    %46 = alloca ptr o2
+    call void _ZN5OUTERC1Ev(@o2)
+    %47 = field.addr @o1, 0
+    %48 = field.addr %47, 0
+    call void _ZN3FLDaSERKc(%48, @@$str0)
+    call void _ZN5OUTERaSERKS_(@o2, @o1)
+    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 8)
+    call.rtl void fb_PrintString(0, %49, 0)
+    %50 = field.addr @o2, 0
+    %51 = field.addr %50, 0
+    %52 = field.addr %51, 0
+    %53 = load %52
+    %54 = call.rtl ptr fb_StrAllocTempDescZ(%53)
+    call.rtl void fb_PrintString(0, %54, 1)
+    %55 = alloca ptr r
+    call void _ZN6HOLDERC1Ev(@r)
+    %56 = alloca ptr $tmp8
+    %57 = call ptr MAKEH(@$tmp8)
+    call void _ZN6HOLDERaSERKS_(@r, @$tmp8)
+    call void _ZN6HOLDERD1Ev(@$tmp8)
+    %58 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 8)
+    call.rtl void fb_PrintString(0, %58, 0)
+    %59 = field.addr @r, 0
+    %60 = field.addr %59, 0
+    %61 = load %60
+    %62 = call.rtl ptr fb_StrAllocTempDescZ(%61)
+    call.rtl void fb_PrintString(0, %62, 1)
+    call void _ZN6HOLDERD1Ev(@r)
+    call void _ZN5OUTERD1Ev(@o2)
+    call void _ZN5OUTERD1Ev(@o1)
+    call void _ZN4PAIRD1Ev(@p2)
+    call void _ZN4PAIRD1Ev(@p1)
+    call void _ZN6HOLDERD1Ev(@c)
+    call void _ZN6HOLDERD1Ev(@b)
+    call void _ZN6HOLDERD1Ev(@a)
+    ret
+}
+declare void _ZN6HOLDERaSERKS_(ptr $0, ptr $1)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void _ZN4PAIRC1Ev(ptr $0)
+declare void _ZN4PAIRaSERKS_(ptr $0, ptr $1)
+declare void _ZN5OUTERC1Ev(ptr $0)
+declare void _ZN5OUTERaSERKS_(ptr $0, ptr $1)
+declare void _ZN5OUTERD1Ev(ptr $0)
+declare void _ZN4PAIRD1Ev(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void PROBE()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+func void _ZN6HOLDERC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN3FLDC1Ev(%1)
+    %2 = field.addr $0, 8
+    %3 = const i64 1
+    %4 = neg %3
+    %5 = trunc %4
+    store %2, %5
+    ret
+}
+func void _ZN6HOLDERC1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN3FLDC1Ev(%1)
+    %2 = field.addr $0, 8
+    %3 = const i64 1
+    %4 = neg %3
+    %5 = trunc %4
+    store %2, %5
+    call void _ZN6HOLDERaSERKS_($0, $1)
+    ret
+}
+func void _ZN6HOLDERD1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN3FLDD1Ev(%1)
+    ret
+}
+func void _ZN6HOLDERaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    call void _ZN3FLDaSERS_(%2, %1)
+    %3 = field.addr $1, 8
+    %4 = field.addr $0, 8
+    %5 = load %3
+    store %4, %5
+    ret
+}
+func void _ZN4PAIRC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = call.rtl ptr memset(%1, 0, 16)
+    %3 = field.addr %1, 0
+    call void _ZN3FLDC1Ev(%3)
+    %4 = field.addr %1, 8
+    call void _ZN3FLDC1Ev(%4)
+    ret
+}
+func void _ZN4PAIRaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    %3 = field.addr %2, 0
+    %4 = field.addr %1, 0
+    call void _ZN3FLDaSERS_(%3, %4)
+    %5 = field.addr %2, 8
+    %6 = field.addr %1, 8
+    call void _ZN3FLDaSERS_(%5, %6)
+    ret
+}
+func void _ZN5OUTERC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN6HOLDERC1Ev(%1)
+    ret
+}
+func void _ZN5OUTERaSERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $1, 0
+    %2 = field.addr $0, 0
+    call void _ZN6HOLDERaSERKS_(%2, %1)
+    ret
+}
+func void _ZN5OUTERD1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN6HOLDERD1Ev(%1)
+    ret
+}
+func void _ZN4PAIRD1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = field.addr %1, 8
+    call void _ZN3FLDD1Ev(%2)
+    %3 = field.addr %1, 0
+    call void _ZN3FLDD1Ev(%3)
+    ret
+}
+verify: ok
+lowered: 18 functions, 21 blocks, 258 insts, 0 statements not lowered, 0 scope imbalance
