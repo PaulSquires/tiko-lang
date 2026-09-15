@@ -913,6 +913,164 @@ private function TryTailJoin_( byref e as PpEngine ) as boolean
     return true
 end function
 
+'' ------------------------------------------------ joins INSIDE a substitution
+'' THE SAME RE-LEX, ONE LEVEL IN: where a substituted argument meets the body with
+'' nothing between them. fbc substitutes an argument's TEXT into the body's text and
+'' re-lexes the result, so the two become ONE token wherever the two spellings lex as
+'' one. Measured with 'fbc64 -pp':
+''
+''   #define m(n) n.5        m(2)      ->  2.5
+''   #define m(n) n .5       m(2)      ->  2 .5   and error 3: A SPACE STOPS IT
+''   #define m(n) 1n         m(2)      ->  12
+''   #define m(n) n.n        m(2)      ->  2.2    two joins, left to right
+''   #define m(n) 1en        m(2)      ->  1e2, so 100
+''   #define m(a,b) a.b      m(3,)     ->  3.0    an EMPTY argument still joins
+''   #define m(op) 1 op= 2   m(<)      ->  1 <= 2
+''   #define m(n) "x"n       m("y")    ->  "x""y", the one string x"y
+''   #define m(n,k) n##k.5   m(1,2)    ->  12.5   a PASTE's result joins too
+''   #define m(n) ne3        m(2)      ->  ne3, an identifier: never the parameter
+''
+'' tiko spliced the argument's tokens beside the body's, so 'm( 2 )' over 'n.5' was the
+'' integer 2 and then the float .5 -- "expected the end of the statement".
+''
+'' NOT COVERED, and both measured: an argument whose EDGE is itself a macro name joins
+'' in fbc, which expands the argument's text first -- '#define two 2' with '1n' gives
+'' 12, where tiko splices 'two' and the rescan's own tail join cannot reach the front of
+'' an expansion. And '&hn' needs '&h' to survive lexing with no digits after it, which
+'' it does not; no corpus file or bundled header writes either shape.
+type PieceVec as FB.Array( of long )
+type ByteVec as FB.Array( of ubyte )
+
+'' Two tokens, joined if their spellings re-lex as exactly one -- TryTailJoin_'s rule,
+'' and its reasons, applied to a seam inside the expansion instead of the one at its end.
+private function JoinPair_ _
+    ( byref e as PpEngine, byref a as Token, byref b as Token, _
+      byref j as Token ) as boolean
+
+    dim as TokenKind ka = Tk( a )
+    dim as TokenKind kb = Tk( b )
+    if (ka = TK_EOL) orelse (ka = TK_EOF) then return false
+    if (kb = TK_EOL) orelse (kb = TK_EOF) then return false
+    if ((a.flags or b.flags) and TF_JOIN_MARK) <> 0 then return false
+
+    dim as string sa = SpellOf( e, a )
+    dim as string sb = SpellOf( e, b )
+    if (len( sa ) = 0) orelse (len( sb ) = 0) then return false
+    '' No token of the language begins or ends with one of these, so a parameter's
+    '' commonest neighbours -- 'f( n )', 'a, n', 'n )' -- cost no re-lex at all.
+    if instr( "()[]{},;:", right( sa, 1 ) ) > 0 then return false
+    if instr( "()[]{},;:", left( sb, 1 ) ) > 0 then return false
+
+    '' A RE-LEX THAT REPORTS SOMETHING IS NOT A JOIN: '&' against 'hx' would say "'&' is
+    '' not followed by any digits" about text nobody wrote. Diagnostics are buffered
+    '' until Flush, so a speculative one is taken back off the pending list.
+    dim as long e0 = e.diags->errors
+    dim as long w0 = e.diags->warnings
+    dim as long p0 = e.diags->pending.Count
+    dim as TokenVec jv
+    RelexInto( e, sa + sb, a.loc, jv )
+    dim as boolean reported = (e.diags->errors <> e0) orelse (e.diags->warnings <> w0)
+    if e.diags->pending.Count <> p0 then reported = true
+    if reported then
+        while e.diags->pending.Count > p0
+            e.diags->pending.Pop( )
+        wend
+        e.diags->errors = e0
+        e.diags->warnings = w0
+        return false
+    end if
+    if jv.Count <> 1 then return false
+
+    j = jv[0]
+    '' The joined token stands where the LEFT one stood: it takes that token's leading
+    '' spacing and line position, never the swallowed one's.
+    dim as ushort keep = a.flags and _
+        (TF_SPACE_BEFORE or TF_AT_LINE_START or TF_COLON or TF_LINE_JOINED)
+    j.flags = (j.flags and (not (TF_SPACE_BEFORE or TF_AT_LINE_START or _
+                                 TF_COLON or TF_LINE_JOINED))) or keep
+    j.flags or= TF_FROM_MACRO
+    return true
+end function
+
+'' One substituted run, as three numbers: where it starts in the output, where it ends
+'' (BELOW the start for an empty argument), and whether the body had no space in front
+'' of it.
+private sub PieceMark_ _
+    ( byref pieces as PieceVec, byval first as long, byval last_ as long, _
+      byval bodyFlags as ushort )
+    pieces.Push( first )
+    pieces.Push( last_ )
+    dim as long g = 0
+    if (bodyFlags and TF_SPACE_BEFORE) = 0 then g = 1
+    pieces.Push( g )
+end sub
+
+'' Walk the finished body and join every seam that TOUCHES a substituted run. Two body
+'' tokens are left alone -- they were lexed together already -- and so are the tokens
+'' INSIDE an argument, which keep the spacing the call wrote.
+private sub JoinSubstituted_ _
+    ( byref e as PpEngine, byref toks as TokenVec, byref pieces as PieceVec )
+
+    if pieces.Count = 0 then return
+    dim as long n = toks.Count
+    if n < 2 then return
+
+    '' 0 a body token, 1 the first token of a substituted run, 2 inside one.
+    dim as ByteVec kind_
+    dim as ByteVec glued
+    for i as long = 0 to n - 1
+        kind_.Push( 0 )
+        dim as ubyte gb = 0
+        if (toks[i].flags and TF_SPACE_BEFORE) = 0 then gb = 1
+        glued.Push( gb )
+    next
+
+    for pi as long = 0 to pieces.Count - 3 step 3
+        dim as long f = pieces[pi]
+        dim as long l = pieces[pi + 1]
+        dim as boolean g = (pieces[pi + 2] <> 0)
+        if f >= n then continue for
+        if f > l then
+            '' AN EMPTY ARGUMENT still lets its neighbours meet: '#define m(a,b) a.b'
+            '' invoked as 'm( 3, )' is '3.' to fbc, a DOUBLE.
+            if (kind_[f] = 0) andalso g then kind_[f] = 1
+            continue for
+        end if
+        kind_[f] = 1
+        if g then glued[f] = 1 else glued[f] = 0
+        for i as long = f + 1 to l
+            if i < n then kind_[i] = 2
+        next
+    next
+
+    dim as TokenVec outv
+    dim as ByteVec outKind
+    for i as long = 0 to n - 1
+        dim as boolean tryJoin = (outv.Count > 0) andalso (kind_[i] <> 2)
+        if tryJoin then tryJoin = (glued[i] <> 0)
+        if tryJoin then tryJoin = (kind_[i] = 1) orelse (outKind[outKind.Count - 1] <> 0)
+        if tryJoin then
+            dim as Token j
+            if JoinPair_( e, outv.At( outv.Count - 1 ), toks[i], j ) then
+                '' Through a pointer, as TryTailJoin_ does: 'v.At( i ) = x' reads the
+                '' '=' as equality inside the argument list and assigns nothing.
+                dim as Token ptr slot = @outv.At( outv.Count - 1 )
+                *slot = j
+                dim as ubyte ptr kslot = @outKind.At( outKind.Count - 1 )
+                *kslot = 1
+                continue for
+            end if
+        end if
+        outv.Push( toks[i] )
+        outKind.Push( kind_[i] )
+    next
+
+    toks.Clear( )
+    for i as long = 0 to outv.Count - 1
+        toks.Push( outv[i] )
+    next
+end sub
+
 '' Forward declarations: the three parts below reference each other freely, and the
 '' main loop below them references all three. They are #included rather than compiled
 '' separately so the whole preprocessor is one translation unit.

@@ -396,6 +396,10 @@ private function ScanNumSuffix _
     case 33                                  '' !
         s.i += 1 : return Tko.NSUF_SINGLE
     case 35                                  '' #
+        '' ...BUT '##' IS THE PASTE OPERATOR, never a suffix and a '#', exactly as for an
+        '' identifier: fbc gives 100 for '#define m(n) 1e##n' over 2, and 32 for '3##n'.
+        '' It lexed as the DOUBLE '1e#' and a stringise '#n'.
+        if (s.i + 1 < s.n) andalso (s.p[s.i + 1] = 35) then return Tko.NSUF_NONE
         s.i += 1 : return Tko.NSUF_DOUBLE
     case 70                                  '' F
         s.i += 1 : return Tko.NSUF_SINGLE

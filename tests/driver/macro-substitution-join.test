@@ -1,0 +1,7 @@
+'' A substituted argument joined to the body beside it, built to an executable. See the
+'' source's header for the output fbc prints; build/goldenrun.sh runs the result beside fbc's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/macro-substitution-join.bas -o tests/driver/macrosubstitutionjoin.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/macrosubstitutionjoin.exe

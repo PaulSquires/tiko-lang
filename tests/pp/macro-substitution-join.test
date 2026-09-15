@@ -1,0 +1,33 @@
+'' A parameter, a paste or a stringise and the body beside it re-lex as one token when
+'' nothing separates them. See the source's header for the measurements.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/macro-substitution-join.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+
+'' 'n.5' over 2, and the same through a spaced invocation and an expression argument.
+'' EXPECT-OUT: const f64 2.5
+'' EXPECT-OUT: const f64 3.5
+
+'' '1n' is 12, '3##n' is 32, and 'n.n' is 2.2.
+'' EXPECT-OUT: const i64 12
+'' EXPECT-OUT: const i64 32
+'' EXPECT-OUT: const f64 2.2
+
+'' '1en' and '1e##n' are both 1e2, and 'n.e3' is 2e3.
+'' EXPECT-OUT: const f64 100
+'' EXPECT-OUT: const f64 2000
+
+'' 'a.b' over (3,14), and over (3,) -- the empty argument still joins, giving a DOUBLE.
+'' EXPECT-OUT: const f64 3.14
+'' EXPECT-OUT: const f64 3
+
+'' '1.n' over 5, and 'n##k.5' over (1,2).
+'' EXPECT-OUT: const f64 1.5
+'' EXPECT-OUT: const f64 12.5
+
+'' A whole identifier in the body is never the parameter: 'ne3' and 'n5' are the
+'' variables, and the member access still resolves.
+'' EXPECT-OUT: load @@ne3
+'' EXPECT-OUT: load @@n5
+'' EXPECT-NOT: error TKO

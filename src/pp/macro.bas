@@ -1150,6 +1150,12 @@ private sub PpSubstitute _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
       byval useLoc as SourceLoc, byref outv as TokenVec )
 
+    '' WHERE A SUBSTITUTION MEETS THE BODY WITH NOTHING BETWEEN THEM the two re-lex as
+    '' one, exactly as an expansion's tail and the token after it do -- see
+    '' JoinSubstituted_, which runs over the finished run. This records which tokens
+    '' came from a parameter, a paste or a stringise, and whether the body glued them on.
+    dim as PieceVec pieces
+    dim as long pieceAt = 0
     dim as long i = 0
     while i < m->body.Count
         if IsLineJoinAt_( e, m, i ) then
@@ -1222,9 +1228,11 @@ private sub PpSubstitute _
                         '' -- fully expanded, not one level: B becomes A+A and then
                         '' 1+1. tiko-lang stringified the RAW text and produced [A],
                         '' [B] and [A B].
+                        pieceAt = outv.Count
                         RelexInto( e, _
                             Stringised_( ExpandedArgText_( e, args, ai ) ), _
                             useLoc, outv )
+                        PieceMark_( pieces, pieceAt, outv.Count - 1, bt.flags )
                         i += 2
                         continue while
                     end if
@@ -1263,7 +1271,9 @@ private sub PpSubstitute _
                 i += 3
             wend
 
+            pieceAt = outv.Count
             RelexInto( e, acc, useLoc, outv )
+            PieceMark_( pieces, pieceAt, outv.Count - 1, bt.flags )
             continue while
         end if
 
@@ -1272,6 +1282,7 @@ private sub PpSubstitute _
         if bp <> 0 then
             dim as long ai = ArgIndexOf( m, bp )
             if ai >= 0 then
+                pieceAt = outv.Count
                 if ai < args.firsts.Count then
                     dim as long first = args.firsts[ai]
                     for j as long = 0 to args.counts[ai] - 1
@@ -1279,6 +1290,15 @@ private sub PpSubstitute _
                         at.flags or= TF_FROM_MACRO
                         outv.Push( at )
                     next
+                end if
+                '' NOT WHEN THE PARAMETER CARRIED A SUFFIX. '#define m(n) n&"z"' is
+                '' the identifier 'n' with a '&' on it and then a string: the '&'
+                '' is swallowed by the suffix and never reaches the body, so what
+                '' looks like a seam here is two tokens fbc has an operator
+                '' between -- its -pp writes '"y"&"z"'. Joining them made one
+                '' string, 'y"z', out of a concatenation of two.
+                if (bt.flags and TF_HAS_SUFFIX) = 0 then
+                    PieceMark_( pieces, pieceAt, outv.Count - 1, bt.flags )
                 end if
                 i += 1
                 continue while
@@ -1289,101 +1309,12 @@ private sub PpSubstitute _
         outv.Push( bt )
         i += 1
     wend
+
+    JoinSubstituted_( e, outv, pieces )
 end sub
 
-'' AN ARGUMENT THAT IS A BARE MACRO INVOCATION IS EXPANDED BEFORE IT IS SUBSTITUTED.
-''
-'' Substitution pushes an argument's RAW tokens and lets the rescan expand them,
-'' which is right for everything except this one shape. Given
-''
-''     #macro foo ? ( a, b )    __fb_quote__( a b )    #endmacro
-''     foo( bar 1, 2, 3, baz( 4, 5, 6 ) )
-''
-'' the body becomes '__fb_quote__( bar 1, 2, 3 baz( 4, 5, 6 ) )' -- and 'bar' read
-'' bare runs to END OF LINE, so its third argument swallowed 'baz( 4, 5, 6 )' and
-'' the string came out '$"1 2 3 $""4 5 6""' where fbc gives '$"1 2 3" $"4 5 6"'.
-'' Lowered, verified, and wrong.
-''
-'' Expanding the argument first turns it into one literal token before it is placed
-'' next to the following one, so there is no boundary left to lose. Only arguments
-'' that BEGIN with a bare-callable name are touched: every other substitution keeps
-'' the raw-token behaviour it had.
-private sub PreExpandBareArgs_ _
-    ( byref e as PpEngine, byref args as ArgList )
 
-    dim as long n = args.firsts.Count
-    if n = 0 then return
-
-    dim as boolean anyBare = false
-    for ai as long = 0 to n - 1
-        if args.counts[ai] < 2 then continue for
-        dim as Token t0 = args.flat[args.firsts[ai]]
-        if Tk( t0 ) <> TK_IDENT then continue for
-        dim as PpMacro ptr im = MacroFor( e, cast( InternId, t0.literal ) )
-        if im = 0 then continue for
-        if (im->isFunc = false) orelse (im->optParens = false) then continue for
-        if Tk( args.flat[args.firsts[ai] + 1] ) = TK_LPAREN then continue for
-        anyBare = true
-        exit for
-    next
-    if anyBare = false then return
-
-    dim as ArgList outA
-    for ai as long = 0 to n - 1
-        dim as boolean isBare = false
-        if args.counts[ai] >= 2 then
-            dim as Token t0 = args.flat[args.firsts[ai]]
-            if Tk( t0 ) = TK_IDENT then
-                dim as PpMacro ptr im = MacroFor( e, cast( InternId, t0.literal ) )
-                if im <> 0 then
-                    isBare = im->isFunc andalso im->optParens
-                    if isBare then
-                        isBare = (Tk( args.flat[args.firsts[ai] + 1] ) <> TK_LPAREN)
-                    end if
-                end if
-            end if
-        end if
-
-        dim as long first = outA.flat.Count
-        dim as long count = 0
-        if isBare then
-            dim as TokenVec tv
-            RelexInto( e, ExpandedArgText_( e, args, ai ), LOC_NONE, tv )
-            for j as long = 0 to tv.Count - 1
-                dim as Token nt = tv[j]
-                '' THE ARGUMENT'S OWN LEADING SPACE SURVIVES THE REPLACEMENT.
-                '' Relexed tokens carry the spacing of the synthesised text, so two
-                '' bare arguments in a row came out '$"1 2 3"$"4 5 6"' -- fbc puts
-                '' a space there, and it is the space that was before 'baz'.
-                if j = 0 then
-                    dim as Token t0f = args.flat[args.firsts[ai]]
-                    nt.flags = nt.flags and (not TF_SPACE_BEFORE)
-                    nt.flags = nt.flags or (t0f.flags and TF_SPACE_BEFORE)
-                end if
-                outA.flat.Push( nt )
-                count += 1
-            next
-        else
-            for j as long = 0 to args.counts[ai] - 1
-                outA.flat.Push( args.flat[args.firsts[ai] + j] )
-                count += 1
-            next
-        end if
-        outA.firsts.Push( first )
-        outA.counts.Push( count )
-    next
-
-    args.flat.Clear( )
-    args.firsts.Clear( )
-    args.counts.Clear( )
-    for j as long = 0 to outA.flat.Count - 1
-        args.flat.Push( outA.flat[j] )
-    next
-    for j as long = 0 to outA.firsts.Count - 1
-        args.firsts.Push( outA.firsts[j] )
-        args.counts.Push( outA.counts[j] )
-    next
-end sub
+#include once "pp/macrobare.bas"
 
 '' THE EXPANSION'S TRAILING END-OF-LINE, dropped unless the invocation was itself
 '' synthesised.
