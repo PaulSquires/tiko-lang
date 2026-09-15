@@ -95,6 +95,13 @@ function SelfOpMemberCall_ _
     '' A WIDE VALUE may have no Check type at all -- see WideCharOverload_ below.
     dim as boolean wideVal = WideValueForCharMember_( c, value )
     dim as boolean noType = (vt = Tko.TYPE_NONE) andalso (aet = Tko.TYPE_NONE)
+    '' ...AND SO MAY A NARROW ONE. A concatenation or an intrinsic's result has no Check
+    '' type, and 'dws += "- Leg #" + str( i ) & vbcrlf' declined right here. It is scored
+    '' as the STRING it is: fbc calls DWSTRING's '+=( byref ansiStr as string )' for it.
+    if noType andalso (wideVal = false) andalso NarrowStrArg_( c, value ) then
+        vt = c.types->Builtin( Tko.TY_STRING )
+        noType = false
+    end if
     if noType andalso (wideVal = false) then return false
 
     '' SCORED, NOT MATCHED EXACTLY. 'u += 10' over a type declaring both
@@ -186,7 +193,20 @@ function SelfOpMemberCall_ _
     '' parameter was spelled -- the same answer an ordinary call's arguments get.
     elseif ArrayDescArg_( c, value, ParamIsArray( c, want, 0 ), av ) then
     elseif ParamIsByref( c, want, 0 ) then
-        av = LowerAddr( c, value )
+        '' A STRING RVALUE HAS NO ADDRESS. 'dws += "- Missing Ticker Symbol." & vbcrlf' over
+        '' DWSTRING's '+=( byref ansiStr as string )' asked a literal and a concatenation for
+        '' one, and the statement was DROPPED -- tracks' validation messages, AfxNova's
+        '' CTextStream error texts. Measured, fbc copies the value into a temporary first:
+        ''
+        ''     fb_StrAssign( &TMP, -1, "lit", 4, 0 );  _ZN1TpLER8FBSTRING( &V, &TMP )
+        ''
+        '' -- the arms an ordinary constructor argument takes in lowercallarg.bas.
+        dim as Tko.TypeId bpt = ParamTypeAt( c, want, 0 )
+        if UStrParamArgTemp_( c, value, bpt, av ) = false then
+            if NarrowParamArgTemp_( c, value, bpt, av ) = false then
+                av = LowerAddr( c, value )
+            end if
+        end if
     else
         av = LowerExpr( c, value )
         '' TO THE PARAMETER'S WIDTH, not the operand's -- the same rule an ordinary

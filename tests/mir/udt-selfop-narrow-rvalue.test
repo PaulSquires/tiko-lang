@@ -1,0 +1,23 @@
+'' '+=' and '&=' onto a UDT with a NARROW RVALUE -- a literal, a concatenation, an intrinsic's
+'' result -- over DWSTRING's overload set (wstring ptr, byref string, longint, double), on a local,
+'' a field and a shared destination. Every one was DROPPED: SelfOpMemberCall_ asked the value for
+'' an address a literal has not got, and a concatenation has no Check type to score. tracks lost
+'' its validation messages and AfxNova's CTextStream its error texts.
+''
+'' Measured, fbc-modern copies each rvalue into a string temporary and calls
+'' '+=( byref as string )' (seven times here), '&=( byref as string )' once, the wstring-pointer
+'' member for '@wz' and the double member for 1.5 -- the same picks tiko makes now -- and prints
+'' '[lit', '[a2', '["', '[   ]', '[&amp', '[sp', '[W', '[1.5', 'field!', 'global'. So does tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-selfop-narrow-rvalue.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _ZN2DSpLER8FBSTRING(@d, @$tmp
+'' EXPECT-OUT: call void _ZN2DSpLER8FBSTRING(@d, @sp)
+'' EXPECT-OUT: call void _ZN2DSpLER8FBSTRING(@@g_text, @$tmp
+'' EXPECT-OUT: call void _ZN2DSv27selfcatER8FBSTRING(@d, @$tmp
+'' EXPECT-OUT: call void _ZN2DSpLEPw(@d, @wz)
+'' EXPECT-OUT: call void _ZN2DSpLEd(@d,
+'' EXPECT-OUT: call.rtl void fb_StrDelete(@$tmp
+'' EXPECT-NOT: fb_StrAllocTempDesc

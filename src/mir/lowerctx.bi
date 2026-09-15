@@ -381,6 +381,10 @@ declare function EmitRtl _
     declare function UStrParamArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outv as MirValue ) as boolean
+    '' ...and its narrow twin, for a 'byref as string' parameter. lowerstrargs.bas.
+    declare function NarrowParamArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
           byval value as Tko.NodeId ) as boolean

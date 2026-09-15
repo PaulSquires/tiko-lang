@@ -654,3 +654,29 @@ function UStrParamArgTemp_ _
     return true
 end function
 
+'' THE NARROW TWIN, for a 'byref as string' parameter met outside the ordinary call path --
+'' a self-operator: 'dws += "- Missing Ticker Symbol." & vbcrlf' over DWSTRING's
+'' '+=( byref ansiStr as string )'. Measured, fbc copies the rvalue into a temporary:
+''
+''     fb_StrAssign( &TMP, -1, "lit", 4, 0 );  _ZN1TpLER8FBSTRING( &V, &TMP );  fb_StrDelete( &TMP )
+''
+'' FALSE, touching nothing, when the parameter is not a narrow var-length string or the
+'' argument already owns a descriptor it can pass -- a variable, a field, an element.
+function NarrowParamArgTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if (IsStringType( c, pu ) = false) orelse IsUStringType( c, pu ) then return false
+    if StrArgOwnDescriptor_( c, argNode, pu ) then return false
+    dim as long slot = -1
+    if ByvalStrTemp_( c, argNode, pu, outv, slot ) = false then return false
+    if slot >= 0 then
+        c.f->locals[slot].frontendType = pu
+        c.strTemps.Push( cast( ulong, slot ) )
+    end if
+    return true
+end function
+
