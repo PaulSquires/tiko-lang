@@ -1,0 +1,12 @@
+'' 'return *wideptr' out of a string property, a free function, and an early return beside a narrow
+'' one. The string RETURN tried a narrow assignment only, so each was dropped -- DWSTRING's own OEM
+'' property is the case. Measured, fbc initialises the result from the wide characters
+'' ('fb_WstrAssignToA_Init( &fb$result, -1ll, P, 0ll )', the declaration form, where 'function = *p'
+'' takes the plain one) and prints '[wide]' three times; so does tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/string-return-wide-deref.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_WstrAssignToA_Init(@$tmp0, -1,
+'' EXPECT-OUT: call.rtl ptr fb_StrAllocTempResult(

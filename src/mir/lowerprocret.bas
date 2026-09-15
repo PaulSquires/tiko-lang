@@ -23,7 +23,13 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as bool
     if IsStringType( c, c.resultType ) = false then return false
 
     if valueE <> Tko.NODE_NONE then
-        if LowerStringAssignToSlot( c, c.resultSlot, valueE ) = false then SkipHere( c )
+        '' A WIDE VALUE IS A CONVERSION, as 'function = w' already has it -- in the DECLARATION
+        '' form, because a RETURN initialises the result. Measured, 'return *p' out of a string
+        '' function is 'fb_WstrAssignToA_Init( &fb$result, -1ll, P, 0ll )'. DWSTRING's own OEM
+        '' property returns '*m_pBuffer' that way, and the statement was dropped.
+        if LowerWideToNarrowSlot( c, c.resultSlot, c.resultType, valueE, true ) = false then
+            if LowerStringAssignToSlot( c, c.resultSlot, valueE ) = false then SkipHere( c )
+        end if
     end if
     '' A RETURN leaves every open scope, so their actions run before the terminator.
     EmitCleanupsTo( c, 0 )
