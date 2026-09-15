@@ -1163,10 +1163,10 @@ function WideOperand_ _
         outv = LowerAddr( c, id )
         if outv.kind <> cast( ubyte, MV_NONE ) then return true
     end if
-    if LowerWstrOf( c, id, outv ) then return true
+    if (CallsUserProcNamedLikeBuiltin( c, id ) = false) andalso LowerWstrOf( c, id, outv ) then return true
     '' 'whex( x )', 'woct', 'wbin' -- the WIDE half of the radix family, whose result is
     '' a bare uint16* rather than a descriptor. Only the wide half is taken here.
-    if LowerRadixCall_( c, id, outv, true ) then return true
+    if (CallsUserProcNamedLikeBuiltin( c, id ) = false) andalso LowerRadixCall_( c, id, outv, true ) then return true
     if LowerWideRvalue( c, id, outv ) then return true
 
     '' A WIDE 'iif'. Structural, like the narrow one: an iif reached from a WIDE

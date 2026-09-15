@@ -1,0 +1,6 @@
+'' A user procedure spelled like a non-keyword builtin, beside the builtin, compiles and links. See tests/mir/src/builtin-beside-user-proc.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/mir/src/builtin-beside-user-proc.bas -o tests/driver/builtinbesideuser.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/builtinbesideuser.exe

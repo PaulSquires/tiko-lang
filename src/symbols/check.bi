@@ -118,6 +118,10 @@ namespace Tko.Check
     declare function FixedStringElem _
         ( byval t as Tko.TypeId, byref types as Tko.TypeContext ) as Tko.TypeId
 
+    '' A spelling the intrinsic table types -- see intrinsicname.bas. Resolve, Check, the
+    '' post-check argument sweeps and lowering all ask this one list.
+    declare function IsTypedIntrinsicName( byref nm as string ) as boolean
+
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
     '' them -- Check to TYPE 'p->v' and lowering to CALL the operator -- so they take
     '' the tables rather than a context.

@@ -1162,58 +1162,11 @@ private function PeekTypeArg_ _
     return Tko.TYPE_NONE
 end function
 
-private function IntrinsicCallType_ _
-    ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
-
-    if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
-    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-
-    '' A PROCEDURE OF THE PROGRAM'S OWN IS NOT THE KEYWORD IT IS SPELLED LIKE. This
-    '' table keys on the SPELLING, and it ran before the bound callee was ever
-    '' consulted -- so 'namespace NS ... function Peek( byref s as St ) as TK' called
-    '' unqualified from inside NS was typed as PEEK, a UBYTE, and its result was
-    '' truncated to the low byte. Measured against fbc: the same program prints 263
-    '' where tiko printed 7. The qualified 'NS.Peek( s )' was right all along, because
-    '' its target is not an N_IDENT.
-    ''
-    '' This is what the first self-hosted tiko-lang tripped on: the parser's own
-    '' 'Tko.Parse.Peek' returns a TokenKind, every statement keyword below 256 fit in
-    '' the byte, and 'type' (263) arrived as 7 -- so the builtin prelude's 'type object'
-    '' was 'expected a statement' and nothing else in the compiler noticed.
-    ''
-    '' AN OPERATOR IS NOT SUCH A PROCEDURE. Inside a type that declares 'operator cast',
-    '' the unqualified 'cast' of 'cast( zstring ptr, @_data )' binds to that member --
-    '' and it is still the CAST keyword, which is what fbc compiles it as. Counting the
-    '' operator here left tests/mir/swap-udt-zstring's constructor untyped.
-    scope
-        dim as Tko.Symbol ptr bsym = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-        if bsym <> 0 then
-            if UdtShadowsIntrinsic_( c, bsym ) then return Tko.TYPE_NONE  '' see there
-            if bsym->kind = cast( ubyte, Tko.SYM_PROC ) then
-                dim as boolean isOperator = false
-                dim as Tko.NodeId bdecl = cast( Tko.NodeId, bsym->payload )
-                if bdecl <> Tko.NODE_NONE then
-                    if c.ast->Kind( bdecl ) = Tko.N_PROC then
-                        dim as Tko.StmtPayload ptr bsp = _
-                            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, bdecl )].data )]
-                        isOperator = (bsp->op = cast( ushort, Tko.KW_OPERATOR ))
-                    end if
-                end if
-                '' ...UNLESS a keyword/left/right name has a non-UDT argument: the builtin, UNBOUND below.
-                dim as boolean kwBuiltinArg = (cast( long, ip->name ) <= TKO_KEYWORD_COUNT) orelse (nm = "left") orelse (nm = "right")
-                if kwBuiltinArg andalso (cp->count >= 1) then
-                    dim as Tko.TypeId ka = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
-                    if c.types->Kind( ka ) = Tko.TK_REFERENCE then ka = c.types->Unqualify( c.types->Inner( ka ) )
-                    kwBuiltinArg = (ka <> Tko.TYPE_NONE) andalso (c.types->Kind( ka ) <> Tko.TK_UDT)
-                end if
-                if (isOperator = false) andalso (kwBuiltinArg = false) then return Tko.TYPE_NONE
-                if (isOperator = false) andalso kwBuiltinArg then c.info->SetRef( cp->target, Tko.SYMBOL_NONE )
-            end if
-        end if
-    end scope
+'' THE TABLE ITSELF, for a call spelled like a builtin that IntrinsicCallType_
+'' (intrinsicname.bas) has already decided is the builtin's. Every spelling it answers
+'' for is listed in IsTypedIntrinsicName.
+private function IntrinsicTableType_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byref nm as string ) as Tko.TypeId
 
     '' THE RUNTIME PROCEDURES SPELLED AS ORDINARY IDENTIFIERS. Nothing binds them,
     '' so the callee lookup finds no symbol and the call came out UNTYPED -- and
@@ -1497,3 +1450,4 @@ private function IntrinsicCallType_ _
     end if
     return c.types->Builtin( b )
 end function
+#include once "symbols/intrinsicname.bas"

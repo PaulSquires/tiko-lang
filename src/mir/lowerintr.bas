@@ -1403,6 +1403,8 @@ function LowerCallExpr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
     dim as MirValue v
+    '' A PROCEDURE OF THE PROGRAM'S OWN spelled like a builtin -- see CallsUserProcNamedLikeBuiltin.
+    if CallsUserProcNamedLikeBuiltin( c, id ) then return LowerCall( c, id, mt )
     '' A conversion intrinsic is a KEYWORD, so there is no callee to find and
     '' nothing to call: it lowers to the coercion its result type asks for.
     if IsConvIntrinsic( c, id ) then return LowerConvIntrinsic( c, id, mt )

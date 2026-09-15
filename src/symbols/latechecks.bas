@@ -529,13 +529,13 @@ private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     if c.ast->Kind( nameNode ) <> N_IDENT then return
-    '' A BUILTIN'S SPELLING is the builtin's call, however the program overloads it --
-    '' see CheckArgConversions_.
+    '' A BUILTIN'S SPELLING WITH NOTHING BOUND TO THE CALL is the builtin's call -- see
+    '' CheckArgConversions_. One that Check left bound is the program's, and is judged.
     dim as InternId nm = _
         c.ast->idents[cast( long, c.ast->nodes[cast( long, nameNode )].data )].name
-    if cast( long, nm ) <= TKO_KEYWORD_COUNT then return
-    dim as string lnm = Text.LowerAscii( c.names->Spelling( nm ) )
-    if (lnm = "left") orelse (lnm = "right") then return
+    if c.info->RefOf( id ) = SYMBOL_NONE then
+        if Tko.Check.IsTypedIntrinsicName( Text.LowerAscii( c.names->Spelling( nm ) ) ) then return
+    end if
 
     dim as Symbol ptr head = c.syms->SymbolAt( c.info->RefOf( tgt ) )
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )

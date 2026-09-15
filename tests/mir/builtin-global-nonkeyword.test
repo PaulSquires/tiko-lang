@@ -1,0 +1,6 @@
+'' '..hex( 255 )', '..val( "42" )', '..space( 2 )' and the other builtins that are not lexer keywords call the builtin through the global scope. Runtime output was checked against fbc; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/builtin-global-nonkeyword.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

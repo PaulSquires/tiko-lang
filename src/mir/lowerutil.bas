@@ -571,3 +571,35 @@ declare function LowerShortCircuit _
       byval mt as MirType ) as MirValue
 declare function LowerCall _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+
+'' A CALL SPELLED LIKE A BUILTIN THAT CHECK LEFT BOUND TO A PROCEDURE OF THE PROGRAM'S OWN.
+'' Check unbinds the name whenever the builtin is what runs (IntrinsicCallType_), so a
+'' binding that survives is the program's: a namespace's own 'space' or 'left' called from
+'' inside it, a member 'hex', or a global 'hex( byval as integer )' taking the argument
+'' exactly -- fbc calls the procedure for each. The lowering paths that recognise a
+'' builtin by its SPELLING stand aside for it; they had printed fb_HEX_l and fb_SPACE
+'' where the program's own procedure belonged. An OPERATOR does not count: 'len( udt )'
+'' over an OPERATOR LEN is still lowered as LEN.
+function CallsUserProcNamedLikeBuiltin _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
+    if decl <> Tko.NODE_NONE then
+        if c.ast->Kind( decl ) = Tko.N_PROC then
+            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )].op = _
+               cast( ushort, Tko.KW_OPERATOR ) then return false
+        end if
+    end if
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    return Tko.Check.IsTypedIntrinsicName( Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) )
+end function

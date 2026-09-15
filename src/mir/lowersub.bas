@@ -39,10 +39,10 @@ declare function StrSwapKind_ _
 function LowerStrRvalue _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    '' THE RADIX FAMILY shares this entry point: every caller that wants a descriptor
-    '' reaches LowerStrRvalue, and putting the test only in StrDescriptorOf_ missed
-    '' EmitStrTerm, which calls this one directly -- so 's = hex( n )' still declined
-    '' with the implementation sitting right beside it.
+    '' THE RADIX FAMILY shares this entry point: every caller wanting a descriptor reaches it,
+    '' and the test only in StrDescriptorOf_ missed EmitStrTerm, which calls this directly --
+    '' so 's = hex( n )' declined. A program's own 'hex' is not it: CallsUserProcNamedLikeBuiltin.
+    if CallsUserProcNamedLikeBuiltin( c, id ) then return false
     if LowerRadixCall_( c, id, outv ) then return true
     if LowerStrOf_( c, id, outv ) then return true
 

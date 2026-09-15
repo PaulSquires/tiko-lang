@@ -153,6 +153,7 @@ end function
 #include once "symbols/resolvesel.bas"
 #include once "symbols/resolveudt.bas"
 #include once "symbols/resolvearr.bas"
+#include once "symbols/resolveintr.bas"
 
 private sub BindThis _
     ( byref c as Ctx, byval procScope as Tko.ScopeId, _
@@ -692,14 +693,6 @@ private sub WalkExpr _
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, _
          Tko.N_STRCAT
         dim as Tko.ListPayload ptr lp = ListOf( c, id )
-        '' A BUILTIN CALLED THROUGH THE GLOBAL SCOPE IS THE BUILTIN. '..LEN( t )', and '.LEN( t )'
-        '' with no WITH open, are how AfxNova reaches the builtin past its own 'OPERATOR LEN'
-        '' overloads (BSTRING.inc); fbc runs the builtin (scratchpad afx/p7.bas: 6). The member
-        '' form reached Check with a target that is not an identifier, the intrinsic table
-        '' never saw it, and overload resolution tied the two operators: TKO0660. A KEYWORD
-        '' spelling (or LEFT/RIGHT, which are not keywords) only. Rewritten AFTER the member is
-        '' walked: that binds the name in the FILE scope, where a bare 'left' inside a function
-        '' NAMED Left binds its result and recursed (scratchpad afx/ovA.bas).
         '' 'type<P>( 5, 6 )' PUTS A TYPE IN THE TARGET, not an expression. Walking it
         '' as one leaves the literal with no type at all, and every use of it -- an
         '' initialiser, an argument, a parameter default -- then has nothing to build.
@@ -709,22 +702,8 @@ private sub WalkExpr _
         else
             WalkExpr( c, lp->target, scope_ )
         end if
-        if (lp->target <> Tko.NODE_NONE) andalso (c.ast->Kind( lp->target ) = Tko.N_MEMBER) then
-            dim as Tko.BinaryPayload ptr gmb = _
-                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-            dim as boolean viaGlobal = false
-            if gmb->lhs = Tko.NODE_NONE then
-                viaGlobal = (c.withSubject.Count = 0)
-            elseif c.ast->Kind( gmb->lhs ) = Tko.N_GLOBALSCOPE then
-                viaGlobal = true
-            end if
-            if viaGlobal andalso (gmb->rhs <> Tko.NODE_NONE) then
-                if c.ast->Kind( gmb->rhs ) = Tko.N_IDENT then
-                    dim as string gnm = Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, gmb->rhs ) ) )
-                    if (cast( long, IdentNameOf( c, gmb->rhs ) ) <= TKO_KEYWORD_COUNT) orelse (gnm = "left") orelse (gnm = "right") then lp->target = gmb->rhs
-                end if
-            end if
-        end if
+        '' '..NAME( )' IS THE BUILTIN, and a USING does not hide one -- see BuiltinCallTarget_.
+        BuiltinCallTarget_( c, lp, scope_ )
 
         '' THE CALL NODE CARRIES ITS CALLEE, which lowering reads off it. A direct
         '' call gets one because the target's own binding is copied up elsewhere; a

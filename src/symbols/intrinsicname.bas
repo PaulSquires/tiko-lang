@@ -1,0 +1,180 @@
+'' intrinsicname.bas -- WHICH SPELLINGS ARE A BUILTIN, and which of the two runs when the
+'' program declares a procedure of the same name.
+''
+'' Included from the end of intrinsics.bas, inside the same namespace, after the table
+'' (IntrinsicTableType_) it guards.
+
+'' THE SPELLINGS THE INTRINSIC TABLE TYPES -- every name IntrinsicTableType_ and
+'' ExprIntrinsicType_ answer for, and nothing else. ONE LIST, and every pass that has to
+'' know whether a call is spelled like a builtin asks it: Resolve's '..name( )' rewrite,
+'' Check's builtin-beside-a-user-procedure rule below, the argument checks that stand
+'' aside for a builtin (assigncheck.bas, latechecks.bas), and lowering.
+''
+'' It replaced "a lexer keyword, or LEFT or RIGHT", which missed every builtin that is not
+'' a keyword. Measured against fbc: '..hex( 255 )', '..oct', '..bin', '..val' and
+'' '..space' printed nothing and declined, and 'function hex overload ( byref s as string )'
+'' beside the builtin made '..hex( 255 )' a false TKO0698.
+''
+'' IntrinsicCallType_ declines any spelling not listed here BEFORE it reaches the table, so
+'' a name added to the table and forgotten here is never typed at all -- the omission
+'' fails the new name's own test instead of quietly reopening the gap above.
+function IsTypedIntrinsicName( byref nm as string ) as boolean
+    select case nm
+    case "len", "sizeof", "offsetof", "lbound", "ubound", "varptr", "strptr", "sadd", _
+         "procptr", "peek", "iif", "cast", "cptr", "cva_arg", "__fb_query_symbol__"
+        return true
+    case "allocate", "callocate", "reallocate", _
+         "color", "width", "run", "bsave", "bload", "chain", "seek", _
+         "dylibload", "dylibsymbol", "dir", "screen", "name", "imagecreate", "point", _
+         "rgb", "rgba", "bit", "bitset", "bitreset"
+        return true
+    case "asc", "chr", "wchr", "str", "wstr", "instr", "instrrev", _
+         "val", "valint", "vallng", "valuint", "valulng", _
+         "space", "wspace", "string", "wstring", _
+         "hex", "oct", "bin", "whex", "woct", "wbin", _
+         "trim", "ltrim", "rtrim", "ucase", "lcase", "mid", "left", "right", _
+         "mki", "mkl", "mks", "mkd", "mkshort", "mklongint", _
+         "cvi", "cvl", "cvs", "cvd", "cvshort", "cvlongint"
+        return true
+    case "sin", "cos", "tan", "atn", "asin", "acos", "atan2", "exp", "log", "sqr", _
+         "abs", "sgn", "int", "fix", "frac"
+        return true
+    case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
+         "clngint", "culngint", "csng", "cdbl", "cbool", "csign", "cunsg"
+        return true
+    end select
+    return false
+end function
+
+'' A type stripped of its qualifiers and of one reference, which is how an argument and a
+'' parameter are compared for an exact match.
+private function BareArgType_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
+    if t = Tko.TYPE_NONE then return t
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    return t
+end function
+
+'' Whether an overload on the chain from 'head' takes every written argument at EXACTLY its
+'' own type -- the one shape in which a global user overload beats the builtin beside it.
+private function ExactOverloadFor_ _
+    ( byref c as Ctx, byval head as Tko.SymbolId, byval cp as Tko.ListPayload ptr ) as boolean
+
+    dim as Tko.SymbolId sid = head
+    dim as long guard = 0
+    while (sid <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = 0 then exit while
+        if (s->kind = cast( ubyte, Tko.SYM_PROC )) andalso (cp->count <= ProcParamCount_( c, sid )) then
+            dim as boolean same = true
+            for i as long = 0 to cp->count - 1
+                dim as Tko.TypeId at = BareArgType_( c, _
+                    c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) )
+                if at = Tko.TYPE_NONE then same = false : exit for
+                if at <> BareArgType_( c, ProcParamTypeAt_( c, sid, i ) ) then same = false : exit for
+            next
+            if same then return true
+        end if
+        sid = s->nextOverload
+    wend
+    return false
+end function
+
+'' A PROCEDURE DECLARED AS 'operator'.
+private function ProcIsOperator_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
+    dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
+    if decl = Tko.NODE_NONE then return false
+    if c.ast->Kind( decl ) <> Tko.N_PROC then return false
+    return (c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )].op = _
+            cast( ushort, Tko.KW_OPERATOR ))
+end function
+
+'' A PROCEDURE OF THE PROGRAM'S OWN, SPELLED LIKE A BUILTIN: WHICH ONE RUNS. Measured
+'' against fbc, and where the procedure is declared decides most of it:
+''
+''     in a namespace ENCLOSING the call, or a member        the procedure, always:
+''         'namespace N : function left( byval s as string, byval n as long )' makes
+''         'left( "abc", 1 )' inside N N's, and so for hex, space, val, ucase, asc, chr,
+''         str, instr, sqr, cvi, whex, wspace; and 'hex( 255 )' against N's
+''         'hex( byref as string )' is error 58, not the builtin
+''     in a namespace IMPORTED by 'using'                    the builtin, always --
+''         Resolve has already unbound it (see BuiltinCallTarget_)
+''     at GLOBAL scope, public or private                    it JOINS the builtin's set:
+''         hex( 1.5 )    user 'hex( byval as double )'     hex( 255 )  the builtin
+''         val( 7 )      user 'val( byval as long )'       val( "42" ) the builtin
+''         hex( 255 )    user 'hex( byval as integer )' -- an exact match, where
+''                       'hex( byval as long )' loses to the builtin
+''
+'' So a global procedure yields to the builtin when the table types the call, the first
+'' argument is not a UDT (a UDT argument is the overload's own call -- AfxNova's
+'' 'Left( byref as DWSTRING, n )'), and no overload takes the arguments exactly. The table
+'' is asked with the binding still in place, which keeps its diagnostics quiet for a call
+'' that may yet be the program's (NotAString_) and keeps the runtime procedures that are
+'' typed ONLY when unbound -- run, width, seek -- the program's.
+private function BuiltinBesideUserProc_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byref nm as string, _
+      byval bsym as Tko.Symbol ptr, byref t as Tko.TypeId ) as boolean
+
+    t = Tko.TYPE_NONE
+    dim as Tko.SymScope ptr ps = c.syms->ScopeAt( bsym->parent )
+    if ps = 0 then return false
+    if (ps->kind <> cast( ubyte, Tko.SCOPEK_GLOBAL )) andalso _
+       (ps->kind <> cast( ubyte, Tko.SCOPEK_MODULE )) then return false
+    if cp->count >= 1 then
+        dim as Tko.TypeId ka = BareArgType_( c, _
+            c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
+        if ka = Tko.TYPE_NONE then return false
+        if c.types->Kind( ka ) = Tko.TK_UDT then return false
+    end if
+    dim as Tko.TypeId bt = IntrinsicTableType_( c, cp, nm )
+    if bt = Tko.TYPE_NONE then return false
+    if ExactOverloadFor_( c, c.info->RefOf( cp->target ), cp ) then return false
+    t = bt
+    return true
+end function
+
+private function IntrinsicCallType_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
+
+    if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    if IsTypedIntrinsicName( nm ) = false then return Tko.TYPE_NONE
+
+    '' A PROCEDURE OF THE PROGRAM'S OWN IS NOT THE KEYWORD IT IS SPELLED LIKE. This
+    '' table keys on the SPELLING, and it ran before the bound callee was ever
+    '' consulted -- so 'namespace NS ... function Peek( byref s as St ) as TK' called
+    '' unqualified from inside NS was typed as PEEK, a UBYTE, and its result was
+    '' truncated to the low byte. Measured against fbc: the same program prints 263
+    '' where tiko printed 7. The qualified 'NS.Peek( s )' was right all along, because
+    '' its target is not an N_IDENT.
+    ''
+    '' This is what the first self-hosted tiko-lang tripped on: the parser's own
+    '' 'Tko.Parse.Peek' returns a TokenKind, every statement keyword below 256 fit in
+    '' the byte, and 'type' (263) arrived as 7 -- so the builtin prelude's 'type object'
+    '' was 'expected a statement' and nothing else in the compiler noticed.
+    ''
+    '' AN OPERATOR IS NOT SUCH A PROCEDURE. Inside a type that declares 'operator cast',
+    '' the unqualified 'cast' of 'cast( zstring ptr, @_data )' binds to that member --
+    '' and it is still the CAST keyword, which is what fbc compiles it as. Counting the
+    '' operator here left tests/mir/swap-udt-zstring's constructor untyped.
+    ''
+    '' When the BUILTIN is kept beside a procedure (see BuiltinBesideUserProc_), the name's
+    '' binding is CLEARED, so no lowering path can reach the procedure: LowerAddr had bound
+    '' 'left( w, 1 )' to 'Left( byref as DWS )' and passed the wstring as a DWS. check.bas
+    '' clears the call's own copy of the binding too.
+    dim as Tko.Symbol ptr bsym = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+    if bsym <> 0 then
+        if UdtShadowsIntrinsic_( c, bsym ) then return Tko.TYPE_NONE  '' see there
+        if (bsym->kind = cast( ubyte, Tko.SYM_PROC )) andalso (ProcIsOperator_( c, bsym ) = false) then
+            dim as Tko.TypeId bt
+            if BuiltinBesideUserProc_( c, cp, nm, bsym, bt ) = false then return Tko.TYPE_NONE
+            c.info->SetRef( cp->target, Tko.SYMBOL_NONE )
+            return bt
+        end if
+    end if
+    return IntrinsicTableType_( c, cp, nm )
+end function

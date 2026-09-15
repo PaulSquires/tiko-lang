@@ -1,0 +1,7 @@
+'' A user procedure spelled like a non-keyword builtin: a global overload joins the builtin (an exact match is the user's), an enclosing namespace or member shadows it, a USING import does not. The golden pins which call each site emits; runtime output was checked against fbc, see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/builtin-beside-user-proc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/builtin-beside-user-proc.out

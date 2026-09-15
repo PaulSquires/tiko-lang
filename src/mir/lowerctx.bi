@@ -747,6 +747,8 @@ declare function EmitRtl _
           byval isU as boolean = false ) as boolean
     declare function LowerStrRvalue _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function CallsUserProcNamedLikeBuiltin _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function ConcatToTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerMathCall_ _

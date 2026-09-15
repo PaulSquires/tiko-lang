@@ -351,6 +351,7 @@ end function
 function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    if CallsUserProcNamedLikeBuiltin( c, id ) then return false
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->count < 1 then return false
@@ -384,6 +385,7 @@ end function
 function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    if CallsUserProcNamedLikeBuiltin( c, id ) then return false
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if lp->count <> 1 then return false
