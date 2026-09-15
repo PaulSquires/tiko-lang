@@ -1,0 +1,6 @@
+'' hex, oct and bin of a float compile and link. See tests/mir/src/radix-float-arg.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/mir/src/radix-float-arg.bas -o tests/driver/radixfloatarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/radixfloatarg.exe

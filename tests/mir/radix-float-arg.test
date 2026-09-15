@@ -1,0 +1,10 @@
+'' hex, oct and bin of a DOUBLE or a SINGLE round the value first and take the 64- or 32-bit entry point, as fbc does. The golden pins the calls; runtime output was checked against fbc, see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/radix-float-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_HEX_l
+'' EXPECT-OUT: fb_OCTEx_i
+'' EXPECT-OUT: nearbyint
+'' GOLDEN: expected/radix-float-arg.out
