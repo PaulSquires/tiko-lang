@@ -142,3 +142,20 @@ private function ParenlessMethodOf_ _
     end if
     return pick
 end function
+
+'' A TYPE OF THE PROGRAM'S OWN IS NOT THE INTRINSIC IT IS SPELLED LIKE, and unlike a
+'' procedure (see IntrinsicCallType_) there is no builtin-argument exception. Measured on
+'' fbc-modern beside 'type Str' with a zstring constructor: 'str( 42 )' is error 58 against
+'' that constructor, and '#print typeof' of 'Str( "abc" )', 'str( "abc" )' and 'str( 42 )'
+'' is STR for all three. tiko typed the call STRING, so 'a.s = Str( "abc" )' over 'operator
+'' let( byref o as Str )' missed the same-type let, reached the converting-let path, and
+'' passed the temporary's LOADED bytes where the reference belonged -- clang: "defined with
+'' type '[8 x i8]' but expected 'ptr'" -- and nothing destroyed the temporary.
+private function UdtShadowsIntrinsic_ _
+    ( byref c as Ctx, byval bsym as Tko.Symbol ptr ) as boolean
+
+    if bsym = 0 then return false
+    if bsym->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    if bsym->type_ = Tko.TYPE_NONE then return false
+    return (c.types->Kind( c.types->Unqualify( bsym->type_ ) ) = Tko.TK_UDT)
+end function

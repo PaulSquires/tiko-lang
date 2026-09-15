@@ -1,0 +1,9 @@
+'' A UDT named like an intrinsic ('type Str') is that type when called: 'x = Str( "abc" )'
+'' takes the same-type let with the temporary's address, then destroys it. Runtime output
+'' was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-named-like-intrinsic.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-named-like-intrinsic.out

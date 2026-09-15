@@ -1,0 +1,7 @@
+'' A UDT named like an intrinsic, assigned from its own constructor call, links: the let
+'' takes the temporary's address, not its loaded bytes. See tests/mir/src/udt-named-like-intrinsic.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/mir/src/udt-named-like-intrinsic.bas -o tests/driver/udtnamedintrinsic.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/udtnamedintrinsic.exe

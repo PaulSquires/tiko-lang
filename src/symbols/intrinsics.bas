@@ -1191,6 +1191,7 @@ private function IntrinsicCallType_ _
     scope
         dim as Tko.Symbol ptr bsym = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
         if bsym <> 0 then
+            if UdtShadowsIntrinsic_( c, bsym ) then return Tko.TYPE_NONE  '' see there
             if bsym->kind = cast( ubyte, Tko.SYM_PROC ) then
                 dim as boolean isOperator = false
                 dim as Tko.NodeId bdecl = cast( Tko.NodeId, bsym->payload )
