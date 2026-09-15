@@ -1451,7 +1451,9 @@ function LowerWideRvalue _
     if a1 <> Tko.NODE_NONE then
         if secondIsWide then
             dim as MirValue s1
-            if WideOperand_( c, a1, s1 ) = false then return false
+            if WideOperand_( c, a1, s1 ) = false then   '' a NARROW trim set -- 'rtrim( dws, chr( 32 ) )' -- is fb_StrToWstr'd, measured
+                if NarrowToWideTemp_( c, a1, s1 ) = false then return false
+            end if
             args.Push( cast( ulong, s1.kind ) ) : args.Push( cast( ulong, s1.id ) )
         else
             '' left/right/mid take a 64-bit COUNT; the source expression is whatever

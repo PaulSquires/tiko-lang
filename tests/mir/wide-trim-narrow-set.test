@@ -1,0 +1,16 @@
+'' A narrow 'chr( )' trim set for rtrim / ltrim / trim over a wstring and over a UDT with a wide cast
+'' (DWSTRING's shape). The trim set went through the wide-operand reader only, which refuses a
+'' narrow call, and every such statement was dropped -- AfxNova's AfxOpenFileDialog trims its file
+'' list this way. Measured, fbc converts the set with fb_StrToWstr and prints '[  ab]', '[ab  ]',
+'' '[ab]', '[host]'; so does tiko, deleting each wide temporary as fbc does.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-trim-narrow-set.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_CHR(
+'' EXPECT-OUT: call.rtl ptr fb_StrToWstr(
+'' EXPECT-OUT: call.rtl ptr fb_WstrRTrimEx(
+'' EXPECT-OUT: call.rtl ptr fb_WstrLTrimEx(
+'' EXPECT-OUT: call.rtl ptr fb_WstrTrimEx(
+'' EXPECT-OUT: call.rtl void fb_WstrDelete(
