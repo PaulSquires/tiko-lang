@@ -382,6 +382,21 @@ sub WalkNode _
                             if SameTypeRef_( w, pip->a, ip->a ) then continue for
                         end if
                     end if
+                    '' ...OR A FIELD OF THE METHOD'S OWN TYPE, which this lookup reaches through the
+                    '' TYPE scope. AfxNova's CWindow.AddAccelerator writes 'redim preserve
+                    '' m_rgAccelEntries( ... ) as ACCEL': declaring it made a SHADOW LOCAL, the field
+                    '' never grew, CreateAcceleratorTable found it empty and tracks had no accelerators.
+                    '' Measured: fbc redims the field when the AS type agrees and declares a local when
+                    '' it does not -- the variable rule above, so SameTypeRef_ decides here too.
+                    if prs->kind = cast( ubyte, Tko.SYM_FIELD ) then
+                        dim as Tko.NodeId fld = cast( Tko.NodeId, prs->payload )
+                        dim as boolean isFieldNode = (fld <> Tko.NODE_NONE) andalso _
+                            (cast( long, fld ) < w.ast->nodes.Count)
+                        if isFieldNode then isFieldNode = (w.ast->Kind( fld ) = Tko.N_FIELD)
+                        if isFieldNode then
+                            if SameTypeRef_( w, StmtOf( w, fld )->a, ip->a ) then continue for
+                        end if
+                    end if
                 end if
             end if
 

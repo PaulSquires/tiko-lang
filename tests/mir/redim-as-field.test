@@ -1,0 +1,7 @@
+'' 'redim field( ... ) as T' inside a method re-dimensions the field, not a shadow local.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/redim-as-field.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/redim-as-field.out

@@ -1,0 +1,182 @@
+func void _ZN5TABLE4GROWEv(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 0
+    %4 = const i64 0
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = const i64 1
+    %8 = call.rtl i64 fb_ArrayUBound(%6, %7)
+    %9 = const i64 1
+    %10 = add %8, %9
+    %11 = call.rtl i32 fb_ArrayRedimPresvEx(%3, 6, -1, 0, 1, %4, %10)
+    %12 = load @this
+    %13 = field.addr %12, 0
+    %14 = load @this
+    %15 = field.addr %14, 0
+    %16 = const i64 1
+    %17 = call.rtl i64 fb_ArrayUBound(%15, %16)
+    %18 = const i64 6
+    %19 = mul %17, %18
+    %20 = load %13
+    %21 = ptr.add %20, %19
+    %22 = field.addr %21, 4
+    %23 = const i64 1001
+    %24 = trunc %23
+    store %22, %24
+    ret
+}
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+declare i32 fb_ArrayRedimPresvEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+func void _ZN5TABLE8GROWLONGEv(ptr $0) {
+  local ptr this
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = load @this
+    %3 = field.addr %2, 72
+    %4 = const i64 0
+    %5 = const i64 0
+    %6 = const i64 3
+    %7 = call.rtl i32 fb_ArrayRedimEx(%3, 4, -1, 0, 1, %5, %6)
+    ret
+}
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+func void _ZN5TABLE8MISMATCHEv(ptr $0) {
+  local ptr this
+  local agg counts size 72
+  entry0:
+    %1 = alloca ptr this
+    store @this, $0
+    %2 = alloca ptr counts
+    %3 = const ptr 0
+    %4 = field.addr @counts, 0
+    store %4, %3
+    %5 = field.addr @counts, 8
+    store %5, %3
+    %6 = const i64 0
+    %7 = field.addr @counts, 16
+    store %7, %6
+    %8 = const i64 24
+    %9 = field.addr @counts, 24
+    store %9, %8
+    %10 = const i64 1
+    %11 = field.addr @counts, 32
+    store %11, %10
+    %12 = const i64 17
+    %13 = field.addr @counts, 40
+    store %13, %12
+    %14 = const i64 0
+    %15 = field.addr @counts, 48
+    store %15, %14
+    %16 = const i64 0
+    %17 = field.addr @counts, 56
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr @counts, 64
+    store %19, %18
+    %20 = const i64 0
+    %21 = const i64 0
+    %22 = const i64 2
+    %23 = call.rtl i32 fb_ArrayRedimEx(@counts, 24, -1, -1, 1, %21, %22)
+    call.rtl void fb_ArrayStrErase(@counts)
+    ret
+}
+declare void fb_ArrayStrErase(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg t size 144
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr t
+    call void _ZN5TABLEC1Ev(@t)
+    call void _ZN5TABLE4GROWEv(@t)
+    call void _ZN5TABLE4GROWEv(@t)
+    call void _ZN5TABLE8GROWLONGEv(@t)
+    call void _ZN5TABLE8MISMATCHEv(@t)
+    call void _ZN5TABLED1Ev(@t)
+    %5 = const i32 0
+    call.rtl void fb_End(%5)
+    %6 = load @$tmp0
+    ret %6
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN5TABLEC1Ev(ptr $0)
+declare void _ZN5TABLED1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN5TABLEC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const ptr 0
+    %3 = field.addr %1, 0
+    store %3, %2
+    %4 = field.addr %1, 8
+    store %4, %2
+    %5 = const i64 0
+    %6 = field.addr %1, 16
+    store %6, %5
+    %7 = const i64 6
+    %8 = field.addr %1, 24
+    store %8, %7
+    %9 = const i64 1
+    %10 = field.addr %1, 32
+    store %10, %9
+    %11 = const i64 17
+    %12 = field.addr %1, 40
+    store %12, %11
+    %13 = const i64 0
+    %14 = field.addr %1, 48
+    store %14, %13
+    %15 = const i64 0
+    %16 = field.addr %1, 56
+    store %16, %15
+    %17 = const i64 0
+    %18 = field.addr %1, 64
+    store %18, %17
+    %19 = field.addr $0, 72
+    %20 = const ptr 0
+    %21 = field.addr %19, 0
+    store %21, %20
+    %22 = field.addr %19, 8
+    store %22, %20
+    %23 = const i64 0
+    %24 = field.addr %19, 16
+    store %24, %23
+    %25 = const i64 4
+    %26 = field.addr %19, 24
+    store %26, %25
+    %27 = const i64 1
+    %28 = field.addr %19, 32
+    store %28, %27
+    %29 = const i64 17
+    %30 = field.addr %19, 40
+    store %30, %29
+    %31 = const i64 0
+    %32 = field.addr %19, 48
+    store %32, %31
+    %33 = const i64 0
+    %34 = field.addr %19, 56
+    store %34, %33
+    %35 = const i64 0
+    %36 = field.addr %19, 64
+    store %36, %35
+    ret
+}
+func void _ZN5TABLED1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 72
+    %2 = call.rtl i32 fb_ArrayErase(%1)
+    %3 = field.addr $0, 0
+    %4 = call.rtl i32 fb_ArrayErase(%3)
+    ret
+}
+declare i32 fb_ArrayErase(ptr $0)
+verify: ok
+lowered: 6 functions, 6 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance
