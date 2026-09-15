@@ -920,8 +920,26 @@ function LowerExpr _
         if (tk = Tko.KW_IMP) orelse (tk = Tko.KW_EQV) then
             return EmitImpEqv_( c, tk, opTy, l, r )
         end if
+        '' SIGNED OR UNSIGNED IS THE RESULT TYPE'S, for everything but a comparison. It
+        '' was the LEFT operand's, and FreeBASIC promotes first: 'ulong \ integer' is an
+        '' INTEGER and 'integer \ uinteger' a UINTEGER. Measured, fbc writes
+        ''
+        ''     (int64)UL$0 / -1ll              ul \ -1     -10, where tiko printed 0
+        ''     (int64)UB$0 % -3ll              ub mod -3   2, where tiko printed 200
+        ''     (uint64)I$0 / UI$0              i \ ui      unsigned, where tiko divided signed
+        ''     (uint64)I$0 >> (UI$0 & 63ll)    i shr ui    a logical shift
+        ''
+        '' A COMPARISON is left alone: its result is an INTEGER whatever it compared, so
+        '' that type says nothing about how -- fbc takes it from the promoted operands.
         dim as MirOp op = BinOpFor( tk, opTy, IsUnsignedType( c, lt ) )
         if op = M_NONE then return v
+        dim as boolean byResult = (IsCmpOp_( op ) = false)
+        if (mt = MT_VOID) orelse (mt = MT_PTR) orelse (mt = MT_AGG) then byResult = false
+        if IsFloatTy( mt ) then byResult = false
+        if byResult then
+            op = BinOpFor( tk, opTy, IsUnsignedType( c, ft ) )
+            if op = M_NONE then return v
+        end if
         dim as MirInst ins
         ins.op = cast( ushort, op )
         ins.ty = cast( ubyte, iif( mt = MT_VOID, opTy, mt ) )

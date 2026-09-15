@@ -1,0 +1,5 @@
+'' A binary operator's signedness comes from its result type, not its left operand.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/binop-result-signedness.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/binop-result-signedness.out

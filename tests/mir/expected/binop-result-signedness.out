@@ -1,0 +1,80 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 ul
+  local i32 u3
+  local i8 ub
+  local i32 l
+  local i64 i
+  local i64 r
+  local i64 ui
+  local i64 li
+  local i64 uli
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr ul
+    %5 = call.rtl ptr memset(@ul, 0, 4)
+    %6 = alloca ptr u3
+    %7 = call.rtl ptr memset(@u3, 0, 4)
+    %8 = alloca ptr ub
+    %9 = call.rtl ptr memset(@ub, 0, 1)
+    %10 = alloca ptr l
+    %11 = call.rtl ptr memset(@l, 0, 4)
+    %12 = alloca ptr i
+    %13 = call.rtl ptr memset(@i, 0, 8)
+    %14 = alloca ptr r
+    %15 = call.rtl ptr memset(@r, 0, 8)
+    %16 = alloca ptr ui
+    %17 = call.rtl ptr memset(@ui, 0, 8)
+    %18 = alloca ptr li
+    %19 = call.rtl ptr memset(@li, 0, 8)
+    %20 = alloca ptr uli
+    %21 = call.rtl ptr memset(@uli, 0, 8)
+    %22 = load @ul
+    %23 = const i64 1
+    %24 = neg %23
+    %25 = zext %22
+    %26 = sdiv %25, %24
+    store @r, %26
+    %27 = load @ub
+    %28 = const i64 3
+    %29 = neg %28
+    %30 = zext %27
+    %31 = srem %30, %29
+    store @r, %31
+    %32 = load @u3
+    %33 = load @l
+    %34 = zext %32
+    %35 = sext %33
+    %36 = sdiv %34, %35
+    store @r, %36
+    %37 = load @i
+    %38 = load @ui
+    %39 = udiv %37, %38
+    store @ui, %39
+    %40 = load @i
+    %41 = load @ui
+    %42 = lshr %40, %41
+    store @ui, %42
+    %43 = load @li
+    %44 = load @uli
+    %45 = udiv %43, %44
+    store @uli, %45
+    %46 = load @ul
+    %47 = const i64 1
+    %48 = zext %46
+    %49 = ashr %48, %47
+    store @r, %49
+    %50 = const i32 0
+    call.rtl void fb_End(%50)
+    %51 = load @$tmp0
+    ret %51
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 1 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance
