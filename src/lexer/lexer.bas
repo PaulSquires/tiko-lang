@@ -370,7 +370,22 @@ end sub
 
 '' Reads the trailing type suffix of a numeric literal. Longest match first:
 '' ULL before UL before U, LL before L.
-private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) as Tko.NumSuffix
+''
+'' WHICH SUFFIXES A LITERAL TAKES DEPENDS ON ITS FORM, measured literal by literal against
+'' fbc's '#print typeof':
+''
+''     3%  3&  3u  3ul  3ull  3l  3ll   the integer suffixes    on 3 and &o7, never on 3.5
+''     3f  3F  3!  3#                   SINGLE and DOUBLE       on every form
+''     &o7d  &b1d                       DOUBLE, as a suffix     octal and binary only
+''
+'' A decimal 'd' is never a suffix: it is QB's double EXPONENT marker, which ScanNumber
+'' reads. 'floatForm' is a literal that already has a point or an exponent, where fbc
+'' refuses every integer suffix -- '3.5%', '3.5ul', '1e3%' -- so none is taken and the
+'' parser refuses what follows. 'radix' lets 'd' through for &O and &B; a hex literal has
+'' eaten d and f as digits before it gets here.
+private function ScanNumSuffix _
+    ( byref s as Scanner, byval floatForm as boolean, _
+      byval radix as boolean = false ) as Tko.NumSuffix
     if s.i >= s.n then return Tko.NSUF_NONE
 
     dim as ubyte c0 = s.p[s.i]
@@ -378,10 +393,6 @@ private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) a
     if (u0 >= 97) andalso (u0 <= 122) then u0 -= 32
 
     select case u0
-    case 37                                  '' %
-        s.i += 1 : return Tko.NSUF_INTEGER
-    case 38                                  '' &
-        s.i += 1 : return Tko.NSUF_LONG
     case 33                                  '' !
         s.i += 1 : return Tko.NSUF_SINGLE
     case 35                                  '' #
@@ -389,8 +400,16 @@ private function ScanNumSuffix( byref s as Scanner, byval isFloat as boolean ) a
     case 70                                  '' F
         s.i += 1 : return Tko.NSUF_SINGLE
     case 68                                  '' D
-        if isFloat = false then return Tko.NSUF_NONE   '' 'd' is the exponent marker
+        if radix = false then return Tko.NSUF_NONE
         s.i += 1 : return Tko.NSUF_DOUBLE
+    end select
+    if floatForm then return Tko.NSUF_NONE
+
+    select case u0
+    case 37                                  '' %
+        s.i += 1 : return Tko.NSUF_INTEGER
+    case 38                                  '' &
+        s.i += 1 : return Tko.NSUF_LONG
     case 85                                  '' U, UL, ULL
         dim as long save = s.i
         s.i += 1
@@ -463,7 +482,15 @@ private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
     lit.kind = cast( ubyte, Tko.TK_INT_LIT )
     lit.radix = cast( ubyte, radix )
     lit.intValue = value
-    lit.suffix = cast( ubyte, ScanNumSuffix( s, false ) )
+    lit.suffix = cast( ubyte, ScanNumSuffix( s, false, true ) )
+    '' A FLOAT SUFFIX MAKES IT A FLOAT, whatever the radix: '&h3d!' is a SINGLE of 61 and
+    '' '&o7d' a DOUBLE of 7, measured. The suffix was recorded on an INTEGER token, and
+    '' the literal typed as an integer.
+    select case cast( Tko.NumSuffix, lit.suffix )
+    case Tko.NSUF_SINGLE, Tko.NSUF_DOUBLE
+        lit.kind = cast( ubyte, Tko.TK_FLOAT_LIT )
+        lit.fltValue = cast( double, value )
+    end select
     PushLiteral( s, lit, first )
 end sub
 
@@ -474,38 +501,17 @@ private sub ScanNumber( byref s as Scanner )
     while (s.i < s.n) andalso IsDigit( s.p[s.i] )
         s.i += 1
     wend
+    dim as boolean haveDigits = (s.i > first)
 
-    '' '.' is a decimal point only when a digit follows, so 1..2 and a member access
-    '' on a numeric-looking name are not mis-scanned.
+    '' A '.' AFTER DIGITS IS ALWAYS THE DECIMAL POINT, with a digit after it or not.
+    '' Measured, fbc prints 4 for '3.+1' and 3 for '3.' and '3.e', types '3.f' SINGLE, and
+    '' refuses '3.x' and '3.foo' because the number ends at the point -- "found 'oo'" for
+    '' the second. Only a digit or an exponent after the point made it one here, so '3.'
+    '' and '3.f' split into two tokens and were refused. With no digit before it, the
+    '' caller comes here only for '.5'.
     if (s.i < s.n) andalso (s.p[s.i] = 46) then
         dim as boolean digitNext = (s.i + 1 < s.n) andalso IsDigit( s.p[s.i + 1] )
-
-        '' '1.e+7' HAS NO DIGIT AFTER THE POINT and is still one number: measured,
-        '' fbc accepts it, and '#if 1.e+7 <> 10000000' does not fire. Requiring a digit
-        '' left '1.' as an integer and 'e' as a MEMBER ACCESS on it -- 26 corpus
-        '' statements in the two print_using tests, every one of them reported as a
-        '' member call on an untyped base, which is a long way from where the mistake
-        '' was.
-        ''
-        '' Only an exponent is accepted here, not fbc's full rule: fbc also reads
-        '' '1.f' as a SINGLE-suffixed literal ('1.foo' is error 3, "found 'oo'"), and
-        '' widening this that far without measuring the suffix set would put the
-        '' lexer's most delicate decision on a guess.
-        if digitNext = false then
-            dim as long k = s.i + 1
-            if k < s.n then
-                dim as ubyte ec = s.p[k]
-                if (ec = 69) orelse (ec = 101) orelse (ec = 68) orelse (ec = 100) then
-                    dim as long m = k + 1
-                    if m < s.n then
-                        if (s.p[m] = 43) orelse (s.p[m] = 45) then m += 1
-                    end if
-                    if (m < s.n) andalso IsDigit( s.p[m] ) then digitNext = true
-                end if
-            end if
-        end if
-
-        if digitNext then
+        if haveDigits orelse digitNext then
             isFloat = true
             s.i += 1
             while (s.i < s.n) andalso IsDigit( s.p[s.i] )
@@ -514,26 +520,26 @@ private sub ScanNumber( byref s as Scanner )
         end if
     end if
 
+    '' THE EXPONENT: 'e' or QB's 'd', an optional sign, and digits that MAY BE ABSENT.
+    '' Measured, fbc takes '3d' as a DOUBLE 3, '3e', '3e+' and '3d-' as 3, and '3d+1' as 30:
+    '' the sign belongs to the exponent even with nothing after it, so '3d+x' is refused
+    '' and '3d -1' is 2. The marker was read only with digits after it, so '3d' was the
+    '' integer 3 and then an identifier 'd' -- "expected the end of the statement".
+    dim as long expAt = -1
+    dim as boolean expDigits = false
     if s.i < s.n then
         dim as ubyte c = s.p[s.i]
-        dim as boolean expMarker = (c = 69) orelse (c = 101) orelse (c = 68) orelse (c = 100)
-        if expMarker then
-            dim as long save = s.i
-            dim as long j = s.i + 1
-            if j < s.n then
-                dim as ubyte signByte = s.p[j]
-                if (signByte = 43) orelse (signByte = 45) then j += 1
+        if (c = 69) orelse (c = 101) orelse (c = 68) orelse (c = 100) then
+            isFloat = true
+            expAt = s.i
+            s.i += 1
+            if s.i < s.n then
+                if (s.p[s.i] = 43) orelse (s.p[s.i] = 45) then s.i += 1
             end if
-            dim as boolean haveExpDigits = (j < s.n) andalso IsDigit( s.p[j] )
-            if haveExpDigits then
-                isFloat = true
-                s.i = j
-                while (s.i < s.n) andalso IsDigit( s.p[s.i] )
-                    s.i += 1
-                wend
-            else
-                s.i = save
-            end if
+            while (s.i < s.n) andalso IsDigit( s.p[s.i] )
+                expDigits = true
+                s.i += 1
+            wend
         end if
     end if
 
@@ -546,8 +552,11 @@ private sub ScanNumber( byref s as Scanner )
     lit.radix = 10
     lit.suffix = cast( ubyte, suffix )
 
-    dim as string spelling = space( digitsEnd - first )
-    memcpy( strptr( spelling ), @s.p[first], digitsEnd - first )
+    '' An exponent with no digits is left out of what val( ) is handed.
+    dim as long spellEnd = digitsEnd
+    if (expAt >= 0) andalso (expDigits = false) then spellEnd = expAt
+    dim as string spelling = space( spellEnd - first )
+    memcpy( strptr( spelling ), @s.p[first], spellEnd - first )
 
     if isFloat then
         lit.kind = cast( ubyte, Tko.TK_FLOAT_LIT )

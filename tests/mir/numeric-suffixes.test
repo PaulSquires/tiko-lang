@@ -1,0 +1,5 @@
+'' A numeric literal's suffix types it: decimal 'd', a bare point, radix float suffixes.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/numeric-suffixes.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/numeric-suffixes.out

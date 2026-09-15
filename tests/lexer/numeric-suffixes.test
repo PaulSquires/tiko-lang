@@ -1,0 +1,6 @@
+'' Numeric literal suffixes, the empty exponent, the bare decimal point, and where a
+'' literal ends. See the source's header.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/numeric-suffixes.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/numeric-suffixes.out

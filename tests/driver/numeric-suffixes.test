@@ -1,0 +1,7 @@
+'' Numeric literal suffixes built to an executable. See the source's header; build/goldenrun.sh
+'' runs the result beside fbc's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/numeric-suffixes.bas -o tests/driver/numericsuffixes.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/numericsuffixes.exe
