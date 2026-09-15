@@ -1,0 +1,14 @@
+'' An integer 'cast' over a pointer of its size as a target -- assignment, compound assignment,
+'' an unsigned spelling, and its address -- beside the 'cptr' form that already lowered. An integer
+'' and a pointer were different families to the conversion-free-cast rule, so AfxNova's
+'' 'CAST( LPARAM, pItem ) = lPrm' was dropped. Measured, fbc stores straight into the operand
+'' ('BP = (int8*)16ll', 'BP = (int8*)((int64)BP + 8ll)', '(int64*)&BP') and prints 16, 24, 40, -1, 77;
+'' so does tiko. The verifier line matters: the value must be bitcast back to the pointer slot.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cast-int-ptr-lvalue.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: bitcast
+'' EXPECT-OUT: store @pi, @bp
+'' EXPECT-OUT: store @bp, @ln

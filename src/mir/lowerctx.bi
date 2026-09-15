@@ -265,6 +265,8 @@ declare function IsBaseOf_ _
     ( byref c as Ctx, byval baseT as Tko.TypeId, byval derivedT as Tko.TypeId ) as boolean
 declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
 declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+'' The operand of a conversion-free cast used as an lvalue, or NODE_NONE. lowerarr.bas.
+declare function NoConvOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
 declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
 declare function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr

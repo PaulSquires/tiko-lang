@@ -415,8 +415,20 @@ function LowerCompoundAssign _
 
     dim as MirValue addr = LowerAddr( c, target )
     if addr.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue cur = LowerExprLoad( c, addr, mt )
+    '' THROUGH A CONVERSION-FREE CAST THE SLOT IS THE OPERAND'S. 'cast( integer, bp ) += 8' is
+    '' 'BP = (int8*)((int64)BP + 8)', measured: read as the pointer, worked as the integer the
+    '' cast names, stored back as the pointer. See NoConvOperand_.
+    dim as MirType smt = mt
+    dim as Tko.TypeId sct = Tko.TYPE_NONE
+    dim as Tko.NodeId scop = NoConvOperand_( c, target )
+    if scop <> Tko.NODE_NONE then
+        sct = c.types->Unqualify( c.info->TypeOf_( scop ) )
+        if c.types->Kind( sct ) = Tko.TK_REFERENCE then sct = c.types->Inner( sct )
+        smt = LowerType( sct, *c.types )
+    end if
+    dim as MirValue cur = LowerExprLoad( c, addr, smt )
     if cur.kind = cast( ubyte, MV_NONE ) then return false
+    if smt <> mt then cur = CoerceTy( c, cur, mt, sct, tt )
     cur = CoerceTy( c, cur, wt, tt)
     dim as MirValue rhs = LowerExpr( c, value )
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
@@ -500,6 +512,7 @@ function LowerCompoundAssign _
     st.ty = cast( ubyte, MT_VOID )
     st.a = addr
     st.b = Coerce( c, res, mt )
+    if smt <> mt then st.b = CoerceTy( c, st.b, smt, tt, sct )   '' back into the operand's own slot
     Emit( c, st )
     return true
 end function

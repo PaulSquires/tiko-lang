@@ -144,7 +144,7 @@ end function
 
 '' The operand of a no-op conversion, or NODE_NONE. Handles both spellings:
 '' 'cast( T, x )' and the one-argument intrinsics 'cuint( x )', 'clng( x )', ...
-private function NoConvOperand_ _
+function NoConvOperand_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
@@ -186,7 +186,13 @@ private function NoConvOperand_ _
     end if
     dim as long fam = NoConvFamily_( c, rt )
     if fam = 0 then return Tko.NODE_NONE
-    if NoConvFamily_( c, ot ) <> fam then return Tko.NODE_NONE
+    dim as long ofam = NoConvFamily_( c, ot )
+    '' AN INTEGER CAST OVER A POINTER OF ITS SIZE converts nothing either. Measured, fbc takes
+    '' 'cast( LPARAM, pItem ) = lPrm' as 'PITEM = (HWND*)LPRM', 'cast( integer, bp ) += 8' as
+    '' 'BP = (int8*)((int64)BP + 8)' and '@cast( integer, bp )' as '(int64*)&BP'; the size test
+    '' below keeps a 'long' on win64 out. AfxNova's child-enumeration callbacks write the first.
+    if (nm = "cast") andalso (fam = 1) andalso (ofam = 3) then ofam = fam
+    if ofam <> fam then return Tko.NODE_NONE
     if SizeOfType( c, rt ) <> SizeOfType( c, ot ) then return Tko.NODE_NONE
     return op
 end function

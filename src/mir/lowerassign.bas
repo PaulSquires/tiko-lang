@@ -625,6 +625,15 @@ private sub LowerAssign _
     '' when it is a byte -- CoerceTy cannot tell them apart without this.
     val = CoerceTy( c, val, LowerType( c.info->TypeOf_( target ), *c.types ), _
                     c.info->TypeOf_( value ), c.info->TypeOf_( target ) )
+    '' ...AND THROUGH A CONVERSION-FREE CAST, TO THE OPERAND'S. 'cast( LPARAM, pItem ) = lPrm'
+    '' stores into pItem itself -- measured, 'PITEM = (HWND*)LPRM' -- so the integer the cast's
+    '' type made is bitcast once more to the pointer slot it lands in.
+    dim as Tko.NodeId ncop = NoConvOperand_( c, target )
+    if ncop <> Tko.NODE_NONE then
+        dim as Tko.TypeId nct = c.types->Unqualify( c.info->TypeOf_( ncop ) )
+        if c.types->Kind( nct ) = Tko.TK_REFERENCE then nct = c.types->Inner( nct )
+        val = CoerceTy( c, val, LowerType( nct, *c.types ), c.info->TypeOf_( target ), nct )
+    end if
     dim as MirInst ins
     ins.op = cast( ushort, M_STORE )
     ins.ty = cast( ubyte, MT_VOID )
