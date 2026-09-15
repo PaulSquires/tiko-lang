@@ -137,6 +137,20 @@ private function BareTypeLiteralArg_ _
     return true
 end function
 
+'' THE TYPE A CONSTRUCTOR ARGUMENT IS CHOSEN BY. A literal with a unicode escape is a WIDE
+'' literal to fbc -- a 'WSTRING * n' -- whatever Check typed it, and it picks the constructor a
+'' wstring picks. Measured on fbc-modern, for a 'wstring * 8' variable, 'wstr( "x" )' and an
+'' escaped literal alike: over { string, const wstring, wstring ptr } all three take the
+'' POINTER, over { string, const wstring } the const wstring -- explicit 'H( a )', implicit
+'' 'dim as H h = a' and a byval argument the same. The literal took the STRING one and drew
+'' as '?'. 'WSTRING * 1' is the type wstr( ) already has, which matched fbc on every path.
+function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    if LitHasUnicodeEscape_( c, e ) then
+        return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
+    end if
+    return c.info->TypeOf_( e )
+end function
+
 private function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
@@ -182,7 +196,7 @@ private function UdtConvTemp_ _
     '' kept as the fallback for an argument Check could not type, where a cost cannot
     '' be computed and the old answer is still the best available.
     dim as Tko.SymbolId cv = Tko.SYMBOL_NONE
-    dim as Tko.TypeId argt0 = c.info->TypeOf_( argNode )
+    dim as Tko.TypeId argt0 = CtorArgTypeOf_( c, argNode )
     if argt0 <> Tko.TYPE_NONE then
         dim as FB.Array( of ulong ) one
         one.Push( cast( ulong, argt0 ) )

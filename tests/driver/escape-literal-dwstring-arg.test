@@ -1,0 +1,8 @@
+'' A unicode-escape literal for a byval DWSTRING parameter reaches the wstring ptr constructor widened. See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/driver/src/escape-literal-dwstring-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: _ZN7AFXNOVA8DWSTRINGC1EPw(@$tmp1, @@$wstr
+'' EXPECT-NOT: _ZN7AFXNOVA8DWSTRINGC1EPw(@$tmp1, @@$str

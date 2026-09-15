@@ -639,6 +639,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LitHasUnicodeEscape_ _
         ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    '' The type a constructor ARGUMENT is chosen by -- see lowercallarg.bas.
+    declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
     declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean

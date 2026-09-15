@@ -68,6 +68,12 @@ private function CtorArgValue_ _
                     '' '"Delete?" + dws' over a DWSTRING is the UDT to Check and a WSTRING
                     '' to fbc, which builds it with fb_WstrConcatAW.
                     if wideArg = false then wideArg = ConcatHasWideTerm_( c, argNode )
+                    '' ...AND SO IS A LITERAL WITH A UNICODE ESCAPE, which Check types STRING. Its
+                    '' narrow global holds the SPELLING, so passing its address handed DWSTRING(
+                    '' byval as wstring ptr ) '\uE8A5' read as UTF-16 -- PsToolbar's glyphs drew as
+                    '' CJK. Measured, fbc passes the widened literal: '_ZN7AFXNOVA8DWSTRINGC1EPw(
+                    '' &TMP, (uint16*)L"\xE8A5\x0000" )'. WideOperand_ widens it in place.
+                    if wideArg = false then wideArg = LitHasUnicodeEscape_( c, argNode )
                     if wideArg then return WideOperand_( c, argNode, outv )
                     if untyped then
                         if WideOperand_( c, argNode, outv ) then return true
@@ -339,7 +345,7 @@ function LowerConvCtorInit_ _
         if (TermIsWide_( c, init_ ) orelse ConcatHasWideTerm_( c, init_ )) = false then return false
         it = c.types->Builtin( Tko.TY_WSTRING )  '' an untyped WIDE expression: 'return a + s'
     end if
-    if LitHasUnicodeEscape_( c, init_ ) then it = c.types->Builtin( Tko.TY_WSTRING )
+    if LitHasUnicodeEscape_( c, init_ ) then it = CtorArgTypeOf_( c, init_ )
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
     if c.types->Unqualify( it ) = c.types->Unqualify( t ) then return false
@@ -659,7 +665,7 @@ function LowerCtorInit _
     scope
         dim as FB.Array( of ulong ) preT
         for i as long = 0 to cp->count - 1
-            preT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
+            preT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
         next
         dim as Tko.SymbolId pre = PickCtor( c, ctors, preT )
         if pre <> Tko.SYMBOL_NONE then
@@ -700,7 +706,7 @@ function LowerCtorInit _
         argNode.Push( cast( ulong, a ) )
         dim as MirValue adv
         if ArrayDescArg_( c, a, true, adv ) then
-            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
+            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) )
             argKind.Push( cast( ulong, adv.kind ) )
             argId.Push( cast( ulong, adv.id ) )
             argDesc.Push( 1 )
@@ -708,21 +714,21 @@ function LowerCtorInit _
         end if
         '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
         if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
-            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
+            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
             continue for
         end if
         '' ...AND SO DOES A STRING, OR A CALL RETURNING A UDT -- CtorArgLowersLate_. The loop
         '' below lowers it again from its node for the parameter it binds; a value taken here
         '' was dead, and for a call it was a second evaluation.
         if CtorArgLowersLate_( c, a ) then
-            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
+            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) ) : argId.Push( 0 ) : argDesc.Push( 0 )
             continue for
         end if
         dim as MirValue av = LowerExpr( c, a )
         '' NOTHING TO PASS IS NOT AN ARGUMENT. Pushing it anyway put a hole in the
         '' call and counted the statement as fully lowered.
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
+        argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) )
         argKind.Push( cast( ulong, av.kind ) )
         argId.Push( cast( ulong, av.id ) )
         argDesc.Push( 0 )
@@ -860,6 +866,28 @@ function LowerCtorInit _
             end if
         end if
 
+        '' A BYVAL 'wstring ptr' PARAMETER GIVEN A STRING TAKES ITS CHARACTERS -- CtorArgValue_. The
+        '' value was COERCED to the pointer: 'H( w )' over a 'wstring * 8' passed nothing,
+        '' '_ZN2H3C1EPw(@z, _)', an emitter ICE, and 'H( !"\uE8A5" )' passed the escape's narrow
+        '' spelling. fbc-modern takes that constructor for both and passes the characters.
+        scope
+            dim as Tko.TypeId pcu = c.types->Unqualify( pty )
+            dim as Tko.TypeId acu = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, argNode[ai2] ) ) )
+            dim as boolean wptr = (c.types->Kind( pcu ) = Tko.TK_POINTER) andalso (c.types->Kind( acu ) <> Tko.TK_POINTER)
+            if wptr then
+                dim as Tko.TypeId pci = c.types->Unqualify( c.types->Inner( pcu ) )
+                wptr = (c.types->Kind( pci ) = Tko.TK_BUILTIN)
+                if wptr then wptr = (c.types->BuiltinOf( pci ) = Tko.TY_WSTRING)
+            end if
+            dim as MirValue cpv
+            if wptr andalso CtorArgValue_( c, cast( Tko.NodeId, argNode[ai2] ), pty, cpv ) then
+                argKind[ai2] = cast( ulong, cpv.kind )
+                argId[ai2] = cast( ulong, cpv.id )
+                argT[ai2] = cast( ulong, pty )
+                ai2 += 1
+                continue for
+            end if
+        end scope
         if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai2] ) ) : av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai2] ), *c.types ) )
         if av.kind = cast( ubyte, MV_NONE ) then return false   '' a deferred argument that did not lower
         dim as MirValue cv = Coerce( c, av, LowerType( pty, *c.types ) )
@@ -1370,19 +1398,19 @@ function LowerBaseCtorCall_ _
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
         if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
-            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
+            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
             argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
             continue for
         end if
         '' ...AND SO DOES A STRING OR A UDT-RETURNING CALL -- CtorArgLowersLate_, as in LowerCtorInit.
         if CtorArgLowersLate_( c, a ) then
-            argT.Push( cast( ulong, c.info->TypeOf_( a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
+            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
             argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
             continue for
         end if
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        argT.Push( cast( ulong, c.info->TypeOf_( a ) ) )
+        argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) )
         argKind.Push( cast( ulong, av.kind ) )
         argId.Push( cast( ulong, av.id ) )
         argNode.Push( cast( ulong, a ) )
