@@ -1,0 +1,6 @@
+'' See the source's header. The exemption added for 'pz[2]' must not widen into
+'' "a string initialises a number", which is fbc error 24 for all three spellings here.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/pointer-char-not-a-string.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0653

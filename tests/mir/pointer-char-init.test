@@ -1,0 +1,13 @@
+'' 'dim as ulong c = pName[i]' over a 'const wstring ptr' was TKO0653, "disagree about
+'' being a string", while the identical ASSIGNMENT one line down compiled and printed
+'' the right number. Lowering had the rule (CharLvalueTy_); the late check did not.
+''
+'' The exemption is exactly the deref and index forms over a 'zstring ptr' or a
+'' 'wstring ptr' -- see PointerCharRef_ in symbols/latechecks.bas for what fbc accepts
+'' and what it refuses beside them, each one measured.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/pointer-char-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0653
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

@@ -938,6 +938,59 @@ private sub CheckPrivateBaseStructor_( byref c as Ctx )
     next
 end sub
 
+'' A CHARACTER THROUGH A POINTER IS A NUMBER, not a string. Measured against fbc:
+''
+''     dim as ulong a = pz[2]     accepted, 99 -- the character CODE, not val( )
+''     dim as ulong b = *pz       accepted, 65
+''     dim as ulong d = z         error 24     -- a 'zstring * 8' variable
+''     dim as ulong e = s         error 24     -- a STRING
+''     dim as ulong f = "97"      error 24     -- a literal
+''
+'' so the exemption is exactly the deref and the index over a 'zstring ptr' or a
+'' 'wstring ptr' -- 'pz[1]' IS '*(pz + 1)', which is why both forms arrive here -- and
+'' nothing else stringy. Lowering has carried this rule since zstring-deref-arith
+'' (CharLvalueTy_, mir/lowerinit.bas) and gets the number right; only this check did
+'' not, so 'dim as ulong c = pName[i]' was refused while the same assignment written
+'' on its own line compiled and printed 99. Six of those in tiko-editor's
+'' clsSymbolDb.inc, and they are what a hand-written hash over a pooled name looks like.
+private function PointerCharRef_ ( byref c as Ctx, byval e as NodeId ) as boolean
+    if e = NODE_NONE then return false
+    '' The parenthesised form is the same expression: '( pz[2] )'.
+    dim as long guard = 0
+    while (c.ast->Kind( e ) = N_PAREN) andalso (guard < 16)
+        guard += 1
+        dim as ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if pp->count <> 1 then return false
+        e = cast( NodeId, c.ast->children[pp->first] )
+    wend
+    dim as TypeId bt = TYPE_NONE
+    select case c.ast->Kind( e )
+    case N_DEREF
+        dim as UnaryPayload ptr dp = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+        bt = c.types->Unqualify( c.info->TypeOf_( dp->operand ) )
+    case N_INDEX
+        dim as ListPayload ptr xp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        bt = c.types->Unqualify( c.info->TypeOf_( xp->target ) )
+    case else
+        return false
+    end select
+    if bt = TYPE_NONE then return false
+    '' THE POINTER IS THE POINT. A 'zstring * 8' is an ARRAY, its index is a character
+    '' of a string that has storage of its own, and fbc refuses that one.
+    if c.types->Kind( bt ) <> TK_POINTER then return false
+    dim as TypeId bi = c.types->Unqualify( c.types->Inner( bt ) )
+    if bi = TYPE_NONE then return false
+    if c.types->Kind( bi ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( bi )
+    case TY_ZSTRING, TY_WSTRING
+        return true
+    end select
+    return false
+end function
+
 private sub CheckConstDeclTypes_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -965,6 +1018,7 @@ private sub CheckConstDeclTypes_( byref c as Ctx )
         if c.types->Kind( c.types->Unqualify( dt ) ) = TK_UDT then continue for
         if c.types->Kind( c.types->Unqualify( vt ) ) = TK_UDT then continue for
         if IsStringyType_( c, dt ) = IsStringyType_( c, vt ) then continue for
+        if PointerCharRef_( c, ip->b ) then continue for
         c.diags->Report( TKO0653, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )
     next
