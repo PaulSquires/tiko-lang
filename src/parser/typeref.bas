@@ -37,6 +37,27 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         flags or= Tko.NF_CONST
     wend
 
+    '' ...AND THE QUALIFIER MAY COME FIRST: 'byref r as const ..RECT' is how AfxDWrite.bi
+    '' reaches the global RECT past AfxNova's own names, and the prefix was looked for only
+    '' BEFORE 'const'. Measured on fbc-modern, 'sub T( byref r as const ..R2 )' compiles and
+    '' runs; tiko said 'expected an identifier' at the dots, and that ONE header line failed
+    '' 74 of the AfxNova examples measured for phase 12.
+    if globalPrefix = false then
+        if Peek( p ) = Tko.TK_DOT then
+            if HasTok( p, p.pos + 1 ) then
+                dim as Tko.TokenKind ck = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                if ck = Tko.TK_DOT then
+                    Advance( p )
+                    Advance( p )
+                    globalPrefix = true
+                elseif (ck = Tko.TK_IDENT) orelse Tko.IsKeywordKind( ck ) then
+                    Advance( p )
+                    globalPrefix = true
+                end if
+            end if
+        end if
+    end if
+
     '' A procedure type: 'sub|function [cdecl|stdcall|pascal] ( params ) [as T]'.
     '' This is what 'as function cdecl ( ) as long = NULL' needs, and it appears
     '' throughout real headers as a callback parameter.
