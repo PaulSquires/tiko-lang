@@ -1,0 +1,26 @@
+'' A WIDE RIGHT SIDE ASSIGNED TO A UDT WHOSE 'operator let' TAKES A STRING is
+'' converted to narrow and passed, not declined. 'd = left( w, 2 )' over
+'' 'operator let( byref s as string )' left d UNCHANGED and reported "1 statements
+'' not lowered" -- AfxNova's DWSTRING path-trimming helpers write exactly this.
+''
+'' The shape below is fbc's, measured: take the wide LEFT, convert the result into a
+'' narrow temporary, call the operator with THAT, and delete the temporary. The
+'' narrow right side one line down ('d = left( s, 1 )') always worked and is here so
+'' that a fix which only ever chooses the wide path cannot pass.
+''
+'' Runtime output is differenced against fbc by build/goldenrun.sh, which is what
+'' proves the conversion is the right way round: both print
+'' "let wide: x y" then "let narrow: p".
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-let-wide-rvalue.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+
+'' The wide LEFT, then the wide-to-narrow conversion, then the operator.
+'' EXPECT-OUT: fb_WstrLeft
+'' EXPECT-OUT: fb_WstrAssignToA
+'' EXPECT-OUT: call void _ZN2AX3DWSaSER8FBSTRING
+
+'' The narrow one goes straight in -- no conversion call in front of it.
+'' EXPECT-OUT: fb_LEFT
