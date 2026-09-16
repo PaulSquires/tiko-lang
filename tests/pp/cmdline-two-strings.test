@@ -1,0 +1,11 @@
+'' ONE QUOTED STRING AND NO MORE. fbc's answer to '#cmdline "-d A" "-d B"' is its
+'' error 3 at the second string ("Expected End-of-Line, found '-d B'"), so the two
+'' are not quietly concatenated into one command line and are not silently half-read.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0333
+'' EXPECT-OUT: #cmdline takes one quoted argument string
+
+#cmdline "-d A" "-d B"
+print "x"

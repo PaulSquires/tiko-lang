@@ -114,6 +114,14 @@
     '' '#line 10 foo.bas' is error 3 -- the name has to be quoted.
     DIAG( TKO0331, SEV_ERROR,   "#line takes a line number, then an optional quoted file name" )
     DIAG( TKO0332, SEV_ERROR,   "unexpected token after #line" )
+    '' fbc's error 17 for a missing or non-string argument to '#cmdline', and its
+    '' error 3 for a second string: '#cmdline "-d A" "-d B"' reads 'Expected
+    '' End-of-Line, found '-d B''. Both measured against fbc 1.20.0.
+    DIAG( TKO0333, SEV_ERROR,   "#cmdline takes one quoted argument string" )
+    '' fbc's warning 46, "#cmdline ignored". Only the FIRST source file of a compile
+    '' can restart it; the directive in any later one is read, warned about and
+    '' dropped. Measured 2026-09-16.
+    DIAG( TKO0334, SEV_WARNING, "#cmdline is ignored outside the first source file" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

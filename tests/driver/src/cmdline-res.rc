@@ -1,0 +1,4 @@
+STRINGTABLE
+BEGIN
+  102, "a resource named by #cmdline"
+END

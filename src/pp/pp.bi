@@ -126,6 +126,13 @@ namespace Tko
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
         as StrVec ptr defines        '' -d name[=value]
         as boolean    reportUnsupported
+        '' '#cmdline' IS ONLY HONOURED IN THE FIRST SOURCE FILE, and this says which
+        '' module this is. fbc's rule, measured 2026-09-16: 'fbc a.bas b.bas' with the
+        '' directive in a.bas restarts and never compiles b.bas on the first pass,
+        '' while the same directive in b.bas is 'warning 46(1): #cmdline ignored' and
+        '' no restart at all. Default false, so a single-file compile and every
+        '' caller that does not care honours it.
+        as boolean    cmdlineIgnored
         '' The target, as the two FACTS the preprocessor needs rather than as a target
         '' id: it has no business knowing the type model, and handing it one invites it
         '' to grow more target knowledge than seeding predefines requires.
@@ -176,6 +183,12 @@ namespace Tko
         '' what it already does for the runtime archives and works under lld-link
         '' too -- ':' is GNU ld syntax and the MSVC driver has no equivalent.
         as StrVec   foreignLibFiles
+        '' '#cmdline' -- the ARGUMENTS A SOURCE INJECTS INTO ITS OWN COMPILATION,
+        '' already split into argv words, in source order. Here for the same reason
+        '' incLibs is: the engine closes with the preprocess and the thing that acts
+        '' on these is the DRIVER, which restarts the compile once the whole pass has
+        '' been read. See driver.bas, 'the restart'.
+        as StrVec   cmdlineArgs
         '' '#pragma reserve NAME' -- the names a translation unit has taken out of
         '' circulation. On the RESULT for the same reason incLibs is: the engine closes
         '' with the preprocess and this outlives it, because the thing that has to see a

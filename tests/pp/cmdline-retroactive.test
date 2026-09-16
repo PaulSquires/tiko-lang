@@ -1,0 +1,21 @@
+'' THE ARGUMENTS REACH THE LINES ABOVE THE DIRECTIVE, because the restart re-reads
+'' the file from the top rather than applying anything from where it was found.
+'' Measured on fbc 1.20.0: '#ifdef FOO' BEFORE '#cmdline "-d FOO"' is taken on the
+'' second pass, and fbc prints its '#print' output twice for the same reason.
+''
+'' The unparseable line is the assertion. It sits in the branch that is live only
+'' while the symbol is undefined, so a run that did not restart reports a parse
+'' error and a run that did never sees it. Pass one DOES report it -- and throws it
+'' away unflushed, which is the other half of what this pins.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0
+
+#if not defined( RETROSYMBOL )
+    )))
+#endif
+
+#cmdline "-d RETROSYMBOL"
+
+print "ok"

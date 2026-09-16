@@ -1,0 +1,21 @@
+'' '#cmdline' INJECTS ITS ARGUMENTS INTO THE COMPILE THAT READ IT, which tiko does
+'' the way fbc does: by running the whole compile again with them appended. This is
+'' fbc's own test for the directive (tests/vendor/fbc-tests/pp/cmdline.bas) in tiko's
+'' harness, '-restart' and all -- fbc needs telling to restart, tiko always does, and
+'' a source that says so must not become an unknown-option error.
+''
+'' A FAILURE HERE IS AN EXIT OF 1, not a wrong number: without the restart
+'' CMDLINESYMBOL is undefined and the '#error' below is what the run reports.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0
+
+#cmdline "-d CMDLINESYMBOL"
+#cmdline "-restart"
+
+#if not defined( CMDLINESYMBOL )
+#error the restart did not happen
+#endif
+
+print "ok"

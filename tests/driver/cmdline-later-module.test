@@ -1,0 +1,13 @@
+'' A '#cmdline' IN ANY BUT THE FIRST SOURCE FILE IS A WARNING, not a restart. See
+'' the sources' headers: this is fbc's rule, measured, and it matters because the
+'' alternative is a file whose options are honoured or ignored depending on the
+'' order its caller happened to name it in, with nothing said either way.
+''
+'' The build still succeeds: the directive is dropped, not fatal.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/cmdline-first.bas tests/driver/src/cmdline-second.bas -o tests/driver/cmdlinelater.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: TKO0334
+'' EXPECT-OUT: #cmdline is ignored outside the first source file
+'' EXPECT-FILE: tests/driver/cmdlinelater.exe

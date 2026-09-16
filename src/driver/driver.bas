@@ -473,7 +473,32 @@ private function LinkAll _
     return Tko.EXIT_OK
 end function
 
-function Run( byref args as Tko.StrVec ) as long
+'' THE RESTART: the same compiler, run again, with what the source asked for appended
+'' to what the user asked for. Appended and not prepended, because fbc lets the source
+'' WIN -- measured: '-s gui' on the command line with '#cmdline "-s console"' in the
+'' file produces a console subsystem.
+''
+'' A fresh Run( ) is the whole mechanism. Its context, its diagnostic engine and its
+'' option set are locals, so pass one leaves nothing behind; and because the words go
+'' through Cmdline.Parse like any others, a '#cmdline' naming a '.rc' becomes an input
+'' file and one naming an option tiko does not have becomes its usual error.
+private function RestartWith_ _
+    ( byref args as Tko.StrVec, byref injected as Tko.StrVec, _
+      byval depth as long ) as long
+
+    dim as Tko.StrVec again
+    for i as long = 0 to args.Count - 1
+        again.Push( args[i] )
+    next
+    for i as long = 0 to injected.Count - 1
+        again.Push( injected[i] )
+    next
+    return Run( again, depth + 1 )
+end function
+
+function Run _
+    ( byref args as Tko.StrVec, byval restartDepth as long = 0 ) as long
+
     dim as Tko.CompilerContext ctx
 
     '' THE EXIT CODE OF A FAILURE THAT IS NOT A DIAGNOSTIC.
@@ -681,6 +706,7 @@ function Run( byref args as Tko.StrVec ) as long
             dim as Tko.FileId id = cast( Tko.FileId, i )
             dim as Tko.PpResult pr
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
+            cfg.cmdlineIgnored = (i > 1)
             dim as Tko.PpStream st
             Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
 
@@ -698,6 +724,23 @@ function Run( byref args as Tko.StrVec ) as long
 
             dim as Tko.NodeId root = Tko.Parse.Unit( p )
             Tko.PpClose( st )
+
+            '' '#cmdline' -- WHAT THE SOURCE ASKED TO BE COMPILED WITH. Collected from
+            '' every module of this pass before any of it is acted on, because that is
+            '' fbc's shape: two directives make ONE restart, and a '#cmdline' in the
+            '' second file binds as hard as one in the first.
+            ''
+            '' Nothing else of this pass runs. Collect, Resolve, Check, Lower, the emit
+            '' and every later module all belong to a pass whose options are already
+            '' known to be the wrong ones, and their diagnostics would be wrong with
+            '' them. None of it is flushed: the restart returns before the tail
+            '' flushes, so pass one is silent exactly as fbc's is -- a file with both
+            '' a syntax error and a '#cmdline' reports the error once.
+            ''
+            '' Only the FIRST module gets here with anything to say; the preprocessor
+            '' warns (TKO0334) and collects nothing for any later one.
+            dim as boolean restarting = (pr.cmdlineArgs.Count > 0) andalso (restartDepth = 0)
+            if restarting then return RestartWith_( args, pr.cmdlineArgs, restartDepth )
 
             '' WHAT THE SOURCE ASKED TO LINK AGAINST. Harvested per module and
             '' accumulated, because the link happens once over all of them: a
@@ -1193,6 +1236,7 @@ function Run( byref args as Tko.StrVec ) as long
             '' vector the preprocessor finished building first.
             dim as Tko.PpResult pr
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
+            cfg.cmdlineIgnored = (i > 1)
             dim as Tko.PpStream st
             Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
 
@@ -1210,11 +1254,23 @@ function Run( byref args as Tko.StrVec ) as long
 
             dim as Tko.NodeId root = Tko.Parse.Unit( p )
             Tko.PpClose( st )
+
+            '' '#cmdline' RESTARTS THESE MODES TOO. '--parse-only' and '--dump-ast'
+            '' answer 'what does tiko make of this file', and the honest answer is
+            '' the one the compile would reach: a '#cmdline "-d FOO"' decides which
+            '' branches exist, so a dump of the pass that had not read it yet would
+            '' show a tree the compiler never builds.
+            dim as boolean dumpRestarting = _
+                (pr.cmdlineArgs.Count > 0) andalso (restartDepth = 0)
+            if dumpRestarting then _
+                return RestartWith_( args, pr.cmdlineArgs, restartDepth )
+
             nodes += ast.Count( )
             if ctx.options.dumpAst then
                 print Tko.Parse.DumpTree( ast, ctx.sources, ctx.names, root );
             end if
         next
+
         dim as double tParse = timer - tParseStart
         if ctx.options.parseOnly then
             '' Count INPUTS, not sources: the preprocessor creates virtual files for
@@ -1273,6 +1329,7 @@ function Run( byref args as Tko.StrVec ) as long
         for i as long = 1 to ctx.sources.Count( )
             dim as Tko.PpResult r
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
+            cfg.cmdlineIgnored = (i > 1)
             Tko.PpRun( ctx.sources, cast( Tko.FileId, i ), ctx.names, ctx.keywords, _
                        ctx.diags, cfg, r )
             tokens += r.tokens.Count
@@ -1292,6 +1349,7 @@ function Run( byref args as Tko.StrVec ) as long
             if ctx.options.dumpPp then
                 dim as Tko.PpResult r
                 dim as Tko.PpConfig cfg = MakePpConfig( ctx )
+                cfg.cmdlineIgnored = (i > 1)
                 Tko.PpRun( ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, r )
                 print Tko.PpDump( ctx.sources, ctx.names, r );
             else

@@ -1,0 +1,20 @@
+'' AT MOST ONE RESTART, which is fbc's rule and not an implementation accident.
+'' Measured: a '#cmdline' that only becomes reachable on the second pass is dropped
+'' in silence -- no restart, no diagnostic -- so a source cannot drive the compiler
+'' round a loop by defining its way to the next directive.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0
+
+#cmdline "-d ONESYMBOL"
+
+#if defined( ONESYMBOL )
+    #cmdline "-d TWOSYMBOL"
+#endif
+
+#if defined( TWOSYMBOL )
+#error a second restart happened
+#endif
+
+print "ok"

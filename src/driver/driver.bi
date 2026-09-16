@@ -40,7 +40,13 @@ end namespace
 namespace Tko.Driver
 
     '' Returns a process exit code from Tko.ExitCode.
-    declare function Run( byref args as Tko.StrVec ) as long
+    '' 'restartDepth' IS THE '#cmdline' RESTART and nothing else. Zero is the run the
+    '' user asked for; one is the re-run with the arguments the SOURCE asked for
+    '' appended. It is a parameter rather than a flag inside Run( ) because the
+    '' restart IS a second Run( ) -- main.bas stays one line, and the whole compiler
+    '' remains reachable in-process.
+    declare function Run _
+        ( byref args as Tko.StrVec, byval restartDepth as long = 0 ) as long
 
 end namespace
 

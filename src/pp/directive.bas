@@ -333,6 +333,54 @@ private sub PpExpandRestOfLine _
 
 end sub
 
+'' '#cmdline "..."' SPLIT INTO ARGV WORDS, the way a command line is split and not
+'' the way a string is: '-p "C:\Program Files"' has to stay two words with the space
+'' kept, because splitting on blanks alone would name two directories that do not
+'' exist. Double quotes group and are removed; runs of blanks separate.
+''
+'' Blanks around and between words are skipped rather than making empty arguments.
+'' Measured against fbc 1.20.0: '#cmdline "   -d   FOO   "' defines FOO.
+private sub SplitCmdlineWords_( byref s as string, byref outv as StrVec )
+    dim as long n = len( s )
+    dim as long i = 1
+
+    while i <= n
+        '' to the start of the next word
+        do
+            if i > n then exit do
+            dim as string ch = mid( s, i, 1 )
+            dim as boolean isSp = (ch = " ")
+            dim as boolean isTab = (ch = chr( 9 ))
+            dim as boolean blank = isSp orelse isTab
+            if blank = false then exit do
+            i += 1
+        loop
+        if i > n then exit while
+
+        dim as string w = ""
+        dim as boolean quoted = false
+        do
+            if i > n then exit do
+            dim as string ch2 = mid( s, i, 1 )
+            if ch2 = """" then
+                quoted = not quoted
+            else
+                dim as boolean isSp2 = (ch2 = " ")
+                dim as boolean isTab2 = (ch2 = chr( 9 ))
+                dim as boolean blank2 = isSp2 orelse isTab2
+                dim as boolean ends_ = blank2 andalso (quoted = false)
+                if ends_ then exit do
+                w &= ch2
+            end if
+            i += 1
+        loop
+
+        '' AN EMPTY WORD IS DROPPED. '#cmdline ""' then injects nothing, rather than
+        '' an empty argument the option parser would have to have an opinion about.
+        if len( w ) > 0 then outv.Push( w )
+    wend
+end sub
+
 private function PpEvalRestOfLine _
     ( byref e as PpEngine, byval at as SourceLoc, byval what as string ) as boolean
 
@@ -805,20 +853,46 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
 
     case "cmdline"
-        '' NOT IMPLEMENTED, AND NOW IT SAYS SO. It was skipped in silence, which is
-        '' the worst of the three options: the corpus writes '#cmdline "-d
-        '' CMDLINESYMBOL"' and '#cmdline "-w error"', so a skipped directive means
-        '' the symbol is undefined or the warnings are not errors, and the file then
-        '' compiles to something the author did not ask for with nothing said.
+        '' THE SOURCE'S OWN COMMAND LINE. Its arguments are collected here and acted on by
+        '' the driver, which RESTARTS the whole compile with them appended -- see
+        '' 'the restart' in driver.bas. Nothing is interpreted at this point, and that is
+        '' the whole of why it can be implemented at all: the restarted run hands these
+        '' words to the same Cmdline.Parse the real command line goes through, so every
+        '' option tiko has works and one it does not have gets its ordinary unknown-option
+        '' error. A subset that understood a few options here would be the thing that
+        '' works until someone writes the option it does not cover.
         ''
-        '' It is not the same shape as '#inclib' and '#libpath'. Those name one
-        '' thing the link needs; '#cmdline' injects arbitrary OPTIONS from inside a
-        '' source that is already being compiled under the options it wants to
-        '' change. fbc's answer is '-restart' -- it re-invokes itself with the new
-        '' command line -- and anything less than that is a subset that works until
-        '' someone writes the option that needs it.
-        if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
-        SkipToEol( e )
+        '' MACRO-EXPANDED, unlike '#inclib'. Measured against fbc 1.20.0: '#define S
+        '' "-d FOO"' then '#cmdline S' defines FOO, while the same shape after '#inclib'
+        '' is taken literally.
+        ''
+        '' ONE STRING AND NO MORE: '#cmdline "-d A" "-d B"' is fbc's error 3 at the second,
+        '' also measured, so a second is refused here rather than quietly concatenated.
+        dim as TokenVec clToks
+        PpExpandRestOfLine( e, clToks )
+
+        if e.cfg->cmdlineIgnored then
+            '' NOT THE FIRST SOURCE FILE, so this one cannot restart anything. fbc
+            '' reads it, says 'warning 46(1): #cmdline ignored' and carries on --
+            '' measured, and worth matching: the alternative is a file whose options
+            '' are honoured or dropped depending on the order its caller named it in,
+            '' with nothing said either way.
+            Report( e, TKO0334, at )
+        elseif clToks.Count = 0 then
+            Report( e, TKO0333, at )
+        elseif Tk( clToks[0] ) <> TK_STRING_LIT then
+            Report( e, TKO0333, clToks[0].loc )
+        elseif clToks.Count > 1 then
+            Report( e, TKO0333, clToks[1].loc )
+        else
+            dim as string clSp = SpellOf( e, clToks[0] )
+            dim as long clA = instr( clSp, """" )
+            dim as long clB = instrrev( clSp, """" )
+            if (clA > 0) andalso (clB > clA) then
+                SplitCmdlineWords_( mid( clSp, clA + 1, clB - clA - 1 ), _
+                                    e.outp->cmdlineArgs )
+            end if
+        end if
 
     case "line"
         '' '#line <number> [ "file" ]' RENUMBERS FROM THIS LINE, not from the next --

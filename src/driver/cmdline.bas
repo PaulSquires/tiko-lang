@@ -399,6 +399,7 @@ function Parse _
             if haveValue then opts.helpCategory = value
         case Tko.OPT_VERSION  : opts.showVersion = true
         case Tko.OPT_VERBOSE  : opts.verbose = true
+        case Tko.OPT_RESTART  : '' see options.bi: the restart is not a flag here
 
         case Tko.OPT_INCLUDE  : opts.includePaths.Push( value )
         case Tko.OPT_DEFINE   : opts.defines.Push( value )

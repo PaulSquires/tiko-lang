@@ -1,0 +1,12 @@
+'' See the source's header: a '#cmdline' naming a file adds an INPUT, not an option,
+'' and a '.rc' so named reaches the resource compiler like any other.
+''
+'' It has its own '.rc' rather than sharing resource.test's: the '.res' is an
+'' intermediate named after the script, and two tests compiling one script in
+'' parallel would race for it.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/cmdline-rc.bas -o tests/driver/cmdlinerc.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/cmdlinerc.exe
+'' EXPECT-NO-FILE: tests/driver/src/cmdline-res.res

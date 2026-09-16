@@ -42,6 +42,12 @@ namespace Tko
     OPT( OPT_HELP,      "--help",     OPTK_OPTVALUE, OPTCAT_GENERAL, "category", "show help; optionally for one category" )
     OPT( OPT_VERSION,   "--version",  OPTK_FLAG,  OPTCAT_GENERAL, "",         "show version and exit" )
     OPT( OPT_VERBOSE,   "-v",         OPTK_FLAG,  OPTCAT_GENERAL, "",         "echo every tool invocation" )
+    '' ACCEPTED AND IGNORED, because tiko restarts on its own. fbc needs telling --
+    '' its own test suite writes '#cmdline "-restart"' next to the directive that
+    '' needs it -- and a source that says so must not become an unknown-option error
+    '' here. Undocumented in fbc's --help; it is what fbc passes itself when it
+    '' re-invokes, and tiko never re-invokes: it calls Run( ) again.
+    OPT( OPT_RESTART,   "-restart",   OPTK_FLAG,  OPTCAT_GENERAL, "",         "accepted and ignored; a '#cmdline' restarts by itself" )
 
     OPT( OPT_INCLUDE,   "-i",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add an include search path" )
     OPT( OPT_DEFINE,    "-d",         OPTK_VALUE, OPTCAT_INPUT,   "name=val", "define a preprocessor symbol" )
