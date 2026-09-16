@@ -495,6 +495,37 @@ function SymbolTable.DeclareSym _
     dim as SymbolId chainTo = SYMBOL_NONE
     if existing <> SYMBOL_NONE then
         dim as Symbol ptr e = @this.symbols[cast( long, existing )]
+
+        '' ONCE THE PAIR IS FORMED, judge against the member of THIS class. The slot
+        '' keeps whichever came first, so a third declaration arriving at a name that
+        '' already holds a type AND a value was compared against the head -- the wrong
+        '' class -- and refused as a duplicate.
+        ''
+        '' 'type WNDPROC as function( ... )' in win/winuser.bi, a 'declare function
+        '' WndProc' and then its DEFINITION is that shape, and FreeBASIC folds case so
+        '' all three are one name. fbc compiles it -- measured, the program prints from
+        '' the direct call and through the pointer both -- while tiko refused the
+        '' definition, which is what 231 of AfxNova's examples reported first.
+        ''
+        '' Only when no '#undef' generation is in play: those paths below choose
+        '' between the head and its partner on their own terms.
+        dim as boolean pairFormed = (altOlder = SYMBOL_NONE) andalso _
+                                    (genOlder = SYMBOL_NONE)
+        if pairFormed andalso (e->altClass <> SYMBOL_NONE) then
+            dim as boolean headIsOther = _
+                (IsTypeNameKind( cast( SymbolKind, e->kind ) ) <> IsTypeNameKind( k ))
+            if headIsOther then
+                dim as SymbolId partner = e->altClass
+                dim as Symbol ptr pe = @this.symbols[cast( long, partner )]
+                dim as boolean partnerIsMine = _
+                    (IsTypeNameKind( cast( SymbolKind, pe->kind ) ) = IsTypeNameKind( k ))
+                if partnerIsMine then
+                    existing = partner
+                    e = pe
+                end if
+            end if
+        end if
+
         dim as boolean bothProcs = (e->kind = cast( ubyte, SYM_PROC )) andalso _
                                    (k = SYM_PROC)
         '' A TYPE NAME and a VALUE name may share a spelling. The pair is chained

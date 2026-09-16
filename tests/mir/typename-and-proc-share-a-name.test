@@ -1,0 +1,14 @@
+'' See the source's header. fbc compiles this and prints '11  21' -- measured on
+'' 1.20.0 -- from the direct call and through the pointer both.
+''
+'' The result type is the assertion that matters as much as the absence of the error:
+'' with the definition judged against the TYPE rather than against its own class, the
+'' function came out as 'func ptr FN' -- the alias's type, not its own.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typename-and-proc-share-a-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: func i32 FN(i32
+'' EXPECT-OUT: global var ptr p = FN
+'' EXPECT-NOT: TKO0600
+'' EXPECT-NOT: func ptr FN
