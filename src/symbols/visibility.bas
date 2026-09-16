@@ -500,6 +500,8 @@ private sub CheckIifArms_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId ua = c.types->Unqualify( ta )
     dim as TypeId ub = c.types->Unqualify( tb )
     if ua = ub then return
+    '' A UDT THAT EXTENDS A STRING MEETS THAT STRING -- see IifStringUdtArm_.
+    if IifStringUdtArm_( c, ua, ub ) orelse IifStringUdtArm_( c, ub, ua ) then return
 
     dim as boolean bad = false
     if IsStringyType_( c, ua ) <> IsStringyType_( c, ub ) then bad = true

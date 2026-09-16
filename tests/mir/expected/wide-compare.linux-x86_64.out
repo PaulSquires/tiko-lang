@@ -290,20 +290,20 @@ func void S() {
     store @$tmp4, %15
     %16 = load @$tmp4
     %17 = call.rtl ptr fb_WstrAssign(%16, 0, %13)
+    %18 = load @$tmp5
+    call.rtl void fb_WstrDelete(%18)
     br wiif.join3
   wiif.else2:
-    %18 = call.rtl i64 fb_WstrLen(@w0)
-    %19 = call.rtl ptr fb_WstrAlloc(%18)
-    store @$tmp4, %19
-    %20 = load @$tmp4
-    %21 = call.rtl ptr fb_WstrAssign(%20, 0, @w0)
+    %19 = call.rtl i64 fb_WstrLen(@w0)
+    %20 = call.rtl ptr fb_WstrAlloc(%19)
+    store @$tmp4, %20
+    %21 = load @$tmp4
+    %22 = call.rtl ptr fb_WstrAssign(%21, 0, @w0)
     br wiif.join3
   wiif.join3:
-    %22 = load @$tmp4
-    %23 = call.rtl ptr fb_WstrAssign(@c, 33, %22)
-    %24 = load @$tmp4
-    call.rtl void fb_WstrDelete(%24)
-    %25 = load @$tmp5
+    %23 = load @$tmp4
+    %24 = call.rtl ptr fb_WstrAssign(@c, 33, %23)
+    %25 = load @$tmp4
     call.rtl void fb_WstrDelete(%25)
     ret
 }

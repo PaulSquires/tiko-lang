@@ -1,0 +1,23 @@
+'' fbc's astNewIIF converts a UDT arm into the string it EXTENDS -- zstring beside a
+'' narrow character, wstring beside a wide one -- and refuses every other UDT arm.
+'' tiko refused all of them, which cost AfxNova's DWSTRING ('TYPE DWSTRING EXTENDS
+'' WSTRING') and tiko-editor's ProjectFolders_Normalize with TKO0655.
+''
+'' THE RUNTIME HALF IS THE POINT, and build/goldenrun.sh is what proves it: the first
+'' accepted program SEGFAULTED. Each arm's own temporaries -- the DWS the then-arm
+'' builds, and the string beside it -- were released after the JOIN, so taking the ELSE
+'' arm ran a destructor over storage nothing had constructed. They are released inside
+'' the arm now, where fbc puts them, and the source exercises BOTH arms for that reason.
+''
+'' The assertions below are substring tests and unordered (EXPECT-OUT is 'instr'), so
+'' they say the arm blocks and a destructor exist, not where the destructor sits. What
+'' would catch it moving back out is the runtime difference against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/iif-udt-extends-wstring.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0655
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: wiif.then
+'' EXPECT-OUT: wiif.join
+'' EXPECT-OUT: _ZN3DWSD1Ev

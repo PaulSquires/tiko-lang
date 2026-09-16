@@ -991,6 +991,55 @@ private function PointerCharRef_ ( byref c as Ctx, byval e as NodeId ) as boolea
     return false
 end function
 
+'' A UDT THAT EXTENDS A STRING IS THAT STRING, in 'iif' and nowhere near as widely as a
+'' cast would be. fbc's astNewIIF (ast-node-iif.bas) converts the UDT arm only when the
+'' type extends ZSTRING and the other arm is a narrow character, or extends WSTRING and
+'' the other is wide; every other UDT arm is error 24. Measured on AfxNova's DWSTRING,
+'' which is 'TYPE DWSTRING EXTENDS WSTRING':
+''
+''     iif( c, DWSTRING("/"), mid( aDwstring, i, 1 ) )   accepted -- mid gives WSTRING
+''     iif( c, DWSTRING("/"), mid( aWstring,  i, 1 ) )   accepted
+''     iif( c, DWSTRING("/"), mid( aString,   i, 1 ) )   error 24 -- STRING is not WCHAR
+''
+'' and a hand-written type declaring the SAME 'operator cast( ) byref as const wstring'
+'' but not extending wstring is error 24 as well, with or without a second cast and with
+'' a const-byref constructor: the cast is not what fbc looks at, the BASE is. tiko
+'' refused every UDT arm, which is what stopped tiko-editor's ProjectFolders_Normalize.
+private function ExtendsStrKind_ _
+    ( byref c as Ctx, byval t as TypeId, byval want as BuiltinType ) as boolean
+    dim as TypeId cur = c.types->Unqualify( t )
+    dim as long guard = 0
+    while (cur <> TYPE_NONE) andalso (guard < 32)
+        guard += 1
+        if c.types->Kind( cur ) = TK_BUILTIN then
+            return (c.types->BuiltinOf( cur ) = want)
+        end if
+        if c.types->Kind( cur ) <> TK_UDT then return false
+        cur = c.types->Unqualify( BaseOf_( c, cur ) )
+    wend
+    return false
+end function
+
+'' One arm a UDT, the other a character of the kind that UDT extends. A FIXED-LENGTH
+'' string is an array of its character builtin and is that character to fbc, so the
+'' array wrapper is peeled the way IsStringyType_ peels it.
+private function IifStringUdtArm_ _
+    ( byref c as Ctx, byval ua as TypeId, byval ub as TypeId ) as boolean
+    if c.types->Kind( ua ) <> TK_UDT then return false
+    dim as TypeId e = ub
+    dim as long guard = 0
+    while (c.types->Kind( e ) = TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        e = c.types->Unqualify( c.types->Inner( e ) )
+    wend
+    if c.types->Kind( e ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( e )
+    case TY_ZSTRING : return ExtendsStrKind_( c, ua, TY_ZSTRING )
+    case TY_WSTRING : return ExtendsStrKind_( c, ua, TY_WSTRING )
+    end select
+    return false
+end function
+
 private sub CheckConstDeclTypes_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

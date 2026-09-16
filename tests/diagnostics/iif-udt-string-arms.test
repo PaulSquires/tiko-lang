@@ -1,0 +1,9 @@
+'' See the source's header: the exemption for a UDT that extends a string must not widen
+'' into "any UDT with a cast", nor into "any stringy arm will do". fbc is error 24 on
+'' BOTH lines, so both are asserted by position -- an assertion on the id alone would
+'' pass with one of them wrongly accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/iif-udt-string-arms.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iif-udt-string-arms.bas(21,17): error TKO0655
+'' EXPECT-OUT: iif-udt-string-arms.bas(22,17): error TKO0655
