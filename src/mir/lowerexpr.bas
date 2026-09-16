@@ -45,6 +45,27 @@ private function IsShiftTk_( byval tk as Tko.TokenKind ) as boolean
     return (tk = Tko.KW_SHL) orelse (tk = Tko.KW_SHR)
 end function
 
+'' THE COMPARISONS, as tokens. IsCmpOp_ answers the same question about a MirOp, which
+'' is chosen from the operand type -- and the operand type is what a comparison has to
+'' settle first, so the question has to be askable before it.
+private function IsCmpTk_( byval tk as Tko.TokenKind ) as boolean
+    select case tk
+    case Tko.TK_EQ, Tko.TK_NE, Tko.TK_LT, Tko.TK_GT, Tko.TK_LE, Tko.TK_GE
+        return true
+    end select
+    return false
+end function
+
+'' Is this MIR type one of the integers? Bitwise and comparison decisions ask it, and a
+'' BOOLEAN is MT_I8 as well, so every caller checks that separately.
+private function IsIntMirTy_( byval t as MirType ) as boolean
+    select case t
+    case MT_I8, MT_I16, MT_I32, MT_I64
+        return true
+    end select
+    return false
+end function
+
 function LowerExpr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
@@ -876,6 +897,45 @@ function LowerExpr _
                 opTy = MT_I64
             end if
         end if
+        '' A COMPARISON COMPARES IN THE PROMOTED OPERAND TYPE, which is neither operand's
+        '' own and is not the comparison's result type either -- that is always INTEGER
+        '' and says nothing about how the two were compared. fbc promotes both sides the
+        '' way it would for arithmetic and compares there. Measured:
+        ''
+        ''     dim as ulong ul = 10  : print (ul < -1)   fbc 0, tiko -1
+        ''     dim as ubyte ub = 200 : print (ub > l)    fbc -1, tiko 0   'l' a LONG -10
+        ''     dim as integer i = -8 : print (i < ui)    fbc 0, tiko -1   'ui' a UINTEGER
+        ''
+        '' -- fbc's C for them is '(int64)UL$0 < -1ll', '(int64)UB$0 > (int64)L$0' and
+        '' '(uint64)I$0 < UI$0'. The width matters as much as the sign: 'ulong 4294967295
+        '' = long -1' is FALSE to fbc and true if the two are compared as 32 bits.
+        ''
+        '' BinaryResult over '+' gives that promoted type: a comparison's own entry in
+        '' the table answers INTEGER, so the arithmetic one is what has to be asked.
+        dim as Tko.TypeId cmpT = Tko.TYPE_NONE
+        if IsCmpTk_( tk ) then
+            dim as MirType lmt = LowerType( lt, *c.types )
+            dim as MirType rmt = LowerType( rt, *c.types )
+            dim as boolean okp = IsIntMirTy_( lmt ) andalso IsIntMirTy_( rmt )
+            if IsBooleanType( c, lt ) orelse IsBooleanType( c, rt ) then okp = false
+            '' ONLY A MIXED PAIR NEEDS IT. Two operands of the same signedness answer
+            '' the same at either width -- both sign-extended, or both zero-extended --
+            '' so promoting them adds a widening pair to every comparison in the program
+            '' and changes no answer. The 2400-case matrix agrees with fbc on every
+            '' same-signedness pair without this, and 16 goldens' IR stays as it was.
+            if IsUnsignedType( c, lt ) = IsUnsignedType( c, rt ) then okp = false
+            if okp then
+                dim as Tko.TypeId pt = _
+                    Tko.Check.BinaryResult( Tko.TK_PLUS, lt, rt, *c.types )
+                if pt <> Tko.TYPE_NONE then
+                    dim as MirType pmt = LowerType( pt, *c.types )
+                    if IsIntMirTy_( pmt ) then
+                        opTy = pmt
+                        cmpT = pt
+                    end if
+                end if
+            end if
+        end if
         l = CoerceTy( c, l, opTy, lt)
         r = CoerceTy( c, r, opTy, rt)
 
@@ -931,7 +991,11 @@ function LowerExpr _
         ''
         '' A COMPARISON is left alone: its result is an INTEGER whatever it compared, so
         '' that type says nothing about how -- fbc takes it from the promoted operands.
-        dim as MirOp op = BinOpFor( tk, opTy, IsUnsignedType( c, lt ) )
+        '' ...and a comparison takes its signedness from that promoted type, the one
+        '' both operands were just widened to.
+        dim as Tko.TypeId signT = lt
+        if cmpT <> Tko.TYPE_NONE then signT = cmpT
+        dim as MirOp op = BinOpFor( tk, opTy, IsUnsignedType( c, signT ) )
         if op = M_NONE then return v
         dim as boolean byResult = (IsCmpOp_( op ) = false)
         if (mt = MT_VOID) orelse (mt = MT_PTR) orelse (mt = MT_AGG) then byResult = false

@@ -692,6 +692,45 @@ private function StrCaseCompare_ _
     return Emit( c, ins )
 end function
 
+'' THE TYPE A CASE COMPARISON HAPPENS IN. A SELECT CASE test is a comparison, and fbc
+'' promotes the subject and the case value exactly as it does for one written out --
+'' see lowerexpr.bas. Comparing at the SUBJECT's width and signedness answered the
+'' wrong thing for a mixed pair. Measured against fbc:
+''
+''     dim as ulong ul = 10  : select case ul : case is < -1   fbc 'ge', tiko 'lt'
+''     dim as ubyte ub = 200 : select case ub : case is > l    fbc 'gt', tiko 'le'
+''     dim as integer i = -8 : select case i  : case is < ui   fbc 'lt', tiko 'ge'
+''
+'' False when either side is not an integer: a BOOLEAN subject normalises instead --
+'' 'case TRUE' over a boolean is an equality against its storage value -- and a string
+'' subject has its own path. The caller then keeps the subject's own width, as before.
+private function CasePromote_ _
+    ( byref c as Ctx, byval subjT as Tko.TypeId, byval valT as Tko.TypeId, _
+      byref pmt as MirType, byref puns as boolean ) as boolean
+
+    if (subjT = Tko.TYPE_NONE) orelse (valT = Tko.TYPE_NONE) then return false
+    if IsBooleanType( c, subjT ) orelse IsBooleanType( c, valT ) then return false
+    '' Only a MIXED pair needs promoting -- see lowerexpr.bas. Same signedness answers
+    '' the same at either width, and every CASE test keeps the IR it had.
+    if IsUnsignedType( c, subjT ) = IsUnsignedType( c, valT ) then return false
+    dim as MirType smt = LowerType( subjT, *c.types )
+    dim as MirType vmt = LowerType( valT, *c.types )
+    dim as boolean okS = (smt = MT_I8) orelse (smt = MT_I16) orelse _
+                         (smt = MT_I32) orelse (smt = MT_I64)
+    dim as boolean okV = (vmt = MT_I8) orelse (vmt = MT_I16) orelse _
+                         (vmt = MT_I32) orelse (vmt = MT_I64)
+    if (okS = false) orelse (okV = false) then return false
+    dim as Tko.TypeId pt = Tko.Check.BinaryResult( Tko.TK_PLUS, subjT, valT, *c.types )
+    if pt = Tko.TYPE_NONE then return false
+    dim as MirType p = LowerType( pt, *c.types )
+    dim as boolean okP = (p = MT_I8) orelse (p = MT_I16) orelse _
+                         (p = MT_I32) orelse (p = MT_I64)
+    if okP = false then return false
+    pmt = p
+    puns = IsUnsignedType( c, pt )
+    return true
+end function
+
 '' One CASE value against the subject: an equality, a range, or a relational test.
 private function LowerCaseTest _
     ( byref c as Ctx, byref slotAddr as MirValue, byval mt as MirType, _
@@ -705,13 +744,18 @@ private function LowerCaseTest _
         dim as Tko.StmtPayload ptr rp = StmtOf( c, val )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, rp->op )
         if op <> 0 then
-            '' 'case is > 10' -- a relational test against one operand.
-            dim as MirValue cur = LowerExprLoad( c, slotAddr, mt )
-            dim as MirValue rhs = CoerceTy( c, LowerExpr( c, rp->a ), mt, _
+            '' 'case is > 10' -- a relational test against one operand, in the type the
+            '' two promote to.
+            dim as MirType rmt = mt
+            dim as boolean runs = isUns
+            CasePromote_( c, subjT, c.info->TypeOf_( rp->a ), rmt, runs )
+            dim as MirValue cur = _
+                CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), rmt, subjT )
+            dim as MirValue rhs = CoerceTy( c, LowerExpr( c, rp->a ), rmt, _
                                             c.info->TypeOf_( rp->a ), subjT )
             if rhs.kind = cast( ubyte, MV_NONE ) then return none_
             dim as MirInst ins
-            ins.op = cast( ushort, BinOpFor( op, mt, isUns ) )
+            ins.op = cast( ushort, BinOpFor( op, rmt, runs ) )
             ins.ty = cast( ubyte, MT_I8 )
             ins.a = cur
             ins.b = rhs
@@ -719,27 +763,34 @@ private function LowerCaseTest _
             return Emit( c, ins )
         end if
 
-        '' 'case 4 to 6' -- inclusive at both ends.
-        dim as MirValue lo = CoerceTy( c, LowerExpr( c, rp->a ), mt, _
+        '' 'case 4 to 6' -- inclusive at both ends, each end promoted with the subject
+        '' on its own: the two ends need not be the same type.
+        dim as MirType lmt = mt
+        dim as boolean luns = isUns
+        CasePromote_( c, subjT, c.info->TypeOf_( rp->a ), lmt, luns )
+        dim as MirValue lo = CoerceTy( c, LowerExpr( c, rp->a ), lmt, _
                                        c.info->TypeOf_( rp->a ), subjT )
         dim as MirValue c1 = none_
         if lo.kind <> cast( ubyte, MV_NONE ) then
             dim as MirInst i1
-            i1.op = cast( ushort, BinOpFor( Tko.TK_GE, mt, isUns ) )
+            i1.op = cast( ushort, BinOpFor( Tko.TK_GE, lmt, luns ) )
             i1.ty = cast( ubyte, MT_I8 )
-            i1.a = LowerExprLoad( c, slotAddr, mt )
+            i1.a = CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), lmt, subjT )
             i1.b = lo
             c1 = Emit( c, i1 )
         end if
-        dim as MirValue hi = CoerceTy( c, LowerExpr( c, rp->b ), mt, _
+        dim as MirType hmt = mt
+        dim as boolean huns = isUns
+        CasePromote_( c, subjT, c.info->TypeOf_( rp->b ), hmt, huns )
+        dim as MirValue hi = CoerceTy( c, LowerExpr( c, rp->b ), hmt, _
                                        c.info->TypeOf_( rp->b ), subjT )
         if (c1.kind = cast( ubyte, MV_NONE )) orelse (hi.kind = cast( ubyte, MV_NONE )) then
             return none_
         end if
         dim as MirInst i2
-        i2.op = cast( ushort, BinOpFor( Tko.TK_LE, mt, isUns ) )
+        i2.op = cast( ushort, BinOpFor( Tko.TK_LE, hmt, huns ) )
         i2.ty = cast( ubyte, MT_I8 )
-        i2.a = LowerExprLoad( c, slotAddr, mt )
+        i2.a = CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), hmt, subjT )
         i2.b = hi
         dim as MirValue c2 = Emit( c, i2 )
         dim as MirInst i3
@@ -755,14 +806,20 @@ private function LowerCaseTest _
     '' width coercion compared 1 against 255 and every such case fell to 'case
     '' else'. CoerceTy with the subject's type id narrows the way a store into a
     '' boolean does, which is what fbc compares.
-    dim as MirValue rhs2 = CoerceTy( c, LowerExpr( c, val ), mt, _
+    '' EQUALITY PROMOTES TOO, for the WIDTH rather than the sign: 'ulong 4294967295 =
+    '' long -1' is false to fbc and true if the two meet as 32 bits.
+    dim as MirType emt = mt
+    dim as boolean euns = isUns
+    CasePromote_( c, subjT, c.info->TypeOf_( val ), emt, euns )
+    dim as MirValue rhs2 = CoerceTy( c, LowerExpr( c, val ), emt, _
                                      c.info->TypeOf_( val ), subjT )
     if rhs2.kind = cast( ubyte, MV_NONE ) then return none_
     dim as MirInst ins2
-    ins2.op = cast( ushort, BinOpFor( Tko.TK_EQ, mt, isUns ) )
+    ins2.op = cast( ushort, BinOpFor( Tko.TK_EQ, emt, euns ) )
     ins2.ty = cast( ubyte, MT_I8 )
-    ins2.a = LowerExprLoad( c, slotAddr, mt )
+    ins2.a = CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), emt, subjT )
     ins2.b = rhs2
+
     return Emit( c, ins2 )
 end function
 
