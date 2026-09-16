@@ -1,0 +1,24 @@
+'' See the source's header. ReadDotArgAsCall_ re-associates a leading-dot first
+'' argument with the call in front of it; two shapes reached it wrong.
+''
+'' A single '( p )' after the inner name is LIFTED by ParseAmbiguous -- the shape it
+'' handles for 'proc (x), y' -- so the head stays a bare member and the argument
+'' arrives with no placeholder in front of it, where '( p, q )' stays an N_CALL and
+'' leaves one. The missing placeholder is what tells the two apart.
+''
+'' A PLAIN callee was refused because the rewrite insisted the base carry its own
+'' leading dot. It cannot simply be let through: 'mk.x' over a parameterless FUNCTION
+'' returning a UDT is a real member access spelled identically, and fbc prints 42 for
+'' it. Whether the member BOUND is what separates them, and the last two lines of the
+'' source hold that case.
+''
+'' 'verify: ok' IS THE ARITY ASSERTION -- a five-argument call of a four-argument
+'' procedure is exactly what the verifier reported, seven times, on AfxNova's
+'' CImageCtx. '0 statements not lowered' is the other half: spelling C declined
+'' outright and its line printed nothing. What the arguments ARE is differenced
+'' against fbc by build/goldenrun.sh.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dot-arg-statement-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

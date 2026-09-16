@@ -182,18 +182,30 @@ private function ReadDotArgAsCall_ _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, mnode )].data )]
     dim as Tko.NodeId base_ = mb->lhs
     if base_ = Tko.NODE_NONE then return false
-    if c.ast->Kind( base_ ) <> Tko.N_MEMBER then return false
 
-    '' ...and the base has to be a LEADING-DOT name itself -- '.x', whose own base is
-    '' absent, or '..x', whose base is the global-scope marker. 'a.b.c' over a real
-    '' variable is none of this and is left exactly as it parsed.
-    dim as Tko.BinaryPayload ptr bb = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, base_ )].data )]
-    dim as boolean leadingDot = (bb->lhs = Tko.NODE_NONE)
-    if leadingDot = false then
-        leadingDot = (c.ast->Kind( bb->lhs ) = Tko.N_GLOBALSCOPE)
+    '' A PLAIN NAME MAY BE THE CALLEE TOO -- 'G4 .G1( p ), q' is the same statement as
+    '' '.G4 .G1( p ), q' with the callee written without its dot, and AfxNova's window
+    '' procedures write both. It cannot be waved through the way a leading-dot base is,
+    '' because 'mk.x' over a PARAMETERLESS FUNCTION returning a UDT is a real member
+    '' access -- measured, fbc prints 42 for it -- and is spelled identically. What
+    '' separates them is whether the member BOUND: WalkExpr has already run over the
+    '' head, so a genuine 'mk.x' has its field here and this one has nothing.
+    if c.ast->Kind( base_ ) = Tko.N_IDENT then
+        if c.info->RefOf( mnode ) <> Tko.SYMBOL_NONE then return false
+    else
+        if c.ast->Kind( base_ ) <> Tko.N_MEMBER then return false
+
+        '' ...and the base has to be a LEADING-DOT name itself -- '.x', whose own base is
+        '' absent, or '..x', whose base is the global-scope marker. 'a.b.c' over a real
+        '' variable is none of this and is left exactly as it parsed.
+        dim as Tko.BinaryPayload ptr bb = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, base_ )].data )]
+        dim as boolean leadingDot = (bb->lhs = Tko.NODE_NONE)
+        if leadingDot = false then
+            leadingDot = (c.ast->Kind( bb->lhs ) = Tko.N_GLOBALSCOPE)
+        end if
+        if leadingDot = false then return false
     end if
-    if leadingDot = false then return false
 
     '' WHAT THE BASE BOUND TO. WalkExpr has already run over the head, so a name that
     '' resolves at all has its symbol here; one that does not is left to the ordinary
@@ -224,6 +236,43 @@ private function ReadDotArgAsCall_ _
     if oldCount > 0 then
         if c.ast->Kind( cast( Tko.NodeId, c.ast->children[oldFirst] ) ) = _
            Tko.N_ELIDED then skip = 1
+    end if
+
+    '' ...AND A ONE-ARGUMENT GROUP WAS LIFTED RATHER THAN LEFT AS A CALL. The parser
+    '' keeps '( p, q )' as an N_CALL around the member and leaves the placeholder
+    '' behind it, which is the case above; a SINGLE '( p )' is the shape ParseAmbiguous
+    '' lifts for 'proc (x), y', so the head stays a bare member and 'p' arrives as an
+    '' ordinary argument with NO placeholder in front of it. The missing placeholder is
+    '' what says so.
+    ''
+    '' Left alone, '.G4 .G1( p ), q, 3, 4' became a FIVE-argument call of a
+    '' four-argument procedure -- '.G1' as a function POINTER, then p, q, 3, 4 -- which
+    '' the verifier caught and the program printed as garbage. Seven of these in
+    '' AfxNova's CImageCtx alone: '.SendMessageW .GetParent( hwnd ), uMsg, wParam,
+    '' lParam'.
+    if (skip = 0) andalso (oldCount > 0) andalso (c.ast->Kind( sp->a ) = Tko.N_MEMBER) then
+        dim as ulong inner = c.ast->children[oldFirst]
+        dim as long liftFirst = c.ast->children.Count
+        c.ast->children.Push( inner )
+        dim as Tko.ListPayload lp2
+        lp2.target = newArg
+        lp2.first = liftFirst
+        lp2.count = 1
+        c.ast->lists.Push( lp2 )
+        dim as Tko.AstNode cn
+        cn.kind = cast( ushort, Tko.N_CALL )
+        cn.flags = 0
+        cn.loc = c.ast->Loc( newArg )
+        cn.data = cast( ulong, c.ast->lists.Count - 1 )
+        c.ast->nodes.Push( cn )
+        newArg = cast( Tko.NodeId, c.ast->nodes.Count - 1 )
+        '' THE SIDE TABLES ARE SIZED TO THE NODE COUNT, and this node did not exist when
+        '' they were sized: without this its binding and its type are written past the
+        '' end and read back as nothing, so the call resolved to no callee and the
+        '' statement declined in silence -- which is worse than the five-argument call
+        '' it replaced.
+        c.info->Resize( c.ast->nodes.Count )
+        skip = 1
     end if
 
     '' THROUGH A LOCAL. Pushing an element of the same vector passes a reference into
