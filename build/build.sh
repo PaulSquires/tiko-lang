@@ -36,7 +36,16 @@ fi
 case "$CFG" in
     Debug)          FLAGS="-g -exx -w all" ;;
     RelWithDebInfo) FLAGS="-g -w all" ;;
-    Release)        FLAGS="-w all" ;;
+    # -O 2 like everything else in this tree. Release passed no optimization flag at
+    # all, so the shipped compiler was built at fbc's default -- which is -O 0 --
+    # while lib/rt's Release is "-O 2 -w all" and lib/gfx's is OPT=2. The compiler
+    # was the only piece not optimized in its own release build.
+    #
+    # NOT "-O s". fbc ACCEPTS it and silently does nothing: measured on a 3600-line
+    # program, "-O s" produced 132,608 bytes, byte for byte what no flag at all
+    # produces, while "-O 2" gave 99,328. Real size optimization needs the gcc
+    # backend ("-gen gcc -Wc -Os", 84,480), which is a backend change, not a flag.
+    Release)        FLAGS="-O 2 -w all" ;;
     *) echo "build: unknown configuration '$CFG'" >&2; exit 2 ;;
 esac
 
