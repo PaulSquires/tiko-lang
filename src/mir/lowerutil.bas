@@ -24,6 +24,56 @@ end function
 '' Instructions are appended to the FUNCTION's list and the current block's extent is
 '' widened. That only works while blocks are built in order, which is why lowering
 '' never returns to a finished block -- it opens a new one instead.
+'' HAS LowerUserBinaryOp_ ALREADY DECLINED THIS NODE?
+function UserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as long i = cast( long, id )
+    if i < 0 then return false
+    if i >= c.userOpDeclined.Count then return false
+    return (c.userOpDeclined[i] <> 0)
+end function
+
+'' ...AND RECORD THAT IT DID.
+''
+'' LowerUserBinaryOp_ builds its operands in order and only then discovers it cannot
+'' build one of them, so a decline costs the WHOLE left subtree -- and the caller that
+'' gets the 'false' answers it by lowering the same node again through another route,
+'' which tries the user operator again first. Measured on a chain of DWSTRING '&' with
+'' a NARROW string constant on each right side ('vbCrLf' is 'chr( 13, 10 )', so the
+'' editor's message-building statements are full of them): the operator declines every
+'' time on that constant, and each node is entered twice per entry of its parent --
+''
+''     ubo-enter 484737 / expr6 484736 / expr4 484715 / ubo-fail-rhs 484737
+''     expr8 484737 / ubo-enter 484737 / ... / ubo-fail-rhs 484737
+''
+'' -- so the ladder down a ten-term chain ran 512, 256, 128, 64, 32, 16, 8, 4, 2.
+'' A 25-term statement in tiko-editor's ParseLogForError cost 483,555 MIR instructions
+'' and a 27-term one 1,933,556; the whole 35-term statement reached 11 GB without
+'' finishing. The emitted CODE was right all along -- what multiplied was the sret
+'' temporary each attempt takes before it descends.
+''
+'' Remembering the decline is enough to make it linear, and it is the safe half of the
+'' problem to remember: a decline emits nothing, so nothing has to be rolled back, and
+'' there is no question of which REPRESENTATION a cached value would be in.
+''
+'' NOT WHEN THE CURSOR IS DEAD. A decline with no block to emit into says only that
+'' there was nowhere to put the answer; the same node in a live block may lower fine.
+sub MarkUserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId )
+    if c.curBlock < 0 then return
+    dim as long i = cast( long, id )
+    if i < 0 then return
+    '' GROWN ON FIRST USE, not sized up front in Lower: a unit with no declining
+    '' operator in it never pays for the table at all, and one that does pays a single
+    '' pass. Generic instantiation appends nodes later, so this grows more than once.
+    if i >= c.userOpDeclined.Count then
+        c.userOpDeclined.Reserve( i + 1 )
+        dim as ubyte zero_ = 0
+        while c.userOpDeclined.Count <= i
+            c.userOpDeclined.Push( zero_ )
+        wend
+    end if
+    c.userOpDeclined[i] = 1
+end sub
+
 function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     dim as MirValue v
     if c.curBlock < 0 then return v

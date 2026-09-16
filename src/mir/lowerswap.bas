@@ -860,6 +860,9 @@ function LowerUserBinaryOp_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval mt as MirType, byref outv as MirValue ) as boolean
 
+    '' ALREADY ANSWERED. See MarkUserOpDeclined_ -- without this the retry
+    '' descends the whole left subtree again, once per level.
+    if UserOpDeclined_( c, id ) then return false
     dim as Tko.SymbolId op = c.info->RefOf( id )
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
@@ -941,12 +944,14 @@ function LowerUserBinaryOp_ _
     else
         if OperandValue_( c, bp->lhs, cast( Tko.TypeId, ptypes[0] ), _
                           (prefs[0] <> 0), args ) = false then
+            MarkUserOpDeclined_( c, id )
             return false
         end if
         firstArg = 1
     end if
     if OperandValue_( c, bp->rhs, cast( Tko.TypeId, ptypes[firstArg] ), _
                       (prefs[firstArg] <> 0), args ) = false then
+        MarkUserOpDeclined_( c, id )
         return false
     end if
     if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )

@@ -153,6 +153,13 @@ type Ctx
     '' return paths use this mark to let go of them BEFORE they terminate.
     as long stmtUdtMark
     as FB.Array( of ulong ) udtTempTypes
+    '' ONE BYTE PER AST NODE: has LowerUserBinaryOp_ already declined this one?
+    '' A speculative attempt that DESCENDS before it can fail costs its whole
+    '' subtree every time it is retried, and the retry happens at every level of a
+    '' concatenation, so the same nodes were lowered 2^n times. Indexed rather than
+    '' searched: the answer is wanted once per binary node and the table is one byte
+    '' per node of the unit.
+    as FB.Array( of ubyte ) userOpDeclined
     '' DATA. The head of the module's block chain (-1 when it has none), and the
     '' label -> block map a 'restore lbl' resolves through. Both are built by a
     '' PRE-PASS, because 'restore lbl' may name a label that appears later.
@@ -252,6 +259,12 @@ declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirV
 '' statement dispatcher, and from a LOOP HEAD, where waiting for the statement to end
 '' would leak one per iteration.
 declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
+
+'' A NODE WHOSE USER-OPERATOR LOWERING HAS ALREADY DECLINED. See
+'' MarkUserOpDeclined_ for why remembering that is what keeps a long
+'' concatenation linear.
+declare function UserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+declare sub MarkUserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId )
 declare sub CallTempsInSourceOrder_ _
     ( byref c as Ctx, byval headMark as long, byval argMark as long, _
       byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
