@@ -1,0 +1,11 @@
+'' See the source's header: an array parameter redimmed with a DIFFERENT element type,
+'' and a SCALAR parameter redimmed at all, are both refused -- which is what fbc does
+'' and what keeps the restatement rule from redimming a double array as longs.
+''
+'' '--dump-ir' rather than '--parse-only': the rule lives in Collect, which parse-only
+'' never runs, so the mismatch went unreported there and the test passed for the wrong
+'' reason.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redim-parameter-mismatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0600

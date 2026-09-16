@@ -167,6 +167,43 @@ private function SameLiteral_ _
     return (av = bv)
 end function
 
+'' Whether a REDIM restates an ARRAY PARAMETER rather than declaring a local that
+'' shadows it. 'sub fill( arr( ) as double, byval n as long )' with 'redim arr( n ) as
+'' double' in its body redims the parameter; declaring it instead made every assignment
+'' land on something that died at END SUB, silently, as the FIELD case did before it.
+'' AfxGlut.inc's AfxGlutCircleTable writes exactly this shape.
+''
+'' fbc's rule, measured on 1.20.0 all three ways: the array parameter redimmed with the
+'' SAME element type is accepted, a SCALAR parameter redimmed is its error 4, and an
+'' array parameter redimmed with a DIFFERENT element type is error 4 as well -- unlike
+'' the field rule, which declares a local on a mismatch rather than refusing.
+private function RedimRestatesParam_ _
+    ( byref w as Walker, byval prm as Tko.NodeId, byval itemType as Tko.NodeId ) as boolean
+
+    if prm = Tko.NODE_NONE then return false
+    if cast( long, prm ) >= w.ast->nodes.Count then return false
+    if w.ast->Kind( prm ) <> Tko.N_PARAM then return false
+
+    dim as boolean isArray = _
+        ((w.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0)
+    if isArray = false then return false
+
+    dim as Tko.NodeId pta = StmtOf( w, prm )->a
+    if (pta = Tko.NODE_NONE) orelse (itemType = Tko.NODE_NONE) then return false
+    if w.ast->Kind( pta ) <> Tko.N_TYPEREF then return false
+    if w.ast->Kind( itemType ) <> Tko.N_TYPEREF then return false
+
+    '' THE SPELLING AND THE KEYWORD BOTH. SameTypeRef_ alone answers 'agrees' for
+    '' anything it cannot see -- either side without a written type, or two NAMED types,
+    '' which it never compares -- and an accepted mismatch here would redim a double
+    '' array as longs.
+    dim as Tko.StmtPayload ptr ap = StmtOf( w, pta )
+    dim as Tko.StmtPayload ptr bp = StmtOf( w, itemType )
+    if ap->op <> bp->op then return false
+    if ap->name <> bp->name then return false
+    return SameTypeRef_( w, pta, itemType )
+end function
+
 '' Two written type references, compared as far as syntax allows.
 private function SameTypeRef_ _
     ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean

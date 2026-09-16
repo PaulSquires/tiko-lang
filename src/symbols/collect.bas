@@ -397,6 +397,11 @@ sub WalkNode _
                             if SameTypeRef_( w, StmtOf( w, fld )->a, ip->a ) then continue for
                         end if
                     end if
+                    '' ...OR AN ARRAY PARAMETER -- see RedimRestatesParam_.
+                    if prs->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
+                        if RedimRestatesParam_( w, cast( Tko.NodeId, prs->payload ), _
+                                                ip->a ) then continue for
+                    end if
                 end if
             end if
 
@@ -1036,7 +1041,15 @@ sub WalkNode _
                 end if
             end if
         end if
-        Declare_( w, scope_, sp->name, Tko.SYM_PARAMETER, w.ast->Loc( id ) )
+        '' ...AND THE SYMBOL REMEMBERS ITS NODE, as a variable's and a field's do. It
+        '' did not, so anything asking a parameter what it was declared as read payload
+        '' 0 -- node zero, a real node of some other kind -- and believed the answer.
+        '' The duplicate-parameter path above already recorded it; the ordinary one is
+        '' the common case and did not.
+        dim as Tko.SymbolId psid = _
+            Declare_( w, scope_, sp->name, Tko.SYM_PARAMETER, w.ast->Loc( id ) )
+        dim as Tko.Symbol ptr pss = w.syms->SymbolAt( psid )
+        if pss <> 0 then pss->payload = cast( long, id )
 
     case Tko.N_UNDEF
         '' IN SOURCE ORDER, which this walk is: declarations before it are removable.

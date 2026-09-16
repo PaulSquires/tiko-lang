@@ -1,0 +1,10 @@
+'' See the source's header. fbc compiles this -- measured on 1.20.0, it prints 1.5 --
+'' while tiko reported 'already declared in this scope'.
+''
+'' The parameter is redimmed, so there is ONE 'arr' in the function and no shadow: a
+'' second local would be the bug this pins.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/redim-array-parameter.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0600
