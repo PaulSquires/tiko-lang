@@ -1,0 +1,40 @@
+'' WHAT 'defined' MUST NOT SEE. Recording a name fbc would not is the dangerous
+'' direction: a later '#ifndef' skips a declaration and says nothing at all.
+''
+'' All four measured on fbc 1.20.0: a declaration BELOW the directive is not visible
+'' (the rule is position-dependent), a TYPE's FIELD is never visible, and a local or a
+'' PARAMETER is not visible once its procedure has ended. tiko records module-level
+'' declarations only, which is what makes the last two hold.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0
+
+#if defined( DeclaredBelow )
+#error a declaration below the directive was visible
+#endif
+type DeclaredBelow : x as long : end type
+
+type Holder
+    HolderField as long
+end type
+#if defined( HolderField )
+#error a field was visible
+#endif
+
+sub HasLocals( byval ParamName as long )
+    dim as long LocalName
+end sub
+#if defined( LocalName )
+#error a local outlived its procedure
+#endif
+#if defined( ParamName )
+#error a parameter outlived its procedure
+#endif
+
+declare sub LaterProc( byval DeclParam as long )
+#if defined( DeclParam )
+#error a parameter of a DECLARE was visible
+#endif
+
+print "ok"

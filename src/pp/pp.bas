@@ -82,6 +82,21 @@ type PpEngine
     as FB.Array( of PpCond )  conds
     as MacroVec               macros
     as IdVec                  macroSlot     '' InternId -> macros index + 1
+    '' THE NAMES THE PARSER HAS DECLARED SO FAR, so 'defined( X )' can answer for a
+    '' TYPE, ENUM, CONST or module-level DIM and not only for a macro. Indexed by
+    '' InternId exactly as macroSlot is; non-zero means declared.
+    ''
+    '' It works because the preprocessor is PULL-BASED: the parser drives it, so by
+    '' the time a '#ifndef' is evaluated the parser has already read everything above
+    '' it. The information was always there at the right moment -- nothing recorded it
+    '' anywhere this side could reach. AfxD2D1.bi guards 'type D3DCOLORVALUE' with
+    '' '#ifndef D3DCOLORVALUE' 737 lines after declaring it, and 74 of AfxNova's
+    '' examples stopped on the second definition.
+    ''
+    '' AN APPROXIMATION OF fbc's SYMBOL TABLE, and deliberately a small one: it knows
+    '' nothing of scopes, overloads or types. What it answers is exactly the question
+    '' a header guard asks -- has this name been declared above me.
+    as IdVec                  declaredMark
     as FB.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
     as IdVec                  onceFiles     '' FileId values marked #include once
     as FileId                 rootFile
@@ -164,6 +179,35 @@ private sub SetSlot( byref e as PpEngine, byval id as InternId, byval slot as lo
     wend
     e.macroSlot[cast( long, id )] = cast( ulong, slot )
 end sub
+
+'' DECLARED-NAME MARKS. Kept on the engine, set by the parser through the stream, and
+'' read by 'defined'. The slot array grows on demand exactly as macroSlot's does; an
+'' InternId past the end has simply not been declared.
+private sub MarkDeclared_( byref e as PpEngine, byval id as InternId )
+    if id = INTERN_NONE then return
+    dim as long ix = cast( long, id )
+    while e.declaredMark.Count <= ix
+        e.declaredMark.Push( 0 )
+    wend
+    e.declaredMark[ix] = 1
+end sub
+
+private function IsDeclared_( byref e as PpEngine, byval id as InternId ) as boolean
+    if id = INTERN_NONE then return false
+    dim as long ix = cast( long, id )
+    if ix >= e.declaredMark.Count then return false
+    return (e.declaredMark[ix] <> 0)
+end function
+
+sub PpNoteDeclared( byref st as PpStream, byval nm as InternId )
+    if st.engine = 0 then return
+    MarkDeclared_( *cast( PpEngine ptr, st.engine ), nm )
+end sub
+
+function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
+    if st.engine = 0 then return false
+    return IsDeclared_( *cast( PpEngine ptr, st.engine ), nm )
+end function
 
 private function MacroFor( byref e as PpEngine, byval id as InternId ) as PpMacro ptr
     dim as long slot = SlotOf( e, id )

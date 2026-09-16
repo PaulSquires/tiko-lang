@@ -49,6 +49,12 @@ namespace Tko
         '' worth keeping, so the two cases are told apart by this rather than by
         '' silently accepting both.
         as long                 aggDepth
+        '' How many PROCEDURE BODIES enclose the cursor. Only module-level declarations
+        '' are told to the preprocessor for 'defined( X )', because fbc's answer is
+        '' scope-respecting: measured, a local or a parameter is NOT visible to
+        '' 'defined' once its procedure has ended. Recording one would make a later
+        '' '#ifndef' skip a declaration it should have taken -- silently.
+        as long                 procDepth
         '' THE LIBRARIES 'declare ... lib "name"' ASKS FOR. The clause was parsed and
         '' the name THROWN AWAY, so 'declare function SHCreateItemFromParsingName lib
         '' "shell32"' linked against nothing -- 'undefined symbol', with the library

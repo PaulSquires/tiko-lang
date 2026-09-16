@@ -15,6 +15,10 @@
 
 #include once "tko.bi"
 #include once "parser/expr.bi"
+'' The parser tells the preprocessor what it has DECLARED, so 'defined( X )' can answer
+'' for a TYPE or a CONST and not only for a macro -- see NoteDeclaredName_ in decl.bas.
+'' expr.bas already reaches this header to pull tokens through PpEnsure.
+#include once "pp/pp.bi"
 
 namespace Tko.Parse
 

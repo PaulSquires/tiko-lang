@@ -53,7 +53,9 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
         '' The raw spelling, 0 for a KEYWORD token -- which is how Collect tells 'byval
         '' str as long' (fbc error 59) from a name '#undef' has freed.
         sp.rawName = RawSpelling( p )
-        if DeclName( p, sp.name ) = false then return ErrorNode( p, Tko.TKO0406 )
+        '' NOT RECORDED for 'defined': a parameter of a module-level DECLARE is at
+        '' procDepth zero, and fbc does not see one. See NoteDeclaredName_.
+        if DeclName( p, sp.name, false ) = false then return ErrorNode( p, Tko.TKO0406 )
     end if
 
     if Peek( p ) = Tko.TK_LPAREN then

@@ -242,6 +242,13 @@ namespace Tko
     '' before that, in which case the buffer ends with its single TK_EOF.
     declare function PpEnsure( byref st as PpStream, byval want as long ) as boolean
 
+    '' WHAT THE PARSER HAS DECLARED, told to the preprocessor as it goes, so that
+    '' 'defined( X )' can answer for a declared name and not only for a macro. The
+    '' parser calls the first as it reads each module-level declaration's name; the
+    '' preprocessor asks the second from '#ifdef', '#ifndef' and 'defined'.
+    declare sub PpNoteDeclared( byref st as PpStream, byval nm as InternId )
+    declare function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
+
     declare sub PpClose( byref st as PpStream )
 
     '' Convenience: open, pump to exhaustion, close. What the non-parsing modes use.

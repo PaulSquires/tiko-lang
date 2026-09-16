@@ -1,0 +1,54 @@
+'' 'defined( X )' ANSWERS FOR A DECLARED NAME, not only for a macro. fbc's rule,
+'' measured on 1.20.0 across all seven kinds: a UDT, a type alias, an ENUM, an enum
+'' MEMBER, a CONST, a 'dim shared' and a 'declare' are all visible to it.
+''
+'' AfxD2D1.bi guards 'type D3DCOLORVALUE' with '#ifndef D3DCOLORVALUE' 737 lines after
+'' declaring it. Without this the guard never fired, the type was declared twice, and
+'' 74 of AfxNova's examples stopped on the duplicate.
+''
+'' It works because the preprocessor is PULL-BASED -- the parser drives it, so by the
+'' time this directive is read the parser has already seen everything above it.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0
+
+type UdtName
+    fieldName as long
+end type
+type AliasName as long
+enum EnumName
+    EnumMember
+end enum
+const ConstName = 5
+dim shared as long SharedVar
+declare sub DeclaredProc( )
+
+#if not defined( UdtName )
+#error a UDT is not visible
+#endif
+#if not defined( AliasName )
+#error a type alias is not visible
+#endif
+#if not defined( EnumName )
+#error an enum is not visible
+#endif
+#if not defined( EnumMember )
+#error an enum member is not visible
+#endif
+#if not defined( ConstName )
+#error a const is not visible
+#endif
+#if not defined( SharedVar )
+#error a shared variable is not visible
+#endif
+#if not defined( DeclaredProc )
+#error a declared procedure is not visible
+#endif
+
+'' ...and the guard itself, which is the whole point.
+#ifndef UdtName
+#error the ifndef guard did not fire
+#endif
+
+print "ok"

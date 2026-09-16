@@ -106,16 +106,42 @@ private function MakeMemberRef_ _
     return n
 end function
 
-private function DeclName( byref p as Tko.ParserState, byref outName as Tko.InternId ) as boolean
+'' WHAT THE PREPROCESSOR IS TOLD, and when. 'defined( X )' answers for a declared name
+'' as well as a macro -- fbc's rule, measured on all seven kinds -- and the only place
+'' this side knows a name has been declared is here, where every declaration reads one.
+''
+'' MODULE LEVEL ONLY, which is the whole of the scope model. fbc's 'defined' is
+'' position-dependent and scope-respecting: a local or a parameter stops being visible
+'' when its procedure ends, and a TYPE's FIELD is never visible at all. 'aggDepth'
+'' excludes the fields and 'procDepth' the locals; a PARAMETER of a module-level
+'' DECLARE is excluded by its own reader passing 'record = false', since procDepth is
+'' still zero there.
+''
+'' Recording one that fbc would not is the dangerous direction: a later '#ifndef' would
+'' skip a declaration and say nothing.
+private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.InternId )
+    if nm = Tko.INTERN_NONE then return
+    if p.stream = 0 then return
+    if p.aggDepth <> 0 then return
+    if p.procDepth <> 0 then return
+    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm )
+end sub
+
+private function DeclName _
+    ( byref p as Tko.ParserState, byref outName as Tko.InternId, _
+      byval record as boolean = true ) as boolean
+
     dim as Tko.TokenKind k = Peek( p )
     if k = Tko.TK_IDENT then
         outName = cast( Tko.InternId, Cur( p ).literal )
         Advance( p )
+        if record then NoteDeclaredName_( p, outName )
         return true
     end if
     if Tko.IsKeywordKind( k ) then
         outName = p.names->GetString( Tko.Text.LowerAscii( Tko.TokenKindText( k ) ) )
         Advance( p )
+        if record then NoteDeclaredName_( p, outName )
         return true
     end if
     outName = Tko.INTERN_NONE
@@ -978,7 +1004,11 @@ private function ParseProc _
 
     dim as boolean inGeneric = ((sp.extra and Tko.PF_GENERIC_PROC) <> 0)
     if inGeneric then p.genericDepth += 1
+    '' See ParserState.procDepth: nothing declared inside a body is told to the
+    '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
+    p.procDepth += 1
     sp.b = Block( p )
+    p.procDepth -= 1
     if inGeneric then p.genericDepth -= 1
     ExpectEnd( p, kw )
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_PROC, t.loc, sp )

@@ -386,14 +386,29 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             dim as boolean paren = (PxPeek( x ) = TK_LPAREN)
             if paren then PxNext( x )
             '' 'defined' queries the SYMBOL TABLE, not just the macro table. Verified
-            '' against fbc: defined( constructor ) is true because it is a keyword, and
-            '' defined( myvar ) is true for a declared variable. The keyword case is
-            '' answerable here; the user-symbol case is probe P2's architectural gap.
+            '' against fbc: defined( constructor ) is true because it is a keyword,
+            '' defined( myvar ) is true for a declared variable, and so are a TYPE, a
+            '' type alias, an ENUM, an enum MEMBER, a CONST and a DECLARE -- measured,
+            '' all seven.
+            ''
+            '' The declared-name half is answered from the marks the PARSER leaves as
+            '' it goes (PpNoteDeclared). That is sound because the preprocessor is
+            '' pull-based: the parser has already read everything above this directive.
+            '' It is an APPROXIMATION of fbc's table and knows nothing of scopes, so
+            '' only module-level declarations are recorded -- fbc's own rule is
+            '' position-dependent and scope-respecting, and a name that has gone out of
+            '' scope must not answer yes. Measured: a local or parameter is NOT visible
+            '' after its procedure ends, a TYPE's FIELD is never visible, and a
+            '' declaration BELOW the directive is not visible either.
             dim as PpValue r = PxNum( 0 )
             if PxPeek( x ) = TK_IDENT then
                 dim as InternId want = cast( InternId, PxTok( x ).literal )
                 PxNext( x )
-                if MacroFor( *x.e, want ) <> 0 then r = PxNum( -1 )
+                if MacroFor( *x.e, want ) <> 0 then
+                    r = PxNum( -1 )
+                elseif IsDeclared_( *x.e, want ) then
+                    r = PxNum( -1 )
+                end if
             elseif IsKeywordKind( PxPeek( x ) ) then
                 PxNext( x )
                 r = PxNum( -1 )

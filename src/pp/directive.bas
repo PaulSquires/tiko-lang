@@ -510,11 +510,15 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         return
 
     case "ifdef", "ifndef"
+        '' A MACRO OR A DECLARED NAME, the same pair 'defined( X )' answers for -- see
+        '' ppexpr.bas. '#ifndef D3DCOLORVALUE' guarding 'type D3DCOLORVALUE' is the
+        '' shape that needs it, and AfxD2D1.bi writes it twice, 737 lines apart.
         dim as boolean defined_ = false
         dim as Token t
         if PeekOnLine( e, t ) then
             if Tk( t ) = TK_IDENT then
-                defined_ = (MacroFor( e, cast( InternId, t.literal ) ) <> 0)
+                dim as InternId wantId = cast( InternId, t.literal )
+                defined_ = (MacroFor( e, wantId ) <> 0) orelse IsDeclared_( e, wantId )
             end if
         end if
         SkipToEol( e )
@@ -548,7 +552,10 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             dim as boolean d = false
             if PeekOnLine( e, t ) then
                 if Tk( t ) = TK_IDENT then
-                    d = (MacroFor( e, cast( InternId, t.literal ) ) <> 0)
+                    '' ...and the same pair here, so '#elseifndef' agrees with
+                    '' '#ifndef' about what counts as defined.
+                    dim as InternId wantId2 = cast( InternId, t.literal )
+                    d = (MacroFor( e, wantId2 ) <> 0) orelse IsDeclared_( e, wantId2 )
                 end if
             end if
             SkipToEol( e )
