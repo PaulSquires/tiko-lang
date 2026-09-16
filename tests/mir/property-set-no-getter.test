@@ -1,0 +1,11 @@
+'' See the source's header: the setter takes two parameters, the call writes one
+'' argument, and the assigned value is the second. Resolve marks the call
+'' AMB_PROPERTY_SET -- the value that had sat unused in the enum -- so the overload
+'' resolver knows the written arity is one short on purpose and does not report.
+'' Lowering already bound the setter correctly; only the spurious error was new.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/property-set-no-getter.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0632
+'' EXPECT-OUT: __set__

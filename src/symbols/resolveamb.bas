@@ -244,6 +244,78 @@ private function ReadDotArgAsCall_ _
     return true
 end function
 
+'' THE SYMBOL THE CALL'S NAME MEANS, which is not always what the head lookup found.
+'' Resolve runs before Check, so a MEMBER call has not bound yet: 'o.Opt( 7 ) = 3' has
+'' no RefOf on its member node and the head falls back to the BASE -- the variable 'o'
+'' -- exactly as ReadCallAssignAsCall_ records below. The member is therefore looked up
+'' BY NAME in the base's own type scope, which is that rule's workaround and this one's.
+private function PropertyNameSym_ _
+    ( byref c as Ctx, byval callNode as Tko.NodeId, _
+      byval headSid as Tko.SymbolId ) as Tko.SymbolId
+
+    dim as Tko.Symbol ptr hs = c.syms->SymbolAt( headSid )
+    if hs <> 0 then
+        if hs->kind = cast( ubyte, Tko.SYM_PROC ) then return headSid
+    end if
+
+    dim as Tko.NodeId callee = ListOf( c, callNode )->target
+    if callee = Tko.NODE_NONE then return headSid
+    if c.ast->Kind( callee ) <> Tko.N_MEMBER then return headSid
+
+    '' It may have bound after all -- a qualified name does.
+    dim as Tko.SymbolId msid = c.info->RefOf( callee )
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( msid )
+    if ms <> 0 then
+        if ms->kind = cast( ubyte, Tko.SYM_PROC ) then return msid
+    end if
+
+    if hs = 0 then return headSid
+    dim as Tko.TypeId bt = c.types->Unqualify( hs->type_ )
+    if c.types->Kind( bt ) <> Tko.TK_UDT then return headSid
+    dim as Tko.InternId tn = c.types->NameOf( bt )
+    if tn = 0 then return headSid
+
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( bt ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( ts )
+    if tsy = 0 then return headSid
+    if tsy->inner = Tko.SCOPE_NONE then return headSid
+
+    dim as Tko.BinaryPayload ptr mb = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, callee )].data )]
+    dim as Tko.SymbolId mm = c.syms->LookupLocal( tsy->inner, IdentNameOf( c, mb->rhs ) )
+    if mm = Tko.SYMBOL_NONE then return headSid
+    return mm
+end function
+
+'' Whether this name's overload chain holds a PROPERTY SETTER -- a property with no
+'' result. One chain carries all four accessors, so the question is only whether a
+'' setter is among them; which one runs is LowerPropertySet_'s to decide, and it has
+'' the assigned value that the decision needs.
+private function HasPropertySetter_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+
+    dim as Tko.SymbolId cur = sid
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+            if pp->op = cast( ushort, Tko.KW_PROPERTY ) then
+                '' No result node is what makes a property a SETTER.
+                if pp->a = Tko.NODE_NONE then return true
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    return false
+end function
+
 private sub ResolveAmbiguous _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -300,6 +372,32 @@ private sub ResolveAmbiguous _
         end if
     end if
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+
+    '' 'o.Prop( i ) = v' IS A SETTER CALL, and the target is not an expression.
+    ''
+    '' fbc binds the setter with the written arguments FIRST and the assigned value
+    '' LAST -- measured on 1.20.0: with 'property Opt( byval idx as long, byval mask as
+    '' long )', 'o.Opt( 7 ) = 3' calls Opt( 7, 3 ). Lowering already does this
+    '' (LowerPropertySet_ takes the value and puts it in the last parameter); what was
+    '' missing is that CHECK first typed the target as an ordinary expression, where a
+    '' setter is deliberately not a candidate -- see overload.bas, 'A PROPERTY SETTER
+    '' IS NOT CALLABLE AS AN EXPRESSION'. With a getter of the same arity beside it
+    '' that typing happened to succeed and nothing showed; with only a plain getter and
+    '' an indexed setter, as AfxNova's CRichEditCtx declares TypographyOptions, no
+    '' candidate had the written arity and it reported TKO0632 over a program fbc
+    '' compiles.
+    ''
+    '' THE MARK GOES ON THE CALL, not on the statement. The statement stays AMB_ASSIGN,
+    '' which is the path lowering already takes to LowerPropertySet_; the call carries
+    '' the fact that its arity is one short of the setter's on purpose, which is what
+    '' the resolver needs and the only thing it needs.
+    if isAssign andalso (sp->a <> Tko.NODE_NONE) then
+        if c.ast->Kind( sp->a ) = Tko.N_CALL then
+            if HasPropertySetter_( c, PropertyNameSym_( c, sp->a, sid ) ) then
+                c.info->SetAmbiguous( sp->a, Tko.AMB_PROPERTY_SET )
+            end if
+        end if
+    end if
 
     '' 'f( 123 ) = 123' WHERE f RETURNS BYVAL IS NOT AN ASSIGNMENT AT ALL.
     ''

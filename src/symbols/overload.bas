@@ -1166,7 +1166,17 @@ private function ResolveCall_ _
                 if scorable = false then exit while
                 ck = cs2->nextOverload
             wend
-            if allTyped andalso scorable andalso (argT.Count > 0) then
+            '' ...AND NOT WHEN THE CALL IS A PROPERTY SET TARGET. 'o.Prop( i ) = v' is
+            '' a setter call whose written arity is one SHORT of the setter's, because
+            '' the assigned value is the last argument and is not written inside the
+            '' parentheses. A setter is not a candidate here by design, so scoring the
+            '' target as an expression finds nothing -- correctly, and it is not an
+            '' error. Resolve marks the call AMB_PROPERTY_SET when the name has a
+            '' setter; LowerPropertySet_ does the binding, with the value in hand.
+            dim as boolean propSetTarget = _
+                (c.info->AmbiguousOf( id ) = Tko.AMB_PROPERTY_SET)
+            if allTyped andalso scorable andalso (argT.Count > 0) andalso _
+               (propSetTarget = false) then
                 c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), _
                                  c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
             end if
