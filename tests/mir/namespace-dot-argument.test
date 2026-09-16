@@ -1,0 +1,13 @@
+'' See the source's header. fbc compiles all four shapes -- measured on 1.20.0, the
+'' equivalent program prints 'inner', 'outer', 5 then 7 -- and tiko refused the first
+'' two with TKO0630 while reading them as a member access of a pointer.
+''
+'' The member-access cases are in the same file deliberately: the rule turns on whether
+'' the base is a PROCEDURE, so a variable base has to come through untouched or the fix
+'' has traded one wrong reading for another.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/namespace-dot-argument.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0630
+'' EXPECT-NOT: TKO0600

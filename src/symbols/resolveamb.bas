@@ -144,6 +144,106 @@ private function ReadCallAssignAsCall_ _
     return true
 end function
 
+'' '.Proc .Fn( x )' INSIDE A NAMESPACE IS A CALL WITH AN ARGUMENT, and not a member of
+'' whatever '.Proc' returns. A leading '.' is FreeBASIC's global-scope shorthand, so BOTH
+'' dots start a name -- and the postfix parser, which has no symbols, reads the second as
+'' a member access of the first. docs/plan/04 section 6 says the parser cannot decide
+'' this; fbc decides it with the symbol table, and so does this.
+''
+'' AfxNova writes it constantly inside 'namespace AfxNova' -- '.SetFocus
+'' .GetNextDlgTabItem( GetParent( hwnd ), hwnd, 0 )' -- and it is what 180 of its 409
+'' examples reported first, as TKO0630 ('.' reaches a member of a value). It only ever
+'' surfaced when the first call returned a POINTER, because that is the shape Check
+'' complains about rather than one it silently mistypes.
+''
+'' THE TEST IS WHAT THE BASE IS, exactly as in fbc: a PROCEDURE takes an argument list,
+'' so the dot after it begins one. A VARIABLE does not, so '.gvar.field' stays a member
+'' access. Measured on fbc 1.20.0, and whitespace decides nothing -- '.OuterP.InnerP( h,
+'' 0 )' with no space at all still evaluates the inner call first, as the argument.
+''
+'' AN ASSIGNMENT IS LEFT ALONE. '.gvar .field1 = 7' assigns through the member, which is
+'' the reading this rule must not take away; folding an '=' into a call argument is
+'' ReadCallAssignAsCall_'s question and it has its own measurements.
+private function ReadDotArgAsCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval scope_ as Tko.ScopeId ) as boolean
+
+    if sp->op <> 0 then return false
+    if sp->a = Tko.NODE_NONE then return false
+
+    '' The member access that swallowed the argument: the head itself, or the callee of
+    '' the call wrapped around it when the argument was written with parentheses.
+    dim as Tko.NodeId mnode = sp->a
+    if c.ast->Kind( mnode ) = Tko.N_CALL then mnode = ListOf( c, mnode )->target
+    if mnode = Tko.NODE_NONE then return false
+    if c.ast->Kind( mnode ) <> Tko.N_MEMBER then return false
+
+    dim as Tko.BinaryPayload ptr mb = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, mnode )].data )]
+    dim as Tko.NodeId base_ = mb->lhs
+    if base_ = Tko.NODE_NONE then return false
+    if c.ast->Kind( base_ ) <> Tko.N_MEMBER then return false
+
+    '' ...and the base has to be a LEADING-DOT name itself -- '.x', whose own base is
+    '' absent, or '..x', whose base is the global-scope marker. 'a.b.c' over a real
+    '' variable is none of this and is left exactly as it parsed.
+    dim as Tko.BinaryPayload ptr bb = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, base_ )].data )]
+    dim as boolean leadingDot = (bb->lhs = Tko.NODE_NONE)
+    if leadingDot = false then
+        leadingDot = (c.ast->Kind( bb->lhs ) = Tko.N_GLOBALSCOPE)
+    end if
+    if leadingDot = false then return false
+
+    '' WHAT THE BASE BOUND TO. WalkExpr has already run over the head, so a name that
+    '' resolves at all has its symbol here; one that does not is left to the ordinary
+    '' path and its ordinary diagnostic.
+    dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( base_ ) )
+    if bs = 0 then return false
+    if bs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+
+    '' THE REWRITE. Dropping the member's base turns '<.Proc>.Fn' back into the '.Fn'
+    '' it was written as, and the whole of what the postfix parser built becomes the
+    '' call's FIRST argument -- ahead of any paren-less ones, which were already the
+    '' second and later: '.SendMessageW .GetParent( hwnd ), WM_NOTIFY' is one call of
+    '' four arguments, not a member access followed by three.
+    dim as Tko.NodeId newArg = sp->a
+    mb->lhs = Tko.NODE_NONE
+
+    dim as long oldFirst = sp->first
+    dim as long oldCount = sp->count
+
+    '' AN ELIDED FIRST ARGUMENT IS THE HOLE THIS CALL LEFT, and it is filled rather
+    '' than pushed past. '.Take3 .InnerP( h, 0 ), 1, 2' reaches here as the head plus
+    '' '<elided>, 1, 2': the postfix parser had already taken '.InnerP( h, 0 )' into
+    '' the head, so the comma after it produced a placeholder for an argument that was
+    '' no longer in the list -- the same shape ParseAmbiguous lifts for 'proc (x), y',
+    '' which only handles the one-argument group. Prepending in front of it made a
+    '' four-argument call of a three-argument SUB, and the call declined to lower.
+    dim as long skip = 0
+    if oldCount > 0 then
+        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[oldFirst] ) ) = _
+           Tko.N_ELIDED then skip = 1
+    end if
+
+    '' THROUGH A LOCAL. Pushing an element of the same vector passes a reference into
+    '' storage the push may have just reallocated.
+    dim as long newFirst = c.ast->children.Count
+    c.ast->children.Push( cast( ulong, newArg ) )
+    for i as long = skip to oldCount - 1
+        dim as ulong ch = c.ast->children[oldFirst + i]
+        c.ast->children.Push( ch )
+    next
+    sp->first = newFirst
+    sp->count = oldCount + 1 - skip
+    sp->a = base_
+
+    '' RE-WALKED, because the first walk bound it as a member of the base and this is
+    '' not that any more: the name has to find the one at global scope now.
+    WalkExpr( c, newArg, scope_ )
+    return true
+end function
+
 private sub ResolveAmbiguous _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
@@ -165,6 +265,10 @@ private sub ResolveAmbiguous _
         c.st->assigns += 1
         return
     end if
+
+    '' '.Proc .Fn( x )' -- see ReadDotArgAsCall_. It rewrites 'a' and the argument list
+    '' in place, so everything below reads the corrected statement.
+    ReadDotArgAsCall_( c, id, sp, scope_ )
 
     '' The target's head symbol: for a.b.c the head is a.
     dim as Tko.NodeId head = sp->a
