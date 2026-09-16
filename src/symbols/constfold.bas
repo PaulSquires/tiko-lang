@@ -944,10 +944,16 @@ function ConstOf _
         if v.known = false then return CVNone_( )
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
         '' '-(1 shl 31)' at 32 bits is 2147483648 rather than -2147483648.
+        '' ...AND AT NO LESS THAN INTEGER WIDTH, because fbc promotes a narrower operand
+        '' before it operates: '-ula' over a ULONG of 4294967295 is -4294967295, and the
+        '' 32-bit wrap folded it to 1. Unsigned only if the operand IS the result width.
+        dim as long uw2 = v.bits
+        if uw2 < intBits then uw2 = intBits
+        dim as boolean uu = v.uns andalso (v.bits = uw2)
         select case cast( Tko.TokenKind, up->op )
-        case Tko.TK_MINUS : return CVWU_( -v.value, v.bits, v.uns )
-        case Tko.TK_PLUS  : return CVWU_( v.value, v.bits, v.uns )
-        case Tko.KW_NOT   : return CVWU_( not v.value, v.bits, v.uns )
+        case Tko.TK_MINUS : return CVWU_( -v.value, uw2, uu )
+        case Tko.TK_PLUS  : return CVWU_( v.value, uw2, uu )
+        case Tko.KW_NOT   : return CVWU_( not v.value, uw2, uu )
         end select
         return CVNone_( )
 
@@ -964,8 +970,18 @@ function ConstOf _
         '' back to it. A COMPARISON is not arithmetic: its result is INTEGER, so it takes
         '' the target's width whatever the operands were.
         dim as long w = WiderOf_( l, r )
-        '' FreeBASIC's promotion: an operator with ONE unsigned operand is unsigned.
-        dim as boolean uw = l.uns orelse r.uns
+        '' ...AND NEVER NARROWER THAN INTEGER, which is where fbc promotes both operands
+        '' first. Measured: 'const a as long = 2000000000 : a + a' is 4000000000 and
+        '' folded to -294967296, and 'ula shl one' over a ULONG and a UBYTE is 8589934590
+        '' and folded to -2 -- both of them the 32-bit wrap of the right answer.
+        if w < intBits then w = intBits
+        '' UNSIGNED ONLY WHEN AN OPERAND OF THE RESULT'S WIDTH IS UNSIGNED. That is the
+        '' rule IntResult_ applies in check.bas, measured with '#print typeof': 'ulong \
+        '' integer' is INTEGER -- a ULONG is 32 bits and the result is 64 -- while
+        '' 'integer \ uinteger' is UINTEGER. 'l.uns orelse r.uns' made the first unsigned,
+        '' which is a different division.
+        dim as boolean uw = (l.bits = w) andalso l.uns
+        if (r.bits = w) andalso r.uns then uw = true
 
         '' Compared as UNSIGNED when either side is. At 32 bits only the low half
         '' counts, because that is the value's real width -- comparing the
@@ -989,18 +1005,27 @@ function ConstOf _
         case Tko.TK_MINUS     : return CVWU_( a - b, w, uw )
         case Tko.TK_STAR      : return CVWU_( a * b, w, uw )
         case Tko.TK_BACKSLASH
+            '' DIVIDED AS THE RESULT TYPE SAYS. Measured: over 'const big as ulongint =
+            '' 18446744073709551615ull', 'big \ 2' is 9223372036854775807 and folded to 0,
+            '' and '-8 \ 3u' is 6148914691236517202 where a signed divide gives -2.
             if b = 0 then return CVNone_( )
-            return CVW_( a \ b, w )
+            if uw then return CVWU_( cast( longint, ua \ ub ), w, true )
+            return CVWU_( a \ b, w, false )
         case Tko.KW_MOD
+            '' The same rule: 'big mod 7' is 1, not 18446744073709551615.
             if b = 0 then return CVNone_( )
-            return CVW_( a mod b, w )
+            if uw then return CVWU_( cast( longint, ua mod ub ), w, true )
+            return CVWU_( a mod b, w, false )
         case Tko.TK_CARET     : return CVW_( IPow_( a, b ), w )
         case Tko.KW_SHL       : return CVW_( a shl sb, w )
         case Tko.KW_SHR
-            '' SHR is ARITHMETIC, and at 32 bits it must shift the 32-bit value rather
-            '' than the sign-extended one: '&hFFFFFFFF shr 4' is -1 shr 4 = -1.
-            if w = 32 then return CVW_( cast( longint, cast( long, a ) ) shr sb, w )
-            return CVW_( a shr sb, w )
+            '' SHR is ARITHMETIC unless the RESULT is unsigned, when it is LOGICAL: over
+            '' 'const u as uinteger = &hFFFFFFFFFFFFFFFFull', 'u shr 1' is
+            '' 9223372036854775807 to fbc and folded to -1. At 32 bits it must shift the
+            '' 32-bit value rather than the sign-extended one: '&hFFFFFFFF shr 4' is -1.
+            if uw then return CVWU_( cast( longint, ua shr sb ), w, true )
+            if w = 32 then return CVWU_( cast( longint, cast( long, a ) ) shr sb, w, false )
+            return CVWU_( a shr sb, w, false )
         case Tko.KW_AND       : return CVW_( a and b, w )
         case Tko.KW_OR        : return CVW_( a or b, w )
         case Tko.KW_XOR       : return CVW_( a xor b, w )
