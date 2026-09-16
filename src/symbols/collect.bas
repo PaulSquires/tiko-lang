@@ -465,7 +465,19 @@ sub WalkNode _
                     '' the same declaration inside 'extern "C"' leaves 'MyThing',
                     '' case preserved and unsuffixed. win/shobjidl.bi declares every
                     '' CLSID and IID the second way.
-                    if (sp->extra and Tko.PF_FOREIGN) <> 0 then
+                    '' AN 'ALIAS' NAMES THE LINK SYMBOL OUTRIGHT, and beats both
+                    '' spellings below. 'extern IID_NULL alias "GUID_NULL" as const
+                    '' IID' is win/cguid.bi's, and without this the reference went
+                    '' out as 'IID_NULL$' -- undefined at the link, which is what 56
+                    '' of AfxNova's examples stopped on.
+                    ''
+                    '' VERBATIM: case preserved, no '$', inside 'extern "C"' or out.
+                    '' Measured on fbc's -r output, both ways: 'extern int32
+                    '' TheRealName;'. ALIAS is EXTERN's alone -- fbc answers a
+                    '' defining 'dim shared x alias "y"' with its error 147.
+                    if ip->aliasName <> 0 then
+                        s->linkName = ip->aliasName
+                    elseif (sp->extra and Tko.PF_FOREIGN) <> 0 then
                         s->linkName = ip->rawName
                         if s->linkName = 0 then s->linkName = ip->name
                     else

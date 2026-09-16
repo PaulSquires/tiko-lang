@@ -1,0 +1,15 @@
+'' An EXTERN's ALIAS is the name it links by, verbatim: case preserved, no '$', and
+'' the same inside 'extern "C"' as outside it. Measured on fbc 1.20.0's -r output,
+'' which emits 'extern int32 TheRealName;' for both spellings.
+''
+'' The unaliased one is the control: it keeps the uppercased, '$'-suffixed FreeBASIC
+'' spelling, so this pins the alias path without claiming the ordinary one changed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/extern-alias-linkname.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: TheRealName
+'' EXPECT-OUT: AlsoReal
+'' EXPECT-OUT: PLAINONE$
+'' EXPECT-NOT: ALIASED$
+'' EXPECT-NOT: CALIASED$

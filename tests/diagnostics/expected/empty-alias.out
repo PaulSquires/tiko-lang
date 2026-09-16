@@ -1,4 +1,4 @@
-global var i64 OKVAR$
+global var i64 ok_var
 global var i64 BADVAR$
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
