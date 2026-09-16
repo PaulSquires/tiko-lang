@@ -1,0 +1,7 @@
+'' See the source's header. Both lines are asserted by position: an assertion on the
+'' id alone would pass with one of them wrongly accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-arg-element.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-arg-element.bas(13,13): error TKO0641
+'' EXPECT-OUT: array-arg-element.bas(14,9): error TKO0641

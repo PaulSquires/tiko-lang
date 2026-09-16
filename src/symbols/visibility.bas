@@ -570,6 +570,13 @@ private function WholeArrayType_ ( byref c as Ctx, byval s as Symbol ptr ) as Ty
     dim as TypeId t = c.types->Unqualify( s->type_ )
     select case cast( SymbolKind, s->kind )
     case SYM_VARIABLE
+    '' ...AND A FIELD. 'm.arr( )' is the same spelling as 'arr( )' -- measured, fbc
+    '' takes both and prints the same four numbers -- and tiko-editor's modFuzzy
+    '' writes exactly that: 'fuzzy_precompute_bonus( haystack, m.match_bonus( ) )'
+    '' over a 'match_bonus( any ) as score_t' field. Excluding the field kind here
+    '' made WholeArraySpelling_ answer false, so the argument was judged as the
+    '' ELEMENT it types as and refused with TKO0641.
+    case SYM_FIELD
     case SYM_PARAMETER
         if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
     case else

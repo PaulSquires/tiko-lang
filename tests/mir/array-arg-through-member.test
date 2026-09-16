@@ -1,0 +1,13 @@
+'' WholeArrayType_ answered TYPE_NONE for a FIELD, so 'm.arr( )' was judged as the
+'' element it types as and refused with TKO0641 -- while the identical 'arr( )' over a
+'' plain variable was taken. Lowering already passed the member's descriptor; only the
+'' check was wrong.
+''
+'' The runtime half is what proves the descriptor is the member's OWN: the callee
+'' REDIMs it, and build/goldenrun.sh differences the three printed lines against fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/array-arg-through-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0641
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
