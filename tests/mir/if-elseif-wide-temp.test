@@ -1,0 +1,22 @@
+'' See the source's header. The GOLDEN is the assertion: what this defect was about is
+'' WHICH BLOCK the fb_WstrDelete sits in, and no substring can say that.
+''
+'' In the fixed IR each fb_WstrLeft is followed by its fb_WstrDelete in the same block
+'' -- 'for.body2' for the first condition and 'if.else7' for the second -- and
+'' 'if.join5' has none. The broken compiler put both deletes in the join, which the
+'' 'if.then6' path reaches without ever having made the second temporary.
+''
+'' THE RUNTIME DOES NOT DISCRIMINATE HERE and this file does not pretend it does:
+'' built with the broken compiler it still prints kind=1 and exits 0. A hand-rolled
+'' UDT casting to a fixed 'wstring * 32' does not churn the allocator the way
+'' AfxNova's DWSTRING does, and tests/mir has no include path to reach one. The
+'' double free is real either way -- it is in the IR -- and that is what is checked.
+''
+'' A PER-TARGET GOLDEN because a 'wstring * 32' is 64 bytes on win64 and 128 on
+'' linux-x86_64, so the slot sizes differ and the shared file cannot serve both.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/if-elseif-wide-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/if-elseif-wide-temp.out

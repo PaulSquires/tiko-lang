@@ -1268,9 +1268,33 @@ sub LowerIf _
         '' runs the destructor of the temporary in 'if takeR( mkH( 0 ) ) = 1' ahead of an
         '' ELSEIF's own test, and ahead of a THEN body that reads the count. Waiting for the
         '' end of the IF ran it after the body instead.
+        '' EVERY KIND OF TEMPORARY THE CONDITION MAKES IS RELEASED ON THE CONDITION'S OWN
+        '' PATH. The UDT mark below has always been here; the string and wide ones were
+        '' not, so those temporaries stayed on the statement's list and LowerStmt released
+        '' them at the END -- which is the JOIN BLOCK, the one block every arm reaches.
+        ''
+        '' An ELSEIF's condition is evaluated only when the arms before it failed, so the
+        '' join then freed a temporary that path never created:
+        ''
+        ''     if.else7:   %31 = fb_WstrLeft( .. )   store @$tmp6, %31
+        ''     if.then6:   store @okind, 1           br if.join5
+        ''     if.join5:   %38 = load @$tmp6         fb_WstrDelete( %38 )
+        ''
+        '' -- uninitialised on the first pass and an ALREADY-FREED pointer on every one
+        '' after it. 'if left( wl, 1 ) = "a" ... elseif left( wl, 2 ) = "b2"' over an
+        '' AfxNova DWSTRING corrupted the heap in a dozen iterations, and tiko-editor
+        '' died at 0xC0000374 classifying the first line of its own settings file.
+        ''
+        '' Measured: fbc destroys the condition's temporary immediately after the compare
+        '' that used it -- '_ZN7AFXNOVA8DWSTRINGD1Ev( &TMP$9807$2 )' on the next line --
+        '' inside the arm, never at the join.
         dim as long cmark = c.udtTemps.Count
+        dim as long csmark = c.strTemps.Count
+        dim as long cwmark = c.wstrTemps.Count
         dim as MirValue cond = LowerCondition( c, bp->a )
         ReleaseUdtTemps_( c, cmark )
+        ReleaseStrTemps_( c, csmark )
+        ReleaseWstrTemps_( c, cwmark )
         if cond.kind = cast( ubyte, MV_NONE ) then
             SkipHere( c )
             Terminate( c, MTERM_BR, thenB, -1, NoVal( ) )

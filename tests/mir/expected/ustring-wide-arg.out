@@ -85,10 +85,10 @@ func i32 main(i32 $0, ptr $1) {
     %37 = call.rtl ptr fb_WstrToUStr(%36)
     %38 = call.rtl i32 fb_UStrCompare(@u, -1, %37, -1)
     %39 = icmp.eq %38, 0
+    %40 = load @$tmp9
+    call.rtl void fb_WstrDelete(%40)
     condbr %39, if.then2, if.else3
   if.join1:
-    %42 = load @$tmp9
-    call.rtl void fb_WstrDelete(%42)
     %43 = load @r3
     call.rtl void fb_PrintInt(0, %43, 1)
     call.rtl void fb_UStrDelete(@u)
@@ -97,9 +97,9 @@ func i32 main(i32 $0, ptr $1) {
     %45 = load @$tmp0
     ret %45
   if.then2:
-    %40 = const i64 1
-    %41 = trunc %40
-    store @r3, %41
+    %41 = const i64 1
+    %42 = trunc %41
+    store @r3, %42
     br if.join1
   if.else3:
     br if.join1

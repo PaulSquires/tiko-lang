@@ -56,6 +56,8 @@ func void P() {
     %25 = load @$tmp4
     %26 = call.rtl i32 fb_WstrCompare(%25, @b)
     %27 = icmp.eq %26, 0
+    %28 = load @$tmp4
+    call.rtl void fb_WstrDelete(%28)
     condbr %27, if.then11, if.else12
   if.then8:
     %21 = const i64 3
@@ -65,8 +67,6 @@ func void P() {
   if.else9:
     br if.join7
   if.join10:
-    %30 = load @$tmp4
-    call.rtl void fb_WstrDelete(%30)
     %31 = const i64 1
     %32 = const i64 2
     %33 = mul %31, %32
@@ -100,9 +100,9 @@ func void P() {
     store @$tmp7, %57
     br for.head13
   if.then11:
-    %28 = const i64 4
-    %29 = trunc %28
-    store @n, %29
+    %29 = const i64 4
+    %30 = trunc %29
+    store @n, %30
     br if.join10
   if.else12:
     br if.join10
