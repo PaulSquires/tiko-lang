@@ -606,6 +606,21 @@ sub TypeContext.SetProcResult( byval t as TypeId, byval ret as TypeId )
     this.types[cast( long, t )].inner = ret
 end sub
 
+'' See SetProcResult. ONLY while the parameter is still unset, and only inside the
+'' parameter list this type actually owns -- the pool is shared, so a bad index would
+'' write over somebody else's signature rather than fail.
+sub TypeContext.SetProcParam _
+    ( byval t as TypeId, byval idx as long, byval pt as TypeId )
+
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
+    if pt = TYPE_NONE then return
+    dim as TypeInfo ptr n = @this.types[cast( long, t )]
+    if n->kind <> cast( ubyte, TK_PROC ) then return
+    if (idx < 0) orelse (idx >= n->count) then return
+    if this.pool[n->first + idx] <> TYPE_NONE then return
+    this.pool[n->first + idx] = pt
+end sub
+
 sub TypeContext.SetPacking( byval t as TypeId, byval n as long )
     if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
     this.types[cast( long, t )].packing = n

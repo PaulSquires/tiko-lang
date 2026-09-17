@@ -136,6 +136,13 @@ declare function BindParamType_ _
 declare function ForwardTypedefTarget_ _
     ( byref c as Ctx, byval tsp as Tko.StmtPayload ptr, _
       byval here as Tko.ScopeId ) as Tko.TypeId
+'' ONE PROCEDURE-TYPE PARAMETER'S TYPE, with the passing mode a procedure type gives
+'' it. Shared with BackpatchTypedefs, which mends a parameter whose typedef came
+'' later and has to arrive at exactly the answer the first pass would have.
+declare function ProcTypeParamType_ _
+    ( byref c as Ctx, byval prm as Tko.NodeId, _
+      byval scope_ as Tko.ScopeId ) as Tko.TypeId
+
 declare sub BackpatchTypedefs( byref c as Ctx )
 declare function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId

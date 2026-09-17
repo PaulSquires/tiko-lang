@@ -318,6 +318,12 @@ namespace Tko
         '' all, and everything already bound to it keeps that TypeId -- so the repair
         '' has to land on the type itself. See BackpatchTypedefs.
         declare sub SetProcResult( byval t as TypeId, byval ret as TypeId )
+        '' ...AND ONE OF ITS PARAMETERS, on the same terms and for the same reason:
+        '' see SetProcResult. A parameter that named a typedef declared later is the
+        '' commoner half of that, because win/windef.bi writes both LPARAM and LRESULT
+        '' ahead of the include that declares what they alias.
+        declare sub SetProcParam _
+            ( byval t as TypeId, byval idx as long, byval pt as TypeId )
         '' Qualify( ) can only ADD flags. Removing const needs its own operation --
         '' 'Qualify( t, 0 )' silently returns t unchanged.
         declare function Unqualify( byval t as TypeId ) as TypeId

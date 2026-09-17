@@ -151,6 +151,39 @@ sub BackpatchTypedefs( byref c as Ctx )
         c.types->SetProcResult( cast( Tko.TypeId, c.pendProcTypeId[i] ), rt4 )
     next
 
+    '' ...AND THE PARAMETERS, mended in the same type and for the same reason. A
+    '' SECOND loop rather than the one above, because a result that resolved the
+    '' first time round 'continue for's out of it and the parameters would go with
+    '' it: LPARAM and LRESULT are written together, but nothing says they have to be.
+    ''
+    '' ProcTypeParamType_ IS THE FIRST PASS'S OWN RULE, called again rather than
+    '' written out a second time -- a procedure type infers byref for a UDT and for
+    '' a string, and wraps an array parameter in its descriptor, and a repair that
+    '' disagreed about any of that would hand the call a different signature from
+    '' the one the callee was compiled with.
+    ''
+    '' THE ELLIPSIS IS SKIPPED EXACTLY AS THE BUILDER SKIPS IT, or every parameter
+    '' after it would be mended one slot to the left.
+    for i as long = 0 to c.pendProcType.Count - 1
+        dim as Tko.TypeId pty = cast( Tko.TypeId, c.pendProcTypeId[i] )
+        if c.types->Kind( pty ) <> Tko.TK_PROC then continue for
+        dim as Tko.NodeId ptn3 = cast( Tko.NodeId, c.pendProcType[i] )
+        dim as Tko.ScopeId psc = cast( Tko.ScopeId, c.pendProcTypeScope[i] )
+        dim as Tko.StmtPayload ptr psp3 = StmtOf( c, ptn3 )
+        dim as long slot = 0
+        for k as long = 0 to psp3->count - 1
+            dim as Tko.NodeId prm3 = cast( Tko.NodeId, c.ast->children[psp3->first + k] )
+            if c.ast->Kind( prm3 ) <> Tko.N_PARAM then continue for
+            if StmtOf( c, prm3 )->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+            if slot >= c.types->ProcParamCount( pty ) then exit for
+            if c.types->ProcParam( pty, slot ) = Tko.TYPE_NONE then
+                c.types->SetProcParam( pty, slot, _
+                                       ProcTypeParamType_( c, prm3, psc ) )
+            end if
+            slot += 1
+        next
+    next
+
     '' EXPRESSION TYPE ARGUMENTS, revisited the same way. ResolveTypeRef records the
     '' type on the node when it succeeds, which is all Check reads. Measured on fbc:
     '' 'type LP as LPTR' before 'type LPTR as longint', then 'f( cast( LP, p ) )',

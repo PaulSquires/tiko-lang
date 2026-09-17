@@ -91,6 +91,63 @@ private function LookupTypeAtPoint_ _
 end function
 
 
+'' See resolvectx.bi. EXTRACTED so BackpatchTypedefs can ask the same question again
+'' for a parameter that had no type the first time round: the passing mode a procedure
+'' type infers is not something to write out twice and hope the two stay in step.
+function ProcTypeParamType_ _
+    ( byref c as Ctx, byval prm as Tko.NodeId, _
+      byval scope_ as Tko.ScopeId ) as Tko.TypeId
+
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
+    dim as Tko.TypeId pt = ResolveTypeRef( c, pp->a, scope_ )
+    '' A PROCEDURE TYPE'S PARAMETERS TAKE THE SAME DEFAULT A PROCEDURE'S DO:
+    '' byref for a UDT or a string, byval for everything else. WalkStmt
+    '' settles it for a real declaration by writing NF_BYREF onto the node;
+    '' these N_PARAMs belong to a TYPEREF and it never reaches them, so
+    '' 'sub( as UDT1 )' came out taking a UDT BY VALUE. Measured -- fbc
+    '' mangles it '_Z2G1PFvR4UDT1E', with the R.
+    dim as ushort pfl = c.ast->nodes[cast( long, prm )].flags
+    dim as boolean pRef = ((pfl and Tko.NF_BYREF) <> 0)
+    dim as boolean pWritten = pRef
+    if pWritten = false then pWritten = ((pfl and Tko.NF_BYVAL_WRITTEN) <> 0)
+    if pWritten = false then pWritten = ((pfl and Tko.NF_ARRAY) <> 0)
+    if (pWritten = false) andalso (pt <> Tko.TYPE_NONE) then
+        dim as Tko.TypeId pbare = c.types->Unqualify( pt )
+        '' A FORWARD-DECLARED TYPE COUNTS AS A UDT HERE. Measured: fbc
+        '' mangles 'sub( as FWDREF1 )' over 'type FWDREF1 as FWDREF1_' as
+        '' 'PFvR8FWDREF1_E', with the R, exactly as it does a complete one.
+        pRef = (c.types->Kind( pbare ) = Tko.TK_UDT)
+        if pRef = false then pRef = (c.types->Kind( pbare ) = Tko.TK_FORWARD)
+        if pRef = false then
+            if c.types->Kind( pbare ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( pbare )
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, _
+                     Tko.TY_USTRING
+                    pRef = true
+                end select
+            end if
+        end if
+        if pRef then
+            c.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYREF
+        end if
+    end if
+    '' AN ARRAY PARAMETER IS A REFERENCE TO THE FBARRAY TEMPLATE, rank and
+    '' all -- byval and byref are both ILLEGAL on one, so the passing mode
+    '' never enters into it. Built as a dynamic array of the element so the
+    '' mangler and everything downstream see an ARRAY rather than a lone
+    '' element: 'sub( array(any) as integer )' and 'sub( array(any,any) as
+    '' integer )' were the same type, and four f4 overloads collapsed to one
+    '' symbol. The rank the parser recorded on the N_PARAM is what tells them
+    '' apart; 0 means 'unspecified', which is its own encoding.
+    if ((pfl and Tko.NF_ARRAY) <> 0) andalso (pt <> Tko.TYPE_NONE) then
+        pt = c.types->Reference( _
+            c.types->DynArrayOf( pt, cast( long, pp->extra ) ) )
+    elseif pRef then
+        pt = c.types->Reference( pt )
+    end if
+    return pt
+end function
+
 function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -132,6 +189,7 @@ function ResolveTypeRef _
         end if
         dim as Tko.TypeIdVec2 ps
         dim as boolean pVariadic = false
+        dim as boolean pAnyNone = false
         for i as long = 0 to sp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -144,57 +202,13 @@ function ResolveTypeRef _
                 continue for
             end if
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
-            dim as Tko.TypeId pt = ResolveTypeRef( c, pp->a, scope_ )
             '' A DEFAULT IS BOUND HERE TOO. A procedure's own parameters are walked as
             '' statements and a procedure TYPE's never were, so 'fp as sub( f as
             '' integer = c )' left 'c' unbound -- harmless while a pointer call ignored
             '' defaults, and a declined call in structs/obj_init_toself.bas once not.
             if pp->b <> Tko.NODE_NONE then WalkExpr( c, pp->b, scope_ )
-            '' A PROCEDURE TYPE'S PARAMETERS TAKE THE SAME DEFAULT A PROCEDURE'S DO:
-            '' byref for a UDT or a string, byval for everything else. WalkStmt
-            '' settles it for a real declaration by writing NF_BYREF onto the node;
-            '' these N_PARAMs belong to a TYPEREF and it never reaches them, so
-            '' 'sub( as UDT1 )' came out taking a UDT BY VALUE. Measured -- fbc
-            '' mangles it '_Z2G1PFvR4UDT1E', with the R.
-            dim as ushort pfl = c.ast->nodes[cast( long, prm )].flags
-            dim as boolean pRef = ((pfl and Tko.NF_BYREF) <> 0)
-            dim as boolean pWritten = pRef
-            if pWritten = false then pWritten = ((pfl and Tko.NF_BYVAL_WRITTEN) <> 0)
-            if pWritten = false then pWritten = ((pfl and Tko.NF_ARRAY) <> 0)
-            if (pWritten = false) andalso (pt <> Tko.TYPE_NONE) then
-                dim as Tko.TypeId pbare = c.types->Unqualify( pt )
-                '' A FORWARD-DECLARED TYPE COUNTS AS A UDT HERE. Measured: fbc
-                '' mangles 'sub( as FWDREF1 )' over 'type FWDREF1 as FWDREF1_' as
-                '' 'PFvR8FWDREF1_E', with the R, exactly as it does a complete one.
-                pRef = (c.types->Kind( pbare ) = Tko.TK_UDT)
-                if pRef = false then pRef = (c.types->Kind( pbare ) = Tko.TK_FORWARD)
-                if pRef = false then
-                    if c.types->Kind( pbare ) = Tko.TK_BUILTIN then
-                        select case c.types->BuiltinOf( pbare )
-                        case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, _
-                             Tko.TY_USTRING
-                            pRef = true
-                        end select
-                    end if
-                end if
-                if pRef then
-                    c.ast->nodes[cast( long, prm )].flags or= Tko.NF_BYREF
-                end if
-            end if
-            '' AN ARRAY PARAMETER IS A REFERENCE TO THE FBARRAY TEMPLATE, rank and
-            '' all -- byval and byref are both ILLEGAL on one, so the passing mode
-            '' never enters into it. Built as a dynamic array of the element so the
-            '' mangler and everything downstream see an ARRAY rather than a lone
-            '' element: 'sub( array(any) as integer )' and 'sub( array(any,any) as
-            '' integer )' were the same type, and four f4 overloads collapsed to one
-            '' symbol. The rank the parser recorded on the N_PARAM is what tells them
-            '' apart; 0 means 'unspecified', which is its own encoding.
-            if ((pfl and Tko.NF_ARRAY) <> 0) andalso (pt <> Tko.TYPE_NONE) then
-                pt = c.types->Reference( _
-                    c.types->DynArrayOf( pt, cast( long, pp->extra ) ) )
-            elseif pRef then
-                pt = c.types->Reference( pt )
-            end if
+            dim as Tko.TypeId pt = ProcTypeParamType_( c, prm, scope_ )
+            if pt = Tko.TYPE_NONE then pAnyNone = true
             ps.Push( cast( ulong, pt ) )
         next
         dim as Tko.TypeId pf = _
@@ -212,7 +226,17 @@ function ResolveTypeRef _
         '' Pended rather than declined, because the type is INTERNED and by the time
         '' the name is known a variable is already bound to this very TypeId -- see
         '' BackpatchTypedefs, which mends the type in place.
-        if (sp->a <> Tko.NODE_NONE) andalso (ret = Tko.TYPE_NONE) then
+        '' ...AND A PARAMETER THAT NAMED ONE, which is the commoner half: LPARAM and
+        '' WPARAM are written in win/windef.bi on the same terms LRESULT is, so a
+        '' 'function( ..., byval as LPARAM ) as LRESULT' pointer interned a parameter
+        '' of NO type. An argument for it then had no destination to be converted to
+        '' and took DEFAULT ARGUMENT PROMOTION instead -- a SINGLE went out widened to
+        '' DOUBLE in an SSE register while the callee read the integer one. That is
+        '' how tiko-editor set its Scintilla margins from a stale register: 1.79
+        '' billion pixels of left margin, and an editor pane with nothing in it.
+        dim as boolean pendIt = (ret = Tko.TYPE_NONE) andalso (sp->a <> Tko.NODE_NONE)
+        if pAnyNone then pendIt = true
+        if pendIt then
             c.pendProcType.Push( cast( ulong, id ) )
             c.pendProcTypeScope.Push( cast( ulong, scope_ ) )
             '' THE TYPE ITSELF, taken now. Re-resolving the node later builds a SECOND,

@@ -1,0 +1,12 @@
+'' See the source's header. The GOLDEN is the assertion: what this defect was about is
+'' WHICH conversion the argument gets, and the two spellings differ by one opcode.
+''
+'' In the fixed IR Fire_ has 'nearbyint' then 'fptosi' before the call; the broken
+'' compiler wrote 'fpext' -- the default argument promotion, which is what an argument
+'' with no declared parameter type to be converted to receives.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/proc-type-param-forward-typedef.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/proc-type-param-forward-typedef.out
