@@ -1,0 +1,11 @@
+'' See the source's header. NOT ONE fb_NullPtrChk in this file: every deref in it has a
+'' string pointee, and fbc checks none of them. The broken compiler emitted five.
+''
+'' Its sibling exx-deref-scalar-check carries the shapes that MUST still be checked, so
+'' a fix that simply stopped checking cannot pass both.
+'' TEST: cli
+'' ARGS: --dump-ir -exx tests/mir/src/exx-deref-string-nocheck.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: fb_NullPtrChk

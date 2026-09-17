@@ -1,0 +1,9 @@
+'' See the source's header. The read and the write through a scalar pointer each keep
+'' their fb_NullPtrChk -- the half of the rule that a fix removing the check outright
+'' would break.
+'' TEST: cli
+'' ARGS: --dump-ir -exx tests/mir/src/exx-deref-scalar-check.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_NullPtrChk

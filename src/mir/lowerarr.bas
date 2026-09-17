@@ -691,7 +691,46 @@ function LowerAddr _
         '' lowers to LowerAddr and then a store. One check covers the pair, and two
         '' would be two places to drift apart.
         dim as MirValue pv = LowerExpr( c, dp->operand )
-        if c.errLevel >= 3 then EmitNullCheck_( c, id, pv )
+        '' ...BUT NOT WHEN THE POINTEE IS A STRING. fbc checks where the generated code
+        '' LOADS OR STORES through the pointer, and a 'zstring ptr' or 'wstring ptr'
+        '' deref mostly does neither -- the pointer itself is what the runtime is given.
+        '' Measured, one probe, -exx and -r:
+        ''
+        ''     n = *pl          fb_NullPtrChk, then the load      CHECKED
+        ''     *pl = 1          fb_NullPtrChk, then the store     CHECKED
+        ''     n = len( *pw )   fb_WstrLen( PW$0 )                not checked
+        ''     w = *pw          fb_WstrAssign( W$0, 8, PW$0 )     not checked
+        ''     s = *pz          fb_StrAssign( &S$0, -1, PZ$0, 0 ) not checked
+        ''     n = len( *pz )   fb_StrLen( PZ$0, 0 )              not checked
+        ''
+        '' tiko checked all six, so AfxNova's 'DWSTRING.Add( byval pwszStr as wstring
+        '' ptr )' -- whose body is 'this.AppendBuffer( pwszStr, len( *pwszStr ) )' --
+        '' aborted with runtime error 7 on the NULL that 'mid( s, len( s ) + 1 )' hands
+        '' back by design. Both runtimes return NULL there, measured side by side; only
+        '' the check differs. tiko-editor could not be built with -exx at all, which is
+        '' the one tool that finds a wild write.
+        ''
+        '' A CHARACTER READ THROUGH ONE -- 'n = *pz', 'd = *pw' -- IS a load, and fbc
+        '' does check it. That check is LOST here and is not restored: this arm cannot
+        '' tell the two apart, the consumer can, and a MISSING check never turns a
+        '' working program into an abort. tiko already misses fbc's checks on 'p[i]'
+        '' and on 'p->f' -- measured in the same probe -- so the gap is not new.
+        dim as boolean strPointee = false
+        scope
+            dim as Tko.TypeId dt = c.types->Unqualify( c.info->TypeOf_( dp->operand ) )
+            if c.types->Kind( dt ) = Tko.TK_POINTER then
+                dim as Tko.TypeId inr = c.types->Unqualify( c.types->Inner( dt ) )
+                if c.types->Kind( inr ) = Tko.TK_BUILTIN then
+                    select case c.types->BuiltinOf( inr )
+                    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_STRING, Tko.TY_USTRING
+                        strPointee = true
+                    end select
+                end if
+            end if
+        end scope
+        if (c.errLevel >= 3) andalso (strPointee = false) then
+            EmitNullCheck_( c, id, pv )
+        end if
         return pv
     end if
 
