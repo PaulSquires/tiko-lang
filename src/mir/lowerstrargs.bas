@@ -151,8 +151,36 @@ function StrArgOwnDescriptor_ _
     if IsUStringType( c, at ) andalso (IsUStringType( c, pt ) = false) then return false
     if IsUStringType( c, at ) <> IsUStringType( c, pt ) then return true
     select case c.ast->Kind( e )
-    case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+    case Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
         return true
+    case Tko.N_IDENT
+        '' AN IDENTIFIER THAT NAMES STORAGE owns its descriptor; one that merely LOOKS
+        '' like an identifier does not. 'curdir', 'time' and 'date' take no arguments and
+        '' no parentheses, so each is a lone N_IDENT typed STRING -- and each is a CALL
+        '' whose result is a descriptor from libfb's small ROTATING POOL.
+        ''
+        '' Answering 'owns it' handed the pool slot straight to a user procedure:
+        ''
+        ''     %5 = call ptr fb_CurDir()
+        ''     call void _ZN7AFXNOVA8DWSTRINGaSER8FBSTRING(@d, %5)
+        ''
+        '' and DWSTRING's 'operator let' does its own string work -- 'this.Clear :
+        '' this.Add( ansiStr )' -- which recycles the very slot its parameter points at.
+        '' 'dim as DWSTRING d = curdir' came out EMPTY. tiko-editor saved the current
+        '' directory that way before a compile and could not put the process back.
+        '' Measured, fbc copies first: 'memset( &TMP, 0, 24 ); vr = fb_CurDir();
+        '' fb_StrAssign( &TMP, -1, vr, -1, 0 ); ..aSER8FBSTRING( &D, &TMP );'.
+        ''
+        '' This is the hazard THIS FUNCTION'S OWN HEADER describes, reached by the one
+        '' shape the node kind cannot tell apart from a variable.
+        dim as Tko.Symbol ptr vsy = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if vsy = 0 then return false
+        select case vsy->kind
+        case cast( ubyte, Tko.SYM_VARIABLE ), cast( ubyte, Tko.SYM_PARAMETER ), _
+             cast( ubyte, Tko.SYM_FIELD )
+            return true
+        end select
+        return false
     end select
     return false
 end function

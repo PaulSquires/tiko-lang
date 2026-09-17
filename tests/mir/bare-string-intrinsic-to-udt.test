@@ -1,0 +1,14 @@
+'' See the source's header. A parameterless string intrinsic does NOT own its
+'' descriptor, so the converting 'operator let' is handed a COPY.
+''
+'' The assertion is that the pool result reaches fb_StrAssign -- the copy fbc makes --
+'' rather than the operator directly. The broken compiler emitted
+'' 'call void _ZN1UaSER8FBSTRING(@a, %N)' with %N straight off fb_CurDir.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bare-string-intrinsic-to-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_CurDir
+'' EXPECT-OUT: aSER8FBSTRING(@a, @$tmp
+'' EXPECT-NOT: aSER8FBSTRING(@a, %
