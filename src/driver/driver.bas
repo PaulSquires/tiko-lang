@@ -913,6 +913,20 @@ function Run _
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst, isMain, modName, _
                                ctx.options.errLevel, @ctx.diags )
+                '' THE THREAD-SAFE RUNTIME IS CHOSEN HERE, not on the command line
+                '' alone -- see Tko.Mir.UsesThreadRtl for what fbc does and how it
+                '' was measured. tiko-editor links no '-mt' and creates five threads:
+                '' it got libfb.a, whose TLS context table is an ORDINARY GLOBAL and
+                '' whose flag update has no mutex, so a worker's exit tore down the
+                '' main thread's context and read its own FBTHREAD back as 1.
+                ''
+                '' STICKY ACROSS MODULES, never cleared: one module making a thread
+                '' settles it for the whole link, exactly as an input object's own
+                '' '-mt' does through ReadObjInfo.
+                if Tko.Mir.UsesThreadRtl( mm, ctx.names, _
+                        ctx.types.target.pointerBits = 32 ) then
+                    ctx.options.threadSafe = true
+                end if
                 if ctx.types.target.wcharBytes <> 2 then mm.SplitUtf16Literals( ctx.names )
                 '' THE ABI PASS, between lowering and emission (docs/plan/10 section
                 '' 3). It rewrites signatures and call sites so the emitted IR carries

@@ -581,3 +581,23 @@ function LowerThreadCall_ _
     DeleteStrArgTemps_( c, strTemps, strTempTypes )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
+
+'' Every runtime entry point this module calls is DECLARED in it -- EmitRtl adds one
+'' the first time it emits a call and never twice -- so the declarations are the whole
+'' record of what the link will have to resolve, and reading them here costs nothing at
+'' the point where each call is made.
+function UsesThreadRtl _
+    ( byref m as MirModule, byref names as Tko.Interner, _
+      byval is32 as boolean ) as boolean
+
+    dim as Tko.InternId wanted( 0 to 2 )
+    wanted(0) = names.GetString( RtlLinkName( RTL_THREAD_CREATE, is32 ) )
+    wanted(1) = names.GetString( RtlLinkName( RTL_THREAD_WAIT, is32 ) )
+    wanted(2) = names.GetString( RtlLinkName( RTL_THREAD_CALL, is32 ) )
+    for i as long = 0 to m.functions.Count - 1
+        for k as long = 0 to 2
+            if m.functions[i]->name = wanted(k) then return true
+        next
+    next
+    return false
+end function

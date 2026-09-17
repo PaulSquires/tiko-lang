@@ -121,6 +121,23 @@ namespace Tko.Mir
           byval errLevel as long = 0, _
           byval diags as any ptr = 0 ) as long
 
+    '' THE PROGRAM CALLS A THREAD ENTRY POINT, so the link needs the thread-safe
+    '' runtime. Measured on fbc-modern with '-v' and no '-mt' on the command line:
+    ''
+    ''     threadcreate, threadwait, threadcall          -lfbmt
+    ''     mutexcreate / -destroy / -lock / -unlock      -lfb
+    ''     condcreate / -signal / -broadcast             -lfb
+    ''     nothing of the kind                           -lfb
+    ''
+    '' so fbc turns it on for the three that make a thread and for nothing else --
+    '' a mutex in a single-threaded program needs no thread-safe runtime. The
+    '' decision is the LINK's alone: '__FB_MT__' stays 0 unless '-mt' was written,
+    '' measured the same way, which is consistent with it being made after the
+    '' preprocessor has long finished.
+    declare function UsesThreadRtl _
+        ( byref m as MirModule, byref names as Tko.Interner, _
+          byval is32 as boolean ) as boolean
+
 end namespace
 
 #endif

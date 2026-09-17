@@ -1,0 +1,12 @@
+'' See the source's header. The GOLDEN is the assertion: what this defect was about is
+'' whether the operator is CALLED at all, and no substring says that.
+''
+'' In the fixed IR the argument is the address of a 24-byte temporary that
+'' _ZN5WIDE_cv7NARROW_Ev filled; the broken compiler passed the 56-byte Wide_ itself
+'' and the ABI pass stored all of it into the 24 the parameter sized.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-operator-byval-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-cast-operator-byval-arg.out

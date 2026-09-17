@@ -151,6 +151,73 @@ function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     return c.info->TypeOf_( e )
 end function
 
+'' 'operator cast( ) as <the parameter's own type>', declared on the ARGUMENT'S type.
+''
+'' The other direction -- a constructor on the parameter's type taking the argument's --
+'' is HasUdtConvCtor_, and it was the only one asked, so a UDT that converts by casting
+'' was passed as its own BYTES. Where the source is the larger type that is not a wrong
+'' value, it is a stack overrun: AfxNova's 'Send( byval Body as VARIANT )' took a
+'' 56-byte DVARIANT blitted into the 24-byte slot the parameter sized, and the 32 bytes
+'' past the end were the caller's saved registers. tiko-editor's update check crashed on
+'' the thread-exit path, in a runtime whose FBTHREAD pointer had come back as 1.
+''
+'' fbc gives such an operator a STATIC result and returns a POINTER to it -- measured,
+'' 'struct $2TU* _ZN2CVcv2TUEv( struct $2CV* )' -- which is what EmitMemberCallArgs_
+'' already knows and why a cast is the one member that takes no hidden result pointer.
+private function UdtCastToUdt_ _
+    ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
+
+    if (au = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return Tko.SYMBOL_NONE
+    if au = pt then return Tko.SYMBOL_NONE
+    if c.types->Kind( au ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    if c.types->Kind( pt ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = StructorOf( c, au, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if cs->type_ <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( cs->type_ )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then
+                ru = c.types->Unqualify( c.types->Inner( ru ) )
+            end if
+            if ru = pt then return cur
+        end if
+        cur = cs->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
+'' ...AND WHETHER THAT CAST CAN BE TAKEN HERE. Asked by ArgNeedsUdtConv_ as well as
+'' by the conversion itself, and it has to be the SAME question in both: a decision to
+'' convert that the conversion then declines is not a fallback, it is a call that no
+'' longer lowers at all.
+''
+'' ONLY INTO A DESTINATION THAT NEITHER COPIES NOR DESTROYS. The operator's result is
+'' its own -- fbc gives it a static -- so the copy taken from it can only be a bitwise
+'' one, and a temporary holding a second owner's bytes must not be destroyed. A
+'' destination with either declines and keeps exactly the behaviour it has today,
+'' until there is a measurement that says what fbc does with it.
+private function UdtCastArgOk_ _
+    ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
+
+    if UdtCastToUdt_( c, au, pt ) = Tko.SYMBOL_NONE then return false
+    if TypeNeedsDtor_( c, pt ) then return false
+    if CopyCtorOf_( c, pt ) <> Tko.SYMBOL_NONE then return false
+    if NeedsLetBody_( c, pt ) then return false
+    return true
+end function
+
+'' The argument's type, as the conversion picks see it: a reference is the thing it
+'' refers to, and a qualifier is not part of the question.
+private function ArgUdtType_( byref c as Ctx, byval argNode as Tko.NodeId ) as Tko.TypeId
+    dim as Tko.TypeId at = c.info->TypeOf_( argNode )
+    if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Inner( at )
+    return c.types->Unqualify( at )
+end function
+
 private function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
@@ -175,6 +242,42 @@ private function UdtConvTemp_ _
         outa.ty = cast( ubyte, MT_PTR )
         outa.id = wslot
         return true
+    end if
+
+    '' THE ARGUMENT'S OWN CAST, when the parameter's type has no constructor for it.
+    '' Asked in that order so every call that works today keeps the constructor it has;
+    '' this is the case that had no path at all.
+    ''
+    '' The temporary is NOT registered for destruction: UdtCastArgOk_ has already
+    '' refused every destination that would need it.
+    dim as Tko.TypeId aut = ArgUdtType_( c, argNode )
+    if (aut <> Tko.TYPE_NONE) andalso (HasUdtConvCtor_( c, pt, aut ) = false) then
+        dim as Tko.SymbolId dcast = Tko.SYMBOL_NONE
+        if UdtCastArgOk_( c, aut, pt ) then dcast = UdtCastToUdt_( c, aut, pt )
+        if dcast <> Tko.SYMBOL_NONE then
+            dim as MirValue dself = LowerAddr( c, argNode )
+            if dself.kind = cast( ubyte, MV_NONE ) then return false
+            dim as long dslot = NewTempLocal( c, MT_AGG, sz )
+            if dslot < 0 then return false
+            '' AS AN AGGREGATE, which is what the definition of a cast to a type
+            '' like this one returns. fbc's own cast operator hands back a POINTER
+            '' to a static, and EmitMemberCallArgs_ knows it -- but tiko-lang lowers
+            '' one whose result needs neither copying nor destroying as an ordinary
+            '' by-value aggregate, and asking for a pointer made the call disagree
+            '' with the callee. WalkCalls answers a disagreement by DECLINING the
+            '' callee's whole return convention -- it zeroes retSize -- so the
+            '' operator's own definition then reached the emitter still returning an
+            '' aggregate, as 'the ABI pass has not run'.
+            dim as MirValue dval = EmitMemberCall( c, dcast, dself, MT_AGG )
+            if dval.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue ddst
+            ddst.kind = cast( ubyte, MV_LOCAL )
+            ddst.ty = cast( ubyte, MT_PTR )
+            ddst.id = dslot
+            StoreThrough( c, ddst, dval )
+            outa = ddst
+            return true
+        end if
     end if
 
     '' BY THE ARGUMENT'S TYPE, not by position in the chain. ConvCtorFor_ answers
@@ -514,7 +617,10 @@ private function ArgNeedsUdtConv_ _
     '' MT_AGG test) -- a decline where there was a wrong answer.
     if c.types->Kind( at ) = Tko.TK_UDT then
         if c.types->BaseDistance( at, pt ) >= 0 then return false
-        return HasUdtConvCtor_( c, pt, at )
+        if HasUdtConvCtor_( c, pt, at ) then return true
+        '' ...OR THE ARGUMENT CASTS TO IT -- see UdtCastArgOk_, which is the same
+        '' test the conversion makes, so a yes here is a conversion that happens.
+        return UdtCastArgOk_( c, at, pt )
     end if
     return true
 end function
