@@ -1,0 +1,10 @@
+'' See the source's header. Each dotted path folds to the same constant fbc folds it to.
+''
+'' EXPECT-NOT on 'statements not lowered' is the assertion that matters: the broken
+'' compiler declined the expression, so the PRINT around it was dropped whole and the
+'' run printed the labels with nothing after them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/offsetof-dotted-path.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

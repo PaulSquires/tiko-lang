@@ -57,6 +57,13 @@ namespace Tko
         declare function Find( byval t as TypeId ) as long
         declare function FieldOffset _
             ( byval t as TypeId, byval nm as InternId, byref found as boolean ) as long
+        '' The same walk, also handing back the FIELD'S OWN TYPE. A dotted
+        '' 'offsetof( T, a.b )' has to descend, and the field name it descends through
+        '' resolves to no symbol, so the layout store is the only thing that knows what
+        '' 'a' is. FieldOffset is this with the type thrown away.
+        declare function FieldOffsetType _
+            ( byval t as TypeId, byval nm as InternId, byref found as boolean, _
+              byref fieldType as TypeId ) as long
     end type
 
     '' Compute the layout of every UDT in the symbol table. Field order and types come

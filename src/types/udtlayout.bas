@@ -15,7 +15,17 @@ end function
 function UdtLayouts.FieldOffset _
     ( byval t as TypeId, byval nm as InternId, byref found as boolean ) as long
 
+    dim as TypeId ft = TYPE_NONE
+    return this.FieldOffsetType( t, nm, found, ft )
+end function
+
+'' The same walk, also handing back the field's own type -- see the header.
+function UdtLayouts.FieldOffsetType _
+    ( byval t as TypeId, byval nm as InternId, byref found as boolean, _
+      byref fieldType as TypeId ) as long
+
     found = false
+    fieldType = TYPE_NONE
     dim as long ui = this.Find( t )
     if ui < 0 then return 0
     dim as UdtInfo ptr u = @this.udts[ui]
@@ -23,6 +33,7 @@ function UdtLayouts.FieldOffset _
     for i as long = 0 to u->count - 1
         if this.fields[u->first + i].name = nm then
             found = true
+            fieldType = this.fields[u->first + i].type_
             return this.fields[u->first + i].offset
         end if
         if this.fields[u->first + i].name = this.baseName then baseAt = u->first + i
@@ -36,9 +47,11 @@ function UdtLayouts.FieldOffset _
         dim as TypeId bt = this.fields[baseAt].type_
         if (bt <> TYPE_NONE) andalso (bt <> t) then
             dim as boolean up = false
-            dim as long off = this.FieldOffset( bt, nm, up )
+            dim as TypeId uft = TYPE_NONE
+            dim as long off = this.FieldOffsetType( bt, nm, up, uft )
             if up then
                 found = true
+                fieldType = uft
                 return this.fields[baseAt].offset + off
             end if
         end if

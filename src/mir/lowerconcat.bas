@@ -297,14 +297,46 @@ function LowerOffsetOf _
 
     '' THE FIELD, by name. It is not an expression and resolves to nothing, so the
     '' spelling is all there is to go on -- which is what the layout store keys on too.
+    ''
+    '' ...AND A DOTTED PATH IS A WALK. 'offsetof( T, a.b )' parses as an N_MEMBER over
+    '' N_IDENTs, so the N_IDENT test below saw a node kind it did not know and DECLINED
+    '' SILENTLY -- a compile-time constant that lowered to no value at all, with the
+    '' statement around it dropped and no diagnostic. tiko-editor's theme key table is
+    '' built entirely out of 'offsetof( THEMEROOT_TYPE, editor.selection.forecolor )':
+    '' all 71 rows took the -1 their macro had just defaulted them to, so every colour
+    '' in the file reached nothing and the editor painted its built-in defaults.
+    ''
+    '' The spine is left-nested -- N_MEMBER( N_MEMBER( a, b ), c ) -- so it is walked
+    '' from the outside in and the names come out reversed, then applied in order,
+    '' each one's offset added and its TYPE becoming the next one's container.
     dim as Tko.NodeId fn = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    dim as FB.Array( of ulong ) path
+    while c.ast->Kind( fn ) = Tko.N_MEMBER
+        dim as Tko.BinaryPayload ptr mbp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, fn )].data )]
+        if c.ast->Kind( mbp->rhs ) <> Tko.N_IDENT then return false
+        path.Push( cast( ulong, mbp->rhs ) )
+        fn = mbp->lhs
+    wend
     if c.ast->Kind( fn ) <> Tko.N_IDENT then return false
-    dim as Tko.IdentPayload ptr fip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, fn )].data )]
+    path.Push( cast( ulong, fn ) )
 
-    dim as boolean found = false
-    dim as long off = c.udts->FieldOffset( ut, fip->name, found )
-    if found = false then return false
+    dim as long off = 0
+    dim as Tko.TypeId cur = ut
+    for i as long = path.Count - 1 to 0 step -1
+        '' A STEP THAT IS NOT A UDT HAS NO FIELDS, so a path that keeps going past one
+        '' names nothing -- declined rather than answered with the offset so far.
+        if cur = Tko.TYPE_NONE then return false
+        cur = c.types->Unqualify( cur )
+        if c.types->Kind( cur ) <> Tko.TK_UDT then return false
+        dim as Tko.IdentPayload ptr fip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, path[i] )].data )]
+        dim as boolean found = false
+        dim as Tko.TypeId ft = Tko.TYPE_NONE
+        off += c.udts->FieldOffsetType( cur, fip->name, found, ft )
+        if found = false then return false
+        cur = ft
+    next
     outv = ConstInt( c, off, MT_I64 )
     return true
 end function
