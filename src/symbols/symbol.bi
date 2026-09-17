@@ -247,6 +247,15 @@ namespace Tko
         '' USEPOS_LATEST means after everything -- the newest generation of every name.
         as ulong      usePos
         as long       undefs
+        '' ...AND HOW MANY LOCALS SHADOW AN OUTER NAME. A 'dim' that shadows one is
+        '' NOT visible above itself in its own block: measured on fbc-modern, with an
+        '' outer 'v = 11', a 'print v' written before 'dim as long v = 22' prints 11,
+        '' and so does the same pair over a parameter, a 'static', and every block kind
+        '' there is. Those declarations carry a 'bornAt' of their own, so positions have
+        '' to be consulted for them as well as after an '#undef' -- hence a second
+        '' counter rather than folding them into 'undefs', whose generation chain they
+        '' are not part of.
+        as long       shadows
 
         '' 'using ns' -- the namespaces IMPORTED into a scope, as parallel arrays of
         '' (the scope the USING was written in, the namespace's own scope). A list
@@ -319,6 +328,12 @@ namespace Tko
         '' symbol a lookup from 'scope_' finds, from 'at' on. See symbol.bas.
         declare sub UndefSym _
             ( byval scope_ as ScopeId, byval nm as InternId, byval at as ulong )
+
+        '' A LOCAL DECLARED AT NODE 'at' THAT SHADOWS AN OUTER NAME. Hides it from
+        '' lookups made above 'at' -- which fall through to the outer one, exactly as
+        '' they would if this declaration were not there at all.
+        declare sub ShadowFrom _
+            ( byval id as SymbolId, byval at as ulong )
 
         declare function SymbolAt( byval id as SymbolId ) as Symbol ptr
         declare function ScopeAt( byval id as ScopeId ) as SymScope ptr

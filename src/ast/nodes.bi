@@ -203,6 +203,18 @@ namespace Tko
     '' Same bit again: neither kind can carry NF_HAS_COMMA or NF_NOINIT.
     const NF_CALL_TARGET as ushort = &h0004
 
+    '' N_VAR: THE DECLARATION WAS WRITTEN, and its nodes were built where it stands.
+    '' The parser also SYNTHESIZES declarations -- a lambda's captures, a spawn's frame,
+    '' a select-channel binding, a destructuring 'for each' -- and builds them AFTER the
+    '' body they are prepended to, so their node ids run backwards against the statements
+    '' below them. Anything reading the arena as a proxy for source order has to ask
+    '' first; see MarkShadow_, where a capture came to hide itself from its own body.
+    ''
+    '' Positive, rather than a 'synthesized' bit, so a synthesizer added later is left
+    '' out by default instead of by remembering. Shares its bit with NF_ARROW, which is
+    '' N_MEMBER's and can never appear on an N_VAR.
+    const NF_DECL_WRITTEN as ushort = &h0001
+
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.
     const PF_OVERLOAD   as ushort = &h0001   '' the OVERLOAD keyword was written

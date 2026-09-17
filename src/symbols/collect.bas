@@ -455,6 +455,9 @@ sub WalkNode _
             end if
             dim as Tko.SymbolId sid = Declare_( w, scope_, ip->name, sk, _
                                                 w.ast->Loc( item ) )
+            '' Not visible to the statements ABOVE it, when it shadows an outer
+            '' value -- see MarkShadow_.
+            MarkShadow_( w, sid, scope_, ip->name, sk, n->flags, item, ip )
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
             if s <> 0 then
                 if (n->flags and Tko.NF_SHARED) <> 0 then s->flags or= Tko.SYMF_SHARED

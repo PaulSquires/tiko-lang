@@ -1,0 +1,16 @@
+'' See the source's header. The GOLDEN is the assertion: what this defect was about is
+'' WHICH SLOT each read names, and no substring says that.
+''
+'' In the fixed IR the reads written ABOVE a shadowing 'dim' name the outer storage --
+'' '@p' rather than '@p$1' in INNER_, '@v' rather than '@v$3', '@s' rather than the
+'' static's '@@main$s' -- while every read below one names the inner. The broken
+'' compiler sent all of them to the inner slot, which nothing has written yet.
+''
+'' 'dim as long w = w + 1' is the boundary and is kept deliberately: its initializer
+'' reads '@w$5', the variable being declared, because fbc prints 1 for it and not 12.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/shadowing-local-not-visible-above.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/shadowing-local-not-visible-above.out

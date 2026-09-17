@@ -433,7 +433,7 @@ private function VarDestructure _
         p.ast->children.Push( items[i] )
     next
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= flags
+    p.ast->nodes[cast( long, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
     return n
 end function
 
@@ -604,7 +604,7 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     next
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
-    p.ast->nodes[cast( long, n )].flags or= flags
+    p.ast->nodes[cast( long, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
     return n
 end function
 

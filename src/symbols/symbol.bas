@@ -72,6 +72,7 @@ constructor SymbolTable( )
 
     this.usePos = USEPOS_LATEST
     this.undefs = 0
+    this.shadows = 0
     this.Rehash( SYMTAB_INITIAL_SLOTS )
 end constructor
 
@@ -163,7 +164,8 @@ function SymbolTable.LookupLocal _
     if scope_ = SCOPE_NONE then return SYMBOL_NONE
     dim as long slot = this.SlotFor( scope_, nm )
     dim as SymbolId head = cast( SymbolId, this.slots[slot] )
-    if (this.undefs = 0) orelse (head = SYMBOL_NONE) then return head
+    if head = SYMBOL_NONE then return head
+    if (this.undefs = 0) andalso (this.shadows = 0) then return head
     return this.LiveGen( head )
 end function
 
@@ -286,7 +288,8 @@ function SymbolTable.LookupLocalTyped _
     dim as Symbol ptr h = @this.symbols[cast( long, head )]
     if IsTypeNameKind( cast( SymbolKind, h->kind ) ) = wantType then return head
     dim as SymbolId alt = h->altClass
-    if (alt <> SYMBOL_NONE) andalso (this.undefs > 0) then alt = this.LiveGen( alt )
+    dim as boolean byPos = (this.undefs > 0) orelse (this.shadows > 0)
+    if (alt <> SYMBOL_NONE) andalso byPos then alt = this.LiveGen( alt )
     if alt = SYMBOL_NONE then return head
     return alt
 end function
@@ -353,6 +356,21 @@ function SymbolTable.Lookup _
     wend
     return SYMBOL_NONE
 end function
+
+'' A LOCAL THAT SHADOWS AN OUTER NAME, born at its own declaration. LiveGen already
+'' answers SYMBOL_NONE for a symbol a lookup is above, and a local has no 'olderGen'
+'' to fall back to, so the walking Lookup carries on into the enclosing scope on its
+'' own -- which is the whole of the behaviour wanted.
+sub SymbolTable.ShadowFrom _
+    ( byval id as SymbolId, byval at as ulong )
+
+    if id = SYMBOL_NONE then return
+    if at = 0 then return                    '' 0 already means 'from the start'
+    dim as Symbol ptr s = @this.symbols[cast( long, id )]
+    if s->bornAt <> 0 then return            '' an '#undef' generation owns it
+    s->bornAt = at
+    this.shadows += 1
+end sub
 
 sub SymbolTable.AddUsing _
     ( byval scope_ as ScopeId, byval nsScope as ScopeId )

@@ -106,6 +106,71 @@ private function ClassNameTaken_ _
     return Tko.SYMBOL_NONE
 end function
 
+'' A LOCAL THAT SHADOWS AN OUTER VALUE, and where its visibility starts.
+''
+'' A 'dim' inside a block does NOT reach the statements above it. Measured on
+'' fbc-modern, with 'dim as long v = 11' outside:
+''
+''     print v : dim as long v = 22 : print v     inside a SELECT CASE arm, an IF, a
+''       SCOPE, a FOR body, a SUB over its own parameter, and with STATIC in place of
+''       DIM -- prints 11 then 22, every time
+''     dim as long v = v + 1                      prints 1, so the initializer sees the
+''       NEW v: visibility starts AT the declaration, not after it
+''
+'' tiko-lang bound every one of those to the inner variable, because Collect declares a
+'' whole block before Resolve walks any of it, so the name is already in the scope by
+'' the time anything above it is bound. That is not a cosmetic difference -- the
+'' statements above the 'dim' read a slot nothing has written yet, which is how
+'' tiko-editor came to dereference an uninitialised document pointer eight lines above
+'' the shadowing declaration that produced it.
+''
+'' ONLY WHEN IT SHADOWS. With no outer name of the same spelling there is nothing for a
+'' use above the 'dim' to fall through to, and hiding the declaration would turn it into
+'' an undeclared-variable error instead. fbc reports exactly that error, but it is a
+'' second change and not what this one is for.
+private sub MarkShadow_ _
+    ( byref w as Walker, byval sid as Tko.SymbolId, byval scope_ as Tko.ScopeId, _
+      byval nm as Tko.InternId, byval k as Tko.SymbolKind, byval dflags as ushort, _
+      byval item as Tko.NodeId, byval ip as Tko.StmtPayload ptr )
+
+    if sid = Tko.SYMBOL_NONE then return
+    if k <> Tko.SYM_VARIABLE then return
+    '' ONLY A DECLARATION THAT WAS WRITTEN -- see NF_DECL_WRITTEN. A lambda's capture
+    '' prologue is a 'var' per captured name, built after the body and prepended to
+    '' it, and every one of them shadows the outer variable it captures: judged by
+    '' node id they are born after the body that reads them, which hid all four
+    '' closure tests' captures behind fresh implicit locals.
+    if (dflags and Tko.NF_DECL_WRITTEN) = 0 then return
+    dim as Tko.SymScope ptr ss = w.syms->ScopeAt( scope_ )
+    if ss = 0 then return
+    select case cast( Tko.ScopeKind, ss->kind )
+    case Tko.SCOPEK_PROC, Tko.SCOPEK_BLOCK
+    case else
+        return
+    end select
+
+    '' FROM THE PARENT, so the declaration just made does not find itself.
+    dim as Tko.Symbol ptr os = w.syms->SymbolAt( w.syms->Lookup( ss->parent, nm ) )
+    if os = 0 then return
+    select case cast( Tko.SymbolKind, os->kind )
+    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER, Tko.SYM_CONSTANT, Tko.SYM_ENUMCONST
+        '' THE LOWEST NODE THIS DECLARATION OWNS, not the statement that holds it.
+        '' An arena is filled bottom-up, so a declaration's own parts all sit BELOW it:
+        '' Resolve walks an initializer as a statement in its own right and drops
+        '' 'usePos' to it, and against the statement's id that read as 'not yet born',
+        '' which sent 'dim as long v = v + 1' to the OUTER v and printed 12 where fbc
+        '' prints 1. Everything parsed for the previous statement is lower still, so
+        '' the two sides do not overlap.
+        dim as Tko.NodeId lo = item
+        if ip <> 0 then
+            if (ip->a <> Tko.NODE_NONE) andalso (ip->a < lo) then lo = ip->a
+            if (ip->b <> Tko.NODE_NONE) andalso (ip->b < lo) then lo = ip->b
+            if (ip->c <> Tko.NODE_NONE) andalso (ip->c < lo) then lo = ip->c
+        end if
+        w.syms->ShadowFrom( sid, cast( ulong, lo ) )
+    end select
+end sub
+
 private function Declare_ _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval k as Tko.SymbolKind, byval loc as Tko.SourceLoc ) as Tko.SymbolId
