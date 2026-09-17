@@ -1,0 +1,13 @@
+'' See the source's header. The same-type branch was fixed first and this path was not
+'' reached by it: a CONVERTING 'operator let' lands in LowerUserLetConv_, which takes
+'' the value's address for a byref UDT parameter.
+''
+'' BOTH spellings are here because the '( )' form always worked, so a test carrying
+'' only the broken one would pass on a fix that simply called unconditionally -- which
+'' would break the procedure-pointer assignment LowerBareProcCall_ declines.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/paren-less-call-converted.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: func.addr

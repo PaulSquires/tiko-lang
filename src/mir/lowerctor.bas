@@ -552,7 +552,18 @@ function LowerUserLetConv_ _
     if ulByref then
         dim as Tko.TypeId vu = c.types->Unqualify( c.info->TypeOf_( value ) )
         if c.types->Kind( vu ) = Tko.TK_UDT then
-            dim as MirValue ura = LowerAddr( c, value )
+            '' A PAREN-LESS FUNCTION IS A CALL HERE TOO -- the same care lowerassign.bas
+            '' takes in its same-type branch, which a CONVERTING 'let' never reaches.
+            '' 'wst = pStream.ReadLine', wst a BSTRING and ReadLine returning a DWSTRING,
+            '' emitted 'func.addr _ZN1S8READLINEEv' into
+            '' 'BSTRINGaSERNS_8DWSTRINGE': the operator got the function's machine code,
+            '' and tiko-editor died reading its localization file. LowerBareProcCall_
+            '' declines all but a FUNCTION with every parameter defaulted, so an address
+            '' genuinely meant still falls through.
+            dim as MirValue ura
+            if LowerBareProcCall_( c, value, MT_PTR, ura ) = false then
+                ura = LowerAddr( c, value )
+            end if
             if ura.kind <> cast( ubyte, MV_NONE ) then
                 av = ura
                 ulTook = true
