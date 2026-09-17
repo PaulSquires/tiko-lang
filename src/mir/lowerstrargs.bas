@@ -157,6 +157,44 @@ function StrArgOwnDescriptor_ _
     return false
 end function
 
+'' DOES A 'byref as string' PARAMETER OF A CONVERTING CONSTRUCTOR HAVE TO BUILD A
+'' TEMPORARY for this argument? Two reasons it must, and LowerConvCtorInit_ knew only
+'' the first: the argument is WIDE, or it is a narrow string that does not own a
+'' descriptor -- which, for an argument the address arm there can reach at all, means a
+'' FIXED one, 'zstring * N' or 'string * N'.
+''
+'' A fixed string is an ARRAY of a character builtin, so IsStringType says no to it and
+'' the byref arm took its ADDRESS: the constructor read an FBSTRING out of the
+'' characters. tiko-editor's theme writer is
+''
+''     function Theme_RoleName( byval idx as long ) as DWSTRING
+''         return gThemeRoleDef(idx).name        '' name is 'zstring * 32'
+''
+'' -- and the DWSTRING built from it took its buffer pointer from the text 'role.bac',
+'' so saving a theme died at 0xC0000005. Measured, fbc converts through a temporary and
+'' copies back, the parameter being byref and not const:
+''
+''     memset( &TMP, 0, 24 );
+''     fb_StrAssign( &TMP, -1, (void*)GZ$, 32ll, 0 );
+''     _ZN1UC1ER8FBSTRINGj( this, &TMP, 0u );
+''     fb_StrAssign( (void*)GZ$, 32ll, &TMP, -1, 0 );  fb_StrDelete( &TMP );
+''
+'' CtorArgValue_ already builds that temporary; all this decides is that the address arm
+'' must not claim the argument first. THE COPY-BACK IS STILL NOT EMITTED, as it is not
+'' for any of ByvalStrTemp_'s callers -- recorded in its own header.
+function NarrowStrCtorParamConverts_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+
+    if pt = Tko.TYPE_NONE then return false
+    if argNode = Tko.NODE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( pt )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    if c.types->BuiltinOf( u ) <> Tko.TY_STRING then return false
+    if TermIsWide_( c, argNode ) then return true
+    return (StrArgOwnDescriptor_( c, argNode, u ) = false)
+end function
+
 '' THE CALLER-BUILT DESCRIPTOR for one byval var-length string argument: zeroed,
 '' assigned from the source, and passed by ADDRESS. The slot comes back so the call
 '' site can delete it afterwards.

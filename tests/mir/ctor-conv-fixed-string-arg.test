@@ -1,0 +1,14 @@
+'' See the source's header. A fixed-length narrow string reaching a 'byref as string'
+'' constructor parameter is CONVERTED into a descriptor of its own, not passed as its
+'' own characters.
+''
+'' The assertion is on fb_StrAssign building the temporary, because the call takes a
+'' pointer either way and reads right in the broken IR too. Measured: the broken
+'' compiler emitted 'call void _ZN1UC1ER8FBSTRINGj(%3, @@gz, %4)' -- the char array
+'' handed straight to the FBSTRING* parameter.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-conv-fixed-string-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: _ZN1UC1ER8FBSTRINGj(%3, @@gz

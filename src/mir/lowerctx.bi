@@ -637,6 +637,10 @@ declare function EmitRtl _
     declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    '' Must a 'byref as string' constructor parameter build a temporary for this
+    '' argument? See NarrowStrCtorParamConverts_.
+    declare function NarrowStrCtorParamConverts_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
     declare function NarrowStrArg_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function RuntimeEntryCallee_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean

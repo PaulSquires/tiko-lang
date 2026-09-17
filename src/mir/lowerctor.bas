@@ -391,16 +391,14 @@ function LowerConvCtorInit_ _
     '' A BYREF WSTRING FIRST -- WideRefCtorArg_. A wide argument is no IsStringType, so
     '' the scalar arm below gave 'dim as WS a = wstr( "Fevrier" )' a pointer temporary.
     if (fromArray = false) andalso ptByref then tookAddr = WideRefCtorArg_( c, init_, pt, av )
-    '' ...AND A WIDE ARGUMENT FOR A 'byref as string' IS CONVERTED, by CtorArgValue_ below.
-    '' The address arm handed 'dim as DWS2 f = w' the 'wstring * 8' buffer as the FBSTRING*
-    '' and the constructor saw an empty string; fbc builds the narrow temporary.
+    '' ...AND AN ARGUMENT A 'byref as string' PARAMETER MUST CONVERT is left to
+    '' CtorArgValue_ below, which builds the temporary. The address arm handed
+    '' 'dim as DWS2 f = w' the 'wstring * 8' buffer as the FBSTRING* and the constructor
+    '' saw an empty string; a 'zstring * N' went the same way and killed tiko-editor's
+    '' theme writer. Both rules live in NarrowStrCtorParamConverts_.
     dim as boolean wideToNarrow = false
-    if ptByref andalso (tookAddr = false) andalso (pt <> Tko.TYPE_NONE) then
-        dim as Tko.TypeId wnu = c.types->Unqualify( pt )
-        if c.types->Kind( wnu ) = Tko.TK_REFERENCE then wnu = c.types->Unqualify( c.types->Inner( wnu ) )
-        if c.types->Kind( wnu ) = Tko.TK_BUILTIN then
-            if c.types->BuiltinOf( wnu ) = Tko.TY_STRING then wideToNarrow = TermIsWide_( c, init_ )
-        end if
+    if ptByref andalso (tookAddr = false) then
+        wideToNarrow = NarrowStrCtorParamConverts_( c, init_, pt )
     end if
     if (fromArray = false) andalso ptByref andalso (tookAddr = false) andalso (wideToNarrow = false) then
         '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
