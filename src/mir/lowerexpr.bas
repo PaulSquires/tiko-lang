@@ -917,7 +917,16 @@ function LowerExpr _
             dim as MirType lmt = LowerType( lt, *c.types )
             dim as MirType rmt = LowerType( rt, *c.types )
             dim as boolean okp = IsIntMirTy_( lmt ) andalso IsIntMirTy_( rmt )
-            if IsBooleanType( c, lt ) orelse IsBooleanType( c, rt ) then okp = false
+            '' TWO BOOLEANS compare by their STORAGE value and are not promoted -- see the
+            '' NormaliseBool pair below. ONE boolean beside something else is promoted like
+            '' any other mixed pair, and this read 'orelse', so it was not: measured,
+            '' 'T( ) = uy' over a ubyte 255 is
+            ''
+            ''     -((int64)-vr$0 == (int64)UY$0)
+            ''
+            '' -- false, because at int64 the boolean's -1 is not 255. Compared at the
+            '' byte width the two are the same bits and it answered true.
+            if IsBooleanType( c, lt ) andalso IsBooleanType( c, rt ) then okp = false
             '' ONLY A MIXED PAIR NEEDS IT. Two operands of the same signedness answer
             '' the same at either width -- both sign-extended, or both zero-extended --
             '' so promoting them adds a widening pair to every comparison in the program
@@ -925,8 +934,17 @@ function LowerExpr _
             '' same-signedness pair without this, and 16 goldens' IR stays as it was.
             if IsUnsignedType( c, lt ) = IsUnsignedType( c, rt ) then okp = false
             if okp then
-                dim as Tko.TypeId pt = _
-                    Tko.Check.BinaryResult( Tko.TK_PLUS, lt, rt, *c.types )
+                '' A LONE BOOLEAN HAS NO ARITHMETIC RESULT TO ASK FOR: fbc rejects
+                '' 'boolean + ubyte' outright, so BinaryResult answers nothing and the
+                '' promotion did not happen. It compares at INTEGER -- measured,
+                '' '-((int64)-vr$0 == (int64)UY$0)', which is FALSE for a ubyte 255
+                '' where the same pair at the byte width is the same bits and true.
+                dim as Tko.TypeId pt = Tko.TYPE_NONE
+                if IsBooleanType( c, lt ) orelse IsBooleanType( c, rt ) then
+                    pt = c.types->Builtin( Tko.TY_INTEGER )
+                else
+                    pt = Tko.Check.BinaryResult( Tko.TK_PLUS, lt, rt, *c.types )
+                end if
                 if pt <> Tko.TYPE_NONE then
                     dim as MirType pmt = LowerType( pt, *c.types )
                     if IsIntMirTy_( pmt ) then
@@ -936,8 +954,37 @@ function LowerExpr _
                 end if
             end if
         end if
-        l = CoerceTy( c, l, opTy, lt)
-        r = CoerceTy( c, r, opTy, rt)
+        '' A BOOLEAN COMPARED AGAINST SOMETHING THAT IS NOT ONE WIDENS TO -1, and it
+        '' takes a KNOWN DESTINATION TYPE to say so. CoerceTy's negation is suppressed
+        '' when the wanted MIR type is MT_I8 and the destination is unknown, because
+        '' MT_I8 is also what a boolean DESTINATION wants and the two must not be
+        '' confused -- its own comment says as much. A comparison passed no destination,
+        '' so a boolean beside a byte-wide operand kept its stored 1 and was compared
+        '' against the other side's -1:
+        ''
+        ''     %7  = call i8 T()                 '' 1, the storage value
+        ''     %10 = neg (s = "dark")             '' -1, integer truth
+        ''     %11 = icmp.eq %7, %10             '' 1 = -1, false
+        ''
+        '' 'Theme_IsDark( ) = (sApp = "dark")' answered FALSE for a dark theme, and
+        '' tiko-editor's theme suite failed on it while every other spelling passed:
+        '' both sides false is 0 = 0 either way, which is exactly what hid it. Measured,
+        '' fbc negates the boolean and compares as integers --
+        '' '-((int64)-vr$1 == (int64)-((int64)vr$4 == 0ll))'.
+        ''
+        '' ONE SIDE ONLY. Two booleans compare by their STORAGE value, which the
+        '' NormaliseBool pair below does; giving either of them a destination here would
+        '' negate one and not the other.
+        dim as Tko.TypeId lDst = Tko.TYPE_NONE
+        dim as Tko.TypeId rDst = Tko.TYPE_NONE
+        if IsCmpTk_( tk ) then
+            dim as boolean lb0 = IsBooleanType( c, lt )
+            dim as boolean rb0 = IsBooleanType( c, rt )
+            if lb0 andalso (rb0 = false) then lDst = rt
+            if rb0 andalso (lb0 = false) then rDst = lt
+        end if
+        l = CoerceTy( c, l, opTy, lt, lDst )
+        r = CoerceTy( c, r, opTy, rt, rDst )
 
         '' POINTER ARITHMETIC IS SCALED BY THE POINTEE, and none of it was.
         '' 'dim as short ptr q = p + 1' emitted 'add p, 1' -- one BYTE -- where fbc

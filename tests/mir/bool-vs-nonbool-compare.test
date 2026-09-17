@@ -1,0 +1,17 @@
+'' See the source's header. A boolean compared against something that is not one is
+'' WIDENED FIRST -- normalised to its storage value and then negated, so true is -1 --
+'' and the pair is compared at INTEGER.
+''
+'' The assertion is on the negation instruction existing at all: the broken compiler
+'' emitted NONE for this file ('= sub ' occurs 0 times; it occurs 4 times now, one per
+'' boolean that needed widening). The final 'icmp.eq' reads the same in both, which is
+'' why it is not what is asserted on.
+''
+'' Two of the seven printed lines came out wrong before the fix -- 1 and 4 -- and the
+'' other five did not, so a test carrying any of those five alone would pass on it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bool-vs-nonbool-compare.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: = sub 
