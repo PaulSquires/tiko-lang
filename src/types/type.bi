@@ -313,6 +313,11 @@ namespace Tko
         declare function BaseDistance _
             ( byval from_ as TypeId, byval to_ as TypeId ) as long
         declare sub SetPacking( byval t as TypeId, byval n as long )
+        '' THE RESULT OF A PROCEDURE TYPE, set AFTER the fact. A procedure type whose
+        '' result names a typedef declared later in the unit is built with no result at
+        '' all, and everything already bound to it keeps that TypeId -- so the repair
+        '' has to land on the type itself. See BackpatchTypedefs.
+        declare sub SetProcResult( byval t as TypeId, byval ret as TypeId )
         '' Qualify( ) can only ADD flags. Removing const needs its own operation --
         '' 'Qualify( t, 0 )' silently returns t unchanged.
         declare function Unqualify( byval t as TypeId ) as TypeId

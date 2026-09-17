@@ -48,6 +48,13 @@ type Ctx
     '' for the same reason. The cast's result type IS its typeref's, cached here, so
     '' one resolved before its typedef leaves the call it is an argument of untyped:
     '' AfxNova's AfxSetWindowIcon returned 'ret void' from a pointer function.
+    '' A PROCEDURE TYPE WHOSE RESULT NAMES A TYPEDEF DECLARED LATER, for the same
+    '' reason and repaired the same way -- except that the type is INTERNED and
+    '' already bound to variables by the time the name becomes known, so the
+    '' backpatch mends the TYPE rather than re-deriving it. See BackpatchTypedefs.
+    as FB.Array( of ulong )  pendProcType
+    as FB.Array( of ulong )  pendProcTypeScope
+    as FB.Array( of ulong )  pendProcTypeId
     as FB.Array( of ulong )  pendExprType
     as FB.Array( of ulong )  pendExprTypeScope
     as FB.Array( of ulong )  pendingItem

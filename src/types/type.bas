@@ -595,6 +595,17 @@ function TypeContext.Packing( byval t as TypeId ) as long
     return this.types[cast( long, t )].packing
 end function
 
+'' See the header. ONLY a procedure type, and ONLY while its result is still unset:
+'' the type is INTERNED, so overwriting a result that was deliberately chosen would
+'' silently re-point every other holder of the same TypeId.
+sub TypeContext.SetProcResult( byval t as TypeId, byval ret as TypeId )
+    if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
+    if ret = TYPE_NONE then return
+    if this.types[cast( long, t )].kind <> cast( ubyte, TK_PROC ) then return
+    if this.types[cast( long, t )].inner <> TYPE_NONE then return
+    this.types[cast( long, t )].inner = ret
+end sub
+
 sub TypeContext.SetPacking( byval t as TypeId, byval n as long )
     if (t = TYPE_NONE) orelse (cast( long, t ) >= this.types.Count) then return
     this.types[cast( long, t )].packing = n

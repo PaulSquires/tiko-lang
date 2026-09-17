@@ -131,6 +131,26 @@ sub BackpatchTypedefs( byref c as Ctx )
             ArrayFromBounds( c, ft, fsp->first, fsp->count, fhere ), false )
     next
 
+    '' PROCEDURE TYPES whose RESULT named a typedef declared later. The type is
+    '' INTERNED and already bound to variables, so re-deriving it would mend a copy
+    '' nobody holds -- the result is written onto the type itself. Measured on fbc:
+    '' 'type R as B' before 'type B as longint', then
+    '' 'type F as function( ) as R', and a call through an F returns the value; tiko
+    '' emitted 'call.ind void' and the assignment vanished with it.
+    for i as long = 0 to c.pendProcType.Count - 1
+        dim as Tko.NodeId ptn = cast( Tko.NodeId, c.pendProcType[i] )
+        dim as Tko.StmtPayload ptr psp2 = StmtOf( c, ptn )
+        dim as Tko.TypeId rt4 = _
+            ResolveTypeRef( c, psp2->a, cast( Tko.ScopeId, c.pendProcTypeScope[i] ) )
+        if rt4 = Tko.TYPE_NONE then continue for
+        '' ...AND THE BYREF RESULT KEEPS ITS REFERENCE, as the first pass would have
+        '' given it -- see PF_BYREF_RESULT above.
+        if (psp2->extra and Tko.PF_BYREF_RESULT) <> 0 then
+            rt4 = c.types->Reference( rt4 )
+        end if
+        c.types->SetProcResult( cast( Tko.TypeId, c.pendProcTypeId[i] ), rt4 )
+    next
+
     '' EXPRESSION TYPE ARGUMENTS, revisited the same way. ResolveTypeRef records the
     '' type on the node when it succeeds, which is all Check reads. Measured on fbc:
     '' 'type LP as LPTR' before 'type LPTR as longint', then 'f( cast( LP, p ) )',

@@ -199,6 +199,28 @@ function ResolveTypeRef _
         next
         dim as Tko.TypeId pf = _
             c.types->Pointer_( c.types->ProcType( ret, ps, pVariadic ) )
+        '' A RESULT THAT NAMED SOMETHING NOT DECLARED YET leaves the procedure type
+        '' with NO result, and nothing downstream can tell that apart from 'sub'.
+        '' win/windef.bi writes 'type LRESULT as LONG_PTR' sixteen lines before it
+        '' includes the header that declares LONG_PTR, so every
+        '' 'function( ... ) as LRESULT' pointer in windows.bi is built that way --
+        '' AfxNova's Scintilla_DirectFunction among them. The call then lowered as
+        '' 'call.ind void', the assignment around it was dropped, and tiko-editor
+        '' handed Scintilla an UNINITIALISED document pointer: SetDocPointer stored it
+        '' and dereferenced it, and the process died at 0xC0000005 inside the DLL.
+        ''
+        '' Pended rather than declined, because the type is INTERNED and by the time
+        '' the name is known a variable is already bound to this very TypeId -- see
+        '' BackpatchTypedefs, which mends the type in place.
+        if (sp->a <> Tko.NODE_NONE) andalso (ret = Tko.TYPE_NONE) then
+            c.pendProcType.Push( cast( ulong, id ) )
+            c.pendProcTypeScope.Push( cast( ulong, scope_ ) )
+            '' THE TYPE ITSELF, taken now. Re-resolving the node later builds a SECOND,
+            '' correct procedure type and overwrites what the node carries -- and the
+            '' variable declared in between still holds THIS one, which is the whole
+            '' reason the repair has to be in place.
+            c.pendProcTypeId.Push( cast( ulong, c.types->Inner( pf ) ) )
+        end if
         if (n->flags and Tko.NF_CONST) <> 0 then
             pf = c.types->Qualify( pf, Tko.TF_CONST )
         end if

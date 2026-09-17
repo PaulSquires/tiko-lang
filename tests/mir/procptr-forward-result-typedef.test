@@ -1,0 +1,13 @@
+'' See the source's header. The call through the forward-resulted pointer must carry a
+'' RESULT -- 'call.ind i64', not 'call.ind void'.
+''
+'' EXPECT-NOT is the assertion that matters: the broken compiler emitted
+'' 'call.ind void' for the first of the two calls and the value vanished with it. The
+'' file has no SUB pointer in it, so a void indirect call can only be this defect.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-forward-result-typedef.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.ind i64
+'' EXPECT-NOT: call.ind void
