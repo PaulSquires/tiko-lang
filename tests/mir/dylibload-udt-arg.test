@@ -1,0 +1,13 @@
+'' See the source's header. A UDT reaching an RTL parameter declared FBSTRING* is
+'' CONVERTED into a descriptor of its own, not passed as itself.
+''
+'' The assertion is on fb_WstrAssignToA -- the conversion fbc emits -- because the
+'' call itself takes a pointer either way and reads right in both the broken and the
+'' fixed IR. Without the conversion there is no such instruction at all.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/dylibload-udt-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrAssignToA
+'' EXPECT-OUT: fb_DylibLoad

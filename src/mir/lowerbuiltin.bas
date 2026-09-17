@@ -296,6 +296,40 @@ function LowerBuiltinProc _
                 args.Push( cast( ulong, sdv.id ) )
                 continue for
             end if
+            '' ...AND A UDT IS CONVERTED INTO A DESCRIPTOR OF ITS OWN, because it has
+            '' not got one. AfxNova's 'dylibload( p & "Lexilla64.dll" )' -- p a
+            '' DWSTRING, so the '&' is the user operator returning another DWSTRING --
+            '' handed fb_DylibLoad the 24-byte UDT where an FBSTRING* belongs, and the
+            '' editor reported error 126 for a DLL sitting beside it. StrDescriptorOf_
+            '' declines a UDT, and the value path below then coerced the aggregate to a
+            '' pointer without a word. Measured -- fbc converts through the type's own
+            '' cast and passes the temporary, deleting it at the end of the statement:
+            ''
+            ''     vr$8  = _Zv23catR2DWR8FBSTRING( &TMP$5, &P, &TMP$6 );
+            ''     vr$9  = _ZN2DWcvwEv( vr$8 );
+            ''     fb_WstrAssignToA( (void*)&TMP$7, -1ll, vr$9, 0 );
+            ''     vr$12 = fb_DylibLoad( (FBSTRING*)&TMP$7 );
+            ''     ... fb_StrDelete( (FBSTRING*)&TMP$7 );
+            ''
+            '' Only a UDT, and only after StrDescriptorOf_ has declined: every shape it
+            '' answers for keeps the answer it had.
+            dim as Tko.TypeId adt = c.types->Unqualify( c.info->TypeOf_( a ) )
+            if c.types->Kind( adt ) = Tko.TK_REFERENCE then
+                adt = c.types->Unqualify( c.types->Inner( adt ) )
+            end if
+            if c.types->Kind( adt ) = Tko.TK_UDT then
+                dim as Tko.TypeId snp = c.types->Builtin( Tko.TY_STRING )
+                dim as long sslot = -1
+                if ByvalStrTemp_( c, a, snp, sdv, sslot ) then
+                    if sslot >= 0 then
+                        c.f->locals[sslot].frontendType = snp
+                        c.strTemps.Push( cast( ulong, sslot ) )
+                    end if
+                    args.Push( cast( ulong, sdv.kind ) )
+                    args.Push( cast( ulong, sdv.id ) )
+                    continue for
+                end if
+            end if
         end if
 
         dim as MirValue av = LowerExpr( c, a )
