@@ -1,0 +1,11 @@
+'' See the source's header. UserBinaryOp_ costed both operands through UserConvCost_
+'' and took whatever was viable, so an operator over a THIRD type could capture a
+'' binary expression whose operands had nothing to do with it.
+''
+'' The runtime lines are the assertion and build/goldenrun.sh differences them: which
+'' operator ran is visible only in what the program prints, not in the IR shape.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/operator-foreign-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

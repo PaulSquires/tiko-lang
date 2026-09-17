@@ -468,9 +468,33 @@ private function UserBinaryOp_ _
                     dim as long total = CONV_NONE
                     if np = 2 then
                         dim as long c0 = ConversionCost( lt, p0, *c.types )
-                        if c0 >= CONV_NONE then c0 = UserConvCost_( c, lt, p0 )
+                        dim as boolean u0 = (c0 >= CONV_NONE)
+                        if u0 then c0 = UserConvCost_( c, lt, p0 )
                         dim as long c1 = ConversionCost( rt, p1, *c.types )
-                        if c1 >= CONV_NONE then c1 = UserConvCost_( c, rt, p1 )
+                        dim as boolean u1 = (c1 >= CONV_NONE)
+                        if u1 then c1 = UserConvCost_( c, rt, p1 )
+                        '' ONE OPERAND HAS TO BE THE OPERATOR'S OWN TYPE ALREADY. A global
+                        '' operator is NOT reached by user-converting BOTH operands into
+                        '' the type it is written over -- measured, and the pair is what
+                        '' makes the rule rather than either half:
+                        ''
+                        ''     operator + ( byref a as V, byref b as V ) as V
+                        ''     w + wstr( "x" )   fbc uses the BUILTIN through W's cast;
+                        ''                       no V constructor and no V operator run
+                        ''     v + w             fbc TAKES it, converting w into a V
+                        ''
+                        '' Without this, AfxNova's 'operator +( DVARIANT, DVARIANT )' --
+                        '' which DVARIANT.inc declares and which comes into scope with
+                        '' CWinHttpRequest.inc -- captured 'aDwstring + aWstring'. Both
+                        '' operands were constructed into DVARIANTs, the DVARIANT result
+                        '' was then handed to 'DWSTRING.operator let( byref as wstring )'
+                        '' as though the object were a wide pointer, and tiko-editor
+                        '' segfaulted before it drew a window. The built-in wide
+                        '' concatenation through DWSTRING's own cast is what fbc emits.
+                        if u0 andalso u1 then
+                            c0 = CONV_NONE
+                            c1 = CONV_NONE
+                        end if
                         if (c0 < CONV_NONE) andalso (c1 < CONV_NONE) then total = c0 + c1
                     elseif np = 1 then
                         '' ONE PARAMETER MEANS TWO DIFFERENT THINGS. Inside a TYPE it
