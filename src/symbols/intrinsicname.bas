@@ -81,6 +81,47 @@ private function ExactOverloadFor_ _
     return false
 end function
 
+'' DOES ANY OVERLOAD IN THE CHAIN TAKE THIS UDT AS ITS FIRST ARGUMENT?
+''
+'' A UDT first argument usually means the call is the program's own -- AfxNova's
+'' 'Left( byref as DWSTRING, n )' beside the builtin LEFT -- but only when an overload
+'' actually TAKES that UDT. DVARIANT.inc declares 'Val OVERLOAD ( byref dv as DVARIANT )'
+'' and nothing else named 'val', so 'val( aDwstring )' handed the name to it, converted
+'' the DWSTRING into a DVARIANT, and ran:
+''
+''     PRIVATE FUNCTION Val OVERLOAD ( BYREF dv AS DVARIANT ) AS DOUBLE
+''        DIM dws AS DWSTRING = AfxVarToStr( @dv.vd )
+''        RETURN .VAL( dws )          <- the leading dot means the BUILTIN
+''     END FUNCTION
+''
+'' -- whose own '.VAL( dws )' was resolved the same way, converting dws into a DVARIANT
+'' again. Infinite recursion: tiko-editor died with a STACK OVERFLOW reading its own
+'' settings file, on 'nData = val( wData )'. fbc keeps the builtin, because reaching the
+'' overload costs a user conversion the builtin does not need.
+''
+'' EXACT ONLY, no base walk: a DERIVED argument against an overload taking its BASE is
+'' not modelled here and would keep the builtin. That is the conservative direction --
+'' it is what the name meant before any overload existed -- and nothing measured needs
+'' the other one.
+private function UdtOverloadTakes_ _
+    ( byref c as Ctx, byval head as Tko.SymbolId, byval ka as Tko.TypeId ) as boolean
+
+    dim as Tko.SymbolId sid = head
+    dim as long guard = 0
+    while (sid <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+            if ProcParamCount_( c, sid ) >= 1 then
+                if BareArgType_( c, ProcParamTypeAt_( c, sid, 0 ) ) = ka then return true
+            end if
+        end if
+        sid = s->nextOverload
+    wend
+    return false
+end function
+
 '' A PROCEDURE DECLARED AS 'operator'.
 private function ProcIsOperator_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
@@ -125,7 +166,10 @@ private function BuiltinBesideUserProc_ _
         dim as Tko.TypeId ka = BareArgType_( c, _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
         if ka = Tko.TYPE_NONE then return false
-        if c.types->Kind( ka ) = Tko.TK_UDT then return false
+        '' ...AND ONLY WHEN AN OVERLOAD TAKES IT -- see UdtOverloadTakes_.
+        if c.types->Kind( ka ) = Tko.TK_UDT then
+            if UdtOverloadTakes_( c, c.info->RefOf( cp->target ), ka ) then return false
+        end if
     end if
     dim as Tko.TypeId bt = IntrinsicTableType_( c, cp, nm )
     if bt = Tko.TYPE_NONE then return false

@@ -1,0 +1,12 @@
+'' See the source's header. The rule was "a UDT first argument means the call is the
+'' program's own" -- right for AfxNova's 'Left( byref as DWSTRING, n )', wrong when NO
+'' overload takes that UDT, where fbc keeps the builtin.
+''
+'' Both halves are asserted at runtime by build/goldenrun.sh: the builtin answering 42
+'' for a W, and the overload still answering for a V. An IR assertion cannot see which
+'' of the two ran.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/builtin-beside-foreign-overload.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
