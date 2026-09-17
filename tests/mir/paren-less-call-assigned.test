@@ -1,0 +1,17 @@
+'' 'wst = strm.ReadLine' over 'function ReadLine( ) as DWSTRING' emitted
+''
+''     %8 = func.addr ptr _ZN1S8READLINEEv
+''     call void _ZN7AFXNOVA8DWSTRINGaSERS0_(@wst, %8)
+''
+'' -- the function's MACHINE CODE as the source DWSTRING. It verified, and tiko-editor
+'' died at the next allocation. fbc calls it.
+''
+'' ONLY THAT SPELLING WAS WRONG, which is why all four are here: the initialiser form
+'' and both '( )' forms already worked, and a fix that only ever calls would break the
+'' procedure-pointer assignment LowerBareProcCall_ declines.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/paren-less-call-assigned.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: func.addr

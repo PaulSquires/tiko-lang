@@ -541,7 +541,29 @@ private sub LowerAssign _
                 PickCtor( c, StructorOf( c, atl, "let" ), sletT )
             if (ulet <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, atl ) then
                 dim as MirValue da = LowerAddr( c, target )
-                dim as MirValue sa = LowerAddr( c, value )
+                '' A PAREN-LESS FUNCTION ON THE RIGHT IS A CALL, not an address.
+                '' 'wst = pStream.ReadLine' over 'function ReadLine( ) as DWSTRING'
+                '' asked LowerAddr for the value's address, and a node that names a
+                '' PROCEDURE has one -- the procedure's:
+                ''
+                ''     %8 = func.addr ptr _ZN1S8READLINEEv
+                ''     call void _ZN7AFXNOVA8DWSTRINGaSERS0_(@wst, %8)
+                ''
+                '' -- so 'operator let' was handed the function's MACHINE CODE as its
+                '' source DWSTRING. It verified, and tiko-editor died at the next
+                '' allocation. fbc calls it: 'vr$5 = READLINE( &TMP, &STRM );
+                '' _ZN..aSERS0_( &WST, vr$5 )'.
+                ''
+                '' ONLY THIS SPELLING WAS WRONG, which is what says where the fix
+                '' goes: 'dim as DWSTRING w = strm.ReadLine' already worked, and so
+                '' did both forms written with '( )'. LowerBareProcCall_ is what the
+                '' initialiser path uses and it declines anything that is not a
+                '' FUNCTION with every parameter defaulted, so a procedure-pointer
+                '' assignment still reaches LowerAddr below.
+                dim as MirValue sa
+                if LowerBareProcCall_( c, value, MT_PTR, sa ) = false then
+                    sa = LowerAddr( c, value )
+                end if
                 if (da.kind <> cast( ubyte, MV_NONE )) andalso _
                    (sa.kind <> cast( ubyte, MV_NONE )) then
                     if ulet <> Tko.SYMBOL_NONE then
