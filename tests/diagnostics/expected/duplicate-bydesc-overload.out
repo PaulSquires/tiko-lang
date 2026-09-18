@@ -26,6 +26,10 @@ tests/diagnostics/src/duplicate-bydesc-overload.bas(18,9): error TKO0677: 'badsa
      |
   18 | declare sub badSame overload( a(any) as integer )
      |         ^
+tests/diagnostics/src/duplicate-bydesc-overload.bas(17,9): note: declared here
+     |
+  17 | declare sub badSame overload( a(any) as integer )
+     |         ^
 tests/diagnostics/src/duplicate-bydesc-overload.bas(21,9): error TKO0677: 'badunknown' is already declared with these parameter types
      |
   21 | declare sub badUnknown overload( a() as integer )

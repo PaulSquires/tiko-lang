@@ -610,6 +610,12 @@ private function SameSignature_ _
     '' the same name declared in two NAMESPACES whose overload chain links across them,
     '' and the CRT headers' '_rotl' family. Both are shapes where "same name, same
     '' parameter types" is not the question fbc is actually asking.
+    ''
+    '' THE GENERAL CASE IS NOW COLLECT'S (collectproc.bas, 2026-09-18), judged as each
+    '' declaration arrives: within one SCOPE only, which answers the namespace chains,
+    '' and past a symbol '#undef' removed, which answers '_rotl' -- winnt.bi undefines
+    '' stdlib.bi's before restating it. What stays here is the RANK rule, '( )' against
+    '' a known rank, which Collect's written comparison deliberately calls different.
     dim as boolean anyBydesc = false
     for i as long = 0 to na - 1
         dim as long rx, ry
@@ -636,6 +642,11 @@ private function SameSignature_ _
             if (ra > 0) andalso (rb > 0) andalso (ra <> rb) then return false
             '' The ELEMENT type is what the TYPEREF carries for a bydesc parameter.
             if ta <> tb then return false
+        elseif (ra >= 0) orelse (rb >= 0) then
+            '' ONE BYDESC AND ONE NOT never collide, whatever the element type. Measured
+            '' 2026-09-18: fbc accepts 'f overload( a( ) as long )' beside 'f overload(
+            '' byval a as long )', and comparing the element types here refused it.
+            return false
         else
             if ta <> tb then return false
         end if

@@ -1,0 +1,11 @@
+'' The other side of duplicate-declare: a declaration joined by its definition, an
+'' overload set whose keyword is on its first declaration only, the same name in other
+'' scopes, a '#ifndef' guard, '#undef' before a redeclaration, and members and operators
+'' overloading by signature. fbc-modern 1.20 and 1.10.1 compile the source clean.
+'' '--dump-ir', because the BYDESC-against-scalar pair is judged by a late sweep that
+'' '--check' does not run -- and that sweep refused it until 2026-09-18.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redeclare-allowed.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: error TKO
+'' EXPECT-OUT: verify: ok

@@ -132,6 +132,7 @@ end function
 
 
 #include once "symbols/collectshape.bas"
+#include once "symbols/collectproc.bas"
 
 
 
@@ -765,6 +766,9 @@ sub WalkNode _
         end if
 
         dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
+        '' A second declaration fbc refuses (collectproc.bas): bound to the first, reported
+        '' once, and not allowed to disturb the calling convention the first one recorded.
+        dim as boolean redeclared = false
         if isMemberDef = false then
             '' A DEFINITION joins its DECLARE rather than chaining beside it. Without
             '' this, 'declare sub F( byval x as long )' followed by 'sub F( byval x as
@@ -789,7 +793,11 @@ sub WalkNode _
                                          w.names->Spelling( declName ) )
                     end if
                 end if
-                sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
+                sid = RefuseRedeclaration_( w, scope_, declName, sp, w.ast->Loc( id ) )
+                redeclared = (sid <> Tko.SYMBOL_NONE)
+                if redeclared = false then
+                    sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
+                end if
             end if
         end if
         '' OVERLOAD BELONGS TO THE NAME, NOT TO THE DECLARATION THAT SPELLED IT.
@@ -816,7 +824,7 @@ sub WalkNode _
             '' must agree.
             dim as boolean firstSighting = (s->payload = 0)
             if firstSighting then s->payload = cast( long, id )
-            BindCallConv( w, s, sp, id, firstSighting )
+            if redeclared = false then BindCallConv( w, s, sp, id, firstSighting )
             '' 'private:' / 'protected:' -- the parser put it on the declaration; the
             '' USE SITE needs it on the symbol. OR-ed rather than assigned, because the
             '' DEFINITION of a member is written outside the type body and carries no
@@ -912,8 +920,12 @@ sub WalkNode _
             '' A DEFINITION attaches to what is already there instead, so a call site
             '' finds one symbol rather than two halves of one.
             if sp->b = Tko.NODE_NONE then
-                sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
-                                w.ast->Loc( id ) )
+                sid = RefuseRedeclaration_( w, parentScope, declName, sp, w.ast->Loc( id ) )
+                redeclared = (sid <> Tko.SYMBOL_NONE)
+                if redeclared = false then
+                    sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
+                                    w.ast->Loc( id ) )
+                end if
             else
                 '' THE OVERLOAD THIS DEFINITION IS, not the head of the chain. A bare
                 '' lookup answers whichever constructor was declared first, so with two
@@ -931,7 +943,7 @@ sub WalkNode _
             end if
             s = w.syms->SymbolAt( sid )
             if s <> 0 then
-                BindCallConv( w, s, sp, id, (s->payload = 0) )
+                if redeclared = false then BindCallConv( w, s, sp, id, (s->payload = 0) )
                 s->flags or= Tko.SYMF_DEFINED
                 '' 'private:' / 'protected:' -- a CONSTRUCTOR takes this branch and not
                 '' the ordinary one, so it was reaching the symbol table PUBLIC however
@@ -982,7 +994,10 @@ sub WalkNode _
         '' one the symbol points at. A member definition declares no symbol of its own,
         '' so 's' is null there and only 'scopeOwner' names it -- and without this the
         '' body's scope was reachable from nothing and 'this' could not be found.
-        if s <> 0 then
+        '' A REFUSED redeclaration keeps the first one's: pointing the symbol at a second
+        '' parameter scope would detach the body the first one may already have.
+        if redeclared then
+        elseif s <> 0 then
             s->inner = inner
         elseif scopeOwner <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr os = w.syms->SymbolAt( scopeOwner )
@@ -1221,68 +1236,6 @@ private sub SpreadOverloadFlag_ _
     wend
 end sub
 
-'' The one DECLARED-but-not-yet-defined overload of this name taking 'want' parameters,
-'' or SYMBOL_NONE when there is not exactly one.
-''
-'' Arity, not the full signature: Collect runs before any type is resolved, so it cannot
-'' compare parameter TYPES. Requiring exactly one candidate is what keeps that
-'' approximation safe -- two same-arity overloads leave the definition to declare itself,
-'' which is the behaviour this replaces rather than a new way to be wrong.
-'' ONE WRITTEN TYPE REFERENCE AGAINST ANOTHER, strictly.
-''
-'' NOT SameTypeRef_, which exists to decide whether a RESTATEMENT is legal and answers
-'' 'same' whenever it cannot tell -- a named type may be a typedef for the builtin on
-'' the other side, and refusing that pair rejects four corpus files. Discriminating an
-'' OVERLOAD is the opposite question: 'the same as far as I can see' is not an answer,
-'' because acting on it moves a body onto the wrong declaration. So a builtin matches
-'' only the same builtin and a name only the same name, and anything it cannot decide
-'' is reported as DIFFERENT. A TYPEDEF is not undecidable: its name is its target
-'' (UnaliasWritten_), or '_TV' against 'TV' fell back to the head of the chain.
-private function SameWrittenType_ _
-    ( byref w as Walker, byval a as Tko.NodeId, byval b as Tko.NodeId, _
-      byval scope_ as Tko.ScopeId ) as boolean
-
-    a = UnaliasWritten_( w, scope_, a )
-    b = UnaliasWritten_( w, scope_, b )
-    if (a = Tko.NODE_NONE) andalso (b = Tko.NODE_NONE) then return true
-    if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return false
-    if w.ast->Kind( a ) <> Tko.N_TYPEREF then return false
-    if w.ast->Kind( b ) <> Tko.N_TYPEREF then return false
-    dim as ushort af = w.ast->nodes[cast( long, a )].flags
-    dim as ushort bf = w.ast->nodes[cast( long, b )].flags
-    dim as ushort mask = Tko.NF_PTR or Tko.NF_CONST or Tko.NF_PROC_TYPE
-    if (af and mask) <> (bf and mask) then return false
-    dim as Tko.StmtPayload ptr ap = StmtOf( w, a )
-    dim as Tko.StmtPayload ptr bp = StmtOf( w, b )
-    if ap->op <> bp->op then return false
-    if ap->op = cast( ushort, Tko.TK_IDENT ) then
-        if ap->name <> bp->name then return false
-    end if
-    '' PTR nests another N_TYPEREF in 'a', so recursing compares the pointed-to type
-    '' and, by arriving at different depths, the pointer depth with it.
-    return SameWrittenType_( w, ap->a, bp->a, scope_ )
-end function
-
-'' The RETURN TYPE and every PARAMETER TYPE, as written, on two N_PROC payloads whose
-'' arities already agree.
-private function SameSignature_ _
-    ( byref w as Walker, byval a as Tko.StmtPayload ptr, _
-      byval b as Tko.StmtPayload ptr, byval scope_ as Tko.ScopeId ) as boolean
-
-    if SameWrittenType_( w, a->a, b->a, scope_ ) = false then return false
-    if a->count <> b->count then return false
-    for i as long = 0 to a->count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
-        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
-        if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
-           (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
-        if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a, scope_ ) = false then
-            return false
-        end if
-    next
-    return true
-end function
-
 '' The DECLARATION a member DEFINITION belongs to, chosen out of the overload set by
 '' signature rather than taken from the head of the chain.
 ''
@@ -1326,6 +1279,13 @@ private function MemberDeclForDef_ _
     return head
 end function
 
+'' The one DECLARED-but-not-yet-defined overload of this name taking 'want' parameters,
+'' or SYMBOL_NONE when there is not exactly one.
+''
+'' Arity, not the full signature: Collect runs before any type is resolved, so it cannot
+'' compare parameter TYPES. Requiring exactly one candidate is what keeps that
+'' approximation safe -- two same-arity overloads leave the definition to declare itself,
+'' which is the behaviour this replaces rather than a new way to be wrong.
 private function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval want as long ) as Tko.SymbolId
