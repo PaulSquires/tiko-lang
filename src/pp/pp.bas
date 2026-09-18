@@ -97,6 +97,21 @@ type PpEngine
     '' nothing of scopes, overloads or types. What it answers is exactly the question
     '' a header guard asks -- has this name been declared above me.
     as IdVec                  declaredMark
+    '' ...AND THE VALUE, for the ones that have one. FreeBASIC's '#if' reads a CONST
+    '' like any other term -- measured, 'const K = 5' then '#if K = 5' takes the true
+    '' branch under fbc and did not under tiko-lang, because an identifier that
+    '' survived expansion was read as an undefined macro and an undefined macro is 0.
+    '' win/_mingw.bi declares '_WIN32_WINNT' as a const rather than a macro, so every
+    '' '#if _WIN32_WINNT >= &h0600' in the Windows headers took the FALSE branch and
+    '' the Vista-and-later half of them was never compiled.
+    ''
+    '' Filled by the PARSER, which is sound for the same reason the marks beside it
+    '' are: the preprocessor is pull-based, so everything above this directive has
+    '' already been read. Only what folds to an integer at PARSE time is recorded --
+    '' a literal, a negated literal, or another const already known -- and a name with
+    '' no value keeps the old answer of 0 rather than guessing.
+    as IdVec                  constMark
+    as FB.Array( of longint ) constVal
     as FB.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
     as IdVec                  onceFiles     '' FileId values marked #include once
     as FileId                 rootFile
@@ -197,6 +212,45 @@ private function IsDeclared_( byref e as PpEngine, byval id as InternId ) as boo
     dim as long ix = cast( long, id )
     if ix >= e.declaredMark.Count then return false
     return (e.declaredMark[ix] <> 0)
+end function
+
+private sub MarkConst_ _
+    ( byref e as PpEngine, byval id as InternId, byval v as longint )
+
+    if id = INTERN_NONE then return
+    dim as long ix = cast( long, id )
+    while e.constMark.Count <= ix
+        e.constMark.Push( 0 )
+        e.constVal.Push( 0 )
+    wend
+    e.constMark[ix] = 1
+    e.constVal[ix] = v
+end sub
+
+sub PpNoteConst _
+    ( byref st as PpStream, byval nm as InternId, byval v as longint )
+    if st.engine = 0 then return
+    MarkConst_( *cast( PpEngine ptr, st.engine ), nm, v )
+end sub
+
+'' The value a '#if' should read for a name, when the parser has recorded one.
+function PpConstValue _
+    ( byref e as PpEngine, byval nm as InternId, byref outv as longint ) as boolean
+
+    if nm = INTERN_NONE then return false
+    dim as long ix = cast( long, nm )
+    if ix >= e.constMark.Count then return false
+    if e.constMark[ix] = 0 then return false
+    outv = e.constVal[ix]
+    return true
+end function
+
+'' Whether a name has a recorded value at all -- the parser asks, so a const built
+'' from another one can copy it.
+function PpNotedConst _
+    ( byref st as PpStream, byval nm as InternId, byref outv as longint ) as boolean
+    if st.engine = 0 then return false
+    return PpConstValue( *cast( PpEngine ptr, st.engine ), nm, outv )
 end function
 
 sub PpNoteDeclared( byref st as PpStream, byval nm as InternId )

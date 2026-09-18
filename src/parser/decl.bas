@@ -608,6 +608,8 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     return n
 end function
 
+#include once "parser/declconst.bas"
+
 private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     Advance( p )
@@ -628,6 +630,20 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
     do
         dim as Tko.NodeId item = VarItem( p, false )
         items.Push( cast( ulong, item ) )
+        '' TOLD TO THE PREPROCESSOR AS EACH ONE IS READ, not at the end: 'const a =
+        '' 1, b = a' names the first from the second, and the module-level guard is
+        '' the one NoteDeclaredName_ uses -- a field or a local is not something an
+        '' '#if' above it can see.
+        if (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> 0) then
+            if p.ast->Kind( item ) = Tko.N_VAR_ITEM then
+                dim as long csi = cast( long, p.ast->nodes[cast( long, item )].data )
+                dim as longint cval = 0
+                if ConstFoldsToInt_( p, p.ast->stmts[csi].b, cval ) then
+                    Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), _
+                                     p.ast->stmts[csi].name, cval )
+                end if
+            end if
+        end if
         '' An ERROR node has no StmtPayload; indexing its 'data' as one is a segfault.
         if p.ast->Kind( item ) <> Tko.N_VAR_ITEM then exit do
         if sharedType <> Tko.NODE_NONE then

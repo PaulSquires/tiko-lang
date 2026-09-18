@@ -247,6 +247,11 @@ namespace Tko
     '' parser calls the first as it reads each module-level declaration's name; the
     '' preprocessor asks the second from '#ifdef', '#ifndef' and 'defined'.
     declare sub PpNoteDeclared( byref st as PpStream, byval nm as InternId )
+    '' A CONST'S VALUE, for '#if' to read -- see PpEngine.constMark.
+    declare sub PpNoteConst _
+        ( byref st as PpStream, byval nm as InternId, byval v as longint )
+    declare function PpNotedConst _
+        ( byref st as PpStream, byval nm as InternId, byref outv as longint ) as boolean
     declare function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
 
     declare sub PpClose( byref st as PpStream )

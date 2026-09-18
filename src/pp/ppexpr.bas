@@ -435,6 +435,19 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         if nm = "true" then return PxNum( -1 )
         if nm = "false" then return PxNum( 0 )
 
+        '' ...AND SO DOES ANY OTHER CONST fbc's '#if' can see. Measured: 'const K = 5'
+        '' then '#if K = 5' takes the TRUE branch under fbc, and 'const as long L =
+        '' &h0A00' then '#if L >= &h0600' does too. The value comes from the parser,
+        '' which has already read everything above this directive -- see
+        '' PpEngine.constMark. win/_mingw.bi writes '_WIN32_WINNT' as one of these,
+        '' so without it every '#if _WIN32_WINNT >= &h0600' in the Windows headers
+        '' read 0 and took the false branch: LOCALE_NAME_USER_DEFAULT and the rest of
+        '' the Vista-and-later half were never declared.
+        if x.e <> 0 then
+            dim as longint cv = 0
+            if PpConstValue( *x.e, t.literal, cv ) then return PxNum( cv )
+        end if
+
         '' An identifier that survived expansion is an undefined macro, which is 0.
         return PxNum( 0 )
 
