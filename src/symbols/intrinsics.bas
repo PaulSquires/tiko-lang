@@ -1175,6 +1175,8 @@ end function
 '' THE TABLE ITSELF, for a call spelled like a builtin that IntrinsicCallType_
 '' (intrinsicname.bas) has already decided is the builtin's. Every spelling it answers
 '' for is listed in IsTypedIntrinsicName.
+#include once "symbols/intrinsiciif.bas"
+
 private function IntrinsicTableType_ _
     ( byref c as Ctx, byval cp as Tko.ListPayload ptr, byref nm as string ) as Tko.TypeId
 
@@ -1343,6 +1345,31 @@ private function IntrinsicTableType_ _
         if ta = tb then return ta
         if ta = Tko.TYPE_NONE then return tb
         if tb = Tko.TYPE_NONE then return ta
+        '' ONE BOOLEAN ARM AND ONE THAT IS NOT is the other arm's type, and the '+'
+        '' table below cannot say so: ARITHMETIC rejects a boolean outright -- fbc's
+        '' error 20 for '1 + FALSE', measured -- while IIF accepts the mixed pair.
+        '' Measured on fbc-modern, assigned and printed rather than read off a
+        '' '#print typeof', which reports a type for expressions it also rejects:
+        ''
+        ''     iif( b, CT_, FALSE )    1      a const against FALSE
+        ''     iif( b, 1, FALSE )      1      a literal against FALSE
+        ''     iif( b, l, FALSE )      7      a LONG against FALSE
+        ''     iif( b, TRUE, FALSE )  -1      both boolean, and it stays boolean
+        ''
+        '' Borrowing '+' answered NOTHING for the mixed pair, and an untyped argument
+        '' makes the whole CALL untyped: fbx/fbxCombo.inc's 'SendMessageW( hCombo,
+        '' CB_SETEXTENDEDUI, iif( flag = TRUE, CTRUE, FALSE ), 0 )' lowered as a void
+        '' call, so the RETURN around it had no value and the function emitted a bare
+        '' 'ret' -- which clang refuses against an i32 result.
+        '' NOT 'taB': TAB IS A KEYWORD and FreeBASIC is case-insensitive, so the
+        '' name lexed as one and every use of it was 'expected expression'.
+        dim as boolean aIsBool = IsBooleanType_( c, ta )
+        dim as boolean bIsBool = IsBooleanType_( c, tb )
+        if aIsBool andalso (bIsBool = false) then
+            if NumericBuiltin_( c, tb ) then return tb
+        elseif bIsBool andalso (aIsBool = false) then
+            if NumericBuiltin_( c, ta ) then return ta
+        end if
         return BinaryResult( Tko.TK_PLUS, ta, tb, *c.types )
     end if
 
