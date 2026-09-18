@@ -164,7 +164,7 @@ end function
 '' fbc gives such an operator a STATIC result and returns a POINTER to it -- measured,
 '' 'struct $2TU* _ZN2CVcv2TUEv( struct $2CV* )' -- which is what EmitMemberCallArgs_
 '' already knows and why a cast is the one member that takes no hidden result pointer.
-private function UdtCastToUdt_ _
+function UdtCastToUdt_ _
     ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
 
     if (au = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return Tko.SYMBOL_NONE
@@ -199,7 +199,7 @@ end function
 '' one, and a temporary holding a second owner's bytes must not be destroyed. A
 '' destination with either declines and keeps exactly the behaviour it has today,
 '' until there is a measurement that says what fbc does with it.
-private function UdtCastArgOk_ _
+function UdtCastArgOk_ _
     ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
 
     if UdtCastToUdt_( c, au, pt ) = Tko.SYMBOL_NONE then return false
@@ -216,6 +216,40 @@ private function ArgUdtType_( byref c as Ctx, byval argNode as Tko.NodeId ) as T
     if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
     if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Inner( at )
     return c.types->Unqualify( at )
+end function
+
+'' A UDT VALUE CONVERTED TO ANOTHER UDT BY THE SOURCE'S OWN 'operator cast' -- the
+'' VALUE, where UdtConvTemp_ hands back somewhere to find it. An initialiser, an
+'' assignment and an explicit 'cast( )' all want the converted aggregate itself; only
+'' an argument needs an address. Measured on fbc, a 56-byte source that casts to a
+'' 24-byte one prints the operator's values through every one of those positions, and
+'' tiko-lang blitted the source's first 24 bytes into the destination instead.
+''
+'' The CONSTRUCTOR on the destination wins where there is one, as it does for an
+'' argument, and a derived value is not a conversion at all -- it is the base
+'' subobject, which the ordinary copy already gets right.
+function UdtCastValue_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if e = Tko.NODE_NONE then return false
+    if dstT = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId du = c.types->Unqualify( dstT )
+    if c.types->Kind( du ) = Tko.TK_REFERENCE then
+        du = c.types->Unqualify( c.types->Inner( du ) )
+    end if
+    if c.types->Kind( du ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId au = ArgUdtType_( c, e )
+    if au = Tko.TYPE_NONE then return false
+    if c.types->BaseDistance( au, du ) >= 0 then return false
+    if HasUdtConvCtor_( c, du, au ) then return false
+    dim as Tko.SymbolId cs = Tko.SYMBOL_NONE
+    if UdtCastArgOk_( c, au, du ) then cs = UdtCastToUdt_( c, au, du )
+    if cs = Tko.SYMBOL_NONE then return false
+    dim as MirValue self_ = LowerAddr( c, e )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    outv = EmitMemberCall( c, cs, self_, MT_AGG )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 private function UdtConvTemp_ _

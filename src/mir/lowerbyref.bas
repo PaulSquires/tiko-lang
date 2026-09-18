@@ -291,7 +291,12 @@ function ByrefConvNeeded_ _
     end if
     if c.types->Kind( au ) = Tko.TK_UDT then
         if c.types->BaseDistance( au, pu ) >= 0 then return false
-        if HasUdtConvCtor_( c, pu, au ) = false then return false
+        '' ...OR THE ARGUMENT CASTS TO IT. A byref parameter takes the address of a
+        '' temporary holding the converted value, exactly as a byval one takes a copy
+        '' of it: UdtConvTemp_ builds the same temporary for both.
+        if HasUdtConvCtor_( c, pu, au ) = false then
+            if UdtCastArgOk_( c, au, pu ) = false then return false
+        end if
     elseif c.ast->Kind( Unparen_( c, argNode ) ) = Tko.N_TUPLE then
         return false
     end if

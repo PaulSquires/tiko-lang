@@ -793,7 +793,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' See DropMovedTemp_: what this expression registers for destruction
                 '' has to be known before it is lowered.
                 dim as long tmark = c.udtTemps.Count
+                '' ...AND A UDT INITIALISER FOR ANOTHER UDT IS ONE TOO -- UdtCastValue_.
                 if UserConvToScalar_( c, ip->b, dstT, val ) = false then
+                 if UdtCastValue_( c, ip->b, dstT, val ) = false then
                     '' 'dim as parent p = c' OVER A DERIVED VALUE COPIES THE BASE
                     '' SUBOBJECT ONLY -- see UpcastAggInit_. LowerExpr hands back the
                     '' whole derived aggregate, and storing sixteen bytes into an
@@ -801,6 +803,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     if UpcastAggInit_( c, ip->b, dstT, val ) = false then
                         val = LowerExpr( c, ip->b )
                     end if
+                 end if
                 end if
                 '' A MOVE, not a copy -- so the source must not be destroyed.
                 dim as boolean movedFrom = (c.ast->Kind( ip->b ) = Tko.N_CALL)

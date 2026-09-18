@@ -621,8 +621,11 @@ private sub LowerAssign _
     '' A UDT VALUE ASSIGNED TO A SCALAR IS ITS 'operator cast', not its bytes. See
     '' UserConvToScalar_.
     dim as MirValue val
+    '' ...AND A UDT VALUE ASSIGNED TO ANOTHER UDT IS ONE TOO -- see UdtCastValue_.
     if UserConvToScalar_( c, value, c.info->TypeOf_( target ), val ) = false then
-        val = LowerExpr( c, value )
+        if UdtCastValue_( c, value, c.info->TypeOf_( target ), val ) = false then
+            val = LowerExpr( c, value )
+        end if
     end if
     if (addr.kind = cast( ubyte, MV_NONE )) orelse (val.kind = cast( ubyte, MV_NONE )) then
         SkipHere( c )

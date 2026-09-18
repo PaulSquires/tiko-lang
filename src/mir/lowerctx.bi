@@ -580,6 +580,16 @@ declare function EmitRtl _
           byref outv as MirValue ) as boolean
     declare function UserCastNumOverload_ _
         ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    '' lowercallarg.bas -- 'operator cast( ) as <that UDT>' on the SOURCE's type, and
+    '' whether it can be taken. Every position that converts one UDT into another asks
+    '' the same pair, so none of them can disagree about when the operator runs.
+    declare function UdtCastValue_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    declare function UdtCastToUdt_ _
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
+    declare function UdtCastArgOk_ _
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
     declare function UserCastToNum_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function UserCastToPtr_ _

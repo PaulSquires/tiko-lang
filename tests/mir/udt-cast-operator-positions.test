@@ -1,0 +1,13 @@
+'' See the source's header. The GOLDEN is the assertion: what this defect was about is
+'' whether the operator is CALLED at all, in four places that each reach the value a
+'' different way.
+''
+'' In the fixed IR main has four calls to _ZN5WIDE_cv7NARROW_Ev -- the initialiser, the
+'' assignment, the explicit cast and the byref argument's temporary -- and no bare load
+'' of the 56-byte Wide_ into a 24-byte destination anywhere.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cast-operator-positions.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/udt-cast-operator-positions.out

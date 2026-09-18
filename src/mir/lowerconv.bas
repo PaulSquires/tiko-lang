@@ -199,6 +199,9 @@ function LowerConvIntrinsic _
     if (nm = "cast") orelse (nm = "ctype") then
         dim as MirValue uv
         if UpcastAggInit_( c, arg, c.info->TypeOf_( id ), uv ) then return uv
+        '' ...AND 'cast( <a UDT>, <another> )' IS THE SOURCE'S OWN 'operator cast',
+        '' which is the one spelling that says so out loud. See UdtCastValue_.
+        if UdtCastValue_( c, arg, c.info->TypeOf_( id ), uv ) then return uv
     end if
 
     '' A STRING OPERAND IS PARSED, NOT COERCED. There was no case for one at all, so
