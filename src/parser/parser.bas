@@ -56,7 +56,7 @@ declare function NextTokIs_ _
 declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
 declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
-declare sub CheckEndOfStatement_( byref p as Tko.ParserState )
+declare function CheckEndOfStatement_( byref p as Tko.ParserState, byval n as Tko.NodeId = Tko.NODE_NONE ) as boolean
 declare function EndClosesOther_ _
     ( byref p as Tko.ParserState, byval what as Tko.TokenKind ) as boolean
 
@@ -1419,8 +1419,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     end select
 
     if consumesLine then
-        CheckEndOfStatement_( p )
-        EndOfStatement( p )
+        if CheckEndOfStatement_( p, n ) then EndOfStatement( p )
     end if
     return n
 end function

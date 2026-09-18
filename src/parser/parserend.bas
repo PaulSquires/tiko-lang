@@ -99,19 +99,62 @@ end function
 '' NOT after an earlier error in the same statement, which has already said what went
 '' wrong; and NOT at the ELSE, ENDIF or END IF that a single-line IF's then-branch
 '' stops at, because those belong to the IF -- see EndOfStatement.
-sub CheckEndOfStatement_( byref p as Tko.ParserState )
-    if p.silent then return
+''
+'' A PROPERTY SET DOES NOT HAVE TO END THE LINE. That is fbc's own laxness rather
+'' than a rule worth inventing, and it is measured: over a TYPE with
+'' 'property LeftMargin( byval v as long )',
+''
+''     p.LeftMargin = 60 p.RightMargin = 70    compiles, and sets both
+''     p.LeftMargin = 60 print "junk"          compiles, prints and sets
+''     p.lm = 60 p.rm = 70      over FIELDS    error 3, Expected End-of-Line
+''     x = 60 y = 70            over LOCALS    error 3
+''
+'' -- so fbc wants the separator everywhere EXCEPT after a property assignment. The
+'' fbx RichEdit example leans on it: 'pRichEdit.LeftMargin = 60_' ends in a line
+'' continuation, which joins the next assignment onto it, and it was the ONE file of
+'' the 1,852 under inc/fbx that tiko-lang rejected and fbc compiled.
+''
+'' WHICH MEMBER IT IS CANNOT BE KNOWN HERE. A property and a field are the same
+'' N_MEMBER to the parser and nothing has been resolved yet, so the check is skipped
+'' for ANY member assignment -- which accepts the field cases fbc refuses. That is
+'' the safe direction: a missing diagnostic over a program fbc will not build either,
+'' rather than a false one over a program it compiles.
+'' RETURNS whether the caller should now CONSUME to the end of the line. False means
+'' the tokens left are a STATEMENT and must stay for the next one to read: dropping
+'' them is what made the relaxed case compile and then do nothing -- 'p.LeftMargin =
+'' 60 p.RightMargin = 70' set the first and silently discarded the second, which is a
+'' worse answer than the diagnostic it replaced.
+function CheckEndOfStatement_ _
+    ( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
+
     dim as boolean atEol = (Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)
-    if atEol then return
+    if atEol then return true
+
+    '' A MEMBER ASSIGNMENT LEAVES WHAT FOLLOWS ALONE -- see the header.
+    if n <> Tko.NODE_NONE then
+        if p.ast->Kind( n ) = Tko.N_AMBIGUOUS then
+            dim as long asi = cast( long, p.ast->nodes[cast( long, n )].data )
+            dim as Tko.StmtPayload ptr asp = @p.ast->stmts[asi]
+            '' op 0 is a CALL; anything else is the assignment token.
+            if asp->op <> 0 then
+                if asp->a <> Tko.NODE_NONE then
+                    if p.ast->Kind( asp->a ) = Tko.N_MEMBER then return false
+                end if
+            end if
+        end if
+    end if
+
+    if p.silent then return true
     if p.stopAtElse then
         select case Peek( p )
         case Tko.KW_ELSE, Tko.KW_ENDIF
-            return
+            return true
         case Tko.KW_END
-            if NextTokIs_( p, Tko.KW_IF ) then return
+            if NextTokIs_( p, Tko.KW_IF ) then return true
         end select
     end if
     ErrorNode( p, Tko.TKO0420 )
-end sub
+    return true
+end function
 
 end namespace
