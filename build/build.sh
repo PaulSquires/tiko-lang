@@ -46,6 +46,19 @@ case "$CFG" in
     # produces, while "-O 2" gave 99,328. Real size optimization needs the gcc
     # backend ("-gen gcc -Wc -Os", 84,480), which is a backend change, not a flag.
     Release)        FLAGS="-O 2 -w all" ;;
+    # SIZE, AND IT IS A BACKEND CHANGE. '-O s' is not the answer -- measured on
+    # this compiler, 2026-09-17: '-O 2' gives 1,781,760 bytes, '-O s' gives
+    # 10,202,624, and passing NO optimization flag at all gives 10,202,624 as
+    # well, byte for byte. fbc accepts '-O s' and drops it on the floor: on
+    # '-gen llvm' it reaches clang as '-O0', measured the same day. So asking for
+    # size with it does not merely fail to shrink the binary, it makes it 5.7
+    # times bigger than Release.
+    #
+    # The gcc backend takes '-Wc -Os' and means it: 1,532,416 bytes, 14.0% under
+    # Release, in the same 31 seconds. It is the same source through a different
+    # code generator, so it is verified like any other configuration -- the suite
+    # is what says the two agree, not the flag.
+    MinSizeRel)     FLAGS="-gen gcc -Wc -Os -w all" ;;
     *) echo "build: unknown configuration '$CFG'" >&2; exit 2 ;;
 esac
 

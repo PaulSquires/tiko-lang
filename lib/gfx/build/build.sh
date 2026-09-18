@@ -38,8 +38,8 @@ die( ) { echo "libtkogfx: $*" >&2; exit 2; }
 
 CFG=${1:-Release}
 case "$CFG" in
-    Debug|Release|RelWithDebInfo) ;;
-    *) die "unknown configuration '$CFG' (Debug, Release, RelWithDebInfo)" ;;
+    Debug|Release|RelWithDebInfo|MinSizeRel) ;;
+    *) die "unknown configuration '$CFG' (Debug, Release, RelWithDebInfo, MinSizeRel)" ;;
 esac
 shift 2>/dev/null || true
 TARGETS=${*:-win64-msvc}
@@ -68,6 +68,8 @@ case "$CFG" in
     Debug)          OPT=0 ;;
     Release)        OPT=2 ;;
     RelWithDebInfo) OPT=2 ;;
+    # clang's own '-Os', which it honours -- this script calls clang directly.
+    MinSizeRel)     OPT=s ;;
 esac
 
 for target in $TARGETS; do

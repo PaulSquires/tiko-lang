@@ -162,6 +162,11 @@ rt_opt_level( ) {
         Debug)          echo 0 ;;
         RelWithDebInfo) echo 2 ;;
         Release)        echo 2 ;;
+        # THE ONLY PLACE SIZE CAN BE ASKED FOR ON THIS PATH, because this script
+        # calls clang itself. fbc cannot be asked: '-O s' reaches clang as '-O0',
+        # measured 2026-09-17, so the targets below where fbc drives the whole
+        # compile keep '-O 2' and only win64-msvc gets a smaller archive.
+        MinSizeRel)     echo s ;;
         *)              echo 0 ;;
     esac
 }
@@ -171,6 +176,10 @@ rt_cfg_flags( ) {
         Debug)          echo "-g -w all" ;;
         RelWithDebInfo) echo "-g -O 2 -w all" ;;
         Release)        echo "-O 2 -w all" ;;
+        # '-O 2', NOT '-O s' -- see rt_opt_level. Under '-gen llvm' this only sets
+        # the level of the .ll that clang then re-optimizes at '-Os', and for the
+        # targets fbc compiles end to end '-O s' would mean '-O0'.
+        MinSizeRel)     echo "-O 2 -w all" ;;
         *)              return 1 ;;
     esac
 }

@@ -83,8 +83,8 @@ while [ $# -gt 0 ]; do
 done
 
 case $CFG in
-    Debug|Release|RelWithDebInfo) ;;
-    *) die "unknown configuration '$CFG' (Debug|Release|RelWithDebInfo)" ;;
+    Debug|Release|RelWithDebInfo|MinSizeRel) ;;
+    *) die "unknown configuration '$CFG' (Debug|Release|RelWithDebInfo|MinSizeRel)" ;;
 esac
 
 # ------------------------------------------------------------------- the host
