@@ -594,6 +594,16 @@ private function ExprIntrinsicType_ _
         '' 'dim pw as wstring ptr = strptr( w )' an incompatible initialiser and
         '' declined every use of pw after it.
         if isStr = false then return Tko.TYPE_NONE
+        '' A USTRING GIVES A 'ushort ptr', not a string pointer of either flavour.
+        '' Measured on fbc-modern: '#print typeof( strptr( u ) )' over a USTRING is
+        '' 'USHORT CONST PTR', and sadd's is the same. The narrow fallback below gave
+        '' it a ZSTRING PTR, which still ASSIGNED to a 'wstring ptr' because an
+        '' initialiser coerces -- but it scored as NO MATCH in overload resolution,
+        '' and fbx/fbxTreeView.inc calls 'fbxTreeView_GetItemText( h, hItem,
+        '' strptr( ustr ), len( ustr ) )' over two overloads and matched neither.
+        if ab = Tko.TY_USTRING then
+            return c.types->Pointer_( c.types->Builtin( Tko.TY_USHORT ) )
+        end if
         if ab = Tko.TY_WSTRING then
             return c.types->Pointer_( c.types->Builtin( Tko.TY_WSTRING ) )
         end if
