@@ -71,6 +71,10 @@ namespace Tko.Resolve
         '' Triage aid: the interned names that did not bind, so the causes can be
         '' aggregated instead of guessed at.
         as FB.Array( of ulong ) unresolvedNames
+        '' ...and the NODES, for the undeclared-name report that runs after Check
+        '' (Check.ReportUndeclared) -- Resolve cannot make it, because a builtin that is
+        '' not a keyword binds nothing either and only a later pass can rule it out.
+        as FB.Array( of ulong ) unresolvedIds
     end type
 
     declare sub Run _

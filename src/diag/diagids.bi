@@ -424,10 +424,10 @@
     '' the 'sizeof( symbol )' the survey recorded: measured, 'print foo', 'foo = 1',
     '' 'sizeof( foo )' and 'dim as integer x = foo' are all 325.
     ''
-    '' SAFE WHERE THE GENERAL RULE IS NOT. fbc answers 42 for an UNDECLARED name and
-    '' TKO0743 was withdrawn for exactly that -- a type name reaches the checker as a
-    '' plain N_IDENT too, so "unbound" is not "undeclared". A RESERVED name carries no
-    '' such doubt: it is on a list the source itself wrote, and nothing may declare it.
+    '' SAFE WHERE THE GENERAL RULE WAS NOT. fbc answers 42 for an UNDECLARED name and
+    '' TKO0743 was withdrawn for exactly that -- "unbound" is not "undeclared" -- until
+    '' it came back as a report after Check (symbols/undeclared.bas). A RESERVED name
+    '' carries no such doubt: it is on a list the source itself wrote.
     DIAG( TKO0770, SEV_ERROR,   "'%0' is reserved by '#pragma reserve' and cannot be used" )
     '' fbc's error 24, "Invalid data types". A fixed-length string and a ustring are
     '' both accepted with '= any'; only a var-len STRING, or an array of one, is not.

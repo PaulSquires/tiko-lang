@@ -123,6 +123,15 @@ namespace Tko.Check
     '' post-check argument sweeps and lowering all ask this one list.
     declare function IsTypedIntrinsicName( byref nm as string ) as boolean
 
+    '' A NAME NOTHING DECLARED -- fbc's error 42. Run after Check, over the names Resolve
+    '' could not bind; see undeclared.bas. 'reserved' is '#pragma reserve''s list, whose
+    '' names have an error of their own.
+    declare sub ReportUndeclared _
+        ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
+          byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
+          byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
+          byref reserved as FB.Array( of ulong ) )
+
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
     '' them -- Check to TYPE 'p->v' and lowering to CALL the operator -- so they take
     '' the tables rather than a context.

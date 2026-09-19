@@ -74,3 +74,5 @@ function Dump _
             " calls resolved, " & st.callsAmbiguous & " ambiguous" & chr( 10 )
     return outp
 end function
+
+#include once "symbols/undeclared.bas"

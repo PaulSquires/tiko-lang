@@ -154,6 +154,7 @@ end function
 #include once "symbols/resolveudt.bas"
 #include once "symbols/resolvearr.bas"
 #include once "symbols/resolveintr.bas"
+#include once "symbols/resolveunbound.bas"
 
 private sub BindThis _
     ( byref c as Ctx, byval procScope as Tko.ScopeId, _
@@ -427,6 +428,7 @@ private sub WalkExpr _
             if c.st->unresolvedNames.Count < 200000 then
                 c.st->unresolvedNames.Push( cast( ulong, nm ) )
             end if
+            NoteUnbound_( c, id, scope_ )
         end if
 
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
@@ -978,8 +980,10 @@ sub WalkStmt _
                 '' WALKED, not only folded. ConstOf answers the VALUE without binding
                 '' anything, so an initialiser like 'NEXTCONST = T.MYCONST' reached
                 '' every later pass with no symbol on it at all -- and the member-access
-                '' checks, which need one, could say nothing about it.
-                WalkExpr( c, ip->b, here )
+                '' checks, which need one, could say nothing about it. IN THE ENUM'S OWN
+                '' SCOPE: an EXPLICIT enum publishes nothing outside, and 'b = a' names
+                '' its sibling -- fbc folds it, and the name went unbound (undeclared.bas).
+                WalkExpr( c, ip->b, iif( escope <> Tko.SCOPE_NONE, escope, here ) )
                 dim as Tko.Check.ConstVal ev = Tko.Check.ConstOf( _
                     *c.ast, ip->b, *c.srcMgr, *c.names, 64, c.syms, here )
                 '' An initialiser that will not fold leaves the running value alone:
