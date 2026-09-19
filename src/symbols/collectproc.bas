@@ -299,6 +299,102 @@ private function RefuseRedeclaration_ _
     return prev
 end function
 
+'' A PROCEDURE WITH '...' IS NEVER AN OVERLOAD -- fbc's error 143, "Vararg parameters are
+'' not allowed in overloaded functions", which it reports as error 4 for anything but a
+'' constructor. Measured 2026-09-18, 1.20 and 1.10.1 agreeing on twenty shapes:
+''
+''     'declare sub f cdecl overload( byval a as long, ... )', ALONE      refused, there
+''     ...a definition, a member, in a namespace, in 'extern "C"'        refused, there
+''     a variadic joining an overload set, keyword or not                refused, there
+''     a set member declared beside a variadic MEMBER                     refused, there
+''     any variadic CONSTRUCTOR -- constructors are always overloads      refused, there
+''     a variadic declared plainly, a member one alone                    accepted
+''     its definition, even written 'overload'                           accepted: a join
+''
+'' And fbc forgets the refused one: a set declared after a refused variadic OVERLOAD is
+'' not refused in turn. So a refused DECLARATION declares nothing -- the caller reads
+'' SYMBOL_NONE as that, as for the prelude. A refused DEFINITION keeps its symbol, because
+'' a body has to belong to something.
+''
+'' Asked only of a procedure that is not a redeclaration and not joining its declaration.
+'' True when refused, reported.
+private function RefuseVariadicOverload_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sp as Tko.StmtPayload ptr, byval loc as Tko.SourceLoc ) as boolean
+
+    if nm = Tko.INTERN_NONE then return false
+    if w.src = 0 then return false
+    if w.src->IsBuiltin( loc ) then return false
+    if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
+
+    '' Does a declaration take '...'? The ellipsis is a parameter marked in 'op'.
+    #macro VARIADIC_( _p_, _out_ )
+        _out_ = false
+        for vi as long = 0 to (_p_)->count - 1
+            dim as Tko.NodeId vn = cast( Tko.NodeId, w.ast->children[(_p_)->first + vi] )
+            if w.ast->Kind( vn ) = Tko.N_PARAM then
+                if StmtOf( w, vn )->op = cast( ushort, Tko.TK_ELLIPSIS ) then _out_ = true
+            end if
+        next
+    #endmacro
+
+    dim as boolean isVar
+    VARIADIC_( sp, isVar )
+    dim as boolean isCtor = (sp->op = cast( ushort, Tko.KW_CONSTRUCTOR ))
+    dim as boolean refuse = isVar andalso isCtor
+
+    if refuse = false then
+        '' The live set this would join, as ProcRedeclared_ reads it.
+        dim as long members = 0
+        dim as boolean anyVar = false
+        dim as ulong savePos = w.syms->usePos
+        w.syms->usePos = Tko.USEPOS_LATEST
+        dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
+        w.syms->usePos = savePos
+        dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
+        if hs <> 0 then
+            if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then cur = hs->altClass
+        end if
+        dim as long guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+            if s = 0 then exit while
+            if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            dim as boolean live = (s->diedAt = 0) andalso (s->parent = scope_)
+            dim as boolean hasDecl = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
+            if hasDecl then hasDecl = (w.ast->Kind( pn ) = Tko.N_PROC)
+            if w.src->IsBuiltin( s->loc ) then live = false
+            if live andalso hasDecl then
+                dim as Tko.StmtPayload ptr dp = StmtOf( w, pn )
+                '' A template in the set and the name is not judged -- see ProcRedeclared_.
+                if (dp->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
+                members += 1
+                dim as boolean dv
+                VARIADIC_( dp, dv )
+                if dv then anyVar = true
+            end if
+            cur = s->nextOverload
+        wend
+        if members = 0 then
+            '' Alone: refused only when the keyword is written on it.
+            if isVar then refuse = ((sp->extra and Tko.PF_OVERLOAD) <> 0)
+        else
+            '' Joining a set: refused when either side takes '...'.
+            refuse = isVar orelse anyVar
+        end if
+    end if
+    #undef VARIADIC_
+
+    if refuse = false then return false
+    w.duplicates += 1
+    dim as string shown = w.names->Spelling( nm )
+    if isCtor then shown = "constructor"
+    w.diags->Report( Tko.TKO0780, Tko.PointRange( loc ), shown )
+    return true
+end function
+
 '' A MEMBER'S BODY IS WRITTEN ONCE. 'sub T.m( )' twice is fbc's error 4 at the second --
 '' and so is a constructor, a destructor, a property, an 'operator let', a static
 '' member and 'sub ns.T.m( )' written twice: measured 2026-09-18 on 1.20 and 1.10.1.

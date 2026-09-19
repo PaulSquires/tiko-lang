@@ -1,0 +1,21 @@
+'' A procedure with '...' is never an overload: declared OVERLOAD even alone, joining a set,
+'' a set formed around a variadic member in either order, and any variadic constructor --
+'' 12 errors on fbc-modern 1.20 and 1.10.1 alike, on exactly these lines (2026-09-18). The
+'' last pair shows a refused declaration forgotten: line 38 is not refused in turn.
+'' redeclare-allowed.bas holds the variadic shapes fbc accepts.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/variadic-overload.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 12
+'' EXPECT-OUT: variadic-overload.bas(6,9): error TKO0780: 'varalone'
+'' EXPECT-OUT: variadic-overload.bas(7,9): error TKO0780: 'varfn'
+'' EXPECT-OUT: variadic-overload.bas(8,1): error TKO0780: 'vardef'
+'' EXPECT-OUT: variadic-overload.bas(11,13): error TKO0780: 'inside'
+'' EXPECT-OUT: variadic-overload.bas(14,13): error TKO0780: 'varextern'
+'' EXPECT-OUT: variadic-overload.bas(19,9): error TKO0780: 'varjoin'
+'' EXPECT-OUT: variadic-overload.bas(21,9): error TKO0780: 'varjoinnokw'
+'' EXPECT-OUT: variadic-overload.bas(29,13): error TKO0780: 'm1'
+'' EXPECT-OUT: variadic-overload.bas(31,13): error TKO0780: 'm2'
+'' EXPECT-OUT: variadic-overload.bas(32,13): error TKO0780: 'm3'
+'' EXPECT-OUT: variadic-overload.bas(33,13): error TKO0780: 'constructor'
+'' EXPECT-OUT: variadic-overload.bas(37,9): error TKO0780: 'varforgot'

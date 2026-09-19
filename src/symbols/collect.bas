@@ -796,7 +796,15 @@ sub WalkNode _
                 sid = RefuseRedeclaration_( w, scope_, declName, sp, w.ast->Loc( id ) )
                 redeclared = (sid <> Tko.SYMBOL_NONE)
                 if redeclared = false then
-                    sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
+                    '' '...' is never an overload; a refused DECLARATION declares nothing.
+                    dim as boolean dropIt = _
+                        RefuseVariadicOverload_( w, scope_, declName, sp, w.ast->Loc( id ) )
+                    if dropIt then dropIt = (sp->b = Tko.NODE_NONE)
+                    if dropIt then
+                        redeclared = true
+                    else
+                        sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
+                    end if
                 end if
             end if
         end if
@@ -922,6 +930,11 @@ sub WalkNode _
             if sp->b = Tko.NODE_NONE then
                 sid = RefuseRedeclaration_( w, parentScope, declName, sp, w.ast->Loc( id ) )
                 redeclared = (sid <> Tko.SYMBOL_NONE)
+                if redeclared = false then
+                    '' A constructor is always an overload, so '...' is refused outright.
+                    redeclared = RefuseVariadicOverload_( w, parentScope, declName, sp, _
+                                                          w.ast->Loc( id ) )
+                end if
                 if redeclared = false then
                     sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
                                     w.ast->Loc( id ) )

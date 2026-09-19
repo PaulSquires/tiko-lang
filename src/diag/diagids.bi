@@ -464,6 +464,10 @@
     '' of a name whose declaration sits in a NAMESPACE, however it was reached -- from
     '' inside, through a 'using', or spelled 'ns.name'.
     DIAG( TKO0779, SEV_ERROR,   "'%0' is declared in a namespace and cannot be removed with #undef" )
+    '' fbc's error 143, "Vararg parameters are not allowed in overloaded functions" --
+    '' reported as its error 4 for anything but a constructor. A procedure with '...' may
+    '' not be OVERLOAD, may not join an overload set, and no set may grow around it.
+    DIAG( TKO0780, SEV_ERROR,   "'%0' takes '...' and cannot be overloaded" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

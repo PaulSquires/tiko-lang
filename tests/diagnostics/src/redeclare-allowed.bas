@@ -122,3 +122,16 @@ namespace OkUndefNs
     declare sub inside( )
 end namespace
 #undef OkUndefNs
+
+'' '...' without OVERLOAD: declared, then defined -- the definition may even write
+'' 'overload', joining a declaration that did not -- and a variadic member alone.
+declare sub okVar cdecl( byval a as long, ... )
+sub okVar cdecl( byval a as long, ... )
+end sub
+declare sub okVarKwDef cdecl( byval a as long, ... )
+sub okVarKwDef cdecl overload( byval a as long, ... )
+end sub
+type OkVarT
+    x as long
+    declare sub m cdecl( byval a as long, ... )
+end type
