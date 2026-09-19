@@ -512,6 +512,11 @@
     DIAG( TKO0794, SEV_ERROR,   "'%0' was declared with %1 parameter(s)" )
     DIAG( TKO0795, SEV_ERROR,   "parameter %0 of '%1' does not match its declaration" )
     DIAG( TKO0796, SEV_ERROR,   "no declaration of '%0' matches this definition" )
+    '' NO fbc COUNTERPART. THREADCALL compiles, and at run time the handle is 0 and the SUB
+    '' never runs -- in fbc-modern's runtime too, which is built without libffi (measured,
+    '' lib/rt/src/thread/call.bas). Said here so the difference is not found as a thread
+    '' that never ran. Decision 0015 (D15), section 6.3.
+    DIAG( TKO0797, SEV_WARNING, "'threadcall' is not supported: '%0' will not run, and the thread handle is 0" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

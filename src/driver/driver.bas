@@ -140,7 +140,13 @@ private function DefaultOutputPath_( byref o as Tko.DriverOptions ) as string
     if len( stem ) = 0 then return ""
     '' A STATIC LIBRARY GAINS THE 'lib' PREFIX, and it goes on the BASENAME rather
     '' than the path: 'sub/thing.bas' becomes sub/libthing.a, not libsub/thing.a.
-    if o.outKind = Tko.OUT_STATICLIB then
+    ''
+    '' SO DOES A SHARED LIBRARY OFF WINDOWS. Measured: 'fbc -dll sub/dl.bas' on Linux
+    '' writes sub/libdl.so, while on Windows it writes dl.dll. An explicit -o is taken
+    '' as given in both cases -- 'fbc -dll dl.bas -x out/custom.so' writes custom.so.
+    dim as boolean prefixed = (o.outKind = Tko.OUT_STATICLIB) orelse _
+        ((o.outKind = Tko.OUT_DLL) andalso (Tko.TargetIsWindows( o.target ) = false))
+    if prefixed then
         dim as long cut = 0
         for i as long = len( stem ) to 1 step -1
             dim as string ch = mid( stem, i, 1 )
@@ -149,7 +155,7 @@ private function DefaultOutputPath_( byref o as Tko.DriverOptions ) as string
                 exit for
             end if
         next
-        return left( stem, cut ) & "lib" & mid( stem, cut + 1 ) & ".a"
+        return left( stem, cut ) & "lib" & mid( stem, cut + 1 ) & OutputSuffix_( o )
     end if
     return stem & OutputSuffix_( o )
 end function
@@ -194,6 +200,15 @@ private function AssembledLibPaths_( byref ctx as Tko.CompilerContext ) as Tko.S
         r.Push( ctx.options.defaultLibPaths[i] )
     next
     return r
+end function
+
+'' THE TOOLS, AND WHETHER TO SHOW THEM. Every build path looked them up the same way;
+'' '-v' is the one setting they all need and FindTools cannot see the options.
+private function Tools_( byref ctx as Tko.CompilerContext ) as Tko.Codegen.ToolPaths
+    dim as Tko.Codegen.ToolPaths t = _
+        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+    t.verbose = ctx.options.verbose
+    return t
 end function
 
 private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
@@ -333,13 +348,16 @@ private function BuildFromIr _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
 
     dim as Tko.Codegen.ToolPaths tools = _
-        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+        Tools_( ctx )
     if tools.found = false then
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
     '' THE OPTIMISATION LEVEL -- see ToolPaths.optLevel. The link does not need it; the
     '' compile of each module's IR is where clang optimises.
     tools.optLevel = ctx.options.optLevel
+    '' A SHARED LIBRARY'S MODULES ARE COMPILED AS PIC on ELF -- see CompileIr. The link
+    '' sets this again; the compile needs it first.
+    tools.buildDll = (ctx.options.outKind = Tko.OUT_DLL)
 
     '' THE INTERMEDIATE IS NAMED AFTER THE OBJECT, which is per-module. Naming it
     '' after the OUTPUT was the bug: two inputs producing one output raced for one
@@ -384,7 +402,7 @@ private function ArchiveAll _
       byref keep as Tko.StrVec ) as long
 
     dim as Tko.Codegen.ToolPaths tools = _
-        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+        Tools_( ctx )
     if tools.found = false then
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
@@ -410,7 +428,7 @@ private function LinkAll _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as long
 
     dim as Tko.Codegen.ToolPaths tools = _
-        Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+        Tools_( ctx )
     if tools.found = false then
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
@@ -439,8 +457,11 @@ private function LinkAll _
     '' THE IMPORT LIBRARY'S NAME FOLLOWS THE OUTPUT, not the source. Measured:
     '' 'fbc -dll thing.bas -x custom.dll' writes libcustom.dll.a. So it is built
     '' from outputPath -- directory kept, extension replaced, 'lib' on the basename.
-    if ctx.options.outKind = Tko.OUT_DLL then
-        tools.buildDll = true
+    ''
+    '' WINDOWS ONLY. An ELF shared library has no import library: the .so is what
+    '' a program links against, and fbc writes nothing beside it on Linux.
+    if ctx.options.outKind = Tko.OUT_DLL then tools.buildDll = true
+    if (ctx.options.outKind = Tko.OUT_DLL) andalso Tko.TargetIsWindows( ctx.options.target ) then
         dim as string stem = StripExt_( ctx.options.outputPath )
         dim as long cut = 0
         for i as long = len( stem ) to 1 step -1
@@ -680,7 +701,7 @@ function Run _
                 continue for
             end if
             dim as Tko.Codegen.ToolPaths rt_ = _
-                Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
+                Tools_( ctx )
             if rt_.found = false then
                 ctx.diags.ReportGlobal( Tko.TKO0109, rt_.why )
                 exit for

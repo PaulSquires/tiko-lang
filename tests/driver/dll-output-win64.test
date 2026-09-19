@@ -1,0 +1,26 @@
+'' A DLL ON THE MinGW TARGET, and its import library. '-target win64' links through
+'' clang's MinGW driver, which runs lld in its GNU-ld frontend; the lld-LINK spellings
+'' dll-output.test holds win64-msvc to ('-dll', '-implib:') made it fail with "unknown
+'' argument: -implib:libtmpdllw64.dll.a", so no win64 DLL had ever linked. fbc's line
+'' ('fbc -dll -v') is ld --dll -e DllMainCRTStartup over dllcrt2.o crtbegin.o fbrt0.o,
+'' then dlltool for the import library; clang's '-shared' is the first three and
+'' --out-implib the last.
+''
+'' A REAL LINK, against the packaged tree: -p puts tiko-rt's archives in front of the
+'' -fb directory TKO_LIBPATH names, the order the compiler gives itself. The DLL this
+'' builds was loaded -- by programs built by fbc, tiko -target win64 and tiko -target
+'' win64-msvc, through dylibload and through the import library -- when this was
+'' fixed (HANDOFF section 7); the runner cannot run it.
+'' TEST: cli
+'' ARGS: -v -target win64 -dll -p toolchains/tiko-windows/lib/win64 tests/codegen/src/export.bas -o tests/driver/tmpdllw64.dll
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-fb
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: -shared
+'' EXPECT-OUT: -Wl,--out-implib,"tests/driver/libtmpdllw64.dll.a"
+'' EXPECT-OUT: win64-fb/fbrt0.o
+'' EXPECT-NOT: -implib:
+'' EXPECT-NOT: -Xlinker -dll
+'' EXPECT-FILE: tests/driver/tmpdllw64.dll
+'' EXPECT-FILE: tests/driver/libtmpdllw64.dll.a
+'' NOT an executable.
+'' EXPECT-NO-FILE: tests/driver/tmpdllw64.exe

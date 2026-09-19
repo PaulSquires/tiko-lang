@@ -223,3 +223,19 @@ declare void fb_ArrayDestructStr(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 172 insts, 0 statements not lowered, 0 scope imbalance
+tests/mir/src/threadcall-args.bas(41,19): warning TKO0797: 'threadcall' is not supported: 'two' will not run, and the thread handle is 0
+     |
+  41 | h = threadcall two( 5 )
+     |                   ^
+tests/mir/src/threadcall-args.bas(45,22): warning TKO0797: 'threadcall' is not supported: 'arropt' will not run, and the thread handle is 0
+     |
+  45 | h = threadcall arrOpt( AnArray( ) )
+     |                      ^
+tests/mir/src/threadcall-args.bas(49,22): warning TKO0797: 'threadcall' is not supported: 'refopt' will not run, and the thread handle is 0
+     |
+  49 | h = threadcall refOpt( byval @bv )
+     |                      ^
+tests/mir/src/threadcall-args.bas(53,22): warning TKO0797: 'threadcall' is not supported: 'arrref' will not run, and the thread handle is 0
+     |
+  53 | h = threadcall arrRef( AnArray( ), byval @bv )
+     |                      ^

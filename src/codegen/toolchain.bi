@@ -58,6 +58,9 @@ namespace Tko.Codegen
         '' library that goes with it.
         as boolean buildDll
         as string  implibPath
+        '' '-v': print every tool command before running it, which '--help' has always
+        '' said '-v' does and which it did not.
+        as boolean verbose
         as boolean found
         as string why              '' when found is false
     end type

@@ -1,0 +1,16 @@
+'' A LINUX SHARED LIBRARY is fbc's measured link, not the COFF one. 'fbc -dll -v' on
+'' Linux: clang gets -fPIC, ld gets '-shared -h<basename>', and nothing is written
+'' beside the .so. This build used to hand GNU ld the COFF spellings '-Xlinker -dll'
+'' and '-implib:liblibtmpso.dll.a', and every Linux '-dll' died at the link.
+''
+'' THE LINE, NOT THE LINK. On a Windows host there is no Linux sysroot to link
+'' against, so the exit code is not asserted; '-v' echoes each tool command before
+'' it runs, and that is what is checked. The .so itself -- loaded by programs built
+'' by fbc and by tiko, through '-l' and through dylibload -- was measured under WSL
+'' (HANDOFF section 7).
+'' TEST: cli
+'' ARGS: -v -target linux-x86_64 -dll tests/codegen/src/export.bas -o tests/driver/libtmpso.so
+'' EXPECT-OUT: -fPIC
+'' EXPECT-OUT: -shared -Wl,-soname,libtmpso.so
+'' EXPECT-NOT: -implib
+'' EXPECT-NOT: -Xlinker -dll

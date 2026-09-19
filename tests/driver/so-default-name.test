@@ -1,0 +1,8 @@
+'' A LINUX SHARED LIBRARY'S DEFAULT NAME has fbc's 'lib' prefix: measured, 'fbc -dll
+'' sub/dl.bas' on Linux writes sub/libdl.so with soname libdl.so, where on Windows
+'' it writes dl.dll. The prefix goes on the basename, as it does for '-lib'. The exit
+'' code is not asserted, for the reason so-output.test gives.
+'' TEST: cli
+'' ARGS: -v -target linux-x86_64 -dll tests/driver/src/lib-dll-suffix.bas
+'' EXPECT-OUT: tests/driver/src/liblib-dll-suffix.so
+'' EXPECT-OUT: -Wl,-soname,liblib-dll-suffix.so

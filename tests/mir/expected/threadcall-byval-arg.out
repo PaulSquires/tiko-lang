@@ -53,3 +53,11 @@ declare void fb_ThreadWait(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
+tests/mir/src/threadcall-byval-arg.bas(17,18): warning TKO0797: 'threadcall' is not supported: 's3' will not run, and the thread handle is 0
+     |
+  17 | h = threadcall S3( byval @bv )
+     |                  ^
+tests/mir/src/threadcall-byval-arg.bas(19,18): warning TKO0797: 'threadcall' is not supported: 's3' will not run, and the thread handle is 0
+     |
+  19 | h = threadcall S3( @bv )
+     |                  ^

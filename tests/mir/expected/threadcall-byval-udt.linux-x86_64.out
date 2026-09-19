@@ -174,3 +174,43 @@ declare ptr fb_ThreadCall(ptr $0, i32 $1, i64 $2, i32 $3, ...)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 11 functions, 11 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance
+tests/mir/src/threadcall-byval-udt.bas(138,20): warning TKO0797: 'threadcall' is not supported: 'sone' will not run, and the thread handle is 0
+     |
+ 138 | h = threadcall sOne( o1 )
+     |                    ^
+tests/mir/src/threadcall-byval-udt.bas(139,20): warning TKO0797: 'threadcall' is not supported: 'stwo' will not run, and the thread handle is 0
+     |
+ 139 | h = threadcall sTwo( t2 )
+     |                    ^
+tests/mir/src/threadcall-byval-udt.bas(140,22): warning TKO0797: 'threadcall' is not supported: 'sthree' will not run, and the thread handle is 0
+     |
+ 140 | h = threadcall sThree( t3 )
+     |                      ^
+tests/mir/src/threadcall-byval-udt.bas(141,21): warning TKO0797: 'threadcall' is not supported: 'sdeep' will not run, and the thread handle is 0
+     |
+ 141 | h = threadcall sDeep( dd )
+     |                     ^
+tests/mir/src/threadcall-byval-udt.bas(142,21): warning TKO0797: 'threadcall' is not supported: 'sptrf' will not run, and the thread handle is 0
+     |
+ 142 | h = threadcall sPtrF( pf )
+     |                     ^
+tests/mir/src/threadcall-byval-udt.bas(143,20): warning TKO0797: 'threadcall' is not supported: 'sder' will not run, and the thread handle is 0
+     |
+ 143 | h = threadcall sDer( dv )
+     |                    ^
+tests/mir/src/threadcall-byval-udt.bas(144,23): warning TKO0797: 'threadcall' is not supported: 'soneudt' will not run, and the thread handle is 0
+     |
+ 144 | h = threadcall sOneUdt( ou )
+     |                       ^
+tests/mir/src/threadcall-byval-udt.bas(145,23): warning TKO0797: 'threadcall' is not supported: 'soneone' will not run, and the thread handle is 0
+     |
+ 145 | h = threadcall sOneOne( oo )
+     |                       ^
+tests/mir/src/threadcall-byval-udt.bas(146,19): warning TKO0797: 'threadcall' is not supported: 'szs' will not run, and the thread handle is 0
+     |
+ 146 | h = threadcall sZs( zf )
+     |                   ^
+tests/mir/src/threadcall-byval-udt.bas(147,20): warning TKO0797: 'threadcall' is not supported: 'stwo' will not run, and the thread handle is 0
+     |
+ 147 | h = threadcall sTwo( mkTwo( ) )
+     |                    ^

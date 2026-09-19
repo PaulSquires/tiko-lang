@@ -85,6 +85,16 @@ private function Q( byref s as string ) as string
     return """" & s & """"
 end function
 
+'' EVERY TOOL RUNS THROUGH HERE, so '-v' can show the command -- the whole link line
+'' included, which is the one thing a missing object (fbrt0.o was one) cannot hide
+'' from. Printed before it runs, as fbc's own '-v' does, so a tool that hangs or
+'' crashes is still named.
+private function Exec_ _
+    ( byref t as ToolPaths, byref exe as string, byref args as string ) as long
+    if t.verbose then print Q( exe ) & " " & args
+    return exec( exe, args )
+end function
+
 '' A '.rc' TO A '.res', which lld-link consumes directly -- no separate cvtres
 '' step and no object in between. fbc goes the other way, asking GoRC for a COFF
 '' object; the outcome is the same .rsrc section.
@@ -97,7 +107,7 @@ function CompileRc _
       byref resPath as string ) as long
 
     if FileExists_( t.rcExe ) = false then return -1
-    return exec( t.rcExe, "-fo " & Q( resPath ) & " " & Q( rcPath ) )
+    return Exec_( t, t.rcExe, "-fo " & Q( resPath ) & " " & Q( rcPath ) )
 end function
 
 '' 'rcs': replace members, create the archive, write an index. The index is what
@@ -116,7 +126,7 @@ function ArchiveLib _
     for i as long = 0 to objs.Count - 1
         cmd += " " & Q( objs[i] )
     next
-    return exec( t.arExe, cmd )
+    return Exec_( t, t.arExe, cmd )
 end function
 
 function CompileIr _
@@ -141,7 +151,12 @@ function CompileIr _
         "-target " & target.triple & " -Wno-override-module -c " & _
         Q( irPath ) & " -o " & Q( objPath )
     if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
-    dim as long rc = exec( t.clangExe, cmd )
+    '' -fPIC FOR AN ELF SHARED LIBRARY, as fbc passes it -- measured, 'fbc -gen llvm
+    '' -dll' on Linux hands clang '-fPIC'. clang's Linux default is PIE, which may
+    '' reach the module's own globals directly, and ld refuses that in a shared object.
+    '' COFF has no such distinction and gets nothing.
+    if t.buildDll andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
+    dim as long rc = Exec_( t, t.clangExe, cmd )
     if keepTemps = false then
         if rc = 0 then kill( irPath )
     end if
@@ -211,10 +226,42 @@ function LinkExe _
     '' rewritten into a path by MSYS -- which turned '/DLL' into 'C:/Program
     '' Files/Git/DLL' while this was being measured. tiko execs clang directly and
     '' is not subject to that, but the reproduction in a bug report would be.
+    ''
+    '' THOSE ARE COFF SPELLINGS, and GNU ld refuses them: on Linux '-dll' died with
+    '' "unrecognised option: -implib:liblibdl.dll.a". ELF takes fbc's measured line
+    '' instead -- 'fbc -dll -v': '-shared -h<name>', the soname being the output's
+    '' BASENAME ('sub/libdl.so' gets 'libdl.so'). clang's -shared also chooses the
+    '' crti.o / crtbeginS.o / crtendS.o / crtn.o that fbc names by hand.
+    ''
+    '' AND THE MinGW TARGET IS NEITHER. '-target win64' links through clang's MinGW
+    '' driver, which runs lld in its GNU-ld frontend, and that refused the lld-link
+    '' spellings above: "unknown argument: -implib:libdl.dll.a". Every win64 '-dll'
+    '' failed, which only win64-msvc's test could have caught, and it does not build
+    '' that target. fbc's own line ('fbc -dll -v'): ld --dll -e DllMainCRTStartup over
+    '' dllcrt2.o crtbegin.o fbrt0.o, then dlltool from a .def for libdl.dll.a. Here
+    '' clang's '-shared' is the --dll AND the dllcrt2.o AND the DllMainCRTStartup entry,
+    '' and --out-implib writes the import library in the same step dlltool took.
     if t.buildDll then
-        cmd += " -Xlinker -dll"
-        if len( t.implibPath ) > 0 then
-            cmd += " -Xlinker -implib:" & t.implibPath
+        if target.id = TARGET_WIN64_MSVC then
+            cmd += " -Xlinker -dll"
+            if len( t.implibPath ) > 0 then
+                cmd += " -Xlinker -implib:" & t.implibPath
+            end if
+        elseif target.objFormat = OBJ_COFF then
+            cmd += " -shared"
+            if len( t.implibPath ) > 0 then
+                cmd += " -Wl,--out-implib," & Q( t.implibPath )
+            end if
+        else
+            dim as long cut_ = 0
+            for i as long = len( outPath ) to 1 step -1
+                dim as string ch = mid( outPath, i, 1 )
+                if (ch = "/") orelse (ch = "\") then
+                    cut_ = i
+                    exit for
+                end if
+            next
+            cmd += " -shared -Wl,-soname," & mid( outPath, cut_ + 1 )
         end if
     end if
 
@@ -251,6 +298,35 @@ function LinkExe _
             cmd += " -Wl,--subsystem,windows"
         end if
     end if
+    '' fbrt0.o, THE RUNTIME'S CONSTRUCTOR, which fbc names on every gnu link and this
+    '' did not. Measured with 'fbc -v': crt2.o, crtbegin.o, then fbrt0.o, on win64 for
+    '' an EXE and a DLL alike and on Linux for an EXE; a Linux shared library takes
+    '' fbrt0pic.o. Its .ctors.65435 entry is the ONLY caller of fb_hRtInit, and so of
+    '' fb_hInit -- nothing references it by name, so no archive search would ever
+    '' pull it in, and it has to be named.
+    ''
+    '' WITHOUT IT THE RUNTIME WAS NEVER INITIALISED on win64 or Linux, and it mostly did
+    '' not show. The single-threaded locks are no-ops and the console initialises
+    '' lazily, so print worked. '-mt' is where it could not hide: on win64 the first
+    '' string lock is EnterCriticalSection on a CRITICAL_SECTION nobody initialised,
+    '' and 'print "a"' died with 0xC0000005 before printing anything -- gdb stops in
+    '' fb_StrAllocTempDescZEx, with fb_hRtInit never reached. Linux survived only
+    '' because a zeroed pthread mutex happens to be a valid one.
+    ''
+    '' FROM THE LIBRARY SEARCH, first match, like the CRT objects -B finds: it is fbc's
+    '' object and lives in lib/<target>-fb/ beside crt2.o. NOT on win64-msvc, where
+    '' tiko-rt's msvcinit.c does the same job, pulled in by /INCLUDE:tkort_msvc_init_ below.
+    if target.id <> TARGET_WIN64_MSVC then
+        dim as string rt0 = "fbrt0.o"
+        if t.buildDll andalso (target.objFormat <> OBJ_COFF) then rt0 = "fbrt0pic.o"
+        for i as long = 0 to t.libPaths.Count - 1
+            dim as string rt0Path = t.libPaths[i] & "/" & rt0
+            if FileExists_( rt0Path ) then
+                cmd += " " & Q( rt0Path )
+                exit for
+            end if
+        next
+    end if
     for i as long = 0 to objs.Count - 1
         cmd += " " & Q( objs[i] )
     next
@@ -260,9 +336,11 @@ function LinkExe _
     ''
     '' '-L a -L b -lfb' does not do what it looks like: a single '-l' resolves ONCE,
     '' from the first path that has the archive, and never consults the second. That is
-    '' fine for a complete runtime and wrong for a partial one -- tiko-rt is partial
-    '' today, its thread_sched references fb_AtomicCasLong, and only fbc's libfb defines
-    '' it. Naming both archives in order is what actually puts one behind the other.
+    '' fine for a complete runtime and wrong for a partial one. tiko-rt WAS partial --
+    '' its thread_sched referenced fb_AtomicCasLong, which only fbc's libfb defined --
+    '' and naming both archives in order is what put one behind the other. Since
+    '' decision 0015 (D15) the packaged toolchain ships no fbc libfb at all, and this
+    '' still does the right thing: a path with no libfb.a is simply not named.
     ''
     '' The '-L' entries are still emitted, because the CRT support libraries
     '' (-lmingw32, -lmingwex) have to come from the same place as crt2.o.
@@ -358,7 +436,14 @@ function LinkExe _
     '' been packaged; until now nothing named the second, so '-mt' quietly linked
     '' the single-threaded runtime and a threaded program got whichever behaviour
     '' that happened to give.
+    ''
+    '' AND THE PIC BUILD OF IT FOR AN ELF SHARED LIBRARY: libfbpic.a / libfbmtpic.a,
+    '' fbc's names and fbc's rule ('-lfbpic' on its Linux '-dll' line). The plain
+    '' archives are not position-independent and ld refuses them in a .so.
     dim as string rtName = iif( t.threadSafe, "/libfbmt.a", "/libfb.a" )
+    if t.buildDll andalso (target.objFormat <> OBJ_COFF) then
+        rtName = iif( t.threadSafe, "/libfbmtpic.a", "/libfbpic.a" )
+    end if
     for i as long = 0 to t.libPaths.Count - 1
         dim as string rtLib = t.libPaths[i] & rtName
         if FileExists_( rtLib ) then cmd += " " & Q( rtLib )
@@ -459,7 +544,7 @@ function LinkExe _
         '' are the ordinary companions of a runtime that does arithmetic and threads.
         cmd += " -lm -lpthread -ltinfo"
     end if
-    return exec( t.clangExe, cmd )
+    return Exec_( t, t.clangExe, cmd )
 end function
 
 end namespace

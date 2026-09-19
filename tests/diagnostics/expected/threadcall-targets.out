@@ -183,7 +183,31 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 14 functions, 14 blocks, 86 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7
-  skip-site src\mir\lower.bas:732 7
+  skip-site src\mir\lower.bas:819 7
+tests/diagnostics/src/threadcall-targets.bas(76,39): warning TKO0797: 'threadcall' is not supported: 'goodsub' will not run, and the thread handle is 0
+     |
+  76 | dim t1 as any ptr = threadcall goodSub( )
+     |                                       ^
+tests/diagnostics/src/threadcall-targets.bas(77,41): warning TKO0797: 'threadcall' is not supported: 'goodcdecl' will not run, and the thread handle is 0
+     |
+  77 | dim t2 as any ptr = threadcall goodCdecl( )
+     |                                         ^
+tests/diagnostics/src/threadcall-targets.bas(78,43): warning TKO0797: 'threadcall' is not supported: 'goodstdcall' will not run, and the thread handle is 0
+     |
+  78 | dim t3 as any ptr = threadcall goodStdcall( )
+     |                                           ^
+tests/diagnostics/src/threadcall-targets.bas(79,44): warning TKO0797: 'threadcall' is not supported: 'goodplainudt' will not run, and the thread handle is 0
+     |
+  79 | dim t4 as any ptr = threadcall goodPlainUdt( p )
+     |                                            ^
+tests/diagnostics/src/threadcall-targets.bas(80,41): warning TKO0797: 'threadcall' is not supported: 'goodbyref' will not run, and the thread handle is 0
+     |
+  80 | dim t5 as any ptr = threadcall goodByref( p )
+     |                                         ^
+tests/diagnostics/src/threadcall-targets.bas(81,48): warning TKO0797: 'threadcall' is not supported: 'goodstringparam' will not run, and the thread handle is 0
+     |
+  81 | dim t5b as any ptr = threadcall goodStringParam( "x" )
+     |                                                ^
 tests/diagnostics/src/threadcall-targets.bas(83,42): error TKO0749: 'threadcall' runs a SUB; 'isfunction' is not one
      |
   83 | dim t6 as any ptr = threadcall isFunction( )

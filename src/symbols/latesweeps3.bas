@@ -531,7 +531,22 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
     if sp->count < 1 then return
     dim as NodeId tcall = cast( NodeId, c.ast->children[sp->first] )
     if tcall = NODE_NONE then return
-    if c.ast->Kind( tcall ) <> N_CALL then return
+    if c.ast->Kind( tcall ) <> N_CALL then
+        '' 'threadcall NoArgs' WITHOUT PARENTHESES is the name alone, no N_CALL. It runs
+        '' no more than the other spelling does, so it gets TKO0797 too -- and only that.
+        dim as Symbol ptr bare = c.syms->SymbolAt( c.info->RefOf( tcall ) )
+        if bare = 0 then return
+        if bare->kind <> cast( ubyte, SYM_PROC ) then return
+        dim as NodeId bdecl = cast( NodeId, bare->payload )
+        if bdecl = NODE_NONE then return
+        if c.ast->Kind( bdecl ) <> N_PROC then return
+        dim as StmtPayload ptr bp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, bdecl )].data )]
+        if cast( TokenKind, bp->op ) = KW_FUNCTION then return
+        c.diags->Report( TKO0797, PointRange( c.ast->Loc( tcall ) ), _
+                         c.names->Spelling( bp->name ) )
+        return
+    end if
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, tcall )].data )]
     if lp->target = NODE_NONE then return
@@ -592,6 +607,11 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
             return
         end if
     next
+
+    '' A THREADCALL fbc ACCEPTS, and neither runtime can run: TKO0797. Only after every
+    '' error above, so a call that is refused is not also warned about.
+    c.diags->Report( TKO0797, PointRange( c.ast->Loc( tcall ) ), _
+                     c.names->Spelling( pp->name ) )
 end sub
 
 '' TWO THINGS EVERY REDIM MUST HAVE. Measured, with the accepted line beside each:

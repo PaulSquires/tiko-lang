@@ -1,0 +1,30 @@
+'' TKO0797 -- a THREADCALL fbc accepts is WARNED about, because neither runtime runs it.
+'' Measured 2026-09-19 against fbc-modern on win64 and linux-x86_64: the handle is 0 and
+'' the SUB never runs, since its thread_call.o is built with DISABLE_FFI. tiko-rt's
+'' fb_ThreadCall (lib/rt/src/thread/call.bas) returns the same 0. Decision 0015 (D15),
+'' section 6.3.
+''
+'' It is still ACCEPTED (exit 0), as fbc accepts it: a warning keeps D4's accept/reject
+'' identical. All three spellings are warned: statement, expression, and the bare name
+'' with no parentheses. A THREADCALL that is refused (TKO0749/TKO0750) is not ALSO
+'' warned about -- tests/diagnostics/threadcall-targets.test holds that half.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: warning TKO0797: 'threadcall' is not supported: 'stmtsub' will not run, and the thread handle is 0
+'' EXPECT-OUT: warning TKO0797: 'threadcall' is not supported: 'exprsub' will not run, and the thread handle is 0
+'' EXPECT-OUT: warning TKO0797: 'threadcall' is not supported: 'baresub' will not run, and the thread handle is 0
+'' EXPECT-NOT: error TKO
+
+sub StmtSub( byval n as long )
+end sub
+sub ExprSub( byval s as string )
+end sub
+sub BareSub( )
+end sub
+
+threadcall StmtSub( 1 )
+dim as any ptr t = threadcall ExprSub( "x" )
+dim as any ptr u = threadcall BareSub
+threadwait t
+threadwait u

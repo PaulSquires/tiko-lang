@@ -115,3 +115,23 @@ declare void fb_ThreadWait(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 70 insts, 0 statements not lowered, 0 scope imbalance
+tests/mir/src/threadcall.bas(25,32): warning TKO0797: 'threadcall' is not supported: 'noargs' will not run, and the thread handle is 0
+     |
+  25 | dim as any ptr t1 = threadcall NoArgs
+     |                                ^
+tests/mir/src/threadcall.bas(27,36): warning TKO0797: 'threadcall' is not supported: 'scal' will not run, and the thread handle is 0
+     |
+  27 | dim as any ptr t2 = threadcall Scal( iv, 2.5, 3 )
+     |                                    ^
+tests/mir/src/threadcall.bas(29,39): warning TKO0797: 'threadcall' is not supported: 'withstr' will not run, and the thread handle is 0
+     |
+  29 | dim as any ptr t3 = threadcall WithStr( sv )
+     |                                       ^
+tests/mir/src/threadcall.bas(30,40): warning TKO0797: 'threadcall' is not supported: 'byrefint' will not run, and the thread handle is 0
+     |
+  30 | dim as any ptr t4 = threadcall ByRefInt( iv )
+     |                                        ^
+tests/mir/src/threadcall.bas(31,12): warning TKO0797: 'threadcall' is not supported: 'noargs' will not run, and the thread handle is 0
+     |
+  31 | threadcall NoArgs
+     |            ^
