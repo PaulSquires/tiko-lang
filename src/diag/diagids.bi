@@ -55,6 +55,18 @@
     DIAG( TKO0108, SEV_ERROR,   "'%0' is a Windows resource script; the target is not Windows" )
     DIAG( TKO0109, SEV_ERROR,   "no resource compiler: %0" )
     DIAG( TKO0110, SEV_ERROR,   "compiling resource '%0' failed (exit %1)" )
+    '' THE TOOLCHAIN'S FAILURES. These were printed straight to stderr as 'tiko: ...'
+    '' lines, outside the engine, so nothing that reads diagnostics -- an editor's
+    '' --diagnostics-file above all -- ever saw a build fail at clang or at the link.
+    '' They are location-less, and the driver still exits with the TOOL's code (3 or
+    '' 5), not EXIT_USER_ERROR: see ToolFail_ in driver.bas.
+    DIAG( TKO0111, SEV_ERROR,   "no usable toolchain: %0" )
+    DIAG( TKO0112, SEV_ERROR,   "cannot write intermediate file '%0'" )
+    DIAG( TKO0113, SEV_ERROR,   "clang failed on '%0' (exit %1)" )
+    DIAG( TKO0114, SEV_ERROR,   "'%0' is a %1 object, but target triple '%2' links the other format" )
+    DIAG( TKO0115, SEV_ERROR,   "archiving failed (exit %0)" )
+    DIAG( TKO0116, SEV_ERROR,   "link failed (exit %0)" )
+    DIAG( TKO0117, SEV_ERROR,   "cannot write the diagnostics file '%0'" )
 
     '' --------------------------------------------------------------------- lexer
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )
@@ -484,6 +496,9 @@
     DIAG( TKO0990, SEV_ERROR,   "too many errors; stopping" )
     DIAG( TKO0991, SEV_ERROR,   "input exceeds a compiler limit: %0" )
     DIAG( TKO0992, SEV_ERROR,   "not implemented in this build: %0" )
+    '' An emission failure: the compiler could not emit something it accepted. It was
+    '' 'emit: ICE: ...' on STDOUT -- where under --emit-ir it landed inside the .ll.
+    DIAG( TKO0993, SEV_ERROR,   "internal compiler error in emission: %0" )
 
 #endmacro
 

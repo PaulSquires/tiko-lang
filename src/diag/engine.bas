@@ -2,6 +2,7 @@
 
 #include once "diag/engine.bi"
 #include once "diag/render.bi"
+#include once "diag/machine.bi"
 #include once "support/platform.bi"
 
 namespace Tko
@@ -26,6 +27,8 @@ constructor DiagnosticEngine( )
     this.capReported = false
     this.colorMode = COLOR_AUTO
     this.outputFormat = DIAGFMT_FBC
+    this.machineOn = false
+    this.machineRecs = ""
 
     InitDiagTable( )
     this.policy.Reserve( DIAG_COUNT )
@@ -68,6 +71,14 @@ end sub
 sub DiagnosticEngine.SetFormat( byval f as DiagOutputFormat )
     this.outputFormat = f
 end sub
+
+sub DiagnosticEngine.EnableMachine( )
+    this.machineOn = true
+end sub
+
+function DiagnosticEngine.MachineText( ) as string
+    return this.machineRecs
+end function
 
 function DiagnosticEngine.UseColor( ) as boolean
     select case this.colorMode
@@ -185,6 +196,7 @@ sub DiagnosticEngine.Flush( )
         else
             print rendered;                 '' stderr unavailable: better stdout than nothing
         end if
+        if this.machineOn then this.machineRecs += Tko.Machine.Records( d, *this.sources )
     next
 
     this.pending.Clear( )

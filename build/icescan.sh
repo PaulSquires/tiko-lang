@@ -80,8 +80,14 @@ xargs -a build/.icecorpus.lst -d '
     # that still had real codegen faults in it; build/runscan.sh found them by
     # BUILDING the same files and is what exposed the hole. "error TKO" is excluded
     # on purpose: a frontend diagnostic is mirsweep material, not this census.
-    grep -iE "ICE:|clang: error|lld[^:]*: error|internal compiler|: error: |tiko: clang failed|tiko: link failed" "$raw" \
-    | grep -v "error TKO" \
+    #
+    # EXCEPT THE TOOLCHAIN OWN IDS. The emission ICE and the clang/link failures
+    # were "emit: ICE:" and "tiko: clang failed" lines; they are TKO0993 and
+    # TKO0111-0116 diagnostics now, and the exclusion above would drop every one of
+    # them -- a census of zero that looks like a clean corpus. They are put back.
+    { grep -iE "ICE:|clang: error|lld[^:]*: error|internal compiler|: error: " "$raw" \
+        | grep -v "error TKO"
+      grep -E "error TKO(0993|011[1-6])" "$raw"; } \
         | sed "s|^|$tag $1: |" > "build/.iceparts/$key" || true
     rm -f "$raw" "$out"
 ' _ {}

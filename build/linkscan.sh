@@ -98,12 +98,15 @@ xargs -a build/.linkcorpus.lst -d '
     if grep -qiE "ICE:|clang: error: linker command|internal compiler" "$raw" ; then
         : # fall through -- the linker line is the interesting half, see below
     fi
-    if grep -qE "error TKO" "$raw" ; then
+    # A FRONTEND error, that is -- not the ids of the toolchain. A failed link is
+    # TKO0116 now, and it is exactly what this scan is for; TKO0993 (the emission
+    # ICE, once "emit: ICE:") belongs to icescan and is skipped just below.
+    if grep -E "error TKO" "$raw" | grep -qvE "error TKO(0993|011[1-6])" ; then
         : > "build/.linkparts/$key"
         rm -f "$raw" "$exe"
         exit 0
     fi
-    if grep -qiE "^emit: ICE:" "$raw" ; then
+    if grep -qE "error TKO0993" "$raw" ; then
         : > "build/.linkparts/$key"
         rm -f "$raw" "$exe"
         exit 0
