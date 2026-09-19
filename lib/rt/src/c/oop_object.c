@@ -1,22 +1,22 @@
-/* msvcobject.c -- fb_Object$'s default constructor and its RTTI record.
+/* oop_object.c -- fb_Object$'s default constructor and its RTTI record.
 **
-** NOT NAMED oop_object.c, AND THAT IS LOAD-BEARING. build/gate.sh merges
-** tiko-rt's objects into fbc's archive BY MEMBER NAME, so a file called
-** oop_object.c produces oop_object.o and REPLACES fbc's member of that name.
-** On the gnu targets this file is empty, so that replacement deleted
-** _ZN10fb_Object$C1Ev from the merged archive and the win64 gate stopped
-** building fbcunit. Measured: `llvm-nm` on obj/gate/win64/lib/libfb.a showed
-** oop_object.o carrying nothing but @feat.00 and the constructor gone.
+** ON EVERY TARGET since 2026-09-19 (decision 0015, D15). Until then this file
+** was msvcobject.c and EMPTY on the gnu targets, where fbc's own oop_object.o
+** supplied both symbols from the lib/<target>-fb/ archive linked behind
+** tiko-rt's. Retiring fbc's libfb from that directory needs them here too.
 **
-** The first version of this comment worried about the opposite -- TWO
-** definitions reaching the merged archive. The real hazard was ZERO.
+** THE NAME IS NOW fbc's MEMBER NAME, deliberately. build/gate.sh deletes every
+** fbc member that defines a symbol tiko-rt also defines and then adds ours, so
+** fbc's oop_object.o goes on either name -- and this one says what it replaces.
+** It defines exactly what fbc's does, measured with llvm-nm over
+** lib/win64-fb/libfb.a: _ZN10fb_Object$C1Ev (T), __fb_ZTS6Object (D) and the
+** local Object_VT (d).
 **
-** EMPTY EXCEPT ON THE MICROSOFT ABI, exactly like msvcinit.c.  On the gnu
-** targets fbc's own oop_object.o supplies both symbols and the gate links it;
-** defining them here as well would put two definitions of _ZN10fb_Object$C1Ev
-** into the merged archive and trip build.sh's one-symbol-one-member check.
-** Under MSVC there is no fbc archive to borrow from, and that is the whole
-** reason this file exists.
+** THE NAME WAS ONCE LOAD-BEARING THE OTHER WAY. While this file was empty on
+** the gnu targets, an object called oop_object.o would have REPLACED fbc's
+** member by name with an empty one; the gate did exactly that, deleted
+** _ZN10fb_Object$C1Ev from the merged archive, and stopped building fbcunit.
+** That hazard needed the file to be empty somewhere, and it no longer is.
 **
 ** HOW IT WAS FOUND.  build/gatemsvc.sh built all 728 linkable modules of fbc's
 ** own suite for x86_64-pc-windows-msvc and the link came up three symbols
@@ -55,8 +55,6 @@
 ** DLLs each carry their own copy of the record.
 */
 
-#ifdef TKORT_MSVC
-
 /* The two shapes, from src/inc/oop.bi.  Pointers only, so nothing here is
 ** target-dependent. */
 typedef struct _tkort_rtti {
@@ -86,12 +84,3 @@ void tkort_ObjectCtor( void *this_ )
 	*(void **)this_ = (void *)( (char *)&Object_VT + sizeof( tkort_basevt ) );
 }
 
-#else
-
-/* Deliberately empty. See the header: fbc's own oop_object.o supplies both
-** symbols on the gnu targets. A TYPEDEF and not a static, matching
-** src/c/msvcinit.c -- an unreferenced static draws -Wunused-const-variable and
-** the build is meant to be warning-free. */
-typedef int tkort_oop_object_not_used_here_;
-
-#endif

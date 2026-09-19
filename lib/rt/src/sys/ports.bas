@@ -1,7 +1,11 @@
 '' ports.bas -- fb_hIn and fb_hOut, the INP and OUT statements' back end. Two
-'' symbols, one fbc member (win32/sys_portio.o) -- and ONLY on win64.
+'' symbols, one fbc member (win32/sys_portio.o on win64, unix/sys_portio.o on
+'' linux-x86_64).
 ''
-'' EMPTY-ON: linux-x86_64
+'' LINUX SINCE 2026-09-19 (decision 0015, D15). Until then this file was empty
+'' there and fbc's own member came from lib/linux-x86_64-fb/. The permission
+'' check is here; the two instructions are src/c/portinsn.c -- the measurement
+'' below, that -gen llvm cannot emit them, still stands.
 ''
 '' NAMED ports.bas RATHER THAN portio.bas ON PURPOSE. The build flattens
 '' src/sys/portio.bas to sys_portio.o, which is fbc's OWN member name, and
@@ -84,6 +88,43 @@ end function
 function tkort_hOut alias "fb_hOut" _
 	( byval port as ushort, byval value_ as ubyte ) as long
 	return tkrt_ErrorSetNum4( FB_RTERROR_ILLEGALFUNCTIONCALL )
+end function
+
+end extern
+
+#else
+
+'' LINUX. fbc's unix/sys_portio.c, read for its contract (reading is permitted --
+'' lib/rt/PROVENANCE.md): no permission is NOPRIVILEGES, negated for fb_hIn for
+'' the reason given above; with it, the instruction and FB_RTERROR_OK. has_perm
+'' is set once, in fb_hInit, from ioperm( 0, &h400, 1 ) -- so it is FALSE for any
+'' process that is not root, which is the usual case.
+
+#include once "inc/console.bi"
+
+extern "rtlib"   '' FBCALL.
+	declare function tkrt_ErrorSetNum4 alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: src/c/portinsn.c, and fb_system.h's two below.
+
+declare function tkort_inb( byval port as ushort ) as ubyte
+declare sub tkort_outb( byval port as ushort, byval value_ as ubyte )
+
+function tkort_hIn alias "fb_hIn" ( byval port as ushort ) as long
+	if( TKORT_CON_L( TKORT_CON_HASPERM ) = 0 ) then
+		return -tkrt_ErrorSetNum4( FB_RTERROR_NOPRIVILEGES )
+	end if
+	return tkort_inb( port )
+end function
+
+function tkort_hOut alias "fb_hOut" _
+	( byval port as ushort, byval value_ as ubyte ) as long
+	if( TKORT_CON_L( TKORT_CON_HASPERM ) = 0 ) then
+		return tkrt_ErrorSetNum4( FB_RTERROR_NOPRIVILEGES )
+	end if
+	tkort_outb( port, value_ )
+	return FB_RTERROR_OK
 end function
 
 end extern

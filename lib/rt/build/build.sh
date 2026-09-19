@@ -9,6 +9,21 @@
 #
 # Produces  lib/<target>/libfb.a   (single-threaded)
 #           lib/<target>/libfbmt.a (ENABLE_MT)
+# and on linux-x86_64 also
+#           lib/<target>/libfbpic.a, libfbmtpic.a   (the same, position-independent)
+#
+# THE PIC PAIR IS WHAT A LINUX SHARED LIBRARY LINKS. fbc ships both and names them
+# on its '-dll' line ('-lfbpic', measured with 'fbc -dll -v'), and tiko's driver
+# names them the same way. fbc's -pic makes its -gen llvm clang call add -fPIC --
+# measured with -v, it does reach clang here.
+#
+# TODAY THE PAIR IS BYTE-IDENTICAL TO THE PLAIN ONE, measured 2026-09-19 with cmp:
+# the Linux clang this builds with already emits position-independent code by
+# default. The only absolute relocations in either archive are R_X86_64_32 entries
+# in the C objects' .debug_* sections, which ld accepts in a .so. The pair exists so
+# that a clang whose default is not PIC cannot turn every '-dll' into a relocation
+# error -- the flag is the guarantee, the identity is an accident of this clang.
+# Windows needs no such variant: COFF has no PIC/non-PIC distinction here.
 #
 # Both come from ONE source tree, distinguished by -d ENABLE_MT, exactly as the
 # C runtime's two builds do.
@@ -35,10 +50,13 @@ SOURCES=$(rt_sources)
 
 build_one( ) {
     target=$1
-    thread=$2                       # st | mt
+    thread=$2                       # st | mt | stpic | mtpic
+    picdef=""; cpic=""
     case $thread in
-        st) archive=libfb.a;   mtdef="" ;;
-        mt) archive=libfbmt.a; mtdef="-d ENABLE_MT" ;;
+        st)    archive=libfb.a;      mtdef="" ;;
+        mt)    archive=libfbmt.a;    mtdef="-d ENABLE_MT" ;;
+        stpic) archive=libfbpic.a;   mtdef="";             picdef="-pic"; cpic="-fPIC" ;;
+        mtpic) archive=libfbmtpic.a; mtdef="-d ENABLE_MT"; picdef="-pic"; cpic="-fPIC" ;;
     esac
 
     objdir="$RT_ROOT/obj/$target/$CFG/$thread"
@@ -123,7 +141,7 @@ build_one( ) {
                 rt_die "$target/$thread: $src failed to assemble for $__ct"
             fi
             rm -f "$__ll"
-        elif ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                 -target "$target" -gen llvm $(rt_incflags)                 $FLAGS $mtdef -o "$obj"; then
+        elif ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                 -target "$target" -gen llvm $(rt_incflags)                 $FLAGS $mtdef $picdef -o "$obj"; then
             rt_die "$target/$thread: $src failed to compile"
         fi
         [ -f "$obj" ] || rt_die "$target/$thread: $src produced no object"
@@ -236,7 +254,7 @@ build_one( ) {
         # triple only by accident of which headers it reaches for.
         cabi=""
         case "$target" in *-msvc) cabi="-D TKORT_MSVC" ;; esac
-        if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra $cabi \
+        if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra $cabi $cpic \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
         fi
@@ -300,5 +318,9 @@ echo "build: tiko-rt [$CFG] with $TKORT_FBC"
 for target in $TARGETS; do
     build_one "$target" st
     build_one "$target" mt
+    case $target in
+        linux-*) build_one "$target" stpic
+                 build_one "$target" mtpic ;;
+    esac
 done
 echo "build: ok"

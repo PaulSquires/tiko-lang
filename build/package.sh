@@ -26,12 +26,12 @@
 #            wherever TKO_CLANG points. Bundling LLVM is a gigabyte and a separate
 #            decision, so a packaged toolchain depends on an installed one.
 #
-#   libfb    tiko-rt is PARTIAL. Its thread layer references fb_AtomicCasLong,
-#            which only fbc's libfb defines, so a link needs both archives named
-#            in order -- see LinkExe: a single -l resolves once, from the first
-#            path that has the archive, which is why each library path's libfb.a
-#            is named as a file. Hence two directories per target, and hence fbc's
-#            runtime is redistributed alongside ours.
+#   fbc's    lib/<target>-fb/ still carries fbc's CRT objects, libfbgfx and the
+#   CRT      third-party archives (MinGW, gcc's runtime, libffi) behind ours. It no
+#            longer carries fbc's libfb: decision 0015 (D15) retired it, and
+#            tiko-rt defines every symbol a tiko-built program reaches -- see
+#            lib/rt/src/c/README.md. LinkExe names each path's libfb.a as a file
+#            only when it is there, so the directory needs nothing in its place.
 #
 # Neither is a packaging bug. Both are written into MANIFEST.txt so that a
 # toolchain cannot be passed on with them invisible.
@@ -103,8 +103,8 @@ esac
 # target that needs nothing behind it. That is measured, 2026-09-06: a program
 # built for win64-msvc against lib/win64-msvc alone -- no fbc directory, none to
 # have -- linked and ran. tiko-rt's MSVC archive carries no MinGW imports
-# (build/abidelta.sh, and gatemsvc.sh at 3,922,073 assertions), where win64 still
-# needs fbc's libfb behind it for fb_AtomicCasLong.
+# (build/abidelta.sh, and gatemsvc.sh at 3,922,073 assertions). win64 needed fbc's
+# libfb behind it until decision 0015 (D15); now it needs only fbc's CRT behind it.
 #
 # win64 is still shipped and still selected with -target win64. It is the MinGW
 # ABI, it is what fbc's own libraries are built for, and it has no graphics.
@@ -239,7 +239,8 @@ fi
 # matters:
 #
 #   lib/<target>/      ours   -- tiko-rt's libfb.a and libfbmt.a
-#   lib/<target>-fb/   fbc's  -- its libfb.a, the CRT objects, the import libraries
+#   lib/<target>-fb/   fbc's  -- the CRT objects, the import libraries; NOT its
+#                                libfb, which is deleted after the copy (D15)
 #
 # A link names both, ours first, so what tiko-rt defines wins and what it does not
 # yet define still resolves. -B points at each of them too, and it is fbc's
@@ -277,6 +278,11 @@ for t in $TARGETS; do
     mkdir -p "$OUT/lib/$t"
     cp -f "$ROOT/lib/rt/lib/$t/libfb.a"   "$OUT/lib/$t/"
     cp -f "$ROOT/lib/rt/lib/$t/libfbmt.a" "$OUT/lib/$t/"
+    # THE PIC PAIR, where the runtime builds one (linux-x86_64): what a Linux '-dll'
+    # links, as fbc's own '-lfbpic' does. lib/rt/build/build.sh says why.
+    for _pic in libfbpic.a libfbmtpic.a; do
+        [ -f "$ROOT/lib/rt/lib/$t/$_pic" ] && cp -f "$ROOT/lib/rt/lib/$t/$_pic" "$OUT/lib/$t/"
+    done
 
     # THE GRAPHICS LIBRARY GOES BESIDE THE RUNTIME, in lib/<target>/ and not a
     # directory of its own, because that is where the compiler looks: since
@@ -317,9 +323,17 @@ for t in $TARGETS; do
     # "links will not resolve" warning would be crying wolf on the one target where
     # the absence is correct.
     if [ -d "$FBLIB/$t" ]; then
-        note "reference runtime -> lib/$t-fb/  (fbc's libfb, CRT, import libraries)"
+        note "reference libraries -> lib/$t-fb/  (fbc's CRT, import libraries; not its libfb)"
         rm -rf "$OUT/lib/$t-fb"
         cp -r "$FBLIB/$t" "$OUT/lib/$t-fb"
+        # fbc's RUNTIME IS NOT SHIPPED (decision 0015, D15). tiko-rt defines every
+        # symbol it used to supply -- lib/rt/src/c/README.md has the list and what
+        # replaced each -- and LinkExe names a path's libfb.a only when it exists,
+        # so deleting these is the whole of the change. The -pic variants are the
+        # same library; the compiler has never named them.
+        for _rt in libfb.a libfbmt.a libfbpic.a libfbmtpic.a; do
+            rm -f "$OUT/lib/$t-fb/$_rt"
+        done
     elif [ "$t" = "win64-msvc" ]; then
         note "no lib/$t-fb: fbc has no MSVC target, and this one links without it"
     else
@@ -363,6 +377,10 @@ fi
 # permitted and carrying obligations rather than prohibitions -- so the notices
 # ship with the toolchain instead of being something to remember at release time.
 mkdir -p "$OUT/licences"
+cp -f "$ROOT/LICENSE"              "$OUT/licences/LICENSE-tiko"
+cp -f "$ROOT/COPYING"              "$OUT/licences/COPYING-tiko"
+cp -f "$ROOT/COPYING.LGPL-2.1"     "$OUT/licences/COPYING.LGPL-2.1-tiko"
+cp -f "$ROOT/lib/gfx/LICENSE"      "$OUT/licences/LICENSE-libtkogfx"
 cp -f "$ROOT/lib/rt/LICENSE"       "$OUT/licences/LICENSE-tiko-rt"
 cp -f "$ROOT/lib/rt/PROVENANCE.md" "$OUT/licences/PROVENANCE-tiko-rt.md"
 for f in COPYING.LGPL-2.1 COPYING.GPL-2.0 LICENSE; do
@@ -481,9 +499,10 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"
     say "                  where there is one -- the compiler looks for all"
     say "                  three in the same directory."
-    say "lib/<target>-fb/  fbc's runtime, the CRT objects and the import"
-    say "                  libraries, behind ours. Absent for win64-msvc:"
-    say "                  fbc has no MSVC target and that one links without."
+    say "lib/<target>-fb/  fbc's CRT objects and import libraries, behind"
+    say "                  ours -- NOT fbc's libfb, which tiko no longer needs"
+    say "                  (decision 0015). Absent for win64-msvc: fbc has no"
+    say "                  MSVC target and that one links without."
     say
     say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
     say "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
@@ -505,12 +524,12 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "lib/<target>/ then lib/<target>-fb/ to the library search on its own,"
     say "all relative to the executable, as fbc does with inc/ and lib/<target>."
     say
-    say "The -fb half has no fbc counterpart and is ours: tiko-rt is partial on"
-    say "win64, its thread layer references fb_AtomicCasLong, and only fbc's"
-    say "libfb defines that. OURS COMES FIRST -- a single -l resolves once, from"
-    say "the first path holding the archive -- and that order is fixed in the"
-    say "compiler, not left to the caller. win64-msvc needs no second directory"
-    say "at all; it was measured linking against ours alone."
+    say "The -fb half has no fbc counterpart and is ours. It holds what a MinGW"
+    say "or glibc link needs from fbc's toolchain -- crt2.o and friends, which"
+    say "must match that toolchain -- and no runtime: tiko-rt is complete, and"
+    say "the compiler names a directory's libfb.a only where there is one."
+    say "OURS COMES FIRST, and that order is fixed in the compiler, not left to"
+    say "the caller. win64-msvc needs no second directory at all."
     say
     say "  tiko yourprogram.bas                  the default, win64-msvc"
     for t in $TARGETS; do
@@ -525,9 +544,11 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."
     say
     say "-- licences ------------------------------------------------------------"
-    say "licences/ holds the runtime's LGPL-2.1 notice and its provenance, and"
-    say "FreeBASIC's own. This tree redistributes binaries built from LGPL"
-    say "sources; distributing it carries the source-offer obligation."
+    say "licences/ holds tiko's own notices -- the compiler under GPL-2.0+, and"
+    say "tiko-rt and libtkogfx under LGPL-2.1+ with the static-linking"
+    say "exception -- with tiko-rt's provenance, and FreeBASIC's own. This tree"
+    say "redistributes binaries built from LGPL sources; distributing it"
+    say "carries the source-offer obligation."
 } > "$OUT/MANIFEST.txt"
 
 note "manifest -> MANIFEST.txt"

@@ -16,7 +16,8 @@ reason -- see the second table.**
 | `msvccrtexe.c` | `mainCRTStartup`, the entry point of an EXECUTABLE, and a translation unit of its own. An archive member is pulled in only to satisfy an undefined symbol, so keeping this out of `msvccrt.c` is what stops a DLL from dragging in a reference to `main`, which a DLL has not got. It runs the `.CRT$XI*` and `.CRT$XC*` initialiser ranges, calls `main`, and exits through the UCRT's `exit` so the `_crt_atexit` handlers run and stdio is flushed. It also registers the walk of the `.CRT$XT*` TERMINATOR range: LLVM lowers `@llvm.global_dtors` into `.CRT$XTX` on this target and the real MSVC CRT walks that range inside `exit`, which the UCRT's `exit` does not do for our fragments -- so without it a module destructor was emitted correctly and never called. |
 | `msvccrtdll.c` | `_DllMainCRTStartup`, the entry point of a DLL, split out for the same reason and with the same rule: a DLL link must not pull in the executable entry point or its reference to `main`. |
 | `atomic.c` | FreeBASIC has no atomic operations and no way to spell a memory barrier, so there is nothing to reimplement in FB. tiko-rt's own, written against the three signatures in `fb_thread.h`; clang builtins throughout, so the MinGW and MSVC builds of it are textually identical. |
-| `msvcobject.c` | `fb_Object$`'s default constructor and its RTTI record, and MSVC-only -- empty on the gnu targets, where fbc's own `oop_object.o` supplies both and the gate links it. Under MSVC there is no fbc archive to borrow from. **fbc RESERVES `__fb_ZTS6Object`**: every module it compiles gets an automatic `external global` declaration of it, so a FreeBASIC file defining it emits the name twice and clang refuses the module -- the reason recorded below, re-measured 2026-09-05. The layout was taken from fbc's own object with `llvm-objdump`, not from its sources: RTTI `{ NULL, "6OBJECT", NULL }`, a local vtable `{ NULL, &RTTI }`, and a constructor storing the vtable **plus `sizeof(header)`**, which is the bias `src/oop/istypeof.bas` subtracts back. Found by `build/gatemsvc.sh`: 728 modules of fbc's suite linked three symbols short. **NOT named `oop_object.c`:** `build/gate.sh` merges by member NAME, so that name would replace fbc's own `oop_object.o` with this file's empty gnu-side build and delete the constructor from the merged archive. It did, and the win64 gate stopped building fbcunit until this was renamed. |
+| `oop_object.c` | `fb_Object$`'s default constructor and its RTTI record, on EVERY target since 2026-09-19 (decision 0015, D15). It was `msvcobject.c`, and MSVC-only: empty on the gnu targets, where fbc's own `oop_object.o` supplied both from `lib/<target>-fb/`, and retiring fbc's libfb from there is what moved them here. **fbc RESERVES `__fb_ZTS6Object`**: every module it compiles gets an automatic `external global` declaration of it, so a FreeBASIC file defining it emits the name twice and clang refuses the module -- the reason it is C, re-measured 2026-09-05. The layout was taken from fbc's own object with `llvm-objdump`, not from its sources: RTTI `{ NULL, "6OBJECT", NULL }`, a local vtable `{ NULL, &RTTI }`, and a constructor storing the vtable **plus `sizeof(header)`**, which is the bias `src/oop/istypeof.bas` subtracts back. Found by `build/gatemsvc.sh`: 728 modules of fbc's suite linked three symbols short. **The name is fbc's member name now, deliberately**; while the file was empty on the gnu targets that name replaced fbc's `oop_object.o` with an empty object in the gate's merge and deleted the constructor, which is why it was renamed then and is not a hazard any more. |
+| `portinsn.c` | The x86 `inb` and `outb` instructions, linux-x86_64 only, since 2026-09-19 (decision 0015, D15). `src/sys/ports.bas` is `fb_hIn`/`fb_hOut` and keeps the permission check in FreeBASIC; `-gen llvm` rejects inline ASM (measured, recorded in ports.bas) and no API performs port I/O, so the two instructions are all that is here. This is the first table's predicted `sys_portio.c`, not named that because the logic is not here. Needed because `src/io/hookkey.bas` refers to both from the same object as INKEY, GETKEY and WAIT, and fbc's `sys_portio.o` is no longer linked behind tiko-rt. |
 
 **Predicted:** The spike slice (memory, strings, error, startup) needs
 nothing from it. The entries expected later, each already justified in RFC-0003:
@@ -30,37 +31,39 @@ nothing from it. The entries expected later, each already justified in RFC-0003:
 
 ---
 
-## What is actually still fbc's, measured 2026-09-05
+## What is actually still fbc's, measured 2026-09-19
 
-`build/gate.sh` merges 199 tiko-rt objects over fbc's archive and reports **528 of
-534 members replaced**. The six that survive are these, and none of them is on the
-predicted list above -- every predicted entry was ported to FreeBASIC instead
-(`init/hinitwin.bas`, `sys/ports.bas`).
+`build/gate.sh` now reports **533 of 534 fbc members replaced** on win64 and 531 on
+linux-x86_64. fbc's suite is identical to baseline on both: the same 11 `threadcall` failures.
 
-| File | Lines | Why it stays C |
-| --- | ---: | --- |
-| `atomic.c` | 84 | **FreeBASIC has no atomics.** The file says so itself: these three are the smallest primitive set a refcount needs, and `docs/concurrency/RFC-0002-atomics.md` -- `FB.Atomic( of T )` -- is still a draft that needs all four backends changed. |
-| `oop_object.c` | 12 | **fbc RESERVES `__fb_ZTS6Object`.** Measured: a module defining it through the ordinary two-part `extern ... alias` + `dim shared` idiom emits the symbol TWICE -- once as fbc's own `@__fb_ZTS6Object = external global %"8fb_RTTI$"`, which the compiler writes for the built-in `Object` type, and once as the definition. clang refuses the module. The same idiom with any other name emits exactly one, so this is specific to the reserved symbol and not a limitation of the idiom. |
-| `oop_object_copyctor.c` | 10 | Two lines that call `oop_object.c`'s constructor. Portable in principle; kept beside the thing it cannot be separated from. |
-| `oop_istypeof.c` | 21 | As above -- portable in principle, and moved only when the pair above can be. |
-| `profile_cycles.c` | 349 | `__attribute__((section("fb_profilecycledata")))` with `__start_`/`__stop_` range symbols. FreeBASIC cannot place a variable in a named section, and on the MSVC ABI the mechanism does not exist at all -- RFC-0006 section 3.2. **And it is unreachable here anyway:** the records it collects come from COMPILED CODE, the LLVM backend emits none, and tiko has no -profile option in any spelling. RFC-0006 section 14. |
-| `thread_call.c` | 241 | **libffi.** An external dependency, prebuilt for MinGW, and the source of the 11 known `threadcall` gate failures on every target. |
+**On win64-msvc, nothing.** It has no `lib/<target>-fb/` directory and links tiko-rt alone.
 
-**`oop_object_copyctor.c` and `oop_istypeof.c` were on this list and are not any
-more.** Neither DEFINES the reserved symbol -- one calls the constructor and the
-other only reads RTTI through it -- so both are ordinary FreeBASIC modules now,
-`src/oop/object_copyctor.bas` and `src/oop/istypeof.bas`. Being next to something
-that cannot move was not a reason for them not to.
+**On win64 and linux-x86_64, nothing from `libfb` either, once decision 0015 (D15) is packaged.**
+`llvm-nm` over the packaged archives found only the following symbols that fbc's `libfb.a` defines
+and tiko-rt's did not. They are why fbc's `libfb.a` and `libfbmt.a` were still linked behind
+tiko-rt:
 
-So the list does not shrink to zero. It shrinks to **one hard case** (`atomic.c`,
-until RFC-0002 lands), **one reserved symbol** (`oop_object.c`, which is fbc's to
-give up), **one section mechanism** (`profile_cycles.c`) and **one third-party
-library** (`thread_call.c`), with two small files keeping the second company.
+| Symbol | Now |
+| --- | --- |
+| `_ZN10fb_Object$C1Ev`, `__fb_ZTS6Object` (win64, linux) | `oop_object.c`, on every target |
+| `fb_ThreadCall` (all three) | `src/thread/call.bas`: NULL, as fbc-modern's own `DISABLE_FFI` build returns. The compiler warns at every THREADCALL |
+| `fb_hIn`, `fb_hOut` (linux) | `src/sys/ports.bas` with `portinsn.c` |
+| `fb_InitProfileCycles`, `fb_EndProfileCycles`, `fb_ProfileGetCyclesProfiler` | **Not provided, deliberately.** Only compiled code built with `-profile` calls them; the LLVM backend emits none, and tiko has no `-profile` in any spelling (RFC-0006 section 14) |
+| `__fb_keytable` (win64) | **Not provided.** Only fbc's `libfbgfx` refers to it. tiko links `libtkogfx` on win64-msvc and no graphics library on win64 |
 
-### What this costs the MSVC target
+So the closed list is five files of tiko-rt's own C:
+- **one hard case**, `atomic.c`, until RFC-0002 lands;
+- **one reserved symbol**, `oop_object.c`, which is fbc's to give up;
+- **one instruction pair**, `portinsn.c`;
+- **the MSVC CRT shims.**
 
-`build/build.sh` compiles FreeBASIC and nothing else -- `src/c/` has been empty
-since it was created, so there is no C path in it at all. Until there is, the
-win64-msvc archive is short these six and a program linking against it fails on
-`fb_AtomicCasLong`. All six DO compile under `x86_64-pc-windows-msvc`: five
-unchanged, and `atomic.c` with a `<windows.h>` for the `Interlocked*` family.
+The 2026-09-05 version of this section said "528 of 534 members replaced" and listed six survivors.
+Two of those six became FreeBASIC (`src/oop/object_copyctor.bas`, `src/oop/istypeof.bas`). The other
+four are the table above.
+
+What is still fbc's in `lib/<target>-fb/` is **not `libfb`**:
+- its CRT startup objects (`fbrt0.o` etc.);
+- `libfbgfx`;
+- the third-party archives: libffi, MinGW's CRT and import libraries, and gcc's runtime.
+
+Retiring those is outside D15.

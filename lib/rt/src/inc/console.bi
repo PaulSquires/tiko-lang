@@ -181,7 +181,9 @@ const FB_COLOR_BG_DEFAULT = &h2
 	const TKORT_CON_H         = 172
 	const TKORT_CON_CHARBUF   = 176
 	const TKORT_CON_ATTRBUF   = 184
-	'' 192 is has_perm on linux/x86, which nothing here touches.
+	'' has_perm, linux/x86: src/init/hinitposix.bas sets it from ioperm and
+	'' src/sys/ports.bas reads it before every INP and OUT.
+	const TKORT_CON_HASPERM   = 192
 
 	const INIT_CONSOLE_ = 1
 	const TERM_XTERM_   = 1

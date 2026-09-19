@@ -155,6 +155,7 @@ thread/detach.bas
 thread/park.bas
 thread/parkself.bas
 thread/cond.bas
+thread/call.bas
 misc/misc.bas
 sys/dylib.bas
 sys/process.bas
