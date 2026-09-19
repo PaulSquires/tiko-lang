@@ -1,0 +1,17 @@
+'' A NUMBER APPENDED TO A USTRING -- 'u = u & n', 'u &= n', 'u = u & d' -- is rendered narrow
+'' and DECODED with fb_StrToUStr before fb_UStrConcatAssign. tiko handed the narrow rendering
+'' over raw, copying fbc-modern: "42" (34 32) was read as ONE unit, U+3234, then the NUL and
+'' whatever followed, so 'u = u & n' printed "a", U+3234, NUL with len 3, and the trailing
+'' unit varied run to run. fbc-modern fixed rtlUStrConcatAssign 2026-09-19 and prints "a42|
+'' 3", "a42| 3", "a1.5| 4"; its C is 'fb_StrToUStr( vr, -1ll )' then the append.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-append-number.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: %14 = call.rtl ptr fb_StrToUStr(%13, -1)
+'' EXPECT-OUT: %15 = call.rtl ptr fb_UStrConcatAssign(@u, -1, %14, -1, 0)
+'' EXPECT-OUT: %23 = call.rtl ptr fb_StrToUStr(%22, -1)
+'' EXPECT-OUT: %24 = call.rtl ptr fb_UStrConcatAssign(@u2, -1, %23, -1, 0)
+'' EXPECT-OUT: %32 = call.rtl ptr fb_StrToUStr(%31, -1)
+'' EXPECT-OUT: %33 = call.rtl ptr fb_UStrConcatAssign(@u3, -1, %32, -1, 0)

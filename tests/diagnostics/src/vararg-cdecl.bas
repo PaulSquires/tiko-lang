@@ -75,3 +75,8 @@ end extern
 extern "Windows"
 declare sub okWinCdecl cdecl( byval a as long, ... )
 end extern
+
+'' A procedure TYPE inside 'typeof', which the parser reads speculatively and so used
+'' to report nothing from: stdcall is refused on both targets, no convention on Windows.
+dim pTyStd as typeof( sub stdcall( byval a as long, ... ) )
+dim pTyPlain as typeof( sub( byval a as long, ... ) )

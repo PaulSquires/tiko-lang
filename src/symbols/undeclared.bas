@@ -29,6 +29,11 @@
 ''
 '' ONE PER LINE, because fbc reports one per statement and skips to the end of the line:
 '' measured, 'a = b + c' is error 42 for 'a' alone, and 'print zz : print yy' for 'zz'.
+''
+'' 'procptr( zz )' is fbc's error 8, "Undefined symbol", rather than 42 (TKO0783). A name
+'' declared BELOW its use is one of these too -- Resolve leaves it unbound (see
+'' resolveunbound.bas) -- and a unit whose '#lang' was refused is not asked at all (the
+'' driver), because in 'qb' or 'fblite' an undeclared name is an implicit variable.
 
 '' The builtin PROCEDURES that reach here unbound: the prelude does not declare them and
 '' lowering claims them by spelling (mir/lowerbuiltin.bas, mir/lowerintr.bas). Measured,
@@ -42,6 +47,10 @@ private function BuiltinProcName_( byref nm as string ) as boolean
     end select
     return false
 end function
+
+'' What the pre-pass marks a node with: 1 to leave it alone, SKIP_PROCPTR to report it
+'' as 'procptr''s operand.
+const SKIP_PROCPTR as ubyte = 2
 
 '' Mark every node in [lo, hi]. A call is built BOTTOM-UP IN SOURCE ORDER -- its target,
 '' then each argument, then the call node -- so an argument's subtree is exactly the ids
@@ -66,9 +75,8 @@ sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
       byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-      byref reserved as FB.Array( of ulong ) )
+      byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable )
 
-    if rst.unresolvedIds.Count = 0 then exit sub
     dim as long total = ast.Count( )
     dim as FB.Array( of ubyte ) skip
     for i as long = 0 to total
@@ -104,6 +112,43 @@ sub ReportUndeclared _
             elseif (cn = "offsetof") andalso (cp->count >= 2) then
                 MarkRange_( skip, cast( long, ast.children[cp->first] ) + 1, _
                             cast( long, ast.children[cp->first + cp->count - 1] ) )
+            elseif (cn = "procptr") andalso (cp->count >= 1) then
+                '' 'procptr( zz )' is fbc's error 8, "Undefined symbol", not 42.
+                dim as Tko.NodeId pa = cast( Tko.NodeId, ast.children[cp->first] )
+                if ast.Kind( pa ) = Tko.N_IDENT then skip[cast( long, pa )] = SKIP_PROCPTR
+                '' ...AND ONE THAT BINDS HAS TO BIND A PROCEDURE. Measured: 'procptr( v )'
+                '' over a variable, a procedure-pointer variable, a CONST, an enum
+                '' constant, a TYPE or a namespace's variable is fbc's error 24, and over a
+                '' field its 209. Asked here because this runs once, after Check has bound
+                '' 'T.m' members.
+                select case ast.Kind( pa )
+                case Tko.N_INT_LIT, Tko.N_FLOAT_LIT, Tko.N_STRING_LIT, Tko.N_ADDROF
+                    '' No name at all -- 'procptr( 1 )', 'procptr( @f )' -- is fbc's 8 too.
+                    '' ('procptr( f( ) )' is not: fbc takes it, as the procedure f.)
+                    diags.Report( Tko.TKO0791, Tko.PointRange( ast.Loc( pa ) ) )
+                case Tko.N_IDENT, Tko.N_MEMBER
+                    dim as Tko.Symbol ptr ps = syms.SymbolAt( info.RefOf( pa ) )
+                    if ps <> 0 then
+                        if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then
+                            diags.Report( Tko.TKO0785, Tko.PointRange( ast.Loc( pa ) ), _
+                                          names.Spelling( ps->name ) )
+                        end if
+                    elseif (ast.Kind( pa ) = Tko.N_MEMBER) andalso (cp->count = 1) then
+                        '' 'procptr( T.zz )' over a TYPE with no member zz: fbc's error 8.
+                        '' Only with no second argument -- 'procptr( T.m, virtual )' and a
+                        '' signature that selected nothing are Check's to leave unbound.
+                        dim as Tko.BinaryPayload ptr mb = _
+                            @ast.binaries[cast( long, ast.nodes[cast( long, pa )].data )]
+                        dim as Tko.Symbol ptr ts = syms.SymbolAt( info.RefOf( mb->lhs ) )
+                        dim as string mn = IdentSpelled_( ast, names, mb->rhs )
+                        if (ts <> 0) andalso (len( mn ) > 0) then
+                            if ts->kind = cast( ubyte, Tko.SYM_UDT ) then
+                                diags.Report( Tko.TKO0739, Tko.PointRange( ast.Loc( pa ) ), _
+                                              names.Spelling( ts->name ), mn )
+                            end if
+                        end if
+                    end if
+                end select
             end if
         case Tko.N_AMBIGUOUS
             '' The PAREN-LESS call statement, 'assert x = 1': 'a' is the callee.
@@ -133,7 +178,7 @@ sub ReportUndeclared _
     for i as long = 0 to rst.unresolvedIds.Count - 1
         dim as Tko.NodeId id = cast( Tko.NodeId, rst.unresolvedIds[i] )
         if (id < 1) orelse (cast( long, id ) > total) then continue for
-        if skip[cast( long, id )] <> 0 then continue for
+        if skip[cast( long, id )] = 1 then continue for
         if info.RefOf( id ) <> Tko.SYMBOL_NONE then continue for
         if info.TypeOf_( id ) <> Tko.TYPE_NONE then continue for
         dim as Tko.InternId rawNm = ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name
@@ -159,7 +204,8 @@ sub ReportUndeclared _
         if seen then continue for
         done.Push( cast( ulong, dl.file ) )
         done.Push( cast( ulong, dl.physLine ) )
-        diags.Report( Tko.TKO0743, Tko.PointRange( ast.Loc( id ) ), names.Spelling( _
-            ast.idents[cast( long, ast.nodes[cast( long, id )].data )].name ) )
+        dim as Tko.DiagId d = Tko.TKO0743
+        if skip[cast( long, id )] = SKIP_PROCPTR then d = Tko.TKO0783
+        diags.Report( d, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ) )
     next
 end sub

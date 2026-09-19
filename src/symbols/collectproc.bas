@@ -147,6 +147,75 @@ private function SameOverloadIdentity_ _
     return true
 end function
 
+'' A WRITTEN TYPE MADE ONLY OF BUILTIN KEYWORDS: its pointer depth, with the keyword at
+'' the bottom in 'kw' -- or -1 when anything in it could hide a pointer or a type: a
+'' NAME (a typedef may be 'long ptr'), TYPEOF, a procedure type, generic arguments, a
+'' bare ANY, and USTRING, whose overloading against STRING has not been measured.
+private function BuiltinShape_ _
+    ( byref w as Walker, byval t as Tko.NodeId, byref kw as ushort ) as long
+
+    dim as long depth = 0
+    while depth < 64
+        if t = Tko.NODE_NONE then return -1
+        if w.ast->Kind( t ) <> Tko.N_TYPEREF then return -1
+        dim as ushort fl = w.ast->nodes[cast( long, t )].flags
+        if (fl and Tko.NF_PROC_TYPE) <> 0 then return -1
+        dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
+        if tp->count <> 0 then return -1
+        if (fl and Tko.NF_PTR) <> 0 then
+            depth += 1
+            t = tp->a
+        else
+            select case cast( Tko.TokenKind, tp->op )
+            case Tko.KW_BYTE, Tko.KW_UBYTE, Tko.KW_SHORT, Tko.KW_USHORT, _
+                 Tko.KW_LONG, Tko.KW_ULONG, Tko.KW_INTEGER, Tko.KW_UINTEGER, _
+                 Tko.KW_LONGINT, Tko.KW_ULONGINT, Tko.KW_SINGLE, Tko.KW_DOUBLE, _
+                 Tko.KW_BOOLEAN, Tko.KW_STRING, Tko.KW_ZSTRING, Tko.KW_WSTRING
+            case Tko.KW_ANY
+                if depth = 0 then return -1
+            case else
+                return -1
+            end select
+            kw = tp->op
+            return depth
+        end if
+    wend
+    return -1
+end function
+
+'' ARE TWO SAME-ARITY PARAMETER LISTS CERTAINLY DIFFERENT OVERLOADS? Only where nothing
+'' written could make them one: a parameter that is an array on one side and not the
+'' other, or two types spelled wholly in builtin keywords that differ in keyword or in
+'' pointer depth. CONST and the passing mode never decide it here. The opposite of
+'' SameOverloadIdentity_, which says DIFFERENT whenever it cannot tell: this says it
+'' only when it can.
+private function CertainlyDifferentParams_ _
+    ( byref w as Walker, byval a as Tko.StmtPayload ptr, _
+      byval b as Tko.StmtPayload ptr ) as boolean
+
+    if a->count <> b->count then return false
+    for i as long = 0 to a->count - 1
+        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
+        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
+        if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
+           (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
+        dim as Tko.StmtPayload ptr ap = StmtOf( w, an )
+        dim as Tko.StmtPayload ptr bp = StmtOf( w, bn )
+        if (ap->op = cast( ushort, Tko.TK_ELLIPSIS )) orelse _
+           (bp->op = cast( ushort, Tko.TK_ELLIPSIS )) then return false
+        dim as boolean aArr = ((w.ast->nodes[cast( long, an )].flags and Tko.NF_ARRAY) <> 0)
+        dim as boolean bArr = ((w.ast->nodes[cast( long, bn )].flags and Tko.NF_ARRAY) <> 0)
+        if aArr <> bArr then return true
+        dim as ushort ka = 0, kb = 0
+        dim as long da = BuiltinShape_( w, ap->a, ka )
+        dim as long db = BuiltinShape_( w, bp->a, kb )
+        if (da >= 0) andalso (db >= 0) then
+            if (da <> db) orelse (ka <> kb) then return true
+        end if
+    next
+    return false
+end function
+
 '' A PROCEDURE NAME IS DECLARED ONCE PER SCOPE, and fbc holds to it: error 4,
 '' "Duplicated definition", on ANY second DECLARE of a name already declared or defined
 '' in the same scope. Measured 2026-09-18 on fbc-modern 1.20 and 1.10.1, 34 shapes, the
@@ -362,7 +431,17 @@ private function RefuseVariadicOverload_ _
     dim as boolean isVar
     VARIADIC_( sp, isVar )
     dim as boolean isCtor = (sp->op = cast( ushort, Tko.KW_CONSTRUCTOR ))
-    dim as boolean refuse = isVar andalso isCtor
+    '' A PROPERTY AND A GLOBAL OPERATOR ARE ALWAYS OVERLOADS TOO, as a constructor is:
+    '' measured, 'declare property p cdecl( byval a as long, ... )' is fbc's error 4 and
+    '' 'declare operator + cdecl( byref a as T, ... ) as T' its 143, each ALONE. A MEMBER
+    '' operator is not: 'declare operator let cdecl( ... )' inside a type compiles.
+    dim as boolean isMember = false
+    if w.syms->ScopeAt( scope_ ) <> 0 then
+        isMember = (w.syms->ScopeAt( scope_ )->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+    end if
+    dim as boolean alwaysSet = isCtor orelse (sp->op = cast( ushort, Tko.KW_PROPERTY ))
+    if (sp->op = cast( ushort, Tko.KW_OPERATOR )) andalso (isMember = false) then alwaysSet = true
+    dim as boolean refuse = isVar andalso alwaysSet
 
     if refuse = false then
         '' The live set this would join, as ProcRedeclared_ reads it.

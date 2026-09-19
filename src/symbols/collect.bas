@@ -525,6 +525,7 @@ sub WalkNode _
         end if
         dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_UDT, _
                                             w.ast->Loc( id ) )
+        NoteDeclAt_( w, sid, id )
         dim as Tko.ScopeId inner = w.syms->OpenScope( Tko.SCOPEK_TYPE, scope_, sid )
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
         if s <> 0 then
@@ -627,6 +628,7 @@ sub WalkNode _
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
         dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_ENUM, _
                                             w.ast->Loc( id ) )
+        NoteDeclAt_( w, sid, id )
         '' 'private:' / 'protected:' on a nested ENUM -- the parser put it on the
         '' declaration; the USE SITE needs it on the symbol.
         dim as Tko.Symbol ptr es = w.syms->SymbolAt( sid )
@@ -684,6 +686,7 @@ sub WalkNode _
         if w.enumScope <> Tko.SCOPE_NONE then
             dim as Tko.SymbolId ecid = _
                 Declare_( w, w.enumScope, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+            NoteDeclAt_( w, ecid, id )
             dim as Tko.Symbol ptr ecs = w.syms->SymbolAt( ecid )
             if ecs <> 0 then ecs->flags or= EnumVisFlags_( w.enumVis )
         end if
@@ -698,6 +701,7 @@ sub WalkNode _
         if w.syms->LookupLocal( scope_, sp->name ) <> Tko.SYMBOL_NONE then return
         dim as Tko.SymbolId eoid = _
             Declare_( w, scope_, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
+        NoteDeclAt_( w, eoid, id )
         dim as Tko.Symbol ptr eos = w.syms->SymbolAt( eoid )
         if eos <> 0 then eos->flags or= EnumVisFlags_( w.enumVis )
 
@@ -729,6 +733,7 @@ sub WalkNode _
 
         dim as Tko.SymbolId tid = Declare_( w, scope_, sp->name, Tko.SYM_TYPEDEF, _
                                             w.ast->Loc( id ) )
+        NoteDeclAt_( w, tid, id )
         dim as Tko.Symbol ptr ts = w.syms->SymbolAt( tid )
         if ts <> 0 then
             ts->type_ = w.types->NamedType( Tko.TK_TYPEDEF, sp->name, cast( ulong, scope_ ) )
@@ -777,7 +782,7 @@ sub WalkNode _
             '' and went unnoticed because the corpus's procedures are declared in a
             '' header and defined in a library it never compiles.
             if sp->b <> Tko.NODE_NONE then
-                sid = UndefinedProcWithArity( w, scope_, declName, ProcArity( w, sp ) )
+                sid = UndefinedProcWithArity( w, scope_, declName, sp )
             end if
             if sid = Tko.SYMBOL_NONE then
                 '' ONLY A REAL SUB OR FUNCTION -- what was measured. An operator, a property and
@@ -804,6 +809,7 @@ sub WalkNode _
                         redeclared = true
                     else
                         sid = Declare_( w, scope_, declName, Tko.SYM_PROC, w.ast->Loc( id ) )
+                        NoteDeclAt_( w, sid, id )
                     end if
                 end if
             end if
@@ -938,6 +944,7 @@ sub WalkNode _
                 if redeclared = false then
                     sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
                                     w.ast->Loc( id ) )
+                    NoteDeclAt_( w, sid, id )
                 end if
             else
                 '' THE OVERLOAD THIS DEFINITION IS, not the head of the chain. A bare
@@ -954,6 +961,7 @@ sub WalkNode _
                 if sid = Tko.SYMBOL_NONE then
                     sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
                                     w.ast->Loc( id ) )
+                    NoteDeclAt_( w, sid, id )
                 end if
             end if
             s = w.syms->SymbolAt( sid )
@@ -1124,6 +1132,7 @@ sub WalkNode _
         dim as boolean reopen = (s <> 0) andalso (s->kind = cast( ubyte, Tko.SYM_NAMESPACE ))
         if reopen = false then
             sid = Declare_( w, scope_, sp->name, Tko.SYM_NAMESPACE, w.ast->Loc( id ) )
+            NoteDeclAt_( w, sid, id )
             s = w.syms->SymbolAt( sid )
             if s <> 0 then
                 s->inner = w.syms->OpenScope( Tko.SCOPEK_NAMESPACE, scope_, sid )
@@ -1302,17 +1311,24 @@ private function MemberDeclForDef_ _
     return head
 end function
 
-'' The one DECLARED-but-not-yet-defined overload of this name taking 'want' parameters,
-'' or SYMBOL_NONE when there is not exactly one.
+'' The one DECLARED-but-not-yet-defined overload of this name with the definition's
+'' arity, or SYMBOL_NONE when there is not exactly one.
 ''
 '' Arity, not the full signature: Collect runs before any type is resolved, so it cannot
 '' compare parameter TYPES. Requiring exactly one candidate is what keeps that
 '' approximation safe -- two same-arity overloads leave the definition to declare itself,
 '' which is the behaviour this replaces rather than a new way to be wrong.
+'' ...AND IN AN OVERLOAD SET, not one it certainly differs from (CertainlyDifferentParams_):
+'' there fbc takes the definition as a NEW overload. 'declare sub g overload( byval a as
+'' long )' then 'sub g( byval a as double )' runs under fbc; joined, the body took g(long)'s
+'' name and the call to g( 1.5 ) linked to a G(int) nothing defined.
 private function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
-      byval want as long ) as Tko.SymbolId
+      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
 
+    dim as long want = ProcArity( w, sp )
+    dim as boolean ovl = ((sp->extra and Tko.PF_OVERLOAD) <> 0) orelse _
+                         (sp->op = cast( ushort, Tko.KW_OPERATOR ))
     dim as Tko.SymbolId found = Tko.SYMBOL_NONE
     dim as long hits = 0
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
@@ -1320,9 +1336,12 @@ private function UndefinedProcWithArity _
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
         if s = 0 then exit while
         if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
-        if (s->flags and Tko.SYMF_DEFINED) = 0 then
-            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-            if (pn <> Tko.NODE_NONE) andalso (w.ast->Kind( pn ) = Tko.N_PROC) then
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        dim as boolean isProc = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
+        if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
+        if isProc then
+            if (StmtOf( w, pn )->extra and Tko.PF_OVERLOAD) <> 0 then ovl = true
+            if (s->flags and Tko.SYMF_DEFINED) = 0 then
                 if ProcArity( w, StmtOf( w, pn ) ) = want then
                     found = cur
                     hits += 1
@@ -1331,8 +1350,12 @@ private function UndefinedProcWithArity _
         end if
         cur = s->nextOverload
     wend
-    if hits = 1 then return found
-    return Tko.SYMBOL_NONE
+    if hits <> 1 then return Tko.SYMBOL_NONE
+    if ovl then
+        dim as Tko.NodeId fn = cast( Tko.NodeId, w.syms->SymbolAt( found )->payload )
+        if CertainlyDifferentParams_( w, StmtOf( w, fn ), sp ) then return Tko.SYMBOL_NONE
+    end if
+    return found
 end function
 
 '' The calling convention across a DECLARE and its definition. The rule is ASYMMETRIC,

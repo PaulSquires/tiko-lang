@@ -32,6 +32,7 @@ end enum
 dim arr( zz18 ) as integer
 print #zz19, "a"
 x = *zz20
+dim as any ptr pz = procptr( zzp )
 
 '' One per statement, and a ':' ends the line for fbc: 'a' alone, then 'zz21' alone.
 a = b + c

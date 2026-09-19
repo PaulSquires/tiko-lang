@@ -140,8 +140,16 @@ function StrIdentityConvOperand_ _
     if c.types->Kind( ot ) = Tko.TK_REFERENCE then
         ot = c.types->Unqualify( c.types->Inner( ot ) )
     end if
-    if IsStringType( c, ot ) = false then return Tko.NODE_NONE
-    return op
+    if IsStringType( c, ot ) then return op
+    '' ...AND A UDT WITH A NARROW 'operator cast' IS ITS OWN CAST TO A STRING. Every caller
+    '' already takes such a UDT where a string belongs -- 'print b' lowers -- and none took
+    '' the spelling that says so: 'print cast( string, b )' and 'dim s as string = cast(
+    '' string, b )' were dropped with nothing said, where fbc-modern prints the cast's
+    '' result (measured 2026-09-19). A UDT with only a WIDE cast is left as it was.
+    if c.types->Kind( ot ) = Tko.TK_UDT then
+        if NarrowCastOverload_( c, ot ) <> Tko.SYMBOL_NONE then return op
+    end if
+    return Tko.NODE_NONE
 end function
 '' THE 'operator cast' OVERLOAD WHOSE RESULT IS EXACTLY THE NAMED TYPE.
 ''

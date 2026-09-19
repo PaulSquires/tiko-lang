@@ -220,6 +220,13 @@ namespace Tko
         as ulong     bornAt
         as ulong     diedAt
         as SymbolId  olderGen
+        '' WHERE A WRITTEN DECLARATION OF IT STARTS -- the lowest node id the first one
+        '' owns -- or 0 for what the source did not write in order: the prelude's, a
+        '' generic instance's, a synthesized name. fbc reads a file once, top to bottom, so
+        '' a name used above its declaration is undeclared there: Resolve's DeclaredBelow_.
+        '' Not 'bornAt', which every lookup in every pass honours; this is a question only
+        '' an expression's binding asks.
+        as ulong     declAt
     end type
 
     '' Declaration order is a per-scope LINKED LIST, not a range: an inner scope can

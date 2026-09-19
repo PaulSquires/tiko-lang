@@ -315,7 +315,7 @@ declare function ProcArity _
     ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as long
 declare function UndefinedProcWithArity _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
-      byval want as long ) as Tko.SymbolId
+      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
 declare function MemberDeclForDef_ _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId

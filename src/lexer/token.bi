@@ -200,6 +200,9 @@ namespace Tko
         as ubyte      strKind       '' StringKind
         as ubyte      suffix        '' NumSuffix
         as ubyte      radix         '' 10, 16, 8 or 2 -- for diagnostics and dumps
+        '' A STRING LITERAL WITH A UNICODE ESCAPE IS WIDE, whatever code point it names:
+        '' fbc types !"<backslash>u0041" as a wstring. Nonzero when the raw text has one.
+        as ubyte      strWide
         as ulongint   intValue
         as double     fltValue
         '' The string payload is a RAW SPAN, undecoded -- OPTION ESCAPE is not known

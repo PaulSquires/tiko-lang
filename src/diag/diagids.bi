@@ -483,6 +483,35 @@
     '' fbc's error 312, "vararg parameters are only allowed in CDECL procedures". %0 is
     '' the convention the procedure ended up with, written or defaulted.
     DIAG( TKO0781, SEV_ERROR,   "'...' needs a 'cdecl' procedure, and this one is '%0'" )
+    '' fbc's error 313, "the first parameter in a procedure may not be vararg".
+    DIAG( TKO0782, SEV_ERROR,   "'...' cannot be the first parameter" )
+    '' fbc's error 8, "Undefined symbol" -- what 'procptr' of an undeclared name is,
+    '' where every other use of one is error 42 (TKO0743).
+    DIAG( TKO0783, SEV_ERROR,   "'%0' is not declared, so 'procptr' has no procedure to take" )
+    '' fbc's errors 14, 59 and 17 -- one per context -- for a TYPE named above its own
+    '' declaration, which fbc has not reached yet.
+    DIAG( TKO0784, SEV_ERROR,   "the type '%0' is used above its declaration" )
+    '' fbc's error 24, "Invalid data types" (209 for a field): what 'procptr' takes has
+    '' to BE a procedure.
+    DIAG( TKO0785, SEV_ERROR,   "'%0' is not a procedure, so 'procptr' cannot take it" )
+    '' fbc's errors 190, 191 and 213 -- the shapes a PROPERTY may have.
+    DIAG( TKO0786, SEV_ERROR,   "a property getter takes no parameter, or one index" )
+    DIAG( TKO0787, SEV_ERROR,   "a property setter takes its value, and at most one index before it" )
+    DIAG( TKO0788, SEV_ERROR,   "a property cannot be static" )
+    '' fbc's error 1, "Argument count mismatch", over an OPERATOR's own parameters.
+    DIAG( TKO0789, SEV_ERROR,   "operator '%0' takes %1 parameter(s) here" )
+    '' fbc's error 153, "Operator cannot be a member function".
+    DIAG( TKO0790, SEV_ERROR,   "operator '%0' cannot be a member of a type" )
+    '' fbc's error 8 for a 'procptr' operand that is no name at all -- a literal, '@f'.
+    DIAG( TKO0791, SEV_ERROR,   "'procptr' takes the name of a procedure" )
+    '' fbc's error 157, "Expected operator": the short-circuit forms are not overloadable.
+    DIAG( TKO0792, SEV_ERROR,   "'%0' cannot be overloaded" )
+    '' fbc's errors 40, 1, 58 and 158: a DEFINITION held to its declaration -- the result,
+    '' the parameter count, each parameter, and for a member the overload it defines.
+    DIAG( TKO0793, SEV_ERROR,   "the result of '%0' does not match its declaration" )
+    DIAG( TKO0794, SEV_ERROR,   "'%0' was declared with %1 parameter(s)" )
+    DIAG( TKO0795, SEV_ERROR,   "parameter %0 of '%1' does not match its declaration" )
+    DIAG( TKO0796, SEV_ERROR,   "no declaration of '%0' matches this definition" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

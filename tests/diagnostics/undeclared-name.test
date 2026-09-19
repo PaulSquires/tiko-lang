@@ -1,14 +1,15 @@
 '' A name nothing declared is fbc's error 42 wherever a value is read or written -- 24 errors
 '' on fbc-modern 1.20 and 1.10.1 alike, on exactly these lines and naming exactly these
-'' names (2026-09-19). One per statement: line 37 names 'a' and not 'b' or 'c', line 38
-'' 'zz21' and not 'zz22'. Everything from line 52 on is accepted by both and must stay
-'' so: builtins and fbc's runtime bind no symbol, and an 'assert' argument, an '#assert'
-'' operand, 'offsetof''s field, an OPEN device and an explicit enum's sibling are not
-'' values the program reads. Each of those seven lines drew TKO0743 before its exclusion.
+'' names (2026-09-19), and 'procptr' of one (line 35) is error 8. One per statement: line
+'' 38 names 'a' and not 'b' or 'c', line 39 'zz21' and not 'zz22'. Everything from line 53
+'' on is accepted by both and must stay so: builtins and fbc's runtime bind no symbol,
+'' and an 'assert' argument, an '#assert' operand, 'offsetof''s field, an OPEN device and
+'' an explicit enum's sibling are not values the program reads. Each of those seven lines
+'' drew TKO0743 before its exclusion.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/undeclared-name.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-MAX-DIAG: 24
+'' EXPECT-MAX-DIAG: 25
 '' EXPECT-OUT: undeclared-name.bas(12,1): error TKO0743: 'zz1' is not declared
 '' EXPECT-OUT: undeclared-name.bas(13,5): error TKO0743: 'zz2' is not declared
 '' EXPECT-OUT: undeclared-name.bas(14,7): error TKO0743: 'zz3' is not declared
@@ -29,7 +30,8 @@
 '' EXPECT-OUT: undeclared-name.bas(32,10): error TKO0743: 'zz18' is not declared
 '' EXPECT-OUT: undeclared-name.bas(33,8): error TKO0743: 'zz19' is not declared
 '' EXPECT-OUT: undeclared-name.bas(34,6): error TKO0743: 'zz20' is not declared
-'' EXPECT-OUT: undeclared-name.bas(37,1): error TKO0743: 'a' is not declared
-'' EXPECT-OUT: undeclared-name.bas(38,7): error TKO0743: 'zz21' is not declared
-'' EXPECT-OUT: undeclared-name.bas(42,5): error TKO0743: 'zz23' is not declared
-'' EXPECT-OUT: undeclared-name.bas(49,5): error TKO0743: 'zz24' is not declared
+'' EXPECT-OUT: undeclared-name.bas(35,30): error TKO0783: 'zzp' is not declared, so 'procptr' has no procedure to take
+'' EXPECT-OUT: undeclared-name.bas(38,1): error TKO0743: 'a' is not declared
+'' EXPECT-OUT: undeclared-name.bas(39,7): error TKO0743: 'zz21' is not declared
+'' EXPECT-OUT: undeclared-name.bas(43,5): error TKO0743: 'zz23' is not declared
+'' EXPECT-OUT: undeclared-name.bas(50,5): error TKO0743: 'zz24' is not declared

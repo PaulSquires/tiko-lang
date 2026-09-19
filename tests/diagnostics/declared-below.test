@@ -1,0 +1,27 @@
+'' A name used above its declaration is undeclared there: 16 of fbc's error 42 and one
+'' error 8 ('procptr', line 13), on fbc-modern 1.20 and 1.10.1 alike, on exactly these
+'' lines and naming exactly these names (2026-09-19). Everything from line 67 on is
+'' accepted by both and must stay so: a declaration's own initialiser, recursion and a
+'' function's result, 'sizeof' of a type inside it, an outer name past a later inner one,
+'' and a TYPE past a later value of the same spelling (tests/mir/udt-arg-shapes.bas).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/declared-below.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 17
+'' EXPECT-OUT: declared-below.bas(6,1): error TKO0743: 'x1' is not declared
+'' EXPECT-OUT: declared-below.bas(7,28): error TKO0743: 'tlater' is not declared
+'' EXPECT-OUT: declared-below.bas(8,7): error TKO0743: 'k1' is not declared
+'' EXPECT-OUT: declared-below.bas(9,7): error TKO0743: 'e1' is not declared
+'' EXPECT-OUT: declared-below.bas(10,1): error TKO0743: 'sublater' is not declared
+'' EXPECT-OUT: declared-below.bas(11,5): error TKO0743: 'fnlater' is not declared
+'' EXPECT-OUT: declared-below.bas(12,21): error TKO0743: 'sublater2' is not declared
+'' EXPECT-OUT: declared-below.bas(13,29): error TKO0783: 'sublater3' is not declared, so 'procptr' has no procedure to take
+'' EXPECT-OUT: declared-below.bas(14,1): error TKO0743: 'arr' is not declared
+'' EXPECT-OUT: declared-below.bas(15,13): error TKO0743: 'elater' is not declared
+'' EXPECT-OUT: declared-below.bas(16,7): error TKO0743: 'nlater' is not declared
+'' EXPECT-OUT: declared-below.bas(17,5): error TKO0743: 'k2' is not declared
+'' EXPECT-OUT: declared-below.bas(18,7): error TKO0743: 'g1' is not declared
+'' EXPECT-OUT: declared-below.bas(21,11): error TKO0743: 'g2' is not declared
+'' EXPECT-OUT: declared-below.bas(22,24): error TKO0743: 'vlocal' is not declared
+'' EXPECT-OUT: declared-below.bas(31,11): error TKO0743: 'g3' is not declared
+'' EXPECT-OUT: declared-below.bas(62,12): error TKO0743: 'k3' is not declared

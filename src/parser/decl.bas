@@ -885,15 +885,15 @@ private function ParseProc _
                 '' for a library and nothing linked one -- see ParserState.declLibs.
                 if lbn <> 0 then p.declLibs.Push( cast( ulong, lbn ) )
                 Advance( p )
+            elseif Peek( p ) = Tko.TK_IDENT then
+                Advance( p )    '' 'lib SYS' names a '#foreignlib' binding, linked by name
             end if
             ate = true
         end if
         if ate = false then exit do
     loop
 
-    ParseParamList( p, sp )
-    CheckVarargConv_( p, sp, Tko.CallConvOf( sp.extra ), _
-                      (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR) )
+    ProcParams_( p, sp, kw, declareOnly )
 
     '' 'function F( ) BYREF as T' -- A BYREF RESULT. The BYREF sits between the
     '' parameter list and the AS, so Accept( KW_AS ) failed on it and the trailing-
@@ -903,6 +903,7 @@ private function ParseProc _
     '' Nothing said so -- an untyped result is not a diagnostic.
     dim as boolean byrefRet = ByrefResult_( p )
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
+    CheckPropertyShape_( p, sp, kw, t.loc )
 
     '' Trailing modifiers: static, const, export, alias "x", lib "y", cdecl ...
     ''

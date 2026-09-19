@@ -1,0 +1,17 @@
+'' A type named above its own declaration -- 9 errors on fbc-modern 1.20 and 1.10.1 alike,
+'' on exactly these lines (2026-09-19): fbc's 14 in a DIM, a field, a result and over a
+'' typedef and an enum, 59 in a parameter, 17 in a CAST. From line 30 on is accepted by
+'' both: a type naming itself, and the forward declaration 'type X as X_'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-declared-below.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 9
+'' EXPECT-OUT: type-declared-below.bas(6,8): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(8,10): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(11,10): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(13,36): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(14,35): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(15,26): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(17,12): error TKO0784: the type 'tlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(19,8): error TKO0784: the type 'tdlater' is used above its declaration
+'' EXPECT-OUT: type-declared-below.bas(20,8): error TKO0784: the type 'elater' is used above its declaration

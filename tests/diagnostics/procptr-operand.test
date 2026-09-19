@@ -1,0 +1,18 @@
+'' What 'procptr' takes has to be a procedure: 9 errors on fbc-modern 1.20 and 1.10.1 alike,
+'' on exactly these lines (2026-09-19) -- fbc's 24 over a variable, a procedure-pointer
+'' variable, a CONST, a namespace's variable, a TYPE and an enum constant, its 209 over a
+'' field (line 32), and its 8 over what is no name at all (lines 37 and 38). The four from
+'' line 40 on are accepted by both.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/procptr-operand.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 9
+'' EXPECT-OUT: procptr-operand.bas(29,30): error TKO0785: 'v' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(30,30): error TKO0785: 'fp' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(31,30): error TKO0785: 'k' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(32,31): error TKO0785: 'a' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(33,32): error TKO0785: 'nv' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(34,30): error TKO0785: 't' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(35,30): error TKO0785: 'e1' is not a procedure, so 'procptr' cannot take it
+'' EXPECT-OUT: procptr-operand.bas(37,30): error TKO0791: 'procptr' takes the name of a procedure
+'' EXPECT-OUT: procptr-operand.bas(38,30): error TKO0791: 'procptr' takes the name of a procedure

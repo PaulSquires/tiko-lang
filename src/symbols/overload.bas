@@ -763,6 +763,8 @@ private function ConcatHasWideCastTerm_ _
     return hasWide
 end function
 
+#include once "symbols/overloadstr.bas"
+
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
       byval argFirst as long, byval argCount as long ) as Tko.TypeId
@@ -995,7 +997,18 @@ private function ResolveCall_ _
                                 if ai < argCount then
                                     an3 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
                                 end if
-                                if IsLvalueShape_( c, an3 ) then
+                                '' ...EXCEPT A CONST STRING TO 'byref as zstring': fbc asks CONST
+                                '' only of a SAME-type match, so it scores this one, chooses it
+                                '' -- over byval string, zstring ptr and wstring ptr, measured --
+                                '' and then refuses it (181). CheckArgConversions_ reports that
+                                '' (TKO0699) against the overload chosen here.
+                                dim as boolean strToZ = IsVarStrType_( c, at2 )
+                                if strToZ then
+                                    dim as Tko.TypeId pz = c.types->Unqualify( pt )
+                                    strToZ = (c.types->Kind( pz ) = Tko.TK_BUILTIN)
+                                    if strToZ then strToZ = (c.types->BuiltinOf( pz ) = Tko.TY_ZSTRING)
+                                end if
+                                if IsLvalueShape_( c, an3 ) andalso (strToZ = false) then
                                     viable = false
                                     exit for
                                 end if
@@ -1106,7 +1119,46 @@ private function ResolveCall_ _
                         end if
                     end if
 
-                    dim as long cost = ConversionCost( at2, pt, *c.types, overloaded )
+                    '' A CONSTANT STRING IS COSTED AS THE LITERAL IT IS -- ConstStrArgWidth_ --
+                    '' against the string parameters it was measured against.
+                    dim as Tko.TypeId costFrom = at2
+                    dim as Tko.NodeId an6 = Tko.NODE_NONE
+                    if ai < argCount then an6 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                    dim as long sw = ConstStrArgWidth_( c, an6 )
+                    dim as boolean constStr = (sw = 1) orelse (sw = 2)
+                    if constStr andalso StrFamilyParam_( c, pt ) then
+                        if sw = 2 then
+                            costFrom = c.types->Builtin( Tko.TY_WSTRING )
+                        else
+                            costFrom = c.types->Builtin( Tko.TY_ZSTRING )
+                        end if
+                    end if
+                    dim as long cost = ConversionCost( costFrom, pt, *c.types, overloaded )
+                    '' ...and a NAMED CONST STRING to a byval non-const string is one tier down.
+                    dim as boolean constCopy = (cost = CONV_EXACT)
+                    if constCopy then constCopy = IsVarStrType_( c, at2 )
+                    if constCopy then constCopy = IsVarStrType_( c, pt )
+                    if constCopy then
+                        constCopy = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0)
+                    end if
+                    if constCopy then constCopy = c.types->IsConst( at2 )
+                    if constCopy then constCopy = (c.types->IsConst( pt ) = false)
+                    if constCopy then constCopy = IsLvalueShape_( c, an6 )
+                    if constCopy then cost = CONV_STR_CONST_COPY
+                    '' ...AND A NON-CONST STRING TO A CONST ONE, the same tier: measured, a
+                    '' string offered { byref const string, const zstring ptr } takes the
+                    '' pointer -- fb/hash.bi's 'HashOf( s )' is _ZN2FB6HASHOFEPKc under fbc --
+                    '' and { byref const string, byref const zstring } takes the zstring.
+                    '' Either mode, and any shape: 'sv & "x"' and 'ucase( sv )' too. Not a
+                    '' constant (costed as the literal it is, above) and not 'string * n',
+                    '' which fbc does not count as the same type.
+                    dim as boolean addConst = (cost = CONV_CONST_ADD)
+                    if addConst then addConst = (costFrom = at2)
+                    if addConst then addConst = IsVarStrType_( c, at2 )
+                    if addConst then addConst = IsVarStrType_( c, pt )
+                    if addConst then addConst = (c.types->IsConst( at2 ) = false)
+                    if addConst then addConst = c.types->IsConst( pt )
+                    if addConst then cost = CONV_STR_CONST_COPY
                     '' ...AND THE USER-DEFINED CONVERSIONS, which ConversionCost cannot
                     '' see: it takes only a TypeContext, so it can look up neither a
                     '' conversion constructor nor an 'operator cast'. See UserConvCost_.

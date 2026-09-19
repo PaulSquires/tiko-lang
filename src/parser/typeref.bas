@@ -23,29 +23,72 @@
 '' Measured 2026-09-19, 72 shapes on fbc-modern 1.20 and fbc 1.10.1 for win64 and on
 '' fbc-modern's Linux build. fbc then reports nothing more for the statement, so the
 '' '...' is marked for Collect -- see PARAM_VARARG_REFUSED.
+''
+'' AND IT MAY NOT COME FIRST -- fbc's error 313, asked before 312, so 'declare sub f( ... )'
+'' is 313 alone. "First" counts the hidden THIS: a constructor, a destructor and a
+'' non-static member DECLARED IN ITS TYPE ('inTypeDecl') already have a parameter, so
+'' 'declare sub m cdecl( ... )' there is accepted and a constructor's '( ... )' is left
+'' to the overload rule (fbc's 143). A member DEFINITION, 'sub T.m cdecl( ... )', is 313
+'' all the same -- fbc reads its parameters before it knows it is a method. Measured:
+'' declarations, definitions, statics, global operators, namespaces, 'extern "C"',
+'' fields, procedure types and lambdas.
+''
+'' WHILE SILENT -- inside a speculative parse -- the report is queued instead, because the
+'' speculation that is KEPT owes it: see FlushVarargPending_.
 private sub CheckVarargConv_ _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
-      byval written as Tko.CallConv, byval structor as boolean )
+      byval written as Tko.CallConv, byval structor as boolean, _
+      byval inTypeDecl as boolean = false )
 
     if p.fbcallConv = Tko.CC_NONE then exit sub
+    dim as long before = 0
     for i as long = 0 to sp.count - 1
         dim as Tko.NodeId pn = cast( Tko.NodeId, p.ast->children[sp.first + i] )
         if p.ast->Kind( pn ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = _
             @p.ast->stmts[cast( long, p.ast->nodes[cast( long, pn )].data )]
-        if pp->op <> cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+        if pp->op <> cast( ushort, Tko.TK_ELLIPSIS ) then
+            before += 1
+            continue for
+        end if
+        dim as boolean hasThis = structor
+        if inTypeDecl andalso ((sp.extra and Tko.PF_STATIC) = 0) then hasThis = true
+        dim as Tko.DiagId d = Tko.TKO0782
         dim as Tko.CallConv cc = written
-        if (cc = Tko.CC_NONE) andalso structor then cc = Tko.CC_CDECL
-        if cc = Tko.CC_NONE then cc = cast( Tko.CallConv, p.externConv )
-        if cc = Tko.CC_NONE then cc = cast( Tko.CallConv, p.fbcallConv )
-        if cc = Tko.CC_CDECL then exit sub
+        if (before > 0) orelse hasThis then
+            d = Tko.TKO0781
+            if (cc = Tko.CC_NONE) andalso structor then cc = Tko.CC_CDECL
+            if cc = Tko.CC_NONE then cc = cast( Tko.CallConv, p.externConv )
+            if cc = Tko.CC_NONE then cc = cast( Tko.CallConv, p.fbcallConv )
+            if cc = Tko.CC_CDECL then exit sub
+        end if
         pp->extra = Tko.PARAM_VARARG_REFUSED
-        if p.silent = false then
-            p.diags->Report( Tko.TKO0781, Tko.PointRange( p.ast->Loc( pn ) ), _
-                Tko.CallConvName( cc ) )
+        if p.silent then
+            p.varargPending.Push( cast( ulong, pn ) )
+            p.varargPending.Push( cast( ulong, d ) )
+            p.varargPending.Push( cast( ulong, cc ) )
+        else
+            p.diags->Report( d, Tko.PointRange( p.ast->Loc( pn ) ), Tko.CallConvName( cc ) )
         end if
         exit sub
     next
+end sub
+
+'' THE REPORTS A KEPT SPECULATION OWES, from 'mark' on -- or none, when the parse it sits
+'' in is silent too. Either way they are dropped: a speculation that is thrown away
+'' leaves orphan nodes, and nothing reads theirs.
+private sub FlushVarargPending_( byref p as Tko.ParserState, byval mark as long )
+    if p.silent = false then
+        for i as long = mark to p.varargPending.Count - 3 step 3
+            dim as Tko.NodeId pn = cast( Tko.NodeId, p.varargPending[i] )
+            p.diags->Report( cast( Tko.DiagId, p.varargPending[i + 1] ), _
+                Tko.PointRange( p.ast->Loc( pn ) ), _
+                Tko.CallConvName( cast( Tko.CallConv, p.varargPending[i + 2] ) ) )
+        next
+    end if
+    while p.varargPending.Count > mark
+        p.varargPending.Pop( )
+    wend
 end sub
 
 function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
@@ -263,6 +306,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             dim as long saveT = p.pos
             dim as boolean savedSilentT = p.silent
             dim as long savedErrorsT = p.errors
+            dim as long pendMark = p.varargPending.Count
             p.silent = true
             Advance( p )                       '' past '('
             dim as Tko.NodeId inner = TypeRef( p )
@@ -273,8 +317,14 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 sp.b = inner
                 Advance( p )                   '' past ')'
                 tookName = true
+                '' KEPT, so the '...' it refused is reported now -- 'typeof( sub( byval a
+                '' as long, ... ) )' is fbc's 312 like any other procedure type.
+                FlushVarargPending_( p, pendMark )
             else
                 p.pos = saveT
+                while p.varargPending.Count > pendMark
+                    p.varargPending.Pop( )
+                wend
             end if
         end if
 

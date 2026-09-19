@@ -64,6 +64,11 @@ namespace Tko
         '' "C++", stdcall for "Windows" and "Windows-MS", CC_NONE for "rtlib" and outside
         '' any block, where the target's applies.
         as ubyte                externConv
+        '' A '...' REFUSED WHILE SILENT, as (node, diagnostic, convention) triples. A
+        '' speculative parse reports nothing, and the one whose result is KEPT --
+        '' 'typeof( sub( ..., ... ) )' -- owes the report afterwards; see
+        '' FlushVarargPending_.
+        as FB.Array( of ulong ) varargPending
         '' THE LIBRARIES 'declare ... lib "name"' ASKS FOR. The clause was parsed and
         '' the name THROWN AWAY, so 'declare function SHCreateItemFromParsingName lib
         '' "shell32"' linked against nothing -- 'undefined symbol', with the library

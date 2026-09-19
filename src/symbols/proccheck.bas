@@ -62,9 +62,93 @@ private sub CheckMemberOnlyOperator_ ( byref c as Ctx, byval id as NodeId )
     case "let", "cast", "[]", "+=", "-=", "*=", "/=", "\=", "^=", "&=", _
          "mod=", "shl=", "shr=", "and=", "or=", "xor=", "eqv=", "imp="
         memberOnly = true
+    '' ...AND '@', 'new', 'delete', their '[]' forms and the FOR protocol -- measured
+    '' 2026-09-19, each one 152 at module level on fbc-modern 1.20 and 1.10.1.
+    case "@", "new", "new[]", "delete", "delete[]", "for", "step", "next"
+        memberOnly = true
     end select
     if memberOnly = false then return
     c.diags->Report( TKO0697, PointRange( c.ast->Loc( id ) ), nm )
+end sub
+
+'' ...AND THE REST ARE NEVER MEMBERS -- fbc error 153, "Operator cannot be a member
+'' function": every arithmetic, comparison and logical operator, the unary functions
+'' ('not', 'abs', 'len' ...) and '->', which is legal only as a global. Measured
+'' 2026-09-19, each one declared inside a type, fbc-modern 1.20 and 1.10.1 agreeing.
+private sub CheckNonMemberOperator_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_OPERATOR then return
+    '' A MEMBER is one whose owner is a TYPE. A dotted name alone does not say so:
+    '' 'operator op.+( ... )' over a NAMESPACE op is a global operator
+    '' (tests/mir/namespace-operator.bas), while 'operator T.cast( )' is T's.
+    dim as string nm = Text.LowerAscii( c.names->Spelling( sp->name ) )
+    '' 'andalso' and 'orelse' are overloadable NOWHERE -- fbc's 157, member or global.
+    if (nm = "andalso") orelse (nm = "orelse") then
+        c.diags->Report( TKO0792, PointRange( c.ast->Loc( id ) ), nm )
+        return
+    end if
+    dim as boolean isMember = (ProcOwner_( c, id ) <> TYPE_NONE)
+    if isMember = false then return
+    select case nm
+    case "+", "-", "*", "/", "\", "mod", "shl", "shr", "and", "or", "xor", "imp", "eqv", _
+         "^", "&", "=", "<>", "<", ">", "<=", ">=", "not", "abs", "sgn", "fix", "frac", _
+         "int", "exp", "log", "sin", "asin", "cos", "acos", "tan", "atn", "len", "->"
+        c.diags->Report( TKO0790, PointRange( c.ast->Loc( id ) ), nm )
+    end select
+end sub
+
+'' AN OPERATOR TAKES AS MANY OPERANDS AS IT HAS -- fbc error 1, "Argument count mismatch".
+'' A MEMBER's own object is implicit: 'let' and the compound assignments, '[]', 'new',
+'' 'new[]', 'delete' and 'delete[]' take one; 'cast' none; 'for' and 'step' at most one;
+'' 'next' one or two. A GLOBAL binary operator takes two -- '+', '-' and '*' one or two,
+'' being unary as well -- and a global unary one ('not', 'abs', 'len', '->' ...) one.
+'' Measured 2026-09-19 on fbc-modern 1.20 and 1.10.1, for declarations and for members
+'' defined outside their type; tiko-lang accepted every count. What fbc refuses for other
+'' reasons -- a member '+', a global '@', 'andalso' -- is not asked here.
+private sub CheckOperatorArity_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_OPERATOR then return
+    dim as long n = 0
+    for i as long = 0 to sp->count - 1
+        if c.ast->Kind( cast( NodeId, c.ast->children[sp->first + i] ) ) = N_PARAM then n += 1
+    next
+    '' A MEMBER is one whose owner is a TYPE. A dotted name alone does not say so:
+    '' 'operator op.+( ... )' over a NAMESPACE op is a global operator
+    '' (tests/mir/namespace-operator.bas), while 'operator T.cast( )' is T's.
+    dim as boolean isMember = (ProcOwner_( c, id ) <> TYPE_NONE)
+    dim as string nm = Text.LowerAscii( c.names->Spelling( sp->name ) )
+    dim as long lo = -1, hi = -1
+    if isMember then
+        select case nm
+        case "let", "+=", "-=", "*=", "/=", "\=", "^=", "&=", "mod=", "shl=", "shr=", _
+             "and=", "or=", "xor=", "eqv=", "imp=", "[]", "new", "new[]", "delete", "delete[]"
+            lo = 1 : hi = 1
+        case "cast"
+            lo = 0 : hi = 0
+        case "for", "step"
+            lo = 0 : hi = 1
+        case "next"
+            lo = 1 : hi = 2
+        end select
+    else
+        select case nm
+        case "=", "<>", "<", ">", "<=", ">=", "/", "\", "mod", "shl", "shr", "and", "or", _
+             "xor", "imp", "eqv", "^", "&"
+            lo = 2 : hi = 2
+        case "+", "-", "*"
+            lo = 1 : hi = 2
+        case "not", "abs", "sgn", "fix", "frac", "int", "exp", "log", "sin", "asin", "cos", _
+             "acos", "tan", "atn", "len", "->"
+            lo = 1 : hi = 1
+        end select
+    end if
+    if lo < 0 then return
+    if (n >= lo) andalso (n <= hi) then return
+    dim as string want = str( lo )
+    if hi <> lo then want &= " or " & str( hi )
+    c.diags->Report( TKO0789, PointRange( c.ast->Loc( id ) ), nm, want )
 end sub
 
 '' '[ ]' IS POINTER INDEXING, and needs a pointer -- fbc error 28, "Expected pointer".

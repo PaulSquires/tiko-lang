@@ -155,6 +155,21 @@ function EmitStrTerm _
             if StrSwapKind_( c, termT, tsk ) = -1 then
                 dim as MirValue nv
                 if NumberToStrDesc_( c, term, nv ) then
+                    '' ...AND FOR A UTF-16 CONSUMER, DECODED: the rendering is NARROW, and
+                    '' handed to fb_UStrConcatAssign as it stood, "42" (34 32) was read as ONE
+                    '' unit, U+3234, and the NUL and whatever lay past it as the next -- 'u = u
+                    '' & n' gave "a", U+3234, NUL, and the trailing unit varied run to run.
+                    '' That was fbc-modern's own lowering, copied; fixed there 2026-09-19, it
+                    '' now emits 'fb_StrToUStr( vr, -1 )' first, as the chain path here always
+                    '' did (LowerUStrChain).
+                    if isU then
+                        dim as FB.Array( of ulong ) ncv
+                        PushStrArg( ncv, nv )
+                        dim as MirValue nuv = EmitRtl( c, RTL_STR_TO_USTR, ncv )
+                        if nuv.kind = cast( ubyte, MV_NONE ) then return false
+                        PushStrArg( args, nuv )
+                        return true
+                    end if
                     PushStrArg( args, nv )
                     return true
                 end if
@@ -316,9 +331,10 @@ end function
 '' NEUTRAL is the interesting one: a literal, a string CONSTANT and a rendered NUMBER
 '' all follow the destination -- measured, 'u = u & "lit"' emits the UTF-16 literal
 '' straight into fb_UStrConcatAssign and 'u = u & n' renders the number narrow and
-'' hands THAT to the same entry point. An untyped term is neutral too, because Check
-'' computes no type for an intrinsic call and following the destination is what the
-'' code did before any of this.
+'' decodes it, fb_StrToUStr, before the same entry point (fbc-modern handed the narrow
+'' rendering over raw until 2026-09-19 -- see EmitStrTerm). An untyped term is neutral
+'' too, because Check computes no type for an intrinsic call and following the
+'' destination is what the code did before any of this.
 '' Is this the call 'str( x )'? THE MIRROR OF IsWstrCall_, and asked for the same
 '' reason: a term's width is decided before anything is emitted for it, and Check
 '' computes no type for an intrinsic call, so TermIsWide_ falls back on the operand.

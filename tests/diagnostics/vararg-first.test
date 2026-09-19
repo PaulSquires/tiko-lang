@@ -1,0 +1,24 @@
+'' '...' may not be the first parameter, fbc's error 313 -- 14 errors, plus fbc's 143 for
+'' the constructor on line 28, on fbc-modern 1.20 and 1.10.1 alike and on exactly these
+'' lines (2026-09-19). Line 19 is inside 'typeof', which the parser reads speculatively
+'' and reported nothing from. Line 27, a non-static member declaration, is accepted: its
+'' hidden THIS comes first. The rule has no target in it; linux-x86_64 gives the same.
+'' TEST: cli
+'' ARGS: --dump-ir -target win64-msvc tests/diagnostics/src/vararg-first.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 15
+'' EXPECT-OUT: vararg-first.bas(5,24): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(6,18): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(7,16): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(9,23): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(10,29): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(11,24): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(12,33): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(14,28): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(17,22): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(19,31): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(23,22): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(24,33): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(31,22): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(36,27): error TKO0782: '...' cannot be the first parameter
+'' EXPECT-OUT: vararg-first.bas(28,13): error TKO0780: 'constructor' takes '...' and cannot be overloaded

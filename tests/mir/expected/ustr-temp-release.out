@@ -119,31 +119,33 @@ func i32 main(i32 $0, ptr $1) {
     %42 = call.rtl ptr fb_UStrInit(@u, -1, @@$wstr4, %41, 0)
     %43 = load @n
     %44 = call.rtl ptr fb_IntToStr(%43)
-    %45 = call.rtl ptr fb_UStrConcatAssign(@u, -1, %44, -1, 0)
-    %46 = const i64 2
-    %47 = trunc %46
-    %48 = call ptr MK(%47)
-    %49 = call.rtl i64 fb_UStrLen(%48, -1)
-    call.rtl void fb_PrintLongint(0, %49, 2)
+    %45 = call.rtl ptr fb_StrToUStr(%44, -1)
+    %46 = call.rtl ptr fb_UStrConcatAssign(@u, -1, %45, -1, 0)
+    %47 = const i64 2
+    %48 = trunc %47
+    %49 = call ptr MK(%48)
+    %50 = call.rtl i64 fb_UStrLen(%49, -1)
+    call.rtl void fb_PrintLongint(0, %50, 2)
     call.rtl void fb_PrintUStr(0, @v, 2)
     call.rtl void fb_PrintUStr(0, @w, 2)
     call.rtl void fb_PrintUStr(0, @u, 1)
     call.rtl void fb_UStrDelete(@u)
     call.rtl void fb_UStrDelete(@w)
     call.rtl void fb_UStrDelete(@v)
-    %50 = const i32 0
-    call.rtl void fb_End(%50)
-    %51 = load @$tmp0
-    ret %51
+    %51 = const i32 0
+    call.rtl void fb_End(%51)
+    %52 = load @$tmp0
+    ret %52
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_UStrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_UStrDelete(ptr $0)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr fb_StrToUStr(ptr $0, i64 $1)
 declare ptr fb_UStrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare i64 fb_UStrLen(ptr $0, i64 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 104 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 105 insts, 0 statements not lowered, 0 scope imbalance

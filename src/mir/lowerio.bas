@@ -356,6 +356,21 @@ function PrintOne _
             end if
         end if
     end if
+    '' 'cast( string, u )' OVER A UDT WITH A NARROW 'operator cast' has no type here
+    '' either -- Check does not model the string result -- so the item fell past every
+    '' branch and 'print cast( string, b ); " tail"' printed nothing at all, where fbc
+    '' prints the cast's result. The TYPEREF names the type; StrDescriptorOf_ below
+    '' already looks through the cast to the UDT's own conversion.
+    if IsStringType( c, t ) = false then
+        if StrIdentityConvOperand_( c, it ) <> Tko.NODE_NONE then
+            dim as Tko.ListPayload ptr scp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, it )].data )]
+            dim as Tko.NodeId stn = cast( Tko.NodeId, c.ast->children[scp->first] )
+            if c.ast->Kind( stn ) = Tko.N_TYPEREF then
+                t = c.types->Unqualify( c.info->TypeOf_( stn ) )
+            end if
+        end if
+    end if
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )

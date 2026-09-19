@@ -48,6 +48,11 @@ end function
 ''
 '' SAME FILE ONLY. Locations order within a file; across two files the include order
 '' is what decides and a raw comparison would be guessing.
+'' Defined in resolveunbound.bas, which is included after this file.
+declare sub ForwardTypeRef_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, _
+      byval scope_ as Tko.ScopeId )
+
 private function LookupTypeAtPoint_ _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval at as Tko.NodeId ) as Tko.SymbolId
@@ -534,6 +539,7 @@ function ResolveTypeRef _
         end if
 
         if sid <> Tko.SYMBOL_NONE then
+            ForwardTypeRef_( c, id, sid, scope_ )    '' named above its declaration: fbc's 14
             c.info->SetRef( id, sid )
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
             '' A TYPEDEF STILL HOLDING ITS PLACEHOLDER is not resolved. Collect gives

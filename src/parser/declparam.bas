@@ -160,6 +160,33 @@ function StringLitText( byref p as Tko.ParserState ) as Tko.InternId
     return p.names->Get( @f->text[lit->textOffset], lit->textLength )
 end function
 
+'' A WORD BETWEEN A PROCEDURE'S NAME AND ITS PARAMETERS THAT IS NO MODIFIER -- 'declare
+'' sub f thiscall( ... )', 'sub f junk( )' -- is fbc's error 3, "Expected End-of-Line".
+'' 'thiscall' and 'fastcall' are not conventions to fbc; '__thiscall' and '__fastcall'
+'' are, and those are keywords here. Spelled plain they are an identifier like any other,
+'' and tiko said nothing: no '(' followed, so the list read as absent and the trailing-
+'' modifier loop ate the word and the whole list with it -- a procedure with no
+'' parameters. NAKED and a paren-less OVERRIDE are the words fbc does take there.
+'' Measured 2026-09-19 on fbc-modern 1.20 and 1.10.1: declarations, definitions,
+'' members, after OVERLOAD and after ALIAS, with and without a parameter list.
+private sub StrayWordBeforeParams_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    if Peek( p ) <> Tko.TK_IDENT then exit sub
+    '' A statement already broken before its keyword -- 'declare virtual const sub b1( )'
+    '' is TKO0678, and recovery took CONST for the keyword -- has had its one error.
+    select case cast( Tko.TokenKind, sp.op )
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+         Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+    case else
+        exit sub
+    end select
+    dim as string w = Tko.Text.LowerAscii( _
+        p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) )
+    if (w = "naked") orelse (w = "override") then exit sub
+    if p.silent then exit sub
+    p.diags->Report( Tko.TKO0420, Tko.PointRange( Cur( p ).loc ) )
+    p.silent = true
+end sub
+
 sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     dim as Tko.NodeIdVec params
     if Peek( p ) = Tko.TK_LPAREN then
@@ -179,6 +206,44 @@ sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     for i as long = 0 to params.Count - 1
         p.ast->children.Push( params[i] )
     next
+end sub
+
+'' A PROPERTY'S SHAPE -- fbc's errors 190, 191 and 213. A GETTER, which has a result,
+'' takes nothing or one index; a SETTER takes the value, with at most one index before
+'' it; and a property is never STATIC. A '...' counts as a parameter. Measured
+'' 2026-09-19 on fbc-modern 1.20 and 1.10.1, declared in the type and defined outside
+'' it alike; tiko-lang accepted every shape.
+private sub CheckPropertyShape_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byval kw as Tko.TokenKind, byval at as Tko.SourceLoc )
+    if kw <> Tko.KW_PROPERTY then exit sub
+    if p.silent then exit sub
+    if (sp.extra and Tko.PF_STATIC) <> 0 then
+        p.diags->Report( Tko.TKO0788, Tko.PointRange( at ) )
+        exit sub
+    end if
+    dim as long n = 0
+    for i as long = 0 to sp.count - 1
+        if p.ast->Kind( cast( Tko.NodeId, p.ast->children[sp.first + i] ) ) = Tko.N_PARAM then n += 1
+    next
+    if sp.a <> Tko.NODE_NONE then
+        if n > 1 then p.diags->Report( Tko.TKO0786, Tko.PointRange( at ) )
+    elseif (n < 1) orelse (n > 2) then
+        p.diags->Report( Tko.TKO0787, Tko.PointRange( at ) )
+    end if
+end sub
+
+'' A PROCEDURE'S parameter list with the checks around it: a stray word before it
+'' (fbc's error 3) and a '...' in it (312 and 313). Here rather than in ParseProc,
+'' which sits at the 1500-line cap.
+private sub ProcParams_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byval kw as Tko.TokenKind, byval declareOnly as boolean )
+    StrayWordBeforeParams_( p, sp )
+    ParseParamList( p, sp )
+    CheckVarargConv_( p, sp, Tko.CallConvOf( sp.extra ), _
+                      (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR), _
+                      declareOnly andalso (p.aggDepth > 0) )
 end sub
 
 '' sub / function / property / constructor / destructor / operator, declaration or

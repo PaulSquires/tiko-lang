@@ -1,0 +1,16 @@
+'' 'cast( string, u )' AS A PRINT ITEM, over a UDT with a narrow 'operator cast', was
+'' dropped with nothing said: Check gives the cast no type, so the item fell past every
+'' PRINT branch and the statement declined. fbc-modern prints "box7", "box7 tail" and
+'' "head box7" (measured 2026-09-19). The typeref names the type now, and the item takes
+'' the descriptor path that 'print b' already took.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/cast-string-udt-print.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: %9 = call ptr _ZN3BOXcv8FBSTRINGEv(@b)
+'' EXPECT-OUT: call.rtl void fb_PrintString(0, %9, 1)
+'' EXPECT-OUT: %10 = call ptr _ZN3BOXcv8FBSTRINGEv(@b)
+'' EXPECT-OUT: call.rtl void fb_PrintString(0, %10, 0)
+'' EXPECT-OUT: %13 = call ptr _ZN3BOXcv8FBSTRINGEv(@b)
+'' EXPECT-OUT: call.rtl void fb_PrintString(0, %13, 1)

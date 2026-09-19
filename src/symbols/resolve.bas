@@ -346,6 +346,7 @@ private sub WalkExpr _
         '' same thing shadows the member, which is why the search is in three steps
         '' rather than two.
         dim as Tko.SymbolId sid = c.syms->LookupTyped( scope_, nm, false )
+        sid = VisibleAbove_( c, sid, id, scope_, nm )    '' not one declared below: fbc's 42
         '' ...AND AN INHERITED MEMBER BEATS A MODULE-LEVEL NAME. The walk above
         '' reaches the procedure's locals and its OWN type's members, and then goes
         '' straight out to the namespace; an INHERITED member is not on that chain
@@ -981,11 +982,13 @@ sub WalkStmt _
                 '' anything, so an initialiser like 'NEXTCONST = T.MYCONST' reached
                 '' every later pass with no symbol on it at all -- and the member-access
                 '' checks, which need one, could say nothing about it. IN THE ENUM'S OWN
-                '' SCOPE: an EXPLICIT enum publishes nothing outside, and 'b = a' names
-                '' its sibling -- fbc folds it, and the name went unbound (undeclared.bas).
-                WalkExpr( c, ip->b, iif( escope <> Tko.SCOPE_NONE, escope, here ) )
+                '' SCOPE, walked AND folded: an EXPLICIT enum publishes nothing outside, so
+                '' 'blue = green * 2' found no 'green', did not fold, and took the running
+                '' value -- 3 where fbc prints 4 -- with the name left unbound as well.
+                dim as Tko.ScopeId isc = iif( escope <> Tko.SCOPE_NONE, escope, here )
+                WalkExpr( c, ip->b, isc )
                 dim as Tko.Check.ConstVal ev = Tko.Check.ConstOf( _
-                    *c.ast, ip->b, *c.srcMgr, *c.names, 64, c.syms, here )
+                    *c.ast, ip->b, *c.srcMgr, *c.names, 64, c.syms, isc )
                 '' An initialiser that will not fold leaves the running value alone:
                 '' wrong by ONE member rather than by all of them.
                 if ev.known then enumNext = ev.value

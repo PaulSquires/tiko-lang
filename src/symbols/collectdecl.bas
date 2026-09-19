@@ -128,12 +128,41 @@ end function
 '' use above the 'dim' to fall through to, and hiding the declaration would turn it into
 '' an undeclared-variable error instead. fbc reports exactly that error, but it is a
 '' second change and not what this one is for.
+'' WHERE A WRITTEN DECLARATION STARTS -- Symbol.declAt, for the rule that a name used
+'' above its declaration is undeclared (Resolve's DeclaredBelow_). The FIRST sighting
+'' only: a procedure declared and then defined starts at its DECLARE, a namespace at its
+'' first block. A generic INSTANCE (w.src = 0) is collected long after the code that
+'' names it, so its node ids say nothing about order, and the prelude is no one's source.
+private sub NoteDeclAt_ _
+    ( byref w as Walker, byval sid as Tko.SymbolId, byval at as Tko.NodeId )
+    if (sid = Tko.SYMBOL_NONE) orelse (at = Tko.NODE_NONE) then return
+    if w.src = 0 then return
+    dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
+    if s = 0 then return
+    if s->declAt <> 0 then return
+    if w.src->IsBuiltin( w.ast->Loc( at ) ) then return
+    s->declAt = cast( ulong, at )
+end sub
+
 private sub MarkShadow_ _
     ( byref w as Walker, byval sid as Tko.SymbolId, byval scope_ as Tko.ScopeId, _
       byval nm as Tko.InternId, byval k as Tko.SymbolKind, byval dflags as ushort, _
       byval item as Tko.NodeId, byval ip as Tko.StmtPayload ptr )
 
     if sid = Tko.SYMBOL_NONE then return
+    '' THE LOWEST NODE THIS DECLARATION OWNS, not the statement that holds it -- see the
+    '' ShadowFrom call below for why.
+    dim as Tko.NodeId lo = item
+    if ip <> 0 then
+        if (ip->a <> Tko.NODE_NONE) andalso (ip->a < lo) then lo = ip->a
+        if (ip->b <> Tko.NODE_NONE) andalso (ip->b < lo) then lo = ip->b
+        if (ip->c <> Tko.NODE_NONE) andalso (ip->c < lo) then lo = ip->c
+    end if
+    '' Where it starts, for 'x = 1 : dim as integer x' -- fbc's error 42. A CONST is
+    '' always written; a variable only when NF_DECL_WRITTEN says so (below).
+    if (k = Tko.SYM_CONSTANT) orelse ((dflags and Tko.NF_DECL_WRITTEN) <> 0) then
+        NoteDeclAt_( w, sid, lo )
+    end if
     if k <> Tko.SYM_VARIABLE then return
     '' ONLY A DECLARATION THAT WAS WRITTEN -- see NF_DECL_WRITTEN. A lambda's capture
     '' prologue is a 'var' per captured name, built after the body and prepended to
@@ -161,12 +190,6 @@ private sub MarkShadow_ _
         '' which sent 'dim as long v = v + 1' to the OUTER v and printed 12 where fbc
         '' prints 1. Everything parsed for the previous statement is lower still, so
         '' the two sides do not overlap.
-        dim as Tko.NodeId lo = item
-        if ip <> 0 then
-            if (ip->a <> Tko.NODE_NONE) andalso (ip->a < lo) then lo = ip->a
-            if (ip->b <> Tko.NODE_NONE) andalso (ip->b < lo) then lo = ip->b
-            if (ip->c <> Tko.NODE_NONE) andalso (ip->c < lo) then lo = ip->c
-        end if
         w.syms->ShadowFrom( sid, cast( ulong, lo ) )
     end select
 end sub

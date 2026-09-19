@@ -1,0 +1,15 @@
+'' A DEFINITION IN AN OVERLOAD SET THAT CERTAINLY DIFFERS FROM THE ONE SAME-ARITY
+'' DECLARATION IS A NEW OVERLOAD. Collect joined a definition to the declaration by arity
+'' alone, so 'sub g( byval a as double )' became the body of 'declare sub g overload(
+'' byval a as long )': 'g( 1.5 )' called _Z1Gi, which nothing defines, and the link
+'' failed; 'k( 4 )' was refused outright (TKO0641). fbc-modern prints "g double 1.5",
+'' "h long 3", "k scalar 4" (measured 2026-09-19). Refused only where no typedef could
+'' make the two one type: keywords that differ, a pointer depth, an array against a scalar.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-def-new.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _Z1Gd(
+'' EXPECT-OUT: call void _Z1Hi(
+'' EXPECT-OUT: call void _Z1Ki(

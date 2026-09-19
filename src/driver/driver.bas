@@ -848,9 +848,12 @@ function Run _
                 dim as Tko.Check.Stats cst
                 Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
-                '' A name nothing declared, once Check has had its say -- fbc's 42.
-                Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
-                                            info, rst, pr.reservedNames )
+                '' A name nothing declared, once Check has had its say -- fbc's 42. Not
+                '' in a unit whose '#lang' was refused: there it may be an implicit one.
+                if pr.langRefused = false then
+                    Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
+                                                info, rst, pr.reservedNames, syms )
+                end if
                 '' AFTER Check: a member access needs its symbol, and only Check binds
                 '' one -- a field means nothing until its base has a type.
                 Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info )
@@ -1199,8 +1202,10 @@ function Run _
                 dim as Tko.Check.Stats cst
                 Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
-                Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
-                                            info, rst, pr.reservedNames )
+                if pr.langRefused = false then
+                    Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
+                                                info, rst, pr.reservedNames, syms )
+                end if
                 print Tko.Check.Dump( ast, ctx.sources, ctx.types, ctx.names, info, cst );
             elseif ctx.options.dumpMangle then
                 '' Mangling needs the parameter TYPES, so it runs after Resolve --

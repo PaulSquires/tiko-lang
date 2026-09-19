@@ -705,6 +705,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         SkipToEol( e )
         if (len( mode ) > 0) andalso (Text.LowerAscii( mode ) <> "fb") then
             Report( e, TKO0317, at, mode )
+            e.outp->langRefused = true
         end if
 
     case "pragma"

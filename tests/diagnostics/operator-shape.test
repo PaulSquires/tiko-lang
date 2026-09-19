@@ -1,0 +1,26 @@
+'' An operator's shape: 17 errors on fbc-modern 1.20 and 1.10.1 alike, on exactly these lines
+'' (2026-09-19) -- fbc's 1 for a parameter count an operator does not take, 153 for a
+'' member '+' and '->', 152 for a global '@', 'new' and 'for', 157 for 'andalso' and
+'' 'orelse' at the end. The member shapes from line 16 and the global ones from line 32
+'' are accepted by both.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/operator-shape.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 17
+'' EXPECT-OUT: operator-shape.bas(7,13): error TKO0789: operator '+=' takes 1 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(8,13): error TKO0789: operator 'let' takes 1 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(9,13): error TKO0789: operator 'cast' takes 0 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(10,13): error TKO0789: operator '[]' takes 1 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(11,13): error TKO0789: operator 'for' takes 0 or 1 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(12,13): error TKO0789: operator 'next' takes 1 or 2 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(13,13): error TKO0789: operator 'new' takes 1 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(14,13): error TKO0790: operator '+' cannot be a member of a type
+'' EXPECT-OUT: operator-shape.bas(15,13): error TKO0790: operator '->' cannot be a member of a type
+'' EXPECT-OUT: operator-shape.bas(26,9): error TKO0789: operator '=' takes 2 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(27,9): error TKO0789: operator 'not' takes 1 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(28,9): error TKO0789: operator '-' takes 1 or 2 parameter(s) here
+'' EXPECT-OUT: operator-shape.bas(29,9): error TKO0697: operator '@' must be a member of a type
+'' EXPECT-OUT: operator-shape.bas(30,9): error TKO0697: operator 'new' must be a member of a type
+'' EXPECT-OUT: operator-shape.bas(31,9): error TKO0697: operator 'for' must be a member of a type
+'' EXPECT-OUT: operator-shape.bas(40,9): error TKO0792: 'andalso' cannot be overloaded
+'' EXPECT-OUT: operator-shape.bas(41,9): error TKO0792: 'orelse' cannot be overloaded

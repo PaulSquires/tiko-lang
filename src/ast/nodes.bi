@@ -334,6 +334,7 @@ namespace Tko
         as ubyte    strKind
         as ubyte    suffix
         as ubyte    radix
+        as ubyte    strWide         '' a unicode escape in the text -- see Literal.strWide
     end type
 
     type IdentPayload

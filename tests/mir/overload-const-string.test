@@ -1,0 +1,20 @@
+'' A NON-CONST STRING TO A CONST STRING PARAMETER IS ONE TIER DOWN, as fbc scores a same-type
+'' match whose CONST differs: below 'zstring ptr' and 'byref zstring', above the wide strings.
+'' tiko-lang costed adding const as one step above exact, so offered { byref const string,
+'' const zstring ptr } 'g( sv )' ran the const string body where fbc-modern runs the zstring
+'' ptr one -- fb/hash.bi's 'HashOf( s )' is _ZN2FB6HASHOFEPKc under fbc (measured 2026-09-19);
+'' the same for 'sv & "x"' and 'byref const zstring'. And a STRING reaching a ustring or a
+'' wstring is fbc's half tier, dearer than a zstring ptr (k, q) and than a const string
+'' passed to a byval one (p). { const string, const ustring } still takes the string (m).
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-const-string.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _Z1GPKc(%8)
+'' EXPECT-OUT: call void _Z1GPKc(%19)
+'' EXPECT-OUT: call void _Z1HRKc(%20)
+'' EXPECT-OUT: call void _Z1KPKc(%21)
+'' EXPECT-OUT: call void _Z1MRK8FBSTRING(@sv)
+'' EXPECT-OUT: call void _Z1P8FBSTRING(@$tmp5)
+'' EXPECT-OUT: call void _Z1QPKc(%27)

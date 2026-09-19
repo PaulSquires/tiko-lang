@@ -196,6 +196,10 @@ namespace Tko
         '' well, where the duplicate-reserve check needs them while directives are still
         '' being read.
         as IdVec    reservedNames
+        '' A '#lang' this unit asked for and tiko-lang refused (TKO0317). The unit fails
+        '' either way; in 'qb' or 'fblite' an undeclared name is an implicit variable,
+        '' so the undeclared-name report is not made over one -- it would be noise.
+        as boolean  langRefused
         '' The bound names, so 'declare ... lib IDENT' can be checked against them.
         '' Stored as 'ID' & tab & 'signature': the same name twice with a DIFFERENT
         '' set is an error, and with the same set is not.

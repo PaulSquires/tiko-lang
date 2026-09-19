@@ -1,0 +1,22 @@
+'' A CONSTANT STRING ARGUMENT IS A LITERAL, and a literal is a ZSTRING -- a WSTRING with a
+'' unicode escape -- not a STRING. Check typed every one as STRING, so offered { string,
+'' zstring ptr } 'g( 1, "zz" )' called the string overload, where fbc-modern calls the
+'' zstring ptr one and prints "g zptr 1 zz" (measured 2026-09-19); the same for '"a" & "b"',
+'' a CONST, 'byref as zstring', and a wide literal offered 'wstring ptr'. A string VARIABLE
+'' and 'sv & "!"' stay STRING. A named CONST STRING offered { byval string, zstring ptr }
+'' takes zstring ptr: fbc scores a const-to-non-const byval match one tier down.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-string-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _Z1GiPc(%9, @@$str9)
+'' EXPECT-OUT: call void _Z1GiPc(%22, %20)
+'' EXPECT-OUT: call void _Z1GiPc(%26, %24)
+'' EXPECT-OUT: call void _Z1Gi8FBSTRING(%33, @$tmp5)
+'' EXPECT-OUT: call void _Z1Gi8FBSTRING(%41, @$tmp6)
+'' EXPECT-OUT: call void _Z1GiPc(%44, %42)
+'' EXPECT-OUT: call void _Z1HPw(@@$wstr14)
+'' EXPECT-OUT: call void _Z1HR8FBSTRING(@$tmp7)
+'' EXPECT-OUT: call void _Z1KRc(@@$str16)
+'' EXPECT-OUT: call void _Z1K8FBSTRING(@$tmp8)

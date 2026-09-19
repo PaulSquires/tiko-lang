@@ -587,6 +587,7 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
 
     dim as long textFirst = s.i
     dim as boolean closed = false
+    dim as boolean wide = false
 
     while s.i < s.n
         dim as ubyte c = s.p[s.i]
@@ -602,6 +603,8 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
         end if
         '' In an escaped literal a backslash protects the next byte, including a quote.
         if (kind = Tko.STRK_ESCAPED) andalso (c = 92) andalso (s.i + 1 < s.n) then
+            '' ...and a '<backslash>u' or '<backslash>U' makes the literal WIDE (Literal.strWide).
+            if (s.p[s.i + 1] = 117) orelse (s.p[s.i + 1] = 85) then wide = true
             s.i += 2
             continue while
         end if
@@ -620,6 +623,7 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
     dim as Tko.Literal lit
     lit.kind = cast( ubyte, Tko.TK_STRING_LIT )
     lit.strKind = cast( ubyte, kind )
+    if wide then lit.strWide = 1
     lit.textFile = cast( long, s.file )
     lit.textOffset = textFirst
     lit.textLength = textLast - textFirst

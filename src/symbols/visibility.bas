@@ -1110,6 +1110,7 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
 end sub
 
 #include once "symbols/byrefcheck.bas"
+#include once "symbols/defcheck.bas"
 #include once "symbols/latesweeps2.bas"
 
 
@@ -1222,9 +1223,16 @@ private sub Walk_ _
     if k = N_CALL then CheckProcPtrArgs_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
-    if k = N_PROC then CheckByrefResultAgrees_( c, id )
-    if k = N_PROC then CheckModifierAgrees_( c, id )
+    if k = N_PROC then
+        '' One report per statement: the definition's own agreement rules go first.
+        dim as long defErr0 = c.diags->ErrorCount( )
+        CheckByrefResultAgrees_( c, id )
+        CheckModifierAgrees_( c, id )
+        if c.diags->ErrorCount( ) = defErr0 then CheckDefinitionAgrees_( c, id )
+    end if
     if k = N_PROC then CheckMemberOnlyOperator_( c, id )
+    if k = N_PROC then CheckOperatorArity_( c, id )
+    if k = N_PROC then CheckNonMemberOperator_( c, id )
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )

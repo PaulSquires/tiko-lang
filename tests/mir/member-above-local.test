@@ -1,0 +1,13 @@
+'' A MEMBER WRITTEN ABOVE A LOCAL OF THE SAME NAME. Collect declared the method's locals
+'' before anything was bound, so 'total = 5' on the line above 'dim as long total' bound
+'' the LATER local -- a store into a slot nothing reads -- where fbc-modern writes the
+'' member and prints '100 5'. AfxNova's DVARIANT.ToGuidStr writes exactly this shape with
+'' m_Result. A name declared below its use is not visible to it (resolveunbound.bas), so
+'' the lookup goes on to the member, through 'this'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/member-above-local.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: %5 = field.addr %4, 0
+'' EXPECT-OUT: store %5, %7

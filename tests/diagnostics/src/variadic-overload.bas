@@ -36,3 +36,12 @@ end type
 '' fbc forgets a refused declaration: this set is not refused in turn.
 declare sub varForgot cdecl overload( byval a as long, ... )
 declare sub varForgot cdecl overload( byval a as double )
+
+'' A PROPERTY and a GLOBAL operator are always overloads, as a constructor is: each is
+'' refused alone. A MEMBER operator is not -- 'operator let' taking '...' compiles.
+type VarProps
+    x as long
+    declare property p cdecl( byval a as long, ... )
+    declare operator let cdecl( ... )
+end type
+declare operator + cdecl( byref a as VarProps, ... ) as VarProps

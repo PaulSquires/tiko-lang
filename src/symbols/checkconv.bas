@@ -65,6 +65,17 @@ function ConversionCost _
     if (types.Kind( from_ ) = Tko.TK_BUILTIN) andalso _
        (types.Kind( to_ ) = Tko.TK_BUILTIN) then
         dim as long sr = StringPref_( types.BuiltinOf( from_ ), types.BuiltinOf( to_ ) )
+        '' ...but a STRING reaching a WIDE string is fbc's HALF tier, dearer than a
+        '' 'zstring ptr' -- see CONV_STR_TO_USTR. Measured: a string offered { byref
+        '' const ustring, const zstring ptr } takes the pointer, and so does one offered
+        '' { byref const wstring, const zstring ptr }. The order between the two wide
+        '' kinds is StringPref_'s, unchanged.
+        if types.BuiltinOf( from_ ) = Tko.TY_STRING then
+            select case types.BuiltinOf( to_ )
+            case Tko.TY_USTRING : return CONV_STR_TO_USTR
+            case Tko.TY_WSTRING : return CONV_STR_TO_WSTR
+            end select
+        end if
         if sr >= 0 then return CONV_WIDEN + sr
     end if
 

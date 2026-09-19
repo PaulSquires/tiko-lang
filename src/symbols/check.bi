@@ -104,6 +104,19 @@ namespace Tko.Check
     const CONV_STRPTR_SAME  as long = 50
     const CONV_STRPTR_OTHER as long = 150
 
+    '' fbc's TIERS, for a var-len STRING argument, where they matter. From its tables
+    '' (symb-proc.bas) and measured pair by pair: 'string' exact, then 'zstring' and
+    '' 'zstring ptr' (the full tier, 100 and 150 here); then a SAME-type match whose
+    '' CONST differs, either way round ('byref as const string' given a string, 'byval
+    '' as string' given a const one), which fbc scores one tier down; then the half
+    '' tier: 'ustring', 'wstring', 'wstring ptr' (CONV_STRPTR_OTHER + 10). So a string
+    '' offered { byref const string, zstring ptr } takes zstring ptr, offered { byref
+    '' const string, ustring } takes const string, and offered { ustring, zstring ptr }
+    '' takes zstring ptr.
+    const CONV_STR_CONST_COPY  as long = CONV_STRPTR_OTHER + 5
+    const CONV_STR_TO_USTR     as long = CONV_STRPTR_OTHER + 6
+    const CONV_STR_TO_WSTR     as long = CONV_STRPTR_OTHER + 7
+
     '' pointer <-> a pointer-sized integer. Dearer than the BOOLEAN tier because it
     '' loses to it: an INTEGER argument offered 'any ptr' and 'boolean' takes boolean,
     '' and a pointer argument offered 'any ptr' and 'integer' takes any ptr. Staying
@@ -130,7 +143,7 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
           byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
           byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-          byref reserved as FB.Array( of ulong ) )
+          byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable )
 
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
     '' them -- Check to TYPE 'p->v' and lowering to CALL the operator -- so they take

@@ -241,6 +241,7 @@ private function MakeLiteral _
         lp.strOffset = src->textOffset
         lp.strLength = src->textLength
         lp.strKind = src->strKind
+        lp.strWide = src->strWide
         lp.suffix = src->suffix
         lp.radix = src->radix
     end if

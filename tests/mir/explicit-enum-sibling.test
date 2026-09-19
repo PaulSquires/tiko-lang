@@ -1,0 +1,13 @@
+'' AN EXPLICIT ENUM'S INITIALISER NAMING A SIBLING DID NOT FOLD. The initialisers were
+'' folded in the ENCLOSING scope, where an explicit enum publishes nothing, so 'twice =
+'' base_ * 2' found no base_ and took the running value instead: 3 4 5 6 where fbc-modern
+'' prints 3 6 12 13 (measured 2026-09-19). They fold in the enum's own scope now.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/explicit-enum-sibling.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: %4 = const i64 3
+'' EXPECT-OUT: %5 = const i64 6
+'' EXPECT-OUT: %6 = const i64 12
+'' EXPECT-OUT: %7 = const i64 13

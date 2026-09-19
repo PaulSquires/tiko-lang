@@ -1,0 +1,39 @@
+'' A DEFINITION HELD TO ITS DECLARATION: 25 errors on fbc-modern 1.20, fbc 1.10.1 and
+'' fbc-modern's Linux build alike, on exactly these lines (2026-09-19). fbc asks the
+'' result first (40), then the parameter count (1), then each parameter (58: its type,
+'' const, array-ness or passing mode); a member is found by its signature, and one no
+'' overload has is 158 -- a changed parameter, a cast's result, a constructor, a property
+'' setter's value -- as is 'sub N.h2' against a namespace's overload set. Lines 58 to 79,
+'' 118 to 127 and 132 are accepted by all three: a default or a name that differs, a
+'' typedef, the implicit byref of a string or UDT, a new module-level overload, an indexed
+'' getter beside a plain setter, any type against 'byref as any' (but not a byval one,
+'' line 136). The previous tiko-lang accepted every line.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/definition-mismatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 25
+'' EXPECT-OUT: definition-mismatch.bas(8,1): error TKO0793: the result of 'r1' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(12,1): error TKO0793: the result of 'r2' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(15,1): error TKO0794: 'c1' was declared with 1 parameter(s)
+'' EXPECT-OUT: definition-mismatch.bas(18,1): error TKO0794: 'c2' was declared with 1 parameter(s)
+'' EXPECT-OUT: definition-mismatch.bas(21,1): error TKO0795: parameter 1 of 'p1' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(24,1): error TKO0795: parameter 1 of 'p2' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(27,1): error TKO0795: parameter 1 of 'p3' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(30,1): error TKO0795: parameter 1 of 'p4' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(33,1): error TKO0795: parameter 1 of 'p5' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(36,1): error TKO0795: parameter 2 of 'p6' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(39,1): error TKO0793: the result of 'o1' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(43,1): error TKO0795: parameter 1 of 'p7' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(46,1): error TKO0795: parameter 1 of 'v1' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(51,1): error TKO0795: parameter 1 of 'x1' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(54,1): error TKO0795: parameter 1 of 'va' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(85,1): error TKO0795: parameter 1 of 'h' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(87,1): error TKO0796: no declaration of 'h2' matches this definition
+'' EXPECT-OUT: definition-mismatch.bas(104,1): error TKO0796: no declaration of 'f' matches this definition
+'' EXPECT-OUT: definition-mismatch.bas(106,1): error TKO0793: the result of 'g' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(108,1): error TKO0795: parameter 1 of 'm' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(110,1): error TKO0796: no declaration of 'operator cast' matches this definition
+'' EXPECT-OUT: definition-mismatch.bas(113,1): error TKO0796: no declaration of 'constructor' matches this definition
+'' EXPECT-OUT: definition-mismatch.bas(115,1): error TKO0793: the result of 'p' does not match its declaration
+'' EXPECT-OUT: definition-mismatch.bas(128,1): error TKO0796: no declaration of 'w' matches this definition
+'' EXPECT-OUT: definition-mismatch.bas(136,1): error TKO0795: parameter 1 of 'p8' does not match its declaration

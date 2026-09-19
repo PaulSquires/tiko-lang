@@ -1,0 +1,17 @@
+'' A stray word between a procedure's name and its parameters is fbc's error 3 -- 8 errors
+'' on fbc-modern 1.20 and 1.10.1 alike, on exactly these lines (2026-09-19): 'thiscall',
+'' 'fastcall' and any other word, declared or defined, in a type, after OVERLOAD, after
+'' ALIAS, with no list. From line 20 on is accepted by both: '__thiscall', '__fastcall',
+'' NAKED, and OVERRIDE with no parameter list.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/proc-stray-word.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 8
+'' EXPECT-OUT: proc-stray-word.bas(7,17): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(8,17): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(9,17): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(10,9): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(12,17): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(13,30): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(14,17): error TKO0420: expected the end of the statement
+'' EXPECT-OUT: proc-stray-word.bas(17,19): error TKO0420: expected the end of the statement

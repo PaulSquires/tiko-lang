@@ -1,0 +1,12 @@
+'' A CONST STRING OFFERED 'byref as zstring' BESIDE ANOTHER STRING OVERLOAD: fbc asks CONST
+'' only of a same-type match, so it chooses the byref zstring overload and then refuses it --
+'' error 181 on lines 9, 10 and 11 on fbc-modern 1.20, fbc 1.10.1 and fbc-modern's Linux
+'' build alike (2026-09-19). tiko-lang took the other overload without a word. A literal
+'' (line 12) is no const variable and binds.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-string-zref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 3
+'' EXPECT-OUT: const-string-zref.bas(9,5): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-string-zref.bas(10,5): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-string-zref.bas(11,5): error TKO0699: a const value cannot be passed to a non-const byref parameter

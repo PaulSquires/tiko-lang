@@ -1,0 +1,8 @@
+'' A refused '#lang' is TKO0317 and nothing more: 'x = 1' and 'print y' are implicit
+'' variables in the dialect asked for, and fbc -lang qb compiles the file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/lang-refused-quiet.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: lang-refused-quiet.bas(3,1): error TKO0317
+'' EXPECT-NOT: TKO0743
+'' EXPECT-MAX-DIAG: 1
