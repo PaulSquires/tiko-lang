@@ -49,8 +49,12 @@ private function UdtBaseCost_ _
       byref types as Tko.TypeContext ) as long
 
     dim as long ud = types.BaseDistance( from_, to_ )
-    if ud > 0 then return CONV_UDT_BASE + (ud - 1) * CONV_UDT_LINK
-    return CONV_NONE
+    if ud <= 0 then return CONV_NONE
+    '' ...to a CONST base from a non-const argument: one tier down -- CONV_UDT_CONST_ADD.
+    if types.IsConst( to_ ) andalso (types.IsConst( from_ ) = false) then
+        return CONV_UDT_CONST_ADD + ud
+    end if
+    return CONV_UDT_BASE + (ud - 1) * CONV_UDT_LINK
 end function
 
 '' '@x' IS A POINTER TO x -- EXCEPT '@this', which is the receiver's own address. 'this'

@@ -1,0 +1,22 @@
+'' A UDT WHOSE CONST IS ADDED IS ONE TIER DOWN, as fbc scores any same-type match whose
+'' CONST differs: below EVERY derived-to-base conversion, above 'any ptr'. tiko-lang costed
+'' adding const one step above exact, so a T2 offered { byref const T2, byref T1 } ran the
+'' const T2 body where fbc-modern runs T1 (measured 2026-09-19) -- and the same for a T3
+'' two links down, a T2 offered { const T1, T1 } (which tiko had TIED and ran the head of,
+'' silently), a 'T2 ptr' offered { const T2 ptr, T1 ptr }, and byval. Adding const to a
+'' base ranks by distance, so { const T2, const T1 } still takes const T2 (f4), and
+'' { const T2 ptr, any ptr } still takes the const pointer (f6).
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-const-udt.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _Z2F1R2T1(@v2)
+'' EXPECT-OUT: call void _Z2F1R2T1(@v3)
+'' EXPECT-OUT: call void _Z2F2R2T2(@v3)
+'' EXPECT-OUT: call void _Z2F3R2T1(@v2)
+'' EXPECT-OUT: call void _Z2F3R2T1(@v1)
+'' EXPECT-OUT: call void _Z2F4RK2T2(@v2)
+'' EXPECT-OUT: call void _Z2F5P2T1(@v2)
+'' EXPECT-OUT: call void _Z2F6PK2T2(@v2)
+'' EXPECT-OUT: call void _Z2F72T1(%29)

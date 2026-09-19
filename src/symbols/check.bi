@@ -93,6 +93,16 @@ namespace Tko.Check
     const CONV_CONST_ADD as long = 1
     const CONV_UDT_BASE  as long = 100
     const CONV_UDT_LINK  as long = 2
+    '' ...BUT A UDT WHOSE CONST IS ADDED IS ONE TIER DOWN, as fbc scores any same-type
+    '' match whose CONST differs: below EVERY derived-to-base conversion, whatever the
+    '' depth (CONV_UDT_BASE + 30 links is 160), and above 'any ptr'. Measured: a T2
+    '' offered { byref const T2, byref T1 } takes T1, a T3 offered { const T3, T1 } takes
+    '' T1, and a 'T2 ptr' offered { const T2 ptr, T1 ptr } takes T1 ptr -- while offered
+    '' { const T2 ptr, any ptr } it takes const T2 ptr. Adding const to a BASE is this
+    '' tier plus one per link, so { const T2, const T1 } still takes const T2. For a
+    '' non-UDT the step stays CONV_CONST_ADD: every numeric conversion is below fbc's
+    '' demoted tier anyway, and a string has its own (CONV_STR_CONST_COPY).
+    const CONV_UDT_CONST_ADD as long = 165
     const CONV_PTR_ANY   as long = 200
     const CONV_PTR_NEAR  as long = 250
     const CONV_PTR_OTHER as long = 400

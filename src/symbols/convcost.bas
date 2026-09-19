@@ -110,7 +110,11 @@ private function PointerCost_ _
         if types.Unqualify( si ) = types.Unqualify( di ) then
             dim as boolean dc = types.IsConst( di )
             dim as boolean sc = types.IsConst( si )
-            if dc andalso (sc = false) then return CONV_CONST_ADD
+            if dc andalso (sc = false) then
+                '' ...and to a UDT, one tier down: see CONV_UDT_CONST_ADD.
+                if types.Kind( types.Unqualify( di ) ) = Tko.TK_UDT then return CONV_UDT_CONST_ADD
+                return CONV_CONST_ADD
+            end if
         end if
         if types.Kind( di ) = Tko.TK_BUILTIN then
             if types.BuiltinOf( di ) = Tko.TY_ANY then return CONV_PTR_ANY
@@ -122,7 +126,13 @@ private function PointerCost_ _
         '' so BEFORE the any-ptr tier: measured, offered { any ptr, T1 ptr } a 'T2 ptr'
         '' argument takes T1 ptr. The same nearest-base order as the value form.
         dim as long ud = types.BaseDistance( types.Unqualify( si ), types.Unqualify( di ) )
-        if ud > 0 then return CONV_UDT_BASE + (ud - 1) * CONV_UDT_LINK
+        if ud > 0 then
+            '' A CONST base pointee from a non-const one is the demoted tier plus the links.
+            if types.IsConst( di ) andalso (types.IsConst( si ) = false) then
+                return CONV_UDT_CONST_ADD + ud
+            end if
+            return CONV_UDT_BASE + (ud - 1) * CONV_UDT_LINK
+        end if
         if PointeeNear_( si, di, types ) then
             '' WITHIN the near tier, in order: the argument's own signed/unsigned
             '' COUNTERPART first, then merely the same signedness, then the rest.

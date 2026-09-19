@@ -1310,6 +1310,15 @@ private function ResolveCall_ _
                 exit for
             end if
             dim as Tko.TypeKind a3k = c.types->Kind( c.types->Unqualify( a3 ) )
+            '' ...AND A FIXED-LENGTH STRING, which is an ARRAY type here but a string to
+            '' fbc: a 'zstring * 8' offered { byref const string, byref string } is error
+            '' 98, measured -- both are the same conversion, and CONST is not asked of one
+            '' -- and tiko ran the chain's head without a word.
+            if a3k = Tko.TK_ARRAY then
+                if FixedStringElem( c.types->Unqualify( a3 ), *c.types ) <> Tko.TYPE_NONE then
+                    a3k = Tko.TK_BUILTIN
+                end if
+            end if
             if (a3k <> Tko.TK_BUILTIN) andalso (a3k <> Tko.TK_POINTER) then
                 tieTyped = false
                 exit for

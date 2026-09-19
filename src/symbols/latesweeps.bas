@@ -562,8 +562,17 @@ private function MangleEq_ _
     return true
 end function
 
-'' Two declarations whose parameters are NOT identical but mangle alike -- fbc error 4,
-'' "Duplicated definition". Identical pairs are not this test's (see SameSignature_).
+'' Two declarations whose parameters are NOT identical but are one overload -- fbc error
+'' 4, "Duplicated definition". Identical pairs are not this test's (see SameSignature_).
+''
+'' fbc's rule, per parameter pair (symb-proc.bas, hAddOvlProc), measured 2026-09-19: when
+'' BOTH are BYREF any CONST difference makes two overloads; otherwise -- one byval, or
+'' both -- only a const BELOW the top level does, the C++ rule. So 'byref as const
+'' string' beside 'byval as string' is error 4, and so are 'byval as const long' beside
+'' 'byref as long', 'byref as const T' beside 'byval as T' and 'byref as long const ptr'
+'' beside 'byval as long ptr'; 'byref as const string' beside 'byref as string', and
+'' 'const long ptr' beside 'long ptr' in any mode, are two overloads. tiko judged only
+'' the both-byval pairs.
 private function ByvalConstTwin_ _
     ( byref c as Ctx, byval a as NodeId, byval b as NodeId, byval n as long ) as boolean
     dim as boolean sawTwin = false
@@ -573,12 +582,14 @@ private function ByvalConstTwin_ _
         if (pa = NODE_NONE) orelse (pb = NODE_NONE) then return false
         dim as ushort flA = c.ast->nodes[cast( long, pa )].flags
         dim as ushort flB = c.ast->nodes[cast( long, pb )].flags
-        if ((flA or flB) and (NF_BYREF or NF_ARRAY)) <> 0 then return false
+        if ((flA or flB) and NF_ARRAY) <> 0 then return false
+        dim as boolean bothByref = ((flA and NF_BYREF) <> 0) andalso ((flB and NF_BYREF) <> 0)
         dim as long ra, rb
         dim as TypeId ta = ParamTypeAt_( c, a, i, ra )
         dim as TypeId tb = ParamTypeAt_( c, b, i, rb )
         if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return false
         if ta = tb then continue for
+        if bothByref then return false
         if MangleEq_( c, ta, tb ) = false then return false
         sawTwin = true
     next
@@ -627,7 +638,8 @@ private function SameSignature_ _
             exit for
         end if
     next
-    '' ...EXCEPT a pair that differs only by a BYVAL CONST, which mangles to one name.
+    '' ...EXCEPT a pair that differs only by a top-level CONST where the two are not both
+    '' byref, which fbc takes for one overload -- see ByvalConstTwin_.
     if anyBydesc = false then return ByvalConstTwin_( c, a, b, na )
 
     for i as long = 0 to na - 1

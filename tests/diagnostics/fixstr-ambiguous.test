@@ -1,0 +1,12 @@
+'' A FIXED-LENGTH STRING OFFERED { byref const string, byref string } IS AMBIGUOUS -- fbc's
+'' error 98 on lines 7 and 8, on fbc-modern 1.20, fbc 1.10.1 and fbc-modern's Linux build
+'' alike (2026-09-19). Both are the same conversion and fbc asks CONST only of a same-type
+'' match; tiko costed them equal too, but reported a tie only for a builtin or pointer
+'' argument, and a 'zstring * 8' is an array type here -- so it ran the chain's head
+'' silently. A STRING (line 9) is an exact match for 'byref string' and resolves.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fixstr-ambiguous.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 2
+'' EXPECT-OUT: fixstr-ambiguous.bas(7,2): error TKO0660: the call to 'g' matches more than one overload
+'' EXPECT-OUT: fixstr-ambiguous.bas(8,2): error TKO0660: the call to 'g' matches more than one overload

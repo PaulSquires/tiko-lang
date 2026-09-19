@@ -1,0 +1,17 @@
+'' A TOP-LEVEL CONST DOES NOT MAKE TWO OVERLOADS UNLESS BOTH PARAMETERS ARE BYREF -- fbc's
+'' error 4 on lines 6 to 18, on fbc-modern 1.20, fbc 1.10.1 and fbc-modern's Linux build
+'' alike (2026-09-19): byref const beside byval, byval const beside byref, for a string, a
+'' long, a const-at-the-top pointer and a UDT, and in a two-parameter list. Lines 21 to 32
+'' are two overloads each and accepted by all three: both byref, a const on the POINTEE,
+'' and a second parameter that differs. tiko-lang judged only the both-byval pairs.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-twin-duplicate.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 7
+'' EXPECT-OUT: const-twin-duplicate.bas(6,9): error TKO0677: 'a1' is already declared with these parameter types
+'' EXPECT-OUT: const-twin-duplicate.bas(8,9): error TKO0677: 'a2' is already declared with these parameter types
+'' EXPECT-OUT: const-twin-duplicate.bas(10,9): error TKO0677: 'a3' is already declared with these parameter types
+'' EXPECT-OUT: const-twin-duplicate.bas(12,9): error TKO0677: 'a4' is already declared with these parameter types
+'' EXPECT-OUT: const-twin-duplicate.bas(14,9): error TKO0677: 'a5' is already declared with these parameter types
+'' EXPECT-OUT: const-twin-duplicate.bas(16,9): error TKO0677: 'a6' is already declared with these parameter types
+'' EXPECT-OUT: const-twin-duplicate.bas(18,9): error TKO0677: 'a7' is already declared with these parameter types

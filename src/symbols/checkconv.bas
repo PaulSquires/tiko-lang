@@ -24,7 +24,10 @@ function ConversionCost _
     if types.Unqualify( from_ ) = types.Unqualify( to_ ) then
         dim as boolean dstConst = types.IsConst( to_ )
         dim as boolean srcConst = types.IsConst( from_ )
-        if dstConst andalso (srcConst = false) then return CONV_CONST_ADD
+        if dstConst andalso (srcConst = false) then
+            if types.Kind( types.Unqualify( to_ ) ) = Tko.TK_UDT then return CONV_UDT_CONST_ADD
+            return CONV_CONST_ADD
+        end if
         return CONV_EXACT
     end if
 
