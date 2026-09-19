@@ -1,0 +1,8 @@
+'' --diagnostics-file naming a path that cannot be written is a command-line error, at the
+'' start, not a silent loss at the end: DiagOut.Start creates the file before anything is
+'' compiled.
+'' TEST: cli
+'' ARGS: --diagnostics-file build/.diagfile-no-such-dir/x.tsv --parse-only tests/source/plain.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0117: cannot write the diagnostics file 'build/.diagfile-no-such-dir/x.tsv'
+'' EXPECT-NO-FILE: build/.diagfile-no-such-dir/x.tsv

@@ -31,6 +31,10 @@ namespace Tko
         as DriverOptions     options
         as KeywordMap        keywords
         as TypeContext       types
+        '' How many of diags' errors are TOOLCHAIN failures (driver.bas, ToolFail_). The
+        '' exit code tells the two apart -- 1 for the program, 3/4/5 for the machine --
+        '' and 'the engine holds an error' no longer can, now that both are diagnostics.
+        as long              toolErrors
 
         declare constructor( )
     end type

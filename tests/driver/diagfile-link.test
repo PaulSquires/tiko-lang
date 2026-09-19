@@ -1,0 +1,16 @@
+'' --diagnostics-file: a failed LINK is a location-less error (TKO0116), and the run
+'' still exits 5, the toolchain's code.
+''
+'' 'tiko: link failed' was a bare stderr line, so an editor showed a build that never
+'' produced an executable as one with no errors. The linker's own lines ('undefined
+'' symbol ...') stay on the console, where the editor's log shows them.
+''
+'' Needs clang and lld, as every test that links does. The symbol is defined nowhere, so
+'' the link fails whatever runtime the machine has.
+'' TEST: cli
+'' ARGS: -target win64-msvc -o build/.diagfile-link.exe --diagnostics-file build/.diagfile-link.tsv tests/driver/src/diagfile-link.bas
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: error TKO0116: link failed (exit
+'' EXPECT-FILE-HAS: build/.diagfile-link.tsv :: tiko-diagnostics\t1\nerror\tTKO0116\t\t0\t0\t0\t0\tlink failed (exit
+'' EXPECT-FILE-HAS: build/.diagfile-link.tsv :: \nend\t1\t0\t5\n
+'' EXPECT-NO-FILE: build/.diagfile-link.exe

@@ -77,6 +77,9 @@ namespace Tko
     OPT( OPT_MAXERR,    "-fmax-errors", OPTK_VALUE, OPTCAT_DIAG,  "n",        "stop after n errors" )
     OPT( OPT_COLOR,     "--color",    OPTK_VALUE, OPTCAT_DIAG,    "when",     "always, never or auto" )
     OPT( OPT_DIAGFMT,   "--diagnostics-format", OPTK_VALUE, OPTCAT_DIAG, "fmt", "fbc or gnu" )
+    '' FOR AN EDITOR. The console text is unchanged; this writes the same diagnostics
+    '' AGAIN as tab-separated records -- docs/internals/diagnostics-file.md.
+    OPT( OPT_DIAGFILE,  "--diagnostics-file", OPTK_VALUE, OPTCAT_DIAG, "path", "also write every diagnostic to <path> as tab-separated records" )
 
     OPT( OPT_DUMPSRC,   "--dump-source",  OPTK_FLAG, OPTCAT_DEVEL, "",        "list loaded source files and stop" )
     OPT( OPT_DUMPTOK,   "--dump-tokens",  OPTK_OPTVALUE, OPTCAT_DEVEL, "raw|pp", "dump the token stream, before or after the preprocessor" )
@@ -196,6 +199,7 @@ namespace Tko
         as long    maxErrors
         as DiagColorMode     colorMode
         as DiagOutputFormat  diagFormat
+        as string  diagFile          '' --diagnostics-file; "" = none
         as StrVec  ignoredDiags
 
         as boolean dumpSource

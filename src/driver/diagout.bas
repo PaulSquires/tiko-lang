@@ -1,0 +1,49 @@
+'' diagout.bas -- see diagout.bi
+
+#include once "driver/diagout.bi"
+#include once "diag/machine.bi"
+
+namespace Tko.DiagOut
+
+function Start( byref ctx as Tko.CompilerContext ) as boolean
+    if len( ctx.options.diagFile ) = 0 then return true
+
+    '' CREATED NOW, EMPTY. A path that cannot be written is then a command-line error the
+    '' user sees before anything is compiled, not a silent loss at the end; and a run that
+    '' dies before Finish leaves an empty file rather than the last run's records, which
+    '' an editor would otherwise show as this build's.
+    dim as long fh = freefile
+    '' Spelled as its own statement: the function form of OPEN inside an IF condition
+    '' confuses the parser (see BuildFromIr).
+    dim as long orc = open( ctx.options.diagFile for output as #fh )
+    if orc <> 0 then
+        ctx.diags.ReportGlobal( Tko.TKO0117, ctx.options.diagFile )
+        ctx.options.diagFile = ""
+        return false
+    end if
+    close #fh
+
+    ctx.diags.EnableMachine( )
+    return true
+end function
+
+function Finish( byref ctx as Tko.CompilerContext, byval rc as long ) as long
+    ctx.diags.Flush( )
+    if len( ctx.options.diagFile ) = 0 then return rc
+
+    '' ONE WRITE, and the trailing ';' matters: each record already ends in LF, and a
+    '' PRINT per record would add the host's line ending after every one of them.
+    dim as string body = Tko.Machine.Header( ) & ctx.diags.MachineText( ) & _
+        Tko.Machine.EndRecord( ctx.diags.ErrorCount( ), ctx.diags.WarningCount( ), rc )
+
+    '' Nowhere is left to report a failure here -- Start proved the path writable, and
+    '' the console already has every diagnostic -- so a failed write is dropped.
+    dim as long fh = freefile
+    dim as long orc = open( ctx.options.diagFile for output as #fh )
+    if orc <> 0 then return rc
+    print #fh, body;
+    close #fh
+    return rc
+end function
+
+end namespace

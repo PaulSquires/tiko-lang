@@ -3,4 +3,5 @@
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: usage: tiko-lang [options] <inputs...>
 '' EXPECT-OUT: Diagnostics:
+'' EXPECT-OUT: --diagnostics-file <path>
 '' EXPECT-OUT: Compiler development:

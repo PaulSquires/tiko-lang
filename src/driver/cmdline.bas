@@ -69,6 +69,7 @@ constructor DriverOptions( )
     this.maxErrors = DIAG_DEFAULT_MAX_ERRORS
     this.colorMode = COLOR_AUTO
     this.diagFormat = DIAGFMT_FBC
+    this.diagFile = ""
     this.dumpSource = false
     this.dumpTokens = false
     this.lexOnly = false
@@ -500,6 +501,17 @@ function Parse _
                 diags.ReportGlobal( Tko.TKO0106, value, "--diagnostics-format" )
                 ok = false
             end select
+
+        '' The last one wins, as -o does -- which is also what lets a '#cmdline' in the
+        '' source redirect it, the source winning over the command line as fbc's rule is.
+        '' '--diagnostics-file=' names nothing, and is the missing-argument error.
+        case Tko.OPT_DIAGFILE
+            if len( value ) = 0 then
+                diags.ReportGlobal( Tko.TKO0101, arg )
+                ok = false
+            else
+                opts.diagFile = value
+            end if
 
         case Tko.OPT_DUMPSRC   : opts.dumpSource = true
         case Tko.OPT_DUMPTOK

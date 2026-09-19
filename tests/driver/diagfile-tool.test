@@ -1,0 +1,17 @@
+'' --diagnostics-file: a TOOLCHAIN failure is a diagnostic too, and still exits with the
+'' toolchain's code.
+''
+'' 'tiko: clang not found' used to be printed straight to stderr, outside the engine, so
+'' an editor reading the file saw a failed build with no errors in it. It is TKO0111 now,
+'' location-less -- and the exit code is still 3, not the 1 that 'the engine holds an
+'' error' would have produced: ToolFail_ counts it as the toolchain's.
+''
+'' TKO_CLANG names a file that cannot exist, so this needs no clang, no linker and no
+'' runtime on the machine running it (see toolchain-exit.test).
+'' TEST: cli
+'' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
+'' ARGS: -o build/.diagfile-tool.exe --diagnostics-file build/.diagfile-tool.tsv tests/source/plain.bas
+'' EXPECT-EXIT: 3
+'' EXPECT-OUT: error TKO0111: no usable toolchain: clang not found
+'' EXPECT-FILE-HAS: build/.diagfile-tool.tsv :: \nerror\tTKO0111\t\t0\t0\t0\t0\tno usable toolchain: clang not found
+'' EXPECT-FILE-HAS: build/.diagfile-tool.tsv :: \nend\t1\t0\t3\n
