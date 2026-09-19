@@ -1,0 +1,101 @@
+name: Language Feature Request
+description: Propose a new modern language feature for tiko-lang
+title: "[Feature]: "
+labels:
+  - enhancement
+  - language-design
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for proposing new tiko-lang language features.
+
+        tiko-lang is intended to remain familiar to FreeBASIC developers
+        while providing carefully designed modern language capabilities.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing feature requests.
+          required: true
+        - label: This feature is not already available in tiko-lang.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Feature
+      description: Describe the proposed language feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: syntax
+    attributes:
+      label: Proposed Syntax
+      description: Show example source code using the proposed feature.
+      render: freebasic
+
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Semantics
+      description: Explain how the feature should behave.
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Usage Examples
+      description: Show practical examples where this feature would be useful.
+      render: freebasic
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Describe existing FreeBASIC or tiko-lang approaches and why they are insufficient.
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility Considerations
+      description: Explain any potential impact on existing FreeBASIC source code.
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Considerations
+      description: If known, discuss parser, semantic analysis, code generation, runtime, or LLVM considerations.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - Language Syntax
+        - Type System
+        - Functions
+        - Generics
+        - Concurrency
+        - Memory Management
+        - Error Handling
+        - Pattern Matching
+        - Lambdas / Closures
+        - Modules
+        - Compile-Time Programming
+        - Standard Library
+        - Runtime
+        - Other
+    validations:
+      required: true

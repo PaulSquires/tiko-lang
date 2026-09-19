@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/PaulSquires/tiko-lang/discussions
+    about: Ask questions, discuss language design, and share ideas.
+
+  - name: 📖 Documentation
+    url: https://github.com/PaulSquires/tiko-lang/wiki
+    about: Read the tiko-lang documentation.

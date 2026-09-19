@@ -1,0 +1,75 @@
+name: Performance Issue
+description: Report slow compilation, execution, startup, or runtime performance
+title: "[Performance]: "
+labels:
+  - performance
+  - needs-triage
+
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Compilation
+        - Parsing
+        - Semantic Analysis
+        - Code Generation
+        - LLVM Backend
+        - Linking
+        - Runtime
+        - Standard Library
+        - Program Startup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Problem
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide source code, project files, or steps demonstrating the issue.
+      render: freebasic
+
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements
+      description: Provide timings, benchmarks, profiling information, etc.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Comparison
+      description: If possible, compare against FreeBASIC, another compiler, or a previous tiko-lang version.
+
+  - type: input
+    id: version
+    attributes:
+      label: tiko-lang Version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows x64
+        - Windows x86
+        - Linux x64
+        - Linux ARM64
+        - macOS
+        - Other
+    validations:
+      required: true

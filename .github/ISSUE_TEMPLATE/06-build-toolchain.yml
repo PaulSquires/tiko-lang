@@ -1,0 +1,81 @@
+name: Build / Toolchain Issue
+description: Report a compiler build, installation, linker, or toolchain problem
+title: "[Build]: "
+labels:
+  - build
+  - toolchain
+  - needs-triage
+
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Building tiko-lang
+        - Installing tiko-lang
+        - CMake
+        - LLVM
+        - Clang
+        - Linker
+        - Runtime Build
+        - Cross Compilation
+        - Packaging
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Commands
+      description: Include the commands used to configure, build, or install.
+      render: shell
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Build Output
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: tiko-lang Version / Commit
+    validations:
+      required: true
+
+  - type: input
+    id: llvm
+    attributes:
+      label: LLVM Version
+      placeholder: "e.g. LLVM 20"
+
+  - type: input
+    id: compiler
+    attributes:
+      label: Host Compiler
+      placeholder: "e.g. MSVC 2022 / GCC 15 / Clang 20"
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Host Platform
+      options:
+        - Windows x64
+        - Windows x86
+        - Linux x64
+        - Linux ARM64
+        - macOS
+        - Other
+    validations:
+      required: true

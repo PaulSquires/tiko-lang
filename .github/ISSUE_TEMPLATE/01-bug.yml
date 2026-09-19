@@ -1,0 +1,128 @@
+name: Bug Report
+description: Report incorrect or unexpected tiko-lang behavior
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before submitting
+
+        Please search existing issues to make sure this problem has not already
+        been reported.
+
+        For compiler problems, please provide the smallest possible source
+        example that reproduces the issue.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched the existing issues.
+          required: true
+        - label: I have tested with the latest tiko-lang version.
+          required: true
+        - label: I have included a minimal reproduction where possible.
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Lexer
+        - Parser
+        - Semantic Analysis
+        - Type System
+        - Expression Evaluation
+        - Code Generation
+        - LLVM Backend
+        - Linker
+        - Runtime
+        - Standard Library
+        - Diagnostics
+        - Build System
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Clearly describe the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal Reproduction
+      description: Provide the smallest source file that reproduces the problem.
+      render: freebasic
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Compiler Command
+      description: Provide the exact command used.
+      render: shell
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Compiler Output
+      description: Include errors, warnings, crashes, or other output.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: tiko-lang Version
+      placeholder: "e.g. 1.0.0 or commit hash"
+    validations:
+      required: true
+
+  - type: input
+    id: freebasic
+    attributes:
+      label: FreeBASIC Version Tested
+      placeholder: "e.g. 1.10.1"
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Host Platform
+      options:
+        - Windows x64
+        - Windows x86
+        - Linux x64
+        - Linux ARM64
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Screenshots, logs, generated IR, assembly, or other useful information.

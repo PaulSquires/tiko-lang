@@ -1,0 +1,128 @@
+name: FreeBASIC Compatibility Issue
+description: Report behavior that differs from the official FreeBASIC compiler
+title: "[Compatibility]: "
+labels:
+  - compatibility
+  - freebasic
+  - needs-triage
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when tiko-lang behaves differently from the
+        official FreeBASIC compiler.
+
+        tiko-lang aims to maintain FreeBASIC compatibility while adding
+        modern language features.
+
+        Please provide a test case and, where possible, results from both
+        compilers.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing compatibility issues.
+          required: true
+        - label: I have tested the example with FreeBASIC.
+          required: true
+        - label: I have tested the example with the latest tiko-lang.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Compatibility Problem
+      description: Describe the difference between FreeBASIC and tiko-lang.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Source Code
+      description: Provide the smallest test case.
+      render: freebasic
+    validations:
+      required: true
+
+  - type: textarea
+    id: freebasic_result
+    attributes:
+      label: FreeBASIC Result
+      description: Include output, behavior, errors, or generated results.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: modern_result
+    attributes:
+      label: tiko-lang Result
+      description: Include output, behavior, errors, or generated results.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Language Area
+      options:
+        - Syntax
+        - Variables
+        - Types
+        - Arrays
+        - Strings
+        - Pointers
+        - Functions
+        - Procedures
+        - Operators
+        - Control Flow
+        - UDTs
+        - Classes
+        - Constructors / Destructors
+        - Modules
+        - Preprocessor
+        - Runtime
+        - Standard Library
+        - Code Generation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: behavior
+    attributes:
+      label: Difference
+      options:
+        - tiko-lang rejects valid FreeBASIC code
+        - tiko-lang accepts invalid FreeBASIC code
+        - Different compiler output
+        - Different runtime behavior
+        - Different diagnostics
+        - Missing FreeBASIC feature
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: freebasic_version
+    attributes:
+      label: FreeBASIC Version
+      placeholder: "e.g. 1.10.1"
+
+  - type: input
+    id: modern_version
+    attributes:
+      label: tiko-lang Version
+      placeholder: "e.g. 1.0.0 or commit hash"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
