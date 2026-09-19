@@ -618,6 +618,15 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             EmitTok( e, w )
             EmitTok( e, ut )
             Advance( e )
+            '' ...AND A DOTTED NAME WHOLE: '#undef ns.proc' is fbc's error 123. Passing
+            '' only its first component turned it into '#undef ns', which removed the
+            '' NAMESPACE, silently.
+            dim as Token dt
+            while PeekOnLine( e, dt )
+                if (Tk( dt ) <> TK_DOT) andalso (Tk( dt ) <> TK_IDENT) then exit while
+                EmitTok( e, dt )
+                Advance( e )
+            wend
             SkipToEol( e )
         else
             PpUndef( e, at )

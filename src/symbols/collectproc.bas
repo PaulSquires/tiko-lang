@@ -1,8 +1,14 @@
-'' collectproc.bas -- MAY THIS PROCEDURE BE DECLARED HERE?
+'' collectproc.bas -- MAY THIS PROCEDURE BE DECLARED HERE, AND MAY THIS NAME BE REMOVED?
 ''
 '' Included from collect.bas, inside its own namespace, for the reason collectshape.bas
-'' is: the 1500-line lint cap. SameWrittenType_ and SameSignature_ moved here unchanged;
-'' the redeclaration rule below is new.
+'' is: the 1500-line lint cap. SameWrittenType_ and SameSignature_ moved here unchanged.
+'' The rules are fbc's error 4 for a second declaration (ProcRedeclared_) and a second
+'' member body (RefuseSecondBody_), and its error 123 for an '#undef' (UndefKeeps_).
+
+'' Defined in collect.bas, below the include of this file.
+declare function LookupDottedOwner_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, _
+      byval path as Tko.InternId ) as Tko.SymbolId
 
 '' ONE WRITTEN TYPE REFERENCE AGAINST ANOTHER, strictly.
 ''
@@ -88,6 +94,8 @@ end function
 ''     byval a as long    against  byref a as long        the same     error 4
 ''     a as long          against  byval a as long        the same     error 4
 ''     a( ) as long       against  b( ) as long           the same     error 4
+''     a( any ) as long   against  a( ) as long           the same     error 4
+''     a( any ) as long   against  a( any, any ) as long  different
 ''     a( ) as long       against  byval a as long        different
 ''     a( ) as long       against  a( ) as double         different
 ''     byval a as long    against  byval a as long ptr    different
@@ -98,11 +106,12 @@ end function
 ''
 '' So the passing MODE never distinguishes, an array descriptor always does, and the
 '' RESULT only does on a CAST or a PROPERTY: a cast overloads on nothing else, and an
-'' indexed getter has exactly a plain setter's parameters. Rank is compared too,
-'' unmeasured, because answering DIFFERENT is the safe side here: the types go through
-'' SameWrittenType_, which says DIFFERENT whenever it cannot tell -- so 'byval a as
-'' const long' against 'byval a as long', a duplicate to fbc, is let through. Missing a
-'' duplicate costs fbc's error message; inventing one costs a program fbc compiles.
+'' indexed getter has exactly a plain setter's parameters. An array's RANK does, but
+'' '( )' is an UNKNOWN rank and collides with any: two known ranks differ only when
+'' they are unequal. The types go through SameWrittenType_, which says DIFFERENT
+'' whenever it cannot tell -- so a CONST-only pair is left to the late sweep, which has
+'' the passing mode resolved (ByvalConstTwin_). Missing a duplicate here costs fbc's
+'' error message; inventing one costs a program fbc compiles.
 private function SameOverloadIdentity_ _
     ( byref w as Walker, byval a as Tko.StmtPayload ptr, _
       byval b as Tko.StmtPayload ptr, byval scope_ as Tko.ScopeId, _
@@ -127,8 +136,11 @@ private function SameOverloadIdentity_ _
         dim as boolean aArr = ((w.ast->nodes[cast( long, an )].flags and Tko.NF_ARRAY) <> 0)
         dim as boolean bArr = ((w.ast->nodes[cast( long, bn )].flags and Tko.NF_ARRAY) <> 0)
         if aArr <> bArr then return false
-        '' The RANK an array parameter spelled, 0 for 'a( )' -- see ParseParam.
-        if ap->extra <> bp->extra then return false
+        '' The RANK an array parameter spelled, 0 for 'a( )' -- see ParseParam. Unknown
+        '' collides with any rank; two known ranks only with each other.
+        if (ap->extra <> 0) andalso (bp->extra <> 0) then
+            if ap->extra <> bp->extra then return false
+        end if
         if Undecidable_( w, ap->a, scope_ ) orelse Undecidable_( w, bp->a, scope_ ) then return false
         if SameWrittenType_( w, ap->a, bp->a, scope_ ) = false then return false
     next
@@ -285,4 +297,131 @@ private function RefuseRedeclaration_ _
     end if
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( ps->loc ) )
     return prev
+end function
+
+'' A MEMBER'S BODY IS WRITTEN ONCE. 'sub T.m( )' twice is fbc's error 4 at the second --
+'' and so is a constructor, a destructor, a property, an 'operator let', a static
+'' member and 'sub ns.T.m( )' written twice: measured 2026-09-18 on 1.20 and 1.10.1.
+'' tiko-lang gave both bodies to the one declaration and left clang to refuse the
+'' duplicate symbol. Each overload written once, a getter beside its setter, and two
+'' same-arity overloads of different types all compile, and must.
+''
+'' The declaration has to be found UNIQUELY -- arity and every written type, as
+'' SameSignature_ compares them -- because MemberDeclForDef_ falls back to the head of the
+'' chain when it cannot choose. That fallback is right for binding a scope and wrong for a
+'' verdict: two definitions of two different overloads would both land on the head.
+''
+'' True when this definition is a second body, reported.
+private function RefuseSecondBody_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sp as Tko.StmtPayload ptr, byval loc as Tko.SourceLoc ) as boolean
+
+    if nm = Tko.INTERN_NONE then return false
+    '' An instantiation, as in ProcRedeclared_: a copy of something already judged.
+    if w.src = 0 then return false
+    if sp->b = Tko.NODE_NONE then return false
+    if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
+
+    dim as long want = ProcArity( w, sp )
+    dim as Tko.SymbolId found = Tko.SYMBOL_NONE
+    dim as long hits = 0
+    dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        dim as boolean hasDecl = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
+        if hasDecl then hasDecl = (w.ast->Kind( pn ) = Tko.N_PROC)
+        if hasDecl then
+            dim as Tko.StmtPayload ptr dp = StmtOf( w, pn )
+            if ProcArity( w, dp ) = want then
+                if SameSignature_( w, dp, sp, scope_ ) then
+                    found = cur
+                    hits += 1
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if hits <> 1 then return false
+
+    dim as Tko.Symbol ptr fs = w.syms->SymbolAt( found )
+    if (fs->flags and Tko.SYMF_MEMBER_BODY) = 0 then
+        fs->flags or= Tko.SYMF_MEMBER_BODY
+        return false
+    end if
+    w.duplicates += 1
+    dim as string shown = w.names->Spelling( nm )
+    if sp->op = cast( ushort, Tko.KW_CONSTRUCTOR ) then shown = "constructor"
+    if sp->op = cast( ushort, Tko.KW_DESTRUCTOR ) then shown = "destructor"
+    w.diags->Report( Tko.TKO0600, Tko.PointRange( loc ), shown )
+    w.diags->AddNote( Tko.TKO0901, Tko.PointRange( fs->loc ) )
+    return true
+end function
+
+'' AN '#undef' MAY NOT REMOVE WHAT A NAMESPACE DECLARED -- fbc's error 123, "Symbols
+'' defined inside namespaces cannot be removed". Measured 2026-09-18, 1.20 and 1.10.1
+'' agreeing:
+''
+''     inside the namespace: a sub, a variable, a type, a const        error 123
+''     inside a NESTED namespace                                       error 123
+''     '#undef ns.name'                                                error 123
+''     at module level, the name reached through 'using ns'           error 123
+''     inside a namespace, of a GLOBAL name                            accepted
+''     of the namespace itself, of a macro, of a name nothing declared  accepted
+''
+'' The 'using' row is Resolve's, which is where a USING is registered: when the lookup
+'' here finds nothing, 'extra' = 1 on the node says so, and Resolve asks the usings.
+''
+'' True when this '#undef' must remove nothing: refused and reported, or a DOTTED name,
+'' which never removes anything -- only its first component used to arrive, and
+'' '#undef ns.name' removed the NAMESPACE.
+private function UndefKeeps_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval up as Tko.StmtPayload ptr, _
+      byval loc as Tko.SourceLoc ) as boolean
+
+    dim as Tko.SymbolId hit = Tko.SYMBOL_NONE
+    dim as boolean dotted = (up->ownerName <> 0)
+    dim as string shown = w.names->Spelling( up->name )
+    if dotted then
+        shown = w.names->Spelling( up->ownerName ) & "." & shown
+        dim as Tko.Symbol ptr os = _
+            w.syms->SymbolAt( LookupDottedOwner_( w, scope_, up->ownerName ) )
+        if os <> 0 then
+            if os->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+                if os->inner <> Tko.SCOPE_NONE then
+                    hit = w.syms->LookupInNamespace( os->inner, up->name )
+                end if
+            end if
+        end if
+    else
+        '' The first symbol a lookup from here finds, as UndefSym takes it.
+        dim as ulong savePos = w.syms->usePos
+        w.syms->usePos = Tko.USEPOS_LATEST
+        dim as Tko.ScopeId sc = scope_
+        dim as long guard = 0
+        while (sc <> Tko.SCOPE_NONE) andalso (guard < 1024)
+            guard += 1
+            hit = w.syms->LookupLocal( sc, up->name )
+            if hit <> Tko.SYMBOL_NONE then exit while
+            dim as Tko.SymScope ptr s_ = w.syms->ScopeAt( sc )
+            if s_ = 0 then exit while
+            sc = s_->parent
+        wend
+        w.syms->usePos = savePos
+        if hit = Tko.SYMBOL_NONE then up->extra = 1
+    end if
+
+    dim as Tko.Symbol ptr hs = w.syms->SymbolAt( hit )
+    if hs = 0 then return dotted
+    dim as Tko.SymScope ptr ps = w.syms->ScopeAt( hs->parent )
+    dim as boolean inNs = false
+    if ps <> 0 then inNs = (ps->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ))
+    if inNs = false then return dotted
+    w.diags->Report( Tko.TKO0779, Tko.PointRange( loc ), shown )
+    w.diags->AddNote( Tko.TKO0901, Tko.PointRange( hs->loc ) )
+    return true
 end function

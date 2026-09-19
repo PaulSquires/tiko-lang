@@ -2,12 +2,13 @@
 '' name already declared or defined there, whatever differs -- and on a second body.
 '' Overload sets, members and operators take a new signature, never the same one.
 '' Every line asserted below is a line fbc-modern 1.20 and 1.10.1 report, and none else:
-'' measured 2026-09-18, 17 errors from each. MAX-DIAG is what proves nothing is reported
-'' twice or cascades.
+'' measured 2026-09-18, 19 errors from each. MAX-DIAG is what proves nothing is reported
+'' twice or cascades. Line 73 is the unknown rank, judged by Collect since 2026-09-18;
+'' line 76, an array element's CONST, by the late sweep.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/duplicate-declare.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-MAX-DIAG: 17
+'' EXPECT-MAX-DIAG: 19
 '' EXPECT-OUT: duplicate-declare.bas(8,9): error TKO0600: 'dupsame'
 '' EXPECT-OUT: duplicate-declare.bas(11,9): error TKO0600: 'duplib'
 '' EXPECT-OUT: duplicate-declare.bas(16,9): error TKO0600: 'dupparams'
@@ -25,4 +26,6 @@
 '' EXPECT-OUT: duplicate-declare.bas(62,13): error TKO0677: 'constructor'
 '' EXPECT-OUT: duplicate-declare.bas(64,13): error TKO0677: 'destructor'
 '' EXPECT-OUT: duplicate-declare.bas(69,9): error TKO0677: '+'
+'' EXPECT-OUT: duplicate-declare.bas(73,9): error TKO0677: 'duprank'
+'' EXPECT-OUT: duplicate-declare.bas(76,9): error TKO0677: 'dupconstarr'
 '' EXPECT-OUT: note: declared here

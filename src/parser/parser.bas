@@ -974,6 +974,7 @@ end namespace
 #include once "parser/selchan.bas"
 '' 'spawn' desugars the same way, and for the same reason.
 #include once "parser/spawn.bas"
+#include once "parser/undef.bas"
 
 namespace Tko.Parse
 
@@ -1146,10 +1147,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             sp.a = Expression( p )
             n = MakeStmt( p, Tko.N_ASSERT, t.loc, sp )
         elseif (hw = "undef") andalso NextTokIs_( p, Tko.TK_IDENT ) then
-            Advance( p )
-            sp.name = cast( Tko.InternId, Cur( p ).literal )
-            Advance( p )
-            n = MakeStmt( p, Tko.N_UNDEF, t.loc, sp )
+            n = UndefStmt_( p, t )
         else
             p.pos = save
             n = ErrorNode( p, Tko.TKO0408 )

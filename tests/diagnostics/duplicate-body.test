@@ -1,0 +1,18 @@
+'' A member's body is written once: a second definition of a method, an overload, a
+'' property, a constructor, a destructor, an 'operator let', a static member, and one
+'' reached through a namespace, each fbc error 4 -- 8 errors on fbc-modern 1.20 and
+'' 1.10.1 alike, on exactly these lines (2026-09-18). tiko-lang gave both bodies to one
+'' declaration and clang refused the duplicate symbol at the link.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/duplicate-body.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 8
+'' EXPECT-OUT: duplicate-body.bas(19,1): error TKO0600: 'm'
+'' EXPECT-OUT: duplicate-body.bas(26,1): error TKO0600: 'ov'
+'' EXPECT-OUT: duplicate-body.bas(32,1): error TKO0600: 'p'
+'' EXPECT-OUT: duplicate-body.bas(38,1): error TKO0600: 'constructor'
+'' EXPECT-OUT: duplicate-body.bas(43,1): error TKO0600: 'destructor'
+'' EXPECT-OUT: duplicate-body.bas(48,1): error TKO0600: 'let'
+'' EXPECT-OUT: duplicate-body.bas(53,1): error TKO0600: 's'
+'' EXPECT-OUT: duplicate-body.bas(65,1): error TKO0600: 'm'
+'' EXPECT-NOT: invalid redefinition

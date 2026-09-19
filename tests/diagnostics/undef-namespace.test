@@ -1,0 +1,15 @@
+'' '#undef' may not remove what a namespace declared -- fbc's error 123, 7 of them on
+'' fbc-modern 1.20 and 1.10.1, on exactly these lines (2026-09-18): from inside, from a
+'' nested namespace, through a 'using' (line 27, which Resolve judges because that is
+'' where a USING is registered), and spelled 'ns.name'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/undef-namespace.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 7
+'' EXPECT-OUT: undef-namespace.bas(13,5): error TKO0779: 'inner'
+'' EXPECT-OUT: undef-namespace.bas(14,5): error TKO0779: 'v'
+'' EXPECT-OUT: undef-namespace.bas(15,5): error TKO0779: 't'
+'' EXPECT-OUT: undef-namespace.bas(16,5): error TKO0779: 'k'
+'' EXPECT-OUT: undef-namespace.bas(19,9): error TKO0779: 'd'
+'' EXPECT-OUT: undef-namespace.bas(27,1): error TKO0779: 'viausing'
+'' EXPECT-OUT: undef-namespace.bas(32,1): error TKO0779: 'undot.dotted'

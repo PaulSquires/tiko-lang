@@ -34,3 +34,7 @@ tests/diagnostics/src/duplicate-bydesc-overload.bas(21,9): error TKO0677: 'badun
      |
   21 | declare sub badUnknown overload( a() as integer )
      |         ^
+tests/diagnostics/src/duplicate-bydesc-overload.bas(20,9): note: declared here
+     |
+  20 | declare sub badUnknown overload( a(any) as integer )
+     |         ^

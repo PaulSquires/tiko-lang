@@ -150,6 +150,11 @@ namespace Tko
     '' SymbolTable.UndefSym: the symbol stays, because a use written BEFORE the '#undef'
     '' still binds to it, and Rehash must not index it again over its successor.
     const SYMF_SUPERSEDED     as ulong = &h00100000
+    '' A MEMBER WHOSE BODY HAS BEEN SEEN, written outside its type -- 'sub T.m( )'. Set by
+    '' Collect on the declaration the definition was matched to, so a second body for the
+    '' same member is fbc's error 4 there rather than a duplicate symbol at the link. See
+    '' collectproc.bas.
+    const SYMF_MEMBER_BODY    as ulong = &h00200000
 
     type Symbol
         as ubyte     kind

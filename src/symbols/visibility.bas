@@ -440,24 +440,11 @@ private sub RecordFirstRedims_( byref c as Ctx )
         if sp->op <> cast( ushort, KW_REDIM ) then continue for
         for i as long = 0 to sp->count - 1
             dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
-            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
-            dim as StmtPayload ptr ip = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
-            dim as long written = 0
-            if (ip->c <> NODE_NONE) andalso (c.ast->Kind( ip->c ) = N_BLOCK) then
-                written = c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->c )].data )].count
-            end if
+            '' The item's rank and target are redimrank.bas's, which overload resolution
+            '' shares.
+            dim as SymbolId sid
+            dim as long written = Tko.RedimRank.ItemRank( *c.ast, *c.syms, *c.types, *c.info, item, sid )
             if written <= 0 then continue for
-            dim as NodeId tgt = item
-            if (ip->b <> NODE_NONE) andalso (ip->extra = cast( ushort, KW_REDIM )) then tgt = ip->b
-            dim as SymbolId sid = c.info->RefOf( tgt )
-            if sid = SYMBOL_NONE then continue for
-            dim as Symbol ptr s = c.syms->SymbolAt( sid )
-            if s = 0 then continue for
-            if s->type_ = TYPE_NONE then continue for
-            dim as TypeId u = c.types->Unqualify( s->type_ )
-            if c.types->IsDynArray( u ) = false then continue for
-            if c.types->DynRank( u ) <> 0 then continue for
             if RecordedRank_( c, sid ) <> 0 then continue for
             c.redimSym.Push( cast( ulong, sid ) )
             c.redimRank.Push( cast( ulong, written ) )

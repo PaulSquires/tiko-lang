@@ -936,6 +936,8 @@ sub WalkNode _
                 '' uninitialised 'this$N' local and every field store in that
                 '' constructor went through garbage. It lowered and it verified.
                 sid = MemberDeclForDef_( w, parentScope, declName, sp )
+                '' ...ONCE: a second body is fbc's error 4 (collectproc.bas).
+                redeclared = RefuseSecondBody_( w, parentScope, declName, sp, w.ast->Loc( id ) )
                 if sid = Tko.SYMBOL_NONE then
                     sid = Declare_( w, parentScope, declName, Tko.SYM_PROC, _
                                     w.ast->Loc( id ) )
@@ -987,6 +989,10 @@ sub WalkNode _
             '' ordinary overloaded method DID NOT decline: it emitted a function that
             '' returns an integer declared as returning a string descriptor.
             scopeOwner = MemberDeclForDef_( w, parentScope, declName, sp )
+            '' ...ONCE: a second body is fbc's error 4 (collectproc.bas).
+            if isMemberDef then
+                redeclared = RefuseSecondBody_( w, parentScope, declName, sp, w.ast->Loc( id ) )
+            end if
         end if
         dim as Tko.ScopeId inner = w.syms->OpenScope( Tko.SCOPEK_PROC, parentScope, _
                                                       scopeOwner )
@@ -1070,8 +1076,12 @@ sub WalkNode _
         if pss <> 0 then pss->payload = cast( long, id )
 
     case Tko.N_UNDEF
-        '' IN SOURCE ORDER, which this walk is: declarations before it are removable.
-        w.syms->UndefSym( scope_, StmtOf( w, id )->name, cast( ulong, id ) )
+        '' IN SOURCE ORDER, which this walk is: declarations before it are removable --
+        '' unless a NAMESPACE declared them, fbc's error 123 (collectproc.bas).
+        dim as Tko.StmtPayload ptr up = StmtOf( w, id )
+        if UndefKeeps_( w, scope_, up, w.ast->Loc( id ) ) = false then
+            w.syms->UndefSym( scope_, up->name, cast( ulong, id ) )
+        end if
 
     case Tko.N_NAMESPACE
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )

@@ -6,8 +6,9 @@
 '' ONLY A PAIR WITH A BYDESC PARAMETER IS JUDGED -- the general scalar case produced 13
 '' false rejections over the 1222 fbc-accepted files (cross-namespace overload chains, and
 '' the CRT headers' _rotl family). Matches fbc on lines 18 and 21. Since 2026-09-18
-'' Collect judges the general case as it declares (see duplicate-declare.test), so line
-'' 18 is reported there, with its note; line 21, the unknown rank, is still this sweep's.
+'' Collect judges the general case as it declares (see duplicate-declare.test), so both
+'' lines are reported there, each with its note -- line 21, the unknown rank, since the
+'' rank rule moved into Collect the same day.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/duplicate-bydesc-overload.bas
 '' EXPECT-EXIT: 1

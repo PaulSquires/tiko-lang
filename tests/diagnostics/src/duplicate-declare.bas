@@ -67,3 +67,10 @@ end type
 '' And a global operator.
 declare operator + ( byref a as DupT, byref b as DupT ) as DupT
 declare operator + ( byref a as DupT, byref b as DupT ) as DupT
+
+'' An array's RANK: '( )' is unknown and collides with any known rank.
+declare sub dupRank overload( a( any ) as integer )
+declare sub dupRank overload( a( ) as integer )
+'' ...and an array's element CONST distinguishes nothing -- the late sweep's to judge.
+declare sub dupConstArr overload( a( ) as long )
+declare sub dupConstArr overload( a( ) as const long )

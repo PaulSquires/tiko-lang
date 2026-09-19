@@ -231,6 +231,23 @@ private function IsArrayArgShape_ _
     return (c.types->Kind( c.types->Unqualify( tt ) ) = Tko.TK_ARRAY)
 end function
 
+'' THE RANK AN ARRAY ARGUMENT HAS, 0 when it is not known: a fixed array's dimensions, a
+'' dynamic one's written rank, and for 'dim a( )' the rank its FIRST redim gave it --
+'' redimrank.bas, which Visibility's rank tests share. Only asked of an argument
+'' IsArrayArgShape_ accepted.
+private function ArgArrayRank_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as long
+
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.TypeId u = c.types->Unqualify( c.info->TypeOf_( lp->target ) )
+    if c.types->IsDynArray( u ) = false then return c.types->types[cast( long, u )].dims
+    dim as long r = c.types->DynRank( u )
+    if r > 0 then return r
+    return Tko.RedimRank.FirstRank( *c.ast, *c.syms, *c.types, *c.info, _
+                                    c.info->RefOf( lp->target ) )
+end function
+
 '' A builtin NUMERIC type -- the family the byref-exactness rule applies to. A string,
 '' a pointer, a UDT and ANY are all excluded: each has its own conversion rules, and fbc
 '' does convert some of them at a byref parameter.
@@ -1042,6 +1059,23 @@ private function ResolveCall_ _
                         if prmArray <> argArray then
                             viable = false
                             exit for
+                        end if
+                        '' ...AND OF ITS RANK, when the parameter writes one: 'a( any )'
+                        '' takes a one-dimensional array and 'a( any, any )' a
+                        '' two-dimensional one, while 'a( )' takes any. overload/bydesc.bas
+                        '' overloads on exactly that and called every one AMBIGUOUS
+                        '' (TKO0660) -- including after 'dim a( )' and 'redim a( 0 to 0 )',
+                        '' where the redim is what gives the argument its rank.
+                        if prmArray andalso argArray then
+                            dim as long pr = cast( long, _
+                                c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].extra )
+                            if pr > 0 then
+                                dim as long ar = ArgArrayRank_( c, an4 )
+                                if (ar > 0) andalso (ar <> pr) then
+                                    viable = false
+                                    exit for
+                                end if
+                            end if
                         end if
                     end if
 

@@ -27,6 +27,7 @@
 #include once "ast/nodes.bi"
 #include once "symbols/symbol.bi"
 #include once "symbols/resolve.bi"
+#include once "symbols/redimrank.bi"
 #include once "types/type.bi"
 #include once "diag/engine.bi"
 

@@ -614,8 +614,9 @@ private function SameSignature_ _
     '' THE GENERAL CASE IS NOW COLLECT'S (collectproc.bas, 2026-09-18), judged as each
     '' declaration arrives: within one SCOPE only, which answers the namespace chains,
     '' and past a symbol '#undef' removed, which answers '_rotl' -- winnt.bi undefines
-    '' stdlib.bi's before restating it. What stays here is the RANK rule, '( )' against
-    '' a known rank, which Collect's written comparison deliberately calls different.
+    '' stdlib.bi's before restating it -- and the RANK rule with it. What stays here is
+    '' what needs RESOLVED types: a CONST-only pair, and element types that two
+    '' different spellings name alike.
     dim as boolean anyBydesc = false
     for i as long = 0 to na - 1
         dim as long rx, ry
@@ -640,8 +641,10 @@ private function SameSignature_ _
             '' BOTH BYDESC: rank 0 is 'unknown' and collides with any; two known ranks
             '' collide only when equal. The ELEMENT type still has to match.
             if (ra > 0) andalso (rb > 0) andalso (ra <> rb) then return false
-            '' The ELEMENT type is what the TYPEREF carries for a bydesc parameter.
-            if ta <> tb then return false
+            '' The ELEMENT type is what the TYPEREF carries for a bydesc parameter -- and
+            '' its CONST does not distinguish. Measured 2026-09-18: 'a( ) as long' beside
+            '' 'a( ) as const long' is fbc error 4, on 1.20 and 1.10.1 alike.
+            if c.types->Unqualify( ta ) <> c.types->Unqualify( tb ) then return false
         elseif (ra >= 0) orelse (rb >= 0) then
             '' ONE BYDESC AND ONE NOT never collide, whatever the element type. Measured
             '' 2026-09-18: fbc accepts 'f overload( a( ) as long )' beside 'f overload(

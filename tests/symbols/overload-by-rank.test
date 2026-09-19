@@ -1,0 +1,12 @@
+'' An array argument chooses an overload by its rank -- the one it was declared with, or,
+'' for 'dim a( )', the one its first redim gave it. fbc-modern 1.20 runs the source and
+'' prints 1 2 1 2, and so does a tiko-lang build of it (2026-09-18); before, all four
+'' calls were TKO0660, ambiguous. Each call is asserted with its argument.
+'' TEST: cli
+'' ARGS: --dump-ir tests/symbols/src/overload-by-rank.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: error TKO
+'' EXPECT-OUT: _Z1FR8FBARRAY1Iu7INTEGERE(@array1)
+'' EXPECT-OUT: _Z1FR8FBARRAY2Iu7INTEGERE(@array2)
+'' EXPECT-OUT: _Z1FR8FBARRAY1Iu7INTEGERE(@byredim1)
+'' EXPECT-OUT: _Z1FR8FBARRAY2Iu7INTEGERE(@byredim2)

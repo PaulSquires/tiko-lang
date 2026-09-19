@@ -460,6 +460,10 @@
     '' load, a dereference -- over a type no constructor fills. TKO0725 is the
     '' bare-variable half of the same rule.
     DIAG( TKO0778, SEV_ERROR,   "'%0' has static storage and must be initialised from a constant expression" )
+    '' fbc's error 123, "Symbols defined inside namespaces cannot be removed": an '#undef'
+    '' of a name whose declaration sits in a NAMESPACE, however it was reached -- from
+    '' inside, through a 'using', or spelled 'ns.name'.
+    DIAG( TKO0779, SEV_ERROR,   "'%0' is declared in a namespace and cannot be removed with #undef" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

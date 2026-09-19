@@ -820,6 +820,20 @@ sub WalkStmt _
         end if
         return
 
+    case Tko.N_UNDEF
+        '' '#undef' OF A NAME ONLY A USING REACHES -- fbc's error 123, and the one half of
+        '' it Collect cannot see: usings are registered HERE, in source order. 'extra' = 1
+        '' is Collect's mark that its own lookup found nothing (UndefKeeps_).
+        dim as Tko.StmtPayload ptr udp = StmtOf( c, id )
+        if udp->extra = 1 then
+            dim as Tko.Symbol ptr us = c.syms->SymbolAt( c.syms->LookupThroughUsings( here, udp->name ) )
+            if us <> 0 then
+                c.diags->Report( Tko.TKO0779, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( udp->name ) )
+                c.diags->AddNote( Tko.TKO0901, Tko.PointRange( us->loc ) )
+            end if
+        end if
+        return
+
     case Tko.N_USING
         '' 'using FB' makes a namespace's names visible unqualified from here on. It
         '' was PARSED and then dropped -- 175 statements that did nothing -- which is
