@@ -1034,6 +1034,7 @@ private sub WalkExtra_ _
     if k = N_INTRINSIC then CheckSwapConst_( c, id )
     if k = N_INTRINSIC then CheckSwapTypes_( c, id )
     if k = N_INTRINSIC then CheckThreadCall_( c, id )
+    if k = N_BINARY then CheckIsTest_( c, id )
     if k = N_PARAM then CheckByrefParamDefault_( c, id )
     if k = N_CALL then CheckCastStringSize_( c, id )
 end sub

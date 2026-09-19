@@ -1,0 +1,42 @@
+'' 'x IS T' -- fbc's errors 298, 297 and 299, as TKO0798, TKO0799 and TKO0800. Until
+'' 2026-09-19 tiko accepted every one of them: '( *p is Animal )' over an Animal ptr
+'' compiled and printed -1, where fbc says error 298.
+''
+'' DIFFERENTIAL. The source was run through fbc-modern win64 ('fbc64 -c -maxerr 100')
+'' and the lines it refuses are EXACTLY the lines asserted below, with 298 -> TKO0798,
+'' 297 -> TKO0799 and 299 -> TKO0800; the lines marked 'accepted' in the source are
+'' ones fbc accepts, and the EXPECT-NOTs hold tiko to that. The rule, and the order
+'' the two sides are judged in, are in src/symbols/latesweeps3.bas, CheckIsTest_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/is-hierarchy.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: is-hierarchy.bas(27,15): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(30,15): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(51,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(52,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(53,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(54,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(55,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(56,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(57,12): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(58,13): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(59,13): error TKO0798
+'' EXPECT-OUT: is-hierarchy.bas(61,12): error TKO0799
+'' EXPECT-OUT: is-hierarchy.bas(62,12): error TKO0799
+'' EXPECT-OUT: is-hierarchy.bas(63,12): error TKO0799
+'' EXPECT-OUT: is-hierarchy.bas(64,12): error TKO0799
+'' EXPECT-OUT: is-hierarchy.bas(66,11): error TKO0800
+'' EXPECT-OUT: is-hierarchy.bas(67,12): error TKO0800
+'' EXPECT-OUT: is-hierarchy.bas(68,11): error TKO0800
+'' EXPECT-OUT: is-hierarchy.bas(69,12): error TKO0800
+'' EXPECT-OUT: 'is a' needs a type derived from 'a', and 'a' is not one
+'' EXPECT-OUT: 'is' needs run-time type information, and 'u' has none: it does not extend 'object'
+'' EXPECT-OUT: 'is' needs an object and a type that extends 'object', not 'long'
+'' EXPECT-NOT: is-hierarchy.bas(26,
+'' EXPECT-NOT: is-hierarchy.bas(44,
+'' EXPECT-NOT: is-hierarchy.bas(45,
+'' EXPECT-NOT: is-hierarchy.bas(46,
+'' EXPECT-NOT: is-hierarchy.bas(47,
+'' EXPECT-NOT: is-hierarchy.bas(48,
+'' EXPECT-NOT: is-hierarchy.bas(49,
+'' EXPECT-MAX-DIAG: 19

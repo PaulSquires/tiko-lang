@@ -517,6 +517,10 @@
     '' lib/rt/src/thread/call.bas). Said here so the difference is not found as a thread
     '' that never ran. Decision 0015 (D15), section 6.3.
     DIAG( TKO0797, SEV_WARNING, "'threadcall' is not supported: '%0' will not run, and the thread handle is 0" )
+    '' fbc's errors 298, 297 and 299 over 'x IS T', the RTTI type test -- see CheckIsTest_.
+    DIAG( TKO0798, SEV_ERROR,   "'is %0' needs a type derived from '%1', and '%0' is not one" )
+    DIAG( TKO0799, SEV_ERROR,   "'is' needs run-time type information, and '%0' has none: it does not extend 'object'" )
+    DIAG( TKO0800, SEV_ERROR,   "'is' needs an object and a type that extends 'object', not '%0'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

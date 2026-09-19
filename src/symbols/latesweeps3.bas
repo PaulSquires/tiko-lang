@@ -614,6 +614,57 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
                      c.names->Spelling( pp->name ) )
 end sub
 
+'' 'x IS T' -- fbc's errors 299, 297 and 298, checked in that order. Measured over 28
+'' probes against fbc-modern win64 (2026-09-19); tiko accepted every one of them:
+''
+''     the operand is not a UDT -- a number, a pointer, a STRING    299 Expected a CLASS
+''     the operand's type does not extend OBJECT                    297 no RTTI
+''     T is not a UDT ('va is integer')                             299
+''     T does not extend OBJECT                                     297
+''     T is not STRICTLY DERIVED from the operand's static type     298 no hierarchical relation
+''
+'' The operand is judged before T: 'vu is integer' over a type with no RTTI is 297, not
+'' 299. And the last rule is the one that looks wrong and is not -- the SAME type, a
+'' BASE, OBJECT itself and an unrelated type are all refused, so 'va is A' over an A
+'' does not compile. Only a proper descendant, at any depth, is accepted, and it is the
+'' operand's STATIC type that counts: through a variable, '*p', a byref parameter, a
+'' field and a call result alike.
+private function DerivesStrictly_ _
+    ( byref c as Ctx, byval derived as TypeId, byval base_ as TypeId ) as boolean
+    dim as TypeId cur = BaseOf_( c, derived )
+    dim as long guard = 0
+    while (cur <> TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        if c.types->Unqualify( cur ) = base_ then return true
+        cur = BaseOf_( c, cur )
+    wend
+    return false
+end function
+
+private sub CheckIsTest_ ( byref c as Ctx, byval id as NodeId )
+    dim as BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, bp->op ) <> KW_IS then return
+    dim as TypeId lt = c.info->TypeOf_( bp->lhs )
+    dim as TypeId rt = c.info->TypeOf_( bp->rhs )
+    '' AN UNTYPED SIDE has already been reported -- an undeclared T is TKO0743.
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    lt = c.types->Unqualify( lt )
+    rt = c.types->Unqualify( rt )
+    dim as SourceRange r = PointRange( c.ast->Loc( id ) )
+    if c.types->Kind( lt ) <> TK_UDT then
+        c.diags->Report( TKO0800, r, c.types->Name( lt ) )
+    elseif ExtendsObject_( c, lt ) = false then
+        c.diags->Report( TKO0799, r, c.types->Name( lt ) )
+    elseif c.types->Kind( rt ) <> TK_UDT then
+        c.diags->Report( TKO0800, r, c.types->Name( rt ) )
+    elseif ExtendsObject_( c, rt ) = false then
+        c.diags->Report( TKO0799, r, c.types->Name( rt ) )
+    elseif DerivesStrictly_( c, rt, lt ) = false then
+        c.diags->Report( TKO0798, r, c.types->Name( rt ), c.types->Name( lt ) )
+    end if
+end sub
+
 '' TWO THINGS EVERY REDIM MUST HAVE. Measured, with the accepted line beside each:
 ''
 ''     redim array( 1 to 2 )                     error 147 -- it DECLARES, with no type
