@@ -16,9 +16,13 @@
 '' rather than EXIT_TOOL_FAILED (5): the codes are distinct because the actions are.
 '' The link-failure path is not tested here, because a test that must first succeed at
 '' finding clang is a test of the machine it runs on.
+''
+'' It IS a diagnostic now -- TKO0111, through ToolFail_ -- so an editor reading
+'' --diagnostics-file sees it; what this pins is that the exit code stayed the
+'' toolchain's (3) rather than becoming the 1 that any error in the engine used to mean.
 '' TEST: cli
 '' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
 '' ARGS: -target win64 -o tests/driver/src/toolchain-exit-out.exe tests/source/plain.bas
 '' EXPECT-EXIT: 3
 '' EXPECT-OUT: clang not found
-'' EXPECT-NOT: error TKO
+'' EXPECT-OUT: error TKO0111: no usable toolchain

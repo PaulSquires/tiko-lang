@@ -15,6 +15,8 @@
 ''     '' EXPECT-FILE: path        the run must CREATE this file (repeatable)
 ''     '' EXPECT-NO-FILE: path     the run must NOT create it (repeatable)
 ''     '' EXPECT-FILE-HAS: p :: s  the file must exist and contain those bytes
+''     '' EXPECT-FILE-NOT-HAS: p :: s   ...and must NOT contain them
+''                              in both, \t \n \r and \\ in s are TAB, LF, CR, backslash
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
 ''
 '' TARGETS. Every run names a target explicitly: what tiko-lang emits depends on
@@ -92,6 +94,9 @@ type TestCase
     '' member names are in the file and in nothing tiko prints, so -lib's naming was
     '' verifiable only by running 'ar t' by hand.
     as Array( of string ) expectFileHas
+    '' ...and bytes it must NOT contain. A record format is asserted by what is absent as
+    '' much as by what is there: no raw TAB inside a field, no CR, no record twice.
+    as Array( of string ) expectFileNotHas
 end type
 
 type Options
@@ -109,6 +114,35 @@ end type
 
 function Trim_( byval s as string ) as string
     return trim( s, any !" \t\r\n" )
+end function
+
+'' \t \n \r and \\ in an EXPECT-FILE-(NOT-)HAS text, so a test can name a TAB or a
+'' line ending -- the bytes a record format is made of -- in a directive that is itself
+'' one line. Any other backslash is kept as it is: a Windows path needs no escaping.
+function Unescape_( byval s as string ) as string
+    dim as string outp = ""
+    dim as long i = 0
+    dim as long n = len( s )
+    while i < n
+        dim as boolean esc = (s[i] = 92) andalso (i + 1 < n)
+        if esc then
+            select case s[i + 1]
+            case asc( "t" ) : outp += chr( 9 )
+            case asc( "n" ) : outp += chr( 10 )
+            case asc( "r" ) : outp += chr( 13 )
+            case 92         : outp += chr( 92 )
+            case else
+                esc = false
+            end select
+        end if
+        if esc then
+            i += 2
+        else
+            outp += chr( s[i] )
+            i += 1
+        end if
+    wend
+    return outp
 end function
 
 function StartsWith( byval s as string, byval prefix as string ) as boolean
@@ -284,6 +318,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.expectNot.Push( Trim_( mid( ln, 12 ) ) )
         elseif StartsWith( ln, "EXPECT-NO-FILE:" ) then
             tc.expectNoFile.Push( Trim_( mid( ln, 16 ) ) )
+        elseif StartsWith( ln, "EXPECT-FILE-NOT-HAS:" ) then
+            tc.expectFileNotHas.Push( Trim_( mid( ln, 21 ) ) )
         elseif StartsWith( ln, "EXPECT-FILE-HAS:" ) then
             tc.expectFileHas.Push( Trim_( mid( ln, 17 ) ) )
         elseif StartsWith( ln, "EXPECT-FILE:" ) then
@@ -446,6 +482,10 @@ function RunOne _
             dim as long s3 = instr( f3, "::" )
             if s3 > 0 then kill( Trim_( left( f3, s3 - 1 ) ) )
         next
+        for each f4 as string in tc.expectFileNotHas
+            dim as long s4 = instr( f4, "::" )
+            if s4 > 0 then kill( Trim_( left( f4, s4 - 1 ) ) )
+        next
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
         rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
         if CheckOne_( tc, opts, tgt, rc, outText, why ) = false then
@@ -524,7 +564,8 @@ function CheckOne_ _
             return false
         end if
         dim as string hpath = Trim_( left( has_, sep - 1 ) )
-        dim as string hwant = Trim_( mid( has_, sep + 2 ) )
+        '' Unescaped AFTER the trim, so an escaped TAB at either end survives it.
+        dim as string hwant = Unescape_( Trim_( mid( has_, sep + 2 ) ) )
         if FileExists_( hpath ) = false then
             why = "did not create: " & hpath
             return false
@@ -539,6 +580,34 @@ function CheckOne_ _
         close #hf
         if instr( blob, hwant ) = 0 then
             why = hpath & " does not contain: " & hwant
+            return false
+        end if
+    next
+
+    '' 'path :: text' -- the file must exist and must NOT contain those bytes. It has
+    '' to exist: a mistyped path would otherwise pass by containing nothing.
+    for each not_ as string in tc.expectFileNotHas
+        dim as long nsep = instr( not_, "::" )
+        if nsep = 0 then
+            why = "malformed EXPECT-FILE-NOT-HAS (want 'path :: text'): " & not_
+            return false
+        end if
+        dim as string npath = Trim_( left( not_, nsep - 1 ) )
+        dim as string nwant = Unescape_( Trim_( mid( not_, nsep + 2 ) ) )
+        if FileExists_( npath ) = false then
+            why = "did not create: " & npath
+            return false
+        end if
+        dim as long nf = freefile
+        if open( npath for binary access read as #nf ) <> 0 then
+            why = "cannot read: " & npath
+            return false
+        end if
+        dim as string nblob = space( lof( nf ) )
+        if len( nblob ) > 0 then get #nf, 1, nblob
+        close #nf
+        if instr( nblob, nwant ) > 0 then
+            why = npath & " contains: " & nwant
             return false
         end if
     next
@@ -597,6 +666,7 @@ end type
 '' then serial until someone says otherwise, which is the safe direction to be wrong.
 function IsParallelSafe_( byref tc as TestCase ) as boolean
     if tc.env.IsEmpty( ) = false then return false
+    if tc.expectFileNotHas.IsEmpty( ) = false then return false
     if tc.expectFileHas.IsEmpty( ) = false then return false
     if tc.expectFile.IsEmpty( ) = false then return false
     if tc.expectNoFile.IsEmpty( ) = false then return false

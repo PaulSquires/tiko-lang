@@ -93,6 +93,10 @@ namespace Tko
         declare function LineText( byval id as FileId, byval lineNo as long ) as string
 
         declare function PathOf( byval id as FileId ) as string
+        '' The ABSOLUTE, normalised path -- the file's identity, where PathOf is the
+        '' path as the user wrote it. A tool that must OPEN the file (an editor
+        '' reading --diagnostics-file) needs this one; "" for no file.
+        declare function AbsPathOf( byval id as FileId ) as string
 
         '' Record a '#line'. Re-scanning a file (an include pulled in twice without a
         '' guard) must not stack duplicates, so a mark on a line already marked

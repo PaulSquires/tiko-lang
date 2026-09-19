@@ -2,6 +2,7 @@
 
 #include once "driver/driver.bi"
 #include once "driver/cmdline.bi"
+#include once "driver/diagout.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
 #include once "parser/expr.bi"
@@ -34,6 +35,7 @@ constructor CompilerContext( )
     this.types.Attach( @this.names, tgt )
     this.sources.Attach( @this.names )
     this.diags.Attach( @this.sources )
+    this.toolErrors = 0
 end constructor
 
 end namespace
@@ -242,11 +244,37 @@ private sub ReportStats( byref ctx as Tko.CompilerContext )
     print "warnings         "; ctx.diags.WarningCount( )
 end sub
 
+'' A TOOLCHAIN FAILURE IS A DIAGNOSTIC WITHOUT A LOCATION that still exits with the TOOL's
+'' code. It was a bare 'tiko: ...' line on stderr, which nothing reading diagnostics could
+'' see -- an editor reported a failed link as a build with no errors. Counted in
+'' toolErrors so FrontendFailed_ can still tell 'the program is wrong' (exit 1) from 'the
+'' machine failed' (3, 4, 5). Flushed at once, so the line still sits beside clang's or
+'' lld's own stderr the way the 'tiko:' line did. Measured as a difference, not assumed
+'' to be one: a -Wno- of the id reports nothing and must count nothing.
+private function ToolFail_ _
+    ( byref ctx as Tko.CompilerContext, byval code as long, byval id as Tko.DiagId, _
+      byref a0 as string = "", byref a1 as string = "", byref a2 as string = "" ) as long
+
+    dim as long before = ctx.diags.ErrorCount( )
+    ctx.diags.ReportGlobal( id, a0, a1, a2 )
+    ctx.toolErrors += ctx.diags.ErrorCount( ) - before
+    ctx.diags.Flush( )
+    return code
+end function
+
+'' DID THE PROGRAM FAIL, as opposed to the toolchain? Everything that gates on 'the
+'' frontend reported an error' asks this, never HasErrors( ): a clang failure in module 1
+'' must not stop module 2 being compiled, any more than it did before it was a diagnostic.
+private function FrontendFailed_( byref ctx as Tko.CompilerContext ) as boolean
+    return ctx.diags.ErrorCount( ) > ctx.toolErrors
+end function
+
 '' THE REST OF THE BUILD: IR to an object, and an object to an executable.
 ''
 '' Separated from the emission above only so that the pass pipeline reads as one thing
-'' and the toolchain as another. Every failure here is reported to stderr; none of them
-'' is a source diagnostic, because none of them is about the program being compiled.
+'' and the toolchain as another. Every failure here is a LOCATION-LESS diagnostic through
+'' ToolFail_ -- none of them is about the program being compiled, so none has a line to
+'' point at, but an editor reading --diagnostics-file still has to see it.
 ''
 '' RETURNS AN EXIT CODE, not a boolean. The distinction the codes make is the one a
 '' caller acts on: EXIT_NO_TOOLCHAIN means this machine is not set up, and rerunning
@@ -304,15 +332,10 @@ private function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
 
-    dim as long eh = freefile
-    open err for output as #eh
-
     dim as Tko.Codegen.ToolPaths tools = _
         Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
     if tools.found = false then
-        print #eh, "tiko: " & tools.why
-        close #eh
-        return Tko.EXIT_NO_TOOLCHAIN
+        return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
     '' THE OPTIMISATION LEVEL -- see ToolPaths.optLevel. The link does not need it; the
     '' compile of each module's IR is where clang optimises.
@@ -329,9 +352,7 @@ private function BuildFromIr _
     '' it is spelled as its own statement instead, which is clearer anyway.
     dim as long orc = open( irPath for output as #fh )
     if orc <> 0 then
-        print #eh, "tiko: cannot write '" & irPath & "'"
-        close #eh
-        return Tko.EXIT_TOOL_FAILED
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     end if
     print #fh, irText;
     close #fh
@@ -339,9 +360,7 @@ private function BuildFromIr _
     dim as long rc = Tko.Codegen.CompileIr( tools, td, irPath, objPath, _
                                             ctx.options.keepTemps )
     if rc <> 0 then
-        print #eh, "tiko: clang failed on '" & irPath & "' (exit " & str( rc ) & ")"
-        close #eh
-        return Tko.EXIT_TOOL_FAILED
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
     end if
 
     dim as boolean fmtKnown = false
@@ -349,21 +368,13 @@ private function BuildFromIr _
     if fmtKnown then
         dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
         if isElf <> wantElf then
+            '' The object format and the triple are one fact -- the other format is
+            '' implied, so the message names the one found and the triple that disagrees.
             dim as string got_ = iif( isElf, "ELF", "COFF" )
-            dim as string want_ = iif( wantElf, "ELF", "COFF" )
-            print #eh, "tiko: '" & objPath & "' is " & got_ & " but target " & _
-                       ctx.options.targetName & " links " & want_ & _
-                       " (triple " & td.triple & ")"
-            close #eh
-            return Tko.EXIT_TOOL_FAILED
+            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0114, objPath, got_, td.triple )
         end if
     end if
-    if ctx.options.compileOnly then
-        close #eh
-        return Tko.EXIT_OK
-    end if
 
-    close #eh
     return Tko.EXIT_OK
 end function
 
@@ -372,22 +383,15 @@ private function ArchiveAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref keep as Tko.StrVec ) as long
 
-    dim as long eh = freefile
-    open err for output as #eh
-
     dim as Tko.Codegen.ToolPaths tools = _
         Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
     if tools.found = false then
-        print #eh, "tiko: " & tools.why
-        close #eh
-        return Tko.EXIT_NO_TOOLCHAIN
+        return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
 
     dim as long rc = Tko.Codegen.ArchiveLib( tools, objs, ctx.options.outputPath )
     if rc <> 0 then
-        print #eh, "tiko: archiving failed (exit " & str( rc ) & ")"
-        close #eh
-        return Tko.EXIT_TOOL_FAILED
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0115, str( rc ) )
     end if
 
     '' The same rule the link follows: only what THIS build made is removed.
@@ -397,7 +401,6 @@ private function ArchiveAll _
         next
     end if
 
-    close #eh
     return Tko.EXIT_OK
 end function
 
@@ -406,15 +409,10 @@ private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as long
 
-    dim as long eh = freefile
-    open err for output as #eh
-
     dim as Tko.Codegen.ToolPaths tools = _
         Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
     if tools.found = false then
-        print #eh, "tiko: " & tools.why
-        close #eh
-        return Tko.EXIT_NO_TOOLCHAIN
+        return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
 
     '' THE LIBRARIES THE PROGRAM ASKED FOR, in the same order as the paths: '-l'
@@ -457,9 +455,7 @@ private function LinkAll _
 
     dim as long rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc <> 0 then
-        print #eh, "tiko: link failed (exit " & str( rc ) & ")"
-        close #eh
-        return Tko.EXIT_TOOL_FAILED
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if
 
     '' ONLY WHAT THIS BUILD MADE. An object the user named on the command line is
@@ -469,7 +465,6 @@ private function LinkAll _
             kill( keep[i] )
         next
     end if
-    close #eh
     return Tko.EXIT_OK
 end function
 
@@ -518,6 +513,9 @@ function Run _
 
     dim as boolean cmdOk = Tko.Cmdline.Parse( args, ctx.options, ctx.diags )
     ApplyDiagPolicy( ctx )
+    '' Before the command-line check, so a bad option still reaches the file -- Parse
+    '' reads the whole line whatever it finds, so the path is known either way.
+    if Tko.DiagOut.Start( ctx ) = false then cmdOk = false
 
     '' THE TARGET DECIDES THE LAYOUT, and it is only known now. The context is built
     '' before the command line is parsed -- the source manager needs the interner's
@@ -527,24 +525,22 @@ function Run _
     ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( ctx.options.target ) )
 
     if cmdOk = false then
-        ctx.diags.Flush( )
-        return Tko.EXIT_CMDLINE
+        return Tko.DiagOut.Finish( ctx, Tko.EXIT_CMDLINE )
     end if
 
     '' --version and --help answer and stop, even with other options present.
     if ctx.options.showVersion then
         print Tko.Cmdline.VersionText( );
-        return Tko.EXIT_OK
+        return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
     end if
     if ctx.options.showHelp then
         print Tko.Cmdline.HelpText( ctx.options.helpCategory );
-        return Tko.EXIT_OK
+        return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
     end if
 
     if ctx.options.inputs.IsEmpty( ) then
         ctx.diags.ReportGlobal( Tko.TKO0102 )
-        ctx.diags.Flush( )
-        return Tko.EXIT_CMDLINE
+        return Tko.DiagOut.Finish( ctx, Tko.EXIT_CMDLINE )
     end if
 
     '' ---- partition the inputs ---------------------------------------------
@@ -963,7 +959,7 @@ function Run _
                 '' files that ALSO print a TKO error, '#lang "qb"' among them -- the
                 '' void slot IS the declined declaration, and the message the user
                 '' needs is the one above it.
-                if ctx.diags.HasErrors( ) then doCodegen = false
+                if FrontendFailed_( ctx ) then doCodegen = false
                 if doCodegen then
                     dim as Tko.Codegen.TargetDescription td = _
                         Tko.Codegen.TargetFor( ctx.options.target )
@@ -1026,17 +1022,23 @@ function Run _
                                     ctx.options.pragmaLibs, ctx.options.libPaths, _
                                     ctx.options.pragmaLibPaths, ctx.options.threadSafe )
                             end if
-                            toolExit = BuildFromIr( ctx, er.text, td, objPath )
-                            if toolExit = Tko.EXIT_OK then linkObjs.Push( objPath )
+                            '' THE FIRST FAILURE STAYS. Assigned straight to toolExit,
+                            '' module 2 compiling cleanly reset module 1's clang failure
+                            '' to OK -- and the link then ran without its object.
+                            dim as long bx = BuildFromIr( ctx, er.text, td, objPath )
+                            if bx = Tko.EXIT_OK then
+                                linkObjs.Push( objPath )
+                            elseif toolExit = Tko.EXIT_OK then
+                                toolExit = bx
+                            end if
                         else
                             print er.text;
                         end if
                     else
-                        '' NOT A DIAGNOSTIC. A failure here is the compiler being
-                        '' unable to emit something it accepted, which is an internal
-                        '' fault and is reported as one -- and exits as one.
-                        print "emit: ICE: " & er.ice
-                        toolExit = Tko.EXIT_ICE
+                        '' AN INTERNAL FAULT, and exits as one. The compiler could not
+                        '' emit something it accepted. It was 'emit: ICE:' on STDOUT --
+                        '' inside the .ll under --emit-ir -- and invisible to an editor.
+                        toolExit = ToolFail_( ctx, Tko.EXIT_ICE, Tko.TKO0993, er.ice )
                     end if
                 '' ONLY WHEN '--dump-ir' ASKED. This was a bare 'else', so a BUILD that
                 '' reported an error fell into it and printed the whole module where the
@@ -1228,7 +1230,7 @@ function Run _
         dim as boolean linkWanted = wantsOutput
         dim as boolean notCompileOnly = (ctx.options.compileOnly = false)
         dim as boolean toolsOk = (toolExit = Tko.EXIT_OK)
-        dim as boolean frontendOk = (ctx.diags.HasErrors( ) = false)
+        dim as boolean frontendOk = (FrontendFailed_( ctx ) = false)
         if linkWanted andalso notCompileOnly andalso toolsOk andalso frontendOk then
             if linkObjs.Count = 0 then
                 ctx.diags.ReportGlobal( Tko.TKO0102 )
@@ -1402,9 +1404,16 @@ function Run _
     ctx.diags.Flush( )
     if ctx.options.stats then ReportStats( ctx )
 
-    if ctx.diags.HasErrors( ) then return Tko.EXIT_USER_ERROR
-    if toolExit <> Tko.EXIT_OK then return toolExit
-    return Tko.EXIT_OK
+    '' THE PROGRAM FIRST: a program that failed to compile is a user error, and the
+    '' toolchain never ran. A toolchain failure is an error in the engine too, now, so
+    '' this asks FrontendFailed_ rather than HasErrors.
+    dim as long rc = Tko.EXIT_OK
+    if FrontendFailed_( ctx ) then
+        rc = Tko.EXIT_USER_ERROR
+    elseif toolExit <> Tko.EXIT_OK then
+        rc = toolExit
+    end if
+    return Tko.DiagOut.Finish( ctx, rc )
 end function
 
 end namespace

@@ -1,0 +1,11 @@
+'' --diagnostics-file: a '#line' renames what the CONSOLE says, and the record keeps the
+'' physical file and line -- an editor has to open the file the bytes are in.
+''
+'' The console shows 'renamed.bas(101,1)', which is fbc's shape and what a person reads.
+'' The file shows diagfile-line.bas, line 4, where '#error here' actually is.
+'' TEST: cli
+'' ARGS: --diagnostics-file build/.diagfile-line.tsv --parse-only tests/driver/src/diagfile-line.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: renamed.bas(101,1): error TKO0309: #error: here
+'' EXPECT-FILE-HAS: build/.diagfile-line.tsv :: diagfile-line.bas\t4\t1\t4\t2\t#error: here\n
+'' EXPECT-FILE-NOT-HAS: build/.diagfile-line.tsv :: renamed.bas

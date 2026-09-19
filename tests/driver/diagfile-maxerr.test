@@ -1,0 +1,7 @@
+'' --diagnostics-file: past -fmax-errors the engine stops storing errors and says so once
+'' (TKO0990); the 'end' record still counts every error, stored or not.
+'' TEST: cli
+'' ARGS: -fmax-errors 2 --diagnostics-file build/.diagfile-maxerr.tsv --parse-only tests/driver/src/diagfile-maxerr.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-FILE-HAS: build/.diagfile-maxerr.tsv :: \t#error: two\nerror\tTKO0990\t\t0\t0\t0\t0\ttoo many errors; stopping\nend\t3\t0\t1\n
+'' EXPECT-FILE-NOT-HAS: build/.diagfile-maxerr.tsv :: #error: three

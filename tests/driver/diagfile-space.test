@@ -1,0 +1,8 @@
+'' --diagnostics-file with a space in its own path and in the source's: the path is one
+'' argument, and the file field holds the space verbatim -- a field ends at a TAB, never
+'' at a space.
+'' TEST: cli
+'' ARGS: --diagnostics-file "build/.diagfile space.tsv" --parse-only "tests/driver/src/diag space/diagfile-space.bas"
+'' EXPECT-EXIT: 1
+'' EXPECT-FILE-HAS: build/.diagfile space.tsv :: diag space
+'' EXPECT-FILE-HAS: build/.diagfile space.tsv :: diagfile-space.bas\t2\t1\t2\t2\t#error: spaced\n

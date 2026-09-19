@@ -59,6 +59,12 @@ function SourceManager.PathOf( byval id as FileId ) as string
     return this.names->Spelling( f->displayPath )
 end function
 
+function SourceManager.AbsPathOf( byval id as FileId ) as string
+    dim as SourceFile ptr f = this.FileAt( id )
+    if f = 0 then return ""
+    return this.names->Spelling( f->path )
+end function
+
 function SourceManager.TotalBytes( ) as longint
     dim as longint total = 0
     for each f as SourceFile ptr in this.files

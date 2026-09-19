@@ -7,6 +7,7 @@ src/support/fbstr.bas
 src/diag/diagnostic.bas
 src/diag/render.bas
 src/diag/engine.bas
+src/diag/machine.bas
 src/source/manager.bas
 src/lexer/lexer.bas
 src/pp/pp.bas
@@ -87,3 +88,4 @@ src/codegen/toolchain.bas
 src/codegen/objinfo.bas
 src/driver/cmdline.bas
 src/driver/driver.bas
+src/driver/diagout.bas

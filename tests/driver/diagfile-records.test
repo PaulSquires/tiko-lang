@@ -1,0 +1,26 @@
+'' --diagnostics-file: one record per diagnostic, every kind, in the console's order.
+''
+'' The file is for an EDITOR -- docs/internals/diagnostics-file.md. What is asserted is
+'' the contract, byte for byte where the bytes are the contract: the header, TAB between
+'' fields, LF (never CRLF) after every record, the PHYSICAL line, a CHARACTER column, an
+'' exclusive end, a note hung off the diagnostic before it as 'related', a TAB inside a
+'' message turned into a space, and the 'end' record that says the run finished.
+''
+'' Paths are asserted by BASENAME: the file holds the absolute path, and that is this
+'' checkout's path on this host.
+''
+'' The console is asserted too, because the file is written IN ADDITION to it: the
+'' human rendering must not change shape because an editor asked for records.
+'' TEST: cli
+'' ARGS: --diagnostics-file build/.diagfile-records.tsv --dump-symbols tests/driver/src/diagfile-records.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: diagfile-records.bas(10,1): error TKO0309: #error: CONFIG not set
+'' EXPECT-OUT: diagfile-records.bas(6,9): note: declared here
+'' EXPECT-FILE-HAS: build/.diagfile-records.tsv :: tiko-diagnostics\t1\nwarning\tTKO0201\t
+'' EXPECT-FILE-HAS: build/.diagfile-records.tsv :: diagfile-records.bas\t9\t19\t9\t24\tmissing closing quote in string literal\nnote\tTKO0315\t
+'' EXPECT-FILE-HAS: build/.diagfile-records.tsv :: diagfile-records.bas\t5\t1\t5\t2\t#print "a b"\nerror\tTKO0309\t
+'' EXPECT-FILE-HAS: build/.diagfile-records.tsv :: diagfile-records.bas\t10\t1\t10\t2\t#error: CONFIG not set\nerror\tTKO0603\t
+'' EXPECT-FILE-HAS: build/.diagfile-records.tsv :: diagfile-records.bas\t7\t1\t7\t2\tcalling convention does not match the declaration of 'f'\nrelated\tTKO0901\t
+'' EXPECT-FILE-HAS: build/.diagfile-records.tsv :: diagfile-records.bas\t6\t9\t6\t10\tdeclared here\nend\t2\t1\t1\n
+'' EXPECT-FILE-NOT-HAS: build/.diagfile-records.tsv :: \r
+'' EXPECT-FILE-NOT-HAS: build/.diagfile-records.tsv :: a\tb

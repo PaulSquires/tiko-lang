@@ -1,0 +1,14 @@
+'' --diagnostics-file across a '#cmdline' restart: pass one's diagnostics are discarded,
+'' as fbc's are, and the file holds the finishing pass exactly once.
+''
+'' DiagOut.Start runs in both passes; only the pass that returns reaches Finish, which is
+'' the one write. 'first-pass' is printed only while DFX is undefined -- pass one -- so it
+'' appearing anywhere would be pass one leaking into the file.
+'' TEST: cli
+'' ARGS: --diagnostics-file build/.diagfile-restart.tsv --parse-only tests/driver/src/diagfile-restart.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: note TKO0315: #print restarted
+'' EXPECT-NOT: first-pass
+'' EXPECT-FILE-HAS: build/.diagfile-restart.tsv :: tiko-diagnostics\t1\nnote\tTKO0315\t
+'' EXPECT-FILE-HAS: build/.diagfile-restart.tsv :: \t#print restarted\nend\t0\t0\t0\n
+'' EXPECT-FILE-NOT-HAS: build/.diagfile-restart.tsv :: first-pass

@@ -1,0 +1,11 @@
+'' --diagnostics-file: a command-line error reaches the file, location-less, and the
+'' 'end' record carries the command-line exit code.
+''
+'' DiagOut.Start runs before the command-line check, because Parse reads the whole line
+'' whatever it finds -- so the path is known even when another argument is bad. The whole
+'' file is asserted: a location-less record is an empty file field and four zeros.
+'' TEST: cli
+'' ARGS: --diagnostics-file build/.diagfile-cmdline.tsv -q tests/source/plain.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0100: unknown option '-q'
+'' EXPECT-FILE-HAS: build/.diagfile-cmdline.tsv :: tiko-diagnostics\t1\nerror\tTKO0100\t\t0\t0\t0\t0\tunknown option '-q'\nend\t1\t0\t2\n

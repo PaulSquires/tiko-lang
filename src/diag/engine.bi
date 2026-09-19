@@ -39,6 +39,11 @@ namespace Tko
         as DiagColorMode  colorMode
         as DiagOutputFormat outputFormat
         as SeverityVec policy        '' per-DiagId override; -1 = default, -2 = ignore
+        '' --diagnostics-file. The records are rendered HERE, at Flush, in the order the
+        '' console gets them -- a note only exists once AddNote has run, so rendering at
+        '' Push would lose it -- and handed to the driver, which writes the file.
+        as boolean    machineOn
+        as string     machineRecs
 
         declare constructor( )
         declare sub Attach( byval src as SourceManager ptr )
@@ -68,6 +73,8 @@ namespace Tko
         declare sub SetMaxErrors( byval n as long )
         declare sub SetColorMode( byval newMode as DiagColorMode )
         declare sub SetFormat( byval f as DiagOutputFormat )
+        declare sub EnableMachine( )
+        declare function MachineText( ) as string
         declare function UseColor( ) as boolean
 
         private:
