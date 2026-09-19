@@ -1,0 +1,17 @@
+'' '...' is only for a CDECL procedure, fbc's error 312 -- Linux, where a procedure that
+'' writes no convention is cdecl, so only a convention written or a Windows block's is
+'' refused. 10 errors on fbc-modern's Linux build, on exactly these lines (2026-09-19).
+'' TEST: cli
+'' ARGS: --dump-ir -target linux-x86_64 tests/diagnostics/src/vararg-cdecl.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 10
+'' EXPECT-OUT: vararg-cdecl.bas(8,44): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(9,43): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'pascal'
+'' EXPECT-OUT: vararg-cdecl.bas(11,36): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(12,61): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(15,38): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(17,48): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(21,55): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(23,36): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(27,51): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
+'' EXPECT-OUT: vararg-cdecl.bas(62,13): error TKO0780: 'm' takes '...' and cannot be overloaded

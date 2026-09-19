@@ -4,6 +4,50 @@
 '' place, so nothing about the compile order changes. Nothing in it changed in the
 '' move.
 
+'' '...' IS ONLY FOR A CDECL PROCEDURE -- fbc's error 312, "vararg parameters are only
+'' allowed in CDECL procedures". A variadic stdcall cannot exist: the callee pops its own
+'' arguments and cannot know how many there were. Asked where fbc asks it, as the list is
+'' read, of every list that can hold '...': a procedure's, a procedure TYPE's and a
+'' lambda's. Here because this file is included first, and all three reach it.
+''
+'' The convention is the one THIS HEADER ends up with, not its DECLARE's: measured, a
+'' 'cdecl' declaration whose definition writes none is refused at the definition. With
+'' none written:
+''
+''     a constructor or a destructor              cdecl, fbc's default for them
+''     inside extern "C" or "C++"                 cdecl
+''     inside extern "Windows" or "Windows-MS"    stdcall
+''     anywhere else, extern "rtlib" too          the TARGET's -- stdcall on Windows,
+''                                                cdecl on Linux
+''
+'' Measured 2026-09-19, 72 shapes on fbc-modern 1.20 and fbc 1.10.1 for win64 and on
+'' fbc-modern's Linux build. fbc then reports nothing more for the statement, so the
+'' '...' is marked for Collect -- see PARAM_VARARG_REFUSED.
+private sub CheckVarargConv_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byval written as Tko.CallConv, byval structor as boolean )
+
+    if p.fbcallConv = Tko.CC_NONE then exit sub
+    for i as long = 0 to sp.count - 1
+        dim as Tko.NodeId pn = cast( Tko.NodeId, p.ast->children[sp.first + i] )
+        if p.ast->Kind( pn ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr pp = _
+            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, pn )].data )]
+        if pp->op <> cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+        dim as Tko.CallConv cc = written
+        if (cc = Tko.CC_NONE) andalso structor then cc = Tko.CC_CDECL
+        if cc = Tko.CC_NONE then cc = cast( Tko.CallConv, p.externConv )
+        if cc = Tko.CC_NONE then cc = cast( Tko.CallConv, p.fbcallConv )
+        if cc = Tko.CC_CDECL then exit sub
+        pp->extra = Tko.PARAM_VARARG_REFUSED
+        if p.silent = false then
+            p.diags->Report( Tko.TKO0781, Tko.PointRange( p.ast->Loc( pn ) ), _
+                Tko.CallConvName( cc ) )
+        end if
+        exit sub
+    next
+end sub
+
 function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
@@ -65,10 +109,17 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     if (pk = Tko.KW_SUB) orelse (pk = Tko.KW_FUNCTION) then
         Advance( p )
         sp.op = cast( ushort, pk )
+        dim as Tko.CallConv ptConv = Tko.CC_NONE
         while Tko.IsCallConvKind( Peek( p ) )
+            select case Peek( p )
+            case Tko.KW_CDECL   : ptConv = Tko.CC_CDECL
+            case Tko.KW_STDCALL : ptConv = Tko.CC_STDCALL
+            case Tko.KW_PASCAL  : ptConv = Tko.CC_PASCAL
+            end select
             Advance( p )
         wend
         ParseParamList( p, sp )
+        CheckVarargConv_( p, sp, ptConv, false )
         '' 'function( ) BYREF as zstring' -- a byref-returning procedure TYPE. The
         '' modifier sits before the AS, so 'Accept( KW_AS )' failed and the return type
         '' was left for the caller to trip over: 'expected )'. The same shape as the

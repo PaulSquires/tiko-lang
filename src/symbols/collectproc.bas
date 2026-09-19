@@ -273,6 +273,26 @@ private function ProcRedeclared_ _
     return Tko.SYMBOL_NONE
 end function
 
+'' THE STATEMENT HAS HAD ITS ERROR when the parser refused its '...' -- fbc's 312, see
+'' PARAM_VARARG_REFUSED -- because fbc reports one error per statement. Measured: 'declare
+'' sub f stdcall overload( byval a as long, ... )' is 312 alone, and so is the second of
+'' two identical non-cdecl variadic declarations. What the refusals below DO still
+'' happens -- a variadic OVERLOAD is still forgotten, a variadic member alone still
+'' blocks the member after it (fbc: 312, then 4 on the next line) -- only the report goes.
+private function ParserRefused_ _
+    ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as boolean
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId pn = cast( Tko.NodeId, w.ast->children[sp->first + i] )
+        if w.ast->Kind( pn ) = Tko.N_PARAM then
+            dim as Tko.StmtPayload ptr pp = StmtOf( w, pn )
+            if pp->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+                return (pp->extra = Tko.PARAM_VARARG_REFUSED)
+            end if
+        end if
+    next
+    return false
+end function
+
 '' ProcRedeclared_, REPORTED. The caller binds the refused declaration to the symbol this
 '' returns rather than chaining a twin beside it, so no call site becomes ambiguous
 '' behind the one error fbc would have given.
@@ -285,6 +305,7 @@ private function RefuseRedeclaration_ _
     dim as Tko.Symbol ptr ps = w.syms->SymbolAt( prev )
     if ps = 0 then return Tko.SYMBOL_NONE
     w.duplicates += 1
+    if ParserRefused_( w, sp ) then return prev
     '' A structor is declared under a synthetic name ('__ctor'); the message says what
     '' was written.
     dim as string shown = w.names->Spelling( nm )
@@ -389,6 +410,7 @@ private function RefuseVariadicOverload_ _
 
     if refuse = false then return false
     w.duplicates += 1
+    if ParserRefused_( w, sp ) then return true
     dim as string shown = w.names->Spelling( nm )
     if isCtor then shown = "constructor"
     w.diags->Report( Tko.TKO0780, Tko.PointRange( loc ), shown )

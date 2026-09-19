@@ -892,6 +892,8 @@ private function ParseProc _
     loop
 
     ParseParamList( p, sp )
+    CheckVarargConv_( p, sp, Tko.CallConvOf( sp.extra ), _
+                      (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR) )
 
     '' 'function F( ) BYREF as T' -- A BYREF RESULT. The BYREF sits between the
     '' parameter list and the AS, so Accept( KW_AS ) failed on it and the trailing-

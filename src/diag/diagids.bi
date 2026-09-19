@@ -468,6 +468,9 @@
     '' reported as its error 4 for anything but a constructor. A procedure with '...' may
     '' not be OVERLOAD, may not join an overload set, and no set may grow around it.
     DIAG( TKO0780, SEV_ERROR,   "'%0' takes '...' and cannot be overloaded" )
+    '' fbc's error 312, "vararg parameters are only allowed in CDECL procedures". %0 is
+    '' the convention the procedure ended up with, written or defaulted.
+    DIAG( TKO0781, SEV_ERROR,   "'...' needs a 'cdecl' procedure, and this one is '%0'" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

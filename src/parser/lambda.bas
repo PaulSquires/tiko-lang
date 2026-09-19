@@ -248,9 +248,11 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     '' A calling convention may sit between the keyword and the '(' -- measured:
     '' cdecl, stdcall and pascal are accepted there, EXPORT is not, and there are no
     '' trailing modifiers at all ('function( ) as long static' is error 3).
+    dim as Tko.CallConv lamConv = Tko.CC_NONE
     select case Peek( p )
-    case Tko.KW_CDECL, Tko.KW_STDCALL, Tko.KW_PASCAL
-        Advance( p )
+    case Tko.KW_CDECL   : lamConv = Tko.CC_CDECL   : Advance( p )
+    case Tko.KW_STDCALL : lamConv = Tko.CC_STDCALL : Advance( p )
+    case Tko.KW_PASCAL  : lamConv = Tko.CC_PASCAL  : Advance( p )
     end select
 
     '' THE CAPTURE LIST: 'sub[ byref total, byval bias ]( ... )'.
@@ -293,6 +295,7 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     ParseParamList( p, sp )
+    CheckVarargConv_( p, sp, lamConv, false )
     dim as boolean byrefRet = ByrefResult_( p )
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
 

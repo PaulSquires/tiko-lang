@@ -1368,6 +1368,8 @@ private sub BindCallConv _
         s->callConv = cast( ubyte, here )
         return
     end if
+    '' A header whose '...' the parser refused has had its one error (ParserRefused_).
+    if ParserRefused_( w, sp ) then return
     dim as Tko.SourceRange r = Tko.PointRange( w.ast->Loc( id ) )
     w.diags->Report( Tko.TKO0603, r, w.names->Spelling( s->name ) )
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( s->loc ) )

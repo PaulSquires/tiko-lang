@@ -238,6 +238,12 @@ namespace Tko
     const PF_STDCALL    as ushort = &h0100
     const PF_PASCAL     as ushort = &h0200
 
+    '' AN ELLIPSIS THE PARSER REFUSED, in 'extra' of its N_PARAM: fbc's error 312, '...'
+    '' in a procedure that is not CDECL (parser/typeref.bas, CheckVarargConv_). The '...'
+    '' stays, as fbc keeps it, so the procedure is still variadic to everything after;
+    '' the mark only tells Collect the statement has had its one error.
+    const PARAM_VARARG_REFUSED as ushort = 1
+
     '' Member visibility, from a 'private:' / 'protected:' / 'public:' label in a TYPE
     '' body. Neither bit set is PUBLIC, which is the default fbc gives an unlabelled
     '' member. Carried in StmtPayload.extra on N_FIELD as well as N_PROC, so the name

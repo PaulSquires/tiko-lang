@@ -721,6 +721,10 @@ function Run _
             p.names = @ctx.names
             p.diags = @ctx.diags
             p.pos = 0
+            '' The target's default convention, which the '...' rule needs. See
+            '' ParserState.fbcallConv.
+            p.fbcallConv = iif( Tko.TargetIsWindows( ctx.options.target ), _
+                                Tko.CC_STDCALL, Tko.CC_CDECL )
 
             dim as Tko.NodeId root = Tko.Parse.Unit( p )
             Tko.PpClose( st )
@@ -1265,6 +1269,10 @@ function Run _
             p.names = @ctx.names
             p.diags = @ctx.diags
             p.pos = 0
+            '' The target's default convention, which the '...' rule needs. See
+            '' ParserState.fbcallConv.
+            p.fbcallConv = iif( Tko.TargetIsWindows( ctx.options.target ), _
+                                Tko.CC_STDCALL, Tko.CC_CDECL )
 
             dim as Tko.NodeId root = Tko.Parse.Unit( p )
             Tko.PpClose( st )

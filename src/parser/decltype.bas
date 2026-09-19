@@ -398,10 +398,20 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
             '' 'f1', which clang refused outright -- functions/return-byref.bas.
             dim as boolean foreign_ = false
             dim as boolean cxx_ = false
+            '' ...and the convention a procedure written inside gets when it writes none,
+            '' for the '...' rule: see CheckVarargConv_. Lexical, so it reaches a TYPE's
+            '' members and a procedure TYPE as well as a plain declaration.
+            dim as ubyte outerConv = p.externConv
+            p.externConv = Tko.CC_NONE
             if lang <> 0 then
                 dim as string lgl = Tko.Text.LowerAscii( p.names->Spelling( lang ) )
                 cxx_ = (lgl = "c++")
                 foreign_ = (lgl <> "fb") andalso (cxx_ = false)
+                if (lgl = "c") orelse cxx_ then
+                    p.externConv = Tko.CC_CDECL
+                elseif left( lgl, 7 ) = "windows" then
+                    p.externConv = Tko.CC_STDCALL
+                end if
             end if
 
             dim as Tko.NodeIdVec members
@@ -454,6 +464,7 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
                 end if
                 p.ast->children.Push( members[i] )
             next
+            p.externConv = outerConv
             ExpectEnd( p, Tko.KW_EXTERN )
             return MakeStmt( p, Tko.N_EXTERN_BLOCK, t.loc, sp )
         end if

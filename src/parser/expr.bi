@@ -55,6 +55,15 @@ namespace Tko
         '' 'defined' once its procedure has ended. Recording one would make a later
         '' '#ifndef' skip a declaration it should have taken -- silently.
         as long                 procDepth
+        '' THE CONVENTION A PROCEDURE GETS WHEN IT WRITES NONE -- fbc's 'fbcall', stdcall
+        '' on Windows and cdecl on Linux. Only the '...' rule reads it (CheckVarargConv_),
+        '' and CC_NONE, the default, turns that rule off: the prelude and a generic
+        '' re-parse re-read text the unit's own parse has already asked about.
+        as ubyte                fbcallConv
+        '' ...and the default the enclosing EXTERN block gives instead: cdecl for "C" and
+        '' "C++", stdcall for "Windows" and "Windows-MS", CC_NONE for "rtlib" and outside
+        '' any block, where the target's applies.
+        as ubyte                externConv
         '' THE LIBRARIES 'declare ... lib "name"' ASKS FOR. The clause was parsed and
         '' the name THROWN AWAY, so 'declare function SHCreateItemFromParsingName lib
         '' "shell32"' linked against nothing -- 'undefined symbol', with the library
