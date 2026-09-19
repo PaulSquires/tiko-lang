@@ -1,0 +1,41 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **Count**
+
+# Count
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+How many elements the array holds.
+
+## Syntax
+
+```freebasic
+Count( a( ) as T ) as ulongint
+```
+
+## Notes
+
+- Present so that a statistic and its sample size come from the same place -- `ubound( a ) - lbound( a ) + 1` is the same number written three ways to get wrong.
+- It is also a `RunningStats` member, where it counts what has been added so far.
+
+## Examples
+
+```freebasic
+#include once "fb/stats.bi"
+using FB
+
+dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+
+print Count( a( ) )          '' 5
+
+'' The same number, without the off-by-one arithmetic
+print ubound( a ) - lbound( a ) + 1           '' 5
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

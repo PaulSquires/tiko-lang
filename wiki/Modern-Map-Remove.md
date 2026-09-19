@@ -1,0 +1,38 @@
+[Home](Home) › [Map](Category-Map) › [Map](Category-Map) › **Remove**
+
+# Remove
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Map](Category-Map), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+Remove( k ) as boolean
+```
+
+## Examples
+
+```freebasic
+#include once "fb/map.bi"
+using FB
+
+dim ages as Map( of string, integer )
+ages.Put( "ada", 36 )
+ages.Put( "grace", 45 )
+
+print ages.Remove( "ada" )       '' true -- something was removed
+print ages.Remove( "ada" )       '' false -- already gone
+print ages.Count                 '' 1
+
+'' The slot becomes a TOMBSTONE rather than empty, so a probe chain
+'' through it still finds what lies beyond
+```
+
+---
+
+**Library:** [Map](Category-Map) ✨  
+**Category:** [Map](Category-Map)  
+**Documented under:** Members  
+**Source:** `docs/map/map.txt` in the tiko-lang repository.

@@ -1,0 +1,45 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **PopCount**
+
+# PopCount
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+How many bits are set.
+
+## Syntax
+
+```freebasic
+PopCount( byval x as T ) as long
+```
+
+## Notes
+
+- The population count, and the primitive underneath a bitset's size, a Hamming distance and a parity check.
+- Counts the bits of `T`, so the same numeric value gives the same answer whatever the width -- it is the value that is counted, not the storage.
+- `Parity` is this modulo 2, computed without the full count.
+
+## Examples
+
+```freebasic
+#include once "fb/mathint.bi"
+using FB
+
+dim as ulong x = &b1011
+print PopCount( x )          '' 3
+
+dim as ulong zero_ = 0
+print PopCount( zero_ )      '' 0
+
+'' A Hamming distance is a xor and a PopCount
+dim as ulong a = &b1100, b = &b1010
+print PopCount( a xor b )    '' 2
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

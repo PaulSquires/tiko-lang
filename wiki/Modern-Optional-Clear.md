@@ -1,0 +1,45 @@
+[Home](Home) › [Optional](Category-Optional) › [Optional](Category-Optional) › **Clear**
+
+# Clear
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Optional](Category-Optional), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+O(1)   becomes empty
+
+## Syntax
+
+```freebasic
+Clear( )
+```
+
+## Notes
+
+- O(1) — becomes empty
+
+## Examples
+
+```freebasic
+#include once "fb/optional.bi"
+using FB
+
+dim o as Optional( of integer ) = Some( 42 )
+print o.HasValue( )          '' true
+
+o.Clear( )
+print o.HasValue( )          '' false
+
+'' The stored T still exists -- an Optional is a T plus a boolean, not a
+'' tagged union, so T's default constructor has already run and the slot
+'' is always a real default-constructed T
+dim as integer dflt = 7
+print o.ValueOr( dflt )      '' 7
+```
+
+---
+
+**Library:** [Optional](Category-Optional) ✨  
+**Category:** [Optional](Category-Optional)  
+**Documented under:** Members  
+**Source:** `docs/optional/optional.txt` in the tiko-lang repository.

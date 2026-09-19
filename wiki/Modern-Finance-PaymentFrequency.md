@@ -1,0 +1,40 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **PaymentFrequency**
+
+# PaymentFrequency
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+PAY_MONTHLY  PAY_BIWEEKLY  PAY_ACCELERATED_BIWEEKLY  ...
+```
+
+## Examples
+
+```freebasic
+#include once "fb/finance.bi"
+using FB
+
+'' How often a PAYMENT is made -- a separate question from how often
+'' interest compounds, which is what lets one code path serve both the
+'' US and Canadian mortgage conventions.
+print PAY_MONTHLY                        '' 12
+print PAY_WEEKLY                         '' 52
+
+'' THE ACCELERATED FORMS ARE NEGATIVE ON PURPOSE.  They are not a rate
+'' conversion: an accelerated-biweekly payment is the MONTHLY payment
+'' divided by two, posted 26 times a year, which retires the loan early.
+'' A negative value forces every SELECT CASE to handle them.
+dim as boolean isAccelerated = ( PAY_ACCELERATED_BIWEEKLY < 0 )
+print isAccelerated                      '' true
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `src/inc/fb/fincore.bi` in the tiko-lang repository.

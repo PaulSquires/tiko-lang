@@ -1,0 +1,2023 @@
+[Home](Home) › **Keyword Index**
+
+# Keyword Index
+
+Every page in this wiki, A–Z. ✨ marks an tiko-lang addition.
+
+[A](#a) · [B](#b) · [C](#c) · [D](#d) · [E](#e) · [F](#f) · [G](#g) · [H](#h) · [I](#i) · [J](#j) · [K](#k) · [L](#l) · [M](#m) · [N](#n) · [O](#o) · [P](#p) · [Q](#q) · [R](#r) · [S](#s) · [T](#t) · [U](#u) · [V](#v) · [W](#w) · [X](#x) · [Y](#y) · [Z](#z) · [#](#other)
+
+## A
+
+- [#assert](procedures-Assert) — *Preprocessor*
+- [A Brief Introduction To Trigonometry](A-Brief-Introduction-to-Trigonometry) — *Tutorials*
+- [About](About) — *Compiler*
+- [Abs](Abs) — *Mathematical Functions*
+- [AbsChecked](Modern-Math-AbsChecked) ✨ — *Math Library*
+- [AbsSaturating](Modern-Math-AbsSaturating) ✨ — *Math Library*
+- [Abstract](Abstract) — *User Defined Types*
+- [Access](Access) — *File I/O Functions*
+- [Acos](Acos) — *Mathematical Functions*
+- [Add](Add) — *2D Drawing Functions*
+- [Add](Modern-Map-Add) ✨ — *Map*
+- [Add](Modern-Set-Add) ✨ — *Set*
+- [Add](Modern-Chan-Add) ✨ — *Goroutines and Channels*
+- [Add](Modern-Math-Add) ✨ — *Math Library*
+- [AddCalendarDays](Modern-Chrono-AddCalendarDays) ✨ — *Date and Time (Chrono)*
+- [AddCalendarMonths](Modern-Chrono-AddCalendarMonths) ✨ — *Date and Time (Chrono)*
+- [AddChecked](Modern-Math-AddChecked) ✨ — *Math Library*
+- [AddDays](Modern-Chrono-AddDays) ✨ — *Date and Time (Chrono)*
+- [AddMonths](Modern-Chrono-AddMonths) ✨ — *Date and Time (Chrono)*
+- [AddProduct](Modern-Finance-AddProduct) ✨ — *Finance*
+- [AddSaturating](Modern-Math-AddSaturating) ✨ — *Math Library*
+- [AddScaled](Modern-Finance-AddScaled) ✨ — *Finance*
+- [AddSink](Modern-Log-AddSink) ✨ — *Logging*
+- [AddWrapping](Modern-Math-AddWrapping) ✨ — *Math Library*
+- [Alias (Modifier)](Alias-Modifier) — *Standard Data Types*
+- [Alias (Name)](Alias-Name) — *Procedures*
+- [Allegro](Allegro) — *Tutorials*
+- [Allocate](Allocate) — *Memory Functions*
+- [Alpha](Alpha) — *2D Drawing Functions*
+- [Alphabetical Keywords List](Alphabetical-Keywords-List) — *Language Documentation*
+- [And (Graphics Put)](And-Graphics-Put) — *2D Drawing Functions*
+- [Angle](Modern-Math-Angle) ✨ — *Math Library*
+- [Antoni](Antoni) — *Reference*
+- [Any](Any) — *Procedures*
+- [Append](Append) — *File I/O Functions*
+- [AppendAllText](Modern-Fs-AppendAllText) ✨ — *Filesystem*
+- [Apportion](Modern-Finance-Apportion) ✨ — *Finance*
+- [Arithmetic Operators](Arithmetic-Operators) — *Operators*
+- [Array](Modern-Array-Array) ✨ — *Array*
+- [Array Container](Category-Array) ✨ — *Array*
+- [Array Functions](Array-Functions) — *Array Functions*
+- [Array Index](Array-Index) — *Tutorials*
+- [ArrayIterator](Modern-Array-ArrayIterator) ✨ — *Array*
+- [Arraylen](Arraylen) — *Array Functions*
+- [Arrays](Arrays) — *Compiler Internals*
+- [Arrays](programmer-s-guide-Arrays) — *Tutorials*
+- [Arraysize](Arraysize) — *Array Functions*
+- [As](As) — *Miscellaneous Keywords*
+- [Asc](Asc) — *String Functions*
+- [Asin](Asin) — *Mathematical Functions*
+- [Asm](Asm) — *Programmer's Guide*
+- [Assert](Assert) — *Miscellaneous Keywords*
+- [AssertWarn](Assertwarn) — *Miscellaneous Keywords*
+- [Assignment Operators](Assignment-Operators) — *Operators*
+- [Assignments](Assignments) — *Tutorials*
+- [At](Modern-Array-At) ✨ — *Array*
+- [Atan2](Atan2) — *Mathematical Functions*
+- [Atn](Atn) — *Mathematical Functions*
+
+## B
+
+- [Back](Modern-LinkedList-Back) ✨ — *LinkedList*
+- [Base (Initializer)](Base-Initializer) — *User Defined Types*
+- [Base (Member Access)](Base-Member-Access) — *User Defined Types*
+- [Basic Input](Basic-Input) — *Tutorials*
+- [BASS](Bass) — *Tutorials*
+- [BASSMOD](Bassmod) — *Tutorials*
+- [Beep](Beep) — *Miscellaneous Keywords*
+- [Beginners Guide to Types as Objects (Part 1)](Beginners-Guide-to-Types-as-Objects-Part-1) — *Tutorials*
+- [Beginners Guide to Types as Objects (Part 2)](Beginners-Guide-to-Types-as-Objects-Part-2) — *Tutorials*
+- [Between](Modern-String-Between) ✨ — *String Library*
+- [BFD, the Binary File Descriptor Library](Bfd-the-Binary-File-Descriptor-Library) — *Tutorials*
+- [big_int](Big-Int) — *Tutorials*
+- [Bin](Bin) — *String Functions*
+- [Binary](Binary) — *File I/O Functions*
+- [Bit](Bit) — *Bit Manipulation*
+- [Bit Manipulation](Bit-Manipulation) — *Bit Manipulation*
+- [BitReset](Bitreset) — *Bit Manipulation*
+- [BitReverse](Modern-Math-BitReverse) ✨ — *Math Library*
+- [BitSet](Bitset) — *Bit Manipulation*
+- [BitWidth](Modern-Math-BitWidth) ✨ — *Math Library*
+- [Bitwise Operators Truth Tables](Bitwise-Operators-Truth-Tables) — *Language Documentation*
+- [BLoad](Bload) — *2D Drawing Functions*
+- [BLOAD/BSAVE text mode work-around](Bload-Bsave-Text-Mode-Work-Around) — *Reference*
+- [Boolean](Boolean) — *Standard Data Types*
+- [Bootstrapping fbc on a new system](Bootstrapping-Fbc-on-a-New-System) — *Compiler Internals*
+- [BSave](Bsave) — *2D Drawing Functions*
+- [Byref (Function Results)](Byref-Function-Results) — *Procedures*
+- [Byref (Parameters)](Byref-Parameters) — *Procedures*
+- [Byref (Variables)](Byref-Variables) — *Variable Declarations*
+- [Byte](Byte) — *Standard Data Types*
+- [ByteSwap](Modern-Math-ByteSwap) ✨ — *Math Library*
+- [ByVal](Byval) — *Procedures*
+
+## C
+
+- [#Cmdline](Cmdline) — *Compiler Options*
+- [C Header Style Guide](C-Header-Style-Guide) — *Compiler Internals*
+- [C Header Translation Tutorial](C-Header-Translation-Tutorial) — *Compiler Internals*
+- [C Standard Library Functions](C-Standard-Library-Functions) — *Tutorials*
+- [CAbs](Modern-Math-CAbs) ✨ — *Math Library*
+- [caca](Caca) — *Tutorials*
+- [CAcos](Modern-Math-CAcos) ✨ — *Math Library*
+- [CAcosh](Modern-Math-CAcosh) ✨ — *Math Library*
+- [CAcot](Modern-Math-CAcot) ✨ — *Math Library*
+- [CAcoth](Modern-Math-CAcoth) ✨ — *Math Library*
+- [CAcsc](Modern-Math-CAcsc) ✨ — *Math Library*
+- [CAcsch](Modern-Math-CAcsch) ✨ — *Math Library*
+- [Cairo](Cairo) — *Tutorials*
+- [Call](Call) — *Procedures*
+- [Callback](Callback) — *Tutorials*
+- [Calling Conventions](Calling-Conventions) — *Tutorials*
+- [CAllocate](Callocate) — *Memory Functions*
+- [Cancel](Modern-Chan-Cancel) ✨ — *Goroutines and Channels*
+- [Capacity](Modern-Array-Capacity) ✨ — *Array*
+- [Capacity](Modern-Map-Capacity) ✨ — *Map*
+- [Capacity](Modern-Set-Capacity) ✨ — *Set*
+- [CArg](Modern-Math-CArg) ✨ — *Math Library*
+- [Case](Case) — *Control Flow Statements*
+- [CAsec](Modern-Math-CAsec) ✨ — *Math Library*
+- [CAsech](Modern-Math-CAsech) ✨ — *Math Library*
+- [CAsin](Modern-Math-CAsin) ✨ — *Math Library*
+- [CAsinh](Modern-Math-CAsinh) ✨ — *Math Library*
+- [Cast](Cast) — *Converting Data Types*
+- [CAtan](Modern-Math-CAtan) ✨ — *Math Library*
+- [CAtanh](Modern-Math-CAtanh) ✨ — *Math Library*
+- [CBool](Cbool) — *Converting Data Types*
+- [CByte](Cbyte) — *Converting Data Types*
+- [CConj](Modern-Math-CConj) ✨ — *Math Library*
+- [CCos](Modern-Math-CCos) ✨ — *Math Library*
+- [CCosh](Modern-Math-CCosh) ✨ — *Math Library*
+- [CCot](Modern-Math-CCot) ✨ — *Math Library*
+- [CCoth](Modern-Math-CCoth) ✨ — *Math Library*
+- [CCsc](Modern-Math-CCsc) ✨ — *Math Library*
+- [CCsch](Modern-Math-CCsch) ✨ — *Math Library*
+- [CDbl](Cdbl) — *Converting Data Types*
+- [cdecl](Cdecl) — *Procedures*
+- [Ceil](Modern-Math-Ceil) ✨ — *Math Library*
+- [Ceiling](Modern-Finance-Ceiling) ✨ — *Finance*
+- [CExp](Modern-Math-CExp) ✨ — *Math Library*
+- [cgi-util](Cgi-Util) — *Tutorials*
+- [CGUI](Cgui) — *Tutorials*
+- [Chain](Chain) — *Operating System Functions*
+- [Channel](Modern-Chan-Channel-Channel) ✨ — *Goroutines and Channels*
+- [Channel.Capacity](Modern-Chan-Channel-Capacity) ✨ — *Goroutines and Channels*
+- [Channel.ChannelIterator](Modern-Chan-Channel-ChannelIterator) ✨ — *Goroutines and Channels*
+- [Channel.Close](Modern-Chan-Channel-Close) ✨ — *Goroutines and Channels*
+- [Channel.Count](Modern-Chan-Channel-Count) ✨ — *Goroutines and Channels*
+- [Channel.GetIterator](Modern-Chan-Channel-GetIterator) ✨ — *Goroutines and Channels*
+- [Channel.IsClosed](Modern-Chan-Channel-IsClosed) ✨ — *Goroutines and Channels*
+- [Channel.IsNil](Modern-Chan-Channel-IsNil) ✨ — *Goroutines and Channels*
+- [Channel.Receive](Modern-Chan-Channel-Receive) ✨ — *Goroutines and Channels*
+- [Channel.ReceiveFor](Modern-Chan-Channel-ReceiveFor) ✨ — *Goroutines and Channels*
+- [Channel.RecvChan](Modern-Chan-Channel-RecvChan) ✨ — *Goroutines and Channels*
+- [Channel.Send](Modern-Chan-Channel-Send) ✨ — *Goroutines and Channels*
+- [Channel.SendChan](Modern-Chan-Channel-SendChan) ✨ — *Goroutines and Channels*
+- [Channel.SendFor](Modern-Chan-Channel-SendFor) ✨ — *Goroutines and Channels*
+- [Channel.TryReceive](Modern-Chan-Channel-TryReceive) ✨ — *Goroutines and Channels*
+- [Channel.TrySend](Modern-Chan-Channel-TrySend) ✨ — *Goroutines and Channels*
+- [ChDir](Chdir) — *Operating System Functions*
+- [Chipmunk Physics](Chipmunk-Physics) — *Tutorials*
+- [Choice](Modern-Math-Choice) ✨ — *Math Library*
+- [Chr](Chr) — *String Functions*
+- [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨ — *Date and Time (Chrono)*
+- [CImag](Modern-Math-CImag) ✨ — *Math Library*
+- [CImaginaryOne](Modern-Math-CImaginaryOne) ✨ — *Math Library*
+- [CInfinity](Modern-Math-CInfinity) ✨ — *Math Library*
+- [CInt](Cint) — *Converting Data Types*
+- [Circle](Circle) — *2D Drawing Functions*
+- [CIsFinite](Modern-Math-CIsFinite) ✨ — *Math Library*
+- [CIsInfinite](Modern-Math-CIsInfinite) ✨ — *Math Library*
+- [CIsNaN](Modern-Math-CIsNaN) ✨ — *Math Library*
+- [CIsReal](Modern-Math-CIsReal) ✨ — *Math Library*
+- [CIsZero](Modern-Math-CIsZero) ✨ — *Math Library*
+- [Clamp](Modern-Math-Clamp) ✨ — *Math Library*
+- [Class](Class) — *Operators*
+- [Classify](Modern-Math-Classify) ✨ — *Math Library*
+- [Clear](Clear) — *Memory Functions*
+- [Clear](Modern-Array-Clear) ✨ — *Array*
+- [Clear](Modern-Map-Clear) ✨ — *Map*
+- [Clear](Modern-Set-Clear) ✨ — *Set*
+- [Clear](Modern-LinkedList-Clear) ✨ — *LinkedList*
+- [Clear](Modern-Optional-Clear) ✨ — *Optional*
+- [ClearFpException](Modern-Math-ClearFpException) ✨ — *Math Library*
+- [ClearFpExceptions](Modern-Math-ClearFpExceptions) ✨ — *Math Library*
+- [ClearSinks](Modern-Log-ClearSinks) ✨ — *Logging*
+- [ClipLeft](Modern-String-ClipLeft) ✨ — *String Library*
+- [ClipRight](Modern-String-ClipRight) ✨ — *String Library*
+- [CLng](Clng) — *Converting Data Types*
+- [CLngInt](Clngint) — *Converting Data Types*
+- [CLog](Modern-Math-CLog) ✨ — *Math Library*
+- [CLog10](Modern-Math-CLog10) ✨ — *Math Library*
+- [CLogAbs](Modern-Math-CLogAbs) ✨ — *Math Library*
+- [Close](Close) — *File I/O Functions*
+- [Cls](Cls) — *Console Functions*
+- [CNaN](Modern-Math-CNaN) ✨ — *Math Library*
+- [CNegate](Modern-Math-CNegate) ✨ — *Math Library*
+- [CNorm](Modern-Math-CNorm) ✨ — *Math Library*
+- [CNthRoot](Modern-Math-CNthRoot) ✨ — *Math Library*
+- [Coercion and Conversion](Coercion-and-Conversion) — *Tutorials*
+- [Color](Color) — *Console Functions*
+- [Command](Command) — *Operating System Functions*
+- [Comments](Comments) — *Tutorials*
+- [Common](Common) — *Modularizing*
+- [Community Code Library](Community-Code-Library) — *Tutorials*
+- [Community Tutorials](Community-Tutorials) — *Tutorials*
+- [Comparison of C/C++ and FreeBASIC](Comparison-of-C-C-and-Freebasic) — *Miscellaneous*
+- [Comparison of integer data types: FreeBASIC vs. C/C++ (using GCC)](Comparison-of-Integer-Data-Types-Freebasic-vs-C-C-Using-Gcc) — *Miscellaneous*
+- [Compiler Error Messages](Compiler-Error-Messages) — *Using the FreeBASIC compiler*
+- [Compiler Option: -a](Compiler-Option-a) — *Using the FreeBASIC compiler*
+- [Compiler Option: -arch](Compiler-Option-Arch) — *Using the FreeBASIC compiler*
+- [Compiler Option: -asm](Compiler-Option-Asm) — *Using the FreeBASIC compiler*
+- [Compiler Option: -b](Compiler-Option-B) — *Using the FreeBASIC compiler*
+- [Compiler Option: -buildprefix](Compiler-Option-Buildprefix) — *Using the FreeBASIC compiler*
+- [Compiler Option: -C](Compiler-Option-C-2) — *Using the FreeBASIC compiler*
+- [Compiler Option: -c](Compiler-Option-C) — *Using the FreeBASIC compiler*
+- [Compiler Option: -d](Compiler-Option-D) — *Using the FreeBASIC compiler*
+- [Compiler Option: -dll](Compiler-Option-Dll) — *Using the FreeBASIC compiler*
+- [Compiler Option: -dylib](Compiler-Option-Dylib) — *Using the FreeBASIC compiler*
+- [Compiler Option: -e](Compiler-Option-E) — *Using the FreeBASIC compiler*
+- [Compiler Option: -earray](Compiler-Option-Earray) — *Using the FreeBASIC compiler*
+- [Compiler Option: -earraydims](Compiler-Option-Earraydims) — *Using the FreeBASIC compiler*
+- [Compiler Option: -eassert](Compiler-Option-Eassert) — *Using the FreeBASIC compiler*
+- [Compiler Option: -edebug](Compiler-Option-Edebug) — *Using the FreeBASIC compiler*
+- [Compiler Option: -edebuginfo](Compiler-Option-Edebuginfo) — *Using the FreeBASIC compiler*
+- [Compiler Option: -elocation](Compiler-Option-Elocation) — *Using the FreeBASIC compiler*
+- [Compiler Option: -entry](Compiler-Option-Entry) — *Using the FreeBASIC compiler*
+- [Compiler Option: -enullptr](Compiler-Option-Enullptr) — *Using the FreeBASIC compiler*
+- [Compiler Option: -eunwind](Compiler-Option-Eunwind) — *Using the FreeBASIC compiler*
+- [Compiler Option: -ex](Compiler-Option-Ex) — *Using the FreeBASIC compiler*
+- [Compiler Option: -export](Compiler-Option-Export) — *Using the FreeBASIC compiler*
+- [Compiler Option: -exx](Compiler-Option-Exx) — *Using the FreeBASIC compiler*
+- [Compiler Option: -forcelang](Compiler-Option-Forcelang) — *Using the FreeBASIC compiler*
+- [Compiler Option: -fpmode](Compiler-Option-Fpmode) — *Using the FreeBASIC compiler*
+- [Compiler Option: -fpu](Compiler-Option-Fpu) — *Using the FreeBASIC compiler*
+- [Compiler Option: -g](Compiler-Option-G) — *Using the FreeBASIC compiler*
+- [Compiler Option: -gen](Compiler-Option-Gen) — *Using the FreeBASIC compiler*
+- [Compiler Option: -i](Compiler-Option-I) — *Using the FreeBASIC compiler*
+- [Compiler Option: -include](Compiler-Option-Include) — *Using the FreeBASIC compiler*
+- [Compiler Option: -l](Compiler-Option-L) — *Using the FreeBASIC compiler*
+- [Compiler Option: -lang](Compiler-Option-Lang) — *Using the FreeBASIC compiler*
+- [Compiler Option: -lib](Compiler-Option-Lib) — *Using the FreeBASIC compiler*
+- [Compiler Option: -m](Compiler-Option-M) — *Using the FreeBASIC compiler*
+- [Compiler Option: -map](Compiler-Option-Map) — *Using the FreeBASIC compiler*
+- [Compiler Option: -maxerr](Compiler-Option-Maxerr) — *Using the FreeBASIC compiler*
+- [Compiler Option: -mt](Compiler-Option-Mt) — *Using the FreeBASIC compiler*
+- [Compiler Option: -nodeflibs](Compiler-Option-Nodeflibs) — *Using the FreeBASIC compiler*
+- [Compiler Option: -noerrline](Compiler-Option-Noerrline) — *Using the FreeBASIC compiler*
+- [Compiler Option: -nolib](Compiler-Option-Nolib) — *Using the FreeBASIC compiler*
+- [Compiler Option: -noobjinfo](Compiler-Option-Noobjinfo) — *Using the FreeBASIC compiler*
+- [Compiler Option: -nostrip](Compiler-Option-Nostrip) — *Using the FreeBASIC compiler*
+- [Compiler Option: -O](Compiler-Option-O-2) — *Using the FreeBASIC compiler*
+- [Compiler Option: -o](Compiler-Option-O) — *Using the FreeBASIC compiler*
+- [Compiler Option: -p](Compiler-Option-P) — *Using the FreeBASIC compiler*
+- [Compiler Option: -pic](Compiler-Option-Pic) — *Using the FreeBASIC compiler*
+- [Compiler Option: -pp](Compiler-Option-Pp) — *Using the FreeBASIC compiler*
+- [Compiler Option: -prefix](Compiler-Option-Prefix) — *Using the FreeBASIC compiler*
+- [Compiler Option: -print](Compiler-Option-Print) — *Using the FreeBASIC compiler*
+- [Compiler Option: -profgen](Compiler-Option-Profgen) — *Using the FreeBASIC compiler*
+- [Compiler Option: -profile](Compiler-Option-Profile) — *Using the FreeBASIC compiler*
+- [Compiler Option: -R](Compiler-Option-R-2) — *Using the FreeBASIC compiler*
+- [Compiler Option: -r](Compiler-Option-R) — *Using the FreeBASIC compiler*
+- [Compiler Option: -RR](Compiler-Option-Rr-2) — *Using the FreeBASIC compiler*
+- [Compiler Option: -rr](Compiler-Option-Rr) — *Using the FreeBASIC compiler*
+- [Compiler Option: -s](Compiler-Option-S) — *Using the FreeBASIC compiler*
+- [Compiler Option: -showincludes](Compiler-Option-Showincludes) — *Using the FreeBASIC compiler*
+- [Compiler Option: -static](Compiler-Option-Static) — *Using the FreeBASIC compiler*
+- [Compiler Option: -strip](Compiler-Option-Strip) — *Using the FreeBASIC compiler*
+- [Compiler Option: -sysroot](Compiler-Option-Sysroot) — *Using the FreeBASIC compiler*
+- [Compiler Option: -t](Compiler-Option-T) — *Using the FreeBASIC compiler*
+- [Compiler Option: -target](Compiler-Option-Target) — *Using the FreeBASIC compiler*
+- [Compiler Option: -v](Compiler-Option-V) — *Using the FreeBASIC compiler*
+- [Compiler Option: -vec](Compiler-Option-Vec) — *Using the FreeBASIC compiler*
+- [Compiler Option: -version](Compiler-Option-Version) — *Using the FreeBASIC compiler*
+- [Compiler Option: -w](Compiler-Option-W) — *Using the FreeBASIC compiler*
+- [Compiler Option: -Wa](Compiler-Option-Wa) — *Using the FreeBASIC compiler*
+- [Compiler Option: -Wc](Compiler-Option-Wc) — *Using the FreeBASIC compiler*
+- [Compiler Option: -Wl](Compiler-Option-Wl) — *Using the FreeBASIC compiler*
+- [Compiler Option: -x](Compiler-Option-X) — *Using the FreeBASIC compiler*
+- [Compiler Option: -z](Compiler-Option-Z) — *Using the FreeBASIC compiler*
+- [Compiler Option: @file](Compiler-Option-File) — *Using the FreeBASIC compiler*
+- [Compiler Options](Compiler-Options) — *Compiler Options*
+- [Compiler Switches](Compiler-Switches) — *Compiler Switches*
+- [Compiling a Big QB program in FB](Compiling-a-Big-Qb-Program-in-Fb) — *Tutorials*
+- [Compiling a Development Version of FreeBASIC](Compiling-a-Development-Version-of-Freebasic) — *Compiler Internals*
+- [Compiling FB for DOS](Compiling-Fb-for-Dos) — *Compiler Internals*
+- [Compiling FB on Linux](Compiling-Fb-on-Linux) — *Compiler Internals*
+- [Compiling FB on Windows](Compiling-Fb-on-Windows) — *Compiler Internals*
+- [Compiling FB with Emscripten](Compiling-Fb-with-Emscripten) — *Compiler Internals*
+- [Compiling the test suite](Compiling-the-Test-Suite) — *Compiler Internals*
+- [Complex](Modern-Math-Complex) ✨ — *Math Library*
+- [Complex operators](Modern-Math-Complex-Operators) ✨ — *Math Library*
+- [Composition, Aggregation, Inheritance](Composition-Aggregation-Inheritance) — *Tutorials*
+- [CondBroadcast](Condbroadcast) — *Threading Support Functions*
+- [CondCreate](Condcreate) — *Threading Support Functions*
+- [CondDestroy](Conddestroy) — *Threading Support Functions*
+- [Conditional Compilation](Conditional-Compilation) — *Tutorials*
+- [Conditional Compilation And You](Conditional-Compilation-and-You) — *Tutorials*
+- [Conditional Variables](Conditional-Variables) — *Tutorials*
+- [CondSignal](Condsignal) — *Threading Support Functions*
+- [CondWait](Condwait) — *Threading Support Functions*
+- [COne](Modern-Math-COne) ✨ — *Math Library*
+- [Conjugate](Modern-Math-Conjugate) ✨ — *Math Library*
+- [Console Functions](Console-Functions) — *Console Functions*
+- [Const](Const) — *Variable Declarations*
+- [Const (Member)](Const-Member) — *User Defined Types*
+- [Const (Qualifier)](Const-Qualifier) — *Standard Data Types*
+- [Const Qualifiers and You](Const-Qualifiers-and-You) — *Tutorials*
+- [Constant Expressions](Constant-Expressions) — *Tutorials*
+- [Constants](Constants) — *Tutorials*
+- [Constants and Enumerations](Constants-and-Enumerations) — *Tutorials*
+- [Constructor](Constructor) — *User Defined Types*
+- [Constructor (Module)](Constructor-Module) — *Procedures*
+- [Constructors and Destructors](Constructors-and-Destructors) — *Tutorials*
+- [Constructors and Destructors (basics)](Constructors-and-Destructors-Basics) — *Tutorials*
+- [Constructors, '=' Assignment-Operators, and Destructors (advanced, part #1)](Constructors-Assignment-Operators-and-Destructors-Advanced-Part-1) — *Tutorials*
+- [Constructors, '=' Assignment-Operators, and Destructors (advanced, part #2)](Constructors-Assignment-Operators-and-Destructors-Advanced-Part-2) — *Tutorials*
+- [Contains](Modern-String-Contains) ✨ — *String Library*
+- [Contains](Modern-Array-Contains) ✨ — *Array*
+- [Contains](Modern-Map-Contains) ✨ — *Map*
+- [Contains](Modern-Set-Contains) ✨ — *Set*
+- [Context](Modern-Chan-Context) ✨ — *Goroutines and Channels*
+- [Continue](Continue) — *Control Flow Statements*
+- [Control Flow Statements](Control-Flow-Statements) — *Control Flow Statements*
+- [Control Flow Statements](programmer-s-guide-Control-Flow-Statements) — *Tutorials*
+- [Converting Data Types](Converting-Data-Types) — *Converting Data Types*
+- [CopyDir](Modern-Fs-CopyDir) ✨ — *Filesystem*
+- [CopyFile](Modern-Fs-CopyFile) ✨ — *Filesystem*
+- [CopySymlinksAsLinks](Modern-Fs-CopySymlinksAsLinks) ✨ — *Filesystem*
+- [Correlation](Modern-Math-Correlation) ✨ — *Math Library*
+- [Cos](Cos) — *Mathematical Functions*
+- [Count](Modern-Array-Count) ✨ — *Array*
+- [Count](Modern-Map-Count) ✨ — *Map*
+- [Count](Modern-Set-Count) ✨ — *Set*
+- [Count](Modern-LinkedList-Count) ✨ — *LinkedList*
+- [Count](Modern-Chan-Count) ✨ — *Goroutines and Channels*
+- [Count](Modern-Math-Count) ✨ — *Math Library*
+- [Covariance](Modern-Math-Covariance) ✨ — *Math Library*
+- [CPolar](Modern-Math-CPolar) ✨ — *Math Library*
+- [CPow](Modern-Math-CPow) ✨ — *Math Library*
+- [CPtr](Cptr) — *Converting Data Types*
+- [CReal](Modern-Math-CReal) ✨ — *Math Library*
+- [CreateDir](Modern-Fs-CreateDir) ✨ — *Filesystem*
+- [CreateDirAll](Modern-Fs-CreateDirAll) ✨ — *Filesystem*
+- [CreateHardLink](Modern-Fs-CreateHardLink) ✨ — *Filesystem*
+- [CreateSymlink](Modern-Fs-CreateSymlink) ✨ — *Filesystem*
+- [CreateTempDir](Modern-Fs-CreateTempDir) ✨ — *Filesystem*
+- [CreateTempFile](Modern-Fs-CreateTempFile) ✨ — *Filesystem*
+- [Creating FB bindings for C libraries](Creating-Fb-Bindings-for-C-Libraries) — *Compiler Internals*
+- [CReciprocal](Modern-Math-CReciprocal) ✨ — *Math Library*
+- [Credits (in alphabetical order)](Credits-in-Alphabetical-Order) — *Compiler*
+- [Critical Sections](Critical-Sections) — *Tutorials*
+- [Critical Sections FAQ](Critical-Sections-Faq) — *Tutorials*
+- [Cross](Modern-Math-Cross) ✨ — *Math Library*
+- [CRT, the C Runtime Library](Crt-the-C-Runtime-Library) — *Tutorials*
+- [cryptlib](Cryptlib) — *Tutorials*
+- [CryptoBytes](Modern-Math-CryptoBytes) ✨ — *Math Library*
+- [CryptoULongInt](Modern-Math-CryptoULongInt) ✨ — *Math Library*
+- [CSec](Modern-Math-CSec) ✨ — *Math Library*
+- [CSech](Modern-Math-CSech) ✨ — *Math Library*
+- [CSet](Modern-Math-CSet) ✨ — *Math Library*
+- [CSetImag](Modern-Math-CSetImag) ✨ — *Math Library*
+- [CSetReal](Modern-Math-CSetReal) ✨ — *Math Library*
+- [CSgn](Modern-Math-CSgn) ✨ — *Math Library*
+- [CShort](Cshort) — *Converting Data Types*
+- [CSign](Csign) — *Converting Data Types*
+- [CSin](Modern-Math-CSin) ✨ — *Math Library*
+- [CSinh](Modern-Math-CSinh) ✨ — *Math Library*
+- [CSng](Csng) — *Converting Data Types*
+- [CSqrt](Modern-Math-CSqrt) ✨ — *Math Library*
+- [CsrLin](Csrlin) — *Console Functions*
+- [CSwap](Modern-Math-CSwap) ✨ — *Math Library*
+- [CTan](Modern-Math-CTan) ✨ — *Math Library*
+- [CTanh](Modern-Math-CTanh) ✨ — *Math Library*
+- [CToString](Modern-Math-CToString) ✨ — *Math Library*
+- [CToStringPolar](Modern-Math-CToStringPolar) ✨ — *Math Library*
+- [CUByte](Cubyte) — *Converting Data Types*
+- [CUInt](Cuint) — *Converting Data Types*
+- [CULng](Culng) — *Converting Data Types*
+- [CULngInt](Culngint) — *Converting Data Types*
+- [CUnit](Cunit) — *Tutorials*
+- [CUnsg](Cunsg) — *Converting Data Types*
+- [CurDir](Curdir) — *Operating System Functions*
+- [curl](Curl) — *Tutorials*
+- [Currency](Modern-Finance-Currency) ✨ — *Finance*
+- [CurrencyFromDouble](Modern-Finance-CurrencyFromDouble) ✨ — *Finance*
+- [CurrencyFromInt](Modern-Finance-CurrencyFromInt) ✨ — *Finance*
+- [CurrencyFromParts](Modern-Finance-CurrencyFromParts) ✨ — *Finance*
+- [CurrencyFromRaw](Modern-Finance-CurrencyFromRaw) ✨ — *Finance*
+- [CurrencyInvalid](Modern-Finance-CurrencyInvalid) ✨ — *Finance*
+- [CurrencyParse](Modern-Finance-CurrencyParse) ✨ — *Finance*
+- [CurrentLocaleFormat](Modern-Math-CurrentLocaleFormat) ✨ — *Math Library*
+- [Curses](Curses) — *Tutorials*
+- [CUShort](Cushort) — *Converting Data Types*
+- [Custom](Custom) — *2D Drawing Functions*
+- [Cva_Arg](Cva-Arg) — *Procedures*
+- [Cva_Copy](Cva-Copy) — *Procedures*
+- [Cva_End](Cva-End) — *Procedures*
+- [Cva_List](Cva-List) — *Procedures*
+- [Cva_Start](Cva-Start) — *Procedures*
+- [CVD](Cvd) — *String Functions*
+- [CVI](Cvi) — *String Functions*
+- [CVL](Cvl) — *String Functions*
+- [CVLongInt](Cvlongint) — *String Functions*
+- [CVS](Cvs) — *String Functions*
+- [CVShort](Cvshort) — *String Functions*
+
+- [CZero](Modern-Math-CZero) ✨ — *Math Library*
+## D
+
+- [#define](Define) — *Preprocessor*
+- [$Dynamic](Dynamic) — *Array Functions*
+- [Data](Data) — *Miscellaneous Keywords*
+- [Data Types](Data-Types) — *Reference*
+- [Date](Date) — *Date and Time Functions*
+- [Date and Time Functions](Date-and-Time-Functions) — *Date and Time Functions*
+- [Date Serials](Date-Serials) — *Tutorials*
+- [DateAdd](Dateadd) — *Date and Time Functions*
+- [DateDiff](Datediff) — *Date and Time Functions*
+- [DatePart](Datepart) — *Date and Time Functions*
+- [DateSerial](Dateserial) — *Date and Time Functions*
+- [DateValue](Datevalue) — *Date and Time Functions*
+- [Day](Day) — *Date and Time Functions*
+- [Deallocate](Deallocate) — *Memory Functions*
+- [Debug](Modern-Log-Debug) ✨ — *Logging*
+- [Debugging](Debugging) — *Using the FreeBASIC compiler*
+- [Debugging FB](Debugging-Fb) — *Compiler Internals*
+- [Decimal](Modern-Finance-Decimal) ✨ — *Finance*
+- [DecimalApportion](Modern-Finance-DecimalApportion) ✨ — *Finance*
+- [DecimalCompare](Modern-Finance-DecimalCompare) ✨ — *Finance*
+- [DecimalFromCurrency](Modern-Finance-DecimalFromCurrency) ✨ — *Finance*
+- [DecimalFromDouble](Modern-Finance-DecimalFromDouble) ✨ — *Finance*
+- [DecimalFromInt](Modern-Finance-DecimalFromInt) ✨ — *Finance*
+- [DecimalFromParts](Modern-Finance-DecimalFromParts) ✨ — *Finance*
+- [DecimalFromScaled](Modern-Finance-DecimalFromScaled) ✨ — *Finance*
+- [DecimalFromUInt](Modern-Finance-DecimalFromUInt) ✨ — *Finance*
+- [DecimalInvalid](Modern-Finance-DecimalInvalid) ✨ — *Finance*
+- [DecimalMaxValue](Modern-Finance-DecimalMaxValue) ✨ — *Finance*
+- [DecimalMinusOne](Modern-Finance-DecimalMinusOne) ✨ — *Finance*
+- [DecimalMinValue](Modern-Finance-DecimalMinValue) ✨ — *Finance*
+- [DecimalOne](Modern-Finance-DecimalOne) ✨ — *Finance*
+- [DecimalParse](Modern-Finance-DecimalParse) ✨ — *Finance*
+- [DecimalZero](Modern-Finance-DecimalZero) ✨ — *Finance*
+- [Declare](Declare) — *Procedures*
+- [Default Palettes](Default-Palettes) — *Graphics Library Reference*
+- [DefByte](Defbyte) — *Compiler Switches*
+- [DefDbl](Defdbl) — *Compiler Switches*
+- [Defer](Category-Defer) ✨ — *Defer*
+- [defined](Defined) — *Preprocessor*
+- [DefInt](Defint) — *Compiler Switches*
+- [DefLng](Deflng) — *Compiler Switches*
+- [DefLongInt](Deflongint) — *Compiler Switches*
+- [DefShort](Defshort) — *Compiler Switches*
+- [DefSng](Defsng) — *Compiler Switches*
+- [DefStr](Defstr) — *Compiler Switches*
+- [DefUByte](Defubyte) — *Compiler Switches*
+- [DefUInt](Defuint) — *Compiler Switches*
+- [Defulongint](Defulongint) — *Compiler Switches*
+- [DefUShort](Defushort) — *Compiler Switches*
+- [DegToRad](Modern-Math-DegToRad) ✨ — *Math Library*
+- [DeleteAt](Modern-String-DeleteAt) ✨ — *String Library*
+- [Destructor](Destructor) — *User Defined Types*
+- [Destructor (Module)](Destructor-Module) — *Procedures*
+- [Determinant](Modern-Math-Determinant) ✨ — *Math Library*
+- [DevIL](Devil) — *Tutorials*
+- [Differences between Expressions and Statements](Differences-Between-Expressions-and-Statements) — *Tutorials*
+- [Differences from QB](Differences-From-Qb) — *FreeBASIC dialects and QBASIC*
+- [Different ways angles are measured](Different-Ways-Angles-Are-Measured) — *Tutorials*
+- [Dim](Dim) — *Variable Declarations*
+- [Dir](Dir) — *Operating System Functions*
+- [Directive parsing](Directive-Parsing) — *Compiler Internals*
+- [DirEntry.Depth](Modern-Fs-DirEntry-Depth) ✨ — *Filesystem*
+- [DirEntry.DirIterator](Modern-Fs-DirEntry-DirIterator) ✨ — *Filesystem*
+- [DirEntry.FollowSymlinks](Modern-Fs-DirEntry-FollowSymlinks) ✨ — *Filesystem*
+- [DirEntry.IncludeHidden](Modern-Fs-DirEntry-IncludeHidden) ✨ — *Filesystem*
+- [DirEntry.Info](Modern-Fs-DirEntry-Info) ✨ — *Filesystem*
+- [DirEntry.IsDirectory](Modern-Fs-DirEntry-IsDirectory) ✨ — *Filesystem*
+- [DirEntry.IsFile](Modern-Fs-DirEntry-IsFile) ✨ — *Filesystem*
+- [DirEntry.IsOther](Modern-Fs-DirEntry-IsOther) ✨ — *Filesystem*
+- [DirEntry.IsSymlink](Modern-Fs-DirEntry-IsSymlink) ✨ — *Filesystem*
+- [DirEntry.IsValid](Modern-Fs-DirEntry-IsValid) ✨ — *Filesystem*
+- [DirEntry.MaxDepth](Modern-Fs-DirEntry-MaxDepth) ✨ — *Filesystem*
+- [DirEntry.MoveNext](Modern-Fs-DirEntry-MoveNext) ✨ — *Filesystem*
+- [DirEntry.Name](Modern-Fs-DirEntry-Name) ✨ — *Filesystem*
+- [DirEntry.Path](Modern-Fs-DirEntry-Path) ✨ — *Filesystem*
+- [DirEntry.StopOnError](Modern-Fs-DirEntry-StopOnError) ✨ — *Filesystem*
+- [DirEntry.Value](Modern-Fs-DirEntry-Value) ✨ — *Filesystem*
+- [DirEntry.WalkIterator](Modern-Fs-DirEntry-WalkIterator) ✨ — *Filesystem*
+- [DirEntry.YieldDirectories](Modern-Fs-DirEntry-YieldDirectories) ✨ — *Filesystem*
+- [DiskSpace.AvailableBytes](Modern-Fs-DiskSpace-AvailableBytes) ✨ — *Filesystem*
+- [DiskSpace.FreeBytes](Modern-Fs-DiskSpace-FreeBytes) ✨ — *Filesystem*
+- [DiskSpace.TotalBytes](Modern-Fs-DiskSpace-TotalBytes) ✨ — *Filesystem*
+- [DisLin](Dislin) — *Tutorials*
+- [disphelper](Disphelper) — *Tutorials*
+- [Distance](Modern-Math-Distance) ✨ — *Math Library*
+- [DistanceSquared](Modern-Math-DistanceSquared) ✨ — *Math Library*
+- [DivChecked](Modern-Math-DivChecked) ✨ — *Math Library*
+- [DivMod](Modern-Math-DivMod) ✨ — *Math Library*
+- [Do](Do) — *Miscellaneous Keywords*
+- [Do...Loop](Do-Loop) — *Control Flow Statements*
+- [Done](Modern-Chan-Done) ✨ — *Goroutines and Channels*
+- [DOS API](Dos-Api) — *Tutorials*
+- [DOS Keyboard Scancodes](Dos-Keyboard-Scancodes) — *Graphics Library Reference*
+- [DOS related FAQ](Dos-Related-Faq) — *FAQs*
+- [Dot](Modern-Math-Dot) ✨ — *Math Library*
+- [Double](Double) — *Mathematical Functions*
+- [Draw](Draw) — *Screen Functions*
+- [Draw String](Draw-String) — *2D Drawing Functions*
+- [DrV](Drv) — *Reference*
+- [DUGL](Dugl) — *Tutorials*
+- [DyLibFree](Dylibfree) — *Modularizing*
+- [DyLibLoad](Dylibload) — *Modularizing*
+- [DyLibSymbol](Dylibsymbol) — *Modularizing*
+- [Dynamic Arrays](Dynamic-Arrays) — *Tutorials*
+- [Dynamic Arrays in Types](Dynamic-Arrays-in-Types) — *Tutorials*
+- [Dynamic memory management with FreeBASIC](Dynamic-Memory-Management-with-Freebasic) — *Tutorials*
+- [Dynamic Object and Data Lifetime](Dynamic-Object-and-Data-Lifetime) — *Tutorials*
+
+## E
+
+- [#else](procedures-Else) — *Preprocessor*
+- [#elseif](procedures-Elseif) — *Preprocessor*
+- [#elseifdef](Elseifdef) — *Preprocessor*
+- [#elseifndef](Elseifndef) — *Preprocessor*
+- [#endif](Endif) — *Preprocessor*
+- [#error](procedures-Error) — *Preprocessor*
+- [Else](Else) — *Control Flow Statements*
+- [ElseIf](Elseif) — *Control Flow Statements*
+- [Embed and Access binary Data in Executable](Embed-and-Access-Binary-Data-in-Executable) — *Tutorials*
+- [Emit](Modern-Log-Emit) ✨ — *Logging*
+- [Emulate a TLS (Thread Local Storage) and a TP (Thread Pooling) feature](Emulate-a-Tls-Thread-Local-Storage-and-a-Tp-Thread-Pooling-Feature) — *Tutorials*
+- [Enabled](Modern-Log-Enabled) ✨ — *Logging*
+- [Encoding](Encoding) — *File I/O Functions*
+- [End (Block)](End-Block) — *Miscellaneous Keywords*
+- [End (Statement)](End-Statement) — *Miscellaneous Keywords*
+- [End If](End-If) — *Miscellaneous Keywords*
+- [EndsWith](Modern-String-EndsWith) ✨ — *String Library*
+- [Enum](Enum) — *User Defined Types*
+- [Environ](Environ) — *Operating System Functions*
+- [EOF](Eof) — *File I/O Functions*
+- [Erase](Erase) — *Array Functions*
+- [Erfn](Erfn) — *Error Handling Functions*
+- [Erl](Erl) — *Error Handling Functions*
+- [Ermn](Ermn) — *Error Handling Functions*
+- [Err](Err) — *Error Handling Functions*
+- [Err](Modern-Chan-Err) ✨ — *Goroutines and Channels*
+- [Error](Error) — *Error Handling Functions*
+- [Error](Modern-Log-Error) ✨ — *Logging*
+- [Error Handling](Error-Handling) — *Language Documentation*
+- [Error Handling Functions](Error-Handling-Functions) — *Error Handling Functions*
+- [Escape](Modern-String-Escape) ✨ — *String Library*
+- [Escape Sequences](Escape-Sequences) — *Language Documentation*
+- [EuclidDiv](Modern-Math-EuclidDiv) ✨ — *Math Library*
+- [EuclidMod](Modern-Math-EuclidMod) ✨ — *Math Library*
+- [Event (Message Data From Screenevent)](Event-Message-Data-From-Screenevent) — *Screen Functions*
+- [Event Handling](Event-Handling) — *Tutorials*
+- [ExceptWith](Modern-Set-ExceptWith) ✨ — *Set*
+- [Exec](Exec) — *Operating System Functions*
+- [Executables](Executables) — *Tutorials*
+- [ExePath](Exepath) — *Operating System Functions*
+- [Exists](Modern-Fs-Exists) ✨ — *Filesystem*
+- [Exit](Exit) — *Control Flow Statements*
+- [Exp](Exp) — *Mathematical Functions*
+- [Expat](Expat) — *Tutorials*
+- [Expired](Modern-SharedPtr-Expired) ✨ — *Smart Pointers*
+- [Export](Export) — *Modularizing*
+- [Extends](Extends) — *User Defined Types*
+- [Extends Wstring](Extends-Wstring) — *User Defined Types*
+- [Extends Zstring](Extends-Zstring) — *User Defined Types*
+- [Extern](Extern) — *Modularizing*
+- [Extern...End Extern](Extern-End-Extern) — *Modularizing*
+- [External Graphics File Formats (page to be completed)](External-Graphics-File-Formats-Page-to-Be-Completed) — *Tutorials*
+- [External Libraries Index](External-Libraries-Index) — *Tutorials*
+- [Extract](Modern-String-Extract) ✨ — *String Library*
+- [ExtractChars](Modern-String-ExtractChars) ✨ — *String Library*
+
+## F
+
+- [Fail](Modern-Result-Fail) ✨ — *Result*
+- [Failure](Modern-Result-Failure) ✨ — *Result*
+- [False](False) — *Intrinsic Defines*
+- [FastCGI](Fastcgi) — *Tutorials*
+- [Fatal](Modern-Log-Fatal) ✨ — *Logging*
+- [FB and cross-compiling](Fb-and-Cross-Compiling) — *Compiler Internals*
+- [FB build configuration options](Fb-Build-Configuration-Options) — *Compiler Internals*
+- [Fb_Memcopy](Fb-Memcopy) — *Memory Functions*
+- [fb_MemCopyClear](Fb-Memcopyclear) — *Memory Functions*
+- [Fb_Memmove](Fb-Memmove) — *Memory Functions*
+- [Fbarray (Array Descriptor Structure And Access)](Fbarray-Array-Descriptor-Structure-and-Access) — *Array Functions*
+- [fbc command-line](Fbc-Command-Line) — *Using the FreeBASIC compiler*
+- [FBgfx Image and Font Buffers](Fbgfx-Image-and-Font-Buffers) — *Tutorials*
+- [Field](Field) — *User Defined Types*
+- [File contexts](File-Contexts) — *Compiler Internals*
+- [File I/O Functions](File-I-O-Functions) — *File I/O Functions*
+- [File I/O with FreeBASIC](File-I-O-with-Freebasic) — *Tutorials*
+- [FileAttr](Fileattr) — *Operating System Functions*
+- [FileCopy](Filecopy) — *Operating System Functions*
+- [FileDateTime](Filedatetime) — *Operating System Functions*
+- [FileExists](Fileexists) — *Operating System Functions*
+- [FileFlush](Fileflush) — *Operating System Functions*
+- [FileInfo.AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) ✨ — *Filesystem*
+- [FileInfo.AccessedUtc](Modern-Fs-FileInfo-AccessedUtc) ✨ — *Filesystem*
+- [FileInfo.CanonicalPath](Modern-Fs-FileInfo-CanonicalPath) ✨ — *Filesystem*
+- [FileInfo.CreatedUtc](Modern-Fs-FileInfo-CreatedUtc) ✨ — *Filesystem*
+- [FileInfo.CurrentDir](Modern-Fs-FileInfo-CurrentDir) ✨ — *Filesystem*
+- [FileInfo.Exists](Modern-Fs-FileInfo-Exists) ✨ — *Filesystem*
+- [FileInfo.HasAccessed](Modern-Fs-FileInfo-HasAccessed) ✨ — *Filesystem*
+- [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) ✨ — *Filesystem*
+- [FileInfo.IsDirectory](Modern-Fs-FileInfo-IsDirectory) ✨ — *Filesystem*
+- [FileInfo.IsFile](Modern-Fs-FileInfo-IsFile) ✨ — *Filesystem*
+- [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) ✨ — *Filesystem*
+- [FileInfo.IsOther](Modern-Fs-FileInfo-IsOther) ✨ — *Filesystem*
+- [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) ✨ — *Filesystem*
+- [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) ✨ — *Filesystem*
+- [FileInfo.ModifiedUtc](Modern-Fs-FileInfo-ModifiedUtc) ✨ — *Filesystem*
+- [FileInfo.NativeAttributes](Modern-Fs-FileInfo-NativeAttributes) ✨ — *Filesystem*
+- [FileInfo.SetCurrentDir](Modern-Fs-FileInfo-SetCurrentDir) ✨ — *Filesystem*
+- [FileInfo.Size](Modern-Fs-FileInfo-Size) ✨ — *Filesystem*
+- [FileLen](Filelen) — *Operating System Functions*
+- [FileLock.Acquire](Modern-Fs-FileLock-Acquire) ✨ — *Filesystem*
+- [FileLock.IsHeld](Modern-Fs-FileLock-IsHeld) ✨ — *Filesystem*
+- [FileLock.Release](Modern-Fs-FileLock-Release) ✨ — *Filesystem*
+- [FileSetEof](Fileseteof) — *Operating System Functions*
+- [Filesystem Library](Category-Filesystem) ✨ — *Filesystem*
+- [FileWatcher.IsWatching](Modern-Fs-FileWatcher-IsWatching) ✨ — *Filesystem*
+- [FileWatcher.Poll](Modern-Fs-FileWatcher-Poll) ✨ — *Filesystem*
+- [FileWatcher.Start](Modern-Fs-FileWatcher-Start) ✨ — *Filesystem*
+- [FileWatcher.Stop](Modern-Fs-FileWatcher-Stop) ✨ — *Filesystem*
+- [Fine-grain procedure for waiting and in-loop procedure for fine-regulating FPS](Fine-Grain-Procedure-for-Waiting-and-in-Loop-Procedure-for-Fine-Regulating-Fps) — *Tutorials*
+- [Fix](Fix) — *Mathematical Functions*
+- [Fixed-length Arrays](Fixed-Length-Arrays) — *Tutorials*
+- [Flip](Flip) — *Screen Functions*
+- [Flite](Flite) — *Tutorials*
+- [Floor](Modern-Math-Floor) ✨ — *Math Library*
+- [FloorDiv](Modern-Math-FloorDiv) ✨ — *Math Library*
+- [FloorMod](Modern-Math-FloorMod) ✨ — *Math Library*
+- [Flush](Modern-Log-Flush) ✨ — *Logging*
+- [Fma](Modern-Math-Fma) ✨ — *Math Library*
+- [FMod](Fmod) — *Reference*
+- [FMOD](external-libraries-index-Fmod) — *Tutorials*
+- [For](For) — *Miscellaneous Keywords*
+- [For Each](Category-For-Each) ✨ — *For Each*
+- [For...Next](For-Next) — *Operators*
+- [ForEach](Modern-Array-ForEach) ✨ — *Array*
+- [#cinclude](modern-Cinclude) ✨ — *C Header Import*
+- [#cinclude Tutorial](modern-Cinclude-tutorial) ✨ — *C Header Import*
+- [C Header Import](Category-C-Header-Import) ✨ — *C Header Import*
+- [#foreignlib](modern-Foreignlib) ✨ — *Foreign Library Linking*
+- [#foreignlib Tutorial](modern-Foreignlib-tutorial) ✨ — *Foreign Library Linking*
+- [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ — *Foreign Library Linking*
+- [Format](Format) — *String Functions*
+- [Frac](Frac) — *Mathematical Functions*
+- [Fre](Fre) — *Operating System Functions*
+- [Free alternative to the OpenGL Utility Toolkit](Free-Alternative-to-the-Opengl-Utility-Toolkit) — *Tutorials*
+- [FreeBASIC](Freebasic) — *Reference*
+- [FreeBASIC and QBasic](Freebasic-and-Qbasic) — *FreeBASIC dialects and QBASIC*
+- [FreeBASIC Build Options](Freebasic-Build-Options) — *Compiler Internals*
+- [FreeBASIC Dialects](Freebasic-Dialects) — *FreeBASIC dialects and QBASIC*
+- [FreeBASIC Manual](Freebasic-Manual) — *Reference*
+- [FreeBASIC Primer #1](Freebasic-Primer-1) — *Tutorials*
+- [FreeFile](Freefile) — *File I/O Functions*
+- [FreeImage](Freeimage) — *Tutorials*
+- [Freetype2](Freetype2) — *Tutorials*
+- [Frequently Asked FB Runtime Library Questions](Frequently-Asked-Fb-Runtime-Library-Questions) — *FAQs*
+- [Frequently Asked FreeBASIC Graphics Library Questions](Frequently-Asked-Freebasic-Graphics-Library-Questions) — *FAQs*
+- [Frequently Asked Questions](Frequently-Asked-Questions-2) — *FAQs*
+- [Frequently Asked Questions](Frequently-Asked-Questions) — *FAQs*
+- [Frexp](Modern-Math-Frexp) ✨ — *Math Library*
+- [From Pointers to References](From-Pointers-to-References) — *Tutorials*
+- [Front](Modern-LinkedList-Front) ✨ — *LinkedList*
+- [FsChange.Kind](Modern-Fs-FsChange-Kind) ✨ — *Filesystem*
+- [FsChange.Path](Modern-Fs-FsChange-Path) ✨ — *Filesystem*
+- [FsError.Code](Modern-Fs-FsError-Code) ✨ — *Filesystem*
+- [FsError.Message](Modern-Fs-FsError-Message) ✨ — *Filesystem*
+- [FsError.Operation](Modern-Fs-FsError-Operation) ✨ — *Filesystem*
+- [FsError.OsCode](Modern-Fs-FsError-OsCode) ✨ — *Filesystem*
+- [FsError.Path](Modern-Fs-FsError-Path) ✨ — *Filesystem*
+- [FsError.Path2](Modern-Fs-FsError-Path2) ✨ — *Filesystem*
+- [Function](procedures-Function) — *Procedures*
+- [Function (Member)](Function-Member) — *User Defined Types*
+- [Function Overloading](Function-Overloading) — *Tutorials*
+- [Function Pointer](Function-Pointer) — *Standard Data Types*
+- [Functional Keyword List](Functional-Keyword-List) — *Language Documentation*
+
+## G
+
+- [GCC toolchain choice](Gcc-Toolchain-Choice) — *Compiler Internals*
+- [GCD](Modern-Math-GCD) ✨ — *Math Library*
+- [GD](Gd) — *Tutorials*
+- [GDBM, the GNU Database manager](Gdbm-the-Gnu-Database-Manager) — *Tutorials*
+- [GDSL, The Generic Data Structures Library](Gdsl-the-Generic-Data-Structures-Library) — *Tutorials*
+- [Generics](Category-Generics) ✨ — *Generics*
+- [Get](Modern-SharedPtr-Get) ✨ — *Smart Pointers*
+- [Get (File I/O)](Get-File-I-O) — *File I/O Functions*
+- [Get (Graphics)](Get-Graphics) — *2D Drawing Functions*
+- [GET/PUT image header example](Get-Put-Image-Header-Example) — *Reference*
+- [GetDiskSpace](Modern-Fs-GetDiskSpace) ✨ — *Filesystem*
+- [GetIterator](Modern-ForEach-GetIterator) ✨ — *For Each*
+- [GetIterator](Modern-Array-GetIterator) ✨ — *Array*
+- [GetIterator](Modern-Map-GetIterator) ✨ — *Map*
+- [GetIterator](Modern-Set-GetIterator) ✨ — *Set*
+- [GetIterator](Modern-LinkedList-GetIterator) ✨ — *LinkedList*
+- [GetJoystick](Getjoystick) — *User Input Functions (Graphics Library)*
+- [GetKey](Getkey) — *User Input (Runtime Library)*
+- [GetMouse](Getmouse) — *User Input Functions (Graphics Library)*
+- [GetPosixMode](Modern-Fs-GetPosixMode) ✨ — *Filesystem*
+- [GetRoundingMode](Modern-Math-GetRoundingMode) ✨ — *Math Library*
+- [gettext](Gettext) — *Tutorials*
+- [Getting help with FreeBASIC](Getting-Help-with-Freebasic) — *Compiler*
+- [Getting source code updates and recompiling FB](Getting-Source-Code-Updates-and-Recompiling-Fb) — *Compiler Internals*
+- [Getting Started](Getting-Started) — *Tutorials*
+- [Getting the source code](Getting-the-Source-Code) — *Compiler Internals*
+- [GetVolumeInfo](Modern-Fs-GetVolumeInfo) ✨ — *Filesystem*
+- [GetVolumes](Modern-Fs-GetVolumes) ✨ — *Filesystem*
+- [GetWin32Attributes](Modern-Fs-GetWin32Attributes) ✨ — *Filesystem*
+- [GFX_NULL](Gfx-Null) — *Reference*
+- [GfxLib - FreeBASIC graphics library overview](Gfxlib-Freebasic-Graphics-Library-Overview) — *Graphics Library Reference*
+- [GIFLIB](Giflib) — *Tutorials*
+- [GLFW, an OpenGL library](Glfw-an-Opengl-Library) — *Tutorials*
+- [GLib](Glib) — *Tutorials*
+- [Glob](Modern-Fs-Glob) ✨ — *Filesystem*
+- [GlobRoot](Modern-Fs-GlobRoot) ✨ — *Filesystem*
+- [Glossary](Glossary) — *Miscellaneous*
+- [Glossary - common terms used in fbc development](Glossary-Common-Terms-Used-in-Fbc-Development) — *Compiler Internals*
+- [GLUT, the OpenGL Utility Toolkit](Glut-the-Opengl-Utility-Toolkit) — *Tutorials*
+- [gmp, The GNU Multiple Precision Arithmetic Library](Gmp-the-Gnu-Multiple-Precision-Arithmetic-Library) — *Tutorials*
+- [GNU Aspell](Gnu-Aspell) — *Tutorials*
+- [GNU Free Documentation License](Gnu-Free-Documentation-License) — *Reference*
+- [GNU GENERAL PUBLIC LICENSE](Gnu-General-Public-License) — *Reference*
+- [GNU LESSER GENERAL PUBLIC LICENSE](Gnu-Lesser-General-Public-License) — *Reference*
+- [GoroutineCount](Modern-Chan-GoroutineCount) ✨ — *Goroutines and Channels*
+- [Goroutines and Channels](Category-Goroutines-and-Channels) ✨ — *Goroutines and Channels*
+- [Goroutines Tutorial](Modern-Goroutines-Tutorial) ✨ — *Goroutines and Channels*
+- [GoSub](Gosub) — *Control Flow Statements*
+- [Goto](Goto) — *Control Flow Statements*
+- [Graphics Keyword List](Graphics-Keyword-List) — *Graphics Keyword List*
+- [Graphics Mode Refresh and Anti-Flickering](Graphics-Mode-Refresh-and-Anti-Flickering) — *Tutorials*
+- [GRX](Grx) — *Tutorials*
+- [gsl, The GNU Scientific Library](Gsl-the-Gnu-Scientific-Library) — *Tutorials*
+- [GTK+, The GIMP ToolKit](Gtk-the-Gimp-Toolkit) — *Tutorials*
+
+## H
+
+- [HasValue](Modern-Optional-HasValue) ✨ — *Optional*
+- [Header Files (.bi)](Header-Files-Bi) — *Tutorials*
+- [Hello World](Hello-World) — *Tutorials*
+- [Hex](Hex) — *String Functions*
+- [HiByte](Hibyte) — *Bit Manipulation*
+- [HiWord](Hiword) — *Bit Manipulation*
+- [Hour](Hour) — *Date and Time Functions*
+- [How to Program a Game: Lesson 1](How-to-Program-a-Game-Lesson-1) — *Tutorials*
+- [Hypot](Modern-Math-Hypot) ✨ — *Math Library*
+
+## I
+
+- [#if](If) — *Preprocessor*
+- [#ifdef](Ifdef) — *Preprocessor*
+- [#ifndef](Ifndef) — *Preprocessor*
+- [#inclib](Inclib) — *Preprocessor*
+- [#include](procedures-Include) — *Preprocessor*
+- [$Include](Include) — *Compiler Switches*
+- [Identifier Look-ups in namespaces and types](Identifier-Look-Ups-in-Namespaces-and-Types) — *Tutorials*
+- [Identifier Rules](Identifier-Rules) — *Tutorials*
+- [If...Then](If-Then) — *Control Flow Statements*
+- [IIf](Iif) — *Miscellaneous Keywords*
+- [ImageConvertRow](Imageconvertrow) — *2D Drawing Functions*
+- [ImageCreate](Imagecreate) — *2D Drawing Functions*
+- [ImageDestroy](Imagedestroy) — *2D Drawing Functions*
+- [ImageInfo](Imageinfo) — *2D Drawing Functions*
+- [Implements](Implements) — *User Defined Types*
+- [Implicit Declarations](Implicit-Declarations) — *Tutorials*
+- [Import](Import) — *Modularizing*
+- [Indexing Operators](Indexing-Operators) — *Operators*
+- [IndexOf](Modern-Array-IndexOf) ✨ — *Array*
+- [Infinity](Modern-Math-Infinity) ✨ — *Math Library*
+- [InfinityF](Modern-Math-InfinityF) ✨ — *Math Library*
+- [Info](Modern-Log-Info) ✨ — *Logging*
+- [Information for hacking on FreeBASIC](Information-for-Hacking-on-Freebasic) — *Hacking on FreeBASIC*
+- [Inheritance Polymorphism](Inheritance-Polymorphism) — *Tutorials*
+- [Inkey](Inkey) — *User Input (Runtime Library)*
+- [Inp](Inp) — *Miscellaneous Keywords*
+- [Input](procedures-Input) — *User Input (Runtime Library)*
+- [Input #](Input) — *File I/O Functions*
+- [Input (File Mode)](Input-File-Mode) — *File I/O Functions*
+- [Input()](Input-2) — *User Input (Runtime Library)*
+- [Insert](Modern-Array-Insert) ✨ — *Array*
+- [InsertAt](Modern-String-InsertAt) ✨ — *String Library*
+- [Installing](Installing) — *Using the FreeBASIC compiler*
+- [Installing gcc for -gen gcc](Installing-Gcc-for-Gen-Gcc) — *Using the FreeBASIC compiler*
+- [Instant.Add](Modern-Chrono-Instant-Add) ✨ — *Date and Time (Chrono)*
+- [Instant.AddCalendarDays](Modern-Chrono-Instant-AddCalendarDays) ✨ — *Date and Time (Chrono)*
+- [Instant.AddCalendarMonths](Modern-Chrono-Instant-AddCalendarMonths) ✨ — *Date and Time (Chrono)*
+- [Instant.AddCalendarYears](Modern-Chrono-Instant-AddCalendarYears) ✨ — *Date and Time (Chrono)*
+- [Instant.AddDays](Modern-Chrono-Instant-AddDays) ✨ — *Date and Time (Chrono)*
+- [Instant.AddHours](Modern-Chrono-Instant-AddHours) ✨ — *Date and Time (Chrono)*
+- [Instant.AddMilliseconds](Modern-Chrono-Instant-AddMilliseconds) ✨ — *Date and Time (Chrono)*
+- [Instant.AddMinutes](Modern-Chrono-Instant-AddMinutes) ✨ — *Date and Time (Chrono)*
+- [Instant.AddMonths](Modern-Chrono-Instant-AddMonths) ✨ — *Date and Time (Chrono)*
+- [Instant.AddSeconds](Modern-Chrono-Instant-AddSeconds) ✨ — *Date and Time (Chrono)*
+- [Instant.AddTicks](Modern-Chrono-Instant-AddTicks) ✨ — *Date and Time (Chrono)*
+- [Instant.AddYears](Modern-Chrono-Instant-AddYears) ✨ — *Date and Time (Chrono)*
+- [Instant.AssumeUtc](Modern-Chrono-Instant-AssumeUtc) ✨ — *Date and Time (Chrono)*
+- [Instant.CompareTo](Modern-Chrono-Instant-CompareTo) ✨ — *Date and Time (Chrono)*
+- [Instant.DateTime](Modern-Chrono-Instant-DateTime) ✨ — *Date and Time (Chrono)*
+- [Instant.Day](Modern-Chrono-Instant-Day) ✨ — *Date and Time (Chrono)*
+- [Instant.DayOfWeek](Modern-Chrono-Instant-DayOfWeek) ✨ — *Date and Time (Chrono)*
+- [Instant.DayOfYear](Modern-Chrono-Instant-DayOfYear) ✨ — *Date and Time (Chrono)*
+- [Instant.DaysInMonth](Modern-Chrono-Instant-DaysInMonth) ✨ — *Date and Time (Chrono)*
+- [Instant.DaysInYear](Modern-Chrono-Instant-DaysInYear) ✨ — *Date and Time (Chrono)*
+- [Instant.EndOfDay](Modern-Chrono-Instant-EndOfDay) ✨ — *Date and Time (Chrono)*
+- [Instant.EndOfMonth](Modern-Chrono-Instant-EndOfMonth) ✨ — *Date and Time (Chrono)*
+- [Instant.EndOfYear](Modern-Chrono-Instant-EndOfYear) ✨ — *Date and Time (Chrono)*
+- [Instant.FileTime](Modern-Chrono-Instant-FileTime) ✨ — *Date and Time (Chrono)*
+- [Instant.FromDate](Modern-Chrono-Instant-FromDate) ✨ — *Date and Time (Chrono)*
+- [Instant.FromDateTime](Modern-Chrono-Instant-FromDateTime) ✨ — *Date and Time (Chrono)*
+- [Instant.FromFileTime](Modern-Chrono-Instant-FromFileTime) ✨ — *Date and Time (Chrono)*
+- [Instant.FromInstant](Modern-Chrono-Instant-FromInstant) ✨ — *Date and Time (Chrono)*
+- [Instant.FromJulianDay](Modern-Chrono-Instant-FromJulianDay) ✨ — *Date and Time (Chrono)*
+- [Instant.FromOleDate](Modern-Chrono-Instant-FromOleDate) ✨ — *Date and Time (Chrono)*
+- [Instant.FromSerial](Modern-Chrono-Instant-FromSerial) ✨ — *Date and Time (Chrono)*
+- [Instant.FromTicks](Modern-Chrono-Instant-FromTicks) ✨ — *Date and Time (Chrono)*
+- [Instant.FromUnixMicroseconds](Modern-Chrono-Instant-FromUnixMicroseconds) ✨ — *Date and Time (Chrono)*
+- [Instant.FromUnixMilliseconds](Modern-Chrono-Instant-FromUnixMilliseconds) ✨ — *Date and Time (Chrono)*
+- [Instant.FromUnixSeconds](Modern-Chrono-Instant-FromUnixSeconds) ✨ — *Date and Time (Chrono)*
+- [Instant.GetDate](Modern-Chrono-Instant-GetDate) ✨ — *Date and Time (Chrono)*
+- [Instant.GetTimeOfDay](Modern-Chrono-Instant-GetTimeOfDay) ✨ — *Date and Time (Chrono)*
+- [Instant.HasOffset](Modern-Chrono-Instant-HasOffset) ✨ — *Date and Time (Chrono)*
+- [Instant.Hour](Modern-Chrono-Instant-Hour) ✨ — *Date and Time (Chrono)*
+- [Instant.Instant](Modern-Chrono-Instant-Instant) ✨ — *Date and Time (Chrono)*
+- [Instant.Invalid](Modern-Chrono-Instant-Invalid) ✨ — *Date and Time (Chrono)*
+- [Instant.IsFirstDayOfMonth](Modern-Chrono-Instant-IsFirstDayOfMonth) ✨ — *Date and Time (Chrono)*
+- [Instant.IsLastDayOfMonth](Modern-Chrono-Instant-IsLastDayOfMonth) ✨ — *Date and Time (Chrono)*
+- [Instant.IsLeapYear](Modern-Chrono-Instant-IsLeapYear) ✨ — *Date and Time (Chrono)*
+- [Instant.IsoWeek](Modern-Chrono-Instant-IsoWeek) ✨ — *Date and Time (Chrono)*
+- [Instant.IsoWeekYear](Modern-Chrono-Instant-IsoWeekYear) ✨ — *Date and Time (Chrono)*
+- [Instant.IsUtc](Modern-Chrono-Instant-IsUtc) ✨ — *Date and Time (Chrono)*
+- [Instant.IsValid](Modern-Chrono-Instant-IsValid) ✨ — *Date and Time (Chrono)*
+- [Instant.JulianDay](Modern-Chrono-Instant-JulianDay) ✨ — *Date and Time (Chrono)*
+- [Instant.JulianDayNumber](Modern-Chrono-Instant-JulianDayNumber) ✨ — *Date and Time (Chrono)*
+- [Instant.MaxValue](Modern-Chrono-Instant-MaxValue) ✨ — *Date and Time (Chrono)*
+- [Instant.Microsecond](Modern-Chrono-Instant-Microsecond) ✨ — *Date and Time (Chrono)*
+- [Instant.Millisecond](Modern-Chrono-Instant-Millisecond) ✨ — *Date and Time (Chrono)*
+- [Instant.Minute](Modern-Chrono-Instant-Minute) ✨ — *Date and Time (Chrono)*
+- [Instant.MinValue](Modern-Chrono-Instant-MinValue) ✨ — *Date and Time (Chrono)*
+- [Instant.Month](Modern-Chrono-Instant-Month) ✨ — *Date and Time (Chrono)*
+- [Instant.MonthName](Modern-Chrono-Instant-MonthName) ✨ — *Date and Time (Chrono)*
+- [Instant.MonthUName](Modern-Chrono-Instant-MonthUName) ✨ — *Date and Time (Chrono)*
+- [Instant.NextWeekday](Modern-Chrono-Instant-NextWeekday) ✨ — *Date and Time (Chrono)*
+- [Instant.OffsetMinutes](Modern-Chrono-Instant-OffsetMinutes) ✨ — *Date and Time (Chrono)*
+- [Instant.OleDate](Modern-Chrono-Instant-OleDate) ✨ — *Date and Time (Chrono)*
+- [Instant.ParseExact](Modern-Chrono-Instant-ParseExact) ✨ — *Date and Time (Chrono)*
+- [Instant.ParseIso](Modern-Chrono-Instant-ParseIso) ✨ — *Date and Time (Chrono)*
+- [Instant.PrevWeekday](Modern-Chrono-Instant-PrevWeekday) ✨ — *Date and Time (Chrono)*
+- [Instant.Quarter](Modern-Chrono-Instant-Quarter) ✨ — *Date and Time (Chrono)*
+- [Instant.Second](Modern-Chrono-Instant-Second) ✨ — *Date and Time (Chrono)*
+- [Instant.Serial](Modern-Chrono-Instant-Serial) ✨ — *Date and Time (Chrono)*
+- [Instant.StartOfDay](Modern-Chrono-Instant-StartOfDay) ✨ — *Date and Time (Chrono)*
+- [Instant.StartOfMonth](Modern-Chrono-Instant-StartOfMonth) ✨ — *Date and Time (Chrono)*
+- [Instant.StartOfWeek](Modern-Chrono-Instant-StartOfWeek) ✨ — *Date and Time (Chrono)*
+- [Instant.StartOfYear](Modern-Chrono-Instant-StartOfYear) ✨ — *Date and Time (Chrono)*
+- [Instant.Subtract](Modern-Chrono-Instant-Subtract) ✨ — *Date and Time (Chrono)*
+- [Instant.TickOfDay](Modern-Chrono-Instant-TickOfDay) ✨ — *Date and Time (Chrono)*
+- [Instant.Ticks](Modern-Chrono-Instant-Ticks) ✨ — *Date and Time (Chrono)*
+- [Instant.ToInstant](Modern-Chrono-Instant-ToInstant) ✨ — *Date and Time (Chrono)*
+- [Instant.ToIsoString](Modern-Chrono-Instant-ToIsoString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocal](Modern-Chrono-Instant-ToLocal) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocaleDateString](Modern-Chrono-Instant-ToLocaleDateString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocaleDateUString](Modern-Chrono-Instant-ToLocaleDateUString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocaleString](Modern-Chrono-Instant-ToLocaleString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocaleTimeString](Modern-Chrono-Instant-ToLocaleTimeString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocaleTimeUString](Modern-Chrono-Instant-ToLocaleTimeUString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToLocaleUString](Modern-Chrono-Instant-ToLocaleUString) ✨ — *Date and Time (Chrono)*
+- [Instant.ToOffset](Modern-Chrono-Instant-ToOffset) ✨ — *Date and Time (Chrono)*
+- [Instant.ToString](Modern-Chrono-Instant-ToString) ✨ — *Date and Time (Chrono)*
+- [Instant.TryFormat](Modern-Chrono-Instant-TryFormat) ✨ — *Date and Time (Chrono)*
+- [Instant.TryParse](Modern-Chrono-Instant-TryParse) ✨ — *Date and Time (Chrono)*
+- [Instant.TryParseExact](Modern-Chrono-Instant-TryParseExact) ✨ — *Date and Time (Chrono)*
+- [Instant.TryParseIso](Modern-Chrono-Instant-TryParseIso) ✨ — *Date and Time (Chrono)*
+- [Instant.UnixMicroseconds](Modern-Chrono-Instant-UnixMicroseconds) ✨ — *Date and Time (Chrono)*
+- [Instant.UnixMilliseconds](Modern-Chrono-Instant-UnixMilliseconds) ✨ — *Date and Time (Chrono)*
+- [Instant.UnixSeconds](Modern-Chrono-Instant-UnixSeconds) ✨ — *Date and Time (Chrono)*
+- [Instant.WeekdayName](Modern-Chrono-Instant-WeekdayName) ✨ — *Date and Time (Chrono)*
+- [Instant.WeekdayUName](Modern-Chrono-Instant-WeekdayUName) ✨ — *Date and Time (Chrono)*
+- [Instant.WeeksInYear](Modern-Chrono-Instant-WeeksInYear) ✨ — *Date and Time (Chrono)*
+- [Instant.WithOffset](Modern-Chrono-Instant-WithOffset) ✨ — *Date and Time (Chrono)*
+- [Instant.Year](Modern-Chrono-Instant-Year) ✨ — *Date and Time (Chrono)*
+- [InStr](Instr) — *String Functions*
+- [InstrChars](Modern-String-InstrChars) ✨ — *String Library*
+- [InStrRev](Instrrev) — *String Functions*
+- [Int](Int) — *Mathematical Functions*
+- [Integer](Integer) — *Standard Data Types*
+- [Interfacing with C](Interfacing-with-C) — *Tutorials*
+- [Internal graphics formats](Internal-Graphics-Formats) — *Tutorials*
+- [IntersectWith](Modern-Set-IntersectWith) ✨ — *Set*
+- [Intrinsic Defines](Intrinsic-Defines) — *Intrinsic Defines*
+- [Introduction To Arrays](Introduction-to-Arrays) — *Tutorials*
+- [Introduction to Message-Based Programming](Introduction-to-Message-Based-Programming) — *Tutorials*
+- [Introduction to Pointers](Introduction-to-Pointers) — *Tutorials*
+- [Introduction to the Extended Type](Introduction-to-the-Extended-Type) — *Tutorials*
+- [Introduction to the Type Def](Introduction-to-the-Type-Def) — *Tutorials*
+- [Introduction to Variable Scope](Introduction-to-Variable-Scope) — *Tutorials*
+- [IPow](Modern-Math-IPow) ✨ — *Math Library*
+- [IPowChecked](Modern-Math-IPowChecked) ✨ — *Math Library*
+- [Is](Is) — *Miscellaneous Keywords*
+- [IsBlank](Modern-String-IsBlank) ✨ — *String Library*
+- [IsCancelled](Modern-Chan-IsCancelled) ✨ — *Goroutines and Channels*
+- [IsDate](Isdate) — *Date and Time Functions*
+- [IsDir](Modern-Fs-IsDir) ✨ — *Filesystem*
+- [IsEmpty](Modern-Array-IsEmpty) ✨ — *Array*
+- [IsEmpty](Modern-Map-IsEmpty) ✨ — *Map*
+- [IsEmpty](Modern-Set-IsEmpty) ✨ — *Set*
+- [IsEmpty](Modern-LinkedList-IsEmpty) ✨ — *LinkedList*
+- [IsFile](Modern-Fs-IsFile) ✨ — *Filesystem*
+- [IsFinite](Modern-Math-IsFinite) ✨ — *Math Library*
+- [IsInfinite](Modern-Math-IsInfinite) ✨ — *Math Library*
+- [IsLink](Modern-Fs-IsLink) ✨ — *Filesystem*
+- [IsNaN](Modern-Math-IsNaN) ✨ — *Math Library*
+- [IsNegative](Modern-Math-IsNegative) ✨ — *Math Library*
+- [IsNormal](Modern-Math-IsNormal) ✨ — *Math Library*
+- [IsNull](Modern-SharedPtr-IsNull) ✨ — *Smart Pointers*
+- [IsNumeric](Modern-String-IsNumeric) ✨ — *String Library*
+- [IsOk](Modern-Result-IsOk) ✨ — *Result*
+- [IsPow2](Modern-Math-IsPow2) ✨ — *Math Library*
+- [ISqrt](Modern-Math-ISqrt) ✨ — *Math Library*
+- [IsRedirected](Isredirected) — *Operating System Functions*
+- [IsSorted](Modern-Array-IsSorted) ✨ — *Array*
+- [IsSorted](Modern-Sorting-IsSorted) ✨ — *Sorting*
+- [IsSortedBy](Modern-Sorting-IsSortedBy) ✨ — *Sorting*
+- [IsSubnormal](Modern-Math-IsSubnormal) ✨ — *Math Library*
+- [IsValid](Modern-ForEach-IsValid) ✨ — *For Each*
+- [IsValid](Modern-Finance-IsValid) ✨ — *Finance*
+- [Items](Modern-Set-Items) ✨ — *Set*
+- [Iterating Operators](Iterating-Operators) — *Operators*
+- [Iterator Protocol](Category-Iterators) ✨ — *Iterators*
+- [Iterators](Iterators) — *Tutorials*
+- [IUP](Iup) — *Tutorials*
+
+## J
+
+- [Java Application Programming Interface](Java-Application-Programming-Interface) — *Tutorials*
+- [JNI, The Java Native Interface](Jni-the-Java-Native-Interface) — *Tutorials*
+- [Join](Modern-String-Join) ✨ — *String Library*
+- [jpeglib](Jpeglib) — *Tutorials*
+- [JPGAlleg](Jpgalleg) — *Tutorials*
+- [json-c](Json-C) — *Tutorials*
+
+## K
+
+- [Keyboard Input](Keyboard-Input) — *Compiler Internals*
+- [Keys](Modern-Map-Keys) ✨ — *Map*
+- [Kill](Kill) — *Operating System Functions*
+- [Known problems when compiling FB](Known-Problems-When-Compiling-Fb) — *Compiler Internals*
+
+## L
+
+- [#lang](procedures-Lang) — *Preprocessor*
+- [#libpath](Libpath) — *Preprocessor*
+- [#line](procedures-Line) — *Preprocessor*
+- [$Lang](Lang) — *Compiler Switches*
+- [Laanan Fisher](Laanan-Fisher) — *Reference*
+- [Labels](Labels) — *Tutorials*
+- [Lambdas](Category-Lambdas) ✨ — *Lambdas*
+- [LBound](Lbound) — *Array Functions*
+- [LCase](Lcase) — *String Functions*
+- [LCM](Modern-Math-LCM) ✨ — *Math Library*
+- [LeadingZeros](Modern-Math-LeadingZeros) ✨ — *Math Library*
+- [Left](Left) — *String Functions*
+- [Len](Len) — *String Functions*
+- [Length](Modern-Math-Length) ✨ — *Math Library*
+- [LengthSquared](Modern-Math-LengthSquared) ✨ — *Math Library*
+- [Lerp](Modern-Math-Lerp) ✨ — *Math Library*
+- [Let](Let) — *Miscellaneous Keywords*
+- [LevelFromName](Modern-Log-LevelFromName) ✨ — *Logging*
+- [LevelName](Modern-Log-LevelName) ✨ — *Logging*
+- [LevelNameShort](Modern-Log-LevelNameShort) ✨ — *Logging*
+- [LevelToSyslog](Modern-Log-LevelToSyslog) ✨ — *Logging*
+- [Lexer & preprocessor](Lexer-Preprocessor) — *Compiler Internals*
+- [Lib](Lib) — *Procedures*
+- [libbzip2](Libbzip2) — *Tutorials*
+- [libffi](Libffi) — *Tutorials*
+- [libjit](Libjit) — *Tutorials*
+- [liblzma](Liblzma) — *Tutorials*
+- [libogg](Libogg) — *Tutorials*
+- [libPNG](Libpng) — *Tutorials*
+- [libsndfile](Libsndfile) — *Tutorials*
+- [libVLC](Libvlc) — *Tutorials*
+- [libvorbis](Libvorbis) — *Tutorials*
+- [libxml2](Libxml2) — *Tutorials*
+- [libxslt](Libxslt) — *Tutorials*
+- [libzip](Libzip) — *Tutorials*
+- [Licenses](Licenses) — *Reference*
+- [Line (Graphics)](Line-Graphics) — *2D Drawing Functions*
+- [Line Continuation](Line-Continuation) — *Tutorials*
+- [Line Input](procedures-Line-Input) — *User Input (Runtime Library)*
+- [Line Input #](Line-Input) — *File I/O Functions*
+- [Line Separator](Line-Separator) — *Tutorials*
+- [LinkCount](Modern-Fs-LinkCount) ✨ — *Filesystem*
+- [LinkedList](Category-LinkedList) ✨ — *LinkedList*
+- [LinkedList](Modern-LinkedList-LinkedList) ✨ — *LinkedList*
+- [LinkedListIterator](Modern-LinkedList-LinkedListIterator) ✨ — *LinkedList*
+- [LinkedNode](Modern-LinkedList-LinkedNode) ✨ — *LinkedList*
+- [Linux Related FAQ](Linux-Related-Faq) — *FAQs*
+- [ListDir](Modern-Fs-ListDir) ✨ — *Filesystem*
+- [Lite regulation function to be integrated into user loop for FPS control](Lite-Regulation-Function-to-Be-Integrated-Into-User-Loop-for-Fps-Control) — *Tutorials*
+- [Literals](Literals) — *Language Documentation*
+- [LLVM Backend](Category-LLVM-Backend) ✨ — *LLVM Backend*
+- [LoByte](Lobyte) — *Bit Manipulation*
+- [LOC](Loc) — *File I/O Functions*
+- [Local](Local) — *Error Handling Functions*
+- [LocalDate.AddDays](Modern-Chrono-LocalDate-AddDays) ✨ — *Date and Time (Chrono)*
+- [LocalDate.AddMonths](Modern-Chrono-LocalDate-AddMonths) ✨ — *Date and Time (Chrono)*
+- [LocalDate.AddYears](Modern-Chrono-LocalDate-AddYears) ✨ — *Date and Time (Chrono)*
+- [LocalDate.CompareTo](Modern-Chrono-LocalDate-CompareTo) ✨ — *Date and Time (Chrono)*
+- [LocalDate.Day](Modern-Chrono-LocalDate-Day) ✨ — *Date and Time (Chrono)*
+- [LocalDate.DayNumber](Modern-Chrono-LocalDate-DayNumber) ✨ — *Date and Time (Chrono)*
+- [LocalDate.DayOfWeek](Modern-Chrono-LocalDate-DayOfWeek) ✨ — *Date and Time (Chrono)*
+- [LocalDate.DayOfYear](Modern-Chrono-LocalDate-DayOfYear) ✨ — *Date and Time (Chrono)*
+- [LocalDate.EndOfMonth](Modern-Chrono-LocalDate-EndOfMonth) ✨ — *Date and Time (Chrono)*
+- [LocalDate.FromDayNumber](Modern-Chrono-LocalDate-FromDayNumber) ✨ — *Date and Time (Chrono)*
+- [LocalDate.Invalid](Modern-Chrono-LocalDate-Invalid) ✨ — *Date and Time (Chrono)*
+- [LocalDate.IsFirstDayOfMonth](Modern-Chrono-LocalDate-IsFirstDayOfMonth) ✨ — *Date and Time (Chrono)*
+- [LocalDate.IsLastDayOfMonth](Modern-Chrono-LocalDate-IsLastDayOfMonth) ✨ — *Date and Time (Chrono)*
+- [LocalDate.IsoWeek](Modern-Chrono-LocalDate-IsoWeek) ✨ — *Date and Time (Chrono)*
+- [LocalDate.IsoWeekYear](Modern-Chrono-LocalDate-IsoWeekYear) ✨ — *Date and Time (Chrono)*
+- [LocalDate.IsValid](Modern-Chrono-LocalDate-IsValid) ✨ — *Date and Time (Chrono)*
+- [LocalDate.LocalDate](Modern-Chrono-LocalDate-LocalDate) ✨ — *Date and Time (Chrono)*
+- [LocalDate.MaxValue](Modern-Chrono-LocalDate-MaxValue) ✨ — *Date and Time (Chrono)*
+- [LocalDate.MinValue](Modern-Chrono-LocalDate-MinValue) ✨ — *Date and Time (Chrono)*
+- [LocalDate.Month](Modern-Chrono-LocalDate-Month) ✨ — *Date and Time (Chrono)*
+- [LocalDate.ParseIso](Modern-Chrono-LocalDate-ParseIso) ✨ — *Date and Time (Chrono)*
+- [LocalDate.Quarter](Modern-Chrono-LocalDate-Quarter) ✨ — *Date and Time (Chrono)*
+- [LocalDate.StartOfMonth](Modern-Chrono-LocalDate-StartOfMonth) ✨ — *Date and Time (Chrono)*
+- [LocalDate.ToIsoString](Modern-Chrono-LocalDate-ToIsoString) ✨ — *Date and Time (Chrono)*
+- [LocalDate.ToString](Modern-Chrono-LocalDate-ToString) ✨ — *Date and Time (Chrono)*
+- [LocalDate.TryParseIso](Modern-Chrono-LocalDate-TryParseIso) ✨ — *Date and Time (Chrono)*
+- [LocalDate.Year](Modern-Chrono-LocalDate-Year) ✨ — *Date and Time (Chrono)*
+- [LocalTime.CompareTo](Modern-Chrono-LocalTime-CompareTo) ✨ — *Date and Time (Chrono)*
+- [LocalTime.FromTicks](Modern-Chrono-LocalTime-FromTicks) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Hour](Modern-Chrono-LocalTime-Hour) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Invalid](Modern-Chrono-LocalTime-Invalid) ✨ — *Date and Time (Chrono)*
+- [LocalTime.IsValid](Modern-Chrono-LocalTime-IsValid) ✨ — *Date and Time (Chrono)*
+- [LocalTime.LocalTime](Modern-Chrono-LocalTime-LocalTime) ✨ — *Date and Time (Chrono)*
+- [LocalTime.MaxValue](Modern-Chrono-LocalTime-MaxValue) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Microsecond](Modern-Chrono-LocalTime-Microsecond) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Midnight](Modern-Chrono-LocalTime-Midnight) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Millisecond](Modern-Chrono-LocalTime-Millisecond) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Minute](Modern-Chrono-LocalTime-Minute) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Noon](Modern-Chrono-LocalTime-Noon) ✨ — *Date and Time (Chrono)*
+- [LocalTime.ParseIso](Modern-Chrono-LocalTime-ParseIso) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Second](Modern-Chrono-LocalTime-Second) ✨ — *Date and Time (Chrono)*
+- [LocalTime.Ticks](Modern-Chrono-LocalTime-Ticks) ✨ — *Date and Time (Chrono)*
+- [LocalTime.ToIsoString](Modern-Chrono-LocalTime-ToIsoString) ✨ — *Date and Time (Chrono)*
+- [LocalTime.ToString](Modern-Chrono-LocalTime-ToString) ✨ — *Date and Time (Chrono)*
+- [LocalTime.TryParseIso](Modern-Chrono-LocalTime-TryParseIso) ✨ — *Date and Time (Chrono)*
+- [Locate](Locate) — *Console Functions*
+- [Lock](Lock) — *File I/O Functions*
+- [Lock](Modern-SharedPtr-Lock) ✨ — *Smart Pointers*
+- [LOF](Lof) — *File I/O Functions*
+- [Log](Log) — *Mathematical Functions*
+- [Log](Modern-Log-Log) ✨ — *Logging*
+- [LogEvent.Bool](Modern-Log-LogEvent-Bool) ✨ — *Logging*
+- [LogEvent.Close](Modern-Log-LogEvent-Close) ✨ — *Logging*
+- [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) ✨ — *Logging*
+- [LogEvent.Dbl](Modern-Log-LogEvent-Dbl) ✨ — *Logging*
+- [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) ✨ — *Logging*
+- [LogEvent.Err](Modern-Log-LogEvent-Err) ✨ — *Logging*
+- [LogEvent.Flush](Modern-Log-LogEvent-Flush) ✨ — *Logging*
+- [LogEvent.Int_](Modern-Log-LogEvent-Int) ✨ — *Logging*
+- [LogEvent.Msg](Modern-Log-LogEvent-Msg) ✨ — *Logging*
+- [LogEvent.Ptr_](Modern-Log-LogEvent-Ptr) ✨ — *Logging*
+- [LogEvent.Render](Modern-Log-LogEvent-Render) ✨ — *Logging*
+- [LogEvent.Send](Modern-Log-LogEvent-Send) ✨ — *Logging*
+- [LogEvent.Site](Modern-Log-LogEvent-Site) ✨ — *Logging*
+- [LogEvent.Span](Modern-Log-LogEvent-Span) ✨ — *Logging*
+- [LogEvent.Str](Modern-Log-LogEvent-Str) ✨ — *Logging*
+- [LogEvent.Time](Modern-Log-LogEvent-Time) ✨ — *Logging*
+- [LogEvent.UInt](Modern-Log-LogEvent-UInt) ✨ — *Logging*
+- [LogEvent.Val](Modern-Log-LogEvent-Val) ✨ — *Logging*
+- [LogEvent.Write](Modern-Log-LogEvent-Write) ✨ — *Logging*
+- [Logging](Category-Logging) ✨ — *Logging*
+- [Logical Operators](Logical-Operators) — *Operators*
+- [Long](Long) — *Standard Data Types*
+- [LongInt](Longint) — *Standard Data Types*
+- [Loop](Loop) — *Miscellaneous Keywords*
+- [LoWord](Loword) — *Bit Manipulation*
+- [LPos](Lpos) — *Miscellaneous Keywords*
+- [LPrint](Lprint) — *Miscellaneous Keywords*
+- [LSet](Lset) — *String Functions*
+- [LStat](Modern-Fs-LStat) ✨ — *Filesystem*
+- [LTrim](Ltrim) — *String Functions*
+- [Lua](Lua) — *Tutorials*
+- [LZO](Lzo) — *Tutorials*
+
+## M
+
+- [#Macro...#Endmacro](Macro-Endmacro) — *Preprocessor*
+- [Macros](Macros) — *Compiler Internals*
+- [Macros](programmer-s-guide-Macros) — *Tutorials*
+- [MakeShared](Modern-SharedPtr-MakeShared) ✨ — *Smart Pointers*
+- [MakeSharedFrom](Modern-SharedPtr-MakeSharedFrom) ✨ — *Smart Pointers*
+- [Manage Reusable Procedures by Including Source vs Compiled Modules](Manage-Reusable-Procedures-by-Including-Source-vs-Compiled-Modules) — *Tutorials*
+- [Map](Category-Map) ✨ — *Map*
+- [Map](Modern-Map-Map) ✨ — *Map*
+- [MapIterator](Modern-Map-MapIterator) ✨ — *Map*
+- [MapPairIter](Modern-Map-MapPairIter) ✨ — *Map*
+- [MapPairView](Modern-Map-MapPairView) ✨ — *Map*
+- [MatchPattern](Modern-Fs-MatchPattern) ✨ — *Filesystem*
+- [Math Library](Category-Math-Library) ✨ — *Math Library*
+- [Mathematical Functions](Mathematical-Functions) — *Mathematical Functions*
+- [Max](Modern-Math-Max) ✨ — *Math Library*
+- [MaxOf](Modern-Math-MaxOf) ✨ — *Math Library*
+- [MaxValue](Modern-Math-MaxValue) ✨ — *Math Library*
+- [MCase](Modern-String-MCase) ✨ — *String Library*
+- [Mean](Modern-Math-Mean) ✨ — *Math Library*
+- [MediaInfo](Mediainfo) — *Tutorials*
+- [Median](Modern-Math-Median) ✨ — *Math Library*
+- [Member Access Rights and Encapsulation](Member-Access-Rights-and-Encapsulation) — *Tutorials*
+- [Member Procedures](Member-Procedures) — *Tutorials*
+- [Memory Functions](Memory-Functions) — *Memory Functions*
+- [Memory management](Memory-Management) — *Compiler Internals*
+- [Memory Operators](Memory-Operators) — *Operators*
+- [MemoryMappedFile.Close](Modern-Fs-MemoryMappedFile-Close) ✨ — *Filesystem*
+- [MemoryMappedFile.Data](Modern-Fs-MemoryMappedFile-Data) ✨ — *Filesystem*
+- [MemoryMappedFile.Flush](Modern-Fs-MemoryMappedFile-Flush) ✨ — *Filesystem*
+- [MemoryMappedFile.IsOpen](Modern-Fs-MemoryMappedFile-IsOpen) ✨ — *Filesystem*
+- [MemoryMappedFile.Open](Modern-Fs-MemoryMappedFile-Open) ✨ — *Filesystem*
+- [MemoryMappedFile.Size](Modern-Fs-MemoryMappedFile-Size) ✨ — *Filesystem*
+- [Merge](Modern-Math-Merge) ✨ — *Math Library*
+- [Microsoft QuickBASIC](Microsoft-Quickbasic) — *Reference*
+- [Mid (Function)](Mid-Function) — *String Functions*
+- [Mid (Statement)](Mid-Statement) — *String Functions*
+- [Min](Modern-Math-Min) ✨ — *Math Library*
+- [MinLevel](Modern-Log-MinLevel) ✨ — *Logging*
+- [MinOf](Modern-Math-MinOf) ✨ — *Math Library*
+- [MinSubnormalDouble](Modern-Math-MinSubnormalDouble) ✨ — *Math Library*
+- [MinSubnormalSingle](Modern-Math-MinSubnormalSingle) ✨ — *Math Library*
+- [Minute](Minute) — *Date and Time Functions*
+- [MinValue](Modern-Math-MinValue) ✨ — *Math Library*
+- [Miscellaneous Keywords](Miscellaneous-Keywords) — *Miscellaneous Keywords*
+- [MKD](Mkd) — *String Functions*
+- [MkDir](Mkdir) — *Operating System Functions*
+- [MKI](Mki) — *String Functions*
+- [MKL](Mkl) — *String Functions*
+- [MKLongInt](Mklongint) — *String Functions*
+- [MKS](Mks) — *String Functions*
+- [MKShort](Mkshort) — *String Functions*
+- [Modf](Modern-Math-Modf) ✨ — *Math Library*
+- [Modularizing](Modularizing) — *Modularizing*
+- [MoneyCompose](Modern-String-MoneyCompose) ✨ — *String Library*
+- [MoneyFormat](Modern-String-MoneyFormat) ✨ — *String Library*
+- [MoneyLayoutFromICurrency](Modern-String-MoneyLayoutFromICurrency) ✨ — *String Library*
+- [MoneyLayoutFromINegCurr](Modern-String-MoneyLayoutFromINegCurr) ✨ — *String Library*
+- [MoneyLocaleIsValid](Modern-String-MoneyLocaleIsValid) ✨ — *String Library*
+- [MoneyLocaleName](Modern-String-MoneyLocaleName) ✨ — *String Library*
+- [MoneyRefreshLocale](Modern-String-MoneyRefreshLocale) ✨ — *String Library*
+- [MoneySetLocale](Modern-String-MoneySetLocale) ✨ — *String Library*
+- [Month](Month) — *Date and Time Functions*
+- [MonthName](Monthname) — *Date and Time Functions*
+- [Most Important Features](Most-Important-Features) — *Compiler*
+- [MoveFile](Modern-Fs-MoveFile) ✨ — *Filesystem*
+- [MoveNext](Modern-ForEach-MoveNext) ✨ — *For Each*
+- [mpg123](Mpg123) — *Tutorials*
+- [Mul](Modern-Math-Mul) ✨ — *Math Library*
+- [MulChecked](Modern-Math-MulChecked) ✨ — *Math Library*
+- [MulSaturating](Modern-Math-MulSaturating) ✨ — *Math Library*
+- [Multi-Threading](Multi-Threading) — *Tutorials*
+- [MultiKey](Multikey) — *User Input Functions (Graphics Library)*
+- [MulWrapping](Modern-Math-MulWrapping) ✨ — *Math Library*
+- [MutexCreate](Mutexcreate) — *Threading Support Functions*
+- [MutexDestroy](Mutexdestroy) — *Threading Support Functions*
+- [MutexLock](Mutexlock) — *Threading Support Functions*
+- [MutexUnlock](Mutexunlock) — *Threading Support Functions*
+- [Mutual Exclusion](Mutual-Exclusion) — *Tutorials*
+- [mxml, Mini-XML](Mxml-Mini-Xml) — *Tutorials*
+- [MySQL](Mysql) — *Tutorials*
+
+## N
+
+- [NaiveSum](Modern-Math-NaiveSum) ✨ — *Math Library*
+- [Naked](Naked) — *Procedures*
+- [Name](Name) — *Operating System Functions*
+- [Name](Modern-Log-Name) ✨ — *Logging*
+- [Namespace](Namespace) — *Modularizing*
+- [Namespaces](Namespaces) — *Tutorials*
+- [NaN](Modern-Math-NaN) ✨ — *Math Library*
+- [NaNF](Modern-Math-NaNF) ✨ — *Math Library*
+- [NativeAttributes](Modern-Fs-NativeAttributes) ✨ — *Filesystem*
+- [NegChecked](Modern-Math-NegChecked) ✨ — *Math Library*
+- [NegInfinity](Modern-Math-NegInfinity) ✨ — *Math Library*
+- [NegInfinityF](Modern-Math-NegInfinityF) ✨ — *Math Library*
+- [NegSaturating](Modern-Math-NegSaturating) ✨ — *Math Library*
+- [NegWrapping](Modern-Math-NegWrapping) ✨ — *Math Library*
+- [New and Delete](New-and-Delete) — *Tutorials*
+- [New to Programming?](New-to-Programming) — *Tutorials*
+- [Newton](Newton) — *Tutorials*
+- [Next](Next) — *Miscellaneous Keywords*
+- [NextBoolean](Modern-Math-NextBoolean) ✨ — *Math Library*
+- [NextBooleanP](Modern-Math-NextBooleanP) ✨ — *Math Library*
+- [NextDouble](Modern-Math-NextDouble) ✨ — *Math Library*
+- [NextDoubleRange](Modern-Math-NextDoubleRange) ✨ — *Math Library*
+- [NextExponential](Modern-Math-NextExponential) ✨ — *Math Library*
+- [NextInt](Modern-Math-NextInt) ✨ — *Math Library*
+- [NextNormal](Modern-Math-NextNormal) ✨ — *Math Library*
+- [NextNormalP](Modern-Math-NextNormalP) ✨ — *Math Library*
+- [NextPoisson](Modern-Math-NextPoisson) ✨ — *Math Library*
+- [NextPow2](Modern-Math-NextPow2) ✨ — *Math Library*
+- [NextSingle](Modern-Math-NextSingle) ✨ — *Math Library*
+- [NextULong](Modern-Math-NextULong) ✨ — *Math Library*
+- [NextULongInt](Modern-Math-NextULongInt) ✨ — *Math Library*
+- [None](Modern-Optional-None) ✨ — *Optional*
+- [Normal vs. Standalone FreeBASIC](Normal-vs-Standalone-Freebasic) — *Compiler Internals*
+- [Normalize](Modern-Math-Normalize) ✨ — *Math Library*
+- [Notes on making FB releases](Notes-on-Making-Fb-Releases) — *Compiler Internals*
+- [Now](Now) — *Date and Time Functions*
+- [Numeric Types](Numeric-Types) — *Tutorials*
+
+## O
+
+- [Object](Object) — *Standard Data Types*
+- [OBJECT built-in and RTTI info](Object-Built-in-and-Rtti-Info) — *Tutorials*
+- [objinfo](Objinfo) — *Compiler Internals*
+- [Obsolete Keywords](Obsolete-Keywords) — *Miscellaneous*
+- [Oct](Oct) — *String Functions*
+- [ODE, the Open Dynamics Engine](Ode-the-Open-Dynamics-Engine) — *Tutorials*
+- [OffsetOf](Offsetof) — *Miscellaneous Keywords*
+- [Ok](Modern-Result-Ok) ✨ — *Result*
+- [On Error](On-Error) — *Error Handling Functions*
+- [On...Gosub](On-Gosub) — *Control Flow Statements*
+- [On...Goto](On-Goto) — *Control Flow Statements*
+- [OOP In Non-OOP Languages](Oop-in-Non-Oop-Languages) — *Tutorials*
+- [Open](Open) — *File I/O Functions*
+- [Open Com](Open-Com) — *File I/O Functions*
+- [Open Cons](Open-Cons) — *File I/O Functions*
+- [Open Err](Open-Err) — *File I/O Functions*
+- [Open Lpt](Open-Lpt) — *File I/O Functions*
+- [Open Pipe](Open-Pipe) — *File I/O Functions*
+- [Open Scrn](Open-Scrn) — *File I/O Functions*
+- [OpenAL](Openal) — *Tutorials*
+- [OpenGL](Opengl) — *Reference*
+- [OpenGL, The Open Graphics Language](Opengl-the-Open-Graphics-Language) — *Tutorials*
+- [Operating System Functions](Operating-System-Functions) — *Operating System Functions*
+- [Operator](Operator) — *User Defined Types*
+- [Operator ! (Escaped String Literal)](Operator-Escaped-String-Literal) — *Operators*
+- [Operator # (Preprocessor Stringize)](Operator-Preprocessor-Stringize) — *Operators*
+- [Operator ## (Preprocessor Concatenate)](Operator-Preprocessor-Concatenate) — *Operators*
+- [Operator $ (Non-Escaped String Literal)](Operator-Non-Escaped-String-Literal) — *Operators*
+- [Operator & (String Concatenation With Conversion)](Operator-String-Concatenation-with-Conversion) — *Operators*
+- [Operator &= (Concatenate And Assign)](Operator-Concatenate-and-Assign) — *Operators*
+- [Operator () (Array Index)](Operator-Array-Index) — *Operators*
+- [Operator * (Multiply)](Operator-Multiply) — *Operators*
+- [Operator * (Value Of)](Operator-Value-of) — *Operators*
+- [Operator *= (Multiply And Assign)](Operator-Multiply-and-Assign) — *Operators*
+- [Operator + (Addition)](Operator-Addition) — *Operators*
+- [Operator + (String Concatenation)](Operator-String-Concatenation) — *Operators*
+- [Operator += (Add And Assign)](Operator-Add-and-Assign) — *Operators*
+- [Operator - (Negate)](Operator-Negate) — *Operators*
+- [Operator - (Subtract)](Operator-Subtract) — *Operators*
+- [Operator -= (Subtract And Assign)](Operator-Subtract-and-Assign) — *Operators*
+- [Operator -> (Pointer To Member Access)](Operator-Pointer-to-Member-Access) — *Operators*
+- [Operator . (Member Access)](Operator-Member-Access) — *Operators*
+- [Operator / (Divide)](Operator-Divide) — *Operators*
+- [Operator /= (Divide And Assign)](Operator-Divide-and-Assign) — *Operators*
+- [Operator < (Less Than)](Operator-Less-Than) — *Operators*
+- [Operator <= (Less Than Or Equal)](Operator-Less-Than-or-Equal) — *Operators*
+- [Operator <> (Not Equal)](Operator-Not-Equal) — *Operators*
+- [Operator = (Equal)](Operator-Equal) — *Operators*
+- [Operator =[>] (Assign)](Operator-Assign) — *Operators*
+- [Operator > (Greater Than)](Operator-Greater-Than) — *Operators*
+- [Operator >= (Greater Than Or Equal)](Operator-Greater-Than-or-Equal) — *Operators*
+- [Operator @ (Address Of)](Operator-Address-of) — *Operators*
+- [Operator [] (Pointer Index)](Operator-Pointer-Index) — *Operators*
+- [Operator [] (String Index)](Operator-String-Index) — *Operators*
+- [Operator \ (Integer Divide)](Operator-Integer-Divide) — *Operators*
+- [Operator \= (Integer Divide And Assign)](Operator-Integer-Divide-and-Assign) — *Operators*
+- [Operator ^ (Exponentiate)](Operator-Exponentiate) — *Operators*
+- [Operator ^= (Exponentiate And Assign)](Operator-Exponentiate-and-Assign) — *Operators*
+- [Operator And (Conjunction)](Operator-and-Conjunction) — *Operators*
+- [Operator And= (Conjunction And Assign)](Operator-and-Conjunction-and-Assign) — *Operators*
+- [Operator Andalso (Short Circuit Conjunction)](Operator-Andalso-Short-Circuit-Conjunction) — *Operators*
+- [Operator Cast](Operator-Cast) — *Operators*
+- [Operator Delete Overload](Operator-Delete-Overload) — *Operators*
+- [Operator Delete Statement](Operator-Delete-Statement) — *Operators*
+- [Operator Eqv (Equivalence)](Operator-Eqv-Equivalence) — *Operators*
+- [Operator Eqv= (Equivalence And Assign)](Operator-Eqv-Equivalence-and-Assign) — *Operators*
+- [Operator For (Iteration)](Operator-for-Iteration) — *Operators*
+- [Operator Imp (Implication)](Operator-Imp-Implication) — *Operators*
+- [Operator Imp= (Implication And Assign)](Operator-Imp-Implication-and-Assign) — *Operators*
+- [Operator Is (Run-Time Type Information)](Operator-Is-Run-Time-Type-Information) — *Operators*
+- [Operator Let (Assign)](Operator-Let-Assign) — *Operators*
+- [Operator Let() (Assignment)](Operator-Let-Assignment) — *Operators*
+- [Operator List](Operator-List) — *Operators*
+- [Operator Mod (Modulus)](Operator-Mod-Modulus) — *Operators*
+- [Operator Mod= (Modulus And Assign)](Operator-Mod-Modulus-and-Assign) — *Operators*
+- [Operator New Expression](Operator-New-Expression) — *Operators*
+- [Operator New Overload](Operator-New-Overload) — *Operators*
+- [Operator Next (Iteration)](Operator-Next-Iteration) — *Operators*
+- [Operator Not (Complement)](Operator-Not-Complement) — *Operators*
+- [Operator Or (Inclusive Disjunction)](Operator-or-Inclusive-Disjunction) — *Operators*
+- [Operator Or= (Inclusive Disjunction And Assign)](Operator-or-Inclusive-Disjunction-and-Assign) — *Operators*
+- [Operator Orelse (Short Circuit Inclusive Disjunction)](Operator-Orelse-Short-Circuit-Inclusive-Disjunction) — *Operators*
+- [Operator Overloading](Operator-Overloading) — *Tutorials*
+- [Operator Placement New](Operator-Placement-New) — *Operators*
+- [Operator Precedence](Operator-Precedence) — *Language Documentation*
+- [Operator Procptr (Procedure Pointer And Vtable Index)](Operator-Procptr-Procedure-Pointer-and-Vtable-Index) — *Operators*
+- [Operator Shl (Shift Left)](Operator-Shl-Shift-Left) — *Operators*
+- [Operator Shl= (Shift Left And Assign)](Operator-Shl-Shift-Left-and-Assign) — *Operators*
+- [Operator Shr (Shift Right)](Operator-Shr-Shift-Right) — *Operators*
+- [Operator Shr= (Shift Right And Assign)](Operator-Shr-Shift-Right-and-Assign) — *Operators*
+- [Operator Step (Iteration)](Operator-Step-Iteration) — *Operators*
+- [Operator Strptr (String Pointer)](Operator-Strptr-String-Pointer) — *Operators*
+- [Operator Varptr (Variable Pointer)](Operator-Varptr-Variable-Pointer) — *Operators*
+- [Operator Xor (Exclusive Disjunction)](Operator-Xor-Exclusive-Disjunction) — *Operators*
+- [Operator Xor= (Exclusive Disjunction And Assign)](Operator-Xor-Exclusive-Disjunction-and-Assign) — *Operators*
+- [Operators](Operators) — *Operators*
+- [Option Base](Option-Base) — *Compiler Switches*
+- [Option ByVal](Option-Byval) — *Compiler Switches*
+- [Option Dynamic](Option-Dynamic) — *Array Functions*
+- [Option Escape](Option-Escape) — *Compiler Switches*
+- [Option Explicit](Option-Explicit) — *Compiler Switches*
+- [Option Gosub](Option-Gosub) — *Compiler Switches*
+- [Option Nogosub](Option-Nogosub) — *Compiler Switches*
+- [Option NoKeyword](Option-Nokeyword) — *Compiler Switches*
+- [Option Private](Option-Private) — *Compiler Switches*
+- [Option Static](Option-Static) — *Array Functions*
+- [Option()](Option) — *Miscellaneous Keywords*
+- [Optional](Category-Optional) ✨ — *Optional*
+- [Optional](Modern-Result-Optional) ✨ — *Result*
+- [Or (Graphics Put)](Or-Graphics-Put) — *2D Drawing Functions*
+- [OrderedMap](Modern-OrderedMap-OrderedMap) ✨ — *OrderedMap*
+- [OrderedMap and OrderedSet](Category-OrderedMap) ✨ — *OrderedMap*
+- [OrderedMap.Add](Modern-OrderedMap-Add) ✨ — *OrderedMap*
+- [OrderedMap.BlackHeight](Modern-OrderedMap-BlackHeight) ✨ — *OrderedMap*
+- [OrderedMap.Clear](Modern-OrderedMap-Clear) ✨ — *OrderedMap*
+- [OrderedMap.Contains](Modern-OrderedMap-Contains) ✨ — *OrderedMap*
+- [OrderedMap.Count](Modern-OrderedMap-Count) ✨ — *OrderedMap*
+- [OrderedMap.GetIterator](Modern-OrderedMap-GetIterator) ✨ — *OrderedMap*
+- [OrderedMap.IsEmpty](Modern-OrderedMap-IsEmpty) ✨ — *OrderedMap*
+- [OrderedMap.Keys](Modern-OrderedMap-Keys) ✨ — *OrderedMap*
+- [OrderedMap.Pairs](Modern-OrderedMap-Pairs) ✨ — *OrderedMap*
+- [OrderedMap.Put](Modern-OrderedMap-Put) ✨ — *OrderedMap*
+- [OrderedMap.Remove](Modern-OrderedMap-Remove) ✨ — *OrderedMap*
+- [OrderedMap.TryCeiling](Modern-OrderedMap-TryCeiling) ✨ — *OrderedMap*
+- [OrderedMap.TryFirst](Modern-OrderedMap-TryFirst) ✨ — *OrderedMap*
+- [OrderedMap.TryFloor](Modern-OrderedMap-TryFloor) ✨ — *OrderedMap*
+- [OrderedMap.TryGet](Modern-OrderedMap-TryGet) ✨ — *OrderedMap*
+- [OrderedMap.TryLast](Modern-OrderedMap-TryLast) ✨ — *OrderedMap*
+- [OrderedMap.Values](Modern-OrderedMap-Values) ✨ — *OrderedMap*
+- [OrderedMapIterator](Modern-OrderedMap-OrderedMapIterator) ✨ — *OrderedMap*
+- [OrderedMapPairIter](Modern-OrderedMap-OrderedMapPairIter) ✨ — *OrderedMap*
+- [OrderedMapPairView](Modern-OrderedMap-OrderedMapPairView) ✨ — *OrderedMap*
+- [OrderedSet](Modern-OrderedSet-OrderedSet) ✨ — *OrderedSet*
+- [OrderedSet.Add](Modern-OrderedSet-Add) ✨ — *OrderedSet*
+- [OrderedSet.BlackHeight](Modern-OrderedSet-BlackHeight) ✨ — *OrderedSet*
+- [OrderedSet.Clear](Modern-OrderedSet-Clear) ✨ — *OrderedSet*
+- [OrderedSet.Contains](Modern-OrderedSet-Contains) ✨ — *OrderedSet*
+- [OrderedSet.Count](Modern-OrderedSet-Count) ✨ — *OrderedSet*
+- [OrderedSet.ExceptWith](Modern-OrderedSet-ExceptWith) ✨ — *OrderedSet*
+- [OrderedSet.GetIterator](Modern-OrderedSet-GetIterator) ✨ — *OrderedSet*
+- [OrderedSet.IntersectWith](Modern-OrderedSet-IntersectWith) ✨ — *OrderedSet*
+- [OrderedSet.IsEmpty](Modern-OrderedSet-IsEmpty) ✨ — *OrderedSet*
+- [OrderedSet.Items](Modern-OrderedSet-Items) ✨ — *OrderedSet*
+- [OrderedSet.Remove](Modern-OrderedSet-Remove) ✨ — *OrderedSet*
+- [OrderedSet.TryCeiling](Modern-OrderedSet-TryCeiling) ✨ — *OrderedSet*
+- [OrderedSet.TryFirst](Modern-OrderedSet-TryFirst) ✨ — *OrderedSet*
+- [OrderedSet.TryFloor](Modern-OrderedSet-TryFloor) ✨ — *OrderedSet*
+- [OrderedSet.TryLast](Modern-OrderedSet-TryLast) ✨ — *OrderedSet*
+- [OrderedSet.UnionWith](Modern-OrderedSet-UnionWith) ✨ — *OrderedSet*
+- [OrderedSetIterator](Modern-OrderedSet-OrderedSetIterator) ✨ — *OrderedSet*
+- [Out](Out) — *Miscellaneous Keywords*
+- [Output](Output) — *File I/O Functions*
+- [Overload](Overload) — *Procedures*
+- [Override](Override) — *User Defined Types*
+- [Overwrite](Modern-Fs-Overwrite) ✨ — *Filesystem*
+
+## P
+
+- [#pragma](Pragma) — *Preprocessor*
+- [#Pragma Reserve](Pragma-Reserve) — *Preprocessor*
+- [#print](freebasic-Print) — *Preprocessor*
+- [(Print | ?) #](procedures-Print) — *File I/O Functions*
+- [(Print | ?) Using](Print-Using) — *Console Functions*
+- [PadCenter](Modern-String-PadCenter) ✨ — *String Library*
+- [PadLeft](Modern-String-PadLeft) ✨ — *String Library*
+- [PadRight](Modern-String-PadRight) ✨ — *String Library*
+- [Paint](Paint) — *2D Drawing Functions*
+- [Pairs](Modern-Map-Pairs) ✨ — *Map*
+- [Palette](Palette) — *2D Drawing Functions*
+- [Parity](Modern-Math-Parity) ✨ — *Math Library*
+- [pascal](Pascal) — *Procedures*
+- [Passing Arguments to Procedures](Passing-Arguments-to-Procedures) — *Tutorials*
+- [Passing Arrays to Procedures](Passing-Arrays-to-Procedures) — *Tutorials*
+- [PathChangeExtension](Modern-Fs-PathChangeExtension) ✨ — *Filesystem*
+- [PathEquals](Modern-Fs-PathEquals) ✨ — *Filesystem*
+- [PathExtension](Modern-Fs-PathExtension) ✨ — *Filesystem*
+- [PathFileName](Modern-Fs-PathFileName) ✨ — *Filesystem*
+- [PathHasExtension](Modern-Fs-PathHasExtension) ✨ — *Filesystem*
+- [PathIsAbsolute](Modern-Fs-PathIsAbsolute) ✨ — *Filesystem*
+- [PathIsCaseSensitive](Modern-Fs-PathIsCaseSensitive) ✨ — *Filesystem*
+- [PathIsRoot](Modern-Fs-PathIsRoot) ✨ — *Filesystem*
+- [PathJoin](Modern-Fs-PathJoin) ✨ — *Filesystem*
+- [PathNextComponent](Modern-Fs-PathNextComponent) ✨ — *Filesystem*
+- [PathNormalize](Modern-Fs-PathNormalize) ✨ — *Filesystem*
+- [PathParent](Modern-Fs-PathParent) ✨ — *Filesystem*
+- [PathRelativeTo](Modern-Fs-PathRelativeTo) ✨ — *Filesystem*
+- [PathRoot](Modern-Fs-PathRoot) ✨ — *Filesystem*
+- [PathRootLen](Modern-Fs-PathRootLen) ✨ — *Filesystem*
+- [PathSeparator](Modern-Fs-PathSeparator) ✨ — *Filesystem*
+- [PathSplit](Modern-Fs-PathSplit) ✨ — *Filesystem*
+- [PathStartsWith](Modern-Fs-PathStartsWith) ✨ — *Filesystem*
+- [PathStem](Modern-Fs-PathStem) ✨ — *Filesystem*
+- [PathToNative](Modern-Fs-PathToNative) ✨ — *Filesystem*
+- [PatternIsRecursive](Modern-Fs-PatternIsRecursive) ✨ — *Filesystem*
+- [PatternWildcardAt](Modern-Fs-PatternWildcardAt) ✨ — *Filesystem*
+- [PCopy](Pcopy) — *Screen Functions*
+- [PCRE, Perl Compatible Regular Expressions](Pcre-Perl-Compatible-Regular-Expressions) — *Tutorials*
+- [PDFlib](Pdflib) — *Tutorials*
+- [Peek](Peek) — *Memory Functions*
+- [Percentile](Modern-Math-Percentile) ✨ — *Math Library*
+- [PMap](Pmap) — *Screen Functions*
+- [Point](Point) — *2D Drawing Functions*
+- [PointCoord](Pointcoord) — *Screen Functions*
+- [Pointer Arithmetic](Pointer-Arithmetic) — *Tutorials*
+- [Pointer Operators](Pointer-Operators) — *Operators*
+- [Pointer | Ptr](Pointer-Ptr) — *Standard Data Types*
+- [Pointers](Pointers) — *Tutorials*
+- [Pointers to Procedures](Pointers-to-Procedures) — *Tutorials*
+- [Pointers, Data Types and Memory](Pointers-Data-Types-and-Memory) — *Tutorials*
+- [Poke](Poke) — *Memory Functions*
+- [Pop](Modern-Array-Pop) ✨ — *Array*
+- [PopBack](Modern-LinkedList-PopBack) ✨ — *LinkedList*
+- [PopCount](Modern-Math-PopCount) ✨ — *Math Library*
+- [PopFront](Modern-LinkedList-PopFront) ✨ — *LinkedList*
+- [PortAudio](Portaudio) — *Tutorials*
+- [Pos](Pos) — *Console Functions*
+- [PostgreSQL](Postgresql) — *Tutorials*
+- [Preprocessor](Preprocessor) — *Preprocessor*
+- [Preprocessor](programmer-s-guide-Preprocessor) — *Tutorials*
+- [Preprocessor Operators](Preprocessor-Operators) — *Operators*
+- [Preserve](Preserve) — *Array Functions*
+- [PreservePermissions](Modern-Fs-PreservePermissions) ✨ — *Filesystem*
+- [PreserveTimestamps](Modern-Fs-PreserveTimestamps) ✨ — *Filesystem*
+- [PReset](Preset) — *2D Drawing Functions*
+- [Print | ?](Print) — *Console Functions*
+- [Private](Private) — *Modularizing*
+- [Private: (Access Control)](Private-Access-Control) — *User Defined Types*
+- [Procedure Scopes](Procedure-Scopes) — *Tutorials*
+- [Procedures](Procedures) — *Procedures*
+- [Procedures Overview](Procedures-Overview) — *Tutorials*
+- [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof) — *Tutorials*
+- [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler) — *Tutorials*
+- [Programmer's Guide](Programmer-S-Guide) — *Programmer's Guide*
+- [Properties](Properties) — *Tutorials*
+- [Property](Property) — *User Defined Types*
+- [Protected: (Access Control)](Protected-Access-Control) — *User Defined Types*
+- [Pset (Graphics Put)](Pset-Graphics-Put) — *2D Drawing Functions*
+- [Pset (Statement)](Pset-Statement) — *2D Drawing Functions*
+- [Public](Public) — *Modularizing*
+- [Public: (Access Control)](Public-Access-Control) — *User Defined Types*
+- [Purpose](Purpose) — *Compiler Internals*
+- [Push](Modern-Array-Push) ✨ — *Array*
+- [PushBack](Modern-LinkedList-PushBack) ✨ — *LinkedList*
+- [PushFront](Modern-LinkedList-PushFront) ✨ — *LinkedList*
+- [Put](Modern-Map-Put) ✨ — *Map*
+- [Put (File I/O)](Put-File-I-O) — *File I/O Functions*
+- [Put (Graphics)](Put-Graphics) — *2D Drawing Functions*
+
+## Q
+
+- [Quick overview of all modules](Quick-Overview-of-All-Modules) — *Compiler Internals*
+- [Quick overview of the call graph](Quick-Overview-of-the-Call-Graph) — *Compiler Internals*
+- [QuickLZ](Quicklz) — *Tutorials*
+
+## R
+
+- [Radian system of measuring angles](Radian-System-of-Measuring-Angles) — *Tutorials*
+- [RadToDeg](Modern-Math-RadToDeg) ✨ — *Math Library*
+- [RaiseFpException](Modern-Math-RaiseFpException) ✨ — *Math Library*
+- [Random](Random) — *File I/O Functions*
+- [Randomize](Randomize) — *Mathematical Functions*
+- [Range](Modern-Math-Range) ✨ — *Math Library*
+- [Raw](Modern-Finance-Raw) ✨ — *Finance*
+- [rdc](Rdc) — *Reference*
+- [Read](Read) — *Miscellaneous Keywords*
+- [Read (File Access)](Read-File-Access) — *File I/O Functions*
+- [Read Write (File Access)](Read-Write-File-Access) — *File I/O Functions*
+- [ReadAllBytes](Modern-Fs-ReadAllBytes) ✨ — *Filesystem*
+- [ReadAllLines](Modern-Fs-ReadAllLines) ✨ — *Filesystem*
+- [ReadAllText](Modern-Fs-ReadAllText) ✨ — *Filesystem*
+- [ReadDir](Modern-Fs-ReadDir) ✨ — *Filesystem*
+- [ReadLink](Modern-Fs-ReadLink) ✨ — *Filesystem*
+- [Reallocate](Reallocate) — *Memory Functions*
+- [Recursion](Recursion) — *Tutorials*
+- [ReDim](Redim) — *Array Functions*
+- [Ref](Modern-SharedPtr-Ref) ✨ — *Smart Pointers*
+- [Reflect](Modern-Math-Reflect) ✨ — *Math Library*
+- [Relational Operators](Relational-Operators) — *Operators*
+- [Rem](Rem) — *Miscellaneous Keywords*
+- [Remain](Modern-String-Remain) ✨ — *String Library*
+- [RemainChars](Modern-String-RemainChars) ✨ — *String Library*
+- [Remove](Modern-String-Remove) ✨ — *String Library*
+- [Remove](Modern-Array-Remove) ✨ — *Array*
+- [Remove](Modern-Map-Remove) ✨ — *Map*
+- [Remove](Modern-Set-Remove) ✨ — *Set*
+- [RemoveBetween](Modern-String-RemoveBetween) ✨ — *String Library*
+- [RemoveChars](Modern-String-RemoveChars) ✨ — *String Library*
+- [RemoveDir](Modern-Fs-RemoveDir) ✨ — *Filesystem*
+- [RemoveDirAll](Modern-Fs-RemoveDirAll) ✨ — *Filesystem*
+- [RemoveFile](Modern-Fs-RemoveFile) ✨ — *Filesystem*
+- [RemoveSink](Modern-Log-RemoveSink) ✨ — *Logging*
+- [RemoveSwap](Modern-Array-RemoveSwap) ✨ — *Array*
+- [Repeat](Modern-String-Repeat) ✨ — *String Library*
+- [Replace](Modern-String-Replace) ✨ — *String Library*
+- [Replace Recursion with Iteration](Replace-Recursion-with-Iteration) — *Tutorials*
+- [ReplaceChars](Modern-String-ReplaceChars) ✨ — *String Library*
+- [ReplaceFile](Modern-Fs-ReplaceFile) ✨ — *Filesystem*
+- [Representation of data types](Representation-of-Data-Types) — *Compiler Internals*
+- [Requirements](Requirements) — *Using the FreeBASIC compiler*
+- [Reserve](Modern-Array-Reserve) ✨ — *Array*
+- [Reserve](Modern-Map-Reserve) ✨ — *Map*
+- [Reserve](Modern-Set-Reserve) ✨ — *Set*
+- [Reset](Reset) — *File I/O Functions*
+- [Reset](Modern-SharedPtr-Reset) ✨ — *Smart Pointers*
+- [Reset](Modern-Math-Reset) ✨ — *Math Library*
+- [Restore](Restore) — *Miscellaneous Keywords*
+- [Result](Category-Result) ✨ — *Result*
+- [Result](Modern-Result-Result) ✨ — *Result*
+- [Resume](Resume) — *Error Handling Functions*
+- [Resume Next](Resume-Next) — *Error Handling Functions*
+- [RetainChars](Modern-String-RetainChars) ✨ — *String Library*
+- [Return (From Gosub)](Return-From-Gosub) — *Control Flow Statements*
+- [Return (From Procedure)](Return-From-Procedure) — *Control Flow Statements*
+- [Returning Values](Returning-Values) — *Tutorials*
+- [Reverse](Modern-String-Reverse) ✨ — *String Library*
+- [RGB](Rgb) — *2D Drawing Functions*
+- [RGBA](Rgba) — *2D Drawing Functions*
+- [Right](Right) — *String Functions*
+- [RmDir](Rmdir) — *Operating System Functions*
+- [Rnd](Rnd) — *Mathematical Functions*
+- [RngFromEntropy](Modern-Math-RngFromEntropy) ✨ — *Math Library*
+- [RngSeeded](Modern-Math-RngSeeded) ✨ — *Math Library*
+- [Rotate](Modern-Math-Rotate) ✨ — *Math Library*
+- [Round](Modern-Math-Round) ✨ — *Math Library*
+- [RoundHalfEven](Modern-Math-RoundHalfEven) ✨ — *Math Library*
+- [RoundMode](Modern-Finance-RoundMode) ✨ — *Finance*
+- [RSet](Rset) — *String Functions*
+- [RTrim](Rtrim) — *String Functions*
+- [Run](Run) — *Operating System Functions*
+- [Running](Running) — *Using the FreeBASIC compiler*
+- [Runtime Error Codes](Runtime-Error-Codes) — *Miscellaneous*
+
+## S
+
+- [$Static](Static) — *Array Functions*
+- [SAdd](Sadd) — *Memory Functions*
+- [ScaleB](Modern-Math-ScaleB) ✨ — *Math Library*
+- [Scope...End Scope](Scope-End-Scope) — *Variable Declarations*
+- [Screen (Console)](Screen-Console) — *Console Functions*
+- [Screen (Graphics)](Screen-Graphics) — *Screen Functions*
+- [Screen Functions](Screen-Functions) — *Screen Functions*
+- [ScreenControl](Screencontrol) — *Screen Functions*
+- [ScreenCopy](Screencopy) — *Screen Functions*
+- [ScreenEvent](Screenevent) — *Screen Functions*
+- [ScreenGLProc](Screenglproc) — *Screen Functions*
+- [ScreenInfo](Screeninfo) — *Screen Functions*
+- [ScreenList](Screenlist) — *Screen Functions*
+- [ScreenLock](Screenlock) — *Screen Functions*
+- [ScreenPtr](Screenptr) — *Screen Functions*
+- [ScreenRes](Screenres) — *Screen Functions*
+- [ScreenSet](Screenset) — *Screen Functions*
+- [ScreenSync](Screensync) — *Screen Functions*
+- [ScreenUnlock](Screenunlock) — *Screen Functions*
+- [SDL, the Simple DirectMedia Layer](Sdl-the-Simple-Directmedia-Layer) — *Tutorials*
+- [SDL_Net: Getting Started](Sdl-Net-Getting-Started) — *Tutorials*
+- [Second](Second) — *Date and Time Functions*
+- [Seek (Function)](Seek-Function) — *File I/O Functions*
+- [Seek (Statement)](Seek-Statement) — *File I/O Functions*
+- [Select Case](Select-Case) — *Compiler Internals*
+- [Select Case](procedures-Select-Case) — *Control Flow Statements*
+- [SephKnows](Sephknows) — *Reference*
+- [Set](Category-Set) ✨ — *Set*
+- [Set](Modern-Set-Set) ✨ — *Set*
+- [SetDate](Setdate) — *Date and Time Functions*
+- [SetEnviron](Setenviron) — *Operating System Functions*
+- [SetHidden](Modern-Fs-SetHidden) ✨ — *Filesystem*
+- [SetIterator](Modern-Set-SetIterator) ✨ — *Set*
+- [SetMouse](Setmouse) — *User Input Functions (Graphics Library)*
+- [SetPosixMode](Modern-Fs-SetPosixMode) ✨ — *Filesystem*
+- [SetReadOnly](Modern-Fs-SetReadOnly) ✨ — *Filesystem*
+- [SetRoundingMode](Modern-Math-SetRoundingMode) ✨ — *Math Library*
+- [SetTime](Settime) — *Date and Time Functions*
+- [SetTimes](Modern-Fs-SetTimes) ✨ — *Filesystem*
+- [SetWin32Attributes](Modern-Fs-SetWin32Attributes) ✨ — *Filesystem*
+- [sfx](Sfx) — *Tutorials*
+- [Sgn](Sgn) — *Mathematical Functions*
+- [Shared](Shared) — *Variable Declarations*
+- [Shared Libraries](Shared-Libraries) — *Tutorials*
+- [Shared Libraries - DOS](Shared-Libraries-Dos) — *Programmer's Guide*
+- [SharedPtr](Modern-SharedPtr-SharedPtr) ✨ — *Smart Pointers*
+- [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨ — *Smart Pointers*
+- [Shell](Shell) — *Operating System Functions*
+- [Short](Short) — *Standard Data Types*
+- [Short Circuit Operators](Short-Circuit-Operators) — *Operators*
+- [Shrink](Modern-String-Shrink) ✨ — *String Library*
+- [Shrink](Modern-Array-Shrink) ✨ — *Array*
+- [Shuffle](Modern-Math-Shuffle) ✨ — *Math Library*
+- [Sign](Modern-Math-Sign) ✨ — *Math Library*
+- [Simple Variable Lifetime vs Scope](Simple-Variable-Lifetime-vs-Scope) — *Tutorials*
+- [Simulating Polymorphism](Simulating-Polymorphism) — *Tutorials*
+- [Sin](Sin) — *Mathematical Functions*
+- [Single](Single) — *Standard Data Types*
+- [SinkCount](Modern-Log-SinkCount) ✨ — *Logging*
+- [SizeOf](Sizeof) — *Miscellaneous Keywords*
+- [SJ Zero](Sj-Zero) — *Reference*
+- [Sleep](Sleep) — *Miscellaneous Keywords*
+- [Slerp](Modern-Math-Slerp) ✨ — *Math Library*
+- [So Biff wants to have a high score table in his game](So-Biff-Wants-to-Have-a-High-Score-Table-in-His-Game) — *Tutorials*
+- [Some](Modern-Optional-Some) ✨ — *Optional*
+- [Sort](Modern-Array-Sort) ✨ — *Array*
+- [Sort](Modern-Sorting-Sort) ✨ — *Sorting*
+- [SortBy](Modern-Array-SortBy) ✨ — *Array*
+- [SortBy](Modern-Sorting-SortBy) ✨ — *Sorting*
+- [Sorting](Category-Sorting) ✨ — *Sorting*
+- [SortList](Modern-LinkedList-SortList) ✨ — *LinkedList*
+- [SortList](Modern-Sorting-SortList) ✨ — *Sorting*
+- [SortListBy](Modern-LinkedList-SortListBy) ✨ — *LinkedList*
+- [SortListBy](Modern-Sorting-SortListBy) ✨ — *Sorting*
+- [Source Files (.bas)](Source-Files-Bas) — *Tutorials*
+- [Space](Space) — *String Functions*
+- [SpanOf](Modern-String-SpanOf) ✨ — *String Library*
+- [spawn](Modern-Chan-Spawn) ✨ — *Goroutines and Channels*
+- [Spc](Spc) — *Console Functions*
+- [SpCast](Modern-SharedPtr-SpCast) ✨ — *Smart Pointers*
+- [SpiderMonkey](Spidermonkey) — *Tutorials*
+- [Split](Modern-String-Split) ✨ — *String Library*
+- [SplitChars](Modern-String-SplitChars) ✨ — *String Library*
+- [SplitCsv](Modern-String-SplitCsv) ✨ — *String Library*
+- [SplitCsvRow](Modern-String-SplitCsvRow) ✨ — *String Library*
+- [SQLite](Sqlite) — *Tutorials*
+- [Sqr](Sqr) — *Mathematical Functions*
+- [StableSort](Modern-Array-StableSort) ✨ — *Array*
+- [StableSort](Modern-Sorting-StableSort) ✨ — *Sorting*
+- [StableSortBy](Modern-Array-StableSortBy) ✨ — *Array*
+- [StableSortBy](Modern-Sorting-StableSortBy) ✨ — *Sorting*
+- [Standard Data Type Limits](Standard-Data-Type-Limits) — *Language Documentation*
+- [Standard Data Types](Standard-Data-Types) — *Standard Data Types*
+- [StartsWith](Modern-String-StartsWith) ✨ — *String Library*
+- [Stat](Modern-Fs-Stat) ✨ — *Filesystem*
+- [Static](procedures-Static) — *Variable Declarations*
+- [Static (Member)](Static-Member) — *User Defined Types*
+- [Static Libraries](Static-Libraries) — *Tutorials*
+- [stdcall](Stdcall) — *Procedures*
+- [StdDev](Modern-Math-StdDev) ✨ — *Math Library*
+- [StdDevPopulation](Modern-Math-StdDevPopulation) ✨ — *Math Library*
+- [Step](Step) — *Miscellaneous Keywords*
+- [Stick](Stick) — *User Input Functions (Graphics Library)*
+- [Stop](Stop) — *Miscellaneous Keywords*
+- [Stopwatch.Elapsed](Modern-Chrono-Stopwatch-Elapsed) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.ElapsedMilliseconds](Modern-Chrono-Stopwatch-ElapsedMilliseconds) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.ElapsedTicks](Modern-Chrono-Stopwatch-ElapsedTicks) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.Frequency](Modern-Chrono-Stopwatch-Frequency) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.GetTimestamp](Modern-Chrono-Stopwatch-GetTimestamp) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.IsHighResolution](Modern-Chrono-Stopwatch-IsHighResolution) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.IsRunning](Modern-Chrono-Stopwatch-IsRunning) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.Reset](Modern-Chrono-Stopwatch-Reset) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.Restart](Modern-Chrono-Stopwatch-Restart) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.Start](Modern-Chrono-Stopwatch-Start) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.StartNew](Modern-Chrono-Stopwatch-StartNew) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.Stop_](Modern-Chrono-Stopwatch-Stop) ✨ — *Date and Time (Chrono)*
+- [Stopwatch.Stopwatch](Modern-Chrono-Stopwatch-Stopwatch) ✨ — *Date and Time (Chrono)*
+- [Storage Classes](Storage-Classes) — *Tutorials*
+- [Str](Str) — *Converting Data Types*
+- [Strig](Strig) — *User Input Functions (Graphics Library)*
+- [String](String) — *Operators*
+- [String (Function)](String-Function) — *String Functions*
+- [String Functions](String-Functions) — *String Functions*
+- [String Library](Category-String-Library) ✨ — *String Library*
+- [String Operators](String-Operators) — *Operators*
+- [Strings (string, zstring, and wstring)](Strings-String-Zstring-and-Wstring) — *Tutorials*
+- [Structure packing/field alignment](Structure-Packing-Field-Alignment) — *Compiler Internals*
+- [Sub](Sub) — *Procedures*
+- [Sub (Member)](Sub-Member) — *User Defined Types*
+- [Sub Pointer](Sub-Pointer) — *Standard Data Types*
+- [SubChecked](Modern-Math-SubChecked) ✨ — *Math Library*
+- [SubSaturating](Modern-Math-SubSaturating) ✨ — *Math Library*
+- [SubWrapping](Modern-Math-SubWrapping) ✨ — *Math Library*
+- [Sum](Modern-Math-Sum) ✨ — *Math Library*
+- [Swap](Swap) — *Memory Functions*
+- [Symbols](Symbols) — *Compiler Internals*
+- [System](System) — *Operating System Functions*
+
+## T
+
+- [Tab](Tab) — *Console Functions*
+- [Table of ASCII Characters](Table-of-Ascii-Characters) — *Tutorials*
+- [Tally](Modern-String-Tally) ✨ — *String Library*
+- [TallyChars](Modern-String-TallyChars) ✨ — *String Library*
+- [Tan](Tan) — *Mathematical Functions*
+- [TekRat](Tekrat) — *Reference*
+- [TempDir](Modern-Fs-TempDir) ✨ — *Filesystem*
+- [TestFpException](Modern-Math-TestFpException) ✨ — *Math Library*
+- [The IF Statement](The-If-Statement) — *Tutorials*
+- [The Pointer Data Type](The-Pointer-Data-Type) — *Tutorials*
+- [The Select Case Statement](The-Select-Case-Statement) — *Tutorials*
+- [Then](Then) — *Miscellaneous Keywords*
+- [This](This) — *User Defined Types*
+- [ThreadCall](Threadcall) — *Threading Support Functions*
+- [ThreadCreate](Threadcreate) — *Threading Support Functions*
+- [ThreadDetach](Threaddetach) — *Threading Support Functions*
+- [Threading Support Functions](Threading-Support-Functions) — *Threading Support Functions*
+- [Threads](Threads) — *Tutorials*
+- [ThreadSelf](Threadself) — *Threading Support Functions*
+- [ThreadWait](Threadwait) — *Threading Support Functions*
+- [Time](Time) — *Date and Time Functions*
+- [Timer](Timer) — *Date and Time Functions*
+- [TimeSerial](Timeserial) — *Date and Time Functions*
+- [TimeSpan.Add](Modern-Chrono-TimeSpan-Add) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.CompareTo](Modern-Chrono-TimeSpan-CompareTo) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Days](Modern-Chrono-TimeSpan-Days) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Divide](Modern-Chrono-TimeSpan-Divide) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.DivideBy](Modern-Chrono-TimeSpan-DivideBy) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Duration](Modern-Chrono-TimeSpan-Duration) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromDays](Modern-Chrono-TimeSpan-FromDays) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromHours](Modern-Chrono-TimeSpan-FromHours) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromMicroseconds](Modern-Chrono-TimeSpan-FromMicroseconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromMilliseconds](Modern-Chrono-TimeSpan-FromMilliseconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromMinutes](Modern-Chrono-TimeSpan-FromMinutes) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromSeconds](Modern-Chrono-TimeSpan-FromSeconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.FromTicks](Modern-Chrono-TimeSpan-FromTicks) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Hours](Modern-Chrono-TimeSpan-Hours) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Invalid](Modern-Chrono-TimeSpan-Invalid) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.IsNegative](Modern-Chrono-TimeSpan-IsNegative) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.IsValid](Modern-Chrono-TimeSpan-IsValid) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.IsZero](Modern-Chrono-TimeSpan-IsZero) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.MaxValue](Modern-Chrono-TimeSpan-MaxValue) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Microseconds](Modern-Chrono-TimeSpan-Microseconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Milliseconds](Modern-Chrono-TimeSpan-Milliseconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Minutes](Modern-Chrono-TimeSpan-Minutes) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.MinValue](Modern-Chrono-TimeSpan-MinValue) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Multiply](Modern-Chrono-TimeSpan-Multiply) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Negate](Modern-Chrono-TimeSpan-Negate) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.ParseIso](Modern-Chrono-TimeSpan-ParseIso) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Seconds](Modern-Chrono-TimeSpan-Seconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Subtract](Modern-Chrono-TimeSpan-Subtract) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Ticks](Modern-Chrono-TimeSpan-Ticks) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TimeSpan](Modern-Chrono-TimeSpan-TimeSpan) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.ToIsoString](Modern-Chrono-TimeSpan-ToIsoString) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.ToIsoUString](Modern-Chrono-TimeSpan-ToIsoUString) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.ToString](Modern-Chrono-TimeSpan-ToString) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TotalDays](Modern-Chrono-TimeSpan-TotalDays) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TotalHours](Modern-Chrono-TimeSpan-TotalHours) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TotalMicroseconds](Modern-Chrono-TimeSpan-TotalMicroseconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TotalMilliseconds](Modern-Chrono-TimeSpan-TotalMilliseconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TotalMinutes](Modern-Chrono-TimeSpan-TotalMinutes) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TotalSeconds](Modern-Chrono-TimeSpan-TotalSeconds) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.TryParseIso](Modern-Chrono-TimeSpan-TryParseIso) ✨ — *Date and Time (Chrono)*
+- [TimeSpan.Zero](Modern-Chrono-TimeSpan-Zero) ✨ — *Date and Time (Chrono)*
+- [TimeValue](Timevalue) — *Date and Time Functions*
+- [TinyPTC](Tinyptc) — *Tutorials*
+- [To](To) — *Miscellaneous Keywords*
+- [ToDouble](Modern-Finance-ToDouble) ✨ — *Finance*
+- [Tokens](Tokens) — *Compiler Internals*
+- [ToMatrix](Modern-Math-ToMatrix) ✨ — *Math Library*
+- [Tools used by fbc](Tools-Used-by-Fbc) — *Using the FreeBASIC compiler*
+- [Top level parsing process](Top-Level-Parsing-Process) — *Compiler Internals*
+- [ToString](Modern-Math-ToString) ✨ — *Math Library*
+- [Total](Modern-Finance-Total) ✨ — *Finance*
+- [Trace](Modern-Log-Trace) ✨ — *Logging*
+- [TrailingZeros](Modern-Math-TrailingZeros) ✨ — *Math Library*
+- [Trans](Trans) — *2D Drawing Functions*
+- [TransformPoint](Modern-Math-TransformPoint) ✨ — *Math Library*
+- [TransformVector](Modern-Math-TransformVector) ✨ — *Math Library*
+- [Transpose](Modern-Math-Transpose) ✨ — *Math Library*
+- [TRE (regex matching library)](Tre-Regex-Matching-Library) — *Tutorials*
+- [Trim](Trim) — *String Functions*
+- [True](True) — *Intrinsic Defines*
+- [Truncate](Modern-Math-Truncate) ✨ — *Math Library*
+- [TryGet](Modern-Map-TryGet) ✨ — *Map*
+- [TryInverse](Modern-Math-TryInverse) ✨ — *Math Library*
+- [TryParseDouble](Modern-Math-TryParseDouble) ✨ — *Math Library*
+- [TryParseLong](Modern-Math-TryParseLong) ✨ — *Math Library*
+- [TryParseLongInt](Modern-Math-TryParseLongInt) ✨ — *Math Library*
+- [TryParseSingle](Modern-Math-TryParseSingle) ✨ — *Math Library*
+- [TryParseULong](Modern-Math-TryParseULong) ✨ — *Math Library*
+- [TryParseULongInt](Modern-Math-TryParseULongInt) ✨ — *Math Library*
+- [Tuples](Category-Tuples) ✨ — *Tuples*
+- [Type (Alias)](Type-Alias) — *User Defined Types*
+- [Type (Temporary)](Type-Temporary) — *Programmer's Guide*
+- [Type (Udt)](Type-Udt) — *Operators*
+- [Type (UDT/Alias/Temporary) and Union](Type-Udt-Alias-Temporary-and-Union) — *Tutorials*
+- [Type Aliases](Type-Aliases) — *Tutorials*
+- [Type or Class Operators](Type-or-Class-Operators) — *Operators*
+- [TypeOf](Typeof) — *Miscellaneous Keywords*
+- [Types as Objects](Types-as-Objects) — *Tutorials*
+
+## U
+
+- [#undef](Undef) — *Preprocessor*
+- [UBound](Ubound) — *Array Functions*
+- [UByte](Ubyte) — *Standard Data Types*
+- [UCase](Ucase) — *String Functions*
+- [UInteger](Uinteger) — *Bit Manipulation*
+- [ULong](Ulong) — *Standard Data Types*
+- [ULongInt](Ulongint) — *Standard Data Types*
+- [Ulp](Modern-Math-Ulp) ✨ — *Math Library*
+- [Unescape](Modern-String-Unescape) ✨ — *String Library*
+- [Unicode](Unicode) — *Reference*
+- [Union](Union) — *User Defined Types*
+- [UnionWith](Modern-Set-UnionWith) ✨ — *Set*
+- [Unlock](Unlock) — *File I/O Functions*
+- [Unsigned](Unsigned) — *Standard Data Types*
+- [Until](Until) — *Miscellaneous Keywords*
+- [Unwrap](Modern-String-Unwrap) ✨ — *String Library*
+- [Use Implicit / Overload New([]) and Delete([]) Operators with Inheritance Polymorphism](Use-Implicit-Overload-New-and-Delete-Operators-with-Inheritance-Polymorphism) — *Tutorials*
+- [UseCount](Modern-SharedPtr-UseCount) ✨ — *Smart Pointers*
+- [User Defined Types](User-Defined-Types) — *Tutorials*
+- [User Defined Types](user-defined-types-User-Defined-Types) — *User Defined Types*
+- [User Input (Runtime Library)](User-Input-Runtime-Library) — *User Input (Runtime Library)*
+- [User Input Functions (Graphics Library)](User-Input-Functions-Graphics-Library) — *User Input Functions (Graphics Library)*
+- [UShort](Ushort) — *Standard Data Types*
+- [Using (Namespaces)](Using-Namespaces) — *Modularizing*
+- [Using FreeBASIC Built Libraries with GCC](Using-Freebasic-Built-Libraries-with-Gcc) — *Tutorials*
+- [Using Libraries](Using-Libraries) — *Tutorials*
+- [Using Linked Lists](Using-Linked-Lists) — *Tutorials*
+- [Using Prebuilt Libraries](Using-Prebuilt-Libraries) — *Tutorials*
+- [Using References](Using-References) — *Tutorials*
+- [Using the Mouse in FreeBASIC](Using-the-Mouse-in-Freebasic) — *Tutorials*
+- [UString](Category-UString) ✨ — *UString*
+- [UUID library](Uuid-Library) — *Tutorials*
+
+## V
+
+- [va_arg](Va-Arg) — *Procedures*
+- [va_first](Va-First) — *Procedures*
+- [va_next](Va-Next) — *Procedures*
+- [Val](Val) — *Converting Data Types*
+- [ValInt](Valint) — *Converting Data Types*
+- [ValLng](Vallng) — *Converting Data Types*
+- [Value](Modern-ForEach-Value) ✨ — *For Each*
+- [Value](Modern-Optional-Value) ✨ — *Optional*
+- [Value](Modern-Result-Value) ✨ — *Result*
+- [ValueOr](Modern-Optional-ValueOr) ✨ — *Optional*
+- [ValueOr](Modern-Result-ValueOr) ✨ — *Result*
+- [Values](Modern-Map-Values) ✨ — *Map*
+- [ValUInt](Valuint) — *Converting Data Types*
+- [ValULng](Valulng) — *Converting Data Types*
+- [Var](Var) — *Variable Declarations*
+- [Variable and Procedure Linkage](Variable-and-Procedure-Linkage) — *Tutorials*
+- [Variable Declarations](Variable-Declarations) — *Variable Declarations*
+- [Variable Initializers](Variable-Initializers) — *Tutorials*
+- [Variable Scope](Variable-Scope) — *Tutorials*
+- [Variable-length Arrays](Variable-Length-Arrays) — *Tutorials*
+- [Variable-length member data](Variable-Length-Member-Data) — *Tutorials*
+- [Variables](Variables) — *Tutorials*
+- [Variadic Arguments](Variadic-Arguments) — *Tutorials*
+- [Variance](Modern-Math-Variance) ✨ — *Math Library*
+- [VariancePopulation](Modern-Math-VariancePopulation) ✨ — *Math Library*
+- [VerifySet](Modern-String-VerifySet) ✨ — *String Library*
+- [View (Graphics)](View-Graphics) — *Screen Functions*
+- [View Print](View-Print) — *Console Functions*
+- [Virtual](Virtual) — *User Defined Types*
+- [VolumeInfo.FileSystem](Modern-Fs-VolumeInfo-FileSystem) ✨ — *Filesystem*
+- [VolumeInfo.IsCaseSensitive](Modern-Fs-VolumeInfo-IsCaseSensitive) ✨ — *Filesystem*
+- [VolumeInfo.IsReadOnly](Modern-Fs-VolumeInfo-IsReadOnly) ✨ — *Filesystem*
+- [VolumeInfo.MaxComponentLen](Modern-Fs-VolumeInfo-MaxComponentLen) ✨ — *Filesystem*
+- [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) ✨ — *Filesystem*
+- [VolumeInfo.RootPath](Modern-Fs-VolumeInfo-RootPath) ✨ — *Filesystem*
+- [VolumeInfo.SupportsLinks](Modern-Fs-VolumeInfo-SupportsLinks) ✨ — *Filesystem*
+
+## W
+
+- [Wait](Wait) — *Miscellaneous Keywords*
+- [Wait](Modern-Chan-Wait) ✨ — *Goroutines and Channels*
+- [WaitFor](Modern-Chan-WaitFor) ✨ — *Goroutines and Channels*
+- [WalkDir](Modern-Fs-WalkDir) ✨ — *Filesystem*
+- [Warn](Modern-Log-Warn) ✨ — *Logging*
+- [WBin](Wbin) — *String Functions*
+- [WChr](Wchr) — *String Functions*
+- [WeakPtr](Modern-SharedPtr-WeakPtr) ✨ — *Smart Pointers*
+- [Weekday](Weekday) — *Date and Time Functions*
+- [WeekdayName](Weekdayname) — *Date and Time Functions*
+- [Welcome to FreeBASIC](Welcome-to-Freebasic) — *Compiler*
+- [Wend (Or 'End While')](Wend-or-End-While) — *Miscellaneous Keywords*
+- [WHex](Whex) — *String Functions*
+- [While](While) — *Miscellaneous Keywords*
+- [While...Wend (Or 'While...End While')](While-Wend-or-While-End-While) — *Control Flow Statements*
+- [Width](Width) — *Console Functions*
+- [Window](Window) — *Screen Functions*
+- [Windows API](Windows-Api) — *Tutorials*
+- [Windows Related FAQ](Windows-Related-Faq) — *FAQs*
+- [WindowTitle](Windowtitle) — *Screen Functions*
+- [Winput()](Winput) — *User Input (Runtime Library)*
+- [With](With) — *User Defined Types*
+- [WithCancel](Modern-Chan-WithCancel) ✨ — *Goroutines and Channels*
+- [WithField](Modern-Log-WithField) ✨ — *Logging*
+- [WithName](Modern-Log-WithName) ✨ — *Logging*
+- [WithTimeout](Modern-Chan-WithTimeout) ✨ — *Goroutines and Channels*
+- [WOct](Woct) — *String Functions*
+- [WorkerCount](Modern-Chan-WorkerCount) ✨ — *Goroutines and Channels*
+- [Wrap](Modern-String-Wrap) ✨ — *String Library*
+- [Write](Write) — *Console Functions*
+- [Write #](procedures-Write) — *File I/O Functions*
+- [Write (File Access)](Write-File-Access) — *File I/O Functions*
+- [WriteAllBytes](Modern-Fs-WriteAllBytes) ✨ — *Filesystem*
+- [WriteAllText](Modern-Fs-WriteAllText) ✨ — *Filesystem*
+- [WriteAtomic](Modern-Fs-WriteAtomic) ✨ — *Filesystem*
+- [WSpace](Wspace) — *String Functions*
+- [WStr](Wstr) — *Converting Data Types*
+- [WString](Wstring) — *Standard Data Types*
+- [Wstring (Function)](Wstring-Function) — *String Functions*
+- [wx-c, C Interface for WxWidgets](Wx-C-C-Interface-for-Wxwidgets) — *Tutorials*
+
+## X
+
+- [X11](X11) — *Tutorials*
+- [x86 Microprocessor Architecture](X86-Microprocessor-Architecture) — *Reference*
+- [Xor (Graphics Put)](Xor-Graphics-Put) — *2D Drawing Functions*
+
+## Y
+
+- [Year](Year) — *Date and Time Functions*
+
+## Z
+
+- [ZeroMQ](Zeromq) — *Tutorials*
+- [zlib](Zlib) — *Tutorials*
+- [ZString](Zstring) — *Standard Data Types*
+
+## Other
+
+- [... (Ellipsis)](Ellipsis) — *Procedures*
+- [2D Drawing Functions](2d-Drawing-Functions) — *2D Drawing Functions*
+- [__DATE__](procedures-Date) — *Intrinsic Defines*
+- [__DATE_ISO__](Date-Iso) — *Intrinsic Defines*
+- [__Fastcall](Fastcall) — *Procedures*
+- [__FB_64BIT__](Fb-64bit) — *Intrinsic Defines*
+- [__FB_ANDROID__](Fb-Android) — *Intrinsic Defines*
+- [__FB_ARG_COUNT__](Fb-Arg-Count) — *Intrinsic Defines*
+- [__FB_ARG_EXTRACT__](Fb-Arg-Extract) — *Intrinsic Defines*
+- [__FB_ARG_LEFTOF__](Fb-Arg-Leftof) — *Intrinsic Defines*
+- [__Fb_Arg_Listexpand__](Fb-Arg-Listexpand) — *Intrinsic Defines*
+- [__FB_ARG_RIGHTOF__](Fb-Arg-Rightof) — *Intrinsic Defines*
+- [__FB_ARGC__](Fb-Argc) — *Intrinsic Defines*
+- [__FB_ARGV__](Fb-Argv) — *Intrinsic Defines*
+- [__FB_ARM__](Fb-Arm) — *Intrinsic Defines*
+- [__FB_ASM__](Fb-Asm) — *Intrinsic Defines*
+- [__FB_BACKEND__](Fb-Backend) — *Intrinsic Defines*
+- [__FB_BIGENDIAN__](Fb-Bigendian) — *Intrinsic Defines*
+- [__FB_BUILD_DATE__](Fb-Build-Date) — *Intrinsic Defines*
+- [__FB_BUILD_DATE_ISO__](Fb-Build-Date-Iso) — *Intrinsic Defines*
+- [__FB_BUILD_FORK_ID__](Fb-Build-Fork-Id) — *Intrinsic Defines*
+- [__FB_BUILD_SHA1__](Fb-Build-Sha1) — *Intrinsic Defines*
+- [__FB_CYGWIN__](Fb-Cygwin) — *Intrinsic Defines*
+- [__FB_DARWIN__](Fb-Darwin) — *Intrinsic Defines*
+- [__FB_DEBUG__](Fb-Debug) — *Compiler Options*
+- [__FB_DOS__](Fb-Dos) — *Intrinsic Defines*
+- [__FB_ERR__](Fb-Err) — *Intrinsic Defines*
+- [__FB_EVAL__](Fb-Eval) — *Intrinsic Defines*
+- [__FB_FPMODE__](Fb-Fpmode) — *Intrinsic Defines*
+- [__FB_FPU__](Fb-Fpu) — *Intrinsic Defines*
+- [__FB_FREEBSD__](Fb-Freebsd) — *Intrinsic Defines*
+- [__FB_GCC__](Fb-Gcc) — *Intrinsic Defines*
+- [__FB_GUI__](Fb-Gui) — *Intrinsic Defines*
+- [__FB_IIF__](Fb-Iif) — *Intrinsic Defines*
+- [__FB_JOIN__](Fb-Join) — *Intrinsic Defines*
+- [__FB_JS__](Fb-Js) — *Intrinsic Defines*
+- [__FB_LANG__](Fb-Lang) — *Intrinsic Defines*
+- [__FB_LINUX__](Fb-Linux) — *Intrinsic Defines*
+- [__FB_MAIN__](Fb-Main) — *Intrinsic Defines*
+- [__FB_MIN_VERSION__](Fb-Min-Version) — *Intrinsic Defines*
+- [__FB_MODERN__](Category-FB-Modern-Define) ✨ — *__FB_MODERN__*
+- [__FB_MT__](Fb-Mt) — *Intrinsic Defines*
+- [__FB_NETBSD__](Fb-Netbsd) — *Intrinsic Defines*
+- [__FB_OPENBSD__](Fb-Openbsd) — *Intrinsic Defines*
+- [__FB_OPTIMIZE__](Fb-Optimize) — *Intrinsic Defines*
+- [__FB_OPTION_BYVAL__](Fb-Option-Byval) — *Intrinsic Defines*
+- [__FB_OPTION_DYNAMIC__](Fb-Option-Dynamic) — *Intrinsic Defines*
+- [__FB_OPTION_ESCAPE__](Fb-Option-Escape) — *Intrinsic Defines*
+- [__FB_OPTION_EXPLICIT__](Fb-Option-Explicit) — *Intrinsic Defines*
+- [__FB_OPTION_GOSUB__](Fb-Option-Gosub) — *Intrinsic Defines*
+- [__FB_OPTION_PRIVATE__](Fb-Option-Private) — *Intrinsic Defines*
+- [__FB_OPTION_PROFILE__](Fb-Option-Profile) — *Intrinsic Defines*
+- [__FB_OUT_DLL__](Fb-Out-Dll) — *Intrinsic Defines*
+- [__FB_OUT_EXE__](Fb-Out-Exe) — *Intrinsic Defines*
+- [__FB_OUT_LIB__](Fb-Out-Lib) — *Intrinsic Defines*
+- [__FB_OUT_OBJ__](Fb-Out-Obj) — *Intrinsic Defines*
+- [__FB_PCOS__](Fb-Pcos) — *Intrinsic Defines*
+- [__FB_PPC__](Fb-Ppc) — *Intrinsic Defines*
+- [__FB_PROFILE__](Fb-Profile) — *Intrinsic Defines*
+- [__Fb_Query_Symbol__](Fb-Query-Symbol) — *Intrinsic Defines*
+- [__FB_QUOTE__](Fb-Quote) — *Intrinsic Defines*
+- [__FB_SIGNATURE__](Fb-Signature) — *Intrinsic Defines*
+- [__FB_SSE__](Fb-Sse) — *Intrinsic Defines*
+- [__FB_UNIQUEID__](Fb-Uniqueid) — *Intrinsic Defines*
+- [__FB_UNIQUEID_POP__](Fb-Uniqueid-Pop) — *Intrinsic Defines*
+- [__FB_UNIQUEID_PUSH__](Fb-Uniqueid-Push) — *Intrinsic Defines*
+- [__FB_UNIX__](Fb-Unix) — *Intrinsic Defines*
+- [__FB_UNQUOTE__](Fb-Unquote) — *Intrinsic Defines*
+- [__FB_VECTORIZE__](Fb-Vectorize) — *Intrinsic Defines*
+- [__FB_VER_MAJOR__](Fb-Ver-Major) — *Intrinsic Defines*
+- [__FB_VER_MINOR__](Fb-Ver-Minor) — *Intrinsic Defines*
+- [__FB_VER_PATCH__](Fb-Ver-Patch) — *Intrinsic Defines*
+- [__FB_VERSION__](Fb-Version) — *Intrinsic Defines*
+- [__FB_WIN32__](Fb-Win32) — *Intrinsic Defines*
+- [__FB_X86__](Fb-X86) — *Intrinsic Defines*
+- [__FB_XBOX__](Fb-Xbox) — *Intrinsic Defines*
+- [__FILE__](File) — *Intrinsic Defines*
+- [__FILE_NQ__](File-Nq) — *Intrinsic Defines*
+- [__FUNCTION__](Function) — *Intrinsic Defines*
+- [__FUNCTION_NQ__](Function-Nq) — *Intrinsic Defines*
+- [__LINE__](Line) — *Intrinsic Defines*
+- [__PATH__](Path) — *Intrinsic Defines*
+- [__Thiscall](Thiscall) — *Procedures*
+- [__TIME__](procedures-Time) — *Intrinsic Defines*

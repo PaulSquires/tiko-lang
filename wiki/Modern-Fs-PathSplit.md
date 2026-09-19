@@ -1,0 +1,51 @@
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **PathSplit**
+
+# PathSplit
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Filesystem Library](Category-Filesystem), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+fills an Array( of ustring ); returns the count
+
+## Syntax
+
+```freebasic
+PathSplit( p, comps )
+```
+
+## Notes
+
+- fills an Array( of ustring ); returns the count
+
+## Examples
+
+```freebasic
+#include once "fb/filesystem.bi"
+using FB
+
+'' Fills an Array with the components and returns the count.
+''
+'' THE ROOT IS NOT A COMPONENT. "C:\dev\src\main.bas" splits into
+'' three, not four -- PathRoot joined with these reconstructs the
+'' normalised path, and that is the round trip the split guarantees.
+dim parts as Array( of ustring )
+dim as long n = PathSplit( "C:\dev\src\main.bas", parts )
+
+print n                      '' 3
+for i as long = 0 to parts.Count - 1
+    print parts[ i ]         '' dev / src / main.bas
+next
+
+print PathRoot( "C:\dev\src\main.bas" )      '' C:\  -- the missing piece
+
+'' It splits the NORMALISED path, so "." and ".." are already resolved
+'' and never come back as components
+```
+
+---
+
+**Library:** [Filesystem Library](Category-Filesystem) ✨  
+**Category:** [Filesystem](Category-Filesystem)  
+**Documented under:** Paths  
+**Source:** `docs/filesystem/filesystem.txt` in the tiko-lang repository.

@@ -1,0 +1,42 @@
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Val**
+
+# LogEvent.Val
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Logging](Category-Logging), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+any tag, built by hand
+
+## Syntax
+
+```freebasic
+Val( k, v as LogValue )
+```
+
+## Notes
+
+- any tag, built by hand
+
+## Examples
+
+```freebasic
+#include once "fb/logging.bi"
+using FB
+
+dim con as ConsoleSink
+dim lg as Logger
+lg.AddSink( @con )
+
+'' The escape hatch: any tag, built by hand. LogValue has a constructor
+'' per supported type, so this is what the typed methods call underneath.
+dim v as LogValue = LogValue( 42ll )
+lg.Info( ).Val( "answer", v ).Msg( "computed" )
+```
+
+---
+
+**Library:** [Logging](Category-Logging) ✨  
+**Category:** [Logging](Category-Logging)  
+**Documented under:** Members  
+**Source:** `docs/logging/logging.txt` in the tiko-lang repository.

@@ -1,0 +1,45 @@
+[Home](Home) › [Miscellaneous](Category-Miscellaneous) › **Comparison of integer data types: FreeBASIC vs. C/C++ (using GCC)**
+
+# Comparison of integer data types: FreeBASIC vs. C/C++ (using GCC)
+
+| | C int | C long long \[int\] | C long \[int\] | FB Long | FB LongInt | FB Integer |
+| --- | --- | --- | --- | --- | --- | --- |
+| 32bit win32 | 32 | 64 | 32 (ILP32) | 32 | 64 | 32 |
+| 32bit linux-x86 | 32 | 64 | 32 (ILP32) | 32 | 64 | 32 |
+| 64bit win64 | 32 | 64 | 32 (LLP64) | 32 | 64 | 64 |
+| 64bit linux-x86_64 | 32 | 64 | 64 (LP64) | 32 | 64 | 64 |
+
+ Some public symbols (like namespaces, and user defined type member procedures) will have data type information encoded in to the public name (also known as name mangling or name decoration). Specific mapping of data types between FreeBASIC and gcc is required when linking `fbc` compiled object modules with `gcc` compiled object modules.
+
+| Target | fbc data type | c data type | bits |
+| --- | --- | --- | --- |
+| all | byte | signed char | 8 |
+| all | ubyte | unsigned char | 8 |
+| all | byte alias "char" | char | 8 |
+| all | ubyte alias "char" | char | 8 |
+| all | short | \[signed\] short \[int\] | 16 |
+| all | ushort | unsigned short \[int\] | 16 |
+| all | long | \[signed\] int | 32 |
+| all | ulong | unsigned int | 32 |
+| x86 | integer | \[signed\] long \[int\] | 32 |
+| x86 | uinteger | unsigned long \[int\] | 32 |
+| win64 | long alias "long" | \[signed\] long \[int\] | 32 |
+| win64 | ulong alias "long" | unsigned long \[int\] | 32 |
+| win64 | integer | INTEGER | 64 |
+| win64 | uinteger | UINTEGER | 64 |
+| linux-x86_64 | integer | \[signed\] long \[int\] | 64 |
+| linux-x86_64 | uinteger | unsigned long \[int\] | 64 |
+| all | longint | \[signed\] long long \[int\] | 64 |
+| all | ulongint | unsigned long long \[int\] | 64 |
+
+See also
+
+- [Creating FB bindings for C libraries](Creating-Fb-Bindings-for-C-Libraries) - How to translate C data types to FB
+
+---
+
+**Category:** [Miscellaneous](Category-Miscellaneous)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

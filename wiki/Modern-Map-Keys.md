@@ -1,0 +1,38 @@
+[Home](Home) › [Map](Category-Map) › [Map](Category-Map) › **Keys**
+
+# Keys
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Map](Category-Map), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+Keys( ) as Array( of K )
+```
+
+## Examples
+
+```freebasic
+#include once "fb/map.bi"
+using FB
+
+dim ages as Map( of string, integer )
+ages.Put( "ada", 36 )
+ages.Put( "grace", 45 )
+
+'' A snapshot, as an Array -- not a live view of the map
+dim ks as Array( of string ) = ages.Keys( )
+print ks.Count                   '' 2
+
+'' ITERATION ORDER IS UNSPECIFIED, so sort before printing if the
+'' output has to be reproducible
+```
+
+---
+
+**Library:** [Map](Category-Map) ✨  
+**Category:** [Map](Category-Map)  
+**Documented under:** Members  
+**Source:** `docs/map/map.txt` in the tiko-lang repository.

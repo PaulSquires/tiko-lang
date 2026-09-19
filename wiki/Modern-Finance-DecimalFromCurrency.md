@@ -1,0 +1,40 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **DecimalFromCurrency**
+
+# DecimalFromCurrency
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+DecimalFromCurrency( c )
+```
+
+## Examples
+
+```freebasic
+#include once "fb/decimal.bi"
+using FB
+
+#include once "fb/currency.bi"
+
+'' EXACT, always: Currency is four decimal places and Decimal has
+'' twenty-eight, so nothing can be lost in this direction
+dim as Currency c = CurrencyParse( "19.99" ).Value( )
+print DecimalFromCurrency( c ).ToString( )   '' 19.9900
+print DecimalFromCurrency( c ).Scale( )      '' 4
+
+'' Going the other way is Decimal.ToCurrency( ), which rounds half-to-even
+'' at the fourth place and is Invalid outside Currency's range
+print DecimalParse( "0.12345" ).Value( ).ToCurrency( ).ToString( )
+'' 0.1234 -- half-to-even on the tie
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `docs/decimal/decimal.txt` in the tiko-lang repository.

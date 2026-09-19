@@ -1,0 +1,29 @@
+[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -pic**
+
+# Compiler Option: -pic
+
+Generate position-independent code (non-x86 Unix shared libs)
+
+Syntax
+
+`-pic`
+
+Description
+
+The `-pic` compiler option tells the compiler to generate position-independent code. This is needed for creating shared libraries on x86_64 or ARM Linux/BSD platforms except Win64 (and also not on 32bit x86). This option should not be used when creating executables (as opposed to shared libraries) though.
+
+ By default, `-pic` is enabled when using [`-dll or -dylib`](Compiler-Option-Dll), and disabled for all other compilation modes. Usually you only have to specify `-pic` if you are using [`-c`](Compiler-Option-C) or [`-lib`](Compiler-Option-Lib) and want to link them into shared libraries later.
+
+ `-pic` is implemented by passing `-fPIC` to gcc (when using the -gen gcc backend). The -gen gas backend does not support position-independent code since it only supports 32bit x86 and there is no special position-independent code needed for shared libraries on 32bit x86.
+
+See also
+
+- [Using the Command Line](Fbc-Command-Line)
+
+---
+
+**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

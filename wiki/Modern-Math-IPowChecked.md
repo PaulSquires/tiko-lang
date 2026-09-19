@@ -1,0 +1,39 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **IPowChecked**
+
+# IPowChecked
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+IPowChecked( base, exp )
+```
+
+## Examples
+
+```freebasic
+#include once "fb/mathint.bi"
+using FB
+
+'' The overflow-safe form: an Optional, empty when the result does not
+'' fit rather than wrapping silently
+dim as longint b = 2, e = 10
+var r = IPowChecked( b, e )
+
+print r.HasValue( )          '' true
+print r.Value( )             '' 1024
+
+dim as longint big = 1000000
+var over = IPowChecked( big, big )
+print over.HasValue( )       '' false -- it would have overflowed
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

@@ -1,0 +1,40 @@
+[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -exx**
+
+# Compiler Option: -exx
+
+Add error checking with [`Resume`](Resume) support and array bounds/dimensions and null-pointer checking, plus stack overflow checking with gas64 backend
+
+Syntax
+
+`-exx`
+
+Description
+
+The `-exx` compiler option adds error checking with [`Resume`](Resume) support, array bounds and dimensions, and null-pointer checking (including the procedure pointers), plus stack overflow checking with gas64 backend.
+
+ Use of the `-exx` option automatically implies `-e`, `-ex`, `-earray`, `-earraydims`, `-elocation`, and `-enullptr`, error checking and code generation options.
+
+Version
+
+- Before fbc 1.20.0, array dimensions were never checked.
+- Before fbc 1.10.0, stack overflow was never checked.
+
+See also
+
+- [`__FB_ERR__`](Fb-Err)
+- [Compiler Option: -e](Compiler-Option-E)
+- [Compiler Option: -earray](Compiler-Option-Earray)
+- [Compiler Option: -earraydims](Compiler-Option-Earraydims)
+- [Compiler Option: -elocation](Compiler-Option-Elocation)
+- [Compiler Option: -enullptr](Compiler-Option-Enullptr)
+- [Compiler Option: -ex](Compiler-Option-Ex)
+- [Error Handling](Error-Handling)
+- [Using the Command Line](Fbc-Command-Line)
+
+---
+
+**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

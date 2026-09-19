@@ -1,0 +1,235 @@
+[Home](Home) › [Compiler Internals](Category-Compiler-Internals) › **FreeBASIC Build Options**
+
+# FreeBASIC Build Options
+
+Building FreeBASIC from sources uses a `makefile` that is intended to be used on a host to build the run time library, graphics library, and the FreeBASIC compiler itself. The `makefile` accepts a number of configuration options or variables.
+
+ ***Environment Variables***
+
+`SOURCE_DATE_EPOCH`
+
+Set the build date for the compilation. See [SOURCE_DATE_EPOCH Specification](https://reproducible-builds.org/specs/source-date-epoch/). The `SOURCE_DATE_EPOCH` environment variable specifies a build time constant (a decimal unsigned integer in unix time format) to be used during the build process. Setting this variable sets the values to be returned by [`__DATE__`](procedures-Date), [`__TIME__`](procedures-Time), and [`__DATE_ISO__`](Date-Iso) built-in macros when a source is compiled. This in turn affects the values returned by [`__FB_BUILD_DATE__`](Fb-Build-Date) and [`__FB_BUILD_DATE_ISO__`](Fb-Build-Date-Iso) when fbc compiler itself is built.
+
+***Build Options***
+
+`FB[C|L]FLAGS`
+
+to set -g -exx etc. for the compiler build and/or link
+
+`CFLAGS`
+
+same for the rtlib and gfxlib2 build
+
+`prefix`
+
+install/uninstall directory, default: /usr/local
+
+`TARGET`
+
+GNU triplet for cross-compiling
+
+`MULTILIB`
+
+"32", "64" or empty for cross-compiling using a gcc multilib toolchain
+
+`FBC, CC, AR`
+
+fbc, gcc, ar programs (TARGET may be prefixed to CC/AR)
+
+`V=1`
+
+to see full command lines
+
+`ENABLE_STANDALONE=1`
+
+build source tree into self-contained FB installation
+
+`ENABLE_PREFIX=1`
+
+use "-d ENABLE_PREFIX=$(prefix)" to hard-code the prefix into fbc
+
+`ENABLE_SUFFIX=-0.24`
+
+append a string like "-0.24" to fbc/FB dir names, and use "-d ENABLE_SUFFIX=$(ENABLE_SUFFIX)" (non-standalone only)
+
+`ENABLE_LIB64=1`
+
+use prefix/lib64/ instead of prefix/lib/ for 64bit libs (non-standalone only)
+
+`ENABLE_STRIPALL=1`
+
+use "-d ENABLE_STRIPALL" with all targets
+
+`ENABLE_STRIPALL=0`
+
+disable "-d ENABLE_STRIPALL" with all targets
+
+`FBSHA1=1`
+
+determine the sha-1 of the current commit in repo and store it in the compiler
+
+`FBSHA1=some-sha-1`
+
+explicitly indicate the sha-1 to store in the compiler
+
+`FBPACKAGE`
+
+bindist: The package/archive file name without path or extension
+
+`FBPACKSUFFIX`
+
+bindist: Allows adding a custom suffix to the normal package name (and the toplevel dir in the archive)
+
+`FBMANIFEST`
+
+bindist: The manifest file name without path or extension
+
+`FBVERSION`
+
+bindist/gitdist: FB version number
+
+`DISABLE_DOCS`
+
+bindist: Don't package readme/changelog/manpage/examples
+
+`BUILD_PREFIX`
+
+automatically set depending on the target but can override for special builds where the build tools have different file naming than the target to build (i.e. cross compiling)
+
+`DISABLE_GAS64_DEBUG`
+
+use "-d DISABLE_GAS64_DEBUG" (see below)
+
+`DISABLE_STDCXX_PATH=1`
+
+Tells fbc to not search for some libstdc/libc depending on target platform
+
+`DEFAULT_CPUTYPE_X86=<FB_CPUTYPE>`
+
+Sets default x86 cpu type to one of `FB_CPU_TYPE`  
+ For example `make compiler DEFAULT_CPUTYPE_X86=FB_CPUTYPE_386`
+
+`DEFAULT_CPUTYPE_ARM=<FB_CPUTYPE>`
+
+Sets default arm cpu type to one of `FB_CPUTYPE`  
+ `make compiler DEFAULT_CPUTYPE_ARM=FB_CPUTYPE_ARM7A_FP`
+
+`FBFORKID=name`
+
+Tells fbc to set a custom value for [`__FB_BUILD_FORK_ID__`](Fb-Build-Fork-Id)
+
+***compiler source code configuration (FBCFLAGS, FBLFLAGS)***
+
+`-d ENABLE_STANDALONE`
+
+build for a self-contained installation
+
+`-d ENABLE_SUFFIX=-0.24`
+
+assume FB's lib dir uses the given suffix (non-standalone only)
+
+`-d ENABLE_PREFIX=/some/path`
+
+hard-code specific $(prefix) into fbc
+
+`-d ENABLE_LIB64`
+
+use prefix/lib64/ instead of prefix/lib/ for 64bit libs (non-standalone only)
+
+`-d ENABLE_STRIPALL`
+
+configure fbc to pass down '--strip-all' to linker by default
+
+`-d FBSHA1=some-sha-1`
+
+store 'some-sha-1' in the compiler for version information as built in define [`__FB_BUILD_SHA1__`](Fb-Build-Sha1)
+
+`-d DISABLE_GAS64_DEBUG`
+
+disable gas64 debugging comments in asm files even if [`__FB_DEBUG__`](Fb-Debug) is defined (-g)
+
+`-d DISABLE_STDCXX_PATH`
+
+tells fbc to not search for some libstdc/libc depending on target platform
+
+`-d BUILD_FB_DEFAULT_CPUTYPE_X86=<FB_CPUTYPE>`
+
+This make the compiler set default x86 cpu type to one of `enum FB_CPUTYPE` as defined in fbc sources
+
+`-d BUILD_FB_DEFAULT_CPUTYPE_ARM=<FB_CPUTYPE>`
+
+This make the compiler set default arm cpu type to one of `enum FB_CPUTYPE` as defined in fbc sources
+
+`-d FBFORKID="name"`
+
+This makes the compiler set a custom value for [`__FB_BUILD_FORK_ID__`](Fb-Build-Fork-Id)
+
+***internal makefile configuration (but can override)***
+
+`libsubdir`
+
+override the library directory - default is set depending on TARGET
+
+`objsubdir`
+
+override object file directory - default is set depending on TARGET
+
+`fbcobjdir`
+
+override compiler object directory - default is set depending on TARGET
+
+***fbrt source code configuration (FBRTCFLAGS, FBRTLFLAGS)***
+
+`FBRTCFLAGS`
+
+override the compiler flags when building fbrt library
+
+`FBRTLFLAGS`
+
+override the linker flags then building fbrt library
+
+***rtlib/gfxlib2 source code configuration (CFLAGS)***
+
+`-DDISABLE_X11`
+
+build without X11 headers (disables X11 gfx driver)
+
+`-DDISABLE_GPM`
+
+build without gpm.h (disables [`GetMouse`](Getmouse) in the Linux terminal (TERM=linux), although the TERM=xterm variant keeps working)
+
+`-DDISABLE_FFI`
+
+build without ffi.h (disables [`ThreadCall`](Threadcall))
+
+`-DDISABLE_OPENGL`
+
+build without OpenGL headers (disables OpenGL gfx drivers)
+
+`-DDISABLE_FBDEV`
+
+build without Linux framebuffer device headers (disables Linux fbdev gfx driver)
+
+`-DDISABLE_D3D10`
+
+build without DirectX 10 driver (disable D2D driver in windows)
+
+`-DDISABLE_NCURSES`
+
+build without libtinfo or ncurses (disables console commands)
+
+`-DDISABLE_LANGINFO`
+
+build without locale info (affects Unix only; makes no difference unless you call setlocale() manually). Does not remove setlocale(LC_CTYPE, "") call.
+
+`-DDISABLE_WCHAR`
+
+build without wchar_t type or functions. wstring becomes ASCII only (fbc needs to match this).
+
+---
+
+**Category:** [Compiler Internals](Category-Compiler-Internals)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

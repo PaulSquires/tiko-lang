@@ -1,0 +1,45 @@
+[Home](Home) › [Compiler](Category-Compiler) › **Getting help with FreeBASIC**
+
+# Getting help with FreeBASIC
+
+There are several options available for getting help with FreeBASIC.
+
+ ***The Manual***
+
+This huge user's manual is full of information that can help you learn to write programs using FreeBASIC.
+
+ The manual is available online at https://www.freebasic.net/wiki. There is a search box at the top of every page to help you find what you're looking for.
+
+ If you are unfamiliar with FreeBASIC or the documentation, you may find these pages a good place to start:
+
+A downloadable manual (in CHM format) is available from the sourceforge project page at [https://sourceforge.net/projects/fbc](https://sourceforge.net/projects/fbc) which features a full table of contents, searching capabilities, an index, plus all the same content as the online version.
+
+ Searching the manual on or offline is an excellent place to start finding help about how to write and use FreeBASIC programs.
+
+***Examples and Source Code***
+
+In the ./examples directory located where FreeBASIC was installed on your system are hundreds of examples to be compiled and run. Most of the external library examples will need additional libraries to be downloaded to allow them to work. See [Library Headers Index](External-Libraries-Index) for a full list.
+
+***Tutorials***
+
+Community created tutorials about FreeBASIC can be found at CommunityTutorials. Some selected tutorials are included in this manual.
+
+***FreeBASIC Forum***
+
+An active community forum can be found at [https://www.freebasic.net/forum](https://www.freebasic.net/forum) with several sub-forums. The forum has a search feature that can help you find answers to questions or problems that may have already been asked and solved. First do a search for your problem, if you can't find the answer then post a message in one of the sub-forums.
+
+***Chat***
+
+IRC or Internet Relay Chat is a great way to chat with the developers and other users, some of whom are very knowledgeable. There are several ways to connect to IRC, if you know what you're doing simply join #freebasic on FreeNode.
+
+ If you haven't the foggiest what IRC is and you have Java installed, you can simply go [here](https://www.freebasic.net/index.php/chat.html).
+
+ If you're trying to get help, the most important thing is to be patient. Sometimes you won't get a reply right away. Stick around or check back and the Community will try and assist you.
+
+---
+
+**Category:** [Compiler](Category-Compiler)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

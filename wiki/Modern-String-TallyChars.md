@@ -1,0 +1,40 @@
+[Home](Home) › [String Library](Category-String-Library) › [String Library](Category-String-Library) › **TallyChars**
+
+# TallyChars
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [String Library](Category-String-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+O(n*k)   long
+
+## Syntax
+
+```freebasic
+TallyChars( s, chars [, ic] )
+```
+
+## Notes
+
+- O(n*k) — long
+
+## Examples
+
+```freebasic
+#include once "fb/string.bi"
+using FB
+
+print TallyChars( "hello world", "lo" )      '' 5 -- l, l, o, o, l
+print TallyChars( "hello world", "" )        '' 0 -- an empty set matches nothing
+print TallyChars( "Hello World", "LO", true )  '' 5 -- ignoreCase
+
+dim as string pw = "s3cr3t!"
+print "digits: " & TallyChars( pw, "0123456789" )   '' digits: 2
+```
+
+---
+
+**Library:** [String Library](Category-String-Library) ✨  
+**Category:** [String Library](Category-String-Library)  
+**Documented under:** The Functions  
+**Source:** `docs/string/string.txt` in the tiko-lang repository.

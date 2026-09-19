@@ -1,0 +1,45 @@
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **TimeSpan.FromSeconds**
+
+# TimeSpan.FromSeconds
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Chrono Date and Time](Category-Date-and-Time-Chrono), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+A TimeSpan of `v` seconds, which may be fractional.
+
+## Syntax
+
+```freebasic
+TimeSpan.FromSeconds( v )
+```
+
+## Notes
+
+- Takes a `double`, so sub-second values survive down to the 100 ns tick.
+- Rounds **half away from zero** below the tick.
+- NaN or an out-of-range value yields Invalid.
+- Below a millisecond, prefer `FromMicroseconds` or `FromTicks`: those take a `longint` and cannot lose a tick to floating point.
+
+## Examples
+
+```freebasic
+#include once "fb/chrono.bi"
+using FB
+
+print TimeSpan.FromSeconds( 90 ).TotalMinutes    '' 1.5
+print TimeSpan.FromSeconds( 1.5 ).TotalMilliseconds      '' 1500
+print TimeSpan.FromSeconds( 1 ).Ticks             '' 10000000
+
+'' A fraction below the millisecond still lands on a tick
+print TimeSpan.FromSeconds( 0.0000001 ).Ticks     '' 1
+
+print TimeSpan.FromSeconds( 1e300 ).IsValid       '' false
+```
+
+---
+
+**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
+**Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
+**Documented under:** The Members  
+**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.

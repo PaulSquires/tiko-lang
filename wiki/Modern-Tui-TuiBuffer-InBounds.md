@@ -1,0 +1,47 @@
+[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Buffer and Frame](Category-Terminal-TUI-Library) › **TuiBuffer.InBounds**
+
+# TuiBuffer.InBounds
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+TuiBuffer.InBounds( byval x as long, byval y as long ) as boolean
+```
+
+## Description
+
+Bounds check. At( ) does not check for you, so this is the guard when you index a buffer directly.
+
+## Example
+
+```freebasic
+#include once "fb/tui.bi"
+using FB
+
+dim as TuiBuffer b
+b.Resize( 10, 4 )
+print b.InBounds( 9, 3 )          '' true
+print b.InBounds( 10, 3 )         '' false
+print b.InBounds( -1, 0 )         '' false
+```
+
+## See also
+
+[TuiCell](Modern-Tui-TuiCell) · [TuiCell.SetChar](Modern-Tui-TuiCell-SetChar) · [TuiCell.Equals](Modern-Tui-TuiCell-Equals) · [TuiCellBlank](Modern-Tui-TuiCellBlank) · [TuiBuffer](Modern-Tui-TuiBuffer) · [TuiBuffer.Resize](Modern-Tui-TuiBuffer-Resize) · [TuiBuffer.Clear](Modern-Tui-TuiBuffer-Clear) · [TuiBuffer.At](Modern-Tui-TuiBuffer-At) · [TuiBuffer.Count](Modern-Tui-TuiBuffer-Count) · [TuiFrame](Modern-Tui-TuiFrame) · [TuiFrame.Area](Modern-Tui-TuiFrame-Area) · [TuiFrame.Clip](Modern-Tui-TuiFrame-Clip)
+
+---
+
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
+**Documented under:** Buffer and Frame  
+**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+
+
+---
+
+[Home](Home) · [Keyword Index](Keyword-Index)

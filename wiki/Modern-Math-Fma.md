@@ -1,0 +1,46 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **Fma**
+
+# Fma
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+Fused multiply-add: `x * y + z`, rounded **once**.
+
+## Syntax
+
+```freebasic
+Fma( byval x as double, byval y as double, byval z as double ) as double
+```
+
+## Notes
+
+- The product is computed to full precision and only the final sum is rounded, so the intermediate rounding of a plain `x * y + z` is not there.
+- That single rounding is what makes it the building block for exact dot products, polynomial evaluation and correctly-rounded division.
+- Overloaded on `double` and `single`; the single form does not widen.
+
+## Examples
+
+```freebasic
+#include once "fb/math.bi"
+using FB
+
+print Fma( 2.0, 3.0, 4.0 )   '' 10
+
+'' One rounding, not two -- and the difference is the whole error term.
+'' 0.1 * 10 is not exactly 1, but the product ROUNDS to 1, so the plain
+'' expression subtracts it away to nothing.
+print Fma( 0.1, 10.0, -1.0 ) '' 5.551115123125783e-017
+print 0.1 * 10.0 - 1.0       '' 0 -- the error is gone
+
+'' Recovering that term is what makes Fma the building block for exact
+'' dot products and correctly-rounded division
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

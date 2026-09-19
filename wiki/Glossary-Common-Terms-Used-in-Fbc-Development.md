@@ -1,0 +1,171 @@
+[Home](Home) › [Compiler Internals](Category-Compiler-Internals) › **Glossary - common terms used in fbc development**
+
+# Glossary - common terms used in fbc development
+
+arg, argument
+
+An expression passed to a parameter in a procedure call.
+
+cast
+
+A type cast changes the compile-time data type of an expression and either causes a conversion (e.g. float <-> int) or a reinterpretation of the expression value's bit representation (e.g. integer <-> uinteger).
+
+comp, compound
+
+- Compound blocks in the language: Any code block that allows nested code such as IF blocks, SCOPE blocks, NAMESPACE blocks, etc. is called a compound.
+  Compound symbols: UDTs, sometimes also namespaces, because both may contain nested (namespaced) symbols and they share some common code.
+
+conv, conversion
+
+A conversion is an operation that translates between two different representations of the same value (e.g. float <-> int, or 32bit <-> 64bit).
+
+ cast and conv are often used interchangeably in the compiler sources. For example, the AST's CONV nodes represent type casts, no matter whether they perform conversions or not.
+
+ Some (but not all) casts require run-time conversions, for example:
+
+short <-> integer  
+ single <-> integer  
+ single <-> double
+
+Simple casts between types of equal class and size do not require a run-time conversion, because the bit representation wouldn't change anyways. For example:
+
+short <-> ushort  
+ integer <-> uinteger
+
+These are also called noconv casts.
+
+ctor, constructor
+
+- UDT constructor
+- module constructor
+
+ctx, context
+
+UDTs/"classes" in the fbc sources for holding global information shared amongst multiple procedures or modules.
+
+desc, descriptor
+
+- Dynamic string descriptor
+- Dynamic array descriptor
+
+dtor, destructor
+
+- UDT destructor
+- module destructor
+
+fbc
+
+- The FreeBASIC compiler project as a whole, the Git repository, the project registered on Sourceforge
+- The compiler program binary/executable (fbc or fbc.exe), as built from the compiler sources
+- The compiler's main module/frontend/driver
+
+fbctinf
+
+FB compile-time information, also see objinfo.
+
+fbgfx
+
+FB graphics, usually referring to the use of FB's built-in graphics keywords, implemented in gfxlib2
+
+frontend stage 1
+
+Compilation of the .bas input files into the next intermediate format: .asm (-gen gas), .c (-gen gcc) or .ll (-gen llvm)
+
+frontend stage 2
+
+Compilation of the .c (-gen gcc) or .ll (-gen llvm) intermediate files into .asm files. (doesn't apply to -gen gas because there the FB compiler generates .asm itself directly)
+
+function
+
+A procedure with result value; sometimes also used in place of procedure, as in C.
+
+gfxlib2
+
+The FB graphics runtime library implementation from the fbc project.
+
+hashtb
+
+A hash table, often used together with a symbol table to allow fast lookup of the symbols in that symbol table.
+
+libfb, libfbmt, libfbgfx, libfbgfxmt
+
+Names of the libraries built from the rtlib/gfxlib2 sources. Libraries named `lib*mt` are the thread-safe versions of their `lib*` counterparts. They are built with the `ENABLE_MT` #define.
+
+local
+
+- Sometimes: A variable allocated on stack
+  Any symbol in a nested scope, not the global/toplevel namespace. Scoped static variables also have the `FB_SYMBATTRIB_LOCAL` attribute, even though they are not allocated on stack.
+
+method
+
+- A member-procedure with `THIS` parameter. Static member-procedures (those without the `THIS` parameter) do not have `FB_SYMBATTRIB_METHOD`.
+  Sometimes: Any member-procedure, with or without `THIS` parameter
+
+noconv cast
+
+A cast that does not require a conversion.
+
+normal build
+
+Described here: [Normal vs. Standalone](Normal-vs-Standalone-Freebasic)
+
+objinfo
+
+See DevObjinfo
+
+param, parameter
+
+Procedure parameters as declared in procedure DECLARE statements or bodies.
+
+paramvar
+
+For each parameter, the compiler will create a corresponding local variable in the procedure's scope, allowing the parameters to be accessed by user code.
+
+proc, procedure
+
+Any sub or function, including constructors/destructors, operator overloads, property setters/getters.
+
+standalone build
+
+Described here: [Normal vs. Standalone](Normal-vs-Standalone-Freebasic)
+
+static
+
+- static variable allocation: on the heap instead of the stack, but still scoped -- also see local.
+- static member variables: are actually externs.
+- static member procedures: member-procedures without a `THIS` parameter, also see method.
+- "static array" is often used in place of "fixed-size array" (QB language)
+
+struct, structure
+
+`TYPE` or `UNION`, also known as `struct`/`union` in C.
+
+sub
+
+A procedure without result (with VOID result).
+
+symtb
+
+A symbol table: owns a linked list of `FBSYMBOL` in a specific scope. This is where `FBSYMBOL`s live.
+
+rtlib
+
+The FB runtime library implementation from the fbc project
+
+UDT, user-defined type
+
+TYPEs/UNIONs/ENUMs, sometimes just TYPEs/UNIONs.
+
+vreg
+
+Virtual registers are used when emitting the AST. The AST creates a vreg for the operands and results of all operations that make up the input program. Each backend emits them differently:
+
+Since the C/LLVM backends don't re-use vregs, the vregs are almost in static-single-assignment form; although not quite because there still are self-operations etc. produced by the AST which don't take SSA form into account.
+
+---
+
+**Category:** [Compiler Internals](Category-Compiler-Internals)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

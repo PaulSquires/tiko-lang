@@ -1,0 +1,43 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **LoanSummary**
+
+# LoanSummary
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+s.ScheduledPayment_  s.FinalPayment_  s.PaymentCount_  s.TotalPaid_  s.TotalInterest_  s.TotalPrincipal_  s.EffectiveAnnualRate_  s.InterestSavedVsScheduled_  s.PeriodsSaved_  s.PayoffDate_
+```
+
+## Examples
+
+```freebasic
+#include once "fb/finance.bi"
+using FB
+
+'' What LoanSummarize returns.  The last three fields are the ones that
+'' only mean something when extra payments were supplied.
+dim as LoanTerms t = LoanTermsUsMortgage( DecimalParse( "400000" ).Value( ), _
+                                          DecimalParse( "0.0595" ).Value( ), 30 )
+
+dim as ExtraPayment ex( 0 to 0 )
+ex( 0 ) = ExtraPaymentRecurring( 1, 360, DecimalParse( "200" ).Value( ) )
+
+var plain = LoanSummarize( t )
+var early = LoanSummarize( t, ex( ) )
+
+print plain.Value( ).PeriodsSaved_                       '' 0
+print early.Value( ).PaymentCount_                       '' 295
+print early.Value( ).PeriodsSaved_                       '' 65
+print early.Value( ).InterestSavedVsScheduled_.ToStringFixed( 2 )   '' 96974.24
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `src/inc/fb/finloan.bi` in the tiko-lang repository.

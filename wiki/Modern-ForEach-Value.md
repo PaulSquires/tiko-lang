@@ -1,0 +1,40 @@
+[Home](Home) › [For Each](Category-For-Each) › [For Each](Category-For-Each) › **Value**
+
+# Value
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [For Each](Category-For-Each), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+Value( )
+```
+
+## Examples
+
+```freebasic
+#include once "fb/array.bi"
+using FB
+
+dim v as Array( of long )
+v.Push( 1 ) : v.Push( 2 )
+
+dim it as ArrayIterator( of long ) = v.GetIterator( )
+print it.Value( )            '' 1 -- the element the iterator is on
+
+'' Array's Value( ) returns BYREF, so `for each byref x in v` can modify
+'' elements in place. Returning byval would make that impossible.
+it.Value( ) = 99
+print v[ 0 ]                 '' 99
+
+'' Only valid while IsValid( ) is true
+```
+
+---
+
+**Library:** [For Each](Category-For-Each) ✨  
+**Category:** [For Each](Category-For-Each)  
+**Documented under:** What Can Be Walked  
+**Source:** `docs/for_each/for-each.txt` in the tiko-lang repository.

@@ -1,0 +1,46 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **DivChecked**
+
+# DivChecked
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+Integer division, or **nothing** when it is undefined.
+
+## Syntax
+
+```freebasic
+DivChecked( byval a as T, byval b as T ) as Optional( of T )
+```
+
+## Notes
+
+- **Two** failing cases, not one: division by zero, and the most negative value divided by -1 -- whose true quotient has no representation, exactly as with `AbsChecked`.
+- That second case is the one hand-written guards forget; a bare `if b <> 0` is not enough.
+- There is no saturating or wrapping division, because neither has a defensible answer for a divide by zero.
+
+## Examples
+
+```freebasic
+#include once "fb/mathint.bi"
+using FB
+
+dim as byte a = 10, b = 0
+print DivChecked( a, b ).HasValue( )          '' false -- divide by zero
+
+'' THE CASE A HAND-WRITTEN GUARD FORGETS: -128 \ -1 has no
+'' representation in a BYTE
+dim as byte worst = -128, neg = -1
+print DivChecked( worst, neg ).HasValue( )    '' false
+
+dim as byte c = 10, d = 3
+print DivChecked( c, d ).Value( )             '' 3
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

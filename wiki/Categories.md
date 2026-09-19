@@ -1,0 +1,76 @@
+[Home](Home) › **All Categories**
+
+# All Categories
+
+Every category in this wiki. Categories marked ✨ are tiko-lang additions; the rest come from the FreeBASIC manual and may also contain tiko-lang pages, listed separately at the top of each one.
+
+- [Generics](Category-Generics) ✨ — 1 pages — 1 tiko-lang page
+- [For Each](Category-For-Each) ✨ — 5 pages — 5 tiko-lang pages
+- [Iterators](Category-Iterators) ✨ — 1 pages — 1 tiko-lang page
+- [Tuples](Category-Tuples) ✨ — 1 pages — 1 tiko-lang page
+- [Defer](Category-Defer) ✨ — 1 pages — 1 tiko-lang page
+- [Lambdas](Category-Lambdas) ✨ — 1 pages — 1 tiko-lang page
+- [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ — 2 pages — 2 tiko-lang pages
+- [C Header Import](Category-C-Header-Import) ✨ — 2 pages — 2 tiko-lang pages
+- [UString](Category-UString) ✨ — 1 pages — 1 tiko-lang page
+- [String Library](Category-String-Library) ✨ — 39 pages — 39 tiko-lang pages
+- [Array](Category-Array) ✨ — 22 pages — 22 tiko-lang pages
+- [Map](Category-Map) ✨ — 15 pages — 15 tiko-lang pages
+- [Set](Category-Set) ✨ — 11 pages — 11 tiko-lang pages
+- [LinkedList](Category-LinkedList) ✨ — 14 pages — 14 tiko-lang pages
+- [OrderedMap](Category-OrderedMap) ✨ — 18 pages — 18 tiko-lang pages
+- [OrderedSet](Category-OrderedSet) ✨ — 17 pages — 17 tiko-lang pages
+- [Sorting](Category-Sorting) ✨ — 9 pages — 9 tiko-lang pages
+- [Optional](Category-Optional) ✨ — 7 pages — 7 tiko-lang pages
+- [Result](Category-Result) ✨ — 10 pages — 10 tiko-lang pages
+- [Smart Pointers](Category-Smart-Pointers) ✨ — 12 pages — 12 tiko-lang pages
+- [Date and Time (Chrono)](Category-Date-and-Time-Chrono) ✨ — 191 pages — 191 tiko-lang pages
+- [Filesystem](Category-Filesystem) ✨ — 140 pages — 140 tiko-lang pages
+- [Math Library](Category-Math-Library) ✨ — 197 pages — 197 tiko-lang pages
+- [Finance](Category-Finance) ✨ — 151 pages — 151 tiko-lang pages
+- [Logging](Category-Logging) ✨ — 33 pages — 33 tiko-lang pages
+- [Terminal TUI Library](Category-Terminal-TUI-Library) ✨ — 257 pages — 257 tiko-lang pages
+- [Goroutines and Channels](Category-Goroutines-and-Channels) ✨ — 13 pages — 13 tiko-lang pages
+- [LLVM Backend](Category-LLVM-Backend) ✨ — 1 pages — 1 tiko-lang page
+- [__FB_MODERN__](Category-FB-Modern-Define) ✨ — 1 pages — 1 tiko-lang page
+- [Language Documentation](Category-Language-Documentation) — 8 pages
+- [Programmer's Guide](Category-Programmer-s-Guide) — 4 pages
+- [Variable Declarations](Category-Variable-Declarations) — 8 pages
+- [Standard Data Types](Category-Standard-Data-Types) — 21 pages
+- [User Defined Types](Category-User-Defined-Types) — 27 pages
+- [Procedures](Category-Procedures) — 29 pages
+- [Operators](Category-Operators) — 86 pages
+- [Control Flow Statements](Category-Control-Flow-Statements) — 16 pages
+- [Converting Data Types](Category-Converting-Data-Types) — 25 pages
+- [Array Functions](Category-Array-Functions) — 13 pages
+- [String Functions](Category-String-Functions) — 41 pages
+- [Mathematical Functions](Category-Mathematical-Functions) — 19 pages
+- [Bit Manipulation](Category-Bit-Manipulation) — 9 pages
+- [Date and Time Functions](Category-Date-and-Time-Functions) — 24 pages
+- [File I/O Functions](Category-File-I-O-Functions) — 34 pages
+- [Console Functions](Category-Console-Functions) — 14 pages
+- [User Input (Runtime Library)](Category-User-Input-Runtime-Library) — 7 pages
+- [User Input Functions (Graphics Library)](Category-User-Input-Functions-Graphics-Library) — 7 pages
+- [Screen Functions](Category-Screen-Functions) — 23 pages
+- [2D Drawing Functions](Category-2D-Drawing-Functions) — 27 pages
+- [Graphics Library Reference](Category-Graphics-Library-Reference) — 3 pages
+- [Graphics Keyword List](Category-Graphics-Keyword-List) — 1 pages
+- [Memory Functions](Category-Memory-Functions) — 13 pages
+- [Threading Support Functions](Category-Threading-Support-Functions) — 15 pages
+- [Error Handling Functions](Category-Error-Handling-Functions) — 10 pages
+- [Operating System Functions](Category-Operating-System-Functions) — 26 pages
+- [Preprocessor](Category-Preprocessor) — 23 pages
+- [Intrinsic Defines](Category-Intrinsic-Defines) — 81 pages
+- [Miscellaneous Keywords](Category-Miscellaneous-Keywords) — 36 pages
+- [Modularizing](Category-Modularizing) — 13 pages
+- [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) — 80 pages
+- [Compiler](Category-Compiler) — 5 pages
+- [Compiler Options](Category-Compiler-Options) — 3 pages
+- [Compiler Switches](Category-Compiler-Switches) — 23 pages
+- [Compiler Internals](Category-Compiler-Internals) — 38 pages
+- [Hacking on FreeBASIC](Category-Hacking-on-FreeBASIC) — 1 pages
+- [FreeBASIC dialects and QBASIC](Category-FreeBASIC-dialects-and-QBASIC) — 3 pages
+- [Tutorials](Category-Tutorials) — 218 pages
+- [FAQs](Category-FAQs) — 7 pages
+- [Miscellaneous](Category-Miscellaneous) — 5 pages
+- [Reference](Category-Reference) — 22 pages

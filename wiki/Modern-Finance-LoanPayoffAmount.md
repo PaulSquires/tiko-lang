@@ -1,0 +1,44 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **LoanPayoffAmount**
+
+# LoanPayoffAmount
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+LoanPayoffAmount( loanTerms, afterPeriod, asOf )
+```
+
+## Examples
+
+```freebasic
+#include once "fb/finance.bi"
+using FB
+
+'' What it costs to settle: the balance after a period, plus per-diem
+'' interest to the settlement date on the loan's day-count basis.
+dim as LoanTerms t = LoanTermsUsMortgage( DecimalParse( "400000" ).Value( ), _
+                                          DecimalParse( "0.0595" ).Value( ), 30 )
+
+t.FirstPaymentDate_ = LocalDate( 2026, 3, 1 )
+
+'' On the due date there is no per diem to add.
+print LoanPayoffAmount( t, 12, LocalDate( 2027, 2, 1 ) ).Value( ).ToStringFixed( 2 )   '' 395041.91
+
+'' Forty-two days later, interest has accrued.
+print LoanPayoffAmount( t, 12, LocalDate( 2027, 3, 15 ) ).Value( ).ToStringFixed( 2 )  '' 397746.59
+
+'' A date BEFORE the period's due date is refused rather than accruing
+'' negative interest.
+print LoanPayoffAmount( t, 12, LocalDate( 2026, 12, 1 ) ).Failure( ).Message( )
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `src/inc/fb/finloan.bi` in the tiko-lang repository.

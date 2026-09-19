@@ -1,0 +1,40 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **CNorm**
+
+# CNorm
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+The modulus squared — the square root is not taken.
+
+## Syntax
+
+```freebasic
+CNorm( byref z as Complex ) as double
+```
+
+## Notes
+
+- **The one to use for comparisons.** `CNorm(a) < CNorm(b)` answers the same question as `CAbs(a) < CAbs(b)` without either square root.
+- `z * CConj( z )` is `CNorm( z )` with a zero imaginary part — that identity is what the name means.
+- It **does** overflow where `CAbs` does not: it is the squared quantity, and squaring `1e200` is `inf`.
+- AfxNova spelled this `CNorm`, `CAbs2` and `CAbsSqr`.
+
+## Examples
+
+```freebasic
+#include once "fb/complex.bi"
+using FB
+
+print CNorm( CSet( 3, 4 ) )                              '' 25
+print CToString( CSet( 3, 4 ) * CConj( CSet( 3, 4 ) ) )  '' 25+0i   -- real, and equal to CNorm
+print CNorm( CSet( 1e200, 1e200 ) )                      '' 1.#INF   -- this one DOES overflow -- use CAbs
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

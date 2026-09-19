@@ -1,0 +1,132 @@
+[Home](Home) › [Operating System Functions](Category-Operating-System-Functions) › **FileAttr**
+
+# FileAttr
+
+Returns information about an open file number
+
+## Syntax
+
+```freebasic
+Declare Function FileAttr ( ByVal filenum As Long, ByVal returntype As Long = 1 ) As Integer
+```
+
+## Parameters
+
+- `filenum`
+- `returntype`
+
+## Description
+
+Information about the file number is returned based on the supplied `returntype`
+
+| Value | Description | constant |
+| --- | --- | --- |
+| 1 | File Mode | fbFileAttrMode |
+| 2 | File Handle | fbFileAttrHandle |
+| 3 | Encoding | fbFileAttrEncoding |
+
+For File Mode, `returntype` = 1 (`fbFileAttrMode`) the return value is the sum of one or more of the following values:
+
+| Value | File Mode | Constant |
+| --- | --- | --- |
+| 1 | Input | fbFileModeInput |
+| 2 | Output | fbFileModeOutput |
+| 4 | Random | fbFileModeRandom |
+| 8 | Append | fbFileModeAppend |
+| 32 | Binary | fbFileModeBinary |
+
+For File Handle, `returntype` = 2 (`fbFileAttrHandle`), the return value is the file handle as supplied by the C Runtime for file-type devices.
+
+ On Windows only: For File Handle, `returntype` = 2 (`fbFileAttrHandle`), the value returned for COM devices is the handle returned by `CreateFile()` when the device was first opened. The value returned for LPT devices is the handle returned by `OpenPrinter()` when the device was first opened. This handle value can be passed to other Windows API functions.
+
+ On Linux only: For File Handle, `returntype` = 2 (`fbFileAttrHandle`), the value returned for COM devices is the file descriptor returned by open() when the device was first opened.
+
+ For Encoding, `returntype` = 3 (`fbFileAttrEncoding`), the return value is one of the following values:
+
+| Value | Encoding | Constant |
+| --- | --- | --- |
+| 0 | Ascii | fbFileEncodASCII |
+| 1 | UTF-8 | fbFileEncodUTF8 |
+| 2 | UTF-16 | fbFileEncodUTF16 |
+| 3 | UTF-32 | fbFileEncodUTF32 |
+
+## Return Value
+
+A value associated with the return type, otherwise 0 on error.
+
+## Remarks
+
+### Usage
+
+```freebasic
+#include "file.bi"
+
+result = FileAttr( filenum, [ returntype ] )
+```
+
+ *or*
+
+```freebasic
+#include "vbcompat.bi"
+
+result = FileAttr( filenum, [ returntype ] )
+```
+
+### Differences from QB
+
+- None for `returntype` = 1
+- QBasic and 16-bit Visual Basic returned DOS file handle for `returntype` = 2
+- `returntype` = 3 is new to FreeBASIC
+
+### See also
+
+- [`Open`](Open)
+
+## Examples
+
+```freebasic
+#include "vbcompat.bi"
+
+#include "crt.bi"
+
+Dim f As FILE Ptr, i As Integer
+
+'' Open a file and write some text to it
+
+Open "test.txt" For Output As #1
+
+f = Cast( FILE Ptr, FileAttr( 1, fbFileAttrHandle ))
+
+For i = 1 To 10
+
+  fprintf( f, !"Line %i\n", i )
+
+Next i
+
+Close #1
+
+'' re-open the file and read the text back
+
+Open "test.txt" For Input As #1
+
+f = Cast( FILE Ptr, FileAttr( 1, fbFileAttrHandle ))
+
+While feof(f) = 0
+
+  i = fgetc(f)
+
+  Print Chr(i);
+
+Wend
+
+Close #1
+```
+
+---
+
+**Category:** [Operating System Functions](Category-Operating-System-Functions)  
+**Kind:** function
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

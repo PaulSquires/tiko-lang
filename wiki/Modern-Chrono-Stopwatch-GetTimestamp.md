@@ -1,0 +1,44 @@
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **GetTimestamp**
+
+# GetTimestamp
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Chrono Date and Time](Category-Date-and-Time-Chrono), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+The raw monotonic counter value.
+
+## Syntax
+
+```freebasic
+Stopwatch.GetTimestamp( ) as longint
+```
+
+## Notes
+
+- Platform units, **not** 100 ns ticks: divide a difference by `Frequency( )` to get seconds.
+- It is the primitive a Stopwatch is built on, exposed for code that wants to time something without holding one.
+- Monotonic, so it never goes backwards across an NTP correction or a DST change -- which `TIMER` does not promise.
+
+## Examples
+
+```freebasic
+#include once "fb/chrono.bi"
+using FB
+
+dim as longint a = Stopwatch.GetTimestamp( )
+sleep 20, 1
+dim as longint b = Stopwatch.GetTimestamp( )
+
+print b > a                  '' -1 (true) -- monotonic
+
+'' PLATFORM UNITS: divide by Frequency to get seconds
+print ( b - a ) / Stopwatch.Frequency( ) < 1.0                '' -1 (true)
+```
+
+---
+
+**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
+**Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
+**Documented under:** Members  
+**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.

@@ -1,0 +1,43 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **Raw**
+
+# Raw
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+The underlying scaled integer: the amount times 10000.
+
+## Syntax
+
+```freebasic
+Raw( ) as longint
+```
+
+## Notes
+
+- A Currency **is** this number -- four decimal places held in a `longint`, which is what makes the arithmetic exact.
+- The form to store in a database column or a binary record: one integer, no rounding on the way out and none on the way back.
+- `CurrencyFromRaw` is the inverse.
+
+## Examples
+
+```freebasic
+#include once "fb/currency.bi"
+using FB
+
+dim as Currency c = CurrencyFromParts( 12, 3400 )
+
+print c.Raw( )               '' 123400
+print c.ToString( )          '' 12.3400
+
+'' Round-trips exactly, which a double never promises
+print CurrencyFromRaw( c.Raw( ) ).ToString( )          '' 12.3400
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

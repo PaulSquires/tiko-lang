@@ -1,0 +1,45 @@
+[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Geometry](Category-Terminal-TUI-Library) › **TuiRectOf**
+
+# TuiRectOf
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+TuiRectOf( byval x as long, byval y as long, byval w as long, byval h as long ) as TuiRect
+```
+
+## Description
+
+Builds a TuiRect. There is no constructor, so this is how you make one in an expression.
+
+## Example
+
+```freebasic
+#include once "fb/tui.bi"
+using FB
+
+dim as TuiRect full = TuiRectOf( 0, 0, 80, 24 )
+dim as TuiRect pane = TuiRectOf( 0, 0, 40, 24 )
+print full.w, pane.w              '' 80 40
+```
+
+## See also
+
+[TuiRect](Modern-Tui-TuiRect) · [TuiRect.Right](Modern-Tui-TuiRect-Right) · [TuiRect.Bottom](Modern-Tui-TuiRect-Bottom) · [TuiRect.IsEmpty](Modern-Tui-TuiRect-IsEmpty) · [TuiRect.Contains](Modern-Tui-TuiRect-Contains) · [TuiRect.Intersect](Modern-Tui-TuiRect-Intersect) · [TuiRect.Inner](Modern-Tui-TuiRect-Inner) · [TuiRect.Equals](Modern-Tui-TuiRect-Equals) · [TuiSize](Modern-Tui-TuiSize) · [TuiSizeOf](Modern-Tui-TuiSizeOf) · [TuiPos](Modern-Tui-TuiPos) · [TuiMargin](Modern-Tui-TuiMargin)
+
+---
+
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
+**Documented under:** Geometry  
+**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+
+
+---
+
+[Home](Home) · [Keyword Index](Keyword-Index)

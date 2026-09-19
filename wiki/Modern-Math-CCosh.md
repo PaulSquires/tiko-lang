@@ -1,0 +1,41 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **CCosh**
+
+# CCosh
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+The hyperbolic cosine.
+
+## Syntax
+
+```freebasic
+CCosh( byref z as Complex ) as Complex
+```
+
+## Notes
+
+- `cosh(re)·cos(im) + i·sinh(re)·sin(im)`, written out directly — see `CSinh` for why it is not routed through `CCos`.
+- Even: `CCosh( -z )` is `CCosh( z )`.
+- Spelled with the `C` prefix because a function of the unprefixed name in namespace `FB` would shadow the FreeBASIC intrinsic for every later header — measured, it broke `fb/random.bi` — after which the intrinsic cannot be called back.
+
+## Examples
+
+```freebasic
+#include once "fb/complex.bi"
+using FB
+
+dim as Complex z = CSet( 3, 4 )
+
+print CToString( CCosh( CZero( ) ) )  '' 1+0i   -- exactly one
+print CToString( CCosh( z ) )         '' -6.580663040551157-7.581552742746545i
+print CToString( CCosh( -z ) )        '' -6.580663040551157-7.581552742746545i   -- even
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

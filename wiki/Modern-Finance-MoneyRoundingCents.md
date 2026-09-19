@@ -1,0 +1,36 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **MoneyRoundingCents**
+
+# MoneyRoundingCents
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+MoneyRoundingCents( )
+```
+
+## Examples
+
+```freebasic
+#include once "fb/finance.bi"
+using FB
+
+'' Two places, half-to-even, rounding every posted amount.  The default
+'' in every record that carries a policy.
+dim as MoneyRounding p = MoneyRoundingCents( )
+
+'' HALF-TO-EVEN, which is why the two ties below go opposite ways: it
+'' stops a long ledger drifting upward the way half-up would.
+print MoneyRound( DecimalParse( "2.675" ).Value( ), p ).ToString( )   '' 2.68
+print MoneyRound( DecimalParse( "2.665" ).Value( ), p ).ToString( )   '' 2.66
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `src/inc/fb/fincore.bi` in the tiko-lang repository.

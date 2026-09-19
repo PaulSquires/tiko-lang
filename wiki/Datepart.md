@@ -1,0 +1,107 @@
+[Home](Home) › [Date and Time Functions](Category-Date-and-Time-Functions) › **DatePart**
+
+# DatePart
+
+Gets an interval from a date
+
+## Syntax
+
+```freebasic
+Declare Function DatePart ( ByRef interval As Const String, ByVal date_serial As Double, ByVal firstdayofweek As Long = fbUseSystem, ByVal firstdayofyear As Long = fbUseSystem ) As Long
+```
+
+## Parameters
+
+- `interval`
+- `date_serial`
+- `firstdayofweek`
+- `firstdayofyear`
+
+## Description
+
+`interval` string indicating which part of the date is required is specified as follows:
+
+| value | interval |
+| --- | --- |
+| yyyy | years |
+| q | quarter(three months) |
+| m | months |
+| w | weekday |
+| ww | week of the year |
+| y | day of the year |
+| d | day of the month |
+| h | hours |
+| n | minutes |
+| s | seconds |
+
+`first_dayofweek` Affects the output when 'w' interval is required.
+
+| value | first day of week | constant |
+| --- | --- | --- |
+| omitted | sunday | |
+| 0 | local settings | fbUseSystem |
+| 1 | sunday | fbSunday |
+| 2 | monday | fbMonday |
+| 3 | tuesday | fbTuesday |
+| 4 | wednesday | fbWednesday |
+| 5 | thursday | fbThursday |
+| 6 | friday | fbFriday |
+| 7 | saturday | fbSaturday |
+
+`first_weekofyear` specifies which year (previous or next) that the week which spans the end of one year and the beginning of the next should included with. Affects the output when `'ww'` interval is required.
+
+| value | first week of year | constant |
+| --- | --- | --- |
+| 0 | local settings | fbUseSystem |
+| 1 | January 1's week | fbFirstJan1 |
+| 2 | first weeks having 4 days in the year | fbFirstFourDays |
+| 3 | first full week of year | fbFirstFullWeek |
+
+The compiler will not recognize this function unless `vbcompat.bi` or `datetime.bi` is included.
+
+## Return Value
+
+Return an integer representing the `interval` in the [Date Serial](Date-Serials).
+
+## Remarks
+
+### Usage
+
+```freebasic
+#include "vbcompat.bi"
+
+result = DatePart( interval, date_serial, first_dayofWeek [, first_week_of_year ] )
+```
+
+### Differences from QB
+
+- Did not exist in QB. This function appeared in Visual Basic.
+
+### See also
+
+- [Date Serials](Date-Serials)
+
+## Examples
+
+```freebasic
+#include "vbcompat.bi"
+
+Dim d As Double
+
+d = Now()
+
+Print "Today is day " & DatePart( "y", d );
+
+Print " in week " & DatePart( "ww", d );
+
+Print " of the year " & DatePart( "yyyy", d )
+```
+
+---
+
+**Category:** [Date and Time Functions](Category-Date-and-Time-Functions)  
+**Kind:** function
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

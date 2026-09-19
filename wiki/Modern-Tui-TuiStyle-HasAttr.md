@@ -1,0 +1,46 @@
+[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Colour and Style](Category-Terminal-TUI-Library) › **TuiStyle.HasAttr**
+
+# TuiStyle.HasAttr
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+TuiStyle.HasAttr( byval a as TuiAttr ) as boolean
+```
+
+## Description
+
+Tests one attribute bit. The attributes are TUIATTR_BOLD, _DIM, _ITALIC, _UNDERLINE, _BLINK, _REVERSE, _STRIKE and _HIDDEN.
+
+## Example
+
+```freebasic
+#include once "fb/tui.bi"
+using FB
+
+dim as TuiStyle s = TuiStyleOf( TuiWhite( ), TuiBlack( ), TUIATTR_BOLD or TUIATTR_UNDERLINE )
+print s.HasAttr( TUIATTR_BOLD )        '' true
+print s.HasAttr( TUIATTR_UNDERLINE )   '' true
+print s.HasAttr( TUIATTR_REVERSE )     '' false
+```
+
+## See also
+
+[TuiColor](Modern-Tui-TuiColor) · [TuiColor.IsDefault](Modern-Tui-TuiColor-IsDefault) · [TuiColor.Equals](Modern-Tui-TuiColor-Equals) · [TuiColor.Index](Modern-Tui-TuiColor-Index) · [TuiDefaultColor](Modern-Tui-TuiDefaultColor) · [TuiAnsi](Modern-Tui-TuiAnsi) · [TuiIndexed](Modern-Tui-TuiIndexed) · [TuiRgb](Modern-Tui-TuiRgb) · [TuiBlack](Modern-Tui-TuiBlack) · [TuiRed](Modern-Tui-TuiRed) · [TuiGreen](Modern-Tui-TuiGreen) · [TuiYellow](Modern-Tui-TuiYellow)
+
+---
+
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
+**Documented under:** Colour and Style  
+**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+
+
+---
+
+[Home](Home) · [Keyword Index](Keyword-Index)

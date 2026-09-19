@@ -1,0 +1,40 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **ReturnSummary**
+
+# ReturnSummary
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+s.Total_  s.Annualized_  s.Volatility_  s.Sharpe_  s.Sortino_  s.MaxDrawdown_  s.Observations_
+```
+
+## Examples
+
+```freebasic
+#include once "fb/finance.bi"
+using FB
+
+'' Everything SummarizeReturns computes, in one record.
+dim as double r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
+                               0.01, -0.005, 0.02, 0.03, -0.015, 0.025 }
+dim as double b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
+                               0.008, -0.004, 0.018, 0.028, -0.012, 0.022 }
+
+var s = SummarizeReturns( r( ), 0.0002, RETURN_MONTHLY )
+
+print s.Value( ).Observations_           '' 12
+print s.Value( ).Total_                  '' 0.1410864155548182
+print s.Value( ).Volatility_             '' 0.07088723439378913
+print s.Value( ).MaxDrawdown_            '' 0.02500000000000009
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Nothing Becomes A Keyword  
+**Source:** `src/inc/fb/finport.bi` in the tiko-lang repository.

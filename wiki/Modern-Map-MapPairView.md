@@ -1,0 +1,48 @@
+[Home](Home) › [Map](Category-Map) › [Map](Category-Map) › **MapPairView**
+
+# MapPairView
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Map](Category-Map), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+The iterator type behind `Map.Pairs( )`.
+
+## Syntax
+
+```freebasic
+MapPairView( of TK, TV )
+```
+
+## Notes
+
+- Returned by `Pairs( )` and consumed immediately by `for each`.
+- A **view**, not a container: it holds a pointer to the map and exists only to give `for each` something to iterate. It copies nothing.
+- Iteration order is unspecified, like the map's own.
+
+## Examples
+
+```freebasic
+#include once "fb/map.bi"
+using FB
+
+dim ages as Map( of string, integer )
+ages.Put( "ada", 36 )
+
+'' The named-halves form
+for each kv in ages
+    print kv.key & " " & kv.value             '' ada 36
+next
+
+'' The destructuring form, through Pairs( )
+for each (who, age) in ages.Pairs( )
+    print who & " is " & age                  '' ada is 36
+next
+```
+
+---
+
+**Library:** [Map](Category-Map) ✨  
+**Category:** [Map](Category-Map)  
+**Documented under:** Members  
+**Source:** `docs/map/map.txt` in the tiko-lang repository.

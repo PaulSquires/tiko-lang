@@ -1,0 +1,42 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **Parity**
+
+# Parity
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+1 if an odd number of bits are set, 0 if even.
+
+## Syntax
+
+```freebasic
+Parity( byval x as T ) as long
+```
+
+## Notes
+
+- `PopCount` mod 2, computed by folding rather than by counting -- so it is cheaper when the count itself is not wanted.
+- The check digit behind a parity bit and the simplest error-detecting code there is.
+
+## Examples
+
+```freebasic
+#include once "fb/mathint.bi"
+using FB
+
+dim as ulong x = &b1011
+print Parity( x )            '' 1 -- three bits, odd
+
+dim as ulong y = &b1010
+print Parity( y )            '' 0 -- two bits, even
+
+print Parity( x ) = PopCount( x ) mod 2       '' -1 (true)
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

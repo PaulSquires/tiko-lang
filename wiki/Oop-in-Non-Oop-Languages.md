@@ -1,0 +1,158 @@
+[Home](Home) › [Tutorials](Category-Tutorials) › **OOP In Non-OOP Languages**
+
+# OOP In Non-OOP Languages
+
+Contrary to popular belief object oriented programming does not require an OO language.
+
+ What you get with an OO language is a set of built in constructs that assist you in writing OO programs but in many cases they are unnecessary and sometimes they are counterproductive.
+
+ Anyway, this isn't a rant against OO languages but rather a rant against the unquestioning acceptance of the idea that a specifically OO language is necessary to write object oriented programs.
+
+ In order to demonstrate that it is not necessary to have an OO language this example presents a technique that is usually presented as an example of class based programming; and so it is but you won't find the word class in this example.
+
+ If you have to concatenate a lot of strings in most Basics you usually find that it is a time consuming process. Actually FreeBASIC string operations are remarkably quick but you can still do better using a string builder.
+
+ A string builder is simply a class that maintains a string buffer in such a way as to avoid repeated calls to the memory allocation function because this is a relatively expensive operation. The methods of the class provide ways of manipulating the buffer and converting between it and the native string type.
+
+ The trick that makes it faster than the built type for large strings and large numbers of appends is that the string is held in a heap allocated buffer that is always larger than the actual length of the string. This means that appending to the end of the string usually simply means copying the contents of the new string to the memory location following the last character of the current string. In this implementation the buffer is a ZString so it is easy to convert it to an ordinary dynamic string.
+
+ The FreeBASIC module encapsulates a type definition for a struct. Instances of this struct hold the attributes of the object. The methods are simply normal FreeBASIC public functions and subs defined in the same module. When you want to call a method you use the normal FreeBASIC syntax:  
+ `s = StringB_ToString(AStringBInstance)`
+
+ By convention all methods names begin with the name of the class and an underscore and the first argument is always the instance of the type. This argument should always be passed by reference to ensure that changes to the state are permanent and also to avoid unnecessary, time-consuming, copying.
+
+ To add a new method you simply add a new function or sub following those rules.
+
+ You can easily implement composition of objects but inheritance in the usually expected ways can't be done. You can extend classes simply by defining new functions elsewhere that take arguments of the class type. If the original class defines all of its methods as overloaded you can even create new methods of the same name so long as they have different signatures.
+
+ Here is the example code:
+
+```freebasic
+'-----------------------------------------------------------------------------
+
+' Classes without built in oop.
+
+' Define a struct for the properties and a sub or function for each
+
+' method.  Pass the struct as the first argument in all calls.
+
+' By convention the argument will be Me as in VB Classic
+
+' Strings in FB are so fast that a string builder class is
+
+' not needed most of the time but if you are concatenating
+
+' thousands of strings to build web pages for instance this might be useful.
+
+' And please don't start complaining about the lack of inheritance; that
+
+' is not a requirement for the use of objects.  There is no legal definition of
+
+' Object Oriented Programming but the most important part of any definition
+
+' is the close association between the data and the code that manipulates it.
+
+'You can easily extend this class to provide more methods.
+
+'-----------------------------------------------------------------------------
+
+Type StringB
+
+  Len As Integer ' used length
+
+  allocated As Integer
+
+  s As ZString Ptr   ' buffer of at least len characters
+
+End Type
+
+'-----------------------------------------------------------------------------
+
+' Create a new StringB by calling one of these constructors.
+
+'-----------------------------------------------------------------------------
+
+Public Function StringB_New Overload (ByVal InitialSize As Integer) As StringB
+
+  Dim sb As StringB
+
+  sb.allocated = InitialSize
+
+  sb.s = Allocate(InitialSize)
+
+  *sb.s = ""
+
+  StringB_New = sb
+
+End Function
+
+Public Function StringB_New(ByRef InitialValue As String) As StringB
+
+  Dim sb As StringB
+
+  sb = StringB_New(Len(InitialValue))
+
+  *sb.s = InitialValue
+
+  sb.len = Len(InitialValue)
+
+  StringB_New = sb
+
+End Function
+
+Public Sub StringB_Dispose(ByRef Me As StringB)
+
+  Deallocate Me.s
+
+End Sub
+
+Public Function StringB_ToString(ByRef Me As StringB) As String
+
+  StringB_ToString = *Me.s
+
+End Function
+
+Sub StringB_Append Overload(ByRef Me As StringB, ByRef s As String)
+
+  Dim i As Integer = Me.len
+
+  Me.len += Len(s)
+
+  If Me.len >= Me.allocated Then
+
+    Me.allocated = 2*Me.len
+
+    Dim As ZString Ptr p = Reallocate(Me.s, Me.allocated )
+
+    If p=0 Then
+
+      ' failed to reallocate
+
+      Print "StringB_Append failed to reallocate", Me.allocated
+
+      Return
+
+    End If
+
+    Me.s = p
+
+  End If
+
+  *(Me.s + i) = s
+
+End Sub
+
+Sub StringB_Append(ByRef Me As StringB, ByRef other As StringB)
+
+  StringB_Append Me, StringB_ToString(other)
+
+End Sub
+```
+
+---
+
+**Category:** [Tutorials](Category-Tutorials)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

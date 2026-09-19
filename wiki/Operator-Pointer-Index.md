@@ -1,0 +1,94 @@
+[Home](Home) › [Operators](Category-Operators) › **Operator [] (Pointer Index)**
+
+# Operator [] (Pointer Index)
+
+Returns a reference to memory offset from an address
+
+## Syntax
+
+```freebasic
+Declare Operator [] ( ByRef lhs As T Pointer, ByRef rhs As Integer ) ByRef As T
+```
+
+## Parameters
+
+- `lhs`
+- `rhs`
+- `lhs`
+- `T`
+
+## Description
+
+This operator returns a reference to a value some distance in memory from a base address. It is essentially shorthand for "`*(lhs + rhs)`" because the reference can be thought of as a pointer having as value the memory location "`(lhs + rhs)`", and which is implicitly dereferenced; both do exactly the same thing.  
+ Like pointer arithmetic, any type of [`Pointer`](Pointer-Ptr) can be indexed except for an [`Any`](Any) [`Pointer`](Pointer-Ptr). Also, like pointer arithmetic, it is up to the user to make sure meaningful data is being accessed.
+
+ When indexing a '2-dimensional' pointer (i.e. a `T Ptr Ptr`), the first (leftmost) index is applied before the second: For example, `Pt[I1][I2]` = `*(Pt[I1] + I2)` = `*(*(Pt + I1) + I2)`  
+ In general, when using an '*n*-dimensional' pointer: `Pt[I1][I2].....[In]`, the index order (from left to right) corresponds to the dereferencing order.
+
+ This operator must not be used in case of null pointer because reference is undefined (inducing runtime error).  
+ Otherwise, the user must ensure that the offset value (`rhs`) is in a range that allows an access to valid memory. Outside this range, results are undefined.
+
+ This operator can be overloaded for user-defined types as a member [`Operator`](Operator) using the appropriate syntax.
+
+## Remarks
+
+### Usage
+
+```freebasic
+result = lhs [ rhs ]
+
+or
+
+lhs [ rhs ] = value
+```
+
+### Differences from QB
+
+- New to FreeBASIC
+
+### See also
+
+- [Pointer Arithmetic](Pointer-Arithmetic)
+- [`Operator * (Value Of)`](Operator-Value-of)
+- [`Operator [] (String Index)`](Operator-String-Index)
+- [`Operator () (Array Index)`](Operator-Array-Index)
+- [`Operator + (Add)`](Operator-Addition)
+- [`Operator - (Subtract)`](Operator-Subtract)
+- [Pointer Operators](Pointer-Operators)
+
+## Examples
+
+```freebasic
+'' initialize a 5-element array
+
+Dim array(4) As Integer = { 0, 1, 2, 3, 4 }
+
+'' point to the first element
+
+Dim p As Integer Ptr = @array(0)
+
+'' use pointer indexing to output array elements
+
+For index As Integer = 0 To 4
+
+    Print p[index];
+
+Next
+
+Print
+```
+
+ Will give the output,
+
+```freebasic
+ 0 1 2 3 4
+```
+
+---
+
+**Category:** [Operators](Category-Operators)  
+**Kind:** operator
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

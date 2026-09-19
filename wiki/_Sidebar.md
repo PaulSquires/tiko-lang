@@ -1,0 +1,93 @@
+### tiko-lang
+
+- [Home](Home)
+- [What Is tiko-lang](What-Is-tiko-lang)
+- [Quick Start](Quick-Start)
+- [Feature Index](Feature-Index) ✨
+- [Compatibility](Compatibility)
+- [FAQ](tiko-lang-FAQ)
+
+### Documentation
+
+- [Keyword Index](Keyword-Index)
+- [All Categories](Categories)
+
+### tiko-lang features ✨
+
+- [Generics](Category-Generics) ✨
+- [For Each](Category-For-Each) ✨
+- [Iterators](Category-Iterators) ✨
+- [Tuples](Category-Tuples) ✨
+- [Defer](Category-Defer) ✨
+- [Lambdas](Category-Lambdas) ✨
+- [C Header Import](Category-C-Header-Import) ✨
+- [Foreign Library Linking](Category-Foreign-Library-Linking) ✨
+- [UString](Category-UString) ✨
+- [String Library](Category-String-Library) ✨
+- [Array](Category-Array) ✨
+- [Map](Category-Map) ✨
+- [Set](Category-Set) ✨
+- [LinkedList](Category-LinkedList) ✨
+- [OrderedMap](Category-OrderedMap) ✨
+- [OrderedSet](Category-OrderedSet) ✨
+- [Sorting](Category-Sorting) ✨
+- [Optional](Category-Optional) ✨
+- [Result](Category-Result) ✨
+- [Smart Pointers](Category-Smart-Pointers) ✨
+- [Date and Time (Chrono)](Category-Date-and-Time-Chrono) ✨
+- [Filesystem](Category-Filesystem) ✨
+- [Math Library](Category-Math-Library) ✨
+- [Finance](Category-Finance) ✨
+- [Logging](Category-Logging) ✨
+- [Terminal TUI Library](Category-Terminal-TUI-Library) ✨
+- [Goroutines and Channels](Category-Goroutines-and-Channels) ✨
+- [LLVM Backend](Category-LLVM-Backend) ✨
+- [__FB_MODERN__](Category-FB-Modern-Define) ✨
+
+### FreeBASIC manual
+
+- [Language Documentation](Category-Language-Documentation)
+- [Programmer's Guide](Category-Programmer-s-Guide)
+- [Variable Declarations](Category-Variable-Declarations)
+- [Standard Data Types](Category-Standard-Data-Types)
+- [User Defined Types](Category-User-Defined-Types)
+- [Procedures](Category-Procedures)
+- [Operators](Category-Operators)
+- [Control Flow Statements](Category-Control-Flow-Statements)
+- [Converting Data Types](Category-Converting-Data-Types)
+- [Array Functions](Category-Array-Functions)
+- [String Functions](Category-String-Functions)
+- [Mathematical Functions](Category-Mathematical-Functions)
+- [Bit Manipulation](Category-Bit-Manipulation)
+- [Date and Time Functions](Category-Date-and-Time-Functions)
+- [File I/O Functions](Category-File-I-O-Functions)
+- [Console Functions](Category-Console-Functions)
+- [User Input (Runtime Library)](Category-User-Input-Runtime-Library)
+- [User Input Functions (Graphics Library)](Category-User-Input-Functions-Graphics-Library)
+- [Screen Functions](Category-Screen-Functions)
+- [2D Drawing Functions](Category-2D-Drawing-Functions)
+- [Graphics Library Reference](Category-Graphics-Library-Reference)
+- [Graphics Keyword List](Category-Graphics-Keyword-List)
+- [Memory Functions](Category-Memory-Functions)
+- [Threading Support Functions](Category-Threading-Support-Functions)
+- [Error Handling Functions](Category-Error-Handling-Functions)
+- [Operating System Functions](Category-Operating-System-Functions)
+- [Preprocessor](Category-Preprocessor)
+- [Intrinsic Defines](Category-Intrinsic-Defines)
+- [Miscellaneous Keywords](Category-Miscellaneous-Keywords)
+- [Modularizing](Category-Modularizing)
+- [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
+- [Compiler](Category-Compiler)
+- [Compiler Options](Category-Compiler-Options)
+- [Compiler Switches](Category-Compiler-Switches)
+- [Compiler Internals](Category-Compiler-Internals)
+- [Hacking on FreeBASIC](Category-Hacking-on-FreeBASIC)
+- [FreeBASIC dialects and QBASIC](Category-FreeBASIC-dialects-and-QBASIC)
+- [Tutorials](Category-Tutorials)
+- [FAQs](Category-FAQs)
+- [Miscellaneous](Category-Miscellaneous)
+- [Reference](Category-Reference)
+
+---
+
+[License](License)

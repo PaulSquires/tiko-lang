@@ -1,0 +1,47 @@
+[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Overlays and Chrome](Category-Terminal-TUI-Library) › **TuiStatusBar.Add**
+
+# TuiStatusBar.Add
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+TuiStatusBar.Add( byref t as ustring, byval st as TuiStyle, byval a as TuiAlign = TUIALIGN_LEFT )
+```
+
+## Description
+
+Appends an item. Include the padding spaces in the text -- the bar does not add any, so you decide exactly how it looks.
+
+## Example
+
+```freebasic
+#include once "fb/tui.bi"
+using FB
+
+dim as TuiStatusBar sb
+sb.Add( " ready ", TuiStyleDefault( ), TUIALIGN_LEFT )
+sb.Add( "100% ", TuiStyleDefault( ), TUIALIGN_RIGHT )
+print sb.items.Count( )           '' 2
+print sb.items[1].align = TUIALIGN_RIGHT '' -1 (true)
+```
+
+## See also
+
+[TuiPopup](Modern-Tui-TuiPopup) · [TuiMessageBox](Modern-Tui-TuiMessageBox) · [TuiMessageBox.Accepted](Modern-Tui-TuiMessageBox-Accepted) · [TuiMessageBox.Cancelled](Modern-Tui-TuiMessageBox-Cancelled) · [TuiMenu](Modern-Tui-TuiMenu) · [TuiMenuBar](Modern-Tui-TuiMenuBar) · [TuiMenuBar.IsOpen](Modern-Tui-TuiMenuBar-IsOpen) · [TuiStatusItem](Modern-Tui-TuiStatusItem) · [TuiStatusItemOf](Modern-Tui-TuiStatusItemOf) · [TuiStatusBar](Modern-Tui-TuiStatusBar) · [TuiTreeNode](Modern-Tui-TuiTreeNode) · [TuiTreeState](Modern-Tui-TuiTreeState)
+
+---
+
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
+**Documented under:** Overlays and Chrome  
+**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+
+
+---
+
+[Home](Home) · [Keyword Index](Keyword-Index)

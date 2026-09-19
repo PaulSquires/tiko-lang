@@ -1,0 +1,84 @@
+[Home](Home) › [User Defined Types](Category-User-Defined-Types) › **Override**
+
+# Override
+
+Method attribute; specifies that a method must override a virtual
+
+## Syntax
+
+```freebasic
+Type typename Extends basename
+...
+Declare Sub|Function|Operator|Property|Destructor ... ( [parameterlist] ) [[ ByRef ] As datatype] Override
+...
+End Type
+```
+
+## Description
+
+In method declarations, `Override` can be used to indicate that this method is expected to override a [Virtual](Virtual) or [Abstract](Abstract) method from the base class. Then the compiler will show an error if the method does not override anything (only a non-static method can override a virtual or abstract method).
+
+ Use of `Override` is not mandatory to override a virtual or abstract method, it is highly recommended, as it will help prevent inadvertent errors (name/signature not matching).
+
+ `Override` can only be specified on the method declaration in the UDT block, but not on the method body, because it is just a compile-time check in the context of the inheritance hierarchy, and does not affect the method in any way.
+
+ `Override` is only recognized as a keyword at the end of member procedure declarations. It can still be used as identifier elsewhere.
+
+## Remarks
+
+### Differences from QB
+
+- New to FreeBASIC
+
+### See also
+
+- [`Virtual`](Virtual), [`Abstract`](Abstract)
+
+## Examples
+
+```freebasic
+Type A Extends Object
+
+    Declare Virtual Sub f1( )
+
+    Declare Virtual Function f2( ) As Integer
+
+End Type
+
+Type B Extends A
+
+    Declare Sub f1( ) Override
+
+    Declare Function f2( ) As Integer Override
+
+End Type
+
+Sub A.f1( )
+
+End Sub
+
+Function A.f2( ) As Integer
+
+    Function = 0
+
+End Function
+
+Sub B.f1( )
+
+End Sub
+
+Function B.f2( ) As Integer
+
+    Function = 0
+
+End Function
+```
+
+---
+
+**Category:** [User Defined Types](Category-User-Defined-Types)  
+**Kind:** sub
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

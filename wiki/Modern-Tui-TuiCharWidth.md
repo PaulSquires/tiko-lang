@@ -1,0 +1,46 @@
+[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Unicode Width](Category-Terminal-TUI-Library) › **TuiCharWidth**
+
+# TuiCharWidth
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+TuiCharWidth( byval cp as ulong ) as long
+```
+
+## Description
+
+How many columns one codepoint occupies: 0, 1 or 2. From a table generated out of Unicode 17.0.0 -- East Asian Wide and Fullwidth measure 2; the Mn, Me and Cf categories measure 0.
+
+## Example
+
+```freebasic
+#include once "fb/tui.bi"
+using FB
+
+print TuiCharWidth( asc( "A" ) )  '' 1
+print TuiCharWidth( &h4E2D )      '' 2 -- a CJK ideograph
+print TuiCharWidth( &h0301 )      '' 0 -- COMBINING ACUTE ACCENT
+print TuiCharWidth( &h200B )      '' 0 -- ZERO WIDTH SPACE
+```
+
+## See also
+
+[TuiStringWidth](Modern-Tui-TuiStringWidth) · [TuiTruncate](Modern-Tui-TuiTruncate) · [TuiWrap](Modern-Tui-TuiWrap) · [TuiSetAmbiguousWide](Modern-Tui-TuiSetAmbiguousWide) · [TuiAmbiguousWide](Modern-Tui-TuiAmbiguousWide)
+
+---
+
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
+**Documented under:** Unicode Width  
+**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+
+
+---
+
+[Home](Home) · [Keyword Index](Keyword-Index)

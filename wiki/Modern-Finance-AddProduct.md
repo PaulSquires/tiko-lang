@@ -1,0 +1,46 @@
+[Home](Home) › [Finance](Category-Finance) › [Finance](Category-Finance) › **AddProduct**
+
+# AddProduct
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+Adds `c * rate` to an accumulator, without rounding at each step.
+
+## Syntax
+
+```freebasic
+CurrencyAccum.AddProduct( byref c as Currency, byval rate as double )
+```
+
+## Notes
+
+- A `CurrencyAccum` holds a **128-bit** running total, so a long series of multiplied amounts does not lose a scaled unit per step.
+- This is the shape for applying a tax or interest rate to many lines and totalling them: rounding once at the end is not the same number as rounding each line.
+- `Total( )` reads the accumulated value back as a Currency.
+
+## Examples
+
+```freebasic
+#include once "fb/currency.bi"
+using FB
+
+dim acc as CurrencyAccum
+dim as Currency line_ = CurrencyFromDouble( 19.99 )
+
+'' Rate applied per line, but rounded only ONCE, at the end
+for i as long = 1 to 3
+    acc.AddProduct( line_, 0.075 )
+next
+
+print acc.Count( )           '' 3
+print acc.Total( ).ToString( )                '' 4.4978
+```
+
+---
+
+**Library:** [Finance](Category-Finance) ✨  
+**Category:** [Finance](Category-Finance)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

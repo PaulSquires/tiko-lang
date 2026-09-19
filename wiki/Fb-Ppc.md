@@ -1,0 +1,52 @@
+[Home](Home) › [Intrinsic Defines](Category-Intrinsic-Defines) › **__FB_PPC__**
+
+# __FB_PPC__
+
+Intrinsic define set by the compiler
+
+## Syntax
+
+```freebasic
+__FB_PPC__
+```
+
+## Description
+
+Define created at compile time if the compilation target uses the PowerPC CPU architecture, otherwise undefined.
+
+## Remarks
+
+### Version
+
+- Since fbc 1.09.0
+
+### Differences from QB
+
+- New to FreeBASIC
+
+### See also
+
+- [Compiler Option: -target](Compiler-Option-Target)
+
+## Examples
+
+```freebasic
+#ifdef __FB_PPC__
+
+  '...instructions for PowerPC OSes...
+
+#else
+
+  '...instructions for other OSes
+
+#endif
+```
+
+---
+
+**Category:** [Intrinsic Defines](Category-Intrinsic-Defines)  
+**Kind:** keyword
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

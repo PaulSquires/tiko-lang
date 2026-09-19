@@ -1,0 +1,51 @@
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **SetTimes**
+
+# SetTimes
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Filesystem Library](Category-Filesystem), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+0 leaves one alone
+
+## Syntax
+
+```freebasic
+SetTimes( p, mtimeUtc [, atimeUtc ] )
+```
+
+## Notes
+
+- 0 leaves one alone
+
+## Examples
+
+```freebasic
+#include once "fb/filesystem.bi"
+using FB
+
+dim td as FsResultUStr = CreateTempDir( "fbdoc" )
+dim as ustring dir_ = td.Value( )
+dim as ustring p = PathJoin( dir_, "f.txt" )
+WriteAllText( p, "hello" )
+
+#include once "fb/chrono.bi"
+
+'' Ticks, in UTC -- the same 100 ns tick fb/chrono.bi uses
+dim as longint when_ = Instant.FromUnixSeconds( 1767225600 ).Ticks
+
+print SetTimes( p, when_ ).IsOk( )        '' true
+print Stat( p ).Value( ).ModifiedUtc( ) = when_          '' -1 (true)
+
+'' The access time is the optional second argument; 0 leaves it alone
+SetTimes( p, when_, when_ )
+
+RemoveDirAll( dir_ )
+```
+
+---
+
+**Library:** [Filesystem Library](Category-Filesystem) ✨  
+**Category:** [Filesystem](Category-Filesystem)  
+**Documented under:** Links And Permissions  
+**Source:** `docs/filesystem/filesystem.txt` in the tiko-lang repository.

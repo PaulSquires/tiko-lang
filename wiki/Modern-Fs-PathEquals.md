@@ -1,0 +1,43 @@
+[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **PathEquals**
+
+# PathEquals
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Filesystem Library](Category-Filesystem), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+normalized, case-insensitive on Windows
+
+## Syntax
+
+```freebasic
+PathEquals( a, b )
+```
+
+## Notes
+
+- normalized, case-insensitive on Windows
+
+## Examples
+
+```freebasic
+#include once "fb/filesystem.bi"
+using FB
+
+'' Compares NORMALIZED paths, and case-insensitively where the grammar
+'' says the platform is
+print PathEquals( "C:\dev\src", "C:\dev\\src\" )    '' true
+print PathEquals( "C:\DEV", "c:\dev" )               '' true on Windows
+
+print PathEquals( "C:\dev", "C:\other" )             '' false
+
+'' Still PURE: it compares text, so two different paths that happen to
+'' reach the same file through a symlink are not equal here
+```
+
+---
+
+**Library:** [Filesystem Library](Category-Filesystem) ✨  
+**Category:** [Filesystem](Category-Filesystem)  
+**Documented under:** Paths  
+**Source:** `docs/filesystem/filesystem.txt` in the tiko-lang repository.

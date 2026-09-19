@@ -1,0 +1,89 @@
+[Home](Home) › [Operators](Category-Operators) › **Operator < (Less Than)**
+
+# Operator < (Less Than)
+
+Compares an expression less than another expression
+
+## Syntax
+
+```freebasic
+Declare Operator < ( ByRef lhs As Byte, ByRef rhs As Byte ) As Integer
+Declare Operator < ( ByRef lhs As UByte, ByRef rhs As UByte ) As Integer
+Declare Operator < ( ByRef lhs As Short, ByRef rhs As Short ) As Integer
+Declare Operator < ( ByRef lhs As UShort, ByRef rhs As UShort ) As Integer
+Declare Operator < ( ByRef lhs As Integer, ByRef rhs As Integer ) As Integer
+Declare Operator < ( ByRef lhs As UInteger, ByRef rhs As UInteger ) As Integer
+Declare Operator < ( ByRef lhs As LongInt, ByRef rhs As LongInt ) As Integer
+Declare Operator < ( ByRef lhs As ULongInt, ByRef rhs As ULongInt ) As Integer
+```
+
+## Parameters
+
+- `lhs`
+- `rhs`
+- `T`
+
+## Description
+
+**`Operator <` (Less than)** is a binary operator that compares two expressions for inequality and returns the result - a boolean value in the form of an [`Integer`](Integer): negative one (-1) for true and zero (0) for false. The arguments are not modified in any way.
+
+ When this operator is applied to string type data, then a lexicographic/alphabetic order comparison is performed (ordered from the numeric ASCII values of the characters of the two strings).
+
+ This operator can be overloaded to accept user-defined types as well.
+
+## Return Value
+
+Returns negative one (-1) if the left-hand side expression is less than the right-hand side expression, or zero (0) if greater than or equal.
+
+## Remarks
+
+### Usage
+
+`result = lhs < rhs`
+
+### Dialect Differences
+
+- In the *[-lang qb](Compiler-Option-Lang)* dialect, this operator cannot be overloaded.
+
+### Differences from QB
+
+- none
+
+### See also
+
+- [`Operator >=`](Operator-Greater-Than-or-Equal) (Greater than or equal)
+
+## Examples
+
+```freebasic
+Const size As Integer = 4
+
+Dim array(size - 1) As Integer = { 1, 2, 3, 4 }
+
+Dim index As Integer = 0
+
+While (index < size)
+
+   Print array(index)
+
+   index += 1
+
+Wend
+```
+
+ [`Operator >=`](Operator-Greater-Than-or-Equal) (Greater than or equal) is complement to **`Operator <` (Less than)**, and is functionally identical when combined with [`Operator Not`](Operator-Not-Complement) (Bit-wise Complement).
+
+```freebasic
+If (69 < 420) Then Print "(69 < 420) is true."
+
+   If Not (69 >= 420) Then Print "not (69 >= 420) is true."
+```
+
+---
+
+**Category:** [Operators](Category-Operators)  
+**Kind:** operator
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

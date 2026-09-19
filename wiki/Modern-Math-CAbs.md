@@ -1,0 +1,43 @@
+[Home](Home) › [Math Library](Category-Math-Library) › [Math Library](Category-Math-Library) › **CAbs**
+
+# CAbs
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+The modulus — the distance from the origin.
+
+## Syntax
+
+```freebasic
+CAbs( byref z as Complex ) as double
+```
+
+## Notes
+
+- **Factors out the larger component**, so it does not overflow for operands near the type maximum where the naive `sqr( x*x + y*y )` does. Identical in .NET and in AfxNova, and worth keeping.
+- An infinite component makes the whole modulus infinite, NaN or not.
+- For comparisons use `CNorm` instead: `CAbs(a) < CAbs(b)` costs two square roots for a question that needs none.
+- `fb/vector.bi` used to spell this `AbsValue`. AfxNova spelled it `CAbs`, `CMagnitude`, `CModulus` and `CMod`; one name survives here.
+
+## Examples
+
+```freebasic
+#include once "fb/complex.bi"
+using FB
+
+dim as Complex big_ = CSet( 1e200, 1e200 )
+
+print CAbs( CSet( 3, 4 ) )                   '' 5   -- exact: the 3-4-5 triangle
+print CAbs( big_ )                           '' 1.414213562373095e+200   -- the scaled form survives
+print big_.re * big_.re + big_.im * big_.im  '' 1.#INF   -- the naive one does not
+print CAbs( CSet( Infinity( ), 1.0 ) )       '' 1.#INF   -- one infinite part is enough
+```
+
+---
+
+**Library:** [Math Library](Category-Math-Library) ✨  
+**Category:** [Math Library](Category-Math-Library)  
+**Documented under:** Members  
+**Source:** `docs/math/math.txt` in the tiko-lang repository.

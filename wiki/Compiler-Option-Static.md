@@ -1,0 +1,32 @@
+[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -static**
+
+# Compiler Option: -static
+
+Prefer static libraries over dynamic ones when linking
+
+Syntax
+
+`-static`
+
+Description
+
+When creating an executable or a shared library/DLL, the `-static` compiler option can be used to tell the compiler to prefer linking against static libraries rather than shared libraries/DLLs. That way, if the linker finds both static and shared versions of a library, it will use the static version, rather than defaulting to the shared version.
+
+ Installing the proper static libraries and then using `-static` can be used to avoid some or all dependencies on shared libraries.
+
+Platform Differences
+
+- On Linux & co it is possible to create purely statically linked executables, because static versions of the system libraries used by FreeBASIC are available.
+  On Windows, there are no static versions of the system libraries, but `-static` can still be useful to decide between static library or DLL versions of other libraries, if both are installed.
+
+See also
+
+- [Using the Command Line](Fbc-Command-Line)
+
+---
+
+**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
+
+---
+
+*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*

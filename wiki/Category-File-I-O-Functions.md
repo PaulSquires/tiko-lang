@@ -1,0 +1,42 @@
+[Home](Home) › [All Categories](Categories) › **File I/O Functions**
+
+# File I/O Functions
+
+- [(Print | ?) #](procedures-Print)
+- [Access](Access)
+- [Append](Append)
+- [Binary](Binary)
+- [Close](Close)
+- [Encoding](Encoding)
+- [EOF](Eof)
+- [File I/O Functions](File-I-O-Functions)
+- [FreeFile](Freefile)
+- [Get (File I/O)](Get-File-I-O)
+- [Input #](Input)
+- [Input (File Mode)](Input-File-Mode)
+- [Line Input #](Line-Input)
+- [LOC](Loc)
+- [Lock](Lock)
+- [LOF](Lof)
+- [Open](Open)
+- [Open Com](Open-Com)
+- [Open Cons](Open-Cons)
+- [Open Err](Open-Err)
+- [Open Lpt](Open-Lpt)
+- [Open Pipe](Open-Pipe)
+- [Open Scrn](Open-Scrn)
+- [Output](Output)
+- [Put (File I/O)](Put-File-I-O)
+- [Random](Random)
+- [Read (File Access)](Read-File-Access)
+- [Read Write (File Access)](Read-Write-File-Access)
+- [Reset](Reset)
+- [Seek (Function)](Seek-Function)
+- [Seek (Statement)](Seek-Statement)
+- [Unlock](Unlock)
+- [Write #](procedures-Write)
+- [Write (File Access)](Write-File-Access)
+
+---
+
+[Home](Home) · [Keyword Index](Keyword-Index)

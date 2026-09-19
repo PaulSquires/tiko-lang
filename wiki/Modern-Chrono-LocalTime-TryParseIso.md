@@ -1,0 +1,39 @@
+[Home](Home) › [Date and Time (Chrono)](Category-Date-and-Time-Chrono) › [Chrono Date and Time](Category-Date-and-Time-Chrono) › **LocalTime.TryParseIso**
+
+# LocalTime.TryParseIso
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang API.** Part of [Chrono Date and Time](Category-Date-and-Time-Chrono), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
+
+## Syntax
+
+```freebasic
+LocalTime.TryParseIso
+```
+
+## Examples
+
+```freebasic
+#include once "fb/chrono.bi"
+using FB
+
+dim as LocalTime t
+
+if LocalTime.TryParseIso( "14:30:05", t ) then print t.ToIsoString( )
+
+'' FALSE on a bad string -- and the output is CLOBBERED, not preserved:
+'' it is set to Invalid before the parse is attempted
+print LocalTime.TryParseIso( "25:00:00", t )      '' false
+print t.IsValid                                   '' false
+
+'' ParseIso is the same parse, returning Invalid instead of answering
+'' with a boolean
+```
+
+---
+
+**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
+**Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
+**Documented under:** The Members  
+**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.

@@ -1,0 +1,59 @@
+# Feature Index
+
+[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
+
+> ✨ **tiko-lang extensions.** Everything on this page is added by tiko-lang and is **not** available in stock FreeBASIC 1.20.0. Every page linked here carries the same badge.
+
+## Language
+
+| Feature | What it is |
+|---|---|
+| [Generics](Category-Generics) ✨ | `type Box( of T )` and `function Max( of T )( … )`. Bodies are captured as token chains and replayed through the real parser once per type-argument list — so code inside a generic is ordinary FreeBASIC and is diagnosed as such. Not a macro, not a separate template language. |
+| [Iterator Protocol](Category-Iterators) ✨ | A *structural* contract: a type is iterable if it has `GetIterator( )` returning something with `IsValid( )`, `Value( )` and `MoveNext( )`. No base class, no interface, no registration, nothing to inherit. |
+| [For Each](Category-For-Each) ✨ | Walks arrays (any `lbound`), var-len `STRING`, and any type satisfying the protocol. Lowered at compile time — no new AST node, no IR node, no backend change, no runtime call. |
+| [Tuples](Category-Tuples) ✨ | `as (long, string)` — an anonymous aggregate identified **structurally**, so `(long, string)` is one type in every module. Gives FreeBASIC multiple return: `function MinMax( ) as (min as long, max as long)`, then `var (lo, hi) = MinMax( )`. |
+| [Defer](Category-Defer) ✨ | `defer <statement>` runs on the way out of the enclosing **scope**, in reverse order, on **every** path — fallthrough, `exit`, `return`, `goto` out of nested scopes — and every iteration of a loop body. A **contextual keyword**: existing code using `defer` as a name keeps working. |
+| [Lambdas](Category-Lambdas) ✨ | `function( byval x as long ) as long … end function` in expression position. Non-capturing ones are **plain procedure pointers**, so every existing callback API — including `cdecl`/`stdcall` ones like `qsort` and Win32 — works unchanged. Capturing ones build a stack closure; every capture states `byval` or `byref` explicitly. |
+| [UString](Category-UString) ✨ | A dynamic Unicode string that is UTF-16 on *every* target, unlike `WSTRING` (2 bytes on Windows, 4 on Linux, 1 on DOS). A true intrinsic type in the compiler, not a library — `LEN` is O(1) and every string intrinsic works. |
+| [Goroutines and Channels](Category-Goroutines-and-Channels) ✨ | `spawn Worker( a, b )` runs a procedure concurrently with its **arguments copied at the spawn point**. `Channel( of T )` is a typed queue — rendezvous or buffered, with a close protocol and `for each v in ch`. `select channel` waits on several at once; `WaitGroup` joins a fan-out; `Context` cancels one. Start with the [tutorial](Modern-Goroutines-Tutorial) ✨. |
+
+## Standard library
+
+| Library | What it is |
+|---|---|
+| [Array](Category-Array) ✨ | `Array( of T )` — one implementation, fully type-checked per instantiation. `Push` is amortised **O(1)**; capacity doubles instead of reallocating on every append. |
+| [Map](Category-Map) ✨ / [Set](Category-Set) ✨ / [LinkedList](Category-LinkedList) ✨ | Hash map, hash set and a doubly-linked list in namespace `FB`, written in ordinary FreeBASIC with **zero compiler support**. |
+| [OrderedMap and OrderedSet](Category-OrderedMap) ✨ | `OrderedMap` and `OrderedSet` are **red-black trees**: `O(log n)`, always in ascending key order, with `TryFirst`/`TryLast`/`TryFloor`/`TryCeiling`. They need only `<` on the key — no hash and no `=`. Iterators survive insertion. |
+| [Sorting](Category-Sorting) ✨ | `Sort( a )` is an **introsort** — `O(n log n)` worst case, in place. `StableSort( a )` is a bottom-up merge sort. `SortList( l )` relinks nodes and moves no element. Every move is a `SWAP`, so sorting an `Array( of string )` performs zero string copies. |
+| [Optional](Category-Optional) ✨ / [Result](Category-Result) ✨ | `Optional( of T )` for a value that might not be there, `Result( of T, E )` for a value or the reason there isn't one. Zero is a value; a default-constructed `Result` is a **failure**, so a forgotten assignment cannot read as success. |
+| [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨ | Shared ownership by reference count, destroyed exactly once when the last handle goes. `WeakPtr` observes without keeping alive. Counts are **atomic under `-mt`**. Derived→base is the explicit `SpCast`, and the base needs a **virtual destructor**. |
+| [String Library](Category-String-Library) ✨ | 37 algorithms FreeBASIC does not ship — `Replace`, `Split`, `Join`, `Between`, the pad family, the character-set family — in namespace `FB`, working on **all four string types** from one call. **Nothing becomes a keyword.** |
+| [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨ | `DateTime`, `LocalDate`, `LocalTime`, `Instant`, `TimeSpan`, `WallClock`, `Stopwatch`, `CpuClock`, `TimeZoneInfo` — immutable value types over `int64` ticks of 100 ns. ISO 8601 / RFC 3339, OS-native offsets and DST, a monotonic clock. Arithmetic never wraps. Ships **alongside** `datetime.bi`. |
+| [Filesystem Library](Category-Filesystem) ✨ | Path algebra, `FileInfo`, a **reentrant** directory iterator that works with `FOR EACH`, a recursive walk, whole-file I/O, `mkdir -p` / `rm -rf` / tree copy, glob, atomic replace, temp files, symlinks, volumes, file watching, memory mapping and locking. Every fallible call returns `Result( of T, FsError )`. Ships **alongside** `Dir`/`Kill`. |
+| [Math Library](Category-Math-Library) ✨ | Seven headers: constants, rounding and classification, integer arithmetic and bits, parsing that can fail and formatting that round-trips, seeded random streams, statistics, `Vec`/`Mat`/`Quat`/`Complex`, and floating-point environment control. |
+| [Finance](Category-Finance) ✨ | Money, and what you do with it. **The two money types** first, because a `DOUBLE` is the wrong place to keep an amount and `0.1 + 0.2 <> 0.3` says so: `Currency` is a `LONGINT` scaled by 10,000 -- eight bytes, four places, exact, the VB6 / COM `CY` / SQL Server `money` shape -- and `Decimal` is the .NET `System.Decimal`, a 96-bit mantissa with a per-value scale of 0..28. Both round **half-to-even** and report overflow as an infectious `Invalid`. **Then the finance functions**: interest and rate conventions with day count, the time value of money, loans and amortization schedules, cash-flow appraisal, depreciation, and portfolio returns and risk. Compounding frequency and payment frequency are **separate parameters**, so one code path serves both the US and Canadian mortgage conventions; growth over an integer number of periods is **exact**, solvers take a `double` kernel and say so; and an amortization schedule's final balance lands on **exactly** zero. |
+| [Logging](Category-Logging) ✨ | A structured logger: levels spaced by ten, typed fields, a zero-allocation disabled path, and an event that lives on the caller's stack so it is thread-safe without thread-local storage. |
+
+## Toolchain
+
+| Feature | What it is |
+|---|---|
+| [C Header Import](Category-C-Header-Import) ✨ | `#cinclude once "sqlite3.h"` uses a C library's **own header** in place of a hand-written binding: the header goes to **Clang**, and what comes back becomes FreeBASIC declarations for the target being built — structs, unions, enums, typedefs, variadics, function pointers with their real signatures, globals and object-like macros. It emits **text** and lets fbc compute the layout itself, so the two answers can be **compared**; a disagreement is a compile-time error naming the record and the first differing member. `windows.h` is ~35,000 declarations with all 2,517 records verified. libclang is loaded on first use via `DyLibLoad`, never linked. Pairs with [`#foreignlib`](modern-Foreignlib) ✨ — declarations and linkage — to ship a binding entirely inside your own tree. `-cimport`/`-cimport-out` generate a **deterministic** binding file you can check in and diff across an SDK upgrade, and `-cimport-split` writes it as one `.bi` per C header plus an index, and `-cimport-indir` converts a whole directory of headers to a mirrored tree of `.bi` files for hand-porting, marking everything that did not convert in place with a greppable `CIMPORT-TODO`. Start with the [tutorial](modern-Cinclude-tutorial) ✨. |
+| [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ | `#foreignlib SQLITE dynamic "vendor/sqlite3"` binds a name to a library **shipped inside your source tree**, resolved relative to the *declaring file* rather than the working directory, with the target variant picked by filename convention (`sqlite3_windows_x86_64.dll.a`, `sqlite3_linux_x86_64.so`). `static`/`dynamic` is **mandatory** — a file of the other kind is an error listing every path tried, never a silent substitution. Declarations then say `lib SQLITE` instead of a string literal, so a cross-platform binding stops duplicating every `Declare` inside `#ifdef`. `#inclib` and `#libpath` are unchanged. Start with the [tutorial](modern-Foreignlib-tutorial) ✨. |
+| [LLVM Backend](Category-LLVM-Backend) ✨ | `-gen llvm` is a complete backend on par with `gas`, `gas64` and `gcc` — a rewrite that emits current LLVM IR and hands it to `clang -c`, with a hand-written C ABI classifier per target. Covers win64 and linux-x86_64, and passes fbc's own gate with the same assertion counts and the same failures as `-gen gcc`. Needs a system `clang` 18 or newer on `PATH`; nothing is bundled. Inline `ASM` is rejected with a real diagnostic rather than miscompiled. |
+| [__FB_MODERN__](Category-FB-Modern-Define) ✨ | An intrinsic define, always present and always `1`, that **only tiko-lang sets** — stock fbc never does, and `__FB_VERSION__` is `"1.20.0"` in both, so nothing else separates them. `#ifdef __FB_MODERN__` is how one source tree gates the features on this page while still building with the upstream compiler. Numeric, so `#if __FB_MODERN__` works too, and independent of `__FB_BUILD_FORK_ID__`. |
+
+## Known limitations
+
+These are carried deliberately, all measured, none blocking. The headline ones:
+
+- **No constraints on type parameters.** A member needing `=` on `T` makes the whole type unusable for a `T` without one — which is why `IndexOf`/`Contains` and everything in `fb/sort.bi` are free procedures rather than `Array` members.
+- **Generic procedures cannot be overloaded.** One name, one generic procedure — which is why the sort library spells its variants `SortBy`, `StableSort` and `SortList`.
+- **A *capturing* lambda cannot name the enclosing generic's `T` in its own parameter list.** Non-capturing lambdas are unaffected, and so is a capturing lambda whose own parameters are concrete.
+- **`typeof( T )` does not see through a type parameter**, so a generic body cannot branch on what `T` is bound to. This is why the hash contract is an overloaded `HashOf`.
+- **`CONST u AS USTRING` is not supported** — fbc's `CONST` accepts exactly one string type.
+- **Tuple element names are documentation only**, tuple variables of different element types do not convert, and there are no ordering operators on tuples.
+- **No IANA tzdb** in the date/time library — zones are OS-native only.
+- **The filesystem library does not auto-prefix `\\?\`**, so on Windows a path over roughly `MAX_PATH` is refused with `FS_NAME_TOO_LONG` rather than silently truncated.
+
+The full list, with the reasoning and the measurements behind each one, is on the individual feature pages — start with [Generics](Category-Generics).
