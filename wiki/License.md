@@ -17,18 +17,18 @@ Copyright © Paul Squires, [PlanetSquires Software](https://www.planetsquires.co
 
 ## The compiler itself
 
-tiko-lang is a modified copy of the FreeBASIC compiler, so it carries FreeBASIC's licensing **unchanged**. Nothing is relicensed and no licence was chosen — it is inherited, and it is a split, because the work touches both halves.
+tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a copy of fbc, and it is licensed **in parts**. The repository's `LICENSE` is the map.
 
 | Part | Licence |
 |---|---|
-| The compiler — `src/src/compiler/`, and the binaries built from it | **GNU GPL v2 or later** (`COPYING.GPL-2.0`) |
-| The runtime and graphics libraries — `src/src/rtlib/`, `src/src/gfxlib2/` | **GNU LGPL v2.1 or later, with a static-linking exception** (`COPYING.LGPL-2.1`) |
-| The container headers — `src/inc/fb/*.bi`, `src/inc/containers.bi` | **LGPL v2.1 or later, same exception** — they compile into your program, so they are runtime, not compiler |
-| Documentation under `docs/` | **GNU FDL** |
+| The compiler (`src/`, `tools/`, `build/`, and its own `tests/`) and the `tiko` binaries built from it | **GNU GPL v2 or later** (`COPYING`) |
+| The runtime, **tiko-rt** (`lib/rt/`), a derivative of fbc's `libfb` | **GNU LGPL v2.1 or later, with a static-linking exception** (`lib/rt/LICENSE`, `COPYING.LGPL-2.1`) |
+| The graphics library, **libtkogfx** (`lib/gfx/`), a derivative of fbc's `gfxlib2` | **LGPL v2.1 or later, same exception** (`lib/gfx/LICENSE`) |
+| tiko's documentation (`docs/`, the READMEs, and the ✨ pages here) | **GNU FDL 1.3 or later** |
 
-The linking exception is what lets a program link the runtime statically without taking on the LGPL; it is quoted in full in the repository's `LICENSE`.
+**Your programs are yours.** Both libraries extend fbc's static-linking exception to themselves, so a program compiled by tiko and linked against them can be distributed on any terms you choose, just as a program built with fbc can.
 
-**The prebuilt trees carry third-party components.** `toolchains/` redistributes the toolchain fbc invokes — GNU binutils and gcc under **GPLv3**, plus the MinGW-w64 runtime and import libraries under their own terms. They are unmodified redistributions.
+**The prebuilt toolchains carry third-party components.** They redistribute fbc-modern's `inc/` headers. For the `win64` and `linux-x86_64` targets they also ship fbc's own runtime binaries, and for `win64` libffi and the MinGW-w64 and gcc runtime libraries. All of it is unmodified, and the notices are in each toolchain's `licences/`. clang is not bundled.
 
 ## Where these pages came from
 

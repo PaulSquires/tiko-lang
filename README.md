@@ -726,18 +726,20 @@ Carried deliberately, all measured, none blocking. The full list with reasoning 
 
 ## 📄 License
 
-This is a modified copy of the FreeBASIC compiler, so it carries FreeBASIC's licensing **unchanged**. Nothing is relicensed and no licence was chosen — it is inherited, and it is a split, because the work touches both halves.
+tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a copy of fbc, and it is licensed **in parts**. [LICENSE](LICENSE) is the map, and [decision 0015](docs/architecture/decisions/0015-runtime-independence.md) records why.
 
 | Part | Licence |
 |---|---|
-| The compiler — `src/src/compiler/`, and the binaries built from it | **GNU GPL v2 or later** ([COPYING.GPL-2.0](COPYING.GPL-2.0)) |
-| The runtime and graphics libraries — `src/src/rtlib/`, `src/src/gfxlib2/` | **GNU LGPL v2.1 or later, with a static-linking exception** ([COPYING.LGPL-2.1](COPYING.LGPL-2.1)) |
-| The container headers — `src/inc/fb/*.bi`, `src/inc/containers.bi` | **LGPL v2.1 or later, same exception** — they compile into your program, so they are runtime, not compiler |
-| Documentation under `docs/` | **GNU FDL** |
+| The compiler (`src/`, `tools/`, `build/`, and its own `tests/`) and the `tiko` binaries built from it | **GNU GPL v2 or later** ([COPYING](COPYING)) |
+| tiko's documentation (`docs/`, the READMEs, and the ✨ pages in `wiki/`) | **GNU FDL 1.3 or later** |
+| The runtime, **tiko-rt** (`lib/rt/`), a derivative of fbc's `libfb` | **GNU LGPL v2.1 or later, with a static-linking exception** ([lib/rt/LICENSE](lib/rt/LICENSE), [COPYING.LGPL-2.1](COPYING.LGPL-2.1)) |
+| The graphics library, **libtkogfx** (`lib/gfx/`), a derivative of fbc's `gfxlib2` | **LGPL v2.1 or later, same exception** ([lib/gfx/LICENSE](lib/gfx/LICENSE)) |
+| fbc's test suite, vendored in `tests/vendor/` | FreeBASIC's own terms, unmodified; `fbcunit` is LGPL v2.1+ |
+| The FreeBASIC manual, reproduced in `wiki/` | **GNU FDL 1.3** ([wiki/License.md](wiki/License.md)) |
 
-The linking exception is what lets a program link the runtime statically without taking on the LGPL; it is quoted in full in [LICENSE](LICENSE).
+**Your programs are yours.** Both libraries extend fbc's static-linking exception to themselves, so a program compiled by tiko and linked against them can be distributed on any terms you choose, just as a program built with fbc can.
 
-**The prebuilt trees carry third-party components.** `toolchains/` redistributes the toolchain fbc invokes — GNU binutils and gcc under **GPLv3**, plus the MinGW-w64 runtime and import libraries under their own terms. They are unmodified redistributions.
+**The prebuilt toolchains carry third-party components.** `toolchains/tiko-*/` also redistributes fbc-modern's `inc/` headers. For the `win64` and `linux-x86_64` targets it ships fbc's own runtime binaries under `lib/<target>-fb/`. For `win64` that directory also holds libffi and the MinGW-w64 and gcc runtime libraries. All of it is unmodified. Their notices are in each toolchain's `licences/`. clang is **not** bundled; you install it yourself.
 
 ---
 

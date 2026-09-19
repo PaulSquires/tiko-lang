@@ -1,0 +1,81 @@
+tiko-lang -- a FreeBASIC-compatible compiler
+Copyright (C) 2026 Paul Squires
+
+tiko-lang is licensed IN PARTS. The part a file belongs to decides its licence.
+Decision 0015 (docs/architecture/decisions/0015-runtime-independence.md)
+records why.
+
+
+1. THE COMPILER  --  GNU GPL, version 2 or later
+------------------------------------------------
+
+Everything in this repository that sections 2 to 4 do not name. That is the
+compiler (src/), its tools and build scripts (tools/, build/) and its own tests
+(tests/, except tests/vendor/). It also covers the tiko / tiko.exe binaries built
+from them, including those shipped under toolchains/.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+Full text: COPYING.
+
+tiko-lang is not a copy of fbc. It is a separate compiler, written from scratch
+in FreeBASIC. From 2026-09-05 its developers have been permitted to READ fbc's
+compiler sources, which are GPL-2.0-or-later. Transliterating them is still not
+permitted; lib/rt/PROVENANCE.md records both rules.
+
+
+2. THE RUNTIME AND GRAPHICS LIBRARIES  --  GNU LGPL, version 2.1 or later,
+   with a static-linking exception
+--------------------------------------------------------------------------
+
+lib/rt/   tiko-rt, a derivative work of libfb.        See lib/rt/LICENSE.
+lib/gfx/  libtkogfx, a derivative work of gfxlib2.    See lib/gfx/LICENSE.
+
+Each extends libfb's static-linking exception to itself. So a program compiled
+by tiko and linked against either library can be distributed under terms of
+its author's choice, exactly as a program linked against fbc's runtime can.
+
+Full text: COPYING.LGPL-2.1.
+
+
+3. THE DOCUMENTATION  --  GNU FDL, version 1.3 or later
+-------------------------------------------------------
+
+docs/, HANDOFF.md, the README files, and the wiki/ pages marked as tiko-lang
+extensions.
+
+    Permission is granted to copy, distribute and/or modify this document
+    under the terms of the GNU Free Documentation License, Version 1.3
+    or any later version published by the Free Software Foundation;
+    with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
+    Texts.
+
+Full text: https://www.gnu.org/licenses/fdl-1.3.html
+
+
+4. THIRD-PARTY MATERIAL IN THIS REPOSITORY
+------------------------------------------
+
+tests/vendor/  fbc's own test suite, vendored unmodified at the commit named in
+               tests/vendor/CORPUS-COMMIT. It carries FreeBASIC's terms;
+               fbcunit/ is LGPL-2.1-or-later (fbcunit/license.txt).
+wiki/          the FreeBASIC manual, reproduced under the GNU FDL 1.3 with no
+               Invariant Sections. See wiki/License.md.
+
+
+5. WHAT A TOOLCHAIN PACKAGE CARRIES
+-----------------------------------
+
+build/package.sh assembles toolchains/tiko-*/, which also redistributes
+fbc-modern's inc/ headers and, under lib/<target>-fb/, fbc's own binaries and
+third-party archives. Its licences/ directory holds the notices for all of it.
+The toolchain contains LGPL binaries, so distributing it carries the obligation
+to offer their source.
