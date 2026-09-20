@@ -53,8 +53,12 @@ namespace Tko
     const FILE_NONE   as FileId   = 0
 
     '' Byte buffers are the substrate for source text, emitted output and arena
-    '' storage. Aliased here because a generic cannot be instantiated directly in a
-    '' TYPE field -- it has to go through a concrete alias first.
+    '' storage. Aliased because of the HOST compiler, not because of the language:
+    '' fbc-modern instantiates a generic in 'dim as FB.Array( of ubyte ) buf' but not
+    '' in the name-first field spelling these headers use -- there it adds the field
+    '' under whatever name re-parsing the generic's body left in hFieldId's static
+    '' buffer. tiko-lang takes both spellings; see
+    '' docs/internals/phase-7-generic-type-field.md.
     type ByteBuf as FB.Array( of ubyte )
 
     '' Lives here rather than in driver/options.bi because the preprocessor needs it
