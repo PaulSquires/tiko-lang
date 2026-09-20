@@ -106,8 +106,20 @@
 ''     FORMAT$( 1e20 )     clang-built libfb -> ""   (the cast yields 0)
 ''                         tiko-rt          -> "18446744073709551615"
 ''
-'' Only the NO-MASK path is exposed. Every masked path scales the value below
-'' 2^64 before the cast, so FORMAT$( 1e20, "####" ) agrees exactly.
+'' THE MASKED PATH IS EXPOSED TOO, which this used to deny. Measured 2026-09-19
+'' with FORMAT$( v, "0.000000" ), fbc against tiko-rt:
+''
+''     1.5e19   both 15000000000000000000.000000        -- parity holds below 2^64
+''     1.5e20   fbc  150000000000000025600.000000
+''              ours 150000000000000000000.000000       -- and OURS is the exact double
+''     1.5e25   fbc  15000000000000010240000000.000000
+''              ours 15000000000000000000000000.000000  -- exact is ...285212672
+''
+'' So above 2^64 neither is exact and the two differ: fbc carries the error its
+'' cast introduces, and this carries zeros past the seventeenth digit. Phase 14's
+'' 2,000-seed differential fuzz campaign found four programs of this shape and
+'' nothing else; tools/fuzz/gen.py now keeps its doubles below 2^64 so a campaign
+'' measures the COMPILER rather than this.
 ''
 '' It is left alone deliberately. Matching clang would mean reproducing one
 '' clang build's undefined behaviour -- a target that moves with the compiler --

@@ -58,6 +58,13 @@ def int_expr(depth=0):
         return "iif(clng(%s) %s clng(%s), 1, 0)" % (a, R.choice(["<", ">", "=", "<>", "<=", ">="]), b)
     return "((clng(%s) mod 10000) %s (clng(%s) mod 10000))" % (a, op, b)
 
+# THE DOUBLES STAY BELOW 2^64. Above it FORMAT$ diverges between fbc and tiko-rt --
+# fbc's cast of the integer part is undefined behaviour in C and carries its error,
+# ours carries zeros past the seventeenth digit (lib/rt/src/str/format.bas). Phase 14's
+# first 2,000-seed campaign found four programs of that shape and no compiler fault, so
+# the magnitudes are clamped here: a campaign is meant to measure the compiler.
+DBL_CLAMP = "(( %s ) - int(( %s ) / 1e18) * 1e18)"
+
 def dbl_expr(depth=0):
     if depth > 2 or R.random() < 0.4:
         if dbls and R.random() < 0.5:
@@ -68,6 +75,12 @@ def dbl_expr(depth=0):
     b = dbl_expr(depth + 1)
     if op == "/":
         return "(%s / (abs(%s) + 1.5))" % (a, b)
+    if op == "*":
+        # the clamp: a product is where the magnitude ran away
+        # fix(), NOT int(): FB's INT is FLOOR, so int( -3.2e-16 ) is -1 and the clamp
+        # ADDED 1e18 to a negative product -- the first clamped campaign made values of
+        # 4e13 out of small ones that way. fix() truncates toward zero.
+        return "(((%s) * (%s)) - fix((((%s) * (%s))) / 1e18) * 1e18)" % (a, b, a, b)
     return "(%s %s %s)" % (a, op, b)
 
 def str_expr(depth=0):
