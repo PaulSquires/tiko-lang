@@ -28,7 +28,22 @@ TKO=${TKO:-$ROOT/bin/tiko.exe}
 AR=${AR:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/bin/win64/ar.exe}
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
 WK=${SUITERUN_WK:-${TMPDIR:-/tmp}/suiterun}
-RUNTIMEOUT=${RUNTIMEOUT:-60}
+# THE RUN LIMIT, AND WHY IT IS NOT 60. math/core.bas walks all 2^32 single-precision
+# bit patterns -- 4.3 BILLION iterations, classifying each one -- and these suites are
+# built WITHOUT optimisation, because the comparison is tiko against fbc and both must
+# get the same flags. Unoptimised that file takes 57.6 s under tiko and 38.5 s under
+# fbc, so a 60 s limit left it 2.4 s of margin and one busy machine away from being
+# reported as a difference it is not. Its output matches fbc's byte for byte.
+#
+# THE 1.5x IS -O0 CODE SHAPE AND NOTHING ELSE. The same suite, same machine:
+#
+#     tiko -O0  57.6 s      fbc -O 0  38.5 s
+#     tiko -O1   2.70 s
+#     tiko -O2   1.675 s    fbc -O 2   1.735 s
+#
+# At -O2 tiko is FASTER than fbc, so there is no codegen-quality gap to chase here --
+# only unoptimised code, which is what a differential harness has to compare.
+RUNTIMEOUT=${RUNTIMEOUT:-180}
 
 export TKO_INCLUDE="$ROOT/toolchains/tiko-windows/inc"
 export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/win64-msvc"
