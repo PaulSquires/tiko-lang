@@ -986,7 +986,7 @@ private function LowerStaticMemberLen_ _
 
     dim as Tko.TypeId mt2 = c.info->TypeOf_( a )
     if mt2 = Tko.TYPE_NONE then return false
-    dim as long sz = SizeOfType( c, mt2 )
+    dim as long sz = MeasuredSizeOfType_( c, mt2 )
     if sz <= 0 then return false
     outv = ConstInt( c, sz, MT_I64 )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -1289,9 +1289,7 @@ function LowerLen _
 
     '' ANYTHING ELSE folds to the type's SIZE -- 'len( t )' over a UDT and 'len( i )'
     '' over an integer are both compile-time constants to fbc.
-    dim as long sz = c.types->Layout( at ).size
-    dim as long ui = c.udts->Find( at )
-    if ui >= 0 then sz = c.udts->udts[ui].size
+    dim as long sz = MeasuredSizeOfType_( c, at )
     if sz <= 0 then return false
     outv = ConstInt( c, sz, MT_I64 )
     return (outv.kind <> cast( ubyte, MV_NONE ))

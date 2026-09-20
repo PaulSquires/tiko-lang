@@ -1382,4 +1382,49 @@ function WideAppendToU_ _
     return true
 end function
 
+'' THE SIZE 'len' AND 'sizeof' REPORT, WHICH FOR AN ARRAY IS ITS ELEMENT'S.
+''
+'' Measured against fbc-modern 1.20.0 on 2026-09-19. Every one of these answers the
+'' ELEMENT and never the storage, and tiko-lang answered the storage:
+''
+''     dim b( 0 to 3 ) as ubyte          fbc 1    tiko 4
+''     dim l( 0 to 3 ) as long                4        16
+''     dim m( 0 to 1, 0 to 2 ) as long        4        24
+''     dim sa( 0 to 2 ) as string            24        72     the descriptor, and no strlen
+''     dim za( 0 to 2 ) as zstring * 8        8        24
+''     dim p( 0 to 3 ) as long ptr            8        32
+''     h.arr, an array FIELD                  4        16
+''     dim t_( 0 to 2 ) as T2 (8 bytes)       8   DECLINED, and the whole PRINT with it
+''
+'' The last is the same bug wearing another face: the fallback looked the ARRAY type up
+'' in the UDT table, found nothing and gave up, so 'print "a"; sizeof( t_ )' printed 'a'
+'' and no number at all, with no diagnostic.
+''
+'' A FIXED-LENGTH STRING IS NOT AN ARRAY FOR THIS PURPOSE, though it is one in the type
+'' model -- 'zstring * 8' is an array of 8 TY_ZSTRING and 'string * 6' one of 6 TY_FIXSTR.
+'' fbc measures the whole thing there: sizeof( z ) is 8 and sizeof( f ) is 6. So the
+'' unwrap stops at a CHARACTER element, which is also what makes 'za' 8 rather than 24:
+'' one step out of the outer array lands on 'zstring * 8' and stops.
+''
+'' It LOOPS rather than unwrapping once, because an array of fixed strings nests and a
+'' multidimensional array may or may not: either modelling then gives the element.
+function MeasuredSizeOfType_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return 0
+    dim as Tko.TypeId tu = c.types->Unqualify( t )
+    dim as long guard = 0
+    while (c.types->Kind( tu ) = Tko.TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        dim as Tko.TypeId el = c.types->Inner( tu )
+        if el = Tko.TYPE_NONE then exit while
+        if c.types->Kind( el ) = Tko.TK_BUILTIN then
+            select case c.types->BuiltinOf( el )
+            case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+                exit while
+            end select
+        end if
+        tu = el
+    wend
+    return SizeOfType( c, tu )
+end function
+
 end namespace

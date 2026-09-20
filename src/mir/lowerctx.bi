@@ -482,6 +482,9 @@ declare function EmitRtl _
     declare function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
+    '' ...and the size LEN and SIZEOF report for it, which for an array is its
+    '' ELEMENT's -- mir/lowerterm.bas says why, and what fbc answers.
+    declare function MeasuredSizeOfType_( byref c as Ctx, byval t as Tko.TypeId ) as long
     '' The SysV eightbyte classes of a type -- see mir/eightbyte.bas.
     declare function ClassifyEightbytes _
         ( byref c as Ctx, byval t as Tko.TypeId ) as ulong

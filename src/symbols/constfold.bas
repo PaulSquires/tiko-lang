@@ -493,6 +493,34 @@ private function ConstStrLen_ _
     return -1
 end function
 
+'' THE TYPE 'sizeof' AND 'len' ACTUALLY MEASURE. For an ARRAY it is the ELEMENT:
+'' measured on fbc-modern 1.20.0, 'dim b( 0 to 3 ) as ubyte' gives 1 and not 4, and
+'' the rule holds for a CONST and for an array BOUND built out of one.
+''
+'' A FIXED-LENGTH STRING IS AN ARRAY IN THE TYPE MODEL AND NOT ONE HERE -- fbc
+'' answers 16 for 'sizeof( zstring * 16 )', which is the whole thing, and the array
+'' bound this arm exists for is written with exactly that. mir/lowerterm.bas holds
+'' the same rule for the lowered form, with the full measurement.
+private function MeasuredTypeOf_ _
+    ( byval types as Tko.TypeContext ptr, byval t as Tko.TypeId ) as Tko.TypeId
+
+    dim as Tko.TypeId tu = t
+    dim as long guard = 0
+    while (types->Kind( tu ) = Tko.TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        dim as Tko.TypeId el = types->Inner( tu )
+        if el = Tko.TYPE_NONE then exit while
+        if types->Kind( el ) = Tko.TK_BUILTIN then
+            select case types->BuiltinOf( el )
+            case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+                exit while
+            end select
+        end if
+        tu = el
+    wend
+    return tu
+end function
+
 private function ConstCall_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
       byref src as Tko.SourceManager, byref names as Tko.Interner, _
@@ -528,7 +556,8 @@ private function ConstCall_ _
         if ast.Kind( ta ) = Tko.N_TYPEREF then
             dim as Tko.TypeId tt = info->TypeOf_( ta )
             if tt <> Tko.TYPE_NONE then
-                dim as Tko.TypeId tu = types->Unqualify( tt )
+                dim as Tko.TypeId tu = _
+                    MeasuredTypeOf_( types, types->Unqualify( tt ) )
                 if types->Kind( tu ) <> Tko.TK_UDT then
                     dim as long sz = types->Layout( tu ).size
                     if sz > 0 then return CVW_( cast( longint, sz ), 32 )

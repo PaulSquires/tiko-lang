@@ -1,0 +1,24 @@
+'' SIZEOF and LEN over an ARRAY measure its ELEMENT -- fbc's rule, measured on
+'' fbc-modern 1.20.0 (2026-09-19) by compiling and running every line of the source.
+''
+'' The golden holds the whole fold sequence, e1..e11 then s1..s5 in source order. The
+'' assertions below are the ones worth naming.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sizeof-array.bas
+'' EXPECT-EXIT: 0
+
+'' THE STORAGE IS UNCHANGED, which is the whole point of the distinction: 'm' is still
+'' the 24 bytes of a 2 x 3 array of long, and sizeof( m ) is 4.
+'' EXPECT-OUT: local agg m size 24
+'' EXPECT-OUT: local agg sa size 72
+'' EXPECT-OUT: local agg t_ size 24
+
+'' THE ARRAY OF UDTs USED TO LOWER NOTHING AT ALL -- the fallback looked an ARRAY type
+'' up in the UDT table, found nothing and declined, taking the statement with it.
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: verify: ok
+
+'' AND THE CONSTANT EVALUATOR'S HALF: 'dim c2( sizeof( b0 ) to 4 )' runs 1 to 4, not
+'' 4 to 4. The bounds are the last two arguments.
+'' EXPECT-OUT: fb_ArrayRedimEx(@c2, 4, -1, 0, 1, %25, %26)
+'' GOLDEN: expected/sizeof-array.out

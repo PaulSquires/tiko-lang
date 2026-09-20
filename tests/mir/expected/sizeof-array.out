@@ -1,0 +1,258 @@
+func void P() {
+  local agg b size 4
+  local agg l size 16
+  local agg m size 24
+  local agg t_ size 24
+  local agg p_ size 32
+  local agg sa size 72
+  local agg d size 72
+  local agg z size 8
+  local agg f size 6
+  local agg za size 24
+  local agg fa size 18
+  local agg h size 20
+  local i32 e1
+  local i32 e2
+  local i32 e3
+  local i32 e4
+  local i32 e5
+  local i32 e6
+  local i32 e7
+  local i32 e8
+  local i32 e9
+  local i32 e10
+  local i32 e11
+  local i32 s1
+  local i32 s2
+  local i32 s3
+  local i32 s4
+  local i32 s5
+  local i32 s6
+  local i32 s7
+  local agg c2 size 72
+  local i32 s8
+  local agg $tmp32 size 72
+  entry0:
+    %1 = alloca ptr b
+    %2 = call.rtl ptr memset(@b, 0, 4)
+    %3 = alloca ptr l
+    %4 = call.rtl ptr memset(@l, 0, 16)
+    %5 = alloca ptr m
+    %6 = call.rtl ptr memset(@m, 0, 24)
+    %7 = alloca ptr t_
+    %8 = call.rtl ptr memset(@t_, 0, 24)
+    %9 = alloca ptr p_
+    %10 = call.rtl ptr memset(@p_, 0, 32)
+    %11 = alloca ptr sa
+    %12 = call.rtl ptr memset(@sa, 0, 72)
+    %13 = call.rtl ptr memset(@sa, 0, 72)
+    %14 = alloca ptr d
+    %15 = const ptr 0
+    %16 = field.addr @d, 0
+    store %16, %15
+    %17 = field.addr @d, 8
+    store %17, %15
+    %18 = const i64 0
+    %19 = field.addr @d, 16
+    store %19, %18
+    %20 = const i64 4
+    %21 = field.addr @d, 24
+    store %21, %20
+    %22 = const i64 1
+    %23 = field.addr @d, 32
+    store %23, %22
+    %24 = const i64 17
+    %25 = field.addr @d, 40
+    store %25, %24
+    %26 = const i64 0
+    %27 = field.addr @d, 48
+    store %27, %26
+    %28 = const i64 0
+    %29 = field.addr @d, 56
+    store %29, %28
+    %30 = const i64 0
+    %31 = field.addr @d, 64
+    store %31, %30
+    %32 = const i64 0
+    %33 = const i64 0
+    %34 = const i64 3
+    %35 = call.rtl i32 fb_ArrayRedimEx(@d, 4, -1, 0, 1, %33, %34)
+    %36 = alloca ptr z
+    %37 = call.rtl ptr memset(@z, 0, 8)
+    %38 = alloca ptr f
+    %39 = call.rtl ptr memset(@f, 0, 6)
+    %40 = call.rtl ptr memset(@f, 32, 6)
+    %41 = alloca ptr za
+    %42 = call.rtl ptr memset(@za, 0, 24)
+    %43 = alloca ptr fa
+    %44 = call.rtl ptr memset(@fa, 0, 18)
+    %45 = alloca ptr h
+    %46 = call.rtl ptr memset(@h, 0, 20)
+    %47 = alloca ptr e1
+    %48 = const i64 1
+    %49 = trunc %48
+    store @e1, %49
+    %50 = alloca ptr e2
+    %51 = const i64 1
+    %52 = trunc %51
+    store @e2, %52
+    %53 = alloca ptr e3
+    %54 = const i64 4
+    %55 = trunc %54
+    store @e3, %55
+    %56 = alloca ptr e4
+    %57 = const i64 4
+    %58 = trunc %57
+    store @e4, %58
+    %59 = alloca ptr e5
+    %60 = const i64 8
+    %61 = trunc %60
+    store @e5, %61
+    %62 = alloca ptr e6
+    %63 = const i64 8
+    %64 = trunc %63
+    store @e6, %64
+    %65 = alloca ptr e7
+    %66 = const i64 24
+    %67 = trunc %66
+    store @e7, %67
+    %68 = alloca ptr e8
+    %69 = const i64 24
+    %70 = trunc %69
+    store @e8, %70
+    %71 = alloca ptr e9
+    %72 = const i64 4
+    %73 = trunc %72
+    store @e9, %73
+    %74 = alloca ptr e10
+    %75 = const i64 4
+    %76 = trunc %75
+    store @e10, %76
+    %77 = alloca ptr e11
+    %78 = const i64 4
+    %79 = trunc %78
+    store @e11, %79
+    %80 = alloca ptr s1
+    %81 = const i64 8
+    %82 = trunc %81
+    store @s1, %82
+    %83 = alloca ptr s2
+    %84 = const i64 6
+    %85 = trunc %84
+    store @s2, %85
+    %86 = alloca ptr s3
+    %87 = const i64 8
+    %88 = trunc %87
+    store @s3, %88
+    %89 = alloca ptr s4
+    %90 = const i64 6
+    %91 = trunc %90
+    store @s4, %91
+    %92 = alloca ptr s5
+    %93 = const i64 20
+    %94 = trunc %93
+    store @s5, %94
+    %95 = alloca ptr s6
+    %96 = const i64 1
+    %97 = trunc %96
+    store @s6, %97
+    %98 = alloca ptr s7
+    %99 = alloca ptr c2
+    %100 = const i64 1
+    %101 = call.rtl i64 fb_ArrayLBound(@c2, %100)
+    %102 = trunc %101
+    store @s7, %102
+    %103 = alloca ptr s8
+    %104 = const i64 1
+    %105 = call.rtl i64 fb_ArrayUBound(@c2, %104)
+    %106 = trunc %105
+    store @s8, %106
+    %107 = call.rtl i32 fb_ArrayErase(@d)
+    %108 = alloca ptr $tmp32
+    %109 = field.addr @$tmp32, 0
+    store %109, @sa
+    %110 = field.addr @$tmp32, 8
+    store %110, @sa
+    %111 = const i64 72
+    %112 = field.addr @$tmp32, 16
+    store %112, %111
+    %113 = const i64 24
+    %114 = field.addr @$tmp32, 24
+    store %114, %113
+    %115 = const i64 1
+    %116 = field.addr @$tmp32, 32
+    store %116, %115
+    %117 = const i64 49
+    %118 = field.addr @$tmp32, 40
+    store %118, %117
+    %119 = const i64 3
+    %120 = field.addr @$tmp32, 48
+    store %120, %119
+    %121 = const i64 0
+    %122 = field.addr @$tmp32, 56
+    store %122, %121
+    %123 = const i64 2
+    %124 = field.addr @$tmp32, 64
+    store %124, %123
+    call.rtl void fb_ArrayDestructStr(@$tmp32)
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
+declare i64 fb_ArrayLBound(ptr $0, i64 $1)
+declare i64 fb_ArrayUBound(ptr $0, i64 $1)
+declare i32 fb_ArrayErase(ptr $0)
+declare void fb_ArrayDestructStr(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg b0 size 4
+  local agg c2 size 72
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr b0
+    %5 = call.rtl ptr memset(@b0, 0, 4)
+    %6 = alloca ptr c2
+    %7 = const ptr 0
+    %8 = field.addr @c2, 0
+    store %8, %7
+    %9 = field.addr @c2, 8
+    store %9, %7
+    %10 = const i64 0
+    %11 = field.addr @c2, 16
+    store %11, %10
+    %12 = const i64 4
+    %13 = field.addr @c2, 24
+    store %13, %12
+    %14 = const i64 1
+    %15 = field.addr @c2, 32
+    store %15, %14
+    %16 = const i64 17
+    %17 = field.addr @c2, 40
+    store %17, %16
+    %18 = const i64 0
+    %19 = field.addr @c2, 48
+    store %19, %18
+    %20 = const i64 0
+    %21 = field.addr @c2, 56
+    store %21, %20
+    %22 = const i64 0
+    %23 = field.addr @c2, 64
+    store %23, %22
+    %24 = const i64 0
+    %25 = const i64 1
+    %26 = const i64 4
+    %27 = call.rtl i32 fb_ArrayRedimEx(@c2, 4, -1, 0, 1, %25, %26)
+    %28 = call.rtl i32 fb_ArrayErase(@c2)
+    %29 = const i32 0
+    call.rtl void fb_End(%29)
+    %30 = load @$tmp0
+    ret %30
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 2 blocks, 204 insts, 0 statements not lowered, 0 scope imbalance
