@@ -143,6 +143,7 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         r.cvaListBytes = 8
         r.cvaListAlign = 8
         r.isWindows = true
+        r.isMsvc = (t = TARGET_WIN64_MSVC)
     end select
     return r
 end function

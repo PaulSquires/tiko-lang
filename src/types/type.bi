@@ -205,6 +205,11 @@ namespace Tko
         '' Windows or not. Only cva_list needs it so far, and only for its MANGLING,
         '' which is target-dependent in a way no width explains -- see BuiltinCode.
         as boolean isWindows
+        '' THE C LIBRARY, NOT THE PLATFORM. win64-msvc links ucrtbase and win64 links
+        '' MinGW's msvcrt, and they do not export the same setjmp: the UCRT has
+        '' '__intrinsic_setjmp' and not '_setjmp', MinGW the other way round. isWindows
+        '' is true for both, so LowerOnError_ needs this one to tell them apart.
+        as boolean isMsvc
     end type
 
     type TypeVec  as FB.Array( of TypeInfo )

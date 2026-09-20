@@ -1046,7 +1046,7 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     sjargs.Push( cast( ulong, MV_CONST_INT ) )
     sjargs.Push( 0 )
     dim as RtlId sjId = RTL_SETJMP
-    if c.types->target.isWindows then sjId = RTL_SETJMP_MSVC
+    if c.types->target.isMsvc then sjId = RTL_SETJMP_MSVC
     dim as MirValue sj = EmitRtl( c, sjId, sjargs )
     if sj.kind = cast( ubyte, MV_NONE ) then return
 
