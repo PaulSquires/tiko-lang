@@ -76,23 +76,34 @@ end function
 '' --------------------------------------------------------------------- loading
 
 function SourceManager.Find( byref absPath as ustring ) as FileId
+    dim as InternId want = this.names->GetString( Tko.Text.UStringToUtf8( absPath ) )
     #ifdef __FB_WIN32__
     '' THE SAME FILE UNDER ANOTHER CASE IS THE SAME FILE on Windows. AfxNova includes
-    '' 'win\ole2.bi' and 'AfxGdiPlus.inc' where other headers wrote 'win/Ole2.bi' and
-    '' 'AfxGdiplus.inc', and '#include once' loaded each twice: TKO0600 on every type in
-    '' it (PsCalendar). Linux names are case-sensitive, so the fold is Windows-only.
-    dim as string wantL = lcase( Tko.Text.UStringToUtf8( absPath ) )
-    for i as long = 0 to this.files.Count - 1
-        if lcase( this.names->Spelling( this.files[i]->path ) ) = wantL then
-            return cast( FileId, i + 1 )
-        end if
-    next
-    return FILE_NONE
+    '' 'win/ole2.bi' and 'AfxGdiPlus.inc' where other headers wrote another case of each,
+    '' and '#include once' loaded each twice: TKO0600 on every type in it (PsCalendar).
+    '' Linux names are case-sensitive, so the fold is Windows-only.
+    ''
+    '' THROUGH THE INTERNER'S FOLD, NOT lcase( ). This scan runs once per #include, and
+    '' the old spelling rebuilt and lowercased a string PER ENTRY PER CALL. Fold( ) is
+    '' memoised on the interned id, so an entry is folded once in the process's life and
+    '' every later comparison is an integer one.
+    want = this.names->Fold( want )
     #endif
-    dim as InternId want = this.names->GetString( Tko.Text.UStringToUtf8( absPath ) )
     dim as long n = this.files.Count
     for i as long = 0 to n - 1
-        if this.files[i]->path = want then return cast( FileId, i + 1 )
+        '' A VIRTUAL FILE IS A MACRO EXPANSION, NOT A PATH, and no #include can name
+        '' one. They are the overwhelming majority of the table -- 300 corpus files in
+        '' one invocation load 144,037 files, nearly all of them expansions -- so
+        '' scanning them WAS the cost: 30.96 s of parse time for those 300 files against
+        '' 2.25 s for the same files one process at a time. It was a latent bug as well:
+        '' an expansion whose shown name happened to equal a path would have been
+        '' returned as that file.
+        if this.files[i]->isVirtual then continue for
+        dim as InternId have = this.files[i]->path
+        #ifdef __FB_WIN32__
+        have = this.names->Fold( have )
+        #endif
+        if have = want then return cast( FileId, i + 1 )
     next
     return FILE_NONE
 end function

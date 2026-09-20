@@ -2,6 +2,7 @@
 
 #include once "types/type.bi"
 #include once "support/text.bi"
+#include once "support/irtext.bi"
 
 namespace Tko
 
@@ -858,7 +859,7 @@ end namespace
 namespace Tko
 
 function DumpTypes( byref tc as TypeContext ) as string
-    dim as string outp = ""
+    dim as IrText outp
     outp += "target: pointer=" & tc.target.pointerBits & " bits, wchar=" & _
             tc.target.wcharBytes & " bytes, string=" & tc.target.stringBytes & _
             " bytes align " & tc.target.stringAlign & chr( 10 )

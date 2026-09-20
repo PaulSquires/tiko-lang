@@ -3,6 +3,7 @@
 
 #include once "symbols/mangle.bi"
 #include once "support/text.bi"
+#include once "support/irtext.bi"
 
 namespace Tko.Mangle
 
@@ -1047,7 +1048,7 @@ function Dump _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     for i as long = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if ast.Kind( n ) <> Tko.N_PROC then continue for

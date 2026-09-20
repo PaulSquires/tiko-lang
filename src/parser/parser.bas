@@ -35,6 +35,7 @@
 #include once "parser/parser.bi"
 #include once "parser/intrinsics.bi"
 #include once "support/text.bi"
+#include once "support/irtext.bi"
 
 namespace Tko.Parse
 

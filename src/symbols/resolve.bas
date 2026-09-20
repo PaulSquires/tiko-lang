@@ -1,6 +1,7 @@
 '' resolve.bas -- see resolve.bi
 
 #include once "symbols/resolvectx.bi"
+#include once "support/irtext.bi"
 #include once "symbols/mangle.bi"
 #include once "symbols/check.bi"
 #include once "lexer/keywords.bi"

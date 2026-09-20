@@ -44,11 +44,8 @@ function ReferencedFunctions _
         for i as long = 0 to g->ptrCount - 1
             if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
-            for fi as long = 0 to m.functions.Count - 1
-                dim as MirFunction ptr f = m.functions[fi]
-                if f = 0 then continue for
-                if f->name = pn then refd[fi] = 1 : exit for
-            next
+            dim as long at = m.FirstFunctionNamed( pn )
+            if at >= 0 then refd[at] = 1
         next
     next
 
@@ -58,16 +55,18 @@ function ReferencedFunctions _
     '' named left the definition looking unreferenced; it was dropped, the declaration
     '' beside it was skipped as "also defined", and clang refused the module with
     '' "use of undefined value '@HASH_ADD'" -- fbcunit, found by build/suiterun.sh.
+    '' Down the name's own chain, which the module keeps, rather than over every
+    '' function for every marked one.
     for i as long = 0 to m.functions.Count - 1
         if refd[i] = 0 then continue for
         dim as MirFunction ptr f = m.functions[i]
         if f = 0 then continue for
-        for j as long = 0 to m.functions.Count - 1
-            if refd[j] <> 0 then continue for
-            dim as MirFunction ptr g = m.functions[j]
-            if g = 0 then continue for
-            if g->name = f->name then refd[j] = 1
-        next
+        dim as long at = m.FirstFunctionNamed( f->name )
+        while at >= 0
+            if m.functions[at] = 0 then exit while
+            refd[at] = 1
+            at = m.functions[at]->nextSameName - 1
+        wend
     next
 
     return refd
@@ -98,13 +97,7 @@ function DeclareUnknownVtableSlots _
         for i as long = 0 to g->ptrCount - 1
             if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
-            dim as boolean known = false
-            for fi as long = 0 to m.functions.Count - 1
-                dim as MirFunction ptr f = m.functions[fi]
-                if f = 0 then continue for
-                if f->name = pn then known = true : exit for
-            next
-            if known then continue for
+            if m.FirstFunctionNamed( pn ) >= 0 then continue for
             dim as string pns = names.Spelling( pn )
             if outSoFar.Contains( "declare void @""" & pns & """()" ) then continue for
             decls += "declare void @""" & pns & """()" & chr( 10 )

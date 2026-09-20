@@ -2,6 +2,7 @@
 
 #include once "types/udtlayout.bi"
 #include once "diag/diagids.bi"
+#include once "support/irtext.bi"
 
 namespace Tko
 
@@ -515,7 +516,7 @@ function DumpUdtLayouts _
     ( byref store as UdtLayouts, byref types as TypeContext, _
       byref names as Interner, byref syms as SymbolTable ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     for i as long = 0 to store.udts.Count - 1
         outp += RowsFor( store, names, i, types.Name( store.udts[i].type_ ) )
     next

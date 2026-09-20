@@ -6,6 +6,7 @@
 '' unrelated code changes.
 
 #include once "mir/dump.bi"
+#include once "support/irtext.bi"
 
 namespace Tko.Mir
 
@@ -144,7 +145,7 @@ end function
 function DumpModule _
     ( byref m as MirModule, byref names as Tko.Interner ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     '' Globals come first so a function body's diff is not disturbed by one being
     '' added.
     for i as long = 0 to m.globals.Count - 1

@@ -29,6 +29,31 @@ sub MirFunction.AddParam _
     this.paramCount = this.paramTys.Count
 end sub
 
+'' THE TWO NAME INDEXES, kept in step here so that no caller has to remember to.
+'' Both hold index PLUS ONE, 0 for 'none', and both push the new entry to the FRONT of
+'' its name's chain -- newest first, which is what a lookup for 'the definition' wants
+'' to find without walking the declarations behind it.
+private sub IndexName_ _
+    ( byref idx as FB.Array( of long ), byval nm as InternId, byval at as long, _
+      byref nextOut as long )
+
+    dim as long key = cast( long, nm )
+    while idx.Count <= key
+        idx.Push( 0 )
+    wend
+    nextOut = idx[key]
+    idx[key] = at + 1
+end sub
+
+'' The head of a name's chain, as an index, or -1 when the name has no entry.
+private function HeadOf_ _
+    ( byref idx as FB.Array( of long ), byval nm as InternId ) as long
+
+    dim as long key = cast( long, nm )
+    if (key < 0) orelse (key >= idx.Count) then return -1
+    return idx[key] - 1
+end function
+
 function MirModule.AddFunction _
     ( byval nm as InternId, byval retTy as MirType ) as MirFunction ptr
 
@@ -37,7 +62,30 @@ function MirModule.AddFunction _
     f->retTy = cast( ubyte, retTy )
     f->nextTemp = 1
     this.functions.Push( f )
+    IndexName_( this.funcByName, nm, this.functions.Count - 1, f->nextSameName )
     return f
+end function
+
+function MirModule.FirstFunctionNamed( byval nm as InternId ) as long
+    return HeadOf_( this.funcByName, nm )
+end function
+
+function MirModule.FindPtrTable( byval nm as InternId ) as long
+    dim as long at = HeadOf_( this.globalByName, nm )
+    while at >= 0
+        if this.globals[at].isPtrTable then return at
+        at = this.globals[at].nextSameName - 1
+    wend
+    return -1
+end function
+
+function MirModule.FindVarGlobal( byval nm as InternId ) as long
+    dim as long at = HeadOf_( this.globalByName, nm )
+    while at >= 0
+        if this.globals[at].isVar then return at
+        at = this.globals[at].nextSameName - 1
+    wend
+    return -1
 end function
 
 '' A WIDE string literal.
@@ -54,7 +102,9 @@ function MirModule.AddDataBlock( byref names as Interner ) as long
     g.dataCount = 0
     g.name = names.GetString( "$data" & str( this.globals.Count ) )
     this.globals.Push( g )
-    return this.globals.Count - 1
+    dim as long at = this.globals.Count - 1
+    IndexName_( this.globalByName, g.name, at, this.globals[at].nextSameName )
+    return at
 end function
 
 sub MirModule.PushDataEntry _
@@ -103,10 +153,12 @@ function MirModule.AddWideStringUnits _
     g.wcharCount = units.Count
     g.name = names.GetString( "$wstr" & str( this.globals.Count ) )
     this.globals.Push( g )
+    dim as long at = this.globals.Count - 1
+    IndexName_( this.globalByName, g.name, at, this.globals[at].nextSameName )
     for i as long = 0 to units.Count - 1
         this.wcharPool.Push( units[i] )
     next
-    return this.globals.Count - 1
+    return at
 end function
 
 '' ...and from plain TEXT, one unit per byte. Every caller that has no escapes to
@@ -122,36 +174,43 @@ function MirModule.AddWideStringLiteral _
     return this.AddWideStringUnits( text, units, names )
 end function
 
+'' Identical literals share one global. See MirModule.strByText for why this is a
+'' lookup and what the scan before it cost.
 function MirModule.AddStringLiteral _
     ( byref text as string, byref names as Interner ) as long
 
-    for i as long = 0 to this.globals.Count - 1
-        if this.globals[i].isString andalso (this.globals[i].isWide = false) andalso _
-           (this.globals[i].bytes = text) then
-            return i
-        end if
-    next
+    dim as long key = cast( long, names.GetString( text ) )
+    while this.strByText.Count <= key
+        this.strByText.Push( 0 )
+    wend
+    dim as long seen = this.strByText[key]
+    if seen > 0 then return seen - 1
+
     dim as MirGlobal g
     g.bytes = text
     g.isString = true
     g.name = names.GetString( "$str" & str( this.globals.Count ) )
     this.globals.Push( g )
-    return this.globals.Count - 1
+    dim as long idx = this.globals.Count - 1
+    IndexName_( this.globalByName, g.name, idx, this.globals[idx].nextSameName )
+    this.strByText[key] = idx + 1
+    return idx
 end function
 
 function MirModule.AddPtrTable( byval nm as InternId ) as long
     '' By NAME, so a type's table is found again rather than built twice: the base's
     '' RTTI is referenced by every type below it in the chain.
-    for i as long = 0 to this.globals.Count - 1
-        if this.globals[i].isPtrTable andalso (this.globals[i].name = nm) then return i
-    next
+    dim as long found = this.FindPtrTable( nm )
+    if found >= 0 then return found
     dim as MirGlobal g
     g.name = nm
     g.isPtrTable = true
     g.ptrFirst = this.ptrKinds.Count
     g.ptrCount = 0
     this.globals.Push( g )
-    return this.globals.Count - 1
+    dim as long at = this.globals.Count - 1
+    IndexName_( this.globalByName, nm, at, this.globals[at].nextSameName )
+    return at
 end function
 
 '' The three entry kinds. Each APPENDS, so a table has to be filled before the next one
@@ -178,9 +237,8 @@ function MirModule.AddVarGlobal _
     ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
       byval sizeBytes as long ) as long
 
-    for i as long = 0 to this.globals.Count - 1
-        if this.globals[i].isVar andalso (this.globals[i].name = nm) then return i
-    next
+    dim as long found = this.FindVarGlobal( nm )
+    if found >= 0 then return found
     dim as MirGlobal g
     g.name = nm
     g.isVar = true
@@ -192,7 +250,9 @@ function MirModule.AddVarGlobal _
     g.frontendType = ft
     g.size = sizeBytes
     this.globals.Push( g )
-    return this.globals.Count - 1
+    dim as long at = this.globals.Count - 1
+    IndexName_( this.globalByName, nm, at, this.globals[at].nextSameName )
+    return at
 end function
 
 '' ------------------------------------------------------------------ metadata
@@ -366,6 +426,8 @@ sub MirModule.SplitUtf16Literals( byref names as Interner )
                         next
                         this.globals.Push( g )
                         twin = this.globals.Count - 1
+                        IndexName_( this.globalByName, g.name, twin, _
+                                    this.globals[twin].nextSameName )
                     end if
                     this.argPool[ak + 1] = cast( ulong, twin )
                 next

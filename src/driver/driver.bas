@@ -259,6 +259,23 @@ private sub ReportStats( byref ctx as Tko.CompilerContext )
     print "warnings         "; ctx.diags.WarningCount( )
 end sub
 
+'' THE AST'S FOOTPRINT, for the budget in docs/plan/14-engineering-standards.md §4:
+'' arena bytes per token. Counted as elements times element size over the arrays the
+'' arena is made of -- USED, not reserved, because a growable array's slack is an
+'' allocation policy and the budget is about the representation.
+private function AstBytes_( byref a as Tko.AstArena ) as longint
+    dim as longint pools = a.children.Count + a.tokenRanges.Count + _
+                           a.extraTopLevel.Count + a.callTypeArgs.Count
+    return a.nodes.Count    * sizeof( Tko.AstNode ) + _
+           a.unaries.Count  * sizeof( Tko.UnaryPayload ) + _
+           a.binaries.Count * sizeof( Tko.BinaryPayload ) + _
+           a.literals.Count * sizeof( Tko.LiteralPayload ) + _
+           a.idents.Count   * sizeof( Tko.IdentPayload ) + _
+           a.lists.Count    * sizeof( Tko.ListPayload ) + _
+           a.stmts.Count    * sizeof( Tko.StmtPayload ) + _
+           pools * sizeof( ulong )
+end function
+
 '' A TOOLCHAIN FAILURE IS A DIAGNOSTIC WITHOUT A LOCATION that still exits with the TOOL's
 '' code. It was a bare 'tiko: ...' line on stderr, which nothing reading diagnostics could
 '' see -- an editor reported a failed link as a build with no errors. Counted in
@@ -1280,6 +1297,8 @@ function Run _
 
     elseif ctx.options.dumpAst orelse ctx.options.parseOnly then
         dim as longint nodes = 0
+        dim as longint astBytes = 0
+        dim as longint toks = 0
         dim as double tParseStart = timer
         for i as long = 1 to ctx.sources.Count( )
             dim as Tko.FileId id = cast( Tko.FileId, i )
@@ -1321,6 +1340,8 @@ function Run _
                 return RestartWith_( args, pr.cmdlineArgs, restartDepth )
 
             nodes += ast.Count( )
+            astBytes += AstBytes_( ast )
+            toks += pr.tokens.Count
             if ctx.options.dumpAst then
                 print Tko.Parse.DumpTree( ast, ctx.sources, ctx.names, root );
             end if
@@ -1333,6 +1354,10 @@ function Run _
             print "parsed "; ctx.options.inputs.Count; " file(s), "; nodes; " nodes"
             if ctx.options.timePasses then
                 print using "  parse ##.### s"; tParse
+            end if
+            if ctx.options.stats then
+                print "  ast   "; astBytes; " bytes, "; toks; " tokens, "; _
+                      csng( astBytes / iif( toks > 0, toks, 1 ) ); " bytes/token"
             end if
         end if
 

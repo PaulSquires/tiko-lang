@@ -1269,9 +1269,14 @@ private sub EmitOneImplicit_ _
     end select
     if len( nm ) = 0 then return
     dim as Tko.InternId id = c.names->GetString( nm )
-    for i as long = 0 to c.m->functions.Count - 1
-        if (c.m->functions[i]->name = id) andalso c.m->functions[i]->isDefinition then return
-    next
+    '' Down one name's chain rather than over every function: the same name really
+    '' can have two entries, a declaration and a definition.
+    dim as long at = c.m->FirstFunctionNamed( id )
+    while at >= 0
+        if c.m->functions[at] = 0 then exit while
+        if c.m->functions[at]->isDefinition then return
+        at = c.m->functions[at]->nextSameName - 1
+    wend
 
     dim as boolean twoArgs = (kind_ >= 2)
     dim as MirFunction ptr f = c.m->AddFunction( id, MT_VOID )

@@ -375,6 +375,11 @@ namespace Tko.Mir
         '' collapse instead of failing the link.
         as boolean  isWeak
         as boolean  isDefinition    '' false for a declaration with no body
+        '' THE NEXT FUNCTION WITH THE SAME NAME, index plus one, 0 for none. One name
+        '' really can name two entries -- a call lowered before the definition was
+        '' reached names a DECLARATION, and the definition arrives later as its own
+        '' index. See MirModule.funcByName.
+        as long     nextSameName
         '' THE SIGNATURE. docs/plan/09 gives every function and extern a signature and a
         '' calling convention; nothing consumed them until the backend, so until now only
         '' the ARITY was recorded. An LLVM 'declare' cannot be written from an arity --
@@ -528,6 +533,9 @@ namespace Tko.Mir
         as InternId initRelocFn
         as string   initBytes
         as boolean  hasInit
+        '' THE NEXT GLOBAL WITH THE SAME NAME, index plus one, 0 for none. See
+        '' MirModule.globalByName.
+        as long     nextSameName
     end type
 
     type MirGlobalVec as FB.Array( of MirGlobal )
@@ -552,6 +560,44 @@ namespace Tko.Mir
         as FB.Array( of ulong ) wcharPool
         as FB.Array( of ulong ) argPool     '' call arguments, as MirValue ids
 
+        '' A NARROW LITERAL'S TEXT -> ITS GLOBAL, so AddStringLiteral is a lookup and
+        '' not a scan. Indexed by the text's InternId and holding the global's index
+        '' PLUS ONE, so that 0 reads as 'not seen' for an id never used as a literal.
+        ''
+        '' The scan it replaces compared the whole text against every global once per
+        '' literal, which is quadratic and was measured as such: 4,000 distinct
+        '' literals compiled with '-c' in 296 ms, 8,000 in 690, 16,000 in 2,043 and
+        '' 32,000 in 7,090 -- about four times the work for twice the input. 8,000
+        '' copies of ONE literal took 417 ms, so the difference was the scan.
+        ''
+        '' INTERNING IS THE HASH. The interner is already an open-addressed table and
+        '' the text goes into it once; an FB.Map would have hashed the same bytes a
+        '' second time. Embedded NULs survive, because GetString passes strptr and len
+        '' rather than a C string.
+        ''
+        '' Only the NARROW literals. A wide one's key is its text AND its decoded code
+        '' units -- the same two bytes are one unit in a UTF-8 file and two in a
+        '' byte-preserved one -- so AddWideStringUnits still scans.
+        as FB.Array( of long ) strByText
+
+        '' NAME -> ENTRY, so a by-name lookup is a probe and not a scan. Indexed by
+        '' the name's InternId, holding the entry's index PLUS ONE so that 0 reads as
+        '' 'no entry'. A name can name more than one entry, so each entry carries
+        '' 'nextSameName' and the list runs newest first.
+        ''
+        '' These replaced five scans over the whole table -- a pointer table by name,
+        '' a DIM SHARED by name, both of lowervtab's, and 'is this name defined here'
+        '' in lowerimpl -- plus the two in codegen/llvmrefs.bas, where marking a
+        '' reference had to travel BY NAME and did so with a nested loop over every
+        '' function. Measured on 6,400 classes with one virtual method each.
+        as FB.Array( of long ) globalByName
+        as FB.Array( of long ) funcByName
+        '' A PROCEDURE TYPE -> ITS SIGNATURE-ONLY FUNCTION, index plus one, indexed by
+        '' the frontend TypeId. A call through a procedure pointer has no function to
+        '' name, so one is made per procedure type; finding it again used to build
+        '' '$tko.procsig.<n>', intern it and then scan, once per such call site.
+        as FB.Array( of long ) procSigByType
+
         declare constructor( )
         declare destructor( )
         declare function AddFunction _
@@ -570,6 +616,11 @@ namespace Tko.Mir
             ( byref text as string, byref names as Interner ) as long
         declare function AddStringLiteral _
             ( byref text as string, byref names as Interner ) as long
+        '' -1 when there is none. The finders walk one name's chain; the callers
+        '' that want a particular KIND of entry ask for it.
+        declare function FindPtrTable( byval nm as InternId ) as long
+        declare function FindVarGlobal( byval nm as InternId ) as long
+        declare function FirstFunctionNamed( byval nm as InternId ) as long
         '' A DIM SHARED variable. Unlike a literal these are never merged: two
         '' variables of the same value are still two variables.
         '' A vtable or an RTTI record. Named globals, never merged: two types with

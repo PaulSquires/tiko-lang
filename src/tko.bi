@@ -9,11 +9,14 @@
 
 #include once "crt.bi"
 
-'' fb/array.bi, NOT containers.bi. containers.bi pulls in fb/hash.bi, whose HashOf
-'' overloads are not PRIVATE, so including it from more than one module of a
-'' multi-module program produces duplicate symbols at link time. tiko-lang only needs
-'' Array today; when Map/Set are wanted, hash.bi has to be included from exactly one
-'' module (or fixed upstream). Recorded in docs/internals/known-toolchain-issues.md.
+'' fb/array.bi, NOT containers.bi -- because Array is all tiko-lang uses, and no
+'' longer because it had to be. containers.bi pulls in fb/hash.bi, whose HashOf
+'' overloads were not PRIVATE, and including it from more than one module of a
+'' multi-module program then produced duplicate symbols at link time. FIXED UPSTREAM
+'' (fbc-modern ada30911) and re-measured 2026-09-20: four modules sharing one
+'' containers.bi header, using Map, Set, OrderedMap and OrderedSet, link and run. So a
+'' Map may be introduced where one is worth having -- on a measurement, not on
+'' principle. docs/internals/known-toolchain-issues.md section 1 has the probe.
 #include once "fb/array.bi"
 
 namespace Tko

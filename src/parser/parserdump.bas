@@ -8,7 +8,7 @@
 private sub DumpAny _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
       byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as long, _
-      byref outp as string )
+      byref outp as IrText )
 
     if id = Tko.NODE_NONE then return
     if cast( long, id ) >= ast.nodes.Count then return
@@ -108,7 +108,7 @@ function DumpTree _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
       byref names as Tko.Interner, byval root as Tko.NodeId ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     DumpAny( ast, src, names, root, 0, outp )
     return outp
 end function

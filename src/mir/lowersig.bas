@@ -128,19 +128,28 @@ end sub
 '' 24-byte struct in registers while the procedure it reached wrote through a hidden pointer, so
 '' ApexWealth's quote provider came back failed and test_net crashed. The call names this
 '' declaration by index (plus one, as a virtual call does); nothing links against it. One per
-'' procedure type, found again by name. -1 when the type is not a procedure's.
+'' procedure type, found again by TYPE. -1 when the type is not a procedure's.
 function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     if sigT = Tko.TYPE_NONE then return -1
     if c.types->Kind( sigT ) <> Tko.TK_PROC then return -1
-    dim as Tko.InternId nm = c.names->GetString( "$tko.procsig." & str( cast( long, sigT ) ) )
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then return i
-    next
+    '' KEYED ON THE TYPE, not on a name built from it. The name is still what the
+    '' function is called -- nothing links against it, but the dump and the emitter
+    '' read it -- and it is built ONCE, when the signature is first made. Finding it
+    '' again used to build that string and intern it at every procedure-pointer call
+    '' site, and then scan every function in the module.
+    dim as long tkey = cast( long, sigT )
+    while c.m->procSigByType.Count <= tkey
+        c.m->procSigByType.Push( 0 )
+    wend
+    if c.m->procSigByType[tkey] > 0 then return c.m->procSigByType[tkey] - 1
+
+    dim as Tko.InternId nm = c.names->GetString( "$tko.procsig." & str( tkey ) )
     dim as Tko.TypeId rt = c.types->Inner( sigT )
     dim as MirType rmt = MT_VOID
     if rt <> Tko.TYPE_NONE then rmt = LowerType( rt, *c.types )
     dim as MirFunction ptr f = c.m->AddFunction( nm, rmt )
     if f = 0 then return -1
+    c.m->procSigByType[tkey] = c.m->functions.Count
     f->isDefinition = false
     '' A STRING RESULT IS A POINTER at every call site -- see LowerCallParts -- so only a real
     '' aggregate carries the size and class RewriteCallReturn reads.

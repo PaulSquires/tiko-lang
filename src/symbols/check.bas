@@ -3,6 +3,7 @@
 
 #include once "symbols/check.bi"
 #include once "symbols/mangle.bi"
+#include once "support/irtext.bi"
 
 
 namespace Tko.Check

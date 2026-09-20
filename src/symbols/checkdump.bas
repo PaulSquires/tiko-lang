@@ -10,7 +10,7 @@ function Dump _
       byref types as Tko.TypeContext, byref names as Tko.Interner, _
       byref info as Tko.SemanticInfo, byref st as Stats ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     for i as long = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
 

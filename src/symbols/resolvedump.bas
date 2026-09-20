@@ -8,7 +8,7 @@ function Dump _
       byref types as Tko.TypeContext, byref names as Tko.Interner, _
       byref info as Tko.SemanticInfo, byref st as Stats ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     outp += "resolved: " & st.references & " references, " & st.builtins & _
             " builtins, " & st.undefined_ & " unresolved, " & st.typeRefs & _
             " type refs, " & st.calls & " calls, " & st.assigns & _

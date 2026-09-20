@@ -2,6 +2,7 @@
 
 #include once "lexer/lexer.bi"
 #include once "support/text.bi"
+#include once "support/irtext.bi"
 
 namespace Tko
 
@@ -947,7 +948,7 @@ function Dump _
     ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
       byref names as Tko.Interner, byref r as Result ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     outp += "file " & src.PathOf( file ) & ", " & r.tokens.Count & " tokens" & chr( 10 )
 
     dim as long index = 0

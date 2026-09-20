@@ -5,6 +5,7 @@
 '' with no reason to sit next to the collection pass.
 
 #include once "symbols/collect.bi"
+#include once "support/irtext.bi"
 
 namespace Tko.Collect
 
@@ -36,7 +37,7 @@ function Dump _
         nscopes += 1
     next
 
-    dim as string outp = ""
+    dim as IrText outp
     outp += "scopes: " & nscopes & "  symbols: " & (syms.Count( ) - nbuiltin)
     if nbuiltin > 0 then outp += "  (builtin: " & nbuiltin & ")"
     outp += chr( 10 )

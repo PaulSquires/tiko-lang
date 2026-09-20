@@ -1,4 +1,4 @@
-'' irtext.bi -- the LLVM module's text, built by appending.
+'' irtext.bi -- text built by appending, for anything that emits a whole module.
 ''
 '' A STRING THAT ONLY GROWS AT THE END, in amortised constant time per append. The
 '' emitter wrote the module as 'e.outp += line' over a plain STRING field reached
@@ -12,7 +12,7 @@
 #pragma once
 #include once "tko.bi"
 
-namespace Tko.Codegen
+namespace Tko
 
     type IrText
         as string buf

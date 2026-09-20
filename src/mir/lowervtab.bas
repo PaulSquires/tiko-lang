@@ -83,9 +83,8 @@ function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
     dim as string nm = TableName_( c, "_ZTS", t )
     if len( nm ) = 0 then return -1
     dim as Tko.InternId id = c.names->GetString( nm )
-    for i as long = 0 to c.m->globals.Count - 1
-        if c.m->globals[i].isPtrTable andalso (c.m->globals[i].name = id) then return i
-    next
+    dim as long have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
 
     '' THE BASE'S RECORD FIRST: the chain is a field of this one, and building it after
     '' would append its entries into the middle of this table's run. The pool is shared
@@ -119,9 +118,8 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
     dim as string nm = TableName_( c, "_ZTV", t )
     if len( nm ) = 0 then return -1
     dim as Tko.InternId id = c.names->GetString( nm )
-    for i as long = 0 to c.m->globals.Count - 1
-        if c.m->globals[i].isPtrTable andalso (c.m->globals[i].name = id) then return i
-    next
+    dim as long have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
 
     '' The RTTI record before the table is opened: its entries would otherwise land in
     '' the middle of this table's run.

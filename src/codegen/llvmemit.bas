@@ -4,7 +4,7 @@
 #include once "codegen/llvmtype.bi"
 #include once "codegen/llvmdebug.bi"
 #include once "codegen/llvmrefs.bi"
-#include once "codegen/irtext.bi"
+#include once "support/irtext.bi"
 
 namespace Tko.Codegen
 

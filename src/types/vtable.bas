@@ -1,6 +1,7 @@
 '' vtable.bas -- see vtable.bi for the measured rules this implements.
 
 #include once "types/vtable.bi"
+#include once "support/irtext.bi"
 
 namespace Tko
 
@@ -631,7 +632,7 @@ function DumpVTables _
       byref names as Interner, byref syms as SymbolTable, _
       byref info as SemanticInfo ) as string
 
-    dim as string outp = ""
+    dim as IrText outp
     for i as long = 0 to store.types_.Count - 1
         dim as VtInfo ptr v = @store.types_[i]
         outp += types.Name( v->type_ ) & " vtable " & str( v->count ) & " slot(s)" & chr( 10 )

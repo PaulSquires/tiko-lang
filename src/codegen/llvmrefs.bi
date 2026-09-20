@@ -12,7 +12,7 @@
 #define __TKO_LLVMREFS_BI__
 
 #include once "mir/mir.bi"
-#include once "codegen/irtext.bi"
+#include once "support/irtext.bi"
 
 namespace Tko.Codegen
 
