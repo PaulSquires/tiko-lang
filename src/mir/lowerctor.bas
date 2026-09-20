@@ -167,6 +167,8 @@ private function CtorArgValue_ _
                 outv = ra
                 return true
             end if
+            '' AN RVALUE GETS A TEMPORARY -- see CtorByrefRvalue_.
+            if CtorByrefRvalue_( c, argNode, u, outv ) then return true
         end if
     end if
 
@@ -842,12 +844,11 @@ function LowerCtorInit _
                 ai2 += 1
                 continue for
             end if
-            dim as MirValue ba = LowerAddr( c, cast( Tko.NodeId, argNode[ai2] ) )
-            if ba.kind <> cast( ubyte, MV_NONE ) then
-                argKind[ai2] = cast( ulong, ba.kind )
-                argId[ai2] = cast( ulong, ba.id )
-                argT[ai2] = cast( ulong, pty )
-                ai2 += 1
+            '' ...OR A TEMPORARY'S, when the argument is an rvalue -- CtorByrefArgAddr_.
+            dim as MirValue ba
+            if CtorByrefArgAddr_( c, cast( Tko.NodeId, argNode[ai2] ), pty, ba ) then
+                argKind[ai2] = cast( ulong, ba.kind ) : argId[ai2] = cast( ulong, ba.id )
+                argT[ai2] = cast( ulong, pty ) : ai2 += 1
                 continue for
             end if
         end if
@@ -935,13 +936,13 @@ function LowerCtorInit _
             '' -- a reference is transparent to TypeOf_ -- so 'constructor T( i as
             '' integer, byref impl as X )' called as 'T( 420 )' loaded the default's
             '' VALUE and passed the aggregate where the signature wants a pointer.
+            '' ...AND A DEFAULT THAT IS ITSELF A CONSTRUCTOR CALL has no address to
+            '' take, so this LOADED it: 'byref x1 as UDT1 = UDT1( 456 )' emitted
+            '' 'load [8 x i8]' and passed the aggregate. CtorByrefArgAddr_ gives an
+            '' rvalue a temporary -- functions/paraminit.bas, TEST_GROUP ctors1.
             if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
                 if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
-                    dim as MirValue da = LowerAddr( c, dsp->b )
-                    if da.kind <> cast( ubyte, MV_NONE ) then
-                        dv = da
-                        dref = true
-                    end if
+                    dref = CtorByrefArgAddr_( c, dsp->b, dt, dv )
                 end if
             end if
             if dref = false then
@@ -1203,11 +1204,8 @@ function PushCtorArgs_ _
             if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
                 if dt <> Tko.TYPE_NONE then
                     if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
-                        dim as MirValue da2 = LowerAddr( c, dp->b )
-                        if da2.kind <> cast( ubyte, MV_NONE ) then
-                            dv = da2
-                            dref2 = true
-                        end if
+                        '' ...AND AN RVALUE DEFAULT GETS A TEMPORARY -- CtorByrefArgAddr_.
+                        dref2 = CtorByrefArgAddr_( c, dp->b, dt, dv )
                     elseif c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_BUILTIN then
                         '' ...AND A WSTRING DEFAULT IS WIDE CHARACTERS: 'new CWindow' passed the
                         '' narrow "" for its class name -- see EmitStructorCall.

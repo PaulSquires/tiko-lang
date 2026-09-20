@@ -17,6 +17,76 @@
 '' NOT PRIVATE ANY MORE: 'operator []( index as integer )' declares a BYREF parameter --
 '' in the fb dialect a parameter is byref unless it says otherwise -- so 'x[ 0 ]' needs
 '' the same temporary an ordinary call's byref argument does. See LowerUdtIndexOp_.
+'' A CONSTRUCTOR'S BYREF PARAMETER GIVEN AN RVALUE, which has no address to take.
+''
+'' CtorArgValue_'s reference arm tries LowerAddr and, when that answers nothing, used to
+'' fall through to the value path -- its comment said so deliberately. It cannot: the
+'' parameter is a REFERENCE, so the value goes out where a pointer belongs.
+''
+''     dim as UDT2 u = UDT2( 2.0 )     '' constructor( byref d as double )
+''     call void @"_ZN4UDT2C1ERd"( ptr %s0, ptr 0x4000000000000000 )
+''     error: floating point constant invalid for type
+''
+'' fbc materialises one -- 'TMP$ = 2.0; _ZN4UDT2C1ERd( &U, &TMP$ )' -- and ByrefTemp_ is
+'' the same helper every ordinary byref argument already uses. Measured on
+'' structs/obj_global_with_temp2.bas, structs/temp-var-dtors.bas and
+'' functions/paraminit.bas, which are three of the corpus files fbc accepts and tiko's
+'' emission refused.
+''
+'' THE REFERENT'S TYPE, NOT THE REFERENCE'S. PushCtorArgs_ wraps a byref parameter in a
+'' reference before this is reached, and a temporary made of that would be one
+'' indirection out -- a pointer-sized slot holding the value's bits.
+'' THE ADDRESS A BYREF CONSTRUCTOR ARGUMENT PASSES: the argument's own, or a
+'' temporary's when it has none.
+''
+'' LowerCtorInit's argument loop took the address and, when there was none, fell through
+'' to the VALUE path -- which for a reference parameter puts the value where a pointer
+'' belongs:
+''
+''     dim as UDT2 u = UDT2( 2.0 )     '' constructor( byref d as double )
+''     call void @"_ZN4UDT2C1ERd"( ptr %s0, ptr 0x4000000000000000 )
+''     error: floating point constant invalid for type
+''
+'' and for a UDT rvalue the same fall-through emitted '%t38 defined with type [8 x i8]
+'' but expected ptr'. fbc materialises one -- 'TMP$ = 2.0; _ZN4UDT2C1ERd( &U, &TMP$ )'.
+'' Three corpus files fbc accepts turned on it: structs/temp-var-dtors.bas,
+'' structs/obj_global_with_temp2.bas and functions/paraminit.bas.
+function CtorByrefArgAddr_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pty as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    outv = LowerAddr( c, argNode )
+    if outv.kind <> cast( ubyte, MV_NONE ) then return true
+
+    '' A ZSTRING OR WSTRING REFERENT IS ALREADY A POINTER, so it must NOT be given a
+    '' temporary: the VALUE of a string literal is its address, which is exactly what
+    '' 'byref as const zstring' wants. Wrapping it stored the address into a pointer
+    '' slot and passed THAT -- one indirection too many, and the goldens said so:
+    '' 'call void _ZN3STRC1ERKc( @$tmp1, @@$str2 )' became a store into $tmp2 and
+    '' '@$tmp2' (tests/mir/udt-named-like-intrinsic, conv-string-operand).
+    dim as Tko.TypeId ru = c.types->Unqualify( pty )
+    if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+    if c.types->Kind( ru ) = Tko.TK_BUILTIN then
+        dim as Tko.BuiltinType bt = c.types->BuiltinOf( ru )
+        if (bt = Tko.TY_ZSTRING) orelse (bt = Tko.TY_WSTRING) then return false
+    end if
+
+    outv = ByrefTemp_( c, argNode, pty )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+function CtorByrefRvalue_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval refT as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    if (argNode = Tko.NODE_NONE) orelse (refT = Tko.TYPE_NONE) then return false
+    if c.types->Kind( refT ) <> Tko.TK_REFERENCE then return false
+    '' THROUGH THE SAME DOOR, so the zstring and wstring exclusion is written once:
+    '' the address was already tried at the call site and answered nothing, so this
+    '' reaches the guard and the temporary.
+    return CtorByrefArgAddr_( c, argNode, c.types->Inner( refT ), outv )
+end function
+
 function ByrefTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
 

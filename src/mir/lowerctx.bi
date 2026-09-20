@@ -824,6 +824,15 @@ declare function EmitRtl _
     declare function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerOpenCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' The address a byref CONSTRUCTOR argument passes, its own or a temporary's
+    '' -- lowerbyref.bas.
+    declare function CtorByrefArgAddr_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pty as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A CONSTRUCTOR's byref parameter given an rvalue -- lowerbyref.bas.
+    declare function CtorByrefRvalue_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval refT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
     '' A temporary holding an argument that must be passed BYREF and has no address of
     '' its own -- lowercall.bas.
     declare function ByrefTemp_ _
