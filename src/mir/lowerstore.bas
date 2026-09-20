@@ -545,8 +545,9 @@ sub EmitStructorCall _
                     av.ty = cast( ubyte, MT_PTR )
                     av.id = vslot
                     StoreThrough( c, av, CoerceTy( c, dval, dmt, c.info->TypeOf_( dv ), dpt ) )
-                else
-                    av = LowerExpr( c, dv )
+                else '' an aggregate one needs it too -- ByrefAggTempOf_, lowerbyref.bas
+                    dim as MirValue dval2 = LowerExpr( c, dv )
+                    if ByrefAggTempOf_( c, dval2, dpt, av ) = false then av = dval2
                 end if
             end if
         else

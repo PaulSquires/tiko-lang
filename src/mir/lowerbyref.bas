@@ -36,6 +36,68 @@
 '' THE REFERENT'S TYPE, NOT THE REFERENCE'S. PushCtorArgs_ wraps a byref parameter in a
 '' reference before this is reached, and a temporary made of that would be one
 '' indirection out -- a pointer-sized slot holding the value's bits.
+'' AN ADDRESS FOR A BYREF PARAMETER WHOSE ARGUMENT IS ALREADY LOWERED.
+''
+'' lowerfieldinit.bas evaluates every argument BEFORE it picks the overload -- the
+'' types are what choose it -- so by the time the parameter is known the value is in
+'' hand and the node must NOT be lowered again: for 'UDT1( 456 )' that would run the
+'' constructor twice. ByrefTempOf_ is the helper for that case and refuses an
+'' aggregate, which is exactly the case here:
+''
+''     %s2 = alloca [8 x i8]
+''     call ..._UDT1C1ERu7INTEGER( ptr %s2, ptr %s3 )     the temporary, constructed
+''     %t8 = load [8 x i8], ptr %s2                        and then LOADED
+''     call ..._UDT2C1ERNS4_4UDT1E( ptr %t4, ptr %t8 )     value where a reference goes
+''
+'' THIS COPIES, which fbc does not: it passes the original temporary's address. The
+'' copy is observable only to a callee that compares addresses or counts destructions,
+'' and structs/temp-var-dtors.bas counts destructions -- so runscan against fbc is what
+'' says whether this is right, not the fact that it compiles.
+function ByrefAggTempOf_ _
+    ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    '' 'byref x1 as UDT1 = UDT1( 456 )' arrives here as a loaded aggregate, which for
+    '' a reference parameter is the value where the address belongs:
+    ''
+    ''     %t8 = load [8 x i8], ptr %s2
+    ''     call ..._UDT2C1ERNS4_4UDT1E( ptr %t4, ptr %t8 )
+    ''
+    '' The scalar arm of the same loop already made a temporary and passed its address;
+    '' this gives the aggregate one too. functions/paraminit.bas (ctors1) and
+    '' structs/temp-var-dtors.bas are the corpus files that were failing.
+    if rv.kind = cast( ubyte, MV_NONE ) then return false
+    if pty = Tko.TYPE_NONE then return false
+    '' ONLY AN INSTRUCTION RESULT, and only an aggregate one. MV_LOCAL, MV_GLOBAL and
+    '' MV_PARAM already ARE the object's address -- see the MV_LOCAL comment in mir.bi
+    '' -- so the only value that needs a home is a loaded aggregate, which is MV_TEMP.
+    '' Wrapping a descriptor's address gave one indirection too many:
+    ''
+    ''     %10 = fb_StrAssign( @$tmp0, ... )         the temporary FBSTRING
+    ''     store @$tmp1, @$tmp0                      its address, into another temp
+    ''     call void _ZN1WC1ER8FBSTRINGj( %5, @$tmp1, %12 )
+    ''
+    '' and tests/mir/field-init-convctor caught it -- the same mistake as the zstring
+    '' one in CtorByrefArgAddr_, made again in the other helper.
+    if rv.kind <> cast( ubyte, MV_TEMP ) then return false
+    if cast( MirType, rv.ty ) <> MT_AGG then return false
+    dim as Tko.TypeId ru = c.types->Unqualify( pty )
+    if c.types->Kind( ru ) = Tko.TK_REFERENCE then
+        ru = c.types->Unqualify( c.types->Inner( ru ) )
+    end if
+    dim as MirType pmt = LowerType( ru, *c.types )
+    if pmt <> MT_AGG then return false
+    dim as long sz = SizeOfType( c, ru )
+    if sz <= 0 then return false
+    dim as long slot = NewTempLocal( c, pmt, sz )
+    if slot < 0 then return false
+    outv.kind = cast( ubyte, MV_LOCAL )
+    outv.ty = cast( ubyte, MT_PTR )
+    outv.id = slot
+    StoreThrough( c, outv, rv )
+    return true
+end function
+
 '' THE ADDRESS A BYREF CONSTRUCTOR ARGUMENT PASSES: the argument's own, or a
 '' temporary's when it has none.
 ''

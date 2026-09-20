@@ -169,6 +169,18 @@ private function CtorArgsOnAddr_ _
         av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
         av.id = argId[ai]
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        '' A BYREF PARAMETER TAKES AN ADDRESS, and this loop coerced every argument to
+        '' the parameter's MIR type instead -- which for a UDT is the AGGREGATE, so the
+        '' loaded value went out where the address belongs. See ByrefAggTempOf_ for the
+        '' IR and for what the copy costs.
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            dim as MirValue ba
+            if ByrefAggTempOf_( c, av, pt, ba ) then
+                cargs.Push( cast( ulong, ba.kind ) ) : cargs.Push( cast( ulong, ba.id ) )
+                ai += 1
+                continue for
+            end if
+        end if
         dim as MirValue cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
         if cv.kind = cast( ubyte, MV_NONE ) then return false
         cargs.Push( cast( ulong, cv.kind ) ) : cargs.Push( cast( ulong, cv.id ) )
