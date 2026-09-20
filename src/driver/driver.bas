@@ -746,6 +746,7 @@ function Run _
         '' THE BOUND IS FROZEN. Count( ) grows as the preprocessor opens includes,
         '' and reading it each time round would compile every header as a unit.
         dim as long srcCount = ctx.sources.Count( )
+        dim as double tFrontStart = timer
         for i as long = 1 to srcCount
             dim as Tko.FileId id = cast( Tko.FileId, i )
             dim as Tko.PpResult pr
@@ -1271,6 +1272,13 @@ function Run _
                 print Tko.Collect.Dump( syms, ctx.names, ctx.types, ctx.sources );
             end if
         next
+
+        '' THE FRONTEND'S OWN TIME, so the budget in docs/plan/14 section 4 can be read
+        '' off a single file rather than wall-clocked with the process start-up
+        '' subtracted -- over 2,709 files that subtraction is larger than the signal.
+        if ctx.options.timePasses andalso ctx.options.checkOnly then
+            print using "  front ##.### s"; timer - tFrontStart
+        end if
 
         '' ---- the link, once, over every object --------------------------------
         ''

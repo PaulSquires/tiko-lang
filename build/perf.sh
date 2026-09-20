@@ -106,28 +106,32 @@ LEX_S=$(awk '/^  lex /{s+=$2} END {printf "%.3f", s}' "$WORK/lex.out")
 LEX_B=$(awk '/^lexed /{s+=$4} END {print s}' "$WORK/lex.out")
 LEX_T=$(awk '/^lexed /{s+=$6} END {print s}' "$WORK/lex.out")
 
-# ---------------------------------------------------------------- 2. parse + AST
-for c in "$WORK"/chunk_*; do
-    "$TIKO" --parse-only --stats --time-passes $FBCUNIT $(cat "$c") 2>&1 || true
-done > "$WORK/parse.out"
+# ------------------------------------------------- 2 + 3. parse, AST and frontend
+# ONE FILE PER INVOCATION, WHICH IS WHAT A BUILD DOES -- and what the denominator has
+# to match. Handing 300 files to one process, as this script used to, loads each shared
+# header ONCE and counts its bytes once, while the parser still parses those tokens in
+# every unit that included them. chunk_aa reports 13.8 MB read in a batch and its 300
+# units process 68.8 MB between them; the same files then measure 4.7 MB/s batched and
+# 17.56 MB/s one at a time. The second is the compiler's throughput; the first was an
+# artefact of the chunking, which exists only because 2,709 paths do not fit on a
+# Windows command line.
+#
+# The compiler's OWN timers are summed -- 'parse' and 'front' -- so process start-up is
+# excluded. It has to be: over 2,709 invocations start-up is about two minutes, which is
+# larger than the work being measured.
+: > "$WORK/parse.out"
+: > "$WORK/check.out"
+while read -r f ; do
+    "$TIKO" --parse-only --stats --time-passes $FBCUNIT "$f" >> "$WORK/parse.out" 2>&1 || true
+    "$TIKO" --check --stats --time-passes -fmax-errors 100000 $FBCUNIT "$f" >> "$WORK/check.out" 2>&1 || true
+done < "$WORK/corpus.lst"
+
 PAR_S=$(awk '/^  parse /{s+=$2} END {printf "%.3f", s}' "$WORK/parse.out")
 PAR_R=$(awk '/^source bytes/{s+=$3} END {print s}' "$WORK/parse.out")
 AST_B=$(awk '/^  ast /{s+=$2} END {print s}' "$WORK/parse.out")
 AST_T=$(awk '/^  ast /{s+=$4} END {print s}' "$WORK/parse.out")
-
-# ---------------------------------------------------------------- 3. frontend
-# --check is lex, preprocess, parse, collect, resolve and type -- 'lex to typed AST'.
-# -fmax-errors is raised because the corpus is fbc's suite and tiko does not accept all
-# of it yet; stopping at the default would measure less work than the budget asks for.
-FE_MS=0
-FE_ERRS=0
-for c in "$WORK"/chunk_*; do
-    s=$( now_ms )
-    "$TIKO" --check --stats -fmax-errors 100000 $FBCUNIT $(cat "$c") > "$WORK/chk.out" 2>&1 || true
-    e=$( now_ms )
-    FE_MS=$(( FE_MS + ( e - s ) - STARTUP ))
-    FE_ERRS=$(( FE_ERRS + $(awk '/^errors/{print $2+0}' "$WORK/chk.out") ))
-done
+FE_S=$(awk '/^  front /{s+=$2} END {printf "%.3f", s}' "$WORK/check.out")
+FE_ERRS=$(awk '/^errors/{s+=$2} END {print s+0}' "$WORK/check.out")
 
 # ---------------------------------------------------------------- 4. self-compile
 SELF=$(cat build/sources.txt)
@@ -201,7 +205,7 @@ fi
 awk -v files="$FILES" -v input="$INPUT" \
     -v lexs="$LEX_S" -v lexb="$LEX_B" -v lext="$LEX_T" \
     -v pars="$PAR_S" -v parr="$PAR_R" -v astb="$AST_B" -v astt="$AST_T" \
-    -v fems="$FE_MS" -v feerr="$FE_ERRS" \
+    -v fes="$FE_S" -v feerr="$FE_ERRS" \
     -v selfn="$SELF_N" -v selfb="$SELF_B" -v selfread="$SELF_READ" \
     -v selfpar="$SELF_PAR" -v selffe="$SELF_FE" \
     -v selfastb="$SELF_AST_B" -v selfastt="$SELF_AST_T" \
@@ -214,14 +218,14 @@ function verdict( got, want, higher ) {
 }
 BEGIN {
     printf "\n--- docs/plan/14 section 4, measured ---\n\n"
-    printf "corpus: %d files, %.2f MB input, %.2f MB read\n\n", files, mb(input), mb(parr)
+    printf "corpus: %d files, %.2f MB input, %.2f MB processed by its %d units\n\n", files, mb(input), mb(parr), files
     l = mb(lexb) / lexs
     printf "lexer      %8.2f MB/s input  %11.0f tokens/s   budget >= 20 MB/s  %s\n", l, lext/lexs, verdict(l,20,1)
     p1 = mb(input) / pars; p2 = mb(parr) / pars
     printf "parse      %8.2f MB/s input  %8.2f MB/s read   budget >=  8 MB/s  %s\n", p1, p2, verdict(p2,8,1)
-    f1 = mb(input) / (fems/1000.0); f2 = mb(parr) / (fems/1000.0)
+    f1 = mb(input) / fes; f2 = mb(parr) / fes
     printf "frontend   %8.2f MB/s input  %8.2f MB/s read   budget >=  4 MB/s  %s\n", f1, f2, verdict(f2,4,1)
-    printf "           (%.1f s of --check; %d diagnostics -- tiko rejects part of the corpus)\n", fems/1000.0, feerr
+    printf "           (%.1f s of --check; %d diagnostics -- tiko rejects part of the corpus)\n", fes, feerr
     a = astb / astt
     printf "AST        %8.2f bytes/token                    budget <= 40       %s\n", a, verdict(a,40,0)
     printf "\nself-compile: %d modules, %.2f MB of .bas, %.2f MB read\n", selfn, mb(selfb), mb(selfread)
