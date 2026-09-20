@@ -1,0 +1,32 @@
+'' A generic instantiated DIRECTLY IN A TYPE FIELD, in both field spellings.
+''
+'' The layout is fbc's, measured 2026-09-19 on the all-'dim' spelling (the only one it
+'' instantiates): sizeof( Holder ) = 40 with fields at 0, 8, 16 and 32, and
+'' sizeof( Cell( of long ) ) = 8 with fields at 0 and 4.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-type-field.bas
+'' EXPECT-EXIT: 0
+
+'' THE OUTER UDT IS SIZED BY ITS INSTANTIATIONS -- it used to be the whole point of the
+'' feature that it was not: an instantiation that resolved to the generic's own fieldless
+'' UDT makes every container field SIZE ZERO and the type around it collapses.
+'' EXPECT-OUT: local agg h size 40
+'' EXPECT-OUT: local agg c size 8
+
+'' 'b as Box( of long )' -- the NAME-FIRST spelling, at offset 0, and the store goes
+'' through the instantiation's own field, not through the generic's.
+'' EXPECT-OUT: %3 = field.addr @h, 0
+'' EXPECT-OUT: %4 = field.addr %3, 0
+
+'' 'dim as Box( of double ) d' -- the TYPE-FIRST spelling, at 8.
+'' EXPECT-OUT: %7 = field.addr @h, 8
+
+'' 'pr as Pair( of long, double )' -- two arguments, name first, at 16; 'v' at 16+8.
+'' EXPECT-OUT: %14 = field.addr @h, 16
+'' EXPECT-OUT: %15 = field.addr %14, 8
+
+'' The plain field AFTER the generic ones still lands where fbc puts it.
+'' EXPECT-OUT: %17 = field.addr @h, 32
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/generic-type-field.out
