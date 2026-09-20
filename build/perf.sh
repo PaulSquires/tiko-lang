@@ -6,18 +6,20 @@
 # that measures section 4's table over the corpus and the self-compile". This is it.
 #
 # TWO DENOMINATORS, BOTH PRINTED. 'input' is what the user handed the compiler -- the
-# corpus files themselves. 'read' is every byte the source manager loaded, which is
-# those files PLUS the headers they include PLUS the virtual files the preprocessor
-# makes for macro expansion. One 3,696-byte corpus file reads 48,640 bytes. Throughput
-# against 'input' is what a user feels; against 'read' is what the compiler did. A
-# budget missed on both is missed on any reading.
+# corpus files themselves, 5.46 MB. 'processed' is every byte its units read between
+# them: their own text PLUS the headers each includes PLUS the virtual files the
+# preprocessor makes for macro expansion, 157 MB. One 3,696-byte corpus file reads
+# 48,640. Throughput against 'input' is what a user feels; against 'processed' is the
+# work done, and that is what the budgets are written against. See section 2 + 3 for
+# what measuring the wrong one cost.
 #
-# TIMING. The compiler's own per-pass timers (--time-passes) are used where they exist,
-# because they exclude process start-up. --check has no timer, so it is wall-clocked
-# and the measured start-up cost is subtracted.
+# TIMING IS THE COMPILER'S OWN. --time-passes reports 'lex', 'parse' and 'front', all
+# of which exclude process start-up; only the self-compile's frontend and the fbc
+# comparison are wall-clocked, and the start-up is measured and subtracted there.
 #
-# CHUNKS. 2,709 paths do not fit in one Windows command line (32,767 characters), so
-# the corpus is handed over in chunks of 300 and the numbers summed.
+# CHUNKS, FOR THE LEXER ONLY. 2,709 paths do not fit in one Windows command line
+# (32,767 characters), so --lex-only is handed the corpus 300 files at a time. Parse
+# and frontend are one file per invocation, which is what a build does.
 set -e
 
 cd "$(dirname "$0")/.."

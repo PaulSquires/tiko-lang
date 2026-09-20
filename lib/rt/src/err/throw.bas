@@ -36,6 +36,16 @@ extern "rtlib"
 	declare sub tkrt_End alias "fb_End" ( byval errlevel as long )
 end extern
 
+'' src/c/errjmp.c. Plain C linkage, like every other member there, because the
+'' C compiler is what has setjmp.h.
+extern "c"
+	declare sub fb_ErrorJmpGoAt alias "fb_ErrorJmpGoAt" ( byval env as any ptr )
+	'' Defined below, after hCtx: the thrower calls them and sits between.
+	declare sub fb_ErrorJmpGo alias "fb_ErrorJmpGo" ( )
+	declare sub fb_ErrorJmpDisarm alias "fb_ErrorJmpDisarm" ( )
+end extern
+
+
 private function hCtx( ) as FB_ERRORCTX ptr
 	return cptr( FB_ERRORCTX ptr, _
 		fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), 0 ) )
@@ -148,6 +158,21 @@ function tkort_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
 		if( mod_name <> 0 ) then ctx->mod_name = mod_name
 		ctx->res_lbl = res_label
 		ctx->resnxt_lbl = resnext_label
+
+		'' AND THE JUMP ITSELF, WHICH RETURNING CANNOT DO. Returning the
+		'' handler's address is fbc's contract and it works only where the
+		'' raising procedure can jump to it -- GCC's cross-function computed
+		'' goto. LLVM's indirectbr cannot leave its own function, so a throw
+		'' inside a CALLED procedure had no way back to the caller's handler
+		'' and died on the 'unreachable' after this call. src/c/errjmp.c holds
+		'' the setjmp the compiler planted at the ON ERROR, and this does not
+		'' return when one is armed.
+		fb_ErrorJmpGo( )
+
+		'' Not armed: an object built before the setjmp existed, or a handler
+		'' installed by something that did not arm one. The old contract still
+		'' works for a throw in the SAME procedure as its handler, which is
+		'' what that object can express.
 		return ctx->handler
 	end if
 
@@ -202,11 +227,54 @@ extern "rtlib"
 
 '' FBCALL, unlike its neighbours. Returns the OLD handler, so ON ERROR can be
 '' nested and restored.
+extern "c"
+
+'' THE BUFFER THE COMPILER SETJMPS INTO, aligned up to 16 out of the context's
+'' packed storage. Arming happens here rather than in the emitted code so that
+'' ON ERROR GOTO 0 -- a null handler, and no setjmp -- cannot leave a stale
+'' buffer armed behind it.
+function fb_ErrorJmpBuf alias "fb_ErrorJmpBuf" ( ) as any ptr
+	dim as FB_ERRORCTX ptr ctx = hCtx( )
+	dim as uinteger a = cast( uinteger, @ctx->jmp_raw(0) )
+	a = (a + 15) and (not cast( uinteger, 15 ))
+	ctx->jmp_armed = 1
+	return cast( any ptr, a )
+end function
+
+sub fb_ErrorJmpDisarm alias "fb_ErrorJmpDisarm" ( )
+	dim as FB_ERRORCTX ptr ctx = hCtx( )
+	ctx->jmp_armed = 0
+end sub
+
+'' DOES NOT RETURN when armed.
+sub fb_ErrorJmpGo alias "fb_ErrorJmpGo" ( )
+	dim as FB_ERRORCTX ptr ctx = hCtx( )
+	if( ctx->jmp_armed = 0 ) then return
+	dim as uinteger a = cast( uinteger, @ctx->jmp_raw(0) )
+	a = (a + 15) and (not cast( uinteger, 15 ))
+	fb_ErrorJmpGoAt( cast( any ptr, a ) )
+end sub
+
+end extern
+
+'' THE HANDLER THE COMPILER WILL JUMP TO once setjmp has returned non-zero.
+'' The emitted code cannot read the context itself and the address is not a
+'' constant it holds: ON ERROR GOTO in one procedure and the throw in another
+'' are the same handler, and only the runtime knows which is current.
+function tkort_ErrorGetHandler alias "fb_ErrorGetHandler" ( ) as FB_ERRHANDLER
+	dim as FB_ERRORCTX ptr ctx = hCtx( )
+	return ctx->handler
+end function
+
 function tkort_ErrorSetHandler alias "fb_ErrorSetHandler" _
 	( byval newhandler as FB_ERRHANDLER ) as FB_ERRHANDLER
 	dim as FB_ERRORCTX ptr ctx = hCtx( )
 	dim as FB_ERRHANDLER oldhandler = ctx->handler
 	ctx->handler = newhandler
+	'' 'ON ERROR GOTO 0' clears the handler and emits no setjmp, so the buffer
+	'' the last ON ERROR armed must stop being a jump target with it -- its
+	'' frame may be long gone.
+	if( newhandler = 0 ) then fb_ErrorJmpDisarm( )
 	return oldhandler
 end function
 

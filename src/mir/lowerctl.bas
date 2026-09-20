@@ -1011,6 +1011,65 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
     c.errPendingArg.Push( cast( ulong, argAt ) )
     c.errPendingSlot.Push( cast( ulong, slot ) )
+
+    '' AND THE LANDING POINT FOR A THROW IN ANOTHER PROCEDURE.
+    ''
+    '' fbc's thrower RETURNS the handler's address and the raising procedure does
+    '' 'goto *vr$1' -- across functions, into whichever one installed the handler.
+    '' LLVM's indirectbr cannot leave its own function, so that worked here only when
+    '' the throw and its ON ERROR were in the SAME procedure; a throw in a callee ran
+    '' off the 'unreachable' after the call and died on int3 (measured: STATUS_BREAKPOINT
+    '' from com/comptr-error-path.bas, and from a four-line repro).
+    ''
+    '' So the frame is captured HERE, with the C library's own setjmp, and the runtime
+    '' longjmps into it -- lib/rt/src/c/errjmp.c. It has to be this frame: a buffer
+    '' captured inside a runtime helper would name a frame that has already returned.
+    '' NOTHING IS UNWOUND on the way, which is the behaviour the corpus pins down --
+    '' longjmp restores registers and the stack pointer and runs no destructor and no
+    '' DEFER, exactly as fbc's computed goto does by doing even less.
+    ''
+    '' setjmp RETURNS TWICE: 0 when it is called, non-zero when longjmp arrives. The
+    '' non-zero arm asks the runtime which handler is current -- the address is not a
+    '' constant this procedure holds -- and jumps through it. The destination list is
+    '' filled by ResolveErrorJumps_ with every handler block in this procedure, the
+    '' same patch the throw sites use.
+    dim as FB.Array( of ulong ) noargs
+    dim as MirValue buf = EmitRtl( c, RTL_ERROR_JMPBUF, noargs )
+    if buf.kind = cast( ubyte, MV_NONE ) then return
+
+    dim as FB.Array( of ulong ) sjargs
+    sjargs.Push( cast( ulong, buf.kind ) )
+    sjargs.Push( cast( ulong, buf.id ) )
+    '' A NULL FRAME POINTER, deliberately. MSVC's _setjmp takes (env, frame) and a
+    '' null frame is the jump that does NOT unwind SEH, which is the FreeBASIC
+    '' semantics; glibc's _setjmp takes (env) alone and ignores the second register.
+    sjargs.Push( cast( ulong, MV_CONST_INT ) )
+    sjargs.Push( 0 )
+    dim as RtlId sjId = RTL_SETJMP
+    if c.types->target.isWindows then sjId = RTL_SETJMP_MSVC
+    dim as MirValue sj = EmitRtl( c, sjId, sjargs )
+    if sj.kind = cast( ubyte, MV_NONE ) then return
+
+    dim as MirInst cmp
+    cmp.op = cast( ushort, M_ICMP_NE )
+    cmp.ty = cast( ubyte, MT_I32 )
+    cmp.a = sj
+    cmp.b = ConstInt( c, 0, MT_I32 )
+    dim as MirValue cond = Emit( c, cmp )
+    if cond.kind = cast( ubyte, MV_NONE ) then return
+
+    '' THE JUMP BLOCK FIRST, for the reason EmitErrorJump_ gives: a block is an extent
+    '' over one instruction list, so they have to be filled in creation order.
+    dim as long jumpB = NewBlock( c, "onerr.caught" )
+    dim as long contB = NewBlock( c, "onerr.armed" )
+    Terminate( c, MTERM_CONDBR, jumpB, contB, cond )
+
+    c.curBlock = jumpB
+    dim as FB.Array( of ulong ) hargs
+    dim as MirValue h = EmitRtl( c, RTL_ERROR_GET_HANDLER, hargs )
+    c.errIndirectBlocks.Push( cast( ulong, jumpB ) )
+    Terminate( c, MTERM_INDIRECTBR, -1, -1, h )
+    c.curBlock = contB
 end sub
 
 sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )

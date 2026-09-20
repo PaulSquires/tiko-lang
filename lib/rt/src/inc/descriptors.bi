@@ -122,6 +122,20 @@ type FB_ERRORCTX field = 1
 	as zstring ptr   fun_name
 	as any ptr       res_lbl
 	as any ptr       resnxt_lbl
+	'' THE NON-LOCAL JUMP'S LANDING PAD. ON ERROR GOTO installs a handler in one
+	'' procedure and the throw may be in another; LLVM cannot branch across
+	'' functions, so the compiler setjmps HERE and fb_ErrorThrowMsg longjmps into
+	'' it -- src/c/errjmp.c, and the compiler's LowerOnError_.
+	''
+	'' IN THE CONTEXT rather than in C, because a '__declspec(thread)' in the
+	'' archive wants '_tls_index' and tiko links no CRT startup to define it. The
+	'' context is already per thread, which is the property the buffer needs.
+	''
+	'' OVER-SIZED AND HAND-ALIGNED: 528 bytes against Windows x64's 256-byte
+	'' jmp_buf and glibc's 200, and fb_ErrorJmpBuf rounds the address up to 16
+	'' because this type is 'field = 1' and setjmp saves xmm registers.
+	as long          jmp_armed
+	as ubyte         jmp_raw(0 to 527)
 end type
 
 '' ================================================================== macros

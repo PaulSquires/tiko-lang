@@ -826,6 +826,20 @@ namespace Tko.Mir
         RTL( RTL_ERROR_RESUME_NEXT,     "fb_ErrorResumeNext",      "p",   ""          )
         RTL( RTL_ERROR_SET_FUNC_NAME,   "fb_ErrorSetFuncName",     "p",   "p"         )
         RTL( RTL_ERROR_SET_HANDLER,     "fb_ErrorSetHandler",      "p",   "p"         )
+        '' THE THREE THE NON-LOCAL ERROR JUMP NEEDS. lib/rt/src/c/errjmp.c holds the
+        '' buffer and the longjmp; '_setjmp' is the C library's own, called from the
+        '' frame that installs the handler because that is the frame being captured.
+        '' Two arguments: MSVC's _setjmp takes (env, frame) and a null frame is the
+        '' non-unwinding jump FreeBASIC wants; glibc's takes (env) and ignores the
+        '' second register.
+        RTL( RTL_ERROR_JMPBUF,          "fb_ErrorJmpBuf",          "p",   ""          )
+        RTL( RTL_ERROR_GET_HANDLER,     "fb_ErrorGetHandler",      "p",   ""          )
+        RTL( RTL_SETJMP,                "_setjmp",                 "l",   "pp"        )
+        '' THE SAME CALL UNDER THE NAME THE UCRT EXPORTS. tiko links ucrtbase, which
+        '' has '__intrinsic_setjmp' and not '_setjmp' -- that one lives in msvcrt.lib,
+        '' and linking msvcrt.lib beside tiko-rt collides on _fltused. LowerOnError_
+        '' picks by target; glibc has _setjmp and no intrinsic spelling.
+        RTL( RTL_SETJMP_MSVC,           "__intrinsic_setjmp",      "l",   "pp"        )
         RTL( RTL_ERROR_SET_MOD_NAME,    "fb_ErrorSetModName",      "p",   "p"         )
         RTL( RTL_ERROR_THROW_AT,        "fb_ErrorThrowAt",         "p",   "lppp"      )
         RTL( RTL_FILE_GET32,              "fb_FileGet",              "l",   "llpz"      )

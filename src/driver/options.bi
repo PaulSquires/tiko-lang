@@ -49,6 +49,16 @@ namespace Tko
     '' re-invokes, and tiko never re-invokes: it calls Run( ) again.
     OPT( OPT_RESTART,   "-restart",   OPTK_FLAG,  OPTCAT_GENERAL, "",         "accepted and ignored; a '#cmdline' restarts by itself" )
 
+    '' ACCEPTED AND IGNORED TOO, and for a different reason. fbc-modern's '-z <option>'
+    '' turns on an extended behaviour; the only one the corpus asks for is
+    '' '-z optabstract', which STRIPS pure-abstract types nothing uses. tiko strips
+    '' none, so ignoring the switch is the conservative reading of it and the program
+    '' behaves the same -- com/comptr-optabstract.bas writes '#cmdline "-z optabstract"'
+    '' and then asserts that an interface reached only through a ComPtr still works,
+    '' which is a question about the interface and not about the stripping. Rejecting it
+    '' made that file an unknown-option error, which is the one answer fbc never gives.
+    OPT( OPT_EXTENDED,  "-z",         OPTK_VALUE, OPTCAT_GENERAL, "option",   "fbc extended option; accepted and ignored" )
+
     OPT( OPT_INCLUDE,   "-i",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add an include search path" )
     OPT( OPT_DEFINE,    "-d",         OPTK_VALUE, OPTCAT_INPUT,   "name=val", "define a preprocessor symbol" )
     OPT( OPT_LIBPATH,   "-p",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add a library search path" )

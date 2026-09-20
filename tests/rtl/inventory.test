@@ -16,4 +16,11 @@
 '' EXPECT-OUT: fb_StrAssignMid void (ptr, i64, i64, ptr)
 '' fb_UStrToStr is the 520th: 'val( <ustring> )' converts through it (tests/mir/val-ustring).
 '' EXPECT-OUT: fb_UStrToStr ptr (ptr, i64)
-'' EXPECT-OUT: rtl: 520 entries
+'' AND FOUR MORE FOR THE NON-LOCAL ERROR JUMP, 2026-09-20. 'ON ERROR GOTO' installs a
+'' handler in one procedure and the throw may be in another; LLVM cannot branch across
+'' functions, so the compiler setjmps where the handler is installed and the runtime
+'' longjmps into it. Two of the four are the C library's own setjmp under the two names
+'' it has: tiko links ucrtbase, which exports '__intrinsic_setjmp' and not '_setjmp'.
+'' EXPECT-OUT: fb_ErrorJmpBuf ptr ()
+'' EXPECT-OUT: fb_ErrorGetHandler ptr ()
+'' EXPECT-OUT: rtl: 524 entries
