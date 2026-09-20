@@ -110,10 +110,10 @@ private function SameLiteral_ _
     if e.outp = 0 then return false
     dim as long ia = cast( long, a )
     dim as long ib = cast( long, b )
-    if (ia < 0) orelse (ia >= e.outp->literals.Count) then return false
-    if (ib < 0) orelse (ib >= e.outp->literals.Count) then return false
-    dim as Literal ptr la = @e.outp->literals[ia]
-    dim as Literal ptr lb = @e.outp->literals[ib]
+    if (ia < 0) orelse (ia >= (*e.lits).Count) then return false
+    if (ib < 0) orelse (ib >= (*e.lits).Count) then return false
+    dim as Literal ptr la = @(*e.lits)[ia]
+    dim as Literal ptr lb = @(*e.lits)[ib]
     if la->kind <> lb->kind then return false
     if la->strKind <> lb->strKind then return false
     if la->suffix <> lb->suffix then return false

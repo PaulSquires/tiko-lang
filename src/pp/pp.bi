@@ -124,6 +124,20 @@ namespace Tko
 
     type PpConfig
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
+        '' SHARED ACROSS EVERY UNIT OF ONE INVOCATION, or 0 for a private one.
+        ''
+        '' A header included by 92 modules was LEXED 92 TIMES: the token cache lived on
+        '' the engine, and the engine is per translation unit. Measured on tiko-lang's
+        '' own 92 modules -- 34.8 MB lexed, of which 29.4 MB was a file already lexed in
+        '' an earlier unit of the same process.
+        ''
+        '' The two travel TOGETHER and cannot be separated. MergeLiterals rewrites each
+        '' literal token's index to point into the unit's pool, in place, in the cached
+        '' vector -- so a cached file's tokens are bound to whichever pool was current
+        '' when it was first lexed. Sharing the cache without sharing the pool would
+        '' hand unit two indices into unit one's literals.
+        as LiteralVec ptr             sharedLits
+        as FB.Array( of any ptr ) ptr sharedLexed
         as StrVec ptr defines        '' -d name[=value]
         as boolean    reportUnsupported
         '' '#cmdline' IS ONLY HONOURED IN THE FIRST SOURCE FILE, and this says which

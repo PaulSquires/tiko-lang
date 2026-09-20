@@ -43,8 +43,8 @@ private function StrTokenIsEscaped_ _
 
     if Tk( t ) <> TK_STRING_LIT then return false
     dim as long li = cast( long, t.literal )
-    if (li < 0) orelse (li >= e.outp->literals.Count) then return false
-    return (e.outp->literals[li].strKind = cast( ubyte, STRK_ESCAPED ))
+    if (li < 0) orelse (li >= (*e.lits).Count) then return false
+    return ((*e.lits)[li].strKind = cast( ubyte, STRK_ESCAPED ))
 end function
 
 private function PxPeek( byref x as PpExprState ) as TokenKind

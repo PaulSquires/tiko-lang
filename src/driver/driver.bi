@@ -36,7 +36,19 @@ namespace Tko
         '' and 'the engine holds an error' no longer can, now that both are diagnostics.
         as long              toolErrors
 
+        '' SHARED BY EVERY COMPILATION UNIT OF THIS INVOCATION: the lexed token vectors,
+        '' and the literal pool their tokens index. A header included by all 92 of
+        '' tiko-lang's own modules was lexed 92 times when the cache lived on the
+        '' preprocessor's engine, which is per unit -- 29.4 MB of 34.8 MB lexed was a
+        '' file some earlier unit had already lexed. The pool has to travel with the
+        '' cache: MergeLiterals rewrites a token's literal index IN THE CACHED VECTOR,
+        '' so the tokens are bound to whichever pool was current when they were lexed.
+        '' See PpConfig.sharedLits.
+        as LiteralVec             ppLits
+        as FB.Array( of any ptr ) ppLexed
+
         declare constructor( )
+        declare destructor( )
     end type
 
 end namespace

@@ -113,6 +113,11 @@ type PpEngine
     as IdVec                  constMark
     as FB.Array( of longint ) constVal
     as FB.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
+    '' WHERE THE LITERALS AND THE LEXED FILES ACTUALLY LIVE -- this engine's own, or
+    '' the invocation's shared ones. See PpConfig.sharedLits.
+    as LiteralVec ptr             lits
+    as FB.Array( of any ptr ) ptr lexp
+    as boolean                    ownsLexed
     as IdVec                  onceFiles     '' FileId values marked #include once
     as FileId                 rootFile
     as long                   uniqueCounter
@@ -802,8 +807,8 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
                            (k = TK_STRING_LIT)
     if isLit then
         dim as long li = cast( long, t.literal )
-        if (li >= 0) andalso (li < e.outp->literals.Count) then
-            dim as Literal ptr lp = @e.outp->literals[li]
+        if (li >= 0) andalso (li < (*e.lits).Count) then
+            dim as Literal ptr lp = @(*e.lits)[li]
             dim as SourceFile ptr lf = e.src->FileAt( cast( FileId, lp->textFile ) )
             if (lf <> 0) andalso (lp->textLength > 0) then
                 if (lp->textOffset + lp->textLength) <= lf->text.Count then
@@ -861,8 +866,8 @@ sub MergeLiterals _
         if isLit = false then continue for
         dim as long idx = cast( long, toks[i].literal )
         if idx >= from.Count then continue for
-        e.outp->literals.Push( from[idx] )
-        toks[i].literal = cast( ulong, e.outp->literals.Count - 1 )
+        (*e.lits).Push( from[idx] )
+        toks[i].literal = cast( ulong, (*e.lits).Count - 1 )
     next
 end sub
 
@@ -894,8 +899,8 @@ private sub RelexInto _
         dim as boolean isNum = (Tk( t ) = TK_INT_LIT) orelse (Tk( t ) = TK_FLOAT_LIT)
         if isNum andalso (t.length > 0) then
             dim as long li = cast( long, t.literal )
-            if (li >= 0) andalso (li < e.outp->literals.Count) then
-                dim as Literal ptr lp = @e.outp->literals[li]
+            if (li >= 0) andalso (li < (*e.lits).Count) then
+                dim as Literal ptr lp = @(*e.lits)[li]
                 if lp->textLength = 0 then
                     dim as DecodedLoc nd = e.src->Decode( t.loc )
                     lp->textFile = cast( long, nd.file )
@@ -1351,6 +1356,20 @@ sub PpOpen _
     e->outp = @outp
     e->rootFile = root
     e->uniqueCounter = 0
+
+    '' THE SHARED POOLS, OR THIS ENGINE'S OWN. Both or neither: see PpConfig.sharedLits.
+    if cfg.sharedLits <> 0 then
+        e->lits = cfg.sharedLits
+    else
+        e->lits = @outp.literals
+    end if
+    if cfg.sharedLexed <> 0 then
+        e->lexp = cfg.sharedLexed
+        e->ownsLexed = false
+    else
+        e->lexp = @e->lexed
+        e->ownsLexed = true
+    end if
     e->eatNextEol = false
     e->stopped = false
 
@@ -1391,6 +1410,10 @@ sub PpClose( byref st as PpStream )
     while e->frames.IsEmpty( ) = false
         PopFrame( *e )
     wend
+    '' 'lexed' IS ALWAYS THIS ENGINE'S. When the cache is shared, 'lexp' points at the
+    '' invocation's array -- freed by CompilerContext's destructor -- and 'lexed' holds
+    '' only the files that lexed with a diagnostic, which are not shared. When it is
+    '' not shared the two are the same array, so this frees each result exactly once.
     for each p as any ptr in e->lexed
         if p <> 0 then delete cast( Lex.Result ptr, p )
     next

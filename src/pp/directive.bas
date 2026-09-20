@@ -7,18 +7,38 @@ namespace Tko
 
 '' Lex a file once and keep the result alive: every token's (loc, length) points into
 '' the source manager's buffers, and the literal pool lives in the Lex.Result.
+''
+'' THE CACHE IS USUALLY THE INVOCATION'S, not this engine's, so a header included by
+'' ninety-two modules is lexed once and not ninety-two times (PpConfig.sharedLits).
+''
+'' A FILE THAT LEXED WITH A DIAGNOSTIC IS NOT SHARED. Lex.Run reports through the
+'' engine's diagnostics, so a shared result would report a bad literal in the FIRST
+'' unit that included the header and in no other -- the header is broken in every unit
+'' that includes it, and fbc, which compiles each module separately, says so each time.
+'' Those files are cached per engine instead: correct, and rare enough that the saving
+'' is unaffected.
 private function PpLexFile( byref e as PpEngine, byval file as FileId ) as TokenVec ptr
-    while e.lexed.Count <= cast( long, file )
+    dim as long idx = cast( long, file )
+    while e.lexp->Count <= idx
+        e.lexp->Push( 0 )
+    wend
+    while e.lexed.Count <= idx
         e.lexed.Push( 0 )
     wend
 
-    dim as long idx = cast( long, file )
+    if (*e.lexp)[idx] <> 0 then return @(cast( Lex.Result ptr, (*e.lexp)[idx] )->tokens)
     if e.lexed[idx] <> 0 then return @(cast( Lex.Result ptr, e.lexed[idx] )->tokens)
 
+    dim as long before = e.diags->ErrorCount( ) + e.diags->WarningCount( )
     dim as Lex.Result ptr r = new Lex.Result
     Lex.Run( *e.src, file, *e.names, *e.kw, *e.diags, *r )
+    dim as boolean spoke = (e.diags->ErrorCount( ) + e.diags->WarningCount( )) <> before
     MergeLiterals( e, r->tokens, r->literals )
-    e.lexed[idx] = r
+    if spoke andalso (e.ownsLexed = false) then
+        e.lexed[idx] = r
+    else
+        (*e.lexp)[idx] = r
+    end if
     return @r->tokens
 end function
 

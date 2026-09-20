@@ -38,6 +38,14 @@ constructor CompilerContext( )
     this.toolErrors = 0
 end constructor
 
+'' THE CACHED TOKEN VECTORS OUTLIVE EVERY ENGINE, so they are freed here rather than in
+'' PpClose. One Lex.Result per file that was lexed, whichever unit lexed it first.
+destructor CompilerContext( )
+    for each p as any ptr in this.ppLexed
+        if p <> 0 then delete cast( Tko.Lex.Result ptr, p )
+    next
+end destructor
+
 end namespace
 
 namespace Tko.Driver
@@ -221,6 +229,8 @@ private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfi
     cfg.threadSafe = ctx.options.threadSafe
     cfg.errLevel = ctx.options.errLevel
     cfg.reportUnsupported = true
+    cfg.sharedLits = @ctx.ppLits
+    cfg.sharedLexed = @ctx.ppLexed
     return cfg
 end function
 
@@ -748,7 +758,7 @@ function Run _
             dim as Tko.ParserState p
             p.toks = @pr.tokens
             p.stream = @st
-            p.litPool = @pr.literals
+            p.litPool = @ctx.ppLits
             p.ast = @ast
             p.src = @ctx.sources
             p.kw = @ctx.keywords
@@ -1314,7 +1324,7 @@ function Run _
             dim as Tko.ParserState p
             p.toks = @pr.tokens
             p.stream = @st
-            p.litPool = @pr.literals
+            p.litPool = @ctx.ppLits
             p.ast = @ast
             p.src = @ctx.sources
             p.kw = @ctx.keywords
