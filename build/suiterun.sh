@@ -51,7 +51,16 @@ fi
 
 DRV="$CU/tests/tests.bas"
 nrun=0; nsame=0; ndiff=0; nfonly=0; ntonly=0; nneither=0
-for f in $(grep -rl "END_SUITE" tests/vendor/fbc-tests --include='*.bas' | sort) ; do
+# ONE SUITE, OR A FAMILY OF THEM: the optional argument is a substring of the path.
+# Phase 14 runs the whole corpus at each -O level and then has to ask whether one file
+# that moved is a real difference or a flaky one, and re-running 630 suites to see a
+# single answer costs eighteen minutes.
+#
+#   build/suiterun.sh                     every suite
+#   build/suiterun.sh numbers/infnan      that one
+#   build/suiterun.sh concurrency/        the family
+SUITEPAT=${1:-}
+for f in $(grep -rl "END_SUITE" tests/vendor/fbc-tests --include='*.bas' | sort | grep -F -- "$SUITEPAT") ; do
     n=$(echo "$f" | sed 's|[/\.]|_|g')
     fok=0; tok=0
     "$FBC"  "$DRV" "$f" -i "$CU/inc" -p "$WK/fb" -x "$WK/f_$n.exe" >/dev/null 2>&1 \
