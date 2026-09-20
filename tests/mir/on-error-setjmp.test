@@ -1,0 +1,37 @@
+'' ON ERROR GOTO plants a setjmp, and a throw from ANOTHER procedure lands in it.
+''
+'' fbc's error path is a cross-function computed goto: the thrower returns the
+'' handler's address and the raising procedure does 'goto *vr$1'. GCC takes that;
+'' LLVM's indirectbr cannot leave the function it appears in, so tiko could only
+'' do it when the throw and its ON ERROR were in the SAME procedure. Anywhere
+'' else it emitted 'unreachable', which LLVM lowers to int3 -- measured as
+'' STATUS_BREAKPOINT on com/comptr-error-path.bas and on a four-line repro.
+''
+'' The frame is captured where the handler is installed, because that is the
+'' frame being jumped into, and lib/rt/src/c/errjmp.c longjmps from wherever the
+'' throw happened. This asserts the four instructions that make that work; the
+'' src file records what the VALUES do, and why they are not asserted.
+''
+'' THE SPELLING OF setjmp FOLLOWS THE C LIBRARY, not the platform: win64-msvc
+'' links ucrtbase, which exports '__intrinsic_setjmp' and not '_setjmp', and
+'' win64 links MinGW's msvcrt, which is the other way round. '_setjmp' is a
+'' substring of both, so one assertion covers every target.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/on-error-setjmp.bas
+'' EXPECT-EXIT: 0
+
+'' The handler's address is still installed, as fbc does it -- the runtime hands
+'' it back and the jump block branches through it.
+'' EXPECT-OUT: call.rtl ptr fb_ErrorSetHandler(blockaddr
+
+'' The landing point: a buffer from the runtime, setjmp into it, and the arm that
+'' runs when longjmp arrives asks which handler is current and jumps there.
+'' EXPECT-OUT: call.rtl ptr fb_ErrorJmpBuf()
+'' EXPECT-OUT: _setjmp(
+'' EXPECT-OUT: call.rtl ptr fb_ErrorGetHandler()
+'' EXPECT-OUT: indirectbr
+
+'' AND THE THROW ITSELF STAYS UNREACHABLE-TERMINATED. It is correct now rather
+'' than a hazard: with a buffer armed the runtime does not return, and with none
+'' it aborts, so neither path falls through.
+'' EXPECT-OUT: call.rtl ptr fb_ErrorThrowEx

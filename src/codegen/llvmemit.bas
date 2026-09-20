@@ -933,10 +933,9 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     end if
 
     if f->isDefinition = false then
-        '' 'returns_twice' ON setjmp AND NOWHERE ELSE. It is what stops LLVM treating
-        '' the second return as unreachable and sinking work across the call; clang
-        '' puts it on its own _setjmp declaration, which is where this was read from.
-        '' See LowerOnError_ for why tiko calls setjmp at all.
+        '' 'returns_twice' ON setjmp AND NOWHERE ELSE: it stops LLVM treating the second
+        '' return as unreachable and sinking work across the call. Read off clang's own
+        '' _setjmp declaration; see LowerOnError_ for why tiko calls setjmp at all.
         dim as string extra = ""
         dim as string dn = e.names->Spelling( f->name )
         if (dn = "_setjmp") orelse (dn = "__intrinsic_setjmp") then extra = " returns_twice"
