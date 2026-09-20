@@ -220,6 +220,11 @@ namespace Tko.Mir
     const TKO_PA_SRET  as ubyte = 1
     const TKO_PA_BYVAL as ubyte = 2
 
+    '' How a narrow integer parameter is widened to i32 -- see MirFunction.paramExt.
+    const TKO_PX_NONE as ubyte = 0
+    const TKO_PX_SIGN as ubyte = 1
+    const TKO_PX_ZERO as ubyte = 2
+
     '' THE CALLING CONVENTIONS. One on x86-64 -- they differ only in who cleans the
     '' stack, and on x86-64 nobody does -- but three in the source language and three on
     '' win32, so the distinction is recorded rather than collapsed at the point where it
@@ -352,7 +357,8 @@ namespace Tko.Mir
         '' without the type that belongs to it.
         declare sub AddParam _
             ( byval ty as MirType, byval aggSize as ulong = 0, _
-              byval aggClass as ulong = 0, byval attr as ubyte = 0 )
+              byval aggClass as ulong = 0, byval attr as ubyte = 0, _
+              byval ext as ubyte = 0 )
         as boolean  isModuleCtor
         '' LOCAL LINKAGE -- 'internal' in LLVM, lowercase 't' to nm. A module
         '' constructor is file-scope in fbc, and it matters: two modules whose
@@ -394,6 +400,31 @@ namespace Tko.Mir
         '' which is why that keeps holding the aggregate's size after the parameter
         '' itself has become a pointer.
         as FB.Array( of ubyte ) paramAttrs
+        '' HOW A NARROW INTEGER PARAMETER IS WIDENED, and what it was before.
+        ''
+        '' fbc passes an integer argument narrower than 32 bits AS i32, signext or
+        '' zeroext, and tiko passed it at its own width. Measured at the machine level:
+        '' fbc writes the FULL register ('movzbl 32(%rsp), %ecx') where tiko wrote only
+        '' the low byte ('movb 35(%rsp), %cl'), and in the IR fbc declares
+        '' '( i32 signext, i32 signext, i32 zeroext )' against tiko's '( i8, i16, i8 )'.
+        '' It widens EVERYWHERE, an FB-to-FB call included, and BOOLEAN is zeroext
+        '' whatever its signedness -- what clang emits for C's _Bool.
+        ''
+        '' IT IS NOT COSMETIC. Win64 leaves the high bits of a sub-register argument
+        '' undefined and LLVM takes that literally; GCC materialises them. tiko-rt is
+        '' compiled by FBC-MODERN, so its definitions already take i32 -- 'fb_StrTally'
+        '' declares 'byval ic as long' -- and tiko's i8 call left that parameter's upper
+        '' bits as whatever was in the register. Tally( "ABC", "abc" ) then counted a
+        '' case-insensitive match: tests/vendor/fbc-tests/string/fbstr_search.bas failed
+        '' at -O0 and passed at -O1, where the optimiser happened to clear the register.
+        '' HANDOFF section 7m designed this and reverted it; Phase 14's -O comparison is
+        '' what turned its "latent" into a failing test.
+        ''
+        '' TKO_PX_NONE / TKO_PX_SIGN / TKO_PX_ZERO, with paramNarrow holding the MirType
+        '' the parameter had BEFORE widening -- the prologue store needs it to truncate
+        '' back into a slot that is still the narrow width.
+        as FB.Array( of ubyte ) paramExt
+        as FB.Array( of ubyte ) paramNarrow
         '' WHERE EACH PARAMETER CAME FROM, filled by the ABI pass.
         ''
         '' SysV turns one aggregate into TWO parameters, which shifts the index of every

@@ -2,11 +2,12 @@ func void _Z1Sv() {
   entry0:
     ret
 }
-func void _Z1Sa(i8 $0) {
+func void _Z1Sa(i32 $0) {
   local i8 a
   entry0:
     %1 = alloca ptr a
-    store @a, $0
+    %2 = trunc $0
+    store @a, %2
     ret
 }
 func i32 _Z1Gv() {

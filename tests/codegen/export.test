@@ -18,7 +18,7 @@
 '' EXPECT-EXIT: 0
 
 '' The exported one carries dllexport.
-'' EXPECT-OUT: define dllexport i32 @"AddUp"(i32 %p0, i32 %p1) nounwind {
+'' EXPECT-OUT: define dllexport i32 @"AddUp"(i32 %p0, i32 %p1) nounwind uwtable(sync) {
 
 '' A PRIVATE procedure stays internal. 'internal dllexport' is not a combination LLVM
 '' accepts, and a module-static procedure has no external name to export.

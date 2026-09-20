@@ -234,17 +234,29 @@ end function
 '' become TWO arguments: a twelve-byte struct is passed as 'i64, i32'. An in-place
 '' patch cannot express that, and the signature rewrite expands the same way from the
 '' same original signature, so the two agree by construction.
+'' Used by RewriteParamStore, which runs before this file defines it.
+declare function NewParamIndex_ _
+    ( byref r as Rewriter, byval oldIdx as long ) as long
+
 private sub RewriteCallArgs _
     ( byref r as Rewriter, byref ins as MirInst, byval callee as MirFunction ptr, _
       byref names as Tko.Interner )
 
     if callee = 0 then return
+    '' THE RUN IS REBUILT FOR A WIDENED ARGUMENT TOO, not only for an aggregate. This
+    '' used to leave early unless some parameter was MT_AGG, so a call whose only ABI
+    '' business was 'i8 -> i32 zeroext' kept its narrow argument and clang refused the
+    '' module: "'%t16' defined with type 'i8' but expected 'i32'".
     dim as boolean anyAgg = false
+    dim as boolean anyExt = false
     for i as long = 0 to ins.count - 1
         if i >= callee->paramTys.Count then exit for
         if cast( MirType, callee->paramTys[i] ) = MT_AGG then anyAgg = true
+        if i < callee->paramExt.Count then
+            if callee->paramExt[i] <> TKO_PX_NONE then anyExt = true
+        end if
     next
-    if anyAgg = false then return
+    if (anyAgg = false) andalso (anyExt = false) then return
 
     dim as long oldFirst = ins.first
     dim as long oldCount = ins.count
@@ -264,6 +276,43 @@ private sub RewriteCallArgs _
         dim as MirType pt = MT_I64
         if i < callee->paramTys.Count then pt = cast( MirType, callee->paramTys[i] )
         if pt <> MT_AGG then
+            '' A NARROW ARGUMENT IS WIDENED TO MATCH THE PARAMETER -- the call-site half
+            '' of MirFunction.paramExt, and the reason it lives beside the signature
+            '' rewrite: both expand from the SAME original signature, so a call and the
+            '' callee cannot disagree about the register's upper bits. SEXT or ZEXT is
+            '' the callee's business, not the argument's: the parameter's FB type is
+            '' what fbc widens by.
+            '' THE EXTENSION CLASS DECIDES, not the parameter's CURRENT type: this
+            '' function's signature may already have been rewritten to i32 by the time
+            '' one of its callers is walked, and asking "is the parameter still narrow"
+            '' then answered no and left the argument at i8. paramExt survives the
+            '' rewrite for exactly this reason.
+            dim as ubyte ex = TKO_PX_NONE
+            if i < callee->paramExt.Count then ex = callee->paramExt[i]
+            '' NOT AN OPERAND THAT HAS NO VALUE. A declined argument reaches here with
+            '' MV_NONE, and wrapping one in a sext produced an instruction whose operand
+            '' had no kind: the emitter ICEd on 'sext %80' in the two
+            '' generics/fail-container-nohash suites, which fbc rejects as well. It is
+            '' passed through exactly as it was before the widening existed.
+            if av.kind = cast( ubyte, MV_NONE ) then ex = TKO_PX_NONE
+            if ex <> TKO_PX_NONE then
+                dim as MirInst xt
+                if ex = TKO_PX_SIGN then
+                    xt.op = cast( ushort, M_SEXT )
+                else
+                    xt.op = cast( ushort, M_ZEXT )
+                end if
+                xt.ty = cast( ubyte, MT_I32 )
+                xt.a = av
+                xt.result = r.f->nextTemp
+                r.f->nextTemp += 1
+                r.outp.Push( xt )
+                r.m->argPool.Push( cast( ulong, MV_TEMP ) )
+                r.m->argPool.Push( xt.result )
+                newCount += 1
+                r.st->coercedParams += 1
+                continue for
+            end if
             r.m->argPool.Push( cast( ulong, av.kind ) )
             r.m->argPool.Push( av.id )
             newCount += 1
@@ -469,7 +518,37 @@ private sub RewriteParamStore _
     if ins.a.kind <> cast( ubyte, MV_LOCAL ) then return
     dim as long dslot = cast( long, ins.a.id )
     if (dslot < 0) orelse (dslot >= r.f->locals.Count) then return
-    if cast( MirType, r.f->locals[dslot].ty ) <> MT_AGG then return
+
+    '' A WIDENED NARROW PARAMETER IS TRUNCATED INTO ITS SLOT. The signature now says
+    '' i32 and the slot is still i8 or i16, so 'store i8 %p0' would be invalid IR --
+    '' this is the prologue half of MirFunction.paramExt, and the only place the two
+    '' widths meet.
+    if cast( MirType, r.f->locals[dslot].ty ) <> MT_AGG then
+        dim as long wj = NewParamIndex_( r, oldIdx )
+        if wj < 0 then return
+        if wj >= r.f->paramExt.Count then return
+        if r.f->paramExt[wj] = TKO_PX_NONE then return
+        dim as MirType narrow = cast( MirType, r.f->paramNarrow[wj] )
+        dim as MirValue wp
+        wp.kind = cast( ubyte, MV_PARAM )
+        wp.ty = r.f->paramTys[wj]
+        wp.id = cast( ulong, wj )
+        dim as MirInst tr
+        tr.op = cast( ushort, M_TRUNC )
+        tr.ty = cast( ubyte, narrow )
+        tr.a = wp
+        tr.result = r.f->nextTemp
+        r.f->nextTemp += 1
+        r.outp.Push( tr )
+        dim as MirInst st0
+        st0.op = cast( ushort, M_STORE )
+        st0.ty = cast( ubyte, MT_VOID )
+        st0.a = ins.a
+        st0.b = TempVal( tr.result, narrow )
+        r.outp.Push( st0 )
+        changed = true
+        return
+    end if
 
     '' Every new parameter that came from this original one, in order.
     dim as FB.Array( of long ) parts
@@ -573,6 +652,11 @@ private sub RewriteSignature _
     dim as FB.Array( of ubyte ) pattr
     dim as FB.Array( of long )  porig
     dim as FB.Array( of long )  ppart
+    '' AND HOW EACH ONE WIDENS. A narrow integer parameter becomes i32 here -- the one
+    '' place a parameter's ABI type is decided -- and paramNarrow keeps what it was so
+    '' RewriteParamStore can truncate back into the slot. MirFunction.paramExt says why.
+    dim as FB.Array( of ubyte ) pexts
+    dim as FB.Array( of ubyte ) pnarr
 
     for i as long = 0 to f->paramTys.Count - 1
         dim as MirType pt = cast( MirType, f->paramTys[i] )
@@ -584,10 +668,22 @@ private sub RewriteSignature _
 
         if (pt <> MT_AGG) orelse (sz <= 0) then
             if (pt = MT_AGG) andalso (sz <= 0) then st.declined += 1
-            ptys.Push( cast( ubyte, pt ) )
+            '' THE WIDENING, and the only place it happens: fbc passes an i8 or an i16
+            '' parameter as i32, signext or zeroext (lowerstore.bas, ParamExtClass_).
+            dim as ubyte ex = TKO_PX_NONE
+            if i < f->paramExt.Count then ex = f->paramExt[i]
+            dim as MirType wt = pt
+            if ex <> TKO_PX_NONE then
+                select case pt
+                case MT_I8, MT_I16 : wt = MT_I32
+                case else          : ex = TKO_PX_NONE
+                end select
+            end if
+            ptys.Push( cast( ubyte, wt ) )
             paggs.Push( cast( ulong, sz ) )
             pcls.Push( packed )
             pattr.Push( at_ )
+            pexts.Push( ex ) : pnarr.Push( cast( ubyte, pt ) )
             porig.Push( i ) : ppart.Push( 0 )
             continue for
         end if
@@ -605,6 +701,8 @@ private sub RewriteSignature _
             paggs.Push( cast( ulong, sz ) )
             pcls.Push( packed )
             pattr.Push( TKO_PA_NONE )
+            '' An aggregate does not widen; its entry keeps the arrays in step.
+            pexts.Push( TKO_PX_NONE ) : pnarr.Push( ptys[ptys.Count - 1] )
             porig.Push( i ) : ppart.Push( 0 )
             continue for
         end if
@@ -617,6 +715,8 @@ private sub RewriteSignature _
             '' BYVAL: on the stack, by value. Without it this is a pointer in a
             '' register, which is a different ABI.
             pattr.Push( TKO_PA_BYVAL )
+            '' An aggregate does not widen; its entry keeps the arrays in step.
+            pexts.Push( TKO_PX_NONE ) : pnarr.Push( ptys[ptys.Count - 1] )
             porig.Push( i ) : ppart.Push( 0 )
             continue for
         end if
@@ -626,12 +726,16 @@ private sub RewriteSignature _
         paggs.Push( cast( ulong, sz ) )
         pcls.Push( 0 )
         pattr.Push( TKO_PA_NONE )
+        '' An aggregate does not widen; its entry keeps the arrays in step.
+        pexts.Push( TKO_PX_NONE ) : pnarr.Push( ptys[ptys.Count - 1] )
         porig.Push( i ) : ppart.Push( 0 )
         if sz > 8 then
             ptys.Push( cast( ubyte, SysvEightbyteType( TKO_EB1( packed ), sz - 8 ) ) )
             paggs.Push( cast( ulong, sz ) )
             pcls.Push( 0 )
             pattr.Push( TKO_PA_NONE )
+            '' An aggregate does not widen; its entry keeps the arrays in step.
+            pexts.Push( TKO_PX_NONE ) : pnarr.Push( ptys[ptys.Count - 1] )
             porig.Push( i ) : ppart.Push( 8 )
         end if
     next
@@ -639,11 +743,14 @@ private sub RewriteSignature _
     f->paramTys.Clear( ) : f->paramAggs.Clear( )
     f->paramClasses.Clear( ) : f->paramAttrs.Clear( )
     f->paramOrig.Clear( ) : f->paramPart.Clear( )
+    f->paramExt.Clear( ) : f->paramNarrow.Clear( )
     for i as long = 0 to ptys.Count - 1
         f->paramTys.Push( ptys[i] )
         f->paramAggs.Push( paggs[i] )
         f->paramClasses.Push( pcls[i] )
         f->paramAttrs.Push( pattr[i] )
+        f->paramExt.Push( pexts[i] )
+        f->paramNarrow.Push( pnarr[i] )
         f->paramOrig.Push( porig[i] )
         f->paramPart.Push( ppart[i] )
     next
@@ -678,6 +785,9 @@ private sub RewriteSignature _
     dim as FB.Array( of ulong ) raggs
     dim as FB.Array( of ulong ) rcls
     dim as FB.Array( of ubyte ) rattr
+    '' ...and the widening arrays, which move with the rest: see MirFunction.paramExt.
+    dim as FB.Array( of ubyte ) rext
+    dim as FB.Array( of ubyte ) rnarr
     rtys.Push( cast( ubyte, MT_PTR ) )
     raggs.Push( cast( ulong, f->retSize ) )
     rcls.Push( 0 )
@@ -685,6 +795,8 @@ private sub RewriteSignature _
     '' LLVM does only when told. An fbc-compiled caller reads it -- fbc's own C is
     '' 'struct T* vr = F( &tmp )'.
     rattr.Push( TKO_PA_SRET )
+    '' The sret pointer is a pointer: nothing to widen, nothing narrower behind it.
+    rext.Push( TKO_PX_NONE ) : rnarr.Push( cast( ubyte, MT_PTR ) )
     dim as FB.Array( of long ) rorig
     dim as FB.Array( of long ) rpart
     '' -1: the pass invented this parameter, so no original index maps onto it.
@@ -697,17 +809,22 @@ private sub RewriteSignature _
         raggs.Push( f->paramAggs[i] )
         rcls.Push( iif( i < f->paramClasses.Count, f->paramClasses[i], 0ul ) )
         rattr.Push( iif( i < f->paramAttrs.Count, f->paramAttrs[i], TKO_PA_NONE ) )
+        rext.Push( iif( i < f->paramExt.Count, f->paramExt[i], TKO_PX_NONE ) )
+        rnarr.Push( iif( i < f->paramNarrow.Count, f->paramNarrow[i], f->paramTys[i] ) )
         rorig.Push( iif( i < f->paramOrig.Count, f->paramOrig[i], cast( long, i ) ) )
         rpart.Push( iif( i < f->paramPart.Count, f->paramPart[i], 0l ) )
     next
     f->paramTys.Clear( ) : f->paramAggs.Clear( )
     f->paramClasses.Clear( ) : f->paramAttrs.Clear( )
     f->paramOrig.Clear( ) : f->paramPart.Clear( )
+    f->paramExt.Clear( ) : f->paramNarrow.Clear( )
     for i as long = 0 to rtys.Count - 1
         f->paramTys.Push( rtys[i] )
         f->paramAggs.Push( raggs[i] )
         f->paramClasses.Push( rcls[i] )
         f->paramAttrs.Push( rattr[i] )
+        f->paramExt.Push( rext[i] )
+        f->paramNarrow.Push( rnarr[i] )
         f->paramOrig.Push( rorig[i] )
         f->paramPart.Push( rpart[i] )
     next

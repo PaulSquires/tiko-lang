@@ -34,7 +34,7 @@ func i64 _Z5IdentIu8UINTEGERES0_(i64 $0) {
     %4 = load @x
     ret %4
 }
-func i8 _Z5IdentIbEb(i8 $0) {
+func i8 _Z5IdentIbEb(i32 $0) {
   local i8 $tmp0
   local i8 x
   entry0:
@@ -42,7 +42,8 @@ func i8 _Z5IdentIbEb(i8 $0) {
     %2 = const i8 0
     store @$tmp0, %2
     %3 = alloca ptr x
-    store @x, $0
+    %7 = trunc $0
+    store @x, %7
     %4 = load @x
     %5 = const i8 0
     %6 = icmp.ne %4, %5
@@ -110,7 +111,8 @@ func i32 main(i32 $0, ptr $1) {
     %41 = icmp.ne %39, %40
     %42 = const i8 0
     %43 = icmp.ne %41, %42
-    %44 = call i8 _Z5IdentIbEb(%43)
+    %47 = zext %43
+    %44 = call i8 _Z5IdentIbEb(%47)
     call.rtl void fb_PrintBool(0, %44, 1)
     %45 = const i32 0
     call.rtl void fb_End(%45)

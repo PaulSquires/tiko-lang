@@ -3,7 +3,7 @@ target triple = "x86_64-w64-windows-gnu"
 
 declare double @"asin"(double) nounwind
 
-define float @"_Zv13sqrRK4TSQR"(ptr %p0) nounwind {
+define float @"_Zv13sqrRK4TSQR"(ptr %p0) nounwind uwtable(sync) {
 L0:
   %s0 = alloca float, align 4
   store float 0x0000000000000000, ptr %s0, align 4
@@ -16,7 +16,7 @@ L0:
 
 }
 
-define float @"_Zv13absRK4TABS"(ptr %p0) nounwind {
+define float @"_Zv13absRK4TABS"(ptr %p0) nounwind uwtable(sync) {
 L0:
   %s0 = alloca float, align 4
   store float 0x0000000000000000, ptr %s0, align 4
@@ -29,7 +29,7 @@ L0:
 
 }
 
-define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+define i32 @"main"(i32 %p0, ptr %p1) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i32, align 4
   store i32 0, ptr %s0, align 4

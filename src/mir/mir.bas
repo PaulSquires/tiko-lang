@@ -15,12 +15,17 @@ end destructor
 
 sub MirFunction.AddParam _
     ( byval ty as MirType, byval aggSize as ulong, byval aggClass as ulong, _
-      byval attr as ubyte )
+      byval attr as ubyte, byval ext as ubyte )
 
     this.paramTys.Push( cast( ubyte, ty ) )
     this.paramAggs.Push( aggSize )
     this.paramClasses.Push( aggClass )
     this.paramAttrs.Push( attr )
+    '' THE WIDENING TRAVELS WITH THE TYPE, through the one funnel every parameter
+    '' already goes through -- so a signature cannot record an arity without saying
+    '' whether that parameter widens. The ABI pass reads both.
+    this.paramExt.Push( ext )
+    this.paramNarrow.Push( cast( ubyte, ty ) )
     this.paramCount = this.paramTys.Count
 end sub
 

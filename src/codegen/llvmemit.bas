@@ -3,6 +3,7 @@
 #include once "codegen/llvmemit.bi"
 #include once "codegen/llvmtype.bi"
 #include once "codegen/llvmdebug.bi"
+#include once "codegen/llvmrefs.bi"
 #include once "codegen/irtext.bi"
 
 namespace Tko.Codegen
@@ -939,6 +940,15 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
 
     '' 'nounwind' ON EVERYTHING: FreeBASIC does not unwind, and saying so lets LLVM
     '' drop the landing-pad machinery it would otherwise have to assume.
+    ''
+    '' AND 'uwtable(sync)' ON EVERY DEFINITION, which is not the same thing. nounwind
+    '' says no exception passes through; uwtable says a DEBUGGER or the OS can still
+    '' walk the stack through this frame. Without it LLVM wrote no .pdata/.xdata for a
+    '' tiko procedure on win64, and gdb stopped in one with frame #1 at 0x0 -- 'finish'
+    '' could not find the return address and a backtrace ended where it began
+    '' (Phase 14). fbc asks for the same thing: its gcc line carries '-funwind-tables'
+    '' ('fbc -v'), whose LLVM spelling is uwtable(sync). Every -g build needs it and
+    '' so does every crash dump, so it is not tied to -g.
     dim as string linkage = ""
     if f->isPrivate then linkage = "internal "
     '' dllexport, which is what actually puts a name in a DLL's export table.
@@ -978,7 +988,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         e.dbgLine = f->dbgLine
     end if
     e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
-              "(" & ParamList( e, f, true ) & ") nounwind" & cmdt & dbgAttr & " {" & chr( 10 )
+              "(" & ParamList( e, f, true ) & ") nounwind uwtable(sync)" & cmdt & dbgAttr & " {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest
     '' temp the function can name.
@@ -1369,13 +1379,25 @@ function EmitLlvm _
     next
     if m.globals.Count > 0 then e.outp += chr( 10 )
 
+    '' AN UNREFERENCED PRIVATE PROCEDURE IS NOT EMITTED, because fbc does not emit one:
+    '' emitting it made a link fail that fbc links, and only -O0 showed it (LLVM deletes
+    '' the internal function at -O1). codegen/llvmrefs.bas has the measurement.
+    dim as FB.Array( of ubyte ) refd = ReferencedFunctions( m )
+
     '' DEFINITIONS FIRST, then declarations, which is only a readability choice -- LLVM
     '' does not care -- but it keeps a golden diff of the code away from the churn of
     '' an added runtime declaration.
     for fi as long = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
         if f = 0 then continue for
-        if f->isDefinition then EmitFunction( e, f )
+        if f->isDefinition = false then continue for
+        '' HOISTED, each one a boolean of its own: warning 38 is FreeBASIC objecting to
+        '' a boolean beside a non-boolean in one 'andalso' chain, and the house rule is
+        '' to give each term a name rather than to widen the chain.
+        dim as boolean unref = (refd[fi] = 0)
+        dim as boolean isRoot = (f->isModuleCtor orelse f->isModuleDtor)
+        if f->isPrivate andalso unref andalso (isRoot = false) then continue for
+        EmitFunction( e, f )
     next
     '' A DECLARATION OF SOMETHING THIS MODULE ALSO DEFINES IS SKIPPED. Two MirFunction
     '' entries can carry one name: a call lowered before the definition was reached
@@ -1401,35 +1423,9 @@ function EmitLlvm _
         EmitFunction( e, f )
     next
 
-    '' A VTABLE SLOT NAMES A FUNCTION THAT MAY HAVE NO MirFunction AT ALL. Taking
-    '' a function's address in LLVM still needs it declared, and a pointer-table
-    '' entry writes the name straight out: 'declare virtual sub v( ) override'
-    '' with no body anywhere in the module filled a slot with
-    '' @_ZN11PARSER_PROC1Q1VEv and clang answered 'use of undefined value'. fbc
-    '' accepts the same source -- the slot is a link-time question, not a
-    '' compile-time one -- so the object has to be producible.
-    ''
-    '' void( ) IS ENOUGH. Nothing calls through the declaration: the vtable is
-    '' loaded and called indirectly with the call site's own signature, and a
-    '' name this module does call has a MirFunction and is skipped here.
-    for gi as long = 0 to m.globals.Count - 1
-        dim as MirGlobal ptr g = @m.globals[gi]
-        if g->isPtrTable = false then continue for
-        for i as long = 0 to g->ptrCount - 1
-            if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
-            dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
-            dim as boolean known = false
-            for fi as long = 0 to m.functions.Count - 1
-                dim as MirFunction ptr f = m.functions[fi]
-                if f = 0 then continue for
-                if f->name = pn then known = true : exit for
-            next
-            if known then continue for
-            dim as string pns = names.Spelling( pn )
-            if e.outp.Contains( "declare void @""" & pns & """()" ) then continue for
-            e.outp += "declare void @""" & pns & """()" & chr( 10 )
-        next
-    next
+    '' A VTABLE SLOT MAY NAME A FUNCTION THIS MODULE NEVER DECLARES -- see
+    '' codegen/llvmrefs.bas, which writes the declarations LLVM needs for them.
+    e.outp += DeclareUnknownVtableSlots( m, names, e.outp )
 
     '' MODULE-LIFETIME CONSTRUCTORS. gcc spells this an attribute and LLVM spells it a
     '' list; the priority 65535 is the default one, and the third field -- the data a

@@ -66,7 +66,8 @@ func i32 main(i32 $0, ptr $1) {
     %40 = alloca ptr port
     %41 = const i64 888
     %42 = trunc %41
-    %43 = call i32 fb_In(%42)
+    %57 = zext %42
+    %43 = call i32 fb_In(%57)
     store @port, %43
     %44 = load @row_
     call.rtl void fb_PrintInt(0, %44, 2)
@@ -105,7 +106,7 @@ declare i32 fb_FileEof(i32 $0)
 declare i64 fb_FileSize(i32 $0)
 declare i64 fb_FileLocation(i32 $0)
 declare i32 fb_LPos(i32 $0)
-declare i32 fb_In(i16 $0)
+declare i32 fb_In(i32 $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)

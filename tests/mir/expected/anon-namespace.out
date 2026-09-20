@@ -29,7 +29,7 @@ func f64 _ZN7LABEL$21FEd(f64 $0) {
     %6 = add %4, %5
     ret %6
 }
-func i16 _ZN7LABEL$31FEs(i16 $0) {
+func i16 _ZN7LABEL$31FEs(i32 $0) {
   local i16 $tmp0
   local i16 x
   entry0:
@@ -37,7 +37,8 @@ func i16 _ZN7LABEL$31FEs(i16 $0) {
     %2 = const i16 0
     store @$tmp0, %2
     %3 = alloca ptr x
-    store @x, $0
+    %10 = trunc $0
+    store @x, %10
     %4 = load @x
     %5 = load @x
     %6 = sext %4

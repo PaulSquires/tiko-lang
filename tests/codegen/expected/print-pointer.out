@@ -2,7 +2,7 @@ target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:
 target triple = "x86_64-w64-windows-gnu"
 
 
-define i32 @"F"() nounwind {
+define i32 @"F"() nounwind uwtable(sync) {
 L0:
   %s0 = alloca i32, align 4
   store i32 0, ptr %s0, align 4
@@ -11,7 +11,7 @@ L0:
 
 }
 
-define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+define i32 @"main"(i32 %p0, ptr %p1) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i32, align 4
   store i32 0, ptr %s0, align 4
@@ -44,7 +44,7 @@ L0:
 }
 
 $"_ZN5OUTERC1Ev" = comdat any
-define linkonce_odr void @"_ZN5OUTERC1Ev"(ptr %p0) nounwind comdat {
+define linkonce_odr void @"_ZN5OUTERC1Ev"(ptr %p0) nounwind uwtable(sync) comdat {
 L0:
   %t1 = getelementptr i8, ptr %p0, i64 0
   %t3 = inttoptr i64 0 to ptr

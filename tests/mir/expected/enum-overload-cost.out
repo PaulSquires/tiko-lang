@@ -54,7 +54,7 @@ func i64 _Z2Q21E(i64 $0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2R2b(i8 $0) {
+func i64 _Z2R2b(i32 $0) {
   local i64 $tmp0
   local i8 a
   entry0:
@@ -62,7 +62,8 @@ func i64 _Z2R2b(i8 $0) {
     %2 = const i64 0
     store @$tmp0, %2
     %3 = alloca ptr a
-    store @a, $0
+    %6 = trunc $0
+    store @a, %6
     %4 = const i64 1
     store @$tmp0, %4
     %5 = load @$tmp0
@@ -110,7 +111,7 @@ func i64 _Z2S2u7INTEGER(i64 $0) {
     %5 = load @$tmp0
     ret %5
 }
-func i64 _Z2S2a(i8 $0) {
+func i64 _Z2S2a(i32 $0) {
   local i64 $tmp0
   local i8 a
   entry0:
@@ -118,7 +119,8 @@ func i64 _Z2S2a(i8 $0) {
     %2 = const i64 0
     store @$tmp0, %2
     %3 = alloca ptr a
-    store @a, $0
+    %6 = trunc $0
+    store @a, %6
     %4 = const i64 2
     store @$tmp0, %4
     %5 = load @$tmp0
@@ -179,7 +181,8 @@ func i32 main(i32 $0, ptr $1) {
     %14 = load @i
     %15 = const i64 0
     %16 = icmp.ne %14, %15
-    %17 = call i64 _Z2R2b(%16)
+    %26 = zext %16
+    %17 = call i64 _Z2R2b(%26)
     call.rtl void fb_PrintLongint(0, %17, 1)
     %18 = load @i
     %19 = call i64 ONLY_(%18)

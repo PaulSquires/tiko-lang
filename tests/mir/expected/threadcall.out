@@ -3,7 +3,7 @@ func void NOARGS() {
   entry0:
     ret
 }
-func void SCAL(i64 $0, f64 $1, i16 $2) {
+func void SCAL(i64 $0, f64 $1, i32 $2) {
   local i64 a
   local f64 b
   local i16 c
@@ -13,7 +13,8 @@ func void SCAL(i64 $0, f64 $1, i16 $2) {
     %2 = alloca ptr b
     store @b, $1
     %3 = alloca ptr c
-    store @c, $2
+    %4 = trunc $2
+    store @c, %4
     ret
 }
 func void WITHSTR(ptr $0) {

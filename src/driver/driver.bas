@@ -659,8 +659,8 @@ function Run _
 
         if ctx.options.timePasses then
             dim as double mb = bytes_ / 1048576.0
-            print using "  load  ##.### s  (##.# MB/s)"; tLoad; mb / iif( tLoad > 0, tLoad, 1 )
-            print using "  lex   ##.### s  (##.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
+            print using "  load  ##.### s  (#####.# MB/s)"; tLoad; mb / iif( tLoad > 0, tLoad, 1 )
+            print using "  lex   ##.### s  (#####.# MB/s)"; tLex; mb / iif( tLex > 0, tLex, 1 )
         end if
     elseif ctx.options.dumpRtl then
         '' The inventory does not depend on any input, so it is answered before the

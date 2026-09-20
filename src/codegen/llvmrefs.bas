@@ -1,0 +1,117 @@
+'' llvmrefs.bas -- see the header.
+
+#include once "codegen/llvmrefs.bi"
+
+namespace Tko.Codegen
+
+using Tko.Mir
+
+'' ONE PASS, NOT A FIXPOINT, because that is fbc's rule as measured: a private called
+'' only by ANOTHER unreferenced private is still emitted, and fbc then fails the very
+'' link tiko does. A reference from a body that is itself dropped still counts.
+''
+'' WHAT COUNTS AS A REFERENCE: a direct call, which names the function's INDEX; the
+'' address of one (M_FUNC_ADDR, what 'procptr' produces); and a POINTER TABLE slot,
+'' which names it by NAME -- a vtable is how a private virtual method is reached and
+'' nothing else in the module would mention it. A module constructor or destructor is
+'' not marked here: the emitter treats both as roots, because the list it writes at the
+'' end of the module is what calls them.
+function ReferencedFunctions _
+    ( byref m as Tko.Mir.MirModule ) as FB.Array( of ubyte )
+
+    dim as FB.Array( of ubyte ) refd
+    for fi as long = 0 to m.functions.Count - 1
+        refd.Push( 0 )
+    next
+    for fi as long = 0 to m.functions.Count - 1
+        dim as MirFunction ptr f = m.functions[fi]
+        if f = 0 then continue for
+        for bi as long = 0 to f->blocks.Count - 1
+            dim as MirBlock ptr b = @f->blocks[bi]
+            for ii as long = 0 to b->insts.Count - 1
+                dim as MirInst ptr ins = @b->insts[ii]
+                select case cast( MirOp, ins->op )
+                case M_CALL, M_FUNC_ADDR
+                    dim as long ci = cast( long, ins->callee )
+                    if (ci >= 0) andalso (ci < refd.Count) then refd[ci] = 1
+                end select
+            next
+        next
+    next
+    for gi as long = 0 to m.globals.Count - 1
+        dim as MirGlobal ptr g = @m.globals[gi]
+        if g->isPtrTable = false then continue for
+        for i as long = 0 to g->ptrCount - 1
+            if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
+            dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
+            for fi as long = 0 to m.functions.Count - 1
+                dim as MirFunction ptr f = m.functions[fi]
+                if f = 0 then continue for
+                if f->name = pn then refd[fi] = 1 : exit for
+            next
+        next
+    next
+
+    '' AND THE MARK TRAVELS BY NAME, because one name can be TWO entries: a call
+    '' lowered before the definition was reached names a DECLARATION, and the
+    '' definition arrives later as its own index. Marking only the index the call
+    '' named left the definition looking unreferenced; it was dropped, the declaration
+    '' beside it was skipped as "also defined", and clang refused the module with
+    '' "use of undefined value '@HASH_ADD'" -- fbcunit, found by build/suiterun.sh.
+    for i as long = 0 to m.functions.Count - 1
+        if refd[i] = 0 then continue for
+        dim as MirFunction ptr f = m.functions[i]
+        if f = 0 then continue for
+        for j as long = 0 to m.functions.Count - 1
+            if refd[j] <> 0 then continue for
+            dim as MirFunction ptr g = m.functions[j]
+            if g = 0 then continue for
+            if g->name = f->name then refd[j] = 1
+        next
+    next
+
+    return refd
+end function
+
+function DeclareUnknownVtableSlots _
+    ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
+      byref outSoFar as IrText ) as string
+
+    '' RETURNS the declarations to append; 'outSoFar' is the module text written so far,
+    '' so a name already declared there is not declared twice.
+    ''
+    '' A VTABLE SLOT NAMES A FUNCTION THAT MAY HAVE NO MirFunction AT ALL. Taking
+    '' a function's address in LLVM still needs it declared, and a pointer-table
+    '' entry writes the name straight out: 'declare virtual sub v( ) override'
+    '' with no body anywhere in the module filled a slot with
+    '' @_ZN11PARSER_PROC1Q1VEv and clang answered 'use of undefined value'. fbc
+    '' accepts the same source -- the slot is a link-time question, not a
+    '' compile-time one -- so the object has to be producible.
+    ''
+    '' void( ) IS ENOUGH. Nothing calls through the declaration: the vtable is
+    '' loaded and called indirectly with the call site's own signature, and a
+    '' name this module does call has a MirFunction and is skipped here.
+    dim as string decls
+    for gi as long = 0 to m.globals.Count - 1
+        dim as MirGlobal ptr g = @m.globals[gi]
+        if g->isPtrTable = false then continue for
+        for i as long = 0 to g->ptrCount - 1
+            if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
+            dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
+            dim as boolean known = false
+            for fi as long = 0 to m.functions.Count - 1
+                dim as MirFunction ptr f = m.functions[fi]
+                if f = 0 then continue for
+                if f->name = pn then known = true : exit for
+            next
+            if known then continue for
+            dim as string pns = names.Spelling( pn )
+            if outSoFar.Contains( "declare void @""" & pns & """()" ) then continue for
+            decls += "declare void @""" & pns & """()" & chr( 10 )
+        next
+    next
+
+    return decls
+end function
+
+end namespace

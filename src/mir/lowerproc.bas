@@ -621,7 +621,11 @@ sub LowerProc _
                 psz = cast( ulong, c.f->locals[pslot].size )
                 pcl = ClassifyEightbytes( c, c.f->locals[pslot].frontendType )
             end if
-            f->AddParam( pmt, psz, pcl )
+            '' THE DEFINITION WIDENS EXACTLY AS THE DECLARATION DOES, off the slot's own
+            '' frontend type -- the two paths must agree or a module disagrees with
+            '' itself. The SLOT stays narrow; the ABI pass truncates into it.
+            f->AddParam( pmt, psz, pcl, TKO_PA_NONE, _
+                         ParamExtClass_( c, c.f->locals[pslot].frontendType ) )
         else
             dim as Tko.TypeId pt = c.info->TypeOf_( pp->a )
             dim as MirType pmt2 = ParamMirType( c, pt )
@@ -631,7 +635,7 @@ sub LowerProc _
                 psz2 = cast( ulong, SizeOfType( c, pt ) )
                 pcl2 = ClassifyEightbytes( c, pt )
             end if
-            f->AddParam( pmt2, psz2, pcl2 )
+            f->AddParam( pmt2, psz2, pcl2, TKO_PA_NONE, ParamExtClass_( c, pt ) )
         end if
         if psid <> Tko.SYMBOL_NONE then
             dim as long slot = pslot

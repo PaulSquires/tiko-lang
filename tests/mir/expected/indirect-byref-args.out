@@ -20,11 +20,12 @@ func i8 LESS(ptr $0, ptr $1) {
     %12 = icmp.ne %10, %11
     ret %12
 }
-func void SBYTE_(i8 $0) {
+func void SBYTE_(i32 $0) {
   local i8 b
   entry0:
     %1 = alloca ptr b
-    store @b, $0
+    %3 = trunc $0
+    store @b, %3
     %2 = load @b
     call.rtl void fb_PrintByte(0, %2, 1)
     ret

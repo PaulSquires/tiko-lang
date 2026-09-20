@@ -14,7 +14,7 @@ target triple = "x86_64-w64-windows-gnu"
 @"_ZTSN2TUE" = global [3 x ptr] [ptr null, ptr @"$str8", ptr @"__fb_ZTS6Object"], align 8
 @"_ZTVN2TUE" = global [2 x ptr] [ptr null, ptr @"_ZTSN2TUE"], align 8
 
-define void @"_ZN2TVC1EP2TU"(ptr %p0, ptr %p1) nounwind {
+define void @"_ZN2TVC1EP2TU"(ptr %p0, ptr %p1) nounwind uwtable(sync) {
 L0:
   %s0 = alloca ptr, align 8
   store ptr %p0, ptr %s0, align 8
@@ -36,7 +36,7 @@ L0:
 
 }
 
-define ptr @"_ZN2TVcvP2TUEv"(ptr %p0) nounwind {
+define ptr @"_ZN2TVcvP2TUEv"(ptr %p0) nounwind uwtable(sync) {
 L0:
   %s0 = alloca ptr, align 8
   store ptr null, ptr %s0, align 8
@@ -54,7 +54,7 @@ L0:
 
 }
 
-define ptr @"_ZN2TVcv8FBSTRINGEv"(ptr %p0) nounwind {
+define ptr @"_ZN2TVcv8FBSTRINGEv"(ptr %p0) nounwind uwtable(sync) {
 L0:
   %s0 = alloca [24 x i8], align 8
   %t2 = getelementptr i8, ptr %s0, i64 0
@@ -76,7 +76,7 @@ L0:
 
 }
 
-define void @"TEST_BYVAL"(ptr %p0) nounwind {
+define void @"TEST_BYVAL"(ptr %p0) nounwind uwtable(sync) {
 L0:
   %s0 = alloca ptr, align 8
   store ptr %p0, ptr %s0, align 8
@@ -92,7 +92,7 @@ L0:
 
 }
 
-define void @"TEST_BYREF"(ptr %p0) nounwind {
+define void @"TEST_BYREF"(ptr %p0) nounwind uwtable(sync) {
 L0:
   %s0 = alloca ptr, align 8
   store ptr %p0, ptr %s0, align 8
@@ -109,7 +109,7 @@ L0:
 
 }
 
-define i32 @"main"(i32 %p0, ptr %p1) nounwind {
+define i32 @"main"(i32 %p0, ptr %p1) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i32, align 4
   store i32 0, ptr %s0, align 4

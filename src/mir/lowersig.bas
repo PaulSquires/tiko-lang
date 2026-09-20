@@ -17,6 +17,30 @@ namespace Tko.Mir
 '' re-derived here: given only a proc node this cannot see whether the call site
 '' decided to pass a hidden result pointer, and guessing would put the arity of the
 '' declaration and the arity of the call out of step.
+'' HOW A NARROW INTEGER PARAMETER IS WIDENED, from the FB type. fbc passes anything
+'' narrower than 32 bits as i32 -- signext for a signed type, zeroext for an unsigned
+'' one, and zeroext for BOOLEAN whatever its signedness, which is what clang emits for
+'' C's _Bool. Measured against 'fbc -gen llvm' on byte, ubyte, short, ushort, boolean
+'' and long: '( i32 signext, i32 zeroext, i32 signext, i32 zeroext, i32 zeroext, i32 )'.
+''
+'' ONLY MT_I8 AND MT_I16 WIDEN. A byref parameter is a pointer and has nothing to
+'' widen, an i32 is already the width, and an aggregate is the ABI pass's business.
+'' MirFunction.paramExt says why this matters and what it cost.
+function ParamExtClass_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as ubyte
+
+    select case ParamMirType( c, t )
+    case MT_I8, MT_I16
+    case else
+        return TKO_PX_NONE
+    end select
+    if c.types->BuiltinOf( c.types->Unqualify( t ) ) = Tko.TY_BOOLEAN then
+        return TKO_PX_ZERO
+    end if
+    if IsUnsignedType( c, t ) then return TKO_PX_ZERO
+    return TKO_PX_SIGN
+end function
+
 sub SignatureFromProc _
     ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
       byval withSret as boolean, byval withThis as boolean )
@@ -93,7 +117,7 @@ sub SignatureFromProc _
                 ssz = cast( ulong, SizeOfType( c, pt ) )
                 scl = ClassifyEightbytes( c, pt )
             end if
-            f->AddParam( smt, ssz, scl )
+            f->AddParam( smt, ssz, scl, TKO_PA_NONE, ParamExtClass_( c, pt ) )
         end if
     next
     f->callConv = ProcCallConv_( c, pn )
@@ -131,7 +155,11 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
         elseif ParamMirType( c, pt ) = MT_AGG then
             f->AddParam( MT_AGG, cast( ulong, SizeOfType( c, pt ) ), ClassifyEightbytes( c, pt ) )
         else
-            f->AddParam( ParamMirType( c, pt ) )
+            '' A PROCEDURE POINTER'S SIGNATURE WIDENS TOO. The call goes through this
+            '' declaration, so a narrow parameter here must say so or the call site and
+            '' the callee disagree about the register's upper bits.
+            f->AddParam( ParamMirType( c, pt ), 0, 0, TKO_PA_NONE, _
+                         ParamExtClass_( c, pt ) )
         end if
     next
     return c.m->functions.Count - 1
