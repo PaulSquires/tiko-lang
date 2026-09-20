@@ -1,0 +1,101 @@
+'' declfield.bas -- what a TYPE body asks about a FIELD: whether a keyword spells
+'' one, and whether the declaration stopped where it should have.
+''
+'' Split out of decl.bas at the 1500-line lint cap and included from it, inside its
+'' own namespace. IsFieldNamedByKeyword moved unchanged; the two checks below are new.
+
+
+'' A FIELD whose NAME is a keyword. MEASURED against fbc, one keyword at a time over
+'' all 247 of them: it accepts 223 and REJECTS exactly these twenty-four --
+''
+''   the operator words   and andalso eqv imp mod not or orelse shl shr xor
+''   the declarers        const declare dim enum redim static private protected public
+''   and                  as delete new rem
+''
+'' -- so the rule is a DENY list, not the five-name allow list this used to be.
+'' win/shldisp.bi alone declares interface members called Open, NameSpace, Windows and
+'' Explore, and 'NameSpace as function( ... )' opened a NAMESPACE BLOCK that swallowed
+'' the next eighteen lines: the vtable lost its fields and all 133 calls through it
+'' declined.
+''
+'' What follows decides it: a field is 'name as T', 'name( bounds ) as T' or
+'' 'as T name' -- the last handled elsewhere. A DECLARATION never has 'as' or '(' in
+'' that position, which is what keeps a real 'type T' or 'namespace N' out.
+private function IsFieldNamedByKeyword _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+
+    if Tko.IsKeywordKind( k ) = false then return false
+    select case k
+    case Tko.KW_AND, Tko.KW_ANDALSO, Tko.KW_EQV, Tko.KW_IMP, Tko.KW_MOD, _
+         Tko.KW_NOT, Tko.KW_OR, Tko.KW_ORELSE, Tko.KW_SHL, Tko.KW_SHR, Tko.KW_XOR
+        return false
+    case Tko.KW_CONST, Tko.KW_DECLARE, Tko.KW_DIM, Tko.KW_ENUM, Tko.KW_REDIM, _
+         Tko.KW_STATIC, Tko.KW_PRIVATE, Tko.KW_PROTECTED, Tko.KW_PUBLIC
+        return false
+    case Tko.KW_AS, Tko.KW_DELETE, Tko.KW_NEW, Tko.KW_REM
+        return false
+    end select
+    if HasTok( p, p.pos + 1 ) = false then return false
+    dim as Tko.TokenKind nx = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+    if nx = Tko.KW_AS then return true
+    '' ...AND THE BITFIELD FORM: 'Shared : 1 as ULONG_PTR', which win/psapi.bi writes twice.
+    '' Measured, fbc takes 'Shared : 3 as ulong' and 'Shared as long' alike (sizeof 8 over a
+    '' long beside it). The ':' lexes as a colon-flagged TK_EOL; a WIDTH must follow it, or
+    '' it is the statement separator it usually is.
+    if (nx = Tko.TK_EOL) andalso ((p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) <> 0) then
+        if HasTok( p, p.pos + 2 ) = false then return false
+        return (cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_INT_LIT)
+    end if
+    if nx <> Tko.TK_LPAREN then return false
+    '' THE TWO FORMS DO NOT ACCEPT THE SAME WORDS. Measured over all 247 keywords: the
+    '' 'name as T' form takes 223 of them and the ARRAY form 'name( lo to hi ) as T'
+    '' takes only 221 -- TYPE and UNION are legal field names spelled the first way and
+    '' fbc error 14, "Expected identifier, found '('", spelled the second.
+    select case k
+    case Tko.KW_TYPE, Tko.KW_UNION
+        return false
+    end select
+    return true
+end function
+
+'' A FIELD DECLARATION ENDS ITS LINE, and fbc says so: 'b as ubyte( 0 to 3 )' is its
+'' error 3, "Expected End-of-Line, found '('" -- in the name-first spelling the bounds
+'' belong BEFORE the 'as' -- and 'b as ubyte junk' is the same error over a word.
+''
+'' EndOfStatement discards whatever it walks past, so both of those COMPILED: the first
+'' as a scalar ubyte with the bounds thrown away, the second as an ordinary field.
+'' Nothing was said at the declaration, and nothing was said at the use either -- 'h.b(0)'
+'' over the scalar lowered NO load and NO store, so the program ran and printed an empty
+'' column where fbc refuses to build it at all.
+''
+'' THE GENERIC TWIN IS THE SAME LINE. 'bins as FB.Array( of long )( 0 to 2 )': TypeRef
+'' has taken '( of long )' by the time this runs, so what is left over is the bounds,
+'' exactly as above. The instantiation itself is not the problem and never was.
+''
+'' ONE DIAGNOSTIC AT A TIME, the rule the whole parser follows (docs/plan/04 section 8).
+private sub StrayAfterField_( byref p as Tko.ParserState )
+    select case Peek( p )
+    case Tko.TK_EOL, Tko.TK_EOF
+        return
+    end select
+    if p.silent then return
+    p.diags->Report( Tko.TKO0420, Tko.PointRange( Cur( p ).loc ) )
+    p.silent = true
+end sub
+
+'' 'as ubyte( 0 to 3 ) b' -- the TYPE-FIRST spelling with the bounds written in the
+'' type's position rather than after the name. fbc's error 14, "Expected identifier,
+'' found '('"; tiko-lang read no declarator, pushed no field, and left the type one
+'' field short with nothing said -- 4 bytes where fbc gives none at all.
+''
+'' ONLY WHEN SOMETHING IS THERE. A trailing comma -- 'as long a,' -- leaves the cursor
+'' on the line's EOL, which is a different mistake and not this one.
+private sub NameExpectedHere_( byref p as Tko.ParserState )
+    select case Peek( p )
+    case Tko.TK_EOL, Tko.TK_EOF
+        return
+    end select
+    if p.silent then return
+    p.diags->Report( Tko.TKO0406, Tko.PointRange( Cur( p ).loc ) )
+    p.silent = true
+end sub

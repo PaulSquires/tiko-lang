@@ -1,0 +1,28 @@
+'' A field declaration must end its line -- fbc's error 3, and its error 14 for the
+'' type-first spelling whose declarator never arrives. Asserted BY POSITION: an
+'' assertion on the id alone would pass with the wrong token blamed.
+''
+'' The four bad fields are in four TYPEs because the parser reports ONE diagnostic per
+'' statement and a whole TYPE body is one -- so a second bad field in the same body is
+'' deliberately not reported.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/field-decl-end-of-line.bas
+'' EXPECT-EXIT: 1
+
+'' 'b as ubyte( 0 to 3 )' -- the bounds belong before the 'as'.
+'' EXPECT-OUT: field-decl-end-of-line.bas(21,15): error TKO0420
+
+'' 'b as ubyte junk' -- the same rule over a word rather than a paren.
+'' EXPECT-OUT: field-decl-end-of-line.bas(26,16): error TKO0420
+
+'' 'as long a junk' -- and in the type-first spelling too.
+'' EXPECT-OUT: field-decl-end-of-line.bas(31,15): error TKO0420
+
+'' 'as ubyte( 0 to 3 ) b' -- no declarator was read at all, which is fbc's error 14.
+'' EXPECT-OUT: field-decl-end-of-line.bas(36,13): error TKO0406
+
+'' AND NOTHING OVER THE LEGAL SHAPES in 'type Ok': the bounds before the 'as', a
+'' fixed-length string, a procedure pointer's parameter list, a field default, a
+'' bitfield width and the comma list. Four diagnostics, no more.
+'' EXPECT-MAX-DIAG: 4
+'' GOLDEN: expected/field-decl-end-of-line.out

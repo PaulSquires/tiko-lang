@@ -1046,58 +1046,7 @@ end function
 #include once "parser/declvis.bas"
 
 
-'' A FIELD whose NAME is a keyword. MEASURED against fbc, one keyword at a time over
-'' all 247 of them: it accepts 223 and REJECTS exactly these twenty-four --
-''
-''   the operator words   and andalso eqv imp mod not or orelse shl shr xor
-''   the declarers        const declare dim enum redim static private protected public
-''   and                  as delete new rem
-''
-'' -- so the rule is a DENY list, not the five-name allow list this used to be.
-'' win/shldisp.bi alone declares interface members called Open, NameSpace, Windows and
-'' Explore, and 'NameSpace as function( ... )' opened a NAMESPACE BLOCK that swallowed
-'' the next eighteen lines: the vtable lost its fields and all 133 calls through it
-'' declined.
-''
-'' What follows decides it: a field is 'name as T', 'name( bounds ) as T' or
-'' 'as T name' -- the last handled elsewhere. A DECLARATION never has 'as' or '(' in
-'' that position, which is what keeps a real 'type T' or 'namespace N' out.
-private function IsFieldNamedByKeyword _
-    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
-
-    if Tko.IsKeywordKind( k ) = false then return false
-    select case k
-    case Tko.KW_AND, Tko.KW_ANDALSO, Tko.KW_EQV, Tko.KW_IMP, Tko.KW_MOD, _
-         Tko.KW_NOT, Tko.KW_OR, Tko.KW_ORELSE, Tko.KW_SHL, Tko.KW_SHR, Tko.KW_XOR
-        return false
-    case Tko.KW_CONST, Tko.KW_DECLARE, Tko.KW_DIM, Tko.KW_ENUM, Tko.KW_REDIM, _
-         Tko.KW_STATIC, Tko.KW_PRIVATE, Tko.KW_PROTECTED, Tko.KW_PUBLIC
-        return false
-    case Tko.KW_AS, Tko.KW_DELETE, Tko.KW_NEW, Tko.KW_REM
-        return false
-    end select
-    if HasTok( p, p.pos + 1 ) = false then return false
-    dim as Tko.TokenKind nx = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
-    if nx = Tko.KW_AS then return true
-    '' ...AND THE BITFIELD FORM: 'Shared : 1 as ULONG_PTR', which win/psapi.bi writes twice.
-    '' Measured, fbc takes 'Shared : 3 as ulong' and 'Shared as long' alike (sizeof 8 over a
-    '' long beside it). The ':' lexes as a colon-flagged TK_EOL; a WIDTH must follow it, or
-    '' it is the statement separator it usually is.
-    if (nx = Tko.TK_EOL) andalso ((p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) <> 0) then
-        if HasTok( p, p.pos + 2 ) = false then return false
-        return (cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_INT_LIT)
-    end if
-    if nx <> Tko.TK_LPAREN then return false
-    '' THE TWO FORMS DO NOT ACCEPT THE SAME WORDS. Measured over all 247 keywords: the
-    '' 'name as T' form takes 223 of them and the ARRAY form 'name( lo to hi ) as T'
-    '' takes only 221 -- TYPE and UNION are legal field names spelled the first way and
-    '' fbc error 14, "Expected identifier, found '('", spelled the second.
-    select case k
-    case Tko.KW_TYPE, Tko.KW_UNION
-        return false
-    end select
-    return true
-end function
+#include once "parser/declfield.bas"
 
 '' The member list of a TYPE or UNION, its 'end', and the node. Shared by the named
 '' and the ANONYMOUS forms, which differ only in whether a name was read.
@@ -1228,7 +1177,10 @@ private function ParseAggregateBody _
             do
                 dim as Tko.Token ft = Cur( p )
                 dim as Tko.StmtPayload fp
-                if DeclName( p, fp.name ) = false then exit do
+                if DeclName( p, fp.name ) = false then
+                    NameExpectedHere_( p )
+                    exit do
+                end if
                 '' 'as integer i$' -- a TYPE SUFFIX on a field name is fbc's error 17.
                 if (ft.flags and Tko.TF_HAS_SUFFIX) <> 0 then
                     p.diags->Report( Tko.TKO0741, Tko.PointRange( ft.loc ) )
@@ -1305,6 +1257,7 @@ private function ParseAggregateBody _
                 members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
+            StrayAfterField_( p )
         elseif IsFieldNamedByKeyword( p, k ) then
             '' A FIELD whose name is a keyword that also starts a declaration:
             '' winnt.bi writes 'Function as ULONGLONG' inside two unions, and tiko-lang read
@@ -1340,6 +1293,7 @@ private function ParseAggregateBody _
             if Accept( p, Tko.KW_AS ) then fp.a = TypeRef( p )
             fp.extra or= vis
             members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
+            StrayAfterField_( p )
         elseif IsDeclarationStart( k ) then
             dim as Tko.NodeId mn = Declaration( p )
             '' Only an N_PROC carries a StmtPayload whose 'extra' is the modifier set;
@@ -1413,6 +1367,7 @@ private function ParseAggregateBody _
                 '' three corpus files that fbc accepts reported "expected 'end TYPE'".
                 fp.extra or= vis
                 members.Push( cast( ulong, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
+                StrayAfterField_( p )
             end if
         end if
 
