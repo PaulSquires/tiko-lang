@@ -259,6 +259,39 @@ private sub CheckUdtInits_ ( byref c as Ctx )
     next
 end sub
 
+'' EVERY MEMBER THE GENERIC DECLARES IS A MEMBER OF THE INSTANTIATION, whether or not
+'' this unit instantiated a body for it: InstantiateMembers_ re-parses only the
+'' definitions it can see ('if dp->b = NODE_NONE then continue for'), so a member
+'' declared inside the generic and defined elsewhere has no symbol in the
+'' instantiation's scope and would otherwise be reported as missing.
+''
+'' The generic's own N_TYPE node is on the instantiation symbol's payload -- put there
+'' by InstantiateGeneric_ so that a self-reference finds the cache -- so the declaration
+'' list is one hop away and needs no lookup.
+private function GenericDeclaresMember_ _
+    ( byref c as Ctx, byval ts as Symbol ptr, byval want as InternId ) as boolean
+
+    if ts = 0 then return false
+    if ts->payload = 0 then return false
+    dim as NodeId gn = cast( NodeId, ts->payload )
+    if gn = NODE_NONE then return false
+    if c.ast->Kind( gn ) <> N_TYPE then return false
+    dim as StmtPayload ptr gp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gn )].data )]
+    for i as long = 0 to gp->count - 1
+        dim as NodeId m = cast( NodeId, c.ast->children[gp->first + i] )
+        select case c.ast->Kind( m )
+        case N_FIELD, N_PROC, N_CONST, N_VAR, N_ENUM, N_TYPE
+            dim as StmtPayload ptr mp2 = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, m )].data )]
+            if mp2->name <> 0 then
+                if c.names->Fold( mp2->name ) = want then return true
+            end if
+        end select
+    next
+    return false
+end function
+
 '' A MEMBER THAT DOES NOT EXIST -- fbc error 18, "Element not defined", for 'u.A = 0'
 '' over a type that declares no A. Only through an INSTANCE of a plain UDT, only when
 '' Check bound nothing, and only after this pass has searched the type and every base
@@ -287,7 +320,16 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
     if c.types->Kind( bu ) <> TK_UDT then return
     dim as string tnm = c.names->Spelling( c.types->NameOf( bu ) )
-    if (instr( tnm, "<" ) > 0) orelse (instr( tnm, "(" ) > 0) then return
+    '' A TUPLE TYPE is named for its element types -- '(long, double)' -- and its
+    '' members are '_1', '_2'; TupleLike_ below is what judges one.
+    if instr( tnm, "(" ) > 0 then return
+    '' AN INSTANTIATION IS JUDGED, and used not to be: its structural name carries a
+    '' '<', and skipping every name with one exempted every generic container in the
+    '' runtime headers. 'a.NoSuchThing( )' over an FB.Array( of long ) compiled clean
+    '' and printed an empty line where fbc answers error 18. The name is reported
+    '' WITHOUT the key, because 'ARRAY<6>' is not what anyone wrote.
+    dim as long lt = instr( tnm, "<" )
+    if lt > 0 then tnm = left( tnm, lt - 1 )
     if TupleLike_( c, bu ) then return
     dim as InternId want = c.names->Fold( _
         c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
@@ -304,6 +346,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         dim as Symbol ptr ts = UdtSymbolOf_( c, t )
         if ts = 0 then return
         if ts->inner = SCOPE_NONE then return
+        if GenericDeclaresMember_( c, ts, want ) then return
         '' A UNION or an ANONYMOUS aggregate inside the type is not searched here, so
         '' a type holding one is not judged at all.
         if (ts->flags and SYMF_UNION_KIND) <> 0 then return

@@ -1,0 +1,21 @@
+'' A member that does not exist on an INSTANTIATION -- fbc error 18, "Element not
+'' defined". The late sweep skipped every type whose name holds a '<', which is every
+'' instantiation there is, so the call passed unbound, lowered to nothing and printed
+'' an empty line.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-member-missing.bas
+'' EXPECT-EXIT: 1
+
+'' THROUGH A LOCAL, and the name in the message is the GENERIC's: 'BOX<6>' is the
+'' structural key and is not what anyone wrote.
+'' EXPECT-OUT: generic-member-missing.bas(28,13): error TKO0739: 'box' has no member named 'nosuchthing'
+
+'' ...AND THROUGH A FIELD of a plain type, which is the shape the containers are used in.
+'' EXPECT-OUT: generic-member-missing.bas(33,15): error TKO0739: 'box' has no member named 'nosuchthing'
+
+'' NOT over 'Later_', declared in the generic and defined in no unit this compile can
+'' see: InstantiateMembers_ re-parses only the definitions it has, so that member has no
+'' symbol in the instantiation's scope and would be the obvious false positive.
+'' EXPECT-NOT: 'decl_' has no member
+'' EXPECT-MAX-DIAG: 2
+'' GOLDEN: expected/generic-member-missing.out
