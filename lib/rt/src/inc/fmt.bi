@@ -68,7 +68,10 @@
 '' So snprintf is bound to the common function with 8 or 16 set and 32 CLEAR,
 '' which reproduces MSVCRT digit for digit; sprintf stays the plain UCRT one,
 '' because that is the C99 side of fbc's split and __mingw_sprintf agrees with
-'' it. STANDARD_SNPRINTF_BEHAVIOR (2) is kept so the RETURN VALUE stays C99 --
+'' it -- EXCEPT OVER A NaN, which __mingw_sprintf writes as 'nan' whatever its sign
+'' and payload, and the UCRT as '-nan(ind)' or '-nan' when the sign is set. No
+'' option bit covers that; str/tostr.bas's hFloatTo canonicalises the NaN before
+'' it formats. STANDARD_SNPRINTF_BEHAVIOR (2) is kept so the RETURN VALUE stays C99 --
 '' the truncation tests in str/tostr.bas and strw/tostr.bas already read it that
 '' way and that half was never in question.
 ''

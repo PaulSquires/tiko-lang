@@ -133,6 +133,21 @@ frow( 100000.0 )
 frow( 1.0e20 )
 frow( -0.0 )
 
+'' NON-FINITE VALUES, BY BIT PATTERN. '0.0 / 0.0' is the NEGATIVE quiet NaN
+'' (FFF8000000000000, the x86 "indefinite"), and a NaN's sign and payload are what
+'' one printf keeps and another drops: fbc's sprintf is MinGW's and writes 'nan' for
+'' every one of them, where the UCRT's writes '-nan(ind)' and '-nan'. The infinities
+'' ride along because they are the other value %g has words for.
+function dbits( byval b as ulongint ) as double
+    return *cptr( double ptr, @b )
+end function
+frow( dbits( &hFFF8000000000000ull ) )
+frow( dbits( &h7FF8000000000000ull ) )
+frow( dbits( &hFFF8000000000001ull ) )
+frow( dbits( &h7FF8000000000001ull ) )
+frow( dbits( &h7FF0000000000000ull ) )
+frow( dbits( &hFFF0000000000000ull ) )
+
 print "== bool =="
 print "hBoolToStr 0=["; *phB2S( 0 ); "] 1=["; *phB2S( 1 ); "]"
 s = pB2S( 0 ) : print "BoolToStr 0 =["; stext( s ); "] len="; SLN(s) : pSDel( s )
@@ -158,6 +173,11 @@ s = pF2SQ( 1.5 )   : print "QB flt 1.5 =["; stext( s ); "]" : pSDel( s )
 s = pF2SQ( -1.5 )  : print "QB flt -1.5=["; stext( s ); "]" : pSDel( s )
 s = pD2SQ( 1.5 )   : print "QB dbl 1.5 =["; stext( s ); "]" : pSDel( s )
 s = pD2SQ( -1.5 )  : print "QB dbl -1.5=["; stext( s ); "]" : pSDel( s )
+'' ...and the space flag over a NaN of either sign: fbc gives ' nan' for both.
+s = pF2SQ( dbits( &hFFF8000000000000ull ) ) : print "QB flt -nan=["; stext( s ); "]" : pSDel( s )
+s = pD2SQ( dbits( &hFFF8000000000000ull ) ) : print "QB dbl -nan=["; stext( s ); "]" : pSDel( s )
+s = pD2SQ( dbits( &h7FF8000000000000ull ) ) : print "QB dbl +nan=["; stext( s ); "]" : pSDel( s )
+s = pD2SQ( dbits( &hFFF0000000000000ull ) ) : print "QB dbl -inf=["; stext( s ); "]" : pSDel( s )
 
 '' ---- fb_hFloat2Str, and the ADDBLANK contract that makes it return a POINTER
 '' rather than a length: the returned pointer is sometimes the buffer and

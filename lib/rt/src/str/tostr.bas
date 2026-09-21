@@ -43,6 +43,32 @@ private function hFloatTo _
 	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, cap )
 	if( dst = 0 ) then return TKORT_NULLSTR()
 
+#ifdef TKORT_MSVC
+	'' A NaN LOSES ITS SIGN AND ITS PAYLOAD HERE, because fbc's sprintf is MinGW's
+	'' and MinGW writes every NaN as 'nan'. The UCRT keeps both: measured over
+	'' "%.16g", '0.0 / 0.0' (FFF8000000000000, the x86 "indefinite") is
+	'' '-nan(ind)', FFF8000000000001 is '-nan', and only a POSITIVE quiet NaN is
+	'' 'nan' -- and no __stdio_common_vsprintf option bit changes that (fmt.bi).
+	'' So the value is replaced by the positive quiet NaN before it is formatted,
+	'' and the format still decides the rest: QB's "% .16g" gives ' nan', as fbc's
+	'' fb_DoubleToStrQB does for either sign.
+	''
+	'' BY BIT PATTERN, not 'num <> num': the question is what the bits are, and
+	'' a comparison is the one thing a float optimisation is allowed to fold.
+	''
+	'' WINDOWS UCRT ONLY. On Linux both fbc and tiko-rt call glibc, which writes
+	'' '-nan' for a negative NaN, so the two already agree there; MinGW's build
+	'' calls __mingw_sprintf, which is fbc's own. The wide family goes through the
+	'' MSVCRT-compatible options and already matches ('-1.#IND'); PRINT and WRITE
+	'' go through fb_hFloat2Str below and match too. tests/abi/tostr-parity.bas.
+	dim as ulongint bits_ = *cptr( ulongint ptr, @num )
+	if( ((bits_ and &h7FF0000000000000ull) = &h7FF0000000000000ull) andalso _
+	    ((bits_ and &h000FFFFFFFFFFFFFull) <> 0) ) then
+		bits_ = &h7FF8000000000000ull
+		num = *cptr( double ptr, @bits_ )
+	end if
+#endif
+
 	tkrt_sprintf( dst->data, fmt, num )
 
 	dim as integer n = cast( integer, strlen( dst->data ) )
