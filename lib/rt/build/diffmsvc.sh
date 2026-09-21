@@ -37,14 +37,21 @@
 # measured, the locale stayed "C" with the object present. /INCLUDE: names it
 # and is the supported way to pull one in.
 #
-# -llegacy_stdio_definitions IS REQUIRED and is not optional decoration: the
-# UCRT does not export sprintf at all -- it is inline in the header -- so a
-# non-C caller cannot link it without that library. Measured; RFC-0006 §12.
+# THE LINK IS gatemsvc.sh's AND tiko-lang's OWN: '-nostdlib', ucrtbase and
+# kernel32 through the import libraries build/mkmsvcimplibs.sh generates. This
+# said '-llegacy_stdio_definitions IS REQUIRED' -- true until 2026-09-07, when
+# src/c/msvccrt.c began supplying sprintf and mainCRTStartup itself and the
+# target stopped reaching into Visual Studio. gatemsvc.sh moved with that change
+# and this script did not: with clang's default libraries, msvccrt.o's
+# mainCRTStartup meant libcmt was never pulled in, so nothing named the CRT and
+# EVERY test failed to link on memset -- '0 identical, 112 differing', measured
+# 2026-09-21, for two weeks, reading as an ABI failure it was not.
 #
 # ---------------------------------------------------------- KNOWN DIVERGENCES
 #
-# Three tests differ and two cannot be run at all. None is an ABI defect, and
-# they are listed so that a FOURTH difference is visible immediately.
+# Three tests differ, two cannot be run at all and two do not link. None is an
+# ABI defect, and they are listed so that a FOURTH difference is visible
+# immediately.
 #
 #   alloc-count     STRUCTURALLY UNMEASURABLE, and it is the linker, not the
 #   entry-count     runtime: both work by GNU ld's --wrap and lld-link has no
@@ -97,6 +104,15 @@
 #                             choosing it later is a decision and not a
 #                             discovery.
 #
+#   gosub-parity      DO NOT LINK, and neither is the runtime's doing: it is the
+#   legacydir-parity  PROGRAM that asks. fbc's own IR for GOSUB calls _setjmp,
+#                     which the UCRT does not export (tiko emits
+#                     __intrinsic_setjmp for this target, HANDOFF 9c); and
+#                     legacydir calls crt mkdir/rmdir by their POSIX names, which
+#                     only oldnames.lib aliased -- '-nostdlib' drops it with the
+#                     rest of Visual Studio. Measured 2026-09-21, the first run
+#                     after the link recipe was brought in line with gatemsvc.sh.
+#
 # WIN64 HOST ONLY. There is no MSVC ABI to compare against anywhere else.
 
 set -e
@@ -137,6 +153,13 @@ rt_check_cfg_stamp "$RT_ROOT/lib/win64-msvc"
 # would be measuring the wrong library, which is the mistake diff.sh's own header
 # records having made.
 MTLIB="$RT_ROOT/lib/win64-msvc/libfbmt.a"
+
+# THE IMPORT LIBRARIES that stand in for the CRT at the link below -- gatemsvc.sh's
+# variable and default, and refused for gatemsvc.sh's reason: without them every
+# link fails on memset and reads as an ABI difference.
+IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/win64-msvc}
+[ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/mkmsvcimplibs.sh"
+IMPLIBS=$(cygpath -m "$IMPLIBS")
 
 # THE PROBE PROGRAMS ARE BUILT UNOPTIMISED, ON BOTH SIDES. The archive keeps the
 # configuration it was built with -- that is the thing under test -- but the
@@ -255,7 +278,9 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     fi
 
     if ! "$CLANG" --target=x86_64-pc-windows-msvc "$obj" "$THISLIB" -o "$sub" \
-            -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions -Xlinker /INCLUDE:tkort_msvc_init_ \
+            -nostdlib "-L$IMPLIBS" -lucrtbase -lkernel32 \
+            -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
+            -Xlinker /INCLUDE:tkort_msvc_init_ \
             >> "$WORK/$name.sublog" 2>&1; then
         differ=$((differ + 1))
         echo "diffmsvc: FAIL $name -- does not LINK against the msvc runtime, see $WORK/$name.sublog" >&2
