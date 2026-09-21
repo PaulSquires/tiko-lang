@@ -1,0 +1,118 @@
+func i32 _ZN2TA1FEv(ptr $0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    ret %6
+}
+func i32 _ZN2TA8P__get__Ev(ptr $0) {
+  local i32 $tmp0
+  local ptr this
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr this
+    store @this, $0
+    %4 = load @this
+    %5 = field.addr %4, 0
+    %6 = load %5
+    %7 = const i64 1
+    %8 = sext %6
+    %9 = add %8, %7
+    %10 = trunc %9
+    ret %10
+}
+func i32 FREE() {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i64 40
+    %4 = trunc %3
+    ret %4
+}
+func void BYR(ptr $0) {
+  local ptr x
+  entry0:
+    %1 = alloca ptr x
+    store @x, $0
+    %2 = load @x
+    %3 = load %2
+    call.rtl void fb_PrintUInt(0, %3, 1)
+    ret
+}
+declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local agg a size 4
+  local i32 v
+  local i32 $tmp3
+  local i32 $tmp4
+  local i32 $tmp5
+  local i32 $tmp6
+  local i32 $tmp7
+  local i32 $tmp8
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr a
+    call void _ZN2TAC1Ev(@a)
+    %5 = alloca ptr v
+    %6 = const i64 9
+    %7 = trunc %6
+    store @v, %7
+    %8 = call i32 _ZN2TA1FEv(@a)
+    %9 = alloca ptr $tmp3
+    store @$tmp3, %8
+    call void BYR(@$tmp3)
+    %10 = call i32 _ZN2TA1FEv(@a)
+    %11 = alloca ptr $tmp4
+    store @$tmp4, %10
+    call void BYR(@$tmp4)
+    %12 = call i32 _ZN2TA1FEv(@a)
+    %13 = alloca ptr $tmp5
+    store @$tmp5, %12
+    call void BYR(@$tmp5)
+    %14 = call i32 _ZN2TA1FEv(@a)
+    %15 = alloca ptr $tmp6
+    store @$tmp6, %14
+    call void BYR(@$tmp6)
+    %16 = call i32 _ZN2TA8P__get__Ev(@a)
+    %17 = alloca ptr $tmp7
+    store @$tmp7, %16
+    call void BYR(@$tmp7)
+    %18 = call i32 FREE()
+    %19 = alloca ptr $tmp8
+    store @$tmp8, %18
+    call void BYR(@$tmp8)
+    call void BYR(@v)
+    %20 = const i32 0
+    call.rtl void fb_End(%20)
+    %21 = load @$tmp0
+    ret %21
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void _ZN2TAC1Ev(ptr $0)
+declare void fb_End(i32 $0)
+func void _ZN2TAC1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    %2 = const i64 7
+    %3 = trunc %2
+    store %1, %3
+    ret
+}
+verify: ok
+lowered: 6 functions, 6 blocks, 73 insts, 0 statements not lowered, 0 scope imbalance

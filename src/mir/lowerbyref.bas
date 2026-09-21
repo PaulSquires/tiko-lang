@@ -281,6 +281,20 @@ end function
 '' property getter is the same shape. The self-hosted compiler's generic registry
 '' pushes 'instArgs.Count' like this, and so does most of tiko-lang.
 ''
+'' ...AND UNDER PARENTHESES OR A CONVERSION THAT CONVERTS NOTHING. LowerAddr looks
+'' through both to the operand's own address -- right for a variable, where fbc passes
+'' '(uint32*)&V' for 'cast( ulong, v )' -- and so reached the procedure's code again.
+'' Measured, over 'sub ByR( byref x as ulong )' and a method F returning 7:
+''
+''     ByR( cast( ulong, a.F ) )  ByR( culng( a.F ) )  ByR( (a.F) )     fbc: 7 7 7
+''                                                                      tiko: 283935560
+''
+'' fbc calls F each time: 'vr = F( &A ); TMP = vr; BYR( &TMP )'. The WHOLE argument
+'' goes into the temporary, so the conversion is still applied to the value.
+'' tiko-lang's own threadcall lowering is 'args.Push( cast( ulong, flds.Count ) )',
+'' which is how the self-built compiler found it: every composite descriptor's field
+'' count came out as the code address.
+''
 '' True when the argument IS such a name; 'outa' is then the temporary, or nothing if
 '' the value would not lower -- and the caller declines rather than pass the address.
 function ParenlessProcTemp_ _
@@ -288,9 +302,17 @@ function ParenlessProcTemp_ _
       byref outa as MirValue ) as boolean
 
     if argNode = Tko.NODE_NONE then return false
-    dim as Tko.NodeKind k = c.ast->Kind( argNode )
+    dim as Tko.NodeId inner = Unparen_( c, argNode )
+    dim as long peel = 0
+    while peel < 16
+        dim as Tko.NodeId nco = NoConvOperand_( c, inner )
+        if nco = Tko.NODE_NONE then exit while
+        inner = Unparen_( c, nco )
+        peel += 1
+    wend
+    dim as Tko.NodeKind k = c.ast->Kind( inner )
     if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
-    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( argNode ) )
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( inner ) )
     if ps = 0 then return false
     if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
     outa = ByrefTemp_( c, argNode, pt )

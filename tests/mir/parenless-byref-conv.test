@@ -1,0 +1,9 @@
+'' See the source's header. The variable in the last call is the control: it must keep
+'' passing its own address, so the golden shows no temporary for it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/parenless-byref-conv.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: func.addr
+'' GOLDEN: expected/parenless-byref-conv.out
