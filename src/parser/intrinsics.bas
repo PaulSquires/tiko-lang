@@ -167,13 +167,24 @@ private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     '' indistinguishable -- the flags are a SET, and each needs its own bit.
     if Accept( p, Tko.TK_SEMICOLON ) then sp.extra or= 4
 
-    if Peek( p ) = Tko.TK_STRING_LIT then
+    '' LINE INPUT'S PROMPT IS ANY STRING EXPRESSION; INPUT's is a literal. LINE INPUT
+    '' has one destination, so whatever is followed by ';' or ',' before it is the
+    '' prompt -- measured, fbc passes 'line input p; s' and 'line input p & "!"; s' to
+    '' fb_LineInput as the prompt, and rejects 'input p; s' (error 3). Taking only a
+    '' literal here left 'line input p; s' as TKO0420.
+    ''
+    '' THE SEPARATOR IS RECORDED, bit 8 for a COMMA: it decides the "? " and was being
+    '' dropped. fbc: 'input "x", a' and 'line input "x", s' add no question mark, and
+    '' 'input "x"; a' and 'line input "x"; s' do.
+    dim as boolean isLine = ((sp.extra and 1) <> 0) andalso (sp.a = Tko.NODE_NONE)
+    if (Peek( p ) = Tko.TK_STRING_LIT) orelse isLine then
         dim as long save = p.pos
-        dim as Tko.NodeId prompt = Expression( p, Tko.PREC_POSTFIX )
+        dim as Tko.NodeId prompt = Expression( p, iif( isLine, Tko.PREC_ANDALSO, Tko.PREC_POSTFIX ) )
         dim as boolean isPrompt = (Peek( p ) = Tko.TK_SEMICOLON) orelse _
                                   (Peek( p ) = Tko.TK_COMMA)
         if isPrompt then
             sp.c = prompt
+            if Peek( p ) = Tko.TK_COMMA then sp.extra or= 8
             Advance( p )
         else
             p.pos = save

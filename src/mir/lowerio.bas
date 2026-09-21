@@ -1101,14 +1101,19 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
-    '' The console form's trailing flags: a reserved 0 the narrow one has twice, then
-    '' the newline flag, which the leading ';' turns off.
+    '' The console form's trailing flags: the narrow one's fillrem 0, then ADD QUESTION
+    '' and the newline flag, which the leading ';' turns off. The question mark is added
+    '' only after a prompt ended by ';' -- measured, fbc passes -1 for 'line input p; s'
+    '' and 0 for 'line input p, s' or no prompt at all. The parser marks a comma with
+    '' bit 8. That flag was a constant 0 here, taken for a second reserved argument.
     dim as long addNewline = -1
     if (sp->extra and 4) <> 0 then addNewline = 0
+    dim as long addQuestion = 0
+    if (sp->c <> Tko.NODE_NONE) andalso ((sp->extra and 8) = 0) then addQuestion = -1
     if wide = false then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addQuestion ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addNewline ) )
     if wide then
         EmitRtl( c, RTL_LINEINPUT_W, args )
@@ -1199,9 +1204,10 @@ function LowerInput _
     dim as long echoNewline = -1
     if (sp->extra and 4) <> 0 then echoNewline = 0
     '' A comma after the prompt suppresses the question mark and a semicolon keeps it.
-    '' The parser does not record which, so it is kept -- fbc's default and the
-    '' commoner spelling.
+    '' The parser marks the comma with bit 8; measured, fbc passes 0 for
+    '' 'input "x", a' and -1 for 'input "x"; a' and for no prompt.
     dim as long addQuestion = -1
+    if (sp->extra and 8) <> 0 then addQuestion = 0
 
     dim as boolean toFile = (sp->a <> Tko.NODE_NONE)
     dim as MirValue chan
@@ -1213,6 +1219,8 @@ function LowerInput _
 
     if isLine then
         if sp->count <> 1 then return false
+        '' LINE INPUT's rule, not INPUT's: a "? " only after a prompt ended by ';'.
+        addQuestion = iif( (sp->c <> Tko.NODE_NONE) andalso ((sp->extra and 8) = 0), -1, 0 )
         dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first] )
         dim as longint dn
         if InputRtlFor( c, c.info->TypeOf_( dst ), dn ) = RTL_NONE then return false

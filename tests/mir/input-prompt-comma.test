@@ -1,0 +1,8 @@
+'' INPUT with a comma after the prompt asks for no question mark. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/input-prompt-comma.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_ConsoleInput(
+'' EXPECT-OUT: , 0, -1)
+'' EXPECT-NOT: , -1, -1)
