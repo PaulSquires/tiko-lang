@@ -116,6 +116,15 @@ namespace Tko
         '' parserend.bas's AcceptNext_.
         as long                 pendingNext
         as long                 forDepth
+        '' The PROCEDURES declared so far, the prelude's included. fbc reads 'name :' as
+        '' a label only when 'name' is not a procedure it knows at that point
+        '' (parser-label.bas), so 'sleep : end 0' is a call and then END. See
+        '' parserend.bas's IsLabelHere_.
+        as NodeIdVec            procNames
+        '' ...and the PRELUDE's, as "|name|...|", filled on first use. The prelude is
+        '' parsed after the unit's own statements, so its declarations are not in
+        '' procNames while a label is being decided.
+        as string               preludeProcs
     end type
 
 end namespace

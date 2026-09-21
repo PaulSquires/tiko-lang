@@ -57,6 +57,7 @@ declare function NextTokIs_ _
 declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
 declare function AcceptNext_( byref p as Tko.ParserState ) as boolean
+declare function IsLabelHere_( byref p as Tko.ParserState ) as boolean
 declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
 declare function CheckEndOfStatement_( byref p as Tko.ParserState, byval n as Tko.NodeId = Tko.NODE_NONE ) as boolean
 declare function EndClosesOther_ _
@@ -1299,18 +1300,9 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             n = MakeStmt( p, Tko.N_DEFER, dt.loc, sp )
             consumesLine = false
         elseif k = Tko.TK_IDENT then
-            '' 'name:' is a label; anything else is the call-or-assign ambiguity.
-            ''
-            '' The test is the COLON FLAG, not the token's length. Both ':' and a
-            '' newline are TK_EOL, and a length of 1 matches a bare LF as well as a
-            '' colon -- so on an LF file every parenthesis-less zero-argument call,
-            '' 'Bar' on a line of its own, was parsed as a LABEL named bar. It only
-            '' looked correct on CRLF input, where the newline is two bytes.
-            dim as boolean isLabel = false
-            if HasTok( p, p.pos + 1 ) then
-                isLabel = (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EOL) andalso _
-                          ((p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) <> 0)
-            end if
+            '' 'name:' is a label -- unless 'name' is a procedure -- and anything else is
+            '' the call-or-assign ambiguity. See parserend.bas's IsLabelHere_.
+            dim as boolean isLabel = IsLabelHere_( p )
             if isLabel then
                 dim as Tko.StmtPayload sp
                 sp.name = cast( Tko.InternId, t.literal )
@@ -1466,6 +1458,10 @@ private sub ParsePrelude( byref p as Tko.ParserState, byref items as Tko.NodeIdV
         if s <> Tko.NODE_NONE then items.Push( cast( ulong, s ) )
         if q.pos = before then Advance( q )
     loop
+    '' The prelude's procedures -- SLEEP, KILL, LOCATE -- are known to the unit's labels.
+    for each nm as ulong in q.procNames
+        p.procNames.Push( nm )
+    next
 end sub
 
 function Unit( byref p as Tko.ParserState ) as Tko.NodeId

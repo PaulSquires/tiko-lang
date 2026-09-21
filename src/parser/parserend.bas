@@ -206,4 +206,32 @@ function AcceptNext_( byref p as Tko.ParserState ) as boolean
     return true
 end function
 
+'' ------------------------------------------------------------------ labels
+''
+'' 'name :' -- a LABEL, or a call followed by a statement separator? fbc's answer
+'' (parser-label.bas): a label, unless 'name' is a PROCEDURE declared by that point.
+'' tiko took every one for a label, and SLEEP, KILL, LOCATE and the rest are
+'' predeclared procedures rather than reserved words, so 'Sleep : End 0' -- the
+'' FreeBASIC help's PUT example ends that way -- became a label named sleep and an
+'' END, and the program exited without waiting.
+''
+'' The test for the ':' is the COLON FLAG, not the token's length. Both ':' and a
+'' newline are TK_EOL, and a length of 1 matches a bare LF as well as a colon -- so on
+'' an LF file every parenthesis-less zero-argument call, 'Bar' on a line of its own,
+'' was parsed as a LABEL named bar. It only looked correct on CRLF input, where the
+'' newline is two bytes.
+function IsLabelHere_( byref p as Tko.ParserState ) as boolean
+    if HasTok( p, p.pos + 1 ) = false then return false
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_EOL then return false
+    if (p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) = 0 then return false
+    dim as ulong nm = cast( ulong, Cur( p ).literal )
+    for each known as ulong in p.procNames
+        if known = nm then return false
+    next
+    if len( p.preludeProcs ) = 0 then p.preludeProcs = PreludeProcSpellings( )
+    dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
+    if instr( p.preludeProcs, spelled ) > 0 then return false
+    return true
+end function
+
 end namespace

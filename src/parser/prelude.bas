@@ -259,3 +259,38 @@ private function PreludeText( ) as string
     return t
 end function
 
+'' The procedures the prelude declares, as "|name|name|...|". A predeclared procedure
+'' written 'sleep :' is a CALL and not a label -- fbc's rule, see parserend.bas's
+'' IsLabelHere_ -- and the prelude is parsed AFTER the unit's own statements (Unit
+'' keeps the unit's node numbers stable that way), so a label is decided long before
+'' these declarations are. Read out of the text instead. Lowercase, as the interner is.
+function PreludeProcSpellings( ) as string
+    dim as string t = lcase( PreludeText( ) )
+    dim as string out_ = "|"
+    dim as long i = 1
+    do
+        dim as long a = instr( i, t, "declare " )
+        if a = 0 then exit do
+        i = a + 8
+        dim as long w = instr( i, t, " " )
+        if w = 0 then exit do
+        dim as string kw = mid( t, i, w - i )
+        if (kw = "sub") orelse (kw = "function") then
+            dim as long k = w + 1
+            dim as long e = k
+            while e <= len( t )
+                dim as ubyte ch = t[e - 1]
+                dim as boolean alnum = ((ch >= 97) andalso (ch <= 122)) orelse _
+                                       ((ch >= 48) andalso (ch <= 57)) orelse (ch = 95)
+                if alnum = false then exit while
+                e += 1
+            wend
+            dim as string nm = mid( t, k, e - k )
+            if (len( nm ) > 0) andalso (instr( out_, "|" & nm & "|" ) = 0) then
+                out_ &= nm & "|"
+            end if
+        end if
+    loop
+    return out_
+end function
+

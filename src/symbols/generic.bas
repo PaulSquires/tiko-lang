@@ -266,6 +266,7 @@ function RewriteShadowedIntrinsic_ _
     q.pos = t0
     q.silent = true
     q.lambdaSeq = p0->lambdaSeq
+    q.procNames = p0->procNames           '' 'name :' is a label only if no procedure
     dim as Tko.NodeId fresh = Tko.Parse.CallStatement( q )
     p0->lambdaSeq = q.lambdaSeq
 
@@ -712,6 +713,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
         '' ParserState whose counter would otherwise start at zero every time, and
         '' every instantiation would hoist a procedure called __tko_lambda_<hash>_0.
         q.lambdaSeq = p0->lambdaSeq
+        q.procNames = p0->procNames       '' 'name :' is a label only if no procedure
 
         dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
         p0->lambdaSeq = q.lambdaSeq
@@ -1231,6 +1233,7 @@ private sub InstantiateMembers_ _
         q.pos = cast( long, c.ast->tokenRanges[i + 1] )
         q.silent = true
         q.lambdaSeq = p0->lambdaSeq
+        q.procNames = p0->procNames       '' 'name :' is a label only if no procedure
 
         dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
         p0->lambdaSeq = q.lambdaSeq

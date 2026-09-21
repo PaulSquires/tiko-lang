@@ -32,6 +32,9 @@ namespace Tko.Parse
     '' A syntactic type reference: 'integer', 'Foo ptr ptr', 'sub( byval as long )'.
     declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 
+    '' The procedures the builtin prelude declares, as "|name|name|...|" -- prelude.bas.
+    declare function PreludeProcSpellings( ) as string
+
     declare function DumpTree _
         ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
           byref names as Tko.Interner, byval root as Tko.NodeId ) as string

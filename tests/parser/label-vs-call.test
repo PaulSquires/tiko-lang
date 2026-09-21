@@ -1,0 +1,8 @@
+'' A procedure's name before ':' is a call, not a label. See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/label-vs-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: N_LABEL 'here'
+'' EXPECT-NOT: N_LABEL 'foo'
+'' EXPECT-NOT: N_LABEL 'sleep'
+'' EXPECT-NOT: N_LABEL 'beep'

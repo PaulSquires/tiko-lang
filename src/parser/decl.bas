@@ -1014,6 +1014,9 @@ private function ParseProc _
             p.diags->Report( Tko.TKO0683, Tko.PointRange( t.loc ) )
         end if
     end if
+    '' KNOWN FROM HERE ON, so a later 'name :' is a call and not a label -- fbc's rule,
+    '' see IsLabelHere_. A method is not a bare name outside its type, so not recorded.
+    if (qualified = false) andalso (p.aggDepth = 0) then p.procNames.Push( cast( ulong, sp.name ) )
     if declareOnly then
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
         if qualified then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_QUALIFIED
