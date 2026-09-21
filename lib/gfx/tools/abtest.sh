@@ -41,6 +41,9 @@ GFX=$( cd "$HERE/.." && pwd )
 
 TKOGFX_MSVC="$GFX/lib/win64-msvc/libtkogfx.a"
 LIBFB_MSVC="$GFX/../rt/lib/win64-msvc/libfb.a"
+# The import libraries tiko's own win64-msvc link resolves the CRT and Win32
+# through (build/mkmsvcimplibs.sh makes them). See the win64-msvc link below.
+: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
 
 keep=0
 record=0
@@ -171,6 +174,9 @@ elif [ ! -f "$TKOGFX_MSVC" ]; then
 elif [ ! -f "$LIBFB_MSVC" ]; then
     echo "abtest: no $LIBFB_MSVC -- win64-msvc NOT RUN (build tiko-rt for win64-msvc)" >&2
     status=1
+elif [ ! -f "$MSVC_IMPLIBS/ucrtbase.lib" ]; then
+    echo "abtest: no ucrtbase.lib in $MSVC_IMPLIBS -- win64-msvc NOT RUN (run build/mkmsvcimplibs.sh)" >&2
+    status=1
 else
     ran=0
     manifest | while read -r name mode; do
@@ -210,13 +216,20 @@ else
 
         # An unresolved fb_Gfx* here is not a build accident: it means the
         # source still calls gfxlib2 in-process, so the manifest is wrong.
-        if ! "$CLANG" --target=x86_64-pc-windows-msvc "$obj" \
+        #
+        # THE LINK tiko ITSELF DOES for win64-msvc (src/codegen/toolchain.bas):
+        # lld, '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's
+        # msvccrt.o in its place, and kernel32 named because '-nostdlib' drops
+        # it. NOT -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and
+        # the two collide.
+        if ! "$CLANG" --target=x86_64-pc-windows-msvc -fuse-ld=lld "$obj" \
                  "$TKOGFX_MSVC" "$LIBFB_MSVC" -o "$exe" \
-                 -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions \
+                 -nostdlib "-L$( cygpath -m "$MSVC_IMPLIBS" )" -lucrtbase -lkernel32 \
+                 -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
                  -Xlinker /INCLUDE:tkort_msvc_init_ >> "$log" 2>&1; then
             echo "abtest: $name/win64-msvc -- DOES NOT LINK, still needs:" >&2
-            grep -o 'unresolved external symbol [A-Za-z0-9_@$]*' "$log" \
-                | sed 's/unresolved external symbol /    /' | sort -u >&2
+            grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$log" \
+                | sed 's/undefined symbol: /    /' | sort -u >&2
             exit 1
         fi
 
