@@ -271,8 +271,26 @@ private function PaletteCurrent( ) as GfxPalette ptr
     end if
     if ThePaletteReady = 0 then
         if PaletteLoadDefaults( ThePalette, TheScreen.mode ) = 0 then
-            '' SCREENRES and the truecolour modes have no default table.
-            PaletteInit( ThePalette, 256 )
+            '' SCREENRES AT 8 BITS OR FEWER STARTS WITH THE 256-COLOUR TABLE -- gfxlib2
+            '' opens every SCREENRES with FB_PALETTE_256, the palette modes 13..21 use
+            '' -- but only its first (1 shl depth) entries are filled. Measured with
+            '' PALETTE GET: at depth 4 index 15 is 3F3F3F and 200 is 0, at depth 8 all
+            '' 256 are set. This read "SCREENRES has no default table" and left every
+            '' entry black, so an 8-bit SCREENRES drew its text and every colour in
+            '' black: POINT read index 15 and the window showed nothing.
+            ''
+            '' A TRUECOLOUR screen reads all zero, in both libraries.
+            dim as boolean filled = false
+            if (TheScreen.mode = 0) andalso (TheScreen.depth <= 8) then
+                filled = (PaletteLoadDefaults( ThePalette, 13 ) <> 0)
+            end if
+            if filled then
+                for i as integer = (1 shl TheScreen.depth) to 255
+                    ThePalette.entry(i) = 0
+                next
+            else
+                PaletteInit( ThePalette, 256 )
+            end if
         end if
         ThePaletteReady = 1
         PaletteLutRebuild( )

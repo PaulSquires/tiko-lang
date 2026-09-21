@@ -174,6 +174,11 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     '' Prime the palette and the presentation LUT BEFORE the window opens: the
     '' pump thread may present the first frame before the caller's next
     '' statement, and an 8bpp surface with a null LUT presents nothing.
+    '' EVERY SCREEN STARTS FROM THE DEFAULT PALETTE. gfxlib2's set_mode reloads it,
+    '' so 'palette 1, x' does not survive a second SCREEN 13 -- measured, PALETTE GET
+    '' answers the default again -- and this kept the change, keyed as it was on the
+    '' mode number alone. Two SCREENRES of different depths share mode 0, too.
+    PaletteForget( )
     TheScreen.isOpen = 1
     if bpp = 1 then
         PaletteCurrent( )

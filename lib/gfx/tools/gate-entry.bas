@@ -956,6 +956,39 @@ scope
     Emit( "screen(r,c) reads the cells back", acc )
 end scope
 
+'' ---- SCREENRES's default palette, at every depth ----
+''
+'' gfxlib2 opens every SCREENRES with the 256-colour table SCREEN 13 uses, filling
+'' only the first (1 shl depth) entries; a truecolour one reads all zero. Ours left
+'' every entry black, so an 8-bit SCREENRES drew its text in black on black -- the
+'' FreeBASIC help's PSET example showed nothing but its pixels.
+scope
+    dim as long depths(0 to 4) = { 1, 2, 4, 8, 32 }
+    for d as integer = 0 to 4
+        screenres W, H, depths(d)
+        dim as ulongint acc = 14695981039346656037ull
+        for i as integer = 0 to 255
+            dim as long v
+            palette get i, v
+            acc = (acc xor cast( ulongint, cast( ulong, v ) )) * 1099511628211ull
+        next
+        Emit( "screenres depth " & depths(d) & " default palette", acc )
+    next
+end scope
+
+'' ---- a new SCREEN reloads the defaults ----
+''
+'' A PALETTE change does not survive the next SCREEN, even of the same mode: ours
+'' kept it, keyed on the mode number alone.
+scope
+    screen 13
+    palette 1, &h3F0000
+    screen 13
+    dim as long v
+    palette get 1, v
+    Emit( "screen reloads the default palette", cast( ulongint, cast( ulong, v ) ) )
+end scope
+
 screen 0
 
 print Log_;
