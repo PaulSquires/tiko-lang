@@ -10,10 +10,12 @@
 ''     wstr( zv )   WSTRING * 1      fb_StrToWstr over the cast's char*
 ''     wstr( wv )   CONST WSTRING    the identity
 ''
-'' -- so STR( ) of a WIDE cast is narrow whatever it was handed. Typing it wide sent
-'' every narrow destination through the wide-to-narrow transfer path, which has no
-'' wide source to offer, and both 'dim s as string = str( wv )' and 'print str( wv )'
-'' declined while the assignment form beside them lowered.
+'' -- AND THE SECOND ROW IS TRUE OF THESE TYPES ONLY, which was read as a rule about
+'' wide casts and is not one. Both types here EXTEND a string, and a UDT that extends
+'' wstring IS a wstring by inheritance, which beats its own 'operator cast'. Over a
+'' plain type -- 'as wstring * 8 w' and a cast -- fbc answers WSTRING for str( ) and
+'' emits no conversion at all. See UdtDerivesFromWide_ in symbols/intrinsics.bas and
+'' tests/mir/udt-cat-operator-chain.test, which is the other half of the pair.
 type Z extends zstring
     _pad as byte
     declare operator cast( ) byref as const zstring

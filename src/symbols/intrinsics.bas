@@ -49,6 +49,23 @@ private function UdtStringCastType_ _
     return Tko.TYPE_NONE
 end function
 
+'' DERIVES FROM A WIDE STRING? One that extends wstring IS one, which beats its own
+'' 'operator cast' -- see the table at case "str".
+private function UdtDerivesFromWide_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if t = Tko.TYPE_NONE orelse (c.types->Kind( u ) <> Tko.TK_UDT) then return false
+    dim as Tko.TypeId b = c.types->BaseOf( u )
+    for guard as long = 0 to 63          '' a base chain, so it cannot cycle -- but bound it
+        if b = Tko.TYPE_NONE then exit for
+        dim as Tko.TypeId bu = c.types->Unqualify( b )
+        if c.types->Kind( bu ) = Tko.TK_BUILTIN then return (c.types->BuiltinOf( bu ) = Tko.TY_WSTRING)
+        if c.types->Kind( bu ) <> Tko.TK_UDT then return false
+        b = c.types->BaseOf( bu )
+    next
+    return false
+end function
+
 '' Moved here from check.bas at the 1500-line cap, above the first caller.
 '' Nothing about it changed in the move.
 '' A member of a UDT by name, folded -- procedures included, which is what tells this
@@ -651,41 +668,35 @@ private function ExprIntrinsicType_ _
 
     '' A string function keeps the string KIND it was given.
     '' STR is always a var-length STRING, even for a WSTRING argument -- unlike TRIM and
-    '' the rest, which keep the kind they were handed.
-    '' STR OF A UDT THAT CASTS TO A STRING IS THE CAST, and its type is the CAST'S own:
-    '' measured, '#print typeof( str( u ) )' over a type with 'operator cast( ) byref as
-    '' zstring' is ZSTRING, not STRING. fbc emits no conversion at all for the shape.
+    '' the rest, which keep the kind they were handed. OVER A UDT THAT CASTS TO A STRING
+    '' IT IS THE CAST, and its type is the CAST'S own -- the table in the arm below.
     ''
     '' Untyped, it was not merely this call that declined. A concatenation is typed from
     '' its LEFT TERM, so 'str( u ) & ", "' had nothing to classify and PRINT gave up on
     '' the whole item -- while '", " & str( u )', the same terms the other way round,
     '' lowered. That asymmetry is what the corpus's QT( ) macro walks into.
     case "str"
-        '' ASKED BEFORE the general rules, because with the cast folded into 'ab'
-        '' above STR would otherwise answer STRING for a WIDE cast -- and measured,
-        '' '#print typeof( str( u ) )' over 'operator cast( ) byref as const wstring'
-        '' is CONST WSTRING. STR keeps the CAST'S own kind, not the STRING every other
-        '' argument gives it.
+        '' ASKED BEFORE the general rules, because with the cast folded into 'ab' above
+        '' STR would answer STRING for every one of these. Measured; the emitted code
+        '' agrees with each typeof -- first three the cast ALONE, fourth the cast then
+        '' fb_WstrToStr:
+        ''
+        ''     str( z )    CONST ZSTRING   cast( ) byref as const zstring
+        ''     str( w )    WSTRING         cast( ) byref as wstring
+        ''     str( w )    CONST WSTRING   cast( ) byref as const wstring
+        ''     str( w )    STRING          ...the same, on 'extends wstring'
+        ''     wstr( w )   CONST WSTRING
+        ''     wstr( z )   WSTRING * 1
+        ''
+        '' The wide rows used to read STRING throughout, on a measurement of WSTR( )
+        '' taken on the wrong side, and udt-cat-operator-chain.bas printed narrow bytes
+        '' where fbc prints wide ones -- plain only under goldenrun's redirection.
         dim as Tko.TypeId ct = UdtStringCastType_( c, a0 )
         if ct <> Tko.TYPE_NONE then
-            '' ...BUT ONLY A NARROW CAST. A WIDE one is a real conversion and STR
-            '' answers STRING for it, which is the reverse of what the note above
-            '' says -- that measurement was of WSTR( ), taken on the wrong side.
-            '' Measured, one type with each cast:
-            ''
-            ''     str( z )    CONST ZSTRING      cast( ) byref as const zstring
-            ''     str( w )    STRING             cast( ) byref as const wstring
-            ''     wstr( w )   CONST WSTRING
-            ''     wstr( z )   WSTRING * 1
-            ''
-            '' Typing 'str( w )' wide made every narrow destination take the
-            '' wide-to-narrow transfer path, which has no wide source to offer:
-            '' 'dim s as string = str( w )' and 'print str( w )' both declined,
-            '' while the assignment form beside them lowered.
-            if c.types->Kind( c.types->Unqualify( ct ) ) = Tko.TK_BUILTIN then
-                if c.types->BuiltinOf( c.types->Unqualify( ct ) ) = Tko.TY_WSTRING then
-                    return c.types->Builtin( Tko.TY_STRING )
-                end if
+            '' 'ct' is an unqualified BUILTIN already; the width is all that is left.
+            if UdtDerivesFromWide_( c, a0 ) andalso _
+               (c.types->BuiltinOf( ct ) = Tko.TY_WSTRING) then
+                return c.types->Builtin( Tko.TY_STRING )
             end if
             return ct
         end if

@@ -574,9 +574,14 @@ end function
 function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
     if e = Tko.NODE_NONE then return false
-    '' 'str( x )' IS NARROW WHATEVER IT WAS HANDED, and it is asked first because
-    '' every test below reads the OPERAND's type -- see IsStrCall_.
-    if IsStrCall_( c, e ) then return false
+    '' 'str( x )' IS NARROW WHATEVER IT WAS HANDED -- ALMOST. It is asked first because
+    '' every test below reads the OPERAND's type, and 'str( w )' over a wide one is a
+    '' conversion, not a wide term -- see IsStrCall_.
+    ''
+    '' THE ONE EXCEPTION IS A UDT WHOSE CAST IS WIDE, where fbc emits no conversion at
+    '' all: 'typeof( str( u ) )' is WSTRING and the chain around it concatenates wide.
+    '' So the CALL's own type answers, which is narrow for every other argument.
+    if IsStrCall_( c, e ) then return IsWideString_( c, c.info->TypeOf_( e ) )
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
     '' A LITERAL CONTAINING A UNICODE ESCAPE IS WIDE, and does NOT follow its
     '' context the way every other literal does. Measured: '#print typeof(
@@ -1095,6 +1100,27 @@ function WideOperand_ _
     '' comes through this function: assignment both ways, comparison, and the trim
     '' family all follow from the one hook.
     if UserCastToWide_( c, id, outv ) then return true
+
+    '' ...AND 'str( u )' OVER THAT SAME UDT IS THE CAST AND NOTHING ELSE. Measured,
+    '' '#print typeof( str( u ) )' over 'operator cast( ) byref as wstring' is WSTRING
+    '' and over the const spelling CONST WSTRING -- fbc emits no conversion at all, it
+    '' calls the operator and concatenates WIDE:
+    ''
+    ''     uint16* vr$15 = _ZN2DScvwEv( &H$0 );
+    ''     uint16* vr$16 = fb_WstrConcatAW( (void*)"[", 2ll, (uint16*)vr$15 );
+    ''
+    '' The intrinsic table used to answer STRING here, on a measurement of WSTR( )
+    '' taken on the wrong side, and tests/mir/src/udt-cat-operator-chain.bas came out
+    '' narrow against fbc's wide under goldenrun. The node is a CALL, so the UDT walk
+    '' above never saw it -- it asks about the call's own type.
+    if IsStrCall_( c, id ) then
+        dim as Tko.ListPayload ptr sclp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sclp->count = 1 then
+            dim as Tko.NodeId sca = cast( Tko.NodeId, c.ast->children[sclp->first] )
+            if UserCastToWide_( c, sca, outv ) then return true
+        end if
+    end if
     return false
 end function
 

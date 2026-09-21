@@ -7,3 +7,13 @@
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-OUT: _Zv23catR2DSR8FBSTRING
 '' EXPECT-NOT: _Zv21&
+
+'' ...AND THE CHAIN AROUND 'str( h )' IS WIDE, because the UDT's cast is. fbc emits no
+'' conversion for it -- 'uint16* vr$15 = _ZN2DScvwEv( &H$0 ); fb_WstrConcatAW( "[", 2,
+'' vr$15 )' -- and tiko-lang narrowed the lot, which a console hides and a REDIRECTED
+'' run shows: goldenrun had fbc printing UTF-16 bytes here and tiko printing ASCII.
+'' Both now write the same bytes.
+'' EXPECT-OUT: fb_WstrConcatAW
+'' EXPECT-OUT: fb_WstrConcatWA
+'' EXPECT-OUT: fb_PrintWstr
+'' EXPECT-NOT: fb_PrintString
