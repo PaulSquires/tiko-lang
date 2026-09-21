@@ -1222,6 +1222,8 @@ function PushCtorArgs_ _
                     dv = CoerceTy( c, dv, LowerType( dt, *c.types ), dt )
                     if dv.kind = cast( ubyte, MV_NONE ) then return false
                 end if
+                '' ...and a byval non-trivial UDT default takes a POINTER to a copy.
+                ByvalIndirectRetemp_( c, dv, dt )
             end if
             args.Push( cast( ulong, dv.kind ) ) : args.Push( cast( ulong, dv.id ) )
         end if

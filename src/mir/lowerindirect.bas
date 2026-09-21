@@ -30,7 +30,39 @@ function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     if TypeNeedsDtor_( c, t ) then return true
-    if NeedsLetBody_( c, t ) then return true
+    '' A DYNAMIC ARRAY MEMBER, and not the rest of NeedsLetBody_. That predicate also
+    '' answers true when a FIELD needs a constructor body, and a field's constructor
+    '' does not move the type: measured, twelve shapes at once, fbc and tiko agreeing
+    '' on eleven --
+    ''
+    ''     P1 as long a, b                          value
+    ''     C1 declare constructor                   value
+    ''     D1 declare destructor                    INDIRECT
+    ''     K1 declare constructor( byref o as K1 )  INDIRECT
+    ''     L1 declare operator let                  value
+    ''     S1 as string s                           INDIRECT
+    ''     A1 x( any ) as long                      INDIRECT
+    ''     V1 extends object                        INDIRECT
+    ''     HasC field with a CONSTRUCTOR            value      <-- tiko said INDIRECT
+    ''     HasD field with a destructor             INDIRECT
+    ''     HasS field of type S1                    INDIRECT
+    ''     HasA field of type A1                    INDIRECT
+    ''
+    '' -- so only the type's OWN copy constructor and a destructor from anywhere move
+    '' it, which is what the table above this function already said. The extra row cost
+    '' functions/paraminit.bas its udtByval.ctors1 group: 'byval x2 as UDT2' where UDT2
+    '' has a UDT field with a constructor took a pointer in the signature and a loaded
+    '' aggregate at the call, and clang refused the module.
+    if HasDynArrayMember_( c, t ) then return true
+    '' AND AN OBJECT-DERIVED TYPE, which is the other half NeedsCtorBody_ was
+    '' answering: fbc writes 'void T4( struct $2V1* )' for 'type V1 extends object'.
+    '' Dropping it left tests/mir/byval-udt-param's t4 taking the object by value with
+    '' only the sixteen-byte win64 rule putting a pointer back in the signature -- the
+    '' golden caught it, the twelve-shape table above did not, because every
+    '' object-derived type there was large enough for the ABI to hide the change.
+    if c.vts <> 0 then
+        if c.vts->Find( t ) >= 0 then return true
+    end if
     '' A WRITTEN copy constructor, by SHAPE: the one-argument constructor whose
     '' parameter is this same type. Any other one-argument constructor is a conversion
     '' and says nothing about how the type is passed.

@@ -824,6 +824,12 @@ declare function EmitRtl _
     declare function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerOpenCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A byval non-trivial UDT argument's copy, and the lowering that precedes it
+    '' -- lowerbyref.bas.
+    declare sub ByvalIndirectRetemp_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId )
+    declare function ByvalDefaultArg_ _
+        ( byref c as Ctx, byval dv as Tko.NodeId, byval pty as Tko.TypeId ) as MirValue
     '' An address for a byref parameter whose argument is already lowered
     '' -- lowerbyref.bas.
     declare function ByrefAggTempOf_ _

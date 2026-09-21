@@ -53,6 +53,37 @@
 '' copy is observable only to a callee that compares addresses or counts destructions,
 '' and structs/temp-var-dtors.bas counts destructions -- so runscan against fbc is what
 '' says whether this is right, not the fact that it compiles.
+'' A BYVAL NON-TRIVIAL UDT ARGUMENT TAKES A POINTER TO A COPY, because that is what
+'' its parameter's SLOT holds -- see ParamMirType. Both default-filling loops passed
+'' the loaded aggregate instead and the callee read an address out of the object's own
+'' bytes; clang refused the module first: "'%t5' defined with type '[4 x i8]' but
+'' expected 'ptr'" on 'constructor( byval v as D2 = D2( 9 ) )' with D2 declaring a
+'' destructor. A DEFAULT is a fresh rvalue, so the value IS the copy and only needs a
+'' home, which is all ByrefAggTempOf_ gives it.
+''
+'' NOT MATCHED AGAINST fbc, because fbc does not lower this shape at all: it writes
+'' 'struct $2D2 TMP$3$0;' and calls the constructor with its address WITHOUT running
+'' D2's constructor on it, so the callee reads an uninitialised temporary and the
+'' program prints 0 where the default says 9. The alternative here was not fbc's
+'' answer but IR that does not assemble.
+sub ByvalIndirectRetemp_ _
+    ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId )
+
+    if ByvalUdtIndirect_( c, pty ) = false then return
+    dim as MirValue tv
+    if ByrefAggTempOf_( c, rv, pty, tv ) then rv = tv
+end sub
+
+'' A BYVAL default argument, lowered and then given that home. EmitStructorCall's loop
+'' spells its byval arm this way; PushCtorArgs_ coerces in between and calls the sub.
+function ByvalDefaultArg_ _
+    ( byref c as Ctx, byval dv as Tko.NodeId, byval pty as Tko.TypeId ) as MirValue
+
+    dim as MirValue av = LowerExpr( c, dv )
+    ByvalIndirectRetemp_( c, av, pty )
+    return av
+end function
+
 function ByrefAggTempOf_ _
     ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId, _
       byref outv as MirValue ) as boolean

@@ -551,7 +551,7 @@ sub EmitStructorCall _
                 end if
             end if
         else
-            av = LowerExpr( c, dv )
+            av = ByvalDefaultArg_( c, dv, dpt )
         end if
         if av.kind = cast( ubyte, MV_NONE ) then exit for
         defv.Push( cast( ulong, av.kind ) )
