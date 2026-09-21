@@ -24,6 +24,9 @@ GFX=$( cd "$HERE/.." && pwd )
 
 TKOGFX="$GFX/lib/win64-msvc/libtkogfx.a"
 LIBFB="$GFX/../rt/lib/win64-msvc/libfb.a"
+# The import libraries tiko's own win64-msvc link resolves the CRT and Win32
+# through (build/mkmsvcimplibs.sh makes them). See the subject link below.
+: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
 
 for f in "$FBC" "$CLANG"; do
     [ -x "$f" ] || { echo "smoke: no $f" >&2 ; exit 3 ; }
@@ -31,6 +34,8 @@ done
 for f in "$TKOGFX" "$LIBFB"; do
     [ -f "$f" ] || { echo "smoke: no $f -- run build/build.sh" >&2 ; exit 3 ; }
 done
+[ -f "$MSVC_IMPLIBS/ucrtbase.lib" ] || {
+    echo "smoke: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/mkmsvcimplibs.sh" >&2 ; exit 3 ; }
 
 TMP=$( mktemp -d )
 [ "$1" = "--keep" ] || trap 'rm -rf "$TMP"' EXIT
@@ -54,13 +59,19 @@ fi
 
 # An unresolved fb_Gfx* here is the useful failure: it names an entry point the
 # library still does not export, from a program that legitimately uses it.
-if ! "$CLANG" --target=x86_64-pc-windows-msvc "$TMP/$name.o" "$TKOGFX" "$LIBFB" \
+#
+# THE LINK tiko ITSELF DOES for win64-msvc (src/codegen/toolchain.bas): lld,
+# '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's msvccrt.o in
+# its place, and kernel32 named because '-nostdlib' drops it. NOT
+# -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and the two collide.
+if ! "$CLANG" --target=x86_64-pc-windows-msvc -fuse-ld=lld "$TMP/$name.o" "$TKOGFX" "$LIBFB" \
          -o "$TMP/$name.exe" \
-         -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions \
+         -nostdlib "-L$( cygpath -m "$MSVC_IMPLIBS" )" -lucrtbase -lkernel32 \
+         -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
          -Xlinker /INCLUDE:tkort_msvc_init_ >> "$TMP/$name.log" 2>&1; then
     echo "smoke: DOES NOT LINK, still needs:" >&2
-    grep -o 'unresolved external symbol [A-Za-z0-9_@$]*' "$TMP/$name.log" \
-        | sed 's/unresolved external symbol /    /' | sort -u >&2
+    grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$TMP/$name.log" \
+        | sed 's/undefined symbol: /    /' | sort -u >&2
     exit 1
 fi
 

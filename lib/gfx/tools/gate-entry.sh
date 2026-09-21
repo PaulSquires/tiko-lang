@@ -38,6 +38,9 @@ GFX=$( cd "$HERE/.." && pwd )
 
 TKOGFX="$GFX/lib/win64-msvc/libtkogfx.a"
 LIBFB="$GFX/../rt/lib/win64-msvc/libfb.a"
+# The import libraries tiko's own win64-msvc link resolves the CRT and Win32
+# through (build/mkmsvcimplibs.sh makes them). See the subject link below.
+: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
 
 for f in "$FBC_REF" "$FBC" "$CLANG"; do
     [ -x "$f" ] || { echo "gate-entry: no $f" >&2 ; exit 3 ; }
@@ -45,6 +48,8 @@ done
 for f in "$TKOGFX" "$LIBFB"; do
     [ -f "$f" ] || { echo "gate-entry: no $f -- run build/build.sh" >&2 ; exit 3 ; }
 done
+[ -f "$MSVC_IMPLIBS/ucrtbase.lib" ] || {
+    echo "gate-entry: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/mkmsvcimplibs.sh" >&2 ; exit 3 ; }
 
 TMP=$( mktemp -d )
 [ "$1" = "--keep" ] || trap 'rm -rf "$TMP"' EXIT
@@ -84,13 +89,19 @@ if ! "$CLANG" --target=x86_64-pc-windows-msvc -march=x86-64 -O2 \
 fi
 # An unresolved fb_Gfx* names an entry point a legitimate program needs and the
 # library does not export.
-if ! "$CLANG" --target=x86_64-pc-windows-msvc "$TMP/sub.o" "$TKOGFX" "$LIBFB" \
+#
+# THE LINK tiko ITSELF DOES for win64-msvc (src/codegen/toolchain.bas): lld,
+# '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's msvccrt.o in
+# its place, and kernel32 named because '-nostdlib' drops it. NOT
+# -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and the two collide.
+if ! "$CLANG" --target=x86_64-pc-windows-msvc -fuse-ld=lld "$TMP/sub.o" "$TKOGFX" "$LIBFB" \
          -o "$TMP/sub.exe" \
-         -lwinspool -lgdi32 -luser32 -ladvapi32 -llegacy_stdio_definitions \
+         -nostdlib "-L$( cygpath -m "$MSVC_IMPLIBS" )" -lucrtbase -lkernel32 \
+         -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
          -Xlinker /INCLUDE:tkort_msvc_init_ >> "$TMP/sub.log" 2>&1; then
     echo "gate-entry: the SUBJECT does not link, still needs:" >&2
-    grep -o 'unresolved external symbol [A-Za-z0-9_@$]*' "$TMP/sub.log" \
-        | sed 's/unresolved external symbol /    /' | sort -u >&2
+    grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$TMP/sub.log" \
+        | sed 's/undefined symbol: /    /' | sort -u >&2
     exit 1
 fi
 if ! timeout "$GATE_TIMEOUT" "$TMP/sub.exe" > "$TMP/sub.out" 2>&1; then
