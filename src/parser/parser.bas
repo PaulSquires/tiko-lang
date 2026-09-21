@@ -58,6 +58,8 @@ declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
 declare function AcceptNext_( byref p as Tko.ParserState ) as boolean
 declare function IsLabelHere_( byref p as Tko.ParserState ) as boolean
+declare function ParenlessFnCall_( byref p as Tko.ParserState, byval callee as Tko.NodeId, _
+    byval loc as Tko.SourceLoc, byref args as Tko.NodeIdVec ) as Tko.NodeId
 declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
 declare function CheckEndOfStatement_( byref p as Tko.ParserState, byval n as Tko.NodeId = Tko.NODE_NONE ) as boolean
 declare function EndClosesOther_ _
@@ -956,6 +958,8 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
             if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
     end if
+    dim as Tko.NodeId fnCall = ParenlessFnCall_( p, sp.a, t.loc, args )  '' 'hex 5' -- parserend.bas
+    if fnCall <> Tko.NODE_NONE then sp.a = fnCall : args.Clear( )
     sp.first = p.ast->children.Count
     sp.count = args.Count
     for i as long = 0 to args.Count - 1

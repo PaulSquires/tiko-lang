@@ -25,6 +25,7 @@ function IsTypedIntrinsicName( byref nm as string ) as boolean
         return true
     case "allocate", "callocate", "reallocate", _
          "color", "width", "run", "bsave", "bload", "chain", "seek", _
+         "getkey", "out", "wait", "setdate", "settime", "screenlist", "pmap", "pointcoord", _
          "dylibload", "dylibsymbol", "dir", "screen", "name", "imagecreate", "point", _
          "rgb", "rgba", "bit", "bitset", "bitreset"
         return true

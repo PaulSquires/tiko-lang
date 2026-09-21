@@ -1,0 +1,12 @@
+'' BLOAD, SCREENLIST, PCOPY and WIDTH with arguments left out or elided. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/builtin-short-elided.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: , 0, 0)
+'' EXPECT-OUT: call.rtl i32 fb_GfxBload(
+'' EXPECT-OUT: , 0, %
+'' EXPECT-OUT: call.rtl i32 fb_GfxScreenList(0)
+'' EXPECT-OUT: call.rtl i32 fb_PageCopy(-1, %
+'' EXPECT-OUT: call.rtl i32 fb_Width(-1, %

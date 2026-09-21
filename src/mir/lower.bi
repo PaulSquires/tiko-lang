@@ -84,6 +84,8 @@ namespace Tko.Mir
         as FB.Array( of long ) ambOtherShape
         as FB.Array( of long ) ambOtherClass
         as FB.Array( of ulong ) ambUnboundNames
+        '' The callee nodes TKO0801 was reported for, so a call lowered twice says so once.
+        as FB.Array( of ulong ) badBuiltinCalls
         '' ... and by the SHAPE of the callee, because only a plain identifier has a
         '' name to collect and most of them are not one.
         as FB.Array( of long ) ambUnboundShape

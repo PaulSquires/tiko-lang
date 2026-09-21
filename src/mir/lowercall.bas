@@ -210,6 +210,7 @@ function LowerCallParts _
             c.lastCallOk = true
             return rv2
         end if
+        NoteBuiltinDecline( c, calleeNode )  '' 'wait 1' is an error, not a dropped line
         return CallFailed_( c, v, __LINE__ )
     end if
     if (cs = 0) andalso (exprCallee = false) then return CallFailed_( c, v, __LINE__ )

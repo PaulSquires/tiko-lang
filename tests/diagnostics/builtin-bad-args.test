@@ -1,0 +1,12 @@
+'' TKO0801: a builtin claimed by its spelling, with arguments no form of it takes. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/builtin-bad-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: builtin-bad-args.bas(14,1): error TKO0801
+'' EXPECT-OUT: 'wait' does not take these arguments
+'' EXPECT-OUT: builtin-bad-args.bas(15,1): error TKO0801
+'' EXPECT-OUT: 'stop' does not take these arguments
+'' EXPECT-OUT: builtin-bad-args.bas(16,1): error TKO0801
+'' EXPECT-OUT: 'hex' does not take these arguments
+'' EXPECT-OUT: builtin-bad-args.bas(19,1): error TKO0743
+'' EXPECT-MAX-DIAG: 4

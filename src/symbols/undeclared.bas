@@ -40,9 +40,8 @@
 '' each of these compiles under fbc with nothing declaring it.
 private function BuiltinProcName_( byref nm as string ) as boolean
     select case nm
-    case "assert", "assertwarn", "clear", "deallocate", "dylibfree", "erfn", "ermn", _
-         "getkey", "out", "pcopy", "pmap", "pointcoord", "screenlist", "setdate", _
-         "settime", "stop", "system", "wait", "reset"
+    case "assert", "assertwarn", "clear", "deallocate", "dylibfree", "pcopy", "stop", _
+         "system", "reset"
         return true
     end select
     return false

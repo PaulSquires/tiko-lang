@@ -117,6 +117,7 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
     dim as ulong savedNode = c.curStmtNode
     c.curStmtKind = cast( ushort, c.ast->Kind( id ) )
     c.curStmtNode = cast( ulong, id )
+    c.badBuiltinNode = 0  '' a decline is this statement's to report -- NoteBuiltinDecline
 
     '' STATEMENT-LIFETIME STRING TEMPORARIES. A string 'iif' builds its result in a
     '' temporary descriptor that must be released once the statement that consumes it
@@ -143,6 +144,7 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
 
     c.curStmtKind = savedKind
     c.curStmtNode = savedNode
+    c.badBuiltinNode = 0
 end sub
 
 private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )

@@ -1,0 +1,19 @@
+'' A paren-less call to an intrinsic function, as a statement, is the call. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/parenless-fn-statement.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_HEX_i(
+'' EXPECT-OUT: call.rtl ptr fb_OCT_l(
+'' EXPECT-OUT: call.rtl ptr fb_BIN_l(
+'' EXPECT-OUT: call.rtl ptr fb_LEFT(
+'' EXPECT-OUT: call.rtl ptr fb_RIGHT(
+'' EXPECT-OUT: call.rtl ptr fb_SPACE(
+'' EXPECT-OUT: call.rtl ptr fb_Dir(
+'' EXPECT-OUT: call.rtl i32 fb_hStrDelTemp(
+'' EXPECT-OUT: call.rtl ptr fb_WstrBin_l(
+'' EXPECT-OUT: call.rtl ptr fb_WstrHex_l(
+'' EXPECT-OUT: call.rtl ptr fb_WstrOct_l(
+'' EXPECT-OUT: call.rtl ptr fb_WstrSpace(
+'' EXPECT-OUT: call.rtl void fb_WstrDelete(

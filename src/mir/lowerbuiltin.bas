@@ -85,10 +85,90 @@ private function BuiltinProcRtl _
         '' program ran without it. Both arguments default to -1, measured from
         '' fbc's rtl-console entry, as WIDTH's do.
         case "pcopy"        : retTy = MT_I32  : return RTL_PCOPY
+        '' ...AND THESE, DROPPED THE SAME WAY: each is a runtime procedure fbc knows
+        '' without a declaration, none was named here, and the statement -- or the
+        '' expression -- vanished with no diagnostic. Measured from fbc's C:
+        ''
+        ''   stop / system       fb_End( 0 )          stop 2 / system 2   fb_End( 2 )
+        ''   reset               fb_FileReset( )      reset 1   fb_FileResetEx( 1 )
+        ''   getkey              fb_Getkey( )
+        ''   out 1, 2            fb_Out( (uint16)1, (uint8)2 )
+        ''   wait 1, 2           fb_Wait( (uint16)1, 2, 0 )
+        ''   setdate s           fb_SetDate( s )      settime s   fb_SetTime( s )
+        ''   pmap 1, 0           fb_GfxPMap( 1.0f, 0 )
+        ''   pointcoord 0        fb_GfxCursor( 0 )
+        ''   screenlist 8        fb_GfxScreenList( 8 )
+        case "stop", "system" : retTy = MT_VOID : return RTL_END
+        case "reset"
+            retTy = MT_VOID
+            if argc = 0 then return RTL_FILE_RESET
+            return RTL_FILE_RESET_EX
+        case "getkey"       : retTy = MT_I32  : return RTL_GETKEY
+        case "out"          : retTy = MT_I32  : return RTL_OUT
+        case "wait"         : retTy = MT_I32  : return RTL_WAIT
+        case "setdate"      : retTy = MT_I32  : return RTL_SETDATE
+        case "settime"      : retTy = MT_I32  : return RTL_SETTIME
+        case "pmap"         : retTy = MT_F32  : return RTL_PMAP
+        case "pointcoord"   : retTy = MT_F32  : return RTL_POINTCOORD
+        case "screenlist"   : retTy = MT_I32  : return RTL_SCREENLIST
         end select
     end if
     return RTL_NONE
 end function
+
+'' A BUILTIN THAT DECLINED IS AN ERROR, NOT A DROPPED STATEMENT. Called where an
+'' UNBOUND callee has run out of ways to lower. A name nothing declares is Check's
+'' TKO0743, but a builtin's spelling is let through (symbols/undeclared.bas) because
+'' lowering claims it -- so when lowering then declines, the call is simply gone:
+'' 'wait 1', 'stop 1, 2', 'pcopy 1, 2, 3', 'hex' and 'space' built and ran without
+'' the line. fbc's errors 1 and 99, measured, for every one of them.
+''
+'' NOTED HERE, REPORTED ONLY IF THE STATEMENT IS DROPPED. This path is also tried
+'' SPECULATIVELY: 'hex 5' and 'hex( 5 )' reach it before the intrinsic path lowers
+'' them, and reporting at once made every one of those an error. SkipAt is where a
+'' statement is actually given up on, and it calls ReportBuiltinDecline.
+sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
+    if c.diags = 0 then exit sub
+    if calleeNode = Tko.NODE_NONE then exit sub
+    if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then exit sub
+    if c.info->RefOf( calleeNode ) <> Tko.SYMBOL_NONE then exit sub
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
+    if cast( long, ip->name ) <= TKO_KEYWORD_COUNT then exit sub
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as long argc = 0
+    dim as MirType ty = MT_VOID
+    dim as boolean known = Tko.Check.IsTypedIntrinsicName( nm )
+    if BuiltinProcRtl( nm, argc, ty, true ) <> RTL_NONE then known = true
+    if known = false then exit sub
+    c.badBuiltinNode = cast( ulong, calleeNode )
+end sub
+
+sub ReportBuiltinDecline( byref c as Ctx )
+    dim as Tko.NodeId callee = cast( Tko.NodeId, c.badBuiltinNode )
+    c.badBuiltinNode = 0
+    if (callee = Tko.NODE_NONE) orelse (c.diags = 0) then exit sub
+    for each seen as ulong in c.st->badBuiltinCalls
+        if seen = cast( ulong, callee ) then exit sub
+    next
+    c.st->badBuiltinCalls.Push( cast( ulong, callee ) )
+    '' NOT ON A LINE THAT ALREADY HAS AN ERROR. The builtin's call is not always why the
+    '' statement was dropped: in 'tmp$ = space( 4 )' it was the undeclared tmp$, already
+    '' TKO0743, and blaming 'space' as well was a false second error on the line.
+    dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
+    if c.srcMgr <> 0 then
+        dim as Tko.DecodedLoc bl = c.srcMgr->Decode( c.ast->Loc( callee ) )
+        for i as long = 0 to de->pending.Count - 1
+            if (de->pending[i].sev <> Tko.SEV_ERROR) orelse (de->pending[i].hasLocation = false) then continue for
+            dim as Tko.DecodedLoc dl = c.srcMgr->Decode( de->pending[i].range.first )
+            if (dl.file = bl.file) andalso (dl.physLine = bl.physLine) then exit sub
+        next
+    end if
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, callee )].data )]
+    de->Report( Tko.TKO0801, _
+        Tko.PointRange( c.ast->Loc( callee ) ), c.names->Spelling( ip->name ) )
+end sub
 
 '' Lower a call to one of them. Returns false when the callee is not a built-in, so an
 '' ordinary unbound callee still declines as it did.
@@ -134,6 +214,16 @@ function LowerBuiltinProc _
     if (r = RTL_WIDTH) andalso (argCount < want) then widthShort = want - argCount
     '' PCOPY's defaults are WIDTH's, -1 each: 'pcopy' is fb_PageCopy( -1, -1 ).
     if (r = RTL_PCOPY) andalso (argCount < want) then widthShort = want - argCount
+    '' STOP, SYSTEM and WAIT default the missing argument to 0 instead: 'stop' is
+    '' fb_End( 0 ) and 'wait p, m' is fb_Wait( p, m, 0 ).
+    '' One argument each, and no more: 'wait 1' is fbc's error 1, not fb_Wait( 1, 0, 0 ).
+    dim as long zeroShort = 0
+    if (r = RTL_END) andalso (argCount = 0) then zeroShort = 1
+    if (r = RTL_WAIT) andalso (argCount = want - 1) then zeroShort = 1
+    '' 'screenlist( )' is fb_GfxScreenList( 0 ), and 'bload f' is fb_GfxBload( &F,
+    '' NULL, NULL ). Measured; both were refused, and the statement dropped.
+    if (r = RTL_SCREENLIST) andalso (argCount = 0) then zeroShort = 1
+    if (r = RTL_BLOAD) andalso (argCount = 1) then zeroShort = 2
     '' 'run( cmd )' DEFAULTS ITS SECOND ARGUMENT TO THE EMPTY STRING, which fbc
     '' spells 'fb_StrAllocTempDescZEx( "", 0 )' -- a temporary descriptor over a
     '' zero-length literal, not a null pointer.
@@ -142,6 +232,9 @@ function LowerBuiltinProc _
     '' spellings emit the same call:
     '' 'fb_GfxBsave( &F, B, 0u, (void*)0ull )'.
     dim as boolean bsaveShort = (r = RTL_BSAVE) andalso (argCount = want - 2)
+    '' ...and 'bsave( file, buf, size )' only its palette: 'fb_GfxBsave( &F, B, 4u,
+    '' (void*)0ull )'. The three-argument form was refused and the statement dropped.
+    dim as boolean bsave3 = (r = RTL_BSAVE) andalso (argCount = want - 1)
     '' 'bload( file, buf )' DEFAULTS ITS LAST ONE the same way:
     '' 'fb_GfxBload( &F, (void*)0ull, (void*)0ull )' -- measured, and the arity
     '' guard refused the short form outright.
@@ -149,6 +242,8 @@ function LowerBuiltinProc _
     dim as boolean widthOk = (widthShort > 0)
     dim as boolean shortOk = widthOk orelse runShort
     shortOk = shortOk orelse bsaveShort
+    shortOk = shortOk orelse bsave3
+    shortOk = shortOk orelse (zeroShort > 0)
     shortOk = shortOk orelse bloadShort
     dim as boolean arityBad = (argCount <> want)
     dim as boolean notCalloc = (callocOneArg = false)
@@ -160,6 +255,28 @@ function LowerBuiltinProc _
     dim as FB.Array( of ulong ) args
     for i as long = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+
+        '' AN ELIDED ARGUMENT IS THE DEFAULT fbc passes in its place. Measured:
+        ''
+        ''   bload f, , @pal(0)      fb_GfxBload( &F, (void*)0ull, (void*)PAL$0 )
+        ''   bsave f, 0, , @pal(0)   fb_GfxBsave( &F, (void*)0ull, 0u, (void*)PAL$0 )
+        ''   pcopy , 1               fb_PageCopy( -1, 1 )
+        ''   width( , 25 )           fb_Width( -1, 25 )
+        ''
+        '' Any other builtin, or BLOAD's and BSAVE's file name, declines -- TKO0801.
+        if c.ast->Kind( a ) = Tko.N_ELIDED then
+            dim as long dflt = 0
+            select case r
+            case RTL_BLOAD, RTL_BSAVE
+                if i = 0 then return false
+            case RTL_WIDTH, RTL_PCOPY
+                dflt = -1
+            case else
+                return false
+            end select
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dflt ) )
+            continue for
+        end if
 
         '' 'clear BYVAL p, 0, n' SAYS THE ARGUMENT ALREADY IS THE ADDRESS.
         ''
@@ -291,6 +408,9 @@ function LowerBuiltinProc _
             if r = RTL_DYLIB_LOAD then wantsStrDesc = true
             if r = RTL_CHAIN then wantsStrDesc = true
             if r = RTL_RUN then wantsStrDesc = true
+            '' 'setdate s' / 'settime s' -- measured, 'fb_SetDate( (FBSTRING*)vr$0 )'.
+            if r = RTL_SETDATE then wantsStrDesc = true
+            if r = RTL_SETTIME then wantsStrDesc = true
         end if
         if i = 1 then
             if r = RTL_DYLIB_SYMBOL then wantsStrDesc = true
@@ -357,6 +477,12 @@ function LowerBuiltinProc _
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
+    if bsave3 then
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
+    for k as long = 1 to zeroShort
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    next
     if bloadShort then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if

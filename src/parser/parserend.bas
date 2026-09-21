@@ -220,8 +220,30 @@ end function
 '' an LF file every parenthesis-less zero-argument call, 'Bar' on a line of its own,
 '' was parsed as a LABEL named bar. It only looked correct on CRLF input, where the
 '' newline is two bytes.
+'' THE INTRINSIC FUNCTIONS tiko lowers only through a CALL NODE -- 'hex( 5 )' -- and
+'' so not as a paren-less statement: 'hex 5', 'left "ab", 1' and 'space 3' parse as a
+'' call to a name nothing binds, and the statement was dropped with no diagnostic. fbc
+'' calls the function and frees the result it discards, exactly what the paren form
+'' already does here, so a paren-less call to one of these is given that form. A
+'' procedure the program declared itself under one of these names is left alone.
+const PARENLESS_FN_CALLS_ = "|bin|hex|oct|wbin|whex|woct|left|right|space|wspace|dir|"
+
+function ParenlessFnCall_ _
+    ( byref p as Tko.ParserState, byval callee as Tko.NodeId, byval loc as Tko.SourceLoc, _
+      byref args as Tko.NodeIdVec ) as Tko.NodeId
+    if args.Count = 0 then return Tko.NODE_NONE
+    if p.ast->Kind( callee ) <> Tko.N_IDENT then return Tko.NODE_NONE
+    dim as ulong nm = cast( ulong, p.ast->idents[cast( long, p.ast->nodes[cast( long, callee )].data )].name )
+    for each known as ulong in p.procNames
+        if known = nm then return Tko.NODE_NONE
+    next
+    dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
+    if instr( PARENLESS_FN_CALLS_, spelled ) = 0 then return Tko.NODE_NONE
+    return MakeList( p, Tko.N_CALL, loc, callee, args )
+end function
+
 const UNDECLARED_RTL_PROCS_ = "|allocate|bin|bload|bsave|callocate|chain|clear|deallocate" & _
-    "|dir|dylibfree|dylibload|dylibsymbol|erfn|ermn|getkey|hex|left|oct|out|pcopy|pmap" & _
+    "|dir|dylibfree|dylibload|dylibsymbol|getkey|hex|left|oct|out|pcopy|pmap" & _
     "|pointcoord|reallocate|reset|right|run|screenlist|setdate|settime|space|stop|system" & _
     "|wait|wbin|whex|woct|wspace|"
 

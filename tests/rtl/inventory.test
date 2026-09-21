@@ -23,4 +23,4 @@
 '' it has: tiko links ucrtbase, which exports '__intrinsic_setjmp' and not '_setjmp'.
 '' EXPECT-OUT: fb_ErrorJmpBuf ptr ()
 '' EXPECT-OUT: fb_ErrorGetHandler ptr ()
-'' EXPECT-OUT: rtl: 524 entries
+'' EXPECT-OUT: rtl: 525 entries

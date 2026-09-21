@@ -524,6 +524,11 @@
     DIAG( TKO0798, SEV_ERROR,   "'is %0' needs a type derived from '%1', and '%0' is not one" )
     DIAG( TKO0799, SEV_ERROR,   "'is' needs run-time type information, and '%0' has none: it does not extend 'object'" )
     DIAG( TKO0800, SEV_ERROR,   "'is' needs an object and a type that extends 'object', not '%0'" )
+    '' fbc's errors 1 and 99 over a RUNTIME BUILTIN claimed by its spelling -- 'wait 1',
+    '' 'stop 1, 2', 'hex' -- when no form of it takes the arguments written. Check lets
+    '' these names through unbound (symbols/undeclared.bas), so lowering is the first to
+    '' know the call is wrong, and it dropped the statement with no diagnostic.
+    DIAG( TKO0801, SEV_ERROR,   "'%0' does not take these arguments" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

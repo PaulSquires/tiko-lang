@@ -221,6 +221,9 @@ type Ctx
     '' The statement being lowered, so a decline can name the SOURCE LINE it came
     '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
     as ulong                curStmtNode
+    '' A BUILTIN'S CALLEE whose call declined in this statement -- reported as TKO0801
+    '' only if the statement is then dropped (SkipAt). See NoteBuiltinDecline.
+    as ulong                badBuiltinNode
     '' The line Emit stamps on each instruction, decoded once per statement: the
     '' statement and function it was decoded for, and the answer.
     as ulong                dbgNode
@@ -905,6 +908,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
           byval argCount as long, byref outv as MirValue, _
           byval unboundOnly as boolean = false ) as boolean
+    declare sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
+    declare sub ReportBuiltinDecline( byref c as Ctx )
     declare function LowerProcPtr _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerArrayInit _

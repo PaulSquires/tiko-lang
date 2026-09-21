@@ -1,0 +1,24 @@
+'' STOP, SYSTEM, RESET, GETKEY, OUT, WAIT, SETDATE, SETTIME, BSAVE, PMAP, POINTCOORD and
+'' SCREENLIST reach their runtime entry points, as statements and as values. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/rtl-builtin-statements.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl void fb_End(0)
+'' EXPECT-OUT: call.rtl void fb_FileReset()
+'' EXPECT-OUT: call.rtl void fb_FileResetEx(
+'' EXPECT-OUT: call.rtl i32 fb_Getkey()
+'' EXPECT-OUT: call.rtl i32 fb_Out(
+'' EXPECT-OUT: call.rtl i32 fb_Wait(
+'' EXPECT-OUT: call.rtl i32 fb_SetDate(
+'' EXPECT-OUT: call.rtl i32 fb_SetTime(@s)
+'' EXPECT-OUT: call.rtl i32 fb_GfxBsave(
+'' EXPECT-OUT: call.rtl f32 fb_GfxPMap(
+'' EXPECT-OUT: call.rtl f32 fb_GfxCursor(
+'' EXPECT-OUT: call.rtl i32 fb_GfxScreenList(
+'' EXPECT-OUT: fb_PrintSingle(
+'' EXPECT-OUT: fb_ErrorGetFuncName()
+'' EXPECT-OUT: fb_ErrorGetModName()
+'' EXPECT-OUT: declare void fb_FileResetEx(i32 $0)
+'' EXPECT-OUT: declare i32 fb_Wait(i16 $0, i32 $1, i32 $2)

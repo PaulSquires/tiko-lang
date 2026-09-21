@@ -96,6 +96,7 @@ sub SkipAt _
     ( byref c as Ctx, byref fileName as string, byval lineNo as long )
 
     c.st->skipped += 1
+    ReportBuiltinDecline( c )  '' a builtin call declined in the dropped statement
     '' TKO_TRACE_SKIP names the PROCEDURE each decline is in. A count says how much is
     '' owed and nothing about what to write; twice now the answer to "what is missing"
     '' has been a short list of names rather than a feature.

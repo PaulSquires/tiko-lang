@@ -1199,8 +1199,8 @@ private function IntrinsicTableType_ _
     '' Measured, one '#print typeof' each, and COLOR IS UNSIGNED where the rest
     '' are not:
     ''
-    ''   color  ULONG      width run bsave bload chain  LONG
-    ''   seek   LONGINT    dylibload dylibsymbol        ANY PTR
+    ''   color ULONG   seek LONGINT   pmap pointcoord SINGLE   dylibload dylibsymbol ANY PTR
+    ''   width run bsave bload chain getkey out wait setdate settime screenlist   LONG
     ''
     '' ONLY WHEN THE NAME IS UNBOUND: a program of its own that declares 'run'
     '' or 'seek' must keep its own result type, and the symbol says which this
@@ -1208,12 +1208,12 @@ private function IntrinsicTableType_ _
     '' half in lowerintr.bas; a name added to one belongs in both.
     if c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE then
         select case nm
-        case "color"
-            return c.types->Builtin( Tko.TY_ULONG )
-        case "width", "run", "bsave", "bload", "chain"
+        case "color" : return c.types->Builtin( Tko.TY_ULONG )
+        case "width", "run", "bsave", "bload", "chain", "getkey", "out", "wait", "setdate", _
+             "settime", "screenlist"
             return c.types->Builtin( Tko.TY_LONG )
-        case "seek"
-            return c.types->Builtin( Tko.TY_LONGINT )
+        case "seek" : return c.types->Builtin( Tko.TY_LONGINT )
+        case "pmap", "pointcoord" : return c.types->Builtin( Tko.TY_SINGLE )
         case "dylibload", "dylibsymbol"
             return c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
         end select

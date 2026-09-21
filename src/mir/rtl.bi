@@ -693,6 +693,8 @@ namespace Tko.Mir
         RTL( RTL_FILE_LOF,          "fb_FileSize",         "q",   "l"     )
         RTL( RTL_FILE_TELL,         "fb_FileTell",         "q",   "l"     )
         RTL( RTL_FILE_RESET,        "fb_FileReset",        "v",   ""      )
+        '' 'reset n' -- stdin (0) or stdout (1) back from a redirection. Measured.
+        RTL( RTL_FILE_RESET_EX,     "fb_FileResetEx",      "v",   "l"     )
         RTL( RTL_DATE,              "fb_Date",             "p",   ""      )
         RTL( RTL_TIME,              "fb_Time",             "p",   ""      )
         RTL( RTL_TIMER,             "fb_Timer",            "d",   ""      )
