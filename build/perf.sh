@@ -166,7 +166,8 @@ CHUNK_RSS=$( peak_rss --check -fmax-errors 100000 $FBCUNIT $(cat "$LAST") )
 SELF_RSS=$( peak_rss --check -i src $SELF )
 
 # ---------------------------------------------------------------- 6. vs fbc -gen gcc
-# THE ROW SAYS 'tiko build', WHICH CANNOT BE RUN: tiko does not compile itself yet. The
+# THE ROW SAYS 'tiko build'. tiko compiles itself (build/bootstrap.sh), but that build is
+# not yet timed against fbc's build of the same sources. The
 # substitute is corpus programs BOTH compilers accept, built both ways -- once to an
 # object and once all the way to an executable, because the two halves answer
 # differently and one average would hide it.
