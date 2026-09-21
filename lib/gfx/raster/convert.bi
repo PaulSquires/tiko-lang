@@ -132,6 +132,29 @@ private sub Convert24bgrto32( _
     wend
 end sub
 
+'' 24 -> 32 and 24 -> 16 with the source in RGB byte order -- IMAGECONVERTROW's
+'' isrgb = 1 path, which the blitter table never needed. The FIRST byte is red.
+private sub Convert24to32( _
+        byval src as ubyte ptr, byval dst as ulong ptr, byval w as long )
+    dim as integer i = 0
+    while i < w
+        dst[i] = &hFF000000 or (cast( ulong, src[i*3] ) shl 16) or _
+                 (cast( ulong, src[i*3+1] ) shl 8) or cast( ulong, src[i*3+2] )
+        i += 1
+    wend
+end sub
+
+private sub Convert24to16( _
+        byval src as ubyte ptr, byval dst as ushort ptr, byval w as long )
+    dim as integer i = 0
+    while i < w
+        dst[i] = cast( ushort, ((cast( ushort, src[i*3] ) shl 8) and &hF800) or _
+                 ((cast( ushort, src[i*3+1] ) shl 3) and &h07E0) or _
+                 (cast( ushort, src[i*3+2] ) shr 3) )
+        i += 1
+    wend
+end sub
+
 private sub Convert24bgrto16( _
         byval src as ubyte ptr, byval dst as ushort ptr, byval w as long )
     dim as integer i = 0

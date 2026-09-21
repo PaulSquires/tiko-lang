@@ -1,0 +1,69 @@
+'' entry/access.bi -- SCREENLOCK, SCREENUNLOCK, SCREENSYNC.
+''
+'' Derived from: gfx_access.c (fb_GfxLock, fb_GfxUnlock), gfx_vsync.c
+'' (fb_GfxWaitVSync), win32/gfx_win32.c (fb_hWin32WaitVSync).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' SCREENPTR is the third of gfx_access.c's routines and lives in entry/screen.bi
+'' beside the screen it points into.
+''
+'' THE LOCK IS THE WINDOW'S FRAME LOCK. The presenter thread holds it for every
+'' present and every message dispatch (driver/window.bi, note 4), so while a
+'' program holds SCREENLOCK the window neither repaints nor delivers input --
+'' which is gfxlib2's behaviour and the reason SCREENLOCK exists: nothing is
+'' shown half-drawn. A loop that waits for a key INSIDE a lock therefore waits
+'' forever, in both libraries.
+''
+'' NESTED LOCKS COUNT; only the first takes the lock and only the last releases
+'' it, exactly as gfxlib2 calls driver->lock() and unlock() at lock_count 0.
+''
+'' SCREENUNLOCK MARKS THE ROWS IT WAS GIVEN, and only when the work page is the
+'' one on show: that is how rows written through SCREENPTR -- which no drawing
+'' primitive marked -- reach the window. A negative start means 0, a negative
+'' end means the last row, and an end past the last row marks NOTHING (the C's
+'' `end_line < h` test), rather than being clamped.
+
+#pragma once
+
+extern "c"
+
+sub TkoGfxLock alias "fb_GfxLock" ( )
+    if TkoGfx.TheScreen.isOpen = 0 then exit sub
+    if TkoGfx.TheScreen.lock_count = 0 then TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
+    TkoGfx.TheScreen.lock_count += 1
+end sub
+
+sub TkoGfxUnlock alias "fb_GfxUnlock" ( byval start_line as long, byval end_line as long )
+    if TkoGfx.TheScreen.isOpen = 0 then exit sub
+
+    dim as long h = TkoGfx.TheScreen.present.h
+    if start_line < 0 then start_line = 0
+    if end_line < 0 then end_line = h - 1
+    if (TkoGfx.TheScreen.visible_page = TkoGfx.TheScreen.work_page) andalso _
+       (start_line <= end_line) andalso (end_line < h) then
+        TkoGfx.DirtyMark( TkoGfx.TheScreen.present, start_line, end_line - start_line + 1 )
+    end if
+
+    if TkoGfx.TheScreen.lock_count <> 0 then
+        TkoGfx.TheScreen.lock_count -= 1
+        if TkoGfx.TheScreen.lock_count = 0 then TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
+    end if
+end sub
+
+'' SCREENSYNC. GDI has no vertical blank to wait for, and neither has gfxlib2's
+'' windowed Direct2D or GDI driver: fb_hWin32WaitVSync sleeps one frame of the
+'' refresh rate -- 1000 / rate milliseconds, 60 Hz when the rate is unknown --
+'' and that is all this does too.
+function TkoGfxWaitVSync alias "fb_GfxWaitVSync" ( ) as long
+    if TkoGfx.TheScreen.isOpen = 0 then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+    dim as long rate = TkoGfx.TheScreen.refresh
+    if rate <= 0 then rate = 60
+    WinSleep( 1000 \ rate )
+    RtlErrorSetNum( 0 )
+    return 0
+end function
+
+end extern

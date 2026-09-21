@@ -147,7 +147,11 @@ private function MouseHandleMessage( _
 
     case WM_MOUSEWHEEL
         '' note 3: a running total, one step per notch, sign from the high word
-        if cast( integer, wp ) > 0 then
+        ''
+        '' THE LOW 32 BITS, AS A SIGNED LONG -- the C's `(signed)wParam`. WPARAM is
+        '' 64-bit and zero-extended, so read at full width a notch DOWN (delta
+        '' -120, &hFF880000) is a large positive number and counted up.
+        if cast( long, wp ) > 0 then
             m.wheel += 1
         else
             m.wheel -= 1

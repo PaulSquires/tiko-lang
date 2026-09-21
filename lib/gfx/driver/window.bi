@@ -48,6 +48,10 @@
 #include once "driver.bi"
 #include once "gdi.bi"
 #include once "mouse.bi"
+'' The runtime's key translation, which SCREENEVENT's key events are built with.
+'' Included here rather than left to src/all.bas, because tools/probe-window.bas
+'' includes this file on its own.
+#include once "../abi/rtlseam.bi"
 
 '' SLEEP IS A KEYWORD, AND THAT IS A TRAP THIS LIBRARY WALKED INTO.
 ''
@@ -109,6 +113,17 @@ type GfxWindow
     keys        as KeyRing
     ktab        as KeyTable
     title       as zstring * 256
+
+    '' SCREENEVENT. The ring and the state gfxlib2's window procedure keeps to
+    '' fill it -- is_active, has_focus, last_mouse_pos, mouse_buttons -- filled
+    '' on the WINDOW thread and drained on the caller's, both under WindowLock.
+    events      as EventQueue
+    ev_active   as long
+    ev_focus    as long
+    ev_lastx    as long           '' &hFFFF until the first move
+    ev_lasty    as long
+    ev_buttons  as long
+    scanline    as long           '' the mode's scanline_size; event y is divided by it
 end type
 
 private sub WindowLock( byref wnd as GfxWindow )
@@ -124,6 +139,210 @@ end sub
 '' The OUTER size CreateWindowEx is about to ask for, so WM_GETMINMAXINFO can
 '' answer before the window has a GfxWindow attached. See that case.
 dim shared as long PendingMinW, PendingMinH
+
+'' ------------------------------------------------------------ SCREENEVENT
+''
+'' Derived from: win32/gfx_win32.c (fb_hWin32WinProc's event half).
+''
+'' What gfxlib2's window procedure posts, message by message, and nothing it
+'' does not. Three of its rules look like mistakes and are kept as they are:
+''
+'' 1. A MOUSE MOVE WITH NO MOVEMENT, OR IN AN INACTIVE WINDOW, POSTS NOTHING, and
+''    the first move into the window posts MOUSE_ENTER INSTEAD of the move. The
+''    delta is in SCREEN pixels, from GetCursorPos, while x and y are client
+''    coordinates out of lParam.
+'' 2. WM_SYSKEYDOWN POSTS KEY_RELEASE. The C falls through from its
+''    WM_SYSKEYDOWN case into the key code and then tests `message ==
+''    WM_KEYDOWN`, so an Alt chord's press arrives as a release. WM_SYSKEYUP
+''    posts nothing at all.
+'' 3. BUTTON AND WHEEL EVENTS CARRY NO POSITION. Only the button, or the running
+''    wheel total, is filled; the C leaves the rest of the EVENT uninitialised,
+''    and here it is zero.
+''
+'' The scancode and the ascii come from the RUNTIME's key translation -- the
+'' same two functions gfxlib2 calls -- so an event's ascii is what INKEY would
+'' have delivered for that key, and 0 for anything that translates to an
+'' extended code.
+const EV_KEY_PRESS            = 1
+const EV_KEY_RELEASE          = 2
+const EV_KEY_REPEAT           = 3
+const EV_MOUSE_MOVE           = 4
+const EV_MOUSE_BUTTON_PRESS   = 5
+const EV_MOUSE_BUTTON_RELEASE = 6
+const EV_MOUSE_DOUBLE_CLICK   = 7
+const EV_MOUSE_WHEEL          = 8
+const EV_MOUSE_ENTER          = 9
+const EV_MOUSE_EXIT           = 10
+const EV_WINDOW_GOT_FOCUS     = 11
+const EV_WINDOW_LOST_FOCUS    = 12
+const EV_WINDOW_CLOSE         = 13
+const EV_MOUSE_HWHEEL         = 14
+
+'' winuser.bi declares WM_MOUSEHWHEEL only for _WIN32_WINNT above &h0502, and
+'' this library is built at the stock &h0502. The message number is Vista's.
+const EV_WM_MOUSEHWHEEL = &h020E
+
+private sub WinPostEvent( byref w as GfxWindow, byref e as TkoAbi.EVENT )
+    WindowLock( w )
+    EventPost( w.events, e )
+    WindowUnlock( w )
+end sub
+
+'' The press and release of one of the three plain buttons.
+private sub EvButton( byref w as GfxWindow, byref e as TkoAbi.EVENT, _
+        byval hwnd as HWND, byval bit_ as long, byval down as long, byval dbl as long )
+    if down then
+        SetCapture( hwnd )
+        w.ev_buttons or= bit_
+        e.etype = iif( dbl, EV_MOUSE_DOUBLE_CLICK, EV_MOUSE_BUTTON_PRESS )
+    else
+        w.ev_buttons and= not bit_
+        if (w.ev_buttons = 0) andalso (GetCapture( ) = hwnd) then ReleaseCapture( )
+        e.etype = EV_MOUSE_BUTTON_RELEASE
+    end if
+    e.button = bit_
+end sub
+
+private sub WindowEvents( byref w as GfxWindow, byval hwnd as HWND, _
+        byval msg as UINT, byval wp as WPARAM, byval lp as LPARAM )
+
+    dim as TkoAbi.EVENT e
+    dim as long enter_ = 0
+    dim as long lo = cast( long, wp ) and &hFFFF
+
+    select case msg
+    case WM_ACTIVATE
+        dim as long minimized = iif( ((cast( long, wp ) shr 16) and &hFFFF) <> 0, 1, 0 )
+        w.ev_active = iif( (minimized = 0) andalso (lo <> WA_INACTIVE), 1, 0 )
+        w.ev_buttons = 0
+        if (w.ev_active = 0) andalso (w.ev_focus <> 0) then
+            e.etype = EV_MOUSE_EXIT
+            WinPostEvent( w, e )
+            w.ev_focus = 0
+        end if
+        if ((lo <> 0) andalso (minimized <> 0)) = false then
+            e.etype = iif( w.ev_active, EV_WINDOW_GOT_FOCUS, EV_WINDOW_LOST_FOCUS )
+            WinPostEvent( w, e )
+        end if
+        e.etype = 0
+        '' The C re-enters as WM_MOUSEENTER when the pointer is already inside.
+        if (w.ev_active <> 0) andalso (w.mouse.on_ <> 0) then enter_ = 1
+
+    case WM_MOUSEMOVE
+        dim as POINT mp
+        GetCursorPos( @mp )
+        e.etype = EV_MOUSE_MOVE
+        e.x = cast( long, lp ) and &hFFFF
+        e.y = (cast( long, lp ) shr 16) and &hFFFF
+        if w.ev_lastx = &hFFFF then
+            e.dx = 0
+            e.dy = 0
+        else
+            e.dx = mp.x - w.ev_lastx
+            e.dy = mp.y - w.ev_lasty
+        end if
+        if w.scanline <> 1 then
+            e.y = e.y \ w.scanline
+            e.dy = e.dy \ w.scanline
+        end if
+        w.ev_lastx = mp.x
+        w.ev_lasty = mp.y
+        if ((e.dx = 0) andalso (e.dy = 0)) orelse (w.ev_active = 0) then e.etype = 0
+        enter_ = 1
+
+    case WM_MOUSELEAVE
+        if w.ev_active then
+            e.etype = EV_MOUSE_EXIT
+            WinPostEvent( w, e )
+            w.ev_focus = 0
+            e.etype = 0
+        end if
+
+    case WM_LBUTTONDOWN, WM_LBUTTONDBLCLK
+        EvButton( w, e, hwnd, MOUSE_BUTTON_LEFT, 1, iif( msg = WM_LBUTTONDBLCLK, 1, 0 ) )
+    case WM_LBUTTONUP
+        EvButton( w, e, hwnd, MOUSE_BUTTON_LEFT, 0, 0 )
+    case WM_RBUTTONDOWN, WM_RBUTTONDBLCLK
+        EvButton( w, e, hwnd, MOUSE_BUTTON_RIGHT, 1, iif( msg = WM_RBUTTONDBLCLK, 1, 0 ) )
+    case WM_RBUTTONUP
+        EvButton( w, e, hwnd, MOUSE_BUTTON_RIGHT, 0, 0 )
+    case WM_MBUTTONDOWN, WM_MBUTTONDBLCLK
+        EvButton( w, e, hwnd, MOUSE_BUTTON_MIDDLE, 1, iif( msg = WM_MBUTTONDBLCLK, 1, 0 ) )
+    case WM_MBUTTONUP
+        EvButton( w, e, hwnd, MOUSE_BUTTON_MIDDLE, 0, 0 )
+
+    case WM_XBUTTONDOWN, WM_XBUTTONDBLCLK
+        SetCapture( hwnd )
+        dim as long last = w.ev_buttons
+        if lo and MK_XBUTTON1 then w.ev_buttons or= MOUSE_BUTTON_X1
+        if lo and MK_XBUTTON2 then w.ev_buttons or= MOUSE_BUTTON_X2
+        e.etype = iif( msg = WM_XBUTTONDOWN, EV_MOUSE_BUTTON_PRESS, EV_MOUSE_DOUBLE_CLICK )
+        e.button = ((not last) and w.ev_buttons) and (MOUSE_BUTTON_X1 or MOUSE_BUTTON_X2)
+    case WM_XBUTTONUP
+        dim as long last = w.ev_buttons
+        if (lo and MK_XBUTTON1) = 0 then w.ev_buttons and= not MOUSE_BUTTON_X1
+        if (lo and MK_XBUTTON2) = 0 then w.ev_buttons and= not MOUSE_BUTTON_X2
+        if (w.ev_buttons = 0) andalso (GetCapture( ) = hwnd) then ReleaseCapture( )
+        e.etype = EV_MOUSE_BUTTON_RELEASE
+        e.button = (last and (not w.ev_buttons)) and (MOUSE_BUTTON_X1 or MOUSE_BUTTON_X2)
+
+    case WM_MOUSEWHEEL
+        '' the total, which MouseHandleMessage has just moved
+        e.etype = EV_MOUSE_WHEEL
+        e.z = w.mouse.wheel
+    case EV_WM_MOUSEHWHEEL
+        if cast( long, wp ) > 0 then w.mouse.hwheel += 1 else w.mouse.hwheel -= 1
+        e.etype = EV_MOUSE_HWHEEL
+        e.w = w.mouse.hwheel
+
+    case WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN
+        dim as ushort vk = cast( ushort, lo )
+        dim as ushort vs = cast( ushort, (cast( long, lp ) shr 16) and &hFF )
+        dim as ubyte ks(0 to 255)
+        GetKeyboardState( @ks(0) )
+        dim as ulong st = 0
+        if ((ks(VK_SHIFT) or ks(VK_LSHIFT) or ks(VK_RSHIFT)) and &h80) <> 0 then st xor= SHIFT_PRESSED
+        if ((ks(VK_LCONTROL) or ks(VK_CONTROL)) and &h80) <> 0 then st xor= LEFT_CTRL_PRESSED
+        if (ks(VK_RCONTROL) and &h80) <> 0 then st xor= RIGHT_CTRL_PRESSED
+        if ((ks(VK_LMENU) or ks(VK_MENU)) and &h80) <> 0 then st xor= LEFT_ALT_PRESSED
+        if (ks(VK_RMENU) and &h80) <> 0 then st xor= RIGHT_ALT_PRESSED
+        if (cast( long, lp ) and &h1000000) <> 0 then st or= ENHANCED_KEY
+
+        '' A DEAD KEY IS NEVER PASSED TO ToAscii, which would consume the accent
+        '' the next WM_CHAR is waiting to combine with.
+        dim as byte ch = 0
+        if (MapVirtualKey( vk, 2 ) and &h80000000) = 0 then
+            dim as WORD wkey
+            if ToAscii_( vk, vs, @ks(0), @wkey, 0 ) = 1 then ch = cast( byte, wkey and &hFF )
+        end if
+        dim as long key = RtlConsoleTranslateKey( ch, vs, vk, st, 0 )
+
+        if msg = WM_KEYDOWN then
+            e.etype = iif( (cast( long, lp ) and &h40000000) <> 0, EV_KEY_REPEAT, EV_KEY_PRESS )
+        else
+            e.etype = EV_KEY_RELEASE             '' rule 2
+        end if
+        e.scancode = RtlVirtualToScancode( vk )
+        e.ascii = iif( (key < 0) orelse (key > 255), 0, key )
+
+    case WM_CLOSE
+        e.etype = EV_WINDOW_CLOSE
+    end select
+
+    '' Entering: the first move into an active window, or activation with the
+    '' pointer already inside, becomes MOUSE_ENTER and arms the leave notice.
+    if (enter_ <> 0) andalso (w.ev_focus = 0) andalso (w.ev_active <> 0) then
+        dim as TRACKMOUSEEVENT tme
+        tme.cbSize    = sizeof( TRACKMOUSEEVENT )
+        tme.dwFlags   = TME_LEAVE
+        tme.hwndTrack = hwnd
+        TrackMouseEvent( @tme )
+        w.ev_focus = 1
+        e.etype = EV_MOUSE_ENTER
+    end if
+
+    if e.etype <> 0 then WinPostEvent( w, e )
+end sub
 
 private function WindowProc cdecl ( _
         byval hwnd as HWND, byval msg as UINT, _
@@ -166,6 +385,10 @@ private function WindowProc cdecl ( _
         '' reference recomputes "is the cursor inside" at the top of its window
         '' procedure regardless of what arrived. See driver/mouse.bi note 2.
         MouseHandleMessage( w->mouse, hwnd, msg, wp, lp )
+
+        '' AFTER the pointer state, because the wheel event reports the running
+        '' total MouseHandleMessage has just advanced.
+        WindowEvents( *w, hwnd, msg, wp, lp )
 
         '' WHOSE CURSOR IT IS. SetCursor sets state for the thread that owns the
         '' window, which is THIS one -- SETMOUSE runs on the caller's thread and
@@ -343,6 +566,9 @@ private function WindowThread cdecl ( byval param as any ptr ) as DWORD
     end if
 
     w->active = 1
+    '' ACTIVE ONCE CREATED, whatever WM_ACTIVATE said during CreateWindowEx: every
+    '' gfxlib2 driver sets is_active TRUE at this same point.
+    w->ev_active = 1
     SetEvent( w->ready )
 
     while w->running <> 0
@@ -405,6 +631,10 @@ private function WindowOpen( _
     w.title = left( caption, 255 )
     MouseInit( w.mouse )
     KeyRingInit( w.keys )
+    EventQueueInit( w.events )
+    w.ev_active = 0 : w.ev_focus = 0 : w.ev_buttons = 0
+    w.ev_lastx = &hFFFF : w.ev_lasty = &hFFFF
+    if w.scanline <= 0 then w.scanline = 1
     KeyTableClear( w.ktab )
     w.hinst = GetModuleHandle( NULL )
 
@@ -471,5 +701,52 @@ end sub
 private function WindowWasClosed( byref w as GfxWindow ) as long
     return w.closed
 end function
+
+'' The desktop's mode, as SCREENINFO reports it with no screen open and as the
+'' refresh rate of one that is. win32/gfx_win32.c's fb_hScreenInfo: the CURRENT
+'' display settings of the primary display, in physical pixels.
+private sub DesktopInfo( byref w as long, byref h as long, _
+        byref depth as long, byref refresh as long )
+    dim as DEVMODE dm
+    dm.dmSize = sizeof( DEVMODE )
+    if EnumDisplaySettings( NULL, ENUM_CURRENT_SETTINGS, @dm ) = 0 then
+        w = 0 : h = 0 : depth = 0 : refresh = 0
+        exit sub
+    end if
+    w = dm.dmPelsWidth
+    h = dm.dmPelsHeight
+    depth = dm.dmBitsPerPel
+    refresh = dm.dmDisplayFrequency
+end sub
+
+'' WINDOWTITLE on an open window. SetWindowText from this thread SENDS
+'' WM_SETTEXT to the pump thread and waits for it, and the pump takes the frame
+'' lock before it dispatches -- so a caller holding SCREENLOCK would wait on a
+'' thread that is waiting on it. gfxlib2's fb_hWin32SetWindowTitle drops the
+'' lock around the call for exactly this reason; `held` says whether to.
+private sub WindowSetTitle( byref w as GfxWindow, byref title as string, _
+        byval held as long )
+    w.title = left( title, 255 )
+    if w.hwnd = 0 then exit sub
+    if held then WindowUnlock( w )
+    SetWindowText( w.hwnd, @w.title )
+    if held then WindowLock( w )
+end sub
+
+'' SCREENCONTROL GET_WINDOW_POS: the OUTER rectangle's corner, packed the way
+'' fb_hWin32SetWindowPos packs it -- x in the low 16 bits, y shifted up 16.
+'' The caller unpacks it with the same sign rules gfxlib2 uses.
+private function WindowGetPosPacked( byref w as GfxWindow ) as long
+    if w.hwnd = 0 then return 0
+    dim as RECT r
+    if GetWindowRect( w.hwnd, @r ) = 0 then return 0
+    return (r.left and &hFFFF) or (r.top shl 16)
+end function
+
+private sub WindowSetPos( byref w as GfxWindow, byval x as long, byval y as long )
+    if w.hwnd = 0 then exit sub
+    SetWindowPos( w.hwnd, HWND_TOP, x, y, 0, 0, _
+        SWP_ASYNCWINDOWPOS or SWP_NOOWNERZORDER or SWP_NOSIZE or SWP_NOZORDER )
+end sub
 
 end namespace

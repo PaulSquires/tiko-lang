@@ -70,24 +70,44 @@ const POINT_AXIS_SENTINEL as single = -8388607.0f
 
 '' ------------------------------------------------------------ the screen
 ''
-'' THE FRAMEBUFFER IS 32BPP WHATEVER THE MODE SAYS. ModeTable's `depth` is BITS
-'' per pixel and every legacy mode is 8 or fewer; Surface.bpp is BYTES.
-'' Presenting an 8-bit surface needs the palette pushed into the BITMAPINFO, and
-'' driver/gdi.bi's GdiDescribe writes a bare BITMAPINFOHEADER -- correct for
-'' 32bpp and silently wrong for 8. Paletted modes wait for core/palette.bi to be
-'' wired into GdiDescribe.
+'' THE DEPTH IS THE MODE'S, OR THE ONE SCREEN / SCREENRES ASKED FOR -- see
+'' ScreenOpen. ModeTable's `depth` is BITS per pixel and Surface.bpp is BYTES.
 ''
-'' The screen's SURFACE lives in ScreenCtx below, not here: it is the drawing
-'' context's business, and keeping two copies of it is how they drift apart.
+'' PAGES. The screen is `num_pages` buffers of pitch * h bytes, and two of them
+'' matter at any moment: the WORK page, which ScreenCtx.surf points at and every
+'' drawing statement writes, and the VISIBLE page, which `present` points at and
+'' the window thread shows. gfxlib2 keeps the same pair as context->line and
+'' __fb_gfx->framebuffer.
+''
+'' THE DIRTY ARRAY BELONGS TO THE VISIBLE PAGE. The window presents only rows
+'' marked in it, and gfxlib2 marks a row only when the page drawn on IS the one
+'' shown (SET_DIRTY compares framebuffer with line[0]). So ScreenCtx.surf.dirty
+'' is the array when work = visible and NULL otherwise -- DirtyMark then does
+'' nothing -- and ScreenBindPages is the one place that decides which.
 type ScreenState
-    wnd      as GfxWindow
-    pixels   as any ptr
-    dirty    as any ptr        '' one byte per row; see ScreenOpen
-    mode     as long
-    isOpen   as long
+    wnd          as GfxWindow
+    page(0 to CELL_MAX_PAGES - 1) as any ptr
+    num_pages    as long
+    work_page    as long
+    visible_page as long
+    present      as Surface        '' the visible page, as the window sees it
+    dirty        as any ptr        '' one byte per row; see ScreenOpen
+    mode         as long
+    depth        as long           '' SCREENINFO's: 15 reads 16, 24 reads 32
+    refresh      as long           '' the desktop's, which is what gfxlib2 reports
+    flags        as long           '' the flags SCREEN was given
+    gstate       as long           '' GFXSTATE_* -- what SCREENCONTROL reports
+    lock_count   as long           '' SCREENLOCK nesting
+    isOpen       as long
 end type
 
 dim shared as ScreenState TheScreen
+
+'' THE WINDOW TITLE OUTLIVES THE SCREEN. WINDOWTITLE may run before SCREEN, and
+'' SCREEN 0 does not forget it -- gfxlib2 keeps it in a static buffer
+'' (__fb_window_title) and only fills in the exe's name when nothing was set.
+dim shared as zstring * 256 TheTitle
+dim shared as long TheTitleSet
 
 type GfxContext
     surf     as Surface
@@ -270,22 +290,51 @@ end sub
 ''
 '' ORDER MATTERS: the window thread presents FROM the surface, so it has to be
 '' stopped before the pixels under it are freed. WindowClose joins that thread.
+''
+'' A SCREEN LOCK STILL HELD IS RELEASED FIRST. The window thread takes the same
+'' lock every frame, so closing while SCREENLOCK holds it would join a thread
+'' that can never get past its next WindowLock -- a program that exits between
+'' SCREENLOCK and SCREENUNLOCK would hang instead of ending.
 private sub ScreenTeardown( )
     if TheScreen.isOpen = 0 then exit sub
-    WindowClose( TheScreen.wnd )
-    if TheScreen.pixels <> 0 then
-        deallocate( TheScreen.pixels )
-        TheScreen.pixels = 0
+    if TheScreen.lock_count > 0 then
+        TheScreen.lock_count = 0
+        WindowUnlock( TheScreen.wnd )
     end if
+    WindowClose( TheScreen.wnd )
+    for i as integer = 0 to CELL_MAX_PAGES - 1
+        if TheScreen.page(i) <> 0 then
+            deallocate( TheScreen.page(i) )
+            TheScreen.page(i) = 0
+        end if
+    next
+    TheScreen.num_pages = 0
+    TheScreen.work_page = 0
+    TheScreen.visible_page = 0
     if TheScreen.dirty <> 0 then
         deallocate( TheScreen.dirty )
         TheScreen.dirty = 0
     end if
+    SurfaceInit( TheScreen.present, 0, 0, 0, 0, 0 )
     SurfaceInit( ScreenCtx.surf, 0, 0, 0, 0, 0 )
     ViewportInit( ScreenCtx.vp, 0, 0 )
     ScreenCtx.inuse = 0
     TheScreen.mode = 0
+    TheScreen.depth = 0
+    TheScreen.flags = 0
+    TheScreen.gstate = 0
     TheScreen.isOpen = 0
+end sub
+
+'' Point the drawing surface at the work page, and give it the dirty array only
+'' when that page is the one on show. See ScreenState.
+private sub ScreenBindPages( )
+    ScreenCtx.surf.pixels = TheScreen.page(TheScreen.work_page)
+    if TheScreen.work_page = TheScreen.visible_page then
+        ScreenCtx.surf.dirty = TheScreen.dirty
+    else
+        ScreenCtx.surf.dirty = 0
+    end if
 end sub
 
 '' ------------------------------------------------------------- colour choice

@@ -24,7 +24,7 @@
 ''                 core/cells.bi    gated by tools/abtest-cells.bas
 ''     color       raster/color.bi  gated by tools/abtest-color.bas
 ''     pagecopy, pageset
-''                 core/cells.bi    the one-page answers, see below
+''                 entry/page.bi    FLIP and SCREENSET themselves, see below
 ''
 ''     printbuff's caret   the one-byte chr(255) form, gated by gate-entry
 ''     printbuffw          converted to ASCII by the runtime, then the same
@@ -90,7 +90,7 @@ dim shared as ConsoleState TheCon
 '' shows the glyph, and a program that compares them is entitled to agreement.
 private sub ConDrawCell( byval c as long, byval r as long )
     if (c < 0) orelse (r < 0) orelse (c >= TheCon.cols) orelse (r >= TheCon.rows) then exit sub
-    dim as CharCell ptr cell = CellAt( TheCon.cp, 0, c, r )
+    dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, c, r )
     if cell = 0 then exit sub
     DrawGlyph( ScreenCtx.surf, c * FONT_WIDTH, r * TheCon.fh, _
                cell->ch, TheCon.fidx, cell->fg, cell->bg )
@@ -145,13 +145,13 @@ private sub ConScroll( )
     '' cells
     for r as integer = top to bot - 1
         for c as integer = 0 to TheCon.cols - 1
-            dim as CharCell ptr dst = CellAt( TheCon.cp, 0, c, r )
-            dim as CharCell ptr src = CellAt( TheCon.cp, 0, c, r + 1 )
+            dim as CharCell ptr dst = CellAt( TheCon.cp, TheScreen.work_page, c, r )
+            dim as CharCell ptr src = CellAt( TheCon.cp, TheScreen.work_page, c, r + 1 )
             if (dst <> 0) andalso (src <> 0) then *dst = *src
         next
     next
     for c as integer = 0 to TheCon.cols - 1
-        dim as CharCell ptr dst = CellAt( TheCon.cp, 0, c, bot )
+        dim as CharCell ptr dst = CellAt( TheCon.cp, TheScreen.work_page, c, bot )
         if dst <> 0 then
             dst->ch = 32
             dst->fg = TheCon.fg
@@ -214,7 +214,7 @@ private sub ConPutChar( byval ch as long )
 
     if TheCon.col >= TheCon.cols then ConNewline( )
 
-    dim as CharCell ptr cell = CellAt( TheCon.cp, 0, TheCon.col, TheCon.row )
+    dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, TheCon.col, TheCon.row )
     if cell <> 0 then
         cell->ch = ch and &hFF
         cell->fg = TheCon.fg
@@ -234,7 +234,7 @@ end sub
 private sub ConPutCaretCell( )
     if TheCon.col >= TheCon.cols then ConNewline( )
 
-    dim as CharCell ptr cell = CellAt( TheCon.cp, 0, TheCon.col, TheCon.row )
+    dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, TheCon.col, TheCon.row )
     if cell <> 0 then
         cell->ch = 255
         cell->fg = TheCon.fg
@@ -673,7 +673,7 @@ sub TkoConCls cdecl ( byval mode as long )
 
     for r as integer = TkoGfx.TheCon.viewtop to TkoGfx.TheCon.viewbot
         for c as integer = 0 to TkoGfx.TheCon.cols - 1
-            dim as TkoGfx.CharCell ptr cell = TkoGfx.CellAt( TkoGfx.TheCon.cp, 0, c, r )
+            dim as TkoGfx.CharCell ptr cell = TkoGfx.CellAt( TkoGfx.TheCon.cp, TkoGfx.TheScreen.work_page, c, r )
             if cell <> 0 then
                 cell->ch = 32
                 cell->fg = TkoGfx.TheCon.fg
@@ -746,7 +746,7 @@ end sub
 function TkoConReadXY cdecl ( byval col as long, byval row as long, _
         byval colorflag as long ) as ulong
     if TkoGfx.TheCon.live = 0 then return 0
-    return cast( ulong, TkoGfx.CellReadXY( TkoGfx.TheCon.cp, 0, _
+    return cast( ulong, TkoGfx.CellReadXY( TkoGfx.TheCon.cp, TkoGfx.TheScreen.work_page, _
                         TkoGfx.ScreenCtx.surf.bpp * 8, col, row, colorflag ) )
 end function
 
@@ -775,21 +775,15 @@ function TkoConColor cdecl ( byval fc as ulong, byval bc as ulong, _
     return prev
 end function
 
-'' ONE PAGE, so both of these answer for one page rather than refusing.
-'' core/cells.bi's CellPageSetResult is the packing gfxlib2 returns, and
-'' tools/abtest-cells.bas asserts it -- SCREENSET is a statement and discards
-'' the value, so it is not comparable any other way.
-function TkoConPageCopy cdecl ( byval src as long, byval dst as long ) as long
-    if TkoGfx.TheCon.live = 0 then return 0
-    if (src = dst) then return 0
-    return 0
-end function
-
-function TkoConPageSet cdecl ( byval active as long, byval visible as long ) as long
-    if TkoGfx.TheCon.live = 0 then return 0
-    return TkoGfx.CellPageSetResult( iif( active < 0, 0, active ), _
-                                     iif( visible < 0, 0, visible ) )
-end function
+'' PCOPY AND THE QB FORM OF SCREEN REACH THE PAGES THROUGH THESE TWO SLOTS, and
+'' they are the same routines FLIP and SCREENSET call by name: gfxlib2 installs
+'' fb_GfxPageCopy -- which is fb_GfxFlip under another name -- and fb_GfxPageSet.
+'' entry/page.bi defines both. They are declared here because the table is
+'' built here, and that file comes after this one.
+declare function TkoGfxFlip alias "fb_GfxFlip" _
+    ( byval from_page as long, byval to_page as long ) as long
+declare function TkoGfxPageSet alias "fb_GfxPageSet" _
+    ( byval work_page as long, byval visible_page as long ) as long
 
 '' LINE INPUT into a WSTRING.
 ''
@@ -1103,7 +1097,7 @@ private sub ConsoleStart( byval mode as long )
     TheCon.viewtop = 0
     TheCon.viewbot = TheCon.rows - 1
 
-    if CellsReset( TheCon.cp, TheCon.cols, TheCon.rows, 1, 0, _
+    if CellsReset( TheCon.cp, TheCon.cols, TheCon.rows, TheScreen.num_pages, 0, _
                    TheCon.fg, TheCon.bg ) = 0 then exit sub
 
     dim as TkoAbi.FB_HOOKSTB tb
@@ -1118,8 +1112,8 @@ private sub ConsoleStart( byval mode as long )
     tb.printbuffproc  = @TkoConPrintBuff
     tb.printbuffwproc = @TkoConPrintBuffW
     tb.readxyproc     = @TkoConReadXY
-    tb.pagecopyproc   = @TkoConPageCopy
-    tb.pagesetproc    = @TkoConPageSet
+    tb.pagecopyproc   = @TkoGfxFlip
+    tb.pagesetproc    = @TkoGfxPageSet
     tb.inkeyproc      = @TkoConInkey
     tb.getkeyproc     = @TkoConGetKey
     tb.keyhitproc     = @TkoConKeyHit

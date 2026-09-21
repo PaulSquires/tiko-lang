@@ -60,6 +60,28 @@ extern "windows"
 
     declare sub RtlErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long )
 
+    '' A TEMPORARY STRING HANDED TO AN ENTRY POINT IS THE ENTRY POINT'S TO FREE.
+    '' fbc passes `windowtitle "a" & b` as a temp descriptor and never frees it
+    '' itself; gfxlib2 calls fb_hStrDelTemp on it, which releases the data and
+    '' the descriptor if -- and only if -- the descriptor is marked temporary.
+    '' Harmless on anything else, so it is called unconditionally, as the C does.
+    declare function RtlStrDelTemp alias "fb_hStrDelTemp" ( byval s as any ptr ) as long
+end extern
+
+'' THE KEYBOARD TRANSLATION IS THE RUNTIME'S, as it is gfxlib2's: its window
+'' procedure turns a key message into SCREENEVENT's scancode and ascii with these
+'' two, which live in the console layer of libfb and tiko-rt alike. Declared plain
+'' -- fb_private_console.h gives them no FBCALL.
+extern "c"
+    declare function RtlConsoleTranslateKey alias "fb_hConsoleTranslateKey" ( _
+        byval ascii_char as byte, byval vs_code as ushort, byval vk_code as ushort, _
+        byval control_state as ulong, byval enhanced_only as long ) as long
+    declare function RtlVirtualToScancode alias "fb_hVirtualToScancode" ( _
+        byval vkey as long ) as long
+end extern
+
+extern "windows"
+
     '' MT BUILDS ONLY. These symbols exist in libfbmt/libfbgfxmt and NOT in
     '' libfb -- in a single-threaded build the runtime's own FB_GRAPHICS_LOCK
     '' macros compile away to nothing, so there is no function to call and

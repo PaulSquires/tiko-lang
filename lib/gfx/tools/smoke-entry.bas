@@ -82,7 +82,10 @@ end function
 screenres 64, 48, 32
 
 '' ---- the screen target ----
-chk( "point on a fresh screen", 0, point( 5, 5 ) )
+'' OPAQUE BLACK, not 0: set_mode fills every page with bg_color, which at 32bpp is
+'' &hFF000000. Measured against fbc-modern's gfxlib2 on 2026-09-21; this check
+'' used to want the 0 a bare callocate left.
+chk( "point on a fresh screen", &hFF000000, point( 5, 5 ) )
 pset ( 5, 5 ), &hFF3366
 chk( "pset then point", &hFF3366, point( 5, 5 ) )
 

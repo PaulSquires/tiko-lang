@@ -53,7 +53,10 @@ type CharCell
     bg as ulong
 end type
 
-const CELL_MAX_PAGES = 8
+'' THE SCREEN'S PAGE LIMIT TOO -- entry/context.bi sizes its page table by it.
+'' gfxlib2 has none; a SCREEN asking for more than this is refused rather than
+'' given fewer pages than it counts on. Mode 1's default is 8.
+const CELL_MAX_PAGES = 64
 
 type CellPlane
     text_w    as long

@@ -1,0 +1,130 @@
+'' entry/event.bi -- SCREENEVENT and GETJOYSTICK.
+''
+'' Derived from: gfx_event.c (fb_GfxEvent), win32/gfx_joystick.c
+'' (fb_GfxGetJoystick). LGPL-2.1-or-later with the static-linking exception.
+''
+'' The events themselves are posted by driver/window.bi's WindowEvents on the
+'' window thread; core/events.bi owns the ring, including its two surprises --
+'' a full ring drops the OLDEST event, and SCREENEVENT with no argument peeks
+'' without consuming.
+''
+'' GETJOYSTICK IS WINMM'S joyGetPosEx, as in gfxlib2, and needs no screen. Each
+'' of the sixteen ids is probed once with joyGetDevCaps and remembered: an id
+'' with no device answers "illegal function call" from then on without asking
+'' Windows again, so a joystick plugged in after the first call is not seen --
+'' gfxlib2's behaviour, kept. On any failure the button mask reads -1 and every
+'' axis -1000.
+
+#pragma once
+
+#include once "win/mmsystem.bi"
+
+namespace TkoGfx
+
+type JoyData
+    detected  as long
+    available as long
+    caps      as JOYCAPS
+end type
+
+dim shared as JoyData TheJoy(0 to 15)
+
+'' The C's CALCPOS: the device range mapped onto -1 .. just under 1.
+private function JoyAxis( byval p as ulong, byval lo as ulong, byval hi as ulong ) as single
+    return csng( ((csng( p ) - csng( lo )) * 2.0) / (csng( hi ) - csng( lo ) + 1.0) - 1.0 )
+end function
+
+'' POV_LAP in the C: how far either side of a diagonal still counts.
+const JOY_POV_LAP = 2250
+
+end namespace
+
+extern "c"
+
+'' SCREENEVENT [e] -- non-zero (-1) if an event is waiting. With `e` the event is
+'' copied out and removed; without it the ring is only looked at.
+function TkoGfxEvent alias "fb_GfxEvent" ( byval e as TkoAbi.EVENT ptr ) as long
+    if TkoGfx.TheScreen.isOpen = 0 then return 0
+    dim as TkoAbi.EVENT tmp
+    TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
+    dim as long got = TkoGfx.EventGet( TkoGfx.TheScreen.wnd.events, tmp, iif( e <> 0, 1, 0 ) )
+    TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
+    if (got <> 0) andalso (e <> 0) then *e = tmp
+    return iif( got <> 0, -1, 0 )
+end function
+
+'' GETJOYSTICK id [, buttons [, a1 .. a8]] -- returns, and sets, the runtime error.
+function TkoGfxGetJoystick alias "fb_GfxGetJoystick" ( byval id as long, _
+        byval buttons as integer ptr, _
+        byval a1 as single ptr, byval a2 as single ptr, _
+        byval a3 as single ptr, byval a4 as single ptr, _
+        byval a5 as single ptr, byval a6 as single ptr, _
+        byval a7 as single ptr, byval a8 as single ptr ) as long
+
+    *buttons = -1
+    *a1 = -1000 : *a2 = -1000 : *a3 = -1000 : *a4 = -1000
+    *a5 = -1000 : *a6 = -1000 : *a7 = -1000 : *a8 = -1000
+
+    if (id < 0) orelse (id > 15) then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+
+    dim as TkoGfx.JoyData ptr j = @TkoGfx.TheJoy(id)
+    if j->detected = 0 then
+        j->detected = 1
+        if joyGetDevCaps( id + JOYSTICKID1, @j->caps, sizeof( JOYCAPS ) ) <> JOYERR_NOERROR then
+            RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+            return FB_RTERROR_ILLEGALFUNCTIONCALL
+        end if
+        j->available = 1
+    end if
+    if j->available = 0 then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+
+    dim as JOYINFOEX info
+    info.dwSize = sizeof( JOYINFOEX )
+    info.dwFlags = JOY_RETURNALL
+    if joyGetPosEx( id + JOYSTICKID1, @info ) <> JOYERR_NOERROR then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+
+    dim as JOYCAPS ptr c = @j->caps
+    *a1 = TkoGfx.JoyAxis( info.dwXpos, c->wXmin, c->wXmax )
+    *a2 = TkoGfx.JoyAxis( info.dwYpos, c->wYmin, c->wYmax )
+    if c->wCaps and JOYCAPS_HASZ then *a3 = TkoGfx.JoyAxis( info.dwZpos, c->wZmin, c->wZmax )
+    if c->wCaps and JOYCAPS_HASR then *a4 = TkoGfx.JoyAxis( info.dwRpos, c->wRmin, c->wRmax )
+    if c->wCaps and JOYCAPS_HASU then *a5 = TkoGfx.JoyAxis( info.dwUpos, c->wUmin, c->wUmax )
+    if c->wCaps and JOYCAPS_HASV then *a6 = TkoGfx.JoyAxis( info.dwVpos, c->wVmin, c->wVmax )
+
+    '' The hat, as two axes of -1, 0 or 1. dwPOV is hundredths of a degree
+    '' clockwise from up; each direction owns its quarter plus JOY_POV_LAP either
+    '' side, so a diagonal sets both.
+    if c->wCaps and JOYCAPS_HASPOV then
+        dim as ulong pov = info.dwPOV
+        const LAP = TkoGfx.JOY_POV_LAP
+        *a7 = 0
+        *a8 = 0
+        if (pov > 4500 - LAP) andalso (pov < 13500 + LAP) then
+            *a7 = 1
+        elseif (pov > 22500 - LAP) andalso (pov < 31500 + LAP) then
+            *a7 = -1
+        end if
+        if (pov > 13500 - LAP) andalso (pov < 22500 + LAP) then
+            *a8 = 1
+        elseif pov < 4500 + LAP then
+            *a8 = -1
+        elseif (pov > 31500 - LAP) andalso (pov < 36000) then
+            *a8 = -1
+        end if
+    end if
+
+    *buttons = info.dwButtons
+    RtlErrorSetNum( 0 )
+    return 0
+end function
+
+end extern

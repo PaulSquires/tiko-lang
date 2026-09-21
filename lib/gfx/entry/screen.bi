@@ -1,7 +1,8 @@
 '' entry/screen.bi -- the SCREEN family.
 ''
 '' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
-'' exception.
+'' exception. The depth and page rules follow gfx_screen.c (fb_GfxScreen,
+'' fb_GfxScreenRes, set_mode) and SCREENPTR follows gfx_access.c.
 ''
 '' THE ENTRY LAYER IS THE ONLY PUBLIC SURFACE, and until this file existed the
 '' archive held no code at all: every routine in abi/, core/, driver/ and
@@ -32,23 +33,42 @@ const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
 
 namespace TkoGfx
 
+'' The exe's file name without its directory or extension -- gfxlib2's title for
+'' a window nothing named (fb_hGetExeName, then the last '.' cut off).
+private function ExeTitle( ) as string
+    dim as zstring * 260 path
+    if GetModuleFileName( NULL, @path, 259 ) = 0 then return ""
+    dim as string s = path
+    dim as long slash = instrrev( s, "\" )
+    if slash > 0 then s = mid( s, slash + 1 )
+    dim as long dot = instrrev( s, "." )
+    if dot > 0 then s = left( s, dot - 1 )
+    return s
+end function
+
 '' Open a framebuffer of this geometry and show it. Shared by SCREEN and
 '' SCREENRES, which differ only in where the geometry comes from.
 ''
-'' `mode` is recorded for SCREENINFO and the palette rules; SCREENRES passes 0,
-'' which is what fbc reports for a resolution-set screen.
+'' `mode` is recorded for the palette, font and mouse rules; SCREENRES passes 0.
+'' `depth` is BITS, already chosen by the caller, and `num_pages` is at least 1.
 private function ScreenOpen( byval mode as long, byval w as long, byval h as long, _
-        byval depth as long ) as long
+        byval depth as long, byval num_pages as long, byval flags as long ) as long
     if (w <= 0) orelse (h <= 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    if (num_pages <= 0) orelse (num_pages > CELL_MAX_PAGES) then
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
 
     '' BYTES from BITS. ModeTable's depth is bits per pixel and Surface.bpp is
     '' bytes; conflating them is a four-times buffer overrun rather than a wrong
     '' colour, which is why the conversion is a select rather than a shift.
-    dim as long bpp
+    ''
+    '' And the depth SCREENINFO reports, which set_mode NORMALISES: 15 is kept
+    '' as 16 and 24 as 32, because those are the only layouts it stores.
+    dim as long bpp, shown
     select case depth
-    case 1, 2, 4, 8 : bpp = 1
-    case 15, 16     : bpp = 2
-    case 24, 32     : bpp = 4
+    case 1, 2, 4, 8 : bpp = 1 : shown = depth
+    case 15, 16     : bpp = 2 : shown = 16
+    case 24, 32     : bpp = 4 : shown = 32
     case else       : return FB_RTERROR_ILLEGALFUNCTIONCALL
     end select
 
@@ -56,16 +76,23 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     ConsoleShutdownIfLive( )
     ScreenTeardown( )
 
-    '' The pitch is the width in bytes, unpadded. gfxlib2 pads its FRAMEBUFFER
-    '' to the driver's stride and reports that through SCREENINFO; nothing here
-    '' reads the framebuffer through SCREENINFO yet, and the presenter is told
-    '' the pitch explicitly.
+    '' The pitch is the width in bytes, unpadded -- set_mode's own
+    '' `pitch = w * bpp`, and what SCREENINFO reports.
     dim as integer pitch = w * bpp
 
     '' CALLOCATE, not ALLOCATE: a fresh screen is black, and the window thread
-    '' may present before anything has drawn.
-    dim as any ptr px = callocate( pitch * h )
-    if px = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    '' may present before anything has drawn. Every page, not just the first:
+    '' SCREENSET 1, 1 on a fresh screen shows page 1 as it was allocated.
+    for i as integer = 0 to num_pages - 1
+        TheScreen.page(i) = callocate( pitch * h )
+        if TheScreen.page(i) = 0 then
+            for j as integer = 0 to i - 1
+                deallocate( TheScreen.page(j) )
+                TheScreen.page(j) = 0
+            next
+            return FB_RTERROR_ILLEGALFUNCTIONCALL
+        end if
+    next
 
     '' THE DIRTY ARRAY, WITHOUT WHICH NOTHING IS EVER PRESENTED.
     ''
@@ -83,20 +110,60 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     '' SCREEN. It took reading pixels off the presented window to see it.
     dim as any ptr dirtybuf = callocate( h )
     if dirtybuf = 0 then
-        deallocate( px )
+        for i as integer = 0 to num_pages - 1
+            deallocate( TheScreen.page(i) )
+            TheScreen.page(i) = 0
+        next
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
-    SurfaceInit( ScreenCtx.surf, px, w, h, pitch, bpp )
-    ScreenCtx.surf.dirty = dirtybuf
+    TheScreen.num_pages = num_pages
+    TheScreen.work_page = 0
+    TheScreen.visible_page = 0
     TheScreen.dirty = dirtybuf
+    TheScreen.depth = shown
+    TheScreen.flags = flags
+    '' set_mode's reading of the flags, and -1 (GFX_NULL) sets none of them.
+    TheScreen.gstate = 0
+    if flags <> -1 then
+        if (flags and &h40) <> 0 then TheScreen.gstate or= GFXSTATE_ALPHA_PRIMITIVES
+        if (flags and &h80) <> 0 then TheScreen.gstate or= GFXSTATE_HIGH_PRIORITY
+    end if
+    TheScreen.lock_count = 0
+    dim as long dw, dh, dd
+    DesktopInfo( dw, dh, dd, TheScreen.refresh )
+
+    '' Two surfaces over page 0: the one drawing writes, and the one the window
+    '' presents. PAGESET moves them apart.
+    SurfaceInit( TheScreen.present, TheScreen.page(0), w, h, pitch, bpp )
+    TheScreen.present.dirty = dirtybuf
+    SurfaceInit( ScreenCtx.surf, TheScreen.page(0), w, h, pitch, bpp )
+    ScreenBindPages( )
     ViewportInit( ScreenCtx.vp, w, h )
     DrawStateInit( ScreenCtx.draw, bpp * 8 )
     ScreenCtx.target = 0
     ScreenCtx.inuse = 1
 
-    TheScreen.pixels = px
+    '' EVERY PAGE STARTS AT THE BACKGROUND COLOUR, not at zero. set_mode fills
+    '' each page with bg_color, and at 32bpp that is &hFF000000 -- opaque black
+    '' -- so POINT on a pixel nothing drew reads &hFF000000 from gfxlib2. The
+    '' callocate above left 0, which is transparent black and a different value.
+    for i as integer = 0 to num_pages - 1
+        dim as Surface pg
+        SurfaceInit( pg, TheScreen.page(i), w, h, pitch, bpp )
+        select case bpp
+        case 1    : ClsFillRect8( pg, 0, 0, w, h, ScreenCtx.draw.bg_color )
+        case 2    : ClsFillRect16( pg, 0, 0, w, h, ScreenCtx.draw.bg_color )
+        case else : ClsFillRect32( pg, 0, 0, w, h, ScreenCtx.draw.bg_color )
+        end select
+    next
+
     TheScreen.mode = mode
+
+    if TheTitleSet = 0 then
+        TheTitle = left( ExeTitle( ), 255 )
+        TheTitleSet = 1
+    end if
 
     '' WindowOpen RETURNS 1 ON SUCCESS AND 0 ON FAILURE -- driver/window.bi says
     '' so in a comment above it. Testing it the other way round treats every
@@ -114,9 +181,20 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     end if
     TheScreen.isOpen = 0
 
-    if WindowOpen( TheScreen.wnd, ScreenCtx.surf, w, h, "tiko" ) = 0 then
-        deallocate( px )
-        TheScreen.pixels = 0
+    '' Event y is in MODE rows, so the window divides by the doubling it presents.
+    TheScreen.wnd.scanline = 1
+    if mode > 0 then TheScreen.wnd.scanline = ModeTable(mode).scanline_size
+    if WindowOpen( TheScreen.wnd, TheScreen.present, w, h, TheTitle ) = 0 then
+        '' isOpen is still 0, so ScreenTeardown would skip the lot -- free by
+        '' hand, and close the half-made window (WindowClose is safe either way).
+        WindowClose( TheScreen.wnd )
+        for i as integer = 0 to num_pages - 1
+            deallocate( TheScreen.page(i) )
+            TheScreen.page(i) = 0
+        next
+        deallocate( dirtybuf )
+        TheScreen.dirty = 0
+        TheScreen.num_pages = 0
         ScreenCtx.inuse = 0
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
@@ -140,6 +218,19 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     return 0
 end function
 
+'' SCREEN's depth rule, from fb_GfxScreen: a depth the caller asked for wins
+'' ONLY on the modes above 13 and only if it is one of the five a screen can
+'' have. Everything else -- 0, a nonsense value, any depth on modes 1..13 --
+'' quietly takes the mode's own. So `screen 12, 32` is a 4-bit screen and
+'' `screen 18, 32` a 32-bit one.
+private function ScreenDepthFor( byval mode as long, byval depth as long ) as long
+    select case depth
+    case 8, 15, 16, 24, 32
+        if mode > 13 then return depth
+    end select
+    return ModeTable(mode).depth
+end function
+
 end namespace
 
 extern "c"
@@ -153,17 +244,9 @@ extern "c"
 '' NOT YET HONOURED, and each is a silent no-op rather than a refusal because a
 '' refusal would break programs that pass the ordinary defaults:
 ''
-''   depth       the framebuffer is 32bpp -- see entry/context.bi
-''   num_pages   one page; PCOPY and SCREENSET have no entry points yet
-''   flags       no GL, no fullscreen, no alpha-request handling
+''   flags       recorded for SCREENCONTROL; no GL, no fullscreen, no
+''               alpha-primitive drawing
 ''   refresh     the GDI presenter does not drive a refresh rate
-''
-'' THE CONSOLE HOOKS ARE NOT INSTALLED, deliberately. core/hooks.bi can install
-'' them in one call, and doing so would route PRINT, LOCATE, CLS, INKEY and the
-'' rest through raster/text.bi -- which is written but has no entry points and
-'' has never been exercised. Installing them now would take PRINT from working
-'' to silently broken on a graphics screen. They go in with the text entry
-'' points, gated by tools/abtest-print.bas.
 function TkoGfxScreen alias "fb_GfxScreen" ( _
         byval mode as long, _
         byval depth as long, _
@@ -174,7 +257,7 @@ function TkoGfxScreen alias "fb_GfxScreen" ( _
     '' Unused today, and named rather than dropped so the signature stays the
     '' one tiko emits.
     scope
-        dim as long ignored = depth + num_pages + flags + refresh
+        dim as long ignored = refresh
     end scope
 
     if mode = 0 then
@@ -187,14 +270,15 @@ function TkoGfxScreen alias "fb_GfxScreen" ( _
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
+    if num_pages <= 0 then num_pages = TkoGfx.ModeTable(mode).num_pages
     return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h, _
-                              TkoGfx.ModeTable(mode).depth )
+                              TkoGfx.ScreenDepthFor( mode, depth ), num_pages, flags )
 end function
 
 '' SCREENRES w, h [, depth [, num_pages [, flags [, refresh ]]]]
 ''
 '' The mode is recorded as 0: there is no legacy mode number for an arbitrary
-'' resolution, and that is what SCREENINFO reports for one.
+'' resolution. One page unless more were asked for, as in fb_GfxScreenRes.
 function TkoGfxScreenRes alias "fb_GfxScreenRes" ( _
         byval w as long, _
         byval h as long, _
@@ -204,39 +288,49 @@ function TkoGfxScreenRes alias "fb_GfxScreenRes" ( _
         byval refresh as long ) as long
 
     scope
-        dim as long ignored = num_pages + flags + refresh
+        dim as long ignored = refresh
     end scope
 
     if (w <= 0) orelse (h <= 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
-    return TkoGfx.ScreenOpen( 0, w, h, iif( depth > 0, depth, 8 ) )
+    if num_pages <= 0 then num_pages = 1
+    return TkoGfx.ScreenOpen( 0, w, h, iif( depth > 0, depth, 8 ), num_pages, flags )
 end function
 
 '' SCREEN's QB form -- `SCREEN mode, colorswitch, activepage, visiblepage`
 '' reduced by fbc to three arguments.
 ''
-'' THE TWO PAGE ARGUMENTS ARE NOT HONOURED, and saying so is the whole of the
-'' difference from fbc: one page exists, so an active or visible page other than
-'' 0 is accepted and ignored rather than refused. A refusal would break the
-'' common `screen 13, , 0, 0`.
+'' fb_GfxScreenQB opens the mode with its defaults and then, if either page was
+'' given, hands both to fb_PageSet -- whose result is the PREVIOUS pages packed
+'' into one number, and which it returns as the error. On a fresh screen that is
+'' always 0.
 function TkoGfxScreenQB alias "fb_GfxScreenQB" ( _
         byval mode as long, _
         byval active_page as long, _
         byval visible_page as long ) as long
 
-    scope
-        dim as long ignored = active_page + visible_page
-    end scope
+    dim as long res = TkoGfxScreen( mode, 0, 0, 0, 0 )
+    if res <> 0 then return res
+    if mode = 0 then return 0
+    if (active_page >= 0) orelse (visible_page >= 0) then
+        res = TkoGfxPageSet( active_page, visible_page )
+    end if
+    return res
+end function
 
-    if mode = 0 then
-        TkoGfx.ConsoleShutdownIfLive( )
-        TkoGfx.ScreenTeardown( )
-        return 0
-    end if
-    if TkoGfx.ModeSupported( mode ) = 0 then
-        return FB_RTERROR_ILLEGALFUNCTIONCALL
-    end if
-    return TkoGfx.ScreenOpen( mode, TkoGfx.ModeTable(mode).w, TkoGfx.ModeTable(mode).h, _
-                              TkoGfx.ModeTable(mode).depth )
+'' SCREENPTR -- the first byte of the WORK page, or NULL with no screen open.
+''
+'' gfxlib2's gfx_access.c answers context->line[0], which is the work page's
+'' row 0 -- not the visible page, so a program drawing into a hidden page with
+'' SCREENSET writes where it expects. It also rebinds the drawing context to the
+'' screen and resets the pixel-transfer mask on the way, and neither has
+'' anything to do here: ContextFor resolves the target per call and keeps no
+'' last target, and PUT's mode is an argument rather than state.
+''
+'' THE POINTER IS THE SURFACE'S FORMAT, which is the depth ScreenOpen chose --
+'' `pitch` bytes per row, `bpp` bytes per pixel.
+function TkoGfxScreenPtr alias "fb_GfxScreenPtr" ( ) as any ptr
+    if TkoGfx.TheScreen.isOpen = 0 then return 0
+    return TkoGfx.ScreenCtx.surf.pixels
 end function
 
 end extern

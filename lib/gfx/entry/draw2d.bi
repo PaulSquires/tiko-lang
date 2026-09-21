@@ -204,7 +204,23 @@ function TkoGfxPoint alias "fb_GfxPoint" ( _
 
     dim as long x, y
     TkoGfx.TranslateCoord( c->vp, fx, fy, x, y )
-    return TkoGfx.PointAny( c->surf, x, y )
+    dim as long colour = TkoGfx.PointAny( c->surf, x, y )
+
+    '' ON A 16-BIT SCREEN THE PIXEL COMES BACK AS 24-BIT RGB, each channel's
+    '' high bits repeated into its low ones -- gfx_point.c's "approximate"
+    '' expansion, so a white 565 pixel reads &hFFFFFF rather than &hFFFF. The test
+    '' is the SCREEN's depth, not the target's, which is the C's and applies to an
+    '' image POINT reads while a 16-bit screen is open too. -1 is outside the
+    '' clip and is returned as it is, which is also the C's order.
+    if (colour <> -1) andalso (TkoGfx.TheScreen.isOpen <> 0) andalso _
+       (TkoGfx.TheScreen.depth = 16) then
+        dim as ulong v = cast( ulong, colour )
+        v = ((v and &h001F) shl 3) or ((v shr 2) and &h7) or _
+            ((v and &h07E0) shl 5) or ((v shr 1) and &h300) or _
+            ((v and &hF800) shl 8) or ((v shl 3) and &h70000)
+        colour = cast( long, v )
+    end if
+    return colour
 end function
 
 '' ---------------------------------------------------------------------- VIEW

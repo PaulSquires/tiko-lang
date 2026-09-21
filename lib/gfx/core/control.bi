@@ -136,8 +136,10 @@ private function ScreenControlGet( _
         r3 = vp.view_x + vp.view_w - 1
         r4 = vp.view_y + vp.view_h - 1
     case GET_PEN_POS
-        r1 = cast( integer, last_x )
-        r2 = cast( integer, last_y )
+        '' FIX, not CAST: the C converts the float with (ssize_t), which
+        '' TRUNCATES, and FB's cast rounds to nearest.
+        r1 = fix( last_x )
+        r2 = fix( last_y )
     case GET_COLOR
         r1 = cast( integer, fg )
         r2 = cast( integer, bg )
