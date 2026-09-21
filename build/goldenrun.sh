@@ -22,6 +22,28 @@
 # over an hour. A file that times out under EITHER compiler is reported and skipped: it
 # is not a differential, it is a source this instrument cannot run.
 #
+# A DIFFERENCE IS NOT AUTOMATICALLY A DEFECT, and fifteen of them are not. Every one
+# below was run down to its cause; EXPLAINED names them so the count that matters --
+# "N unexplained" -- is the one to read. Add to it only with the cause written down.
+#
+#   ADDRESS      the program PRINTS A POINTER. fbc links non-PIE at 0x400000 and its
+#                value is 4199824 on every run; tiko's image has a dynamic base and
+#                prints a different 0x7FF6-something each time. Measured three runs of
+#                each. The columns agree WITHIN a run, which is what the test asserts.
+#                fre() is in this class too: free memory, not a program value.
+#   UNINIT       the program reads what it never wrote -- 'dim x as T = any' and a
+#                field '= any' by design, a cva_arg PAST the end of the vararg list,
+#                and 'peek( integer, @i )' over a four-byte long.
+#   FBC-CRASHES  same bytes on stdout, and fbc exits 139 where tiko exits 0:
+#                errfuncname's out-of-bounds store built WITHOUT -exx (the very thing
+#                the test is about), and bsave/bload with no screen set.
+#   FBC-GARBAGE  'print #1, using f; d' on a channel nobody opened. fbc writes three
+#                junk bytes to stdout; tiko writes nothing.
+#   DOCUMENTED   on-error-setjmp, whose own source carries the table: longjmp restores
+#                callee-saved registers, fbc's cross-function computed goto lands in
+#                main with the stack unusable and prints garbage at -O0 and segfaults
+#                at -O2. The test pins the MECHANISM for that reason.
+#
 # Not a gate: it is slow (two compilers over 500 files) and some sources are
 # deliberately partial. Read the counts.
 set -u
@@ -34,7 +56,8 @@ mkdir -p "$WK"
 export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/win64-msvc"
 
 RUNTIMEOUT=${RUNTIMEOUT:-10}
-nboth=0; nsame=0; ndiff=0; ntonly=0; nfonly=0; nneither=0; nhang=0
+EXPLAINED=" errfuncname print-pointer any-init bsave-string-desc builtins byval-to-byref cva field-init-any noconv-lvalue on-error-setjmp peek print-using procptr-intrinsic static-addr-init static-init-reloc "
+nboth=0; nsame=0; ndiff=0; ntonly=0; nfonly=0; nneither=0; nhang=0; nknown=0
 for f in tests/*/src/*.bas ; do
     n=$(basename "$f" .bas)
     tok=0; fbk=0
@@ -52,7 +75,10 @@ for f in tests/*/src/*.bas ; do
             nsame=$((nsame+1))
         else
             ndiff=$((ndiff+1))
-            echo "goldenrun: DIFF $f"
+            case "$EXPLAINED" in
+                *" $n "*) nknown=$((nknown+1)) ; echo "goldenrun: DIFF $f (explained)" ;;
+                *)        echo "goldenrun: DIFF $f" ;;
+            esac
             diff "$WK/f_$n.txt" "$WK/t_$n.txt" 2>/dev/null | head -6 | sed 's/^/goldenrun:     /'
             if ! cmp -s "$WK/t_$n.rc" "$WK/f_$n.rc" ; then
                 echo "goldenrun:     exit fbc=$(cat "$WK/f_$n.rc") tiko=$(cat "$WK/t_$n.rc")"
@@ -67,5 +93,6 @@ for f in tests/*/src/*.bas ; do
     fi
 done
 echo "goldenrun: $nboth both build, $nsame match, $ndiff DIFFER, $nhang timed out"
+echo "goldenrun: $((ndiff-nknown)) UNEXPLAINED, $nknown explained -- see the header"
 echo "goldenrun: $ntonly only tiko builds, $nfonly only fbc builds, $nneither neither"
 rm -rf "$WK"
