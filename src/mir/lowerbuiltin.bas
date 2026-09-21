@@ -80,6 +80,11 @@ private function BuiltinProcRtl _
         case "dylibload"    : retTy = MT_PTR  : return RTL_DYLIB_LOAD
         case "dylibsymbol"  : retTy = MT_PTR  : return RTL_DYLIB_SYMBOL
         case "dylibfree"    : retTy = MT_VOID : return RTL_DYLIB_FREE
+        '' 'pcopy [src] [, dst]' -- fb_PageCopy, and it was only in the PROCPTR
+        '' table, so every PCOPY statement was dropped with no diagnostic and the
+        '' program ran without it. Both arguments default to -1, measured from
+        '' fbc's rtl-console entry, as WIDTH's do.
+        case "pcopy"        : retTy = MT_I32  : return RTL_PCOPY
         end select
     end if
     return RTL_NONE
@@ -127,6 +132,8 @@ function LowerBuiltinProc _
     '' produced no value and the assignment around it declined.
     dim as long widthShort = 0
     if (r = RTL_WIDTH) andalso (argCount < want) then widthShort = want - argCount
+    '' PCOPY's defaults are WIDTH's, -1 each: 'pcopy' is fb_PageCopy( -1, -1 ).
+    if (r = RTL_PCOPY) andalso (argCount < want) then widthShort = want - argCount
     '' 'run( cmd )' DEFAULTS ITS SECOND ARGUMENT TO THE EMPTY STRING, which fbc
     '' spells 'fb_StrAllocTempDescZEx( "", 0 )' -- a temporary descriptor over a
     '' zero-length literal, not a null pointer.

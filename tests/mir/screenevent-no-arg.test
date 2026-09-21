@@ -1,0 +1,7 @@
+'' SCREENEVENT's argument defaults to a null pointer. See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/screenevent-no-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i32 fb_GfxEvent(

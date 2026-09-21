@@ -1,0 +1,8 @@
+'' PCOPY reaches fb_PageCopy, with fbc's -1 defaults. See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/pcopy-statement.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl i32 fb_PageCopy(-1, -1)
+'' EXPECT-OUT: declare i32 fb_PageCopy(i32 $0, i32 $1)

@@ -165,7 +165,10 @@ private function PreludeText( ) as string
     t += "    ( byval start as long = -1, byval finish as long = -1 )" & chr( 10 )
     t += "declare function screensync alias ""fb_GfxWaitVSync"" ( ) as long" & chr( 10 )
     t += "declare function screenptr alias ""fb_GfxScreenPtr"" ( ) as any ptr" & chr( 10 )
-    t += "declare function screenevent alias ""fb_GfxEvent"" ( byval e as any ptr ) as long" & chr( 10 )
+    '' SCREENEVENT'S ARGUMENT IS OPTIONAL, and fbc's rtl-gfx entry says so -- default
+    '' 0. Without it the argument-less form, which PEEKS without consuming, did not
+    '' compile (TKO0776).
+    t += "declare function screenevent alias ""fb_GfxEvent"" ( byval e as any ptr = 0 ) as long" & chr( 10 )
     t += "declare function screenglproc alias ""fb_GfxGetGLProcAddress"" _" & chr( 10 )
     t += "    ( byval nm as zstring ptr ) as any ptr" & chr( 10 )
     t += "declare sub windowtitle alias ""fb_GfxSetWindowTitle"" ( byref t as const string )" & chr( 10 )
