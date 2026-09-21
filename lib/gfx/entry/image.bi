@@ -75,7 +75,7 @@ extern "c"
 '' image of a different depth than the last thing drawn is under-filled -- 173
 '' of 1920 bytes left stale, measured in tools/abtest-bpp.bas, and a heap
 '' overrun in the 32-into-16 direction. This fills the buffer it just allocated,
-'' at the depth it just chose.
+'' at the depth it just chose -- every byte of every row, padding included.
 function TkoGfxImageCreate alias "fb_GfxImageCreate" ( _
         byval w as long, byval h as long, _
         byval colour as ulong, _
@@ -102,17 +102,22 @@ function TkoGfxImageCreate alias "fb_GfxImageCreate" ( _
     dim as ulong fill = colour
     if (flags and TkoGfx.COORD_COLOR_DEF) <> 0 then fill = 0
 
+    '' THE WHOLE PITCH, padding included: gfxlib2 fills (pitch * h) / bpp pixels,
+    '' so an 8bpp image's row padding holds the colour too -- and BSAVE copies it
+    '' into the file, where a byte-for-byte A/B saw it. Filled at the image's OWN
+    '' depth, which is the part of gfxlib2's fill this still does not copy.
+    dim as long perRow = pitch \ bpp
     for y as integer = 0 to h - 1
         select case bpp
         case 1
             dim as ubyte ptr r = px + y * pitch
-            for x as integer = 0 to w - 1 : r[x] = cast( ubyte, fill ) : next
+            for x as integer = 0 to perRow - 1 : r[x] = cast( ubyte, fill ) : next
         case 2
             dim as ushort ptr r = cptr( ushort ptr, px + y * pitch )
-            for x as integer = 0 to w - 1 : r[x] = cast( ushort, fill ) : next
+            for x as integer = 0 to perRow - 1 : r[x] = cast( ushort, fill ) : next
         case else
             dim as ulong ptr r = cptr( ulong ptr, px + y * pitch )
-            for x as integer = 0 to w - 1 : r[x] = fill : next
+            for x as integer = 0 to perRow - 1 : r[x] = fill : next
         end select
     next
 

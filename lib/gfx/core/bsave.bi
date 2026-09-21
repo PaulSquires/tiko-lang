@@ -24,10 +24,9 @@
 '' is why a loader cannot infer "there is a palette" from the depth alone -- it
 '' has to check for remaining bytes, which is what gfxlib2 does with feof().
 ''
-'' NOT IMPLEMENTED HERE: the BMP and LZW paths. BMP is a second format entirely
-'' (with the bitfield converters), and LZW is the legacy compressed GET/PUT
-'' array encoding. Both are listed as owed rather than stubbed, so nothing
-'' silently half-works.
+'' NOT HERE: the BMP path, and the SCREEN and palette forms of this one, which
+'' are entry/bmpio.bi's -- they need the screen and its palette, which core/ does
+'' not see. These two are the buffer-only kernels tools/abtest-bsave.bas checks.
 
 '' NOTE: the parameter is `src_`, not `data` -- DATA is an FB statement keyword
 '' and a parameter of that name is an "Illegal specification". Seventh instance

@@ -30,7 +30,8 @@ core/palette-data.bi      GENERATED -- 2692 default palette entries
 core/image.bi             IMAGECREATE / IMAGEINFO and the 32-byte header
 raster/put.bi             the ten PUT blend modes, 32bpp
 core/bsave.bi             the raw BSAVE / BLOAD block format
-core/bmp.bi               BMP output for BSAVE
+core/bmp.bi               BMP output for BSAVE (the abtest-bmp kernels)
+entry/bmpio.bi            BLOAD / BSAVE: BMP in and out, screen and palette forms
 core/control.bi           SCREENCONTROL getters and SCREENINFO
 core/font-data.bi         GENERATED -- 9728 bytes of console font
 core/vgaport.bi           the VGA DAC behind INP and OUT
@@ -98,6 +99,7 @@ tools/probe-driver.bas    registry + presentation unit test
 tools/probe-gdi.bas       GDI blit verified against a memory DC
 tools/bench.bas           throughput against gfxlib2
 tools/gate-abi.sh         runs both and FAILS on any disagreement
+tools/abrun-bloadsave.sh  BSAVE / BLOAD / SCREENLIST as whole programs, fbc vs tiko
 ```
 
 The gate is two-sided. The C probe measures the runtime we have to match; the FB
@@ -1042,10 +1044,12 @@ very first case (`gfxlib2=&h01 tko=&h00` at byte 1).
 That is the same shape as the pitch bug in `abtest-image.bas`: a self-consistent
 wrong value is invisible to any test that only round-trips through itself.
 
-**Owed, and deliberately not stubbed:** the BMP and LZW paths. BMP is a second
-format entirely (with the bitfield converters); LZW is the legacy compressed
-GET/PUT array encoding. Listed rather than half-implemented, so nothing silently
-appears to work.
+**The BMP path landed 2026-09-21**, in `entry/bmpio.bi`: BLOAD of 1, 4, 8, 16, 24
+and 32-bit BMPs (bitfields, top-down, OS/2 and V3 headers) onto screens, images
+and bare buffers, the screen forms of both formats, and the caller's palette.
+`tools/abrun-bloadsave.sh` compiles one program with fbc and with tiko and diffs
+56 lines of file, framebuffer and palette hashes; see that file's header. LZW,
+the legacy compressed GET/PUT array encoding, is still owed here.
 
 ## PUT at 8 and 16 bpp -- where modes become other modes
 

@@ -17,8 +17,9 @@
 ''     screenlist( 8 )             int32 fb_GfxScreenList( int32 )
 ''
 '' A SIZE OF 0 MEANS "src IS AN IMAGE", which is how one entry point serves both
-'' `BSAVE file, image` and `BSAVE file, buffer, size`. The fourth argument is a
-'' palette and was NULL in every form probed.
+'' `BSAVE file, image` and `BSAVE file, buffer, size`. The fourth argument is the
+'' caller's palette array, NULL when none is written. BSAVE and BLOAD themselves
+'' are thin wrappers here; the ported bodies are in entry/bmpio.bi.
 ''
 '' fb_GfxCursor IS THE ONE THAT IS NOT MEASURED, and it is the one to distrust.
 '' No 1.10.1 syntax found emits it -- `point(n)` goes to fb_GfxPoint with the
@@ -33,78 +34,32 @@ extern "c"
 
 '' BSAVE file, source [, size] [, palette]
 ''
-'' size 0 -> source is an image; otherwise a plain buffer of that many bytes.
-''
-'' THE EXTENSION SELECTS THE FORMAT, and the asymmetry is measured
-'' (tools/abtest-bmp.bas): BSAVE of an IMAGE to a non-.bmp name writes NOTHING
-'' but still leaves a ZERO-LENGTH FILE behind, because gfxlib2 rejects the
-'' combination only after opening the file. Reproduced, because a program that
-'' checks for the file's existence sees what it saw before.
+'' size 0 -> source is an image; otherwise a plain buffer of that many bytes. A
+'' NULL source is the SCREEN -- `bsave "shot.bmp", 0`. The extension selects the
+'' format. All of it is in entry/bmpio.bi.
 function TkoGfxBsave alias "fb_GfxBsave" ( _
         byval path as any ptr, _
         byval src as any ptr, _
         byval size as ulong, _
         byval pal as any ptr ) as long
 
-    scope : dim as any ptr ignored = pal : end scope
-
     dim as string fn = TkoGfx.StrFromDescriptor( path )
-    if (len( fn ) = 0) orelse (src = 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
-
-    dim as string ext = lcase( right( fn, 4 ) )
-
-    if size = 0 then
-        '' an image
-        if ext <> ".bmp" then
-            '' the measured asymmetry: open, refuse, leave the empty file
-            dim as long f = freefile
-            if open( fn, for output, as #f ) = 0 then close #f
-            return FB_RTERROR_ILLEGALFUNCTIONCALL
-        end if
-
-        dim as TkoAbi.PUT_HEADER ptr img = cptr( TkoAbi.PUT_HEADER ptr, src )
-        dim as long w, h, bpp, pitch, isz
-        dim as any ptr px
-        if TkoGfx.TkoImageQuery( img, w, h, bpp, pitch, px, isz ) <> 0 then
-            return FB_RTERROR_ILLEGALFUNCTIONCALL
-        end if
-
-        if bpp = 1 then
-            dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-            if p = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
-            return TkoGfx.BmpSave8( fn, img, *p )
-        end if
-        return TkoGfx.BmpSave32( fn, img )
-    end if
-
-    return TkoGfx.BSaveRaw( fn, src, size )
+    RtlStrDelTemp( path )
+    return TkoGfx.BlSave( fn, src, size, cptr( ulong ptr, pal ) )
 end function
 
-'' BLOAD file, dest [, palette]
+'' BLOAD file [, dest] [, palette]
 ''
-'' THE .bmp DIRECTION IS NOT IMPLEMENTED. core/bmp.bi writes BMPs and does not
-'' read them -- there is no loader to call. A .bmp here returns an error rather
-'' than loading nothing and reporting success, which is the difference between a
-'' missing feature and a silent one.
+'' A NULL dest is the SCREEN. The file's first byte selects the format: &hFE the
+'' FB raw block, &hFD QB's, 'B' a BMP. All of it is in entry/bmpio.bi.
 function TkoGfxBload alias "fb_GfxBload" ( _
         byval path as any ptr, _
         byval dest as any ptr, _
         byval pal as any ptr ) as long
 
-    scope : dim as any ptr ignored = pal : end scope
-
     dim as string fn = TkoGfx.StrFromDescriptor( path )
-    if (len( fn ) = 0) orelse (dest = 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
-
-    if lcase( right( fn, 4 ) ) = ".bmp" then return FB_RTERROR_ILLEGALFUNCTIONCALL
-
-    '' The raw path needs a capacity and BLOAD has no size argument, so the file
-    '' says how long it is: BLoadRaw reads the recorded length out of the header
-    '' and refuses anything longer than the bound given. ULONG_MAX is the only
-    '' honest bound available here -- the caller's buffer size is not passed, in
-    '' fbc either.
-    dim as ulong got
-    return TkoGfx.BLoadRaw( fn, dest, &hFFFFFFFFul, got )
+    RtlStrDelTemp( path )
+    return TkoGfx.BlLoad( fn, dest, cptr( ulong ptr, pal ) )
 end function
 
 '' PMAP( coord, func )
@@ -139,41 +94,49 @@ function TkoGfxCursor alias "fb_GfxCursor" ( byval func_ as long ) as single
     return 0.0
 end function
 
-'' SCREENLIST( depth ) -- iterate the modes available at a depth.
+'' SCREENLIST( depth ) -- iterate the display modes.
 ''
-'' Each call returns the next (w shl 16) or h, and 0 when the list is done. A
-'' depth of 0 means "any".
+'' A depth above 0 BUILDS the list and returns its first entry, (w shl 16) or h;
+'' 0 or a negative depth returns the next one, and 0 once the list is spent --
+'' and stays 0 until a depth above 0 is asked again. Transcribed from
+'' gfx_screenlist.c: a sorted, de-duplicated union of every driver's modes.
 ''
-'' WINDOWED ONLY. gfxlib2 enumerates fullscreen display modes from the driver;
-'' this library has no fullscreen path, so the list is the legacy MODE TABLE --
-'' the resolutions SCREEN can actually open here. That is a different list from
-'' fbc's on the same machine, and it is the honest one for what this presenter
-'' can do.
+'' WHICH MODES. gfxlib2 asks its Direct2D driver first, and that driver asks DXGI
+'' for the desktop's 32-BIT modes WHATEVER DEPTH WAS PASSED -- which is why fbc
+'' lists the same 27 modes here for depth 1, 8, 15, 16, 24 and 32. The GDI driver
+'' adds EnumDisplaySettings' modes of the depth itself, 15 and 16 interchangeable
+'' and 24 and 32. This takes both from EnumDisplaySettings: its 32-bit modes stand
+'' for DXGI's, and measured on this machine the two lists are identical.
+''
+'' This replaced a walk over the legacy SCREEN mode table: `screenlist( 32 )` found
+'' nothing, and `screenlist( )` restarted the walk -- so the help's own
+'' ScreenList example printed one mode, not the list.
 function TkoGfxScreenList alias "fb_GfxScreenList" ( byval depth as long ) as long
-    static as long nextmode = 1
-    if depth < 0 then return 0
-
-    '' A new query restarts the walk: fbc's SCREENLIST is called with the depth
-    '' first and then repeatedly with the same one.
-    static as long lastdepth = -1
-    if depth <> lastdepth then
-        lastdepth = depth
-        nextmode = 1
+    if depth > 0 then
+        deallocate( TkoGfx.SlList )
+        TkoGfx.SlList = 0
+        TkoGfx.SlSize = 0
+        dim as DEVMODE dm
+        dm.dmSize = sizeof( DEVMODE )
+        dim as long i = 0
+        while EnumDisplaySettings( NULL, i, @dm )
+            dim as long b = dm.dmBitsPerPel
+            dim as boolean d2d = (b = 32)
+            dim as boolean same = (b = depth)
+            dim as boolean hi = ((b = 15) andalso (depth = 16)) orelse ((b = 16) andalso (depth = 15))
+            dim as boolean tc = ((b = 24) andalso (depth = 32)) orelse ((b = 32) andalso (depth = 24))
+            if d2d orelse same orelse hi orelse tc then
+                TkoGfx.SlAdd( (dm.dmPelsWidth shl 16) or dm.dmPelsHeight )
+            end if
+            i += 1
+        wend
+        TkoGfx.SlSort( )
+        TkoGfx.SlCurrent = 0
     end if
 
-    while nextmode < TkoGfx.NUM_MODES
-        dim as long m = nextmode
-        nextmode += 1
-        if TkoGfx.ModeSupported( m ) then
-            if (depth = 0) orelse (TkoGfx.ModeTable(m).depth = depth) then
-                return (TkoGfx.ModeTable(m).w shl 16) or TkoGfx.ModeTable(m).h
-            end if
-        end if
-    wend
-
-    nextmode = 1
-    lastdepth = -1
-    return 0
+    TkoGfx.SlCurrent += 1
+    if (TkoGfx.SlList = 0) orelse (TkoGfx.SlCurrent > TkoGfx.SlSize) then return 0
+    return TkoGfx.SlList[TkoGfx.SlCurrent - 1]
 end function
 
 '' SCREENCONTROL lives in entry/control.bi, with its 64-bit and string forms.
