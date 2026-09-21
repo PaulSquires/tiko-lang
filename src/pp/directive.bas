@@ -894,7 +894,17 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         '' is a clang error about the NEXT argument, which names the wrong thing.
         if len( val2 ) > 0 then
             if word = "inclib" then
-                e.outp->incLibs.Push( val2 )
+                '' '#inclib "fbgfx?"' IS NOT A LIBRARY NAME. fbgfx.bi writes it, and fbc
+                '' reads it as "this program uses graphics": fbAddLib turns exactly that
+                '' spelling into its -fbgfx option and links libfbgfx (or the mt / pic
+                '' variant) behind the runtime. Passed on as written it reached lld-link
+                '' as 'fbgfx?.lib', and every program that included fbgfx.bi failed to
+                '' link. tiko's graphics library is libtkogfx.a, and the link already
+                '' names it behind the runtime wherever one exists (toolchain.bas), so
+                '' the request is answered and is DROPPED -- not rewritten to 'tkogfx',
+                '' which would also put the archive AHEAD of libfb, and not written into
+                '' an object's .fbctinf, where fbc would read it back as a library.
+                if val2 <> "fbgfx?" then e.outp->incLibs.Push( val2 )
             else
                 e.outp->libPaths.Push( val2 )
             end if
