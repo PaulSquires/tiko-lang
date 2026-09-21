@@ -3,6 +3,9 @@
 '' ARGS: --dump-ast tests/parser/src/label-vs-call.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: N_LABEL 'here'
+'' EXPECT-OUT: N_LABEL 'stick'
 '' EXPECT-NOT: N_LABEL 'foo'
 '' EXPECT-NOT: N_LABEL 'sleep'
 '' EXPECT-NOT: N_LABEL 'beep'
+'' EXPECT-NOT: N_LABEL 'system'
+'' EXPECT-NOT: N_LABEL 'b'

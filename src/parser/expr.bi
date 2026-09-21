@@ -125,6 +125,10 @@ namespace Tko
         '' parsed after the unit's own statements, so its declarations are not in
         '' procNames while a label is being decided.
         as string               preludeProcs
+        '' METHODS, which fbc sees by bare name only inside a member procedure's body
+        '' (implicit 'this'), and how many member bodies enclose the cursor.
+        as NodeIdVec            memberProcNames
+        as long                 memberDepth
     end type
 
 end namespace

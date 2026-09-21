@@ -1015,8 +1015,14 @@ private function ParseProc _
         end if
     end if
     '' KNOWN FROM HERE ON, so a later 'name :' is a call and not a label -- fbc's rule,
-    '' see IsLabelHere_. A method is not a bare name outside its type, so not recorded.
-    if (qualified = false) andalso (p.aggDepth = 0) then p.procNames.Push( cast( ulong, sp.name ) )
+    '' see IsLabelHere_. A METHOD is a bare name only inside a member body, where it
+    '' is 'this.name': 'b : print' in 'sub T.a' calls T.b, and was a label named b.
+    dim as boolean isMember = qualified orelse (p.aggDepth > 0)
+    if isMember then
+        p.memberProcNames.Push( cast( ulong, sp.name ) )
+    else
+        p.procNames.Push( cast( ulong, sp.name ) )
+    end if
     if declareOnly then
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
         if qualified then p.ast->nodes[cast( long, dn )].flags or= Tko.NF_QUALIFIED
@@ -1029,7 +1035,9 @@ private function ParseProc _
     '' See ParserState.procDepth: nothing declared inside a body is told to the
     '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
     p.procDepth += 1
+    if isMember then p.memberDepth += 1
     sp.b = Block( p )
+    if isMember then p.memberDepth -= 1
     p.procDepth -= 1
     if inGeneric then p.genericDepth -= 1
     ExpectEnd( p, kw )

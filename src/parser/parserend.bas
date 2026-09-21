@@ -220,6 +220,11 @@ end function
 '' an LF file every parenthesis-less zero-argument call, 'Bar' on a line of its own,
 '' was parsed as a LABEL named bar. It only looked correct on CRLF input, where the
 '' newline is two bytes.
+const UNDECLARED_RTL_PROCS_ = "|allocate|bin|bload|bsave|callocate|chain|clear|deallocate" & _
+    "|dir|dylibfree|dylibload|dylibsymbol|erfn|ermn|getkey|hex|left|oct|out|pcopy|pmap" & _
+    "|pointcoord|reallocate|reset|right|run|screenlist|setdate|settime|space|stop|system" & _
+    "|wait|wbin|whex|woct|wspace|"
+
 function IsLabelHere_( byref p as Tko.ParserState ) as boolean
     if HasTok( p, p.pos + 1 ) = false then return false
     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_EOL then return false
@@ -231,6 +236,19 @@ function IsLabelHere_( byref p as Tko.ParserState ) as boolean
     if len( p.preludeProcs ) = 0 then p.preludeProcs = PreludeProcSpellings( )
     dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
     if instr( p.preludeProcs, spelled ) > 0 then return false
+    '' THE RUNTIME PROCEDURES TIKO DECLARES NOWHERE -- lowering claims them by spelling
+    '' (mir/lowerbuiltin.bas, mir/lowerintr.bas) -- are procedures to fbc all the same.
+    '' Found by putting every name in fbc's keyword and RTL tables through 'name :
+    '' print 1 : goto name' under fbc: each of these is a call there. STICK and STRIG
+    '' are not in the list because they are labels there -- QB-only, undeclared in
+    '' -lang fb -- and so are they here.
+    if instr( UNDECLARED_RTL_PROCS_, spelled ) > 0 then return false
+    '' A METHOD, by bare name inside a member body, is 'this.name' (implicit this).
+    if p.memberDepth > 0 then
+        for each known as ulong in p.memberProcNames
+            if known = nm then return false
+        next
+    end if
     return true
 end function
 
