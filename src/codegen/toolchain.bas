@@ -387,6 +387,23 @@ function LinkExe _
     next
 
     for i as long = 0 to t.libs.Count - 1
+        '' 'msvcrt' IS A REQUEST FOR THE C RUNTIME, and on this target the C runtime is
+        '' ucrtbase, which the system list below always links. crt.bi writes
+        '' '#inclib "msvcrt"' -- right for win64, where it is the CRT fbc links too.
+        '' Passed on here it was TWO faults:
+        ''
+        ''   - clang's msvc driver puts Visual Studio's and the SDK's library paths
+        ''     AHEAD of every -L (measured with -###, clang 21, even with -nostdlib), so
+        ''     on a machine with Visual Studio '-lmsvcrt' found VC's STATIC msvcrt.lib --
+        ''     startup objects -- and the link failed on __chkstk, _fltused and atexit,
+        ''     which tiko-rt's msvccrt.o defines. Every program including crt.bi failed
+        ''     to link on the default target; tiko-lang's own is one of them.
+        ''   - without Visual Studio it found OUR import library and linked, quietly
+        ''     importing half the C library from msvcrt.dll and half from ucrtbase.dll --
+        ''     two heaps, and a strdup freed by the other one's free.
+        if target.id = TARGET_WIN64_MSVC then
+            if lcase( t.libs[i] ) = "msvcrt" then continue for
+        end if
         dim as string named = ""
         '' TWO SPELLINGS, AND THE IMPORT LIBRARY WINS -- which is GNU ld's order and
         '' was measured, not assumed: with libfblib.dll.a and libfblib.a both in one
