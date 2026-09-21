@@ -520,6 +520,12 @@ function PrintOne _
         '' unconditionally made generics/generic-procptr-typearg.bas fail its ViaSlot
         '' assertion, and a hand-cut reduction of that file reads uninitialised memory
         '' and answers either way, so it was bisected against the file itself.
+        '' ...AND A MEMBER THAT IS A STRING CONSTANT, 'print NS.K', which has no
+        '' address either and folds to its text in StrDescriptorOf_ exactly as a bare
+        '' 'print K' does. See IsConstNameRef_.
+        if isCallish = false then
+            if c.ast->Kind( it ) = Tko.N_MEMBER then isCallish = IsConstNameRef_( c, it )
+        end if
         if isCallish = false then
             if c.ast->Kind( it ) = Tko.N_MEMBER then
                 dim as Tko.Symbol ptr pmy = c.syms->SymbolAt( c.info->RefOf( it ) )

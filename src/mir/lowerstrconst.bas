@@ -221,4 +221,24 @@ function ConstStringTextOf_ _
     return false
 end function
 
+'' A NAME THAT MAY BE A STRING CONSTANT -- 'K', and 'NS.K' or 'T.K' as well. The narrow
+'' string paths asked ConstStringTextOf_ only for a bare N_IDENT, although it has read
+'' the dotted spelling since it was written, so a namespace or type constant declined
+'' everywhere but len( ): 'print NS.K' printed nothing, 's = NS.K' left s empty, and
+'' '"x" & NS.K' emitted "x" and gave up on the rest of the statement. tiko-lang's own
+'' --version is 'Tko.TKO_VERSION_SUFFIX' and 'Tko.TKO_FBC_COMPAT', which is how the
+'' self-built compiler found it. A MEMBER counts only when it binds to a CONSTANT, so
+'' a field is still an lvalue for the paths that take its address.
+function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    select case c.ast->Kind( id )
+    case Tko.N_IDENT
+        return true
+    case Tko.N_MEMBER
+        dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if ms = 0 then return false
+        return (ms->kind = cast( ubyte, Tko.SYM_CONSTANT ))
+    end select
+    return false
+end function
+
 end namespace

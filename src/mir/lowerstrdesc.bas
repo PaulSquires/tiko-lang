@@ -30,7 +30,7 @@ function StrDescriptorOf_ _
     '' ...and ADJACENT LITERALS, which are one literal: '"a" "1"' folds to "a1" before
     '' it reaches any call, so 'print "a" "1"' has a text and not an expression.
     dim as string constText
-    dim as boolean constish = (c.ast->Kind( id ) = Tko.N_IDENT)
+    dim as boolean constish = IsConstNameRef_( c, id )
     if c.ast->Kind( id ) = Tko.N_STRCAT then constish = true
     if constish then
         if ConstStringTextOf_( c, id, constText ) then

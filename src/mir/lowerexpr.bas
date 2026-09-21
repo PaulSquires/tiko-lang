@@ -322,7 +322,7 @@ function LowerExpr _
         '' variable -- it folds -- so LowerAddr had nothing to take and
         '' 'dim as byte ptr p = @s' declined. Measured, fbc hands back the
         '' LITERAL'S OWN STORAGE: 'P$0 = (int8*)"abc"'.
-        if c.ast->Kind( ap->operand ) = Tko.N_IDENT then
+        if IsConstNameRef_( c, ap->operand ) then
             dim as Tko.Symbol ptr acs = c.syms->SymbolAt( c.info->RefOf( ap->operand ) )
             if acs <> 0 then
                 if acs->kind = cast( ubyte, Tko.SYM_CONSTANT ) then

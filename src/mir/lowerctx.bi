@@ -692,6 +692,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
           byval depth as long = 0, _
           byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL ) as boolean
+    declare function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function ZstrDataOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerConcatAssignStmt _

@@ -1,0 +1,9 @@
+'' See the source's header. Every statement must lower: a decline here is a statement
+'' that silently prints nothing or assigns nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/qualified-string-const.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: global str $str0 "-dev"
+'' GOLDEN: expected/qualified-string-const.out

@@ -72,7 +72,7 @@ function EmitStrTerm _
         end if
     end if
 
-    if c.ast->Kind( term ) = Tko.N_IDENT then
+    if IsConstNameRef_( c, term ) then
         dim as string ct
         if ConstStringTextOf_( c, term, ct ) then
             if isU then
@@ -416,7 +416,7 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
 
     dim as Tko.NodeId t2 = Unparen_( c, term )
     if c.ast->Kind( t2 ) = Tko.N_STRING_LIT then return STF_NEUTRAL
-    if c.ast->Kind( t2 ) = Tko.N_IDENT then
+    if IsConstNameRef_( c, t2 ) then
         dim as string ct
         if ConstStringTextOf_( c, t2, ct ) then return STF_NEUTRAL
     end if
