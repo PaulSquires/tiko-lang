@@ -1,0 +1,8 @@
+'' '$lang: "qb"' is refused like '#lang "qb"'. See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/lang-metacommand.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: lang-metacommand.bas(1,2): error TKO0317
+'' EXPECT-OUT: unsupported language mode 'qb'
+'' EXPECT-NOT: TKO0743
+'' EXPECT-MAX-DIAG: 1

@@ -33,6 +33,11 @@ namespace Tko.Lex
         as Tko.TokenVec   tokens
         as Tko.LiteralVec literals
         as long           invalidCount
+        '' '$lang: "qb"' in a comment -- the METACOMMAND spelling of '#lang', which fbc
+        '' honours in any comment ('rem $lang:' too). The first one in the file; the
+        '' preprocessor refuses anything but "fb" exactly as it refuses '#lang'.
+        as string         langMeta
+        as Tko.SourceLoc  langMetaAt
     end type
 
     declare sub Run _

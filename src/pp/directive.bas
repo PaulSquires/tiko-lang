@@ -5,6 +5,18 @@ namespace Tko
 
 '' ------------------------------------------------------------------- includes
 
+'' A '$lang' METACOMMAND the lexer found in a comment is '#lang' by another name, and
+'' is refused the same way: TKO0317, and the unit marked so its undeclared names --
+'' implicit variables in 'qb' -- are not reported as noise. Checked on every file
+'' the unit reads, cached or not, since the cache is shared between units.
+private function PpLangMeta_( byref e as PpEngine, byval r as Lex.Result ptr ) as TokenVec ptr
+    if (len( r->langMeta ) > 0) andalso (Text.LowerAscii( r->langMeta ) <> "fb") then
+        if e.outp->langRefused = false then Report( e, TKO0317, r->langMetaAt, r->langMeta )
+        e.outp->langRefused = true
+    end if
+    return @r->tokens
+end function
+
 '' Lex a file once and keep the result alive: every token's (loc, length) points into
 '' the source manager's buffers, and the literal pool lives in the Lex.Result.
 ''
@@ -26,8 +38,8 @@ private function PpLexFile( byref e as PpEngine, byval file as FileId ) as Token
         e.lexed.Push( 0 )
     wend
 
-    if (*e.lexp)[idx] <> 0 then return @(cast( Lex.Result ptr, (*e.lexp)[idx] )->tokens)
-    if e.lexed[idx] <> 0 then return @(cast( Lex.Result ptr, e.lexed[idx] )->tokens)
+    if (*e.lexp)[idx] <> 0 then return PpLangMeta_( e, (*e.lexp)[idx] )
+    if e.lexed[idx] <> 0 then return PpLangMeta_( e, e.lexed[idx] )
 
     dim as long before = e.diags->ErrorCount( ) + e.diags->WarningCount( )
     dim as Lex.Result ptr r = new Lex.Result
@@ -50,7 +62,7 @@ private function PpLexFile( byref e as PpEngine, byval file as FileId ) as Token
     else
         (*e.lexp)[idx] = r
     end if
-    return @r->tokens
+    return PpLangMeta_( e, r )
 end function
 
 private function PpAlreadyOnce( byref e as PpEngine, byval file as FileId ) as boolean

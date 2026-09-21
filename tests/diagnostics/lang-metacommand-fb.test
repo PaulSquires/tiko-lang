@@ -1,0 +1,5 @@
+'' '$lang: "fb"' is accepted, and prose about $lang is only a comment. See the source.
+'' TEST: cli
+'' ARGS: --parse-only tests/diagnostics/src/lang-metacommand-fb.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0317

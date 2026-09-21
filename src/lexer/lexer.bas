@@ -280,7 +280,48 @@ private function IsRemWord_( byref s as Scanner, byval at as long ) as boolean
     return true
 end function
 
+'' A '$lang: "x"' METACOMMAND in the comment starting at 'at' -- the apostrophe, or
+'' the text after REM. Measured against fbc: '$lang: "qb"', ' $lang: "qb"',
+'' '$LANG: "qb"' and 'rem $lang: "qb"' all switch dialect, anywhere in the file.
+'' Only the first is kept. Until this was read, tiko dropped it as a comment and
+'' compiled a QB program as FB, failing later on a name only QB has ('stick').
+private sub LangMeta_( byref s as Scanner, byval at as long )
+    if len( s.outp->langMeta ) > 0 then exit sub
+    dim as long i = at
+    if (i < s.n) andalso (s.p[i] = 39) then i += 1
+    while (i < s.n) andalso ((s.p[i] = 32) orelse (s.p[i] = 9))
+        i += 1
+    wend
+    if (i + 5 >= s.n) orelse (s.p[i] <> 36) then exit sub             '' $
+    dim as string w = lcase( chr( s.p[i + 1], s.p[i + 2], s.p[i + 3], s.p[i + 4] ) )
+    if w <> "lang" then exit sub
+    dim as long mark = i
+    i += 5
+    while (i < s.n) andalso ((s.p[i] = 32) orelse (s.p[i] = 9))
+        i += 1
+    wend
+    if (i >= s.n) orelse (s.p[i] <> 58) then exit sub                 '' :
+    i += 1
+    while (i < s.n) andalso ((s.p[i] = 32) orelse (s.p[i] = 9))
+        i += 1
+    wend
+    if (i >= s.n) orelse (s.p[i] <> 34) then exit sub                 '' "
+    dim as long v0 = i + 1
+    i = v0
+    while (i < s.n) andalso (s.p[i] <> 34) andalso (s.p[i] <> 10)
+        i += 1
+    wend
+    if (i >= s.n) orelse (s.p[i] <> 34) then exit sub
+    dim as string v = space( i - v0 )
+    for k as long = 0 to i - v0 - 1
+        v[k] = s.p[v0 + k]
+    next
+    s.outp->langMeta = v
+    s.outp->langMetaAt = LocAt( s, mark )
+end sub
+
 private sub SkipLineComment( byref s as Scanner )
+    LangMeta_( s, s.i )
     while s.i < s.n
         if s.p[s.i] = 10 then exit while
         s.i += 1
