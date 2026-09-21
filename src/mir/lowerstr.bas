@@ -1262,7 +1262,10 @@ function LowerLen _
         '' builds the concatenation into a temporary and measures that:
         '' 'fb_StrLen( (void*)fb_StrConcat( &TMP, &A, -1, &B, -1 ), -1ll )'. Anything
         '' else that hands back a descriptor works the same way.
-        dim as MirValue sa = LowerAddr( c, a )
+        '' A BARE FUNCTION NAME IS A CALL, asked before LowerAddr's CODE ADDRESS: fbc
+        '' measures 'len( inkey )' as 'fb_StrLen( fb_Inkey( ), -1ll )'.
+        dim as MirValue sa
+        if LowerBareProcCall_( c, Unparen_( c, a ), MT_PTR, sa ) = false then sa = LowerAddr( c, a )
         if sa.kind = cast( ubyte, MV_NONE ) then
             if StrDescriptorOf_( c, a, sa ) = false then return false
             zn = -1
