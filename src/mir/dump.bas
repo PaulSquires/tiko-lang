@@ -25,6 +25,19 @@ private function EbName( byval packed as ulong ) as string
     return r & "]"
 end function
 
+'' A FLOAT CONSTANT'S TEXT, WITH THE NON-FINITE ONES SPELLED HERE rather than by the
+'' runtime tiko-lang was linked with. 'str( )' of the negative NaN that '0.0 / 0.0'
+'' folds to is 'nan' in fbc's libfb (MinGW's printf) and '-nan(ind)' in tiko-rt on the
+'' UCRT, so the SELF-BUILT compiler dumped different MIR from the fbc-built one for the
+'' same input -- tests/mir/float-const-fold failed under stage2 and nowhere else. These
+'' are the spellings the goldens were written with; the sign of a NaN was never shown.
+private function FloatConstText_( byval v as double ) as string
+    if v <> v then return "nan"
+    if v > 1.7976931348623157e308 then return "inf"
+    if v < -1.7976931348623157e308 then return "-inf"
+    return str( v )
+end function
+
 private function ValStr _
     ( byref f as MirFunction, byref v as MirValue, byref names as Tko.Interner, _
       byval m as MirModule ptr = 0 ) as string
@@ -82,7 +95,7 @@ private function InstStr _
     case M_CONST
         s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
         if (ins.ty = cast( ubyte, MT_F32 )) orelse (ins.ty = cast( ubyte, MT_F64 )) then
-            s += str( ins.fimm )
+            s += FloatConstText_( ins.fimm )
         else
             s += str( ins.imm )
         end if
