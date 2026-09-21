@@ -216,6 +216,16 @@ rt_check_tools( ) {
     [ -x "$TKORT_FBC" ] || rt_die "stage0 compiler not found at $TKORT_FBC (set TKORT_FBC)"
     [ -x "$CLANG" ]     || rt_die "clang not found at $CLANG (set CLANG)"
     [ -x "$TKORT_AR" ]  || rt_die "llvm-ar not found at $TKORT_AR (set TKORT_AR)"
+    # AND llvm-nm, WHICH HAD NO GUARD. Every use of it redirects stderr away and
+    # pipes into wc or grep, so a missing one does not fail -- it reports ZERO
+    # symbols, and the empty-object check then names a real source file:
+    #
+    #   build: mem/mem.bas compiles to an object with NO GLOBAL SYMBOLS on linux-x86_64.
+    #
+    # mem.bas defines two. Measured under WSL, where llvm-nm is spelled llvm-nm-19
+    # and the fallback is a Windows path that does not exist there. A tool that did
+    # not run is worth an error rather than a believable number.
+    [ -x "$TKORT_NM" ]  || rt_die "llvm-nm not found at $TKORT_NM (set TKORT_NM)"
     [ -d "$FBC_TREE" ]  || rt_die "fbc-modern tree not found at $FBC_TREE (set FBC_TREE)"
 }
 
