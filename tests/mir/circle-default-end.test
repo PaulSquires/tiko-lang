@@ -1,0 +1,8 @@
+'' CIRCLE with no end angle passes fbc's full-circle sentinel. See the source's
+'' header. The LLVM spelling of the single 6.2831859588623047 is
+'' 0x401921FB80000000; the true 2*pi, which drew one pixel, is 0x401921FB60000000.
+'' TEST: cli
+'' ARGS: --emit-ir tests/mir/src/circle-default-end.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: float 0x401921FB80000000, i32 0, i32 4)
+'' EXPECT-NOT: 0x401921FB60000000

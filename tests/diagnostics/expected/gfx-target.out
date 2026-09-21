@@ -148,7 +148,7 @@ func i32 main(i32 $0, ptr $1) {
     %114 = sitofp %113
     %115 = const i32 0
     %116 = const f32 0
-    %117 = const f32 6.283185482025146
+    %117 = const f32 6.283185958862305
     %118 = const f32 0
     call.rtl void fb_GfxEllipse(%108, %110, %112, %114, %115, %118, %116, %117, 0, -2147483644)
     call.rtl void fb_StrDelete(@s)

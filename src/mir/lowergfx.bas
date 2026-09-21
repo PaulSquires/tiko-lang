@@ -206,8 +206,15 @@ function LowerGfxCircle( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue st = GfxCoord( c, sp, 4, ok )
     dim as Tko.NodeId en = GfxArg( c, sp, 5 )
     dim as MirValue ev
+    '' THE OMITTED END IS A SENTINEL, NOT 2*PI. fbc passes
+    '' 'astNewCONSTf( 3.141593*2, FB_DATATYPE_SINGLE )' -- the single
+    '' 6.2831859588623047, 0x1.921FB8p+2 in its C -- and gfx_circle.c (and
+    '' libtkogfx's raster/circle.bi) draws a whole circle ONLY for that exact value
+    '' with start 0. The true single 2*pi, 6.2831854820251465, took the ARC path,
+    '' which reduces a 0..2*pi arc to its first point: every 'circle (x, y), r'
+    '' drew ONE pixel. Measured with POINT: fbc 44 pixels for r = 8, tiko 1.
     if en = Tko.NODE_NONE then
-        ev = ConstFloat( c, 6.2831854820251465, MT_F32 )
+        ev = ConstFloat( c, 6.2831859588623047, MT_F32 )
     else
         ev = GfxCoord( c, sp, 5, ok )
     end if
