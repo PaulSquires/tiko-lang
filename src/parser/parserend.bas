@@ -129,6 +129,8 @@ function CheckEndOfStatement_ _
 
     dim as boolean atEol = (Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)
     if atEol then return true
+    '' The rest of a 'next x, y' belongs to the FOR around this one -- AcceptNext_.
+    if p.pendingNext > 0 then return true
 
     '' A MEMBER ASSIGNMENT LEAVES WHAT FOLLOWS ALONE -- see the header.
     if n <> Tko.NODE_NONE then
@@ -154,6 +156,53 @@ function CheckEndOfStatement_ _
         end select
     end if
     ErrorNode( p, Tko.TKO0420 )
+    return true
+end function
+
+'' ------------------------------------------------------------------- NEXT
+''
+'' 'next x, y' IS 'next x : next y'. The first name closes the FOR being parsed and
+'' every further name closes the FOR around it. This used to take one NEXT and skip
+'' the rest of the line, so the inner FOR closed and the outer one did not: at module
+'' level everything after 'next x, y' ran INSIDE the outer loop -- measured, a
+'' 'print' after the loops ran three times where fbc runs it once -- and inside a DO
+'' the LOOP was left over and rejected as TKO0420.
+''
+'' A comma leaves one NEXT PENDING. Block stops at a pending NEXT, and the enclosing
+'' FOR takes it here instead of asking for the keyword. The names are still not
+'' checked against the counters: a FOR takes the next NEXT whatever it names, as
+'' before. A name with no FOR left open around it is fbc's error 107 (TKO0421).
+''
+'' Called with p.forDepth already counting only the FORs AROUND this one.
+function AcceptNext_( byref p as Tko.ParserState ) as boolean
+    if p.pendingNext > 0 then
+        p.pendingNext -= 1
+    elseif Accept( p, Tko.KW_NEXT ) = false then
+        return false
+    end if
+    dim as long depth = 0
+    while (Peek( p ) <> Tko.TK_EOL) andalso (Peek( p ) <> Tko.TK_EOF)
+        dim as Tko.TokenKind k = Peek( p )
+        if k = Tko.TK_LPAREN then depth += 1
+        if k = Tko.TK_RPAREN then depth -= 1
+        if (k = Tko.TK_COMMA) andalso (depth = 0) then
+            Advance( p )
+            if p.forDepth > 0 then
+                p.pendingNext += 1
+                return true
+            end if
+            dim as string nm
+            if Peek( p ) = Tko.TK_IDENT then
+                nm = p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) )
+            end if
+            ErrorNode( p, Tko.TKO0421, nm )
+            while (Peek( p ) <> Tko.TK_EOL) andalso (Peek( p ) <> Tko.TK_EOF)
+                Advance( p )
+            wend
+            return true
+        end if
+        Advance( p )
+    wend
     return true
 end function
 

@@ -56,6 +56,7 @@ declare function NextTokIs_ _
     ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
+declare function AcceptNext_( byref p as Tko.ParserState ) as boolean
 declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
 declare function CheckEndOfStatement_( byref p as Tko.ParserState, byval n as Tko.NodeId = Tko.NODE_NONE ) as boolean
 declare function EndClosesOther_ _
@@ -81,6 +82,7 @@ sub SkipEols( byref p as Tko.ParserState )
 end sub
 
 sub EndOfStatement( byref p as Tko.ParserState )
+    if p.pendingNext > 0 then return       '' 'next x, y': the rest is the next FOR's
     '' A statement never consumes more than its own terminator.
     ''
     '' WHAT IT PASSES OVER, IT DISCARDS -- silently, which is the point of the ELSE
@@ -132,6 +134,7 @@ function Block( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.NodeIdVec items
     do
+        if p.pendingNext > 0 then exit do      '' 'next x, y' -- see AcceptNext_
         SkipEols( p )
         if AtEnd( p ) then exit do
         if IsBlockEnderAt( p ) then exit do
@@ -562,17 +565,15 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
         sp.first = p.ast->children.Count
         sp.count = 1
         p.ast->children.Push( cast( ulong, seq ) )
+        p.forDepth += 1
         sp.b = Block( p )
+        p.forDepth -= 1
         dim as ushort eachFlags = 0
         if dnames.Count > 0 then
             sp.b = ForEachDestructure_( p, t, feTmp, dnames, sp.b )
             eachFlags = Tko.NF_DESTRUCTURE
         end if
-        if Accept( p, Tko.KW_NEXT ) then
-            while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
-                Advance( p )
-            wend
-        end if
+        AcceptNext_( p )
         dim as Tko.NodeId en = MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
         p.ast->nodes[cast( long, en )].flags or= eachFlags
         return en
@@ -605,12 +606,10 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     p.ast->children.Push( cast( ulong, toExpr ) )
     p.ast->children.Push( cast( ulong, stepExpr ) )
 
+    p.forDepth += 1
     sp.b = Block( p )
-    if Accept( p, Tko.KW_NEXT ) then
-        while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
-            Advance( p )
-        wend
-    end if
+    p.forDepth -= 1
+    AcceptNext_( p )
 
     return MakeStmt( p, Tko.N_FOR, t.loc, sp )
 end function

@@ -160,6 +160,9 @@
     DIAG( TKO0419, SEV_ERROR,   "'is' is not allowed in a 'select case as const'" )
     '' fbc's error 3, "Expected End-of-Line": tokens left over after a whole statement.
     DIAG( TKO0420, SEV_ERROR,   "expected the end of the statement" )
+    '' fbc's error 107, "NEXT without FOR". 'next x, y' closes the loop of x and then
+    '' the one around it; a name with no FOR left open to close is this.
+    DIAG( TKO0421, SEV_ERROR,   "'next' without a 'for': no loop is open for '%0'" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

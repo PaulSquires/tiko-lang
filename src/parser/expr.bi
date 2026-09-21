@@ -111,6 +111,11 @@ namespace Tko
         '' otherwise walks to the line's end and DISCARDS whatever it passes, which is
         '' how 'if c then a else b' lost its else branch in silence.
         as boolean              stopAtElse
+        '' 'next x, y' closes two FORs: how many NEXTs a multi-name NEXT has left for the
+        '' FORs around the one it closed, and how many FOR bodies enclose the cursor.
+        '' parserend.bas's AcceptNext_.
+        as long                 pendingNext
+        as long                 forDepth
     end type
 
 end namespace

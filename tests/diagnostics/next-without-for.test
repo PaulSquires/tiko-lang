@@ -1,0 +1,7 @@
+'' TKO0421: a multi-name NEXT with no loop left open for a name. See the source.
+'' TEST: cli
+'' ARGS: --parse-only tests/diagnostics/src/next-without-for.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: next-without-for.bas(5,9): error TKO0421
+'' EXPECT-OUT: no loop is open for 'y'
+'' EXPECT-MAX-DIAG: 1
