@@ -398,7 +398,10 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     '' The subject is evaluated ONCE into a slot holding its descriptor pointer, so a
     '' subject with a side effect runs once however many cases follow.
     dim as long strMode = -1
-    if TermIsWide_( c, sp->a ) then
+    '' ...AND A WIDE CHAIN, which Check types STRING: 'select case w & "y"' went to the
+    '' narrow descriptor path, declined, and the whole SELECT was dropped -- no case ran.
+    '' fbc compares every case value against the chain with fb_WstrCompare.
+    if TermIsWide_( c, sp->a ) orelse IsWideChain_( c, sp->a ) then
         strMode = 1
     else
         dim as longint sn0

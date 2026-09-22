@@ -1,0 +1,16 @@
+'' A WIDE CHAIN AS A SELECT CASE SUBJECT IS COMPARED WIDE. Check types '&' STRING, so
+'' 'select case w & "y"' went to the narrow descriptor path, which has nothing to give for
+'' a wide chain: the subject declined and the WHOLE SELECT was dropped, with no case run
+'' and nothing said but "1 statements not lowered". Measured, fbc builds the chain with
+'' fb_WstrConcatWA and compares each case value with fb_WstrCompare; it prints hit.
+'' A family call over one -- 'right( "00" & wstr( 7 ), 2 )' -- is the same shape.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/select-wide-chain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrConcatWA(
+'' EXPECT-OUT: fb_WstrRight(
+'' EXPECT-OUT: fb_WstrCompare(
+'' EXPECT-OUT: fb_WstrDelete(
+'' EXPECT-NOT: fb_StrCompare(
