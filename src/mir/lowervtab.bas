@@ -310,6 +310,42 @@ function VirtualCalleeOf_ _
 end function
 
 
+'' 'delete p' OVER A VIRTUAL DESTRUCTOR goes through p's vptr, exactly as a virtual
+'' method call does. Measured, fbc emits
+''
+''     (*(tmp$4*)*(void***)P$0)( P$0 );  free( (void*)P$0 );
+''
+'' and tiko called the STATIC type's destructor by name, so 'delete' through a base
+'' pointer ran the base's destructor alone and every derived one was skipped --
+'' fb/tuiwidget.bi's containers, which own their children as 'TuiWidget ptr', leaked
+'' all of them. False when the destructor has no slot; the caller then calls it
+'' directly, which is right for a non-virtual one.
+function EmitVirtualDtor_ _
+    ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
+      byref p as MirValue ) as boolean
+
+    if c.vts = 0 then return false
+    dim as Tko.Symbol ptr ds = c.syms->SymbolAt( dtor )
+    if ds = 0 then return false
+    dim as long slot = c.vts->SlotOf( c.types->Unqualify( el ), dtor, _
+                                      cast( Tko.NodeId, ds->payload ) )
+    if slot < 0 then return false
+    dim as MirValue vfp = VirtualCalleeOf_( c, p, slot )
+    if vfp.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, p.kind ) )
+    c.m->argPool.Push( cast( ulong, p.id ) )
+    dim as MirInst vc
+    vc.op = cast( ushort, M_CALL_IND )
+    vc.ty = cast( ubyte, MT_VOID )
+    vc.a = vfp
+    vc.first = first
+    vc.count = 1
+    Emit( c, vc )
+    return true
+end function
+
+
 '' 'a IS T' -- fb_IsTypeOf over the object's address and T's RTTI record.
 ''
 '' The record is the one the vtable already points at, built on demand and shared, so

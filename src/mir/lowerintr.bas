@@ -266,7 +266,7 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     c.curBlock = bodyB
 
     if dtor <> Tko.SYMBOL_NONE then
-        EmitStructorCall( c, dtor, -1, @p )
+        if EmitVirtualDtor_( c, el, dtor, p ) = false then EmitStructorCall( c, dtor, -1, @p )
     elseif implDtor then
         CallImplicitDtor_( c, el, p )
     end if

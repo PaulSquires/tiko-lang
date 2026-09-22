@@ -1,0 +1,6 @@
+'' 'delete' through a base pointer goes through the vptr when the destructor is virtual,
+'' and calls it by name when it is not. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/delete-virtual-dtor.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/delete-virtual-dtor.out
