@@ -219,13 +219,31 @@ cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
 # Taken whole from the reference fbc toolchain, because tiko ships no headers of
 # its own yet: the fb/*.bi set, the platform bindings, and the third-party ones
 # that make an include like "vbcompat.bi" resolve the way it does under fbc.
+#
+# WHERE THEY ARE IS PER HOST, and the Linux one is a trap: fbc-modern-windows keeps
+# its headers in inc/, while fbc-modern-linux keeps them in include/freebasic and its
+# inc/ is an EMPTY DIRECTORY. The test here was '[ -d "$FBTC/inc" ]', which that empty
+# directory passes -- so the copy ran, copied nothing, and tiko-linux shipped with an
+# empty inc/. Every '#include "containers.bi"' was TKO0301 and --verify still said
+# PASS, because its program includes no bundled header. Both halves are fixed: the
+# source is whichever of the two actually HAS headers, and the check below refuses to
+# package an empty one.
 if [ "$DO_INC" = "1" ]; then
-    if [ -d "$FBTC/inc" ]; then
-        note "headers -> inc/  (large; --no-inc skips it)"
+    SRCINC=""
+    if [ -d "$FBTC/inc" ] && [ -n "$( ls -A "$FBTC/inc" 2>/dev/null )" ]; then
+        SRCINC="$FBTC/inc"
+    elif [ -d "$FBTC/include/freebasic" ]; then
+        SRCINC="$FBTC/include/freebasic"
+    fi
+    if [ -n "$SRCINC" ]; then
+        note "headers -> inc/  from $SRCINC  (large; --no-inc skips it)"
         rm -rf "$OUT/inc"
-        cp -r "$FBTC/inc" "$OUT/inc"
+        cp -r "$SRCINC" "$OUT/inc"
+        if [ -z "$( ls -A "$OUT/inc" 2>/dev/null )" ]; then
+            die "packaged inc/ is EMPTY -- the compiler would find no headers at all"
+        fi
     else
-        note "WARNING: no headers at $FBTC/inc -- inc/ not packaged"
+        note "WARNING: no headers at $FBTC/inc or $FBTC/include/freebasic -- inc/ not packaged"
     fi
     if [ -d "$FBTC/include" ]; then
         rm -rf "$OUT/include"
@@ -413,7 +431,12 @@ verify_target( ) {
     _t=$1
     _tmp="$OUT/.verify.$_t"
     rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf 'print "ok"
+    # A BUNDLED HEADER IS PART OF THE TEST. 'print "ok"' alone needs no inc/ at all,
+    # so a toolchain whose headers were unreachable -- tiko-linux, whose inc/ was
+    # copied from fbc-modern-linux's EMPTY inc/ rather than its include/freebasic --
+    # passed this, and the first '#include "containers.bi"' a user wrote was TKO0301.
+    printf '#include once "containers.bi"
+print "ok"
 ' > "$_tmp/hello.bas"
 
     ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t"             ".verify.$_t/hello.bas" -o ".verify.$_t/hello$EXT" ) >"$_tmp/log" 2>&1 || true
