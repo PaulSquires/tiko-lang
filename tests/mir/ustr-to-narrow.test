@@ -1,0 +1,28 @@
+'' A UTF-16 SOURCE INTO A NARROW DESTINATION TRANSCODES, through fb_UStrAssignToA.
+''
+'' 'dim s as string = u & w' DROPPED ITS INITIALISER: the declaration asked for a wide
+'' term first, found w, and sent the chain down the wide-to-narrow path, which has no
+'' route for the ustring term -- one statement not lowered and an empty s. Assigning
+'' the same chain was right all along. Measured, fbc builds it as a USTRING chain and
+'' transfers it with 'fb_UStrAssignToA( &S, -1, vr, -1, 0, -1 )'.
+''
+'' AND EVERY UTF-16 SOURCE INTO A 'zstring * N' OR 'string * N' took fb_StrAssign, which
+'' copied the UTF-16 bytes as narrow ones and stopped at the first NUL: a ustring holding
+'' "UVW" came out "U", and a 'string * 8' kept "U", a NUL and "V". fbc passes the
+'' destination's fill flag and an INIT flag -- -1 at a declaration, 0 in an assignment.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-to-narrow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrAssignToA(@s, -1,
+'' EXPECT-OUT: fb_UStrAssignToA(@s2, -1,
+'' EXPECT-OUT: fb_UStrAssignToA(@z1, 20, @u, -1, 0, -1)
+'' EXPECT-OUT: fb_UStrAssignToA(@f1,
+'' EXPECT-OUT: fb_UStrAssignToA(@z2, 20, @u, -1, 0, 0)
+'' EXPECT-OUT: fb_UStrAssignToA(@z3, 20,
+'' EXPECT-OUT: fb_UStrAssignToA(@z5, 20, @uf,
+'' EXPECT-OUT: fb_UStrAssignToA(@z6, 20,
+'' EXPECT-NOT: fb_StrAssign(@z
+'' EXPECT-NOT: fb_StrInit(@z
+'' EXPECT-NOT: fb_StrAssign(@f1

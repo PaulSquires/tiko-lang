@@ -593,7 +593,7 @@ function LowerStringInit _
             '' 'dim s as zstring * 10 = wchr( 65 )' declined, while 'wstr( "B" )'
             '' beside it lowered. Measured, fbc folds the code and emits
             '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )'.
-            dim as boolean wideInit = ConcatHasWideTerm_( c, value )
+            dim as boolean wideInit = ConcatHasWideTerm_( c, value ) andalso (not IsUStrChain_( c, value ))   '' a ustring term makes it UTF-16
             if wideInit = false then
                 wideInit = IsWideString_( c, c.info->TypeOf_( value ) )
             end if

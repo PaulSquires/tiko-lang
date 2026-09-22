@@ -1207,6 +1207,48 @@ function LowerZstrAssignTo _
         return true
     end if
 
+    '' A UTF-16 SOURCE INTO A NARROW DESTINATION TRANSCODES, through fb_UStrAssignToA: the
+    '' destination's fill flag and then an INIT flag, -1 at a declaration. Measured:
+    ''
+    ''     dim z1 as zstring * 20 = u   fb_UStrAssignToA( Z1, 20, &U, -1, 0, -1 )
+    ''     dim f1 as string * 8 = u     fb_UStrAssignToA( F1, <tagged 8>, &U, -1, -1, -1 )
+    ''     z2 = u                       fb_UStrAssignToA( Z2, 20, &U, -1, 0, 0 )
+    ''     z4 = u & "k"                 ... vr, -1 ...  (the chain's fb_UStrConcat result)
+    ''     dim z5 as zstring * 20 = uf  ... UF, <tagged 7> ...  (a 'ustring * 8')
+    ''
+    '' fb_StrAssign copied the UTF-16 bytes as narrow ones and stopped at the first NUL:
+    '' "UVW" came out "U", and a 'string * 8' kept "U", a NUL and "V". A ustring CHAIN is
+    '' one too, though Check types it STRING -- see IsUStrChain_.
+    if isU = false then
+        dim as Tko.TypeId ust = c.info->TypeOf_( value )
+        dim as boolean srcChainU = IsUStrChain_( c, value )
+        if IsUStringType( c, ust ) orelse srcChainU then
+            dim as longint usn
+            dim as long usk = StrSwapKind_( c, ust, usn )
+            dim as MirValue usv
+            dim as longint usl = -1
+            '' ADDRESSABLE ONLY: a chain or a call builds a descriptor instead, and a
+            '' paren-less call's "address" is its code -- see NamesProc_.
+            dim as boolean usAddr = (usk = 0)
+            if usk = 4 then usAddr = true
+            if srcChainU orelse NamesProc_( c, value ) then usAddr = false
+            if usAddr then
+                usv = LowerAddr( c, value )
+                if usk = 4 then usl = usn
+            end if
+            if usv.kind = cast( ubyte, MV_NONE ) then
+                if StrDescriptorOf_( c, value, usv ) = false then return false
+                usl = -1
+            end if
+            args.Push( cast( ulong, usv.kind ) ) : args.Push( cast( ulong, usv.id ) )
+            PushStrLen_( c, args, usl )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, tail ) )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, iif( isInit, -1, 0 ) ) )
+            return (EmitRtl( c, RTL_USTR_TO_A, args ).kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
+
     '' A ZSTRING or a var-len STRING source, both addressable.
     dim as Tko.TypeId st = c.info->TypeOf_( value )
     dim as longint zn
