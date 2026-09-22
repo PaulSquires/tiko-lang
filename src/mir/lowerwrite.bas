@@ -43,6 +43,16 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
+    '' A PAREN-LESS USTRING CALL declines the statement BEFORE anything is written --
+    '' see WriteOne_ -- rather than half-way, which left 'write FreeS, FreeU' printing
+    '' '"fs",' and no newline.
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId pit = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if NamesProc_( c, pit ) andalso IsUStringType( c, c.info->TypeOf_( pit ) ) then
+            return false
+        end if
+    next
+
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
@@ -109,6 +119,16 @@ private function WriteOne_ _
             ta.Push( cast( ulong, MV_CONST_INT ) )
             ta.Push( cast( ulong, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
+        elseif NamesProc_( c, it ) then
+            '' A PAREN-LESS CALL -- 'write o.GetS', 'write FreeS', a property -- IS A
+            '' CALL, and LowerAddr handed fb_WriteString the procedure's CODE address.
+            '' Measured, fbc passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 );
+            '' fb_WriteString( 0, vr, 1 )'. A USTRING result DECLINES, as 'write
+            '' o.GetU( )' does: fbc sends it to fb_WriteUStr, which this path has no
+            '' entry for, and fb_WriteString would release its pool temporary into the
+            '' NARROW pool.
+            if IsUStringType( c, t ) then return false
+            if StrDescriptorOf_( c, it, desc ) = false then return false
         else
             desc = LowerAddr( c, it )
         end if

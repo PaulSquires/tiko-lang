@@ -71,7 +71,13 @@ function LowerWstrOf _
     dim as longint zn
     dim as long sk = StrSwapKind_( c, at, zn )
     if sk = 0 then
-        dim as MirValue d = LowerAddr( c, a )
+        '' A PAREN-LESS CALL HAS NO ADDRESS EITHER -- 'wstr( o.GetS )' took LowerAddr's
+        '' answer, the procedure's CODE address, as the descriptor -- so it is left to
+        '' the rvalue temporary below exactly as 'wstr( o.GetS( ) )' is. Measured, fbc
+        '' writes the same for both: 'fb_StrAssign( &TMP, -1, vr, -1, 0 )' and then
+        '' fb_StrToWstr over TMP's data pointer.
+        dim as MirValue d
+        if NamesProc_( c, a ) = false then d = LowerAddr( c, a )
         '' A NARROW CONCATENATION HAS NO ADDRESS. Measured, fbc builds it into a
         '' temporary descriptor and converts THAT:
         ''

@@ -151,7 +151,15 @@ function LowerPrintUsing _
         '' QT("&") )' is the whole of one file's harness -- and asking a value for an
         '' address it has not got declined the statement. Built into a temporary
         '' descriptor, which is what every other string argument with no lvalue does.
-        fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
+        '' ...AND A PAREN-LESS CALL IS A CALL. 'print using o.Fmt; x' asked LowerAddr,
+        '' whose answer for a procedure is its CODE address, and the runtime read
+        '' machine code as the format. A USTRING format declines, as the item does.
+        if NamesProc_( c, fmtNode ) then
+            if IsUStringType( c, c.info->TypeOf_( fmtNode ) ) then return false
+            if StrDescriptorOf_( c, fmtNode, fmt ) = false then return false
+        else
+            fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
+        end if
         if fmt.kind = cast( ubyte, MV_NONE ) then
             if ConcatToTempDesc_( c, Unparen_( c, fmtNode ), fmt ) = false then
                 return false
@@ -189,6 +197,8 @@ function LowerPrintUsing _
                           Tko.SYMBOL_NONE)
             end if
         end if
+        '' A PAREN-LESS USTRING CALL declines HERE, before Init -- see UsingOne_.
+        if NamesProc_( c, it ) andalso IsUStringType( c, itT ) then itemOk = false
         if itemOk = false then return false
         itemNode.Push( cast( ulong, it ) )
     next
@@ -324,6 +334,13 @@ private function UsingOne_ _
             ta.Push( cast( ulong, MV_CONST_INT ) )
             ta.Push( cast( ulong, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
+        elseif NamesProc_( c, it ) then
+            '' A PAREN-LESS CALL IS A CALL -- see the FORMAT above. Measured, fbc
+            '' passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 ); fb_PrintUsingStr( 0,
+            '' vr, mask )'. A USTRING result declines rather than reach the narrow entry
+            '' point with a ustring pool temporary; fbc calls fb_PrintUsingUStr.
+            if IsUStringType( c, t ) then return false
+            if StrDescriptorOf_( c, it, desc ) = false then return false
         else
             '' Same as the FORMAT above: a concatenation is a string with no address,
             '' and it is what the corpus passes -- 'PRINT_USING_N( fmt, num, cmp )'

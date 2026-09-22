@@ -1,0 +1,13 @@
+'' A paren-less string or ustring call -- a method, a static, a property, a free function --
+'' is called by PRINT, WRITE, PRINT USING (item and format), 'wstr( )' and a string 'iif'
+'' arm. Each of them used to hand the runtime the procedure's CODE ADDRESS as a
+'' descriptor. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/print-bareword-method.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_PrintUStr(
+'' EXPECT-OUT: fb_WriteString(
+'' EXPECT-OUT: fb_PrintUsingStr(
+'' EXPECT-NOT: func.addr

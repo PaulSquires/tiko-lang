@@ -527,22 +527,12 @@ function PrintOne _
         if isCallish = false then
             if c.ast->Kind( it ) = Tko.N_MEMBER then isCallish = IsConstNameRef_( c, it )
         end if
-        if isCallish = false then
-            if c.ast->Kind( it ) = Tko.N_MEMBER then
-                dim as Tko.Symbol ptr pmy = c.syms->SymbolAt( c.info->RefOf( it ) )
-                if pmy <> 0 then
-                    if pmy->kind = cast( ubyte, Tko.SYM_PROC ) then
-                        dim as Tko.NodeId ppn4 = cast( Tko.NodeId, pmy->payload )
-                        if ppn4 <> Tko.NODE_NONE then
-                            if c.ast->Kind( ppn4 ) = Tko.N_PROC then
-                                isCallish = (StmtOf( c, ppn4 )->op = _
-                                    cast( ushort, Tko.KW_PROPERTY ))
-                            end if
-                        end if
-                    end if
-                end if
-            end if
-        end if
+        '' ...AND EVERY OTHER PROCEDURE MEMBER, not the property alone: 'print o.GetS'
+        '' over a paren-less METHOD, and 'print T.StS' over a static one, printed the
+        '' method's machine code the same way -- 'fb_PrintString( 0, func.addr ... )'.
+        '' Measured, fbc calls it: 'vr = _ZN1T4GETSEi( &O$0, 0 ); fb_PrintString( 0,
+        '' vr, 1 )'. Still asked of the member's own symbol -- see NamesProc_.
+        if isCallish = false then isCallish = NamesProc_( c, it )
         if isCallish then
             dim as MirValue cd
             if StrDescriptorOf_( c, it, cd ) then

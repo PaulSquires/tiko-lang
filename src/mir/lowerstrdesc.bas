@@ -13,6 +13,22 @@ using Tko
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
+'' IS 'id' A NAME BOUND TO A PROCEDURE -- 'FreeS', 'o.GetS', 'T.StS', a property 'o.PS'?
+'' Read as a value, every one of them is a CALL, and LowerAddr's answer for one is the
+'' procedure's CODE ADDRESS: a reader that falls back on LowerAddr for a string it
+'' cannot otherwise place hands the runtime machine code as a descriptor. PRINT, WRITE,
+'' PRINT USING and 'wstr( )' all did, for 'print o.GetS'. Asked of the NAME'S OWN SYMBOL
+'' rather than of the node kind -- see PrintOne on why an N_MEMBER alone is not enough.
+function NamesProc_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    id = Unparen_( c, id )
+    if (c.ast->Kind( id ) <> Tko.N_IDENT) andalso (c.ast->Kind( id ) <> Tko.N_MEMBER) then
+        return false
+    end if
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = 0 then return false
+    return (s->kind = cast( ubyte, Tko.SYM_PROC ))
+end function
+
 '' A narrow string operand as an FBSTRING DESCRIPTOR pointer, however it is spelled:
 '' an addressable string, a literal (which borrows a temporary descriptor from the
 '' runtime), a string 'iif', or another member of this family.

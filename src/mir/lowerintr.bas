@@ -603,6 +603,7 @@ private function StringArmAddr_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref args as FB.Array( of ulong ) ) as boolean
 
     if IsStringType( c, c.info->TypeOf_( e ) ) = false then return false
+    if NamesProc_( c, e ) then return false   '' its "address" is its code: a CALL
     dim as MirValue sv = LowerAddr( c, e )
     if sv.kind = cast( ubyte, MV_NONE ) then return false
     args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
