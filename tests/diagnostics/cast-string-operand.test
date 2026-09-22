@@ -1,0 +1,28 @@
+'' TKO0803: 'cast( string, x )' takes a var-len STRING that is not a constant, or a UDT
+'' casting to one, and fbc refuses everything else with error 20. Measured, fbc-modern
+'' rejects exactly lines 24 to 34 of the source -- a literal, a CONST, a folded '&', a
+'' folded chr( ) and str( ), a zstring, a 'string * 8', a ustring, a ustring chain, a
+'' number, a UDT with no cast -- and accepts the nine controls below them, which include
+'' '"a" & i', 'chr( i )', 'hex( 255 )' and 'ucase( "lit" )': fbc folds only some of the
+'' string family. tiko accepted all eleven and took each as the identity.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/cast-string-operand.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-string-operand.bas(24,7): error TKO0803
+'' EXPECT-OUT: this is a constant, which fbc folds to a literal
+'' EXPECT-OUT: cast-string-operand.bas(25,7): error TKO0803
+'' EXPECT-OUT: cast-string-operand.bas(26,7): error TKO0803
+'' EXPECT-OUT: cast-string-operand.bas(27,7): error TKO0803
+'' EXPECT-OUT: cast-string-operand.bas(28,7): error TKO0803
+'' EXPECT-OUT: cast-string-operand.bas(29,7): error TKO0803
+'' EXPECT-OUT: this is a fixed-length string
+'' EXPECT-OUT: cast-string-operand.bas(30,7): error TKO0803
+'' EXPECT-OUT: cast-string-operand.bas(31,7): error TKO0803
+'' EXPECT-OUT: this is a ustring
+'' EXPECT-OUT: cast-string-operand.bas(32,7): error TKO0803
+'' EXPECT-OUT: this is a USTRING concatenation
+'' EXPECT-OUT: cast-string-operand.bas(33,7): error TKO0803
+'' EXPECT-OUT: this is not a string
+'' EXPECT-OUT: cast-string-operand.bas(34,7): error TKO0803
+'' EXPECT-OUT: this is a type with no 'operator cast' to STRING
+'' EXPECT-MAX-DIAG: 11

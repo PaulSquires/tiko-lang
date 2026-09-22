@@ -534,6 +534,9 @@
     DIAG( TKO0801, SEV_ERROR,   "'%0' does not take these arguments" )
     '' fbc's error 20 over 'cast( string, x )' with x WIDE -- see CheckCastStringSize_.
     DIAG( TKO0802, SEV_ERROR,   "'cast( string, ... )' cannot take a wide string; 'str( ... )' converts one" )
+    '' fbc's error 20 over 'cast( string, x )' with x anything but a var-len STRING that is
+    '' not a constant, or a UDT casting to one -- see CastStrOperandWhy_.
+    DIAG( TKO0803, SEV_ERROR,   "'cast( string, ... )' needs a var-len STRING, and this is %0" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

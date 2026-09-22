@@ -780,36 +780,8 @@ private sub CheckByrefParamDefault_ ( byref c as Ctx, byval id as NodeId )
                      c.names->Spelling( sp->name ) )
 end sub
 
-'' IS THIS STRING EXPRESSION WIDE? A wstring, a 'wstring * N', a dereferenced wstring ptr,
-'' a wide intrinsic -- and a CONCATENATION holding any of those, which Check types STRING
-'' whatever its terms are (binresult.bas). Parentheses are looked through. A '+' is asked
-'' only when it is a string operation: '*pw + 0' is arithmetic and answers INTEGER.
-private function ExprIsWide_ ( byref c as Ctx, byval id as NodeId ) as boolean
-    if id = NODE_NONE then return false
-    if c.ast->Kind( id ) = N_PAREN then
-        dim as ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if pp->count <> 1 then return false
-        return ExprIsWide_( c, cast( NodeId, c.ast->children[pp->first] ) )
-    end if
-    dim as TypeId t = c.info->TypeOf_( id )
-    if t = TYPE_NONE then return false
-    t = c.types->Unqualify( t )
-    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
-    dim as TypeId fe = Tko.Check.FixedStringElem( t, *c.types )
-    if fe <> TYPE_NONE then t = fe
-    if c.types->Kind( t ) <> TK_BUILTIN then return false
-    dim as BuiltinType bt = c.types->BuiltinOf( t )
-    if bt = TY_WSTRING then return true
-    if bt <> TY_STRING then return false
-    if c.ast->Kind( id ) <> N_BINARY then return false
-    dim as BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as TokenKind op = cast( TokenKind, bp->op )
-    if (op <> TK_AMP) andalso (op <> TK_PLUS) then return false
-    if ExprIsWide_( c, bp->lhs ) then return true
-    return ExprIsWide_( c, bp->rhs )
-end function
+#include once "symbols/latesweeps4.bas"
+
 
 '' A CAST TO A STRING TYPE NEEDS A SIZE -- fbc error 28. 'cast( zstring, "a" )' and
 '' 'cast( wstring, wstr( "a" ) )' name a type with no storage to cast into, while
@@ -840,11 +812,19 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
     '' spelling of one: 'cast( string, w )' over a 'wstring * 10', '*pw', 'wstr( 5 )',
     '' 'trim( w )' and '"a" & w' are all "Type mismatch". tiko took each as the identity
     '' and handed the wide value on, where a narrow one belonged.
+    '' ...AND EVERYTHING ELSE fbc REFUSES THERE -- a ustring, a zstring, a fixed-length
+    '' string, a number, a constant string, a UDT with no narrow cast. See CastStrOperandWhy_.
     case TY_STRING
         if cn <> "cast" then return
         if lp->count <> 2 then return
-        if ExprIsWide_( c, cast( NodeId, c.ast->children[lp->first + 1] ) ) then
+        dim as NodeId cop = cast( NodeId, c.ast->children[lp->first + 1] )
+        if ExprIsWide_( c, cop ) then
             c.diags->Report( TKO0802, PointRange( c.ast->Loc( id ) ) )
+            return
+        end if
+        dim as string why = CastStrOperandWhy_( c, cop )
+        if len( why ) > 0 then
+            c.diags->Report( TKO0803, PointRange( c.ast->Loc( id ) ), why )
         end if
     end select
 end sub
