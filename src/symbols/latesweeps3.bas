@@ -814,17 +814,21 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
     '' and handed the wide value on, where a narrow one belonged.
     '' ...AND EVERYTHING ELSE fbc REFUSES THERE -- a ustring, a zstring, a fixed-length
     '' string, a number, a constant string, a UDT with no narrow cast. See CastStrOperandWhy_.
+    '' 'cptr( string, x )' TAKES EXACTLY WHAT 'cast' DOES, and refuses the rest as error 28
+    '' rather than 20. Measured over 18 operands, the two spellings agree on every one:
+    '' 's', 's & "t"', 'chr( i )', 'hex( 255 )', '"a" & i', 'ucase( "lit" )' and a UDT
+    '' casting to STRING are taken by both; a literal, a CONST, a folded chain, a zstring,
+    '' a 'string * 8', a ustring, a number and every wide spelling by neither.
     case TY_STRING
-        if cn <> "cast" then return
         if lp->count <> 2 then return
         dim as NodeId cop = cast( NodeId, c.ast->children[lp->first + 1] )
         if ExprIsWide_( c, cop ) then
-            c.diags->Report( TKO0802, PointRange( c.ast->Loc( id ) ) )
+            c.diags->Report( TKO0802, PointRange( c.ast->Loc( id ) ), cn )
             return
         end if
         dim as string why = CastStrOperandWhy_( c, cop )
         if len( why ) > 0 then
-            c.diags->Report( TKO0803, PointRange( c.ast->Loc( id ) ), why )
+            c.diags->Report( TKO0803, PointRange( c.ast->Loc( id ) ), cn, why )
         end if
     end select
 end sub

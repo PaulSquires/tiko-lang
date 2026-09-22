@@ -43,3 +43,8 @@ print cast( string, chr( i ) )
 print cast( string, hex( 255 ) )
 print cast( string, ucase( "lit" ) )
 print cast( string, hc )
+
+'' 'cptr( string, x )' takes exactly what 'cast' does; fbc refuses the rest as error 28.
+print cptr( string, s )
+print cptr( string, "lit" )
+print cptr( string, u )

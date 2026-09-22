@@ -532,11 +532,12 @@
     '' these names through unbound (symbols/undeclared.bas), so lowering is the first to
     '' know the call is wrong, and it dropped the statement with no diagnostic.
     DIAG( TKO0801, SEV_ERROR,   "'%0' does not take these arguments" )
-    '' fbc's error 20 over 'cast( string, x )' with x WIDE -- see CheckCastStringSize_.
-    DIAG( TKO0802, SEV_ERROR,   "'cast( string, ... )' cannot take a wide string; 'str( ... )' converts one" )
-    '' fbc's error 20 over 'cast( string, x )' with x anything but a var-len STRING that is
+    '' fbc's error 20 over 'cast( string, x )' with x WIDE, and its error 28 for the same
+    '' operand written 'cptr' -- see CheckCastStringSize_. %0 is the spelling used.
+    DIAG( TKO0802, SEV_ERROR,   "'%0( string, ... )' cannot take a wide string; 'str( ... )' converts one" )
+    '' The same two errors over 'cast' or 'cptr' of anything but a var-len STRING that is
     '' not a constant, or a UDT casting to one -- see CastStrOperandWhy_.
-    DIAG( TKO0803, SEV_ERROR,   "'cast( string, ... )' needs a var-len STRING, and this is %0" )
+    DIAG( TKO0803, SEV_ERROR,   "'%0( string, ... )' needs a var-len STRING, and this is %1" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
