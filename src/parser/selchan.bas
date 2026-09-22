@@ -93,17 +93,19 @@ private function SelFb_ _
     return SelDot_( p, lc, SelIdent_( p, lc, "FB" ), nm )
 end function
 
-'' A call, as a STATEMENT: the call-or-assign node every paren-less call already is.
+'' A call, as a STATEMENT: the call-or-assign node, over a PARENTHESISED call -- the
+'' shape 'f( a )' parses to, and the one spawn.bas builds.
+''
+'' NOT THE PAREN-LESS SHAPE, which this used to build. 'FB.SelectAddRecv sc, 0, c, v'
+'' is a generic called without parentheses, and fbc refuses to infer through that
+'' spelling (error 340, measured); tiko instantiated nothing either, so every
+'' 'select channel' called the TEMPLATE and the link failed on
+'' 'FB::SELECTADDRECV(FB::SELECTCTX&, int, FB::CHANNEL&, void&)'.
 private function SelCallStmt_ _
     ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, _
       byval callee as Tko.NodeId, byref args as Tko.NodeIdVec ) as Tko.NodeId
     dim as Tko.StmtPayload sp
-    sp.a = callee
-    sp.first = p.ast->children.Count
-    sp.count = args.Count
-    for i as long = 0 to args.Count - 1
-        p.ast->children.Push( args[i] )
-    next
+    sp.a = MakeList( p, Tko.N_CALL, lc, callee, args )
     return MakeStmt( p, Tko.N_AMBIGUOUS, lc, sp )
 end function
 

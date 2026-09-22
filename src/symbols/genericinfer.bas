@@ -96,6 +96,30 @@ private function InferArgType_ _
         if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_FIELD ))
         if okKind = false then return Tko.TYPE_NONE
         dim as Tko.TypeId t = sy->type_
+        '' A 'VAR' HAS NO TYPE YET -- Check gives it one, and Check has not run -- so
+        '' its type is its INITIALISER's, asked the same question. 'var c0 = ch' then
+        '' 'SelectAddRecv( sc, 0, c0, v )' is exactly what the 'select channel'
+        '' desugaring writes (see selchan.bas); without this T was never inferred, the
+        '' call went out to the TEMPLATE and the link failed on
+        '' 'FB::SELECTADDRECV(FB::SELECTCTX&, int, FB::CHANNEL&, void&)'. Outside a
+        '' call the statement was dropped with nothing said: 'var c = b : print G( c )'
+        '' printed nothing at all.
+        if (t = Tko.TYPE_NONE) andalso (sy->kind = cast( ubyte, Tko.SYM_VARIABLE )) then
+            dim as Tko.NodeId vi = cast( Tko.NodeId, sy->payload )
+            static as long varDepth = 0
+            if (vi <> Tko.NODE_NONE) andalso (varDepth < 8) then
+                if c.ast->Kind( vi ) = Tko.N_VAR_ITEM then
+                    dim as Tko.StmtPayload ptr vp = StmtOf( c, vi )
+                    if (vp->a = Tko.NODE_NONE) andalso (vp->b <> Tko.NODE_NONE) then
+                        dim as Tko.ScopeId vsc = sy->parent
+                        if vsc = Tko.SCOPE_NONE then vsc = scope_
+                        varDepth += 1
+                        t = InferArgType_( c, vp->b, vsc )
+                        varDepth -= 1
+                    end if
+                end if
+            end if
+        end if
         if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
         if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
         return t
@@ -117,14 +141,53 @@ private function InferArgType_ _
         if c.ast->Kind( ctgt ) = Tko.N_MEMBER then
             dim as Tko.BinaryPayload ptr cqb = _
                 @c.ast->binaries[cast( long, c.ast->nodes[cast( long, ctgt )].data )]
-            if c.ast->Kind( cqb->lhs ) <> Tko.N_IDENT then return Tko.TYPE_NONE
-            dim as Tko.SymbolId cnsid = c.info->RefOf( cqb->lhs )
-            if cnsid = Tko.SYMBOL_NONE then
-                cnsid = c.syms->Lookup( scope_, IdentNameOf( c, cqb->lhs ) )
+            dim as Tko.Symbol ptr cnss = 0
+            if c.ast->Kind( cqb->lhs ) = Tko.N_IDENT then
+                dim as Tko.SymbolId cnsid = c.info->RefOf( cqb->lhs )
+                if cnsid = Tko.SYMBOL_NONE then
+                    cnsid = c.syms->Lookup( scope_, IdentNameOf( c, cqb->lhs ) )
+                end if
+                cnss = c.syms->SymbolAt( cnsid )
             end if
-            dim as Tko.Symbol ptr cnss = c.syms->SymbolAt( cnsid )
-            if cnss = 0 then return Tko.TYPE_NONE
-            if cnss->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then return Tko.TYPE_NONE
+            dim as boolean cisNs = false
+            if cnss <> 0 then cisNs = (cnss->kind = cast( ubyte, Tko.SYM_NAMESPACE ))
+            '' ...AND A METHOD CALL IS ITS METHOD'S RESULT. 'var c = ctx.Done( )' is
+            '' what 'case receive from ctx.Done( )' desugars to (selchan.bas), and a
+            '' 'var' is typed from its initialiser here -- so this answering nothing
+            '' left T uninferred and fbc's concurrency/sync.bas unlinkable on
+            '' 'FB::SELECTADDRECVDISCARD(FB::SELECTCTX&, int, FB::CHANNEL&)'. The same
+            '' one-candidate rule as a plain call below: an overloaded method is
+            '' Check's to choose.
+            if cisNs = false then
+                if c.ast->Kind( cqb->rhs ) <> Tko.N_IDENT then return Tko.TYPE_NONE
+                dim as Tko.TypeId mob = InferArgType_( c, cqb->lhs, scope_ )
+                if mob = Tko.TYPE_NONE then return Tko.TYPE_NONE
+                mob = c.types->Unqualify( mob )
+                if c.types->Kind( mob ) = Tko.TK_REFERENCE then mob = c.types->Unqualify( c.types->Inner( mob ) )
+                if c.types->Kind( mob ) = Tko.TK_POINTER then mob = c.types->Unqualify( c.types->Inner( mob ) )
+                '' AN INHERITED METHOD IS FOUND THROUGH 'base', the field an EXTENDS
+                '' becomes: sync.bas's 'c3.Done( )' is over a CancelContext, which
+                '' declares only Cancel and inherits Done from Context.
+                dim as string mnm = c.names->Spelling( IdentNameOf( c, cqb->rhs ) )
+                dim as Tko.Symbol ptr mps = c.syms->SymbolAt( TypeMemberNamed_( c, mob, mnm ) )
+                dim as long mdepth = 0
+                while (mps = 0) andalso (mdepth < 16)
+                    mdepth += 1
+                    dim as Tko.Symbol ptr mbs = c.syms->SymbolAt( TypeMemberNamed_( c, mob, "base" ) )
+                    if mbs = 0 then exit while
+                    if mbs->kind <> cast( ubyte, Tko.SYM_FIELD ) then exit while
+                    if mbs->type_ = Tko.TYPE_NONE then exit while
+                    mob = c.types->Unqualify( mbs->type_ )
+                    mps = c.syms->SymbolAt( TypeMemberNamed_( c, mob, mnm ) )
+                wend
+                if mps = 0 then return Tko.TYPE_NONE
+                if mps->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.TYPE_NONE
+                if mps->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+                dim as Tko.TypeId mrt = mps->type_
+                if mrt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+                if c.types->Kind( mrt ) = Tko.TK_REFERENCE then mrt = c.types->Inner( mrt )
+                return mrt
+            end if
             cscope = cast( Tko.ScopeId, cnss->inner )
             ctgt = cqb->rhs
             cqual = true

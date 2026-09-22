@@ -1,0 +1,9 @@
+'' A generic's type argument is inferred from a VAR, from a method's result and from an
+'' inherited method's result. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/var-generic-infer.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call i32 _Z5FirstIiER3BoxIiE(@c0)
+'' EXPECT-OUT: call i32 _Z5FirstIsER3BoxIsE(@c1)
+'' EXPECT-OUT: call i32 _Z5FirstIdER3BoxIdE(@c2)
+'' EXPECT-OUT: 0 statements not lowered
