@@ -1,0 +1,14 @@
+'' TKO0802: 'cast( string, x )' over a WIDE x is fbc's error 20, "Type mismatch". Measured,
+'' fbc-modern rejects exactly lines 7 to 12 of the source and accepts 15 to 18 -- a narrow
+'' string, a narrow chain, 'str( w )' and 'type<string>( w )'. tiko accepted all six and
+'' took the cast as the identity, handing the wide value on where a narrow one belonged.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/cast-string-wide.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-string-wide.bas(7,7): error TKO0802
+'' EXPECT-OUT: cast-string-wide.bas(8,7): error TKO0802
+'' EXPECT-OUT: cast-string-wide.bas(9,7): error TKO0802
+'' EXPECT-OUT: cast-string-wide.bas(10,7): error TKO0802
+'' EXPECT-OUT: cast-string-wide.bas(11,7): error TKO0802
+'' EXPECT-OUT: cast-string-wide.bas(12,7): error TKO0802
+'' EXPECT-MAX-DIAG: 6

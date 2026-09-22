@@ -532,6 +532,8 @@
     '' these names through unbound (symbols/undeclared.bas), so lowering is the first to
     '' know the call is wrong, and it dropped the statement with no diagnostic.
     DIAG( TKO0801, SEV_ERROR,   "'%0' does not take these arguments" )
+    '' fbc's error 20 over 'cast( string, x )' with x WIDE -- see CheckCastStringSize_.
+    DIAG( TKO0802, SEV_ERROR,   "'cast( string, ... )' cannot take a wide string; 'str( ... )' converts one" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
