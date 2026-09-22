@@ -123,6 +123,15 @@ sub SignatureFromProc _
     f->callConv = ProcCallConv_( c, pn )
 end sub
 
+'' IT IS ATTACHED TO EVERY INDIRECT CALL, whatever the call returns. It used to go only on one that
+'' returned an aggregate, and without it the ABI pass skipped the call's ARGUMENTS as well: a
+'' struct passed by value went out as a raw '[8 x i8]' or '[16 x i8]' value where the procedure it
+'' reached takes an i64, or a pointer to a copy. Measured on win64-msvc, 'p8( a8 )' through
+'' 'function cdecl( byval s as S8 ) as long' returned -732239352 and 'p16( a16 )' segfaulted,
+'' where the same calls made directly print 8 and 16 -- and fbc prints 8 and 16 both ways. Every
+'' libclang entry point tiko's C importer calls is this shape: a CXCursor or CXType by value, a
+'' scalar back. tests/codegen/procptr-byval-agg.test.
+''
 '' A SIGNATURE FOR A CALL THROUGH A PROCEDURE POINTER, off the pointer's TYPE. With no function
 '' to name, the ABI pass declined the call's aggregate result: 'p.parse_( body, id )' returned a
 '' 24-byte struct in registers while the procedure it reached wrote through a hidden pointer, so
@@ -151,6 +160,9 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     if f = 0 then return -1
     c.m->procSigByType[tkey] = c.m->functions.Count
     f->isDefinition = false
+    '' ...AND WHETHER IT IS VARIADIC, which the emitter needs to say where the fixed parameters stop
+    '' -- on win64 that decides whether a float in the tail is duplicated into a GPR.
+    f->isVariadic = c.types->IsVariadic( sigT )
     '' A STRING RESULT IS A POINTER at every call site -- see LowerCallParts -- so only a real
     '' aggregate carries the size and class RewriteCallReturn reads.
     if (rmt = MT_AGG) andalso (IsStringType( c, rt ) = false) then

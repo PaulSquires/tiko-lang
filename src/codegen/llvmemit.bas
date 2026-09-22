@@ -701,7 +701,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' win64 that is what decides whether a float argument is duplicated into a
         '' general-purpose register as well as an XMM one.
         dim as string sig = ty
-        if (cf <> 0) andalso (op <> M_CALL_IND) then
+        if cf <> 0 then
             if cf->isVariadic then
                 sig = ty & " ("
                 for i as long = 0 to cf->paramTys.Count - 1
@@ -714,7 +714,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
         '' A PAIR RETURN: the ABI pass left the destination slot in 'b', and both
         '' registers are written through it -- the first at 0, the second at 8.
-        if (cf <> 0) andalso (op <> M_CALL_IND) andalso (ins.b.kind = cast( ubyte, MV_LOCAL )) then
+        if (cf <> 0) andalso (ins.b.kind = cast( ubyte, MV_LOCAL )) then
             if cast( MirType, cf->retTy2 ) <> MT_VOID then
                 dim as MirType p0 = cast( MirType, cf->retTy )
                 dim as MirType p1 = cast( MirType, cf->retTy2 )

@@ -1,0 +1,21 @@
+'' A struct by value through a procedure pointer takes the ABI the procedure takes, and a
+'' 16-byte result through one is stored. See the src file for the measurement.
+'' TEST: cli
+'' ARGS: --emit-ir tests/mir/src/procptr-byval-agg.bas
+'' EXPECT-EXIT: 0
+
+'' NO CALL PASSES A RAW AGGREGATE VALUE. That was every one through the pointer.
+'' EXPECT-NOT: ([8 x i8] %t
+'' EXPECT-NOT: ([16 x i8] %t
+'' EXPECT-NOT: ([24 x i8] %t
+'' EXPECT-NOT: ([32 x i8] %t
+
+'' win64: 16 bytes and up go as a pointer to a copy, and the 16-byte result through a
+'' hidden pointer. The define line of RET16 spells its own parameter '%p0'; '%s' is a
+'' caller's slot, so this is the CALL.
+'' EXPECT-OUT[win64]: (ptr sret([16 x i8]) align 8 %s
+
+'' SysV: 24 and 32 bytes go in memory, and the 16-byte result comes back in two registers
+'' through a callee that is a TEMP -- the pointer, not @RET16.
+'' EXPECT-OUT[linux-x86_64]: (ptr byval([24 x i8]) align 8 %s
+'' EXPECT-OUT[linux-x86_64]: .pair = call { i64, i64 } %t

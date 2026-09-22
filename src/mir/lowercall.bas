@@ -1238,7 +1238,9 @@ function LowerCallParts _
         if (callTy = MT_AGG) andalso (cs <> 0) then
             ic.imm = SizeOfType( c, cs->type_ )
         end if
-        if callTy = MT_AGG then ic.callee = cast( ulong, PtrCallSigIndex_( c, calleeSigT ) + 1 )   '' see lowersig.bas
+        '' ON EVERY CALL THROUGH A POINTER, not only one returning an aggregate -- see
+        '' PtrCallSigIndex_ in lowersig.bas for what its absence did to the arguments.
+        ic.callee = cast( ulong, PtrCallSigIndex_( c, calleeSigT ) + 1 )
         dim as MirValue iv = Emit( c, ic )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )

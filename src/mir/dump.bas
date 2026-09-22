@@ -143,7 +143,7 @@ private function InstStr _
         next
         s += ")"
         '' A PAIR RETURN's destination, which the ABI pass put in 'b'.
-        if (op <> M_CALL_IND) andalso (ins.b.kind = cast( ubyte, MV_LOCAL )) then
+        if ins.b.kind = cast( ubyte, MV_LOCAL ) then
             s += " into " & ValStr( f, ins.b, names, @m )
         end if
 

@@ -136,7 +136,7 @@ func i32 main(i32 $0, ptr $1) {
     %34 = load %33
     %35 = field.addr %34, 8
     %36 = load %35
-    %49 = call.ind i64 %36(%33)
+    %49 = call.ind i64 %36(%33) into @$abi6
     %37 = load @$abi6
     store @got, %37
     %38 = field.addr @got, 0
