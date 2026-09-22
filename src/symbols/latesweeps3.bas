@@ -802,11 +802,38 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
     if c.ast->Kind( tref ) <> N_TYPEREF then return
     dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( tref ) )
     if t = TYPE_NONE then return
+    '' A POINTER ON ONE SIDE AND NOT THE OTHER, first and for every target type -- see
+    '' CheckCastPtrPair_. It reports at most one diagnostic and says so.
+    if lp->count = 2 then
+        if CheckCastPtrPair_( c, id, cn, t, cast( NodeId, c.ast->children[lp->first + 1] ) ) then return
+    end if
     '' A SIZED string is an ARRAY of the character type and a POINTER is a pointer; only
     '' the bare builtin has nothing to cast into.
     if c.types->Kind( t ) <> TK_BUILTIN then return
     select case c.types->BuiltinOf( t )
-    case TY_ZSTRING, TY_WSTRING, TY_USTRING
+    case TY_ZSTRING, TY_WSTRING
+        c.diags->Report( TKO0756, PointRange( c.ast->Loc( id ) ) )
+    '' ...BUT A USTRING TARGET OVER A USTRING IS NOT ONE. Measured, fbc TAKES
+    '' 'cast( ustring, u )' and 'cptr( ustring, u )', and tiko reported both -- it REFUSED
+    '' CODE fbc COMPILES, and lowers correctly once it is let through.
+    ''
+    '' THE OTHER OPERANDS fbc TAKES THERE ARE LEFT REFUSED, deliberately. Its front end
+    '' accepts 'cptr( ustring, i )', 'cast( ustring, d )' and 'cast( ustring, b )' and then
+    '' emits C that the C compiler REJECTS -- '(FBUSTRING*)&(FBUSTRING)I$0', "conversion to
+    '' non-scalar type requested" -- so there is no behaviour to match. 'cast( ustring, uf )'
+    '' over a 'ustring * N' does build under fbc, and tiko cannot lower it: it dropped the
+    '' statement silently, which is worse than saying so. Both are gaps, not compatibility.
+    case TY_USTRING
+        if lp->count = 2 then
+            dim as TypeId uot = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 1] ) )
+            if uot <> TYPE_NONE then
+                dim as TypeId uu = c.types->Unqualify( uot )
+                if c.types->Kind( uu ) = TK_REFERENCE then uu = c.types->Unqualify( c.types->Inner( uu ) )
+                if c.types->Kind( uu ) = TK_BUILTIN then
+                    if c.types->BuiltinOf( uu ) = TY_USTRING then return
+                end if
+            end if
+        end if
         c.diags->Report( TKO0756, PointRange( c.ast->Loc( id ) ) )
     '' ...AND A CAST TO A PLAIN STRING OF A WIDE VALUE IS fbc's ERROR 20. Measured, every
     '' spelling of one: 'cast( string, w )' over a 'wstring * 10', '*pw', 'wstr( 5 )',

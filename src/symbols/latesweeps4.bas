@@ -207,6 +207,111 @@ private function UdtHasNarrowStrCast_ ( byref c as Ctx, byval t as TypeId ) as b
     return false
 end function
 
+'' IS THIS A POINTER-SIZED INTEGER -- the one non-pointer type a cast may pair with a
+'' pointer? Measured on win64: 'cptr( any ptr, ii )' over an INTEGER and 'cptr( integer,
+'' pa )' are both accepted, while LONG, SHORT, BYTE, SINGLE, DOUBLE and BOOLEAN on either
+'' side are fbc's error 28. tiko-lang targets 64-bit only, so the four 8-byte integers and
+'' an ENUM, which folds to one, are the whole list.
+private function IsPtrSizedInt_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) = TK_ENUM then return true
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT
+        return true
+    end select
+    return false
+end function
+
+'' A SHORT PHRASE FOR THE SIDE THAT IS WRONG, for TKO0804 and TKO0805.
+private function DescribeNonPtr_ ( byref c as Ctx, byval t as TypeId ) as string
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if Tko.Check.FixedStringElem( u, *c.types ) <> TYPE_NONE then return "a fixed-length string"
+    if c.types->Kind( u ) = TK_UDT then return "a user-defined type"
+    if c.types->Kind( u ) <> TK_BUILTIN then return "not one"
+    select case c.types->BuiltinOf( u )
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG
+        return "a narrower integer"
+    case TY_SINGLE, TY_DOUBLE
+        return "a floating-point value"
+    case TY_BOOLEAN
+        return "a boolean"
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING
+        return "a string"
+    end select
+    return "not one"
+end function
+
+'' MIGHT THIS UDT CONVERT ITSELF? True when it declares an 'operator cast' or a
+'' constructor, when it has a BASE whose members this does not walk, or when its own scope
+'' cannot be found. A UDT that converts is not this rule's business: vendor
+'' overload/op_to_ptr.bas casts one to an 'integer ptr' through 'operator cast( ) as
+'' integer ptr', which fbc compiles, and reading it as a plain UDT refused the file.
+private function UdtMayConvert_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> TK_UDT then return false
+    if c.types->BaseOf( u ) <> TYPE_NONE then return true
+    dim as InternId tn = c.types->NameOf( u )
+    if tn = 0 then return true
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( u ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr sy = c.syms->SymbolAt( ts )
+    if sy = 0 then return true
+    if sy->inner = SCOPE_NONE then return true
+    if c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( "cast" ) ) ) <> SYMBOL_NONE then return true
+    return (c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( "__ctor" ) ) ) <> SYMBOL_NONE)
+end function
+
+'' A CAST BETWEEN A POINTER AND SOMETHING THAT IS NOT ONE -- fbc's error 28, and it reads
+'' the PAIR rather than either side alone. Measured, 'cast' and 'cptr' alike:
+''
+''     cptr( any ptr, ii ), cptr( integer, pa ), cptr( long ptr, li ), cptr( any ptr, 0 ),
+''     cptr( any ptr, @i ), cptr( any ptr, strptr( s ) ), cptr( integer, pp )   accepted
+''     cptr( any ptr, i ) over a LONG, and sh, d, b, s, z, w, u, ud, 1.5, true  error 28
+''     cptr( long, pa ), cptr( double, pa ), cptr( boolean, pa ), cptr( UD, pa ),
+''     cptr( zstring * 4, pa ), cast( long, pa ), cast( any ptr, i )            error 28
+''
+'' -- and a pair with NO pointer in it is an ordinary conversion: 'cptr( long, i )' and
+'' 'cptr( double, d )' are accepted. TRUE when it reported.
+function CheckCastPtrPair_ _
+    ( byref c as Ctx, byval id as NodeId, byref cn as string, _
+      byval tgt as TypeId, byval op as NodeId ) as boolean
+
+    dim as TypeId ot = c.info->TypeOf_( op )
+    if ot = TYPE_NONE then return false
+    ot = c.types->Unqualify( ot )
+    if c.types->Kind( ot ) = TK_REFERENCE then ot = c.types->Unqualify( c.types->Inner( ot ) )
+    '' 'this' IS A POINTER IN THE SYMBOL TABLE AND THE OBJECT IN THE SOURCE, which is what
+    '' the BASE SLICE 'cast( BaseT, this ) = u' casts -- fbc takes it, and takes
+    '' 'cast( Base, *p )' over a derived object, while 'cast( Base, p )' over the POINTER
+    '' is its error 20. Read as a pointer here, the slice became a pointer-to-UDT cast and
+    '' was refused: tests/mir/base-slice-assign is exactly that line.
+    if c.ast->Kind( op ) = N_IDENT then
+        dim as InternId tnm = c.names->Fold( c.names->GetString( "this" ) )
+        if c.ast->idents[cast( long, c.ast->nodes[cast( long, op )].data )].name = tnm then
+            if c.types->Kind( ot ) = TK_POINTER then ot = c.types->Unqualify( c.types->Inner( ot ) )
+        end if
+    end if
+    dim as boolean tgtPtr = (c.types->Kind( tgt ) = TK_POINTER)
+    dim as boolean opPtr = (c.types->Kind( ot ) = TK_POINTER)
+    if tgtPtr andalso opPtr then return false
+    '' A UDT THAT CONVERTS ITSELF is neither side's business -- see UdtMayConvert_.
+    if UdtMayConvert_( c, ot ) then return false
+    if UdtMayConvert_( c, tgt ) then return false
+    if tgtPtr then
+        if IsPtrSizedInt_( c, ot ) then return false
+        c.diags->Report( TKO0804, PointRange( c.ast->Loc( id ) ), cn, DescribeNonPtr_( c, ot ) )
+        return true
+    end if
+    if opPtr = false then return false
+    if IsPtrSizedInt_( c, tgt ) then return false
+    c.diags->Report( TKO0805, PointRange( c.ast->Loc( id ) ), cn, DescribeNonPtr_( c, tgt ) )
+    return true
+end function
+
 '' WHY 'cast( string, x )' REFUSES x, or "" when it takes it. fbc takes a var-len STRING
 '' that is not a constant, and a UDT casting to one -- see the table above ExprIsConstStr_
 '' and CheckCastStringSize_ -- and nothing else. An operand with no type is taken, so a

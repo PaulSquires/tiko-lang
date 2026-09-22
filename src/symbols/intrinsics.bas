@@ -1312,13 +1312,13 @@ private function IntrinsicTableType_ _
             if srcPtr then CheckDerivedPtrCast_( c, cp, rt, st )
             return rt
         end if
-        if nm = "cptr" then return Tko.TYPE_NONE
         if c.types->Kind( rt ) = Tko.TK_BUILTIN then
             if IsStringy_( c.types->BuiltinOf( rt ) ) then
                 if st <> rt then return Tko.TYPE_NONE
                 return rt
             end if
         end if
+        if nm = "cptr" then return Tko.TYPE_NONE
         '' A pointer reaches a numeric destination only when that destination is
         '' POINTER-WIDTH: 'cast( long, p )' is refused on win64 and accepted on win32,
         '' where a long is four bytes like the pointer.

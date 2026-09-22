@@ -538,6 +538,10 @@
     '' The same two errors over 'cast' or 'cptr' of anything but a var-len STRING that is
     '' not a constant, or a UDT casting to one -- see CastStrOperandWhy_.
     DIAG( TKO0803, SEV_ERROR,   "'%0( string, ... )' needs a var-len STRING, and this is %1" )
+    '' fbc's error 28 over a cast BETWEEN A POINTER AND SOMETHING THAT IS NOT ONE. Either
+    '' side may be the wrong one, so there are two -- see CheckCastPtrPair_.
+    DIAG( TKO0804, SEV_ERROR,   "'%0' to a pointer needs a pointer or a pointer-sized integer, and this is %1" )
+    DIAG( TKO0805, SEV_ERROR,   "'%0' of a pointer needs a pointer or a pointer-sized integer type, and this names %1" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

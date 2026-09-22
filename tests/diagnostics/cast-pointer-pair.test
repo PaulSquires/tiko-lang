@@ -1,0 +1,26 @@
+'' TKO0804 and TKO0805: a cast between a POINTER and something that is not one -- fbc's
+'' error 28 (and its 20 for 'cast( double, pa )'), for 'cast' and 'cptr' alike. The rule is
+'' the PAIR, not either side: 'cptr( long, i )' and 'cptr( double, d )' are ordinary
+'' conversions and accepted, while 'cptr( long, pa )' is not. A pointer pairs only with a
+'' pointer or a POINTER-SIZED integer -- integer, uinteger, longint, ulongint on a 64-bit
+'' target, and an integer literal -- so 'cptr( any ptr, ii )' is taken and
+'' 'cptr( any ptr, i )' over a LONG is not. tiko accepted every one of these.
+''
+'' fbc-modern rejects exactly lines 17 to 21 and 24 to 28 of the source and accepts the
+'' twelve controls, the last three of which are the string-target casts it does take.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/cast-pointer-pair.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-pointer-pair.bas(17,7): error TKO0804
+'' EXPECT-OUT: to a pointer needs a pointer or a pointer-sized integer
+'' EXPECT-OUT: cast-pointer-pair.bas(18,7): error TKO0804
+'' EXPECT-OUT: cast-pointer-pair.bas(19,7): error TKO0804
+'' EXPECT-OUT: cast-pointer-pair.bas(20,7): error TKO0804
+'' EXPECT-OUT: cast-pointer-pair.bas(21,7): error TKO0804
+'' EXPECT-OUT: cast-pointer-pair.bas(24,7): error TKO0805
+'' EXPECT-OUT: of a pointer needs a pointer or a pointer-sized integer type
+'' EXPECT-OUT: cast-pointer-pair.bas(25,7): error TKO0805
+'' EXPECT-OUT: cast-pointer-pair.bas(26,7): error TKO0805
+'' EXPECT-OUT: cast-pointer-pair.bas(27,7): error TKO0805
+'' EXPECT-OUT: cast-pointer-pair.bas(28,7): error TKO0805
+'' EXPECT-MAX-DIAG: 10
