@@ -419,8 +419,12 @@ private function NarrowDestWideSource_ _
     '' own -- 'r = s & w' is fb_WstrConcatAW into a temporary and then
     '' fb_WstrAssignToA from it -- so it is tried BEFORE the operator-cast case
     '' and before anything asks the value for an address it has not got.
-    if ConcatHasWideTerm_( c, value ) then
-        if WideConcatToTemp_( c, value, src ) then return true
+    '' UNPARENED, as the comparison does: '( w & "d" )' arrives as an N_PAREN, and
+    '' ConcatHasWideTerm_ answers only for the N_BINARY itself -- so 'dim z as zstring *
+    '' 20 = ( w & "d" )' declined and z held whatever the frame held.
+    dim as Tko.NodeId uval = Unparen_( c, value )
+    if ConcatHasWideTerm_( c, uval ) then
+        if WideConcatToTemp_( c, uval, src ) then return true
     end if
 
     '' A WIDE RVALUE WITH NO ADDRESS -- 'wstr( x )', 'trim( w )' -- is a bare uint16*

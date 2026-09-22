@@ -225,8 +225,15 @@ private function LowerFixStrArrayInit_ _
         '' 'fb_WstrAssign( @w, 6, @@$wstr2 )' and is right; the array element
         '' printed '123' as narrow bytes where fbc prints them wide, and the
         '' element after it leaked whatever the frame held.
+        '' ...AND A WIDE VALUE INTO A NARROW ELEMENT TRANSCODES, as the scalar declaration
+        '' does: LowerZstrAssignTo has no wide arm, so 'dim a( 1 ) as zstring * 10 =
+        '' { w & "d", "e" & w }' declined and left both elements holding whatever the frame
+        '' held. Measured, fbc: 'fb_WstrAssignToA_Init( A, 10ll, TMP, 0ll )' per element.
+        dim as boolean eWide = TermIsWide_( c, e ) orelse IsWideChain_( c, e )
         if isW then
             if LowerWideAssignTo( c, ea, cast( long, n ), e ) = false then return false
+        elseif eWide andalso (not isU) then
+            if LowerWideToNarrowSlot( c, -1, el, e, true, @ea ) = false then return false
         else
             if LowerZstrAssignTo( c, ea, n, e, true, isU ) = false then return false
         end if

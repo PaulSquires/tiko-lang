@@ -327,7 +327,8 @@ sub EmitFieldInit_ _
         '' first for both flavours: 'k as string = wstr( "fOoBaR" )' has no narrow term
         '' for the concatenation path to find, so it declined and the field stayed
         '' empty where fbc prints fOoBaR.
-        if (sk <> 2) andalso TermIsWide_( c, init ) then
+        '' ...AND A WIDE CHAIN, which Check types STRING: see IsWideChain_.
+        if (sk <> 2) andalso (TermIsWide_( c, init ) orelse IsWideChain_( c, init )) then
             if LowerWideToNarrowSlot( c, -1, ft, init, true, @addr ) then return
         end if
         if sk = 0 then

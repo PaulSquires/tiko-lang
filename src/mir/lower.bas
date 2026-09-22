@@ -753,7 +753,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )' -- the code folded
                     '' to a wide literal -- and the narrow path below has no narrow
                     '' source to find, so it declined.
-                    if TermIsWide_( c, ip->b ) then
+                    if TermIsWide_( c, ip->b ) orelse IsWideChain_( c, ip->b ) then   '' 'w & "d"' too
                         if LowerWideToNarrowSlot( c, slot, _
                                c.syms->SymbolAt( sid )->type_, ip->b, true ) then
                             needsStore = false

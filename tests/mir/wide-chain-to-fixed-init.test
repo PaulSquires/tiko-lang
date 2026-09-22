@@ -1,0 +1,24 @@
+'' A WIDE CHAIN INITIALISING A 'zstring * N' OR 'string * N' TRANSCODES. The declaration,
+'' the array initialiser and the field initialiser each asked TermIsWide_ whether the
+'' value was wide, and TermIsWide_ answers for no chain -- Check types '&' STRING -- so
+'' 'dim z as zstring * 20 = w & "d"' went to the narrow path, declined, and z held
+'' whatever the frame held. Assigning the same chain afterwards was right. An array
+'' initialiser had no wide arm at all, and '( w & "d" )' in parentheses reached the
+'' wide path as an N_PAREN it did not look inside. Measured, fbc:
+''
+''     dim z1 as zstring * 20 = w & "d"   fb_WstrAssignToA_Init( Z1, 20ll, TMP, 0ll )
+''     dim f1 as string * 8 = w & "d"     fb_WstrAssignToA_Init( F1, <tagged 8>, TMP, -1ll )
+''     { w & "d", "e" & w }               one fb_WstrAssignToA_Init per element
+''
+'' This file had four statements not lowered.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wide-chain-to-fixed-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrAssignToA_Init(@z1, 20,
+'' EXPECT-OUT: fb_WstrAssignToA_Init(@f1,
+'' EXPECT-OUT: fb_WstrAssignToA_Init(@zp, 20,
+'' EXPECT-OUT: fb_WstrAssignToA_Init(%
+'' EXPECT-NOT: fb_StrAssign(@z
+'' EXPECT-NOT: fb_StrInit(@z
