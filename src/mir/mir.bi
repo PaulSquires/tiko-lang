@@ -517,6 +517,19 @@ namespace Tko.Mir
         '' EXTERN's definition is 'int32 E$ = 5;'. Emitted external, two modules that
         '' each declare 'dim shared e' were 'duplicate symbol: e' at the link.
         as boolean  isInternal
+        '' VISIBLE TO OTHER MODULES, AND NOT YET GIVEN A VALUE -- C's TENTATIVE
+        '' DEFINITION, which is a COMMON symbol rather than a definition. fbc emits C
+        '' and so inherits its rule, measured on fbc's own object file:
+        ''
+        ''     dim shared T.cnt as long           int32 X$;        C   common
+        ''     dim shared T.cnt as long = 0       int32 X$ = 0;    B   external, .bss
+        ''     dim shared T.cnt as long = 4       int32 X$ = 4;    D   external, .data
+        ''
+        '' -- so it is whether an initializer was WRITTEN that decides, not its value,
+        '' and the emitter asks that question because the initializer is attached after
+        '' this slot exists. 'common shared' is always tentative: it cannot be
+        '' initialized at all (fbc error 135, TKO0656).
+        as boolean  isTentative
         as boolean  isVar
         as ubyte    ty             '' MirType, isVar only
         as Tko.TypeId frontendType

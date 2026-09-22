@@ -114,11 +114,16 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     '' -- internal unless the object is one OTHER MODULES ARE ENTITLED TO REACH, which
     '' is COMMON, a type's static member, and an EXTERN either way. Those three keep the
     '' linkage they had; the name is what has to stay unique for them.
+    '' Those three are TENTATIVE until something initialises them -- see
+    '' MirGlobal.isTentative, which the emitter resolves once the initializer, if there
+    '' is one, has been attached.
     dim as boolean isCommon = ((s->flags and Tko.SYMF_COMMON) <> 0)
     dim as boolean sharedOut = (isExtDef orelse isCommon orelse memberStatic)
     if isExt then
         c.m->globals[g].isExternal = true
-    elseif sharedOut = false then
+    elseif sharedOut then
+        c.m->globals[g].isTentative = true
+    else
         c.m->globals[g].isInternal = true
     end if
     c.gvarSym.Push( cast( ulong, sid ) )

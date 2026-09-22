@@ -1,23 +1,35 @@
 '' A DIM SHARED IS ONE MODULE'S OBJECT, and LLVM's 'internal' is what says so -- C's
 '' 'static', which is what fbc writes. Emitted external, two modules that each declared
 '' one were 'lld-link: error: duplicate symbol: e' where fbc compiles both; the same for
-'' a 'private sub' holding a 'static'. See the source for fbc's measured table.
+'' a 'private sub' holding a 'static'.
 ''
-'' NOT ASSERTED HERE, because the harness compiles one file: the two-module programs.
+'' AND WHAT IS VISIBLE BUT NOT YET GIVEN A VALUE IS 'common' -- C's tentative
+'' definition, which the linker MERGES rather than refusing. See the source for fbc's
+'' measured table of all nine shapes.
+''
+'' NOT ASSERTED HERE, because the harness compiles one file: the multi-module programs.
 '' Those were run against fbc by hand and their output matched byte for byte.
 '' TEST: cli
 '' ARGS: --emit-ir tests/codegen/src/shared-linkage.bas
 '' EXPECT-EXIT: 0
+'' NOBODY ELSE'S: a shared variable, initialised or not, and a static local.
 '' EXPECT-OUT: @"sh" = internal global
+'' EXPECT-OUT: @"noinit" = internal global
 '' EXPECT-OUT: @"stsh" = internal global
-'' A STATIC LOCAL IS NOBODY ELSE'S EITHER, and it is the shape a 'private sub' in two
-'' modules collides on.
 '' EXPECT-OUT: @"P$sl" = internal global
-'' AND THE THREE OTHER MODULES ARE ENTITLED TO REACH KEEP THEIR LINKAGE. Marking any of
-'' these internal is the same bug pointing the other way: a reference from another
-'' module would not resolve.
-'' EXPECT-OUT: @"cm" = global
-'' EXPECT-OUT: @"_ZN1T4CNT$E" = global
-'' EXPECT-OUT: @"E$" = global
+'' VISIBLE AND UNVALUED, so the linker merges the copies. 'common shared' is always
+'' here: it cannot be initialized at all.
+'' EXPECT-OUT: @"cm" = common global i32 0
+'' EXPECT-OUT: @"_ZN1V2A$E" = common global i32 0
+'' EXPECT-OUT: @"E$" = common global i32 0
+'' VISIBLE AND VALUED -- a definition, and the same two shapes as the line above. It is
+'' whether an initializer was WRITTEN that separates them.
+'' EXPECT-OUT: @"_ZN1V2B$E" = global i32 9
+'' EXPECT-OUT: @"EI$" = global i32 5
+'' Marking either of those two 'common' would be an LLVM error, since a common global
+'' must be zero-initialised; marking any of the six above 'internal' is the duplicate
+'' symbol pointing the other way, a reference from another module that cannot resolve.
 '' EXPECT-NOT: @"cm" = internal
 '' EXPECT-NOT: @"E$" = internal
+'' EXPECT-NOT: @"EI$" = common
+'' EXPECT-NOT: @"_ZN1V2B$E" = common

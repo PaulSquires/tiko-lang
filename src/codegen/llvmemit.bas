@@ -1062,6 +1062,30 @@ private function WideArray _
     return r
 end function
 
+'' WHO MAY SEE A VARIABLE, as LLVM spells it.
+''
+'' 'internal' is C's 'static': one module's object, invisible to the linker. fbc writes
+'' every DIM SHARED and every static local that way, and without it two modules each
+'' declaring one were a duplicate symbol.
+''
+'' 'common' is C's TENTATIVE DEFINITION -- declared, visible, and not yet given a value,
+'' so the linker MERGES the copies instead of refusing them. That is what fbc emits for
+'' 'common shared' and for an uninitialised static member, and the rule is whether an
+'' initializer was WRITTEN, not what it says: '= 0' is a definition and lands in .bss as
+'' an ordinary external symbol. LLVM requires a common global to be zero-initialised,
+'' which is exactly the case this answers for.
+''
+'' The default -- neither word -- is external.
+private function VarLinkage( byref e as EmitCtx, byref g as MirGlobal ) as string
+    if g.isInternal then return "internal "
+    if g.isTentative = false then return ""
+    dim as boolean valued = g.hasInit orelse (len( g.initBytes ) > 0)
+    if valued = false then valued = (g.initReloc >= 0) orelse (g.initRelocFn <> 0)
+    if valued = false then valued = (g.ptrCount > 0)
+    if valued then return ""
+    return "common "
+end function
+
 private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
     dim as string nm = GlobalName( e, g.name )
 
@@ -1211,10 +1235,8 @@ sub EmitVarGlobal _
                     return
                 end select
             next
-            dim as string plk = ""
-            if g.isInternal then plk = "internal "
-            e.outp += nm & " = " & plk & "global [" & str( g.ptrCount ) & " x ptr] [" & _
-                      tbody & "], align " & str( pw ) & chr( 10 )
+            e.outp += nm & " = " & VarLinkage( e, g ) & "global [" & str( g.ptrCount ) & _
+                      " x ptr] [" & tbody & "], align " & str( pw ) & chr( 10 )
             return
         end if
     end if
@@ -1278,12 +1300,7 @@ sub EmitVarGlobal _
         init_ = "ptrtoint (ptr " & init_ & " to " & LlvmType( vt ) & ")"
     end if
 
-    '' 'internal' is C's 'static': one module's object, invisible to the linker. fbc
-    '' writes every DIM SHARED that way, and without it two modules each declaring one
-    '' were a duplicate symbol. See MirGlobal.isInternal for the measured table.
-    dim as string linkage = ""
-    if g.isInternal then linkage = "internal "
-    e.outp += nm & " = " & linkage & "global " & ty & " " & init_ & _
+    e.outp += nm & " = " & VarLinkage( e, g ) & "global " & ty & " " & init_ & _
               ", align " & str( AlignOf( e, vt, g.size ) ) & chr( 10 )
 end sub
 
