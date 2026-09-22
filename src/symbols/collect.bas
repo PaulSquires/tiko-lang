@@ -431,7 +431,13 @@ sub WalkNode _
                             end if
                             '' The DEFINITION owns the symbol from here: its item is
                             '' what carries the initializer, and it is no longer extern.
+                            '' IT KEEPS MODULE STORAGE, 'shared' written or not: measured,
+                            '' 'extern e' then 'dim e = 5' is fbc's file-scope 'int32 E1$
+                            '' = 5' where a plain 'dim' is 'int32 L1$0' in main, and a
+                            '' procedure reading it printed 0 for fbc's 5.
                             if isExtern = false then
+                                if prevExtern then ps->flags or= _
+                                    (Tko.SYMF_SHARED or Tko.SYMF_EXTERN_DEF)
                                 ps->flags and= not Tko.SYMF_EXTERN
                                 ps->payload = cast( long, item )
                             end if

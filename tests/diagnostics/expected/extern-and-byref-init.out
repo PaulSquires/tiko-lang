@@ -1,7 +1,13 @@
+global var agg a1 size 16
 global var agg A2$ size 16
+global var agg a3 size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
+global var agg a4 size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
 global var agg A5$ size 32
-global str $str2 "foo"
-global str $str3 "abc"
+global var agg a6 size 16
+global var agg s1 size 24
+global var agg s2 size 24
+global var agg s3 size 24
+global str $str9 "abc"
 global var ptr main$r12
 global var i64 sh
 global var ptr main$r13
@@ -29,13 +35,6 @@ func i64 F() {
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
-  local agg a1 size 16
-  local agg a3 size 16
-  local agg a4 size 16
-  local agg a6 size 16
-  local agg s1 size 24
-  local agg s2 size 24
-  local agg s3 size 24
   local i64 i
   local i64 g
   local ptr r1
@@ -49,9 +48,9 @@ func i32 main(i32 $0, ptr $1) {
   local ptr r7
   local ptr r8
   local ptr r9
-  local agg $tmp21 size 8
+  local agg $tmp14 size 8
   local ptr r10
-  local agg $tmp23 size 8
+  local agg $tmp16 size 8
   local ptr r11
   entry0:
     %1 = alloca ptr $tmp0
@@ -59,122 +58,62 @@ func i32 main(i32 $0, ptr $1) {
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
-    %4 = alloca ptr a1
-    %5 = call.rtl ptr memset(@a1, 0, 16)
-    %6 = call.rtl ptr memset(@a1, 0, 16)
-    %7 = alloca ptr a3
-    %8 = call.rtl ptr memset(@a3, 0, 16)
-    %9 = const i64 1
-    %10 = field.addr @a3, 0
-    store %10, %9
-    %11 = const i64 2
-    %12 = field.addr @a3, 8
-    store %12, %11
-    %13 = alloca ptr a4
-    %14 = call.rtl ptr memset(@a4, 0, 16)
-    %15 = const i64 1
-    %16 = field.addr @a4, 0
-    store %16, %15
-    %17 = const i64 2
-    %18 = field.addr @a4, 8
-    store %18, %17
-    %19 = alloca ptr a6
-    %20 = call.rtl ptr memset(@a6, 0, 16)
-    %21 = alloca ptr s1
-    %22 = call.rtl ptr memset(@s1, 0, 24)
-    %23 = field.addr @s1, 0
-    store %23, 0
-    %24 = field.addr @s1, 8
-    store %24, 0
-    %25 = field.addr @s1, 16
-    store %25, 0
-    %26 = call.rtl ptr fb_StrInit(@s1, -1, @@$str2, 4, 0)
-    %27 = alloca ptr s2
-    %28 = call.rtl ptr memset(@s2, 0, 24)
-    %29 = field.addr @s2, 0
-    store %29, 0
-    %30 = field.addr @s2, 8
-    store %30, 0
-    %31 = field.addr @s2, 16
-    store %31, 0
-    %32 = call.rtl ptr fb_StrInit(@s2, -1, @@$str2, 4, 0)
-    %33 = alloca ptr s3
-    %34 = call.rtl ptr memset(@s3, 0, 24)
-    %35 = field.addr @s3, 0
-    store %35, 0
-    %36 = field.addr @s3, 8
-    store %36, 0
-    %37 = field.addr @s3, 16
-    store %37, 0
-    %38 = call.rtl ptr memset(@s3, 0, 24)
-    %39 = field.addr @s3, 0
-    store %39, 0
-    %40 = field.addr @s3, 8
-    store %40, 0
-    %41 = field.addr @s3, 16
-    store %41, 0
-    %42 = alloca ptr i
-    %43 = call.rtl ptr memset(@i, 0, 8)
-    %44 = alloca ptr g
-    %45 = call.rtl ptr memset(@g, 0, 8)
-    %46 = alloca ptr r1
+    %4 = alloca ptr i
+    %5 = call.rtl ptr memset(@i, 0, 8)
+    %6 = alloca ptr g
+    %7 = call.rtl ptr memset(@g, 0, 8)
+    %8 = alloca ptr r1
     store @r1, @i
-    %47 = alloca ptr r2
+    %9 = alloca ptr r2
     store @r2, @i
-    %48 = alloca ptr r3
+    %10 = alloca ptr r3
     store @r3, @i
-    %49 = alloca ptr r4
+    %11 = alloca ptr r4
     store @r4, @i
-    %50 = alloca ptr z
-    %51 = call.rtl ptr memset(@z, 0, 8)
-    %52 = alloca ptr r5
+    %12 = alloca ptr z
+    %13 = call.rtl ptr memset(@z, 0, 8)
+    %14 = alloca ptr r5
     store @r5, @z
-    %53 = alloca ptr s
-    %54 = call.rtl ptr memset(@s, 0, 24)
-    %55 = field.addr @s, 0
-    store %55, 0
-    %56 = field.addr @s, 8
-    store %56, 0
-    %57 = field.addr @s, 16
-    store %57, 0
-    %58 = alloca ptr r6
+    %15 = alloca ptr s
+    %16 = call.rtl ptr memset(@s, 0, 24)
+    %17 = field.addr @s, 0
+    store %17, 0
+    %18 = field.addr @s, 8
+    store %18, 0
+    %19 = field.addr @s, 16
+    store %19, 0
+    %20 = alloca ptr r6
     store @r6, @s
-    %59 = alloca ptr r7
-    store @r7, @@$str3
-    %60 = alloca ptr r8
-    store @r8, @@$str3
-    %61 = alloca ptr r9
-    %62 = alloca ptr $tmp21
-    call void _ZN3UDTC1Ev(@$tmp21)
-    store @r9, @$tmp21
-    %63 = alloca ptr r10
-    %64 = alloca ptr $tmp23
-    call void _ZN3UDTC1Ev(@$tmp23)
-    store @r10, @$tmp23
-    %65 = alloca ptr r11
-    store @r11, @@$str3
+    %21 = alloca ptr r7
+    store @r7, @@$str9
+    %22 = alloca ptr r8
+    store @r8, @@$str9
+    %23 = alloca ptr r9
+    %24 = alloca ptr $tmp14
+    call void _ZN3UDTC1Ev(@$tmp14)
+    store @r9, @$tmp14
+    %25 = alloca ptr r10
+    %26 = alloca ptr $tmp16
+    call void _ZN3UDTC1Ev(@$tmp16)
+    store @r10, @$tmp16
+    %27 = alloca ptr r11
+    store @r11, @@$str9
     store @@main$r12, @g
     store @@main$r13, @@sh
     call.rtl void fb_StrDelete(@s)
-    call.rtl void fb_StrDelete(@s3)
-    call.rtl void fb_StrDelete(@s3)
-    call.rtl void fb_StrDelete(@s2)
-    call.rtl void fb_StrDelete(@s2)
-    call.rtl void fb_StrDelete(@s1)
-    call.rtl void fb_StrDelete(@s1)
-    %66 = const i32 0
-    call.rtl void fb_End(%66)
-    %67 = load @$tmp0
-    ret %67
+    %28 = const i32 0
+    call.rtl void fb_End(%28)
+    %29 = load @$tmp0
+    ret %29
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 122 insts, 1 statements not lowered, 0 scope imbalance
-  inside N_VAR 1
-  skip-site src\mir\lower.bas:224 1
+lowered: 3 functions, 3 blocks, 62 insts, 3 statements not lowered, 0 scope imbalance
+  inside N_VAR 3
+  skip-site src\mir\lower.bas:207 1
+  skip-site src\mir\lowerstore.bas:1243 2
 tests/diagnostics/src/extern-and-byref-init.bas(7,5): error TKO0600: 'a2' is already declared in this scope
      |
    7 | dim a2(0 to 0) as integer

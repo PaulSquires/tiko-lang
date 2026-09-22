@@ -96,6 +96,11 @@ type Ctx
     '' the name is what gets mangled, and fbc's is "MK<8>", not "MK#11<8>".
     as FB.Array( of ulong )  procInstKey
     as FB.Array( of ulong )  procInstSym
+    '' WALKING A PARAMETER DEFAULT, which is written at the DECLARATION and evaluated at
+    '' the call site -- not inside the procedure's body, though it is walked in the
+    '' procedure's scope. A module-level local is visible to it, and fbc refuses it for a
+    '' different reason (its error 272, TKO0640): see ModuleLocalHidden_.
+    as boolean               inParamDefault
 end type
 
 '' The helpers the split shares. Their definitions stay in resolve.bas -- only the

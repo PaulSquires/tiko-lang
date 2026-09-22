@@ -108,6 +108,71 @@ private function VisibleValue_ _
     return (DeclaredBelow_( c, got, use, scope_ ) = false)
 end function
 
+'' A MODULE-LEVEL VARIABLE IS NOT VISIBLE INSIDE A PROCEDURE UNLESS IT IS SHARED --
+'' fbc's error 42, "Variable not declared". It is a local of the main procedure, and a SUB
+'' is not inside main. Measured, every declaration form:
+''
+''     dim n, var n, static n, redim a( ), common n          hidden in a SUB
+''     dim shared n, common shared n, var shared n, extern n  visible
+''     a CONST, a TYPE, a procedure, an ENUM                  visible
+''     a variable in a NAMESPACE, shared or not               visible: fbc takes
+''                                                            'namespace ns : dim n :
+''                                                            sub s( ) : print n'
+''     the same name DIM'd inside the SUB                     the local, as always
+''
+'' and it holds for a FUNCTION, a method, a constructor and a property body alike, for a
+'' SUB inside a namespace, and for a variable from an '#include'd header. At MODULE level
+'' -- including a 'scope' block there -- the variable is visible, which is what the walk
+'' out to the module scope answers for anything not inside a procedure.
+''
+'' tiko-lang bound it and read the WRONG STORAGE: 'dim n as long = 5 : sub s( ) : print n'
+'' printed 0, and a wide one printed garbage, with no diagnostic anywhere. Left unbound
+'' here, undeclared.bas reports it as TKO0743 -- fbc's own error 42 -- along with every
+'' other name nothing declares.
+private function ModuleLocalHidden_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval scope_ as Tko.ScopeId ) as boolean
+
+    if sid = Tko.SYMBOL_NONE then return false
+    '' A PARAMETER DEFAULT IS NOT THE BODY. It is written at the declaration, which is at
+    '' module level, and fbc BINDS the name there and refuses it as its error 272 --
+    '' TKO0640, "cannot name 'locali', which has automatic storage". Hidden here instead,
+    '' that rule could never fire and two diagnostics tests changed their answer.
+    if c.inParamDefault then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return false
+    '' SHARED, COMMON SHARED and EXTERN all give it module storage a procedure may name.
+    '' A plain COMMON does not: fbc hides 'common n' exactly as it hides 'dim n'.
+    '' A DEFINITION OF AN EXTERN carries SYMF_SHARED for the same reason -- see collect.bas
+    '' -- so vendor dim/extern-array-1 and namespace/redim-3, which read one inside a
+    '' procedure, are taken here as fbc takes them.
+    if (s->flags and (Tko.SYMF_SHARED or Tko.SYMF_EXTERN)) <> 0 then return false
+    '' DECLARED IN THE MODULE SCOPE ITSELF. A namespace's own variables are visible to its
+    '' procedures, measured above, and a block scope's are not on a procedure's chain.
+    dim as Tko.SymScope ptr ds = c.syms->ScopeAt( s->parent )
+    if ds = 0 then return false
+    if ds->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then return false
+    '' ...AND USED FROM INSIDE A PROCEDURE: the first PROC scope on the way out says so,
+    '' and reaching the module scope first says the use is at module level.
+    dim as Tko.ScopeId sc = scope_
+    for guard as long = 0 to 255
+        if sc = Tko.SCOPE_NONE then return false
+        dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
+        if ss = 0 then return false
+        if ss->kind = cast( ubyte, Tko.SCOPEK_PROC ) then return true
+        if ss->kind = cast( ubyte, Tko.SCOPEK_MODULE ) then return false
+        sc = ss->parent
+    next
+    return false
+end function
+
+'' VisibleAbove_'s answer, with a non-SHARED module local taken away -- see above.
+private function VisibleToUse_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
+    if ModuleLocalHidden_( c, sid, scope_ ) then return Tko.SYMBOL_NONE
+    return sid
+end function
+
 private function VisibleAbove_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval use as Tko.NodeId, _
       byval scope_ as Tko.ScopeId, byval nm as Tko.InternId ) as Tko.SymbolId

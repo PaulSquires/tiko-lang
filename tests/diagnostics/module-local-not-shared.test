@@ -1,0 +1,30 @@
+'' TKO0743 for fbc's error 42: A MODULE-LEVEL VARIABLE IS A LOCAL OF MAIN, and a procedure
+'' cannot see it unless it is SHARED. tiko-lang bound it and read the WRONG STORAGE --
+'' 'dim n as long = 5 : sub s( ) : print n' printed 0, and a 'wstring * 10' printed
+'' garbage -- with no diagnostic anywhere.
+''
+'' Measured against fbc-modern, one declaration form at a time: 'dim', 'static', 'var',
+'' 'common' and 'redim' are hidden inside a SUB, a FUNCTION, a method, a constructor and a
+'' property alike, and inside a SUB in a namespace; 'dim shared', 'common shared',
+'' 'var shared', 'extern', a CONST, a TYPE and a procedure stay visible, as does a
+'' NAMESPACE's own variable -- fbc takes 'namespace ns : dim nv : sub inside( ) : print nv'.
+'' At module level, including a 'scope' block there, every one of them is in scope.
+''
+'' fbc rejects lines 34, 38, 42, 46 and 50 of the source as error 42 and line 54 -- the
+'' method body -- as its error 3, "Expected End-of-Line": both refuse it, and only the
+'' spelling of the complaint differs. It accepts everything below the refused half.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/module-local-not-shared.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: module-local-not-shared.bas(34,11): error TKO0743
+'' EXPECT-OUT: 'n' is not declared
+'' EXPECT-OUT: module-local-not-shared.bas(38,12): error TKO0743
+'' EXPECT-OUT: 'st' is not declared
+'' EXPECT-OUT: module-local-not-shared.bas(42,11): error TKO0743
+'' EXPECT-OUT: 'v' is not declared
+'' EXPECT-OUT: module-local-not-shared.bas(46,11): error TKO0743
+'' EXPECT-OUT: 'cm' is not declared
+'' EXPECT-OUT: module-local-not-shared.bas(50,11): error TKO0743
+'' EXPECT-OUT: 'ra' is not declared
+'' EXPECT-OUT: module-local-not-shared.bas(54,11): error TKO0743
+'' EXPECT-MAX-DIAG: 6

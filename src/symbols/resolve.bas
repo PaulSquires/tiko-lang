@@ -347,7 +347,7 @@ private sub WalkExpr _
         '' same thing shadows the member, which is why the search is in three steps
         '' rather than two.
         dim as Tko.SymbolId sid = c.syms->LookupTyped( scope_, nm, false )
-        sid = VisibleAbove_( c, sid, id, scope_, nm )    '' not one declared below: fbc's 42
+        sid = VisibleToUse_( c, VisibleAbove_( c, sid, id, scope_, nm ), scope_ )  '' fbc's 42
         '' ...AND AN INHERITED MEMBER BEATS A MODULE-LEVEL NAME. The walk above
         '' reaches the procedure's locals and its OWN type's members, and then goes
         '' straight out to the namespace; an INHERITED member is not on that chain
@@ -1189,7 +1189,7 @@ sub WalkStmt _
                 c.pendParamScope.Push( cast( ulong, here ) )
             end if
         end if
-        WalkStmt( c, sp->b, here )
+        c.inParamDefault = true : WalkStmt( c, sp->b, here ) : c.inParamDefault = false
         return
 
     case Tko.N_TYPEDEF

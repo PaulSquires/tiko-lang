@@ -28,6 +28,11 @@ const K = sizeof( b0 )                  '' 1, and it was 4
 '' longs, 1 to 4. With the old rule the bound was 4 and the array was 4 to 4.
 dim c2( sizeof( b0 ) to 4 ) as long
 
+'' THE CONSTANT EVALUATOR'S HALF, read back: K is 1 and c2 runs 1 to 4. AT MODULE LEVEL,
+'' because c2 is a module-level 'dim' -- a local of main, which fbc's error 42 hides from
+'' every procedure: see tests/diagnostics/module-local-not-shared.
+dim as long s6 = K, s7 = lbound( c2 ), s8 = ubound( c2 )
+
 sub P( )
     dim b( 0 to 3 ) as ubyte
     dim l( 0 to 3 ) as long
@@ -62,7 +67,5 @@ sub P( )
     dim as long s4 = sizeof( fa )       '' 6
     dim as long s5 = sizeof( H )        '' 20, a UDT is measured whole
 
-    '' THE CONSTANT EVALUATOR'S HALF, read back: K is 1 and c2 runs 1 to 4.
-    dim as long s6 = K, s7 = lbound( c2 ), s8 = ubound( c2 )
 end sub
 

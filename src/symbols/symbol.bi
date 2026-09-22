@@ -156,6 +156,12 @@ namespace Tko
     '' collectproc.bas.
     const SYMF_MEMBER_BODY    as ulong = &h00200000
 
+    '' A DEFINITION OF AN EXTERN: 'extern e as long' and then 'dim e as long = 5'. The
+    '' definition need not say SHARED, and the variable still has module storage -- which
+    '' is what EXTERN means and what lets a procedure name it. Collect clears SYMF_EXTERN
+    '' on the definition, so without this nothing said the symbol had ever been one.
+    const SYMF_EXTERN_DEF     as ulong = &h00400000
+
     type Symbol
         as ubyte     kind
         as ulong     flags
