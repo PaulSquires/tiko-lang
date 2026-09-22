@@ -1,0 +1,10 @@
+'' A module structor's priority must be 101 to 65535. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-priority-range.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-priority-range.bas(13,27): error TKO0422
+'' EXPECT-OUT: ctor-priority-range.bas(15,27): error TKO0422
+'' EXPECT-OUT: ctor-priority-range.bas(17,25): error TKO0422
+'' EXPECT-NOT: ctor-priority-range.bas(6,
+'' EXPECT-NOT: ctor-priority-range.bas(8,
+'' EXPECT-NOT: ctor-priority-range.bas(10,

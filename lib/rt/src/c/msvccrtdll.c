@@ -5,7 +5,7 @@
 ** executable must not drag in the DLL entry point or the reverse.
 **
 ** WHAT AN ENTRY POINT OWES on DLL_PROCESS_ATTACH is the same initialiser walk
-** the executable does -- tkort_msvc_init_ is allocated into .CRT$XCB and sets
+** the executable does -- tkort_msvc_init_ is allocated into .CRT$XCY and sets
 ** the runtime's locale, and a DLL that skipped it would start in "C" with the
 ** same symptom msvcinit.c records for the exe.
 **
@@ -24,8 +24,8 @@ typedef void ( __cdecl *tkort_pvfv )( void );
 
 void __cdecl _initterm( tkort_pvfv *first, tkort_pvfv *last );
 
-extern tkort_pvfv tkort_xi_a[], tkort_xi_z[];
-extern tkort_pvfv tkort_xc_a[], tkort_xc_z[];
+/* The .CRT$X walk, in fbc's order -- msvccrt.c says what that is. */
+void tkort_run_initialisers( void );
 
 #define TKORT_DLL_PROCESS_ATTACH 1
 
@@ -36,8 +36,7 @@ int __stdcall _DllMainCRTStartup( void *instance, unsigned long reason,
     (void)reserved;
 
     if( reason == TKORT_DLL_PROCESS_ATTACH ) {
-        _initterm( tkort_xi_a, tkort_xi_z );
-        _initterm( tkort_xc_a, tkort_xc_z );
+        tkort_run_initialisers( );
     }
 
     /* No DLL_PROCESS_DETACH work. The UCRT's own atexit table belongs to the

@@ -910,6 +910,7 @@ private function ParseProc _
     '' 'override' IS KEPT. It is a promise that this declaration replaces an inherited
     '' virtual, and fbc checks it -- error 223, "Not overriding any virtual method". The
     '' loop consumed it with everything else, so a broken promise said nothing.
+    dim as long structPrio = 0
     while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
         '' Spelled out rather than through IsContextual, which is defined AFTER this
         '' file in parser.bas: 'override' is not a reserved word, so it arrives as an
@@ -955,6 +956,23 @@ private function ParseProc _
                     sp.extra or= Tko.PF_MODCTOR
                 else
                     sp.extra or= Tko.PF_MODDTOR
+                end if
+                '' ...AND ITS PRIORITY, 'constructor 101', which was swallowed with
+                '' the rest. fbc runs lower priorities first and all of them before
+                '' the unnumbered ones; a hex literal counts, a constant name is its
+                '' error 3. Recorded on the node below, once it exists.
+                if HasTok( p, p.pos + 1 ) then
+                    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_INT_LIT then
+                        Advance( p )
+                        dim as longint prio = -1
+                        dim as long pli = cast( long, Cur( p ).literal )
+                        if pli < p.litPool->Count then prio = (*p.litPool)[pli].intValue
+                        if (prio < 101) orelse (prio > 65535) then
+                            p.diags->Report( Tko.TKO0422, Tko.PointRange( Cur( p ).loc ) )
+                        else
+                            structPrio = cast( long, prio )
+                        end if
+                    end if
                 end if
             end if
         end if
@@ -1042,6 +1060,10 @@ private function ParseProc _
     if inGeneric then p.genericDepth -= 1
     ExpectEnd( p, kw )
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
+    if structPrio > 0 then
+        p.ast->structorPrio.Push( cast( ulong, pn ) )
+        p.ast->structorPrio.Push( cast( ulong, structPrio ) )
+    end if
     if qualified then p.ast->nodes[cast( long, pn )].flags or= Tko.NF_QUALIFIED
     if byrefRet then p.ast->nodes[cast( long, pn )].flags or= Tko.NF_BYREF
     '' A QUALIFIED DEFINITION -- 'function Box.Get( ) as T' -- may belong to a generic,

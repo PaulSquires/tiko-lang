@@ -94,4 +94,14 @@ sub EmitModuleInit_( byref c as Ctx )
     next
 end sub
 
+'' The priority a module structor WROTE, from the parser's side table, or 0 for none.
+function StructorPrioOf_( byref c as Ctx, byval id as Tko.NodeId ) as long
+    for i as long = 0 to c.ast->structorPrio.Count - 2 step 2
+        if cast( Tko.NodeId, c.ast->structorPrio[i] ) = id then
+            return cast( long, c.ast->structorPrio[i + 1] )
+        end if
+    next
+    return 0
+end function
+
 end namespace

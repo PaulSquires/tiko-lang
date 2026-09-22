@@ -18,12 +18,14 @@
 ** four of the differentials in build/diffmsvc.sh -- swap-case-mid, wsearch,
 ** uwconv and utf -- and none of them says "locale" anywhere in its output.
 **
-** WHY .CRT$XCB.  RFC-0006 section 4.4 measured the ordering: sections named
+** WHY .CRT$XCY.  RFC-0006 section 4.4 measured the ordering: sections named
 ** .CRT$X.. are sorted by name and the linker concatenates them, clang lowers
 ** __attribute__((constructor)) to .CRT$XCU, and FreeBASIC module constructors
-** land in XCU with it.  XCB sorts before XCU, so this runs before any of them --
-** which is the same relationship fbrt0's .ctors.65435 has to FreeBASIC's
-** constructor priority floor of 101 on the gnu side, arrived at differently.
+** land in XCU with it -- numbered ones after it, in .CRT$XCV (see msvccrt.c).
+** tiko-rt walks the range BACKWARDS, as mingw walks .ctors, so the LAST fragment
+** runs FIRST: .CRT$XCY runs before every constructor a program can write, which
+** is the relationship fbrt0's .ctors.65435 has to fbc's priority floor of 101 on
+** the gnu side. It was .CRT$XCB while the walk ran forwards.
 **
 ** WHY atexit AND NOT A TERMINATOR SECTION.  atexit is LIFO, so a handler
 ** registered here -- before any module constructor has run, and therefore before
@@ -92,11 +94,11 @@ static void tkort_msvc_startup( void )
 
 /* The section has to be DECLARED read-only before anything can be allocated
 ** into it; declaring and allocating in one step is not available here. */
-#pragma section(".CRT$XCB", read)
+#pragma section(".CRT$XCY", read)
 
 /* The initialiser table holds POINTERS TO FUNCTIONS taking and returning
 ** nothing, and the CRT walks the whole .CRT$XC.. range calling each. */
-__declspec(allocate(".CRT$XCB")) void (*tkort_msvc_init_)( void ) = tkort_msvc_startup;
+__declspec(allocate(".CRT$XCY")) void (*tkort_msvc_init_)( void ) = tkort_msvc_startup;
 
 #else
 

@@ -444,6 +444,12 @@ namespace Tko
         '' pool, scanned linearly -- explicit type arguments are rare.
         as ChildPool   callTypeArgs
 
+        '' THE PRIORITY OF A MODULE STRUCTOR -- 'sub f( ) constructor 101'. Pairs (proc
+        '' node, priority), only for the ones that WROTE a number; the rest are the
+        '' default. A side table for callTypeArgs' reason: StmtPayload has no field
+        '' left for an N_PROC that is not already somebody else's.
+        as ChildPool   structorPrio
+
         declare constructor( )
         declare sub RecordTokens _
             ( byval id as NodeId, byval firstTok as long, byval lastTok as long )

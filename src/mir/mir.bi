@@ -370,6 +370,9 @@ namespace Tko.Mir
         '' linker-visible at all, so the two cannot both be true.
         as boolean  isExported
         as boolean  isModuleDtor
+        '' The priority a module structor WROTE -- 'constructor 101' -- or 0 for none.
+        '' codegen/llvmstructors.bas says what the emitter does with it.
+        as long     structorPrio
         '' AN INSTANTIATED GENERIC, emitted by every unit that uses it. Its
         '' definition goes out with weak, foldable linkage so the duplicates
         '' collapse instead of failing the link.

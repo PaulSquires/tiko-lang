@@ -163,6 +163,9 @@
     '' fbc's error 107, "NEXT without FOR". 'next x, y' closes the loop of x and then
     '' the one around it; a name with no FOR left open to close is this.
     DIAG( TKO0421, SEV_ERROR,   "'next' without a 'for': no loop is open for '%0'" )
+    '' fbc's error 189, "Invalid priority attribute". Measured: 101 and 65535 are
+    '' accepted, 100, 0 and 65536 are refused.
+    DIAG( TKO0422, SEV_ERROR,   "a module constructor or destructor priority must be from 101 to 65535" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

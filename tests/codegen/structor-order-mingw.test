@@ -1,0 +1,12 @@
+'' win64 (mingw): what gcc writes -- the numbered in .ctors / .dtors plus 65535 minus the
+'' number, WRITABLE or the linker keeps them out of mingw's .ctors -- and the unnumbered
+'' LLVM list REVERSED, because LLVM reverses a .ctors/.dtors list itself. See the source.
+'' TEST: cli
+'' ARGS: -target win64 --emit-ir tests/codegen/src/structor-order.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: internal global ptr @"P200", section ".ctors.65335", align 8
+'' EXPECT-OUT: internal global ptr @"P101", section ".ctors.65434", align 8
+'' EXPECT-OUT: internal global ptr @"Q101", section ".dtors.65434", align 8
+'' EXPECT-OUT: @llvm.global_ctors = appending global [4 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @"P65535", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"C3", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"B2", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"A1", ptr null }]
+'' EXPECT-OUT: @llvm.global_dtors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @"D2", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"D1", ptr null }]
+'' EXPECT-OUT: @llvm.used = appending global [3 x ptr]

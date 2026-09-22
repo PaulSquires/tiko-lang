@@ -275,7 +275,8 @@ end sub
 '' allocation policy and the budget is about the representation.
 private function AstBytes_( byref a as Tko.AstArena ) as longint
     dim as longint pools = a.children.Count + a.tokenRanges.Count + _
-                           a.extraTopLevel.Count + a.callTypeArgs.Count
+                           a.extraTopLevel.Count + a.callTypeArgs.Count + _
+                           a.structorPrio.Count
     return a.nodes.Count    * sizeof( Tko.AstNode ) + _
            a.unaries.Count  * sizeof( Tko.UnaryPayload ) + _
            a.binaries.Count * sizeof( Tko.BinaryPayload ) + _

@@ -23,10 +23,9 @@ char***__cdecl __p___argv( void );
 void   __cdecl _initterm( tkort_pvfv *first, tkort_pvfv *last );
 void   __cdecl exit( int code );
 
-/* Bracketing the .CRT$X fragments, defined in msvccrt.c. */
-extern tkort_pvfv tkort_xi_a[], tkort_xi_z[];
-extern tkort_pvfv tkort_xc_a[], tkort_xc_z[];
-extern tkort_pvfv tkort_xt_a[], tkort_xt_z[];
+/* The .CRT$X walks, in fbc's order -- msvccrt.c says what that is. */
+void tkort_run_initialisers( void );
+void __cdecl tkort_run_terminators( void );
 
 int    __cdecl atexit( tkort_pvfv fn );
 
@@ -37,11 +36,8 @@ int    __cdecl atexit( tkort_pvfv fn );
 **
 ** REGISTERED FIRST, so that it runs LAST: atexit handlers run in reverse order
 ** of registration, and a module destructor is what fbc's
-** '__attribute__(( destructor ))' means -- after everything else. */
-static void __cdecl tkort_run_terminators( void )
-{
-    _initterm( tkort_xt_a, tkort_xt_z );
-}
+** '__attribute__(( destructor ))' means -- after everything else. The walk itself
+** is tkort_run_terminators, in msvccrt.c with the constructors' walk. */
 
 extern int main( int argc, char **argv );
 
@@ -56,8 +52,7 @@ int mainCRTStartup( void )
 
     atexit( tkort_run_terminators );
 
-    _initterm( tkort_xi_a, tkort_xi_z );
-    _initterm( tkort_xc_a, tkort_xc_z );
+    tkort_run_initialisers( );
 
     rc = main( *__p___argc( ), *__p___argv( ) );
 

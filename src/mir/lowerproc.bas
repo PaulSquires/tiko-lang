@@ -167,6 +167,7 @@ sub LowerProc _
     '' then never called by anything.
     if (sp->extra and Tko.PF_MODCTOR) <> 0 then f->isModuleCtor = true
     if (sp->extra and Tko.PF_MODDTOR) <> 0 then f->isModuleDtor = true
+    if f->isModuleCtor orelse f->isModuleDtor then f->structorPrio = StructorPrioOf_( c, id )
     '' PRIVATE MEANS INTERNAL LINKAGE, and it did not: 'private sub f' emitted a
     '' GLOBAL symbol, so two modules each with their own private helper of the same
     '' name would collide at the link. fbc gives it lowercase 't'; measured on the

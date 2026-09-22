@@ -72,7 +72,7 @@ long long __cdecl _time64( long long *dest );
 int       __cdecl _fileno( void *stream );
 void *    __cdecl _localtime64( long long const *src );
 
-/* THE INITIALISER RANGE.  tkort_msvc_init_ is allocated into .CRT$XCB
+/* THE INITIALISER RANGE.  tkort_msvc_init_ is allocated into .CRT$XCY
 ** (msvcinit.c) and the linker sorts the .CRT$XC* fragments together, so
 ** bracketing them with XCA and XCZ and handing the pair to _initterm is what
 ** actually calls it. Without this the runtime starts in the "C" locale and
@@ -108,6 +108,46 @@ __declspec(allocate(".CRT$XCZ")) tkort_pvfv tkort_xc_z[] = { 0 };
 #pragma section( ".CRT$XTZ", read )
 __declspec(allocate(".CRT$XTA")) tkort_pvfv tkort_xt_a[] = { 0 };
 __declspec(allocate(".CRT$XTZ")) tkort_pvfv tkort_xt_z[] = { 0 };
+
+/* THE WALK ORDER IS fbc's ON WINDOWS, which the plain _initterm walk was not.
+**
+** Measured with fbc-modern's default backend, which links through mingw: numbered
+** constructors ('sub f( ) constructor 101') run first, lowest number first; then the
+** unnumbered ones in REVERSE -- last module linked first, and within a module last
+** written first -- and a numbered group runs reversed the same way. Destructors run
+** the other way round: the unnumbered forwards, then the numbered, highest number
+** first, each group forwards. mingw gets all of it by walking .ctors backwards and
+** .dtors forwards over gcc's layout: the unnumbered, then .ctors.NNNNN sorted, where
+** NNNNN is 65535 minus the number.
+**
+** codegen/llvmstructors.bas lays the .CRT$X fragments out the same way -- unnumbered
+** in .CRT$XCU / .CRT$XTX, numbered after them in .CRT$XCV / .CRT$XTY plus 65535 minus
+** the number -- so the same two walks give the same order, module order included.
+** tiko ran every fragment forwards, so fbc's own concurrency/sched.bas -- whose first
+** test relies on a later one having started the goroutine pool -- failed here alone.
+**
+** The runtime's own start-up is at .CRT$XCY, the LAST fragment, so the backwards walk
+** runs it first (msvcinit.c). Nulls -- the brackets, and any padding the linker puts
+** between fragments -- are skipped, as _initterm skips them. */
+static void tkort_walk_back( tkort_pvfv *first, tkort_pvfv *last )
+{
+    while( last > first ) {
+        --last;
+        if( *last ) (*last)( );
+    }
+}
+
+/* Called by both entry points. */
+void tkort_run_initialisers( void )
+{
+    _initterm( tkort_xi_a, tkort_xi_z );
+    tkort_walk_back( tkort_xc_a, tkort_xc_z );
+}
+
+void __cdecl tkort_run_terminators( void )
+{
+    _initterm( tkort_xt_a, tkort_xt_z );
+}
 
 /* THE STACK PROBE.  The backend emits 'call __chkstk' in the prologue of any
 ** function whose frame exceeds a page, and on this target nothing defines it:
