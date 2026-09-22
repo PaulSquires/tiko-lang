@@ -275,17 +275,10 @@ function LowerStrOf_ _
     '' was in the runtime table with no caller at all, so every wide 'str' declined. The
     '' operand may be a wstring, a 'wstring * N' or a UDT that CASTS to one, which is
     '' exactly the set TermIsWide_ answers for.
-    if TermIsWide_( c, sa ) then
-        dim as MirValue wsv
-        if WideOperand_( c, sa, wsv ) = false then return false
-        dim as FB.Array( of ulong ) wsa
-        wsa.Push( cast( ulong, wsv.kind ) ) : wsa.Push( cast( ulong, wsv.id ) )
-        outv = EmitRtl( c, RTL_WSTR_TO_STR, wsa )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
-    end if
-
     '' ...and OVER A USTRING it converts too -- see UStrOperandToNarrow_.
-    if UStrOperandToNarrow_( c, sa, outv ) then return (outv.kind <> cast( ubyte, MV_NONE ))
+    dim as boolean nconv = false
+    if NarrowConvOf_( c, sa, outv, nconv ) then return true
+    if nconv then return false
     dim as longint sn
     if IsStringType( c, c.info->TypeOf_( sa ) ) orelse _
        (StrSwapKind_( c, c.info->TypeOf_( sa ), sn ) >= 0) orelse _
@@ -293,6 +286,34 @@ function LowerStrOf_ _
         return StrDescriptorOf_( c, sa, outv )
     end if
     return NumberToStrDesc_( c, sa, outv )
+end function
+
+'' A WIDE OR UTF-16 VALUE AS A NARROW DESCRIPTOR: the conversion 'str( e )' makes, and
+'' 'type<string>( e )' with it -- see NarrowingTypeLitOperand_. A WIDE CHAIN is one too:
+'' TermIsWide_ answers for no chain, so 'str( "a" & w ) & "b"' declined and printed
+'' nothing. Measured, fbc: fb_WstrConcatAW, then 'fb_WstrToStr( TMP )'.
+''
+'' 'isConv' says whether e needed a conversion at all; TRUE is returned only when one
+'' was made, so a caller tells "not mine" (isConv false) from "mine, and declined".
+function NarrowConvOf_ _
+    ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue, _
+      byref isConv as boolean ) as boolean
+
+    isConv = false
+    if TermIsWide_( c, sa ) orelse IsWideChain_( c, sa ) then
+        isConv = true
+        dim as MirValue wsv
+        if WideOperand_( c, sa, wsv ) = false then return false
+        dim as FB.Array( of ulong ) wsa
+        wsa.Push( cast( ulong, wsv.kind ) ) : wsa.Push( cast( ulong, wsv.id ) )
+        outv = EmitRtl( c, RTL_WSTR_TO_STR, wsa )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if UStrOperandToNarrow_( c, sa, outv ) then
+        isConv = true
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
 end function
 
 '' A NUMBER AS A STRING DESCRIPTOR: the body of STR( ), reached from the CONCATENATION

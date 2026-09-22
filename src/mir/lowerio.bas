@@ -537,6 +537,9 @@ function PrintOne _
         '' Measured, fbc calls it: 'vr = _ZN1T4GETSEi( &O$0, 0 ); fb_PrintString( 0,
         '' vr, 1 )'. Still asked of the member's own symbol -- see NamesProc_.
         if isCallish = false then isCallish = NamesProc_( c, it )
+        '' ...AND 'type<string>( e )' OVER A WIDE OR UTF-16 e, a conversion with no
+        '' address -- see NarrowingTypeLitOperand_.
+        if isCallish = false then isCallish = (NarrowingTypeLitOperand_( c, it ) <> Tko.NODE_NONE)
         if isCallish then
             dim as MirValue cd
             if StrDescriptorOf_( c, it, cd ) then

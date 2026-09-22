@@ -31,6 +31,16 @@ function EmitStrTerm _
     dim as Tko.NodeId sic = StrIdentityConvOperand_( c, term )
     if sic <> Tko.NODE_NONE then term = Unparen_( c, sic )
 
+    '' 'type<string>( e )' OVER A WIDE OR UTF-16 e IS A NARROW CONVERSION, and its node has
+    '' no address for the type test below -- StrDescriptorOf_ makes it. Its flavour is
+    '' NARROW, so a UTF-16 context converts the result like any narrow term.
+    if (isU = false) andalso (NarrowingTypeLitOperand_( c, term ) <> Tko.NODE_NONE) then
+        dim as MirValue tlv
+        if StrDescriptorOf_( c, term, tlv ) = false then return false
+        PushStrArg( args, tlv )
+        return true
+    end if
+
     '' 'input( n [, [#]f] )' IN EXPRESSION POSITION HANDS BACK A DESCRIPTOR, and its
     '' node is an N_INTRINSIC -- nothing here claimed it, so 'd = input( 2, #1 )'
     '' declined while the wide half lowered. StrDescriptorOf_ knows the shape.

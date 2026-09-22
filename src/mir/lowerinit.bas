@@ -507,6 +507,33 @@ end function
 '' macro writes for every one of its arguments.
 ''
 '' A parenthesised LIST is not a redundant paren and is left alone.
+'' THE OPERAND OF 'type<string>( e )' WHEN THAT IS A CONVERSION -- e wide, or UTF-16 --
+'' and NODE_NONE otherwise. Over a narrow e it converts nothing and Unparen_ looks
+'' through it; over these it narrows, and looked through, the wide value went where the
+'' narrow one belonged. Measured against fbc, which prints 'aqb' for all three:
+''
+''     print type<string>( "a" & w )          tiko printed it WIDE, a NUL per character
+''     print type<string>( "a" & w ) & "b"    tiko printed nothing
+''     print type<string>( "a" & u ) & "b"    tiko printed "a", a NUL and "b"
+''
+'' fbc builds the value in its own width and transcodes it once: fb_WstrAssignToA_Init
+'' or fb_UStrAssignToA into a narrow temporary. StrDescriptorOf_ lowers it as 'str( e )'.
+function NarrowingTypeLitOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    if id = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( id ) <> Tko.N_TUPLE then return Tko.NODE_NONE
+    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr tp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if tp->count <> 1 then return Tko.NODE_NONE
+    dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if c.types->Kind( tt ) <> Tko.TK_BUILTIN then return Tko.NODE_NONE
+    if c.types->BuiltinOf( tt ) <> Tko.TY_STRING then return Tko.NODE_NONE
+    dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[tp->first] )
+    if TermIsWide_( c, e ) orelse IsWideChain_( c, e ) then return e
+    if IsUStringType( c, c.info->TypeOf_( e ) ) orelse IsUStrChain_( c, e ) then return e
+    return Tko.NODE_NONE
+end function
+
 function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     dim as Tko.NodeId n = id
     for guard as long = 0 to 15
@@ -526,6 +553,9 @@ function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
             dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( n ) )
             if tt = Tko.TYPE_NONE then return n
             if c.types->Kind( tt ) = Tko.TK_UDT then return n
+            '' ...EXCEPT OVER A WIDE OR UTF-16 OPERAND, where it is a real conversion --
+            '' see NarrowingTypeLitOperand_.
+            if NarrowingTypeLitOperand_( c, n ) <> Tko.NODE_NONE then return n
             n = cast( Tko.NodeId, c.ast->children[tp->first] )
             continue for
         end if

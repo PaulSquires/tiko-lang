@@ -395,6 +395,13 @@ declare function EmitRtl _
     '' False when no term is a ustring. lowerstrargs.bas.
     declare function UStrOperandToNarrow_ _
         ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' 'str( e )' and 'type<string>( e )' over a wide or UTF-16 e: the narrow conversion.
+    '' 'isConv' false when e needed none. lowersub.bas.
+    declare function NarrowConvOf_ _
+        ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue, _
+          byref isConv as boolean ) as boolean
+    '' The operand of 'type<string>( e )' when that converts. lowerinit.bas.
+    declare function NarrowingTypeLitOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     '' A narrow argument for a 'byref as ustring' parameter outside the ordinary call path:
     '' the ustring temporary fbc builds first. False when neither applies. lowerstrargs.bas.
     declare function UStrParamArgTemp_ _

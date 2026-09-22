@@ -1,0 +1,24 @@
+'' 'type<string>( e )' OVER A WIDE OR UTF-16 e IS A NARROW CONVERSION, not the identity.
+''
+'' Unparen_ looked through every 'type<T>( e )' whose T is not a UDT, which is right for a
+'' narrow e and wrong for these: the wide value went where the narrow one belonged.
+'' Measured against fbc, which prints aq, qb and aUb:
+''
+''     print type<string>( "a" & w )          tiko printed it WIDE, a NUL per character
+''     print type<string>( w ) & "b"          likewise
+''     print type<string>( "a" & w ) & "b"    tiko printed nothing, and a declaration or
+''                                            assignment of it came out empty
+''     print type<string>( "a" & u ) & "b"    tiko printed "a", a NUL and "b"
+''
+'' It is now the conversion 'str( e )' makes -- fb_WstrToStr, or fb_UStrAssignToA into a
+'' narrow temporary -- and 'str( "a" & w )' itself, which declined, takes the same route.
+'' Over a narrow e ('type<string>( t )') nothing changes: fb_StrInit from t directly.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/type-string-narrows.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrToStr(@w)
+'' EXPECT-OUT: fb_UStrAssignToA(@$tmp
+'' EXPECT-OUT: fb_StrInit(@s2, -1, @t, -1, 0)
+'' EXPECT-NOT: fb_PrintWstr(

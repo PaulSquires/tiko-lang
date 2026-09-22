@@ -37,6 +37,14 @@ function StrDescriptorOf_ _
 
     id = Unparen_( c, id )
 
+    '' 'type<string>( e )' OVER A WIDE OR UTF-16 e IS A CONVERSION, the one 'str( e )'
+    '' makes -- Unparen_ leaves exactly that shape in place. See NarrowingTypeLitOperand_.
+    dim as Tko.NodeId tlc = NarrowingTypeLitOperand_( c, id )
+    if tlc <> Tko.NODE_NONE then
+        dim as boolean tlConv = false
+        return NarrowConvOf_( c, tlc, outv, tlConv )
+    end if
+
     '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
     dim as Tko.NodeId sic = StrIdentityConvOperand_( c, id )
     if sic <> Tko.NODE_NONE then id = Unparen_( c, sic )
