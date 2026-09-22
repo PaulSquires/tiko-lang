@@ -1,0 +1,34 @@
+'' WRITE's list is commas only: neither ';' nor 'using' belongs in one, where PRINT takes
+'' both. fbc refuses all six spellings below (its error 3, and its error 16 for the one
+'' after a file number); tiko read the list with PRINT's grammar and accepted every one,
+'' writing a separator it has no meaning for -- and 'write using' was marked a USING
+'' statement, which lowering then declined, so that line vanished with nothing said.
+'' Asserted BY POSITION: the id alone would pass with the wrong token blamed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/write-separators.bas
+'' EXPECT-EXIT: 1
+
+'' 'write s;' -- the ';' itself.
+'' EXPECT-OUT: write-separators.bas(25,8): error TKO0420
+
+'' 'write s; t' -- a ';' BETWEEN items, not only a trailing one.
+'' EXPECT-OUT: write-separators.bas(26,8): error TKO0420
+
+'' 'write #1, s;' -- after a file number too.
+'' EXPECT-OUT: write-separators.bas(27,12): error TKO0420
+
+'' 'write ;' -- with no item at all.
+'' EXPECT-OUT: write-separators.bas(28,7): error TKO0420
+
+'' 'write using "&"; s' -- the USING form, blamed on 'using'. This is the one that used
+'' to compile and print nothing.
+'' EXPECT-OUT: write-separators.bas(29,7): error TKO0420
+
+'' 'write #1; s' -- fbc's error 16 rather than its error 3, reported here as the same
+'' end-of-statement diagnostic on the same token.
+'' EXPECT-OUT: write-separators.bas(30,9): error TKO0420
+
+'' AND NOTHING OVER THE LEGAL SHAPES: a comma list, a TRAILING comma, a bare WRITE, a
+'' file number, and PRINT's own ';' and USING beside them. Six diagnostics, no more.
+'' EXPECT-MAX-DIAG: 6
+'' GOLDEN: expected/write-separators.out

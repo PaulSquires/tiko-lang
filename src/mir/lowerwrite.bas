@@ -134,13 +134,18 @@ private function WriteOne_ _
             ta.Push( cast( ulong, MV_CONST_INT ) )
             ta.Push( cast( ulong, len( litText ) ) )
             desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
-        elseif NamesProc_( c, it ) then
-            '' A PAREN-LESS CALL -- 'write o.GetS', 'write FreeS', a property -- IS A
-            '' CALL, and LowerAddr handed fb_WriteString the procedure's CODE address.
-            '' Measured, fbc passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 );
-            '' fb_WriteString( 0, vr, 1 )'. The ustring spelling of this is the
-            '' fb_WriteUStr branch above.
-            if StrDescriptorOf_( c, it, desc ) = false then return false
+        elseif NamesProc_( c, it ) orelse (c.ast->Kind( it ) = Tko.N_CALL) then
+            '' A CALL IS A DESCRIPTOR, with parentheses or without. Measured, fbc
+            '' passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 ); fb_WriteString( 0,
+            '' vr, 1 )'. LowerAddr answers NOTHING for 'write f( )' -- a call has no
+            '' address -- so the item declined and took the whole statement with it,
+            '' silently; for the paren-less spelling it answered with the procedure's
+            '' CODE address. PRINT has asked StrDescriptorOf_ for both all along.
+            '' The ustring spelling of this is the fb_WriteUStr branch above.
+            ''
+            '' AND AN N_CALL IS NOT ALWAYS A CALL: 'write a( i )' over a string ARRAY
+            '' is one too, so the address stays as the fallback rather than a decline.
+            if StrDescriptorOf_( c, it, desc ) = false then desc = LowerAddr( c, it )
         else
             desc = LowerAddr( c, it )
         end if

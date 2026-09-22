@@ -1,0 +1,14 @@
+'' WRITE and a PRINT USING format take a CALL -- with parentheses or without -- as the
+'' descriptor it is, and 'wstr( u )' transcodes a ustring instead of reading its UTF-16
+'' as narrow bytes. The parenthesised spellings used to drop the statement outright:
+'' master lowers this file with four statements missing. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/write-using-call-items.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WriteString(
+'' EXPECT-OUT: fb_PrintUsingStr(
+'' EXPECT-OUT: fb_UStrToStr(
+'' EXPECT-OUT: fb_StrToWstr(
+'' EXPECT-NOT: func.addr

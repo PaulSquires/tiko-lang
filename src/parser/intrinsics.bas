@@ -77,12 +77,23 @@ end function
 '' The separators are semantically meaningful -- ';' suppresses the column advance --
 '' so they are recorded as N_PRINT_SEP children rather than skipped.
 private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    '' WRITE TAKES NEITHER ';' NOR 'using', where PRINT takes both. Measured against
+    '' fbc: 'write s, t' and even a trailing 'write s,' compile, while 'write s;',
+    '' 'write s; t', 'write #1, s;', 'write ;' and 'write using "&"; s' are all its
+    '' error 3 (and 'write #1; s' its error 16). tiko read the WRITE list with PRINT's
+    '' grammar and accepted every one of them: the ';' forms wrote a stray separator
+    '' and 'write using' was marked as a USING statement, which lowering then declined
+    '' -- so the whole statement vanished with nothing said.
+    dim as boolean isWrite = (cast( Tko.TokenKind, sp.op ) = Tko.KW_WRITE)
     sp.a = IntrFileNum( p )
     if sp.a <> Tko.NODE_NONE then
-        if Accept( p, Tko.TK_COMMA ) = false then Accept( p, Tko.TK_SEMICOLON )
+        '' A ';' after the file number is left for the loop below to report.
+        if Accept( p, Tko.TK_COMMA ) = false then
+            if isWrite = false then Accept( p, Tko.TK_SEMICOLON )
+        end if
     end if
 
-    if Peek( p ) = Tko.KW_USING then
+    if (Peek( p ) = Tko.KW_USING) andalso (isWrite = false) then
         Advance( p )
         sp.c = Expression( p )
         if Accept( p, Tko.TK_SEMICOLON ) = false then Accept( p, Tko.TK_COMMA )
@@ -101,6 +112,13 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         '' enclosing single-line statement, or it eats it.
         if EndsSingleLineStmt( p ) then exit do
         dim as Tko.TokenKind k = Peek( p )
+        '' Neither of WRITE's two refusals -- see the head of this procedure. One
+        '' diagnostic and then the rest of the line, which is what ErrorNode's own
+        '' 'silent' flag is for.
+        if isWrite andalso ((k = Tko.TK_SEMICOLON) orelse (k = Tko.KW_USING)) then
+            ErrorNode( p, Tko.TKO0420 )
+            exit do
+        end if
         if (k = Tko.TK_SEMICOLON) orelse (k = Tko.TK_COMMA) then
             dim as Tko.Token t = Cur( p )
             Advance( p )

@@ -67,6 +67,57 @@ function LowerWstrOf _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
+    '' A USTRING IS TRANSCODED FIRST. Its descriptor's data pointer is UTF-16, and
+    '' handing that to fb_StrToWstr read it as narrow bytes and stopped at the first
+    '' embedded NUL: 'print wstr( u )' over "u0" printed "u". Measured, fbc converts and
+    '' then widens what comes back, for a variable and a call alike:
+    ''
+    ''   vr$41 = fb_UStrToStr( (void*)vr$40, -1ll );
+    ''   fb_StrAssign( (void*)&TMP$14$0, -1ll, (void*)vr$41, -1ll, 0 );
+    ''   vr$43 = fb_StrToWstr( (char*)*(char**)&TMP$14$0 );
+    ''
+    '' -- the narrow temporary because fb_UStrToStr hands back a POOL descriptor, which
+    '' the assignment consumes. UStrOutOperand_ gives the ustring descriptor whatever
+    '' shape it was written in, and its copy, if it made one, dies here.
+    '' A VAR-LENGTH ONE ONLY: fbc REFUSES 'wstr( uf )' over a 'ustring * N' with its
+    '' error 24, "Invalid data types", so there is nothing to reproduce here. It goes on
+    '' declining, which is what it did before -- reporting it belongs in Check.
+    dim as longint uzn
+    if IsUStringType( c, at ) andalso (StrSwapKind_( c, at, uzn ) <> 4) then
+        dim as MirValue uo
+        dim as long uoslot = -1
+        if UStrOutOperand_( c, a, uo, uoslot ) = false then return false
+        dim as FB.Array( of ulong ) ua
+        ua.Push( cast( ulong, uo.kind ) ) : ua.Push( cast( ulong, uo.id ) )
+        PushStrLen_( c, ua, -1 )
+        dim as MirValue nv = EmitRtl( c, RTL_USTR_TO_STR, ua )
+        ReleaseUStrOut_( c, uoslot )
+        if nv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long uslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if uslot < 0 then return false
+        dim as MirValue und
+        und.kind = cast( ubyte, MV_LOCAL ) : und.ty = cast( ubyte, MT_PTR ) : und.id = uslot
+        ZeroStrDescriptor( c, und )
+        dim as FB.Array( of ulong ) sa
+        sa.Push( cast( ulong, und.kind ) ) : sa.Push( cast( ulong, und.id ) )
+        PushStrLen_( c, sa, -1 )
+        sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
+        PushStrLen_( c, sa, -1 )
+        sa.Push( cast( ulong, MV_CONST_INT ) ) : sa.Push( 0 )
+        EmitRtl( c, RTL_STR_ASSIGN, sa )
+        c.strTemps.Push( cast( ulong, uslot ) )
+        dim as MirInst ufa
+        ufa.op = cast( ushort, M_FIELD_ADDR ) : ufa.ty = cast( ubyte, MT_PTR )
+        ufa.a = und : ufa.imm = 0
+        dim as MirValue upa = Emit( c, ufa )
+        if upa.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue uraw = LowerExprLoad( c, upa, MT_PTR )
+        if uraw.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) wargs
+        wargs.Push( cast( ulong, uraw.kind ) ) : wargs.Push( cast( ulong, uraw.id ) )
+        return WideConcatStep_( c, wargs, RTL_STR_TO_WSTR, outv )
+    end if
+
     '' A NARROW STRING: the raw data pointer, not the descriptor.
     dim as longint zn
     dim as long sk = StrSwapKind_( c, at, zn )

@@ -170,8 +170,16 @@ function LowerPrintUsing _
             ufa.Push( cast( ulong, fmt.kind ) ) : ufa.Push( cast( ulong, fmt.id ) )
             PushStrLen_( c, ufa, -1 )
             fmt = EmitRtl( c, RTL_USTR_TO_STR, ufa )
-        elseif NamesProc_( c, fmtNode ) then
-            if StrDescriptorOf_( c, fmtNode, fmt ) = false then return false
+        elseif NamesProc_( c, fmtNode ) orelse _
+               (c.ast->Kind( Unparen_( c, fmtNode ) ) = Tko.N_CALL) then
+            '' A CALL IS A DESCRIPTOR, with parentheses or without: 'print using
+            '' o.Fmt; x' took the procedure's CODE address, and 'print using f( ); x'
+            '' had no address at all and dropped the statement. An N_CALL that is an
+            '' array element still falls through to the address below.
+            StrDescriptorOf_( c, Unparen_( c, fmtNode ), fmt )
+            if fmt.kind = cast( ubyte, MV_NONE ) then
+                fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
+            end if
         else
             fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
         end if
