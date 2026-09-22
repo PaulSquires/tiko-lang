@@ -384,8 +384,12 @@ function PrintOne _
     '' ...and only when the chain HAS a wide term. Without that test a concatenation
     '' of two literals printed as a WIDE one, through fb_WstrConcat over the wide
     '' literal pool, because a literal answers "wide" to anything that asks.
+    '' ...and NOT A USTRING CHAIN, which a ustring term makes it whatever else is in it.
+    '' Measured, fbc prints 'u & w' through fb_PrintUStr; the wide route printed it wide,
+    '' and 'print u & "a" & w' lost the "a".
     dim as MirValue wcc
-    if ConcatHasWideTerm_( c, it ) andalso WideConcatToTemp_( c, it, wcc ) then
+    dim as boolean itIsU = (PrintStrRtl_( c, it ) = RTL_PRINT_USTR)
+    if (itIsU = false) andalso ConcatHasWideTerm_( c, it ) andalso WideConcatToTemp_( c, it, wcc ) then
         args.Push( cast( ulong, wcc.kind ) ) : args.Push( cast( ulong, wcc.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_WSTR, args )

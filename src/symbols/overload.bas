@@ -699,6 +699,14 @@ private function ConcatHasUString_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     if id = Tko.NODE_NONE then return false
+    '' A PARENTHESISED CHAIN IS LOOKED INTO. Measured, '#print typeof( ucase( "x" & ( u &
+    '' "y" ) ) )' is USTRING; typed STRING, 'print' of it went to fb_PrintString.
+    if c.ast->Kind( id ) = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return false
+        return ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+    end if
     dim as Tko.TypeId t = TypeOf_( c, id )
     if t = Tko.TYPE_NONE then return false
     dim as Tko.TypeId u = c.types->Unqualify( t )

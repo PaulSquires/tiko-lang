@@ -178,6 +178,42 @@ sub FlattenConcat _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outp as FB.Array( of ulong ) )
 
     if id = Tko.NODE_NONE then return
+    '' A PARENTHESISED STRING CHAIN IS THE SAME CHAIN: 'a & ( b & c )' is 'a & b & c'.
+    '' Left whole it was ONE term, typed STRING by Check whatever it held, so a wide or a
+    '' ustring inside went unseen -- measured against fbc, which prints aqbc and xUy:
+    ''
+    ''     print ( "a" & w ) & "bc"      tiko printed nothing
+    ''     print "x" & ( u & "y" )       tiko printed "xU" and a NUL
+    ''
+    '' '&' is always a concatenation. '+' only when Check types it a string: '( x + 2 ) &
+    '' "s"' is ARITHMETIC in the parentheses, and flattened x and 2 would be two terms.
+    '' And never a USER OPERATOR, which is a call: '( a + b )' over a UDT whose 'operator +'
+    '' returns a string is typed STRING too, and flattened it was two UDT terms.
+    '' PARENTHESES ONLY, not Unparen_: it strips 'type<string>( ... )' as well, and over a
+    '' wide chain that is a CONVERSION, which flattening would undo.
+    dim as Tko.NodeId inner = id
+    while c.ast->Kind( inner ) = Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, inner )].data )]
+        if pp->count <> 1 then exit while
+        inner = cast( Tko.NodeId, c.ast->children[pp->first] )
+    wend
+    dim as boolean builtinOp = (c.info->RefOf( inner ) = Tko.SYMBOL_NONE)
+    dim as boolean parenBin = (inner <> id)
+    parenBin = parenBin andalso (c.ast->Kind( inner ) = Tko.N_BINARY)
+    if parenBin andalso builtinOp then
+        dim as Tko.BinaryPayload ptr ibp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, inner )].data )]
+        dim as Tko.TokenKind iop = cast( Tko.TokenKind, ibp->op )
+        dim as Tko.TypeId it = c.info->TypeOf_( inner )
+        dim as boolean strPlus = IsStringType( c, it ) orelse IsWideString_( c, it )
+        strPlus = strPlus orelse IsUStringType( c, it )
+        if iop = Tko.TK_AMP then
+            id = inner
+        elseif (iop = Tko.TK_PLUS) andalso strPlus then
+            id = inner
+        end if
+    end if
     if c.ast->Kind( id ) = Tko.N_BINARY then
         dim as Tko.BinaryPayload ptr bp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]

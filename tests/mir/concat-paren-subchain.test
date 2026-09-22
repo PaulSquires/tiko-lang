@@ -1,0 +1,25 @@
+'' A PARENTHESISED STRING CHAIN IS THE SAME CHAIN. FlattenConcat left '( "a" & w )' whole,
+'' as ONE term that Check types STRING, so the wide or ustring term inside went unseen.
+'' Measured against fbc, which prints aqbc, xUy and XUY:
+''
+''     print ( "a" & w ) & "bc"            tiko printed nothing
+''     print "x" & ( u & "y" )             tiko printed "xU" and a NUL
+''     print ucase( "x" & ( u & "y" ) )    ...and fb_PrintString over the UTF-16
+''
+'' Check's ConcatHasUString_ looks inside the parentheses too: fbc types that ucase USTRING.
+'' 'print u & "a" & w' is a USTRING chain, and PRINT's wide branch took it and lost the "a".
+'' '( x + 2 )' is still an ADD, and a user operator's '( a + b )' stays a call --
+'' tests/mir/operator-string-result.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-paren-subchain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl void fb_PrintWstr(
+'' EXPECT-OUT: fb_WstrAssignToA_Init(
+'' EXPECT-OUT: fb_WstrLen(
+'' EXPECT-OUT: call.rtl void fb_PrintUStr(
+'' EXPECT-OUT: fb_UStrUcase(
+'' EXPECT-OUT: fb_WstrToUStr(
+'' EXPECT-OUT: = add
+'' EXPECT-OUT: fb_LongintToStr(
