@@ -1211,8 +1211,10 @@ sub EmitVarGlobal _
                     return
                 end select
             next
-            e.outp += nm & " = global [" & str( g.ptrCount ) & " x ptr] [" & tbody & _
-                      "], align " & str( pw ) & chr( 10 )
+            dim as string plk = ""
+            if g.isInternal then plk = "internal "
+            e.outp += nm & " = " & plk & "global [" & str( g.ptrCount ) & " x ptr] [" & _
+                      tbody & "], align " & str( pw ) & chr( 10 )
             return
         end if
     end if
@@ -1276,7 +1278,12 @@ sub EmitVarGlobal _
         init_ = "ptrtoint (ptr " & init_ & " to " & LlvmType( vt ) & ")"
     end if
 
-    e.outp += nm & " = global " & ty & " " & init_ & _
+    '' 'internal' is C's 'static': one module's object, invisible to the linker. fbc
+    '' writes every DIM SHARED that way, and without it two modules each declaring one
+    '' were a duplicate symbol. See MirGlobal.isInternal for the measured table.
+    dim as string linkage = ""
+    if g.isInternal then linkage = "internal "
+    e.outp += nm & " = " & linkage & "global " & ty & " " & init_ & _
               ", align " & str( AlignOf( e, vt, g.size ) ) & chr( 10 )
 end sub
 

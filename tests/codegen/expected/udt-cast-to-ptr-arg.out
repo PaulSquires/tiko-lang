@@ -2,10 +2,10 @@ target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:
 target triple = "x86_64-w64-windows-gnu"
 
 
-@"id_count" = global i64 0, align 8
-@"id_ctor" = global i64 0, align 8
-@"id_cast_ptr" = global i64 0, align 8
-@"id_cast_str" = global i64 0, align 8
+@"id_count" = internal global i64 0, align 8
+@"id_ctor" = internal global i64 0, align 8
+@"id_cast_ptr" = internal global i64 0, align 8
+@"id_cast_str" = internal global i64 0, align 8
 @"$str4" = private unnamed_addr constant [1 x i8] c"\00", align 1
 @"$str5" = private unnamed_addr constant [7 x i8] c"byval \00", align 1
 @"$str6" = private unnamed_addr constant [7 x i8] c"byref \00", align 1

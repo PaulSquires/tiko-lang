@@ -512,6 +512,11 @@ namespace Tko.Mir
         '' because it lives in the runtime. Without saying so, an empty table would
         '' read as a real one with no entries.
         as boolean  isExternal
+        '' ...AND NOBODY ELSE'S AT ALL. A 'dim shared' is one module's variable, and
+        '' fbc says so: 'static int32 SH$ = 1;', internal linkage, where only an
+        '' EXTERN's definition is 'int32 E$ = 5;'. Emitted external, two modules that
+        '' each declare 'dim shared e' were 'duplicate symbol: e' at the link.
+        as boolean  isInternal
         as boolean  isVar
         as ubyte    ty             '' MirType, isVar only
         as Tko.TypeId frontendType

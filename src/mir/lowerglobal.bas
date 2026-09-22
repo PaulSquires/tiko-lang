@@ -57,6 +57,9 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     next
 
     dim as Tko.InternId nm = s->name
+    '' HOISTED because it decides the LINKAGE too, further down: a static MEMBER is the
+    '' one static object other modules are entitled to reach.
+    dim as boolean memberStatic = false
     if IsStaticLocal( c, sid ) then
         '' A STATIC MEMBER IS NOT A STATIC LOCAL. 'static x as integer' inside a type
         '' is one object for the whole program, named after the TYPE -- measured,
@@ -64,7 +67,6 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
         '' member the local way gave it whichever member function first touched it,
         '' so two translation units would not agree on the symbol.
         dim as Tko.SymScope ptr ps = c.syms->ScopeAt( s->parent )
-        dim as boolean memberStatic = false
         if ps <> 0 then memberStatic = (ps->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
         if memberStatic then
             dim as string smn = Tko.Mangle.StaticMemberName( _
@@ -96,7 +98,29 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     if linksByName = false then nm = UniqueGlobalName( c, nm )
 
     dim as long g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
-    if isExt then c.m->globals[g].isExternal = true
+    '' AND WHO MAY SEE IT. Everything here went out with external linkage, so two modules
+    '' that each wrote 'dim shared e' -- or each held a 'private sub P' with a 'static sl'
+    '' -- were 'lld-link: error: duplicate symbol: e', where fbc compiles both and gives
+    '' each module its own object. Measured, fbc's linkage for every shape this function
+    '' names:
+    ''
+    ''     dim shared sh             static int32 SH$ = 1      d   internal
+    ''     static shared st          static int32 ST$ = 3      d   internal
+    ''     static sl (in a sub)      static int32 SL$1.1954    d   internal
+    ''     common shared cm          int32 CM$                 C   common
+    ''     static member T.cnt       int32 _ZN1T4CNT$E         C   common
+    ''     extern e : dim e = 5      int32 E$ = 5              D   external
+    ''
+    '' -- internal unless the object is one OTHER MODULES ARE ENTITLED TO REACH, which
+    '' is COMMON, a type's static member, and an EXTERN either way. Those three keep the
+    '' linkage they had; the name is what has to stay unique for them.
+    dim as boolean isCommon = ((s->flags and Tko.SYMF_COMMON) <> 0)
+    dim as boolean sharedOut = (isExtDef orelse isCommon orelse memberStatic)
+    if isExt then
+        c.m->globals[g].isExternal = true
+    elseif sharedOut = false then
+        c.m->globals[g].isInternal = true
+    end if
     c.gvarSym.Push( cast( ulong, sid ) )
     c.gvarSlot.Push( g )
     return g
