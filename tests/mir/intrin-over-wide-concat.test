@@ -1,0 +1,25 @@
+'' A STRING-FAMILY CALL OVER A WIDE CHAIN IS WIDE. 'right( "00" & wstr( i ), 2 )' takes its
+'' type from its first argument, and Check types '&' as STRING, so the call looked narrow:
+'' fb_RIGHT was handed the wide chain and declined -- TKO0801 -- and the same line over mid,
+'' ucase or trim was DROPPED with nothing said, 'u' left empty. Measured, fbc types the
+'' argument and the call WSTRING and prints "Item 05". A ustring term still makes the chain
+'' a ustring one: fb_UStrRightD, fb_UStrLen. 'len( "00" & wstr( 5 ) )' printed nothing too.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/intrin-over-wide-concat.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrRight(
+'' EXPECT-OUT: fb_WstrLeft(
+'' EXPECT-OUT: fb_WstrMid(
+'' EXPECT-OUT: fb_WstrUcase2(
+'' EXPECT-OUT: fb_WstrTrim(
+'' EXPECT-OUT: fb_PrintWstr(
+'' EXPECT-OUT: fb_WstrLen(
+'' EXPECT-OUT: fb_UStrRightD(
+'' EXPECT-OUT: fb_UStrLen(
+'' EXPECT-NOT: fb_RIGHT(
+'' EXPECT-NOT: fb_LEFT(
+'' EXPECT-NOT: fb_StrMid(
+'' EXPECT-NOT: fb_StrUcase2(
+'' EXPECT-NOT: fb_TRIM(

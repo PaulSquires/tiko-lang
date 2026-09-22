@@ -1171,8 +1171,8 @@ function LowerLen _
     '' them folded.
     dim as boolean lenOfType = (c.ast->Kind( a ) = Tko.N_TYPEREF)
 
-    '' WIDE: one argument, no length.
-    if (IsWideString_( c, at )) andalso (isSizeof = false) andalso (lenOfType = false) then
+    '' WIDE: one argument, no length -- and a chain Check typed STRING, see IsWideChain_.
+    if (IsWideString_( c, at ) orelse IsWideChain_( c, a )) andalso (isSizeof = false) andalso (lenOfType = false) then
         '' A WIDE EXPRESSION HAS NO ADDRESS. 'len( wstr( x ) )' is wide-typed --
         '' 'WSTRING * 1' -- so this branch claimed it and then asked an N_CALL for an
         '' address, which it has not got, and the whole statement declined. Every

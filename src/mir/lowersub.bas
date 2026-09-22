@@ -67,6 +67,8 @@ function LowerStrRvalue _
     '' whatever the UTF-16 bytes happened to spell.
     if LowerUStrIntrin_( c, id, outv ) then return true
     if IsUStringType( c, c.info->TypeOf_( a0 ) ) then return false
+    '' ...AND SO DOES A WIDE CHAIN, which Check types STRING: see IntrinOverWideConcat_.
+    if IntrinOverWideConcat_( c, id ) then return false
 
     '' The second argument, unwrapped from 'any' if it carries one.
     dim as Tko.NodeId a1 = Tko.NODE_NONE

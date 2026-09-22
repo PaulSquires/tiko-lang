@@ -426,6 +426,8 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     '' Whether any TERM is wide is the question, and it is the same predicate the
     '' narrow-destination path already asks.
     if ConcatHasWideTerm_( c, t2 ) then return STF_WIDE
+    '' ...and so has 'right( "00" & wstr( i ), 2 )', whose type follows that chain's.
+    if IntrinOverWideConcat_( c, t2 ) then return STF_WIDE
 
     dim as Tko.TypeId tt = c.info->TypeOf_( t2 )
     if tt = Tko.TYPE_NONE then return STF_NEUTRAL

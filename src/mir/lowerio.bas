@@ -393,8 +393,9 @@ function PrintOne _
     end if
 
     '' 'print wstr( x )' -- a wide value whose TYPE is empty, because Check computes
-    '' none for the call. The type test below never saw it.
-    if IsWstrCall_( c, it ) then
+    '' none for the call. The type test below never saw it. Nor 'right( "0" & w, 2 )',
+    '' typed STRING after the chain it takes -- see IntrinOverWideConcat_.
+    if IsWstrCall_( c, it ) orelse IntrinOverWideConcat_( c, it ) then
         dim as MirValue wv
         if WideOperand_( c, it, wv ) = false then return false
         args.Push( cast( ulong, wv.kind ) ) : args.Push( cast( ulong, wv.id ) )

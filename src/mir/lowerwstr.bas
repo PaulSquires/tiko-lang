@@ -583,6 +583,7 @@ function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     '' So the CALL's own type answers, which is narrow for every other argument.
     if IsStrCall_( c, e ) then return IsWideString_( c, c.info->TypeOf_( e ) )
     if IsWideString_( c, c.info->TypeOf_( e ) ) then return true
+    if IntrinOverWideConcat_( c, e ) then return true
     '' A LITERAL CONTAINING A UNICODE ESCAPE IS WIDE, and does NOT follow its
     '' context the way every other literal does. Measured: '#print typeof(
     '' !"\u0041" )' is 'WSTRING * 3' while '!"\n"' and '"A"' are both ZSTRING.
@@ -635,6 +636,48 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
         if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) then return true
     next
     return false
+end function
+
+'' IS THIS A STRING-FAMILY CALL OVER A WIDE CONCATENATION? 'right( "00" & wstr( i ), 2 )'.
+'' The family's type follows its FIRST ARGUMENT, and Check types '&' as STRING, so the
+'' call looked narrow everywhere: fb_RIGHT was handed the wide chain and declined, and
+'' 'u = "Item " & right( "00" & wstr( i ), 2 )' was TKO0801 while the same line over mid
+'' or ucase was DROPPED with nothing said. Measured, fbc types the argument WSTRING and
+'' the call with it. A ustring term makes it a ustring chain instead -- LowerUStrIntrin_'s
+'' rule -- and a nested call over one ('right( ucase( "a" & w ), 2 )') is wide too.
+function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    e = Unparen_( c, e )
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_CALL then return false
+    if CallsUserProcNamedLikeBuiltin( c, e ) then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->count < 1 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
+    case else
+        return false
+    end select
+    return IsWideChain_( c, cast( Tko.NodeId, c.ast->children[lp->first] ) )
+end function
+
+'' IS THIS A WIDE CHAIN BY ITS SHAPE -- a concatenation with a wide term and no ustring one,
+'' or a family call over such a chain? Check calls both STRING. LEN asks it directly:
+'' 'len( "00" & wstr( 5 ) )' and 'len( w & "abc" )' printed nothing, where fbc prints 3 and 4.
+function IsWideChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    e = Unparen_( c, e )
+    if e = Tko.NODE_NONE then return false
+    if IsUStringType( c, c.info->TypeOf_( e ) ) then return false
+    if c.ast->Kind( e ) = Tko.N_CALL then return IntrinOverWideConcat_( c, e )
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
+    dim as FB.Array( of ulong ) at
+    FlattenConcat( c, e, at )
+    if (at.Count > 1) andalso ConcatTermsAreU_( c, at ) then return false
+    return ConcatHasWideTerm_( c, e )
 end function
 
 '' One concatenation step: emit the call, put the result in a slot, and register that
