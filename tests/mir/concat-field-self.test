@@ -1,0 +1,10 @@
+'' A concatenation assigned to a field that a later term reads is built in a temporary,
+'' not in place. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-field-self.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: fb_StrConcatAssign
+'' EXPECT-NOT: fb_UStrConcatAssign
+'' EXPECT-OUT: fb_StrConcat(@$tmp
+'' EXPECT-OUT: fb_UStrConcat(@$tmp
+'' EXPECT-OUT: 0 statements not lowered

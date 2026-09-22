@@ -211,6 +211,39 @@ end function
 '' redaction kept its first '[redacted]' and lost the rest. Measured, fbc takes the
 '' substring first and concatenates into a temporary. The target is recognised as
 '' SameLValue recognises it, and a node kind not walked here is not searched.
+''
+'' A FIELD TARGET IS MATCHED BY ITS ROOT VARIABLE. SameLValue knows only a bare name, so
+'' 'st.text = "Z" & mid( st.text, 4 )' found nothing to match and was built in place:
+'' "Z" went into st.text and mid( ) read THAT -- measured, fbc prints 'ZB' and tiko
+'' printed 'Z'. fb/tuiform.bi's backspace, delete, paste and selection are all
+'' 'state->text = left( state->text, p ) & mid( state->text, ... )'. Any use of the
+'' root in a later term takes the temporary: over-conservative for 'st.a = x & st.b',
+'' which is only slower, never wrong.
+private function LValueRoot_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.NodeId
+    dim as long guard = 0
+    while (n <> Tko.NODE_NONE) andalso (guard < 64)
+        guard += 1
+        dim as ulong d = c.ast->nodes[cast( long, n )].data
+        select case c.ast->Kind( n )
+        case Tko.N_IDENT
+            return n
+        case Tko.N_MEMBER
+            n = c.ast->binaries[cast( long, d )].lhs
+        case Tko.N_DEREF
+            n = c.ast->unaries[cast( long, d )].operand
+        case Tko.N_INDEX, Tko.N_CALL
+            n = c.ast->lists[cast( long, d )].target
+        case Tko.N_PAREN
+            dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, d )]
+            if lp->count <> 1 then return Tko.NODE_NONE
+            n = cast( Tko.NodeId, c.ast->children[lp->first] )
+        case else
+            return Tko.NODE_NONE
+        end select
+    wend
+    return Tko.NODE_NONE
+end function
+
 function TermReadsLValue_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
 
@@ -218,7 +251,10 @@ function TermReadsLValue_ _
     dim as ulong d = c.ast->nodes[cast( long, e )].data
     select case c.ast->Kind( e )
     case Tko.N_IDENT
-        return SameLValue( c, target, e )
+        if SameLValue( c, target, e ) then return true
+        dim as Tko.NodeId troot = LValueRoot_( c, target )
+        if (troot = Tko.NODE_NONE) orelse (troot = target) then return false
+        return SameLValue( c, troot, e )
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
         return TermReadsLValue_( c, target, c.ast->unaries[cast( long, d )].operand )
     case Tko.N_BINARY, Tko.N_MEMBER
