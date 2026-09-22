@@ -1,0 +1,21 @@
+'' A DEFINED EXTERN LINKS ACROSS MODULES. One module writes 'extern e' then 'dim e = 5'
+'' and the other only 'extern e': that is one object, and the link is the whole
+'' assertion. The definition used to be emitted under the ordinary module spelling 'e'
+'' while every reference went out as 'E$', so this stopped at
+''
+''     lld-link: error: undefined symbol: E$
+''     >>> referenced by ...:(SHOWUSE)
+''
+'' -- verified by building the previous driver and running this against it. fbc links
+'' and runs the same three sources, printing 'def 5' and 'use 5'.
+''
+'' THE EXIT CODE AND THE FILE ARE THE TEST. The harness does not run what it builds, so
+'' what is asserted is that the linker resolved the symbol; tests/mir/extern-definition-name
+'' pins the spelling itself, and the two programs' output was compared byte for byte
+'' against fbc by hand.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/externdef-main.bas tests/driver/src/externdef-def.bas tests/driver/src/externdef-use.bas -o tests/driver/externdef.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/externdef.exe
+'' EXPECT-NOT: undefined symbol

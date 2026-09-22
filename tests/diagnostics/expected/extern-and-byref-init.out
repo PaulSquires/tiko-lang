@@ -1,12 +1,12 @@
-global var agg a1 size 16
+global var agg A1$ size 16
 global var agg A2$ size 16
-global var agg a3 size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
-global var agg a4 size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
+global var agg A3$ size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
+global var agg A4$ size 16 = bytes 01 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00
 global var agg A5$ size 32
-global var agg a6 size 16
-global var agg s1 size 24
-global var agg s2 size 24
-global var agg s3 size 24
+global var agg A6$ size 16
+global var agg S1$ size 24
+global var agg S2$ size 24
+global var agg S3$ size 24
 global str $str9 "abc"
 global var ptr main$r12
 global var i64 sh

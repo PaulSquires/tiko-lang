@@ -1,0 +1,18 @@
+'' A DEFINITION OF AN EXTERN IS EMITTED UNDER THE NAME THE DECLARATION LINKS BY --
+'' 'E$', not the module spelling 'e' -- so the two halves of one object meet. See the
+'' source for fbc's four measured symbols; tests/mir/extern-definition-links is the
+'' same fact at the linker, across two modules.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/extern-definition-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: global var i32 E$ = 5
+'' EXPECT-OUT: global var i32 SE$ = 6
+'' An ALIAS names the link symbol, and the DEFINITION is what resolves against it.
+'' EXPECT-OUT: global var i32 zz = 7
+'' EXPECT-OUT: global var i32 ce = 8
+'' The folded spellings are what the storage used to be called. None may survive: a
+'' 'global var i32 e' beside 'E$' would be the bug, two objects where fbc has one.
+'' EXPECT-NOT: global var i32 e =
+'' EXPECT-NOT: global var i32 se =
+'' EXPECT-NOT: global var i32 a =
