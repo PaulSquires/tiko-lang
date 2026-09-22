@@ -1,0 +1,6 @@
+'' A synthesised let and copy constructor copy a fixed-length string field. See the
+'' source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixstr-synth-copy.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/fixstr-synth-copy.out

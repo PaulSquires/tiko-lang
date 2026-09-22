@@ -761,6 +761,17 @@ private sub CopyMember_ _
     '' at all -- dynarray-elem-copy and udt-dynarray-copy both went silent.
     dim as boolean cFixedArr = (c.types->Kind( ft ) = Tko.TK_ARRAY)
     if cFixedArr then cFixedArr = (c.types->IsDynArray( ft ) = false)
+    '' ...AND A FIXED-LENGTH STRING IS NOT ONE, though it is a TK_ARRAY of characters
+    '' underneath. It has no bounds for FixedArrayElems to count, so this branch
+    '' returned on 'ceN <= 0' having copied NOTHING: 'zstring * N', 'wstring * N' and
+    '' 'ustring * N' all came out empty from every synthesised let and copy
+    '' constructor -- which is any UDT that also holds a field with a structor.
+    '' fb/tuibuffer.bi's TuiCell ('ustring * 4 text' beside a TuiStyle whose TuiColor
+    '' has a constructor) is that shape, and every blank cell the tui library made
+    '' was empty. It is plain bytes, so it takes the bitwise tail below, as that
+    '' tail's own comment always said it did.
+    dim as longint cfsN = 0
+    if cFixedArr then cFixedArr = (StrSwapKind_( c, ft, cfsN ) <= 0)
     if cFixedArr then
         dim as Tko.TypeId cet = c.types->Inner( ft )
         if cet = Tko.TYPE_NONE then return
