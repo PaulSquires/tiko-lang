@@ -43,16 +43,6 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
-    '' A PAREN-LESS USTRING CALL declines the statement BEFORE anything is written --
-    '' see WriteOne_ -- rather than half-way, which left 'write FreeS, FreeU' printing
-    '' '"fs",' and no newline.
-    for i as long = 0 to sp->count - 1
-        dim as Tko.NodeId pit = cast( Tko.NodeId, c.ast->children[sp->first + i] )
-        if NamesProc_( c, pit ) andalso IsUStringType( c, c.info->TypeOf_( pit ) ) then
-            return false
-        end if
-    next
-
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
@@ -98,6 +88,31 @@ private function WriteOne_ _
         return true
     end if
 
+    '' A USTRING HAS ITS OWN ENTRY POINT, as it does in PRINT. WRITE had none, so every
+    '' ustring item went out through fb_WriteString: the callee read a UTF-16 buffer as
+    '' narrow text and 'write u' wrote "lv" for "lvU". Measured, fbc calls fb_WriteUStr
+    '' for a variable, a field, a 'ustring * N', a chain and a call alike -- see
+    '' UStrOutOperand_, which builds the descriptor each one needs.
+    ''
+    '' A CHAIN IS ONE if any term is, the rule PrintStrRtl_ follows: Check types every
+    '' '&' as STRING, so the type alone says narrow for 'u1 & u2'.
+    dim as boolean itIsU = IsUStringType( c, t )
+    if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
+        dim as FB.Array( of ulong ) uts
+        FlattenConcat( c, it, uts )
+        itIsU = ConcatTermsAreU_( c, uts )
+    end if
+    if itIsU then
+        dim as MirValue uv
+        dim as long uslot = -1
+        if UStrOutOperand_( c, it, uv, uslot ) = false then return false
+        args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_USTR, args )
+        ReleaseUStrOut_( c, uslot )
+        return true
+    end if
+
     '' A string RVALUE -- 'write trim( s )' -- before the type test, for the same
     '' reason PRINT does it: Check types those calls as STRING, so the test below
     '' catches them and then LowerAddr on a call fails.
@@ -123,11 +138,8 @@ private function WriteOne_ _
             '' A PAREN-LESS CALL -- 'write o.GetS', 'write FreeS', a property -- IS A
             '' CALL, and LowerAddr handed fb_WriteString the procedure's CODE address.
             '' Measured, fbc passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 );
-            '' fb_WriteString( 0, vr, 1 )'. A USTRING result DECLINES, as 'write
-            '' o.GetU( )' does: fbc sends it to fb_WriteUStr, which this path has no
-            '' entry for, and fb_WriteString would release its pool temporary into the
-            '' NARROW pool.
-            if IsUStringType( c, t ) then return false
+            '' fb_WriteString( 0, vr, 1 )'. The ustring spelling of this is the
+            '' fb_WriteUStr branch above.
             if StrDescriptorOf_( c, it, desc ) = false then return false
         else
             desc = LowerAddr( c, it )

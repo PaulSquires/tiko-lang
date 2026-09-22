@@ -569,6 +569,47 @@ private function FixedUStrArgTemp_ _
     return true
 end function
 
+'' A USTRING ITEM FOR AN OUTPUT ENTRY POINT -- fb_WriteUStr, fb_PrintUsingUStr, whose
+'' argument is an FBUSTRING DESCRIPTOR and nothing else. Measured, fbc:
+''
+''   write u          fb_WriteUStr( 0, &U$0, 1 )                    its own descriptor
+''   write o.fu       fb_WriteUStr( 0, (uint8*)&O$0 + 8, 1 )        a field, likewise
+''   write uf         fb_UStrAssign( &TMP, -1, UF$0, <tag>, 0 )     'ustring * N': a copy
+''                    fb_WriteUStr( 0, &TMP, 1 ) ... fb_UStrDelete( &TMP )
+''   write u1 & u2    fb_UStrConcat( &TMP1, ... ) then the same copy, call and delete
+''   write o.GetU( )  vr = GETU( ); the same copy, call and delete
+''
+'' -- and PRINT USING writes exactly the same three shapes around fb_PrintUsingUStr. So
+'' an rvalue is COPIED and the copy deleted after the call (its slot comes back in
+'' 'outSlot'), and only an addressable var-length ustring passes its own descriptor.
+'' fbc also copies a 'ustring * N' BACK afterwards, which is its byref convention; there
+'' is nothing to copy back from an output call, and the bytes written are the same.
+function UStrOutOperand_ _
+    ( byref c as Ctx, byval it as Tko.NodeId, byref outv as MirValue, _
+      byref outSlot as long ) as boolean
+
+    outSlot = -1
+    dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
+    '' Every RVALUE: a call, a paren-less call, a property, an intrinsic, and -- with
+    '' 'anyChain' -- a concatenation whose terms are ustrings.
+    if UStrResultArgTemp_( c, it, ut, outv, outSlot, true ) then return true
+    if FixedUStrArgTemp_( c, it, outv, outSlot ) then return true
+    if IsUStringType( c, c.info->TypeOf_( it ) ) = false then return false
+    outv = LowerAddr( c, it )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' The fb_UStrDelete for what UStrOutOperand_ copied, emitted AFTER the output call.
+'' Nothing to do when the item passed its own descriptor.
+sub ReleaseUStrOut_( byref c as Ctx, byval slot as long )
+    if slot < 0 then exit sub
+    dim as MirValue tv
+    tv.kind = cast( ubyte, MV_LOCAL ) : tv.ty = cast( ubyte, MT_PTR ) : tv.id = slot
+    dim as FB.Array( of ulong ) da
+    da.Push( cast( ulong, tv.kind ) ) : da.Push( cast( ulong, tv.id ) )
+    EmitRtl( c, RTL_USTR_DELETE, da )
+end sub
+
 '' A UDT THAT CASTS ONLY TO A WSTRING, against a narrow 'byref as string', is a
 '' CONVERSION and not an address. Measured on fbc, a BSTRING-shaped type -- 'cast( )
 '' byref as const wstring' and 'cast( ) as any ptr' -- against 'byref s as string':

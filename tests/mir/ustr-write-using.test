@@ -1,0 +1,14 @@
+'' WRITE and PRINT USING send a ustring item -- a variable, a field, a 'ustring * N', a
+'' chain, a call, a property -- to fb_WriteUStr / fb_PrintUsingUStr, and a ustring FORMAT
+'' through fb_UStrToStr first. Every one of them used to go out as narrow bytes and print
+'' its first character. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-write-using.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WriteUStr(
+'' EXPECT-OUT: fb_PrintUsingUStr(
+'' EXPECT-OUT: fb_UStrToStr(
+''  (fb_WriteString and fb_PrintUsingStr DO appear: the narrow items beside them.)
+'' EXPECT-NOT: func.addr

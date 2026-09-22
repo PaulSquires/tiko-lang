@@ -536,6 +536,7 @@ namespace Tko.Mir
         RTL( RTL_WRITE_DOUBLE,      "fb_WriteDouble",      "v",   "ldl"   )
         RTL( RTL_WRITE_STRING,      "fb_WriteString",      "v",   "lpl"   )
         RTL( RTL_WRITE_WSTR,        "fb_WriteWstr",        "v",   "lpl"   )
+        RTL( RTL_WRITE_USTR,        "fb_WriteUStr",        "v",   "lpl"   )
 
         '' LSET and RSET pad or truncate a string INTO a destination that already has
         '' storage. Both take DESCRIPTORS; a zstring destination borrows a temporary
@@ -584,6 +585,7 @@ namespace Tko.Mir
         RTL( RTL_USING_INIT,        "fb_PrintUsingInit",   "l",   "p"     )
         RTL( RTL_USING_STR,         "fb_PrintUsingStr",    "l",   "lpl"   )
         RTL( RTL_USING_WSTR,        "fb_PrintUsingWstr",   "l",   "lpl"   )
+        RTL( RTL_USING_USTR,        "fb_PrintUsingUStr",   "l",   "lpl"   )
         RTL( RTL_USING_SINGLE,      "fb_PrintUsingSingle", "l",   "lfl"   )
         RTL( RTL_USING_DOUBLE,      "fb_PrintUsingDouble", "l",   "ldl"   )
         RTL( RTL_USING_LONGINT,     "fb_PrintUsingLongint","l",   "lql"   )

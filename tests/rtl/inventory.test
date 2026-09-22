@@ -23,4 +23,8 @@
 '' it has: tiko links ucrtbase, which exports '__intrinsic_setjmp' and not '_setjmp'.
 '' EXPECT-OUT: fb_ErrorJmpBuf ptr ()
 '' EXPECT-OUT: fb_ErrorGetHandler ptr ()
-'' EXPECT-OUT: rtl: 525 entries
+'' AND TWO MORE FOR THE USTRING OUTPUT ENTRY POINTS, 2026-09-22: WRITE and PRINT USING
+'' had none, and sent a ustring through the narrow pair as UTF-16 bytes.
+'' EXPECT-OUT: fb_WriteUStr void (i32, ptr, i32)
+'' EXPECT-OUT: fb_PrintUsingUStr i32 (i32, ptr, i32)
+'' EXPECT-OUT: rtl: 527 entries

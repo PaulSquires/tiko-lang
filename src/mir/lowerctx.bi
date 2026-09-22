@@ -1209,6 +1209,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue, byref temps as FB.Array( of ulong ), _
           byref tempTypes as FB.Array( of ulong ) ) as boolean
+    declare function UStrOutOperand_ _
+        ( byref c as Ctx, byval it as Tko.NodeId, byref outv as MirValue, _
+          byref outSlot as long ) as boolean
+    declare sub ReleaseUStrOut_( byref c as Ctx, byval slot as long )
     declare function UStrResultArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue, byref outSlot as long, _

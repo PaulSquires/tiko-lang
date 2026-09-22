@@ -97,6 +97,9 @@ function LowerPrintUsing _
     dim as MirValue fmt
     '' The slot a WIDE format was converted into, or -1. It is released after Init.
     dim as long fmtTmp = -1
+    '' The ustring copy a 'ustring * N' or an rvalue format needs, released after Init
+    '' beside the wide one -- see UStrOutOperand_.
+    dim as long ufmtSlot = -1
     if c.ast->Kind( fmtNode ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, fmtNode )
         dim as FB.Array( of ulong ) ta
@@ -143,7 +146,10 @@ function LowerPrintUsing _
                    c.types->Builtin( Tko.TY_STRING ), _
                    Unparen_( c, fmtNode ) ) = false then return false
             fmt = fdst
-        elseif IsStringType( c, c.info->TypeOf_( fmtNode ) ) = false then
+        elseif (IsStringType( c, c.info->TypeOf_( fmtNode ) ) = false) andalso _
+               (IsUStringType( c, c.info->TypeOf_( fmtNode ) ) = false) then
+            '' A 'ustring * N' is an ARRAY of the fixed element and no string TYPE, so
+            '' this refused it before the ustring branch below could convert it.
             return false
         else
         '' A CONCATENATION IS A STRING WITH NO ADDRESS. The corpus writes the format
@@ -154,8 +160,17 @@ function LowerPrintUsing _
         '' ...AND A PAREN-LESS CALL IS A CALL. 'print using o.Fmt; x' asked LowerAddr,
         '' whose answer for a procedure is its CODE address, and the runtime read
         '' machine code as the format. A USTRING format declines, as the item does.
-        if NamesProc_( c, fmtNode ) then
-            if IsUStringType( c, c.info->TypeOf_( fmtNode ) ) then return false
+        '' ...AND A USTRING FORMAT IS TRANSCODED, not read as bytes. fb_PrintUsingInit
+        '' takes an FBSTRING, so a ustring format went in as UTF-16 and 'print using u'
+        '' over "[&]" formatted with "[" alone. Measured, fbc converts first and hands
+        '' Init what comes back: 'vr = fb_UStrToStr( &U$0, -1ll ); fb_PrintUsingInit(
+        '' vr )', and the same over a 'ustring * N' with its tagged length.
+        if UStrOutOperand_( c, Unparen_( c, fmtNode ), fmt, ufmtSlot ) then
+            dim as FB.Array( of ulong ) ufa
+            ufa.Push( cast( ulong, fmt.kind ) ) : ufa.Push( cast( ulong, fmt.id ) )
+            PushStrLen_( c, ufa, -1 )
+            fmt = EmitRtl( c, RTL_USTR_TO_STR, ufa )
+        elseif NamesProc_( c, fmtNode ) then
             if StrDescriptorOf_( c, fmtNode, fmt ) = false then return false
         else
             fmt = LowerAddr( c, Unparen_( c, fmtNode ) )
@@ -197,8 +212,16 @@ function LowerPrintUsing _
                           Tko.SYMBOL_NONE)
             end if
         end if
-        '' A PAREN-LESS USTRING CALL declines HERE, before Init -- see UsingOne_.
-        if NamesProc_( c, it ) andalso IsUStringType( c, itT ) then itemOk = false
+        '' A USTRING CHAIN is a ustring item, and Check types every '&' as STRING --
+        '' so UsingRtlFor answered for the wrong flavour and UsingOne_ below then
+        '' asked for the right one. Both read the terms.
+        if itemOk = false then
+            if c.ast->Kind( it ) = Tko.N_BINARY then
+                dim as FB.Array( of ulong ) uct
+                FlattenConcat( c, it, uct )
+                itemOk = ConcatTermsAreU_( c, uct )
+            end if
+        end if
         if itemOk = false then return false
         itemNode.Push( cast( ulong, it ) )
     next
@@ -206,6 +229,7 @@ function LowerPrintUsing _
     dim as FB.Array( of ulong ) ia
     ia.Push( cast( ulong, fmt.kind ) ) : ia.Push( cast( ulong, fmt.id ) )
     EmitRtl( c, RTL_USING_INIT, ia )
+    ReleaseUStrOut_( c, ufmtSlot )
     '' ...and the wide format's temporary is released right after Init, which is where
     '' fbc releases it: Init has copied the format out by then.
     if fmtTmp >= 0 then
@@ -265,6 +289,28 @@ private function UsingOne_ _
 
     dim as Tko.TypeId t = c.info->TypeOf_( it )
     dim as boolean isWide
+
+    '' A USTRING ITEM GOES TO fb_PrintUsingUStr, whatever shape it is spelled in --
+    '' see UStrOutOperand_ and UsingRtlFor. A CHAIN is one if any term is, which its
+    '' type does not say: Check types every '&' as STRING.
+    dim as boolean itIsU = IsUStringType( c, t )
+    if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
+        dim as FB.Array( of ulong ) uts
+        FlattenConcat( c, it, uts )
+        itIsU = ConcatTermsAreU_( c, uts )
+    end if
+    if itIsU then
+        dim as MirValue uov
+        dim as long uoslot = -1
+        if UStrOutOperand_( c, it, uov, uoslot ) = false then return false
+        dim as FB.Array( of ulong ) uoa
+        uoa.Push( cast( ulong, chan.kind ) ) : uoa.Push( cast( ulong, chan.id ) )
+        uoa.Push( cast( ulong, uov.kind ) ) : uoa.Push( cast( ulong, uov.id ) )
+        PushConst( uoa, mask )
+        EmitRtl( c, RTL_USING_USTR, uoa )
+        ReleaseUStrOut_( c, uoslot )
+        return true
+    end if
 
     '' A UDT ITEM IS ITS 'operator cast', and USING takes the NUMERIC one where
     '' PRINT and WRITE take the string. Measured, over a type declaring both:
@@ -337,9 +383,7 @@ private function UsingOne_ _
         elseif NamesProc_( c, it ) then
             '' A PAREN-LESS CALL IS A CALL -- see the FORMAT above. Measured, fbc
             '' passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 ); fb_PrintUsingStr( 0,
-            '' vr, mask )'. A USTRING result declines rather than reach the narrow entry
-            '' point with a ustring pool temporary; fbc calls fb_PrintUsingUStr.
-            if IsUStringType( c, t ) then return false
+            '' vr, mask )'. The ustring spelling is the fb_PrintUsingUStr branch above.
             if StrDescriptorOf_( c, it, desc ) = false then return false
         else
             '' Same as the FORMAT above: a concatenation is a string with no address,
@@ -413,6 +457,11 @@ private function UsingRtlFor _
         isWide = true
         return RTL_USING_WSTR
     end if
+    '' A USTRING HAS ITS OWN ENTRY POINT, before the narrow test that says yes to both
+    '' flavours: fb_PrintUsingStr read a UTF-16 buffer as narrow text and formatted the
+    '' first character alone. Measured, fbc calls fb_PrintUsingUStr for a variable, a
+    '' 'ustring * N', a chain and a call -- see UStrOutOperand_.
+    if IsUStringType( c, ut ) then return RTL_USING_USTR
     if IsStringType( c, t ) then return RTL_USING_STR
 
     select case c.types->Kind( t )
