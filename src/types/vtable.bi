@@ -73,6 +73,9 @@ namespace Tko
         '' then throws away -- whether this declaration MATCHED one. Recomputing it
         '' afterwards would mean re-running the whole match; recording it costs a push.
         as FB.Array( of ulong ) overrode
+        '' Declarations of a generic template that nothing instantiates -- never checked,
+        '' as fbc never checks them. See NotePatternOnly_.
+        as FB.Array( of ulong ) patternOnly
         '' A match on PARAMETER TYPES is not yet a legal override. Recorded here rather
         '' than reported from the builder, which has no diagnostics engine -- and would
         '' have to be given one on a path the dumps also take.

@@ -1,0 +1,12 @@
+'' 'override' in a generic nothing instantiates is not checked; in one that is
+'' instantiated it is. Measured on fbc-modern: an unused template overriding nothing is
+'' silent, and the same template instantiated is error 223 "in instantiation of ...".
+'' tiko refused every 'override' in an unused generic, which kept seven of fbc's ten
+'' tui tests from compiling at all -- see the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-unused-generic.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0621: 'nope' is marked 'override' but overrides no virtual method
+'' EXPECT-NOT: 'paint' is marked
+'' EXPECT-NOT: 'size' is marked
+'' EXPECT-NOT: 'ghost' is marked

@@ -595,6 +595,59 @@ private function IsGenericTemplateUdt_ _
     return (s->name = sp->name)
 end function
 
+'' A TEMPLATE NOTHING INSTANTIATES IS NEVER CHECKED, by fbc or here. Measured on
+'' fbc-modern: 'type G( of T ) extends B' declaring 'sub Nope( ) override' against a B
+'' with no Nope compiles clean until something writes 'G( of long )' -- then it is
+'' error 223 "in instantiation of 'G( of long )'". The template gets no table (see
+'' IsGenericTemplateUdt_), so none of its declarations can be in 'overrode', and
+'' CheckOverridePromise refused every 'override' in a generic that went unused --
+'' fb/tuiwidget.bi's TuiButtonOf, in seven of fbc's ten tui tests.
+''
+'' An instantiated template is left alone: BuildOne_'s template pass walks the SAME
+'' declaration nodes and records the ones that matched, so a broken promise in an
+'' instantiated generic is still reported.
+private sub NotePatternOnly_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref store as VTables )
+
+    for i as long = 1 to syms.Count( )
+        dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if IsGenericTemplateUdt_( ast, s ) = false then continue for
+        if s->inner = SCOPE_NONE then continue for
+        dim as boolean used = false
+        for j as long = 1 to syms.Count( )
+            dim as Symbol ptr u = syms.SymbolAt( cast( SymbolId, j ) )
+            if u = 0 then continue for
+            if u->kind <> cast( ubyte, SYM_UDT ) then continue for
+            if TemplateScopeOf_( ast, syms, u ) = s->inner then
+                used = true
+                exit for
+            end if
+        next
+        if used then continue for
+        dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+        if sc = 0 then continue for
+        dim as SymbolId cur = sc->firstSym
+        dim as long guard = 0
+        while (cur <> SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Symbol ptr m = syms.SymbolAt( cur )
+            if m = 0 then exit while
+            dim as SymbolId ov = cur
+            while ov <> SYMBOL_NONE
+                dim as Symbol ptr mo = syms.SymbolAt( ov )
+                if mo = 0 then exit while
+                if mo->kind = cast( ubyte, SYM_PROC ) then
+                    store.patternOnly.Push( cast( ulong, mo->payload ) )
+                end if
+                ov = mo->nextOverload
+            wend
+            cur = m->nextInScope
+        wend
+    next
+end sub
+
 function ComputeVTables _
     ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
       byref info as SemanticInfo, byref store as VTables ) as long
@@ -624,6 +677,7 @@ function ComputeVTables _
             end if
         next
     wend
+    NotePatternOnly_( ast, syms, store )
     return store.types_.Count
 end function
 

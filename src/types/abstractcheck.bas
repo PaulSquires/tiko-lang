@@ -207,6 +207,13 @@ sub CheckOverridePromise _
             end if
         next
         if found then continue for
+        for i as long = 0 to store.patternOnly.Count - 1
+            if store.patternOnly[i] = cast( ulong, id ) then
+                found = true
+                exit for
+            end if
+        next
+        if found then continue for
         diags.Report( TKO0621, PointRange( ast.Loc( id ) ), names.Spelling( sp->name ) )
     next
 end sub
