@@ -1,0 +1,14 @@
+'' A ustring rvalue for a 'wstring ptr' / 'byref as wstring' parameter is a ustring copy whose
+'' data pointer is passed -- with or without parentheses, a property, an intrinsic, a chain.
+'' tiko loaded a paren-less call's MACHINE CODE as the data pointer (fbx's CISaveFileDialog
+'' example crashed) and narrowed every other one to its first character. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-rvalue-wide-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrAssign(
+'' EXPECT-OUT: fb_UStrDelete(
+'' EXPECT-NOT: func.addr
+'' EXPECT-NOT: fb_StrAssign(
+'' EXPECT-NOT: fb_StrToWstr(

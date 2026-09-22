@@ -342,8 +342,13 @@ function ByvalStrTemp_ _
         if IsUStringType( c, pt ) andalso IsUStringType( c, uat ) then
             dim as MirValue usrc
             '' A CALL RESULT HAS NO ADDRESS: its value IS the descriptor pointer, and
-            '' fb_UStrAssign consumes it -- see the caller in lowercall.bas.
-            if c.ast->Kind( argNode ) = Tko.N_CALL then
+            '' fb_UStrAssign consumes it -- see the caller in lowercall.bas. So is a
+            '' PAREN-LESS call or a property, 'TakeU( o.GetU )': LowerAddr answered with
+            '' the procedure's CODE address, and fb_UStrAssign read it as a descriptor.
+            dim as Tko.Symbol ptr ups = c.syms->SymbolAt( c.info->RefOf( argNode ) )
+            dim as boolean upc = false
+            if ups <> 0 then upc = (ups->kind = cast( ubyte, Tko.SYM_PROC ))
+            if (c.ast->Kind( argNode ) = Tko.N_CALL) orelse upc then
                 usrc = LowerExpr( c, argNode )
             else
                 usrc = LowerAddr( c, argNode )
@@ -386,9 +391,13 @@ end function
 '' read 0. This used to ask for a call to a declared PROCEDURE only; the rule is the
 '' argument's SHAPE. (A built-in intrinsic consuming a temporary directly -- 'len( ucase(
 '' u ) )' -- never comes through the call path.)
+''
+'' 'anyChain' also copies an ALL-UTF-16 chain, which a ustring parameter leaves to
+'' StrDescriptorOf_ and a wide one never reaches -- see WideArgOperand_.
 function UStrResultArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long ) as boolean
+      byref outa as MirValue, byref outSlot as long, _
+      byval anyChain as boolean = false ) as boolean
 
     outSlot = -1
     if argNode = Tko.NODE_NONE then return false
@@ -429,6 +438,19 @@ function UStrResultArgTemp_ _
             if ucs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
             rv = LowerExpr( c, an )
         end if
+    '' A PAREN-LESS CALL IS A CALL. 'TakeU( o.GetU )', 'TakeU( FreeU )' and a property
+    '' 'o.PU' are ustring RVALUES exactly as 'o.GetU( )' is, and fbc copies all three the
+    '' same way -- 'vr = _ZN1T4GETUEi( &O$0, 0 ); fb_UStrAssign( &TMP, -1, vr, -1, 0 )'.
+    '' Without this arm a ustring parameter was handed the pool temporary itself, which
+    '' the callee's first read consumed ('len( u )' 0), and a WIDE one took LowerAddr's
+    '' answer: the procedure's code address, read as a descriptor. A name bound to a
+    '' procedure only -- a variable or a field passes its own descriptor.
+    case Tko.N_IDENT, Tko.N_MEMBER
+        if isU = false then return false
+        dim as Tko.Symbol ptr bps = c.syms->SymbolAt( c.info->RefOf( an ) )
+        if bps = 0 then return false
+        if bps->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+        rv = LowerExpr( c, an )
     case Tko.N_INTRINSIC
         if isU = false then return false
         rv = LowerExpr( c, an )
@@ -443,7 +465,7 @@ function UStrResultArgTemp_ _
         for ti as long = 0 to uterms.Count - 1
             if StrTermFlavour_( c, cast( Tko.NodeId, uterms[ti] ) ) <> STF_UTF16 then mixed = true
         next
-        if mixed = false then return false
+        if (mixed = false) andalso (anyChain = false) then return false
         dim as long cslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
         if cslot < 0 then return false
         dim as MirValue cdst
@@ -472,6 +494,44 @@ function UStrResultArgTemp_ _
     outSlot = slot
     outa = dst
     return true
+end function
+
+'' A USTRING RVALUE FOR A WIDE PARAMETER IS COPIED, AND ITS DATA POINTER PASSED. Measured,
+'' against 'byval p as wstring ptr' and 'byref w as wstring' alike:
+''
+''     FBUSTRING* vr$3 = _ZN1T4GETUEi( &O$0, 0 );
+''     fb_UStrAssign( (void*)&TMP$10$0, -1ll, (void*)vr$3, -1ll, 0 );
+''     TAKEW( (uint16*)*(uint16**)&TMP$10$0 );
+''     fb_UStrDelete( (FBUSTRING*)&TMP$10$0 );
+''
+'' -- for a call with or without parentheses, a property, 'ucase( u )', 'u1 & u2' and
+'' '"x" & u'. WideOperand_ owns none of them (a ustring is not WSTRING-typed), so every
+'' one fell to NarrowToWideTemp_. A paren-less call or a property reached UStrDataArg_,
+'' whose LowerAddr answered with the PROCEDURE'S address and loaded its first eight bytes
+'' of machine code as the data pointer: fbx's CISaveFileDialog example died in
+'' 'OutputDebugStringW( psfd.GetResultString )'. Every other rvalue went through
+'' fb_StrAssign as if it were NARROW, and the callee saw one character. A ustring LVALUE
+'' is not claimed -- its own data pointer is already UTF-16, see UStrDataArg_ -- and
+'' anything else is WideOperand_'s, unchanged. The temporary joins 'temps'.
+function WideArgOperand_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
+      byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ) ) as boolean
+
+    dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
+    dim as MirValue ud
+    dim as long slot = -1
+    if UStrResultArgTemp_( c, argNode, ut, ud, slot, true ) = false then
+        return WideOperand_( c, argNode, outa )
+    end if
+    temps.Push( cast( ulong, slot ) )
+    tempTypes.Push( cast( ulong, ut ) )
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR ) : fa.ty = cast( ubyte, MT_PTR )
+    fa.a = ud : fa.imm = 0
+    dim as MirValue pa = Emit( c, fa )
+    if pa.kind = cast( ubyte, MV_NONE ) then return false
+    outa = LowerExprLoad( c, pa, MT_PTR )
+    return (outa.kind <> cast( ubyte, MV_NONE ))
 end function
 
 '' A FIXED 'ustring * N' COPIED INTO A DESCRIPTOR, for a byref USTRING parameter.

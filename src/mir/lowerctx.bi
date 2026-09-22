@@ -1200,7 +1200,11 @@ declare function EmitRtl _
           byref tempTypes as FB.Array( of ulong ) ) as boolean
     declare function UStrResultArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outa as MirValue, byref outSlot as long ) as boolean
+          byref outa as MirValue, byref outSlot as long, _
+          byval anyChain as boolean = false ) as boolean
+    declare function WideArgOperand_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
+          byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ) ) as boolean
     declare function ParamWantsWideRef_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
           byval idx as long ) as boolean

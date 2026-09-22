@@ -606,7 +606,7 @@ function LowerCallParts _
             '' 3. Measured, fbc converts: 'fb_StrToWstr( (char*)*(char**)&S$0 )'.
             '' The RVALUE half of this was already right -- it has no address to
             '' fall back on, which is exactly what hid the lvalue half.
-            if WideOperand_( c, argNode, a ) = false then
+            if WideArgOperand_( c, argNode, a, strTemps, strTempTypes ) = false then
                 if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) then
                     NarrowToWideTemp_( c, argNode, a )
                 end if
@@ -788,7 +788,7 @@ function LowerCallParts _
                 end if
             end if
             if wantsWPtr then
-                if WideOperand_( c, argNode, a ) = false then
+                if WideArgOperand_( c, argNode, a, strTemps, strTempTypes ) = false then
                     '' A NARROW ARGUMENT IS CONVERTED HERE TOO. 'wstring ptr' takes
                     '' the same wide pointer 'byref as wstring' does, and fbc builds
                     '' the same narrow temporary for an rvalue source.
