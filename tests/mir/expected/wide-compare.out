@@ -7,9 +7,10 @@ func void P() {
   local agg z size 8
   local i32 n
   local ptr $tmp4
+  local ptr $tmp5
   local ptr pz
   local i64 i
-  local i64 $tmp7
+  local i64 $tmp8
   entry0:
     %1 = alloca ptr a
     %2 = call.rtl ptr memset(@a, 0, 16)
@@ -21,10 +22,11 @@ func void P() {
     %8 = call.rtl ptr memset(@n, 0, 4)
     %9 = call.rtl i32 fb_WstrCompare(@a, @b)
     %10 = icmp.eq %9, 0
-    %24 = alloca ptr $tmp4
-    %41 = alloca ptr pz
-    %52 = alloca ptr i
-    %54 = alloca ptr $tmp7
+    %19 = alloca ptr $tmp4
+    %27 = alloca ptr $tmp5
+    %44 = alloca ptr pz
+    %55 = alloca ptr i
+    %57 = alloca ptr $tmp8
     condbr %10, if.then2, if.else3
   if.join1:
     %13 = call.rtl i32 fb_WstrCompare(@a, @@$wstr0)
@@ -40,9 +42,13 @@ func void P() {
   if.join4:
     %17 = const i64 1
     %18 = call.rtl ptr fb_LongintToWstr(%17)
-    %19 = call.rtl i32 fb_WstrCompare(@a, %18)
-    %20 = icmp.eq %19, 0
-    condbr %20, if.then8, if.else9
+    store @$tmp4, %18
+    %20 = load @$tmp4
+    %21 = call.rtl i32 fb_WstrCompare(@a, %20)
+    %22 = icmp.eq %21, 0
+    %23 = load @$tmp4
+    call.rtl void fb_WstrDelete(%23)
+    condbr %22, if.then8, if.else9
   if.then5:
     %15 = const i64 2
     %16 = trunc %15
@@ -51,93 +57,93 @@ func void P() {
   if.else6:
     br if.join4
   if.join7:
-    %23 = call.rtl ptr fb_WstrTrim(@a)
-    store @$tmp4, %23
-    %25 = load @$tmp4
-    %26 = call.rtl i32 fb_WstrCompare(%25, @b)
-    %27 = icmp.eq %26, 0
-    %28 = load @$tmp4
-    call.rtl void fb_WstrDelete(%28)
-    condbr %27, if.then11, if.else12
+    %26 = call.rtl ptr fb_WstrTrim(@a)
+    store @$tmp5, %26
+    %28 = load @$tmp5
+    %29 = call.rtl i32 fb_WstrCompare(%28, @b)
+    %30 = icmp.eq %29, 0
+    %31 = load @$tmp5
+    call.rtl void fb_WstrDelete(%31)
+    condbr %30, if.then11, if.else12
   if.then8:
-    %21 = const i64 3
-    %22 = trunc %21
-    store @n, %22
+    %24 = const i64 3
+    %25 = trunc %24
+    store @n, %25
     br if.join7
   if.else9:
     br if.join7
   if.join10:
-    %31 = const i64 1
-    %32 = const i64 2
-    %33 = mul %31, %32
-    %34 = ptr.add @a, %33
-    %35 = load %34
-    %36 = zext %35
-    store @n, %36
-    %37 = const i64 1
-    %38 = ptr.add @z, %37
-    %39 = load %38
-    %40 = zext %39
-    store @n, %40
+    %34 = const i64 1
+    %35 = const i64 2
+    %36 = mul %34, %35
+    %37 = ptr.add @a, %36
+    %38 = load %37
+    %39 = zext %38
+    store @n, %39
+    %40 = const i64 1
+    %41 = ptr.add @z, %40
+    %42 = load %41
+    %43 = zext %42
+    store @n, %43
     store @pz, @z
-    %42 = load @pz
-    %43 = const i64 1
-    %44 = ptr.add %42, %43
-    %45 = load %44
-    %46 = zext %45
-    store @n, %46
-    %47 = load @pz
-    %48 = const i64 1
-    %49 = ptr.add %47, %48
-    %50 = load %49
-    %51 = zext %50
-    store @n, %51
-    %53 = const i64 0
-    store @i, %53
-    %55 = call.rtl i64 fb_WstrLen(@a)
-    %56 = const i64 1
-    %57 = sub %55, %56
-    store @$tmp7, %57
+    %45 = load @pz
+    %46 = const i64 1
+    %47 = ptr.add %45, %46
+    %48 = load %47
+    %49 = zext %48
+    store @n, %49
+    %50 = load @pz
+    %51 = const i64 1
+    %52 = ptr.add %50, %51
+    %53 = load %52
+    %54 = zext %53
+    store @n, %54
+    %56 = const i64 0
+    store @i, %56
+    %58 = call.rtl i64 fb_WstrLen(@a)
+    %59 = const i64 1
+    %60 = sub %58, %59
+    store @$tmp8, %60
     br for.head13
   if.then11:
-    %29 = const i64 4
-    %30 = trunc %29
-    store @n, %30
+    %32 = const i64 4
+    %33 = trunc %32
+    store @n, %33
     br if.join10
   if.else12:
     br if.join10
   for.head13:
-    %58 = load @i
-    %59 = load @$tmp7
-    %60 = icmp.sle %58, %59
-    condbr %60, for.body14, for.exit16
-  for.body14:
     %61 = load @i
-    %62 = const i64 2
-    %63 = mul %61, %62
-    %64 = ptr.add @a, %63
-    %65 = load %64
-    %66 = load @i
-    %67 = const i64 2
-    %68 = mul %66, %67
-    %69 = ptr.add @b, %68
-    %70 = load %69
-    %71 = icmp.ne %65, %70
-    condbr %71, if.then18, if.else19
+    %62 = load @$tmp8
+    %63 = icmp.sle %61, %62
+    condbr %63, for.body14, for.exit16
+  for.body14:
+    %64 = load @i
+    %65 = const i64 2
+    %66 = mul %64, %65
+    %67 = ptr.add @a, %66
+    %68 = load %67
+    %69 = load @i
+    %70 = const i64 2
+    %71 = mul %69, %70
+    %72 = ptr.add @b, %71
+    %73 = load %72
+    %74 = icmp.ne %68, %73
+    condbr %74, if.then18, if.else19
   for.step15:
-    %74 = load @i
-    %75 = const i64 1
-    %76 = add %74, %75
-    store @i, %76
+    %77 = load @i
+    %78 = const i64 1
+    %79 = add %77, %78
+    store @i, %79
     br for.head13
   for.exit16:
     ret
   if.join17:
     br for.step15
   if.then18:
-    %72 = const i64 5
-    %73 = trunc %72
-    store @n, %73
+    %75 = const i64 5
+    %76 = trunc %75
+    store @n, %76
     br if.join17
   if.else19:
     br if.join17
@@ -145,8 +151,8 @@ func void P() {
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare i32 fb_WstrCompare(ptr $0, ptr $1)
 declare ptr fb_LongintToWstr(i64 $0)
-declare ptr fb_WstrTrim(ptr $0)
 declare void fb_WstrDelete(ptr $0)
+declare ptr fb_WstrTrim(ptr $0)
 declare i64 fb_WstrLen(ptr $0)
 func void Q() {
   local agg a size 64
@@ -154,6 +160,8 @@ func void Q() {
   local agg c size 64
   local ptr $tmp3
   local ptr $tmp4
+  local ptr $tmp5
+  local ptr $tmp6
   entry0:
     %1 = alloca ptr a
     %2 = call.rtl ptr memset(@a, 0, 64)
@@ -164,6 +172,8 @@ func void Q() {
     %7 = load @@ct
     %8 = alloca ptr $tmp3
     %21 = alloca ptr $tmp4
+    %24 = alloca ptr $tmp5
+    %33 = alloca ptr $tmp6
     condbr %7, wiif.then1, wiif.else2
   wiif.then1:
     %9 = call.rtl i64 fb_WstrLen(@a)
@@ -189,26 +199,34 @@ func void Q() {
   wiif.then4:
     %22 = const i64 1
     %23 = call.rtl ptr fb_LongintToWstr(%22)
-    %24 = call.rtl i64 fb_WstrLen(%23)
-    %25 = call.rtl ptr fb_WstrAlloc(%24)
-    store @$tmp4, %25
-    %26 = load @$tmp4
-    %27 = call.rtl ptr fb_WstrAssign(%26, 0, %23)
+    store @$tmp5, %23
+    %25 = load @$tmp5
+    %26 = call.rtl i64 fb_WstrLen(%25)
+    %27 = call.rtl ptr fb_WstrAlloc(%26)
+    store @$tmp4, %27
+    %28 = load @$tmp4
+    %29 = call.rtl ptr fb_WstrAssign(%28, 0, %25)
+    %30 = load @$tmp5
+    call.rtl void fb_WstrDelete(%30)
     br wiif.join6
   wiif.else5:
-    %28 = const i64 2
-    %29 = call.rtl ptr fb_LongintToWstr(%28)
-    %30 = call.rtl i64 fb_WstrLen(%29)
-    %31 = call.rtl ptr fb_WstrAlloc(%30)
-    store @$tmp4, %31
-    %32 = load @$tmp4
-    %33 = call.rtl ptr fb_WstrAssign(%32, 0, %29)
+    %31 = const i64 2
+    %32 = call.rtl ptr fb_LongintToWstr(%31)
+    store @$tmp6, %32
+    %34 = load @$tmp6
+    %35 = call.rtl i64 fb_WstrLen(%34)
+    %36 = call.rtl ptr fb_WstrAlloc(%35)
+    store @$tmp4, %36
+    %37 = load @$tmp4
+    %38 = call.rtl ptr fb_WstrAssign(%37, 0, %34)
+    %39 = load @$tmp6
+    call.rtl void fb_WstrDelete(%39)
     br wiif.join6
   wiif.join6:
-    %34 = load @$tmp4
-    %35 = call.rtl ptr fb_WstrAssign(@c, 32, %34)
-    %36 = load @$tmp4
-    call.rtl void fb_WstrDelete(%36)
+    %40 = load @$tmp4
+    %41 = call.rtl ptr fb_WstrAssign(@c, 32, %40)
+    %42 = load @$tmp4
+    call.rtl void fb_WstrDelete(%42)
     ret
 }
 declare ptr fb_WstrAlloc(i64 $0)
@@ -379,4 +397,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 37 blocks, 245 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 37 blocks, 260 insts, 0 statements not lowered, 0 scope imbalance

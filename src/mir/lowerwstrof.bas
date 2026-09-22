@@ -245,8 +245,11 @@ function LowerWstrOf _
     av = CoerceTy( c, av, want, at)
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
-    outv = EmitRtl( c, r, args )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
+    '' THROUGH WideConcatStep_, WHICH REGISTERS THE RESULT FOR ITS fb_WstrDelete, as the
+    '' string rows above already did. EmitRtl alone dropped the pointer: 'print "a" &
+    '' wstr( i )' leaked one allocation per run, and so did every scalar wstr( ) in a
+    '' chain. Measured, fbc parks it in a TMP and deletes it after the statement.
+    return WideConcatStep_( c, args, r, outv )
 end function
 
 end namespace

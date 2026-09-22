@@ -414,6 +414,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     end if
 
     dim as MirValue slotAddr
+    dim as long swmark = c.wstrTemps.Count
     if strMode >= 0 then
         dim as MirValue sv
         dim as boolean got = false
@@ -526,6 +527,24 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         if mt <> MT_AGG then ReleaseUdtTemps_( c, smark )
     end if
 
+    '' A WIDE SUBJECT'S TEMPORARIES ARE THE SELECT'S OWN SCOPE. Every case reads them, so
+    '' they outlive the subject -- but on the statement-wide list only sel.join released
+    '' them, and a RETURN out of a case leaked the chain: 'select case "a" & wstr( k )'
+    '' in a function that returns from its case. Measured, fbc deletes the subject on
+    '' that path before its 'goto' to the exit, and at the end of the SELECT.
+    dim as boolean wideScope = (strMode = 1)
+    if wideScope then
+        PushScope( c )
+        for k as long = swmark to c.wstrTemps.Count - 1
+            c.cleanupNode.Push( CLEANUP_WSTR_DELETE )
+            c.cleanupSlot.Push( cast( long, c.wstrTemps[k] ) )
+            c.cleanupType.Push( 0 )
+        next
+        while c.wstrTemps.Count > swmark
+            c.wstrTemps.Pop( )
+        wend
+    end if
+
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
     dim as long joinB = NewBlock( c, "sel.join" )
@@ -595,6 +614,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     c.loopScope.Pop( )
     c.loopKind.Pop( )
     c.curBlock = joinB
+    if wideScope then CloseScope( c )
 end sub
 
 '' One CASE value against a STRING subject: fb_StrCompare or fb_WstrCompare, then the

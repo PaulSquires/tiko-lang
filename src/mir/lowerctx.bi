@@ -120,6 +120,7 @@ type Ctx
     ''   RunDefer      cleanupNode = the statement,   cleanupSlot = -1
     ''   DestroyLocal  cleanupNode = the dtor symbol,  cleanupSlot = the slot
     ''   DeleteString  cleanupNode = 0,                cleanupSlot = the slot
+    ''   DeleteWstr    cleanupNode = CLEANUP_WSTR_DELETE, cleanupSlot = the slot
     as FB.Array( of ulong ) cleanupNode
     as FB.Array( of long )  cleanupSlot
     ''   ImplicitDtor  cleanupNode = CLEANUP_IMPLICIT_DTOR, cleanupType = the type
@@ -498,6 +499,7 @@ declare function EmitRtl _
     const CLEANUP_DESTROY_ARRAY as ulong = &hFFFFFFFD
     const CLEANUP_DTOR_EPILOGUE as ulong = &hFFFFFFFC
     const CLEANUP_DESTRUCT_STR_ARRAY as ulong = &hFFFFFFFB
+    const CLEANUP_WSTR_DELETE as ulong = &hFFFFFFFA
 
     declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
     declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )

@@ -358,9 +358,8 @@ end function
 '' string goes through fb_StrToWstr, which takes a RAW char*, so fbc dereferences the
 '' descriptor's data field at the call site rather than passing the descriptor.
 ''
-'' The result is a temporary the caller must release with fb_WstrDelete. tiko-lang does not
-'' model that lifetime yet, so this LEAKS one wide temporary per conversion -- stated
-'' rather than hidden, and no worse than not compiling the program at all.
+'' The result is a temporary the caller must release with fb_WstrDelete, and LowerWstrOf
+'' registers it for that through WideConcatStep_ -- every row, the scalar one included.
 '' Is this the call 'wstr( x )'? Asked by the concatenation and PRINT paths, which need
 '' to know a term is WIDE before anything is emitted for it -- and its TYPE does not
 '' say so.

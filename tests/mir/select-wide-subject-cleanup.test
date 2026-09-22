@@ -1,0 +1,23 @@
+'' A WIDE SELECT SUBJECT'S TEMPORARIES DIE ON EVERY WAY OUT OF THE SELECT.
+''
+'' They were on the statement-wide list, which only sel.join flushed, so a RETURN or an
+'' EXIT out of a case skipped them: 'select case "a" & wstr( k )' in a function returning
+'' from its case leaked the chain on every call. They are now the SELECT's own scope --
+'' CLEANUP_WSTR_DELETE entries -- which sel.join closes and every RETURN and EXIT runs.
+'' Measured, fbc deletes its subject on the return path before its 'goto' to the exit.
+''
+'' And the scalar 'wstr( i )' inside the chain was never deleted at all, in any
+'' statement: LowerWstrOf's number row called EmitRtl and dropped the pointer, where
+'' every string row beside it went through WideConcatStep_. 'print "a" & wstr( i )'
+'' is fbc's two fb_WstrDelete and was one.
+''
+'' The golden pins WHERE each fb_WstrDelete goes: both before each 'ret' out of a case,
+'' both before the 'br for.exit4' of the EXIT FOR, both at sel.join. Run 3,000,000
+'' times, the peak working set is 4.39 MB at 300,000 and at 3,000,000 iterations.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/select-wide-subject-cleanup.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrDelete(
+'' GOLDEN: expected/select-wide-subject-cleanup.out

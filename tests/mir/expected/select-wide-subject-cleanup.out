@@ -1,0 +1,173 @@
+global str $str0 "a"
+global wstr $wstr1 "a1"
+global wstr $wstr2 "a2"
+global wstr $wstr3 "a3"
+global str $str4 "b"
+global wstr $wstr5 "b1"
+func i32 F(i32 $0) {
+  local i32 $tmp0
+  local i32 k
+  local ptr $tmp2
+  local ptr $tmp3
+  local ptr $tmp4
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr k
+    store @k, $0
+    %4 = load @k
+    %5 = call.rtl ptr fb_IntToWstr(%4)
+    %6 = alloca ptr $tmp2
+    store @$tmp2, %5
+    %7 = load @$tmp2
+    %8 = call.rtl ptr fb_WstrConcatAW(@@$str0, 2, %7)
+    %9 = alloca ptr $tmp3
+    store @$tmp3, %8
+    %10 = load @$tmp3
+    %11 = alloca ptr $tmp4
+    store @$tmp4, %10
+    %12 = load @$tmp4
+    %13 = call.rtl i32 fb_WstrCompare(%12, @@$wstr1)
+    %14 = const i32 0
+    %15 = icmp.eq %13, %14
+    condbr %15, sel.body2, sel.next3
+  sel.join1:
+    %32 = load @$tmp3
+    call.rtl void fb_WstrDelete(%32)
+    %33 = load @$tmp2
+    call.rtl void fb_WstrDelete(%33)
+    %34 = const i64 0
+    %35 = trunc %34
+    ret %35
+  sel.body2:
+    %16 = const i64 1
+    %17 = trunc %16
+    %18 = load @$tmp3
+    call.rtl void fb_WstrDelete(%18)
+    %19 = load @$tmp2
+    call.rtl void fb_WstrDelete(%19)
+    ret %17
+  sel.next3:
+    %20 = load @$tmp4
+    %21 = call.rtl i32 fb_WstrCompare(%20, @@$wstr2)
+    %22 = const i32 0
+    %23 = icmp.eq %21, %22
+    condbr %23, sel.body4, sel.alt6
+  sel.body4:
+    %28 = const i64 2
+    %29 = trunc %28
+    %30 = load @$tmp3
+    call.rtl void fb_WstrDelete(%30)
+    %31 = load @$tmp2
+    call.rtl void fb_WstrDelete(%31)
+    ret %29
+  sel.next5:
+    br sel.join1
+  sel.alt6:
+    %24 = load @$tmp4
+    %25 = call.rtl i32 fb_WstrCompare(%24, @@$wstr3)
+    %26 = const i32 0
+    %27 = icmp.eq %25, %26
+    condbr %27, sel.body4, sel.next5
+}
+declare ptr fb_IntToWstr(i32 $0)
+declare ptr fb_WstrConcatAW(ptr $0, i64 $1, ptr $2)
+declare i32 fb_WstrCompare(ptr $0, ptr $1)
+declare void fb_WstrDelete(ptr $0)
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 i
+  local ptr $tmp2
+  local ptr $tmp3
+  local i32 j
+  local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr i
+    %5 = const i64 1
+    %6 = trunc %5
+    store @i, %6
+    %7 = load @i
+    %8 = call.rtl ptr fb_IntToWstr(%7)
+    %9 = alloca ptr $tmp2
+    store @$tmp2, %8
+    %10 = load @$tmp2
+    %11 = call.rtl ptr fb_WstrConcatAW(@@$str0, 2, %10)
+    %12 = alloca ptr $tmp3
+    store @$tmp3, %11
+    %13 = load @$tmp3
+    call.rtl void fb_PrintWstr(0, %13, 1)
+    %14 = load @$tmp3
+    call.rtl void fb_WstrDelete(%14)
+    %15 = load @$tmp2
+    call.rtl void fb_WstrDelete(%15)
+    %16 = alloca ptr j
+    %17 = const i64 1
+    %18 = trunc %17
+    store @j, %18
+    %25 = alloca ptr $tmp5
+    %28 = alloca ptr $tmp6
+    %30 = alloca ptr $tmp7
+    br for.head1
+  for.head1:
+    %19 = load @j
+    %20 = const i64 3
+    %21 = trunc %20
+    %22 = icmp.sle %19, %21
+    condbr %22, for.body2, for.exit4
+  for.body2:
+    %23 = load @j
+    %24 = call.rtl ptr fb_IntToWstr(%23)
+    store @$tmp5, %24
+    %26 = load @$tmp5
+    %27 = call.rtl ptr fb_WstrConcatAW(@@$str4, 2, %26)
+    store @$tmp6, %27
+    %29 = load @$tmp6
+    store @$tmp7, %29
+    %31 = load @$tmp7
+    %32 = call.rtl i32 fb_WstrCompare(%31, @@$wstr5)
+    %33 = const i32 0
+    %34 = icmp.eq %32, %33
+    condbr %34, sel.body6, sel.next7
+  for.step3:
+    %39 = load @j
+    %40 = const i32 1
+    %41 = add %39, %40
+    store @j, %41
+    br for.head1
+  for.exit4:
+    %42 = load @i
+    %43 = call i32 F(%42)
+    call.rtl void fb_PrintInt(0, %43, 1)
+    %44 = const i32 0
+    call.rtl void fb_End(%44)
+    %45 = load @$tmp0
+    ret %45
+  sel.join5:
+    %37 = load @$tmp6
+    call.rtl void fb_WstrDelete(%37)
+    %38 = load @$tmp5
+    call.rtl void fb_WstrDelete(%38)
+    br for.step3
+  sel.body6:
+    %35 = load @$tmp6
+    call.rtl void fb_WstrDelete(%35)
+    %36 = load @$tmp5
+    call.rtl void fb_WstrDelete(%36)
+    br for.exit4
+  sel.next7:
+    br sel.join5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 15 blocks, 110 insts, 0 statements not lowered, 0 scope imbalance

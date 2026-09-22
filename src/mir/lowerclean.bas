@@ -78,6 +78,21 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
                     EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, saa )
                 end if
             end if
+        elseif c.cleanupNode[i] = CLEANUP_WSTR_DELETE then
+            '' A WIDE TEMPORARY that must outlive its statement -- a SELECT's subject,
+            '' which every case reads -- and still die on a RETURN or EXIT out of a case.
+            '' The slot holds the allocation's POINTER, so it is loaded, as
+            '' ReleaseWstrTemps_ does.
+            dim as MirValue wsa
+            wsa.kind = cast( ubyte, MV_LOCAL )
+            wsa.ty = cast( ubyte, MT_PTR )
+            wsa.id = c.cleanupSlot[i]
+            dim as MirValue wsv = LowerExprLoad( c, wsa, MT_PTR )
+            if wsv.kind <> cast( ubyte, MV_NONE ) then
+                dim as FB.Array( of ulong ) wsargs
+                wsargs.Push( cast( ulong, wsv.kind ) ) : wsargs.Push( cast( ulong, wsv.id ) )
+                EmitRtl( c, RTL_WSTR_DELETE, wsargs )
+            end if
         elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
             '' A local DYNAMIC array is erased at scope exit whatever its element
             '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /

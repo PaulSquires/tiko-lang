@@ -17,6 +17,8 @@ func i32 main(i32 $0, ptr $1) {
   local ptr ap
   local ptr lp
   local i32 r
+  local ptr $tmp5
+  local ptr $tmp6
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -46,18 +48,28 @@ func i32 main(i32 $0, ptr $1) {
     %21 = load @wsp
     %22 = bitcast %21
     %23 = call.rtl ptr fb_ULongintToWstr(%22)
-    call.rtl void fb_PrintWstr(0, %23, 1)
-    %24 = load @wsp
-    %25 = bitcast %24
-    %26 = call.rtl ptr fb_ULongintToWstr(%25)
-    %27 = call i32 PW(%26)
-    store @r, %27
-    %28 = load @r
-    call.rtl void fb_PrintInt(0, %28, 1)
-    %29 = const i32 0
-    call.rtl void fb_End(%29)
-    %30 = load @$tmp0
-    ret %30
+    %24 = alloca ptr $tmp5
+    store @$tmp5, %23
+    %25 = load @$tmp5
+    call.rtl void fb_PrintWstr(0, %25, 1)
+    %26 = load @$tmp5
+    call.rtl void fb_WstrDelete(%26)
+    %27 = load @wsp
+    %28 = bitcast %27
+    %29 = call.rtl ptr fb_ULongintToWstr(%28)
+    %30 = alloca ptr $tmp6
+    store @$tmp6, %29
+    %31 = load @$tmp6
+    %32 = call i32 PW(%31)
+    store @r, %32
+    %33 = load @$tmp6
+    call.rtl void fb_WstrDelete(%33)
+    %34 = load @r
+    call.rtl void fb_PrintInt(0, %34, 1)
+    %35 = const i32 0
+    call.rtl void fb_End(%35)
+    %36 = load @$tmp0
+    ret %36
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -65,7 +77,8 @@ declare ptr fb_ULongintToStr(i64 $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_ULongintToWstr(i64 $0)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare void fb_WstrDelete(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 56 insts, 0 statements not lowered, 0 scope imbalance
