@@ -868,6 +868,20 @@ function LowerNarrowChainToU_ _
     return (EmitRtl( c, RTL_USTR_FROM_A, fin ).kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' IS THIS A USTRING CHAIN -- a concatenation with a ustring term? Check types every '&'
+'' STRING, so 'u & "y"' is no USTRING to it; to fbc it is one, and 'u & "y" = "Uy"' is
+'' fb_UStrCompare against a UTF-16 literal. tiko compared it with fb_StrCompare and a
+'' narrow one, and every '=' and '<>' over a ustring chain answered wrong.
+function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    e = Unparen_( c, e )
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
+    dim as FB.Array( of ulong ) ut
+    FlattenConcat( c, e, ut )
+    if ut.Count < 2 then return false
+    return ConcatTermsAreU_( c, ut )
+end function
+
 '' ONE OPERAND OF A USTRING COMPARISON. A ustring and a literal push as they are; a real
 '' NARROW string becomes a ustring through fb_StrToUStr first and a WIDE one through
 '' fb_WstrToUStr, which is what fbc emits and what makes the comparison compare the same
@@ -876,6 +890,9 @@ function UStrCmpOperand_ _
     ( byref c as Ctx, byref args as FB.Array( of ulong ), _
       byval term as Tko.NodeId ) as boolean
 
+    '' A USTRING CHAIN IS ALREADY UTF-16: EmitStrTerm builds its fb_UStrConcat temporary.
+    '' StrTermFlavour_ reads Check's STRING for it and converted it again as narrow bytes.
+    if IsUStrChain_( c, term ) then return EmitStrTerm( c, args, term, true )
     select case StrTermFlavour_( c, term )
     case STF_NARROW
         dim as FB.Array( of ulong ) sub_

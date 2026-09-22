@@ -980,6 +980,7 @@ declare function EmitRtl _
     '' A ustring destination built in place, each rendered number converted. lowerconcat.bas.
     declare function LowerUStrInPlaceWithNumbers_ _
         ( byref c as Ctx, byref dst as MirValue, byref terms as FB.Array( of ulong ) ) as boolean
+    declare function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function UStrCmpOperand_ _
         ( byref c as Ctx, byref args as FB.Array( of ulong ), _
           byval term as Tko.NodeId ) as boolean

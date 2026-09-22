@@ -1,0 +1,19 @@
+'' A USTRING CHAIN COMPARES AS A USTRING. Check types every '&' STRING, so 'u & "y" = "Uy"'
+'' built the chain with fb_UStrConcat and then compared its UTF-16 bytes with the NARROW
+'' fb_StrCompare against a narrow literal: every '=' and '<>' answered wrong, and an
+'' ordering was right only by accident. Measured, fbc emits fb_UStrCompare against a UTF-16
+'' literal, and prints eq where tiko printed ne.
+''
+'' SELECT CASE over one had the same flavour wrong, and once that was right, a SECOND
+'' case value missed: the subject was not copied, and the first fb_UStrCompare released
+'' the temporary. fbc copies it with fb_UStrInit, and 'case "Ux", "Uy"' prints hit.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-chain-compare.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrConcat(
+'' EXPECT-OUT: fb_UStrCompare(
+'' EXPECT-OUT: fb_StrToUStr(
+'' EXPECT-OUT: fb_UStrInit(@$tmp
+'' EXPECT-NOT: fb_StrCompare(

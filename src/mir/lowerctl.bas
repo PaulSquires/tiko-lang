@@ -376,6 +376,11 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     end if
 
     dim as Tko.TypeId subjT = c.info->TypeOf_( sp->a )
+    '' A USTRING CHAIN SUBJECT IS A USTRING, whatever Check says of '&' -- see IsUStrChain_.
+    '' Typed STRING, 'select case u & "y"' copied the UTF-16 temporary with fb_StrAssign and
+    '' compared it narrow, so no case matched. fbc: fb_UStrCompare per case value.
+    dim as boolean subjChainU = IsUStrChain_( c, sp->a )
+    if subjChainU then subjT = c.types->Builtin( Tko.TY_USTRING )
     dim as MirType mt = LowerType( subjT, *c.types )
 
     '' THE SUBJECT'S TEMPORARIES DIE ONCE IT IS STORED, before the first CASE is tested.
@@ -444,8 +449,12 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         '' its first case value and compared freed memory for the rest, so tracks' ticker
         '' table refused every 'futures' and 'stock' row. fbc: fb_UStrInit into a temporary.
         dim as boolean subjU = IsUStringType( c, subjT )
+        '' ...AND A USTRING CHAIN IS ALWAYS ITS fb_UStrConcat TEMPORARY. StrArgOwnDescriptor_
+        '' saw Check's STRING against the USTRING subject and said "owns it", so the first
+        '' case value released it: 'case "Ux", "Uy"' missed. fbc: fb_UStrInit into TMP.
         dim as boolean copySubj = (strMode = 0)
-        if copySubj andalso (c.udtTemps.Count = smark) then
+        dim as boolean askOwn = copySubj andalso (c.udtTemps.Count = smark)
+        if askOwn andalso (not subjChainU) then
             copySubj = (StrArgOwnDescriptor_( c, sp->a, subjT ) = false)
         end if
         if copySubj then

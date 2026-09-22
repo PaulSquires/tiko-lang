@@ -65,10 +65,10 @@ function LowerStrCompare _
     '' and the WIDE operand is the one converted -- 'fb_WstrToUStr' then fb_UStrCompare,
     '' measured. Taken as a wide comparison it converted the ustring to a wstring
     '' instead, which reads a descriptor as a bare uint16*.
-    if IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
-       IsUStringType( c, c.info->TypeOf_( bp->rhs ) ) then
-        isWide = false
-    end if
+    '' ...OR A USTRING CHAIN, which Check types STRING: see IsUStrChain_.
+    dim as boolean lU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse IsUStrChain_( c, bp->lhs )
+    dim as boolean rU = IsUStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse IsUStrChain_( c, bp->rhs )
+    if lU orelse rU then isWide = false
     if isWide then
         '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable
         '' wide variable, so 'trim( a ) = b' and 'a = wstr( 1 )' produced no comparison
@@ -95,8 +95,7 @@ function LowerStrCompare _
         '' EITHER SIDE MAKES IT A USTRING COMPARISON, and the literal on the other
         '' side follows: 'a = "x"' over a ustring is fb_UStrCompare with a UTF-16
         '' literal, where fb_StrCompare would read the descriptor as narrow.
-        dim as boolean isU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse _
-                             IsUStringType( c, c.info->TypeOf_( bp->rhs ) )
+        dim as boolean isU = lU orelse rU
         '' ...BUT A REAL STRING ON THE OTHER SIDE IS CONVERTED, not reinterpreted.
         '' Measured: 'u = q' over a narrow string is 'fb_StrToUStr( q, -1 )' into a
         '' temporary and only then fb_UStrCompare, and a wide operand goes through
