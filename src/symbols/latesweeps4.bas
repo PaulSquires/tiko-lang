@@ -611,3 +611,132 @@ private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as 
     c.diags->Report( TKO0809, PointRange( c.ast->Loc( id ) ), _
                      c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, nmN )].data )].name ) )
 end sub
+
+'' AN INCOMPLETE TYPE USED AS AN OBJECT -- fbc's error 71, "Incomplete type". 'type X as
+'' Foo' with no Foo anywhere is a FORWARD type (ForwardTypedefTarget_), and what fbc allows
+'' of one is a POINTER to it. Measured, one use per file: a DIM, a local, a SHARED, a
+'' STATIC, an EXTERN, an array and a REDIM, a field, a BYVAL and a BYREF parameter, a
+'' result, 'sizeof( X )', 'new X' and a typedef chain used the same way are each error 71;
+'' 'X ptr' in every one of those positions, 'cast( X ptr, q )', a typedef of 'X ptr' and a
+'' procedure type's parameter are accepted. tiko accepted them all, and an object of no
+'' layout lowered to nothing.
+''
+'' A type reference counts unless it sits behind a pointer, is a typedef's own target, or
+'' is inside a procedure type. One report per reference.
+private sub MarkTypeRefTree4_ ( byref c as Ctx, byval t as NodeId, byref mark as FB.Array( of ubyte ) )
+    dim as FB.Array( of ulong ) stack
+    stack.Push( cast( ulong, t ) )
+    dim as long guard = 0
+    while (stack.Count > 0) andalso (guard < 100000)
+        guard += 1
+        dim as NodeId n = cast( NodeId, stack[stack.Count - 1] )
+        stack.Pop( )
+        if (n < 1) orelse (cast( long, n ) >= mark.Count) then continue while
+        if c.ast->Kind( n ) <> N_TYPEREF then continue while
+        mark[cast( long, n )] = 1
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if sp->a <> NODE_NONE then stack.Push( cast( ulong, sp->a ) )
+        for j as long = 0 to sp->count - 1
+            stack.Push( c.ast->children[sp->first + j] )
+        next
+    wend
+end sub
+
+private sub CheckIncompleteObjects_ ( byref c as Ctx )
+    dim as long total = c.ast->Count( )
+    dim as FB.Array( of ubyte ) mark
+    for i as long = 0 to total
+        mark.Push( 0 )
+    next
+    for i as long = 1 to total
+        dim as NodeId n = cast( NodeId, i )
+        select case c.ast->Kind( n )
+        case N_TYPEDEF
+            dim as NodeId ta = c.ast->stmts[cast( long, c.ast->nodes[i].data )].a
+            if ta <> NODE_NONE then MarkTypeRefTree4_( c, ta, mark )
+        case N_TYPEREF
+            dim as ushort fl = c.ast->nodes[i].flags
+            dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[i].data )]
+            if (fl and NF_PTR) <> 0 then
+                if sp->a <> NODE_NONE then MarkTypeRefTree4_( c, sp->a, mark )
+            end if
+            '' A PROCEDURE TYPE is a declaration: its BYREF result is fine, a plain one is
+            '' not -- 'function( ) as X' is 71, 'function( ) byref as X' is taken.
+            if ((fl and NF_PROC_TYPE) <> 0) andalso (((fl and NF_BYREF) <> 0) orelse ((sp->extra and PF_BYREF_RESULT) <> 0)) then
+                if sp->a <> NODE_NONE then MarkTypeRefTree4_( c, sp->a, mark )
+            end if
+        case N_PROC
+            '' A DECLARATION -- no body -- may take a BYREF result of an incomplete type.
+            dim as StmtPayload ptr psp = @c.ast->stmts[cast( long, c.ast->nodes[i].data )]
+            if (psp->b = NODE_NONE) andalso (((c.ast->nodes[i].flags and NF_BYREF) <> 0) orelse ((psp->extra and PF_BYREF_RESULT) <> 0)) then
+                if psp->a <> NODE_NONE then MarkTypeRefTree4_( c, psp->a, mark )
+            end if
+        end select
+    next
+    '' THE PARAMETERS OF A DECLARATION -- a 'declare', a method declared in its type, a
+    '' procedure type -- may be of an incomplete type unless BYVAL is written: measured,
+    '' 'declare sub S( v as X )' and '( byref v as X )' are taken, '( byval v as X )' is 71,
+    '' and so is every parameter of a DEFINITION, whatever its mode.
+    for i as long = 1 to total
+        dim as NodeId n = cast( NodeId, i )
+        dim as boolean decl = false
+        if c.ast->Kind( n ) = N_PROC then
+            decl = (c.ast->stmts[cast( long, c.ast->nodes[i].data )].b = NODE_NONE)
+        elseif c.ast->Kind( n ) = N_TYPEREF then
+            decl = ((c.ast->nodes[i].flags and NF_PROC_TYPE) <> 0)
+        end if
+        if decl = false then continue for
+        dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[i].data )]
+        for j as long = 0 to pp->count - 1
+            dim as NodeId ch = cast( NodeId, c.ast->children[pp->first + j] )
+            if (ch < 1) orelse (c.ast->Kind( ch ) <> N_PARAM) then continue for
+            if (c.ast->nodes[cast( long, ch )].flags and NF_BYVAL_WRITTEN) <> 0 then continue for
+            dim as NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, ch )].data )].a
+            if pta <> NODE_NONE then MarkTypeRefTree4_( c, pta, mark )
+        next
+    next
+    dim as FB.Array( of ulong ) doneLoc
+    for i as long = 1 to total
+        dim as NodeId n = cast( NodeId, i )
+        if c.ast->Kind( n ) <> N_TYPEREF then continue for
+        if mark[i] <> 0 then continue for
+        if (c.ast->nodes[i].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
+        dim as TypeId t = c.info->TypeOf_( n )
+        if t = TYPE_NONE then continue for
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) <> TK_FORWARD then continue for
+        dim as SourceLoc lc = c.ast->Loc( n )
+        dim as boolean seen = false
+        for k as long = 0 to doneLoc.Count - 1
+            if doneLoc[k] = cast( ulong, lc ) then seen = true
+        next
+        if seen then continue for
+        doneLoc.Push( cast( ulong, lc ) )
+        c.diags->Report( TKO0810, PointRange( lc ), c.names->Spelling( c.types->NameOf( t ) ) )
+    next
+
+    '' 'sizeof( X )' measures the object too, and its argument is an EXPRESSION -- a name
+    '' bound to the typedef -- not a type reference. ('sizeof( *p )' through 'type P as Foo
+    '' ptr' is fbc's 71 as well, and not reported: that typedef's pointee has no type at all.)
+    for i as long = 1 to total
+        dim as NodeId n = cast( NodeId, i )
+        if c.ast->Kind( n ) <> N_CALL then continue for
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[i].data )]
+        if (lp->count <> 1) orelse (lp->target = NODE_NONE) then continue for
+        if c.ast->Kind( lp->target ) <> N_IDENT then continue for
+        if c.info->RefOf( lp->target ) <> SYMBOL_NONE then continue for
+        dim as string fnm = lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+        if (fnm <> "sizeof") andalso (fnm <> "len") then continue for
+        dim as NodeId an = cast( NodeId, c.ast->children[lp->first] )
+        dim as TypeId t = TYPE_NONE
+        dim as Symbol ptr asy = c.syms->SymbolAt( c.info->RefOf( an ) )
+        if (asy <> 0) andalso ((asy->kind = cast( ubyte, SYM_TYPEDEF )) orelse (asy->kind = cast( ubyte, SYM_UDT ))) then
+            t = asy->type_
+        end if
+        if t = TYPE_NONE then continue for
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) <> TK_FORWARD then continue for
+        c.diags->Report( TKO0810, PointRange( c.ast->Loc( an ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+    next
+end sub

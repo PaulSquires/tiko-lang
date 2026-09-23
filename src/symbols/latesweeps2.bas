@@ -1100,4 +1100,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckArrayBoundKinds_( c )
     CheckRedimInType_( c )
     CheckUStrCtorInits_( c )
+    CheckIncompleteObjects_( c )
 end sub

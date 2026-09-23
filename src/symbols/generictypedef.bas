@@ -55,6 +55,11 @@ function ForwardTypedefTarget_ _
     dim as Tko.StmtPayload ptr ap = StmtOf( c, an )
     if ap->name = 0 then return Tko.TYPE_NONE
     if ap->count <> 0 then return Tko.TYPE_NONE
+    '' ...AND ONLY AN UNQUALIFIED ONE. 'type X as FB.Foo' is fbc's error 3 whether or not
+    '' FB exists -- a forward declaration names a type, not a path -- and this ignored the
+    '' qualifier, so FB.Foo quietly became a forward type called Foo. Left unresolved, it
+    '' is reported as undeclared, TKO0808.
+    if ap->ownerName <> 0 then return Tko.TYPE_NONE
     if ap->name = tsp->name then return Tko.TYPE_NONE
     if c.syms->Lookup( here, ap->name ) <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as boolean fdup = false

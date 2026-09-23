@@ -1,0 +1,20 @@
+'' TKO0810 and TKO0808: a forward type used as an object, fbc's error 71, and a qualified
+'' typedef target, its error 3. fbc-modern reports exactly lines 5, 7, 9, 11, 12, 13, 15
+'' and 16 of the source -- a DIM, a field, a parameter of a DEFINITION, a BYVAL parameter
+'' and a plain result of a declaration, a procedure type's plain result, a typedef chain,
+'' and 'type Q as NS.Bar' -- and none of the controls: a pointer, and in a DECLARATION a
+'' BYREF or default parameter and a BYREF result. tiko reported none of them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/incomplete-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: incomplete-type.bas(5,8): error TKO0810
+'' EXPECT-OUT: 'foo' is an incomplete type
+'' EXPECT-OUT: incomplete-type.bas(7,10): error TKO0810
+'' EXPECT-OUT: incomplete-type.bas(9,26): error TKO0810
+'' EXPECT-OUT: incomplete-type.bas(11,35): error TKO0810
+'' EXPECT-OUT: incomplete-type.bas(12,35): error TKO0810
+'' EXPECT-OUT: incomplete-type.bas(13,23): error TKO0810
+'' EXPECT-OUT: incomplete-type.bas(15,8): error TKO0810
+'' EXPECT-OUT: incomplete-type.bas(16,11): error TKO0808
+'' EXPECT-OUT: the type 'ns.bar' is not declared
+'' EXPECT-MAX-DIAG: 8

@@ -241,7 +241,9 @@ private sub ForwardTypeRef_ _
         dim as long guard = 0
         while (t <> Tko.NODE_NONE) andalso (guard < 64)
             guard += 1
-            if t = id then exit sub
+            '' ...an UNQUALIFIED target only: 'type X as NS.Foo' above NS.Foo is fbc's
+            '' error 3, measured -- the forward idiom names a type, never a path.
+            if (t = id) andalso (StmtOf( c, t )->ownerName = 0) then exit sub
             if c.ast->Kind( t ) <> Tko.N_TYPEREF then exit while
             t = StmtOf( c, t )->a
         wend

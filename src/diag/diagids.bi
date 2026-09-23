@@ -551,6 +551,9 @@
     '' a qualified name inside a namespace it knows: a TYPE NAME NOTHING DECLARES.
     '' fbc's error 340: a generic called without parentheses, or one with a type parameter
     '' no parameter names, has nothing to infer its type arguments from.
+    '' fbc's error 71, "Incomplete type": a forward type -- 'type X as Foo', Foo declared
+    '' nowhere -- used as an object rather than behind a pointer.
+    DIAG( TKO0810, SEV_ERROR,   "'%0' is an incomplete type: nothing declares it, so only a pointer to it may be used here" )
     DIAG( TKO0809, SEV_ERROR,   "cannot infer the type arguments of '%0'; write them, as '%0( of ... )( ... )'" )
     DIAG( TKO0808, SEV_ERROR,   "the type '%0' is not declared" )
     DIAG( TKO0807, SEV_ERROR,   "'%0' is a keyword and cannot name %1" )
