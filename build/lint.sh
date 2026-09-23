@@ -53,7 +53,7 @@ layer_of( ) {
         lexer|pp|parser|ast|types|symbols|semantics) echo 2 ;;
         mir|lowering) echo 3 ;;
         target|abi|codegen) echo 4 ;;
-        toolchain|driver) echo 5 ;;
+        toolchain|driver|cimport) echo 5 ;;
         *) echo 9 ;;
     esac
 }

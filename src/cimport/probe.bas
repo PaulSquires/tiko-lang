@@ -1,0 +1,193 @@
+'' probe.bas -- '--cimport-probe <header>': load libclang, parse one header, print what
+'' clang saw. See probe.bi.
+''
+'' THIS IS THE ABI TEST FOR THE WHOLE IMPORTER, and that is why it exists before the
+'' importer does. Every shape libclang's C interface uses crosses here: a CXCursor and a
+'' CXType passed BY VALUE (getCursorKind, getTypeSpelling), a CXString and a
+'' CXSourceLocation RETURNED by value (getCursorSpelling, getCursorLocation), a location
+'' passed back IN (getExpansionLocation), and a callback that RECEIVES two cursors by
+'' value (visitChildren). Its output is deterministic for a given host, so the same probe
+'' run by a tiko built by fbc-modern and by a tiko built by tiko must print the same bytes
+'' -- that comparison is what catches tiko miscompiling its own importer.
+
+#include once "cimport/probe.bi"
+#include once "cimport/clang.bi"
+
+namespace Tko.CImport
+
+type ProbeCtx_
+    as ClangApi ptr api
+    as string header          '' the file name to report declarations from
+    as string outp
+end type
+
+'' The file a cursor was written in, as clang reports it.
+private function FileOf_( byref api as ClangApi, byval c as CXCursor ) as string
+    dim as any ptr f
+    dim as ulong ln, col, off
+    api.getExpansionLocation( api.getCursorLocation( c ), @f, @ln, @col, @off )
+    if f = 0 then return ""
+    return ClangText( api, api.getFileName( f ) )
+end function
+
+private function EndsWithName_( byref path as string, byref name_ as string ) as boolean
+    if len( path ) < len( name_ ) then return false
+    if lcase( right( path, len( name_ ) ) ) <> lcase( name_ ) then return false
+    if len( path ) = len( name_ ) then return true
+    dim as long ch = path[len( path ) - len( name_ ) - 1]
+    return (ch = asc( "/" )) orelse (ch = asc( "\" ))
+end function
+
+private function KindName_( byval k as long ) as string
+    select case k
+    case CXCursor_StructDecl       : return "struct"
+    case CXCursor_UnionDecl        : return "union"
+    case CXCursor_EnumDecl         : return "enum"
+    case CXCursor_FieldDecl        : return "field"
+    case CXCursor_EnumConstantDecl : return "enumconst"
+    case CXCursor_FunctionDecl     : return "function"
+    case CXCursor_VarDecl          : return "var"
+    case CXCursor_TypedefDecl      : return "typedef"
+    case CXCursor_InclusionDirective : return "#include"
+    end select
+    return "kind" & k
+end function
+
+'' A record's members, one level down -- the offsets are clang's, in BITS.
+private function ProbeField_ cdecl _
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+
+    dim as ProbeCtx_ ptr px = client
+    dim as ClangApi ptr a = px->api
+    dim as long k = a->getCursorKind( c )
+    if k = CXCursor_FieldDecl then
+        dim as string w = "-"
+        if a->Cursor_isBitField( c ) then w = str( a->getFieldDeclBitWidth( c ) )
+        px->outp &= "    field " & ClangText( *a, a->getCursorSpelling( c ) ) & _
+                    " : " & ClangText( *a, a->getTypeSpelling( a->getCursorType( c ) ) ) & _
+                    " @bit " & a->Cursor_getOffsetOfField( c ) & " width " & w & chr( 10 )
+    elseif k = CXCursor_EnumConstantDecl then
+        px->outp &= "    const " & ClangText( *a, a->getCursorSpelling( c ) ) & _
+                    " = " & a->getEnumConstantDeclValue( c ) & chr( 10 )
+    end if
+    return CXChildVisit_Continue
+end function
+
+private function ProbeTop_ cdecl _
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
+
+    dim as ProbeCtx_ ptr px = client
+    dim as ClangApi ptr a = px->api
+    if EndsWithName_( FileOf_( *a, c ), px->header ) = false then return CXChildVisit_Continue
+    dim as long k = a->getCursorKind( c )
+    dim as CXType t = a->getCursorType( c )
+    px->outp &= KindName_( k ) & " " & ClangText( *a, a->getCursorSpelling( c ) ) & _
+                " : " & ClangText( *a, a->getTypeSpelling( t ) )
+    select case k
+    case CXCursor_StructDecl, CXCursor_UnionDecl
+        if a->isCursorDefinition( c ) then
+            px->outp &= " size " & a->Type_getSizeOf( t ) & " align " & a->Type_getAlignOf( t ) & chr( 10 )
+            a->visitChildren( c, @ProbeField_, px )
+        else
+            px->outp &= " (opaque)" & chr( 10 )
+        end if
+    case CXCursor_EnumDecl
+        px->outp &= " underlying " & _
+                    ClangText( *a, a->getTypeSpelling( a->getEnumDeclIntegerType( c ) ) ) & chr( 10 )
+        a->visitChildren( c, @ProbeField_, px )
+    case CXCursor_FunctionDecl
+        dim as CXType ft = t
+        px->outp &= " args " & a->getNumArgTypes( ft ) & _
+                    " variadic " & a->isFunctionTypeVariadic( ft ) & _
+                    " cc " & a->getFunctionTypeCallingConv( ft ) & chr( 10 )
+    case else
+        px->outp &= chr( 10 )
+    end select
+    return CXChildVisit_Continue
+end function
+
+private sub ProbeInclusion_ cdecl _
+    ( byval included as any ptr, byval stack as CXSourceLocation ptr, _
+      byval depth as ulong, byval client as any ptr )
+
+    dim as ProbeCtx_ ptr px = client
+    dim as ClangApi ptr a = px->api
+    px->outp &= "include " & depth & " " & ClangText( *a, a->getFileName( included ) ) & chr( 10 )
+end sub
+
+function CImportProbe( byref clangExe as string, byref header as string, _
+                       byref triple as string, byref cincludes as Tko.StrVec ) as long
+
+    dim as ClangApi api
+    if ClangLoad( api, clangExe ) = false then
+        print "cimport-probe: " & api.why
+        return 3
+    end if
+    print "libclang " & api.libPath
+    print "version  " & api.version
+    dim as string rdir = ClangResourceDir( api )
+    print "resource " & iif( len( rdir ) > 0, rdir, "(none found)" )
+    print "target   " & triple
+
+    '' THE ARGUMENTS OUTLIVE THE CALL: argv holds pointers into these strings.
+    dim as string av( 0 to 63 )
+    dim as long ac = 0
+    av( ac ) = "-x" : ac += 1
+    av( ac ) = "c" : ac += 1
+    av( ac ) = "-std=c11" : ac += 1
+    av( ac ) = "--target=" & triple : ac += 1
+    if len( rdir ) then av( ac ) = "-resource-dir=" & rdir : ac += 1
+    for i as long = 0 to cincludes.Count - 1
+        if ac >= 62 then exit for
+        av( ac ) = "-I" : ac += 1
+        av( ac ) = cincludes[i] : ac += 1
+    next
+    dim as zstring ptr argv( 0 to 63 )
+    for i as long = 0 to ac - 1
+        argv( i ) = strptr( av( i ) )
+    next
+
+    dim as string unitName = "tiko-cimport-probe.c"
+    dim as string unitText = "#include """ & header & """" & chr( 10 )
+    dim as CXUnsavedFile uf
+    uf.Filename = strptr( unitName )
+    uf.Contents = strptr( unitText )
+    uf.Length = len( unitText )
+
+    dim as any ptr idx = api.createIndex( 0, 0 )
+    dim as any ptr tu = api.parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), ac, @uf, 1, _
+        CXTranslationUnit_DetailedPreprocessingRecord or CXTranslationUnit_SkipFunctionBodies )
+    if tu = 0 then
+        print "cimport-probe: clang could not parse '" & header & "' at all"
+        api.disposeIndex( idx )
+        return 1
+    end if
+
+    dim as ProbeCtx_ px
+    px.api = @api
+    '' Declarations are reported from the named header only; its includes are listed.
+    dim as long slash = 0
+    for i as long = len( header ) to 1 step -1
+        if (header[i - 1] = asc( "/" )) orelse (header[i - 1] = asc( "\" )) then slash = i : exit for
+    next
+    px.header = mid( header, slash + 1 )
+
+    dim as long nerr = 0
+    for i as long = 0 to api.getNumDiagnostics( tu ) - 1
+        dim as any ptr d = api.getDiagnostic( tu, i )
+        dim as long sev = api.getDiagnosticSeverity( d )
+        if sev >= 3 then nerr += 1
+        px.outp &= "diag " & sev & " " & ClangText( api, api.formatDiagnostic( d, 3 ) ) & chr( 10 )
+        api.disposeDiagnostic( d )
+    next
+    api.getInclusions( tu, @ProbeInclusion_, @px )
+    api.visitChildren( api.getTranslationUnitCursor( tu ), @ProbeTop_, @px )
+    print px.outp;
+
+    api.disposeTranslationUnit( tu )
+    api.disposeIndex( idx )
+    if nerr > 0 then return 1
+    return 0
+end function
+
+end namespace

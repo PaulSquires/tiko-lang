@@ -1,0 +1,198 @@
+'' clang.bas -- finding, opening and checking libclang. See clang.bi.
+
+#include once "cimport/clang.bi"
+
+#ifndef __FB_WIN32__
+    '' The one libc call the search needs: /usr/bin/clang is a symlink into
+    '' /usr/lib/llvm-N/bin, and libclang sits under that N, not beside the link.
+    extern "c"
+        declare function realpath( byval path as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
+    end extern
+#endif
+
+namespace Tko.CImport
+
+private function FileExists_( byref p as string ) as boolean
+    if len( p ) = 0 then return false
+    dim as long f = freefile( )
+    if open( p for binary access read as #f ) <> 0 then return false
+    close #f
+    return true
+end function
+
+'' The directory part, WITH its trailing separator, or "" when there is none.
+private function DirOf_( byref p as string ) as string
+    for i as long = len( p ) to 1 step -1
+        dim as long ch = p[i - 1]
+        if (ch = asc( "/" )) orelse (ch = asc( "\" )) then return left( p, i )
+    next
+    return ""
+end function
+
+private function RealPath_( byref p as string ) as string
+#ifdef __FB_WIN32__
+    return p
+#else
+    dim as zstring * 4097 buf
+    if realpath( strptr( p ), @buf ) = 0 then return p
+    return buf
+#endif
+end function
+
+'' Every place libclang is looked for, in order. The first that exists and opens wins.
+''
+'' TKO_LIBCLANG FIRST, and ALONE when it is set: a path the user named that does not work is
+'' an answer to report, not a reason to go and find a different library. Then beside the
+'' clang tiko compiles with, because a libclang from the same install matches its headers;
+'' then the places a distribution puts one.
+private sub Candidates_( byref clangExe as string, cand() as string, byref n as long )
+    n = 0
+    dim as string env_ = environ( "TKO_LIBCLANG" )
+    if len( env_ ) then
+        cand( n ) = env_ : n += 1
+        return
+    end if
+#ifdef __FB_WIN32__
+    '' The LLVM installer puts libclang.dll in bin\, beside clang.exe.
+    cand( n ) = DirOf_( clangExe ) & "libclang.dll" : n += 1
+    cand( n ) = "C:\Program Files\LLVM\bin\libclang.dll" : n += 1
+#else
+    '' /usr/bin/clang -> /usr/lib/llvm-18/bin/clang, whose ../lib holds libclang.so.1.
+    dim as string cdir = DirOf_( RealPath_( clangExe ) )
+    if len( cdir ) then
+        cand( n ) = cdir & "../lib/libclang.so.1" : n += 1
+        cand( n ) = cdir & "../lib/libclang.so" : n += 1
+    end if
+    for v as long = 21 to CLANG_MIN_MAJOR step -1
+        cand( n ) = "/usr/lib/llvm-" & v & "/lib/libclang.so.1" : n += 1
+        cand( n ) = "/usr/lib/x86_64-linux-gnu/libclang-" & v & ".so.1" : n += 1
+    next
+    cand( n ) = "/usr/lib/x86_64-linux-gnu/libclang.so.1" : n += 1
+#endif
+end sub
+
+'' One entry point into its field. A missing one is remembered rather than fatal on the
+'' spot, so the diagnostic names the FIRST symbol absent and every field is still written.
+private sub Sym_( byref api as ClangApi, byref cname as string, byval slot as any ptr ptr, _
+                  byref missing as string )
+    *slot = dylibsymbol( api.handle, cname )
+    if (*slot = 0) andalso (len( missing ) = 0) then missing = cname
+end sub
+
+'' "clang version 21.1.0 (...)", or "Ubuntu clang version 18.1.3 (1ubuntu1)": the major is
+'' the digits after "version ".
+private function MajorOf_( byref v as string ) as long
+    dim as long at = instr( v, "version " )
+    if at = 0 then return 0
+    at += 8
+    dim as long m = 0
+    while (at <= len( v )) andalso (v[at - 1] >= asc( "0" )) andalso (v[at - 1] <= asc( "9" ))
+        m = m * 10 + (v[at - 1] - asc( "0" ))
+        at += 1
+    wend
+    return m
+end function
+
+function ClangText( byref api as ClangApi, byval s as CXString ) as string
+    dim as string r
+    dim as zstring ptr z = api.getCString( s )
+    if z <> 0 then r = *z
+    api.disposeString( s )
+    return r
+end function
+
+function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
+    if api.tried then return api.ok
+    api.tried = true
+    api.ok = false
+
+    '' THE LAYOUT FIRST, before anything is opened: a wrong declaration here would pass
+    '' every argument to libclang wrongly, and the symptom would be a crash inside it.
+    dim as CXUnsavedFile uf
+    if (sizeof( CXString ) <> CX_STRING_BYTES) orelse (sizeof( CXCursor ) <> CX_CURSOR_BYTES) orelse _
+       (sizeof( CXType ) <> CX_TYPE_BYTES) orelse (sizeof( CXSourceLocation ) <> CX_LOCATION_BYTES) orelse _
+       (sizeof( CXSourceRange ) <> CX_RANGE_BYTES) orelse (sizeof( CXUnsavedFile ) <> CX_UNSAVED_BYTES) then
+        api.why = "internal: libclang's structures are declared with the wrong layout"
+        return false
+    end if
+#ifdef __FB_WIN32__
+    dim as long wantLen = 4
+#else
+    dim as long wantLen = 8
+#endif
+    if (offsetof( CXUnsavedFile, Length ) <> 16) orelse (sizeof( uf.Length ) <> wantLen) then
+        api.why = "internal: CXUnsavedFile.Length is declared with the wrong width"
+        return false
+    end if
+
+    dim as string cand( 0 to 31 )
+    dim as long n = 0
+    Candidates_( clangExe, cand(), n )
+    dim as string tried_
+    for i as long = 0 to n - 1
+        if FileExists_( cand( i ) ) then
+            api.handle = dylibload( cand( i ) )
+            if api.handle <> 0 then
+                api.libPath = cand( i )
+                exit for
+            end if
+            tried_ &= " '" & cand( i ) & "' (would not open)"
+        end if
+    next
+    if api.handle = 0 then
+        if len( environ( "TKO_LIBCLANG" ) ) then
+            api.why = "TKO_LIBCLANG names '" & cand( 0 ) & "', which is not a libclang that opens"
+        elseif len( tried_ ) then
+            api.why = "libclang was found but would not load:" & tried_
+        else
+            api.why = "libclang was not found beside '" & clangExe & "' or in the usual places; " & _
+                      "install LLVM " & CLANG_MIN_MAJOR & " or newer, or set TKO_LIBCLANG to its path"
+        end if
+        return false
+    end if
+
+    dim as string missing
+    #define FN( n, cname, params, ret ) Sym_( api, cname, cast( any ptr ptr, @api.n ), missing )
+    #define SB( n, cname, params ) Sym_( api, cname, cast( any ptr ptr, @api.n ), missing )
+    TKO_CLANG_LIST( FN, SB )
+    #undef FN
+    #undef SB
+    if len( missing ) then
+        api.why = "'" & api.libPath & "' is missing the entry point " & missing
+        return false
+    end if
+
+    api.version = ClangText( api, api.getClangVersion( ) )
+    api.major = MajorOf_( api.version )
+    if api.major < CLANG_MIN_MAJOR then
+        api.why = "'" & api.libPath & "' is " & api.version & "; " & _
+                  "importing a C header needs libclang " & CLANG_MIN_MAJOR & " or newer"
+        return false
+    end if
+
+    '' NEVER UNLOADED. The library lives for the process; closing it at exit buys nothing
+    '' and libclang's own static destructors are not something to race.
+    api.ok = true
+    return true
+end function
+
+'' The directory holding clang's own headers -- stddef.h, stdarg.h, the intrinsics --
+'' which every C translation unit reaches. libclang looks for them relative to ITSELF,
+'' and a distribution that files libclang under /usr/lib/x86_64-linux-gnu leaves that
+'' guess pointing nowhere, so the importer names the directory outright. It must match
+'' libclang's own version, so it is found from libclang's path and major, never from
+'' whichever clang happens to be first. "" when none is found.
+function ClangResourceDir( byref api as ClangApi ) as string
+    dim as string ldir = DirOf_( RealPath_( api.libPath ) )
+    dim as string cand( 0 to 3 )
+    cand( 0 ) = DirOf_( api.libPath ) & "../lib/clang/" & api.major
+    cand( 1 ) = ldir & "../lib/clang/" & api.major
+    cand( 2 ) = "/usr/lib/llvm-" & api.major & "/lib/clang/" & api.major
+    cand( 3 ) = "/usr/lib/clang/" & api.major
+    for i as long = 0 to 3
+        if FileExists_( cand( i ) & "/include/stddef.h" ) then return cand( i )
+    next
+    return ""
+end function
+
+end namespace

@@ -20,6 +20,7 @@
 #include once "codegen/objinfo.bi"
 #include once "codegen/llvmemit.bi"
 #include once "mir/rtl.bi"
+#include once "cimport/probe.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -588,6 +589,13 @@ function Run _
     if ctx.options.showHelp then
         print Tko.Cmdline.HelpText( ctx.options.helpCategory );
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
+    end if
+
+    '' A LIBCLANG PROBE takes a C header, not a .bas -- see src/cimport/probe.bas.
+    if len( ctx.options.cimportProbe ) then
+        dim as Tko.Codegen.ToolPaths ptl = Tools_( ctx )
+        return Tko.DiagOut.Finish( ctx, Tko.CImport.CImportProbe( ptl.clangExe, ctx.options.cimportProbe, _
+            Tko.Codegen.TargetFor( ctx.options.target ).triple, ctx.options.cIncludes ) )
     end if
 
     if ctx.options.inputs.IsEmpty( ) then

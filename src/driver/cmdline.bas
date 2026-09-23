@@ -44,6 +44,7 @@ function CategoryName( byval c as OptCategory ) as string
     case OPTCAT_OUTPUT : return "Output"
     case OPTCAT_TARGET : return "Target"
     case OPTCAT_DIAG   : return "Diagnostics"
+    case OPTCAT_CIMPORT: return "C header import"
     case OPTCAT_DEVEL  : return "Compiler development"
     case else          : return "General"
     end select
@@ -539,6 +540,8 @@ function Parse _
         case Tko.OPT_MANGLE    : opts.dumpMangle = true
         case Tko.OPT_CHECK     : opts.checkOnly = true
         case Tko.OPT_UDT       : opts.dumpUdt = true
+        case Tko.OPT_CIMPORT_PROBE : opts.cimportProbe = value
+        case Tko.OPT_CINCLUDE  : opts.cIncludes.Push( value )
         case Tko.OPT_VTABLE    : opts.dumpVtable = true
         case Tko.OPT_RTL       : opts.dumpRtl = true
         case Tko.OPT_DUMPIR    : opts.dumpIr = true

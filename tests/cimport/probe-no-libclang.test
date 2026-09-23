@@ -1,0 +1,7 @@
+'' TKO_LIBCLANG naming a file that is not there is the answer, not a reason to go and find
+'' a different libclang: it is reported by name and the exit is 3, a missing tool.
+'' TEST: cli
+'' ENV: TKO_LIBCLANG=tests/cimport/src/no-such-libclang.dll
+'' ARGS: --cimport-probe tests/cimport/src/probe.h
+'' EXPECT-EXIT: 3
+'' EXPECT-OUT: TKO_LIBCLANG names 'tests/cimport/src/no-such-libclang.dll'

@@ -33,6 +33,7 @@ namespace Tko
         OPTCAT_OUTPUT
         OPTCAT_TARGET
         OPTCAT_DIAG
+        OPTCAT_CIMPORT      '' before DEVEL: HelpText walks GENERAL..DEVEL
         OPTCAT_DEVEL
     end enum
 
@@ -102,6 +103,8 @@ namespace Tko
     OPT( OPT_MANGLE,    "--dump-mangle",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print the emitted symbol name of each procedure" )
     OPT( OPT_CHECK,     "--check",        OPTK_FLAG, OPTCAT_DEVEL, "",        "type expressions; report the type of each PRINT argument" )
     OPT( OPT_UDT,       "--dump-udt",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's size, alignment and field offsets" )
+    OPT( OPT_CIMPORT_PROBE, "--cimport-probe", OPTK_VALUE, OPTCAT_DEVEL, "header", "load libclang, parse one C header, print what clang saw" )
+    OPT( OPT_CINCLUDE,  "-cinclude",      OPTK_VALUE, OPTCAT_CIMPORT, "dir",  "add a C include directory (clang's -I) for #cinclude" )
     OPT( OPT_VTABLE,    "--dump-vtable",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's virtual method table" )
     OPT( OPT_RTL,       "--dump-rtl",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print the runtime inventory and stop" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
@@ -226,6 +229,10 @@ namespace Tko
         as boolean dumpMangle
         as boolean checkOnly
         as boolean dumpUdt
+        '' C HEADER IMPORT. The directories are clang's, not FreeBASIC's: '-i' is never
+        '' passed to clang, and '-cinclude' never reaches #include.
+        as string  cimportProbe
+        as StrVec  cIncludes
         as boolean dumpVtable
         as boolean dumpRtl
         as boolean dumpIr

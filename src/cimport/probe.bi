@@ -1,0 +1,24 @@
+'' probe.bi -- '--cimport-probe <header>', a developer mode.
+''
+'' Loads libclang, parses one header for the target being built, and prints clang's view:
+'' the libclang and its version, the resource directory, clang's diagnostics, every file
+'' the header pulled in, and each declaration the header itself makes -- record sizes,
+'' field bit offsets, enum values, function arity and calling convention.
+''
+'' Two jobs. It is the ABI test for tiko's own binding of libclang (probe.bas says why),
+'' and it answers the questions the importer's design depends on: which headers clang
+'' finds for each target, and where it found them.
+
+#pragma once
+
+#include once "tko.bi"
+
+namespace Tko.CImport
+
+'' 0 when the header parsed without an error, 1 when clang reported one, 3 when libclang
+'' could not be loaded. 'clangExe' is the toolchain's clang, beside which libclang is
+'' looked for; 'triple' is the target's; each cincludes() entry becomes a -I.
+declare function CImportProbe( byref clangExe as string, byref header as string, _
+                               byref triple as string, byref cincludes as Tko.StrVec ) as long
+
+end namespace

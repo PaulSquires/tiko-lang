@@ -1,0 +1,7 @@
+'' -cinclude is clang's -I: a header reachable only through it parses. It is not tiko's
+'' -i, which never reaches clang.
+'' TEST: cli
+'' ARGS: --cimport-probe probe-sub.h -cinclude tests/cimport/src/sub
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: struct probe_sub : struct probe_sub size 16 align 8
+'' EXPECT-OUT:     field b : long long @bit 64 width -

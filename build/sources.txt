@@ -90,3 +90,5 @@ src/codegen/objinfo.bas
 src/driver/cmdline.bas
 src/driver/driver.bas
 src/driver/diagout.bas
+src/cimport/clang.bas
+src/cimport/probe.bas

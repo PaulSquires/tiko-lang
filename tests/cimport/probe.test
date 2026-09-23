@@ -1,0 +1,41 @@
+'' The libclang probe parses a freestanding header for every target and reports clang's
+'' layouts -- including the two places the targets disagree. A bit-field's storage unit:
+'' Windows starts a new one for 'unsigned char next' after 'unsigned int' bit-fields
+'' (bit 32, size 8), SysV packs it into the same one (bit 8, size 4). And an enum of
+'' positive values: 'int' under msvc, 'unsigned int' under the gnu triples.
+''
+'' It is also the ABI test for tiko's own libclang binding: every call below passes or
+'' returns a CXCursor, CXType, CXString or CXSourceLocation by value, and the visitor
+'' receives cursors by value. build/bootstrap.sh's stage 2 must print the same bytes.
+'' TEST: cli
+'' ARGS: --cimport-probe tests/cimport/src/probe.h
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: diag 3
+'' EXPECT-NOT: diag 4
+'' EXPECT-OUT: struct probe_pair : struct probe_pair size 24 align 8
+'' EXPECT-OUT:     field tag : int32_t @bit 0 width -
+'' EXPECT-OUT:     field value : double @bit 64 width -
+'' EXPECT-OUT:     field name : const char * @bit 128 width -
+'' EXPECT-OUT:     field low : unsigned int @bit 0 width 3
+'' EXPECT-OUT:     field high : unsigned int @bit 3 width 5
+'' EXPECT-OUT: union probe_word : union probe_word size 4 align 4
+'' EXPECT-OUT:     field b : unsigned char[4] @bit 0 width -
+'' EXPECT-OUT:     const PROBE_BLUE = 40
+'' EXPECT-OUT: struct probe_opaque : struct probe_opaque (opaque)
+'' EXPECT-OUT: typedef probe_size : probe_size
+'' EXPECT-OUT: function probe_add : int (int, int) args 2 variadic 0 cc 1
+'' EXPECT-OUT: function probe_printf : int (const char *, ...) args 1 variadic 1 cc 1
+'' EXPECT-OUT: function probe_walk : void (struct probe_pair, probe_opaque *) args 2 variadic 0 cc 1
+'' EXPECT-OUT: var probe_counter : long
+'' EXPECT-OUT[win64-msvc]: target   x86_64-pc-windows-msvc
+'' EXPECT-OUT[win64-msvc]: struct probe_bits : struct probe_bits size 8 align 4
+'' EXPECT-OUT[win64-msvc]:     field next : unsigned char @bit 32 width -
+'' EXPECT-OUT[win64-msvc]: underlying int
+'' EXPECT-OUT[win64]: target   x86_64-w64-windows-gnu
+'' EXPECT-OUT[win64]: struct probe_bits : struct probe_bits size 8 align 4
+'' EXPECT-OUT[win64]:     field next : unsigned char @bit 32 width -
+'' EXPECT-OUT[win64]: underlying unsigned int
+'' EXPECT-OUT[linux-x86_64]: target   x86_64-pc-linux-gnu
+'' EXPECT-OUT[linux-x86_64]: struct probe_bits : struct probe_bits size 4 align 4
+'' EXPECT-OUT[linux-x86_64]:     field next : unsigned char @bit 8 width -
+'' EXPECT-OUT[linux-x86_64]: underlying unsigned int

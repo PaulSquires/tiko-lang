@@ -1,0 +1,6 @@
+'' ...and without it clang cannot find the header, which the probe reports and exits 1.
+'' '-i' is FreeBASIC's include path and does not help.
+'' TEST: cli
+'' ARGS: --cimport-probe probe-sub.h -i tests/cimport/src/sub
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: 'probe-sub.h' file not found
