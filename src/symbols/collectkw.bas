@@ -54,3 +54,41 @@ private function KeywordNameRejected_ _
     end select
     return false
 end function
+
+'' A KEYWORD CANNOT NAME A TYPE, A TYPEDEF, AN ENUM OR A NAMESPACE, and here the class
+'' decides it. Measured over all 247 keywords, each as 'type K', 'type K as long',
+'' 'enum K' and 'namespace K':
+''
+''                     KEYWORD (120)   OPERATOR (13)   INTRINSIC (114)
+''     type, typedef   refused, 14     refused, 14     accepted
+''     enum            refused, 17     refused, 17     accepted
+''     namespace       refused, 14     refused, 14     refused, 14 or 4
+''
+'' REM is the one exception in every column, and not by rule: it starts a comment, so
+'' 'enum Rem' is an anonymous enum. 'type Base' is the case that was found -- BASE is a
+'' keyword -- while 'type Print' is an intrinsic and fbc takes it. tiko took them all.
+''
+'' Returns nm unchanged, so the declaration still happens and nothing downstream sees a
+'' hole; the report is the refusal. Only a KEYWORD TOKEN counts, as for
+'' KeywordNameRejected_ above, and the prelude is not asked.
+private function KwTypeName_ _
+    ( byref w as Walker, byval nm as Tko.InternId, byval rawNm as Tko.InternId, _
+      byval k as Tko.SymbolKind, byval loc as Tko.SourceLoc ) as Tko.InternId
+
+    if (nm = Tko.INTERN_NONE) orelse (rawNm <> Tko.INTERN_NONE) then return nm
+    if w.src <> 0 then
+        if w.src->IsBuiltin( loc ) then return nm
+    end if
+    dim as long kid = cast( long, w.names->Fold( nm ) )
+    if (kid <= 0) orelse (kid > TKO_KEYWORD_COUNT) then return nm
+    dim as Tko.TokenKind kk = cast( Tko.TokenKind, cast( long, Tko.TK_KW_FIRST ) + kid )
+    if Tko.Text.LowerAscii( Tko.TokenKindText( kk ) ) <> w.names->Spelling( kid ) then return nm
+    if kk = Tko.KW_REM then return nm
+    dim as boolean intrinsic = (Tko.KeywordClassOf( kk ) = Tko.KWCLASS_INTRINSIC)
+    if intrinsic andalso (k <> Tko.SYM_NAMESPACE) then return nm
+    dim as string what = "a type"
+    if k = Tko.SYM_ENUM then what = "an enum"
+    if k = Tko.SYM_NAMESPACE then what = "a namespace"
+    w.diags->Report( Tko.TKO0807, Tko.PointRange( loc ), w.names->Spelling( nm ), what )
+    return nm
+end function

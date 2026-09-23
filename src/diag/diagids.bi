@@ -545,6 +545,9 @@
     '' fbc's error 24 over 'dim as T t = u' where T's only way in is a 'zstring ptr': a
     '' constructor is resolved as an overload set, and in one a ustring does not reach
     '' 'zstring ptr'. The call form, 'T( u )', is fbc's 99 and reports TKO0632.
+    '' fbc's error 14 (17 for an enum, 4 for some namespaces): a keyword cannot name a type,
+    '' a typedef, an enum or a namespace -- see KwTypeName_ in symbols/collectkw.bas.
+    DIAG( TKO0807, SEV_ERROR,   "'%0' is a keyword and cannot name %1" )
     DIAG( TKO0806, SEV_ERROR,   "'%0' cannot be initialized from a ustring: no constructor of '%1' takes one, and a ustring does not convert to 'zstring ptr' here" )
 
     '' -------------------------------------------------------------------- notes

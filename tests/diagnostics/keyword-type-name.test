@@ -1,0 +1,19 @@
+'' TKO0807: a keyword cannot name a type, a typedef, an enum or a namespace -- fbc's
+'' error 14, 17 for an enum. The KEYWORD and OPERATOR classes are refused for all four; an
+'' INTRINSIC is refused only as a namespace name. Measured one declaration per file over
+'' all 247 keywords in each of the four forms, 988 compiles, and tiko now agrees with fbc
+'' on every one (it refused 2 of the 133 'type' cases before). In this file fbc's own
+'' recovery merges some of them -- it reports lines 3, 7 and 13, then a cascade -- so the
+'' lines below are the one-at-a-time answers. 'type Base' was the case that was found.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/keyword-type-name.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: keyword-type-name.bas(3,1): error TKO0807
+'' EXPECT-OUT: 'base' is a keyword and cannot name a type
+'' EXPECT-OUT: keyword-type-name.bas(7,1): error TKO0807
+'' EXPECT-OUT: keyword-type-name.bas(8,1): error TKO0807
+'' EXPECT-OUT: cannot name an enum
+'' EXPECT-OUT: keyword-type-name.bas(11,1): error TKO0807
+'' EXPECT-OUT: keyword-type-name.bas(13,1): error TKO0807
+'' EXPECT-OUT: cannot name a namespace
+'' EXPECT-MAX-DIAG: 5

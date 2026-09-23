@@ -529,7 +529,7 @@ sub WalkNode _
             CollectAnonAggregate_( w, id, n, sp, scope_ )
             return
         end if
-        dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_UDT, _
+        dim as Tko.SymbolId sid = Declare_( w, scope_, KwTypeName_( w, sp->name, sp->rawName, Tko.SYM_UDT, w.ast->Loc( id ) ), Tko.SYM_UDT, _
                                             w.ast->Loc( id ) )
         NoteDeclAt_( w, sid, id )
         dim as Tko.ScopeId inner = w.syms->OpenScope( Tko.SCOPEK_TYPE, scope_, sid )
@@ -632,7 +632,7 @@ sub WalkNode _
 
     case Tko.N_ENUM
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
-        dim as Tko.SymbolId sid = Declare_( w, scope_, sp->name, Tko.SYM_ENUM, _
+        dim as Tko.SymbolId sid = Declare_( w, scope_, KwTypeName_( w, sp->name, sp->rawName, Tko.SYM_ENUM, w.ast->Loc( id ) ), Tko.SYM_ENUM, _
                                             w.ast->Loc( id ) )
         NoteDeclAt_( w, sid, id )
         '' 'private:' / 'protected:' on a nested ENUM -- the parser put it on the
@@ -737,7 +737,7 @@ sub WalkNode _
             end if
         end if
 
-        dim as Tko.SymbolId tid = Declare_( w, scope_, sp->name, Tko.SYM_TYPEDEF, _
+        dim as Tko.SymbolId tid = Declare_( w, scope_, KwTypeName_( w, sp->name, sp->rawName, Tko.SYM_TYPEDEF, w.ast->Loc( id ) ), Tko.SYM_TYPEDEF, _
                                             w.ast->Loc( id ) )
         NoteDeclAt_( w, tid, id )
         dim as Tko.Symbol ptr ts = w.syms->SymbolAt( tid )
@@ -1137,7 +1137,7 @@ sub WalkNode _
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
         dim as boolean reopen = (s <> 0) andalso (s->kind = cast( ubyte, Tko.SYM_NAMESPACE ))
         if reopen = false then
-            sid = Declare_( w, scope_, sp->name, Tko.SYM_NAMESPACE, w.ast->Loc( id ) )
+            sid = Declare_( w, scope_, KwTypeName_( w, sp->name, sp->rawName, Tko.SYM_NAMESPACE, w.ast->Loc( id ) ), Tko.SYM_NAMESPACE, w.ast->Loc( id ) )
             NoteDeclAt_( w, sid, id )
             s = w.syms->SymbolAt( sid )
             if s <> 0 then
