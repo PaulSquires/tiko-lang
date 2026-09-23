@@ -1,0 +1,13 @@
+'' TKO0811: 'type X as Foo', a use of X as an object, and only THEN 'type Foo' -- fbc's error
+'' 71, measured, at exactly lines 4, 6, 9 and 11 of the source; none of the controls (a
+'' pointer, a declaration's byref parameter, and any use below 'type Foo'). The typedef
+'' had been backpatched to the real Foo, so the type looked complete and tiko took all four.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/incomplete-completed-later.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: incomplete-completed-later.bas(4,8): error TKO0811
+'' EXPECT-OUT: 'foo' is still incomplete here
+'' EXPECT-OUT: incomplete-completed-later.bas(6,10): error TKO0811
+'' EXPECT-OUT: incomplete-completed-later.bas(9,8): error TKO0811
+'' EXPECT-OUT: incomplete-completed-later.bas(11,12): error TKO0811
+'' EXPECT-MAX-DIAG: 4

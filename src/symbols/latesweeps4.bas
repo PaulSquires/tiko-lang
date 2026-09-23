@@ -642,6 +642,48 @@ private sub MarkTypeRefTree4_ ( byref c as Ctx, byval t as NodeId, byref mark as
     wend
 end sub
 
+'' A FORWARD TYPE COMPLETED BELOW ITS USE is incomplete at the use, as fbc reads a file top
+'' to bottom: 'type X as Foo', 'dim as X a', then 'type Foo' is error 71, measured, while
+'' the same DIM after 'type Foo' is taken. By then the typedef has been backpatched to the
+'' real Foo, so the TYPE looks complete; what says otherwise is WHERE Foo is declared. Node
+'' ids run in parse order, so 'below' is a larger id than the use, as DeclaredBelow_ has
+'' it. Through a chain of typedefs, each one's target; only a plain, unqualified target
+'' names a forward type at all. The UDT's name, or "" when this use is not one.
+private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId ) as string
+    dim as SymbolId sid = c.info->RefOf( use )
+    dim as boolean viaTypedef = false
+    dim as long hops = 0
+    while hops < 16
+        hops += 1
+        dim as Symbol ptr sy = c.syms->SymbolAt( sid )
+        if sy = 0 then return ""
+        select case cast( SymbolKind, sy->kind )
+        case SYM_TYPEDEF
+            '' A TYPEDEF SYMBOL'S PAYLOAD IS ITS TARGET TYPEREF, not the N_TYPEDEF node --
+            '' Collect's SameTypeRef_ compares it that way.
+            dim as NodeId ta = cast( NodeId, sy->payload )
+            if (ta = NODE_NONE) orelse (c.ast->Kind( ta ) <> N_TYPEREF) then return ""
+            if (c.ast->nodes[cast( long, ta )].flags and (NF_PTR or NF_ARRAY or NF_PROC_TYPE)) <> 0 then return ""
+            dim as StmtPayload ptr tap = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, ta )].data )]
+            if (tap->ownerName <> 0) orelse (tap->count <> 0) then return ""
+            '' The backpatch types a typedef's target without BINDING it, so the name is
+            '' looked up again, from the scope the typedef is declared in.
+            dim as SymbolId tsid = c.info->RefOf( ta )
+            if tsid = SYMBOL_NONE then tsid = c.syms->LookupTyped( cast( ScopeId, sy->parent ), tap->name, true )
+            sid = tsid
+            viaTypedef = true
+        case SYM_UDT
+            if viaTypedef = false then return ""
+            if sy->declAt = 0 then return ""
+            if cast( ulong, use ) >= sy->declAt then return ""
+            return c.names->Spelling( sy->name )
+        case else
+            return ""
+        end select
+    wend
+    return ""
+end function
+
 private sub CheckIncompleteObjects_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
     dim as FB.Array( of ubyte ) mark
@@ -705,7 +747,9 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         if t = TYPE_NONE then continue for
         t = c.types->Unqualify( t )
         if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
-        if c.types->Kind( t ) <> TK_FORWARD then continue for
+        dim as string laterNm
+        if c.types->Kind( t ) = TK_UDT then laterNm = CompletedBelow4_( c, n )
+        if (c.types->Kind( t ) <> TK_FORWARD) andalso (len( laterNm ) = 0) then continue for
         dim as SourceLoc lc = c.ast->Loc( n )
         dim as boolean seen = false
         for k as long = 0 to doneLoc.Count - 1
@@ -713,7 +757,11 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         next
         if seen then continue for
         doneLoc.Push( cast( ulong, lc ) )
-        c.diags->Report( TKO0810, PointRange( lc ), c.names->Spelling( c.types->NameOf( t ) ) )
+        if len( laterNm ) > 0 then
+            c.diags->Report( TKO0811, PointRange( lc ), laterNm )
+        else
+            c.diags->Report( TKO0810, PointRange( lc ), c.names->Spelling( c.types->NameOf( t ) ) )
+        end if
     next
 
     '' 'sizeof( X )' measures the object too, and its argument is an EXPRESSION -- a name
