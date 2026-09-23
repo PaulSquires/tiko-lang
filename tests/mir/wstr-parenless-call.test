@@ -1,0 +1,10 @@
+'' A function named without parentheses, assigned or concatenated into a wstring, is
+'' called -- not its code address read as a string. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wstr-parenless-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call ptr fb_ExePath()
+'' EXPECT-OUT: call ptr fb_CurDir()
+'' EXPECT-NOT: func.addr

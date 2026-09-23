@@ -222,7 +222,13 @@ function LowerWideAssignTo _
     '' AN ADDRESSABLE narrow string. A string-typed RVALUE -- 'mid( s, 1 )' -- has none,
     '' and returning false here rather than falling through is what kept it from the
     '' descriptor branch at the end: the type test claimed it and then gave up.
-    if IsStringType( c, st ) then
+    '' ...AND A PROCEDURE NAMED WITHOUT PARENTHESES IS A CALL, not a string with an address:
+    '' 'dim w as wstring * 260 = ExePath & "\x"' asked LowerAddr for ExePath and got the
+    '' FUNCTION's address, which fb_WstrAssignFromA then read as a string descriptor -- a
+    '' segfault before the program printed anything. fbc calls it. The descriptor branch
+    '' below does too, as every narrow destination already did; NamesProc_ is the test
+    '' six other paths make for the same reason.
+    if IsStringType( c, st ) andalso (NamesProc_( c, value ) = false) then
         dim as MirValue src = LowerAddr( c, value )
         if src.kind <> cast( ubyte, MV_NONE ) then
             args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
