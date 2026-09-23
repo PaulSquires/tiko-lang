@@ -1,0 +1,13 @@
+'' INSTR and INSTRREV over a ustring in the forms that were missing: a 'ustring * N' with a
+'' start position, the 'any' forms (fb_UStrInstrAny / fb_UStrInstrRevAny), and a
+'' concatenation with a ustring term, which reached the NARROW fb_StrInstr. See the
+'' source for fbc's output, which a run of it matches byte for byte.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-instr-start.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl i64 fb_UStrInstrAny(
+'' EXPECT-OUT: call.rtl i64 fb_UStrInstrRevAny(
+'' EXPECT-OUT: , @uf, %
+'' EXPECT-NOT: fb_StrInstr(

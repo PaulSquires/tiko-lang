@@ -651,6 +651,10 @@ function LowerStrNumCall_ _
     '' to fb_StrInstr, which read it as a byte string.
     dim as boolean isU = IsUStringType( c, c.info->TypeOf_( sE ) )
     isU = isU orelse IsUStringType( c, c.info->TypeOf_( tE ) )
+    '' ...AND A CONCATENATION WITH A USTRING TERM, which Check types STRING: 'instr( 1, u &
+    '' "x", "x" )' went to the NARROW fb_StrInstr over the UTF-16 temporary and answered 0.
+    '' Measured, fbc concatenates with fb_UStrConcat and calls fb_UStrInstr: 7.
+    isU = isU orelse IsUStrChain_( c, sE ) orelse IsUStrChain_( c, tE )
     '' ...AND A WIDE OPERAND BESIDE ONE IS CONVERTED, not refused. This declined, so
     '' 'print instr( u, wchr( c ) )' printed nothing and 'return instr( s, wchr( c ) ) <> 0'
     '' returned no value at all -- clang's "value doesn't match function result type",
@@ -724,11 +728,9 @@ function LowerStrNumCall_ _
         end if
         dim as RtlId rr = RTL_STR_INSTR_REV
         if isAny then rr = RTL_STR_INSTR_REV_ANY
-        '' No fb_UStrInstrRevAny exists, so an 'any' form over a ustring
-        '' declines rather than reaching the narrow one.
+        '' The 'any' forms over a ustring are fb_UStrInstrAny / fb_UStrInstrRevAny -- see rtl.bi.
         if isU then
-            if isAny then return false
-            rr = RTL_USTR_INSTR_REV
+            rr = iif( isAny, RTL_USTR_INSTR_REV_ANY, RTL_USTR_INSTR_REV )
         end if
         if isWide then
             rr = RTL_WSTR_INSTR_REV
@@ -751,8 +753,7 @@ function LowerStrNumCall_ _
         dim as RtlId fr = RTL_STR_INSTR
         if isAny then fr = RTL_STR_INSTR_ANY
         if isU then
-            if isAny then return false
-            fr = RTL_USTR_INSTR
+            fr = iif( isAny, RTL_USTR_INSTR_ANY, RTL_USTR_INSTR )
         end if
         if isWide then
             fr = RTL_WSTR_INSTR

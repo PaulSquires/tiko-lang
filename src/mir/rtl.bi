@@ -489,6 +489,11 @@ namespace Tko.Mir
         RTL( RTL_USTR_RIGHT,        "fb_UStrRightD",       "p",   "pz"    )
         RTL( RTL_USTR_INSTR,        "fb_UStrInstr",        "z",   "zpzpz" )
         RTL( RTL_USTR_INSTR_REV,    "fb_UStrInstrRev",     "z",   "pzpzz" )
+        '' THE 'any' FORMS, which DO exist -- measured, fbc emits 'fb_UStrInstrAny( 2, &U,
+        '' -1, L"ab", <tag> )' for 'instr( 2, u, any "ab" )', and tiko-rt defines both in
+        '' ustr/search.bas. The lowering declined instead, believing there were none.
+        RTL( RTL_USTR_INSTR_ANY,    "fb_UStrInstrAny",     "z",   "zpzpz" )
+        RTL( RTL_USTR_INSTR_REV_ANY, "fb_UStrInstrRevAny", "z",   "pzpzz" )
         RTL( RTL_USTR_ASSIGN_MID,   "fb_UStrAssignMid",    "v",   "pzzzpz" )
         RTL( RTL_VALINT,            "fb_VALINT",           "l",   "p"     )
         '' THE WIDE HALF of the VAL family. Same five shapes, a bare uint16* instead of

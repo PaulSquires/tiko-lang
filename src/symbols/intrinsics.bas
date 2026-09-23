@@ -492,7 +492,7 @@ private function ExprIntrinsicType_ _
         if (nm = "instr") andalso (cp->count = 3) then textSlot = 1
         if textSlot > 0 then
             dim as Tko.BuiltinType tb = ArgBuiltin_( c, cp, textSlot )
-            if (IsStringy_( tb ) orelse (tb = Tko.TY_FIXSTR)) = false then
+            if (IsStringy_( tb ) orelse (tb = Tko.TY_FIXSTR) orelse (tb = Tko.TY_FIXUSTR)) = false then   '' a 'ustring * N' too
                 return Tko.TYPE_NONE
             end if
             return c.types->Builtin( Tko.TY_INTEGER )
