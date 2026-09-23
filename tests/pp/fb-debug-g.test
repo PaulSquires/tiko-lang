@@ -1,0 +1,10 @@
+'' -g MAKES __FB_DEBUG__ -1, as fbc's '#print' shows; without it the value is 0
+'' (fb-debug-default). It was hard-wired to 0 whatever the flags said.
+'' TEST: cli
+'' ARGS: -g --parse-only %s
+'' EXPECT-OUT: debug is on
+'' EXPECT-MAX-DIAG: 1
+
+#if __FB_DEBUG__ = -1
+#error debug is on
+#endif

@@ -1,0 +1,14 @@
+'' WITHOUT -g, assert and assertwarn emit NOTHING and their argument is not evaluated --
+'' fbc's behaviour, measured: no fb_Assert in its C, and 'assert( f( ) = 1 )' never calls f.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: fb_Assert
+'' EXPECT-NOT: call i32 F
+
+function F( ) as long
+    return 1
+end function
+assert( F( ) = 1 )
+assertwarn( F( ) = 2 )

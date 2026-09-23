@@ -1,0 +1,9 @@
+'' Without -g, __FB_DEBUG__ is 0 -- the other half of fb-debug-g.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: debug is on
+
+#if __FB_DEBUG__
+#error debug is on
+#endif

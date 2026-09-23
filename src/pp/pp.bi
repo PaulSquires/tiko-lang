@@ -168,6 +168,14 @@ namespace Tko
         as boolean    threadSafe
         '' -e / -ex / -exx as a level, for __FB_ERR__.
         as long       errLevel
+        '' '-g', for __FB_DEBUG__: fbc's '#print' gives -1 with the flag and 0 without,
+        '' and 'assert' is compiled in exactly when it is -1.
+        as boolean    debugInfo
+        '' WHAT THIS BUILD PRODUCES, for __FB_OUT_EXE__, _DLL__, _LIB__ and _OBJ__: 0 an
+        '' executable, 1 a DLL, 2 a static library, 3 an object ('-c'). Measured with
+        '' fbc's '#print', exactly one of the four is -1 per build; they were fixed at the
+        '' EXE values, so a header that branches on building a DLL took the wrong half.
+        as long       outKind
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
     end type

@@ -228,6 +228,9 @@ private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfi
     cfg.targetIsMsvc = (ctx.options.target = Tko.TARGET_WIN64_MSVC)
     cfg.threadSafe = ctx.options.threadSafe
     cfg.errLevel = ctx.options.errLevel
+    cfg.debugInfo = ctx.options.debugInfo
+    cfg.outKind = iif( ctx.options.compileOnly, 3, _
+        iif( ctx.options.outKind = Tko.OUT_DLL, 1, iif( ctx.options.outKind = Tko.OUT_STATICLIB, 2, 0 ) ) )
     cfg.reportUnsupported = true
     cfg.sharedLits = @ctx.ppLits
     cfg.sharedLexed = @ctx.ppLexed

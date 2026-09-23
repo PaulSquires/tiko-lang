@@ -1,0 +1,18 @@
+'' UNDER -g, ASSERT AND ASSERTWARN ARE fbc's OWN MACROS: 'if (e) = 0 then
+'' fb_Assert( __FILE__, __LINE__, __FUNCTION__, "e" ) end if'. They emitted nothing
+'' whatever the flags, so no assertion in any program ever fired. Built and run, the
+'' messages are byte for byte fbc's on stdout and stderr alike -- "t.bas(5): assertion
+'' failed at CHECK: n = 1" -- and assert ends the program with 1.
+'' TEST: cli
+'' ARGS: -g --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: fb_Assert(
+'' EXPECT-OUT: fb_AssertWarn(
+'' EXPECT-OUT: "n = 1"
+
+sub Check( byval n as long )
+    assertwarn( n > 5 )
+    assert( n = 1 )
+end sub
+Check( 1 )

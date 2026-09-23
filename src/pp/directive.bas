@@ -1258,7 +1258,22 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     ''
     '' This was hard-coded to 0, so '-mt' changed nothing anywhere.
     PpDefineValue( e, "__FB_MT__", iif( e.cfg->threadSafe, "-1", "0" ) )
-    PpDefineValue( e, "__FB_DEBUG__", "0" )
+    PpDefineValue( e, "__FB_DEBUG__", iif( e.cfg->debugInfo, "-1", "0" ) )
+    '' ...AND UNDER -g, ASSERT AND ASSERTWARN ARE fbc's OWN MACROS. Measured -- fbc's C
+    '' annotates the expansion it made:
+    ''
+    ''     assert( n = 1 )  ->  if (n = 1) = 0 then fb_Assert(__FILE__, __LINE__,
+    ''                                                __FUNCTION__, $"n = 1") end if
+    ''
+    '' and fb_Assert prints "a.bas(7): assertion failed at CHECK: n = 1" and ends the
+    '' program, where fb_AssertWarn prints and carries on. Without -g the lowering emits
+    '' nothing and never evaluates the argument, which is fbc's behaviour there too.
+    if e.cfg->debugInfo then
+        PpDefineFunc1( e, "assert", _
+            "if (x) = 0 then __tko_assert( __FILE__, __LINE__, __FUNCTION__, #x ) end if" )
+        PpDefineFunc1( e, "assertwarn", _
+            "if (x) = 0 then __tko_assertwarn( __FILE__, __LINE__, __FUNCTION__, #x ) end if" )
+    end if
     '' __FB_ERR__ IS A BITMASK, and the values are fbc's, measured with '#print':
     ''
     ''     no flag  0        -e  513        -ex  515        -exx  1823
@@ -1293,10 +1308,11 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_OPTION_PRIVATE__", "0" )
     PpDefineValue( e, "__FB_OPTION_PROFILE__", "-1" )
     e.optionValue( 1 ) = -1
-    PpDefineValue( e, "__FB_OUT_EXE__", "-1" )
-    PpDefineValue( e, "__FB_OUT_LIB__", "0" )
-    PpDefineValue( e, "__FB_OUT_DLL__", "0" )
-    PpDefineValue( e, "__FB_OUT_OBJ__", "0" )
+    '' ONE OF THE FOUR IS -1, whichever this build produces -- see PpConfig.outKind.
+    PpDefineValue( e, "__FB_OUT_EXE__", iif( e.cfg->outKind = 0, "-1", "0" ) )
+    PpDefineValue( e, "__FB_OUT_LIB__", iif( e.cfg->outKind = 2, "-1", "0" ) )
+    PpDefineValue( e, "__FB_OUT_DLL__", iif( e.cfg->outKind = 1, "-1", "0" ) )
+    PpDefineValue( e, "__FB_OUT_OBJ__", iif( e.cfg->outKind = 3, "-1", "0" ) )
 
     '' The BYTE/WORD extractors. Bodies copied from 'fbc -pp', which prints them
     '' verbatim; HIWORD is the one that differs by target, because on win32 the

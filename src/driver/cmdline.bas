@@ -106,7 +106,8 @@ function VersionText( ) as string
     dim as string os_ = Tko.TargetName( Tko.HostTarget( ) )
 
     dim as string outp = ""
-    outp += "tiko-lang " & v & " -- a FreeBASIC-compatible compiler" & chr( 10 )
+    '' THE BINARY IS tiko: tiko-lang names the repository, not the program.
+    outp += "tiko " & v & " -- a FreeBASIC-compatible compiler" & chr( 10 )
     outp += "target " & os_ & ", language compatibility fbc " & Tko.TKO_FBC_COMPAT & chr( 10 )
     outp += "built with FreeBASIC " & __FB_VERSION__ & " (" & __FB_SIGNATURE__ & ")" & chr( 10 )
     return outp
@@ -119,7 +120,7 @@ function HelpText( byval category as string = "" ) as string
     dim as boolean filtered = (len( want ) > 0)
 
     dim as string outp = ""
-    outp += "usage: tiko-lang [options] <inputs...>" & chr( 10 ) & chr( 10 )
+    outp += "usage: tiko [options] <inputs...>" & chr( 10 ) & chr( 10 )
 
     for c as long = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL
         dim as string catName = Tko.CategoryName( cast( Tko.OptCategory, c ) )

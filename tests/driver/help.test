@@ -1,7 +1,9 @@
 '' TEST: cli
 '' ARGS: --help
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: usage: tiko-lang [options] <inputs...>
+'' EXPECT-OUT: usage: tiko [options] <inputs...>
+'' EXPECT-OUT: win64-msvc (the Windows default), win64 or linux-x86_64
+'' EXPECT-NOT: RESUME support
 '' EXPECT-OUT: Diagnostics:
 '' EXPECT-OUT: --diagnostics-file <path>
 '' EXPECT-OUT: Compiler development:

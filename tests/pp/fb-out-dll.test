@@ -1,0 +1,11 @@
+'' __FB_OUT_* NAMES WHAT THE BUILD PRODUCES: exactly one of the four is -1. Measured with
+'' fbc's '#print' -- EXE by default, DLL under -dll, LIB under -lib, OBJ under -c. They
+'' were fixed at the EXE values. The '#error' fires only on the right combination.
+'' TEST: cli
+'' ARGS: -dll --parse-only %s
+'' EXPECT-OUT: out-kind is DLL
+'' EXPECT-MAX-DIAG: 1
+
+#if __FB_OUT_DLL__ and ((__FB_OUT_EXE__ + __FB_OUT_DLL__ + __FB_OUT_LIB__ + __FB_OUT_OBJ__) = -1)
+#error out-kind is DLL
+#endif
