@@ -128,7 +128,7 @@ function ConversionCost _
         '' keeps it ahead of everything it was measured to beat -- offered
         '' { integer, byte } an enum takes integer, and { single, integer }
         '' integer again.
-        if fromEnum orelse toEnum then return CONV_WIDEN
+        if fromEnum orelse toEnum then return CONV_NUMERIC + CONV_WIDEN
         return CONV_EXACT
     end if
     '' A NUMERIC PARAMETER TAKING AN ENUM keeps the integer cost the mapping just
@@ -186,7 +186,7 @@ function ConversionCost _
 
     '' Staying in the class beats changing it OUTRIGHT, even when staying means
     '' narrowing: offered 'short' and 'double' for a LONG argument, fbc takes short.
-    dim as long cost = 0
+    dim as long cost = CONV_NUMERIC      '' see its declaration
     if IsFloat_( srcB ) <> IsFloat_( dstB ) then cost += CONV_CLASS
 
     '' Then SIZE: the same width beats a widening, and a widening beats a narrowing.

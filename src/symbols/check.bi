@@ -66,6 +66,16 @@ namespace Tko.Check
                                            '' any widening, however far
     const CONV_CLASS    as long = 5000     '' integer <-> float
     const CONV_BOOL     as long = 20000    '' anything <-> boolean
+    '' EVERY NUMERIC CONVERSION ALSO PAYS CONV_NUMERIC, and it matters only once there is
+    '' more than one argument. fbc scores an argument FULL when it matches exactly and
+    '' HALF less a closeness rank when it converts, and the gap between the two is wider
+    '' than any two ranks can differ -- so a candidate matching one argument exactly beats
+    '' one converting both, however cheaply. Without the tier the sum let two widenings
+    '' (100 each) beat an exact match and a narrowing (1000): 'AddSaturating( long, -5L )'
+    '' -- '-5L' is an INTEGER -- chose the LONGINT overload of fb/mathint.bi where fbc
+    '' chose LONG. Added uniformly, it changes no single-argument order: every numeric
+    '' conversion stays below CONV_BOOL, CONV_PTR_CLASS and CONV_USERDEF.
+    const CONV_NUMERIC  as long = 10000
     '' A USER-DEFINED CONVERSION -- a conversion constructor on the destination, or an
     '' 'operator cast' on the source. Above every standard conversion and below
     '' CONV_NONE, and the standard conversion that follows it is ADDED rather than

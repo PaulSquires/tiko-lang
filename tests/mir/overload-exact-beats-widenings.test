@@ -1,0 +1,11 @@
+'' An exact match outweighs any two numeric conversions, as fbc scores it: a LONG and a
+'' negated LONG (an INTEGER) take the LONG pair, not the LONGINT one. A single negated
+'' argument, and two, still take LONGINT. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-exact-beats-widenings.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _Z1Gii(
+'' EXPECT-OUT: call void _Z1Gxx(
+'' EXPECT-OUT: call void _Z1Fx(
