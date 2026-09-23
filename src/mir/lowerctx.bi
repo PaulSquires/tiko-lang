@@ -1094,6 +1094,8 @@ declare function EmitRtl _
     '' Is this node 'this' -- the receiver, held in the ABI as a POINTER?
     declare function IsThisPointerIdent_ _
         ( byref c as Ctx, byval n as Tko.NodeId ) as boolean
+    declare function InitSourceType_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.TypeId
+    declare function InitSourceAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
     declare function IsArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     declare function ConstFloat _

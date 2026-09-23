@@ -94,6 +94,32 @@ function IsThisPointerIdent_ _
     return (c.types->Kind( sy->type_ ) = Tko.TK_POINTER)
 end function
 
+'' THE TYPE A DIM INITIALISER HAS AS A SOURCE OBJECT: its own type, except that 'this' is
+'' the OBJECT it points at. 'dim child as T = this' reached the copy-constructor path
+'' with a POINTER type, failed its 'same UDT' test and fell through to the default
+'' constructor and a BITWISE store -- two objects sharing every buffer, and both
+'' destructors freeing them. Measured, fbc calls the implicit copy constructor exactly
+'' as it does for a variable. fb/logger.bi's Logger_.WithName and WithField are that
+'' line, and logger_sinks died with 0xC0000374.
+function InitSourceType_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.TypeId
+    if IsThisPointerIdent_( c, n ) then
+        dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
+        return c.types->Inner( sy->type_ )
+    end if
+    return c.info->TypeOf_( n )
+end function
+
+'' ...AND ITS ADDRESS AS A SOURCE OBJECT: for 'this', the POINTER'S VALUE, not the slot
+'' holding it -- the idiom every other receiver site uses. Handed '@this', the copy
+'' constructor read the slot as the object and faulted.
+function InitSourceAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
+    dim as MirValue a = LowerAddr( c, n )
+    if IsThisPointerIdent_( c, n ) andalso (a.kind <> cast( ubyte, MV_NONE )) then
+        return LowerExprLoad( c, a, MT_PTR )
+    end if
+    return a
+end function
+
 '' A CONVERSION THAT CONVERTS NOTHING IS AN LVALUE, and only that one.
 ''
 '' Measured, by asking fbc to accept each:

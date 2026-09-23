@@ -465,7 +465,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     end if
                 end if
                 if (ip->b <> Tko.NODE_NONE) andalso (initIsLiteral = false) then
-                    dim as Tko.TypeId ivt = c.info->TypeOf_( ip->b )
+                    dim as Tko.TypeId ivt = InitSourceType_( c, ip->b )   '' 'this' is its pointee
                     '' ...AND A CALL CHECK LEFT UNTYPED is its binding's result:
                     '' 'mk( a + " 2027" )' over a DWSTRING. See UntypedCallResult_.
                     if ivt = Tko.TYPE_NONE then ivt = UntypedCallResult_( c, ip->b )
@@ -532,7 +532,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                             '' WHAT THE INITIALISER REGISTERS FOR DESTRUCTION has to
                             '' be known before it is lowered -- see DropMovedTemp_.
                             dim as long cmark = c.udtTemps.Count
-                            dim as MirValue ssa = LowerAddr( c, ip->b )
+                            dim as MirValue ssa = InitSourceAddr_( c, ip->b )
                             '' A CALL'S HIDDEN-POINTER TEMPORARY IS MOVED, NOT
                             '' COPIED. 'dim as C r = f( )' built the result in a
                             '' temporary, COPY-CONSTRUCTED r out of it and destroyed

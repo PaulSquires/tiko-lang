@@ -1,0 +1,12 @@
+'' 'dim child as T = this' in a method copy-constructs child from the receiver -- the
+'' implicit copy constructor, given the LOADED 'this' pointer -- rather than running the
+'' default constructor and storing the object bitwise over it, which shared every buffer
+'' and freed them twice (fb/logger.bi's WithName, 0xC0000374). See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/copy-init-from-this.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: = load @this
+'' EXPECT-OUT: call void _ZN5OUTERC1ERKS_(@child, %
+'' EXPECT-NOT: _ZN5OUTERC1ERKS_(@child, @this)
