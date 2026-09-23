@@ -1,0 +1,12 @@
+'' A literal for a 'byref as const string' parameter of a HEADER-declared procedure bound
+'' to a runtime alias gets a real temporary, deleted after the call, as fbc gives it --
+'' not the pool descriptor fbc reserves for its own runtime procedures, which leaked one
+'' slot per call. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/header-rt-alias-literal-temp.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_StrIsNumeric(
+'' EXPECT-OUT: fb_StrDelete(
+'' EXPECT-NOT: fb_StrAllocTempDescZEx

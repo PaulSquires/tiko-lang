@@ -84,6 +84,17 @@ private function RuntimeEntryCallee_ _
     dim as Tko.StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
     if sp->aliasName = 0 then return false
+    '' ...AND DECLARED IN THE PRELUDE, which is what stands in for fbc's own runtime
+    '' table. A HEADER's declaration is an ordinary procedure to fbc whatever its alias
+    '' says: fb/string.bi binds 'IsNumeric' to "fb_StrIsNumeric", and measured, fbc
+    '' passes it a REAL temporary -- 'fb_StrAssign( &TMP, -1, "42", 3, 0 );
+    '' fb_StrIsNumeric( &TMP ); fb_StrDelete( &TMP )'. Handed a pool descriptor that the
+    '' callee never releases, every call with a literal leaked one slot: after 255 of
+    '' them the pool was dry, and each later temporary string in the program came back
+    '' empty. fbstr_pad's leak test failed, and its every later assertion with it.
+    if c.srcMgr <> 0 then
+        if c.srcMgr->IsBuiltin( c.ast->Loc( pn ) ) = false then return false
+    end if
     dim as string al = c.names->Spelling( sp->aliasName )
     if left( al, 3 ) = "fb_" then return true
     return (left( al, 5 ) = "__fb_")
