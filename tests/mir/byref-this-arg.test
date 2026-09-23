@@ -1,0 +1,9 @@
+'' 'this' passed to a byref parameter of its own UDT is the loaded receiver pointer, and
+'' the call is lowered -- it was silently dropped. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/byref-this-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void HADD(
+'' EXPECT-OUT: call void HADDP(

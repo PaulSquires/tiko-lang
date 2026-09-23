@@ -537,6 +537,22 @@ private function ByrefUdtArg_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue ) as boolean
 
+    '' 'this' IS THE OBJECT IT POINTS AT. Typed as the pointer it is held in, it looked
+    '' like an argument needing a conversion to the parameter's UDT, none could be built,
+    '' and the WHOLE CALL was dropped as a decline -- no diagnostic, and the build went on.
+    '' fb/currency.bi's CurrencyAccum does all its arithmetic through
+    '' 'hAccAdd( this, ... )', so every Add was lost and Total( ) was zero. Measured, fbc
+    '' passes 'THIS$1' itself: the pointer's value, as InitSourceAddr_ gives it. Only for
+    '' a parameter the pointee binds to without a user conversion -- its own type, a base.
+    if IsThisPointerIdent_( c, argNode ) andalso (pt <> Tko.TYPE_NONE) then
+        dim as Tko.TypeId obT = InitSourceType_( c, argNode )
+        dim as Tko.TypeId ppt = c.types->Unqualify( pt )
+        if c.types->Kind( ppt ) = Tko.TK_REFERENCE then ppt = c.types->Inner( ppt )
+        if Tko.Check.ConversionCost( obT, ppt, *c.types ) < Tko.Check.CONV_NUMERIC then
+            outa = InitSourceAddr_( c, argNode )
+            return (outa.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
     if ByrefConvArg_( c, argNode, pt, outa ) then
         return (outa.kind <> cast( ubyte, MV_NONE ))
     end if
