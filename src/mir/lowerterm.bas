@@ -944,7 +944,17 @@ private function ZstrTermIsRvalue_ _
 
     if id = Tko.NODE_NONE then return false
     select case c.ast->Kind( id )
-    case Tko.N_CALL, Tko.N_INTRINSIC
+    case Tko.N_CALL
+        '' ...BUT AN ARRAY ELEMENT PARSES AS A CALL, and it has storage. Taken for an
+        '' rvalue, 'strptr( av( i ) )' copied the element into a temporary, handed back
+        '' THE TEMPORARY'S buffer and deleted it at the end of the statement -- a pointer
+        '' into freed memory, where fbc gives the element's own. Measured: after some
+        '' heap churn one of four such pointers read '####...', and all four compared
+        '' unequal to the element's strptr; fbc: all equal. tiko's own C importer builds
+        '' libclang's argv exactly this way, and a tiko-built tiko passed libclang
+        '' garbage arguments -- '-resourc<E0>P...' -- where the fbc-built one did not.
+        return (IsArrayIndex( c, id ) = false)
+    case Tko.N_INTRINSIC
         return true
     case Tko.N_BINARY
         '' A concatenation only; every other binary over strings is a comparison,

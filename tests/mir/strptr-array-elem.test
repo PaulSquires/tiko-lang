@@ -1,0 +1,7 @@
+'' strptr( av( i ) ) takes the element's own data pointer: no temporary is copied
+'' and deleted around it. See the src file; goldenrun executes it.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/strptr-array-elem.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: fb_StrDelete
