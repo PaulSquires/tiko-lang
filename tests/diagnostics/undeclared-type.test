@@ -1,0 +1,18 @@
+'' TKO0808: a type name nothing declares. fbc-modern reports exactly lines 6, 7, 9, 11, 13
+'' and 14 of the source -- a DIM, a pointer DIM, a field, a parameter, a typedef to an
+'' undeclared FB.Array( of Cell ) (HANDOFF 9f), a DIM of one -- and none of the controls: a
+'' forward typedef behind a pointer, a generic type's base clause naming its own parameter,
+'' and 'typeof' of a field. tiko reported none of the six, and the declarations lowered
+'' to nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/undeclared-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: undeclared-type.bas(6,8): error TKO0808
+'' EXPECT-OUT: the type 'foo' is not declared
+'' EXPECT-OUT: undeclared-type.bas(7,8): error TKO0808
+'' EXPECT-OUT: undeclared-type.bas(9,10): error TKO0808
+'' EXPECT-OUT: undeclared-type.bas(11,26): error TKO0808
+'' EXPECT-OUT: undeclared-type.bas(13,19): error TKO0808
+'' EXPECT-OUT: the type 'fb.array' is not declared
+'' EXPECT-OUT: undeclared-type.bas(14,8): error TKO0808
+'' EXPECT-MAX-DIAG: 6

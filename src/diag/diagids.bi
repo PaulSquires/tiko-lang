@@ -547,6 +547,9 @@
     '' 'zstring ptr'. The call form, 'T( u )', is fbc's 99 and reports TKO0632.
     '' fbc's error 14 (17 for an enum, 4 for some namespaces): a keyword cannot name a type,
     '' a typedef, an enum or a namespace -- see KwTypeName_ in symbols/collectkw.bas.
+    '' fbc's error 14 for 'dim as Foo a', 71 for 'type X as Foo', 59 for a parameter, 8 for
+    '' a qualified name inside a namespace it knows: a TYPE NAME NOTHING DECLARES.
+    DIAG( TKO0808, SEV_ERROR,   "the type '%0' is not declared" )
     DIAG( TKO0807, SEV_ERROR,   "'%0' is a keyword and cannot name %1" )
     DIAG( TKO0806, SEV_ERROR,   "'%0' cannot be initialized from a ustring: no constructor of '%1' takes one, and a ustring does not convert to 'zstring ptr' here" )
 

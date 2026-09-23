@@ -34,6 +34,16 @@ private function InTemplate_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as b
     return false
 end function
 
+'' A TYPE NAME THAT FOUND NOTHING, kept the same way for the same report: only if nothing
+'' has typed the reference by the end of Check, and never inside a template, where a
+'' type parameter is exactly such a name until an instantiation binds it.
+private sub NoteUnboundType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+    if c.st->unresolvedTypes.Count >= 200000 then return
+    if InTemplate_( c, scope_ ) then return
+    c.st->unresolvedTypes.Push( cast( ulong, id ) )
+end sub
+
 '' Kept for the report after Check -- which makes it only if nothing types the name by
 '' then and it is not a builtin, see undeclared.bas -- unless a template holds it.
 private sub NoteUnbound_ _

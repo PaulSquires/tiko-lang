@@ -75,6 +75,10 @@ namespace Tko.Resolve
         '' (Check.ReportUndeclared) -- Resolve cannot make it, because a builtin that is
         '' not a keyword binds nothing either and only a later pass can rule it out.
         as FB.Array( of ulong ) unresolvedIds
+        '' ...and the TYPE REFERENCES whose name found nothing -- 'dim as Foo a', 'type X as
+        '' FB.Array( of Cell )' with no Array declared. Reported after Check, by the same
+        '' pass, once nothing has typed them by then; see undeclared.bas.
+        as FB.Array( of ulong ) unresolvedTypes
     end type
 
     declare sub Run _

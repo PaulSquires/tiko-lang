@@ -83,9 +83,30 @@ sub ReportUndeclared _
     next
     '' '#assert' LINES, as file and line pairs.
     dim as FB.Array( of ulong ) ppAssert
+    '' Every generic type's parameters, as file, header line and folded name -- see N_TYPE.
+    dim as FB.Array( of ulong ) genHdr
 
     for i as long = 1 to total
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if ast.Kind( n ) = Tko.N_TYPE then
+            '' A GENERIC TYPE'S BASE CLAUSE NAMES ITS OWN PARAMETERS -- 'type D( of T ) extends
+            '' B( of T )' -- and is resolved from OUTSIDE the type, where no template scope
+            '' says T is a parameter. fb/comptr.bi's ComQIPtr is that line, and every com
+            '' suite includes it. By LOCATION, because an instantiation re-parses the type:
+            '' the reference reported is a fresh node, but on the same header line.
+            dim as Tko.StmtPayload ptr gtp = @ast.stmts[cast( long, ast.nodes[i].data )]
+            if (gtp->b <> Tko.NODE_NONE) andalso (ast.Kind( gtp->b ) = Tko.N_BLOCK) then
+                dim as Tko.ListPayload ptr gpl = @ast.lists[cast( long, ast.nodes[cast( long, gtp->b )].data )]
+                dim as Tko.DecodedLoc hl = src.Decode( ast.Loc( n ) )
+                for k as long = 0 to gpl->count - 1
+                    dim as Tko.NodeId pn = cast( Tko.NodeId, ast.children[gpl->first + k] )
+                    if ast.Kind( pn ) = Tko.N_IDENT then
+                        genHdr.Push( cast( ulong, hl.file ) ) : genHdr.Push( cast( ulong, hl.physLine ) )
+                        genHdr.Push( cast( ulong, names.Fold( ast.idents[cast( long, ast.nodes[cast( long, pn )].data )].name ) ) )
+                    end if
+                next
+            end if
+        end if
         select case ast.Kind( n )
         case Tko.N_PARAM
             dim as Tko.NodeId d = ast.stmts[cast( long, ast.nodes[i].data )].b
@@ -164,6 +185,27 @@ sub ReportUndeclared _
                     skip[cast( long, op->a )] = 1
                 end select
             end if
+        case Tko.N_TYPEDEF
+            '' A TYPEDEF'S TARGET MAY NAME WHAT NOTHING DECLARES -- that is a FORWARD type,
+            '' opaque until declared: 'type P as Foo ptr' compiles under fbc, and the Windows
+            '' headers are full of them. Only a plain name, though: a QUALIFIED or GENERIC
+            '' target, 'type X as FB.Foo' or 'as FB.Array( of Cell )', is fbc's error 3.
+            '' Measured: in every other position an undeclared name is an error -- a DIM, a
+            '' field, a parameter, a result, an EXTERN, a local -- pointer or not.
+            dim as Tko.NodeId ta = ast.stmts[cast( long, ast.nodes[i].data )].a
+            '' ...through its 'ptr' and 'const' wrappers, each a nameless typeref around it.
+            for wd as long = 1 to 16
+                if (ta < 1) orelse (cast( long, ta ) > total) then exit for
+                if ast.Kind( ta ) <> Tko.N_TYPEREF then exit for
+                if ast.stmts[cast( long, ast.nodes[cast( long, ta )].data )].name <> Tko.INTERN_NONE then exit for
+                ta = ast.stmts[cast( long, ast.nodes[cast( long, ta )].data )].a
+            next
+            if (ta > 0) andalso (cast( long, ta ) <= total) then
+                if ast.Kind( ta ) = Tko.N_TYPEREF then
+                    dim as Tko.StmtPayload ptr tap = @ast.stmts[cast( long, ast.nodes[cast( long, ta )].data )]
+                    if (tap->ownerName = Tko.INTERN_NONE) andalso (tap->count = 0) then skip[cast( long, ta )] = 1
+                end if
+            end if
         case Tko.N_ASSERT
             dim as Tko.DecodedLoc al = src.Decode( ast.Loc( n ) )
             ppAssert.Push( cast( ulong, al.file ) )
@@ -206,5 +248,46 @@ sub ReportUndeclared _
         dim as Tko.DiagId d = Tko.TKO0743
         if skip[cast( long, id )] = SKIP_PROCPTR then d = Tko.TKO0783
         diags.Report( d, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ) )
+    next
+
+    '' A TYPE NAME NOTHING DECLARES -- 'dim as Foo a', fbc's 14; 'type X as Foo', its 71;
+    '' a parameter, its 59; 'type CellArray as FB.Array( of Cell )' with no Array declared.
+    '' tiko accepted every one in silence: the declaration got no type and whatever
+    '' used it lowered to nothing, or to 'local void'. Resolve notes the reference when
+    '' its lookup gives up, outside a template; it is reported only if nothing has typed
+    '' it by now, never from the prelude, once per line, and not beside a name already
+    '' reported on that line.
+    for i as long = 0 to rst.unresolvedTypes.Count - 1
+        dim as Tko.NodeId id = cast( Tko.NodeId, rst.unresolvedTypes[i] )
+        if (id < 1) orelse (cast( long, id ) > total) then continue for
+        if skip[cast( long, id )] = 1 then continue for
+        if ast.Kind( id ) <> Tko.N_TYPEREF then continue for
+        if info.TypeOf_( id ) <> Tko.TYPE_NONE then continue for
+        if info.RefOf( id ) <> Tko.SYMBOL_NONE then continue for
+        if src.IsBuiltin( ast.Loc( id ) ) then continue for
+        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
+        if tp->name = Tko.INTERN_NONE then continue for
+        dim as string tn = names.Spelling( tp->name )
+        '' A NAME THE COMPILER MADE is never the user's to have declared: a lambda's closure
+        '' type, '__tko_closure_...', is what an unsupported capture leaves behind.
+        if left( lcase( tn ), 6 ) = "__tko_" then continue for
+        if tp->ownerName <> Tko.INTERN_NONE then tn = names.Spelling( tp->ownerName ) & "." & tn
+        dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( id ) )
+        dim as boolean seen = false
+        if tp->ownerName = Tko.INTERN_NONE then
+            dim as ulong fnm = cast( ulong, names.Fold( tp->name ) )
+            for k as long = 0 to genHdr.Count - 3 step 3
+                if (genHdr[k] = cast( ulong, dl.file )) andalso (genHdr[k + 1] = cast( ulong, dl.physLine )) _
+                   andalso (genHdr[k + 2] = fnm) then seen = true
+            next
+        end if
+        for k as long = 0 to done.Count - 2 step 2
+            if (done[k] = cast( ulong, dl.file )) andalso _
+               (done[k + 1] = cast( ulong, dl.physLine )) then seen = true
+        next
+        if seen then continue for
+        done.Push( cast( ulong, dl.file ) )
+        done.Push( cast( ulong, dl.physLine ) )
+        diags.Report( Tko.TKO0808, Tko.PointRange( ast.Loc( id ) ), tn )
     next
 end sub

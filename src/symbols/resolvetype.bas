@@ -103,6 +103,8 @@ end function
 declare sub ForwardTypeRef_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, _
       byval scope_ as Tko.ScopeId )
+declare sub NoteUnboundType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
 private function LookupTypeAtPoint_ _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
@@ -527,6 +529,7 @@ function ResolveTypeRef _
         if sp->ownerName = 0 then tparam = TemplateTypeParam_( c, scope_, sp->name )
 
         dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
+        dim as boolean qualExpr = false   '' the qualifier names a VALUE -- see NoteUnboundType_
         if sp->ownerName <> 0 then
             '' The qualifier may be a PATH -- 'a.b.c' -- which the parser keeps dotted
             '' in one field. Walk it a component at a time: only the FIRST component is
@@ -573,6 +576,7 @@ function ResolveTypeRef _
                     (qs->kind = cast( ubyte, Tko.SYM_NAMESPACE )) orelse _
                     (qs->kind = cast( ubyte, Tko.SYM_UDT ))
                 if (qualifies = false) orelse (qs->inner = Tko.SCOPE_NONE) then
+                    qualExpr = (qualifies = false)
                     ok = false
                     exit while
                 end if
@@ -617,6 +621,8 @@ function ResolveTypeRef _
             dim as boolean ready = (s->type_ <> Tko.TYPE_NONE)
             if ready then ready = (c.types->Kind( s->type_ ) <> Tko.TK_TYPEDEF)
             if ready then base_ = s->type_
+        elseif (tparam = false) andalso (qualExpr = false) then
+            NoteUnboundType_( c, id, scope_ )    '' a type nothing declares -- fbc's 14
         end if
     end select
 
