@@ -1218,6 +1218,8 @@ declare function EmitRtl _
     declare sub RuntimeUStrNarrowArg_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval argNode as Tko.NodeId, _
           byval pt as Tko.TypeId, byref outa as MirValue )
+    declare function UStrToStrAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UStrZstrData_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function UStrResultArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue, byref outSlot as long, _

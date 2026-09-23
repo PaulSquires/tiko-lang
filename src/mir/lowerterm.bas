@@ -991,6 +991,9 @@ function ZstrDataOf_ _
         end if
     end if
 
+    '' A USTRING IS A NARROW COPY, never its own UTF-16 data -- see UStrZstrData_.
+    if UStrZstrData_( c, id, outv ) then return true
+
     '' AN 'iif' IS ASKED BEFORE THE KIND TESTS, not after them. Measured, fbc builds
     '' ONE var-length temporary, initialises it in EACH BRANCH, and takes the data
     '' pointer out of it:

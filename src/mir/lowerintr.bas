@@ -1310,7 +1310,7 @@ function LowerStrPtrCall_ _
         return true
     end if
 
-    return ZstrDataOf_( c, a0, outv )
+    return UStrDataArg_( c, a0, outv ) orelse ZstrDataOf_( c, a0, outv )   '' a ustring's OWN data -- see UStrZstrData_
 end function
 
 

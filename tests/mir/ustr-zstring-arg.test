@@ -1,0 +1,15 @@
+'' A ustring for a 'zstring ptr' or 'byref as zstring' parameter, and for NAME, is
+'' converted with fb_UStrToStr into a real narrow temporary rather than passed as its own
+'' UTF-16 buffer; strptr over it still takes that buffer. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-zstring-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrToStr(@a, -1)
+'' EXPECT-OUT: fb_UStrToStr(@b, -1)
+'' EXPECT-OUT: call i32 fb_FileExists(%
+'' EXPECT-OUT: call.rtl i32 rename(%
+'' EXPECT-OUT: fb_StrDelete(@$tmp
+'' EXPECT-NOT: = load @a
+'' EXPECT-NOT: = load @b

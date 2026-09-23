@@ -116,21 +116,61 @@ sub RuntimeUStrNarrowArg_ _
     if IsUStringType( c, pt ) then exit sub
     if RuntimeEntryCallee_( c, callee ) = false then exit sub
     dim as MirValue v
-    if UStrToStrTemp_( c, argNode, v ) then
-        outa = v
-        exit sub
-    end if
-    '' A CONCATENATION WITH A USTRING TERM has no type of its own, so the test above
-    '' cannot see it. Measured, 'setenviron( ev & "=xyz" )' over a ustring 'ev' is
-    '' 'vr = fb_UStrConcat( &TMP, ... ); fb_SetEnviron( fb_UStrToStr( vr, -1 ) )'.
-    if ConcatHasUStrTerm_( c, argNode ) = false then exit sub
+    if UStrToStrAny_( c, argNode, v ) then outa = v
+end sub
+
+'' A USTRING AS A NARROW STRING: 'fb_UStrToStr( u, -1 )', a POOL descriptor, which a runtime
+'' entry consumes. A typed ustring -- a variable, a field, a call result -- and a
+'' CONCATENATION WITH A USTRING TERM, which has no type of its own and so needs asking
+'' term by term. Measured, 'setenviron( ev & "=xyz" )' over a ustring 'ev' is
+'' 'vr = fb_UStrConcat( &TMP, ... ); fb_SetEnviron( fb_UStrToStr( vr, -1 ) )'. False,
+'' emitting nothing, for anything else.
+function UStrToStrAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    if UStrToStrTemp_( c, e, outv ) then return true
+    if ConcatHasUStrTerm_( c, e ) = false then return false
     dim as MirValue dv
-    if StrDescriptorOf_( c, argNode, dv ) = false then exit sub
+    if StrDescriptorOf_( c, e, dv ) = false then return false
     dim as FB.Array( of ulong ) ua
     PushStrArg( ua, dv )
-    v = EmitRtl( c, RTL_USTR_TO_STR, ua )
-    if v.kind <> cast( ubyte, MV_NONE ) then outa = v
-end sub
+    outv = EmitRtl( c, RTL_USTR_TO_STR, ua )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' A USTRING WHERE A ZSTRING'S BYTES ARE WANTED -- a 'zstring ptr' or 'byref as zstring'
+'' parameter, NAME's two paths -- is a NARROW COPY, not its own data pointer, which is
+'' UTF-16: 'C:\...' read as narrow is the string "C". fileexists, filelen and
+'' filedatetime over a ustring path all answered for a file called "C", and NAME renamed
+'' nothing. Measured, fbc converts into a REAL temporary and deletes it after the call:
+''
+''     vr = fb_UStrToStr( &A, -1 );  fb_StrAssign( &TMP, -1, vr, -1, 0 );
+''     fb_FileExists( *(char**)&TMP );  fb_StrDelete( &TMP )
+''
+'' -- not the pool descriptor itself, which a procedure that is not a runtime entry never
+'' releases, so each call would leak a slot. The temporary dies with the statement, as
+'' ZstrDataOf_'s other rvalue borrows do. False, emitting nothing, for a non-ustring.
+''
+'' STRPTR AND SADD ARE THE EXCEPTION, and ask UStrDataArg_ before ZstrDataOf_: over a
+'' ustring they are its OWN UTF-16 buffer. Measured, 'strptr( u ) = sadd( u )' is true
+'' under fbc and the first unit is 104, 'h' -- a copy would be neither.
+function UStrZstrData_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    dim as MirValue nv
+    if UStrToStrAny_( c, e, nv ) = false then return false
+    dim as long ztmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if ztmp < 0 then return false
+    dim as MirValue zd
+    zd.kind = cast( ubyte, MV_LOCAL )
+    zd.ty = cast( ubyte, MT_PTR )
+    zd.id = ztmp
+    ZeroStrDescriptor( c, zd )
+    dim as FB.Array( of ulong ) za
+    PushStrArg( za, zd )
+    PushStrArg( za, nv )
+    za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+    EmitRtl( c, RTL_STR_ASSIGN, za )
+    c.strTemps.Push( cast( ulong, ztmp ) )
+    outv = LowerExprLoad( c, zd, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
 
 '' DOES THIS ARGUMENT PASS ITS OWN DESCRIPTOR TO A BYREF STRING PARAMETER?
 ''
