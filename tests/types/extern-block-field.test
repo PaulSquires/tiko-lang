@@ -1,0 +1,14 @@
+'' 'field = N' on a type inside an extern block is honoured, not read with the block's
+'' linkage bits as a packing of 33.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/extern-block-field.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: a size 12 align 8
+'' EXPECT-OUT: a off p 4
+'' EXPECT-OUT: b size 6 align 4
+'' EXPECT-OUT: b off p 2
+'' EXPECT-OUT: c size 12 align 8
+'' EXPECT-OUT: c off p 4
+'' EXPECT-OUT: d size 20 align 8
+'' EXPECT-OUT: d off q 4
+'' EXPECT-OUT: d off s 12

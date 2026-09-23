@@ -564,9 +564,9 @@ sub WalkNode _
             '' from the instantiation's own scope walks the wrong way and finds
             '' nothing.
             w.info->SetRef( id, sid )
-            if sp->extra > 0 then
-                w.types->SetPacking( s->type_, cast( long, sp->extra ) )
-            end if
+            '' 'field = N' SHARES 'extra' WITH AN EXTERN BLOCK'S PF_FOREIGN/PF_CXX (packing 33 in commctrl.bi).
+            dim as ulong pk = sp->extra and not cast( ulong, Tko.PF_FOREIGN or Tko.PF_CXX )
+            if pk > 0 then w.types->SetPacking( s->type_, cast( long, pk ) )
         end if
         w.info->SetScope( id, inner )
 
