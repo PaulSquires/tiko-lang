@@ -589,7 +589,11 @@ function ResolveTypeRef _
                 sid = c.syms->LookupLocalTyped( sc, sp->name, true )
             end if
         end if
-        if (sid = Tko.SYMBOL_NONE) andalso (tparam = false) then
+        '' NEVER FOR A QUALIFIED NAME. 'type Q as NS.Foo' with no NS.Foo fell back to the
+        '' UNQUALIFIED name and bound whatever Foo was in scope -- a forward type, a real one --
+        '' where fbc refuses it (error 3 as a typedef target, 14 in a DIM, measured), whether
+        '' the path fails or only its last member does. A qualified name means that or nothing.
+        if (sid = Tko.SYMBOL_NONE) andalso (tparam = false) andalso (sp->ownerName = 0) then
             sid = LookupTypeAtPoint_( c, scope_, sp->name, id )
         end if
 

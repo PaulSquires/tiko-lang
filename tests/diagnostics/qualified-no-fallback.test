@@ -1,0 +1,12 @@
+'' TKO0808: a qualified name whose qualifier path fails is not declared. It used to fall back
+'' to the UNqualified name and bind whatever was in scope -- a forward Foo, a real Bar -- so
+'' 'type Q as NS.Foo' and 'dim as NS.Foo' compiled -- with NS declared, only its member
+'' missing. fbc refuses exactly lines 9 and 10 of the source (errors 3 and 14).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/qualified-no-fallback.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: qualified-no-fallback.bas(9,11): error TKO0808
+'' EXPECT-OUT: the type 'ns.foo' is not declared
+'' EXPECT-OUT: qualified-no-fallback.bas(10,8): error TKO0808
+'' EXPECT-OUT: the type 'ns.foo' is not declared
+'' EXPECT-MAX-DIAG: 2
