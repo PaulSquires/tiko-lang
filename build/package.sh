@@ -387,6 +387,63 @@ else
     IMPLIB_STATE="not applicable on this host"
 fi
 
+# ------------------------------------------------------------------- fbcunit
+#
+# THE UNIT-TEST LIBRARY SHIPS, header and archive, so a user's test suite needs
+# nothing that is not in the toolchain: '#include "fbcunit.bi"' is found in inc/,
+# and its '#inclib "fbcunit"' in lib/<target>/, beside the runtime, where the
+# compiler already looks. fbcunit is fbc's own -- tests/vendor/fbc-tests/fbcunit,
+# vendored unmodified -- so it is BUILT HERE with the compiler just packaged,
+# per target, rather than copied: fbc's archives are MinGW and the default target
+# is the Microsoft ABI. libfbcunit.a on every target, the MSVC one included --
+# LinkExe resolves lib<name>.a in a search path before it asks lld-link for
+# <name>.lib.
+#
+# LGPL-2.1-or-later WITH A STATIC-LINKING EXCEPTION, so the archive carries an
+# obligation: its source ships beside it, under src/fbcunit, with its notices.
+#
+# NOT FATAL, as the graphics library is not: a user without fbcunit has lost the
+# test library, not the compiler. The manifest records each target either way.
+FBCU="$ROOT/tests/vendor/fbc-tests/fbcunit"
+FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
+FBCU_STATE=""
+for t in $TARGETS; do
+    _fo="$OUT/.fbcunit.$t"
+    rm -rf "$_fo"; mkdir -p "$_fo"
+    _fok=1
+    for _fs in "$FBCU"/src/*.bas; do
+        _fn=$( basename "$_fs" .bas )
+        "$OUT/${BINSUB}tiko$EXT" -target "$t" -c "$_fs" -i "$FBCU/inc" -i "$FBCU/src" \
+            -o "$_fo/$_fn.o" >>"$_fo/log" 2>&1 || true
+        # THE OBJECT IS THE TEST, not the exit code -- see verify_target below.
+        [ -f "$_fo/$_fn.o" ] || _fok=0
+    done
+    rm -f "$OUT/lib/$t/libfbcunit.a"
+    if [ "$_fok" = "1" ] && "$FBCU_AR" rcs "$OUT/lib/$t/libfbcunit.a" "$_fo"/*.o; then
+        note "fbcunit -> lib/$t/libfbcunit.a"
+        FBCU_STATE="$FBCU_STATE
+  $t  packaged"
+    else
+        _fwhy=$( grep -m1 -iE 'error' "$_fo/log" | cut -c1-120 )
+        [ -n "$_fwhy" ] || _fwhy="archive not written ($FBCU_AR)"
+        note "WARNING: fbcunit not built for $t -- $_fwhy"
+        FBCU_STATE="$FBCU_STATE
+  $t  FAILED -- $_fwhy"
+    fi
+    rm -rf "$_fo"
+done
+if [ -d "$OUT/inc" ]; then
+    cp -f "$FBCU/inc/fbcunit.bi" "$OUT/inc/fbcunit.bi"
+else
+    note "WARNING: no inc/ -- fbcunit.bi not packaged"
+    FBCU_STATE="$FBCU_STATE
+  header NOT packaged -- no inc/"
+fi
+rm -rf "$OUT/src/fbcunit"
+mkdir -p "$OUT/src/fbcunit"
+cp -r "$FBCU/src" "$FBCU/inc" "$OUT/src/fbcunit/"
+cp -f "$FBCU/readme.txt" "$FBCU/license.txt" "$FBCU/lgpl-2.1.txt" "$OUT/src/fbcunit/"
+
 # ----------------------------------------------------------------- the notices
 #
 # lib/rt is LGPL-2.1-or-later and a derivative of libfb; lib/gfx is
@@ -401,6 +458,8 @@ cp -f "$ROOT/COPYING.LGPL-2.1"     "$OUT/licences/COPYING.LGPL-2.1-tiko"
 cp -f "$ROOT/lib/gfx/LICENSE"      "$OUT/licences/LICENSE-libtkogfx"
 cp -f "$ROOT/lib/rt/LICENSE"       "$OUT/licences/LICENSE-tiko-rt"
 cp -f "$ROOT/lib/rt/PROVENANCE.md" "$OUT/licences/PROVENANCE-tiko-rt.md"
+cp -f "$FBCU/license.txt"         "$OUT/licences/LICENSE-fbcunit"
+cp -f "$FBCU/lgpl-2.1.txt"        "$OUT/licences/COPYING.LGPL-2.1-fbcunit"
 for f in COPYING.LGPL-2.1 COPYING.GPL-2.0 LICENSE; do
     if [ -f "$FBC_TREE/$f" ]; then
         cp -f "$FBC_TREE/$f" "$OUT/licences/$f.freebasic"
@@ -463,10 +522,35 @@ print "ok"
     rm -rf "$_tmp"
 }
 
+# FBCUNIT IS VERIFIED THE SAME WAY: a program that includes the shipped header,
+# resolves its #inclib out of lib/<target>/ and RUNS. An archive that is present
+# but was built for the wrong ABI links nothing, and only a link says so.
+verify_fbcunit( ) {
+    _t=$1
+    _tmp="$OUT/.verifycu.$_t"
+    rm -rf "$_tmp"; mkdir -p "$_tmp"
+    printf '#include once "fbcunit.bi"
+CU_ASSERT( 1 + 1 = 2 )
+if fbcu.dblIsInf( 1.0 ) = false then print "ok"
+' > "$_tmp/cu.bas"
+    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifycu.$_t/cu.bas" -o ".verifycu.$_t/cu$EXT" ) >"$_tmp/log" 2>&1 || true
+    if [ -f "$_tmp/cu$EXT" ] && [ "$( "$_tmp/cu$EXT" 2>/dev/null )" = "ok" ]; then
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  fbcunit PASS -- compiled, linked and ran"
+    else
+        _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
+        [ -n "$_why" ] || _why="built, but did not print ok"
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  fbcunit FAIL -- $_why"
+    fi
+    rm -rf "$_tmp"
+}
+
 if [ "$DO_VERIFY" = "1" ]; then
     for t in $TARGETS; do
         note "verifying $t: compile, link and run"
         verify_target "$t"
+        verify_fbcunit "$t"
     done
 else
     VERIFY_LINES="
@@ -536,6 +620,8 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "import libraries: $IMPLIB_STATE"
     say
     say "graphics:$GFX_STATE"
+    say
+    say "fbcunit (the unit-test library; source in src/fbcunit):$FBCU_STATE"
     say
     say "-- verification --------------------------------------------------------"
     say "Each target below was checked by compiling AND RUNNING a program with"

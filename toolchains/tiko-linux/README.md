@@ -7,11 +7,12 @@ path below is gitignored and is filled by the packaging step (see
 ```
 tiko-linux/
   bin/tiko                the compiler, built Release
-  inc/                    headers reachable by -i, incl. fb/ and fbgfx.bi
+  inc/                    headers reachable by -i, incl. fb/, fbgfx.bi and fbcunit.bi
   include/                the C headers the runtime's bindings need
   lib/
-    linux-x86_64/         tiko-rt: libfb.a, libfbmt.a (+ libtkogfx.a when it exists)
+    linux-x86_64/         tiko-rt: libfb.a, libfbmt.a, libfbcunit.a (+ libtkogfx.a when it exists)
     linux-x86_64-fb/      fbc's libfb.a and the support libraries
+  src/fbcunit/            fbcunit's source and notices -- it is LGPL, and shipped built
   licences/               the LGPL notices and the runtime's provenance
   MANIFEST.txt            what was packaged, from where, at which commit, and
                           whether the target actually compiled and ran

@@ -7,12 +7,13 @@ path below is gitignored and is filled by the packaging step (see
 ```
 tiko-windows/
   tiko.exe                the compiler, built Release
-  inc/                    headers reachable by -i, incl. fb/ and fbgfx.bi
+  inc/                    headers reachable by -i, incl. fb/, fbgfx.bi and fbcunit.bi
   lib/
-    win64/                tiko-rt: libfb.a, libfbmt.a
+    win64/                tiko-rt: libfb.a, libfbmt.a; libfbcunit.a
     win64-fb/             fbc's libfb.a, the CRT objects, the import libraries
-    win64-msvc/           tiko-rt AND libtkogfx.a, for -target win64-msvc;
+    win64-msvc/           tiko-rt, libtkogfx.a and libfbcunit.a, for -target win64-msvc;
                           no -fb pair, and none needed
+  src/fbcunit/            fbcunit's source and notices -- it is LGPL, and shipped built
   licences/               the LGPL notices and the runtime's provenance
   MANIFEST.txt            what was packaged, from where, at which commit, and
                           whether each target actually compiled and ran
