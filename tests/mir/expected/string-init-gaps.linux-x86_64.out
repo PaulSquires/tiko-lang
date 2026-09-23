@@ -1,26 +1,25 @@
 global wstr $wstr0 "caf"
 global wstr $wstr1 "\u00E9"
 global str $str2 "a1"
-global str $str3 "abc"
-global str $str4 "def"
-global str $str5 "ghi"
-global str $str6 "jkl"
-global wstr $wstr7 "123"
-global wstr $wstr8 "456"
+global wstr $wstr3 "a1"
+global str $str4 "abc"
+global str $str5 "def"
+global str $str6 "ghi"
+global str $str7 "jkl"
+global wstr $wstr8 "123"
+global wstr $wstr9 "456"
 global var agg S1$s1z size 8 = bytes 61 62 00 00 63 64 00 00
 global var agg S1$s1f size 10 = bytes 78 78 20 20 20 79 79 20 20 20
 global var agg S1$s1w size 48 = bytes 31 00 32 00 33 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 34 00 35 00 36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-global str $str12 "xyz123"
-global str $str13 "XYZ123"
-global u16str $ustr14 "caf"
+global str $str13 "xyz123"
+global str $str14 "XYZ123"
+global u16str $ustr15 "caf"
 func void S1() {
   local agg u size 24
   local agg $tmp1 size 24
   local agg b size 5
   local agg c size 24
   local agg w size 20
-  local agg $tmp5 size 24
-  local ptr $tmp6
   local agg d size 5
   local agg z1 size 30
   local agg z2 size 40
@@ -42,7 +41,7 @@ func void S1() {
     store %8, 0
     %9 = const i64 -9223372036854775805
     %10 = call.rtl ptr fb_WstrToUStr(@@$wstr1)
-    %11 = call.rtl ptr fb_UStrConcat(@$tmp1, @@$ustr14, %9, %10, -1)
+    %11 = call.rtl ptr fb_UStrConcat(@$tmp1, @@$ustr15, %9, %10, -1)
     %12 = call.rtl ptr fb_UStrInit(@u, -1, %11, -1, 0)
     call.rtl void fb_PrintUStr(0, @u, 1)
     %13 = alloca ptr b
@@ -50,113 +49,95 @@ func void S1() {
     %15 = alloca ptr c
     %16 = call.rtl ptr fb_StrInit(@c, -1, @@$str2, 3, 0)
     %17 = alloca ptr w
-    %18 = alloca ptr $tmp5
-    %19 = field.addr @$tmp5, 0
-    store %19, 0
-    %20 = field.addr @$tmp5, 8
-    store %20, 0
-    %21 = field.addr @$tmp5, 16
-    store %21, 0
-    %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
-    %23 = call.rtl ptr fb_StrInit(@$tmp5, -1, %22, -1, 0)
-    %24 = field.addr @$tmp5, 0
-    %25 = load %24
-    %26 = call.rtl ptr fb_StrToWstr(%25)
-    %27 = alloca ptr $tmp6
-    store @$tmp6, %26
-    %28 = load @$tmp6
-    %29 = call.rtl ptr fb_WstrAssign(@w, 5, %28)
-    call.rtl void fb_StrDelete(@$tmp5)
-    %30 = load @$tmp6
-    call.rtl void fb_WstrDelete(%30)
-    %31 = alloca ptr d
-    %32 = call.rtl ptr memset(@d, 0, 5)
-    %33 = call.rtl ptr fb_StrAssign(@d, 5, @@$str2, 3, 0)
-    %34 = call.rtl ptr fb_StrAllocTempDescZ(@b)
-    call.rtl void fb_PrintString(0, %34, 2)
+    %18 = call.rtl ptr fb_WstrAssign(@w, 5, @@$wstr3)
+    %19 = alloca ptr d
+    %20 = call.rtl ptr memset(@d, 0, 5)
+    %21 = call.rtl ptr fb_StrAssign(@d, 5, @@$str2, 3, 0)
+    %22 = call.rtl ptr fb_StrAllocTempDescZ(@b)
+    call.rtl void fb_PrintString(0, %22, 2)
     call.rtl void fb_PrintString(0, @c, 2)
     call.rtl void fb_PrintWstr(0, @w, 2)
-    %35 = call.rtl ptr fb_StrAllocTempDescZ(@d)
-    call.rtl void fb_PrintString(0, %35, 1)
-    %36 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
-    call.rtl void fb_PrintString(0, %36, 1)
-    %37 = alloca ptr z1
-    %38 = field.addr @z1, 0
-    %39 = call.rtl ptr fb_StrAssign(%38, 10, @@$str3, 4, 0)
-    %40 = field.addr @z1, 10
-    %41 = call.rtl ptr fb_StrAssign(%40, 10, @@$str4, 4, 0)
-    %42 = field.addr @z1, 20
-    %43 = call.rtl ptr memset(%42, 0, 10)
-    %44 = alloca ptr z2
-    %45 = field.addr @z2, 0
-    %46 = call.rtl ptr fb_StrAssign(%45, 10, @@$str3, 4, 0)
-    %47 = field.addr @z2, 10
-    %48 = call.rtl ptr fb_StrAssign(%47, 10, @@$str4, 4, 0)
-    %49 = field.addr @z2, 20
-    %50 = call.rtl ptr fb_StrAssign(%49, 10, @@$str5, 4, 0)
-    %51 = field.addr @z2, 30
-    %52 = call.rtl ptr fb_StrAssign(%51, 10, @@$str6, 4, 0)
-    %53 = alloca ptr w1
-    %54 = field.addr @w1, 0
-    %55 = call.rtl ptr fb_WstrAssign(%54, 6, @@$wstr7)
-    %56 = field.addr @w1, 24
-    %57 = call.rtl ptr fb_WstrAssign(%56, 6, @@$wstr8)
-    %58 = field.addr @w1, 48
-    %59 = call.rtl ptr memset(%58, 0, 24)
-    %60 = const i64 0
-    %61 = const i64 10
-    %62 = mul %60, %61
-    %63 = ptr.add @z1, %62
-    %64 = call.rtl ptr fb_StrAllocTempDescZ(%63)
-    call.rtl void fb_PrintString(0, %64, 2)
-    %65 = const i64 2
-    %66 = const i64 10
-    %67 = mul %65, %66
-    %68 = ptr.add @z1, %67
-    %69 = call.rtl ptr fb_StrAllocTempDescZ(%68)
-    call.rtl void fb_PrintString(0, %69, 2)
-    %70 = const i64 1
-    %71 = const i64 20
-    %72 = mul %70, %71
-    %73 = const i64 0
-    %74 = const i64 10
-    %75 = mul %73, %74
-    %76 = add %72, %75
-    %77 = ptr.add @z2, %76
-    %78 = call.rtl ptr fb_StrAllocTempDescZ(%77)
-    call.rtl void fb_PrintString(0, %78, 2)
-    %79 = const i64 0
-    %80 = const i64 24
-    %81 = mul %79, %80
-    %82 = ptr.add @w1, %81
-    call.rtl void fb_PrintWstr(0, %82, 1)
-    %83 = const i64 1
-    %84 = const i64 4
-    %85 = mul %83, %84
-    %86 = ptr.add @@S1$s1z, %85
-    %87 = call.rtl ptr fb_StrAllocTempDescZ(%86)
+    %23 = call.rtl ptr fb_StrAllocTempDescZ(@d)
+    call.rtl void fb_PrintString(0, %23, 1)
+    %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 2)
+    call.rtl void fb_PrintString(0, %24, 1)
+    %25 = alloca ptr z1
+    %26 = field.addr @z1, 0
+    %27 = call.rtl ptr fb_StrAssign(%26, 10, @@$str4, 4, 0)
+    %28 = field.addr @z1, 10
+    %29 = call.rtl ptr fb_StrAssign(%28, 10, @@$str5, 4, 0)
+    %30 = field.addr @z1, 20
+    %31 = call.rtl ptr memset(%30, 0, 10)
+    %32 = alloca ptr z2
+    %33 = field.addr @z2, 0
+    %34 = call.rtl ptr fb_StrAssign(%33, 10, @@$str4, 4, 0)
+    %35 = field.addr @z2, 10
+    %36 = call.rtl ptr fb_StrAssign(%35, 10, @@$str5, 4, 0)
+    %37 = field.addr @z2, 20
+    %38 = call.rtl ptr fb_StrAssign(%37, 10, @@$str6, 4, 0)
+    %39 = field.addr @z2, 30
+    %40 = call.rtl ptr fb_StrAssign(%39, 10, @@$str7, 4, 0)
+    %41 = alloca ptr w1
+    %42 = field.addr @w1, 0
+    %43 = call.rtl ptr fb_WstrAssign(%42, 6, @@$wstr8)
+    %44 = field.addr @w1, 24
+    %45 = call.rtl ptr fb_WstrAssign(%44, 6, @@$wstr9)
+    %46 = field.addr @w1, 48
+    %47 = call.rtl ptr memset(%46, 0, 24)
+    %48 = const i64 0
+    %49 = const i64 10
+    %50 = mul %48, %49
+    %51 = ptr.add @z1, %50
+    %52 = call.rtl ptr fb_StrAllocTempDescZ(%51)
+    call.rtl void fb_PrintString(0, %52, 2)
+    %53 = const i64 2
+    %54 = const i64 10
+    %55 = mul %53, %54
+    %56 = ptr.add @z1, %55
+    %57 = call.rtl ptr fb_StrAllocTempDescZ(%56)
+    call.rtl void fb_PrintString(0, %57, 2)
+    %58 = const i64 1
+    %59 = const i64 20
+    %60 = mul %58, %59
+    %61 = const i64 0
+    %62 = const i64 10
+    %63 = mul %61, %62
+    %64 = add %60, %63
+    %65 = ptr.add @z2, %64
+    %66 = call.rtl ptr fb_StrAllocTempDescZ(%65)
+    call.rtl void fb_PrintString(0, %66, 2)
+    %67 = const i64 0
+    %68 = const i64 24
+    %69 = mul %67, %68
+    %70 = ptr.add @w1, %69
+    call.rtl void fb_PrintWstr(0, %70, 1)
+    %71 = const i64 1
+    %72 = const i64 4
+    %73 = mul %71, %72
+    %74 = ptr.add @@S1$s1z, %73
+    %75 = call.rtl ptr fb_StrAllocTempDescZ(%74)
+    call.rtl void fb_PrintString(0, %75, 2)
+    %76 = const i64 0
+    %77 = const i64 5
+    %78 = mul %76, %77
+    %79 = ptr.add @@S1$s1f, %78
+    %80 = const i64 -9223372036854775803
+    %81 = call.rtl ptr fb_StrAllocTempDescF(%79, %80)
+    call.rtl void fb_PrintString(0, %81, 2)
+    %82 = const i64 1
+    %83 = const i64 24
+    %84 = mul %82, %83
+    %85 = ptr.add @@S1$s1w, %84
+    call.rtl void fb_PrintWstr(0, %85, 1)
+    %86 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
+    call.rtl void fb_PrintString(0, %86, 2)
+    %87 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 6)
     call.rtl void fb_PrintString(0, %87, 2)
-    %88 = const i64 0
-    %89 = const i64 5
-    %90 = mul %88, %89
-    %91 = ptr.add @@S1$s1f, %90
-    %92 = const i64 -9223372036854775803
-    %93 = call.rtl ptr fb_StrAllocTempDescF(%91, %92)
-    call.rtl void fb_PrintString(0, %93, 2)
-    %94 = const i64 1
-    %95 = const i64 24
-    %96 = mul %94, %95
-    %97 = ptr.add @@S1$s1w, %96
-    call.rtl void fb_PrintWstr(0, %97, 1)
-    %98 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 6)
-    call.rtl void fb_PrintString(0, %98, 2)
-    %99 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
-    call.rtl void fb_PrintString(0, %99, 2)
-    %100 = const i64 1
-    %101 = trunc %100
-    %102 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 6)
-    %103 = call.rtl ptr fb_StrLcase2(%102, %101)
-    call.rtl void fb_PrintString(0, %103, 1)
+    %88 = const i64 1
+    %89 = trunc %88
+    %90 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 6)
+    %91 = call.rtl ptr fb_StrLcase2(%90, %89)
+    call.rtl void fb_PrintString(0, %91, 1)
     call.rtl void fb_StrDelete(@c)
     call.rtl void fb_UStrDelete(@u)
     ret
@@ -167,17 +148,15 @@ declare ptr fb_UStrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_PrintUStr(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
-declare ptr fb_StrToWstr(ptr $0)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
-declare void fb_StrDelete(ptr $0)
-declare void fb_WstrDelete(ptr $0)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare ptr fb_StrAllocTempDescF(ptr $0, i64 $1)
 declare ptr fb_StrLcase2(ptr $0, i32 $1)
+declare void fb_StrDelete(ptr $0)
 declare void fb_UStrDelete(ptr $0)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -196,4 +175,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 142 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 124 insts, 0 statements not lowered, 0 scope imbalance

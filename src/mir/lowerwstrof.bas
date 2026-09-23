@@ -49,6 +49,21 @@ function LowerWstrOf _
         return true
     end if
 
+    '' ...AND SO IS ANY CONSTANT STRING: a concatenation of literals, 'chr( 34 )',
+    '' 'str( 12 )', a string constant. Measured, fbc folds every one --
+    '' '@wstr( "a" & chr( 34 ) )' is '(uint16*)L"a\x0022"'. Converted at run time
+    '' instead, '@wstr( ... )' was the address of a temporary freed at the end of the
+    '' statement, and fbx's TaskDialog footer 'pszFooter = @WSTR( "..." & CHR( 34 ) & ... )'
+    '' displayed whatever reused the memory.
+    dim as string cft
+    if ConstStringTextOf_( c, a, cft ) then
+        dim as long cfn = 0
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = WideFoldedText_( c, a, cft, cfn )
+        return true
+    end if
+
     '' THE ARGUMENT MAY BE A WIDE CONCATENATION, which has no type of its own -- so
     '' asking for one and giving up is how 'wstr(  & wstr( w ) &  )' declined:
     '' the inner conversions lowered and the wstr around them did not.

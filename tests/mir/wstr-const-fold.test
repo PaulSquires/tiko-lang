@@ -1,0 +1,11 @@
+'' wstr( ) over any constant string -- a concatenation, chr, str, a constant -- is a
+'' wide literal, not a run-time conversion into a temporary. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wstr-const-fold.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: fb_StrToWstr
+'' EXPECT-NOT: fb_StrConcat
+'' EXPECT-NOT: fb_CHR
+'' EXPECT-NOT: fb_WstrDelete
