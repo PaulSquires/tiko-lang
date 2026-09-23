@@ -1,0 +1,14 @@
+'' A ustring argument to a runtime entry's narrow string parameter -- mkdir, dir, and a
+'' ustring concatenation to setenviron -- is converted with fb_UStrToStr rather than
+'' handed over as its own FBUSTRING. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-runtime-narrow-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrToStr(@root, -1)
+'' EXPECT-OUT: fb_UStrToStr(@$tmp
+'' EXPECT-NOT: fb_MkDir(@root)
+'' EXPECT-NOT: fb_Dir(@root
+'' EXPECT-NOT: fb_RmDir(@root)
+'' EXPECT-NOT: fb_SetEnviron(@

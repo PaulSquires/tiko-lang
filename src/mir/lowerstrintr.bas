@@ -290,9 +290,13 @@ function LowerDir _
     end if
 
     '' The pattern is a STRING DESCRIPTOR, which is what every runtime entry point
-    '' taking a string wants and what a literal has to be wrapped into.
+    '' taking a string wants and what a literal has to be wrapped into. A USTRING is
+    '' converted first -- its own descriptor read as narrow is the one-character "C" of
+    '' "C:\..." -- as fbc does: 'fb_Dir( fb_UStrToStr( &ROOT, -1 ), 16, 0 )'.
     dim as MirValue pv
-    if StrDescriptorOf_( c, pat, pv ) = false then return false
+    if UStrToStrTemp_( c, pat, pv ) = false then
+        if StrDescriptorOf_( c, pat, pv ) = false then return false
+    end if
     args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
 
     '' 33 -- fbNormal, which is fbReadOnly or fbArchive -- and NOT 0.

@@ -100,6 +100,38 @@ private function RuntimeEntryCallee_ _
     return (left( al, 5 ) = "__fb_")
 end function
 
+'' A USTRING FOR A RUNTIME ENTRY'S NARROW STRING PARAMETER IS CONVERTED FIRST. The prelude
+'' declares mkdir, chdir, rmdir, kill and dir with 'byref as const string', and the arms
+'' in lowercall.bas that build a narrow temporary are for USER procedures -- a runtime
+'' entry takes its argument's own descriptor -- so a ustring path reached fb_MkDir as its
+'' FBUSTRING, read as narrow: the UTF-16 'C:' is the string "C". fb/fsdir.bi's fixtures
+'' are made that way, and fsinfo_dir aborted on the first ListDir. Measured, fbc writes
+'' 'vr = fb_UStrToStr( &ROOT, -1 ); fb_MkDir( vr )', and so does this. Leaves 'outa'
+'' alone for any other argument, parameter or callee.
+sub RuntimeUStrNarrowArg_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval argNode as Tko.NodeId, _
+      byval pt as Tko.TypeId, byref outa as MirValue )
+
+    if IsStringType( c, pt ) = false then exit sub
+    if IsUStringType( c, pt ) then exit sub
+    if RuntimeEntryCallee_( c, callee ) = false then exit sub
+    dim as MirValue v
+    if UStrToStrTemp_( c, argNode, v ) then
+        outa = v
+        exit sub
+    end if
+    '' A CONCATENATION WITH A USTRING TERM has no type of its own, so the test above
+    '' cannot see it. Measured, 'setenviron( ev & "=xyz" )' over a ustring 'ev' is
+    '' 'vr = fb_UStrConcat( &TMP, ... ); fb_SetEnviron( fb_UStrToStr( vr, -1 ) )'.
+    if ConcatHasUStrTerm_( c, argNode ) = false then exit sub
+    dim as MirValue dv
+    if StrDescriptorOf_( c, argNode, dv ) = false then exit sub
+    dim as FB.Array( of ulong ) ua
+    PushStrArg( ua, dv )
+    v = EmitRtl( c, RTL_USTR_TO_STR, ua )
+    if v.kind <> cast( ubyte, MV_NONE ) then outa = v
+end sub
+
 '' DOES THIS ARGUMENT PASS ITS OWN DESCRIPTOR TO A BYREF STRING PARAMETER?
 ''
 '' Measured, and the rule is narrower than it looks: ONLY A VAR-LENGTH STRING

@@ -561,6 +561,7 @@ function LowerCallParts _
                 strTemps.Push( cast( ulong, tempSlot ) )
                 strTempTypes.Push( cast( ulong, c.types->Builtin( Tko.TY_USTRING ) ) )
             end if
+            if a.kind = cast( ubyte, MV_NONE ) then RuntimeUStrNarrowArg_( c, callee, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
             '' EVERY OTHER SHAPE IS A TEMPORARY -- see StrArgOwnDescriptor_ for the
             '' probe. Only a var-length string LVALUE passes its own descriptor; a
             '' literal, a fixed-length string, a concatenation, a function result
