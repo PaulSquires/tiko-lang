@@ -645,7 +645,12 @@ function LowerStrNumCall_ _
     '' to fb_StrInstr, which read it as a byte string.
     dim as boolean isU = IsUStringType( c, c.info->TypeOf_( sE ) )
     isU = isU orelse IsUStringType( c, c.info->TypeOf_( tE ) )
-    if isU andalso isWide then return false
+    '' ...AND A WIDE OPERAND BESIDE ONE IS CONVERTED, not refused. This declined, so
+    '' 'print instr( u, wchr( c ) )' printed nothing and 'return instr( s, wchr( c ) ) <> 0'
+    '' returned no value at all -- clang's "value doesn't match function result type",
+    '' in every fbx MaskedEdit example. Measured, fbc takes the ustring pair and converts
+    '' the wide side: 'vr = fb_WstrToUStr( W ); fb_UStrInstr( 1, &U, -1, vr, -1 )'.
+    if isU andalso isWide then isWide = false
 
     '' OPERANDS RIGHT TO LEFT IN SOURCE ORDER. Measured: instr( G( 1 ), GStr( 2 ),
     '' GStr( 3 ) ) is 321 to fbc, instr( s, t ) and instr( s, any t ) 21, instrrev( s,
@@ -668,10 +673,14 @@ function LowerStrNumCall_ _
         '' temporary; tiko handed fb_UStrInstr the narrow descriptor, and every narrow
         '' needle answered 0 -- ASCII or not (scratchpad uni/ui.bas).
         dim as Tko.TypeId ust = c.types->Builtin( Tko.TY_USTRING )
-        if (isU = false) orelse (UStrParamArgTemp_( c, tE, ust, td ) = false) then
+        if isU andalso (StrTermFlavour_( c, tE ) = STF_WIDE) then
+            if WideTermAsUStr_( c, tE, td ) = false then return false
+        elseif (isU = false) orelse (UStrParamArgTemp_( c, tE, ust, td ) = false) then
             if StrDescriptorOf_( c, tE, td ) = false then return false
         end if
-        if (isU = false) orelse (UStrParamArgTemp_( c, sE, ust, sd ) = false) then
+        if isU andalso (StrTermFlavour_( c, sE ) = STF_WIDE) then
+            if WideTermAsUStr_( c, sE, sd ) = false then return false
+        elseif (isU = false) orelse (UStrParamArgTemp_( c, sE, ust, sd ) = false) then
             if StrDescriptorOf_( c, sE, sd ) = false then return false
         end if
     end if

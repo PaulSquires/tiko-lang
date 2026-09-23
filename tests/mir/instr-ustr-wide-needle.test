@@ -1,0 +1,12 @@
+'' instr / instrrev over a ustring with a WIDE operand -- wchr( ), a 'wstring * N' --
+'' converts that operand through fb_WstrToUStr and calls the ustring entry point, where
+'' it used to decline the whole statement (and, inside a RETURN, drop the value from
+'' under it). See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/instr-ustr-wide-needle.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrToUStr(
+'' EXPECT-OUT: fb_UStrInstr(
+'' EXPECT-OUT: fb_UStrInstrRev(
