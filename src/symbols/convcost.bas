@@ -191,6 +191,13 @@ private function PointerCost_ _
 
     if IsStringy_( srcB ) then
         if (dstB <> Tko.TY_ZSTRING) andalso (dstB <> Tko.TY_WSTRING) then return CONV_NONE
+        '' A USTRING DOES NOT REACH 'zstring ptr' IN AN OVERLOAD SET: handing out a pointer
+        '' needs a buffer of the pointer's element type, and a ustring's is 16-bit. Measured,
+        '' fbc refuses 'T( u )' over a constructor taking 'byval as zstring ptr' -- error 99,
+        '' and a constructor is always resolved as a set, however many it has -- and
+        '' 'TZ( u )' over { zstring ptr, long }; a lone or plain 'sub TZ( byval as zstring
+        '' ptr )' still takes it, converted (UStrZstrData_). 'wstring ptr' stays open.
+        if overloaded andalso (srcB = Tko.TY_USTRING) andalso (dstB = Tko.TY_ZSTRING) then return CONV_NONE
         '' A ZSTRING * n -- which is what a string LITERAL is -- prefers 'zstring ptr';
         '' a WSTRING * n prefers 'wstring ptr'. A var-len STRING is neither, and takes
         '' zstring before wstring.

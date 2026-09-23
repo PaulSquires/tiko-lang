@@ -1080,6 +1080,7 @@ private sub WalkExtra_ _
     if k = N_BINARY then CheckIsTest_( c, id )
     if k = N_PARAM then CheckByrefParamDefault_( c, id )
     if k = N_CALL then CheckCastStringSize_( c, id )
+    if k = N_CALL then CheckUStrCtorCall_( c, id )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )
@@ -1097,4 +1098,5 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckOutsideDefinitions_( c )
     CheckArrayBoundKinds_( c )
     CheckRedimInType_( c )
+    CheckUStrCtorInits_( c )
 end sub

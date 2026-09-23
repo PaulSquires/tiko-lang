@@ -542,6 +542,10 @@
     '' side may be the wrong one, so there are two -- see CheckCastPtrPair_.
     DIAG( TKO0804, SEV_ERROR,   "'%0' to a pointer needs a pointer or a pointer-sized integer, and this is %1" )
     DIAG( TKO0805, SEV_ERROR,   "'%0' of a pointer needs a pointer or a pointer-sized integer type, and this names %1" )
+    '' fbc's error 24 over 'dim as T t = u' where T's only way in is a 'zstring ptr': a
+    '' constructor is resolved as an overload set, and in one a ustring does not reach
+    '' 'zstring ptr'. The call form, 'T( u )', is fbc's 99 and reports TKO0632.
+    DIAG( TKO0806, SEV_ERROR,   "'%0' cannot be initialized from a ustring: no constructor of '%1' takes one, and a ustring does not convert to 'zstring ptr' here" )
 
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )

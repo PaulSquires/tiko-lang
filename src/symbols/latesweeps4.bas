@@ -339,3 +339,163 @@ private function CastStrOperandWhy_ ( byref c as Ctx, byval op as NodeId ) as st
     end select
     return "not a string"
 end function
+
+'' A USTRING HANDED TO A CONSTRUCTOR THAT WANTS A 'zstring ptr' -- fbc's errors 99 and 24.
+'' A constructor is ALWAYS resolved as an overload set, however many there are, and in a
+'' set a ustring does not reach 'zstring ptr' (convcost.bas says why). Measured:
+''
+''     T( u ), T taking 'byval as zstring ptr'           error 99, T.constructor
+''     dim as T t = u, the same T                        error 24, invalid data types
+''     T taking 'byref as zstring', or 'wstring ptr'     accepted
+''     T taking zstring ptr AND 'byref as const ustring' accepted, the ustring one
+''     'sub TZ( byval as zstring ptr )', alone           accepted, converted
+''
+'' tiko let the first two through and then emitted a call with no operand -- an internal
+'' compiler error in emission, or a program reading UTF-16 as narrow. NARROW, as
+'' ResolveCall_'s own report is: only when every constructor of the written arity is
+'' unviable, at least one of them for exactly this reason, and every argument and
+'' parameter a builtin or a pointer -- anything with a user conversion stays silent.
+
+'' IS THIS ARGUMENT A USTRING -- typed one, or a concatenation Check types STRING that
+'' holds a ustring term?
+private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
+    dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
+    if bt = TY_USTRING then return true
+    if bt <> TY_STRING then return false
+    return ExprHasStrKind_( c, a, false )
+end function
+
+'' THE HEAD OF udt's CONSTRUCTOR CHAIN, or SYMBOL_NONE.
+private function CtorHead4_ ( byref c as Ctx, byval udt as TypeId ) as SymbolId
+    dim as InternId tn = c.types->NameOf( udt )
+    if tn = 0 then return SYMBOL_NONE
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr tsy = c.syms->SymbolAt( ts )
+    if tsy = 0 then return SYMBOL_NONE
+    if tsy->inner = SCOPE_NONE then return SYMBOL_NONE
+    return c.syms->LookupLocal( tsy->inner, c.names->Fold( c.names->GetString( "__ctor" ) ) )
+end function
+
+'' A BUILTIN OR A POINTER -- a type whose conversions ConversionCost models whole.
+private function PlainConvType_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    return (c.types->Kind( t ) = TK_BUILTIN) orelse (c.types->Kind( t ) = TK_POINTER)
+end function
+
+'' A POINTER TO ZSTRING?
+private function IsZstrPtr4_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> TK_POINTER then return false
+    dim as TypeId pin = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( pin ) <> TK_BUILTIN then return false
+    return (c.types->BuiltinOf( pin ) = TY_ZSTRING)
+end function
+
+'' DOES EVERY CONSTRUCTOR OF udt REFUSE these arguments, one of them for a ustring meeting
+'' a 'zstring ptr'? False whenever that cannot be settled.
+private function CtorsRefuseUStrZptr_ _
+    ( byref c as Ctx, byval udt as TypeId, byref args as NodeIdVec ) as boolean
+
+    if args.Count = 0 then return false
+    dim as boolean anyU = false
+    for i as long = 0 to args.Count - 1
+        if UStrArgNode_( c, cast( NodeId, args[i] ) ) then anyU = true
+    next
+    if anyU = false then return false
+    dim as SymbolId headId = CtorHead4_( c, udt )
+    if headId = SYMBOL_NONE then return false
+    dim as TypeId ustrT = c.types->Builtin( TY_USTRING )
+    dim as boolean ruleHit = false
+    dim as long fitting = 0
+    dim as SymbolId walkId = headId
+    dim as long guard = 0
+    while (walkId <> SYMBOL_NONE) andalso (guard < 1000)
+        guard += 1
+        dim as Symbol ptr walk = c.syms->SymbolAt( walkId )
+        if walk = 0 then return false
+        dim as NodeId decl = cast( NodeId, walk->payload )
+        if decl = NODE_NONE then return false
+        if c.ast->Kind( decl ) <> N_PROC then return false
+        dim as StmtPayload ptr dp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+        dim as NodeIdVec prms
+        for i as long = 0 to dp->count - 1
+            dim as NodeId prm = cast( NodeId, c.ast->children[dp->first + i] )
+            if c.ast->Kind( prm ) = N_PARAM then prms.Push( cast( ulong, prm ) )
+        next
+        '' A LONGER list may be defaulted -- unsettled, so no report. A shorter one never
+        '' fits.
+        if prms.Count > args.Count then return false
+        if prms.Count = args.Count then
+            fitting += 1
+            dim as boolean viable = true
+            for i as long = 0 to args.Count - 1
+                dim as NodeId a = cast( NodeId, args[i] )
+                dim as NodeId pn = cast( NodeId, prms[i] )
+                dim as StmtPayload ptr pp = _
+                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+                dim as TypeId pt = c.info->TypeOf_( pp->a )
+                if PlainConvType_( c, pt ) = false then return false
+                dim as boolean isU = UStrArgNode_( c, a )
+                dim as TypeId at = c.info->TypeOf_( a )
+                if isU then at = ustrT
+                if PlainConvType_( c, at ) = false then return false
+                if Tko.Check.ConversionCost( at, pt, *c.types, true ) >= Tko.Check.CONV_NONE then
+                    viable = false
+                    if isU andalso IsZstrPtr4_( c, pt ) then ruleHit = true
+                end if
+            next
+            if viable then return false
+        end if
+        walkId = walk->nextOverload
+    wend
+    return (fitting > 0) andalso ruleHit
+end function
+
+'' 'T( u )' -- a call whose callee is the TYPE. See CtorsRefuseUStrZptr_.
+private sub CheckUStrCtorCall_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->target = NODE_NONE then return
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = 0 then return
+    if ts->kind <> cast( ubyte, SYM_UDT ) then return
+    dim as TypeId udt = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if udt = TYPE_NONE then return
+    if c.types->Kind( udt ) <> TK_UDT then return
+    dim as NodeIdVec args
+    for i as long = 0 to lp->count - 1
+        args.Push( c.ast->children[lp->first + i] )
+    next
+    if CtorsRefuseUStrZptr_( c, udt, args ) = false then return
+    c.diags->Report( TKO0632, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( c.types->NameOf( udt ) ) & ".constructor" )
+end sub
+
+'' 'dim as T t = u' -- the declaration's one initialiser, when it is a ustring.
+private sub CheckUStrCtorInits_ ( byref c as Ctx )
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        if s->payload = 0 then continue for
+        dim as NodeId item = cast( NodeId, s->payload )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if ip->a = NODE_NONE then continue for
+        if ip->b = NODE_NONE then continue for
+        dim as TypeId udt = c.types->Unqualify( s->type_ )
+        if c.types->Kind( udt ) <> TK_UDT then continue for
+        if UStrArgNode_( c, ip->b ) = false then continue for
+        dim as NodeIdVec args
+        args.Push( cast( ulong, ip->b ) )
+        if CtorsRefuseUStrZptr_( c, udt, args ) = false then continue for
+        c.diags->Report( TKO0806, PointRange( c.ast->Loc( ip->b ) ), _
+                         c.names->Spelling( s->name ), c.names->Spelling( c.types->NameOf( udt ) ) )
+    next
+end sub

@@ -1,0 +1,19 @@
+'' TKO0632 and TKO0806: a ustring handed to a constructor whose only way in is a
+'' 'zstring ptr' -- fbc's error 99 for 'T( u )' and 24 for 'dim as T t = u' -- and to a
+'' two-overload procedure. A constructor is always resolved as an overload set, and in one a
+'' ustring does not reach 'zstring ptr'. tiko accepted all four, then emitted a call with
+'' no operand: an internal compiler error, or UTF-16 read as narrow.
+''
+'' fbc-modern rejects exactly lines 16 to 19 of the source and accepts every control below
+'' them: a lone procedure, a method, 'byref as zstring' and 'wstring ptr' constructors, a
+'' set with a ustring constructor, and a narrow string.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ustr-ctor-zstring-ptr.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ustr-ctor-zstring-ptr.bas(16,16): error TKO0632
+'' EXPECT-OUT: no overload of 't.constructor' matches these arguments
+'' EXPECT-OUT: ustr-ctor-zstring-ptr.bas(17,15): error TKO0806
+'' EXPECT-OUT: 't2' cannot be initialized from a ustring
+'' EXPECT-OUT: ustr-ctor-zstring-ptr.bas(18,16): error TKO0632
+'' EXPECT-OUT: ustr-ctor-zstring-ptr.bas(19,3): error TKO0632
+'' EXPECT-MAX-DIAG: 4
