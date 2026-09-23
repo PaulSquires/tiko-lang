@@ -813,6 +813,7 @@ private function ResolveCall_ _
         '' narrow (binresult.bas) because lowering decides the width per term, so the
         '' narrow answer chose fb_StrStartsWith -- and lowering handed it two FBUSTRINGs.
         if c.ast->Kind( a ) = Tko.N_BINARY then
+            if ConcatHasWideStr_( c, a ) then at = c.types->Builtin( Tko.TY_WSTRING )
             if ConcatHasUString_( c, a ) then at = c.types->Builtin( Tko.TY_USTRING )
         end if
         argT.Push( cast( ulong, at ) )

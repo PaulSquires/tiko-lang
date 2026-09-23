@@ -103,3 +103,40 @@ end function
 '' string conversion and above the half tier -- CONV_STR_CONST_COPY and the tiers around
 '' it are in check.bi. Measured, a 'dim as const string' argument offered { byval string,
 '' zstring ptr } takes zstring ptr, and offered { byval string, wstring ptr } takes string.
+
+'' A '&' / '+' STRING CHAIN WITH A WIDE TERM IS A WSTRING, for choosing an overload -- the
+'' wide counterpart of ConcatHasUString_, which ResolveCall_ asks straight after, so a
+'' USTRING term still wins. Check types every '&' as STRING, because lowering decides the
+'' width per term; measured, fbc types '"a" & wstr( 5 )' as WSTRING * 3, and
+'' 'MCase( wchr( &hE9 ) & "cole" )' calls fb_WStrMCase. The STRING answer chose
+'' fb_StrMCase instead, and the chain was narrowed to reach it: the e-acute became '?',
+'' and the title-cased result came back with U+FFFD where fbc's has an E-acute. That was
+'' the last assertion fbstr_transform failed.
+private function ConcatHasWideStr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return false
+        return ConcatHasWideStr_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+    end if
+    dim as Tko.TypeId t = TypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    '' 'wstring * N' is an ARRAY of the builtin.
+    if c.types->Kind( u ) = Tko.TK_ARRAY then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType bt = c.types->BuiltinOf( u )
+    if bt = Tko.TY_WSTRING then return true
+    if c.ast->Kind( id ) <> Tko.N_BINARY then return false
+    if bt <> Tko.TY_STRING then return false
+    dim as Tko.BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+    if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
+    if ConcatHasWideStr_( c, bp->lhs ) then return true
+    return ConcatHasWideStr_( c, bp->rhs )
+end function

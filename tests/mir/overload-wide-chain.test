@@ -1,0 +1,11 @@
+'' A '&' chain with a WIDE term chooses the wstring overload, a ustring term the ustring
+'' one, and a narrow-only chain the string one -- where every chain used to choose the
+'' string overload, because Check types '&' as STRING. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/overload-wide-chain.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i32 _Z4PICKRKw
+'' EXPECT-OUT: call i32 _Z4PICKRK8FBSTRING
+'' EXPECT-OUT: call i32 _Z4PICKRK9FBUSTRING
