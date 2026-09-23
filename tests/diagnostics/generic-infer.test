@@ -1,0 +1,19 @@
+'' TKO0809: a generic procedure with nothing to infer its type arguments from -- fbc's
+'' error 340. Two shapes (HANDOFF 9f): a call WITHOUT PARENTHESES, 'S b', and a type
+'' parameter no parameter names, 'G( b )' over 'function G( of T )( byval n as long ) as
+'' T'. tiko called the template for the first -- a link failure with no diagnostic -- and
+'' silently dropped the statement for the second.
+''
+'' fbc-modern reports exactly lines 19 to 23 of the source, and none of the controls:
+'' parentheses, written type arguments, a T inferred from itself, a pointer to it or a
+'' generic instance of it, and a paren-less call to an ordinary SUB.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-infer.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-infer.bas(19,1): error TKO0809
+'' EXPECT-OUT: cannot infer the type arguments of 's'
+'' EXPECT-OUT: generic-infer.bas(20,8): error TKO0809
+'' EXPECT-OUT: generic-infer.bas(21,10): error TKO0809
+'' EXPECT-OUT: generic-infer.bas(22,12): error TKO0809
+'' EXPECT-OUT: generic-infer.bas(23,18): error TKO0809
+'' EXPECT-MAX-DIAG: 5

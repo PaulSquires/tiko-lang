@@ -499,3 +499,115 @@ private sub CheckUStrCtorInits_ ( byref c as Ctx )
                          c.names->Spelling( s->name ), c.names->Spelling( c.types->NameOf( udt ) ) )
     next
 end sub
+
+'' A GENERIC PROCEDURE WHOSE TYPE ARGUMENTS CANNOT BE INFERRED -- fbc's error 340, "Unable
+'' to infer type arguments, specify them explicitly". Measured, both of HANDOFF 9f's shapes:
+''
+''     S b          a generic called WITHOUT PARENTHESES infers nothing, whatever b is
+''     print G( x ) 'function G( of T )( byval n as long ) as T': T is named by no
+''                  parameter, so no argument can supply it
+''
+'' tiko reported neither. The first called the TEMPLATE and the link failed on a symbol
+'' with no body ('void type only allowed for function results'); the second dropped the
+'' whole statement and exited 0. NARROW, because inference can also fail on an argument
+'' this compiler cannot type yet, and that must stay silent: only the two structural
+'' causes are reported -- the paren-less form, and a type parameter that no parameter's
+'' type mentions at all. A parameter type this cannot see into answers 'maybe'.
+
+'' Does the type reference t mention the name want? 1 yes, 0 no, -1 cannot tell.
+private function TypeRefNames4_ _
+    ( byref c as Ctx, byval t as NodeId, byval want as InternId, byval depth as long ) as long
+    if t = NODE_NONE then return 0
+    if depth > 32 then return -1
+    if c.ast->Kind( t ) <> N_TYPEREF then return -1
+    if (c.ast->nodes[cast( long, t )].flags and NF_PROC_TYPE) <> 0 then return -1
+    dim as StmtPayload ptr tp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, t )].data )]
+    if tp->name = want then return 1
+    dim as long r = TypeRefNames4_( c, tp->a, want, depth + 1 )
+    if r <> 0 then return r
+    for j as long = 0 to tp->count - 1
+        r = TypeRefNames4_( c, cast( NodeId, c.ast->children[tp->first + j] ), want, depth + 1 )
+        if r <> 0 then return r
+    next
+    return 0
+end function
+
+'' The generic procedure a callee expression names -- 'G' or 'NS.G' -- or NODE_NONE.
+private function GenericProcOf4_ ( byref c as Ctx, byval tgt as NodeId ) as NodeId
+    if tgt = NODE_NONE then return NODE_NONE
+    dim as NodeId n = tgt
+    if c.ast->Kind( n ) = N_MEMBER then
+        n = c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )].rhs
+    end if
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_IDENT) then return NODE_NONE
+    dim as SymbolId sid = c.info->RefOf( n )
+    if sid = SYMBOL_NONE then sid = c.info->RefOf( tgt )
+    dim as Symbol ptr sy = c.syms->SymbolAt( sid )
+    if sy = 0 then return NODE_NONE
+    if sy->kind <> cast( ubyte, SYM_PROC ) then return NODE_NONE
+    dim as NodeId decl = cast( NodeId, sy->payload )
+    if decl = NODE_NONE then return NODE_NONE
+    if c.ast->Kind( decl ) <> N_PROC then return NODE_NONE
+    dim as StmtPayload ptr dp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    if (dp->extra and PF_GENERIC_PROC) = 0 then return NODE_NONE
+    if dp->c = NODE_NONE then return NODE_NONE
+    return decl
+end function
+
+'' Is a type parameter of the generic at gn named by NONE of its parameters?
+private function UninferableTypeParam4_ ( byref c as Ctx, byval gn as NodeId ) as boolean
+    dim as StmtPayload ptr gp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gn )].data )]
+    if c.ast->Kind( gp->c ) <> N_BLOCK then return false
+    dim as ListPayload ptr gl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
+    for g as long = 0 to gl->count - 1
+        dim as NodeId gnm = cast( NodeId, c.ast->children[gl->first + g] )
+        if c.ast->Kind( gnm ) <> N_IDENT then return false
+        dim as InternId want = c.ast->idents[cast( long, c.ast->nodes[cast( long, gnm )].data )].name
+        dim as boolean named = false
+        for k as long = 0 to gp->count - 1
+            dim as NodeId prm = cast( NodeId, c.ast->children[gp->first + k] )
+            if c.ast->Kind( prm ) <> N_PARAM then continue for
+            dim as long r = TypeRefNames4_( c, c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].a, want, 0 )
+            if r < 0 then return false
+            if r > 0 then
+                named = true
+                exit for
+            end if
+        next
+        if named = false then return true
+    next
+    return false
+end function
+
+private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+    dim as NodeId gn = NODE_NONE
+    dim as NodeId callee = NODE_NONE
+    if k = N_AMBIGUOUS then
+        '' A STATEMENT CALL WITHOUT PARENTHESES: its callee is a bare name, where the
+        '' parenthesised form's is a call node.
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sp->op <> 0 then return
+        if sp->a = NODE_NONE then return
+        select case c.ast->Kind( sp->a )
+        case N_IDENT, N_MEMBER
+        case else
+            return
+        end select
+        callee = sp->a
+        gn = GenericProcOf4_( c, callee )
+        if gn = NODE_NONE then return
+    elseif k = N_CALL then
+        dim as long taFirst, taCount
+        if c.ast->CallTypeArgsOf( id, taFirst, taCount ) then return
+        callee = c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )].target
+        gn = GenericProcOf4_( c, callee )
+        if gn = NODE_NONE then return
+        if UninferableTypeParam4_( c, gn ) = false then return
+    else
+        return
+    end if
+    dim as NodeId nmN = callee
+    if c.ast->Kind( nmN ) = N_MEMBER then nmN = c.ast->binaries[cast( long, c.ast->nodes[cast( long, nmN )].data )].rhs
+    c.diags->Report( TKO0809, PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, nmN )].data )].name ) )
+end sub

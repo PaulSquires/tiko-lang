@@ -1081,6 +1081,7 @@ private sub WalkExtra_ _
     if k = N_PARAM then CheckByrefParamDefault_( c, id )
     if k = N_CALL then CheckCastStringSize_( c, id )
     if k = N_CALL then CheckUStrCtorCall_( c, id )
+    if (k = N_CALL) orelse (k = N_AMBIGUOUS) then CheckGenericInfer_( c, id, k )
 end sub
 
 private sub RunLateSweeps2_ ( byref c as Ctx )

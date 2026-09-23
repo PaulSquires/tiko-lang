@@ -549,6 +549,9 @@
     '' a typedef, an enum or a namespace -- see KwTypeName_ in symbols/collectkw.bas.
     '' fbc's error 14 for 'dim as Foo a', 71 for 'type X as Foo', 59 for a parameter, 8 for
     '' a qualified name inside a namespace it knows: a TYPE NAME NOTHING DECLARES.
+    '' fbc's error 340: a generic called without parentheses, or one with a type parameter
+    '' no parameter names, has nothing to infer its type arguments from.
+    DIAG( TKO0809, SEV_ERROR,   "cannot infer the type arguments of '%0'; write them, as '%0( of ... )( ... )'" )
     DIAG( TKO0808, SEV_ERROR,   "the type '%0' is not declared" )
     DIAG( TKO0807, SEV_ERROR,   "'%0' is a keyword and cannot name %1" )
     DIAG( TKO0806, SEV_ERROR,   "'%0' cannot be initialized from a ustring: no constructor of '%1' takes one, and a ustring does not convert to 'zstring ptr' here" )
