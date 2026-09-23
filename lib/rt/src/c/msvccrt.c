@@ -22,6 +22,7 @@
 **     atexit           over _crt_atexit, which IS exported
 **     sprintf          inline in the UCRT headers, so not exported
 **     time localtime   named _time64 and _localtime64 in the UCRT
+**     feraiseexcept    inline in the UCRT's fenv.h (added later; see below)
 **
 ** floor and floorf were on that list too and are not shim work: they were a bug
 ** in our generated ucrtbase.lib, which marked them as DATA imports.
@@ -379,6 +380,33 @@ long long __cdecl time( long long *dest )
 void * __cdecl localtime( long long const *src )
 {
     return _localtime64( src );
+}
+
+/* feraiseexcept IS INLINE IN THE UCRT'S fenv.h, like sprintf, so it is not exported:
+** ucrtbase.dll's own export table has feclearexcept, fegetenv, fegetexceptflag,
+** fegetround, feholdexcept, fesetenv, fesetexceptflag, fesetround and fetestexcept, and
+** not this one -- checked against the DLL, not the import library. fb/fenv.bi's
+** RaiseFpException calls it, so math/fenv linked under fbc (libmingwex has it) and not
+** here.
+**
+** EXACTLY THE FLAGS ASKED FOR, through the exported fesetexceptflag. Raising them by
+** arithmetic, as the UCRT's inline version does, is measurably not what fbc's program
+** gets: an overflowing multiply sets INEXACT with OVERFLOW, and so does an underflow,
+** where libmingwex's feraiseexcept sets the one bit it was given -- raising OVERFLOW
+** under fbc tests true for OVERFLOW alone. The bits are the UCRT's own _SW_* codes;
+** fb/fenv.bi detects that family at startup and translates to it.
+**
+** fexcept_t CARRIES EACH FLAG TWICE, and that is measured, not read: fegetexceptflag
+** after '1 / 0' stores &h08000008 -- the _SW_ bit for the x87 status word in the low
+** byte and again at bit 24 for MXCSR. Handed the bare &h08, fesetexceptflag returns 1
+** and sets nothing; handed both halves it sets exactly that flag, all five tested. */
+int __cdecl fesetexceptflag( unsigned long const *flagp, int excepts );
+
+int __cdecl feraiseexcept( int excepts )
+{
+    unsigned long e = (unsigned long)( excepts & 0x1f );
+    unsigned long flags = e | ( e << 24 );
+    return fesetexceptflag( &flags, excepts & 0x1f );
 }
 
 /* THE INTERLOCKED INTRINSICS THE WINDOWS HEADERS DECLARE AS FUNCTIONS.
