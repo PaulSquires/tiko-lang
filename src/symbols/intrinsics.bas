@@ -408,8 +408,8 @@ private function ExprIntrinsicType_ _
     ''   asc( fs )       ULONG              left( fs, 2 ) STRING
     ''   trim( fs )      STRING             ucase( fs )   STRING
     ''
-    '' Not a diagnostic: an untyped argument makes the ENCLOSING call untypable too, so
-    '' 'proc( wstr( fs ) )' declined three layers from its cause.
+    '' Not a diagnostic: untyped, 'proc( wstr( fs ) )' declined three layers from its cause.
+    if ab = Tko.TY_FIXUSTR then ab = cast( Tko.BuiltinType, iif( nm = "wstr", Tko.TY_NONE, Tko.TY_USTRING ) )   '' a 'ustring * N' IS a ustring here, as fbc types it -- asc LONG, trim USTRING -- but fbc refuses wstr( ) of one, error 24; was a false TKO0626 for all
     ''
     '' NARROWED TO THIS TABLE deliberately: IsStringy_ also feeds assignment legality,
     '' binary-result typing and conversion cost, each gated separately against fbc.

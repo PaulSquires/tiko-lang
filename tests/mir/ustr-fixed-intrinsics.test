@@ -1,0 +1,14 @@
+'' A 'ustring * N' reaches asc, val, the trim/case family, left/right/mid and instr as a
+'' ustring: no false TKO0626, and every statement lowered, over the buffer and tagged
+'' length fbc passes. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-fixed-intrinsics.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrAsc(@lf, %
+'' EXPECT-OUT: fb_UStrToStr(@lf, %
+'' EXPECT-OUT: fb_UStrTrim(@lf, %
+'' EXPECT-OUT: fb_UStrLeftD(@$tmp
+'' EXPECT-OUT: fb_UStrInstr(
+'' EXPECT-NOT: TKO0626

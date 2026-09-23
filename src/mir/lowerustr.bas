@@ -19,6 +19,9 @@
 
 namespace Tko.Mir
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
 '' One 'ucase( u )' / 'mid( u, 2, 3 )' / 'instr( u, v )' and the rest, over a USTRING
 '' first argument. Returns false for anything that is not one, so the narrow path keeps
 '' every case it already had.
@@ -122,15 +125,29 @@ function LowerUStrIntrin_ _
         anyChars = aup->operand
     end if
 
+    '' A 'ustring * N' HAS NO DESCRIPTOR, and asking for one declined the whole statement.
+    '' Measured, fbc passes its BUFFER and TAGGED LENGTH where a length tag is taken --
+    '' 'fb_UStrTrim( LF$0, &h8000000000000005 )' over a 'ustring * 6' -- which is the pair
+    '' EmitStrTerm pushes for one; and where a DESCRIPTOR is taken, left and right, it
+    '' copies into a temporary first: 'fb_UStrAssign( &TMP, -1, LF$0, <tag>, 0 );
+    '' fb_UStrLeftD( &TMP, 3 )', deleted after. Every other operand is unchanged.
+    dim as longint fixTag
+    dim as boolean a0Fixed = (StrSwapKind_( c, c.info->TypeOf_( a0 ), fixTag ) = 4)
+    dim as long fixSlot = -1
     dim as MirValue s0
-    if StrDescriptorOf_( c, a0, s0 ) = false then return false
-
     dim as FB.Array( of ulong ) args
-
-    if takesLenTag then
-        PushStrArg( args, s0 )
-    else
+    if a0Fixed andalso takesLenTag then
+        if EmitStrTerm( c, args, a0, true ) = false then return false
+    elseif a0Fixed then
+        if UStrOutOperand_( c, a0, s0, fixSlot ) = false then return false
         args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
+    else
+        if StrDescriptorOf_( c, a0, s0 ) = false then return false
+        if takesLenTag then
+            PushStrArg( args, s0 )
+        else
+            args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
+        end if
     end if
     '' ...and the characters as a USTRING pair: a literal as UTF-16, a narrow or wide
     '' string converted -- the same operand rule a ustring comparison follows.
@@ -166,6 +183,7 @@ function LowerUStrIntrin_ _
     end if
 
     outv = EmitRtl( c, r, args )
+    ReleaseUStrOut_( c, fixSlot )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 end namespace

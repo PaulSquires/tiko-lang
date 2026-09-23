@@ -551,15 +551,21 @@ function LowerStrNumCall_ _
         dim as boolean ascU = IsUStringType( c, c.info->TypeOf_( a0asc ) )  '' fb_UStrAsc( u, -1, n )
         dim as RtlId ascR = RTL_STR_ASC : if ascU then ascR = RTL_USTR_ASC
         dim as MirValue sd
+        dim as FB.Array( of ulong ) aa
+        '' A 'ustring * N' HAS NO DESCRIPTOR: fbc passes its buffer and TAGGED length,
+        '' 'fb_UStrAsc( LF$0, &h8000000000000005, 1 )', the pair EmitStrTerm pushes.
+        dim as longint ascTag
         if TermIsWide_( c, a0asc ) then
             ascR = RTL_WSTR_ASC
             if WideOperand_( c, a0asc, sd ) = false then return false
-        elseif StrDescriptorOf_( c, a0asc, sd ) = false then
-            return false
+            aa.Push( cast( ulong, sd.kind ) ) : aa.Push( cast( ulong, sd.id ) )
+        elseif ascU andalso (StrSwapKind_( c, c.info->TypeOf_( a0asc ), ascTag ) = 4) then
+            if EmitStrTerm( c, aa, a0asc, true ) = false then return false
+        else
+            if StrDescriptorOf_( c, a0asc, sd ) = false then return false
+            aa.Push( cast( ulong, sd.kind ) ) : aa.Push( cast( ulong, sd.id ) )
+            if ascR = RTL_USTR_ASC then PushStrLen_( c, aa, -1 )
         end if
-        dim as FB.Array( of ulong ) aa
-        aa.Push( cast( ulong, sd.kind ) ) : aa.Push( cast( ulong, sd.id ) )
-        if ascR = RTL_USTR_ASC then PushStrLen_( c, aa, -1 )
         if cp->count = 2 then
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             dim as MirValue nv = LowerExpr( c, a1 )
@@ -657,6 +663,7 @@ function LowerStrNumCall_ _
     '' t, G( 3 ) ) 321. The start is the FIRST source operand of instr and the LAST of
     '' instrrev, so it is lowered last for one and first for the other.
     dim as MirValue sd, td, stv
+    dim as longint sTag = -1, tTag = -1
     dim as boolean startFirst = isRev andalso (startE <> Tko.NODE_NONE)
     dim as boolean startLast = (isRev = false) andalso (startE <> Tko.NODE_NONE)
     if startFirst then
@@ -673,13 +680,23 @@ function LowerStrNumCall_ _
         '' temporary; tiko handed fb_UStrInstr the narrow descriptor, and every narrow
         '' needle answered 0 -- ASCII or not (scratchpad uni/ui.bas).
         dim as Tko.TypeId ust = c.types->Builtin( Tko.TY_USTRING )
+        '' A 'ustring * N' IS ITS BUFFER AND TAGGED LENGTH, as fbc passes it --
+        '' 'fb_UStrInstr( 1, LF$0, &h8000000000000005, ... )'. It has no descriptor to
+        '' ask for, and the statement declined.
+        dim as longint ifk
         if isU andalso (StrTermFlavour_( c, tE ) = STF_WIDE) then
             if WideTermAsUStr_( c, tE, td ) = false then return false
+        elseif isU andalso (StrSwapKind_( c, c.info->TypeOf_( tE ), ifk ) = 4) then
+            td = LowerAddr( c, tE ) : tTag = ifk
+            if td.kind = cast( ubyte, MV_NONE ) then return false
         elseif (isU = false) orelse (UStrParamArgTemp_( c, tE, ust, td ) = false) then
             if StrDescriptorOf_( c, tE, td ) = false then return false
         end if
         if isU andalso (StrTermFlavour_( c, sE ) = STF_WIDE) then
             if WideTermAsUStr_( c, sE, sd ) = false then return false
+        elseif isU andalso (StrSwapKind_( c, c.info->TypeOf_( sE ), ifk ) = 4) then
+            sd = LowerAddr( c, sE ) : sTag = ifk
+            if sd.kind = cast( ubyte, MV_NONE ) then return false
         elseif (isU = false) orelse (UStrParamArgTemp_( c, sE, ust, sd ) = false) then
             if StrDescriptorOf_( c, sE, sd ) = false then return false
         end if
@@ -693,8 +710,8 @@ function LowerStrNumCall_ _
     dim as FB.Array( of ulong ) args
     if isRev then
         if isU then
-            PushStrArg( args, sd )
-            PushStrArg( args, td )
+            args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) ) : PushStrLen_( c, args, sTag )
+            args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) ) : PushStrLen_( c, args, tTag )
         else
             args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
             args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )
@@ -725,8 +742,8 @@ function LowerStrNumCall_ _
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )
         end if
         if isU then
-            PushStrArg( args, sd )
-            PushStrArg( args, td )
+            args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) ) : PushStrLen_( c, args, sTag )
+            args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) ) : PushStrLen_( c, args, tTag )
         else
             args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) )
             args.Push( cast( ulong, td.kind ) ) : args.Push( cast( ulong, td.id ) )

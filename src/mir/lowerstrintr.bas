@@ -234,7 +234,9 @@ function LowerDir _
     dim as Tko.NodeId outn = Tko.NODE_NONE
     if cp->count >= 1 then
         dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
-        if IsStringType( c, c.info->TypeOf_( a0 ) ) then
+        '' ...a 'ustring * N' too, which IsStringType does not count: it was read as the
+        '' continuation form and declined. fbc: 'fb_Dir( fb_UStrToStr( D$0, <tag> ), 16, 0 )'.
+        if IsStringType( c, c.info->TypeOf_( a0 ) ) orelse IsUStringType( c, c.info->TypeOf_( a0 ) ) then
             pat = a0
             if cp->count >= 2 then attr = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
             if cp->count >= 3 then outn = cast( Tko.NodeId, c.ast->children[cp->first + 2] )

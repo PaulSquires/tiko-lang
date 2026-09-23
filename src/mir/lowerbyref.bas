@@ -594,8 +594,9 @@ function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mi
     if e = Tko.NODE_NONE then return false
     dim as Tko.TypeId ut = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->Kind( ut ) = Tko.TK_REFERENCE then ut = c.types->Unqualify( c.types->Inner( ut ) )
-    if c.types->Kind( ut ) <> Tko.TK_BUILTIN then return false
-    if c.types->BuiltinOf( ut ) <> Tko.TY_USTRING then return false
+    '' ...AND A 'ustring * N', whose (buffer, tag) pair EmitStrTerm pushes: measured,
+    '' 'fb_VAL( fb_UStrToStr( LF$0, &h8000000000000005 ) )'. It was a false TKO0626.
+    if IsUStringType( c, ut ) = false then return false
     dim as FB.Array( of ulong ) args
     if EmitStrTerm( c, args, e, true ) = false then return false
     outv = EmitRtl( c, RTL_USTR_TO_STR, args )

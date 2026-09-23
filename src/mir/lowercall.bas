@@ -530,6 +530,7 @@ function LowerCallParts _
                     end if
                 end if
             end if
+            if a.kind = cast( ubyte, MV_NONE ) then RuntimeUStrNarrowArg_( c, callee, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
             '' A FIXED 'ustring * N' AGAINST A BYREF USTRING IS A COPY, not an
             '' address. There is no ustring temp-descriptor borrow in the
             '' runtime at all -- libfb has fb_StrAllocTempDescF and no
@@ -561,7 +562,6 @@ function LowerCallParts _
                 strTemps.Push( cast( ulong, tempSlot ) )
                 strTempTypes.Push( cast( ulong, c.types->Builtin( Tko.TY_USTRING ) ) )
             end if
-            if a.kind = cast( ubyte, MV_NONE ) then RuntimeUStrNarrowArg_( c, callee, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
             '' EVERY OTHER SHAPE IS A TEMPORARY -- see StrArgOwnDescriptor_ for the
             '' probe. Only a var-length string LVALUE passes its own descriptor; a
             '' literal, a fixed-length string, a concatenation, a function result
