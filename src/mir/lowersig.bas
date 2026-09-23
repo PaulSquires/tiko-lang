@@ -6,6 +6,9 @@
 
 namespace Tko.Mir
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
 '' THE SIGNATURE OF A PROCEDURE THIS MODULE DOES NOT DEFINE.
 ''
 '' The definition path records a signature from the parameter SLOTS, which is the
@@ -156,6 +159,16 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     dim as Tko.TypeId rt = c.types->Inner( sigT )
     dim as MirType rmt = MT_VOID
     if rt <> Tko.TYPE_NONE then rmt = LowerType( rt, *c.types )
+    '' A VAR-LENGTH STRING RESULT IS A POINTER HERE TOO, by the call site's own test
+    '' (LowerCallParts: IsStringType and StrSwapKind_ 0). Typed by LowerType it was an
+    '' aggregate with no size, which the ABI pass declines, and the emitter then refused
+    '' the declaration: "a function returning an aggregate by value; the ABI pass has not
+    '' run (in $tko.procsig.54)". Unseen while a signature went only on calls returning an
+    '' aggregate -- a string call never did. fbc's functions/ignore-result.bas, 'pstring( )'.
+    if (rmt = MT_AGG) andalso IsStringType( c, rt ) then
+        dim as longint rsn
+        if StrSwapKind_( c, rt, rsn ) = 0 then rmt = MT_PTR
+    end if
     dim as MirFunction ptr f = c.m->AddFunction( nm, rmt )
     if f = 0 then return -1
     c.m->procSigByType[tkey] = c.m->functions.Count

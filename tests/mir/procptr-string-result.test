@@ -1,0 +1,7 @@
+'' A procedure pointer returning a var-length string has a pointer-returning signature,
+'' so the module emits. See the src file.
+'' TEST: cli
+'' ARGS: --emit-ir tests/mir/src/procptr-string-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: internal compiler error
+'' EXPECT-OUT: declare ptr @"$tko.procsig.
