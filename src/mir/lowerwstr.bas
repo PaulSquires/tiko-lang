@@ -172,16 +172,23 @@ function LowerWideAssignTo _
     ''
     '' and run, both print 'hi'. RTL_USTR_TO_W has been declared since the table was
     '' written and had no emit site at all.
+    ''
+    '' AN RVALUE HAS NO ADDRESS. 'dim w as wstring * 260 = GetText( h )' took LowerAddr's
+    '' MV_NONE, declined, and the scalar path stored the returned descriptor POINTER into
+    '' the buffer -- eight bytes of garbage text (fbx's fbxGetWindowText). fbc passes the
+    '' result itself, 'fb_UStrAssignToW( W$0, 260ll, vr$0, -1ll )', and the runtime frees
+    '' it; UStrOutOperand_ copies and deletes instead, which writes the same text and also
+    '' covers a property, an intrinsic and a 'ustring * N' (a buffer, not a descriptor).
     if IsUStringType( c, c.info->TypeOf_( value ) ) then
-        dim as MirValue usrc = LowerAddr( c, value )
-        if usrc.kind <> cast( ubyte, MV_NONE ) then
-            args.Push( cast( ulong, usrc.kind ) ) : args.Push( cast( ulong, usrc.id ) )
-            args.Push( cast( ulong, MV_CONST_INT ) )
-            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
-            EmitRtl( c, RTL_USTR_TO_W, args )
-            return true
-        end if
-        return false
+        dim as MirValue usrc
+        dim as long uslot = -1
+        if UStrOutOperand_( c, value, usrc, uslot ) = false then return false
+        args.Push( cast( ulong, usrc.kind ) ) : args.Push( cast( ulong, usrc.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        EmitRtl( c, RTL_USTR_TO_W, args )
+        ReleaseUStrOut_( c, uslot )
+        return true
     end if
 
     dim as MirValue rv

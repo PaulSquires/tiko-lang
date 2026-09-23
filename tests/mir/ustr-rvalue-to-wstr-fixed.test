@@ -1,0 +1,15 @@
+'' A ustring rvalue -- a call, a method, a property -- and a 'ustring * N' into a
+'' 'wstring * N' convert through fb_UStrAssignToW over a descriptor, not a stored
+'' pointer or a raw buffer. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-rvalue-to-wstr-fixed.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrAssignToW(@w, 260, @$tmp
+'' EXPECT-OUT: fb_UStrAssignToW(@wa, 20, @$tmp
+'' EXPECT-OUT: fb_UStrAssignToW(@wb, 20, @$tmp
+'' EXPECT-OUT: fb_UStrAssignToW(@we, 20, @$tmp
+'' EXPECT-OUT: fb_UStrDelete(@$tmp
+'' EXPECT-NOT: store @w,
+'' EXPECT-NOT: fb_UStrAssignToW(@we, 20, @uf
