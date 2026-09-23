@@ -4,6 +4,57 @@
 '' exactly as resolvedot.bas is. Nothing about it changed in the move.
 
 
+'' IS 'nm' A TYPE PARAMETER OF A GENERIC TEMPLATE THAT ENCLOSES 'scope_'? The template is
+'' a generic procedure's own body, or a member of a generic type -- the same walk
+'' InTemplate_ makes, asking this time for the NAME: a generic type keeps its 'of ...'
+'' list in 'b' and a generic procedure in 'c', each an N_BLOCK of N_IDENTs.
+''
+'' An INSTANCE answers no: its parameters are bound in gparamName, and that binding is
+'' what gets asked first.
+private function TemplateTypeParam_ _
+    ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId ) as boolean
+
+    dim as long guard = 0
+    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
+        if sc = 0 then exit while
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
+        if os <> 0 then
+            if (os->flags and Tko.SYMF_GENERIC_INST) <> 0 then return false
+            dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
+            dim as boolean isNode = (os->kind = cast( ubyte, Tko.SYM_UDT )) orelse _
+                                    (os->kind = cast( ubyte, Tko.SYM_PROC ))
+            if isNode andalso (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
+                dim as Tko.NodeId plist = Tko.NODE_NONE
+                select case c.ast->Kind( dn )
+                case Tko.N_TYPE
+                    plist = StmtOf( c, dn )->b
+                case Tko.N_PROC
+                    if (StmtOf( c, dn )->extra and Tko.PF_GENERIC_PROC) <> 0 then
+                        plist = StmtOf( c, dn )->c
+                    end if
+                end select
+                if plist <> Tko.NODE_NONE then
+                    if c.ast->Kind( plist ) = Tko.N_BLOCK then
+                        dim as Tko.ListPayload ptr pl = _
+                            @c.ast->lists[cast( long, c.ast->nodes[cast( long, plist )].data )]
+                        for k as long = 0 to pl->count - 1
+                            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + k] )
+                            if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
+                            dim as Tko.IdentPayload ptr pip = _
+                                @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
+                            if pip->name = nm then return true
+                        next
+                    end if
+                end if
+            end if
+        end if
+        scope_ = sc->parent
+    wend
+    return false
+end function
+
 '' THE TYPE A TYPE LITERAL NAMES, from the list's TARGET. 'type<T>( ... )' keeps its
 '' type reference there, so 'typeof' over one is answerable without typing the
 '' expression -- and the target may itself be a 'typeof', which recurses.
@@ -459,6 +510,22 @@ function ResolveTypeRef _
             end if
         next
 
+        '' ...AND IN THE TEMPLATE ITSELF, where nothing binds it yet, a type parameter
+        '' shadows just the same -- it simply has no type to answer with. The lookup
+        '' below used to run instead, and a module-level 'type T' is exactly what it
+        '' finds: 'function IndexOf( of T )( ..., byref v as T )' in fb/array.bi was
+        '' checked with v as the PROGRAM'S T, and 'a.items( k ) = v' became TKO0720
+        '' "no operator = compares this type" in a file that never called it. Any
+        '' program that included containers.bi and declared a 'type T' got thirteen of
+        '' those; fbc compiles it clean, because its parameter is the innermost name.
+        ''
+        '' So the LOOKUP is skipped and nothing else: the reference goes on exactly as it
+        '' does when nothing called T exists at all -- an unknown type, wrapped in its
+        '' 'ptr' or 'const' as written -- the template is checked as leniently as it
+        '' always was, and the instance, with T bound, is what gets checked for real.
+        dim as boolean tparam = false
+        if sp->ownerName = 0 then tparam = TemplateTypeParam_( c, scope_, sp->name )
+
         dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
         if sp->ownerName <> 0 then
             '' The qualifier may be a PATH -- 'a.b.c' -- which the parser keeps dotted
@@ -518,7 +585,7 @@ function ResolveTypeRef _
                 sid = c.syms->LookupLocalTyped( sc, sp->name, true )
             end if
         end if
-        if sid = Tko.SYMBOL_NONE then
+        if (sid = Tko.SYMBOL_NONE) andalso (tparam = false) then
             sid = LookupTypeAtPoint_( c, scope_, sp->name, id )
         end if
 

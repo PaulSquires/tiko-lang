@@ -102,6 +102,11 @@ namespace Tko
         '' INSTANTIATION re-parses the body and hoists a lambda of its own, with the
         '' flag cleared and a sequence number no other instantiation can produce.
         as long                 genericDepth
+        '' ...and the TYPE-PARAMETER LIST of each, innermost last. A lambda written inside
+        '' one takes the innermost as its own 'c', so Resolve can tell that its 'as T'
+        '' names the generic's parameter and not a module-level T -- see
+        '' TemplateTypeParam_. fb/sort.bi's comparison lambdas are exactly that.
+        as NodeIdVec            genericParams
         '' How many 'var (a, b) = expr' declarations have been desugared. Each needs a
         '' temporary of its own: two in one loop body, or one nested inside another,
         '' must not name the same thing.

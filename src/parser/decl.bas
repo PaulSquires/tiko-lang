@@ -1049,7 +1049,10 @@ private function ParseProc _
     end if
 
     dim as boolean inGeneric = ((sp.extra and Tko.PF_GENERIC_PROC) <> 0)
-    if inGeneric then p.genericDepth += 1
+    if inGeneric then
+        p.genericDepth += 1
+        p.genericParams.Push( cast( ulong, sp.c ) )
+    end if
     '' See ParserState.procDepth: nothing declared inside a body is told to the
     '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
     p.procDepth += 1
@@ -1057,7 +1060,10 @@ private function ParseProc _
     sp.b = Block( p )
     if isMember then p.memberDepth -= 1
     p.procDepth -= 1
-    if inGeneric then p.genericDepth -= 1
+    if inGeneric then
+        p.genericDepth -= 1
+        p.genericParams.Pop( )
+    end if
     ExpectEnd( p, kw )
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     if structPrio > 0 then

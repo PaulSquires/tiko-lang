@@ -202,7 +202,14 @@ private function MakeClosure_ _
     sp.name = invNm
     sp.rawName = invNm
     sp.extra or= Tko.PF_CLOSURE_INVOKE
-    if p.genericDepth > 0 then sp.extra or= Tko.PF_GENERIC_PROC
+    if p.genericDepth > 0 then
+        sp.extra or= Tko.PF_GENERIC_PROC
+        '' ...carrying the enclosing generic's type parameters, which it has none of its
+        '' own to name -- see ParserState.genericParams.
+        if p.genericParams.Count > 0 then
+            sp.c = cast( Tko.NodeId, p.genericParams[p.genericParams.Count - 1] )
+        end if
+    end if
     dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     if byrefRet then p.ast->nodes[cast( long, ln )].flags or= Tko.NF_BYREF
     p.lambdas.Push( cast( ulong, ln ) )
@@ -345,7 +352,14 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     '' nothing and counted as a decline in every file that included fb/sort.bi. Marked
     '' the way the enclosing body is marked, lowering skips it and each instantiation
     '' hoists a copy of its own -- see InstantiatePendingProcs_.
-    if p.genericDepth > 0 then sp.extra or= Tko.PF_GENERIC_PROC
+    if p.genericDepth > 0 then
+        sp.extra or= Tko.PF_GENERIC_PROC
+        '' ...carrying the enclosing generic's type parameters, which it has none of its
+        '' own to name -- see ParserState.genericParams.
+        if p.genericParams.Count > 0 then
+            sp.c = cast( Tko.NodeId, p.genericParams[p.genericParams.Count - 1] )
+        end if
+    end if
     dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
     if byrefRet then p.ast->nodes[cast( long, ln )].flags or= Tko.NF_BYREF
     p.lambdas.Push( cast( ulong, ln ) )

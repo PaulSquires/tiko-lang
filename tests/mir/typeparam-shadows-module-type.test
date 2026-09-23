@@ -1,0 +1,13 @@
+'' A generic's type parameter shadows a module-level type of the same name in the
+'' TEMPLATE, not only in an instance -- so a program's own 'type T' no longer makes the
+'' uncalled template check 'v = w' against the program's T. That was thirteen TKO0720s
+'' for any program including containers.bi beside a 'type T'. Covers a generic
+'' procedure called and uncalled, a local of type T, a method of a generic type, and a
+'' lambda inside a generic, called and uncalled. See the source for fbc's output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/typeparam-shadows-module-type.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0720
+'' EXPECT-NOT: error
