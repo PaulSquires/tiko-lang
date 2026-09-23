@@ -1,0 +1,9 @@
+'' A concatenation with a ustring term, assigned, initialised or appended into a
+'' wstring, keeps the ustring. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/wstr-ustr-concat.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_UStrAssignToW(
+'' EXPECT-OUT: call.rtl ptr fb_WstrToUStr(

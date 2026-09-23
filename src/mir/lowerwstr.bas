@@ -77,37 +77,22 @@ end function
 '' byte length INCLUDING the NUL while a descriptor passes -1. A plain "abc" is NOT
 '' widened at compile time in a bare assignment -- that only happens where the target is
 '' already a uint16*.
-'' A USTRING IS NOT A NARROW STRING, and the wide path is tried on the way past every
-'' assignment. IsStringType says yes to a ustring, so 'v = p + u' over a ustring
-'' destination was claimed here and emitted fb_WstrConcatWA over the ustring operand
-'' and then fb_WstrAssignToA into the ustring descriptor -- a wstring written where a
-'' UTF-16 descriptor lives. It lowered and it verified.
-''
-'' A ustring anywhere in the chain belongs to the conversion fold in lowerterm.bas,
-'' which transcodes through fb_WstrToUStr instead.
-private function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
-    dim as FB.Array( of ulong ) terms
-    FlattenConcat( c, value, terms )
-    for i as long = 0 to terms.Count - 1
-        if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
-            return true
-        end if
-    next
-    return false
-end function
+
+'' Defined in lowerwstru.bas: a ustring anywhere in a concatenation, and the '&=' of one.
+declare function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
+declare function WideConcatAssignUStr_ _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval value as Tko.NodeId ) as long
 
 function LowerWideAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     if IsUStringType( c, c.info->TypeOf_( target ) ) then return false
-    '' ...BUT A USTRING SOURCE IS NOT A CHAIN THIS CANNOT DO. It is one runtime call,
-    '' fb_UStrAssignToW, and refusing it here sent 'w = s' over a 'wstring * 8' to the
-    '' generic scalar path, which found a non-void type and STORED THE 24-BYTE USTRING
-    '' DESCRIPTOR into the 16-byte buffer -- wrong bytes and an eight-byte overrun,
-    '' with 0 statements not lowered to say so.
-    if IsUStringType( c, c.info->TypeOf_( value ) ) = false then
-        if ChainTouchesU_( c, value ) then return false
-    end if
+    '' A USTRING SOURCE -- a ustring, or any chain with one in it -- is one runtime call,
+    '' fb_UStrAssignToW, made by LowerWideAssignTo. Refusing it here sent 'w = s' over a
+    '' 'wstring * 8' to the generic scalar path, which STORED THE 24-BYTE USTRING
+    '' DESCRIPTOR into the 16-byte buffer; refusing 'w = "x" & s' left w untouched, with
+    '' nothing but a skip-site to say so.
 
     '' THE COUNT IS 0 FOR A 'byref as wstring' PARAMETER, and that is the length fbc
     '' passes for one -- 'fb_WstrAssign( C$1, 0ll, ... )'. Reading 0 as "not a wide
@@ -141,7 +126,13 @@ function LowerWideAssignTo _
     ''
     '' fb_WstrConcat proper is only for a genuine rvalue, which needs a temporary
     '' whose lifetime tiko-lang does not model yet.
-    if c.ast->Kind( value ) = Tko.N_BINARY then
+    ''
+    '' ...NOT A USTRING CHAIN, which is one ustring value: 'w = "x" & u' assigned "x"
+    '' and then found no concat-assign for the USTRING term, so the rest was dropped --
+    '' 'dv & " " & ustr & " literal " & wsz' printed without its ustr. The ustring
+    '' branch below builds the whole chain and hands it over in one fb_UStrAssignToW.
+    dim as boolean uchain = IsUStringType( c, c.info->TypeOf_( value ) ) orelse ChainTouchesU_( c, value )
+    if (c.ast->Kind( value ) = Tko.N_BINARY) andalso (uchain = false) then
         dim as Tko.BinaryPayload ptr vb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
         dim as Tko.TokenKind vop = cast( Tko.TokenKind, vb->op )
@@ -179,7 +170,7 @@ function LowerWideAssignTo _
     '' result itself, 'fb_UStrAssignToW( W$0, 260ll, vr$0, -1ll )', and the runtime frees
     '' it; UStrOutOperand_ copies and deletes instead, which writes the same text and also
     '' covers a property, an intrinsic and a 'ustring * N' (a buffer, not a descriptor).
-    if IsUStringType( c, c.info->TypeOf_( value ) ) then
+    if uchain then
         dim as MirValue usrc
         dim as long uslot = -1
         if UStrOutOperand_( c, value, usrc, uslot ) = false then return false
@@ -300,6 +291,12 @@ function LowerWideConcatAssignTo _
     '' 'not a wide string', fell into the narrow/number branch below, matched
     '' neither, and declined. The wide path underneath already reaches it through
     '' WideOperand_, which knows the shape.
+    '' A USTRING SOURCE is a ustring concatenation -- see lowerwstru.bas.
+    select case WideConcatAssignUStr_( c, dst, n, value )
+    case 1 : return true
+    case -1 : return false
+    end select
+
     dim as boolean srcIsWide = IsWideString_( c, c.info->TypeOf_( value ) )
     if srcIsWide = false then srcIsWide = TermIsWide_( c, value )
     if srcIsWide = false then

@@ -43,6 +43,7 @@ src/mir/lowerustr.bas
 src/mir/lowerstrdesc.bas
 src/mir/lowerswap.bas
 src/mir/lowerwstr.bas
+src/mir/lowerwstru.bas
 src/mir/lowerctl.bas
 src/mir/lowereach.bas
 src/mir/eightbyte.bas

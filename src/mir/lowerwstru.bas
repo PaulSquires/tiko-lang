@@ -1,0 +1,75 @@
+'' lowerwstru.bas -- a USTRING source into a WSTRING destination.
+'' Split out of lowerwstr.bas on 2026-09-23 for the 1500-line cap.
+
+#include once "mir/lowerctx.bi"
+
+namespace Tko.Mir
+
+'' A USTRING IS NOT A NARROW STRING, and the wide path is tried on the way past every
+'' assignment. IsStringType says yes to a ustring, so 'v = p + u' over a ustring
+'' destination was claimed here and emitted fb_WstrConcatWA over the ustring operand
+'' and then fb_WstrAssignToA into the ustring descriptor -- a wstring written where a
+'' UTF-16 descriptor lives. It lowered and it verified.
+''
+'' A ustring anywhere in the chain makes the chain a ustring: into a ustring it belongs to
+'' the conversion fold in lowerterm.bas, and into a wstring to one fb_UStrAssignToW.
+function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
+    dim as FB.Array( of ulong ) terms
+    FlattenConcat( c, value, terms )
+    for i as long = 0 to terms.Count - 1
+        if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
+            return true
+        end if
+    next
+    return false
+end function
+
+'' A USTRING SOURCE -- 'w &= u', 'w &= "b" & u' -- is a ustring concatenation, which
+'' fbc lowers as one: the destination is read into a ustring, the source appended and
+'' the result assigned back. Measured, fbc-modern -gen gcc -r:
+''
+''     vr$4 = fb_WstrToUStr( W$0 );  memset( &TMP, 0, 24 );
+''     vr$7 = fb_UStrConcat( &TMP, vr$4, -1ll, &USTR$0, -1ll );
+''     fb_UStrAssignToW( W$0, 64ll, vr$7, -1ll )
+''
+'' It was dropped with a skip-site. Not the ustring's own UTF-16 appended in place:
+'' a Linux wstring is four bytes to the character.
+''
+'' 1 lowered, 0 not a ustring source (the caller's other paths apply), -1 declined.
+function WideConcatAssignUStr_ _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval value as Tko.NodeId ) as long
+
+    if (IsUStringType( c, c.info->TypeOf_( value ) ) = false) andalso _
+       (ChainTouchesU_( c, value ) = false) then return 0
+    dim as MirValue usrc
+    dim as long uslot = -1
+    if UStrOutOperand_( c, value, usrc, uslot ) = false then return -1
+    dim as FB.Array( of ulong ) wa
+    wa.Push( cast( ulong, dst.kind ) ) : wa.Push( cast( ulong, dst.id ) )
+    dim as MirValue cur = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
+    if cur.kind = cast( ubyte, MV_NONE ) then return -1
+    dim as long tslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if tslot < 0 then return -1
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL ) : tmp.ty = cast( ubyte, MT_PTR ) : tmp.id = tslot
+    ZeroStrDescriptor( c, tmp )
+    dim as FB.Array( of ulong ) ca
+    ca.Push( cast( ulong, tmp.kind ) ) : ca.Push( cast( ulong, tmp.id ) )
+    ca.Push( cast( ulong, cur.kind ) ) : ca.Push( cast( ulong, cur.id ) )
+    ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    ca.Push( cast( ulong, usrc.kind ) ) : ca.Push( cast( ulong, usrc.id ) )
+    ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    dim as MirValue joined = EmitRtl( c, RTL_USTR_CONCAT, ca )
+    if joined.kind = cast( ubyte, MV_NONE ) then return -1
+    dim as FB.Array( of ulong ) aa
+    aa.Push( cast( ulong, dst.kind ) ) : aa.Push( cast( ulong, dst.id ) )
+    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, n ) )
+    aa.Push( cast( ulong, joined.kind ) ) : aa.Push( cast( ulong, joined.id ) )
+    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    EmitRtl( c, RTL_USTR_TO_W, aa )
+    ReleaseUStrOut_( c, uslot )
+    return 1
+end function
+
+end namespace
