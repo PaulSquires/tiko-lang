@@ -1,0 +1,29 @@
+'' A KEYWORD IS DEFINED to '#ifdef', '#ifndef' and '#elseifdef', as it already was to
+'' 'defined( K )'. Measured, fbc takes the true branch of '#ifdef K' and of 'defined( K )'
+'' for all 246 keywords that are tokens; tiko took 246 for defined( ) and none for
+'' '#ifdef', so win/winnt.bi's '#ifndef BOOLEAN' guard declared a type fbc never sees.
+'' Every #error below is in a branch fbc TAKES; an identifier stays undefined.
+'' TEST: cli
+'' ARGS: --parse-only %s
+'' EXPECT-OUT: ifdef boolean taken
+'' EXPECT-OUT: ifndef base not taken
+'' EXPECT-OUT: elseifdef print taken
+'' EXPECT-OUT: ident undefined
+'' EXPECT-MAX-DIAG: 4
+
+#ifdef boolean
+#error ifdef boolean taken
+#endif
+#ifndef base
+#error ifndef base taken, wrongly
+#else
+#error ifndef base not taken
+#endif
+#if 0
+#elseifdef print
+#error elseifdef print taken
+#endif
+#ifdef not_a_keyword_or_macro
+#else
+#error ident undefined
+#endif

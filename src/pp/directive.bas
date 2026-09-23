@@ -562,6 +562,12 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             if Tk( t ) = TK_IDENT then
                 dim as InternId wantId = cast( InternId, t.literal )
                 defined_ = (MacroFor( e, wantId ) <> 0) orelse IsDeclared_( e, wantId )
+            '' A KEYWORD IS DEFINED, as 'defined( K )' already answers (ppexpr.bas). Measured,
+            '' fbc takes the true branch of '#ifdef K' for all 246 keywords that are tokens, and
+            '' tiko took none: win/winnt.bi's '#ifndef BOOLEAN' guard declared a type BOOLEAN
+            '' that fbc never sees.
+            elseif IsKeywordKind( Tk( t ) ) then
+                defined_ = true
             end if
         end if
         SkipToEol( e )
@@ -599,6 +605,8 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                     '' '#ifndef' about what counts as defined.
                     dim as InternId wantId2 = cast( InternId, t.literal )
                     d = (MacroFor( e, wantId2 ) <> 0) orelse IsDeclared_( e, wantId2 )
+                elseif IsKeywordKind( Tk( t ) ) then
+                    d = true
                 end if
             end if
             SkipToEol( e )
