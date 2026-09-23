@@ -14,7 +14,7 @@
 '' tracks' grid built enough of them to drain the pool: every later temporary string
 '' came back empty.
 '' EXPECT-OUT: fb_StrAssign(@$tmp0, -1, @@$str13, 10, 0)
-'' EXPECT-OUT: call void _ZN1WC1ER8FBSTRINGj(%5, @$tmp0, %11)
+'' EXPECT-OUT: call void _ZN1WC1ER8FBSTRINGj(%5, @$tmp0, %12)
 '' EXPECT-OUT: call.rtl void fb_StrDelete(@$tmp0)
 '' ...and NOT the default constructor before it: 'plain' at offset 0 gets one, 'host'
 '' does not.

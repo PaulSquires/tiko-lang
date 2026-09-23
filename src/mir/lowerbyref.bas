@@ -80,6 +80,19 @@ function ByvalDefaultArg_ _
     ( byref c as Ctx, byval dv as Tko.NodeId, byval pty as Tko.TypeId ) as MirValue
 
     dim as MirValue av = LowerExpr( c, dv )
+    '' ...CONVERTED TO THE PARAMETER'S TYPE FIRST, as PushCtorArgs_ converts a written
+    '' one. The default is an expression of its own type -- '= 0' is an INTEGER -- and
+    '' 'dim as T v' went on to pass it raw. Over a 'byval b as byte = 0', whose slot the
+    '' signature widens to i32, the emitter then extended an i64 as if it were a byte:
+    '' 'sext i64 0 to i32', which clang refuses. Every fbx CDialog example died on it --
+    '' 'declare constructor( ..., byval fontStyle as BYTE = 0, byval charset as BYTE =
+    '' DEFAULT_CHARSET )' -- while 'dim as T v = T( 5 )' beside it, written, built.
+    if (av.kind <> cast( ubyte, MV_NONE )) andalso (pty <> Tko.TYPE_NONE) then
+        dim as MirType pmt = LowerType( pty, *c.types )
+        if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+            av = CoerceTy( c, av, pmt, c.info->TypeOf_( dv ), pty )
+        end if
+    end if
     ByvalIndirectRetemp_( c, av, pty )
     return av
 end function
