@@ -105,9 +105,6 @@ and listed with the rest on [Compatibility](wiki/Compatibility.md):
 - **Byte-identical symbol names** ([D3](docs/plan/README.md)). An object tiko builds for
   `-target win64` links with fbc's, both ways, and `build/crosslink.sh` runs that in the gate.
   Only `win64` can meet fbc at all, because fbc has no MSVC target.
-  **Tuples are the known exception.** Take a procedure in a namespace that has a `(long, long)`
-  parameter: tiko mangles it `_ZN2NS4SUM2E8$TUP:6:6`, and fbc mangles it
-  `_ZN2NS4SUM2E8FBTUPLE2IiiE` (measured 2026-09-24).
 - **The runtime ABI is libfb's**: its `FBSTRING` and `FBARRAY` layouts and its `fb_*` signatures.
   tiko links **tiko-rt**, a reimplementation of that ABI in FreeBASIC (`lib/rt/`), and
   **libtkogfx**, a drop-in for fbc's graphics library (`lib/gfx/`).

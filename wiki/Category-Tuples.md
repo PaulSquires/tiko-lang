@@ -362,7 +362,7 @@ tiko reports almost none of these yet. Measured 2026-09-24 at origin/master 50c7
 
 tiko's implementation is its own, in its type table and its MIR lowering; none of FBC-Modern's symbol-table or parser code is involved.
 
-One difference from fbc is measured and matters: tiko does not yet mangle a tuple type the way fbc does. fbc names '(long, long)' '8FBTUPLE2IiiE', as SEPARATE COMPILATION above says; tiko emits '8$TUP:6:6', built from its own type-table indices, which are not a function of the element types alone (measured 2026-09-24 at origin/master 50c71751, `--dump-mangle` and `--emit-ir`). A tuple-typed parameter declared in two separately compiled modules can therefore fail to link: in one probe the defining module exported `N::TAKE($TUP:24:15)` while the calling module asked for `N::TAKE($TUP:26:15)` (`lld-link: error: undefined symbol`), where fbc's build of the same two files links and runs. The same two files given to one `tiko` invocation link and run.
+tiko mangles a tuple type as fbc does, as SEPARATE COMPILATION above says: an instantiation of 'FBTUPLE<N>', its element types the arguments. Measured 2026-09-24, every procedure and member name tiko emits for (long, long), (long, string), ((long, string), long), (Counted, long) and (integer, integer) is byte-identical to fbc's object file. Two separately compiled tiko modules sharing a namespaced procedure over '(Pt, long)', with Pt declared in a different order in each, link and run. So does a tiko module against an fbc-built one for -target win64. Before, tiko named a tuple by its own type-table indices ('8$TUP:6:6'), which are per-module numbers, and both of those links failed.
 
 The design documents are FBC-Modern's: C:\\dev\\docs\\tuple -- README.md and RFC-0001 through RFC-0004.
 

@@ -70,7 +70,7 @@ The run programs in the same corpus all match, including every `generics/`, `tup
 
 ## What is the same
 
-- **Symbol names** are byte-identical to fbc's, with one known exception: a signature that names a tuple type. For `NS.Sum2( byval t as (long, long) )` tiko emits `_ZN2NS4SUM2E8$TUP:6:6`, and fbc emits `_ZN2NS4SUM2E8FBTUPLE2IiiE` (measured 2026-09-24).
+- **Symbol names** are byte-identical to fbc's. Tuple types included, measured 2026-09-24: `NS.Sum2( byval t as (long, long) )` is `_ZN2NS4SUM2E8FBTUPLE2IiiE` under both, and a tuple's members, a namespaced type's and a generic's implicit `operator let` and copy constructor carry fbc's own substitutions (`RKS0_`, `RKS1_`).
 - **The runtime ABI** is `libfb`'s: its `FBSTRING` and `FBARRAY` layouts and every `fb_*` signature. tiko links tiko-rt, a reimplementation of that ABI in FreeBASIC.
 - **The headers** are FBC-Modern's, shipped unchanged in tiko's toolchain: `datetime.bi`, `vbcompat.bi`, the `fb/` libraries and the platform bindings.
 - **Namespacing.** The string library, the containers, `chrono` and `filesystem` all live in namespace `FB` behind an `#include`, so nothing becomes a keyword. `each`, `in` and `spawn` stay usable as ordinary variable names in tiko, and so does `defer` as a *variable* (measured 2026-09-24).
