@@ -20,6 +20,7 @@
 #include once "mir/mir.bi"
 #include once "codegen/target.bi"
 #include once "source/manager.bi"
+#include once "codegen/llvmdebug.bi"
 
 namespace Tko.Codegen
 
@@ -36,7 +37,8 @@ namespace Tko.Codegen
     declare function EmitLlvm _
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
           byref target as TargetDescription, byval sm as Tko.SourceManager ptr = 0, _
-          byval debugInfo as boolean = false, byval mainPath as string = "" ) as EmitResult
+          byval debugInfo as boolean = false, byval mainPath as string = "", _
+          byval dfe as DebugFrontend ptr = 0 ) as EmitResult
 
 end namespace
 

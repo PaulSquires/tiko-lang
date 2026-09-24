@@ -1,6 +1,7 @@
 '' llvmdebug.bas -- see the header.
 
 #include once "codegen/llvmdebug.bi"
+#include once "support/text.bi"
 
 namespace Tko.Codegen
 
@@ -27,6 +28,19 @@ private function NewNode_( byref d as DebugInfo, byref body as string ) as long
     return id
 end function
 
+'' A NUMBER NOW, ITS TEXT LATER: a composite type names its members and its members
+'' name it back, and the compile unit lists globals that do not exist yet. LLVM reads
+'' metadata by number, in any order.
+private function ReserveNode_( byref d as DebugInfo ) as long
+    dim as long id = d.nextId
+    d.nextId += 1
+    return id
+end function
+
+private sub DefineNode_( byref d as DebugInfo, byval id as long, byref body as string )
+    d.nodes += "!" & str( id ) & " = " & body & chr( 10 )
+end sub
+
 '' DIFile wants the name and the directory apart; both separators are split on, since a
 '' path from the command line may use either on Windows.
 private function FileNode_( byref d as DebugInfo, byref path as string ) as long
@@ -44,48 +58,122 @@ private function FileNode_( byref d as DebugInfo, byref path as string ) as long
                         ", directory: " & MetaStr_( dir_ ) & ")" )
 end function
 
+'' The DIFile for FileId + 1, made on first use; 0 is the module's own.
+private function FileFor_( byref d as DebugInfo, byval fileKey as ulong ) as long
+    if (fileKey = 0) orelse (d.sm = 0) then return d.mainFileId
+    while d.fileMeta.Count <= cast( long, fileKey )
+        d.fileMeta.Push( 0 )
+    wend
+    if d.fileMeta[fileKey] = 0 then
+        d.fileMeta[fileKey] = FileNode_( d, d.sm->PathOf( fileKey - 1 ) )
+    end if
+    return d.fileMeta[fileKey]
+end function
+
+'' Where a symbol was declared: its DIFile and its line.
+private sub DeclSite_( byref d as DebugInfo, byval s as Tko.Symbol ptr, _
+                       byref fileNode as long, byref lineNo as long )
+    fileNode = d.mainFileId
+    lineNo = 0
+    if d.sm = 0 then exit sub
+    dim as Tko.DecodedLoc dl = d.sm->Decode( s->loc )
+    fileNode = FileFor_( d, cast( ulong, dl.file ) + 1 )
+    lineNo = dl.physLine
+end sub
+
+#include once "codegen/llvmdbgtype.bas"
+
 sub DbgBegin _
-    ( byref d as DebugInfo, byval sm as Tko.SourceManager ptr, byref mainPath as string )
+    ( byref d as DebugInfo, byval sm as Tko.SourceManager ptr, byref mainPath as string, _
+      byval fe as DebugFrontend ptr )
 
     d.sm = sm
+    d.fe = fe
     d.nextId = 0
     d.nodes = ""
     d.fileMeta.Clear( )
+    d.typeMeta.Clear( )
+    d.spSym.Clear( )
+    d.spId.Clear( )
+    d.spDone.Clear( )
+    d.globals = ""
+    d.intType = 0
     d.curSp = -1
     d.mainFileId = FileNode_( d, mainPath )
-    '' C99, because FreeBASIC has no DWARF language code and a debugger then evaluates
-    '' expressions the way it would for the C that fbc's own gcc backend emits.
-    d.cuId = NewNode_( d, "distinct !DICompileUnit(language: DW_LANG_C99, file: !" & _
-                          str( d.mainFileId ) & ", producer: ""tiko-lang"", " & _
-                          "isOptimized: false, runtimeVersion: 0, " & _
-                          "emissionKind: LineTablesOnly)" )
+    '' The compile unit is written LAST, by DbgFinish, because it lists the globals.
+    d.cuId = ReserveNode_( d )
     d.typeId = NewNode_( d, "!DISubroutineType(types: !{null})" )
 end sub
 
+'' The reserved number for a procedure's subprogram, made on first ask.
+private function SpFor_( byref d as DebugInfo, byval procSym as ulong ) as long
+    for i as long = 0 to d.spSym.Count - 1
+        if d.spSym[i] = procSym then return d.spId[i]
+    next
+    dim as long id = ReserveNode_( d )
+    d.spSym.Push( procSym )
+    d.spId.Push( id )
+    d.spDone.Push( 0 )
+    return id
+end function
+
+'' A procedure's name as FreeBASIC writes it: 'Geo.Vec2.Len2', each enclosing type and
+'' namespace in its declared spelling.
+private function QualifiedName_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as string
+    dim as string r = SpellingOf_( d, s )
+    dim as Tko.ScopeId sc = s->parent
+    dim as long guard = 0
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < 64)
+        dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
+        if sp = 0 then exit while
+        dim as boolean named = (sp->kind = cast( ubyte, Tko.SCOPEK_TYPE )) orelse _
+                               (sp->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ))
+        if named andalso (sp->owner <> Tko.SYMBOL_NONE) then
+            dim as Tko.Symbol ptr os = d.fe->syms->SymbolAt( sp->owner )
+            if os <> 0 then r = SpellingOf_( d, os ) & "." & r
+        end if
+        sc = sp->parent
+        guard += 1
+    wend
+    return r
+end function
+
 function DbgSubprogram _
     ( byref d as DebugInfo, byref linkName as string, byval fileKey as ulong, _
-      byval lineNo as long ) as long
+      byval lineNo as long, byval procSym as ulong ) as long
 
-    dim as long fm = d.mainFileId
-    if (fileKey > 0) andalso (d.sm <> 0) then
-        while d.fileMeta.Count <= cast( long, fileKey )
-            d.fileMeta.Push( 0 )
-        wend
-        if d.fileMeta[fileKey] = 0 then
-            d.fileMeta[fileKey] = FileNode_( d, d.sm->PathOf( fileKey - 1 ) )
-        end if
-        fm = d.fileMeta[fileKey]
-    end if
+    dim as long fm = FileFor_( d, fileKey )
     dim as long ln = lineNo
     if ln < 0 then ln = 0
-    d.curSp = NewNode_( d, "distinct !DISubprogram(name: " & MetaStr_( linkName ) & _
-                           ", linkageName: " & MetaStr_( linkName ) & _
-                           ", scope: !" & str( fm ) & ", file: !" & str( fm ) & _
-                           ", line: " & str( ln ) & ", type: !" & str( d.typeId ) & _
-                           ", scopeLine: " & str( ln ) & _
-                           ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & ")" )
+    '' THE SOURCE NAME, which is what a call stack should show: 'Add', not 'ADD' or
+    '' '_ZN1T4GETUEv'. The link name stays as the linkage name.
+    dim as string nm = linkName
+    dim as long id
+    if (procSym <> 0) andalso (d.fe <> 0) then
+        dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, procSym ) )
+        if ps <> 0 then nm = QualifiedName_( d, ps )
+        id = SpFor_( d, procSym )
+        for i as long = 0 to d.spSym.Count - 1
+            if d.spSym[i] = procSym then d.spDone[i] = 1
+        next
+    else
+        id = ReserveNode_( d )
+    end if
+    '' NO linkageName for a procedure that has a source name: lldb names a frame by the
+    '' DEMANGLED linkage name when there is one, so 'Vec2.Len2' was 'GEO::VEC2::LEN2'
+    '' and 'Twice' was 'TWICE'. main and the module constructors keep theirs.
+    dim as string lk = ""
+    if nm = linkName then lk = ", linkageName: " & MetaStr_( linkName )
+    DefineNode_( d, id, "distinct !DISubprogram(name: " & MetaStr_( nm ) & lk & _
+                       ", scope: !" & str( fm ) & ", file: !" & str( fm ) & _
+                       ", line: " & str( ln ) & ", type: !" & str( d.typeId ) & _
+                       ", scopeLine: " & str( ln ) & _
+                       ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & ")" )
+    d.curSp = id
+    d.curFile = fm
     d.locLine = -1
     d.locId = 0
+    d.argNo = 0
     return d.curSp
 end function
 
@@ -104,7 +192,118 @@ function DbgLocSuffix( byref d as DebugInfo, byval lineNo as long ) as string
     return ", !dbg !" & str( d.locId )
 end function
 
+
+function DbgDeclare _
+    ( byref d as DebugInfo, byval sym as ulong, byval frontType as Tko.TypeId, _
+      byval slotIsPtr as boolean, byref slotName as string ) as string
+
+    if (d.fe = 0) orelse (d.curSp < 0) orelse (sym = 0) then return ""
+    dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
+    if s = 0 then return ""
+    dim as boolean isParam = (s->kind = cast( ubyte, Tko.SYM_PARAMETER ))
+    if (isParam = false) andalso (s->kind <> cast( ubyte, Tko.SYM_VARIABLE )) then return ""
+    dim as long ty = DbgType( d, frontType )
+    if ty < 0 then return ""
+    '' PASSED BY ADDRESS: a UDT or a string taken by value lives in the caller, and the
+    '' slot holds its address -- so the slot's type is a reference to the value's.
+    if slotIsPtr andalso NeedsIndirection_( d, frontType ) then
+        ty = NewNode_( d, "!DIDerivedType(tag: DW_TAG_reference_type, baseType: " & _
+                          TypeRef_( ty ) & ", size: " & str( PtrBits_( d ) ) & ")" )
+    end if
+    dim as long fl, ln
+    DeclSite_( d, s, fl, ln )
+    dim as string argPart = ""
+    if isParam then
+        d.argNo += 1
+        argPart = ", arg: " & str( d.argNo )
+    end if
+    dim as long v = NewNode_( d, "!DILocalVariable(name: " & MetaStr_( SpellingOf_( d, s ) ) & _
+                                  argPart & ", scope: !" & str( d.curSp ) & ", file: !" & _
+                                  str( fl ) & ", line: " & str( ln ) & ", type: " & _
+                                  TypeRef_( ty ) & ")" )
+    dim as long at = NewNode_( d, "!DILocation(line: " & str( ln ) & ", scope: !" & _
+                                   str( d.curSp ) & ")" )
+    return "    #dbg_declare(ptr " & slotName & ", !" & str( v ) & _
+           ", !DIExpression(), !" & str( at ) & ")" & chr( 10 )
+end function
+
+'' The procedure a symbol is declared inside, 0 at module level.
+private function OwningProc_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as ulong
+    dim as Tko.ScopeId sc = s->parent
+    dim as long guard = 0
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+        dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
+        if sp = 0 then exit while
+        if sp->kind = cast( ubyte, Tko.SCOPEK_PROC ) then return cast( ulong, sp->owner )
+        sc = sp->parent
+        guard += 1
+    wend
+    return 0
+end function
+
+function DbgGlobal _
+    ( byref d as DebugInfo, byval sym as ulong, byref linkName as string, _
+      byval isLocal as boolean ) as string
+
+    if (d.fe = 0) orelse (sym = 0) then return ""
+    dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
+    if s = 0 then return ""
+    dim as long ty = DbgType( d, s->type_ )
+    if ty < 0 then return ""
+    dim as long fl, ln
+    DeclSite_( d, s, fl, ln )
+    '' A STATIC LOCAL is scoped to its procedure, so the debugger lists it there.
+    '' NO linkageName: lldb shows a variable by it when there is one, and a static local
+    '' is 'SHOW$callcount' there. The address comes from the definition it is attached to.
+    dim as long scope_ = d.cuId
+    dim as ulong owner = OwningProc_( d, s )
+    if owner <> 0 then scope_ = SpFor_( d, owner )
+    dim as long gv = NewNode_( d, "distinct !DIGlobalVariable(name: " & _
+                                  MetaStr_( SpellingOf_( d, s ) ) & _
+                                  ", scope: !" & str( scope_ ) & _
+                                  ", file: !" & str( fl ) & ", line: " & str( ln ) & _
+                                  ", type: " & TypeRef_( ty ) & ", isLocal: " & _
+                                  iif( isLocal, "true", "false" ) & ", isDefinition: true)" )
+    dim as long ge = NewNode_( d, "!DIGlobalVariableExpression(var: !" & str( gv ) & _
+                                  ", expr: !DIExpression())" )
+    d.globals += ", !" & str( ge )
+    return ", !dbg !" & str( ge )
+end function
+
 function DbgFinish( byref d as DebugInfo ) as string
+    '' A SUBPROGRAM RESERVED AND NEVER EMITTED: a static local's scope, in a procedure
+    '' that was not emitted -- an unreferenced PRIVATE one is dropped (llvmrefs.bas) while
+    '' its statics are still globals. The number is referenced, so it is defined here,
+    '' as a subprogram with no code.
+    if d.fe <> 0 then
+        for i as long = 0 to d.spSym.Count - 1
+            if d.spDone[i] <> 0 then continue for
+            dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, d.spSym[i] ) )
+            dim as string nm = "?"
+            dim as long fl = d.mainFileId, ln = 0
+            if ps <> 0 then
+                nm = QualifiedName_( d, ps )
+                DeclSite_( d, ps, fl, ln )
+            end if
+            DefineNode_( d, d.spId[i], "distinct !DISubprogram(name: " & MetaStr_( nm ) & _
+                                       ", scope: !" & str( fl ) & ", file: !" & str( fl ) & _
+                                       ", line: " & str( ln ) & ", type: !" & str( d.typeId ) & _
+                                       ", scopeLine: " & str( ln ) & _
+                                       ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & ")" )
+        next
+    end if
+    '' C99, because FreeBASIC has no DWARF language code and a debugger then evaluates
+    '' expressions the way it would for the C that fbc's own gcc backend emits.
+    dim as string kind_ = "LineTablesOnly"
+    dim as string gl = ""
+    if d.fe <> 0 then
+        kind_ = "FullDebug"
+        if len( d.globals ) > 0 then gl = ", globals: !{" & mid( d.globals, 3 ) & "}"
+    end if
+    DefineNode_( d, d.cuId, "distinct !DICompileUnit(language: DW_LANG_C99, file: !" & _
+                            str( d.mainFileId ) & ", producer: ""tiko-lang"", " & _
+                            "isOptimized: false, runtimeVersion: 0, " & _
+                            "emissionKind: " & kind_ & gl & ")" )
     dim as long fv = NewNode_( d, "!{i32 2, !""Debug Info Version"", i32 3}" )
     dim as long dv = NewNode_( d, "!{i32 7, !""Dwarf Version"", i32 4}" )
     return chr( 10 ) & "!llvm.dbg.cu = !{!" & str( d.cuId ) & "}" & chr( 10 ) & _

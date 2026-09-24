@@ -204,7 +204,7 @@ sub LowerProc _
         f->dbgFile = cast( ulong, dbgAt.file ) + 1
         f->dbgLine = dbgAt.physLine
     end if
-    c.curProcSym = sid
+    c.curProcSym = sid : f->procSym = cast( ulong, sid )
     c.st->functions += 1
 
     '' An instance method takes THIS as parameter ZERO. It is never written in the

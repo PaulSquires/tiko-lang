@@ -1,0 +1,47 @@
+'' '-g' DESCRIBES VARIABLES AND THEIR TYPES, not only lines. Before, the compile unit was
+'' LineTablesOnly and a debugger stopped in a tiko program saw no variable at all --
+'' lldb's "no variable information is available in debug info for this compile unit".
+''
+'' Every assertion is a node shape clang 21 emits for the same C construct, and the
+'' program was run under LLVM 21's lldb on Windows ('-debug:dwarf' PE) with every value
+'' compared against the same program built by fbc: the parameters by reference and by
+'' value, the string descriptor showing "Hello", the UDTs, the enum as 'Green', the
+'' fixed and dynamic arrays, the bitfields reading 5 and 17 (fbc's unsigned reading),
+'' the base type as inheritance, the static local and the shared globals.
+'' TEST: cli
+'' ARGS: -g --emit-ir tests/codegen/src/debug-vars.bas
+'' EXPECT-EXIT: 0
+
+'' The compile unit is full debug info, and it lists the globals.
+'' EXPECT-OUT: emissionKind: FullDebug, globals: !{
+'' A local's home is its alloca, declared once for the whole procedure.
+'' EXPECT-OUT: #dbg_declare(ptr %s
+'' EXPECT-OUT: !DILocalVariable(name: "MyLong"
+'' Names keep the DECLARED spelling -- identifiers intern folded -- and a parameter is
+'' numbered.
+'' EXPECT-OUT: !DILocalVariable(name: "ByRefArg", arg: 1
+'' EXPECT-OUT: DW_TAG_reference_type
+'' A STRING is its descriptor; a dynamic array its FBARRAY, 'data' typed.
+'' EXPECT-OUT: DW_TAG_structure_type, name: "string"
+'' EXPECT-OUT: name: "FBARRAY(long)"
+'' EXPECT-OUT: DW_TAG_enumeration_type, name: "Colour"
+'' EXPECT-OUT: !DIEnumerator(name: "Green", value: 2)
+'' EXPECT-OUT: DIFlagBitField
+'' EXPECT-OUT: DW_TAG_inheritance
+'' EXPECT-OUT: DW_TAG_union_type, name: "Pun"
+'' A fixed array keeps its declared bounds.
+'' EXPECT-OUT: !DISubrange(count: 3, lowerBound: 1)
+'' A wide character is 'wchar_t', or lldb shows a 'wstring * N' as numbers.
+'' EXPECT-OUT: name: "wchar_t", size: 16
+'' A scalar is a typedef with FreeBASIC's name: lldb re-spells a basic type in C.
+'' EXPECT-OUT: DW_TAG_typedef, name: "integer"
+'' EXPECT-OUT: !DIGlobalVariable(name: "ShCount"
+'' A static local is a global scoped to its procedure.
+'' EXPECT-OUT: !DIGlobalVariable(name: "CallCount"
+'' A procedure is named by its source spelling, with no linkage name to override it.
+'' EXPECT-OUT: !DISubprogram(name: "Show", scope:
+'' EXPECT-OUT: !DISubroutineType(types: !{null,
+'' ...and one in a procedure that is never emitted still has a subprogram to be scoped
+'' to: 24 corpus files were 'use of undefined metadata' under '-g' until it did.
+'' EXPECT-OUT: !DIGlobalVariable(name: "Hidden"
+'' EXPECT-OUT: !DISubprogram(name: "NeverCalled", scope:

@@ -1030,9 +1030,13 @@ function Run _
                 if doCodegen then
                     dim as Tko.Codegen.TargetDescription td = _
                         Tko.Codegen.TargetFor( ctx.options.target )
+                    '' '-g' DESCRIBES VARIABLES FROM THE FRONTEND, which is still alive here.
+                    dim as Tko.Codegen.DebugFrontend dfe
+                    dfe.types = @ctx.types : dfe.syms = @syms
+                    dfe.udts = @udts : dfe.names = @ctx.names
                     dim as Tko.Codegen.EmitResult er = _
                         Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
-                                              ctx.options.debugInfo, ctx.sources.PathOf( id ) )
+                                              ctx.options.debugInfo, ctx.sources.PathOf( id ), @dfe )
                     if er.ok then
                         '' AN OUTPUT PATH TURNS '--emit-ir' INTO A REAL BUILD: the IR
                         '' goes to a file beside it, clang makes the object, and the

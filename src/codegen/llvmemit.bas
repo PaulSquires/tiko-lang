@@ -474,6 +474,8 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
         Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & _
                  ", align " & str( AlignOf( e, st, sz ) ) )
+        if e.dbg <> 0 then e.outp += DbgDeclare( *e.dbg, e.f->locals[slot].sym, _
+            e.f->locals[slot].frontendType, (st = MT_PTR), SlotName( slot ) )
 
     case M_LOAD
         if rt = MT_VOID then
@@ -990,7 +992,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     dim as string dbgAttr = ""
     if e.dbg <> 0 then
         dbgAttr = " !dbg !" & str( DbgSubprogram( *e.dbg, e.names->Spelling( f->name ), _
-                                                  f->dbgFile, f->dbgLine ) )
+                                                  f->dbgFile, f->dbgLine, f->procSym ) )
         e.dbgLine = f->dbgLine
     end if
     e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
@@ -1300,8 +1302,10 @@ sub EmitVarGlobal _
         init_ = "ptrtoint (ptr " & init_ & " to " & LlvmType( vt ) & ")"
     end if
 
+    dim as string gdbg = ""
+    if (e.dbg <> 0) andalso (g.isExternal = false) then gdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
     e.outp += nm & " = " & VarLinkage( e, g ) & "global " & ty & " " & init_ & _
-              ", align " & str( AlignOf( e, vt, g.size ) ) & chr( 10 )
+              ", align " & str( AlignOf( e, vt, g.size ) ) & gdbg & chr( 10 )
 end sub
 
 '' ---------------------------------------------------------------- the module
@@ -1393,7 +1397,7 @@ end function
 function EmitLlvm _
     ( byref m as MirModule, byref names as Tko.Interner, _
       byref target as TargetDescription, byval sm as Tko.SourceManager ptr, _
-      byval debugInfo as boolean, byval mainPath as string ) as EmitResult
+      byval debugInfo as boolean, byval mainPath as string, byval dfe as DebugFrontend ptr ) as EmitResult
 
     dim as EmitResult res
     dim as EmitCtx e
@@ -1402,7 +1406,7 @@ function EmitLlvm _
     e.tgt = @target
     dim as DebugInfo dbg
     if debugInfo then
-        DbgBegin( dbg, sm, mainPath )
+        DbgBegin( dbg, sm, mainPath, dfe )
         e.dbg = @dbg
     end if
 

@@ -344,6 +344,9 @@ namespace Tko.Mir
         '' the line it starts on. Instruction lines are only recorded in THAT file.
         as ulong    dbgFile
         as long     dbgLine
+        '' ...and the procedure's SYMBOL, 0 for main and the module constructors: '-g'
+        '' takes the source name and the signature from it.
+        as ulong    procSym
         as long     paramCount
         as MirLocalVec locals
         as MirBlockVec blocks
@@ -557,6 +560,9 @@ namespace Tko.Mir
         '' THE NEXT GLOBAL WITH THE SAME NAME, index plus one, 0 for none. See
         '' MirModule.globalByName.
         as long     nextSameName
+        '' THE SYMBOL a variable global stores, 0 for everything else -- '-g' names and
+        '' types it from there. A ulong for the same reason as MirLocal.sym.
+        as ulong    sym
     end type
 
     type MirGlobalVec as FB.Array( of MirGlobal )

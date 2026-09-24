@@ -98,6 +98,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     if linksByName = false then nm = UniqueGlobalName( c, nm )
 
     dim as long g = c.m->AddVarGlobal( nm, LowerType( s->type_, *c.types ), s->type_, sz )
+    c.m->globals[g].sym = cast( ulong, sid )
     '' AND WHO MAY SEE IT. Everything here went out with external linkage, so two modules
     '' that each wrote 'dim shared e' -- or each held a 'private sub P' with a 'static sl'
     '' -- were 'lld-link: error: duplicate symbol: e', where fbc compiles both and gives
