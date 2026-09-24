@@ -333,9 +333,9 @@ function ParenlessProcTemp_ _
 end function
 
 '' Does UDT 'pt' declare a one-parameter CONSTRUCTOR taking an 'at' -- or a base 'at'
-'' derives from? The copy constructor never qualifies here: both callers have already
+'' derives from? The copy constructor never qualifies here: every caller has already
 '' ruled out an 'at' that is 'pt' or derives from it.
-private function HasUdtConvCtor_ _
+function HasUdtConvCtor_ _
     ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
 
     dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )

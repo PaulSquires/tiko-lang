@@ -871,6 +871,10 @@ declare function EmitRtl _
     '' and that constructor run into a slot or an address -- lowerctor.bas.
     declare function WideArgCharPtrCtor_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    '' Whether UDT 'pt' has a one-parameter converting constructor for an 'at' --
+    '' lowerbyref.bas.
+    declare function HasUdtConvCtor_ _
+        ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
     declare function CharPtrCtorInit_ _
         ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
           byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean

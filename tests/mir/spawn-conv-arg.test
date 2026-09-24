@@ -1,0 +1,20 @@
+'' A SPAWN ARGUMENT IS CONVERTED THE WAY A CALL ARGUMENT IS. The parser desugars
+'' 'spawn f( a )' into '(*frame).__ARG_0 = a', and the field has f's PARAMETER type. For
+'' an argument of another UDT that assignment was a BITWISE copy: 'spawn Produce( ch )'
+'' over 'byval c as SendChan( of long )' put the Channel's pointer in the frame without
+'' a reference, the frame's delete released one nobody held, and the caller's next
+'' Receive read freed memory -- exit 139 where fbc prints 'done'. On an ordinary type the
+'' same assignment was TKO0738 instead, and 'spawn Use( src )' did not compile at all.
+''
+'' Now the value is built through the converting constructor into a temporary, assigned
+'' into the frame with the type's own let, and the temporary destroyed: argument passing,
+'' which fbc does in its invoke. Pinned: the constructor, the let, no decline, no error.
+'' TEST: cli
+'' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/spawn-conv-arg.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call void _ZN4VIEWC1ER7COUNTED(
+'' EXPECT-OUT: call void _ZN4VIEWaSERKS_(
+'' EXPECT-OUT: call void _ZN8SendChanIiEC1ER7ChannelIiE(
+'' EXPECT-OUT: call void _ZN8SendChanIiEaSERKS_(
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0738

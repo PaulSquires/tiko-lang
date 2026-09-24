@@ -172,6 +172,27 @@ private sub JudgeConversion_ _
     c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
 end sub
 
+'' A SPAWN FRAME'S FIELD IS A PARAMETER BEING PASSED, not a variable being assigned.
+'' The parser desugars 'spawn f( a )' into '(*frame).__ARG_0 = a', where the field has
+'' f's PARAMETER type, and fbc converts a spawn's argument the way a call converts one.
+'' Measured: 'spawn Use( src )' over 'sub Use( byval v as View )', with 'constructor
+'' View( byref src as Counted )', compiles and runs under fbc, and was TKO0738 here. So
+'' it is judged as the INITIALISER a parameter is -- a constructor rescues it -- and the
+'' conversion itself is made in mir/lowerassign.bas, LowerSpawnArgAssign_. The frame is
+'' known by the name the parser gives it, '__tko_spawnframe_<tag>', which no source type
+'' can spell.
+private function IsSpawnFrameField_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if c.ast->Kind( n ) <> N_MEMBER then return false
+    dim as BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+    dim as TypeId ft = c.info->TypeOf_( bp->lhs )
+    if ft = TYPE_NONE then return false
+    ft = c.types->Unqualify( ft )
+    if c.types->Kind( ft ) <> TK_UDT then return false
+    dim as string nm = lcase( c.names->Spelling( c.types->NameOf( ft ) ) )
+    return (left( nm, 17 ) = "__tko_spawnframe_")
+end function
+
 private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = _
@@ -196,7 +217,8 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
         if c.info->RefOf( rl->target ) = SYMBOL_NONE then return
     end if
-    JudgeConversion_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), true )
+    JudgeConversion_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), _
+                      IsSpawnFrameField_( c, sp->a ) = false )
 end sub
 
 private sub CheckUdtInits_ ( byref c as Ctx )

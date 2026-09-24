@@ -148,6 +148,101 @@ private function LowerBareTypeLiteralAssign_ _
     return true
 end function
 
+'' A SPAWN FRAME'S ARGUMENT IS PASSED, NOT ASSIGNED. The parser desugars 'spawn f( a )'
+'' into '(*frame).__ARG_0 = a', and the field has the PARAMETER's type -- so an argument
+'' of another type needs the conversion ARGUMENT PASSING makes, which an assignment does
+'' not: fbc refuses 'sc = ch' outright (error 181) and builds a parameter through its
+'' converting constructor.
+''
+'' Measured: 'spawn P( ch )' over 'sub P( byval c as SendChan( of long ) )', with 'ch' a
+'' 'Channel( of long )', reached the ordinary store below -- the Channel's bytes copied
+'' into the SendChan with no reference taken -- and the frame's 'delete' then released a
+'' reference nobody held, freeing the channel under the caller. The next Receive read
+'' freed memory: exit 139, where fbc prints 'done'. A direct 'P( ch )' was always right,
+'' because a call argument converts. fbc's frame keeps the ARGUMENT's type and its invoke
+'' constructs the parameter from it ('U::ctor( &TMP, &THIS->A0 )'); constructing at the
+'' spawn instead takes the same references, earlier.
+''
+'' So a UDT field meeting a value of another type is built as a temporary through the
+'' converting constructor -- LowerConvCtorInit_, the 'dim u as U = s' path -- then
+'' ASSIGNED as its own type, and the temporary dies with the statement, as in
+'' LowerTupleListAssign_ above. ONLY A SPAWN FRAME'S FIELDS: the same assignment written
+'' in source is fbc's error 181, not a conversion to make. The frame is recognised by the
+'' name the parser gives it, '__tko_spawnframe_<tag>', which no source type can spell.
+private function IsSpawnFrameField_ ( byref c as Ctx, byval target as Tko.NodeId ) as boolean
+    if c.ast->Kind( target ) <> Tko.N_MEMBER then return false
+    dim as Tko.BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+    dim as Tko.TypeId ft = c.info->TypeOf_( bp->lhs )
+    if ft = Tko.TYPE_NONE then return false
+    ft = c.types->Unqualify( ft )
+    if c.types->Kind( ft ) <> Tko.TK_UDT then return false
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( c.types->NameOf( ft ) ) )
+    return (left( nm, 17 ) = "__tko_spawnframe_")
+end function
+
+private function LowerSpawnArgAssign_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    if value = Tko.NODE_NONE then return false
+    if IsSpawnFrameField_( c, target ) = false then return false
+    dim as Tko.TypeId dt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if dt = Tko.TYPE_NONE then return false
+    if c.types->Kind( dt ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId vt = c.info->TypeOf_( value )
+    if vt = Tko.TYPE_NONE then return false
+    vt = c.types->Unqualify( vt )
+    if c.types->Kind( vt ) = Tko.TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+    '' The same type is a COPY, and a derived object is the base subobject: both are the
+    '' ordinary path's.
+    if vt = dt then return false
+    '' SETTLED BEFORE ANYTHING IS EMITTED -- a decline that has already made a temporary
+    '' does not look like one.
+    if c.types->Kind( vt ) = Tko.TK_UDT then
+        if c.types->BaseDistance( vt, dt ) >= 0 then return false
+        if HasUdtConvCtor_( c, dt, vt ) = false then return false
+    else
+        dim as FB.Array( of ulong ) argT
+        argT.Push( cast( ulong, vt ) )
+        if PickCtor( c, StructorOf( c, dt, "__ctor" ), argT ) = Tko.SYMBOL_NONE then return false
+    end if
+    dim as long sz = SizeOfType( c, dt )
+    if sz <= 0 then return false
+
+    dim as MirValue daddr = LowerAddr( c, target )
+    if daddr.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long tslot = NewTempLocal( c, MT_AGG, sz )
+    if tslot < 0 then return false
+    if LowerConvCtorInit_( c, tslot, dt, value, 0 ) = false then return false
+    if TypeNeedsDtor_( c, dt ) then
+        c.udtTemps.Push( cast( ulong, tslot ) )
+        c.udtTempTypes.Push( cast( ulong, dt ) )
+    end if
+    dim as MirValue tv
+    tv.kind = cast( ubyte, MV_LOCAL )
+    tv.ty = cast( ubyte, MT_PTR )
+    tv.id = tslot
+
+    '' ASSIGNED AS ITS OWN TYPE, as LowerTupleListAssign_ does it.
+    dim as FB.Array( of ulong ) letT
+    letT.Push( cast( ulong, dt ) )
+    dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, dt, "let" ), letT )
+    if lt <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) largs
+        largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
+        EmitStructorCall( c, lt, -1, @daddr, @largs )
+        return true
+    end if
+    if NeedsLetBody_( c, dt ) then
+        CallImplicitLet_( c, dt, daddr, tv )
+        return true
+    end if
+    dim as MirValue whole = LowerExprLoad( c, tv, MT_AGG, sz )
+    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, daddr, whole )
+    return true
+end function
+
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId )
 
@@ -586,6 +681,7 @@ private sub LowerAssign _
     '' the equality test above can never reach it and the statement fell through to the
     '' store below, which coerced the scalar to the UDT's OWN type: '%t6 = trunc i64 5
     '' to [0 x i8]'. Verified here, rejected by clang. See LowerUserLetConv_.
+    if LowerSpawnArgAssign_( c, target, value ) then return
     if LowerUserLetConv_( c, target, atl, value ) then return
 
     '' Same reason as the read: a full-width store into a bitfield's unit would
