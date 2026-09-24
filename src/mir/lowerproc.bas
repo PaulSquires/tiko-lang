@@ -1204,8 +1204,8 @@ sub LowerMainModule _
     c.f = f
     if c.srcMgr <> 0 then
         dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( root ) )
-        f->dbgFile = cast( ulong, dbgAt.file ) + 1
-        f->dbgLine = dbgAt.physLine
+        f->dbgFile = cast( ulong, iif( c.moduleFile >= 0, c.moduleFile, dbgAt.file ) ) + 1
+        f->dbgLine = iif( cast( ulong, dbgAt.file ) + 1 = f->dbgFile, dbgAt.physLine, 1 )
     end if
     c.st->functions += 1
     c.curBlock = NewBlock( c, "entry" )
@@ -1445,11 +1445,11 @@ function Lower _
       byval isMainModule as boolean = true, _
       byref moduleName as string = "", _
       byval errLevel as long = 0, _
-      byval diags as any ptr = 0 ) as long
+      byval diags as any ptr = 0, byval moduleFile as long = -1 ) as long
 
     dim as Ctx c
     c.srcMgr = @src
-    c.diags = diags
+    c.diags = diags : c.moduleFile = moduleFile
     c.udts = @udts
     c.vts = @vts
     c.ast = @ast

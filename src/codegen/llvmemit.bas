@@ -391,7 +391,9 @@ end function
 private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     dim as MirOp op = cast( MirOp, ins.op )
     e.curOp = OpName( op ) & " %" & str( ins.result )
-    if ins.dbgLine > 0 then e.dbgLine = ins.dbgLine
+    '' A SLOT IS NOT ITS 'dim': it is allocated in the entry block, and carrying the dim's
+    '' line there put a breakpoint on that line at the procedure's start.
+    if ins.dbgLine > 0 then e.dbgLine = iif( op = M_ALLOCA, 0, ins.dbgLine )
     dim as MirType rt = cast( MirType, ins.ty )
     dim as string res = TempName( ins.result )
     dim as string ty = LlvmType( rt )
@@ -993,7 +995,11 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     if e.dbg <> 0 then
         dbgAttr = " !dbg !" & str( DbgSubprogram( *e.dbg, e.names->Spelling( f->name ), _
                                                   f->dbgFile, f->dbgLine, f->procSym ) )
-        e.dbgLine = f->dbgLine
+        '' EVERY PROCEDURE OPENS ON LINE 0: its entry -- the slots, the parameter spills,
+        '' main's fb_Init -- is not a statement. A debugger places a breakpoint on a
+        '' procedure, and ends a step into it, at its first NONZERO line: the first
+        '' statement, where the parameters already hold their values, not the 'sub' line.
+        e.dbgLine = 0
     end if
     e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
               "(" & ParamList( e, f, true ) & ") nounwind uwtable(sync)" & cmdt & dbgAttr & " {" & chr( 10 )

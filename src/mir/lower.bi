@@ -121,7 +121,7 @@ namespace Tko.Mir
           byval isMainModule as boolean = true, _
           byref moduleName as string = "", _
           byval errLevel as long = 0, _
-          byval diags as any ptr = 0 ) as long
+          byval diags as any ptr = 0, byval moduleFile as long = -1 ) as long
 
     '' THE PROGRAM CALLS A THREAD ENTRY POINT, so the link needs the thread-safe
     '' runtime. Measured on fbc-modern with '-v' and no '-mt' on the command line:

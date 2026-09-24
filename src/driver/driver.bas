@@ -982,7 +982,7 @@ function Run _
                 end if
                 Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                                ctx.sources, udts, vts, mm, lst, isMain, modName, _
-                               ctx.options.errLevel, @ctx.diags )
+                               ctx.options.errLevel, @ctx.diags, cast( long, id ) )
                 '' THE THREAD-SAFE RUNTIME IS CHOSEN HERE, not on the command line
                 '' alone -- see Tko.Mir.UsesThreadRtl for what fbc does and how it
                 '' was measured. tiko-editor links no '-mt' and creates five threads:
@@ -1036,7 +1036,7 @@ function Run _
                     dfe.udts = @udts : dfe.names = @ctx.names
                     dim as Tko.Codegen.EmitResult er = _
                         Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
-                                              ctx.options.debugInfo, ctx.sources.PathOf( id ), @dfe )
+                                              ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe )
                     if er.ok then
                         '' AN OUTPUT PATH TURNS '--emit-ir' INTO A REAL BUILD: the IR
                         '' goes to a file beside it, clang makes the object, and the

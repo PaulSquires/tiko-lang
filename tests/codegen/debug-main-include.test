@@ -1,0 +1,22 @@
+'' main's LINES survive a program that starts with '#include'. main took its file from
+'' the root node's location -- the first token after preprocessing, which is inside the
+'' include -- and an instruction's line is kept only in its procedure's own file, so every
+'' line of main was dropped: lldb put 'main' at 'windows.bi:1' and no breakpoint in the
+'' program itself resolved. main now belongs to the module's own file, and its runtime
+'' prologue is line 0, so a breakpoint on main lands on the first statement.
+'' TEST: cli
+'' ARGS: -g --emit-ir tests/codegen/src/debug-main-include.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: !DILocation(line: 0, scope:
+'' EXPECT-OUT: !DILocation(line: 2, scope:
+'' EXPECT-OUT: !DILocation(line: 3, scope:
+'' EXPECT-OUT: !DISubprogram(name: "IncValue", scope:
+'' EVERY PROCEDURE'S ENTRY IS LINE 0, not its header line: IncValue is declared on line 5 of
+'' the .bi and its only statement is on line 6. A 'sub' line in the line table was where a
+'' step INTO a procedure stopped -- before its parameters were stored -- and a slot's
+'' alloca carrying its 'dim' line put a breakpoint on that dim at the procedure's start.
+'' (Line 5 remains only as the PARAMETER's declaration site, in its #dbg_declare.)
+'' EXPECT-OUT: !4 = distinct !DISubprogram(name: "IncValue"
+'' EXPECT-OUT: !DILocation(line: 0, scope: !4)
+'' EXPECT-OUT: !DILocation(line: 6, scope: !4)
+'' EXPECT-OUT: store i32 %p0, ptr %s1, align 4, !dbg !5

@@ -97,6 +97,22 @@ end function
 
 declare function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as long
 
+'' A type as FreeBASIC writes it -- 'long', 'Node ptr', 'zstring * 8' -- for the names
+'' a debugger shows: an array's element and a dynamic array's descriptor.
+private function DisplayName_( byref d as DebugInfo, byval t as Tko.TypeId ) as string
+    dim as Tko.TypeContext ptr tc = d.fe->types
+    dim as Tko.TypeId u = tc->Unqualify( t )
+    select case tc->Kind( u )
+    case Tko.TK_BUILTIN
+        return Tko.BuiltinName( tc->BuiltinOf( u ) )
+    case Tko.TK_UDT, Tko.TK_ENUM
+        return TypeName_( d, u )
+    case Tko.TK_POINTER
+        return DisplayName_( d, tc->Inner( u ) ) & " ptr"
+    end select
+    return tc->Name( u )
+end function
+
 '' The storage size of a type in BYTES, as layout computes it.
 private function SizeBytes_( byref d as DebugInfo, byval t as Tko.TypeId ) as longint
     dim as Tko.TypeContext ptr tc = d.fe->types
@@ -212,14 +228,17 @@ private function FixedArray_( byref d as DebugInfo, byval id as long, byval t as
     if et < 0 then return -1
     dim as long rank = tc->types[cast( long, t )].dims
     dim as string subs = ""
+    dim as string bounds = ""
     for k as long = 0 to rank - 1
         dim as boolean k1, k2
         dim as longint lo = tc->ArrayBound( t, k, false, k1 )
         dim as longint hi = tc->ArrayBound( t, k, true, k2 )
         if (k1 = false) orelse (k2 = false) then
             subs = ""
+            bounds = ""
             exit for
         end if
+        bounds += iif( len( bounds ) > 0, ", ", "" ) & str( lo ) & " to " & str( hi )
         dim as long sr = NewNode_( d, "!DISubrange(count: " & str( hi - lo + 1 ) & _
                                       ", lowerBound: " & str( lo ) & ")" )
         subs += iif( len( subs ) > 0, ", !", "!" ) & str( sr )
@@ -229,9 +248,39 @@ private function FixedArray_( byref d as DebugInfo, byval id as long, byval t as
                                       str( tc->types[cast( long, t )].elems ) & ")" )
         subs = "!" & str( sr )
     end if
-    DefineNode_( d, id, "!DICompositeType(tag: DW_TAG_array_type, baseType: " & _
+    dim as string arr = "!DICompositeType(tag: DW_TAG_array_type, baseType: " & _
                         TypeRef_( et ) & ", size: " & str( SizeBytes_( d, t ) * 8 ) & _
-                        ", elements: !{" & subs & "})" )
+                        ", elements: !{" & subs & "})"
+    '' AN ARRAY WITH DECLARED BOUNDS IS NAMED AS FREEBASIC DECLARES IT: a typedef called
+    '' 'long(1 to 3)' over the array. lldb numbers elements from 0 whatever the
+    '' subrange's lowerBound says, and DAP carries no bounds at all -- so the type NAME is
+    '' how the editor's debugger learns them, and it is what it shows as the type.
+    '' ...AND A FIXED-LENGTH STRING AS FREEBASIC WRITES IT, 'zstring * 8' / 'string * 5' /
+    '' 'wstring * 8' / 'ustring * 8', so a debugger can tell a NUL-terminated buffer from
+    '' a space-padded one: both are arrays of 'char', and only the zstring stops at a NUL.
+    dim as string fixNm = ""
+    dim as Tko.TypeId el = tc->Unqualify( tc->Inner( t ) )
+    if (len( bounds ) = 0) andalso (tc->Kind( el ) = Tko.TK_BUILTIN) then
+        select case tc->BuiltinOf( el )
+        case Tko.TY_ZSTRING : fixNm = "zstring"
+        case Tko.TY_FIXSTR  : fixNm = "string"
+        case Tko.TY_WSTRING : fixNm = "wstring"
+        case Tko.TY_FIXUSTR : fixNm = "ustring"
+        end select
+    end if
+    if len( fixNm ) > 0 then
+        dim as long an = NewNode_( d, arr )
+        DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_typedef, name: " & _
+                            MetaStr_( fixNm & " * " & str( tc->types[cast( long, t )].elems ) ) & _
+                            ", baseType: !" & str( an ) & ")" )
+    elseif len( bounds ) > 0 then
+        dim as long an = NewNode_( d, arr )
+        DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_typedef, name: " & _
+                            MetaStr_( DisplayName_( d, tc->Inner( t ) ) & "(" & bounds & ")" ) & _
+                            ", baseType: !" & str( an ) & ")" )
+    else
+        DefineNode_( d, id, arr )
+    end if
     return id
 end function
 
@@ -268,7 +317,7 @@ private function DynArray_( byref d as DebugInfo, byval id as long, byval t as T
     ms += ", !" & str( Member_( d, id, "flags", it, pb, 5 * pb ) )
     ms += ", !" & str( Member_( d, id, "dimtb", dimsArr, 3 * pb * rk, 6 * pb ) )
     DefineNode_( d, id, "!DICompositeType(tag: DW_TAG_structure_type, name: " & _
-                        MetaStr_( "FBARRAY(" & tc->Name( tc->Inner( t ) ) & ")" ) & _
+                        MetaStr_( "FBARRAY(" & DisplayName_( d, tc->Inner( t ) ) & ")" ) & _
                         ", size: " & str( (6 + 3 * rk) * pb ) & ", elements: !{" & ms & "})" )
     return id
 end function

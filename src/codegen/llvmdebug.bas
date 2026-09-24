@@ -65,7 +65,10 @@ private function FileFor_( byref d as DebugInfo, byval fileKey as ulong ) as lon
         d.fileMeta.Push( 0 )
     wend
     if d.fileMeta[fileKey] = 0 then
-        d.fileMeta[fileKey] = FileNode_( d, d.sm->PathOf( fileKey - 1 ) )
+        '' THE ABSOLUTE PATH, as clang records it (a name plus the directory). A relative
+        '' 'foo.bas' left the directory empty, and a debugger that ATTACHES -- lldb-dap
+        '' has no launch cwd then -- never resolved a breakpoint set by full path.
+        d.fileMeta[fileKey] = FileNode_( d, d.sm->AbsPathOf( fileKey - 1 ) )
     end if
     return d.fileMeta[fileKey]
 end function

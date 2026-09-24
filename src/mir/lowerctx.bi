@@ -228,6 +228,10 @@ type Ctx
     '' The line Emit stamps on each instruction, decoded once per statement: the
     '' statement and function it was decoded for, and the answer.
     as ulong                dbgNode
+    '' THE MODULE'S OWN FILE, -1 when the driver did not say. main's statements are the
+    '' module's, but the ROOT's location is the first token after preprocessing -- inside
+    '' the first '#include' -- and main took that file, so every line of it was dropped.
+    as long                 moduleFile
     as any ptr              dbgFn
     as long                 dbgLine
     '' The sub-expression to BLAME for the next decline, when something narrower than

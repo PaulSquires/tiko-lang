@@ -45,3 +45,16 @@
 '' to: 24 corpus files were 'use of undefined metadata' under '-g' until it did.
 '' EXPECT-OUT: !DIGlobalVariable(name: "Hidden"
 '' EXPECT-OUT: !DISubprogram(name: "NeverCalled", scope:
+'' A declared array is named as FreeBASIC declares it -- lldb numbers from 0 and DAP has
+'' no bounds, so the name is where a debugger front end reads them -- and a fixed-length
+'' string likewise, so a NUL-terminated buffer can be told from a space-padded one.
+'' EXPECT-OUT: DW_TAG_typedef, name: "long(1 to 3)"
+'' EXPECT-OUT: DW_TAG_typedef, name: "short(0 to 1, 0 to 2)"
+'' EXPECT-OUT: DW_TAG_typedef, name: "zstring * 8"
+'' EXPECT-OUT: DW_TAG_typedef, name: "string * 5"
+'' EXPECT-OUT: DW_TAG_typedef, name: "wstring * 8"
+'' EXPECT-OUT: name: "FBARRAY(long)"
+'' The file is named with its directory, as clang does: an attaching debugger has no
+'' launch directory to resolve a bare name against.
+'' EXPECT-OUT: !DIFile(filename: "debug-vars.bas", directory: "
+'' EXPECT-NOT: directory: "")
