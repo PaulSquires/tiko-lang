@@ -198,10 +198,22 @@ private sub PlaceGroup _
                 at = 0
                 if gs > grpSize then grpSize = gs
             else
+                '' A GROUP AFTER A BITFIELD RUN starts at the end of the run's unit, as an
+                '' ordinary field does -- and a bitfield after the group starts after it.
+                '' Neither was done: the bit cursor stayed where the group began, so
+                '' winnt.h's IMPORT_OBJECT_HEADER put 'Type : 2 as WORD' on top of the
+                '' union before it (byte 16 where fbc has 18), and 'x : 3 as ulong' then a
+                '' union put the union at byte 1 where fbc has 4. Measured, fbc-modern.
+                if bitRunSize > 0 then
+                    off = (bitRunStart + bitRunSize * 8) \ 8
+                    if off > grpSize then grpSize = off
+                    bitRunSize = 0
+                end if
                 off = AlignUp( off, ea )
                 at = off
                 off += gs
                 grpSize = off
+                bitNext = off * 8
             end if
             if ga > grpAlign then grpAlign = ga
             PlaceGroup( flds, idx, depth + 1, nestedIsUnion, pack, baseOff + at, emit, _

@@ -1,0 +1,6 @@
+'' A bitfield run and an anonymous union or type beside it do not overlap -- before or
+'' after. See the src file.
+'' TEST: cli
+'' ARGS: --dump-udt tests/types/src/bitfield-around-group.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/bitfield-around-group.out
