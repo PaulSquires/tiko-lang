@@ -38,4 +38,4 @@ if VerifySet( 1, "9042", digits ) = 0 then print "all digits"
 **Library:** [String Library](Category-String-Library) ✨  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** The Functions  
-**Source:** `docs/string/string.txt` in the tiko-lang repository.
+**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

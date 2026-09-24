@@ -37,4 +37,4 @@ print wg.Count( )            '' 2
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels) ✨  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Documented under:** Waitgroup  
-**Source:** `docs/goroutines/goroutines.txt` in the tiko-lang repository.
+**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

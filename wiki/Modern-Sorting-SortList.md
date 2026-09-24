@@ -45,4 +45,4 @@ print                        '' 1 4 5
 **Library:** [Sorting](Category-Sorting) ✨  
 **Category:** [Sorting](Category-Sorting)  
 **Documented under:** Procedures  
-**Source:** `docs/sort/sort.txt` in the tiko-lang repository.
+**Source:** `docs/sort/sort.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

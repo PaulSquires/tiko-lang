@@ -44,4 +44,4 @@ print acc.Total( ).ToString( )                '' 0.3000
 **Library:** [Finance](Category-Finance) ✨  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Members  
-**Source:** `docs/math/math.txt` in the tiko-lang repository.
+**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

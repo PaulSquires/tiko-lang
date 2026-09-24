@@ -34,4 +34,4 @@ print o.HasValue( )          '' false
 **Library:** [Optional](Category-Optional) ✨  
 **Category:** [Optional](Category-Optional)  
 **Documented under:** Members  
-**Source:** `docs/optional/optional.txt` in the tiko-lang repository.
+**Source:** `docs/optional/optional.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

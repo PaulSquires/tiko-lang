@@ -41,4 +41,4 @@ print d.ToIsoString( )       '' 2026-08-13T14:30:05
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
 **Documented under:** Members  
-**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.
+**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

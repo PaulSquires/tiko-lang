@@ -40,4 +40,4 @@ print p.Ref( ).id            '' 42
 **Library:** [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨  
 **Category:** [Smart Pointers](Category-Smart-Pointers)  
 **Documented under:** Members  
-**Source:** `docs/sharedptr/sharedptr.txt` in the tiko-lang repository.
+**Source:** `docs/sharedptr/sharedptr.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

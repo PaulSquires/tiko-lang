@@ -33,4 +33,4 @@ print v.IsEmpty          '' true -- Clear drops the elements
 **Library:** [Array Container](Category-Array) ✨  
 **Category:** [Array](Category-Array)  
 **Documented under:** Members  
-**Source:** `docs/array/array.txt` in the tiko-lang repository.
+**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

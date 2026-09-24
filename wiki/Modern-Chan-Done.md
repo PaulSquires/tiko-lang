@@ -38,4 +38,4 @@ print wg.Count( )            '' 0 -- Wait( ) returns once the count reaches zero
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels) ✨  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Documented under:** Select  
-**Source:** `docs/goroutines/goroutines.txt` in the tiko-lang repository.
+**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

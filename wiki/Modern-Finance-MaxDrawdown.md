@@ -41,4 +41,4 @@ print MaxDrawdown( down_( ) ).Value( )   '' 0.2709999999999999
 **Library:** [Finance](Category-Finance) ✨  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the tiko-lang repository.
+**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

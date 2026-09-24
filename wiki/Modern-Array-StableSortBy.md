@@ -48,4 +48,4 @@ next                     '' hopper 2 / lovelace 1 / lovelace 3
 **Library:** [Array Container](Category-Array) ✨  
 **Category:** [Array](Category-Array)  
 **Documented under:** Sorting  
-**Source:** `docs/array/array.txt` in the tiko-lang repository.
+**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

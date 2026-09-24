@@ -35,4 +35,4 @@ print v.Count & " of " & v.Capacity     '' 9 of 16 -- doubled, not grown by one
 **Library:** [Array Container](Category-Array) ✨  
 **Category:** [Array](Category-Array)  
 **Documented under:** Members  
-**Source:** `docs/array/array.txt` in the tiko-lang repository.
+**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

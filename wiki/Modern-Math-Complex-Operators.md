@@ -56,4 +56,4 @@ print CSet( 3, 1 ) = 3.0    '' false   -- equal real part, but not on the axis
 **Library:** [Math Library](Category-Math-Library) ✨  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
-**Source:** `docs/math/math.txt` in the tiko-lang repository.
+**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

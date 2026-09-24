@@ -38,4 +38,4 @@ print total.ToStringFixed( 2 )           '' 45000.00
 **Library:** [Finance](Category-Finance) ✨  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the tiko-lang repository.
+**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

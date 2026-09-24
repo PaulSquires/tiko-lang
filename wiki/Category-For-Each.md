@@ -194,7 +194,7 @@ One page per entry, 4 in all:
 
 ---
 
-**Source:** `docs/for_each/for-each.txt` in the tiko-lang repository.
+**Source:** `docs/for_each/for-each.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

@@ -42,4 +42,4 @@ print Beta( lev( ), b( ) ).Value( )                      '' 2
 **Library:** [Finance](Category-Finance) ✨  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the tiko-lang repository.
+**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -38,4 +38,4 @@ print CToString( CCosh( -z ) )        '' -6.580663040551157-7.581552742746545i  
 **Library:** [Math Library](Category-Math-Library) ✨  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
-**Source:** `docs/math/math.txt` in the tiko-lang repository.
+**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

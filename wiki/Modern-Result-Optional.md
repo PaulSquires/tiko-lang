@@ -43,4 +43,4 @@ print r.Failure( )           '' not a number -- the part Optional cannot carry
 **Library:** [Result](Category-Result) ✨  
 **Category:** [Result](Category-Result)  
 **Documented under:** Result Or Optional?  
-**Source:** `docs/result/result.txt` in the tiko-lang repository.
+**Source:** `docs/result/result.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

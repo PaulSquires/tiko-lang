@@ -218,7 +218,7 @@ One page per entry, 8 in all:
 
 ---
 
-**Source:** `docs/sort/sort.txt` in the tiko-lang repository.
+**Source:** `docs/sort/sort.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

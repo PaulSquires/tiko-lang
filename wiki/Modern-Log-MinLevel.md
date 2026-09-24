@@ -48,4 +48,4 @@ print "done"
 **Library:** [Logging](Category-Logging) ✨  
 **Category:** [Logging](Category-Logging)  
 **Documented under:** Members  
-**Source:** `docs/logging/logging.txt` in the tiko-lang repository.
+**Source:** `docs/logging/logging.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

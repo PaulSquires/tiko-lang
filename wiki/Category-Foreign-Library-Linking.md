@@ -126,7 +126,7 @@ declare function mylib_add cdecl lib MYLIB alias "mylib_add" _
 
 ---
 
-**Source:** `docs/foreignlib/foreignlib.txt` in the tiko-lang repository.
+**Source:** `docs/foreignlib/foreignlib.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

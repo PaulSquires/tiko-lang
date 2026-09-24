@@ -53,4 +53,4 @@ print tsv.Count( )      '' 2
 **Library:** [String Library](Category-String-Library) ✨  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** The Functions  
-**Source:** `docs/string/string.txt` in the tiko-lang repository.
+**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -39,4 +39,4 @@ print before >= 0                '' -1 (true)
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels) ✨  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Documented under:** Members  
-**Source:** `docs/goroutines/goroutines.txt` in the tiko-lang repository.
+**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

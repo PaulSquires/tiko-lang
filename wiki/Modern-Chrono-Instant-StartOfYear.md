@@ -27,4 +27,4 @@ print d.StartOfYear( ).ToIsoString( )    '' 2026-01-01T00:00:00
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
 **Documented under:** The Members  
-**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.
+**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

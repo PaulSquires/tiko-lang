@@ -36,4 +36,4 @@ print m.TryCeiling( 99, k )            '' false -- every key is smaller
 **Library:** [OrderedMap and OrderedSet](Category-OrderedMap) ✨  
 **Category:** [OrderedMap](Category-OrderedMap)  
 **Documented under:** Members  
-**Source:** `docs/ordered/ordered.txt` in the tiko-lang repository.
+**Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

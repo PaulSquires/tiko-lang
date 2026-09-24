@@ -46,4 +46,4 @@ print ages.Count             '' 2 -- the read grew the map
 **Library:** [Map](Category-Map) ✨  
 **Category:** [Map](Category-Map)  
 **Documented under:** Members  
-**Source:** `docs/map/map.txt` in the tiko-lang repository.
+**Source:** `docs/map/map.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -32,4 +32,4 @@ lg.Info( ).UInt( "bytes", 18446744073709551615ull ).Msg( "counted" )
 **Library:** [Logging](Category-Logging) ✨  
 **Category:** [Logging](Category-Logging)  
 **Documented under:** Members  
-**Source:** `docs/logging/logging.txt` in the tiko-lang repository.
+**Source:** `docs/logging/logging.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

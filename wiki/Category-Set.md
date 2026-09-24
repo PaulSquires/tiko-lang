@@ -176,7 +176,7 @@ One page per entry, 10 in all:
 
 ---
 
-**Source:** `docs/set/set.txt` in the tiko-lang repository.
+**Source:** `docs/set/set.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

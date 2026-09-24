@@ -234,7 +234,7 @@ One page per entry, 6 in all:
 
 ---
 
-**Source:** `docs/optional/optional.txt` in the tiko-lang repository.
+**Source:** `docs/optional/optional.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

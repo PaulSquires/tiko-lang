@@ -37,4 +37,4 @@ print CToString( b )  '' 1+2i
 **Library:** [Math Library](Category-Math-Library) ✨  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
-**Source:** `docs/math/math.txt` in the tiko-lang repository.
+**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

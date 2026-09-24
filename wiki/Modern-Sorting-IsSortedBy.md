@@ -38,4 +38,4 @@ print IsSorted( v )          '' false -- not in alphabetical order
 **Library:** [Sorting](Category-Sorting) ✨  
 **Category:** [Sorting](Category-Sorting)  
 **Documented under:** Procedures  
-**Source:** `docs/sort/sort.txt` in the tiko-lang repository.
+**Source:** `docs/sort/sort.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

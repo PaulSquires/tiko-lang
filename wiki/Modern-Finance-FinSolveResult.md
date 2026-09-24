@@ -42,4 +42,4 @@ print ( abs( r.Value( ).Residual_ ) <= 1.0e-12 )   '' -1 (an integer comparison)
 **Library:** [Finance](Category-Finance) ✨  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finsolve.bi` in the tiko-lang repository.
+**Source:** `src/inc/fb/finsolve.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -31,4 +31,4 @@ print LocalDate( 2024, 2, 29 ).IsValid      '' true -- 2024 is a leap year
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
 **Documented under:** The Members  
-**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.
+**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

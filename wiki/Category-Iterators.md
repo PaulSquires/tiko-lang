@@ -221,7 +221,7 @@ tests/generics/iterator-protocol.bas exercises every shape above: the hand-writt
 
 ---
 
-**Source:** `docs/for_each/iterator-protocol.txt` in the tiko-lang repository.
+**Source:** `docs/for_each/iterator-protocol.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

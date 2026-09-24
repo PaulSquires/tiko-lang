@@ -36,4 +36,4 @@ print DecimalFromScaled( 1, 29 ).IsValid( )      '' false
 **Library:** [Finance](Category-Finance) ✨  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `docs/decimal/decimal.txt` in the tiko-lang repository.
+**Source:** `docs/decimal/decimal.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

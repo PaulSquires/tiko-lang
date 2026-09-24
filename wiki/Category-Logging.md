@@ -349,7 +349,7 @@ One page per entry, 32 in all:
 
 ---
 
-**Source:** `docs/logging/logging.txt` in the tiko-lang repository.
+**Source:** `docs/logging/logging.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

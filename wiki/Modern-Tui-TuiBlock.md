@@ -55,7 +55,7 @@ print inner.x, inner.y, inner.w, inner.h        '' 1 1 28 6
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Core Widgets  
 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
-**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+**Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

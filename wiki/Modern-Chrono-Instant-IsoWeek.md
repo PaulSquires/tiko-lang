@@ -30,4 +30,4 @@ print d.IsoWeekYear          '' 2026
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
 **Documented under:** The Members  
-**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.
+**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

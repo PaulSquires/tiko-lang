@@ -36,4 +36,4 @@ print xs.Count               '' 3
 **Library:** [Set](Category-Set) ✨  
 **Category:** [Set](Category-Set)  
 **Documented under:** Members  
-**Source:** `docs/set/set.txt` in the tiko-lang repository.
+**Source:** `docs/set/set.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

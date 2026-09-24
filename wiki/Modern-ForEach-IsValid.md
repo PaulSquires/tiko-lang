@@ -38,4 +38,4 @@ print jt.IsValid( )          '' false -- past the last element
 **Library:** [For Each](Category-For-Each) ✨  
 **Category:** [For Each](Category-For-Each)  
 **Documented under:** What Can Be Walked  
-**Source:** `docs/for_each/for-each.txt` in the tiko-lang repository.
+**Source:** `docs/for_each/for-each.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

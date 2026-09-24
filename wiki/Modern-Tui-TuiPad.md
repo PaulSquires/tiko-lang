@@ -36,7 +36,7 @@ print r.x, r.y, r.w, r.h          '' 2 1 16 8
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Layout  
 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
-**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+**Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---
