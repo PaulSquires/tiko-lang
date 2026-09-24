@@ -16,7 +16,7 @@ Define without a value created at compile time if compiling to the Win (32-bit o
 
 ## Remarks
 
-> **In tiko-lang:** the define itself is unchanged — it still names the *operating system*, not the word size, and is set for `win64`. But `-target win32` no longer exists here; 32-bit x86 targets were dropped, so `-target win64` is the only route on Windows. See [Compatibility](Compatibility).
+> **In tiko:** the define itself is unchanged — it still names the *operating system*, not the word size, and is set for both Windows targets, `win64-msvc` (the default) and `win64`. There is no `-target win32`: tiko is x86-64 only. See [Compatibility](Compatibility).
 
 ### Differences from QB
 

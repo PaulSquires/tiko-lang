@@ -1,70 +1,94 @@
 # Compatibility
 
-Everything tiko-lang adds is **purely additive**. `STRING`, `ZSTRING`, `WSTRING`, `FOR`, and the existing `OPERATOR FOR`/`NEXT`/`STEP` protocol are unchanged; `each`, `in` and `defer` are not reserved words; the containers add nothing to the global namespace.
+tiko aims at **the same accept/reject decision as fbc** in `-lang fb`, and **the same observable behaviour**: what a program prints, returns and does. The reference is [FBC-Modern](https://github.com/PaulSquires/fbc-modern)'s `fbc` 1.20.0, and every compatibility fact is established by compiling a probe with it and running it.
 
-**If your program compiles with fbc 1.20.0, it compiles here** — with one stated exception.
+The **diagnostic text** is tiko's own. Every message has a stable `TKOnnnn` id. fbc's error numbers survive only where a program can see them, through `ERR`.
 
-## The one exception
+## What does not compile
 
-A **paren-less call in statement position to a sub named `defer`**. `defer` is a contextual keyword, so `defer` still works as an identifier — a variable, a field, a type name, a sub called as `defer( x )`. The single construct that changes meaning is:
+Each of these is a diagnostic, not a silent difference (measured 2026-09-24 at origin/master 50c71751):
+
+| Construct | tiko says |
+| --- | --- |
+| `#lang "qb"`, `"fblite"`, `"deprecated"` | `TKO0317: unsupported language mode 'qb'; tiko-lang implements "fb" only` |
+| `GOSUB` | `TKO0409: 'GOSUB' is not available in the fb dialect` |
+| inline `ASM` | `TKO0407: inline assembly is not supported; compile that module with fbc` |
+| `-m32`, `-target win32` | `TKO0104`, `TKO0103` — x86-64 only |
+| fbc's `-gen`, `-lang`, `-x`; FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir` | `TKO0100: unknown option` |
+
+## Known differences
+
+**`__FB_MODERN__` and `__FB_MIN_VERSION__` are not defined.** A guard such as `#ifdef __FB_MODERN__` therefore takes its `#else` branch under tiko, and `#if __FB_MIN_VERSION__( 1, 20, 0 )` is an error (`TKO0308`). tiko identifies itself with `__TKO_VERSION__`. See [`__FB_MODERN__`](Category-FB-Modern-Define).
+
+**A sub named `defer` is not called.** `defer` is a contextual keyword in both compilers, and as a *variable* name it works in tiko. But given
 
 ```freebasic
 sub defer( byval n as long )
+    print "sub defer"; n
 end sub
 
-defer 1        '' fbc 1.20.0: a call. tiko-lang: the defer statement.
+defer( 5 )
 ```
 
-Write `defer( 1 )` if you have this.
+fbc calls the sub and tiko does not. The statement is dropped **without a diagnostic**; only `--dump-ir` shows it, as `1 statements not lowered`. The paren-less `defer 5` behaves the same way. Measured 2026-09-24 at 50c71751. Rename the sub.
 
-## Detecting tiko-lang: `__FB_MODERN__`
+**Channels passed through `spawn` misbehave.** Spawning a procedure whose parameter is a `SendChan` or `RecvChan`, with a `Channel` argument, crashes with an access violation; a direct call works. `for each` over a `Channel( of string )` yields empty strings. Measured 2026-09-24 at 50c71751.
 
-*Full page: [__FB_MODERN__](Category-FB-Modern-Define) ✨*
+**tiko accepts some programs that fbc rejects.** Each of these compiles under tiko and stops fbc with the error shown (measured 2026-09-24 at 50c71751):
 
-One source tree often has to build with **both** compilers — tiko-lang on your machine, stock fbc 1.20.0 for everybody else. Every tiko-lang compiler defines the intrinsic
+| Program | fbc |
+| --- | --- |
+| `print len( FB.Replace( s, "a", "b" ) )` | `error 42: Variable not declared` |
+| `spawn W( k )` where `W` takes a `byref` parameter | `error 358: SPAWN cannot pass a BYREF parameter` |
+| `select channel` with a case over a `RecvChan` (tiko reports nothing, and the link then fails) | `error 340: Unable to infer type arguments` |
+| a `for each` with no `next` at end of file | `error 13: Expected 'NEXT'` |
+| `print EOF`, with no argument (tiko prints an arbitrary number) | `error 1: Argument count mismatch` |
+| `sub Run( )`, declared and called | `error 4: Duplicated definition` |
 
-```freebasic
-__FB_MODERN__    '' always defined, always 1
-```
+Probing the extension pages found more of the same class. Each is recorded case by case on its own page (measured 2026-09-24 at origin/master 50c71751):
 
-Stock fbc never defines it, so the usual guard is:
+- **Generics.** fbc's errors 335 and 336 are not reported, and 341 only once the generic is instantiated. 11 of fbc's 30 generics `fail-*.bas` files compile under tiko, and a runaway instantiation does not stop. See [Generics](Category-Generics).
+- **Tuples.** 17 of fbc's 20 tuple error cases compile under tiko, and 6 of them drop a statement. See [Tuples](Category-Tuples).
+- **DEFER.** A `defer` at module level compiles and runs, where fbc gives error 348. So does a `goto` across a `defer`. See [Defer](Category-Defer).
+- **`#foreignlib`.** A `"system:"` name is not honoured, and a module compiled with `-c` loses the library at the later link. See the [tutorial](modern-Foreignlib-tutorial).
+- **`pascal`.** A `pascal` procedure called through a `cdecl` pointer draws no warning, and its arguments are not reversed. See [C Header Import](Category-C-Header-Import).
 
-```freebasic
-#ifdef __FB_MODERN__
-	#include once "fb/array.bi"
-	dim names as FB.Array(of string)
-#else
-	dim names(0 to 63) as string
-#endif
-```
+**The extension libraries' own suites match.** fbc's fbcunit suites were built by both compilers and their results compared (`build/suiterun.sh`, measured 2026-09-24 at origin/master 50c71751):
 
-It is **numeric**, so `#if __FB_MODERN__` works as well as `#ifdef`, and it composes:
+| Suites | Same results as fbc |
+| --- | --- |
+| `chrono/` | 8 of 8 |
+| `finance/` | 8 of 8 |
+| `datetime/` | 3 of 3 |
+| `filesystem/` | 9 of 9 |
+| `math/` | 9 of 9 |
+| `logging/` | 2 of 2 |
+| `tui/` | 10 of 10 |
+| `string/` | 36 of 42 |
 
-```freebasic
-#if defined( __FB_MODERN__ ) andalso __FB_MIN_VERSION__( 1, 20, 0 )
-	'' tiko-lang, 1.20.0 or later
-#endif
-```
+In `string/`, every suite for `fb/string.bi` matches: `fbstr_extract`, `fbstr_pad`, `fbstr_search` and `fbstr_transform`. The six that differ are FreeBASIC's own string tests: `asc`, `escape`, `initialization`, `string-fixed`, `string-fixed-array` and `wchr-surrogate`. In `wstring/`, 26 of 31 match; `len`, `lineinput`, `unc`, `uniseq` and `utf8` differ. The `concurrency/` suites need `-mt`, which this harness does not pass. HANDOFF §9f built them with it and found all 13 `tui/` and `concurrency/` files printing what fbc's builds print (2026-09-21).
 
-Three things it deliberately is not:
+The run programs in the same corpus all match, including every `generics/`, `tuple/` and `com/` program (`build/runscan.sh`, 2026-09-20).
 
-- **Not a feature test.** It says *which compiler you are on*, not which features that compiler has. Guard a specific feature on it plus the version, as above.
-- **Not tied to the build label.** It is independent of `__FB_BUILD_FORK_ID__`, which records how a particular build was *tagged*; `__FB_MODERN__` records which compiler *source* produced it, and is present in every tiko-lang build regardless of fork id.
-- **Not a way to test the stock path.** `#undef __FB_MODERN__` does remove the symbol, like any other define — but it only silences your own guards; the compiler still accepts every tiko-lang feature. Build with stock fbc to test that path for real.
+**Graphics links on `win64-msvc` only.** libtkogfx is built for that ABI alone, so a `SCREEN` program does not link for `win64` or `linux-x86_64`.
 
-## What is deliberately identical
+**Interoperating with fbc-built objects** is proven for `-target win64`, the ABI fbc builds for. Objects link both ways, and `build/crosslink.sh` runs that in the gate. An existing MinGW-built `.a` may not link against `win64-msvc`.
 
-- **Diagnostics.** New, specific messages exist for the new features — including the instantiation chain for an error inside a generic, and near-miss reporting that names the *missing member* rather than saying "not iterable". Diagnostics **elsewhere** are byte-identical to stock fbc.
-- **Code generation and compile times** for existing code.
-- **Existing headers.** `datetime.bi`, `vbcompat.bi`, `FORMAT`, `Dir`/`FileExists`/`Kill` and the rest are untouched; the new libraries ship *alongside* them. The date/time libraries meet at `FromSerial` / `Serial`, so a program migrates one function at a time.
-- **Namespacing.** The string library, the containers, `chrono` and `filesystem` all live in namespace `FB` behind an `#include`. Nothing becomes a keyword, and `DateTime`, `Instant`, `WallClock`, `Array`, `Map` and the rest stay available as your own identifiers until you write `using FB`.
+## What is the same
+
+- **Symbol names** are byte-identical to fbc's, with one known exception: a signature that names a tuple type. For `NS.Sum2( byval t as (long, long) )` tiko emits `_ZN2NS4SUM2E8$TUP:6:6`, and fbc emits `_ZN2NS4SUM2E8FBTUPLE2IiiE` (measured 2026-09-24).
+- **The runtime ABI** is `libfb`'s: its `FBSTRING` and `FBARRAY` layouts and every `fb_*` signature. tiko links tiko-rt, a reimplementation of that ABI in FreeBASIC.
+- **The headers** are FBC-Modern's, shipped unchanged in tiko's toolchain: `datetime.bi`, `vbcompat.bi`, the `fb/` libraries and the platform bindings.
+- **Namespacing.** The string library, the containers, `chrono` and `filesystem` all live in namespace `FB` behind an `#include`, so nothing becomes a keyword. `each`, `in` and `spawn` stay usable as ordinary variable names in tiko, and so does `defer` as a *variable* (measured 2026-09-24).
 
 ## How it is verified
 
-By fbc's own test suite — 1,154,412 assertions of it, plus this project's own suites on top — across four dialects, under **both** backends, on win64 and linux-x86_64. The `-gen llvm` backend passes the same gate on both targets with the same assertion counts and the same failures as `-gen gcc`.
+The repository's `HANDOFF.md` carries every figure with its date. In brief:
 
-Figures elsewhere in this wiki that include a **win32** row predate the removal of the 32-bit x86 targets and are kept as historical records; they are labelled as such where they appear.
+- fbc's own test corpus is vendored (2,709 `.bas` files) and run differentially: programs, fbcunit suites and the test sources are each built by both compilers and compared.
+- 2,000 generated programs print what fbc's build prints.
+- tiko compiles itself to a byte-identical fixpoint on win64-msvc and linux-x86_64.
 
 ## Licensing
 
-This is a modified copy of the FreeBASIC compiler, so it carries FreeBASIC's licensing **unchanged** — GPL v2-or-later for the compiler, LGPL v2.1-or-later with the static-linking exception for the runtime and the container headers. See [License](License).
+tiko is its own compiler, written from scratch. It is licensed in parts: GPL v2-or-later for the compiler, and LGPL v2.1-or-later with the static-linking exception for tiko-rt and libtkogfx. See [License](License).

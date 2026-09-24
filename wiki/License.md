@@ -11,7 +11,7 @@ The upstream manual lives at <https://www.freebasic.net/wiki/DocToc>. These page
 
 ## The tiko-lang pages
 
-Pages marked ✨ document features added by tiko-lang. They share their text with the documentation in the [tiko-lang repository](https://github.com/PaulSquires/tiko-lang) under `docs/`, which is licensed under the **GNU Free Documentation License**.
+Pages marked ✨ document FBC-Modern's extensions to the language, which tiko compiles, and tiko itself. The extension pages began as the documentation in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern) under `docs/`, and they are licensed under the **GNU Free Documentation License**.
 
 Copyright © Paul Squires, [PlanetSquires Software](https://www.planetsquires.com).
 
@@ -28,8 +28,14 @@ tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a co
 
 **Your programs are yours.** Both libraries extend fbc's static-linking exception to themselves, so a program compiled by tiko and linked against them can be distributed on any terms you choose, just as a program built with fbc can.
 
-**The prebuilt toolchains carry third-party components.** They redistribute fbc-modern's `inc/` headers. For the `win64` and `linux-x86_64` targets they also ship fbc's own runtime binaries, and for `win64` libffi and the MinGW-w64 and gcc runtime libraries. All of it is unmodified, and the notices are in each toolchain's `licences/`. clang is not bundled.
+**The packaged toolchains carry third-party components.**
+
+- They redistribute fbc-modern's headers in `inc/`.
+- For the `win64` and `linux-x86_64` targets they also ship fbc's own runtime binaries under `lib/<target>-fb/`: the `fbrt*.o` startup objects and `libfbgfx`. For `win64` that directory also holds libffi and the MinGW-w64 and gcc runtime libraries.
+- All of it is unmodified.
+- Each toolchain's `licences/` holds tiko's notices and FreeBASIC's. It holds no separate notice for the MinGW-w64, gcc or libffi archives.
+- clang is not bundled.
 
 ## Where these pages came from
 
-The FreeBASIC manual pages are a Markdown conversion of the official 1.20.0 manual, taken through the [HelpCenter](https://www.planetsquires.com/docs/) docset pipeline. The ✨ pages began as the tiko-lang feature documentation under `docs/` in the repository. Both are edited here directly.
+The FreeBASIC manual pages are a Markdown conversion of the official 1.20.0 manual, taken through the [HelpCenter](https://www.planetsquires.com/docs/) docset pipeline. The ✨ pages began as FBC-Modern's feature documentation and were copied here on 2026-09-19. Both are edited here directly.

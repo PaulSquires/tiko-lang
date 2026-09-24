@@ -1,37 +1,37 @@
 # Quick Start
 
-Prebuilt compilers are committed to the repository. Clone it and run one — nothing to install, nothing to add to `PATH`.
+tiko is distributed as a **toolchain**: the compiler, its headers and its runtime libraries in one directory. Toolchains are build products, and the repository holds only their READMEs, so the first step is to package one for the machine you are on.
 
-> **Run `fbc` where it lives.** It derives its installation prefix from its own path, so the binary must stay beside its `bin/`, `include/` and `lib/` directories. Copying just the executable elsewhere gives `cannot open linker script file`.
+## What you need
 
-## Windows
+- **clang 18 or newer.** It is not bundled. tiko does not search `PATH`: it runs `C:\Program Files\LLVM\bin\clang.exe` on Windows and `/usr/bin/clang` on Linux, or whatever `TKO_CLANG` names.
+- **To build the toolchain:** [FBC-Modern](https://github.com/PaulSquires/fbc-modern)'s `fbc` compiles tiko, and FBC-Modern's tree supplies the headers. The default paths are under `C:\dev\fbc-modern`; `TKO_STAGE0` and `FBC_TREE` override them.
 
-```bat
-git clone https://github.com/PaulSquires/tiko-lang.git
-cd tiko-lang
+## Build a toolchain
 
-toolchains\tiko-windows\fbc64.exe hello.bas
-```
-
-The Windows tree is the standard FreeBASIC **standalone** layout: `fbc64.exe` at the top level with its own `bin/`, `inc/` and `lib/`.
-
-tiko-lang targets **win64 and linux-x86_64 only** — there is no `fbc32.exe`, and `-target win32` is rejected outright (`error 81: Invalid command-line option`). 32-bit x86 remains reachable for `dos` and `xbox`, which have no 64-bit form, so the x86 arch and the `gas` backend are still there; it is the 32-bit *targets* that are gone.
-
-## Linux (x86-64)
+From Git Bash on Windows, or from Linux or WSL:
 
 ```bash
 git clone https://github.com/PaulSquires/tiko-lang.git
 cd tiko-lang
+bash build/package.sh --verify
+```
 
-toolchains/tiko-linux/bin/fbc hello.bas
+That builds the compiler, the runtime and the graphics library, and assembles `toolchains/tiko-windows/` or `toolchains/tiko-linux/`. It then compiles **and runs** a program per target and records the result in `MANIFEST.txt`.
+
+## Compile a program
+
+```bat
+toolchains\tiko-windows\tiko.exe hello.bas
+hello.exe
+```
+
+```bash
+toolchains/tiko-linux/bin/tiko hello.bas
 ./hello
 ```
 
-A **native** Linux build, not a cross-compile — produced through fbc's own bootstrap path. The binary is committed with its executable bit set; if you extract the tree some other way, `chmod +x toolchains/tiko-linux/bin/fbc`.
-
-## macOS
-
-No macOS build exists — this tree has never been built on darwin. Upstream FreeBASIC supports the target, so the path is likely short, but nothing here is verified.
+No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `win64-msvc` on Windows, `linux-x86_64` on Linux. `-target win64` selects the MinGW ABI.
 
 ## Hello, new features
 
@@ -71,16 +71,18 @@ scope
 end scope
 ```
 
-## The LLVM backend
+Built by tiko on win64-msvc and on linux-x86_64, it prints exactly what fbc's build prints:
 
-`-gen llvm` is a complete backend on par with `gas`, `gas64` and `gcc`, covering both supported targets — win64 and linux-x86_64. **All you need is clang**: install the LLVM package for Windows, or your distribution's `clang`/LLVM package on Linux, so that `clang` 18 or newer is on `PATH`. Nothing is bundled and nothing else is required.
-
-```bash
-fbc -gen llvm hello.bas
+```
+ada
+grace
+ 3             9
+working
+cleaned up
 ```
 
 ## Next
 
-- [Feature Index](Feature-Index) ✨ — every addition with its reference page.
+- [Feature Index](Feature-Index) ✨ — every extension with its reference page.
 - [Compatibility](Compatibility) — what changes for code you already have.
 - [Keyword Index](Keyword-Index) — the whole language reference, A–Z.

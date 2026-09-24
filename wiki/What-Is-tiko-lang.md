@@ -1,46 +1,63 @@
 # What Is tiko-lang
 
-tiko-lang is a modified copy of the [FreeBASIC](https://www.freebasic.net/) compiler that adds language features, each built on the one before it: **generics**, a **structural iterator protocol**, **`FOR EACH`**, **tuples** so a function can return more than one value, a **standard container library**, **`defer`** for scope-exit cleanup, and **lambdas** with optional capture — plus **`USTRING`**, a dynamic Unicode string type that is byte-identical on every target, **`fb/chrono.bi`**, a date/time library that replaces the VB6 serial-`double` model with ticks, durations, clocks and ISO 8601, and **`fb/filesystem.bi`**, which replaces the 1985 BASIC file surface with a path algebra, a stat record, a reentrant directory walk and whole-file I/O.
+**tiko is a FreeBASIC-compatible compiler, written from scratch in FreeBASIC.** It has its own lexer, preprocessor, parser, type checker and typed IR. It emits LLVM IR and hands that to clang to make objects and executables. tiko-lang is the repository; the compiler, its binary (`tiko`, `tiko.exe`) and its `TKO` diagnostics are all tiko.
 
-It is built on fbc **1.20.0**, and it is **purely additive**.
+It is not a copy or a fork of fbc. What it shares with fbc is the **language**, and it is measured against fbc rather than derived from it: every compatibility question is settled by compiling a probe with fbc and running it.
 
-## Why it exists
+## What it compiles
 
-FreeBASIC is a fast, direct, genuinely useful systems language with two long-standing gaps: there is no portable Unicode string, and there is no way to write a container that works for more than one element type without macros, `ANY PTR`, or copy-paste. Both gaps push real programs toward workarounds that lose type information — and both are fixable inside the existing language rather than beside it.
+`#lang "fb"` as [FBC-Modern](https://github.com/PaulSquires/fbc-modern) implements it: FreeBASIC 1.20.0, plus FBC-Modern's extensions. tiko compiles these extensions:
 
-It is for **existing FreeBASIC users** who want their code to keep compiling unchanged, **systems programmers** who want typed containers without a runtime, **library authors** who have been writing the same `Vector` five times, and **compiler people** who want to see a template system implemented as parser replay rather than as a separate template language.
+- generics
+- the iterator protocol and `FOR EACH`
+- tuples
+- `defer`
+- lambdas
+- `USTRING`
+- `spawn`, channels and `select channel`
+- `#foreignlib`
+- `#cinclude`, which imports a C header through libclang
 
-## The goal
+It also compiles the libraries built on them, listed in the [Feature Index](Feature-Index) ✨: the containers, `chrono`, `filesystem`, and the string and math libraries.
 
-> **This fork is a *provable testing ground* for the new features — so that one day they may be added to the canonical FreeBASIC code base as desired. Ultimately, the goal is for this project to cease to exist, because all of tiko-lang's features will have found their way into the core FreeBASIC compiler project.**
+The manual pages in this wiki describe the language. The ✨ pages describe the extensions. Where tiko's behaviour is known to differ from fbc's, the page says so; [Compatibility](Compatibility) collects those differences.
 
-## Project goals, stated
+## What "compatible" means here
 
-1. **Close real gaps in FreeBASIC** — no portable Unicode string, and no way to write a typed container, are just two examples.
-2. **Preserve compatibility absolutely.** Existing programs compile unchanged; existing diagnostics are byte-identical; `each` and `in` stay usable as identifiers.
-3. **Add to the language, not beside it.** Generics are parsed by the real parser. `FOR EACH` is a desugaring with no new AST or IR node. The containers are a library with no compiler privileges.
-4. **Diagnostics that name the actual problem** — the missing iterator member, the instantiation that failed, the type argument that caused it.
-5. **Be honest about limits.** Every known limitation is written down, measured, and shipped in the documentation rather than discovered by users.
-6. **Offer the work upstream.** This exists to be reviewed and, if the FreeBASIC team wants it, merged — not to become a fork with its own ecosystem.
+- **The same accept/reject decision** as fbc in `-lang fb`, and **the same observable behaviour**: what the program prints, returns and does.
+- **Byte-identical symbol names.** An object tiko builds for `-target win64` links with one fbc built.
+- **The same runtime ABI.** tiko links **tiko-rt**, a reimplementation of fbc's `libfb` ABI in FreeBASIC, and **libtkogfx**, a drop-in for fbc's graphics library.
+- **The diagnostic text is tiko's own.** Every message has a stable `TKOnnnn` id.
 
-> **What this project is not aiming at:** a package manager, a language server, an optimizer, or faster builds. Those are worth having; they are not what this is.
+## Targets
 
-## Scope, stated plainly
+| Target | |
+| --- | --- |
+| `win64-msvc` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
+| `win64` | The MinGW ABI. The one that interoperates with fbc-built objects and libraries. |
+| `linux-x86_64` | The default on Linux. |
 
-This is fbc 1.20.0 with several new modern features added, and one caveat. It is **not** a rewrite, **not** a new parser, and **not** a performance project. Where a capability does not exist, the documentation says so instead of implying it.
+x86-64 is the only architecture. `-m32` and `-target win32` are refused (`TKO0104`, `TKO0103`); 32-bit support was removed on 2026-09-04. There is no macOS target and no ARM64 target.
 
-## Targets and backends
+There is **one backend**: LLVM IR through clang. See [LLVM Backend](Category-LLVM-Backend).
 
-- **Targets:** win64 and linux-x86_64. Prebuilt compilers for both are committed to the repository. **32-bit x86 targets were dropped** — `-target win32` and `-target linux-x86` are refused, and there is no `fbc32.exe`; 32-bit x86 stays reachable only for `dos` and `xbox`, which have no 64-bit form. There is **no macOS build** — that tree has never been built on darwin.
-- **Backends:** `gcc` (C emission), `gas64` and `llvm` carry the work on the supported targets, and all three are first class. `gas` is fbc's 32-bit x86 backend and so is now reachable only through `dos`/`xbox`. `-gen llvm` is a complete rewrite that emits current LLVM IR and hands it to `clang -c`; it needs a system `clang` 18 or newer on `PATH` and rejects inline `ASM`/`NAKED` with a real diagnostic rather than miscompiling them.
+## What it does not do
+
+- **Dialects other than `fb`.** `#lang "qb"`, `"fblite"` and `"deprecated"` are refused (`TKO0317`), and so is `GOSUB` (`TKO0409`).
+- **Inline `ASM`.** It is refused with `TKO0407` rather than miscompiled.
+- **`__FB_MODERN__`.** tiko does not define it. See [`__FB_MODERN__`](Category-FB-Modern-Define).
+
+## Status
+
+The repository's `README.md` and `HANDOFF.md` carry the measured state, every figure dated. Among them:
+
+- tiko compiles itself to a byte-identical fixpoint on win64-msvc and linux-x86_64 (2026-09-21).
+- Every in-scope run program in fbc's own test corpus prints what fbc's build prints (2026-09-20).
+- 495 of the 631 fbcunit suites that build under both compilers give fbc's results (2026-09-20).
 
 ## Where to go next
 
-- [Quick Start](Quick-Start) — compile something.
-- [Feature Index](Feature-Index) ✨ — every addition, one line each.
+- [Quick Start](Quick-Start) — build a toolchain and compile something.
+- [Feature Index](Feature-Index) ✨ — every extension, one line each.
 - [Compatibility](Compatibility) — what this means for code you already have.
 - The repository: <https://github.com/PaulSquires/tiko-lang>
-
----
-
-*Written by Paul Squires of [PlanetSquires](https://www.planetsquires.com). Offered for upstream discussion with the FreeBASIC team.*
