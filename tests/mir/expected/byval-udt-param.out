@@ -183,15 +183,11 @@ func void _ZN2S1aSERKS_(ptr $0, ptr $1) {
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 func void _ZN2V1aSERKS_(ptr $0, ptr $1) {
   entry0:
-    %1 = field.addr $1, 0
-    %2 = field.addr $0, 0
+    %1 = field.addr $1, 8
+    %2 = field.addr $0, 8
     %3 = load %1
     store %2, %3
-    %4 = field.addr $1, 8
-    %5 = field.addr $0, 8
-    %6 = load %4
-    store %5, %6
     ret
 }
 verify: ok
-lowered: 14 functions, 14 blocks, 102 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 14 functions, 14 blocks, 98 insts, 0 statements not lowered, 0 scope imbalance

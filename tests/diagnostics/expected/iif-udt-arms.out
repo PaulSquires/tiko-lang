@@ -152,18 +152,14 @@ func void _ZN7PARENT_C1ERKS_(ptr $0, ptr $1) {
 declare void _ZN7PARENT_aSERKS_(ptr $0, ptr $1)
 func void _ZN7PARENT_aSERKS_(ptr $0, ptr $1) {
   entry0:
-    %1 = field.addr $1, 0
-    %2 = field.addr $0, 0
+    %1 = field.addr $1, 8
+    %2 = field.addr $0, 8
     %3 = load %1
     store %2, %3
-    %4 = field.addr $1, 8
-    %5 = field.addr $0, 8
-    %6 = load %4
-    store %5, %6
     ret
 }
 verify: ok
-lowered: 5 functions, 20 blocks, 86 insts, 1 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 20 blocks, 82 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   skip-site src\mir\lowerutil.bas:40 1
 tests/diagnostics/src/iif-udt-arms.bas(27,8): error TKO0655: the two arms of 'iif' have incompatible types

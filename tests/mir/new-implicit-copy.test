@@ -1,0 +1,11 @@
+'' 'new T( x )' with x a T and no copy constructor of T's own calls the implicit one:
+'' inside a method with 'this', slicing a derived x, and deep-copying a string. See the
+'' src file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/new-implicit-copy.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _ZN6CIRCLEC1ERKS_(
+'' EXPECT-OUT: call void _ZN5SHAPEC1ERKS_(
+'' EXPECT-OUT: call void _ZN7COUNTEDC1ERS_(

@@ -389,6 +389,35 @@ function LowerNew_ _
         scalarInit = (emt <> MT_VOID) andalso (emt <> MT_AGG)
     end if
 
+    '' 'new T( x )' WITH x A T, AND NO COPY CONSTRUCTOR OF T's OWN, IS THE IMPLICIT ONE.
+    '' Nothing matched, T is not a scalar, and so the argument was DROPPED: the object
+    '' came back calloc-zeroed -- its vptr null -- and the first virtual call through it
+    '' crashed (the FreeBASIC manual's covariant clone( ): 'new myDerived( this )').
+    '' Measured, fbc synthesises the copy constructor and calls it inside the guard:
+    ''
+    ''     if( TMP == 0 ) goto label;  _ZN9MYDERIVEDC1ERKS_( TMP, THIS );  label:;
+    ''
+    '' A DERIVED x SLICES, as it does in 'dim as T y = x': the copy constructor installs
+    '' T's own vptr and assigns T's members. The source's address is taken where the
+    '' 'new' is written, as every other argument is.
+    dim as boolean implCopy = false
+    dim as MirValue copySrc
+    if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 1) andalso (isPlace = false) andalso _
+       (c.types->Kind( el ) = Tko.TK_UDT) then
+        dim as Tko.NodeId csn = cast( Tko.NodeId, c.ast->children[argFirst] )
+        dim as Tko.TypeId cst = c.types->Unqualify( c.info->TypeOf_( csn ) )
+        if c.types->Kind( cst ) = Tko.TK_REFERENCE then
+            cst = c.types->Unqualify( c.types->Inner( cst ) )
+        end if
+        '' 'THIS' HOLDS A POINTER -- tiko types it 'T ptr' -- and names the object it points
+        '' at; InitSourceAddr_ loads it for the same reason.
+        if IsThisPointerIdent_( c, csn ) then cst = c.types->Unqualify( c.types->Inner( cst ) )
+        if c.types->BaseDistance( cst, el ) >= 0 then
+            copySrc = InitSourceAddr_( c, csn )
+            implCopy = (copySrc.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
+
     '' PLACEMENT NEW OVER A TYPE WITH NO CONSTRUCTOR ZEROES, because there is no
     '' calloc to have done it. Measured: '__builtin_memset( TMP$2$0, 0, 8ull )', and
     '' fbc emits NO memset when a constructor runs or when a scalar initialiser is
@@ -413,6 +442,7 @@ function LowerNew_ _
     end if
     dim as boolean needsGuard = (ctor <> Tko.SYMBOL_NONE) orelse implCtor
     if needsGuard = false then needsGuard = scalarInit
+    if needsGuard = false then needsGuard = implCopy
     if needsGuard = false then needsGuard = placeZero
     if needsGuard then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
@@ -442,6 +472,8 @@ function LowerNew_ _
         end if
         if ctor <> Tko.SYMBOL_NONE then
             EmitStructorCall( c, ctor, -1, @pv, @cargs )
+        elseif implCopy then
+            CallImplicitCopy_( c, el, pv, copySrc )
         elseif scalarInit then
             dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->children[argFirst] )
             dim as MirValue iv = LowerExpr( c, ive )

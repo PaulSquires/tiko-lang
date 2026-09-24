@@ -164,12 +164,44 @@ end sub
 '' bytes on win64, which is why swapping it with 'longint' is accepted there;
 '' virtual/compatible-override.bas writes exactly that pair, both ways, and spells the
 '' 32-bit half with '#ifdef __FB_64BIT__'.
+'' A POINTER RESULT MAY BE COVARIANT: the override's pointee the base's own type or one
+'' derived from it, at the same depth. Measured, fbc-modern, over 'B ptr' in the base:
+''
+''     D ptr           OK          (D extends B -- the FreeBASIC manual's clone( ) example)
+''     object ptr <- D ptr   OK    D ptr ptr over B ptr ptr   OK
+''     const B ptr <- D ptr  OK    B ptr <- const D ptr       error 225  (const added)
+''     D const ptr     OK          (const on the pointer itself is not compared)
+''     U ptr, any ptr, long ptr    error 225, and 'any ptr' over 'D ptr' too
+''
+'' By VALUE the same pair is 225 -- ReturnCompatible_ keeps that.
+private function PointerResultCompatible_ _
+    ( byref types as TypeContext, byval a as TypeId, byval b as TypeId ) as boolean
+
+    dim as TypeId pa = types.Unqualify( a )
+    dim as TypeId pb = types.Unqualify( b )
+    while (types.Kind( pa ) = TK_POINTER) andalso (types.Kind( pb ) = TK_POINTER)
+        dim as TypeId ia = types.Inner( pa )
+        dim as TypeId ib = types.Inner( pb )
+        '' The override may drop a const the base's pointee has, never add one.
+        if types.IsConst( ib ) andalso (types.IsConst( ia ) = false) then return false
+        pa = types.Unqualify( ia )
+        pb = types.Unqualify( ib )
+    wend
+    if pa = pb then return true
+    if (types.Kind( pa ) <> TK_UDT) orelse (types.Kind( pb ) <> TK_UDT) then return false
+    return types.BaseDistance( pb, pa ) > 0
+end function
+
 private function ReturnCompatible_ _
     ( byref types as TypeContext, byval a as TypeId, byval b as TypeId ) as boolean
 
     if a = b then return true
     '' A SUB and a FUNCTION are never compatible, whatever the function returns.
     if (a = TYPE_NONE) orelse (b = TYPE_NONE) then return false
+    if (types.Kind( types.Unqualify( a ) ) = TK_POINTER) andalso _
+       (types.Kind( types.Unqualify( b ) ) = TK_POINTER) then
+        return PointerResultCompatible_( types, a, b )
+    end if
     '' Anything that is not a plain builtin -- a pointer, a UDT, an array -- must be the
     '' SAME type: 'integer ptr' against 'byte ptr' is error 225.
     if types.Kind( a ) <> TK_BUILTIN then return false

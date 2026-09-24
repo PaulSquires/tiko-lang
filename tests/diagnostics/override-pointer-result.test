@@ -1,0 +1,11 @@
+'' A pointer result may be covariant -- 'as D ptr' over 'as B ptr' with D extending B, the
+'' FreeBASIC manual's clone( ) -- and fbc error 225 otherwise. Matches fbc on lines 29 to
+'' 32 and nowhere else. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-pointer-result.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: override-pointer-result.bas(29,13): error TKO0622: 'e1'
+'' EXPECT-OUT: override-pointer-result.bas(30,13): error TKO0622: 'e2'
+'' EXPECT-OUT: override-pointer-result.bas(31,13): error TKO0622: 'e3'
+'' EXPECT-OUT: override-pointer-result.bas(32,13): error TKO0622: 'e4'
+'' EXPECT-MAX-DIAG: 4

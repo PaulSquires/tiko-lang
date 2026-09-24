@@ -1059,7 +1059,11 @@ sub EmitLetBody_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
 
     dim as Tko.TypeId bt = ImplBaseOf_( c, t )
-    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then
+    '' ...BUT NEVER OBJECT, which is nothing but the vptr. Copying it gave the destination
+    '' the SOURCE's table: 'new Shape( aCircle )', 'dim as Shape s = aCircle' and 's =
+    '' aCircle' all dispatched as a Circle, where fbc's copy keeps Shape's own. The vptr
+    '' is the object's type, not part of its value.
+    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) andalso (IsObjectT_( c, bt ) = false) then
         CopyMember_( c, FieldAddr_( c, dst, t, c.vts->baseName ), _
                      FieldAddr_( c, src, t, c.vts->baseName ), bt )
     end if
