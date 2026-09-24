@@ -6,6 +6,8 @@
 
 > ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
 
+> **In tiko.** tiko imports C headers itself, through libclang loaded at first use and never linked, for win64-msvc (the Windows default), win64 and linux-x86_64 (decision 0016, `docs/architecture/decisions/0016-cinclude.md`). Its C-import options are `-cinclude`, `-cimport`, `-cimport-out` (`-` for standard output), `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`, plus the compiler-development option `--cimport-probe`. FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-force`, `-cimport-prefix` and `-cverbose` are not tiko options: each is `TKO0100: unknown option`. Command lines written `tiko` below were run with tiko and with FBC-Modern's `fbc`; those still written `fbc` are FBC-Modern's, for options tiko does not have. Where tiko behaves differently the page says so — a layout disagreement, the Universal CRT's inline functions on win64-msvc, `pascal` through an imported pointer, `system:`. Measured 2026-09-24 at origin/master 50c71751 on win64-msvc and win64; linux-x86_64 is 0016's.
+
 > 📘 **Also in this category:** [#cinclude Tutorial](modern-Cinclude-tutorial) ✨
 
 
@@ -51,26 +53,28 @@ please report it with the generated binding, 'MemberAligned': clang reports size
 bit 32 (clang) vs bit 8 (FreeBASIC)
 ```
 
+> **tiko does not stop the build here.** A record whose size, alignment or any member's bit offset disagrees is refused — left out of the binding, with the difference in the skip ledger — and the header is imported again without it; whatever holds it by value goes with it, and a pointer to it survives (decision 0016 §4). Only a use of the refused record fails. For a `#pragma pack(1)` record held by one that is not packed, FBC-Modern's `fbc` stops with `error 390: C ABI mismatch in imported header ... 'lay_holds_packed4': clang reports size 12, align 4; FreeBASIC computed size 16, align 4; first differing member: 'p' at bit 8 (clang) vs bit 32 (FreeBASIC)`, where tiko's ledger reads `tiko lays it out in 16 bytes aligned to 4, clang in 12 aligned to 4; member 'p' is at bit 32 in tiko's layout and bit 8 in clang's` and `dim as lay_holds_packed4 h` is `TKO0808: the type 'lay_holds_packed4' is not declared`. Measured 2026-09-24 at origin/master 50c71751.
+
 That check has already earned its keep: `tagVARIANT` was once imported as 16 bytes where `windows.h` says 24, with an entire nested struct missing — and it **compiled**. Nothing but the layout comparison would have caught it.
 
 `-cnoverify` turns the check off. There is no good reason to use it.
 
 ## Requirements
 
-Clang **16 or newer**, wherever fbc already looks for it — the same place [`-gen llvm`](Compiler-Option-Gen) looks. libclang is loaded on first use through [`DyLibLoad`](Dylibload); it is never linked, so fbc builds and runs without Clang and only an actual import needs it.
+libclang **16 or newer** (`CLANG_MIN_MAJOR`, `src/cimport/clang.bi`). tiko loads it on first use through [`DyLibLoad`](Dylibload) and never links it, so tiko builds and runs without it, and only `#cinclude`, `-cimport` and `--cimport-probe` ask for it. It is looked for in `TKO_LIBCLANG` (alone, when that is set), then beside the clang tiko compiles with, then where the LLVM installer or a distribution puts it (`src/cimport/clang.bas`). Every tiko build already needs an installed LLVM with clang 18 or newer, and that install ships libclang. When none opens, a `#cinclude` line is `TKO0335: #cinclude needs libclang: ...`, saying what was tried, and a program with no `#cinclude` still builds (measured 2026-09-24 at origin/master 50c71751, with `TKO_LIBCLANG` naming a missing file).
 
-Targets: **win64** and **linux-x86_64**.
+Targets: **win64-msvc** (tiko's default on Windows, imported against the installed MSVC and Windows SDK headers), **win64** and **linux-x86_64** (decision 0016). FBC-Modern's importer serves win64 and linux-x86_64 only.
 
 ```
-fbc -cprobe stddef.h
+tiko --cimport-probe stddef.h
 ```
 
-reports whether the whole path works, and exits.
+loads libclang, parses the header, prints the libclang it loaded, clang's version, resource directory and target and then what clang saw, and exits. It is a compiler-development option. FBC-Modern's `fbc -cprobe stddef.h` prints a census instead; tiko has no `-cprobe` (`TKO0100`).
 
 ## The command-line form
 
 ```
-fbc -cimport windows.h -cimport-out windows_generated.bi
+tiko -cimport windows.h -cimport-out windows_generated.bi
 ```
 
 generates the binding as a **file** instead of including it — for reading, for checking into a repository, or for diffing across an SDK upgrade. The output is deterministic: the same headers and options give a byte-identical file on either operating system, so a diff means something changed in the header.
@@ -78,10 +82,14 @@ generates the binding as a **file** instead of including it — for reading, for
 Several headers in one command share one binding, and shared types are declared exactly once:
 
 ```
-fbc -cimport windows.h -cimport commctrl.h -cimport-out win.bi
+tiko -cimport windows.h -cimport commctrl.h -cimport-out win.bi
 ```
 
+> Measured 2026-09-24 at origin/master 50c71751, on win64-msvc: `windows.h` alone gives 42,945 declarations in 13 s, and two runs are byte-identical (across operating systems is not measured); with `commctrl.h` added, 45,851 declarations and `tagPOINT` declared once. `-cimport-out -` writes the binding to standard output. The file is not FBC-Modern's byte for byte: its banner names tiko, tiko imports what FBC-Modern skips — a named record declared inside another (`sqlite3.h`'s `sqlite3_index_info`), an array parameter, an anonymous member of an unnamed record — and FBC-Modern keeps every definition of a redefined macro (decision 0016 §4).
+
 ### One file per header: `-cimport-split`
+
+*FBC-Modern's `fbc` only — tiko has no `-cimport-split` (`TKO0100: unknown option '-cimport-split'`) and no equivalent.*
 
 A single 2.8 MB `.bi` is correct but not pleasant to read or to diff. `-cimport-split <dir>` writes the same declarations as **one file per C header**, plus an index named after `-cimport-out`:
 
@@ -99,6 +107,8 @@ gives 147 parts and `bindings\win.bi` — 2,885,668 bytes in total against 2,860
 
 
 ### A whole directory at once: `-cimport-indir`
+
+*FBC-Modern's `fbc` only — tiko has none of `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-force` or `-cimport-prefix` (each `TKO0100`) and no equivalent.*
 
 ```
 fbc -cimport-indir <dir> -cimport-outdir <dir> [-cimport-recurse]
@@ -188,6 +198,8 @@ The prefix is parsed **before each header** and contributes nothing to the outpu
 
 The first four are part of the **cache key**, so the same header imported with different options gives different entries and they cannot be confused for one another.
 
+tiko has `-cinclude`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cimport-manifest`, `-ccachedir` and `-cnocache`. `-cimport-split`, `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-force`, `-cverbose` and `-cprobe` are FBC-Modern's only; tiko reports each as `TKO0100: unknown option` (measured 2026-09-24 at origin/master 50c71751). In tiko every option is part of the cache key, not only the first four (decision 0016 §5).
+
 ## What comes across
 
 | | |
@@ -273,7 +285,9 @@ function C         ( byval x as long ) as long : return x : end function
 
 `pascal` is **not** in that set and still warns. It is not a mangling or a register difference — it reverses the argument order, on x86-64 as anywhere else, so a `pascal` procedure called through a `cdecl` pointer with `(1, 2)` returns `21`.
 
-> Stock FreeBASIC warns on the `cdecl`/`stdcall` mismatch even on x86-64, deliberately, so that code stays portable to x86 where the distinction is real. tiko-lang has dropped 32-bit, so that protection has nothing left to protect and only its cost remained — every Win32 callback written the ordinary way warned against an imported header, with no spelling that silenced it.
+> Stock FreeBASIC warns on the `cdecl`/`stdcall` mismatch even on x86-64, deliberately, so that code stays portable to x86 where the distinction is real. tiko has dropped 32-bit (`-m32` is `TKO0104: 32-bit targets are not supported; x86-64 only`), so that protection has nothing left to protect and only its cost remained — every Win32 callback written the ordinary way warned against an imported header, with no spelling that silenced it.
+>
+> tiko accepts all three without a warning — and, unlike FBC-Modern's `fbc`, a `pascal` procedure too: no warning, and a call through the imported `cdecl` pointer with `(1, 2)` returns `12` where `fbc`'s build warns (`warning 4(2): Suspicious pointer assignment`) and returns `21`. Measured 2026-09-24 at origin/master 50c71751, through a function-pointer typedef imported with `#cinclude`, on win64-msvc and win64.
 
 ## What does not
 
@@ -281,6 +295,7 @@ function C         ( byval x as long ) as long : return x : end function
 - **`NULL`.** Dropped deliberately — FreeBASIC's own crt headers define it, and emitting it too would be a duplicate definition. Write `0`.
 - **C++.** C headers only.
 - **`long double`**, and **infinity/NaN** as constant values. FreeBASIC has no spelling for either; both are skipped, with the reason in the ledger.
+- **On win64-msvc, the Universal CRT's inline functions.** tiko only: the UCRT's `stdio.h` defines `printf` and its family in the header as inline functions (`_CRT_STDIO_INLINE`), with no symbol, and they do not come across — after `#cinclude once "stdio.h"`, `printf( ... )` is `TKO0743: 'printf' is not declared`. `puts`, `sqrt` and the rest import as usual, and `-target win64` (the MinGW headers) imports `printf`. Measured 2026-09-24 at origin/master 50c71751.
 
 ## Working with `#foreignlib`
 
@@ -349,7 +364,7 @@ If the library is installed on the system rather than vendored, [`#inclib`](Incl
 #foreignlib SQLITE dynamic "system:sqlite3"    '' does NOT guarantee anything
 ```
 
-It is not a guarantee. `fbForeignLibResolve( )` returns as soon as it sees a `system:` spec:
+It is not a guarantee. FBC-Modern's `fbForeignLibResolve( )` returns as soon as it sees a `system:` spec:
 
 ```freebasic
 '' "system:name" -- hand the bare name to the linker, resolve nothing
@@ -363,6 +378,8 @@ end if
 `isstatic` is never consulted. The directive emits `-lsqlite3`, exactly as [`#inclib`](Inclib) does, and the linker takes whatever it finds first.
 
 Verified rather than assumed: with only a static `libsqlite3.a` present and no import library, the line above **links, and links statically** — no `sqlite3.dll` in the resulting import table, and no diagnostic. It said `dynamic` and did the opposite.
+
+> **tiko does not honour `system:` yet.** It hands the bare name to clang as an input file rather than as `-lsqlite3`, so the line above fails the link: `clang: error: no such file or directory: 'sqlite3'` (`TKO0116`). Name a system library with [`#inclib`](Inclib). Measured 2026-09-24 at origin/master 50c71751, with `-target win64`; the static link described above is FBC-Modern's.
 
 So for this purpose `system:` is *worse* than `#inclib`: identical behaviour, but it reads like an assurance. The `static`/`dynamic` keyword is meaningful only for a **file** spec, where it constrains which extensions are eligible and a file of the other kind is an error.
 
@@ -380,8 +397,8 @@ Every declaration carries `alias "<exact C name>"`, so a rename never changes th
 
 ## Remarks
 
-- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing FreeBASIC text — runs per compilation, exactly as [`#include`](Include) does today. The key covers the importer's schema, the fbc version and build, the dialect, the target, the Clang version, the headers and the option vector; the entry also records every file Clang read, so editing any header in the tree invalidates it.
-- `windows.h` is about **35,000 declarations**, of which 2,517 are records, all verified.
+- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing FreeBASIC text — runs per compilation, exactly as [`#include`](Include) does today. The key covers the importer's schema, the fbc version and build, the dialect, the target, the Clang version, the headers and the option vector; the entry also records every file Clang read, so editing any header in the tree invalidates it. That is FBC-Modern's key. tiko's is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`, and the first `gcc` on `PATH` for win64); every file clang read is re-checked on each hit (decision 0016 §5). A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on win64-msvc (measured 2026-09-24 at origin/master 50c71751).
+- `windows.h` is about **35,000 declarations**, of which 2,517 are records, all verified (FBC-Modern's figures). tiko's import has 42,945 declarations on win64-msvc and 36,139 on win64, with no record refused (measured 2026-09-24 at origin/master 50c71751); decision 0016 §5 counts 2,887 and 2,438 records, every one checked against a clang-compiled program.
 - Over-alignment (`__declspec(align(16))`) has no FreeBASIC spelling. C's tail padding is written out so `SizeOf` and every member offset are right, and the affected records are reported by name — but a local or array element is 8-byte aligned where C promises 16.
 - New to tiko-lang. Not present in FreeBASIC.
 
@@ -434,7 +451,9 @@ sqlite3_exec( db, @"select name from part;", @OnRow, 0, 0 )
 sqlite3_close( db )
 ```
 
-Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` — needs no `-cinclude` **when fbc is run from the directory that contains `vendor/`**, which is how the shipped example is built. From anywhere else it needs `-cinclude path/to/vendor`, because the path is resolved against the working directory and not against the file that wrote it.
+Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` — needs no `-cinclude` **when tiko is run from the directory that contains `vendor/`**, which is how FBC-Modern's shipped example is built. From anywhere else it needs `-cinclude path/to`, the directory that *contains* `vendor/`, because the path is resolved against the working directory and the `-cinclude` directories and not against the file that wrote it. (`-cinclude path/to/vendor` does not do it: the directive already names `vendor/`, and both compilers report the header missing — tiko `TKO0336: unable to import C header vendor/sqlite3.h`, FBC-Modern's `fbc` `error 385`.)
+
+Both examples build with tiko, measured 2026-09-24 at origin/master 50c71751: the first on win64-msvc and win64, the second with `-target win64` and `-cinclude vendor`, since a `sqlite3_windows_x86_64.a` built by MinGW does not link on win64-msvc (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
 
 ## Pages in this category
 
@@ -442,7 +461,7 @@ Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` —
 
 ---
 
-**Source:** `docs/cimport/cimport.txt` in the tiko-lang repository.
+**Source:** `docs/cimport/cimport.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ---
 

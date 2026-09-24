@@ -227,17 +227,15 @@ through generic instantiations has no coverage anywhere in this tree.
 
 ## Library Only, With One Compiler Fix
 
-The types are entirely a header. One compiler change was needed to make the operators reachable, and it is not specific to SharedPtr.
+The types are entirely a header -- fb/sharedptr.bi, which tiko ships unchanged in its toolchain's inc/.
 
-A generic global operator registers nothing until it is instantiated, and it cannot be instantiated until the operand types are known -- which is why instantiation is attempted at the USE site. That call existed in exactly one place, the binary-operator path. Every unary dispatch site tested the global operator table, found it empty and gave up, so NO generic global unary operator worked at all: not '\*', not '->', not unary '-' or NOT. Three sites now attempt instantiation first (astNewUOP, astBuildMultiDeref, and the '->' branch of cUdtMemberDeref).
-
-A second, latent defect surfaced with it. '\*', '-' and '+' are spelled the same unary and binary, and a generic operator's op is recorded from the token before any parameter list exists, so a generic 'operator \*' is filed as a multiply even when it is a dereference. The lookup therefore offers the alias and lets arity decide, mirroring what the concrete path does. Because both forms then shared one internal name, two declarations of the same operator token produced the same synthetic namespace and the second instantiation landed on top of the first; each declaration now carries a serial.
+The one compiler change was FBC-Modern's: its generic global UNARY operators -- '\*', '->', unary '-' and NOT -- were never instantiated at their use sites, so none of them worked until it was fixed. tiko's generics are its own and need no such fix. Measured 2026-09-24 at origin/master 50c71751: fbc's generics/global-unary-operators.bas -- each of those four beside a binary operator of the same spelling over a plain Box( of T ) -- builds and runs under tiko with exit 0 and the same output as fbc's build, and tiko's own `tests/mir/generic-global-operator.test` covers '+', unary '\*' and '->'.
 
 ## Implementation Note
 
-The reference counts go through three functions added to the runtime -- fb_AtomicFetchAddLong, fb_AtomicCasLong and fb_AtomicLoadLong, declared in inc/fbatomic.bi and implemented in rtlib/atomic.c over \_\_sync_fetch_and_add and the Interlocked family, the same builtins thread_self.c already used.
+The reference counts go through three runtime functions -- fb_AtomicFetchAddLong, fb_AtomicCasLong and fb_AtomicLoadLong, declared in inc/fbatomic.bi. In tiko they are tiko-rt's, in lib/rt/src/c/atomic.c: one of the few C files in a runtime otherwise written in FreeBASIC, because the language cannot spell an atomic operation. They use clang's \_\_atomic builtins and are sequentially consistent throughout.
 
-This is deliberately NOT docs/concurrency/RFC-0002-atomics.md. That specifies FB.Atomic( of T ) with the full C11 memory-order vocabulary and is the one piece of work in this project that requires changes to all four backends. These three are the smallest primitive set a reference count needs, placed where the compiler builtins already live, so that SharedPtr can be correct under -mt today without any backend work. RFC-0002 can be built on top of them, or can replace them with inline sequences; the names were chosen so that it can.
+These three are deliberately not FBC-Modern's RFC-0002 (docs/concurrency/RFC-0002-atomics.md in its repository), which specifies FB.Atomic( of T ) with the full C11 memory-order vocabulary. They are the smallest primitive set a reference count needs.
 
 The cost is a real call per operation, since they cannot inline into FB code. That is the trade: correct and portable now, faster later.
 
@@ -245,44 +243,46 @@ They are declared with C 'int', not C 'long'. C 'long' is 64-bit on LP64 and 32-
 
 ## Tests
 
-tests/generics/container-sharedptr.bas
+fbc's own SharedPtr tests are vendored in tiko-lang under `tests/vendor/fbc-tests/`.
+
+generics/container-sharedptr.bas
 
 ```freebasic
 Exhaustive: every member of both types, both free constructors, SpCast,
 both operators, every null/non-null transition, destructor balance under
 scope exit / reassignment / early return / container growth, and the
-parent-child cycle that WeakPtr breaks. Being a log-test it builds
-without -mt, so it covers the PLAIN counter path.
+parent-child cycle that WeakPtr breaks.
 ```
 
-tests/threads/sharedptr-mt.bas
+threads/sharedptr-mt.bas
 
 ```freebasic
 The atomic path. Eight threads copying and destroying handles to one
-control block, and eight racing WeakPtr.Lock( ). Built with -mt because
-the unit-test makefile compiles everything that way. With a plain
-'count += 1' substituted this segfaults.
+control block, and eight racing WeakPtr.Lock( ). An fbcunit suite, built
+with -mt. With a plain 'count += 1' substituted this segfaults.
 ```
 
-tests/generics/sharedptr-null-ref.bas
+generics/sharedptr-null-ref.bas
 
 ```freebasic
 Ref( ) on a null handle raises. Separate module: the raise aborts.
 ```
 
-tests/generics/fail-sharedptr-scalar-arrow.bas
+generics/fail-sharedptr-scalar-arrow.bas
 
 ```freebasic
 'sp->' on a scalar T is a compile error.
 ```
 
-tests/generics/global-unary-operators.bas
+generics/global-unary-operators.bas
 
 ```freebasic
-The compiler fix, proven on a plain Box( of T ) with no SharedPtr in
-sight: unary '-', NOT, unary '*' and '->', each alongside a binary
-operator of the same spelling over the same type.
+Generic global unary operators, proven on a plain Box( of T ) with no
+SharedPtr in sight: unary '-', NOT, unary '*' and '->', each alongside a
+binary operator of the same spelling over the same type.
 ```
+
+Under tiko, measured 2026-09-24 at origin/master 50c71751, each against fbc's build of the same file: container-sharedptr.bas and global-unary-operators.bas build and run with exit 0 and the same output; sharedptr-mt.bas, built with -mt against fbcunit, passes 14 of 14 assertions under both; sharedptr-null-ref.bas aborts with 'runtime error 1 (illegal function call)' under both -- tiko names line 326 of fb/sharedptr.bi, the ERROR( ) inside Ref( ), where fbc names line 318, the first line of Ref( ); and fail-sharedptr-scalar-arrow.bas is refused by both, by tiko with `TKO0739: 'sharedptr' has no member named 'v'`.
 
 ## API reference
 
@@ -292,7 +292,7 @@ One page per entry, 11 in all:
 
 ---
 
-**Source:** `docs/sharedptr/sharedptr.txt` in the tiko-lang repository.
+**Source:** `docs/sharedptr/sharedptr.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

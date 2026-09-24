@@ -14,13 +14,13 @@ of those you *shouldn't* write.
 
 **What you need:**
 
-* An tiko-lang toolchain. Everything here was compiled and run with
-  `toolchains\tiko-windows\fbc64.exe`.
+* A tiko toolchain: `toolchains\tiko-windows\tiko.exe` on Windows,
+  `toolchains/tiko-linux/bin/tiko` on Linux.
 * The `-mt` flag on **every** build. The headers refuse to compile without it
   rather than link a single-threaded runtime and misbehave quietly.
 
 ```bash
-toolchains\tiko-windows\fbc64.exe -mt example.bas
+toolchains\tiko-windows\tiko.exe -mt example.bas
 ```
 
 **The reference** — every rule, every table, every edge case — is
@@ -28,7 +28,28 @@ toolchains\tiko-windows\fbc64.exe -mt example.bas
 one specifies. When you finish here, read that.
 
 Every program in this tutorial was compiled and run. The outputs shown are real
-program output, not illustrations.
+program output, not illustrations — from fbc's build. Under tiko, measured
+2026-09-24 at origin/master 50c71751 on win64-msvc, not every one works yet:
+
+* **The same output as fbc's build:** ex01–ex04, ex06, ex09, ex09b, ex11,
+  ex13–ex15 and ex17–ex19 — up to the timings and the interleaving of concurrent
+  lines, which vary from run to run under either compiler (ex15's lost-update
+  count is random by design). The `select channel` programs are among them.
+* **Crashes at run time:** ex07, ex10, ex12 and ex16 — an access violation, and
+  now and then a hang instead for ex16. Each spawns a procedure that takes a
+  `SendChan` or `RecvChan` and passes it a `Channel`.
+* **Wrong output:** ex05's `for each` over a `Channel( of string )` prints blank
+  lines where fbc's build prints `for each: alpha` and the rest; its
+  `while ... Receive` half is right.
+* ex08 is two procedures rather than a program; with the `#include` and
+  `using FB` it needs, it compiles under both.
+
+The compiler messages quoted below are fbc's; tiko reports its own, with
+`TKOnnnn` ids. Two of those errors it does not raise yet: a `byref` parameter at
+a spawn site (fbc's error 358) compiles, and a `RecvChan` in a `select channel`
+case (fbc's error 340) gets no diagnostic either — the build fails at the link
+instead, on `undefined symbol: selectaddrecv<6>` and its siblings, then
+`error TKO0116: link failed`.
 
 ---
 
@@ -1926,13 +1947,13 @@ to one results channel. The most common shape you will write.
 * **`../concurrency/`** — the RFCs. RFC-0005 is channels,
   RFC-0004 is tasks and `select`, RFC-0003 is sync, RFC-0001 is the memory model.
   Each records the rejected alternatives and why.
-* **`tests/`** in the tiko-lang tree — `channel_test.bas`, `select_test.bas`,
-  `sync_test.bas` and friends: several hundred assertions, and the most precise
-  answer to "what exactly does this do in that case."
-* **`tests/goroutines_doc_test.bas`** — every example in the reference, compiled
-  and asserted.
+* **`tests/mir/spawn.test`** in the tiko-lang tree — how `spawn` is lowered;
+  `tests/mir/spawn-contextual.test` beside it keeps `spawn` usable as a name.
+  The library itself is measured with fbc's own suites, built by both compilers
+  with `-mt`: all three `concurrency/` suites print what fbc's builds print
+  (HANDOFF section 9f, 2026-09-21).
 
 ---
 
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Source:** `docs/goroutines/tutorial.md` in the tiko-lang repository.
+**Source:** `docs/goroutines/tutorial.md` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

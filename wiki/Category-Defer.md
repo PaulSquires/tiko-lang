@@ -145,7 +145,11 @@ defer( 6 )                  ' still a call
 
 Every call that produces a value is unaffected, because it needs the parentheses anyway. This is the same trade FOR EACH already makes with 'each'.
 
+> **Under tiko** (measured 2026-09-24 at origin/master 50c71751), with `sub defer( byval n as long )` declared, NEITHER statement calls it. `defer( 6 )` and `defer 6` are both dropped without a diagnostic; `--dump-ir` reports `1 statements not lowered`. FBC-Modern's `fbc64` calls the sub for both. Rename the sub. The variable forms above (`dim defer`, `defer = 4`, `defer += 5`) work under tiko.
+
 ## Diagnostics
+
+fbc (FBC-Modern's `fbc64` 1.20.0) reports these three:
 
 ```freebasic
 error 347: DEFER requires a statement
@@ -153,45 +157,35 @@ error 348: DEFER is not allowed at module level
 error 349: Branch crossing a DEFER statement
 ```
 
+tiko does not report them yet. Measured 2026-09-24 at origin/master 50c71751, one case per file:
+
+- a bare `defer` with no statement is `TKO0405: expected 'end SUB'`, reported at the end of the file;
+- a module-level `defer print "x"` compiles, and the program prints `x`;
+- a `goto` that crosses a DEFER compiles, and the deferred statement runs at the scope's exit.
+
+The last two are programs fbc rejects, so code that relies on them will not build with fbc.
+
 ## Implementation
 
-A DEFER is registered as a hidden VAR symbol in the current scope, carrying the already-parsed statement.
-
-That is the whole design. Cleanup in fbc is not a list of statements -- it is DERIVED from the scope's symbol table, walked tail-to-head, acting on every entry that needs cleanup. Registering a symbol therefore gets reverse order, interleaving with destructors, the statement-number window and multi-scope 'goto' exits from machinery that already existed for destructors. The three consumption sites needed no knowledge of DEFER beyond one branch each.
-
-Two consequences worth recording:
-
-- The statement is parsed ONCE and cloned per exit. It is held as a CHAIN of
-
-```freebasic
-nodes, not a single tree: one source statement can lower to several linked
-nodes (a call plus the destruction of its temporaries), and the cloning
-helper follows only child links, so cloning just the head would silently
-drop the rest.
-```
-
-- A defer symbol is a VAR but names NO STORAGE, so it must be skipped
-
-```freebasic
-wherever variables are allocated or emitted. Only the ASM/gas64 backend
-allocates every local, so missing this would have been a gas64-only defect.
-```
-
-Source: src/src/compiler/parser-defer.bas, symbAddDefer( ) in symb-var.bas.
+tiko's implementation is its own. The parser recognises the contextual keyword (`src/parser/parser.bas`), and the MIR lowering (`src/mir/lower.bas`) registers the deferred statement in the same per-scope cleanup list that local destructors are registered in, so reverse order and the interleaving with destructors come from that one list. Its run-time behaviour matches fbc's on fbc's own DEFER programs -- see Tests.
 
 ## Tests
 
-src/tests/generics/defer.bas is exhaustive: reverse order, fallthrough off 'end scope' / 'end sub' / 'end function', every break path including 'exit for, for' and 'goto' out of three nested scopes, a loop body, defers in IF / SELECT / WITH arms, interleaving with destructors asserted in BOTH orders and on BOTH the fallthrough and break paths, a defer that is never reached, and backward compatibility for 'defer' as a variable, array, field and shared.
+fbc's own DEFER tests are vendored in tiko-lang under `tests/vendor/fbc-tests/`.
+
+generics/defer.bas is exhaustive: reverse order, fallthrough off 'end scope' / 'end sub' / 'end function', every break path including 'exit for, for' and 'goto' out of three nested scopes, a loop body, defers in IF / SELECT / WITH arms, interleaving with destructors asserted in BOTH orders and on BOTH the fallthrough and break paths, a defer that is never reached, and backward compatibility for 'defer' as a variable, array, field and shared.
 
 Order is asserted by accumulating into a string and comparing the exact sequence. A defer that runs at the wrong time still runs, so only the sequence distinguishes right from wrong.
 
-src/tests/generics/defer-identifier.bas covers 'defer' as a PROCEDURE name -- separate, because FreeBASIC refuses a local that shadows a module-level procedure of the same name.
+generics/defer-identifier.bas covers 'defer' as a PROCEDURE name -- separate, because FreeBASIC refuses a local that shadows a module-level procedure of the same name.
 
-src/tests/errors/defer-errors.bas holds the golden output for all three diagnostics, on every target with a golden tree -- five when this was written, three since the 32-bit x86 targets were dropped.
+errors/defer-errors.bas holds fbc's golden output for all three diagnostics. tiko does not produce it -- see Diagnostics.
+
+Under tiko, measured 2026-09-24 at origin/master 50c71751: defer.bas and defer-identifier.bas build and run with exit 0 and the same output as fbc's builds -- none, because every assertion passes. Both are among the 68 in-scope run programs that `build/runscan.sh` (2026-09-20) found byte-identical to fbc's builds. tiko's own suite adds `tests/mir/defer-contextual.test` (the contextual keyword) and `tests/mir/cleanup.test` (defer order against destructors, checked against traces of fbc's output in `tests/semantic/cleanup/`).
 
 ---
 
-**Source:** `docs/defer/defer.txt` in the tiko-lang repository.
+**Source:** `docs/defer/defer.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

@@ -190,7 +190,7 @@ The right-hand side must be a tuple. A plain UDT is error 371:
 (n1, n2) = someUdt                   ' error 371: Expected a tuple
 ```
 
-LET IS UNCHANGED. 'LET(a, b) = anyUdt' still walks any UDT's fields in declaration order, still checks only the too-many direction, and now also accepts a tuple, since a tuple is a UDT. Positional unpacking of a NAMED type stays LET-only on purpose: reordering that type's fields silently changes what every unpack site means, and that is not a failure mode worth spreading. Note also that LET's multi-target form is '-lang fb' only, while '(a, b) =' works in all four dialects.
+LET IS UNCHANGED. 'LET(a, b) = anyUdt' still walks any UDT's fields in declaration order, still checks only the too-many direction, and now also accepts a tuple, since a tuple is a UDT. Positional unpacking of a NAMED type stays LET-only on purpose: reordering that type's fields silently changes what every unpack site means, and that is not a failure mode worth spreading. tiko implements only `#lang "fb"`, where both forms work.
 
 ## FOR EACH (k, v)
 
@@ -243,7 +243,7 @@ if a < b orelse (a = b andalso c < d) then
 
 '(x)' is a grouped expression, permanently. There is no '(x,)'.
 
-This is not an oversight. '(a) = 5' is legal today in all four dialects, and 'Consume( (a) )' is the established idiom for forcing a byval copy at a byref parameter. A 1-tuple spelling would put a second meaning on '(x)' and add a trailing-comma escape to a language that has never needed one.
+This is not an oversight. '(a) = 5' is legal today, and 'Consume( (a) )' is the established idiom for forcing a byval copy at a byref parameter. A 1-tuple spelling would put a second meaning on '(x)' and add a trailing-comma escape to a language that has never needed one.
 
 Arity 0 is not spellable either -- '()' has no use without a unit type.
 
@@ -324,9 +324,9 @@ print (a, b)             was error 7    now a deliberate error 24
 
 ## Dialects
 
-The whole feature is available in '-lang fb', 'fblite', 'qb' and 'deprecated'. Nothing about it is dialect-gated -- which means the three dialects that never had 'LET(a, b) =' now have a destructuring syntax.
+tiko implements `#lang "fb"` only -- `#lang "qb"` is `TKO0317: unsupported language mode 'qb'` -- so under tiko the dialect question does not arise.
 
-BUT TUPLES DO NOT CROSS DIALECTS. '-lang qb' forces align = 1, so '(long, string)' has a different size, and possibly a different return classification, in QB than in fb -- while mangling to the SAME name. Linking a '-lang qb' object against a '-lang fb' one through a tuple-typed signature is silently wrong. This is documented rather than enforced; folding the alignment into the mangled name would turn it into a link error and is a one-line change if it is ever wanted.
+Under fbc the whole feature is available in all four dialects, and nothing about it is dialect-gated. There, TUPLES DO NOT CROSS DIALECTS: '-lang qb' forces align = 1, so '(long, string)' has a different size, and possibly a different return classification, in QB than in fb -- while mangling to the SAME name. Linking a '-lang qb' object against a '-lang fb' one through a tuple-typed signature is silently wrong, and fbc documents this rather than enforcing it.
 
 ## Separate Compilation
 
@@ -344,6 +344,8 @@ So the two sides may spell the element names differently, or not at all, and sti
 
 ## Diagnostics
 
+fbc (FBC-Modern's `fbc64` 1.20.0) reports:
+
 ```freebasic
 error 367: A tuple needs at least two elements
 error 368: Duplicated tuple element name
@@ -354,57 +356,19 @@ error 371: Expected a tuple
 
 and three pre-existing ones that a tuple can now reach: error 266 (too many elements, destructuring), error 24 (PRINT of a tuple), error 20 (comparing two different tuple types).
 
+tiko reports almost none of these yet. Measured 2026-09-24 at origin/master 50c71751 against the twenty cases of fbc's own `errors/tuple-errors.bas` (vendored in tiko-lang under `tests/vendor/fbc-tests/`), one case per file: tiko rejects three -- an unterminated element list and `var (arr(1), b) = ...` (`TKO0401: expected ')'`), and a tuple constant (`TKO0748: a constant cannot have the type of 'c'`) -- and compiles the other seventeen with no diagnostic. Among them are a 1-tuple, a duplicated element name, ANY and fixed-length-string elements, `extends (long, long)`, SIZEOF and TYPEOF of a tuple type, arity mismatches in both directions, destructuring a UDT or a scalar, and `<` or `=` between tuples. `print (a, b)` compiles too. In six of these -- SIZEOF, too many targets, destructuring a scalar, `<`, `=` between two different tuple types, and `print (a, b)` -- `--dump-ir` reports the statement as not lowered: it is silently left out of the program. fbc's rejections are the intended behaviour; do not rely on tiko accepting any of these.
+
 ## Implementation
 
-No new token, no new FB_DATATYPE, no new AST node class, no new conversion path, no IR change, no backend change. One symbol-table factory plus a handful of parser hooks.
+tiko's implementation is its own, in its type table and its MIR lowering; none of FBC-Modern's symbol-table or parser code is involved.
 
-A tuple type is created by 'symbAddTupleType', which sits directly beneath 'symbAddArrayDescriptorType' and is structurally identical to it: build a canonical key, look it up, synthesize on a miss. The key is '$FBTUPLE\<N>\<mangled element types>', and it is 'symbMangleType' that makes an alias of 'long' and 'long' itself produce identical text. The existing internally-mangled-subtype lookup IS the cache -- there is no new hash table and no new global state.
+One difference from fbc is measured and matters: tiko does not yet mangle a tuple type the way fbc does. fbc names '(long, long)' '8FBTUPLE2IiiE', as SEPARATE COMPILATION above says; tiko emits '8$TUP:6:6', built from its own type-table indices, which are not a function of the element types alone (measured 2026-09-24 at origin/master 50c71751, `--dump-mangle` and `--emit-ir`). A tuple-typed parameter declared in two separately compiled modules can therefore fail to link: in one probe the defining module exported `N::TAKE($TUP:24:15)` while the calling module asked for `N::TAKE($TUP:26:15)` (`lld-link: error: undefined symbol`), where fbc's build of the same two files links and runs. The same two files given to one `tiko` invocation link and run.
 
-Three things are worth recording because each was a real defect:
-
-- SYNTHESIS MUST HAPPEN AT MODULE LEVEL, in the global namespace, whatever the
-
-```freebasic
-parser was doing. Building a tuple's implicit ctor/dtor/let runs the AST
-procedure machinery and allocates symbols in the current table, and a tuple
-is synthesized wherever its type is SPELLED -- including places no TYPE could
-appear. Getting this half-right corrupted the parser's scope counter (the
-next SCOPE tripped "recursion level too deep"); getting the symbol-table
-half wrong segfaulted fbc on a tuple-returning method declared inside a TYPE
-body. Both need an element with implicit members -- a STRING is enough -- and
-both are invisible for all-scalar tuples.
-```
-
-- THE LITERAL'S TEMP IS DELIBERATELY NOT REGISTERED FOR DESTRUCTION. It is a
-
-```freebasic
-construction site, not an owned value: its contents are always taken over by
-whatever consumes the literal, under fbc's rule that an initializer of the
-same type is MOVED. Registering it too destroys the same contents twice --
-for a STRING element, a double free. Measured: one excess destruction per
-literal, in each of DIM initialisation, assignment and argument passing.
-```
-
-- EQUALITY DOES NOT SYNTHESIZE AN 'operator =' SYMBOL. Comparison operators in
-
-```freebasic
-FreeBASIC are global, not members, so a synthesized one would need a body
-emitted in every module that mentions the tuple, and fbc has no weak or
-COMDAT linkage -- a guaranteed duplicate-symbol link error, plus pollution of
-global overload resolution for every '=' in the program. The AST can express
-the chain inline, so it does, in a guard placed AFTER overload resolution so
-a user-written operator still wins.
-```
-
-An earlier draft routed conversion through a single 'astNewCONV' arm on the reasoning that one site would cover assignment, initialisation, RETURN, arguments and destructuring. That was implemented and measured, and both halves were wrong: 'astNewASSIGN' runs its own conversion search and never consults 'astNewCONV' for struct-to-struct, so the site covered call arguments only -- and its result temp could not get its lifetime right (2 constructions against 4 destructions on DIM initialisation). Context-typing the literal has neither problem, because it never builds a second tuple.
-
-Source: symbAddTupleType( ) in symb-var.bas, hMangleTupleArgs( ) in symb-mangling.bas, the tuple arm in cParentExpression( ) (parser-expr-atom.bas), hDestructureFromUdt( ) in parser-assignment.bas, cAutoVarTupleDecl( ) in parser-decl-var.bas, hBuildTupleCompare( ) in ast-node-bop.bas.
-
-Design documents: C:\\dev\\docs\\tuple -- README.md and RFC-0001 through RFC-0004.
+The design documents are FBC-Modern's: C:\\dev\\docs\\tuple -- README.md and RFC-0001 through RFC-0004.
 
 ## Tests
 
-src/tests/tuple/:
+fbc's `tuple/` tests, vendored in tiko-lang at `tests/vendor/fbc-tests/tuple/`:
 
 basic.bas          every accepted element kind; '\_1'..\_N read and write; a
 
@@ -475,17 +439,17 @@ DIFFERENT element names and calls them. Only a
 link-compatible name passes.
 ```
 
-src/tests/errors/tuple-errors.bas is the golden file for every diagnostic, and also PINS THE TWO DOCUMENTED LIMITATIONS -- 'sizeof( (long, string) )' and the nested literal -- so they cannot change by accident.
+`tests/vendor/fbc-tests/errors/tuple-errors.bas` is fbc's golden file for every diagnostic, and also PINS THE TWO DOCUMENTED LIMITATIONS -- 'sizeof( (long, string) )' and the nested literal -- so they cannot change by accident.
 
-src/tests/errors/tuple-foreach-errors.bas covers the 'for each (k, v)' diagnostics. AS and BYREF on the list form get a file each: they are rejected while the binding is still being read, before the FOR compound is pushed, so the error skip leaves the following 'next' orphaned and suppresses every later diagnostic in the same file.
+`errors/tuple-foreach-errors.bas`, beside it, covers the 'for each (k, v)' diagnostics. AS and BYREF on the list form get a file each: they are rejected while the binding is still being read, before the FOR compound is pushed, so the error skip leaves the following 'next' orphaned and suppresses every later diagnostic in the same file.
 
-src/tests/fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in the three dialects that never had 'LET(a, b) ='.
+fbc's fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in the three dialects that never had 'LET(a, b) ='. They are outside tiko's scope, which is `#lang "fb"` only.
 
-Standing gate: the tests/errors and tests/warnings golden diffs must be empty across every target with a golden tree -- five when this was written, three since the 32-bit x86 targets were dropped. An assertion that nothing changed is not the proof; the golden diff is.
+Under tiko, measured 2026-09-24 at origin/master 50c71751: basic, identity, literal, dtor, destructure, equality, equality-overload and for-each build and run with exit 0 and the same output as fbc's builds; no-regress.bas compiles; and the two-module tuple-mm-main.bas + tuple-mm-a.bas builds and runs clean when both files are given to one `tiko` invocation (see IMPLEMENTATION for separate compilation). `build/runscan.sh` (2026-09-20) has every in-scope run program of the corpus byte-identical to fbc's builds. tiko's own suite: `tests/types/tuple-type.test` and eight `tests/mir/tuple-*.test` files. What tiko does NOT yet match is the diagnostics -- see DIAGNOSTICS.
 
 ---
 
-**Source:** `docs/tuples/tuples.txt` in the tiko-lang repository.
+**Source:** `docs/tuples/tuples.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

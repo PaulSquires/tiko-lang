@@ -491,7 +491,7 @@ TWO THINGS DELIBERATELY NOT DONE, stated rather than left to be discovered:
 - NO INFINITY RECOVERY ON '\*'.  C99's __muldc3 rescues ( inf + 0i ) \* ( 2 + 0i ) from NaN with a branch on every multiply; .NET does not, and neither does this.  Pinned by a test so that adding it later is a deliberate act.
 - CPow( 0, w ) IS 0 FOR EVERY w, and CPow( 0, 0 ) is 1.  Those are .NET's answers and the last two are wrong -- 0 to a negative power is infinite.  Kept for source compatibility with both sources, and pinned.
 
-783,486 assertions in src/tests/math/complex.bas, 0 failed, win64 gas64.  Specified by RFC-0009-complex.md, which supersedes RFC-0007 s5.
+Specified by RFC-0009-complex.md, which supersedes RFC-0007 s5.  tiko's vendored copy of fbc's suites has no suite for this header, so there is no tiko result to report for it.
 
 =============================== fb/fenv.bi ===============================
 
@@ -515,7 +515,7 @@ THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser may move floating-point op
 
 The rounding mode is per-thread on every supported platform.
 
-The constants above are FB'S OWN, and are deliberately not the C library's. The C FE\_\* values are not a property of the platform: MSVC, and mingw-w64 since v8, define them in terms of the CRT's abstract \_RC\_\* / \_SW\_\* codes, while glibc, the BSDs, djgpp and mingw-w64 v7 use the x87 control- and status-word encoding directly.  When this was written the tree linked BOTH -- the win64 toolchain wanted the first, the then-bundled win32 cross-toolchain the second.  That cross-toolchain went with the 32-bit x86 targets, but the conclusion is unchanged and the detection stays: no '#ifdef' on target can be right, because fbc cannot know at compile time which runtime the program will finally link against.  fb/fenv.bi therefore DETECTS the family at startup, by offering the CRT the x87 spelling of FE_DOWNWARD and seeing whether it is accepted, and translates.  Getting this wrong is silent, not loud: the two families overlap numerically without agreeing, so x87 FP_DIVBYZERO (&h04) reads as FP_OVERFLOW to a \_SW\_\* CRT and fetestexcept cheerfully answers about the wrong flag.
+The constants above are FB'S OWN, and are deliberately not the C library's. The C FE\_\* values are not a property of the platform: MSVC, and mingw-w64 since v8, define them in terms of the CRT's abstract \_RC\_\* / \_SW\_\* codes, while glibc, the BSDs, djgpp and mingw-w64 v7 use the x87 control- and status-word encoding directly.  Which family applies is decided by the C runtime the program finally links against -- mingw-w64 changed sides between v7 and v8 without the target changing -- and the compiler cannot know that at compile time, so no '#ifdef' on target can be right.  fb/fenv.bi therefore DETECTS the family at startup, by offering the CRT the x87 spelling of FE_DOWNWARD and seeing whether it is accepted, and translates.  Getting this wrong is silent, not loud: the two families overlap numerically without agreeing, so x87 FP_DIVBYZERO (&h04) reads as FP_OVERFLOW to a \_SW\_\* CRT and fetestexcept cheerfully answers about the wrong flag.
 
 ## EXACT vs BOUNDED -- what is reproducible
 
@@ -604,91 +604,13 @@ generic instantiations already make in this tree.
 
 ## Compiler Defects Found While Building This
 
-Three, all reduced to minimal reproductions, all reported, NONE FIXED.  You can meet all three in your own code.
+These headers were written and tested under fbc-modern, and building them found four defects in THAT compiler: one in its front end, which reassociated floating-point 'a + ( b + c )' into '( a + b ) + c' and so silently broke every compensated-summation algorithm, and three in its gas64 backend.  All four were fixed in fbc-modern.
 
-Tested on all four backends of the day -- gcc, gas64, llvm (win64) and gas (win32, before the 32-bit x86 targets were dropped). ALL THREE ARE NOW FIXED IN THE COMPILER, each with the full test gate re-run. No workaround for any of them remains in these headers.
-
-0. FIXED: fbc REASSOCIATED 'a + ( b + c )' INTO '( a + b ) + c' on ALL FOUR
-
-```freebasic
-backends -- a front-end bug, so every FreeBASIC program on every target
-was affected.  Floating-point addition is not associative, so this was a
-different computation, and it silently broke every compensated-summation
-algorithm.
-
-ast-optimize.bas's hOptAssocADD had a type-exclusion list that stopped at
-strings; hOptAssocMUL had no guard at all.  Both now exclude floating
-point.  Integer constant folding is unaffected -- that is what the pass is
-actually for.  Full gate re-run clean: unit-tests 3,815,868 assertions
-under gcc AND gas64 with no new failures, log-tests 0 failed, and zero
-diagnostic changes across 68 files x 5 targets for both warnings and
-errors.
--> docs/fp-reassociation-bug.md
-```
-
-1. FIXED: -gen gas64 DROPPED THE SIGN OF A NEGATIVE-ZERO LITERAL ARGUMENT.
-
-```freebasic
-gcc, llvm and gas were always correct.
-
-ir-gas64.bas tested the VALUE ('v2->value.f = 0') where only the BITS
-distinguish the two zeros, so -0.0 took the 'xor reg, reg' shortcut and
-arrived at the callee as +0.0.  Fixed at FOUR sites -- two more than the
-first report found, because a one-argument reproduction only exercises the
-register path and win64 passes the fifth argument onward on the STACK,
-which had the same bug.  Positive zero keeps the shortcut.
--> docs/gas64-negative-zero-arg-bug.md
-
-    IsNegative( -0.0 )          ' gcc: true   gas64: FALSE
-    dim as double z = -0.0
-    IsNegative( z )             ' both: true
-
-A zero-valued float immediate is materialised with 'xor eax, eax', and
--0.0 = 0.0 is true, so the sign is dropped on the way into the call.
-ir-gas64.bas:6982 and :6989.
--> docs/gas64-negative-zero-arg-bug.md
-```
-
-2. (was the reassociation bug -- see 0 above, now FIXED)
-
-```freebasic
-    comp + ( ( s - tt ) + x )   ' 0  -- WRONG
-    dim as double q = ( s - tt ) + x
-    comp + q                    ' 1  -- right
-
-Floating-point addition is not associative, so this is a different
-computation.  It breaks every compensated-summation algorithm.  fb/stats.bi
-names the term before adding it, or Sum would silently degrade to
-NaiveSum.
--> docs/fp-reassociation-bug.md
-```
-
-3. FIXED: -gen gas64 CRASHED on a function with a BYREF parameter that
-
-```freebasic
-returned a large UDT by value.  gcc, llvm and gas were always correct.
-
-The title described the symptom, not the mechanism -- nothing was wrong
-with the hidden return pointer or the ABI.  The large return needs its
-buffer zeroed, and memfill() holds the destination as a STRING NAMING A
-REGISTER, then frees rcx/rdx/r8 for the memset arguments by moving their
-contents elsewhere WITHOUT UPDATING THAT STRING.  When the destination
-lived in one of the three, memset was called with a register that had just
-been vacated -- so the crash was inside memset, before the callee was ever
-entered.  Six one-line repoints fix it.
-
-That also explains the two things the report had to hedge on: the apparent
-64-byte "threshold" was really the point at which a memset is emitted at
-all, and the 128-byte Mat4d case survived because its address happened not
-to land in one of those registers.  The bug was register-allocation
-dependent, not size dependent.
--> docs/gas64-byref-param-udt-return-bug.md
--> docs/gas64-byref-param-udt-return-bug.md
-```
+They are fbc-modern's record, not tiko's: tiko has its own front end and a single LLVM backend.  What tiko's builds of the math suites show is under Tests below.
 
 ## Tests
 
-src/tests/math/ -- 9 suites, 69 tests, 2,219,607 assertions.
+tests/vendor/fbc-tests/math/ -- fbc's own fbcunit suites for these headers, vendored in tiko-lang.
 
 core.bas      constants, classification (EXHAUSTIVE over all 2^32 SINGLE bit
 
@@ -758,17 +680,9 @@ on fallthrough / EXIT / RETURN / nested scopes, each exception
 flag raised by what must raise it
 ```
 
-Every file compiled -w all with ZERO WARNINGS on every backend.
+Under tiko, all 9 math suites that build under both compilers match fbc (build/suiterun.sh, which builds each suite with both compilers and compares the results tables; measured 2026-09-24 at origin/master 50c71751).
 
-BACKEND        TARGET          RESULT -gen gcc       win64           2,219,607 assertions, 0 failed -gen gas64     win64           2,219,607 assertions, 0 failed -gen llvm      win64           2,219,607 assertions, 0 failed  (clang 21.1.0) -gen gcc       win32           2,219,607 assertions, 0 failed -gen gcc       linux-x86_64    2,219,607 assertions, 0 failed -gen gas64     linux-x86_64    2,219,607 assertions, 0 failed -gen gas       win32           2,219,607 assertions, 0 failed
-
-THE win32 ROWS, AND EVERY win32 REMARK BELOW, ARE A PRE-REMOVAL RECORD.  32-bit x86 targets were dropped after this was written, so those runs cannot be repeated; they are kept because what they established -- the cross-word-size and cross-backend agreement -- is still evidence for the exactness claim.  The win64 and linux-x86_64 rows are the live ones.
-
-The three linux/gas64 failures in vector.bas are gone; a fourth PRE-EXISTING compiler defect was what caused them, and it is now fixed -- see below.
-
-The win64 rows were WRONG until 2026-08-13, and worth recording as a lesson rather than quietly correcting: they were copied from the linux run instead of measured.  fenv.bas was in fact failing 21 assertions on win64 the whole time, because fb/fenv.bi assumed the C library's FE\_\* values were the x87 encoding everywhere.  A results table is evidence only if every row was actually run.
-
-Precision note, and it decided five assertions across two suites: on win32 fbc ran the x87 with the precision control at 64-bit mantissa, so an intermediate that is never stored keeps 80 bits.  C99 permits this (FLT_EVAL_METHOD = 2).
+Precision note, and it decides five assertions across two suites: code evaluated on the x87 with the precision control at 64-bit mantissa keeps an intermediate that is never stored in 80 bits.  C99 permits this (FLT_EVAL_METHOD = 2).
 
 This bites the tests that demonstrate a DEFECT rather than a result.  Each is the counter-example half of a pair -- the naive form getting it wrong, beside the library getting it right -- and each was written assuming the intermediate had been rounded to double.  In 80 bits the naive form quietly gets the RIGHT answer and stops demonstrating anything:
 
@@ -776,34 +690,12 @@ int( justunder + 0.5 )       unstored 0,          stored 1 sqr( big\*big + big\*
 
 so rounding_beats_the_idiom\_ and libm_surface\_ in core.bas, and ipow_exact\_ in integer.bas, store the intermediate first.  The store is load-bearing and is asserted in its own right, so a future compiler that keeps 80 bits fails at the cause rather than confusingly downstream.
 
-The win32 rows were new at the time: fbcunit had no 32-bit build, so the suites had previously not been run there at all.  One was built against the then-bundled win32 cross-toolchain and the suites ran.
-
-These suites are also part of the tree's own gate: 'make unit-tests' totals 3,815,872 assertions across 2,735 modules under gcc and under gas64, with the math suites included and the only failures the 11 pre-existing fbc_tests.threads.threadcall\_ ones (libffi absent in this environment).
-
-The win32 comparison was worth more than it looks: it ran fb/currency.bi, fb/mathint.bi, fb/mathtext.bi, fb/random.bi and fb/vector.bi on a different WORD SIZE and a different BACKEND, and every byte of output matched win64. That was the cross-target half of the exactness claim above -- including the RNG streams, which is the reproducibility promise, and the money arithmetic. It began as a substitute for running the suites there; the suites ran on win32 too, and agreed. With 32-bit x86 gone, linux-x86_64 now carries the cross-target half alone -- same word size, different OS, ABI and backend.
-
-A FOURTH COMPILER DEFECT, pre-existing, is what those three linux/gas64 failures were.  It is now FIXED.  In a long float expression the running sum was stored to one register and the next addition READ ANOTHER.  For
-
-```freebasic
-x = a.m(0)*v.x + a.m(4)*v.y + a.m(8)*v.z + a.m(12)
-```
-
-gas64 emitted 'movq r11, xmm0' for the partial sum and then 'movq xmm0, r8' -- and r8 is never written in that function.  The first half of the expression was dropped, so p.x came out as 10 rather than 11.
-
-The cause was not in that function at all.  reghandle(), the map from real to virtual register, was reset once per MODULE, while virtual numbering restarts per PROCEDURE.  A register left mapped at the end of one procedure therefore aliased a fresh vreg of the same number in the next, and reg_findreal returns the FIRST match scanning 0..15 -- so the stale r8 (8) beat the live r11 (11). \_emitprocend now resets the map beside the two per-procedure resets already there.  vector.bas, which was left reporting the failure rather than weakened to go green, is the regression test: 260,138 assertions, 0 failed. -> docs/gas64-float-bop-stale-register-bug.md
-
 NOT VERIFIED, stated rather than implied:
 
-- (Superseded: an earlier note here said the fbcunit suites had not been run on win32, only the headers directly. They were later run there, as recorded above, and the target has since been removed.) - No differential test against OleAut32 VarCy\* or .NET decimal was run for
+- No differential test against OleAut32 VarCy\* or .NET decimal was run for
 
 ```freebasic
 Currency; RFC-0003 s9 specifies it and it is owed.
-```
-
-- tests/errors and tests/warnings were not re-run.  They cannot change: no
-
-```freebasic
-compiler code was modified.
 ```
 
 See also: C:\\dev\\docs\\math\\README.md              the design and the build order C:\\dev\\docs\\math\\amendments.md          where the code diverged from the RFCs C:\\dev\\docs\\math\\comparison-matrix.md   what ten other languages provide
@@ -816,7 +708,7 @@ One page per entry, 197 in all:
 
 ---
 
-**Source:** `docs/math/math.txt` in the tiko-lang repository.
+**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

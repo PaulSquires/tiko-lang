@@ -164,7 +164,7 @@ Do not write through OrderedSet's iterator. Value( ) returns BYREF, matching FB.
 
 ## Measured
 
-win64, gas64 backend, random LONG keys. Each row doubles n.
+These are FBC-Modern's figures, measured with its `fbc64` on win64 with the gas64 backend -- not with tiko. They show the shape of the trade, not tiko's speed. Random LONG keys. Each row doubles n.
 
 ```freebasic
 n            Map insert   OrderedMap insert   Map find   OrderedMap find
@@ -189,7 +189,7 @@ A black height of 13 at a million entries is the balance guarantee doing its job
 
 ## Tests
 
-src/tests/generics/container-orderedmap.bas and container-orderedset.bas.
+fbc's generics/container-orderedmap.bas and container-orderedset.bas, vendored in tiko-lang at `tests/vendor/fbc-tests/generics/`.
 
 Every declared member, every state, the indexer's insert-on-miss, deep copy and assignment independence in both directions, self-assignment, destructor balance with a counting type, four key types including one with '<' and no hash, both FOR EACH binding forms and the tuple destructuring view, and -- for the set -- all three algebra operations including every self-argument case.
 
@@ -214,6 +214,8 @@ at most 20. A degenerate tree would report about 1,000.
 
 The removal rebalance's four cases and their mirrors need specific tree shapes that no hand-written case reliably produces, so both suites end in a DIFFERENTIAL STRESS: 120 rounds x 1,500 random operations mirrored into FB.Map or FB.Set, with every answer compared, the invariants checked each round, and Floor/Ceiling cross-checked against a linear scan.
 
+Under tiko, measured 2026-09-24 at origin/master 50c71751: both files build and run with exit 0 and print what fbc's builds print -- `container-orderedmap: ok` and `container-orderedset: ok` -- invariant checks and differential stress included. Both are among the 68 in-scope run programs that `build/runscan.sh` (2026-09-20) found byte-identical to fbc's builds.
+
 See also: docs/map/map.txt                  FB.Map( of TK, TV ) docs/set/set.txt                  FB.Set( of T ) docs/sort/sort.txt                sorting an Array or a LinkedList instead docs/generics/generics.txt        RFC-0001
 
 ## API reference
@@ -224,7 +226,7 @@ One page per entry, 16 in all:
 
 ---
 
-**Source:** `docs/ordered/ordered.txt` in the tiko-lang repository.
+**Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

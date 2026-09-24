@@ -4,18 +4,17 @@
 
 [![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
 
-> ✨ **Focus traversal and a confirm dialog.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/form.bas` in the tiko-lang repository.
+> ✨ **Focus traversal and a confirm dialog.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 Text inputs, a checkbox, a radio group and a select, wired into a TuiFocusRing with Tab and Shift+Tab, and a TuiMessageBox on submit. This is the example that found two real defects, both recorded in the docset README.
 
 ## Build and run
 
 ```freebasic
-fbc64 docs/tui/examples/form.bas        ' win64
-fbc   docs/tui/examples/form.bas        ' linux-x86_64
+tiko form.bas        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. Builds clean at `-w all` on both targets.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for win64-msvc and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
 
 ## What to notice
 
@@ -33,10 +32,8 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' in any shipped FreeBASIC module: a widget that carries a closure. RFC-0007
 '' section 4, and probes #4-#8 in README.md.
 ''
-'' Build (win64):
-''     fbc64 -i <tiko-lang>/src/inc form.bas
-'' Build (linux-x86_64):
-''     fbc form.bas
+'' Build (win64-msvc, win64 or linux-x86_64):
+''     tiko form.bas
 
 #include once "fb/tui.bi"
 using FB
@@ -324,7 +321,7 @@ end if
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
 **Other examples:** [hello.bas](Modern-Tui-Example-Hello) · [dashboard.bas](Modern-Tui-Example-Dashboard)
   
-**Source:** `docs/tui/examples/form.bas` in the tiko-lang repository.
+**Source:** `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

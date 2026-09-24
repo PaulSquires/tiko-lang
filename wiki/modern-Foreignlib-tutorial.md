@@ -13,11 +13,14 @@ from exactly that knowledge, shows you the three places it runs out, and then
 walks you through vendoring SQLite into your own project — first as a DLL, then
 as a static library.
 
-**You need:** an `tiko-lang` toolchain (`#foreignlib` does not exist in released
-FreeBASIC), and about twenty minutes.
+**You need:** the tiko toolchain (`toolchains\tiko-windows\tiko.exe`), clang, which
+tiko runs for every link, and about twenty minutes. `#foreignlib` does not exist
+in released FreeBASIC.
 
-Every command and every message in this tutorial was run on win64. Where output
-depends on your machine, it says so.
+Every build command and every compiler message in this tutorial was run with tiko
+on Windows, 2026-09-24 (origin/master 50c71751), for tiko's default target,
+win64-msvc, unless the command says `-target win64`. Where output depends on your
+machine, it says so.
 
 ---
 
@@ -26,7 +29,7 @@ depends on your machine, it says so.
 FreeBASIC gives you three constructs for linking, and each one is a thin cover
 over a command-line switch.
 
-| You write | fbc does | You could have typed |
+| You write | the compiler does | You could have typed |
 | --- | --- | --- |
 | `#inclib "sqlite3"` | adds a library **name** to the link | `-l sqlite3` |
 | `#libpath "somedir"` | adds a **search directory** | `-p somedir` |
@@ -46,7 +49,7 @@ print "sqlite " & *sqlite3_libversion( )
 and the build:
 
 ```bash
-fbc old.bas -p C:\dev\sqlite\lib\win64-dll
+tiko old.bas -p C:\dev\sqlite\lib\win64-dll
 ```
 
 ```
@@ -59,31 +62,36 @@ records where SQLite lives. That fact is the seed of all three problems below.
 
 ### An experiment worth doing
 
-Build that same unchanged `old.bas` three ways and look at the sizes:
+Build that same unchanged `old.bas` three ways, for the MinGW-ABI `win64` target,
+and look at the sizes:
 
 ```bash
-fbc old.bas -x a.exe                                  # no -p at all
-fbc old.bas -p C:\dev\sqlite\lib\win64     -x b.exe   # dir holding libsqlite3.a
-fbc old.bas -p C:\dev\sqlite\lib\win64-dll -x c.exe   # dir holding libsqlite3.dll.a
+tiko -target win64 old.bas -o a.exe                                  # no -p at all
+tiko -target win64 old.bas -p C:\dev\sqlite\lib\win64     -o b.exe   # dir holding libsqlite3.a
+tiko -target win64 old.bas -p C:\dev\sqlite\lib\win64-dll -o c.exe   # dir holding libsqlite3.dll.a
 ```
 
 ```
-1345024  a.exe
-1345024  b.exe
-  37888  c.exe
+1474560  a.exe
+1474560  b.exe
+ 164864  c.exe
 ```
 
 Three builds of one source file. Two of them baked the whole of SQLite into the
-executable; one of them produced a 37 KB stub that needs `sqlite3.dll` beside it
+executable; one of them produced a 165 KB executable that needs `sqlite3.dll` beside it
 at run time. **Nothing warned you which you got.** The only way to tell them
 apart is to look at the file size, or to delete the DLL and see which one still
 runs.
 
-And look at `a.exe`, the one with no `-p`. It linked — because on this machine
-the toolchain happens to ship a `lib\win64\libsqlite3.a`, and `-lsqlite3` found
-it. *(If your toolchain has no such file you will get `cannot find -lsqlite3`
-instead. Which outcome you get is a property of your installation, not of your
-program — which is rather the point.)*
+And look at `a.exe`, the one with no `-p`. It linked — because the tiko toolchain
+ships a `lib\win64-fb\libsqlite3.a` for the `win64` target, and the bare name
+found it. *(On tiko's default target, win64-msvc, the same three commands without
+`-target win64` give a different answer: `a.exe` does not link —
+`lld-link: error: could not open 'sqlite3.lib': no such file or directory` — nor
+does `b.exe`, because `libsqlite3.a` is a MinGW archive (`undefined symbol:
+___chkstk_ms`), and `c.exe` links at 23,552 bytes. Which outcome you get is a
+property of your installation and your target, not of your program — which is
+rather the point.)*
 
 Keep that experiment in mind. Everything `#foreignlib` does is aimed at it.
 
@@ -104,11 +112,11 @@ mylib/
 Try it. From the directory *above* `mylib`:
 
 ```
-ld.exe: cannot find -lmylib
+lld-link: error: could not open 'mylib.lib': no such file or directory
 ```
 
 The archive is right there. The problem is that **`#libpath` is relative to the
-directory you ran `fbc` from**, not to the file the directive is written in. So
+directory you ran the compiler from**, not to the file the directive is written in. So
 `#libpath "vendor"` means "a folder called vendor under wherever the user
 happened to be standing". There is no string you can put in that `.bi` that
 works from every working directory.
@@ -128,11 +136,10 @@ declare function foo_init cdecl lib MYLIB alias "foo_init" ( ) as long
 ```
 
 ```
-error 147: Default types or suffixes are only valid in -lang deprecated or
-           fblite or qb, found 'lib'
+error 17: Syntax error, found 'MYLIB'
 ```
 
-`Lib` requires a **string literal**. So the whole declaration has to be
+That is stock fbc 1.10.1. `Lib` requires a **string literal**. So the whole declaration has to be
 duplicated once per target:
 
 ```freebasic
@@ -147,9 +154,9 @@ duplicated once per target:
 #endif
 ```
 
-(Under tiko-lang the `__FB_64BIT__` test can only go one way -- the supported
-targets are win64 and linux-x86_64 -- so the `foo32` branch is there for
-portability to stock fbc, not because this compiler can reach it.)
+(Under tiko the `__FB_64BIT__` test can only go one way -- its targets,
+win64-msvc, win64 and linux-x86_64, are all 64-bit -- so the `foo32` branch is
+there for portability to stock fbc, not because this compiler can reach it.)
 
 Three copies of one line, differing in one token — times every function in the
 binding. This is why FreeBASIC binding headers are so bulky, and the copies
@@ -161,9 +168,9 @@ between the two languages' bindings.)*
 
 ### Gap 3 — nothing says static or dynamic
 
-That is the experiment from Part 1. `#inclib "sqlite3"` emits `-lsqlite3`, GNU
-ld takes whatever it finds first on the search path, and neither fbc nor ld
-tells you which kind you ended up with.
+That is the experiment from Part 1. `#inclib "sqlite3"` hands the linker a bare
+name, the linker takes whatever it finds first on the search path, and neither
+tiko nor the linker tells you which kind you ended up with.
 
 ---
 
@@ -190,7 +197,8 @@ Three rules carry the whole design:
 1. **A spec is a file, not a name.** `"lib/sqlite3"` is a path, resolved
    relative to the source file containing the directive, and the file that is
    found is handed to the linker by exact filename. `"system:foo"` is the escape
-   hatch that means the old `-lfoo` behaviour.
+   hatch that means the old `-lfoo` behaviour -- though tiko does not honour
+   it yet: see [Spec forms](#spec-forms).
 2. **The kind is mandatory and is never guessed.** Ask for `static` when only a
    `.dll.a` exists and you get an error listing every path tried — not a quiet
    dynamic link.
@@ -207,7 +215,7 @@ exactly as before, are not deprecated, and can sit in the same file as a
 ## Part 4 — Tutorial: vendor the SQLite DLL
 
 We are going to build a project that carries its own copy of SQLite, links it
-dynamically, and builds with a bare `fbc demo.bas` from any directory.
+dynamically, and builds with a bare `tiko demo.bas` from any directory.
 
 ### Step 1 — make the vendor folder
 
@@ -308,7 +316,7 @@ nothing about static or dynamic. It includes a binding and calls the API.
 
 ```bash
 cd C:\dev\myapp
-fbc demo.bas
+tiko demo.bas
 ```
 
 No `-p`. No `-l`. Then copy the DLL next to the executable and run:
@@ -330,7 +338,7 @@ same file from the root of the drive:
 
 ```bash
 cd C:\
-fbc C:\dev\myapp\demo.bas
+tiko C:\dev\myapp\demo.bas
 ```
 
 It links — and the executable lands next to the source, as always. `#libpath`
@@ -344,27 +352,29 @@ out again — and it still links, because nothing outside the folder is named.
 Rename the import library so nothing matches, and build again:
 
 ```
-vendor\sqlite\linkage.bi(3) error 377: #foreignlib found no matching library file: SQLITELIB dynamic "lib/sqlite3"
-  tried:
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows_x86_64.dll.a
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows_x86_64.lib
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows_x86_64.dll
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows.dll.a
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows.lib
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows.dll
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_x86_64.dll.a
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_x86_64.lib
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3_x86_64.dll
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3.dll.a
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3.lib
-        C:\dev\myapp\vendor\sqlite\lib\sqlite3.dll
+vendor/sqlite/linkage.bi(3,1): error TKO0329: #foreignlib found no matching library file: SQLITELIB dynamic lib/sqlite3; tried:     vendor/sqlite/lib/sqlite3_windows_x86_64.dll.a
+    vendor/sqlite/lib/sqlite3_windows_x86_64.lib
+    vendor/sqlite/lib/sqlite3_windows_x86_64.dll
+    vendor/sqlite/lib/sqlite3_windows.dll.a
+    vendor/sqlite/lib/sqlite3_windows.lib
+    vendor/sqlite/lib/sqlite3_windows.dll
+    vendor/sqlite/lib/sqlite3_x86_64.dll.a
+    vendor/sqlite/lib/sqlite3_x86_64.lib
+    vendor/sqlite/lib/sqlite3_x86_64.dll
+    vendor/sqlite/lib/sqlite3.dll.a
+    vendor/sqlite/lib/sqlite3.lib
+    vendor/sqlite/lib/sqlite3.dll
+
+     |
+   3 | #foreignlib SQLITELIB dynamic "lib/sqlite3"
+     | ^
 ```
 
 The directive that failed, the line it is on, and every path that was tried, in
 order. Compare it with what you would have got before:
 
 ```
-ld.exe: cannot find -lsqlite3
+lld-link: error: could not open 'sqlite3.lib': no such file or directory
 ```
 
 — from a subprocess, naming no directive, no file, and no directory searched.
@@ -388,10 +398,12 @@ Then put the static archive where the import library was:
 copy C:\dev\sqlite\lib\win64\libsqlite3.a  C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows_x86_64.a
 ```
 
-Rebuild:
+Rebuild -- for the MinGW-ABI `win64` target, because `libsqlite3.a` is a MinGW
+archive. On tiko's default target, win64-msvc, it does not link:
+`lld-link: error: undefined symbol: ___chkstk_ms`.
 
 ```bash
-fbc demo.bas
+tiko -target win64 demo.bas
 demo.exe
 ```
 
@@ -400,8 +412,8 @@ sqlite 3.53.4
 row: 42
 ```
 
-**Nothing else changed.** Not `demo.bas`, not `sqlite3api.bi`, not the command
-line. The `static` keyword alone moved the build from
+**Nothing else changed.** Not `demo.bas`, not `sqlite3api.bi`. The `static`
+keyword alone moved the build from
 
 ```
 lib\sqlite3_windows_x86_64.dll.a      (import lib, needs sqlite3.dll at run time)
@@ -414,12 +426,13 @@ lib\sqlite3_windows_x86_64.a          (whole library, baked into the exe)
 The base name in the directive is *identical* in both versions. There is no
 second path, no second `#ifdef` branch, no renaming.
 
-And the difference is now visible where it should be — in the executable:
+And the difference is now visible where it should be — in the executable. Both
+builds are for `-target win64`; the win64-msvc `dynamic` build is 24,576 bytes:
 
 | | size | needs `sqlite3.dll`? |
 | --- | --- | --- |
-| `dynamic` | 39,424 bytes | yes, beside the exe |
-| `static` | 1,346,048 bytes | no |
+| `dynamic` | 165,888 bytes | yes, beside the exe |
+| `static` | 1,475,072 bytes | no |
 
 Delete `sqlite3.dll` from the folder and run both to confirm.
 
@@ -440,8 +453,8 @@ Real bindings offer the choice. Wrap the two lines in a conditional:
 Keep **both** files in `lib\` and the caller picks at build time:
 
 ```bash
-fbc demo.bas                          -x demo_dynamic.exe
-fbc demo.bas -d USE_STATIC_SQLITE     -x demo_static.exe
+tiko -target win64 demo.bas                      -o demo_dynamic.exe
+tiko -target win64 demo.bas -d USE_STATIC_SQLITE -o demo_static.exe
 ```
 
 One source file, two executables, one flag. That is the working example in
@@ -450,14 +463,14 @@ One source file, two executables, one flag. That is the working example in
 ### Try getting it wrong
 
 Ask for `static` while only the `.dll.a` is present and you do **not** silently
-get a dynamic link — you get error 377 listing the eight static candidates it
+get a dynamic link — you get TKO0329 listing the eight static candidates it
 tried (`.a` and `.lib`, four name variants each). Compare with the classic
 model, where pointing `-p` at the wrong directory changed your executable from
-1.3 MB to 38 KB without a word.
+1.5 MB to 165 KB without a word.
 
 *(One honest wrinkle: on Windows, `.lib` is accepted under **both** kinds,
 because the extension genuinely does not distinguish a static archive from an
-import library. Nothing can fix that from inside fbc.)*
+import library. Nothing can fix that from inside the compiler.)*
 
 ---
 
@@ -483,6 +496,10 @@ with every extension eligible for `<kind>` tried at each step.
 | `<ext>` static | Windows `.a` `.lib` · elsewhere `.a` |
 | `<ext>` dynamic | Windows `.dll.a` `.lib` `.dll` · macOS `.dylib` · elsewhere `.so` |
 
+tiko's targets only ever produce `windows` or `linux`, and `x86_64`. Measured
+2026-09-24 at origin/master 50c71751, the paths it tries for win64-msvc,
+`-target win64` and `-target linux-x86_64` follow this table exactly.
+
 So a cross-platform `lib\` folder looks like this, and needs no source change:
 
 ```
@@ -499,6 +516,12 @@ lib/sqlite3_linux_aarch64.so
 | `"lib/foo"` | file, relative to the source file holding the directive |
 | `"C:/abs/lib/foo"` | file, absolute |
 | `"system:foo"` | hand `foo` to the linker as `-lfoo`; resolve no file |
+
+> **tiko does not honour `system:` yet.** Measured 2026-09-24 at origin/master
+> 50c71751, it hands the bare name to clang as an input file rather than as
+> `-lfoo`, so `#foreignlib W static "system:winmm"` fails the link with
+> `clang: error: no such file or directory: 'winmm'` (`TKO0116`). Until that is
+> fixed, name a system library with `#inclib`.
 
 Several specs bind as one set, in link order — this is how a binding declares
 what it drags in with it:
@@ -518,20 +541,25 @@ Note where `lib` goes: **after the calling convention, before `alias`**, not at
 the end of the line. That is FreeBASIC's existing grammar, unchanged.
 
 This is optional — the directive already did the linking — but it documents
-which library a declaration belongs to, and a typo becomes error 379 instead of
-an undefined symbol at link time.
+which library a declaration belongs to, and under fbc a typo becomes error 379
+instead of an undefined symbol at link time. tiko does not check the name yet:
+measured 2026-09-24 at origin/master 50c71751, a misspelt name compiles, and
+the program links, because the directive linked the library anyway.
 
 ### The four new errors
 
-| | |
-| --- | --- |
-| 376 | `expected STATIC or DYNAMIC after the #foreignlib name` |
-| 377 | `#foreignlib found no matching library file` — lists every path tried |
-| 378 | `#foreignlib name already bound to a different library set` |
-| 379 | `LIB names a #foreignlib that has not been declared` |
+| fbc | tiko | |
+| --- | --- | --- |
+| 376 | TKO0328 | `expected STATIC or DYNAMIC after the #foreignlib name` |
+| 377 | TKO0329 | `#foreignlib found no matching library file` — lists every path tried |
+| 378 | TKO0330 | `#foreignlib name already bound to a different library set` |
+| 379 | — | `LIB names a #foreignlib that has not been declared` — tiko does not report this yet |
+
+A directive with nothing after `#foreignlib` is fbc's error 17 and tiko's
+TKO0327. All measured 2026-09-24 at origin/master 50c71751.
 
 Declaring the same name twice with the *same* set is fine; with a different set
-it is error 378, because that is a mistake rather than a rebind.
+it is error 378 (TKO0330), because that is a mistake rather than a rebind.
 
 ### Troubleshooting
 
@@ -539,7 +567,7 @@ it is error 378, because that is a mistake rather than a rebind.
 executable. `#foreignlib` resolves the *import* library at link time and says
 nothing about deployment — copying the DLL is still your job.
 
-**"Error 377, but the file is right there."** Read the `tried:` list against
+**"TKO0329, but the file is right there."** Read the `tried:` list against
 your actual filename. Almost always a stray `lib` prefix, or the wrong kind:
 a `.dll.a` will never satisfy `static`.
 
@@ -547,9 +575,13 @@ a `.dll.a` will never satisfy `static`.
 longer happen — and if it does, check you are not still using `#libpath`
 somewhere, which *is* working-directory relative.
 
-**"I shipped a `.o` and it won't link on the other machine."** Known limit. The
-resolved directory is recorded in the object file as an **absolute** path. Ship
-the source, or ship `vendor\` alongside.
+**"I compiled a module with `-c` and its library is missing at the link."** fbc
+records the resolved directory in the object file, as an **absolute** path; tiko
+does not record the library in the object at all. Measured 2026-09-24 at
+origin/master 50c71751: a module compiled with `tiko -c` and linked in a later
+run leaves its symbols undefined
+(`lld-link: error: undefined symbol: sqlite3_libversion`), where fbc's build
+links. Give every `.bas` to one `tiko` invocation -- that links and runs.
 
 ---
 
@@ -574,7 +606,7 @@ Deliberately, with reasons in
 - [`#foreignlib`](modern-Foreignlib) — the reference page for this directive
 - [Foreign Library Linking](Category-Foreign-Library-Linking) — the category
 - [`#inclib`](Inclib) · [`#libpath`](Libpath) — the classic directives, unchanged
-- `docs/foreignlib/foreignlib.txt` in the tiko-lang repository — the same
+- `docs/foreignlib/foreignlib.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern) — the same
   reference as a plain-text file
 - `C:\dev\sqlite-test` — the complete worked example, both link modes
 - `C:\dev\docs\fb-rfcs\rfcs\0005-foreign-library-linkage.md` — the design, what was

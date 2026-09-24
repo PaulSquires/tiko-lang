@@ -4,22 +4,21 @@
 
 [![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
 
-> ✨ **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/dashboard.bas` in the tiko-lang repository.
+> ✨ **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 Two columns, braille history plots, gradient meters per core, a scrolling process table with a scrollbar, a status bar, mouse support and a 250 ms tick. This is the layout the module was measured against; if you read one example, read this one.
 
 ## Build and run
 
 ```freebasic
-fbc64 docs/tui/examples/dashboard.bas        ' win64
-fbc   docs/tui/examples/dashboard.bas        ' linux-x86_64
+tiko dashboard.bas        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. Builds clean at `-w all` on both targets.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for win64-msvc and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
 
 ## What to notice
 
-- `Init` returns `TuiTick( 250 )`. NOTHING ELSE CAN ARM THE FIRST TICK -- TuiTick is one-shot and Update only re-arms it in response to a tick, so without this the graphs never move. Verified under a pty: 15 redraws at 0.51, 0.76, 1.01 ... 4.01 s.
+- `Init` returns `TuiTick( 250 )`. NOTHING ELSE CAN ARM THE FIRST TICK -- TuiTick is one-shot and Update only re-arms it in response to a tick, so without this the graphs never move. Verified under a pty, with fbc's build: 15 redraws at 0.51, 0.76, 1.01 ... 4.01 s.
 - `opts.mouse = TRUE` is set explicitly. `TuiTermOptionsDefault( )` leaves the mouse OFF, so a program that forgets this line never sees a mouse event.
 - The whole layout is nested `TuiSplitH` and `TuiSplitV` calls, recomputed every frame. There is no layout tree and nothing to invalidate.
 - `procRect` is remembered by the view for mouse hit-testing -- the one piece of frame-to-frame state an immediate-mode application actually needs.
@@ -35,10 +34,8 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' scrollbar, and a status bar. RFC-0008 section 7 maps every element to the
 '' widget that draws it.
 ''
-'' Build (win64):
-''     fbc64 -i <tiko-lang>/src/inc dashboard.bas
-'' Build (linux-x86_64):
-''     fbc dashboard.bas
+'' Build (win64-msvc, win64 or linux-x86_64):
+''     tiko dashboard.bas
 ''
 '' Keys: up/down move the process selection, q or Esc quits. The data is
 '' synthetic -- this is a layout and rendering demonstration, not a system
@@ -422,7 +419,7 @@ end if
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
 **Other examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form)
   
-**Source:** `docs/tui/examples/dashboard.bas` in the tiko-lang repository.
+**Source:** `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

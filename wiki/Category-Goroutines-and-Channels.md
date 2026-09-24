@@ -444,45 +444,32 @@ tree, not something spawn introduced.  A generic PROCEDURE is fine.
 
 ## Implementation
 
-Two parser files (parser-spawn.bas, parser-select-chan.bas) and no new AST node, no new IR node and no backend change.  Both statements lower to ordinary FreeBASIC that the existing parser already accepts.
+Both statements are desugared in tiko's parser (src/parser/spawn.bas, src/parser/selchan.bas) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn, where fbc goes through a generic frame type and a virtual Invoke; the observable behaviour is the same -- the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of fb/select.bi that fbc builds for it.
 
-The runtime adds a park/unpark layer (thread_park.c per platform), a scheduler (sched.c) and a process-wide claim lock (chan_claim.c).  The scheduler is C because it is a process-wide singleton, and FreeBASIC cannot build one from a header: a 'dim shared' in a .bi included by two modules gives two of them, and there is no lock available to guard a lazy first-use initialisation.
+The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.bas), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).  fbc has these in C because a process-wide singleton cannot be built from a HEADER -- a 'dim shared' in a .bi included by two modules gives two of them.  In a runtime module that reason does not apply.
 
-Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in src/inc/fb/, written on generics with no compiler privileges.
+Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in fb/*.bi -- fbc's headers, shipped unchanged in tiko's toolchain inc/ -- written on generics with no compiler privileges.
 
 Full design, with every rejected alternative and the reasons: C:\\dev\\docs\\goroutines\\.
 
 ## Tests
 
-```freebasic
-tests/park_test.c                  the park layer (C harness)
-tests/channel_test.bas             122 checks
-tests/sched_test.bas                13 checks
-tests/spawn_test.bas                19 checks
-tests/spawn_lowering_test.bas        9 checks
-tests/select_test.bas               22 checks
-tests/select_lowering_test.bas      216 checks
-tests/sync_test.bas                 29 checks
+tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/mir/spawn-contextual.test for 'spawn' used as an ordinary variable.  For 'select channel', tests/driver/select-channel-link.test builds every case form and checks that it links, and tests/driver/select-channel-run.test builds a program that covers every case form, which build/goldenrun.sh runs beside fbc's build.  Neither is a test of the library itself.
 
-plus expected-failure programs: channel_raise_*, spawn_err_*, select_err_*,
-sync_err_*, sync_raise_*, and the compatibility files spawn_compat.bas,
-spawn_compat_break.bas, select_compat.bas.
-```
+The library is measured with fbc's own fbcunit suites, built by both compilers with -mt and the results compared: all three concurrency/ suites print what fbc's builds print (HANDOFF section 9f, 2026-09-21).
 
-They live outside src/tests/ because they need -mt, which 'make log-tests' does not pass, and a watchdog, which fbcunit does not provide.  The failure mode of a concurrency bug is a process that never returns, and a hung suite reports nothing at all.  Build and run each with a shipped toolchain -- no -i, no -p, because the headers and the runtime are installed in it:
+The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, win64-msvc), show two more differences.  Spawning a procedure whose parameter is a SendChan or RecvChan, with a Channel argument, crashes -- an access violation, now and then a hang -- the example at the top of this page among them, part-way through its output.  And 'for each' over a Channel( of string ) yields empty strings.  The other programs, the ones that use 'select channel' among them, print what fbc's builds print.
+
+Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the headers and the runtime are in it:
 
 ```freebasic
-toolchainsbc-modern-windowsbc64.exe -mt tests\channel_test.bas
-toolchains/tiko-linux/bin/fbc      -mt tests/channel_test.bas
+toolchains\tiko-windows\tiko.exe -mt yourprogram.bas
+toolchains/tiko-linux/bin/tiko   -mt yourprogram.bas
 ```
-
-Verified on win64 AND linux-x86_64 -- 457 checks per platform, all warning-free, run through the shipped trees rather than the build tree.  A third target, win32, was also run at the time and is recorded here as a pre-removal result; 32-bit x86 targets have since been dropped.  That third target is what caught the two bugs win64 could not see: the runtime's calling convention is \_\_stdcall on 32-bit Windows only, and a plain FreeBASIC SUB is stdcall on Windows but cdecl on Linux, so the scheduler's callback type has to be declared per platform.
-
-Not rebuilt on Linux: gfxlib2, which needs libxpm-dev.  This work only added declarations to rtlib headers and new rtlib .c files, neither of which can alter gfxlib2's codegen.
 
 ## Dialects
 
-'spawn' and 'select channel' follow DEFER: available in -lang fb and fblite, absent in qb and deprecated.  Neither word becomes a reserved word in any dialect.
+tiko implements -lang fb only -- '#lang "qb"' or '#lang "fblite"' is TKO0317 -- and there 'spawn' and 'select channel' are available, as DEFER is.  Neither word is reserved: 'spawn' and 'channel' remain usable as ordinary names.
 
 ## API reference
 
@@ -492,7 +479,7 @@ One page per entry, 11 in all:
 
 ---
 
-**Source:** `docs/goroutines/goroutines.txt` in the tiko-lang repository.
+**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

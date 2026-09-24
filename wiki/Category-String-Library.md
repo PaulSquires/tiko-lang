@@ -390,21 +390,21 @@ Excluded entirely, as Windows-only or COM-bound: locale and country names, month
 
 ## Implementation
 
-The algorithms live in src/rtlib/str_ops_core.h and are written ONCE, then instantiated twice -- str_ops.c at byte width, ustr_ops.c at 16-bit -- the same pattern con_print_raw_uni.h and ustr_wchar_conv.h already use. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
+In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.bi and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.bas at byte width, lib/rt/src/ustr/ops.bas at 16-bit -- with ## token pasting, the technique fbc's C runtime uses with str_ops_core.h. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
 
 Reached from FreeBASIC through 'extern "C" declare ... alias' inside namespace FB -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a namespace: without the nested extern "C", fbc mangles right past it, and a nested namespace does not inherit an enclosing one either.
 
-Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with FreeBASIC bodies, because their result is an Array( of T ) that the runtime cannot build. They are 'private', so each including module gets its own copy and two modules including the header still link -- the same trade the generic containers make. The C side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
+Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with FreeBASIC bodies, because their result is an Array( of T ) that the runtime cannot build. They are 'private', so each including module gets its own copy and two modules including the header still link -- the same trade the generic containers make. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
 
 ## ONE UPSTREAM FreeBASIC BUG WORTH KNOWING
 
-LEN cannot parse a NAMESPACE-QUALIFIED function call:
+fbc's LEN cannot parse a NAMESPACE-QUALIFIED function call:
 
 ```freebasic
-print len( FB.Replace( s, "a", "b" ) )    ' error 42: Variable not declared
+print len( FB.Replace( s, "a", "b" ) )    ' fbc: error 42: Variable not declared
 ```
 
-This is not specific to this library, or to USTRING, or to tiko-lang -- stock fbc 1.10.1 fails identically on
+This is not specific to this library or to USTRING -- stock fbc 1.10.1 fails identically on
 
 ```freebasic
 namespace NS
@@ -414,6 +414,8 @@ print len( NS.Twice( t ) )
 ```
 
 Both workarounds are ordinary: write 'using FB' and drop the qualifier, or assign the result first and take LEN of the variable. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
+
+tiko currently ACCEPTS both examples above -- measured 2026-09-24 at origin/master 50c71751, where fbc 1.20.0 (FBC-Modern) and fbc 1.10.1 both stop at error 42. That is a divergence from fbc rather than a fix, so code that must also build with fbc still needs one of the workarounds.
 
 ## Money Formatting
 
@@ -455,7 +457,7 @@ One page per entry, 46 in all:
 
 ---
 
-**Source:** `docs/string/string.txt` in the tiko-lang repository.
+**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

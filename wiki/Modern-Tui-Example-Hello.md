@@ -4,18 +4,17 @@
 
 [![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
 
-> ✨ **The smallest complete program.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/hello.bas` in the tiko-lang repository.
+> ✨ **The smallest complete program.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 One centred box, a keypress counter and a clean exit. Ninety lines, and every part of the module's shape is in it: a TuiApp with Init/Update/View, a TuiBlock with titles on two sides, a centred layout that re-centres itself on resize, and the TuiRun result checked before anything is printed.
 
 ## Build and run
 
 ```freebasic
-fbc64 docs/tui/examples/hello.bas        ' win64
-fbc   docs/tui/examples/hello.bas        ' linux-x86_64
+tiko hello.bas        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. Builds clean at `-w all` on both targets.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for win64-msvc and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
 
 ## What to notice
 
@@ -29,10 +28,8 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 ```freebasic
 '' examples/hello.bas -- the smallest complete TUI program.
 ''
-'' Build (win64):
-''     fbc64 -i <tiko-lang>/src/inc hello.bas
-'' Build (linux-x86_64):
-''     fbc hello.bas
+'' Build (win64-msvc, win64 or linux-x86_64):
+''     tiko hello.bas
 ''
 '' Run it from a real terminal. Redirected output is rejected with an honest
 '' error rather than a dashboard drawn into a pipe.
@@ -125,7 +122,7 @@ end r.Value( )
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
 **Other examples:** [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)
   
-**Source:** `docs/tui/examples/hello.bas` in the tiko-lang repository.
+**Source:** `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

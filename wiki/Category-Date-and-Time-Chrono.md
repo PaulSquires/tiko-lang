@@ -28,9 +28,9 @@ print sw.ElapsedMilliseconds
 
 FreeBASIC's date and time surface is the VB6 model: a date is a serial DOUBLE, resolution is one second, there is no duration type, no timezone concept, no ISO 8601, and no monotonic clock. DateSerial( 2025, 13, 40 ) does not fail -- it normalizes, so a bad date and a good one are indistinguishable afterwards. TIMER is the wall clock, which jumps backwards on an NTP correction, so every program that measures elapsed time with it is quietly wrong twice a year and occasionally in between.
 
-This library ships ALONGSIDE all of that. Nothing in datetime.bi, vbcompat.bi, FORMAT or any time\_\*.c changed, and nothing here depends on them. The two meet at FromSerial / Serial, so a program migrates one function at a time. See migration.md for the member-by-member mapping.
+This library ships ALONGSIDE all of that. Nothing in datetime.bi, vbcompat.bi, FORMAT or the runtime's existing date and time routines changed, and nothing here depends on them. The two meet at FromSerial / Serial, so a program migrates one function at a time. See migration.md for the member-by-member mapping.
 
-NO COMPILER CHANGE WAS MADE. This is a library: C in src/rtlib, FreeBASIC types in src/inc/fb/chrono.bi. Nothing here is a keyword, and DateTime, Instant, WallClock and the rest stay available as your own identifiers until you write 'using FB'.
+NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/chrono/), the FreeBASIC types in inc/fb/chrono.bi. Nothing here is a keyword, and DateTime, Instant, WallClock and the rest stay available as your own identifiers until you write 'using FB'.
 
 ## The Tick
 
@@ -747,45 +747,37 @@ hour makes the general case ambiguous.
 ## Implementation
 
 ```freebasic
-src/inc/fb/chrono.bi          the whole FB surface -- one #include
-src/rtlib/fb_chrono.h         C declarations and the tick constants
-src/rtlib/dt_core.c           civil<->tick kernel, calendar primitives
-src/rtlib/dt_iso.c            ISO 8601 emit and strict parse
-src/rtlib/dt_pattern.c        pattern formatter and parser, invariant
-src/rtlib/{win32,unix}/dt_clock.c    wall, monotonic and CPU clocks
-src/rtlib/{win32,unix}/dt_zone.c     offsets, DST, locale formatting
+inc/fb/chrono.bi                the whole FB surface -- one #include
+lib/rt/src/inc/chrono.bi        the tick representation and its constants
+lib/rt/src/chrono/core.bas      civil<->tick kernel, calendar primitives
+lib/rt/src/chrono/iso.bas       ISO 8601 emit and strict parse
+lib/rt/src/chrono/pattern.bas   pattern formatter and parser, invariant
+lib/rt/src/chrono/clock.bas     wall, monotonic and CPU clocks
+lib/rt/src/chrono/zone.bas      offsets, DST, locale formatting
 ```
 
-The kernel in dt_core.c is PURE: no OS calls, no allocation, no locale, no static state. Everything platform-specific is in the two per-OS files, which is what makes the civil<->tick conversion testable exhaustively -- and it is, over every one of the 3,652,059 days in range.
+The kernel in core.bas is PURE: no OS calls, no allocation, no locale, no static state. Everything platform-specific is in clock.bas and zone.bas, which is what makes the civil<->tick conversion testable exhaustively.
 
 The FB side is a header of value types with no compiler support of any kind. It is declared in namespace FB, and the C entry points are reached through 'extern "C" declare ... alias' -- the pattern inc/string.bi already uses. Note that 'alias' alone is not enough inside a namespace: without the nested extern "C", fbc mangles right past it.
 
-A PER-OS .c MUST NOT SHARE ITS BASE NAME WITH ONE IN src/rtlib/. The makefile maps every RTLIB_DIRS entry through the same patsubst and then sorts, so rtlib/dt_clock.c and rtlib/win32/dt_clock.c would both become obj/win64/dt_clock.o and one is silently dropped -- no warning, the platform backend just vanishes from the link. Hence the pure scaling helper lives in dt_core.c, and dt_clock.c / dt_zone.c exist ONLY under win32/ and unix/.
+clock.bas and zone.bas each hold BOTH platform halves, chosen by #if. fbc keeps a win32/ and a unix/ copy of each and compiles one; tiko-rt's build has no per-target source selection, so the split is made inside the file.
 
-A VISTA-OR-LATER WIN32 API COMPILED ON win64 AND FAILED ON win32 -- a pre-removal finding, from before the 32-bit x86 targets were dropped, and the reason for a line that is still in the source. mingw gates the zone and locale APIs behind \_WIN32_WINNT, and the 64-bit headers default high enough while the 32-bit ones did not. win32/dt_zone.c states \_WIN32_WINNT 0x0600 before any include for that reason, and resolves GetTimeZoneInformationForYear (which needs 0x0601) through GetProcAddress rather than raise the whole binary's minimum OS to Windows 7.
+zone.bas resolves GetTimeZoneInformationForYear, which needs Windows 7, through GetProcAddress rather than importing it, so the binary's minimum OS is not raised for one function. When it is absent the static fallback still answers correctly for the current year.
 
 ## Tests
 
 ```freebasic
-src/tests/chrono/core.bas       ticks, components, construction, Invalid
-src/tests/chrono/spans.bas      TimeSpan, totals, components, operators
-src/tests/chrono/calendar.bas   calendar arithmetic and utilities
-src/tests/chrono/clocks.bas     WallClock, Stopwatch, CpuClock
-src/tests/chrono/iso.bas        ISO 8601 emit and parse, both directions
-src/tests/chrono/pattern.bas    every pattern letter at every run length
-src/tests/chrono/zones.bas      offsets, DST, locale invariants
-src/tests/chrono/utext.bas      the USTRING overloads
-tests/dt_core_test.c            standalone C harness for the kernel
+tests/vendor/fbc-tests/chrono/core.bas       ticks, components, construction, Invalid
+tests/vendor/fbc-tests/chrono/spans.bas      TimeSpan, totals, components, operators
+tests/vendor/fbc-tests/chrono/calendar.bas   calendar arithmetic and utilities
+tests/vendor/fbc-tests/chrono/clocks.bas     WallClock, Stopwatch, CpuClock
+tests/vendor/fbc-tests/chrono/iso.bas        ISO 8601 emit and parse, both directions
+tests/vendor/fbc-tests/chrono/pattern.bas    every pattern letter at every run length
+tests/vendor/fbc-tests/chrono/zones.bas      offsets, DST, locale invariants
+tests/vendor/fbc-tests/chrono/utext.bas      the USTRING overloads
 ```
 
-The C harness runs directly rather than through fbcunit -- a 3.65-million- iteration sweep has no sensible home in the .bas suite:
-
-```freebasic
-gcc -O2 -Wall -I src/src/rtlib tests/dt_core_test.c \
-    src/src/rtlib/dt_core.c src/src/rtlib/time_core.c -o tests/dt_core_test.exe
-```
-
-23,304,597 checks, 0 failures, including an exhaustive civil<->tick round trip over every day in range and an exhaustive ISO-week structural check over the same. The FB suites are part of the ordinary unit-tests gate; see tests/BASELINE.md and C:\\dev\\docs\\datetime\\README.md for what was and was not verified, which includes the platforms.
+These are fbc's own fbcunit suites, vendored in tiko-lang. Under tiko all 8 of 8 match fbc (build/suiterun.sh, which builds each suite with both compilers and compares the results tables; measured 2026-09-24 at origin/master 50c71751), and so do all 3 suites for the older VB-style surface in tests/vendor/fbc-tests/datetime/.
 
 ASSERT YOUR TEST GENERATOR'S RANGE. Every fixed-seed sweep here originally drew its tick as 'clngint( ( seed shr 11 ) mod culngint( DT_MAX_TICKS ) )'. The shift leaves 53 bits, 2^53 is SMALLER than DT_MAX_TICKS, so the mod was a no-op and every "random" value landed in years 1-29. Five suites were affected and their coverage claims were overstated for four phases before it was caught. The correct form is 'clngint( seed mod culngint( DT_MAX_TICKS ) )'. Re-running found no implementation bugs -- the layers were right, the sweeps were just tiny.
 
@@ -801,7 +793,7 @@ One page per entry, 190 in all:
 
 ---
 
-**Source:** `docs/datetime/datetime.txt` in the tiko-lang repository.
+**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

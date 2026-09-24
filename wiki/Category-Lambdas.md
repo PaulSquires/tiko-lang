@@ -158,6 +158,8 @@ so the body is replayed UNCHANGED. The alternative -- rewriting every 'total' in
 
 ## Diagnostics
 
+fbc (FBC-Modern's `fbc64` 1.20.0) reports:
+
 ```freebasic
 error 352: Too many captures in a lambda capture list
 error 353: Every capture needs an explicit BYVAL or BYREF
@@ -174,23 +176,34 @@ error 351: Unterminated lambda body, expected END SUB or END FUNCTION
 
 An 'end sub' that is merely the WRONG one is consumed as the lambda's own terminator, so it surfaces as the ENCLOSING procedure being unterminated rather than as a lambda diagnostic.
 
+tiko reports its own ids. Measured 2026-09-24 at origin/master 50c71751, one case per file:
+
+| fbc | tiko |
+| --- | --- |
+| 352 (33 captures) | no diagnostic -- tiko accepted all 33 |
+| 353 | `TKO0413: every lambda capture needs an explicit 'byval' or 'byref'` |
+| 354 | no diagnostic from the front end; the build then fails in clang on the IR tiko emitted (`TKO0113: clang failed`) |
+| 355 | `TKO0738: no conversion between these two types` |
+| 350 | `TKO0401: expected ')'` |
+| 351 | `TKO0405: expected 'end SUB'` |
+
 ## Implementation
 
-A body cannot be parsed where the expression sits -- astProcBegin/astProcEnd are not a stack, so one body cannot be opened while another is open. The generics work already solved this, and lambdas reuse it: capture the tokens, replay the HEADER immediately at module level so the expression has a real symbol, and queue the BODY until the parser reaches a module-level statement boundary.
-
-Header capture is structural rather than line-terminated, because a lambda sits mid-expression and its body can start on the same line: the parameter list is taken by paren balance, the result type up to the first ':' or EOL AT DEPTH ZERO -- which is what lets the result type be a procptr with parentheses of its own. Body capture counts depth rather than stopping at the first END, because lambdas nest even though procedures cannot.
-
-Source: src/src/compiler/parser-lambda.bas
+tiko's implementation is its own. `src/parser/lambda.bas` reads the lambda, the closure type of a capturing lambda is built during name resolution (`src/symbols/resolvesynth.bas`), and `src/mir/lowerclosure.bas` builds the closure object -- one field per capture, holding the address for a BYREF capture and the value for a BYVAL one.
 
 ## Tests
 
-src/tests/generics/lambda.bas -- non-capturing: both forms, one-line and multi-line bodies, VAR inference, byref params and a byref return proven to be a reference, inline as an argument, returned from a function, at module level, nested lambdas, a procptr result type, EXIT inside a body, two lambdas staying distinct, interchangeability with @proc, and a real qsort comparator.
+fbc's own lambda tests are vendored in tiko-lang under `tests/vendor/fbc-tests/generics/`.
 
-src/tests/generics/lambda-capture.bas -- capturing: byref and byval, the byval snapshot, several captures of mixed mode, independent state, every call position including zero-argument and nested calls, the empty capture list, a capturing AND a non-capturing lambda through the same generic parameter, FB.ForEach, capturing a UDT both ways, and destructor balance showing that byval copies once and byref copies not at all.
+lambda.bas -- non-capturing: both forms, one-line and multi-line bodies, VAR inference, byref params and a byref return proven to be a reference, inline as an argument, returned from a function, at module level, nested lambdas, a procptr result type, EXIT inside a body, two lambdas staying distinct, interchangeability with @proc, and a real qsort comparator.
+
+lambda-capture.bas -- capturing: byref and byval, the byval snapshot, several captures of mixed mode, independent state, every call position including zero-argument and nested calls, the empty capture list, a capturing AND a non-capturing lambda through the same generic parameter, FB.ForEach, capturing a UDT both ways, and destructor balance showing that byval copies once and byref copies not at all.
+
+Under tiko, measured 2026-09-24 at origin/master 50c71751: lambda.bas, lambda-capture.bas and lambda-in-generic.bas build and run with exit 0 and the same output as fbc's builds, and the three-module lambda-mm-main.bas + lambda-mm-a.bas + lambda-mm-b.bas builds and runs clean. `build/runscan.sh` (2026-09-20) has every in-scope run program of the corpus byte-identical to fbc's builds. tiko's own suite: `tests/mir/lambda.test`, `lambda-capture.test`, `lambda-byref-arg.test`, `lambda-capture-generic.test`, `lambda-in-generic.test`, `closure-udt-result.test` and `generic-closure-arg.test`.
 
 ---
 
-**Source:** `docs/lambda/lambda.txt` in the tiko-lang repository.
+**Source:** `docs/lambda/lambda.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

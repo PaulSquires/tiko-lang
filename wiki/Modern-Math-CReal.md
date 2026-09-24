@@ -17,7 +17,7 @@ CReal( byref z as Complex ) as double
 ## Notes
 
 - `z.re` reads the same field. `CReal( z )` is the documented spelling because it survives a field rename and because it says at the call site that the operand is complex.
-- `fb/vector.bi` used to spell this `Real`. That name is gone with the rest of the mixed scheme — see [What Is tiko-lang](What-Is-tiko-lang).
+- `fb/vector.bi` used to spell this `Real`. That name is gone with the rest of the mixed scheme — every function in `fb/complex.bi` now carries a `C` prefix, and the `fb/complex.bi` section of [Math Library](Category-Math-Library) says why.
 
 ## Examples
 
@@ -37,4 +37,4 @@ print z.re        '' 3   -- the field, same value
 **Library:** [Math Library](Category-Math-Library) ✨  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
-**Source:** `docs/math/math.txt` in the tiko-lang repository.
+**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

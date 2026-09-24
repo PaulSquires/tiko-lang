@@ -45,9 +45,9 @@ DIR/DIRNEXT IS A PER-THREAD GLOBAL. One cursor per thread, so two interleaved di
 
 FOUR CALLS TO LEARN FOUR FACTS. FileExists + FileAttr + FileLen + FileDateTime are four separate traversals of the same path with four separate race windows, and FileLen opens the file so it fails outright on a directory.
 
-This library ships ALONGSIDE all of that. Nothing in inc/file.bi, inc/dir.bi or any file\_\*.c changed, and nothing here depends on them. A program using DIR compiles and behaves exactly as before; the only new consequence is that a better option now sits next to it.
+This library ships ALONGSIDE all of that. Nothing in inc/file.bi, inc/dir.bi or the runtime's existing file routines changed, and nothing here depends on them. A program using DIR compiles and behaves exactly as before; the only new consequence is that a better option now sits next to it.
 
-NO COMPILER CHANGE WAS MADE. This is a library: C in src/rtlib, FreeBASIC types in src/inc/fb/fs\*.bi. Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers until you write 'using FB'.
+NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the FreeBASIC types in inc/fb/fs\*.bi. Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers until you write 'using FB'.
 
 It is specified before it is implemented -- nine RFCs, one per area, each normative. Where the code and an RFC disagreed, the RFC was amended in the same change; several such corrections are recorded in them.
 
@@ -956,29 +956,29 @@ CreateJunction. Readable but not creatable -- CreateSymlink with
 targetIsDir covers the portable need.
 ```
 
-Any change to inc/file.bi, inc/dir.bi or the existing file\_\*.c.
+Any change to inc/file.bi, inc/dir.bi or the runtime's existing file routines.
 
 ## Implementation
 
-src/inc/fb/fserror.bi      FsError, the codes, the result aliases src/inc/fb/fspath.bi       the path family src/inc/fb/fsinfo.bi       FileInfo, Stat, the resolvers src/inc/fb/fsdir.bi        DirEntry, the iterators, ReadDir, WalkDir src/inc/fb/fsops.bi        whole-file, bulk, atomic, temp src/inc/fb/fsglob.bi       MatchPattern, Glob src/inc/fb/fslink.bi       links, permissions, SetTimes, CopyOptions src/inc/fb/fsvolume.bi     DiskSpace, VolumeInfo src/inc/fb/fsadvanced.bi   FileLock, MemoryMappedFile, FileWatcher src/inc/fb/filesystem.bi   the umbrella
+inc/fb/fserror.bi      FsError, the codes, the result aliases inc/fb/fspath.bi       the path family inc/fb/fsinfo.bi       FileInfo, Stat, the resolvers inc/fb/fsdir.bi        DirEntry, the iterators, ReadDir, WalkDir inc/fb/fsops.bi        whole-file, bulk, atomic, temp inc/fb/fsglob.bi       MatchPattern, Glob inc/fb/fslink.bi       links, permissions, SetTimes, CopyOptions inc/fb/fsvolume.bi     DiskSpace, VolumeInfo inc/fb/fsadvanced.bi   FileLock, MemoryMappedFile, FileWatcher inc/fb/filesystem.bi   the umbrella
 
-src/rtlib/fs_path.c        the path algebra: pure, portable, ONE copy,
+lib/rt/src/fs/path.bas     the path algebra: pure, portable, ONE copy,
 
 ```freebasic
 both grammars always compiled
 ```
 
-src/rtlib/fs_glob.c        the matcher: pure, portable, ITERATIVE src/rtlib/fs_text.c        the BOM and encoding rules, portable src/rtlib/fs_errmsg.c      the message table src/rtlib/fs_dirent.c      record-to-USTRING accessors, ABI size hooks src/rtlib/win32/fs\_\*.c     error, stat, dir, ops, link, volume, src/rtlib/unix/fs\_\*.c        lock, mmap, watch
+lib/rt/src/fs/glob.bas     the matcher: pure, portable, ITERATIVE lib/rt/src/fs/text.bas     the BOM and encoding rules, portable lib/rt/src/fs/errmsg.bas   the message table lib/rt/src/fs/dirent.bas   record-to-USTRING accessors, ABI size hooks lib/rt/src/fs/{error,stat,dir,ops,link,volume,lock,mmap,watch}.bas   each split by platform with #if
 
 THE UNIT IS FB_UCHAR (UTF-16), NOT FB_WCHAR, which is 4 bytes on Linux -- building the kernel on it would silently change the path encoding depending on the host. Every struct crossing the C/FB boundary uses FIXED-WIDTH fields for the same reason: 'unsigned long' is 4 bytes on Windows and 8 on Linux while FreeBASIC's ULONG is 32-bit everywhere, and getting that wrong shifts every field after it.
 
 The glob matcher is ITERATIVE, not recursive. A recursive matcher on a hostile pattern such as "a\*a\*a\*a\*a\*b" is exponential and will blow the stack.
 
-Platform code is split BY DIRECTORY, not by #ifdef: the same filename in win32/ and unix/. The path and glob grammars are the exception -- they take the grammar as a PARAMETER so both are testable on either host.
+Platform code is split BY #if, one file per area. fbc keeps the same filename in win32/ and unix/, but tiko-rt's build has no per-target source selection, so error, stat, dir, ops, link, volume, lock, mmap and watch each hold a Windows half and a POSIX half. The path and glob grammars are the exception -- they take the grammar as a PARAMETER so both are testable on either host.
 
 ## Tests
 
-src/tests/filesystem/     nine fbcunit suites, 1,161 assertions, 167 tests
+tests/vendor/fbc-tests/filesystem/     fbc's own nine fbcunit suites, vendored in tiko-lang
 
 ```freebasic
 fspath_core     one block per numbered path rule, every case run under
@@ -994,7 +994,7 @@ fsadvanced      locking, mapping, watching
 fsstrings       the whole STRING overload layer
 ```
 
-Verified by RUNNING the shipped toolchain: win64 through the full 1,596,104-assertion suite, and linux-x86_64 with 68 checks exercising inotify, flock, mmap, statvfs and /proc/self/mountinfo. A third target, win32, was also run at the time -- including the ABI cross-checks, which were the only way to confirm the stdcall decoration -- and is recorded here as a pre-removal result; 32-bit x86 targets have since been dropped, so that check can no longer be repeated.
+Under tiko, all 9 match fbc (build/suiterun.sh, which builds each suite with both compilers and compares the results tables; measured 2026-09-24 at origin/master 50c71751).
 
 README.md records what is deliberately NOT asserted and why -- among them that a truncating writer faults a live mapping, and cross-process lock exclusion.
 
@@ -1010,7 +1010,7 @@ One page per entry, 139 in all:
 
 ---
 
-**Source:** `docs/filesystem/filesystem.txt` in the tiko-lang repository.
+**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

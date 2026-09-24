@@ -368,9 +368,10 @@ value lands on exactly salvage.
 
 ### Verification
 
-**31,554 assertions across 86 tests, 0 failed**, on win64 under both `-gen gcc` and
-`-gen gas64`, every file compiled `-w all` with zero warnings. The suites live in
-`src/tests/finance/`.
+The suites are fbc's own fbcunit suites for these headers, vendored in tiko-lang at
+`tests/vendor/fbc-tests/finance/`. Under tiko **all 8 of 8 match fbc**
+(`build/suiterun.sh`, which builds each suite with both compilers and compares the
+results tables; measured 2026-09-24 at origin/master 50c71751).
 
 Where an oracle exists it is named: the IRS MACRS 200%-declining-balance five-year
 schedule is reproduced **exactly**; ISDA's 30/360 and 30E/360 rules are applied including
@@ -379,11 +380,8 @@ the case that separates them. Where one does not, the tests assert **properties*
 must compound back to the one it came from, and the five amortization invariants on every
 row of every scenario.
 
-**Not verified:** linux-x86_64 and `-gen llvm` were not run. (`win32` and `-gen gas` were
-owed at the time of writing; 32-bit x86 targets have since been dropped, so that debt is
-void rather than outstanding.) The
-published MACRS *percentage tables* carry display rounding that is deliberately not
-reproduced -- only the arithmetic beneath them.
+**Not verified:** the published MACRS *percentage tables* carry display rounding that is
+deliberately not reproduced -- only the arithmetic beneath them.
 
 ## API reference
 

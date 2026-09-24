@@ -6,7 +6,7 @@
 
 > ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
 
-> 📘 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) ✨ · [form.bas](Modern-Tui-Example-Form) ✨ · [dashboard.bas](Modern-Tui-Example-Dashboard) ✨ — complete programs, in `docs/tui/examples/` in the tiko-lang repository.
+> 📘 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) ✨ · [form.bas](Modern-Tui-Example-Form) ✨ · [dashboard.bas](Modern-Tui-Example-Dashboard) ✨ — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ```freebasic
 #include once "fb/tui.bi"
@@ -56,7 +56,7 @@ It ships ALONGSIDE the legacy console and changes none of it. SCREEN, LOCATE, CO
 
 LIBRARY ONLY. Every line is FreeBASIC. No compiler change, no new runtime C -- the terminal is driven by declaring Win32 and libc entry points from FB.
 
-TARGETS: win64 and linux-x86_64. Those are the two platforms tiko-lang supports; 32-bit was dropped upstream.
+TARGETS: tiko's three, all x86-64 -- win64-msvc (the default on Windows), win64 and linux-x86_64. There is no 32-bit target.
 
 ## What You Get
 
@@ -101,11 +101,12 @@ examples/dashboard.bas   the btop-style screen this module was measured
 Build and run:
 
 ```freebasic
-fbc64 -i <tiko-lang>/src/inc examples/hello.bas        ' win64
-fbc examples/hello.bas                                  ' linux-x86_64
+tiko examples/hello.bas        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
-With a toolchain install, the -i is unnecessary on both. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
+With a packaged toolchain no -i and no -p are needed: the headers and the runtime are in it. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
+
+tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` -- measured 2026-09-24 at origin/master 50c71751; they were built, not run, because they need a real terminal. fbc builds all three.
 
 Read dashboard.bas if you read only one. Everything in this document appears in it.
 
@@ -755,7 +756,7 @@ THE RIGHTMOST SAMPLE IS THE NEWEST. A history plot pushes and drops from the fro
 
 ## Performance
 
-Measured with src/contrib/tui/bench.bas at 200x50 -- 10,000 cells, a braille graph and fifty gradient meters, sixty frames:
+Measured with fbc's build of the module's bench program at 200x50 -- 10,000 cells, a braille graph and fifty gradient meters, sixty frames:
 
 ```freebasic
 win64            1.21 ms per frame
@@ -766,6 +767,8 @@ unchanged frame  0 bytes, always
 Of that, View( ) building the frame is about 1.17 ms and Render( ) diffing and encoding about 0.44 ms -- the 10,000-cell compare is roughly a quarter of a frame. Cheap in absolute terms; not free.
 
 The byte counts are IDENTICAL on both platforms for the same input, which is a stronger determinism check than any single-platform test.
+
+tiko builds and runs the same bench program (measured 2026-09-24 at origin/master 50c71751, win64-msvc, default options on both sides). Its build writes the same bytes as fbc's -- 833,656 over the sixty changing frames, none over sixty unchanged ones -- and on the machine that measured both it took about 4.2 ms per changing frame where fbc's build took about 2.7 ms.
 
 ## Testing Your Own Application
 
@@ -888,26 +891,11 @@ An RFC is not allowed to be quietly diverged from. When behaviour changes, the R
 
 ## Tests
 
-```freebasic
-src/tests/tui/tuicore_.bas       geometry, colour, style, the ladder
-src/tests/tui/tuiterm_.bas       enter/leave sequences, the Windows mode word
-src/tests/tui/tuibuffer_.bas     cells, the diff, wide-glyph handling
-src/tests/tui/tuiinput_.bas      the VT grammar, table-driven
-src/tests/tui/tuiwidth_.bas      the width table against generated data
-src/tests/tui/tuilayout_.bas     the solver, exhaustively
-src/tests/tui/tuiwidget_.bas     the protocol, focus, the RFC-0007 gates
-src/tests/tui/tuidraw_.bas       all 256 braille patterns, meter glyphs
-src/tests/tui/tuiform_.bas       editing, selection, focus styling
-src/tests/tui/tuiapp_.bas        commands, purity, the performance floor
-
-make -f unit-tests.mk DIRLIST=tui
-```
-
-5,280 asserts over 131 tests on win64; 5,225 over 129 on linux-x86_64, where two of the tests are win32-only. Both figures are from the ordinary unit-tests gate, not a separate harness.
+The suites are fbc's fbcunit suites for this module, written against fbc; they are not part of tiko-lang. Built by both compilers and the results compared (suiterun, measured 2026-09-24 at origin/master 50c71751), all 10 match fbc's. tiko's own suite pins the fix that made the module build at all: tests/diagnostics/override-unused-generic.test.
 
 ## Examples
 
-Three complete, working programs, in `docs/tui/examples/` in the tiko-lang repository. Each builds clean at `-w all` on win64 and linux-x86_64.
+Three complete, working programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern). fbc builds each clean at `-w all`. tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: they need a real terminal).
 
 - [hello.bas](Modern-Tui-Example-Hello) ✨ — the smallest complete program: one box, a keypress counter, a clean exit.
 - [form.bas](Modern-Tui-Example-Form) ✨ — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.
@@ -925,7 +913,7 @@ One page per entry, 253 in all:
 
 ---
 
-**Source:** `docs/tui/tui.txt` in the tiko-lang repository.
+**Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---
