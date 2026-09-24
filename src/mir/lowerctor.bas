@@ -75,6 +75,8 @@ private function CtorArgValue_ _
                     '' &TMP, (uint16*)L"\xE8A5\x0000" )'. WideOperand_ widens it in place.
                     if wideArg = false then wideArg = LitHasUnicodeEscape_( c, argNode )
                     if wideArg then return WideOperand_( c, argNode, outv )
+                    '' ...AND A NARROW ONE IS CONVERTED, as at a call: '= "arial"' was read as UTF-16.
+                    if narrowArg andalso (WideOperand_( c, argNode, outv ) orelse NarrowToWideTemp_( c, argNode, outv )) then return true
                     if untyped then
                         if WideOperand_( c, argNode, outv ) then return true
                     end if

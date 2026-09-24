@@ -1,0 +1,9 @@
+'' A narrow string for a constructor's 'wstring ptr' parameter is widened -- the
+'' literal in place, anything else through fb_StrToWstr. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ctor-wstrptr-narrow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: global wstr $wstr0 "arial"
+'' EXPECT-OUT: call.rtl ptr fb_StrToWstr(
