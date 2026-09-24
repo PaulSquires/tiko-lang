@@ -1,0 +1,207 @@
+'' cinclude.bas -- '#cinclude': the preprocessor's hook into the C importer. See cinclude.bi.
+''
+'' ONE SESSION PER INVOCATION, on CompilerContext -- nothing here is shared state. It holds
+'' libclang, loaded at the first #cinclude and never before, and every binding this run has
+'' made, by key: the same header in two units is imported once, and both units see ONE
+'' FileId, so the shared lex cache and the once test hold.
+''
+'' TWO #cinclude LINES IN ONE UNIT SHARE HEADERS, and the second is a DELTA: imported
+'' together with the first, seeded with everything the first decided, and written as only
+'' what is new (cimport/state.bas). The session tracks the unit by its root file.
+
+#include once "driver/cinclude.bi"
+#include once "driver/cimportmode.bi"
+#include once "driver/cimportverify.bi"
+#include once "driver/cicache.bi"
+#include once "cimport/import.bi"
+#include once "codegen/toolchain.bi"
+
+namespace Tko.CImportDriver
+
+type CIncludeSession_
+    as Tko.CImport.ClangApi api
+    as boolean     loaded
+    as string      clangExe
+    '' This run's bindings, by key.
+    as Tko.StrVec  keys
+    as FB.Array( of long ) fileIds
+    as Tko.StrVec  states          '' what each decided, to seed the next delta
+    as Tko.StrVec  texts           '' each binding's own text
+    '' The unit being preprocessed.
+    as Tko.FileId  unitRoot
+    as Tko.StrVec  unitHeaders
+    as FB.Array( of long ) unitFiles
+    as string      unitState
+    as string      unitText        '' every binding this unit has entered, in order
+end type
+
+sub FreeSession( byval p as any ptr )
+    if p <> 0 then delete cast( CIncludeSession_ ptr, p )
+end sub
+
+'' WHAT MAKES TWO IMPORTS THE SAME: the headers in order (a delta is keyed by the whole
+'' chain), the target, UNICODE, and every option that reaches clang or the importer.
+private function Key_ _
+    ( byref ctx as Tko.CompilerContext, byref headers as Tko.StrVec, _
+      byval unicode as boolean ) as string
+    dim as string k = Tko.TargetName( ctx.options.target ) & chr( 10 ) & unicode & chr( 10 )
+    for i as long = 0 to headers.Count - 1
+        k &= "h " & headers[i] & chr( 10 )
+    next
+    for i as long = 0 to ctx.options.cIncludes.Count - 1
+        k &= "I " & ctx.options.cIncludes[i] & chr( 10 )
+    next
+    for i as long = 0 to ctx.options.cDefines.Count - 1
+        k &= "D " & ctx.options.cDefines[i] & chr( 10 )
+    next
+    for i as long = 0 to ctx.options.cOpts.Count - 1
+        k &= "o " & ctx.options.cOpts[i] & chr( 10 )
+    next
+    k &= "s " & ctx.options.cSysroot & chr( 10 ) & "m " & ctx.options.cNoMacros & chr( 10 ) & _
+         "v " & ctx.options.cNoVerify & chr( 10 )
+    return k
+end function
+
+'' The import failed: the importer's words at the directive, clang's own lines under
+'' 'clang:', and the note that fixes the commonest cause.
+private sub ReportFailure_ _
+    ( byref ctx as Tko.CompilerContext, byval irc as long, _
+      byref res as Tko.CImport.CImportResult, byref header as string, byval at as Tko.SourceLoc )
+
+    dim as Tko.SourceRange rng = Tko.PointRange( at )
+    select case irc
+    case 3
+        ctx.diags.Report( Tko.TKO0335, rng, res.why )
+    case 4
+        ctx.diags.Report( Tko.TKO0338, rng, header, res.why )
+    case 5
+        ctx.diags.Report( Tko.TKO0337, rng, header )
+    case else
+        ctx.diags.Report( Tko.TKO0336, rng, header )
+        for i as long = 0 to res.clangDiags.Count - 1
+            ctx.diags.AddNote( Tko.TKO0900, rng, "clang: " & res.clangDiags[i] )
+        next
+        if res.namedNotFound then
+            ctx.diags.AddNote( Tko.TKO0900, rng, _
+                "a header is found by the path given, then in each -cinclude directory" )
+        end if
+        if res.notFound then ctx.diags.AddNote( Tko.TKO0900, rng, NotFoundHint( ctx ) )
+    end select
+end sub
+
+private function Hook_ cdecl _
+    ( byval ctxp as any ptr, byref header as string, byval unicode as boolean, _
+      byval root as Tko.FileId, byval at as Tko.SourceLoc ) as Tko.FileId
+
+    dim as Tko.CompilerContext ptr ctx = ctxp
+    if ctx->cinclude = 0 then ctx->cinclude = new CIncludeSession_
+    dim as CIncludeSession_ ptr s = ctx->cinclude
+
+    if s->unitRoot <> root then
+        s->unitRoot = root
+        s->unitHeaders.Clear( )
+        s->unitFiles.Clear( )
+        s->unitState = ""
+        s->unitText = ""
+    end if
+    '' The same header again in this unit: its binding, which the once test then skips.
+    for i as long = 0 to s->unitHeaders.Count - 1
+        if s->unitHeaders[i] = header then return cast( Tko.FileId, s->unitFiles[i] )
+    next
+
+    if s->loaded = false then
+        s->loaded = true
+        dim as FB.Array( of string ) noLibs
+        dim as string noClang = ""
+        s->clangExe = Tko.Codegen.FindTools( noClang, noLibs ).clangExe
+        Tko.CImport.ClangLoad( s->api, s->clangExe )
+    end if
+    if s->api.ok = false then
+        ctx->diags.Report( Tko.TKO0335, Tko.PointRange( at ), s->api.why )
+        return Tko.FILE_NONE
+    end if
+
+    dim as Tko.StrVec chain
+    for i as long = 0 to s->unitHeaders.Count - 1
+        chain.Push( s->unitHeaders[i] )
+    next
+    chain.Push( header )
+    dim as string key = Key_( *ctx, chain, unicode )
+
+    dim as long hit = -1
+    for i as long = 0 to s->keys.Count - 1
+        if s->keys[i] = key then hit = i : exit for
+    next
+    '' THE DISK CACHE, next: an entry made by an earlier build, every file clang read
+    '' then unchanged. It is loaded as the real file it is, so a diagnostic in it names a
+    '' path the user can open.
+    dim as string croot, ckey
+    if hit < 0 then
+        croot = CacheRoot( *ctx )
+        if len( croot ) then
+            ckey = CacheKey( *ctx, s->api, key )
+            dim as string bpath, btext, bstate
+            if CacheLookup( croot, ckey, bpath, btext, bstate ) then
+                dim as ustring why
+                dim as Tko.FileId cfid = ctx->sources.LoadFile( bpath, why )
+                if cfid <> Tko.FILE_NONE then
+                    s->keys.Push( key )
+                    s->fileIds.Push( cast( long, cfid ) )
+                    s->states.Push( bstate )
+                    s->texts.Push( btext )
+                    hit = s->keys.Count - 1
+                end if
+            end if
+        end if
+    end if
+    if hit < 0 then
+        dim as Tko.CImport.CImportOptions io
+        for i as long = 0 to chain.Count - 1
+            io.headers.Push( chain[i] )
+        next
+        FillOptions( *ctx, s->clangExe, io )
+        '' UNICODE ON THE FREEBASIC SIDE IS UNICODE ON THE C SIDE: '#define UNICODE' then
+        '' '#cinclude "windows.h"' is how windows.bi has always been driven, and it
+        '' selects MessageBoxW behind MessageBox.
+        if unicode then
+            io.cdefines.Push( "UNICODE" )
+            io.cdefines.Push( "_UNICODE" )
+        end if
+        io.seedState = s->unitState
+        dim as Tko.CImport.CImportResult res
+        dim as long irc = ImportChecked( *ctx, s->api, io, res, s->unitText )
+        if irc <> 0 then
+            ReportFailure_( *ctx, irc, res, header, at )
+            return Tko.FILE_NONE
+        end if
+        dim as Tko.FileId fid = Tko.FILE_NONE
+        if len( croot ) then
+            dim as string bpath = CacheStore( croot, ckey, res.text, res.state, res.deps )
+            if len( bpath ) then
+                dim as ustring why
+                fid = ctx->sources.LoadFile( bpath, why )
+            else
+                ctx->diags.Report( Tko.TKO0339, Tko.PointRange( at ), croot )
+            end if
+        end if
+        if fid = Tko.FILE_NONE then fid = ctx->sources.AddVirtual( header & ".bi", res.text )
+        s->keys.Push( key )
+        s->fileIds.Push( cast( long, fid ) )
+        s->states.Push( res.state )
+        s->texts.Push( res.text )
+        hit = s->keys.Count - 1
+    end if
+
+    s->unitHeaders.Push( header )
+    s->unitFiles.Push( s->fileIds[hit] )
+    s->unitState = s->states[hit]
+    s->unitText &= s->texts[hit]
+    return cast( Tko.FileId, s->fileIds[hit] )
+end function
+
+sub ConfigureHook( byref cfg as Tko.PpConfig, byref ctx as Tko.CompilerContext )
+    cfg.cimportFn = @Hook_
+    cfg.cimportCtx = @ctx
+end sub
+
+end namespace

@@ -1,0 +1,7 @@
+'' '#define UNICODE' reaches clang as -DUNICODE: CI_WHICH is 2. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-unicode.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: %5 = const i64 2
+'' EXPECT-NOT: error TKO

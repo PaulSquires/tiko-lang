@@ -1,0 +1,8 @@
+'' Two #cinclude lines sharing a header compile, with each declaration made once, and the
+'' same header a second time is a no-op. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-delta.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: error TKO

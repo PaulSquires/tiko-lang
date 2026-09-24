@@ -178,6 +178,12 @@ namespace Tko
         as long       outKind
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
+        '' '#cinclude': the driver's C importer (D16), as a PpCImportFn. The preprocessor
+        '' never includes the importer -- it is handed a function that returns the
+        '' binding's FileId, and treats that file as '#include' treats one. NULL: the
+        '' directive is TKO0310, as it always was.
+        as any ptr    cimportCtx
+        as any ptr    cimportFn
     end type
 
     type PpResult
@@ -247,6 +253,15 @@ namespace Tko
         PPQ_DEFINED = 0      '' is this name a declared symbol?
         PPQ_TYPEOF           '' an opaque type identity for comparison
     end enum
+
+    '' '#cinclude "h"': import the C header as written and return the binding's FileId,
+    '' or FILE_NONE having reported why at 'at'. 'unicode' is whether UNICODE is defined
+    '' where the directive stands -- it selects the W half of windows.h -- and 'root' is
+    '' the translation unit's own file: two #cinclude lines in one unit share headers,
+    '' and the second is imported as a delta over the first.
+    type PpCImportFn as function _
+        ( byval ctx as any ptr, byref header as string, byval unicode as boolean, _
+          byval root as FileId, byval at as SourceLoc ) as FileId
 
     type PpQueryFn as function _
         ( byval ctx as any ptr, byval kind as PpQueryKind, byval name as InternId, _

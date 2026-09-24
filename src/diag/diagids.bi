@@ -140,6 +140,12 @@
     '' can restart it; the directive in any later one is read, warned about and
     '' dropped. Measured 2026-09-16.
     DIAG( TKO0334, SEV_WARNING, "#cmdline is ignored outside the first source file" )
+    '' '#cinclude' (D16): the C importer, at the directive. See driver/cinclude.bas.
+    DIAG( TKO0335, SEV_ERROR,   "#cinclude needs libclang: %0" )
+    DIAG( TKO0336, SEV_ERROR,   "unable to import C header %0" )
+    DIAG( TKO0337, SEV_ERROR,   "the binding generated for %0 does not compile; this is a bug in the C importer" )
+    DIAG( TKO0338, SEV_ERROR,   "%0 defines '%1', which an earlier #cinclude in this unit left opaque; #cinclude %0 first" )
+    DIAG( TKO0339, SEV_WARNING, "#cinclude could not write its cache entry under '%0'; the binding is used from memory" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

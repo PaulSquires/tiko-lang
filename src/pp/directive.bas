@@ -287,6 +287,58 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     PushFrame( e, toks, INTERN_NONE, got, false )
 end sub
 
+'' '#cinclude [once] "header.h"' -- a C header, imported by the driver's C importer (D16)
+'' and entered exactly as '#include' enters a file: the once test, the lex, the frame.
+'' The binding carries '#pragma once' itself, so a second #cinclude of one header in a
+'' unit is a no-op either way.
+private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word as string )
+    if e.cfg->cimportFn = 0 then
+        if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
+        SkipToEol( e )
+        return
+    end if
+    dim as Token t
+    if PeekOnLine( e, t ) = false then
+        Report( e, TKO0316, at, word )
+        return
+    end if
+    if Tk( t ) = TK_IDENT then
+        if e.names->Spelling( cast( InternId, t.literal ) ) = "once" then
+            Advance( e )
+            if PeekOnLine( e, t ) = false then
+                Report( e, TKO0316, at, word )
+                return
+            end if
+        end if
+    end if
+    if Tk( t ) <> TK_STRING_LIT then
+        Report( e, TKO0316, t.loc, word )
+        SkipToEol( e )
+        return
+    end if
+    dim as string spelled = SpellOf( e, t )
+    dim as long a = instr( spelled, """" )
+    dim as long b = instrrev( spelled, """" )
+    dim as string header = ""
+    if (a > 0) andalso (b > a) then header = mid( spelled, a + 1, b - a - 1 )
+    Advance( e )
+    SkipToEol( e )
+    if len( header ) = 0 then
+        Report( e, TKO0316, at, word )
+        return
+    end if
+
+    dim as boolean unicode = (MacroFor( e, e.names->GetString( "unicode" ) ) <> 0)
+    dim as PpCImportFn fn = e.cfg->cimportFn
+    dim as FileId got = fn( e.cfg->cimportCtx, header, unicode, e.rootFile, at )
+    if got = FILE_NONE then return
+    if PpAlreadyOnce( e, got ) then return
+    e.onceFiles.Push( cast( ulong, got ) )
+    e.outp->includeCount += 1
+    dim as TokenVec ptr toks = PpLexFile( e, got )
+    PushFrame( e, toks, INTERN_NONE, got, false )
+end sub
+
 '' ---------------------------------------------------------------- conditionals
 
 private sub PushCond _
@@ -1033,8 +1085,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
 
     case "cinclude"
-        if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
-        SkipToEol( e )
+        PpCInclude( e, at, word )
 
     case "foreignlib"
         '' #foreignlib ID (STATIC|DYNAMIC) "spec" (, "spec")*

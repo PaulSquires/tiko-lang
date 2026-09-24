@@ -1,0 +1,7 @@
+make            7             3 4           1 2 3         2.5 4         1.5 2.5 3.5
+sum            7             7             6             6.5           7.5
+apply          34
+sumv           100
+globals        42           testlib
+counter        142
+macros         3

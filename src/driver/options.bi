@@ -113,6 +113,8 @@ namespace Tko
     OPT( OPT_COPT,      "-copt",          OPTK_VALUE, OPTCAT_CIMPORT, "arg",  "pass an argument to clang verbatim" )
     OPT( OPT_CNOMACROS, "-cnomacros",     OPTK_FLAG,  OPTCAT_CIMPORT, "",     "do not import object-like macros as constants" )
     OPT( OPT_CNOVERIFY, "-cnoverify",     OPTK_FLAG,  OPTCAT_CIMPORT, "",     "do not check tiko's layout of each imported record against clang's" )
+    OPT( OPT_CNOCACHE,  "-cnocache",      OPTK_FLAG,  OPTCAT_CIMPORT, "",     "#cinclude neither reads nor writes the binding cache" )
+    OPT( OPT_CCACHEDIR, "-ccachedir",     OPTK_VALUE, OPTCAT_CIMPORT, "dir",  "where #cinclude keeps its bindings (default: the user's cache directory)" )
     OPT( OPT_VTABLE,    "--dump-vtable",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's virtual method table" )
     OPT( OPT_RTL,       "--dump-rtl",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print the runtime inventory and stop" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
@@ -249,6 +251,8 @@ namespace Tko
         as StrVec  cOpts
         as boolean cNoMacros
         as boolean cNoVerify
+        as boolean cNoCache
+        as string  cCacheDir
         as boolean dumpVtable
         as boolean dumpRtl
         as boolean dumpIr

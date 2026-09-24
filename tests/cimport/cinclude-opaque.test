@@ -1,0 +1,6 @@
+'' A record an earlier #cinclude left opaque, defined by a later one: TKO0338, at the
+'' later directive, naming the order that works.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-opaque.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cinclude-opaque.bas(4,1): error TKO0338: tests/cimport/src/ci/opaque2.h defines 'ci_opq', which an earlier #cinclude in this unit left opaque

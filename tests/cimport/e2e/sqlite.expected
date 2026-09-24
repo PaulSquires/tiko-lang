@@ -1,0 +1,6 @@
+open           -1
+exec          -1
+prepare       -1
+step          -1
+sum            42
+close         -1

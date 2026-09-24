@@ -22,3 +22,21 @@ declare function VerifyLayout _
       byref badName as Tko.StrVec, byref badWhy as Tko.StrVec ) as boolean
 
 end namespace
+
+#include once "cimport/import.bi"
+
+namespace Tko.CImportDriver
+
+'' IMPORT, CHECK, REFUSE, IMPORT AGAIN -- '-cimport' and '#cinclude' alike. Every record
+'' is laid out by tiko and compared with clang's layout; one that differs is refused with
+'' the difference in the ledger, and the header imported again, so what held it by value
+'' goes with it. 'prefix' is the text of the bindings a delta import builds on, which the
+'' check has to see for the new one to compile. Returns 0 imported, CImportRun's rc when
+'' the import failed, 5 when a binding did not compile (an importer bug; the errors are
+'' already reported against it).
+declare function ImportChecked _
+    ( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
+      byref io as Tko.CImport.CImportOptions, byref res as Tko.CImport.CImportResult, _
+      byref prefix as string ) as long
+
+end namespace

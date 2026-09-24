@@ -64,6 +64,23 @@ end function
 
 '' The whole file: banner, ledgers, crt/long.bi, the extern block, the forward aliases,
 '' the declarations. fbc-modern's layout, line for line (import.bi).
+'' ONE COPY, NOT ONE PER LINE: windows.h's binding is 2.8 MB in 56,000 pieces, and
+'' appending each to a growing string took fourteen seconds.
+function JoinParts( byref parts as Tko.StrVec ) as string
+    dim as long total = 0
+    for i as long = 0 to parts.Count - 1
+        total += len( parts[i] )
+    next
+    dim as string o = space( total )
+    dim as long at = 0
+    for i as long = 0 to parts.Count - 1
+        dim as long n = len( parts[i] )
+        if n > 0 then memcpy( strptr( o ) + at, strptr( parts[i] ), n )
+        at += n
+    next
+    return o
+end function
+
 private function Assemble_( byref x as CImp, byval nfiles as long ) as string
     dim as string nl = chr( 10 )
     dim as string hdrs
@@ -125,20 +142,7 @@ private function Assemble_( byref x as CImp, byval nfiles as long ) as string
         parts.Push( x.decls[i] & nl )
     next
     parts.Push( nl & "end extern" & nl )
-    '' ONE COPY, NOT ONE PER LINE: windows.h's binding is 2.8 MB in 56,000 pieces, and
-    '' appending each to a growing string took fourteen seconds.
-    dim as long total = 0
-    for i as long = 0 to parts.Count - 1
-        total += len( parts[i] )
-    next
-    dim as string o = space( total )
-    dim as long at = 0
-    for i as long = 0 to parts.Count - 1
-        dim as long n = len( parts[i] )
-        if n > 0 then memcpy( strptr( o ) + at, strptr( parts[i] ), n )
-        at += n
-    next
-    return o
+    return JoinParts( parts )
 end function
 
 '' ---------------------------------------------------------------- the run
@@ -252,9 +256,30 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     for i as long = 0 to av.Count - 1
         x.args.Push( av[i] )
     next
+    if len( opts.seedState ) then
+        if StateSeed( x, opts.seedState ) = false then
+            res.rc = 1
+            res.why = "internal: the earlier import's state could not be read"
+            api.disposeTranslationUnit( tu )
+            api.disposeIndex( idx )
+            return false
+        end if
+    end if
     DeclPassNames( x )
+    '' A RECORD AN EARLIER #cinclude LEFT OPAQUE, which this one defines: the first
+    '' binding said 'type X as any' or took an 'any ptr' for it, and this one would declare
+    '' the record -- two types for one C struct. Refused with the order that fixes it.
+    dim as string clash = StateConflict( x )
+    if len( clash ) then
+        res.rc = 4
+        res.why = clash
+        api.disposeTranslationUnit( tu )
+        api.disposeIndex( idx )
+        return false
+    end if
     DeclPassEmit( x )
     MacroPass( x )
+    res.state = StateExport( x )
 
     res.text = Assemble_( x, fl.visits )
     for i as long = 0 to x.manifest.Count - 1

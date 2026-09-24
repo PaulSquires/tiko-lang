@@ -1,0 +1,8 @@
+'' A missing header is TKO0336 at the directive, with clang's own line and where a named
+'' header is looked for.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-missing.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cinclude-missing.bas(3,1): error TKO0336: unable to import C header tests/cimport/src/ci/no-such.h
+'' EXPECT-OUT: note: clang: tiko-cimport.c:1:10: fatal error: 'tests/cimport/src/ci/no-such.h' file not found
+'' EXPECT-OUT: note: a header is found by the path given, then in each -cinclude directory

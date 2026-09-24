@@ -99,5 +99,9 @@ src/cimport/records.bas
 src/cimport/decls.bas
 src/cimport/import.bas
 src/driver/cimportmode.bas
+src/driver/lowerreport.bas
 src/driver/cimportverify.bas
+src/driver/cicache.bas
+src/driver/cinclude.bas
 src/cimport/macros.bas
+src/cimport/state.bas

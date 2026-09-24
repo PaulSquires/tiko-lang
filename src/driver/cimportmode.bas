@@ -32,7 +32,7 @@ private function WriteBytes_( byref path_ as string, byref text as string ) as b
 end function
 
 '' The one hint that fixes each target's commonest failure: a header clang could not find.
-private function NotFoundHint_( byref ctx as Tko.CompilerContext ) as string
+function NotFoundHint( byref ctx as Tko.CompilerContext ) as string
     select case ctx.options.target
     case Tko.TARGET_WIN64_MSVC
         return "win64-msvc imports against the installed MSVC and Windows SDK headers; " & _
@@ -45,6 +45,30 @@ private function NotFoundHint_( byref ctx as Tko.CompilerContext ) as string
                "(a Linux target imported from another host needs one)"
     end select
 end function
+
+'' Everything but the headers: the -c* options, the target, the clang beside which
+'' libclang is looked for.
+sub FillOptions _
+    ( byref ctx as Tko.CompilerContext, byref clangExe as string, _
+      byref io as Tko.CImport.CImportOptions )
+
+    dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx.options.target )
+    for i as long = 0 to ctx.options.cIncludes.Count - 1
+        io.cincludes.Push( ctx.options.cIncludes[i] )
+    next
+    for i as long = 0 to ctx.options.cDefines.Count - 1
+        io.cdefines.Push( ctx.options.cDefines[i] )
+    next
+    for i as long = 0 to ctx.options.cOpts.Count - 1
+        io.copts.Push( ctx.options.cOpts[i] )
+    next
+    io.csysroot = ctx.options.cSysroot
+    io.noMacros = ctx.options.cNoMacros
+    io.targetName = Tko.TargetName( ctx.options.target )
+    io.triple = td.triple
+    io.isWindows = Tko.TargetIsWindows( ctx.options.target )
+    io.clangExe = clangExe
+end sub
 
 function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as long
     dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx.options.target )
@@ -69,47 +93,19 @@ function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as lo
     for i as long = 0 to ctx.options.cimportHeaders.Count - 1
         io.headers.Push( ctx.options.cimportHeaders[i] )
     next
-    for i as long = 0 to ctx.options.cIncludes.Count - 1
-        io.cincludes.Push( ctx.options.cIncludes[i] )
-    next
-    for i as long = 0 to ctx.options.cDefines.Count - 1
-        io.cdefines.Push( ctx.options.cDefines[i] )
-    next
-    for i as long = 0 to ctx.options.cOpts.Count - 1
-        io.copts.Push( ctx.options.cOpts[i] )
-    next
-    io.csysroot = ctx.options.cSysroot
-    io.noMacros = ctx.options.cNoMacros
-    io.targetName = Tko.TargetName( ctx.options.target )
-    io.triple = td.triple
-    io.isWindows = Tko.TargetIsWindows( ctx.options.target )
-    io.clangExe = clangExe
+    FillOptions( ctx, clangExe, io )
 
     '' EVERY RECORD IS LAID OUT BY TIKO AND COMPARED WITH CLANG -- and one that differs is
-    '' refused, with the difference in the ledger, and the header imported again: what held
-    '' it by value goes with it, and the rest of the binding is still usable. SysV packs
-    '' 'unsigned x : 3; unsigned y : 5; char c;' into four bytes, which FreeBASIC's
-    '' bit-field containers cannot say. fbc-modern stops the import there (error 390).
-    '' A round refuses at least one record, so the rounds end; the bound is a backstop.
+    '' refused, with the difference in the ledger: SysV packs 'unsigned x : 3; unsigned y :
+    '' 5; char c;' into four bytes, which FreeBASIC's bit-field containers cannot say.
+    '' fbc-modern stops the import there (error 390). See ImportChecked.
     dim as Tko.CImport.CImportResult res
-    dim as boolean imported
-    for round as long = 1 to 16
-        dim as Tko.CImport.CImportResult r1
-        imported = Tko.CImport.CImportRun( api, io, r1 )
-        res = r1
-        if (imported = false) orelse ctx.options.cNoVerify then exit for
-        dim as Tko.StrVec badName, badWhy
-        if VerifyLayout( ctx, res.text, res.manifest, badName, badWhy ) = false then
-            ctx.diags.ReportGlobal( Tko.TKO0122, ctx.options.cimportHeaders[0] )
-            return Tko.EXIT_USER_ERROR
-        end if
-        if badName.Count = 0 then exit for
-        for i as long = 0 to badName.Count - 1
-            io.refuseName.Push( badName[i] )
-            io.refuseWhy.Push( badWhy[i] )
-        next
-    next
-    if imported = false then
+    dim as long irc = ImportChecked( ctx, api, io, res, "" )
+    if irc = 5 then
+        ctx.diags.ReportGlobal( Tko.TKO0122, ctx.options.cimportHeaders[0] )
+        return Tko.EXIT_USER_ERROR
+    end if
+    if irc <> 0 then
         if res.rc = 3 then
             ctx.diags.ReportGlobal( Tko.TKO0119, res.why )
             return Tko.EXIT_NO_TOOLCHAIN
@@ -126,7 +122,7 @@ function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as lo
             ctx.diags.AddNote( Tko.TKO0900, none_, _
                 "a header is found by the path given, then in each -cinclude directory" )
         end if
-        if res.notFound then ctx.diags.AddNote( Tko.TKO0900, none_, NotFoundHint_( ctx ) )
+        if res.notFound then ctx.diags.AddNote( Tko.TKO0900, none_, NotFoundHint( ctx ) )
         return Tko.EXIT_USER_ERROR
     end if
 

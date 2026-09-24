@@ -256,7 +256,8 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
             if x.api->Cursor_isBitField( k ) then
                 '' AN UNNAMED BIT-FIELD is padding -- MSVC's winnt.h writes 'int :7' where
                 '' MinGW's names it Adummy1 -- and FreeBASIC's bit-fields all have names.
-                if len( cname ) = 0 then cname = "__cimport_bits" & b.members
+                dim as string cspell = cname
+                if len( cname ) = 0 then cname = "__cimport_bits" & b.members : cspell = "-"
                 dim as long w = x.api->getFieldDeclBitWidth( k )
                 if w <= 0 then
                     why = FieldWhy_( depth, cname, "zero-width bit-field has no FreeBASIC spelling" )
@@ -271,7 +272,7 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
                 dim as string fname = FieldUnique_( b, cname, NameField( cname, false ) )
                 line_ = fname & " : " & w & " as " & bt
                 dim as longint bbit = FieldBit_( x, outerT, k, cname )
-                b.man.Push( "  field " & fname & " " & bbit & " " & w )
+                b.man.Push( "  field " & fname & " " & bbit & " " & w & " " & cspell )
                 if (bbit + w + 7) \ 8 > b.lastEnd then b.lastEnd = (bbit + w + 7) \ 8
             else
                 dim as CXType fu = Unwrap( x, ft )
@@ -307,7 +308,7 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
                 dim as string fname = FieldUnique_( b, cname, NameField( cname, len( dims ) > 0 ) )
                 line_ = fname & dims & " as " & ftx
                 dim as longint fbit = FieldBit_( x, outerT, k, cname )
-                b.man.Push( "  field " & fname & " " & fbit & " 0" )
+                b.man.Push( "  field " & fname & " " & fbit & " 0 " & cname )
                 dim as longint fend = fbit \ 8 + x.api->Type_getSizeOf( ft )
                 if fend > b.lastEnd then b.lastEnd = fend
             end if
@@ -374,7 +375,11 @@ function RecordEmit( byref x as CImp, byval c as CXCursor, byref fbName as strin
     txt &= iif( isUnion, "end union", "end type" )
     x.decls.Push( txt )
 
-    x.manifest.Push( "record " & fbName & " " & size & " " & align )
+    '' THE C SPELLING LAST, for build/cimportlayout.sh's clang-compiled oracle: 'struct X',
+    '' a typedef's name for a record only a typedef names, '-' for one C cannot spell.
+    dim as string cty = ClangText( *x.api, x.api->getTypeSpelling( rt ) )
+    if (instr( cty, "(unnamed" ) > 0) orelse (instr( cty, "(anonymous" ) > 0) then cty = "-"
+    x.manifest.Push( "record " & fbName & " " & size & " " & align & " " & cty )
     for i as long = 0 to b.man.Count - 1
         x.manifest.Push( b.man[i] )
     next

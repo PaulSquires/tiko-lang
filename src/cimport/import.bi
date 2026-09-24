@@ -48,6 +48,9 @@ type CImportOptions
     '' layout tiko could not reproduce last time round (driver/cimportverify.bas).
     as Tko.StrVec refuseName
     as Tko.StrVec refuseWhy
+    '' A DELTA IMPORT: what an earlier import of the headers before these decided
+    '' (state.bas). Empty for an import of its own.
+    as string     seedState
     '' WHAT THE MACRO PROBES FOUND, kept for the next round: a refused record changes no
     '' macro's value, and the probes are two more parses of the whole unit. 0 not probed
     '' yet, 1 kept here, -1 the probe failed.
@@ -66,6 +69,7 @@ type CImportResult
     as boolean    notFound       '' a header it included was not found: the target's hint
     as boolean    namedNotFound  '' a header the user named was not found: -cinclude
     as Tko.StrVec deps           '' every file clang read -- the cache's dependency list
+    as string     state          '' what this import decided, to seed the next (state.bas)
 end type
 
 declare function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
@@ -100,6 +104,7 @@ const US_FWD       = &h08     '' a 'Name__ptr' forward alias exists for it
 const US_OPAQUE    = &h10     '' declared and never defined: 'type X as any'
 const US_NAMED     = &h20     '' pass 1 gave it a FreeBASIC name
 const US_TYPEDEFD  = &h40     '' an anonymous record named by a typedef
+const US_SEEDED    = &h80     '' decided by an earlier import (state.bas); never exported
 
 type CImp
     as ClangApi ptr api
@@ -145,6 +150,8 @@ type CImp
     '' import declared resolves to -- an alias may only name something that arrived.
     as Tko.StrVec macroNames
     as FB.Array( of ubyte ) macroSeen       '' exact name id -> 1 once a candidate
+    as Tko.StrVec aliasNames                '' every '#define NAME target' written
+    as FB.Array( of long ) seedUndefined    '' seeded USR ids the seed never saw defined
     as FB.Array( of long ) cDeclUsr          '' exact C-name id -> USR id plus one
     '' The parse, kept so macros.bas can parse again with its probes appended.
     as string     unitText
@@ -184,6 +191,12 @@ declare sub NoteDecl( byref x as CImp, byref cname as string, byval uid as long 
 '' ---- macros.bas
 declare sub MacroCandidate( byref x as CImp, byval c as CXCursor )
 declare sub MacroPass( byref x as CImp )
+declare sub MacroSeen( byref x as CImp, byref n as string )
+declare sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
+declare function StateExport( byref x as CImp ) as string
+declare function StateSeed( byref x as CImp, byref state as string ) as boolean
+declare function StateConflict( byref x as CImp ) as string
+declare function JoinParts( byref parts as Tko.StrVec ) as string
 
 '' ---- records.bas
 declare function RecordEmit( byref x as CImp, byval c as CXCursor, byref fbName as string, _

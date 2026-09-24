@@ -82,17 +82,33 @@ sub MacroCandidate( byref x as CImp, byval c as CXCursor )
     if len( n ) = 0 then return
     if n = "NULL" then return
     if IsReservedSpelling_( n ) then return
+    '' A MACRO FROM NO HEADER -- clang's command line: -cdefine, and the UNICODE that
+    '' '#define UNICODE' before '#cinclude' passes on. It is the caller's, not the
+    '' header's, and 'const UNICODE = 1' under a FreeBASIC-side UNICODE macro read as
+    '' 'const  = 1'.
+    dim as any ptr mf
+    x.api->getExpansionLocation( x.api->getCursorLocation( c ), @mf, 0, 0, 0 )
+    if mf = 0 then return
     if Balanced_( x, c ) = false then return
     '' A macro redefined keeps its FIRST position; its value is whatever clang says it is
     '' at the end of the unit, which is where the probes are. By interned id: a scan of
     '' the list per macro was five seconds of windows.h's 23,000.
     dim as long nid = cast( long, x.strs.GetString( n ) )
+    if nid < x.macroSeen.Count then
+        if x.macroSeen[nid] then return
+    end if
+    MacroSeen( x, n )
+    x.macroNames.Push( n )
+end sub
+
+'' Marks a macro as considered -- by this import, or by the earlier one a delta import is
+'' seeded with, whose binding already has it.
+sub MacroSeen( byref x as CImp, byref n as string )
+    dim as long nid = cast( long, x.strs.GetString( n ) )
     while x.macroSeen.Count <= nid
         x.macroSeen.Push( 0 )
     wend
-    if x.macroSeen[nid] then return
     x.macroSeen[nid] = 1
-    x.macroNames.Push( n )
 end sub
 
 sub NoteDecl( byref x as CImp, byref cname as string, byval uid as long )
@@ -386,6 +402,7 @@ sub MacroPass( byref x as CImp )
             continue for
         end if
         x.decls.Push( "#define " & x.macroNames[i] & " " & target( i ) )
+        x.aliasNames.Push( x.macroNames[i] )
     next
 end sub
 

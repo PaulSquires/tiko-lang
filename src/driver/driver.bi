@@ -46,6 +46,9 @@ namespace Tko
         '' See PpConfig.sharedLits.
         as LiteralVec             ppLits
         as FB.Array( of any ptr ) ppLexed
+        '' '#cinclude's session -- libclang and this run's bindings (cinclude.bas), made
+        '' at the first #cinclude and freed with the context.
+        as any ptr                cinclude
 
         declare constructor( )
         declare destructor( )

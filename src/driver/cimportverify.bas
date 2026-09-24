@@ -78,22 +78,30 @@ function VerifyLayout _
     '' crt/long.bi IS TWO TYPEDEFS, spelled here so the check needs no include directory --
     '' the test runner gives tiko none, and a toolchain without its headers could still
     '' import. 'long' is the target's: four bytes on Windows, eight on Linux.
+    '' Every one after the first goes: a delta import's check sees several bindings.
     dim as string src = text
     const LONG_INC = "#include once ""crt/long.bi"""
     dim as long li = instr( src, LONG_INC )
-    if li > 0 then
+    dim as boolean first = true
+    while li > 0
         dim as string defs
-        if Tko.TargetIsWindows( ctx.options.target ) then
-            defs = "type clong as long : type culong as ulong"
-        else
-            defs = "type clong as integer : type culong as uinteger"
+        if first then
+            if Tko.TargetIsWindows( ctx.options.target ) then
+                defs = "type clong as long : type culong as ulong"
+            else
+                defs = "type clong as integer : type culong as uinteger"
+            end if
+            first = false
         end if
         src = left( src, li - 1 ) & defs & mid( src, li + len( LONG_INC ) )
-    end if
+        li = instr( li + len( defs ), src, LONG_INC )
+    wend
     dim as Tko.FileId id = ctx.sources.AddVirtual( BINDING_NAME, src )
 
     dim as Tko.PpResult pr
     dim as Tko.PpConfig cfg = Tko.Driver.MakePpConfig( ctx )
+    '' A binding has no #cinclude of its own, and this runs INSIDE one.
+    cfg.cimportFn = 0
     dim as Tko.PpStream st
     Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
     dim as Tko.AstArena ast
@@ -213,6 +221,29 @@ function VerifyLayout _
         end if
     next
     return true
+end function
+
+function ImportChecked _
+    ( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
+      byref io as Tko.CImport.CImportOptions, byref res as Tko.CImport.CImportResult, _
+      byref prefix as string ) as long
+
+    '' A round refuses at least one record, so the rounds end; the bound is a backstop.
+    for round as long = 1 to 16
+        dim as Tko.CImport.CImportResult r1
+        dim as boolean imported = Tko.CImport.CImportRun( api, io, r1 )
+        res = r1
+        if imported = false then return iif( res.rc = 0, 1, res.rc )
+        if ctx.options.cNoVerify then return 0
+        dim as Tko.StrVec badName, badWhy
+        if VerifyLayout( ctx, prefix & res.text, res.manifest, badName, badWhy ) = false then return 5
+        if badName.Count = 0 then return 0
+        for i as long = 0 to badName.Count - 1
+            io.refuseName.Push( badName[i] )
+            io.refuseWhy.Push( badWhy[i] )
+        next
+    next
+    return 0
 end function
 
 end namespace

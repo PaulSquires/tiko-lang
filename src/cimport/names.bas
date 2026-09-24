@@ -164,6 +164,11 @@ private sub Take_( byref x as CImp, byval ns as CImpNs, byref n as string )
     end if
 end sub
 
+'' A name an earlier import claimed (state.bas): taken, with no ledger line.
+sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
+    Take_( x, ns, n )
+end sub
+
 private sub Ledger_( byref x as CImp, byval rk as CImpRenameKind, byref cname as string, _
                      byref fb as string, byval why as long )
     x.renKind.Push( cast( long, rk ) )
