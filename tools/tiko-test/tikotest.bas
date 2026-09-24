@@ -431,6 +431,20 @@ declare function CheckOne_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
       byval rc as long, byref outText as string, byref why as string ) as boolean
 
+'' SET AN ENVIRONMENT VARIABLE FROM A STRING THAT OUTLIVES THE PROCESS. fbc's setenviron
+'' is putenv on Linux, and putenv KEEPS THE POINTER: handed a loop copy or a 'left( e, eq )'
+'' temporary, the environment entry pointed at freed memory, and a test's ENV was not in
+'' force for its first target -- tests/cimport's two no-libclang tests found a libclang
+'' there and exited 0. On Windows _putenv copies, which is why only Linux saw it. Kept
+'' strings are a few bytes per ENV line; they are never freed.
+private sub SetEnv_( byref kv as string )
+    static as string keep( any )
+    dim as long n = ubound( keep ) + 1
+    redim preserve keep( n )
+    keep( n ) = kv
+    setenviron keep( n )
+end sub
+
 function RunOne _
     ( byref tc as TestCase, byref opts as Options, byref why as string, _
       byval slotId as long ) as boolean
@@ -456,7 +470,7 @@ function RunOne _
     '' it at startup, so it must be in place before the shell( ) and gone before the
     '' following test builds its own command.
     for each e_ as string in tc.env
-        setenviron e_
+        SetEnv_( e_ )
     next
 
     dim as string outText = ""
@@ -492,7 +506,7 @@ function RunOne _
             if tc.targets.Count > 1 then why = "[" & tgt & "] " & why
             for each e2 as string in tc.env
                 dim as long eq2 = instr( e2, "=" )
-                if eq2 > 0 then setenviron left( e2, eq2 )
+                if eq2 > 0 then SetEnv_( left( e2, eq2 ) )
             next
             return false
         end if
@@ -500,7 +514,7 @@ function RunOne _
 
     for each e_ as string in tc.env
         dim as long eq = instr( e_, "=" )
-        if eq > 0 then setenviron left( e_, eq )
+        if eq > 0 then SetEnv_( left( e_, eq ) )
     next
 
     return true
