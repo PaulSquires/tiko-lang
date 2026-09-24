@@ -113,6 +113,8 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; EXT=".exe"; BINSUB=""
         TARGETS="win64-msvc win64"
+        # The compiler's own default on this host -- HostTarget( ), src/types/type.bas.
+        DEFTARGET=win64-msvc
         FBTC="$FBC_TREE/toolchains/fbc-modern-windows"
         FBLIB="$FBTC/lib"
         CLANG_DEFAULT='C:\Program Files\LLVM\bin\clang.exe'
@@ -120,6 +122,7 @@ case "$(uname -s)" in
     Linux)
         HOST=linux; EXT=""; BINSUB="bin/"
         TARGETS="linux-x86_64"
+        DEFTARGET=linux-x86_64
         FBTC="$FBC_TREE/toolchains/fbc-modern-linux"
         # fbc's LINUX install nests its runtime one level deeper: lib/freebasic/<target>.
         FBLIB="$FBTC/lib/freebasic"
@@ -481,8 +484,8 @@ fi
 # tree as packaged, per target, and the result goes into the manifest as a
 # measurement rather than a claim.
 #
-# Run from $OUT with the same relative -p paths the manifest tells a user to use,
-# so what is verified is the documented invocation and not some other one.
+# Run from $OUT passing nothing but -target -- the invocation the manifest tells a
+# user to use -- so what is verified is the documented one and not some other.
 
 VERIFY_LINES=""
 
@@ -606,18 +609,24 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"
     say "                  where there is one -- the compiler looks for all"
     say "                  three in the same directory."
-    say "lib/<target>-fb/  fbc's CRT objects and import libraries, behind"
-    say "                  ours -- NOT fbc's libfb, which tiko no longer needs"
-    say "                  (decision 0015). Absent for win64-msvc: fbc has no"
-    say "                  MSVC target and that one links without."
-    say
-    say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
-    say "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
-    say "                  the MSVC linker looks for <name>.lib and would"
-    say "                  otherwise fall back on an installed Visual Studio."
-    say "                  build/mkmsvcimplibs.sh, rerunnable on its own."
-    say
-    say "import libraries: $IMPLIB_STATE"
+    if [ "$HOST" = "windows" ]; then
+        say "lib/<target>-fb/  fbc's CRT objects and import libraries, behind"
+        say "                  ours -- NOT fbc's libfb, which tiko no longer needs"
+        say "                  (decision 0015). Absent for win64-msvc: fbc has no"
+        say "                  MSVC target and that one links without."
+        say
+        say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
+        say "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
+        say "                  the MSVC linker looks for <name>.lib and would"
+        say "                  otherwise fall back on an installed Visual Studio."
+        say "                  build/mkmsvcimplibs.sh, rerunnable on its own."
+        say
+        say "import libraries: $IMPLIB_STATE"
+    else
+        say "lib/<target>-fb/  fbc's startup objects and support libraries, behind"
+        say "                  ours -- NOT fbc's libfb, which tiko no longer needs"
+        say "                  (decision 0015)."
+    fi
     say
     say "graphics:$GFX_STATE"
     say
@@ -634,20 +643,29 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "all relative to the executable, as fbc does with inc/ and lib/<target>."
     say
     say "The -fb half has no fbc counterpart and is ours. It holds what a MinGW"
-    say "or glibc link needs from fbc's toolchain -- crt2.o and friends, which"
+    say "or glibc link needs from fbc's toolchain -- its startup objects, which"
     say "must match that toolchain -- and no runtime: tiko-rt is complete, and"
     say "the compiler names a directory's libfb.a only where there is one."
     say "OURS COMES FIRST, and that order is fixed in the compiler, not left to"
-    say "the caller. win64-msvc needs no second directory at all."
+    if [ "$HOST" = "windows" ]; then
+        say "the caller. win64-msvc needs no second directory at all."
+    else
+        say "the caller."
+    fi
     say
-    say "  tiko yourprogram.bas                  the default, win64-msvc"
+    say "  tiko yourprogram.bas                  the default, $DEFTARGET"
     for t in $TARGETS; do
         say "  tiko -target $t yourprogram.bas"
     done
     say
-    say "GRAPHICS IS win64-msvc ONLY. libtkogfx is built for the Microsoft ABI"
-    say "and there is no MinGW build of it, so a SCREEN or PSET program links"
-    say "on the default target and nowhere else. That is why it is the default."
+    if [ "$HOST" = "windows" ]; then
+        say "GRAPHICS IS win64-msvc ONLY. libtkogfx is built for the Microsoft ABI"
+        say "and there is no MinGW build of it, so a SCREEN or PSET program links"
+        say "on the default target and nowhere else. That is why it is the default."
+    else
+        say "NO GRAPHICS ON THIS HOST. libtkogfx is built for win64-msvc only, so a"
+        say "SCREEN or PSET program does not link here: fb_Gfx* are undefined."
+    fi
     say
     say "A -p of your own is searched BEFORE both, so it can override either."
     say "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."
