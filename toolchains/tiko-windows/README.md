@@ -6,15 +6,16 @@ path below is gitignored and is filled by the packaging step (see
 
 ```
 tiko-windows/
-  tiko.exe                the compiler, built Release
-  inc/                    headers reachable by -i, incl. fb/, fbgfx.bi and fbcunit.bi
+  tiko.exe                the compiler
+  inc/                    the headers, searched automatically; incl. fb/, fbgfx.bi and fbcunit.bi
   lib/
+    win64-msvc/           THE DEFAULT: tiko-rt, libtkogfx.a, libfbcunit.a and the
+                          generated MSVC import libraries (*.lib); no -fb pair, and none needed
     win64/                tiko-rt: libfb.a, libfbmt.a; libfbcunit.a
-    win64-fb/             fbc's libfb.a, the CRT objects, the import libraries
-    win64-msvc/           tiko-rt, libtkogfx.a and libfbcunit.a, for -target win64-msvc;
-                          no -fb pair, and none needed
+    win64-fb/             fbc's CRT and startup objects, libfbgfx, the MinGW
+                          import libraries -- not fbc's libfb.a
   src/fbcunit/            fbcunit's source and notices -- it is LGPL, and shipped built
-  licences/               the LGPL notices and the runtime's provenance
+  licences/               the GPL and LGPL notices and the runtime's provenance
   MANIFEST.txt            what was packaged, from where, at which commit, and
                           whether each target actually compiled and ran
 ```
@@ -36,14 +37,17 @@ reference to fb_GfxScreen` and the fix was a flag the user had to know about.
 It is also the one target with no `-fb` directory: fbc has no MSVC target so there
 is nothing to copy, and measurement says nothing is wanted -- a program linked
 against `lib/win64-msvc/` alone links, runs, and draws (`point()` reads back the
-colour that `line` wrote).
+colour that `line` wrote). Its `*.lib` files are MSVC-format import libraries,
+generated from fbc's MinGW `lib<name>.dll.a` by `build/mkmsvcimplibs.sh`, so that
+the link does not fall back on an installed Visual Studio's.
 
 `-target win64` still selects the MinGW ABI, with `lib/win64` and `lib/win64-fb`
 behind it. It has no graphics.
 
 Neither directory has to be named. The compiler appends `<exe-dir>/lib/<target>`
-and then `<exe-dir>/lib/<target>-fb` to its own library search -- ours first, so a
-single `-l` resolves out of tiko-rt before it reaches fbc's -- exactly as it appends
-`<exe-dir>/inc` to the include search. `tiko -target win64 yourprogram.bas` links.
+and then `<exe-dir>/lib/<target>-fb` to its own library search, ours first --
+exactly as it appends `<exe-dir>/inc` to the include search. tiko-rt is the whole
+runtime (decision 0015), and the `-fb` directory supplies only what a MinGW link
+needs from fbc's toolchain besides one. `tiko -target win64 yourprogram.bas` links.
 
 A `-p` of your own is searched before both, and `TKO_LIBPATH` replaces them.
