@@ -344,21 +344,21 @@ func i32 main(i32 $0, ptr $1) {
     %160 = load @$tmp22
     condbr %160, if.then20, if.else21
   if.join28:
-    call void _ZN9$TUP:6:15C1Ev(@s1)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(@s1)
     %194 = const i64 1
     %195 = trunc %194
     %196 = field.addr @s1, 0
     store %196, %195
     %197 = field.addr @s1, 8
     %198 = call.rtl ptr fb_StrAssign(%197, -1, @@$str4, 6, 0)
-    call void _ZN9$TUP:6:15C1Ev(@s2)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(@s2)
     %200 = const i64 1
     %201 = trunc %200
     %202 = field.addr @s2, 0
     store %202, %201
     %203 = field.addr @s2, 8
     %204 = call.rtl ptr fb_StrAssign(%203, -1, @@$str4, 6, 0)
-    call void _ZN9$TUP:6:15C1Ev(@s3)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(@s3)
     %206 = const i64 1
     %207 = trunc %206
     %208 = field.addr @s3, 0
@@ -577,9 +577,9 @@ func i32 main(i32 $0, ptr $1) {
     %312 = load @$tmp40
     condbr %312, if.then50, if.else51
   if.join58:
-    call void _ZN9$TUP:6:15D1Ev(@s3)
-    call void _ZN9$TUP:6:15D1Ev(@s2)
-    call void _ZN9$TUP:6:15D1Ev(@s1)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(@s3)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(@s2)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(@s1)
     %345 = const i32 0
     call.rtl void fb_End(%345)
     %346 = load @$tmp0
@@ -631,12 +631,12 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-declare void _ZN9$TUP:6:15C1Ev(ptr $0)
+declare void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
-declare void _ZN9$TUP:6:15D1Ev(ptr $0)
+declare void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(ptr $0)
 declare void fb_End(i32 $0)
-func void _ZN9$TUP:6:15C1Ev(ptr $0) {
+func void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 4)
@@ -650,7 +650,7 @@ func void _ZN9$TUP:6:15C1Ev(ptr $0) {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func void _ZN9$TUP:6:15D1Ev(ptr $0) {
+func void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call.rtl void fb_StrDelete(%1)

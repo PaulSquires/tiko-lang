@@ -726,8 +726,8 @@ function TypeOf_ _
                 tets.Push( cast( ulong, c.types->Unqualify( et ) ) )
             next
             if allTyped then
-                t = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, tets, _
-                                     c.ast->Loc( id ) )
+                t = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, tets, c.ast->Loc( id ) )
+                Tko.Mangle.RegisterTuple( *c.types, *c.names, t, tets )
             end if
         end if
 

@@ -1,0 +1,15 @@
+'' A TUPLE IS MANGLED AS fbc MANGLES IT: an instantiation of 'FBTUPLE<N>', its element
+'' types the template arguments. tiko mangled the type's STRUCTURAL KEY instead --
+'' '_ZN2NS4SUM2E8$TUP:6:6' -- whose numbers are per-module type ids, so a tuple parameter
+'' did not link against fbc's objects, nor, once an element was a UDT declared in a
+'' different order, against another tiko module. Every line below is fbc-modern's own
+'' name for the procedure, read from its object file.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/tuple-mangle.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _ZN2NS4SUM2E8FBTUPLE2IiiE
+'' EXPECT-OUT: _ZN2NS7TAKESTRE8FBTUPLE2Ii8FBSTRINGE
+'' EXPECT-OUT: _ZN2NS8TAKENESTE8FBTUPLE2I8FBTUPLE2Ii8FBSTRINGEiE
+'' EXPECT-OUT: _ZN2NS11TAKECOUNTEDE8FBTUPLE2I7COUNTEDiE
+'' EXPECT-OUT: _ZN2NS7TAKEINTE8FBTUPLE2Iu7INTEGERu7INTEGERE
+'' EXPECT-NOT: $TUP

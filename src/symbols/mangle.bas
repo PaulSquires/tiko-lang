@@ -64,11 +64,42 @@ sub RegisterInst _
     next
 end sub
 
+'' A TUPLE IS AN INSTANTIATION OF 'FBTUPLE<N>', its element types the arguments -- which
+'' is how fbc mangles one, and why two modules that both write '(long, long)' link.
+'' Measured against fbc: 'NS.Sum2( byval t as (long, long) )' is
+'' _ZN2NS4SUM2E8FBTUPLE2IiiE, '(Counted, long)''s constructor _ZN8FBTUPLE2I7COUNTEDiEC1Ev,
+'' and a nested one _ZN8FBTUPLE2I8FBTUPLE2Ii8FBSTRINGEiEC1ERKS3_. tiko named the type by
+'' its STRUCTURAL KEY, '$tup:<type id>:...', and mangled that: _ZN2NS4SUM2E8$TUP:6:6. A
+'' type id is a per-module number, so a tuple parameter compiled in one module and called
+'' from another failed to link ('$TUP:26:15'), and nothing met fbc's objects either.
+'' The key stays what it was -- it is the interning, not the name.
+sub RegisterTuple _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId, byref elemTypes as FB.Array( of ulong ) )
+
+    if t = Tko.TYPE_NONE then return
+    if elemTypes.Count = 0 then return
+    dim as Tko.InternId nm = types.types[cast( long, t )].name
+    if nm = 0 then return
+    RegisterInst( types, nm, names.GetString( "FBTUPLE" & str( elemTypes.Count ) ), elemTypes )
+end sub
+
 '' S_ is candidate 0, S0_ is candidate 1, S1_ is candidate 2: the number in the
 '' encoding is one LESS than the index, and the first candidate has none at all.
 private function SubRef( byval idx as long ) as string
     if idx = 0 then return "S_"
     return "S" & trim( str( idx - 1 ) ) & "_"
+end function
+
+'' THE SUBSTITUTION THAT REFERS BACK TO TYPE 't' once it has been encoded into 'subs': 'S_'
+'' for a plain UDT, 'S0_' for NS.T (the namespace is candidate 0), 'S1_' for
+'' Box( of string ) and for the tuple (long, string) (the template name and its argument
+'' come first). 'S_' when 't' is not a candidate at all. See mir/lowerimpl.bas, whose
+'' implicit 'operator let' and copy constructor take 'const T&'.
+function SelfRef( byref subs as Substitutions, byval t as Tko.TypeId ) as string
+    dim as long ix = subs.FindType( t )
+    if ix < 0 then return "S_"
+    return SubRef( ix )
 end function
 
 '' Itanium <source-name>: the length in decimal, then the characters.

@@ -115,9 +115,9 @@ func i32 main(i32 $0, ptr $1) {
   each.exit4:
     %29 = call.rtl ptr memset(@pairs, 0, 64)
     %30 = field.addr @pairs, 0
-    call void _ZN9$TUP:6:15C1Ev(%30)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(%30)
     %31 = field.addr @pairs, 32
-    call void _ZN9$TUP:6:15C1Ev(%31)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(%31)
     %33 = const i64 0
     %34 = const i64 2
     store @$tmp10, %33
@@ -131,14 +131,14 @@ func i32 main(i32 $0, ptr $1) {
     %39 = const i64 32
     %40 = mul %38, %39
     %41 = ptr.add @pairs, %40
-    call void _ZN9$TUP:6:15C1ERKS_(@$fe2, %41)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEC1ERKS1_(@$fe2, %41)
     %43 = field.addr @$fe2, 0
     %44 = load %43
     store @a2, %44
     %46 = field.addr @$fe2, 8
     %47 = call.rtl ptr fb_StrInit(@b2, -1, %46, -1, 0)
     call.rtl void fb_StrDelete(@b2)
-    call void _ZN9$TUP:6:15D1Ev(@$fe2)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(@$fe2)
     br each.step7
   each.step7:
     %48 = load @$tmp10
@@ -148,9 +148,9 @@ func i32 main(i32 $0, ptr $1) {
     br each.head5
   each.exit8:
     %51 = field.addr @pairs, 32
-    call void _ZN9$TUP:6:15D1Ev(%51)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(%51)
     %52 = field.addr @pairs, 0
-    call void _ZN9$TUP:6:15D1Ev(%52)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(%52)
     %53 = const i32 0
     call.rtl void fb_End(%53)
     %54 = load @$tmp0
@@ -158,13 +158,13 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare void _ZN9$TUP:6:15C1Ev(ptr $0)
-declare void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1)
+declare void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(ptr $0)
+declare void _ZN8FBTUPLE2Ii8FBSTRINGEC1ERKS1_(ptr $0, ptr $1)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void fb_StrDelete(ptr $0)
-declare void _ZN9$TUP:6:15D1Ev(ptr $0)
+declare void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(ptr $0)
 declare void fb_End(i32 $0)
-func void _ZN9$TUP:6:15C1Ev(ptr $0) {
+func void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 4)
@@ -177,7 +177,7 @@ func void _ZN9$TUP:6:15C1Ev(ptr $0) {
     store %6, 0
     ret
 }
-func void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1) {
+func void _ZN8FBTUPLE2Ii8FBSTRINGEC1ERKS1_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 4)
@@ -188,17 +188,17 @@ func void _ZN9$TUP:6:15C1ERKS_(ptr $0, ptr $1) {
     store %5, 0
     %6 = field.addr %3, 16
     store %6, 0
-    call void _ZN9$TUP:6:15aSERKS_($0, $1)
+    call void _ZN8FBTUPLE2Ii8FBSTRINGEaSERKS1_($0, $1)
     ret
 }
-declare void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1)
-func void _ZN9$TUP:6:15D1Ev(ptr $0) {
+declare void _ZN8FBTUPLE2Ii8FBSTRINGEaSERKS1_(ptr $0, ptr $1)
+func void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call.rtl void fb_StrDelete(%1)
     ret
 }
-func void _ZN9$TUP:6:15aSERKS_(ptr $0, ptr $1) {
+func void _ZN8FBTUPLE2Ii8FBSTRINGEaSERKS1_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
     %2 = field.addr $0, 0
@@ -213,7 +213,7 @@ verify: ok
 lowered: 8 functions, 16 blocks, 128 insts, 4 statements not lowered, 0 scope imbalance
   unlowered N_FOREACH 4
   inside N_FOREACH 4
-  skip-site src\mir\lowerctl.bas:207 4
+  skip-site src\mir\lowerctl.bas:213 4
 tests/diagnostics/src/foreach-errors.bas(41,1): error TKO0609: 'for each' cannot walk a fixed-length string: it carries no length
      |
   41 | for each ch in z

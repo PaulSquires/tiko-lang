@@ -70,6 +70,12 @@ namespace Tko.Mangle
     declare sub RegisterInst _
         ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
           byval spell as Tko.InternId, byref args as FB.Array( of ulong ) )
+    '' The substitution naming 't' itself, once 'subs' holds its encoding -- 'S_', 'S0_'...
+    declare function SelfRef( byref subs as Substitutions, byval t as Tko.TypeId ) as string
+    '' ...and a TUPLE type as the instantiation 'FBTUPLE<N>( of <element types> )'.
+    declare sub RegisterTuple _
+        ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId, byref elemTypes as FB.Array( of ulong ) )
 
     '' The emitted symbol name for one procedure declaration.
     declare function ProcName _

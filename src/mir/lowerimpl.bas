@@ -1115,8 +1115,9 @@ function ImplicitCtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
 end function
 
 '' 'operator let' and the COPY CONSTRUCTOR, as fbc spells them: '_ZN1TaSERKS_' and
-'' '_ZN1TC1ERKS_'. 'RKS_' is the Itanium substitution for 'const T&', which is what
-'' both take -- so neither ends in the plain 'Ev' the other two do.
+'' '_ZN1TC1ERKS_'. 'RK' + T's OWN substitution is 'const T&', which both take. It is
+'' not always 'S_': fbc writes '_ZN2NS3RECaSERKS0_', '_ZN3BoxI8FBSTRINGEaSERKS1_' and
+'' '_ZN8FBTUPLE2Ii8FBSTRINGEC1ERKS1_', and tiko wrote 'RKS_' for all three.
 function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     '' Unqualified, for the reason ImplStructorName_ gives.
     t = c.types->Unqualify( t )
@@ -1124,8 +1125,9 @@ function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     dim as Tko.Mangle.Substitutions subs
     dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
-    if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "aSERKS_"
-    return "_ZN" + code + "aSERKS_"
+    dim as string sref = Tko.Mangle.SelfRef( subs, t )
+    if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "aSERK" + sref
+    return "_ZN" + code + "aSERK" + sref
 end function
 
 function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string
@@ -1135,8 +1137,9 @@ function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string
     dim as Tko.Mangle.Substitutions subs
     dim as string code = Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
-    if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "C1ERKS_"
-    return "_ZN" + code + "C1ERKS_"
+    dim as string sref = Tko.Mangle.SelfRef( subs, t )
+    if left( code, 1 ) = "N" then return "_Z" + left( code, len( code ) - 1 ) + "C1ERK" + sref
+    return "_ZN" + code + "C1ERK" + sref
 end function
 
 function ImplicitDtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string

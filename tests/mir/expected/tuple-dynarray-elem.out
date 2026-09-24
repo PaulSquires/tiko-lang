@@ -18,24 +18,24 @@ func ptr F(ptr $0) {
     %9 = trunc %8
     store %7, %9
     %10 = alloca ptr $tmp3
-    call void _ZN9$TUP:6:23C1Ev(@$tmp3)
+    call void _ZN8FBTUPLE2Ii3DYNEC1Ev(@$tmp3)
     %11 = load @k
     %12 = field.addr @$tmp3, 0
     store %12, %11
     %13 = field.addr @$tmp3, 8
     call void _ZN3DYNC1ERKS_(%13, @d)
     %14 = load @$tmp0
-    call void _ZN9$TUP:6:23C1ERKS_(%14, @$tmp3)
-    call void _ZN9$TUP:6:23D1Ev(@$tmp3)
+    call void _ZN8FBTUPLE2Ii3DYNEC1ERKS1_(%14, @$tmp3)
+    call void _ZN8FBTUPLE2Ii3DYNED1Ev(@$tmp3)
     call void _ZN3DYND1Ev(@d)
     %15 = load @$tmp0
     ret %15
 }
 declare void _ZN3DYNC1Ev(ptr $0)
-declare void _ZN9$TUP:6:23C1Ev(ptr $0)
+declare void _ZN8FBTUPLE2Ii3DYNEC1Ev(ptr $0)
 declare void _ZN3DYNC1ERKS_(ptr $0, ptr $1)
-declare void _ZN9$TUP:6:23C1ERKS_(ptr $0, ptr $1)
-declare void _ZN9$TUP:6:23D1Ev(ptr $0)
+declare void _ZN8FBTUPLE2Ii3DYNEC1ERKS1_(ptr $0, ptr $1)
+declare void _ZN8FBTUPLE2Ii3DYNED1Ev(ptr $0)
 declare void _ZN3DYND1Ev(ptr $0)
 func void S1() {
   local agg t size 88
@@ -49,7 +49,7 @@ func void S1() {
     %6 = field.addr %5, 72
     %7 = load %6
     call.rtl void fb_PrintInt(0, %7, 1)
-    call void _ZN9$TUP:6:23D1Ev(@t)
+    call void _ZN8FBTUPLE2Ii3DYNED1Ev(@t)
     ret
 }
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
@@ -103,7 +103,7 @@ func void _ZN3DYNC1Ev(ptr $0) {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func void _ZN9$TUP:6:23C1Ev(ptr $0) {
+func void _ZN8FBTUPLE2Ii3DYNEC1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 4)
@@ -146,17 +146,17 @@ func void _ZN3DYNC1ERKS_(ptr $0, ptr $1) {
     ret
 }
 declare void _ZN3DYNaSERKS_(ptr $0, ptr $1)
-func void _ZN9$TUP:6:23C1ERKS_(ptr $0, ptr $1) {
+func void _ZN8FBTUPLE2Ii3DYNEC1ERKS1_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
     %2 = call.rtl ptr memset(%1, 0, 4)
     %3 = field.addr $0, 8
     call void _ZN3DYNC1Ev(%3)
-    call void _ZN9$TUP:6:23aSERKS_($0, $1)
+    call void _ZN8FBTUPLE2Ii3DYNEaSERKS1_($0, $1)
     ret
 }
-declare void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1)
-func void _ZN9$TUP:6:23D1Ev(ptr $0) {
+declare void _ZN8FBTUPLE2Ii3DYNEaSERKS1_(ptr $0, ptr $1)
+func void _ZN8FBTUPLE2Ii3DYNED1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
     call void _ZN3DYND1Ev(%1)
@@ -191,7 +191,7 @@ func void _ZN3DYNaSERKS_(ptr $0, ptr $1) {
 }
 declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
 declare ptr memcpy(ptr $0, ptr $1, i64 $2)
-func void _ZN9$TUP:6:23aSERKS_(ptr $0, ptr $1) {
+func void _ZN8FBTUPLE2Ii3DYNEaSERKS1_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
     %2 = field.addr $0, 0

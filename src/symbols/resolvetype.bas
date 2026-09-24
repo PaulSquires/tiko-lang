@@ -341,6 +341,7 @@ function ResolveTypeRef _
         dim as Tko.TypeId tt = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, _
                                                 elemTypes, c.ast->Loc( id ) )
         if tt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        Tko.Mangle.RegisterTuple( *c.types, *c.names, tt, elemTypes )
         c.info->SetType( id, tt )
         return tt
     end if

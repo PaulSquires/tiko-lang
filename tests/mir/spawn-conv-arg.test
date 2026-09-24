@@ -15,6 +15,6 @@
 '' EXPECT-OUT: call void _ZN4VIEWC1ER7COUNTED(
 '' EXPECT-OUT: call void _ZN4VIEWaSERKS_(
 '' EXPECT-OUT: call void _ZN8SendChanIiEC1ER7ChannelIiE(
-'' EXPECT-OUT: call void _ZN8SendChanIiEaSERKS_(
+'' EXPECT-OUT: call void _ZN8SendChanIiEaSERKS0_(
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-NOT: TKO0738
