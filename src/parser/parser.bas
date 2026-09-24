@@ -993,23 +993,23 @@ namespace Tko.Parse
 '' must keep compiling and behaving identically'. Claimed unconditionally, 'defer = 4'
 '' parsed as DEFER followed by a statement beginning with '=' and died on it.
 ''
-'' The rule is the one that file states: the keyword is claimed only when what follows
-'' BEGINS A STATEMENT. Tested from the other end -- what follows a VARIABLE of that
-'' name -- because that list is short and closed: an assignment, or a compound one.
-''
-'' A COMPOUND ASSIGNMENT IS ONE TOKEN HERE. The corpus file warns that '+=' lexes as
-'' '+' then '=' -- true of fbc, and NOT of tiko-lang, whose lexer has TK_PLUSEQ and its
-'' six siblings. Both spellings are rejected: the single tokens because that is what
-'' this lexer produces, and '<op> =' because the KEYWORD operators -- 'shl=', 'mod=' --
-'' have no fused token and do arrive as two.
+'' The keyword is claimed only when what follows BEGINS A STATEMENT, tested in that
+'' POSITIVE form as fbc's hIsDeferStmt does: a NAME, a KEYWORD other than 'as', or the
+'' end of the statement. A reject-list of assignment operators was not closed: fbc CALLS
+'' 'sub defer' for 'defer( 5 )', 'defer 5' and 'defer -1', and tiko deferred and dropped
+'' all three; 'defer( 1 ) = 3' over an array was TKO0652, and 'defer.field_ = 4' over a
+'' UDT was lost. A TYPE SUFFIX ('defer$') is never the keyword, and 'shl=' / 'mod=',
+'' which arrive here as two tokens, stay assignments -- 'defer shl= 1' assigns in fbc.
 private function DeferIsKeyword_( byref p as Tko.ParserState ) as boolean
+    if (Cur( p ).flags and Tko.TF_HAS_SUFFIX) <> 0 then return false
+    '' The statement ends at 'defer': claimed, as fbc claims it, so a bare 'defer' is
+    '' read as the statement it is rather than as a call.
     if HasTok( p, p.pos + 1 ) = false then return true
     dim as Tko.TokenKind k1 = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
-    select case k1
-    case Tko.TK_EQ, Tko.TK_PLUSEQ, Tko.TK_MINUSEQ, Tko.TK_STAREQ, _
-         Tko.TK_SLASHEQ, Tko.TK_BSLASHEQ, Tko.TK_CARETEQ, Tko.TK_AMPEQ
-        return false
-    end select
+    if k1 = Tko.TK_EOL then return true
+    if k1 = Tko.TK_IDENT then return true
+    if Tko.IsKeywordKind( k1 ) = false then return false
+    if k1 = Tko.KW_AS then return false
 
     dim as boolean opIsBin = false
     select case k1

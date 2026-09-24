@@ -1,0 +1,13 @@
+'' 'defer' IS THE KEYWORD ONLY WHEN A STATEMENT FOLLOWS -- a name or a keyword, or the
+'' end of the statement -- which is fbc's own positive test. tiko tested it as a
+'' reject-list of assignment operators instead, so with 'sub defer( byval n as long )'
+'' declared it claimed 'defer( 5 )', 'defer 6' and 'defer -7' as DEFER statements and
+'' dropped them without a diagnostic, where fbc calls the sub for all three. An array
+'' named defer, 'defer( 1 ) = 3', was TKO0652, and a UDT named defer lost
+'' 'defer.field_ = 4'. The golden has the three calls, the one real DEFER, the element
+'' store and the member store -- and nothing declined.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/defer-sub-call.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/defer-sub-call.out

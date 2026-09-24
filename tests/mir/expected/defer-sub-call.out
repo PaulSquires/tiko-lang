@@ -1,0 +1,90 @@
+global str $str0 "called"
+global str $str1 "body"
+global str $str2 "deferred"
+func void DEFER(i32 $0) {
+  local i32 n
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 6)
+    call.rtl void fb_PrintString(0, %2, 0)
+    %3 = load @n
+    call.rtl void fb_PrintInt(0, %3, 1)
+    ret
+}
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+func void CALLS() {
+  entry0:
+    %1 = const i64 5
+    %2 = trunc %1
+    call void DEFER(%2)
+    %3 = const i64 6
+    %4 = trunc %3
+    call void DEFER(%4)
+    %5 = const i64 7
+    %6 = neg %5
+    %7 = trunc %6
+    call void DEFER(%7)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
+    call.rtl void fb_PrintString(0, %8, 1)
+    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 8)
+    call.rtl void fb_PrintString(0, %9, 1)
+    ret
+}
+func void ARRAYNAMEDDEFER() {
+  local agg defer size 12
+  entry0:
+    %1 = alloca ptr defer
+    %2 = call.rtl ptr memset(@defer, 0, 12)
+    %3 = const i64 1
+    %4 = const i64 4
+    %5 = mul %3, %4
+    %6 = ptr.add @defer, %5
+    %7 = const i64 3
+    %8 = trunc %7
+    store %6, %8
+    %9 = const i64 1
+    %10 = const i64 4
+    %11 = mul %9, %10
+    %12 = ptr.add @defer, %11
+    %13 = load %12
+    call.rtl void fb_PrintInt(0, %13, 1)
+    ret
+}
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+func void UDTNAMEDDEFER() {
+  local agg defer size 4
+  entry0:
+    %1 = alloca ptr defer
+    %2 = call.rtl ptr memset(@defer, 0, 4)
+    %3 = field.addr @defer, 0
+    %4 = const i64 4
+    %5 = trunc %4
+    store %3, %5
+    %6 = field.addr @defer, 0
+    %7 = load %6
+    call.rtl void fb_PrintInt(0, %7, 1)
+    ret
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    call void CALLS()
+    call void ARRAYNAMEDDEFER()
+    call void UDTNAMEDDEFER()
+    %4 = const i32 0
+    call.rtl void fb_End(%4)
+    %5 = load @$tmp0
+    ret %5
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 5 functions, 5 blocks, 55 insts, 0 statements not lowered, 0 scope imbalance
