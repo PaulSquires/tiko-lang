@@ -1,0 +1,7 @@
+'' A member of a UDT returned by value through a procedure pointer: as a SELECT subject,
+'' an initialiser, an IF condition and an operand. See the src file.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/procptr-udt-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered

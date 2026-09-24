@@ -391,6 +391,33 @@ function LowerAddr _
                                                             bl->first, bl->count, MT_PTR, _
                                                             true )
                         if iv.kind <> cast( ubyte, MV_NONE ) then return iv
+                    elseif c.types->Kind( c.types->Unqualify( srt2 ) ) = Tko.TK_UDT then
+                        '' ...AND A UDT RESULT BY VALUE, as a named function's is below:
+                        '' through a hidden pointer the call's value is the temporary's
+                        '' address, and in registers it is stored into one. Neither was
+                        '' here, so 'p->fn( 7 ).kind' had no address -- a SELECT on it
+                        '' vanished and 'dim v = fp( 5 ).kind' read the stack. The C
+                        '' importer's own 'x.api->getCanonicalType( t ).kind' found it.
+                        if UsesSretReturn( c, srt2 ) then
+                            dim as MirValue sv = LowerCallParts( c, bl->target, bcal, _
+                                                                bl->first, bl->count, MT_PTR, _
+                                                                true )
+                            if sv.kind <> cast( ubyte, MV_NONE ) then return sv
+                        else
+                            dim as MirValue rv = LowerCallParts( c, bl->target, bcal, _
+                                                                bl->first, bl->count, MT_AGG )
+                            if rv.kind <> cast( ubyte, MV_NONE ) then
+                                dim as long rslot = NewTempLocal( c, MT_AGG, SizeOfType( c, srt2 ) )
+                                if rslot >= 0 then
+                                    dim as MirValue ra
+                                    ra.kind = cast( ubyte, MV_LOCAL )
+                                    ra.ty = cast( ubyte, MT_PTR )
+                                    ra.id = rslot
+                                    StoreThrough( c, ra, rv )
+                                    return ra
+                                end if
+                            end if
+                        end if
                     end if
                 end if
             end if
