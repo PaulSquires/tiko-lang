@@ -53,9 +53,7 @@
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
 #include once "inc/thread.bi"
-#include once "crt/stdio.bi"
-#include once "crt/string.bi"
-#include once "crt/wchar.bi"
+#include once "inc/sysbind.bi"
 
 '' NOT `TKORT_EOF`: FreeBASIC's own crt/stdio.bi ALREADY defines it, as
 '' `#define TKORT_EOF (-1)` -- the same trailing-underscore convention this project

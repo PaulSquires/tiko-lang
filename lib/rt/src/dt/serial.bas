@@ -30,8 +30,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/dt.bi"
-#include once "crt/string.bi"
-#include once "crt/math.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: fb_datetime.h declares these plain; win32 must not decorate.
 declare function tkrt_TimeLeap alias "fb_hTimeLeap" ( byval year as long ) as long

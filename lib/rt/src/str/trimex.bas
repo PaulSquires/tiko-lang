@@ -59,7 +59,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
 #include once "inc/wstr.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: the string internals, declared plain in fb_string.h.
 	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _

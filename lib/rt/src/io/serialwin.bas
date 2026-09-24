@@ -61,8 +61,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/rterror.bi"
 #include once "inc/file.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef __FB_WIN32__
 

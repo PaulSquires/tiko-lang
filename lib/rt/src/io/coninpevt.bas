@@ -83,9 +83,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/console.bi"
 #include once "inc/iolock.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/ctype.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef __FB_WIN32__
 

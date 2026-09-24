@@ -24,9 +24,7 @@
 '' returns at all in that case: on success it never comes back.
 
 #include once "inc/rterror.bi"
-#include once "crt/setjmp.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 type GOSUBNODE
 	as jmp_buf          buf

@@ -25,7 +25,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/fserror.bi"
 #include once "inc/fspath.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 	declare function tkrt_FsReadWhole alias "fb_UStrFsReadWhole" _

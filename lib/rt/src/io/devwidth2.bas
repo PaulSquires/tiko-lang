@@ -45,8 +45,7 @@
 #include once "inc/ctx.bi"
 #include once "inc/file.bi"
 #include once "inc/rterror.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' The per-device record. FB_LISTELEM must come FIRST: the list threads through
 '' it, and fb_hListDynElemAdd is handed the address of that member, so a node

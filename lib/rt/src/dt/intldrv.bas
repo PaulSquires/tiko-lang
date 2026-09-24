@@ -58,8 +58,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_datetime.h's eFbIntlIndex.
 const eFIL_DateDivider           = 0

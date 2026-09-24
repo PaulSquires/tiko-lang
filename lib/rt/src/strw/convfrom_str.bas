@@ -14,8 +14,7 @@
 '' text survived.
 
 #include once "inc/descriptors.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"     '' mbstowcs
+#include once "inc/sysbind.bi"
 
 
 '' mbstowcs failed -- translate at least the ASCII and write '?' for the rest.

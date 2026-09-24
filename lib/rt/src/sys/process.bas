@@ -39,7 +39,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
 #include once "inc/iolock.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' See the file header. windows.h's value on Windows, fb.h's elsewhere.
 #ifdef __FB_WIN32__

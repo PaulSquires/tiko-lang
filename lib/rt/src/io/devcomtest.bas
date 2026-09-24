@@ -35,7 +35,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: libc's case-insensitive compare, spelled
              '' `strncasecmp` on POSIX and `_strnicmp` in MSVCRT -- but MinGW

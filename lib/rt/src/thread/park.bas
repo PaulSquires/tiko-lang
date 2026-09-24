@@ -32,7 +32,7 @@
 '' interval shorter than that.
 
 #include once "inc/thread.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 

@@ -25,7 +25,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 const TKORT_UTF_GROW = 8
 const TKORT_UTF_SUBST = 63          '' '?'

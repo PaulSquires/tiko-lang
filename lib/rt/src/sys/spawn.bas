@@ -45,8 +45,7 @@
 #include once "inc/ctx.bi"
 #include once "inc/console.bi"
 #include once "inc/print.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' fb.h's MAX_PATH, which is fbc's own 1024 and NOT Windows' 260.
 const TKORT_EXEC_MAXPATH = 1024

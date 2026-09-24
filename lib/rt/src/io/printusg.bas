@@ -43,7 +43,7 @@
 #include once "inc/wstr.bi"
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 const BUFFERLEN   = 2048
 const MIN_EXPDIGS = 3

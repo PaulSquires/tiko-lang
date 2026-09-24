@@ -25,9 +25,7 @@
 #include once "inc/profile.bi"
 #include once "inc/iolock.bi"
 #include once "inc/fmt.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 
 '' THE CALL-COUNT FORMAT IS A REPRODUCED fbc BUG, AND IT DIFFERS BY PLATFORM.
 ''

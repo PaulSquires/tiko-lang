@@ -29,9 +29,7 @@
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
 #include once "inc/fmt.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/time.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: fb_hGetExeName is declared plain in fb_system.h.
 	declare function tkrt_GetExeName alias "fb_hGetExeName" _

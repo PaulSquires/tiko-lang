@@ -21,8 +21,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
 #include once "inc/iolock.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' The SCREEN device's opaque block: a small pushback buffer for INPUT.
 type DEV_SCRN_INFO

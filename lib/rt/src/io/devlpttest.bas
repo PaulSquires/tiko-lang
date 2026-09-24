@@ -38,8 +38,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_printer.h. `char raw[]` is a flexible array member, so the type here is the
 '' header alone and the copy lives immediately after it.

@@ -49,7 +49,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/console.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' FreeBASIC's TRUE is -1, and every predicate in this runtime returns it.
 const TKORT_FB_TRUE  = -1

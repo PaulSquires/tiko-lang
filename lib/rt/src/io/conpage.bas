@@ -35,8 +35,7 @@
 #include once "inc/console.bi"
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long

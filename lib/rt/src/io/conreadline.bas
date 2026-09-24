@@ -61,7 +61,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/iolock.bi"
 #include once "inc/print.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' FB_EXT_CHAR is (char)255, and FB_MAKE_EXT_KEY puts the identifying byte ABOVE
 '' it -- see the file header on why this is not the byte order Inkey returns.

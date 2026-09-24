@@ -50,7 +50,7 @@
 #include once "inc/file.bi"
 #include once "inc/ctx.bi"
 #include once "inc/rterror.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: libc's case-insensitive compares. MinGW provides the
              '' POSIX names on Windows too, so one declaration serves all three

@@ -28,7 +28,7 @@
 '' and why swapping the mutex for a critical section would break this file too.
 
 #include once "inc/thread.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 

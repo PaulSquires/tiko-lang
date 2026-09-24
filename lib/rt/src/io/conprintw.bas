@@ -53,9 +53,7 @@
 #include once "inc/iolock.bi"
 #include once "inc/print.bi"
 #include once "inc/file.bi"
-#include once "crt/stdio.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: rtlib internals, all declared plain.
 	declare function tkrt_wstr_ConvToA alias "fb_wstr_ConvToA" _

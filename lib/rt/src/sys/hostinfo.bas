@@ -37,7 +37,7 @@
 '' returns early, on both platforms and in fbc too.
 
 #include once "inc/descriptors.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef __FB_WIN32__
 

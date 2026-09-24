@@ -16,8 +16,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/wstr.bi"
 #include once "inc/ctx.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"      '' wcstombs
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: fb_unicode.h declares both converters plainly.
 	declare function tkrt_ConvFromA alias "fb_wstr_ConvFromA" _

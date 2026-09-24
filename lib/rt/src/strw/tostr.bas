@@ -21,8 +21,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/wstr.bi"
-#include once "crt/string.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 #include once "inc/fmt.bi"
 
 '' The widening step. The source is ASCII, so each byte becomes one code unit

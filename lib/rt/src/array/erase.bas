@@ -36,8 +36,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_array.h: void (*)( void * ), cdecl.
 type FB_DEFCTOR as sub cdecl ( byval this_ as any ptr )

@@ -57,8 +57,7 @@
 #include once "inc/file.bi"
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' DEV_LPT_INFO and DEV_LPT_PROTOCOL, from fb_printer.h. Both are spelled again
 '' here rather than shared through inc/, matching src/io/devlptio.bas and

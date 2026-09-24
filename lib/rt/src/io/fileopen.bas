@@ -44,8 +44,7 @@
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
 #include once "inc/ctx.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_file.h.
 const FB_FILE_ACCESS_ANY       = 0

@@ -30,7 +30,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/dt.bi"
 #include once "inc/rterror.bi"
-#include once "crt/math.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: helpers, declared plain in fb_datetime.h.
 declare function tkrt_TimeDaysInMonth alias "fb_hTimeDaysInMonth" _

@@ -42,9 +42,7 @@
 #include once "inc/file.bi"
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdio.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 const FB_FILE_ACCESS_ANY       = 0
 const FB_FILE_ACCESS_READWRITE = 3

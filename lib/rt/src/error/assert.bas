@@ -19,7 +19,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
 #include once "inc/fmt.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 	declare sub tkrt_End alias "fb_End" ( byval errlevel as long )

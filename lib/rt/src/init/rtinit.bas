@@ -66,9 +66,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
 #include once "inc/file.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 
 '' LC_CTYPE, measured with a C probe against each platform's own headers. See
 '' the file header on why guessing this one is unusually dangerous.

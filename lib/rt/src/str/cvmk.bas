@@ -25,7 +25,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 	declare function tkrt_AllocTemp alias "fb_hStrAllocTemp" _

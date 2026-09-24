@@ -18,7 +18,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: fb_file.h declares both of these plain.
 

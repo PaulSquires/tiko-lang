@@ -44,7 +44,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/console.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: fb_private_console.h declares this one plainly, and
              '' the win32 archive confirms no `@N`.

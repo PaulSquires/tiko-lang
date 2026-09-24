@@ -48,7 +48,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/console.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' fb.h's FB_EXT_CHAR, spelled as a byte -- it is `((char)255)` there, which is
 '' -1 on a signed-char platform and 255 on an unsigned one. Comparing as UBYTE

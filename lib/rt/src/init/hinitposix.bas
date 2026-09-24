@@ -89,9 +89,7 @@
 '' opaque `ubyte` for the modules that MIRROR the struct through byte offsets;
 '' this file DEFINES the real object, and having both in scope is a
 '' redefinition of the global. Everything needed from it is spelled out below.
-#include once "crt/stdio.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifndef __FB_WIN32__
 

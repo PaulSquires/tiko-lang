@@ -39,7 +39,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/console.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' Owned by tiko-rt already, in io/viewhlp.bas.
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.

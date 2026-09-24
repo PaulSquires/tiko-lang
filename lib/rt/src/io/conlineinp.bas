@@ -49,7 +49,7 @@
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
 #include once "inc/thread.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_print.h.
 const FB_PRINT_NEWLINE      = 1

@@ -26,8 +26,7 @@
 '' integer: rint, not a cast. INPUT of "2.7" into an INTEGER gives 3.
 
 #include once "inc/descriptors.bi"
-#include once "crt/math.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 const FB_RTERROR_OK = 0
 const FB_INPUT_MAXINTLEN  = 9

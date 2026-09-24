@@ -26,8 +26,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
-#include once "crt/string.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 #include once "inc/fmt.bi"
 
 extern "rtlib"

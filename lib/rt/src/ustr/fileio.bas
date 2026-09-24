@@ -51,8 +51,7 @@
 #include once "inc/config.bi"
 #include once "inc/console.bi"
 #include once "inc/thread.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_file.h. The tokenisers bound a token at this, so a ustring is neither more
 '' nor less capable than a wstring here.

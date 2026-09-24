@@ -21,7 +21,7 @@
 '' subtracting one FB_TLS_CTX_HEADER, never by subtracting a hardcoded 8.
 
 #include once "inc/thread.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' The key table. NOT thread-local itself -- it holds the KEYS, and the keys are
 '' process-wide by construction.

@@ -1,0 +1,81 @@
+#ifndef __TKORT_SYSBIND_BI__
+#define __TKORT_SYSBIND_BI__
+
+'' sysbind.bi -- tiko-rt's C library: the binding generated for the target, and the three
+'' things no importer can carry.
+''
+'' THE BINDING IS tiko's OWN (decision 0016, phase E). lib/rt/build/genbind.sh imports the
+'' C headers in lib/rt/build/sysbind.h with tiko's -cimport and keeps what the runtime's
+'' sources name: src/inc/sysbind/win64.bi from MinGW-w64's headers, linux-x86_64.bi from
+'' glibc's. Until this, tiko-rt included fbc's crt/*.bi, 61 of whose 80 headers may not be
+'' redistributed -- the reason a toolchain could not be published (0015 §2.4). crt/long.bi,
+'' which carries no such notice, is the one fbc header the binding still names.
+''
+'' win64-msvc builds from the win64 binding -- fbc compiles it AS win64 -- with the streams
+'' re-pointed below, as they always were. No Microsoft-derived text is committed.
+''
+'' THE RESIDUE is written here, from measurement, not taken from any header:
+''
+''   the streams   a macro over a call on Windows (MinGW's FILE array, the UCRT's accessor)
+''                 and three variables on Linux
+''   errno         a macro over a call on every target
+''   jmp_buf       C's is an ARRAY type, which FreeBASIC has no typedef for; its size and
+''                 alignment were measured with clang: 256 bytes and 16 on both Windows
+''                 ABIs, 200 and 8 on x86-64 glibc. The GOSUB stack aligns its own copy
+''                 to 16 (ctrl/gosub.bas). longjmp is declared against it.
+
+#if defined( __FB_LINUX__ )
+	#include once "inc/sysbind/linux-x86_64.bi"
+#else
+	#include once "inc/sysbind/win64.bi"
+#endif
+
+extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
+
+#if defined( __FB_LINUX__ )
+
+	extern stdin alias "stdin" as FILE ptr
+	extern stdout alias "stdout" as FILE ptr
+	extern stderr alias "stderr" as FILE ptr
+
+	declare function __errno_location( ) as long ptr
+	#define errno (*__errno_location( ))
+
+	type jmp_buf
+		__opaque( 0 to 24 ) as ulongint     '' 200 bytes
+	end type
+
+#else
+
+	#ifdef TKORT_MSVC
+		'' THE UCRT HAS NO __iob_func. It exports one stream per call from
+		'' __acrt_iob_func( n ) -- the Windows SDK's corecrt_wstdio.h defines stdout as
+		'' __acrt_iob_func( 1 ) -- and its FILE is not MinGW's 48 bytes, so the stream
+		'' is taken from the call and never by indexing an array. TKORT_MSVC comes from
+		'' build.sh: fbc compiles win64-msvc as win64, and nothing else tells them apart.
+		declare function tkrt_acrt_iob alias "__acrt_iob_func" ( byval ix as ulong ) as FILE ptr
+		#define stdin  tkrt_acrt_iob( 0 )
+		#define stdout tkrt_acrt_iob( 1 )
+		#define stderr tkrt_acrt_iob( 2 )
+	#else
+		'' MinGW's msvcrt hands out the base of a FILE array; the streams are entries 0-2.
+		declare function __iob_func( ) as FILE ptr
+		#define stdin  (@(__iob_func( ))[0])
+		#define stdout (@(__iob_func( ))[1])
+		#define stderr (@(__iob_func( ))[2])
+	#endif
+
+	declare function _errno( ) as long ptr
+	#define errno (*_errno( ))
+
+	type jmp_buf
+		__opaque( 0 to 31 ) as ulongint     '' 256 bytes
+	end type
+
+#endif
+
+declare sub longjmp( byval env as jmp_buf ptr, byval value as long )
+
+end extern
+
+#endif '' __TKORT_SYSBIND_BI__

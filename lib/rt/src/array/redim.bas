@@ -43,9 +43,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
-#include once "crt/stdarg.bi"
+#include once "inc/sysbind.bi"
 
 type FB_DEFCTOR as sub cdecl ( byval this_ as any ptr )
 type FB_DTORMULT as sub cdecl ( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval base_idx as uinteger )

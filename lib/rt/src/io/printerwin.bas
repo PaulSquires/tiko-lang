@@ -97,9 +97,7 @@
 #include once "inc/rterror.bi"
 #include once "inc/list.bi"
 #include once "inc/conhooks.bi"
-#include once "crt/stdio.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef __FB_WIN32__
 

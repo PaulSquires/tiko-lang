@@ -36,7 +36,7 @@
 #include once "inc/file.bi"
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' DEV_LPT_INFO, from fb_printer.h. driver_opaque IS FIRST BY CONTRACT -- the
 '' platform driver casts this straight to its own structure, so nothing may be

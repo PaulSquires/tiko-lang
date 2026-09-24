@@ -250,6 +250,21 @@ for f in $(srcfiles) $(find build -name '*.sh' 2>/dev/null); do
     fi
 done
 
+# ------------------------------------------------------------ fbc's crt/
+#
+# THE C LIBRARY IS tiko-rt's OWN: src/inc/sysbind.bi, generated with tiko's -cimport
+# (decision 0016, phase E). 61 of the 81 headers under fbc's crt/ may not be
+# redistributed, and a runtime that includes them cannot be published. crt/long.bi, which
+# carries no such notice, is the one allowed -- the binding uses its clong and culong.
+# windows.bi went with them: it declared nothing the runtime used.
+crt_hits=$(grep -rnE '#include[^"]*"(crt/|windows\.bi")' "$RT_ROOT/src" --include=*.bas --include=*.bi \
+           | grep -v '"crt/long.bi"' | grep -vE "^[^:]*:[0-9]+:[[:space:]]*''" | head -3)
+if [ -n "$crt_hits" ]; then
+    echo "lint: an fbc crt/ header or windows.bi is included -- use inc/sysbind.bi (only crt/long.bi may be named)" >&2
+    echo "$crt_hits" | sed 's/^/    /' >&2
+    fails=$((fails + 1))
+fi
+
 # ------------------------------------------------------------------ verdict
 
 if [ -f "$RT_ROOT/obj/.lintfail" ]; then

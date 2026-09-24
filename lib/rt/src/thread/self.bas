@@ -29,7 +29,7 @@
 '' read-modify-write, exactly as in fbc.
 
 #include once "inc/thread.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef ENABLE_MT
 	dim shared as FBMUTEX ptr tkort_threadFlagMutex

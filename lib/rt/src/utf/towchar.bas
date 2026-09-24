@@ -40,8 +40,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
 #include once "inc/wstr.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 const TKORT_UTF_GROW = 8
 

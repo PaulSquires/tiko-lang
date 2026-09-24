@@ -135,10 +135,7 @@
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
 #include once "inc/ctx.bi"
-#include once "crt/stdio.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
-#include once "crt/math.bi"
+#include once "inc/sysbind.bi"
 
 '' floor( log10( 2^64 ) ) -- the most decimal digits an unsigned 64-bit integer
 '' can hold, and the point past which the fixed part is scaled instead.

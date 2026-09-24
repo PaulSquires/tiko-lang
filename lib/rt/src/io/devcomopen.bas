@@ -61,9 +61,7 @@
 #include once "inc/file.bi"
 #include once "inc/rterror.bi"
 #include once "inc/iolock.bi"
-#include once "crt/stdio.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' FB_SERIAL_PARITY and FB_SERIAL_STOP_BITS, from fb_serial.h. Plain C enums, so
 '' they count from zero in declaration order.

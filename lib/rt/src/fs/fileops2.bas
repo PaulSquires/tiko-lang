@@ -42,8 +42,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdio.bi"
-#include once "crt/errno.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_file.h. A BITMASK, and not in mode order -- see the file header.
 const FB_FILE_ATTR_MODE_INPUT  = 1

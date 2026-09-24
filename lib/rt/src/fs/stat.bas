@@ -33,8 +33,7 @@
 #include once "inc/fsdefs.bi"
 #include once "inc/fserror.bi"
 #include once "inc/fspath.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long

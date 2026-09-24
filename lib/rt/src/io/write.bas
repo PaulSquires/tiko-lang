@@ -35,7 +35,7 @@
 #include once "inc/fmt.bi"
 #include once "inc/wstr.bi"
 #include once "inc/iolock.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: the device-layer writers, declared plain in fb_print.h.
 	declare function tkrt_PrintBufferEx alias "fb_hFilePrintBufferEx" _

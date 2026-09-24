@@ -34,7 +34,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/iolock.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: the internal temp-descriptor helper.
 	declare sub tkrt_StrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )

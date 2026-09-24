@@ -56,8 +56,7 @@
 #include once "inc/ctx.bi"
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdio.bi"
-#include once "crt/time.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_datetime.h. FB_WEEK_DAY_SYSTEM means "ask the OS", which fbc has never
 '' implemented -- it falls back to the default, and so does this.

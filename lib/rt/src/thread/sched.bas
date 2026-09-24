@@ -82,7 +82,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/thread.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 '' Grow the pool after this many consecutive starved ticks, at this interval.
 const FB_SCHED_TICK_MS_      = 50

@@ -45,7 +45,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/rterror.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' MEASURED, per platform, with a C probe -- see the file header. A shared table
 '' sized to the wrong NSIG indexes out of bounds.

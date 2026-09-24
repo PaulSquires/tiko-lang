@@ -24,7 +24,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef ENABLE_MT
 	extern "rtlib"

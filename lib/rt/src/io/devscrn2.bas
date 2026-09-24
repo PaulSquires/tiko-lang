@@ -39,8 +39,7 @@
 #include once "inc/file.bi"
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' FB_FILE_ACCESS_READWRITE is READ or WRITE -- fb_file.h's two bits, not a
 '' value of its own.

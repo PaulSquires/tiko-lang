@@ -28,7 +28,7 @@
 '' next REDIM then allocates the wrong shape.
 
 #include once "inc/descriptors.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 '' NON-FBCALL: fb_array.h declares the two calc helpers plain.
 extern "c"   '' NON-FBCALL: internal helpers, no FBCALL marker in fb_array.h.

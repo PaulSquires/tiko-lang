@@ -17,7 +17,7 @@
 '' they are plain cdecl on every target and carry no @N on win32.
 
 #include once "inc/descriptors.bi"
-#include once "crt/string.bi"      '' memcpy, memmove, memset
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: fb_ustring.h declares all ten without FBCALL.
 

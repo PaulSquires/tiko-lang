@@ -54,8 +54,7 @@
 #include once "inc/iolock.bi"
 #include once "inc/list.bi"
 #include once "inc/fmt.bi"
-#include once "crt/string.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: the handle-taking and device-layer forms.
 	declare sub tkrt_DevScrnInitNoOpen alias "fb_DevScrnInit_NoOpen" ( )

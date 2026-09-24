@@ -49,8 +49,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: the h-prefixed internals and the Intl lookups.
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long

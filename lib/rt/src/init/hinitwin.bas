@@ -74,7 +74,7 @@
 '' and that is not redundant: fb_hInit is reachable more than once through the
 '' RUN/CHAIN path, where the previous run's handles are still sitting in it.
 
-#include once "crt/string.bi"      '' memset
+#include once "inc/sysbind.bi"
 #include once "inc/thread.bi"      '' TKORT_CRITSEC_SIZE, w_*CriticalSection
 
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )

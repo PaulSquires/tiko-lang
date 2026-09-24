@@ -19,7 +19,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
 #include once "inc/wstr.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef ENABLE_MT
 	extern "rtlib"

@@ -50,7 +50,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ctx.bi"
 #include once "inc/thread.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 const TKORT_DIR_MAX_PATH = 1024      '' fb.h's MAX_PATH, which is NOT Windows'
                                      '' 260 -- fbc defines its own.

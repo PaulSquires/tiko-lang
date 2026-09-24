@@ -42,7 +42,7 @@
 #include once "inc/file.bi"
 #include once "inc/iolock.bi"
 #include once "inc/rterror.bi"
-#include once "crt/stdio.bi"
+#include once "inc/sysbind.bi"
 
 '' fb_hook.h's table, by index. The five used here continue the run that
 '' inc/ctx.bi already covers.

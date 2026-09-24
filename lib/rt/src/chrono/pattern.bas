@@ -24,7 +24,7 @@
 '' Literal text goes in single quotes, or behind a backslash.
 
 #include once "inc/chrono.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 const DT_PAT_OFFSET_UNSPECIFIED = 32767
 const DT_PAT_ERR = -1

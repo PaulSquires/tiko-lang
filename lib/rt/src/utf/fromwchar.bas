@@ -35,8 +35,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/file.bi"
 #include once "inc/wstr.bi"
-#include once "crt/stdlib.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 const UTF8_BYTEMASK        = &h000000BFu
 const UTF8_BYTEMARK        = &h00000080u

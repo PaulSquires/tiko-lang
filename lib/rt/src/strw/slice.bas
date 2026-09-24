@@ -13,7 +13,7 @@
 
 #include once "inc/descriptors.bi"
 #include once "inc/wstr.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 extern "rtlib"
 

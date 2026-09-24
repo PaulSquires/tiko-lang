@@ -33,7 +33,7 @@
 #include once "inc/file.bi"
 #include once "inc/print.bi"
 #include once "inc/fmt.bi"
-#include once "crt/string.bi"
+#include once "inc/sysbind.bi"
 
 #ifdef ENABLE_MT
 	extern "rtlib"

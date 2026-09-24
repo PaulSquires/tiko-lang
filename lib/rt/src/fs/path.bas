@@ -37,7 +37,7 @@
 #include once "inc/descriptors.bi"
 #include once "inc/ustr.bi"
 #include once "inc/fspath.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 extern "c"   '' NON-FBCALL: the ustring helpers, declared plain in fb_ustring.h.
 	declare sub tkrt_UStrCopy2 alias "fb_hUStrCopy" _

@@ -26,7 +26,7 @@
 '' those waits can never be satisfied.
 
 #include once "inc/thread.bi"
-#include once "crt/stdlib.bi"
+#include once "inc/sysbind.bi"
 
 type FB_THREADPROC as sub cdecl ( byval param as any ptr )
 
