@@ -32,7 +32,7 @@ defer( 5 )
 
 fbc calls the sub and tiko does not. The statement is dropped **without a diagnostic**; only `--dump-ir` shows it, as `1 statements not lowered`. The paren-less `defer 5` behaves the same way. Measured 2026-09-24 at 50c71751. Rename the sub.
 
-**Channels passed through `spawn` misbehave.** Spawning a procedure whose parameter is a `SendChan` or `RecvChan`, with a `Channel` argument, crashes with an access violation; a direct call works. `for each` over a `Channel( of string )` yields empty strings. Measured 2026-09-24 at 50c71751.
+**`for each` over a `Channel( of string )` misbehaves.** It yields empty strings, and it crashes the [Goroutines Tutorial](Modern-Goroutines-Tutorial)'s worker pool (ex07) and pipeline (ex12); a `while ch.Receive( s )` loop over the same channel is right, and with one those two programs print what fbc's builds print. Measured 2026-09-24 on win64-msvc.
 
 **tiko accepts some programs that fbc rejects.** Each of these compiles under tiko and stops fbc with the error shown (measured 2026-09-24 at 50c71751):
 

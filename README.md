@@ -81,9 +81,8 @@ what differs from fbc.
 **Known gaps.** Measured 2026-09-24 at 50c71751 against fbc-modern's builds of the same programs,
 and listed with the rest on [Compatibility](wiki/Compatibility.md):
 
-- **Channels passed through `spawn` misbehave.** Spawning a procedure whose parameter is a
-  `SendChan` or `RecvChan`, with a `Channel` argument, crashes with an access violation. `for each`
-  over a `Channel( of string )` yields empty strings.
+- **`for each` over a `Channel( of string )`** yields empty strings, and the goroutines
+  tutorial's worker pool and pipeline crash on it.
 - **A call to a sub named `defer`** (`defer( 5 )` or `defer 5`) is dropped without a diagnostic.
 - **tiko accepts some programs fbc rejects:**
   - `len( FB.Replace( ... ) )` (fbc error 42)

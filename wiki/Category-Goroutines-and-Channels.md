@@ -458,7 +458,7 @@ tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/m
 
 The library is measured with fbc's own fbcunit suites, built by both compilers with -mt and the results compared: all three concurrency/ suites print what fbc's builds print (HANDOFF section 9f, 2026-09-21).
 
-The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, win64-msvc), show two more differences.  Spawning a procedure whose parameter is a SendChan or RecvChan, with a Channel argument, crashes -- an access violation, now and then a hang -- the example at the top of this page among them, part-way through its output.  And 'for each' over a Channel( of string ) yields empty strings.  The other programs, the ones that use 'select channel' among them, print what fbc's builds print.
+The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, win64-msvc), show one more difference: 'for each' over a Channel( of string ) yields empty strings, and the worker pool (ex07) and the pipeline (ex12) crash on it.  The other programs print what fbc's builds print -- the example at the top of this page and the ones that use 'select channel' among them, and ex10 up to the number of hits it gets before its deadline, which depends on timing.  Spawning a procedure whose parameter is a SendChan or RecvChan with a Channel argument works: the argument is converted the way a call converts it (measured 2026-09-24 again, after that fix).
 
 Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the headers and the runtime are in it:
 
