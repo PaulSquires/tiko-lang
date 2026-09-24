@@ -1,0 +1,21 @@
+'' FOR EACH OVER AN ITERATOR WHOSE Value( ) RETURNS A STRING. A string function hands back
+'' a pointer to a TEMPORARY descriptor, and the iterator walk asked for the element type's
+'' MirType -- an aggregate with no size of its own -- and STORED it into the loop
+'' variable. At module level clang refused the module ('%t11' defined with type
+'' '[0 x i8]' but expected '[24 x i8]'); inside a procedure every element came out empty,
+'' and the goroutines tutorial's worker pool and pipeline, which walk a
+'' Channel( of string ), crashed. Now the element is fb_StrInit'd from the call, as the
+'' array path does it, and released each iteration.
+''
+'' The source covers the four shapes, each measured against fbc: a by-value Value( )
+'' in and out of a procedure, 'exit for', a BYREF Value( ) (a copy: writing the loop
+'' variable leaves the collection alone), and a USTRING Value( ).
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/foreach-str-value.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call.rtl ptr fb_StrInit(@s, -1,
+'' EXPECT-OUT: call.rtl void fb_StrDelete(@s)
+'' EXPECT-OUT: call.rtl ptr fb_UStrInit(@x, -1,
+'' EXPECT-OUT: call.rtl void fb_UStrDelete(@x)
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: call agg _ZN5SITER5VALUEEv

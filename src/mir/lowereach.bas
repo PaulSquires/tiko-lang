@@ -206,6 +206,56 @@ function LowerForEachIter _
         return true
     end if
 
+    '' A STRING ELEMENT IS INITIALISED from what Value( ) hands back, the way the array
+    '' path initialises one from the element. A string FUNCTION returns a pointer to a
+    '' TEMPORARY descriptor -- 'call ptr' -- and this asked for the element type's
+    '' MirType, an aggregate with no size of its own, and then STORED it. At module level
+    '' that was IR clang refused ('%t11' defined with type '[0 x i8]' but expected
+    '' '[24 x i8]'); inside a procedure every element came out EMPTY. Measured over
+    '' fb/channel.bi's Channel( of string ) and over a plain iterator whose Value( )
+    '' returns a string: fbc prints each item, tiko printed '[]' -- and the goroutines
+    '' tutorial's worker pool and pipeline, which walk a Channel( of string ), crashed.
+    ''
+    '' fb_StrInit takes a temporary source's buffer and copies anything else, so the one
+    '' call serves a byref Value( ) too, whose result is the element's own descriptor.
+    '' The loop variable is released at the bottom of every iteration and on 'exit for',
+    '' by the body's scope. The rest is the tail every path here ends with.
+    dim as boolean vIsStr = IsStringType( c, elT )
+    if lvt <> Tko.TYPE_NONE then vIsStr = vIsStr andalso IsStringType( c, lvt )
+    if vIsStr then
+        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        dim as MirValue sv = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        if sv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) sargs
+        PushStrArg( sargs, vaddr )
+        PushStrArg( sargs, sv )
+        sargs.Push( cast( ulong, MV_CONST_INT ) )
+        sargs.Push( 0 )
+        EmitRtl( c, iif( IsUStringType( c, elT ), RTL_USTR_INIT, RTL_STR_INIT ), sargs )
+        c.cleanupNode.Push( 0 )
+        c.cleanupSlot.Push( vaddr.id )
+        c.cleanupType.Push( 0 )
+        ReleaseUdtTemps_( c, umark )
+        LowerBlock( c, sp->b )
+        CloseScope( c )
+        c.loopScope.Pop( )
+        c.loopKind.Pop( )
+        c.breakTo.Pop( )
+        c.contTo.Pop( )
+        Terminate( c, MTERM_BR, contB, -1, NoVal( ) )
+
+        c.curBlock = contB
+        EmitMemberCall( c, moveNext, iaddr, MT_VOID )
+        Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+        c.curBlock = testB
+        dim as MirValue sok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
+        if sok.kind = cast( ubyte, MV_NONE ) then return false
+        Terminate( c, MTERM_CONDBR, bodyB, exitB, sok )
+        c.curBlock = exitB
+        return true
+    end if
+
     dim as MirValue ev
     dim as MirValue evp
     if vByref then
