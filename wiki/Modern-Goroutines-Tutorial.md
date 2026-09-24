@@ -29,21 +29,13 @@ one specifies. When you finish here, read that.
 
 Every program in this tutorial was compiled and run. The outputs shown are real
 program output, not illustrations — from fbc's build. Under tiko, measured
-2026-09-24 at origin/master 50c71751 on win64-msvc, not every one works yet:
+2026-09-24 on win64-msvc:
 
-* **The same output as fbc's build:** ex01–ex04, ex06, ex09, ex09b, ex10, ex11, ex13–ex19 —
-  up to the timings and the interleaving of concurrent lines, which vary from run
-  to run under either compiler (ex15's lost-update count is random by design, and
-  ex10's hit count depends on when its deadline falls). The `select channel`
-  programs are among them. (Re-measured on 2026-09-24 after the fix that makes a
-  `SendChan` or `RecvChan` parameter built from a `Channel` argument work under
-  `spawn`.)
-* **Crashes at run time:** ex07 and ex12. Each walks a `Channel( of string )` with
-  `for each`, which is the bug in the next line; with a `while ... Receive` loop
-  instead, both print what fbc's builds print.
-* **Wrong output:** ex05's `for each` over a `Channel( of string )` prints blank
-  lines where fbc's build prints `for each: alpha` and the rest; its
-  `while ... Receive` half is right.
+* **The same output as fbc's build:** every program, ex01–ex07 and ex09–ex19, up to
+  what varies from run to run under either compiler: the interleaving of
+  concurrent lines, ex01's elapsed seconds, which worker takes which job in ex07,
+  ex10's hit count before its deadline, and ex15's lost-update count, which is
+  random by design.
 * ex08 is two procedures rather than a program; with the `#include` and
   `using FB` it needs, it compiles under both.
 
