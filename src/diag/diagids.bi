@@ -67,6 +67,12 @@
     DIAG( TKO0115, SEV_ERROR,   "archiving failed (exit %0)" )
     DIAG( TKO0116, SEV_ERROR,   "link failed (exit %0)" )
     DIAG( TKO0117, SEV_ERROR,   "cannot write the diagnostics file '%0'" )
+    '' C HEADER IMPORT (D16). The -cimport driver's own failures; #cinclude's are 03xx.
+    DIAG( TKO0118, SEV_ERROR,   "-cimport needs -cimport-out <file>: the binding has to go somewhere" )
+    DIAG( TKO0119, SEV_ERROR,   "importing a C header needs libclang: %0" )
+    DIAG( TKO0120, SEV_ERROR,   "unable to import C header %0" )
+    DIAG( TKO0121, SEV_ERROR,   "cannot write the binding '%0'" )
+    DIAG( TKO0122, SEV_ERROR,   "the binding generated for %0 does not compile; this is a bug in the C importer" )
 
     '' --------------------------------------------------------------------- lexer
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )

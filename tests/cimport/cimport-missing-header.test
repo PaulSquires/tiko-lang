@@ -1,0 +1,11 @@
+'' A header that is not there: TKO0120, clang's own line under 'clang:', and the note
+'' that says where a named header is looked for -- not the target's system-header hint,
+'' which is for a header the named one included.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/no-such-header.h -cimport-out -
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0120: unable to import C header tests/cimport/src/no-such-header.h
+'' EXPECT-OUT: note: clang: tiko-cimport.c:1:10: fatal error: 'tests/cimport/src/no-such-header.h' file not found
+'' EXPECT-OUT: note: a header is found by the path given, then in each -cinclude directory
+'' EXPECT-NOT: note: note:
+'' EXPECT-NOT: -csysroot

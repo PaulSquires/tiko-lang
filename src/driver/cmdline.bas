@@ -542,6 +542,14 @@ function Parse _
         case Tko.OPT_UDT       : opts.dumpUdt = true
         case Tko.OPT_CIMPORT_PROBE : opts.cimportProbe = value
         case Tko.OPT_CINCLUDE  : opts.cIncludes.Push( value )
+        case Tko.OPT_CIMPORT   : opts.cimportHeaders.Push( value )
+        case Tko.OPT_CIMPORT_OUT : opts.cimportOut = value
+        case Tko.OPT_CIMPORT_MANIFEST : opts.cimportManifest = value
+        case Tko.OPT_CDEFINE   : opts.cDefines.Push( value )
+        case Tko.OPT_CSYSROOT  : opts.cSysroot = value
+        case Tko.OPT_COPT      : opts.cOpts.Push( value )
+        case Tko.OPT_CNOMACROS : opts.cNoMacros = true
+        case Tko.OPT_CNOVERIFY : opts.cNoVerify = true
         case Tko.OPT_VTABLE    : opts.dumpVtable = true
         case Tko.OPT_RTL       : opts.dumpRtl = true
         case Tko.OPT_DUMPIR    : opts.dumpIr = true

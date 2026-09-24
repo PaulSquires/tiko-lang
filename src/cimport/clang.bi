@@ -16,10 +16,10 @@
 '' imported (clang.bas), so tiko builds and runs on a machine with no libclang at all, and
 '' only #cinclude and -cimport ask for it.
 ''
-'' FIVE STRUCTURES CROSS BY VALUE, and they are the reason this file has a test of its own:
-'' CXCursor (32 bytes), CXType (24), CXSourceLocation (24) and CXSourceRange (24) travel in
-'' memory on SysV and through a pointer to a copy on win64, and CXString (16) comes back in
-'' two registers on SysV and through a hidden pointer on win64. Before 2026-09-21 tiko passed
+'' SIX STRUCTURES CROSS BY VALUE, and they are the reason this file has a test of its own:
+'' CXCursor (32 bytes), CXType (24), CXSourceLocation (24), CXSourceRange (24) and CXToken
+'' (24) travel in memory on SysV and through a pointer to a copy on win64, and CXString (16)
+'' comes back in two registers on SysV and through a hidden pointer on win64. Before 2026-09-21 tiko passed
 '' every one of them wrongly through a procedure pointer -- see PtrCallSigIndex_ in
 '' src/mir/lowersig.bas and tests/mir/procptr-byval-agg.test. ClangLoad checks the sizes
 '' before it trusts a single call.
@@ -61,6 +61,12 @@ type CXSourceRange
     as ulong end_int_data
 end type
 
+'' Index.h:5025. 'int_data(0)' holds the CXTokenKind; the rest is libclang's.
+type CXToken
+    int_data(0 to 3) as ulong
+    as any ptr ptr_data
+end type
+
 '' Index.h:106. 'Length' is C's 'unsigned long', which is the ONE field here whose width
 '' is the host's: 4 bytes on Windows (LLP64) and 8 on Linux (LP64). Both give the struct
 '' 24 bytes, so a size check alone would pass the wrong declaration -- ClangLoad checks
@@ -83,6 +89,7 @@ const CX_TYPE_BYTES     = 24
 const CX_LOCATION_BYTES = 24
 const CX_RANGE_BYTES    = 24
 const CX_UNSAVED_BYTES  = 24
+const CX_TOKEN_BYTES    = 24
 
 '' ---------------------------------------------------------------- enumerations
 ''
@@ -120,6 +127,10 @@ const CXTranslationUnit_KeepGoing                   = &h200   '' :787
 type CXCursorVisitor as function cdecl _
     ( byval cursor as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
 
+'' Index.h:6739. The field arrives by value; the result is a CXVisitorResult (:6081).
+type CXFieldVisitor as function cdecl ( byval cursor as CXCursor, byval client as any ptr ) as long
+const CXVisit_Continue = 1
+
 '' Index.h, CXInclusionVisitor: the included file, the stack that led to it, and its depth.
 type CXInclusionVisitor as sub cdecl _
     ( byval included as any ptr, byval stack as CXSourceLocation ptr, _
@@ -151,10 +162,16 @@ type CXInclusionVisitor as sub cdecl _
     FN( getCursorUSR, "clang_getCursorUSR", ( byval c as CXCursor ), CXString )
     FN( getCursorType, "clang_getCursorType", ( byval c as CXCursor ), CXType )
     FN( visitChildren, "clang_visitChildren", ( byval parent as CXCursor, byval visitor as CXCursorVisitor, byval client as any ptr ), ulong )
+    FN( Type_visitFields, "clang_Type_visitFields", ( byval t as CXType, byval visitor as CXFieldVisitor, byval client as any ptr ), ulong )  '' :6761
     FN( isCursorDefinition, "clang_isCursorDefinition", ( byval c as CXCursor ), ulong )
     FN( getCursorSemanticParent, "clang_getCursorSemanticParent", ( byval c as CXCursor ), CXCursor )
     FN( getCursorLocation, "clang_getCursorLocation", ( byval c as CXCursor ), CXSourceLocation )
     FN( getCursorExtent, "clang_getCursorExtent", ( byval c as CXCursor ), CXSourceRange )
+    '' ---- tokens: Index.h:5047, :5055, :5085, :5124
+    FN( getTokenKind, "clang_getTokenKind", ( byval t as CXToken ), long )
+    FN( getTokenSpelling, "clang_getTokenSpelling", ( byval tu as any ptr, byval t as CXToken ), CXString )
+    SB( tokenize, "clang_tokenize", ( byval tu as any ptr, byval r as CXSourceRange, byval toks as CXToken ptr ptr, byval n as ulong ptr ) )
+    SB( disposeTokens, "clang_disposeTokens", ( byval tu as any ptr, byval toks as CXToken ptr, byval n as ulong ) )
     FN( getRangeStart, "clang_getRangeStart", ( byval r as CXSourceRange ), CXSourceLocation )
     FN( getRangeEnd, "clang_getRangeEnd", ( byval r as CXSourceRange ), CXSourceLocation )
     SB( getExpansionLocation, "clang_getExpansionLocation", ( byval loc as CXSourceLocation, byval file as any ptr ptr, byval line_ as ulong ptr, byval column as ulong ptr, byval offset as ulong ptr ) )
@@ -209,6 +226,7 @@ type CXInclusionVisitor as sub cdecl _
     FN( getDiagnosticSeverity, "clang_getDiagnosticSeverity", ( byval d as any ptr ), long )
     FN( formatDiagnostic, "clang_formatDiagnostic", ( byval d as any ptr, byval options as ulong ), CXString )
     SB( disposeDiagnostic, "clang_disposeDiagnostic", ( byval d as any ptr ) )
+    FN( getDiagnosticLocation, "clang_getDiagnosticLocation", ( byval d as any ptr ), CXSourceLocation )
     '' ---- files (CXFile.h) and inclusions
     SB( getInclusions, "clang_getInclusions", ( byval tu as any ptr, byval visitor as CXInclusionVisitor, byval client as any ptr ) )
     FN( getFileName, "clang_getFileName", ( byval f as any ptr ), CXString )

@@ -1,0 +1,6 @@
+'' -cimport without -cimport-out has nowhere to put the binding: TKO0118, a command-line
+'' error, before libclang is loaded.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/shapes.h
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0118: -cimport needs -cimport-out <file>

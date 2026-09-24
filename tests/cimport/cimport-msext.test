@@ -1,0 +1,21 @@
+'' The shapes MSVC's headers are written with. An anonymous member of a named record, or
+'' of a typedef of one, is one only under MS extensions -- win64-msvc -- where clang gives
+'' it an implicit field that the record's children never show; its members are the
+'' record's own. An unnamed bit-field is padding and takes a synthetic name. A dllimport
+'' variable is 'extern import', and a static inline function has no symbol to bind.
+'' Every record is laid out by tiko and checked against clang, so a lost member is a
+'' refusal here rather than a short record. See src/msext.h.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/msext.h -cimport-out -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: __cimport_bits2 : 7 as long
+'' EXPECT-NOT: ms_inline
+'' EXPECT-NOT: tiko lays it out
+'' EXPECT-NOT: in tiko's layout
+'' EXPECT-OUT[win64-msvc]: type ms_by_typedef field = 4
+'' EXPECT-OUT[win64-msvc]: a as long
+'' EXPECT-OUT[win64-msvc]: extra as culong
+'' EXPECT-OUT[win64-msvc]: x as long
+'' EXPECT-OUT[win64-msvc]: extern import ms_imported alias "ms_imported" as long
+'' EXPECT-OUT[win64-msvc]: declare function ms_imported_fn cdecl alias "ms_imported_fn" ( byval v as long ) as long
+'' EXPECT-OUT[win64]: extern import ms_imported alias "ms_imported" as long

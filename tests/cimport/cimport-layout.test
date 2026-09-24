@@ -1,0 +1,24 @@
+'' Every imported record is laid out by tiko and compared with clang's layout; one that
+'' differs is refused with the difference in the ledger, and whatever holds it by value
+'' goes with it -- the rest of the binding is still written. See src/layout.h.
+''
+'' SysV packs 'tail' into the bit-fields' storage unit, which FreeBASIC cannot say, so
+'' lay_bits is refused on linux-x86_64 only; a pointer to it survives everywhere. A packed
+'' record in one that is not packed sits at C's offset 1 and FreeBASIC's 4, on every
+'' target. An over-aligned record is kept: its size is padded to C's.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/layout.h -cimport-out -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: struct    lay_holds_packed4           tiko lays it out in 16 bytes aligned to 4, clang in 12 aligned to 4; member 'p' is at bit 32 in tiko's layout and bit 8 in clang's
+'' EXPECT-OUT: type lay_points_bits
+'' EXPECT-OUT: b as lay_bits ptr
+'' EXPECT-OUT: type lay_holds_packed field = 1
+'' EXPECT-OUT: __cimport_pad(0 to 7) as ubyte
+'' EXPECT-OUT: type lay_plain
+'' EXPECT-NOT: type lay_holds_packed4
+'' EXPECT-OUT[linux-x86_64]: struct    lay_bits                    tiko lays it out in 8 bytes aligned to 4, clang in 4 aligned to 4; member 'tail' is at bit 32 in tiko's layout and bit 8 in clang's
+'' EXPECT-OUT[linux-x86_64]: struct    lay_holds_bits              field 'b': uses 'lay_bits', which was skipped
+'' EXPECT-OUT[win64]: type lay_bits field = 4
+'' EXPECT-OUT[win64]: type lay_holds_bits field = 4
+'' EXPECT-OUT[win64-msvc]: type lay_bits field = 4
+'' EXPECT-OUT[win64-msvc]: type lay_holds_bits field = 4

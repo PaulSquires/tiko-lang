@@ -111,7 +111,8 @@ function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
     dim as CXUnsavedFile uf
     if (sizeof( CXString ) <> CX_STRING_BYTES) orelse (sizeof( CXCursor ) <> CX_CURSOR_BYTES) orelse _
        (sizeof( CXType ) <> CX_TYPE_BYTES) orelse (sizeof( CXSourceLocation ) <> CX_LOCATION_BYTES) orelse _
-       (sizeof( CXSourceRange ) <> CX_RANGE_BYTES) orelse (sizeof( CXUnsavedFile ) <> CX_UNSAVED_BYTES) then
+       (sizeof( CXSourceRange ) <> CX_RANGE_BYTES) orelse (sizeof( CXUnsavedFile ) <> CX_UNSAVED_BYTES) orelse _
+       (sizeof( CXToken ) <> CX_TOKEN_BYTES) then
         api.why = "internal: libclang's structures are declared with the wrong layout"
         return false
     end if

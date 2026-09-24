@@ -20,7 +20,7 @@
 #include once "codegen/objinfo.bi"
 #include once "codegen/llvmemit.bi"
 #include once "mir/rtl.bi"
-#include once "cimport/probe.bi"
+#include once "driver/cimportmode.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -220,7 +220,7 @@ private function Tools_( byref ctx as Tko.CompilerContext ) as Tko.Codegen.ToolP
     return t
 end function
 
-private function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
+function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     dim as Tko.PpConfig cfg
     cfg.includePaths = @ctx.options.includePaths
     cfg.defines = @ctx.options.defines
@@ -591,11 +591,10 @@ function Run _
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
     end if
 
-    '' A LIBCLANG PROBE takes a C header, not a .bas -- see src/cimport/probe.bas.
-    if len( ctx.options.cimportProbe ) then
+    '' C HEADER IMPORT takes C headers, not a .bas -- see src/driver/cimportmode.bas.
+    if Tko.CImportDriver.Asked( ctx.options ) then
         dim as Tko.Codegen.ToolPaths ptl = Tools_( ctx )
-        return Tko.DiagOut.Finish( ctx, Tko.CImport.CImportProbe( ptl.clangExe, ctx.options.cimportProbe, _
-            Tko.Codegen.TargetFor( ctx.options.target ).triple, ctx.options.cIncludes ) )
+        return Tko.DiagOut.Finish( ctx, Tko.CImportDriver.Run( ctx, ptl.clangExe ) )
     end if
 
     if ctx.options.inputs.IsEmpty( ) then

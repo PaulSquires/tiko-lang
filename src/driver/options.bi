@@ -105,6 +105,14 @@ namespace Tko
     OPT( OPT_UDT,       "--dump-udt",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's size, alignment and field offsets" )
     OPT( OPT_CIMPORT_PROBE, "--cimport-probe", OPTK_VALUE, OPTCAT_DEVEL, "header", "load libclang, parse one C header, print what clang saw" )
     OPT( OPT_CINCLUDE,  "-cinclude",      OPTK_VALUE, OPTCAT_CIMPORT, "dir",  "add a C include directory (clang's -I) for #cinclude" )
+    OPT( OPT_CIMPORT,   "-cimport",       OPTK_VALUE, OPTCAT_CIMPORT, "header", "import a C header as a FreeBASIC binding; needs -cimport-out" )
+    OPT( OPT_CIMPORT_OUT, "-cimport-out", OPTK_VALUE, OPTCAT_CIMPORT, "file", "where -cimport writes the binding; - for standard output" )
+    OPT( OPT_CIMPORT_MANIFEST, "-cimport-manifest", OPTK_VALUE, OPTCAT_CIMPORT, "file", "write clang's layout of every imported record" )
+    OPT( OPT_CDEFINE,   "-cdefine",       OPTK_VALUE, OPTCAT_CIMPORT, "name[=value]", "define a C macro (clang's -D)" )
+    OPT( OPT_CSYSROOT,  "-csysroot",      OPTK_VALUE, OPTCAT_CIMPORT, "dir",  "the C sysroot (clang's --sysroot)" )
+    OPT( OPT_COPT,      "-copt",          OPTK_VALUE, OPTCAT_CIMPORT, "arg",  "pass an argument to clang verbatim" )
+    OPT( OPT_CNOMACROS, "-cnomacros",     OPTK_FLAG,  OPTCAT_CIMPORT, "",     "do not import object-like macros as constants" )
+    OPT( OPT_CNOVERIFY, "-cnoverify",     OPTK_FLAG,  OPTCAT_CIMPORT, "",     "do not check tiko's layout of each imported record against clang's" )
     OPT( OPT_VTABLE,    "--dump-vtable",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's virtual method table" )
     OPT( OPT_RTL,       "--dump-rtl",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print the runtime inventory and stop" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
@@ -233,6 +241,14 @@ namespace Tko
         '' passed to clang, and '-cinclude' never reaches #include.
         as string  cimportProbe
         as StrVec  cIncludes
+        as StrVec  cimportHeaders
+        as string  cimportOut
+        as string  cimportManifest
+        as StrVec  cDefines
+        as string  cSysroot
+        as StrVec  cOpts
+        as boolean cNoMacros
+        as boolean cNoVerify
         as boolean dumpVtable
         as boolean dumpRtl
         as boolean dumpIr

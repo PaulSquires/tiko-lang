@@ -93,3 +93,11 @@ src/driver/driver.bas
 src/driver/diagout.bas
 src/cimport/clang.bas
 src/cimport/probe.bas
+src/cimport/names.bas
+src/cimport/types.bas
+src/cimport/records.bas
+src/cimport/decls.bas
+src/cimport/import.bas
+src/driver/cimportmode.bas
+src/driver/cimportverify.bas
+src/cimport/macros.bas

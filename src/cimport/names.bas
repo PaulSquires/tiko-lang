@@ -1,0 +1,259 @@
+'' names.bas -- what a C name becomes in FreeBASIC. See import.bi.
+''
+'' FreeBASIC is case-insensitive and has words of its own, so some renaming cannot be
+'' avoided. What matters is that it is as little as possible, that the same header always
+'' gives the same names, and that every change is in the ledger at the top of the file.
+''
+'' THE RULES ARE MEASURED, NOT REASONED. 372 candidate words -- fbc's keyword table, the
+'' FreeBASIC names its runtime registers, and tiko's own 247 keywords, less C's own
+'' keywords -- were written into C headers as a struct tag, a function, a field and a
+'' parameter, and imported by fbc-modern (2026-09-23). Its ledgers and output gave four
+'' sets, and tiko's keyword classes reproduce three of them exactly:
+''
+''   a TYPE name is refused      when it is a KEYWORD or an OPERATOR (tiko's classes, which
+''                               are fbc's: 120 + 13) -- plus cva_list, a type fbc declares.
+''                               111 of the 111 measured. A QUIRK word -- POINT, INPUT, DIR --
+''                               is a legal type name, and every Windows binding has a POINT.
+''   a PROCEDURE, VARIABLE,      when it is any keyword at all, or one of the 114 names fbc's
+''   CONSTANT or PARAMETER       runtime puts in its symbol table (BUILTIN_VALUES below).
+''                               337 of 337, for procedures and parameters alike.
+''   a FIELD                     only for the 21 words that begin a declaration or are an
+''                               operator -- 'next', 'name', 'string' and 'type' all compile
+''                               as field names -- and FreeBASIC's built-in macros.
+''
+'' ONE PLACE tiko does not follow fbc-modern: a TYPE named like a built-in macro. fbc-modern
+'' emits 'type assert field = 4', 'type bit', 'type rgb' and the rest unchanged, and then
+'' fails its own compile of the binding -- "error 4: Duplicated definition, assert" -- because
+'' a #define rewrites the name before the parser sees it. tiko renames them.
+''
+'' USER SYMBOLS ARE NEVER CONSULTED. The same header must produce the same binding in every
+'' program, or the cache key would have to include the calling source. A genuine clash with
+'' a user's own name is tiko's ordinary duplicate-definition error.
+
+#include once "cimport/import.bi"
+#include once "lexer/token.bi"
+
+namespace Tko.CImport
+
+'' -1 when the word is not a keyword, else its KeywordClass.
+private function KeywordClassOf_( byref n as string ) as long
+    select case ucase( n )
+    #define KW( k_name, k_spell, k_class ) case k_spell : return k_class
+    TKO_KEYWORD_LIST( KW )
+    #undef KW
+    end select
+    return -1
+end function
+
+'' FreeBASIC's built-in macros: a #define rewrites the word wherever it appears, including
+'' where a field or a type is declared. Measured as the fields fbc-modern renamed beyond the
+'' declaration words.
+private function IsBuiltinMacro_( byref lc as string ) as boolean
+    select case lc
+    case "assert", "assertwarn", "bit", "bitreset", "bitset", "hibyte", "hiword", _
+         "lobyte", "loword", "offsetof", "rgb", "rgba", "va_arg", "va_next"
+        return true
+    end select
+    return false
+end function
+
+'' The names fbc's runtime declares in its global symbol table that are not keywords: 'dim
+'' as long kill' is error 4, a duplicate definition. Measured -- the 114 procedure renames
+'' fbc-modern made beyond the keyword table. Sorted, as the measurement printed them.
+private function IsBuiltinValue_( byref lc as string ) as boolean
+    select case lc
+    case "allocate", "assert", "assertwarn", "beep", "bin", "bit", "bitreset", "bitset", _
+         "bload", "bsave", "callocate", "chain", "chdir", "clear", "cls", "command", _
+         "condbroadcast", "condcreate", "conddestroy", "condsignal", "condwait", "csrlin", _
+         "curdir", "cva_list", "date", "deallocate", "dir", "dylibfree", "dylibload", _
+         "dylibsymbol", "environ", "eof", "erfn", "erl", "ermn", "exec", "exepath", "flip", _
+         "fre", "freefile", "getjoystick", "getkey", "getmouse", "hex", "hibyte", "hiword", _
+         "imageconvertrow", "imagedestroy", "imageinfo", "inkey", "inp", "kill", "left", _
+         "lobyte", "loc", "locate", "lof", "loword", "lpos", "mkdir", "multikey", _
+         "mutexcreate", "mutexdestroy", "mutexlock", "mutexunlock", "oct", "offsetof", "out", _
+         "pcopy", "pmap", "pointcoord", "pos", "randomize", "reallocate", "reset", "rgb", _
+         "rgba", "right", "rmdir", "rnd", "run", "screencontrol", "screencopy", "screenevent", _
+         "screenglproc", "screeninfo", "screenlist", "screenlock", "screenptr", "screenres", _
+         "screenset", "screensync", "screenunlock", "setdate", "setenviron", "setmouse", _
+         "settime", "shell", "sleep", "space", "stop", "system", "threadcreate", "threadwait", _
+         "time", "timer", "va_arg", "va_next", "wait", "wbin", "whex", "windowtitle", "woct", _
+         "wspace", "true", "false", "object"
+        '' TRUE AND FALSE are fbc's built-in constants. The measurement above left them out,
+        '' because they are C keywords too and could not be written into its headers; windows.h
+        '' found them -- fbc-modern renames its TRUE and FALSE macros to TRUE_ and FALSE_.
+        '' OBJECT is fbc's built-in base type, and windows.h's 'Object' parameter is 'Object_'.
+        return true
+    end select
+    return false
+end function
+
+function NameReservedType( byref n as string ) as boolean
+    dim as long k = KeywordClassOf_( n )
+    if (k = KWCLASS_KEYWORD) orelse (k = KWCLASS_OPERATOR) then return true
+    dim as string lc = lcase( n )
+    '' OBJECT is a TYPE in fbc's symbol table: a name that is a type blocks another.
+    if (lc = "cva_list") orelse (lc = "object") then return true
+    return IsBuiltinMacro_( lc )
+end function
+
+function NameReservedValue( byref n as string ) as boolean
+    if KeywordClassOf_( n ) >= 0 then return true
+    return IsBuiltinValue_( lcase( n ) )
+end function
+
+'' The declaration and operator words: fbc-modern's twenty-four, measured. The field parser
+'' has to read them before it can know a field name was meant.
+private function IsDeclWord_( byref lc as string ) as boolean
+    select case lc
+    case "and", "andalso", "as", "const", "declare", "delete", "dim", "enum", "eqv", _
+         "imp", "mod", "new", "not", "or", "orelse", "private", "protected", "public", _
+         "redim", "rem", "shl", "shr", "static", "xor"
+        return true
+    end select
+    return false
+end function
+
+'' The declaration words, and the built-in macros, which rewrite a field name before the
+'' parser sees it.
+function NameReservedField( byref n as string ) as boolean
+    dim as string lc = lcase( n )
+    return IsDeclWord_( lc ) orelse IsBuiltinMacro_( lc )
+end function
+
+'' A field's name before collisions. AN ARRAY FIELD READS AS A CALL -- 'name(0 to 259)' --
+'' so a name the runtime already declares takes a '_' as a value would, on top of the one a
+'' built-in macro takes: io.h's 'wchar_t name[260]' is 'name_', and wingdi.h's 'BYTE rgb[1]'
+'' is 'rgb__', as fbc-modern writes both. A scalar field of either name is fine as it is.
+function NameField( byref cname as string, byval isArray as boolean ) as string
+    dim as string lc = lcase( cname )
+    if IsDeclWord_( lc ) then return cname & "_"
+    dim as string cand = cname
+    if IsBuiltinMacro_( lc ) then cand &= "_"
+    if isArray andalso NameReservedValue( cname ) then cand &= "_"
+    return cand
+end function
+
+'' A parameter keeps its C name unless the name is reserved; parameters never collide,
+'' because FreeBASIC scopes them to the declaration.
+function NameParam( byref cname as string ) as string
+    if len( cname ) = 0 then return ""
+    if NameReservedValue( cname ) then return cname & "_"
+    return cname
+end function
+
+'' ---------------------------------------------------------------- claims
+
+private function Claimed_( byref x as CImp, byval ns as CImpNs, byref n as string ) as boolean
+    dim as long f = cast( long, x.strs.Fold( x.strs.GetString( n ) ) )
+    if ns = NS_TYPE then
+        if f < x.claimType.Count then return (x.claimType[f] <> 0)
+    else
+        if f < x.claimValue.Count then return (x.claimValue[f] <> 0)
+    end if
+    return false
+end function
+
+private sub Take_( byref x as CImp, byval ns as CImpNs, byref n as string )
+    dim as long f = cast( long, x.strs.Fold( x.strs.GetString( n ) ) )
+    if ns = NS_TYPE then
+        while x.claimType.Count <= f : x.claimType.Push( 0 ) : wend
+        x.claimType[f] = 1
+    else
+        while x.claimValue.Count <= f : x.claimValue.Push( 0 ) : wend
+        x.claimValue[f] = 1
+    end if
+end sub
+
+private sub Ledger_( byref x as CImp, byval rk as CImpRenameKind, byref cname as string, _
+                     byref fb as string, byval why as long )
+    x.renKind.Push( cast( long, rk ) )
+    x.renWhy.Push( why )
+    x.renC.Push( cname )
+    x.renFb.Push( fb )
+end sub
+
+'' THE FREEBASIC NAME FOR A C NAME, claimed in the given namespace. Reserved words take a
+'' trailing '_'; a name already taken there, compared without case, takes '_2', '_3' ...
+'' in the order the names were met -- 'size_t' and 'SIZE_T' are one name to FreeBASIC, so
+'' the second becomes SIZE_T_2. Every change goes in the ledger with its reason.
+function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as string, _
+                    byval rk as CImpRenameKind ) as string
+    dim as string cand = cname
+    dim as long why = -1
+    dim as boolean reserved
+    if ns = NS_TYPE then reserved = NameReservedType( cname ) else reserved = NameReservedValue( cname )
+    if reserved then
+        cand = cname & "_"
+        why = 0
+    end if
+    '' A RESERVED name that then collides keeps 'reserved' as its reason -- it is why the
+    '' name moved at all. windows.h: BYTE takes BYTE_, then 'byte' takes byte_2, and
+    '' fbc-modern's ledger calls that "(FreeBASIC reserved)".
+    if Claimed_( x, ns, cand ) then
+        dim as long k = 2
+        while Claimed_( x, ns, cname & "_" & k )
+            k += 1
+        wend
+        cand = cname & "_" & k
+        if why < 0 then why = 1
+    end if
+    Take_( x, ns, cand )
+    if why >= 0 then Ledger_( x, rk, cname, cand, why )
+    return cand
+end function
+
+'' Held by anything, in either namespace, without regard to case -- the test a #define must
+'' pass, since a #define rewrites a name wherever it stands.
+function NameTaken( byref x as CImp, byref n as string ) as boolean
+    return Claimed_( x, NS_TYPE, n ) orelse Claimed_( x, NS_VALUE, n )
+end function
+
+function RenameLine( byref x as CImp, byval i as long ) as string
+    dim as string k
+    select case x.renKind[i]
+    case RK_TYPE : k = "type     "
+    case RK_PROC : k = "procedure"
+    case RK_VAR  : k = "variable "
+    case else    : k = "constant "
+    end select
+    dim as string w = "(FreeBASIC reserved)"
+    if x.renWhy[i] = 1 then w = "(case-insensitive collision)"
+    return k & "  " & x.renC[i] & " -> " & x.renFb[i] & "  " & w
+end function
+
+'' ---------------------------------------------------------------- per-USR state
+
+function UsrId( byref x as CImp, byref usr as string ) as long
+    dim as long id = cast( long, x.strs.GetString( usr ) )
+    while x.usrState.Count <= id
+        x.usrState.Push( 0 )
+        x.usrName.Push( 0 )
+    wend
+    return id
+end function
+
+function UsrState( byref x as CImp, byval id as long ) as ubyte
+    if (id < 0) orelse (id >= x.usrState.Count) then return 0
+    return x.usrState[id]
+end function
+
+sub UsrSet( byref x as CImp, byval id as long, byval bits as ubyte )
+    if (id < 0) orelse (id >= x.usrState.Count) then return
+    x.usrState[id] = x.usrState[id] or bits
+end sub
+
+function UsrFbName( byref x as CImp, byval id as long ) as string
+    if (id < 0) orelse (id >= x.usrName.Count) then return ""
+    dim as long k = x.usrName[id]
+    if k <= 0 then return ""
+    return x.fbNames[k - 1]
+end function
+
+sub UsrSetName( byref x as CImp, byval id as long, byref fb as string )
+    if (id < 0) orelse (id >= x.usrName.Count) then return
+    x.fbNames.Push( fb )
+    x.usrName[id] = x.fbNames.Count
+    UsrSet( x, id, US_NAMED )
+end sub
+
+end namespace

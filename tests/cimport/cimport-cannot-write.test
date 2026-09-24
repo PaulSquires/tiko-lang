@@ -1,0 +1,7 @@
+'' A binding that cannot be written -- here, into a directory that does not exist -- is
+'' TKO0121, after the import itself succeeded.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/shapes.h -cimport-out tests/cimport/src/no-such-dir/shapes.bi
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0121: cannot write the binding 'tests/cimport/src/no-such-dir/shapes.bi'
+'' EXPECT-NO-FILE: tests/cimport/src/no-such-dir/shapes.bi
