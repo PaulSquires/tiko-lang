@@ -20,17 +20,13 @@ Each of these is a diagnostic, not a silent difference (measured 2026-09-24 at o
 
 **`__FB_MODERN__` and `__FB_MIN_VERSION__` are not defined.** A guard such as `#ifdef __FB_MODERN__` therefore takes its `#else` branch under tiko, and `#if __FB_MIN_VERSION__( 1, 20, 0 )` is an error (`TKO0308`). tiko identifies itself with `__TKO_VERSION__`. See [`__FB_MODERN__`](Category-FB-Modern-Define).
 
-**A sub named `defer` is not called.** `defer` is a contextual keyword in both compilers, and as a *variable* name it works in tiko. But given
+**`defer` is a contextual keyword, and both compilers use one rule.** It is the keyword only when a name, a keyword other than `as`, or the end of the statement follows. A sub named `defer` is therefore CALLED by `defer( 5 )`, `defer 5` and `defer -1`. An array or a UDT named `defer` is used as one (`defer( 1 ) = 3`, `defer.field_ = 4`), in both compilers.
 
-```freebasic
-sub defer( byval n as long )
-    print "sub defer"; n
-end sub
+Where they still part, a `defer` that is the keyword has no statement to defer:
+- `defer x` and `defer q + 1`: fbc gives error 10 on the deferred statement, and tiko compiles it and drops the statement.
+- A bare `defer`, and `defer:`: fbc gives error 347, and tiko accepts both.
 
-defer( 5 )
-```
-
-fbc calls the sub and tiko does not. The statement is dropped **without a diagnostic**; only `--dump-ir` shows it, as `1 statements not lowered`. The paren-less `defer 5` behaves the same way. Measured 2026-09-24 at 50c71751. Rename the sub.
+Measured 2026-09-24.
 
 **tiko accepts some programs that fbc rejects.** Each of these compiles under tiko and stops fbc with the error shown (measured 2026-09-24 at 50c71751):
 

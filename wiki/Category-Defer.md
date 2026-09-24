@@ -136,16 +136,18 @@ h.defer = 5
 x = defer( 6 )              ' a function named 'defer'
 ```
 
-THE ONE INCOMPATIBILITY: a PAREN-LESS call in statement position to a sub named 'defer':
+THE ONE INCOMPATIBILITY: a PAREN-LESS call in statement position to a sub named 'defer', WHEN ITS ARGUMENT BEGINS WITH A NAME:
 
 ```freebasic
-defer 6                     ' now a DEFER of the statement '6'
+defer x                     ' now a DEFER of the statement 'x'
+defer 6                     ' still a call: a literal begins no statement
+defer -1                    ' still a call
 defer( 6 )                  ' still a call
 ```
 
 Every call that produces a value is unaffected, because it needs the parentheses anyway. This is the same trade FOR EACH already makes with 'each'.
 
-> **Under tiko** (measured 2026-09-24 at origin/master 50c71751), with `sub defer( byval n as long )` declared, NEITHER statement calls it. `defer( 6 )` and `defer 6` are both dropped without a diagnostic; `--dump-ir` reports `1 statements not lowered`. FBC-Modern's `fbc64` calls the sub for both. Rename the sub. The variable forms above (`dim defer`, `defer = 4`, `defer += 5`) work under tiko.
+> **Measured 2026-09-24, with `sub defer( byval n as long )` declared:** FBC-Modern's `fbc64` and tiko both call the sub for `defer 6`, `defer -1` and `defer( 6 )`, and both read `defer x` as a DEFER. fbc then reports error 10 on the statement `x`; tiko compiles it and drops that statement. The variable, array and member forms above work under both.
 
 ## Diagnostics
 
