@@ -148,6 +148,10 @@ private sub LenOperandPrefix_ _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, lp->target ) ) )
     if (nm <> "len") andalso (nm <> "sizeof") then return
     DropNsPrefix_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), scope_ )
+    '' 'sizeof( Box )' names a GENERIC without its type arguments: fbc's 335. The operand
+    '' is parsed as an expression, so it is not a type reference and needs asking here.
+    dim as Tko.NodeId op0 = cast( Tko.NodeId, c.ast->children[lp->first] )
+    if c.ast->Kind( op0 ) = Tko.N_IDENT then GenericArgsCheck_( c, op0, c.info->RefOf( op0 ), 0 )
 end sub
 
 #include once "symbols/resolvertl.bas"

@@ -569,6 +569,10 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's errors 335 and 336: a GENERIC type named without its type arguments, or with the
+    '' wrong number of them -- see symbols/resolvetype.bas, GenericArgsCheck_.
+    DIAG( TKO0815, SEV_ERROR,   "'%0' is generic; write its type arguments, as '%0( of ... )'" )
+    DIAG( TKO0816, SEV_ERROR,   "'%0' takes %1 type argument(s), and %2 are written here" )
     '' fbc's error 348: 'defer' directly at module level or in a namespace -- resolvestmt.bas.
     DIAG( TKO0814, SEV_ERROR,   "'defer' is not allowed at module level; put it in a procedure or a block" )
     '' fbc's error 4, "Duplicated definition", for a declaration named like a runtime procedure

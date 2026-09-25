@@ -561,7 +561,21 @@ function InstantiateGenericProc_ _
     if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return Tko.SYMBOL_NONE
     dim as Tko.ListPayload ptr pl = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->c )].data )]
-    if written andalso (pl->count <> taCount) then return Tko.SYMBOL_NONE
+    '' ...WRITTEN WITH THE WRONG NUMBER is fbc's 336: 'Mk( of long, long )( 1 )' over
+    '' 'Mk( of T )' dropped its statement in silence. See GenericArgsCheck_ for the type half.
+    if written andalso (pl->count <> taCount) then
+        dim as ulong at = cast( ulong, c.ast->Loc( callId ) )
+        dim as boolean seen = false
+        for i as long = 0 to c.genArgSeen.Count - 1
+            if c.genArgSeen[i] = at then seen = true
+        next
+        if seen = false then
+            c.genArgSeen.Push( at )
+            c.diags->Report( Tko.TKO0816, Tko.PointRange( c.ast->Loc( callId ) ), _
+                             c.names->Spelling( gname ), str( pl->count ), str( taCount ) )
+        end if
+        return Tko.SYMBOL_NONE
+    end if
 
     '' THE ARGUMENTS, resolved where they were written -- or inferred from the call's
     '' own arguments where they were not. One that does not resolve means no
@@ -945,6 +959,12 @@ sub DiscoverInstantiations_ _
     diags.errors = derr
     diags.warnings = dwarn
     diags.suppressedCount = dsupp
+    '' ...AND WHAT REMEMBERS A REPORT IS ROLLED BACK WITH IT. The once-per-node lists
+    '' of resolvertl.bas and resolvetype.bas outlived the discovery pass, so the real
+    '' pass took every report as made: in a unit declaring a generic, 'sub Run( )' and
+    '' 'dim b as Box' were reported nowhere.
+    c.rtlSeen.Clear( )
+    c.genArgSeen.Clear( )
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
     info.Resize( ast.Count( ) )

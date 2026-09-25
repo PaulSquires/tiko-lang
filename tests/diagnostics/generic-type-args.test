@@ -1,0 +1,19 @@
+'' TKO0815 and TKO0816, fbc's 335 and 336: a generic named without its type arguments, or
+'' with the wrong number. tiko bound the bare name to the template and refused a wrong
+'' count in silence. See GenericArgsCheck_ in symbols/resolvetype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-type-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-type-args.bas(21,11): error TKO0815
+'' EXPECT-OUT: generic-type-args.bas(22,11): error TKO0816
+'' EXPECT-OUT: generic-type-args.bas(23,11): error TKO0816
+'' EXPECT-OUT: generic-type-args.bas(24,11): error TKO0815
+'' EXPECT-OUT: generic-type-args.bas(25,11): error TKO0815
+'' EXPECT-OUT: generic-type-args.bas(26,18): error TKO0815
+'' EXPECT-OUT: generic-type-args.bas(29,13): error TKO0815
+'' EXPECT-OUT: generic-type-args.bas(30,9): error TKO0815
+'' EXPECT-OUT: generic-type-args.bas(31,24): error TKO0816
+'' EXPECT-OUT: generic-type-args.bas(32,19): error TKO0815
+'' EXPECT-NOT: generic-type-args.bas(34,
+'' EXPECT-NOT: generic-type-args.bas(35,
+'' EXPECT-MAX-DIAG: 10

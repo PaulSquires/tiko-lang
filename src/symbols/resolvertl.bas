@@ -70,12 +70,14 @@ private function RtlGlobalChain_ ( byref c as Ctx, byval sc as Tko.ScopeId ) as 
     return false
 end function
 
-'' One report per node: Resolve revisits a declaration whose type was not ready.
+'' One report per SOURCE LOCATION: Resolve revisits a declaration whose type was not
+'' ready, and an instantiation re-parses a generic's body into new nodes.
 private sub RtlReport_ ( byref c as Ctx, byval n as Tko.NodeId, byval nm as Tko.InternId )
+    dim as ulong at = cast( ulong, c.ast->Loc( n ) )
     for i as long = 0 to c.rtlSeen.Count - 1
-        if c.rtlSeen[i] = cast( ulong, n ) then return
+        if c.rtlSeen[i] = at then return
     next
-    c.rtlSeen.Push( cast( ulong, n ) )
+    c.rtlSeen.Push( at )
     c.diags->Report( Tko.TKO0813, Tko.PointRange( c.ast->Loc( n ) ), c.names->Spelling( nm ) )
 end sub
 

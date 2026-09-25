@@ -206,6 +206,49 @@ function ProcTypeParamType_ _
     return pt
 end function
 
+'' A GENERIC TYPE NAMED WITHOUT ITS TYPE ARGUMENTS -- fbc's error 335, "Generic used without
+'' a type argument list" -- or with the WRONG NUMBER of them, fbc's 336. Measured on
+'' fbc-modern 1.20, 2026-09-25, over 'type Box( of T )' and 'type Pair( of K, V )':
+''
+''     dim b as Box, 'as Box ptr', a field, a parameter, a result,
+''     'extends Box', 'type A as Box', 'Box( of Box )', sizeof( Box ), new Box      335
+''     Pair( of long ), Pair( of long, long, long ), Box( of long, long )          336
+''     inside Box's own members, 'byref o as Box' too -- there is no self-name       335
+''
+'' tiko bound the bare name to the TEMPLATE, and InstantiateGeneric_ refused a count
+'' that did not match -- in silence either way: 'dim b as Box' compiled, and a sizeof or
+'' a 'new' of one dropped its statement. Reported once per reference, since a type
+'' reference can be resolved more than once.
+private sub GenericArgsCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval given as long )
+
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( sid )
+    if gs = 0 then return
+    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return
+    if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
+    dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
+    if gn = Tko.NODE_NONE then return
+    if c.ast->Kind( gn ) <> Tko.N_TYPE then return
+    dim as Tko.NodeId plist = StmtOf( c, gn )->b
+    if plist = Tko.NODE_NONE then return
+    if c.ast->Kind( plist ) <> Tko.N_BLOCK then return
+    dim as long want = ListOf( c, plist )->count
+    if want = given then return
+    '' BY SOURCE LOCATION: an instantiation re-parses the template's body into new nodes.
+    dim as ulong at = cast( ulong, c.ast->Loc( id ) )
+    for i as long = 0 to c.genArgSeen.Count - 1
+        if c.genArgSeen[i] = at then return
+    next
+    c.genArgSeen.Push( at )
+    dim as string nm = c.names->Spelling( gs->name )
+    if given = 0 then
+        c.diags->Report( Tko.TKO0815, Tko.PointRange( c.ast->Loc( id ) ), nm )
+    else
+        c.diags->Report( Tko.TKO0816, Tko.PointRange( c.ast->Loc( id ) ), nm, _
+                         str( want ), str( given ) )
+    end if
+end sub
+
 function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -607,6 +650,7 @@ function ResolveTypeRef _
         '' 'FB.Array( of long )' found nothing, instantiated nothing, and bound to the
         '' GENERIC instead. Every container in the runtime headers lives in a namespace,
         '' so that was all of them.
+        if (tparam = false) andalso (sid <> Tko.SYMBOL_NONE) then GenericArgsCheck_( c, id, sid, sp->count )
         if sp->count > 0 then
             dim as Tko.TypeId inst = InstantiateGeneric_( c, id, sp, scope_, sid )
             if inst <> Tko.TYPE_NONE then

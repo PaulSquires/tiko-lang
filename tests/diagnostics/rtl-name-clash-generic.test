@@ -1,0 +1,7 @@
+'' TKO0813 in a unit declaring a generic: the discovery walk's reports are rolled back, and
+'' the once-per-location list must be rolled back with them. See generic.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/rtl-name-clash-generic.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: rtl-name-clash-generic.bas(6,1): error TKO0813: 'run'
+'' EXPECT-MAX-DIAG: 1
