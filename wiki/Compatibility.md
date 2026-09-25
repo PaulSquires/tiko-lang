@@ -39,7 +39,7 @@ Measured 2026-09-24.
 
 Probing the extension pages found more of the same class. Each is recorded case by case on its own page (measured 2026-09-24 at origin/master 50c71751):
 
-- **Generics.** fbc's errors 335, 336 and 341 are reported since 2026-09-25. 9 of fbc's 30 generics `fail-*.bas` files compile under tiko (2026-09-25), and a runaway instantiation does not stop. See [Generics](Category-Generics).
+- **Generics.** fbc's errors 335, 336 and 341 are reported since 2026-09-25. 7 of fbc's 30 generics `fail-*.bas` files compile under tiko (2026-09-25), and a runaway instantiation does not stop. See [Generics](Category-Generics).
 - **Tuples.** 17 of fbc's 20 tuple error cases compile under tiko, and 6 of them drop a statement. See [Tuples](Category-Tuples).
 - **DEFER.** A `defer` at module level compiles and runs, where fbc gives error 348. So does a `goto` across a `defer`. See [Defer](Category-Defer).
 - **`#foreignlib`.** A `"system:"` name is not honoured, and a module compiled with `-c` loses the library at the later link. See the [tutorial](modern-Foreignlib-tutorial).
