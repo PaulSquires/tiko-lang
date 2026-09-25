@@ -517,11 +517,11 @@ lib/sqlite3_linux_aarch64.so
 | `"C:/abs/lib/foo"` | file, absolute |
 | `"system:foo"` | hand `foo` to the linker as `-lfoo`; resolve no file |
 
-> **tiko does not honour `system:` yet.** Measured 2026-09-24 at origin/master
-> 50c71751, it hands the bare name to clang as an input file rather than as
-> `-lfoo`, so `#foreignlib W static "system:winmm"` fails the link with
-> `clang: error: no such file or directory: 'winmm'` (`TKO0116`). Until that is
-> fixed, name a system library with `#inclib`.
+> **tiko honours `system:` since 2026-09-25.** Before that it handed the bare
+> name to clang as an input file, and `#foreignlib W static "system:winmm"`
+> failed the link with `clang: error: no such file or directory: 'winmm'`
+> (`TKO0116`). A `system:` name now goes to the linker exactly as `#inclib`'s
+> does.
 
 Several specs bind as one set, in link order — this is how a binding declares
 what it drags in with it:
@@ -575,13 +575,14 @@ a `.dll.a` will never satisfy `static`.
 longer happen — and if it does, check you are not still using `#libpath`
 somewhere, which *is* working-directory relative.
 
-**"I compiled a module with `-c` and its library is missing at the link."** fbc
-records the resolved directory in the object file, as an **absolute** path; tiko
-does not record the library in the object at all. Measured 2026-09-24 at
-origin/master 50c71751: a module compiled with `tiko -c` and linked in a later
-run leaves its symbols undefined
-(`lld-link: error: undefined symbol: sqlite3_libversion`), where fbc's build
-links. Give every `.bas` to one `tiko` invocation -- that links and runs.
+**"I compiled a module with `-c` and its library is missing at the link."** Both
+compilers record the library in the object file: its file name, and the directory
+it was resolved in as an **absolute** path. Measured 2026-09-25: a module compiled
+with `-c` links in a later run from another working directory. This holds with
+fbc's object linked by tiko, and with tiko's object linked by fbc. Before
+2026-09-25 tiko recorded nothing, and the link left the module's symbols
+undefined. If the library is still missing, the object was built before its
+library moved: the recorded directory is where it WAS.
 
 ---
 
