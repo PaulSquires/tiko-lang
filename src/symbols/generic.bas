@@ -329,6 +329,24 @@ private function InstArgsOf_ _
     return (outv.Count > 0)
 end function
 
+'' ...AND OF THE SAME GENERIC. The decode above reads ANY instantiation's arguments, so
+'' 'Take( of T )( byref b as Box( of T ) )' given an 'Other( of long )' inferred T = long
+'' and bound an instance whose parameter is a Box -- 'take<6>', never emitted, and the
+'' link failed. 'select channel' over a RecvChan is that shape: SelectAddRecv takes a
+'' 'Channel( of T )'. fbc answers both with error 340 (measured, fbc-modern 1.20). Compared
+'' on the last component, case-folded: 'FB.Channel( of T )' and 'channel<6>'.
+private function SameGeneric_ _
+    ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
+    dim as string an = lcase( c.names->Spelling( c.types->NameOf( c.types->Unqualify( argT ) ) ) )
+    dim as string wn = lcase( c.names->Spelling( want ) )
+    dim as long lt_ = instr( an, "<" )
+    if (lt_ = 0) orelse (len( wn ) = 0) then return false
+    an = left( an, lt_ - 1 )
+    if instrrev( an, "." ) > 0 then an = mid( an, instrrev( an, "." ) + 1 )
+    if instrrev( wn, "." ) > 0 then wn = mid( wn, instrrev( wn, "." ) + 1 )
+    return an = wn
+end function
+
 private function InferProcTypeArgs_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval gn as Tko.NodeId, _
       byval scope_ as Tko.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
@@ -435,6 +453,7 @@ private function InferProcTypeArgs_ _
                 '' overloads be considered.
                 dim as FB.Array( of ulong ) iargs
                 if InstArgsOf_( c, argT, iargs ) = false then return false
+                if SameGeneric_( c, argT, tp->name ) = false then return false
                 if at_ >= iargs.Count then return false
                 got = cast( Tko.TypeId, iargs[at_] )
                 if got <> Tko.TYPE_NONE then exit for

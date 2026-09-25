@@ -1,0 +1,13 @@
+'' TKO0809, fbc's 340: every argument typed and no inference fits. 'Other( of long )'
+'' against a 'Box( of T )' parameter bound an instance that was never emitted, and the
+'' link failed on 'take<6>'; a 'long' dropped the statement. See symbols/generic.bas,
+'' SameGeneric_, and symbols/latesweeps4.bas, InferMissed4_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-infer-mismatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-infer-mismatch.bas(17,
+'' EXPECT-OUT: generic-infer-mismatch.bas(18,
+'' EXPECT-OUT: error TKO0809
+'' EXPECT-NOT: generic-infer-mismatch.bas(16,
+'' EXPECT-NOT: generic-infer-mismatch.bas(19,
+'' EXPECT-MAX-DIAG: 2

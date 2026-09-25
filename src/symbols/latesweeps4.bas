@@ -579,6 +579,80 @@ private function UninferableTypeParam4_ ( byref c as Ctx, byval gn as NodeId ) a
     return false
 end function
 
+'' ...AND A THIRD CAUSE, AS CERTAIN AS THOSE TWO: every argument HAS a type and the call is
+'' still bound to the TEMPLATE, so Resolve tried and nothing it could infer fit. Measured,
+'' 'sub Take( of T )( byref b as Box( of T ) )' called with an 'Other( of long )' or a
+'' 'long' is fbc's 340 -- and so is 'select channel' over a RecvChan, whose desugaring
+'' calls SelectAddRecv( of T ) over a 'Channel( of T )' parameter. tiko linked against the
+'' template's 'take<6>' in the first and dropped the statement in the second. An untyped
+'' argument -- one inside a template's own body among them -- still answers 'maybe'.
+'' An argument INSIDE A TEMPLATE -- a generic procedure's body, or a generic type's member
+'' -- is typed by what the template declares, 'Channel( of T )', and only an instance can
+'' be judged. Told by the scope of the local or parameter the argument leads with, which
+'' is Resolve's own test (InTemplate_, resolveunbound.bas).
+private function ArgInTemplate4_ ( byref c as Ctx, byval a as NodeId ) as boolean
+    for d as long = 0 to 64
+        if a = NODE_NONE then return false
+        select case c.ast->Kind( a )
+        case N_BINARY, N_MEMBER
+            a = c.ast->binaries[cast( long, c.ast->nodes[cast( long, a )].data )].lhs
+        case N_UNARY, N_ADDROF, N_DEREF
+            a = c.ast->unaries[cast( long, c.ast->nodes[cast( long, a )].data )].operand
+        case N_CALL, N_INDEX
+            a = c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )].target
+        case N_IDENT
+            exit for
+        case else
+            return false
+        end select
+    next
+    if a = NODE_NONE then return false
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+    if s = 0 then return false
+    dim as ScopeId sc = s->parent
+    for d as long = 0 to 255
+        if sc = SCOPE_NONE then return false
+        dim as SymScope ptr ss = c.syms->ScopeAt( sc )
+        if ss = 0 then return false
+        dim as Symbol ptr os = c.syms->SymbolAt( ss->owner )
+        if os <> 0 then
+            if (os->flags and SYMF_GENERIC_INST) <> 0 then return false
+            dim as NodeId dn = cast( NodeId, os->payload )
+            if (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
+                dim as StmtPayload ptr op = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, dn )].data )]
+                if (c.ast->Kind( dn ) = N_TYPE) andalso (os->kind = cast( ubyte, SYM_UDT )) then
+                    if op->b <> NODE_NONE then return true
+                elseif (c.ast->Kind( dn ) = N_PROC) andalso (os->kind = cast( ubyte, SYM_PROC )) then
+                    if (op->extra and PF_GENERIC_PROC) <> 0 then return true
+                end if
+            end if
+        end if
+        sc = ss->parent
+    next
+    return false
+end function
+
+private function InferMissed4_ ( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if cs = 0 then return false
+    if (cs->flags and SYMF_GENERIC_INST) <> 0 then return false
+    if cs->kind <> cast( ubyte, SYM_PROC ) then return false
+    dim as NodeId cdn = cast( NodeId, cs->payload )
+    if (cdn = NODE_NONE) orelse (c.ast->Kind( cdn ) <> N_PROC) then return false
+    if (c.ast->stmts[cast( long, c.ast->nodes[cast( long, cdn )].data )].extra and PF_GENERIC_PROC) = 0 then return false
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count = 0 then return false
+    for i as long = 0 to lp->count - 1
+        dim as NodeId a = cast( NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( a ) = N_ELIDED then return false
+        if ArgInTemplate4_( c, a ) then return false
+        dim as TypeId at = c.info->TypeOf_( a )
+        if at = TYPE_NONE then return false
+        if c.types->Kind( c.types->Unqualify( at ) ) = TK_FORWARD then return false
+    next
+    return true
+end function
+
 private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as NodeId gn = NODE_NONE
     dim as NodeId callee = NODE_NONE
@@ -602,7 +676,9 @@ private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as 
         callee = c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )].target
         gn = GenericProcOf4_( c, callee )
         if gn = NODE_NONE then return
-        if UninferableTypeParam4_( c, gn ) = false then return
+        if UninferableTypeParam4_( c, gn ) = false then
+            if InferMissed4_( c, id ) = false then return
+        end if
     else
         return
     end if

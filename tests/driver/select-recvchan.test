@@ -1,0 +1,9 @@
+'' TKO0809 for 'select channel' over a RecvChan, as fbc's 340 -- and nothing for the
+'' Channel itself. See tests/diagnostics/generic-infer-mismatch.test for the cause.
+'' TEST: cli
+'' ARGS: -mt -i toolchains/tiko-windows/inc --dump-ir tests/driver/src/select-recvchan.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: select-recvchan.bas(11,1): error TKO0809
+'' EXPECT-OUT: select-recvchan.bas(12,1): error TKO0809
+'' EXPECT-NOT: select-recvchan.bas(13,
+'' EXPECT-NOT: undefined symbol
