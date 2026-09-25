@@ -1,0 +1,12 @@
+'' A PASCAL CALL'S ARGUMENTS ARE LOWERED LEFT TO RIGHT, and a pascal method's receiver
+'' before them; the temp numbers say which went first. See LowerCallParts's argument loop.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/pascal-eval-order.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: %5 = const i64 1
+'' EXPECT-OUT: %7 = call i32 G(%6)
+'' EXPECT-OUT: %11 = const i64 3
+'' EXPECT-OUT: %14 = call i32 P3(%7, %10, %13)
+'' EXPECT-OUT: %16 = call ptr GETT()
+'' EXPECT-OUT: %17 = const i64 1
+'' EXPECT-OUT: %23 = call i32 _ZN1T1MEii(%16, %19, %22)
