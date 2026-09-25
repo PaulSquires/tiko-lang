@@ -82,7 +82,6 @@ what differs from fbc.
 and listed with the rest on [Compatibility](wiki/Compatibility.md):
 
 - **tiko accepts some programs fbc rejects:**
-  - `print EOF` with no argument (1)
   - a `sub Run( )` of your own (4)
 - **fbc's own fbcunit suites:** across the whole corpus, 136 of 631 gave different results at §9c
   (2026-09-20). The extension libraries' own suites all match now: chrono, finance, filesystem,

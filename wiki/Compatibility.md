@@ -32,7 +32,6 @@ Measured 2026-09-24.
 
 | Program | fbc |
 | --- | --- |
-| `print EOF`, with no argument (tiko prints an arbitrary number) | `error 1: Argument count mismatch` |
 | `sub Run( )`, declared and called | `error 4: Duplicated definition` |
 
 Probing the extension pages found more of the same class. Each is recorded case by case on its own page (measured 2026-09-24 at origin/master 50c71751):
