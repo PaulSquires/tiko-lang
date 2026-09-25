@@ -121,6 +121,9 @@ declare function IterElemType_ _
     ( byref c as Ctx, byval seqT as Tko.TypeId ) as Tko.TypeId
 declare sub PendExprTypeRef_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+'' LEN/SIZEOF/TYPEOF's leading 'NS.proc' is the proc's bare name -- resolveintr.bas.
+declare sub DropNsPrefix_ _
+    ( byref c as Ctx, byval opnd as Tko.NodeId, byval scope_ as Tko.ScopeId )
 declare sub BindDeclType _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval t as Tko.TypeId, byval force as boolean = false )

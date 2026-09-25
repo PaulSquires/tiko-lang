@@ -1,0 +1,12 @@
+'' LEN / SIZEOF / TYPEOF read a LEADING 'NS.proc' as the bare name in view, as fbc does:
+'' 'len( NS.Twice( t ) )' calls the GLOBAL Twice, and 'sizeof( NS.Nw( ) )' measures the
+'' global short. tiko called and measured NS's. Not the first token, the prefix stays.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/len-ns-prefix.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call ptr TWICE(@t)
+'' EXPECT-NOT: _ZN2NS5TWICEER8FBSTRING(@t)
+'' EXPECT-OUT: const i64 2
+'' EXPECT-OUT: call ptr _ZN2NS4KEEPER8FBSTRING(@t)
+'' EXPECT-OUT: const i64 8

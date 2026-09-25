@@ -1,0 +1,14 @@
+'' A leading 'NS.proc' in LEN, SIZEOF or TYPEOF is the bare name in view, so with none in
+'' view it is not declared -- fbc refuses lines 16 to 20 (42, or 9 after an earlier
+'' error) and accepts line 21.
+'' tiko accepted all six. See symbols/resolveintr.bas, DropNsPrefix_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/len-ns-prefix.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: len-ns-prefix.bas(16,
+'' EXPECT-OUT: len-ns-prefix.bas(17,
+'' EXPECT-OUT: len-ns-prefix.bas(18,
+'' EXPECT-OUT: len-ns-prefix.bas(19,
+'' EXPECT-OUT: len-ns-prefix.bas(20,
+'' EXPECT-NOT: len-ns-prefix.bas(21,
+'' EXPECT-MAX-DIAG: 5

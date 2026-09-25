@@ -419,6 +419,7 @@ function ResolveTypeRef _
                 '' what is being written here.
             else
                 WalkExpr( c, sp->b, scope_ )
+                DropNsPrefix_( c, sp->b, scope_ )    '' as LEN's: resolveintr.bas
             end if
         end if
 

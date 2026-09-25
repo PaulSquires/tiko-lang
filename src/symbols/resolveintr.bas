@@ -68,3 +68,83 @@ private sub BuiltinCallTarget_ _
     wend
     c.info->SetRef( tg, Tko.SYMBOL_NONE )
 end sub
+
+'' LEN, SIZEOF AND TYPEOF DROP A NAMESPACE PREFIX FROM A PROCEDURE. Their operand may be a
+'' type, and 'NS.' may begin one, so fbc tries a type first: that reads the prefix, finds
+'' no type, and the expression is then parsed from the name after it -- which a variable
+'' honours ('NS.v' is NS's) and a procedure does not: its name is looked up UNQUALIFIED,
+'' from here. Measured on fbc-modern 1.20, 2026-09-24:
+''
+''     print len( FB.Replace( s, "a", "b" ) )     error 42 -- no 'Replace' in view
+''     print len( NS.N( ) )     global 'N as short' beside NS's longint    2
+''     print len( NS.Twice( t ) )   calls the GLOBAL Twice, not NS's
+''     print len( NS.N )        a local 'dim as ubyte N' in view           1
+''     len( NS.N( ) ) inside NS, or after 'using NS'                      NS's, 8
+''
+'' Only the LEADING operand: fbc decides on the first token, so 'NS.N( ) + 1',
+'' 'NS.P( )[0]' and 'NS.N( ) = 1' drop the prefix and '-NS.N( )', '( NS.N( ) )',
+'' 'cast( long, NS.N( ) )' and '"x" & NS.Twice( t )' keep it. tiko kept it always, so
+'' it accepted the first line and measured the wrong procedure in the rest.
+''
+'' THE QUALIFIED NODE BECOMES THE BARE NAME and is walked again, so it binds whatever an
+'' unqualified 'N' binds here -- a procedure, a variable, an array, or nothing, which
+'' ReportUndeclared then gives fbc's 42. A TYPE's static member ('U.SF( )', fbc's 7)
+'' is another path and not this one.
+sub DropNsPrefix_ _
+    ( byref c as Ctx, byval opnd as Tko.NodeId, byval scope_ as Tko.ScopeId )
+
+    dim as Tko.NodeId n = opnd, parent = Tko.NODE_NONE
+    dim as long guard = 0
+    do while (n <> Tko.NODE_NONE) andalso (guard < 256)
+        guard += 1
+        select case c.ast->Kind( n )
+        case Tko.N_BINARY
+            parent = Tko.NODE_NONE
+            n = c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )].lhs
+        case Tko.N_CALL, Tko.N_INDEX
+            parent = n
+            n = ListOf( c, n )->target
+        case Tko.N_MEMBER
+            dim as Tko.BinaryPayload ptr mb = _
+                @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+            if mb->lhs = Tko.NODE_NONE then return
+            dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
+            dim as boolean viaNs = false
+            if bs <> 0 then viaNs = (bs->kind = cast( ubyte, Tko.SYM_NAMESPACE ))
+            if viaNs = false then
+                parent = Tko.NODE_NONE
+                n = mb->lhs
+                continue do
+            end if
+            if c.ast->Kind( mb->rhs ) <> Tko.N_IDENT then return
+            dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( mb->rhs ) )
+            if ps = 0 then return
+            if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then return
+            c.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_IDENT )
+            c.ast->nodes[cast( long, n )].data = c.ast->nodes[cast( long, mb->rhs )].data
+            c.info->SetRef( n, Tko.SYMBOL_NONE )
+            WalkExpr( c, n, scope_ )
+            if parent <> Tko.NODE_NONE then
+                if c.ast->Kind( parent ) = Tko.N_CALL then
+                    c.info->SetRef( parent, c.info->RefOf( n ) )
+                end if
+            end if
+            return
+        case else
+            return
+        end select
+    loop
+end sub
+
+'' 'len( x )' / 'sizeof( x )', the builtin -- a user procedure of that name is bound.
+private sub LenOperandPrefix_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+
+    dim as Tko.ListPayload ptr lp = ListOf( c, id )
+    if (lp->count <> 1) orelse (lp->target = Tko.NODE_NONE) then return
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return
+    if c.info->RefOf( lp->target ) <> Tko.SYMBOL_NONE then return
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, lp->target ) ) )
+    if (nm <> "len") andalso (nm <> "sizeof") then return
+    DropNsPrefix_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), scope_ )
+end sub

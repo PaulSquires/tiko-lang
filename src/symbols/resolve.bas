@@ -139,7 +139,6 @@ end function
 
 '' ------------------------------------------------------------------- walking
 
-
 '' THIS, inside a method body. Collect declares the parameter -- it is never written, so
 '' nothing else would -- and this gives it the owning type. Without it 'this.v' was
 '' untyped, 'this.M( )' lowered with no receiver at all, and every unqualified reference
@@ -727,6 +726,7 @@ private sub WalkExpr _
             end if
         next
         if c.ast->Kind( id ) = Tko.N_CALL then
+            LenOperandPrefix_( c, id, scope_ )   '' 'len( NS.f( ) )' is f in view -- see there
             '' 'Ok( of Decimal, FinanceError )( v )' -- A GENERIC PROCEDURE, whose type
             '' arguments the parser recorded against this node. Tried BEFORE the
             '' ordinary binding below: the target names the GENERIC, and copying that
