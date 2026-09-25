@@ -356,7 +356,21 @@ error 371: Expected a tuple
 
 and three pre-existing ones that a tuple can now reach: error 266 (too many elements, destructuring), error 24 (PRINT of a tuple), error 20 (comparing two different tuple types).
 
-tiko reports almost none of these yet. Measured 2026-09-24 at origin/master 50c71751 against the twenty cases of fbc's own `errors/tuple-errors.bas` (vendored in tiko-lang under `tests/vendor/fbc-tests/`), one case per file: tiko rejects three -- an unterminated element list and `var (arr(1), b) = ...` (`TKO0401: expected ')'`), and a tuple constant (`TKO0748: a constant cannot have the type of 'c'`) -- and compiles the other seventeen with no diagnostic. Among them are a 1-tuple, a duplicated element name, ANY and fixed-length-string elements, `extends (long, long)`, SIZEOF and TYPEOF of a tuple type, arity mismatches in both directions, destructuring a UDT or a scalar, and `<` or `=` between tuples. `print (a, b)` compiles too. In six of these -- SIZEOF, too many targets, destructuring a scalar, `<`, `=` between two different tuple types, and `print (a, b)` -- `--dump-ir` reports the statement as not lowered: it is silently left out of the program. fbc's rejections are the intended behaviour; do not rely on tiko accepting any of these.
+tiko reports some of these. Measured 2026-09-25 against the twenty cases of fbc's own `errors/tuple-errors.bas` (vendored in tiko-lang under `tests/vendor/fbc-tests/`), one case per file, tiko rejects eight:
+- an unterminated element list, and `var (arr(1), b) = ...` (`TKO0401: expected ')'`);
+- a tuple constant (`TKO0748: a constant cannot have the type of 'c'`);
+- a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`), the declaration errors 367, 368 and 369, only the first problem in a list reported as fbc does.
+
+It compiles the other twelve with no diagnostic:
+- `extends (long, long)`;
+- SIZEOF and TYPEOF of a tuple type;
+- a nested tuple literal that is not context-typed;
+- arity mismatches in both directions;
+- destructuring a UDT or a scalar;
+- `var (a) = 1`, and a `var (a, b)` of the wrong arity;
+- `<` or `=` between tuples.
+
+`print (a, b)` compiles too. Six of these statements are silently left out of the program (`--dump-ir` reports them as not lowered): SIZEOF, too many targets, destructuring a scalar, `<`, `=` between two different tuple types, and `print (a, b)`. fbc's rejections are the intended behaviour; do not rely on tiko accepting any of these.
 
 ## Implementation
 
