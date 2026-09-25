@@ -28,11 +28,14 @@ Where they still part, a `defer` that is the keyword has no statement to defer:
 
 Measured 2026-09-24.
 
-**tiko accepts some programs that fbc rejects.** Each of these compiles under tiko and stops fbc with the error shown (measured 2026-09-24 at 50c71751):
+**tiko accepts some programs that fbc rejects.** Each of these compiles under tiko and stops fbc with the error shown (measured 2026-09-25):
 
 | Program | fbc |
 | --- | --- |
-| `sub Run( )`, declared and called | `error 4: Duplicated definition` |
+| `sub T.m( byval foo as long )` where T also has a member `Foo` | `error 4: Duplicated definition` |
+| `#define run 5` -- a name fbc's runtime predeclares | `error 4: Duplicated definition` |
+| `print len`, `print asc`, `print abs` with no operand (tiko drops the statement) | `error 6: Expected '('` |
+| `print len( )`, `print sqr( )`, `print chr( )` (tiko drops the statement) | `error 9: Expected expression` |
 
 Probing the extension pages found more of the same class. Each is recorded case by case on its own page (measured 2026-09-24 at origin/master 50c71751):
 

@@ -81,8 +81,11 @@ what differs from fbc.
 **Known gaps.** Measured 2026-09-24 at 50c71751 against fbc-modern's builds of the same programs,
 and listed with the rest on [Compatibility](wiki/Compatibility.md):
 
-- **tiko accepts some programs fbc rejects:**
-  - a `sub Run( )` of your own (4)
+- **tiko accepts some programs fbc rejects** (measured 2026-09-25):
+  - a method parameter named like a member of its own type (4)
+  - `#define` of a name fbc's runtime predeclares, `#define run 5` (4)
+  - `print len`, `print sqr( )` and other keyword builtins with no operand (6, 9), whose
+    statement tiko drops
 - **fbc's own fbcunit suites:** across the whole corpus, 136 of 631 gave different results at §9c
   (2026-09-20). The extension libraries' own suites all match now: chrono, finance, filesystem,
   math, logging, tui and `fb/string.bi` (2026-09-24). The differences left in `string/` and
