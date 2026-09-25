@@ -169,6 +169,21 @@ sub CheckForEach_( byref c as Ctx )
                 else
                     dim as Tko.Symbol ptr vo = _
                         c.syms->SymbolAt( UdtMemberSym_( c, itT, "value" ) )
+                    '' 'for each BYREF' BINDS THE ELEMENT, so Value( ) has to hand one back --
+                    '' fbc's error 345 otherwise, "Cannot bind BYREF in FOR EACH, the
+                    '' iterator's Value( ) returns by value" (fbc-modern 1.20, 2026-09-25;
+                    '' its generics/fail-foreach-byref.bas). tiko built no program and said
+                    '' nothing. The flag is the one lowereach.bas reads: NF_BYREF on the
+                    '' Value( ) declaration. An array needs nothing of the kind.
+                    if (vo <> 0) andalso (sp->op = cast( ushort, Tko.KW_BYREF )) then
+                        dim as Tko.NodeId vpn = cast( Tko.NodeId, vo->payload )
+                        if (vpn <> Tko.NODE_NONE) andalso (c.ast->Kind( vpn ) = Tko.N_PROC) then
+                            if (c.ast->nodes[cast( long, vpn )].flags and Tko.NF_BYREF) = 0 then
+                                c.diags->Report( Tko.TKO0818, r, c.types->Name( itT ) )
+                                ok = false
+                            end if
+                        end if
+                    end if
                     if vo <> 0 then
                         elT = vo->type_
                         if elT <> Tko.TYPE_NONE then

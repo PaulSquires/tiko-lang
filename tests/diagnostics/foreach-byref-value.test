@@ -1,0 +1,7 @@
+'' TKO0818, fbc's 345: 'for each byref' over an iterator whose Value( ) returns by value.
+'' tiko built no program and reported nothing. See symbols/checkeach.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/foreach-byref-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: foreach-byref-value.bas(39,1): error TKO0818: 'for each byref' needs a byref Value( ), and 'itv.Value( )' returns by value
+'' EXPECT-MAX-DIAG: 1

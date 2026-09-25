@@ -569,6 +569,9 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's error 345: 'for each byref' over an iterator whose Value( ) returns by value --
+    '' there is no element to bind to. See symbols/checkeach.bas.
+    DIAG( TKO0818, SEV_ERROR,   "'for each byref' needs a byref Value( ), and '%0.Value( )' returns by value" )
     '' fbc's error 341: a generic member's out-of-line '( of ... )' list differs from the
     '' type's, in count or in a name -- see symbols/resolvestmt.bas.
     DIAG( TKO0817, SEV_ERROR,   "the type parameters written for '%0' do not match its declaration, 'of %1'" )
