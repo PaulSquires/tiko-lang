@@ -32,7 +32,6 @@ Measured 2026-09-24.
 
 | Program | fbc |
 | --- | --- |
-| `select channel` with a case over a `RecvChan` (tiko reports nothing, and the link then fails) | `error 340: Unable to infer type arguments` |
 | a `for each` with no `next` at end of file | `error 13: Expected 'NEXT'` |
 | `print EOF`, with no argument (tiko prints an arbitrary number) | `error 1: Argument count mismatch` |
 | `sub Run( )`, declared and called | `error 4: Duplicated definition` |

@@ -40,11 +40,10 @@ program output, not illustrations — from fbc's build. Under tiko, measured
   `using FB` it needs, it compiles under both.
 
 The compiler messages quoted below are fbc's; tiko reports its own, with
-`TKOnnnn` ids. Two of those errors it does not raise yet: a `byref` parameter at
-a spawn site (fbc's error 358) compiles, and a `RecvChan` in a `select channel`
-case (fbc's error 340) gets no diagnostic either — the build fails at the link
-instead, on `undefined symbol: selectaddrecv<6>` and its siblings, then
-`error TKO0116: link failed`.
+`TKOnnnn` ids, on the same programs: a `byref` parameter at a spawn site is
+TKO0812 (fbc's error 358), and a `RecvChan` or `SendChan` in a `select channel`
+case is TKO0809 (fbc's error 340), which names the `fb/select.bi` generic that
+could not be instantiated.
 
 ---
 
