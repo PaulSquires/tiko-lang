@@ -91,7 +91,7 @@ and listed with the rest on [Compatibility](wiki/Compatibility.md):
   math, logging, tui and `fb/string.bi` (2026-09-24). The differences left in `string/` and
   `wstring/` are FreeBASIC's core string tests.
 - **Many of fbc's diagnostics for the extensions are not raised yet.** 17 of fbc's 20 tuple error
-  cases compile under tiko, and so do 7 of its 30 generics `fail-*.bas` files and a bare
+  cases compile under tiko, and so do 6 of its 30 generics `fail-*.bas` files and a bare
   `DEFER`; some of them drop a statement silently. The [Generics](wiki/Category-Generics.md),
   [Tuples](wiki/Category-Tuples.md) and [Defer](wiki/Category-Defer.md) pages list them case by
   case.
