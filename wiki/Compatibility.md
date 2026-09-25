@@ -32,7 +32,6 @@ Measured 2026-09-24.
 
 | Program | fbc |
 | --- | --- |
-| `print len( FB.Replace( s, "a", "b" ) )` | `error 42: Variable not declared` |
 | `spawn W( k )` where `W` takes a `byref` parameter | `error 358: SPAWN cannot pass a BYREF parameter` |
 | `select channel` with a case over a `RecvChan` (tiko reports nothing, and the link then fails) | `error 340: Unable to infer type arguments` |
 | a `for each` with no `next` at end of file | `error 13: Expected 'NEXT'` |

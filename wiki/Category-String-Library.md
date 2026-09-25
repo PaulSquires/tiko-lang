@@ -396,9 +396,10 @@ Reached from FreeBASIC through 'extern "C" declare ... alias' inside namespace F
 
 Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with FreeBASIC bodies, because their result is an Array( of T ) that the runtime cannot build. They are 'private', so each including module gets its own copy and two modules including the header still link -- the same trade the generic containers make. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
 
-## ONE UPSTREAM FreeBASIC BUG WORTH KNOWING
+## ONE FreeBASIC QUIRK WORTH KNOWING
 
-fbc's LEN cannot parse a NAMESPACE-QUALIFIED function call:
+LEN and SIZEOF do not honour a namespace qualifier on a function call that comes first in
+their operand:
 
 ```freebasic
 print len( FB.Replace( s, "a", "b" ) )    ' fbc: error 42: Variable not declared
@@ -413,9 +414,9 @@ end namespace
 print len( NS.Twice( t ) )
 ```
 
-Both workarounds are ordinary: write 'using FB' and drop the qualifier, or assign the result first and take LEN of the variable. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
+The operand may be a TYPE, and 'FB.' may begin one, so the compiler reads the qualifier as a type's, finds no type, and parses what follows it UNQUALIFIED. With no 'Replace' in view that is error 42. With one in view it is worse: that one is called, and measured. Given a global 'function Twice' beside NS's, 'len( NS.Twice( t ) )' calls the global one. The qualifier holds when the call is not the first thing in the operand: '( NS.Twice( t ) )', '"x" & NS.Twice( t )' and 'cast( ... )' all reach NS's. It also holds for a qualified VARIABLE, so 'len( NS.v )' is NS's.
 
-tiko currently ACCEPTS both examples above -- measured 2026-09-24 at origin/master 50c71751, where fbc 1.20.0 (FBC-Modern) and fbc 1.10.1 both stop at error 42. That is a divergence from fbc rather than a fix, so code that must also build with fbc still needs one of the workarounds.
+tiko does the same (measured 2026-09-24 against fbc 1.20.0, FBC-Modern), and tests/mir/len-ns-prefix.test and tests/diagnostics/len-ns-prefix.test hold it there. The workarounds are ordinary: write 'using FB' and drop the qualifier, or assign the result first and take LEN of the variable, or put the call in parentheses. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
 
 ## Money Formatting
 
