@@ -356,21 +356,18 @@ error 371: Expected a tuple
 
 and three pre-existing ones that a tuple can now reach: error 266 (too many elements, destructuring), error 24 (PRINT of a tuple), error 20 (comparing two different tuple types).
 
-tiko reports some of these. Measured 2026-09-25 against the twenty cases of fbc's own `errors/tuple-errors.bas` (vendored in tiko-lang under `tests/vendor/fbc-tests/`), one case per file, tiko rejects eight:
+tiko reports most of these. Measured 2026-09-25 against the twenty cases of fbc's own `errors/tuple-errors.bas` (vendored in tiko-lang under `tests/vendor/fbc-tests/`), one case per file, tiko rejects fifteen:
 - an unterminated element list, and `var (arr(1), b) = ...` (`TKO0401: expected ')'`);
 - a tuple constant (`TKO0748: a constant cannot have the type of 'c'`);
-- a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`), the declaration errors 367, 368 and 369, only the first problem in a list reported as fbc does.
+- a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`) -- the declaration errors 367, 368 and 369, only the first problem in a list reported, as fbc does;
+- `extends (long, long)` (`TKO0824`; a typedef of a tuple after `extends` compiles under both);
+- destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted by both.
 
-It compiles the other twelve with no diagnostic:
-- `extends (long, long)`;
-- SIZEOF and TYPEOF of a tuple type;
-- a nested tuple literal that is not context-typed;
-- arity mismatches in both directions;
-- destructuring a UDT or a scalar;
-- `var (a) = 1`, and a `var (a, b)` of the wrong arity;
-- `<` or `=` between tuples.
+It compiles the other five with no diagnostic:
+- SIZEOF and TYPEOF of a tuple type, and a nested tuple literal that is not context-typed. These three are FBC-Modern's DOCUMENTED limitations, pinned in that file on purpose; tiko handles all three.
+- `<`, and `=` between two different tuple types.
 
-`print (a, b)` compiles too. Six of these statements are silently left out of the program (`--dump-ir` reports them as not lowered): SIZEOF, too many targets, destructuring a scalar, `<`, `=` between two different tuple types, and `print (a, b)`. fbc's rejections are the intended behaviour; do not rely on tiko accepting any of these.
+`print (a, b)` compiles too. Four of these statements are silently left out of the program (`--dump-ir` reports them as not lowered): SIZEOF, `<`, `=` between two different tuple types, and `print (a, b)`. fbc's rejections are the intended behaviour; do not rely on tiko accepting any of these.
 
 ## Implementation
 
