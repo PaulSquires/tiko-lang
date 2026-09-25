@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 376 132" width="376" height="132" role="img" aria-label="tiko">
+<title>tiko</title>
+<g><defs><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1">
+  <stop offset="0" stop-color="#7B5CFF"/><stop offset="1" stop-color="#4A2FD1"/></linearGradient></defs>
+<rect x="4" y="4" width="120" height="120" rx="28" fill="url(#ga)"/>
+<g fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M30 44 L50 64 L30 84"/>
+  <path d="M78 30 V80 Q78 96 94 96 H98"/>
+  <path d="M62 50 H98"/>
+</g>
+<circle cx="100" cy="28" r="7" fill="#3DF5B0"/></g>
+<g transform="translate(150,14) scale(1.35)"><g fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 12 V54 Q14 70 30 70 H34"/>
+  <path d="M4 32 H32"/>
+  <path d="M50 32 V70"/>
+  <path d="M68 10 V70"/>
+  <path d="M94 32 L70 52"/>
+  <path d="M78 46 L96 70"/>
+  <circle cx="131" cy="51" r="19"/>
+</g>
+<circle cx="50" cy="13" r="7.5" fill="#7B5CFF"/></g>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Tiko, the tiko mascot">
+<title>Tiko, the tiko mascot</title>
+<g stroke="#1A1036" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M59 26 Q56 10 72 5 Q68 16 69 26 Z" fill="#FF8A3D"/>
+  <ellipse cx="64" cy="70" rx="46" ry="48" fill="#6C4CF1"/>
+  <ellipse cx="64" cy="84" rx="28" ry="28" fill="#C9F7E4"/>
+  <path d="M20 68 Q6 84 18 98 Q24 88 26 80 Z" fill="#4A2FD1"/>
+  <path d="M108 68 Q122 84 110 98 Q104 88 102 80 Z" fill="#4A2FD1"/>
+  <circle cx="46" cy="52" r="15" fill="#FFFFFF"/>
+  <circle cx="82" cy="52" r="15" fill="#FFFFFF"/>
+  <path d="M56 64 L72 64 L64 76 Z" fill="#FF8A3D"/>
+  <path d="M50 118 V124 M44 124 H56 M78 118 V124 M72 124 H84" fill="none" stroke="#FF8A3D"/>
+</g>
+<circle cx="49" cy="54" r="6.5" fill="#1A1036"/>
+<circle cx="85" cy="54" r="6.5" fill="#1A1036"/>
+<circle cx="51.5" cy="51" r="2.2" fill="#FFFFFF"/>
+<circle cx="87.5" cy="51" r="2.2" fill="#FFFFFF"/>
+<g fill="none" stroke="#6C4CF1" stroke-width="3.5" stroke-linecap="round" opacity="0.55">
+  <path d="M54 86 Q64 92 74 86"/><path d="M52 96 Q64 102 76 96"/>
+</g>
+</svg>

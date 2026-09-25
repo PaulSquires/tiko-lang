@@ -1,3 +1,10 @@
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/tiko-logo-on-dark.svg">
+  <img src="docs/brand/tiko-logo-on-light.svg" alt="tiko" width="320">
+</picture>
+</p>
+
 # tiko-lang
 
 **tiko is a FreeBASIC-compatible compiler, written from scratch in FreeBASIC.** It has its own
