@@ -35,11 +35,9 @@
 '' EXPECT-NOT: <NO TERMINATOR>
 '' GOLDEN: expected/control.out
 
-'' A duplicate label name must NOT resolve to whichever occurrence came last. Each gets
-'' its own block, and a goto naming it declines to lower rather than branching somewhere
-'' that merely looks plausible. This was found by the depth assertion firing on
-'' tests/vendor/fbc-tests/scopes/branch-cross-select-case.bas, which has two 'label1's.
-'' EXPECT-OUT: lbl.dup
+'' A duplicate label in one procedure is refused before lowering now (TKO0600, fbc's 4) --
+'' see src/control.bas's Dup. branch-cross-select-case.bas's two 'label1's, which
+'' found the lowering's duplicate handling, are in two TEST subs.
 
 '' END is a direct fb_End call. The exit code is the argument; a bare END passes 0.
 '' EXPECT-OUT: call.rtl void fb_End

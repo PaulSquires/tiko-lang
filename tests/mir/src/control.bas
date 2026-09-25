@@ -29,9 +29,11 @@ done:
     r = 3
 end sub
 
-'' Two labels of the SAME NAME in one procedure. Labels are scoped in FreeBASIC, so
-'' sibling scopes may each declare 'again' -- fbcunit's TEST macro produces exactly this
-'' shape. Slots are keyed by name alone and cannot tell them apart.
+'' A label in each of two sibling scopes. They were both 'again' here, on the belief that
+'' labels are block-scoped; they are PROCEDURE-wide -- fbc 1.10.1 and fbc-modern 1.20 both
+'' give error 4 at the second (measured 2026-09-25), and tiko now does too
+'' (tests/diagnostics/label-namespace.test). fbcunit's TEST opens a SUB per test, which is
+'' why two TESTs may each hold a 'label1'.
 sub Dup( byval n as long )
     dim as long r
     scope
@@ -39,7 +41,7 @@ sub Dup( byval n as long )
         r = 1
     end scope
     scope
-        again:
+        again2:
         r = 2
     end scope
 end sub

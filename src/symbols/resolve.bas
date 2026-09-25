@@ -347,13 +347,13 @@ private sub WalkExpr _
         '' rather than two.
         dim as Tko.SymbolId sid = c.syms->LookupTyped( scope_, nm, false )
         sid = VisibleToUse_( c, VisibleAbove_( c, sid, id, scope_, nm ), scope_ )  '' fbc's 42
+        if sid = Tko.SYMBOL_NONE then sid = LabelRef_( c, scope_, nm )  '' resolvestmt.bas
         '' ...AND AN INHERITED MEMBER BEATS A MODULE-LEVEL NAME. The walk above
         '' reaches the procedure's locals and its OWN type's members, and then goes
         '' straight out to the namespace; an INHERITED member is not on that chain
         '' at all -- the base's scope is the type of a field named 'base' -- so it
         '' was only ever consulted when the whole walk had already failed. A module
         '' level name of the same spelling therefore won:
-        ''
         ''     private sub f( )            <- module level
         ''     sub B.test_proc( ) : f( )   <- fbc calls A.f, tiko called the global
         ''

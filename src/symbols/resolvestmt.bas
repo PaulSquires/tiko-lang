@@ -84,6 +84,15 @@ end sub
 
 #include once "symbols/resolvedefer.bas"
 
+'' A NAME THAT IS ONLY A LABEL -- 'on n goto s10', 'restore lbl'. A label is declared under
+'' a key no written name reaches (DeclareLabel_, collectdecl.bas), so that a variable of
+'' the same name is never shadowed by it; a name that finds NOTHING else is looked for
+'' under that key, which binds it exactly as it was bound before.
+function LabelRef_ ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId ) as Tko.SymbolId
+    if nm = 0 then return Tko.SYMBOL_NONE
+    return c.syms->Lookup( scope_, c.names->GetString( "$label:" & c.names->Spelling( c.names->Fold( nm ) ) ) )
+end function
+
 sub StatementChecks_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
     RtlNameClash_( c, id, here )
     DeferAtModule_( c, id, here )

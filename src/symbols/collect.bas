@@ -1169,8 +1169,8 @@ sub WalkNode _
         WalkChildren( w, sp->first, sp->count, scope_ )
 
     case Tko.N_LABEL
-        dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
-        Declare_( w, scope_, sp->name, Tko.SYM_LABEL, w.ast->Loc( id ) )
+        '' A LABEL IS IN A NAMESPACE OF ITS OWN -- see DeclareLabel_ in collectdecl.bas.
+        DeclareLabel_( w, scope_, id )
 
     '' N_SPAWN is here because the parser rewrote it into a SCOPE full of ordinary
     '' statements -- a 'dim' among them -- and an unlisted statement kind is not

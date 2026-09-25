@@ -1,0 +1,13 @@
+'' A label shares its name with a variable, a parameter or a constant, and never hides
+'' one; a second label of the name in one PROCEDURE is TKO0600, fbc's 4. See
+'' DeclareLabel_ in symbols/collectdecl.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/label-namespace.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: label-namespace.bas(31,1): error TKO0600: 'dup' is already declared in this scope
+'' EXPECT-OUT: label-namespace.bas(38,1): error TKO0600: 'ee' is already declared in this scope
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: label-namespace.bas(9,
+'' EXPECT-NOT: label-namespace.bas(23,
+'' EXPECT-NOT: label-namespace.bas(27,
+'' EXPECT-MAX-DIAG: 2

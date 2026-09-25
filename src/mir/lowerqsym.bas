@@ -120,6 +120,20 @@ function LowerQuerySymbol_ _
     dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
     dim as Tko.SymbolId sid = c.info->RefOf( sn )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
+    '' A NAME THAT IS ONLY A LABEL binds to nothing -- labels are declared under a key no
+    '' written name reaches (DeclareLabel_, symbols/collectdecl.bas) -- and fbc answers
+    '' LABEL for it (fbc-int/query-symbol.bas). So one is looked for by that key.
+    if (sy = 0) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
+        dim as Tko.InternId lk = c.names->GetString( "$label:" & _
+            c.names->Spelling( c.names->Fold( c.ast->idents[cast( long, c.ast->nodes[cast( long, sn )].data )].name ) ) )
+        for i as long = 0 to c.syms->symbols.Count - 1
+            if (c.syms->symbols[i].kind = cast( ubyte, Tko.SYM_LABEL )) andalso _
+               (c.syms->symbols[i].name = lk) then
+                sy = @c.syms->symbols[i]
+                exit for
+            end if
+        next
+    end if
 
     select case q
     case QSYM_EXISTS

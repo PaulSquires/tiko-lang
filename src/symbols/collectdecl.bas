@@ -194,6 +194,50 @@ private sub MarkShadow_ _
     end select
 end sub
 
+'' THE KEY A LABEL IS DECLARED UNDER, which no ordinary name can spell.
+function LabelKey_( byref names as Tko.Interner, byval nm as Tko.InternId ) as Tko.InternId
+    return names.GetString( "$label:" & names.Spelling( names.Fold( nm ) ) )
+end function
+
+'' A LABEL IS IN A NAMESPACE OF ITS OWN. Measured on fbc-modern 1.20, 2026-09-25: a label
+'' may share its name with a local, a parameter, a shared variable, a constant or a type,
+'' in the same procedure or around it, and the name still means the variable -- only a
+'' SECOND LABEL of the name is error 4. tiko declared labels as ordinary names, so
+''
+''     dim zz as long : zz : print "now"          TKO0600 where fbc prints now
+''     sub u( byval prm as long ) : prm:          TKO0600
+''     dim shared kk as long -- in a sub, 'kk:' then 'kk = 5'
+''                                                the LABEL took the assignment and the
+''                                                program printed 0 where fbc prints 5
+''     const CC = 3 -- in a sub, 'CC:' then 'print CC'   left out of the program
+''
+'' It is declared under LabelKey_ instead, which no lookup of a written name can reach.
+'' 'goto' never looked it up: labels are matched by name when lowered.
+''
+'' AND IN THE PROCEDURE, not the block it is written in: fbc's labels are procedure-wide,
+'' so 'dd:' in one 'scope' block and 'dd:' in another is error 4 (measured). Every lookup
+'' walks outward, so a use inside any block of the procedure still finds it.
+sub DeclareLabel_( byref w as Walker, byval scope_ as Tko.ScopeId, byval id as Tko.NodeId )
+    dim as Tko.InternId nm = StmtOf( w, id )->name
+    if nm = Tko.INTERN_NONE then return
+    dim as Tko.SourceLoc loc = w.ast->Loc( id )
+    for guard as long = 0 to 4095
+        dim as Tko.SymScope ptr ss = w.syms->ScopeAt( scope_ )
+        if ss = 0 then exit for
+        if ss->kind <> Tko.SCOPEK_BLOCK then exit for
+        if ss->parent = Tko.SCOPE_NONE then exit for
+        scope_ = ss->parent
+    next
+    dim as boolean dup = false
+    dim as Tko.SymbolId sid = w.syms->DeclareSym( scope_, LabelKey_( *w.names, nm ), _
+                                                   Tko.SYM_LABEL, loc, dup )
+    if dup = false then return
+    w.duplicates += 1
+    w.diags->Report( Tko.TKO0600, Tko.PointRange( loc ), w.names->Spelling( nm ) )
+    dim as Tko.Symbol ptr prev = w.syms->SymbolAt( sid )
+    if prev <> 0 then w.diags->AddNote( Tko.TKO0901, Tko.PointRange( prev->loc ) )
+end sub
+
 private function Declare_ _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval k as Tko.SymbolKind, byval loc as Tko.SourceLoc ) as Tko.SymbolId

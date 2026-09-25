@@ -135,13 +135,13 @@ func void DUP(i32 $0) {
     store @n, $0
     %2 = alloca ptr r
     %3 = call.rtl ptr memset(@r, 0, 4)
-    br lbl.dup1
-  lbl.dup1:
+    br lbl.again1
+  lbl.again1:
     %4 = const i64 1
     %5 = trunc %4
     store @r, %5
-    br lbl.dup2
-  lbl.dup2:
+    br lbl.again22
+  lbl.again22:
     %6 = const i64 2
     %7 = trunc %6
     store @r, %7
