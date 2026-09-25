@@ -40,7 +40,7 @@ Measured 2026-09-24.
 Probing the extension pages found more of the same class. Each is recorded case by case on its own page (measured 2026-09-24 at origin/master 50c71751):
 
 - **Generics.** fbc's errors 335, 336 and 341 are reported since 2026-09-25. 1 of fbc's 30 generics `fail-*.bas` files compiles under tiko (2026-09-25; fail-lambda-capture-typaram, an FBC-Modern limitation that tiko does not share), and a runaway instantiation does not stop. See [Generics](Category-Generics).
-- **Tuples.** 5 of fbc's 20 tuple error cases compile under tiko (2026-09-25): three of FBC-Modern's documented limitations that tiko handles, and `<` and `=` between tuples. 3 of the 5 drop a statement. See [Tuples](Category-Tuples).
+- **Tuples.** 3 of fbc's 20 tuple error cases compile under tiko (2026-09-25), all three FBC-Modern's documented limitations, which tiko handles (SIZEOF and TYPEOF of a tuple type, and a nested literal). See [Tuples](Category-Tuples).
 - **DEFER.** A `defer` at module level compiles and runs, where fbc gives error 348. So does a `goto` across a `defer`. See [Defer](Category-Defer).
 - **`#foreignlib`.** A `"system:"` name is not honoured, and a module compiled with `-c` loses the library at the later link. See the [tutorial](modern-Foreignlib-tutorial).
 - **`pascal`.** A `pascal` procedure called through a `cdecl` pointer draws no warning, and its arguments are not reversed. See [C Header Import](Category-C-Header-Import).
