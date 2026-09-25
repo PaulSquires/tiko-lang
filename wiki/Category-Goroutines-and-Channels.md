@@ -131,7 +131,7 @@ proc inside a namespace    NO -- diagnosed
 procedure pointer, lambda  NO -- diagnosed
 ```
 
-A BYREF parameter is a compile error at a spawn site.  Copying defeats the BYREF; honouring it would hand the goroutine a reference into a frame that is about to die.  Pass a pointer if sharing is what you mean.
+A BYREF parameter is a compile error at a spawn site.  Copying defeats the BYREF; honouring it would hand the goroutine a reference into a frame that is about to die.  Pass a pointer if sharing is what you mean.  That includes a STRING or UDT parameter written with neither keyword, which is byref by default: 'sub Worker( s as string )' cannot be spawned, and 'sub Worker( byval s as string )' can.  With overloads, the first-declared procedure of the name is the one judged.
 
 EVERY ARGUMENT MUST BE WRITTEN.  A default argument cannot be omitted at a spawn site: the argument count is taken from the target's parameter list, because the lexer looks ahead three tokens and the written arguments cannot be counted.
 
@@ -454,7 +454,7 @@ Full design, with every rejected alternative and the reasons: C:\\dev\\docs\\gor
 
 ## Tests
 
-tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/mir/spawn-contextual.test for 'spawn' used as an ordinary variable.  For 'select channel', tests/driver/select-channel-link.test builds every case form and checks that it links, and tests/driver/select-channel-run.test builds a program that covers every case form, which build/goldenrun.sh runs beside fbc's build.  Neither is a test of the library itself.
+tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/mir/spawn-contextual.test for 'spawn' used as an ordinary variable.  tests/diagnostics/spawn-byref.test holds the BYREF rule above to fbc's, line for line (TKO0812, fbc's 358).  For 'select channel', tests/driver/select-channel-link.test builds every case form and checks that it links, and tests/driver/select-channel-run.test builds a program that covers every case form, which build/goldenrun.sh runs beside fbc's build.  Neither is a test of the library itself.
 
 The library is measured with fbc's own fbcunit suites, built by both compilers with -mt and the results compared: all three concurrency/ suites print what fbc's builds print (HANDOFF section 9f, 2026-09-21).
 

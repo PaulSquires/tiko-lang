@@ -82,7 +82,6 @@ what differs from fbc.
 and listed with the rest on [Compatibility](wiki/Compatibility.md):
 
 - **tiko accepts some programs fbc rejects:**
-  - a `byref` parameter at a spawn site (358)
   - `select channel` over a `RecvChan` (340)
   - a `for each` with no `next` at end of file (13)
   - `print EOF` with no argument (1)
