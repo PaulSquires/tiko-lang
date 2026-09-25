@@ -573,6 +573,21 @@ end function
 '' beside 'byval as long ptr'; 'byref as const string' beside 'byref as string', and
 '' 'const long ptr' beside 'long ptr' in any mode, are two overloads. tiko judged only
 '' the both-byval pairs.
+'' TWO PROCEDURE TYPES THAT DIFFER ONLY IN BEING PASCAL mangle alike -- fbc does not encode
+'' the convention -- and are not a const twin: fbc accepts 'sub f7 overload alias "A"( p as
+'' sub cdecl( ) )' beside 'alias "B"( p as sub pascal( ) )' (functions/mangling-procptr.bas).
+private function PascalOnly_( byref c as Ctx, byval x as TypeId, byval y as TypeId ) as boolean
+    for d as long = 0 to 15
+        x = c.types->Unqualify( x ) : y = c.types->Unqualify( y )
+        if (c.types->Kind( x ) = TK_PROC) andalso (c.types->Kind( y ) = TK_PROC) then
+            return (c.types->IsPascal( x ) <> c.types->IsPascal( y ))
+        end if
+        if (c.types->Kind( x ) <> TK_POINTER) orelse (c.types->Kind( y ) <> TK_POINTER) then return false
+        x = c.types->Inner( x ) : y = c.types->Inner( y )
+    next
+    return false
+end function
+
 private function ByvalConstTwin_ _
     ( byref c as Ctx, byval a as NodeId, byval b as NodeId, byval n as long ) as boolean
     dim as boolean sawTwin = false
@@ -590,6 +605,7 @@ private function ByvalConstTwin_ _
         if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return false
         if ta = tb then continue for
         if bothByref then return false
+        if PascalOnly_( c, ta, tb ) then return false
         if MangleEq_( c, ta, tb ) = false then return false
         sawTwin = true
     next

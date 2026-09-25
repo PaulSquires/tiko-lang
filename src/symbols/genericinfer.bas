@@ -65,7 +65,7 @@ private function ProcPtrTypeOfName_ _
     '' A PROCEDURE TYPE IS ALREADY A POINTER in FreeBASIC -- 'sub( ) ptr' is PPFvvE,
     '' one P for the type and one for the written 'ptr' -- so the pointer is built
     '' in here, exactly as ResolveTypeRef does for a written signature.
-    return c.types->Pointer_( c.types->ProcType( ret, ps ) )
+    return c.types->Pointer_( c.types->ProcType( ret, ps, false, (pp->extra and Tko.PF_PASCAL) <> 0 ) )
 end function
 
 private function InferArgType_ _

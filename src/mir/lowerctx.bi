@@ -425,6 +425,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval defn as Tko.NodeId, byval sid as Tko.SymbolId ) as boolean
     declare function ProcCallConv_ _
         ( byref c as Ctx, byval pn as Tko.NodeId ) as ubyte
+    '' A call to a pascal procedure, named or through a pascal procedure type.
+    declare function CallIsPascal_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval viaPointer as boolean, _
+          byval sigT as Tko.TypeId ) as boolean
     '' TKO_PX_* for a parameter of this type -- see lowerstore.bas.
     declare function ParamExtClass_ _
         ( byref c as Ctx, byval t as Tko.TypeId ) as ubyte

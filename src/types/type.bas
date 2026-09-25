@@ -546,13 +546,14 @@ end function
 '' A procedure type: the return type in 'inner', the parameter types in the pool.
 function TypeContext.ProcType _
     ( byval ret as TypeId, byref params as TypeIdVec2, _
-      byval variadic as boolean = false ) as TypeId
+      byval variadic as boolean = false, byval pascal_ as boolean = false ) as TypeId
 
     '' THE ELLIPSIS IS PART OF THE KEY. Two procedure types with the same parameters
     '' and a different tail are different types; sharing the cache entry made them one.
 
     dim as ulong vflag = 0
     if variadic then vflag = TF_VARIADIC
+    if pascal_ then vflag or= TF_PASCAL
     dim as TypeId i = this.byProc.Lookup( _
         TypeKey_( TK_PROC, ret, cast( ulong, params.Count ), vflag ) )
     while i <> TYPE_NONE
@@ -564,6 +565,8 @@ function TypeContext.ProcType _
         if t->count <> params.Count then continue while
         dim as boolean tv = ((t->flags and TF_VARIADIC) <> 0)
         if tv <> variadic then continue while
+        dim as boolean tpas = ((t->flags and TF_PASCAL) <> 0)
+        if tpas <> pascal_ then continue while
         dim as boolean same = true
         for j as long = 0 to t->count - 1
             if this.pool[t->first + j] <> params[j] then
@@ -578,6 +581,7 @@ function TypeContext.ProcType _
     n.kind = cast( ubyte, TK_PROC )
     n.flags = TF_COMPLETE
     if variadic then n.flags or= TF_VARIADIC
+    if pascal_ then n.flags or= TF_PASCAL
     n.inner = ret
     n.first = this.pool.Count
     n.count = params.Count
@@ -712,6 +716,12 @@ function TypeContext.IsVariadic( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
     if cast( long, t ) >= this.types.Count then return false
     return ((this.types[cast( long, t )].flags and TF_VARIADIC) <> 0)
+end function
+
+function TypeContext.IsPascal( byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    if cast( long, t ) >= this.types.Count then return false
+    return ((this.types[cast( long, t )].flags and TF_PASCAL) <> 0)
 end function
 
 '' --------------------------------------------------------------------- layout

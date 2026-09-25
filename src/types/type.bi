@@ -132,6 +132,11 @@ namespace Tko
     '' against nothing -- so two overloads distinguished only by the ellipsis
     '' collided on one symbol.
     const TF_VARIADIC as ushort = &h0004
+    '' A PASCAL PROCEDURE TYPE, whose arguments go in REVERSE -- on x86-64 too, measured:
+    '' fbc-modern defines 'function P pascal ( a, b )' as 'i32 @P( i32 %B, i32 %A )'. A
+    '' call through the pointer must know, so it is part of the type. Not of the mangled
+    '' name: fbc writes a pascal and a cdecl procedure-pointer parameter identically.
+    const TF_PASCAL   as ushort = &h0008
 
     type TypeInfo
         as ubyte    kind
@@ -334,7 +339,7 @@ namespace Tko
         declare function Unqualify( byval t as TypeId ) as TypeId
         declare function ProcType _
             ( byval ret as TypeId, byref params as TypeIdVec2, _
-              byval variadic as boolean = false ) as TypeId
+              byval variadic as boolean = false, byval pascal_ as boolean = false ) as TypeId
 
         declare function Kind( byval t as TypeId ) as TypeKind
         declare function BuiltinOf( byval t as TypeId ) as BuiltinType
@@ -346,6 +351,8 @@ namespace Tko
         declare function IsConst( byval t as TypeId ) as boolean
         '' A procedure type written with a trailing '...'.
         declare function IsVariadic( byval t as TypeId ) as boolean
+        '' A procedure type written 'pascal' -- see TF_PASCAL.
+        declare function IsPascal( byval t as TypeId ) as boolean
 
         declare function Layout( byval t as TypeId ) as TypeLayout
         declare function Name( byval t as TypeId ) as string

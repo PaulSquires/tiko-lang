@@ -60,6 +60,10 @@ namespace Tko.Codegen
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
           byref target as TargetDescription, byref st as AbiStats )
 
+    '' The order n IR parameters or arguments of f are WRITTEN in: reversed for pascal.
+    declare sub PascalParamOrder _
+        ( byval f as Tko.Mir.MirFunction ptr, byval n as long, byref order as FB.Array( of long ) )
+
 end namespace
 
 #endif

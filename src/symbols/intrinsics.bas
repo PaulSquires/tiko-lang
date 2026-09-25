@@ -1083,7 +1083,7 @@ private function ProcTypeOfSymbol_ _
         end if
         ps.Push( cast( ulong, pt ) )
     next
-    return c.types->Pointer_( c.types->ProcType( ret, ps ) )
+    return c.types->Pointer_( c.types->ProcType( ret, ps, false, (pp->extra and Tko.PF_PASCAL) <> 0 ) )
 end function
 
 '' IS THIS NODE THE RECEIVER -- the implicit 'this' of a member body? It is declared

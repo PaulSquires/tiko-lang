@@ -313,7 +313,8 @@ function ResolveTypeRef _
             ps.Push( cast( ulong, pt ) )
         next
         dim as Tko.TypeId pf = _
-            c.types->Pointer_( c.types->ProcType( ret, ps, pVariadic ) )
+            c.types->Pointer_( c.types->ProcType( ret, ps, pVariadic, _
+                                                  (sp->extra and Tko.PF_PASCAL) <> 0 ) )
         '' A RESULT THAT NAMED SOMETHING NOT DECLARED YET leaves the procedure type
         '' with NO result, and nothing downstream can tell that apart from 'sub'.
         '' win/windef.bi writes 'type LRESULT as LONG_PTR' sixteen lines before it

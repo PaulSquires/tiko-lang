@@ -194,6 +194,8 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         if byrefRet then sp.extra or= Tko.PF_BYREF_RESULT
+        '' Kept, for the type: a call through the pointer reverses -- see TF_PASCAL.
+        if ptConv = Tko.CC_PASCAL then sp.extra or= Tko.PF_PASCAL
         dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
         p.ast->nodes[cast( long, pn )].flags or= flags or Tko.NF_PROC_TYPE
         while (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)

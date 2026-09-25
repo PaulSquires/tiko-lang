@@ -176,6 +176,8 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     '' ...AND WHETHER IT IS VARIADIC, which the emitter needs to say where the fixed parameters stop
     '' -- on win64 that decides whether a float in the tail is duplicated into a GPR.
     f->isVariadic = c.types->IsVariadic( sigT )
+    '' ...and whether its arguments go in reverse: see PascalParamOrder in abi.bas.
+    if c.types->IsPascal( sigT ) then f->callConv = TKO_CC_PASCAL
     '' A STRING RESULT IS A POINTER at every call site -- see LowerCallParts -- so only a real
     '' aggregate carries the size and class RewriteCallReturn reads.
     if (rmt = MT_AGG) andalso (IsStringType( c, rt ) = false) then

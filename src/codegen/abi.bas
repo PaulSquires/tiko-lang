@@ -832,6 +832,63 @@ private sub RewriteSignature _
     f->hasSretParam = true
 end sub
 
+'' PASCAL REVERSES ITS PARAMETERS, on x86-64 as anywhere else. Measured on fbc-modern
+'' 1.20 -gen llvm, 2026-09-25:
+''
+''     function P pascal ( a, b )                     define i32 @P( i32 %B, i32 %A )
+''     function T.M pascal ( a, b ), a member         ( i32 %B, i32 %A, ptr %THIS )
+''     ... returning a 32-byte UDT                    ( ptr sret %res, i32 %B, i32 %A, ... )
+''
+'' So every parameter the SOURCE has is reversed -- 'this' too, as the first of them --
+'' and the hidden result pointer stays in front. tiko wrote them in cdecl order: the same
+'' program ran, but 'P' called through a cdecl pointer gave 12 where fbc gives 21, and a
+'' pascal procedure compiled by one of the two and called by the other got its
+'' arguments backwards.
+''
+'' Done HERE, on the written order, because the ABI pass can turn ONE parameter into
+'' two (a SysV aggregate's eightbytes) and those stay in order: paramOrig says which
+'' source parameter each came from. The body names parameters by index, so nothing in
+'' it moves. A variadic procedure cannot be pascal; one that claims to is not reversed.
+sub PascalParamOrder _
+    ( byval f as MirFunction ptr, byval n as long, byref order as FB.Array( of long ) )
+
+    order.Clear( )
+    dim as boolean rev = false
+    if f <> 0 then
+        rev = (f->callConv = TKO_CC_PASCAL) andalso (f->isVariadic = false) _
+              andalso (n = f->paramTys.Count)
+    end if
+    if rev = false then
+        for i as long = 0 to n - 1
+            order.Push( i )
+        next
+        return
+    end if
+    dim as long first_ = 0
+    if f->hasSretParam andalso (n > 0) then
+        order.Push( 0 )
+        first_ = 1
+    end if
+    '' Stable, descending by source parameter: a split aggregate keeps its halves in order.
+    dim as boolean haveOrig = (f->paramOrig.Count = n)
+    dim as FB.Array( of long ) rest
+    for i as long = first_ to n - 1
+        dim as long oi = iif( haveOrig, f->paramOrig[i], i )
+        dim as long at_ = rest.Count
+        for k as long = 0 to rest.Count - 1
+            dim as long ok = iif( haveOrig, f->paramOrig[rest[k]], rest[k] )
+            if oi > ok then
+                at_ = k
+                exit for
+            end if
+        next
+        rest.Insert( at_, i )
+    next
+    for k as long = 0 to rest.Count - 1
+        order.Push( rest[k] )
+    next
+end sub
+
 '' ---------------------------------------------------------------- the pass
 ''
 '' TWO WALKS OVER EACH BODY, and the order matters.

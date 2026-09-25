@@ -1,0 +1,12 @@
+'' PASCAL REVERSES ITS PARAMETERS -- the definition, and every call that knows the
+'' callee is pascal, named or through a pascal procedure TYPE. See PascalParamOrder in
+'' codegen/abi.bas. The two pointer calls: through the pascal type the literal 3 goes
+'' first, through the cdecl one last.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/pascal-order.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: define i32 @"_ZN1T1MEii"(i32 %p2, i32 %p1, ptr %p0)
+'' EXPECT-OUT: define void @"RB"(ptr sret([32 x i8]) align 8 %p0, i32 %p2, i32 %p1)
+'' EXPECT-OUT: define double @"P"(i64 %p2, double %p1, i32 %p0)
+'' EXPECT-OUT: (i64 3, double
+'' EXPECT-OUT: , i64 3)

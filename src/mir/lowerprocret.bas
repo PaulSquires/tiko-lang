@@ -87,6 +87,22 @@ function ProcCallConv_ _
     return TKO_CC_CDECL
 end function
 
+'' THROUGH A POINTER the procedure TYPE says so (TF_PASCAL); a named call asks the
+'' procedure's own node. LowerCallParts evaluates a pascal call's arguments left to right.
+function CallIsPascal_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval viaPointer as boolean, _
+      byval sigT as Tko.TypeId ) as boolean
+
+    if viaPointer then return c.types->IsPascal( sigT )
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    if cs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    return (ProcCallConv_( c, pn ) = TKO_CC_PASCAL)
+end function
+
 
 private function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean

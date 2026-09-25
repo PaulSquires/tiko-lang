@@ -4,6 +4,7 @@
 #include once "codegen/llvmtype.bi"
 #include once "codegen/llvmdebug.bi"
 #include once "codegen/llvmrefs.bi"
+#include once "codegen/abi.bi"
 #include once "support/irtext.bi"
 
 namespace Tko.Codegen
@@ -308,7 +309,10 @@ private function CallArgs _
     ( byref e as EmitCtx, byref ins as MirInst, byval callee as MirFunction ptr ) as string
 
     dim as string r
-    for i as long = 0 to ins.count - 1
+    dim as FB.Array( of long ) ord  '' pascal writes them in reverse -- abi.bas
+    PascalParamOrder( callee, ins.count, ord )
+    for q as long = 0 to ins.count - 1
+        dim as long i = ord[q]
         dim as long k = (ins.first + i) * 2
         if (k + 1) >= e.m->argPool.Count then
             Ice( e, "a call argument past the end of the pool" )
@@ -895,8 +899,11 @@ private function ParamList _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval named as boolean ) as string
 
     dim as string r
-    for i as long = 0 to f->paramTys.Count - 1
-        if i > 0 then r += ", "
+    dim as FB.Array( of long ) ord  '' pascal writes them in reverse -- abi.bas
+    PascalParamOrder( f, f->paramTys.Count, ord )
+    for q as long = 0 to f->paramTys.Count - 1
+        dim as long i = ord[q]
+        if q > 0 then r += ", "
         r += LlvmType( cast( MirType, f->paramTys[i] ) )
         if i = 0 then r += SretAttr( e, f )
         r += ByvalAttr( e, f, i )

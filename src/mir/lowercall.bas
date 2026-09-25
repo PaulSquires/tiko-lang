@@ -370,17 +370,17 @@ function LowerCallParts _
     ''     Obj( 0 ).M( G( 1 ), G( 2 ) )                 fbc 210
     ''     GetP( 0 )->M( G( 1 ), G( 2 ) )               fbc 21p0
     ''     Two( Two( G( 1 ), G( 2 ) ), Two( G( 3 ), G( 4 ) ) )   fbc 4321
-    ''
-    '' tiko went left to right, receiver first -- all of the IR stage1 and stage2 still
-    '' disagreed on. Slots fill as arguments are evaluated; argv is built in POSITION
-    '' order after, the receiver lowered BEFORE 'first' reads argPool (it may be a call).
+    '' That is the REVERSE OF THE ORDER THEY ARE PASSED, so a PASCAL call (codegen/abi.bas)
+    '' runs left to right: 'P3( G( 1 ), G( 2 ), G( 3 ) )' is 123. Slots fill as evaluated;
+    '' argv is built in POSITION order after, the receiver lowered BEFORE 'first' reads argPool.
     dim as FB.Array( of ulong ) slotKind
     dim as FB.Array( of ulong ) slotId
     '' ...and where each argument's temporaries begin -- see CallTempsInSourceOrder_.
     dim as FB.Array( of ulong ) segFrom
     dim as long argMark = c.udtTemps.Count
     for i as long = 0 to slots - 1 : slotKind.Push( cast( ulong, MV_NONE ) ) : slotId.Push( 0 ) : segFrom.Push( 0 ) : next
-    for i as long = slots - 1 to 0 step -1
+    dim as boolean l2r = CallIsPascal_( c, callee, viaPointer, calleeSigT )
+    for i as long = iif( l2r, 0, slots - 1 ) to iif( l2r, slots - 1, 0 ) step iif( l2r, 1, -1 )
         segFrom[i] = cast( ulong, c.udtTemps.Count )
         '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
         '' says the two are one rule and not two.
