@@ -161,12 +161,12 @@ error 349: Branch crossing a DEFER statement
 
 tiko reports the second as `TKO0814`: a `defer` directly at module level, or directly in a namespace. One inside a block at module level (`scope`, `if`, `for`, `do`, `while`, `select`) is accepted by both compilers, as one in a procedure is. tests/diagnostics/defer-module-level.test holds that.
 
-tiko does not report the other two yet. Measured 2026-09-25, one case per file:
+tiko reports the other two as well, since 2026-09-25:
 
-- a bare `defer` with no statement compiles, and nothing is deferred;
-- a `goto` that crosses a DEFER compiles, and the deferred statement runs at the scope's exit.
+- **`TKO0828`, fbc's 347:** a `defer` with nothing after it on the line. `defer :` first on a line is the LABEL `defer:` under both compilers, unless a procedure is named `defer`; then, and anywhere else on a line, it is 347. Before this, tiko deferred the statement on the NEXT line, or swallowed the `end sub` after it.
+- **`TKO0827`, fbc's 349:** a FORWARD `goto` past a `defer` whose scope holds the label, reported on the `goto`'s line once per defer crossed. A backward jump, a jump out of the defer's scope, a defer whose scope has closed before the label (a nested `scope`, the other branch of an `if`, a single-line `if`'s own scope) and `on ... goto` are accepted by both. Before this, tiko compiled the jump and ran the deferred statement at the scope's exit.
 
-Both are programs fbc rejects, so code that relies on them will not build with fbc.
+tests/diagnostics/defer-goto-errors.test, defer-bare.test and defer-label.test hold these.
 
 ## Implementation
 
@@ -182,7 +182,7 @@ Order is asserted by accumulating into a string and comparing the exact sequence
 
 generics/defer-identifier.bas covers 'defer' as a PROCEDURE name -- separate, because FreeBASIC refuses a local that shadows a module-level procedure of the same name.
 
-errors/defer-errors.bas holds fbc's golden output for all three diagnostics. tiko does not produce it -- see Diagnostics.
+errors/defer-errors.bas holds fbc's golden output for all three diagnostics. tiko reports all three, on the same lines -- see Diagnostics.
 
 Under tiko, measured 2026-09-24 at origin/master 50c71751: defer.bas and defer-identifier.bas build and run with exit 0 and the same output as fbc's builds -- none, because every assertion passes. Both are among the 68 in-scope run programs that `build/runscan.sh` (2026-09-20) found byte-identical to fbc's builds. tiko's own suite adds `tests/mir/defer-contextual.test` (the contextual keyword) and `tests/mir/cleanup.test` (defer order against destructors, checked against traces of fbc's output in `tests/semantic/cleanup/`).
 
