@@ -21,7 +21,7 @@ The IR comes from tiko's own pipeline, not from fbc's:
 3. an **ABI pass** rewrites procedure signatures and calls for the target's C calling convention, one classifier for Win64 and one for SysV AMD64;
 4. the emitter writes the LLVM IR.
 
-`--emit-ir` writes that IR and stops. `-v` echoes every clang invocation, and `--keep-temps` keeps the `.ll` files.
+`--emit-ir` writes that IR and stops: to standard output, or with `-o x.ll` to that file. `--emit-asm` runs `clang -S` on it and stops, writing `x.s`, or `<source>.s` with no `-o`. With several modules and one `-o`, each is `<name>.<n>.ll` (or `.s`). Before 2026-09-25 an `-o` turned either option into a full build, and `tiko --emit-ir x.bas -o x.ll` wrote an executable named `x.ll`. `-v` echoes every clang invocation, and `--keep-temps` keeps the `.ll` files.
 
 Each target has its own triple:
 
