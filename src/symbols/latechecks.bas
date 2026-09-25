@@ -781,6 +781,44 @@ private function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
     return false
 end function
 
+'' CAN A TYPE BE BUILT WITH NO ARGUMENT? True with no constructor at all, or one that takes
+'' none -- stricter for an ARRAY, as below. Shared by the variable and the field checks.
+private function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isArray as boolean ) as boolean
+    dim as Symbol ptr ct = StructorOf_( c, u, "__ctor" )
+    '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
+    if ct = 0 then return true
+    '' WHAT COUNTS AS DEFAULT IS STRICTER FOR AN ARRAY. The corpus measured two
+    '' constructors that CAN be called with no argument and that fbc still refuses to
+    '' build an array from (error 183): 'constructor( byval as integer = 0 )', whose
+    '' parameter is merely defaulted, and 'constructor stdcall( )', whose calling
+    '' convention is not the type's own. So for an array it is ZERO declared
+    '' parameters and no convention written. A scalar keeps the looser test -- the
+    '' stricter one is not measured there.
+    dim as Symbol ptr walk = ct
+    dim as long g2 = 0
+    while (walk <> 0) andalso (g2 < 1000)
+        g2 += 1
+        dim as NodeId cd = cast( NodeId, walk->payload )
+        dim as long req = RequiredParams_( c, cd )
+        if req = -1 then
+            return true
+        end if
+        if isArray then
+            dim as StmtPayload ptr cp = _
+                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
+            dim as boolean conv = _
+                ((cp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0)
+            if (ParamCount_( c, cd ) = 0) andalso (conv = false) then
+                return true
+            end if
+        elseif req = 0 then
+            return true
+        end if
+        walk = c.syms->SymbolAt( walk->nextOverload )
+    wend
+    return false
+end function
+
 '' A BASE WITH NO DEFAULT CONSTRUCTOR CANNOT BE INITIALISED FOR YOU -- fbc errors 186 and
 '' 188, "base UDT without default constructor requires manual initialization". Measured:
 ''
@@ -801,6 +839,8 @@ end function
 '' initialiser -- fbc error 183, "TYPE or CLASS has no default constructor". The same
 '' rule as a base's, one level down: 'dim as T x' has nothing to call, while
 '' 'dim as T x = T( 1 )' names what to call.
+#include once "symbols/fieldctor.bas"
+
 private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -842,46 +882,11 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
             u = c.types->Unqualify( c.types->Inner( u ) )
         wend
         if c.types->Kind( u ) <> TK_UDT then continue for
-        dim as Symbol ptr ct = StructorOf_( c, u, "__ctor" )
-        '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
-        if ct = 0 then continue for
-        '' WHAT COUNTS AS DEFAULT IS STRICTER FOR AN ARRAY. The corpus measured two
-        '' constructors that CAN be called with no argument and that fbc still refuses to
-        '' build an array from (error 183): 'constructor( byval as integer = 0 )', whose
-        '' parameter is merely defaulted, and 'constructor stdcall( )', whose calling
-        '' convention is not the type's own. So for an array it is ZERO declared
-        '' parameters and no convention written. A scalar keeps the looser test -- the
-        '' stricter one is not measured there.
-        dim as boolean sawDefault = false
-        dim as Symbol ptr walk = ct
-        dim as long g2 = 0
-        while (walk <> 0) andalso (g2 < 1000)
-            g2 += 1
-            dim as NodeId cd = cast( NodeId, walk->payload )
-            dim as long req = RequiredParams_( c, cd )
-            if req = -1 then
-                sawDefault = true
-                exit while
-            end if
-            if isArray then
-                dim as StmtPayload ptr cp = _
-                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
-                dim as boolean conv = _
-                    ((cp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0)
-                if (ParamCount_( c, cd ) = 0) andalso (conv = false) then
-                    sawDefault = true
-                    exit while
-                end if
-            elseif req = 0 then
-                sawDefault = true
-                exit while
-            end if
-            walk = c.syms->SymbolAt( walk->nextOverload )
-        wend
-        if sawDefault then continue for
+        if HasDefaultCtor_( c, u, isArray ) then continue for
         c.diags->Report( TKO0657, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )
     next
+    CheckFieldDefaultCtor_( c )
 end sub
 
 '' A DYNAMIC ARRAY CANNOT BE A MEMBER OF A UNION -- fbc error 162, "Dynamic arrays cannot

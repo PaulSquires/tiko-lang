@@ -1,0 +1,13 @@
+'' TKO0657, fbc's 183, for a FIELD whose type has constructors and no default one. Only a
+'' variable was checked, so fbc's own generics/fail-result-nodefaultctor.bas compiled. See
+'' symbols/fieldctor.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/field-no-default-ctor.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: field-no-default-ctor.bas(12,
+'' EXPECT-OUT: field-no-default-ctor.bas(15,
+'' EXPECT-OUT: field-no-default-ctor.bas(19,
+'' EXPECT-OUT: error TKO0657: the type of 'f' has no constructor that takes no argument
+'' EXPECT-NOT: field-no-default-ctor.bas(24,
+'' EXPECT-NOT: field-no-default-ctor.bas(25,
+'' EXPECT-MAX-DIAG: 3
