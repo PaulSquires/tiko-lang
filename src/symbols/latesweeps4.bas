@@ -682,6 +682,11 @@ private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as 
     else
         return
     end if
+    '' A CALL WHOSE INSTANTIATION WAS REFUSED AS TOO DEEP has had its error (TKO0829).
+    for i as long = 0 to c.diags->pending.Count - 1
+        if c.diags->pending[i].id <> TKO0829 then continue for
+        if c.diags->pending[i].range.first = c.ast->Loc( id ) then return
+    next
     dim as NodeId nmN = callee
     if c.ast->Kind( nmN ) = N_MEMBER then nmN = c.ast->binaries[cast( long, c.ast->nodes[cast( long, nmN )].data )].rhs
     c.diags->Report( TKO0809, PointRange( c.ast->Loc( id ) ), _

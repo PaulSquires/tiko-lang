@@ -1469,7 +1469,7 @@ sub Run _
       byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
       byref src as Tko.SourceManager, _
       byref info as Tko.SemanticInfo, byref st as Stats, _
-      byval parser as any ptr )
+      byval parser as any ptr, byval maxInstDepth as long )
 
     dim as Ctx c
     c.parser = parser
@@ -1481,7 +1481,7 @@ sub Run _
     c.diags = @diags
     c.info = @info
     c.st = @st
-    c.currentProc = Tko.SYMBOL_NONE
+    c.currentProc = Tko.SYMBOL_NONE : c.maxInstDepth = maxInstDepth
 
     info.Resize( ast.Count( ) )
 

@@ -1,0 +1,10 @@
+'' TKO0829, fbc's 339: an instantiation deeper than -maxinstdepth. tiko had no such
+'' option (TKO0100) and no limit. See InstDepthOk_ in symbols/generic.bas.
+'' TEST: cli
+'' ARGS: -maxinstdepth 1 --dump-ir tests/diagnostics/src/generic-instdepth.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-instdepth.bas(11,8): error TKO0829: generic instantiation of 'fc' is too deep (the limit is 1
+'' EXPECT-OUT: generic-instdepth.bas(21,12): error TKO0829
+'' EXPECT-OUT: generic-instdepth.bas(26,7): error TKO0829
+'' EXPECT-NOT: TKO0809
+'' EXPECT-MAX-DIAG: 3

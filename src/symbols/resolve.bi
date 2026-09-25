@@ -87,7 +87,7 @@ namespace Tko.Resolve
           byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
           byref src as Tko.SourceManager, _
           byref info as Tko.SemanticInfo, byref st as Stats, _
-          byval parser as any ptr = 0 )
+          byval parser as any ptr = 0, byval maxInstDepth as long = 64 )
 
     declare function Dump _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _

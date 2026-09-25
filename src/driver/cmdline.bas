@@ -68,6 +68,7 @@ constructor DriverOptions( )
     this.verbose = false
     this.warningsAsErrors = false
     this.maxErrors = DIAG_DEFAULT_MAX_ERRORS
+    this.maxInstDepth = 64
     this.colorMode = COLOR_AUTO
     this.diagFormat = DIAGFMT_FBC
     this.diagFile = ""
@@ -482,6 +483,15 @@ function Parse _
                 ok = false
             else
                 opts.maxErrors = m
+            end if
+
+        case Tko.OPT_MAXINSTDEPTH
+            dim as long m = valint( value )
+            if m < 1 then
+                diags.ReportGlobal( Tko.TKO0106, value, "-maxinstdepth" )
+                ok = false
+            else
+                opts.maxInstDepth = m
             end if
 
         case Tko.OPT_COLOR

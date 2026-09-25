@@ -1,0 +1,6 @@
+'' The same file at -maxinstdepth 2 is accepted, as fbc accepts it: a replayed body is
+'' depth 1 however deep the instantiation that owns it.
+'' TEST: cli
+'' ARGS: -maxinstdepth 2 --dump-ir tests/diagnostics/src/generic-instdepth.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0829

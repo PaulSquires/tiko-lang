@@ -892,14 +892,14 @@ function Run _
                 '' Resolve like the layout pass does.
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 ctx.sources, info, rst, @p )
+                                 ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
                 dim as Tko.VTables vt
                 Tko.ComputeVTables( ast, syms, ctx.types, info, vt )
                 print Tko.DumpVTables( ast, vt, ctx.types, ctx.names, syms, info );
             elseif ctx.options.dumpUdt then
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 ctx.sources, info, rst, @p )
+                                 ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
                 dim as Tko.UdtLayouts store
                 Tko.ComputeUdtLayouts( syms, ctx.types, store )
                 print Tko.DumpUdtLayouts( store, ctx.types, ctx.names, syms );
@@ -909,7 +909,7 @@ function Run _
                 '' check gives every expression a type, and lowering reads both.
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 ctx.sources, info, rst, @p )
+                                 ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
                 dim as Tko.Check.Stats cst
                 Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
@@ -1174,7 +1174,7 @@ function Run _
             elseif ctx.options.checkOnly then
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 ctx.sources, info, rst, @p )
+                                 ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
                 dim as Tko.Check.Stats cst
                 Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                                info, cst )
@@ -1188,12 +1188,12 @@ function Run _
                 '' but the reference-binding report is not wanted here.
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 ctx.sources, info, rst, @p )
+                                 ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
                 print Tko.Mangle.Dump( ast, root, syms, ctx.names, ctx.types, info );
             elseif ctx.options.resolveOnly then
                 dim as Tko.Resolve.Stats rst
                 Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                                 ctx.sources, info, rst, @p )
+                                 ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
                 print Tko.Resolve.Dump( ast, syms, ctx.types, ctx.names, info, rst );
             else
                 print Tko.Collect.Dump( syms, ctx.names, ctx.types, ctx.sources );

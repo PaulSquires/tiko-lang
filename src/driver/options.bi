@@ -86,6 +86,7 @@ namespace Tko
     OPT( OPT_WERROR,    "-Werror",    OPTK_FLAG,  OPTCAT_DIAG,    "",         "treat warnings as errors" )
     OPT( OPT_WNO,       "-Wno-",      OPTK_JOINED,OPTCAT_DIAG,    "id",       "suppress one diagnostic id" )
     OPT( OPT_MAXERR,    "-fmax-errors", OPTK_VALUE, OPTCAT_DIAG,  "n",        "stop after n errors" )
+    OPT( OPT_MAXINSTDEPTH, "-maxinstdepth", OPTK_VALUE, OPTCAT_GENERAL, "n",  "how deep one generic instantiation may drive another (default 64)" )
     OPT( OPT_COLOR,     "--color",    OPTK_VALUE, OPTCAT_DIAG,    "when",     "always, never or auto" )
     OPT( OPT_DIAGFMT,   "--diagnostics-format", OPTK_VALUE, OPTCAT_DIAG, "fmt", "fbc or gnu" )
     '' FOR AN EDITOR. The console text is unchanged; this writes the same diagnostics
@@ -220,6 +221,7 @@ namespace Tko
 
         as boolean warningsAsErrors
         as long    maxErrors
+        as long    maxInstDepth      '' -maxinstdepth, fbc's; 64 by default
         as DiagColorMode     colorMode
         as DiagOutputFormat  diagFormat
         as string  diagFile          '' --diagnostics-file; "" = none

@@ -30,6 +30,41 @@ declare sub InstantiateMembers_ _
 '' SCOPE_GLOBAL under a structural name, open its TYPE scope, declare the fields with
 '' resolved types -- because it is the same problem: a type that the source names
 '' structurally rather than by a declaration of its own.
+'' HOW DEEP ONE INSTANTIATION MAY DRIVE ANOTHER: fbc's error 339 past '-maxinstdepth'
+'' (64 by default). Measured on fbc-modern 1.20, 2026-09-25, one probe per shape:
+''
+''     A3 -> field B3( of T ) -> field C3( of T )       -maxinstdepth 2: 339 at C3, 3: fine
+''     A3.go's body -> B3; B3.go's body -> C3           -maxinstdepth 1: 339 at B3, 2: fine
+''     f's body -> g( of T ); g's body -> h( of T )     -maxinstdepth 1: 339 at g,  2: fine
+''     Box( of Box( of Box( of long ) ) )               -maxinstdepth 1: fine
+''
+'' So a TYPE ARGUMENT costs nothing -- it is resolved before the outer one is made -- a
+'' FIELD's type is one deeper than its owner, and a replayed BODY runs at depth 1 however
+'' deep the instantiation that owns it: B3.go above makes C3 at depth 2, not 3. That
+'' rule can never stop a body that instantiates a deeper copy of itself --
+'' 'dim as R( of R( of T ) ) x' in a member of R -- and fbc does not stop it: it
+'' segfaults. tiko counted nothing and ran for ever. The REAL chain, which a body does
+'' extend, is capped here too, at 256 or the limit if that is higher, with the same error.
+private function InstDepthOk_ _
+    ( byref c as Ctx, byval at_ as Tko.NodeId, byval gname as Tko.InternId ) as boolean
+    dim as long cap = iif( c.maxInstDepth > 256, c.maxInstDepth, 256 )
+    dim as long lim = c.maxInstDepth
+    if c.instChain + 1 > cap then
+        lim = cap
+    elseif c.instDepth + 1 <= c.maxInstDepth then
+        return true
+    end if
+    '' Once per place: the walk can resolve one type reference more than once.
+    dim as ulong at = cast( ulong, c.ast->Loc( at_ ) )
+    for i as long = 0 to c.genArgSeen.Count - 1
+        if c.genArgSeen[i] = at then return false
+    next
+    c.genArgSeen.Push( at )
+    c.diags->Report( Tko.TKO0829, Tko.PointRange( c.ast->Loc( at_ ) ), _
+                     c.names->Spelling( gname ), str( lim ) )
+    return false
+end function
+
 function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
       byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
@@ -103,6 +138,7 @@ function InstantiateGeneric_ _
     dim as Tko.SymbolId prev = c.syms->LookupLocalTyped( ghome, inm, true )
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( prev )
     if ps <> 0 then return ps->type_
+    if InstDepthOk_( c, id, gs->name ) = false then return Tko.TYPE_NONE
 
     dim as boolean dup = false
     dim as Tko.SymbolId isid = c.syms->DeclareSym( ghome, inm, _
@@ -145,6 +181,7 @@ function InstantiateGeneric_ _
     '' the note on spCount above; ResolveTypeRef here can instantiate.
     dim as long gpCount = gp->count
     dim as long gpFirst = gp->first
+    c.instDepth += 1 : c.instChain += 1  '' a field's type is one deeper -- InstDepthOk_
     for i as long = 0 to gpCount - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[gpFirst + i] )
         if c.ast->Kind( m ) <> Tko.N_FIELD then continue for
@@ -162,6 +199,7 @@ function InstantiateGeneric_ _
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
         if fs <> 0 then fs->type_ = ft
     next
+    c.instDepth -= 1 : c.instChain -= 1
 
     '' 'gs' RE-FETCHED: it points INTO THE SYMBOL TABLE, and the field loop above calls
     '' DeclareSym once per field, which pushes into that table and reallocates it.
@@ -188,6 +226,7 @@ function InstantiateGeneric_ _
     c.pendInst.Push( cast( ulong, gscope ) )
     c.pendInst.Push( cast( ulong, argFirst ) )
     c.pendInst.Push( cast( ulong, spCount ) )
+    c.pendInstChain.Push( cast( ulong, c.instChain + 1 ) )
 
     while c.gparamName.Count > gmark
         c.gparamName.Pop( )
@@ -506,7 +545,8 @@ end function
 '' all -- which is every ordinary call, so it must be cheap to say no.
 declare function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
-      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ) ) as Tko.SymbolId
+      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ), _
+      byval at_ as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
 
 
 function InstantiateGenericProc_ _
@@ -617,7 +657,7 @@ function InstantiateGenericProc_ _
         if pl->count <> taCount then return Tko.SYMBOL_NONE
     end if
 
-    return InstantiateProcAt_( c, gn, gsid, gname, argTypes )
+    return InstantiateProcAt_( c, gn, gsid, gname, argTypes, callId )
 end function
 
 '' The second half of the above, reached by TWO callers: a call that names a generic
@@ -625,7 +665,8 @@ end function
 '' TYPE it is written over. Everything from the cache key down is the same work.
 function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
-      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ) ) as Tko.SymbolId
+      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ), _
+      byval at_ as Tko.NodeId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Tko.SYMBOL_NONE
@@ -679,6 +720,7 @@ function InstantiateProcAt_ _
     '' The symbol is DECLARED NOW and its body filled in by the deferred pass, so a
     '' recursive generic -- one whose body calls itself at the same arguments -- finds
     '' this rather than instantiating for ever.
+    if InstDepthOk_( c, iif( at_ = Tko.NODE_NONE, gn, at_ ), gname ) = false then return Tko.SYMBOL_NONE
     dim as boolean idup = false
     dim as Tko.SymbolId isid = c.syms->DeclareSym( home, inm, Tko.SYM_PROC, _
         c.ast->Loc( gn ), idup )
@@ -708,6 +750,7 @@ function InstantiateProcAt_ _
     c.pendProc.Push( cast( ulong, home ) )
     c.pendProc.Push( cast( ulong, argFirst ) )
     c.pendProc.Push( cast( ulong, taCount ) )
+    c.pendProcChain.Push( cast( ulong, c.instChain + 1 ) )
     return isid
 end function
 
@@ -732,6 +775,10 @@ sub InstantiatePendingProcs_( byref c as Ctx )
 
         dim as long t0, t1
         if c.ast->TokensOf( gn, t0, t1 ) = false then continue while
+        '' As a member body: depth 1, its own chain -- InstDepthOk_.
+        dim as long sDepth = c.instDepth, sChain = c.instChain
+        c.instDepth = 1 : c.instChain = 1
+        if i \ 6 < c.pendProcChain.Count then c.instChain = cast( long, c.pendProcChain[i \ 6] )
 
         '' The parameters bind for as long as the fresh nodes are being resolved.
         dim as long gmark = c.gparamName.Count
@@ -856,6 +903,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             c.gparamName.Pop( )
             c.gparamType.Pop( )
         wend
+        c.instDepth = sDepth : c.instChain = sChain
     wend
 end sub
 
@@ -973,6 +1021,12 @@ sub DiscoverInstantiations_ _
     dim as long dwarn = diags.warnings
     dim as long dsupp = diags.suppressedCount
     WalkStmt( c, root, Tko.SCOPE_GLOBAL )
+    '' ...ALL BUT TKO0829. A field chain that is too deep is found HERE, while the outer
+    '' instantiation is made; the real pass then finds it cached and never asks again.
+    dim as Tko.DiagVec deep
+    for i as long = dpend to diags.pending.Count - 1
+        if diags.pending[i].id = Tko.TKO0829 then deep.Push( diags.pending[i] )
+    next
     while diags.pending.Count > dpend
         diags.pending.Pop( )
     wend
@@ -986,6 +1040,11 @@ sub DiscoverInstantiations_ _
     c.rtlSeen.Clear( )
     c.genArgSeen.Clear( )
     DeferCrossingReset_( c )
+    for i as long = 0 to deep.Count - 1
+        diags.pending.Push( deep[i] )
+        diags.errors += 1
+        c.genArgSeen.Push( cast( ulong, deep[i].range.first ) )
+    next
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
     info.Resize( ast.Count( ) )
@@ -1158,6 +1217,10 @@ sub InstantiatePending_( byref c as Ctx )
     while c.pendDone < c.pendInst.Count
         dim as long i = c.pendDone
         c.pendDone += 7
+        '' A replayed body runs at DEPTH 1, and extends the real chain -- InstDepthOk_.
+        dim as long sDepth = c.instDepth, sChain = c.instChain
+        c.instDepth = 1 : c.instChain = 1
+        if i \ 7 < c.pendInstChain.Count then c.instChain = cast( long, c.pendInstChain[i \ 7] )
         InstantiateMembers_( c, cast( Tko.NodeId, c.pendInst[i] ), _
                              cast( Tko.InternId, c.pendInst[i + 1] ), _
                              cast( Tko.InternId, c.pendInst[i + 2] ), _
@@ -1169,6 +1232,7 @@ sub InstantiatePending_( byref c as Ctx )
                                   cast( Tko.ScopeId, c.pendInst[i + 4] ), _
                                   cast( long, c.pendInst[i + 5] ), _
                                   cast( long, c.pendInst[i + 6] ) )
+        c.instDepth = sDepth : c.instChain = sChain
     wend
 end sub
 

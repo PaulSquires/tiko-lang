@@ -1,0 +1,6 @@
+'' TKO0829 stops a runaway instantiation. See InstDepthOk_ in symbols/generic.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-runaway.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-runaway.bas(10,12): error TKO0829: generic instantiation of 'r' is too deep (the limit is 256
+'' EXPECT-MAX-DIAG: 1

@@ -97,6 +97,10 @@ type Ctx
     as FB.Array( of ulong )  pendProc
     as FB.Array( of ulong )  pendProcArgs
     as long                  pendProcDone
+    '' HOW DEEP INSTANTIATION HAS GONE -- see InstDepthOk_ in generic.bas. 'instDepth' is fbc's
+    '' counted depth and 'instChain' the real one; each queued entry keeps its chain.
+    as long                  instDepth, instChain, maxInstDepth
+    as FB.Array( of ulong )  pendInstChain, pendProcChain
     '' THE INSTANTIATION CACHE for generic procedures, one entry each: the key and the
     '' symbol it produced. A SIDE table rather than a name lookup, because the key has
     '' to name the GENERIC as well as the arguments and the symbol's name must not --
