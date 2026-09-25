@@ -1,0 +1,16 @@
+'' TKO0776 for a procedure named without parentheses when a parameter has no default --
+'' fbc's error 1. tiko CALLED it with nothing in the argument's place: 'print F' printed
+'' 608487248 and 'print eof' a different number each run. See symbols/latechecks.bas,
+'' CheckParenlessArgs_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/parenless-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: parenless-args.bas(22,7): error TKO0776: argument 1 of 'f'
+'' EXPECT-OUT: parenless-args.bas(23,5): error TKO0776
+'' EXPECT-OUT: parenless-args.bas(24,4): error TKO0776
+'' EXPECT-OUT: parenless-args.bas(25,1): error TKO0776: argument 1 of 's'
+'' EXPECT-OUT: parenless-args.bas(26,7): error TKO0776: argument 1 of 'eof'
+'' EXPECT-OUT: parenless-args.bas(27,7): error TKO0776
+'' EXPECT-OUT: parenless-args.bas(28,7): error TKO0776
+'' EXPECT-NOT: parenless-args.bas(3
+'' EXPECT-MAX-DIAG: 7

@@ -190,6 +190,8 @@ declare function ArgOrElided _
         ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
           byval target as Tko.NodeId, byref items as Tko.NodeIdVec ) as Tko.NodeId
     declare sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    declare sub MarkSymbolArgs_ _
+        ( byref p as Tko.ParserState, byval target as Tko.NodeId, byref items as Tko.NodeIdVec )
     declare function MakeStmt _
         ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
           byref sp as Tko.StmtPayload ) as Tko.NodeId

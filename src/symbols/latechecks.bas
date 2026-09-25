@@ -517,6 +517,78 @@ end sub
 '' declined in silence. Only a procedure with ONE declaration is judged here, and only on
 '' the measured rules rather than on the scoring, which is the part ResolveCall_'s own
 '' comment declines to trust for a single candidate.
+'' A PROCEDURE NAMED WITHOUT PARENTHESES STILL TAKES ITS ARGUMENTS -- fbc's error 1,
+'' "Argument count mismatch". Measured on fbc-modern 1.20, 2026-09-24, over
+'' 'function F( byval x as long ) as long' and 'sub S( byval x as long )': 'print F',
+'' 'dim y as long = F + 1', 'if F then', a statement 'S', 'print eof' and 'print lof' are
+'' each error 1, and 'print G' over 'G( byval x as long = 5 )' calls G( 5 ). tiko CALLED F
+'' with nothing in the argument's place -- 'print F' printed 608487248, and 'print eof' a
+'' different number each run -- where 'F( )' was already TKO0776.
+''
+'' A name that is called, addressed or assigned carries NF_CALL_TARGET and is not a read;
+'' a statement 'S' or 'S 5' is an N_AMBIGUOUS call, and its written arguments count. Over
+'' an overload set a paren-less read calls the one that needs no argument
+'' (ParenlessMethodOf_), so it is reported only when none does.
+private function FirstRequiredMissing_ _
+    ( byref c as Ctx, byval sid as SymbolId, byval given as long ) as long
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return 0
+    if s->kind <> cast( ubyte, SYM_PROC ) then return 0
+    dim as NodeId decl = cast( NodeId, s->payload )
+    if decl = NODE_NONE then return 0
+    if c.ast->Kind( decl ) <> N_PROC then return 0
+    dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
+    select case cast( TokenKind, pp->op )
+    case KW_SUB, KW_FUNCTION
+    case else
+        return 0
+    end select
+    if (pp->extra and PF_GENERIC_PROC) <> 0 then return 0
+    dim as long k = 0
+    for i as long = 0 to pp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        dim as StmtPayload ptr prp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        if prp->op = cast( ushort, TK_ELLIPSIS ) then continue for
+        k += 1
+        if k <= given then continue for
+        if prp->b = NODE_NONE then return k
+    next
+    return 0
+end function
+
+private sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+    dim as NodeId nmN = id
+    dim as long given = 0
+    if k = N_AMBIGUOUS then
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sp->op <> 0 then return
+        nmN = sp->a
+        if nmN = NODE_NONE then return
+        if c.ast->Kind( nmN ) <> N_IDENT then return
+        given = sp->count
+    elseif (c.ast->nodes[cast( long, id )].flags and NF_CALL_TARGET) <> 0 then
+        return
+    end if
+    dim as SymbolId sid = c.info->RefOf( nmN )
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    if s->nextOverload <> SYMBOL_NONE then
+        if given > 0 then return
+        dim as SymbolId cur = sid
+        for guard as long = 0 to 255
+            if cur = SYMBOL_NONE then exit for
+            if FirstRequiredMissing_( c, cur, 0 ) = 0 then return
+            cur = c.syms->SymbolAt( cur )->nextOverload
+        next
+    end if
+    dim as long miss = FirstRequiredMissing_( c, sid, given )
+    if miss = 0 then return
+    c.diags->Report( TKO0776, PointRange( c.ast->Loc( id ) ), str( miss ), _
+                     c.names->Spelling( s->name ) )
+end sub
+
 private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]

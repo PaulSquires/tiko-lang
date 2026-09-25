@@ -217,6 +217,24 @@ function AcceptNext_ _
     return true
 end function
 
+'' ------------------------------------------------------------- symbol arguments
+''
+'' AN ARGUMENT THAT NAMES A SYMBOL IS NOT A PAREN-LESS CALL of it: 'procptr( f )' takes f's
+'' address and '__FB_QUERY_SYMBOL__( q, f )' asks about f, so neither reads f's value.
+'' Marked NF_CALL_TARGET for Check.CheckParenlessArgs_, which otherwise reports a
+'' procedure with a required parameter named without parentheses (fbc's error 1).
+sub MarkSymbolArgs_ _
+    ( byref p as Tko.ParserState, byval target as Tko.NodeId, byref items as Tko.NodeIdVec )
+    if (target = Tko.NODE_NONE) orelse (items.Count = 0) then return
+    if p.ast->Kind( target ) <> Tko.N_IDENT then return
+    select case lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, target )].data )].name ) )
+    case "procptr"
+        MarkCallTarget_( p, cast( Tko.NodeId, items[0] ) )
+    case "__fb_query_symbol__"
+        if items.Count > 1 then MarkCallTarget_( p, cast( Tko.NodeId, items[1] ) )
+    end select
+end sub
+
 '' ------------------------------------------------------------------ labels
 ''
 '' 'name :' -- a LABEL, or a call followed by a statement separator? fbc's answer

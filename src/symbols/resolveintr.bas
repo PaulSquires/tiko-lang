@@ -43,6 +43,7 @@ private sub BuiltinCallTarget_ _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, tg ) ) )
     if Check.IsTypedIntrinsicName( nm ) = false then return
     lp->target = tg
+    c.ast->nodes[cast( long, tg )].flags or= Tko.NF_CALL_TARGET   '' the CALLED name now
 
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( tg ) )
     if bs = 0 then return

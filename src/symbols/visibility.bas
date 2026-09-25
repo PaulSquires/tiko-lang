@@ -1219,6 +1219,7 @@ private sub Walk_ _
     end if
     if k = N_CALL then CheckBaseInitCount_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )
+    if (k = N_IDENT) orelse (k = N_AMBIGUOUS) then CheckParenlessArgs_( c, id, k )
     if k = N_CALL then CheckCalledExpr_( c, id )
     if k = N_CALL then CheckProcPtrArgs_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )

@@ -368,9 +368,14 @@ function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.No
 end function
 
 '' NF_CALL_TARGET on a name that is called, addressed or assigned -- see nodes.bi.
+'' '(g)( 1 )' calls the name inside the parentheses, so that name is marked too.
 sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if n = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = p.ast->Kind( n )
+    if k = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pl = @p.ast->lists[cast( long, p.ast->nodes[cast( long, n )].data )]
+        if pl->count > 0 then MarkCallTarget_( p, cast( Tko.NodeId, p.ast->children[pl->first] ) )
+    end if
     if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->nodes[cast( long, n )].flags or= Tko.NF_CALL_TARGET
 end sub
 private function MakeUnary _
@@ -384,7 +389,6 @@ private function MakeUnary _
     p.ast->unaries.Push( up )
     return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1 )
 end function
-
 
 '' '@name' built from an interned NAME rather than from a token. The hoisted-lambda
 '' site has a name it generated and no token to make one from.
@@ -429,14 +433,10 @@ function MakeList _
         p.ast->children.Push( items[i] )
     next
     p.ast->lists.Push( lp )
-    '' A CALLED NAME, and 'procptr( name )': neither is a paren-less read -- NF_CALL_TARGET.
+    '' A CALLED NAME, and one an argument names as a SYMBOL: no paren-less read -- NF_CALL_TARGET.
     if kind = Tko.N_CALL then
         MarkCallTarget_( p, target )
-        if (target <> Tko.NODE_NONE) andalso (items.Count > 0) then
-            if p.ast->Kind( target ) = Tko.N_IDENT then
-                if lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, target )].data )].name ) ) = "procptr" then MarkCallTarget_( p, cast( Tko.NodeId, items[0] ) )
-            end if
-        end if
+        MarkSymbolArgs_( p, target, items )     '' 'procptr( f )' ... -- parserend.bas
     end if
     return Tko.NewNode( *p.ast, kind, loc, p.ast->lists.Count - 1 )
 end function

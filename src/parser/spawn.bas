@@ -272,6 +272,7 @@ function MakeSpawn_ _
     dim as Tko.UnaryPayload ap
     ap.op = cast( ushort, Tko.TK_AT )
     ap.operand = SpIdent_( p, fnNm, t.loc )
+    MarkCallTarget_( p, ap.operand )        '' '@thunk' is addressed, not a paren-less read
     p.ast->unaries.Push( ap )
     dim as Tko.NodeId adr = _
         NewNodeAt( p, Tko.N_ADDROF, t.loc, p.ast->unaries.Count - 1 )
