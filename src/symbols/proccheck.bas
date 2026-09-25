@@ -618,8 +618,20 @@ private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     '' A TUPLE COMPARES ELEMENTWISE and is not this question -- this suite's own
     '' tuple-compare test writes 'if a = b' over two '(long, long)'. Its kind, or its
     '' synthesized name, is what tells one apart from a declared UDT.
-    if (c.types->Kind( lt ) = TK_TUPLE) orelse (c.types->Kind( rt ) = TK_TUPLE) then return
-    if TupleLike_( c, lt ) orelse TupleLike_( c, rt ) then return
+    ''
+    '' ...but only BETWEEN TWO OF ONE TYPE, and only for '=' and '<>'. Measured on fbc-modern
+    '' 1.20, 2026-09-25 (its errors/tuple-errors.bas): '<', '>', '<=' and '>=' on tuples are
+    '' error 20 -- lexicographic order is not defined -- and so is '=' between two DIFFERENT
+    '' tuple types, '(long, long)' against '(double, double)', against the literal '(1, 2)',
+    '' which is '(integer, integer)', or against a scalar. tiko accepted them all.
+    dim as boolean lTup = (c.types->Kind( lt ) = TK_TUPLE) orelse TupleLike_( c, lt )
+    dim as boolean rTup = (c.types->Kind( rt ) = TK_TUPLE) orelse TupleLike_( c, rt )
+    if lTup orelse rTup then
+        dim as boolean eqOp = (opnm = "=") orelse (opnm = "<>")
+        if eqOp andalso (lt = rt) then return
+        c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
+        return
+    end if
     dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
     dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
     if (lUdt orelse rUdt) = false then return

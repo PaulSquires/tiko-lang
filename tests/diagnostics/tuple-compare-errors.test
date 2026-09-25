@@ -1,0 +1,16 @@
+'' TKO0720, fbc's 20: '<' '>' '<=' '>=' on tuples, and '=' or '<>' between two different
+'' tuple types or a tuple and a scalar. A tuple was declined outright by the UDT comparison
+'' check, so every one compiled. See CheckUdtCompare_ in symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/tuple-compare-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tuple-compare-errors.bas(9,
+'' EXPECT-OUT: error TKO0720: no operator < compares this type
+'' EXPECT-OUT: tuple-compare-errors.bas(10,
+'' EXPECT-OUT: tuple-compare-errors.bas(11,
+'' EXPECT-OUT: tuple-compare-errors.bas(12,
+'' EXPECT-OUT: tuple-compare-errors.bas(13,
+'' EXPECT-OUT: tuple-compare-errors.bas(14,
+'' EXPECT-NOT: tuple-compare-errors.bas(16,
+'' EXPECT-NOT: tuple-compare-errors.bas(17,
+'' EXPECT-MAX-DIAG: 6
