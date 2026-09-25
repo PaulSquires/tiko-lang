@@ -1,0 +1,12 @@
+'' TKO0738, fbc's 181 and 24, between two generic instances or an instance and another
+'' type. A generic instance was declined by its name and never judged, so fbc's own
+'' generics/fail-assign-across-instantiations.bas compiled. See symbols/latesweeps2.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-instance-assign.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-instance-assign.bas(17,1): error TKO0738
+'' EXPECT-OUT: generic-instance-assign.bas(18,1): error TKO0738
+'' EXPECT-OUT: generic-instance-assign.bas(19,1): error TKO0738
+'' EXPECT-OUT: generic-instance-assign.bas(20,23): error TKO0738
+'' EXPECT-NOT: generic-instance-assign.bas(22,
+'' EXPECT-MAX-DIAG: 4

@@ -17,8 +17,14 @@ private function UdtSymbolOf_ ( byref c as Ctx, byval udt as TypeId ) as Symbol 
 end function
 
 '' Does the type, or any base of it, declare a procedure of this name? Its presence may
-'' make a conversion legal, so it is a reason to decline, never to report. A GENERIC or a
-'' TUPLE is declined outright: neither is measured here.
+'' make a conversion legal, so it is a reason to decline, never to report. A TUPLE is
+'' declined outright: it is not measured here.
+''
+'' A GENERIC INSTANCE IS JUDGED like any UDT: measured on fbc-modern 1.20, 2026-09-25,
+'' 'a = b' over Box( of long ) and Box( of double ) is error 181, and so is Box( of long )
+'' against Wrap( of long ) or against a plain type, while two Box( of long ) are one type.
+'' It used to be declined here by its name -- 'box<6>' has a '<' -- so fbc's own
+'' generics/fail-assign-across-instantiations.bas compiled and stored one into the other.
 private function DeclaresAnywhere_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as boolean
     dim as TypeId t = udt
@@ -27,7 +33,9 @@ private function DeclaresAnywhere_ _
         guard += 1
         if c.types->Kind( t ) <> TK_UDT then return true
         dim as string tn = c.names->Spelling( c.types->NameOf( t ) )
-        if (instr( tn, "<" ) > 0) orelse (instr( tn, "(" ) > 0) then return true
+        '' An INSTANCE is named by its structural key, 'box<6>', and its type symbol carries
+        '' no SYMF_GENERIC_INST (that flag is the procedures'), so the '<' is what says so.
+        if instr( tn, "(" ) > 0 then return true
         if TupleLike_( c, t ) then return true
         if StructorOf_( c, t, nm ) <> 0 then return true
         t = BaseOf_( c, t )
