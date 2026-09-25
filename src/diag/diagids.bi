@@ -569,6 +569,11 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
+    '' element name, or an element that cannot be stored -- see parser/typeref.bas.
+    DIAG( TKO0821, SEV_ERROR,   "a tuple needs at least two elements" )
+    DIAG( TKO0822, SEV_ERROR,   "the tuple element name '%0' is used twice" )
+    DIAG( TKO0823, SEV_ERROR,   "a tuple element cannot be 'any' or a fixed-length string" )
     '' fbc's error 20 for arithmetic or logic on a UDT that no operator takes -- see
     '' symbols/proccheck.bas, CheckUdtCompare_.
     DIAG( TKO0820, SEV_ERROR,   "no operator '%0' takes these operand types" )

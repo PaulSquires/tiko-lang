@@ -1,0 +1,12 @@
+'' TKO0821, TKO0822 and TKO0823 -- fbc's 367, 368 and 369: a tuple type with fewer than two
+'' elements, a duplicated element name, or an element that cannot be stored. tiko accepted all
+'' of them. See parser/typeref.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/tuple-decl-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tuple-decl-errors.bas(5,17): error TKO0821: a tuple needs at least two elements
+'' EXPECT-OUT: tuple-decl-errors.bas(6,29): error TKO0822: the tuple element name 'x' is used twice
+'' EXPECT-OUT: tuple-decl-errors.bas(7,18): error TKO0823
+'' EXPECT-OUT: tuple-decl-errors.bas(8,17): error TKO0823
+'' EXPECT-OUT: tuple-decl-errors.bas(9,17): error TKO0823
+'' EXPECT-MAX-DIAG: 5

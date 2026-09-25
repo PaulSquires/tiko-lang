@@ -91,6 +91,22 @@ private sub FlushVarargPending_( byref p as Tko.ParserState, byval mark as long 
     wend
 end sub
 
+'' A TUPLE ELEMENT THAT CANNOT BE STORED -- fbc's 369: a bare 'any', or a fixed-length
+'' 'string * N', 'zstring * N' or 'wstring * N' (measured). A pointer to either is fine.
+private function TupleElemBad_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
+    if n = Tko.NODE_NONE then return false
+    if p.ast->Kind( n ) <> Tko.N_TYPEREF then return false
+    if (p.ast->nodes[cast( long, n )].flags and Tko.NF_PTR) <> 0 then return false
+    dim as Tko.StmtPayload ptr tp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+    select case cast( Tko.TokenKind, tp->op )
+    case Tko.KW_ANY
+        return true
+    case Tko.KW_STRING, Tko.KW_ZSTRING, Tko.KW_WSTRING
+        return (tp->c <> Tko.NODE_NONE)
+    end select
+    return false
+end function
+
 function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
@@ -199,9 +215,17 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     ''
     '' The elements are the typeref's children; the type itself is built in Resolve,
     '' where two identical tuples can be unified.
+    '' ...AND ITS DECLARATION IS CHECKED HERE, as fbc does. Measured on fbc-modern 1.20,
+    '' 2026-09-25 (its errors/tuple-errors.bas): '(long)' is 367, "a tuple needs at least
+    '' two elements"; '(x as long, x as long)' is 368, names compared case-insensitively;
+    '' an element 'any' or 'string * 4' (zstring, wstring) is 369 -- 'any ptr' and
+    '' 'zstring ptr' are fine. Left to right, and only the FIRST problem is reported:
+    '' '(any, x as long, x as long)' is 369 alone. tiko accepted all of them.
     if k = Tko.TK_LPAREN then
         Advance( p )
         dim as Tko.NodeIdVec elems
+        dim as Tko.NodeIdVec enames
+        dim as boolean tupBad = false
         if Peek( p ) <> Tko.TK_RPAREN then
             do
                 '' 'name as T' -- the name is read and discarded, which is what makes
@@ -211,21 +235,47 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 '' following AS is what tells a name from a type: an element that IS a
                 '' type is followed by ',' or ')'.
                 dim as Tko.TokenKind ek = Peek( p )
+                dim as Tko.InternId enm = 0
+                dim as Tko.SourceLoc eloc = Cur( p ).loc
                 if (ek = Tko.TK_IDENT) orelse Tko.IsKeywordKind( ek ) then
                     if HasTok( p, p.pos + 1 ) then
                         if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.KW_AS then
+                            if ek = Tko.TK_IDENT then
+                                enm = p.names->Fold( cast( Tko.InternId, Cur( p ).literal ) )
+                            else
+                                enm = p.names->GetString( Tko.Text.LowerAscii( Tko.TokenKindText( ek ) ) )
+                            end if
                             Advance( p )
                             Advance( p )
                         end if
                     end if
                 end if
                 dim as long before = p.pos
-                elems.Push( cast( ulong, TypeRef( p ) ) )
+                dim as Tko.NodeId etr = TypeRef( p )
+                elems.Push( cast( ulong, etr ) )
                 if p.pos = before then exit do
+                if (tupBad = false) andalso (p.silent = false) then
+                    if TupleElemBad_( p, etr ) then
+                        p.diags->Report( Tko.TKO0823, Tko.PointRange( eloc ) )
+                        tupBad = true
+                    elseif enm <> 0 then
+                        for q as long = 0 to enames.Count - 1
+                            if cast( Tko.InternId, enames[q] ) = enm then
+                                p.diags->Report( Tko.TKO0822, Tko.PointRange( eloc ), p.names->Spelling( enm ) )
+                                tupBad = true
+                                exit for
+                            end if
+                        next
+                        enames.Push( cast( ulong, enm ) )
+                    end if
+                end if
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
         end if
         Expect( p, Tko.TK_RPAREN, ")" )
+        if (tupBad = false) andalso (p.silent = false) andalso (elems.Count < 2) then
+            p.diags->Report( Tko.TKO0821, Tko.PointRange( t.loc ) )
+        end if
         '' Marked by 'op', not by a node flag and not by a different payload kind. The
         '' ushort NF_ set is fully allocated, and giving one N_TYPEREF a LIST payload
         '' where every other has a STMT payload is the pool mistake this codebase has
