@@ -569,6 +569,9 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's error 341: a generic member's out-of-line '( of ... )' list differs from the
+    '' type's, in count or in a name -- see symbols/resolvestmt.bas.
+    DIAG( TKO0817, SEV_ERROR,   "the type parameters written for '%0' do not match its declaration, 'of %1'" )
     '' fbc's errors 335 and 336: a GENERIC type named without its type arguments, or with the
     '' wrong number of them -- see symbols/resolvetype.bas, GenericArgsCheck_.
     DIAG( TKO0815, SEV_ERROR,   "'%0' is generic; write its type arguments, as '%0( of ... )'" )

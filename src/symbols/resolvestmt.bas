@@ -25,7 +25,65 @@ private sub DeferAtModule_ ( byref c as Ctx, byval id as Tko.NodeId, byval here 
     end select
 end sub
 
+'' A GENERIC MEMBER DEFINED OUT OF LINE REPEATS THE TYPE'S '( of ... )' LIST, and it must be
+'' the SAME list -- fbc's error 341, "Type parameter list does not match the generic's
+'' declaration". Measured on fbc-modern 1.20, 2026-09-25, over 'type Stack( of T )' and
+'' 'type Pair( of K, V )':
+''
+''     sub Stack( of U ).Push( ... )        a renamed parameter                 341
+''     sub Stack( of T, U ).Push( ... )     one too many                        341
+''     sub Pair( of K ).SetK( ... )         one too few                         341
+''     sub Pair( of V, K ).SetK( ... )      the same names, in another order    341
+''     sub Stack( of t ).Push( ... )        the case differs, as names may      accepted
+''
+'' tiko accepted all four. The renamed one failed only if the generic was INSTANTIATED --
+'' TKO0808, 'u' is not declared -- and the others never. The parser keeps the list in 'c'
+'' and the owner in 'ownerName'; names intern folded, so comparing them is fbc's rule.
+private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
+    if c.ast->Kind( id ) <> Tko.N_PROC then return
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if (sp->extra and Tko.PF_GENERIC_PROC) = 0 then return
+    if (sp->ownerName = 0) orelse (sp->c = Tko.NODE_NONE) then return
+    if c.ast->Kind( sp->c ) <> Tko.N_BLOCK then return
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( LookupDottedType_( c, here, sp->ownerName ) )
+    if gs = 0 then return
+    if gs->kind <> cast( ubyte, Tko.SYM_UDT ) then return
+    if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
+    dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
+    if gn = Tko.NODE_NONE then return
+    if c.ast->Kind( gn ) <> Tko.N_TYPE then return
+    dim as Tko.NodeId glist = StmtOf( c, gn )->b
+    if glist = Tko.NODE_NONE then return                 '' not generic: a generic METHOD
+    if c.ast->Kind( glist ) <> Tko.N_BLOCK then return
+    dim as Tko.ListPayload ptr dl = ListOf( c, sp->c )
+    dim as Tko.ListPayload ptr gl = ListOf( c, glist )
+    dim as boolean same = (dl->count = gl->count)
+    if same then
+        for i as long = 0 to gl->count - 1
+            if IdentNameOf( c, cast( Tko.NodeId, c.ast->children[dl->first + i] ) ) <> _
+               IdentNameOf( c, cast( Tko.NodeId, c.ast->children[gl->first + i] ) ) then
+                same = false
+            end if
+        next
+    end if
+    if same then return
+    '' Once per SOURCE LOCATION: an instantiation re-parses the member into new nodes.
+    dim as ulong at = cast( ulong, c.ast->Loc( id ) )
+    for i as long = 0 to c.genArgSeen.Count - 1
+        if c.genArgSeen[i] = at then return
+    next
+    c.genArgSeen.Push( at )
+    dim as string want
+    for i as long = 0 to gl->count - 1
+        if i > 0 then want &= ", "
+        want &= c.names->Spelling( IdentNameOf( c, cast( Tko.NodeId, c.ast->children[gl->first + i] ) ) )
+    next
+    c.diags->Report( Tko.TKO0817, Tko.PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( gs->name ) & "." & c.names->Spelling( sp->name ), want )
+end sub
+
 sub StatementChecks_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
     RtlNameClash_( c, id, here )
     DeferAtModule_( c, id, here )
+    GenericMemberList_( c, id, here )
 end sub

@@ -1,0 +1,13 @@
+'' TKO0817, fbc's 341: a generic member's out-of-line '( of ... )' list differs from the
+'' type's in count, in a name, or in order. tiko accepted all four, and a renamed list
+'' failed only once the generic was instantiated. See symbols/resolvestmt.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-member-list.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-member-list.bas(17,1): error TKO0817: the type parameters written for 'stack.push' do not match its declaration, 'of t'
+'' EXPECT-OUT: generic-member-list.bas(19,1): error TKO0817
+'' EXPECT-OUT: generic-member-list.bas(21,1): error TKO0817: the type parameters written for 'pair.setk' do not match its declaration, 'of k, v'
+'' EXPECT-OUT: generic-member-list.bas(23,1): error TKO0817
+'' EXPECT-NOT: generic-member-list.bas(25,
+'' EXPECT-NOT: generic-member-list.bas(27,
+'' EXPECT-MAX-DIAG: 4
