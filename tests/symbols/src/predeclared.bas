@@ -8,7 +8,7 @@ sub Widget.Resize( )
     print this.size
 end sub
 
-sub Run( )
+sub RunIt( )    '' not 'Run': fbc predeclares that, and redefining it is its error 4
     for i as integer = 0 to 3
         print i
     next

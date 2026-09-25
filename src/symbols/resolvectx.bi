@@ -59,6 +59,7 @@ type Ctx
     as FB.Array( of ulong )  pendExprTypeScope
     as FB.Array( of ulong )  pendingItem
     as FB.Array( of ulong )  pendingScope
+    as FB.Array( of ulong )  rtlSeen      '' nodes reported TKO0813 -- resolvertl.bas
     '' The generic type parameters currently in scope, innermost binding last: the
     '' name and the TypeId it stands for. A plain stack rather than a map, because a
     '' generic has one or two parameters and instantiation nests at most a few deep.

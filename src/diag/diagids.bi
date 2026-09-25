@@ -569,6 +569,9 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's error 4, "Duplicated definition", for a declaration named like a runtime procedure
+    '' fbc predeclares -- 'sub Run( )', 'dim as long timer' -- see symbols/resolvertl.bas.
+    DIAG( TKO0813, SEV_ERROR,   "'%0' is already declared by the runtime library" )
     DIAG( TKO0812, SEV_ERROR,   "'spawn %0' cannot pass its byref parameter '%1'; a string or UDT parameter is byref unless it is written 'byval'" )
     DIAG( TKO0811, SEV_ERROR,   "'%0' is still incomplete here: it is declared below this use, and only a pointer to it may be used above that" )
     DIAG( TKO0810, SEV_ERROR,   "'%0' is an incomplete type: nothing declares it, so only a pointer to it may be used here" )

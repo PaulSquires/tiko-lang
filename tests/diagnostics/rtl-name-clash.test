@@ -1,0 +1,16 @@
+'' TKO0813, fbc's 4: a declaration named like a runtime procedure fbc predeclares. tiko
+'' accepted them, and a user 'sub Run' became the program's Run. The names and the scope
+'' rule are measured -- see symbols/resolvertl.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/rtl-name-clash.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: rtl-name-clash.bas(11,1): error TKO0813: 'run' is already declared by the runtime library
+'' EXPECT-OUT: rtl-name-clash.bas(13,
+'' EXPECT-OUT: rtl-name-clash.bas(14,
+'' EXPECT-OUT: rtl-name-clash.bas(15,
+'' EXPECT-OUT: rtl-name-clash.bas(16,
+'' EXPECT-OUT: rtl-name-clash.bas(17,
+'' EXPECT-OUT: rtl-name-clash.bas(18,
+'' EXPECT-NOT: rtl-name-clash.bas(2
+'' EXPECT-NOT: rtl-name-clash.bas(3
+'' EXPECT-MAX-DIAG: 7

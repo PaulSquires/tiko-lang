@@ -149,3 +149,5 @@ private sub LenOperandPrefix_ _
     if (nm <> "len") andalso (nm <> "sizeof") then return
     DropNsPrefix_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), scope_ )
 end sub
+
+#include once "symbols/resolvertl.bas"
