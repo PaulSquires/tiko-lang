@@ -1,0 +1,9 @@
+'' TKO0819, fbc's 346: NEXT cannot name anything when it closes a FOR EACH, whose variable is
+'' scoped to the body. See AcceptNext_ in parser/parserend.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/foreach-next-name.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: foreach-next-name.bas(6,6): error TKO0819
+'' EXPECT-OUT: foreach-next-name.bas(8,6): error TKO0819
+'' EXPECT-OUT: foreach-next-name.bas(11,
+'' EXPECT-MAX-DIAG: 3

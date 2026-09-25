@@ -56,7 +56,7 @@ declare function NextTokIs_ _
     ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
-declare function AcceptNext_( byref p as Tko.ParserState, byval openedAt as Tko.SourceLoc = 0 ) as boolean
+declare function AcceptNext_( byref p as Tko.ParserState, byval openedAt as Tko.SourceLoc = 0, byval isEach as boolean = false ) as boolean
 declare function IsLabelHere_( byref p as Tko.ParserState ) as boolean
 declare function ParenlessFnCall_( byref p as Tko.ParserState, byval callee as Tko.NodeId, _
     byval loc as Tko.SourceLoc, byref args as Tko.NodeIdVec ) as Tko.NodeId
@@ -576,7 +576,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
             sp.b = ForEachDestructure_( p, t, feTmp, dnames, sp.b )
             eachFlags = Tko.NF_DESTRUCTURE
         end if
-        AcceptNext_( p, t.loc )
+        AcceptNext_( p, t.loc, true )
         dim as Tko.NodeId en = MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
         p.ast->nodes[cast( long, en )].flags or= eachFlags
         return en

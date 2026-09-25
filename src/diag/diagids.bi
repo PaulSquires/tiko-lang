@@ -569,6 +569,9 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's error 346: 'next v' naming a FOR EACH variable, or naming anything -- see
+    '' parser/parserend.bas, AcceptNext_.
+    DIAG( TKO0819, SEV_ERROR,   "'next' cannot name a FOR EACH variable: it is scoped to the loop body" )
     '' fbc's error 345: 'for each byref' over an iterator whose Value( ) returns by value --
     '' there is no element to bind to. See symbols/checkeach.bas.
     DIAG( TKO0818, SEV_ERROR,   "'for each byref' needs a byref Value( ), and '%0.Value( )' returns by value" )

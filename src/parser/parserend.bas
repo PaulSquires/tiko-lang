@@ -180,16 +180,26 @@ end function
 '' FOR and FOR EACH. It returned false in silence and both callers ignored it, so
 '' 'for each x in a : print x' with nothing after compiled and ran the loop, where
 '' WHILE, DO, IF, SELECT and SUB left open were already reported (ExpectEnd).
+''
+'' ...AND A FOR EACH IS CLOSED BY A BARE NEXT: naming anything there is fbc's error 346,
+'' "NEXT cannot name the FOR EACH variable, it is scoped to the loop body" -- 'next v',
+'' 'next x', and a FOR EACH reached through a name list, 'next w, v' or 'next i, v'
+'' (fbc-modern 1.20, 2026-09-25; its generics/fail-foreach-nextvar.bas). tiko took the
+'' name as it takes one for a FOR, and compiled.
 function AcceptNext_ _
-    ( byref p as Tko.ParserState, byval openedAt as Tko.SourceLoc = 0 ) as boolean
+    ( byref p as Tko.ParserState, byval openedAt as Tko.SourceLoc = 0, _
+      byval isEach as boolean = false ) as boolean
     if p.pendingNext > 0 then
         p.pendingNext -= 1
+        if isEach then ErrorNode( p, Tko.TKO0819 )
     elseif Accept( p, Tko.KW_NEXT ) = false then
         ErrorNode( p, Tko.TKO0401, "next" )
         if openedAt <> 0 then
             p.diags->AddNote( Tko.TKO0905, Tko.PointRange( openedAt ), "for" )
         end if
         return false
+    elseif isEach andalso (Peek( p ) = Tko.TK_IDENT) then
+        ErrorNode( p, Tko.TKO0819 )
     end if
     dim as long depth = 0
     while (Peek( p ) <> Tko.TK_EOL) andalso (Peek( p ) <> Tko.TK_EOF)
