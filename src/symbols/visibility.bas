@@ -1441,6 +1441,7 @@ private sub CheckStaticStringInits( byref c as Ctx )
     next
 end sub
 
+#include once "symbols/visinst.bas"
 sub Run _
     ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
       byref types as TypeContext, byref names as Interner, _
@@ -1458,6 +1459,7 @@ sub Run _
     RecordFirstRedims_( c )
     RecordChosenOverloads_( c )
     Walk_( c, root, TYPE_NONE )
+    WalkGenericInstances_( c )     '' not in the tree -- visinst.bas
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.
     CheckStaticStringInits( c )

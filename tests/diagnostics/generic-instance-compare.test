@@ -1,0 +1,9 @@
+'' TKO0720, fbc's 20, inside an instantiated generic body. The walk that makes this check
+'' never visited an instance -- its body is on extraTopLevel, not the module list -- so
+'' fbc's own generics/fail-container-noequals.bas dropped the statement in silence. See
+'' symbols/visinst.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-instance-compare.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-instance-compare.bas(10,14): error TKO0720: no operator = compares this type
+'' EXPECT-MAX-DIAG: 1
