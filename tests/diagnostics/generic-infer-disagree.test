@@ -1,0 +1,15 @@
+'' TKO0809, fbc's 340: a type parameter bound by arguments of different types. Inference took
+'' the FIRST argument and compiled; fbc's own generics/fail-infer-mixed-promotion.bas is the
+'' first line. See MergeInferred_ in symbols/generic.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-infer-disagree.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-infer-disagree.bas(13,
+'' EXPECT-OUT: generic-infer-disagree.bas(14,
+'' EXPECT-OUT: generic-infer-disagree.bas(15,
+'' EXPECT-OUT: generic-infer-disagree.bas(16,
+'' EXPECT-OUT: error TKO0809: cannot infer the type arguments of 'max'
+'' EXPECT-NOT: generic-infer-disagree.bas(18,
+'' EXPECT-NOT: generic-infer-disagree.bas(19,
+'' EXPECT-NOT: generic-infer-disagree.bas(20,
+'' EXPECT-MAX-DIAG: 4

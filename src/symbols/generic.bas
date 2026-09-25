@@ -347,6 +347,27 @@ private function SameGeneric_ _
     return an = wn
 end function
 
+'' ...AND EVERY ARGUMENT THAT BINDS A TYPE PARAMETER MUST AGREE. The first one used to
+'' win: 'Max( v + v, v )' over 'Max( of T )( byval a as T, byval b as T )' took T from
+'' 'v + v' -- INTEGER, since long + long promotes -- and compiled. fbc refuses to choose
+'' between two types the author wrote, error 340, and wants 'Max( of long )( ... )'.
+'' Measured on fbc-modern 1.20, 2026-09-25: EXACT equality, literals included --
+'' 'Max( v, 2 )' over a long, 'Max( 1.5, 2 )', 'Max( d, v )' are all 340, and
+'' 'Max( v, v )', 'Max( 1, 2 )', 'Max( s, s )' compile. fbc's
+'' generics/fail-infer-mixed-promotion.bas pins the first case. A disagreement leaves
+'' the call bound to the template, which InferMissed4_ reports (TKO0809).
+private function MergeInferred_ _
+    ( byref c as Ctx, byref got as Tko.TypeId, byval cand as Tko.TypeId ) as boolean
+    if cand = Tko.TYPE_NONE then return true
+    cand = c.types->Unqualify( cand )
+    if c.types->Kind( cand ) = Tko.TK_REFERENCE then cand = c.types->Unqualify( c.types->Inner( cand ) )
+    if got = Tko.TYPE_NONE then
+        got = cand
+        return true
+    end if
+    return (got = cand)
+end function
+
 private function InferProcTypeArgs_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval gn as Tko.NodeId, _
       byval scope_ as Tko.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
@@ -407,8 +428,8 @@ private function InferProcTypeArgs_ _
                 if c.types->Kind( aU ) <> Tko.TK_POINTER then continue for
                 dim as Tko.TypeId el = c.types->Inner( aU )
                 if el = Tko.TYPE_NONE then continue for
-                got = c.types->Unqualify( el )
-                exit for
+                if MergeInferred_( c, got, el ) = false then return false
+                continue for
             end if
             if (tn->flags and (Tko.NF_PTR or Tko.NF_PROC_TYPE or Tko.NF_ARRAY)) <> 0 then
                 continue for
@@ -455,13 +476,12 @@ private function InferProcTypeArgs_ _
                 if InstArgsOf_( c, argT, iargs ) = false then return false
                 if SameGeneric_( c, argT, tp->name ) = false then return false
                 if at_ >= iargs.Count then return false
-                got = cast( Tko.TypeId, iargs[at_] )
-                if got <> Tko.TYPE_NONE then exit for
+                if MergeInferred_( c, got, cast( Tko.TypeId, iargs[at_] ) ) = false then return false
                 continue for
             end if
-            got = InferArgType_( c, cast( Tko.NodeId, c.ast->children[cl->first + k] ), _
-                                 scope_ )
-            if got <> Tko.TYPE_NONE then exit for
+            dim as Tko.TypeId cand = InferArgType_( c, _
+                cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_ )
+            if MergeInferred_( c, got, cand ) = false then return false
         next
         if got = Tko.TYPE_NONE then return false
         outT.Push( cast( ulong, got ) )
