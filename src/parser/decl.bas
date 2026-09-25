@@ -393,6 +393,8 @@ private function VarDestructure _
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     Expect( p, Tko.TK_RPAREN, ")" )
+    '' 'var (a) = 1' is fbc's 367 as a 1-tuple type is (measured, errors/tuple-errors.bas).
+    if (names.Count < 2) andalso (p.silent = false) then p.diags->Report( Tko.TKO0821, Tko.PointRange( lp.loc ) )
     '' A DESTRUCTURING DECLARATION MUST HAVE AN INITIALISER. There is nothing else
     '' for the element types to come from.
     if Accept( p, Tko.TK_EQ ) = false then

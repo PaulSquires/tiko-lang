@@ -118,6 +118,61 @@ end function
 '' so walking its declared size reads past its contents; a type with none of the
 '' protocol's members cannot be walked at all; and one whose GetIterator returns
 '' something ALMOST an iterator is the case the message has to be specific about.
+'' DESTRUCTURING -- '(a, b) = t' and 'var (a, b) = t' -- needs a TUPLE of the right size on
+'' the right. Measured on fbc-modern 1.20, 2026-09-25 (its errors/tuple-errors.bas):
+''
+''     (x, y) = t        t a 3-tuple        370    too FEW targets
+''     (x, y, z) = t     t a 2-tuple        266    too MANY
+''     (x, y) = u        u a UDT, or 42     371    not a tuple
+''     var (a, b, c) = (1, 2)  or  var (a, b) = (1, 2, 3)          370
+''     var (a, b) = 42                                             371
+''
+'' tiko accepted every one; three of them dropped the statement. The 'var' form is the
+'' parser's desugaring -- 'var $dt<n> = expr, a = $dt<n>._1, ...' -- so its name count is
+'' the items after the temporary. An operand with no type yet, a template's among them,
+'' says nothing.
+private sub DestructureJudge_ _
+    ( byref c as Ctx, byval at as Tko.NodeId, byval rt as Tko.TypeId, byval names as long )
+    if rt = Tko.TYPE_NONE then return
+    dim as Tko.TypeId u = c.types->Unqualify( rt )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) = Tko.TK_TUPLE then return
+    dim as long have = TupleArity_( c, u )
+    dim as Tko.SourceRange r = Tko.PointRange( c.ast->Loc( at ) )
+    if have < 0 then
+        c.diags->Report( Tko.TKO0826, r, c.types->Name( u ) )
+    elseif have <> names then
+        c.diags->Report( Tko.TKO0825, r, trim( str( have ) ), trim( str( names ) ) )
+    end if
+end sub
+
+private sub CheckDestructure_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        dim as Tko.NodeKind k = c.ast->Kind( n )
+        if (k <> Tko.N_AMBIGUOUS) andalso (k <> Tko.N_VAR) then continue for
+        dim as Tko.StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if k = Tko.N_AMBIGUOUS then
+            if sp->op <> cast( ushort, Tko.TK_EQ ) then continue for
+            if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then continue for
+            if c.ast->Kind( sp->a ) <> Tko.N_TUPLE then continue for
+            '' 'let ( a, b ) = udt' assigns FIELDS in order, and is not this -- NF_LET_LIST.
+            if (c.ast->nodes[cast( long, sp->a )].flags and Tko.NF_LET_LIST) <> 0 then continue for
+            dim as long cnt = c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )].count
+            DestructureJudge_( c, n, TypeOf_( c, sp->b ), cnt )
+        else
+            '' 'var (a) = x' is the parser's TKO0821 -- a single name is not judged twice.
+            if sp->count < 3 then continue for
+            dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->children[sp->first] )
+            if c.ast->Kind( first_ ) <> Tko.N_VAR_ITEM then continue for
+            dim as Tko.StmtPayload ptr fp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, first_ )].data )]
+            if left( c.names->Spelling( fp->name ), 3 ) <> "$dt" then continue for
+            if fp->b = Tko.NODE_NONE then continue for
+            DestructureJudge_( c, n, TypeOf_( c, fp->b ), sp->count - 1 )
+        end if
+    next
+end sub
+
 sub CheckForEach_( byref c as Ctx )
     for i as long = 1 to c.ast->Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
@@ -216,4 +271,5 @@ sub CheckForEach_( byref c as Ctx )
             c.diags->Report( Tko.TKO0611, r, trim( str( want ) ), trim( str( have ) ) )
         end if
     next
+    CheckDestructure_( c )
 end sub

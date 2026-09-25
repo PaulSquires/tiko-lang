@@ -56,6 +56,7 @@ declare function NextTokIs_ _
     ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 declare function ClosesABlock( byval k as Tko.TokenKind ) as boolean
 declare function IsBlockEnderAt( byref p as Tko.ParserState ) as boolean
+declare sub MarkLetList_( byref p as Tko.ParserState, byval n as Tko.NodeId )
 declare function AcceptNext_( byref p as Tko.ParserState, byval openedAt as Tko.SourceLoc = 0, byval isEach as boolean = false ) as boolean
 declare function IsLabelHere_( byref p as Tko.ParserState ) as boolean
 declare function ParenlessFnCall_( byref p as Tko.ParserState, byval callee as Tko.NodeId, _
@@ -1334,6 +1335,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' being a tuple needs nothing special here.
             Advance( p )
             n = ParseAmbiguous( p )
+            MarkLetList_( p, n )    '' not tuple destructuring -- see NF_LET_LIST, parserend.bas
         elseif KeywordLedExpression( p, k ) then
             '' A statement whose head is a KEYWORD-led expression rather than a name:
             ''

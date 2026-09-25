@@ -1,0 +1,20 @@
+'' TKO0824 ('extends' a tuple), TKO0825 (a destructuring count mismatch), TKO0826 (not a
+'' tuple on the right) and TKO0821 ('var' with one name) -- fbc's 14, 370/266, 371 and 367.
+'' tiko accepted every one. See symbols/checkeach.bas and parser/decltype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/tuple-destructure-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tuple-destructure-errors.bas(11,22): error TKO0824
+'' EXPECT-OUT: tuple-destructure-errors.bas(18,
+'' EXPECT-OUT: error TKO0825: the tuple has 3 elements, and 2 are written
+'' EXPECT-OUT: tuple-destructure-errors.bas(19,
+'' EXPECT-OUT: tuple-destructure-errors.bas(20,
+'' EXPECT-OUT: error TKO0826: a tuple is expected here, and 'u' is not one
+'' EXPECT-OUT: tuple-destructure-errors.bas(21,
+'' EXPECT-OUT: tuple-destructure-errors.bas(22,
+'' EXPECT-OUT: tuple-destructure-errors.bas(23,
+'' EXPECT-OUT: tuple-destructure-errors.bas(24,
+'' EXPECT-NOT: tuple-destructure-errors.bas(26,
+'' EXPECT-NOT: tuple-destructure-errors.bas(27,
+'' EXPECT-NOT: tuple-destructure-errors.bas(28,
+'' EXPECT-MAX-DIAG: 8

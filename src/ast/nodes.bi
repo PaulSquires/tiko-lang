@@ -215,6 +215,12 @@ namespace Tko
     '' N_MEMBER's and can never appear on an N_VAR.
     const NF_DECL_WRITTEN as ushort = &h0001
 
+    '' N_TUPLE: the target list of 'let ( a, b ) = x' -- FreeBASIC's multiple assignment,
+    '' which takes a UDT's fields in order and is NOT tuple destructuring: fbc accepts
+    '' 'let ( x, y ) = u' over a UDT and refuses '( x, y ) = u' (371). The parser consumes
+    '' LET, so this is the only record of it. Shares NF_SHARED's bit, which is N_VAR's.
+    const NF_LET_LIST as ushort = &h0400
+
     '' N_PROC reuses StmtPayload.extra as a modifier set. The ushort NF_ flags are
     '' fully allocated, and these are meaningful for exactly one node kind.
     const PF_OVERLOAD   as ushort = &h0001   '' the OVERLOAD keyword was written

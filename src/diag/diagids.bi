@@ -569,6 +569,12 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's errors 370, 266 and 371: DESTRUCTURING with the wrong number of names or targets,
+    '' or over something that is not a tuple -- see symbols/checkeach.bas.
+    DIAG( TKO0825, SEV_ERROR,   "the tuple has %0 elements, and %1 are written" )
+    DIAG( TKO0826, SEV_ERROR,   "a tuple is expected here, and '%0' is not one" )
+    '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
+    DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
     '' element name, or an element that cannot be stored -- see parser/typeref.bas.
     DIAG( TKO0821, SEV_ERROR,   "a tuple needs at least two elements" )

@@ -150,7 +150,16 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
 
-    if Accept( p, Tko.KW_EXTENDS ) then sp.c = TypeRef( p )
+    '' A TUPLE WRITTEN AS THE BASE -- 'extends (long, long)' -- is fbc's error 14, "Expected
+    '' identifier": a tuple has no vtable, no RTTI and no identity to inherit (fbc-modern 1.20,
+    '' 2026-09-25, its errors/tuple-errors.bas). A typedef OF a tuple, 'extends P', compiles
+    '' under fbc, so this is the spelling and nothing more. tiko accepted both.
+    if Accept( p, Tko.KW_EXTENDS ) then
+        if (Peek( p ) = Tko.TK_LPAREN) andalso (p.silent = false) then
+            p.diags->Report( Tko.TKO0824, Tko.PointRange( Cur( p ).loc ) )
+        end if
+        sp.c = TypeRef( p )
+    end if
 
     dim as boolean isGeneric = (sp.b <> Tko.NODE_NONE)
     dim as Tko.NodeId tn = ParseAggregateBody( p, t, sp, isUnion )

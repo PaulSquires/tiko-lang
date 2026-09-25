@@ -227,6 +227,17 @@ function AcceptNext_ _
     return true
 end function
 
+'' 'let ( a, b ) = x' marks its target list NF_LET_LIST, so the destructuring checks
+'' (symbols/checkeach.bas) leave FreeBASIC's multiple assignment alone.
+sub MarkLetList_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if n = Tko.NODE_NONE then return
+    if p.ast->Kind( n ) <> Tko.N_AMBIGUOUS then return
+    dim as Tko.NodeId tg = p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )].a
+    if tg = Tko.NODE_NONE then return
+    if p.ast->Kind( tg ) <> Tko.N_TUPLE then return
+    p.ast->nodes[cast( long, tg )].flags or= Tko.NF_LET_LIST
+end sub
+
 '' ------------------------------------------------------------- symbol arguments
 ''
 '' AN ARGUMENT THAT NAMES A SYMBOL IS NOT A PAREN-LESS CALL of it: 'procptr( f )' takes f's
