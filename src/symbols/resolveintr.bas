@@ -151,3 +151,4 @@ private sub LenOperandPrefix_ _
 end sub
 
 #include once "symbols/resolvertl.bas"
+#include once "symbols/resolvestmt.bas"

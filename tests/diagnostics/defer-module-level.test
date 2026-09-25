@@ -1,0 +1,8 @@
+'' TKO0814, fbc's 348: 'defer' directly at module level or in a namespace. tiko ran the
+'' first when the program ended and never ran the second. See symbols/resolvestmt.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/defer-module-level.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: defer-module-level.bas(7,1): error TKO0814
+'' EXPECT-OUT: defer-module-level.bas(9,5): error TKO0814
+'' EXPECT-MAX-DIAG: 2

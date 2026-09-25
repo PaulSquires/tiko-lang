@@ -569,6 +569,8 @@
     '' bottom, so 'type X as Foo', 'dim as X a', 'type Foo' is incomplete at the DIM.
     '' fbc's error 358, "SPAWN cannot pass a BYREF parameter": ANY byref parameter of the
     '' first-declared procedure of the name, written or by default -- see resolvesynth.bas.
+    '' fbc's error 348: 'defer' directly at module level or in a namespace -- resolvestmt.bas.
+    DIAG( TKO0814, SEV_ERROR,   "'defer' is not allowed at module level; put it in a procedure or a block" )
     '' fbc's error 4, "Duplicated definition", for a declaration named like a runtime procedure
     '' fbc predeclares -- 'sub Run( )', 'dim as long timer' -- see symbols/resolvertl.bas.
     DIAG( TKO0813, SEV_ERROR,   "'%0' is already declared by the runtime library" )

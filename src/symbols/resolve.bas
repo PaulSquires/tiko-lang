@@ -756,7 +756,7 @@ sub WalkStmt _
     '' Collect recorded the scope for anything that opened one; otherwise inherit.
     dim as Tko.ScopeId here = c.info->ScopeOf( id )
     if here = Tko.SCOPE_NONE then here = scope_
-    RtlNameClash_( c, id, here )     '' named like a runtime procedure -- resolvertl.bas
+    StatementChecks_( c, id, here )  '' a runtime procedure's name, defer -- resolvestmt.bas
 
     '' A STATEMENT KEYWORD NAMING A PROCEDURE HERE IS A CALL -- RewriteShadowedIntrinsic_.
     if k = Tko.N_INTRINSIC then
