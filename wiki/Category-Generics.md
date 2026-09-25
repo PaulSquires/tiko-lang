@@ -249,8 +249,8 @@ tiko reports its own ids, and fewer of these. Measured 2026-09-24 at origin/mast
 | --- | --- |
 | 333 | `TKO0321: expected a type parameter name` |
 | 334 | `TKO0322: duplicated type parameter 't'` |
-| 335 | no diagnostic -- `dim b as Box` compiles |
-| 336 | no diagnostic -- `dim a as Pair( of long )` compiles |
+| 335 | `TKO0815: 'box' is generic; write its type arguments, as 'box( of ... )'` (2026-09-25) |
+| 336 | `TKO0816: 'pair' takes 2 type argument(s), and 1 are written here` (2026-09-25) |
 | 338 | `TKO0405: expected 'end OPERATOR'` |
 | 339 | none -- the runaway case did not finish; see SELF-REFERENCE, NESTING AND DEPTH |
 | 340 | `TKO0809: cannot infer the type arguments of 'make'; write them, as 'make( of ... )( ... )'` |
