@@ -254,7 +254,7 @@ tiko reports its own ids, and fewer of these. Measured 2026-09-24 at origin/mast
 | 338 | `TKO0405: expected 'end OPERATOR'` |
 | 339 | none -- the runaway case did not finish; see SELF-REFERENCE, NESTING AND DEPTH |
 | 340 | `TKO0809: cannot infer the type arguments of 'make'; write them, as 'make( of ... )( ... )'` |
-| 341 | a renamed type parameter: `TKO0808: the type 'u' is not declared` once the generic is instantiated, and no diagnostic before that; an extra one on the body: no diagnostic |
+| 341 | `TKO0817: the type parameters written for 'stack.push' do not match its declaration, 'of t'` -- a renamed, extra, missing or reordered parameter (2026-09-25) |
 
 (337 has no case: FBC-Modern declares the message but no code raises it.)
 
