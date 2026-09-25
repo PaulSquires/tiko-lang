@@ -91,6 +91,12 @@ namespace Tko.Codegen
           byref irPath as string, byref objPath as string, _
           byval keepTemps as boolean ) as long
 
+    '' '.ll' to '.s' -- '--emit-asm'. The same compile, 'clang -S' in place of '-c'.
+    declare function CompileIrAsm _
+        ( byref t as ToolPaths, byref target as TargetDescription, _
+          byref irPath as string, byref asmPath as string, _
+          byval keepTemps as boolean ) as long
+
     '' ObjectS to an executable -- plural, and it always was in this comment.
     '' It took ONE path until 2026-09-04, which is why a program could never be
     '' built from more than one module.

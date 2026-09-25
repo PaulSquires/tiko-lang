@@ -1,0 +1,9 @@
+'' '--emit-ir -o x.ll' WRITES THE IR THERE AND STOPS -- docs/plan/10 section 4. It built
+'' and linked instead, and x.ll was an EXECUTABLE. The PE stub's text is what an image has
+'' and a module does not.
+'' TEST: cli
+'' ARGS: -target win64-msvc --emit-ir tests/driver/src/emit-file.bas -o tests/driver/emitfile.ll
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/emitfile.ll
+'' EXPECT-FILE-HAS: tests/driver/emitfile.ll :: target triple = "x86_64-pc-windows-msvc"
+'' EXPECT-FILE-NOT-HAS: tests/driver/emitfile.ll :: This program cannot be run in DOS mode

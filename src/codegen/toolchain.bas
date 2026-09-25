@@ -163,6 +163,23 @@ function CompileIr _
     return rc
 end function
 
+function CompileIrAsm _
+    ( byref t as ToolPaths, byref target as TargetDescription, _
+      byref irPath as string, byref asmPath as string, _
+      byval keepTemps as boolean ) as long
+
+    dim as string cmd = _
+        "-target " & target.triple & " -Wno-override-module -S " & _
+        Q( irPath ) & " -o " & Q( asmPath )
+    if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
+    if t.buildDll andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
+    dim as long rc = Exec_( t, t.clangExe, cmd )
+    if keepTemps = false then
+        if rc = 0 then kill( irPath )
+    end if
+    return rc
+end function
+
 function LinkExe _
     ( byref t as ToolPaths, byref target as TargetDescription, _
       byref objs as Tko.StrVec, byref outPath as string ) as long

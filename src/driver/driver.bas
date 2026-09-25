@@ -379,6 +379,52 @@ private function ObjectLooksElf_( byref path_ as string, byref known as boolean 
     return false
 end function
 
+'' '--emit-ir' AND '--emit-asm' WRITE THEIR FILE AND STOP -- docs/plan/10 section 4: "writes
+'' the .ll and stops; --emit-asm runs clang -S". What they did was build: with an -o, both
+'' compiled and LINKED, so 'tiko --emit-ir x.bas -o x.ll' wrote an EXECUTABLE named x.ll, and
+'' '--emit-asm' never produced assembly at all. Now:
+''
+''     --emit-ir               the module on stdout, as before -- the escape hatch the tests read
+''     --emit-ir -o x.ll       the module in x.ll
+''     --emit-asm [-o x.s]     clang -S into x.s, or <source>.s
+''
+'' fbc's '-r' is the same shape: 'fbc -gen llvm -r x.bas -o x.ll' writes the IR there. With
+'' several modules and one -o, each is '<-o stem>.<n>.ll', as their intermediate objects are.
+private function EmitStopFile_ _
+    ( byref ctx as Tko.CompilerContext, byref irText as string, _
+      byref td as Tko.Codegen.TargetDescription, byval id as Tko.FileId, _
+      byval i as long, byval srcCount as long ) as long
+
+    dim as string ext = iif( ctx.options.emitAsm, ".s", ".ll" )
+    dim as string outp = ctx.options.outputPath
+    if len( outp ) = 0 then
+        if ctx.options.emitAsm = false then
+            print irText;
+            return Tko.EXIT_OK
+        end if
+        outp = StripExt_( ctx.sources.PathOf( id ) ) & ext
+    elseif srcCount > 1 then
+        outp = StripExt_( outp ) & "." & str( i ) & ext
+    end if
+    dim as string irPath = outp
+    if ctx.options.emitAsm then irPath = outp & ".ll"
+    dim as long fh = freefile
+    dim as long orc = open( irPath for output as #fh )
+    if orc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
+    print #fh, irText;
+    close #fh
+    if ctx.options.emitAsm = false then return Tko.EXIT_OK
+
+    dim as Tko.Codegen.ToolPaths tools = Tools_( ctx )
+    if tools.found = false then
+        return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
+    end if
+    tools.optLevel = ctx.options.optLevel
+    dim as long rc = Tko.Codegen.CompileIrAsm( tools, td, irPath, outp, ctx.options.keepTemps )
+    if rc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
+    return Tko.EXIT_OK
+end function
+
 private function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
@@ -712,7 +758,7 @@ function Run _
 
     elseif ctx.options.dumpSymbols orelse ctx.options.resolveOnly orelse _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
-           ctx.options.dumpIr orelse ctx.options.emitIr orelse _
+           ctx.options.dumpIr orelse ctx.options.emitIr orelse ctx.options.emitAsm orelse _
            wantsOutput orelse _
            ctx.options.dumpUdt orelse _
            ctx.options.dumpVtable then
@@ -904,7 +950,7 @@ function Run _
                 Tko.ComputeUdtLayouts( syms, ctx.types, store )
                 print Tko.DumpUdtLayouts( store, ctx.types, ctx.names, syms );
             elseif ctx.options.dumpIr orelse ctx.options.emitIr orelse _
-                   wantsOutput then
+                   ctx.options.emitAsm orelse wantsOutput then
                 '' MIR needs the full frontend in front of it: resolve binds names,
                 '' check gives every expression a type, and lowering reads both.
                 dim as Tko.Resolve.Stats rst
@@ -1018,7 +1064,7 @@ function Run _
                 '' hatch that prints the module; with one, or with neither, the driver
                 '' produces the file that was asked for. 'tiko foo.bas -o foo.exe' is
                 '' the spelling that matters and it used to report "not implemented".
-                dim as boolean doCodegen = ctx.options.emitIr orelse wantsOutput
+                dim as boolean doCodegen = ctx.options.emitIr orelse ctx.options.emitAsm orelse wantsOutput
                 '' NOT AFTER AN ERROR. A compile that reported one produces no object
                 '' either way -- the driver exits EXIT_USER_ERROR -- so running the
                 '' emitter over a module the frontend already declined buys nothing
@@ -1039,18 +1085,18 @@ function Run _
                         Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
                                               ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe )
                     if er.ok then
-                        '' AN OUTPUT PATH TURNS '--emit-ir' INTO A REAL BUILD: the IR
-                        '' goes to a file beside it, clang makes the object, and the
-                        '' link happens unless '-c' asked for the object alone. Without
-                        '' one the IR goes to stdout, which is what the escape hatch
-                        '' docs/plan/10 section 4 describes is for.
+                        '' '--emit-ir' AND '--emit-asm' WRITE THEIR FILE AND STOP --
+                        '' EmitStopFile_. Everything else with an output builds.
                         ''
                         '' THE TEST IS 'DOES THIS RUN BUILD', not 'is there an -o'.
                         '' They stopped being the same thing when '-c' gained the
                         '' right to name its own objects: with no -o the path is
                         '' empty, and this gate sent a '-c' run down the print-to-
                         '' stdout arm -- object never written, exit code 0.
-                        if wantsOutput then
+                        if ctx.options.emitIr orelse ctx.options.emitAsm then
+                            dim as long ex = EmitStopFile_( ctx, er.text, td, id, i, srcCount )
+                            if (ex <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = ex
+                        elseif wantsOutput then
                             '' The result IS the exit code. BuildFromIr reports its
                             '' own failure to stderr -- clang missing, clang failed,
                             '' the link failed -- and none of those is a diagnostic,
@@ -1124,7 +1170,7 @@ function Run _
                 '' then a .ll FILE: a 'verify: ok' line in the middle of a module is
                 '' not a comment, and clang rejects the whole thing. Under '--dump-ir'
                 '' stdout is a report already and the two stay together.
-                dim as boolean quiet = ctx.options.emitIr orelse wantsOutput
+                dim as boolean quiet = ctx.options.emitIr orelse ctx.options.emitAsm orelse wantsOutput
                 '' The verifier is an ICE check, not a diagnostic: a failure means
                 '' the compiler built something malformed.
                 dim as Tko.Mir.VerifyResult vr = Tko.Mir.Verify( mm, ctx.names )
@@ -1215,7 +1261,9 @@ function Run _
         '' HOISTED, each to its own boolean: a four-term 'andalso' chain mixing a
         '' flag with three comparisons is warning 38, which this file already treats
         '' as a rule rather than as noise.
-        dim as boolean linkWanted = wantsOutput
+        '' ...and never under '--emit-ir' or '--emit-asm', which stop at their file.
+        dim as boolean emitStops = ctx.options.emitIr orelse ctx.options.emitAsm
+        dim as boolean linkWanted = wantsOutput andalso (emitStops = false)
         dim as boolean notCompileOnly = (ctx.options.compileOnly = false)
         dim as boolean toolsOk = (toolExit = Tko.EXIT_OK)
         dim as boolean frontendOk = (FrontendFailed_( ctx ) = false)

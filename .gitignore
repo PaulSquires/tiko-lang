@@ -78,6 +78,8 @@ tests/vendor/**/*.o
 /tests/driver/*.dll.a
 /tests/driver/*.a
 /tests/driver/*.exe
+/tests/driver/*.ll
+/tests/driver/*.s
 
 # TEST FIXTURES THAT ARE ARCHIVES. '*.a' above is right for build output and wrong
 # for these: tests/pp/foreignlib.test resolves a #foreignlib spec by PROBING the

@@ -1,0 +1,8 @@
+'' '--emit-asm -o x.s' RUNS clang -S -- docs/plan/10 section 4. It built and linked, and no
+'' assembly was written anywhere.
+'' TEST: cli
+'' ARGS: -target win64-msvc --emit-asm tests/driver/src/emit-file.bas -o tests/driver/emitfile.s
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/emitfile.s
+'' EXPECT-FILE-HAS: tests/driver/emitfile.s :: .globl
+'' EXPECT-FILE-NOT-HAS: tests/driver/emitfile.s :: This program cannot be run in DOS mode
