@@ -16,6 +16,7 @@
 ''     a parameter of a module-level DEFINITION             error 4
 ''     anything inside a NAMESPACE or a METHOD              accepted
 ''     a parameter of a prototype or a procedure type       accepted
+''     a GENERIC procedure's parameters and locals          accepted
 ''     a field, a member procedure, an enum member, a type  accepted
 ''
 '' ...and an OVERLOADABLE runtime procedure -- 'hex', 'sleep' -- takes a new overload:
@@ -64,6 +65,20 @@ private function RtlGlobalChain_ ( byref c as Ctx, byval sc as Tko.ScopeId ) as 
             return true
         case Tko.SCOPEK_NAMESPACE, Tko.SCOPEK_TYPE
             return false
+        case Tko.SCOPEK_PROC
+            '' A GENERIC PROCEDURE's parameters and locals are accepted -- measured,
+            '' 'sub G( of T )( byref out as T )' and a 'dim as T timer' in its body compile,
+            '' called or not. Both the TEMPLATE and an INSTANCE: the re-parse clears
+            '' PF_GENERIC_PROC, and names the instance by its key, 'g<23>'. fbc's own
+            '' generics/lambda-in-generic.bas has 'byref out as T', and was TKO0813 here.
+            dim as Tko.Symbol ptr os = c.syms->SymbolAt( ss->owner )
+            if os <> 0 then
+                if instr( c.names->Spelling( os->name ), "<" ) > 0 then return false
+                dim as Tko.NodeId opn = cast( Tko.NodeId, os->payload )
+                if (opn <> Tko.NODE_NONE) andalso (c.ast->Kind( opn ) = Tko.N_PROC) then
+                    if (StmtOf( c, opn )->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
+                end if
+            end if
         end select
         sc = ss->parent
     next

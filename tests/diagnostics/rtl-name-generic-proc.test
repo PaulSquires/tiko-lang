@@ -1,0 +1,10 @@
+'' TKO0813 only outside a generic procedure: an instance's re-parse clears PF_GENERIC_PROC,
+'' so its parameters were checked, and fbc's own generics/lambda-in-generic.bas ('byref out
+'' as T') was refused. See symbols/resolvertl.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/rtl-name-generic-proc.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: rtl-name-generic-proc.bas(12,
+'' EXPECT-NOT: rtl-name-generic-proc.bas(4,
+'' EXPECT-NOT: rtl-name-generic-proc.bas(5,
+'' EXPECT-MAX-DIAG: 1
