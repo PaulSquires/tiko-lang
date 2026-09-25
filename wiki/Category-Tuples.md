@@ -366,7 +366,9 @@ tiko reports most of these. Measured 2026-09-25 against the twenty cases of fbc'
 
 It compiles the other three with no diagnostic: SIZEOF and TYPEOF of a tuple type, and a nested tuple literal that is not context-typed. These are FBC-Modern's DOCUMENTED limitations, pinned in that file on purpose; tiko handles all three.
 
-`print (a, b)` compiles too. SIZEOF and `print (a, b)` are silently left out of the program (`--dump-ir` reports them as not lowered), and so is `print a = b` over two equal tuple types, which fbc accepts and prints -1 for -- `if a = b` and `r = (a = b)` work. Do not rely on tiko accepting any of fbc's rejections.
+`print (a, b)` compiles too. SIZEOF and `print (a, b)` are silently left out of the program (`--dump-ir` reports them as not lowered). Do not rely on tiko accepting any of fbc's rejections.
+
+A comparison of two tuples of one type is an `integer`, -1 or 0, as under fbc: `print a = b`, `str( a = b )` and `-( a = b )` all work. Before 2026-09-25 tiko gave the comparison no type, and each of those was silently left out of the program; only `if a = b` and `r = ( a = b )` worked. A tuple compares only if every element does. A UDT element needs the operator written for that comparison, over two of itself: with only `operator =` declared for it, `=` works and `<>` is `TKO0720`, fbc's error 20, and an `operator cast` does not help. A nested tuple element is judged by its own elements.
 
 ## Implementation
 
