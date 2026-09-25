@@ -82,7 +82,6 @@ what differs from fbc.
 and listed with the rest on [Compatibility](wiki/Compatibility.md):
 
 - **tiko accepts some programs fbc rejects:**
-  - a `for each` with no `next` at end of file (13)
   - `print EOF` with no argument (1)
   - a `sub Run( )` of your own (4)
 - **fbc's own fbcunit suites:** across the whole corpus, 136 of 631 gave different results at §9c

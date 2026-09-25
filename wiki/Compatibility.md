@@ -32,7 +32,6 @@ Measured 2026-09-24.
 
 | Program | fbc |
 | --- | --- |
-| a `for each` with no `next` at end of file | `error 13: Expected 'NEXT'` |
 | `print EOF`, with no argument (tiko prints an arbitrary number) | `error 1: Argument count mismatch` |
 | `sub Run( )`, declared and called | `error 4: Duplicated definition` |
 
