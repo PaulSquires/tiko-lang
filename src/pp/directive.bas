@@ -1248,6 +1248,9 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__TKO_VERSION__", """" & _
         str( TKO_VERSION_MAJOR ) & "." & str( TKO_VERSION_MINOR ) & "." & _
         str( TKO_VERSION_PATCH ) & TKO_VERSION_SUFFIX & """" )
+    '' ...and __TIKO_COMPILER__, always 1, is the one to TEST: '#ifdef __TIKO_COMPILER__'
+    '' asks "is this tiko?" the way FBC-Modern code asks it of its own identity define.
+    PpDefineValue( e, "__TIKO_COMPILER__", "1" )
     PpDefineValue( e, "__FB_SIGNATURE__", """tiko-lang""" )
     PpDefineValue( e, "__FB_LANG__", """fb""" )
     PpDefineValue( e, "__FB_BACKEND__", """llvm""" )
