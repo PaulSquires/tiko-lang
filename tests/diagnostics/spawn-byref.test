@@ -1,0 +1,14 @@
+'' TKO0812, fbc's 358: 'spawn' of a procedure with a BYREF parameter -- written, a string
+'' or UDT by default, and 'spawn W' with no parentheses -- judged on the first-declared
+'' overload. tiko dropped each of these spawns in silence ("statements not lowered").
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/spawn-byref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: spawn-byref.bas(40,1): error TKO0812
+'' EXPECT-OUT: spawn-byref.bas(41,1): error TKO0812
+'' EXPECT-OUT: spawn-byref.bas(42,1): error TKO0812
+'' EXPECT-OUT: spawn-byref.bas(43,1): error TKO0812
+'' EXPECT-OUT: spawn-byref.bas(45,1): error TKO0812
+'' EXPECT-NOT: spawn-byref.bas(44,
+'' EXPECT-NOT: spawn-byref.bas(46,
+'' EXPECT-MAX-DIAG: 5

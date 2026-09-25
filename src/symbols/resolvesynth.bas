@@ -32,9 +32,56 @@
 '' every parameter BYVAL, and every parameter type already resolved. A frame with a
 '' missing or guessed field would be an argument copied to the wrong offset, which is
 '' worse than the decline this leaves behind.
+''
+'' A BYREF PARAMETER IS fbc's ERROR 358 (TKO0812), and it was a SILENT decline: the
+'' spawn vanished and only '--dump-ir' said "statements not lowered". fbc checks it
+'' before the arguments, on the FIRST-DECLARED procedure of the name -- measured on
+'' fbc-modern 1.20, 2026-09-24:
+''
+''     sub W( byref x as long )             spawn W( k )        358
+''     sub W( x as string ) / ( x as U )    by default byref    358
+''     sub W( byval x as string )                               accepted
+''     sub W( byref x as long = 3 )         spawn W( )          358, not the arity
+''     W( byval long ) declared first, W( byref string, long ) second: spawn W( k )
+''                                                              accepted
+''     ...the same two declared the other way round             358
+''
+'' The flag is Resolve's for a parameter with neither keyword (resolvetype.bas), and the
+'' callee is declared above the spawn, which is fbc's rule too, so it is set by now.
+private function SpawnByrefParam_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
+
+    '' The callee's name: the desugared form keeps it in 'aliasName', and 'spawn W' with no
+    '' parentheses is not desugared at all -- its bare name is in 'a'. fbc asks for the '('
+    '' AFTER this check, so that form is 358 too.
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.InternId cnm = sp->aliasName
+    if (cnm = 0) andalso (sp->a <> Tko.NODE_NONE) then cnm = IdentNameOf( c, sp->a )
+    if cnm = 0 then return false
+    dim as Tko.Symbol ptr hs = c.syms->SymbolAt( c.syms->Lookup( scope_, cnm ) )
+    if hs = 0 then return false
+    if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, hs->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0 then continue for
+        c.diags->Report( Tko.TKO0812, Tko.PointRange( c.ast->Loc( id ) ), _
+                         c.names->Spelling( hs->name ), _
+                         c.names->Spelling( StmtOf( c, prm )->name ) )
+        c.diags->AddNote( Tko.TKO0901, Tko.PointRange( c.ast->Loc( prm ) ) )
+        return true
+    next
+    return false
+end function
+
 private sub BuildSpawnFrame_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
+    if SpawnByrefParam_( c, id, scope_ ) then return
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->name = 0 then return
     if sp->aliasName = 0 then return
