@@ -1,0 +1,9 @@
+'' TKO0401 "expected 'next'", fbc's 13, with a note at the FOR EACH left open. AcceptNext_
+'' returned false in silence and both FOR forms ignored it, so a loop still open at end of
+'' file compiled and ran. See parser/parserend.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/for-no-next.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: for-no-next.bas(8,1): error TKO0401: expected 'next'
+'' EXPECT-OUT: for-no-next.bas(6,1): note: unclosed 'for' opened here
+'' EXPECT-MAX-DIAG: 1

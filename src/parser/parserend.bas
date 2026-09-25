@@ -174,10 +174,21 @@ end function
 '' before. A name with no FOR left open around it is fbc's error 107 (TKO0421).
 ''
 '' Called with p.forDepth already counting only the FORs AROUND this one.
-function AcceptNext_( byref p as Tko.ParserState ) as boolean
+''
+'' NO NEXT AT ALL is fbc's error 13, "Expected 'NEXT'" -- at end of file, and before an
+'' 'end sub' that closes the procedure around the loop. Measured on fbc-modern 1.20, both
+'' FOR and FOR EACH. It returned false in silence and both callers ignored it, so
+'' 'for each x in a : print x' with nothing after compiled and ran the loop, where
+'' WHILE, DO, IF, SELECT and SUB left open were already reported (ExpectEnd).
+function AcceptNext_ _
+    ( byref p as Tko.ParserState, byval openedAt as Tko.SourceLoc = 0 ) as boolean
     if p.pendingNext > 0 then
         p.pendingNext -= 1
     elseif Accept( p, Tko.KW_NEXT ) = false then
+        ErrorNode( p, Tko.TKO0401, "next" )
+        if openedAt <> 0 then
+            p.diags->AddNote( Tko.TKO0905, Tko.PointRange( openedAt ), "for" )
+        end if
         return false
     end if
     dim as long depth = 0

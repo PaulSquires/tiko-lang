@@ -1,0 +1,7 @@
+'' TKO0401 for a plain FOR whose NEXT is missing before 'end sub' -- fbc's 13 on the same
+'' line. See for-no-next.test.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/for-no-next-sub.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: for-no-next-sub.bas(6,1): error TKO0401: expected 'next'
+'' EXPECT-OUT: for-no-next-sub.bas(4,5): note: unclosed 'for' opened here
