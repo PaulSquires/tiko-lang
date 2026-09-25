@@ -1158,7 +1158,15 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                 flBad = true
                 exit do
             end if
-            e.outp->foreignLibFiles.Push( got )
+            '' 'system:name' IS A LIBRARY NAME, NOT A FILE, and joins '#inclib''s list,
+            '' which the link turns into '-l' and the target's own lookup. Pushed with
+            '' the files it was handed to the linker as a path named 'winmm' -- clang,
+            '' "no such file or directory" -- where fbc links it (measured, 1.20).
+            if lcase( left( spec, 7 ) ) = "system:" then
+                e.outp->incLibs.Push( got )
+            else
+                e.outp->foreignLibFiles.Push( got )
+            end if
             flSig += got & ";"
             '' A comma continues the list; anything else ends it.
             if PeekOnLine( e, ft ) = false then exit do

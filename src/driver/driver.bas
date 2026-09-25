@@ -728,7 +728,8 @@ function Run _
             '' ...AND WHAT IT ASKS THE LINK FOR -- its '.fbctinf', as fbc reads it. See
             '' codegen/objinfo.bi; ApexWealth's network object named winhttp only there.
             Tko.Codegen.ReadObjInfo( objInputs[i], ctx.options.pragmaLibs, _
-                                     ctx.options.pragmaLibPaths, ctx.options.threadSafe )
+                                     ctx.options.pragmaLibPaths, _
+                                     ctx.options.pragmaLibFiles, ctx.options.threadSafe )
         next
 
         '' EVERY '.rc' BECOMES A '.res' AND JOINS THE LINK. lld-link consumes a
@@ -1091,7 +1092,8 @@ function Run _
                             if ctx.options.compileOnly then
                                 er.text += Tko.Codegen.ObjInfoIr( ctx.options.libs, _
                                     ctx.options.pragmaLibs, ctx.options.libPaths, _
-                                    ctx.options.pragmaLibPaths, ctx.options.threadSafe )
+                                    ctx.options.pragmaLibPaths, _
+                                    ctx.options.pragmaLibFiles, ctx.options.threadSafe )
                             end if
                             '' THE FIRST FAILURE STAYS. Assigned straight to toolExit,
                             '' module 2 compiling cleanly reset module 1's clang failure

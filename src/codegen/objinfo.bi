@@ -10,6 +10,10 @@
 '' and then the source's -- '-l', 'foo', '-l', 'winhttp', '-p', 'C:/some/where', '-mt' --
 '' and a module that asks for nothing has NO section. Written only under '-c': an
 '' intermediate object is linked by the same run, which already holds the lists.
+''
+'' A '#foreignlib' FILE is written as fbc writes it: '-l', ':greet.a', and its absolute
+'' directory as a '-p'. The reader turns ':name' back into a file found in one of the
+'' section's own '-p' directories -- GNU ld's '-l:name', which lld-link has no spelling for.
 
 #ifndef __TKO_OBJINFO_BI__
 #define __TKO_OBJINFO_BI__
@@ -22,13 +26,14 @@ namespace Tko.Codegen
     declare function ObjInfoIr _
         ( byref libs as StrVec, byref pragmaLibs as StrVec, _
           byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
-          byval threadSafe as boolean ) as string
+          byref libFiles as StrVec, byval threadSafe as boolean ) as string
 
     '' Adds what an object file's section asks for. An unreadable file, another format or
     '' no section adds nothing, and the link then says what is missing, as it did before.
     declare sub ReadObjInfo _
         ( byref path as string, byref libs as StrVec, _
-          byref libPaths as StrVec, byref threadSafe as boolean )
+          byref libPaths as StrVec, byref libFiles as StrVec, _
+          byref threadSafe as boolean )
 
 end namespace
 

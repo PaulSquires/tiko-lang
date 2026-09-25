@@ -26,16 +26,50 @@ private sub AddEntries_( byref blob as string, byval flag as string, byref v as 
     next
 end sub
 
+'' The directory part of a path, with its separator, and "" when there is none.
+private function DirOf_( byref p as string ) as string
+    for i as long = len( p ) to 1 step -1
+        if (p[i - 1] = 47) orelse (p[i - 1] = 92) then return left( p, i )
+    next
+    return ""
+end function
+
+private function Exists_( byref p as string ) as boolean
+    dim as long fh = freefile
+    if open( p for binary access read as #fh ) <> 0 then return false
+    close #fh
+    return true
+end function
+
 '' fbc's shape: an internal constant in the section, kept alive by llvm.compiler.used so
 '' the optimiser does not drop a global nothing references.
 function ObjInfoIr _
     ( byref libs as StrVec, byref pragmaLibs as StrVec, _
       byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
-      byval threadSafe as boolean ) as string
+      byref libFiles as StrVec, byval threadSafe as boolean ) as string
 
     dim as string blob
+    '' A '#foreignlib' file as ':name' and its directory, ABSOLUTE: the object is
+    '' linked later, from wherever the link runs. fbc writes the same.
+    dim as StrVec fileDirs
+    for i as long = 0 to libFiles.Count - 1
+        dim as string d = DirOf_( libFiles[i] )
+        blob += "-l" & chr( 0 ) & ":" & mid( libFiles[i], len( d ) + 1 ) & chr( 0 )
+        dim as boolean absolute_ = (instr( d, ":" ) > 0) orelse (left( d, 1 ) = "/") _
+                                   orelse (left( d, 1 ) = "\")
+        if absolute_ = false then d = curdir( ) & "/" & d
+        if (len( d ) > 1) andalso ((right( d, 1 ) = "/") orelse (right( d, 1 ) = "\")) then
+            d = left( d, len( d ) - 1 )
+        end if
+        dim as boolean seen = false
+        for k as long = 0 to fileDirs.Count - 1
+            if fileDirs[k] = d then seen = true
+        next
+        if seen = false then fileDirs.Push( d )
+    next
     AddEntries_( blob, "-l", libs )
     AddEntries_( blob, "-l", pragmaLibs )
+    AddEntries_( blob, "-p", fileDirs )
     AddEntries_( blob, "-p", libPaths )
     AddEntries_( blob, "-p", pragmaLibPaths )
     if threadSafe then blob += "-mt" & chr( 0 )
@@ -96,7 +130,8 @@ end function
 
 sub ReadObjInfo _
     ( byref path as string, byref libs as StrVec, _
-      byref libPaths as StrVec, byref threadSafe as boolean )
+      byref libPaths as StrVec, byref libFiles as StrVec, _
+      byref threadSafe as boolean )
 
     dim as long fh = freefile
     if open( path for binary access read as #fh ) <> 0 then return
@@ -111,6 +146,7 @@ sub ReadObjInfo _
     dim as string s = SectionBytes_( b )
     if (len( s ) = 0) orelse (s[0] = &h10) then return
     dim as string pending
+    dim as StrVec exact, dirs
     dim as longint at_ = 1
     while at_ <= len( s )
         dim as longint z = instr( at_, s, chr( 0 ) )
@@ -118,10 +154,17 @@ sub ReadObjInfo _
         dim as string w = mid( s, at_, z - at_ )
         at_ = z + 1
         if pending = "-l" then
-            if len( w ) > 0 then libs.Push( w )
+            if left( w, 1 ) = ":" then
+                if len( w ) > 1 then exact.Push( mid( w, 2 ) )
+            elseif len( w ) > 0 then
+                libs.Push( w )
+            end if
             pending = ""
         elseif pending = "-p" then
-            if len( w ) > 0 then libPaths.Push( w )
+            if len( w ) > 0 then
+                libPaths.Push( w )
+                dirs.Push( w )
+            end if
             pending = ""
         elseif (w = "-l") orelse (w = "-p") then
             pending = w
@@ -129,6 +172,24 @@ sub ReadObjInfo _
             threadSafe = true
         end if
     wend
+
+    '' An EXACT file, looked for in the section's own directories in order. One found
+    '' nowhere stays '-l:name', which GNU ld and ld.lld search -L for themselves.
+    for i as long = 0 to exact.Count - 1
+        dim as string hit = ""
+        for k as long = 0 to dirs.Count - 1
+            dim as string cand = dirs[k] & "/" & exact[i]
+            if Exists_( cand ) then
+                hit = cand
+                exit for
+            end if
+        next
+        if len( hit ) > 0 then
+            libFiles.Push( hit )
+        else
+            libs.Push( ":" & exact[i] )
+        end if
+    next
 end sub
 
 end namespace

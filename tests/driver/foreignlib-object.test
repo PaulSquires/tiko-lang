@@ -1,0 +1,11 @@
+'' '-c' KEEPS A MODULE'S '#foreignlib' LIBRARIES, in '.fbctinf', in fbc's spelling:
+'' '-l' ':probe_windows_x86_64.a' plus its directory, and '-l' 'winmm'. The object
+'' carried neither, so 'tiko -c mod.bas' then 'tiko app.bas mod.o' failed to link
+'' what the module had bound. See src/codegen/objinfo.bi.
+'' TEST: cli
+'' ARGS: -target win64-msvc -c tests/driver/src/foreignlib-object.bas -o tests/driver/foreignlibobject.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/foreignlibobject.o
+'' EXPECT-FILE-HAS: tests/driver/foreignlibobject.o :: .fbctinf
+'' EXPECT-FILE-HAS: tests/driver/foreignlibobject.o :: :probe_windows_x86_64.a
+'' EXPECT-FILE-HAS: tests/driver/foreignlibobject.o :: winmm
