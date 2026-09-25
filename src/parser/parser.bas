@@ -981,6 +981,7 @@ end namespace
 '' 'spawn' desugars the same way, and for the same reason.
 #include once "parser/spawn.bas"
 #include once "parser/undef.bas"
+#include once "parser/defer.bas"
 
 namespace Tko.Parse
 
@@ -1007,7 +1008,7 @@ private function DeferIsKeyword_( byref p as Tko.ParserState ) as boolean
     '' read as the statement it is rather than as a call.
     if HasTok( p, p.pos + 1 ) = false then return true
     dim as Tko.TokenKind k1 = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
-    if k1 = Tko.TK_EOL then return true
+    if k1 = Tko.TK_EOL then return (DeferIsLabel_( p ) = false)  '' 'defer :' -- parser/defer.bas
     if k1 = Tko.TK_IDENT then return true
     if Tko.IsKeywordKind( k1 ) = false then return false
     if k1 = Tko.KW_AS then return false
@@ -1298,12 +1299,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' 'defer' is CONTEXTUAL in FBC-Modern -- not reserved, so it arrives as
             '' an identifier and is recognised by spelling, exactly as 'each' and
             '' 'in' are. Without this it parsed as a CALL to something named defer.
-            dim as Tko.Token dt = Cur( p )
-            Advance( p )
-            dim as Tko.StmtPayload sp
-            sp.b = Statement( p )
-            n = MakeStmt( p, Tko.N_DEFER, dt.loc, sp )
-            consumesLine = false
+            n = DeferStmt_( p, consumesLine )  '' parser/defer.bas
         elseif k = Tko.TK_IDENT then
             '' 'name:' is a label -- unless 'name' is a procedure -- and anything else is
             '' the call-or-assign ambiguity. See parserend.bas's IsLabelHere_.

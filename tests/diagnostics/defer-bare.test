@@ -1,0 +1,11 @@
+'' TKO0828, fbc's 347: 'defer' with nothing after it on the line, and 'defer :' where it
+'' is not a label. See parser/defer.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/defer-bare.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: defer-bare.bas(8,5): error TKO0828: 'defer' needs a statement on the same line
+'' EXPECT-OUT: defer-bare.bas(12,5): error TKO0828
+'' EXPECT-OUT: defer-bare.bas(15,5): error TKO0828
+'' EXPECT-OUT: defer-bare.bas(18,13): error TKO0828
+'' EXPECT-NOT: TKO0405
+'' EXPECT-MAX-DIAG: 4

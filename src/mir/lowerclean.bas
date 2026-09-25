@@ -22,7 +22,8 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     if depth + 1 < c.scopeMark.Count then upto = c.scopeMark[depth + 1]
     for i as long = upto - 1 to from_ step -1
         if c.cleanupSlot[i] < 0 then
-            LowerStmt( c, cast( Tko.NodeId, c.cleanupNode[i] ) )
+            '' A bare 'defer' (TKO0828) registered nothing to run -- parser/defer.bas.
+            if c.cleanupNode[i] <> Tko.NODE_NONE then LowerStmt( c, cast( Tko.NodeId, c.cleanupNode[i] ) )
         elseif c.cleanupNode[i] = CLEANUP_DTOR_EPILOGUE then
             '' A DESTRUCTOR'S OWN EPILOGUE -- the fields in reverse, then the base.
             '' Registered as a cleanup action rather than appended after the body,

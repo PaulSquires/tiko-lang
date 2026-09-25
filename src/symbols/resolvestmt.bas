@@ -82,8 +82,11 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
                      c.names->Spelling( gs->name ) & "." & c.names->Spelling( sp->name ), want )
 end sub
 
+#include once "symbols/resolvedefer.bas"
+
 sub StatementChecks_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
     RtlNameClash_( c, id, here )
     DeferAtModule_( c, id, here )
+    DeferCrossing_( c, id, here )
     GenericMemberList_( c, id, here )
 end sub

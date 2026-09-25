@@ -1,0 +1,13 @@
+'' TKO0827, fbc's 349: a forward GOTO past a 'defer' whose scope holds the label. The
+'' deferred statement runs at its scope's exit whether or not control passed it, so fbc
+'' refuses the jump. tiko compiled all of these and ran the defer. See
+'' symbols/resolvedefer.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/defer-goto-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: defer-goto-errors.bas(5,5): error TKO0827: the jump to 's1' crosses a 'defer'
+'' EXPECT-OUT: defer-goto-errors.bas(11,5): error TKO0827
+'' EXPECT-OUT: defer-goto-errors.bas(19,9): error TKO0827
+'' EXPECT-OUT: defer-goto-errors.bas(25,15): error TKO0827
+'' EXPECT-OUT: defer-goto-errors.bas(75,5): error TKO0827
+'' EXPECT-MAX-DIAG: 6

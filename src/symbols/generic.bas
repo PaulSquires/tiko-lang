@@ -985,6 +985,7 @@ sub DiscoverInstantiations_ _
     '' 'dim b as Box' were reported nowhere.
     c.rtlSeen.Clear( )
     c.genArgSeen.Clear( )
+    DeferCrossingReset_( c )
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
     info.Resize( ast.Count( ) )

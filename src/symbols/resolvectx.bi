@@ -61,6 +61,11 @@ type Ctx
     as FB.Array( of ulong )  pendingScope
     as FB.Array( of ulong )  rtlSeen      '' LOCATIONS reported TKO0813 -- resolvertl.bas
     as FB.Array( of ulong )  genArgSeen   '' LOCATIONS reported TKO0815/0816 -- resolvetype.bas
+    '' GOTOs, DEFERs and what TKO0827 reported, in walk order -- resolvedefer.bas.
+    as FB.Array( of ulong )  xgName, xgNode, xgProc, xgSeq
+    as FB.Array( of ulong )  xdScope, xdNode, xdProc, xdSeq
+    as FB.Array( of ulong )  xSeenGoto, xSeenDefer
+    as ulong                 xSeq
     '' The generic type parameters currently in scope, innermost binding last: the
     '' name and the TypeId it stands for. A plain stack rather than a map, because a
     '' generic has one or two parameters and instantiation nests at most a few deep.
@@ -173,5 +178,7 @@ declare sub InstantiatePending_( byref c as Ctx )
 declare function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
       byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
+'' resolvedefer.bas -- generic.bas empties the lists after its discovery pass.
+declare sub DeferCrossingReset_ ( byref c as Ctx )
 
 end namespace

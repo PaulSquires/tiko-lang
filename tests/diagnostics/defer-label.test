@@ -1,0 +1,7 @@
+'' 'defer :' first on a line, with no procedure named defer, is a LABEL, not a defer.
+'' See parser/defer.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/defer-label.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0828
+'' EXPECT-NOT: error

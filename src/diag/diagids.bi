@@ -573,6 +573,10 @@
     '' or over something that is not a tuple -- see symbols/checkeach.bas.
     DIAG( TKO0825, SEV_ERROR,   "the tuple has %0 elements, and %1 are written" )
     DIAG( TKO0826, SEV_ERROR,   "a tuple is expected here, and '%0' is not one" )
+    '' fbc's errors 349 and 347: a forward GOTO past a 'defer' whose scope holds the label,
+    '' and a 'defer' at the end of a line -- see symbols/resolvedefer.bas, parser/defer.bas.
+    DIAG( TKO0827, SEV_ERROR,   "the jump to '%0' crosses a 'defer', which would still run when its scope ends" )
+    DIAG( TKO0828, SEV_ERROR,   "'defer' needs a statement on the same line" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
