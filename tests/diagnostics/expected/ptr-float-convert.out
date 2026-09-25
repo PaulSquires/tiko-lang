@@ -68,6 +68,10 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 54 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/ptr-float-convert.bas(10,1): warning TKO0830: suspicious pointer assignment: a 'byte ptr' from a 'integer'
+     |
+  10 | p = 1
+     | ^
 tests/diagnostics/src/ptr-float-convert.bas(14,1): error TKO0670: a pointer and a floating-point value do not convert into each other
      |
   14 | f = p

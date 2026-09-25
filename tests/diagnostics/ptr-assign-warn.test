@@ -1,0 +1,37 @@
+'' TKO0830, fbc's warning 4: a suspicious pointer assignment. fbc-modern 1.20 warns on
+'' exactly the lines marked W in the source, and tiko on the same ones. See symbols/ptrwarn.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ptr-assign-warn.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: ptr-assign-warn.bas(41,
+'' EXPECT-OUT: ptr-assign-warn.bas(42,
+'' EXPECT-OUT: ptr-assign-warn.bas(47,
+'' EXPECT-OUT: ptr-assign-warn.bas(48,
+'' EXPECT-OUT: ptr-assign-warn.bas(52,
+'' EXPECT-OUT: ptr-assign-warn.bas(53,
+'' EXPECT-OUT: ptr-assign-warn.bas(54,
+'' EXPECT-OUT: ptr-assign-warn.bas(56,
+'' EXPECT-OUT: ptr-assign-warn.bas(57,
+'' EXPECT-OUT: ptr-assign-warn.bas(58,
+'' EXPECT-OUT: ptr-assign-warn.bas(59,
+'' EXPECT-OUT: ptr-assign-warn.bas(64,
+'' EXPECT-OUT: ptr-assign-warn.bas(65,
+'' EXPECT-OUT: ptr-assign-warn.bas(66,
+'' EXPECT-OUT: ptr-assign-warn.bas(68,
+'' EXPECT-OUT: ptr-assign-warn.bas(70,
+'' EXPECT-OUT: ptr-assign-warn.bas(73,
+'' EXPECT-NOT: ptr-assign-warn.bas(43,
+'' EXPECT-NOT: ptr-assign-warn.bas(44,
+'' EXPECT-NOT: ptr-assign-warn.bas(45,
+'' EXPECT-NOT: ptr-assign-warn.bas(46,
+'' EXPECT-NOT: ptr-assign-warn.bas(49,
+'' EXPECT-NOT: ptr-assign-warn.bas(50,
+'' EXPECT-NOT: ptr-assign-warn.bas(51,
+'' EXPECT-NOT: ptr-assign-warn.bas(55,
+'' EXPECT-NOT: ptr-assign-warn.bas(60,
+'' EXPECT-NOT: ptr-assign-warn.bas(61,
+'' EXPECT-NOT: ptr-assign-warn.bas(62,
+'' EXPECT-NOT: ptr-assign-warn.bas(63,
+'' EXPECT-NOT: ptr-assign-warn.bas(67,
+'' EXPECT-NOT: ptr-assign-warn.bas(69,
+'' EXPECT-MAX-DIAG: 0

@@ -3,6 +3,8 @@
 '' Split out of visibility.bas at the 1500-line lint cap and included from it, inside its
 '' namespace, after the helpers it calls (DerivesFrom_, BaseOf_) and before Walk_.
 
+#include once "symbols/ptrwarn.bas"
+
 '' A DERIVED POINTER DOES NOT TAKE A BASE ONE -- fbc error 181. The conversion goes ONE
 '' WAY: a base pointer takes a derived one (an upcast, which is always valid), and the
 '' reverse is a downcast the compiler cannot check.
@@ -106,20 +108,27 @@ private function ConstDropped_ _
     return false
 end function
 
-private sub CheckPtrAssign_ ( byref c as Ctx, byval id as NodeId )
+private sub CheckPtrAssign_ _
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->op = 0 then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     dim as TypeId lt = c.info->TypeOf_( sp->a )
     dim as TypeId rt = c.info->TypeOf_( sp->b )
+    '' 'function = expr' -- Check leaves the result untyped; the walk carries its type.
+    if (lt = TYPE_NONE) andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then lt = resultType
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
     if ConstDropped_( c, lt, rt ) then
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
         return
     end if
-    if PtrAssignBad_( c, lt, rt ) = false then return
-    c.diags->Report( TKO0686, PointRange( c.ast->Loc( id ) ) )
+    if PtrAssignBad_( c, lt, rt ) then
+        c.diags->Report( TKO0686, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
+    '' Only a plain '=': 'p += 1' is pointer arithmetic, not a conversion.
+    if sp->op = cast( ushort, TK_EQ ) then PtrWarn_( c, id, lt, rt, sp->b )
 end sub
 
 private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
@@ -133,8 +142,11 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
         return
     end if
-    if PtrAssignBad_( c, lt, rt ) = false then return
-    c.diags->Report( TKO0686, PointRange( c.ast->Loc( id ) ) )
+    if PtrAssignBad_( c, lt, rt ) then
+        c.diags->Report( TKO0686, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
+    PtrWarn_( c, id, lt, rt, ip->b )
 end sub
 
 private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )

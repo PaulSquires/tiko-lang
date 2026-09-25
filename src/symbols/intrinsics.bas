@@ -1078,9 +1078,8 @@ private function ProcTypeOfSymbol_ _
         dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
         dim as Tko.TypeId pt = c.info->TypeOf_( sp2->a )
         if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
-            pt = c.types->Reference( pt )
-        end if
+        dim as ushort pfl = c.ast->nodes[cast( long, prm )].flags  '' an ARRAY parameter, as ProcTypeParamType_
+        if (pfl and Tko.NF_ARRAY) <> 0 then pt = c.types->Reference( c.types->DynArrayOf( pt, cast( long, sp2->extra ) ) ) else if (pfl and Tko.NF_BYREF) <> 0 then pt = c.types->Reference( pt )
         ps.Push( cast( ulong, pt ) )
     next
     return c.types->Pointer_( c.types->ProcType( ret, ps, false, (pp->extra and Tko.PF_PASCAL) <> 0 ) )

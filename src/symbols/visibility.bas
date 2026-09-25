@@ -1199,7 +1199,8 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
-    if k = N_AMBIGUOUS then CheckPtrAssign_( c, id )
+    if k = N_AMBIGUOUS then CheckPtrAssign_( c, id, innerResult )
+    if k = N_RETURN then CheckPtrReturn_( c, id, innerResult )  '' ptrwarn.bas
     if k = N_AMBIGUOUS then CheckConstUdtField_( c, id )
     if k = N_AMBIGUOUS then CheckStringNumberAssign_( c, id )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )

@@ -58,6 +58,18 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 43 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/derived-ptr-assign.bas(26,1): warning TKO0830: suspicious pointer assignment: a 'plain ptr' from a 'other ptr'
+     |
+  26 | pPlain = pOther
+     | ^
+tests/diagnostics/src/derived-ptr-assign.bas(27,1): warning TKO0830: suspicious pointer assignment: a 'plain ptr' from a 'integer ptr'
+     |
+  27 | pPlain = pInt
+     | ^
+tests/diagnostics/src/derived-ptr-assign.bas(28,1): warning TKO0830: suspicious pointer assignment: a 'plain ptr' from a 'root ptr'
+     |
+  28 | pPlain = pRoot
+     | ^
 tests/diagnostics/src/derived-ptr-assign.bas(33,1): error TKO0686: these pointer types do not convert into each other
      |
   33 | pLeaf = pRoot
