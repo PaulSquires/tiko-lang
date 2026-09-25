@@ -260,7 +260,7 @@ tiko reports its own ids, and fewer of these. Measured 2026-09-24 at origin/mast
 
 Inside a generic body tiko reports the offending line and column itself -- `TKO0743: 'nosuchvar' is not declared` at the line that says it -- but without the instantiation chain. Some body errors it does not report at all: an undeclared type named in a generic TYPE's field ('Wdiget' above), and an unknown field written through 'this' in a member body, both compile, and the statement using the unknown field is left out.
 
-Across fbc's 30 generics `fail-*.bas` files, tiko rejects 14 with a diagnostic of its own, compiles 11 with no error, fails 4 only in code generation (an internal compiler error, or LLVM IR that clang rejects), and refuses `fail-instdepth.bas` for its `#cmdline "-maxinstdepth 2"`.
+Across fbc's 30 generics `fail-*.bas` files, tiko rejects 18 with a diagnostic of its own, compiles 9 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and refuses `fail-instdepth.bas` for its `#cmdline "-maxinstdepth 2"`. Measured 2026-09-25 by compiling each to an object; the 9 are `fail-container-noequals`, `fail-container-noorder`, `fail-error-in-body`, `fail-foreach-byref`, `fail-foreach-nextvar`, `fail-globalop-conflict`, `fail-infer-mixed-promotion`, `fail-lambda-capture-typaram` and `fail-result-nodefaultctor`.
 
 ## Known Limits
 
