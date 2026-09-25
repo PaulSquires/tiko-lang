@@ -32,7 +32,7 @@ Every category in this wiki. Categories marked ✨ are tiko-lang additions; the 
 - [Terminal TUI Library](Category-Terminal-TUI-Library) ✨ — 257 pages — 257 tiko-lang pages
 - [Goroutines and Channels](Category-Goroutines-and-Channels) ✨ — 13 pages — 13 tiko-lang pages
 - [LLVM Backend](Category-LLVM-Backend) ✨ — 1 pages — 1 tiko-lang page
-- [__FB_MODERN__](Category-FB-Modern-Define) ✨ — 1 pages — 1 tiko-lang page
+- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨ — 1 pages — 1 tiko-lang page
 - [Language Documentation](Category-Language-Documentation) — 8 pages
 - [Programmer's Guide](Category-Programmer-s-Guide) — 4 pages
 - [Variable Declarations](Category-Variable-Declarations) — 8 pages

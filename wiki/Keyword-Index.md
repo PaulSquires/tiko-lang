@@ -1977,7 +1977,7 @@ Every page in this wiki, A–Z. ✨ marks an tiko-lang addition.
 - [__FB_LINUX__](Fb-Linux) — *Intrinsic Defines*
 - [__FB_MAIN__](Fb-Main) — *Intrinsic Defines*
 - [__FB_MIN_VERSION__](Fb-Min-Version) — *Intrinsic Defines*
-- [__FB_MODERN__](Category-FB-Modern-Define) ✨ — *__FB_MODERN__*
+- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨ — *__TIKO_COMPILER__*
 - [__FB_MT__](Fb-Mt) — *Intrinsic Defines*
 - [__FB_NETBSD__](Fb-Netbsd) — *Intrinsic Defines*
 - [__FB_OPENBSD__](Fb-Openbsd) — *Intrinsic Defines*

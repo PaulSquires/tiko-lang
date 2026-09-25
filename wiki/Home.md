@@ -36,7 +36,7 @@ This wiki is two things in one place:
 
 **Library:** [Array](Category-Array) ✨ · [Map](Category-Map) ✨ · [Set](Category-Set) ✨ · [LinkedList](Category-LinkedList) ✨ · [OrderedMap and OrderedSet](Category-OrderedMap) ✨ · [Sorting](Category-Sorting) ✨ · [Optional](Category-Optional) ✨ · [Result](Category-Result) ✨ · [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨ · [String Library](Category-String-Library) ✨ · [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨ · [Filesystem Library](Category-Filesystem) ✨ · [Math Library](Category-Math-Library) ✨ · [Logging](Category-Logging) ✨
 
-**Toolchain:** [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ · [LLVM Backend](Category-LLVM-Backend) ✨ · [__FB_MODERN__](Category-FB-Modern-Define) ✨ (not defined by tiko) · [C Header Import](Category-C-Header-Import) ✨
+**Toolchain:** [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ · [LLVM Backend](Category-LLVM-Backend) ✨ · [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨ · [C Header Import](Category-C-Header-Import) ✨
 
 ---
 

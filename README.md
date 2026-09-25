@@ -72,8 +72,8 @@ what differs from fbc.
 
 **Also different:**
 
-- tiko does **not** define `__FB_MODERN__` or `__FB_MIN_VERSION__`, so code guarded by
-  `#ifdef __FB_MODERN__` takes its `#else` branch.
+- tiko defines `__TIKO_COMPILER__` as `1`: test it with `#ifdef __TIKO_COMPILER__`. It does
+  **not** define `__FB_MIN_VERSION__`, so `#if __FB_MIN_VERSION__( ... )` is an error.
 - tiko defines `__TKO_VERSION__` of its own. It sets `__FB_SIGNATURE__` to `"tiko-lang"` and
   `__FB_BACKEND__` to `"llvm"`.
 - There is no macOS target and no ARM64 target.

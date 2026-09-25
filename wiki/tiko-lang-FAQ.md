@@ -4,7 +4,7 @@
 No. It is a separate compiler, written from scratch in FreeBASIC, with its own frontend, its own typed IR and an LLVM backend. It compiles the same language as [FBC-Modern](https://github.com/PaulSquires/fbc-modern) (`#lang "fb"`, extensions included) and is measured against fbc, program by program. See [What Is tiko-lang](What-Is-tiko-lang).
 
 **Will my existing FreeBASIC code compile?**
-If it is `#lang "fb"` code, that is the aim: the same accept/reject decision as fbc and the same behaviour. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that tests `__FB_MODERN__` takes its `#else` branch.
+If it is `#lang "fb"` code, that is the aim: the same accept/reject decision as fbc and the same behaviour. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that must know it is being built by tiko tests `#ifdef __TIKO_COMPILER__`.
 
 **Do I have to build anything?**
 Yes, once. The repository holds the compiler's source, not a prebuilt toolchain. `bash build/package.sh --verify` builds one for your host. It needs FBC-Modern's `fbc` to compile tiko, and clang to run it. See [Quick Start](Quick-Start).

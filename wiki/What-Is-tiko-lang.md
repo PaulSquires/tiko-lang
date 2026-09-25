@@ -45,7 +45,7 @@ There is **one backend**: LLVM IR through clang. See [LLVM Backend](Category-LLV
 
 - **Dialects other than `fb`.** `#lang "qb"`, `"fblite"` and `"deprecated"` are refused (`TKO0317`), and so is `GOSUB` (`TKO0409`).
 - **Inline `ASM`.** It is refused with `TKO0407` rather than miscompiled.
-- **`__FB_MODERN__`.** tiko does not define it. See [`__FB_MODERN__`](Category-FB-Modern-Define).
+- **`__FB_MIN_VERSION__`.** tiko does not define it. tiko identifies itself with `__TIKO_COMPILER__` instead. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 
 ## Status
 

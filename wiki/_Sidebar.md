@@ -42,7 +42,7 @@
 - [Terminal TUI Library](Category-Terminal-TUI-Library) ✨
 - [Goroutines and Channels](Category-Goroutines-and-Channels) ✨
 - [LLVM Backend](Category-LLVM-Backend) ✨
-- [__FB_MODERN__](Category-FB-Modern-Define) ✨
+- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨
 
 ### FreeBASIC manual
 

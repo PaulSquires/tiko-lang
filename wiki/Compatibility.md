@@ -18,7 +18,7 @@ Each of these is a diagnostic, not a silent difference (measured 2026-09-24 at o
 
 ## Known differences
 
-**`__FB_MODERN__` and `__FB_MIN_VERSION__` are not defined.** A guard such as `#ifdef __FB_MODERN__` therefore takes its `#else` branch under tiko, and `#if __FB_MIN_VERSION__( 1, 20, 0 )` is an error (`TKO0308`). tiko identifies itself with `__TKO_VERSION__`. See [`__FB_MODERN__`](Category-FB-Modern-Define).
+**tiko defines `__TIKO_COMPILER__`, always `1`,** and fbc does not, so `#ifdef __TIKO_COMPILER__` is how a source tree asks "is this tiko?". `__FB_MIN_VERSION__` is not defined, and `#if __FB_MIN_VERSION__( 1, 20, 0 )` is an error (`TKO0308`). `__TKO_VERSION__` gives tiko's version. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 
 **`defer` is a contextual keyword, and both compilers use one rule.** It is the keyword only when a name, a keyword other than `as`, or the end of the statement follows. A sub named `defer` is therefore CALLED by `defer( 5 )`, `defer 5` and `defer -1`. An array or a UDT named `defer` is used as one (`defer( 1 ) = 3`, `defer.field_ = 4`), in both compilers.
 
