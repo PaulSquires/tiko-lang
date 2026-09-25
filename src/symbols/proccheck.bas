@@ -558,6 +558,39 @@ private function TupleLike_ ( byref c as Ctx, byval t as TypeId ) as boolean
     return (h = "(") orelse (h = "$") orelse (h = "~")
 end function
 
+'' ...AND ARITHMETIC OR LOGIC ON A UDT THAT NO OPERATOR TAKES is fbc's error 20 as well.
+'' Measured on fbc-modern 1.20, 2026-09-25: 'a1 + a2', 'a1 + b1', 'a1 * 2', 'a1 and a2' and
+'' 'print a1 + a2' over types declaring no operator, an 'operator +( A, A )' used with a B,
+'' and fbc's generics/fail-globalop-conflict.bas -- a generic 'operator +' over two
+'' Box( of T ) given a Box( of integer ) and a Box( of double ). tiko dropped each statement
+'' in silence. Check binds a user operator to the node (UserBinaryOp_), or types it through
+'' an 'operator cast' (UdtOperandBinaryType_); a node with a UDT operand, both operand
+'' types known, and NEITHER is the case. Not inside a template: its T operands are
+'' untyped, and so is not reported.
+private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPayload ptr )
+    if (bp->lhs = NODE_NONE) orelse (bp->rhs = NODE_NONE) then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    if c.info->TypeOf_( id ) <> TYPE_NONE then return
+    dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
+    dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if (c.types->Kind( lt ) = TK_TUPLE) orelse (c.types->Kind( rt ) = TK_TUPLE) then return
+    if TupleLike_( c, lt ) orelse TupleLike_( c, rt ) then return
+    dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
+    dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
+    if (lUdt orelse rUdt) = false then return
+    if lUdt then
+        if StructorOf_( c, lt, "cast" ) <> 0 then return
+    end if
+    if rUdt then
+        if StructorOf_( c, rt, "cast" ) <> 0 then return
+    end if
+    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
+                     lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
+end sub
+
 private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -569,6 +602,10 @@ private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     case TK_GT : opnm = ">"
     case TK_LE : opnm = "<="
     case TK_GE : opnm = ">="
+    case TK_PLUS, TK_MINUS, TK_STAR, TK_SLASH, TK_BACKSLASH, TK_CARET, TK_AMP, _
+         KW_MOD, KW_AND, KW_OR, KW_XOR, KW_EQV, KW_IMP, KW_SHL, KW_SHR
+        UdtArith_( c, id, bp )
+        return
     case else
         return
     end select

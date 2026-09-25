@@ -1,0 +1,13 @@
+'' TKO0820, fbc's 20: arithmetic or logic on a UDT with no operator that takes it, and no cast.
+'' tiko dropped each statement in silence; fbc's own generics/fail-globalop-conflict.bas is
+'' the last line's shape. See UdtArith_ in symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-arith-no-operator.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-arith-no-operator.bas(19,9): error TKO0820: no operator '+' takes these operand types
+'' EXPECT-OUT: udt-arith-no-operator.bas(20,
+'' EXPECT-OUT: udt-arith-no-operator.bas(21,
+'' EXPECT-OUT: udt-arith-no-operator.bas(22,
+'' EXPECT-NOT: udt-arith-no-operator.bas(24,
+'' EXPECT-NOT: udt-arith-no-operator.bas(25,
+'' EXPECT-MAX-DIAG: 4
