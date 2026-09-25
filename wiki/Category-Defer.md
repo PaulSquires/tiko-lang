@@ -159,13 +159,14 @@ error 348: DEFER is not allowed at module level
 error 349: Branch crossing a DEFER statement
 ```
 
-tiko does not report them yet. Measured 2026-09-24 at origin/master 50c71751, one case per file:
+tiko reports the second as `TKO0814`: a `defer` directly at module level, or directly in a namespace. One inside a block at module level (`scope`, `if`, `for`, `do`, `while`, `select`) is accepted by both compilers, as one in a procedure is. tests/diagnostics/defer-module-level.test holds that.
 
-- a bare `defer` with no statement is `TKO0405: expected 'end SUB'`, reported at the end of the file;
-- a module-level `defer print "x"` compiles, and the program prints `x`;
+tiko does not report the other two yet. Measured 2026-09-25, one case per file:
+
+- a bare `defer` with no statement compiles, and nothing is deferred;
 - a `goto` that crosses a DEFER compiles, and the deferred statement runs at the scope's exit.
 
-The last two are programs fbc rejects, so code that relies on them will not build with fbc.
+Both are programs fbc rejects, so code that relies on them will not build with fbc.
 
 ## Implementation
 
