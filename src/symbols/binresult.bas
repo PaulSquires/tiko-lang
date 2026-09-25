@@ -6,6 +6,26 @@
 '' Split out of check.bas at the 1500-line cap and included from it in the same place.
 '' Nothing in it changed in the move.
 
+'' '=' AND '<>' BETWEEN TWO OF ONE TUPLE TYPE ARE AN INTEGER -- fbc-modern 1.20 says
+'' 'typeof( a = b )' is INTEGER, and prints -1 or 0. They had NO type here: a tuple is
+'' no builtin, so the table below never answered, and an untyped comparison lowered only
+'' where nothing asks its type -- 'if a = b' and 'r = ( a = b )'. 'print a = b', 'str( a
+'' = b )', '-( a = b )' and '( a = b ) + 1' were each left out of the program in silence.
+'' The same test as the one that accepts the comparison (proccheck.bas, CheckUdtCompare_).
+private function TupleEqType_ _
+    ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, _
+      byval rt as Tko.TypeId ) as boolean
+    if (op <> Tko.TK_EQ) andalso (op <> Tko.TK_NE) then return false
+    dim as Tko.TypeId l = c.types->Unqualify( lt ), r = c.types->Unqualify( rt )
+    if (l = Tko.TYPE_NONE) orelse (l <> r) then return false
+    if c.types->Kind( l ) = Tko.TK_TUPLE then return true
+    if c.types->Kind( l ) <> Tko.TK_UDT then return false
+    dim as Tko.InternId nm = c.types->NameOf( l )
+    if nm = 0 then return true
+    dim as string h = left( c.names->Spelling( nm ), 1 )
+    return (h = "(") orelse (h = "$") orelse (h = "~")
+end function
+
 function BinaryResult _
     ( byval op as Tko.TokenKind, byval lhs as Tko.TypeId, byval rhs as Tko.TypeId, _
       byref types as Tko.TypeContext ) as Tko.TypeId

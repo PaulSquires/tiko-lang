@@ -1,0 +1,12 @@
+'' TKO0720, fbc's 20: a tuple '=' or '<>' whose UDT element has no such operator. See
+'' TupleElemsCompare_ in symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/tuple-compare-elements.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tuple-compare-elements.bas(18,
+'' EXPECT-OUT: tuple-compare-elements.bas(19,
+'' EXPECT-OUT: tuple-compare-elements.bas(20,
+'' EXPECT-OUT: tuple-compare-elements.bas(21,
+'' EXPECT-NOT: tuple-compare-elements.bas(22,
+'' EXPECT-NOT: tuple-compare-elements.bas(23,
+'' EXPECT-MAX-DIAG: 4

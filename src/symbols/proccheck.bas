@@ -591,6 +591,81 @@ private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPa
                      lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
 end sub
 
+'' ...AND EVERY ELEMENT OF THE TUPLE HAS TO COMPARE. Measured on fbc-modern 1.20,
+'' 2026-09-25, over '(V, long)':
+''
+''     V with 'operator =' only     '=' prints -1     '<>' error 20
+''     V with 'operator <>' only    '<>' prints 0     '=' error 20
+''     V with neither               both error 20, and so with an 'operator cast' too
+''
+'' tiko typed none of these and so dropped the statement; typed, it emitted a call to an
+'' operator that does not exist and clang refused the module. A UDT element needs the
+'' operator written for THAT comparison, over two of itself -- the same one the lowering
+'' calls (TupleUdtCmpOp_ in mir/lowertup.bas) -- and a tuple element, its own elements.
+private function UdtHasCmpOp_ _
+    ( byref c as Ctx, byval ut as TypeId, byref nm as string ) as boolean
+    dim as ScopeId sc = cast( ScopeId, c.types->DeclScopeOf( ut ) )
+    if sc = SCOPE_NONE then return false
+    dim as SymbolId cur = c.syms->Lookup( sc, c.names->Fold( c.names->GetString( nm ) ) )
+    for guard as long = 0 to 255
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr os = c.syms->SymbolAt( cur )
+        if os = 0 then exit for
+        dim as NodeId pn = cast( NodeId, os->payload )
+        dim as boolean isOp = (os->kind = cast( ubyte, SYM_PROC )) andalso (pn <> NODE_NONE)
+        if isOp then isOp = (c.ast->Kind( pn ) = N_PROC)
+        if isOp then
+            dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+            if pp->op = cast( ushort, KW_OPERATOR ) then
+                dim as long np = 0
+                dim as boolean bothMine = true
+                for i as long = 0 to pp->count - 1
+                    dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> N_PARAM then continue for
+                    dim as StmtPayload ptr qp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+                    if c.types->Unqualify( c.info->TypeOf_( qp->a ) ) <> ut then bothMine = false
+                    np += 1
+                next
+                if (np = 2) andalso bothMine then return true
+            end if
+        end if
+        cur = os->nextOverload
+    next
+    return false
+end function
+
+private function TupleElemsCompare_ _
+    ( byref c as Ctx, byval t as TypeId, byref nm as string, byval depth as long ) as boolean
+    if depth > 16 then return true
+    if c.types->Kind( t ) <> TK_UDT then return true
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return true
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return true
+    if s->inner = SCOPE_NONE then return true
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return true
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if f->kind = cast( ubyte, SYM_FIELD ) then
+            dim as TypeId ft = c.types->Unqualify( f->type_ )
+            if TupleLike_( c, ft ) then
+                if TupleElemsCompare_( c, ft, nm, depth + 1 ) = false then return false
+            elseif c.types->Kind( ft ) = TK_UDT then
+                if UdtHasCmpOp_( c, ft, nm ) = false then return false
+            end if
+        end if
+        cur = f->nextInScope
+    next
+    return true
+end function
+
 private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -628,7 +703,9 @@ private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean rTup = (c.types->Kind( rt ) = TK_TUPLE) orelse TupleLike_( c, rt )
     if lTup orelse rTup then
         dim as boolean eqOp = (opnm = "=") orelse (opnm = "<>")
-        if eqOp andalso (lt = rt) then return
+        if eqOp andalso (lt = rt) then
+            if TupleElemsCompare_( c, lt, opnm, 0 ) then return
+        end if
         c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
         return
     end if

@@ -158,7 +158,7 @@ end function
 private function UdtOperandBinaryType_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, _
       byval lt as Tko.TypeId, byval rt as Tko.TypeId ) as Tko.TypeId
-
+    if TupleEqType_( c, op, lt, rt ) then return c.types->Builtin( Tko.TY_INTEGER )  '' binresult.bas
     dim as Tko.TypeId lt2 = lt, rt2 = rt
     for side as long = 0 to 1
         dim as Tko.TypeId st = iif( side = 0, lt, rt )
