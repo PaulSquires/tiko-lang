@@ -1,0 +1,11 @@
+'' TKO0808, fbc's 14, for an undeclared type in a generic type's field. InTemplate_ took a
+'' TYPE INSTANCE for the template -- its re-parsed N_TYPE keeps the 'of' list, and nothing
+'' flags a type instance -- so fbc's own generics/fail-error-in-body.bas was reported
+'' nowhere. See symbols/resolveunbound.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-field-undeclared.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0808: the type 'wdiget' is not declared
+'' EXPECT-OUT: error TKO0808: the type 'gadgit' is not declared
+'' EXPECT-NOT: nowhere
+'' EXPECT-MAX-DIAG: 2

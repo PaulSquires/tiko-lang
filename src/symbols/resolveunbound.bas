@@ -17,6 +17,14 @@ private function InTemplate_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as b
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
         if os <> 0 then
             if (os->flags and Tko.SYMF_GENERIC_INST) <> 0 then return false
+            '' ...AND A TYPE INSTANCE, which that flag does not mark (it is the procedures'):
+            '' named by its key, 'box<6>', and its re-parsed N_TYPE still holds the 'of' list
+            '' in 'b', so it passed for the template below. 'as Wdiget oops' in a generic
+            '' type's field was reported nowhere -- fbc's generics/fail-error-in-body.bas,
+            '' error 14 at the instantiation (fbc-modern 1.20, 2026-09-25).
+            if os->kind = cast( ubyte, Tko.SYM_UDT ) then
+                if instr( c.names->Spelling( os->name ), "<" ) > 0 then return false
+            end if
             dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
             dim as boolean isNode = (os->kind = cast( ubyte, Tko.SYM_UDT )) orelse _
                                     (os->kind = cast( ubyte, Tko.SYM_PROC ))
