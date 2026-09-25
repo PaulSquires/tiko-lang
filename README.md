@@ -231,8 +231,7 @@ The runtime and the graphics library build themselves: `lib/rt/build/build.sh` a
 - **`build/test.sh`** runs the suite under `tests/`: one `.test` file per case, with goldens in
   `expected/` beside it. `tests/mir/` and `tests/pp/` run every case for both `win64` and
   `linux-x86_64`, because what they dump depends on the target and not on the host. On
-  2026-09-24 it was 1042 passing and 1 failing. The failure, `tests/parser/field-keyword-name`,
-  fails only in an LF checkout.
+  2026-09-24 it was 1058 passing and none failing, in a clean checkout on Windows.
 - **`tests/vendor/`** is fbc's own test suite, vendored unmodified from FBC-Modern (commit
   `ca1ea2fc`, 3,229 files, 2,709 of them `.bas`). It is never edited. The scan scripts above run it
   differentially against fbc.
