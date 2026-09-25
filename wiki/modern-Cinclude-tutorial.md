@@ -301,7 +301,7 @@ matches an imported `cdecl` pointer with no warning and no cast.
 
 `pascal` is the exception, and should be: it reverses the argument order, so it stays incompatible and still warns.
 
-*(In tiko: it assigns a `pascal` procedure to an imported `cdecl` pointer with no warning, because it does not give fbc's warning 4 for any pointer yet. The call through it with `(1, 2)` gets `21`, as FBC-Modern's build does. Measured 2026-09-25; it was `12` before.)*
+*(In tiko: the assignment draws `TKO0830`, tiko's form of that warning, and the call through it with `(1, 2)` gets `21`, as FBC-Modern's build does. Measured 2026-09-25; before, it had no warning and got `12`.)*
 
 ### `NULL` is not there
 
@@ -395,7 +395,7 @@ The WinAPI one is worth reading for what it does **not** say. Its `WndProc` carr
 
 `windows.h` declares `WNDPROC` as `WINAPI`, which every tutorial ever written will tell you is `__stdcall`. On win64 it is neither: x86-64 Windows has one calling convention, the SDK defines `WINAPI` away, and Clang reports the default — so the imported typedef reads `cdecl`, while FreeBASIC's own default on win64 is `stdcall`. Two different words for the same call.
 
-fbc treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target for exactly that reason, so all three spellings assign cleanly. `pascal` is deliberately not in that set and still warns: it reverses the argument order, on x86-64 as anywhere else, so calling a `pascal` procedure through a `cdecl` pointer with `(1, 2)` really does hand you `21`, with FBC-Modern's `fbc` and with tiko alike. tiko gives no warning (see [Part 4](#you-do-not-have-to-write-a-calling-convention)).
+fbc treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target for exactly that reason, so all three spellings assign cleanly. `pascal` is deliberately not in that set and still warns: it reverses the argument order, on x86-64 as anywhere else, so calling a `pascal` procedure through a `cdecl` pointer with `(1, 2)` really does hand you `21`, with FBC-Modern's `fbc` and with tiko alike, and both warn (tiko's is `TKO0830`; see [Part 4](#you-do-not-have-to-write-a-calling-convention)).
 
 ### See also
 
