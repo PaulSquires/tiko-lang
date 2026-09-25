@@ -39,7 +39,7 @@ Measured 2026-09-24.
 
 Probing the extension pages found more of the same class. Each is recorded case by case on its own page (measured 2026-09-24 at origin/master 50c71751):
 
-- **Generics.** fbc's errors 335, 336 and 341 are reported since 2026-09-25. 1 of fbc's 30 generics `fail-*.bas` files compiles under tiko (2026-09-25; fail-lambda-capture-typaram, an FBC-Modern limitation that tiko does not share), and a runaway instantiation does not stop. See [Generics](Category-Generics).
+- **Generics.** fbc's errors 335, 336 and 341 are reported since 2026-09-25. 1 of fbc's 30 generics `fail-*.bas` files compiles under tiko (2026-09-25; fail-lambda-capture-typaram, an FBC-Modern limitation that tiko does not share). `-maxinstdepth` and fbc's error 339 are tiko's `TKO0829` since 2026-09-25, and a runaway instantiation stops. See [Generics](Category-Generics).
 - **Tuples.** 3 of fbc's 20 tuple error cases compile under tiko (2026-09-25), all three FBC-Modern's documented limitations, which tiko handles (SIZEOF and TYPEOF of a tuple type, and a nested literal). See [Tuples](Category-Tuples).
 - **`pascal`.** A `pascal` procedure assigned to a `cdecl` pointer draws no warning: tiko gives fbc's warning 4, "Suspicious pointer assignment", for no pointer at all yet. The arguments ARE reversed since 2026-09-25, as fbc reverses them, so the call itself matches. One order still differs: in a call to a pascal METHOD, fbc evaluates the object before the arguments and tiko after them. See [C Header Import](Category-C-Header-Import).
 

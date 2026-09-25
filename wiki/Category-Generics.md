@@ -201,7 +201,15 @@ Nesting a generic in its own type ARGUMENT list is fine and terminates: Box( of 
 
 Depth accrues only when one generic's BODY drives another instantiation. Under fbc the limit is '-maxinstdepth' (default 64); exceeding it is error 339, and a genuinely runaway self-instantiation is usually caught earlier by the forward-reference machinery, so the counter is a backstop.
 
-tiko has no '-maxinstdepth' (it is `TKO0100: unknown option`), and nothing stopped a runaway instantiation. Measured 2026-09-24 at origin/master 50c71751: a member body that instantiates 'R( of R( of T ) )' did not finish compiling under tiko within 120 seconds. (FBC-Modern's `fbc64` crashes on the same file.)
+tiko takes '-maxinstdepth' too, with the same default, and reports going past it as `TKO0829`. Measured 2026-09-25 against FBC-Modern's `fbc64`, one probe per shape, and tiko agrees on every one:
+
+- **A field's type** is one deeper than the type that holds it: A3 holding a B3 holding a C3 is refused at `-maxinstdepth 2` and accepted at 3.
+- **A member or procedure body** is replayed at depth 1 however deep the instantiation that owns it. So what a body names is depth 2 -- refused at 1, accepted at 2 -- and a chain of bodies (A3's body naming B3, whose body names C3) is accepted at 2 as well.
+- **A type argument** costs nothing: `Box( of Box( of Box( of long ) ) )` is accepted at 1.
+
+fbc reports the first on the header of the generic being expanded and stops. tiko reports each one, on the line that asked for the instantiation.
+
+**That rule never stops a runaway.** A member body that instantiates `R( of R( of T ) )` makes a deeper R whose own body does the same, and every body replays at depth 1. FBC-Modern's `fbc64` segfaults on it; tiko used to run until it was killed. tiko now also caps the real chain -- the one a body DOES extend -- at 256, or at the limit if that is higher, and reports `TKO0829` there. The runaway stops in about two seconds.
 
 ## How It Works
 
@@ -252,7 +260,7 @@ tiko reports its own ids, and fewer of these. Measured 2026-09-24 at origin/mast
 | 335 | `TKO0815: 'box' is generic; write its type arguments, as 'box( of ... )'` (2026-09-25) |
 | 336 | `TKO0816: 'pair' takes 2 type argument(s), and 1 are written here` (2026-09-25) |
 | 338 | `TKO0405: expected 'end OPERATOR'` |
-| 339 | none -- the runaway case did not finish; see SELF-REFERENCE, NESTING AND DEPTH |
+| 339 | `TKO0829` -- see SELF-REFERENCE, NESTING AND DEPTH |
 | 340 | `TKO0809: cannot infer the type arguments of 'make'; write them, as 'make( of ... )( ... )'` |
 | 341 | `TKO0817: the type parameters written for 'stack.push' do not match its declaration, 'of t'` -- a renamed, extra, missing or reordered parameter (2026-09-25) |
 
@@ -260,7 +268,7 @@ tiko reports its own ids, and fewer of these. Measured 2026-09-24 at origin/mast
 
 Inside a generic body tiko reports the offending line and column itself -- `TKO0743: 'nosuchvar' is not declared` at the line that says it -- but without the instantiation chain. An undeclared type named in a generic TYPE's field ('Wdiget' above) is `TKO0808` at the field, once the generic is instantiated (2026-09-25). One body error it does not report at all: an unknown field written through 'this' in a member body (fbc's error 18) compiles, and the statement using it is left out.
 
-Across fbc's 30 generics `fail-*.bas` files, tiko rejects 26 with a diagnostic of its own, compiles 1 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and refuses `fail-instdepth.bas` for its `#cmdline "-maxinstdepth 2"`. Measured 2026-09-25 by compiling each to an object; the 1 is `fail-lambda-capture-typaram`, which pins an FBC-Modern limitation rather than a language rule: a capturing lambda in a generic body cannot name T in its own parameter list there (error 59 on the closure's `__FBINVOKE`), and tiko builds it.
+Across fbc's 30 generics `fail-*.bas` files, tiko rejects 26 with a diagnostic of its own, compiles 1 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and rejects `fail-instdepth.bas` with `TKO0829`, as fbc does with 339 (since 2026-09-25; before that, with `TKO0100` for its `#cmdline "-maxinstdepth 2"`). Measured 2026-09-25 by compiling each to an object; the 1 is `fail-lambda-capture-typaram`, which pins an FBC-Modern limitation rather than a language rule: a capturing lambda in a generic body cannot name T in its own parameter list there (error 59 on the closure's `__FBINVOKE`), and tiko builds it.
 
 A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no `operator =` is fb/array.bi's own comparison failing -- is reported at the line in the generic that fails. fbc reports it too, on its own line numbering of the instantiation.
 
