@@ -1,0 +1,14 @@
+'' TKO0400, fbc's 9: a type keyword called like a function. See TypeKeywordCalled in
+'' parser/intrinsics.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-keyword-call.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: type-keyword-call.bas(9,5): error TKO0400: expected an expression
+'' EXPECT-OUT: type-keyword-call.bas(10,5): error TKO0400: expected an expression
+'' EXPECT-OUT: type-keyword-call.bas(11,5): error TKO0400: expected an expression
+'' EXPECT-OUT: type-keyword-call.bas(12,5): error TKO0400: expected an expression
+'' EXPECT-NOT: type-keyword-call.bas(14,
+'' EXPECT-NOT: type-keyword-call.bas(15,
+'' EXPECT-NOT: type-keyword-call.bas(16,
+'' EXPECT-NOT: type-keyword-call.bas(17,
+'' EXPECT-MAX-DIAG: 4

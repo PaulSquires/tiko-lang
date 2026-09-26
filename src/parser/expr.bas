@@ -1334,8 +1334,8 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
 
-    '' A keyword in primary position is usually an intrinsic function call; the
-    '' statement layer will route those. Anything else is a real syntax error.
+    '' A keyword in primary position is usually an intrinsic call -- see TypeKeywordCalled.
+    if TypeKeywordCalled( p, k ) then return ErrorNode( p, Tko.TKO0400 )
     if Tko.IsKeywordKind( k ) then
         '' A BARE 'base' IN AN EXPRESSION -- 'print base' -- is fbc error 120, the same
         '' as at statement start (see the statement dispatch). Only '.' and '(' follow it.

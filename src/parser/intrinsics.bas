@@ -764,3 +764,26 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
 end function
 
 end namespace
+
+namespace Tko.Parse
+
+'' A TYPE KEYWORD CALLED LIKE A FUNCTION -- 'ustring( "x" )', 'long( 5 )', 'zstring( 5 )' --
+'' is fbc's error 9, 'Expected expression' (error 3 inside a PRINT list, which stops there).
+'' Measured on fbc-modern 1.20, 2026-09-26, over ustring, zstring, integer, long, double,
+'' byte, boolean and any. The expression layer took it for an intrinsic call that nothing
+'' binds, and the statement was dropped in silence: 'dim u as ustring = ustring( "VARIANT" )'
+'' printed an empty line. 'string( n, c )' and 'wstring( n, c )' ARE functions, and 'sub'
+'' and 'function' start a lambda, which the expression layer parses before asking this.
+function TypeKeywordCalled _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+
+    if Tko.IsTypeKeyword( k ) = false then return false
+    select case k
+    case Tko.KW_STRING, Tko.KW_WSTRING, Tko.KW_SUB, Tko.KW_FUNCTION
+        return false
+    end select
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN)
+end function
+
+end namespace

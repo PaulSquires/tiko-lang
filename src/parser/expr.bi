@@ -170,6 +170,9 @@ declare function ArgOrElided _
     declare function Cur( byref p as Tko.ParserState ) as Tko.Token
     declare sub Advance( byref p as Tko.ParserState )
     declare function Accept( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+    '' A type keyword called like a function -- see parser/intrinsics.bas.
+    declare function TypeKeywordCalled _
+        ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
     '' Lives in decltype.bas: a calling convention, and with 'nameless' the
     '' OVERLOAD and ALIAS that may sit where a CONSTRUCTOR's name would be.
     declare function TakeProcPrefix_ _
