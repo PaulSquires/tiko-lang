@@ -23,6 +23,10 @@ sub EmitModuleInit_( byref c as Ctx )
         dim as Tko.InternId nm = c.names->GetString( iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" ) )
         dim as MirFunction ptr f = c.m->AddFunction( nm, MT_VOID )
         f->isDefinition = true
+        '' INTERNAL, as fbc emits them (llvm-nm: 't', measured 2026-09-26): every module
+        '' with such a global defines both names, so two of them failed the link with
+        '' "duplicate symbol: _GLOBAL__I". global_ctors keeps them alive.
+        f->isPrivate = true
         f->isModuleCtor = isCtor
         f->isModuleDtor = (isCtor = false)
 
