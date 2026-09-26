@@ -77,11 +77,11 @@ func i32 main(i32 $0, ptr $1) {
     ret %23
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void $tko.procsig.24()
-declare void $tko.procsig.26(i32 $0)
-declare i32 $tko.procsig.28()
+declare void $tko.procsig.34()
+declare void $tko.procsig.36(i32 $0)
+declare i32 $tko.procsig.38()
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-declare i32 $tko.procsig.30(i32 $0)
+declare i32 $tko.procsig.40(i32 $0)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 47 insts, 0 statements not lowered, 0 scope imbalance

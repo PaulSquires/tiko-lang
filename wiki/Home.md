@@ -32,7 +32,7 @@ This wiki is two things in one place:
 
 ## The extensions at a glance
 
-**Language:** [Generics](Category-Generics) ✨ · [Iterator Protocol](Category-Iterators) ✨ · [For Each](Category-For-Each) ✨ · [Tuples](Category-Tuples) ✨ · [Defer](Category-Defer) ✨ · [Lambdas](Category-Lambdas) ✨ · [UString](Category-UString) ✨ · [Goroutines and Channels](Category-Goroutines-and-Channels) ✨
+**Language:** [Generics](Category-Generics) ✨ · [Iterator Protocol](Category-Iterators) ✨ · [For Each](Category-For-Each) ✨ · [Tuples](Category-Tuples) ✨ · [Defer](Category-Defer) ✨ · [Lambdas](Category-Lambdas) ✨ · [UString](Category-UString) ✨ · [Fixed-Width Types](Category-Fixed-Width-Types) ✨ · [Goroutines and Channels](Category-Goroutines-and-Channels) ✨
 
 **Library:** [Array](Category-Array) ✨ · [Map](Category-Map) ✨ · [Set](Category-Set) ✨ · [LinkedList](Category-LinkedList) ✨ · [OrderedMap and OrderedSet](Category-OrderedMap) ✨ · [Sorting](Category-Sorting) ✨ · [Optional](Category-Optional) ✨ · [Result](Category-Result) ✨ · [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨ · [String Library](Category-String-Library) ✨ · [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨ · [Filesystem Library](Category-Filesystem) ✨ · [Math Library](Category-Math-Library) ✨ · [Logging](Category-Logging) ✨
 

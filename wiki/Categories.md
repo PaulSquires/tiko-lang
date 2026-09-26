@@ -13,6 +13,7 @@ Every category in this wiki. Categories marked ✨ are tiko-lang additions; the 
 - [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ — 2 pages — 2 tiko-lang pages
 - [C Header Import](Category-C-Header-Import) ✨ — 2 pages — 2 tiko-lang pages
 - [UString](Category-UString) ✨ — 1 pages — 1 tiko-lang page
+- [Fixed-Width Types](Category-Fixed-Width-Types) ✨ — 1 pages — 1 tiko-lang page
 - [String Library](Category-String-Library) ✨ — 39 pages — 39 tiko-lang pages
 - [Array](Category-Array) ✨ — 22 pages — 22 tiko-lang pages
 - [Map](Category-Map) ✨ — 15 pages — 15 tiko-lang pages

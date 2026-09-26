@@ -168,7 +168,7 @@ Every diagnostic has a stable `TKOnnnn` id, a location and a caret. Add
 | --- | --- |
 | **Compiles to** | Native x86-64 executables, DLLs / shared objects and static libraries, through LLVM |
 | **Platforms** | Windows x86-64 (MSVC ABI, no Visual Studio needed) and Linux x86-64 |
-| **Types** | Static, with inference (`var`), generics, tuples, UDTs with methods, properties, operator overloading, single inheritance and virtual methods |
+| **Types** | Static, with inference (`var`), fixed-width names (`int32`, `uint8`, `float64`, …), generics, tuples, UDTs with methods, properties, operator overloading, single inheritance and virtual methods |
 | **Memory** | Deterministic: scope-based destruction, `defer`, `SharedPtr` / `WeakPtr`; no GC |
 | **Errors** | `Result( of T, E )` and `Optional( of T )`, plus runtime checks up to array bounds and null pointers with `-exx` |
 | **Concurrency** | `spawn` onto a thread pool, typed channels, `select channel`, `WaitGroup`, cancellation contexts |

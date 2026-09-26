@@ -1,0 +1,11 @@
+'' A program's own declaration of a fixed-width name -- an identical typedef, a
+'' different typedef, a variable, a function, a local -- replaces the prelude's with
+'' no diagnostic. Runtime output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-width-types-shadow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0600
+'' EXPECT-NOT: TKO0777
+'' GOLDEN: expected/fixed-width-types-shadow.out

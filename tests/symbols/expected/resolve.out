@@ -1,4 +1,4 @@
-resolved: 11 references, 0 builtins, 0 unresolved, 242 type refs, 2 calls, 2 assignments
+resolved: 11 references, 0 builtins, 0 unresolved, 262 type refs, 2 calls, 2 assignments
   typeref #1 -> long
   typeref #5 -> long
   typeref #8 -> long
@@ -244,3 +244,13 @@ resolved: 11 references, 0 builtins, 0 unresolved, 242 type refs, 2 calls, 2 ass
   typeref #599 -> single
   typeref #602 -> single
   typeref #605 -> long
+  typeref #608 -> byte
+  typeref #610 -> ubyte
+  typeref #612 -> short
+  typeref #614 -> ushort
+  typeref #616 -> long
+  typeref #618 -> ulong
+  typeref #620 -> longint
+  typeref #622 -> ulongint
+  typeref #624 -> single
+  typeref #626 -> double

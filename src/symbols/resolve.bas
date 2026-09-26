@@ -237,7 +237,6 @@ end sub
 
 #include once "symbols/resolveinh.bas"
 
-
 '' 'Box( of long )( 7 )' -- CONSTRUCTING A GENERIC, which is not a generic PROCEDURE
 '' call and was not handled beside one.
 ''
@@ -1206,6 +1205,7 @@ sub WalkStmt _
         '' Set DIRECTLY rather than through BindDeclType, which only fills a type that
         '' is still TYPE_NONE. Collect has already put a placeholder named type here, so
         '' the ordinary bind is a silent no-op -- which is exactly what it did.
+        if PreludeTypedefLost( c, id, here ) then return
         dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
         c.typedefNode.Push( cast( ulong, id ) )
         c.typedefScope.Push( cast( ulong, here ) )

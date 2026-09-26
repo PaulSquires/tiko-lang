@@ -639,8 +639,11 @@ Every page in this wiki, A–Z. ✨ marks an tiko-lang addition.
 - [Fine-grain procedure for waiting and in-loop procedure for fine-regulating FPS](Fine-Grain-Procedure-for-Waiting-and-in-Loop-Procedure-for-Fine-Regulating-Fps) — *Tutorials*
 - [Fix](Fix) — *Mathematical Functions*
 - [Fixed-length Arrays](Fixed-Length-Arrays) — *Tutorials*
+- [Fixed-Width Types](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
 - [Flip](Flip) — *Screen Functions*
 - [Flite](Flite) — *Tutorials*
+- [Float32](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [Float64](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
 - [Floor](Modern-Math-Floor) ✨ — *Math Library*
 - [FloorDiv](Modern-Math-FloorDiv) ✨ — *Math Library*
 - [FloorMod](Modern-Math-FloorMod) ✨ — *Math Library*
@@ -898,6 +901,10 @@ Every page in this wiki, A–Z. ✨ marks an tiko-lang addition.
 - [InstrChars](Modern-String-InstrChars) ✨ — *String Library*
 - [InStrRev](Instrrev) — *String Functions*
 - [Int](Int) — *Mathematical Functions*
+- [Int16](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [Int32](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [Int64](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [Int8](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
 - [Integer](Integer) — *Standard Data Types*
 - [Interfacing with C](Interfacing-with-C) — *Tutorials*
 - [Internal graphics formats](Internal-Graphics-Formats) — *Tutorials*
@@ -1808,6 +1815,10 @@ Every page in this wiki, A–Z. ✨ marks an tiko-lang addition.
 - [UBound](Ubound) — *Array Functions*
 - [UByte](Ubyte) — *Standard Data Types*
 - [UCase](Ucase) — *String Functions*
+- [UInt16](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [UInt32](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [UInt64](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
+- [UInt8](Category-Fixed-Width-Types) ✨ — *Fixed-Width Types*
 - [UInteger](Uinteger) — *Bit Manipulation*
 - [ULong](Ulong) — *Standard Data Types*
 - [ULongInt](Ulongint) — *Standard Data Types*

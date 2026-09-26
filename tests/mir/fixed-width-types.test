@@ -1,0 +1,9 @@
+'' The ten fixed-width type names are typedefs for FreeBASIC's fixed-width types: their
+'' sizes, their wraparound, and overload resolution treating int64 as longint. Runtime
+'' output was checked against fbc-modern; see the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-width-types.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/fixed-width-types.out

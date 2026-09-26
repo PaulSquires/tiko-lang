@@ -264,6 +264,23 @@ private function PreludeText( ) as string
     t += "      byref a7 as single = 0, byref a8 as single = 0 ) as long" & chr( 10 )
     t += "" & chr( 10 )
     t += "end extern" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' THE FIXED-WIDTH TYPE NAMES, tiko's own: fbc has none of them. Typedefs rather" & chr( 10 )
+    t += "'' than keywords, and typedefs in the prelude, because existing code already owns" & chr( 10 )
+    t += "'' these names -- win/basetsd.bi writes 'type INT32 as long', jpeglib.bi 'type INT32" & chr( 10 )
+    t += "'' as clong', and any program may have a variable called int32 -- and a prelude" & chr( 10 )
+    t += "'' declaration LOSES to the program's (collectdecl.bas, Declare_). Only these ten:" & chr( 10 )
+    t += "'' INTEGER and UINTEGER change size with the target and have no fixed-width name." & chr( 10 )
+    t += "type int8 as byte" & chr( 10 )
+    t += "type uint8 as ubyte" & chr( 10 )
+    t += "type int16 as short" & chr( 10 )
+    t += "type uint16 as ushort" & chr( 10 )
+    t += "type int32 as long" & chr( 10 )
+    t += "type uint32 as ulong" & chr( 10 )
+    t += "type int64 as longint" & chr( 10 )
+    t += "type uint64 as ulongint" & chr( 10 )
+    t += "type float32 as single" & chr( 10 )
+    t += "type float64 as double" & chr( 10 )
     return t
 end function
 

@@ -23,6 +23,7 @@
 - [C Header Import](Category-C-Header-Import) ✨
 - [Foreign Library Linking](Category-Foreign-Library-Linking) ✨
 - [UString](Category-UString) ✨
+- [Fixed-Width Types](Category-Fixed-Width-Types) ✨
 - [String Library](Category-String-Library) ✨
 - [Array](Category-Array) ✨
 - [Map](Category-Map) ✨

@@ -2,5 +2,5 @@
 '' TEST: cli
 '' ARGS: --dump-ast tests/parser/src/next-multi-var.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: N_MODULE (6)
+'' EXPECT-OUT: N_MODULE (16)
 '' EXPECT-NOT: TKO0420

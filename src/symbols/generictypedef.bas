@@ -71,6 +71,24 @@ function ForwardTypedefTarget_ _
     return us->type_
 end function
 
+'' A PRELUDE TYPEDEF WHOSE NAME THE PROGRAM TOOK -- 'type uint8 as integer', a variable
+'' named float32, basetsd.bi's own 'type INT32 as long'. Collect discarded the prelude's
+'' declaration (Declare_), but its N_TYPEDEF node is still walked, and the name finds the
+'' PROGRAM'S symbol: binding the prelude's target to it overwrote the program's type, so
+'' 'type uint8 as integer' measured sizeof 1 where fbc says 8. Such a node is skipped,
+'' and never reaches the backpatch, because it declares nothing.
+function PreludeTypedefLost _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as boolean
+
+    if c.srcMgr = 0 then return false
+    if c.srcMgr->IsBuiltin( c.ast->Loc( id ) ) = false then return false
+    dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
+    if tsp->name = 0 then return false
+    dim as Tko.Symbol ptr owner = c.syms->SymbolAt( c.syms->LookupLocal( here, tsp->name ) )
+    if owner = 0 then return false
+    return c.srcMgr->IsBuiltin( owner->loc ) = false
+end function
+
 sub BackpatchTypedefs( byref c as Ctx )
     for r as long = 1 to c.typedefNode.Count
         dim as boolean progress = false

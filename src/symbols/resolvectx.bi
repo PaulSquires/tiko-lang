@@ -163,6 +163,8 @@ declare function ProcTypeParamType_ _
       byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
 declare sub BackpatchTypedefs( byref c as Ctx )
+declare function PreludeTypedefLost _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as boolean
 declare function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
 declare function InstantiateGenericProc_ _

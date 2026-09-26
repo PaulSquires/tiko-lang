@@ -20,6 +20,8 @@ Each of these is a diagnostic, not a silent difference (measured 2026-09-24 at o
 
 **tiko defines `__TIKO_COMPILER__`, always `1`,** and fbc does not, so `#ifdef __TIKO_COMPILER__` is how a source tree asks "is this tiko?". `__FB_MIN_VERSION__` is not defined, and `#if __FB_MIN_VERSION__( 1, 20, 0 )` is an error (`TKO0308`). `__TKO_VERSION__` gives tiko's version. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 
+**tiko declares ten fixed-width type names that fbc does not have:** `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, `float32` and `float64`, typedefs for `byte` through `double`. They are not keywords. A program's own declaration of one of the names replaces tiko's with no diagnostic, so code that already uses them compiles as it does under fbc: `win/basetsd.bi`'s `type INT32 as long`, a `type uint8 as integer`, a variable called `float32` (measured 2026-09-26). See [Fixed-Width Types](Category-Fixed-Width-Types).
+
 **`defer` is a contextual keyword, and both compilers use one rule.** It is the keyword only when a name, a keyword other than `as`, or the end of the statement follows. A sub named `defer` is therefore CALLED by `defer( 5 )`, `defer 5` and `defer -1`. An array or a UDT named `defer` is used as one (`defer( 1 ) = 3`, `defer.field_ = 4`), in both compilers.
 
 Where they still part, a `defer` that is the keyword has no statement to defer:

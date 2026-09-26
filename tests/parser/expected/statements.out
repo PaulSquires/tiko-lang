@@ -1,4 +1,4 @@
-N_MODULE (31) <1:1>
+N_MODULE (41) <1:1>
   N_NAMESPACE 'demo' <1:1>
     N_CONST <2:1>
       N_VAR_ITEM 'max' <2:7>

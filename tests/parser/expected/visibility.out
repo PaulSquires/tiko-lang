@@ -1,4 +1,4 @@
-N_MODULE (5) <1:83>
+N_MODULE (15) <1:83>
   N_TYPE 't' <12:1>
     N_FIELD 'pub0' <13:20>
       N_TYPEREF 'integer' [INTEGER] <13:12>

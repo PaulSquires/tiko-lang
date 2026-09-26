@@ -6,6 +6,7 @@
 - [Boolean](Boolean)
 - [Byte](Byte)
 - [Const (Qualifier)](Const-Qualifier)
+- [Fixed-Width Types](Category-Fixed-Width-Types) ✨
 - [Function Pointer](Function-Pointer)
 - [Integer](Integer)
 - [Long](Long)
