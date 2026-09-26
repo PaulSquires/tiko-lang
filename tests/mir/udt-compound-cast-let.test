@@ -1,0 +1,10 @@
+'' 'm += 1' over a type with 'operator cast' and 'operator let' and no self-operator: the cast,
+'' the arithmetic, the let. See LowerCompoundViaCast_ in mir/lowerselfop.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-compound-cast-let.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i32 _ZN1McviEv(
+'' EXPECT-OUT: call void _ZN1MaSEi(
+'' EXPECT-OUT: call void _ZN1DaSEd(
+'' EXPECT-OUT: call void _ZN1PpLEi(

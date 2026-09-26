@@ -79,6 +79,20 @@ private function ArrayArgElem_ _
     return c.types->Unqualify( c.types->Inner( at ) )
 end function
 
+'' 'm += 1' OVER A TYPE WITH A NUMERIC 'operator cast' AND AN 'operator let' -- no
+'' self-operator and no binary one. Measured, fbc-modern 1.20: the cast, the arithmetic in
+'' the type 'cast( m ) op value' has, and the 'let' that takes the result:
+''
+''     int32 vr$3 = _ZN1McviEv( &M1$0 );
+''     _ZN1MaSEi( &M1$0, (int32)((int64)vr$3 + 1ll) );
+''
+'' and 'm -= 2.6' works in double and rounds into the let's long ('fb_D2I'). tiko dropped
+'' the statement in silence. The target is addressed once, for the cast and the let both.
+'' A UDT value, a byref 'let' parameter and '&=' are left alone.
+declare function LowerCompoundViaCast_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+      byval op as Tko.TokenKind, byval ut as Tko.TypeId ) as boolean
+
 function SelfOpMemberCall_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind, byval tt as Tko.TypeId ) as boolean
@@ -182,7 +196,7 @@ function SelfOpMemberCall_ _
             wideChosen = true
         end if
     end if
-    if want = Tko.SYMBOL_NONE then return false
+    if want = Tko.SYMBOL_NONE then return LowerCompoundViaCast_( c, target, value, op, ut )
     if ties > 0 then return false
 
     dim as MirValue self_ = LowerAddr( c, target )
@@ -230,6 +244,84 @@ function SelfOpMemberCall_ _
     return true
 end function
 
+
+
+function LowerCompoundViaCast_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+      byval op as Tko.TokenKind, byval ut as Tko.TypeId ) as boolean
+
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
+    dim as Tko.TokenKind bop = Tko.TK_EOF
+    select case op
+    case Tko.TK_PLUSEQ   : bop = Tko.TK_PLUS
+    case Tko.TK_MINUSEQ  : bop = Tko.TK_MINUS
+    case Tko.TK_STAREQ   : bop = Tko.TK_STAR
+    case Tko.TK_SLASHEQ  : bop = Tko.TK_SLASH
+    case Tko.TK_BSLASHEQ : bop = Tko.TK_BACKSLASH
+    case Tko.TK_CARETEQ  : bop = Tko.TK_CARET
+    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_IMP, Tko.KW_EQV, _
+         Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
+        bop = op
+    case else
+        return false
+    end select
+
+    '' EVERY QUESTION BEFORE THE FIRST INSTRUCTION.
+    dim as Tko.SymbolId cs = UserCastNumOverload_( c, ut )
+    if cs = Tko.SYMBOL_NONE then return false
+    dim as Tko.TypeId ct = c.types->Unqualify( c.syms->SymbolAt( cs )->type_ )
+    dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
+    if c.types->Kind( vt ) = Tko.TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+    if (vt = Tko.TYPE_NONE) orelse (c.types->Kind( vt ) = Tko.TK_UDT) then return false
+    dim as Tko.TypeId rt = Tko.Check.BinaryResult( bop, ct, vt, *c.types )
+    if rt = Tko.TYPE_NONE then return false
+    dim as MirType wt = LowerType( rt, *c.types )
+    if (wt = MT_VOID) orelse (wt = MT_AGG) orelse (wt = MT_PTR) then return false
+    dim as FB.Array( of ulong ) letT
+    letT.Push( cast( ulong, rt ) )
+    dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, ut, "let" ), letT )
+    if ulet = Tko.SYMBOL_NONE then return false
+    if ParamIsByref( c, ulet, 0 ) then return false
+    dim as Tko.TypeId pt = ParamTypeAt( c, ulet, 0 )
+    dim as MirType pmt = LowerType( pt, *c.types )
+    if (pmt = MT_VOID) orelse (pmt = MT_AGG) then return false
+
+    dim as MirValue self_ = LowerAddr( c, target )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue cur = EmitMemberCall( c, cs, self_, LowerType( ct, *c.types ) )
+    if cur.kind = cast( ubyte, MV_NONE ) then return false
+    cur = CoerceTy( c, cur, wt, ct )
+    dim as MirValue rhs = LowerExpr( c, value )
+    if rhs.kind = cast( ubyte, MV_NONE ) then return false
+    rhs = CoerceTy( c, rhs, wt, vt )
+
+    dim as MirValue res
+    if bop = Tko.TK_CARET then
+        dim as FB.Array( of ulong ) pa
+        pa.Push( cast( ulong, cur.kind ) ) : pa.Push( cast( ulong, cur.id ) )
+        pa.Push( cast( ulong, rhs.kind ) ) : pa.Push( cast( ulong, rhs.id ) )
+        res = EmitRtl( c, RTL_POW, pa )
+    elseif (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
+        res = EmitImpEqv_( c, bop, wt, cur, rhs )
+    else
+        dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, rt ) )
+        if mop = M_NONE then return false
+        dim as MirInst bi
+        bi.op = cast( ushort, mop )
+        bi.ty = cast( ubyte, wt )
+        bi.a = cur
+        bi.b = rhs
+        res = Emit( c, bi )
+    end if
+    if res.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' Into the let's parameter as an assignment converts -- rounded, as fbc's 'fb_D2I'.
+    dim as MirValue av = CoerceTy( c, res, pmt, rt, pt )
+    dim as FB.Array( of ulong ) largs
+    largs.Push( cast( ulong, av.kind ) ) : largs.Push( cast( ulong, av.id ) )
+    EmitStructorCall( c, ulet, -1, @self_, @largs )
+    return true
+end function
 
 
 '' THE INTRINSIC STATEMENTS. One keyword each, dispatched on the op the parser
