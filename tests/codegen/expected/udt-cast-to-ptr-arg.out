@@ -11,8 +11,8 @@ target triple = "x86_64-w64-windows-gnu"
 @"$str6" = private unnamed_addr constant [7 x i8] c"byref \00", align 1
 @"__fb_ZTS6Object" = external global ptr
 @"$str8" = private unnamed_addr constant [4 x i8] c"2TU\00", align 1
-@"_ZTSN2TUE" = global [3 x ptr] [ptr null, ptr @"$str8", ptr @"__fb_ZTS6Object"], align 8
-@"_ZTVN2TUE" = global [2 x ptr] [ptr null, ptr @"_ZTSN2TUE"], align 8
+@"_ZTSN2TUE" = internal global [3 x ptr] [ptr null, ptr @"$str8", ptr @"__fb_ZTS6Object"], align 8
+@"_ZTVN2TUE" = internal global [2 x ptr] [ptr null, ptr @"_ZTSN2TUE"], align 8
 
 define void @"_ZN2TVC1EP2TU"(ptr %p0, ptr %p1) nounwind uwtable(sync) {
 L0:

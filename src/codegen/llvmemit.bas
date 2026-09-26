@@ -1167,7 +1167,8 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
                 return
             end select
         next
-        e.outp += nm & " = global [" & str( g.ptrCount ) & " x ptr] [" & body & _
+        e.outp += nm & " = " & VarLinkage( e, g ) & "global [" & str( g.ptrCount ) & _
+                  " x ptr] [" & body & _
                   "], align " & str( e.tgt->layout.pointerBits \ 8 ) & chr( 10 )
         return
     end if

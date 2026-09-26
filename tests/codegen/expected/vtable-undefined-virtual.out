@@ -4,11 +4,11 @@ target triple = "x86_64-w64-windows-gnu"
 
 @"__fb_ZTS6Object" = external global ptr
 @"$str1" = private unnamed_addr constant [3 x i8] c"1T\00", align 1
-@"_ZTSN1TE" = global [3 x ptr] [ptr null, ptr @"$str1", ptr @"__fb_ZTS6Object"], align 8
-@"_ZTVN1TE" = global [3 x ptr] [ptr null, ptr @"_ZTSN1TE", ptr @"_ZN1T1VEv"], align 8
+@"_ZTSN1TE" = internal global [3 x ptr] [ptr null, ptr @"$str1", ptr @"__fb_ZTS6Object"], align 8
+@"_ZTVN1TE" = internal global [3 x ptr] [ptr null, ptr @"_ZTSN1TE", ptr @"_ZN1T1VEv"], align 8
 @"$str4" = private unnamed_addr constant [3 x i8] c"1Q\00", align 1
-@"_ZTSN1QE" = global [3 x ptr] [ptr null, ptr @"$str4", ptr @"_ZTSN1TE"], align 8
-@"_ZTVN1QE" = global [3 x ptr] [ptr null, ptr @"_ZTSN1QE", ptr @"_ZN1Q1VEv"], align 8
+@"_ZTSN1QE" = internal global [3 x ptr] [ptr null, ptr @"$str4", ptr @"_ZTSN1TE"], align 8
+@"_ZTVN1QE" = internal global [3 x ptr] [ptr null, ptr @"_ZTSN1QE", ptr @"_ZN1Q1VEv"], align 8
 
 define void @"_ZN1T1VEv"(ptr %p0) nounwind uwtable(sync) {
 L0:

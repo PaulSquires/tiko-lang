@@ -1,0 +1,15 @@
+'' TWO MODULES THAT BOTH USE A TYPE WITH A VIRTUAL METHOD LINK. Each emits the
+'' type's vtable (_ZTV) and RTTI record (_ZTS); fbc makes both module-local ('static',
+'' llvm-nm 'd', measured 2026-09-26) and tiko emitted them strong, so this pair failed
+'' with "lld-link: duplicate symbol: vtable for B" and "typeinfo name for B".
+''
+'' The runner cannot run what it builds, so the link is the assertion; the program's
+'' output -- dispatch and 'is D' tested in the module that did NOT create the object,
+'' and the other way round -- was checked by hand against fbc's, and the internal
+'' linkage is pinned in IR by vtable-internal.test.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/vtable-two-a.bas tests/driver/src/vtable-two-b.bas -o tests/driver/vtabletwo.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' EXPECT-FILE: tests/driver/vtabletwo.exe

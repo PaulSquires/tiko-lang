@@ -97,6 +97,11 @@ function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
     dim as long idG = c.m->AddStringLiteral( TypeCodeOf_( c, t ), *c.names )
 
     dim as long g = c.m->AddPtrTable( id )
+    '' INTERNAL, as fbc's 'static struct' is: every module that needs the record
+    '' emits its own, and external copies failed the link as 'duplicate symbol:
+    '' typeinfo name for B'. Per-module copies are safe because 'is' compares the
+    '' ID STRINGS, not the addresses (fb_IsTypeOf, lib/rt/src/oop/istypeof.bas).
+    c.m->globals[g].isInternal = true
     '' 'STDLIBVTABLE' -- null in every shape measured, and nothing fbc emits fills it.
     c.m->PushPtrNull( g )
     c.m->PushPtrGlobal( g, idG )
@@ -126,6 +131,8 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
     dim as long rg = RttiGlobalOf_( c, t )
 
     dim as long g = c.m->AddPtrTable( id )
+    '' Internal for the same reason as the RTTI record above: fbc's 'static void*'.
+    c.m->globals[g].isInternal = true
     '' The two leading words. INFERRED for the first: it is null in every shape
     '' measured and nothing in the C fbc generates ever reads it.
     c.m->PushPtrNull( g )
