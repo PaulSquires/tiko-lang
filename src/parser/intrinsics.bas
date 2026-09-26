@@ -777,13 +777,29 @@ namespace Tko.Parse
 function TypeKeywordCalled _
     ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
-    if Tko.IsTypeKeyword( k ) = false then return false
+    '' ...AND 'typeof( x )' IN A VALUE POSITION, fbc's error 9 as well (3 inside a PRINT list):
+    '' 'print typeof( x )', 'x = typeof( x )', 'if typeof( x ) = typeof( long )'. Measured,
+    '' 2026-09-26. tiko typed nothing for it and printed nothing, or compared two types and
+    '' answered. '#assert' and a call argument are the exceptions -- TypeofArgExpression.
+    if (k <> Tko.KW_TYPEOF) andalso (Tko.IsTypeKeyword( k ) = false) then return false
     select case k
     case Tko.KW_STRING, Tko.KW_WSTRING, Tko.KW_SUB, Tko.KW_FUNCTION
         return false
     end select
     if HasTok( p, p.pos + 1 ) = false then return false
     return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN)
+end function
+
+'' A CALL ARGUMENT, where 'typeof( x )' may stand for a TYPE. 'peek( typeof( b ), pb )',
+'' 'poke( typeof( b ), pb, v )' and 'procptr( s, typeof( t ) )' are fbc's, and tests/mir
+'' writes all three. The argument is parsed exactly as before; only 'typeof' is let through.
+'' A user procedure's argument is let through too, which fbc refuses -- not judged here.
+function TypeofArgExpression( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as boolean saved = p.typeofOk
+    p.typeofOk = true
+    dim as Tko.NodeId e = Expression( p )
+    p.typeofOk = saved
+    return e
 end function
 
 end namespace

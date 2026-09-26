@@ -511,7 +511,7 @@ private function TypeArgCall _
             if (sk2 = Tko.KW_SUB) orelse (sk2 = Tko.KW_FUNCTION) then
                 items.Push( cast( ulong, TypeRef( p ) ) )
             else
-                items.Push( cast( ulong, Expression( p ) ) )
+                items.Push( cast( ulong, TypeofArgExpression( p ) ) )
             end if
         end if
         Expect( p, Tko.TK_RPAREN, ")" )
@@ -626,7 +626,7 @@ function ArgOrElided _
         Advance( p )
         return MakeUnary( p, Tko.KW_BYVAL, bt.loc, Expression( p ) )
     end if
-    return Expression( p )
+    return TypeofArgExpression( p )
 end function
 
 '' Five string intrinsics take a SET of characters rather than a substring, and mark
@@ -1238,11 +1238,11 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         if lam <> Tko.NODE_NONE then return PostfixChain( p, lam )
     end if
 
-    '' TYPEOF belongs with them: its operand may be a TYPE -- '#assert typeof( p ) =
-    '' typeof( any ptr )' is how the corpus asserts a pointer type -- and an expression
-    '' parser reads 'any ptr' as two names and fails on the second.
+    '' TYPEOF belongs with them in '#assert' and a call argument only: '#assert typeof( p ) =
+    '' typeof( any ptr )', 'peek( typeof( b ), pb )'. Where a plain value is wanted fbc refuses
+    '' it (error 9) -- see TypeKeywordCalled and TypeofArgExpression.
     if (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR) orelse _
-       (k = Tko.KW_SIZEOF) orelse (k = Tko.KW_LEN) orelse (k = Tko.KW_TYPEOF) orelse _
+       (k = Tko.KW_SIZEOF) orelse (k = Tko.KW_LEN) orelse ((k = Tko.KW_TYPEOF) andalso p.typeofOk) orelse _
        (k = Tko.KW_CVA_ARG) orelse (k = Tko.KW_PROCPTR) then
         if HasTok( p, p.pos + 1 ) then
             if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then

@@ -1151,7 +1151,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.StmtPayload sp
         if hw = "assert" then
             Advance( p )
-            sp.a = Expression( p )
+            p.typeofOk = true : sp.a = Expression( p ) : p.typeofOk = false
             n = MakeStmt( p, Tko.N_ASSERT, t.loc, sp )
         elseif (hw = "undef") andalso NextTokIs_( p, Tko.TK_IDENT ) then
             n = UndefStmt_( p, t )

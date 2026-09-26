@@ -87,6 +87,9 @@ namespace Tko
         '' an operator legal after a dot, so the member parser only accepts one while
         '' this is set.
         as boolean              inProcPtrArg
+        '' Where 'typeof( x )' may stand for a TYPE: '#assert', which compares types, and a
+        '' call argument -- 'peek( typeof( b ), pb )'. See TypeKeywordCalled.
+        as boolean              typeofOk
         as NodeIdVec            lambdas
         as long                 lambdaSeq
         '' HOW MANY ANONYMOUS NAMESPACES have been opened. 'namespace' with no name
@@ -173,6 +176,7 @@ declare function ArgOrElided _
     '' A type keyword called like a function -- see parser/intrinsics.bas.
     declare function TypeKeywordCalled _
         ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+    declare function TypeofArgExpression( byref p as Tko.ParserState ) as Tko.NodeId
     '' Lives in decltype.bas: a calling convention, and with 'nameless' the
     '' OVERLOAD and ALIAS that may sit where a CONSTRUCTOR's name would be.
     declare function TakeProcPrefix_ _

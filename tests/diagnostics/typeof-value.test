@@ -1,0 +1,15 @@
+'' TKO0400, fbc's 9 (3 in a PRINT list): 'typeof( ... )' where a value is wanted. Type
+'' positions, '#assert' among them, are untouched. See TypeKeywordCalled.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typeof-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typeof-value.bas(8,7): error TKO0400: expected an expression
+'' EXPECT-OUT: typeof-value.bas(9,5): error TKO0400
+'' EXPECT-OUT: typeof-value.bas(10,4): error TKO0400
+'' EXPECT-OUT: typeof-value.bas(11,5): error TKO0400
+'' EXPECT-NOT: typeof-value.bas(13,
+'' EXPECT-NOT: typeof-value.bas(14,
+'' EXPECT-NOT: typeof-value.bas(15,
+'' EXPECT-NOT: typeof-value.bas(16,
+'' EXPECT-NOT: typeof-value.bas(17,
+'' EXPECT-MAX-DIAG: 5
