@@ -288,6 +288,111 @@ int __cdecl vsprintf( char *buffer, char const *format, char *arglist )
     return result < 0 ? -1 : result;
 }
 
+/* printf ITSELF, AND THE REST OF THE FAMILY, were still missing. All are inline in the
+** UCRT headers, as sprintf is, so a program calling them could not be linked on the
+** default Windows target: 'printf' through crt.bi was "undefined symbol: printf", and
+** so were vprintf, vfprintf, vsnprintf, scanf, fscanf and sscanf -- measured by
+** linking one program that calls each. fbc-modern's default target is MinGW's, which
+** exports every one.
+**
+** READ FROM THE SDK (10.0.26100.0, ucrt/stdio.h and corecrt_stdio_config.h), as the
+** shims above were:
+**
+**   printf   -> _vfprintf_l( stdout, ... )  -> __stdio_common_vfprintf( OPTS, ... )
+**   vprintf, vfprintf                       -> the same, unchanged result
+**   vsnprintf                               -> __stdio_common_vsprintf( OPTS |
+**                                   STANDARD_SNPRINTF_BEHAVIOR, ... ), clamped to -1
+**   scanf    -> _vfscanf_l( stdin, ... )    -> __stdio_common_vfscanf( SOPTS, ... )
+**   fscanf, vfscanf, vscanf                 -> the same
+**   sscanf   -> _vsscanf_l                  -> __stdio_common_vsscanf( SOPTS, buffer,
+**                                              (size_t)-1, ... )
+**
+** OPTS and SOPTS are *__local_stdio_printf_options() and *__local_stdio_scanf_options():
+** zero-initialised statics a unit only changes deliberately, so both words are 0 here,
+** as fprintf's is. stdin and stdout are __acrt_iob_func( 0 ) and ( 1 ), exported. */
+struct _iobuf * __cdecl __acrt_iob_func( unsigned index );
+int __cdecl __stdio_common_vfscanf( tkort_u64 options, struct _iobuf *stream,
+                                    char const *format, void *locale, char *arglist );
+int __cdecl __stdio_common_vsscanf( tkort_u64 options, char const *buffer,
+                                    tkort_size count, char const *format,
+                                    void *locale, char *arglist );
+
+/* Builtins every one, declared without <stdio.h> -- see fprintf above. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbuiltin-requires-header"
+int __cdecl vfprintf( struct _iobuf *stream, char const *format, char *arglist )
+{
+    return __stdio_common_vfprintf( 0ull, stream, format, 0, arglist );
+}
+
+int __cdecl vprintf( char const *format, char *arglist )
+{
+    return __stdio_common_vfprintf( 0ull, __acrt_iob_func( 1 ), format, 0, arglist );
+}
+
+int __cdecl printf( char const *format, ... )
+{
+    int result;
+    char *arglist;
+    __builtin_va_start( arglist, format );
+    result = __stdio_common_vfprintf( 0ull, __acrt_iob_func( 1 ), format, 0, arglist );
+    __builtin_va_end( arglist );
+    return result;
+}
+
+int __cdecl vsnprintf( char *buffer, tkort_size count, char const *format, char *arglist )
+{
+    /* 2 is _CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR, as snprintf uses. */
+    int result = __stdio_common_vsprintf( 2ull, buffer, count, format, 0, arglist );
+    return result < 0 ? -1 : result;
+}
+
+int __cdecl vfscanf( struct _iobuf *stream, char const *format, char *arglist )
+{
+    return __stdio_common_vfscanf( 0ull, stream, format, 0, arglist );
+}
+
+int __cdecl vscanf( char const *format, char *arglist )
+{
+    return __stdio_common_vfscanf( 0ull, __acrt_iob_func( 0 ), format, 0, arglist );
+}
+
+int __cdecl vsscanf( char const *buffer, char const *format, char *arglist )
+{
+    return __stdio_common_vsscanf( 0ull, buffer, (tkort_size)-1, format, 0, arglist );
+}
+
+int __cdecl fscanf( struct _iobuf *stream, char const *format, ... )
+{
+    int result;
+    char *arglist;
+    __builtin_va_start( arglist, format );
+    result = __stdio_common_vfscanf( 0ull, stream, format, 0, arglist );
+    __builtin_va_end( arglist );
+    return result;
+}
+
+int __cdecl scanf( char const *format, ... )
+{
+    int result;
+    char *arglist;
+    __builtin_va_start( arglist, format );
+    result = __stdio_common_vfscanf( 0ull, __acrt_iob_func( 0 ), format, 0, arglist );
+    __builtin_va_end( arglist );
+    return result;
+}
+
+int __cdecl sscanf( char const *buffer, char const *format, ... )
+{
+    int result;
+    char *arglist;
+    __builtin_va_start( arglist, format );
+    result = __stdio_common_vsscanf( 0ull, buffer, (tkort_size)-1, format, 0, arglist );
+    __builtin_va_end( arglist );
+    return result;
+}
+#pragma clang diagnostic pop
+
 /* hypotf IS NOT SHIM WORK OF THE SAME KIND: ucrtbase.dll DOES have it, under the name
 ** _hypotf, exactly as time and localtime are _time64 and _localtime64 up above. Checked
 ** against the DLL's own export table rather than assumed -- the header already records

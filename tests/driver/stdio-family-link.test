@@ -1,0 +1,8 @@
+'' THE UCRT's INLINE stdio FUNCTIONS LINK on win64-msvc: printf, vprintf, vfprintf,
+'' vsnprintf, scanf, fscanf and sscanf were each "undefined symbol" there. The runtime is
+'' the one THIS TREE built (lib/rt/lib/win64-msvc), ahead of the packaged toolchain's.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc -p lib/rt/lib/win64-msvc tests/driver/src/stdio-family.bas -o tests/driver/stdiofamily.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/stdiofamily.exe

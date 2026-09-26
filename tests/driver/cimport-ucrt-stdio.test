@@ -1,0 +1,11 @@
+'' ON win64-msvc THE printf FAMILY IS INLINE IN THE UCRT's stdio.h, with no symbol in
+'' ucrtbase.dll, and the importer skipped it as having nothing to link: 'printf' after
+'' '#cinclude once "stdio.h"' was TKO0743. tiko-rt now defines these (msvccrt.c), and the
+'' importer declares them. See NoSymbol_ in src/cimport/decls.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc -cimport tests/driver/src/ucrt-stdio.h -cimport-out -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare function printf cdecl alias "printf"
+'' EXPECT-OUT: declare function sscanf cdecl alias "sscanf"
+'' EXPECT-OUT: declare function vsnprintf cdecl alias "vsnprintf"
+'' EXPECT-OUT: declare function puts cdecl alias "puts"

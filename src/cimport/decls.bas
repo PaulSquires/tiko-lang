@@ -30,7 +30,19 @@ end sub
 '' fbc-modern's choice, and a sensible one: a static function is not part of an interface.
 private function NoSymbol_( byref x as CImp, byval c as CXCursor ) as boolean
     if x.api->Cursor_getStorageClass( c ) = CX_SC_Static then return true
-    return (x.api->Cursor_isFunctionInlined( c ) <> 0)
+    if x.api->Cursor_isFunctionInlined( c ) = 0 then return false
+    '' ...EXCEPT THE stdio FUNCTIONS THE UCRT DEFINES INLINE AND tiko-rt PROVIDES. On
+    '' win64-msvc 'printf' after '#cinclude once "stdio.h"' was TKO0743, not declared: the
+    '' SDK's stdio.h defines the whole family in the header, over __stdio_common_*, with no
+    '' symbol in ucrtbase.dll. lib/rt/src/c/msvccrt.c defines each of these; glibc and
+    '' MinGW export every one anyway, so there is no target in which the name is unlinkable.
+    select case CursorName( x, c )
+    case "printf", "vprintf", "fprintf", "vfprintf", "sprintf", "vsprintf", _
+         "snprintf", "vsnprintf", "scanf", "vscanf", "fscanf", "vfscanf", _
+         "sscanf", "vsscanf"
+        return false
+    end select
+    return true
 end function
 
 '' ---------------------------------------------------------------- pass 1: names
