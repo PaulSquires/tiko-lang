@@ -358,6 +358,60 @@ end function
 
 '' IS THIS ARGUMENT A USTRING -- typed one, or a concatenation Check types STRING that
 '' holds a ustring term?
+'' 'string( n, x )' AND 'wstring( n, x )': x IS A CHARACTER CODE OR A STRING OF THE CALL'S OWN
+'' WIDTH. Measured on fbc-modern 1.20, 2026-09-26 -- error 58, "Type mismatch, at parameter
+'' 2", for each of these, and every other pairing accepted:
+''
+''     wstring( 3, "a" ), wstring( 3, s ), wstring( 3, z ), wstring( 3, u )
+''     string( 3, w ), string( 3, u )
+''
+'' over a string s, a 'zstring * 8' z, a ustring u and a 'wstring * 8' w. tiko took every
+'' one: 'wstring( 3, "a" )' printed three backquotes -- the literal's first two BYTES read as
+'' one wide character -- and the rest printed nothing. A UDT and an operand with no type are
+'' not judged, and neither is an escaped literal, which a '\u' escape can make wide.
+private sub CheckStrRepeatArg_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->count <> 2) orelse (lp->target = NODE_NONE) then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as string nm = lcase( c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+    if (nm <> "string") andalso (nm <> "wstring") then return
+    dim as NodeId x = Unparen3_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
+    if x = NODE_NONE then return
+    dim as boolean isLit = (c.ast->Kind( x ) = N_STRING_LIT)
+    if isLit then
+        dim as LiteralPayload ptr xlp = @c.ast->literals[cast( long, c.ast->nodes[cast( long, x )].data )]
+        if xlp->strKind = cast( ubyte, STRK_ESCAPED ) then return
+    else
+        dim as TypeId xt = c.info->TypeOf_( x )
+        if xt = TYPE_NONE then return
+        xt = c.types->Unqualify( xt )
+        if c.types->Kind( xt ) = TK_REFERENCE then xt = c.types->Unqualify( c.types->Inner( xt ) )
+        if c.types->Kind( xt ) = TK_UDT then return
+    end if
+    dim as boolean isU = ExprHasStrKind_( c, x, false )
+    dim as boolean isW = ExprIsWide_( c, x )
+    dim as boolean isN = isLit
+    if isN = false then
+        select case StrTermBt_( c, x )
+        case TY_STRING, TY_ZSTRING, TY_FIXSTR
+            isN = (isU = false) andalso (isW = false)
+        end select
+    end if
+    dim as string what = ""
+    if isU then
+        what = "a ustring"
+    elseif (nm = "string") andalso isW then
+        what = "a wide string"
+    elseif (nm = "wstring") andalso isN then
+        what = "a narrow string"
+    end if
+    if len( what ) = 0 then return
+    c.diags->Report( TKO0832, PointRange( c.ast->Loc( x ) ), nm, _
+                     iif( nm = "string", "narrow", "wide" ), what )
+end sub
+
 private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
     dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
     if bt = TY_USTRING then return true

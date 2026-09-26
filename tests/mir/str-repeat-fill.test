@@ -1,0 +1,10 @@
+'' Every x fbc accepts in 'string( n, x )' and 'wstring( n, x )' is accepted and lowers --
+'' see the source's header and lowerradix.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/str-repeat-fill.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_WstrFill2(
+'' EXPECT-OUT: fb_WstrFill1(
+'' EXPECT-OUT: fb_StrFill2(
+'' EXPECT-NOT: TKO0832

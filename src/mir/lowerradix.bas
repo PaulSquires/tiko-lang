@@ -70,7 +70,9 @@ function LowerRadixCall_ _
         '' are both 21 to fbc.
         dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)
         if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
-        if fillWide then isStr = IsWideString_( c, c.info->TypeOf_( a1 ) )
+        '' ...AND A WIDE CONCATENATION IS A WIDE FILL, though Check types every '&' STRING:
+        '' 'wstring( 3, w & "x" )' took the numeric branch and declined -- fbc prints WWW.
+        if fillWide then isStr = IsWideString_( c, c.info->TypeOf_( a1 ) ) orelse ConcatHasWideTerm_( c, a1 )
         dim as MirValue fv
         if isStr then
             if fillWide then

@@ -1,0 +1,14 @@
+'' TKO0832, fbc's 58: 'string( n, x )' and 'wstring( n, x )' over a string of the other width
+'' or a ustring. See CheckStrRepeatArg_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/str-repeat-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: str-repeat-arg.bas(13,18): error TKO0832: 'wstring( n, x )' takes a character code or a wide string as x, not a narrow string
+'' EXPECT-OUT: str-repeat-arg.bas(14,18): error TKO0832
+'' EXPECT-OUT: str-repeat-arg.bas(15,18): error TKO0832
+'' EXPECT-OUT: str-repeat-arg.bas(16,18): error TKO0832: 'wstring( n, x )' takes a character code or a wide string as x, not a ustring
+'' EXPECT-OUT: str-repeat-arg.bas(17,18): error TKO0832
+'' EXPECT-OUT: str-repeat-arg.bas(18,17): error TKO0832: 'string( n, x )' takes a character code or a narrow string as x, not a wide string
+'' EXPECT-OUT: str-repeat-arg.bas(19,17): error TKO0832
+'' EXPECT-OUT: str-repeat-arg.bas(20,17): error TKO0832
+'' EXPECT-MAX-DIAG: 8
