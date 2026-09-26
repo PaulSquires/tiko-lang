@@ -1,0 +1,10 @@
+'' A TUPLE ELEMENT OF A TYPE THAT EXTENDS 'wstring', and one CONVERTED by the element's
+'' 'operator let'. Both initialisers lower, and the 'let' taking a long is called once --
+'' for the conversion -- and not, with an address, for the same-type element. See the
+'' source's header and LowerUdtParenInit_ in mir/lowerudtlit.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/tuple-udt-let.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _ZN1VaSEi(%31, %32)
+'' EXPECT-NOT: _ZN1VaSEi(%10, @$tmp3)

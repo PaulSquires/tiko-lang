@@ -233,6 +233,28 @@ private function UdtFieldAt_ _
     return false
 end function
 
+'' THE UDT ELEMENT a value of another type lands on, when that element converts through
+'' its own 'operator let' -- the OUTERMOST UDT starting at 'off' that declares one, or
+'' TYPE_NONE. A tuple declares none, so '( ( k, 1 ), 2 )' finds the element inside it.
+private function LetFieldAt_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval off as long, _
+      byval vt as Tko.TypeId, byval depth as long ) as Tko.TypeId
+    if depth > 8 then return Tko.TYPE_NONE
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return Tko.TYPE_NONE
+    for i as long = 0 to c.udts->udts[ui].count - 1
+        dim as Tko.UdtField ptr fld = @c.udts->fields[c.udts->udts[ui].first + i]
+        if (fld->offset > off) orelse (c.types->Kind( fld->type_ ) <> Tko.TK_UDT) then continue for
+        dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
+        if off >= fld->offset + SizeOfType( c, ft ) then continue for
+        if (fld->offset = off) andalso (ft <> c.types->Unqualify( vt )) then
+            if StructorOf( c, ft, "let" ) <> Tko.SYMBOL_NONE then return ft
+        end if
+        return LetFieldAt_( c, ft, off - fld->offset, vt, depth + 1 )
+    next
+    return Tko.TYPE_NONE
+end function
+
 '' The destination is a SLOT or, for an ARRAY ELEMENT, an ADDRESS -- selfv. An element
 '' of a brace initialiser has no slot of its own, and building the object in a
 '' temporary of ITS OWN inferred type instead is how '{ ( 7, 8, 9 ) }' over a
@@ -515,6 +537,10 @@ function LowerUdtParenInit_ _
     dim as FB.Array( of ulong ) cNode
     dim as FB.Array( of ulong ) cOff
     dim as FB.Array( of ulong ) cTy
+    '' ...AND AN ELEMENT CONVERTED BY ITS 'operator let' -- see the record site.
+    dim as FB.Array( of ulong ) lNode
+    dim as FB.Array( of ulong ) lOff
+    dim as FB.Array( of ulong ) lTy
     for i as long = 0 to vCount - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
         if cur >= fCount then return false
@@ -530,6 +556,26 @@ function LowerUdtParenInit_ _
                 if c.types->Kind( wt ) = Tko.TK_UDT then wholeUdt = UdtFieldAt_( c, t, cast( long, fOff[cur] ), wt, 0 )
             end if
         end scope
+        '' A VALUE OF ANOTHER TYPE LANDING ON A UDT ELEMENT is converted by that element's
+        '' 'operator let', over the element the temporary's constructor has already built.
+        '' Measured on fbc-modern 1.20, 2026-09-25, over '( k, true )' into '(V, boolean)':
+        '' "ctor let(-1<- 6)" -- constructed, then let -- and error 181 when V has no 'let'
+        '' taking k. 'return ( wszKLID, bRes )' out of a function 'as (DVARIANT, BOOLEAN)'
+        '' is that: DVARIANT's let from a wstring. tiko stored the wstring's bytes into the
+        '' element's first leaf, and the element came out empty.
+        if wholeUdt = false then
+            dim as Tko.TypeId lft = LetFieldAt_( c, t, cast( long, fOff[cur] ), c.info->TypeOf_( e ), 0 )
+            if lft <> Tko.TYPE_NONE then
+                lNode.Push( cast( ulong, e ) )
+                lOff.Push( fOff[cur] )
+                lTy.Push( cast( ulong, lft ) )
+                dim as long lend = cast( long, fOff[cur] ) + SizeOfType( c, lft )
+                while (cur < fCount) andalso (cast( long, fOff[cur] ) < lend)
+                    cur += 1
+                wend
+                continue for
+            end if
+        end if
         if (wholeUdt = false) andalso IsStringType( c, cast( Tko.TypeId, fFt[cur] ) ) then
             sNode.Push( cast( ulong, e ) )
             sOff.Push( fOff[cur] )
@@ -708,7 +754,13 @@ function LowerUdtParenInit_ _
         '' COPY CONSTRUCTOR over it as well constructs the same field twice and
         '' destroys it once, which is a leak of exactly one object per element and
         '' what the corpus's 'ctors = dtors' was still short by.
-        dim as Tko.SymbolId ulet = StructorOf( c, cast( Tko.TypeId, cTy[i] ), "let" )
+        '' ...THE 'let' THAT TAKES THIS TYPE, chosen as every other 'let' is, and not the
+        '' first one declared: over a type whose only 'let' converts from a long, the
+        '' object's ADDRESS was passed as that long -- '_ZN1VaSEi( dst, @$tmp )' -- and
+        '' the element came out as garbage (tests/mir/src/tuple-udt-let.bas, S1).
+        dim as FB.Array( of ulong ) culT
+        culT.Push( cTy[i] )
+        dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, cast( Tko.TypeId, cTy[i] ), "let" ), culT )
         if ulet <> Tko.SYMBOL_NONE then
             dim as FB.Array( of ulong ) ulargs
             ulargs.Push( cast( ulong, csrcv.kind ) )
@@ -726,6 +778,25 @@ function LowerUdtParenInit_ _
         else
             CallImplicitCopy_( c, cast( Tko.TypeId, cTy[i] ), cdstv, csrcv )
         end if
+    next
+
+    '' ...AND THE ELEMENTS CONVERTED BY 'operator let', through the element's address.
+    '' LowerUserLetConv_ picks the overload and passes the argument as its parameter asks.
+    for i as long = 0 to cast( long, lOff.Count ) - 1
+        dim as MirInst lfa
+        lfa.op = cast( ushort, M_FIELD_ADDR )
+        lfa.ty = cast( ubyte, MT_PTR )
+        lfa.a = base_
+        lfa.imm = cast( long, lOff[i] )
+        dim as MirValue laddr = Emit( c, lfa )
+        if laddr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long lps = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        if lps < 0 then return false
+        dim as MirValue lpv
+        lpv.kind = cast( ubyte, MV_LOCAL ) : lpv.ty = cast( ubyte, MT_PTR ) : lpv.id = lps
+        StoreThrough( c, lpv, laddr )
+        if LowerUserLetConv_( c, Tko.NODE_NONE, cast( Tko.TypeId, lTy[i] ), _
+                              cast( Tko.NodeId, lNode[i] ), lps ) = false then return false
     next
 
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
@@ -779,6 +850,20 @@ function FlattenUdtFields_ _
         dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         if fld->bitWidth <> 0 then return false
         dim as MirType fmt = LowerType( fld->type_, *c.types )
+        '' A BUILTIN STRING BASE IS NO LEAF. 'type DVARIANT extends wstring' has a BASE of
+        '' the unsized builtin 'wstring', which takes no room in the layout (--dump-udt puts
+        '' the next field at the same offset) and lowers to no MIR type -- so it failed the
+        '' flatten below, and with it every initialiser of a tuple or UDT holding such a
+        '' type: 'dim as (V, boolean) t = ( V( 1 ), true )', and 'return ( wszKLID, bRes )'
+        '' out of a function 'as (DVARIANT, BOOLEAN)', stored NOTHING and counted "1
+        '' statements not lowered". fbc-modern stores both. An unsized zstring or wstring
+        '' is only ever a base: a field of one is written '* N', which is an array.
+        if (fmt = MT_VOID) andalso (c.types->Kind( fld->type_ ) = Tko.TK_BUILTIN) then
+            select case c.types->BuiltinOf( fld->type_ )
+            case Tko.TY_WSTRING, Tko.TY_ZSTRING
+                continue for
+            end select
+        end if
         if fmt = MT_AGG then
             '' A FIXED ARRAY FIELD CONTRIBUTES ITS ELEMENTS, one leaf each. Measured:
             '' 'as ubyte d4( 0 to 7 )' initialised from '{ &hC0, 0, ... }' is eight byte
