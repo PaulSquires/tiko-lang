@@ -1,0 +1,19 @@
+function Sieve( byval n as long ) as long
+    dim flags( 0 to n ) as ubyte
+    dim as long count = 0
+    for i as long = 2 to n
+        if flags( i ) = 0 then
+            count += 1
+            for j as longint = clng( i ) * i to n step i
+                flags( j ) = 1
+            next
+        end if
+    next
+    return count
+end function
+dim as double t0 = timer
+dim as long c = 0
+for k as long = 1 to 20
+    c = Sieve( 10000000 )
+next
+print c; timer - t0
