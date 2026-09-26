@@ -412,6 +412,211 @@ private sub CheckStrRepeatArg_ ( byref c as Ctx, byval id as NodeId )
                      iif( nm = "string", "narrow", "wide" ), what )
 end sub
 
+'' '#assert' OVER TYPES AND SIZES. Resolve judges the condition when it folds as plain
+'' numbers (TKO0604 there), but it cannot see a layout or compare two types, so a false
+'' '#assert sizeof( long ) = 8' or '#assert typeof( x ) = typeof( byte )' passed in silence.
+'' Measured on fbc-modern 1.20, 2026-09-26 -- error 308 for each of these over a long x, a
+'' 'long ptr' p and a three-long UDT T, and every true twin accepted:
+''
+''     sizeof( long ) = 8            sizeof( T ) = 8           typeof( x ) = typeof( byte )
+''     typeof( x ) <> typeof( long )  typeof( x ) = typeof( integer )
+''     typeof( p ) = typeof( any ptr )  typeof( x ) = typeof( const long )
+''
+'' So typeof equality is the TYPE ITSELF -- const and all, and 'integer' is not 'long' --
+'' and sizeof is the layout. Judged here, after Check, and ONLY when the condition asks one
+'' of those questions: a plain one is Resolve's, and asking it again would report it twice.
+'' A leaf this cannot read leaves the condition unknown, and unknown is silent: a named
+'' constant, a string's len, and a UDT's size, which TypeContext.Layout does not know yet --
+'' so '#assert sizeof( T ) = 8' over a 12-byte T still passes.
+private function AssertOperandType_ ( byref c as Ctx, byval n as NodeId ) as TypeId
+    n = Unparen3_( c, n )
+    if n = NODE_NONE then return TYPE_NONE
+    if (c.ast->Kind( n ) = N_IDENT) orelse (c.ast->Kind( n ) = N_MEMBER) then
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if s <> 0 then
+            if ((s->kind = cast( ubyte, SYM_UDT )) orelse (s->kind = cast( ubyte, SYM_TYPEDEF ))) then return s->type_
+        end if
+    end if
+    return c.info->TypeOf_( n )
+end function
+
+'' 'typeof( x )', 'sizeof( x )' or 'len( x )' -- the intrinsic, not a user procedure of the name.
+private function AssertIntrinsic_ _
+    ( byref c as Ctx, byval n as NodeId, byref nm as string, byref ot as TypeId, _
+      byref isType as boolean ) as boolean
+    n = Unparen3_( c, n )
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_CALL) then return false
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+    if (lp->count <> 1) orelse (lp->target = NODE_NONE) then return false
+    if c.ast->Kind( lp->target ) <> N_IDENT then return false
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
+    nm = lcase( c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+    if (nm <> "typeof") andalso (nm <> "sizeof") andalso (nm <> "len") then return false
+    dim as NodeId a = Unparen3_( c, cast( NodeId, c.ast->children[lp->first] ) )
+    '' A NAMED CONSTANT IS NOT READ: 'const s = "a"' is 'zstring * 2' to fbc's typeof and
+    '' sizeof, and tiko types it otherwise -- fbc's const/const-decl.bas asserts exactly that.
+    dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( a ) )
+    if cs <> 0 then
+        if cs->kind = cast( ubyte, SYM_CONSTANT ) then return false
+    end if
+    '' ...AND ONLY A TYPE, OR A NAME: an expression's type is not always fbc's --
+    '' 'sizeof( "ab" )' is 3 to fbc, its bytes and the NUL, and Resolve already folds it.
+    select case c.ast->Kind( a )
+    case N_TYPEREF, N_IDENT, N_MEMBER
+    case else
+        return false
+    end select
+    isType = (c.ast->Kind( a ) = N_TYPEREF)
+    if isType = false then
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+        if s <> 0 then isType = ((s->kind = cast( ubyte, SYM_UDT )) orelse (s->kind = cast( ubyte, SYM_TYPEDEF )))
+    end if
+    ot = AssertOperandType_( c, a )
+    return (ot <> TYPE_NONE)
+end function
+
+'' The SIZE sizeof or len answers at compile time, or -1. A string's len is its contents, and
+'' an array's size is not asked; a fixed-length string is its buffer.
+private function AssertSize_ _
+    ( byref c as Ctx, byref nm as string, byval t as TypeId, byval isType as boolean ) as longint
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    dim as boolean fixedStr = (Tko.Check.FixedStringElem( u, *c.types ) <> TYPE_NONE)
+    if (c.types->Kind( u ) = TK_ARRAY) andalso (fixedStr = false) then return -1
+    if nm = "len" then
+        if fixedStr then return -1
+        if c.types->Kind( u ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( u )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING : return -1
+            end select
+        end if
+        if (isType = false) andalso (c.types->Kind( u ) = TK_UDT) then return -1
+    end if
+    dim as long sz = c.types->Layout( u ).size
+    if sz <= 0 then return -1
+    return sz
+end function
+
+'' A TYPE WHOSE IDENTITY tiko HOLDS AS fbc DOES: a number or a boolean, const or not; a
+'' UDT or an enum; a pointer to one of those. Everything else is left unjudged, each for a
+'' measured reason -- fbc's own suite asserts all four, and tiko's types disagree:
+''
+''     typeof( globalarray ) = typeof( string )          an array is its ELEMENT to typeof
+''     typeof( rz ) = typeof( zstring )                  a byref parameter is its referent
+''     typeof( s ) = typeof( zstring * 2 )               a string constant, a string at all
+''     typeof( sub cdecl( ) ) <> typeof( sub( ) )        a procedure type's calling convention
+private function AssertTypeJudged_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    for guard as long = 0 to 15
+        dim as TypeId u = c.types->Unqualify( t )
+        select case c.types->Kind( u )
+        case TK_POINTER
+            t = c.types->Inner( u )
+        case TK_UDT, TK_ENUM
+            return true
+        case TK_BUILTIN
+            select case c.types->BuiltinOf( u )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR, TY_ANY
+                '' 'any' only as a POINTEE: 'typeof( p ) = typeof( any ptr )' is measured.
+                return (c.types->BuiltinOf( u ) = TY_ANY) andalso (guard > 0)
+            end select
+            return true
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
+private function AssertEval_ _
+    ( byref c as Ctx, byval n as NodeId, byref v as longint, byref typed as boolean, _
+      byval depth as long ) as boolean
+    if depth > 32 then return false
+    n = Unparen3_( c, n )
+    if n = NODE_NONE then return false
+    dim as string nm
+    dim as TypeId ot
+    dim as boolean isType
+    select case c.ast->Kind( n )
+    case N_INT_LIT
+        v = c.ast->literals[cast( long, c.ast->nodes[cast( long, n )].data )].intValue
+        return true
+    case N_CALL
+        if AssertIntrinsic_( c, n, nm, ot, isType ) = false then return false
+        if nm = "typeof" then return false
+        v = AssertSize_( c, nm, ot, isType )
+        if v < 0 then return false
+        typed = true
+        return true
+    case N_UNARY
+        dim as UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as longint uv
+        if AssertEval_( c, up->operand, uv, typed, depth + 1 ) = false then return false
+        select case cast( TokenKind, up->op )
+        case TK_MINUS : v = -uv
+        case TK_PLUS  : v = uv
+        case KW_NOT   : v = not uv
+        case else     : return false
+        end select
+        return true
+    case N_BINARY
+        dim as BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as TokenKind op = cast( TokenKind, bp->op )
+        '' TWO TYPES COMPARED: the same type, exactly, or not.
+        if (op = TK_EQ) orelse (op = TK_NE) then
+            dim as string ln, rn
+            dim as TypeId lt, rt
+            dim as boolean li, ri
+            if AssertIntrinsic_( c, bp->lhs, ln, lt, li ) andalso AssertIntrinsic_( c, bp->rhs, rn, rt, ri ) then
+                if (ln = "typeof") andalso (rn = "typeof") andalso AssertTypeJudged_( c, lt ) andalso _
+                   AssertTypeJudged_( c, rt ) then
+                    v = iif( (lt = rt) = (op = TK_EQ), -1, 0 )
+                    typed = true
+                    return true
+                end if
+            end if
+        end if
+        dim as longint a, b
+        if AssertEval_( c, bp->lhs, a, typed, depth + 1 ) = false then return false
+        if AssertEval_( c, bp->rhs, b, typed, depth + 1 ) = false then return false
+        select case op
+        case TK_PLUS  : v = a + b
+        case TK_MINUS : v = a - b
+        case TK_STAR  : v = a * b
+        case TK_BACKSLASH, TK_SLASH
+            if b = 0 then return false
+            v = a \ b
+        case KW_MOD
+            if b = 0 then return false
+            v = a mod b
+        case TK_EQ : v = iif( a = b, -1, 0 )
+        case TK_NE : v = iif( a <> b, -1, 0 )
+        case TK_LT : v = iif( a < b, -1, 0 )
+        case TK_GT : v = iif( a > b, -1, 0 )
+        case TK_LE : v = iif( a <= b, -1, 0 )
+        case TK_GE : v = iif( a >= b, -1, 0 )
+        case KW_AND : v = a and b
+        case KW_OR  : v = a or b
+        case KW_XOR : v = a xor b
+        case KW_ANDALSO : v = iif( (a <> 0) andalso (b <> 0), -1, 0 )
+        case KW_ORELSE  : v = iif( (a <> 0) orelse (b <> 0), -1, 0 )
+        case else : return false
+        end select
+        return true
+    end select
+    return false
+end function
+
+private sub CheckAssertTypes_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->a = NODE_NONE then return
+    dim as longint v
+    dim as boolean typed = false
+    if AssertEval_( c, sp->a, v, typed, 0 ) = false then return
+    if typed = false then return
+    if v = 0 then c.diags->Report( TKO0604, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
     dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
     if bt = TY_USTRING then return true

@@ -1,0 +1,14 @@
+'' TKO0604, fbc's 308: a false '#assert' over types or sizes. See CheckAssertTypes_ in
+'' symbols/latesweeps4.bas. Line 33 is fbc's 308 too, and is not judged: a UDT's size is not
+'' known there -- when it is, this test gains a line.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/assert-types.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: assert-types.bas(17,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-types.bas(18,1): error TKO0604
+'' EXPECT-OUT: assert-types.bas(19,1): error TKO0604
+'' EXPECT-OUT: assert-types.bas(20,1): error TKO0604
+'' EXPECT-OUT: assert-types.bas(21,1): error TKO0604
+'' EXPECT-OUT: assert-types.bas(22,1): error TKO0604
+'' EXPECT-OUT: assert-types.bas(23,1): error TKO0604
+'' EXPECT-MAX-DIAG: 7
