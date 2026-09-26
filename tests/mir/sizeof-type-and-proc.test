@@ -1,0 +1,10 @@
+'' A NAME THAT IS A TYPE AND A PROCEDURE, under 'sizeof' and 'len', is the type -- see
+'' LenOperandPrefix_ in symbols/resolveintr.bas and the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sizeof-type-and-proc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: %4 = const i64 2
+'' EXPECT-OUT: %5 = const i64 2
+'' EXPECT-OUT: %8 = const i64 12
+'' EXPECT-NOT: TKO0776

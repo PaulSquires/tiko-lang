@@ -152,6 +152,18 @@ private sub LenOperandPrefix_ _
     '' is parsed as an expression, so it is not a type reference and needs asking here.
     dim as Tko.NodeId op0 = cast( Tko.NodeId, c.ast->children[lp->first] )
     if c.ast->Kind( op0 ) = Tko.N_IDENT then GenericArgsCheck_( c, op0, c.info->RefOf( op0 ), 0 )
+    '' A NAME THAT IS BOTH A TYPE AND A PROCEDURE IS THE TYPE HERE. windows.bi's commdlg.bi
+    '' declares 'type PRINTDLGW as tagPDW' and 'function PrintDlgW( ... )', and names do
+    '' not have case, so 'sizeof( PRINTDLGW )' was bound to the function and refused as a
+    '' call missing its argument (TKO0776). Measured on fbc-modern 1.20, 2026-09-26: 120,
+    '' the struct, for 'sizeof' and 'len' alike -- and 2 for 'sizeof( foo )' over 'type FOO
+    '' as short' beside a 'function foo( ) as double', so the type wins even where the
+    '' call would be well-formed.
+    if c.ast->Kind( op0 ) <> Tko.N_IDENT then return
+    dim as Tko.Symbol ptr ops = c.syms->SymbolAt( c.info->RefOf( op0 ) )
+    if (ops = 0) orelse (ops->kind <> cast( ubyte, Tko.SYM_PROC )) then return
+    dim as Tko.SymbolId ots = c.syms->LookupTyped( scope_, IdentNameOf( c, op0 ), true )
+    if ots <> Tko.SYMBOL_NONE then c.info->SetRef( op0, ots )
 end sub
 
 #include once "symbols/resolvertl.bas"
