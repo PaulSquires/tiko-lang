@@ -1,0 +1,18 @@
+'' TKO0831, fbc's 24 and 181: a tuple element that cannot take its value. fbc-modern 1.20
+'' refuses exactly the lines marked X in the source. See symbols/tupleconv.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/tuple-elem-convert.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tuple-elem-convert.bas(26,
+'' EXPECT-OUT: tuple-elem-convert.bas(30,
+'' EXPECT-OUT: tuple-elem-convert.bas(32,
+'' EXPECT-OUT: tuple-elem-convert.bas(33,
+'' EXPECT-OUT: tuple-elem-convert.bas(34,
+'' EXPECT-OUT: tuple-elem-convert.bas(36,
+'' EXPECT-NOT: tuple-elem-convert.bas(27,
+'' EXPECT-NOT: tuple-elem-convert.bas(28,
+'' EXPECT-NOT: tuple-elem-convert.bas(29,
+'' EXPECT-NOT: tuple-elem-convert.bas(31,
+'' EXPECT-NOT: tuple-elem-convert.bas(35,
+'' EXPECT-NOT: tuple-elem-convert.bas(37,
+'' EXPECT-MAX-DIAG: 6

@@ -3,6 +3,7 @@
 '' Split out of visibility.bas at the 1500-line lint cap and included from it, inside its
 '' namespace, after the helpers it calls (DerivesFrom_, BaseOf_) and before Walk_.
 
+#include once "symbols/tupleconv.bas"
 #include once "symbols/ptrwarn.bas"
 
 '' A DERIVED POINTER DOES NOT TAKE A BASE ONE -- fbc error 181. The conversion goes ONE
@@ -119,6 +120,9 @@ private sub CheckPtrAssign_ _
     '' 'function = expr' -- Check leaves the result untyped; the walk carries its type.
     if (lt = TYPE_NONE) andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then lt = resultType
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if sp->op = cast( ushort, TK_EQ ) then
+        if TupleConvBad_( c, lt, sp->b, 0 ) then return  '' tupleconv.bas
+    end if
     if ConstDropped_( c, lt, rt ) then
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
         return
@@ -138,6 +142,7 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId lt = c.info->TypeOf_( ip->a )
     dim as TypeId rt = c.info->TypeOf_( ip->b )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if TupleConvBad_( c, lt, ip->b, 0 ) then return  '' tupleconv.bas
     if ConstDropped_( c, lt, rt ) then
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
         return

@@ -324,5 +324,6 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     if c.types->Kind( resultType ) = TK_REFERENCE then return
     dim as NodeId e = c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )].a
     if e = NODE_NONE then return
+    if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.bas
     PtrWarn_( c, id, resultType, c.info->TypeOf_( e ), e )
 end sub

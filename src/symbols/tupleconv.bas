@@ -1,0 +1,196 @@
+'' tupleconv.bas -- A TUPLE ELEMENT THAT CANNOT TAKE ITS VALUE: fbc's errors 24 and 181.
+''
+'' Included from assigncheck.bas, which is included from visibility.bas, inside its
+'' namespace, after BaseOf_, DerivesFrom_ and StructorOf_.
+''
+'' A tuple literal fills its elements one by one, and fbc refuses a value an element
+'' cannot take -- error 24 in a declaration's initialiser, 181 in an assignment or a
+'' 'return'. Measured on fbc-modern 1.20, 2026-09-25, over '( value, true )':
+''
+''     element V, which NEEDS CONSTRUCTING       a long, a string, 0, a W    refused
+''       -- a constructor of its own, a string    a V, or a type derived from V  accepted
+''       field, or 'extends object' --            a long, V with 'let' from long  accepted
+''     element V with only a destructor, or only an 'operator cast', or neither:
+''       a plain type                             a long                      accepted
+''     element string                             a number                    refused
+''     element long                               a string                    refused
+''     element boolean, double                    a number, a boolean         accepted
+''
+'' So a type that needs constructing takes another type's value only through its own
+'' 'operator let' -- which is how mir/lowerudtlit.bas converts one -- and a string and a
+'' number do not convert into each other. tiko accepted every one of these. A constructor
+'' from the value's type is NOT enough: 'constructor( byval x as long )' and no 'let' is
+'' refused. And the 'let' has to TAKE the value: a string into a type whose only 'let' is
+'' from a long is refused too (fbc's 7 there).
+
+'' Is this a tuple -- the kind, or the synthesized name Check gives one?
+private function TcTuple_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_TUPLE then return true
+    if c.types->Kind( t ) <> TK_UDT then return false
+    dim as InternId nm = c.types->NameOf( t )
+    if nm = 0 then return false
+    dim as string h = left( c.names->Spelling( nm ), 1 )
+    return (h = "(") orelse (h = "$") orelse (h = "~")
+end function
+
+'' Does a UDT need constructing: a constructor of its own, a vtable, or a field that does?
+private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth as long ) as boolean
+    if depth > 8 then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> TK_UDT then return false
+    if StructorOf_( c, t, "__ctor" ) <> 0 then return true
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return false
+    if lcase( c.names->Spelling( tn ) ) = "object" then return true
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return false
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if f->kind = cast( ubyte, SYM_FIELD ) then
+            dim as TypeId ft = c.types->Unqualify( f->type_ )
+            if c.types->IsDynArray( ft ) then return true
+            if c.types->Kind( ft ) = TK_BUILTIN then
+                select case c.types->BuiltinOf( ft )
+                case TY_STRING, TY_USTRING : return true
+                end select
+            end if
+            if TcNeedsCtor_( c, ft, depth + 1 ) then return true
+        end if
+        cur = f->nextInScope
+    next
+    return false
+end function
+
+'' A string, of any kind -- a fixed-length one is an array of the character.
+private function TcString_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_ARRAY then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR : return true
+    end select
+    return false
+end function
+
+private function TcNumber_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_ENUM then return true
+    if c.types->Kind( t ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, TY_INTEGER, TY_UINTEGER, _
+         TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE, TY_BOOLEAN
+        return true
+    end select
+    return false
+end function
+
+'' Can a parameter of type 'pt' take a value of type 'vu'? The same two rules, and a UDT
+'' parameter takes its own type or one derived from it.
+private function TcParamTakes_ ( byref c as Ctx, byval pt as TypeId, byval vu as TypeId ) as boolean
+    pt = c.types->Unqualify( pt )
+    if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+    if (pt = TYPE_NONE) orelse (pt = vu) then return true
+    if TcString_( c, pt ) andalso TcNumber_( c, vu ) then return false
+    if TcNumber_( c, pt ) andalso TcString_( c, vu ) then return false
+    if c.types->Kind( pt ) = TK_UDT then
+        if c.types->Kind( vu ) <> TK_UDT then return false
+        return DerivesFrom_( c, vu, pt )
+    end if
+    return true
+end function
+
+'' Does one of the type's 'operator let' overloads take a value of type 'vu'?
+private function TcLetTakes_ ( byref c as Ctx, byval eu as TypeId, byval vu as TypeId ) as boolean
+    dim as Symbol ptr ls = StructorOf_( c, eu, "let" )
+    for guard as long = 0 to 255
+        if ls = 0 then exit for
+        dim as NodeId pn = cast( NodeId, ls->payload )
+        if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
+            dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+            for i as long = 0 to pp->count - 1
+                dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+                if c.ast->Kind( prm ) <> N_PARAM then continue for
+                dim as StmtPayload ptr qp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+                if TcParamTakes_( c, c.info->TypeOf_( qp->a ), vu ) then return true
+                exit for
+            next
+        end if
+        ls = c.syms->SymbolAt( ls->nextOverload )
+    next
+    return false
+end function
+
+'' Can element type 'et' take a value of type 'vt'?
+private function TcTakes_ ( byref c as Ctx, byval et as TypeId, byval vt as TypeId ) as boolean
+    dim as TypeId eu = c.types->Unqualify( et ), vu = c.types->Unqualify( vt )
+    if c.types->Kind( vu ) = TK_REFERENCE then vu = c.types->Unqualify( c.types->Inner( vu ) )
+    if (eu = TYPE_NONE) orelse (vu = TYPE_NONE) orelse (eu = vu) then return true
+    if TcString_( c, eu ) andalso TcNumber_( c, vu ) then return false
+    if TcNumber_( c, eu ) andalso TcString_( c, vu ) then return false
+    if c.types->Kind( eu ) <> TK_UDT then return true
+    if TcTuple_( c, eu ) then return true
+    if (c.types->Kind( vu ) = TK_UDT) andalso DerivesFrom_( c, vu, eu ) then return true
+    '' A TYPE DECLARING 'let' CONVERTS THROUGH IT, whether or not it needs constructing:
+    '' 'L' with only 'let( byval x as long )' takes a long and a double and refuses a
+    '' string. Without one, only a type that needs constructing refuses.
+    if StructorOf_( c, eu, "let" ) <> 0 then return TcLetTakes_( c, eu, vu )
+    return (TcNeedsCtor_( c, eu, 0 ) = false)
+end function
+
+'' The tuple literal 'rn' against the tuple type 't'. The first element that cannot take
+'' its value is reported -- fbc reports one error per statement -- and nested literals
+'' are judged by their own elements.
+private function TupleConvBad_ _
+    ( byref c as Ctx, byval t as TypeId, byval rn as NodeId, byval depth as long ) as boolean
+    if (rn = NODE_NONE) orelse (depth > 8) then return false
+    if c.ast->Kind( rn ) <> N_TUPLE then return false
+    if (c.ast->nodes[cast( long, rn )].flags and NF_TYPE_LITERAL) <> 0 then return false
+    t = c.types->Unqualify( t )
+    if TcTuple_( c, t ) = false then return false
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+    if lp->target <> NODE_NONE then return false
+    '' The element types, in order, off the tuple's own scope.
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return false
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return false
+    dim as FB.Array( of ulong ) ets
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if f->kind = cast( ubyte, SYM_FIELD ) then ets.Push( cast( ulong, f->type_ ) )
+        cur = f->nextInScope
+    next
+    '' A count that does not match is the arity rule's (TKO0825), not this one.
+    if ets.Count <> lp->count then return false
+    for i as long = 0 to lp->count - 1
+        dim as NodeId e = cast( NodeId, c.ast->children[lp->first + i] )
+        dim as TypeId et = cast( TypeId, ets[i] )
+        if c.ast->Kind( e ) = N_TUPLE then
+            if TupleConvBad_( c, et, e, depth + 1 ) then return true
+            continue for
+        end if
+        dim as TypeId vt = c.info->TypeOf_( e )
+        if TcTakes_( c, et, vt ) = false then
+            c.diags->Report( TKO0831, PointRange( c.ast->Loc( e ) ), c.types->Name( vt ), c.types->Name( et ) )
+            return true
+        end if
+    next
+    return false
+end function

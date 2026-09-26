@@ -581,6 +581,8 @@
     DIAG( TKO0829, SEV_ERROR,   "generic instantiation of '%0' is too deep (the limit is %1; -maxinstdepth raises it)" )
     '' fbc's warning 4, "Suspicious pointer assignment" -- see symbols/ptrwarn.bas.
     DIAG( TKO0830, SEV_WARNING, "suspicious pointer assignment: a '%0' from a '%1'" )
+    '' fbc's errors 24 and 181 over a tuple element -- see symbols/tupleconv.bas.
+    DIAG( TKO0831, SEV_ERROR,   "a '%0' does not convert to the tuple element '%1'" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
