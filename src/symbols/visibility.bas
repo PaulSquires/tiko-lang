@@ -1245,8 +1245,8 @@ private sub Walk_ _
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
     if k = N_INDEX then CheckIndexNeedsPointer_( c, id )
     if k = N_NEW then CheckNewString_( c, id )
-    if k = N_UNARY then CheckNotPointer_( c, id )
-    if k = N_AMBIGUOUS then CheckProcPtrCompound_( c, id )
+    if k = N_UNARY then CheckNotPointer_( c, id ) : CheckUdtUnary_( c, id )
+    if k = N_AMBIGUOUS then CheckProcPtrCompound_( c, id ) : CheckUdtCompound_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every

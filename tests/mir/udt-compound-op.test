@@ -1,0 +1,13 @@
+'' A COMPOUND ASSIGNMENT OVER A UDT WITH NO SELF-OPERATOR goes through the BINARY one Check
+'' bound on the statement -- 'q1 += q2' is 'q1 = q1 + q2', the target addressed once. See
+'' CompoundUserOp_ in symbols/checkwalk.bas and LowerCompoundUserOp_ in mir/lowerswap.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-compound-op.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call i32 _ZplR1QS0_(@q1, @q2)
+'' EXPECT-OUT: call i32 _ZplR1Qi(@q1,
+'' EXPECT-OUT: call i32 _ZpliR1Q(
+'' EXPECT-OUT: call i32 _ZN1NcviEv(@n1)
+'' EXPECT-OUT: call i32 _Zv23catR1QS0_(@q1, @q2)
+'' EXPECT-OUT: call i32 _ZplR1QS0_(%44, @q2)

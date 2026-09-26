@@ -828,6 +828,8 @@ declare function EmitRtl _
     declare function LowerUserBinaryOp_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerCompoundUserOp_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     declare function LowerPropertyGet_ _
         ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerPropertySet_ _

@@ -428,7 +428,7 @@ function LowerCompoundAssign _
     if cur.kind = cast( ubyte, MV_NONE ) then return false
     if smt <> mt then cur = CoerceTy( c, cur, mt, sct, tt )
     cur = CoerceTy( c, cur, wt, tt)
-    dim as MirValue rhs = LowerExpr( c, value )
+    dim as MirValue rhs : if UserConvToScalar_( c, value, rt, rhs ) = false then rhs = LowerExpr( c, value )
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
     '' A POINTER TARGET KEEPS ITS OFFSET AN INTEGER. Coercing the right-hand side to
     '' the TARGET's type makes it a POINTER, and the scale and the add then came out

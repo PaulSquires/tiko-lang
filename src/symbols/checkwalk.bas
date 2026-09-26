@@ -4,6 +4,62 @@
 '' same namespace, exactly as checkinfer.bas and checkeach.bas are. Nothing moved
 '' changed in the move.
 
+'' 'q += w' OVER A UDT WITH NO 'operator +=' IS 'q = q + w' -- the BINARY operator, bound
+'' here on the statement node, which nothing else binds, for LowerCompoundUserOp_
+'' (mir/lowerswap.bas). Measured on fbc-modern 1.20, 2026-09-25: with only a global
+'' 'operator +( Q, Q ) as Q', 'q1 += q2' calls it and assigns the result; so do
+'' 'q1 += 5' over '+( Q, long ) as Q', 'k += q1' over '+( long, Q ) as long' and 'q1 &= q2'.
+'' tiko dropped the first, second and fourth in silence and died in emission on the third.
+'' A member self-operator is lowering's first choice (SelfOpMemberCall_), so a type
+'' declaring one of the name is left to it; and the result has to go back into the target
+'' as lowering stores it -- a UDT target takes its own type, a scalar one a scalar.
+private function CompoundBinOp_( byval op as Tko.TokenKind, byref selfNm as string ) as Tko.TokenKind
+    select case op
+    case Tko.TK_PLUSEQ   : selfNm = "+=" : return Tko.TK_PLUS
+    case Tko.TK_MINUSEQ  : selfNm = "-=" : return Tko.TK_MINUS
+    case Tko.TK_STAREQ   : selfNm = "*=" : return Tko.TK_STAR
+    case Tko.TK_SLASHEQ  : selfNm = "/=" : return Tko.TK_SLASH
+    case Tko.TK_BSLASHEQ : selfNm = "\=" : return Tko.TK_BACKSLASH
+    case Tko.TK_CARETEQ  : selfNm = "^=" : return Tko.TK_CARET
+    case Tko.TK_AMPEQ    : selfNm = "&=" : return Tko.TK_AMP
+    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_IMP, Tko.KW_EQV, _
+         Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
+        selfNm = lcase( Tko.TokenKindText( op ) ) & "="
+        return op
+    end select
+    return Tko.TK_EOF
+end function
+
+private sub CompoundUserOp_( byref c as Ctx, byval n as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+    if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return
+    dim as string selfNm = ""
+    dim as Tko.TokenKind bop = CompoundBinOp_( cast( Tko.TokenKind, sp->op ), selfNm )
+    if bop = Tko.TK_EOF then return
+    dim as Tko.TypeId lt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+    dim as Tko.TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->b ) )
+    if (lt = Tko.TYPE_NONE) orelse (rt = Tko.TYPE_NONE) then return
+    if c.types->Kind( lt ) = Tko.TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if (c.types->Kind( lt ) = Tko.TK_TUPLE) orelse (c.types->Kind( rt ) = Tko.TK_TUPLE) then return
+    dim as boolean lUdt = IsUdtOperand_( c, lt )
+    if (lUdt orelse IsUdtOperand_( c, rt )) = false then return
+    if lUdt then
+        if UdtOperatorNamed_( c, lt, selfNm ) <> Tko.SYMBOL_NONE then return
+    end if
+    dim as Tko.SymbolId uop = UserBinaryOp_( c, bop, lt, rt )
+    dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
+    if us = 0 then return
+    dim as Tko.TypeId ot = c.types->Unqualify( us->type_ )
+    if ot = Tko.TYPE_NONE then return
+    if lUdt then
+        if ot <> lt then return
+    elseif IsUdtOperand_( c, ot ) then
+        return
+    end if
+    c.info->SetRef( n, uop )
+end sub
+
 private sub WalkAll( byref c as Ctx )
     '' Every expression node in the arena, in id order. Expressions are created
     '' bottom-up by the parser, so a child always has a LOWER id than its parent and
@@ -88,6 +144,8 @@ private sub WalkAll( byref c as Ctx )
                         end if
                     end if
                 end if
+            elseif c.info->AmbiguousOf( n ) = Tko.AMB_ASSIGN then
+                CompoundUserOp_( c, n )
             end if
         end select
     next

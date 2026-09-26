@@ -971,6 +971,138 @@ function LowerUserBinaryOp_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' 'q += w' THROUGH THE BINARY 'operator +' -- 'q = q + w', with the operator Check bound
+'' on the statement (CompoundUserOp_, symbols/checkwalk.bas). The TARGET IS EVALUATED
+'' ONCE: its address is the left operand and the destination both. Measured, fbc calls
+'' f once for 'qa( f( ) ) += q2'.
+''
+'' The result goes back as an assignment of its own type would: the type's 'operator let'
+'' or its implicit one where it has either, a bitwise copy where it has neither, and a
+'' plain store into a scalar target.
+function LowerCompoundUserOp_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    dim as Tko.NodeId sid = cast( Tko.NodeId, c.curStmtNode )
+    if sid = Tko.NODE_NONE then return false
+    if c.ast->Kind( sid ) <> Tko.N_AMBIGUOUS then return false
+    if c.info->AmbiguousOf( sid ) <> Tko.AMB_ASSIGN then return false
+    dim as Tko.StmtPayload ptr ssp = StmtOf( c, sid )
+    if (ssp->a <> target) orelse (ssp->b <> value) then return false
+    dim as Tko.SymbolId op = c.info->RefOf( sid )
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
+
+    dim as FB.Array( of ulong ) ptypes
+    dim as FB.Array( of ulong ) prefs
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        ptypes.Push( cast( ulong, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
+        dim as ulong isRef = 0
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then isRef = 1
+        prefs.Push( isRef )
+    next
+    if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
+
+    '' EVERY QUESTION BEFORE THE FIRST INSTRUCTION, so a decline leaves nothing behind.
+    dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if c.types->Kind( tt ) = Tko.TK_REFERENCE then tt = c.types->Unqualify( c.types->Inner( tt ) )
+    dim as Tko.TypeId ot = c.types->Unqualify( os->type_ )
+    dim as boolean udtTarget = (c.types->Kind( tt ) = Tko.TK_UDT)
+    dim as MirType tmt = LowerType( tt, *c.types )
+    if udtTarget then
+        if ot <> tt then return false
+    else
+        if (tmt = MT_VOID) orelse (tmt = MT_AGG) orelse IsStringType( c, tt ) then return false
+        if (c.types->Kind( ot ) = Tko.TK_UDT) orelse IsStringType( c, ot ) then return false
+    end if
+    '' The left operand as the parameter takes it: the target's address for a receiver or
+    '' a byref parameter of its own type, its value for a byval scalar.
+    dim as MirType lpmt = MT_VOID
+    if ptypes.Count = 2 then
+        dim as Tko.TypeId lpt = c.types->Unqualify( cast( Tko.TypeId, ptypes[0] ) )
+        if c.types->Kind( lpt ) = Tko.TK_REFERENCE then lpt = c.types->Unqualify( c.types->Inner( lpt ) )
+        if prefs[0] <> 0 then
+            if lpt <> tt then return false
+        else
+            lpmt = LowerType( lpt, *c.types )
+            if (lpmt = MT_VOID) orelse (lpmt = MT_AGG) orelse udtTarget then return false
+        end if
+    end if
+
+    dim as MirValue da = LowerAddr( c, target )
+    if da.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirType rmt = LowerType( ot, *c.types )
+    dim as MirValue sretTmp
+    dim as boolean usesSret = false
+    dim as FB.Array( of ulong ) args
+    if udtTarget andalso UsesSretReturn( c, ot ) then
+        dim as long tslot = SretResultSlot_( c, ot, false, op )
+        if tslot < 0 then return false
+        sretTmp.kind = cast( ubyte, MV_LOCAL )
+        sretTmp.ty = cast( ubyte, MT_PTR )
+        sretTmp.id = tslot
+        usesSret = true
+        rmt = MT_PTR
+        args.Push( cast( ulong, sretTmp.kind ) ) : args.Push( cast( ulong, sretTmp.id ) )
+    end if
+    dim as long firstArg = 0
+    if (ptypes.Count = 1) orelse (prefs[0] <> 0) then
+        args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+    else
+        dim as MirValue lv = LowerExprLoad( c, da, tmt )
+        if lv.kind = cast( ubyte, MV_NONE ) then return false
+        lv = CoerceTy( c, lv, lpmt, tt )
+        args.Push( cast( ulong, lv.kind ) ) : args.Push( cast( ulong, lv.id ) )
+    end if
+    if ptypes.Count = 2 then firstArg = 1
+    if OperandValue_( c, value, cast( Tko.TypeId, ptypes[firstArg] ), _
+                      (prefs[firstArg] <> 0), args ) = false then return false
+    if usesSret then SretResultSlotAfter_( c, ot, sretTmp.id )
+    dim as MirValue res = EmitDirectCall_( c, op, rmt, args, usesSret )
+    if res.kind = cast( ubyte, MV_NONE ) then return false
+
+    if udtTarget = false then
+        StoreThrough( c, da, CoerceTy( c, res, tmt, ot ) )
+        return true
+    end if
+    dim as long sz = SizeOfType( c, tt )
+    dim as FB.Array( of ulong ) sletT
+    sletT.Push( cast( ulong, tt ) )
+    dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, tt, "let" ), sletT )
+    if (ulet = Tko.SYMBOL_NONE) andalso (NeedsLetBody_( c, tt ) = false) then
+        if usesSret then res = LowerExprLoad( c, sretTmp, MT_AGG, sz )
+        StoreThrough( c, da, res )
+        return true
+    end if
+    dim as MirValue src = sretTmp
+    if usesSret = false then
+        dim as long rslot = NewTempLocal( c, MT_AGG, sz )
+        if rslot < 0 then return false
+        src.kind = cast( ubyte, MV_LOCAL )
+        src.ty = cast( ubyte, MT_PTR )
+        src.id = rslot
+        StoreThrough( c, src, res )
+    end if
+    if ulet <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) largs
+        largs.Push( cast( ulong, src.kind ) ) : largs.Push( cast( ulong, src.id ) )
+        EmitStructorCall( c, ulet, -1, @da, @largs )
+    else
+        CallImplicitLet_( c, tt, da, src )
+    end if
+    return true
+end function
+
 '' A USER-DEFINED UNARY OPERATOR, called. A GLOBAL one takes the operand as its only
 '' parameter; a MEMBER one takes it as the receiver and nothing else.
 function LowerUserUnaryOp_ _

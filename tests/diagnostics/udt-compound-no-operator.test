@@ -1,0 +1,20 @@
+'' TKO0820, fbc's 20: a compound assignment or a unary operator over a UDT that nothing
+'' takes. tiko dropped each statement in silence, or accepted '+a1' and 'k += a1'. See
+'' CheckUdtCompound_ and CheckUdtUnary_ in symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-compound-no-operator.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-compound-no-operator.bas(30,1): error TKO0820: no operator '+=' takes these operand types
+'' EXPECT-OUT: udt-compound-no-operator.bas(31,1): error TKO0820: no operator 'and=' takes these operand types
+'' EXPECT-OUT: udt-compound-no-operator.bas(32,
+'' EXPECT-OUT: udt-compound-no-operator.bas(33,
+'' EXPECT-OUT: udt-compound-no-operator.bas(34,
+'' EXPECT-OUT: udt-compound-no-operator.bas(35,5): error TKO0820: no operator 'not' takes these operand types
+'' EXPECT-OUT: udt-compound-no-operator.bas(36,6): error TKO0820: no operator '-' takes these operand types
+'' EXPECT-OUT: udt-compound-no-operator.bas(37,
+'' EXPECT-OUT: udt-compound-no-operator.bas(38,
+'' EXPECT-NOT: udt-compound-no-operator.bas(40,
+'' EXPECT-NOT: udt-compound-no-operator.bas(41,
+'' EXPECT-NOT: udt-compound-no-operator.bas(42,
+'' EXPECT-NOT: udt-compound-no-operator.bas(43,
+'' EXPECT-MAX-DIAG: 9

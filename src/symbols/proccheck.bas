@@ -591,6 +591,85 @@ private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPa
                      lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
 end sub
 
+'' ...AND SO IS A COMPOUND ASSIGNMENT OR A UNARY OPERATOR THAT NOTHING TAKES. Measured on
+'' fbc-modern 1.20, 2026-09-25, over a type A declaring nothing, a type N declaring only
+'' 'operator cast( ) as long' and a Q with only a global 'operator +( Q, Q )':
+''
+''     'a1 += 1', 'a1 and= a2', 'q1 -= q2', 'k += a1', 'n1 += 1'     error 20
+''     'not a1', '-a1', '+a1'                                        error 20
+''     'k += n1', '-n1', 'q1 += q2'                                  accepted
+''
+'' tiko dropped every one of the first two lines in silence, or took '+a1' and 'k += a1'.
+'' A compound Check bound to a binary operator (CompoundUserOp_, checkwalk.bas) is taken;
+'' so is one over a type that declares the self-operator; one over a type with an
+'' 'operator let' AND a cast or some operator of the name, whose result the 'let' may
+'' convert and which is not judged here ('l1 += 1' over a 'let' alone is error 20); and a
+'' scalar target with a UDT value that declares a cast. A property target is a call.
+private function CompoundSelfName_( byval op as TokenKind ) as string
+    select case op
+    case TK_PLUSEQ   : return "+="
+    case TK_MINUSEQ  : return "-="
+    case TK_STAREQ   : return "*="
+    case TK_SLASHEQ  : return "/="
+    case TK_BSLASHEQ : return "\="
+    case TK_CARETEQ  : return "^="
+    case TK_AMPEQ    : return "&="
+    case KW_AND, KW_OR, KW_XOR, KW_IMP, KW_EQV, KW_MOD, KW_SHL, KW_SHR
+        return lcase( TokenKindText( op ) ) & "="
+    end select
+    return ""
+end function
+
+private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as string selfNm = CompoundSelfName_( cast( TokenKind, sp->op ) )
+    if len( selfNm ) = 0 then return
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if (ls <> 0) andalso (ls->kind = cast( ubyte, SYM_PROC )) then return
+    dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+    dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->b ) )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if (c.types->Kind( lt ) = TK_TUPLE) orelse (c.types->Kind( rt ) = TK_TUPLE) then return
+    if TupleLike_( c, lt ) orelse TupleLike_( c, rt ) then return
+    dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
+    dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
+    if lUdt then
+        if StructorOf_( c, lt, selfNm ) <> 0 then return
+        if StructorOf_( c, lt, "let" ) <> 0 then
+            if StructorOf_( c, lt, "cast" ) <> 0 then return
+            if ProcNamedAnywhere_( c, left( selfNm, len( selfNm ) - 1 ) ) then return
+        end if
+    elseif rUdt then
+        if StructorOf_( c, rt, "cast" ) <> 0 then return
+    else
+        return
+    end if
+    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), selfNm )
+end sub
+
+private sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
+    dim as UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    select case cast( TokenKind, up->op )
+    case TK_MINUS, TK_PLUS, KW_NOT
+    case else
+        return
+    end select
+    if up->operand = NODE_NONE then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( up->operand ) )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_UDT then return
+    if TupleLike_( c, t ) then return
+    if StructorOf_( c, t, "cast" ) <> 0 then return
+    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
+                     lcase( TokenKindText( cast( TokenKind, up->op ) ) ) )
+end sub
+
 '' ...AND EVERY ELEMENT OF THE TUPLE HAS TO COMPARE. Measured on fbc-modern 1.20,
 '' 2026-09-25, over '(V, long)':
 ''

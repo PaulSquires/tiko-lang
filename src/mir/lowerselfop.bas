@@ -83,6 +83,9 @@ function SelfOpMemberCall_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind, byval tt as Tko.TypeId ) as boolean
 
+    '' ...OR, WITH NO SELF-OPERATOR, THE BINARY ONE Check bound -- see LowerCompoundUserOp_.
+    if LowerCompoundUserOp_( c, target, value ) then return true
+
     dim as Tko.TypeId ut = c.types->Unqualify( tt )
     if c.types->Kind( ut ) <> Tko.TK_UDT then return false
     dim as string opn = SelfOpName_( op )
