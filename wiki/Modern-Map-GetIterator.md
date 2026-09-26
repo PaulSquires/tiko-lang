@@ -18,7 +18,7 @@ GetIterator( ) as MapIterator( of K, V )
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 ages.Put( "ada", 36 )
 
 '' Iteration yields a KeyValuePair, read through .key and .value
@@ -27,7 +27,7 @@ for each kv in ages
 next
 
 '' The protocol underneath, if a `for each` will not do
-dim it as MapIterator( of string, integer ) = ages.GetIterator( )
+dim it as MapIterator( of ustring, integer ) = ages.GetIterator( )
 while it.IsValid( )
     print it.Value( ).key
     it.MoveNext( )

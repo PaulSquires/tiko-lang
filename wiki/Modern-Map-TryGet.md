@@ -18,7 +18,7 @@ TryGet( k, byref out as V ) as boolean
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 ages.Put( "ada", 36 )
 
 dim as integer got

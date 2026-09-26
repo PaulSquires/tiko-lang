@@ -18,7 +18,7 @@ Add( k, v ) as boolean
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 
 print ages.Add( "ada", 36 )      '' true -- inserted
 print ages.Add( "ada", 99 )      '' false -- already there, NOT overwritten

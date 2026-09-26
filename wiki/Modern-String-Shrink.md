@@ -24,7 +24,7 @@ Shrink( s [, mask] )
 #include once "fb/string.bi"
 using FB
 
-dim as string s = ",,, one , two     three, four,"
+dim as ustring s = ",,, one , two     three, four,"
 
 print Shrink( s, " ," )       '' one two three four
 print Shrink( "  a   b  " )   '' a b -- the default mask is a space

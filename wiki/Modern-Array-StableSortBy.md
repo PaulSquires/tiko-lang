@@ -20,8 +20,8 @@ StableSortBy( a, less )
 using FB
 
 type Rec
-    as string surname
-    as long   seq
+    as ustring surname
+    as long    seq
 end type
 
 dim v as Array( of Rec )

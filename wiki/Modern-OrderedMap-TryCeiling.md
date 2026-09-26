@@ -18,7 +18,7 @@ TryCeiling( k, byref outk ) as boolean
 #include once "fb/orderedmap.bi"
 using FB
 
-dim m as OrderedMap( of integer, string )
+dim m as OrderedMap( of integer, ustring )
 m.Put( 10, "ten" ) : m.Put( 20, "twenty" ) : m.Put( 30, "thirty" )
 
 dim as integer k

@@ -24,7 +24,7 @@ PushFront( byref v as T )
 #include once "fb/linkedlist.bi"
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 
 q.PushBack( "b" )
 q.PushFront( "a" )       '' O(1) at the front -- the reason this type exists,

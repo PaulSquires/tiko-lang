@@ -23,7 +23,7 @@ Test it with `#ifdef` or `defined( )`, so that a compiler which does not define 
 ```freebasic
 #ifdef __TIKO_COMPILER__
 	#include once "fb/array.bi"
-	dim names as FB.Array( of string )   '' tiko builds this
+	dim names as FB.Array( of ustring )  '' tiko builds this
 #else
 	dim names(0 to 63) as string         '' fbc builds this
 #endif

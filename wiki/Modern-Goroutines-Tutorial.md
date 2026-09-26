@@ -20,7 +20,7 @@ of those you *shouldn't* write.
   rather than link a single-threaded runtime and misbehave quietly.
 
 ```bash
-toolchains\tiko-windows\tiko.exe -mt example.bas
+toolchains\tiko-windows\tiko.exe -mt example.tko
 ```
 
 **The reference** — every rule, every table, every edge case — is
@@ -291,7 +291,7 @@ unlike blocking on a UI thread.
 #include once "fb/sync.bi"
 using FB
 
-sub CountWords( byval text_ as string, byval reply as Channel( of long ) )
+sub CountWords( byval text_ as ustring, byval reply as Channel( of long ) )
 	dim as long n = 0
 	for i as long = 0 to len( text_ ) - 1
 		if( text_[i] = asc( " " ) ) then n += 1
@@ -315,7 +315,7 @@ Compare that with the FreeBASIC you would otherwise write: a shared global for
 the result, a shared boolean for "is it ready", a mutex, a condition variable,
 and a predicate loop — around twenty lines and three globals, none of them
 checked by anything. Above, the type of the answer is written once, in the type
-of the channel, and a second worker returning a `string` is a second channel and
+of the channel, and a second worker returning a `ustring` is a second channel and
 not a second global.
 
 ### Channels are handles, and copies share
@@ -451,8 +451,8 @@ wakes every blocked waiter.
 #include once "fb/sync.bi"
 using FB
 
-sub ReadLines( byval out_ as Channel( of string ) )
-	dim as string lines_(0 to 2) = { "alpha", "beta", "gamma" }
+sub ReadLines( byval out_ as Channel( of ustring ) )
+	dim as ustring lines_(0 to 2) = { "alpha", "beta", "gamma" }
 	for i as long = 0 to 2
 		out_.Send( lines_(i) )
 	next
@@ -460,17 +460,17 @@ sub ReadLines( byval out_ as Channel( of string ) )
 end sub
 
 sub Main( )
-	dim src as Channel( of string ) = Channel( of string )( 4 )
+	dim src as Channel( of ustring ) = Channel( of ustring )( 4 )
 	spawn ReadLines( src )
 
 	for each s in src                   '' drains until closed AND empty
 		print "for each: " & s
 	next
 
-	dim src2 as Channel( of string ) = Channel( of string )( 4 )
+	dim src2 as Channel( of ustring ) = Channel( of ustring )( 4 )
 	spawn ReadLines( src2 )
 
-	dim as string s2
+	dim as ustring s2
 	while src2.Receive( s2 )            '' FALSE = end of stream
 		print "while  : " & s2
 	wend
@@ -644,7 +644,7 @@ using FB
 
 sub Worker( byval id      as long, _
             byval jobs    as RecvChan( of long ), _
-            byval results as SendChan( of string ), _
+            byval results as SendChan( of ustring ), _
             byval wg      as WaitGroup ptr )
 	for each n in jobs                  '' every worker pulls from the SAME queue
 		sleep 60, 1                     '' pretend: hash a file
@@ -656,7 +656,7 @@ end sub
 '' Somebody has to close 'results', and it cannot be a worker: the first one
 '' to finish would close it under the others.  This goroutine waits for all
 '' of them and then closes -- the only correct owner of that Close.
-sub CloseWhenDone( byval results as Channel( of string ), byval wg as WaitGroup ptr )
+sub CloseWhenDone( byval results as Channel( of ustring ), byval wg as WaitGroup ptr )
 	wg->Wait( )
 	results.Close( )
 end sub
@@ -665,8 +665,8 @@ sub Main( )
 	const NJOBS   = 12
 	const NWORKER = 4
 
-	dim jobs    as Channel( of long )   = Channel( of long )( NJOBS )
-	dim results as Channel( of string ) = Channel( of string )( NJOBS )
+	dim jobs    as Channel( of long )    = Channel( of long )( NJOBS )
+	dim results as Channel( of ustring ) = Channel( of ustring )( NJOBS )
 	dim wg      as WaitGroup
 
 	for i as long = 1 to NJOBS
@@ -747,7 +747,7 @@ Look at `Worker`'s signature in the previous chapter:
 ```basic
 sub Worker( byval id      as long, _
             byval jobs    as RecvChan( of long ), _
-            byval results as SendChan( of string ), _
+            byval results as SendChan( of ustring ), _
             byval wg      as WaitGroup ptr )
 ```
 
@@ -816,7 +816,7 @@ ready first. It needs one extra include:
 #include once "fb/select.bi"
 using FB
 
-sub Feed( byval ch as Channel( of string ), byval label_ as string, _
+sub Feed( byval ch as Channel( of ustring ), byval label_ as ustring, _
           byval ms as ulong, byval n as long )
 	for i as long = 1 to n
 		sleep ms, 1
@@ -825,13 +825,13 @@ sub Feed( byval ch as Channel( of string ), byval label_ as string, _
 end sub
 
 sub Main( )
-	dim cache_ as Channel( of string ) = Channel( of string )( 4 )
-	dim net    as Channel( of string ) = Channel( of string )( 4 )
+	dim cache_ as Channel( of ustring ) = Channel( of ustring )( 4 )
+	dim net    as Channel( of ustring ) = Channel( of ustring )( 4 )
 
 	spawn Feed( cache_, "cache", 120, 3 )
 	spawn Feed( net,    "net",   300, 2 )
 
-	dim as string a, b
+	dim as ustring a, b
 	dim as long left_ = 5
 	do
 		select channel
@@ -907,13 +907,13 @@ out, which permanently disables that case.
 ```basic
 '' ex09b -- a closed channel is ALWAYS ready.  Detect it, then nil the case out.
 sub Main( )
-	dim cache_ as Channel( of string ) = Channel( of string )( 4 )
-	dim net    as Channel( of string ) = Channel( of string )( 4 )
+	dim cache_ as Channel( of ustring ) = Channel( of ustring )( 4 )
+	dim net    as Channel( of ustring ) = Channel( of ustring )( 4 )
 
 	spawn Feed( cache_, "cache", 100, 3 )   '' Feed now Closes when finished
 	spawn Feed( net,    "net",   250, 2 )
 
-	dim as string a, b
+	dim as ustring a, b
 	dim as long live = 2
 
 	do
@@ -923,7 +923,7 @@ sub Main( )
 		select channel
 			case receive a from cache_
 				if( len( a ) = 0 ) then
-					cache_ = Channel( of string )( )   '' nil -> case disabled
+					cache_ = Channel( of ustring )( )   '' nil -> case disabled
 					live -= 1
 					print "cache stream ended"
 				else
@@ -931,7 +931,7 @@ sub Main( )
 				end if
 			case receive b from net
 				if( len( b ) = 0 ) then
-					net = Channel( of string )( )
+					net = Channel( of ustring )( )
 					live -= 1
 					print "net stream ended"
 				else
@@ -995,16 +995,16 @@ The `Try*` and `*For` forms return `FALSE` rather than raising when they give up
 #include once "fb/sync.bi"
 using FB
 
-sub SlowService( byval reply as Channel( of string ), byval ms as ulong )
+sub SlowService( byval reply as Channel( of ustring ), byval ms as ulong )
 	sleep ms, 1
 	reply.Send( "server said hello" )
 end sub
 
 sub Ask( byval delay_ as ulong, byval budget as ulong )
-	dim reply as Channel( of string ) = Channel( of string )( 1 )
+	dim reply as Channel( of ustring ) = Channel( of ustring )( 1 )
 	spawn SlowService( reply, delay_ )
 
-	dim as string answer
+	dim as ustring answer
 	if( reply.ReceiveFor( answer, budget ) ) then
 		print "within " & budget & " ms: " & answer
 	else
@@ -1084,7 +1084,7 @@ using FB
 
 sub SearchFolder( byval ctx  as Context, _
                   byval jobs as Channel( of long ), _
-                  byval hits as SendChan( of string ), _
+                  byval hits as SendChan( of ustring ), _
                   byval wg   as WaitGroup ptr )
 	dim as long n
 	do
@@ -1101,9 +1101,9 @@ sub SearchFolder( byval ctx  as Context, _
 end sub
 
 sub Main( )
-	dim ctx  as CancelContext        = WithTimeout( Context( ), 500 )
-	dim jobs as Channel( of long )   = Channel( of long )( 64 )
-	dim hits as Channel( of string ) = Channel( of string )( 64 )
+	dim ctx  as CancelContext         = WithTimeout( Context( ), 500 )
+	dim jobs as Channel( of long )    = Channel( of long )( 64 )
+	dim hits as Channel( of ustring ) = Channel( of ustring )( 64 )
 	dim wg   as WaitGroup
 
 	for i as long = 1 to 40
@@ -1177,28 +1177,28 @@ made for it: it holds either a value or a reason, and `IsOk( )` says which.
 #include once "fb/result.bi"
 using FB
 
-type ParseResult as Result( of long, string )
+type ParseResult as Result( of long, ustring )
 
-sub ParseNumber( byval text_ as string, byval out_ as Channel( of ParseResult ) )
+sub ParseNumber( byval text_ as ustring, byval out_ as Channel( of ParseResult ) )
 	dim as long v = 0
 	if( len( text_ ) = 0 ) then
-		out_.Send( Fail( of long, string )( "empty input" ) )
+		out_.Send( Fail( of long, ustring )( "empty input" ) )
 		exit sub
 	end if
 	for i as long = 0 to len( text_ ) - 1
 		dim as long d = text_[i] - asc( "0" )
 		if( d < 0 orelse d > 9 ) then
-			out_.Send( Fail( of long, string )( "'" & text_ & "' is not a number" ) )
+			out_.Send( Fail( of long, ustring )( "'" & text_ & "' is not a number" ) )
 			exit sub
 		end if
 		v = v * 10 + d
 	next
-	out_.Send( Ok( of long, string )( v ) )
+	out_.Send( Ok( of long, ustring )( v ) )
 end sub
 
 sub Main( )
 	dim res as Channel( of ParseResult ) = Channel( of ParseResult )( 4 )
-	dim as string inputs(0 to 2) = { "1234", "12x4", "" }
+	dim as ustring inputs(0 to 2) = { "1234", "12x4", "" }
 
 	for i as long = 0 to 2
 		spawn ParseNumber( inputs(i), res )
@@ -1226,9 +1226,9 @@ fail: empty input
 
 Notes on `Result`:
 
-* Both type arguments must be written out at construction — `Ok( of long, string )( v )`
+* Both type arguments must be written out at construction — `Ok( of long, ustring )( v )`
   — because inference reads parameter positions only and each factory mentions
-  just one of `T` and `E`. The `type ParseResult as Result( of long, string )`
+  just one of `T` and `E`. The `type ParseResult as Result( of long, ustring )`
   alias is the usual way to say it once.
 * `Value( )` on a failure and `Failure( )` on a success both raise. `IsOk( )` is
   the guard, and it costs nothing.
@@ -1255,8 +1255,8 @@ own.
 #include once "fb/sync.bi"
 using FB
 
-sub Stage1_Read( byval out_ as SendChan( of string ) )
-	dim as string src(0 to 4) = { "  Hello ", "WORLD", "", " Fbc  ", "Modern" }
+sub Stage1_Read( byval out_ as SendChan( of ustring ) )
+	dim as ustring src(0 to 4) = { "  Hello ", "WORLD", "", " Fbc  ", "Modern" }
 	for i as long = 0 to 4
 		sleep 40, 1
 		out_.Send( src(i) )
@@ -1264,8 +1264,8 @@ sub Stage1_Read( byval out_ as SendChan( of string ) )
 	out_.Close( )                       '' each stage closes ONLY its own output
 end sub
 
-sub Stage2_Clean( byval in_ as Channel( of string ), byval out_ as SendChan( of string ) )
-	dim as string s
+sub Stage2_Clean( byval in_ as Channel( of ustring ), byval out_ as SendChan( of ustring ) )
+	dim as ustring s
 	while in_.Receive( s )
 		s = lcase( trim( s ) )
 		if( len( s ) > 0 ) then out_.Send( s )    '' a stage may drop items
@@ -1273,8 +1273,8 @@ sub Stage2_Clean( byval in_ as Channel( of string ), byval out_ as SendChan( of 
 	out_.Close( )
 end sub
 
-sub Stage3_Number( byval in_ as Channel( of string ), byval out_ as SendChan( of string ) )
-	dim as string s
+sub Stage3_Number( byval in_ as Channel( of ustring ), byval out_ as SendChan( of ustring ) )
+	dim as ustring s
 	dim as long n = 0
 	while in_.Receive( s )
 		n += 1                          '' stage-local state: nobody else sees it
@@ -1284,9 +1284,9 @@ sub Stage3_Number( byval in_ as Channel( of string ), byval out_ as SendChan( of
 end sub
 
 sub Main( )
-	dim raw    as Channel( of string ) = Channel( of string )( 2 )
-	dim clean  as Channel( of string ) = Channel( of string )( 2 )
-	dim final_ as Channel( of string ) = Channel( of string )( 2 )
+	dim raw    as Channel( of ustring ) = Channel( of ustring )( 2 )
+	dim clean  as Channel( of ustring ) = Channel( of ustring )( 2 )
+	dim final_ as Channel( of ustring ) = Channel( of ustring )( 2 )
 
 	spawn Stage1_Read( raw )
 	spawn Stage2_Clean( raw, clean )
@@ -1630,7 +1630,7 @@ is the exact bug the goroutine was introduced to fix.
 using FB
 
 type ScanResult
-	as string  path_
+	as ustring path_
 	as longint bytes_
 end type
 
@@ -1709,7 +1709,7 @@ Three more notes:
 * **Cancel with a `Context`** (chapter 10) so the Stop button and window
   destruction can both end the scan. Do not close the window while a goroutine
   still holds its `HWND`.
-* **The channel type carries plain data.** `ScanResult` holds a `string` and a
+* **The channel type carries plain data.** `ScanResult` holds a `ustring` and a
   `longint` — no `HWND`, no GDI handle, no interface pointer. Keep it that way.
 * **Buffer generously** (64, 256) so the scan is not throttled by your timer
   interval. If you *want* it throttled, a small buffer does that for free.

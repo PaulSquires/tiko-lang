@@ -6,7 +6,7 @@
 
 > ✨ **tiko-lang API.** Part of [Filesystem Library](Category-Filesystem), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
 
-".bas", WITH the dot; "" when there is none
+".tko", WITH the dot; "" when there is none
 
 ## Syntax
 
@@ -16,7 +16,7 @@ PathExtension( p )
 
 ## Notes
 
-- ".bas", WITH the dot; "" when there is none
+- ".tko", WITH the dot; "" when there is none
 
 ## Examples
 
@@ -25,7 +25,7 @@ PathExtension( p )
 using FB
 
 '' WITH the dot, which is what makes it concatenate back on cleanly
-print PathExtension( "main.bas" )         '' .bas
+print PathExtension( "main.tko" )         '' .tko
 print PathExtension( "archive.tar.gz" )   '' .gz -- the last one
 
 '' Empty when there is none, and a leading dot is a name, not an

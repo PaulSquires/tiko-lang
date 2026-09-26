@@ -10,8 +10,8 @@
 #include once "fb/optional.bi"
 using FB
 
-function Lookup( byref name as string ) as Optional( of long )
-    if( name = "ada" ) then
+function Lookup( byref key as ustring ) as Optional( of long )
+    if( key = "ada" ) then
         return Some( 1815L )
     end if
     return None( of long )( )

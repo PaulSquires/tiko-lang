@@ -20,7 +20,7 @@ Pairs( ) as MapPairView( of K, V )
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 ages.Put( "ada", 36 )
 
 '' Pairs( ) yields a TUPLE instead of a KeyValuePair, so the loop can

@@ -10,7 +10,7 @@
 
 ```freebasic
 Fail( of T, E )
-Fail( of long, string )
+Fail( of long, ustring )
 ```
 
 ## Examples
@@ -19,12 +19,12 @@ Fail( of long, string )
 #include once "fb/result.bi"
 using FB
 
-dim r as Result( of long, string ) = Fail( of long, string )( "not a number" )
+dim r as Result( of long, ustring ) = Fail( of long, ustring )( "not a number" )
 
 print r.IsOk( )              '' false
 print r.Failure( )           '' not a number
 
-'' T and E MAY BE THE SAME TYPE -- Result( of string, string ) is a normal
+'' T and E MAY BE THE SAME TYPE -- Result( of ustring, ustring ) is a normal
 '' thing to want. The slots stay distinct because they are two fields,
 '' not a union.
 ```

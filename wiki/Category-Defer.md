@@ -7,7 +7,7 @@
 > ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
 
 ```freebasic
-sub Load( byref path as string )
+sub Load( byref path as ustring )
     dim as HANDLE h = CreateFile( path, ... )
     if( h = INVALID_HANDLE_VALUE ) then exit sub
 

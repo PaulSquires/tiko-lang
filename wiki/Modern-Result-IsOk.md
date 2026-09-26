@@ -18,7 +18,7 @@ IsOk( ) as boolean
 #include once "fb/result.bi"
 using FB
 
-dim r as Result( of long, string ) = Ok( of long, string )( 42 )
+dim r as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
 
 '' The guard, and it costs nothing. READING THE WRONG SIDE RAISES:
 '' Value( ) on a failure and Failure( ) on a success both raise
@@ -29,7 +29,7 @@ else
     print r.Failure( )
 end if
 
-dim bad as Result( of long, string ) = Fail( of long, string )( "nope" )
+dim bad as Result( of long, ustring ) = Fail( of long, ustring )( "nope" )
 print bad.IsOk( )            '' false
 ```
 

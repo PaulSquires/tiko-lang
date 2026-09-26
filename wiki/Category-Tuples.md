@@ -11,8 +11,8 @@ declare function MinMax( a( ) as long ) as (min as long, max as long)
 
 var (lo, hi) = MinMax( arr( ) )
 
-dim p as (long, string) = (3, "hi")
-dim q as (long, string) = (3, "hi")
+dim p as (long, ustring) = (3, "hi")
+dim q as (long, ustring) = (3, "hi")
 print p = q                          ' true
 ```
 
@@ -39,10 +39,10 @@ An out-parameter cannot be used in an expression and cannot be const. A one-off 
 ## The Type
 
 ```freebasic
-dim p as (long, string)
+dim p as (long, ustring)
 dim q as (single, single, single)
-dim n as ((long, long), string)      ' elements nest
-type Pair as (long, string)          ' a typedef, if you want a name
+dim n as ((long, long), ustring)     ' elements nest
+type Pair as (long, ustring)         ' a typedef, if you want a name
 
 declare function f( ) as (long, long)
 declare sub g( byval p as (long, long) )
@@ -98,7 +98,7 @@ THE CONSEQUENCE, STATED PLAINLY: a tuple cannot give you nominal type safety. If
 A parenthesised comma list of two or more expressions:
 
 ```freebasic
-dim t as (long, string) = (3, "hi")
+dim t as (long, ustring) = (3, "hi")
 t = (4, "bye")
 return (lo, hi)
 Consume( (1, 2) )                    ' ONE argument, of type (long, long)
@@ -109,10 +109,10 @@ Elements are evaluated left to right, exactly once each.
 ## A Literal Adapts To Its Target; Two Tuples Do NOT Convert
 
 ```freebasic
-dim t as (double, string) = (1, "hi")        ' 1 -> 1.0, "hi" -> STRING
+dim t as (double, ustring) = (1, "hi")       ' 1 -> 1.0, "hi" -> USTRING
 dim u as (long, long) = (cshort(1), cbyte(2))
 
-function f( ) as (double, string)
+function f( ) as (double, ustring)
     return (0, "")                           ' converts per element
 end function
 ```
@@ -160,7 +160,7 @@ Two forms. 'var' declares; the bare paren list assigns.
 ```freebasic
 var (lo, hi) = MinMax( arr( ) )      ' declares lo and hi, infers both
 
-dim x as long, y as string
+dim x as long, y as ustring
 (x, y) = GetPair( )                  ' assigns to existing lvalues
 ```
 

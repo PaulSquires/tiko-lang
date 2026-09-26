@@ -19,7 +19,7 @@ SortBy( v, function( byref x as long, byref y as long ) as boolean
     return x > y                     ' descending
 end function )
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 SortList( q )
 ```
 
@@ -50,7 +50,7 @@ All eight are FREE GENERIC PROCEDURES, not members, and none is included by fb/a
 Map and Set are not in the list and never will be. Both are open-addressed hash tables whose element order is a function of the hash; permuting their storage would destroy the lookup. Sort a snapshot instead:
 
 ```freebasic
-dim ks as Array( of string ) = m.Keys( )
+dim ks as Array( of ustring ) = m.Keys( )
 Sort( ks )
 for each k in ks
     print k, m[ k ]

@@ -18,7 +18,7 @@ Values( ) as Array( of V )
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 ages.Put( "ada", 36 )
 ages.Put( "grace", 45 )
 

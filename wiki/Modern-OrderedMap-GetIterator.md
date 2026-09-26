@@ -24,7 +24,7 @@ GetIterator( )
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 
@@ -34,7 +34,7 @@ for each kv in ages
     print kv.key & " " & kv.value      '' ada 36 / bob 41
 next
 
-dim it as OrderedMapIterator( of string, integer ) = ages.GetIterator( )
+dim it as OrderedMapIterator( of ustring, integer ) = ages.GetIterator( )
 print it.Value( ).key                  '' ada -- the smallest key
 ```
 

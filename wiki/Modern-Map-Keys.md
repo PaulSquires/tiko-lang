@@ -18,12 +18,12 @@ Keys( ) as Array( of K )
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 ages.Put( "ada", 36 )
 ages.Put( "grace", 45 )
 
 '' A snapshot, as an Array -- not a live view of the map
-dim ks as Array( of string ) = ages.Keys( )
+dim ks as Array( of ustring ) = ages.Keys( )
 print ks.Count                   '' 2
 
 '' ITERATION ORDER IS UNSPECIFIED, so sort before printing if the

@@ -27,14 +27,14 @@ LinkedList( of T )
 #include once "fb/linkedlist.bi"
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 
 q.PushBack( "b" )
 q.PushFront( "a" )           '' O(1) at the front, which Array cannot do
 print q.Front( ) & q.Back( ) '' ab
 
 '' A DEEP copy with its own chain -- not two handles on one list
-dim copy_ as LinkedList( of string ) = q
+dim copy_ as LinkedList( of ustring ) = q
 copy_.Front( ) = "z"
 print q.Front( ) & " " & copy_.Front( )       '' a z
 ```

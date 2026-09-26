@@ -11,7 +11,7 @@
 using FB
 
 print PathJoin( "C:\dev", "tiko", "src" )    ' C:\dev\tiko\src
-print PathExtension( "frmMain.bas" )         ' .bas
+print PathExtension( "frmMain.tko" )         ' .tko
 print PathStem( ".gitignore" )               ' .gitignore -- no extension
 
 dim as FsResultInfo info = Stat( "C:\dev\tiko" )

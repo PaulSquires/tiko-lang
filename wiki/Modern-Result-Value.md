@@ -18,7 +18,7 @@ Value( ) byref as T
 #include once "fb/result.bi"
 using FB
 
-dim r as Result( of long, string ) = Ok( of long, string )( 42 )
+dim r as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
 
 print r.Value( )             '' 42
 

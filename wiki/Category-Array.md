@@ -10,7 +10,7 @@
 #include once "fb/array.bi"          ' or "containers.bi" for all four
 using FB
 
-dim v as Array( of string )
+dim v as Array( of ustring )
 
 v.Push( "ada" )
 v.Push( "grace" )

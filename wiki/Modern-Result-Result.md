@@ -12,7 +12,7 @@
 
 ```freebasic
 Result( of T, E )
-Result( of string, string )
+Result( of ustring, ustring )
 ```
 
 ## Notes
@@ -28,14 +28,14 @@ using FB
 '' A value, or the reason there isn't one. The difference from Optional
 '' is the E: Optional says "nothing is here", Result says "nothing is
 '' here, AND this is why".
-dim r as Result( of long, string )
+dim r as Result( of long, ustring )
 
 '' A DEFAULT-CONSTRUCTED RESULT IS A FAILURE. That is deliberate: a
 '' Result nobody has set must not read as success, or every forgotten
 '' assignment becomes a silent Ok.
 print r.IsOk( )              '' false
 
-r = Ok( of long, string )( 42 )
+r = Ok( of long, ustring )( 42 )
 print r.IsOk( )              '' true
 print r.Value( )             '' 42
 ```

@@ -24,7 +24,7 @@ Reserve( byval n as long )
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 
 '' Size it once up front and the fill does no rehashing
 ages.Reserve( 1000 )

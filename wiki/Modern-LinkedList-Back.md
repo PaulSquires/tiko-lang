@@ -18,7 +18,7 @@ Back( ) byref as T
 #include once "fb/linkedlist.bi"
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 q.PushBack( "a" ) : q.PushBack( "b" )
 
 print q.Back( )          '' b

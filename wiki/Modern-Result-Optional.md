@@ -33,7 +33,7 @@ dim o as Optional( of integer ) = Some( 42 )
 print o.HasValue( )          '' true
 print o.Value( )             '' 42
 
-dim r as Result( of long, string ) = Fail( of long, string )( "not a number" )
+dim r as Result( of long, ustring ) = Fail( of long, ustring )( "not a number" )
 print r.IsOk( )              '' false
 print r.Failure( )           '' not a number -- the part Optional cannot carry
 ```

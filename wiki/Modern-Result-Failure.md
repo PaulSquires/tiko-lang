@@ -18,7 +18,7 @@ Failure( ) byref as E
 #include once "fb/result.bi"
 using FB
 
-dim r as Result( of long, string ) = Fail( of long, string )( "not a number" )
+dim r as Result( of long, ustring ) = Fail( of long, ustring )( "not a number" )
 
 print r.Failure( )           '' not a number
 

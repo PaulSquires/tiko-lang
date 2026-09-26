@@ -18,7 +18,7 @@ IsEmpty( ) as boolean
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 print ages.IsEmpty                '' true
 
 ages.Put( "ada", 36 )

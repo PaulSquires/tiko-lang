@@ -74,7 +74,7 @@ loads libclang, parses the header, prints the libclang it loaded, clang's versio
 ## The command-line form
 
 ```
-tiko -cimport windows.h -cimport-out windows_generated.bi
+tiko -cimport windows.h -cimport-out windows_generated.ti
 ```
 
 generates the binding as a **file** instead of including it — for reading, for checking into a repository, or for diffing across an SDK upgrade. The output is deterministic: the same headers and options give a byte-identical file on either operating system, so a diff means something changed in the header.
@@ -82,7 +82,7 @@ generates the binding as a **file** instead of including it — for reading, for
 Several headers in one command share one binding, and shared types are declared exactly once:
 
 ```
-tiko -cimport windows.h -cimport commctrl.h -cimport-out win.bi
+tiko -cimport windows.h -cimport commctrl.h -cimport-out win.ti
 ```
 
 > Measured 2026-09-24 at origin/master 50c71751, on win64-msvc: `windows.h` alone gives 42,945 declarations in 13 s, and two runs are byte-identical (across operating systems is not measured); with `commctrl.h` added, 45,851 declarations and `tagPOINT` declared once. `-cimport-out -` writes the binding to standard output. The file is not FBC-Modern's byte for byte: its banner names tiko, tiko imports what FBC-Modern skips — a named record declared inside another (`sqlite3.h`'s `sqlite3_index_info`), an array parameter, an anonymous member of an unnamed record — and FBC-Modern keeps every definition of a redefined macro (decision 0016 §4).
@@ -310,14 +310,14 @@ Neither implies the other. `#cinclude` declares everything and links nothing; `#
 
 ```
 mylib/
-    mylib.bi                        <- the binding: both directives
+    mylib.ti                        <- the binding: both directives
     vendor/mylib.h                  <- the library's own header
     vendor/mylib_windows_x86_64.dll.a
     vendor/mylib_linux_x86_64.so
 ```
 
 ```freebasic
-'' mylib/mylib.bi
+'' mylib/mylib.ti
 #pragma once
 
 #cinclude once "mylib.h"            '' the declarations, from the real header
@@ -327,7 +327,7 @@ mylib/
 and then, with no `Declare` and no `#ifdef` anywhere:
 
 ```freebasic
-#include once "mylib/mylib.bi"
+#include once "mylib/mylib.ti"
 print mylib_add( 2, 3 )
 ```
 
@@ -340,12 +340,12 @@ The declarations come out of the header for the target being built, and the righ
 > `#cinclude` does **not** do this. The header is resolved by **Clang**, against Clang's own include search: the compiler's working directory plus any `-cinclude` directories. So in the layout above, `#cinclude once "mylib.h"` needs
 >
 > ```
-> fbc app.bas -cinclude mylib/vendor
+> tiko app.tko -cinclude mylib/vendor
 > ```
 >
-> and a bare `#cinclude "vendor/mylib.h"` inside `mylib.bi` resolves against wherever the user happened to stand, not against `mylib.bi`. It is the same trap `#foreignlib` was built to close, still open on the header side.
+> and a bare `#cinclude "vendor/mylib.h"` inside `mylib.ti` resolves against wherever the user happened to stand, not against `mylib.ti`. It is the same trap `#foreignlib` was built to close, still open on the header side.
 >
-> Until that changes, a vendored binding has to say which include directory it needs — in its README, or in a `Makefile`. There is no spelling inside the `.bi` that works from every working directory.
+> Until that changes, a vendored binding has to say which include directory it needs — in its README, or in a `Makefile`. There is no spelling inside the `.ti` that works from every working directory.
 
 There is **no `lib MYLIB` clause**, and there cannot be — the declarations are generated rather than written. It is not needed: a `#foreignlib` contributes its libraries to the link whether or not any declaration names it, exactly as [`#inclib`](Inclib) does. The bound name exists for hand-written declarations that want it.
 

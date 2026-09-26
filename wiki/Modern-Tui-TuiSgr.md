@@ -25,7 +25,7 @@ using FB
 dim as TuiStyle a = TuiStyleDefault( )
 dim as TuiStyle b = TuiStyleOf( TuiRgb( 235, 80, 80 ), TuiDefaultColor( ), TUIATTR_BOLD )
 
-dim as string seq = TuiSgr( a, b, TUIDEPTH_TRUECOLOR )
+dim as ustring seq = TuiSgr( a, b, TUIDEPTH_TRUECOLOR )
 print len( seq )                       '' 19 -- bold plus a 24-bit foreground
 print len( TuiSgr( b, b, TUIDEPTH_TRUECOLOR ) )   '' 0 -- nothing changed,
                                        '' nothing emitted

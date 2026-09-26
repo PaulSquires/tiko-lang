@@ -20,7 +20,7 @@ Put( k, v ) as boolean
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 
 print ages.Put( "ada", 36 )      '' true -- the key was new
 print ages.Put( "ada", 37 )      '' false -- existed, and was OVERWRITTEN

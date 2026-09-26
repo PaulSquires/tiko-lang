@@ -24,7 +24,7 @@ PushBack( byref v as T )
 #include once "fb/linkedlist.bi"
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 
 q.PushBack( "a" )
 q.PushBack( "b" )        '' O(1) at the back, like Array.Push

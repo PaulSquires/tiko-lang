@@ -28,8 +28,8 @@ using FB
 '' Stability only means something when T carries more than the key.
 '' For scalars StableSort and Sort produce identical output.
 type Rec
-    as string surname
-    as long   seq
+    as ustring surname
+    as long    seq
 end type
 
 operator < ( byref x as Rec, byref y as Rec ) as boolean

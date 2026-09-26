@@ -26,8 +26,8 @@ using FB
 
 '' The offset of the first wildcard, or -1 when the pattern is a plain
 '' path with nothing to expand
-print PatternWildcardAt( "src\*.bas" )    '' 5
-print PatternWildcardAt( "src\main.bas" ) '' -1
+print PatternWildcardAt( "src\*.tko" )    '' 5
+print PatternWildcardAt( "src\main.tko" ) '' -1
 
 '' What Glob uses to decide how much of a pattern is a fixed directory
 '' prefix it can walk to directly

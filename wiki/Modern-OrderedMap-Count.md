@@ -18,7 +18,7 @@ Count( ) as long
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 print ages.Count                  '' 0
 
 ages.Put( "ada", 36 )

@@ -24,7 +24,7 @@ InstrChars( start, s, chars [, ic] )
 #include once "fb/string.bi"
 using FB
 
-dim as string s = "name = value"
+dim as ustring s = "name = value"
 
 print InstrChars( 1, s, "=:" )       '' 6 -- first of either delimiter
 print InstrChars( 7, s, "=:" )       '' 0 -- none from position 7 on

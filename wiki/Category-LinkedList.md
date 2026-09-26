@@ -10,7 +10,7 @@
 #include once "fb/linkedlist.bi"     ' or "containers.bi" for all four
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 
 q.PushBack( "b" )
 q.PushFront( "a" )

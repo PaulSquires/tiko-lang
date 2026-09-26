@@ -24,7 +24,7 @@ Insert( byval i as long, byref v as T )
 #include once "fb/array.bi"
 using FB
 
-dim v as Array( of string )
+dim v as Array( of ustring )
 v.Push( "a" ) : v.Push( "c" )
 
 v.Insert( 1, "b" )       '' O(n) -- everything after i shifts up

@@ -40,7 +40,7 @@ That is the whole model. **You name a library; the linker goes looking for it.**
 Here is the smallest real program that uses it:
 
 ```freebasic
-'' old.bas
+'' old.tko
 #inclib "sqlite3"
 declare function sqlite3_libversion cdecl alias "sqlite3_libversion" ( ) as zstring ptr
 print "sqlite " & *sqlite3_libversion( )
@@ -49,7 +49,7 @@ print "sqlite " & *sqlite3_libversion( )
 and the build:
 
 ```bash
-tiko old.bas -p C:\dev\sqlite\lib\win64-dll
+tiko old.tko -p C:\dev\sqlite\lib\win64-dll
 ```
 
 ```
@@ -57,18 +57,18 @@ sqlite 3.53.4
 ```
 
 If you have written FreeBASIC bindings before, none of this is new. Hold on to
-one detail though: **the `-p` is not in the source file.** Nothing in `old.bas`
+one detail though: **the `-p` is not in the source file.** Nothing in `old.tko`
 records where SQLite lives. That fact is the seed of all three problems below.
 
 ### An experiment worth doing
 
-Build that same unchanged `old.bas` three ways, for the MinGW-ABI `win64` target,
+Build that same unchanged `old.tko` three ways, for the MinGW-ABI `win64` target,
 and look at the sizes:
 
 ```bash
-tiko -target win64 old.bas -o a.exe                                  # no -p at all
-tiko -target win64 old.bas -p C:\dev\sqlite\lib\win64     -o b.exe   # dir holding libsqlite3.a
-tiko -target win64 old.bas -p C:\dev\sqlite\lib\win64-dll -o c.exe   # dir holding libsqlite3.dll.a
+tiko -target win64 old.tko -o a.exe                                  # no -p at all
+tiko -target win64 old.tko -p C:\dev\sqlite\lib\win64     -o b.exe   # dir holding libsqlite3.a
+tiko -target win64 old.tko -p C:\dev\sqlite\lib\win64-dll -o c.exe   # dir holding libsqlite3.dll.a
 ```
 
 ```
@@ -105,7 +105,7 @@ The natural way to distribute a binding is to put the library next to it:
 
 ```
 mylib/
-   mylib.bi          <- #libpath "vendor" + #inclib "mylib"
+   mylib.ti          <- #libpath "vendor" + #inclib "mylib"
    vendor/libmylib.a
 ```
 
@@ -118,7 +118,7 @@ lld-link: error: could not open 'mylib.lib': no such file or directory
 The archive is right there. The problem is that **`#libpath` is relative to the
 directory you ran the compiler from**, not to the file the directive is written in. So
 `#libpath "vendor"` means "a folder called vendor under wherever the user
-happened to be standing". There is no string you can put in that `.bi` that
+happened to be standing". There is no string you can put in that `.ti` that
 works from every working directory.
 
 The practical consequence is that FreeBASIC bindings do not ship libraries. They
@@ -215,7 +215,7 @@ exactly as before, are not deprecated, and can sit in the same file as a
 ## Part 4 — Tutorial: vendor the SQLite DLL
 
 We are going to build a project that carries its own copy of SQLite, links it
-dynamically, and builds with a bare `tiko demo.bas` from any directory.
+dynamically, and builds with a bare `tiko demo.tko` from any directory.
 
 ### Step 1 — make the vendor folder
 
@@ -246,7 +246,7 @@ Two things about that filename:
 
 ### Step 3 — write the linkage header
 
-`C:\dev\myapp\vendor\sqlite\linkage.bi`:
+`C:\dev\myapp\vendor\sqlite\linkage.ti`:
 
 ```freebasic
 #pragma once
@@ -254,7 +254,7 @@ Two things about that filename:
 #foreignlib SQLITELIB dynamic "lib/sqlite3"
 ```
 
-That is the entire file. `"lib/sqlite3"` is relative to `linkage.bi` itself, so
+That is the entire file. `"lib/sqlite3"` is relative to `linkage.ti` itself, so
 it keeps working no matter where the build runs from.
 
 ### Step 4 — get a binding
@@ -274,7 +274,7 @@ Open it and find its one linkage line, near the top:
 Replace that single line with:
 
 ```freebasic
-#include once "linkage.bi"
+#include once "linkage.ti"
 ```
 
 **That is the whole migration.** All hundred-odd `declare` statements below it
@@ -283,7 +283,7 @@ whether or not any declaration names it — exactly like `#inclib` did.
 
 ### Step 5 — write the program
 
-`C:\dev\myapp\demo.bas`:
+`C:\dev\myapp\demo.tko`:
 
 ```freebasic
 #include once "vendor/sqlite/sqlite3api.bi"
@@ -316,7 +316,7 @@ nothing about static or dynamic. It includes a binding and calls the API.
 
 ```bash
 cd C:\dev\myapp
-tiko demo.bas
+tiko demo.tko
 ```
 
 No `-p`. No `-l`. Then copy the DLL next to the executable and run:
@@ -338,7 +338,7 @@ same file from the root of the drive:
 
 ```bash
 cd C:\
-tiko C:\dev\myapp\demo.bas
+tiko C:\dev\myapp\demo.tko
 ```
 
 It links — and the executable lands next to the source, as always. `#libpath`
@@ -352,7 +352,7 @@ out again — and it still links, because nothing outside the folder is named.
 Rename the import library so nothing matches, and build again:
 
 ```
-vendor/sqlite/linkage.bi(3,1): error TKO0329: #foreignlib found no matching library file: SQLITELIB dynamic lib/sqlite3; tried:     vendor/sqlite/lib/sqlite3_windows_x86_64.dll.a
+vendor/sqlite/linkage.ti(3,1): error TKO0329: #foreignlib found no matching library file: SQLITELIB dynamic lib/sqlite3; tried:     vendor/sqlite/lib/sqlite3_windows_x86_64.dll.a
     vendor/sqlite/lib/sqlite3_windows_x86_64.lib
     vendor/sqlite/lib/sqlite3_windows_x86_64.dll
     vendor/sqlite/lib/sqlite3_windows.dll.a
@@ -386,7 +386,7 @@ top to bottom and you can see exactly what filename to give your library.
 
 ## Part 5 — now link it statically
 
-Here is the payoff. Go back to `linkage.bi` and change **one word**:
+Here is the payoff. Go back to `linkage.ti` and change **one word**:
 
 ```freebasic
 #foreignlib SQLITELIB static "lib/sqlite3"
@@ -403,7 +403,7 @@ archive. On tiko's default target, win64-msvc, it does not link:
 `lld-link: error: undefined symbol: ___chkstk_ms`.
 
 ```bash
-tiko -target win64 demo.bas
+tiko -target win64 demo.tko
 demo.exe
 ```
 
@@ -412,7 +412,7 @@ sqlite 3.53.4
 row: 42
 ```
 
-**Nothing else changed.** Not `demo.bas`, not `sqlite3api.bi`. The `static`
+**Nothing else changed.** Not `demo.tko`, not `sqlite3api.bi`. The `static`
 keyword alone moved the build from
 
 ```
@@ -453,8 +453,8 @@ Real bindings offer the choice. Wrap the two lines in a conditional:
 Keep **both** files in `lib\` and the caller picks at build time:
 
 ```bash
-tiko -target win64 demo.bas                      -o demo_dynamic.exe
-tiko -target win64 demo.bas -d USE_STATIC_SQLITE -o demo_static.exe
+tiko -target win64 demo.tko                      -o demo_dynamic.exe
+tiko -target win64 demo.tko -d USE_STATIC_SQLITE -o demo_static.exe
 ```
 
 One source file, two executables, one flag. That is the working example in
