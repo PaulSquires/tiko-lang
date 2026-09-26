@@ -484,6 +484,12 @@ namespace Tko.Mir
         RTL( RTL_USTR_TRIM_ANY,     "fb_UStrTrimAny",      "p",   "pzpz"  )
         RTL( RTL_USTR_LTRIM_ANY,    "fb_UStrLTrimAny",     "p",   "pzpz"  )
         RTL( RTL_USTR_RTRIM_ANY,    "fb_UStrRTrimAny",     "p",   "pzpz"  )
+        '' ...AND THE PATTERN FORMS: a second argument WITHOUT 'any' strips that whole
+        '' SUBSTRING. Measured, 'rtrim( u, chr( 32 ) )' is 'fb_UStrRTrimEx( (void*)&U$0,
+        '' -1ll, L" ", &h8000000000000001 )'. fbx's fbxOpenFileDialog writes it.
+        RTL( RTL_USTR_TRIM_EX,      "fb_UStrTrimEx",       "p",   "pzpz"  )
+        RTL( RTL_USTR_LTRIM_EX,     "fb_UStrLTrimEx",      "p",   "pzpz"  )
+        RTL( RTL_USTR_RTRIM_EX,     "fb_UStrRTrimEx",      "p",   "pzpz"  )
         RTL( RTL_USTR_MID,          "fb_UStrMid",          "p",   "pzzz"  )
         RTL( RTL_USTR_LEFT,         "fb_UStrLeftD",        "p",   "pz"    )
         RTL( RTL_USTR_RIGHT,        "fb_UStrRightD",       "p",   "pz"    )

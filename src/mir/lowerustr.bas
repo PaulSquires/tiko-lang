@@ -76,7 +76,7 @@ function LowerUStrIntrin_ _
     '' argument trim, so 'trim( f[0], any " " )' was DROPPED and tracks' ticker table
     '' loaded 27 rows with every field empty. Measured, fbc emits
     '' 'fb_UStrTrimAny( S, -1, L" \t", len-tag )' and the L and R twins. A second argument
-    '' WITHOUT 'any' is fb_UStrTrimEx, which is not modelled and still declines.
+    '' WITHOUT 'any' is fb_UStrTrimEx and its twins -- chosen below, once 'any' is known.
     case "trim"
         if cp->count > 2 then return false
         r = iif( cp->count = 2, RTL_USTR_TRIM_ANY, RTL_USTR_TRIM )
@@ -118,11 +118,24 @@ function LowerUStrIntrin_ _
     dim as boolean isAnyTrim = (r = RTL_USTR_TRIM_ANY) orelse (r = RTL_USTR_LTRIM_ANY) orelse _
                                (r = RTL_USTR_RTRIM_ANY)
     if isAnyTrim then
-        if c.ast->Kind( a1 ) <> Tko.N_UNARY then return false
-        dim as Tko.UnaryPayload ptr aup = _
-            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
-        if cast( Tko.TokenKind, aup->op ) <> Tko.KW_ANY then return false
-        anyChars = aup->operand
+        dim as boolean anyForm = (c.ast->Kind( a1 ) = Tko.N_UNARY)
+        if anyForm then
+            dim as Tko.UnaryPayload ptr aup = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, a1 )].data )]
+            anyForm = (cast( Tko.TokenKind, aup->op ) = Tko.KW_ANY)
+            if anyForm then anyChars = aup->operand
+        end if
+        '' ...AND WITHOUT 'any' IT IS A PATTERN, the whole substring stripped: fb_UStrTrimEx
+        '' and its twins, the same four arguments. It declined, so fbx's fbxOpenFileDialog
+        '' kept its 'ustrFile = RTRIM( ustrFile, CHR( 32 ) )' padding -- in silence.
+        if anyForm = false then
+            select case r
+            case RTL_USTR_TRIM_ANY  : r = RTL_USTR_TRIM_EX
+            case RTL_USTR_LTRIM_ANY : r = RTL_USTR_LTRIM_EX
+            case RTL_USTR_RTRIM_ANY : r = RTL_USTR_RTRIM_EX
+            end select
+            anyChars = a1
+        end if
     end if
 
     '' A 'ustring * N' HAS NO DESCRIPTOR, and asking for one declined the whole statement.

@@ -1,0 +1,10 @@
+'' A USTRING TRIM WITH A PATTERN, not 'any': fb_UStrTrimEx and its L and R twins. Each was
+'' dropped in silence -- see the source's header and lowerustr.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-trim-pattern.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_UStrRTrimEx(
+'' EXPECT-OUT: call.rtl ptr fb_UStrLTrimEx(
+'' EXPECT-OUT: call.rtl ptr fb_UStrTrimEx(
+'' EXPECT-NOT: fb_UStrRTrimAny(

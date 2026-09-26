@@ -30,4 +30,7 @@
 '' AND TWO MORE FOR INSTR'S 'any' FORMS OVER A USTRING, 2026-09-23: tiko-rt defines both
 '' and the lowering declined, believing there were none.
 '' EXPECT-OUT: fb_UStrInstrAny i64 (i64, ptr, i64, ptr, i64)
-'' EXPECT-OUT: rtl: 529 entries
+'' AND THREE MORE, 2026-09-26: fb_UStrTrimEx and its L and R twins, the pattern form of
+'' trim over a ustring (tests/mir/ustring-trim-pattern).
+'' EXPECT-OUT: fb_UStrRTrimEx ptr (ptr, i64, ptr, i64)
+'' EXPECT-OUT: rtl: 532 entries
