@@ -27,7 +27,7 @@ OrderedMap( of TK, TV )
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 
@@ -37,7 +37,7 @@ for each kv in ages
 next
 
 '' Keys( ) and Values( ) come out sorted too, so they need no sort after
-dim ks as Array( of string ) = ages.Keys( )
+dim ks as Array( of ustring ) = ages.Keys( )
 print ks[ 0 ]                '' ada
 ```
 

@@ -10,7 +10,7 @@
 
 ```freebasic
 Ok( of T, E )
-Ok( of long, string )
+Ok( of long, ustring )
 ```
 
 ## Examples
@@ -19,7 +19,7 @@ Ok( of long, string )
 #include once "fb/result.bi"
 using FB
 
-dim r as Result( of long, string ) = Ok( of long, string )( 42 )
+dim r as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
 
 print r.IsOk( )              '' true
 print r.Value( )             '' 42

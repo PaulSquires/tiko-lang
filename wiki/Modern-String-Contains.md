@@ -24,7 +24,7 @@ Contains( s, match [, ic] )
 #include once "fb/string.bi"
 using FB
 
-dim as string log_ = "WARN disk almost full"
+dim as ustring log_ = "WARN disk almost full"
 
 print Contains( log_, "disk" )          '' true
 print Contains( log_, "DISK" )          '' false

@@ -26,18 +26,18 @@ using FB
 
 '' Fills an Array with the components and returns the count.
 ''
-'' THE ROOT IS NOT A COMPONENT. "C:\dev\src\main.bas" splits into
+'' THE ROOT IS NOT A COMPONENT. "C:\dev\src\main.tko" splits into
 '' three, not four -- PathRoot joined with these reconstructs the
 '' normalised path, and that is the round trip the split guarantees.
 dim parts as Array( of ustring )
-dim as long n = PathSplit( "C:\dev\src\main.bas", parts )
+dim as long n = PathSplit( "C:\dev\src\main.tko", parts )
 
 print n                      '' 3
 for i as long = 0 to parts.Count - 1
-    print parts[ i ]         '' dev / src / main.bas
+    print parts[ i ]         '' dev / src / main.tko
 next
 
-print PathRoot( "C:\dev\src\main.bas" )      '' C:\  -- the missing piece
+print PathRoot( "C:\dev\src\main.tko" )      '' C:\  -- the missing piece
 
 '' It splits the NORMALISED path, so "." and ".." are already resolved
 '' and never come back as components

@@ -31,7 +31,7 @@ print Extract( 1, "abacadabra", "zzz" )    '' abacadabra -- a miss gives the who
 print Extract( 3, "abacadabra", "a" )      '' (empty) -- position 3 is already an "a"
 
 '' The miss rule is what lets a parse loop keep its last field
-dim as string field_ = Extract( 1, "lastfield", "," )
+dim as ustring field_ = Extract( 1, "lastfield", "," )
 print field_                               '' lastfield
 ```
 

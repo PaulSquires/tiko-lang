@@ -24,7 +24,7 @@ Clear( )
 #include once "fb/array.bi"
 using FB
 
-dim v as Array( of string )
+dim v as Array( of ustring )
 v.Push( "a" ) : v.Push( "b" )
 
 v.Clear( )

@@ -30,7 +30,7 @@ print Remain( "Brevity is the soul of wit", "is " )   '' the soul of wit
 print Remain( "Brevity is the soul of wit", "zzz" )   '' (empty) -- a miss gives ""
 
 '' Remain and Extract are complements: before, and after
-dim as string s = "key=value"
+dim as ustring s = "key=value"
 print Extract( 1, s, "=" ) & " -> " & Remain( s, "=" )   '' key -> value
 ```
 

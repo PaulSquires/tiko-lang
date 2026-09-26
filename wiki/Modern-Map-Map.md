@@ -27,7 +27,7 @@ Map( of TK, TV )
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 
 ages.Put( "ada", 36 )
 print ages.Count             '' 1

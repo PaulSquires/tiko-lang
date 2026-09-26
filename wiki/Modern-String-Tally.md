@@ -24,7 +24,7 @@ Tally( s, match [, ic] )
 #include once "fb/string.bi"
 using FB
 
-dim as string csv = "a,b,,c"
+dim as ustring csv = "a,b,,c"
 
 print Tally( csv, "," )              '' 3 -- one per separator
 print Tally( "aaaa", "aa" )          '' 2 -- occurrences never overlap

@@ -29,7 +29,7 @@ using FB
 
 dim as TuiTree t
 t.Add( "src", 0, TRUE, 100 )
-t.Add( "main.bas", 1, FALSE, 101 )
+t.Add( "main.tko", 1, FALSE, 101 )
 print t.nodes.Count( )            '' 2
 print t.nodes[1].depth, t.nodes[1].userId      '' 1 101
 ```

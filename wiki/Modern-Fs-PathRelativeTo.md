@@ -27,9 +27,9 @@ using FB
 '' THE ONE PATH FUNCTION THAT CAN FAIL, so it returns an FsResult rather
 '' than a bare string: there IS no relative path between two different
 '' roots, and "..\..\D:\b" would be a fabrication.
-dim r as FsResultUStr = PathRelativeTo( "C:\dev\src\main.bas", "C:\dev" )
+dim r as FsResultUStr = PathRelativeTo( "C:\dev\src\main.tko", "C:\dev" )
 
-if r.IsOk( ) then print r.Value( )       '' src\main.bas
+if r.IsOk( ) then print r.Value( )       '' src\main.tko
 
 '' It walks UP with .. when it has to
 dim up as FsResultUStr = PathRelativeTo( "C:\dev\inc", "C:\dev\src" )

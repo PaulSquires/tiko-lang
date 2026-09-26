@@ -24,13 +24,13 @@ PathChangeExtension( p, ext )
 #include once "fb/filesystem.bi"
 using FB
 
-print PathChangeExtension( "main.bas", ".o" )       '' main.o
+print PathChangeExtension( "main.tko", ".o" )       '' main.o
 
 '' The dot is optional in the argument -- both forms mean the same
-print PathChangeExtension( "main.bas", "o" )        '' main.o
+print PathChangeExtension( "main.tko", "o" )        '' main.o
 
 '' An EMPTY extension REMOVES it
-print PathChangeExtension( "main.bas", "" )         '' main
+print PathChangeExtension( "main.tko", "" )         '' main
 
 '' A file with no extension gains one
 print PathChangeExtension( "README", ".md" )        '' README.md

@@ -19,11 +19,11 @@ IsSortedBy( a, less ) as boolean
 #include once "fb/sort.bi"
 using FB
 
-dim v as Array( of string )
+dim v as Array( of ustring )
 v.Push( "fig" ) : v.Push( "pear" ) : v.Push( "banana" )
 
 '' Ordered by length, which is not the same question as alphabetically
-print IsSortedBy( v, function( byref x as string, byref y as string ) as boolean
+print IsSortedBy( v, function( byref x as ustring, byref y as ustring ) as boolean
     return len( x ) < len( y )
 end function )               '' true
 

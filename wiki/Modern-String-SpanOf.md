@@ -29,7 +29,7 @@ print SpanOf( 1, "x", " " )           '' 0 -- stops immediately
 print SpanOf( 4, "   xyz", "xyz" )    '' 3 -- counts from position 4 on
 
 '' Skipping indentation without a trim
-dim as string line_ = "    indented"
+dim as ustring line_ = "    indented"
 print mid( line_, SpanOf( 1, line_, " " ) + 1 )    '' indented
 ```
 

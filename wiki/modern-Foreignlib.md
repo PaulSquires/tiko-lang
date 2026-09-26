@@ -79,7 +79,7 @@ Binding to a C library is **two** jobs. `#foreignlib` does the linkage half — 
 Together they let a binding ship **entirely inside your own source tree**:
 
 ```freebasic
-'' mylib/mylib.bi
+'' mylib/mylib.ti
 #pragma once
 
 #cinclude once "mylib.h"                    '' declarations, from the real header
@@ -88,7 +88,7 @@ Together they let a binding ship **entirely inside your own source tree**:
 
 with no `Declare` and no `#ifdef` anywhere in the using code.
 
-> ⚠️ **The two do not resolve paths the same way.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` does not: the header is resolved by **Clang**, against the compiler's working directory plus any `-cinclude` directories. A vendored header therefore still needs `fbc app.bas -cinclude mylib/vendor` on the command line. See [#cinclude](modern-Cinclude) ✨ for the detail.
+> ⚠️ **The two do not resolve paths the same way.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` does not: the header is resolved by **Clang**, against the compiler's working directory plus any `-cinclude` directories. A vendored header therefore still needs `tiko app.tko -cinclude mylib/vendor` on the command line. See [#cinclude](modern-Cinclude) ✨ for the detail.
 
 ### See also
 
@@ -107,7 +107,7 @@ with no `Declare` and no `#ifdef` anywhere in the using code.
 ```freebasic
 '' A binding that ships its own libraries:
 ''
-''     mylib/mylib.bi
+''     mylib/mylib.ti
 ''     mylib/lib/mylib_windows_x86_64.dll.a
 ''     mylib/lib/mylib_linux_x86_64.so
 

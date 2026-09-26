@@ -129,12 +129,12 @@ If you are vendoring it — shipping the header inside your own tree — put it 
 
 ```
 myapp/
-    app.bas
+    app.tko
     vendor/sqlite3.h
 ```
 
 ```
-tiko app.bas -cinclude vendor
+tiko app.tko -cinclude vendor
 ```
 
 `-cinclude` is passed to Clang as `-I`.
@@ -146,7 +146,7 @@ You can also name the folder in the directive itself and drop the flag:
 ```
 
 ```
-tiko app.bas
+tiko app.tko
 ```
 
 That is what FBC-Modern's shipped SQLite example does — but it works only while tiko is run **from the directory containing `vendor/`**. Build it from elsewhere and you are back to `-cinclude`, because the path is resolved against the working directory, not against the file that wrote it.
@@ -200,7 +200,7 @@ print rows; " rows"
 ### Step 5 — look at what you got
 
 ```
-tiko -cimport sqlite3.h -cimport-out sqlite3_generated.bi -cinclude vendor
+tiko -cimport sqlite3.h -cimport-out sqlite3_generated.ti -cinclude vendor
 ```
 
 writes the binding to a file instead of including it. Open it. At the top is a banner recording the headers, the target, the Clang version and the census, then two **ledgers**: every name that had to be changed, with the reason, and every declaration that was skipped, with the reason. Nothing is dropped in silence.
@@ -345,14 +345,14 @@ If you are shipping the library **inside your own source tree**, `#foreignlib` r
 
 ```
 mylib/
-    mylib.bi
+    mylib.ti
     vendor/mylib.h
     vendor/mylib_windows_x86_64.dll.a
     vendor/mylib_linux_x86_64.so
 ```
 
 ```freebasic
-'' mylib/mylib.bi
+'' mylib/mylib.ti
 #pragma once
 
 #cinclude once "mylib.h"
@@ -362,7 +362,7 @@ mylib/
 and the using code needs neither a `Declare` nor an `#ifdef`:
 
 ```freebasic
-#include once "mylib/mylib.bi"
+#include once "mylib/mylib.ti"
 print mylib_add( 2, 3 )
 ```
 
@@ -372,13 +372,13 @@ The two do **not** resolve paths the same way, and you will hit this.
 
 `#foreignlib` resolves its library relative to **the file containing the directive** — that is [the entire reason it exists](modern-Foreignlib), because `#libpath` is relative to the working directory and therefore unusable in a shipped binding.
 
-`#cinclude` does not do this. Clang resolves the header, against the working directory plus the `-cinclude` directories. So `mylib.bi` above still cannot say where its own header is; the build has to:
+`#cinclude` does not do this. Clang resolves the header, against the working directory plus the `-cinclude` directories. So `mylib.ti` above still cannot say where its own header is; the build has to:
 
 ```
-tiko app.bas -cinclude mylib/vendor
+tiko app.tko -cinclude mylib/vendor
 ```
 
-It is the same trap `#foreignlib` was written to close, still open on the header side. Until that changes, a vendored binding has to state the include directory it needs somewhere outside the `.bi` — a README, a makefile, a build script.
+It is the same trap `#foreignlib` was written to close, still open on the header side. Until that changes, a vendored binding has to state the include directory it needs somewhere outside the `.ti` — a README, a makefile, a build script.
 
 ---
 

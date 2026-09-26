@@ -10,7 +10,7 @@
 #include once "fb/map.bi"            ' or "containers.bi" for all four
 using FB
 
-dim ages as Map( of string, long )
+dim ages as Map( of ustring, long )
 
 ages.Put( "ada", 36 )
 ages.Add( "grace", 85 )
@@ -161,7 +161,7 @@ for each (k, v) in ages.Pairs( )
 next
 ```
 
-k and v each have their own type -- string and long here, not a pair and not each other.
+k and v each have their own type -- ustring and long here, not a pair and not each other.
 
 Pairs( ) is a second view over the same slots whose iterator yields a TUPLE, (TK, TV), which is what the destructuring form requires; iterating the map directly still yields a KeyValuePair. Two spellings rather than one because FreeBASIC CANNOT OVERLOAD ON THE RETURN TYPE ALONE -- the parser picks an overload bottom-up, before any expected type is known -- so MapIterator.Value( ) has to return one thing or the other, and changing it would break every kv.key / kv.value site.
 
@@ -205,7 +205,7 @@ Remove                                      all iterators invalidated
 Both the indexer and Put can rehash, so do not insert while iterating. Collect first, then mutate:
 
 ```freebasic
-dim doomed as Array( of string )
+dim doomed as Array( of ustring )
 for each kv in m
     if kv.value = 0 then doomed.Push( kv.key )
 next

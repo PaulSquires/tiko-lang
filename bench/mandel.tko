@@ -1,0 +1,21 @@
+function Mandel( byval w as long, byval h as long, byval maxit as long ) as longint
+    dim as longint total = 0
+    for y as long = 0 to h - 1
+        for x as long = 0 to w - 1
+            dim as double cr = x * 3.0 / w - 2.0, ci = y * 2.0 / h - 1.0
+            dim as double zr = 0, zi = 0
+            dim as long i = 0
+            do while i < maxit andalso zr * zr + zi * zi <= 4.0
+                dim as double t = zr * zr - zi * zi + cr
+                zi = 2.0 * zr * zi + ci
+                zr = t
+                i += 1
+            loop
+            total += i
+        next
+    next
+    return total
+end function
+dim as double t0 = timer
+dim as longint r = Mandel( 2000, 1500, 500 )
+print r; timer - t0

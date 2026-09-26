@@ -18,7 +18,7 @@ PathHasExtension( p )
 #include once "fb/filesystem.bi"
 using FB
 
-print PathHasExtension( "main.bas" )       '' true
+print PathHasExtension( "main.tko" )       '' true
 print PathHasExtension( "README" )        '' false
 print PathHasExtension( ".gitignore" )    '' false -- a name, not an extension
 

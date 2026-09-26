@@ -26,7 +26,7 @@ StableSortBy( a, less )
 using FB
 
 type Rec
-    as string surname
+    as ustring surname
     as long   seq
 end type
 

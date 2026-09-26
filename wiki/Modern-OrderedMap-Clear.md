@@ -24,7 +24,7 @@ Clear( )
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 ages.Put( "ada", 36 )
 ages.Put( "bob", 41 )
 

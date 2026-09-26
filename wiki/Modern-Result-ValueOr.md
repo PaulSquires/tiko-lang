@@ -18,8 +18,8 @@ ValueOr( byref dflt as T ) byref as T
 #include once "fb/result.bi"
 using FB
 
-dim good as Result( of long, string ) = Ok( of long, string )( 42 )
-dim bad  as Result( of long, string ) = Fail( of long, string )( "nope" )
+dim good as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
+dim bad  as Result( of long, ustring ) = Fail( of long, ustring )( "nope" )
 
 dim as long fallback = -1
 

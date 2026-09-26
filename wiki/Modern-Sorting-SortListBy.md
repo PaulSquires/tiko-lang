@@ -25,10 +25,10 @@ SortListBy( l, less )
 #include once "fb/sort.bi"
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 q.PushBack( "pear" ) : q.PushBack( "fig" ) : q.PushBack( "banana" )
 
-SortListBy( q, function( byref x as string, byref y as string ) as boolean
+SortListBy( q, function( byref x as ustring, byref y as ustring ) as boolean
     return len( x ) < len( y )
 end function )
 

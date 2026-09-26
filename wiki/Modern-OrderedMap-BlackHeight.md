@@ -18,7 +18,7 @@ BlackHeight( ) as long
 #include once "fb/orderedmap.bi"
 using FB
 
-dim m as OrderedMap( of integer, string )
+dim m as OrderedMap( of integer, ustring )
 for i as integer = 1 to 10
     m.Put( i, "v" & i )
 next

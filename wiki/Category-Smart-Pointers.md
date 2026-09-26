@@ -11,8 +11,8 @@
 using FB
 
 type Session
-    as string user
-    as long   id
+    as ustring user
+    as long    id
 end type
 
 dim s as SharedPtr( of Session ) = MakeShared( of Session )( )

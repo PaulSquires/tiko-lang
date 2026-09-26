@@ -24,16 +24,16 @@ TryLast( byref outk, byref outv )
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 
-dim as string k
+dim as ustring k
 dim as integer v
 if ages.TryLast( k, v ) then print k & " " & v      '' bob 41
 
 '' TryFirst and TryLast are O(log n): walk left, or walk right
-dim e as OrderedMap( of string, integer )
+dim e as OrderedMap( of ustring, integer )
 print e.TryLast( k, v )                '' false
 ```
 

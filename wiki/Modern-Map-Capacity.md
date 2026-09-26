@@ -18,7 +18,7 @@ Capacity( ) as long
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 print ages.Capacity              '' 0 -- nothing allocated yet
 
 ages.Put( "ada", 36 )

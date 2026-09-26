@@ -7,9 +7,9 @@
 > ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
 
 ```freebasic
-dim names(0 to 2) as string = { "ada", "grace", "edsger" }
+dim names(0 to 2) as ustring = { "ada", "grace", "edsger" }
 
-for each n as string in names
+for each n as ustring in names
     print n
 next
 ```

@@ -1,0 +1,14 @@
+'' TWO MODULES THAT BOTH HAVE A GLOBAL NEEDING CONSTRUCTION LINK. Each one gets a
+'' _GLOBAL__I and a _GLOBAL__D; fbc makes both module-local (llvm-nm 't', measured
+'' 2026-09-26) and tiko emitted them external, so this pair failed with
+'' "lld-link: duplicate symbol: _GLOBAL__I" and again for _GLOBAL__D.
+''
+'' The runner cannot run what it builds, so the link is the assertion; that the
+'' initialisers still RUN was checked by hand (the program prints a then b) and is
+'' pinned in IR by global-init-internal.test: they stay in @llvm.global_ctors.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/global-init-a.bas tests/driver/src/global-init-b.bas -o tests/driver/globalinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' EXPECT-FILE: tests/driver/globalinit.exe

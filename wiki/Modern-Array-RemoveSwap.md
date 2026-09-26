@@ -24,7 +24,7 @@ RemoveSwap( byval i as long )
 #include once "fb/array.bi"
 using FB
 
-dim v as Array( of string )
+dim v as Array( of ustring )
 v.Push( "a" ) : v.Push( "b" ) : v.Push( "c" ) : v.Push( "d" )
 
 '' O(1), but the LAST element moves into the hole -- order is not preserved.

@@ -29,7 +29,7 @@ print Unescape( "\x41\x42" )       '' AB
 print Unescape( "\q" )             '' q -- an unrecognised escape yields the character
 
 '' The exact inverse of Escape, for every input
-dim as string s = "a\b" & chr(9) & """q"""
+dim as ustring s = "a\b" & chr(9) & """q"""
 if Unescape( Escape( s ) ) = s then print "round trip holds"
 ```
 

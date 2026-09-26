@@ -18,7 +18,7 @@ IsEmpty( ) as boolean
 #include once "fb/map.bi"
 using FB
 
-dim ages as Map( of string, integer )
+dim ages as Map( of ustring, integer )
 print ages.IsEmpty               '' true
 
 ages.Put( "ada", 36 )

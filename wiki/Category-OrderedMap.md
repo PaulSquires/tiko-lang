@@ -11,7 +11,7 @@
 #include once "fb/orderedset.bi"
 using FB
 
-dim ages as OrderedMap( of string, long )
+dim ages as OrderedMap( of ustring, long )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 

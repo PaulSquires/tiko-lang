@@ -18,13 +18,13 @@ Keys( ) as Array( of TK )
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 
 '' A snapshot, already SORTED -- no sort needed afterwards, which is
 '' the difference from Map.Keys( )
-dim ks as Array( of string ) = ages.Keys( )
+dim ks as Array( of ustring ) = ages.Keys( )
 for i as long = 0 to ks.Count - 1
     print ks[ i ]                      '' ada / bob
 next

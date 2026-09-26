@@ -104,9 +104,9 @@ function DashApp.Init( ) as TuiCmd
 		netUp.Push( 12.0 )
 	next
 
-	dim as string names_( 0 to 9 ) = { "screencap", "mdworker", "zed", "Google C", _
-	                                   "iTerm2", "SiriSugg", "triald_s", "coreauth", _
-	                                   "nearbyd", "WhatsApp" }
+	dim as ustring names_( 0 to 9 ) = { "screencap", "mdworker", "zed", "Google C", _
+	                                    "iTerm2", "SiriSugg", "triald_s", "coreauth", _
+	                                    "nearbyd", "WhatsApp" }
 	for i as long = 0 to NPROC - 1
 		dim as TuiRow r
 		r.cells.Push( str( 25513 - i * 3 ) )
@@ -298,7 +298,7 @@ sub DashApp.ViewMem( byref f as TuiFrame, byval a as TuiRect )
 	dim as TuiRect inner = blk.Inner( a )
 	if( inner.IsEmpty( ) ) then exit sub
 
-	dim as string labels( 0 to 3 ) = { "Used ", "Avail", "Cache", "Free " }
+	dim as ustring labels( 0 to 3 ) = { "Used ", "Avail", "Cache", "Free " }
 	for i as long = 0 to 3
 		if( i * 2 >= inner.h ) then exit for
 		dim as TuiConstraintArray rc

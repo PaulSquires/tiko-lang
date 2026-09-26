@@ -24,8 +24,8 @@ PathFileName( p )
 #include once "fb/filesystem.bi"
 using FB
 
-print PathFileName( "C:\dev\src\main.bas" )       '' main.bas
-print PathFileName( "main.bas" )                  '' main.bas
+print PathFileName( "C:\dev\src\main.tko" )       '' main.tko
+print PathFileName( "main.tko" )                  '' main.tko
 
 '' Empty for a root: there is no leaf there
 print "[" & PathFileName( "C:\" ) & "]"           '' []

@@ -18,14 +18,14 @@ PopBack( ) as T
 #include once "fb/linkedlist.bi"
 using FB
 
-dim q as LinkedList( of string )
+dim q as LinkedList( of ustring )
 q.PushBack( "a" ) : q.PushBack( "b" )
 
 print q.PopBack( )       '' b
 print q.Count            '' 1
 
 '' PushBack + PopBack is a stack; PushBack + PopFront is a queue
-dim e as LinkedList( of string )
+dim e as LinkedList( of ustring )
 print "[" & e.PopBack( ) & "]"       '' [] -- empty gives a blank T
 ```
 

@@ -29,7 +29,7 @@ print IsBlank( "   " & chr(9) )        '' true -- space, tab, LF, VT, FF, CR
 print IsBlank( " x " )                 '' false
 
 '' Skipping empty configuration lines
-dim as string line_ = "   "
+dim as ustring line_ = "   "
 if IsBlank( line_ ) then print "nothing to parse"
 ```
 

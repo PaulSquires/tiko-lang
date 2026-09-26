@@ -18,7 +18,7 @@ Put( k, v ) as boolean
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 
 print ages.Put( "bob", 41 )      '' true -- the key was new
 print ages.Put( "bob", 42 )      '' false -- existed, and was OVERWRITTEN

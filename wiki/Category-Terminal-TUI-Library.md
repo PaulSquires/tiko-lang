@@ -711,7 +711,7 @@ sb.Add( " q quit ", th.danger, TUIALIGN_LEFT )
 sb.Add( "3/24 ", th.accent, TUIALIGN_RIGHT )      '' hard against the edge
 
 tree.Add( "src", 0, TRUE, 1 )        '' label, depth, hasChildren, userId
-tree.Add( "main.bas", 1, FALSE, 2 )
+tree.Add( "main.tko", 1, FALSE, 2 )
 tree.state = @treeState
 ```
 

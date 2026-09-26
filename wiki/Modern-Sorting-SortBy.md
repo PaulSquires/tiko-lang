@@ -25,11 +25,11 @@ SortBy( a, less )
 #include once "fb/sort.bi"
 using FB
 
-dim v as Array( of string )
+dim v as Array( of ustring )
 v.Push( "pear" ) : v.Push( "fig" ) : v.Push( "banana" )
 
 '' A caller-supplied strict '<' -- by length here, not alphabetically
-SortBy( v, function( byref x as string, byref y as string ) as boolean
+SortBy( v, function( byref x as ustring, byref y as ustring ) as boolean
     return len( x ) < len( y )
 end function )
 

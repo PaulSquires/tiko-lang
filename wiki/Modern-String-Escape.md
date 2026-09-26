@@ -24,7 +24,7 @@ Escape( s )
 #include once "fb/string.bi"
 using FB
 
-dim as string s = "path" & chr(9) & "c:\tmp" & chr(10)
+dim as ustring s = "path" & chr(9) & "c:\tmp" & chr(10)
 
 print Escape( s )                  '' path\tc:\\tmp\n
 print Escape( "say ""hi""" )       '' say \"hi\"

@@ -18,7 +18,7 @@ TryGet( k, byref outv ) as boolean
 #include once "fb/orderedmap.bi"
 using FB
 
-dim ages as OrderedMap( of string, integer )
+dim ages as OrderedMap( of ustring, integer )
 ages.Put( "ada", 36 )
 
 dim as integer got
