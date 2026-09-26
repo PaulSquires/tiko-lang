@@ -295,7 +295,7 @@ function C         ( byval x as long ) as long : return x : end function
 - **`NULL`.** Dropped deliberately — FreeBASIC's own crt headers define it, and emitting it too would be a duplicate definition. Write `0`.
 - **C++.** C headers only.
 - **`long double`**, and **infinity/NaN** as constant values. FreeBASIC has no spelling for either; both are skipped, with the reason in the ledger.
-- **On win64-msvc, the Universal CRT's inline functions.** tiko only: the UCRT's `stdio.h` defines `printf` and its family in the header as inline functions (`_CRT_STDIO_INLINE`), with no symbol, and they do not come across — after `#cinclude once "stdio.h"`, `printf( ... )` is `TKO0743: 'printf' is not declared`. `puts`, `sqrt` and the rest import as usual, and `-target win64` (the MinGW headers) imports `printf`. Measured 2026-09-24 at origin/master 50c71751.
+- **On win64-msvc, the Universal CRT's inline functions.** tiko only: the UCRT's `stdio.h` defines `printf` and its family in the header as inline functions (`_CRT_STDIO_INLINE`), with no symbol. The fourteen of the `printf` and `scanf` families (`printf`, `fprintf`, `sprintf`, `snprintf`, `scanf`, `fscanf`, `sscanf` and their `v` forms) come across all the same, because tiko's runtime defines each one; any other inline function in a UCRT header does not, and a call to it is `TKO0743: '...' is not declared`. Before 2026-09-25 `printf` itself was among those. One difference remains: `snprintf` and `vsnprintf` into a buffer too small return the length that was wanted (C99), where fbc-modern's MinGW runtime returns -1.
 
 ## Working with `#foreignlib`
 
