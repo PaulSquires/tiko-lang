@@ -10,8 +10,7 @@
 ''
 '' fbc routes these chains through the user operators and converts the USTRING side with
 '' fb_UStrToStr, which turns non-ANSI text into its UTF-8 bytes read back as separate
-'' units. tiko keeps every term UTF-16 instead -- the same text for ANSI, and non-ANSI text
-'' intact. That is deliberate.
+'' units. tiko does the same since 2026-09-26; it kept every term UTF-16 before.
 type DS
     as wstring * 64 w
     declare constructor( )

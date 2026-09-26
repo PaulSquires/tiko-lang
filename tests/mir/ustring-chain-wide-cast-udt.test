@@ -6,20 +6,21 @@
 '' 'narrow [x=hosthost]', 'TwsHost=127.0.0.1' and CATEGORY=0..2 for this source; tiko prints
 '' the same lines now.
 ''
-'' TWO DELIBERATE DIFFERENCES from fbc, both from keeping every term UTF-16 instead of calling
-'' the user 'operator &': non-ANSI text in the ustring side stays intact where fbc returns its
-'' UTF-8 bytes as separate units, and the operator's temporaries are never built -- a counting
-'' DS constructs 4 and destroys 4 over 10000 CATEGORY statements where fbc constructs and
-'' destroys 60004. Balanced either way.
+'' THE USER 'operator &' IS CALLED, as fbc calls it -- since 2026-09-26. Until then tiko
+'' flattened the chain and kept every term UTF-16, a deliberate difference: non-ANSI text on
+'' the ustring side stayed intact where fbc hands 'byref as string' its UTF-8 bytes, and no
+'' operator temporaries were built. Flattening a bound operator is what dropped fbx's
+'' 'dim s as string = dv & " " & ustr', so it went, and both differences with it: the text
+'' is fbc's byte for byte, and the temporaries balance.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/ustring-chain-wide-cast-udt.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 statements not lowered
-'' EXPECT-OUT: call ptr _ZN2DScvwEv(@d)
+'' EXPECT-OUT: call ptr _ZN2DScvwEv(@$tmp
 '' EXPECT-OUT: call.rtl ptr fb_WstrToUStr(
 '' EXPECT-OUT: fb_UStrInit(@t1, -1,
 '' EXPECT-OUT: call.rtl ptr fb_UStrConcatUA(
 '' EXPECT-OUT: call.rtl ptr fb_LongintToStr(
-'' EXPECT-NOT: call ptr _Zv23cat
+'' EXPECT-OUT: call ptr _Zv23cat
 '' EXPECT-NOT: fb_UStrToStr

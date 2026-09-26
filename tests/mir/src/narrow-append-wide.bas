@@ -10,8 +10,7 @@
 ''     [host=127.0.0.1|
 ''
 '' fbc builds the value wide, then fb_WstrConcatAW onto the destination and fb_WstrAssignToA
-'' back. For DS it goes through the user 'operator &' overloads first; tiko keeps the wide
-'' runtime route, and the text is the same because the destination is narrow either way.
+'' back. For DS it goes through the user 'operator &' overloads first, and so does tiko.
 ''
 '' DS copies DWSTRING's shape (see ustring-chain-wide-cast-udt.bas). DUAL casts both ways and fbc
 '' picks the NARROW cast, so it stays on the narrow path.

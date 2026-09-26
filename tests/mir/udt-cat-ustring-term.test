@@ -1,0 +1,10 @@
+'' A USER 'operator &' IS ONE CALL, NOT A CONCATENATION -- with a USTRING operand, into a
+'' string, a ustring and a wstring. FlattenConcat split it, a USTRING term appeared that is
+'' not there, and 'dim as string s2 = dv & " " & ustr' dropped its initialiser. See the
+'' source's header, FlattenConcat and UserCastToWide_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/udt-cat-ustring-term.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call ptr _Zv23catR4DVARS0_(@$tmp6, @dv, @$tmp8)
+'' EXPECT-OUT: call.rtl ptr fb_WstrAssignToA_Init(@s2, -1,

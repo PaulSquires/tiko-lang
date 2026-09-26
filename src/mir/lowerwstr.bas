@@ -620,6 +620,9 @@ end function
 function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
+    '' A USER OPERATOR IS A CALL, not a concatenation -- see FlattenConcat. Its wide result
+    '' is WideOperand_'s, through the type's cast, as a variable of the type is.
+    if c.info->RefOf( e ) <> Tko.SYMBOL_NONE then return false
     '' A CHARACTER PLUS A NUMBER IS ARITHMETIC, not a concatenation, and the wide
     '' half did not know it. Measured, fbc prints 97 for both
     ''
@@ -1242,8 +1245,8 @@ function UserCastToWide_ _
         self_.id = NewTempLocal( c, MT_AGG, bsz )
         if cast( long, self_.id ) < 0 then return false
         StoreThrough( c, self_, brv )
-    else
-        self_ = LowerAddr( c, id )
+    elseif UdtSelfAddr_( c, id, self_ ) = false then   '' an operator's result has no address
+        return false
     end if
     if self_.kind = cast( ubyte, MV_NONE ) then return false
     outv = EmitMemberCall( c, want, self_, MT_PTR )

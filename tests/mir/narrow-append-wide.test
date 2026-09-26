@@ -5,9 +5,9 @@
 '' wide term; 'h &= u & wz', with a ustring in the chain, lowered and held "nU w i". Measured,
 '' fbc-modern prints the lines listed in the source's header; tiko prints the same lines now.
 ''
-'' The dual-cast UDT stays NARROW, as fbc has it. One deliberate difference: fbc builds the DS
-'' chains through the user 'operator &' overloads, tiko through fb_WstrConcatAW -- the same text,
-'' since the destination is narrow either way, and no operator temporaries.
+'' The dual-cast UDT stays NARROW, as fbc has it. The DS chains go through the user 'operator &'
+'' overloads, as fbc builds them -- since 2026-09-26; tiko flattened them into fb_WstrConcatAW
+'' before, and a USTRING term in such a chain dropped the statement. See FlattenConcat.
 '' TEST: cli
 '' ARGS: --dump-ir tests/mir/src/narrow-append-wide.bas
 '' EXPECT-EXIT: 0
@@ -20,5 +20,5 @@
 '' EXPECT-OUT: call.rtl ptr fb_UStrAssignToA(
 '' EXPECT-OUT: call ptr _ZN4DUALcv8FBSTRINGEv(@du)
 '' EXPECT-OUT: call.rtl ptr fb_StrConcatAssign(
-'' EXPECT-NOT: call ptr _Zv23cat
+'' EXPECT-OUT: call ptr _Zv23cat
 '' EXPECT-NOT: call ptr _ZN4DUALcvwEv

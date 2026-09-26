@@ -837,6 +837,13 @@ function UdtSelfAddr_ _
     if sz <= 0 then return false
     dim as MirValue rv = LowerExpr( c, id )
     if rv.kind = cast( ubyte, MV_NONE ) then return false
+    '' A HIDDEN RESULT IS ALREADY ADDRESSED: a user operator whose type has a destructor
+    '' hands back its temporary's address, not the object -- see LowerUserBinaryOp_ --
+    '' and a UDT value is never a pointer, so a pointer here is that address.
+    if rv.ty = cast( ubyte, MT_PTR ) then
+        outv = rv
+        return true
+    end if
     dim as long slot = NewTempLocal( c, MT_AGG, sz )
     if slot < 0 then return false
     dim as MirValue tmp
@@ -1241,7 +1248,14 @@ function LowerZstrAssignTo _
         if isU then
             '' Decoded from a UTF-8 source -- see PushSourceUnit_.
             dim as long lch = 0
-            dim as long lgi = WideFoldedText_( c, value, lit, lch )
+            dim as long lgi = -1
+            '' ...BUT A LITERAL IS READ FROM ITS SOURCE, as every other wide site reads one
+            '' (WideLitGlobal_): the byte text above has its escapes applied, and
+            '' WideFoldedText_ will not decode an ESCAPED literal's text, so the raw UTF-8 of
+            '' '!"a<e-acute><CJK>b"' went in a byte per unit -- seven units where fbc has four,
+            '' in a 'ustring * 16' only; a var-len ustring's route already read the source.
+            if c.ast->Kind( value ) = Tko.N_STRING_LIT then lgi = WideLitGlobal_( c, value, lch )
+            if lgi < 0 then lgi = WideFoldedText_( c, value, lit, lch )
             PushUStrLiteralArg( c, args, lgi, lch )
         else
             args.Push( cast( ulong, MV_GLOBAL ) )

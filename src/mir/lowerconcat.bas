@@ -223,6 +223,11 @@ sub FlattenConcat _
         '' 'b = a + p' beside it lowered. ('and' is FreeBASIC's bitwise operator, so
         '' '&' is never ambiguous here.)
         dim as Tko.TokenKind bop = cast( Tko.TokenKind, bp->op )
+        '' ...AND NOT A USER OPERATOR HERE EITHER, the rule the parenthesised case above
+        '' states: 'dv & ustr' over fbx's DVARIANT is 'operator &( DVARIANT, DVARIANT )', one
+        '' call and one DVARIANT term. Split, the chain showed a USTRING term that is not
+        '' there, and 'dim s as string = dv & " " & ustr' dropped its initialiser.
+        if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then bop = Tko.TK_EOF
         if (bop = Tko.TK_PLUS) orelse (bop = Tko.TK_AMP) then
             FlattenConcat( c, bp->lhs, outp )
             FlattenConcat( c, bp->rhs, outp )

@@ -432,6 +432,37 @@ function PrintOne _
     '' zstring pointer declined.
     dim as longint fpn
     dim as long fpk = StrSwapKind_( c, t, fpn )
+    '' A 'ustring * N' IS COPIED INTO A USTRING FIRST -- fb_PrintUStr takes a descriptor, and
+    '' the fixed one has none. It had no branch, so 'print u' over one printed NOTHING, in
+    '' silence, while 'print u & "!"' beside it worked. Measured, fbc-modern:
+    ''
+    ''     memset( &TMP, 0, 24 );  fb_UStrAssign( &TMP, -1, U, (N-1) | 1 << 63, 0 );
+    ''     fb_PrintUStr( 0, &TMP, 1 );  ...  fb_UStrDelete( &TMP )
+    ''
+    '' fbc also assigns the temporary back to U, because the parameter is byref; printing
+    '' changes nothing, so that copy is not made here. fpn is the tagged length already.
+    if fpk = 4 then
+        dim as MirValue fua = LowerAddr( c, it )
+        if fua.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long fus = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if fus < 0 then return false
+        dim as MirValue fut
+        fut.kind = cast( ubyte, MV_LOCAL ) : fut.ty = cast( ubyte, MT_PTR ) : fut.id = fus
+        ZeroStrDescriptor( c, fut )
+        dim as FB.Array( of ulong ) fargs
+        PushStrArg( fargs, fut )
+        fargs.Push( cast( ulong, fua.kind ) ) : fargs.Push( cast( ulong, fua.id ) )
+        PushStrLen_( c, fargs, fpn )
+        PushConst( fargs, 0 )
+        EmitRtl( c, RTL_USTR_ASSIGN, fargs )
+        args.Push( cast( ulong, fut.kind ) ) : args.Push( cast( ulong, fut.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_PRINT_USTR, args )
+        dim as FB.Array( of ulong ) fdel
+        fdel.Push( cast( ulong, fut.kind ) ) : fdel.Push( cast( ulong, fut.id ) )
+        EmitRtl( c, RTL_USTR_DELETE, fdel )
+        return true
+    end if
     if (fpk = 3) orelse (fpk = 1) then
         dim as MirValue fd
         if StrDescriptorOf_( c, it, fd ) = false then return false

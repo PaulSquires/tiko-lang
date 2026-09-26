@@ -1,0 +1,13 @@
+'' A 'ustring * N' AS A PRINT ITEM is copied into a ustring temporary for fb_PrintUStr, and a
+'' LITERAL assigned to one is read from its source, escapes and all. 'print u' printed
+'' nothing, and '!"a<e-acute><CJK>b"' held its UTF-8 bytes. See PrintOne in mir/lowerio.bas
+'' and LowerZstrAssignTo in mir/lowersub.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/fixed-ustring-print.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl void fb_PrintUStr(0, @$tmp
+'' EXPECT-OUT: call.rtl void fb_UStrDelete(@$tmp
+'' EXPECT-OUT: "a\u00E9\u4E2Db"
+'' EXPECT-OUT: "x\u0009\u00E9"
+'' EXPECT-NOT: \u00C3\u00A9
