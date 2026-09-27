@@ -1,0 +1,35 @@
+'' STR( ) OF AN ENUM AS THE LEFT TERM OF A CONCATENATION PRINTS. 'print str( V2.d ) &
+'' " z"' printed nothing, where fbc prints "2 z", and tiko said nothing -- --dump-ir
+'' counted the line among its "statements not lowered". Check does not type a '&' chain,
+'' so PRINT classifies one by its LEFT term, and ExprIntrinsicType_ (intrinsics.bas) left
+'' str( ) of an enum UNTYPED: its argument had no builtin type, so it was not "numeric".
+'' 'print str( V2.d )' alone and 'dim s as string = str( V2.d ) & ...' were unaffected --
+'' one has its own path, the other is typed by its destination. The same rule typed hex,
+'' oct, bin, space, sgn, sin, sqr, atan2, mkl, chr and bit, and each declined the same way.
+''
+'' RUN, because the failure was a missing line: nothing in a dump or a link shows it.
+'' The source is also a goldenrun.sh differential -- byte-identical to fbc's build.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/enum-str-concat.bas -o tests/driver/enumstrconcat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/enumstrconcat.exe
+'' RUN: tests/driver/enumstrconcat.exe
+'' EXPECT-RUN-OUT: 2 z
+'' EXPECT-RUN-OUT: 2 w
+'' EXPECT-RUN-OUT: 1 y
+'' EXPECT-RUN-OUT: 2 ev
+'' EXPECT-RUN-OUT: 1 cv
+'' EXPECT-RUN-OUT: 2 hx
+'' EXPECT-RUN-OUT: 2 oc
+'' EXPECT-RUN-OUT: 10 bn
+'' EXPECT-RUN-OUT: 2 sp
+'' EXPECT-RUN-OUT: 1 sg
+'' EXPECT-RUN-OUT: 0.9092974268256817 sn
+'' EXPECT-RUN-OUT: 1.414213562373095 sq
+'' EXPECT-RUN-OUT: 0.7853981633974483 at
+'' EXPECT-RUN-OUT: 4 mk
+'' EXPECT-RUN-OUT: 65 ch
+'' EXPECT-RUN-OUT: -1 bt
+'' EXPECT-RUN-OUT: 6 bs
+'' EXPECT-RUN-OUT: 2!

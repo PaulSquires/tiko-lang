@@ -415,11 +415,12 @@ private function ExprIntrinsicType_ _
     '' binary-result typing and conversion cost, each gated separately against fbc.
     dim as boolean isStr = IsStringy_( ab ) orelse (ab = Tko.TY_FIXSTR)
     dim as boolean isNum = IsInt_( ab ) orelse IsFloat_( ab ) orelse (ab = Tko.TY_BOOLEAN)
-    '' An ARRAY or a POINTER counts as numeric for these: measured, fbc takes
-    '' 'chr( v_ptr )' and 'abs( v_arr )' and answers as if given a number.
+    '' An ARRAY, a POINTER or an ENUM counts as numeric for these: measured, fbc takes
+    '' 'chr( v_ptr )', 'abs( v_arr )' and 'str( E.m )' as if given a number. Untyped, the
+    '' enum's 'print str( E.m ) & " z"' gave PRINT nothing to classify; the line vanished.
     if a0 <> Tko.TYPE_NONE then
         select case c.types->Kind( a0 )
-        case Tko.TK_POINTER : isNum = true
+        case Tko.TK_POINTER, Tko.TK_ENUM : isNum = true
         case Tko.TK_ARRAY
             if FixedStringElem( a0, *c.types ) = Tko.TYPE_NONE then isNum = true
         end select
