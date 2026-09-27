@@ -121,6 +121,21 @@ get ( 20, 20 )-( 27, 27 ), g(0)
 put ( 0, 40 ), g(0), PSET
 chk( "get then put round trip", &h445566, point( 3, 43 ) )
 
+'' ---- a fresh IMAGE is the TRANSPARENT colour ----
+''
+'' imagecreate with no colour fills with the depth's MASK colour -- &hFFFF00FF at 32bpp,
+'' gfx_image.c's DEFAULT_COLOR_1 branch. It filled with 0, opaque black to TRANS, so a
+'' full-screen overlay (imagecreate, draw a frame, PUT ..., TRANS) blacked out the scene
+'' under it: starshine.bas's whole animation. Measured on fbc: POINT reads &hFFFF00FF.
+scope
+    dim as any ptr fim = imagecreate( 8, 8 )
+    chk( "a defaulted imagecreate is the mask colour", &hFFFF00FF, point( 3, 3, fim ) )
+    line ( 48, 8 )-( 55, 15 ), &h123456, bf
+    put ( 48, 8 ), fim, trans
+    chk( "put trans of a fresh image leaves the screen", &h123456, point( 51, 11 ) and &hFFFFFF )
+    imagedestroy( fim )
+end scope
+
 '' ---- DRAW STRING ----
 ''
 '' Only that it drew SOMETHING in the cell. Which pixels are the built-in font's

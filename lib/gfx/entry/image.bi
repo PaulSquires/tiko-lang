@@ -66,9 +66,14 @@ extern "c"
 '' IMAGECREATE( w, h [, colour [, depth ]] )
 ''
 '' Returns the header, or NULL. The pixels are filled with `colour` unless it
-'' was defaulted, in which case they are ZEROED -- and zero is not the same as
-'' the transparent colour, which is what makes a fresh image invisible under
-'' TRANS rather than magenta.
+'' was defaulted, in which case they are the TRANSPARENT (mask) colour of the
+'' image's depth -- gfx_image.c: 0 at 8bpp, MASK_COLOR_16 (&hF81F) at 16, and
+'' MASK_COLOR_32 or MASK_A_32 (&hFFFF00FF) at 32. Measured, fbc's fresh 32-bit
+'' image reads &hFFFF00FF through POINT. This used to ZERO it, on the claim that
+'' zero was what made a fresh image vanish under TRANS -- it is the other way
+'' round: zero is opaque black to TRANS, so a full-screen overlay built the
+'' usual way (imagecreate, draw a frame, PUT ..., TRANS) blacked out everything
+'' under it. starshine.bas's whole animation was hidden that way.
 ''
 '' NOT gfxlib2's FILL. Its imagecreate calls pixel_set with a count derived from
 '' the NEW image's bpp and a routine bound to the LAST DRAWING TARGET's, so an
@@ -100,7 +105,13 @@ function TkoGfxImageCreate alias "fb_GfxImageCreate" ( _
     dim as long pitch = img->pitch
 
     dim as ulong fill = colour
-    if (flags and TkoGfx.COORD_COLOR_DEF) <> 0 then fill = 0
+    if (flags and TkoGfx.COORD_COLOR_DEF) <> 0 then
+        select case bpp
+        case 1    : fill = 0
+        case 2    : fill = &hF81F
+        case else : fill = &hFFFF00FF
+        end select
+    end if
 
     '' THE WHOLE PITCH, padding included: gfxlib2 fills (pitch * h) / bpp pixels,
     '' so an 8bpp image's row padding holds the colour too -- and BSAVE copies it
