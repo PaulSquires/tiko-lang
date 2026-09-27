@@ -22,6 +22,7 @@
 #include once "driver/tkiemit.bi"
 #include once "pp/pp.bi"
 #include once "symbols/mangle.bi"
+#include once "symbols/modsym.bi"
 #include once "support/text.bi"
 
 namespace Tko.Modules
@@ -46,6 +47,8 @@ type TkiWriter_
     as long                    lineNo
     as boolean                 atLineStart
     as long                    prevTok
+    as Tko.StrVec ptr          aliases
+    as Tko.StrVec ptr          spaces
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
@@ -103,6 +106,20 @@ private sub Settle_( byref w as TkiWriter_, byval i as long )
     w.lineNo = d.lineNo
 end sub
 
+'' 'esc.Url', where esc is an import's alias: '__tko_mod_acme_text_esc.Url'.
+private function Rewritten_( byref w as TkiWriter_, byval i as long ) as string
+    dim as string sp = Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, (*w.toks)[i] )
+    if w.aliases->Count = 0 then return sp
+    if Kind_( w, i ) <> Tko.TK_IDENT then return sp
+    if Kind_( w, i + 1 ) <> Tko.TK_DOT then return sp
+    if Kind_( w, i - 1 ) = Tko.TK_DOT then return sp
+    dim as string low = Tko.Text.LowerAscii( sp )
+    for k as long = 0 to w.aliases->Count - 1
+        if (*w.aliases)[k] = low then return (*w.spaces)[k]
+    next
+    return sp
+end function
+
 '' ONE TOKEN, spaced so it re-lexes as itself: tokens the source wrote side by side stay
 '' side by side -- the lexer split them once and will again -- and everything else gets a
 '' space, which never joins two tokens into one.
@@ -129,7 +146,7 @@ private sub Tok_( byref w as TkiWriter_, byval i as long )
     if Kind_( w, i ) = Tko.TK_EOL then
         w.text &= ":"
     else
-        w.text &= Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, *t )
+        w.text &= Rewritten_( w, i )
     end if
     w.prevTok = i
 end sub
@@ -406,10 +423,12 @@ end sub
 function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
-      byref info as Tko.SemanticInfo ) as string
+      byref info as Tko.SemanticInfo, byref aliases as Tko.StrVec, _
+      byref spaces as Tko.StrVec ) as string
 
     dim as TkiWriter_ w
     w.ctx = @ctx : w.toks = @toks : w.ast = @ast : w.syms = @syms : w.info = @info
+    w.aliases = @aliases : w.spaces = @spaces
     w.atLineStart = true
     w.prevTok = -1
     for j as long = 0 to toks.Count - 1
@@ -440,18 +459,8 @@ function WriteInterface _
     w.text = "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n"
     w.text &= "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
     w.lineFile = 0
-    '' The unit's MODULE scope, which Collect opens inside the global one.
-    dim as Tko.ScopeId modScope = Tko.SCOPE_GLOBAL
-    for sc as long = 1 to syms.ScopeCount( )
-        dim as Tko.SymScope ptr ss = syms.ScopeAt( cast( Tko.ScopeId, sc ) )
-        if ss = 0 then continue for
-        if ss->kind = cast( ubyte, Tko.SCOPEK_MODULE ) then
-            modScope = cast( Tko.ScopeId, sc )
-            exit for
-        end if
-    next
     dim as long i = 0
-    Level_( w, i, modScope, 0 )
+    Level_( w, i, Tko.ModSym.ModuleScope( syms ), 0 )
     w.text &= "end namespace" & !"\n"
     return w.text
 end function

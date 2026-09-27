@@ -1,0 +1,6 @@
+'' TKO0863: AN ALIAS NAMED LIKE A DECLARATION of the importing unit -- 'http' is the
+'' import's alias and a variable of the program (ADR 0017; RFC-0002 §2).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/conflict.bas -o tests/diagnostics/aliasconflict.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: conflict.bas(2,1): error TKO0863: alias 'http' conflicts with a declaration of the same name

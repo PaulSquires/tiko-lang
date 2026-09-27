@@ -1,8 +1,8 @@
 '' A PROGRAM THAT IMPORTS A MODULE BUILDS IT AND LINKS IT (ADR 0017, P3). The graph is read
 '' from main.bas's header; acme.banner is compiled as one unit into an intermediate object;
 '' main.bas is compiled with '#import' no longer TKO0992; the two are linked. The module's
-'' top-level code runs before the program's. Naming what a module exports needs its
-'' interface, which comes later in P3; this program names nothing.
+'' top-level code runs before the program's. This program names nothing of it --
+'' iface-link.test does.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i tests/modules/src/build/libs tests/modules/src/build/app/main.bas -o tests/modules/buildlink.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc

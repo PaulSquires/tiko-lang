@@ -134,6 +134,13 @@ namespace Tko
     end type
     type PpImportVec as FB.Array( of PpImport )
 
+    '' THE INTERFACES AN '#import' READS IN (ADR 0017; RFC-0004 §4-5): the module's, and
+    '' before it every one it depends on, dependencies first, as FileIds. The driver
+    '' resolves the path, since the search roots are its; False, with the reason
+    '' reported, when it could not.
+    type PpImportFn as function _
+        ( byval ctx as any ptr, byref rec as PpImport, byref files as FileIdVec ) as boolean
+
     type PpConfig
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
         '' SHARED ACROSS EVERY UNIT OF ONE INVOCATION, or 0 for a private one.
@@ -171,6 +178,10 @@ namespace Tko
         as boolean    scanQuiet
         '' THE DRIVER BUILDS THIS UNIT'S IMPORTS (ADR 0017, P3): '#import' is not TKO0992.
         as boolean    importsBuilt
+        '' ...and reads each one's interface in where it stands, as a PpImportFn. NULL:
+        '' '#import' records the import and reads nothing.
+        as any ptr    importCtx
+        as any ptr    importFn
         '' A MODULE UNIT (ADR 0017; RFC-0003): the module's files, in order, preprocessed
         '' one after another by this engine as ONE translation unit -- the root is the
         '' first, and each next one starts where the one before ends. Every macro a file

@@ -55,6 +55,18 @@ namespace Tko
         as string                 modName
         as long                   modFileCount
         as FileIdVec              modFiles
+        '' ...and its PACKAGE: the name, and the root its relative imports stay inside.
+        as string                 modPkgName
+        as string                 modPkgRoot
+        '' THE MODULES OF THE BUILD (src/driver/modiface.bas), by graph node: each one's
+        '' chain, its interface once it has been compiled (FILE_NONE until then), and the
+        '' import edges between them; and the roots' package root, where a root's import is
+        '' resolved from.
+        as StrVec                 ifaceChains
+        as FileIdVec              ifaceFiles
+        as FileIdVec              ifaceEdgeFrom
+        as FileIdVec              ifaceEdgeTo
+        as string                 ifaceRootDir
         '' THE MODULES THE ROOTS IMPORT ARE BUILT (src/driver/modbuild.bas), so a root's
         '' '#import' is not TKO0992.
         as boolean                importsBuilt

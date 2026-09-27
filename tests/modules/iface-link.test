@@ -1,0 +1,21 @@
+'' A PROGRAM NAMES WHAT ITS MODULES EXPORT (ADR 0017; RFC-0002 §2, RFC-0004 §4-5). Each
+'' module, compiled in order, leaves its interface; each '#import' reads it in, after the
+'' interfaces it depends on and each once -- main imports esc and http, and http imports
+'' esc, so esc's is read once and its Url is one type. Through the alias, through 'as',
+'' through 'using': a function whose signature names another module's type through that
+'' module's own alias, a generic instantiated in the program, a const, an enum, a namespace
+'' member and two shared variables, one of them written by http and read by main. Every
+'' name links by the module's chain, so the program runs.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o tests/modules/ifacelink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/ifacelink.exe
+'' RUN: tests/modules/ifacelink.exe
+'' EXPECT-RUN-OUT: <a>
+'' EXPECT-RUN-OUT:  80
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT: 3 1
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT: <bc> 2

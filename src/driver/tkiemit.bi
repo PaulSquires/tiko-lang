@@ -18,10 +18,14 @@ declare function InterfaceNamespace( byref chain as string ) as string
 
 '' THE INTERFACE OF THE MODULE UNIT just checked: its declarations, from its own tokens after
 '' preprocessing, with procedure bodies dropped and shared variables turned into externs
-'' that link by the module's names. Everything declared 'private' stays out.
+'' that link by the module's names. Everything declared 'private' stays out. A name the
+'' module spells through one of its imports' aliases -- 'esc.Url' -- is written through
+'' that import's namespace instead (aliases[k] -> spaces[k]): the alias is the module's
+'' file's, and means nothing in an importer.
 declare function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
-      byref info as Tko.SemanticInfo ) as string
+      byref info as Tko.SemanticInfo, byref aliases as Tko.StrVec, _
+      byref spaces as Tko.StrVec ) as string
 
 end namespace

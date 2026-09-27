@@ -71,25 +71,23 @@ private sub MarkNamed_ _
     next
 end sub
 
-sub Mark _
+private function InFiles_ _
+    ( byref src as Tko.SourceManager, byref files as Tko.FileIdVec, _
+      byval loc as Tko.SourceLoc ) as boolean
+    if loc = Tko.LOC_NONE then return false
+    dim as ulong f = cast( ulong, src.Decode( loc ).file )
+    for each m as ulong in files
+        if m = f then return true
+    next
+    return false
+end function
+
+'' THE WORDS WRITTEN on every declaration -- of the files given, or of any file when there
+'' are none -- put on the symbols they declared.
+private sub MarkWords_ _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
-      byref diags as Tko.DiagnosticEngine )
-
-    if syms.modFileCount = 0 then return
-
-    for si as long = 1 to syms.Count( )
-        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = 0 then continue for
-        if ModuleLevel_( syms, s->parent ) = false then continue for
-        if InUnit_( syms, src, s->loc ) = false then continue for
-        s->flags or= Tko.SYMF_MODSRC
-        '' 'common' SHARES STORAGE BY SPELLING across units, which is the coupling modules
-        '' replace (RFC-0003 §4).
-        if (s->flags and Tko.SYMF_COMMON) <> 0 then
-            diags.Report( Tko.TKO0366, Tko.PointRange( s->loc ), "'common'" )
-        end if
-    next
+      byref only as Tko.FileIdVec )
 
     for n as long = 1 to ast.Count( )
         dim as Tko.NodeId id = cast( Tko.NodeId, n )
@@ -103,6 +101,9 @@ sub Mark _
         dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[n].data )]
         dim as ulong vis = sp->extra and (Tko.PF_VIS_PUBLIC or Tko.PF_VIS_PRIVATE)
         if vis = 0 then continue for
+        if only.Count > 0 then
+            if InFiles_( src, only, ast.nodes[n].loc ) = false then continue for
+        end if
         dim as ulong f = iif( (vis and Tko.PF_VIS_PUBLIC) <> 0, Tko.SYMF_PUBLIC, Tko.SYMF_PRIVDECL )
         '' A NODE THAT OPENS A SCOPE -- a procedure, a type, a namespace -- records the one it
         '' opens (collect.bas), and its name is declared in the one around it: the scope
@@ -127,6 +128,54 @@ sub Mark _
         end if
     next
 end sub
+
+sub Mark _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
+      byref diags as Tko.DiagnosticEngine )
+
+    if syms.modFileCount = 0 then return
+
+    for si as long = 1 to syms.Count( )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+        if s = 0 then continue for
+        if ModuleLevel_( syms, s->parent ) = false then continue for
+        if InUnit_( syms, src, s->loc ) = false then continue for
+        s->flags or= Tko.SYMF_MODSRC
+        '' 'common' SHARES STORAGE BY SPELLING across units, which is the coupling modules
+        '' replace (RFC-0003 §4).
+        if (s->flags and Tko.SYMF_COMMON) <> 0 then
+            diags.Report( Tko.TKO0366, Tko.PointRange( s->loc ), "'common'" )
+        end if
+    next
+    dim as Tko.FileIdVec any_
+    MarkWords_( ast, syms, info, src, any_ )
+end sub
+
+sub MarkImported _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
+      byref ifaces as Tko.FileIdVec )
+
+    if ifaces.Count = 0 then return
+    for si as long = 1 to syms.Count( )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+        if s = 0 then continue for
+        if ModuleLevel_( syms, s->parent ) = false then continue for
+        if InFiles_( src, ifaces, s->loc ) = false then continue for
+        s->flags or= Tko.SYMF_IMPORTED
+    next
+    MarkWords_( ast, syms, info, src, ifaces )
+end sub
+
+function ModuleScope( byref syms as Tko.SymbolTable ) as Tko.ScopeId
+    for sc as long = 1 to syms.ScopeCount( )
+        dim as Tko.SymScope ptr ss = syms.ScopeAt( cast( Tko.ScopeId, sc ) )
+        if ss = 0 then continue for
+        if ss->kind = cast( ubyte, Tko.SCOPEK_MODULE ) then return cast( Tko.ScopeId, sc )
+    next
+    return Tko.SCOPE_GLOBAL
+end function
 
 sub Inherit( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, byval from as Tko.SymbolId )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )

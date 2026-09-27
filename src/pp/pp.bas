@@ -42,6 +42,9 @@ type PpFrame
     '' than the 'use' token PpExpandBuiltin already has. Every fbcunit assertion in the
     '' corpus reported its '#define' line instead of the failing line without it.
     as SourceLoc useLoc
+    '' A MODULE'S INTERFACE (RFC-0004 §5): read as the module wrote it -- no macro of the
+    '' importer's expands inside it -- and it does not end the importer's header.
+    as boolean   iface
 end type
 
 type PpCond
@@ -1097,7 +1100,9 @@ private function PpStep( byref e as PpEngine ) as boolean
         end if
 
         '' ---- a macro name expands; anything else is output
-        if k = TK_IDENT then
+        dim as boolean inIface = (e.frames.Count > 0)
+        if inIface then inIface = e.frames[e.frames.Count - 1].iface
+        if (k = TK_IDENT) andalso (inIface = false) then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr m = MacroFor( e, id )
             dim as boolean expandable = (m <> 0) andalso (IsHidden( e, id ) = false)

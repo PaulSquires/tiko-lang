@@ -169,6 +169,10 @@ namespace Tko
     '' ...marked 'private': translation-unit local, LLVM internal, as fbc's private is.
     const SYMF_PRIVDECL       as ulong = &h02000000
     const SYMF_MODMASK        as ulong = &h03800000
+    '' READ IN FROM A MODULE'S INTERFACE (RFC-0004 §5), at module or namespace level. Its
+    '' 'public' is SYMF_PUBLIC; without it, it is there only for the module's own generic
+    '' bodies to find.
+    const SYMF_IMPORTED       as ulong = &h04000000
 
     type Symbol
         as ubyte     kind
@@ -266,6 +270,11 @@ namespace Tko
         as long       modFileCount
         as FileIdVec  modFiles
         as StrVec     selfChain
+        '' THE MODULES WHOSE INTERFACES THIS UNIT READ: each one's namespace symbol, and the
+        '' chain it stands for, upper-cased and dotted ('ACME.NET.HTTP') -- what the mangler
+        '' writes in the namespace's place, so an importer names what the module defined.
+        as FB.Array( of ulong ) importNs
+        as StrVec     importChains
         as SymbolVec  symbols
         as ScopeVec   scopes
         as SymSlotVec slots        '' open addressing on (scope, name)

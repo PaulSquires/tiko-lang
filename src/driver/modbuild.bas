@@ -5,14 +5,14 @@
 '' into an intermediate object that joins the link, as a root's does. Then the roots are
 '' compiled, with '#import' no longer TKO0992.
 ''
-'' NOT YET (phase P3 continues): an importer cannot name what a module exports until the
-'' module's interface is read into it (RFC-0004). Until then a root may import a module
-'' and use nothing of it -- which already links the module in, and runs its top-level code
-'' before the program's.
+'' Each module, once compiled, leaves its interface behind for the ones after it and for
+'' the roots to read (modiface.bas). The first module that fails ends the build: what
+'' imports it could only fail after it.
 
 #include once "driver/modbuild.bi"
 #include once "driver/modgraph.bi"
 #include once "driver/unit.bi"
+#include once "driver/modresolve.bi"
 
 namespace Tko.Modules
 
@@ -35,8 +35,24 @@ function BuildImports _
     end if
 
     ctx.importsBuilt = true
+    ctx.ifaceChains.Clear( )
+    ctx.ifaceFiles.Clear( )
+    for i as long = 0 to g.chains.Count - 1
+        ctx.ifaceChains.Push( g.chains[i] )
+        ctx.ifaceFiles.Push( cast( ulong, Tko.FILE_NONE ) )
+    next
+    ctx.ifaceEdgeFrom.Clear( )
+    ctx.ifaceEdgeTo.Clear( )
+    for e as long = 0 to g.edgeFrom.Count - 1
+        ctx.ifaceEdgeFrom.Push( g.edgeFrom[e] )
+        ctx.ifaceEdgeTo.Push( g.edgeTo[e] )
+    next
+    ctx.ifaceRootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
+
     for each n as ulong in g.order
         ctx.modChain = g.chains[n]
+        ctx.modPkgName = g.pkgNames[n]
+        ctx.modPkgRoot = g.pkgRoots[n]
         ctx.modName = mid( ctx.modChain, instrrev( ctx.modChain, "." ) + 1 )
         ctx.modFiles.Clear( )
         for k as long = 0 to g.fileCount[n] - 1
@@ -48,6 +64,7 @@ function BuildImports _
         '' A module cannot '#cmdline' (TKO0366), so this never asks for a restart.
         Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, true, _
                                 linkObjs, tempObjs, toolExit, restartArgs )
+        if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
     next
     ctx.modChain = ""
     ctx.modName = ""

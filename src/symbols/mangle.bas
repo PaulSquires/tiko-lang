@@ -136,6 +136,31 @@ private sub QualifierChain _
         if (s->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE )) orelse _
            (s->kind = cast( ubyte, Tko.SCOPEK_TYPE )) then
             dim as Tko.Symbol ptr owner = syms.SymbolAt( s->owner )
+            '' A MODULE'S INTERFACE NAMESPACE is the module's chain, component by component
+            '' and kept as a chain is (ADR 0017): _ZN4ACME3NET4HTTP5FETCHEv, as the module
+            '' itself named it.
+            dim as long imp_ = -1
+            if (owner <> 0) andalso (syms.importNs.Count > 0) then
+                for k as long = 0 to syms.importNs.Count - 1
+                    if syms.importNs[k] = cast( ulong, s->owner ) then imp_ = k
+                next
+            end if
+            if imp_ >= 0 then
+                dim as string ch = syms.importChains[imp_]
+                dim as long e_ = len( ch )
+                for q as long = len( ch ) to 0 step -1
+                    dim as boolean cut = (q = 0)
+                    if cut = false then cut = (ch[q - 1] = asc( "." ))
+                    if cut then
+                        rev.Push( mid( ch, q + 1, e_ - q ) )
+                        revT.Push( CHAIN_QUAL )
+                        e_ = q - 1
+                    end if
+                next
+                outer = 0
+                cur = s->parent
+                continue while
+            end if
             if owner <> 0 then
                 outer = owner
                 '' A NAMESPACE ALIAS replaces the name and keeps its CASE, where a

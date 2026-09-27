@@ -84,6 +84,12 @@ private sub PpModCheckConds_( byref e as PpEngine, byval at as SourceLoc )
     next
 end sub
 
+'' Reading a module's interface (RFC-0004 §5).
+private function PpModInIface_( byref e as PpEngine ) as boolean
+    if e.frames.Count = 0 then return false
+    return e.frames[e.frames.Count - 1].iface
+end function
+
 '' EVERY DIRECTIVE PASSES HERE FIRST, conditionals included, before PpDirective acts on
 '' it. It counts the root file's directives for '#module', checks an '#import''s
 '' conditions, and ends the header at the first directive the header may not contain.
@@ -91,6 +97,8 @@ end sub
 function PpModPreDirective _
     ( byref e as PpEngine, byref word as string, byval at as SourceLoc ) as boolean
 
+    '' An interface's '#line' is the interface's business.
+    if PpModInIface_( e ) then return false
     if PpModInRoot_( e ) andalso (word <> "lang") then e.modst.directives += 1
     if word = "import" then PpModCheckConds_( e, at )
     if e.modst.headerClosed then return false
@@ -119,6 +127,8 @@ end function
 '' ends the header. TRUE: the engine is scanning, and stops before emitting it.
 function PpModBeforeEmit( byref e as PpEngine, byref t as Token ) as boolean
     if Tk( t ) = TK_EOL then return false
+    '' AN INTERFACE IS NOT THE IMPORTER'S CODE: the next '#import' is still in its header.
+    if PpModInIface_( e ) then return false
     e.modst.sawToken = true
     if e.modst.headerClosed then return false
     e.modst.headerClosed = true
@@ -341,7 +351,25 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     end if
 
     e.outp->imports.Push( rec )
-    if e.cfg->importsBuilt = false then PpModNotImpl_( e, at )
+    if e.cfg->importsBuilt = false then
+        PpModNotImpl_( e, at )
+        return
+    end if
+    if e.cfg->importFn = 0 then return
+
+    '' THE INTERFACES, read next and dependencies first: pushed last-first, so the first
+    '' is on top. One already read -- a diamond -- is not read again.
+    dim as FileIdVec got
+    dim as PpImportFn fn = e.cfg->importFn
+    if fn( e.cfg->importCtx, rec, got ) = false then return
+    for k as long = got.Count - 1 to 0 step -1
+        dim as FileId id = cast( FileId, got[k] )
+        if PpAlreadyOnce( e, id ) then continue for
+        e.onceFiles.Push( cast( ulong, id ) )
+        dim as TokenVec ptr toks = PpLexFile( e, id )
+        PushFrame( e, toks, INTERN_NONE, id, false )
+        e.frames[e.frames.Count - 1].iface = true
+    next
 end sub
 
 private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )

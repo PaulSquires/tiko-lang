@@ -24,6 +24,17 @@ declare sub Mark _
       byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
       byref diags as Tko.DiagnosticEngine )
 
+'' AN IMPORTER'S VIEW OF THE INTERFACES IT READ (RFC-0004 §5): SYMF_IMPORTED on every
+'' module- or namespace-level symbol declared in one of those files, and SYMF_PUBLIC where
+'' the interface says 'public'.
+declare sub MarkImported _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
+      byref ifaces as Tko.FileIdVec )
+
+'' The unit's MODULE scope, which Collect opens inside the global one.
+declare function ModuleScope( byref syms as Tko.SymbolTable ) as Tko.ScopeId
+
 '' A PROCEDURE'S LINKAGE, as module code (RFC-0002 §4): 'private' is internal, as always;
 '' 'public' is an ordinary external symbol; and everything else -- the default -- is
 '' external but HIDDEN, and never dllexported: other files of the module and an importer's

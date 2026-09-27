@@ -26,6 +26,7 @@
 #include once "codegen/llvmemit.bi"
 #include once "driver/lowerreport.bi"
 #include once "driver/tkiemit.bi"
+#include once "driver/modiface.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -45,6 +46,7 @@ function CompileUnit _
     dim as Tko.IdVec modFiles
     dim as Tko.StrVec noDefines
     if ctx.modFileCount > 0 then Tko.Modules.ModuleUnitConfig( ctx, cfg, modFiles, noDefines )
+    if ctx.importsBuilt then Tko.Modules.InstallImports( ctx, cfg )
     dim as Tko.PpStream st
     Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
 
@@ -133,6 +135,7 @@ function CompileUnit _
         Tko.ModSym.Begin( syms, ctx.modFiles, ctx.modChain )
         Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
     end if
+    if ctx.importsBuilt then Tko.Modules.BindImports( ctx, ast, syms, info, pr.imports )
 
     '' '#pragma reserve NAME' TAKES A NAME OUT OF CIRCULATION -- fbc error 4 for
     '' anything that then declares it. The two halves of that fact meet HERE and
@@ -226,6 +229,10 @@ function CompileUnit _
         Tko.CheckAbstractInstances( ast, syms, ctx.types, info, vts, ctx.names, ctx.diags )
         Tko.CheckOverridePromise( ast, vts, ctx.names, ctx.diags )
         Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
+        '' A MODULE OF THE BUILD LEAVES ITS INTERFACE for what imports it (modiface.bas).
+        dim as boolean publishes = (ctx.modFileCount > 0) andalso ctx.importsBuilt
+        if publishes then publishes = (FrontendFailed_( ctx ) = false)
+        if publishes then Tko.Modules.PublishInterface( ctx, pr, ast, syms, info )
         '' WHICH MODULE OWNS main. Three arms, and all three are fbc's,
         '' measured 2026-09-04:
         ''
@@ -494,7 +501,8 @@ function CompileUnit _
                                         info, rst, pr.reservedNames, syms )
         end if
         if FrontendFailed_( ctx ) = false then
-            print Tko.Modules.WriteInterface( ctx, pr.tokens, ast, syms, info );
+            dim as Tko.StrVec noAliases, noSpaces
+            print Tko.Modules.WriteInterface( ctx, pr.tokens, ast, syms, info, noAliases, noSpaces );
         end if
     elseif ctx.options.dumpMangle then
         '' Mangling needs the parameter TYPES, so it runs after Resolve --

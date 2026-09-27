@@ -38,6 +38,8 @@ function PrepareModuleUnit _
     ctx.modChain = w.chain
     ctx.modName = mid( w.chain, instrrev( w.chain, "." ) + 1 )
     ctx.modFileCount = files.Count
+    ctx.modPkgName = w.pkgName
+    ctx.modPkgRoot = w.pkgRoot
     return true
 end function
 
