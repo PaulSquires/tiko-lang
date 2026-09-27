@@ -572,6 +572,14 @@ function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirV
     if e = Tko.NODE_NONE then return false
     dim as Tko.TypeId ut = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->Kind( ut ) = Tko.TK_REFERENCE then ut = c.types->Unqualify( c.types->Inner( ut ) )
+    '' ...AND A 'ustring * N' IS ITS OWN BUFFER, UTF-16 already. Measured, fbc's 'strptr( u )'
+    '' over one is '(uint16*)U$0'. Declined here, strptr fell to ZstrDataOf_, which converted
+    '' it to a NARROW temporary and gave that away: 'GetKeyboardLayoutNameW( strptr( u ) )'
+    '' filled a buffer that was gone at the end of the statement, and u stayed empty.
+    if (c.types->Kind( ut ) = Tko.TK_ARRAY) andalso IsUStringType( c, ut ) then
+        outv = LowerAddr( c, e )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
     if c.types->Kind( ut ) <> Tko.TK_BUILTIN then return false
     if c.types->BuiltinOf( ut ) <> Tko.TY_USTRING then return false
     dim as MirValue ua = LowerAddr( c, e )

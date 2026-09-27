@@ -1,0 +1,7 @@
+'' 'strptr( u )' and 'sadd( u )' over a 'ustring * N' are the buffer's address, not a narrow
+'' temporary. See UStrDataArg_ in mir/lowerbyref.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustring-fixed-strptr.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: fb_UStrToStr(
