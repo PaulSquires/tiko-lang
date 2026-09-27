@@ -179,12 +179,42 @@ private function LookupDottedOwner_ _
 end function
 
 
+'' A MEMBER DEFINED OUT OF LINE, at module or namespace level of a MODULE UNIT, whose
+'' declarations have no order (ADR 0017; RFC-0003 §5): 'sub T.M( )' may be written above
+'' 'type T', so it is collected after everything else at its level, when T is declared.
+'' A namespace-qualified definition, 'sub ns.F( )', waits for its namespace the same way.
+private function Deferred_ _
+    ( byref w as Walker, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
+    if w.syms->modFileCount = 0 then return false
+    if w.ast->Kind( id ) <> Tko.N_PROC then return false
+    dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
+    if sc = 0 then return false
+    dim as boolean level = (sc->kind = cast( ubyte, Tko.SCOPEK_MODULE ))
+    if level = false then level = (sc->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ))
+    if level = false then return false
+    if (w.ast->nodes[cast( long, id )].flags and Tko.NF_QUALIFIED) <> 0 then return true
+    dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
+    return (sp->op = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _
+           (sp->op = cast( ushort, Tko.KW_DESTRUCTOR ))
+end function
+
 private sub WalkChildren _
     ( byref w as Walker, byval first as long, byval count as long, _
       byval scope_ as Tko.ScopeId )
 
+    dim as boolean later = false
     for i as long = 0 to count - 1
-        WalkNode( w, cast( Tko.NodeId, w.ast->children[first + i] ), scope_ )
+        dim as Tko.NodeId c = cast( Tko.NodeId, w.ast->children[first + i] )
+        if Deferred_( w, c, scope_ ) then
+            later = true
+            continue for
+        end if
+        WalkNode( w, c, scope_ )
+    next
+    if later = false then return
+    for i as long = 0 to count - 1
+        dim as Tko.NodeId c = cast( Tko.NodeId, w.ast->children[first + i] )
+        if Deferred_( w, c, scope_ ) then WalkNode( w, c, scope_ )
     next
 end sub
 

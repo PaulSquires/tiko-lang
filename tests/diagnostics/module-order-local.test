@@ -1,0 +1,6 @@
+'' A MODULE'S DECLARATIONS HAVE NO ORDER, BUT ITS LOCALS DO (ADR 0017; RFC-0003 §5): a
+'' procedure's local used above its 'dim' is still fbc's error 42.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/order/libs tests/diagnostics/src/modules/order/libs/acme/inproc -o tests/diagnostics/orderlocal.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: inproc.bas(4,11): error TKO0743: 'v' is not declared

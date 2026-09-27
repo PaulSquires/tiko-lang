@@ -8,6 +8,7 @@
 #pragma once
 
 #include once "symbols/resolve.bi"
+#include once "symbols/modsym.bi"
 
 namespace Tko.Resolve
 

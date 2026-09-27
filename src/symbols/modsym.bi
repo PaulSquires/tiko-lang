@@ -35,6 +35,14 @@ declare sub MarkImported _
 '' The unit's MODULE scope, which Collect opens inside the global one.
 declare function ModuleScope( byref syms as Tko.SymbolTable ) as Tko.ScopeId
 
+'' A MODULE'S DECLARATIONS HAVE NO ORDER (RFC-0003 §5): a procedure, type, enum, constant,
+'' typedef, generic, namespace or 'dim shared' of the module unit -- or an enum's member,
+'' or a type's -- may be used above where it is declared, in the same file or an earlier
+'' one. A module-level variable that is not shared belongs to the module's top-level code,
+'' which runs in order, and keeps the rule, as every local does. In an importer, the names
+'' a module's interface brought in are free the same way.
+declare function OrderFree( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as boolean
+
 '' A PROCEDURE'S LINKAGE, as module code (RFC-0002 §4): 'private' is internal, as always;
 '' 'public' is an ordinary external symbol; and everything else -- the default -- is
 '' external but HIDDEN, and never dllexported: other files of the module and an importer's

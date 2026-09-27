@@ -1,0 +1,8 @@
+'' TKO0867: CONSTANTS IN A CYCLE, which a module can write because its declarations have no
+'' order, and nothing can fold. Named whole, once; the use of A in F does not then fold it
+'' forever (it crashed the lowering before the cycle was broken). RFC-0003 §5.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/order/libs tests/diagnostics/src/modules/order/libs/acme/cycle -o tests/diagnostics/constcycle.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cycle.bas(3,7): error TKO0867: constant definitions form a cycle: a -> b -> c -> a
+'' EXPECT-MAX-DIAG: 1

@@ -193,6 +193,31 @@ function ModuleScope( byref syms as Tko.SymbolTable ) as Tko.ScopeId
     return Tko.SCOPE_GLOBAL
 end function
 
+function OrderFree( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = 0 then return false
+    '' The module's own names, and in an importer the names its interface brought in: the
+    '' interface is the module's text, in the module's order, which had none.
+    const ORDERLESS = Tko.SYMF_MODSRC or Tko.SYMF_IMPORTED
+    '' An enum's member, or a type's, goes with its owner.
+    if (s->flags and ORDERLESS) = 0 then
+        dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
+        if ps = 0 then return false
+        select case ps->kind
+        case cast( ubyte, Tko.SCOPEK_TYPE )     '' an enum opens one too
+        case else
+            return false
+        end select
+        s = syms.SymbolAt( ps->owner )
+        if s = 0 then return false
+        if (s->flags and ORDERLESS) = 0 then return false
+    end if
+    if s->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
+        return (s->flags and (Tko.SYMF_SHARED or Tko.SYMF_EXTERN)) <> 0
+    end if
+    return true
+end function
+
 sub Inherit( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, byval from as Tko.SymbolId )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     dim as Tko.Symbol ptr f = syms.SymbolAt( from )

@@ -127,14 +127,13 @@ function CompileUnit _
     dim as Tko.SymbolTable syms
     syms.Attach( @ctx.names )
     dim as Tko.SemanticInfo info
+    '' A MODULE UNIT, before Collect: its out-of-line members wait for their types.
+    if ctx.modFileCount > 0 then Tko.ModSym.Begin( syms, ctx.modFiles, ctx.modChain )
     Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, _
                      info, @ctx.sources )
     '' MODULE CODE, and what it lets out (ADR 0017): before Resolve, whose generic
     '' instances copy their generic's marks.
-    if ctx.modFileCount > 0 then
-        Tko.ModSym.Begin( syms, ctx.modFiles, ctx.modChain )
-        Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
-    end if
+    if ctx.modFileCount > 0 then Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
     if ctx.importsBuilt then Tko.Modules.BindImports( ctx, ast, syms, info, pr.imports )
 
     '' '#pragma reserve NAME' TAKES A NAME OUT OF CIRCULATION -- fbc error 4 for

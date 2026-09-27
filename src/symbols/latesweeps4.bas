@@ -1016,6 +1016,8 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId ) as str
             if viaTypedef = false then return ""
             if sy->declAt = 0 then return ""
             if cast( ulong, use ) >= sy->declAt then return ""
+            '' A module's type is complete wherever it is used (RFC-0003 §5).
+            if Tko.ModSym.OrderFree( *c.syms, sid ) then return ""
             return c.names->Spelling( sy->name )
         case else
             return ""

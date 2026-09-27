@@ -1,0 +1,6 @@
+'' ...AND SO DOES THE MODULE'S TOP-LEVEL CODE: a module-level variable that is not shared is
+'' that code's, which runs in order, and used above its 'dim' it is still error 42.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/order/libs tests/diagnostics/src/modules/order/libs/acme/toplevel -o tests/diagnostics/ordertop.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: toplevel.bas(4,7): error TKO0743: 'w' is not declared

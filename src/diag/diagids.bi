@@ -84,6 +84,8 @@
     DIAG( TKO0860, SEV_ERROR,   "'%0' is not public in module '%1'" )
     DIAG( TKO0862, SEV_ERROR,   "alias '%0' is already bound in this file (by '#import ""%1""')" )
     DIAG( TKO0863, SEV_ERROR,   "alias '%0' conflicts with a declaration of the same name" )
+    DIAG( TKO0867, SEV_ERROR,   "constant definitions form a cycle: %0" )
+    DIAG( TKO0869, SEV_ERROR,   "'%0' is initialised from '%1', which is declared later" )
     DIAG( TKO0870, SEV_ERROR,   "public '%0' has the same name as its module '%1'" )
 
     '' --------------------------------------------------------------------- lexer

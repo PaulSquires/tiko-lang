@@ -1,0 +1,8 @@
+'' TKO0869: A SHARED VARIABLE INITIALISED FROM ONE DECLARED LATER. Initialisers run in
+'' textual order, so 'a' would be constructed from a 'b' not yet constructed; 'fine', from
+'' an earlier one, is taken. RFC-0003 §5.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/order/libs tests/diagnostics/src/modules/order/libs/acme/later -o tests/diagnostics/initlater.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: later.bas(12,24): error TKO0869: 'a' is initialised from 'b', which is declared later
+'' EXPECT-MAX-DIAG: 1

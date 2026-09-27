@@ -1,0 +1,14 @@
+'' A MODULE'S DECLARATIONS HAVE NO ORDER (ADR 0017; RFC-0003 §5). acme.early uses, above
+'' their declarations -- in its own file or in b.bas, which sorts after it -- a procedure,
+'' a type by value and as a field, an enum member, a const built from a later const, a
+'' typedef chain, a generic and its member body, a generic typedef, a namespace member, a
+'' shared variable and a base type, and defines members out of line above their types. The
+'' importer reads the module's interface, in the module's order, and takes it too. 1197 is
+'' every term right; the second call's shared counter makes it 1198.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/fwd/libs tests/modules/src/fwd/app/main.bas -o tests/modules/orderlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/orderlink.exe
+'' EXPECT-RUN-OUT:  1197
+'' EXPECT-RUN-OUT:  1198

@@ -395,10 +395,29 @@ private sub Declaration_( byref w as TkiWriter_, byval s as long, byval e as lon
     end select
 end sub
 
+'' A GENERIC PROCEDURE OR MEMBER BODY, written whole. It goes at the END of its level: the
+'' module may have written 'sub Box( of T ).Get( )' above 'type Box', which its unit takes
+'' (RFC-0003 §5), and an importer collects the interface in order, so the type must come
+'' first there.
+private function GenericBody_( byref w as TkiWriter_, byval s as long ) as boolean
+    dim as long kw = s
+    dim as Tko.TokenKind vis = Kind_( w, s )
+    if vis = Tko.KW_PRIVATE then return false
+    if vis = Tko.KW_PUBLIC then kw += 1
+    select case Kind_( w, kw )
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+         Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+    case else
+        return false
+    end select
+    return HasTypeParams_( w, kw, StmtEnd_( w, s ) )
+end function
+
 '' One level's statements, from i to the end of the unit or, in a block, to its 'end' --
 '' where i is left pointing past it.
 sub Level_( byref w as TkiWriter_, byref i as long, byval sc as Tko.ScopeId, _
             byval closer as Tko.TokenKind )
+    dim as FB.Array( of long ) later
     while i < w.toks->Count
         dim as Tko.TokenKind k = Kind_( w, i )
         if k = Tko.TK_EOF then exit while
@@ -415,9 +434,19 @@ sub Level_( byref w as TkiWriter_, byref i as long, byval sc as Tko.ScopeId, _
             i = StmtEnd_( w, i ) + 1
             continue while
         end if
-        if InModule_( w, i ) then Declaration_( w, i, e, sc )
+        if InModule_( w, i ) then
+            if GenericBody_( w, i ) then
+                later.Push( i )
+                later.Push( e )
+            else
+                Declaration_( w, i, e, sc )
+            end if
+        end if
         i = e
     wend
+    for k as long = 0 to later.Count - 2 step 2
+        Chunk_( w, later[k], later[k + 1] )
+    next
 end sub
 
 function WriteInterface _

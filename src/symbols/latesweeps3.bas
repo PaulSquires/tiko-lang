@@ -1332,3 +1332,5 @@ private sub CheckStaticInitConst_( byref c as Ctx )
                          c.names->Spelling( s->name ) )
     next
 end sub
+
+#include once "symbols/initorder.bas"

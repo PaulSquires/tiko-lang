@@ -81,6 +81,8 @@ private function DeclaredBelow_ _
     if s = 0 then return false
     if s->declAt = 0 then return false
     if cast( ulong, use ) >= s->declAt then return false
+    '' ...NOT IN A MODULE, whose declarations have no order (ADR 0017; RFC-0003 §5).
+    if Tko.ModSym.OrderFree( *c.syms, sid ) then return false
     dim as long guard = 0
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
         guard += 1
