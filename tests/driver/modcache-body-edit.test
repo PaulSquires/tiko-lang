@@ -1,0 +1,18 @@
+'' A BODY EDIT REBUILDS ONLY ITS MODULE (RFC-0005 §4): acme.leaf's source changed, so it
+'' misses and says which key line did; its interface did not, so acme.middle, which imports
+'' it, hits -- and its cached object, linked with leaf's new one, prints the new value. The
+'' edit keeps every line where it was: the interface's '#line's say where each declaration
+'' is, so an edit that moves one changes the interface too.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-body/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-body
+'' COPY: tests/driver/src/modcache => build/.mct-body
+'' STEP: -v -target win64-msvc -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe
+'' WRITE: build/.mct-body/libs/acme/leaf/leaf.bas :: '' The bottom of the module-cache fixture: acme.middle imports it, main imports acme.middle.\n#module "leaf"\n#include once "../../../inc/leafcfg.bi"\npublic function Seed( ) as long\n    return LEAF_BASE + 1\nend function\n
+'' ARGS: -v -target win64-msvc -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module acme.leaf: miss (source leaf.bas
+'' EXPECT-OUT: module acme.middle: hit
+'' RUN: build/.mct-body/app.exe
+'' EXPECT-RUN-OUT:  16

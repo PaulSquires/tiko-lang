@@ -283,6 +283,9 @@ namespace Tko
         '' THE HEADERS A MODULE UNIT'S OWN FILES INCLUDE, as absolute paths in first-include
         '' order: its interface includes them (RFC-0004 §3).
         as StrVec      modHeaders
+        '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
+        '' cache entry depends on besides its sources (RFC-0005 §4).
+        as FileIdVec   filesRead
     end type
 
     '' ---------------------------------------------------------------- the stream

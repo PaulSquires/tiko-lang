@@ -30,6 +30,7 @@ end function
 '' Those files are cached per engine instead: correct, and rare enough that the saving
 '' is unaffected.
 private function PpLexFile( byref e as PpEngine, byval file as FileId ) as TokenVec ptr
+    e.outp->filesRead.Push( cast( ulong, file ) )
     dim as long idx = cast( long, file )
     while e.lexp->Count <= idx
         e.lexp->Push( 0 )

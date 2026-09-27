@@ -99,6 +99,7 @@ src/driver/modunit.bas
 src/driver/modbuild.bas
 src/driver/tkiemit.bas
 src/driver/modiface.bas
+src/driver/modcache.bas
 src/driver/diagout.bas
 src/cimport/clang.bas
 src/cimport/probe.bas

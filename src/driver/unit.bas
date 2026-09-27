@@ -123,6 +123,12 @@ function CompileUnit _
     for k as long = 0 to pr.foreignLibFiles.Count - 1
         ctx.options.pragmaLibFiles.Push( pr.foreignLibFiles[k] )
     next
+    '' What a module's cache entry depends on (modcache.bas).
+    ctx.unitFilesRead.Clear( )
+    for each f as ulong in pr.filesRead
+        ctx.unitFilesRead.Push( f )
+    next
+    ctx.unitThreadRtl = false
 
     dim as Tko.SymbolTable syms
     syms.Attach( @ctx.names )
@@ -297,6 +303,7 @@ function CompileUnit _
         if Tko.Mir.UsesThreadRtl( mm, ctx.names, _
                 ctx.types.target.pointerBits = 32 ) then
             ctx.options.threadSafe = true
+            ctx.unitThreadRtl = true
         end if
         if ctx.types.target.wcharBytes <> 2 then mm.SplitUtf16Literals( ctx.names )
         '' THE ABI PASS, between lowering and emission (docs/plan/10 section

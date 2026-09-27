@@ -53,6 +53,8 @@ namespace Tko
     OPT( OPT_PRINTGRAPH, "--print-graph", OPTK_FLAG, OPTCAT_GENERAL, "",     "print the modules the inputs import, in build order, and stop" )
     '' ...and the interface an importer of a module reads (RFC-0004).
     OPT( OPT_EMITTKI,   "--emit-tki",     OPTK_FLAG, OPTCAT_GENERAL, "",     "print the interface of the module directory given, and stop" )
+    '' ...and the cache the modules a program imports are built into (RFC-0005 §4).
+    OPT( OPT_NOMODCACHE, "--no-module-cache", OPTK_FLAG, OPTCAT_GENERAL, "",  "build imported modules without reading or writing the module cache" )
 
     '' ACCEPTED AND IGNORED TOO, and for a different reason. fbc-modern's '-z <option>'
     '' turns on an extended behaviour; the only one the corpus asks for is
@@ -171,6 +173,8 @@ namespace Tko
         as boolean printGraph
         '' --emit-tki: check the module directory given, print its interface, stop.
         as boolean emitTki
+        '' --no-module-cache: the imports are built every time, and nothing is stored.
+        as boolean noModuleCache
         '' THE LIBRARY SEARCH IS THREE LISTS, NOT ONE, and they are kept apart
         '' because their ORDER is fbc's and is measured:
         ''

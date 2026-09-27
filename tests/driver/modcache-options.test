@@ -1,0 +1,12 @@
+'' AN OPTION THAT CHANGES THE OBJECT IS IN THE KEY (RFC-0005 §4): the same program with -g
+'' misses on both modules, on the options line.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-opt/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-opt
+'' COPY: tests/driver/src/modcache => build/.mct-opt
+'' STEP: -v -target win64-msvc -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe
+'' ARGS: -g -v -target win64-msvc -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module acme.leaf: miss (options
+'' EXPECT-OUT: module acme.middle: miss (options

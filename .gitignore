@@ -87,3 +87,7 @@ tests/vendor/**/*.o
 # they stay untracked, the test passes here because they exist locally, and it
 # fails on a fresh clone -- which the gate cannot see either.
 !/tests/pp/src/vendor/*.a
+
+# THE MODULE CACHE (ADR 0017, RFC-0005 §4), which a build writes beside its first root --
+# tests/modules fixtures among them.
+.tiko/

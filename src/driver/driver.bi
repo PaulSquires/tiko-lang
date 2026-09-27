@@ -63,6 +63,12 @@ namespace Tko
         '' import edges between them; and the roots' package root, where a root's import is
         '' resolved from.
         as StrVec                 ifaceChains
+        as StrVec                 ifaceDirs
+        '' ...each one's interface text, and what its compile read and whether it needs
+        '' the thread-safe runtime -- what its cache entry records (modcache.bas).
+        as StrVec                 ifaceTexts
+        as FileIdVec              unitFilesRead
+        as boolean                unitThreadRtl
         as FileIdVec              ifaceFiles
         as FileIdVec              ifaceEdgeFrom
         as FileIdVec              ifaceEdgeTo

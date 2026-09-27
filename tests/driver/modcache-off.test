@@ -1,0 +1,13 @@
+'' --no-module-cache NEITHER READS NOR WRITES (RFC-0005 §4): no entry is made, -v reports no
+'' module, and the program still builds and runs.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-off/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-off
+'' COPY: tests/driver/src/modcache => build/.mct-off
+'' ARGS: --no-module-cache -v -target win64-msvc -i build/.mct-off/libs build/.mct-off/app/main.bas -o build/.mct-off/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: module acme
+'' EXPECT-NO-FILE: build/.mct-off/cache/chains/acme.leaf.key
+'' RUN: build/.mct-off/app.exe
+'' EXPECT-RUN-OUT:  14

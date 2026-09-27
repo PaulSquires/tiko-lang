@@ -8,13 +8,39 @@
 '' Each module, once compiled, leaves its interface behind for the ones after it and for
 '' the roots to read (modiface.bas). The first module that fails ends the build: what
 '' imports it could only fail after it.
+''
+'' THE CACHE (modcache.bas) is asked first, in the same order: a module whose key -- its
+'' sources, the options, and its closure's interfaces -- has an entry is not compiled. Its
+'' object is linked from the entry, its interface read from it, and what it adds to the
+'' link replayed. '-v' says which, per module.
 
 #include once "driver/modbuild.bi"
 #include once "driver/modgraph.bi"
 #include once "driver/unit.bi"
 #include once "driver/modresolve.bi"
+#include once "driver/modcache.bi"
 
 namespace Tko.Modules
+
+'' A cached module's contribution to the link, as ModuleCacheStore recorded it.
+private sub ReplayLibs_( byref ctx as Tko.CompilerContext, byref libs as string )
+    dim as long p = 1
+    while p <= len( libs )
+        dim as long e = instr( p, libs, chr( 10 ) )
+        if e = 0 then e = len( libs ) + 1
+        dim as string ln = mid( libs, p, e - p )
+        p = e + 1
+        dim as long t = instr( ln, chr( 9 ) )
+        if t = 0 then continue while
+        dim as string v = mid( ln, t + 1 )
+        select case left( ln, t - 1 )
+        case "lib"     : ctx.options.pragmaLibs.Push( v )
+        case "libpath" : ctx.options.pragmaLibPaths.Push( v )
+        case "libfile" : ctx.options.pragmaLibFiles.Push( v )
+        case "mt"      : ctx.options.threadSafe = true
+        end select
+    wend
+end sub
 
 function BuildImports _
     ( byref ctx as Tko.CompilerContext, byval rootCount as long, _
@@ -36,9 +62,13 @@ function BuildImports _
 
     ctx.importsBuilt = true
     ctx.ifaceChains.Clear( )
+    ctx.ifaceDirs.Clear( )
+    ctx.ifaceTexts.Clear( )
     ctx.ifaceFiles.Clear( )
     for i as long = 0 to g.chains.Count - 1
         ctx.ifaceChains.Push( g.chains[i] )
+        ctx.ifaceDirs.Push( NormPath( g.dirs[i] ) )
+        ctx.ifaceTexts.Push( "" )
         ctx.ifaceFiles.Push( cast( ulong, Tko.FILE_NONE ) )
     next
     ctx.ifaceEdgeFrom.Clear( )
@@ -48,6 +78,7 @@ function BuildImports _
         ctx.ifaceEdgeTo.Push( g.edgeTo[e] )
     next
     ctx.ifaceRootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
+    dim as string cacheRoot = ModuleCacheRoot( ctx )
 
     for each n as ulong in g.order
         ctx.modChain = g.chains[n]
@@ -60,11 +91,45 @@ function BuildImports _
         next
         ctx.modFileCount = ctx.modFiles.Count
         if ctx.modFileCount = 0 then continue for
+
+        dim as string key, hitObj, hitIface, hitLibs
+        if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )
+        if ModuleCacheLookup( ctx, cacheRoot, key, hitObj, hitIface, hitLibs ) then
+            if ctx.options.verbose then print "module " & ctx.modChain & ": hit"
+            linkObjs.Push( hitObj )
+            ctx.ifaceTexts[n] = hitIface
+            ctx.ifaceFiles[n] = cast( ulong, ctx.sources.AddVirtual( ctx.modChain & ".tki", hitIface ) )
+            ReplayLibs_( ctx, hitLibs )
+            continue for
+        end if
+        if ctx.options.verbose andalso (len( cacheRoot ) > 0) then
+            print "module " & ctx.modChain & ": miss (" & MissReason( cacheRoot, ctx.modChain, key ) & ")"
+        end if
+
+        '' WHAT THIS MODULE ADDS TO THE LINK is what its compile appends, and is recorded.
+        dim as long libs0 = ctx.options.pragmaLibs.Count
+        dim as long paths0 = ctx.options.pragmaLibPaths.Count
+        dim as long files0 = ctx.options.pragmaLibFiles.Count
+        dim as long objs0 = linkObjs.Count
         dim as Tko.StrVec restartArgs
         '' A module cannot '#cmdline' (TKO0366), so this never asks for a restart.
         Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, true, _
                                 linkObjs, tempObjs, toolExit, restartArgs )
         if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
+        if (len( cacheRoot ) > 0) andalso (linkObjs.Count > objs0) then
+            dim as string libs = ""
+            for k as long = libs0 to ctx.options.pragmaLibs.Count - 1
+                libs &= "lib" & chr( 9 ) & ctx.options.pragmaLibs[k] & chr( 10 )
+            next
+            for k as long = paths0 to ctx.options.pragmaLibPaths.Count - 1
+                libs &= "libpath" & chr( 9 ) & ctx.options.pragmaLibPaths[k] & chr( 10 )
+            next
+            for k as long = files0 to ctx.options.pragmaLibFiles.Count - 1
+                libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
+            next
+            if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
+            ModuleCacheStore( ctx, cacheRoot, key, linkObjs[linkObjs.Count - 1], ctx.ifaceTexts[n], libs )
+        end if
     next
     ctx.modChain = ""
     ctx.modName = ""
