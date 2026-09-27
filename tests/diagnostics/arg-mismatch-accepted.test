@@ -4,13 +4,13 @@
 '' NULL POINTER CONSTANT -- 'cptr( any ptr, 0 )' to a number -- which is what the
 '' vendored numbers/cast-nullptr.bas writes twenty times; a corpus sweep found it.
 ''
-'' NOT ASSERTED: '0 statements not lowered'. Lines 50 and 51 -- the null constant to a
-'' number -- were already dropped before this rule (lowerctl.bas:213, the call scores
-'' unviable), and still are. That is a missing conversion, not a diagnostic, and this
-'' test is about the diagnostic.
+'' AND NOTHING IS DROPPED. Lines 50 and 51 -- the null constant to a number -- scored
+'' unviable and were dropped (lowerctl.bas:213) until ArgShapeCost_ gave the null
+'' pointer constant its conversion; tests/driver/enum-nullptr-args builds and runs it.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/arg-mismatch-accepted.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-NOT: TKO0698
 '' EXPECT-NOT: error

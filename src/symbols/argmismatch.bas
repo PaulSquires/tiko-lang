@@ -73,25 +73,142 @@ private function AmNamedVar_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
            (s->kind = cast( ubyte, Tko.SYM_PARAMETER ))
 end function
 
-'' A NULL POINTER CONSTANT: 'cptr( T ptr, 0 )' or 'cast( any ptr, 0 )'. fbc passes one to a
-'' NUMBER parameter with warning 2 -- numbers/cast-nullptr.bas writes twenty -- while
-'' 'cptr( any ptr, 5 )', '@x', a pointer variable and a pointer result are all 24. To a
-'' UDT parameter even the null one is 58, so only the numeric rule asks.
-private function AmNullPtrConst_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
-    if c.ast->Kind( a ) <> Tko.N_CALL then return false
-    dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
-    if (lp->target = Tko.NODE_NONE) orelse (lp->count < 2) then return false
-    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
-    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
-    case "cptr", "cast"
-    case else : return false
+'' WHAT A POINTER-VALUED ARGUMENT FOLDS TO, as far as the null-pointer rule cares:
+''   AM_ZERO     a constant 0          AM_NONZERO  a constant, not 0
+''   AM_UNKNOWN  a constant shape this does not evaluate
+''   AM_NONCONST anything that is not a constant at all
+'' fbc's NULL POINTER CONSTANT is any constant pointer that FOLDS to 0, not a spelling --
+'' measured, each of these passes to a 'long' with warning 2 and 'F( 0 )' in the C:
+''   cptr( any ptr, 0 )   cast( integer ptr, 0 )   cptr( any ptr, &h0 )   cptr( any ptr, -0 )
+''   cptr( any ptr, KN )  with 'const KN = 0'      KP  with 'const KP = cptr( any ptr, 0 )'
+''   ( cptr( any ptr, 0 ) )    cptr( any ptr, 1 - 1 )    cptr( any ptr, KN + 0 )
+'' -- while 'cptr( any ptr, 5 )' and a KQ holding 'cptr( any ptr, 8 )' are error 24.
+enum AmFold
+    AM_ZERO = 0
+    AM_NONZERO
+    AM_UNKNOWN
+    AM_NONCONST
+end enum
+
+private function AmFold_ _
+    ( byref c as Ctx, byval n as Tko.NodeId, byref v as longint, byval depth as long ) as AmFold
+
+    if (n = Tko.NODE_NONE) orelse (depth > 32) then return AM_UNKNOWN
+    select case c.ast->Kind( n )
+    case Tko.N_INT_LIT
+        v = c.ast->literals[cast( long, c.ast->nodes[cast( long, n )].data )].intValue
+        return iif( v = 0, AM_ZERO, AM_NONZERO )
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if pp->count <> 1 then return AM_UNKNOWN
+        return AmFold_( c, cast( Tko.NodeId, c.ast->children[pp->first] ), v, depth + 1 )
+    case Tko.N_UNARY
+        dim as Tko.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        select case cast( Tko.TokenKind, up->op )
+        case Tko.TK_MINUS, Tko.TK_PLUS
+        case else : return AM_NONCONST            '' '@x', 'not x', ...
+        end select
+        dim as AmFold r = AmFold_( c, up->operand, v, depth + 1 )
+        if (r = AM_ZERO) orelse (r = AM_NONZERO) then
+            if cast( Tko.TokenKind, up->op ) = Tko.TK_MINUS then v = -v
+        end if
+        return r
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as longint l, r
+        dim as AmFold fl = AmFold_( c, bp->lhs, l, depth + 1 )
+        dim as AmFold fr = AmFold_( c, bp->rhs, r, depth + 1 )
+        if (fl = AM_NONCONST) orelse (fr = AM_NONCONST) then return AM_NONCONST
+        if (fl = AM_UNKNOWN) orelse (fr = AM_UNKNOWN) then return AM_UNKNOWN
+        select case cast( Tko.TokenKind, bp->op )
+        case Tko.TK_PLUS  : v = l + r
+        case Tko.TK_MINUS : v = l - r
+        case Tko.TK_STAR  : v = l * r
+        case else : return AM_UNKNOWN
+        end select
+        return iif( v = 0, AM_ZERO, AM_NONZERO )
+    case Tko.N_CALL
+        '' 'cptr( T, x )' and 'cast( T, x )' are their operand; any other call is not a
+        '' constant -- 'mkp( )' is error 24.
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if (lp->target = Tko.NODE_NONE) orelse (lp->count <> 2) then return AM_NONCONST
+        if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return AM_NONCONST
+        dim as Tko.IdentPayload ptr ip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+        case "cptr", "cast"
+        case else : return AM_NONCONST
+        end select
+        return AmFold_( c, cast( Tko.NodeId, c.ast->children[lp->first + 1] ), v, depth + 1 )
+    case Tko.N_IDENT
+        '' A NAMED CONSTANT is its initialiser; a variable is not a constant.
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if s = 0 then return AM_UNKNOWN
+        if s->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return AM_NONCONST
+        if (s->flags and Tko.SYMF_BUILTIN) <> 0 then return AM_UNKNOWN
+        dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
+        if (item = Tko.NODE_NONE) orelse (c.ast->Kind( item ) <> Tko.N_VAR_ITEM) then return AM_UNKNOWN
+        return AmFold_( c, StmtOf( c, item )->b, v, depth + 1 )
     end select
-    dim as Tko.NodeId v = cast( Tko.NodeId, c.ast->children[lp->first + lp->count - 1] )
-    if c.ast->Kind( v ) <> Tko.N_INT_LIT then return false
-    return (c.ast->literals[cast( long, c.ast->nodes[cast( long, v )].data )].intValue = 0)
+    return AM_NONCONST
+end function
+
+private function AmNullPtrConst_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+    dim as longint v
+    return (AmFold_( c, a, v, 0 ) = AM_ZERO)
+end function
+
+'' An integer or boolean builtin, or an enum: what a null pointer constant may bind to.
+'' Not SINGLE or DOUBLE -- 'cptr( any ptr, 0 )' to either is error 24, measured.
+private function AmNullTarget_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if c.types->Kind( t ) = Tko.TK_ENUM then return true
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, Tko.TY_LONG, Tko.TY_ULONG, _
+         Tko.TY_INTEGER, Tko.TY_UINTEGER, Tko.TY_LONGINT, Tko.TY_ULONGINT, Tko.TY_BOOLEAN
+        return true
+    end select
+    return false
+end function
+
+'' THE ARGUMENT'S SHAPE, where its type alone scored no conversion. ResolveCall_ asks
+'' this after UserConvCost_ with that cost in hand, so a viable user conversion stands.
+'' Two conversions fbc makes that a type cannot show, each costed as the warning they
+'' are -- CONV_PTR_CLASS, the cost of 'Passing scalar as pointer':
+''
+''   AN ENUM TO A POINTER -- warning 1. Measured, a plain or EXPLICIT enum, variable or
+''   member, to 'T ptr', 'any ptr', 'zstring ptr' and a procedure pointer: fbc writes
+''   '(struct $1T*)E1$0'. An integer VARIABLE is error 24 there; an enum is not. NOT to a
+''   BYREF pointer: fbc binds that reference to the enum's own storage --
+''   '(struct $1T**)&E1$0' -- and a converted temporary would lose every write back.
+''
+''   A NULL POINTER CONSTANT TO AN INTEGER, a boolean or an enum -- warning 2, 'F( 0 )'
+''   in the C, and 'F( &TMP )' through a byref one. numbers/cast-nullptr.bas.
+private function ArgShapeCost_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval prm as Tko.NodeId, _
+      byval at as Tko.TypeId, byval pt as Tko.TypeId, byval userCost as long ) as long
+
+    if userCost < CONV_NONE then return userCost
+    if (a = Tko.NODE_NONE) orelse (prm = Tko.NODE_NONE) then return userCost
+    if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return userCost
+    dim as Tko.TypeId au = c.types->Unqualify( at )
+    dim as Tko.TypeId pu = c.types->Unqualify( pt )
+    if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    dim as boolean byref_ = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+
+    if (c.types->Kind( au ) = Tko.TK_ENUM) andalso (c.types->Kind( pu ) = Tko.TK_POINTER) then
+        if byref_ = false then return CONV_PTR_CLASS
+        return userCost
+    end if
+    if (c.types->Kind( au ) = Tko.TK_POINTER) andalso AmNullTarget_( c, pu ) then
+        if AmNullPtrConst_( c, a ) then return CONV_PTR_CLASS
+    end if
+    return userCost
 end function
 
 '' Is (argument at, parameter pt) one of the measured refusals? 'byref_' is the
@@ -113,7 +230,16 @@ private function AmBadPair_ _
     end if
 
     if AmPtrLike_( c, at ) then
-        if AmNumeric_( c, pt ) then return (AmNullPtrConst_( c, a ) = false)
+        if AmNumeric_( c, pt ) then
+            '' A FLOAT takes no pointer at all -- 'cptr( any ptr, 0 )' to a double is 24 too.
+            select case c.types->BuiltinOf( pt )
+            case Tko.TY_SINGLE, Tko.TY_DOUBLE : return true
+            end select
+            '' Otherwise not a null constant, nor a constant shape AmFold_ cannot evaluate.
+            dim as longint fv
+            dim as AmFold f = AmFold_( c, a, fv, 0 )
+            return (f = AM_NONZERO) orelse (f = AM_NONCONST)
+        end if
         if AmPlainUdt_( c, pt, "__ctor", "let" ) then return true
         if AmString_( c, pt ) andalso (c.types->BuiltinOf( pt ) = Tko.TY_ZSTRING) then return byref_
         return false

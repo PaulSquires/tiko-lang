@@ -1173,7 +1173,7 @@ private function ResolveCall_ _
                     '' ...AND THE USER-DEFINED CONVERSIONS, which ConversionCost cannot
                     '' see: it takes only a TypeContext, so it can look up neither a
                     '' conversion constructor nor an 'operator cast'. See UserConvCost_.
-                    if cost >= CONV_NONE then cost = UserConvCost_( c, at2, pt, 0, overloaded )
+                    if cost >= CONV_NONE then cost = ArgShapeCost_( c, an6, prm, at2, pt, UserConvCost_( c, at2, pt, 0, overloaded ) )
                     ai += 1
                     if cost >= CONV_NONE then
                         viable = false

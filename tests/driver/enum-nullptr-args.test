@@ -1,0 +1,15 @@
+'' AN ENUM TO A POINTER, AND A NULL POINTER CONSTANT TO AN INTEGER, compile and link.
+'' fbc accepts both with a warning -- 1, 'passing scalar as pointer', and 2 -- and writes
+'' '(struct $1T*)E1$0' and 'F( 0 )'. tiko scored the only candidate unviable, left the
+'' call untyped and dropped the statement. See the source and src/symbols/argmismatch.bas
+'' (ArgShapeCost_).
+''
+'' A DRIVER TEST BECAUSE IT HAS TO LINK: --dump-ir stops before the emitter, and this
+'' file's first draft passed '0 statements not lowered' while clang refused its IR. The
+'' source is also a goldenrun.sh differential: built and run by fbc and by tiko, the two
+'' outputs are byte-identical (measured).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/enum-nullptr-args.bas -o tests/driver/enumnullargs.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/enumnullargs.exe

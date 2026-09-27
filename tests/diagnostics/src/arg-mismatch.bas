@@ -56,3 +56,6 @@ print takeU( "abc" )
 sub T.m( )
     print takeTptr( this )
 end sub
+
+'' A NULL POINTER CONSTANT binds an integer, never a float -- fbc's 24.
+print takeDbl( cptr( any ptr, 0 ) )
