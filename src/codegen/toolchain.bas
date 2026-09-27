@@ -12,6 +12,31 @@ private function FileExists_( byref p as string ) as boolean
     return true
 end function
 
+'' The first directory on PATH that holds 'exeName', or "" when none does. An entry
+'' written in quotes -- Windows allows one around a path with spaces -- is unquoted, and
+'' an empty one is skipped rather than read as the current directory.
+private function SearchPath_( byref exeName as string ) as string
+    #ifdef __FB_WIN32__
+        const SEP = ";", DIRSEP = "\"
+    #else
+        const SEP = ":", DIRSEP = "/"
+    #endif
+    dim as string path_ = environ( "PATH" ) & SEP
+    dim as long at = 1
+    while at <= len( path_ )
+        dim as long nx = instr( at, path_, SEP )
+        dim as string d = mid( path_, at, nx - at )
+        at = nx + 1
+        if (len( d ) >= 2) andalso (left( d, 1 ) = """") andalso (right( d, 1 ) = """") then
+            d = mid( d, 2, len( d ) - 2 )
+        end if
+        if len( d ) = 0 then continue while
+        if (right( d, 1 ) <> "/") andalso (right( d, 1 ) <> "\") then d += DIRSEP
+        if FileExists_( d & exeName ) then return d & exeName
+    wend
+    return ""
+end function
+
 function FindTools _
     ( byref clangOpt as string, byref libOpt as FB.Array( of string ) ) as ToolPaths
 
@@ -26,11 +51,11 @@ function FindTools _
         '' 2. The environment.
         t.clangExe = environ( "TKO_CLANG" )
         if len( t.clangExe ) = 0 then
-            '' 3. The conventional install. NOT a PATH search: on Windows 'clang' on
-            ''    PATH is as often a stale one from another toolchain as the intended
-            ''    one, and a backend that silently used a DIFFERENT clang than the
-            ''    datalayout was measured against is the failure this whole file exists
-            ''    to avoid. An explicit path or the environment says which.
+            '' 3. The conventional install, BEFORE PATH: on Windows 'clang' on PATH is
+            ''    as often a stale one from another toolchain as the intended one, and a
+            ''    backend that silently used a DIFFERENT clang than the datalayout was
+            ''    measured against is the failure this whole file exists to avoid. An
+            ''    explicit path or the environment says which.
             ''    On Linux the conventional install is the distribution's, which is
             ''    where Ubuntu's clang-18 package puts it; the Windows path is what a
             ''    Linux build used to look for, and every link failed.
@@ -39,6 +64,19 @@ function FindTools _
             #else
                 t.clangExe = "/usr/bin/clang"
             #endif
+            '' 4. PATH, and only when the conventional install is ABSENT, so it never
+            ''    outranks one: a clang installed elsewhere (scoop, a portable LLVM,
+            ''    /usr/local) was TKO0111 with a working clang one PATH lookup away.
+            ''    llvm-ar, llvm-rc and libclang follow it: all three are derived from
+            ''    its directory.
+            if FileExists_( t.clangExe ) = false then
+                #ifdef __FB_WIN32__
+                    dim as string onPath = SearchPath_( "clang.exe" )
+                #else
+                    dim as string onPath = SearchPath_( "clang" )
+                #endif
+                if len( onPath ) > 0 then t.clangExe = onPath
+            end if
         end if
     end if
     '' llvm-ar FROM CLANG'S OWN DIRECTORY. Derived rather than searched: the two
@@ -63,6 +101,7 @@ function FindTools _
 
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
+                iif( len( clangOpt ) + len( environ( "TKO_CLANG" ) ) = 0, " or on PATH", "" ) & _
                 " -- set TKO_CLANG to the clang to use"
         return t
     end if
