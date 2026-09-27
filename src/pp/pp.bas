@@ -378,6 +378,7 @@ end sub
 '' to RelexInto, which is what it is built on; declared here because PeekTok is where
 '' the seam becomes visible.
 declare function TryTailJoin_( byref e as PpEngine ) as boolean
+declare function PpModNextFile( byref e as PpEngine ) as boolean
 
 '' Peek the next token without consuming, skipping exhausted frames. Returns false at
 '' the very end of everything.
@@ -394,6 +395,10 @@ private function PeekTok( byref e as PpEngine, byref outTok as Token ) as boolea
         end if
         dim as Token t = f->toks->At( f->pos )
         dim as boolean fileEof = (f->file <> FILE_NONE) andalso (Tk( t ) = TK_EOF)
+        '' ...AND A MODULE UNIT'S ROOT EOF IS ITS NEXT FILE, when it has one (ppmodule.bas).
+        if fileEof andalso (e.frames.Count = 1) then
+            if PpModNextFile( e ) then continue while
+        end if
         if fileEof andalso (e.frames.Count > 1) then
             if e.frames.Count <= e.frameFloor then return false
             PopFrame( e )
@@ -946,6 +951,9 @@ declare function PpModPreDirective _
     ( byref e as PpEngine, byref word as string, byval at as SourceLoc ) as boolean
 declare function PpModBeforeEmit( byref e as PpEngine, byref t as Token ) as boolean
 declare sub PpModDirective( byref e as PpEngine, byref word as string, byval at as SourceLoc )
+declare sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
+declare sub PpModEndFile( byref e as PpEngine )
+declare function PpModRefuse( byref e as PpEngine, byref what as string, byval at as SourceLoc ) as boolean
 
 end namespace
 

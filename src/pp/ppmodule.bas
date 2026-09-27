@@ -234,6 +234,20 @@ private sub PpModNotImpl_( byref e as PpEngine, byval at as SourceLoc )
 end sub
 
 private sub PpModModule_( byref e as PpEngine, byval at as SourceLoc )
+    '' A MODULE FILE REACHED BY '#include' (TKO0367): a module is reachable by '#import'
+    '' only, and pasting one of its files into another unit would compile it twice.
+    dim as long top = e.frames.Count - 1
+    dim as boolean included = (top > 0)
+    if included then included = (e.frames[top].file <> FILE_NONE)
+    if included then included = (e.frames[top].file <> e.rootFile)
+    if included then
+        dim as string inm
+        if PpModString_( e, "#module", at, inm ) = false then return
+        Report( e, TKO0367, at, e.src->PathOf( e.frames[top].file ), inm )
+        SkipToEol( e )
+        return
+    end if
+
     dim as boolean first_ = PpModInRoot_( e ) andalso (e.modst.directives = 1)
     if first_ then first_ = (e.modst.sawToken = false)
     if first_ = false then
@@ -265,7 +279,9 @@ private sub PpModModule_( byref e as PpEngine, byval at as SourceLoc )
     e.outp->isModuleFile = true
     e.outp->moduleName = nm
     e.outp->moduleLoc = at
-    PpModNotImpl_( e, at )
+    '' Compiled as a module unit, '#module' is what the unit expects (P2). Compiled any other
+    '' way, the file is a module file outside its module: not built yet.
+    if e.cfg->moduleFiles = 0 then PpModNotImpl_( e, at )
 end sub
 
 private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
@@ -355,6 +371,114 @@ private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )
     wend
     if named = false then Report( e, TKO0364, at, "#export", "expected a macro name" )
 end sub
+
+'' ------------------------------------------------------------ the module unit
+''
+'' A MODULE UNIT IS ITS FILES, ONE AFTER ANOTHER, IN ONE ENGINE (PpConfig.moduleFiles). The
+'' parser sees one token stream and builds one N_MODULE, which is what generic
+'' instantiation needs: it re-parses token ranges of the unit's single token vector. Each
+'' file is still read as a file of its own -- its own header, its own '#module' -- and at
+'' its end three things happen (RFC-0003 §3):
+''
+''   - an '#if' still open is TKO0303, as it would be at the end of any file
+''   - a file that never said '#module' is TKO0145
+''   - every macro the file defined or undefined ITSELF is put back as it was. A macro
+''     from a header the file included stays: the next file's '#include once' of the same
+''     header reads nothing, so dropping it would leave the declarations without it.
+
+'' The directory part of a path, as written.
+private function PpModDirOf_( byref p as string ) as string
+    for i as long = len( p ) to 1 step -1
+        dim as ubyte c = p[i - 1]
+        if (c = 47) orelse (c = 92) then return left( p, i - 1 )
+    next
+    return "."
+end function
+
+'' A DEFINITION OR UNDEFINITION IS ABOUT TO CHANGE m. Recorded, with m as it is now, when
+'' the directive stands in the module file itself -- the innermost file frame is the root
+'' -- and not in a header it included.
+sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
+    if e.cfg->moduleFiles = 0 then return
+    for k as long = e.frames.Count - 1 to 0 step -1
+        if e.frames[k].file = FILE_NONE then continue for
+        if e.frames[k].file <> e.rootFile then return
+        exit for
+    next
+    e.modst.journalSlot.Push( cast( ulong, SlotOf( e, m->name ) ) )
+    e.modst.journalMac.Push( *m )
+end sub
+
+'' The end of one file of a module unit, whether or not another follows.
+sub PpModEndFile( byref e as PpEngine )
+    if e.cfg->moduleFiles = 0 then return
+    if e.modst.isModuleFile = false then
+        dim as string p = e.src->PathOf( e.rootFile )
+        Report( e, TKO0145, e.src->LocFor( e.rootFile, 0 ), p, PpModDirOf_( p ) )
+    end if
+    for k as long = e.modst.journalSlot.Count - 1 to 0 step -1
+        e.macros[e.modst.journalSlot[k] - 1] = e.modst.journalMac[k]
+    next
+    e.modst.journalSlot.Clear( )
+    e.modst.journalMac.Clear( )
+end sub
+
+'' THE ROOT FILE HAS REACHED ITS EOF, which PeekTok is about to hand out. The file's end is
+'' dealt with HERE, once, and not in PpFinish: a compile's parser stops at the EOF and never
+'' asks for more, so PpFinish never ran and an '#if' left open at the end of a file was
+'' accepted -- fbc refuses it, error 290 (measured 2026-09-27). If the unit has another
+'' file, start it in place of the EOF, which is then never emitted, and say TRUE. One end
+'' of line goes between the two, so a last line with no newline cannot run into the next
+'' file's first.
+function PpModNextFile( byref e as PpEngine ) as boolean
+    if e.modst.rootEnded then return false
+    dim as IdVec ptr files = e.cfg->moduleFiles
+    dim as boolean more = false
+    if files <> 0 then more = (e.modst.fileIndex + 1 < files->Count)
+
+    if e.cfg->scanHeader = false then
+        while e.conds.IsEmpty( ) = false
+            Report( e, TKO0303, e.conds[e.conds.Count - 1].loc )
+            e.conds.Pop( )
+        wend
+        PpModEndFile( e )
+    end if
+    if more = false then
+        e.modst.rootEnded = true
+        return false
+    end if
+    PopFrame( e )
+
+    e.modst.fileIndex += 1
+    dim as FileId nx = cast( FileId, (*files)[e.modst.fileIndex] )
+    e.rootFile = nx
+    e.modst.directives = 0
+    e.modst.sawToken = false
+    e.modst.headerClosed = false
+    e.modst.isModuleFile = false
+    PushFrame( e, PpLexFile( e, nx ), INTERN_NONE, nx, false )
+
+    dim as TokenVec ptr sep = new TokenVec
+    dim as Token t
+    t.kind = cast( ushort, TK_EOL )
+    t.flags = 0
+    t.loc = e.src->LocFor( nx, 0 )
+    t.length = 0
+    t.literal = 0
+    sep->Push( t )
+    PushFrame( e, sep, INTERN_NONE, FILE_NONE, true )
+    return true
+end function
+
+'' '#cmdline' IN A MODULE FILE (TKO0366): a restart re-reads the whole command line,
+'' which belongs to whoever compiles the program, not to one of its modules. TRUE when
+'' refused, with the line consumed.
+function PpModRefuse( byref e as PpEngine, byref what as string, byval at as SourceLoc ) as boolean
+    if e.modst.isModuleFile = false then return false
+    Report( e, TKO0366, at, what )
+    SkipToEol( e )
+    return true
+end function
 
 sub PpModDirective( byref e as PpEngine, byref word as string, byval at as SourceLoc )
     select case word

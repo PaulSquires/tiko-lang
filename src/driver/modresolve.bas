@@ -144,6 +144,52 @@ private function PkgDir_( ) as string
     return ""
 end function
 
+sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
+    dim as FB.Array( of FB.DirEntry ) entries
+    if FB.ListDir( dir_, entries ).IsOk( ) = false then return
+    for k as long = 0 to entries.Count - 1
+        if entries[k].IsFile( ) = false then continue for
+        dim as string nm = entries[k].Name( )
+        if Tko.Text.LowerAscii( right( nm, 4 ) ) <> ".bas" then continue for
+        '' Insertion sort: a module is a handful of files.
+        dim as string key = Tko.Text.LowerAscii( nm )
+        dim as long at = files.Count
+        files.Push( nm )
+        while at > 0
+            if Tko.Text.LowerAscii( files[at - 1] ) <= key then exit while
+            files[at] = files[at - 1]
+            at -= 1
+        wend
+        files[at] = nm
+    next
+end sub
+
+sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref outw as ModWhere )
+    dim as string d = NormPath( dir_ )
+    dim as Tko.StrVec roots
+    SearchRoots_( ctx, roots )
+    dim as string pk = PkgDir_( )
+    if len( pk ) > 0 then roots.Push( pk )
+    for i as long = 0 to roots.Count - 1
+        if IsWithin_( d, roots[i] ) = false then continue for
+        if SamePath_( d, roots[i] ) then continue for
+        dim as string rel = Below_( d, roots[i] )
+        dim as long sl = instr( rel, "/" )
+        dim as string first_ = iif( sl = 0, rel, left( rel, sl - 1 ) )
+        dim as string rest = iif( sl = 0, "", mid( rel, sl + 1 ) )
+        outw.dir_ = d
+        outw.pkgName = Tko.Text.LowerAscii( first_ )
+        outw.pkgRoot = JoinPath( roots[i], first_ )
+        outw.chain = ChainOf_( first_, rest )
+        return
+    next
+    dim as long sl = instrrev( d, "/" )
+    outw.dir_ = d
+    outw.pkgName = ANON_PACKAGE
+    outw.pkgRoot = DirOfFile( d )
+    outw.chain = ChainOf_( ANON_PACKAGE, mid( d, sl + 1 ) )
+end sub
+
 function ResolveImport _
     ( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImport, _
       byref fromDir as string, byref pkgName as string, byref pkgRoot as string, _

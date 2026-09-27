@@ -1,0 +1,6 @@
+'' TKO0366: '#cmdline' IN A MODULE FILE. A restart re-reads the whole command line, which
+'' belongs to whoever builds the program, not to one of its modules.
+'' TEST: cli
+'' ARGS: --emit-ir tests/diagnostics/src/modules/cmdl
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cmdl.bas(2,1): error TKO0366: '#cmdline' is not allowed in a module file

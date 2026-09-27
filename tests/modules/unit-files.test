@@ -1,0 +1,13 @@
+'' A MODULE IS ONE UNIT OF ITS FILES, AND ITS SEED IS HERMETIC (ADR 0017; RFC-0003 §1-3).
+''   - __TKO_MODULE__ names the chain, and __FB_OUT_OBJ__ is -1 whatever links it;
+''   - the command line's -d CMDDEF never reaches module code;
+''   - a.bas's own LOCALM is gone in b.bas, and the header's HMAC, which a.bas undefined,
+''     is back -- the second '#include once' of the header reads nothing, so the macro
+''     must survive the file boundary or b.bas would have its declarations without it.
+'' TEST: cli
+'' ARGS: --emit-ir -d CMDDEF -i tests/modules/src/unit/libs tests/modules/src/unit/libs/acme/greet
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: c"out-obj\00"
+'' EXPECT-OUT: c"acme.greet\00"
+'' EXPECT-OUT: c"hmac-kept\00"
+'' EXPECT-NOT: leaked

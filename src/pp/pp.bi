@@ -165,6 +165,13 @@ namespace Tko
         '' '#import' on the result. Nothing after that point is read, so nothing after
         '' it is reported, and neither is TKO0992: a scan is not a compile.
         as boolean    scanHeader
+        '' A MODULE UNIT (ADR 0017; RFC-0003): the module's files, in order, preprocessed
+        '' one after another by this engine as ONE translation unit -- the root is the
+        '' first, and each next one starts where the one before ends. Every macro a file
+        '' defined itself is undone at its end (headers' are kept). 0 for a classic unit.
+        as IdVec ptr  moduleFiles
+        '' The module's chain, 'acme.net.http': the value of __TKO_MODULE__.
+        as string     moduleChain
         '' The target, as the two FACTS the preprocessor needs rather than as a target
         '' id: it has no business knowing the type model, and handing it one invites it
         '' to grow more target knowledge than seeding predefines requires.

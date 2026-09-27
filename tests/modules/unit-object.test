@@ -1,0 +1,7 @@
+'' 'tiko -c <dir>' COMPILES A MODULE TO ONE OBJECT (phase P2). It is never main: its
+'' top-level code becomes a module constructor, as in any non-main unit.
+'' TEST: cli
+'' ARGS: -target win64-msvc -c -i tests/modules/src/unit/libs tests/modules/src/unit/libs/acme/greet -o tests/modules/greetunit.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/greetunit.o
+'' EXPECT-NOT: TKO0992

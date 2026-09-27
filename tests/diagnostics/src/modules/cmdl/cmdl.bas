@@ -1,0 +1,2 @@
+#module "cmdl"
+#cmdline "-g"

@@ -1,0 +1,6 @@
+'' TKO0145 FROM A MODULE UNIT: compiled as one unit, a file of the directory that never
+'' says '#module' is refused at its end, as the graph refuses it (module-file-without-module).
+'' TEST: cli
+'' ARGS: --emit-ir tests/diagnostics/src/modules/unitstray
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: zstray.bas(1,1): error TKO0145: 'tests/diagnostics/src/modules/unitstray/zstray.bas' is in module directory 'tests/diagnostics/src/modules/unitstray' but does not begin with '#module'

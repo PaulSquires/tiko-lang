@@ -1,0 +1,24 @@
+'' modunit.bi -- compiling one module as one unit (ADR 0017; RFC-0003 §1-2). See
+'' modunit.bas.
+
+#pragma once
+
+#include once "tko.bi"
+#include once "driver/driver.bi"
+#include once "pp/pp.bi"
+
+namespace Tko.Modules
+
+'' 'tiko -c <dir>': names the module, lists its files and puts them in place of the
+'' sources, so they load as FileIds 1..n. False, with the diagnostic reported, when the
+'' directory holds no .bas file.
+declare function PrepareModuleUnit _
+    ( byref ctx as Tko.CompilerContext, byref dir_ as string, byref srcInputs as Tko.StrVec ) as boolean
+
+'' THE HERMETIC SEED (RFC-0003 §2) and the file list, on a unit's PpConfig. files and
+'' noDefines must outlive the engine: the config points at them.
+declare sub ModuleUnitConfig _
+    ( byref ctx as Tko.CompilerContext, byref cfg as Tko.PpConfig, _
+      byref files as Tko.IdVec, byref noDefines as Tko.StrVec )
+
+end namespace

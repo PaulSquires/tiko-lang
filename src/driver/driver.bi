@@ -49,6 +49,12 @@ namespace Tko
         '' '#cinclude's session -- libclang and this run's bindings (cinclude.bas), made
         '' at the first #cinclude and freed with the context.
         as any ptr                cinclude
+        '' A MODULE UNIT BEING COMPILED (ADR 0017): its chain ('acme.net.http'), its name
+        '' ('http'), and how many files it has -- loaded first, so they are FileIds
+        '' 1..modFileCount, in order. 0 for a classic compile.
+        as string                 modChain
+        as string                 modName
+        as long                   modFileCount
 
         declare constructor( )
         declare destructor( )

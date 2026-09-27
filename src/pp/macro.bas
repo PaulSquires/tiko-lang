@@ -224,6 +224,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
         next
     end if
 
+    PpModJournal( e, m )
     m->isDefined = true
     m->isFunc = false
     m->isVariadic = false
@@ -381,7 +382,7 @@ private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
     end if
     if Tk( t ) = TK_IDENT then
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
-        if m <> 0 then m->isDefined = false
+        if m <> 0 then PpModJournal( e, m ) : m->isDefined = false
     elseif IsKeywordKind( Tk( t ) ) then
         '' '#undef short'. fbc keeps keywords in the symbol table, so undefining one
         '' removes the reserved word itself; here that is a de-reservation applied to

@@ -1,0 +1,6 @@
+'' TKO0367: A MODULE FILE IS REACHED BY '#import' ONLY. #included into another unit it would
+'' be compiled twice, once there and once as its module.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/includesmodule.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: modinc.bas(1,1): error TKO0367: 'tests/diagnostics/src/modules/modinc/modinc.bas' is part of module 'modinc' and cannot be #included

@@ -159,6 +159,8 @@
     DIAG( TKO0363, SEV_ERROR,   "the condition around '#import' uses '%0', which is not predefined" )
     DIAG( TKO0364, SEV_ERROR,   "malformed '%0': %1" )
     DIAG( TKO0365, SEV_ERROR,   "'#export %0': no macro of that name is defined here" )
+    DIAG( TKO0366, SEV_ERROR,   "%0 is not allowed in a module file" )
+    DIAG( TKO0367, SEV_ERROR,   "'%0' is part of module '%1' and cannot be #included" )
     DIAG( TKO0369, SEV_ERROR,   "%0 is allowed only in a module file" )
 
     '' -------------------------------------------------------------------- parser

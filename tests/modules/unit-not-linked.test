@@ -1,0 +1,6 @@
+'' A MODULE DIRECTORY IS NOT LINKED ON ITS OWN -- a program that imports modules is phase
+'' P3's -- so without -c, or with other inputs, it is TKO0992, not a silent wrong build.
+'' TEST: cli
+'' ARGS: -i tests/modules/src/unit/libs tests/modules/src/unit/libs/acme/greet
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0992: not implemented in this build: a module directory with other inputs or linked

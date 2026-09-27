@@ -6,6 +6,7 @@
 '' callable on its own.
 
 #include once "driver/unit.bi"
+#include once "driver/modunit.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
 #include once "parser/expr.bi"
@@ -38,6 +39,10 @@ function CompileUnit _
     dim as Tko.PpResult pr
     dim as Tko.PpConfig cfg = MakePpConfig( ctx )
     cfg.cmdlineIgnored = (i > 1)
+    '' A MODULE UNIT: every file of the module in this one engine, with the hermetic seed.
+    dim as Tko.IdVec modFiles
+    dim as Tko.StrVec noDefines
+    if ctx.modFileCount > 0 then Tko.Modules.ModuleUnitConfig( ctx, cfg, modFiles, noDefines )
     dim as Tko.PpStream st
     Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
 
@@ -232,6 +237,7 @@ function CompileUnit _
         '' in every object and collide at the link, which is the bug '-m'
         '' exists to prevent.
         dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
+        if ctx.modFileCount > 0 then modName = ctx.modName
         dim as boolean isMain
         if len( ctx.options.mainModule ) > 0 then
             isMain = (Tko.Text.LowerAscii( modName ) = _
@@ -258,6 +264,8 @@ function CompileUnit _
         else
             isMain = (i = 1)
         end if
+        '' A MODULE IS NEVER MAIN: its top-level code is its initialiser (RFC-0006).
+        if ctx.modFileCount > 0 then isMain = false
         Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                        ctx.sources, udts, vts, mm, lst, isMain, modName, _
                        ctx.options.errLevel, @ctx.diags, cast( long, id ) )
@@ -363,6 +371,8 @@ function CompileUnit _
                         '' success, and a silent wrong answer beats a loud
                         '' wrong one only from the compiler's point of view.
                         objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
+                        '' A MODULE'S OBJECT IS NAMED FOR THE MODULE, in the current directory.
+                        if ctx.modFileCount > 0 then objPath = ctx.modName & ".o"
                     end if
                     '' AN OBJECT KEPT FOR ANOTHER LINK SAYS WHAT IT NEEDS, in the
                     '' '.fbctinf' section fbc writes -- see codegen/objinfo.bi.

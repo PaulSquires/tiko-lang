@@ -86,32 +86,10 @@ private sub AddImports_ _
     next
 end sub
 
-'' THE .bas FILES OF A MODULE DIRECTORY, sorted case-folded so the order is the same on
-'' every host.
-private sub ModuleFiles_( byref dir_ as string, byref files as Tko.StrVec )
-    dim as FB.Array( of FB.DirEntry ) entries
-    if FB.ListDir( dir_, entries ).IsOk( ) = false then return
-    for k as long = 0 to entries.Count - 1
-        if entries[k].IsFile( ) = false then continue for
-        dim as string nm = entries[k].Name( )
-        if Tko.Text.LowerAscii( right( nm, 4 ) ) <> ".bas" then continue for
-        '' Insertion sort: a module is a handful of files.
-        dim as string key = Tko.Text.LowerAscii( nm )
-        dim as long at = files.Count
-        files.Push( nm )
-        while at > 0
-            if Tko.Text.LowerAscii( files[at - 1] ) <= key then exit while
-            files[at] = files[at - 1]
-            at -= 1
-        wend
-        files[at] = nm
-    next
-end sub
-
 private sub ExpandNode_( byref ctx as Tko.CompilerContext, byref g as Graph_, byval n as long )
     dim as string dir_ = g.dirs[n]
     dim as Tko.StrVec files
-    ModuleFiles_( dir_, files )
+    ModuleFiles( dir_, files )
     if files.Count = 0 then
         ctx.diags.Report( Tko.TKO0147, Tko.PointRange( cast( Tko.SourceLoc, g.firstLoc[n] ) ), dir_ )
         return

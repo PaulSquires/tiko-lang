@@ -994,6 +994,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
 
     case "cmdline"
+        if PpModRefuse( e, "'#cmdline'", at ) then return
         '' THE SOURCE'S OWN COMMAND LINE. Its arguments are collected here and acted on by
         '' the driver, which RESTARTS the whole compile with them appended -- see
         '' 'the restart' in driver.bas. Nothing is interpreted at this point, and that is
@@ -1394,6 +1395,7 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_OUT_LIB__", iif( e.cfg->outKind = 2, "-1", "0" ) )
     PpDefineValue( e, "__FB_OUT_DLL__", iif( e.cfg->outKind = 1, "-1", "0" ) )
     PpDefineValue( e, "__FB_OUT_OBJ__", iif( e.cfg->outKind = 3, "-1", "0" ) )
+    if len( e.cfg->moduleChain ) > 0 then PpDefineValue( e, "__TKO_MODULE__", """" & e.cfg->moduleChain & """" )
 
     '' The BYTE/WORD extractors. Bodies copied from 'fbc -pp', which prints them
     '' verbatim; HIWORD is the one that differs by target, because on win32 the

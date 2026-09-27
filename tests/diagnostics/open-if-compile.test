@@ -1,0 +1,9 @@
+'' AN '#if' LEFT OPEN AT THE END OF A FILE IS AN ERROR IN A COMPILE, not only under
+'' --pp-only. fbc refuses it (error 290, 'Expected #ENDIF', measured 2026-09-27); a compile
+'' accepted it, because the parser stops at the EOF and the preprocessor's end-of-input check
+'' never ran. The check now runs when the root file's EOF is reached (src/pp/ppmodule.bas).
+'' TEST: cli
+'' ARGS: --emit-ir tests/diagnostics/src/open-if-compile.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: open-if-compile.bas(2,1): error TKO0303: '#if' has no matching '#endif'
+'' EXPECT-MAX-DIAG: 1

@@ -1,0 +1,7 @@
+'' TKO0303 AT A FILE BOUNDARY: an '#if' still open when a module's file ends is that file's
+'' error, not one that silently swallows the next file's first lines.
+'' TEST: cli
+'' ARGS: --emit-ir tests/diagnostics/src/modules/openif
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: a.bas(2,1): error TKO0303
+'' EXPECT-NOT: b.bas

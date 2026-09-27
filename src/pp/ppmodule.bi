@@ -25,6 +25,14 @@ type PpModState
     '' InternId -> non-zero: a macro PpDefineBuiltins defined. The -d defines come
     '' after it and are NOT predefined: a header must be decidable from the target.
     as IdVec     predefMark
+    '' A MODULE UNIT'S FILES, one after another (PpConfig.moduleFiles): the index of the
+    '' file being read, and the undo journal of the macros it defined or undefined itself
+    '' -- the slot and the macro as it was before, replayed backwards at the file's end.
+    as long      fileIndex
+    '' The last root file's end has been handled: PeekTok meets its EOF more than once.
+    as boolean   rootEnded
+    as IdVec     journalSlot
+    as MacroVec  journalMac
 end type
 
 end namespace

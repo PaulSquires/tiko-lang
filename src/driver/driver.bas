@@ -25,6 +25,8 @@
 #include once "driver/cinclude.bi"
 #include once "driver/unit.bi"
 #include once "driver/modgraph.bi"
+#include once "driver/modunit.bi"
+#include once "fb/filesystem.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -668,7 +670,13 @@ function Run _
     dim as Tko.StrVec objInputs
     dim as Tko.StrVec srcInputs
     dim as Tko.StrVec rcInputs
+    '' ...AND A DIRECTORY IS A MODULE (ADR 0017): its files are compiled as one unit.
+    dim as Tko.StrVec modDirs
     for each inputPath as string in ctx.options.inputs
+        if FB.IsDir( inputPath ) then
+            modDirs.Push( inputPath )
+            continue for
+        end if
         dim as string ext2 = Tko.Text.LowerAscii( right( inputPath, 2 ) )
         dim as string ext3 = Tko.Text.LowerAscii( right( inputPath, 3 ) )
         if ext2 = ".o" then
@@ -679,6 +687,24 @@ function Run _
             srcInputs.Push( inputPath )
         end if
     next
+
+    '' ---- a module directory: ONE module unit (ADR 0017, phase P2) ------------
+    '' On its own, and never linked: a program that imports modules is phase P3's, so until
+    '' then 'tiko -c <dir>' and the dump and emit modes are what a module directory is for.
+    if modDirs.Count > 0 then
+        dim as boolean alone = (modDirs.Count = 1) andalso (srcInputs.Count = 0)
+        if alone then alone = (objInputs.Count = 0) andalso (rcInputs.Count = 0)
+        dim as boolean links = (ctx.options.compileOnly = false)
+        if links then links = (AnotherModeWasAsked_( ctx.options ) = false)
+        if (alone = false) orelse links then
+            ctx.diags.ReportGlobal( Tko.TKO0992, _
+                "a module directory with other inputs or linked (phase P3); use 'tiko -c <dir>'" )
+            return Tko.DiagOut.Finish( ctx, Tko.EXIT_USER_ERROR )
+        end if
+        if Tko.Modules.PrepareModuleUnit( ctx, modDirs[0], srcInputs ) = false then
+            return Tko.DiagOut.Finish( ctx, Tko.EXIT_USER_ERROR )
+        end if
+    end if
 
     '' ---- load every source ------------------------------------------------
     dim as double tLoadStart = timer
@@ -819,6 +845,8 @@ function Run _
         '' THE BOUND IS FROZEN. Count( ) grows as the preprocessor opens includes,
         '' and reading it each time round would compile every header as a unit.
         dim as long srcCount = ctx.sources.Count( )
+        '' A MODULE UNIT IS ONE UNIT, however many files it has: the engine reads them all.
+        if ctx.modFileCount > 0 then srcCount = 1
         dim as double tFrontStart = timer
         for i as long = 1 to srcCount
             '' ONE UNIT, compiled by CompileUnit in unit.bas -- moved there unchanged on

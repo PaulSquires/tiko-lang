@@ -37,6 +37,15 @@ declare function DirOfFile( byref p as string ) as string
 ''   4. each -i directory, then each TKO_PATH entry, holding a directory named S
 ''   5. the toolchain's pkg/ directory
 '' 'std' skips 4: the standard library always comes from the toolchain.
+'' THE .bas FILES OF A MODULE DIRECTORY, sorted case-folded so the order is the same on
+'' every host.
+declare sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
+
+'' WHAT A DIRECTORY GIVEN ON THE COMMAND LINE IS CALLED, for 'tiko -c <dir>' (phase P2). Under
+'' a package search root, its path below that root: 'libs/acme/net/http' with '-i libs' is
+'' acme.net.http. Under none, a module of the anonymous package: 'main.http'.
+declare sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref outw as ModWhere )
+
 declare function ResolveImport _
     ( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImport, _
       byref fromDir as string, byref pkgName as string, byref pkgRoot as string, _
