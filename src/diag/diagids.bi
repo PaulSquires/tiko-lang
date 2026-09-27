@@ -79,6 +79,7 @@
     DIAG( TKO0142, SEV_ERROR,   "relative import '%0' leaves the package root '%1'" )
     DIAG( TKO0145, SEV_ERROR,   "'%0' is in module directory '%1' but does not begin with '#module'" )
     DIAG( TKO0147, SEV_ERROR,   "module directory '%0' contains no .bas files" )
+    DIAG( TKO0152, SEV_ERROR,   "'--emit-tki' writes a module's interface, and needs one module directory as its input" )
 
     '' --------------------------------------------------------------------- lexer
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )

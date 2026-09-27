@@ -1,0 +1,5 @@
+'' '--emit-tki' writes a MODULE's interface; a plain source file has none (ADR 0017).
+'' TEST: cli
+'' ARGS: --emit-tki tests/diagnostics/src/module-local-not-shared.bas
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: TKO0152

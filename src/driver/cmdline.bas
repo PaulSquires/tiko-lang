@@ -549,6 +549,7 @@ function Parse _
         case Tko.OPT_RESOLVE   : opts.resolveOnly = true
         case Tko.OPT_MANGLE    : opts.dumpMangle = true
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true
+        case Tko.OPT_EMITTKI   : opts.emitTki = true
         case Tko.OPT_CHECK     : opts.checkOnly = true
         case Tko.OPT_UDT       : opts.dumpUdt = true
         case Tko.OPT_CIMPORT_PROBE : opts.cimportProbe = value

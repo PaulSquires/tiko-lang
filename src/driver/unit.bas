@@ -25,6 +25,7 @@
 #include once "codegen/objinfo.bi"
 #include once "codegen/llvmemit.bi"
 #include once "driver/lowerreport.bi"
+#include once "driver/tkiemit.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -58,6 +59,7 @@ function CompileUnit _
     p.names = @ctx.names
     p.diags = @ctx.diags
     p.pos = 0
+    p.recordDecls = (ctx.modFileCount > 0)
     '' The target's default convention, which the '...' rule needs. See
     '' ParserState.fbcallConv.
     p.fbcallConv = iif( Tko.TargetIsWindows( ctx.options.target ), _
@@ -477,6 +479,23 @@ function CompileUnit _
                                         info, rst, pr.reservedNames, syms )
         end if
         print Tko.Check.Dump( ast, ctx.sources, ctx.types, ctx.names, info, cst );
+    elseif ctx.options.emitTki then
+        '' A MODULE'S INTERFACE, written only from a unit that checked clean: an importer
+        '' parses it, and an interface over a declaration the module got wrong would move
+        '' the error somewhere nobody can fix it.
+        dim as Tko.Resolve.Stats rst
+        Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                         ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
+        dim as Tko.Check.Stats cst
+        Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
+                       info, cst )
+        if pr.langRefused = false then
+            Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
+                                        info, rst, pr.reservedNames, syms )
+        end if
+        if FrontendFailed_( ctx ) = false then
+            print Tko.Modules.WriteInterface( ctx, pr.tokens, ast, syms, info );
+        end if
     elseif ctx.options.dumpMangle then
         '' Mangling needs the parameter TYPES, so it runs after Resolve --
         '' but the reference-binding report is not wanted here.

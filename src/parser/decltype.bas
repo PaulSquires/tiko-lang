@@ -364,7 +364,7 @@ private function MarkPrivate _
     return n
 end function
 
-function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
+private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.TokenKind k = Peek( p )
 
@@ -586,6 +586,18 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
     end select
 
     return ErrorNode( p, Tko.TKO0408 )
+end function
+
+'' ...and, in a module unit, where each one's tokens are (RFC-0004 §3).
+function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as long tok0 = p.pos
+    dim as Tko.NodeId n = Declaration_( p )
+    if p.recordDecls andalso (n <> Tko.NODE_NONE) andalso (p.pos > tok0) then
+        p.ast->declRanges.Push( cast( ulong, n ) )
+        p.ast->declRanges.Push( cast( ulong, tok0 ) )
+        p.ast->declRanges.Push( cast( ulong, p.pos ) )
+    end if
+    return n
 end function
 
 '' A calling convention -- RECORDED, not eaten: it decides the win32 name -- and,

@@ -77,6 +77,8 @@ namespace Tko
         as FB.Array( of ulong ) declLibs
         as long                 errors
         as boolean              silent      '' suppress cascades after an error
+        '' A MODULE UNIT: every declaration's token range goes to ast->declRanges.
+        as boolean              recordDecls
         '' LAMBDAS, HOISTED. 'function( ) as long ... end function' written where an
         '' expression belongs is an ordinary procedure with a generated name --
         '' measured, fbc emits one and assigns its ADDRESS -- so the N_PROC is moved

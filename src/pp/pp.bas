@@ -746,13 +746,15 @@ end sub
 '' -------------------------------------------------------------- token spelling
 '' Needed by stringisation and by ## pasting, both of which work on source text.
 
-private function SpellOf( byref e as PpEngine, byref t as Token ) as string
+function PpSpell _
+    ( byref src as SourceManager, byref names as Interner, _
+      byref lits as LiteralVec, byref t as Token ) as string
     dim as TokenKind k = Tk( t )
     if k = TK_IDENT then
         '' The FOLDED spelling is in the interner; the original is in the source.
-        dim as string folded = e.names->Spelling( cast( InternId, t.literal ) )
-        dim as DecodedLoc d = e.src->Decode( t.loc )
-        dim as SourceFile ptr f = e.src->FileAt( d.file )
+        dim as string folded = names.Spelling( cast( InternId, t.literal ) )
+        dim as DecodedLoc d = src.Decode( t.loc )
+        dim as SourceFile ptr f = src.FileAt( d.file )
         if (f <> 0) andalso (t.length > 0) then
             if (d.offset + t.length) <= f->text.Count then
                 dim as string s = space( t.length )
@@ -793,8 +795,8 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
         '' canonical text. A synthesised or pasted token has its loc repointed at
         '' the use site, so the span there is somebody else's source, and the
         '' table's spelling is the right answer for it.
-        dim as DecodedLoc kd = e.src->Decode( t.loc )
-        dim as SourceFile ptr kf = e.src->FileAt( kd.file )
+        dim as DecodedLoc kd = src.Decode( t.loc )
+        dim as SourceFile ptr kf = src.FileAt( kd.file )
         if (kf <> 0) andalso (t.length > 0) then
             if (kd.offset + t.length) <= kf->text.Count then
                 dim as string ks = space( t.length )
@@ -816,9 +818,9 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
                            (k = TK_STRING_LIT)
     if isLit then
         dim as long li = cast( long, t.literal )
-        if (li >= 0) andalso (li < (*e.lits).Count) then
-            dim as Literal ptr lp = @(*e.lits)[li]
-            dim as SourceFile ptr lf = e.src->FileAt( cast( FileId, lp->textFile ) )
+        if (li >= 0) andalso (li < lits.Count) then
+            dim as Literal ptr lp = @lits[li]
+            dim as SourceFile ptr lf = src.FileAt( cast( FileId, lp->textFile ) )
             if (lf <> 0) andalso (lp->textLength > 0) then
                 if (lp->textOffset + lp->textLength) <= lf->text.Count then
                     dim as string ls = space( lp->textLength )
@@ -854,12 +856,16 @@ private function SpellOf( byref e as PpEngine, byref t as Token ) as string
     end if
 
     '' Anything else: the exact source span at the token's location.
-    dim as DecodedLoc d = e.src->Decode( t.loc )
-    dim as SourceFile ptr f = e.src->FileAt( d.file )
+    dim as DecodedLoc d = src.Decode( t.loc )
+    dim as SourceFile ptr f = src.FileAt( d.file )
     if (f = 0) orelse (t.length = 0) then return ""
     dim as string s = space( t.length )
     memcpy( strptr( s ), @f->text[d.offset], t.length )
     return s
+end function
+
+private function SpellOf( byref e as PpEngine, byref t as Token ) as string
+    return PpSpell( *e.src, *e.names, *e.lits, t )
 end function
 
 '' Rewrite every literal token in a freshly produced vector so its index points into

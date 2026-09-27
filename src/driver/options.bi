@@ -51,6 +51,8 @@ namespace Tko
     OPT( OPT_RESTART,   "-restart",   OPTK_FLAG,  OPTCAT_GENERAL, "",         "accepted and ignored; a '#cmdline' restarts by itself" )
     '' THE BUILD GRAPH OF ADR 0017: every module the inputs import, in build order.
     OPT( OPT_PRINTGRAPH, "--print-graph", OPTK_FLAG, OPTCAT_GENERAL, "",     "print the modules the inputs import, in build order, and stop" )
+    '' ...and the interface an importer of a module reads (RFC-0004).
+    OPT( OPT_EMITTKI,   "--emit-tki",     OPTK_FLAG, OPTCAT_GENERAL, "",     "print the interface of the module directory given, and stop" )
 
     '' ACCEPTED AND IGNORED TOO, and for a different reason. fbc-modern's '-z <option>'
     '' turns on an extended behaviour; the only one the corpus asks for is
@@ -167,6 +169,8 @@ namespace Tko
         as long    userIncludeCount
         '' --print-graph: resolve the imports, print the build order, stop.
         as boolean printGraph
+        '' --emit-tki: check the module directory given, print its interface, stop.
+        as boolean emitTki
         '' THE LIBRARY SEARCH IS THREE LISTS, NOT ONE, and they are kept apart
         '' because their ORDER is fbc's and is measured:
         ''

@@ -1,0 +1,32 @@
+'' THE REST OF RFC-0004 §3's TABLE: a const, an enum, a type alias, a union and a type are
+'' verbatim (after macro expansion -- LIMIT is gone); a type's members defined out of line
+'' stay behind; a global operator and a function are declared once, by their FIRST
+'' declaration, defaults kept; 'static' drops off a header; the module's constructor is not
+'' exported; shared variables of both forms lose their initialisers and gain their link
+'' names; a const inside the module's top-level code is not the module's.
+'' TEST: cli
+'' ARGS: --emit-tki -i tests/modules/src/tki/libs tests/modules/src/tki/libs/acme/rows
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: '' module acme.rows
+'' EXPECT-OUT: #line 3 "
+'' EXPECT-OUT: public const MAXN = 10 * 2
+'' EXPECT-OUT: public enum Colour
+'' EXPECT-OUT: green = 5
+'' EXPECT-OUT: public type Handle as long
+'' EXPECT-OUT: public union Bits
+'' EXPECT-OUT: declare operator += ( byref o as Vec )
+'' EXPECT-OUT: public declare operator + ( byref a as Vec, byref b as Vec ) as Vec
+'' EXPECT-OUT: public declare function Later( byval n as long = MAXN ) as long
+'' EXPECT-OUT: public declare sub Counted( )
+'' EXPECT-OUT: public extern table( 0 to 3 ) alias "_ZN4ACME4ROWS5TABLEE" as long
+'' EXPECT-OUT: public extern as double ratio alias "_ZN4ACME4ROWS5RATIOE" , scale_ alias "_ZN4ACME4ROWS6SCALE_E"
+'' EXPECT-OUT: extern lines_ alias "_ZN4ACME4ROWS6LINES_E" as string
+'' EXPECT-NOT: LIMIT
+'' EXPECT-NOT: Vec.Scale
+'' EXPECT-NOT: x *= k
+'' EXPECT-NOT: Setup
+'' EXPECT-NOT: LOCALC
+'' EXPECT-NOT: static
+'' EXPECT-NOT: { 1, 2, 3, 4 }
+'' EXPECT-NOT: 0.5
+'' EXPECT-NOT: declare function Later( byval n as long ) as long

@@ -441,6 +441,12 @@ namespace Tko
         '' the scan happens once per member per instantiation, so it is not hot.
         as ChildPool   tokenRanges
 
+        '' EVERY DECLARATION OF A MODULE UNIT, as (node, firstTok, endTok) triples, endTok
+        '' exclusive -- what its interface is written from (ADR 0017, RFC-0004 §3). Kept
+        '' apart from tokenRanges, whose readers take every N_TYPE there to be a generic.
+        '' Empty outside a module unit.
+        as ChildPool   declRanges
+
         '' TOP-LEVEL NODES CREATED AFTER PARSING -- today, the instantiated members of
         '' a generic. They are not children of the unit's root block, whose child list
         '' was closed when it was built, so every later pass has to walk them

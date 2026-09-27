@@ -346,6 +346,13 @@ namespace Tko
         ( byref src as SourceManager, byref names as Interner, _
           byref r as PpResult ) as string
 
+    '' A TOKEN SPELLED BACK as the source wrote it -- case, suffix and string prefix kept --
+    '' or, for one the preprocessor synthesised, as the canonical text. What stringising
+    '' and pasting read, and what a module's interface is written from (ADR 0017).
+    declare function PpSpell _
+        ( byref src as SourceManager, byref names as Interner, _
+          byref lits as LiteralVec, byref t as Token ) as string
+
 end namespace
 
 #endif

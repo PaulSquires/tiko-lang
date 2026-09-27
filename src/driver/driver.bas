@@ -193,7 +193,7 @@ private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     if o.dumpSymbols orelse o.resolveOnly orelse o.dumpMangle orelse o.checkOnly then return true
     if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
     if o.dumpVtable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
-    if o.parseExpr orelse o.parseOnly orelse o.printGraph then return true
+    if o.parseExpr orelse o.parseOnly orelse o.printGraph orelse o.emitTki then return true
     return false
 end function
 
@@ -706,6 +706,9 @@ function Run _
         if Tko.Modules.PrepareModuleUnit( ctx, modDirs[0], srcInputs ) = false then
             return Tko.DiagOut.Finish( ctx, Tko.EXIT_USER_ERROR )
         end if
+    elseif ctx.options.emitTki then
+        ctx.diags.ReportGlobal( Tko.TKO0152 )
+        return Tko.DiagOut.Finish( ctx, Tko.EXIT_CMDLINE )
     end if
 
     '' ---- load every source ------------------------------------------------
@@ -799,7 +802,7 @@ function Run _
            ctx.options.dumpMangle orelse ctx.options.checkOnly orelse _
            ctx.options.dumpIr orelse ctx.options.emitIr orelse ctx.options.emitAsm orelse _
            wantsOutput orelse _
-           ctx.options.dumpUdt orelse _
+           ctx.options.dumpUdt orelse ctx.options.emitTki orelse _
            ctx.options.dumpVtable then
         '' ONE OBJECT PER SOURCE, and the link after all of them. Compiling AND
         '' LINKING inside this loop was the multi-module bug: every input overwrote

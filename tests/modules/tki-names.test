@@ -1,0 +1,30 @@
+'' A MODULE'S INTERFACE (ADR 0017; RFC-0004 §2-3): what an importer reads instead of its
+'' source, written from the module's own tokens after preprocessing. A definition becomes
+'' its 'declare', a generic travels whole, an extern "C" block keeps only declarations,
+'' 'dim shared' becomes an extern linking by the chain, and 'private' is left out.
+'' TEST: cli
+'' ARGS: --emit-tki -i tests/modules/src/names/libs tests/modules/src/names/libs/acme/net/http
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: '' tiko-interface 1
+'' EXPECT-OUT: '' module acme.net.http
+'' EXPECT-OUT: namespace __tko_mod_acme_net_http
+'' EXPECT-OUT: client.bas"
+'' EXPECT-OUT: declare function Send_( byval s as string ) as long
+'' EXPECT-OUT: public declare function Fetch( ) as long
+'' EXPECT-OUT: namespace Inner
+'' EXPECT-OUT: public declare sub X( )
+'' EXPECT-OUT: public type Box( of T )
+'' EXPECT-OUT: sub Box( of T ).Put( byval x as T )
+'' EXPECT-OUT: public function Twice( of T )( byval x as T ) as T
+'' EXPECT-OUT: return x + x
+'' EXPECT-OUT: public type Shape extends object
+'' EXPECT-OUT: declare virtual function Area( ) as long
+'' EXPECT-OUT: public declare function tk_fetch( ) as long
+'' EXPECT-OUT: public extern counter alias "_ZN4ACME3NET4HTTP7COUNTERE" as long
+'' EXPECT-OUT: extern helper alias "_ZN4ACME3NET4HTTP6HELPERE" as long
+'' EXPECT-NOT: Quiet_
+'' EXPECT-NOT: quietVar
+'' EXPECT-NOT: return Send_
+'' EXPECT-NOT: return 7
+'' EXPECT-NOT: Shape.Area
+'' EXPECT-NOT: #module
