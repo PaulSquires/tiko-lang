@@ -282,10 +282,15 @@ private sub LowerAssign _
     '' And a type whose fields need construction, a string member say, REJECTS the
     '' form outright: error 99, "No matching overloaded function, E.constructor()".
     ''
-    '' A PLAIN LOCAL ONLY, because the field-list walk addresses its destination by
-    '' SLOT. A field or an element target still declines, which is honest rather than
-    '' half-done.
-    if c.ast->Kind( target ) = Tko.N_IDENT then
+    '' A FRAME VARIABLE BY SLOT; ANY OTHER TARGET BY ADDRESS -- a shared or static
+    '' variable, a parameter, a FIELD and an ELEMENT alike. The field and element forms
+    '' did not decline, as this once said: they fell to the plain store, which stored
+    '' the literal's own INTEGER bits into single fields -- 'arr( 1 ) = type( 5, 6, 7 )'
+    '' read back 7.0e-45 where fbc prints 5, and so did 'ns.v = type( ... )'.
+    dim as Tko.NodeKind tlk = c.ast->Kind( target )
+    dim as boolean tlTarget = (tlk = Tko.N_IDENT) orelse (tlk = Tko.N_MEMBER)
+    if tlTarget = false then tlTarget = IsArrayIndex( c, target )
+    if tlTarget then
         dim as Tko.TypeId tlt = c.types->Unqualify( c.info->TypeOf_( target ) )
         dim as boolean tlPlain = (c.types->Kind( tlt ) = Tko.TK_UDT)
         if tlPlain then
@@ -296,9 +301,29 @@ private sub LowerAssign _
             dim as boolean isList = (c.ast->Kind( value ) = Tko.N_TUPLE)
             isList = isList orelse (c.ast->Kind( value ) = Tko.N_PAREN)
             if isList then
-                dim as long tlslot = LocalFor( c, c.info->RefOf( target ) )
-                if tlslot >= 0 then
-                    if LowerUdtParenInit_( c, tlslot, tlt, value ) then return
+                '' ONLY A FRAME VARIABLE HAS A SLOT. LocalFor MAKES one for any symbol it
+                '' is handed, so a SHARED 'eyepoint = type( 512, 384, 800 )' filled a
+                '' fresh local nobody reads and left the global zero -- starshine.bas's
+                '' planet collapsed to the origin -- and over a BYREF parameter the
+                '' fields were written across the reference itself: a segfault. Those,
+                '' statics and every parameter are addressed instead; fbc writes the
+                '' fields through the address the same way, '*(float*)&SH$ = ...'.
+                dim as Tko.SymbolId tlsid = c.info->RefOf( target )
+                dim as Tko.Symbol ptr tls = c.syms->SymbolAt( tlsid )
+                dim as boolean frameVar = (tls <> 0) andalso (tlk = Tko.N_IDENT)
+                if frameVar then frameVar = (tls->kind = cast( ubyte, Tko.SYM_VARIABLE ))
+                if frameVar then frameVar = (IsSharedVar( c, tlsid ) = false)
+                if frameVar then frameVar = (IsStaticLocal( c, tlsid ) = false)
+                if frameVar then
+                    dim as long tlslot = LocalFor( c, tlsid )
+                    if tlslot >= 0 then
+                        if LowerUdtParenInit_( c, tlslot, tlt, value ) then return
+                    end if
+                else
+                    dim as MirValue tlda = LowerAddr( c, target )
+                    if tlda.kind <> cast( ubyte, MV_NONE ) then
+                        if LowerUdtParenInit_( c, -1, tlt, value, @tlda ) then return
+                    end if
                 end if
             end if
         end if

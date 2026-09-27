@@ -1,0 +1,19 @@
+'' 'x = type( ... )' INTO EVERY KIND OF STORAGE. The branch that writes a field list
+'' straight into its destination asked LocalFor for a SLOT, and LocalFor MAKES one for
+'' any symbol: a SHARED 'eyepoint = type( 512, 384, 800 )' filled a fresh local nobody
+'' reads and left the global zero (starshine.bas's planet collapsed to the origin), a
+'' BYREF parameter had the fields written across the reference (a segfault), and a
+'' STATIC lost them too. A FIELD or ELEMENT target, and a qualified 'ns.v', fell to the
+'' plain store instead and wrote the literal's INTEGER bits into single fields:
+'' 'arr( 0 ) = type( 5, 6, 7 )' read back 7.0e-45.
+''
+'' MEASURED, fbc-modern 1.20 running the source -- and tiko's build prints the same:
+'' see the header of src/type-literal-assign-target.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/type-literal-assign-target.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: local agg sh size
+'' EXPECT-NOT: local agg st size
+'' GOLDEN: expected/type-literal-assign-target.out
