@@ -1,0 +1,13 @@
+'' TKO0833, fbc's warning 3: a pointer argument of another kind. See PtrArgWarn_ in
+'' symbols/ptrwarn.bas. A warning, so the build still succeeds.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ptr-arg-warn.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: ptr-arg-warn.bas(30,8): warning TKO0833: passing different pointer types: a 'b ptr' for a 'a ptr' parameter
+'' EXPECT-OUT: ptr-arg-warn.bas(31,8): warning TKO0833
+'' EXPECT-OUT: ptr-arg-warn.bas(32,8): warning TKO0833
+'' EXPECT-OUT: ptr-arg-warn.bas(33,8): warning TKO0833
+'' EXPECT-OUT: ptr-arg-warn.bas(34,8): warning TKO0833
+'' EXPECT-OUT: ptr-arg-warn.bas(35,8): warning TKO0833
+'' EXPECT-OUT: ptr-arg-warn.bas(36,8): warning TKO0833
+'' EXPECT-MAX-DIAG: 7

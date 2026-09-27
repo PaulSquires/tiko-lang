@@ -361,6 +361,11 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
             c.diags->Report( TKO0698, PointRange( c.ast->Loc( arg ) ) )
             return
         end if
+        '' ...AND A POINTER OF ANOTHER KIND, which converts with fbc's warning 3 -- ptrwarn.bas. Not
+        '' over an overload set: a candidate is chosen only where the types fit, and a call none
+        '' fits is TKO0632 already -- fbc's 99, with no warning beside it.
+        dim as boolean ovl = ((callee->flags and SYMF_OVERLOAD) <> 0) orelse (callee->nextOverload <> SYMBOL_NONE)
+        if (ovl = false) andalso (c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER) then PtrArgWarn_( c, arg, pt, at )
 
         '' A CONST VALUE CANNOT BIND TO A NON-CONST BYREF -- fbc error 181. Measured over
         '' a UDT and an integer: 'byref x as T' given a 'const T' is refused, while

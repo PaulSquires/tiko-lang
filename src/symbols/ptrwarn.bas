@@ -317,6 +317,34 @@ private sub PtrWarn_ _
     c.diags->Report( TKO0830, PointRange( c.ast->Loc( at_ ) ), c.types->Name( lt ), c.types->Name( rt ) )
 end sub
 
+'' ...AND THE SAME QUESTION AT A CALL ARGUMENT is fbc's WARNING 3, "Passing different pointer
+'' types" -- the same compatibility rule, measured on fbc-modern 1.20, 2026-09-26, over a
+'' 'byval p as long ptr', 'A ptr', 'zstring ptr', 'A ptr ptr' and 'sub( )' parameter:
+''
+''   WARNED                                      NOT WARNED
+''   @short, @longint, @byte, an 'A ptr'          @long, @ulong (one size), 0, an 'any ptr'
+''     for a 'long ptr'                           @byte for a 'zstring ptr'; strptr( s )
+''   @B for an 'A ptr', B unrelated               @A, and @D where D extends A
+''   @long for a 'zstring ptr'                    '@pv' ('any ptr ptr') for an 'A ptr ptr'
+''   procptr( S2 ) of another signature           procptr( S1 ) of the parameter's own
+''
+'' tiko warned about none of them. An INTEGER for a pointer parameter is fbc's warning 1,
+'' "Passing scalar as pointer", a different warning, and is not judged here.
+private sub PtrArgWarn_ ( byref c as Ctx, byval arg as NodeId, byval pt as TypeId, byval at as TypeId )
+    if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then return
+    '' An explicit 'byval' on the argument hands the value over as the address, and fbc says
+    '' nothing: 'f2( byval p )' in its own warnings/param-byref-as-any-suspicious-temp-var.bas.
+    if c.ast->Kind( arg ) = N_UNARY then
+        if cast( TokenKind, c.ast->unaries[cast( long, c.ast->nodes[cast( long, arg )].data )].op ) = KW_BYVAL then return
+    end if
+    dim as TypeId au = c.types->Unqualify( at )
+    if c.types->Kind( au ) = TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    if c.types->Kind( au ) <> TK_POINTER then return
+    if PtrSuspicious_( c, pt, au, arg ) = false then return
+    if PwOverloadedAddr_( c, arg ) then return
+    c.diags->Report( TKO0833, PointRange( c.ast->Loc( arg ) ), c.types->Name( pt ), c.types->Name( au ) )
+end sub
+
 '' 'return expr' in a function declared 'as T ptr'. A byref result returns an address and
 '' is not this question.
 private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )

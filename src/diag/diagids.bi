@@ -585,6 +585,8 @@
     DIAG( TKO0831, SEV_ERROR,   "a '%0' does not convert to the tuple element '%1'" )
     '' fbc's error 58 over 'string( n, x )' and 'wstring( n, x )' -- see latesweeps4.bas.
     DIAG( TKO0832, SEV_ERROR,   "'%0( n, x )' takes a character code or a %1 string as x, not %2" )
+    '' fbc's warning 3, "Passing different pointer types" -- see symbols/ptrwarn.bas.
+    DIAG( TKO0833, SEV_WARNING, "passing different pointer types: a '%1' for a '%0' parameter" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
