@@ -577,13 +577,13 @@ function LowerStringIif_ _
     '' arms were given, and the same symptom: a free of stack garbage.
     c.curBlock = thenB
     dim as long stm = c.strTemps.Count
-    if StrInitFrom_( c, taddr, thenE ) = false then return false
+    if StrInitFrom_( c, taddr, thenE ) = false then return StrIifAbandon_( c, joinB, elseB )
     ReleaseStrTemps_( c, stm )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
     dim as long sem = c.strTemps.Count
-    if StrInitFrom_( c, taddr, elseE ) = false then return false
+    if StrInitFrom_( c, taddr, elseE ) = false then return StrIifAbandon_( c, joinB, -1 )
     ReleaseStrTemps_( c, sem )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 

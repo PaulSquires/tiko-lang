@@ -1261,6 +1261,10 @@ declare function EmitRtl _
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function IifArmsScalar_ _
+        ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean
+    declare function StrIifAbandon_ _
+        ( byref c as Ctx, byval joinB as long, byval elseB as long ) as boolean
     declare function SretCallType_ _
         ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
           byval sigT as Tko.TypeId ) as Tko.TypeId

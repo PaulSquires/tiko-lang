@@ -291,10 +291,53 @@ function StrDescriptorOf_ _
     '' computes no type for an intrinsic call, so 'iif( c, hex( 1 ), hex( 2 ) )' looks
     '' like an iif over nothing and declined the statement around it.
     dim as Tko.NodeId iC, iT, iE
-    if IsIifCall_( c, id, iC, iT, iE ) then
+    if IsIifCall_( c, id, iC, iT, iE ) andalso (IifArmsScalar_( c, iT, iE ) = false) then
         return LowerStringIif_( c, iC, iT, iE, outv )
     end if
     return LowerStrRvalue( c, id, outv )
+end function
+
+'' AN IIF WHOSE TWO ARMS ARE TYPED SCALARS IS A NUMBER, not a string -- even in a string
+'' context. 'dim as string s = "tip " & idx & " for " & iif( a <> 0, 1, 0 )' sent the
+'' iif down the STRING iif, whose arm could not make a descriptor out of 1: it returned
+'' after branching, the builder was left in the THEN arm, and the function's own RETURN
+'' was emitted there -- the other path fell to 'ret void' and clang refused the module.
+'' fbc renders it as the number it is: 'tip 3 for 1'. An untyped arm -- 'hex( 1 )', which
+'' Check does not type -- still makes a string iif, which is what those two sites exist
+'' for; so does any string-typed arm.
+function IifArmsScalar_ _
+    ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean
+
+    for i as long = 0 to 1
+        dim as Tko.TypeId t = c.info->TypeOf_( iif( i = 0, thenE, elseE ) )
+        if t = Tko.TYPE_NONE then return false
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) = Tko.TK_ENUM then continue for
+        '' A POINTER renders as its ADDRESS, as a bare one already did -- '"p" & p' is
+        '' 'p0' in both compilers -- and a ZSTRING pointer too, measured: fbc prints
+        '' 'iif( b, zp, zq )' in a concatenation as a number, not as the text.
+        if c.types->Kind( t ) = Tko.TK_POINTER then continue for
+        if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+        if IsStringType( c, t ) then return false
+    next
+    return true
+end function
+
+'' A STRING IIF THAT CANNOT FINISH AN ARM still leaves a well-formed function: every arm
+'' block it opened branches to the join, and lowering carries on from the join. Before,
+'' it returned from inside the THEN arm and the rest of the procedure was emitted there.
+'' The statement then declines where it can be seen, rather than corrupting what follows.
+'' 'elseB' is the arm not yet built, or -1 when the failure is in the ELSE arm itself.
+function StrIifAbandon_ _
+    ( byref c as Ctx, byval joinB as long, byval elseB as long ) as boolean
+
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    if elseB >= 0 then
+        c.curBlock = elseB
+        Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    end if
+    c.curBlock = joinB
+    return false
 end function
 
 end namespace

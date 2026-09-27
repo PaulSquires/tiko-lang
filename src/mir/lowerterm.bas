@@ -142,7 +142,7 @@ function EmitStrTerm _
     '' intrinsic call, so neither arm looked like a string and the whole statement
     '' produced nothing.
     dim as Tko.NodeId iC, iT, iE
-    if IsIifCall_( c, term, iC, iT, iE ) then
+    if IsIifCall_( c, term, iC, iT, iE ) andalso (IifArmsScalar_( c, iT, iE ) = false) then
         dim as MirValue iv
         if LowerStringIif_( c, iC, iT, iE, iv ) = false then return false
         if iv.kind = cast( ubyte, MV_NONE ) then return false

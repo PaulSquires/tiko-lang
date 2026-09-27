@@ -1,0 +1,22 @@
+'' AN IIF INSIDE A STRING CONCATENATION, in a function returning a string or a UDT holding
+'' one, compiles, links and runs. The concat term path sent EVERY iif to the STRING iif --
+'' "the destination is a string, so an iif here is a string iif whatever its arms look
+'' like" -- and a numeric arm could not become a descriptor. LowerStringIif_ returned
+'' AFTER branching, with the builder left in the THEN arm, so the function's own RETURN
+'' was emitted there and the other path fell to 'ret void': clang refused the module,
+'' "value doesn't match function result type 'ptr'". --dump-ir said '0 statements not
+'' lowered'.
+''
+'' Now an iif whose arms are typed SCALARS -- numbers, floats, booleans, enums, pointers
+'' -- is rendered as the value it is (IifArmsScalar_), as fbc does; untyped and string
+'' arms keep the string iif. And a string iif that cannot finish an arm leaves a
+'' well-formed function (StrIifAbandon_): the statement declines where it can be seen.
+''
+'' MEASURED, fbc-modern 1.20: the source prints, byte for byte, what fbc's build prints
+'' (see its header). A DRIVER TEST BECAUSE IT HAS TO LINK -- the failure was clang's; the
+'' source is a goldenrun.sh differential too.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/iif-in-concat.bas -o tests/driver/iifinconcat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/iifinconcat.exe
