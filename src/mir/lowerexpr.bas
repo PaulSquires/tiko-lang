@@ -885,7 +885,17 @@ function LowerExpr _
         dim as MirType opTy = LowerType( lt, *c.types )
         '' Both operands are brought to the WIDER of the two; the frontend's measured
         '' promotion rules already decided what the result type is.
-        if TyWidth( cast( MirType, r.ty ) ) > TyWidth( opTy ) then
+        ''
+        '' ...EXCEPT THAT A FLOAT IS NEVER WIDENED INTO AN INTEGER. An i64 is eight bytes
+        '' and a single four, so 'f + q' over a SINGLE and a LONGINT took the i64 and
+        '' ROUNDED f into it: 296 where fbc prints 296.5, and 'f > q' compared 148 with
+        '' 148 where fbc compares 148.5. Check already types both as SINGLE, measured
+        '' with '#print typeof( f + q )' -- single against any integer stays single.
+        '' starshine.bas's 'sqr( ... ) > (S.col) - 2' (a ULONG minus 2 is a LONGINT)
+        '' dropped a quarter of its sphere's points that way.
+        dim as boolean rWider = (TyWidth( cast( MirType, r.ty ) ) > TyWidth( opTy ))
+        if rWider andalso IsFloatTy( opTy ) then rWider = IsFloatTy( cast( MirType, r.ty ) )
+        if rWider then
             opTy = cast( MirType, r.ty )
         end if
         if IsFloatTy( cast( MirType, r.ty ) ) then opTy = cast( MirType, r.ty )

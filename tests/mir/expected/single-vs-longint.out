@@ -1,0 +1,374 @@
+global str $str0 "single:"
+global str $str1 "sum:"
+global str $str2 "sphere:"
+func i32 ONSPHERE(ptr $0, ptr $1) {
+  local i32 $tmp0
+  local ptr s
+  local ptr p
+  local f32 dx
+  local f32 dy
+  local f32 dz
+  local i64 $tmp6
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = alloca ptr s
+    store @s, $0
+    %4 = alloca ptr p
+    store @p, $1
+    %5 = alloca ptr dx
+    %6 = load @s
+    %7 = field.addr %6, 0
+    %8 = load %7
+    %9 = load @p
+    %10 = field.addr %9, 0
+    %11 = load %10
+    %12 = sub %8, %11
+    store @dx, %12
+    %13 = alloca ptr dy
+    %14 = load @s
+    %15 = field.addr %14, 4
+    %16 = load %15
+    %17 = load @p
+    %18 = field.addr %17, 4
+    %19 = load %18
+    %20 = sub %16, %19
+    store @dy, %20
+    %21 = alloca ptr dz
+    %22 = load @s
+    %23 = field.addr %22, 8
+    %24 = load %23
+    %25 = load @p
+    %26 = field.addr %25, 8
+    %27 = load %26
+    %28 = sub %24, %27
+    store @dz, %28
+    %29 = alloca ptr $tmp6
+    %30 = load @dx
+    %31 = load @dx
+    %32 = mul %30, %31
+    %33 = load @dy
+    %34 = load @dy
+    %35 = mul %33, %34
+    %36 = add %32, %35
+    %37 = load @dz
+    %38 = load @dz
+    %39 = mul %37, %38
+    %40 = add %36, %39
+    %41 = fpext %40
+    %42 = sqrt %41
+    %43 = load @s
+    %44 = field.addr %43, 12
+    %45 = load %44
+    %46 = fptrunc %42
+    %47 = uitofp %45
+    %48 = fcmp.le %46, %47
+    %49 = neg %48
+    condbr %49, sc.rhs1, sc.short2
+  sc.rhs1:
+    %50 = load @dx
+    %51 = load @dx
+    %52 = mul %50, %51
+    %53 = load @dy
+    %54 = load @dy
+    %55 = mul %53, %54
+    %56 = add %52, %55
+    %57 = load @dz
+    %58 = load @dz
+    %59 = mul %57, %58
+    %60 = add %56, %59
+    %61 = fpext %60
+    %62 = sqrt %61
+    %63 = load @s
+    %64 = field.addr %63, 12
+    %65 = load %64
+    %66 = const i64 2
+    %67 = zext %65
+    %68 = sub %67, %66
+    %69 = fptrunc %62
+    %70 = sitofp %68
+    %71 = fcmp.gt %69, %70
+    %72 = neg %71
+    %73 = const i64 0
+    %74 = icmp.ne %72, %73
+    %75 = sext %74
+    %76 = neg %75
+    store @$tmp6, %76
+    br sc.join3
+  sc.short2:
+    %77 = const i64 0
+    store @$tmp6, %77
+    br sc.join3
+  sc.join3:
+    %78 = load @$tmp6
+    %79 = trunc %78
+    ret %79
+}
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local f32 f
+  local i64 q
+  local i64 uq
+  local i64 i
+  local i64 ui
+  local i32 l
+  local i32 ul
+  local i32 n
+  local agg sp size 16
+  local f32 x
+  local f32 $tmp11
+  local f32 y
+  local f32 $tmp13
+  local f32 z
+  local f32 $tmp15
+  local agg pt size 16
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr f
+    %5 = const f64 148.5
+    %6 = fptrunc %5
+    store @f, %6
+    %7 = alloca ptr q
+    %8 = const i64 148
+    store @q, %8
+    %9 = alloca ptr uq
+    %10 = const i64 148
+    store @uq, %10
+    %11 = alloca ptr i
+    %12 = const i64 148
+    store @i, %12
+    %13 = alloca ptr ui
+    %14 = const i64 148
+    store @ui, %14
+    %15 = alloca ptr l
+    %16 = const i64 148
+    %17 = trunc %16
+    store @l, %17
+    %18 = alloca ptr ul
+    %19 = const i64 148
+    %20 = trunc %19
+    store @ul, %20
+    %21 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 7)
+    call.rtl void fb_PrintString(0, %21, 0)
+    %22 = load @f
+    %23 = load @q
+    %24 = sitofp %23
+    %25 = fcmp.gt %22, %24
+    %26 = neg %25
+    call.rtl void fb_PrintLongint(0, %26, 0)
+    %27 = load @f
+    %28 = load @uq
+    %29 = uitofp %28
+    %30 = fcmp.gt %27, %29
+    %31 = neg %30
+    call.rtl void fb_PrintLongint(0, %31, 0)
+    %32 = load @f
+    %33 = load @i
+    %34 = sitofp %33
+    %35 = fcmp.gt %32, %34
+    %36 = neg %35
+    call.rtl void fb_PrintLongint(0, %36, 0)
+    %37 = load @f
+    %38 = load @ui
+    %39 = uitofp %38
+    %40 = fcmp.gt %37, %39
+    %41 = neg %40
+    call.rtl void fb_PrintLongint(0, %41, 0)
+    %42 = load @f
+    %43 = load @l
+    %44 = sitofp %43
+    %45 = fcmp.gt %42, %44
+    %46 = neg %45
+    call.rtl void fb_PrintLongint(0, %46, 0)
+    %47 = load @f
+    %48 = load @ul
+    %49 = uitofp %48
+    %50 = fcmp.gt %47, %49
+    %51 = neg %50
+    call.rtl void fb_PrintLongint(0, %51, 0)
+    %52 = load @f
+    %53 = load @l
+    %54 = const i64 0
+    %55 = sext %53
+    %56 = add %55, %54
+    %57 = sitofp %56
+    %58 = fcmp.gt %52, %57
+    %59 = neg %58
+    call.rtl void fb_PrintLongint(0, %59, 0)
+    %60 = load @f
+    %61 = load @ul
+    %62 = const i64 0
+    %63 = zext %61
+    %64 = sub %63, %62
+    %65 = sitofp %64
+    %66 = fcmp.gt %60, %65
+    %67 = neg %66
+    call.rtl void fb_PrintLongint(0, %67, 1)
+    %68 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
+    call.rtl void fb_PrintString(0, %68, 0)
+    %69 = load @f
+    %70 = load @q
+    %71 = sitofp %70
+    %72 = add %69, %71
+    call.rtl void fb_PrintSingle(0, %72, 0)
+    %73 = load @f
+    %74 = load @uq
+    %75 = uitofp %74
+    %76 = add %73, %75
+    call.rtl void fb_PrintSingle(0, %76, 0)
+    %77 = load @f
+    %78 = load @ui
+    %79 = uitofp %78
+    %80 = mul %77, %79
+    call.rtl void fb_PrintSingle(0, %80, 1)
+    %81 = alloca ptr n
+    %82 = const i64 0
+    %83 = trunc %82
+    store @n, %83
+    %84 = alloca ptr sp
+    %85 = const i64 1296
+    %86 = sitofp %85
+    %87 = const i64 810
+    %88 = sitofp %87
+    %89 = const i64 0
+    %90 = sitofp %89
+    %91 = const i64 150
+    %92 = trunc %91
+    %93 = field.addr @sp, 0
+    store %93, %86
+    %94 = field.addr @sp, 4
+    store %94, %88
+    %95 = field.addr @sp, 8
+    store %95, %90
+    %96 = field.addr @sp, 12
+    store %96, %92
+    %97 = alloca ptr x
+    %98 = const i64 1296
+    %99 = const i64 151
+    %100 = sub %98, %99
+    %101 = sitofp %100
+    store @x, %101
+    %102 = alloca ptr $tmp11
+    %103 = const i64 2
+    %104 = sitofp %103
+    store @$tmp11, %104
+    %111 = alloca ptr y
+    %116 = alloca ptr $tmp13
+    %125 = alloca ptr z
+    %129 = alloca ptr $tmp15
+    %136 = alloca ptr pt
+    br for.head1
+  for.head1:
+    %105 = load @x
+    %106 = const i64 1296
+    %107 = const i64 151
+    %108 = add %106, %107
+    %109 = sitofp %108
+    %110 = fcmp.le %105, %109
+    condbr %110, for.body2, for.exit4
+  for.body2:
+    %112 = const i64 810
+    %113 = const i64 151
+    %114 = sub %112, %113
+    %115 = sitofp %114
+    store @y, %115
+    %117 = const i64 2
+    %118 = sitofp %117
+    store @$tmp13, %118
+    br for.head5
+  for.step3:
+    %157 = load @x
+    %158 = load @$tmp11
+    %159 = add %157, %158
+    store @x, %159
+    br for.head1
+  for.exit4:
+    %160 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 7)
+    call.rtl void fb_PrintString(0, %160, 0)
+    %161 = load @n
+    call.rtl void fb_PrintInt(0, %161, 1)
+    %162 = const i32 0
+    call.rtl void fb_End(%162)
+    %163 = load @$tmp0
+    ret %163
+  for.head5:
+    %119 = load @y
+    %120 = const i64 810
+    %121 = const i64 151
+    %122 = add %120, %121
+    %123 = sitofp %122
+    %124 = fcmp.le %119, %123
+    condbr %124, for.body6, for.exit8
+  for.body6:
+    %126 = const i64 151
+    %127 = neg %126
+    %128 = sitofp %127
+    store @z, %128
+    %130 = const i64 2
+    %131 = sitofp %130
+    store @$tmp15, %131
+    br for.head9
+  for.step7:
+    %154 = load @y
+    %155 = load @$tmp13
+    %156 = add %154, %155
+    store @y, %156
+    br for.head5
+  for.exit8:
+    br for.step3
+  for.head9:
+    %132 = load @z
+    %133 = const i64 151
+    %134 = sitofp %133
+    %135 = fcmp.le %132, %134
+    condbr %135, for.body10, for.exit12
+  for.body10:
+    %137 = load @x
+    %138 = load @y
+    %139 = load @z
+    %140 = field.addr @pt, 0
+    store %140, %137
+    %141 = field.addr @pt, 4
+    store %141, %138
+    %142 = field.addr @pt, 8
+    store %142, %139
+    %143 = field.addr @pt, 12
+    %144 = call.rtl ptr memset(%143, 0, 4)
+    %145 = call i32 ONSPHERE(@sp, @pt)
+    condbr %145, if.then14, if.else15
+  for.step11:
+    %151 = load @z
+    %152 = load @$tmp15
+    %153 = add %151, %152
+    store @z, %153
+    br for.head9
+  for.exit12:
+    br for.step7
+  if.join13:
+    br for.step11
+  if.then14:
+    %146 = load @n
+    %147 = sext %146
+    %148 = const i64 1
+    %149 = add %147, %148
+    %150 = trunc %149
+    store @n, %150
+    br if.join13
+  if.else15:
+    br if.join13
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_PrintSingle(i32 $0, f32 $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 2 functions, 20 blocks, 293 insts, 0 statements not lowered, 0 scope imbalance

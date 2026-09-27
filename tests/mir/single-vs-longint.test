@@ -1,0 +1,18 @@
+'' A SINGLE MEETING A 64-BIT INTEGER STAYS A SINGLE. Lowering brought both operands to
+'' the WIDER MIR type, and an i64 is wider than an f32, so 'f + q' over a SINGLE and a
+'' LONGINT rounded f into the integer: 296 where fbc prints 296.5, and 'f > q' compared
+'' 148 with 148. Check already typed both SINGLE (fbc's '#print typeof( f + q )').
+'' starshine.bas's sphere test -- a single distance against '(S.col) - 2', a LONGINT --
+'' kept 53,784 of fbc's 70,992 points.
+''
+'' MEASURED, fbc-modern 1.20 running the source, and tiko's build prints the same:
+''     single:-1-1-1-1-1-1-1-1
+''     sum: 296.5 296.5 21978
+''     sphere: 70992
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/single-vs-longint.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: nearbyint
+'' GOLDEN: expected/single-vs-longint.out
