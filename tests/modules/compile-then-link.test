@@ -1,0 +1,22 @@
+'' -c OF A PROGRAM THAT IMPORTS, THEN A LINK OF ITS OBJECT (ADR 0017; RFC-0005 §6). '-c'
+'' builds each module -- through the cache -- into <chain>.o beside the output, and the root's
+'' '.fbctinf' names those objects; linking main.o alone reads the records and adds them, and
+'' the program runs. Twice: the second '-c' takes both modules from the cache and still
+'' leaves their objects where the records say.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-cl/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-cl
+'' CLEAN: build/.mct-cl/obj
+'' STEP: -v -c -m main -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o
+'' STEP-OUT: module acme.net.http: miss
+'' STEP: -v -c -m main -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o
+'' STEP-OUT: module acme.net.http: hit
+'' ARGS: -target win64-msvc build/.mct-cl/obj/main.o -o build/.mct-cl/obj/main.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.mct-cl/obj/acme.net.http.o
+'' EXPECT-FILE: build/.mct-cl/obj/acme.text.esc.o
+'' RUN: build/.mct-cl/obj/main.exe
+'' EXPECT-RUN-OUT: <a>
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT: <bc> 2

@@ -46,7 +46,8 @@ end function
 function ObjInfoIr _
     ( byref libs as StrVec, byref pragmaLibs as StrVec, _
       byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
-      byref libFiles as StrVec, byval threadSafe as boolean ) as string
+      byref libFiles as StrVec, byval threadSafe as boolean, _
+      byref modObjs as StrVec ) as string
 
     dim as string blob
     '' A '#foreignlib' file as ':name' and its directory, ABSOLUTE: the object is
@@ -73,6 +74,7 @@ function ObjInfoIr _
     AddEntries_( blob, "-p", libPaths )
     AddEntries_( blob, "-p", pragmaLibPaths )
     if threadSafe then blob += "-mt" & chr( 0 )
+    AddEntries_( blob, "-tkomod", modObjs )
     if len( blob ) = 0 then return ""
     return chr( 10 ) & "@__fbctinf = internal constant [" & str( len( blob ) ) & " x i8] " & _
            IrBytes_( blob ) & ", section "".fbctinf""" & chr( 10 ) & _
@@ -131,7 +133,7 @@ end function
 sub ReadObjInfo _
     ( byref path as string, byref libs as StrVec, _
       byref libPaths as StrVec, byref libFiles as StrVec, _
-      byref threadSafe as boolean )
+      byref threadSafe as boolean, byref modObjs as StrVec )
 
     dim as long fh = freefile
     if open( path for binary access read as #fh ) <> 0 then return
@@ -160,13 +162,16 @@ sub ReadObjInfo _
                 libs.Push( w )
             end if
             pending = ""
+        elseif pending = "-tkomod" then
+            if len( w ) > 0 then modObjs.Push( w )
+            pending = ""
         elseif pending = "-p" then
             if len( w ) > 0 then
                 libPaths.Push( w )
                 dirs.Push( w )
             end if
             pending = ""
-        elseif (w = "-l") orelse (w = "-p") then
+        elseif (w = "-l") orelse (w = "-p") orelse (w = "-tkomod") then
             pending = w
         elseif w = "-mt" then
             threadSafe = true

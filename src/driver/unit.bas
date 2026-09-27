@@ -404,13 +404,21 @@ function CompileUnit _
                         '' A MODULE'S OBJECT IS NAMED FOR THE MODULE, in the current directory.
                         if ctx.modFileCount > 0 then objPath = ctx.modName & ".o"
                     end if
+                    '' '-c' OF A PROGRAM THAT IMPORTS: a module's object is its chain's,
+                    '' beside the output, as for an archive -- not the root's -o.
+                    dim as boolean modC = ctx.importsBuilt andalso ctx.options.compileOnly
+                    if modC andalso (ctx.modFileCount > 0) then objPath = Tko.Modules.ArchiveMemberPath( ctx )
                     '' AN OBJECT KEPT FOR ANOTHER LINK SAYS WHAT IT NEEDS, in the
-                    '' '.fbctinf' section fbc writes -- see codegen/objinfo.bi.
+                    '' '.fbctinf' section fbc writes -- see codegen/objinfo.bi. A root's names
+                    '' the objects of the modules it imports, which that link adds.
                     if ctx.options.compileOnly then
+                        dim as Tko.StrVec noMods
+                        dim as boolean records = modC andalso (ctx.modFileCount = 0)
                         er.text += Tko.Codegen.ObjInfoIr( ctx.options.libs, _
                             ctx.options.pragmaLibs, ctx.options.libPaths, _
                             ctx.options.pragmaLibPaths, _
-                            ctx.options.pragmaLibFiles, ctx.options.threadSafe )
+                            ctx.options.pragmaLibFiles, ctx.options.threadSafe, _
+                            iif( records, ctx.modObjPaths, noMods ) )
                     end if
                     '' THE FIRST FAILURE STAYS. Assigned straight to toolExit,
                     '' module 2 compiling cleanly reset module 1's clang failure

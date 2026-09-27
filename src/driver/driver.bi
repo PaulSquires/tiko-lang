@@ -70,6 +70,9 @@ namespace Tko
         as FileIdVec              unitFilesRead
         as boolean                unitThreadRtl
         as FileIdVec              ifaceFiles
+        '' '-c' OF A PROGRAM THAT IMPORTS (RFC-0005 §6): each module's object, written as
+        '' <chain>.o beside the output, absolute -- what the roots' '.fbctinf' records name.
+        as StrVec                 modObjPaths
         '' THE PACKAGES OF THE BUILD (src/driver/modresolve.bas; RFC-0007 §1, §4), as they are
         '' found: each name once, with its root; a manifest's dependencies and [defines],
         '' flattened and keyed by the package's index; and the root manifest's say over its

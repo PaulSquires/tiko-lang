@@ -1,0 +1,18 @@
+'' TWO ROOTS COMPILED ONE AT A TIME, LINKED TOGETHER (RFC-0005 §6): both name acme.d's object,
+'' which the link adds once; the modules still initialise in build order before either
+'' root's code (RFC-0006), and other -- not main -- sees d initialised.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-c2/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-c2
+'' CLEAN: build/.mct-c2/obj
+'' STEP: -c -m main -target win64-msvc -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o build/.mct-c2/obj/main.o
+'' STEP: -c -target win64-msvc -i tests/modules/src/init/libs tests/modules/src/init/app/other.bas -o build/.mct-c2/obj/other.o
+'' ARGS: -target win64-msvc build/.mct-c2/obj/main.o build/.mct-c2/obj/other.o -o build/.mct-c2/obj/two.exe
+'' EXPECT-EXIT: 0
+'' RUN: build/.mct-c2/obj/two.exe
+'' EXPECT-RUN-OUT: D:ctor
+'' EXPECT-RUN-OUT: A
+'' EXPECT-RUN-OUT: other sees d
+'' EXPECT-RUN-OUT: main
+'' EXPECT-RUN-OUT: ~D:global

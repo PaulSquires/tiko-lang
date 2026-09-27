@@ -811,13 +811,30 @@ function Run _
         '' the input that had been discarded.
         dim as Tko.StrVec linkObjs
         dim as Tko.StrVec tempObjs
+        '' ...AND THE OBJECTS OF THE MODULES a '-c' root imports (ADR 0017; RFC-0005 §6),
+        '' once each however many roots name them.
+        dim as Tko.StrVec modObjs
         for i as long = 0 to objInputs.Count - 1
             linkObjs.Push( objInputs[i] )
             '' ...AND WHAT IT ASKS THE LINK FOR -- its '.fbctinf', as fbc reads it. See
             '' codegen/objinfo.bi; ApexWealth's network object named winhttp only there.
+            dim as Tko.StrVec named
             Tko.Codegen.ReadObjInfo( objInputs[i], ctx.options.pragmaLibs, _
                                      ctx.options.pragmaLibPaths, _
-                                     ctx.options.pragmaLibFiles, ctx.options.threadSafe )
+                                     ctx.options.pragmaLibFiles, ctx.options.threadSafe, named )
+            for each mo as string in named
+                dim as boolean seen = false
+                for each x as string in modObjs
+                    if x = mo then seen = true
+                next
+                if seen then continue for
+                modObjs.Push( mo )
+                if FB.IsFile( mo ) = false then
+                    ctx.diags.ReportGlobal( Tko.TKO0153, objInputs[i], mo )
+                    continue for
+                end if
+                linkObjs.Push( mo )
+            next
         next
 
         '' EVERY '.rc' BECOMES A '.res' AND JOINS THE LINK. lld-link consumes a

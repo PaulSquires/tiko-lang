@@ -84,6 +84,7 @@
     DIAG( TKO0148, SEV_ERROR,   "package name '%0' is reserved for the toolchain" )
     DIAG( TKO0149, SEV_ERROR,   "two packages named '%0': %1 and %2" )
     DIAG( TKO0150, SEV_WARNING, "module cache disabled: %0" )
+    DIAG( TKO0153, SEV_ERROR,   "'%0' was compiled against module object '%1', which is not there; compile it again with -c" )
     DIAG( TKO0152, SEV_ERROR,   "'--emit-tki' writes a module's interface, and needs one module directory as its input" )
     '' An '#import''s alias (RFC-0002 §2). The rest of the 0860-0870 block lands with its phase.
     DIAG( TKO0860, SEV_ERROR,   "'%0' is not public in module '%1'" )

@@ -23,17 +23,20 @@
 namespace Tko.Codegen
 
     '' The section as LLVM IR to append to a module, or "" when there is nothing to say.
+    '' modObjs: THE OBJECTS OF THE MODULES a root compiled with '-c' imports (ADR 0017;
+    '' RFC-0005 §6), absolute, as '-tkomod' records -- tiko's own, which fbc does not read.
     declare function ObjInfoIr _
         ( byref libs as StrVec, byref pragmaLibs as StrVec, _
           byref libPaths as StrVec, byref pragmaLibPaths as StrVec, _
-          byref libFiles as StrVec, byval threadSafe as boolean ) as string
+          byref libFiles as StrVec, byval threadSafe as boolean, _
+          byref modObjs as StrVec ) as string
 
     '' Adds what an object file's section asks for. An unreadable file, another format or
     '' no section adds nothing, and the link then says what is missing, as it did before.
     declare sub ReadObjInfo _
         ( byref path as string, byref libs as StrVec, _
           byref libPaths as StrVec, byref libFiles as StrVec, _
-          byref threadSafe as boolean )
+          byref threadSafe as boolean, byref modObjs as StrVec )
 
 end namespace
 

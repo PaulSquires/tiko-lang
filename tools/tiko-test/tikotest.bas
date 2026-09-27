@@ -30,7 +30,7 @@
 '' miss after an edit. They run in the order written, BEFORE the ARGS build, which is the
 '' last one and the one the EXPECT lines above judge:
 ''
-''     '' CLEAN: dir               remove the directory and everything in it
+''     '' CLEAN: dir               empty the directory: remove it and all in it, make it again
 ''     '' COPY: src => dst         copy a file, or a directory tree
 ''     '' WRITE: path :: text      write the file; \t \n \r \\ in text as in FILE-HAS
 ''     '' STEP: args               run tiko-lang with these, as ARGS is; it must exit 0
@@ -549,11 +549,13 @@ function RunSteps_ _
         dim as string rest = mid( st, tb + 1 )
         select case kind
         case "CLEAN"
+            '' EMPTY, not absent: tiko writes into an -o directory, it does not make one.
             if FB.IsDir( rest ) then FB.RemoveDirAll( rest )
             if FB.IsDir( rest ) then
                 why = "CLEAN: could not remove " & rest
                 return false
             end if
+            FB.CreateDirAll( rest )
         case "COPY"
             dim as long ar = instr( rest, "=>" )
             if ar = 0 then

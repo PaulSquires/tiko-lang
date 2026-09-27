@@ -27,6 +27,14 @@ function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
     return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.modChain & ".o" )
 end function
 
+'' A '-c' module object, as a root's '.fbctinf' records it: absolute, since the link that
+'' reads it may run anywhere.
+private function AbsPath_( byref p as string ) as string
+    dim as boolean absolute_ = (instr( p, ":" ) > 0) orelse (left( p, 1 ) = "/")
+    if absolute_ then return NormPath( p )
+    return JoinPath( curdir( ), p )
+end function
+
 '' A cached module's contribution to the link, as ModuleCacheStore recorded it.
 private sub ReplayLibs_( byref ctx as Tko.CompilerContext, byref libs as string )
     dim as long p = 1
@@ -56,14 +64,15 @@ function BuildImports _
     if BuildGraph( ctx, rootCount, true, g ) = false then return false
     if g.chains.Count = 0 then return true
 
-    '' THE OUTPUT KINDS THAT STOP BEFORE A LINK name one file per root; where each module's
-    '' object or IR would go is phase P9's question (RFC-0005 §6).
-    dim as boolean stops = ctx.options.compileOnly orelse ctx.options.emitIr orelse ctx.options.emitAsm
+    '' --emit-ir AND --emit-asm name one file per root, and where each module's IR would go
+    '' is not decided. '-c' writes each module's object beside the output (RFC-0005 §6).
+    dim as boolean stops = ctx.options.emitIr orelse ctx.options.emitAsm
     if stops then
         ctx.diags.ReportGlobal( Tko.TKO0992, _
-            "-c, --emit-ir and --emit-asm of a program that imports modules (phase P9)" )
+            "--emit-ir and --emit-asm of a program that imports modules" )
         return false
     end if
+    ctx.modObjPaths.Clear( )
 
     ctx.importsBuilt = true
     ctx.ifaceChains.Clear( )
@@ -105,8 +114,14 @@ function BuildImports _
         if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )
         if ModuleCacheLookup( ctx, cacheRoot, key, hitObj, hitIface, hitLibs ) then
             if ctx.options.verbose then print "module " & ctx.modChain & ": hit"
-            '' An ARCHIVE keeps the member's name: not the entry's 'obj.o', the chain's.
-            if ctx.options.outKind = Tko.OUT_STATICLIB then
+            '' An ARCHIVE keeps the member's name: not the entry's 'obj.o', the chain's. '-c'
+            '' leaves the object beside the output, for the roots' records to name.
+            if ctx.options.compileOnly then
+                dim as string cp = ArchiveMemberPath( ctx )
+                FB.CopyFile( hitObj, cp, true )
+                ctx.modObjPaths.Push( AbsPath_( cp ) )
+                hitObj = cp
+            elseif ctx.options.outKind = Tko.OUT_STATICLIB then
                 dim as string mp = ArchiveMemberPath( ctx )
                 FB.CopyFile( hitObj, mp, true )
                 tempObjs.Push( mp )
@@ -132,6 +147,9 @@ function BuildImports _
         Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, true, _
                                 linkObjs, tempObjs, toolExit, restartArgs )
         if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
+        if ctx.options.compileOnly andalso (linkObjs.Count > objs0) then
+            ctx.modObjPaths.Push( AbsPath_( linkObjs[linkObjs.Count - 1] ) )
+        end if
         if (len( cacheRoot ) > 0) andalso (linkObjs.Count > objs0) then
             dim as string libs = ""
             for k as long = libs0 to ctx.options.pragmaLibs.Count - 1

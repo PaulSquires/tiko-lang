@@ -1,0 +1,14 @@
+'' TKO0153: AN OBJECT COMPILED WITH -c NAMES MODULE OBJECTS THAT ARE GONE -- here main.o was
+'' kept and the directory -c wrote the module objects to was removed (RFC-0005 §6).
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-gone/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-gone
+'' CLEAN: build/.mct-gone/obj
+'' STEP: -c -m main -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-gone/obj/main.o
+'' COPY: build/.mct-gone/obj/main.o => build/.mct-gone/kept.o
+'' CLEAN: build/.mct-gone/obj
+'' ARGS: -target win64-msvc build/.mct-gone/kept.o -o build/.mct-gone/x.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0153: 'build/.mct-gone/kept.o' was compiled against module object
+'' EXPECT-OUT: acme.text.esc.o', which is not there; compile it again with -c
