@@ -983,6 +983,7 @@ declare sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
 declare sub PpModEndFile( byref e as PpEngine )
 declare function PpModRefuse( byref e as PpEngine, byref what as string, byval at as SourceLoc ) as boolean
 declare sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
+declare function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
 
 end namespace
 
@@ -1121,6 +1122,9 @@ private function PpStep( byref e as PpEngine ) as boolean
         '' ---- a macro name expands; anything else is output
         dim as boolean inIface = (e.frames.Count > 0)
         if inIface then inIface = e.frames[e.frames.Count - 1].iface
+        if (k = TK_IDENT) andalso (inIface = false) andalso (e.modst.aliasIds.Count > 0) then
+            if PpModQualifiedMacro( e, t ) then continue do
+        end if
         if (k = TK_IDENT) andalso (inIface = false) then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr m = MacroFor( e, id )

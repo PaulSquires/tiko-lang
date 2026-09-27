@@ -204,8 +204,16 @@ end function
 '' the module's namespace. Reached THROUGH the namespace -- 'http.Send_', or unqualified
 '' through 'using http' -- it is not found, and the unit's undeclared-name report says why
 '' (TKO0860, from hiddenHits).
+function SymbolTable.IsImportNs( byval sid as SymbolId ) as boolean
+    for each x as ulong in this.importNs
+        if x = cast( ulong, sid ) then return true
+    next
+    return false
+end function
+
 function SymbolTable.PublicOnly( byval got as SymbolId ) as SymbolId
     if got = SYMBOL_NONE then return got
+    if this.privileged then return got
     dim as ulong f = this.symbols[cast( long, got )].flags
     if (f and (SYMF_IMPORTED or SYMF_PUBLIC)) <> SYMF_IMPORTED then return got
     '' A NAMESPACE has no word of its own: its members each say whether they are public.

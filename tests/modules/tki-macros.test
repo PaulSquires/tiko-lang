@@ -1,0 +1,8 @@
+'' An exported macro in the interface: under its interface name, and its body's module
+'' names qualified by the module's namespace (RFC-0004 §6); a parameter and '#x' as written.
+'' TEST: cli
+'' ARGS: --emit-tki -i tests/modules/src/macros/libs tests/modules/src/macros/libs/acme/chk
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: #define __tko_mac_acme_chk__check(x) if ( x ) = 0 then __tko_mod_acme_chk.Fail_( #x )
+'' EXPECT-OUT: #macro __tko_mac_acme_chk__twice(s)
+'' EXPECT-OUT: #endmacro

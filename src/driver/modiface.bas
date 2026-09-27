@@ -65,10 +65,12 @@ private sub Closure_ _
 end sub
 
 private function Hook_ _
-    ( byval c as any ptr, byref rec as Tko.PpImport, byref files as Tko.FileIdVec ) as boolean
+    ( byval c as any ptr, byref rec as Tko.PpImport, byref files as Tko.FileIdVec, _
+      byref chain as string ) as boolean
     dim as Tko.CompilerContext ptr ctx = cast( Tko.CompilerContext ptr, c )
     dim as long n = ImportIndex( *ctx, rec )
     if n < 0 then return false
+    chain = ctx->ifaceChains[n]
     dim as FB.Array( of ubyte ) seen
     for i as long = 0 to ctx->ifaceChains.Count - 1
         seen.Push( 0 )
@@ -85,6 +87,57 @@ end sub
 private function Folded_( byref ctx as Tko.CompilerContext, byref s as string ) as Tko.InternId
     return ctx.names.Fold( ctx.names.GetString( s ) )
 end function
+
+'' AN ALIAS SHARES ITS MODULE'S SCOPE: 'http.X', 'using http' and 'http.T' as a type all work
+'' as for any namespace. The mangler never sees it: the scope's owner is the module's own.
+private sub BindView_ _
+    ( byref syms as Tko.SymbolTable, byval asid as Tko.SymbolId, byval nsSid as ulong, _
+      byval parent as Tko.ScopeId )
+    dim as Tko.Symbol ptr a = syms.SymbolAt( asid )
+    dim as Tko.Symbol ptr ns = syms.SymbolAt( cast( Tko.SymbolId, nsSid ) )
+    if (a = 0) orelse (ns = 0) then return
+    a->inner = ns->inner
+end sub
+
+'' A MODULE'S RE-EXPORTS (RFC-0002 §6), from its interface's '' reexport <alias> <chain>
+'' lines: each alias, a view of that module, declared public inside the module's own
+'' namespace -- 'http.esc.Url'.
+private sub BindReexports_ _
+    ( byref ctx as Tko.CompilerContext, byref syms as Tko.SymbolTable, _
+      byref nsOf as FB.Array( of ulong ) )
+    for n as long = 0 to ctx.ifaceChains.Count - 1
+        if nsOf[n] = 0 then continue for
+        dim as string t = ctx.ifaceTexts[n]
+        dim as long p = 1
+        while p <= len( t )
+            dim as long e = instr( p, t, chr( 10 ) )
+            if e = 0 then e = len( t ) + 1
+            dim as string ln = mid( t, p, e - p )
+            p = e + 1
+            if left( ln, 2 ) <> "''" then exit while
+            if left( ln, 12 ) <> "'' reexport " then continue while
+            dim as string rest = mid( ln, 13 )
+            dim as long sp = instr( rest, " " )
+            if sp = 0 then continue while
+            dim as string al = left( rest, sp - 1 )
+            dim as string ch = mid( rest, sp + 1 )
+            dim as long m = -1
+            for i as long = 0 to ctx.ifaceChains.Count - 1
+                if ctx.ifaceChains[i] = ch then m = i
+            next
+            if m < 0 then continue while
+            if nsOf[m] = 0 then continue while
+            dim as Tko.Symbol ptr host = syms.SymbolAt( cast( Tko.SymbolId, nsOf[n] ) )
+            if host = 0 then continue while
+            dim as Tko.ScopeId hs = host->inner
+            dim as boolean dup = false
+            dim as Tko.SymbolId rsid = syms.DeclareSym( hs, Folded_( ctx, al ), Tko.SYM_NAMESPACE, _
+                                                        Tko.LOC_NONE, dup )
+            if dup then continue while
+            BindView_( syms, rsid, nsOf[m], hs )
+        wend
+    next
+end sub
 
 sub BindImports _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, _
@@ -114,6 +167,7 @@ sub BindImports _
         syms.importChains.Push( Tko.Text.UpperAscii( ctx.ifaceChains[i] ) )
     next
     Tko.ModSym.MarkImported( ast, syms, info, ctx.sources, read_ )
+    BindReexports_( ctx, syms, nsOf )
 
     '' Each '#import''s alias, bound to its module's scope.
     dim as FB.Array( of ulong ) aliasSym, aliasMod, aliasRec
@@ -137,10 +191,7 @@ sub BindImports _
             end if
             continue for
         end if
-        dim as Tko.Symbol ptr a = syms.SymbolAt( asid )
-        dim as Tko.Symbol ptr ns = syms.SymbolAt( cast( Tko.SymbolId, nsOf[n] ) )
-        if (a = 0) orelse (ns = 0) then continue for
-        a->inner = ns->inner
+        BindView_( syms, asid, nsOf[n], modScope )
         aliasSym.Push( cast( ulong, asid ) )
         aliasMod.Push( cast( ulong, n ) )
         aliasRec.Push( cast( ulong, k ) )
@@ -189,7 +240,19 @@ sub PublishInterface _
         spaces.Push( InterfaceNamespace( ctx.ifaceChains[n] ) )
     next
     dim as string text_ = WriteInterface( ctx, pr.tokens, ast, syms, info, aliases, spaces, _
-                                          pr.modHeaders )
+                                          pr.modHeaders, @pr )
+    '' ...and what it re-exports, in the header (RFC-0002 §6): '' reexport <alias> <chain>.
+    dim as string rx = ""
+    for k as long = 0 to pr.imports.Count - 1
+        if pr.imports[k].isPublic = false then continue for
+        dim as long n = ImportIndex( ctx, pr.imports[k] )
+        if n < 0 then continue for
+        rx &= "'' reexport " & Tko.Text.LowerAscii( pr.imports[k].alias_ ) & " " & ctx.ifaceChains[n] & chr( 10 )
+    next
+    if len( rx ) > 0 then
+        dim as long l2 = instr( instr( text_, chr( 10 ) ) + 1, text_, chr( 10 ) )
+        text_ = left( text_, l2 ) & rx & mid( text_, l2 + 1 )
+    end if
     dim as Tko.FileId id = ctx.sources.AddVirtual( ctx.modChain & ".tki", text_ )
     ctx.ifaceFiles[self_] = cast( ulong, id )
     ctx.ifaceTexts[self_] = text_

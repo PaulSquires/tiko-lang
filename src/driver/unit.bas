@@ -513,7 +513,7 @@ function CompileUnit _
         if FrontendFailed_( ctx ) = false then
             dim as Tko.StrVec noAliases, noSpaces
             print Tko.Modules.WriteInterface( ctx, pr.tokens, ast, syms, info, noAliases, _
-                                              noSpaces, pr.modHeaders );
+                                              noSpaces, pr.modHeaders, @pr );
         end if
     elseif ctx.options.dumpMangle then
         '' Mangling needs the parameter TYPES, so it runs after Resolve --

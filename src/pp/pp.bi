@@ -139,7 +139,8 @@ namespace Tko
     '' resolves the path, since the search roots are its; False, with the reason
     '' reported, when it could not.
     type PpImportFn as function _
-        ( byval ctx as any ptr, byref rec as PpImport, byref files as FileIdVec ) as boolean
+        ( byval ctx as any ptr, byref rec as PpImport, byref files as FileIdVec, _
+          byref chain as string ) as boolean
 
     type PpConfig
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
@@ -286,6 +287,18 @@ namespace Tko
         '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
         '' cache entry depends on besides its sources (RFC-0005 §4).
         as FileIdVec   filesRead
+        '' THE MACROS A MODULE '#export's (RFC-0004 §6), as they were when exported: the
+        '' name as written, whether it is a '#macro' block and takes arguments, its
+        '' parameters (folded ids, a run of expParamCount[k] from expParamFirst[k]) and its
+        '' body (a run of expBody).
+        as StrVec      expName
+        as IdVec       expFlags          '' 1 function-like, 2 a '#macro' block, 4 variadic
+        as IdVec       expParamFirst
+        as IdVec       expParamCount
+        as IdVec       expParams
+        as IdVec       expBodyFirst
+        as IdVec       expBodyCount
+        as TokenVec    expBody
     end type
 
     '' ---------------------------------------------------------------- the stream
@@ -370,6 +383,10 @@ namespace Tko
     '' A TOKEN SPELLED BACK as the source wrote it -- case, suffix and string prefix kept --
     '' or, for one the preprocessor synthesised, as the canonical text. What stringising
     '' and pasting read, and what a module's interface is written from (ADR 0017).
+    '' THE NAME AN EXPORTED MACRO IS DEFINED UNDER in an importer: '__tko_mac_acme_net_http__check'.
+    '' No source spelling reaches it -- 'http.CHECK( x )' is expanded through it.
+    declare function PpModMacroName( byref chain as string, byref nm as string ) as string
+
     declare function PpSpell _
         ( byref src as SourceManager, byref names as Interner, _
           byref lits as LiteralVec, byref t as Token ) as string

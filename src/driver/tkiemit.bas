@@ -449,11 +449,109 @@ sub Level_( byref w as TkiWriter_, byref i as long, byval sc as Tko.ScopeId, _
     next
 end sub
 
+'' ONE EXPORTED MACRO'S BODY TOKENS, first..first+count-1, spelled for an importer
+'' (RFC-0004 §6). HYGIENE: a name the module declares at module level, not written after a
+'' '.', is qualified with the module's own namespace -- '__tko_mod_acme_x.Fail_' -- so it
+'' means the module's name wherever the macro expands, and no local of the importer's
+'' captures it; the importer reaches it through that namespace, which no lookup filters.
+'' A parameter, and any other name, is left as written: a macro meant to name its caller's
+'' variable still does. An import alias followed by '.' becomes that module's namespace, as
+'' in declarations.
+private function MacroBody_ _
+    ( byref w as TkiWriter_, byref pr as Tko.PpResult, byval k as long ) as string
+    dim as string outp = ""
+    dim as long first_ = cast( long, pr.expBodyFirst[k] )
+    dim as long count_ = cast( long, pr.expBodyCount[k] )
+    dim as Tko.ScopeId modScope = Tko.ModSym.ModuleScope( *w.syms )
+    dim as string ns = InterfaceNamespace( w.ctx->modChain )
+    dim as long prev = -1
+    for i as long = first_ to first_ + count_ - 1
+        dim as Tko.Token ptr t = @pr.expBody[i]
+        dim as Tko.TokenKind tk = cast( Tko.TokenKind, t->kind )
+        dim as boolean realEol = (tk = Tko.TK_EOL) andalso ((t->flags and Tko.TF_COLON) = 0)
+        if realEol then
+            outp &= !"\n"
+            prev = -1
+            continue for
+        end if
+        '' Spaced as the source had it: tokens written side by side stay so -- '#x', '##'.
+        if prev >= 0 then
+            dim as boolean tight = false
+            if (t->flags and Tko.TF_SPACE_BEFORE) = 0 then
+                dim as Tko.DecodedLoc a = w.ctx->sources.Decode( pr.expBody[prev].loc )
+                dim as Tko.DecodedLoc b = w.ctx->sources.Decode( t->loc )
+                tight = (a.file = b.file) andalso (a.offset + cast( long, pr.expBody[prev].length ) = b.offset)
+            end if
+            if tight = false then outp &= " "
+        end if
+        dim as string sp = Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, *t )
+        if tk = Tko.TK_IDENT then
+            dim as boolean isParam = false
+            for q as long = 0 to cast( long, pr.expParamCount[k] ) - 1
+                if pr.expParams[pr.expParamFirst[k] + q] = t->literal then isParam = true
+            next
+            dim as boolean afterDot = false
+            if i > first_ then afterDot = (cast( Tko.TokenKind, pr.expBody[i - 1].kind ) = Tko.TK_DOT)
+            dim as boolean beforeDot = false
+            if i < first_ + count_ - 1 then beforeDot = (cast( Tko.TokenKind, pr.expBody[i + 1].kind ) = Tko.TK_DOT)
+            if (isParam = false) andalso (afterDot = false) then
+                dim as string low = Tko.Text.LowerAscii( sp )
+                dim as boolean done_ = false
+                if beforeDot then
+                    for a as long = 0 to w.aliases->Count - 1
+                        if (*w.aliases)[a] = low then
+                            sp = (*w.spaces)[a]
+                            done_ = true
+                        end if
+                    next
+                end if
+                if done_ = false then
+                    dim as Tko.Symbol ptr s = w.syms->SymbolAt( w.syms->LookupLocal( modScope, cast( Tko.InternId, t->literal ) ) )
+                    if s <> 0 then
+                        if (s->flags and Tko.SYMF_MODSRC) <> 0 then sp = ns & "." & sp
+                    end if
+                end if
+            end if
+        end if
+        outp &= sp
+        prev = i
+    next
+    return outp
+end function
+
+'' THE MACROS THE MODULE '#export's, each under its interface name (PpModMacroName), which
+'' only 'alias.NAME' in an importer expands.
+private function ExportedMacros_( byref w as TkiWriter_, byref pr as Tko.PpResult ) as string
+    dim as string r = ""
+    for k as long = 0 to pr.expName.Count - 1
+        dim as ulong fl = pr.expFlags[k]
+        dim as string head = Tko.PpModMacroName( w.ctx->modChain, pr.expName[k] )
+        if (fl and 1) <> 0 then
+            head &= "("
+            dim as long pc = cast( long, pr.expParamCount[k] )
+            for q as long = 0 to pc - 1
+                if q > 0 then head &= ", "
+                head &= w.ctx->names.Spelling( cast( Tko.InternId, pr.expParams[pr.expParamFirst[k] + q] ) )
+                if ((fl and 4) <> 0) andalso (q = pc - 1) then head &= "..."
+            next
+            head &= ")"
+        end if
+        dim as string body = MacroBody_( w, pr, k )
+        if (fl and 2) <> 0 then
+            r &= "#macro " & head & !"\n" & body & !"\n" & "#endmacro" & !"\n"
+        else
+            r &= "#define " & head & " " & body & !"\n"
+        end if
+    next
+    return r
+end function
+
 function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo, byref aliases as Tko.StrVec, _
-      byref spaces as Tko.StrVec, byref headers as Tko.StrVec ) as string
+      byref spaces as Tko.StrVec, byref headers as Tko.StrVec, _
+      byval pr as Tko.PpResult ptr ) as string
 
     dim as TkiWriter_ w
     w.ctx = @ctx : w.toks = @toks : w.ast = @ast : w.syms = @syms : w.info = @info
@@ -489,6 +587,7 @@ function WriteInterface _
     for each h as string in headers
         w.text &= "#include once """ & h & """" & !"\n"
     next
+    if pr <> 0 then w.text &= ExportedMacros_( w, *pr )
     w.text &= "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
     w.lineFile = 0
     dim as long i = 0

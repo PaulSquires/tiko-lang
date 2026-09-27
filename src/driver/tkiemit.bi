@@ -8,6 +8,7 @@
 #include once "ast/nodes.bi"
 #include once "symbols/symbol.bi"
 #include once "symbols/resolve.bi"
+#include once "pp/pp.bi"
 
 namespace Tko.Modules
 
@@ -28,6 +29,7 @@ declare function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo, byref aliases as Tko.StrVec, _
-      byref spaces as Tko.StrVec, byref headers as Tko.StrVec ) as string
+      byref spaces as Tko.StrVec, byref headers as Tko.StrVec, _
+      byval pr as Tko.PpResult ptr ) as string
 
 end namespace

@@ -1,0 +1,10 @@
+'' A MODULE RE-EXPORTS WHAT IT IMPORTS WITH 'public' (ADR 0017; RFC-0002 §6): acme.web imports
+'' acme.core public, and a program importing only web names core's type and function as
+'' web.core.Tag and web.core.MakeTag. The re-export is a line of web's interface, so a
+'' change to it changes web's interface hash, and the cache keys of what imports web.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/reexp/libs tests/modules/src/reexp/app/main.bas -o tests/modules/reexport.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/reexport.exe
+'' EXPECT-RUN-OUT: <[x]>

@@ -378,7 +378,10 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     '' is on top. One already read -- a diamond -- is not read again.
     dim as FileIdVec got
     dim as PpImportFn fn = e.cfg->importFn
-    if fn( e.cfg->importCtx, rec, got ) = false then return
+    dim as string chain_
+    if fn( e.cfg->importCtx, rec, got, chain_ ) = false then return
+    e.modst.aliasIds.Push( cast( ulong, e.names->GetString( Text.LowerAscii( rec.alias_ ) ) ) )
+    e.modst.aliasChains.Push( chain_ )
     for k as long = got.Count - 1 to 0 step -1
         dim as FileId id = cast( FileId, got[k] )
         if PpAlreadyOnce( e, id ) then continue for
@@ -390,6 +393,66 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
         e.frames[e.frames.Count - 1].inImport = true
     next
 end sub
+
+'' An exported macro, recorded as it is now: the interface writer spells it (tkiemit.bas).
+private sub PpModRecordExport_( byref e as PpEngine, byval m as PpMacro ptr, byref nm as string )
+    dim as PpResult ptr r = e.outp
+    r->expName.Push( nm )
+    dim as ulong fl = 0
+    if m->isFunc then fl or= 1
+    if m->isVariadic then fl or= 4
+    for i as long = 0 to m->body.Count - 1
+        dim as boolean realEol = (Tk( m->body[i] ) = TK_EOL)
+        if realEol then realEol = ((m->body[i].flags and TF_COLON) = 0)
+        if realEol then fl or= 2
+    next
+    r->expFlags.Push( fl )
+    r->expParamFirst.Push( cast( ulong, r->expParams.Count ) )
+    r->expParamCount.Push( cast( ulong, m->params.Count ) )
+    for each p as ulong in m->params
+        r->expParams.Push( p )
+    next
+    r->expBodyFirst.Push( cast( ulong, r->expBody.Count ) )
+    r->expBodyCount.Push( cast( ulong, m->body.Count ) )
+    for i as long = 0 to m->body.Count - 1
+        r->expBody.Push( m->body[i] )
+    next
+end sub
+
+function PpModMacroName( byref chain as string, byref nm as string ) as string
+    dim as string s = "__tko_mac_" & chain & "__" & Text.LowerAscii( nm )
+    for i as long = 0 to len( s ) - 1
+        if s[i] = asc( "." ) then s[i] = asc( "_" )
+    next
+    return s
+end function
+
+'' 'alias . NAME' in an importer, where alias is one of the unit's imports and NAME a macro
+'' its module exports (RFC-0004 §6): expanded through the macro's interface name. The three
+'' tokens have to be in one frame. False, touching nothing, when it is not one.
+function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
+    dim as long ai = -1
+    for i as long = 0 to e.modst.aliasIds.Count - 1
+        if e.modst.aliasIds[i] = t.literal then ai = i
+    next
+    if ai < 0 then return false
+    dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
+    if f->pos + 2 > f->toks->Count - 1 then return false
+    if Tk( f->toks->At( f->pos + 1 ) ) <> TK_DOT then return false
+    dim as Token nt = f->toks->At( f->pos + 2 )
+    if Tk( nt ) <> TK_IDENT then return false
+    dim as string cand = PpModMacroName( e.modst.aliasChains[ai], e.names->Spelling( cast( InternId, nt.literal ) ) )
+    dim as PpMacro ptr m = MacroFor( e, e.names->GetString( cand ) )
+    if m = 0 then return false
+    '' A function-like one is a use only with its argument list, as any macro is.
+    if m->isFunc andalso (m->optParens = false) then
+        if f->pos + 3 > f->toks->Count - 1 then return false
+        if Tk( f->toks->At( f->pos + 3 ) ) <> TK_LPAREN then return false
+    end if
+    Advance( e )
+    Advance( e )
+    return PpExpand( e, m, nt )
+end function
 
 private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )
     if e.modst.isModuleFile = false then
@@ -410,8 +473,11 @@ private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )
             SkipToEol( e )
             return
         end if
-        if MacroFor( e, cast( InternId, t.literal ) ) = 0 then
+        dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
+        if m = 0 then
             Report( e, TKO0365, t.loc, SpellOf( e, t ) )
+        else
+            PpModRecordExport_( e, m, SpellOf( e, t ) )
         end if
         named = true
         Advance( e )

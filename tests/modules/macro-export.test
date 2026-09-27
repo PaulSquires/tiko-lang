@@ -1,0 +1,16 @@
+'' A MODULE EXPORTS MACROS (ADR 0017; RFC-0004 §6): '#export CHECK, TWICE' writes both into
+'' its interface under names no source reaches, and an importer expands them only
+'' qualified, 'chk.CHECK( ... )'. CHECK's body calls the module-private Fail_ through the
+'' module's own namespace, so the importer's own 'Fail_' neither captures the call nor is
+'' changed (99), and the name filter lets the module's own namespace through. Bare, CHECK is
+'' an ordinary name: the file declares a variable of it. TWICE is a '#macro' block.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/macros/libs tests/modules/src/macros/app/main.bas -o tests/modules/macroexport.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/macroexport.exe
+'' EXPECT-RUN-OUT: failed: 1 = 2
+'' EXPECT-RUN-OUT: hi
+'' EXPECT-RUN-OUT: hi
+'' EXPECT-RUN-OUT:  99
+'' EXPECT-RUN-OUT:  42

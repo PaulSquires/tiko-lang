@@ -806,7 +806,10 @@ private sub CheckNamespaceMember_ ( byref c as Ctx, byval id as NodeId )
     if bs->inner = SCOPE_NONE then return
     dim as InternId want = c.names->Fold( _
         c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
-    if c.syms->LookupInNamespace( bs->inner, want ) <> SYMBOL_NONE then return
+    c.syms->privileged = c.syms->IsImportNs( c.info->RefOf( mp->lhs ) )
+    dim as SymbolId found_ = c.syms->LookupInNamespace( bs->inner, want )
+    c.syms->privileged = false
+    if found_ <> SYMBOL_NONE then return
     '' ...or has one the module does not let out (ADR 0017).
     dim as string modOf = c.syms->HiddenModuleOf( want )
     if len( modOf ) > 0 then

@@ -278,6 +278,9 @@ namespace Tko
         '' ...and every name of theirs a lookup through their namespaces found but did not
         '' return, because the interface does not call it 'public' (SymbolTable.PublicOnly).
         as FB.Array( of ulong ) hiddenHits
+        '' SET WHILE A LOOKUP IS QUALIFIED BY A MODULE'S OWN NAMESPACE rather than an alias:
+        '' PublicOnly lets everything through.
+        as boolean    privileged
         as SymbolVec  symbols
         as ScopeVec   scopes
         as SymSlotVec slots        '' open addressing on (scope, name)
@@ -363,6 +366,9 @@ namespace Tko
         '' is what a leading '.name' needs: it must not see an ordinary local.
         '' got, unless it is a module's name its interface does not call 'public'.
         declare function PublicOnly( byval got as SymbolId ) as SymbolId
+        '' ...and whether 'sid' is a module's own interface namespace, which an exported
+        '' macro's body names the module's helpers through (RFC-0004 §6).
+        declare function IsImportNs( byval sid as SymbolId ) as boolean
         '' The chain of the module whose hidden name nm is, if PublicOnly refused one; "".
         declare function HiddenModuleOf( byval nm as InternId ) as string
         declare function LookupThroughUsings _

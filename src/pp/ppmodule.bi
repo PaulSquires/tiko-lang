@@ -35,6 +35,9 @@ type PpModState
     '' The module interfaces read in (RFC-0004 §5), whose declarations the parser's
     '' PpNoteDeclared / PpNoteConst do not report.
     as IdVec     ifaceFiles
+    '' THE UNIT'S IMPORT ALIASES and the module each names, for 'alias.MACRO( ... )'.
+    as IdVec     aliasIds
+    as StrVec    aliasChains
     as MacroVec  journalMac
 end type
 

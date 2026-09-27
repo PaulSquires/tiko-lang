@@ -1,0 +1,6 @@
+'' TKO0860 THROUGH A RE-EXPORT: web.core is core, and core's Hidden_ is not public, however
+'' it is reached (RFC-0002 §3, §6).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/reexp/libs tests/modules/src/reexp/app2/main.bas -o tests/diagnostics/reexphidden.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: main.bas(3,16): error TKO0860: 'hidden_' is not public in module 'acme.core'
