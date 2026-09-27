@@ -25,6 +25,10 @@ declare sub BindImports _
       byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
       byref imports as Tko.PpImportVec )
 
+'' WHAT A UNIT'S INITIALISATION CALLS, in build order (RFC-0006 §3): for a module unit,
+'' the modules it imports directly; for a root, every module of the build.
+declare sub InitOrder( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
+
 '' THE MODULE UNIT JUST CHECKED, as the interface its importers will read.
 declare sub PublishInterface _
     ( byref ctx as Tko.CompilerContext, byref pr as Tko.PpResult, _

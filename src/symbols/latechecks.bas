@@ -883,6 +883,9 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
         wend
         if c.types->Kind( u ) <> TK_UDT then continue for
         if HasDefaultCtor_( c, u, isArray ) then continue for
+        '' A MODULE'S VARIABLE, READ IN FROM ITS INTERFACE: the module constructs it, with
+        '' the initialiser the interface leaves out (ADR 0017).
+        if (s->flags and SYMF_IMPORTED) <> 0 then continue for
         c.diags->Report( TKO0657, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )
     next

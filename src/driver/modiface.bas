@@ -147,6 +147,28 @@ sub BindImports _
     next
 end sub
 
+sub InitOrder( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
+    outv.Clear( )
+    dim as long self_ = -1
+    if ctx.modFileCount > 0 then
+        for i as long = 0 to ctx.ifaceChains.Count - 1
+            if ctx.ifaceChains[i] = ctx.modChain then self_ = i
+        next
+        if self_ < 0 then return
+    end if
+    for each o as ulong in ctx.ifaceOrder
+        dim as boolean wanted = (self_ < 0)
+        if wanted = false then
+            for e as long = 0 to ctx.ifaceEdgeFrom.Count - 1
+                dim as boolean hit = (cast( long, ctx.ifaceEdgeFrom[e] ) = self_)
+                if hit then hit = (ctx.ifaceEdgeTo[e] = o)
+                if hit then wanted = true
+            next
+        end if
+        if wanted then outv.Push( ctx.ifaceChains[o] )
+    next
+end sub
+
 sub PublishInterface _
     ( byref ctx as Tko.CompilerContext, byref pr as Tko.PpResult, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _

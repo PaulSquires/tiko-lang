@@ -1,0 +1,13 @@
+'' A VARIABLE ONLY DECLARED 'extern' IN A UNIT IS NOT CONSTRUCTED OR DESTROYED THERE: its
+'' storage, and both, belong to the unit that defines it -- measured, fbc-modern runs the
+'' constructor once and the destructor once for 'extern g as T' in b.bas and 'dim shared
+'' g as T' in a.bas. tiko ran each in both units, twice over the one object, so b.bas's
+'' constructor reset it and a string field was freed twice. Found through a module's
+'' variable read in from its interface, which is such an extern (ADR 0017).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/externonce/a.bas tests/driver/src/externonce/b.bas -o tests/driver/externonce.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/driver/externonce.exe
+'' EXPECT-RUN-OUT: b sees set1, constructed 1 time(s)
+'' EXPECT-RUN-OUT: dtor of set1

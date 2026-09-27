@@ -71,6 +71,10 @@ function BuildImports _
         ctx.ifaceTexts.Push( "" )
         ctx.ifaceFiles.Push( cast( ulong, Tko.FILE_NONE ) )
     next
+    ctx.ifaceOrder.Clear( )
+    for each o as ulong in g.order
+        ctx.ifaceOrder.Push( o )
+    next
     ctx.ifaceEdgeFrom.Clear( )
     ctx.ifaceEdgeTo.Clear( )
     for e as long = 0 to g.edgeFrom.Count - 1

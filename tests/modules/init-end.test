@@ -1,0 +1,11 @@
+'' 'end' IN A MODULE'S TOP-LEVEL CODE still finalises what had initialised: d had, so its
+'' finalisers run; main never starts (RFC-0006 §4, §5).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/init/libs tests/modules/src/init/app2/main.bas -o tests/modules/initend.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/initend.exe
+'' EXPECT-RUN-OUT: D:ctor
+'' EXPECT-RUN-OUT: quit
+'' EXPECT-RUN-OUT: ~D:dtor
+'' EXPECT-RUN-OUT: ~D:global

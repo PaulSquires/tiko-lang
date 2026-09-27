@@ -1,0 +1,15 @@
+'' THE SAME TWO ROOTS, THE OTHER WAY ROUND on the command line (init-roots): the modules
+'' initialise in the same order.
+'' TEST: cli
+'' ARGS: -target win64-msvc -m main -i tests/modules/src/init/libs tests/modules/src/init/app/other.bas tests/modules/src/init/app/main.bas -o tests/modules/initrootsrev.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/initrootsrev.exe
+'' EXPECT-RUN-OUT: D:ctor
+'' EXPECT-RUN-OUT: B sees d
+'' EXPECT-RUN-OUT: C sees d
+'' EXPECT-RUN-OUT: A
+'' EXPECT-RUN-OUT: other sees d
+'' EXPECT-RUN-OUT: main
+'' EXPECT-RUN-OUT: ~main
+'' EXPECT-RUN-OUT: ~D:global

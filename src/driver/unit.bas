@@ -306,6 +306,10 @@ function CompileUnit _
             ctx.unitThreadRtl = true
         end if
         if ctx.types.target.wcharBytes <> 2 then mm.SplitUtf16Literals( ctx.names )
+        '' WHO INITIALISES WHAT (RFC-0006): a module unit, its direct imports, in build
+        '' order; a root of a build with modules, every module, in build order.
+        if ctx.modFileCount > 0 then mm.modChain = ctx.modChain
+        if ctx.importsBuilt then Tko.Modules.InitOrder( ctx, mm.modInits )
         '' THE ABI PASS, between lowering and emission (docs/plan/10 section
         '' 3). It rewrites signatures and call sites so the emitted IR carries
         '' no implicit ABI behaviour -- and it runs under '--dump-ir' too, so

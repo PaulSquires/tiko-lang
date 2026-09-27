@@ -1,0 +1,17 @@
+'' TWO ROOTS, and the modules' order is the build graph's, not the command line's: main and
+'' other both import (other only d), and other -- not main, so its top-level code is a
+'' module constructor -- sees d initialised. init-roots-reversed gives the roots the
+'' other way round and gets the same module order. RFC-0006 §2, §5.
+'' TEST: cli
+'' ARGS: -target win64-msvc -m main -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas tests/modules/src/init/app/other.bas -o tests/modules/initroots.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/initroots.exe
+'' EXPECT-RUN-OUT: D:ctor
+'' EXPECT-RUN-OUT: B sees d
+'' EXPECT-RUN-OUT: C sees d
+'' EXPECT-RUN-OUT: A
+'' EXPECT-RUN-OUT: other sees d
+'' EXPECT-RUN-OUT: main
+'' EXPECT-RUN-OUT: ~main
+'' EXPECT-RUN-OUT: ~D:global

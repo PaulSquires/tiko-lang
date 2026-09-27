@@ -1000,6 +1000,11 @@ sub InitSharedGlobal _
                 end select
                 if convInit then wants = true
             end if
+            '' ...BUT NOT A PURE EXTERN: its storage, and constructing and destroying it,
+            '' belong to the unit that defines it. A module's variable read in from its
+            '' interface is one (ADR 0017): its importers re-initialised it and each
+            '' destroyed it again at the end.
+            if (gs->flags and Tko.SYMF_EXTERN) <> 0 then wants = false
             if wants then
                 dim as boolean already = false
                 for i as long = 0 to c.modInitGlobal.Count - 1

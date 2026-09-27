@@ -57,9 +57,148 @@ private function StructorSection_ _
     end select
 end function
 
+'' MODULE INITIALISATION (ADR 0017; RFC-0006 §2-3), and why it sits where it does.
+''
+'' A MODULE UNIT REGISTERS NO UNNUMBERED STRUCTOR. Its '_GLOBAL__I', its top-level code
+'' (fb_ctor__<name>) and its 'constructor' subs are called, in that order, from
+'' '__tko_modinit$<chain>' -- external, guarded, and calling its imports' first -- and its
+'' 'destructor' subs, reversed, then '_GLOBAL__D', from an internal '__tko_modfini$<chain>'
+'' that the init pushes onto a finaliser stack once it has run.
+''
+'' EVERY ROOT of a build with modules registers two NUMBERED structors, both 65534: a
+'' constructor that calls every module's init in BUILD ORDER -- so the order is the build
+'' graph's on every target and for every link order, the guard making every call after the
+'' first a no-op -- and a destructor that drains the stack, last in first out. Measured
+'' 2026-09-27 on all three targets, tiko-built classic probes:
+''
+''     constructors    101, then 65534, then EVERY unnumbered one -- another root's
+''                     fb_ctor__ and _GLOBAL__I included -- then main
+''     destructors     every unnumbered one and _GLOBAL__D, then 65534, then 101
+''
+'' and a string made and printed at 65534 either way works, so tiko-rt is up by then and not
+'' yet torn down. That is the slot RFC-0006 §3 asked to be measured: modules initialise
+'' before any root's code and finalise after it, with no change to the runtime.
+''
+'' THE STACK AND ITS TWO PROCEDURES are linkonce_odr, one copy in the link: every unit that
+'' uses them emits them.
+private function ModStackIr_( ) as string
+    dim as string nl = chr( 10 )
+    dim as string q = chr( 34 )
+    dim as string fs = "@" & q & "__tko_modfinis" & q
+    dim as string fn = "@" & q & "__tko_modfinin" & q
+    dim as string r
+    r &= "$" & q & "__tko_modfinis" & q & " = comdat any" & nl
+    r &= fs & " = linkonce_odr global [1024 x ptr] zeroinitializer, comdat, align 8" & nl
+    r &= "$" & q & "__tko_modfinin" & q & " = comdat any" & nl
+    r &= fn & " = linkonce_odr global i32 0, comdat, align 4" & nl
+    r &= "$" & q & "__tko_modfini_push" & q & " = comdat any" & nl
+    r &= "define linkonce_odr void @" & q & "__tko_modfini_push" & q & "(ptr %f) nounwind comdat {" & nl
+    r &= "entry:" & nl
+    r &= "  %n = load i32, ptr " & fn & nl
+    r &= "  %full = icmp sge i32 %n, 1024" & nl
+    r &= "  br i1 %full, label %out, label %put" & nl
+    r &= "put:" & nl
+    r &= "  %slot = getelementptr inbounds [1024 x ptr], ptr " & fs & ", i32 0, i32 %n" & nl
+    r &= "  store ptr %f, ptr %slot" & nl
+    r &= "  %n1 = add i32 %n, 1" & nl
+    r &= "  store i32 %n1, ptr " & fn & nl
+    r &= "  br label %out" & nl
+    r &= "out:" & nl & "  ret void" & nl & "}" & nl
+    r &= "$" & q & "__tko_modfini_drain" & q & " = comdat any" & nl
+    r &= "define linkonce_odr void @" & q & "__tko_modfini_drain" & q & "() comdat {" & nl
+    r &= "entry:" & nl & "  br label %loop" & nl
+    r &= "loop:" & nl
+    r &= "  %n = load i32, ptr " & fn & nl
+    r &= "  %done = icmp sle i32 %n, 0" & nl
+    r &= "  br i1 %done, label %out, label %pop" & nl
+    r &= "pop:" & nl
+    r &= "  %n1 = sub i32 %n, 1" & nl
+    r &= "  store i32 %n1, ptr " & fn & nl
+    r &= "  %slot = getelementptr inbounds [1024 x ptr], ptr " & fs & ", i32 0, i32 %n1" & nl
+    r &= "  %f = load ptr, ptr %slot" & nl
+    r &= "  call void %f()" & nl
+    r &= "  br label %loop" & nl
+    r &= "out:" & nl & "  ret void" & nl & "}" & nl
+    return r
+end function
+
+private function ModSym_( byref prefix as string, byref chain as string ) as string
+    return "@" & chr( 34 ) & prefix & chain & chr( 34 )
+end function
+
+'' The declarations of the other modules' inits this unit calls.
+private function ModInitDecls_( byref m as MirModule ) as string
+    dim as string r
+    for each ch as string in m.modInits
+        r &= "declare void " & ModSym_( "__tko_modinit$", ch ) & "()" & chr( 10 )
+    next
+    return r
+end function
+
+'' A MODULE UNIT's init and fini, over the unnumbered structors StructorLists_ set aside.
+private function ModUnitIr_ _
+    ( byref e as EmitCtx, byref m as MirModule, byref ctors as FB.Array( of long ), _
+      byref dtors as FB.Array( of long ) ) as string
+    dim as string nl = chr( 10 )
+    dim as string done_ = ModSym_( "__tko_modinit_done$", m.modChain )
+    dim as string fini = ModSym_( "__tko_modfini$", m.modChain )
+    dim as string r = ModStackIr_( ) & ModInitDecls_( m )
+    r &= done_ & " = internal global i1 false" & nl
+    r &= "define internal void " & fini & "() {" & nl & "entry:" & nl
+    for k as long = 0 to dtors.Count - 1
+        r &= "  call void " & GlobalName( e, m.functions[dtors[k]]->name ) & "()" & nl
+    next
+    r &= "  ret void" & nl & "}" & nl
+    r &= "define void " & ModSym_( "__tko_modinit$", m.modChain ) & "() {" & nl & "entry:" & nl
+    r &= "  %d = load i1, ptr " & done_ & nl
+    r &= "  br i1 %d, label %out, label %run" & nl & "run:" & nl
+    r &= "  store i1 true, ptr " & done_ & nl
+    for each ch as string in m.modInits
+        r &= "  call void " & ModSym_( "__tko_modinit$", ch ) & "()" & nl
+    next
+    for k as long = 0 to ctors.Count - 1
+        r &= "  call void " & GlobalName( e, m.functions[ctors[k]]->name ) & "()" & nl
+    next
+    r &= "  call void " & ModSym_( "__tko_modfini_push", "" ) & "(ptr " & fini & ")" & nl
+    r &= "  br label %out" & nl & "out:" & nl & "  ret void" & nl & "}" & nl
+    return r
+end function
+
+'' A module unit's unnumbered structors, in the order its init and fini call them:
+'' _GLOBAL__I, the top-level code, then the 'constructor' subs as declared; the
+'' 'destructor' subs reversed, then _GLOBAL__D.
+private sub ModUnitOrder_ _
+    ( byref e as EmitCtx, byref m as MirModule, byref dflt as FB.Array( of long ), _
+      byval isCtor as boolean, byref outv as FB.Array( of long ) )
+    dim as string first_ = iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" )
+    if isCtor then
+        for each fi as long in dflt
+            if e.names->Spelling( m.functions[fi]->name ) = first_ then outv.Push( fi )
+        next
+        for each fi as long in dflt
+            if left( e.names->Spelling( m.functions[fi]->name ), 9 ) = "fb_ctor__" then outv.Push( fi )
+        next
+        for each fi as long in dflt
+            dim as string nm = e.names->Spelling( m.functions[fi]->name )
+            dim as boolean other = (nm <> first_)
+            if other then other = (left( nm, 9 ) <> "fb_ctor__")
+            if other then outv.Push( fi )
+        next
+    else
+        for k as long = dflt.Count - 1 to 0 step -1
+            if e.names->Spelling( m.functions[dflt[k]]->name ) <> first_ then outv.Push( dflt[k] )
+        next
+        for each fi as long in dflt
+            if e.names->Spelling( m.functions[fi]->name ) = first_ then outv.Push( fi )
+        next
+    end if
+end sub
+
 private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as string
     dim as string r, used
     dim as long nused = 0
+    dim as boolean modUnit = (len( m.modChain ) > 0)
+    dim as FB.Array( of long ) modCtors, modDtors
     for pass as long = 0 to 1
         dim as boolean isCtor = (pass = 0)
         dim as FB.Array( of long ) dflt
@@ -88,6 +227,14 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
             nused += 1
         next
         if dflt.Count = 0 then continue for
+        if modUnit then
+            if isCtor then
+                ModUnitOrder_( e, m, dflt, true, modCtors )
+            else
+                ModUnitOrder_( e, m, dflt, false, modDtors )
+            end if
+            continue for
+        end if
         dim as boolean rev = (e.tgt->id = Tko.TARGET_WIN64)
         dim as string items
         for k as long = 0 to dflt.Count - 1
@@ -99,6 +246,25 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
         r += "@llvm.global_" & iif( isCtor, "ctors", "dtors" ) & " = appending global [" & _
              str( dflt.Count ) & " x { i32, ptr, ptr }] [" & items & "]" & chr( 10 )
     next
+    if modUnit then r += ModUnitIr_( e, m, modCtors, modDtors )
+    '' A ROOT: every module's init at 65534, and the drain at 65534 (see above).
+    if (modUnit = false) andalso (m.modInits.Count > 0) then
+        dim as string nl = chr( 10 )
+        r += ModStackIr_( ) & ModInitDecls_( m )
+        r += "define internal void " & ModSym_( "__tko_initall", "" ) & "() {" & nl & "entry:" & nl
+        for each ch as string in m.modInits
+            r += "  call void " & ModSym_( "__tko_modinit$", ch ) & "()" & nl
+        next
+        r += "  ret void" & nl & "}" & nl
+        dim as string gk = iif( e.tgt->id = Tko.TARGET_WIN64_MSVC, "constant", "global" )
+        r += "@__tko_ctor.modinit = internal " & gk & " ptr " & ModSym_( "__tko_initall", "" ) & _
+             ", section " & chr( 34 ) & StructorSection_( e, true, 65534 ) & chr( 34 ) & ", align 8" & nl
+        r += "@__tko_dtor.modfini = internal " & gk & " ptr " & ModSym_( "__tko_modfini_drain", "" ) & _
+             ", section " & chr( 34 ) & StructorSection_( e, false, 65534 ) & chr( 34 ) & ", align 8" & nl
+        if nused > 0 then used += ", "
+        used += "ptr @__tko_ctor.modinit, ptr @__tko_dtor.modfini"
+        nused += 2
+    end if
     if nused > 0 then
         r += "@llvm.used = appending global [" & str( nused ) & " x ptr] [" & used & _
              "], section ""llvm.metadata""" & chr( 10 )

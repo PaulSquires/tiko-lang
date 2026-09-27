@@ -1,0 +1,25 @@
+'' MODULES INITIALISE DEPENDENCIES FIRST, AND FINALISE IN REVERSE (ADR 0017; RFC-0006 §2).
+'' a imports b and c, and both import d. d's three stages run in order -- a global's
+'' constructor, its top-level code, its 'constructor' sub -- before b and c, which see d's
+'' global constructed, and a; then main. At the end the root's destructor runs first, then
+'' the modules' in reverse, d's 'destructor' sub before its global's. b's 'constructor
+'' 101' keeps its FreeBASIC meaning and runs before everything.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o tests/modules/initdiamond.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/initdiamond.exe
+'' EXPECT-RUN-OUT: B:101
+'' EXPECT-RUN-OUT: D:global
+'' EXPECT-RUN-OUT: D:top
+'' EXPECT-RUN-OUT: D:ctor
+'' EXPECT-RUN-OUT: B sees d
+'' EXPECT-RUN-OUT: C sees d
+'' EXPECT-RUN-OUT: A
+'' EXPECT-RUN-OUT: main
+'' EXPECT-RUN-OUT: ~main
+'' EXPECT-RUN-OUT: ~A
+'' EXPECT-RUN-OUT: ~C
+'' EXPECT-RUN-OUT: ~B
+'' EXPECT-RUN-OUT: ~D:dtor
+'' EXPECT-RUN-OUT: ~D:global

@@ -631,6 +631,13 @@ namespace Tko.Mir
         '' '$tko.procsig.<n>', intern it and then scan, once per such call site.
         as FB.Array( of long ) procSigByType
 
+        '' MODULE INITIALISATION (ADR 0017; RFC-0006). A MODULE UNIT: its chain, and its
+        '' direct imports' chains in build order -- what __tko_modinit$<chain> calls first.
+        '' A ROOT of a build with modules: modChain is "", and modInits is EVERY module of
+        '' the build, in build order. Both empty for a classic build.
+        as string  modChain
+        as StrVec  modInits
+
         declare constructor( )
         declare destructor( )
         declare function AddFunction _

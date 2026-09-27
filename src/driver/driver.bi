@@ -70,6 +70,8 @@ namespace Tko
         as FileIdVec              unitFilesRead
         as boolean                unitThreadRtl
         as FileIdVec              ifaceFiles
+        '' ...and the build order, as indices into ifaceChains: what modules initialise in.
+        as FileIdVec              ifaceOrder
         as FileIdVec              ifaceEdgeFrom
         as FileIdVec              ifaceEdgeTo
         as string                 ifaceRootDir
