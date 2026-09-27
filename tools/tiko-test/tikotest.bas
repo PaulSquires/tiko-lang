@@ -18,6 +18,13 @@
 ''     '' EXPECT-FILE-NOT-HAS: p :: s   ...and must NOT contain them
 ''                              in both, \t \n \r and \\ in s are TAB, LF, CR, backslash
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
+''     '' RUN: path                 after a build for one of the HOST's targets, run the
+''                              program the build made; it must exit 0. Skipped, not
+''                              failed, for any other target. The file is deleted first
+''     '' EXPECT-RUN-OUT: text      required substring of the program's output
+''                              (repeatable), IN ORDER: each must appear after the
+''                              previous one's match, so an initialisation order can be
+''                              asserted and not only a set of lines
 ''
 '' TARGETS. Every run names a target explicitly: what tiko-lang emits depends on
 '' the TARGET, not on the host, and leaving it implicit made every golden say
@@ -57,6 +64,8 @@
 ''     writing that path in between answers the question wrongly, in either direction.
 ''   - Anything that EMITS rather than dumps writes files named after its source, and
 ''     a driver test's build leaves objects and an executable behind.
+''   - RUN starts the program a test just built. Its output file is per-worker, but the
+''     program is not: two tests building and running one path would race on it.
 ''
 '' Those run serially after the rest, and --accept forces the whole suite serial: it
 '' WRITES the goldens, and a golden shared by two tests would race.
@@ -97,6 +106,11 @@ type TestCase
     '' ...and bytes it must NOT contain. A record format is asserted by what is absent as
     '' much as by what is there: no raw TAB inside a field, no CR, no record twice.
     as Array( of string ) expectFileNotHas
+    '' THE PROGRAM THE BUILD MADE, run afterwards on the host's own targets. Everything
+    '' above asserts what the COMPILER did; nothing asserted what the program did, so
+    '' "links and prints a then b" was checked by hand and recorded in commit messages.
+    as string runExe
+    as Array( of string ) expectRunOut
 end type
 
 type Options
@@ -259,6 +273,7 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
     tc.maxDiag = 0
     tc.haveMaxDiag = false
     tc.env.Clear( )
+    tc.runExe = ""
 
     dim as long slash = 0
     for i as long = len( path ) to 1 step -1
@@ -326,6 +341,10 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.expectFile.Push( Trim_( mid( ln, 13 ) ) )
         elseif StartsWith( ln, "ENV:" ) then
             tc.env.Push( Trim_( mid( ln, 5 ) ) )
+        elseif StartsWith( ln, "RUN:" ) then
+            tc.runExe = Trim_( mid( ln, 5 ) )
+        elseif StartsWith( ln, "EXPECT-RUN-OUT:" ) then
+            tc.expectRunOut.Push( Trim_( mid( ln, 16 ) ) )
         end if
     wend
 
@@ -427,6 +446,66 @@ function TargetGolden_ _
     return ""
 end function
 
+'' CAN THIS HOST RUN WHAT A BUILD FOR tgt PRODUCES? Both Windows targets' programs run on
+'' Windows (win64 links MinGW's CRT, win64-msvc the UCRT; both are PE executables), and
+'' linux-x86_64's on Linux. Anything else would need an emulator, and is skipped.
+function IsHostTarget_( byval tgt as string ) as boolean
+    #ifdef __FB_WIN32__
+        return (tgt = "win64") orelse (tgt = "win64-msvc")
+    #else
+        return (tgt = "linux-x86_64")
+    #endif
+end function
+
+'' THE TARGET A RUN ACTUALLY BUILT FOR: the LAST '-target' on its command line, since a
+'' later one wins (tests/driver's tests name win64-msvc in ARGS over the runner's win64).
+'' Deciding whether to RUN from the runner's own target would start a linux-x86_64
+'' program on Windows the day a test named that target in ARGS.
+function BuiltTarget_( byval tgt as string, byval args as string ) as string
+    dim as string t = tgt
+    dim as long at = instr( args, "-target " )
+    while at > 0
+        dim as long st = at + 8
+        while (st <= len( args )) andalso (mid( args, st, 1 ) = " ")
+            st += 1
+        wend
+        dim as long en = instr( st, args, " " )
+        if en = 0 then en = len( args ) + 1
+        t = mid( args, st, en - st )
+        at = instr( en, args, "-target " )
+    wend
+    return t
+end function
+
+'' RUN THE PROGRAM A TEST BUILT, and check what it did: exit 0, and every EXPECT-RUN-OUT
+'' in order. Captured through a per-worker file like RunTko's, for the same reason.
+function CheckRun_ _
+    ( byref tc as TestCase, byref why as string, byval slotId as long ) as boolean
+
+    if FileExists_( tc.runExe ) = false then
+        why = "RUN: no program at " & tc.runExe
+        return false
+    end if
+    dim as string tmp = "build/.tikotest." & slotId & ".run"
+    dim as long rc = shell( NativePath( tc.runExe ) & " > " & NativePath( tmp ) & " 2>&1" )
+    dim as string outp = NormalizeEol( ReadTextFile( tmp ) )
+    Kill( tmp )
+    if rc <> 0 then
+        why = "RUN: " & tc.runExe & " exited " & rc & ", expected 0"
+        return false
+    end if
+    dim as long from_ = 1
+    for each want as string in tc.expectRunOut
+        dim as long at = instr( from_, outp, want )
+        if at = 0 then
+            why = "RUN: output does not contain, after the previous match: " & want
+            return false
+        end if
+        from_ = at + len( want )
+    next
+    return true
+end function
+
 declare function CheckOne_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
       byval rc as long, byref outText as string, byref why as string ) as boolean
@@ -500,9 +579,19 @@ function RunOne _
             dim as long s4 = instr( f4, "::" )
             if s4 > 0 then kill( Trim_( left( f4, s4 - 1 ) ) )
         next
+        '' ...AND THE PROGRAM A RUN WILL START: a stale one from an older compiler would
+        '' otherwise be run, and pass, whatever this build did.
+        if len( tc.runExe ) > 0 then kill( tc.runExe )
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
         rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
-        if CheckOne_( tc, opts, tgt, rc, outText, why ) = false then
+        dim as boolean ok_ = CheckOne_( tc, opts, tgt, rc, outText, why )
+        '' HOISTED, each term a boolean of its own: warning 38 otherwise.
+        dim as boolean wantRun = (len( tc.runExe ) > 0)
+        dim as boolean onHost = IsHostTarget_( BuiltTarget_( tgt, args ) )
+        if ok_ andalso wantRun andalso onHost then
+            ok_ = CheckRun_( tc, why, slotId )
+        end if
+        if ok_ = false then
             if tc.targets.Count > 1 then why = "[" & tgt & "] " & why
             for each e2 as string in tc.env
                 dim as long eq2 = instr( e2, "=" )
@@ -684,6 +773,7 @@ function IsParallelSafe_( byref tc as TestCase ) as boolean
     if tc.expectFileHas.IsEmpty( ) = false then return false
     if tc.expectFile.IsEmpty( ) = false then return false
     if tc.expectNoFile.IsEmpty( ) = false then return false
+    if len( tc.runExe ) > 0 then return false
     if instr( tc.args, "--dump" ) > 0 then return true
     if instr( tc.args, "--parse-only" ) > 0 then return true
     if instr( tc.args, "--pp-only" ) > 0 then return true
