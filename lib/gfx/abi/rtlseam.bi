@@ -66,6 +66,11 @@ extern "windows"
     '' the descriptor if -- and only if -- the descriptor is marked temporary.
     '' Harmless on anything else, so it is called unconditionally, as the C does.
     declare function RtlStrDelTemp alias "fb_hStrDelTemp" ( byval s as any ptr ) as long
+
+    '' SCREEN 0 PUTS THE TEXT CONSOLE BACK, and these are how gfxlib2 does it --
+    '' see TkoGfxScreen. FBCALL, both of them, like everything else in this block.
+    declare function RtlWidth alias "fb_Width" ( byval cols as long, byval rows as long ) as long
+    declare sub RtlCls alias "fb_Cls" ( byval mode as long )
 end extern
 
 '' THE KEYBOARD TRANSLATION IS THE RUNTIME'S, as it is gfxlib2's: its window
@@ -78,6 +83,10 @@ extern "c"
         byval control_state as ulong, byval enhanced_only as long ) as long
     declare function RtlVirtualToScancode alias "fb_hVirtualToScancode" ( _
         byval vkey as long ) as long
+    '' ...and VIEW PRINT's rows back to the console's own, the third step of SCREEN
+    '' 0. Plain C: fb_console.h declares it with no FBCALL.
+    declare sub RtlConsoleSetTopBotRows alias "fb_ConsoleSetTopBotRows" ( _
+        byval top as long, byval bot as long )
 end extern
 
 extern "windows"

@@ -80,13 +80,24 @@ fi
 # for it.
 : "${SMOKE_TIMEOUT:=90}"
 
-if timeout "$SMOKE_TIMEOUT" "$TMP/$name.exe"; then
-    echo "smoke: ok -- win64-msvc, entry points reached through fb_Gfx*"
+# THE OUTPUT IS CAPTURED as well as shown: one check is only visible in it -- see the
+# WIDTH line at the end of smoke-entry.bas.
+if timeout "$SMOKE_TIMEOUT" "$TMP/$name.exe" > "$TMP/$name.out"; then
+    cat "$TMP/$name.out"
 else
     rc=$?
+    cat "$TMP/$name.out"
     echo "smoke: FAILED (exit $rc, or timed out after ${SMOKE_TIMEOUT}s)" >&2
     exit 1
 fi
+
+# SCREEN 0 restored the 80-column console: the four zones are ONE line. Wrapped at
+# the 40 set while the screen was open, '4' lands on a line of its own.
+if ! tr -d '\r' < "$TMP/$name.out" | grep -qx ' 1             2             3             4'; then
+    echo "smoke: FAILED -- SCREEN 0 kept the graphics screen's WIDTH; the zoned line wrapped" >&2
+    exit 1
+fi
+echo "smoke: ok -- win64-msvc, entry points reached through fb_Gfx*"
 
 [ "$1" = "--keep" ] && echo "smoke: build products left in $TMP"
 exit 0

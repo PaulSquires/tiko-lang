@@ -654,7 +654,15 @@ scope
 end scope
 
 imagedestroy( im )
+
+'' SCREEN 0 PUTS THE TEXT CONSOLE BACK AT 80 COLUMNS, whatever WIDTH said while the
+'' graphics screen was open -- gfx_screen.c calls fb_Width( 80, 25 ). This library did
+'' not, so the 40 outlived the screen and the zoned line below wrapped after its third
+'' item. Nothing IN the program can see it -- POS reads 0 once stdout is redirected, in
+'' fbc and here alike -- so tools/smoke.sh reads the line out of the captured output.
+width 40, 25
 screen 0
+print 1, 2, 3, 4
 
 print Log_;
 if fails = 0 then

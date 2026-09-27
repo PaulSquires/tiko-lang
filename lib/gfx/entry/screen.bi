@@ -268,6 +268,19 @@ function TkoGfxScreen alias "fb_GfxScreen" ( _
     if mode = 0 then
         TkoGfx.ConsoleShutdownIfLive( )
         TkoGfx.ScreenTeardown( )
+        '' THE TEXT CONSOLE COMES BACK AT 80 x 25, CLEARED, with VIEW PRINT reset --
+        '' gfx_screen.c's mode-0 branch, which runs once the hooks are cleared:
+        '' 'fb_Width( 80, 25 ); fb_Cls( 0 ); fb_ConsoleSetTopBotRows( -1, -1 )'.
+        '' Without it a WIDTH set while the graphics screen was open outlived it on
+        '' the screen device, so 'width 40, 25 : screen 0 : print 1, 2, 3, 4' wrapped
+        '' after the third zone -- redirected too -- where fbc prints one line.
+        '' Measured, fbc resets it even when no graphics screen was ever opened, and
+        '' when the WIDTH came before SCREENRES. gfxlib2 skips all three only for its
+        '' own exit-time call (SCREEN_EXIT); this library has none -- nothing
+        '' registers an exit hook -- so only a program's SCREEN 0 reaches here.
+        RtlWidth( 80, 25 )
+        RtlCls( 0 )
+        RtlConsoleSetTopBotRows( -1, -1 )
         return 0
     end if
 
