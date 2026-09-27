@@ -18,33 +18,14 @@
 '' 600 files on every build is what the cache exists to avoid.
 
 #include once "driver/cicache.bi"
+#include once "support/diskcache.bi"
 #include once "fb/filesystem.bi"
 #include once "codegen/target.bi"
 
 namespace Tko.CImportDriver
 
-'' FNV-1a, 64 bits, as sixteen hex digits: the entry's directory name.
-private function Hash_( byref s as string ) as string
-    dim as ulongint h = &hCBF29CE484222325ull
-    for i as long = 0 to len( s ) - 1
-        h xor= s[i]
-        h *= &h100000001B3ull
-    next
-    return lcase( hex( h, 16 ) )
-end function
-
 private function Env_( byref n as string ) as string
     return environ( n )
-end function
-
-'' The file's size and modification time, as the dependency list records them. "" when it
-'' is not there.
-private function Stamp_( byref path_ as string ) as string
-    dim as FB.FsResultInfo r = FB.Stat( path_ )
-    if r.IsOk( ) = false then return ""
-    dim as FB.FileInfo fi = r.Value( )
-    if fi.IsFile( ) = false then return ""
-    return str( fi.Size( ) ) & chr( 9 ) & str( fi.ModifiedUtc( ) )
 end function
 
 '' WHERE THE ENTRIES LIVE: -ccachedir, else the user's cache directory. "" with -cnocache,
@@ -96,7 +77,7 @@ function CacheKey _
       byref importKey as string ) as string
     dim as string nl = chr( 10 )
     dim as string k = "tiko-cimport-cache 1" & nl & importKey
-    k &= "tiko " & Stamp_( command( 0 ) ) & nl
+    k &= "tiko " & Tko.DiskCache.Stamp( command( 0 ) ) & nl
     k &= "libclang " & api.libPath & nl & "clang " & api.version & nl
     k &= "resource " & Tko.CImport.ClangResourceDir( api ) & nl
     k &= "cwd " & curdir( ) & nl
@@ -109,39 +90,14 @@ function CacheKey _
     return k
 end function
 
-private function ReadAll_( byref path_ as string, byref text as string ) as boolean
-    dim as long f = freefile( )
-    if open( path_ for binary access read as #f ) <> 0 then return false
-    dim as longint n = lof( f )
-    text = space( n )
-    if n > 0 then get #f, , text
-    close #f
-    return true
-end function
-
-'' Write under a temporary name, then move it over the real one.
-private function Commit_( byref path_ as string, byref text as string, byval serial as long ) as boolean
-    dim as string tmp = path_ & "." & hex( cast( ulongint, timer * 1000000.0 ), 12 ) & "." & serial & ".tmp"
-    dim as long f = freefile( )
-    if open( tmp for binary access write as #f ) <> 0 then return false
-    if len( text ) then put #f, , text
-    close #f
-    dim as FB.FsResultBool r = FB.MoveFile( tmp, path_, true )
-    if r.IsOk( ) = false then
-        FB.RemoveFile( tmp )
-        return false
-    end if
-    return true
-end function
-
 function CacheLookup _
     ( byref root as string, byref key as string, byref bindingPath as string, _
       byref text as string, byref state as string ) as boolean
     if len( root ) = 0 then return false
-    dim as string d = root & "/" & Hash_( key )
+    dim as string d = root & "/" & Tko.DiskCache.Hash( key )
     dim as string deps, k
-    if ReadAll_( d & "/deps.txt", deps ) = false then return false
-    if ReadAll_( d & "/key.txt", k ) = false then return false
+    if Tko.DiskCache.ReadAll( d & "/deps.txt", deps ) = false then return false
+    if Tko.DiskCache.ReadAll( d & "/key.txt", k ) = false then return false
     if k <> key then return false
     dim as long p = 1
     while p <= len( deps )
@@ -153,32 +109,32 @@ function CacheLookup _
         dim as long t1 = instr( ln, chr( 9 ) )
         dim as long t2 = instr( t1 + 1, ln, chr( 9 ) )
         if (t1 = 0) orelse (t2 = 0) then return false
-        if Stamp_( mid( ln, t2 + 1 ) ) <> left( ln, t2 - 1 ) then return false
+        if Tko.DiskCache.Stamp( mid( ln, t2 + 1 ) ) <> left( ln, t2 - 1 ) then return false
     wend
-    if ReadAll_( d & "/state.txt", state ) = false then return false
+    if Tko.DiskCache.ReadAll( d & "/state.txt", state ) = false then return false
     bindingPath = d & "/binding.bi"
-    return ReadAll_( bindingPath, text )
+    return Tko.DiskCache.ReadAll( bindingPath, text )
 end function
 
 function CacheStore _
     ( byref root as string, byref key as string, byref text as string, _
       byref state as string, byref deps as Tko.StrVec ) as string
     if len( root ) = 0 then return ""
-    dim as string d = root & "/" & Hash_( key )
+    dim as string d = root & "/" & Tko.DiskCache.Hash( key )
     if FB.IsDir( d ) = false then
         FB.CreateDirAll( d )
         if FB.IsDir( d ) = false then return ""
     end if
     dim as string dl
     for i as long = 0 to deps.Count - 1
-        dim as string st = Stamp_( deps[i] )
+        dim as string st = Tko.DiskCache.Stamp( deps[i] )
         if len( st ) = 0 then return ""
         dl &= st & chr( 9 ) & deps[i] & chr( 10 )
     next
-    if Commit_( d & "/key.txt", key, 1 ) = false then return ""
-    if Commit_( d & "/binding.bi", text, 2 ) = false then return ""
-    if Commit_( d & "/state.txt", state, 3 ) = false then return ""
-    if Commit_( d & "/deps.txt", dl, 4 ) = false then return ""
+    if Tko.DiskCache.Commit( d & "/key.txt", key, 1 ) = false then return ""
+    if Tko.DiskCache.Commit( d & "/binding.bi", text, 2 ) = false then return ""
+    if Tko.DiskCache.Commit( d & "/state.txt", state, 3 ) = false then return ""
+    if Tko.DiskCache.Commit( d & "/deps.txt", dl, 4 ) = false then return ""
     return d & "/binding.bi"
 end function
 

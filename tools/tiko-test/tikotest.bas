@@ -26,6 +26,17 @@
 ''                              previous one's match, so an initialisation order can be
 ''                              asserted and not only a set of lines
 ''
+'' STEPS, for what one build cannot show -- a cache that must hit on the second build, and
+'' miss after an edit. They run in the order written, BEFORE the ARGS build, which is the
+'' last one and the one the EXPECT lines above judge:
+''
+''     '' CLEAN: dir               remove the directory and everything in it
+''     '' COPY: src => dst         copy a file, or a directory tree
+''     '' WRITE: path :: text      write the file; \t \n \r \\ in text as in FILE-HAS
+''     '' STEP: args               run tiko-lang with these, as ARGS is; it must exit 0
+''     '' STEP-OUT: text           required substring of that STEP's output (repeatable)
+''     '' STEP-NOT: text           forbidden substring of it (repeatable)
+''
 '' TARGETS. Every run names a target explicitly: what tiko-lang emits depends on
 '' the TARGET, not on the host, and leaving it implicit made every golden say
 '' whatever the machine that generated it happened to default to. 104 tests
@@ -111,6 +122,9 @@ type TestCase
     '' "links and prints a then b" was checked by hand and recorded in commit messages.
     as string runExe
     as Array( of string ) expectRunOut
+    '' THE STEPS, in order, each 'KIND' TAB 'rest': CLEAN, COPY, WRITE, STEP, STEP-OUT,
+    '' STEP-NOT. See the header.
+    as Array( of string ) steps
 end type
 
 type Options
@@ -345,6 +359,18 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.runExe = Trim_( mid( ln, 5 ) )
         elseif StartsWith( ln, "EXPECT-RUN-OUT:" ) then
             tc.expectRunOut.Push( Trim_( mid( ln, 16 ) ) )
+        elseif StartsWith( ln, "CLEAN:" ) then
+            tc.steps.Push( "CLEAN" & chr( 9 ) & Trim_( mid( ln, 7 ) ) )
+        elseif StartsWith( ln, "COPY:" ) then
+            tc.steps.Push( "COPY" & chr( 9 ) & Trim_( mid( ln, 6 ) ) )
+        elseif StartsWith( ln, "WRITE:" ) then
+            tc.steps.Push( "WRITE" & chr( 9 ) & Trim_( mid( ln, 7 ) ) )
+        elseif StartsWith( ln, "STEP-OUT:" ) then
+            tc.steps.Push( "STEP-OUT" & chr( 9 ) & Trim_( mid( ln, 10 ) ) )
+        elseif StartsWith( ln, "STEP-NOT:" ) then
+            tc.steps.Push( "STEP-NOT" & chr( 9 ) & Trim_( mid( ln, 10 ) ) )
+        elseif StartsWith( ln, "STEP:" ) then
+            tc.steps.Push( "STEP" & chr( 9 ) & Trim_( mid( ln, 6 ) ) )
         end if
     wend
 
@@ -510,6 +536,71 @@ declare function CheckOne_ _
     ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
       byval rc as long, byref outText as string, byref why as string ) as boolean
 
+'' THE STEPS, in order (see the header). False, with why, at the first that fails.
+function RunSteps_ _
+    ( byref tc as TestCase, byref opts as Options, byval tgt as string, _
+      byref why as string, byval slotId as long ) as boolean
+
+    dim as string outText = ""
+    dim as long n = 0
+    for each st as string in tc.steps
+        dim as long tb = instr( st, chr( 9 ) )
+        dim as string kind = left( st, tb - 1 )
+        dim as string rest = mid( st, tb + 1 )
+        select case kind
+        case "CLEAN"
+            if FB.IsDir( rest ) then FB.RemoveDirAll( rest )
+            if FB.IsDir( rest ) then
+                why = "CLEAN: could not remove " & rest
+                return false
+            end if
+        case "COPY"
+            dim as long ar = instr( rest, "=>" )
+            if ar = 0 then
+                why = "COPY: no '=>' in " & rest
+                return false
+            end if
+            dim as string src = Trim_( left( rest, ar - 1 ) )
+            dim as string dst = Trim_( mid( rest, ar + 2 ) )
+            if FB.IsDir( src ) then
+                FB.CreateDirAll( dst )
+                FB.CopyDir( src, dst )
+            else
+                FB.CopyFile( src, dst, true )
+            end if
+            if FileExists_( dst ) = false andalso FB.IsDir( dst ) = false then
+                why = "COPY: nothing at " & dst
+                return false
+            end if
+        case "WRITE"
+            dim as long sp = instr( rest, "::" )
+            if sp = 0 then
+                why = "WRITE: no '::' in " & rest
+                return false
+            end if
+            WriteTextFile( Trim_( left( rest, sp - 1 ) ), Unescape_( Trim_( mid( rest, sp + 2 ) ) ) )
+        case "STEP"
+            n += 1
+            dim as long rc = RunTko( opts.tikoPath, "-target " & tgt & " " & rest, outText, slotId )
+            if rc <> 0 then
+                why = "STEP " & n & " exited " & rc & ", expected 0:" & chr( 10 ) & outText
+                return false
+            end if
+        case "STEP-OUT"
+            if instr( outText, rest ) = 0 then
+                why = "STEP " & n & " output does not contain: " & rest & chr( 10 ) & outText
+                return false
+            end if
+        case "STEP-NOT"
+            if instr( outText, rest ) > 0 then
+                why = "STEP " & n & " output contains: " & rest & chr( 10 ) & outText
+                return false
+            end if
+        end select
+    next
+    return true
+end function
+
 '' SET AN ENVIRONMENT VARIABLE FROM A STRING THAT OUTLIVES THE PROCESS. fbc's setenviron
 '' is putenv on Linux, and putenv KEEPS THE POINTER: handed a loop copy or a 'left( e, eq )'
 '' temporary, the environment entry pointed at freed memory, and a test's ENV was not in
@@ -582,9 +673,12 @@ function RunOne _
         '' ...AND THE PROGRAM A RUN WILL START: a stale one from an older compiler would
         '' otherwise be run, and pass, whatever this build did.
         if len( tc.runExe ) > 0 then kill( tc.runExe )
+        dim as boolean ok_ = RunSteps_( tc, opts, tgt, why, slotId )
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
-        rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
-        dim as boolean ok_ = CheckOne_( tc, opts, tgt, rc, outText, why )
+        if ok_ then
+            rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
+            ok_ = CheckOne_( tc, opts, tgt, rc, outText, why )
+        end if
         '' HOISTED, each term a boolean of its own: warning 38 otherwise.
         dim as boolean wantRun = (len( tc.runExe ) > 0)
         dim as boolean onHost = IsHostTarget_( BuiltTarget_( tgt, args ) )
@@ -774,6 +868,7 @@ function IsParallelSafe_( byref tc as TestCase ) as boolean
     if tc.expectFile.IsEmpty( ) = false then return false
     if tc.expectNoFile.IsEmpty( ) = false then return false
     if len( tc.runExe ) > 0 then return false
+    if tc.steps.IsEmpty( ) = false then return false
     if instr( tc.args, "--dump" ) > 0 then return true
     if instr( tc.args, "--parse-only" ) > 0 then return true
     if instr( tc.args, "--pp-only" ) > 0 then return true

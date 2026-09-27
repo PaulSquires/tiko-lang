@@ -4,6 +4,7 @@ src/support/arena.bas
 src/support/intern.bas
 src/support/platform.bas
 src/support/fbstr.bas
+src/support/diskcache.bas
 src/diag/diagnostic.bas
 src/diag/render.bas
 src/diag/engine.bas
