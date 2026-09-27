@@ -1,0 +1,14 @@
+'' A MODULE'S REQUIRED HEADERS (RFC-0004 §3, §5): geo includes windows.bi and exports
+'' procedures over RECT and HWND; its interface includes the header first, so an importer
+'' that never included it can name RECT, which is its own RECT. The header is read for the
+'' '#import' and does not end main's header, so '#import "acme/tiny"' after it is allowed,
+'' and main's own later '#include once "windows.bi"' is the same file, read once.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/hdr/libs tests/modules/src/hdr/app/main.bas -o tests/modules/ifaceheader.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/ifaceheader.exe
+'' EXPECT-RUN-OUT:  15
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT:  42

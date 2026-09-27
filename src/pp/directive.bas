@@ -279,6 +279,7 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
         return
     end if
 
+    PpModNoteHeader( e, d.file, got )
     if PpAlreadyOnce( e, got ) then return
     if isOnce then e.onceFiles.Push( cast( ulong, got ) )
 

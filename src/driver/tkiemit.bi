@@ -21,11 +21,13 @@ declare function InterfaceNamespace( byref chain as string ) as string
 '' that link by the module's names. Everything declared 'private' stays out. A name the
 '' module spells through one of its imports' aliases -- 'esc.Url' -- is written through
 '' that import's namespace instead (aliases[k] -> spaces[k]): the alias is the module's
-'' file's, and means nothing in an importer.
+'' file's, and means nothing in an importer. The headers the module's files included
+'' come first, as '#include once': the importer reads them as the module did, so what
+'' the interface names from them -- HWND -- means the same.
 declare function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo, byref aliases as Tko.StrVec, _
-      byref spaces as Tko.StrVec ) as string
+      byref spaces as Tko.StrVec, byref headers as Tko.StrVec ) as string
 
 end namespace

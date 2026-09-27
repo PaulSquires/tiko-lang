@@ -43,8 +43,12 @@ type PpFrame
     '' corpus reported its '#define' line instead of the failing line without it.
     as SourceLoc useLoc
     '' A MODULE'S INTERFACE (RFC-0004 §5): read as the module wrote it -- no macro of the
-    '' importer's expands inside it -- and it does not end the importer's header.
+    '' importer's expands inside it.
     as boolean   iface
+    '' ...and it, and every header it includes, is read FOR AN '#import': none of it ends
+    '' the importer's header, so the next '#import' is still allowed. Inherited by every
+    '' frame pushed above one.
+    as boolean   inImport
 end type
 
 type PpCond
@@ -349,6 +353,7 @@ private sub PushFrame _
     f.file = file
     f.owned = owned
     f.useLoc = useLoc
+    if e.frames.Count > 0 then f.inImport = e.frames[e.frames.Count - 1].inImport
     e.frames.Push( f )
     if e.frames.Count > e.outp->maxDepth then e.outp->maxDepth = e.frames.Count
 end sub
@@ -977,6 +982,7 @@ declare sub PpModDirective( byref e as PpEngine, byref word as string, byval at 
 declare sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
 declare sub PpModEndFile( byref e as PpEngine )
 declare function PpModRefuse( byref e as PpEngine, byref what as string, byval at as SourceLoc ) as boolean
+declare sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
 
 end namespace
 

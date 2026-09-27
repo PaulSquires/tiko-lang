@@ -424,7 +424,7 @@ function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo, byref aliases as Tko.StrVec, _
-      byref spaces as Tko.StrVec ) as string
+      byref spaces as Tko.StrVec, byref headers as Tko.StrVec ) as string
 
     dim as TkiWriter_ w
     w.ctx = @ctx : w.toks = @toks : w.ast = @ast : w.syms = @syms : w.info = @info
@@ -457,6 +457,9 @@ function WriteInterface _
     next
 
     w.text = "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n"
+    for each h as string in headers
+        w.text &= "#include once """ & h & """" & !"\n"
+    next
     w.text &= "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
     w.lineFile = 0
     dim as long i = 0

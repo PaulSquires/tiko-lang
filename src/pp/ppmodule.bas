@@ -84,10 +84,27 @@ private sub PpModCheckConds_( byref e as PpEngine, byval at as SourceLoc )
     next
 end sub
 
-'' Reading a module's interface (RFC-0004 §5).
+'' A HEADER A MODULE FILE INCLUDES ITSELF: its interface will include it too (RFC-0004 §3,
+'' required headers), because the declarations the module exports may name what it
+'' declares -- HWND, RECT.
+sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
+    if e.cfg->moduleFiles = 0 then return
+    dim as boolean own = false
+    for each m as ulong in *e.cfg->moduleFiles
+        if m = cast( ulong, from ) then own = true
+    next
+    if own = false then return
+    dim as string p = e.src->AbsPathOf( got )
+    for each h as string in e.outp->modHeaders
+        if h = p then return
+    next
+    e.outp->modHeaders.Push( p )
+end sub
+
+'' Reading for an '#import': a module's interface, or a header it includes (RFC-0004 §5).
 private function PpModInIface_( byref e as PpEngine ) as boolean
     if e.frames.Count = 0 then return false
-    return e.frames[e.frames.Count - 1].iface
+    return e.frames[e.frames.Count - 1].inImport
 end function
 
 '' EVERY DIRECTIVE PASSES HERE FIRST, conditionals included, before PpDirective acts on
@@ -370,6 +387,7 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
         dim as TokenVec ptr toks = PpLexFile( e, id )
         PushFrame( e, toks, INTERN_NONE, id, false )
         e.frames[e.frames.Count - 1].iface = true
+        e.frames[e.frames.Count - 1].inImport = true
     next
 end sub
 

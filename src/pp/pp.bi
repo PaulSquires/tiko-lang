@@ -280,6 +280,9 @@ namespace Tko
         as string      moduleName
         as SourceLoc   moduleLoc
         as PpImportVec imports
+        '' THE HEADERS A MODULE UNIT'S OWN FILES INCLUDE, as absolute paths in first-include
+        '' order: its interface includes them (RFC-0004 §3).
+        as StrVec      modHeaders
     end type
 
     '' ---------------------------------------------------------------- the stream

@@ -1,0 +1,9 @@
+'' A module's interface INCLUDES THE HEADERS ITS FILES INCLUDED, by resolved path, ahead of
+'' its namespace (RFC-0004 §3).
+'' TEST: cli
+'' ARGS: --emit-tki -i tests/modules/src/hdr/libs tests/modules/src/hdr/libs/acme/geo
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: windows.bi"
+'' EXPECT-OUT: public declare function Area( byref r as RECT ) as long
+'' EXPECT-OUT: public declare function Handle0( ) as HWND

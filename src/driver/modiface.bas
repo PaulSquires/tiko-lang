@@ -166,7 +166,8 @@ sub PublishInterface _
         aliases.Push( Tko.Text.LowerAscii( pr.imports[k].alias_ ) )
         spaces.Push( InterfaceNamespace( ctx.ifaceChains[n] ) )
     next
-    dim as string text_ = WriteInterface( ctx, pr.tokens, ast, syms, info, aliases, spaces )
+    dim as string text_ = WriteInterface( ctx, pr.tokens, ast, syms, info, aliases, spaces, _
+                                          pr.modHeaders )
     dim as Tko.FileId id = ctx.sources.AddVirtual( ctx.modChain & ".tki", text_ )
     ctx.ifaceFiles[self_] = cast( ulong, id )
 end sub
