@@ -1,0 +1,17 @@
+'' TWO MODULES, EACH WITH A PRIVATE nextId HOLDING A CONSTRUCTED STATIC, LINK. The static's
+'' one-time guard is named after its storage -- NEXTID$c$init in both -- and went out
+'' external where the storage is internal, so this pair failed with 'lld-link: duplicate
+'' symbol: NEXTID$c$init'. fbc emits nothing external for it (llvm-nm, measured 2026-09-27).
+''
+'' THE PROGRAM IS RUN: 11 then 12, which is fbc's output on win64 and Linux alike. The
+'' second static starts at 10 too -- module two declares Cnt's constructor, module one
+'' defines it -- and each module's static is its own object, counted by its own guard.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/static-guard-a.bas tests/driver/src/static-guard-b.bas -o tests/driver/staticguard.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' EXPECT-FILE: tests/driver/staticguard.exe
+'' RUN: tests/driver/staticguard.exe
+'' EXPECT-RUN-OUT: 11
+'' EXPECT-RUN-OUT: 12

@@ -1,0 +1,8 @@
+'' A STATIC LOCAL'S GUARD IS INTERNAL, like the storage it guards; see
+'' static-guard-two-modules.test for the link failure the external one caused.
+'' TEST: cli
+'' ARGS: -target win64-msvc --emit-ir tests/driver/src/static-guard-b.bas -o tests/driver/staticguard.ll
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/staticguard.ll
+'' EXPECT-FILE-HAS: tests/driver/staticguard.ll :: @"NEXTID$c$init" = internal global
+'' EXPECT-FILE-HAS: tests/driver/staticguard.ll :: @"NEXTID$c" = internal global

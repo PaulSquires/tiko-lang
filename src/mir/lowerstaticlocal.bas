@@ -150,6 +150,11 @@ function LowerStaticLocalInit_ _
     dim as Tko.InternId gnm = _
         c.names->GetString( c.names->Spelling( c.m->globals[g].name ) & "$init" )
     dim as long gg = c.m->AddVarGlobal( gnm, MT_I64, Tko.TYPE_NONE, 8 )
+    '' ...AND AS VISIBLE AS THE STORAGE, which for a static local is not at all. It went
+    '' out external, so two modules each with a 'private function nextId' holding a
+    '' constructed 'static c' failed the link on 'duplicate symbol: NEXTID$c$init' --
+    '' fbc emits the guard module-local (measured 2026-09-27: nothing external for it).
+    c.m->globals[gg].isInternal = c.m->globals[g].isInternal
     dim as MirValue gaddr
     gaddr.kind = cast( ubyte, MV_GLOBAL )
     gaddr.ty = cast( ubyte, MT_PTR )
