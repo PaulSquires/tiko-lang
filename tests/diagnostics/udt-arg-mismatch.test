@@ -1,0 +1,11 @@
+'' TKO0698, fbc's 58: a UDT argument of an unrelated UDT type, byval or byref. See UdtArgBad_
+'' in symbols/assigncheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-arg-mismatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-arg-mismatch.bas(34,5): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: udt-arg-mismatch.bas(35,5): error TKO0698
+'' EXPECT-OUT: udt-arg-mismatch.bas(36,5): error TKO0698
+'' EXPECT-OUT: udt-arg-mismatch.bas(37,9): error TKO0698
+'' EXPECT-OUT: udt-arg-mismatch.bas(38,5): error TKO0698
+'' EXPECT-MAX-DIAG: 5

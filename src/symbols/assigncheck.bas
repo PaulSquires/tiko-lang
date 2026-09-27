@@ -252,6 +252,29 @@ end sub
 '' pointer is accepted. And BY REFERENCE the value is the same question: 'byref x as D'
 '' given a B is error 58, 'byref x as B' given a D is accepted. PtrAssignBad_ already
 '' knows the pointer half; the byref half is the identical test over the pointees.
+
+'' A UDT ARGUMENT OF AN UNRELATED UDT TYPE -- fbc's error 58, byval and byref alike. Measured
+'' on fbc-modern 1.20, 2026-09-26, over 'byval p as A', 'byref p as A' and a plain 'p as A'
+'' given a B with no relation to A: 'Type mismatch, at parameter 1'; and 'type<B>( 9 )' the
+'' same. tiko passed B's bytes as an A and printed its field, or dropped the PRINT around a
+'' function call. Accepted, and not judged here: the same type, a type DERIVED from the
+'' parameter's, an argument whose type declares an 'operator cast' (fbc calls it), and a
+'' parameter type with a constructor or a 'let' of its own, which may build one from the
+'' argument. A tuple is its own rule.
+private function UdtArgBad_ ( byref c as Ctx, byval pt as TypeId, byval at as TypeId ) as boolean
+    dim as TypeId pu = c.types->Unqualify( pt )
+    dim as TypeId au = c.types->Unqualify( at )
+    if c.types->Kind( pu ) = TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if c.types->Kind( au ) = TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    if (c.types->Kind( pu ) <> TK_UDT) orelse (c.types->Kind( au ) <> TK_UDT) then return false
+    if pu = au then return false
+    if TcTuple_( c, pu ) orelse TcTuple_( c, au ) then return false
+    if DerivesFrom_( c, au, pu ) then return false
+    if StructorOf_( c, au, "cast" ) <> 0 then return false
+    if StructorOf_( c, pu, "__ctor" ) <> 0 then return false
+    if StructorOf_( c, pu, "let" ) <> 0 then return false
+    return true
+end function
 private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -322,6 +345,8 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         dim as boolean bad = false
         if c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER then
             bad = PtrAssignBad_( c, pt, at )
+        elseif ((pp->extra and PF_GENERIC_PROC) = 0) andalso UdtArgBad_( c, pt, at ) then  '' a template's is TKO0809's
+            bad = true
         elseif byvalWritten = false then
             '' BYREF: the two VALUE types, judged as if they were pointees -- and ONLY
             '' when both are UDTs, which is what was measured. 'fz( zz )' over 'byref z
