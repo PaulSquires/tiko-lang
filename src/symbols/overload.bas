@@ -7,6 +7,8 @@
 '' #included from check.bas rather than compiled separately: it reads that file's Ctx
 '' and calls TypeOf_, so it has to sit after both.
 
+#include once "symbols/argmismatch.bas"
+
 '' Could this expression have an ADDRESS? Asked by the byref-exactness rule, because
 '' that rule exists only where there IS a variable to write back through: fbc converts
 '' a constant into a temporary and takes any type at all. Answered from the SHAPE,
@@ -1300,6 +1302,8 @@ private function ResolveCall_ _
                                  c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
             end if
         end if
+        '' ...AND ONE CANDIDATE: only the measured pairs -- fbc's 58 and 24, argmismatch.bas.
+        if overloaded = false then ReportArgMismatch_( c, id, callee, argFirst, argCount, argT )
         return Tko.TYPE_NONE
     end if
     if ties > 0 then

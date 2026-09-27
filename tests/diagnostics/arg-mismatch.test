@@ -1,0 +1,41 @@
+'' AN ARGUMENT THAT CANNOT CONVERT, AT A CALL WITH ONE CANDIDATE, IS AN ERROR. It came out
+'' untyped with nothing said, and lowering dropped the statement: 'print ptrp( y )' over
+'' 'byval p as T ptr' with a T value compiled, printed nothing, and reported only
+'' '1 statements not lowered'. See src/symbols/argmismatch.bas for why the rule is a list
+'' of measured pairs rather than "no candidate".
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source: exactly these lines, and
+'' no others --
+''
+''     34-40  error 58    a UDT value to a pointer, a string, 'byref as zstring', a
+''                        procedure pointer
+''     41-42  error 24    a pointer to a number
+''     43-45  error 58    a pointer to 'byref as long', 'byref as T', 'byref as zstring'
+''     46-48  error 24    '@fnp', '@t1' and 'cptr( any ptr, 5 )' to a number
+''     49-51  error 24    a long, double and boolean VARIABLE to a pointer
+''     52-53  error 58    a string variable and a literal to a UDT with no constructor
+''     57     error 58    'this' -- the object -- to a 'T ptr'
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/arg-mismatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: arg-mismatch.bas(34,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(35,16): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(36,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(37,16): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(38,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(39,15): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(40,15): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(41,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(42,16): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(43,18): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(44,15): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(45,15): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(46,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(47,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(48,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(49,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(50,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(51,17): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(52,14): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(53,14): error TKO0698
+'' EXPECT-OUT: arg-mismatch.bas(57,21): error TKO0698

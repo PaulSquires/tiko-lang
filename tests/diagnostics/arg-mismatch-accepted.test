@@ -1,0 +1,16 @@
+'' THE NEIGHBOURS fbc ACCEPTS are not refused. Each shape beside a refused one in
+'' arg-mismatch.bas was measured, and fbc-modern 1.20 compiles this file clean and prints
+'' ' 3  3  1  1  1  1  1  2  5  5  6  7  4  4'. The first draft of the rule refused the
+'' NULL POINTER CONSTANT -- 'cptr( any ptr, 0 )' to a number -- which is what the
+'' vendored numbers/cast-nullptr.bas writes twenty times; a corpus sweep found it.
+''
+'' NOT ASSERTED: '0 statements not lowered'. Lines 50 and 51 -- the null constant to a
+'' number -- were already dropped before this rule (lowerctl.bas:213, the call scores
+'' unviable), and still are. That is a missing conversion, not a diagnostic, and this
+'' test is about the diagnostic.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/arg-mismatch-accepted.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: TKO0698
+'' EXPECT-NOT: error
