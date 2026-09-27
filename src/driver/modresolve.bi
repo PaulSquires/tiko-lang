@@ -46,6 +46,18 @@ declare sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
 '' acme.net.http. Under none, a module of the anonymous package: 'main.http'.
 declare sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref outw as ModWhere )
 
+'' THE PACKAGES OF ONE BUILD (RFC-0007): forgotten at the start of each graph.
+declare sub ResetPackages( byref ctx as Tko.CompilerContext )
+
+'' THE ROOTS' PACKAGE: the nearest tiko.toml's at or above the first root's directory, else
+'' the anonymous 'main' there. False when that manifest is malformed (reported).
+declare function RootPackage _
+    ( byref ctx as Tko.CompilerContext, byref name_ as string, byref root as string ) as boolean
+
+'' A PACKAGE'S [defines], as NAME=value, with the root manifest's [dependencies.x.defines]
+'' over them: what every module of the package is compiled with.
+declare sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byref outv as Tko.StrVec )
+
 declare function ResolveImport _
     ( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImport, _
       byref fromDir as string, byref pkgName as string, byref pkgRoot as string, _

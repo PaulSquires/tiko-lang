@@ -1,0 +1,6 @@
+'' TKO0144: A tiko.toml OUTSIDE THE SUBSET tiko reads -- a float -- names the line (RFC-0007 §2).
+'' TEST: cli
+'' ARGS: --print-graph tests/diagnostics/src/modules/pkg/bad/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0144: malformed tiko.toml:
+'' EXPECT-OUT: tiko.toml(5): '1.5' is not a value tiko reads (floats and dates are not in the subset)

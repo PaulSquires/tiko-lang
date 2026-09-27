@@ -1,0 +1,5 @@
+'' TKO0146: A DEPENDENCY WHOSE tiko.toml NAMES ANOTHER PACKAGE than its key (RFC-0007 §2).
+'' TEST: cli
+'' ARGS: --print-graph tests/diagnostics/src/modules/pkg/mismatch/proj/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0146: dependency 'libz': its tiko.toml names it 'other'

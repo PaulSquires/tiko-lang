@@ -1,0 +1,8 @@
+'' The same program's build graph: each module's chain is its package's name and its path
+'' below that package's root, and every directory is spelled as the root was given.
+'' TEST: cli
+'' ARGS: --print-graph tests/modules/src/pkg/proj/main.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: app.util    tests/modules/src/pkg/proj/util
+'' EXPECT-OUT: mylib.core  tests/modules/src/pkg/mylib/core
+'' EXPECT-OUT: other.core  tests/modules/src/pkg/other/core

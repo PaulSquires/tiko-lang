@@ -1,0 +1,5 @@
+[package]
+name = "mylib"
+
+[defines]
+LIB_LEVEL = "1"

@@ -36,8 +36,8 @@ function ImportIndex( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImpor
     dim as Tko.FileId f = ctx.sources.Decode( rec.loc ).file
     dim as string fromDir = DirOfFile( ctx.sources.PathOf( f ) )
     '' Read from a module's file, in the module's package; from a root, in the roots'.
-    dim as string pn = ANON_PACKAGE
-    dim as string pr = ctx.ifaceRootDir
+    dim as string pn, pr
+    RootPackage( ctx, pn, pr )
     if InUnit_( ctx, f ) then
         pn = ctx.modPkgName
         pr = ctx.modPkgRoot

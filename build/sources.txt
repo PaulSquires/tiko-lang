@@ -94,6 +94,7 @@ src/driver/cmdline.bas
 src/driver/driver.bas
 src/driver/unit.bas
 src/driver/modresolve.bas
+src/driver/manifest.bas
 src/driver/modgraph.bas
 src/driver/modunit.bas
 src/driver/modbuild.bas

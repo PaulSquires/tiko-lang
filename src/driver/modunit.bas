@@ -53,6 +53,9 @@ sub ModuleUnitConfig _
     next
     cfg.moduleFiles = @files
     cfg.moduleChain = ctx.modChain
+    '' No -d: a module never sees its importer's macros. Its PACKAGE's [defines] it does
+    '' see (RFC-0007 §2).
+    PackageDefines( ctx, ctx.modPkgName, noDefines )
     cfg.defines = @noDefines
     cfg.outKind = 3
     cfg.cmdlineIgnored = true

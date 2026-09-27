@@ -1,0 +1,5 @@
+'' TKO0148: 'std' IS THE TOOLCHAIN'S, and a package outside it may not take the name.
+'' TEST: cli
+'' ARGS: --print-graph tests/diagnostics/src/modules/pkg/stdname/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0148: package name 'std' is reserved for the toolchain

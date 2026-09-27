@@ -70,6 +70,22 @@ namespace Tko
         as FileIdVec              unitFilesRead
         as boolean                unitThreadRtl
         as FileIdVec              ifaceFiles
+        '' THE PACKAGES OF THE BUILD (src/driver/modresolve.bas; RFC-0007 §1, §4), as they are
+        '' found: each name once, with its root; a manifest's dependencies and [defines],
+        '' flattened and keyed by the package's index; and the root manifest's say over its
+        '' dependencies' defines.
+        as StrVec                 pkgNames
+        as StrVec                 pkgRoots
+        as StrVec                 pkgDepOwner
+        as StrVec                 pkgDepName
+        as StrVec                 pkgDepPath
+        as StrVec                 pkgDefOwner
+        as StrVec                 pkgDefText
+        as StrVec                 pkgDdDep
+        as StrVec                 pkgDdText
+        as boolean                pkgRootKnown
+        as string                 pkgRootName
+        as string                 pkgRootDir
         '' ...and the build order, as indices into ifaceChains: what modules initialise in.
         as FileIdVec              ifaceOrder
         as FileIdVec              ifaceEdgeFrom

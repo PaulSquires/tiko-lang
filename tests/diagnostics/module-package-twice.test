@@ -1,0 +1,7 @@
+'' TKO0149: ONE PACKAGE NAME, TWO ROOTS in one build (RFC-0007 §4). The root's manifest takes
+'' libz from ../libA; zed, found under -i with no manifest of its own, finds libz there too.
+'' A chain must name one module, so one of them has to go.
+'' TEST: cli
+'' ARGS: --print-graph -i tests/diagnostics/src/modules/pkg/twice/roots tests/diagnostics/src/modules/pkg/twice/proj/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0149: two packages named 'libz': tests/diagnostics/src/modules/pkg/twice/libA and tests/diagnostics/src/modules/pkg/twice/roots/libz

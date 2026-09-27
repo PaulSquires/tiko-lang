@@ -184,8 +184,10 @@ function BuildGraph _
     dim as long errorsBefore = ctx.diags.ErrorCount( )
 
     '' The root files' package: the FIRST root file's directory (RFC-0007 §1).
-    dim as string rootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
-    dim as string anon = ANON_PACKAGE
+    '' The roots' package: the nearest tiko.toml's, else the anonymous one (RFC-0007 §1).
+    ResetPackages( ctx )
+    dim as string anon, rootDir
+    if RootPackage( ctx, anon, rootDir ) = false then return false
     for r as long = 1 to rootCount
         dim as Tko.FileId id = cast( Tko.FileId, r )
         dim as Tko.PpResult pr

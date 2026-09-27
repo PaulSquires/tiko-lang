@@ -1,0 +1,15 @@
+'' PACKAGES (ADR 0017; RFC-0007). proj/tiko.toml names the root package 'app', with two path
+'' dependencies. 'app/util' is found as the current package (§3, source 2), 'mylib/core' and
+'' 'other/core' through the manifest's [dependencies] (source 3) -- two modules named core, in
+'' two packages, linked into one program with no collision, since the chains differ. The
+'' package's [defines] reach its modules (util sees APP_FLAG) and not the root; the root's
+'' [dependencies.mylib.defines] overrides mylib's own LIB_LEVEL, 1, with 3.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/pkg/proj/main.bas -o tests/modules/packagelink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/packagelink.exe
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT: main: no APP_FLAG

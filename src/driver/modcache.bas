@@ -94,6 +94,12 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
         k &= "copt " & p & nl
     next
     k &= "csysroot " & o->cSysroot & " cnomacros " & iif( o->cNoMacros, 1, 0 ) & nl
+    '' The package's [defines], which the module is compiled with.
+    dim as Tko.StrVec pdefs
+    PackageDefines( ctx, ctx.modPkgName, pdefs )
+    for each d as string in pdefs
+        k &= "define " & d & nl
+    next
     k &= "module " & ctx.ifaceChains[n] & nl
     k &= "dir " & ctx.ifaceDirs[n] & nl
     '' Its sources, in the order the unit reads them -- sorted already (ModuleFiles).

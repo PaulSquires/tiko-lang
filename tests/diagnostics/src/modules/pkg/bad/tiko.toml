@@ -1,0 +1,5 @@
+[package]
+name = "bad"
+
+[defines]
+RATE = 1.5

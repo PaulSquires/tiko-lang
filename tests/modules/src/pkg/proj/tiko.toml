@@ -1,0 +1,14 @@
+# The root package: two path dependencies, each with a module named 'core'.
+[package]
+name = "app"
+version = "0.1.0"          # accepted, unused in v1
+
+[dependencies]
+mylib = { path = "../mylib" }
+other = { path = '../other' }
+
+[defines]
+APP_FLAG = "1"
+
+[dependencies.mylib.defines]
+LIB_LEVEL = "3"            # the root overrides mylib's own [defines]

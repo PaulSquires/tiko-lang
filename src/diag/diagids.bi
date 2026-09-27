@@ -77,8 +77,12 @@
     DIAG( TKO0140, SEV_ERROR,   "cannot find module '%0' (searched: %1)" )
     DIAG( TKO0141, SEV_ERROR,   "import cycle: %0" )
     DIAG( TKO0142, SEV_ERROR,   "relative import '%0' leaves the package root '%1'" )
+    DIAG( TKO0144, SEV_ERROR,   "malformed tiko.toml: %0" )
     DIAG( TKO0145, SEV_ERROR,   "'%0' is in module directory '%1' but does not begin with '#module'" )
+    DIAG( TKO0146, SEV_ERROR,   "dependency '%0': %1" )
     DIAG( TKO0147, SEV_ERROR,   "module directory '%0' contains no .bas files" )
+    DIAG( TKO0148, SEV_ERROR,   "package name '%0' is reserved for the toolchain" )
+    DIAG( TKO0149, SEV_ERROR,   "two packages named '%0': %1 and %2" )
     DIAG( TKO0150, SEV_WARNING, "module cache disabled: %0" )
     DIAG( TKO0152, SEV_ERROR,   "'--emit-tki' writes a module's interface, and needs one module directory as its input" )
     '' An '#import''s alias (RFC-0002 §2). The rest of the 0860-0870 block lands with its phase.

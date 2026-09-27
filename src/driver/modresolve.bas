@@ -2,10 +2,12 @@
 '' its form (src/pp/ppmodule.bas); this finds the directory, and names the module.
 
 #include once "driver/modresolve.bi"
+#include once "driver/manifest.bi"
 #include once "support/text.bi"
 #include once "fb/filesystem.bi"
 
 namespace Tko.Modules
+
 
 '' Paths compare CASE-INSENSITIVELY on Windows, where the filesystem does, and exactly
 '' elsewhere.
@@ -144,6 +146,126 @@ private function PkgDir_( ) as string
     return ""
 end function
 
+sub ResetPackages( byref ctx as Tko.CompilerContext )
+    ctx.pkgNames.Clear( ) : ctx.pkgRoots.Clear( )
+    ctx.pkgDepOwner.Clear( ) : ctx.pkgDepName.Clear( ) : ctx.pkgDepPath.Clear( )
+    ctx.pkgDefOwner.Clear( ) : ctx.pkgDefText.Clear( )
+    ctx.pkgDdDep.Clear( ) : ctx.pkgDdText.Clear( )
+    ctx.pkgRootKnown = false
+end sub
+
+private function PkgIndex_( byref ctx as Tko.CompilerContext, byref name_ as string ) as long
+    for i as long = 0 to ctx.pkgNames.Count - 1
+        if ctx.pkgNames[i] = name_ then return i
+    next
+    return -1
+end function
+
+'' ONE PACKAGE NAME, ONE ROOT (TKO0149). The first time a name is met its manifest, if it
+'' has one, is read: its name must be the one the package was found by (TKO0146), and 'std'
+'' belongs to the toolchain (TKO0148).
+private function Register_ _
+    ( byref ctx as Tko.CompilerContext, byref name_ as string, byref root as string, _
+      byval isRoot as boolean ) as boolean
+    dim as string n = Tko.Text.LowerAscii( name_ )
+    dim as long at = PkgIndex_( ctx, n )
+    if at >= 0 then
+        if SamePath_( ctx.pkgRoots[at], NormPath( root ) ) then return true
+        ctx.diags.ReportGlobal( Tko.TKO0149, n, ctx.pkgRoots[at], NormPath( root ) )
+        return false
+    end if
+    ctx.pkgNames.Push( n )
+    ctx.pkgRoots.Push( NormPath( root ) )
+    dim as string idx = str( ctx.pkgNames.Count - 1 )
+    if HasManifest( root ) = false then return true
+    dim as Manifest m
+    if LoadManifest( ctx, root, m ) = false then return false
+    if (isRoot = false) andalso (m.name <> n) then
+        ctx.diags.ReportGlobal( Tko.TKO0146, n, "its tiko.toml names it '" & m.name & "'" )
+        return false
+    end if
+    if m.name = "std" then
+        dim as string pk = PkgDir_( )
+        dim as boolean toolchain_ = (len( pk ) > 0)
+        if toolchain_ then toolchain_ = SamePath_( NormPath( root ), JoinPath( pk, "std" ) )
+        if toolchain_ = false then
+            ctx.diags.ReportGlobal( Tko.TKO0148, "std" )
+            return false
+        end if
+    end if
+    for k as long = 0 to m.depNames.Count - 1
+        ctx.pkgDepOwner.Push( idx ) : ctx.pkgDepName.Push( m.depNames[k] ) : ctx.pkgDepPath.Push( m.depPaths[k] )
+    next
+    for each d as string in m.defines
+        ctx.pkgDefOwner.Push( idx ) : ctx.pkgDefText.Push( d )
+    next
+    if isRoot then
+        for k as long = 0 to m.ddDep.Count - 1
+            ctx.pkgDdDep.Push( Tko.Text.LowerAscii( m.ddDep[k] ) ) : ctx.pkgDdText.Push( m.ddDefine[k] )
+        next
+    end if
+    return true
+end function
+
+function RootPackage _
+    ( byref ctx as Tko.CompilerContext, byref name_ as string, byref root as string ) as boolean
+    if ctx.pkgRootKnown then
+        name_ = ctx.pkgRootName
+        root = ctx.pkgRootDir
+        return true
+    end if
+    ctx.pkgRootKnown = true
+    dim as string first_ = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
+    ctx.pkgRootName = ANON_PACKAGE
+    ctx.pkgRootDir = first_
+    '' The nearest tiko.toml at or above the first root's directory.
+    '' Found by the absolute path, and kept in the roots' own spelling -- the first root's
+    '' directory with as many '..' as it took -- since paths compare lexically.
+    dim as string abs_ = DirOfFile( ctx.sources.AbsPathOf( cast( Tko.FileId, 1 ) ) )
+    dim as string d = abs_
+    dim as string rel = first_
+    for guard as long = 0 to 64
+        if HasManifest( d ) then
+            dim as Manifest m
+            if LoadManifest( ctx, d, m ) = false then return false
+            ctx.pkgRootName = m.name
+            ctx.pkgRootDir = NormPath( rel )
+            exit for
+        end if
+        dim as string up_ = DirOfFile( d )
+        if (len( up_ ) = 0) orelse SamePath_( up_, d ) then exit for
+        d = up_
+        rel = JoinPath( rel, ".." )
+    next
+    name_ = ctx.pkgRootName
+    root = ctx.pkgRootDir
+    if ctx.pkgRootName = ANON_PACKAGE then return true
+    return Register_( ctx, ctx.pkgRootName, ctx.pkgRootDir, true )
+end function
+
+sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byref outv as Tko.StrVec )
+    outv.Clear( )
+    dim as long at = PkgIndex_( ctx, Tko.Text.LowerAscii( name_ ) )
+    if at < 0 then return
+    dim as string idx = str( at )
+    for k as long = 0 to ctx.pkgDefOwner.Count - 1
+        if ctx.pkgDefOwner[k] = idx then outv.Push( ctx.pkgDefText[k] )
+    next
+    '' The root's [dependencies.<this>.defines], key by key.
+    for k as long = 0 to ctx.pkgDdDep.Count - 1
+        if ctx.pkgDdDep[k] <> ctx.pkgNames[at] then continue for
+        dim as string kk = Tko.Text.LowerAscii( left( ctx.pkgDdText[k], instr( ctx.pkgDdText[k], "=" ) ) )
+        dim as boolean replaced = false
+        for q as long = 0 to outv.Count - 1
+            if Tko.Text.LowerAscii( left( outv[q], instr( outv[q], "=" ) ) ) = kk then
+                outv[q] = ctx.pkgDdText[k]
+                replaced = true
+            end if
+        next
+        if replaced = false then outv.Push( ctx.pkgDdText[k] )
+    next
+end sub
+
 sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
     dim as FB.Array( of FB.DirEntry ) entries
     if FB.ListDir( dir_, entries ).IsOk( ) = false then return
@@ -217,10 +339,43 @@ function ResolveImport _
         return true
     end if
 
-    '' ---- 4 and 5: a package named by the first segment.
     dim as long sl = instr( p, "/" )
     dim as string first_ = iif( sl = 0, p, left( p, sl - 1 ) )
     dim as string rest = iif( sl = 0, "", mid( p, sl + 1 ) )
+    dim as string lfirst = Tko.Text.LowerAscii( first_ )
+
+    '' ---- 2 and 3: the current package, and its manifest's dependencies. 'std' skips them.
+    if lfirst <> "std" then
+        dim as string proot = ""
+        if lfirst = Tko.Text.LowerAscii( pkgName ) then proot = pkgRoot
+        if len( proot ) = 0 then
+            dim as string owner = str( PkgIndex_( ctx, Tko.Text.LowerAscii( pkgName ) ) )
+            for k as long = 0 to ctx.pkgDepName.Count - 1
+                if (ctx.pkgDepOwner[k] = owner) andalso (ctx.pkgDepName[k] = lfirst) then proot = ctx.pkgDepPath[k]
+            next
+            if len( proot ) > 0 then
+                if FB.IsDir( proot ) = false then
+                    ctx.diags.ReportGlobal( Tko.TKO0146, lfirst, "no directory at '" & proot & "'" )
+                    return false
+                end if
+                if Register_( ctx, lfirst, proot, false ) = false then return false
+            end if
+        end if
+        if len( proot ) > 0 then
+            dim as string target = iif( len( rest ) = 0, proot, JoinPath( proot, rest ) )
+            if FB.IsDir( target ) = false then
+                ctx.diags.Report( Tko.TKO0140, at, p, target )
+                return false
+            end if
+            outw.dir_ = target
+            outw.pkgName = lfirst
+            outw.pkgRoot = proot
+            outw.chain = ChainOf_( first_, rest )
+            return true
+        end if
+    end if
+
+    '' ---- 4 and 5: a package named by the first segment.
 
     dim as Tko.StrVec roots
     if Tko.Text.LowerAscii( first_ ) <> "std" then SearchRoots_( ctx, roots )
@@ -241,8 +396,9 @@ function ResolveImport _
             ctx.diags.Report( Tko.TKO0140, at, p, target )
             return false
         end if
+        if Register_( ctx, lfirst, proot, false ) = false then return false
         outw.dir_ = target
-        outw.pkgName = Tko.Text.LowerAscii( first_ )
+        outw.pkgName = lfirst
         outw.pkgRoot = proot
         outw.chain = ChainOf_( first_, rest )
         return true
