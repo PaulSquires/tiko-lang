@@ -21,6 +21,7 @@
 #   6. UNSIGNED LOOP COUNTERS.
 #   7. NARROW LOOP COUNTERS in lib/gfx hot loops (see below -- costs 4x).
 #   8. ATTRIBUTION HEADER on every lib/gfx source (LGPL obligation).
+#   9. NO MODULE DIRECTIVES in tiko's own source (#import, #module, #export).
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -160,6 +161,19 @@ done
 for f in $(find lib/gfx -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null | sort); do
     if ! head -20 "$f" | grep -qE 'Derived from:|ORIGINAL WORK'; then
         note "ATTRIBUTION $f has no provenance header (see docs/graphics/RFC-0001 D13)"
+    fi
+done
+
+# ------------------------------------ 9. no module directives in tiko's source
+#
+# tiko BOOTSTRAPS FROM fbc-modern, which has no module system: a '#import' in src/ or
+# tools/ would build with tiko and fail at stage 0, so the bootstrap would break the day
+# the first one landed and not before (docs/architecture/decisions/0017-modules.md). The
+# pattern is a directive at the start of a line, so comments and the preprocessor's own
+# 'case "import"' do not match.
+for f in $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
+    if tr -d '' < "$f" | grep -nqE '^[[:space:]]*#[[:space:]]*(import|module|export)([^A-Za-z0-9_]|$)'; then
+        note "MODULES $f uses #import/#module/#export; tiko's own source may not (ADR 0017)"
     fi
 done
 
