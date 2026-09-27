@@ -587,6 +587,12 @@
     DIAG( TKO0832, SEV_ERROR,   "'%0( n, x )' takes a character code or a %1 string as x, not %2" )
     '' fbc's warning 3, "Passing different pointer types" -- see symbols/ptrwarn.bas.
     DIAG( TKO0833, SEV_WARNING, "passing different pointer types: a '%1' for a '%0' parameter" )
+    '' fbc's error 120, "Expected period ('.')": the name is read as the enum, which wants
+    '' '.member' after it. See ClassNameTaken_ in symbols/collectdecl.bas.
+    DIAG( TKO0834, SEV_ERROR,   "'%0' is already the name of an enum, which no variable may share" )
+    '' fbc's error 265, "Symbol not a CLASS, ENUM, TYPE or UNION type": 'v.EB' over a
+    '' variable or parameter of an enum type. See symbols/check.bas, the enum-member arm.
+    DIAG( TKO0835, SEV_ERROR,   "'%0' is a value of an enum type, not the enum, so it has no members" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

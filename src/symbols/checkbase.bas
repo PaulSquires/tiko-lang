@@ -79,6 +79,37 @@ private function AddrOfType_ _
     return c.types->Pointer_( inner )
 end function
 
+'' A MEMBER THROUGH A VALUE OF AN ENUM TYPE -- fbc's error 265, "Symbol not a CLASS, ENUM,
+'' TYPE or UNION type". Measured: 'v.EB' over a VARIABLE of type E, and 'p.EB' over a
+'' PARAMETER, are refused -- and so is 'E.EA' inside 'f( byval e as E )', because there 'e'
+'' IS the parameter -- while the nested 'x.IE.I1', a member access that names the type,
+'' compiles. tiko bound the member and printed it. Reports TKO0835 and answers true for a
+'' plain name bound to a variable or parameter whose type is an enum; false otherwise.
+private function EnumValueBase_ _
+    ( byref c as Ctx, byval b as Tko.NodeId, byval bt as Tko.TypeId ) as boolean
+
+    if bt = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( bt )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_ENUM then return false
+    if c.ast->Kind( b ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( b ) )
+    if s = 0 then return false
+    select case cast( Tko.SymbolKind, s->kind )
+    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER
+    case else
+        return false
+    end select
+    '' ONCE: an untyped node is typed again on every visit -- TypeOf_ caches only a type
+    '' it found -- so the same member was reported twice.
+    dim as Tko.SourceLoc bl = c.ast->Loc( b )
+    for i as long = 0 to c.diags->pending.Count - 1
+        if (c.diags->pending[i].id = Tko.TKO0835) andalso (c.diags->pending[i].range.first = bl) then return true
+    next
+    c.diags->Report( Tko.TKO0835, Tko.PointRange( bl ), c.names->Spelling( s->name ) )
+    return true
+end function
+
 '' 'this' AS AN ARGUMENT IS THE OBJECT, not the pointer it is held in -- the same fact
 '' AddrOfType_ answers for '@this'. Costed as a 'T ptr', it was viable for no 'byref as
 '' T' or 'byval as T' parameter, so 'x = getctr( this )' came out UNTYPED and lowering

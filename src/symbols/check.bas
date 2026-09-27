@@ -988,8 +988,8 @@ function TypeOf_ _
         '' cannot reach it: there the base is an IDENT bound to the enum symbol,
         '' and here it is a member access whose type only Check knows.
         ''
-        '' Measured: fbc folds 'print x.E.I, x.E.J' to 'fb_PrintLongint( 0, 0ll, 2 )'
-        '' and '( 0, 1ll, 1 )'.
+        '' Measured: fbc folds 'print x.E.I, x.E.J' to 'fb_PrintLongint( 0, 0ll, 2 )' and '( 0, 1ll, 1 )'.
+        if EnumValueBase_( c, mp->lhs, bt ) then return Tko.TYPE_NONE    '' not through a VALUE: fbc's 265
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
             if c.types->Kind( bt ) = Tko.TK_ENUM then
                 dim as Tko.IdentPayload ptr eip = _

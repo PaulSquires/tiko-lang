@@ -96,6 +96,19 @@ private function ClassNameTaken_ _
         if ss = 0 then exit while
         dim as Tko.SymbolId uid = w.syms->LookupLocalTyped( sc, nm, true )
         if IsClassLikeUdt_( w, uid ) then return uid
+        '' ...AND AN ENUM, for a VARIABLE -- fbc's error 120 whatever the variable's own
+        '' type. Measured inside a sub, with 'enum E' outside: 'dim as E e', 'dim e as E'
+        '' and 'dim as long e' are each refused, while 'byval e as E' (a PARAMETER) and
+        '' 'dim as T t' (a UDT with no members) compile. tiko accepted all three, and
+        '' 'dim e as E = EB' printed nothing at all. The enum's own scope never reaches
+        '' here: a declaration there is a duplicate, and TKO0600 already says so.
+        if k = Tko.SYM_VARIABLE then
+            dim as Tko.SymbolId eid = w.syms->LookupLocal( sc, nm )
+            dim as Tko.Symbol ptr es = w.syms->SymbolAt( eid )
+            if es <> 0 then
+                if es->kind = cast( ubyte, Tko.SYM_ENUM ) then return eid
+            end if
+        end if
         select case cast( Tko.ScopeKind, ss->kind )
         case Tko.SCOPEK_PROC, Tko.SCOPEK_BLOCK
             sc = ss->parent
@@ -296,7 +309,9 @@ private function Declare_ _
         dim as Tko.Symbol ptr cs = w.syms->SymbolAt( classSym )
         if cs <> 0 then
             w.duplicates += 1
-            w.diags->Report( Tko.TKO0777, Tko.PointRange( loc ), w.names->Spelling( nm ) )
+            dim as Tko.DiagId cdi = Tko.TKO0777
+            if cs->kind = cast( ubyte, Tko.SYM_ENUM ) then cdi = Tko.TKO0834
+            w.diags->Report( cdi, Tko.PointRange( loc ), w.names->Spelling( nm ) )
             w.diags->AddNote( Tko.TKO0901, Tko.PointRange( cs->loc ) )
         end if
     end if

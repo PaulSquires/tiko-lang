@@ -106,6 +106,42 @@ declare sub ForwardTypeRef_ _
 declare sub NoteUnboundType_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
+'' AN ENUM IN TYPE POSITION IS FOUND PAST A VALUE OF THE SAME NAME. IsTypeNameKind counts
+'' only UDTs and typedefs -- deliberately: an enum does not share its name with a value
+'' the way a UDT does (fbc refuses 'enum E' then 'dim as long e', error 120) -- so the
+'' typed lookup of 'E' fell back to the plain one and found the nearest 'e'. For
+'' 'function f( byval e as E )' that was the PARAMETER ITSELF: typed as nothing,
+'' lowered as 'void %p0', and clang refused the module with no tiko diagnostic.
+'' Measured, fbc compiles it and the parameter is the value -- 'return e' is the
+'' argument -- for a plain and an EXPLICIT enum, byval, byref and defaulted alike.
+'' Only when what was found is a VALUE; anything else is returned as it came.
+private function EnumPastValue_ _
+    ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sid as Tko.SymbolId ) as Tko.SymbolId
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return sid
+    select case cast( Tko.SymbolKind, s->kind )
+    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER, Tko.SYM_CONSTANT
+    case else
+        return sid
+    end select
+    dim as Tko.ScopeId sc = scope_
+    dim as long guard = 0
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.SymbolId got = c.syms->LookupLocal( sc, nm )
+        dim as Tko.Symbol ptr gs = c.syms->SymbolAt( got )
+        if gs <> 0 then
+            if gs->kind = cast( ubyte, Tko.SYM_ENUM ) then return got
+        end if
+        dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
+        if ss = 0 then exit while
+        sc = ss->parent
+    wend
+    return sid
+end function
+
 private function LookupTypeAtPoint_ _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval at as Tko.NodeId ) as Tko.SymbolId
@@ -641,6 +677,7 @@ function ResolveTypeRef _
         '' the path fails or only its last member does. A qualified name means that or nothing.
         if (sid = Tko.SYMBOL_NONE) andalso (tparam = false) andalso (sp->ownerName = 0) then
             sid = LookupTypeAtPoint_( c, scope_, sp->name, id )
+            sid = EnumPastValue_( c, scope_, sp->name, sid )
         end if
 
         '' AN INSTANTIATION -- 'Box( of long )'. One type per (generic, arguments),

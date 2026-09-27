@@ -1,0 +1,24 @@
+'' A VALUE WHERE AN ENUM'S NAME IS. MEASURED, fbc-modern 1.20 with -maxerr inf over the
+'' source -- exactly these lines, and no others:
+''
+''     16, 20, 24   error 120   'dim as E e', 'dim e as E', 'dim as long e' inside a sub,
+''                              with 'enum E' outside -- TKO0834. tiko accepted all three,
+''                              and 'dim e as E = EB' printed nothing at all.
+''     28, 32, 36,  error 265   a member through a VALUE of an enum type: 'p.EB' over a
+''     40                       parameter, 'E.EA' inside 'f( byval e as E )' where 'e' IS
+''                              the parameter, the same over an explicit enum, and 'v.EB'
+''                              over a variable -- TKO0835. tiko bound the member.
+''
+'' Beside them fbc ACCEPTS a parameter named like its enum, a UDT local named like its
+'' type, and the nested 'x.IE.I1' -- tests/driver/enum-named-param covers the first.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/enum-name-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: enum-name-value.bas(16,14): error TKO0834
+'' EXPECT-OUT: enum-name-value.bas(20,9): error TKO0834
+'' EXPECT-OUT: enum-name-value.bas(24,17): error TKO0834
+'' EXPECT-OUT: enum-name-value.bas(28,11): error TKO0835
+'' EXPECT-OUT: enum-name-value.bas(32,16): error TKO0835
+'' EXPECT-OUT: enum-name-value.bas(36,16): error TKO0835
+'' EXPECT-OUT: enum-name-value.bas(40,7): error TKO0835
+'' EXPECT-MAX-DIAG: 7

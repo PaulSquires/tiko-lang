@@ -1,0 +1,13 @@
+'' A PARAMETER NAMED LIKE ITS OWN ENUM TYPE compiles and links -- 'function f( byval e
+'' as E )'. IsTypeNameKind counts only UDTs and typedefs, so the typed lookup of 'E' fell
+'' back to the plain one and found the nearest 'e': the PARAMETER ITSELF, typed as
+'' nothing. It lowered as 'void %p0', clang refused the module, and tiko said nothing --
+'' --dump-ir showed '0 statements not lowered'. See EnumPastValue_ (resolvetype.bas).
+''
+'' A DRIVER TEST BECAUSE IT HAS TO LINK: the failure was clang's. The source is also a
+'' goldenrun.sh differential -- built and run by fbc and by tiko, byte-identical.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/enum-named-param.bas -o tests/driver/enumnamedparam.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/enumnamedparam.exe
