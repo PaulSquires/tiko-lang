@@ -40,6 +40,16 @@ function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     return Tko.SYMBOL_NONE
 end function
 
+'' Is E a call's RESULT -- an N_CALL that is NOT A SUBSCRIPT? FreeBASIC spells both
+'' the same, and a subscript names an object that stays alive: 'dim as T x = a( k )'
+'' over a T holding a dynamic array was treated as a result and MOVED with a plain
+'' store, so x and a( k ) shared one buffer and both freed it -- 0xC0000374. fbc
+'' copy-constructs: '_ZN5CRAFTC1ERKS_( &X$1, (struct $5CRAFT*)A$0 )'.
+function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if c.ast->Kind( e ) <> Tko.N_CALL then return false
+    return (IsArrayIndex( c, e ) = false)
+end function
+
 '' Does the N_CALL E name a procedure declared 'byref as T'? Its result is then somebody
 '' else's object -- 'Result( of T, E ).Value( )' -- and never a temporary to move from.
 function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean

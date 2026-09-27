@@ -1259,6 +1259,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean

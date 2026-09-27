@@ -1,0 +1,24 @@
+'' 'dim as T x = a( k )' copy-constructs x from the ELEMENT. An index is an N_CALL, and
+'' over a T holding a dynamic array it was taken for a call's result and MOVED: the
+'' default constructor, then a bitwise store of the element over x. x and a( k ) then
+'' shared one array buffer and both freed it -- 0xC0000374 at the next ERASE. Found in a
+'' user program (starshine.bas) that sorts such a type with a quicksort macro.
+''
+'' MEASURED, fbc-modern 1.20 -gen gcc -r over the same shape:
+''
+''     _ZN5CRAFTC1ERKS_( &X$1, (struct $5CRAFT*)A$0 );
+''
+'' -- the copy constructor from the element's address, no default constructor, no
+'' copy of the bytes. Constant index, variable index and an array( ) parameter alike.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/copy-init-from-element.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call void _ZN5CRAFTC1ERKS_(@px, %
+'' EXPECT-OUT: call void _ZN5CRAFTC1ERKS_(@cx, %
+'' EXPECT-OUT: call void _ZN5CRAFTC1ERKS_(@vx, %
+'' EXPECT-NOT: store @px,
+'' EXPECT-NOT: store @cx,
+'' EXPECT-NOT: store @vx,
+'' EXPECT-NOT: _ZN5CRAFTC1Ev(@cx)

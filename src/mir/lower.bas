@@ -505,8 +505,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         '' copy instead took the returned descriptor into a temporary,
                         '' deep-copied THAT into the destination, and never erased the
                         '' temporary: a LEAK where the plain store was already right.
-                        dim as boolean initIsCall = _
-                            (c.ast->Kind( ip->b ) = Tko.N_CALL)
+                        dim as boolean initIsCall = IsCallResult_( c, ip->b )
                         '' ...and ONLY for a type carrying a dynamic array, which is
                         '' the set this path newly reaches. A type that wanted the
                         '' implicit copy BEFORE -- one holding a var-length string,
