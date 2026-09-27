@@ -56,54 +56,50 @@ func i32 ONSPHERE(ptr $0, ptr $1) {
     %38 = load @dz
     %39 = mul %37, %38
     %40 = add %36, %39
-    %41 = fpext %40
-    %42 = sqrt %41
-    %43 = load @s
-    %44 = field.addr %43, 12
-    %45 = load %44
-    %46 = fptrunc %42
-    %47 = uitofp %45
-    %48 = fcmp.le %46, %47
-    %49 = neg %48
-    condbr %49, sc.rhs1, sc.short2
+    %41 = sqrt %40
+    %42 = load @s
+    %43 = field.addr %42, 12
+    %44 = load %43
+    %45 = uitofp %44
+    %46 = fcmp.le %41, %45
+    %47 = neg %46
+    condbr %47, sc.rhs1, sc.short2
   sc.rhs1:
-    %50 = load @dx
-    %51 = load @dx
-    %52 = mul %50, %51
-    %53 = load @dy
-    %54 = load @dy
-    %55 = mul %53, %54
-    %56 = add %52, %55
-    %57 = load @dz
-    %58 = load @dz
-    %59 = mul %57, %58
-    %60 = add %56, %59
-    %61 = fpext %60
-    %62 = sqrt %61
-    %63 = load @s
-    %64 = field.addr %63, 12
-    %65 = load %64
-    %66 = const i64 2
-    %67 = zext %65
-    %68 = sub %67, %66
-    %69 = fptrunc %62
-    %70 = sitofp %68
-    %71 = fcmp.gt %69, %70
+    %48 = load @dx
+    %49 = load @dx
+    %50 = mul %48, %49
+    %51 = load @dy
+    %52 = load @dy
+    %53 = mul %51, %52
+    %54 = add %50, %53
+    %55 = load @dz
+    %56 = load @dz
+    %57 = mul %55, %56
+    %58 = add %54, %57
+    %59 = sqrt %58
+    %60 = load @s
+    %61 = field.addr %60, 12
+    %62 = load %61
+    %63 = const i64 2
+    %64 = zext %62
+    %65 = sub %64, %63
+    %66 = sitofp %65
+    %67 = fcmp.gt %59, %66
+    %68 = neg %67
+    %69 = const i64 0
+    %70 = icmp.ne %68, %69
+    %71 = sext %70
     %72 = neg %71
-    %73 = const i64 0
-    %74 = icmp.ne %72, %73
-    %75 = sext %74
-    %76 = neg %75
-    store @$tmp6, %76
+    store @$tmp6, %72
     br sc.join3
   sc.short2:
-    %77 = const i64 0
-    store @$tmp6, %77
+    %73 = const i64 0
+    store @$tmp6, %73
     br sc.join3
   sc.join3:
-    %78 = load @$tmp6
-    %79 = trunc %78
-    ret %79
+    %74 = load @$tmp6
+    %75 = trunc %74
+    ret %75
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -371,4 +367,4 @@ declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 20 blocks, 293 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 20 blocks, 289 insts, 0 statements not lowered, 0 scope imbalance

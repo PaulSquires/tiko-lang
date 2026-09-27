@@ -1,0 +1,17 @@
+'' A MATH BUILTIN OVER A SINGLE IS COMPUTED AT SINGLE WIDTH. fbc-modern's C for each of
+'' sqr, sin, cos, tan, atn, exp, log, asin and acos over a single is the 'f' routine,
+'' widened after -- '(double)__builtin_sqrtf( S$0 )' -- and '#print typeof( sqr( s ) )'
+'' is SINGLE. tiko widened the ARGUMENT and called the double routine, so a double
+'' destination kept digits fbc rounds away: 148.7103741862853 for fbc's
+'' 148.7103729248047, and starshine.bas's 3.5-million-distance sum drifted.
+''
+'' MEASURED: the source prints, byte for byte, what fbc's build prints (see its header).
+'' Over 400 inputs each, sqr, sin, cos, tan, atn and exp are bit-identical to fbc; log,
+'' asin and acos differ in at most 1 ulp on a few inputs -- the UCRT's logf/asinf/acosf
+'' against MinGW's, which no lowering can change, so the source leaves them out.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/single-math-width.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/single-math-width.out

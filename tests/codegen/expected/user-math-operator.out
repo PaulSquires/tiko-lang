@@ -1,7 +1,6 @@
 target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-w64-windows-gnu"
 
-declare double @"asin"(double) nounwind
 
 define float @"_Zv13sqrRK4TSQR"(ptr %p0) nounwind uwtable(sync) {
 L0:
@@ -45,15 +44,13 @@ L0:
   %s3 = alloca float, align 4
   %t12 = call float @"asinf"(float 0x3FE0000000000000)
   store float %t12, ptr %s3, align 4
-  %t14 = fpext float 0x3FE0000000000000 to double
-  %t15 = call double @"asin"(double %t14)
-  %t16 = load float, ptr %s3, align 4
-  %t17 = fptrunc double %t15 to float
-  %t18 = fsub float %t17, %t16
-  call void @"fb_PrintSingle"(i32 0, float %t18, i32 1)
+  %t14 = call float @"asinf"(float 0x3FE0000000000000)
+  %t15 = load float, ptr %s3, align 4
+  %t16 = fsub float %t14, %t15
+  call void @"fb_PrintSingle"(i32 0, float %t16, i32 1)
   call void @"fb_End"(i32 0)
-  %t20 = load i32, ptr %s0, align 4
-  ret i32 %t20
+  %t18 = load i32, ptr %s0, align 4
+  ret i32 %t18
 
 }
 

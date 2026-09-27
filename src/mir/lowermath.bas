@@ -157,9 +157,18 @@ function LowerMathCall_ _
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
-    '' The BUILTINS. Every one but abs and int takes a DOUBLE and gives one back --
-    '' fbc widens a single argument rather than reaching for the 'f' variant, except
-    '' for abs and floor, which have per-width builtins of their own.
+    '' The BUILTINS, AT THE ARGUMENT'S WIDTH. A SINGLE argument takes the 'f' routine
+    '' and gives a SINGLE back -- measured, fbc-modern's C for each of the nine:
+    ''
+    ''     r = sqr( s )    R$0 = (double)__builtin_sqrtf( S$0 )
+    ''     r = sin( s )    R$0 = (double)__builtin_sinf( S$0 )     ...and cosf, tanf,
+    ''                                            atanf, expf, logf, asinf, acosf
+    ''
+    '' -- and '#print typeof( sqr( s ) )' is SINGLE, which Check already answered. This
+    '' said fbc WIDENED a single to double and called the double routine, and did that:
+    '' 'dim as double r = sqr( s )' kept 148.7103741862853 where fbc's rounded result is
+    '' 148.7103729248047, and a sum of 3.5 million of them drifted in the tenth digit.
+    '' Anything else -- an integer or a DOUBLE argument -- is DOUBLE, as before.
     dim as MirOp op = M_NONE
     dim as MirType rty = MT_F64
     select case nm
@@ -201,6 +210,8 @@ function LowerMathCall_ _
     case else
         return false
     end select
+    '' abs and int chose their width above; the nine others follow a SINGLE argument.
+    if (amt = MT_F32) andalso (rty = MT_F64) then rty = MT_F32
 
     dim as MirValue v0 = LowerExpr( c, a0 )
     if v0.kind = cast( ubyte, MV_NONE ) then return false
