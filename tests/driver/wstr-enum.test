@@ -1,0 +1,22 @@
+'' WSTR( ) OF AN ENUM LOWERS. 'print wstr( ev )' printed nothing (fbc: 2) and tiko said
+'' nothing -- --dump-ir counted it among the statements not lowered, and so did every
+'' shape around it: a member, a '&' chain, 'dim as wstring * 20 w = wstr( ev ) & "q"'.
+'' Check already typed it (WSTRING * 1, since a6c6a39f); LowerWstrOf (lowerwstrof.bas)
+'' then refused the argument as not a BUILTIN. An enum is an INTEGER there now, as
+'' NumberToWideTemp_ already had it -- measured, fbc writes 'fb_LongintToWstr( EV$0 )'.
+''
+'' RUN, because the failure was a missing line: nothing in a dump or a link shows it.
+'' The source is also a goldenrun.sh differential -- byte-identical to fbc's build.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/wstr-enum.bas -o tests/driver/wstrenum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/wstrenum.exe
+'' RUN: tests/driver/wstrenum.exe
+'' EXPECT-RUN-OUT: 2 s1
+'' EXPECT-RUN-OUT: 2 s2
+'' EXPECT-RUN-OUT: 2q s3
+'' EXPECT-RUN-OUT: 2 wz s4
+'' EXPECT-RUN-OUT: 1|4000000000|-5|1 s5
+'' EXPECT-RUN-OUT: a2b s6
+'' EXPECT-RUN-OUT: 4 ln

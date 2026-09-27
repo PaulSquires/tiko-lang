@@ -277,6 +277,10 @@ function LowerWstrOf _
     '' A POINTER RENDERS AS ITS ADDRESS, unsigned -- measured, 'wstr( p )' is
     '' 'fb_ULongintToWstr( (uint64)P$0 )' for every pointer type. It is not a
     '' BUILTIN, so the test below refused it and the call came out untyped.
+    '' AN ENUM IS AN INTEGER here, as NumberToWideTemp_ already has it: measured,
+    '' 'wstr( ev )' is 'fb_LongintToWstr( EV$0 )' on win64. Refused as not a BUILTIN,
+    '' 'print wstr( ev )' was dropped with no diagnostic and printed nothing.
+    if c.types->Kind( at ) = Tko.TK_ENUM then at = c.types->Builtin( Tko.TY_INTEGER )
     dim as boolean atPtr = (c.types->Kind( at ) = Tko.TK_POINTER)
     if (c.types->Kind( at ) <> Tko.TK_BUILTIN) andalso (atPtr = false) then return false
     dim as RtlId r = RTL_NONE
