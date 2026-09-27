@@ -1,0 +1,22 @@
+'' A NON-TRIVIAL UDT RESULT THROUGH A PROCEDURE POINTER compiles, links and runs. A call
+'' through a pointer passed NO hidden result slot, while the pointer's signature
+'' (PtrCallSigIndex_) let the emitter infer one from the result's size:
+''
+''   - a 24-byte DWSTRING, as PsTooltip's 'pTip->TooltipCallback( hWin, hAttached, idx )'
+''     returns, put hWin in the slot and the LONG idx where a pointer belongs -- clang
+''     refused PsCalendar: "'%t30' defined with type 'i32' but expected 'ptr'";
+''   - a 4-byte result WITH A DESTRUCTOR came back "in a register" the callee never
+''     wrote, and printed garbage.
+''
+'' fbc passes the slot first either way, measured: '(*cb)( &TMP$7$2, a, b, idx )'. Now
+'' the pointer's signature takes it as a named procedure's does (SignatureFromProc), and
+'' the call site passes it (SretCallType_). Plain-data results were already right.
+''
+'' A DRIVER TEST BECAUSE IT HAS TO LINK: --dump-ir stops before clang, and the failure
+'' was clang's. The unfixed compiler fails this exact way on the source; the source is a
+'' goldenrun.sh differential too -- built and run by fbc and by tiko, byte-identical.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/proc-ptr-sret.bas -o tests/driver/procptrsret.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/procptrsret.exe

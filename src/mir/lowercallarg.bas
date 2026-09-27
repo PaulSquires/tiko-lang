@@ -661,6 +661,38 @@ private function ArgNeedsUdtConv_ _
     return true
 end function
 
+'' THE RESULT TYPE A CALL MAY RETURN THROUGH A HIDDEN POINTER: a named procedure's own, as
+'' before -- and now a PROCEDURE POINTER'S too. A call through a pointer passed no result
+'' slot at all, while PtrCallSigIndex_ let the emitter infer one from the result's SIZE:
+'' PsTooltip's 'pTip->TooltipCallback( hWin, hAttached, idx )', returning a DWSTRING, put
+'' hWin in the slot and the LONG idx where a pointer belongs -- clang refused PsCalendar --
+'' and a 4-byte result with a destructor came back "in a register" the callee never wrote:
+'' garbage. fbc passes the slot first either way, measured: '(*cb)( &TMP$7$2, a, b, idx )'.
+function SretCallType_ _
+    ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
+      byval sigT as Tko.TypeId ) as Tko.TypeId
+
+    if (viaPointer = false) andalso (cs <> 0) then
+        if cs->kind = cast( ubyte, Tko.SYM_PROC ) then return cs->type_
+        return Tko.TYPE_NONE
+    end if
+    if viaPointer = false then return Tko.TYPE_NONE
+    if sigT = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( sigT ) <> Tko.TK_PROC then return Tko.TYPE_NONE
+    return c.types->Inner( sigT )
+end function
+
+'' The value of a call that returned through its hidden slot is the SLOT -- its ADDRESS
+'' where the caller wants a pointer (a copy constructor's source), its contents otherwise --
+'' exactly as the direct path reads it; any other call's is its own result.
+function SretOrResult_ _
+    ( byref c as Ctx, byref sretTmp as MirValue, byref iv as MirValue, _
+      byval mt as MirType ) as MirValue
+    if sretTmp.kind = cast( ubyte, MV_NONE ) then return iv
+    if mt = MT_PTR then return sretTmp
+    return LowerExprLoad( c, sretTmp, MT_AGG )
+end function
+
 '' 'this' PASSED BYVAL IS THE OBJECT'S VALUE, not the pointer it is held in: measured,
 '' fbc writes 'BYV( *THIS$1 )' for 'byv( this )' over 'byval s as T'. LowerExpr loaded the
 '' pointer, so the callee read eight bytes of address as its T. Sized to the PARAMETER,

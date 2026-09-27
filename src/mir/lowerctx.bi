@@ -1261,6 +1261,12 @@ declare function EmitRtl _
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function SretCallType_ _
+        ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
+          byval sigT as Tko.TypeId ) as Tko.TypeId
+    declare function SretOrResult_ _
+        ( byref c as Ctx, byref sretTmp as MirValue, byref iv as MirValue, _
+          byval mt as MirType ) as MirValue
     declare function ThisByvalArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue ) as boolean

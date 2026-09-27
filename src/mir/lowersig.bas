@@ -169,10 +169,19 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
         dim as longint rsn
         if StrSwapKind_( c, rt, rsn ) = 0 then rmt = MT_PTR
     end if
+    '' A RESULT THAT UsesSretReturn COMES BACK THROUGH A LEADING POINTER, as a named
+    '' procedure's does (SignatureFromProc): the call site now passes that slot -- see
+    '' SretCallType_. Classified by size instead, the two disagreed about the arguments.
+    dim as boolean sret = (rt <> Tko.TYPE_NONE) andalso UsesSretReturn( c, rt )
+    if sret then rmt = MT_PTR
     dim as MirFunction ptr f = c.m->AddFunction( nm, rmt )
     if f = 0 then return -1
     c.m->procSigByType[tkey] = c.m->functions.Count
     f->isDefinition = false
+    if sret then
+        f->AddParam( MT_PTR )
+        f->hasSretParam = true
+    end if
     '' ...AND WHETHER IT IS VARIADIC, which the emitter needs to say where the fixed parameters stop
     '' -- on win64 that decides whether a float in the tail is duplicated into a GPR.
     f->isVariadic = c.types->IsVariadic( sigT )

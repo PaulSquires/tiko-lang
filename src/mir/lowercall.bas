@@ -330,10 +330,11 @@ function LowerCallParts _
         end if
     end if
     dim as long headMark = c.udtTemps.Count
-    if (cs <> 0) andalso (cs->kind = cast( ubyte, Tko.SYM_PROC )) then
-        if UsesSretReturn( c, cs->type_ ) andalso (calleeByrefRet = false) then
+    dim as Tko.TypeId sretT = SretCallType_( c, cs, viaPointer, calleeSigT )  '' a POINTER'S too
+    if sretT <> Tko.TYPE_NONE then
+        if UsesSretReturn( c, sretT ) andalso (calleeByrefRet = false) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_.
-            dim as long tslot = SretResultSlot_( c, cs->type_, true, callee )
+            dim as long tslot = SretResultSlot_( c, sretT, true, callee )
             if tslot < 0 then return CallFailed_( c, v, __LINE__ )
             sretTmp.kind = cast( ubyte, MV_LOCAL )
             sretTmp.ty = cast( ubyte, MT_PTR )
@@ -1251,7 +1252,7 @@ function LowerCallParts _
         if wantRef then return iv
         return LowerExprLoad( c, iv, mt )
     end if
-        return iv
+        return SretOrResult_( c, sretTmp, iv, mt )
     end if
 
     dim as long fidx = DeclIndexFor_( c, cnm, callTy, cs, _
