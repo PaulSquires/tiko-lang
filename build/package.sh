@@ -256,6 +256,16 @@ else
     note "--no-inc: headers not packaged"
 fi
 
+# THE PACKAGE TREE (ADR 0017; RFC-0007 §5): pkg/, beside inc/, which '#import "std/..."'
+# finds as <exe-dir>/pkg or <exe-dir>/../pkg -- the two layouts the binaries sit in. The
+# copy is ASSERTED: a pkg/ that silently failed to ship would look like a user's typo in
+# an import path.
+rm -rf "$OUT/pkg"
+cp -r "$ROOT/pkg" "$OUT/pkg"
+[ -f "$OUT/pkg/std/tiko.toml" ] || die "packaged pkg/ has no std/tiko.toml -- '#import \"std/...\"' would find nothing"
+[ -f "$OUT/pkg/std/strings/strings.bas" ] || die "packaged pkg/ has no std/strings"
+note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
+
 # The libraries. TWO directories per target, and the order they are given in
 # matters:
 #
@@ -549,11 +559,35 @@ if fbcu.dblIsInf( 1.0 ) = false then print "ok"
     rm -rf "$_tmp"
 }
 
+# THE STANDARD PACKAGE IS VERIFIED THE SAME WAY: a program importing std/strings, found in
+# the packaged pkg/ and nowhere else, built with its module and RUN. The module cache goes
+# to the scratch directory, which is removed.
+verify_std( ) {
+    _t=$1
+    _tmp="$OUT/.verifystd.$_t"
+    rm -rf "$_tmp"; mkdir -p "$_tmp"
+    printf '#import "std/strings"
+print strings.Replace( "k-o", "-", "" )
+' > "$_tmp/std.bas"
+    ( cd "$OUT" && TKO_MODCACHE=".verifystd.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" ".verifystd.$_t/std.bas" -o ".verifystd.$_t/std$EXT" ) >"$_tmp/log" 2>&1 || true
+    if [ -f "$_tmp/std$EXT" ] && [ "$( "$_tmp/std$EXT" 2>/dev/null )" = "ko" ]; then
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  std PASS -- imported std/strings, compiled, linked and ran"
+    else
+        _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
+        [ -n "$_why" ] || _why="built, but did not print ko"
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  std FAIL -- $_why"
+    fi
+    rm -rf "$_tmp"
+}
+
 if [ "$DO_VERIFY" = "1" ]; then
     for t in $TARGETS; do
         note "verifying $t: compile, link and run"
         verify_target "$t"
         verify_fbcunit "$t"
+        verify_std "$t"
     done
 else
     VERIFY_LINES="

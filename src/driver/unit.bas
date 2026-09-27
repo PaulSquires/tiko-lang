@@ -27,6 +27,7 @@
 #include once "driver/lowerreport.bi"
 #include once "driver/tkiemit.bi"
 #include once "driver/modiface.bi"
+#include once "driver/modbuild.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -387,6 +388,9 @@ function CompileUnit _
                         '' with them, and not a new failure mode.
                         if ctx.options.outKind = Tko.OUT_STATICLIB then
                             objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
+                            '' ...AND A MODULE'S AFTER ITS CHAIN, beside the archive: its source
+                            '' may be in the toolchain's pkg/, which is nobody's to write in.
+                            if ctx.modFileCount > 0 then objPath = Tko.Modules.ArchiveMemberPath( ctx )
                         end if
                         tempObjs.Push( objPath )
                     elseif len( objPath ) = 0 then

@@ -1,0 +1,16 @@
+'' THE STANDARD PACKAGE (ADR 0017; RFC-0007 §5-6): 'std/strings' and 'std/path' from the
+'' toolchain's pkg/ -- found beside the compiler, as <exe-dir>/../pkg in the repository.
+'' Split fills an array through a parameter; Surround is a public generic whose body calls
+'' a module-private helper, instantiated here for a long and a double; path's separator
+'' comes from its target-specific file.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/stduse/main.bas -o tests/modules/stdlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdlink.exe
+'' EXPECT-RUN-OUT:  4 abc
+'' EXPECT-RUN-OUT: true          true          false
+'' EXPECT-RUN-OUT: a+b+c ababab
+'' EXPECT-RUN-OUT: [42]<1.5>
+'' EXPECT-RUN-OUT: c.txt .txt a/b
+'' EXPECT-RUN-OUT: true a\b

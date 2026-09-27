@@ -16,4 +16,8 @@ declare function BuildImports _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
       byref toolExit as long ) as boolean
 
+'' WHERE A MODULE'S OBJECT GOES when the output is a static library, whose members keep
+'' their names: '<chain>.o' beside the archive -- 'std.strings.o'.
+declare function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
+
 end namespace

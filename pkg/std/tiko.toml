@@ -1,0 +1,5 @@
+# The standard package (ADR 0017; RFC-0007 §5-6). Shipped in the toolchain's pkg/, found
+# by '#import "std/..."' from anywhere, and never shadowed by a project's own packages.
+[package]
+name = "std"
+version = "0.1.0"

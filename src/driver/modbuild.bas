@@ -19,8 +19,13 @@
 #include once "driver/unit.bi"
 #include once "driver/modresolve.bi"
 #include once "driver/modcache.bi"
+#include once "fb/filesystem.bi"
 
 namespace Tko.Modules
+
+function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
+    return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.modChain & ".o" )
+end function
 
 '' A cached module's contribution to the link, as ModuleCacheStore recorded it.
 private sub ReplayLibs_( byref ctx as Tko.CompilerContext, byref libs as string )
@@ -100,6 +105,13 @@ function BuildImports _
         if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )
         if ModuleCacheLookup( ctx, cacheRoot, key, hitObj, hitIface, hitLibs ) then
             if ctx.options.verbose then print "module " & ctx.modChain & ": hit"
+            '' An ARCHIVE keeps the member's name: not the entry's 'obj.o', the chain's.
+            if ctx.options.outKind = Tko.OUT_STATICLIB then
+                dim as string mp = ArchiveMemberPath( ctx )
+                FB.CopyFile( hitObj, mp, true )
+                tempObjs.Push( mp )
+                hitObj = mp
+            end if
             linkObjs.Push( hitObj )
             ctx.ifaceTexts[n] = hitIface
             ctx.ifaceFiles[n] = cast( ulong, ctx.sources.AddVirtual( ctx.modChain & ".tki", hitIface ) )
