@@ -1,0 +1,6 @@
+'' TKO0361: THE MODULE IS NAMED BY ITS DIRECTORY, and '#module' must say the same name, so a
+'' module has one name everywhere: path, namespace and declaration.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/named/wrongdir/w.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: w.bas(1,1): error TKO0361: '#module "right"' does not match its directory 'wrongdir'

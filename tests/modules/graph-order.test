@@ -1,0 +1,8 @@
+'' MODULES WITH NO PATH BETWEEN THEM ARE LISTED BY CHAIN, not in the order they were
+'' imported: main.bas imports zeta, alpha, beta in that order. Go's rule since 1.21, and what
+'' makes the order a function of the graph alone. Relative imports from a root file name
+'' modules of the anonymous package 'main' (RFC-0007 §1).
+'' TEST: cli
+'' ARGS: --print-graph tests/modules/src/order/main.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/graph-order.out

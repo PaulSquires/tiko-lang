@@ -1,0 +1,9 @@
+'' TKO0363: A CONDITION AROUND '#import' TESTS PREDEFINED NAMES ONLY, so a file's imports can
+'' be read knowing nothing but the target. Both '#ifdef MYFLAG' and '#if FEATURE = 2' are
+'' refused, the first although its branch is not taken. tests/modules/graph-forms.test is
+'' the accepted half: __FB_WIN64__ and __FB_LINUX__.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/condition.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: condition.bas(2,1): error TKO0363: the condition around '#import' uses 'MYFLAG', which is not predefined
+'' EXPECT-OUT: condition.bas(5,1): error TKO0363: the condition around '#import' uses 'FEATURE', which is not predefined

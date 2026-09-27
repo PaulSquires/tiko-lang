@@ -1,0 +1,6 @@
+'' TKO0142: A RELATIVE IMPORT STAYS INSIDE ITS PACKAGE. From a root file the package is the
+'' anonymous one rooted at that file's directory, so '../other/x' climbs out of it.
+'' TEST: cli
+'' ARGS: --print-graph tests/diagnostics/src/modules/escape/app/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0142: relative import '../other/x' leaves the package root 'tests/diagnostics/src/modules/escape/app'

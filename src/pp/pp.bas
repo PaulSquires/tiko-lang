@@ -6,6 +6,7 @@
 '' hidden exactly while one of its own frames is on the stack.
 
 #include once "pp/pp.bi"
+#include once "pp/ppmodule.bi"
 #include once "support/text.bi"
 #include once "fb/filesystem.bi"
 
@@ -49,6 +50,7 @@ type PpCond
     as boolean   parentActive
     as boolean   seenElse
     as SourceLoc loc
+    as string    userName      '' first non-predefined name its conditions read (ppmodule.bas)
 end type
 
 '' How deep '#pragma push' may nest per option before it is refused.
@@ -179,6 +181,7 @@ type PpEngine
     as long                   optionValue( 0 to 1 )
     as long                   optionDepth( 0 to 1 )
     as long                   optionStack( 0 to (2 * PP_OPTION_STACK_MAX) - 1 )
+    as PpModState             modst         '' '#module' / '#import' / '#export': ppmodule.bas
 end type
 
 '' --------------------------------------------------------------- small helpers
@@ -1191,12 +1194,20 @@ declare function IsDirectiveWord( byval w as string ) as boolean
 declare sub PpDefineBuiltins( byref e as PpEngine )
 declare sub PpDefineFromCommandLine( byref e as PpEngine )
 declare function PpFindOrAddMacro( byref e as PpEngine, byval id as InternId ) as PpMacro ptr
+declare sub PpModAfterBuiltins( byref e as PpEngine )
+declare function PpModFirstUserIdent( byref e as PpEngine ) as string
+declare sub PpModNoteElse( byref e as PpEngine, byval c as PpCond ptr )
+declare function PpModPreDirective _
+    ( byref e as PpEngine, byref word as string, byval at as SourceLoc ) as boolean
+declare function PpModBeforeEmit( byref e as PpEngine, byref t as Token ) as boolean
+declare sub PpModDirective( byref e as PpEngine, byref word as string, byval at as SourceLoc )
 
 end namespace
 
 #include once "pp/ppexpr.bas"
 #include once "pp/macro.bas"
 #include once "pp/directive.bas"
+#include once "pp/ppmodule.bas"
 
 namespace Tko
 
@@ -1211,7 +1222,8 @@ namespace Tko
 private sub PpFinish( byref e as PpEngine )
     '' Unbalanced conditionals are the user's error, reported once per open block.
     while e.conds.IsEmpty( ) = false
-        Report( e, TKO0303, e.conds[e.conds.Count - 1].loc )
+        '' A SCAN STOPS INSIDE AN '#if' by design (PpConfig.scanHeader); the file is not unbalanced.
+        if e.cfg->scanHeader = false then Report( e, TKO0303, e.conds[e.conds.Count - 1].loc )
         e.conds.Pop( )
     wend
 
@@ -1334,6 +1346,7 @@ private function PpStep( byref e as PpEngine ) as boolean
             end if
         end if
 
+        if PpModBeforeEmit( e, t ) then return false
         Advance( e )
         EmitTok( e, t )
         PpTrackBlock( e, t )
@@ -1378,6 +1391,7 @@ sub PpOpen _
     st.finished = false
 
     PpDefineBuiltins( *e )
+    PpModAfterBuiltins( *e )
     PpDefineFromCommandLine( *e )
 
     dim as TokenVec ptr rootToks = PpLexFile( *e, root )

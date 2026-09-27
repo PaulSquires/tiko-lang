@@ -73,6 +73,12 @@
     DIAG( TKO0120, SEV_ERROR,   "unable to import C header %0" )
     DIAG( TKO0121, SEV_ERROR,   "cannot write the binding '%0'" )
     DIAG( TKO0122, SEV_ERROR,   "the binding generated for %0 does not compile; this is a bug in the C importer" )
+    '' The build graph of ADR 0017. The rest of the 0140-0151 block lands with its phase.
+    DIAG( TKO0140, SEV_ERROR,   "cannot find module '%0' (searched: %1)" )
+    DIAG( TKO0141, SEV_ERROR,   "import cycle: %0" )
+    DIAG( TKO0142, SEV_ERROR,   "relative import '%0' leaves the package root '%1'" )
+    DIAG( TKO0145, SEV_ERROR,   "'%0' is in module directory '%1' but does not begin with '#module'" )
+    DIAG( TKO0147, SEV_ERROR,   "module directory '%0' contains no .bas files" )
 
     '' --------------------------------------------------------------------- lexer
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )
@@ -146,6 +152,14 @@
     DIAG( TKO0337, SEV_ERROR,   "the binding generated for %0 does not compile; this is a bug in the C importer" )
     DIAG( TKO0338, SEV_ERROR,   "%0 defines '%1', which an earlier #cinclude in this unit left opaque; #cinclude %0 first" )
     DIAG( TKO0339, SEV_WARNING, "#cinclude could not write its cache entry under '%0'; the binding is used from memory" )
+    '' '#module', '#import', '#export' (ADR 0017, src/pp/ppmodule.bas).
+    DIAG( TKO0360, SEV_ERROR,   "'#module' must be the first directive in the file" )
+    DIAG( TKO0361, SEV_ERROR,   "'#module ""%0""' does not match its directory '%1'" )
+    DIAG( TKO0362, SEV_ERROR,   "'#import' must come before any code, in the compiled file" )
+    DIAG( TKO0363, SEV_ERROR,   "the condition around '#import' uses '%0', which is not predefined" )
+    DIAG( TKO0364, SEV_ERROR,   "malformed '%0': %1" )
+    DIAG( TKO0365, SEV_ERROR,   "'#export %0': no macro of that name is defined here" )
+    DIAG( TKO0369, SEV_ERROR,   "%0 is allowed only in a module file" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )
@@ -636,6 +650,7 @@
     DIAG( TKO0903, SEV_NOTE,    "in instantiation of '%0'" )
     DIAG( TKO0904, SEV_NOTE,    "required from here" )
     DIAG( TKO0905, SEV_NOTE,    "unclosed '%0' opened here" )
+    DIAG( TKO0906, SEV_NOTE,    "imported here" )
 
     '' ---------------------------------------------------------- compiler / limits
     DIAG( TKO0990, SEV_ERROR,   "too many errors; stopping" )

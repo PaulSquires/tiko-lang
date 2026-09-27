@@ -122,6 +122,18 @@ namespace Tko
 
     type MacroVec as FB.Array( of PpMacro )
 
+    '' ONE '#import' LINE, as the preprocessor read it (ADR 0017; RFC-0001). The form is
+    '' checked here -- quoting, '/' separators, segments, 'as', 'public'. Where the path
+    '' leads is the driver's question (src/driver/modresolve.bas), because it needs the
+    '' package search roots and the preprocessor has no business knowing them.
+    type PpImport
+        as string    path        '' as written: '/'-separated, maybe './' or '../'
+        as string    alias_      '' the name it binds: 'as NAME', else the last segment
+        as boolean   isPublic    '' '#import ... public': re-exported (module files only)
+        as SourceLoc loc         '' the '#', for diagnostics that point at the import
+    end type
+    type PpImportVec as FB.Array( of PpImport )
+
     type PpConfig
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
         '' SHARED ACROSS EVERY UNIT OF ONE INVOCATION, or 0 for a private one.
@@ -147,6 +159,12 @@ namespace Tko
         '' no restart at all. Default false, so a single-file compile and every
         '' caller that does not care honours it.
         as boolean    cmdlineIgnored
+        '' READ THE FILE'S HEADER AND STOP -- the build graph's scan (ADR 0017). The
+        '' engine stops at the first token, or the first directive, that ends the part
+        '' of a file in which '#import' may stand, having recorded '#module' and every
+        '' '#import' on the result. Nothing after that point is read, so nothing after
+        '' it is reported, and neither is TKO0992: a scan is not a compile.
+        as boolean    scanHeader
         '' The target, as the two FACTS the preprocessor needs rather than as a target
         '' id: it has no business knowing the type model, and handing it one invites it
         '' to grow more target knowledge than seeding predefines requires.
@@ -232,6 +250,12 @@ namespace Tko
         '' Stored as 'ID' & tab & 'signature': the same name twice with a DIFFERENT
         '' set is an error, and with the same set is not.
         as StrVec   foreignLibNames
+        '' THE FILE'S MODULE HEADER (ADR 0017). isModuleFile: it began '#module "name"'.
+        '' imports: its '#import' lines, in source order, form-checked but unresolved.
+        as boolean     isModuleFile
+        as string      moduleName
+        as SourceLoc   moduleLoc
+        as PpImportVec imports
     end type
 
     '' ---------------------------------------------------------------- the stream

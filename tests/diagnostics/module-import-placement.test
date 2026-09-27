@@ -1,0 +1,9 @@
+'' TKO0362: '#import' STANDS IN THE COMPILED FILE'S HEADER -- before any code, and never in
+'' a header it includes, which cannot bring a dependency along with it. The first import in
+'' latecode.bas is accepted (and, today, TKO0992); the one after 'print 1' is not.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/latecode.bas tests/diagnostics/src/modules/inheader.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: latecode.bas(3,1): error TKO0362: '#import' must come before any code, in the compiled file
+'' EXPECT-OUT: inheader.bi(1,1): error TKO0362: '#import' must come before any code, in the compiled file
+'' EXPECT-NOT: latecode.bas(1,1): error TKO0362

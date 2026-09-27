@@ -1,0 +1,2 @@
+kit.extra  tests/modules/src/forms/libs/kit/extra
+kit.util   tests/modules/src/forms/libs/kit/util  [kit.extra]

@@ -357,6 +357,8 @@ private sub PushCond _
     c.active = c.taken
     c.seenElse = false
     c.loc = at
+    c.userName = e.modst.pendingUser
+    e.modst.pendingUser = ""
     e.conds.Push( c )
 end sub
 
@@ -576,7 +578,8 @@ function IsDirectiveWord( byval w as string ) as boolean
     select case w
     case "if", "ifdef", "ifndef", "elseif", "elseifdef", "elseifndef", "else", "endif", _
          "define", "undef", "macro", "endmacro", "include", "error", "print", "assert", _
-         "pragma", "lang", "inclib", "libpath", "cmdline", "cinclude", "foreignlib"
+         "pragma", "lang", "inclib", "libpath", "cmdline", "cinclude", "foreignlib", _
+         "module", "import", "export"
         return true
     end select
     return false
@@ -591,12 +594,15 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         return
     end if
     Advance( e )
+    '' THE MODULE HEADER'S BOOKKEEPING, for every directive: see ppmodule.bas.
+    if PpModPreDirective( e, word, at ) then return
 
     '' Conditional directives are handled even inside a skipped branch, because the
     '' nesting has to stay balanced. Everything else is ignored while skipping.
     select case word
     case "if"
         if Emitting( e ) then
+            e.modst.pendingUser = PpModFirstUserIdent( e )
             PushCond( e, PpEvalRestOfLine( e, at, "if" ), at )
         else
             SkipToEol( e )
@@ -609,6 +615,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         '' ppexpr.bas. '#ifndef D3DCOLORVALUE' guarding 'type D3DCOLORVALUE' is the
         '' shape that needs it, and AfxD2D1.bi writes it twice, 737 lines apart.
         dim as boolean defined_ = false
+        e.modst.pendingUser = PpModFirstUserIdent( e )
         dim as Token t
         if PeekOnLine( e, t ) then
             if Tk( t ) = TK_IDENT then
@@ -635,6 +642,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
         dim as PpCond ptr c = @e.conds[e.conds.Count - 1]
         if c->seenElse then Report( e, TKO0302, at, word )
+        PpModNoteElse( e, c )
 
         dim as boolean want = false
         select case word
@@ -686,6 +694,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
     end if
 
     select case word
+    case "module", "import", "export"
+        PpModDirective( e, word, at )
+
     case "include"
         PpInclude( e, at, false )
 

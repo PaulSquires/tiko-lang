@@ -1,0 +1,8 @@
+'' A COMPILE THAT MEETS '#import' SAYS IT CANNOT DO IT YET -- TKO0992, once per unit -- until
+'' the module build exists (ADR 0017, phases P2 and P3). The scan behind --print-graph
+'' never says it: a scan is not a compile.
+'' TEST: cli
+'' ARGS: --pp-only tests/modules/src/diamond/app/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0992: not implemented in this build: modules
+'' EXPECT-MAX-DIAG: 1

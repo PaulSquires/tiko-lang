@@ -1,0 +1,8 @@
+'' EVERY ACCEPTED FORM OF THE HEADER: '#lang' and '#pragma once' before the imports, an
+'' 'as' alias, an import inside a condition over predefined names only, one in each branch
+'' of an '#ifdef', a comment before '#module', and '#import ... public' in a module file.
+'' The win64 run takes the '#else' branch, which is the golden.
+'' TEST: cli
+'' ARGS: --print-graph -i tests/modules/src/forms/libs tests/modules/src/forms/app/main.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/graph-forms.out

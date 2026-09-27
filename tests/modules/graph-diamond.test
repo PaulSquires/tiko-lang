@@ -1,0 +1,8 @@
+'' THE BUILD ORDER IS DEPENDENCIES FIRST, and a module reached twice is one node. http and
+'' esc both import core, and http imports esc too -- once by package path and once by a
+'' relative one, which name the same chain. -i makes libs/ a package search root, so the
+'' first segment 'acme' names libs/acme (ADR 0017; RFC-0005 §2, RFC-0007 §3).
+'' TEST: cli
+'' ARGS: --print-graph -i tests/modules/src/diamond/libs tests/modules/src/diamond/app/main.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/graph-diamond.out

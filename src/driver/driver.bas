@@ -24,6 +24,7 @@
 #include once "driver/lowerreport.bi"
 #include once "driver/cinclude.bi"
 #include once "driver/unit.bi"
+#include once "driver/modgraph.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 
@@ -189,7 +190,7 @@ private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     if o.dumpSymbols orelse o.resolveOnly orelse o.dumpMangle orelse o.checkOnly then return true
     if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
     if o.dumpVtable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
-    if o.parseExpr orelse o.parseOnly then return true
+    if o.parseExpr orelse o.parseOnly orelse o.printGraph then return true
     return false
 end function
 
@@ -707,6 +708,15 @@ function Run _
     next
 
     dim as double tLoad = timer - tLoadStart
+
+    '' ---- the build graph, printed and nothing else -------------------------
+    '' The roots are the sources just loaded; every module file the graph reaches is
+    '' loaded after them, so the count is taken now (ADR 0017, src/driver/modgraph.bas).
+    if ctx.options.printGraph then
+        dim as long grc = Tko.Modules.PrintGraph( ctx, ctx.sources.Count( ) )
+        ctx.diags.Flush( )
+        return Tko.DiagOut.Finish( ctx, grc )
+    end if
 
     '' ---- what this build can do -------------------------------------------
     '' HOISTED: a length test beside booleans in an 'orelse' chain is warning 38, which

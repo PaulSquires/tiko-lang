@@ -49,6 +49,8 @@ namespace Tko
     '' here. Undocumented in fbc's --help; it is what fbc passes itself when it
     '' re-invokes, and tiko never re-invokes: it calls Run( ) again.
     OPT( OPT_RESTART,   "-restart",   OPTK_FLAG,  OPTCAT_GENERAL, "",         "accepted and ignored; a '#cmdline' restarts by itself" )
+    '' THE BUILD GRAPH OF ADR 0017: every module the inputs import, in build order.
+    OPT( OPT_PRINTGRAPH, "--print-graph", OPTK_FLAG, OPTCAT_GENERAL, "",     "print the modules the inputs import, in build order, and stop" )
 
     '' ACCEPTED AND IGNORED TOO, and for a different reason. fbc-modern's '-z <option>'
     '' turns on an extended behaviour; the only one the corpus asks for is
@@ -159,6 +161,12 @@ namespace Tko
     type DriverOptions
         as StrVec  inputs
         as StrVec  includePaths
+        '' HOW MANY OF includePaths THE USER GAVE with -i; the default include directory
+        '' is appended after them. The -i paths are also package search roots (ADR 0017)
+        '' and the bundled header directory is not.
+        as long    userIncludeCount
+        '' --print-graph: resolve the imports, print the build order, stop.
+        as boolean printGraph
         '' THE LIBRARY SEARCH IS THREE LISTS, NOT ONE, and they are kept apart
         '' because their ORDER is fbc's and is measured:
         ''

@@ -1,0 +1,8 @@
+'' TKO0141: AN IMPORT CYCLE IS REFUSED AND NAMED WHOLE, a -> b -> c -> a, with a note at
+'' each import that closes a link of it, so all three lines to change are shown.
+'' TEST: cli
+'' ARGS: --print-graph -i tests/diagnostics/src/modules/cycle/libs tests/diagnostics/src/modules/cycle/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: c/c.bas(2,1): error TKO0141: import cycle: cyc.a -> cyc.b -> cyc.c -> cyc.a
+'' EXPECT-OUT: a/a.bas(2,1): note: imported here
+'' EXPECT-OUT: b/b.bas(2,1): note: imported here

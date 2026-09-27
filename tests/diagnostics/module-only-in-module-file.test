@@ -1,0 +1,7 @@
+'' TKO0369: RE-EXPORTING AND EXPORTING MACROS ARE A MODULE'S BUSINESS. A classic file may
+'' '#import', but not '#import ... public' and not '#export'.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/onlymodule.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: onlymodule.bas(1,1): error TKO0369: '#import ... public' is allowed only in a module file
+'' EXPECT-OUT: onlymodule.bas(2,1): error TKO0369: '#export' is allowed only in a module file

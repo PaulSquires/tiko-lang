@@ -1,0 +1,6 @@
+'' TKO0145: EVERY .bas IN A MODULE DIRECTORY IS A FILE OF THAT MODULE, so one without a
+'' '#module' line is an error rather than a file whose meaning depends on how it was reached.
+'' TEST: cli
+'' ARGS: --print-graph -i tests/diagnostics/src/modules/stray/libs tests/diagnostics/src/modules/stray/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: stray.bas(1,1): error TKO0145: 'tests/diagnostics/src/modules/stray/libs/pk/m/stray.bas' is in module directory 'tests/diagnostics/src/modules/stray/libs/pk/m' but does not begin with '#module'

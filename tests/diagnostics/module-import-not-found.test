@@ -1,0 +1,6 @@
+'' TKO0140: AN IMPORT NO SEARCH ROOT HOLDS, and the message lists where it looked -- here
+'' the one -i directory, which has no 'nosuch' package in it (ADR 0017; RFC-0007 §3).
+'' TEST: cli
+'' ARGS: --print-graph -i tests/diagnostics/src/modules tests/diagnostics/src/modules/notfound.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0140: cannot find module 'nosuch/thing' (searched: tests/diagnostics/src/modules/nosuch

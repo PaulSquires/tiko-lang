@@ -1,0 +1,15 @@
+'' TKO0364: THE FORM OF AN IMPORT PATH, one line per rule: '/' only, no empty segment, no
+'' keyword ('str' is an intrinsic), a name that starts with a letter, at least one segment,
+'' 'as' with a name, nothing after, a plain quoted string, and quoted at all.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/malformed.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: (1,1): error TKO0364: malformed '#import': use '/' to separate the segments of a path
+'' EXPECT-OUT: (2,1): error TKO0364: malformed '#import': the path has an empty segment
+'' EXPECT-OUT: (3,1): error TKO0364: malformed '#import': 'str' is a keyword
+'' EXPECT-OUT: (4,1): error TKO0364: malformed '#import': '1abc' is not a valid name
+'' EXPECT-OUT: (5,1): error TKO0364: malformed '#import': the path names no module
+'' EXPECT-OUT: (6,1): error TKO0364: malformed '#import': 'as' must be followed by a name
+'' EXPECT-OUT: (7,1): error TKO0364: malformed '#import': unexpected 'extra' after the path
+'' EXPECT-OUT: (8,1): error TKO0364: malformed '#import': a path is a plain quoted string
+'' EXPECT-OUT: (9,1): error TKO0364: malformed '#import': expected a quoted string

@@ -1,0 +1,7 @@
+'' TKO0360: '#module' IS THE FIRST DIRECTIVE, or the file's meaning would depend on lines
+'' read before it was known to be module code. Only comments, blank lines and '#lang' may
+'' come before it.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/notfirst.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: notfirst.bas(2,1): error TKO0360: '#module' must be the first directive in the file

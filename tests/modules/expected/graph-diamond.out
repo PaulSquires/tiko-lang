@@ -1,0 +1,3 @@
+acme.core      tests/modules/src/diamond/libs/acme/core
+acme.text.esc  tests/modules/src/diamond/libs/acme/text/esc  [acme.core]
+acme.net.http  tests/modules/src/diamond/libs/acme/net/http  [acme.core acme.text.esc]

@@ -1,0 +1,6 @@
+'' TKO0365: '#export' NAMES MACROS THIS MODULE HAS DEFINED. A is; B is not.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/exportdir/exp.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: exp.bas(3,12): error TKO0365: '#export B': no macro of that name is defined here
+'' EXPECT-NOT: '#export A'
