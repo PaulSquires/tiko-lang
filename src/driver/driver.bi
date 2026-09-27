@@ -50,11 +50,14 @@ namespace Tko
         '' at the first #cinclude and freed with the context.
         as any ptr                cinclude
         '' A MODULE UNIT BEING COMPILED (ADR 0017): its chain ('acme.net.http'), its name
-        '' ('http'), and how many files it has -- loaded first, so they are FileIds
-        '' 1..modFileCount, in order. 0 for a classic compile.
+        '' ('http'), and its files in order. modFileCount = 0 for a classic compile.
         as string                 modChain
         as string                 modName
         as long                   modFileCount
+        as FileIdVec              modFiles
+        '' THE MODULES THE ROOTS IMPORT ARE BUILT (src/driver/modbuild.bas), so a root's
+        '' '#import' is not TKO0992.
+        as boolean                importsBuilt
 
         declare constructor( )
         declare destructor( )

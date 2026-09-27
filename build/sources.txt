@@ -95,6 +95,7 @@ src/driver/unit.bas
 src/driver/modresolve.bas
 src/driver/modgraph.bas
 src/driver/modunit.bas
+src/driver/modbuild.bas
 src/driver/diagout.bas
 src/cimport/clang.bas
 src/cimport/probe.bas

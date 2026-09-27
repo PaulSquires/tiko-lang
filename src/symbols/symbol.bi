@@ -260,10 +260,11 @@ namespace Tko
     type SymSlotVec as FB.Array( of ulong )
 
     type SymbolTable
-        '' THE MODULE UNIT BEING COMPILED, if this is one (ADR 0017): its files are FileIds
-        '' 1..modFileCount, and selfChain is its chain upper-cased, one component each --
-        '' what the mangler prepends to every SYMF_MODSRC name. 0 and empty otherwise.
+        '' THE MODULE UNIT BEING COMPILED, if this is one (ADR 0017): its files, and
+        '' selfChain, its chain upper-cased, one component each -- what the mangler
+        '' prepends to every SYMF_MODSRC name. 0 and empty otherwise.
         as long       modFileCount
+        as FileIdVec  modFiles
         as StrVec     selfChain
         as SymbolVec  symbols
         as ScopeVec   scopes

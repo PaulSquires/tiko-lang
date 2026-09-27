@@ -12,9 +12,9 @@
 
 namespace Tko.ModSym
 
-'' THE UNIT IS A MODULE: its files are FileIds 1..fileCount and its chain is 'acme.net.http'.
+'' THE UNIT IS A MODULE: these are its files, and its chain is 'acme.net.http'.
 declare sub Begin _
-    ( byref syms as Tko.SymbolTable, byval fileCount as long, byref chain as string )
+    ( byref syms as Tko.SymbolTable, byref files as Tko.FileIdVec, byref chain as string )
 
 '' AFTER COLLECT, BEFORE RESOLVE (generic instances copy their generic's marks as they are
 '' made). SYMF_MODSRC on every symbol declared at module or namespace level in a file of

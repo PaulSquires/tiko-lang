@@ -341,7 +341,7 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     end if
 
     e.outp->imports.Push( rec )
-    PpModNotImpl_( e, at )
+    if e.cfg->importsBuilt = false then PpModNotImpl_( e, at )
 end sub
 
 private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )

@@ -307,6 +307,7 @@ end function
 private sub Report _
     ( byref e as PpEngine, byval id as DiagId, byval at as SourceLoc, _
       byval a0 as string = "", byval a1 as string = "" )
+    if e.cfg->scanQuiet then return          '' see PpConfig.scanQuiet
     e.diags->Report( id, PointRange( at ), a0, a1 )
 end sub
 

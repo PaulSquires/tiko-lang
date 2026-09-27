@@ -128,7 +128,7 @@ function CompileUnit _
     '' MODULE CODE, and what it lets out (ADR 0017): before Resolve, whose generic
     '' instances copy their generic's marks.
     if ctx.modFileCount > 0 then
-        Tko.ModSym.Begin( syms, ctx.modFileCount, ctx.modChain )
+        Tko.ModSym.Begin( syms, ctx.modFiles, ctx.modChain )
         Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
     end if
 

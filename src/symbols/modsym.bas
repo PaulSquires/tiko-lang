@@ -18,9 +18,13 @@
 namespace Tko.ModSym
 
 sub Begin _
-    ( byref syms as Tko.SymbolTable, byval fileCount as long, byref chain as string )
+    ( byref syms as Tko.SymbolTable, byref files as Tko.FileIdVec, byref chain as string )
 
-    syms.modFileCount = fileCount
+    syms.modFileCount = files.Count
+    syms.modFiles.Clear( )
+    for each f as ulong in files
+        syms.modFiles.Push( f )
+    next
     syms.selfChain.Clear( )
     dim as long st = 1
     do
@@ -49,8 +53,11 @@ private function InUnit_ _
     ( byref syms as Tko.SymbolTable, byref src as Tko.SourceManager, _
       byval loc as Tko.SourceLoc ) as boolean
     if loc = Tko.LOC_NONE then return false
-    dim as long f = cast( long, src.Decode( loc ).file )
-    return (f >= 1) andalso (f <= syms.modFileCount)
+    dim as ulong f = cast( ulong, src.Decode( loc ).file )
+    for each m as ulong in syms.modFiles
+        if m = f then return true
+    next
+    return false
 end function
 
 private sub MarkNamed_ _

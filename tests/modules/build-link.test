@@ -1,0 +1,14 @@
+'' A PROGRAM THAT IMPORTS A MODULE BUILDS IT AND LINKS IT (ADR 0017, P3). The graph is read
+'' from main.bas's header; acme.banner is compiled as one unit into an intermediate object;
+'' main.bas is compiled with '#import' no longer TKO0992; the two are linked. The module's
+'' top-level code runs before the program's. Naming what a module exports needs its
+'' interface, which comes later in P3; this program names nothing.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/build/libs tests/modules/src/build/app/main.bas -o tests/modules/buildlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0992
+'' EXPECT-FILE: tests/modules/buildlink.exe
+'' RUN: tests/modules/buildlink.exe
+'' EXPECT-RUN-OUT: banner init
+'' EXPECT-RUN-OUT: main

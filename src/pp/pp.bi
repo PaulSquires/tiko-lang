@@ -165,6 +165,12 @@ namespace Tko
         '' '#import' on the result. Nothing after that point is read, so nothing after
         '' it is reported, and neither is TKO0992: a scan is not a compile.
         as boolean    scanHeader
+        '' ...AND SAY NOTHING. A build scans every file's header for its imports and then
+        '' compiles it, and the compile reports what the header got wrong; reporting it from
+        '' the scan too would say everything twice. --print-graph scans aloud.
+        as boolean    scanQuiet
+        '' THE DRIVER BUILDS THIS UNIT'S IMPORTS (ADR 0017, P3): '#import' is not TKO0992.
+        as boolean    importsBuilt
         '' A MODULE UNIT (ADR 0017; RFC-0003): the module's files, in order, preprocessed
         '' one after another by this engine as ONE translation unit -- the root is the
         '' first, and each next one starts where the one before ends. Every macro a file

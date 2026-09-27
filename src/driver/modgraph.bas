@@ -24,24 +24,7 @@
 
 namespace Tko.Modules
 
-'' The graph, as parallel arrays: one index per module, one per edge.
-type Graph_
-    as Tko.StrVec chains
-    as Tko.StrVec dirs
-    as Tko.StrVec pkgNames
-    as Tko.StrVec pkgRoots
-    as Tko.IdVec  firstLoc      '' where the module was first imported, for TKO0147
-    as Tko.IdVec  edgeFrom
-    as Tko.IdVec  edgeTo
-    as Tko.IdVec  edgeLoc       '' the '#import', for TKO0906
-    '' The depth-first search: 0 unvisited, 1 on the stack, 2 done.
-    as Tko.IdVec  color
-    as Tko.IdVec  stackNode
-    as Tko.IdVec  stackEdge     '' the edge that reached stackNode[k]; unused for k = 0
-    as boolean    cycled
-end type
-
-private function NodeFor_( byref g as Graph_, byref w as ModWhere, byval loc as Tko.SourceLoc ) as long
+private function NodeFor_( byref g as ModGraph, byref w as ModWhere, byval loc as Tko.SourceLoc ) as long
     for i as long = 0 to g.chains.Count - 1
         if g.chains[i] = w.chain then return i
     next
@@ -56,10 +39,11 @@ end function
 '' THE HEADER OF ONE FILE. isRoot: scanned with the command line's defines.
 private sub ScanFile_ _
     ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval isRoot as boolean, _
-      byref pr as Tko.PpResult )
+      byref pr as Tko.PpResult, byval quiet as boolean )
 
     dim as Tko.PpConfig cfg = Tko.Driver.MakePpConfig( ctx )
     cfg.scanHeader = true
+    cfg.scanQuiet = quiet
     cfg.cmdlineIgnored = true
     dim as Tko.StrVec noDefines
     if isRoot = false then cfg.defines = @noDefines
@@ -69,7 +53,7 @@ end sub
 '' Every import of one file, resolved and added as an edge from node 'from' -- or, for a
 '' root file, from nowhere (from = -1): a root is never imported, so it needs no node.
 private sub AddImports_ _
-    ( byref ctx as Tko.CompilerContext, byref g as Graph_, byref pr as Tko.PpResult, _
+    ( byref ctx as Tko.CompilerContext, byref g as ModGraph, byref pr as Tko.PpResult, _
       byval from as long, byref fromDir as string, byref pkgName as string, _
       byref pkgRoot as string )
 
@@ -86,10 +70,12 @@ private sub AddImports_ _
     next
 end sub
 
-private sub ExpandNode_( byref ctx as Tko.CompilerContext, byref g as Graph_, byval n as long )
+private sub ExpandNode_ _
+    ( byref ctx as Tko.CompilerContext, byref g as ModGraph, byval n as long, byval quiet as boolean )
     dim as string dir_ = g.dirs[n]
     dim as Tko.StrVec files
     ModuleFiles( dir_, files )
+    g.fileFirst.Push( cast( ulong, g.fileIds.Count ) )
     if files.Count = 0 then
         ctx.diags.Report( Tko.TKO0147, Tko.PointRange( cast( Tko.SourceLoc, g.firstLoc[n] ) ), dir_ )
         return
@@ -102,9 +88,11 @@ private sub ExpandNode_( byref ctx as Tko.CompilerContext, byref g as Graph_, by
             ctx.diags.ReportGlobal( Tko.TKO0001, path_, Tko.Text.UStringToUtf8( why ) )
             continue for
         end if
+        g.fileIds.Push( cast( ulong, id ) )
         dim as Tko.PpResult pr
-        ScanFile_( ctx, id, false, pr )
-        if pr.isModuleFile = false then
+        ScanFile_( ctx, id, false, pr, quiet )
+        '' A module file that is not one is the compile's to report when the scan is quiet.
+        if (pr.isModuleFile = false) andalso (quiet = false) then
             ctx.diags.Report( Tko.TKO0145, Tko.PointRange( ctx.sources.LocFor( id, 0 ) ), path_, dir_ )
         end if
         '' Copies, not references into the arrays AddImports_ is about to grow.
@@ -112,11 +100,12 @@ private sub ExpandNode_( byref ctx as Tko.CompilerContext, byref g as Graph_, by
         dim as string pr_ = g.pkgRoots[n]
         AddImports_( ctx, g, pr, n, dir_, pn, pr_ )
     next
+    g.fileCount.Push( cast( ulong, g.fileIds.Count ) - g.fileFirst[n] )
 end sub
 
 '' ------------------------------------------------------------------ cycles
 
-private sub ReportCycle_( byref ctx as Tko.CompilerContext, byref g as Graph_, _
+private sub ReportCycle_( byref ctx as Tko.CompilerContext, byref g as ModGraph, _
                           byval fromK as long, byval closing as long )
     dim as string text_ = ""
     for k as long = fromK to g.stackNode.Count - 1
@@ -132,7 +121,7 @@ private sub ReportCycle_( byref ctx as Tko.CompilerContext, byref g as Graph_, _
     g.cycled = true
 end sub
 
-private sub Visit_( byref ctx as Tko.CompilerContext, byref g as Graph_, _
+private sub Visit_( byref ctx as Tko.CompilerContext, byref g as ModGraph, _
                     byval n as long, byval via as long )
     g.color[n] = 1
     g.stackNode.Push( cast( ulong, n ) )
@@ -159,7 +148,7 @@ end sub
 '' ------------------------------------------------------------------- order
 
 '' Dependencies first; among the modules that are ready, the least chain.
-private sub Order_( byref g as Graph_, byref order as Tko.IdVec )
+private sub Order_( byref g as ModGraph, byref order as Tko.IdVec )
     dim as long n = g.chains.Count
     dim as Tko.IdVec placed
     for i as long = 0 to n - 1
@@ -187,9 +176,12 @@ private sub Order_( byref g as Graph_, byref order as Tko.IdVec )
     next
 end sub
 
-function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long ) as long
-    dim as Graph_ g
-    if rootCount < 1 then return Tko.EXIT_OK
+function BuildGraph _
+    ( byref ctx as Tko.CompilerContext, byval rootCount as long, byval quiet as boolean, _
+      byref g as ModGraph ) as boolean
+
+    if rootCount < 1 then return true
+    dim as long errorsBefore = ctx.diags.ErrorCount( )
 
     '' The root files' package: the FIRST root file's directory (RFC-0007 §1).
     dim as string rootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
@@ -197,7 +189,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
     for r as long = 1 to rootCount
         dim as Tko.FileId id = cast( Tko.FileId, r )
         dim as Tko.PpResult pr
-        ScanFile_( ctx, id, true, pr )
+        ScanFile_( ctx, id, true, pr, quiet )
         dim as string here = DirOfFile( ctx.sources.PathOf( id ) )
         AddImports_( ctx, g, pr, -1, here, anon, rootDir )
     next
@@ -205,7 +197,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
     '' The worklist is the node list itself: expanding a node appends the new ones.
     dim as long i = 0
     while i < g.chains.Count
-        ExpandNode_( ctx, g, i )
+        ExpandNode_( ctx, g, i, quiet )
         i += 1
     wend
 
@@ -217,10 +209,18 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
         if g.color[k] = 0 then Visit_( ctx, g, k, -1 )
     next
 
-    if ctx.diags.HasErrors( ) then return Tko.EXIT_USER_ERROR
+    if ctx.diags.ErrorCount( ) > errorsBefore then return false
+    Order_( g, g.order )
+    return true
+end function
 
+function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long ) as long
+    dim as ModGraph g
+    if BuildGraph( ctx, rootCount, false, g ) = false then return Tko.EXIT_USER_ERROR
     dim as Tko.IdVec order
-    Order_( g, order )
+    for each o as ulong in g.order
+        order.Push( o )
+    next
     dim as long width_ = 0
     for k as long = 0 to g.chains.Count - 1
         if len( g.chains[k] ) > width_ then width_ = len( g.chains[k] )

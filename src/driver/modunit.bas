@@ -29,8 +29,11 @@ function PrepareModuleUnit _
         return false
     end if
     srcInputs.Clear( )
+    ctx.modFiles.Clear( )
     for each nm as string in files
         srcInputs.Push( JoinPath( w.dir_, nm ) )
+        '' Loaded first, before anything else: FileIds 1..n.
+        ctx.modFiles.Push( cast( ulong, srcInputs.Count ) )
     next
     ctx.modChain = w.chain
     ctx.modName = mid( w.chain, instrrev( w.chain, "." ) + 1 )
@@ -43,8 +46,8 @@ sub ModuleUnitConfig _
       byref files as Tko.IdVec, byref noDefines as Tko.StrVec )
 
     files.Clear( )
-    for i as long = 1 to ctx.modFileCount
-        files.Push( cast( ulong, i ) )
+    for each f as ulong in ctx.modFiles
+        files.Push( f )
     next
     cfg.moduleFiles = @files
     cfg.moduleChain = ctx.modChain

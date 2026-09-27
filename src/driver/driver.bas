@@ -26,6 +26,7 @@
 #include once "driver/unit.bi"
 #include once "driver/modgraph.bi"
 #include once "driver/modunit.bi"
+#include once "driver/modbuild.bi"
 #include once "fb/filesystem.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
@@ -242,6 +243,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.reportUnsupported = true
     cfg.sharedLits = @ctx.ppLits
     cfg.sharedLexed = @ctx.ppLexed
+    cfg.importsBuilt = ctx.importsBuilt
     Tko.CImportDriver.ConfigureHook( cfg, ctx )
     return cfg
 end function
@@ -847,6 +849,15 @@ function Run _
         dim as long srcCount = ctx.sources.Count( )
         '' A MODULE UNIT IS ONE UNIT, however many files it has: the engine reads them all.
         if ctx.modFileCount > 0 then srcCount = 1
+        '' THE MODULES THE ROOTS IMPORT ARE BUILT FIRST, dependencies first (ADR 0017), into
+        '' objects that join the link. Only for a build: a dump names no objects.
+        dim as boolean builds = wantsOutput andalso (ctx.modFileCount = 0)
+        if builds then
+            if Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit ) = false then
+                ctx.diags.Flush( )
+                return Tko.DiagOut.Finish( ctx, iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR ) )
+            end if
+        end if
         dim as double tFrontStart = timer
         for i as long = 1 to srcCount
             '' ONE UNIT, compiled by CompileUnit in unit.bas -- moved there unchanged on

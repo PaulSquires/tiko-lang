@@ -68,6 +68,10 @@ namespace Tko
     '' and may not depend on the driver.
     type StrVec as FB.Array( of string )
 
+    '' FileIds, as a list: a module unit's files (ADR 0017), which are not contiguous once
+    '' a program's roots are loaded ahead of them.
+    type FileIdVec as FB.Array( of ulong )
+
 end namespace
 
 #endif
