@@ -135,6 +135,16 @@ for y as integer = 20 to 27
 next
 chk( "draw string put pixels down", 1, iif( lit > 0, 1, 0 ) )
 
+'' Both FREE THE TEMPORARY they are handed, on every call. A literal arrives as a temp
+'' descriptor from the runtime's fixed pool, and gfxlib2 releases it on every exit;
+'' keeping it drained the pool, and the loop below SEGFAULTED at about 200 calls. So
+'' reaching the check is the assertion. Found by starshine.bas, one DRAW STRING a frame.
+for i as integer = 1 to 2000
+    draw string ( 2, 20 ), "A", &hFFFFFF
+    draw "BM2,20"
+next
+chk( "draw string and draw free their temporaries", 1, 1 )
+
 '' ---- the console input half ----
 ''
 '' NOT AN A/B, AND IT CANNOT BE. tools/gate-entry.sh drives both libraries from

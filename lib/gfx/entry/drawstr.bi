@@ -25,10 +25,13 @@ extern "c"
 sub TkoGfxDraw alias "fb_GfxDraw" ( _
         byval target as any ptr, byval cmd as any ptr )
 
+    '' THE TEMPORARY IS FREED ON EVERY PATH, the early ones included -- gfx_draw.c
+    '' does. See TkoGfxDrawString for what skipping it costs.
+    dim as string text = TkoGfx.StrFromDescriptor( cmd )
+    RtlStrDelTemp( cmd )
+
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
     if c = 0 then exit sub
-
-    dim as string text = TkoGfx.StrFromDescriptor( cmd )
     if len( text ) = 0 then exit sub
 
     TkoGfx.Draw32( c->surf, text, c->draw.last_x, c->draw.last_y, _
@@ -85,10 +88,15 @@ function TkoGfxDrawString alias "fb_GfxDrawString" ( _
         ignored = customparam
     end scope
 
+    '' THE TEMPORARY IS FREED ON EVERY PATH, the early ones included --
+    '' gfx_drawstring.c's exit label does. Keeping it leaked one of the runtime's
+    '' fixed pool of temporary descriptors per call: 'draw string (x, y), "a"' in
+    '' a loop segfaulted after about 200 calls, when the pool ran dry.
+    dim as string s = TkoGfx.StrFromDescriptor( text )
+    RtlStrDelTemp( text )
+
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
     if c = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
-
-    dim as string s = TkoGfx.StrFromDescriptor( text )
     if len( s ) = 0 then return 0
 
     dim as long x, y
