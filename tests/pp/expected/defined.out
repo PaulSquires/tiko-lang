@@ -1,4 +1,4 @@
-preprocessed: 20 tokens, 0 includes, 1 expansions, depth 3
+preprocessed: 20 tokens, 0 includes, 2 expansions, depth 3
     0    1:14   EOL
     1    8:10   EOL
     2    5:10   EOL                  [macro]

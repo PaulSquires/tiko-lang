@@ -401,8 +401,9 @@ type ArgList
     as TokenVec            flat
 end type
 
-'' Read '( a, b )' from the input, honouring nesting and string literals. Returns
-'' false when the invocation is unterminated, which is an error, not a silent stop.
+'' Read '( a, b )' from the input, honouring nesting and string literals and expanding
+'' macros as it goes. Returns false when the invocation is unterminated, which is an
+'' error, not a silent stop.
 private function PpReadArgs _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref args as ArgList, _
       byval bare as boolean = false ) as boolean
@@ -430,6 +431,8 @@ private function PpReadArgs _
     '' A VARIADIC one is not counted: how many commas it claims is not knowable
     '' from its declaration, so those keep splitting as they did.
     dim as long pendingCommas = 0
+    dim as boolean pendSet = false
+    dim as boolean pendSpace = false
     dim as long first = 0
     dim as long count = 0
     dim as boolean started = false
@@ -479,10 +482,51 @@ private function PpReadArgs _
                 first = args.flat.Count
                 count = 0
                 started = true
+                pendSet = false
                 continue do
             end if
         end if
 
+        '' A MACRO IN AN ARGUMENT IS EXPANDED HERE, WHILE THE ARGUMENTS ARE READ, so
+        '' the commas and parentheses it produces split and nest like written ones.
+        '' fbc's hLoadMacro lexes an invocation with define-loading on. Measured on
+        '' fbc-modern 1.20, with '#define down >,<', '#define PAIR 1,2', '#define LP (':
+        ''
+        ''     SetQsort( V3, QsortvZ, down, .z )    five arguments, not four
+        ''     F( PAIR )                             two
+        ''     F( LP 1 ), 2 )                        two -- the ')' after 1 is nested
+        ''     __FB_IIF__( PAIR, 5 )                 2 -- the builtins read the same way
+        ''
+        '' Splitting the raw tokens first reported TKO0306 on every one of them.
+        '' NOT the bare form of a '#macro NAME?': read eagerly it runs to the end of the
+        '' line, past this invocation's ')'. pendingCommas below keeps that one.
+        '' The first token it produces takes the NAME's spacing, first trigger winning --
+        '' the rule ExpandedArgText_ explains.
+        if k = TK_IDENT then
+            dim as InternId eid = cast( InternId, t.literal )
+            dim as PpMacro ptr em = MacroFor( e, eid )
+            if (em <> 0) andalso (IsHidden( e, eid ) = false) then
+                dim as boolean eager = true
+                if em->isFunc andalso em->optParens then
+                    dim as Token nx
+                    eager = PeekTokAhead( e, nx ) andalso (Tk( nx ) = TK_LPAREN)
+                end if
+                dim as boolean trigSpace = ((t.flags and TF_SPACE_BEFORE) <> 0)
+                if eager andalso PpExpand( e, em, t ) then
+                    if pendSet = false then
+                        pendSet = true
+                        pendSpace = trigSpace
+                    end if
+                    continue do
+                end if
+            end if
+        end if
+
+        if pendSet then
+            t.flags = t.flags and (not TF_SPACE_BEFORE)
+            if pendSpace then t.flags = t.flags or TF_SPACE_BEFORE
+            pendSet = false
+        end if
         if started = false then
             first = args.flat.Count
             started = true
@@ -898,8 +942,9 @@ end sub
 ''
 '' The step of a __FB_ARG_LISTEXPAND__ is usually written as a literal, but fbc accepts
 '' a macro there -- '#define S 2' then '__FB_ARG_LISTEXPAND__( M, S, ... )' chunks by
-'' two. Arguments arrive here UNEXPANDED, because PpReadArgs takes raw tokens off the
-'' input, so reading the spelling directly would see 'S' and give up.
+'' two. PpReadArgs expands 'S' as it reads, but an argument can still arrive holding a
+'' name -- a bare '#macro NAME?' is left for later -- so this expands again rather
+'' than trusting the spelling.
 ''
 '' Only a signed integer is accepted, not an expression: every use in the corpus and in
 '' the runtime headers is a small literal, and a half-understood expression here would

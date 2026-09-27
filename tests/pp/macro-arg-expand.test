@@ -1,0 +1,25 @@
+'' A MACRO IN AN ARGUMENT LIST IS EXPANDED WHILE THE LIST IS READ, so the commas and
+'' parentheses it produces separate and nest like written ones. fbc's hLoadMacro lexes
+'' an invocation with define-loading on; PpReadArgs split the RAW tokens, so every
+'' line below was TKO0306. Found in a user program that sorts with
+''
+''     #define down >,<
+''     SetQsort( V3, QsortvZ, down, .z )     '' a five-parameter #macro
+''
+'' MEASURED, fbc-modern 1.20 on tests/pp/src/macro-arg-expand.bas -- run, then -pp:
+''
+''     false          true           3             3             2             2
+''
+''     dim as boolean r1 = (3 > 4), r2 = (3 < 4)
+''     dim as long f1 = 1+2
+''     dim as long f2 = ( 1)+2
+''     dim as long f3 = 2
+''     dim as long f4 = 2
+''
+'' The golden holds those same constants: 3 > 4 and 3 < 4 for r1 and r2, 1 + 2 twice,
+'' then 2 and 2 -- the builtins read their arguments the same way.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/macro-arg-expand.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/macro-arg-expand.out
