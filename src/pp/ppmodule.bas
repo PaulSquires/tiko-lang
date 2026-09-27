@@ -366,6 +366,7 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
         dim as FileId id = cast( FileId, got[k] )
         if PpAlreadyOnce( e, id ) then continue for
         e.onceFiles.Push( cast( ulong, id ) )
+        e.modst.ifaceFiles.Push( cast( ulong, id ) )
         dim as TokenVec ptr toks = PpLexFile( e, id )
         PushFrame( e, toks, INTERN_NONE, id, false )
         e.frames[e.frames.Count - 1].iface = true

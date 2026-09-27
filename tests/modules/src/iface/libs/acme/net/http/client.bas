@@ -14,8 +14,14 @@ public type Box( of T )
     v as T
     declare function Twice( ) as T
 end type
+'' A generic body calling a module-private helper: the importer instantiates it, inside
+'' the module's namespace, where the helper is found; the helper links, being hidden and
+'' not internal.
+function Add_( byval a as long, byval b as long ) as long
+    return a + b
+end function
 function Box( of T ).Twice( ) as T
-    return v + v
+    return Add_( v, v )
 end function
 public const HTTP_PORT = 80
 public enum Verb

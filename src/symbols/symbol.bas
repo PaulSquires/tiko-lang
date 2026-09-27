@@ -199,13 +199,52 @@ end function
 '' DEPTH-LIMITED rather than visited-set: a using chain can be CYCLIC
 '' (namespace/using_rec.bas is), and a bound is enough because the answer at depth n is
 '' the answer at depth n+1 for anything a program can write.
+'' A NAME A MODULE'S INTERFACE DOES NOT CALL 'public' (ADR 0017; RFC-0002 §3) is there for
+'' the module's own generic bodies, which find it by the ordinary scope walk from inside
+'' the module's namespace. Reached THROUGH the namespace -- 'http.Send_', or unqualified
+'' through 'using http' -- it is not found, and the unit's undeclared-name report says why
+'' (TKO0860, from hiddenHits).
+function SymbolTable.PublicOnly( byval got as SymbolId ) as SymbolId
+    if got = SYMBOL_NONE then return got
+    dim as ulong f = this.symbols[cast( long, got )].flags
+    if (f and (SYMF_IMPORTED or SYMF_PUBLIC)) <> SYMF_IMPORTED then return got
+    '' A NAMESPACE has no word of its own: its members each say whether they are public.
+    if this.symbols[cast( long, got )].kind = cast( ubyte, SYM_NAMESPACE ) then return got
+    this.hiddenHits.Push( cast( ulong, got ) )
+    return SYMBOL_NONE
+end function
+
+'' THE MODULE WHOSE HIDDEN NAME THIS IS, when a lookup through a module's namespace found
+'' it and would not return it (SymbolTable.PublicOnly): its chain, as written in source.
+'' "" when no lookup did.
+function SymbolTable.HiddenModuleOf( byval nm as InternId ) as string
+    for each h as ulong in this.hiddenHits
+        dim as Symbol ptr s = this.SymbolAt( cast( SymbolId, h ) )
+        if s = 0 then continue for
+        if s->name <> nm then continue for
+        '' Up to the module's namespace.
+        dim as ScopeId cur = s->parent
+        while cur <> SCOPE_NONE
+            dim as SymScope ptr sc = this.ScopeAt( cur )
+            if sc = 0 then exit while
+            for k as long = 0 to this.importNs.Count - 1
+                if this.importNs[k] = cast( ulong, sc->owner ) then
+                    return lcase( this.importChains[k] )
+                end if
+            next
+            cur = sc->parent
+        wend
+    next
+    return ""
+end function
+
 function SymbolTable.LookupInNamespace _
     ( byval nsScope as ScopeId, byval nm as InternId, _
       byval depth as long ) as SymbolId
 
     if nsScope = SCOPE_NONE then return SYMBOL_NONE
     dim as SymbolId got = this.LookupLocal( nsScope, nm )
-    if got <> SYMBOL_NONE then return got
+    if got <> SYMBOL_NONE then return this.PublicOnly( got )
     if depth >= 8 then return SYMBOL_NONE
     for i as long = 0 to this.usingAt.Count - 1
         if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
@@ -237,7 +276,7 @@ function SymbolTable.LookupInNamespaceTyped _
     dim as SymbolId got = this.LookupLocalTyped( nsScope, nm, wantType )
     if got <> SYMBOL_NONE then
         dim as Symbol ptr g = @this.symbols[cast( long, got )]
-        if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return got
+        if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return this.PublicOnly( got )
     end if
     if depth >= 8 then return SYMBOL_NONE
     for i as long = 0 to this.usingAt.Count - 1
@@ -346,7 +385,7 @@ function SymbolTable.Lookup _
         '' over an outer name.
         for i as long = 0 to this.usingAt.Count - 1
             if this.usingAt[i] <> cast( ulong, s ) then continue for
-            got = this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm )
+            got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
             if got <> SYMBOL_NONE then return got
         next
 

@@ -275,6 +275,9 @@ namespace Tko
         '' writes in the namespace's place, so an importer names what the module defined.
         as FB.Array( of ulong ) importNs
         as StrVec     importChains
+        '' ...and every name of theirs a lookup through their namespaces found but did not
+        '' return, because the interface does not call it 'public' (SymbolTable.PublicOnly).
+        as FB.Array( of ulong ) hiddenHits
         as SymbolVec  symbols
         as ScopeVec   scopes
         as SymSlotVec slots        '' open addressing on (scope, name)
@@ -358,6 +361,10 @@ namespace Tko
         '' A name reachable only through a USING in effect at 'scope_' -- the scope's
         '' own and every enclosing one's, and NOT the scopes' own declarations. That
         '' is what a leading '.name' needs: it must not see an ordinary local.
+        '' got, unless it is a module's name its interface does not call 'public'.
+        declare function PublicOnly( byval got as SymbolId ) as SymbolId
+        '' The chain of the module whose hidden name nm is, if PublicOnly refused one; "".
+        declare function HiddenModuleOf( byval nm as InternId ) as string
         declare function LookupThroughUsings _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 

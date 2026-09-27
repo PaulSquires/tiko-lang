@@ -150,6 +150,22 @@ sub Mark _
     next
     dim as Tko.FileIdVec any_
     MarkWords_( ast, syms, info, src, any_ )
+
+    '' A PUBLIC NAME SPELLED LIKE ITS MODULE (M27): 'http.http' would name it, and an
+    '' importer that wrote 'using http' could no longer tell the module from the name.
+    if (syms.selfChain.Count = 0) orelse (syms.names = 0) then return
+    dim as string self_ = syms.selfChain[syms.selfChain.Count - 1]
+    for si as long = 1 to syms.Count( )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+        if s = 0 then continue for
+        if (s->flags and (Tko.SYMF_MODSRC or Tko.SYMF_PUBLIC)) <> (Tko.SYMF_MODSRC or Tko.SYMF_PUBLIC) then continue for
+        dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
+        if ps = 0 then continue for
+        if ps->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then continue for
+        if Tko.Text.UpperAscii( syms.names->Spelling( s->name ) ) <> self_ then continue for
+        diags.Report( Tko.TKO0870, Tko.PointRange( s->loc ), _
+                      syms.names->Spelling( s->name ), Tko.Text.LowerAscii( self_ ) )
+    next
 end sub
 
 sub MarkImported _

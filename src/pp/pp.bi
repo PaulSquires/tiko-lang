@@ -335,10 +335,14 @@ namespace Tko
     '' 'defined( X )' can answer for a declared name and not only for a macro. The
     '' parser calls the first as it reads each module-level declaration's name; the
     '' preprocessor asks the second from '#ifdef', '#ifndef' and 'defined'.
-    declare sub PpNoteDeclared( byref st as PpStream, byval nm as InternId )
+    '' 'at' is where the declaration is: one in a module's interface is not the importer's
+    '' name, and 'defined( )' does not see it (RFC-0004 §5).
+    declare sub PpNoteDeclared _
+        ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE )
     '' A CONST'S VALUE, for '#if' to read -- see PpEngine.constMark.
     declare sub PpNoteConst _
-        ( byref st as PpStream, byval nm as InternId, byval v as longint )
+        ( byref st as PpStream, byval nm as InternId, byval v as longint, _
+          byval at as SourceLoc = LOC_NONE )
     declare function PpNotedConst _
         ( byref st as PpStream, byval nm as InternId, byref outv as longint ) as boolean
     declare function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean

@@ -124,7 +124,7 @@ private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.Inter
     if p.stream = 0 then return
     if p.aggDepth <> 0 then return
     if p.procDepth <> 0 then return
-    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm )
+    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc )
 end sub
 
 private function DeclName _
@@ -642,7 +642,7 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
                 dim as longint cval = 0
                 if ConstFoldsToInt_( p, p.ast->stmts[csi].b, cval ) then
                     Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), _
-                                     p.ast->stmts[csi].name, cval )
+                                     p.ast->stmts[csi].name, cval, p.ast->Loc( item ) )
                 end if
             end if
         end if

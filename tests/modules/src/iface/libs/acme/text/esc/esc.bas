@@ -9,3 +9,9 @@ public function Quote( byref x as string ) as Url
     return u
 end function
 public dim shared calls as long
+'' A public operator on a public type: an importer finds it with no 'using'.
+public operator + ( byref a as Url, byref b as Url ) as Url
+    dim as Url r
+    r.s = a.s & b.s
+    return r
+end operator

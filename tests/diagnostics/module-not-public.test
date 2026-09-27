@@ -1,0 +1,11 @@
+'' TKO0860: A NAME THE INTERFACE DOES NOT CALL 'public' is not found through the module's
+'' namespace -- neither qualified, 'http.Add_', nor unqualified through 'using http' --
+'' though the module's own generic body, instantiated in the importer, calls it
+'' (iface-link.test). ADR 0017; RFC-0002 §3.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/hidden.bas -o tests/diagnostics/notpublic.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: hidden.bas(3,22): error TKO0860: 'add_' is not public in module 'acme.net.http'
+'' EXPECT-OUT: hidden.bas(5,7): error TKO0860: 'add_' is not public in module 'acme.net.http'
+'' EXPECT-NOT: TKO0745
+'' EXPECT-NOT: TKO0743

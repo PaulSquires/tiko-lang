@@ -81,8 +81,10 @@
     DIAG( TKO0147, SEV_ERROR,   "module directory '%0' contains no .bas files" )
     DIAG( TKO0152, SEV_ERROR,   "'--emit-tki' writes a module's interface, and needs one module directory as its input" )
     '' An '#import''s alias (RFC-0002 §2). The rest of the 0860-0870 block lands with its phase.
+    DIAG( TKO0860, SEV_ERROR,   "'%0' is not public in module '%1'" )
     DIAG( TKO0862, SEV_ERROR,   "alias '%0' is already bound in this file (by '#import ""%1""')" )
     DIAG( TKO0863, SEV_ERROR,   "alias '%0' conflicts with a declaration of the same name" )
+    DIAG( TKO0870, SEV_ERROR,   "public '%0' has the same name as its module '%1'" )
 
     '' --------------------------------------------------------------------- lexer
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )

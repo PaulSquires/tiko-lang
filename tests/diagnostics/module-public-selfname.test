@@ -1,0 +1,6 @@
+'' TKO0870: A PUBLIC NAME SPELLED LIKE ITS MODULE (M27; RFC-0001 §2) -- an importer would
+'' write 'http.Http( )', and after 'using http' the module and the name would collide.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/selfname/libs tests/diagnostics/src/modules/selfname/libs/acme/http -o tests/diagnostics/selfname.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: http.bas(3,8): error TKO0870: public 'http' has the same name as its module 'http'

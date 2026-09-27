@@ -3,9 +3,11 @@
 '' interfaces it depends on and each once -- main imports esc and http, and http imports
 '' esc, so esc's is read once and its Url is one type. Through the alias, through 'as',
 '' through 'using': a function whose signature names another module's type through that
-'' module's own alias, a generic instantiated in the program, a const, an enum, a namespace
-'' member and two shared variables, one of them written by http and read by main. Every
-'' name links by the module's chain, so the program runs.
+'' module's own alias, a generic instantiated in the program whose body calls a module-private helper, a const, an enum, a namespace
+'' member, two shared variables (one written by http and read by main) and esc's public
+'' 'operator +', found with no 'using'. Every name links by the module's chain, so the
+'' program runs; and '#ifdef Quote' in main stays false, since an interface's names are
+'' not the importer's.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o tests/modules/ifacelink.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -13,6 +15,7 @@
 '' EXPECT-FILE: tests/modules/ifacelink.exe
 '' RUN: tests/modules/ifacelink.exe
 '' EXPECT-RUN-OUT: <a>
+'' EXPECT-RUN-OUT: <a><a>
 '' EXPECT-RUN-OUT:  80
 '' EXPECT-RUN-OUT:  2
 '' EXPECT-RUN-OUT:  7

@@ -247,6 +247,11 @@ sub ReportUndeclared _
         done.Push( cast( ulong, dl.physLine ) )
         dim as Tko.DiagId d = Tko.TKO0743
         if skip[cast( long, id )] = SKIP_PROCPTR then d = Tko.TKO0783
+        dim as string modOf = syms.HiddenModuleOf( rawNm )
+        if len( modOf ) > 0 then
+            diags.Report( Tko.TKO0860, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ), modOf )
+            continue for
+        end if
         diags.Report( d, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ) )
     next
 

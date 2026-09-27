@@ -32,6 +32,9 @@ type PpModState
     '' The last root file's end has been handled: PeekTok meets its EOF more than once.
     as boolean   rootEnded
     as IdVec     journalSlot
+    '' The module interfaces read in (RFC-0004 §5), whose declarations the parser's
+    '' PpNoteDeclared / PpNoteConst do not report.
+    as IdVec     ifaceFiles
     as MacroVec  journalMac
 end type
 

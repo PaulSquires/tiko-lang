@@ -238,9 +238,21 @@ private sub MarkConst_ _
     e.constVal[ix] = v
 end sub
 
+'' A declaration in a module's interface: not the importer's name (RFC-0004 §5).
+private function InIfaceFile_( byref e as PpEngine, byval at as SourceLoc ) as boolean
+    if (at = LOC_NONE) orelse (e.modst.ifaceFiles.Count = 0) then return false
+    dim as ulong f = cast( ulong, e.src->Decode( at ).file )
+    for each x as ulong in e.modst.ifaceFiles
+        if x = f then return true
+    next
+    return false
+end function
+
 sub PpNoteConst _
-    ( byref st as PpStream, byval nm as InternId, byval v as longint )
+    ( byref st as PpStream, byval nm as InternId, byval v as longint, _
+      byval at as SourceLoc )
     if st.engine = 0 then return
+    if InIfaceFile_( *cast( PpEngine ptr, st.engine ), at ) then return
     MarkConst_( *cast( PpEngine ptr, st.engine ), nm, v )
 end sub
 
@@ -264,8 +276,9 @@ function PpNotedConst _
     return PpConstValue( *cast( PpEngine ptr, st.engine ), nm, outv )
 end function
 
-sub PpNoteDeclared( byref st as PpStream, byval nm as InternId )
+sub PpNoteDeclared( byref st as PpStream, byval nm as InternId, byval at as SourceLoc )
     if st.engine = 0 then return
+    if InIfaceFile_( *cast( PpEngine ptr, st.engine ), at ) then return
     MarkDeclared_( *cast( PpEngine ptr, st.engine ), nm )
 end sub
 
