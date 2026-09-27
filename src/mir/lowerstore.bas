@@ -1038,7 +1038,7 @@ sub InitSharedGlobal _
     dim as MirType gt = cast( MirType, c.m->globals[g].ty )
     if (gt = MT_F32) orelse (gt = MT_F64) then
         dim as double fd
-        if Tko.Check.ConstFloatOf( *c.ast, init, fd ) then
+        if Tko.Check.ConstFloatOf( *c.ast, init, fd, 0, c.syms, VarScopeOf_( c, sid ), c.names ) then
             c.m->globals[g].initFlt = fd
             c.m->globals[g].hasInit = true
             return
@@ -1115,7 +1115,7 @@ sub InitSharedGlobal _
         end if
         dim as string img
         if FoldAggInit_( c, c.m->globals[g].frontendType, init, _
-                         c.m->globals[g].size, img ) then
+                         c.m->globals[g].size, img, VarScopeOf_( c, sid ) ) then
             c.m->globals[g].initBytes = img
             c.m->globals[g].hasInit = true
             return

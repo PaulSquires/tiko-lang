@@ -790,7 +790,7 @@ private function ResolveCall_ _
             argT.Push( cast( ulong, Tko.TYPE_NONE ) )
             continue for
         end if
-        dim as Tko.TypeId at = TypeOf_( c, a )
+        dim as Tko.TypeId at = ThisArgType_( c, a, TypeOf_( c, a ) )  '' 'this' is the object
         '' AN UNTYPED CONCATENATION THROUGH A WSTRING CAST IS A WSTRING, for choosing an
         '' overload -- ConcatHasWideCastTerm_. Left undecided, lowering called the FIRST
         '' overload, and a 'byval n as long' one declared first declined the statement.

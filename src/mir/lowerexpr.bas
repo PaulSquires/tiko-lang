@@ -228,6 +228,18 @@ function LowerExpr _
         dim as MirValue bpc
         if LowerBareProcCall_( c, id, mt, bpc ) then return bpc
 
+        '' ...AND SO IS A RUNTIME BUILTIN NOTHING DECLARES, which LowerBareProcCall_
+        '' cannot see because there is no symbol to ask. Measured: 'a = width' and
+        '' 'loword( width )' are 'fb_Width( -1, -1 )' to fbc, exactly as 'width( )' is.
+        '' The statement around it was dropped, and 'var wd = loword( width )' left wd
+        '' uninitialised. A builtin with no value -- or one the arity guard refuses --
+        '' answers nothing here and falls through as before.
+        if (c.ast->Kind( id ) = Tko.N_IDENT) andalso (c.info->RefOf( id ) = Tko.SYMBOL_NONE) then
+            if LowerBuiltinProc( c, id, 0, 0, bpc, true ) then
+                if bpc.kind <> cast( ubyte, MV_NONE ) then return bpc
+            end if
+        end if
+
         dim as MirValue addr = LowerAddr( c, id )
         if addr.kind = cast( ubyte, MV_NONE ) then return v
         dim as MirInst ins

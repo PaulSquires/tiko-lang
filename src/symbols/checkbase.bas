@@ -79,6 +79,26 @@ private function AddrOfType_ _
     return c.types->Pointer_( inner )
 end function
 
+'' 'this' AS AN ARGUMENT IS THE OBJECT, not the pointer it is held in -- the same fact
+'' AddrOfType_ answers for '@this'. Costed as a 'T ptr', it was viable for no 'byref as
+'' T' or 'byval as T' parameter, so 'x = getctr( this )' came out UNTYPED and lowering
+'' dropped the statement with nothing said; over 'byref as T' beside 'byval as T ptr'
+'' it picked the pointer one. Measured, fbc-modern: 'ovl( this )' calls the byref T
+'' overload and 'ovl( @this )' the pointer one, and 'f( this )' against a lone
+'' 'byval as T ptr' is error 58. Anything that is not 'this' keeps the type it has.
+private function ThisArgType_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval at as Tko.TypeId ) as Tko.TypeId
+
+    if c.ast->Kind( a ) <> Tko.N_IDENT then return at
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+    if s = 0 then return at
+    if s->kind <> cast( ubyte, Tko.SYM_PARAMETER ) then return at
+    if s->name <> c.names->Fold( c.names->GetString( "this" ) ) then return at
+    dim as Tko.TypeId u = c.types->Unqualify( at )
+    if c.types->Kind( u ) <> Tko.TK_POINTER then return at
+    return c.types->Inner( u )
+end function
+
 '' A METHOD NAMED WITHOUT PARENTHESES OVER AN OVERLOAD SET IS A CALL OF THE ONE OVERLOAD
 '' THAT NEEDS NO ARGUMENT -- none, or a default for every parameter -- not of the chain's
 '' head. Measured on fbc-modern, over 'GetX( byval p as GD ptr ) as long' declared before

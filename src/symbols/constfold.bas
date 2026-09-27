@@ -328,7 +328,7 @@ function ConstFloatOf _
             @ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )]
         dim as string nm = Tko.Text.LowerAscii( names->Spelling( ip->name ) )
         select case nm
-        case "abs", "sgn", "int", "fix", "frac", "sqr", "csng", "cdbl", "cint", "clng", "clngint"
+        case "abs", "sgn", "int", "fix", "frac", "sqr", "csng", "cdbl", "cint", "clng", "clngint", "atn"
         case else
             return false
         end select
@@ -348,6 +348,13 @@ function ConstFloatOf _
             outd = sqr( x )
         case "csng" : outd = cast( single, x )
         case "cdbl" : outd = x
+        '' ATN IS A LIBM ANSWER and was left out for that reason -- but it is MEASURED now:
+        '' fbc-modern's folded 'dim shared as double a( ) = { atn( x ), ... }' against
+        '' this, bit for bit, over 26 arguments from 1e-8 to 1e300, both signs, single and
+        '' double, and through a named const -- tests/mir/static-float-const-init.test.
+        '' '4 * atn( 1 )' is how FreeBASIC writes pi, and a static initialised from it
+        '' declined: starshine.bas's 'static as _float ang = type( 0, .2, pi2 / 2 )'.
+        case "atn"  : outd = atn( x )
         case else
             if (x >= 2147483647.0) orelse (x <= -2147483648.0) then return false
             dim as double fl = int( x )

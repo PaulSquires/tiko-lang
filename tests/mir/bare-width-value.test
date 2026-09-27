@@ -1,0 +1,17 @@
+'' A BARE 'width' IN VALUE POSITION IS A CALL, exactly as 'width( )' is. It has no
+'' declaration, so LowerBareProcCall_ -- which asks the symbol -- never saw it, and the
+'' statement around it was dropped: starshine.bas's 'var wd = loword( width )' left wd
+'' uninitialised. See the source.
+''
+'' MEASURED, fbc-modern 1.20 -gen gcc -r:
+''
+''     int32 vr$0 = fb_Width( -1, -1 );  A$0 = vr$0;
+''     int32 vr$2 = fb_Width( -1, -1 );  F$0 = (uint64)vr$2 & 65535ull;
+''
+'' Every use below lowers to that call; none is dropped.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/bare-width-value.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl i32 fb_Width(-1, -1)

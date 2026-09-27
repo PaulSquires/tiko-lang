@@ -1,0 +1,29 @@
+'' 'this' AS AN ARGUMENT IS THE OBJECT, not the pointer it is held in. Check typed it as
+'' 'T ptr', so it was viable for no 'byref as T' or 'byval as T' parameter: a FUNCTION
+'' call came out untyped and its statement was dropped -- starshine.bas's
+'' 'this.ctr = getctr( This )' in a constructor -- and over 'byref as T' beside
+'' 'byval as T ptr' the pointer overload was picked. Byval, lowering then passed the
+'' pointer where the object's bytes belong. See the source.
+''
+'' MEASURED, fbc-modern 1.20, running the source:
+''
+''      6   7   8   10   20   0
+''      2   3
+''      42
+''
+'' -- byref, byval, default mode, 'ovl( this )' taking the byref T overload and
+'' 'ovl( @this )' the pointer one; then the constructor's getctr; then a trivial type
+'' byval ('BYV( *THIS$1 )' in fbc's C). tiko's build prints the same.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/this-arg-object.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: GETCTR(
+'' EXPECT-OUT: call i32 BYR(
+'' EXPECT-OUT: call void _ZN1TC1ERKS_(@$tmp
+'' EXPECT-OUT: call i32 BYV(@$tmp
+'' EXPECT-OUT: call i32 DFLT(
+'' EXPECT-OUT: call i32 _Z3OVLR1T(
+'' EXPECT-OUT: call i32 _Z3OVLP1T(
+'' EXPECT-OUT: call i32 BYVU(

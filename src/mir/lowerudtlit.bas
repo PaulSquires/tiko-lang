@@ -1047,7 +1047,8 @@ end function
 
 function FoldAggInit_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
-      byval size_ as long, byref outBytes as string ) as boolean
+      byval size_ as long, byref outBytes as string, _
+      byval vscope as Tko.ScopeId = Tko.SCOPE_NONE ) as boolean
 
     if size_ <= 0 then return false
     if init = Tko.NODE_NONE then return false
@@ -1172,6 +1173,14 @@ function FoldAggInit_ _
             end if
         end if
 
+        '' ONE SCOPE FOR EVERY LEAF, FLOAT OR INTEGER, and the VARIABLE'S OWN first: a
+        '' const declared in the procedure's body is not visible from procScope. The
+        '' float leaves passed none at all, so 'static as F3 a = type( 0, k / 2 )' and
+        '' '4 * atn( 1 )' through a named const declined -- starshine.bas's PLANET.
+        dim as Tko.ScopeId fsc = vscope
+        if fsc = Tko.SCOPE_NONE then fsc = c.info->ScopeOf( e )
+        if fsc = Tko.SCOPE_NONE then fsc = c.procScope
+        if fsc = Tko.SCOPE_NONE then fsc = c.modScope
         select case fmt
         case MT_I8  : wid = 1
         case MT_I16 : wid = 2
@@ -1181,13 +1190,13 @@ function FoldAggInit_ _
         case MT_F32
             wid = 4
             dim as double fv
-            if Tko.Check.ConstFloatOf( *c.ast, e, fv ) = false then return false
+            if Tko.Check.ConstFloatOf( *c.ast, e, fv, 0, c.syms, fsc, c.names ) = false then return false
             dim as single sv = cast( single, fv )
             bits = cast( longint, *cptr( ulong ptr, @sv ) )
         case MT_F64
             wid = 8
             dim as double dv
-            if Tko.Check.ConstFloatOf( *c.ast, e, dv ) = false then return false
+            if Tko.Check.ConstFloatOf( *c.ast, e, dv, 0, c.syms, fsc, c.names ) = false then return false
             bits = *cptr( longint ptr, @dv )
         case else
             return false
@@ -1199,9 +1208,6 @@ function FoldAggInit_ _
             '' NAMED CONSTANT in a static or shared initialiser did not fold and the
             '' whole image declined, while the same literal in the same slot did.
             '' fbc writes 'static int64 ARR$[2] = { 42ll, 2ll };'.
-            dim as Tko.ScopeId fsc = c.info->ScopeOf( e )
-            if fsc = Tko.SCOPE_NONE then fsc = c.procScope
-            if fsc = Tko.SCOPE_NONE then fsc = c.modScope
             dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
                 *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits, _
                 c.syms, fsc )

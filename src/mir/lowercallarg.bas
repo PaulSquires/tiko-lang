@@ -635,7 +635,9 @@ private function ArgNeedsUdtConv_ _
     '' Asked before the type test: 'wchr( n )' and a wide concatenation may have none.
     if WideArgCharPtrCtor_( c, argNode, pt ) then return true
 
-    dim as Tko.TypeId at = c.info->TypeOf_( argNode )
+    '' 'this' is the OBJECT it points at -- InitSourceType_. Typed as the pointer, it
+    '' was a UDT argument needing a conversion nobody could build, and the call dropped.
+    dim as Tko.TypeId at = InitSourceType_( c, argNode )
     if at = Tko.TYPE_NONE then return false
     if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Inner( at )
     at = c.types->Unqualify( at )
@@ -657,6 +659,26 @@ private function ArgNeedsUdtConv_ _
         return UdtCastArgOk_( c, at, pt )
     end if
     return true
+end function
+
+'' 'this' PASSED BYVAL IS THE OBJECT'S VALUE, not the pointer it is held in: measured,
+'' fbc writes 'BYV( *THIS$1 )' for 'byv( this )' over 'byval s as T'. LowerExpr loaded the
+'' pointer, so the callee read eight bytes of address as its T. Sized to the PARAMETER,
+'' as UpcastAggInit_ is, so a base parameter takes the subobject at offset zero. False,
+'' emitting nothing, for any other argument or a parameter that is not an aggregate.
+function ThisByvalArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue ) as boolean
+
+    if IsThisPointerIdent_( c, argNode ) = false then return false
+    if pt = Tko.TYPE_NONE then return false
+    if LowerType( pt, *c.types ) <> MT_AGG then return false
+    dim as Tko.TypeId upt = c.types->Unqualify( pt )
+    if c.types->BaseDistance( InitSourceType_( c, argNode ), upt ) < 0 then return false
+    dim as MirValue sa = InitSourceAddr_( c, argNode )
+    if sa.kind = cast( ubyte, MV_NONE ) then return false
+    outa = LowerExprLoad( c, sa, MT_AGG, SizeOfType( c, upt ) )
+    return (outa.kind <> cast( ubyte, MV_NONE ))
 end function
 
 '' THE CALLER-BUILT COPY of one byval non-trivial UDT argument.
@@ -712,7 +734,8 @@ private function ByvalUdtCopyArg_ _
     '' copy of an rvalue that something else already owns would be a second owner of
     '' its buffer -- so an argument with no address DECLINES rather than being copied
     '' some other way.
-    dim as MirValue src = LowerAddr( c, argNode )
+    '' ...and for 'this' the address is the pointer's VALUE -- see InitSourceAddr_.
+    dim as MirValue src = InitSourceAddr_( c, argNode )
     if src.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as long slot = NewTempLocal( c, MT_AGG, sz )

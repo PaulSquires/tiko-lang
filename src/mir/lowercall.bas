@@ -962,10 +962,9 @@ function LowerCallParts _
                 '' the whole derived aggregate. The ABI pass then stores sixteen
                 '' bytes into the eight-byte slot the PARAMETER sized, which clang
                 '' refuses. See UpcastAggInit_ -- the same rule an initialiser needs.
-                if UpcastAggInit_( c, argNode, _
-                                   ArgParamType_( c, callee, calleeSigT, i + pbase ), _
-                                   a ) = false then
-                    a = LowerExpr( c, argNode )
+                dim as Tko.TypeId bvPt = ArgParamType_( c, callee, calleeSigT, i + pbase )
+                if UpcastAggInit_( c, argNode, bvPt, a ) = false then
+                    if ThisByvalArg_( c, argNode, bvPt, a ) = false then a = LowerExpr( c, argNode )
                 end if
             end if
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be

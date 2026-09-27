@@ -758,7 +758,8 @@ declare function EmitRtl _
     '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.bas.
     declare function FoldAggInit_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
-          byval size_ as long, byref outBytes as string ) as boolean
+          byval size_ as long, byref outBytes as string, _
+          byval vscope as Tko.ScopeId = Tko.SCOPE_NONE ) as boolean
 
     '' 'type<T>( ... )' as a value or an address -- lowersub.bas.
     '' An UPCAST initialiser: the base subobject of a derived value, sized to the
@@ -1260,6 +1261,9 @@ declare function EmitRtl _
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function ThisByvalArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
     declare function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
