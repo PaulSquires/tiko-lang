@@ -161,6 +161,14 @@ namespace Tko
     '' is what EXTERN means and what lets a procedure name it. Collect clears SYMF_EXTERN
     '' on the definition, so without this nothing said the symbol had ever been one.
     const SYMF_EXTERN_DEF     as ulong = &h00400000
+    '' MODULE CODE (ADR 0017): declared at module or namespace level in a file of the module
+    '' unit being compiled (src/symbols/modsym.bas). It links by the module's chain.
+    const SYMF_MODSRC         as ulong = &h00800000
+    '' ...marked 'public': an importer may see it, and it is not hidden.
+    const SYMF_PUBLIC         as ulong = &h01000000
+    '' ...marked 'private': translation-unit local, LLVM internal, as fbc's private is.
+    const SYMF_PRIVDECL       as ulong = &h02000000
+    const SYMF_MODMASK        as ulong = &h03800000
 
     type Symbol
         as ubyte     kind
@@ -252,6 +260,11 @@ namespace Tko
     type SymSlotVec as FB.Array( of ulong )
 
     type SymbolTable
+        '' THE MODULE UNIT BEING COMPILED, if this is one (ADR 0017): its files are FileIds
+        '' 1..modFileCount, and selfChain is its chain upper-cased, one component each --
+        '' what the mangler prepends to every SYMF_MODSRC name. 0 and empty otherwise.
+        as long       modFileCount
+        as StrVec     selfChain
         as SymbolVec  symbols
         as ScopeVec   scopes
         as SymSlotVec slots        '' open addressing on (scope, name)

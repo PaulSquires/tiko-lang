@@ -17,6 +17,7 @@ src/parser/parserend.bas
 src/types/type.bas
 src/symbols/symbol.bas
 src/symbols/collect.bas
+src/symbols/modsym.bas
 src/symbols/collectdump.bas
 src/symbols/resolve.bas
 src/symbols/resolveacc.bas

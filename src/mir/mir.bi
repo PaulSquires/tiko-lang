@@ -368,6 +368,10 @@ namespace Tko.Mir
         '' constructors were both global would collide on the ctor instead of on
         '' main, which is the same bug wearing a different name.
         as boolean  isPrivate
+        '' MODULE-PRIVATE (ADR 0017): external, so the module's other files and an importer's
+        '' instantiation of an exported generic can reach it, and 'hidden' so nothing outside
+        '' the program can. Never with isPrivate or isExported.
+        as boolean  isHidden
         '' EXPORT: emitted as 'dllexport', which is what puts the name in a DLL's
         '' export table. Independent of isPrivate -- a private procedure is not
         '' linker-visible at all, so the two cannot both be true.
@@ -520,6 +524,8 @@ namespace Tko.Mir
         '' EXTERN's definition is 'int32 E$ = 5;'. Emitted external, two modules that
         '' each declare 'dim shared e' were 'duplicate symbol: e' at the link.
         as boolean  isInternal
+        '' A MODULE-PRIVATE VARIABLE (ADR 0017): external and 'hidden', as a procedure's is.
+        as boolean  isHidden
         '' VISIBLE TO OTHER MODULES, AND NOT YET GIVEN A VALUE -- C's TENTATIVE
         '' DEFINITION, which is a COMMON symbol rather than a definition. fbc emits C
         '' and so inherits its rule, measured on fbc's own object file:

@@ -318,6 +318,12 @@ namespace Tko
     '' so the two cannot share a bit: reading "C++" as foreign emitted four
     '' overloads all named 'f1' and clang refused the module.
     const PF_CXX            as ulong = &h00080000
+    '' 'public' AND 'private' ON ANY DECLARATION, as written (ADR 0017). PF_PRIVATE above is
+    '' the procedure-only meaning fbc gives the keyword; these two record the word on every
+    '' kind, for module code, where they decide what an importer may see. High bits,
+    '' clear of N_TYPE's packing and N_ENUM's EXPLICIT bit in the same field.
+    const PF_VIS_PUBLIC     as ulong = &h00100000
+    const PF_VIS_PRIVATE    as ulong = &h00200000
 
     type UnaryPayload
         as ushort op                '' TokenKind

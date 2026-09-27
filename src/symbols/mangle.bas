@@ -113,14 +113,22 @@ end function
 '' TYPE component is the same substitution candidate as that type used as a
 '' parameter, so 'operator let( byref rhs as W )' inside W is _ZN1WaSERS_ -- the R
 '' refers BACK to the 1W already emitted, and keying it by name alone would miss.
+'' A COMPONENT OF THE MODULE CHAIN in outTypes: a namespace component EmitPrefix keeps even
+'' outside a generic instance, which drops every other qualifier (ADR 0017; RFC-0002 §5).
+const CHAIN_QUAL as ulong = &hFFFFFFFFul
+
+'' withChain: the name is a LINK name, and module code's carries the module's chain first --
+'' when the outermost qualifier's symbol, or self_ when there is none, is SYMF_MODSRC.
 private sub QualifierChain _
     ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
       byref names as Tko.Interner, byref outp as FB.Array( of string ), _
       byref outTypes as FB.Array( of ulong ), _
-      byval types as Tko.TypeContext ptr = 0 )
+      byval types as Tko.TypeContext ptr = 0, _
+      byval withChain as boolean = false, byval self_ as Tko.SymbolId = Tko.SYMBOL_NONE )
 
     dim as FB.Array( of string ) rev
     dim as FB.Array( of ulong ) revT
+    dim as Tko.Symbol ptr outer = 0
     dim as Tko.ScopeId cur = sc
     while cur <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
@@ -129,6 +137,7 @@ private sub QualifierChain _
            (s->kind = cast( ubyte, Tko.SCOPEK_TYPE )) then
             dim as Tko.Symbol ptr owner = syms.SymbolAt( s->owner )
             if owner <> 0 then
+                outer = owner
                 '' A NAMESPACE ALIAS replaces the name and keeps its CASE, where a
                 '' plain namespace is uppercased. Measured: 'namespace aaa alias "zzz"'
                 '' gives _ZN3zzz1FEv, not _ZN3AAA1FEv.
@@ -162,6 +171,18 @@ private sub QualifierChain _
         end if
         cur = s->parent
     wend
+    if withChain then
+        dim as Tko.Symbol ptr root_ = outer
+        if root_ = 0 then root_ = syms.SymbolAt( self_ )
+        dim as boolean chained = (root_ <> 0)
+        if chained then chained = ((root_->flags and Tko.SYMF_MODSRC) <> 0)
+        if chained then
+            for i as long = 0 to syms.selfChain.Count - 1
+                outp.Push( syms.selfChain[i] )
+                outTypes.Push( CHAIN_QUAL )
+            next
+        end if
+    end if
     for i as long = rev.Count - 1 to 0 step -1
         outp.Push( rev[i] )
         outTypes.Push( revT[i] )
@@ -357,10 +378,22 @@ private function EmitPrefix _
         next
     end if
 
+    '' ...EXCEPT THE MODULE CHAIN, which is kept: 'a.Box( of long )' and 'b.Box( of long )'
+    '' are two types and would otherwise be one name.
+    dim as long chainLen = 0
+    while chainLen < quals.Count
+        if qualTypes[chainLen] <> CHAIN_QUAL then exit while
+        chainLen += 1
+    wend
+
     dim as string full = ""      '' the literal cumulative prefix -- the KEY
     dim as string body = ""      '' what actually gets emitted
-    for i as long = start to quals.Count - 1
+    for i as long = 0 to quals.Count - 1
+        dim as boolean dropped = (i >= chainLen)
+        if dropped then dropped = (i < start)
+        if dropped then continue for
         dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
+        if i < chainLen then qt = Tko.TYPE_NONE
         if i = instAt then
             dim as long ihit = subs.FindType( qt )
             if ihit >= 0 then
@@ -453,7 +486,11 @@ function TypeCode _
         dim as FB.Array( of string ) q
         dim as FB.Array( of ulong ) qt
         if ti <> 0 then
-            QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, q, qt, @types )
+            '' The type's own symbol decides whether a module chain applies at top level.
+            dim as Tko.SymbolId tsym = syms.LookupLocalTyped( _
+                cast( Tko.ScopeId, ti->declScope ), ti->name, true )
+            QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, q, qt, @types, _
+                            true, tsym )
         end if
         if q.Count = 0 then
             enc = SrcName( nm )
@@ -956,7 +993,16 @@ private function ProcNameCore _
 
     dim as FB.Array( of string ) quals
     dim as FB.Array( of ulong ) qualTypes
-    QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes, @types )
+    '' The symbol that says whether this is module code. A generic instance's re-parsed body
+    '' is bound to nothing; its symbol is the one of its own name, which copied the mark.
+    dim as Tko.SymbolId selfSym = info.RefOf( proc_ )
+    if selfSym = Tko.SYMBOL_NONE then selfSym = syms.Lookup( info.ScopeOf( proc_ ), sp->name )
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes, @types, _
+                    true, selfSym )
+    '' MODULE CODE IS NESTED UNDER ITS CHAIN, generic instances included (RFC-0002 §5).
+    dim as boolean hasQuals = (quals.Count > 0)
+    dim as boolean chained = hasQuals
+    if chained then chained = (qualTypes[0] = CHAIN_QUAL)
 
     '' AN INSTANTIATED GENERIC PROCEDURE is a template name and never nested -- fbc
     '' writes NS.Twice( of long ) as _Z5TwiceIiEi. An OPERATOR is not: fb/comptr.bi's
@@ -972,7 +1018,8 @@ private function ProcNameCore _
         procInst = FindInst_( types, sp->name )
     end if
 
-    dim as boolean nested = (quals.Count > 0) andalso (procInst < 0)
+    dim as boolean plainProc = (procInst < 0)
+    dim as boolean nested = hasQuals andalso (plainProc orelse chained)
     dim as boolean overloaded = ((sp->extra and Tko.PF_OVERLOAD) <> 0)
 
     '' Rule 1: not nested and no OVERLOAD -- the uppercased spelling, nothing more.
@@ -1010,6 +1057,8 @@ private function ProcNameCore _
             outp += "D1"
         elseif kw = cast( ushort, Tko.KW_OPERATOR ) then
             outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
+        elseif procInst >= 0 then
+            outp += TemplateCode_( procInst, types, syms, names, subs )
         else
             outp += SrcName( ident )
         end if
@@ -1113,7 +1162,7 @@ function StaticMemberName _
 
     dim as FB.Array( of string ) quals
     dim as FB.Array( of ulong ) qualTypes
-    QualifierChain( syms, sc, names, quals, qualTypes )
+    QualifierChain( syms, sc, names, quals, qualTypes, 0, true )
     if quals.Count = 0 then return ""
     dim as string outp = "_ZN"
     for i as long = 0 to quals.Count - 1
@@ -1122,6 +1171,28 @@ function StaticMemberName _
     dim as string m = Tko.Text.UpperAscii( member ) & "$"
     outp += str( len( m ) ) & m & "E"
     return outp
+end function
+
+'' A MODULE'S VARIABLE (ADR 0017; RFC-0002 §5): the nested name of its chain, any namespace
+'' inside the module, and the name upper-cased -- 'public dim shared counter' in acme.net.http
+'' is _ZN4ACME3NET4HTTP7COUNTERE. No '$': that marks fbc's own spellings, and a module's names
+'' are not fbc's. "" for a symbol that is not module code.
+function ModuleVarName _
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref names as Tko.Interner ) as string
+
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = 0 then return ""
+    dim as FB.Array( of string ) quals
+    dim as FB.Array( of ulong ) qualTypes
+    QualifierChain( syms, s->parent, names, quals, qualTypes, 0, true, sid )
+    if quals.Count = 0 then return ""
+    dim as string outp = "_ZN"
+    for i as long = 0 to quals.Count - 1
+        outp += str( len( quals[i] ) ) & quals[i]
+    next
+    dim as string m = Tko.Text.UpperAscii( names.Spelling( s->name ) )
+    return outp & str( len( m ) ) & m & "E"
 end function
 
 end namespace

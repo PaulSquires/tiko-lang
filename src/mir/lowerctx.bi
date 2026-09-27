@@ -9,6 +9,7 @@
 
 #include once "mir/lower.bi"
 #include once "symbols/mangle.bi"
+#include once "symbols/modsym.bi"
 
 namespace Tko.Mir
 

@@ -344,15 +344,23 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     return n
 end function
 
+'' THE VISIBILITY WORD ON A DECLARATION. On a procedure 'private' is fbc's -- module-static,
+'' PF_PRIVATE -- and that is unchanged. Every kind also records which word was written, as
+'' PF_VIS_PUBLIC or PF_VIS_PRIVATE: in module code they decide what an importer may see
+'' (ADR 0017), and in classic code nothing reads them.
 private function MarkPrivate _
     ( byref p as Tko.ParserState, byval n as Tko.NodeId, _
-      byval isPrivate as boolean ) as Tko.NodeId
+      byval visKw as Tko.TokenKind ) as Tko.NodeId
 
-    if (isPrivate = false) orelse (n = Tko.NODE_NONE) then return n
-    if p.ast->Kind( n ) <> Tko.N_PROC then return n
+    if (visKw = 0) orelse (n = Tko.NODE_NONE) then return n
     dim as Tko.StmtPayload ptr sp = _
         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
-    sp->extra or= Tko.PF_PRIVATE
+    if visKw = Tko.KW_PUBLIC then
+        sp->extra or= Tko.PF_VIS_PUBLIC
+        return n
+    end if
+    sp->extra or= Tko.PF_VIS_PRIVATE
+    if p.ast->Kind( n ) = Tko.N_PROC then sp->extra or= Tko.PF_PRIVATE
     return n
 end function
 
@@ -362,9 +370,9 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
 
     '' 'private'/'public' only qualify what follows -- except that PRIVATE makes a
     '' procedure module-static, which means it has no linker-visible name at all.
-    dim as boolean isPrivate = false
+    dim as Tko.TokenKind visKw = 0
     if (k = Tko.KW_PRIVATE) orelse (k = Tko.KW_PUBLIC) then
-        isPrivate = (k = Tko.KW_PRIVATE)
+        visKw = k
         Advance( p )
         k = Peek( p )
     end if
@@ -499,7 +507,7 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
                 q += 1
             case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
                  Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
-                return MarkPrivate( p, ParseProc( p, false ), isPrivate )
+                return MarkPrivate( p, ParseProc( p, false ), visKw )
             case else
                 exit do
             end select
@@ -509,27 +517,27 @@ function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
     select case k
     case Tko.KW_DIM, Tko.KW_REDIM, Tko.KW_VAR, Tko.KW_STATIC, Tko.KW_SHARED, _
          Tko.KW_COMMON, Tko.KW_EXTERN
-        return ParseVarDecl( p )
+        return MarkPrivate( p, ParseVarDecl( p ), visKw )
 
     case Tko.KW_CONST
-        return ParseConstDecl( p )
+        return MarkPrivate( p, ParseConstDecl( p ), visKw )
 
     case Tko.KW_TYPE, Tko.KW_UNION
-        return ParseTypeDecl( p )
+        return MarkPrivate( p, ParseTypeDecl( p ), visKw )
 
     case Tko.KW_ENUM
-        return ParseEnumDecl( p )
+        return MarkPrivate( p, ParseEnumDecl( p ), visKw )
 
     case Tko.KW_NAMESPACE
-        return ParseNamespaceDecl( p )
+        return MarkPrivate( p, ParseNamespaceDecl( p ), visKw )
 
     case Tko.KW_DECLARE
         Advance( p )
-        return MarkPrivate( p, ParseProc( p, true ), isPrivate )
+        return MarkPrivate( p, ParseProc( p, true ), visKw )
 
     case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_CONSTRUCTOR, _
          Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR
-        return MarkPrivate( p, ParseProc( p, false ), isPrivate )
+        return MarkPrivate( p, ParseProc( p, false ), visKw )
 
     case Tko.KW_USING
         Advance( p )

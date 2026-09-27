@@ -7,6 +7,7 @@
 
 #include once "driver/unit.bi"
 #include once "driver/modunit.bi"
+#include once "symbols/modsym.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
 #include once "parser/expr.bi"
@@ -124,6 +125,12 @@ function CompileUnit _
     dim as Tko.SemanticInfo info
     Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, _
                      info, @ctx.sources )
+    '' MODULE CODE, and what it lets out (ADR 0017): before Resolve, whose generic
+    '' instances copy their generic's marks.
+    if ctx.modFileCount > 0 then
+        Tko.ModSym.Begin( syms, ctx.modFileCount, ctx.modChain )
+        Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
+    end if
 
     '' '#pragma reserve NAME' TAKES A NAME OUT OF CIRCULATION -- fbc error 4 for
     '' anything that then declares it. The two halves of that fact meet HERE and

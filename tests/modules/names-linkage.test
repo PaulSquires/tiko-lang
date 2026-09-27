@@ -1,0 +1,21 @@
+'' A MODULE'S LINKAGE (ADR 0017; RFC-0002 §4), on ELF where 'hidden' means something:
+'' 'public' is an ordinary external symbol; the default is external and HIDDEN -- the
+'' module's other files and an importer's instantiation of an exported generic can reach
+'' it, nothing outside the program can; 'private' stays internal. Variables likewise, by
+'' the chain too. A public type's generic instance is foldable (linkonce_odr), as any is.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir -i tests/modules/src/names/libs tests/modules/src/names/libs/acme/net/http -o tests/modules/nameslinkage.ll
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define i32 @"_ZN4ACME3NET4HTTP5FETCHEv"()
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define hidden i32 @"_ZN4ACME3NET4HTTP5SEND_E8FBSTRING"(
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define internal i32 @"_ZN4ACME3NET4HTTP6QUIET_Ev"()
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define void @"_ZN4ACME3NET4HTTP5INNER1XEv"()
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define i32 @"tk_fetch"()
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define linkonce_odr void @"_ZN4ACME3NET4HTTP3BoxIiE3PUTEi"(
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: @"_ZN4ACME3NET4HTTP7COUNTERE" = global i32 0
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: @"_ZN4ACME3NET4HTTP6HELPERE" = hidden global i32 0
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: @"_ZN4ACME3NET4HTTP8QUIETVARE" = internal global i32 0
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: define linkonce_odr i64 @"_ZN4ACME3NET4HTTP5TwiceIu7INTEGEREES3_"(
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: @"_ZTSN4ACME3NET4HTTP5SHAPEE" = internal global
+'' EXPECT-FILE-HAS: tests/modules/nameslinkage.ll :: @"_ZTVN4ACME3NET4HTTP5SHAPEE" = internal global
+'' EXPECT-FILE-NOT-HAS: tests/modules/nameslinkage.ll :: hidden i32 @"_ZN4ACME3NET4HTTP5FETCHEv"

@@ -5,6 +5,7 @@
 #include once "symbols/collect.bi"
 #include once "parser/parser.bi"
 #include once "symbols/mangle.bi"
+#include once "symbols/modsym.bi"
 
 namespace Tko.Resolve
 
@@ -145,6 +146,7 @@ function InstantiateGeneric_ _
         Tko.SYM_UDT, c.ast->Loc( id ), dup )
     dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
     if isym = 0 then return Tko.TYPE_NONE
+    isym->flags or= (gs->flags and Tko.SYMF_MODMASK)   '' a module's generic's instance is module code
     '' A GENERIC UNION INSTANTIATES AS A UNION. Collect marks an ordinary one from the
     '' declaration's NF_IS_UNION and the layout pass reads SYMF_UNION_KIND off the
     '' symbol; nothing set it here, so 'union Pun( of T )' laid out as a STRUCT --
@@ -730,7 +732,7 @@ function InstantiateProcAt_ _
     '' structor. Without this the bootstrap's link failed on FB::FSFAIL<N> and
     '' FB::FAIL<N,M> -- fb/fsresult.bi's error helpers, called from many modules.
     dim as Tko.Symbol ptr ipsym = c.syms->SymbolAt( isid )
-    if ipsym <> 0 then ipsym->flags or= Tko.SYMF_GENERIC_INST
+    if ipsym <> 0 then ipsym->flags or= Tko.SYMF_GENERIC_INST or (gs->flags and Tko.SYMF_MODMASK)
     '' FOR THE MANGLER: _Z5IdentI8FBSTRINGES0_, by the DECLARED name.
     scope
         dim as Tko.InternId pspell = StmtOf( c, gn )->rawName
@@ -860,6 +862,8 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             c.info->Resize( c.ast->Count( ) )
             Tko.Collect.One( *c.ast, fresh, home, *c.syms, *c.names, *c.types, _
                              *c.diags, *c.info )
+            '' ...AND WHAT THAT BODY IS BOUND TO IS MODULE CODE when its generic is (ADR 0017).
+            Tko.ModSym.Inherit( *c.syms, c.info->RefOf( fresh ), isid )
             '' THE BODY IS WALKED FIRST, and the hoisted lambdas after it.
             ''
             '' A CAPTURING lambda's closure TYPE is synthesised when the N_CLOSURE

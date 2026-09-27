@@ -91,6 +91,10 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     dim as boolean isExtDef = ((s->flags and Tko.SYMF_EXTERN_DEF) <> 0)
     dim as boolean linksByName = (isExt orelse isExtDef)
     if linksByName andalso (s->linkName <> 0) then nm = s->linkName
+    '' A MODULE'S VARIABLE LINKS BY ITS CHAIN (ADR 0017): _ZN4ACME3NET4HTTP7COUNTERE.
+    dim as boolean modVar = ((s->flags and Tko.SYMF_MODSRC) <> 0)
+    if modVar then modVar = (linksByName = false)
+    if modVar then nm = c.names->GetString( Tko.Mangle.ModuleVarName( *c.syms, sid, *c.names ) )
     dim as long sz = SizeOfType( c, s->type_ )
     '' The storage NAME must still be unique, because it is what a linker and a golden
     '' diff see. A collision here means two distinct symbols wanted the same spelling,
@@ -122,6 +126,14 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     dim as boolean sharedOut = (isExtDef orelse isCommon orelse memberStatic)
     if isExt then
         c.m->globals[g].isExternal = true
+    elseif modVar then
+        '' Module code: 'private' is internal; 'public' external; the default external
+        '' and hidden (RFC-0002 §4).
+        if (s->flags and Tko.SYMF_PRIVDECL) <> 0 then
+            c.m->globals[g].isInternal = true
+        elseif (s->flags and Tko.SYMF_PUBLIC) = 0 then
+            c.m->globals[g].isHidden = true
+        end if
     elseif sharedOut then
         c.m->globals[g].isTentative = true
     else

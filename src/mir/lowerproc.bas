@@ -174,6 +174,7 @@ sub LowerProc _
     '' same source, tiko gave 'T'.
     if (sp->extra and Tko.PF_PRIVATE) <> 0 then f->isPrivate = true
     if (sp->extra and Tko.PF_EXPORT) <> 0 then f->isExported = true
+    Tko.ModSym.ProcLinkage( *c.syms, sid, f->isPrivate, f->isExported, f->isHidden )   '' ADR 0017
     '' AN INSTANTIATED GENERIC IS EMITTED BY EVERY UNIT THAT USES IT, so its
     '' definition needs weak, foldable linkage. Without it the first attempt to
     '' compile tiko-lang with tiko-lang failed the LINK on twenty duplicate

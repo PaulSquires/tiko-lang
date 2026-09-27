@@ -126,6 +126,11 @@ namespace Tko.Mangle
           byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
           byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
 
+    '' A module variable's link name (mangle.bas), or "" for one that is not module code.
+    declare function ModuleVarName _
+        ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+          byref names as Tko.Interner ) as string
+
 end namespace
 
 #endif

@@ -1008,7 +1008,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         '' statement, where the parameters already hold their values, not the 'sub' line.
         e.dbgLine = 0
     end if
-    e.outp += "define " & linkage & ret & " " & GlobalName( e, f->name ) & _
+    e.outp += "define " & linkage & iif( f->isHidden, "hidden ", "" ) & ret & " " & GlobalName( e, f->name ) & _
               "(" & ParamList( e, f, true ) & ") nounwind uwtable(sync)" & cmdt & dbgAttr & " {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest
@@ -1093,7 +1093,7 @@ end function
 '' The default -- neither word -- is external.
 private function VarLinkage( byref e as EmitCtx, byref g as MirGlobal ) as string
     if g.isInternal then return "internal "
-    if g.isTentative = false then return ""
+    if g.isTentative = false then return iif( g.isHidden, "hidden ", "" )
     dim as boolean valued = g.hasInit orelse (len( g.initBytes ) > 0)
     if valued = false then valued = (g.initReloc >= 0) orelse (g.initRelocFn <> 0)
     if valued = false then valued = (g.ptrCount > 0)

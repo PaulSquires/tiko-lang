@@ -1,0 +1,10 @@
+'' A MODULE'S NAMES ARE NESTED UNDER ITS CHAIN (ADR 0017; RFC-0002 §5): acme.net.http
+'' 'Fetch' is _ZN4ACME3NET4HTTP5FETCHEv. A namespace of the module comes after the chain; a
+'' generic instance KEEPS it (fbc drops every namespace from a template name, which here
+'' would make a.Box( of long ) and b.Box( of long ) one symbol); extern "C" is the name as
+'' written. 'private' procedures are not listed, as for classic code. Classic mangling is
+'' unchanged: tools/gen/check-mangle.sh is 135/135.
+'' TEST: cli
+'' ARGS: --dump-mangle -i tests/modules/src/names/libs tests/modules/src/names/libs/acme/net/http
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/names-mangle.out

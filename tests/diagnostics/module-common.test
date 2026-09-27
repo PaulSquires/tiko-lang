@@ -1,0 +1,6 @@
+'' TKO0366: 'common' IN MODULE CODE. It shares storage by SPELLING across units -- the
+'' coupling a module's own names replace (RFC-0003 §4).
+'' TEST: cli
+'' ARGS: --emit-ir tests/diagnostics/src/modules/commonmod
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: commonmod.bas(2,15): error TKO0366: 'common' is not allowed in a module file
