@@ -49,6 +49,9 @@ namespace Tko
         '' worth keeping, so the two cases are told apart by this rather than by
         '' silently accepting both.
         as long                 aggDepth
+        '' Whether the innermost of those is a UNION. Anonymous ones must alternate -- see
+        '' TKO0877 in decltype.bas.
+        as boolean              aggUnion
         '' How many PROCEDURE BODIES enclose the cursor. Only module-level declarations
         '' are told to the preprocessor for 'defined( X )', because fbc's answer is
         '' scope-respecting: measured, a local or a parameter is NOT visible to

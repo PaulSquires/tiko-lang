@@ -1,0 +1,10 @@
+'' TKO0877, fbc's 17: an anonymous UNION directly in a UNION, or TYPE directly in a TYPE. They
+'' must alternate; a named nested type is fine. See ParseTypeDecl in parser/decltype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/anon-aggregate-nesting.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: anon-aggregate-nesting.bas(7,5): error TKO0877: an anonymous UNION cannot sit directly inside a UNION; they must alternate
+'' EXPECT-OUT: anon-aggregate-nesting.bas(16,9): error TKO0877: an anonymous TYPE cannot sit directly inside a TYPE
+'' EXPECT-OUT: anon-aggregate-nesting.bas(23,5): error TKO0877
+'' EXPECT-OUT: anon-aggregate-nesting.bas(35,13): error TKO0877
+'' EXPECT-MAX-DIAG: 4

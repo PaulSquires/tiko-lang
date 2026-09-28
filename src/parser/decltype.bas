@@ -69,7 +69,16 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
            ((Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.KW_FIELD)) then
             sp.name = 0
             ParseFieldClause( p, sp )
+            '' THEY MUST ALTERNATE. Measured on fbc-modern 1.20, 2026-09-28: a 'union' directly
+            '' in a UNION and a 'type' directly in a TYPE are error 17 (and 19 at its 'end'), at
+            '' any depth; a union in a type and a type in a union are fine. tiko laid them out.
+            dim as boolean outerUnion = p.aggUnion
+            if (isUnion = outerUnion) andalso (p.silent = false) then
+                p.diags->Report( Tko.TKO0877, Tko.PointRange( t.loc ), iif( isUnion, "UNION", "TYPE" ) )
+            end if
+            p.aggUnion = isUnion
             dim as Tko.NodeId anon = ParseAggregateBody( p, t, sp, isUnion )
+            p.aggUnion = outerUnion
             return anon
         end if
         '' 'type as long ptr Foo' is a typedef. But 'type' with nothing after it is
@@ -162,7 +171,10 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as boolean isGeneric = (sp.b <> Tko.NODE_NONE)
+    dim as boolean outerUnion_ = p.aggUnion
+    p.aggUnion = isUnion
     dim as Tko.NodeId tn = ParseAggregateBody( p, t, sp, isUnion )
+    p.aggUnion = outerUnion_
     '' Only a GENERIC is recorded. An ordinary TYPE is never re-parsed, and the table
     '' is scanned linearly, so keeping every type in it would cost for nothing.
     if isGeneric then p.ast->RecordTokens( tn, typeTok0, p.pos )

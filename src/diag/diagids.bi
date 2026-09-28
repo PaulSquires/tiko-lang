@@ -636,6 +636,8 @@
     DIAG( TKO0875, SEV_ERROR,   "property '%0' opens a statement with empty parentheses; expected an argument" )
     '' fbc's error 256: a TYPE or UNION with no field, an ENUM with no member -- see declempty.bas.
     DIAG( TKO0876, SEV_ERROR,   "this %0 cannot be empty" )
+    '' fbc's error 17: an anonymous 'union' directly in a UNION, a 'type' directly in a TYPE.
+    DIAG( TKO0877, SEV_ERROR,   "an anonymous %0 cannot sit directly inside a %0; they must alternate" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
