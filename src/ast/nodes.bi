@@ -468,12 +468,19 @@ namespace Tko
         '' left for an N_PROC that is not already somebody else's.
         as ChildPool   structorPrio
 
+        '' WHERE A PROCEDURE'S BODY ENDS -- pairs (proc node, loc of the last token of its
+        '' 'end sub' / 'end function' ...), one per definition with a body. Nothing in the
+        '' compiler reads it: the editor scan (src/driver/scan*.bas) does, to answer "which
+        '' procedure is the caret in". A side table for structorPrio's reason.
+        as ChildPool   procEnds
+
         declare constructor( )
         declare sub RecordTokens _
             ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
         '' False when nothing was recorded for this node, which is the normal case.
         declare function TokensOf _
             ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
+        declare sub RecordProcEnd( byval id as NodeId, byval endLoc as SourceLoc )
         declare sub RecordCallTypeArgs _
             ( byval id as NodeId, byval firstArg as long, byval argCount as long )
         '' False when the call carried none, which is the normal case.

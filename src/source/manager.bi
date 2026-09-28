@@ -74,6 +74,12 @@ namespace Tko
         declare function AddVirtual _
             ( byref shownName as ustring, byref content as string ) as FileId
 
+        '' A FILE'S UNSAVED TEXT, standing in for the file: loaded under the file's own
+        '' absolute path and NOT virtual, so a same-directory '#include' resolves from its
+        '' folder and a header including it by path finds this copy. What an editor scans.
+        declare function AddBuffer _
+            ( byref path as ustring, byref content as string ) as FileId
+
         declare function FileAt( byval id as FileId ) as SourceFile ptr
         declare function Count( ) as long
 

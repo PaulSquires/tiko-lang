@@ -43,6 +43,7 @@ note( ) {
 # layer 3: mir lowering
 # layer 4: target abi codegen
 # layer 5: toolchain driver
+# layer 6: api               -- the editor's tikoParser.dll, over the driver
 #
 # INTRA-LAYER RULE: diag may include source (it renders locations), source may NOT
 # include diag. The source manager reports failure by return value, never by
@@ -55,6 +56,7 @@ layer_of( ) {
         mir|lowering) echo 3 ;;
         target|abi|codegen) echo 4 ;;
         toolchain|driver|cimport) echo 5 ;;
+        api) echo 6 ;;
         *) echo 9 ;;
     esac
 }

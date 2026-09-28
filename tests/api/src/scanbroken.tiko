@@ -1,0 +1,14 @@
+'' scanbroken.tiko -- code mid-edit. The scan must still return what it got through:
+'' the declarations before the damage, and the ones after it.
+type Before
+    a as long
+end type
+
+sub Broken( byval x as long )
+    dim as long y = x +
+    if y then
+end sub
+
+function After( byval z as long ) as long
+    return z
+end function

@@ -198,6 +198,24 @@ function SourceManager.AddVirtual _
     return this.Adopt( shownName, shownName, raw, true )
 end function
 
+function SourceManager.AddBuffer _
+    ( byref path as ustring, byref content as string ) as FileId
+
+    dim as FB.FsResultUStr abs_ = FB.AbsolutePath( path )
+    dim as ustring absPath = path
+    if abs_.IsOk( ) then absPath = FB.PathNormalize( abs_.Value( ) )
+    dim as FileId already = this.Find( absPath )
+    if already <> FILE_NONE then return already
+
+    dim as ByteBuf raw
+    dim as long n = len( content )
+    raw.Reserve( n )
+    for i as long = 0 to n - 1
+        raw.Push( cast( ubyte, content[i] ) )
+    next
+    return this.Adopt( absPath, path, raw, false )
+end function
+
 '' ------------------------------------------------------------------- locations
 
 function SourceManager.LocFor( byval id as FileId, byval offset as long ) as SourceLoc

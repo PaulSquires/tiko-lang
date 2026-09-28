@@ -1,7 +1,8 @@
 #!/bin/sh
 # build.sh -- build tiko-lang with the stage0 compiler (FBC-Modern).
 #
-#   build/build.sh [Debug|Release|RelWithDebInfo] [--test-runner]
+#   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner]
+#   build/build.sh [Release|MinSizeRel] --dll
 #
 # The Windows peer is build/build.bat and is kept line-for-line analogous.
 # Configuration flags live here and nowhere else (docs/plan/02 section 3).
@@ -10,6 +11,10 @@ set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CFG=${1:-Debug}
+# '--dll' anywhere: build the editor's tikoParser.dll INSTEAD of the compiler (below).
+DLL=0
+for a in "$@"; do [ "$a" = "--dll" ] && DLL=1; done
+[ "$CFG" = "--dll" ] && CFG=Release
 
 # Executable suffix. Without this the script writes bin/tiko on Windows while
 # everything else looks for bin/tiko.exe, and the stale .exe keeps being tested.
@@ -69,6 +74,20 @@ MAIN=$(echo "$SOURCES" | head -1)
 MAINMOD=$(basename "$MAIN" .bas)
 
 mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
+
+# THE EDITOR'S DLL, bin/tikoParser.dll (src/api; contract src/api/tikoparser.bi): the
+# compiler's own sources less the main module, plus the entry points. Built INSTEAD of the
+# compiler, so bin/tiko and the build stamp are not touched. NEVER WITH -exx: a failed
+# runtime check ends the PROCESS, and in a DLL the process is the editor. fbc writes the
+# import library bin/libtikoParser.dll.a beside it.
+if [ "$DLL" = "1" ]; then
+    DLLFLAGS=$(echo "$FLAGS" | sed 's/-exx//')
+    LIBSRC=$(echo "$SOURCES" | tail -n +2)
+    echo "build: tikoParser.dll [$CFG] with $TKO_STAGE0"
+    ( cd "$ROOT" && "$TKO_STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+    echo "build: ok"
+    exit 0
+fi
 
 echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
 ( cd "$ROOT" && "$TKO_STAGE0" $SOURCES -m "$MAINMOD" -i src $FLAGS -x "bin/tiko$EXT" )

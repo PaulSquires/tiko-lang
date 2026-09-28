@@ -1,0 +1,11 @@
+'' A SCAN OF CODE MID-EDIT still returns what the front end got through: the declarations
+'' before the damage and the ones after it. 'After' comes back inside 'Broken' because the
+'' unclosed IF takes Broken's 'end sub' -- the parser's recovery, reported as it is.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scanbroken.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: type Before  @0:3:6  parent=-1
+'' EXPECT-OUT: sub Broken  @0:7:5  parent=-1
+'' EXPECT-OUT: function After as long  @0:12:10
+'' EXPECT-OUT: param z as long  @0:12:23
+'' EXPECT-OUT: diags: 3

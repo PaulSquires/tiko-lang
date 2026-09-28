@@ -325,3 +325,15 @@ function IsLabelHere_( byref p as Tko.ParserState ) as boolean
 end function
 
 end namespace
+
+namespace Tko
+
+'' WHERE A PROCEDURE'S BODY ENDS, for the editor scan (AstArena.procEnds). Here and not
+'' beside RecordTokens only because parser/expr.bas is at the 1500-line cap.
+sub AstArena.RecordProcEnd( byval id as NodeId, byval endLoc as SourceLoc )
+    if id = NODE_NONE then return
+    this.procEnds.Push( cast( ulong, id ) )
+    this.procEnds.Push( cast( ulong, endLoc ) )
+end sub
+
+end namespace

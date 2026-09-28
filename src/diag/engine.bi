@@ -44,6 +44,9 @@ namespace Tko
         '' Push would lose it -- and handed to the driver, which writes the file.
         as boolean    machineOn
         as string     machineRecs
+        '' tikoParser.dll: Flush renders nothing and KEEPS the list -- the scan hands it to
+        '' its host, and a GUI host has no console for it to go to.
+        as boolean    muted
 
         declare constructor( )
         declare sub Attach( byval src as SourceManager ptr )

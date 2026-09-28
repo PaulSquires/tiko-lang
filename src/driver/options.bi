@@ -106,6 +106,7 @@ namespace Tko
     OPT( OPT_DUMPAST,   "--dump-ast",     OPTK_FLAG, OPTCAT_DEVEL, "",        "dump the syntax tree" )
     OPT( OPT_DUMPTYPES, "--dump-types",   OPTK_FLAG, OPTCAT_DEVEL, "",        "dump the type table and its layout" )
     OPT( OPT_DUMPSYMS,  "--dump-symbols", OPTK_FLAG, OPTCAT_DEVEL, "",        "collect declarations and dump the symbol table" )
+    OPT( OPT_DUMPSCAN,  "--dump-scan",    OPTK_FLAG, OPTCAT_DEVEL, "",        "run the front end for an editor and dump its symbol records" )
     OPT( OPT_RESOLVE,   "--resolve",      OPTK_FLAG, OPTCAT_DEVEL, "",        "collect and resolve; report reference binding" )
     OPT( OPT_MANGLE,    "--dump-mangle",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print the emitted symbol name of each procedure" )
     OPT( OPT_CHECK,     "--check",        OPTK_FLAG, OPTCAT_DEVEL, "",        "type expressions; report the type of each PRINT argument" )
@@ -253,6 +254,7 @@ namespace Tko
         as boolean parseOnly
         as boolean dumpTypes
         as boolean dumpSymbols
+        as boolean dumpScan         '' the editor scan (src/driver/scan.bas)
         as boolean resolveOnly
         as boolean dumpMangle
         as boolean checkOnly

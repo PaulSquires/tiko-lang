@@ -1,0 +1,6 @@
+'' scanbasic.ti -- included by scanbasic.tiko: these records must name THIS file.
+type Pair
+    a as long
+end type
+
+declare function PairSum( byval p as Pair ptr ) as long

@@ -82,6 +82,7 @@ constructor DriverOptions( )
     this.parseOnly = false
     this.dumpTypes = false
     this.dumpSymbols = false
+    this.dumpScan = false
     this.resolveOnly = false
     this.dumpIr = false
     this.emitIr = false
@@ -546,6 +547,7 @@ function Parse _
         case Tko.OPT_PARSEONLY : opts.parseOnly = true
         case Tko.OPT_DUMPTYPES : opts.dumpTypes = true
         case Tko.OPT_DUMPSYMS  : opts.dumpSymbols = true
+        case Tko.OPT_DUMPSCAN  : opts.dumpScan = true
         case Tko.OPT_RESOLVE   : opts.resolveOnly = true
         case Tko.OPT_MANGLE    : opts.dumpMangle = true
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true

@@ -2,6 +2,7 @@
 rem build.bat -- build tiko-lang with the stage0 compiler (FBC-Modern).
 rem
 rem   build\build.bat [Debug^|Release^|RelWithDebInfo] [--test-runner]
+rem   build\build.bat [Release] --dll
 rem
 rem The Linux peer is build/build.sh and is kept line-for-line analogous.
 rem Configuration flags live here and nowhere else (docs/plan/02 section 3).
@@ -12,6 +13,10 @@ set "ROOT=%~dp0.."
 set "CFG=%~1"
 if "%CFG%"=="" set "CFG=Debug"
 if "%CFG%"=="--test-runner" set "CFG=Debug"
+rem '--dll' anywhere: build the editor's tikoParser.dll INSTEAD of the compiler (below).
+set "DLL=0"
+for %%a in (%*) do if /i "%%~a"=="--dll" set "DLL=1"
+if "%CFG%"=="--dll" set "CFG=Release"
 
 if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
 
@@ -43,6 +48,21 @@ for /f "usebackq delims=" %%f in ("%ROOT%\build\sources.txt") do (
 
 if not exist "%ROOT%\bin" mkdir "%ROOT%\bin"
 if not exist "%ROOT%\build\obj\%CFG%" mkdir "%ROOT%\build\obj\%CFG%"
+
+rem THE EDITOR'S DLL -- see the peer note in build.sh. The main module is left out, and
+rem NEVER -exx: a failed runtime check ends the process, and in a DLL that is the editor.
+if "%DLL%"=="1" (
+    set "LIBSRC="
+    for %%f in (!SOURCES!) do if /i not "%%~nf"=="!MAINMOD!" set "LIBSRC=!LIBSRC! %%f"
+    set "DLLFLAGS=!FLAGS:-exx=!"
+    echo build: tikoParser.dll [%CFG%] with %TKO_STAGE0%
+    pushd "%ROOT%"
+    "%TKO_STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !DLLFLAGS! -x "bin\tikoParser.dll"
+    if errorlevel 1 ( popd & exit /b 1 )
+    popd
+    echo build: ok
+    exit /b 0
+)
 
 echo build: tiko-lang [%CFG%] with %TKO_STAGE0%
 pushd "%ROOT%"

@@ -1,0 +1,38 @@
+'' scanbasic.tiko -- the editor scan's main fixture (tests/api/scan-*.test).
+'' Every record kind, an include, EXTENDS, a member with a body, a declare-only
+'' procedure with byref / optional parameters, arrays, and counted reads and writes.
+#include once "scanbasic.ti"
+
+#define MAX_ITEMS 8
+const DEFAULT_NAME = "item"
+
+enum Color
+    RED = 1
+    GREEN
+end enum
+
+type Shape
+    x as long
+    declare function Area( ) as long
+end type
+
+type Box extends Shape
+    w as long
+    label as string * 16
+end type
+
+function Shape.Area( ) as long
+    return this.x * 2
+end function
+
+declare sub NeverCalled( byval n as long, byref s as string, byval opt as long = 3 )
+
+dim shared gItems( 1 to MAX_ITEMS ) as Box
+dim shared gCount as long
+
+sub AddItem( byval b as Box ptr )
+    dim as long i = gCount + 1
+    gCount = i
+    gCount += 1
+    b->w = i
+end sub

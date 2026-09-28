@@ -58,7 +58,7 @@ end sub
 function BuildImports _
     ( byref ctx as Tko.CompilerContext, byval rootCount as long, _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
-      byref toolExit as long ) as boolean
+      byref toolExit as long, byval scanOnly as boolean ) as boolean
 
     dim as ModGraph g
     if BuildGraph( ctx, rootCount, true, g ) = false then return false
@@ -66,7 +66,7 @@ function BuildImports _
 
     '' --emit-ir AND --emit-asm name one file per root, and where each module's IR would go
     '' is not decided. '-c' writes each module's object beside the output (RFC-0005 §6).
-    dim as boolean stops = ctx.options.emitIr orelse ctx.options.emitAsm
+    dim as boolean stops = (scanOnly = false) andalso (ctx.options.emitIr orelse ctx.options.emitAsm)
     if stops then
         ctx.diags.ReportGlobal( Tko.TKO0992, _
             "--emit-ir and --emit-asm of a program that imports modules" )
@@ -96,7 +96,10 @@ function BuildImports _
         ctx.ifaceEdgeTo.Push( g.edgeTo[e] )
     next
     ctx.ifaceRootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
-    dim as string cacheRoot = ModuleCacheRoot( ctx )
+    '' NOT FOR A SCAN: ModuleCacheRoot MAKES the directory, and an editor scanning as you
+    '' type must not leave a '.tiko' folder beside every file it looks at.
+    dim as string cacheRoot = ""
+    if scanOnly = false then cacheRoot = ModuleCacheRoot( ctx )
 
     for each n as ulong in g.order
         ctx.modChain = g.chains[n]
@@ -109,6 +112,15 @@ function BuildImports _
         next
         ctx.modFileCount = ctx.modFiles.Count
         if ctx.modFileCount = 0 then continue for
+
+        '' THE SCAN: the front end, the interface, the harvest -- and on to the next module
+        '' whatever this one's errors, because the code being scanned is being written.
+        if scanOnly then
+            dim as Tko.StrVec noRestart
+            Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, false, _
+                                    linkObjs, tempObjs, toolExit, noRestart )
+            continue for
+        end if
 
         dim as string key, hitObj, hitIface, hitLibs
         if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )

@@ -30,6 +30,7 @@
 #include once "driver/modbuild.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
+#include once "driver/scan.bi"
 
 namespace Tko.Driver
 
@@ -69,6 +70,9 @@ function CompileUnit _
                         Tko.CC_STDCALL, Tko.CC_CDECL )
 
     dim as Tko.NodeId root = Tko.Parse.Unit( p )
+    '' The editor scan wants the unit's macros, and PpClose frees them.
+    dim as Tko.MacroInfoVec scanMacros
+    if ctx.scan <> 0 then Tko.PpSnapshotMacros( st, scanMacros )
     Tko.PpClose( st )
 
     '' '#cmdline' -- WHAT THE SOURCE ASKED TO BE COMPILED WITH. Collected from
@@ -187,7 +191,10 @@ function CompileUnit _
         next
     next
 
-    if ctx.options.dumpVtable then
+    if ctx.scan <> 0 then
+        '' THE EDITOR SCAN: the front end to Check, harvested -- no layout, no code.
+        Tko.Scan.RunUnit( ctx, ast, root, syms, info, p, pr, scanMacros )
+    elseif ctx.options.dumpVtable then
         '' Matching an override needs the PARAMETER TYPES, so this runs after
         '' Resolve like the layout pass does.
         dim as Tko.Resolve.Stats rst

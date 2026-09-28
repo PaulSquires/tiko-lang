@@ -175,7 +175,7 @@ end sub
 '' -------------------------------------------------------------------- output
 
 sub DiagnosticEngine.Flush( )
-    if this.pending.IsEmpty( ) then return
+    if this.pending.IsEmpty( ) orelse this.muted then return
 
     dim as boolean colour = this.UseColor( )
     if colour then Tko.Platform.EnableAnsi( )

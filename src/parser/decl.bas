@@ -1068,6 +1068,7 @@ private function ParseProc _
     end if
     ExpectEnd( p, kw )
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
+    p.ast->RecordProcEnd( pn, p.toks->At( p.pos - 1 ).loc )   '' the body's last line
     if structPrio > 0 then
         p.ast->structorPrio.Push( cast( ulong, pn ) )
         p.ast->structorPrio.Push( cast( ulong, structPrio ) )

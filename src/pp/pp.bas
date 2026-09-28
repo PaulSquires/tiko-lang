@@ -1206,6 +1206,25 @@ function PpEnsure( byref st as PpStream, byval want as long ) as boolean
     return true
 end function
 
+sub PpSnapshotMacros( byref st as PpStream, byref outp as MacroInfoVec )
+    outp.Clear( )
+    if st.engine = 0 then return
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    for i as long = 0 to e->macros.Count - 1
+        dim as PpMacro ptr m = @e->macros[i]
+        '' A builtin has no source; one undefined or scoped to a block is not visible
+        '' where the editor would offer it.
+        if m->builtin <> 0 then continue for
+        if m->isDefined = false then continue for
+        if m->blockDepth <> 0 then continue for
+        dim as PpMacroInfo mi
+        mi.name = m->name
+        mi.loc = m->loc
+        mi.isFunc = m->isFunc
+        outp.Push( mi )
+    next
+end sub
+
 sub PpClose( byref st as PpStream )
     if st.engine = 0 then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )

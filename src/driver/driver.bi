@@ -97,6 +97,10 @@ namespace Tko
         '' THE MODULES THE ROOTS IMPORT ARE BUILT (src/driver/modbuild.bas), so a root's
         '' '#import' is not TKO0992.
         as boolean                importsBuilt
+        '' THE EDITOR SCAN'S RESULT (src/driver/scan.bi, a Tko.Scan.ScanResult), when this
+        '' run is one: every unit then stops after Check and is harvested into it. 0 for
+        '' every other run. An 'any ptr' so this header need not include the scan's.
+        as any ptr                scan
 
         declare constructor( )
         declare destructor( )
@@ -112,8 +116,11 @@ namespace Tko.Driver
     '' appended. It is a parameter rather than a flag inside Run( ) because the
     '' restart IS a second Run( ) -- main.bas stays one line, and the whole compiler
     '' remains reachable in-process.
+    '' 'scanOut', when given, is a Tko.Scan.ScanResult the run fills instead of printing --
+    '' how tikoParser.dll (src/api) drives a scan through the same command line as a CLI run.
     declare function Run _
-        ( byref args as Tko.StrVec, byval restartDepth as long = 0 ) as long
+        ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
+          byval scanOut as any ptr = 0 ) as long
 
 end namespace
 

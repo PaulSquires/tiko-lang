@@ -368,6 +368,17 @@ namespace Tko
 
     declare sub PpClose( byref st as PpStream )
 
+    '' THE MACROS A UNIT DEFINED, for the editor scan (src/driver/scan*.bas): user
+    '' macros still defined at the end of the unit, at module level. Must be called
+    '' BEFORE PpClose, which frees the table. 'loc' is the directive's '#'.
+    type PpMacroInfo
+        as InternId  name
+        as SourceLoc loc
+        as boolean   isFunc
+    end type
+    type MacroInfoVec as FB.Array( of PpMacroInfo )
+    declare sub PpSnapshotMacros( byref st as PpStream, byref outp as MacroInfoVec )
+
     '' Convenience: open, pump to exhaustion, close. What the non-parsing modes use.
     declare sub PpRun _
         ( byref src as SourceManager, byval root as FileId, _

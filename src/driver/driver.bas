@@ -30,6 +30,7 @@
 #include once "fb/filesystem.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
+#include once "driver/scan.bi"
 
 namespace Tko
 
@@ -191,6 +192,7 @@ end function
 private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     if o.dumpTypes orelse o.dumpSource orelse o.lexOnly orelse o.dumpRtl then return true
     if o.dumpSymbols orelse o.resolveOnly orelse o.dumpMangle orelse o.checkOnly then return true
+    if o.dumpScan then return true
     if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
     if o.dumpVtable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
     if o.parseExpr orelse o.parseOnly orelse o.printGraph orelse o.emitTki then return true
@@ -290,7 +292,7 @@ end sub
 private function AstBytes_( byref a as Tko.AstArena ) as longint
     dim as longint pools = a.children.Count + a.tokenRanges.Count + _
                            a.extraTopLevel.Count + a.callTypeArgs.Count + _
-                           a.structorPrio.Count
+                           a.structorPrio.Count + a.procEnds.Count
     return a.nodes.Count    * sizeof( Tko.AstNode ) + _
            a.unaries.Count  * sizeof( Tko.UnaryPayload ) + _
            a.binaries.Count * sizeof( Tko.BinaryPayload ) + _
@@ -601,7 +603,8 @@ private function RestartWith_ _
 end function
 
 function Run _
-    ( byref args as Tko.StrVec, byval restartDepth as long = 0 ) as long
+    ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
+      byval scanOut as any ptr = 0 ) as long
 
     dim as Tko.CompilerContext ctx
 
@@ -632,6 +635,18 @@ function Run _
     '' HOST's layout and this replaces it. Nothing has been laid out yet: builtin sizes
     '' are computed on demand from 'target' and no layout is cached.
     ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( ctx.options.target ) )
+
+    '' THE EDITOR SCAN (src/driver/scan.bas): into the caller's result when tikoParser.dll
+    '' asked, into this one -- to be printed -- for '--dump-scan'.
+    dim as Tko.Scan.ScanResult localScan
+    if scanOut <> 0 then
+        ctx.scan = scanOut
+    elseif ctx.options.dumpScan then
+        ctx.scan = @localScan
+    end if
+    dim as boolean scanning = (ctx.scan <> 0)
+    dim as boolean scanQuiet = (scanOut <> 0)
+    ctx.diags.muted = scanQuiet
 
     if cmdOk = false then
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_CMDLINE )
@@ -715,7 +730,17 @@ function Run _
     dim as double tLoadStart = timer
     for each inputPath as string in srcInputs
         dim as ustring why = ""
-        dim as Tko.FileId id = ctx.sources.LoadFile( inputPath, why )
+        dim as Tko.FileId id
+        '' A SCAN OF AN UNSAVED BUFFER: its text stands in for the first input's file.
+        dim as boolean useText = false
+        if scanning andalso (ctx.sources.Count( ) = 0) then
+            useText = cast( Tko.Scan.ScanResult ptr, ctx.scan )->hasRootText
+        end if
+        if useText then
+            id = ctx.sources.AddBuffer( inputPath, cast( Tko.Scan.ScanResult ptr, ctx.scan )->rootText )
+        else
+            id = ctx.sources.LoadFile( inputPath, why )
+        end if
 
         if id = Tko.FILE_NONE then
             ctx.diags.ReportGlobal( Tko.TKO0001, inputPath, Tko.Text.UStringToUtf8( why ) )
@@ -739,6 +764,13 @@ function Run _
     next
 
     dim as double tLoad = timer - tLoadStart
+
+    '' THE SCAN'S ROOT IS files[0] -- the editor finds its root in the file table by path,
+    '' and a root that declares nothing would otherwise never be entered at all.
+    if scanning andalso (ctx.sources.Count( ) > 0) then
+        cast( Tko.Scan.ScanResult ptr, ctx.scan )->FileIndex( _
+            ctx.sources.AbsPathOf( cast( Tko.FileId, 1 ) ) )
+    end if
 
     '' ---- the build graph, printed and nothing else -------------------------
     '' The roots are the sources just loaded; every module file the graph reaches is
@@ -803,7 +835,7 @@ function Run _
            ctx.options.dumpIr orelse ctx.options.emitIr orelse ctx.options.emitAsm orelse _
            wantsOutput orelse _
            ctx.options.dumpUdt orelse ctx.options.emitTki orelse _
-           ctx.options.dumpVtable then
+           ctx.options.dumpVtable orelse scanning then
         '' ONE OBJECT PER SOURCE, and the link after all of them. Compiling AND
         '' LINKING inside this loop was the multi-module bug: every input overwrote
         '' the previous one's output and was then linked on its own, so a two-module
@@ -878,6 +910,13 @@ function Run _
                 return Tko.DiagOut.Finish( ctx, iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR ) )
             end if
         end if
+        '' ...AND FOR A SCAN, front end only: each module is harvested, and its interface lets
+        '' the root's '#import' bind. Whatever goes wrong in one, the scan carries on.
+        if scanning andalso (ctx.modFileCount = 0) then
+            cast( Tko.Scan.ScanResult ptr, ctx.scan )->importing = true
+            Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit, true )
+            cast( Tko.Scan.ScanResult ptr, ctx.scan )->importing = false
+        end if
         dim as double tFrontStart = timer
         for i as long = 1 to srcCount
             '' ONE UNIT, compiled by CompileUnit in unit.bas -- moved there unchanged on
@@ -885,7 +924,8 @@ function Run _
             '' not read from the command line. A '#cmdline' restart comes back here, because
             '' a restart is a fresh Run( ) and only Run has the arguments to restart with.
             dim as Tko.StrVec restartArgs
-            if CompileUnit( ctx, i, srcCount, restartDepth, wantsOutput, _
+            '' A scan never restarts: it harvests the pass it has, '#cmdline' or not.
+            if CompileUnit( ctx, i, srcCount, iif( scanning, 1, restartDepth ), wantsOutput, _
                             linkObjs, tempObjs, toolExit, restartArgs ) then
                 return RestartWith_( args, restartArgs, restartDepth )
             end if
@@ -896,6 +936,10 @@ function Run _
         '' subtracted -- over 2,709 files that subtraction is larger than the signal.
         if ctx.options.timePasses andalso ctx.options.checkOnly then
             print using "  front ##.### s"; timer - tFrontStart
+        end if
+        if scanning then
+            Tko.Scan.Finish( ctx )
+            if scanQuiet = false then print Tko.Scan.Dump( localScan );
         end if
 
         '' ---- the link, once, over every object --------------------------------

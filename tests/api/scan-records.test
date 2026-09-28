@@ -1,0 +1,26 @@
+'' THE EDITOR SCAN (src/driver/scan.bas; tikoParser.dll): every record kind, attributed to
+'' the file that declares it, with the spelling as written, the type as text, the owner,
+'' the body's line range and the flags the editor keys its features on.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scanbasic.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: files: 2
+'' EXPECT-OUT: [0] scanbasic.tiko
+'' EXPECT-OUT: [1] scanbasic.ti
+'' EXPECT-OUT: [0] type Pair  @1:2:6  parent=-1
+'' EXPECT-OUT: function PairSum as long  @1:6:18  parent=-1  flags=&h200
+'' EXPECT-OUT: const DEFAULT_NAME as string  @0:7:7
+'' EXPECT-OUT: enumval GREEN as Color  @0:11:5  parent=3
+'' EXPECT-OUT: [5] type Box as Shape  @0:19:6
+'' EXPECT-OUT: field label as string * 16  @0:21:5  parent=5
+'' EXPECT-OUT: [15] function Area as long  @0:24:16  parent=4  body=24..26
+'' EXPECT-OUT: [18] param this as Shape  @0:24:1  parent=15  flags=&h248
+'' EXPECT-OUT: param s as string  @0:28:49  parent=6  flags=&h201
+'' EXPECT-OUT: param opt as long  @0:28:68  parent=6  flags=&h280
+'' EXPECT-OUT: var gItems as Box  @0:30:12  parent=-1  flags=&h30A
+'' EXPECT-OUT: sub AddItem  @0:33:5  parent=-1  body=33..38
+'' EXPECT-OUT: var i as long  @0:34:17  parent=9  flags=&h220
+'' EXPECT-OUT: define MAX_ITEMS  @0:6:9  parent=-1
+'' EXPECT-OUT: diags: 0
+'' EXPECT-NOT: define __fb_
+'' EXPECT-NOT: field base

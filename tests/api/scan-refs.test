@@ -1,0 +1,11 @@
+'' HOW OFTEN A SYMBOL IS READ AND WRITTEN, for the editor's unused-symbols report: a
+'' plain '=' writes, 'x += 1' reads AND writes, and a member assignment writes the member
+'' while reading its base.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scanbasic.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: var gCount as long  @0:31:12  parent=-1  flags=&h202  refs=2r2w
+'' EXPECT-OUT: field w as long  @0:20:5  parent=5  flags=&h200  refs=0r1w
+'' EXPECT-OUT: field x as long  @0:15:5  parent=4  flags=&h200  refs=1r0w
+'' EXPECT-OUT: param b as Box ptr  @0:33:20  parent=9  flags=&h208  refs=1r0w
+'' EXPECT-OUT: var i as long  @0:34:17  parent=9  flags=&h220  refs=2r0w
