@@ -1,0 +1,7 @@
+'' TKO0870 FOR AN EXPORTED MACRO SPELLED LIKE ITS MODULE (M32; RFC-0009 §8), as for a public
+'' declaration (M27): 'exportself.ExportSelf' is refused, whatever the case; 'Other' is not.
+'' TEST: cli
+'' ARGS: --pp-only tests/diagnostics/src/modules/exportself/exportself.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: exportself.bas(4,16): error TKO0870: public 'ExportSelf' has the same name as its module 'exportself'
+'' EXPECT-NOT: public 'Other'

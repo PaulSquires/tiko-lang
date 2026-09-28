@@ -477,6 +477,11 @@ private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )
         if m = 0 then
             Report( e, TKO0365, t.loc, SpellOf( e, t ) )
         else
+            '' AN EXPORTED MACRO SPELLED LIKE ITS MODULE (M32, RFC-0009): refused as a public
+            '' declaration of that name is (M27), for the same reader's sake -- 'http.Http'.
+            if Text.LowerAscii( SpellOf( e, t ) ) = Text.LowerAscii( e.outp->moduleName ) then
+                Report( e, TKO0870, t.loc, SpellOf( e, t ), Text.LowerAscii( e.outp->moduleName ) )
+            end if
             PpModRecordExport_( e, m, SpellOf( e, t ) )
         end if
         named = true
