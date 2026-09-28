@@ -1,0 +1,19 @@
+'' ONLY A PROCEDURE'S OWN '( of' MAKES IT GENERIC in the interface (RFC-0004 §3, §7): the first
+'' parenthesis of its header, 'Largest( of T )( ... )' or 'Box( of T ).Get( )'. A generic
+'' instance in a parameter or result -- FB.Map( of string, long ), Box( of long ) -- leaves
+'' a non-generic procedure a 'declare', its body behind. See generic-param-link.test.
+'' TEST: cli
+'' ARGS: --emit-tki -i toolchains/tiko-windows/inc -i tests/modules/src/genparam/libs tests/modules/src/genparam/libs/acme/gp
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare sub AddAll( byref a as FB.Array( of long ) )
+'' EXPECT-OUT: public declare function Total( byref m as FB.Map( of string, long ) ) as long
+'' EXPECT-OUT: public declare function Evens( byval n as long ) as FB.Array( of long )
+'' EXPECT-OUT: public declare function MakeBox( byval x as long ) as Box( of long )
+'' EXPECT-OUT: function Box( of T ).Get( ) as T
+'' EXPECT-OUT: public function Largest( of T )( byref a as FB.Array( of T ) ) as T
+'' EXPECT-OUT: if x > best then best = x
+'' EXPECT-OUT: public function Smallest( Of T )( byref a as FB.Array( of T ) ) as T
+'' EXPECT-NOT: t += v
+'' EXPECT-NOT: total += x
+'' EXPECT-NOT: r.Push
+'' EXPECT-NOT: b.v = x

@@ -198,12 +198,23 @@ private function AtLevel_( byref w as TkiWriter_, byval n as Tko.NodeId, byval s
     return ds = sc
 end function
 
+'' IS THE PROCEDURE WHOSE HEADER IS a..b-1 GENERIC -- its OWN type parameters, 'f( of T )( ... )'
+'' or 'Box( of T ).Get( )'? Only the FIRST parenthesis can say so: a name's '( of' comes
+'' before the parameter list, and anything later -- 'byref m as FB.Map( of string, long )',
+'' 'as Array( of long )' -- is a generic INSTANCE in a non-generic signature. Taking one of
+'' those for the procedure's own made it "generic": its body went into the interface, the
+'' importer defined it again, and the link failed on a duplicate symbol.
 private function HasTypeParams_( byref w as TkiWriter_, byval a as long, byval b as long ) as boolean
     for i as long = a to b - 1
-        if Kind_( w, i ) <> Tko.TK_LPAREN then continue for
-        if Kind_( w, i + 1 ) <> Tko.TK_IDENT then continue for
-        '' 'of' is no keyword: the word after the parenthesis is.
-        if w.ctx->names.Spelling( cast( Tko.InternId, (*w.toks)[i + 1].literal ) ) = "of" then return true
+        select case Kind_( w, i )
+        case Tko.KW_AS
+            return false
+        case Tko.TK_LPAREN
+            if Kind_( w, i + 1 ) <> Tko.TK_IDENT then return false
+            '' 'of' is no keyword: the word after the parenthesis is.
+            return Tko.Text.LowerAscii( w.ctx->names.Spelling( _
+                cast( Tko.InternId, (*w.toks)[i + 1].literal ) ) ) = "of"
+        end select
     next
     return false
 end function

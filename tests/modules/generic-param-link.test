@@ -1,0 +1,21 @@
+'' A NON-GENERIC PROCEDURE WHOSE SIGNATURE NAMES A GENERIC INSTANCE crosses as a 'declare'
+'' (RFC-0004 §7) and links to the module's one definition: a header's FB.Map as a parameter,
+'' FB.Array as a result, the module's own Box( of long ) as a result, and a non-generic
+'' type's out-of-line member taking FB.Array. Each was taken for a generic -- '( of' anywhere
+'' in the header -- so its body went into the interface too, and the link failed on a
+'' duplicate symbol for every one. A generic procedure, 'Largest( of T )' and 'Smallest( Of T )',
+'' still travels whole and is instantiated here. 'calls' counts the module's own definitions.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc -i tests/modules/src/genparam/libs tests/modules/src/genparam/app/main.bas -o tests/modules/genparamlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' EXPECT-FILE: tests/modules/genparamlink.exe
+'' RUN: tests/modules/genparamlink.exe
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  3             6
+'' EXPECT-RUN-OUT:  12
+'' EXPECT-RUN-OUT:  9
+'' EXPECT-RUN-OUT:  6             2
+'' EXPECT-RUN-OUT:  1.5
+'' EXPECT-RUN-OUT:  4
