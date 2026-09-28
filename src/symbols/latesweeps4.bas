@@ -791,6 +791,58 @@ sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, by
     c.diags->Report( TKO0739, PointRange( c.ast->Loc( rhs ) ), TupleSpelling_( c, t ), nm )
 end sub
 
+'' A BUILTIN FUNCTION WITH THE WRONG NUMBER OF ARGUMENTS, or none at all. Measured on
+'' fbc-modern 1.20, 2026-09-28, over each name with 0, 1, 2 and 3 arguments and with none:
+''
+''     one exactly        len sizeof abs sqr sgn int fix sin cos tan atn exp log frac str
+''     one or two         asc ucase lcase trim ltrim rtrim
+''     two or three       mid instr
+''     one or more        chr
+''
+'' Too few is error 9 (16 for mid and instr), too many error 7, and the bare name error 6.
+'' tiko dropped every one of those statements in silence -- 'print len( s, 2 )' printed
+'' nothing. Library functions ('val', 'hex', 'left', 'space') are fbc's overloaded
+'' declarations with their own errors, and are not in the table.
+private function BuiltinArity_ ( byref nm as string, byref lo as long, byref hi as long ) as boolean
+    select case nm
+    case "len", "sizeof", "abs", "sqr", "sgn", "int", "fix", "sin", "cos", "tan", "atn", _
+         "exp", "log", "frac", "str"
+        lo = 1 : hi = 1
+    case "asc", "ucase", "lcase", "trim", "ltrim", "rtrim"
+        lo = 1 : hi = 2
+    case "mid", "instr"
+        lo = 2 : hi = 3
+    case "chr"
+        lo = 1 : hi = 9999
+    case else
+        return false
+    end select
+    return true
+end function
+
+private sub CheckBuiltinArity_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    dim as string nm = lcase( c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+    dim as long lo, hi
+    if BuiltinArity_( nm, lo, hi ) = false then return
+    if (lp->count >= lo) andalso (lp->count <= hi) then return
+    c.diags->Report( TKO0801, PointRange( c.ast->Loc( id ) ), nm )
+end sub
+
+'' ...and the bare name, 'print len': a name no call owns (NF_CALL_TARGET marks one that is).
+private sub CheckBareBuiltin_ ( byref c as Ctx, byval id as NodeId )
+    if (c.ast->nodes[cast( long, id )].flags and NF_CALL_TARGET) <> 0 then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    dim as string nm = lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )].name ) )
+    dim as long lo, hi
+    if BuiltinArity_( nm, lo, hi ) = false then return
+    c.diags->Report( TKO0872, PointRange( c.ast->Loc( id ) ), nm )
+end sub
+
 private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
     dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
     if bt = TY_USTRING then return true

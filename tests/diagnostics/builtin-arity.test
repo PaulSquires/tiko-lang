@@ -1,0 +1,16 @@
+'' TKO0801 and TKO0872, fbc's 7, 9, 16 and 6: a builtin with the wrong number of arguments, or
+'' named with no argument list. See CheckBuiltinArity_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/builtin-arity.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: builtin-arity.bas(9,5): error TKO0801: 'len' does not take these arguments
+'' EXPECT-OUT: builtin-arity.bas(10,5): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(11,8): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(12,8): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(13,5): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(14,8): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(15,8): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(16,10): error TKO0801
+'' EXPECT-OUT: builtin-arity.bas(17,5): error TKO0872: 'len' needs an argument list
+'' EXPECT-OUT: builtin-arity.bas(18,5): error TKO0872
+'' EXPECT-MAX-DIAG: 10
