@@ -628,6 +628,8 @@
     DIAG( TKO0871, SEV_ERROR,   "a '%0' has no printable form; '%1' cannot take it" )
     '' fbc's error 6, "Expected '('": a builtin function named with no argument list.
     DIAG( TKO0872, SEV_ERROR,   "'%0' needs an argument list" )
+    '' fbc's error 17: a SUB called where a value is wanted -- see latesweeps4.bas.
+    DIAG( TKO0873, SEV_ERROR,   "'%0' is a sub and has no value" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

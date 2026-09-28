@@ -1,0 +1,13 @@
+'' TKO0873, fbc's 17: a sub called where a value is wanted. A statement call is not. See
+'' CheckSubAsValue_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/sub-as-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: sub-as-value.bas(18,9): error TKO0873: 'sb' is a sub and has no value
+'' EXPECT-OUT: sub-as-value.bas(19,9): error TKO0873
+'' EXPECT-OUT: sub-as-value.bas(20,7): error TKO0873
+'' EXPECT-OUT: sub-as-value.bas(21,7): error TKO0873
+'' EXPECT-OUT: sub-as-value.bas(22,6): error TKO0873
+'' EXPECT-OUT: sub-as-value.bas(23,12): error TKO0873
+'' EXPECT-OUT: sub-as-value.bas(24,11): error TKO0873
+'' EXPECT-MAX-DIAG: 7

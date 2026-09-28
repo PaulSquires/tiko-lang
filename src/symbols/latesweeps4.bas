@@ -843,6 +843,77 @@ private sub CheckBareBuiltin_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0872, PointRange( c.ast->Loc( id ) ), nm )
 end sub
 
+'' A SUB CALLED WHERE A VALUE IS WANTED. Measured on fbc-modern 1.20, 2026-09-28 -- error 17 for
+'' each, over a 'sub Sb( )' and a 'sub( )' pointer pf:
+''
+''     print Sb( )    print pf( )    x = Sb( )    x = pf( )    x = Sb( ) + 1
+''     if Sb( ) then ...             x = len( Sb( ) )
+''
+'' and tiko dropped each statement in silence. A call as a STATEMENT -- 'Sb( )', 'pf( )',
+'' 'o.M( )' -- is the N_CALL an N_AMBIGUOUS statement holds, built before it; the ids of
+'' those are collected once per tree, and they are not asked.
+private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
+    static as ubyte mark( )
+    static as any ptr forAst = 0
+    static as long forCount = -1
+    dim as long n = c.ast->Count( )
+    if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) then
+        redim mark( 0 to n + 1 )
+        for i as long = 1 to n
+            dim as NodeKind ik = c.ast->Kind( cast( NodeId, i ) )
+            dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[i].data )]
+            dim as NodeId a = NODE_NONE
+            if ik = N_AMBIGUOUS then
+                a = sp->a
+            elseif ik = N_INTRINSIC then
+                '' 'threadcall Sb( 1 )': the call is the intrinsic's one child, and no value.
+                if (cast( TokenKind, sp->op ) = KW_THREADCALL) andalso (sp->count >= 1) then
+                    a = cast( NodeId, c.ast->children[sp->first] )
+                end if
+            end if
+            if (a > 0) andalso (a <= n) then
+                if c.ast->Kind( a ) = N_CALL then mark( a ) = 1
+            end if
+        next
+        forAst = c.ast : forCount = n
+    end if
+    if (id < 0) orelse (id > n) then return false
+    return (mark( id ) <> 0)
+end function
+
+private sub CheckSubAsValue_ ( byref c as Ctx, byval id as NodeId )
+    if StmtCall_( c, id ) then return
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId tgt = lp->target
+    if tgt = NODE_NONE then return
+    if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = 0 then s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+    if s = 0 then return
+    dim as boolean isSub = false
+    select case cast( SymbolKind, s->kind )
+    case SYM_PROC
+        dim as NodeId pn = cast( NodeId, s->payload )
+        if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
+        isSub = (c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].op = cast( ushort, KW_SUB ))
+    case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+        dim as TypeId pt = c.types->Unqualify( s->type_ )
+        if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+        if c.types->Kind( pt ) = TK_POINTER then pt = c.types->Unqualify( c.types->Inner( pt ) )
+        if c.types->Kind( pt ) <> TK_PROC then return
+        '' A 'sub( )' type's result is TY_VOID, always spelled; TYPE_NONE is a result not yet
+        '' known -- a 'function( ) as T' inside a generic -- and no verdict.
+        dim as TypeId rt = c.types->Inner( pt )
+        if rt = TYPE_NONE then return
+        rt = c.types->Unqualify( rt )
+        if c.types->Kind( rt ) = TK_BUILTIN then isSub = (c.types->BuiltinOf( rt ) = TY_VOID)
+    case else
+        return
+    end select
+    if isSub = false then return
+    c.diags->Report( TKO0873, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+end sub
+
 private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
     dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
     if bt = TY_USTRING then return true
