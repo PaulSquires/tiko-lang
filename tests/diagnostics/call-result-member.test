@@ -1,0 +1,11 @@
+'' TKO0739, fbc's 18: a member of a function's result that its type does not have. See
+'' CheckMemberExists_ in symbols/latesweeps2.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/call-result-member.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: call-result-member.bas(23,12): error TKO0739
+'' EXPECT-OUT: call-result-member.bas(24,12): error TKO0739: '(long, string)' has no member named 'x'
+'' EXPECT-OUT: call-result-member.bas(25,12): error TKO0739
+'' EXPECT-OUT: call-result-member.bas(26,13): error TKO0739
+'' EXPECT-OUT: call-result-member.bas(27,12): error TKO0739
+'' EXPECT-MAX-DIAG: 5

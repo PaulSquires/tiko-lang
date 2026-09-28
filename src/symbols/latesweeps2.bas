@@ -342,6 +342,11 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     if bs = 0 then return
     select case cast( SymbolKind, bs->kind )
     case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+    '' ...AND A FUNCTION's RESULT, written as a call: 'MkU( ).nope', 'MkT( ).x', 'MkP( )->nope'
+    '' and 'MkU( ).Nope( )' are fbc's error 18 as well (measured, fbc-modern 1.20, 2026-09-28),
+    '' and tiko printed nothing for each. A parenless name may be a namespace path, and is not.
+    case SYM_PROC
+        if c.ast->Kind( mp->lhs ) <> N_CALL then return
     case else
         return
     end select
