@@ -52,4 +52,20 @@ function Commit( byref path_ as string, byref text as string, byval serial as lo
     return true
 end function
 
+function UserCacheDir( byref leaf as string ) as string
+#ifdef __FB_WIN32__
+    dim as string base_ = environ( "LOCALAPPDATA" )
+    if len( base_ ) = 0 then return ""
+    return base_ & "\tiko\" & leaf
+#else
+    dim as string base_ = environ( "XDG_CACHE_HOME" )
+    if len( base_ ) = 0 then
+        dim as string home = environ( "HOME" )
+        if len( home ) = 0 then return ""
+        base_ = home & "/.cache"
+    end if
+    return base_ & "/tiko/" & leaf
+#endif
+end function
+
 end namespace

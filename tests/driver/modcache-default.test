@@ -1,0 +1,23 @@
+'' WITHOUT TKO_MODCACHE THE POOL IS THE USER'S CACHE DIRECTORY (RFC-0005 §4):
+'' <LOCALAPPDATA>/tiko/modcache, or <XDG_CACHE_HOME>/tiko/modcache off Windows -- both
+'' pointed into build/ here. A build misses, the next hits, and once that directory's tiko/
+'' is removed the next misses again: so the entries were there, and not beside the project.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=
+'' ENV: LOCALAPPDATA=build/.mct-default/user
+'' ENV: XDG_CACHE_HOME=build/.mct-default/user
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-default
+'' COPY: tests/driver/src/modcache => build/.mct-default
+'' STEP: -v -target win64-msvc -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
+'' STEP-OUT: module acme.leaf: miss (new)
+'' STEP: -v -target win64-msvc -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
+'' STEP-OUT: module acme.leaf: hit
+'' STEP-OUT: module acme.middle: hit
+'' CLEAN: build/.mct-default/user/tiko
+'' ARGS: -v -target win64-msvc -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module acme.leaf: miss (new)
+'' EXPECT-OUT: module acme.middle: miss (new)
+'' RUN: build/.mct-default/app.exe
+'' EXPECT-RUN-OUT:  14

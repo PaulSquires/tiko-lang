@@ -21,4 +21,8 @@ declare function ReadAll( byref path_ as string, byref text as string ) as boole
 '' temporaries of one commit made in the same microsecond.
 declare function Commit( byref path_ as string, byref text as string, byval serial as long ) as boolean
 
+'' <the user's cache directory>/tiko/<leaf>: %LOCALAPPDATA% on Windows, $XDG_CACHE_HOME or
+'' ~/.cache elsewhere. "" when the environment names none.
+declare function UserCacheDir( byref leaf as string ) as string
+
 end namespace

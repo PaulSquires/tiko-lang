@@ -33,19 +33,7 @@ end function
 function CacheRoot( byref ctx as Tko.CompilerContext ) as string
     if ctx.options.cNoCache then return ""
     if len( ctx.options.cCacheDir ) then return ctx.options.cCacheDir
-#ifdef __FB_WIN32__
-    dim as string base_ = Env_( "LOCALAPPDATA" )
-    if len( base_ ) = 0 then return ""
-    return base_ & "\tiko\cimport"
-#else
-    dim as string base_ = Env_( "XDG_CACHE_HOME" )
-    if len( base_ ) = 0 then
-        dim as string home = Env_( "HOME" )
-        if len( home ) = 0 then return ""
-        base_ = home & "/.cache"
-    end if
-    return base_ & "/tiko/cimport"
-#endif
+    return Tko.DiskCache.UserCacheDir( "cimport" )
 end function
 
 '' The first 'gcc' on PATH: how clang finds MinGW for the win64 target, and so which

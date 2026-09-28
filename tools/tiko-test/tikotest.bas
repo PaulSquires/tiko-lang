@@ -617,6 +617,15 @@ private sub SetEnv_( byref kv as string )
     setenviron keep( n )
 end sub
 
+'' PUT BACK WHAT A TEST'S ENV REPLACED -- 'NAME=value' each, as captured before it was set.
+'' Clearing it instead lost a value the whole run depends on: TKO_MODCACHE, set below for
+'' every test, was gone after the first test that named its own.
+private sub RestoreEnv_( byref prev as Array( of string ) )
+    for each p as string in prev
+        SetEnv_( p )
+    next
+end sub
+
 function RunOne _
     ( byref tc as TestCase, byref opts as Options, byref why as string, _
       byval slotId as long ) as boolean
@@ -637,11 +646,14 @@ function RunOne _
         at = instr( args, "%s" )
     wend
 
-    '' The variable is set for this run and cleared straight after, so a test that
+    '' The variable is set for this run and put back straight after, so a test that
     '' needs an environment cannot leak it into the next one. Order matters: tiko-lang reads
-    '' it at startup, so it must be in place before the shell( ) and gone before the
+    '' it at startup, so it must be in place before the shell( ) and restored before the
     '' following test builds its own command.
+    dim as Array( of string ) prevEnv
     for each e_ as string in tc.env
+        dim as long eq0 = instr( e_, "=" )
+        if eq0 > 0 then prevEnv.Push( left( e_, eq0 ) & environ( left( e_, eq0 - 1 ) ) )
         SetEnv_( e_ )
     next
 
@@ -689,18 +701,12 @@ function RunOne _
         end if
         if ok_ = false then
             if tc.targets.Count > 1 then why = "[" & tgt & "] " & why
-            for each e2 as string in tc.env
-                dim as long eq2 = instr( e2, "=" )
-                if eq2 > 0 then SetEnv_( left( e2, eq2 ) )
-            next
+            RestoreEnv_( prevEnv )
             return false
         end if
     next
 
-    for each e_ as string in tc.env
-        dim as long eq = instr( e_, "=" )
-        if eq > 0 then SetEnv_( left( e_, eq ) )
-    next
+    RestoreEnv_( prevEnv )
 
     return true
 end function
@@ -1000,6 +1006,10 @@ while len( command( argi ) ) > 0
 wend
 
 if opts.suites.IsEmpty( ) then opts.suites.Push( "tests" )
+
+'' THE MODULE CACHE THE SUITE BUILDS INTO, unless the caller named one. tiko's own default
+'' is the user's cache directory, one pool for every project, which a gate must not fill.
+if len( environ( "TKO_MODCACHE" ) ) = 0 then SetEnv_( "TKO_MODCACHE=build/.modcache" )
 
 dim as long nWorkers = opts.jobs
 if nWorkers <= 0 then nWorkers = DefaultJobs_( )

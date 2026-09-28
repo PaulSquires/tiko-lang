@@ -7,10 +7,10 @@
 
 namespace Tko.Modules
 
-'' WHERE ENTRIES LIVE: TKO_MODCACHE, else '.tiko/cache' beside the nearest tiko.toml at or
-'' above the first root's directory, else beside the first root. "" under
-'' --no-module-cache, and when the directory cannot be made (TKO0150, and the build goes on
-'' uncached).
+'' WHERE ENTRIES LIVE: TKO_MODCACHE, else ONE POOL FOR EVERY PROJECT in the user's cache
+'' directory, <LOCALAPPDATA>/tiko/modcache or <XDG_CACHE_HOME|~/.cache>/tiko/modcache. ""
+'' under --no-module-cache, and when there is none or it cannot be made (TKO0150, and the
+'' build goes on uncached).
 declare function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
 
 '' THE KEY of module n of the build (ctx.ifaceChains[n]), whose dependencies' interfaces are

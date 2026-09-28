@@ -27,14 +27,6 @@ function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
     return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.modChain & ".o" )
 end function
 
-'' A '-c' module object, as a root's '.fbctinf' records it: absolute, since the link that
-'' reads it may run anywhere.
-private function AbsPath_( byref p as string ) as string
-    dim as boolean absolute_ = (instr( p, ":" ) > 0) orelse (left( p, 1 ) = "/")
-    if absolute_ then return NormPath( p )
-    return JoinPath( curdir( ), p )
-end function
-
 '' A cached module's contribution to the link, as ModuleCacheStore recorded it.
 private sub ReplayLibs_( byref ctx as Tko.CompilerContext, byref libs as string )
     dim as long p = 1
@@ -97,7 +89,7 @@ function BuildImports _
     next
     ctx.ifaceRootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
     '' NOT FOR A SCAN: ModuleCacheRoot MAKES the directory, and an editor scanning as you
-    '' type must not leave a '.tiko' folder beside every file it looks at.
+    '' type must not create or fill the user's module cache.
     dim as string cacheRoot = ""
     if scanOnly = false then cacheRoot = ModuleCacheRoot( ctx )
 
@@ -131,7 +123,7 @@ function BuildImports _
             if ctx.options.compileOnly then
                 dim as string cp = ArchiveMemberPath( ctx )
                 FB.CopyFile( hitObj, cp, true )
-                ctx.modObjPaths.Push( AbsPath_( cp ) )
+                ctx.modObjPaths.Push( AbsPath( cp ) )  '' absolute: the link that reads it may run anywhere
                 hitObj = cp
             elseif ctx.options.outKind = Tko.OUT_STATICLIB then
                 dim as string mp = ArchiveMemberPath( ctx )
@@ -160,7 +152,7 @@ function BuildImports _
                                 linkObjs, tempObjs, toolExit, restartArgs )
         if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
         if ctx.options.compileOnly andalso (linkObjs.Count > objs0) then
-            ctx.modObjPaths.Push( AbsPath_( linkObjs[linkObjs.Count - 1] ) )
+            ctx.modObjPaths.Push( AbsPath( linkObjs[linkObjs.Count - 1] ) )
         end if
         if (len( cacheRoot ) > 0) andalso (linkObjs.Count > objs0) then
             dim as string libs = ""

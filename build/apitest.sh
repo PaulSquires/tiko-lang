@@ -45,14 +45,17 @@ fi
 
 # '#import' through the DLL: the module's public procedure under its alias, at its source.
 INC=$(cygpath -w "$ROOT/tests/driver/src/modcache/libs")
-out=$(TKP_INCDIR="$INC" $H $DLL tests/driver/src/modcache/app/main.bas dump 2>&1)
+# The pool a scan must not make: named, so the check below asks the place it would go.
+SCANCACHE="$ROOT/build/.apitest-scancache"
+rm -rf "$SCANCACHE"
+out=$(TKO_MODCACHE="$SCANCACHE" TKP_INCDIR="$INC" $H $DLL tests/driver/src/modcache/app/main.bas dump 2>&1)
 if echo "$out" | grep -qF "k2 Twice as long  @3:3:17  parent=2  body=3..5" && \
    echo "$out" | grep -qF "k13 middle  @0:1:15"; then
     echo "ok    #import: middle.Twice at middle.bas:3:17"
 else
     echo "FAIL  #import"; echo "$out" | sed 's/^/      /'; FAIL=1
 fi
-[ -e tests/driver/src/modcache/app/.tiko ] && { echo "FAIL  #import scan wrote a module cache"; FAIL=1; }
+[ -e "$SCANCACHE" ] && { echo "FAIL  #import scan wrote a module cache"; FAIL=1; }
 
 # A PACKAGE IMPORT, from a host whose folder has no pkg/ beside it -- the editor's case.
 # bin/ has ../pkg, which tiko's beside-the-exe fallback would find, so the harness and the

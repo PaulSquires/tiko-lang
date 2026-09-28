@@ -28,6 +28,8 @@ const ANON_PACKAGE = "main"
 declare function NormPath( byref p as string ) as string
 declare function JoinPath( byref a as string, byref b as string ) as string
 declare function DirOfFile( byref p as string ) as string
+'' p made absolute against the current directory, and normalised ('/'-separated).
+declare function AbsPath( byref p as string ) as string
 
 '' RESOLVE ONE IMPORT, read in a file of the package pkgName rooted at pkgRoot, whose own
 '' directory is fromDir. On failure the diagnostic is already reported at rec.loc.

@@ -18,8 +18,15 @@
 '' A failed compile is never stored. Two builds storing one entry race harmlessly: each
 '' file is committed whole (support/diskcache.bas), and the key decides the content.
 ''
-'' <root>/chains/<chain>.key is the last key stored for a chain, read only to say, under
-'' -v, which line of the key made a miss.
+'' <root>/chains/<chain>.<hash of its directory>.key is the last key stored for a chain,
+'' read only to say, under -v, which line of the key made a miss. By directory too, because
+'' the pool is shared: two projects' 'main.util' must not overwrite each other's.
+''
+'' ONE POOL SERVES EVERY PROJECT, so THE KEY SAYS WHERE: the module's directory and each
+'' include path are absolute. Written as given they were relative, and two projects laid
+'' out alike, built each from its own directory, made one key for one module source -- the
+'' second got the first's object, compiled against the first's headers, since deps.txt
+'' (absolute) names the first's files, which had not changed.
 
 #include once "driver/modcache.bi"
 #include once "driver/modresolve.bi"
@@ -37,21 +44,11 @@ function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
     if ctx.options.noModuleCache then return ""
     dim as string root = environ( "TKO_MODCACHE" )
     if len( root ) = 0 then
-        dim as string first_ = DirOfFile( ctx.sources.AbsPathOf( cast( Tko.FileId, 1 ) ) )
-        dim as string d = first_
-        dim as string found = ""
-        for guard as long = 0 to 64
-            if len( d ) = 0 then exit for
-            if FB.IsFile( JoinPath( d, "tiko.toml" ) ) then
-                found = d
-                exit for
-            end if
-            dim as string up_ = DirOfFile( d )
-            if (len( up_ ) = 0) orelse (up_ = d) then exit for
-            d = up_
-        next
-        if len( found ) = 0 then found = first_
-        root = JoinPath( JoinPath( found, ".tiko" ), "cache" )
+        root = Tko.DiskCache.UserCacheDir( "modcache" )
+        if len( root ) = 0 then
+            ctx.diags.ReportGlobal( Tko.TKO0150, "no user cache directory; set TKO_MODCACHE" )
+            return ""
+        end if
     end if
     if FB.IsDir( root ) = false then FB.CreateDirAll( root )
     if FB.IsDir( root ) = false then
@@ -84,7 +81,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
          " w=" & iif( o->warningsAsErrors, 1, 0 ) & " maxinstdepth=" & o->maxInstDepth & nl
     '' A module's headers are found through these.
     for each p as string in o->includePaths
-        k &= "include " & p & nl
+        k &= "include " & AbsPath( p ) & nl
     next
     '' ...and a #cinclude binding is made with these.
     for each p as string in o->cDefines
@@ -101,7 +98,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
         k &= "define " & d & nl
     next
     k &= "module " & ctx.ifaceChains[n] & nl
-    k &= "dir " & ctx.ifaceDirs[n] & nl
+    k &= "dir " & AbsPath( ctx.ifaceDirs[n] ) & nl
     '' Its sources, in the order the unit reads them -- sorted already (ModuleFiles).
     for each f as ulong in ctx.modFiles
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )
@@ -172,6 +169,19 @@ function ModuleCacheLookup _
     return FB.IsFile( objPath )
 end function
 
+'' The last key stored for this chain FROM THIS DIRECTORY: the key's own 'dir' line says
+'' which.
+private function ChainFile_( byref root as string, byref chain as string, byref key as string ) as string
+    dim as string d = ""
+    dim as long at = instr( Nl_( ) & key, Nl_( ) & "dir " )
+    if at > 0 then
+        dim as long e = instr( at, key, Nl_( ) )
+        if e = 0 then e = len( key ) + 1
+        d = mid( key, at, e - at )
+    end if
+    return JoinPath( JoinPath( root, "chains" ), chain & "." & Tko.DiskCache.Hash( d ) & ".key" )
+end function
+
 sub ModuleCacheStore _
     ( byref ctx as Tko.CompilerContext, byref root as string, byref key as string, _
       byref objPath as string, byref iface as string, byref libs as string )
@@ -212,13 +222,13 @@ sub ModuleCacheStore _
     if Tko.DiskCache.Commit( JoinPath( d, "deps.txt" ), dl, 5 ) = false then return
     dim as string cd = JoinPath( root, "chains" )
     if FB.IsDir( cd ) = false then FB.CreateDirAll( cd )
-    Tko.DiskCache.Commit( JoinPath( cd, ctx.modChain & ".key" ), key, 6 )
+    Tko.DiskCache.Commit( ChainFile_( root, ctx.modChain, key ), key, 6 )
 end sub
 
 function MissReason _
     ( byref root as string, byref chain as string, byref key as string ) as string
     dim as string last_
-    if Tko.DiskCache.ReadAll( JoinPath( JoinPath( root, "chains" ), chain & ".key" ), last_ ) = false then
+    if Tko.DiskCache.ReadAll( ChainFile_( root, chain, key ), last_ ) = false then
         return "new"
     end if
     dim as long p = 1

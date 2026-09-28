@@ -71,6 +71,12 @@ function JoinPath( byref a as string, byref b as string ) as string
     return NormPath( a & "/" & b )
 end function
 
+function AbsPath( byref p as string ) as string
+    dim as boolean absolute_ = (instr( p, ":" ) > 0) orelse (left( p, 1 ) = "/")
+    if absolute_ then return NormPath( p )
+    return JoinPath( curdir( ), p )
+end function
+
 function DirOfFile( byref p as string ) as string
     dim as string n = NormPath( p )
     dim as long sl = instrrev( n, "/" )
