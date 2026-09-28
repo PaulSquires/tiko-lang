@@ -617,6 +617,133 @@ private sub CheckAssertTypes_ ( byref c as Ctx, byval id as NodeId )
     if v = 0 then c.diags->Report( TKO0604, PointRange( c.ast->Loc( id ) ) )
 end sub
 
+'' A VALUE WITH NO PRINTABLE FORM, printed. Measured on fbc-modern 1.20, 2026-09-28 -- error 24,
+'' "Invalid data types", for each of these over a '(long, string)' t, a function returning
+'' '(long, long)' and a UDT u that declares no 'operator cast':
+''
+''     print t    print t, 1    print "x"; t    print ( 1, 2 )    print f( )    print u
+''     print #1, t    write t    dim s as string = str( t )
+''
+'' tiko dropped each statement in silence, the items before the bad one with it. A UDT prints
+'' through an 'operator cast' to a STRING only -- 'as string', 'byref as wstring', or one of
+'' several: measured, a cast 'as long' alone is error 24 too ('print v', 'write v' and
+'' 'str( v )'), and so is 'as zstring ptr'. An item with no type is not judged.
+private function PrintsViaCast_ ( byref c as Ctx, byval u as TypeId ) as boolean
+    dim as Symbol ptr cs = StructorOf_( c, u, "cast" )
+    for guard as long = 0 to 63
+        if cs = 0 then return false
+        dim as TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        dim as TypeId fe = Tko.Check.FixedStringElem( rt, *c.types )
+        if fe <> TYPE_NONE then rt = fe
+        if c.types->Kind( rt ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( rt )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+                return true
+            end select
+        end if
+        cs = c.syms->SymbolAt( cs->nextOverload )
+    next
+    return false
+end function
+
+'' A tuple as it is written, '(long, string)', rather than its internal name.
+private function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return c.types->Name( t )
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if (s = 0) orelse (s->inner = SCOPE_NONE) then return c.types->Name( t )
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return c.types->Name( t )
+    dim as string r = ""
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 255
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if f->kind = cast( ubyte, SYM_FIELD ) then
+            if len( r ) > 0 then r &= ", "
+            dim as TypeId ft = c.types->Unqualify( f->type_ )
+            if TcTuple_( c, ft ) then r &= TupleSpelling_( c, ft ) else r &= c.types->Name( ft )
+        end if
+        cur = f->nextInScope
+    next
+    if len( r ) = 0 then return c.types->Name( t )
+    return "(" & r & ")"
+end function
+
+private function Unprintable_ ( byref c as Ctx, byval e as NodeId ) as TypeId
+    e = Unparen3_( c, e )
+    if e = NODE_NONE then return TYPE_NONE
+    '' NOT WHERE ANOTHER ERROR HAS THE ITEM: a bare 'base' is TKO0735, and a call of something
+    '' that is not a procedure -- 'P( 3 )( 1 )' -- is TKO0772, each typed as the UDT it names.
+    select case c.ast->Kind( e )
+    case N_IDENT
+        if lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, e )].data )].name ) ) = "base" then return TYPE_NONE
+    case N_CALL
+        dim as ListPayload ptr clp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if clp->target = NODE_NONE then return TYPE_NONE
+        dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( clp->target ) )
+        if cs = 0 then cs = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if (cs = 0) orelse (cs->kind <> cast( ubyte, SYM_PROC )) then return TYPE_NONE
+    end select
+    dim as TypeId t = c.info->TypeOf_( e )
+    if t = TYPE_NONE then return TYPE_NONE
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) = TK_TUPLE then return u
+    if c.types->Kind( u ) <> TK_UDT then return TYPE_NONE
+    if TcTuple_( c, u ) then return u
+    if PrintsViaCast_( c, u ) then return TYPE_NONE
+    return u
+end function
+
+private function UnprintableName_ ( byref c as Ctx, byval t as TypeId ) as string
+    if (c.types->Kind( t ) = TK_TUPLE) orelse TcTuple_( c, t ) then return TupleSpelling_( c, t )
+    return c.types->Name( t )
+end function
+
+private sub CheckUnprintable_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as string what
+    select case cast( TokenKind, sp->op )
+    case KW_PRINT : what = "print"
+    case KW_WRITE : what = "write"
+    case else     : return
+    end select
+    if sp->extra <> 0 then return   '' PRINT USING has its own grammar
+    for i as long = 0 to sp->count - 1
+        dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( it ) = N_PRINT_SEP then
+            '' 'print using' may also be written after a plain item.
+            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, it )].data )].op = cast( ushort, KW_USING ) then return
+            continue for
+        end if
+        dim as TypeId bt = Unprintable_( c, it )
+        if bt <> TYPE_NONE then
+            c.diags->Report( TKO0871, PointRange( c.ast->Loc( it ) ), UnprintableName_( c, bt ), what )
+            return
+        end if
+    next
+end sub
+
+'' ...and 'str( t )', 'wstr( t )' over one.
+private sub CheckUnprintableStr_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->count <> 1) orelse (lp->target = NODE_NONE) then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as string nm = lcase( c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+    if (nm <> "str") andalso (nm <> "wstr") then return
+    dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
+    dim as TypeId bt = Unprintable_( c, a )
+    if bt <> TYPE_NONE then c.diags->Report( TKO0871, PointRange( c.ast->Loc( a ) ), UnprintableName_( c, bt ), nm )
+end sub
+
 private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
     dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
     if bt = TY_USTRING then return true

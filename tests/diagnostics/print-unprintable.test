@@ -1,0 +1,14 @@
+'' TKO0871, fbc's 24: a tuple, or a UDT with no 'operator cast' to a string, printed, written
+'' or passed to str( ). See CheckUnprintable_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/print-unprintable.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: print-unprintable.bas(28,7): error TKO0871: a '(long, string)' has no printable form; 'print' cannot take it
+'' EXPECT-OUT: print-unprintable.bas(29,12): error TKO0871
+'' EXPECT-OUT: print-unprintable.bas(30,8): error TKO0871: a '(long, long)' has no printable form; 'print' cannot take it
+'' EXPECT-OUT: print-unprintable.bas(31,7): error TKO0871: a '(long, string)' has no printable form; 'write' cannot take it
+'' EXPECT-OUT: print-unprintable.bas(32,11): error TKO0871
+'' EXPECT-OUT: print-unprintable.bas(33,7): error TKO0871
+'' EXPECT-OUT: print-unprintable.bas(34,10): error TKO0871
+'' EXPECT-OUT: print-unprintable.bas(35,7): error TKO0871
+'' EXPECT-MAX-DIAG: 8

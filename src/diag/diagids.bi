@@ -623,6 +623,9 @@
     '' fbc's error 265, "Symbol not a CLASS, ENUM, TYPE or UNION type": 'v.EB' over a
     '' variable or parameter of an enum type. See symbols/check.bas, the enum-member arm.
     DIAG( TKO0835, SEV_ERROR,   "'%0' is a value of an enum type, not the enum, so it has no members" )
+    '' fbc's error 24, "Invalid data types", over a PRINT, WRITE or str( ) of a value with no
+    '' printable form -- see latesweeps4.bas.
+    DIAG( TKO0871, SEV_ERROR,   "a '%0' has no printable form; '%1' cannot take it" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
