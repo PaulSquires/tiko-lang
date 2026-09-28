@@ -189,13 +189,19 @@ sub WriteTextFile( byval path as string, byval content as string )
 end sub
 
 '' Normalise line endings so a golden written on one platform matches on the other.
+''
+'' WRITTEN IN PLACE, NOT APPENDED. 'outp += chr( s[i] )' a byte at a time cost 80 of the
+'' 92 seconds escape-literal-dwstring-arg took, over its 1.1 MB of --dump-ir -- more than
+'' half the whole suite.
 function NormalizeEol( byval s as string ) as string
-    dim as string outp = ""
+    if instr( s, chr( 13 ) ) = 0 then return s
     dim as long n = len( s )
+    dim as string outp = space( n )
+    dim as long w = 0
     for i as long = 0 to n - 1
-        if s[i] <> 13 then outp += chr( s[i] )
+        if s[i] <> 13 then outp[w] = s[i] : w += 1
     next
-    return outp
+    return left( outp, w )
 end function
 
 '' Normalise a 'skip-site <file>:<line>' to 'skip-site <file>:LINE'.
@@ -213,14 +219,19 @@ end function
 '' test's own backslashes are left alone.
 ''
 '' Applied to both sides, so a golden written before this still matches.
+''
+'' WRITTEN IN PLACE, NOT APPENDED, as NormalizeEol is: it runs on both sides of every golden.
 function NormalizeSkipSites( byval s as string ) as string
-    dim as string outp = ""
+    if (instr( s, ".bas:" ) = 0) andalso (instr( s, "skip-site " ) = 0) then return s
     dim as long n = len( s )
+    '' '.bas:' and one digit is 6 bytes and becomes 9, so the text grows by at most half.
+    dim as string outp = space( n + n \ 2 + 16 )
+    dim as long w = 0
     dim as long i = 0
     while i < n
         '' '.bas:' followed by digits is the only shape this touches.
         if (i + 4 < n) andalso (s[i] = 46) then            '' '.'
-            if mid( s, i + 1, 5 ) = ".bas:" then
+            if (s[i + 1] = 98) andalso (s[i + 2] = 97) andalso (s[i + 3] = 115) andalso (s[i + 4] = 58) then
                 dim as long j = i + 5
                 dim as long d = 0
                 while (j < n) andalso (s[j] >= 48) andalso (s[j] <= 57)
@@ -228,35 +239,32 @@ function NormalizeSkipSites( byval s as string ) as string
                     d += 1
                 wend
                 if d > 0 then
-                    outp += ".bas:LINE"
+                    mid( outp, w + 1, 9 ) = ".bas:LINE"
+                    w += 9
                     i = j
                     continue while
                 end if
             end if
         end if
-        outp += chr( s[i] )
+        outp[w] = s[i]
+        w += 1
         i += 1
     wend
+    outp = left( outp, w )
 
-    '' The separator pass, line by line.
-    dim as string r = ""
-    dim as long st = 1
-    while st <= len( outp )
-        dim as long nl = instr( st, outp, chr( 10 ) )
-        dim as string ln
-        if nl = 0 then
-            ln = mid( outp, st ) : st = len( outp ) + 1
-        else
-            ln = mid( outp, st, nl - st + 1 ) : st = nl + 1
-        end if
-        if instr( ln, "skip-site " ) > 0 then
-            for k as long = 0 to len( ln ) - 1
-                if ln[k] = 92 then ln[k] = asc( "/" )
-            next
-        end if
-        r += ln
+    '' The separator pass: each line holding 'skip-site ', in place.
+    dim as long at = instr( outp, "skip-site " )
+    while at > 0
+        dim as long ls = instrrev( outp, chr( 10 ), at )     '' 0 when it is the first line
+        dim as long le = instr( at, outp, chr( 10 ) )
+        if le = 0 then le = len( outp ) + 1
+        for k as long = ls to le - 2
+            if outp[k] = 92 then outp[k] = asc( "/" )
+        next
+        if le > len( outp ) then exit while
+        at = instr( le, outp, "skip-site " )
     wend
-    return r
+    return outp
 end function
 
 '' ------------------------------------------------------------------- discovery
