@@ -1,0 +1,62 @@
+'' recursivetype.bas -- A TYPE THAT HOLDS ITSELF: CheckRecursiveType_, asked of every N_TYPE.
+''
+'' Included from latesweeps2.bas, below valuestmt.bas, in the same namespace and over the same
+'' Ctx.
+''
+'' Measured on fbc-modern 1.20, 2026-09-28. A field of the type being declared, by value, is
+'' error 88, "Recursive TYPE or UNION not allowed" --
+''
+''     s as S1        as S2 s        arr( 0 to 1 ) as R1        d( any ) as D1
+''     redim e( any ) as D2          u as UU  (in a UNION)
+''
+'' -- and one in a NESTED type, of the type around it, is error 24 ('type T1 : type T2 :
+'' m1 as T1'). tiko laid every one out. A pointer, a procedure type and a method's parameter
+'' are fine; a typedef to a type still below is TKO0811's.
+
+private sub RecursiveTypeRef_ _
+    ( byref c as Ctx, byval self_ as NodeId, byval ta as NodeId, byref selfName as string )
+    if (ta < 1) orelse (ta > c.ast->Count( )) then return
+    if c.ast->Kind( ta ) <> N_TYPEREF then return
+    if (c.ast->nodes[cast( long, ta )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( ta ) )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_UDT ) then return
+    if cast( NodeId, s->payload ) <> self_ then return
+    c.diags->Report( TKO0878, PointRange( c.ast->Loc( ta ) ), selfName )
+end sub
+
+'' Does the member list at first/count hold a field of 'self' by value -- directly, through an
+'' anonymous aggregate, or inside a nested named type. Each one found is reported.
+private sub RecursiveMembers_ _
+    ( byref c as Ctx, byval self_ as NodeId, byval first as long, byval count as long, _
+      byref selfName as string )
+    for i as long = first to first + count - 1
+        dim as NodeId m = cast( NodeId, c.ast->children[i] )
+        if (m < 1) orelse (m > c.ast->Count( )) then continue for
+        dim as StmtPayload ptr mp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, m )].data )]
+        select case c.ast->Kind( m )
+        case N_TYPE
+            '' ONLY A NAMED ONE. Through an ANONYMOUS aggregate fbc takes it -- 'union UU : a as
+            '' long : type : u as UU : v as long : end type : end union' compiles, and
+            '' sizeof( UU ) prints 8: the incomplete UU counts as nothing. A nested NAMED type
+            '' holding the one around it is fbc's 24.
+            if mp->name <> 0 then RecursiveMembers_( c, self_, mp->first, mp->count, selfName )
+        case N_FIELD
+            RecursiveTypeRef_( c, self_, mp->a, selfName )
+        case N_VAR
+            if mp->op <> cast( ushort, KW_REDIM ) then continue for
+            for j as long = 0 to mp->count - 1
+                dim as NodeId it = cast( NodeId, c.ast->children[mp->first + j] )
+                if (it < 1) orelse (c.ast->Kind( it ) <> N_VAR_ITEM) then continue for
+                RecursiveTypeRef_( c, self_, c.ast->stmts[cast( long, c.ast->nodes[cast( long, it )].data )].a, selfName )
+            next
+        end select
+    next
+end sub
+
+private sub CheckRecursiveType_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->name = 0 then return
+    dim as string nm = c.names->Spelling( sp->name )
+    RecursiveMembers_( c, id, sp->first, sp->count, nm )
+end sub

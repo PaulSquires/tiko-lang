@@ -638,6 +638,8 @@
     DIAG( TKO0876, SEV_ERROR,   "this %0 cannot be empty" )
     '' fbc's error 17: an anonymous 'union' directly in a UNION, a 'type' directly in a TYPE.
     DIAG( TKO0877, SEV_ERROR,   "an anonymous %0 cannot sit directly inside a %0; they must alternate" )
+    '' fbc's 88 (24 from a nested type): a field of the type being declared -- see recursivetype.bas.
+    DIAG( TKO0878, SEV_ERROR,   "'%0' cannot hold itself: it is still being declared, and only a pointer to it may be a field" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

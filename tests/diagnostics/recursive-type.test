@@ -1,0 +1,13 @@
+'' TKO0878, fbc's 88 (24 from a nested named type): a field of the type being declared, by
+'' value. Through an anonymous aggregate fbc takes it. See symbols/recursivetype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/recursive-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: recursive-type.bas(10,10): error TKO0878: 's1' cannot hold itself: it is still being declared, and only a pointer to it may be a field
+'' EXPECT-OUT: recursive-type.bas(14,8): error TKO0878
+'' EXPECT-OUT: recursive-type.bas(18,22): error TKO0878
+'' EXPECT-OUT: recursive-type.bas(22,17): error TKO0878
+'' EXPECT-OUT: recursive-type.bas(26,23): error TKO0878
+'' EXPECT-OUT: recursive-type.bas(38,15): error TKO0878
+'' EXPECT-OUT: recursive-type.bas(39,12): error TKO0878
+'' EXPECT-MAX-DIAG: 7
