@@ -235,7 +235,45 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     dim as NodeId tgt = lp->target
     if tgt = NODE_NONE then return
     dim as NodeKind tk = c.ast->Kind( tgt )
-    if (tk <> N_PAREN) andalso (tk <> N_CALL) then return
+    '' ...AND A NAMED VALUE, CALLED: 'N( )' over a long, 'S( 1 )' over a string, 'u.a( )' over a
+    '' field, 'U1( )' over a UDT variable -- fbc's 3, 72 and 24 (fbc-modern 1.20, 2026-09-28);
+    '' tiko dropped each in silence. NOT an array (declared with dimensions, made by REDIM, or
+    '' typed as one -- an array of var-len strings is one, a 'zstring * N' is not), 'base' or
+    '' 'this', or a name a TYPE shares, which is its constructor ('T2( u )' beside 'dim t2').
+    if (tk = N_IDENT) orelse (tk = N_MEMBER) then
+        dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+        if vs = 0 then return
+        select case cast( SymbolKind, vs->kind )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+        case else
+            return
+        end select
+        if (lcase( c.names->Spelling( vs->name ) ) = "base") orelse (lcase( c.names->Spelling( vs->name ) ) = "this") then return
+        if (vs->flags and SYMF_REDIM) <> 0 then return
+        dim as Symbol ptr tys = c.syms->SymbolAt( c.syms->LookupTyped( vs->parent, vs->name, true ) )  '' may be vs itself
+        if (tys <> 0) andalso ((tys->kind = cast( ubyte, SYM_UDT )) orelse (tys->kind = cast( ubyte, SYM_TYPEDEF ))) then return
+        dim as NodeId dn = cast( NodeId, vs->payload )
+        if (dn > 0) andalso (dn <= c.ast->Count( )) then
+            if (c.ast->nodes[cast( long, dn )].flags and NF_ARRAY) <> 0 then return
+        end if
+        for pass as long = 0 to 1
+            dim as TypeId vt = iif( pass = 0, vs->type_, c.info->TypeOf_( tgt ) )
+            if vt = TYPE_NONE then return
+            vt = c.types->Unqualify( vt )
+            if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+            if c.types->IsDynArray( vt ) then return
+            if c.types->Kind( vt ) = TK_ARRAY then
+                dim as TypeId el = c.types->Unqualify( c.types->Inner( vt ) )
+                if c.types->Kind( el ) <> TK_BUILTIN then return
+                select case c.types->BuiltinOf( el )
+                case TY_ZSTRING, TY_WSTRING, TY_FIXSTR, TY_FIXUSTR
+                case else : return
+                end select
+            end if
+        next
+    elseif (tk <> N_PAREN) andalso (tk <> N_CALL) then
+        return
+    end if
 
     dim as boolean bad = false
     if tk = N_PAREN then

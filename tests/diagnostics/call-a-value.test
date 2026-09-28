@@ -1,0 +1,12 @@
+'' TKO0772, fbc's 3, 72, 7 and 24: a named value that is not an array or a procedure pointer,
+'' called. See CheckCalledExpr_ in symbols/latechecks.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/call-a-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: call-a-value.bas(16,6): error TKO0772: this expression is not a procedure pointer and cannot be called
+'' EXPECT-OUT: call-a-value.bas(17,6): error TKO0772
+'' EXPECT-OUT: call-a-value.bas(18,11): error TKO0772
+'' EXPECT-OUT: call-a-value.bas(19,8): error TKO0772
+'' EXPECT-OUT: call-a-value.bas(20,14): error TKO0772
+'' EXPECT-OUT: call-a-value.bas(21,8): error TKO0772
+'' EXPECT-MAX-DIAG: 6
