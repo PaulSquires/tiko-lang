@@ -70,6 +70,25 @@ private function IdentSpelled_ _
         ast.idents[cast( long, ast.nodes[cast( long, n )].data )].name ) )
 end function
 
+'' THE IMPORT A NAME WAS MEANT FOR: '#import "std/strings"' binds 'strings' alone, and
+'' 'std.replace' was a bare TKO0743 with nothing to say why. The first import with a path
+'' segment spelled nm (lower-cased) that is not its alias, as an index into
+'' syms.importPaths, or -1.
+private function ImportSegmentOf_( byref syms as Tko.SymbolTable, byref nm as string ) as long
+    for k as long = 0 to syms.importPaths.Count - 1
+        dim as string p = Tko.Text.LowerAscii( syms.importPaths[k] ) & "/"
+        dim as long st = 1
+        do
+            dim as long sl = instr( st, p, "/" )
+            if sl = 0 then exit do
+            dim as string seg = mid( p, st, sl - st )
+            if (seg = nm) andalso (seg <> syms.importAliases[k]) then return k
+            st = sl + 1
+        loop
+    next
+    return -1
+end function
+
 sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
@@ -253,6 +272,13 @@ sub ReportUndeclared _
             continue for
         end if
         diags.Report( d, Tko.PointRange( ast.Loc( id ) ), names.Spelling( rawNm ) )
+        if d = Tko.TKO0743 then
+            dim as long ik = ImportSegmentOf_( syms, nm )
+            if ik >= 0 then
+                diags.AddNote( Tko.TKO0907, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
+                               syms.importAliases[ik], syms.importPaths[ik] )
+            end if
+        end if
     next
 
     '' A TYPE NAME NOTHING DECLARES -- 'dim as Foo a', fbc's 14; 'type X as Foo', its 71;

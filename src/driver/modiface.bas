@@ -192,6 +192,9 @@ sub BindImports _
             continue for
         end if
         BindView_( syms, asid, nsOf[n], modScope )
+        syms.importPaths.Push( imports[k].path )
+        syms.importAliases.Push( Tko.Text.LowerAscii( imports[k].alias_ ) )
+        syms.importLocs.Push( cast( ulong, imports[k].loc ) )
         aliasSym.Push( cast( ulong, asid ) )
         aliasMod.Push( cast( ulong, n ) )
         aliasRec.Push( cast( ulong, k ) )

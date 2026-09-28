@@ -667,6 +667,9 @@
     DIAG( TKO0904, SEV_NOTE,    "required from here" )
     DIAG( TKO0905, SEV_NOTE,    "unclosed '%0' opened here" )
     DIAG( TKO0906, SEV_NOTE,    "imported here" )
+    '' Beside TKO0743 for a name that is a SEGMENT of an import's path but not its alias:
+    '' '#import "std/strings"' binds 'strings', so 'std.replace' named nothing.
+    DIAG( TKO0907, SEV_NOTE,    "did you mean '%0'? '#import ""%1""' binds the name '%0'" )
 
     '' ---------------------------------------------------------- compiler / limits
     DIAG( TKO0990, SEV_ERROR,   "too many errors; stopping" )

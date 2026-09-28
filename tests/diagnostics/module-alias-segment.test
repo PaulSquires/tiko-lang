@@ -1,0 +1,12 @@
+'' TKO0907: A NAME THAT IS A SEGMENT OF AN IMPORT'S PATH, BUT NOT ITS ALIAS, is TKO0743 with
+'' a note at the import naming the alias -- '#import "std/strings"' then 'std.replace'. No
+'' note for a name no import spells. ADR 0017; RFC-0002 §2.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/segment.bas -o tests/diagnostics/aliassegment.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: segment.bas(5,7): error TKO0743: 'net' is not declared
+'' EXPECT-OUT: segment.bas(3,1): note: did you mean 'http'? '#import "acme/net/http"' binds the name 'http'
+'' EXPECT-OUT: segment.bas(6,7): error TKO0743: 'esc' is not declared
+'' EXPECT-OUT: segment.bas(4,1): note: did you mean 'e'? '#import "acme/text/esc"' binds the name 'e'
+'' EXPECT-OUT: segment.bas(7,7): error TKO0743: 'zz' is not declared
+'' EXPECT-NOT: did you mean 'zz'

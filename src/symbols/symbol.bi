@@ -275,6 +275,11 @@ namespace Tko
         '' writes in the namespace's place, so an importer names what the module defined.
         as FB.Array( of ulong ) importNs
         as StrVec     importChains
+        '' EVERY '#import' WHOSE ALIAS WAS BOUND: its path as written, its alias lower-cased,
+        '' and where it stands -- for TKO0743's TKO0907, a path segment used as the alias.
+        as StrVec     importPaths
+        as StrVec     importAliases
+        as FB.Array( of ulong ) importLocs
         '' ...and every name of theirs a lookup through their namespaces found but did not
         '' return, because the interface does not call it 'public' (SymbolTable.PublicOnly).
         as FB.Array( of ulong ) hiddenHits
