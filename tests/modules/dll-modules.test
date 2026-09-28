@@ -1,8 +1,8 @@
 '' -dll OF A ROOT THAT IMPORTS (ADR 0017; RFC-0002 §4, RFC-0005 §6): linked with the module's
 '' object, and exporting only what the root marks 'export' -- SHOUT -- never a module's name.
 '' TEST: cli
-'' ARGS: -target win64-msvc -dll tests/modules/src/libout/api.bas -o tests/modules/dllmodules.dll
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc -dll tests/modules/src/libout/api.bas -o tests/modules/dllmodules.dll
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE-HAS: tests/modules/dllmodules.dll :: SHOUT
-'' EXPECT-FILE-NOT-HAS: tests/modules/dllmodules.dll :: STRINGS6REPEAT
+'' EXPECT-FILE-NOT-HAS: tests/modules/dllmodules.dll :: STRINGS7AROUND_

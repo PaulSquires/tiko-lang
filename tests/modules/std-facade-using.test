@@ -1,0 +1,6 @@
+'' A FACADE'S NAMES ARE EXPORTED MACROS, reached only as 'alias.NAME' (RFC-0009 §4; ADR 0017
+'' §14): 'using strings' does not make 'Replace' a name, so the bare call is undeclared.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/using.bas -o tests/modules/stdusing.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using.bas(5,7): error TKO0743: 'replace' is not declared

@@ -1,0 +1,10 @@
+'' std/tasks (RFC-0009): a generic Channel handed to a spawned FB.Channel( of long ) parameter, a WaitGroup, GoroutineCount. Built -mt: the goroutine headers refuse the single-threaded runtime.
+'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
+'' finds it in its inc/ -- and the program includes that header too, so the facade's names
+'' and the header's FB names are shown to be one and the same.
+'' TEST: cli
+'' ARGS: -mt -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/tasks.bas -o tests/modules/stdtasks.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdtasks.exe
+'' EXPECT-RUN-OUT: 42 0 -1

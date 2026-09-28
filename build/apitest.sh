@@ -62,17 +62,21 @@ fi
 # DLL are copied out first: only TKP_OPTIONS.pkgDir (--pkg-dir) can find std/ from there.
 HOST=$(mktemp -d)
 cp "$H" "$DLL" "$HOST/"
+# std/strings is a facade over fb/string.bi (RFC-0009), so the header is found through
+# TKP_INCDIR, and the module's one real symbol is its generic Surround -- the facade's names
+# are exported macros, which the scan does not list.
+STDINC=$(cygpath -w "$ROOT/toolchains/tiko-windows/inc")
 printf '#import "std/strings"
-print strings.Replace( "Paul", "P", "Z" )
+print strings.Surround( 42, "[", "]" )
 ' > "$HOST/usestd.bas"
-out=$(TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
-if echo "$out" | grep -qF "k2 Replace as string" && echo "$out" | grep -qF "diags: 0"; then
+out=$(TKP_INCDIR="$STDINC" TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
+if echo "$out" | grep -qE "k[0-9]+ Surround" && echo "$out" | grep -qF "diags: 0"; then
     echo "ok    #import std/strings through pkgDir"
 else
     echo "FAIL  #import std/strings through pkgDir"; echo "$out" | sed 's/^/      /'; FAIL=1
 fi
-out=$("$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
-if echo "$out" | grep -qF "k2 Replace"; then
+out=$(TKP_INCDIR="$STDINC" "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
+if echo "$out" | grep -qE "k[0-9]+ Surround"; then
     echo "FAIL  std/strings resolved with no pkgDir -- this check proves nothing"; FAIL=1
 else
     echo "ok    ...and without pkgDir it is not found (the check is live)"

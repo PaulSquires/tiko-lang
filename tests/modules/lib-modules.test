@@ -2,18 +2,20 @@
 '' object as well as the root's, so it is self-contained, and the member is named after
 '' the module's chain -- std.strings.o -- and written beside the archive, never beside std's
 '' source in the toolchain's pkg/. Built twice, so the second build takes the module from
-'' the cache and must still name it by its chain, not by the entry's obj.o.
+'' the cache and must still name it by its chain, not by the entry's obj.o. std/strings is a
+'' facade over fb/string.bi (RFC-0009), so its object's own code is Around_, the helper its
+'' generic Surround calls.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-lib/cache
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' CLEAN: build/.mct-lib
-'' STEP: -v -target win64-msvc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
+'' STEP: -v -target win64-msvc -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
 '' STEP-OUT: module std.strings: miss
-'' ARGS: -v -target win64-msvc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
+'' ARGS: -v -target win64-msvc -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module std.strings: hit
 '' EXPECT-FILE-HAS: tests/modules/libmodules.a :: std.strings.o
 '' EXPECT-FILE-HAS: tests/modules/libmodules.a :: api.o
-'' EXPECT-FILE-HAS: tests/modules/libmodules.a :: _ZN3STD7STRINGS6REPEATER8FBSTRINGi
+'' EXPECT-FILE-HAS: tests/modules/libmodules.a :: _ZN3STD7STRINGS7AROUND_ER8FBSTRINGS2_S2_
 '' EXPECT-FILE-NOT-HAS: tests/modules/libmodules.a :: obj.o
 '' EXPECT-NO-FILE: pkg/std/strings/strings.o

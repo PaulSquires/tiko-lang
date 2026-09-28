@@ -1,7 +1,7 @@
 '' 'std' IS NOT SHADOWABLE (RFC-0007 §3): -i names a directory holding a package called std,
 '' whose strings.Repeat says SHADOWED; the program still gets the toolchain's.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/stduse/roots tests/modules/src/stduse/main.bas -o tests/modules/stdshadow.exe
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc -i tests/modules/src/stduse/roots tests/modules/src/stduse/main.bas -o tests/modules/stdshadow.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdshadow.exe
@@ -10,4 +10,4 @@
 '' EXPECT-RUN-OUT: a+b+c ababab
 '' EXPECT-RUN-OUT: [42]<1.5>
 '' EXPECT-RUN-OUT: c.txt .txt a/b
-'' EXPECT-RUN-OUT: true a\b
+'' EXPECT-RUN-OUT: false true a\b

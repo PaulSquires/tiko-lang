@@ -1,0 +1,9 @@
+'' A MODULE WITH TARGET-SPECIFIC BODIES (RFC-0003 §1): acme/sep's '#ifdef __FB_WIN32__'
+'' branches, compiled for win64-msvc -- the separator is '\', and '/x' and 'C:x' are both
+'' absolute there. std/path carried this coverage until it was folded into std/fs (RFC-0009).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/pertarget/libs tests/modules/src/pertarget/app/main.bas -o tests/modules/pertarget.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/pertarget.exe
+'' EXPECT-RUN-OUT: \ true true

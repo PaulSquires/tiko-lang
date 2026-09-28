@@ -1,0 +1,11 @@
+'' std/money (RFC-0009): Decimal into an FB.Decimal parameter, DecimalCompare, Currency and its operator, an enum member.
+'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
+'' finds it in its inc/ -- and the program includes that header too, so the facade's names
+'' and the header's FB names are shown to be one and the same.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/money.bas -o tests/modules/stdmoney.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdmoney.exe
+'' EXPECT-RUN-OUT: 12 -1
+'' EXPECT-RUN-OUT: 4.2500 -1

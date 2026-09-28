@@ -560,27 +560,65 @@ if fbcu.dblIsInf( 1.0 ) = false then print "ok"
     rm -rf "$_tmp"
 }
 
-# THE STANDARD PACKAGE IS VERIFIED THE SAME WAY: a program importing std/strings, found in
-# the packaged pkg/ and nowhere else, built with its module and RUN. The module cache goes
-# to the scratch directory, which is removed.
-verify_std( ) {
-    _t=$1
-    _tmp="$OUT/.verifystd.$_t"
+# THE STANDARD PACKAGE IS VERIFIED THE SAME WAY: programs importing every std facade
+# (RFC-0009 §7), found in the packaged pkg/ and nowhere else, their headers in the packaged
+# inc/, built with their modules and RUN. Each facade prints one value on a line of its
+# own: a wrong value fails that facade's line, and a header that renamed or dropped a name
+# its facade exports fails the build, every line carrying the error that names it -- HERE,
+# and not in a user's build. std/tasks gets a program of its own: its
+# headers refuse to compile without -mt. The module cache goes to the scratch directory,
+# which is removed.
+STD_CHECKS='strings|print strings.Replace( "k-o", "-", "" )|ko
+fs|print fs.PathExtension( "a.txt" )|.txt
+containers|dim as containers.Array( of long ) a : a.Push( 7 ) : print str( a[0] )|7
+chrono|print str( chrono.LocalDate( 2026, 9, 28 ).Day )|28
+maybe|print str( maybe.Some( of long )( 5 ).Value( ) )|5
+numeric|print str( numeric.GCD( 12ull, 18ull ) )|6
+money|print money.DecimalFromInt( 12 ).ToString( )|12
+logs|print logs.LevelName( logs.LOG_WARN )|WARN
+tui|print str( tui.TuiStringWidth( "abc" ) )|3'
+STD_TASKS='tasks|dim as tasks.WaitGroup wg : wg.Add( 1 ) : wg.Done( ) : print str( wg.Count( ) )|0'
+
+# verify_std_run <target> <tag> <checks> <extra tiko flags>
+verify_std_run( ) {
+    _t=$1; _tag=$2; _checks=$3; _flags=$4
+    _tmp="$OUT/.verifystd.$_t.$_tag"
     rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf '#import "std/strings"
-print strings.Replace( "k-o", "-", "" )
-' > "$_tmp/std.bas"
-    ( cd "$OUT" && TKO_MODCACHE=".verifystd.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" ".verifystd.$_t/std.bas" -o ".verifystd.$_t/std$EXT" ) >"$_tmp/log" 2>&1 || true
-    if [ -f "$_tmp/std$EXT" ] && [ "$( "$_tmp/std$EXT" 2>/dev/null )" = "ko" ]; then
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  std PASS -- imported std/strings, compiled, linked and ran"
+    : > "$_tmp/std.bas"
+    echo "$_checks" | while IFS='|' read -r _m _code _want; do
+        printf '#import "std/%s"\n' "$_m" >> "$_tmp/std.bas"
+    done
+    echo "$_checks" | while IFS='|' read -r _m _code _want; do
+        printf '%s\n' "$_code" >> "$_tmp/std.bas"
+    done
+    ( cd "$OUT" && TKO_MODCACHE=".verifystd.$_t.$_tag/cache" "./${BINSUB}tiko$EXT" $_flags -target "$_t" \
+        ".verifystd.$_t.$_tag/std.bas" -o ".verifystd.$_t.$_tag/std$EXT" ) >"$_tmp/log" 2>&1 || true
+    _why=""
+    if [ -f "$_tmp/std$EXT" ]; then
+        "$_tmp/std$EXT" 2>/dev/null | tr -d '\r' > "$_tmp/out" || true
     else
         _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
-        [ -n "$_why" ] || _why="built, but did not print ko"
-        VERIFY_LINES="$VERIFY_LINES
-  $_t  std FAIL -- $_why"
+        [ -n "$_why" ] || _why="not built"
     fi
+    _i=0
+    _lines=$( echo "$_checks" | while IFS='|' read -r _m _code _want; do
+        _i=$(( _i + 1 ))
+        if [ -n "$_why" ]; then
+            echo "  $_t  std/$_m FAIL -- $_why"
+        elif [ "$( sed -n "${_i}p" "$_tmp/out" )" = "$_want" ]; then
+            echo "  $_t  std/$_m PASS -- imported, compiled, linked and ran"
+        else
+            echo "  $_t  std/$_m FAIL -- printed '$( sed -n "${_i}p" "$_tmp/out" )', not '$_want'"
+        fi
+    done )
+    VERIFY_LINES="$VERIFY_LINES
+$_lines"
     rm -rf "$_tmp"
+}
+
+verify_std( ) {
+    verify_std_run "$1" all "$STD_CHECKS" ""
+    verify_std_run "$1" tasks "$STD_TASKS" "-mt"
 }
 
 if [ "$DO_VERIFY" = "1" ]; then

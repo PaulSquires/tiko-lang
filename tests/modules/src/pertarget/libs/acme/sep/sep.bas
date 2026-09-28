@@ -1,5 +1,6 @@
-'' std/path's target-specific half: the separator, and what an absolute path looks like.
-#module "path"
+'' A module with target-specific bodies (RFC-0003 §1) -- what std/path's sep.bas was, before
+'' std/path was folded into std/fs (RFC-0009 M30).
+#module "sep"
 
 public function Separator( ) as string
 #ifdef __FB_WIN32__

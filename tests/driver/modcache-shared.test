@@ -5,9 +5,9 @@
 '' ENV: TKO_MODCACHE=build/.mct-share/cache
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' CLEAN: build/.mct-share
-'' STEP: -v -target win64-msvc tests/driver/src/modshare/one/main.bas -o build/.mct-share/one.exe
+'' STEP: -v -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/modshare/one/main.bas -o build/.mct-share/one.exe
 '' STEP-OUT: module std.strings: miss (new)
-'' ARGS: -v -target win64-msvc tests/driver/src/modshare/two/main.bas -o build/.mct-share/two.exe
+'' ARGS: -v -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/modshare/two/main.bas -o build/.mct-share/two.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module std.strings: hit
 '' RUN: build/.mct-share/two.exe
