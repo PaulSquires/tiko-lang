@@ -103,7 +103,7 @@ if [ "$NOBUILD" = "1" ]; then
 fi
 
 if [ "$STALE" = "1" ]; then
-    "$ROOT/build/build.sh" "$CFG" --test-runner
+    "$ROOT/build/build.sh" "$CFG" --test-runner --no-dll
 else
     echo "build: tiko-lang [$CFG] up to date"
 fi

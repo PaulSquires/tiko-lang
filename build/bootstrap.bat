@@ -97,7 +97,7 @@ if not "%STAGE1%"=="" (
 )
 set "RUNNERARG="
 if "%GATE%"=="1" set "RUNNERARG=--test-runner"
-call "%ROOT%\build\build.bat" Debug %RUNNERARG% > "%OUT%\stage1.log" 2>&1
+call "%ROOT%\build\build.bat" Debug %RUNNERARG% --no-dll > "%OUT%\stage1.log" 2>&1
 if errorlevel 1 ( type "%OUT%\stage1.log" 1>&2 & set "WHY=stage0 could not build stage1" & goto fail )
 copy /y "%ROOT%\bin\tiko.exe" "%OUT%\stage1\tiko.exe" >nul
 echo bootstrap: stage1  built by stage0

@@ -130,9 +130,9 @@ if [ -n "$STAGE1" ]; then
     say "stage1  $STAGE1"
 else
     if [ "$GATE" = "1" ]; then
-        sh build/build.sh Debug --test-runner > "$OUT/stage1.log" 2>&1 || { cat "$OUT/stage1.log" >&2; fail "stage0 could not build stage1"; }
+        sh build/build.sh Debug --test-runner --no-dll > "$OUT/stage1.log" 2>&1 || { cat "$OUT/stage1.log" >&2; fail "stage0 could not build stage1"; }
     else
-        sh build/build.sh Debug > "$OUT/stage1.log" 2>&1 || { cat "$OUT/stage1.log" >&2; fail "stage0 could not build stage1"; }
+        sh build/build.sh Debug --no-dll > "$OUT/stage1.log" 2>&1 || { cat "$OUT/stage1.log" >&2; fail "stage0 could not build stage1"; }
     fi
     cp "bin/tiko$EXT" "$OUT/stage1/tiko$EXT"
     say "stage1  built by $(basename "$TKO_STAGE0") in $(( $(now) - t0 )) s"

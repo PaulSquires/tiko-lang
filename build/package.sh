@@ -156,12 +156,8 @@ note "output $OUT"
 
 if [ "$DO_BUILD" = "1" ]; then
     note "building the compiler [$CFG]"
-    sh "$ROOT/build/build.sh" "$CFG" >/dev/null
-    # THE EDITOR'S PARSER, from the same sources as the compiler it ships beside.
-    if [ "$HOST" = "windows" ]; then
-        note "building tikoParser.dll [$CFG]"
-        sh "$ROOT/build/build.sh" "$CFG" --dll >/dev/null
-    fi
+    # --no-dll: the editor's tikoParser.dll ships with the editor, not in a toolchain.
+    sh "$ROOT/build/build.sh" "$CFG" --no-dll >/dev/null
 
     for t in $TARGETS; do
         note "building the runtime [$CFG $t]"
@@ -219,16 +215,6 @@ mkdir -p "$OUT"
 
 note "compiler -> ${BINSUB}tiko$EXT"
 cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
-
-# THE EDITOR'S PARSER (src/api), BESIDE THE COMPILER: the editor loads it from the directory
-# of the tiko.exe it is configured with, so the symbols it shows come from the compiler it
-# builds with. ASSERTED -- a toolchain without it leaves the editor with no symbols at all.
-if [ "$HOST" = "windows" ]; then
-    [ -f "$ROOT/bin/tikoParser.dll" ] || die "no bin/tikoParser.dll -- run build/build.sh $CFG --dll"
-    cp -f "$ROOT/bin/tikoParser.dll" "$OUT/tikoParser.dll"
-    [ -f "$OUT/tikoParser.dll" ] || die "packaged toolchain has no tikoParser.dll"
-    note "editor parser -> tikoParser.dll"
-fi
 
 # The headers. The compiler finds these itself: AppendDefaultIncludeDir looks at
 # <exe-dir>/inc and then <exe-dir>/../inc, which is exactly why the Windows binary

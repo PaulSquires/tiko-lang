@@ -1,8 +1,12 @@
 #!/bin/sh
 # build.sh -- build tiko-lang with the stage0 compiler (FBC-Modern).
 #
-#   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner]
+#   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll]
 #   build/build.sh [Release|MinSizeRel] --dll
+#
+# A compiler build also builds the editor's bin/tikoParser.dll and copies it beside
+# tiko-editor.exe ($TKO_EDITOR_DIR, default C:\dev\tiko-editor-tiko), which loads it from
+# there. '--no-dll' skips both; '--dll' builds the DLL alone.
 #
 # The Windows peer is build/build.bat and is kept line-for-line analogous.
 # Configuration flags live here and nowhere else (docs/plan/02 section 3).
@@ -12,9 +16,22 @@ set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CFG=${1:-Debug}
 # '--dll' anywhere: build the editor's tikoParser.dll INSTEAD of the compiler (below).
+# '--no-dll': the compiler without it -- for the gate, bootstrap and packaging, which
+# have no use for an editor's scanner and should not pay for one.
 DLL=0
-for a in "$@"; do [ "$a" = "--dll" ] && DLL=1; done
-[ "$CFG" = "--dll" ] && CFG=Release
+NODLL=0
+TESTRUNNER=0
+for a in "$@"; do
+    case "$a" in
+        --dll)         DLL=1 ;;
+        --no-dll)      NODLL=1 ;;
+        --test-runner) TESTRUNNER=1 ;;
+    esac
+done
+case "$CFG" in
+    --dll)                CFG=Release ;;
+    --no-dll|--test-runner) CFG=Debug ;;
+esac
 
 # Executable suffix. Without this the script writes bin/tiko on Windows while
 # everything else looks for bin/tiko.exe, and the stale .exe keeps being tested.
@@ -80,11 +97,28 @@ mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 # compiler, so bin/tiko and the build stamp are not touched. NEVER WITH -exx: a failed
 # runtime check ends the PROCESS, and in a DLL the process is the editor. fbc writes the
 # import library bin/libtikoParser.dll.a beside it.
-if [ "$DLL" = "1" ]; then
+#
+# THE EDITOR LOADS IT FROM BESIDE tiko-editor.exe, so a Windows build copies it there. A
+# failed copy is a WARNING, never a failed build: the usual cause is a running editor,
+# which holds the DLL open, and the compiler that was just built is still good.
+build_dll( ) {
     DLLFLAGS=$(echo "$FLAGS" | sed 's/-exx//')
     LIBSRC=$(echo "$SOURCES" | tail -n +2)
     echo "build: tikoParser.dll [$CFG] with $TKO_STAGE0"
     ( cd "$ROOT" && "$TKO_STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+    [ "$HOSTWIN" = "1" ] || return 0
+    EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
+    if [ ! -d "$EDITOR" ]; then
+        echo "build: no editor at $EDITOR -- tikoParser.dll stays in bin/ (set TKO_EDITOR_DIR)"
+    elif cp -f "$ROOT/bin/tikoParser.dll" "$EDITOR/tikoParser.dll"; then
+        echo "build: tikoParser.dll -> $EDITOR"
+    else
+        echo "build: WARNING: could not copy tikoParser.dll to $EDITOR -- is tiko-editor running?" >&2
+    fi
+}
+
+if [ "$DLL" = "1" ]; then
+    build_dll
     echo "build: ok"
     exit 0
 fi
@@ -92,7 +126,7 @@ fi
 echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
 ( cd "$ROOT" && "$TKO_STAGE0" $SOURCES -m "$MAINMOD" -i src $FLAGS -x "bin/tiko$EXT" )
 
-if [ "$2" = "--test-runner" ] || [ "$1" = "--test-runner" ]; then
+if [ "$TESTRUNNER" = "1" ]; then
     echo "build: tiko-test [$CFG]"
     ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -mt -x "bin/tiko-test$EXT" )
 fi
@@ -103,5 +137,7 @@ fi
 # source, so the Debug suite would have run the Release binary and said nothing about it.
 mkdir -p "$ROOT/build/obj"
 printf '%s' "$CFG|$TKO_STAGE0" > "$ROOT/build/obj/.build-stamp"
+
+[ "$NODLL" = "1" ] || build_dll
 
 echo "build: ok"

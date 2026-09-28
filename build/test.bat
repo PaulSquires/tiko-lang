@@ -75,7 +75,7 @@ goto fresh
 
 :stale
 if "%NOBUILD%"=="1" goto nobuild
-call "%ROOT%\build\build.bat" %CFG% --test-runner
+call "%ROOT%\build\build.bat" %CFG% --test-runner --no-dll
 if errorlevel 1 exit /b 1
 goto run
 
