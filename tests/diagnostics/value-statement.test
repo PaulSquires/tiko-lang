@@ -1,0 +1,21 @@
+'' TKO0874, fbc's 10 (119 for a constant): a value alone as a statement. Calls, methods,
+'' properties and static members are not. See CheckValueStmt_ in symbols/valuestmt.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/value-statement.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: value-statement.bas(32,1): error TKO0874: a value alone is not a statement; expected '='
+'' EXPECT-OUT: value-statement.bas(33,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(34,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(35,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(36,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(37,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(38,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(39,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(40,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(41,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(42,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(43,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(44,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(45,1): error TKO0874
+'' EXPECT-OUT: value-statement.bas(46,1): error TKO0874
+'' EXPECT-MAX-DIAG: 15
