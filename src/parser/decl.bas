@@ -1089,6 +1089,7 @@ end function
 
 
 #include once "parser/declfield.bas"
+#include once "parser/declempty.bas"
 
 '' The member list of a TYPE or UNION, its 'end', and the node. Shared by the named
 '' and the ANONYMOUS forms, which differ only in whether a name was read.
@@ -1423,6 +1424,7 @@ private function ParseAggregateBody _
         p.ast->children.Push( members[i] )
     next
 
+    EmptyAggCheck_( p, sp, isUnion )
     ExpectEnd( p, iif( isUnion, Tko.KW_UNION, Tko.KW_TYPE ), t.loc )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPE, t.loc, sp )
     if isUnion then p.ast->nodes[cast( long, n )].flags or= Tko.NF_IS_UNION

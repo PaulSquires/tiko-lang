@@ -31,6 +31,7 @@ function fx( ) as integer
 end function
 
 type T
+    as long x_    '' a TYPE with no field is fbc's error 256 (TKO0876)
     declare sub m alias "myMemberName" ( )
 end type
 

@@ -1,0 +1,17 @@
+'' TKO0876, fbc's 256: a TYPE or UNION with no field, an ENUM with no member. 'extends' and a
+'' 'redim' member are fields. See parser/declempty.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/empty-aggregate.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: empty-aggregate.bas(6,1): error TKO0876: this TYPE cannot be empty
+'' EXPECT-OUT: empty-aggregate.bas(9,1): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(12,1): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(16,1): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(20,1): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(23,1): error TKO0876: this UNION cannot be empty
+'' EXPECT-OUT: empty-aggregate.bas(29,1): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(32,5): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(33,1): error TKO0876
+'' EXPECT-OUT: empty-aggregate.bas(35,1): error TKO0876: this ENUM cannot be empty
+'' EXPECT-OUT: empty-aggregate.bas(38,1): error TKO0876
+'' EXPECT-MAX-DIAG: 11

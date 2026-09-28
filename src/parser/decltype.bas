@@ -216,6 +216,7 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
     for i as long = 0 to items.Count - 1
         p.ast->children.Push( items[i] )
     next
+    if (items.Count = 0) andalso EndsHere_( p, Tko.KW_ENUM ) then p.diags->Report( Tko.TKO0876, Tko.PointRange( Cur( p ).loc ), "ENUM" )  '' declempty.bas
     ExpectEnd( p, Tko.KW_ENUM )
     '' Recorded in 'extra' rather than a node flag: the ushort NF_ set is fully
     '' allocated, and N_ENUM uses 'extra' for nothing else.

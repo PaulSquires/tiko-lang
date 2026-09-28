@@ -9,6 +9,7 @@
 '' are QB-only), and tiko agrees. SYSTEM is one of the 37 runtime procedures tiko
 '' declares nowhere. And inside a member body a METHOD'S bare name is 'this.name'.
 type T
+    as long x_    '' a TYPE with no field is fbc's error 256 (TKO0876)
     declare sub a( )
     declare sub b( )
 end type
