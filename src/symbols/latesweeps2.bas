@@ -1123,7 +1123,7 @@ private sub WalkExtra_ _
     if k = N_PROC then CheckProcDefinitionShapes_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
-    if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id )
+    if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )
     if k = N_INTRINSIC then CheckSwapConst_( c, id ) : CheckUnprintable_( c, id )
     if k = N_CALL then CheckUnprintableStr_( c, id ) : CheckBuiltinArity_( c, id ) : CheckSubAsValue_( c, id )
     if k = N_IDENT then CheckBareBuiltin_( c, id )

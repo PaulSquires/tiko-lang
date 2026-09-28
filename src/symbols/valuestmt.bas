@@ -82,3 +82,34 @@ private sub CheckValueStmt_ ( byref c as Ctx, byval id as NodeId )
     if bad = false then return
     c.diags->Report( TKO0874, PointRange( c.ast->Loc( id ) ) )
 end sub
+
+'' A PROPERTY WITH EMPTY PARENTHESES OPENING A STATEMENT. Measured on fbc-modern 1.20,
+'' 2026-09-28 -- error 9, "Expected expression, found ')'", for each of
+''
+''     vv.P( )    vv.P( ) = 3    vv.R( )    vv.W( )    vv.W( ) = 2
+''     .P( )  and  .P( ) = 1  in a WITH      P( ), P( ) = 1, this.P( )  in a method
+''
+'' over a get/set P, a get-only R and a set-only W: there, the parentheses hold the value or
+'' the index. tiko accepted each. 'x = vv.P( )' and 'print vv.P( )' are fbc's too, and so are
+'' 'vv.P', 'vv.P = 4', 'vv.Q( 1 )', 'vv.Q( 1 ) = 5' and 'vv.W( 6 )'.
+private sub CheckEmptyPropCall_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) = AMB_ERROR then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->count > 0 then return
+    dim as NodeId a = sp->a
+    if a = NODE_NONE then return
+    if c.ast->Kind( a ) <> N_CALL then return
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+    if lp->count <> 0 then return
+    dim as NodeId tgt = lp->target
+    if tgt = NODE_NONE then return
+    if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+    if s = 0 then s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as NodeId pn = cast( NodeId, s->payload )
+    if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
+    if c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].op <> cast( ushort, KW_PROPERTY ) then return
+    c.diags->Report( TKO0875, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+end sub
