@@ -8,7 +8,7 @@
 ''   tkpdump <dll> <file> loop <n>    scan n times: every result identical to the first,
 ''                                    and the heap's busy bytes must not grow
 ''
-'' TKP_INCDIR, if set, is passed as the one include path. Exit 0 = every check held.
+'' TKP_INCDIR, if set, is passed as the one include path; TKP_PKGDIR as the package tree. Exit 0 = every check held.
 ''
 '' Built and run by build/apitest.sh.
 
@@ -129,6 +129,9 @@ if len( environ( "TKP_INCDIR" ) ) > 0 then
     opts.includeCount = 1
     opts.includePaths = @incs( 0 )
 end if
+
+dim as wstring * 1024 pkgW = environ( "TKP_PKGDIR" )
+if len( environ( "TKP_PKGDIR" ) ) > 0 then opts.pkgDir = @pkgW
 
 dim as wstring * 1024 fileW = file
 dim as TKP_RESULT ptr r = 0

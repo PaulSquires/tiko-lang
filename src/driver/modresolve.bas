@@ -132,9 +132,12 @@ private sub SearchRoots_( byref ctx as Tko.CompilerContext, byref roots as Tko.S
     wend
 end sub
 
-'' THE TOOLCHAIN'S PACKAGE TREE: TKO_PKG, else <exe-dir>/pkg, else <exe-dir>/../pkg -- the
-'' same two layouts the default include directory is found in (cmdline.bas).
-private function PkgDir_( ) as string
+'' THE TOOLCHAIN'S PACKAGE TREE: --pkg-dir, else TKO_PKG, else <exe-dir>/pkg, else
+'' <exe-dir>/../pkg -- the same two layouts the default include directory is found in
+'' (cmdline.bas). --pkg-dir is for a host whose executable is not tiko's: in the editor's
+'' tikoParser.dll, <exe-dir> is the editor's folder.
+private function PkgDir_( byref ctx as Tko.CompilerContext ) as string
+    if len( ctx.options.pkgDir ) > 0 then return NormPath( ctx.options.pkgDir )
     dim as string env_ = environ( "TKO_PKG" )
     if len( env_ ) > 0 then return NormPath( env_ )
     dim as string exeDir = exepath( )
@@ -185,7 +188,7 @@ private function Register_ _
         return false
     end if
     if m.name = "std" then
-        dim as string pk = PkgDir_( )
+        dim as string pk = PkgDir_( ctx )
         dim as boolean toolchain_ = (len( pk ) > 0)
         if toolchain_ then toolchain_ = SamePath_( NormPath( root ), JoinPath( pk, "std" ) )
         if toolchain_ = false then
@@ -290,7 +293,7 @@ sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref o
     dim as string d = NormPath( dir_ )
     dim as Tko.StrVec roots
     SearchRoots_( ctx, roots )
-    dim as string pk = PkgDir_( )
+    dim as string pk = PkgDir_( ctx )
     if len( pk ) > 0 then roots.Push( pk )
     for i as long = 0 to roots.Count - 1
         if IsWithin_( d, roots[i] ) = false then continue for
@@ -379,7 +382,7 @@ function ResolveImport _
 
     dim as Tko.StrVec roots
     if Tko.Text.LowerAscii( first_ ) <> "std" then SearchRoots_( ctx, roots )
-    dim as string pk = PkgDir_( )
+    dim as string pk = PkgDir_( ctx )
     if len( pk ) > 0 then roots.Push( pk )
 
     dim as string tried = ""

@@ -67,6 +67,7 @@ namespace Tko
     OPT( OPT_EXTENDED,  "-z",         OPTK_VALUE, OPTCAT_GENERAL, "option",   "fbc extended option; accepted and ignored" )
 
     OPT( OPT_INCLUDE,   "-i",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add an include search path" )
+    OPT( OPT_PKGDIR,    "--pkg-dir",  OPTK_VALUE, OPTCAT_INPUT,   "dir",      "the package tree for #import std/... is found in (else TKO_PKG, else <exe-dir>/pkg)" )
     OPT( OPT_DEFINE,    "-d",         OPTK_VALUE, OPTCAT_INPUT,   "name=val", "define a preprocessor symbol" )
     OPT( OPT_LIBPATH,   "-p",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add a library search path" )
     OPT( OPT_LIB,       "-l",         OPTK_VALUE, OPTCAT_INPUT,   "name",     "link against a library" )
@@ -242,6 +243,7 @@ namespace Tko
         as DiagColorMode     colorMode
         as DiagOutputFormat  diagFormat
         as string  diagFile          '' --diagnostics-file; "" = none
+        as string  pkgDir            '' --pkg-dir; "" = TKO_PKG, else beside the executable
         as StrVec  ignoredDiags
 
         as boolean dumpSource

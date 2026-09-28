@@ -166,6 +166,14 @@ private function DoScan_ _
             args.Push( "-i" )
             args.Push( Utf16ToUtf8_( options->includePaths[i] ) )
         next
+        '' THE PACKAGE TREE: in a DLL, tiko's own fallback -- beside the executable -- is the
+        '' editor's folder, where no pkg/ is.
+        if options->pkgDir <> 0 then
+            if len( *options->pkgDir ) > 0 then
+                args.Push( "--pkg-dir" )
+                args.Push( Utf16ToUtf8_( options->pkgDir ) )
+            end if
+        end if
         for i as long = 0 to options->defineCount - 1
             if options->defines = 0 then exit for
             if options->defines[i] = 0 then continue for

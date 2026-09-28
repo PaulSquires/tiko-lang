@@ -31,7 +31,7 @@
 
 #pragma once
 
-const TKP_VERSION = 3
+const TKP_VERSION = 4        '' 4: TKP_OPTIONS.pkgDir
 
 '' Return codes.
 const TKP_OK          = 0
@@ -115,6 +115,8 @@ type TKP_OPTIONS
     includePaths as wstring ptr ptr     '' search paths for #include and #import, in order
     defineCount  as long
     defines      as wstring ptr ptr     '' "NAME" or "NAME=VALUE"
+    pkgDir       as wstring ptr         '' the toolchain's pkg folder, for '#import "std/..."';
+                                        '' NULL = TKO_PKG, else beside the HOST's executable
 end type
 
 '' THE ENTRY POINTS, as a host loads them with DYLIBLOAD / GetProcAddress by these

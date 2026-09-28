@@ -54,4 +54,26 @@ else
 fi
 [ -e tests/driver/src/modcache/app/.tiko ] && { echo "FAIL  #import scan wrote a module cache"; FAIL=1; }
 
+# A PACKAGE IMPORT, from a host whose folder has no pkg/ beside it -- the editor's case.
+# bin/ has ../pkg, which tiko's beside-the-exe fallback would find, so the harness and the
+# DLL are copied out first: only TKP_OPTIONS.pkgDir (--pkg-dir) can find std/ from there.
+HOST=$(mktemp -d)
+cp "$H" "$DLL" "$HOST/"
+printf '#import "std/strings"
+print strings.Replace( "Paul", "P", "Z" )
+' > "$HOST/usestd.bas"
+out=$(TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
+if echo "$out" | grep -qF "k2 Replace as string" && echo "$out" | grep -qF "diags: 0"; then
+    echo "ok    #import std/strings through pkgDir"
+else
+    echo "FAIL  #import std/strings through pkgDir"; echo "$out" | sed 's/^/      /'; FAIL=1
+fi
+out=$("$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
+if echo "$out" | grep -qF "k2 Replace"; then
+    echo "FAIL  std/strings resolved with no pkgDir -- this check proves nothing"; FAIL=1
+else
+    echo "ok    ...and without pkgDir it is not found (the check is live)"
+fi
+rm -rf "$HOST"
+
 [ "$FAIL" = "0" ] && echo "apitest: ok" || { echo "apitest: FAILED"; exit 1; }

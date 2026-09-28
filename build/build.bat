@@ -1,8 +1,8 @@
 @echo off
 rem build.bat -- build tiko-lang with the stage0 compiler (FBC-Modern).
 rem
-rem   build\build.bat [Debug^|Release^|RelWithDebInfo] [--test-runner] [--no-dll]
-rem   build\build.bat [Release] --dll
+rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll]
+rem   build\build.bat [Release^|MinSizeRel] --dll
 rem
 rem A compiler build also builds the editor's bin\tikoParser.dll and copies it beside
 rem tiko-editor.exe (%TKO_EDITOR_DIR%, default C:\dev\tiko-editor-tiko). '--no-dll' skips both.
@@ -38,7 +38,10 @@ if not exist "%TKO_STAGE0%" (
 
 if /i "%CFG%"=="Debug"          set "FLAGS=-g -exx -w all"
 if /i "%CFG%"=="RelWithDebInfo" set "FLAGS=-g -w all"
-if /i "%CFG%"=="Release"        set "FLAGS=-w all"
+rem Release and MinSizeRel as build.sh has them -- its comments say why: -O 2 because
+rem fbc's default is -O 0, and size through the gcc backend because '-O s' is ignored.
+if /i "%CFG%"=="Release"        set "FLAGS=-O 2 -w all"
+if /i "%CFG%"=="MinSizeRel"     set "FLAGS=-gen gcc -Wc -Os -w all"
 if "%FLAGS%"=="" (
     echo build: unknown configuration '%CFG%' 1>&2
     exit /b 2
