@@ -327,6 +327,8 @@ end function
 '' Check bound nothing, and only after this pass has searched the type and every base
 '' itself and found nothing either: a name Check declined to bind for a reason of its own
 '' is not evidence.
+declare sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, byval rhs as NodeId )  '' latesweeps4.bas
+
 private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -348,11 +350,13 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     if bt = TYPE_NONE then return
     dim as TypeId bu = ValueType_( c, bt )
     if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
+    '' A TUPLE's members are '_1' to '_n' and nothing else -- see TupleMemberBad_.
+    if c.types->Kind( bu ) = TK_TUPLE then TupleMemberBad_( c, bu, mp->lhs, mp->rhs ) : return
     if c.types->Kind( bu ) <> TK_UDT then return
     dim as string tnm = c.names->Spelling( c.types->NameOf( bu ) )
     '' A TUPLE TYPE is named for its element types -- '(long, double)' -- and its
     '' members are '_1', '_2'; TupleLike_ below is what judges one.
-    if instr( tnm, "(" ) > 0 then return
+    if instr( tnm, "(" ) > 0 then TupleMemberBad_( c, bu, mp->lhs, mp->rhs ) : return
     '' AN INSTANTIATION IS JUDGED, and used not to be: its structural name carries a
     '' '<', and skipping every name with one exempted every generic container in the
     '' runtime headers. 'a.NoSuchThing( )' over an FB.Array( of long ) compiled clean
@@ -360,7 +364,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     '' WITHOUT the key, because 'ARRAY<6>' is not what anyone wrote.
     dim as long lt = instr( tnm, "<" )
     if lt > 0 then tnm = left( tnm, lt - 1 )
-    if TupleLike_( c, bu ) then return
+    if TupleLike_( c, bu ) then TupleMemberBad_( c, bu, mp->lhs, mp->rhs ) : return
     dim as InternId want = c.names->Fold( _
         c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name )
     '' 'b.constructor( )' and 'pb->destructor( )' are explicit structor calls, which

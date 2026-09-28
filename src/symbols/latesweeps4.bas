@@ -744,6 +744,53 @@ private sub CheckUnprintableStr_ ( byref c as Ctx, byval id as NodeId )
     if bt <> TYPE_NONE then c.diags->Report( TKO0871, PointRange( c.ast->Loc( a ) ), UnprintableName_( c, bt ), nm )
 end sub
 
+'' A TUPLE's MEMBERS ARE '_1' TO '_n' AND NOTHING ELSE. Measured on fbc-modern 1.20,
+'' 2026-09-28, over '(long, string)' t and '(a as long, b as string)' nt: 't._1', 't._2' and
+'' 'nt._1' are the elements, read and written; 't._0', 't._3', 't.item0', 't.x' and even
+'' 'nt.a' -- an element's own name -- are error 18, "Element not defined". tiko skipped
+'' every tuple in the member check, and a PRINT of any of them printed nothing.
+sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, byval rhs as NodeId )
+    if (rhs = NODE_NONE) orelse (c.ast->Kind( rhs ) <> N_IDENT) then return
+    '' A DESTRUCTURE's OWN READS -- 'var ( a, b, c ) = ( 1, 2 )' becomes '$dt1._3' -- are not
+    '' written by anyone: the arity is TKO0825's, and 'for each''s TKO0611. A '$' name is
+    '' the parser's.
+    if (lhs <> NODE_NONE) andalso (c.ast->Kind( lhs ) = N_IDENT) then
+        if left( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, lhs )].data )].name ), 1 ) = "$" then return
+    end if
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if (s = 0) orelse (s->inner = SCOPE_NONE) then return
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return
+    dim as long n = 0
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 255
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if f->kind = cast( ubyte, SYM_FIELD ) then n += 1
+        cur = f->nextInScope
+    next
+    if n = 0 then return
+    dim as string nm = c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, rhs )].data )].name )
+    if (len( nm ) >= 2) andalso (left( nm, 1 ) = "_") then
+        dim as string dg = mid( nm, 2 )
+        dim as boolean digits = true
+        for i as long = 0 to len( dg ) - 1
+            if (dg[i] < 48) orelse (dg[i] > 57) then digits = false
+        next
+        if digits andalso (len( dg ) <= 3) then
+            dim as long k = valint( dg )
+            if (k >= 1) andalso (k <= n) then return
+        end if
+    end if
+    c.diags->Report( TKO0739, PointRange( c.ast->Loc( rhs ) ), TupleSpelling_( c, t ), nm )
+end sub
+
 private function UStrArgNode_ ( byref c as Ctx, byval a as NodeId ) as boolean
     dim as BuiltinType bt = StrTermBt_( c, Unparen3_( c, a ) )
     if bt = TY_USTRING then return true
