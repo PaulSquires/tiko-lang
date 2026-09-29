@@ -1113,6 +1113,7 @@ end sub
 #include once "symbols/valuestmt.bas"
 #include once "symbols/recursivetype.bas"
 #include once "symbols/branchcross.bas"
+#include once "symbols/constout.bas"
 
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
@@ -1125,6 +1126,7 @@ private sub WalkExtra_ _
     if k = N_PROC then CheckProcDefinitionShapes_( c, id )
     if k = N_TYPE then CheckRecursiveType_( c, id )
     if k = N_GOTO then CheckBranchCross_( c, id )
+    if (k = N_INTRINSIC) orelse (k = N_AMBIGUOUS) then CheckConstOutput_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )

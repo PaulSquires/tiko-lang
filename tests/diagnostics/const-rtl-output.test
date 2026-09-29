@@ -1,0 +1,16 @@
+'' TKO0617/TKO0699, fbc's 119 and 181: a constant as what a runtime statement writes -- GET,
+'' INPUT, LINE INPUT, LSET, READ, CLEAR, GETJOYSTICK. See symbols/constout.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-rtl-output.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-rtl-output.bas(14,24): error TKO0617: cannot modify 'arr': it is a constant
+'' EXPECT-OUT: const-rtl-output.bas(15,11): error TKO0617: cannot modify 'fp'
+'' EXPECT-OUT: const-rtl-output.bas(16,11): error TKO0617: cannot modify 'v1'
+'' EXPECT-OUT: const-rtl-output.bas(17,12): error TKO0617: cannot modify 'v2'
+'' EXPECT-OUT: const-rtl-output.bas(18,16): error TKO0617: cannot modify 's1'
+'' EXPECT-OUT: const-rtl-output.bas(19,12): error TKO0617: cannot modify 's2'
+'' EXPECT-OUT: const-rtl-output.bas(20,6): error TKO0617: cannot modify 's3'
+'' EXPECT-OUT: const-rtl-output.bas(21,6): error TKO0617: cannot modify 'v3'
+'' EXPECT-OUT: const-rtl-output.bas(22,7): error TKO0699
+'' EXPECT-OUT: const-rtl-output.bas(23,17): error TKO0699
+'' EXPECT-MAX-DIAG: 10
