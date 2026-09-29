@@ -1,0 +1,13 @@
+'' TKO0400, fbc's 1 and 9: 'typeof( x )' as a user procedure's argument or in parentheses.
+'' 'peek', 'poke' and 'sizeof' still take one. See TypeofArgCallee in parser/intrinsics.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typeof-argument.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typeof-argument.bas(16,4): error TKO0400: expected an expression
+'' EXPECT-OUT: typeof-argument.bas(17,8): error TKO0400
+'' EXPECT-OUT: typeof-argument.bas(18,3): error TKO0400
+'' EXPECT-OUT: typeof-argument.bas(19,6): error TKO0400
+'' EXPECT-OUT: typeof-argument.bas(20,6): error TKO0400
+'' EXPECT-OUT: typeof-argument.bas(21,5): error TKO0400
+'' EXPECT-OUT: typeof-argument.bas(22,8): error TKO0400
+'' EXPECT-MAX-DIAG: 7

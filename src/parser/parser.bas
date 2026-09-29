@@ -955,7 +955,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
             '' 'locate ,,0' -- a PAREN-LESS call may elide arguments too, and the
             '' empty slots still count. LOCATE is not in the intrinsic registry, so
             '' this is the list it actually goes through.
-            args.Push( cast( ulong, ArgOrElided( p, Tko.TK_EOL ) ) )
+            args.Push( cast( ulong, ArgOrElided( p, Tko.TK_EOL, false ) ) )  '' 'F typeof( x )' is fbc's 1
             if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
     end if

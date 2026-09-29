@@ -607,7 +607,7 @@ end function
 '' fb.GFX_NULL )' -- and the empty slot still COUNTS, so it is a node rather than a gap
 '' in the list.
 function ArgOrElided _
-    ( byref p as Tko.ParserState, byval closer as Tko.TokenKind ) as Tko.NodeId
+    ( byref p as Tko.ParserState, byval closer as Tko.TokenKind, byval tyOk as boolean = true ) as Tko.NodeId
 
     dim as Tko.TokenKind k = Peek( p )
     if (k = Tko.TK_COMMA) orelse (k = closer) orelse (k = Tko.TK_EOL) then
@@ -626,7 +626,7 @@ function ArgOrElided _
         Advance( p )
         return MakeUnary( p, Tko.KW_BYVAL, bt.loc, Expression( p ) )
     end if
-    return TypeofArgExpression( p )
+    if tyOk then return TypeofArgExpression( p ) else return Expression( p )  '' see TypeofArgCallee
 end function
 
 '' Five string intrinsics take a SET of characters rather than a substring, and mark
@@ -766,7 +766,7 @@ function PostfixChain _
                         items.Push( cast( ulong, MakeUnary( p, Tko.KW_ANY, anyTok.loc, _
                                                             Expression( p ) ) ) )
                     else
-                        items.Push( cast( ulong, ArgOrElided( p, closer ) ) )
+                        items.Push( cast( ulong, ArgOrElided( p, closer, TypeofArgCallee( p, result ) ) ) )
                     end if
                     if Accept( p, Tko.TK_COMMA ) = false then exit do
                 loop
@@ -1159,7 +1159,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 '' 'A = *(int32*)TMP; B = *(int32*)((uint8*)TMP + 8)'. Expression( )
                 '' made an N_ERROR for the empty slot, silently, and the whole
                 '' destructuring then declined.
-                items.Push( cast( ulong, ArgOrElided( p, Tko.TK_RPAREN ) ) )
+                items.Push( cast( ulong, ArgOrElided( p, Tko.TK_RPAREN, false ) ) )  '' '( typeof( x ) )' is fbc's 9
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
                 sawComma = true
             loop

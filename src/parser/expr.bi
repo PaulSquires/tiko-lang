@@ -162,7 +162,7 @@ declare function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
 '' Same routing reason as OpenExprCall: Primary needs it, decl.bas is compiled later.
 declare function TryLambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
 declare function ArgOrElided _
-    ( byref p as Tko.ParserState, byval closer as Tko.TokenKind ) as Tko.NodeId
+    ( byref p as Tko.ParserState, byval closer as Tko.TokenKind, byval tyOk as boolean = true ) as Tko.NodeId
 
     declare function Expression _
         ( byref p as Tko.ParserState, byval minPrec as long = 1 ) as Tko.NodeId
@@ -182,6 +182,7 @@ declare function ArgOrElided _
     declare function TypeKeywordCalled _
         ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
     declare function TypeofArgExpression( byref p as Tko.ParserState ) as Tko.NodeId
+    declare function TypeofArgCallee( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
     '' Lives in decltype.bas: a calling convention, and with 'nameless' the
     '' OVERLOAD and ALIAS that may sit where a CONSTRUCTOR's name would be.
     declare function TakeProcPrefix_ _

@@ -793,13 +793,30 @@ end function
 '' A CALL ARGUMENT, where 'typeof( x )' may stand for a TYPE. 'peek( typeof( b ), pb )',
 '' 'poke( typeof( b ), pb, v )' and 'procptr( s, typeof( t ) )' are fbc's, and tests/mir
 '' writes all three. The argument is parsed exactly as before; only 'typeof' is let through.
-'' A user procedure's argument is let through too, which fbc refuses -- not judged here.
 function TypeofArgExpression( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean saved = p.typeofOk
     p.typeofOk = true
     dim as Tko.NodeId e = Expression( p )
     p.typeofOk = saved
     return e
+end function
+
+'' ...BUT ONLY FOR A CALLEE THAT TAKES A TYPE. Measured on fbc-modern 1.20, 2026-09-28:
+''
+''     F( typeof( x ) )   G( typeof( x ) )   F typeof( x )      error 1, argument count
+''     ( typeof( x ) ) anywhere -- 's = ...', 'x = ...', 'if ... = 1', 'F( ... )'   error 9
+''
+'' tiko let 'typeof' through every call argument and every parenthesis (ArgOrElided parses
+'' both), so each of those statements was dropped in silence. Now ArgOrElided lets it through
+'' only for 'peek' here and for the statement intrinsics ('poke') -- 'procptr' reads its
+'' second argument itself, and 'sizeof'/'len' go through TypeArgCall. Anywhere else the
+'' expression layer reports TKO0400, as it does for a bare 'x = typeof( x )'.
+function TypeofArgCallee( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
+    if callee = Tko.NODE_NONE then return false
+    if p.ast->Kind( callee ) <> Tko.N_IDENT then return false
+    dim as string nm = Tko.Text.LowerAscii( _
+        p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, callee )].data )].name ) )
+    return (nm = "peek")
 end function
 
 end namespace
