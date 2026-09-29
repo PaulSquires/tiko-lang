@@ -2,16 +2,16 @@
 '' whose type is incomplete (fbc error 71). Measured against fbc, refused and accepted
 '' shapes side by side.
 ''
-'' A STRING-VALUED pair is NOT refused here: comparing two string literals needs their
-'' text, which lives in the source buffer that the collector cannot reach, and comparing
-'' the raw spans instead would call two IDENTICAL strings at different offsets a duplicate
-'' -- which fbc accepts. So 'const s1 = "1"' then 'const s1 = "2"' is still let through.
+'' A STRING-VALUED pair is refused too (9ce): the collector now reads both literals' text
+'' through its source manager, so 'const s1 = "1"' then 'const s1 = "2"' is fbc's error 4
+'' while the same text twice is not -- two identical strings at different offsets were the
+'' reason the raw spans alone could not be compared.
 '' Accepted: one declaration each, and a repeat with the SAME value.
 const okInt = 1
 const okSame = 1
 const okSame = 1
-'' A KNOWN OVER-ACCEPTANCE, not an accepted shape: fbc refuses the pair below (error 4)
-'' and this compiler lets it through, for the reason given above.
+'' Refused: fbc's error 4 on the second line, as the numeric pairs below. It was once a
+'' known over-acceptance, for the reason given above.
 const strGap = "1"
 const strGap = "2"
 '' Refused: the same name with a different value or a different type.

@@ -335,7 +335,7 @@ function ArrayFromPairs _
     '' 'total <= 0' test below then turned the whole declaration into a DYNAMIC
     '' array, silently. fbc says error 50, 'Array too big'.
     dim as longint total = 1
-    dim as boolean known = true
+    dim as boolean known = true, badOrder = false
     dim as FB.Array( of longint ) bounds
     for i as long = 0 to los.Count - 1
         dim as longint lo = 0
@@ -369,12 +369,17 @@ function ArrayFromPairs _
             known = false
         end if
         if known then total *= (hi - lo + 1)
+        '' A LOWER BOUND ABOVE THE UPPER -- or an upper of LONGINT's minimum -- is fbc's
+        '' error 182, and it is NOT a dynamic array: the 'total <= 0' below made it one, so
+        '' 'dim array(1 to 0)' compiled. Kept fixed, for ArrayTooBig_ to report TKO0887.
+        if known andalso ((hi < lo) orelse (hi = &h8000000000000000ll)) then badOrder = true
         bounds.Push( lo )
         bounds.Push( hi )
     next
     '' A BOUND THAT IS NOT A COMPILE-TIME CONSTANT makes the array DYNAMIC -- 'dim
     '' a(any)', 'dim a(0 to n)'. The rank is still written down, and it is what decides
     '' how many dimtb slots the descriptor carries, so it is kept.
+    if known andalso badOrder then return c.types->ArrayOf( base_, los.Count, 1, @bounds )
     if (known = false) orelse (total <= 0) then return c.types->DynArrayOf( base_, los.Count )
     '' TOO MANY ELEMENTS TO COUNT IN A LONG is already over fbc's limit, whatever
     '' the element size: the limit is 2147483647 BYTES and an element is at least

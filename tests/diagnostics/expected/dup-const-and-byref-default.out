@@ -15,6 +15,14 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/dup-const-and-byref-default.bas(16,7): error TKO0600: 'strgap' is already declared in this scope
+     |
+  16 | const strGap = "2"
+     |       ^
+tests/diagnostics/src/dup-const-and-byref-default.bas(15,7): note: declared here
+     |
+  15 | const strGap = "1"
+     |       ^
 tests/diagnostics/src/dup-const-and-byref-default.bas(19,7): error TKO0600: 'dupint' is already declared in this scope
      |
   19 | const dupInt = 2

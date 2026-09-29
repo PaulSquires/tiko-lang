@@ -1,0 +1,9 @@
+'' TKO0886, fbc's 131: a qualified declaration inside a namespace names one not nested in it.
+'' See CheckOutsideRange_ in symbols/latesweeps3.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ns-qualified-decl.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ns-qualified-decl.bas(4,16): error TKO0886
+'' EXPECT-OUT: ns-qualified-decl.bas(11,16): error TKO0886
+'' EXPECT-OUT: ns-qualified-decl.bas(16,20): error TKO0886
+'' EXPECT-MAX-DIAG: 3

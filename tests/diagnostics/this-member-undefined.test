@@ -1,0 +1,10 @@
+'' TKO0739, fbc's 18: 'this.X' where X is no member, though a global or a USING names it.
+'' See CheckMemberExists_ in symbols/latesweeps2.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/this-member-undefined.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: this-member-undefined.bas(18,16): error TKO0739
+'' EXPECT-OUT: this-member-undefined.bas(19,10): error TKO0739
+'' EXPECT-OUT: this-member-undefined.bas(20,16): error TKO0739
+'' EXPECT-OUT: this-member-undefined.bas(21,16): error TKO0739
+'' EXPECT-MAX-DIAG: 4

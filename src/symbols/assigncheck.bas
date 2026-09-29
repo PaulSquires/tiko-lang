@@ -394,6 +394,23 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         if prp->a = NODE_NONE then continue for
         dim as TypeId pt = c.info->TypeOf_( prp->a )
         dim as TypeId at = c.info->TypeOf_( arg )
+        '' A BARE 'type( 0 )' TAKES ITS TYPE FROM THE PARAMETER, and there is none to take from
+        '' 'byref x as any' or from an incomplete type -- fbc's error 71, measured on
+        '' fbc-modern 1.20, 2026-09-29 (structs/anon-void, anon-fwdref). 'type( 0 )' for a
+        '' 'byval as any ptr' is fbc's. tiko accepted both.
+        if (pt <> TYPE_NONE) andalso (c.ast->Kind( arg ) = N_TUPLE) then
+            if ((c.ast->nodes[cast( long, arg )].flags and NF_TYPE_LITERAL) <> 0) andalso _
+               (c.ast->lists[cast( long, c.ast->nodes[cast( long, arg )].data )].target = NODE_NONE) then
+                dim as TypeId pu = c.types->Unqualify( pt )
+                if c.types->Kind( pu ) = TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+                dim as boolean noType = (c.types->Kind( pu ) = TK_FORWARD)
+                if (noType = false) andalso (c.types->Kind( pu ) = TK_BUILTIN) then noType = (c.types->BuiltinOf( pu ) = TY_ANY)
+                if noType then
+                    c.diags->Report( TKO0810, PointRange( c.ast->Loc( arg ) ), c.types->Name( pu ) )
+                    return
+                end if
+            end if
+        end if
         if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then continue for
         dim as boolean byvalWritten = _
             ((c.ast->nodes[cast( long, prm )].flags and NF_BYVAL_WRITTEN) <> 0)

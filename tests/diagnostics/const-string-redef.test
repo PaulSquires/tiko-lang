@@ -1,0 +1,9 @@
+'' TKO0600, fbc's 4: a constant redefined with a different string. See SameLiteral_ in
+'' symbols/collectshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-string-redef.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-string-redef.bas(4,7): error TKO0600
+'' EXPECT-OUT: const-string-redef.bas(7,7): error TKO0600
+'' EXPECT-OUT: const-string-redef.bas(9,7): error TKO0600
+'' EXPECT-MAX-DIAG: 3

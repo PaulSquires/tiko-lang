@@ -336,8 +336,15 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     if (op <> TK_DOT) andalso (op <> TK_ARROW) then return
     if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
     if c.ast->Kind( mp->rhs ) <> N_IDENT then return
-    if c.info->RefOf( id ) <> SYMBOL_NONE then return
-    if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
+    '' 'this.X' IS JUDGED TOO, and a binding is no answer for it: the name was looked up
+    '' through the method's scopes, so 'this.duplicate' bound to a GLOBAL 'duplicate' or
+    '' to one a 'using m' opened -- fbc's error 18 each (structs/inherit-type-6..7), and
+    '' 'this.nothere' as well. The member walk below finds a real member by its name.
+    dim as boolean viaThis = IsThisBase_( c, mp->lhs )
+    if viaThis = false then
+        if c.info->RefOf( id ) <> SYMBOL_NONE then return
+        if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
+    end if
     dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
     if bs = 0 then return
     select case cast( SymbolKind, bs->kind )
@@ -350,7 +357,6 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     case else
         return
     end select
-    if IsThisBase_( c, mp->lhs ) then return
     dim as TypeId bt = c.info->TypeOf_( mp->lhs )
     if bt = TYPE_NONE then return
     dim as TypeId bu = ValueType_( c, bt )

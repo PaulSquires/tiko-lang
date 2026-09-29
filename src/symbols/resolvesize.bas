@@ -48,7 +48,15 @@ private sub ArrayTooBig_ _
     for d as long = 0 to dims - 1
         dim as longint lo = c.types->boundPool[bfirst + d * 2]
         dim as longint hi = c.types->boundPool[bfirst + d * 2 + 1]
-        if hi < lo then return
+        '' A LOWER BOUND ABOVE THE UPPER is fbc's error 182, "Invalid array subscript":
+        '' 'dim array(1 to 0)', '(0 to -1)', '(-1)', a field or an extern the same, and
+        '' '(&h8000000000000000 to &h8000000000000000)' -- an upper bound of LONGINT's minimum
+        '' is refused however low the lower one (fbc-modern 1.20, 2026-09-29;
+        '' dim/array-invalid-subscript-1..2). A REDIM's bounds are the runtime's.
+        if (hi < lo) orelse (hi = &h8000000000000000ll) then
+            c.diags->Report( Tko.TKO0887, Tko.PointRange( c.ast->Loc( at ) ), c.names->Spelling( nm ) )
+            return
+        end if
         n *= (hi - lo + 1)
         '' A product that has run away is already over the limit; stop before it
         '' can wrap even in 64 bits.

@@ -1,0 +1,8 @@
+'' TKO0810, fbc's 71: a bare type( ) for a byref parameter of an incomplete type or 'any'.
+'' See the argument loop in symbols/assigncheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-literal-incomplete.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: type-literal-incomplete.bas(7,5): error TKO0810
+'' EXPECT-OUT: type-literal-incomplete.bas(8,5): error TKO0810
+'' EXPECT-MAX-DIAG: 2

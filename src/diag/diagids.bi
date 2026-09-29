@@ -654,6 +654,10 @@
     DIAG( TKO0884, SEV_ERROR,   "a static member cannot be declared in an anonymous %0" )
     '' fbc's error 24: 'new string( any )' and 'new string[n] { any }' -- proccheck.bas.
     DIAG( TKO0885, SEV_ERROR,   "'any' cannot leave a new STRING uninitialized" )
+    '' fbc's error 131: a qualified declaration inside a namespace that is not nested in it -- latesweeps3.bas.
+    DIAG( TKO0886, SEV_ERROR,   "'%0' cannot be declared here: only a namespace nested inside this one may be named" )
+    '' fbc's error 182: a fixed array's lower bound above its upper -- resolvesize.bas.
+    DIAG( TKO0887, SEV_ERROR,   "invalid array subscript in '%0': a lower bound is above its upper bound" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

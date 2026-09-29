@@ -222,18 +222,25 @@ end function
 private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
     if blk = NODE_NONE then return
     dim as NodeKind bk = c.ast->Kind( blk )
-    if (bk <> N_BLOCK) andalso (bk <> N_MODULE) then return
-    dim as ListPayload ptr bl = _
-        @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
-    for i as long = 0 to bl->count - 1
-        dim as NodeId st = cast( NodeId, c.ast->children[bl->first + i] )
+    dim as long lf = 0, lc = 0
+    if bk = N_NAMESPACE then
+        '' A NAMESPACE KEEPS ITS STATEMENTS AS ITS OWN CHILDREN, not in a block in 'b', so
+        '' nothing inside one was ever judged here.
+        dim as StmtPayload ptr nsp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, blk )].data )]
+        lf = nsp->first : lc = nsp->count
+    elseif (bk = N_BLOCK) orelse (bk = N_MODULE) then
+        dim as ListPayload ptr bl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
+        lf = bl->first : lc = bl->count
+    else
+        return
+    end if
+    for i as long = 0 to lc - 1
+        dim as NodeId st = cast( NodeId, c.ast->children[lf + i] )
         if st = NODE_NONE then continue for
         dim as NodeKind sk = c.ast->Kind( st )
         '' Descend into everything that carries a statement list of its own.
         if sk = N_NAMESPACE then
-            dim as StmtPayload ptr np = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )]
-            CheckOutsideRange_( c, np->b )
+            CheckOutsideRange_( c, st )
             continue for
         end if
         if sk = N_PROC then
@@ -260,6 +267,45 @@ private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
             dim as StmtPayload ptr ip = _
                 @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
             if ip->ownerName = 0 then continue for
+            '' INSIDE A NAMESPACE, ONLY A NAMESPACE NESTED IN IT MAY BE NAMED. Measured on
+            '' fbc-modern 1.20, 2026-09-29, with 'extern i1 as integer' in namespace a:
+            ''
+            ''     namespace a : dim shared a.i1 ...          error 131   the namespace itself
+            ''     namespace b : dim shared a.i1 ...          error 131   a sibling
+            ''     namespace ns.a : dim shared a.i1 ...       error 131   namespace/outside-var-12
+            ''     namespace a : dim shared b.i1 ...          fine        b nested in a
+            ''
+            '' tiko accepted the three. At module level the TKO0761 rule below is the one asked.
+            dim as SymScope ptr cur = c.syms->ScopeAt( c.info->ScopeOf( st ) )
+            if cur <> 0 then
+                if cur->kind = cast( ubyte, SCOPEK_NAMESPACE ) then
+                    dim as ScopeId os = NamespaceScopeOf_( c, ip->ownerName )
+                    '' ...AND ONLY A NAMESPACE: 'dim as integer A.i1' DEFINES A STATIC MEMBER of a
+                    '' type A declared beside it (dim/member-var.bas), which fbc takes. The owner's
+                    '' first name is looked up from here, and anything but a namespace is let be.
+                    dim as string oq = c.names->Spelling( ip->ownerName )
+                    if instr( oq, "." ) > 0 then oq = left( oq, instr( oq, "." ) - 1 )
+                    dim as Symbol ptr oh = c.syms->SymbolAt( c.syms->Lookup( c.info->ScopeOf( st ), c.names->GetString( oq ) ) )
+                    if (oh = 0) orelse (oh->kind <> cast( ubyte, SYM_NAMESPACE )) then os = SCOPE_NONE
+                    if os <> SCOPE_NONE then
+                        dim as boolean nested = false
+                        dim as SymScope ptr up = c.syms->ScopeAt( os )
+                        for hop as long = 0 to 63
+                            if up = 0 then exit for
+                            if up->parent = c.info->ScopeOf( st ) then nested = true : exit for
+                            up = c.syms->ScopeAt( up->parent )
+                        next
+                        if nested = false then
+                            c.diags->Report( TKO0886, PointRange( c.ast->Loc( item ) ), _
+                                             c.names->Spelling( ip->ownerName ) & "." & _
+                                             c.names->Spelling( ip->name ) )
+                        end if
+                    end if
+                    '' The rules below were only ever asked at module level and in procedure
+                    '' bodies -- a namespace body was not walked -- and they stay that way.
+                    continue for
+                end if
+            end if
             if isShared then
                 if NamespaceScopeOf_( c, ip->ownerName ) <> SCOPE_NONE then
                     c.diags->Report( TKO0761, PointRange( c.ast->Loc( item ) ), _
@@ -273,7 +319,7 @@ private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
             dim as InternId wn = c.names->Fold( ip->name )
             dim as boolean seen = false
             for m as long = 0 to i - 1
-                dim as NodeId ps = cast( NodeId, c.ast->children[bl->first + m] )
+                dim as NodeId ps = cast( NodeId, c.ast->children[lf + m] )
                 if ps = NODE_NONE then continue for
                 if c.ast->Kind( ps ) <> N_VAR then continue for
                 dim as StmtPayload ptr pv = _

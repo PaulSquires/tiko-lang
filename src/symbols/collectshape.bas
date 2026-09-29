@@ -147,10 +147,49 @@ private function SameLiteral_ _
     '' are not called duplicates -- which meant 'const a = 1.0' followed by 'const a = 1.5'
     '' was silently merged instead of being fbc's error 4.
     ''
-    '' A STRING LITERAL IS STILL NOT COMPARED: its text lives in the source buffer and this
-    '' walker has no source manager, so 'const a = "1"' against 'const a = "2"' stays
-    '' suppressed. Comparing the raw span instead would call two IDENTICAL strings at
-    '' different offsets a duplicate, which fbc accepts -- the wrong half to be wrong on.
+    '' A STRING LITERAL IS COMPARED BY ITS TEXT, read through the walker's source manager.
+    '' Measured on fbc-modern 1.20, 2026-09-29: 'const a = "1"' then 'const a = "2"' is error
+    '' 4, and so are 'wstr( "1" )' against 'wstr( "2" )' and '"1"' against '1'
+    '' (const/duplicate-constant-strvalue, -wstrvalue); the same text twice is fbc's. It
+    '' was never compared, so every one of them was merged.
+    if (a <> Tko.NODE_NONE) andalso (b <> Tko.NODE_NONE) then
+        dim as Tko.NodeKind ka = w.ast->Kind( a ), kb = w.ast->Kind( b )
+        if (ka = Tko.N_STRING_LIT) orelse (kb = Tko.N_STRING_LIT) then
+            if ka <> kb then
+                '' A string against a NUMBER literal differs; anything else is not known.
+                select case iif( ka = Tko.N_STRING_LIT, kb, ka )
+                case Tko.N_INT_LIT, Tko.N_FLOAT_LIT : return false
+                end select
+                return true
+            end if
+            if w.src = 0 then return true
+            dim as Tko.LiteralPayload ptr la = @w.ast->literals[cast( long, w.ast->nodes[cast( long, a )].data )]
+            dim as Tko.LiteralPayload ptr lb = @w.ast->literals[cast( long, w.ast->nodes[cast( long, b )].data )]
+            if (la->strKind <> lb->strKind) orelse (la->strLength <> lb->strLength) then return false
+            dim as Tko.SourceFile ptr sfa = w.src->FileAt( cast( Tko.FileId, la->strFile ) )
+            dim as Tko.SourceFile ptr sfb = w.src->FileAt( cast( Tko.FileId, lb->strFile ) )
+            if (sfa = 0) orelse (sfb = 0) then return true
+            if (la->strOffset + la->strLength > sfa->text.Count) orelse (lb->strOffset + lb->strLength > sfb->text.Count) then return true
+            for i as long = 0 to la->strLength - 1
+                if sfa->text[la->strOffset + i] <> sfb->text[lb->strOffset + i] then return false
+            next
+            return true
+        end if
+        '' 'wstr( "1" )' -- ONE CALL of one name each side: the argument is what differs.
+        if (ka = Tko.N_CALL) andalso (kb = Tko.N_CALL) then
+            dim as Tko.ListPayload ptr ca = @w.ast->lists[cast( long, w.ast->nodes[cast( long, a )].data )]
+            dim as Tko.ListPayload ptr cb = @w.ast->lists[cast( long, w.ast->nodes[cast( long, b )].data )]
+            if (ca->count = 1) andalso (cb->count = 1) andalso (ca->target <> Tko.NODE_NONE) andalso (cb->target <> Tko.NODE_NONE) then
+                if (w.ast->Kind( ca->target ) = Tko.N_IDENT) andalso (w.ast->Kind( cb->target ) = Tko.N_IDENT) then
+                    dim as Tko.InternId na = w.ast->idents[cast( long, w.ast->nodes[cast( long, ca->target )].data )].name
+                    dim as Tko.InternId nb = w.ast->idents[cast( long, w.ast->nodes[cast( long, cb->target )].data )].name
+                    if w.names->Fold( na ) = w.names->Fold( nb ) then
+                        return SameLiteral_( w, cast( Tko.NodeId, w.ast->children[ca->first] ), cast( Tko.NodeId, w.ast->children[cb->first] ) )
+                    end if
+                end if
+            end if
+        end if
+    end if
     if (a <> Tko.NODE_NONE) andalso (b <> Tko.NODE_NONE) then
         if (w.ast->Kind( a ) = Tko.N_FLOAT_LIT) andalso _
            (w.ast->Kind( b ) = Tko.N_FLOAT_LIT) then

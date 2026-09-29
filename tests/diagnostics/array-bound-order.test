@@ -1,0 +1,11 @@
+'' TKO0887, fbc's 182: a fixed array's lower bound above its upper. See ArrayFromPairs in
+'' symbols/generictypedef.bas and ArrayTooBig_ in symbols/resolvesize.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-bound-order.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-bound-order.bas(4,12): error TKO0887
+'' EXPECT-OUT: array-bound-order.bas(5,5): error TKO0887
+'' EXPECT-OUT: array-bound-order.bas(6,5): error TKO0887
+'' EXPECT-OUT: array-bound-order.bas(7,5): error TKO0887
+'' EXPECT-OUT: array-bound-order.bas(9,5): error TKO0887
+'' EXPECT-MAX-DIAG: 5
