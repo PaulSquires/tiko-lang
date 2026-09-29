@@ -1,0 +1,10 @@
+'' TKO0894 (fbc's 136), TKO0895 (281), TKO0896 (76): bounds on a COMMON array, an ellipsis
+'' bound with no initializer, and one on a REDIM. See symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-decl-bounds.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-decl-bounds.bas(3,8): error TKO0894
+'' EXPECT-OUT: array-decl-bounds.bas(5,8): error TKO0895
+'' EXPECT-OUT: array-decl-bounds.bas(6,5): error TKO0895
+'' EXPECT-OUT: array-decl-bounds.bas(9,7): error TKO0896
+'' EXPECT-MAX-DIAG: 4
