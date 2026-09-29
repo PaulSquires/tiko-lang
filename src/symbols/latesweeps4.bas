@@ -1288,8 +1288,11 @@ end sub
 '' ids run in parse order, so 'below' is a larger id than the use, as DeclaredBelow_ has
 '' it. Through a chain of typedefs, each one's target; only a plain, unqualified target
 '' names a forward type at all. The UDT's name, or "" when this use is not one.
-private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId ) as string
+private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval at_ as NodeId = NODE_NONE ) as string
     dim as SymbolId sid = c.info->RefOf( use )
+    '' WHERE the use is, when that is not the type reference itself -- a call to a function
+    '' whose declared result is the reference.
+    dim as ulong upos = cast( ulong, iif( at_ <> NODE_NONE, at_, use ) )
     dim as boolean viaTypedef = false
     dim as long hops = 0
     while hops < 16
@@ -1298,6 +1301,13 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId ) as str
         if sy = 0 then return ""
         select case cast( SymbolKind, sy->kind )
         case SYM_TYPEDEF
+            '' ...A LATER TYPEDEF IN THE CHAIN, as a UDT is: 'type T as FWD', a use, then 'type
+            '' FWD as integer' -- fbc's 71 for 'dim x as T', a 'byval' parameter, 'function f( )
+            '' byref as T' with a body, and a call to it (fbc-modern 1.20, 2026-09-29;
+            '' functions/return-byref-fwdref and -body). The walk stopped at the builtin.
+            if viaTypedef andalso (sy->declAt <> 0) andalso (upos < sy->declAt) then
+                if Tko.ModSym.OrderFree( *c.syms, sid ) = false then return c.names->Spelling( sy->name )
+            end if
             '' A TYPEDEF SYMBOL'S PAYLOAD IS ITS TARGET TYPEREF, not the N_TYPEDEF node --
             '' Collect's SameTypeRef_ compares it that way.
             dim as NodeId ta = cast( NodeId, sy->payload )
@@ -1314,7 +1324,7 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId ) as str
         case SYM_UDT
             if viaTypedef = false then return ""
             if sy->declAt = 0 then return ""
-            if cast( ulong, use ) >= sy->declAt then return ""
+            if upos >= sy->declAt then return ""
             '' A module's type is complete wherever it is used (RFC-0003 §5).
             if Tko.ModSym.OrderFree( *c.syms, sid ) then return ""
             return c.names->Spelling( sy->name )
@@ -1325,6 +1335,7 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId ) as str
     return ""
 end function
 
+declare sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as long )  '' staticdef.bas
 private sub CheckIncompleteObjects_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
     dim as FB.Array( of ubyte ) mark
@@ -1389,7 +1400,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         t = c.types->Unqualify( t )
         if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
         dim as string laterNm
-        if c.types->Kind( t ) = TK_UDT then laterNm = CompletedBelow4_( c, n )
+        if c.types->Kind( t ) <> TK_FORWARD then laterNm = CompletedBelow4_( c, n )
         if (c.types->Kind( t ) <> TK_FORWARD) andalso (len( laterNm ) = 0) then continue for
         dim as SourceLoc lc = c.ast->Loc( n )
         dim as boolean seen = false
@@ -1455,4 +1466,6 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
             c.diags->Report( TKO0811, PointRange( c.ast->Loc( dn ) ), c.names->Spelling( us->name ) )
         end if
     next
+
+    CheckByrefResultCalls_( c, total )  '' staticdef.bas
 end sub

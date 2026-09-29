@@ -658,6 +658,16 @@
     DIAG( TKO0886, SEV_ERROR,   "'%0' cannot be declared here: only a namespace nested inside this one may be named" )
     '' fbc's error 182: a fixed array's lower bound above its upper -- resolvesize.bas.
     DIAG( TKO0887, SEV_ERROR,   "invalid array subscript in '%0': a lower bound is above its upper bound" )
+    '' fbc's error 11: a shared or static reference bound to what has no fixed address -- latesweeps2.bas.
+    DIAG( TKO0888, SEV_ERROR,   "'%0' is a shared or static reference: it must be bound to a variable, or to a constant element of a fixed array" )
+    '' fbc's errors 20 and 131: a static member defined with another type, or byref where it was not -- staticdef.bas.
+    DIAG( TKO0889, SEV_ERROR,   "the definition of '%0' does not match its declaration in the type" )
+    '' fbc's error 20: a conversion intrinsic over a pointer or a UDT it cannot convert -- staticdef.bas.
+    DIAG( TKO0890, SEV_ERROR,   "'%0' cannot convert a '%1'" )
+    '' fbc's error 7: 'base( args )' that no constructor of the base takes -- assigncheck.bas.
+    DIAG( TKO0891, SEV_ERROR,   "no constructor of the base takes %0 argument(s)" )
+    '' fbc's error 9: an empty 'base( )' over a base that has nothing to construct -- assigncheck.bas.
+    DIAG( TKO0892, SEV_ERROR,   "base( ) needs a value: the base type has no constructor" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

@@ -585,6 +585,71 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
                 end if
             end if
         end if
+        '' A SHARED OR STATIC REFERENCE IS BOUND ONCE, to an address known before the program
+        '' runs -- fbc's error 11, "Expected constant", measured on fbc-modern 1.20, 2026-09-29:
+        ''
+        ''     = array( 5 )  a DYNAMIC array       = array( k )  a variable index
+        ''     = u.i         a field, even shared  = *p          = g( )    error 11 each
+        ''     = x    = ( x )    = fixed( 1, 2 )    = u (a whole UDT)                 fine
+        ''
+        '' dim/byref-shared-from-global-dynamic-array-element and byref-static-from-static-field
+        '' write two. tiko bound them at run time. A local variable is TKO0730's, below.
+        if (s->flags and (SYMF_SHARED or SYMF_STATIC)) <> 0 then
+            dim as NodeId sb = init
+            for upi as long = 0 to 15
+                if c.ast->Kind( sb ) <> N_PAREN then exit for
+                dim as ListPayload ptr upp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sb )].data )]
+                if upp->count <> 1 then exit for
+                sb = cast( NodeId, c.ast->children[upp->first] )
+            next
+            dim as boolean fixedAddr = true
+            select case c.ast->Kind( sb )
+            case N_DEREF
+                fixedAddr = false
+            case N_MEMBER
+                '' A STATIC member or a namespace's variable, 'T2.R1' or 'ns.x', has a fixed
+                '' address (dim/byref-init-from-byref.bas); an instance's field does not.
+                dim as Symbol ptr mv = c.syms->SymbolAt( c.info->RefOf( sb ) )
+                if mv = 0 then
+                    fixedAddr = false
+                elseif (mv->kind <> cast( ubyte, SYM_VARIABLE )) andalso ((mv->flags and SYMF_STATIC) = 0) then
+                    fixedAddr = false
+                end if
+            case N_CALL
+                dim as ListPayload ptr sl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sb )].data )]
+                dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( sl->target ) )
+                if (av <> 0) andalso (av->kind = cast( ubyte, SYM_PROC )) then
+                    '' A BYREF result is an address known only at run time; a by-value one
+                    '' has none at all, and that is TKO0643's (fbc's 24), not this rule's.
+                    dim as NodeId pv = cast( NodeId, av->payload )
+                    if (pv <> NODE_NONE) andalso (c.ast->Kind( pv ) = N_PROC) then
+                        if ((c.ast->nodes[cast( long, pv )].flags and NF_BYREF) <> 0) orelse _
+                           ((c.ast->stmts[cast( long, c.ast->nodes[cast( long, pv )].data )].extra and PF_BYREF_RESULT) <> 0) then fixedAddr = false
+                    end if
+                elseif (av = 0) orelse (av->kind <> cast( ubyte, SYM_VARIABLE )) orelse (av->type_ = TYPE_NONE) then
+                    fixedAddr = false
+                elseif c.types->IsDynArray( c.types->Unqualify( av->type_ ) ) then
+                    fixedAddr = false
+                else
+                    for ai as long = 0 to sl->count - 1
+                        dim as NodeId ax = cast( NodeId, c.ast->children[sl->first + ai] )
+                        if c.ast->Kind( ax ) = N_UNARY then ax = c.ast->unaries[cast( long, c.ast->nodes[cast( long, ax )].data )].operand
+                        select case c.ast->Kind( ax )
+                        case N_INT_LIT
+                        case N_IDENT
+                            dim as Symbol ptr xs = c.syms->SymbolAt( c.info->RefOf( ax ) )
+                            if (xs = 0) orelse ((xs->kind <> cast( ubyte, SYM_CONSTANT )) andalso (xs->kind <> cast( ubyte, SYM_ENUMCONST ))) then fixedAddr = false
+                        case else
+                            fixedAddr = false
+                        end select
+                    next
+                end if
+            end select
+            if fixedAddr = false then
+                c.diags->Report( TKO0888, PointRange( c.ast->Loc( init ) ), c.names->Spelling( s->name ) )
+                continue for
+            end if
+        end if
         if (ik <> N_IDENT) andalso (ik <> N_MEMBER) then continue for
         '' The static-reference rule.
         if ((s->flags and SYMF_STATIC) <> 0) andalso (ik = N_IDENT) then
@@ -1121,6 +1186,7 @@ end sub
 #include once "symbols/branchcross.bas"
 #include once "symbols/constout.bas"
 #include once "symbols/iifudt.bas"
+#include once "symbols/staticdef.bas"
 
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
@@ -1135,6 +1201,8 @@ private sub WalkExtra_ _
     if k = N_GOTO then CheckBranchCross_( c, id )
     if (k = N_INTRINSIC) orelse (k = N_AMBIGUOUS) then CheckConstOutput_( c, id )
     if k = N_CALL then CheckIifUdt_( c, id )
+    if k = N_CALL then CheckConvIntrinsic_( c, id )
+    if k = N_VAR then CheckStaticMemberDef_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )

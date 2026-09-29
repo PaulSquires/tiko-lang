@@ -1,0 +1,8 @@
+'' TKO0891, fbc's 7, and TKO0892, fbc's 9: 'base( ... )' no constructor takes, and an empty
+'' 'base( )' over a base with nothing to construct. See CheckBaseInitCount_ in symbols/assigncheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/base-init-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: base-init-args.bas(16,9): error TKO0891
+'' EXPECT-OUT: base-init-args.bas(22,9): error TKO0892
+'' EXPECT-MAX-DIAG: 2

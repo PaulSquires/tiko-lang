@@ -1,0 +1,9 @@
+'' TKO0889, fbc's 20 and 131: a static member's definition that disagrees with its declaration.
+'' See CheckStaticMemberDef_ in symbols/staticdef.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-member-def.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: static-member-def.bas(11,5): error TKO0889
+'' EXPECT-OUT: static-member-def.bas(12,5): error TKO0889
+'' EXPECT-OUT: static-member-def.bas(13,18): error TKO0889
+'' EXPECT-MAX-DIAG: 3

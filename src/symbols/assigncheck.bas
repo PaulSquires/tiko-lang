@@ -217,8 +217,38 @@ private sub CheckBaseInitCount_ _
     dim as TypeId base_ = BaseOf_( c, here )
     if base_ = TYPE_NONE then return
     '' A BASE WITH A CONSTRUCTOR takes ARGUMENTS, not field values, and that is a
-    '' different count altogether.
-    if StructorOf_( c, base_, "__ctor" ) <> 0 then return
+    '' different count altogether: one of its constructors must take that many. Measured on
+    '' fbc-modern 1.20, 2026-09-29 -- 'base( 1, 2, 3 )' and 'base( 1 )' over a parent with
+    '' only 'constructor( )' are error 7 (structs/base-init-ctor-disallows-initializer).
+    dim as Symbol ptr bct = StructorOf_( c, base_, "__ctor" )
+    if bct <> 0 then
+        dim as boolean fits = false
+        for guard as long = 0 to 63
+            if bct = 0 then exit for
+            dim as NodeId bd = cast( NodeId, bct->payload )
+            dim as long rq = RequiredParams_( c, bd ), pc = ParamCount_( c, bd )
+            if (rq < 0) orelse (pc < 0) then fits = true : exit for
+            if (lp->count >= rq) andalso (lp->count <= pc) then fits = true : exit for
+            '' A variadic constructor takes any count past its fixed ones.
+            dim as StmtPayload ptr bdp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, bd )].data )]
+            for bpi as long = 0 to bdp->count - 1
+                dim as NodeId bp = cast( NodeId, c.ast->children[bdp->first + bpi] )
+                if c.ast->Kind( bp ) <> N_PARAM then continue for
+                if c.ast->stmts[cast( long, c.ast->nodes[cast( long, bp )].data )].op = cast( ushort, TK_ELLIPSIS ) then fits = true
+            next
+            if fits then exit for
+            bct = c.syms->SymbolAt( bct->nextOverload )
+        next
+        if fits = false then c.diags->Report( TKO0891, PointRange( c.ast->Loc( id ) ), str( lp->count ) )
+        return
+    end if
+    '' ...AND 'base( )' WITH NOTHING, over a base that has no constructor at all -- declared,
+    '' or written by fbc for a string field or a vtable -- is error 9 (structs/base-init-
+    '' initializer-miscount-2). Over one with a string field or 'extends object' it is fine.
+    if (lp->count = 0) andalso (TcNeedsCtor_( c, base_, 0 ) = false) then
+        c.diags->Report( TKO0892, PointRange( c.ast->Loc( id ) ) )
+        return
+    end if
     dim as ScopeId bsc = cast( ScopeId, c.types->DeclScopeOf( base_ ) )
     dim as InternId bn = c.types->NameOf( base_ )
     dim as SymbolId bsid = c.syms->LookupLocalTyped( bsc, bn, true )

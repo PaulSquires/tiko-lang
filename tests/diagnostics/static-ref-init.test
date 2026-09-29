@@ -1,0 +1,10 @@
+'' TKO0888, fbc's 11: a shared or static reference bound to what has no fixed address. See
+'' CheckByrefInitShapes_ in symbols/latesweeps2.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-ref-init.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: static-ref-init.bas(11,40): error TKO0888
+'' EXPECT-OUT: static-ref-init.bas(12,40): error TKO0888
+'' EXPECT-OUT: static-ref-init.bas(13,35): error TKO0888
+'' EXPECT-OUT: static-ref-init.bas(14,34): error TKO0888
+'' EXPECT-MAX-DIAG: 4

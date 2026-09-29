@@ -1,0 +1,9 @@
+'' TKO0890, fbc's 20: a conversion intrinsic over a pointer or a UDT it cannot convert. See
+'' CheckConvIntrinsic_ in symbols/staticdef.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/conv-intrinsic.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: conv-intrinsic.bas(12,11): error TKO0890
+'' EXPECT-OUT: conv-intrinsic.bas(13,11): error TKO0890
+'' EXPECT-OUT: conv-intrinsic.bas(14,11): error TKO0890
+'' EXPECT-MAX-DIAG: 3

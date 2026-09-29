@@ -1,0 +1,9 @@
+'' TKO0811, fbc's 71: a typedef chain whose last link is declared below its use, and a call
+'' to a byref-result function over it. See CompletedBelow4_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typedef-chain-incomplete.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typedef-chain-incomplete.bas(5,10): error TKO0811
+'' EXPECT-OUT: typedef-chain-incomplete.bas(6,19): error TKO0811
+'' EXPECT-OUT: typedef-chain-incomplete.bas(8,8): error TKO0811
+'' EXPECT-MAX-DIAG: 3
