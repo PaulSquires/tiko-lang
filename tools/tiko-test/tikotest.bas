@@ -427,9 +427,102 @@ function NativePath( byval p as string ) as string
     return r
 end function
 
+#ifdef __FB_WIN32__
+'' STARTED DIRECTLY, READ THROUGH A PIPE -- Windows only. 'shell( )' is cmd.exe, then tiko,
+'' then a temp file written, read back and deleted: 654 MIR compiles took 15.0s that way
+'' against 6.6s started directly (8 workers, 2026-09-28), and MIR runs each test for two
+'' targets. The few kernel32 calls are declared here rather than pulling windows.bi into the
+'' runner's namespace.
+type TtSecAttr_
+    as ulong    nLength
+    as any ptr  lpSecurityDescriptor
+    as long     bInheritHandle
+end type
+type TtStartup_
+    as ulong    cb
+    as zstring ptr lpReserved, lpDesktop, lpTitle
+    as ulong    dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags
+    as ushort   wShowWindow, cbReserved2
+    as ubyte ptr lpReserved2
+    as any ptr  hStdInput, hStdOutput, hStdError
+end type
+type TtProcInfo_
+    as any ptr  hProcess, hThread
+    as ulong    dwProcessId, dwThreadId
+end type
+extern "Windows" lib "kernel32"
+    declare function TtCreatePipe_ alias "CreatePipe" ( byval r as any ptr ptr, byval w as any ptr ptr, byval sa as TtSecAttr_ ptr, byval sz as ulong ) as long
+    declare function TtSetHandleInfo_ alias "SetHandleInformation" ( byval h as any ptr, byval m as ulong, byval f as ulong ) as long
+    declare function TtCreateProcess_ alias "CreateProcessA" ( byval app as zstring ptr, byval cmd as zstring ptr, byval pa as any ptr, byval ta as any ptr, byval inh as long, byval flags as ulong, byval env as any ptr, byval cwd as zstring ptr, byval si as TtStartup_ ptr, byval pi as TtProcInfo_ ptr ) as long
+    declare function TtReadFile_ alias "ReadFile" ( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval got as ulong ptr, byval ov as any ptr ) as long
+    declare function TtCloseHandle_ alias "CloseHandle" ( byval h as any ptr ) as long
+    declare function TtWait_ alias "WaitForSingleObject" ( byval h as any ptr, byval ms as ulong ) as ulong
+    declare function TtExitCode_ alias "GetExitCodeProcess" ( byval h as any ptr, byval code as ulong ptr ) as long
+    declare function TtStdHandle_ alias "GetStdHandle" ( byval n as ulong ) as any ptr
+end extern
+
+'' ONE SPAWN AT A TIME. The pipe's write end has to be inheritable, and a child another
+'' worker started in that window would inherit it too -- and this pipe would not reach EOF
+'' until THAT child exited. Only the spawn is serialised; the runs overlap as before.
+dim shared as any ptr spawnMtx_
+spawnMtx_ = MutexCreate( )
+
+private function RunCaptureWin_( byval cmdLine as string, byref outText as string ) as long
+    outText = ""
+    dim as TtSecAttr_ sa
+    sa.nLength = sizeof( TtSecAttr_ )
+    sa.bInheritHandle = 1
+    dim as any ptr rd, wr
+    dim as TtStartup_ si
+    si.cb = sizeof( TtStartup_ )
+    si.dwFlags = &h100                               '' STARTF_USESTDHANDLES
+    dim as TtProcInfo_ pi
+    dim as string buf = cmdLine                      '' CreateProcessA may write into it
+    MutexLock( spawnMtx_ )
+    if TtCreatePipe_( @rd, @wr, @sa, 65536 ) = 0 then
+        MutexUnlock( spawnMtx_ )
+        outText = "tiko-test: CreatePipe failed"
+        return -1
+    end if
+    TtSetHandleInfo_( rd, 1, 0 )                     '' HANDLE_FLAG_INHERIT off: ours only
+    si.hStdInput = TtStdHandle_( cast( ulong, -10 ) )
+    si.hStdOutput = wr
+    si.hStdError = wr                                '' '2>&1'
+    dim as long ok = TtCreateProcess_( 0, strptr( buf ), 0, 0, 1, 0, 0, 0, @si, @pi )
+    TtCloseHandle_( wr )                             '' the child holds the only write end
+    MutexUnlock( spawnMtx_ )
+    if ok = 0 then
+        TtCloseHandle_( rd )
+        outText = "tiko-test: could not start: " & cmdLine
+        return -1
+    end if
+    dim as string chunk = space( 65536 )
+    dim as ulong got
+    while TtReadFile_( rd, strptr( chunk ), 65536, @got, 0 ) <> 0
+        if got = 0 then exit while
+        outText &= left( chunk, got )
+    wend
+    TtCloseHandle_( rd )
+    TtWait_( pi.hProcess, &hFFFFFFFF )
+    dim as ulong code
+    TtExitCode_( pi.hProcess, @code )
+    TtCloseHandle_( pi.hThread )
+    TtCloseHandle_( pi.hProcess )
+    '' THROUGH A USTRING, as ReadAllText reads the temp file: an invalid UTF-8 byte becomes
+    '' U+FFFD, and the goldens were accepted that way (diagnostics/utf8-caret).
+    dim as ustring u8 = outText
+    outText = NormalizeEol( u8 )
+    return cast( long, code )
+end function
+#endif
+
 function RunTko _
     ( byval tikoPath as string, byval args as string, byref outText as string, _
       byval slotId as long ) as long
+
+    #ifdef __FB_WIN32__
+        return RunCaptureWin_( NativePath( tikoPath ) & " --color=never " & args, outText )
+    #endif
 
     '' ONE TEMP FILE PER WORKER. A single fixed name is a race the moment two tests
     '' run at once, and it fails by handing one test ANOTHER'S OUTPUT -- a golden
