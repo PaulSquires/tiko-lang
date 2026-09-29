@@ -25,9 +25,19 @@
 '' tiko accepted every one, and at the label a string or an object nobody constructed was in
 '' scope. The walk is by node id, which is source order, and by the scopes Collect recorded.
 ''
-'' NOT HERE: a GOTO into a SELECT CASE over a string, or into a FOR over a UDT, crosses the
-'' TEMPORARY those statements define -- scopes/branch-cross-select-case-*.bas and
-'' branch-cross-for-udt-*.bas. That is owed.
+'' ...AND A TEMPORARY a statement defines, TKO0881, when the label is INSIDE that statement:
+''
+''     goto L : select case s + "1" : case "1" : L:       a string subject that is COMPUTED --
+''     goto L : select case lcase( w ) : ... L:            a concatenation, a call. A plain
+''                                                        variable or a literal makes none.
+''     goto L : for x as UDT = 1 to 2 step 1 : L:          the counter (as a definition), the
+''                                                        end value, the step value -- a UDT
+''                                                        needing construction, whatever the
+''                                                        bounds are written as.
+''
+'' A jump from one CASE to another, and a label after 'end select' or 'next', are fbc's. A
+'' statement's node is made after its body, so 'inside' is: the goto before the statement's
+'' first child, and the label between that child and the statement's own node.
 
 '' THE PROCEDURE a scope belongs to: its nearest ancestor that is not a block.
 private function BxProcScope_ ( byref c as Ctx, byval s as ScopeId ) as ScopeId
@@ -72,21 +82,52 @@ private function BxNeedsCtor_ _
     return TcNeedsCtor_( c, t, 0 )
 end function
 
+'' Does a SELECT CASE over this subject hold it in a string temporary: a string, computed?
+private function BxSelectTemp_ ( byref c as Ctx, byval e as NodeId ) as boolean
+    if e = NODE_NONE then return false
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
+    '' ...a FIXED one too: 'lcase( w )' over a 'wstring * 10' is typed 'wstring * 1'.
+    if c.types->Kind( t ) = TK_ARRAY then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case TY_STRING, TY_USTRING, TY_WSTRING, TY_ZSTRING, TY_FIXSTR, TY_FIXUSTR
+    case else
+        return false
+    end select
+    '' ONLY A LITERAL OR A VARIABLE'S OWN NAME is used where it stands. Measured: a field
+    '' ('ts.s'), a dereference ('*pz', '*ps'), an array element ('sa( 1 )') and a PARAMETER,
+    '' byref or byval, are each copied into the temporary -- fbc's 105 for every one.
+    dim as NodeId u = Unparen3_( c, e )
+    select case c.ast->Kind( u )
+    case N_STRING_LIT, N_STRCAT
+        return false
+    case N_IDENT
+        dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( u ) )
+        if vs <> 0 then
+            if vs->kind = cast( ubyte, SYM_VARIABLE ) then return false
+        end if
+    end select
+    return true
+end function
+
 private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     '' THE LABELS AND THE LOCAL DEFINITIONS, in node order, once per tree.
-    static as long lab( ), vars( )
-    static as long nLab, nVar
+    static as long lab( ), vars( ), tmps( )
+    static as long nLab, nVar, nTmp
     static as any ptr forAst = 0
     static as long forCount = -1
     dim as long n = c.ast->Count( )
     if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) then
-        redim lab( 0 to 15 ) : redim vars( 0 to 15 )
-        nLab = 0 : nVar = 0
+        redim lab( 0 to 15 ) : redim vars( 0 to 15 ) : redim tmps( 0 to 15 )
+        nLab = 0 : nVar = 0 : nTmp = 0
         for i as long = 1 to n
             dim as NodeKind ik = c.ast->Kind( cast( NodeId, i ) )
             if ik = N_LABEL then
                 if nLab > ubound( lab ) then redim preserve lab( 0 to nLab * 2 )
                 lab( nLab ) = i : nLab += 1
+            elseif (ik = N_SELECT) orelse (ik = N_FOR) then
+                if nTmp > ubound( tmps ) then redim preserve tmps( 0 to nTmp * 2 )
+                tmps( nTmp ) = i : nTmp += 1
             elseif ik = N_VAR then
                 dim as StmtPayload ptr vp = @c.ast->stmts[cast( long, c.ast->nodes[i].data )]
                 select case cast( TokenKind, vp->op )
@@ -136,5 +177,38 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
             c.diags->Report( TKO0880, PointRange( c.ast->Loc( id ) ), _
                 c.names->Spelling( gp->name ), c.names->Spelling( ip->name ) )
         next
+    next
+
+    '' THE TEMPORARIES of a SELECT CASE or a FOR the label is inside.
+    for t as long = 0 to nTmp - 1
+        dim as long sid = tmps( t )
+        if sid <= lid then continue for
+        dim as StmtPayload ptr tp = @c.ast->stmts[cast( long, c.ast->nodes[sid].data )]
+        dim as NodeId head = tp->a
+        if (head = NODE_NONE) orelse (head <= id) orelse (head >= lid) then continue for
+        dim as string gname = c.names->Spelling( gp->name )
+        if c.ast->Kind( cast( NodeId, sid ) ) = N_SELECT then
+            if BxSelectTemp_( c, head ) then
+                c.diags->Report( TKO0881, PointRange( c.ast->Loc( id ) ), gname, "the SELECT CASE subject" )
+            end if
+            continue for
+        end if
+        '' A FOR over a UDT that needs constructing.
+        dim as TypeId ct = TYPE_NONE
+        if tp->c <> NODE_NONE then ct = c.info->TypeOf_( tp->c )
+        if ct = TYPE_NONE then ct = c.info->TypeOf_( head )
+        ct = c.types->Unqualify( ct )
+        if c.types->Kind( ct ) <> TK_UDT then continue for
+        if TcNeedsCtor_( c, ct, 0 ) = false then continue for
+        if (tp->c <> NODE_NONE) andalso (c.ast->Kind( head ) = N_IDENT) then
+            c.diags->Report( TKO0880, PointRange( c.ast->Loc( id ) ), gname, _
+                c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, head )].data )].name ) )
+        end if
+        c.diags->Report( TKO0881, PointRange( c.ast->Loc( id ) ), gname, "the FOR's end value" )
+        if tp->count >= 3 then
+            if c.ast->children[tp->first + 2] <> NODE_NONE then
+                c.diags->Report( TKO0881, PointRange( c.ast->Loc( id ) ), gname, "the FOR's step value" )
+            end if
+        end if
     next
 end sub

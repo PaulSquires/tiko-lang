@@ -1,0 +1,12 @@
+'' TKO0880/TKO0881, fbc's 105: a GOTO into a SELECT CASE or a FOR, over the temporary the
+'' statement defines. See symbols/branchcross.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/branch-cross-temp.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: branch-cross-temp.bas(39,1): error TKO0881: the jump to 'l1' crosses the temporary holding the SELECT CASE subject, which needs constructing
+'' EXPECT-OUT: branch-cross-temp.bas(44,1): error TKO0881: the jump to 'l2'
+'' EXPECT-OUT: branch-cross-temp.bas(49,1): error TKO0881: the jump to 'l3'
+'' EXPECT-OUT: branch-cross-temp.bas(56,1): error TKO0880: the jump to 'l4' crosses the definition of 'x'
+'' EXPECT-OUT: branch-cross-temp.bas(56,1): error TKO0881: the jump to 'l4' crosses the temporary holding the FOR's end value
+'' EXPECT-OUT: branch-cross-temp.bas(56,1): error TKO0881: the jump to 'l4' crosses the temporary holding the FOR's step value
+'' EXPECT-MAX-DIAG: 6

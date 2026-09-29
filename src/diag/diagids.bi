@@ -644,6 +644,8 @@
     DIAG( TKO0879, SEV_ERROR,   "'%0' cannot be a module %1: it is %2, and only a public static member may be one" )
     '' fbc's error 105: a GOTO over a definition that needs constructing -- see branchcross.bas.
     DIAG( TKO0880, SEV_ERROR,   "the jump to '%0' crosses the definition of '%1', which needs constructing" )
+    '' ...and the same over a TEMPORARY a SELECT CASE or a FOR defines -- branchcross.bas.
+    DIAG( TKO0881, SEV_ERROR,   "the jump to '%0' crosses the temporary holding %1, which needs constructing" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
