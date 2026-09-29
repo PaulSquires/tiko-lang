@@ -1,0 +1,9 @@
+'' TKO0882, fbc's 24: IIF over a UDT with constructors but neither a default nor a copy one.
+'' See symbols/iifudt.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/iif-udt-no-ctor.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iif-udt-no-ctor.bas(23,9): error TKO0882: iif cannot build a 'u1': it has constructors, but neither a default nor a copy one
+'' EXPECT-OUT: iif-udt-no-ctor.bas(24,9): error TKO0882
+'' EXPECT-OUT: iif-udt-no-ctor.bas(25,9): error TKO0882
+'' EXPECT-MAX-DIAG: 3

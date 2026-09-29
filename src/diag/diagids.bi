@@ -646,6 +646,8 @@
     DIAG( TKO0880, SEV_ERROR,   "the jump to '%0' crosses the definition of '%1', which needs constructing" )
     '' ...and the same over a TEMPORARY a SELECT CASE or a FOR defines -- branchcross.bas.
     DIAG( TKO0881, SEV_ERROR,   "the jump to '%0' crosses the temporary holding %1, which needs constructing" )
+    '' fbc's error 24: IIF over a UDT with neither a default nor a copy constructor -- iifudt.bas.
+    DIAG( TKO0882, SEV_ERROR,   "iif cannot build a '%0': it has constructors, but neither a default nor a copy one" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated
