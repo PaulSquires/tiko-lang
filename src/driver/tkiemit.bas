@@ -49,6 +49,12 @@ type TkiWriter_
     as long                    prevTok
     as Tko.StrVec ptr          aliases
     as Tko.StrVec ptr          spaces
+    '' Per token: the qualifier a name a 'using' reached is written with (Qualify_).
+    as Tko.StrVec              qual
+    '' Token by source location, for the declarations' tokens: open addressing, key loc + 1.
+    as FB.Array( of ulong )    hkey
+    as FB.Array( of long )     hval
+    as long                    hmask
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
@@ -109,6 +115,9 @@ end sub
 '' 'esc.Url', where esc is an import's alias: '__tko_mod_acme_text_esc.Url'.
 private function Rewritten_( byref w as TkiWriter_, byval i as long ) as string
     dim as string sp = Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, (*w.toks)[i] )
+    if len( w.qual[i] ) > 0 then
+        if Kind_( w, i - 1 ) <> Tko.TK_DOT then return w.qual[i] & "." & sp
+    end if
     if w.aliases->Count = 0 then return sp
     if Kind_( w, i ) <> Tko.TK_IDENT then return sp
     if Kind_( w, i + 1 ) <> Tko.TK_DOT then return sp
@@ -557,6 +566,165 @@ private function ExportedMacros_( byref w as TkiWriter_, byref pr as Tko.PpResul
     return r
 end function
 
+'' ------------------------------------------------ a name a 'using' reached, qualified
+''
+'' A MODULE FILE'S 'using' STAYS IN THE MODULE. 'using core' followed by 'declare function
+'' F( byref v as DVARIANT )' resolves DVARIANT through the using, but the interface does not
+'' repeat the using -- inside the interface's namespace it would let 'com.DVARIANT' find
+'' core's name through com, which M16 forbids -- so the importer read a bare DVARIANT and
+'' reported it undeclared (fbx/com, 2026-09-29). Such a name is written with the path it
+'' needs instead: '__tko_mod_fbx_core.DVARIANT', or 'ns.Inner' after 'using ns'.
+
+private function Encloses_ _
+    ( byref w as TkiWriter_, byval outer as Tko.ScopeId, byval inner as Tko.ScopeId ) as boolean
+    dim as long guard = 0
+    while (inner <> Tko.SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        if inner = outer then return true
+        dim as Tko.SymScope ptr s = w.syms->ScopeAt( inner )
+        if s = 0 then exit while
+        inner = s->parent
+    wend
+    return false
+end function
+
+'' The namespace an importer names an imported module's scope by, or "".
+private function ImportSpace_( byref w as TkiWriter_, byval owner as Tko.SymbolId ) as string
+    for k as long = 0 to w.syms->importNs.Count - 1
+        if w.syms->importNs[k] = cast( ulong, owner ) then
+            return InterfaceNamespace( w.syms->importChains[k] )
+        end if
+    next
+    dim as Tko.Symbol ptr o = w.syms->SymbolAt( owner )
+    if o = 0 then return ""
+    dim as string low = Tko.Text.LowerAscii( w.ctx->names.Spelling( o->name ) )
+    for k as long = 0 to w.aliases->Count - 1
+        if (*w.aliases)[k] = low then return (*w.spaces)[k]
+    next
+    return ""
+end function
+
+'' The path symbol 'sid' needs, named from scope 'from_': "" when it is visible there as it is.
+private function Qualifier_ _
+    ( byref w as TkiWriter_, byval sid as Tko.SymbolId, byval from_ as Tko.ScopeId ) as string
+    dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
+    if s = 0 then return ""
+    select case cast( Tko.SymbolKind, s->kind )
+    case Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_TYPEDEF, Tko.SYM_CONSTANT, Tko.SYM_ENUMCONST, _
+         Tko.SYM_PROC, Tko.SYM_VARIABLE, Tko.SYM_NAMESPACE
+    case else
+        return ""
+    end select
+    dim as string path = ""
+    dim as Tko.ScopeId sc = s->parent
+    dim as long guard = 0
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < 64)
+        guard += 1
+        dim as Tko.SymScope ptr ss = w.syms->ScopeAt( sc )
+        if ss = 0 then return ""
+        dim as Tko.Symbol ptr ow = w.syms->SymbolAt( ss->owner )
+        select case cast( Tko.ScopeKind, ss->kind )
+        case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE
+            exit while
+        case Tko.SCOPEK_NAMESPACE
+            if Encloses_( w, sc, from_ ) then exit while
+            if ow = 0 then return ""
+            dim as string isp = ImportSpace_( w, ss->owner )
+            if len( isp ) > 0 then return isp & iif( len( path ) > 0, ".", "" ) & path
+            dim as string nm = w.ctx->names.Spelling( ow->name )
+            path = nm & iif( len( path ) > 0, ".", "" ) & path
+        case Tko.SCOPEK_TYPE
+            '' An enum's constant is also its enclosing scope's name; a type's member is not
+            '' written qualified at all.
+            if ow = 0 then return ""
+            if ow->kind <> cast( ubyte, Tko.SYM_ENUM ) then return ""
+        case else
+            return ""
+        end select
+        sc = ss->parent
+    wend
+    return path
+end function
+
+private function TokAt_( byref w as TkiWriter_, byval loc as ulong ) as long
+    if w.hmask = 0 then return -1
+    dim as ulong h = (loc * 2654435761UL) and cast( ulong, w.hmask )
+    while w.hkey[h] <> 0
+        if w.hkey[h] = loc + 1 then return w.hval[h]
+        h = (h + 1) and cast( ulong, w.hmask )
+    wend
+    return -1
+end function
+
+private sub Qualify_( byref w as TkiWriter_ )
+    dim as long n = 0
+    for i as long = 0 to w.toks->Count - 1
+        w.qual.Push( "" )
+        if w.endAt[i] > i then n += w.endAt[i] - i
+    next
+    dim as long sz = 16
+    while sz < n * 2
+        sz *= 2
+    wend
+    w.hmask = sz - 1
+    for i as long = 0 to sz - 1
+        w.hkey.Push( 0 )
+        w.hval.Push( 0 )
+    next
+    for a as long = 0 to w.toks->Count - 1
+        for i as long = a to w.endAt[a] - 1
+            dim as ulong loc = cast( ulong, (*w.toks)[i].loc )
+            dim as ulong h = (loc * 2654435761UL) and cast( ulong, w.hmask )
+            while (w.hkey[h] <> 0) andalso (w.hkey[h] <> loc + 1)
+                h = (h + 1) and cast( ulong, w.hmask )
+            wend
+            if w.hkey[h] = 0 then
+                w.hkey[h] = loc + 1
+                w.hval[h] = i
+            end if
+        next
+    next
+    for id as long = 1 to w.ast->Count( )
+        dim as Tko.NodeId nd = cast( Tko.NodeId, id )
+        dim as Tko.InternId nm = Tko.INTERN_NONE
+        select case w.ast->Kind( nd )
+        case Tko.N_TYPEREF
+            dim as Tko.StmtPayload ptr tp = @w.ast->stmts[cast( long, w.ast->nodes[id].data )]
+            if tp->ownerName <> Tko.INTERN_NONE then continue for
+            nm = tp->name
+        case Tko.N_IDENT
+            nm = w.ast->idents[cast( long, w.ast->nodes[id].data )].name
+        case else
+            continue for
+        end select
+        if nm = Tko.INTERN_NONE then continue for
+        dim as Tko.SymbolId sid = w.info->RefOf( nd )
+        dim as Tko.ScopeId from_ = w.info->ScopeOf( nd )
+        '' A PARAMETER'S DEFAULT is bound at each call, not where it is written, so its names
+        '' carry no binding here: looked up from the declaration's scope, usings and all.
+        if sid = Tko.SYMBOL_NONE then
+            dim as Tko.ScopeId look = from_
+            if look = Tko.SCOPE_NONE then look = Tko.ModSym.ModuleScope( *w.syms )
+            if w.ast->Kind( nd ) = Tko.N_IDENT then sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
+        end if
+        if sid = Tko.SYMBOL_NONE then continue for
+        dim as string q = Qualifier_( w, sid, from_ )
+        if len( q ) = 0 then continue for
+        dim as long t = TokAt_( w, cast( ulong, w.ast->Loc( nd ) ) )
+        if t < 0 then continue for
+        '' The node starts at its first token -- 'const', '..' -- and the name is a few on.
+        dim as string want = Tko.Text.LowerAscii( w.ctx->names.Spelling( nm ) )
+        for j as long = t to t + 6
+            if Kind_( w, j ) <> Tko.TK_IDENT then continue for
+            dim as string sp = Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, (*w.toks)[j] )
+            if Tko.Text.LowerAscii( sp ) = want then
+                w.qual[j] = q
+                exit for
+            end if
+        next
+    next
+end sub
+
 function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
@@ -583,6 +751,42 @@ function WriteInterface _
         dim as long pn = cast( long, ps->payload )
         if (pn > 0) andalso (pn <= ast.Count( )) then w.firstSight[pn] = 1
     next
+    '' ...AND AN OVERLOAD'S DEFINITION IS NOT ITS DECLARATION'S SECOND SIGHTING. OVERLOAD
+    '' belongs to the name, so 'declare function F overload( ... )' and the 'function F
+    '' overload( ... )' below it are two symbols of one signature in the chain, each the
+    '' first sight of its own node -- and both were written, which an importer refused as
+    '' TKO0677 (fbx/gui's fbxCWindowPtr). The definition is left out when a declaration of
+    '' the same procedure type stands beside it.
+    for si as long = 1 to syms.Count( )
+        dim as Tko.Symbol ptr ps = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+        if ps = 0 then continue for
+        if ps->kind <> cast( ubyte, Tko.SYM_PROC ) then continue for
+        dim as long pn = cast( long, ps->payload )
+        if (pn <= 0) orelse (pn > ast.Count( )) then continue for
+        if w.firstSight[pn] = 0 then continue for
+        if ast.Kind( cast( Tko.NodeId, pn ) ) <> Tko.N_PROC then continue for
+        if ast.stmts[cast( long, ast.nodes[pn].data )].b = Tko.NODE_NONE then continue for
+        dim as Tko.SymbolId oid = syms.LookupLocal( ps->parent, ps->name )
+        dim as long guard = 0
+        while (oid <> Tko.SYMBOL_NONE) andalso (guard < 1000)
+            guard += 1
+            dim as Tko.Symbol ptr os = syms.SymbolAt( oid )
+            if os = 0 then exit while
+            if (oid <> cast( Tko.SymbolId, si )) andalso (os->kind = cast( ubyte, Tko.SYM_PROC )) _
+               andalso (os->parent = ps->parent) andalso (os->type_ = ps->type_) then
+                dim as long on_ = cast( long, os->payload )
+                if (on_ > 0) andalso (on_ <= ast.Count( )) then
+                    if ast.Kind( cast( Tko.NodeId, on_ ) ) = Tko.N_PROC then
+                        if ast.stmts[cast( long, ast.nodes[on_].data )].b = Tko.NODE_NONE then
+                            w.firstSight[pn] = 0
+                            exit while
+                        end if
+                    end if
+                end if
+            end if
+            oid = os->nextOverload
+        wend
+    next
     '' The OUTERMOST declaration at a token wins -- the longest range starting there.
     for r as long = 0 to ast.declRanges.Count - 3 step 3
         dim as long a = cast( long, ast.declRanges[r + 1] )
@@ -593,6 +797,8 @@ function WriteInterface _
             w.nodeAt[a] = cast( long, ast.declRanges[r] )
         end if
     next
+
+    Qualify_( w )
 
     w.text = "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n"
     for each h as string in headers

@@ -1413,6 +1413,40 @@ sub WalkStmt _
     next
 end sub
 
+'' A MODULE'S TYPE ALIASES, BEFORE THE WALK (ADR 0017; RFC-0003 §5). A module's
+'' declarations have no order, so 'as Widget ptr' in one file may name 'type Widget as
+'' Widget_' in a file that sorts after it. Met where the walk reaches it, the alias still
+'' held Collect's placeholder when the field was typed, and a method call through the field
+'' bound nothing and lowered to nothing -- fbx/scripting's 'm_pDictionary->Release', whose
+'' IDictionary is declared in fbxScrRun.tiko, after CDicObj.tiko (2026-09-29). An IMPORTER
+'' too: the interface is the module's text in the module's order, so 'declare function F(
+'' byval p as Er ptr )' reached it above 'type Er as Er_', and the call it made was to
+'' F(void*), which nothing defines. Classic code cannot meet it: fbc's order puts the alias
+'' first. Repeated while an alias of an alias resolves; the walk resolves each one again.
+private sub ModuleTypedefsFirst_( byref c as Ctx )
+    for r as long = 1 to 8
+        dim as boolean progress = false
+        for n as long = 1 to c.ast->Count( )
+            dim as Tko.NodeId id = cast( Tko.NodeId, n )
+            if c.ast->Kind( id ) <> Tko.N_TYPEDEF then continue for
+            dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
+            if tsp->name = 0 then continue for
+            dim as Tko.ScopeId here = c.info->ScopeOf( id )
+            dim as Tko.SymbolId tsid = c.syms->LookupLocalTyped( here, tsp->name, true )
+            dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+            if ts = 0 then continue for
+            if ts->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then continue for
+            if Tko.ModSym.OrderFree( *c.syms, tsid ) = false then continue for
+            dim as Tko.TypeId aliased = ResolveTypeRef( c, tsp->a, here )
+            if (aliased = Tko.TYPE_NONE) orelse (aliased = ts->type_) then continue for
+            if c.types->Kind( aliased ) = Tko.TK_TYPEDEF then continue for
+            ts->type_ = aliased
+            progress = true
+        next
+        if progress = false then exit for
+    next
+end sub
+
 sub Run _
     ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
       byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
@@ -1436,6 +1470,7 @@ sub Run _
     info.Resize( ast.Count( ) )
 
     DiscoverInstantiations_( c, ast, root, diags, info )
+    if (syms.modFileCount > 0) orelse (syms.importNs.Count > 0) then ModuleTypedefsFirst_( c )
     WalkStmt( c, root, Tko.SCOPE_GLOBAL )
     syms.usePos = Tko.USEPOS_LATEST
     InstantiatePending_( c )

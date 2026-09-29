@@ -687,7 +687,10 @@ private function OperatorCode _
     dim as FB.Array( of ulong ) aqt
     QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt, @types )
     if aqt.Count > 0 then
-        dim as boolean memb = (aqt[aqt.Count - 1] <> 0)
+        '' A MODULE CHAIN COMPONENT IS NO TYPE: in an importer a module's global 'operator
+        '' len' sits in the module's namespace, written as the chain, and counted a receiver
+        '' -- v23len where the module defined v13len (fbx/core's DWSTRING).
+        dim as boolean memb = (aqt[aqt.Count - 1] <> 0) andalso (aqt[aqt.Count - 1] <> CHAIN_QUAL)
         memb = memb andalso ((sp->extra and Tko.PF_STATIC) = 0)
         memb = memb andalso (IsAllocOperator_( names, sp->name ) = false)
         '' ...AND NEITHER DO THE THREE LOOP OPERATORS. Measured, in ONE type, which is
@@ -1024,6 +1027,17 @@ private function ProcNameCore _
     if selfSym = Tko.SYMBOL_NONE then selfSym = syms.Lookup( info.ScopeOf( proc_ ), sp->name )
     QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes, @types, _
                     true, selfSym )
+    '' A LIBRARY'S EXPORT -- 'declare sub D2D1SinCos lib "d2d1" alias "D2D1SinCos"' -- is
+    '' linked by that name, as a classic program's global declaration is. In a module it
+    '' took the chain, and every call named FBX::DIRECT2D::D2D1SinCos, which d2d1 does not
+    '' export (fbx/direct2d, 2026-09-29): in the module, and again in each importer, whose
+    '' interface puts it in the module's namespace. Classic code keeps fbc's rules.
+    if ((sp->extra and Tko.PF_LIB) <> 0) andalso (quals.Count > 0) then
+        if qualTypes[0] = CHAIN_QUAL then
+            quals.Clear( )
+            qualTypes.Clear( )
+        end if
+    end if
     '' MODULE CODE IS NESTED UNDER ITS CHAIN, generic instances included (RFC-0002 §5).
     dim as boolean hasQuals = (quals.Count > 0)
     dim as boolean chained = hasQuals

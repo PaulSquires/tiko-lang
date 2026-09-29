@@ -1,0 +1,25 @@
+'' Declarations that name another module's types, and its own namespace's, through 'using'
+'' alone: a field, a parameter, a result, a default. The interface repeats no 'using', so
+'' it must write each of these qualified.
+#module "top"
+#import "acme/shapes"
+using shapes
+namespace inner
+    public type Tag
+        as long n
+    end type
+end namespace
+using inner
+public type Holder
+    as Box b
+    as Tag t
+    declare function Sum( byref x as Box ) as long
+end type
+function Holder.Sum( byref x as Box ) as long
+    return x.v + b.v + t.n
+end function
+public function Make( byval v as long, byval c as Colour = GREEN ) as Box
+    dim as Box r
+    r.v = v * 10 + c
+    return r
+end function

@@ -3,4 +3,4 @@
 '' TEST: cli
 '' ARGS: --print-graph -i tests/diagnostics/src/modules/empty/libs tests/diagnostics/src/modules/empty/main.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: main.bas(1,1): error TKO0147: module directory 'tests/diagnostics/src/modules/empty/libs/pk/hollow' contains no .bas files
+'' EXPECT-OUT: main.bas(1,1): error TKO0147: module directory 'tests/diagnostics/src/modules/empty/libs/pk/hollow' contains no .tiko or .bas files

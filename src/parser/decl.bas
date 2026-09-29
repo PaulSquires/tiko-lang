@@ -879,6 +879,7 @@ private function ParseProc _
             ate = true
         end if
         if Accept( p, Tko.KW_LIB ) then
+            sp.extra or= Tko.PF_LIB
             '' ...AND AN EMPTY LIB NAME IS fbc's 305, the same mistake one keyword over.
             if Peek( p ) = Tko.TK_STRING_LIT then
                 dim as Tko.Token libTok = Cur( p )

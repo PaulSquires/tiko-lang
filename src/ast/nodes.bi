@@ -324,6 +324,9 @@ namespace Tko
     '' clear of N_TYPE's packing and N_ENUM's EXPLICIT bit in the same field.
     const PF_VIS_PUBLIC     as ulong = &h00100000
     const PF_VIS_PRIVATE    as ulong = &h00200000
+    '' A 'lib "name"' CLAUSE: the procedure is a library's export, linked by its own name or
+    '' alias -- never nested under a module's chain (ADR 0017 §19).
+    const PF_LIB            as ulong = &h00400000
 
     type UnaryPayload
         as ushort op                '' TokenKind

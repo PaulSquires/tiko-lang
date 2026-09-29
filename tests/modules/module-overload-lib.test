@@ -1,0 +1,14 @@
+'' AN OVERLOAD'S DEFINITION IS NOT A SECOND DECLARATION IN THE INTERFACE: 'declare function
+'' Pick overload' and its 'function Pick overload' are two symbols of one signature, and
+'' both were written, which the importer refused as TKO0677. And A LIBRARY'S EXPORT KEEPS
+'' ITS NAME: 'declare function Tick lib "kernel32" alias "GetTickCount"' was chain-mangled,
+'' in the module and in the importer, and the link found no ACME::SYS2::GetTickCount. And A
+'' MODULE'S GLOBAL OPERATOR IS NO MEMBER in an importer: 'operator len' there counted a
+'' receiver and named v23len, where the module defined v13len.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/overlib/libs tests/modules/src/overlib/app/main.bas -o tests/modules/overlib.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/overlib.exe
+'' EXPECT-RUN-OUT:  1 2-1-1
+'' EXPECT-RUN-OUT:  4 44

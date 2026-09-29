@@ -1,0 +1,12 @@
+'' A MODULE'S 'using' DOES NOT REACH ITS INTERFACE, so a declaration that named a type
+'' through one -- another module's 'Box' after 'using shapes', its own 'inner.Tag' after
+'' 'using inner', an enum constant as a default -- is written qualified there. The importer
+'' used to report each bare name undeclared (TKO0808). A public enum's constants are public
+'' too: 'shapes.GREEN' was TKO0860. The modules are '.tiko' files.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/usingdecl/libs tests/modules/src/usingdecl/app/main.bas -o tests/modules/usingdecl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/usingdecl.exe
+'' EXPECT-RUN-OUT:  45
+'' EXPECT-RUN-OUT:  2 1

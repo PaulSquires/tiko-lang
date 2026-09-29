@@ -99,8 +99,13 @@ function DeclareUnknownVtableSlots _
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
             if m.FirstFunctionNamed( pn ) >= 0 then continue for
             dim as string pns = names.Spelling( pn )
-            if outSoFar.Contains( "declare void @""" & pns & """()" ) then continue for
-            decls += "declare void @""" & pns & """()" & chr( 10 )
+            dim as string ln = "declare void @""" & pns & """()"
+            if outSoFar.Contains( ln ) then continue for
+            '' ...NOR TWICE HERE: a base's method sits in its own vtable and in every derived
+            '' one. A module's classes that an importer never used reached it only through
+            '' those tables, and clang refused the second 'declare' (fbx/webview2).
+            if instr( decls, ln & chr( 10 ) ) > 0 then continue for
+            decls += ln & chr( 10 )
         next
     next
 

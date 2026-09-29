@@ -1,0 +1,15 @@
+'' The base: its methods are in its vtable and in Special's.
+#module "shapes2"
+public type Handler extends object
+    declare virtual function Query( byval n as long ) as long
+    declare virtual function Invoke( ) as long
+    declare virtual destructor
+end type
+function Handler.Query( byval n as long ) as long
+    return n + 1
+end function
+function Handler.Invoke( ) as long
+    return 1
+end function
+destructor Handler( )
+end destructor

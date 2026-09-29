@@ -80,7 +80,7 @@
     DIAG( TKO0144, SEV_ERROR,   "malformed tiko.toml: %0" )
     DIAG( TKO0145, SEV_ERROR,   "'%0' is in module directory '%1' but does not begin with '#module'" )
     DIAG( TKO0146, SEV_ERROR,   "dependency '%0': %1" )
-    DIAG( TKO0147, SEV_ERROR,   "module directory '%0' contains no .bas files" )
+    DIAG( TKO0147, SEV_ERROR,   "module directory '%0' contains no .tiko or .bas files" )
     DIAG( TKO0148, SEV_ERROR,   "package name '%0' is reserved for the toolchain" )
     DIAG( TKO0149, SEV_ERROR,   "two packages named '%0': %1 and %2" )
     DIAG( TKO0150, SEV_WARNING, "module cache disabled: %0" )

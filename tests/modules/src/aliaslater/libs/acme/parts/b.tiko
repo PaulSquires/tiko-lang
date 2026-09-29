@@ -1,0 +1,14 @@
+'' 'type Widget as Widget_' -- the alias -- sorts after a.tiko, which uses it.
+#module "parts"
+public type Widget as Widget_
+public type Widget_
+    as long v
+    declare function Get( ) as long
+    declare function Twice( ) as long
+end type
+function Widget_.Get( ) as long
+    return v
+end function
+function Widget_.Twice( ) as long
+    return v * 2
+end function

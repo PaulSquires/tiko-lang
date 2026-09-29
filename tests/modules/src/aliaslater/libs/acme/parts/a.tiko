@@ -1,0 +1,13 @@
+'' A method call through a field typed by an alias that a LATER file declares.
+#module "parts"
+public type User
+    as Widget ptr w
+    declare function Go( ) as long
+    declare function Peek( byval p as Widget ptr ) as long
+end type
+function User.Go( ) as long
+    return w->Get( ) + w->Twice
+end function
+function User.Peek( byval p as Widget ptr ) as long
+    return p->v
+end function

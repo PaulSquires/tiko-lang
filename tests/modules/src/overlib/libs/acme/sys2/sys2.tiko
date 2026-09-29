@@ -1,0 +1,25 @@
+'' Two shapes a converted header library is full of (fbx): OVERLOAD procedures declared and
+'' then defined, and a library's export declared with 'lib' and 'alias'.
+#module "sys2"
+public declare function Pick overload ( byval a as long ) as long
+public declare function Pick overload ( byval a as double ) as long
+function Pick overload ( byval a as long ) as long
+    return 1
+end function
+function Pick overload ( byval a as double ) as long
+    return 2
+end function
+public declare function Tick lib "kernel32" alias "GetTickCount" ( ) as ulong
+public function Ticking( ) as long
+    return Tick( ) > 0
+end function
+'' A module's global operators with a vendor name -- 'len' and '&' -- used by an importer.
+public type Meter
+    as long v
+end type
+public operator len( byref m as Meter ) as long
+    return m.v
+end operator
+public operator & ( byref a as Meter, byref b as Meter ) as long
+    return a.v * 10 + b.v
+end operator

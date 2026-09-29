@@ -1,0 +1,10 @@
+'' A VTABLE SLOT'S FUNCTION IS DECLARED ONCE. An importer that uses none of a module's
+'' classes still builds their vtables, and reaches the methods only through them: Handler's
+'' Query is in Handler's table and in Special's, and each table declared it -- clang refused
+'' the second 'declare' as a redefinition (fbx/webview2's event handlers).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/vtunused/libs tests/modules/src/vtunused/main.bas -o tests/modules/vtunused.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/vtunused.exe
+'' EXPECT-RUN-OUT: ok

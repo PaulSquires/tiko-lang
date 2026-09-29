@@ -281,7 +281,9 @@ sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
     for k as long = 0 to entries.Count - 1
         if entries[k].IsFile( ) = false then continue for
         dim as string nm = entries[k].Name( )
-        if Tko.Text.LowerAscii( right( nm, 4 ) ) <> ".bas" then continue for
+        '' A MODULE'S SOURCES are '.tiko' files, and the legacy '.bas' (T14). A '.ti' is a header.
+        dim as string lnm = Tko.Text.LowerAscii( nm )
+        if (right( lnm, 4 ) <> ".bas") andalso (right( lnm, 5 ) <> ".tiko") then continue for
         '' Insertion sort: a module is a handful of files.
         dim as string key = Tko.Text.LowerAscii( nm )
         dim as long at = files.Count

@@ -123,6 +123,25 @@ private sub MarkWords_ _
                 if ast.Kind( item ) <> Tko.N_VAR_ITEM then continue for
                 MarkNamed_( syms, sc, ast.stmts[cast( long, ast.nodes[cast( long, item )].data )].name, f )
             next
+        elseif k = Tko.N_ENUM then
+            '' AN ENUM'S CONSTANTS ARE AS PUBLIC AS IT IS -- the copies a plain enum puts in
+            '' the scope around it and the ones in its own. 'shapes.GREEN' of a 'public enum'
+            '' was TKO0860 in an importer, and an anonymous enum's had no other spelling.
+            MarkNamed_( syms, sc, sp->name, f )
+            dim as Tko.ScopeId inner = Tko.SCOPE_NONE
+            if sp->name <> 0 then
+                dim as Tko.Symbol ptr es = syms.SymbolAt( syms.LookupLocal( sc, sp->name ) )
+                if es <> 0 then
+                    if es->kind = cast( ubyte, Tko.SYM_ENUM ) then inner = es->inner
+                end if
+            end if
+            for i as long = 0 to sp->count - 1
+                dim as Tko.NodeId item = cast( Tko.NodeId, ast.children[sp->first + i] )
+                if ast.Kind( item ) <> Tko.N_ENUM_ITEM then continue for
+                dim as Tko.InternId inm = ast.stmts[cast( long, ast.nodes[cast( long, item )].data )].name
+                MarkNamed_( syms, sc, inm, f )
+                if inner <> Tko.SCOPE_NONE then MarkNamed_( syms, inner, inm, f )
+            next
         else
             MarkNamed_( syms, sc, sp->name, f )
         end if

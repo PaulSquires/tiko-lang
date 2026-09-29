@@ -1,0 +1,8 @@
+'' A derived class, above the base it extends (b.tiko).
+#module "shapes2"
+public type Special extends Handler
+    declare function Invoke( ) as long override
+end type
+function Special.Invoke( ) as long
+    return 40
+end function

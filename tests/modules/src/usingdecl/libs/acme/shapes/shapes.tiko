@@ -1,0 +1,10 @@
+'' A module whose types another module names through 'using'. It is a '.tiko' file: a
+'' module directory's sources are '.tiko' or '.bas'.
+#module "shapes"
+public type Box
+    as long v
+end type
+public enum Colour
+    RED = 1
+    GREEN
+end enum
