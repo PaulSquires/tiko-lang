@@ -1,12 +1,12 @@
-'' TKO0739, fbc's 18: a tuple's members are '_1' to '_n' and nothing else -- an element's own
-'' name included. See TupleMemberBad_ in symbols/latesweeps4.bas.
+'' TKO0739, fbc's 18: a tuple's members are '_1' to '_n', and under tiko an element's own name
+'' too. See TupleMemberBad_ in symbols/latesweeps4.bas and symbols/tuplenames.bas.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/tuple-member-name.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: tuple-member-name.bas(13,7): error TKO0739: '(long, string)' has no member named '_0'
 '' EXPECT-OUT: tuple-member-name.bas(14,7): error TKO0739
 '' EXPECT-OUT: tuple-member-name.bas(15,7): error TKO0739
-'' EXPECT-OUT: tuple-member-name.bas(16,8): error TKO0739: '(long, string)' has no member named 'a'
+'' EXPECT-OUT: tuple-member-name.bas(16,8): error TKO0739: '(long, string)' has no member named 'zz'
 '' EXPECT-OUT: tuple-member-name.bas(17,4): error TKO0739
 '' EXPECT-OUT: tuple-member-name.bas(18,11): error TKO0739: '(long, long)' has no member named 'z'
 '' EXPECT-MAX-DIAG: 6

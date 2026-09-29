@@ -1,6 +1,6 @@
-'' A TUPLE's MEMBERS ARE '_1' TO '_n' AND NOTHING ELSE -- fbc's error 18 on lines 13 to 18
-'' (fbc-modern 1.20), an element's own name included (line 16). tiko skipped tuples in the
-'' member check, and a PRINT of any of these printed nothing. Lines 20 to 25 are the members.
+'' A TUPLE's MEMBERS ARE '_1' TO '_n': fbc-modern 1.20 gives error 18 on lines 13 to 18 and on 26.
+'' TIKO ALSO TAKES AN ELEMENT's OWN NAME (symbols/tuplenames.bas): 'nt.a' is line 26; line 16 names none.
+'' tiko once skipped tuples in the member check, and a PRINT of any of these printed nothing.
 dim as (long, string) t = (1, "a")
 dim as (a as long, b as string) nt = (2, "b")
 dim as ((long, long), long) tt = ((1, 2), 3)
@@ -13,7 +13,7 @@ end function
 n = t._0
 n = t._3
 n = t.item1
-n = nt.a
+n = nt.zz
 nt.q = 1
 n = tt._1.z
 
@@ -23,3 +23,4 @@ n = nt._1
 t._1 = 5
 n = tt._1._2
 n = F( )._2
+n = nt.a

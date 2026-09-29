@@ -61,21 +61,51 @@ print p._1, p._2
 
 Layout is the layout of the equivalent hand-written TYPE -- same size, same offsets, same alignment -- because a tuple IS an ordinary UDT underneath. A STRING element is constructed, copied and destroyed exactly as a STRING field is.
 
-## Element Names Are Documentation
+## Element Names
 
-An element may carry a name, and the name is checked for duplicates within the declaration and then DISCARDED:
+An element may carry a name. The name is checked for duplicates within the declaration.
+
+Under tiko the name also reaches its element:
 
 ```freebasic
-dim r as (min as long, max as long) = (1, 9)
-print r._1, r._2                     ' correct
-print r.min                          ' error: unknown field
+function GetRect( ) as (tl as (x as long, y as long), br as (x as long, y as long))
+    return ((100, 200), (300, 400))
+end function
+
+var r = GetRect( )
+print r.tl.x, r.tl.y                 ' 100  200
+print r._1._1, r._1._2               ' the same elements
 ```
 
-They document a signature. They are not accessors, and they are not part of the type -- see below. The way to get named access is to destructure, which is the common case anyway:
+Under fbc a name is DOCUMENTATION and nothing else, so `r.tl` is error 18 there. Code that must compile under both uses `_1`..`_N`, or destructures:
 
 ```freebasic
 var (lo, hi) = MinMax( arr( ) )
 ```
+
+THE NAMES ARE NOT PART OF THE TYPE. `(min as long, max as long)` and `(long, long)` are still one type -- see below -- with one layout and one mangled name. The names travel with the DECLARATION that an expression reaches, which is C#'s rule:
+
+```freebasic
+type Pt as (x as long, y as long)
+
+dim a as Pt = (1, 2)
+dim b as (lo as long, hi as long) = a    ' one type, so assignable
+print b.lo, a.x                          ' each read with its own declaration's names
+```
+
+- a variable, parameter or field takes the names in its own type, through a typedef or a pointer (`p->x`);
+- `var r = f( )` takes the names of f's result;
+- a call's result is named by the function's declaration: `GetRect( ).br.y`;
+- an array element takes the array's element names: `arr( 1 ).x`;
+- a WITH block's `.name` uses the names of the WITH subject.
+
+A POSITIONAL NAME ALWAYS WINS. Over `(_2 as long, _1 as long)`, `t._1` is the FIRST element.
+
+What carries no names, so only `_1`..`_N` reach its elements:
+- a tuple LITERAL -- `(lo, hi)` does not name its elements after the variables;
+- a `for each` loop variable, an IIF or cast result, and a tuple written inside a generic template.
+
+An unknown name is still TKO0739, fbc's error 18.
 
 ## Identity Is Structural
 

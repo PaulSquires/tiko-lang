@@ -1,0 +1,173 @@
+'' tuplenames.bas -- NAMED ACCESS TO A TUPLE'S ELEMENTS: 'r.tl.x' for 'r._1._1'.
+''
+'' Included from check.bas, inside its namespace, after FieldOf_ and StmtOf.
+''
+'' A TIKO EXTENSION. Under fbc-modern 1.20 an element name is documentation: parsed,
+'' checked for duplicates and discarded, and 'nt.a' over '(a as long, b as string)' is
+'' error 18. tiko keeps the name (parser/typeref.bas puts it in the ELEMENT typeref's
+'' 'aliasName') and lets it reach the element.
+''
+'' THE TYPE STAYS NAMELESS. '(min as long, max as long)' and '(lo as long, hi as long)'
+'' are still one interned type, so identity, layout and mangling cannot change. The
+'' names are an OVERLAY, C#'s rule: an expression carries the names of the DECLARATION
+'' it reaches -- a variable, parameter, field, function result or typedef -- and
+'' assignment never moves them. 'var r = f( )' takes f's result names; 'dim b as (lo as
+'' long, hi as long) = a' reads 'b.lo' whatever 'a' called its elements.
+''
+'' WHAT CARRIES THE NAMES is a SHAPE: the tuple N_TYPEREF, op '(', that describes the
+'' value. A named member that the tuple UDT does not hold is looked up among the shape's
+'' element names, and a hit REWRITES the member's name to '_k' -- so every later pass
+'' (lowering, the member sweeps, the dumps) sees the positional access fbc would have
+'' been given. The ident's spelling offset is untouched, so a diagnostic still quotes
+'' the source. '_k' itself always wins: FieldOf_ finds it before a name is consulted.
+''
+'' Not reached, and so still '_k' only: a literal's own element names ('return (lo, hi)'
+'' names nothing), a 'for each' variable, an IIF or a cast, and a tuple written inside a
+'' generic template.
+
+const TUPLE_SHAPE_DEPTH_MAX as long = 32
+
+'' Is t the synthetic UDT a tuple desugars into -- '$tup:<id>:<id>' (symbol.bas)?
+private function TnIsTuple_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return false
+    return left( c.names->Spelling( tn ), 5 ) = "$tup:"
+end function
+
+'' The tuple typeref a TYPE REFERENCE describes, looking through 'ptr' and typedefs.
+private function TupleShapeOfRef_ _
+    ( byref c as Ctx, byval tr as Tko.NodeId, byval depth as long ) as Tko.NodeId
+
+    for guard as long = depth to TUPLE_SHAPE_DEPTH_MAX
+        if (tr = Tko.NODE_NONE) orelse (c.ast->Kind( tr ) <> Tko.N_TYPEREF) then return Tko.NODE_NONE
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, tr )
+        if (c.ast->nodes[cast( long, tr )].flags and Tko.NF_PTR) <> 0 then
+            tr = sp->a
+            continue for
+        end if
+        if cast( Tko.TokenKind, sp->op ) = Tko.TK_LPAREN then return tr
+        '' 'type Rect as (tl as ..., br as ...)' -- Resolve bound the name to the typedef,
+        '' whose payload is the typeref it aliases (collect.bas).
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( tr ) )
+        if s = 0 then return Tko.NODE_NONE
+        if s->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
+        tr = cast( Tko.NodeId, s->payload )
+    next
+    return Tko.NODE_NONE
+end function
+
+declare function TupleShapeOf_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval depth as long ) as Tko.NodeId
+
+'' The declared typeref of a symbol's own declaration: a variable's item, a parameter,
+'' a field, a function's result.
+private function TupleDeclRef_ _
+    ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as long ) as Tko.NodeId
+
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return Tko.NODE_NONE
+    dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
+    if dn = Tko.NODE_NONE then return Tko.NODE_NONE
+    select case cast( Tko.SymbolKind, s->kind )
+    case Tko.SYM_VARIABLE
+        if c.ast->Kind( dn ) <> Tko.N_VAR_ITEM then return Tko.NODE_NONE
+        dim as Tko.StmtPayload ptr ip = StmtOf( c, dn )
+        if ip->a <> Tko.NODE_NONE then return TupleShapeOfRef_( c, ip->a, depth + 1 )
+        '' 'var r = GetRect( )' -- inferred, so named as its initialiser is.
+        return TupleShapeOf_( c, ip->b, depth + 1 )
+    case Tko.SYM_PARAMETER
+        if c.ast->Kind( dn ) <> Tko.N_PARAM then return Tko.NODE_NONE
+    case Tko.SYM_FIELD
+        '' A BITFIELD's payload is its width, not its node -- the kind test refuses it.
+        if c.ast->Kind( dn ) <> Tko.N_FIELD then return Tko.NODE_NONE
+    case Tko.SYM_PROC
+        if c.ast->Kind( dn ) <> Tko.N_PROC then return Tko.NODE_NONE
+    case else
+        return Tko.NODE_NONE
+    end select
+    return TupleShapeOfRef_( c, StmtOf( c, dn )->a, depth + 1 )
+end function
+
+'' The shape of an EXPRESSION: the tuple typeref of the declaration it reaches.
+function TupleShapeOf_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval depth as long ) as Tko.NodeId
+
+    if (e = Tko.NODE_NONE) orelse (depth > TUPLE_SHAPE_DEPTH_MAX) then return Tko.NODE_NONE
+    select case c.ast->Kind( e )
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if lp->count <> 1 then return Tko.NODE_NONE
+        return TupleShapeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), depth + 1 )
+    case Tko.N_DEREF
+        return TupleShapeOf_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )].operand, depth + 1 )
+    case Tko.N_INDEX
+        return TupleShapeOf_( c, c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )].target, depth + 1 )
+    case Tko.N_IDENT
+        return TupleDeclRef_( c, c.info->RefOf( e ), depth )
+    case Tko.N_CALL
+        '' A call: the chosen overload is on the node. An array element: the callee is
+        '' the array's own variable, whose typeref names the element.
+        dim as Tko.SymbolId sid = c.info->RefOf( e )
+        if sid = Tko.SYMBOL_NONE then
+            sid = c.info->RefOf( c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )].target )
+        end if
+        return TupleDeclRef_( c, sid, depth )
+    case Tko.N_MEMBER
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if f = 0 then return Tko.NODE_NONE
+        '' An ELEMENT of a tuple: the element's own typeref in the base's shape.
+        dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( f->parent )
+        if (f->kind = cast( ubyte, Tko.SYM_FIELD )) andalso (fsc <> 0) then
+            dim as Tko.Symbol ptr owner = c.syms->SymbolAt( fsc->owner )
+            if owner <> 0 then
+                if left( c.names->Spelling( owner->name ), 5 ) = "$tup:" then
+                    dim as long k = valint( mid( c.names->Spelling( f->name ), 2 ) )
+                    dim as Tko.NodeId bs = TupleShapeOf_( c, _
+                        c.ast->binaries[cast( long, c.ast->nodes[cast( long, e )].data )].lhs, depth + 1 )
+                    if bs = Tko.NODE_NONE then return Tko.NODE_NONE
+                    dim as Tko.StmtPayload ptr bp = StmtOf( c, bs )
+                    if (k < 1) orelse (k > bp->count) then return Tko.NODE_NONE
+                    return TupleShapeOfRef_( c, cast( Tko.NodeId, c.ast->children[bp->first + k - 1] ), depth + 1 )
+                end if
+            end if
+        end if
+        return TupleDeclRef_( c, c.info->RefOf( e ), depth )
+    end select
+    return Tko.NODE_NONE
+end function
+
+'' 'base.name' over a tuple, where the tuple UDT holds no 'name': the element of that
+'' name in the base's shape, bound as '_k' -- and the member RENAMED '_k' (see above).
+private function TupleNamedField_ _
+    ( byref c as Ctx, byval bt as Tko.TypeId, byval lhs as Tko.NodeId, _
+      byval rhs as Tko.NodeId ) as Tko.SymbolId
+
+    if TnIsTuple_( c, bt ) = false then return Tko.SYMBOL_NONE
+    if c.ast->Kind( rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId shape = TupleShapeOf_( c, lhs, 0 )
+    if shape = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, shape )
+    '' A shape is trusted only for a tuple of its own arity. '$tup:6:6' has two.
+    dim as string key = c.names->Spelling( c.types->NameOf( c.types->Unqualify( bt ) ) )
+    dim as long arity = 0
+    for i as long = 0 to len( key ) - 1
+        if key[i] = asc( ":" ) then arity += 1
+    next
+    if arity <> sp->count then return Tko.SYMBOL_NONE
+    dim as Tko.IdentPayload ptr ip = @c.ast->idents[cast( long, c.ast->nodes[cast( long, rhs )].data )]
+    dim as Tko.InternId want = c.names->Fold( ip->name )
+    for k as long = 1 to sp->count
+        dim as Tko.NodeId el = cast( Tko.NodeId, c.ast->children[sp->first + k - 1] )
+        if c.ast->Kind( el ) <> Tko.N_TYPEREF then continue for
+        dim as Tko.InternId en = StmtOf( c, el )->aliasName
+        if en = 0 then continue for
+        if c.names->Fold( en ) <> want then continue for
+        dim as Tko.InternId pos_ = c.names->Fold( c.names->GetString( "_" & str( k ) ) )
+        dim as Tko.SymbolId fs = FieldOf_( c, bt, pos_ )
+        if fs <> Tko.SYMBOL_NONE then ip->name = pos_
+        return fs
+    next
+    return Tko.SYMBOL_NONE
+end function

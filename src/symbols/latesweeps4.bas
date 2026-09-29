@@ -749,6 +749,8 @@ end sub
 '' 'nt._1' are the elements, read and written; 't._0', 't._3', 't.item0', 't.x' and even
 '' 'nt.a' -- an element's own name -- are error 18, "Element not defined". tiko skipped
 '' every tuple in the member check, and a PRINT of any of them printed nothing.
+'' UNDER TIKO 'nt.a' IS THE ELEMENT (symbols/tuplenames.bas): Check renamed it '_1' and
+'' bound it, so it never gets here.
 sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, byval rhs as NodeId )
     if (rhs = NODE_NONE) orelse (c.ast->Kind( rhs ) <> N_IDENT) then return
     '' A DESTRUCTURE's OWN READS -- 'var ( a, b, c ) = ( 1, 2 )' becomes '$dt1._3' -- are not

@@ -230,8 +230,9 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         dim as boolean tupBad = false
         if Peek( p ) <> Tko.TK_RPAREN then
             do
-                '' 'name as T' -- the name is read and discarded, which is what makes
-                '' it documentation rather than a field name.
+                '' 'name as T' -- under fbc the name is documentation and nothing else.
+                '' tiko keeps it, in the ELEMENT typeref's 'aliasName' (unused on a
+                '' TYPEREF), so 'r.name' can reach the element -- symbols/tuplenames.bas.
                 '' A KEYWORD is a legal element name too -- '(count as long, name as
                 '' string)' is in the corpus, and NAME is the NAME statement. The
                 '' following AS is what tells a name from a type: an element that IS a
@@ -256,6 +257,9 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 dim as Tko.NodeId etr = TypeRef( p )
                 elems.Push( cast( ulong, etr ) )
                 if p.pos = before then exit do
+                if (enm <> 0) andalso (p.ast->Kind( etr ) = Tko.N_TYPEREF) then
+                    p.ast->stmts[cast( long, p.ast->nodes[cast( long, etr )].data )].aliasName = enm
+                end if
                 if (tupBad = false) andalso (p.silent = false) then
                     if TupleElemBad_( p, etr ) then
                         p.diags->Report( Tko.TKO0823, Tko.PointRange( eloc ) )

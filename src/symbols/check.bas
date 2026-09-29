@@ -459,6 +459,8 @@ private function StmtOf _
     return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
 end function
 
+#include once "symbols/tuplenames.bas"
+
 '' A var-length STRING or USTRING -- the two builtins that carry a descriptor. Not the
 '' fixed flavours, which are arrays and are handled beside them.
 private function IsVarLenStrBuiltin_ _
@@ -536,11 +538,6 @@ private function LiteralType_ _
     end select
     return Tko.TYPE_NONE
 end function
-
-
-
-
-
 
 '' OVERLOAD RESOLUTION lives in its own file: choosing between candidates is one
 '' subject and a long one, and check.bas reached the 1500-line cap. Included HERE for
@@ -1021,6 +1018,7 @@ function TypeOf_ _
             dim as Tko.IdentPayload ptr ip = _
                 @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
             dim as Tko.SymbolId fs = FieldOf_( c, bt, ip->name )
+            if fs = Tko.SYMBOL_NONE then fs = TupleNamedField_( c, bt, mp->lhs, mp->rhs )   '' 'r.tl' -- tuplenames.bas
             '' A PROPERTY OVERLOAD SET'S HEAD MAY BE THE SETTER, and a setter has no
             '' result type -- so 'f.bar' READ came out untyped and the statement
             '' declined. See PropertyReadAccessor_.
