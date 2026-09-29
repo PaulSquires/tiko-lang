@@ -1,0 +1,16 @@
+'' A tuple VALUE of another tuple type is refused, as fbc refuses it: TKO0738 by
+'' initialiser, assignment, 'return' and 'function =', TKO0698 as an argument, TKO0831
+'' as an element of a literal. tiko copied the bytes. See symbols/tupleconv.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/tuple-value-conv.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tuple-value-conv.bas(16,26): error TKO0738: no conversion between these two types
+'' EXPECT-OUT: tuple-value-conv.bas(17,5): error TKO0738
+'' EXPECT-OUT: tuple-value-conv.bas(20,12): error TKO0738
+'' EXPECT-OUT: tuple-value-conv.bas(24,16): error TKO0738
+'' EXPECT-OUT: tuple-value-conv.bas(26,6): error TKO0698
+'' EXPECT-OUT: tuple-value-conv.bas(27,6): error TKO0698
+'' EXPECT-OUT: tuple-value-conv.bas(29,7): error TKO0831: a '(integer, integer)' does not convert to the tuple element '(long, long)'
+'' EXPECT-OUT: tuple-value-conv.bas(30,7): error TKO0738
+'' EXPECT-OUT: tuple-value-conv.bas(31,8): error TKO0831
+'' EXPECT-MAX-DIAG: 9

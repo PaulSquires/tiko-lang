@@ -129,6 +129,15 @@ private function TcLetTakes_ ( byref c as Ctx, byval eu as TypeId, byval vu as T
     return false
 end function
 
+declare function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string  '' latesweeps4.bas
+
+'' A type as the source spells it: '(integer, integer)', never the '$tup:8:8' key.
+private function TcName_ ( byref c as Ctx, byval t as TypeId ) as string
+    dim as TypeId u = c.types->Unqualify( t )
+    if TcTuple_( c, u ) then return TupleSpelling_( c, u )
+    return c.types->Name( t )
+end function
+
 '' Can element type 'et' take a value of type 'vt'?
 private function TcTakes_ ( byref c as Ctx, byval et as TypeId, byval vt as TypeId ) as boolean
     dim as TypeId eu = c.types->Unqualify( et ), vu = c.types->Unqualify( vt )
@@ -137,7 +146,11 @@ private function TcTakes_ ( byref c as Ctx, byval et as TypeId, byval vt as Type
     if TcString_( c, eu ) andalso TcNumber_( c, vu ) then return false
     if TcNumber_( c, eu ) andalso TcString_( c, vu ) then return false
     if c.types->Kind( eu ) <> TK_UDT then return true
-    if TcTuple_( c, eu ) then return true
+    '' A TUPLE ELEMENT TAKES A TUPLE VALUE OF ITS OWN TYPE ONLY. Two tuple types never convert:
+    '' '( t, 3 )' with 't' a '(integer, integer)', for a '((long, long), long)', is fbc's 181.
+    '' A nested LITERAL never gets here -- TupleConvBad_ recurses into it and builds it at the
+    '' element's type.
+    if TcTuple_( c, eu ) then return (TcTuple_( c, vu ) = false)
     if (c.types->Kind( vu ) = TK_UDT) andalso DerivesFrom_( c, vu, eu ) then return true
     '' A TYPE DECLARING 'let' CONVERTS THROUGH IT, whether or not it needs constructing:
     '' 'L' with only 'let( byval x as long )' takes a long and a double and refuses a
@@ -146,13 +159,40 @@ private function TcTakes_ ( byref c as Ctx, byval et as TypeId, byval vt as Type
     return (TcNeedsCtor_( c, eu, 0 ) = false)
 end function
 
+'' A TUPLE VALUE -- not a literal -- of ANOTHER tuple type. A literal is built at its target's
+'' type; a value is not converted, and tiko copied its bytes instead: a '(integer, integer)'
+'' into a '(long, long)' read back as '5, 0'. Measured on fbc-modern 1.20, 2026-09-29:
+''
+''     dim as (long, long) b = a         error 24      b = a  /  *p = a       error 181
+''     return t  /  function = t         error 181     S( a ), byval or byref  error 58
+''
+'' with 'a' and 't' a '(integer, integer)'. The same tuple spelled with other element names or
+'' through a typedef is ONE type and passes. TKO0738 for the first four -- the argument is
+'' TKO0698, assigncheck.bas.
+private function TupleValueBad_ ( byref c as Ctx, byval t as TypeId, byval rn as NodeId ) as boolean
+    dim as TypeId tu = c.types->Unqualify( t )
+    if TcTuple_( c, tu ) = false then return false
+    dim as TypeId vu = c.types->Unqualify( c.info->TypeOf_( rn ) )
+    if c.types->Kind( vu ) = TK_REFERENCE then vu = c.types->Unqualify( c.types->Inner( vu ) )
+    if (vu = TYPE_NONE) orelse (vu = tu) then return false
+    if TcTuple_( c, vu ) = false then return false
+    c.diags->Report( TKO0738, PointRange( c.ast->Loc( rn ) ) )
+    return true
+end function
+
 '' The tuple literal 'rn' against the tuple type 't'. The first element that cannot take
 '' its value is reported -- fbc reports one error per statement -- and nested literals
 '' are judged by their own elements.
 private function TupleConvBad_ _
     ( byref c as Ctx, byval t as TypeId, byval rn as NodeId, byval depth as long ) as boolean
     if (rn = NODE_NONE) orelse (depth > 8) then return false
-    if c.ast->Kind( rn ) <> N_TUPLE then return false
+    '' '( ( 1, 2 ) )' is the literal inside.
+    while c.ast->Kind( rn ) = N_PAREN
+        dim as ListPayload ptr pl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+        if pl->count <> 1 then exit while
+        rn = cast( NodeId, c.ast->children[pl->first] )
+    wend
+    if c.ast->Kind( rn ) <> N_TUPLE then return TupleValueBad_( c, t, rn )
     if (c.ast->nodes[cast( long, rn )].flags and NF_TYPE_LITERAL) <> 0 then return false
     t = c.types->Unqualify( t )
     if TcTuple_( c, t ) = false then return false
@@ -188,7 +228,7 @@ private function TupleConvBad_ _
         end if
         dim as TypeId vt = c.info->TypeOf_( e )
         if TcTakes_( c, et, vt ) = false then
-            c.diags->Report( TKO0831, PointRange( c.ast->Loc( e ) ), c.types->Name( vt ), c.types->Name( et ) )
+            c.diags->Report( TKO0831, PointRange( c.ast->Loc( e ) ), TcName_( c, vt ), TcName_( c, et ) )
             return true
         end if
     next

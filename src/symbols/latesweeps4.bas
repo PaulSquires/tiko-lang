@@ -648,7 +648,7 @@ private function PrintsViaCast_ ( byref c as Ctx, byval u as TypeId ) as boolean
 end function
 
 '' A tuple as it is written, '(long, string)', rather than its internal name.
-private function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string
+function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string   '' tupleconv.bas too
     dim as InternId tn = c.types->NameOf( t )
     if tn = 0 then return c.types->Name( t )
     dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )

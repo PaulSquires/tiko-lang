@@ -136,7 +136,11 @@ private sub CheckPtrAssign_ _
     '' 'function = expr' -- Check leaves the result untyped; the walk carries its type.
     if (lt = TYPE_NONE) andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then lt = resultType
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
-    if sp->op = cast( ushort, TK_EQ ) then
+    '' '( i1, i2 ) = src' DESTRUCTURES: each target takes one element by its own rules (tuple/
+    '' destructure.bas narrows a '(double, double)' into two longs), so a tuple VALUE there is
+    '' not a conversion. A literal on the right is still judged element by element.
+    dim as boolean destructure = (c.ast->Kind( sp->a ) = N_TUPLE) andalso (c.ast->Kind( sp->b ) <> N_TUPLE)
+    if (sp->op = cast( ushort, TK_EQ )) andalso (destructure = false) then
         if TupleConvBad_( c, lt, sp->b, 0 ) then return  '' tupleconv.bas
     end if
     if ConstDropped_( c, lt, rt ) then
@@ -359,6 +363,8 @@ private function UdtArgBad_ ( byref c as Ctx, byval pt as TypeId, byval at as Ty
     if c.types->Kind( au ) = TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
     if (c.types->Kind( pu ) <> TK_UDT) orelse (c.types->Kind( au ) <> TK_UDT) then return false
     if pu = au then return false
+    '' Two TUPLE types never convert (tupleconv.bas); a tuple and a named type are not measured.
+    if TcTuple_( c, pu ) andalso TcTuple_( c, au ) then return true
     if TcTuple_( c, pu ) orelse TcTuple_( c, au ) then return false
     if DerivesFrom_( c, au, pu ) then return false
     if StructorOf_( c, au, "cast" ) <> 0 then return false
@@ -453,6 +459,11 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         dim as boolean bad = false
         if c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER then
             bad = PtrAssignBad_( c, pt, at )
+        elseif (c.ast->Kind( arg ) = N_TUPLE) andalso ((c.ast->nodes[cast( long, arg )].flags and NF_TYPE_LITERAL) = 0) then
+            '' A LITERAL is built at the parameter's type; only its elements are judged.
+            dim as TypeId lpt = c.types->Unqualify( pt )
+            if c.types->Kind( lpt ) = TK_REFERENCE then lpt = c.types->Inner( lpt )
+            if TupleConvBad_( c, lpt, arg, 0 ) then return
         elseif ((pp->extra and PF_GENERIC_PROC) = 0) andalso UdtArgBad_( c, pt, at ) then  '' a template's is TKO0809's
             bad = true
         elseif byvalWritten = false then
