@@ -179,7 +179,10 @@ type PpEngine
     '' corpus defines macros inside, and counting a form wrongly would undefine
     '' macros EARLY, which is worse than the over-permissiveness it replaces.
     as long                   blockDepth
-    as ushort                 prevKw        '' the last keyword emitted, for END/DECLARE
+    as ushort                 prevKw        '' the last keyword emitted, for END
+    '' The statement being emitted has had a token that is not PRIVATE or PUBLIC: a SUB,
+    '' FUNCTION or SCOPE after one is no definition's head (see PpTrackBlock).
+    as boolean                stmtDirty
 
     '' '#pragma private' / '#pragma profile' and their push/pop stacks. Two options,
     '' each a boolean reported through a predefined macro; index 0 is private, 1 is
@@ -1038,8 +1041,18 @@ end sub
 '' MACRO EARLY, which breaks working code, where missing a form merely leaves
 '' tiko-lang as permissive as it already was.
 ''
-'' The three exclusions are all real: 'declare sub' opens nothing, 'exit sub'
-'' closes nothing, and 'function = x' is a RESULT ASSIGNMENT, not a definition.
+'' A BLOCK OPENS ONLY AT THE HEAD OF A STATEMENT -- 'sub f', 'private function g',
+'' 'scope' -- and 'end sub' closes one. Anywhere else the word opens nothing: 'declare
+'' sub', 'exit sub', and every form that merely NAMES a procedure type. Those were
+'' told apart by the keyword just before, which missed 'declare const function',
+'' 'declare static sub', 'declare virtual function', a field or variable 'as sub( )',
+'' 'type Fn as function( ) as long' and a result 'as function( )': each counted a block
+'' nothing closed. Measured: a '#define' in a SUB before a 'dim cb as sub( )' then
+'' outlived the SUB -- fbc-modern prints 1, 2 for two SUBs each defining M, tiko-lang
+'' refused the second as TKO0305 -- and every macro after fb/fserror.bi's
+'' 'declare const function' was left out of an editor scan (PpSnapshotMacros).
+''
+'' 'function = x' at a statement's head is a RESULT ASSIGNMENT, not a definition.
 private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
     dim as TokenKind k = Tk( t )
     dim as TokenKind pk = cast( TokenKind, e.prevKw )
@@ -1049,7 +1062,7 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
     if (k = KW_SUB) orelse (k = KW_FUNCTION) orelse (k = KW_SCOPE) then
         if pk = KW_END then
             closer = true
-        elseif (pk <> KW_DECLARE) andalso (pk <> KW_EXIT) then
+        elseif e.stmtDirty = false then
             opener = true
             if k = KW_FUNCTION then
                 '' 'function = expr' assigns the result; it opens nothing.
@@ -1083,6 +1096,12 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
         e.prevKw = cast( ushort, k )
     elseif k = TK_EOL then
         e.prevKw = 0
+    end if
+    '' A ':' is a TK_EOL too (TF_COLON), so 'sub f( ) : end sub' is two statements.
+    if k = TK_EOL then
+        e.stmtDirty = false
+    elseif (k <> KW_PRIVATE) andalso (k <> KW_PUBLIC) then
+        e.stmtDirty = true
     end if
 end sub
 

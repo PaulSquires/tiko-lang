@@ -1,0 +1,12 @@
+'' A SCAN LISTS EVERY MODULE-LEVEL MACRO, however many procedure types and declarations
+'' came before it. The preprocessor's block count took each 'declare const function',
+'' 'declare static sub', 'declare virtual function', field or variable 'as sub( )',
+'' 'type Fn as function( )' and result 'as function( )' for an opened SUB or FUNCTION, so
+'' every macro after them sat at a depth nothing closed and was left out of the scan. A
+'' macro inside a real SUB is scoped to it, as fbc's is, and is not listed.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scandepth.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: define AFTER_FORMS  @0:11:9  parent=-1
+'' EXPECT-OUT: define AFTER_REAL  @0:19:9  parent=-1
+'' EXPECT-NOT: INSIDE_REAL

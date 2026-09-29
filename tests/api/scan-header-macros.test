@@ -1,0 +1,10 @@
+'' A SCAN OF A FILE INCLUDING fb/filesystem.bi lists the header's macros and the user's
+'' after it. fb/fserror.bi's 'type FsError' holds 'declare const function Code( )', which
+'' the preprocessor counted as an opened FUNCTION: FBFS_EXTERN, before it, was listed;
+'' FBFSPATH_EXTERN and every macro after, the user's own included, were not.
+'' TEST: cli
+'' ARGS: --dump-scan -i toolchains/tiko-windows/inc tests/api/src/scanheader.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: define FBFS_EXTERN
+'' EXPECT-OUT: define FBFSPATH_EXTERN
+'' EXPECT-OUT: define USER_AFTER  @0:3:9  parent=-1
