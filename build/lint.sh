@@ -48,37 +48,42 @@ note( ) {
 # INTRA-LAYER RULE: diag may include source (it renders locations), source may NOT
 # include diag. The source manager reports failure by return value, never by
 # diagnostic, which is what keeps it usable from a test or a fuzz harness.
-layer_of( ) {
-    case "$1" in
-        support) echo 0 ;;
-        source|diag) echo 1 ;;
-        lexer|pp|parser|ast|types|symbols|semantics) echo 2 ;;
-        mir|lowering) echo 3 ;;
-        target|abi|codegen) echo 4 ;;
-        toolchain|driver|cimport) echo 5 ;;
-        api) echo 6 ;;
-        *) echo 9 ;;
-    esac
+# EVERY RULE IS ONE PASS OVER ALL ITS FILES, not a process per file. The per-file loops
+# started some 5,000 short processes -- grep, sed, sort, wc, tr, a subshell for every
+# layer_of -- and at Git Bash's ~40ms a process that was 250 seconds (2026-09-28). The
+# rules and the messages are the same; only the order of the messages within one rule
+# can differ.
+SRC=$(find src -name '*.bas' -o -name '*.bi' | sort)
+ALL=$(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort)
+
+# THE FILES OF $2.. THAT grep $1 SELECTS, one per line; nothing -- not stdin -- for none.
+grep_files( ) {
+    pat=$1; shift
+    [ $# -gt 0 ] || return 0
+    grep -lE "$pat" "$@" 2>/dev/null
 }
 
-for f in $(find src -name '*.bas' -o -name '*.bi' | sort); do
-    dir=$(echo "$f" | cut -d/ -f2)
-    [ "$dir" = "tko.bi" ] && continue
-    mine=$(layer_of "$dir")
-    [ "$mine" = "9" ] && continue
-
-    grep -o '#include once "[a-z]*/' "$f" 2>/dev/null | \
-    sed 's/#include once "//; s|/||' | sort -u | while read -r inc; do
-        theirs=$(layer_of "$inc")
-        [ "$theirs" = "9" ] && continue
-        if [ "$theirs" -gt "$mine" ]; then
-            echo "LAYERING $f (layer $mine) includes $inc/ (layer $theirs)"
-        fi
-        if [ "$dir" = "source" ] && [ "$inc" = "diag" ]; then
-            echo "LAYERING $f -- source/ must not depend on diag/"
-        fi
-    done
-done > build/.lint.layer
+grep -oH '#include once "[a-z]*/' $SRC 2>/dev/null | \
+sed 's/:#include once "/ /; s|/$||' | sort -u | awk '
+function layer( d ) {
+    if (d == "support") return 0
+    if (d == "source" || d == "diag") return 1
+    if (d ~ /^(lexer|pp|parser|ast|types|symbols|semantics)$/) return 2
+    if (d == "mir" || d == "lowering") return 3
+    if (d ~ /^(target|abi|codegen)$/) return 4
+    if (d ~ /^(toolchain|driver|cimport)$/) return 5
+    if (d == "api") return 6
+    return 9
+}
+{
+    f = $1; inc = $2
+    split( f, part, "/" ); dir = part[2]
+    if (dir == "tko.bi") next
+    mine = layer( dir ); if (mine == 9) next
+    theirs = layer( inc ); if (theirs == 9) next
+    if (theirs > mine) print "LAYERING " f " (layer " mine ") includes " inc "/ (layer " theirs ")"
+    if (dir == "source" && inc == "diag") print "LAYERING " f " -- source/ must not depend on diag/"
+}' > build/.lint.layer
 if [ -s build/.lint.layer ]; then
     while read -r l; do note "$l"; done < build/.lint.layer
 fi
@@ -110,31 +115,24 @@ allow_shared( ) {
         *) return 1 ;;
     esac
 }
-for f in $(find src -name '*.bas' -o -name '*.bi' | sort); do
-    if grep -qE '^[[:space:]]*dim shared' "$f"; then
-        if ! allow_shared "$f"; then
-            note "GLOBAL STATE $f uses 'dim shared' (docs/plan/01 D12)"
-        fi
+for f in $(grep_files '^[[:space:]]*dim shared' $SRC); do
+    if ! allow_shared "$f"; then
+        note "GLOBAL STATE $f uses 'dim shared' (docs/plan/01 D12)"
     fi
 done
 
 # ------------------------------------------------------------- 3. file size
-for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
-    n=$(wc -l < "$f")
-    if [ "$n" -gt 1500 ]; then
-        note "SIZE $f is $n lines (limit 1500)"
-    fi
-done
+wc -l $ALL | awk '$2 != "total" && $1 > 1500 { print "SIZE " $2 " is " $1 " lines (limit 1500)" }' > build/.lint.size
+while read -r l; do note "$l"; done < build/.lint.size
+rm -f build/.lint.size
 
 # ---------------------------------------- 6. unsigned loop counters and bounds
 #
 # 'for i as ulong = 0 to n - 1' with n = 0 underflows to 4294967295 and the loop
 # runs four billion times. This cost real debugging time twice, so it is a rule:
 # loop counters are signed, and so is anything they are compared against.
-for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
-    if grep -nqE 'for [A-Za-z_][A-Za-z0-9_]* as (ulong|uinteger|ulongint|ushort|ubyte) ' "$f"; then
-        note "UNSIGNED LOOP $f uses an unsigned loop counter (see docs/internals/known-toolchain-issues.md)"
-    fi
+for f in $(grep_files 'for [A-Za-z_][A-Za-z0-9_]* as (ulong|uinteger|ulongint|ushort|ubyte) ' $ALL); do
+    note "UNSIGNED LOOP $f uses an unsigned loop counter (see docs/internals/known-toolchain-issues.md)"
 done
 
 # ------------------------- 7. narrow loop counters in the graphics hot loops
@@ -148,10 +146,8 @@ done
 # 'integer' is pointer-width on every target we build, so it is the portable
 # answer. This applies only to the pixel-pushing modules; elsewhere a 'long'
 # counter is fine and this rule would just be noise.
-for f in $(find lib/gfx/raster lib/gfx/blit lib/gfx/put -name '*.bas' -o -name '*.bi' 2>/dev/null | sort); do
-    if grep -nqE 'for [A-Za-z_][A-Za-z0-9_]* as (long|short|byte) ' "$f"; then
-        note "NARROW LOOP $f uses a narrow loop counter in a hot path; use 'integer' (docs/graphics/probe-results.md)"
-    fi
+for f in $(grep_files 'for [A-Za-z_][A-Za-z0-9_]* as (long|short|byte) ' $(find lib/gfx/raster lib/gfx/blit lib/gfx/put -name '*.bas' -o -name '*.bi' 2>/dev/null | sort)); do
+    note "NARROW LOOP $f uses a narrow loop counter in a hot path; use 'integer' (docs/graphics/probe-results.md)"
 done
 
 # ------------------------------- 8. attribution headers on lib/gfx sources
@@ -160,11 +156,16 @@ done
 # must say where its bodies came from -- 'Derived from: <gfxlib2 file>' or
 # 'ORIGINAL WORK'. This is a licence obligation, and it is also how you find the
 # file to re-check when upstream fbc fixes a rasterizer bug.
-for f in $(find lib/gfx -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null | sort); do
-    if ! head -20 "$f" | grep -qE 'Derived from:|ORIGINAL WORK'; then
-        note "ATTRIBUTION $f has no provenance header (see docs/graphics/RFC-0001 D13)"
-    fi
-done
+GFX=$(find lib/gfx -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null | sort)
+if [ -n "$GFX" ]; then
+    attributed=" $(awk 'FNR <= 20 && /Derived from:|ORIGINAL WORK/ { print FILENAME; nextfile }' $GFX | tr '\n' ' ') "
+    for f in $GFX; do
+        case "$attributed" in
+            *" $f "*) ;;
+            *) note "ATTRIBUTION $f has no provenance header (see docs/graphics/RFC-0001 D13)" ;;
+        esac
+    done
+fi
 
 # ------------------------------------ 9. no module directives in tiko's source
 #
@@ -173,29 +174,24 @@ done
 # the first one landed and not before (docs/architecture/decisions/0017-modules.md). The
 # pattern is a directive at the start of a line, so comments and the preprocessor's own
 # 'case "import"' do not match.
-for f in $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
-    if tr -d '' < "$f" | grep -nqE '^[[:space:]]*#[[:space:]]*(import|module|export)([^A-Za-z0-9_]|$)'; then
-        note "MODULES $f uses #import/#module/#export; tiko's own source may not (ADR 0017)"
-    fi
+for f in $(grep_files '^[[:space:]]*#[[:space:]]*(import|module|export)([^A-Za-z0-9_]|$)' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
+    note "MODULES $f uses #import/#module/#export; tiko's own source may not (ADR 0017)"
 done
 
 # ------------------------------------- 4/5. trailing whitespace and hard tabs
-for f in $(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort); do
-    # THE CR OF A CRLF FILE IS NOT TRAILING WHITESPACE. Git Bash grep treats
-    # a CR-LF pair as the line terminator and never saw it; the WSL grep does
-    # not, so every CRLF source in the tree read as a violation the moment
-    # this script became runnable on Linux -- 160 of them. Strip the CR and
-    # test what the line actually ends in.
-    if tr -d '\r' < "$f" | grep -q '[[:space:]]$'; then
-        note "WHITESPACE $f has trailing whitespace"
-    fi
-    # NOT 'grep -P'. Git Bash refuses it outright -- 'grep: -P supports only
-    # unibyte and UTF-8 locales' -- and the 2>/dev/null that hid the message
-    # hid the fact that this check had never once run on Windows. It found
-    # two real violations the first time it did. A literal tab is portable.
-    if grep -q "$(printf '\t')" "$f"; then
-        note "TABS $f contains hard tabs"
-    fi
+# THE CR OF A CRLF FILE IS NOT TRAILING WHITESPACE. Git Bash grep treats a CR-LF pair as
+# the line terminator and never saw it; the WSL grep does not, so every CRLF source in the
+# tree read as a violation the moment this script became runnable on Linux -- 160 of them.
+# awk strips the CR and tests what the line actually ends in.
+for f in $(awk '{ gsub( /\r/, "" ) } /[[:space:]]$/ { print FILENAME; nextfile }' $ALL); do
+    note "WHITESPACE $f has trailing whitespace"
+done
+# NOT 'grep -P'. Git Bash refuses it outright -- 'grep: -P supports only unibyte and UTF-8
+# locales' -- and the 2>/dev/null that hid the message hid the fact that this check had
+# never once run on Windows. It found two real violations the first time it did. A literal
+# tab is portable.
+for f in $(grep_files "$(printf '\t')" $ALL); do
+    note "TABS $f contains hard tabs"
 done
 
 if [ "$fails" -gt 0 ]; then
