@@ -1,0 +1,21 @@
+' fbx/dialogs (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/ole2.bi"
+#include once "win/shobjidl.bi"
+#include once "win/winspool.bi"
+#include once "win/shellapi.bi"
+#include once "win/commdlg.bi"
+
+#ifndef _COSFD_DEBUG_
+   #define _COSFD_DEBUG_ 0
+#endif
+#ifndef _COSFD_DP_
+   #MACRO COSFD_DP(st)
+      #IF (_COSFD_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif

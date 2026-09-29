@@ -1,0 +1,5 @@
+# fbx, José Roca's Windows library, as tiko modules (ADR 0017 §20). Shipped in the toolchain's
+# pkg/ beside std and sys; the toolchain's inc/ no longer carries it as headers.
+[package]
+name = "fbx"
+version = "0.1.0"

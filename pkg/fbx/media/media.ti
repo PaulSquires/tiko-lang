@@ -1,0 +1,15 @@
+' fbx/media (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/mmsystem.bi"
+#include once "win/uuids.bi"
+#include once "win/strmif.bi"
+#include once "win/evcode.bi"
+#include once "win/control.bi"
+#include once "win/winerror.bi"
+
+#define MAKE_SAPI_HRESULT(sev, err)    MAKE_HRESULT(sev, FACILITY_SAPI, err)
+#define MAKE_SAPI_ERROR(err)           MAKE_SAPI_HRESULT(SEVERITY_ERROR, err + SAPI_ERROR_BASE)
+#define SPERR_NOT_FOUND                                    MAKE_SAPI_ERROR(&h03a)

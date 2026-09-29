@@ -1,0 +1,28 @@
+' fbx/gui (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/commctrl.bi"
+#include once "win/uxtheme.bi"
+#include once "win/richedit.bi"
+#include once "/crt/ctype.bi"
+#include once "win/tmschema.bi"
+#include once "win/ole2.bi"
+#include once "win/psapi.bi"
+#include once "win/shlobj.bi"
+#include once "win/shlwapi.bi"
+#include once "win/KnownFolders.bi"
+#include once "win/commdlg.bi"
+#include once "win/cderr.bi"
+#include once "win/iphlpapi.bi"
+#include once "win/secext.bi"
+#include once "crt/string.bi"
+#include once "crt/wchar.bi"
+#include once "win/ShellScalingApi.bi"
+#include once "win/windowsx.bi"
+#include once "win/DwmApi.bi"
+#include once "win/wininet.bi"
+
+#define fbxGetErrorInfo fbxGetWinErrMsg
+#define fbxGetCurDir fbxGetCurrentDirectory

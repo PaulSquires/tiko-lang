@@ -1,0 +1,354 @@
+' ########################################################################################
+' Microsoft Windows
+' File: fbxWsh.bi
+' Library name: IWshRuntimeLibrary
+' Documentation string: Windows Script Host Object Model
+' GUID: {F935DC20-1CF0-11D0-ADB9-00C04FD58A0B}
+' Version: 1.0, Locale ID = 0
+' Path: C:\Windows\SysWOW64\wshom.ocx
+' Attributes: 8 [&h00000008]  [HasDiskImage]
+' ########################################################################################
+
+
+' // The definition for BSTR in the FreeBASIC headers was inconveniently changed to WCHAR
+' [pkg/fbx] a block kept once in the package was here
+
+' // ProgIDs (Program Identifiers)a
+#module "scripting"
+#import "fbx/com"
+#import "fbx/core"
+#include once "scripting.ti"
+using com
+using core
+
+PUBLIC CONST PROGID_WScript_Network_1 = "WScript.Network.1"
+PUBLIC CONST PROGID_WScript_Network_1 = "WScript.Network.1"
+PUBLIC CONST PROGID_WScript_Shell_1 = "WScript.Shell.1"
+
+' // Version independent ProgIDs
+PUBLIC CONST PROGID_WScript_Network = "WScript.Network"
+PUBLIC CONST PROGID_WScript_Network = "WScript.Network"
+PUBLIC CONST PROGID_WScript_Shell = "WScript.Shell"
+
+' // ClsIDs (Class identifiers)
+PUBLIC CONST CLSID_IWshCollection_Class = "{F935DC28-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST CLSID_IWshEnvironment_Class = "{F935DC2A-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST CLSID_IWshNetwork_Class = "{F935DC26-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST CLSID_IWshShell_Class = "{F935DC22-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST CLSID_IWshShortcut_Class = "{F935DC24-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST CLSID_IWshURLShortcut_Class = "{F935DC2C-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST CLSID_WshCollection = "{387DAFF4-DA03-44D2-B0D1-80C927C905AC}"
+PUBLIC CONST CLSID_WshEnvironment = "{F48229AF-E28C-42B5-BB92-E114E62BDD54}"
+PUBLIC CONST CLSID_WshExec = "{08FED191-BE19-11D3-A28B-00104BD35090}"
+PUBLIC CONST CLSID_WshNetwork = "{093FF999-1EA0-4079-9525-9614C3504B74}"
+PUBLIC CONST CLSID_WshShell = "{72C24DD5-D70A-438B-8A42-98424B88AFB8}"
+PUBLIC CONST CLSID_WshShortcut = "{A548B8E4-51D5-4661-8824-DAA1D893DFB2}"
+PUBLIC CONST CLSID_WshURLShortcut = "{50E13488-6F1E-4450-96B0-873755403955}"
+
+' // IIDs (Interface identifiers)
+PUBLIC CONST IID_IWshCollection = "{F935DC27-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST IID_IWshEnvironment = "{F935DC29-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST IID_IWshExec = "{08FED190-BE19-11D3-A28B-00104BD35090}"
+PUBLIC CONST IID_IWshNetwork = "{F935DC25-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST IID_IWshNetwork2 = "{24BE5A31-EDFE-11D2-B933-00104B365C9F}"
+PUBLIC CONST IID_IWshShell = "{F935DC21-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST IID_IWshShell2 = "{24BE5A30-EDFE-11D2-B933-00104B365C9F}"
+PUBLIC CONST IID_IWshShell3 = "{41904400-BE18-11D3-A28B-00104BD35090}"
+PUBLIC CONST IID_IWshShortcut = "{F935DC23-1CF0-11D0-ADB9-00C04FD58A0B}"
+PUBLIC CONST IID_IWshURLShortcut = "{F935DC2B-1CF0-11D0-ADB9-00C04FD58A0B}"
+
+' // Enumerations
+
+' // Documentation string: URLShortcut Object
+PUBLIC ENUM WshWindowStyle
+   WshHide = 0
+   WshNormalFocus = 1
+   WshMinimizedFocus = 2
+   WshMaximizedFocus = 3
+   WshNormalNoFocus = 4
+   WshMinimizedNoFocus = 6
+END ENUM
+
+' // Documentation string: WSH Exec Object
+PUBLIC ENUM WshExecStatus
+   WshRunning = 0
+   WshFinished = 1
+   WshFailed = 2
+END ENUM
+
+' [pkg/fbx] a block kept once in the package was here
+
+' [pkg/fbx] a block kept once in the package was here
+
+' // Dual interfaces - Forward references
+PUBLIC TYPE IWshCollection AS IWshCollection_
+PUBLIC TYPE IWshEnvironment AS IWshEnvironment_
+PUBLIC TYPE IWshExec AS IWshExec_
+PUBLIC TYPE IWshNetwork AS IWshNetwork_
+PUBLIC TYPE IWshNetwork2 AS IWshNetwork2_
+PUBLIC TYPE IWshShell AS IWshShell_
+PUBLIC TYPE IWshShell2 AS IWshShell2_
+PUBLIC TYPE IWshShell3 AS IWshShell3_
+PUBLIC TYPE IWshShortcut AS IWshShortcut_
+PUBLIC TYPE IWshURLShortcut AS IWshURLShortcut_
+
+' // Dual interfaces
+
+' ########################################################################################
+' Interface name: IWshCollection
+' IID: {F935DC27-1CF0-11D0-ADB9-00C04FD58A0B}
+' Documentation string: Generic Collection Object
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 4
+' ########################################################################################
+
+#ifndef __IWshCollection_INTERFACE_DEFINED__
+#define __IWshCollection_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshCollection_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION Item (BYVAL Index AS VARIANT PTR, BYVAL out_Value AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Count (BYVAL out_Count AS LONG PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_length (BYVAL out_Count AS LONG PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION _NewEnum (BYVAL out_Enum AS fbx_IUnknown PTR PTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshEnvironment
+' IID: {F935DC29-1CF0-11D0-ADB9-00C04FD58A0B}
+' Documentation string: Environment Variables Collection Object
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 6
+' ########################################################################################
+
+#ifndef __IWshEnvironment_INTERFACE_DEFINED__
+#define __IWshEnvironment_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshEnvironment_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION get_Item (BYVAL Name AS FBX_BSTR, BYVAL out_Value AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_Item (BYVAL Name AS FBX_BSTR, BYVAL out_Value AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Count (BYVAL out_Count AS LONG PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_length (BYVAL out_Count AS LONG PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION _NewEnum (BYVAL out_Enum AS fbx_IUnknown PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Remove (BYVAL Name AS FBX_BSTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshExec
+' IID: {08FED190-BE19-11D3-A28B-00104BD35090}
+' Documentation string: WSH Exec Object
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 7
+' ########################################################################################
+
+#ifndef __IWshExec_INTERFACE_DEFINED__
+#define __IWshExec_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshExec_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION get_Status (BYVAL Status AS WshExecStatus PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_StdIn (BYVAL ppts AS ITextStream PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_StdOut (BYVAL ppts AS ITextStream PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_StdErr (BYVAL ppts AS ITextStream PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_ProcessID (BYVAL nPID AS LONG PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_ExitCode (BYVAL nExitCode AS LONG PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Terminate () AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshNetwork
+' IID: {F935DC25-1CF0-11D0-ADB9-00C04FD58A0B}
+' Documentation string: Network Object
+' Attributes =  4432 [&h00001150] [Hidden] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 13
+' ########################################################################################
+
+#ifndef __IWshNetwork_INTERFACE_DEFINED__
+#define __IWshNetwork_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshNetwork_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION get_UserDomain (BYVAL out_UserDomain AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_UserName (BYVAL out_UserName AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_UserProfile (BYVAL out_UserProfile AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_ComputerName (BYVAL out_ComputerName AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_Organization (BYVAL out_Organization AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_Site (BYVAL out_Site AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION MapNetworkDrive (BYVAL LocalName AS FBX_BSTR, BYVAL RemoteName AS FBX_BSTR, BYVAL UpdateProfile AS VARIANT PTR, BYVAL UserName AS VARIANT PTR, BYVAL Password AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION RemoveNetworkDrive (BYVAL Name AS FBX_BSTR, BYVAL Force AS VARIANT PTR, BYVAL UpdateProfile AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION EnumNetworkDrives (BYVAL out_Enum AS IWshCollection PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION AddPrinterConnection (BYVAL LocalName AS FBX_BSTR, BYVAL RemoteName AS FBX_BSTR, BYVAL UpdateProfile AS VARIANT PTR, BYVAL UserName AS VARIANT PTR, BYVAL Password AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION RemovePrinterConnection (BYVAL Name AS FBX_BSTR, BYVAL Force AS VARIANT PTR, BYVAL UpdateProfile AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION EnumPrinterConnections (BYVAL out_Enum AS IWshCollection PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION SetDefaultPrinter (BYVAL Name AS FBX_BSTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshNetwork2
+' IID: {24BE5A31-EDFE-11D2-B933-00104B365C9F}
+' Documentation string: Network Object
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IWshNetwork
+' Number of methods = 1
+' ########################################################################################
+
+#ifndef __IWshNetwork2_INTERFACE_DEFINED__
+#define __IWshNetwork2_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshNetwork2_ EXTENDS IWshNetwork
+   DECLARE ABSTRACT FUNCTION AddWindowsPrinterConnection (BYVAL PrinterName AS FBX_BSTR, BYVAL DriverName AS FBX_BSTR, BYVAL Port AS FBX_BSTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshShell
+' IID: {F935DC21-1CF0-11D0-ADB9-00C04FD58A0B}
+' Documentation string: Shell Object Interface
+' Attributes =  4432 [&h00001150] [Hidden] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 9
+' ########################################################################################
+
+#ifndef __IWshShell_INTERFACE_DEFINED__
+#define __IWshShell_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshShell_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION get_SpecialFolders (BYVAL out_Folders AS IWshCollection PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_Environment (BYVAL Type AS VARIANT PTR, BYVAL out_Env AS IWshEnvironment PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Run (BYVAL Command AS FBX_BSTR, BYVAL WindowStyle AS VARIANT PTR, BYVAL WaitOnReturn AS VARIANT PTR, BYVAL out_ExitCode AS INT_ PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Popup (BYVAL Text AS FBX_BSTR, BYVAL SecondsToWait AS VARIANT PTR, BYVAL Title AS VARIANT PTR, BYVAL Type AS VARIANT PTR, BYVAL out_Button AS INT_ PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION CreateShortcut (BYVAL PathLink AS FBX_BSTR, BYVAL out_Shortcut AS fbx_IDispatch PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION ExpandEnvironmentStrings (BYVAL Src AS FBX_BSTR, BYVAL out_Dst AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION RegRead (BYVAL Name AS FBX_BSTR, BYVAL out_Value AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION RegWrite (BYVAL Name AS FBX_BSTR, BYVAL Value AS VARIANT PTR, BYVAL Type AS VARIANT PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION RegDelete (BYVAL Name AS FBX_BSTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshShell2
+' IID: {24BE5A30-EDFE-11D2-B933-00104B365C9F}
+' Documentation string: Shell Object Interface
+' Attributes =  4432 [&h00001150] [Hidden] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IWshShell
+' Number of methods = 3
+' ########################################################################################
+
+#ifndef __IWshShell2_INTERFACE_DEFINED__
+#define __IWshShell2_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshShell2_ EXTENDS IWshShell
+   DECLARE ABSTRACT FUNCTION LogEvent (BYVAL Type AS VARIANT PTR, BYVAL Message AS FBX_BSTR, BYVAL Target AS FBX_BSTR, BYVAL out_Success AS VARIANT_BOOL PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION AppActivate (BYVAL App AS VARIANT PTR, BYVAL Wait AS VARIANT PTR, BYVAL out_Success AS VARIANT_BOOL PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION SendKeys (BYVAL Keys AS FBX_BSTR, BYVAL Wait AS VARIANT PTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshShell3
+' IID: {41904400-BE18-11D3-A28B-00104BD35090}
+' Documentation string: Shell Object Interface
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IWshShell2
+' Number of methods = 3
+' ########################################################################################
+
+#ifndef __IWshShell3_INTERFACE_DEFINED__
+#define __IWshShell3_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshShell3_ EXTENDS IWshShell2
+   DECLARE ABSTRACT FUNCTION Exec (BYVAL Command AS FBX_BSTR, BYVAL ppExec AS IWshExec PTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_CurrentDirectory (BYVAL out_Directory AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_CurrentDirectory (BYVAL out_Directory AS FBX_BSTR) AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshShortcut
+' IID: {F935DC23-1CF0-11D0-ADB9-00C04FD58A0B}
+' Documentation string: Shortcut Object
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 18
+' ########################################################################################
+
+#ifndef __IWshShortcut_INTERFACE_DEFINED__
+#define __IWshShortcut_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshShortcut_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION get_FullName (BYVAL out_FullName AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_Arguments (BYVAL out_Arguments AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_Arguments (BYVAL out_Arguments AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_Description (BYVAL out_Description AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_Description (BYVAL out_Description AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_Hotkey (BYVAL out_HotKey AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_Hotkey (BYVAL out_HotKey AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_IconLocation (BYVAL out_IconPath AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_IconLocation (BYVAL out_IconPath AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_RelativePath (BYVAL rhs AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_TargetPath (BYVAL out_Path AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_TargetPath (BYVAL out_Path AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_WindowStyle (BYVAL out_ShowCmd AS INT_ PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_WindowStyle (BYVAL out_ShowCmd AS INT_) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_WorkingDirectory (BYVAL out_WorkingDirectory AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_WorkingDirectory (BYVAL out_WorkingDirectory AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Load (BYVAL PathLink AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Save () AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################
+
+' ########################################################################################
+' Interface name: IWshURLShortcut
+' IID: {F935DC2B-1CF0-11D0-ADB9-00C04FD58A0B}
+' Documentation string: URLShortcut Object
+' Attributes =  4416 [&h00001140] [Dual] [Oleautomation] [Dispatchable]
+' Inherited interface = IDispatch
+' Number of methods = 5
+' ########################################################################################
+
+#ifndef __IWshURLShortcut_INTERFACE_DEFINED__
+#define __IWshURLShortcut_INTERFACE_DEFINED__
+
+PUBLIC TYPE IWshURLShortcut_ EXTENDS fbx_IDispatch
+   DECLARE ABSTRACT FUNCTION get_FullName (BYVAL out_FullName AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION get_TargetPath (BYVAL out_Path AS FBX_BSTR PTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION put_TargetPath (BYVAL out_Path AS FBX_BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Load (BYVAL PathLink AS BSTR) AS HRESULT
+   DECLARE ABSTRACT FUNCTION Save () AS HRESULT
+END TYPE
+
+#endif
+
+' ########################################################################################

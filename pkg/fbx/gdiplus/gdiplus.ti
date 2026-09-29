@@ -1,0 +1,25 @@
+' fbx/gdiplus (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/ddraw.bi"
+#include once "win/commctrl.bi"
+#include once "win/winspool.bi"
+#include once "crt/stddef.bi"
+#include once "crt/math.bi"
+#include once "win/windef.bi"
+#include once "win/wingdi.bi"
+#include once "win/basetyps.bi"
+
+#define GpSolidBrush GpSolidFill
+#define GpHatchBrush GpHatch
+#define GpLinearGradientBrush GpLineGradient
+#define GpPathGradientBrush GpPathGradient
+#define GpTextureBrush GpTexture
+#define PixelFormatGDI cast(INT_, &h00020000)
+#define PixelFormatAlpha cast(INT_, &h00040000)
+#define PixelFormatPAlpha cast(INT_, &h00080000)
+#define PixelFormatCanonical cast(INT_, &h00200000)
+#define PixelFormat32bppARGB cast(INT_, (((10 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatGDI) or PixelFormatCanonical)
+#define PixelFormat32bppPARGB cast(INT_, (((11 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatGDI)

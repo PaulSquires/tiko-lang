@@ -1,0 +1,19 @@
+' fbx/adodb (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/ole2.bi"
+#include once "win/unknwnbase.bi"
+#include once "win/ocidl.bi"
+
+#ifndef _CADODB_DEBUG_
+   #define _CADODB_DEBUG_ 0
+#endif
+#ifndef _CADODB_DP_
+   #MACRO CADODB_DP(st)
+      #IF (_CADODB_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif

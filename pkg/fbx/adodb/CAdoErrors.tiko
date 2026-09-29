@@ -1,0 +1,365 @@
+' ########################################################################################
+' Platform: Microsoft Windows
+' File: CAdoError.inc
+' Contents: ADO errors
+' Compiler: FreeBASIC 32 & 64 bit
+' Copyright (c) 2026 José Roca
+'
+' License: Distributed under the MIT license.
+'
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this
+' software and associated documentation files (the “Software”), to deal in the Software
+' without restriction, including without limitation the rights to use, copy, modify, merge,
+' publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+' persons to whom the Software is furnished to do so, subject to the following conditions:
+
+' The above copyright notice and this permission notice shall be included in all copies or
+' substantial portions of the Software.
+
+' THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+' INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+' PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+' FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+' OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+' DEALINGS IN THE SOFTWARE.'
+' ########################################################################################
+
+
+' ########################################################################################
+' CAdoError class
+' ########################################################################################
+#module "adodb"
+#import "fbx/com"
+#import "fbx/core"
+#include once "adodb.ti"
+using com
+using core
+
+PUBLIC TYPE CAdoError EXTENDS CAdoBase
+
+   m_Result AS HRESULT
+   m_pError AS ADOError PTR
+
+   DECLARE CONSTRUCTOR
+   DECLARE CONSTRUCTOR (BYVAL pErr AS ADOError PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   DECLARE DESTRUCTOR
+'   DECLARE OPERATOR @ () AS ADOError PTR PTR
+   DECLARE FUNCTION vptr () AS ADOError PTR PTR
+
+   ' // Attaches a reference to an ADOError object to the class
+   DECLARE SUB Attach (BYVAL pErr AS ADOError PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   ' // Returns a BSTR value that describes an Error object.
+   DECLARE PROPERTY Description () AS USTRING
+   ' // Returns a context ID, as a Long value, for a topic in a Help file.
+   DECLARE PROPERTY HelpContext () AS LONG
+   ' // Returns a BSTR value that evaluates to a fully resolved path to a Help file.
+   DECLARE PROPERTY HelpFile () AS USTRING
+   ' // Indicates the provider-specific error code for a given Error object.
+   DECLARE PROPERTY NativeError () AS LONG
+   ' // Indicates the number that uniquely identifies an Error object.
+   DECLARE PROPERTY Number () AS LONG
+   ' // Indicates the name of the object or application that originally generated an error.
+   DECLARE PROPERTY Source () AS USTRING
+   ' // Indicates the SQL state for a given Error object.
+   DECLARE PROPERTY SQLState () AS USTRING
+
+END TYPE
+' ########################################################################################
+
+' ========================================================================================
+' Default constructor
+' ========================================================================================
+CONSTRUCTOR CAdoError
+   CADODB_DP("CAdoError CONSTRUCTOR Default")
+END CONSTRUCTOR
+' ========================================================================================
+
+' ========================================================================================
+' Default constructor
+' ========================================================================================
+CONSTRUCTOR CAdoError (BYVAL pErr AS ADOError PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   CADODB_DP("-BEGIN CAdoError CONSTRUCTOR")
+   IF pErr THEN m_pError = pErr
+   IF fAddRef THEN
+      IF m_pError THEN m_pError->AddRef
+   END IF
+END CONSTRUCTOR
+' ========================================================================================
+
+' ===========================================================================================
+' Cleanup
+' ===========================================================================================
+DESTRUCTOR CAdoError
+   CADODB_DP("CAdoError DESTRUCTOR " & WSTR(m_pError))
+   IF m_pError THEN m_pError->Release
+END DESTRUCTOR
+' ===========================================================================================
+
+' ========================================================================================
+' Returns the address of the connection pointer
+' ========================================================================================
+'PRIVATE OPERATOR CAdoError.@ () AS ADOError PTR PTR
+'   OPERATOR = @m_pError
+'END OPERATOR
+' ========================================================================================
+' ========================================================================================
+FUNCTION CAdoError.vptr () AS ADOError PTR PTR
+   CADODB_DP("CAdoError vptr")
+   IF m_pError THEN m_pError->Release
+   RETURN @m_pError
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Returns the encapsulated IDispatch pointer
+' ========================================================================================
+PUBLIC OPERATOR * (BYREF cError AS CAdoError) AS ADOError PTR
+   OPERATOR = cError.m_pError
+END OPERATOR
+' ========================================================================================
+
+' ===========================================================================================
+' Attaches a reference to an ADOError object to the class
+' ===========================================================================================
+SUB CAdoError.Attach (BYVAL pErr AS ADOError PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   CADODB_DP("CAdoError.Attach")
+   IF m_pError THEN m_pError->Release
+   m_pError = pErr
+   ' // Increase the reference count
+   IF fAddRef THEN
+      IF m_pError THEN m_pError->AddRef
+   END IF
+END SUB
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a BSTR value that describes an Error object.
+' ===========================================================================================
+PROPERTY CAdoError.Description () AS USTRING
+   CADODB_DP("CAdoError.Description")
+   DIM bstrDesc AS FBX_BSTR
+   m_pError->get_Description(@bstrDesc)
+   DIM ustrDesc AS USTRING = *bstrDesc
+   SysFreeString bstrDesc
+   PROPERTY = ustrDesc
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a context ID, as a Long value, for a topic in a Help file.
+' ===========================================================================================
+PROPERTY CAdoError.HelpContext () AS LONG
+   CADODB_DP("CAdoError.HelpContext")
+   DIM lHelpContext AS LONG
+   m_pError->get_HelpContext(@lHelpContext)
+   PROPERTY = lHelpContext
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a BSTR value that describes an Error object.
+' ===========================================================================================
+PROPERTY CAdoError.HelpFile () AS USTRING
+   CADODB_DP("CAdoError.HelpFile")
+   DIM bstrHelpFile AS FBX_BSTR
+   m_pError->get_HelpFile(@bstrHelpFile)
+   DIM ustrHelpFile AS USTRING = *bstrHelpFile
+   SysFreeString bstrHelpFile
+   PROPERTY = ustrHelpFile
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a context ID, as a Long value, for a topic in a Help file.
+' ===========================================================================================
+PROPERTY CAdoError.NativeError () AS LONG
+   CADODB_DP("CAdoError.NativeError")
+   DIM lNativeError AS LONG
+   m_pError->get_NativeError(@lNativeError)
+   PROPERTY = lNativeError
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates the number that uniquely identifies an Error object.
+' ===========================================================================================
+PROPERTY CAdoError.Number () AS LONG
+   CADODB_DP("CAdoError.Number")
+   DIM lErrorNumber AS LONG
+   m_pError->get_Number(@lErrorNumber)
+   PROPERTY = lErrorNumber
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Indicates the name of the object or application that originally generated an error.
+' ===========================================================================================
+PROPERTY CAdoError.Source () AS USTRING
+   CADODB_DP("CAdoError.Source")
+   DIM bstrSource AS FBX_BSTR
+   m_pError->get_Source(@bstrSource)
+   DIM ustrSource AS UsTRING = *bstrSource
+   SysFreeString bstrSource
+   PROPERTY = ustrSource
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Indicates the name of the object or application that originally generated an error.
+' ===========================================================================================
+PROPERTY CAdoError.SQLState () AS USTRING
+   CADODB_DP("CAdoError.SQLState")
+   DIM bstrState AS FBX_BSTR
+   m_pError->get_SQLState(@bstrState)
+   DIM ustrState AS USTRING = *bstrState
+   SysFreeString bstrState
+   PROPERTY = ustrState
+END PROPERTY
+' ===========================================================================================
+
+
+' ########################################################################################
+' CAdoErrors class
+' ########################################################################################
+PUBLIC TYPE CAdoErrors EXTENDS CAdoBase
+
+   m_Result AS HRESULT
+   m_pErrors AS ADOErrors PTR
+
+   DECLARE CONSTRUCTOR
+   DECLARE CONSTRUCTOR (BYVAL pErrors AS ADOErrors PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   DECLARE DESTRUCTOR
+'   DECLARE OPERATOR @ () AS ADOErrors PTR PTR
+   DECLARE FUNCTION vptr () AS ADOErrors PTR PTR
+
+   ' // Attaches a reference to an ADOErrors object to the class
+   DECLARE SUB Attach (BYVAL pErrors AS ADOErrors PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   ' // Retrieves the number of errors
+   DECLARE PROPERTY Count () AS LONG
+   ' // Indicates a specific member of the Errors collection, by name or ordinal number.
+   DECLARE PROPERTY Item (BYREF dvIndex AS DVARIANT) AS ADOError PTR
+   ' // Returns a reference to the collection's enumerator.
+   DECLARE FUNCTION NewEnum () AS fbx_IUnknown PTR
+   ' // Refreshes the contents of the Errors collection.
+   DECLARE FUNCTION Refresh () AS HRESULT
+   ' // Removes all the Error objects from the Errors collection.
+   DECLARE FUNCTION Clear () AS HRESULT
+
+END TYPE
+' ########################################################################################
+
+' ========================================================================================
+' Default constructor
+' ========================================================================================
+CONSTRUCTOR CAdoErrors
+   CADODB_DP("Default")
+END CONSTRUCTOR
+' ========================================================================================
+
+' ========================================================================================
+' Default constructor
+' ========================================================================================
+CONSTRUCTOR CAdoErrors (BYVAL pErrors AS ADOErrors PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   CADODB_DP("pErrors, AddRef")
+   IF pErrors THEN
+      m_pErrors = pErrors
+      IF fAddRef THEN m_pErrors->AddRef
+   END IF
+END CONSTRUCTOR
+' ========================================================================================
+
+' ===========================================================================================
+' Cleanup
+' ===========================================================================================
+DESTRUCTOR CAdoErrors
+   CADODB_DP("")
+   IF m_pErrors THEN m_pErrors->Release
+END DESTRUCTOR
+' ===========================================================================================
+
+' ========================================================================================
+' Returns the address of the connection pointer
+' ========================================================================================
+'PRIVATE OPERATOR CAdoErrors.@ () AS ADOErrors PTR PTR
+'   OPERATOR = @m_pErrors
+'END OPERATOR
+' ========================================================================================
+' ========================================================================================
+FUNCTION CAdoErrors.vptr () AS ADOErrors PTR PTR
+   CADODB_DP("")
+   IF m_pErrors THEN m_pErrors->Release
+   RETURN @m_pErrors
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Returns the encapsulated IDispatch pointer
+' ========================================================================================
+PUBLIC OPERATOR * (BYREF cErrors AS CAdoErrors) AS ADOErrors PTR
+   OPERATOR = cErrors.m_pErrors
+END OPERATOR
+' ========================================================================================
+
+' ===========================================================================================
+' Attaches a reference to an ADOErrors object to the class
+' ===========================================================================================
+SUB CAdoErrors.Attach (BYVAL pErrors AS ADOErrors PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   CADODB_DP("")
+   IF m_pErrors THEN m_pErrors->Release
+   m_pErrors = pErrors
+   IF fAddRef THEN
+      IF m_pErrors THEN m_pErrors->AddRef
+   END IF
+END SUB
+' ===========================================================================================
+
+' ===========================================================================================
+' Retrieves the number of errors
+' ===========================================================================================
+PROPERTY CAdoErrors.Count () AS LONG
+   CADODB_DP("")
+   DIM nCount AS LONG
+   IF m_pErrors THEN m_pErrors->get_Count(@nCount)
+   RETURN nCount
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates a specific member of the Errors collection, by name or ordinal number.
+' ===========================================================================================
+PROPERTY CAdoErrors.Item (BYREF dvIndex AS DVARIANT) AS ADOError PTR
+   CADODB_DP("")
+   DIM pField AS ADOError PTR
+   IF m_pErrors THEN m_pErrors->get_Item(dvIndex, @pField)
+   RETURN pField
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a reference to the collection's enumerator.
+' ===========================================================================================
+FUNCTION CAdoErrors.NewEnum () AS fbx_IUnknown PTR
+   CADODB_DP("")
+   DIM pUnk AS fbx_IUnknown PTR
+   IF m_pErrors THEN m_pErrors->_NewEnum(@pUnk)
+   RETURN pUnk
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Refreshes the contents of the Errors collection.
+' ===========================================================================================
+FUNCTION CAdoErrors.Refresh () AS HRESULT
+   CADODB_DP("")
+   IF m_pErrors THEN RETURN(m_pErrors->Refresh)
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Removes all the Error objects from the Errors collection.
+' ===========================================================================================
+FUNCTION CAdoErrors.Clear () AS HRESULT
+   CADODB_DP("")
+   IF m_pErrors THEN RETURN(m_pErrors->Clear)
+END FUNCTION
+' ===========================================================================================

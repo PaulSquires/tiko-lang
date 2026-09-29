@@ -1,0 +1,7 @@
+' fbx/opengl (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "GL/windows/glu.bi"
+

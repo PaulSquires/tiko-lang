@@ -1,0 +1,505 @@
+' ########################################################################################
+' Platform: Microsoft Windows
+' File: CAdoCOnnection.inc
+' Contents: ADO Connection class
+' Compiler: FreeBASIC 32 & 64 bit
+' Copyright (c) 2026 José Roca
+'
+' License: Distributed under the MIT license.
+'
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this
+' software and associated documentation files (the “Software”), to deal in the Software
+' without restriction, including without limitation the rights to use, copy, modify, merge,
+' publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+' persons to whom the Software is furnished to do so, subject to the following conditions:
+
+' The above copyright notice and this permission notice shall be included in all copies or
+' substantial portions of the Software.
+
+' THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+' INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+' PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+' FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+' OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+' DEALINGS IN THE SOFTWARE.'
+' ########################################################################################
+
+
+' ########################################################################################
+' CAdoConnection class
+' ########################################################################################
+#module "adodb"
+#import "fbx/com"
+#import "fbx/core"
+#include once "adodb.ti"
+using com
+using core
+
+PUBLIC TYPE CAdoConnection EXTENDS CAdoBase
+
+   m_Result AS HRESULT
+   m_pConnection AS ADOConnection PTR
+   m_dwCookie AS DWORD
+
+   DECLARE CONSTRUCTOR
+   DECLARE CONSTRUCTOR (BYREF wszConStr AS WSTRING)
+   DECLARE CONSTRUCTOR (BYVAL pConnection AS ADOConnection PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   DECLARE DESTRUCTOR
+'   DECLARE OPERATOR @ () AS ADOConnection PTR PTR
+   DECLARE FUNCTION vptr () AS ADOConnection PTR PTR
+
+   ' // Attaches a reference to an ADOConnection object to the class
+   DECLARE SUB Attach (BYVAL pConnection AS ADOConnection PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   ' // * Sets or returns the connection string
+   DECLARE PROPERTY ConnectionString () AS USTRING
+   DECLARE PROPERTY ConnectionString (BYREF wszConstr AS WSTRING)
+   ' // * Opens a connection to a data source
+   DECLARE FUNCTION Open (BYREF wszConStr AS WSTRING = "", BYREF wszUserID AS WSTRING = "", BYREF wszPassword AS WSTRING = "", BYVAL Options AS LONG = adOptionUnspecified) AS HRESULT
+   ' // * Indicates if a connection is open or closed
+   DECLARE PROPERTY State () AS LONG
+   ' // * Indicates the ADO version number
+   DECLARE PROPERTY Version () AS USTRING
+   ' // * Closes a Connection object and any dependent objects
+   DECLARE FUNCTION Close () AS HRESULT
+   ' // * Sets or returns a Long value that indicates, in seconds, how long to wait for a command to execute
+   DECLARE PROPERTY CommandTimeout () AS LONG
+   DECLARE PROPERTY CommandTimeout (BYVAL lTimeout AS LONG)
+   ' // * Indicates how long to wait while establishing a connection before terminating the attempt and generating an error
+   DECLARE PROPERTY ConnectionTimeout () AS LONG
+   DECLARE PROPERTY ConnectionTimeout (BYVAL lTimeout AS LONG)
+   ' // Indicates the default database for a Connection object
+   DECLARE PROPERTY DefaultDatabase () AS USTRING
+   DECLARE PROPERTY DefaultDatabase (BYREF wszDatabase AS WSTRING)
+   ' // * Indicates the location of the cursor service
+   DECLARE PROPERTY CursorLocation () AS CursorLocationEnum
+   DECLARE PROPERTY CursorLocation (BYVAL lCursorLoc AS CursorLocationEnum)
+   ' // * Indicates the level of isolation for a Connection object
+   DECLARE PROPERTY IsolationLevel () AS IsolationLevelEnum
+   DECLARE PROPERTY IsolationLevel (BYVAL Level AS IsolationLevelEnum)
+   ' // Indicates one or more characteristics of an object
+   DECLARE PROPERTY Attributes () AS LONG
+   DECLARE PROPERTY Attributes (BYVAL lAttr AS LONG)
+   ' // Indicates the available permissions for modifying data in a Connection object
+   DECLARE PROPERTY Mode () AS ConnectModeEnum
+   DECLARE PROPERTY Mode (BYVAL lMode AS ConnectModeEnum)
+   ' // * Indicates the name of the provider for a Connection object.
+   DECLARE PROPERTY Provider () AS USTRING
+   DECLARE PROPERTY Provider (BYREF wszProvider AS WSTRING)
+   ' // * Returns a reference to the Errors collection
+   DECLARE PROPERTY Errors () AS ADOErrors PTR
+   ' // * Returns a reference to the Properties collection.
+   DECLARE PROPERTY Properties () AS ADOProperties PTR
+   ' // Executes the specified query, SQL statement, stored procedure, or provider-specific text
+   DECLARE FUNCTION Execute (BYREF wszCommandText AS WSTRING, BYVAL RecordsAffected AS LONG PTR = NULL, BYVAL Options AS LONG = -1) AS ADORecordset PTR
+   ' // Begins a new transaction
+   DECLARE FUNCTION BeginTrans () AS LONG
+   ' // Saves any changes and ends the current transaction. It may also start a new transaction.
+   DECLARE FUNCTION CommitTrans () AS HRESULT
+   ' // Saves any changes and ends the current transaction. It may also start a new transaction.
+   DECLARE FUNCTION RollbackTrans () AS HRESULT
+   ' // Cancels execution of a pending, asynchronous method call
+   DECLARE FUNCTION Cancel () AS HRESULT
+   ' // Obtains database schema information from the provider
+   DECLARE FUNCTION OpenSchema (BYVAL Schema AS SchemaEnum, BYREF dsRestrictions AS DVARIANT = TYPE<VARIANT>(VT_ERROR,0,0,0,DISP_E_PARAMNOTFOUND), _
+           BYREF dvSchemaID AS DVARIANT = TYPE<VARIANT>(VT_ERROR,0,0,0,DISP_E_PARAMNOTFOUND)) AS ADORecordset PTR
+   ' // Retrieves information from the ADO Errors collection
+   DECLARE FUNCTION GetErrorInfo (BYVAL dwError AS HRESULT = 0) AS USTRING
+   ' // Sets events
+   DECLARE FUNCTION SetEvents (BYVAL pEvtSink AS ANY PTR) AS HRESULT
+
+END TYPE
+' ########################################################################################
+
+' ========================================================================================
+' Default constructor
+' ========================================================================================
+CONSTRUCTOR CAdoConnection
+   ' // Create an instance of the Connection object
+'   DIM CLSID_Connection_ AS GUID = (&h00000514, &h0000, &h0010, {&h80, &h00, &h00, &hAA, &h00, &h6D, &h2E, &hA4})
+'   DIM IID_Connection_ AS GUID = (&h00001550, &h0000, &h0010, {&h80, &h00, &h00, &hAA, &h00, &h6D, &h2E, &hA4})
+'   SetResult(CoCreateInstance(@CLSID_Connection_, NULL, CLSCTX_INPROC_SERVER, @IID_Connection_, @m_pConnection))
+   m_pConnection = fbxNewCom("ADODB.Connection")
+   CADODB_DP(WSTR(m_pConnection))
+END CONSTRUCTOR
+' ========================================================================================
+
+' ===========================================================================================
+' Creates an instance of the COnnection onject and sets the connection string
+' ===========================================================================================
+CONSTRUCTOR CAdoConnection (BYREF wszConStr AS WSTRING)
+   ' // Creates an instance of the Connection object
+   m_pConnection = fbxNewCom("ADODB.Connection")
+   ' // Set the connection string
+   DIM bstrConStr AS FBX_BSTR = SysAllocString(wszConStr)
+   IF m_pConnection THEN SetResult(m_pConnection->put_ConnectionString(bstrConStr))
+   SysFreeString bstrConStr
+   CADODB_DP(WSTR(m_pConnection))
+END CONSTRUCTOR
+' ===========================================================================================
+
+' ========================================================================================
+' Attaches a reference to an ADOCommand object to the class
+' ========================================================================================
+CONSTRUCTOR CAdoConnection (BYVAL pConnection AS ADOConnection PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   CADODB_DP(WSTR(pConnection))
+   m_pConnection = pConnection
+   IF m_pConnection THEN 
+      IF fAddRef THEN m_pConnection->AddRef
+   END IF
+END CONSTRUCTOR
+' ========================================================================================
+
+' ===========================================================================================
+' Cleanup
+' ===========================================================================================
+DESTRUCTOR CAdoConnection
+   CADODB_DP(WSTR(m_pConnection))
+   ' // Disconnect events
+   DIM IID_ConnectionEvents_ AS GUID = (&h00001400, &h0000, &h0010, {&h80, &h00, &h00, &hAA, &h00, &h6D, &h2E, &hA4})
+   IF m_dwCookie THEN
+      m_Result = fbxUnAdvise(m_pConnection, IID_ConnectionEvents_, m_dwCookie)
+      CADODB_DP("- Unadvise - hr: " & HEX(m_Result))
+   END IF
+   ' // Close and release the connection
+   IF m_pConnection THEN
+      IF this.State = adStateOpen THEN this.Close
+      m_pConnection->Release
+   END IF
+END DESTRUCTOR
+' ===========================================================================================
+
+' ========================================================================================
+' Returns the address of the connection pointer
+' ========================================================================================
+'PRIVATE OPERATOR CAdoConnection.@ () AS ADOConnection PTR PTR
+'   OPERATOR = @m_pConnection
+'END OPERATOR
+' ========================================================================================
+' ========================================================================================
+FUNCTION CAdoConnection.vptr () AS ADOConnection PTR PTR
+   CADODB_DP("")
+   IF m_pConnection THEN m_pConnection->Release
+   RETURN @m_pConnection
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Returns the encapsulated IDispatch pointer
+' ========================================================================================
+PUBLIC OPERATOR * (BYREF cConnection AS CAdoConnection) AS ADOConnection PTR
+   OPERATOR = cConnection.m_pConnection
+END OPERATOR
+' ========================================================================================
+
+' ===========================================================================================
+' Attaches a reference to an ADOConnection object to the class
+' ===========================================================================================
+SUB CAdoConnection.Attach (BYVAL pCommand AS ADOConnection PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
+   CADODB_DP("")
+   IF m_pConnection THEN m_pConnection->Release
+   m_pConnection = m_pConnection
+   ' // Increase the reference count
+   IF fAddRef THEN
+      IF m_pConnection THEN m_pConnection->AddRef
+   END IF
+END SUB
+' ===========================================================================================
+
+' ===========================================================================================
+' * Sets or returns the connection string
+' ===========================================================================================
+PROPERTY CAdoConnection.ConnectionString () AS USTRING
+   DIM bsConnectionString AS FBX_BSTR
+   IF m_pConnection THEN SetResult(m_pConnection->get_ConnectionString(@bsConnectionString))
+   DIM ustrConnectionString AS STRING = *bsConnectionString
+   PROPERTY = ustrConnectionString
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.ConnectionString (BYREF wszConStr AS WSTRING)
+   DIM bstrConStr AS FBX_BSTR = SysAllocString(wszConStr)
+   IF m_pConnection THEN SetResult(m_pConnection->put_ConnectionString(bstrConStr))
+   SysFreeString bstrConStr
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Opens a connection to a data source
+' ===========================================================================================
+FUNCTION CAdoConnection.Open (BYREF wszConStr AS WSTRING = "", BYREF wszUserID AS WSTRING = "", _
+BYREF wszPassword AS WSTRING = "", BYVAL Options AS LONG = adOptionUnspecified) AS HRESULT
+   CADODB_DP(wszConStr)
+   DIM bstrConStr AS FBX_BSTR = SysAllocString(wszConStr)
+   DIM bstrUserID AS FBX_BSTR = SysAllocString(wszUserID)
+   DIM bstrPassword AS FBX_BSTR = SysAllocString(wszPassword)
+   IF m_pConnection THEN SetResult(m_pConnection->Open(bstrConStr, bstrUserID, bstrPassword, Options))
+   SysFreeString(bstrConStr)
+   SysFreeString(bstrUserID)
+   SysFreeString(bstrPassword)
+   RETURN m_Result
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' * Indicates if a connection is open or closed
+' ===========================================================================================
+PROPERTY CAdoConnection.State () AS LONG
+   DIM plObjState AS LONG
+   IF m_pConnection THEN SetResult(m_pConnection->get_State(@plObjState))
+   PROPERTY = plObjState
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Indicates the ADO version number
+' ===========================================================================================
+PROPERTY CAdoConnection.Version () AS USTRING
+   DIM bstrVersion AS FBX_BSTR
+   IF m_pConnection THEN SetResult(m_pConnection->get_Version(@bstrVersion))
+   DIM ustrVersion AS USTRING = *bstrVersion
+   SysFreeString bstrVersion
+   PROPERTY = ustrVersion
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Closes a Connection object and any dependent objects
+' ===========================================================================================
+FUNCTION CAdoConnection.Close () AS HRESULT
+   CADODB_DP("")
+   IF m_pConnection THEN RETURN(SetResult(m_pConnection->Close))
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' * Sets or returns a Long value that indicates, in seconds, how long to wait for a command to
+' execute. Default is 30.
+' ===========================================================================================
+PROPERTY CAdoConnection.CommandTimeout () AS LONG
+   DIM lTimeout AS LONG
+   IF m_pConnection THEN SetResult(m_pConnection->get_CommandTimeout(@lTimeout))
+   PROPERTY = lTimeout
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.CommandTimeout (BYVAL lTimeout AS LONG)
+   IF m_pConnection THEN SetResult(m_pConnection->put_CommandTimeout(lTimeout))
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Indicates how long to wait while establishing a connection before terminating the attempt
+' and generating an error.
+' ===========================================================================================
+PROPERTY CAdoConnection.ConnectionTimeout () AS LONG
+   DIM lTimeout AS LONG
+   IF m_pConnection THEN SetResult(m_pConnection->get_ConnectionTimeout(@lTimeout))
+   PROPERTY = lTimeout
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.ConnectionTimeout (BYVAL lTimeout AS LONG)
+   IF m_pConnection THEN SetResult(m_pConnection->put_ConnectionTimeout(lTimeout))
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates the default database for a Connection object
+' ===========================================================================================
+PROPERTY CAdoConnection.DefaultDatabase () AS USTRING
+   DIM bstrDatabase AS FBX_BSTR
+   IF m_pConnection THEN SetResult(m_pConnection->get_DefaultDatabase(@bstrDatabase))
+   DIM ustrDatabase AS USTRING = *bstrDatabase
+   PROPERTY = ustrDatabase
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.DefaultDatabase (BYREF wszDatabase AS WSTRING)
+   DIM bstrDatabase AS FBX_BSTR = SysAllocString(wszDatabase)
+   IF m_pConnection THEN SetResult(m_pConnection->put_DefaultDatabase(bstrDatabase))
+   SysFreeString bstrDatabase
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' * Indicates the location of the cursor service
+' ===========================================================================================
+PROPERTY CAdoConnection.CursorLocation () AS CursorLocationEnum
+   DIM lCursorLoc AS CursorLocationEnum
+   IF m_pConnection THEN SetResult(m_pConnection->get_CursorLocation(@lCursorLoc))
+   PROPERTY = lCursorLoc
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.CursorLocation (BYVAL lCursorLoc AS CursorLocationEnum)
+   IF m_pConnection THEN SetResult(m_pConnection->put_CursorLocation(lCursorLoc))
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates the level of isolation for a Connection object.
+' ===========================================================================================
+PROPERTY CAdoConnection.IsolationLevel () AS IsolationLevelEnum
+   DIM Level AS IsolationLevelEnum
+   IF m_pConnection THEN SetResult(m_pConnection->get_IsolationLevel(@Level))
+   PROPERTY = Level
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.IsolationLevel (BYVAL Level AS IsolationLevelEnum)
+   IF m_pConnection THEN SetResult(m_pConnection->put_IsolationLevel(Level))
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates one or more characteristics of an object
+' ===========================================================================================
+PROPERTY CAdoConnection.Attributes () AS LONG
+   DIM lAttr AS LONG
+   IF m_pConnection THEN SetResult(m_pConnection->get_Attributes(@lAttr))
+   PROPERTY = lAttr
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.Attributes (BYVAL lAttr AS LONG)
+   IF m_pConnection THEN SetResult(m_pConnection->put_Attributes(lAttr))
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates the available permissions for modifying data in a Connection object
+' ===========================================================================================
+PROPERTY CAdoConnection.Mode () AS ConnectModeEnum
+   DIM lMode AS ConnectModeEnum
+   IF m_pConnection THEN SetResult(m_pConnection->get_Mode(@lMode))
+   PROPERTY = lMode
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.Mode (BYVAL lMode AS ConnectModeEnum)
+   IF m_pConnection THEN SetResult(m_pConnection->put_Mode(lMode))
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Indicates the name of the provider for a Connection object
+' ===========================================================================================
+PROPERTY CAdoConnection.Provider () AS USTRING
+   DIM bstrProvider AS FBX_BSTR
+   IF m_pConnection THEN SetResult(m_pConnection->get_Provider(@bstrProvider))
+   DIM ustrProvider AS USTRING = *bstrProvider
+   PROPERTY = ustrProvider
+END PROPERTY
+' ===========================================================================================
+' ===========================================================================================
+PROPERTY CAdoConnection.Provider (BYREF wszProvider AS WSTRING)
+   DIM bstrProvider AS FBX_BSTR = SysAllocString(wszProvider)
+   IF m_pConnection THEN SetResult(m_pConnection->put_Provider(bstrProvider))
+   SysFreeString bstrProvider
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a reference to the Errors collection
+' ===========================================================================================
+PROPERTY CAdoConnection.Errors () AS ADOErrors PTR
+   DIM pErrors AS ADOErrors PTR
+   IF m_pConnection THEN SetResult(m_pConnection->get_Errors(@pErrors))
+   PROPERTY = pErrors
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Returns a reference to the Properties collection
+' ===========================================================================================
+PROPERTY CAdoConnection.Properties () AS ADOProperties PTR
+   DIM pProperties AS ADOProperties PTR
+   IF m_pConnection THEN SetResult(m_pConnection->get_Properties(@pProperties))
+   PROPERTY = pProperties
+END PROPERTY
+' ===========================================================================================
+
+' ===========================================================================================
+' Executes the specified query, SQL statement, stored procedure, or provider-specific text
+' ===========================================================================================
+FUNCTION CAdoConnection.Execute (BYREF wszCommandText AS WsTRING, BYVAL RecordsAffected AS LONG PTR = NULL, BYVAL Options AS LONG = -1) AS ADORecordset PTR
+   DIM vRecordsAffected AS VARIANT
+   V_VT(@vRecordsAffected) = VT_I4
+   DIM piRset AS ADORecordset PTR
+   DIM bstrCommandText AS FBX_BSTR = SysALlocString(wszCommandText)
+   IF m_pConnection THEN SetResult(m_pConnection->Execute(bstrCommandText, @vRecordsAffected, Options, @piRset))
+   SysFreeString bstrCommandText
+   IF RecordsAffected THEN *RecordsAffected = vRecordsAffected.lVal
+   RETURN piRset
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Begins a new transaction
+' ===========================================================================================
+FUNCTION CAdoConnection.BeginTrans () AS LONG
+   DIM TransactionLevel AS LONG
+   IF m_pConnection THEN SetResult(m_pConnection->BeginTrans(@TransactionLevel))
+   FUNCTION = TransactionLevel
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Saves any changes and ends the current transaction. It may also start a new transaction.
+' ===========================================================================================
+FUNCTION CAdoConnection.CommitTrans () AS HRESULT
+   IF m_pConnection THEN RETURN(SetResult(m_pConnection->CommitTrans))
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Saves any changes and ends the current transaction. It may also start a new transaction.
+' ===========================================================================================
+FUNCTION CAdoConnection.RollbackTrans () AS HRESULT
+   IF m_pConnection THEN RETURN(SetResult(m_pConnection->RollbackTrans))
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Cancels execution of a pending, asynchronous method call
+' ===========================================================================================
+FUNCTION CAdoConnection.Cancel () AS HRESULT
+   IF m_pConnection THEN RETURN(SetResult(m_pConnection->Cancel))
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Obtains database schema information from the provider
+' ===========================================================================================
+FUNCTION CAdoConnection.OpenSchema (BYVAL Schema AS SchemaEnum, BYREF dvRestrictions AS DVARIANT = TYPE<VARIANT>(VT_ERROR,0,0,0,DISP_E_PARAMNOTFOUND), _
+BYREF dvSchemaID AS DVARIANT = TYPE<VARIANT>(VT_ERROR,0,0,0,DISP_E_PARAMNOTFOUND)) AS ADORecordset PTR
+   DIM pprset AS ADORecordset PTR
+   IF m_pConnection THEN SetResult(m_pConnection->OpenSchema(Schema, dvRestrictions, dvSchemaID, @pprset))
+   RETURN pprset
+END FUNCTION
+' ===========================================================================================
+
+' ===========================================================================================
+' Retrieves information from the ADO Errors collection
+' ===========================================================================================
+FUNCTION CAdoConnection.GetErrorInfo (BYVAL nError AS HRESULT = 0) AS USTRING
+   RETURN fbxAdoGetErrorInfo(m_pConnection, nError)
+END FUNCTION
+' ===========================================================================================
+
+' ========================================================================================
+' Sets the events sink.
+' ========================================================================================
+FUNCTION CAdoConnection.SetEvents (BYVAL pEvtSink AS ANY PTR) AS HRESULT
+   CADODB_DP(WSTR(pEvtSink))
+   IF pEvtSink = NULL THEN SetResult(E_POINTER) : RETURN E_POINTER
+   DIM IID_ConnectionEvents_ AS GUID = (&h00001400, &h0000, &h0010, {&h80, &h00, &h00, &hAA, &h00, &h6D, &h2E, &hA4})
+   IF m_dwCookie THEN
+      DIM hr AS HRESULT = fbxUnadvise(m_pConnection, IID_ConnectionEvents_, m_dwCookie)
+      IF hr <> S_OK THEN RETURN hr
+      m_dwCookie = 0
+   END IF
+   SetResult(fbxAdvise(m_pConnection, pEvtSink, IID_ConnectionEvents_, @m_dwCookie))
+   RETURN m_Result
+END FUNCTION
+' ========================================================================================

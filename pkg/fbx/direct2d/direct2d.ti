@@ -1,0 +1,46 @@
+' fbx/direct2d (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/unknwn.bi"
+#include once "win/winerror.bi"
+#include once "win/ole2.bi"
+#include once "win/oaidl.bi"
+#include once "win/ocidl.bi"
+#include once "win/wtypes.bi"
+#include once "win/propidl.bi"
+
+#define D2D_POINT_2L POINT
+#define D2D_RECT_L RECT
+#define D2D1_COLOR_F D2D_COLOR_F
+#define D2D1_TAG UINT64
+#define DXGI_RGBA D3DCOLORVALUE
+#define D2D1_POINT_2F D2D_POINT_2F
+#define D2D1_POINT_2U D2D_POINT_2U
+#define D2D1_POINT_2L D2D_POINT_2L
+#define D2D1_RECT_F D2D_RECT_F
+#define D2D1_RECT_U D2D_RECT_U
+#define D2D1_RECT_L D2D_RECT_L
+#define D2D1_SIZE_F D2D_SIZE_F
+#define D2D1_SIZE_U D2D_SIZE_U
+#define D2D1_MATRIX_3X2_F D2D_MATRIX_3X2_F
+#define D2D1_DEFAULT_FLATTENING_TOLERANCE 0.25f
+#define D2D_COLOR_F D3DCOLORVALUE
+#define D2D1_RECT_L D2D_RECT_L
+#define D2D1_VECTOR_2F D2D_VECTOR_2F
+#define D2D1_VECTOR_3F D2D_VECTOR_3F
+#define D2D1_VECTOR_4F D2D_VECTOR_4F
+#define D2D1_MATRIX_4X3_F D2D_MATRIX_4X3_F
+#define D2D1_MATRIX_4X4_F D2D_MATRIX_4X4_F
+#define D2D1_MATRIX_5X4_F D2D_MATRIX_5X4_F
+#ifndef _D2D1_DEBUG_
+   #define _D2D1_DEBUG_ 0
+#endif
+#ifndef _D2D1_DP_
+   #MACRO D2D1_DP(st)
+      #IF (_D2D1_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif

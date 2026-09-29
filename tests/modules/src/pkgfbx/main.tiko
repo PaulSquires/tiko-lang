@@ -1,0 +1,12 @@
+'' fbx through #import: core's DWSTRING, a global operator over it (len), a string helper,
+'' and datetime's COleDateTime -- whose constructors assign 'this' from a value.
+#import "fbx/core"
+#import "fbx/datetime"
+using core
+using datetime
+
+dim as DWSTRING s = "fbx"
+s += " modules"
+print len( s ); fbxParseCount( "a,b,c" ); " "; fbxStrRemove( "tiko-lang", "-lang" )
+dim as COleDateTime dt = COleDateTime( 2026, 9, 29, 12, 0, 0 )
+print dt.GetYear( ); " "; dt.GetDay( ); " "; dt.GetDayOfWeek( )

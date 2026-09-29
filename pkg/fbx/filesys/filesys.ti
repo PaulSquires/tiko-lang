@@ -1,0 +1,10 @@
+' fbx/filesys (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "vbcompat.bi"
+#include once "crt/stdio.bi"
+#include once "win/winioctl.bi"
+#include once "win/shlwapi.bi"
+

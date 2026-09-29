@@ -1,0 +1,18 @@
+' fbx/webview2 (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/objidl.bi"
+#include once "win/oaidl.bi"
+
+#ifndef _CWV2_DEBUG_
+   #define _CWV2_DEBUG_ 0
+#endif
+#ifndef _CWV2_DP_
+   #MACRO CWV2_DP(st)
+      #if (_CWV2_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #endif
+   #ENDMACRO
+#endif

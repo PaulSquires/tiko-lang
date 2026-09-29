@@ -253,6 +253,11 @@ if [ "$DO_INC" = "1" ]; then
         rm -rf "$OUT/include"
         cp -r "$FBTC/include" "$OUT/include"
     fi
+    # fbx IS A PACKAGE NOW (ADR 0017 §20): pkg/fbx is its only copy, so the header library
+    # the stage-0 toolchain carries is left out. Kept, it would also be the first package
+    # named fbx that a '-i <inc>' root offers '#import "fbx/..."', ahead of the toolchain's.
+    rm -rf "$OUT/inc/fbx" "$OUT/include/freebasic/fbx"
+    if [ -e "$OUT/inc/fbx" ]; then die "packaged inc/ still has fbx/ -- it would shadow pkg/fbx"; fi
 else
     note "--no-inc: headers not packaged"
 fi
@@ -266,6 +271,7 @@ cp -r "$ROOT/pkg" "$OUT/pkg"
 [ -f "$OUT/pkg/std/tiko.toml" ] || die "packaged pkg/ has no std/tiko.toml -- '#import \"std/...\"' would find nothing"
 [ -f "$OUT/pkg/std/strings/strings.bas" ] || die "packaged pkg/ has no std/strings"
 [ -f "$OUT/pkg/sys/windows/windows.bas" ] || die "packaged pkg/ has no sys/windows"
+[ -f "$OUT/pkg/fbx/gui/CWindow.tiko" ] || die "packaged pkg/ has no fbx/gui"
 note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 
 # The libraries. TWO directories per target, and the order they are given in
@@ -648,6 +654,35 @@ print len( win.SE_DEBUG_NAME ); sizeof( win.TCHAR ); win.IsWindow( 0 )
     rm -rf "$_tmp"
 }
 
+# FBX (ADR 0017 §20), on a Windows target only: core, datetime and gui imported from the
+# packaged pkg/fbx -- the gui import builds the largest module, and its headers -- and a
+# DWSTRING's length, a string helper and a COleDateTime printed.
+verify_fbx( ) {
+    _t=$1
+    case "$_t" in win*) ;; *) return ;; esac
+    _tmp="$OUT/.verifyfbx.$_t"
+    rm -rf "$_tmp"; mkdir -p "$_tmp"
+    printf '#import "fbx/core"
+#import "fbx/datetime"
+#import "fbx/gui"
+dim as core.DWSTRING s = "fbx modules"
+dim as datetime.COleDateTime dt = datetime.COleDateTime( 2026, 9, 29, 12, 0, 0 )
+print len( s ); core.fbxParseCount( "a,b,c" ); dt.GetYear( )
+' > "$_tmp/fbx.bas"
+    ( cd "$OUT" && TKO_MODCACHE=".verifyfbx.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
+        ".verifyfbx.$_t/fbx.bas" -o ".verifyfbx.$_t/fbx$EXT" ) >"$_tmp/log" 2>&1 || true
+    if [ -f "$_tmp/fbx$EXT" ] && [ "$( "$_tmp/fbx$EXT" 2>/dev/null | tr -d '\r' )" = " 11 32026" ]; then
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  fbx PASS -- core, datetime and gui imported, compiled, linked and ran"
+    else
+        _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
+        [ -n "$_why" ] || _why="built, but did not print ' 11 32026'"
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  fbx FAIL -- $_why"
+    fi
+    rm -rf "$_tmp"
+}
+
 if [ "$DO_VERIFY" = "1" ]; then
     for t in $TARGETS; do
         note "verifying $t: compile, link and run"
@@ -655,6 +690,7 @@ if [ "$DO_VERIFY" = "1" ]; then
         verify_fbcunit "$t"
         verify_std "$t"
         verify_sys "$t"
+        verify_fbx "$t"
     done
 else
     VERIFY_LINES="

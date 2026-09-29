@@ -1,0 +1,1106 @@
+' ########################################################################################
+' Platform: Microsoft Windows
+' Filename: fbxPath.inc
+' Purpose:  Windows path and url procedures
+' Compiler: FreeBASIC 32 & 64 bit
+' Copyright (c) 2026 José Roca
+'
+' License: Distributed under the MIT license.
+'
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this
+' software and associated documentation files (the “Software”), to deal in the Software
+' without restriction, including without limitation the rights to use, copy, modify, merge,
+' publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+' persons to whom the Software is furnished to do so, subject to the following conditions:
+
+' The above copyright notice and this permission notice shall be included in all copies or
+' substantial portions of the Software.
+
+' THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+' INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+' PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+' FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+' OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+' DEALINGS IN THE SOFTWARE.'
+' ########################################################################################
+
+#module "filesys"
+#import "fbx/core"
+#import "fbx/gui"
+#import "fbx/scripting"
+#include once "filesys.ti"
+using core
+using gui
+using scripting
+
+#include once "windows.bi"
+#include once "win/shlwapi.bi"
+
+' // To avoid to include wininet.bi
+#ifndef _WININET_
+PUBLIC const INTERNET_MAX_PATH_LENGTH = 2048
+PUBLIC const INTERNET_MAX_SCHEME_LENGTH = 32
+#define INTERNET_MAX_URL_LENGTH ((INTERNET_MAX_SCHEME_LENGTH + sizeof("://")) + INTERNET_MAX_PATH_LENGTH)
+#export INTERNET_MAX_URL_LENGTH
+#endif
+
+#ifndef PATHCCH_OPTIONS
+PUBLIC ENUM PATHCCH_OPTIONS
+   PATHCCH_NONE = &h0
+'    // This option allows applications to gain access to long paths. It has two
+'    // different behaviors. For process configured to enable long paths it will allow
+'    // the returned path to be longer than the max path limit that is normally imposed.
+'    // For process that are not this option will convert long paths into the extended
+'    // length DOS device form (with \\?\ prefix) when the path is longer than the limit.
+'    // This form is not length limited by the Win32 file system API on all versions of Windows.
+'    // This second behavior is the same behavior for OSes that don't have the long path feature.
+'    // This can not be specified with PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH.
+   PATHCCH_ALLOW_LONG_PATHS = &h01
+'    // Can only be used when PATHCCH_ALLOW_LONG_PATHS is specified. This
+'    // Forces the API to treat the caller as long path enabled, independent of the
+'    // process's long name enabled state. Cannot be used with PATHCCH_FORCE_DISABLE_LONG_NAME_PROCESS.
+   PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS = &h02
+'    // Can only be used when PATHCCH_ALLOW_LONG_PATHS is specified. This
+'    // Forces the API to treat the caller as long path disabled, independent of the
+'    // process's long name enabled state. Cannot be used with PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS.
+   PATHCCH_FORCE_DISABLE_LONG_NAME_PROCESS = &h04
+'    // Disable the normalization of path segments that includes removing trailing dots and spaces.
+'    // This enables access to paths that win32 path normalization will block.
+   PATHCCH_DO_NOT_NORMALIZE_SEGMENTS = &h08
+'    // Convert the input path into the extended length DOS device path form (with the \\?\ prefix)
+'    // if not already in that form. This enables access to paths that are otherwise not addressable
+'    // due to Win32 normalization rules (that can strip trailing dots and spaces) and path
+'    // length limitations. This option implies the same behavior of PATHCCH_DO_NOT_NORMALIZE_SEGMENTS.
+'    // This can not be specified with PATHCCH_ALLOW_LONG_PATHS.
+   PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH = &h10
+'    // When combining or normalizing a path ensure there is a trailing backslash.
+   PATHCCH_ENSURE_TRAILING_SLASH = &h020
+'    // Convert forward slashes to back slashes and collapse multiple slashes.
+'    // This is needed to to support sub-path or identity comparisons.
+   PATHCCH_CANONICALIZE_SLASHES = &h040
+END ENUM
+#endif
+
+#ifndef PATHCCH_MAX_CCH
+   ' // max # of characters we support using the "\\?\" syntax
+   ' // (0x7FFF + 1 for NULL terminator)
+   #define PATHCCH_MAX_CCH &h8000
+#export PATHCCH_MAX_CCH
+#endif
+
+' ========================================================================================
+' Adds a backslash to the end of a string to create the correct syntax for a path.
+' If the source path already has a trailing backslash, no backslash will be added.
+' Usage example: DIM ustr AS USTRING = fbxPathAddBackSlash("C:\dir_name\dir_name\file_name")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathAddBackSlash (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathAddBackSlashW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes the trailing backslash from a given path.
+' Usage eample: DIM ustr AS USTRING = fbxPathRemoveBackslash("c:\a\b\File\")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRemoveBackslash (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathRemoveBackslashW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Adds a file extension to a path string.
+' If there is already a file name extension present, no extension will be added.
+' If wszPath is an empt string, the result will be the file name extension only.
+' If pwszExt points to a NULL string, an ".exe" extension will be added.
+' Example: DIM ustr AS USTRING = fbxPathAddExtension("file") - output: file.exe
+' Example: DIM ustr AS USTRING = fbxPathAddExtension("file.doc") - output: file.doc
+' Example: DIM ustr AS USTRING = fbxPathAddExtension("file", ".txt") - output: file.txt
+' Example: DIM ustr AS USTRING = fbxPathAddExtension("", ".txt") - output: .txt
+' ========================================================================================
+PUBLIC FUNCTION fbxPathAddExtension (BYREF wszPath AS CONST WSTRING, BYVAL pwszExt AS WSTRING PTR = NULL) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathAddExtensionW(_wszPath, pwszExt)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes the file extension from a path, if there is one.
+' Usage example: DIM ustr AS USTRING = fbxPathRemoveExtension("C:\TEST\sample.txt")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRemoveExtension (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathRemoveExtensionW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Replaces the extension of a file name with a new extension. If the file name does not
+' contain an extension, the extension will be attached to the end of the string.
+' DIM ustr AS USTRING = fbxPathRenameExtension("C:\TEST\sample.bas", ".exe")
+' DIM ustr AS USTRING = fbxPathRenameExtension("C:\TEST\sample", ".exe")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRenameExtension (BYREF wszPath AS CONST WSTRING, BYREF wszExt AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathRenameExtensionW(_wszPath, wszExt)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Appends one path to the end of another.
+' This function automatically inserts a backslash between the two strings, if one is not already present.
+' The path supplied in wszPath cannot begin with "..\" or ".\" to produce a relative path
+' string. If present, those periods are stripped from the output string. For example,
+' appending "path3" to "..\path1\path2" results in an output of "\path1\path2\path3" rather
+' than "..\path1\path2\path3".
+' Usage exmaple: DIM ustr AS USTRING = fbxPathAppend("name_1\name_2", "name_3")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathAppend (BYREF wszPath AS CONST WSTRING, BYREF wszMore AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathAppendW(_wszPath, wszMore)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Creates a root path from a given drive number.
+' nDrive = The desired drive number. It should be between 0 and 25.
+' 0 = A, 1 = B, ..., Z = 25.
+' Usage example: DIM ustr AS USTRING = fbxPathBuildRoot(2) - output: C:\
+' ========================================================================================
+PUBLIC FUNCTION fbxPathBuildRoot (BYVAL nDrive AS LONG) AS USTRING
+   DIM _wszRoot AS WSTRING * 4
+   PathBuildRootW(_wszRoot, nDrive)
+   RETURN _wszRoot
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Canonicalizes a path.
+' This function allows the user to specify what to remove from a path by inserting special
+' character sequences into the path. The ".." sequence indicates to remove a path segment
+' from the current position to the previous path segment. The "." sequence indicates to skip
+' over the next path segment to the following path segment. The root segment of the path
+' cannot be removed.
+' If there are more ".." sequences than there are path segments, the function returns just the root.
+' Examples:
+' DIM ustr AS USTRING = fbxPathCanonicalize("A:\name_1\.\name_2\..\sname_3") - output: A:\name_1\name_3
+' DIM ustr AS USTRING = fbxPathCanonicalize("A:\name_1\..\name_2\.\name_3") - output: A:\name_2\name_3
+' DIM ustr AS USTRING = fbxPathCanonicalize("A:\name_1\name_2\.\name_3\..\name_4") - output: A:\name_1\name_2\name_4
+' DIM ustr AS USTRING = fbxPathCanonicalize("A:\name_1\.\name_2\.\name_3\..\name_4\..") - output: A:\name_1\name_2
+' DIM ustr AS USTRING = fbxPathCanonicalize("C:\..") - output: C:\
+' ========================================================================================
+PUBLIC FUNCTION fbxPathCanonicalize (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszDest AS WSTRING * MAX_PATH
+   PathCanonicalizeW(_wszDest, wszPath)
+   RETURN _wszDest
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Concatenates two strings that represent properly formed paths into one path, as well as
+' any relative path pieces. The directory path should be in the form of A:,B:, ..., Z:.
+' The file path should be in a correct form that represents the file name part of the path.
+' If the directory path ends with a backslash, the backslash will be maintained.
+' Note that while wszDir and wszFile are both optional parameters, they cannot both be NULL.
+' Example: DIM ustr AS USTRING = fbxPathCombine("C:", "One\Two\Three") - output: C:\One\Two\Three
+' ========================================================================================
+PUBLIC FUNCTION fbxPathCombine (BYREF wszDir AS CONST WSTRING, BYREF wszFile AS CONST WSTRING) AS USTRING
+   DIM _wszDest AS WSTRING * MAX_PATH
+   PathCombineW(_wszDest, wszDir, wszFile)
+   RETURN _wszDest
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Compares two paths to determine if they share a prefix and returns a string with the prefix
+' characters, if any. A prefix is one of these types: "C:\", ".", "..", "..\".
+' Example: DIM ustr AS USTRING = fbxPathCommonPrefix("C:\win\desktop\temp.txt", "c:\win\tray\sample.txt")
+' Output: C:\win
+' ========================================================================================
+PUBLIC FUNCTION fbxPathCommonPrefix (BYREF wszPath1 AS CONST WSTRING, BYREF wszPath2 AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH
+   PathCommonPrefixW(wszPath1, wszPath2, _wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Truncates a file path to fit within a given pixel width by replacing path components with ellipses.
+' This function uses the font currently selected in hDC to calculate the width of the text.
+' This function will not compact the path beyond the base file name preceded by ellipses.
+' - hdc : A handle to the device context used for font metrics. This value can be NULL.
+' - wszPath : The path to be modified.
+' - dx : The width, in pixels, in which the string must fit.
+' Usage example: DIM ustr AS USTRING = fbxPathCompactPath(NULL, "C:\path1\path2\sample.txt", 180)
+' ========================================================================================
+PUBLIC FUNCTION fbxPathCompactPath (BYVAL hDC AS HDC, BYREF wszPath AS CONST WSTRING, BYVAL dx AS DWORD) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathCompactPathW(hDC, _wszPath, dx)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Truncates a path to fit within a certain number of characters by replacing path components with ellipses.
+' - wszPath : The path to be modified.
+' - cchMax : The maximum number of characters to be contained in the new string.
+' The '/' separator will be used instead of '\' if the original string used it. If wszPath
+' points to a file name that is too long, instead of a path, the file name will be truncated
+' to cchMax characters. For example, if the input file name is "My Filename" and cchMax is 10,
+' PathCompactPathEx will return "My File...".
+' Usage example: DIM ustr AS USTRING = fbxPathCompactPathEx("c:\test\My Filename", 18)
+' ========================================================================================
+PUBLIC FUNCTION fbxPathCompactPathEx (BYREF wszPath AS CONST WSTRING, BYVAL cchMax AS DWORD) AS USTRING
+   DIM _wszOut AS WSTRING * MAX_PATH
+   IF cchMax > MAX_PATH THEN cchMax = MAX_PATH - 1
+   PathCompactPathExW(_wszOut, wszPath, cchMax + 1, 0)
+   RETURN LEFT(_wszOut, cchMax)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Takes a file URL and converts it to a Microsoft MS-DOS path.
+' - wszUrl : A null-terminated string of maximum length INTERNET_MAX_URL_LENGTH that contains the URL.
+' Example: DIM ustr AS USTRING = fbxPathCreateFromUrl("file:///C:/Documents%20and%20Settings/URIS.txt")
+' Output: C:\Documents and Settings\URIS.txt
+' ========================================================================================
+PUBLIC FUNCTION fbxPathCreateFromUrl (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH
+   DIM cchPath AS DWORD = SIZEOF(_wszPath)
+   PathCreateFromUrlW(wszUrl, _wszPath, @cchPath, 0)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts a path to all lowercase characters to give the path a consistent appearance.
+' This function only operates on paths that are entirely uppercase. For example:
+' C:\WINDOWS will be converted to c:\windows, but c:\Windows will not be changed.
+' Example: DIM ustr AS USTRING = fbxPathMakePretty("C:\TEST\FILE")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathMakePretty (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathMakePrettyW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path for spaces. If spaces are found, the entire path is enclosed in
+' quotation marks.
+' Example: DIM ustr AS USTRING = fbxPathQuoteSpaces("C:\sample_one\sample two")
+' Output: "C:\sample_one\sample two"
+' ========================================================================================
+PUBLIC FUNCTION fbxPathQuoteSpaces (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathQuoteSpacesW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes quotes from the beginning and end of a path.
+' Usage example: DIM ustr AS USTRING = fbxPathUnquoteSpaces("""C:\sample_one\sample two""")
+' Output: C:\sample_one\sample two
+' ========================================================================================
+PUBLIC FUNCTION fbxPathUnquoteSpaces (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathUnquoteSpacesW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines whether a path to a file system object such as a file or directory is valid.
+' TRUE if the file exists; otherwise, FALSE. Call GetLastError for extended error information.
+' This function tests the validity of the path. A path specified by Universal Naming
+' Convention (UNC) is limited to a file only; that is, \\server\share\file is permitted.
+' A UNC path to a server or server share is not permitted; that is, \\server or \\server\share.
+' This function returns FALSE if a mounted remote drive is out of service.
+' Example: DIM b AS BOOLEAN = fbxPathFileExists("C:\TEST\file.txt")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathFileExists (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathFileExistsW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path for an extension.
+' wszPath : The path to search, including the extension being searched for.
+' Note that a valid file name extension cannot contain a space.
+' Usage example: DIM ustr AS USTRING = fbxPathFindExtension("C:\TEST\filetxt")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathFindExtension (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   DIM pFileExt AS WSTRING PTR = PathFindExtensionW(_wszPath)
+   IF pFileExt THEN *cast(WSTRING PTR, @_wszPath) = *pFileExt
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path for a file name.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathFindFileName (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   DIM pFileName AS WSTRING PTR = PathFindFileNameW(_wszPath)
+   IF pFileName THEN *cast(WSTRING PTR, @_wszPath) = *pFileName
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Parses a path and returns the portion of that path that follows the first backslash.
+' PathFindNextComponent walks a path string until it encounters a backslash ("\\"), ignores
+' everything up to that point including the backslash, and returns the rest of the path.
+' Therefore, if a path begins with a backslash (such as \path1\path2), the function simply
+' removes the initial backslash and returns the rest (path1\path2).
+' Usage example: DIM ustr AS USTRING = fbxPathFindNextComponent("C:\TEST\file.txt")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathFindNextComponent (BYREF wszPath AS WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   DIM pwszComp AS WSTRING PTR = PathFindNextComponentW(_wszPath)
+   IF pwszComp THEN *cast(WSTRING PTR, @_wszPath) = *pwszComp
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Parses a path, ignoring the drive letter or Universal Naming Convention (UNC)
+' server/share path parts.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathSkipRoot (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   DIM pwszPath AS WSTRING PTR = PathSkipRootW(_wszPath)
+   IF pwszPath THEN *cast(WSTRING PTR, @_wszPath) = *pwszPath
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' *** UNTESTED ***
+' Determines if a given file name has one of a list of suffixes.
+' - wszPath : The file name to be tested. A full path can be used.
+' - apwszSuffix : An array of iArraySize string pointers. Each string pointed to is
+'   null-terminated and contains one suffix. The strings can be of variable lengths.
+' - iArraySize : The number of elements in the array pointed to by apszSuffix.
+' This function uses a case-sensitive comparison. The suffix must match exactly.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathFindSuffixArray (BYREF wszPath AS WSTRING, BYVAL apwszSuffix AS WSTRING PTR PTR, BYVAL iArraySize AS LONG) AS USTRING
+   DIM pwszSuffix AS WSTRING PTR = cast(WSTRING PTR, PathFindSuffixArrayW(wszPath, apwszSuffix, iArraySize))
+   IF pwszSuffix THEN RETURN *pwszSuffix
+   RETURN ""
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Finds the command line arguments within a given path.
+' This function should not be used on generic command path templates (from users or the
+' registry), but rather should be used only on templates that the application knows to be
+' well formed.
+' Example: DIM ustr AS USTRING = fbxPathGetArgs("test.exe temp.txt sample.doc")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathGetArgs (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM pwszArgs AS WSTRING PTR = PathGetArgsW(wszPath)
+   IF pwszArgs THEN RETURN *pwszArgs
+   RETURN ""
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines the type of character with respect to a path.
+' Returns one or more of the following values that define the type of character.
+' GCT_INVALID   : The character is not valid in a path.
+' GCT_LFNCHAR   : The character is valid in a long file name.
+' GCT_SEPARATOR : The character is a path separator.
+' GCT_SHORTCHAR : The character is valid in a short (8.3) file name.
+' GCT_WILD      : The character is a wildcard character.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathGetCharType (BYREF wszCh AS CONST WSTRING) AS UINT
+   RETURN PathGetCharTypeW(ASC(wszCh))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path for a drive letter within the range of 'A' to 'Z' and returns the
+' corresponding drive number, 0 through 25 (corresponding to 'A' through 'Z') if the path
+' has a drive letter, or -1 otherwise.
+' Example: DIM n AS LONG = fbxPathGetDriveNumber("C:\TEST\bar.txt") - output: 2
+' ========================================================================================
+PUBLIC FUNCTION fbxPathGetDriveNumber (BYREF wszPath AS CONST WSTRING) AS LONG
+   RETURN PathGetDriveNumberW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if a file's registered content type matches the specified content type.
+' This function obtains the content type for the specified file type and compares
+' that string with the wszContentType The comparison is not case sensitive.
+' Returns nonzero if the file's registered content type matches wszContentType, or zero otherwise.
+' Example: DIM b AS BOOLEAN = fbxPathIsContentType("C:\TEST\bar.txt", "text/plain") - output: true
+' Example: DIM b AS BOOLEAN = fbxPathIsContentType("C:\TEST\bar.txt", "image/gif") - output: false
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsContentType (BYREF wszPath AS CONST WSTRING, BYREF wszContentType AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsContentTypeW(wszPath, wszContentType)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Verifies that a path is a valid directory.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsDirectory (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsDirectoryW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines whether or not a specified path is an empty directory.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsDirectoryEmpty (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsDirectoryEmptyW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path for any path delimiting characters (for example, ':' or '\' ).
+' If there are no path delimiting characters present, the path is considered to be
+' a File Spec path.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsFileSpec (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsFileSpecW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if a file is an HTML file. The determination is made based on the
+' content type that is registered for the file's extension.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsHTMLFile (BYREF wszFile AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsHTMLFileW(wszFile)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines whether or not a file name is in long format.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsLFNFileSpec (BYREF wszName AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsLFNFileSpecW(wszName)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines whether a path string represents a network resource.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsNetworkPath (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsNetworkPathW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path to determine if it contains a valid prefix of the type passed by
+' szPrefix. A prefix is one of these types: "C:\", ".", "..", "..\".
+' Example: DIM b AS BOOLEAN = fbxPathIsPrefix("C:\", "C:\test\Some\sample")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsPrefix (BYREF wszPrefix AS CONST WSTRING, BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsPrefixW(wszPrefix, wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path and determines if it is relative.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsRelative (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsRelativeW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Parses a path to determine if it is a directory root.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsRoot (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsRootW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Compares two paths to determine if they have a root component.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsSameRoot (BYREF wszPath1 AS CONST WSTRING, BYREF wszPath2 AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsSameRootW(wszPath1, wszPath2)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if an existing folder contains the attributes that make it a system
+' folder. Alternately indicates if certain attributes qualify a folder to be a
+' system folder.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsSystemFolder (BYREF wszPath AS CONST WSTRING, BYVAL dwAttrb AS DWORD) AS BOOLEAN
+   RETURN PathIsSystemFolderW(wszPath, dwAttrb)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if the string is a valid Universal Naming Convention (UNC) for a
+' server and share path.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsUNC (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsUNCW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if a string is a valid Universal Naming Convention (UNC) for a server
+' path only.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsUNCServer (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsUNCServerW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if a string is a valid Universal Naming Convention (UNC) share path,
+' \\ server\ share.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsUNCServerShare (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsUNCServerShareW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Tests a given string to determine if it conforms to a valid URL format.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathIsURL (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathIsURLW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Gives an existing folder the proper attributes to become a system folder.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathMakeSystemFolder (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathMakeSystemFolderW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes the attributes from a folder that make it a system folder. This folder
+' must actually exist in the file system.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathUnmakeSystemFolder (BYREF wszPath AS CONST WSTRING) AS BOOLEAN
+   RETURN PathUnmakeSystemFolderW(wszPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches for a file.
+' PathFindOnPath searches for the file specified by wszFile. If no directories are specified
+' in ppszOtherDirs, it attempts to find the file by searching standard directories such as
+' System32 and the directories specified in the PATH environment variable. To expedite the
+' process or enable PathFindOnPath to search a wider range of directories, use the ppszOtherDirs
+' parameter to specify one or more directories to be searched first. If more than one file
+' has the name specified by pszFile, PathFindOnPath returns the first instance it finds.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathFindOnPath (BYREF wszFile AS CONST WSTRING, BYVAL ppwszOtherDirs AS WSTRING PTR PTR = NULL) AS USTRING
+   DIM _wszFile AS WSTRING * MAX_PATH = wszFile
+   PathFindOnPathW(_wszFile, ppwszOtherDirs)
+   RETURN _wszFile
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a string using an Microsoft MS-DOS wild card match type.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathMatchSpec (BYREF wszFile AS CONST WSTRING, BYREF wszSpec AS CONST WSTRING) AS BOOLEAN
+   RETURN PathMatchSpecW(wszFile, wszSpec)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes any arguments from a given path.
+' This function should not be used on generic command path templates (from users or the
+' registry), but rather it should be used only on templates that the application knows to
+' be well formed.
+' Usage: DIM ustr AS USTRING = AfxPathRemoveArgs("c:\a\b\FileA Arg1 Arg2")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRemoveArgs (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathRemoveArgsW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes all leading and trailing spaces from a path.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRemoveBlanks (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathRemoveBlanksW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes the trailing file name and backslash from a path, if it has them.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRemoveFileSpec (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathRemoveFileSpecW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if a given path is correctly formatted and fully qualified.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathSearchAndQualify (BYREF wszPath AS CONST WSTRING, BYREF wszFullyQualifiedPath AS CONST WSTRING, BYVAL cchFullyQualifiedPath AS DWORD) AS BOOLEAN
+   RETURN PathSearchAndQualifyW(wszPath, wszFullyQualifiedPath, cchFullyQualifiedPath)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the text of a child control in a window or dialog box, using
+' PathCompactPath to make sure the path fits in the control.
+' ========================================================================================
+PUBLIC SUB fbxPathSetDlgItemPath (BYVAL hDlg AS HWND, BYVAL cID AS LONG, BYREF wszPath AS CONST WSTRING)
+   PathSetDlgItemPathW(hDlg, cID, wszPath)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Removes the path portion of a fully qualified path and file.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathStripPath (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathStripPathW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes all parts of the path except for the root information.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathStripToRoot (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathStripToRootW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes the decoration from a path string.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathUndecorate (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH = wszPath
+   PathUndecorateW(_wszPath)
+   RETURN _wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Takes a fully qualified path, and replaces several folder names with their
+' associated environment string.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathUnExpandEnvStrings (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszBuf AS WSTRING * MAX_PATH
+   PathUnExpandEnvStringsW(wszPath, _wszBuf, SIZEOF(_wszBuf))
+   RETURN _wszBuf
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Parses a file location string containing a file location and icon index, and
+' returns the valid icon index value.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathParseIconLocation (BYREF wszIconFile AS CONST WSTRING) AS USTRING
+   DIM _wszIconFile AS WSTRING * MAX_PATH = wszIconFile
+   PathParseIconLocationW(_wszIconFile)
+   RETURN _wszIconFile
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Creates a relative path from one file or folder to another.
+' This function takes a pair of paths and generates a relative path from one to the other.
+' The paths do not have to be fully qualified, but they must have a common prefix, or the
+' function will fail and return FALSE.
+' For example, let the starting point, wszFrom, be "c:\FolderA\FolderB\FolderC", and the
+' ending point, wszTo, be "c:\FolderA\FolderD\FolderE". PathRelativePathTo will return the
+' relative path from wszFrom to wszTo as: "..\..\FolderD\FolderE". You will get the same
+' result if you set wszFrom to "\FolderA\FolderB\FolderC" and wszTo to "\FolderA\FolderD\FolderE".
+' On the other hand, "c:\FolderA\FolderB" and "a:\FolderA\FolderD do not share a common
+' prefix, and the function will fail. Note that "\\" is not considered a prefix and is ignored.
+' If you set wszFrom to "\\FolderA\FolderB", and wszTo to "\\FolderC\FolderD", the function will fail.
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRelativePathTo (BYREF wszFrom AS CONST WSTRING, BYVAL dwAttrFrom AS DWORD, BYREF wszTo AS CONST WSTRING, BYVAL dwAttrTo AS DWORD) AS USTRING
+   DIM _wszPath AS WSTRING * MAX_PATH
+   IF PathRelativePathToW(_wszPath, wszFrom, dwAttrFrom, wszTo, dwAttrto) THEN RETURN _wszPath
+   RETURN ""
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Takes a URL string, determines a scheme for it, and returns a string with an
+' appropriate prefix.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlApplyScheme (BYREF wszUrl AS WSTRING, BYVAL dwFlags AS DWORD) AS USTRING
+   DIM _wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchOut AS DWORD = SIZEOF(_wszOut)
+   DIM hr AS HRESULT = UrlApplySchemeW(wszUrl, _wszOut, @cchOut, dwFlags)
+   IF hr = S_OK OR hr = S_FALSE THEN RETURN _wszOut ELSE RETURN wszUrl
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Takes a URL string and converts it into canonical form.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlCanonicalize (BYREF wszUrl AS WSTRING, BYVAL dwFlags AS DWORD) AS USTRING
+   DIM _wszCanonicalized AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchCanonicalized AS DWORD = SIZEOF(_wszCanonicalized)
+   DIM hr AS HRESULT = UrlCanonicalizeW(wszUrl, _wszCanonicalized, @cchCanonicalized, dwFlags)
+   IF hr = S_OK THEN RETURN _wszCanonicalized ELSE RETURN wszUrl
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' When provided with a relative URL and its base, returns a URL in canonical form.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlCombine (BYREF wszBase AS WSTRING, BYREF wszRelative AS WSTRING, BYVAL dwFlags AS DWORD) AS USTRING
+   DIM _wszCombined AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchCombined AS DWORD = SIZEOF(_wszCombined)
+   DIM hr AS HRESULT = UrlCombineW(wszBase, wszRelative, _wszCombined, @cchCombined, dwFlags)
+   IF hr = S_OK THEN RETURN _wszCombined ELSE RETURN wszBase
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Makes a case-sensitive comparison of two URL strings.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlCompare (BYREF wszURL1 AS CONST WSTRING, BYREF wszURL2 AS CONST WSTRING, BYVAL fIgnoreSlash AS LONG) AS BOOLEAN
+   RETURN UrlCompareW(wszURL1, wszURL2, fIgnoreSlash)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Takes a Microsoft MS-DOS path and converts it to a canonicalized URL.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlCreateFromPath (BYREF wszPath AS WSTRING) AS USTRING
+   DIM _wszUrl AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchUrl AS DWORD = SIZEOF(_wszUrl)
+   DIM hr AS HRESULT = UrlCreateFromPathW(wszPath, _wszUrl, @cchUrl, 0)
+   IF hr = S_OK OR hr = S_FALSE THEN RETURN _wszUrl ELSE RETURN wszPath
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts characters in a URL that might be altered during transport across the
+' Internet ("unsafe" characters) into their corresponding escape sequences.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlEscape (BYREF wszURL AS WSTRING, BYVAL dwFlags AS DWORD) AS USTRING
+   DIM _wszEscaped AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchEscaped AS DWORD = SIZEOF(_wszEscaped)
+   DIM hr AS HRESULT = UrlEscapeW(wszURL, _wszEscaped, @cchEscaped, 0)
+   IF hr = S_OK THEN RETURN _wszEscaped ELSE RETURN wszURL
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts space characters into their corresponding escape sequence.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlEscapeSpaces (BYREF wszURL AS WSTRING) AS USTRING
+   DIM _wszEscaped AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchEscaped AS DWORD = SIZEOF(_wszEscaped)
+   DIM hr AS HRESULT = UrlEscapeSpaces(wszURL, _wszEscaped, @cchEscaped)
+   IF hr = S_OK THEN RETURN _wszEscaped ELSE RETURN wszURL
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the location from a URL.
+' ========================================================================================
+PUBLIC FUNCTION fbxxUrlGetLocation (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM _wszUrl AS WSTRING * MAX_PATH = wszUrl
+   DIM pwszLocation AS WSTRING PTR = cast(WSTRING PTR, UrlGetLocationW(_wszUrl))
+   IF pwszLocation THEN *cast(WSTRING PTR, @_wszUrl) = *pwszLocation
+   RETURN _wszUrl
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns a specified part of that URL.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetPart (BYREF wszUrl AS CONST WSTRING, BYVAL dwPart AS DWORD, BYVAL dwFlags AS DWORD) AS USTRING
+   DIM _wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchOut AS DWORD = SIZEOF(_wszOut)
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, _wszOut, @cchOut, dwPart, dwFlags)
+   IF hr = S_OK THEN RETURN _wszOut
+   RETURN ""
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Hashes a URL string.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlHash (BYREF wszURL AS CONST WSTRING, BYVAL pbHash AS BYTE PTR, BYVAL cbHash AS DWORD) AS HRESULT
+   RETURN UrlHashW(wszURL, pbHash, cbHash)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Tests whether or not a URL is a specified type.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlIs (BYREF wszURL AS CONST WSTRING, BYVAL nUrlIs AS URLIS) AS BOOLEAN
+   RETURN UrlIsW(wszURL, nUrlIs)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Tests whether or not a URL is a specified type.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlIsFileUrl (BYREF wszURL AS CONST WSTRING) AS BOOLEAN
+   RETURN UrlIsW(wszURL, URLIS_FILEURL)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Returns whether or not a URL is a No History URL.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlIsNoHistory (BYREF wszURL AS CONST WSTRING) AS BOOLEAN
+   RETURN UrlIsNoHistoryW(wszURL)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Returns whether a URL is opaque.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlIsOpaque (BYREF wszURL AS CONST WSTRING) AS BOOLEAN
+   RETURN UrlIsOpaqueW(wszURL)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts escape sequences back into ordinary characters.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlUnescape (BYREF wszURL AS WSTRING, BYVAL dwFlags AS DWORD) AS USTRING
+   DIM _wszUnescaped AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cchUnescaped AS DWORD = SIZEOF(_wszUnescaped)
+   DIM hr AS HRESULT = UrlUnescapeW(wszURL, _wszUnescaped, @cchUnescaped, 0)
+   IF hr = S_OK THEN
+      IF (dwFlags AND URL_UNESCAPE_INPLACE) <> URL_UNESCAPE_INPLACE THEN RETURN _wszUnescaped
+   ELSE
+      RETURN wszURL
+   END IF
+   RETURN ""
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts escape sequences back into ordinary characters and overwrites the
+' original string.
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlUnescapeInPlace (BYREF wszURL AS WSTRING, BYVAL dwFlags AS DWORD) AS HRESULT
+   RETURN UrlUnescapeW(wszURL, NULL, NULL, dwFlags OR URL_UNESCAPE_INPLACE)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Searches a path to determine whether it contains a file of a specified file type extension.
+' Returns TRUE if a file name pattern specified in wszSpec matched the file name found in
+' the string pointed to by pszFile; otherwise, it returns FALSE.
+' Windows Vista. Not declared in the FB includes.
+' Example: DIM b AS BOOLEAN = fbxPathMatchSpec("c:\test\file.txt", "*.txt")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathMatchSpecEx (BYREF wszFile AS CONST WSTRING, BYREF wszSpec AS CONST WSTRING, BYVAL dwFlags AS DWORD = 0) AS BOOLEAN
+   DIM AS ANY PTR pLib = DyLibLoad("Shlwapi.dll")
+   IF pLib = 0 THEN EXIT FUNCTION
+   DIM pProc AS FUNCTION (BYREF wszFile AS CONST WSTRING, BYREF wszSpec AS CONST WSTRING, BYVAL dwFlags AS DWORD) AS HRESULT
+   pProc = DyLibSymbol(pLib, "PathMatchSpecExW")
+   IF pProc = 0 THEN EXIT FUNCTION
+   RETURN pProc(wszFile, wszSpec, dwFlags) = S_OK
+   DyLibFree(pLib)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' *** DEPRECATED ***
+' [UrlFixupW is available for use in the operating systems specified in the Requirements
+' section. It may be altered or unavailable in subsequent versions.]
+' Attempts to correct a URL whose protocol identifier is incorrect. For example, htttp
+' will be changed to http.
+' Not declared in the FB includes. Available only in unicode version.
+' Requirements: Windows XP, Windows Vista, Windows 7.
+' Example: DIM ustr AS USTRING = fbxUrlFixup("htttp://www.planetsquires.com/protect/forum/index.php")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlFixup (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM AS ANY PTR pLib = DyLibLoad("Shlwapi.dll")
+   IF pLib = 0 THEN RETURN ""
+   DIM pProc AS FUNCTION (BYREF wszUrl AS WSTRING, BYREF pszTranslatedUrl AS WSTRING, BYVAL cchMax AS DWORD) AS HRESULT
+   pProc = DyLibSymbol(pLib, "UrlFixupW")
+   IF pProc = 0 THEN RETURN ""
+   DIM _wszUrl AS WSTRING * INTERNET_MAX_URL_LENGTH + 1 = wszUrl
+   DIM _wszTranslatedUrl AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = pProc(_wszUrl, _wszTranslatedUrl, INTERNET_MAX_URL_LENGTH + 1)
+   DyLibFree(pLib)
+   RETURN _wszTranslatedUrl
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if a specified string is a valid URL.
+' Example: print fbxIsValidUrl("https://user@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxIsValidUrl (BYREF wszUrl AS CONST WSTRING) AS BOOLEAN
+   DIM AS ANY PTR pLib = DyLibLoad("urlmon.dll")
+   IF pLib = 0 THEN RETURN FALSE
+   DIM pProc AS FUNCTION (BYVAL pBC AS LPBC, BYVAL szURL AS LPCWSTR, BYVAL dwReserved AS DWORD) AS HRESULT
+   pProc = DyLibSymbol(pLib, "IsValidURL")
+   IF pProc = 0 THEN RETURN FALSE
+   DIM hr AS HRESULT = pProc(NULL, wszUrl, 0)
+   DyLibFree(pLib)
+   IF hr = S_OK THEN RETURN TRUE ELSE RETURN FALSE
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns the host name.
+' Example: print fbxUrlGetHostName("https://user@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetHostName (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cbLen AS DWORD = INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, @wszOut, @cbLen, URL_PART_HOSTNAME, 0)
+   RETURN wszOut
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns the user name.
+' Example: print fbxUrlGetUserName("https://user@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetUserName (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cbLen AS DWORD = INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, @wszOut, @cbLen, URL_PART_USERNAME, 0)
+   RETURN wszOut
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns the password.
+' print fbxUrlGetPassword("https://user:secret@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetPassword (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cbLen AS DWORD = INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, @wszOut, @cbLen, URL_PART_PASSWORD, 0)
+   RETURN wszOut
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns the port number.
+' Example: print fbxUrlGetPortNumber("https://user@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetPortNumber (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cbLen AS DWORD = INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, @wszOut, @cbLen, URL_PART_PORT, 0)
+   RETURN wszOut
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns the query portion.
+' Example: print fbxUrlGetQuery("https://user@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetQuery (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cbLen AS DWORD = INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, @wszOut, @cbLen, URL_PART_QUERY, 0)
+   RETURN wszOut
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Accepts a URL string and returns the scheme.
+' print fbxUrlGetScheme("https://user@example.com:8080/path/to/resource?id=123&lang=es")
+' ========================================================================================
+PUBLIC FUNCTION fbxUrlGetScheme (BYREF wszUrl AS CONST WSTRING) AS USTRING
+   DIM wszOut AS WSTRING * INTERNET_MAX_URL_LENGTH + 1
+   DIM cbLen AS DWORD = INTERNET_MAX_URL_LENGTH + 1
+   DIM hr AS HRESULT = UrlGetPartW(wszUrl, @wszOut, @cbLen, URL_PART_SCHEME, 0)
+   RETURN wszOut
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts a path string into a canonical form.
+' Usage example fbxPathAllocCanonicalize(ExePath, PATHCCH_ENSURE_TRAILING_SLASH)
+' ========================================================================================
+PUBLIC FUNCTION fbxPathAllocCanonicalize (BYVAL pwszPathIn AS PCWSTR, BYVAL dwFlags AS ULONG) AS USTRING
+   IF pwszPathIn = NULL THEN FUNCTION = "" : EXIT FUNCTION
+   DIM m_hLib AS ANY PTR = DyLibLoad("KernelBase.dll")
+   IF m_hLib THEN
+      DIM pPathAllocCanonicalize AS FUNCTION (BYVAL pszPathIn AS PCWSTR, BYVAL dwFlags AS ULONG, BYVAL ppszPathOut AS PWSTR PTR) AS HRESULT
+      pPathAllocCanonicalize = DyLibSymbol(m_hLib, "PathAllocCanonicalize")
+      DIM pwszPathOut AS PWSTR
+      IF pPathAllocCanonicalize THEN SetLastError(pPathAllocCanonicalize(pwszPathIn, dwFlags, @pwszPathOut))
+      IF pwszPathOut THEN
+         FUNCTION = *pwszPathOut
+         LocalFree(pwszPathOut)
+      END IF
+      DyLibFree(m_hLib)
+   ELSE
+      FUNCTION = *pwszPathIn
+   END IF
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Converts a path string into a canonical form.
+' Usage example fbxPathAllocCombine(ExePath, "Test", PATHCCH_ENSURE_TRAILING_SLASH)
+' ========================================================================================
+PUBLIC FUNCTION fbxPathAllocCombine (BYVAL pwszPathIn AS PCWSTR, BYVAL pwszMore AS PCWSTR, BYVAL dwFlags AS ULONG) AS USTRING
+   IF pwszPathIn = NULL THEN FUNCTION = "" : EXIT FUNCTION
+   DIM m_hLib AS ANY PTR = DyLibLoad("KernelBase.dll")
+   IF m_hLib THEN
+      DIM pPathAllocCombine AS FUNCTION (BYVAL pszPathIn AS PCWSTR, BYVAL pwszMore AS PCWSTR, BYVAL dwFlags AS ULONG, BYVAL ppszPathOut AS PWSTR PTR) AS HRESULT
+      pPathAllocCombine = DyLibSymbol(m_hLib, "PathAllocCombine")
+      DIM pwszPathOut AS PWSTR
+      IF pPathAllocCombine THEN SetLastError(pPathAllocCombine(pwszPathIn, pwszMore, dwFlags, @pwszPathOut))
+      IF pwszPathOut THEN
+         FUNCTION = *pwszPathOut
+         LocalFree(pwszPathOut)
+      END IF
+      DyLibFree(m_hLib)
+   ELSE
+      FUNCTION = *pwszPathIn
+   END IF
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Removes the trailing backslash from a given path.
+' Usage eample: DIM ustr AS USTRING = fbxPathRemoveBackslashEx("c:\a\b\File\")
+' ========================================================================================
+PUBLIC FUNCTION fbxPathRemoveBackslashEx (BYREF wszPath AS CONST WSTRING) AS USTRING
+   DIM _wszPath AS WSTRING * PATHCCH_MAX_CCH = wszPath
+   DIM m_hLib AS ANY PTR = DyLibLoad("KernelBase.dll")
+   IF m_hLib THEN
+      DIM pPathCchRemoveBackslashEx AS FUNCTION (BYVAL pwszPath AS PCWSTR, BYVAL cchPath AS size_t, BYVAL ppszEnd AS PWSTR PTR, BYVAL pcchRemaining AS size_t PTR) AS HRESULT
+      pPathCchRemoveBackslashEx = DyLibSymbol(m_hLib, "PathCchRemoveBackslashEx")
+      IF pPathCchRemoveBackslashEx THEN SetLastError(pPathCchRemoveBackslashEx(_wszPath, PATHCCH_MAX_CCH, NULL, NULL))
+      FUNCTION = _wszPath
+      DyLibFree(m_hLib)
+   ELSE
+      FUNCTION = wszPath
+   END IF
+END FUNCTION
+' ========================================================================================

@@ -1,0 +1,26 @@
+' fbx/core (pkg/fbx): every header the module's files include, and the
+' macros more than one of its files uses.
+#pragma once
+
+#include once "windows.bi"
+#include once "win/wtypes.bi"
+#include once "/crt/wchar.bi"
+#include once "win/Ole2.bi"
+#include once "/crt/string.bi"
+#include once "utf_conv.bi"
+#include once "win/unknwnbase.bi"
+#include once "win/ocidl.bi"
+#include once "crt/math.bi"
+#include once "crt/limits.bi"
+#include once "crt/ctype.bi"
+#include once "crt/win32/ctype.bi"
+#include once "win/winnls.bi"
+#include once "win/bcrypt.bi"
+#include once "string.bi"
+#include once "win/shlwapi.bi"
+#include once "win/shtypes.bi"
+#include once "win/propvarutil.bi"
+
+#ifndef FBX_BSTR
+   #define FBX_BSTR WSTRING PTR
+#endif
