@@ -1187,6 +1187,7 @@ end sub
 #include once "symbols/constout.bas"
 #include once "symbols/iifudt.bas"
 #include once "symbols/staticdef.bas"
+#include once "symbols/declshape.bas"
 
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
@@ -1203,6 +1204,7 @@ private sub WalkExtra_ _
     if k = N_CALL then CheckIifUdt_( c, id )
     if k = N_CALL then CheckConvIntrinsic_( c, id )
     if k = N_VAR then CheckStaticMemberDef_( c, id )
+    if k = N_VAR then CheckDeclShape_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )

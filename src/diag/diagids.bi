@@ -668,6 +668,16 @@
     DIAG( TKO0891, SEV_ERROR,   "no constructor of the base takes %0 argument(s)" )
     '' fbc's error 9: an empty 'base( )' over a base that has nothing to construct -- assigncheck.bas.
     DIAG( TKO0892, SEV_ERROR,   "base( ) needs a value: the base type has no constructor" )
+    '' fbc's error 14: 'type T as dim' -- a reserved word is no type name -- decltype.bas.
+    DIAG( TKO0893, SEV_ERROR,   "'%0' is a keyword and cannot name a type" )
+    '' fbc's error 136: 'common array(0)' -- declshape.bas.
+    DIAG( TKO0894, SEV_ERROR,   "'%0' is a COMMON array, which is dynamic and cannot be given bounds" )
+    '' fbc's error 281: an ellipsis bound with no initializer to count -- declshape.bas.
+    DIAG( TKO0895, SEV_ERROR,   "'%0' has an ellipsis bound, which needs an initializer to count" )
+    '' fbc's error 76: an ellipsis bound on a REDIM -- declshape.bas.
+    DIAG( TKO0896, SEV_ERROR,   "'%0' is dynamic: a REDIM cannot take an ellipsis bound" )
+    '' fbc's error 237: 'dim as const integer foo = any' -- declshape.bas.
+    DIAG( TKO0897, SEV_ERROR,   "'%0' is const, so it needs a value: '= any' leaves it unset" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

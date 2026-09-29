@@ -1,6 +1,22 @@
 '' decltype.bas -- TYPE, ENUM and NAMESPACE declarations, and the top-level
 '' Declaration dispatch.  Included by decl.bas, INSIDE namespace Tko.Parse.
 
+'' A RESERVED WORD IS NO TYPE NAME: 'type T as dim' is fbc's error 14, "Expected identifier"
+'' (typedef/identifiers-fwdref-keyword). Measured on fbc-modern 1.20, 2026-09-29, over every
+'' KEYWORD- and OPERATOR-class word in the table: only the type keywords -- integer, string,
+'' any, sub ... -- are taken. The INTRINSIC words -- print, len, get, redim -- are names to
+'' fbc and forward-reference a type like any other. TypeRef reads any keyword as a name.
+private sub TypedefKeywordTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if (n = Tko.NODE_NONE) orelse p.silent then return
+    if p.ast->Kind( n ) <> Tko.N_TYPEREF then return
+    if (p.ast->nodes[cast( long, n )].flags and Tko.NF_PROC_TYPE) <> 0 then return
+    dim as Tko.TokenKind k = cast( Tko.TokenKind, p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )].op )
+    if Tko.IsKeywordKind( k ) = false then return
+    if Tko.IsTypeKeyword( k ) then return
+    if Tko.KeywordClassOf( k ) = Tko.KWCLASS_INTRINSIC then return
+    p.diags->Report( Tko.TKO0893, Tko.PointRange( p.ast->Loc( n ) ), lcase( mid( Tko.TokenKindName( k ), 4 ) ) )  '' 'KW_DIM' -> 'dim'
+end sub
+
 private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as long typeTok0 = p.pos
@@ -19,6 +35,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.KW_AS then
         Advance( p )
         dim as Tko.NodeId aliased = TypeRef( p )
+        TypedefKeywordTarget_( p, aliased )
         sp.a = aliased
         DeclName( p, sp.name )
         '' Every name after the first becomes its own N_TYPEDEF child sharing the same
@@ -89,6 +106,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         Advance( p )
         sp.a = TypeRef( p )
+        TypedefKeywordTarget_( p, sp.a )
         DeclName( p, sp.name )
         return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
     end if
@@ -97,6 +115,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.KW_AS then
         Advance( p )
         sp.a = TypeRef( p )
+        TypedefKeywordTarget_( p, sp.a )
 
         '' A COMMA LIST, and unlike the reversed 'type as integer a, b' form each
         '' declarator carries its OWN type: 'type a as integer, b as double' declares
@@ -110,6 +129,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             if DeclName( p, ep2.name ) = false then exit while
             if Accept( p, Tko.KW_AS ) = false then exit while
             ep2.a = TypeRef( p )
+            TypedefKeywordTarget_( p, ep2.a )
             extra2.Push( cast( ulong, MakeStmt( p, Tko.N_TYPEDEF, nt2.loc, ep2 ) ) )
         wend
         sp.first = p.ast->children.Count

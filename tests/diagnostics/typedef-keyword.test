@@ -1,0 +1,9 @@
+'' TKO0893, fbc's 14: a reserved word as a typedef's target. See TypedefKeywordTarget_ in
+'' parser/decltype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typedef-keyword.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typedef-keyword.bas(3,12): error TKO0893
+'' EXPECT-OUT: typedef-keyword.bas(4,12): error TKO0893
+'' EXPECT-OUT: typedef-keyword.bas(5,9): error TKO0893
+'' EXPECT-MAX-DIAG: 3

@@ -1,0 +1,8 @@
+'' TKO0897, fbc's 237: a const initialized with '= any'. See symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-any-init.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-any-init.bas(2,27): error TKO0897
+'' EXPECT-OUT: const-any-init.bas(3,35): error TKO0897
+'' EXPECT-OUT: const-any-init.bas(6,34): error TKO0897
+'' EXPECT-MAX-DIAG: 3
