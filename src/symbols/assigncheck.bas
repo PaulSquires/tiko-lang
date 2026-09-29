@@ -109,12 +109,28 @@ private function ConstDropped_ _
     return false
 end function
 
+'' 'this = x' ASSIGNS THE OBJECT. 'this' is held as the pointer the ABI passes, so its type
+'' is 'T ptr', but the statement is T's 'operator let' -- fbc calls 'let( byval d as double )'
+'' for 'this = dtSrc' in a constructor (fbx's COleDateTime). Read as a pointer assignment it
+'' was TKO0670 for a double and TKO0830 for a longint; see lowerassign.bas for the call.
+private function ThisObjectTarget_( byref c as Ctx, byval n as NodeId ) as boolean
+    if c.ast->Kind( n ) <> N_IDENT then return false
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, SYM_PARAMETER ) then return false
+    if s->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( n ) )
+    if c.types->Kind( t ) <> TK_POINTER then return false
+    return c.types->Kind( c.types->Unqualify( c.types->Inner( t ) ) ) = TK_UDT
+end function
+
 private sub CheckPtrAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->op = 0 then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    if ThisObjectTarget_( c, sp->a ) then return
     dim as TypeId lt = c.info->TypeOf_( sp->a )
     dim as TypeId rt = c.info->TypeOf_( sp->b )
     '' 'function = expr' -- Check leaves the result untyped; the walk carries its type.
@@ -159,6 +175,7 @@ private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->op = 0 then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    if ThisObjectTarget_( c, sp->a ) then return
     PtrFloatPair_( c, id, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ) )
 end sub
 

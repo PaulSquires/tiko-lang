@@ -1,0 +1,11 @@
+'' 'this = x' ASSIGNS THE OBJECT. 'this' is held as the pointer the ABI passes, so a value of
+'' another type read as a pointer assignment: TKO0670 for a double ("a pointer and a
+'' floating-point value do not convert"), and for a longint only TKO0830 -- after which the
+'' value was stored over the pointer, and the object never changed. fbc calls the matching
+'' 'operator let' for both and prints 2.5 and 3.5 (fbc-modern 1.20, 2026-09-29).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/this-assign-let.bas -o tests/driver/thisassignlet.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/driver/thisassignlet.exe
+'' EXPECT-RUN-OUT:  2.5 3.5

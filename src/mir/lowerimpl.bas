@@ -1477,7 +1477,13 @@ sub EmitImplicitStructors( byref c as Ctx )
         case 1
             written = (StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE)
         case 2
-            written = (StructorOf( c, t, "let" ) <> Tko.SYMBOL_NONE)
+            '' THE SAME-TYPE ONE, as the call sites ask. A type declaring only a CONVERTING
+            '' 'let( byval d as double )' has none, and they called the synthesised copy --
+            '' which this, counting any 'let' as written, never emitted: 'undefined symbol
+            '' COLEDATETIMESPAN::operator=(const&)' in fbx/datetime. fbc copies it (42).
+            dim as FB.Array( of ulong ) selfT
+            selfT.Push( cast( ulong, t ) )
+            written = (PickCtor( c, StructorOf( c, t, "let" ), selfT ) <> Tko.SYMBOL_NONE)
         case else
             '' THE WHOLE CHAIN -- see CopyCtorOf_. A type whose copy constructor is
             '' not the first one-argument one was given a SYNTHESISED copy as well.

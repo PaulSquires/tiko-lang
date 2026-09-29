@@ -570,6 +570,18 @@ private sub LowerAssign _
                                     return
                                 end if
                             end if
+                        else
+                            '' ...AND A VALUE OF ANOTHER TYPE IS A CONVERTING 'operator let' on
+                            '' the object -- 'this = dtSrc' over 'let( byval as DATE_ )' (fbx's
+                            '' COleDateTime). The object is where the slot of 'this' points,
+                            '' which is how LowerUserLetConv_ reads a result slot. Never the
+                            '' plain store below, which wrote the value over the pointer.
+                            dim as MirValue tsl = LowerAddr( c, target )
+                            if tsl.kind = cast( ubyte, MV_LOCAL ) then
+                                if LowerUserLetConv_( c, target, ot, value, tsl.id, false ) then return
+                            end if
+                            SkipHere( c )
+                            return
                         end if
                     end if
                 end if

@@ -1,0 +1,11 @@
+'' A CONVERTING 'operator let' IS NOT THE COPY. Span has a destructor, so a same-type copy
+'' is the synthesised 'operator let( byref as const Span )' -- and the only 'let' Span
+'' declares takes a double. The call was emitted and the body was not, because ANY written
+'' 'let' counted as the copy: 'undefined symbol: SPAN::operator=(SPAN const&)' at the link.
+'' fbc prints 42 (fbc-modern 1.20, 2026-09-29).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/implicit-let-converting.bas -o tests/driver/implicitletconv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/driver/implicitletconv.exe
+'' EXPECT-RUN-OUT:  42
