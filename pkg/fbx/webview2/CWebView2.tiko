@@ -11,12 +11,20 @@
 
 
 ' // Notification messages
+' [pkg/fbx] #define NM_WV2_IMAGEREADY moved to webview2.ti
+
+' ########################################################################################
+' CWebView2 class
+' ########################################################################################
 #module "webview2"
 #import "fbx/core"
 #import "fbx/gui"
 #include once "webview2.ti"
 using core
 using gui
+#ifdef NM_WV2_IMAGEREADY
+#export NM_WV2_IMAGEREADY
+#endif
 #ifdef _CWV2_DEBUG_
 #export _CWV2_DEBUG_
 #endif
@@ -24,12 +32,6 @@ using gui
 #export CWV2_DP
 #endif
 
-#define NM_WV2_IMAGEREADY CULNG(-1)
-#export NM_WV2_IMAGEREADY
-
-' ########################################################################################
-' CWebView2 class
-' ########################################################################################
 PUBLIC TYPE CWebView2
 
    m_Result AS HRESULT                                ' // Result code

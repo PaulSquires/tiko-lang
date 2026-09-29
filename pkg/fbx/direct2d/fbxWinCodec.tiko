@@ -12,10 +12,8 @@ using core
 #include once "win/ocidl.bi"
 
 '#include <intsafe.h>
-#define WINCODEC_SDK_VERSION1 &h0236
-#export WINCODEC_SDK_VERSION1
-#define WINCODEC_SDK_VERSION2 &h0237
-#export WINCODEC_SDK_VERSION2
+' [pkg/fbx] #define WINCODEC_SDK_VERSION1 moved to direct2d.ti
+' [pkg/fbx] #define WINCODEC_SDK_VERSION2 moved to direct2d.ti
 
 ' [pkg/fbx] a block kept once in the package was here
 
@@ -247,15 +245,12 @@ PUBLIC CONST WIC_JPEG_HUFFMAN_BASELINE_ONE = 0
 PUBLIC CONST WIC_JPEG_HUFFMAN_BASELINE_THREE = &h111100
 
 'typedef /* [public] */ REFGUID REFWICPixelFormatGUID
-#define REFWICPixelFormatGUID REFGUID
-#export REFWICPixelFormatGUID
+' [pkg/fbx] #define REFWICPixelFormatGUID moved to direct2d.ti
 'typedef /* [public] */ GUID WICPixelFormatGUID
-#define WICPixelFormatGUID GUID
-#export WICPixelFormatGUID
+' [pkg/fbx] #define WICPixelFormatGUID moved to direct2d.ti
 
 PUBLIC DIM SHARED IID_WICPixelFormatDontCare AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h00})
-#define IID_WICPixelFormatUndefined GUID_WICPixelFormatDontCare
-#export IID_WICPixelFormatUndefined
+' [pkg/fbx] #define IID_WICPixelFormatUndefined moved to direct2d.ti
 PUBLIC DIM SHARED IID_WICPixelFormat1bppIndexed AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h01})
 PUBLIC DIM SHARED IID_WICPixelFormat2bppIndexed AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h02})
 PUBLIC DIM SHARED IID_WICPixelFormat4bppIndexed AS GUID = TYPE<GUID>(&h6fddc324, &h4e03, &h4bfe, {&hb1, &h85, &h3d, &h77, &h76, &h8d, &hc9, &h03})
@@ -1746,14 +1741,10 @@ PUBLIC DECLARE FUNCTION WICMapSchemaToName LIB "d2d1" ALIAS "WICMapSchemaToName"
    BYREF wszSchema AS WSTRING, BYVAL cchName AS UINT, BYREF wszName AS WSTRING, BYREF cchActual AS UINT) AS HRESULT
 ' ========================================================================================
 
-#define FACILITY_WINCODEC_ERR &h898
-#export FACILITY_WINCODEC_ERR
-#define WINCODEC_ERR_BASE &h2000
-#export WINCODEC_ERR_BASE
-#define MAKE_WINCODECHR(sev, code) MAKE_HRESULT(sev, FACILITY_WINCODEC_ERR, (WINCODEC_ERR_BASE + code))
-#export MAKE_WINCODECHR
-#define MAKE_WINCODECHR_ERR(code) MAKE_WINCODECHR(1, code)
-#export MAKE_WINCODECHR_ERR
+' [pkg/fbx] #define FACILITY_WINCODEC_ERR moved to direct2d.ti
+' [pkg/fbx] #define WINCODEC_ERR_BASE moved to direct2d.ti
+' [pkg/fbx] #define MAKE_WINCODECHR moved to direct2d.ti
+' [pkg/fbx] #define MAKE_WINCODECHR_ERR moved to direct2d.ti
 
 PUBLIC CONST WINCODEC_ERR_GENERIC_ERROR    = E_FAIL
 PUBLIC CONST WINCODEC_ERR_INVALIDPARAMETER = E_INVALIDARG

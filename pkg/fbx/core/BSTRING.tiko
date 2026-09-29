@@ -26,6 +26,291 @@
 
 #module "core"
 #include once "core.ti"
+#ifdef _BSTRING_DEBUG_
+#export _BSTRING_DEBUG_
+#endif
+#ifdef BSTRING_DP
+#export BSTRING_DP
+#endif
+#ifdef _CINT96_DEBUG_
+#export _CINT96_DEBUG_
+#endif
+#ifdef CINT96_DP
+#export CINT96_DP
+#endif
+#ifdef _DSAFEARRAY_DEBUG_
+#export _DSAFEARRAY_DEBUG_
+#endif
+#ifdef DSAFEARRAY_DP
+#export DSAFEARRAY_DP
+#endif
+#ifdef _DVARIANT_DEBUG_
+#export _DVARIANT_DEBUG_
+#endif
+#ifdef DVARIANT_DP
+#export DVARIANT_DP
+#endif
+#ifdef _DWSTRING_DEBUG_
+#export _DWSTRING_DEBUG_
+#endif
+#ifdef DWSTRING_DP
+#export DWSTRING_DP
+#endif
+#ifdef fbxAbs
+#export fbxAbs
+#endif
+#ifdef fbxAcos
+#export fbxAcos
+#endif
+#ifdef fbxAcosh
+#export fbxAcosh
+#endif
+#ifdef fbxAsin
+#export fbxAsin
+#endif
+#ifdef fbxAsinh
+#export fbxAsinh
+#endif
+#ifdef fbxAtan
+#export fbxAtan
+#endif
+#ifdef fbxAtan2
+#export fbxAtan2
+#endif
+#ifdef fbxAtanh
+#export fbxAtanh
+#endif
+#ifdef fbxBesselJ0
+#export fbxBesselJ0
+#endif
+#ifdef fbxBesselJ1
+#export fbxBesselJ1
+#endif
+#ifdef fbxBesselJn
+#export fbxBesselJn
+#endif
+#ifdef fbxBesselY0
+#export fbxBesselY0
+#endif
+#ifdef fbxBesselY1
+#export fbxBesselY1
+#endif
+#ifdef fbxBesselYn
+#export fbxBesselYn
+#endif
+#ifdef fbxCbrt
+#export fbxCbrt
+#endif
+#ifdef fbxChangeSign
+#export fbxChangeSign
+#endif
+#ifdef fbxCeil
+#export fbxCeil
+#endif
+#ifdef fbxClamp
+#export fbxClamp
+#endif
+#ifdef fbxCopySign
+#export fbxCopySign
+#endif
+#ifdef fbxCos
+#export fbxCos
+#endif
+#ifdef fbxCosh
+#export fbxCosh
+#endif
+#ifdef fbxDegToRad
+#export fbxDegToRad
+#endif
+#ifdef fbxErf
+#export fbxErf
+#endif
+#ifdef fbxErfc
+#export fbxErfc
+#endif
+#ifdef fbxExp
+#export fbxExp
+#endif
+#ifdef fbxExp2
+#export fbxExp2
+#endif
+#ifdef fbxExpm1
+#export fbxExpm1
+#endif
+#ifdef fbxExp2m1
+#export fbxExp2m1
+#endif
+#ifdef fbxFdim
+#export fbxFdim
+#endif
+#ifdef fbxFix
+#export fbxFix
+#endif
+#ifdef fbxTruncate
+#export fbxTruncate
+#endif
+#ifdef fbxFloor
+#export fbxFloor
+#endif
+#ifdef fbxFma
+#export fbxFma
+#endif
+#ifdef fbxFpClassify
+#export fbxFpClassify
+#endif
+#ifdef fbxFrac
+#export fbxFrac
+#endif
+#ifdef fbxHypot
+#export fbxHypot
+#endif
+#ifdef fbxILogB
+#export fbxILogB
+#endif
+#ifdef fbxInt
+#export fbxInt
+#endif
+#ifdef fbxIsFinite
+#export fbxIsFinite
+#endif
+#ifdef fbxIsInf
+#export fbxIsInf
+#endif
+#ifdef fbxIsNaN
+#export fbxIsNaN
+#endif
+#ifdef fbxIsNormal
+#export fbxIsNormal
+#endif
+#ifdef fbxIsSubnormal
+#export fbxIsSubnormal
+#endif
+#ifdef fbxLdexp
+#export fbxLdexp
+#endif
+#ifdef fbxLerp
+#export fbxLerp
+#endif
+#ifdef fbxLgamma
+#export fbxLgamma
+#endif
+#ifdef fbxLog
+#export fbxLog
+#endif
+#ifdef fbxLog2
+#export fbxLog2
+#endif
+#ifdef fbxLog10
+#export fbxLog10
+#endif
+#ifdef fbxLog1p
+#export fbxLog1p
+#endif
+#ifdef fbxLogB
+#export fbxLogB
+#endif
+#ifdef fbxLogBase
+#export fbxLogBase
+#endif
+#ifdef fbxMax
+#export fbxMax
+#endif
+#ifdef fbxMin
+#export fbxMin
+#endif
+#ifdef fbxMod
+#export fbxMod
+#endif
+#ifdef fbxModf
+#export fbxModf
+#endif
+#ifdef fbxNextAfter
+#export fbxNextAfter
+#endif
+#ifdef fbxPow
+#export fbxPow
+#endif
+#ifdef fbxRadToDeg
+#export fbxRadToDeg
+#endif
+#ifdef fbxRemainder
+#export fbxRemainder
+#endif
+#ifdef fbxRemap
+#export fbxRemap
+#endif
+#ifdef fbxScalb
+#export fbxScalb
+#endif
+#ifdef fbxScalbn
+#export fbxScalbn
+#endif
+#ifdef fbxSign
+#export fbxSign
+#endif
+#ifdef fbxSignbit
+#export fbxSignbit
+#endif
+#ifdef fbxSin
+#export fbxSin
+#endif
+#ifdef fbxSinh
+#export fbxSinh
+#endif
+#ifdef fbxSqrt
+#export fbxSqrt
+#endif
+#ifdef fbxTan
+#export fbxTan
+#endif
+#ifdef fbxTanh
+#export fbxTanh
+#endif
+#ifdef fbxTgamma
+#export fbxTgamma
+#endif
+#ifdef fbxSec
+#export fbxSec
+#endif
+#ifdef fbxCsc
+#export fbxCsc
+#endif
+#ifdef fbxCtan
+#export fbxCtan
+#endif
+#ifdef fbxAsec
+#export fbxAsec
+#endif
+#ifdef fbxAcsc
+#export fbxAcsc
+#endif
+#ifdef fbxAcot
+#export fbxAcot
+#endif
+#ifdef fbxSech
+#export fbxSech
+#endif
+#ifdef fbxCsch
+#export fbxCsch
+#endif
+#ifdef fbxCoth
+#export fbxCoth
+#endif
+#ifdef fbxAsech
+#export fbxAsech
+#endif
+#ifdef fbxAcsch
+#export fbxAcsch
+#endif
+#ifdef fbxAcoth
+#export fbxAcoth
+#endif
+#ifdef fbxBase64Encode
+#export fbxBase64Encode
+#endif
+#ifdef fbxBase64Decode
+#export fbxBase64Decode
+#endif
 #ifdef FBX_BSTR
 #export FBX_BSTR
 #endif
@@ -41,18 +326,12 @@
 ' can use the DebugView tool. See: https://learn.microsoft.com/en-us/sysinternals/downloads/debugview
 ' ========================================================================================
 #ifndef _BSTRING_DEBUG_
-   #define _BSTRING_DEBUG_ 0
-#export _BSTRING_DEBUG_
+' [pkg/fbx] #define _BSTRING_DEBUG_ moved to core.ti
 #ENDIF
 #ifndef _BSTRING_DP_
    #define _BSTRING_DP_ 1
 #export _BSTRING_DP_
-   #MACRO BSTRING_DP(st)
-      #IF (_BSTRING_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export BSTRING_DP
+' [pkg/fbx] #define BSTRING_DP moved to core.ti
 #ENDIF
 ' ========================================================================================
 

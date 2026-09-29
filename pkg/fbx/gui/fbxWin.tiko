@@ -479,8 +479,7 @@ PUBLIC FUNCTION fbxGetFileVersion (BYVAL pwszFileName AS WSTRING PTR) AS LONG
    HeapFree(GetProcessHeap, 0, pVerInfo)
 END FUNCTION
 ' ========================================================================================
-#define fbxComCtlVersion fbxGetFileVersion("comctl32.dll")
-#export fbxComCtlVersion
+' [pkg/fbx] #define fbxComCtlVersion moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -1689,8 +1688,7 @@ PUBLIC FUNCTION fbxGetDisplayBitsPerPixel () AS DWORD
    FUNCTION = dm.dmBitsPerPel
 END FUNCTION
 ' ========================================================================================
-#define fbxGetScreenColors fbxGetDisplayBitsPerPixel
-#export fbxGetScreenColors
+' [pkg/fbx] #define fbxGetScreenColors moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -1704,8 +1702,7 @@ PUBLIC FUNCTION fbxGetDisplayFrequency () AS DWORD
    FUNCTION = dm.dmDisplayFrequency
 END FUNCTION
 ' ========================================================================================
-#define fbxGetScreenRefreshRate fbxGetDisplayFrequency
-#export fbxGetScreenRefreshRate
+' [pkg/fbx] #define fbxGetScreenRefreshRate moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3856,8 +3853,7 @@ PUBLIC FUNCTION fbxGetExePath () AS USTRING
    RETURN buffer
 END FUNCTION
 ' ========================================================================================
-#define fbxExePath fbxGetExePath
-#export fbxExePath
+' [pkg/fbx] #define fbxExePath moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3871,8 +3867,7 @@ PUBLIC FUNCTION fbxGetExePathName () AS USTRING
    RETURN LEFT(buffer, p)
 END FUNCTION
 ' ========================================================================================
-#define fbxExePathName fbxGetExePathName
-#export fbxExePathName
+' [pkg/fbx] #define fbxExePathName moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3888,8 +3883,7 @@ PUBLIC FUNCTION fbxGetExeFileName () AS USTRING
    RETURN buffer
 END FUNCTION
 ' ========================================================================================
-#define fbxExeFileName fbxGetExeFileName
-#export fbxExeFileName
+' [pkg/fbx] #define fbxExeFileName moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3903,8 +3897,7 @@ PUBLIC FUNCTION fbxGetExeFileNameX () AS USTRING
    RETURN buffer
 END FUNCTION
 ' ========================================================================================
-#define fbxExeFileNameX fbxGetExeFileNameX
-#export fbxExeFileNameX
+' [pkg/fbx] #define fbxExeFileNameX moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3917,8 +3910,7 @@ PUBLIC FUNCTION fbxGetExeFileExt () AS USTRING
    IF p THEN RETURN MID(buffer, p) ELSE RETURN buffer
 END FUNCTION
 ' ========================================================================================
-#define fbxExeFileExt fbxGetExeFileExt
-#export fbxExeFileExt
+' [pkg/fbx] #define fbxExeFileExt moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3930,8 +3922,7 @@ PUBLIC FUNCTION fbxGetExeFullPath () AS USTRING
    RETURN LEFT(buffer, cb)
 END FUNCTION
 ' ========================================================================================
-#define fbxExeFullPath fbxGetExeFullPath
-#export fbxExeFullPath
+' [pkg/fbx] #define fbxExeFullPath moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3953,8 +3944,7 @@ PUBLIC FUNCTION fbxGetFileName (BYREF wszPath AS CONST WSTRING) AS USTRING
    RETURN ustrPath
 END FUNCTION
 ' ========================================================================================
-#define fbxFileName fbxGetFileName
-#export fbxFileName
+' [pkg/fbx] #define fbxFileName moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3968,8 +3958,7 @@ PUBLIC FUNCTION fbxGetFileNameX (BYREF wszPath AS CONST WSTRING) AS USTRING
    IF p THEN RETURN MID(ustrPath, p + 1) ELSE RETURN ustrPath
 END FUNCTION
 ' ========================================================================================
-#define fbxFileNameX fbxGetFileNameX
-#export fbxFileNameX
+' [pkg/fbx] #define fbxFileNameX moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -3983,8 +3972,7 @@ PUBLIC FUNCTION fbxGetFileExt (BYREF wszPath AS CONST WSTRING) AS USTRING
    IF p THEN RETURN MID(ustrPath, p) ELSE RETURN ustrPath
 END FUNCTION
 ' ========================================================================================
-#define fbxFileExt fbxGetFileExt
-#export fbxFileExt
+' [pkg/fbx] #define fbxFileExt moved to gui.ti
 ' ========================================================================================
 
 
@@ -4000,8 +3988,7 @@ PUBLIC FUNCTION fbxGetPathName (BYREF wszPath AS CONST WSTRING) AS USTRING
    RETURN ""
 END FUNCTION
 ' ========================================================================================
-#define fbxPathName fbxGetPathName
-#export fbxPathName
+' [pkg/fbx] #define fbxPathName moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -4020,8 +4007,7 @@ PUBLIC FUNCTION fbxGetFolderName (BYREF wszPath AS CONST WSTRING) AS USTRING
    RETURN ustrPath
 END FUNCTION
 ' ========================================================================================
-#define fbxFolderName fbxGetFolderName
-#export fbxFolderName
+' [pkg/fbx] #define fbxFolderName moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================
@@ -4051,8 +4037,7 @@ PUBLIC FUNCTION fbxSetCurrentDirectory (BYVAL pwszPathName AS LPCWSTR) AS BOOLEA
    RETURN SetCurrentDirectoryW(pwszPathName)
 END FUNCTION
 ' ========================================================================================
-#define fbxSetCurDir fbxSetCurrentDirectory
-#export fbxSetCurDir
+' [pkg/fbx] #define fbxSetCurDir moved to gui.ti
 ' ========================================================================================
 
 ' ========================================================================================

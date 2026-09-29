@@ -24,5 +24,57 @@
 #include once "win/DwmApi.bi"
 #include once "win/wininet.bi"
 
+#ifndef DDT_CBMACROS
+#define CBHNDL(wp, lp) cast(HWND, lp)
+#endif
+#ifndef DDT_CBMACROS
+#define CBCTL(wp, lp) LOWORD(wp)
+#endif
+#ifndef DDT_CBMACROS
+#define CBCTLMSG(wp, lp) HIWORD(wp)
+#endif
+#ifndef DDT_CBMACROS
+#define CBNMCODE(wp, lp) LOWORD(wp) 
+#endif
+#ifndef DDT_CBMACROS
+#define CBNMHWND(wp, lp) cast(HWND, lp)
+#endif
+#ifndef DDT_CBMACROS
+#define CBNMID(wp, lp) HIWORD(wp)
+#endif
+#ifndef DDT_CBMACROS
+#define CBNMHDR(wp, lp) cast(NMHDR PTR, lp)
+#endif
+#ifndef DDT_CBMACROS
+#define CBNMSGPTR(msg, wp, lp) cast(msg PTR, CBNMHDR(wp, lp))
+#endif
+#ifndef DDT_CBMACROS
+#define CBNMTYPESET(tp, wp, lp) memcpy @tp, CAST(ANY PTR, lp), SIZEOF(tp)
+#endif
+#ifndef _CDIALOG_DEBUG_
+   #define _CDIALOG_DEBUG_ 0
+#endif
+#ifndef _CDIALOG_DP_
+   #MACRO CDIALOG_DP(st)
+      #IF (_CDIALOG_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif
 #define fbxGetErrorInfo fbxGetWinErrMsg
+#define fbxComCtlVersion fbxGetFileVersion("comctl32.dll")
+#define fbxGetScreenColors fbxGetDisplayBitsPerPixel
+#define fbxGetScreenRefreshRate fbxGetDisplayFrequency
 #define fbxGetCurDir fbxGetCurrentDirectory
+#define fbxExePath fbxGetExePath
+#define fbxExePathName fbxGetExePathName
+#define fbxExeFileName fbxGetExeFileName
+#define fbxExeFileNameX fbxGetExeFileNameX
+#define fbxExeFileExt fbxGetExeFileExt
+#define fbxExeFullPath fbxGetExeFullPath
+#define fbxFileName fbxGetFileName
+#define fbxFileNameX fbxGetFileNameX
+#define fbxFileExt fbxGetFileExt
+#define fbxPathName fbxGetPathName
+#define fbxFolderName fbxGetFolderName
+#define fbxSetCurDir fbxSetCurrentDirectory

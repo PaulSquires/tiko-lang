@@ -40,8 +40,7 @@ using scripting
 #ifndef _WININET_
 PUBLIC const INTERNET_MAX_PATH_LENGTH = 2048
 PUBLIC const INTERNET_MAX_SCHEME_LENGTH = 32
-#define INTERNET_MAX_URL_LENGTH ((INTERNET_MAX_SCHEME_LENGTH + sizeof("://")) + INTERNET_MAX_PATH_LENGTH)
-#export INTERNET_MAX_URL_LENGTH
+' [pkg/fbx] #define INTERNET_MAX_URL_LENGTH moved to filesys.ti
 #endif
 
 #ifndef PATHCCH_OPTIONS
@@ -84,8 +83,7 @@ END ENUM
 #ifndef PATHCCH_MAX_CCH
    ' // max # of characters we support using the "\\?\" syntax
    ' // (0x7FFF + 1 for NULL terminator)
-   #define PATHCCH_MAX_CCH &h8000
-#export PATHCCH_MAX_CCH
+' [pkg/fbx] #define PATHCCH_MAX_CCH moved to filesys.ti
 #endif
 
 ' ========================================================================================

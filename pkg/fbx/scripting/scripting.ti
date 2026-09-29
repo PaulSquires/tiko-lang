@@ -8,3 +8,14 @@
 #include once "win/control.bi"
 #include once "win/wbemcli.bi"
 
+#ifndef _CDICOBJ_DEBUG_
+   #define _CDICOBJ_DEBUG_ 0
+#endif
+#ifndef _CDICOBJ_DP_
+   #MACRO CDICOBJ_DP(st)
+      #IF (_CDICOBJ_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif
+#define ISWbemLastError AS ISWbemObject_

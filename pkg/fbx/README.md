@@ -54,9 +54,10 @@ The modules import each other as the code needs, never in a circle:
   library's way not to collide across translation units -- and a module's `private` means
   "not exported", so they are `PUBLIC` here.
 - **Names are reached through the import**: `gui.CWindow`, or bare after `using gui`.
-- **Macros** each module file defines are `#export`ed (`core.FBX_BSTR`). The ones several
-  files of a module share live in the module's `<module>.ti` header, with every Windows header
-  the module's files include; an importer gets those bare too, as it would from an `#include`.
+- **Macros are used bare, as with `#include`**: `CBCTL( wParam, lParam )` after `#import
+  "fbx/gui"`. Every top-level macro lives in its module's `<module>.ti` header, with every
+  Windows header the module's files include, and the header travels with the import. They
+  are `#export`ed too, so `gui.CBCTL( ... )` works as well.
 - **Kept once**: the declarations several headers repeated under `#ifndef` guards -- the
   `fbx_IUnknown` / `fbx_IDispatch` base interfaces and `FBX_BSTR` (now `core`'s),
   `IDataSource` (`adodb`'s), the DDT callback macros (`gui`'s).

@@ -9,3 +9,4 @@
 '' RUN: tests/modules/pkgfbx.exe
 '' EXPECT-RUN-OUT:  11 3 tiko
 '' EXPECT-RUN-OUT: 2026 29 3
+'' EXPECT-RUN-OUT:  7-5

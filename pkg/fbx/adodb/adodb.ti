@@ -7,6 +7,16 @@
 #include once "win/unknwnbase.bi"
 #include once "win/ocidl.bi"
 
+#ifndef _CADOSTM_DEBUG_
+   #define _CADOSTM_DEBUG_ 0
+#endif
+#ifndef _CADOSTM_DP_
+   #MACRO CADOSTM_DP(st)
+      #IF (_CADOSTM_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif
 #ifndef _CADODB_DEBUG_
    #define _CADODB_DEBUG_ 0
 #endif

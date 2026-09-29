@@ -39,18 +39,12 @@ using com
 using core
 
 #ifndef _CXMLLITE_DEBUG_
-   #define _CXMLLITE_DEBUG_ 0
-#export _CXMLLITE_DEBUG_
+' [pkg/fbx] #define _CXMLLITE_DEBUG_ moved to net.ti
 #ENDIF
 #ifndef _CXMLLITE_DP_
    #define _CXMLLITE_DP_ 1
 #export _CXMLLITE_DP_
-   #MACRO CXMLLITE_DP(st)
-      #IF (_CXMLLITE_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CXMLLITE_DP
+' [pkg/fbx] #define CXMLLITE_DP moved to net.ti
 #ENDIF
 ' ========================================================================================
 

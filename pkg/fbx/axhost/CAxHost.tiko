@@ -31,6 +31,12 @@ using gui
 #ifdef CWBX_DP
 #export CWBX_DP
 #endif
+#ifdef _CMSHGRID_DEBUG_
+#export _CMSHGRID_DEBUG_
+#endif
+#ifdef CMSHGRID_DP
+#export CMSHGRID_DP
+#endif
 #ifdef _CMSHGRIDEVT_DEBUG_
 #export _CMSHGRIDEVT_DEBUG_
 #endif

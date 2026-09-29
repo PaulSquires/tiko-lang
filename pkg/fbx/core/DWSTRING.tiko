@@ -41,18 +41,12 @@
 ' can use the DebugView tool. See: https://learn.microsoft.com/en-us/sysinternals/downloads/debugview
 ' ========================================================================================
 #ifndef _DWSTRING_DEBUG_
-   #define _DWSTRING_DEBUG_ 0
-#export _DWSTRING_DEBUG_
+' [pkg/fbx] #define _DWSTRING_DEBUG_ moved to core.ti
 #ENDIF
 #ifndef _DWSTRING_DP_
    #define _DWSTRING_DP_ 1
 #export _DWSTRING_DP_
-   #MACRO DWSTRING_DP(st)
-      #IF (_DWSTRING_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export DWSTRING_DP
+' [pkg/fbx] #define DWSTRING_DP moved to core.ti
 #ENDIF
 ' ========================================================================================
 

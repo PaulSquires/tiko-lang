@@ -13,6 +13,15 @@
 #import "fbx/core"
 #include once "odbc.ti"
 using core
+#ifdef SQL_OV_ODBC3_80
+#export SQL_OV_ODBC3_80
+#endif
+#ifdef _CODBC_DEBUG_
+#export _CODBC_DEBUG_
+#endif
+#ifdef CODBC_DP
+#export CODBC_DP
+#endif
 
 #include once "windows.bi"
 #include once "win/sql.bi"
@@ -21,8 +30,7 @@ using core
 '// new values for SQL_ATTR_ODBC_VERSION
 '// From ODBC 3.8 onwards, we should use <major version> * 100 + <minor version>
 #ifndef SQL_OV_ODBC3_80
-#define SQL_OV_ODBC3_80 380u
-#export SQL_OV_ODBC3_80
+' [pkg/fbx] #define SQL_OV_ODBC3_80 moved to odbc.ti
 #endif
 
 ' ========================================================================================
@@ -30,18 +38,12 @@ using core
 ' To allow debugging, define _CBODBC_DEBUG_ 1 in your application before including this file.
 ' ========================================================================================
 #ifndef _CODBC_DEBUG_
-   #define _CODBC_DEBUG_ 0
-#export _CODBC_DEBUG_
+' [pkg/fbx] #define _CODBC_DEBUG_ moved to odbc.ti
 #ENDIF
 #ifndef _CODBC_DP_
    #define _CODBC_DP_ 1
 #export _CODBC_DP_
-   #MACRO CODBC_DP(st)
-      #IF (_CODBC_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CODBC_DP
+' [pkg/fbx] #define CODBC_DP moved to odbc.ti
 #ENDIF
 ' ========================================================================================
 

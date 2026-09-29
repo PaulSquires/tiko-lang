@@ -30,11 +30,89 @@
 #include once "gui.ti"
 using core
 using gdiplus
+#ifdef CBHNDL
+#export CBHNDL
+#endif
+#ifdef CBCTL
+#export CBCTL
+#endif
+#ifdef CBCTLMSG
+#export CBCTLMSG
+#endif
+#ifdef CBNMCODE
+#export CBNMCODE
+#endif
+#ifdef CBNMHWND
+#export CBNMHWND
+#endif
+#ifdef CBNMID
+#export CBNMID
+#endif
+#ifdef CBNMHDR
+#export CBNMHDR
+#endif
+#ifdef CBNMSGPTR
+#export CBNMSGPTR
+#endif
+#ifdef CBNMTYPESET
+#export CBNMTYPESET
+#endif
+#ifdef _CDIALOG_DEBUG_
+#export _CDIALOG_DEBUG_
+#endif
+#ifdef CDIALOG_DP
+#export CDIALOG_DP
+#endif
 #ifdef fbxGetErrorInfo
 #export fbxGetErrorInfo
 #endif
+#ifdef fbxComCtlVersion
+#export fbxComCtlVersion
+#endif
+#ifdef fbxGetScreenColors
+#export fbxGetScreenColors
+#endif
+#ifdef fbxGetScreenRefreshRate
+#export fbxGetScreenRefreshRate
+#endif
 #ifdef fbxGetCurDir
 #export fbxGetCurDir
+#endif
+#ifdef fbxExePath
+#export fbxExePath
+#endif
+#ifdef fbxExePathName
+#export fbxExePathName
+#endif
+#ifdef fbxExeFileName
+#export fbxExeFileName
+#endif
+#ifdef fbxExeFileNameX
+#export fbxExeFileNameX
+#endif
+#ifdef fbxExeFileExt
+#export fbxExeFileExt
+#endif
+#ifdef fbxExeFullPath
+#export fbxExeFullPath
+#endif
+#ifdef fbxFileName
+#export fbxFileName
+#endif
+#ifdef fbxFileNameX
+#export fbxFileNameX
+#endif
+#ifdef fbxFileExt
+#export fbxFileExt
+#endif
+#ifdef fbxPathName
+#export fbxPathName
+#endif
+#ifdef fbxFolderName
+#export fbxFolderName
+#endif
+#ifdef fbxSetCurDir
+#export fbxSetCurDir
 #endif
 
 #include once "windows.bi"
@@ -46,33 +124,24 @@ using gdiplus
 #define DDT_CBMACROS
 #export DDT_CBMACROS
 ' // For compatibility with the Power Basic syntax
-#define CBHNDL(wp, lp) cast(HWND, lp)
-#export CBHNDL
-#define CBCTL(wp, lp) LOWORD(wp)
-#export CBCTL
-#define CBCTLMSG(wp, lp) HIWORD(wp)
-#export CBCTLMSG
-#define CBNMCODE(wp, lp) LOWORD(wp) 
-#export CBNMCODE
-#define CBNMHWND(wp, lp) cast(HWND, lp)
-#export CBNMHWND
-#define CBNMID(wp, lp) HIWORD(wp)
-#export CBNMID
-#define CBNMHDR(wp, lp) cast(NMHDR PTR, lp)
-#export CBNMHDR
+' [pkg/fbx] #define CBHNDL moved to gui.ti
+' [pkg/fbx] #define CBCTL moved to gui.ti
+' [pkg/fbx] #define CBCTLMSG moved to gui.ti
+' [pkg/fbx] #define CBNMCODE moved to gui.ti
+' [pkg/fbx] #define CBNMHWND moved to gui.ti
+' [pkg/fbx] #define CBNMID moved to gui.ti
+' [pkg/fbx] #define CBNMHDR moved to gui.ti
 ' // For cast notification messages, e.g.
 ' DIM p AS NMDATETIMECHANGE PTR = CBNMSGPTR(NMDATETIMECHANGE, wParam, lParam)
 ' print p->nmhdr.idfrom
 ' print p->dwFlags
-#define CBNMSGPTR(msg, wp, lp) cast(msg PTR, CBNMHDR(wp, lp))
-#export CBNMSGPTR
+' [pkg/fbx] #define CBNMSGPTR moved to gui.ti
 ' // To copy notification messages, e.g.
 ' DIM dt AS NMDATETIMECHANGE
 ' CBNMTYPESET(dt, wParam, lParam)
 ' print dt.nmhdr.idfrom
 ' print dt.dwFlags
-#define CBNMTYPESET(tp, wp, lp) memcpy @tp, CAST(ANY PTR, lp), SIZEOF(tp)
-#export CBNMTYPESET
+' [pkg/fbx] #define CBNMTYPESET moved to gui.ti
 #endif
 
 ' ========================================================================================
@@ -82,18 +151,12 @@ using gdiplus
 ' can use the DebugView tool. See: https://learn.microsoft.com/en-us/sysinternals/downloads/debugview
 ' ========================================================================================
 #ifndef _CDIALOG_DEBUG_
-   #define _CDIALOG_DEBUG_ 0
-#export _CDIALOG_DEBUG_
+' [pkg/fbx] #define _CDIALOG_DEBUG_ moved to gui.ti
 #ENDIF
 #ifndef _CDIALOG_DP_
    #define _CDIALOG_DP_ 1
 #export _CDIALOG_DP_
-   #MACRO CDIALOG_DP(st)
-      #IF (_CDIALOG_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CDIALOG_DP
+' [pkg/fbx] #define CDIALOG_DP moved to gui.ti
 #ENDIF
 ' ========================================================================================
 

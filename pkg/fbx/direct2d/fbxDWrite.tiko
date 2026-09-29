@@ -502,13 +502,11 @@ end enum
 '    (static_cast<UINT32>(static_cast<UINT8>(c)) << 16) | \
 '    (static_cast<UINT32>(static_cast<UINT8>(b)) << 8)  | \
 '     static_cast<UINT32>(static_cast<UINT8>(a)))
-#define DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d) (culng(ASC(d)) shl 24) or (culng(ASC(c)) shl 16) or (culng(ASC(b)) shl 8) or culng(ASC(a))
-#export DWRITE_MAKE_OPENTYPE_TAG
+' [pkg/fbx] #define DWRITE_MAKE_OPENTYPE_TAG moved to direct2d.ti
 
 '/// Creates an OpenType tag for glyph positioning and substitution font features.
 '#define DWRITE_MAKE_FONT_FEATURE_TAG(a,b,c,d) (static_cast<DWRITE_FONT_FEATURE_TAG>(DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d)))
-#define DWRITE_MAKE_FONT_FEATURE_TAG(a,b,c,d) DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d)
-#export DWRITE_MAKE_FONT_FEATURE_TAG
+' [pkg/fbx] #define DWRITE_MAKE_FONT_FEATURE_TAG moved to direct2d.ti
 
 '/// Font file loader interface handles loading font file resources of a particular type from a key.
 '/// The font file loader interface is recommended to be implemented by a singleton object.
@@ -1879,8 +1877,7 @@ PUBLIC enum
 end enum
 
 ' /// Maximum alpha value in a texture returned by IDWriteGlyphRunAnalysis::CreateAlphaTexture.
-#define DWRITE_ALPHA_MAX 255
-#export DWRITE_ALPHA_MAX
+' [pkg/fbx] #define DWRITE_ALPHA_MAX moved to direct2d.ti
 
 ' ########################################################################################
 ' Interface name: IDWriteGlyphRunAnalysis
@@ -1971,50 +1968,29 @@ PUBLIC DECLARE FUNCTION DWriteCreateFactory LIB "dwrite" ALIAS "DWriteCreateFact
 ' ========================================================================================
 
 '// Macros used to define DirectWrite error codes.
-#define FACILITY_DWRITE &h898
-#export FACILITY_DWRITE
-#define DWRITE_ERR_BASE &H5000
-#export DWRITE_ERR_BASE
-#define MAKE_DWRITE_HR(severity, code) MAKE_HRESULT(severity, FACILITY_DWRITE, (DWRITE_ERR_BASE + code))
-#export MAKE_DWRITE_HR
-#define MAKE_DWRITE_HR_ERR(code) MAKE_DWRITE_HR(SEVERITY_ERROR, code)
-#export MAKE_DWRITE_HR_ERR
+' [pkg/fbx] #define FACILITY_DWRITE moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_ERR_BASE moved to direct2d.ti
+' [pkg/fbx] #define MAKE_DWRITE_HR moved to direct2d.ti
+' [pkg/fbx] #define MAKE_DWRITE_HR_ERR moved to direct2d.ti
 
 '// DWrite errors have moved to winerror.h
-#define DWRITE_E_FILEFORMAT               _HRESULT_TYPEDEF_(&H88985000)
-#export DWRITE_E_FILEFORMAT
-#define DWRITE_E_UNEXPECTED               _HRESULT_TYPEDEF_(&H88985001)
-#export DWRITE_E_UNEXPECTED
-#define DWRITE_E_NOFONT                   _HRESULT_TYPEDEF_(&H88985002)
-#export DWRITE_E_NOFONT
-#define DWRITE_E_FILENOTFOUND             _HRESULT_TYPEDEF_(&H88985003)
-#export DWRITE_E_FILENOTFOUND
-#define DWRITE_E_FILEACCESS               _HRESULT_TYPEDEF_(&H88985004)
-#export DWRITE_E_FILEACCESS
-#define DWRITE_E_FONTCOLLECTIONOBSOLETE   _HRESULT_TYPEDEF_(&H88985005)
-#export DWRITE_E_FONTCOLLECTIONOBSOLETE
-#define DWRITE_E_ALREADYREGISTERED        _HRESULT_TYPEDEF_(&H88985006)
-#export DWRITE_E_ALREADYREGISTERED
-#define DWRITE_E_CACHEFORMAT              _HRESULT_TYPEDEF_(&H88985007)
-#export DWRITE_E_CACHEFORMAT
-#define DWRITE_E_CACHEVERSION             _HRESULT_TYPEDEF_(&H88985008)
-#export DWRITE_E_CACHEVERSION
-#define DWRITE_E_UNSUPPORTEDOPERATION     _HRESULT_TYPEDEF_(&H88985009)
-#export DWRITE_E_UNSUPPORTEDOPERATION
-#define DWRITE_E_TEXTRENDERERINCOMPATIBLE _HRESULT_TYPEDEF_(&H8898500A)
-#export DWRITE_E_TEXTRENDERERINCOMPATIBLE
-#define DWRITE_E_FLOWDIRECTIONCONFLICTS   _HRESULT_TYPEDEF_(&H8898500B)
-#export DWRITE_E_FLOWDIRECTIONCONFLICTS
-#define DWRITE_E_NOCOLOR                  _HRESULT_TYPEDEF_(&H8898500C)
-#export DWRITE_E_NOCOLOR
-#define DWRITE_E_REMOTEFONT               _HRESULT_TYPEDEF_(&H8898500D)
-#export DWRITE_E_REMOTEFONT
-#define DWRITE_E_DOWNLOADCANCELLED        _HRESULT_TYPEDEF_(&H8898500E)
-#export DWRITE_E_DOWNLOADCANCELLED
-#define DWRITE_E_DOWNLOADFAILED           _HRESULT_TYPEDEF_(&H8898500F)
-#export DWRITE_E_DOWNLOADFAILED
-#define DWRITE_E_TOOMANYDOWNLOADS         _HRESULT_TYPEDEF_(&H88985010)
-#export DWRITE_E_TOOMANYDOWNLOADS
+' [pkg/fbx] #define DWRITE_E_FILEFORMAT moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_UNEXPECTED moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_NOFONT moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_FILENOTFOUND moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_FILEACCESS moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_FONTCOLLECTIONOBSOLETE moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_ALREADYREGISTERED moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_CACHEFORMAT moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_CACHEVERSION moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_UNSUPPORTEDOPERATION moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_TEXTRENDERERINCOMPATIBLE moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_FLOWDIRECTIONCONFLICTS moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_NOCOLOR moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_REMOTEFONT moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_DOWNLOADCANCELLED moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_DOWNLOADFAILED moved to direct2d.ti
+' [pkg/fbx] #define DWRITE_E_TOOMANYDOWNLOADS moved to direct2d.ti
 
 
 ' ########################################################################################
@@ -3035,8 +3011,7 @@ END TYPE
 #endif
 
 ' /// Reserved palette entry index that does not specify any palette entry.
-#define DWRITE_NO_PALETTE_INDEX &hFFFF
-#export DWRITE_NO_PALETTE_INDEX
+' [pkg/fbx] #define DWRITE_NO_PALETTE_INDEX moved to direct2d.ti
 
 PUBLIC type DWRITE_COLOR_GLYPH_RUN
    AS DWRITE_GLYPH_RUN glyphRun
@@ -3128,19 +3103,19 @@ END TYPE
 'type IDWriteFontDownloadQueue AS IDWriteFontDownloadQueue_
 
 #ifndef DWRITE_E_REMOTEFONT
-#define DWRITE_E_REMOTEFONT    _HRESULT_TYPEDEF_(&h8898500DL)
+' [pkg/fbx] #define DWRITE_E_REMOTEFONT moved to direct2d.ti
 #endif
 
 #ifndef DWRITE_E_DOWNLOADCANCELLED
-#define DWRITE_E_DOWNLOADCANCELLED  _HRESULT_TYPEDEF_(&h8898500EL)
+' [pkg/fbx] #define DWRITE_E_DOWNLOADCANCELLED moved to direct2d.ti
 #endif
 
 #ifndef DWRITE_E_DOWNLOADFAILED
-#define DWRITE_E_DOWNLOADFAILED  _HRESULT_TYPEDEF_(&h8898500FL)
+' [pkg/fbx] #define DWRITE_E_DOWNLOADFAILED moved to direct2d.ti
 #endif
 
 #ifndef DWRITE_E_TOOMANYDOWNLOADS
-#define DWRITE_E_TOOMANYDOWNLOADS  _HRESULT_TYPEDEF_(&h88985010L)
+' [pkg/fbx] #define DWRITE_E_TOOMANYDOWNLOADS moved to direct2d.ti
 #endif
 
 PUBLIC TYPE DWRITE_FONT_PROPERTY_ID AS LONG
@@ -3813,8 +3788,7 @@ END TYPE
 ' ########################################################################################
 
 '#define DWRITE_MAKE_FONT_AXIS_TAG(a,b,c,d) (static_cast<DWRITE_FONT_AXIS_TAG>(DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d)))
-#define DWRITE_MAKE_FONT_AXIS_TAG(a,b,c,d) DWRITE_MAKE_OPENTYPE_TAG(a,b,c,d)
-#export DWRITE_MAKE_FONT_AXIS_TAG
+' [pkg/fbx] #define DWRITE_MAKE_FONT_AXIS_TAG moved to direct2d.ti
 
 PUBLIC TYPE DWRITE_FONT_AXIS_TAG AS LONG
 PUBLIC enum
@@ -3825,8 +3799,7 @@ PUBLIC enum
     DWRITE_FONT_AXIS_TAG_ITALIC         = DWRITE_MAKE_FONT_AXIS_TAG("i","t","a","l")
 end enum
 
-#define DWRITE_STANDARD_FONT_AXIS_COUNT 5
-#export DWRITE_STANDARD_FONT_AXIS_COUNT
+' [pkg/fbx] #define DWRITE_STANDARD_FONT_AXIS_COUNT moved to direct2d.ti
 
 PUBLIC type DWRITE_FONT_AXIS_VALUE
    AS DWRITE_FONT_AXIS_TAG axisTag

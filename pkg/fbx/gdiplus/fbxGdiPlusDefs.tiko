@@ -133,8 +133,7 @@ PUBLIC enum
 	DriverStringOptionsLimitSubpixel = 8
 end enum
 
-#define GDIP_WMF_RECORD_TO_EMFPLUS(meta) ((meta) or &h10000)
-#export GDIP_WMF_RECORD_TO_EMFPLUS
+' [pkg/fbx] #define GDIP_WMF_RECORD_TO_EMFPLUS moved to gdiplus.ti
 PUBLIC const GDIP_EMFPLUS_RECORD_BASE = &h4000
 
 PUBLIC type EmfPlusRecordType as long
@@ -973,8 +972,7 @@ PUBLIC type GpTexture as any
 ' [pkg/fbx] #define GpHatchBrush moved to gdiplus.ti
 ' [pkg/fbx] #define GpLinearGradientBrush moved to gdiplus.ti
 ' [pkg/fbx] #define GpPathGradientBrush moved to gdiplus.ti
-#define GpGraphicsPath GpPath
-#export GpGraphicsPath
+' [pkg/fbx] #define GpGraphicsPath moved to gdiplus.ti
 ' [pkg/fbx] #define GpTextureBrush moved to gdiplus.ti
 
 ' #define __GDIPLUS_IMAGING_H
@@ -1476,46 +1474,29 @@ end type
 ' #define __GDIPLUS_PIXELFORMATS_H
 PUBLIC type ARGB as DWORD
 PUBLIC type PixelFormat as INT_
-#define PixelFormatIndexed cast(INT_, &h00010000)
-#export PixelFormatIndexed
+' [pkg/fbx] #define PixelFormatIndexed moved to gdiplus.ti
 ' [pkg/fbx] #define PixelFormatGDI moved to gdiplus.ti
 ' [pkg/fbx] #define PixelFormatAlpha moved to gdiplus.ti
 ' [pkg/fbx] #define PixelFormatPAlpha moved to gdiplus.ti
-#define PixelFormatExtended cast(INT_, &h00100000)
-#export PixelFormatExtended
+' [pkg/fbx] #define PixelFormatExtended moved to gdiplus.ti
 ' [pkg/fbx] #define PixelFormatCanonical moved to gdiplus.ti
-#define PixelFormatUndefined cast(INT_, 0)
-#export PixelFormatUndefined
-#define PixelFormatDontCare cast(INT_, 0)
-#export PixelFormatDontCare
-#define PixelFormat1bppIndexed cast(INT_, ((1 or (1 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
-#export PixelFormat1bppIndexed
-#define PixelFormat4bppIndexed cast(INT_, ((2 or (4 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
-#export PixelFormat4bppIndexed
-#define PixelFormat8bppIndexed cast(INT_, ((3 or (8 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
-#export PixelFormat8bppIndexed
-#define PixelFormat16bppGrayScale cast(INT_, (4 or (16 shl 8)) or PixelFormatExtended)
-#export PixelFormat16bppGrayScale
-#define PixelFormat16bppRGB555 cast(INT_, (5 or (16 shl 8)) or PixelFormatGDI)
-#export PixelFormat16bppRGB555
-#define PixelFormat16bppRGB565 cast(INT_, (6 or (16 shl 8)) or PixelFormatGDI)
-#export PixelFormat16bppRGB565
-#define PixelFormat16bppARGB1555 cast(INT_, ((7 or (16 shl 8)) or PixelFormatAlpha) or PixelFormatGDI)
-#export PixelFormat16bppARGB1555
-#define PixelFormat24bppRGB cast(INT_, (8 or (24 shl 8)) or PixelFormatGDI)
-#export PixelFormat24bppRGB
-#define PixelFormat32bppRGB cast(INT_, (9 or (32 shl 8)) or PixelFormatGDI)
-#export PixelFormat32bppRGB
+' [pkg/fbx] #define PixelFormatUndefined moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormatDontCare moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat1bppIndexed moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat4bppIndexed moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat8bppIndexed moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat16bppGrayScale moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat16bppRGB555 moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat16bppRGB565 moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat16bppARGB1555 moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat24bppRGB moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat32bppRGB moved to gdiplus.ti
 ' [pkg/fbx] #define PixelFormat32bppARGB moved to gdiplus.ti
 ' [pkg/fbx] #define PixelFormat32bppPARGB moved to gdiplus.ti
-#define PixelFormat48bppRGB cast(INT_, (12 or (48 shl 8)) or PixelFormatExtended)
-#export PixelFormat48bppRGB
-#define PixelFormat64bppARGB cast(INT_, (((13 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatCanonical) or PixelFormatExtended)
-#export PixelFormat64bppARGB
-#define PixelFormat64bppPARGB cast(INT_, (((14 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatExtended)
-#export PixelFormat64bppPARGB
-#define PixelFormatMax cast(INT_, 15)
-#export PixelFormatMax
+' [pkg/fbx] #define PixelFormat48bppRGB moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat64bppARGB moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormat64bppPARGB moved to gdiplus.ti
+' [pkg/fbx] #define PixelFormatMax moved to gdiplus.ti
 
 PUBLIC type PaletteFlags as long
 PUBLIC enum
@@ -1550,18 +1531,12 @@ PUBLIC type GpColorPalette
 	Entries(0 to 255) as ARGB
 end type
 
-#define GetPixelFormatSize(pixfmt) cast(UINT, (cast(UINT, (pixfmt)) and &hff00u) shr 8)
-#export GetPixelFormatSize
-#define IsAlphaPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00040000)) <> 0))
-#export IsAlphaPixelFormat
-#define IsCanonicalPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00200000)) <> 0))
-#export IsCanonicalPixelFormat
-#define IsExtendedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00100000)) <> 0))
-#export IsExtendedPixelFormat
-#define IsIndexedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00010000)) <> 0))
-#export IsIndexedPixelFormat
-#define __GDIPLUS_COLOR_H
-#export __GDIPLUS_COLOR_H
+' [pkg/fbx] #define GetPixelFormatSize moved to gdiplus.ti
+' [pkg/fbx] #define IsAlphaPixelFormat moved to gdiplus.ti
+' [pkg/fbx] #define IsCanonicalPixelFormat moved to gdiplus.ti
+' [pkg/fbx] #define IsExtendedPixelFormat moved to gdiplus.ti
+' [pkg/fbx] #define IsIndexedPixelFormat moved to gdiplus.ti
+' [pkg/fbx] #define __GDIPLUS_COLOR_H moved to gdiplus.ti
 
 PUBLIC type ColorChannelFlags as long
 PUBLIC enum

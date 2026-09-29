@@ -106,7 +106,7 @@ PUBLIC CONST FBX_IID_IWebBrowserApp = "{0002DF05-0000-0000-C000-000000000046}"
 ' Deprecated. Use IWebBrowser2.
 ' ########################################################################################
 
-#define __fbx_IWebBrowser_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IWebBrowser_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IWebBrowser AS fbx_IWebBrowser_
 
 PUBLIC TYPE fbx_IWebBrowser_ EXTENDS fbx_IDispatch
@@ -146,7 +146,7 @@ PUBLIC TYPE fbx_LPIWEBBROWSER AS fbx_IWebBrowser PTR
 ' Deprecated. Use IWebBrowser2.
 ' ########################################################################################
 
-#define __fbx_IWebBrowserApp_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IWebBrowserApp_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IWebBrowserApp AS fbx_IWebBrowserApp_
 
 PUBLIC TYPE fbx_IWebBrowserApp_ EXTENDS fbx_IWebBrowser
@@ -187,7 +187,7 @@ PUBLIC TYPE fbx_LPIWEBBROWSERAPP AS fbx_IWebBrowserApp PTR
 ' IDispatch. The IWebBrowser and IWebBrowserApp interfaces are deprecated.
 ' ########################################################################################
 
-#define __fbx_IWebBrowser2_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IWebBrowser2_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IWebBrowser2 AS fbx_IWebBrowser2_
 
 PUBLIC TYPE fbx_IWebBrowser2_ EXTENDS fbx_IWebBrowserApp
@@ -220,7 +220,7 @@ PUBLIC TYPE fbx_LPIWEBBROWSER2 AS fbx_IWebBrowser2 PTR
 ' Inherited interface = IDispatch
 ' ########################################################################################
 
-#define __fbx_IShellWindows_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IShellWindows_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IShellWindows AS fbx_IShellWindows_
 
 PUBLIC TYPE fbx_IShellWindows_ EXTENDS fbx_IDispatch
@@ -246,7 +246,7 @@ PUBLIC TYPE fbx_LPISHELLWINDOWS AS fbx_IShellWindows PTR
 ' This interface provides access to features available in the Microsoft Windows Shell API.
 ' ########################################################################################
 
-#define __fbx_IShellUIHelper_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IShellUIHelper_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IShellUIHelper AS fbx_IShellUIHelper_
 
 PUBLIC TYPE fbx_IShellUIHelper_ EXTENDS fbx_IDispatch
@@ -274,7 +274,7 @@ PUBLIC TYPE fbx_LPISHELLUIHELPER AS fbx_IShellUIHelper PTR
 ' Inherited interface = IShellUIHelper
 ' ########################################################################################
 
-#define __fbx_IShellUIHelper2_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IShellUIHelper2_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IShellUIHelper2 AS fbx_IShellUIHelper2_
 
 PUBLIC TYPE fbx_IShellUIHelper2_ EXTENDS fbx_IShellUIHelper
@@ -305,7 +305,7 @@ PUBLIC TYPE fbx_LPISHELLUIHELPER2 AS fbx_IShellUIHelper2 PTR
 ' Inherited interface = IShellUIHelper2
 ' ########################################################################################
 
-#define __fbx_IShellUIHelper3_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IShellUIHelper3_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IShellUIHelper3 AS fbx_IShellUIHelper3_
 
 PUBLIC TYPE fbx_IShellUIHelper3_ EXTENDS fbx_IShellUIHelper2
@@ -333,7 +333,7 @@ PUBLIC TYPE fbx_LPISHELLUIHELPER3 AS fbx_IShellUIHelper3 PTR
 ' Inherited interface = IDispatch
 ' ########################################################################################
 
-#define __fbx_IShellFavoritesNameSpace_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IShellFavoritesNameSpace_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IShellFavoritesNameSpace AS fbx_IShellFavoritesNameSpace_
 
 PUBLIC TYPE fbx_IShellFavoritesNameSpace_ EXTENDS fbx_IDispatch
@@ -361,7 +361,7 @@ PUBLIC TYPE fbx_LPISHELLFAVORITESNAMESPACE AS fbx_IShellFavoritesNameSpace PTR
 ' Inherited interface = IShellFavoritesNameSpace
 ' ########################################################################################
 
-#define __fbx_IShellNameSpace_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IShellNameSpace_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IShellNameSpace AS fbx_IShellFavoritesNameSpace_
 
 PUBLIC TYPE fbx_IShellNameSpace_ EXTENDS fbx_IShellFavoritesNameSpace
@@ -397,7 +397,7 @@ PUBLIC TYPE fbx_LPISHELLNAMESPACE AS fbx_IShellNameSpace PTR
 ' Inherited interface = IDispatch
 ' ########################################################################################
 
-#define __fbx_IScriptErrorList_INTERFACE_DEFINED__
+' [pkg/fbx] #define __fbx_IScriptErrorList_INTERFACE_DEFINED__ moved to axhost.ti
 PUBLIC TYPE fbx_IScriptErrorList AS fbx_IScriptErrorList_
 
 PUBLIC TYPE fbx_IScriptErrorList_ EXTENDS fbx_IDispatch

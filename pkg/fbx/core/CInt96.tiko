@@ -37,18 +37,12 @@
 ' can use the DebugView tool. See: https://learn.microsoft.com/en-us/sysinternals/downloads/debugview
 ' ========================================================================================
 #ifndef _CINT96_DEBUG_
-   #define _CINT96_DEBUG_ 0
-#export _CINT96_DEBUG_
+' [pkg/fbx] #define _CINT96_DEBUG_ moved to core.ti
 #ENDIF
 #ifndef _CINT96_DP_
    #define _CINT96_DP_ 1
 #export _CINT96_DP_
-   #MACRO CINT96_DP(st)
-      #IF (_CINT96_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CINT96_DP
+' [pkg/fbx] #define CINT96_DP moved to core.ti
 #ENDIF
 ' ========================================================================================
 

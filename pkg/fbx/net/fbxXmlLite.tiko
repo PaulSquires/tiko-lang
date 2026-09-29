@@ -32,15 +32,12 @@ using core
 'DIM SHARED IID_IXmlWriterLite AS GUID = (&h862494C6, &h1310, &h4AAD, {&h83, &hCD, &h2D, &hBE, &hEB, &hF6, &h70, &hD3})
 
 ' [pkg/fbx] #define IID_IXmlReader moved to net.ti
-#define IID_IXmlResolver fbxGuid("{7279FC82-709D-4095-B63D-69FE4B0D9030}")
-#export IID_IXmlResolver
+' [pkg/fbx] #define IID_IXmlResolver moved to net.ti
 ' [pkg/fbx] #define IID_IXmlWriter moved to net.ti
 ' [pkg/fbx] #define IID_IXmlWriterLite moved to net.ti
 
-#define IXmlReaderInput IUnknown
-#export IXmlReaderInput
-#define IXmlWriterOutput IUnknown
-#export IXmlWriterOutput
+' [pkg/fbx] #define IXmlReaderInput moved to net.ti
+' [pkg/fbx] #define IXmlWriterOutput moved to net.ti
 
 PUBLIC enum XmlNodeType
    XmlNodeType_None= 0

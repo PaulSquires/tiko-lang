@@ -410,8 +410,7 @@ END ENUM
 PUBLIC TYPE ISWbemDateTime AS ISWbemDateTime_
 PUBLIC TYPE ISWbemEventSource AS ISWbemEventSource_
 'TYPE ISWbemLastError AS ISWbemLastError_
-#define ISWbemLastError AS ISWbemObject_
-#export ISWbemLastError
+' [pkg/fbx] #define ISWbemLastError moved to scripting.ti
 PUBLIC TYPE ISWbemLocator AS ISWbemLocator_
 PUBLIC TYPE ISWbemMethod AS ISWbemMethod_
 PUBLIC TYPE ISWbemMethodSet AS ISWbemMethodSet_

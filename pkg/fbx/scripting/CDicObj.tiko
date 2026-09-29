@@ -30,6 +30,15 @@
 #include once "scripting.ti"
 using com
 using core
+#ifdef _CDICOBJ_DEBUG_
+#export _CDICOBJ_DEBUG_
+#endif
+#ifdef CDICOBJ_DP
+#export CDICOBJ_DP
+#endif
+#ifdef ISWbemLastError
+#export ISWbemLastError
+#endif
 
 #include once "windows.bi"
 #include once "win/ole2.bi"
@@ -39,18 +48,12 @@ using core
 ' To allow debugging, define _CDICOBJ_DEBUG_ 1 in your application before including this file.
 ' ========================================================================================
 #ifndef _CDICOBJ_DEBUG_
-   #define _CDICOBJ_DEBUG_ 0
-#export _CDICOBJ_DEBUG_
+' [pkg/fbx] #define _CDICOBJ_DEBUG_ moved to scripting.ti
 #ENDIF
 #ifndef _CDICOBJ_DP_
    #define _CDICOBJ_DP_ 1
 #export _CDICOBJ_DP_
-   #MACRO CDICOBJ_DP(st)
-      #IF (_CDICOBJ_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CDICOBJ_DP
+' [pkg/fbx] #define CDICOBJ_DP moved to scripting.ti
 #ENDIF
 ' ========================================================================================
 

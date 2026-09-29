@@ -32,6 +32,12 @@
 using core
 using gdiplus
 using gui
+#ifdef _CEXPBROW_DEBUG_
+#export _CEXPBROW_DEBUG_
+#endif
+#ifdef CEXPBROW_DP
+#export CEXPBROW_DP
+#endif
 #ifdef _COSFD_DEBUG_
 #export _COSFD_DEBUG_
 #endif
@@ -48,18 +54,12 @@ using gui
 ' To allow debugging, define _CEXPBROW_DEBUG_ 1 in your application before including this file.
 ' ========================================================================================
 #ifndef _CEXPBROW_DEBUG_
-   #define _CEXPBROW_DEBUG_ 0
-#export _CEXPBROW_DEBUG_
+' [pkg/fbx] #define _CEXPBROW_DEBUG_ moved to dialogs.ti
 #ENDIF
 #ifndef _CEXPBROW_DP_
    #define _CEXPBROW_DP_ 1
 #export _CEXPBROW_DP_
-   #MACRO CEXPBROW_DP(st)
-      #IF (_CEXPBROW_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CEXPBROW_DP
+' [pkg/fbx] #define CEXPBROW_DP moved to dialogs.ti
 #ENDIF
 ' ========================================================================================
 

@@ -80,6 +80,189 @@ using core
 #ifdef D2D1_TAG
 #export D2D1_TAG
 #endif
+#ifdef FACILITY_D2D
+#export FACILITY_D2D
+#endif
+#ifdef MAKE_D2DHR
+#export MAKE_D2DHR
+#endif
+#ifdef MAKE_D2DHR_ERR
+#export MAKE_D2DHR_ERR
+#endif
+#ifdef WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT
+#export WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT
+#endif
+#ifdef D2DERR_UNSUPPORTED_PIXEL_FORMAT
+#export D2DERR_UNSUPPORTED_PIXEL_FORMAT
+#endif
+#ifdef D2DERR_INSUFFICIENT_BUFFER
+#export D2DERR_INSUFFICIENT_BUFFER
+#endif
+#ifdef D2DERR_FILE_NOT_FOUND
+#export D2DERR_FILE_NOT_FOUND
+#endif
+#ifdef D2DERR_WRONG_STATE
+#export D2DERR_WRONG_STATE
+#endif
+#ifdef D2DERR_NOT_INITIALIZED
+#export D2DERR_NOT_INITIALIZED
+#endif
+#ifdef D2DERR_UNSUPPORTED_OPERATION
+#export D2DERR_UNSUPPORTED_OPERATION
+#endif
+#ifdef D2DERR_SCANNER_FAILED
+#export D2DERR_SCANNER_FAILED
+#endif
+#ifdef D2DERR_SCREEN_ACCESS_DENIED
+#export D2DERR_SCREEN_ACCESS_DENIED
+#endif
+#ifdef D2DERR_DISPLAY_STATE_INVALID
+#export D2DERR_DISPLAY_STATE_INVALID
+#endif
+#ifdef D2DERR_ZERO_VECTOR
+#export D2DERR_ZERO_VECTOR
+#endif
+#ifdef D2DERR_INTERNAL_ERROR
+#export D2DERR_INTERNAL_ERROR
+#endif
+#ifdef D2DERR_DISPLAY_FORMAT_NOT_SUPPORTED
+#export D2DERR_DISPLAY_FORMAT_NOT_SUPPORTED
+#endif
+#ifdef D2DERR_INVALID_CALL
+#export D2DERR_INVALID_CALL
+#endif
+#ifdef D2DERR_NO_HARDWARE_DEVICE
+#export D2DERR_NO_HARDWARE_DEVICE
+#endif
+#ifdef D2DERR_RECREATE_TARGET
+#export D2DERR_RECREATE_TARGET
+#endif
+#ifdef D2DERR_TOO_MANY_SHADER_ELEMENTS
+#export D2DERR_TOO_MANY_SHADER_ELEMENTS
+#endif
+#ifdef D2DERR_SHADER_COMPILE_FAILED
+#export D2DERR_SHADER_COMPILE_FAILED
+#endif
+#ifdef D2DERR_MAX_TEXTURE_SIZE_EXCEEDED
+#export D2DERR_MAX_TEXTURE_SIZE_EXCEEDED
+#endif
+#ifdef D2DERR_UNSUPPORTED_VERSION
+#export D2DERR_UNSUPPORTED_VERSION
+#endif
+#ifdef D2DERR_BAD_NUMBER
+#export D2DERR_BAD_NUMBER
+#endif
+#ifdef D2DERR_WRONG_FACTORY
+#export D2DERR_WRONG_FACTORY
+#endif
+#ifdef D2DERR_LAYER_ALREADY_IN_USE
+#export D2DERR_LAYER_ALREADY_IN_USE
+#endif
+#ifdef D2DERR_POP_CALL_DID_NOT_MATCH_PUSH
+#export D2DERR_POP_CALL_DID_NOT_MATCH_PUSH
+#endif
+#ifdef D2DERR_WRONG_RESOURCE_DOMAIN
+#export D2DERR_WRONG_RESOURCE_DOMAIN
+#endif
+#ifdef D2DERR_PUSH_POP_UNBALANCED
+#export D2DERR_PUSH_POP_UNBALANCED
+#endif
+#ifdef D2DERR_RENDER_TARGET_HAS_LAYER_OR_CLIPRECT
+#export D2DERR_RENDER_TARGET_HAS_LAYER_OR_CLIPRECT
+#endif
+#ifdef D2DERR_INCOMPATIBLE_BRUSH_TYPES
+#export D2DERR_INCOMPATIBLE_BRUSH_TYPES
+#endif
+#ifdef D2DERR_WIN32_ERROR
+#export D2DERR_WIN32_ERROR
+#endif
+#ifdef D2DERR_TARGET_NOT_GDI_COMPATIBLE
+#export D2DERR_TARGET_NOT_GDI_COMPATIBLE
+#endif
+#ifdef D2DERR_TEXT_EFFECT_IS_WRONG_TYPE
+#export D2DERR_TEXT_EFFECT_IS_WRONG_TYPE
+#endif
+#ifdef D2DERR_TEXT_RENDERER_NOT_RELEASED
+#export D2DERR_TEXT_RENDERER_NOT_RELEASED
+#endif
+#ifdef D2DERR_EXCEEDS_MAX_BITMAP_SIZE
+#export D2DERR_EXCEEDS_MAX_BITMAP_SIZE
+#endif
+#ifdef D2DERR_INVALID_GRAPH_CONFIGURATION
+#export D2DERR_INVALID_GRAPH_CONFIGURATION
+#endif
+#ifdef D2DERR_INVALID_INTERNAL_GRAPH_CONFIGURATION
+#export D2DERR_INVALID_INTERNAL_GRAPH_CONFIGURATION
+#endif
+#ifdef D2DERR_CYCLIC_GRAPH
+#export D2DERR_CYCLIC_GRAPH
+#endif
+#ifdef D2DERR_BITMAP_CANNOT_DRAW
+#export D2DERR_BITMAP_CANNOT_DRAW
+#endif
+#ifdef D2DERR_OUTSTANDING_BITMAP_REFERENCES
+#export D2DERR_OUTSTANDING_BITMAP_REFERENCES
+#endif
+#ifdef D2DERR_ORIGINAL_TARGET_NOT_BOUND
+#export D2DERR_ORIGINAL_TARGET_NOT_BOUND
+#endif
+#ifdef D2DERR_INVALID_TARGET
+#export D2DERR_INVALID_TARGET
+#endif
+#ifdef D2DERR_BITMAP_BOUND_AS_TARGET
+#export D2DERR_BITMAP_BOUND_AS_TARGET
+#endif
+#ifdef D2DERR_INSUFFICIENT_DEVICE_CAPABILITIES
+#export D2DERR_INSUFFICIENT_DEVICE_CAPABILITIES
+#endif
+#ifdef D2DERR_INTERMEDIATE_TOO_LARGE
+#export D2DERR_INTERMEDIATE_TOO_LARGE
+#endif
+#ifdef D2DERR_EFFECT_IS_NOT_REGISTERED
+#export D2DERR_EFFECT_IS_NOT_REGISTERED
+#endif
+#ifdef D2DERR_INVALID_PROPERTY
+#export D2DERR_INVALID_PROPERTY
+#endif
+#ifdef D2DERR_NO_SUBPROPERTIES
+#export D2DERR_NO_SUBPROPERTIES
+#endif
+#ifdef D2DERR_PRINT_JOB_CLOSED
+#export D2DERR_PRINT_JOB_CLOSED
+#endif
+#ifdef D2DERR_PRINT_FORMAT_NOT_SUPPORTED
+#export D2DERR_PRINT_FORMAT_NOT_SUPPORTED
+#endif
+#ifdef D2DERR_TOO_MANY_TRANSFORM_INPUTS
+#export D2DERR_TOO_MANY_TRANSFORM_INPUTS
+#endif
+#ifdef D2DERR_INVALID_GLYPH_IMAGE
+#export D2DERR_INVALID_GLYPH_IMAGE
+#endif
+#ifdef _FACDXGI
+#export _FACDXGI
+#endif
+#ifdef MAKE_DXGI_HRESULT
+#export MAKE_DXGI_HRESULT
+#endif
+#ifdef MAKE_DXGI_STATUS
+#export MAKE_DXGI_STATUS
+#endif
+#ifdef DXGI_CPU_ACCESS_NONE
+#export DXGI_CPU_ACCESS_NONE
+#endif
+#ifdef DXGI_CPU_ACCESS_DYNAMIC
+#export DXGI_CPU_ACCESS_DYNAMIC
+#endif
+#ifdef DXGI_CPU_ACCESS_READ_WRITE
+#export DXGI_CPU_ACCESS_READ_WRITE
+#endif
+#ifdef DXGI_CPU_ACCESS_SCRATCH
+#export DXGI_CPU_ACCESS_SCRATCH
+#endif
+#ifdef DXGI_CPU_ACCESS_FIELD
+#export DXGI_CPU_ACCESS_FIELD
+#endif
 #ifdef DXGI_RGBA
 #export DXGI_RGBA
 #endif
@@ -110,6 +293,9 @@ using core
 #ifdef D2D1_MATRIX_3X2_F
 #export D2D1_MATRIX_3X2_F
 #endif
+#ifdef D2D1_INVALID_TAG
+#export D2D1_INVALID_TAG
+#endif
 #ifdef D2D1_DEFAULT_FLATTENING_TOLERANCE
 #export D2D1_DEFAULT_FLATTENING_TOLERANCE
 #endif
@@ -134,11 +320,128 @@ using core
 #ifdef D2D1_MATRIX_5X4_F
 #export D2D1_MATRIX_5X4_F
 #endif
+#ifdef D2D1_SCENE_REFERRED_SDR_WHITE_LEVEL
+#export D2D1_SCENE_REFERRED_SDR_WHITE_LEVEL
+#endif
+#ifdef D2D1_APPEND_ALIGNED_ELEMENT
+#export D2D1_APPEND_ALIGNED_ELEMENT
+#endif
 #ifdef _D2D1_DEBUG_
 #export _D2D1_DEBUG_
 #endif
 #ifdef D2D1_DP
 #export D2D1_DP
+#endif
+#ifdef DWRITE_MAKE_OPENTYPE_TAG
+#export DWRITE_MAKE_OPENTYPE_TAG
+#endif
+#ifdef DWRITE_MAKE_FONT_FEATURE_TAG
+#export DWRITE_MAKE_FONT_FEATURE_TAG
+#endif
+#ifdef DWRITE_ALPHA_MAX
+#export DWRITE_ALPHA_MAX
+#endif
+#ifdef FACILITY_DWRITE
+#export FACILITY_DWRITE
+#endif
+#ifdef DWRITE_ERR_BASE
+#export DWRITE_ERR_BASE
+#endif
+#ifdef MAKE_DWRITE_HR
+#export MAKE_DWRITE_HR
+#endif
+#ifdef MAKE_DWRITE_HR_ERR
+#export MAKE_DWRITE_HR_ERR
+#endif
+#ifdef DWRITE_E_FILEFORMAT
+#export DWRITE_E_FILEFORMAT
+#endif
+#ifdef DWRITE_E_UNEXPECTED
+#export DWRITE_E_UNEXPECTED
+#endif
+#ifdef DWRITE_E_NOFONT
+#export DWRITE_E_NOFONT
+#endif
+#ifdef DWRITE_E_FILENOTFOUND
+#export DWRITE_E_FILENOTFOUND
+#endif
+#ifdef DWRITE_E_FILEACCESS
+#export DWRITE_E_FILEACCESS
+#endif
+#ifdef DWRITE_E_FONTCOLLECTIONOBSOLETE
+#export DWRITE_E_FONTCOLLECTIONOBSOLETE
+#endif
+#ifdef DWRITE_E_ALREADYREGISTERED
+#export DWRITE_E_ALREADYREGISTERED
+#endif
+#ifdef DWRITE_E_CACHEFORMAT
+#export DWRITE_E_CACHEFORMAT
+#endif
+#ifdef DWRITE_E_CACHEVERSION
+#export DWRITE_E_CACHEVERSION
+#endif
+#ifdef DWRITE_E_UNSUPPORTEDOPERATION
+#export DWRITE_E_UNSUPPORTEDOPERATION
+#endif
+#ifdef DWRITE_E_TEXTRENDERERINCOMPATIBLE
+#export DWRITE_E_TEXTRENDERERINCOMPATIBLE
+#endif
+#ifdef DWRITE_E_FLOWDIRECTIONCONFLICTS
+#export DWRITE_E_FLOWDIRECTIONCONFLICTS
+#endif
+#ifdef DWRITE_E_NOCOLOR
+#export DWRITE_E_NOCOLOR
+#endif
+#ifdef DWRITE_E_REMOTEFONT
+#export DWRITE_E_REMOTEFONT
+#endif
+#ifdef DWRITE_E_DOWNLOADCANCELLED
+#export DWRITE_E_DOWNLOADCANCELLED
+#endif
+#ifdef DWRITE_E_DOWNLOADFAILED
+#export DWRITE_E_DOWNLOADFAILED
+#endif
+#ifdef DWRITE_E_TOOMANYDOWNLOADS
+#export DWRITE_E_TOOMANYDOWNLOADS
+#endif
+#ifdef DWRITE_NO_PALETTE_INDEX
+#export DWRITE_NO_PALETTE_INDEX
+#endif
+#ifdef DWRITE_MAKE_FONT_AXIS_TAG
+#export DWRITE_MAKE_FONT_AXIS_TAG
+#endif
+#ifdef DWRITE_STANDARD_FONT_AXIS_COUNT
+#export DWRITE_STANDARD_FONT_AXIS_COUNT
+#endif
+#ifdef DXGI_CREATE_FACTORY_DEBUG
+#export DXGI_CREATE_FACTORY_DEBUG
+#endif
+#ifdef WINCODEC_SDK_VERSION1
+#export WINCODEC_SDK_VERSION1
+#endif
+#ifdef WINCODEC_SDK_VERSION2
+#export WINCODEC_SDK_VERSION2
+#endif
+#ifdef REFWICPixelFormatGUID
+#export REFWICPixelFormatGUID
+#endif
+#ifdef WICPixelFormatGUID
+#export WICPixelFormatGUID
+#endif
+#ifdef IID_WICPixelFormatUndefined
+#export IID_WICPixelFormatUndefined
+#endif
+#ifdef FACILITY_WINCODEC_ERR
+#export FACILITY_WINCODEC_ERR
+#endif
+#ifdef WINCODEC_ERR_BASE
+#export WINCODEC_ERR_BASE
+#endif
+#ifdef MAKE_WINCODECHR
+#export MAKE_WINCODECHR
+#endif
+#ifdef MAKE_WINCODECHR_ERR
+#export MAKE_WINCODECHR_ERR
 #endif
 
 #include once "windows.bi"
@@ -312,129 +615,76 @@ end type
 
 ' D2D Status Codes
 
-#define FACILITY_D2D &h899
-#export FACILITY_D2D
-#define MAKE_D2DHR(sev,code) MAKE_HRESULT(sev,FACILITY_D2D,(code))
-#export MAKE_D2DHR
-#define MAKE_D2DHR_ERR(code) MAKE_D2DHR(1,code)
-#export MAKE_D2DHR_ERR
+' [pkg/fbx] #define FACILITY_D2D moved to direct2d.ti
+' [pkg/fbx] #define MAKE_D2DHR moved to direct2d.ti
+' [pkg/fbx] #define MAKE_D2DHR_ERR moved to direct2d.ti
 
 ' D2D error codes
 ' // Error codes shared with WINCODECS
 
 ' // The pixel format is not supported.
-#define WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT   _HRESULT_TYPEDEF_(&h88982f80)
-#export WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT
-#define D2DERR_UNSUPPORTED_PIXEL_FORMAT   WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT
-#export D2DERR_UNSUPPORTED_PIXEL_FORMAT
+' [pkg/fbx] #define WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_UNSUPPORTED_PIXEL_FORMAT moved to direct2d.ti
 
 ' // Error codes that were already returned in prior versions and were part of the MIL facility.
 
 ' // Error codes mapped from WIN32 where there isn't already another HRESULT based define
 
 ' // The supplied buffer was too small to accommodate the data.
-#define D2DERR_INSUFFICIENT_BUFFER   HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)
-#export D2DERR_INSUFFICIENT_BUFFER
+' [pkg/fbx] #define D2DERR_INSUFFICIENT_BUFFER moved to direct2d.ti
 
 ' // The file specified was not found.
-#define D2DERR_FILE_NOT_FOUND   HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)
-#export D2DERR_FILE_NOT_FOUND
+' [pkg/fbx] #define D2DERR_FILE_NOT_FOUND moved to direct2d.ti
 
 ' // D2D specific codes now live in winerror.h
 
 ' /* may be defined from d2derr.h */
-#define D2DERR_WRONG_STATE                           _HRESULT_TYPEDEF_(&h88990001)
-#export D2DERR_WRONG_STATE
-#define D2DERR_NOT_INITIALIZED                       _HRESULT_TYPEDEF_(&h88990002)
-#export D2DERR_NOT_INITIALIZED
-#define D2DERR_UNSUPPORTED_OPERATION                 _HRESULT_TYPEDEF_(&h88990003)
-#export D2DERR_UNSUPPORTED_OPERATION
-#define D2DERR_SCANNER_FAILED                        _HRESULT_TYPEDEF_(&h88990004)
-#export D2DERR_SCANNER_FAILED
-#define D2DERR_SCREEN_ACCESS_DENIED                  _HRESULT_TYPEDEF_(&h88990005)
-#export D2DERR_SCREEN_ACCESS_DENIED
-#define D2DERR_DISPLAY_STATE_INVALID                 _HRESULT_TYPEDEF_(&h88990006)
-#export D2DERR_DISPLAY_STATE_INVALID
-#define D2DERR_ZERO_VECTOR                           _HRESULT_TYPEDEF_(&h88990007)
-#export D2DERR_ZERO_VECTOR
-#define D2DERR_INTERNAL_ERROR                        _HRESULT_TYPEDEF_(&h88990008)
-#export D2DERR_INTERNAL_ERROR
-#define D2DERR_DISPLAY_FORMAT_NOT_SUPPORTED          _HRESULT_TYPEDEF_(&h88990009)
-#export D2DERR_DISPLAY_FORMAT_NOT_SUPPORTED
-#define D2DERR_INVALID_CALL                          _HRESULT_TYPEDEF_(&h8899000A)
-#export D2DERR_INVALID_CALL
-#define D2DERR_NO_HARDWARE_DEVICE                    _HRESULT_TYPEDEF_(&h8899000B)
-#export D2DERR_NO_HARDWARE_DEVICE
-#define D2DERR_RECREATE_TARGET                       _HRESULT_TYPEDEF_(&h8899000C)
-#export D2DERR_RECREATE_TARGET
-#define D2DERR_TOO_MANY_SHADER_ELEMENTS              _HRESULT_TYPEDEF_(&h8899000D)
-#export D2DERR_TOO_MANY_SHADER_ELEMENTS
-#define D2DERR_SHADER_COMPILE_FAILED                 _HRESULT_TYPEDEF_(&h8899000E)
-#export D2DERR_SHADER_COMPILE_FAILED
-#define D2DERR_MAX_TEXTURE_SIZE_EXCEEDED             _HRESULT_TYPEDEF_(&h8899000F)
-#export D2DERR_MAX_TEXTURE_SIZE_EXCEEDED
-#define D2DERR_UNSUPPORTED_VERSION                   _HRESULT_TYPEDEF_(&h88990010)
-#export D2DERR_UNSUPPORTED_VERSION
-#define D2DERR_BAD_NUMBER                            _HRESULT_TYPEDEF_(&h88990011)
-#export D2DERR_BAD_NUMBER
-#define D2DERR_WRONG_FACTORY                         _HRESULT_TYPEDEF_(&h88990012)
-#export D2DERR_WRONG_FACTORY
-#define D2DERR_LAYER_ALREADY_IN_USE                  _HRESULT_TYPEDEF_(&h88990013)
-#export D2DERR_LAYER_ALREADY_IN_USE
-#define D2DERR_POP_CALL_DID_NOT_MATCH_PUSH           _HRESULT_TYPEDEF_(&h88990014)
-#export D2DERR_POP_CALL_DID_NOT_MATCH_PUSH
-#define D2DERR_WRONG_RESOURCE_DOMAIN                 _HRESULT_TYPEDEF_(&h88990015)
-#export D2DERR_WRONG_RESOURCE_DOMAIN
-#define D2DERR_PUSH_POP_UNBALANCED                   _HRESULT_TYPEDEF_(&h88990016)
-#export D2DERR_PUSH_POP_UNBALANCED
-#define D2DERR_RENDER_TARGET_HAS_LAYER_OR_CLIPRECT   _HRESULT_TYPEDEF_(&h88990017)
-#export D2DERR_RENDER_TARGET_HAS_LAYER_OR_CLIPRECT
-#define D2DERR_INCOMPATIBLE_BRUSH_TYPES              _HRESULT_TYPEDEF_(&h88990018)
-#export D2DERR_INCOMPATIBLE_BRUSH_TYPES
-#define D2DERR_WIN32_ERROR                           _HRESULT_TYPEDEF_(&h88990019)
-#export D2DERR_WIN32_ERROR
-#define D2DERR_TARGET_NOT_GDI_COMPATIBLE             _HRESULT_TYPEDEF_(&h8899001A)
-#export D2DERR_TARGET_NOT_GDI_COMPATIBLE
-#define D2DERR_TEXT_EFFECT_IS_WRONG_TYPE             _HRESULT_TYPEDEF_(&h8899001B)
-#export D2DERR_TEXT_EFFECT_IS_WRONG_TYPE
-#define D2DERR_TEXT_RENDERER_NOT_RELEASED            _HRESULT_TYPEDEF_(&h8899001C)
-#export D2DERR_TEXT_RENDERER_NOT_RELEASED
-#define D2DERR_EXCEEDS_MAX_BITMAP_SIZE               _HRESULT_TYPEDEF_(&h8899001D)
-#export D2DERR_EXCEEDS_MAX_BITMAP_SIZE
-#define D2DERR_INVALID_GRAPH_CONFIGURATION           _HRESULT_TYPEDEF_(&h8899001E)
-#export D2DERR_INVALID_GRAPH_CONFIGURATION
-#define D2DERR_INVALID_INTERNAL_GRAPH_CONFIGURATION  _HRESULT_TYPEDEF_(&h8899001F)
-#export D2DERR_INVALID_INTERNAL_GRAPH_CONFIGURATION
-#define D2DERR_CYCLIC_GRAPH                          _HRESULT_TYPEDEF_(&h88990020)
-#export D2DERR_CYCLIC_GRAPH
-#define D2DERR_BITMAP_CANNOT_DRAW                    _HRESULT_TYPEDEF_(&h88990021)
-#export D2DERR_BITMAP_CANNOT_DRAW
-#define D2DERR_OUTSTANDING_BITMAP_REFERENCES         _HRESULT_TYPEDEF_(&h88990022)
-#export D2DERR_OUTSTANDING_BITMAP_REFERENCES
-#define D2DERR_ORIGINAL_TARGET_NOT_BOUND             _HRESULT_TYPEDEF_(&h88990023)
-#export D2DERR_ORIGINAL_TARGET_NOT_BOUND
-#define D2DERR_INVALID_TARGET                        _HRESULT_TYPEDEF_(&h88990024)
-#export D2DERR_INVALID_TARGET
-#define D2DERR_BITMAP_BOUND_AS_TARGET                _HRESULT_TYPEDEF_(&h88990025)
-#export D2DERR_BITMAP_BOUND_AS_TARGET
-#define D2DERR_INSUFFICIENT_DEVICE_CAPABILITIES      _HRESULT_TYPEDEF_(&h88990026)
-#export D2DERR_INSUFFICIENT_DEVICE_CAPABILITIES
-#define D2DERR_INTERMEDIATE_TOO_LARGE                _HRESULT_TYPEDEF_(&h88990027)
-#export D2DERR_INTERMEDIATE_TOO_LARGE
-#define D2DERR_EFFECT_IS_NOT_REGISTERED              _HRESULT_TYPEDEF_(&h88990028)
-#export D2DERR_EFFECT_IS_NOT_REGISTERED
-#define D2DERR_INVALID_PROPERTY                      _HRESULT_TYPEDEF_(&h88990029)
-#export D2DERR_INVALID_PROPERTY
-#define D2DERR_NO_SUBPROPERTIES                      _HRESULT_TYPEDEF_(&h8899002A)
-#export D2DERR_NO_SUBPROPERTIES
-#define D2DERR_PRINT_JOB_CLOSED                      _HRESULT_TYPEDEF_(&h8899002B)
-#export D2DERR_PRINT_JOB_CLOSED
-#define D2DERR_PRINT_FORMAT_NOT_SUPPORTED            _HRESULT_TYPEDEF_(&h8899002C)
-#export D2DERR_PRINT_FORMAT_NOT_SUPPORTED
-#define D2DERR_TOO_MANY_TRANSFORM_INPUTS             _HRESULT_TYPEDEF_(&h8899002D)
-#export D2DERR_TOO_MANY_TRANSFORM_INPUTS
-#define D2DERR_INVALID_GLYPH_IMAGE                   _HRESULT_TYPEDEF_(&h8899002E)
-#export D2DERR_INVALID_GLYPH_IMAGE
+' [pkg/fbx] #define D2DERR_WRONG_STATE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_NOT_INITIALIZED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_UNSUPPORTED_OPERATION moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_SCANNER_FAILED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_SCREEN_ACCESS_DENIED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_DISPLAY_STATE_INVALID moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_ZERO_VECTOR moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INTERNAL_ERROR moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_DISPLAY_FORMAT_NOT_SUPPORTED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INVALID_CALL moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_NO_HARDWARE_DEVICE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_RECREATE_TARGET moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_TOO_MANY_SHADER_ELEMENTS moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_SHADER_COMPILE_FAILED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_MAX_TEXTURE_SIZE_EXCEEDED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_UNSUPPORTED_VERSION moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_BAD_NUMBER moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_WRONG_FACTORY moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_LAYER_ALREADY_IN_USE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_POP_CALL_DID_NOT_MATCH_PUSH moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_WRONG_RESOURCE_DOMAIN moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_PUSH_POP_UNBALANCED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_RENDER_TARGET_HAS_LAYER_OR_CLIPRECT moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INCOMPATIBLE_BRUSH_TYPES moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_WIN32_ERROR moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_TARGET_NOT_GDI_COMPATIBLE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_TEXT_EFFECT_IS_WRONG_TYPE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_TEXT_RENDERER_NOT_RELEASED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_EXCEEDS_MAX_BITMAP_SIZE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INVALID_GRAPH_CONFIGURATION moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INVALID_INTERNAL_GRAPH_CONFIGURATION moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_CYCLIC_GRAPH moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_BITMAP_CANNOT_DRAW moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_OUTSTANDING_BITMAP_REFERENCES moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_ORIGINAL_TARGET_NOT_BOUND moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INVALID_TARGET moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_BITMAP_BOUND_AS_TARGET moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INSUFFICIENT_DEVICE_CAPABILITIES moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INTERMEDIATE_TOO_LARGE moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_EFFECT_IS_NOT_REGISTERED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INVALID_PROPERTY moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_NO_SUBPROPERTIES moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_PRINT_JOB_CLOSED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_PRINT_FORMAT_NOT_SUPPORTED moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_TOO_MANY_TRANSFORM_INPUTS moved to direct2d.ti
+' [pkg/fbx] #define D2DERR_INVALID_GLYPH_IMAGE moved to direct2d.ti
 
 ' ########################################################################################
 '                                 *** dxgicommon.h ***
@@ -616,25 +866,17 @@ end enum
 '                                *** dxgitype.h ***
 ' ########################################################################################
 
-#define _FACDXGI    &h87a
-#export _FACDXGI
-#define MAKE_DXGI_HRESULT(code) MAKE_HRESULT(1, _FACDXGI, code)
-#export MAKE_DXGI_HRESULT
-#define MAKE_DXGI_STATUS(code)  MAKE_HRESULT(0, _FACDXGI, code)
-#export MAKE_DXGI_STATUS
+' [pkg/fbx] #define _FACDXGI moved to direct2d.ti
+' [pkg/fbx] #define MAKE_DXGI_HRESULT moved to direct2d.ti
+' [pkg/fbx] #define MAKE_DXGI_STATUS moved to direct2d.ti
 
 '// DXGI error messages have moved to winerror.h
 
-#define DXGI_CPU_ACCESS_NONE       = 0
-#export DXGI_CPU_ACCESS_NONE
-#define DXGI_CPU_ACCESS_DYNAMIC    = 1
-#export DXGI_CPU_ACCESS_DYNAMIC
-#define DXGI_CPU_ACCESS_READ_WRITE = 2 
-#export DXGI_CPU_ACCESS_READ_WRITE
-#define DXGI_CPU_ACCESS_SCRATCH    = 3
-#export DXGI_CPU_ACCESS_SCRATCH
-#define DXGI_CPU_ACCESS_FIELD      = 15
-#export DXGI_CPU_ACCESS_FIELD
+' [pkg/fbx] #define DXGI_CPU_ACCESS_NONE moved to direct2d.ti
+' [pkg/fbx] #define DXGI_CPU_ACCESS_DYNAMIC moved to direct2d.ti
+' [pkg/fbx] #define DXGI_CPU_ACCESS_READ_WRITE moved to direct2d.ti
+' [pkg/fbx] #define DXGI_CPU_ACCESS_SCRATCH moved to direct2d.ti
+' [pkg/fbx] #define DXGI_CPU_ACCESS_FIELD moved to direct2d.ti
 
 PUBLIC type DXGI_RGB
    AS float Red
@@ -847,8 +1089,7 @@ PUBLIC TYPE ID2D1TessellationSink AS ID2D1TessellationSink_
 PUBLIC TYPE ID2D1TransformedGeometry AS ID2D1TransformedGeometry_
 
 '#define D2D1_INVALID_TAG ULONGLONG_MAX
-#define D2D1_INVALID_TAG 18446744073709551615ULL
-#export D2D1_INVALID_TAG
+' [pkg/fbx] #define D2D1_INVALID_TAG moved to direct2d.ti
 ' [pkg/fbx] #define D2D1_DEFAULT_FLATTENING_TOLERANCE moved to direct2d.ti
 
 ' ========================================================================================
@@ -2240,7 +2481,7 @@ PUBLIC CONST D2D1_INVALID_PROPERTY_INDEX = &hFFFFFFFF
 'typedef D2D_RECT_L D2D1_RECT_L;
 'typedef D2D_POINT_2L D2D1_POINT_2L;
 
-' [pkg/fbx] #define D2D1_RECT_L moved to direct2d.ti
+' [pkg/fbx] #define D2D1_RECT_L: direct2d.ti has it
 '#define D2D1_POINT_2L D2D_POINT_2L
 
 '/// This defines the valid property types that can be used in an effect property interface.

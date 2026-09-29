@@ -783,8 +783,7 @@ PUBLIC DIM SHARED CLSID_D2D1AlphaMask AS GUID         = (&hc80ecff0, &h3fd5, &h4
 PUBLIC DIM SHARED CLSID_D2D1CrossFade AS GUID         = (&h12f575e8, &h4db1, &h485f, {&h9a, &h84, &h03, &ha0, &h7d, &hd3, &h82, &h9f})
 PUBLIC DIM SHARED CLSID_D2D1Tint AS GUID              = (&h36312b17, &hf7dd, &h4014, {&h91, &h5d, &hff, &hca, &h76, &h8c, &hf2, &h11})
 
-#define D2D1_SCENE_REFERRED_SDR_WHITE_LEVEL 80.0f
-#export D2D1_SCENE_REFERRED_SDR_WHITE_LEVEL
+' [pkg/fbx] #define D2D1_SCENE_REFERRED_SDR_WHITE_LEVEL moved to direct2d.ti
 
 PUBLIC DIM SHARED CLSID_D2D1WhiteLevelAdjustment AS GUID = (&h44a1cadb, &h6cdd, &h4818, {&h8f, &hf4, &h26, &hc1, &hcf, &he9, &h5b, &hdb})
 PUBLIC DIM SHARED CLSID_D2D1HdrToneMap AS GUID           = (&h7b0b748d, &h4610, &h4486, {&ha9, &h0c, &h99, &h9d, &h9a, &h2e, &h2b, &h11})
@@ -1122,8 +1121,7 @@ PUBLIC type D2D1_INPUT_ELEMENT_DESC
    AS UINT32 alignedByteOffset
 end type
 
-#define D2D1_APPEND_ALIGNED_ELEMENT &hffffffff
-#export D2D1_APPEND_ALIGNED_ELEMENT
+' [pkg/fbx] #define D2D1_APPEND_ALIGNED_ELEMENT moved to direct2d.ti
 
 PUBLIC type D2D1_VERTEX_BUFFER_PROPERTIES
    AS UINT32 inputCount

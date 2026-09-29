@@ -35,18 +35,12 @@
 using core
 
 #ifndef _GDIP_DEBUG_
-   #define _GDIP_DEBUG_ 0
-#export _GDIP_DEBUG_
+' [pkg/fbx] #define _GDIP_DEBUG_ moved to gdiplus.ti
 #ENDIF
 #ifndef _GDIP_DP_
    #define _GDIP_DP_ 1
 #export _GDIP_DP_
-   #MACRO GDIP_DP(st)
-      #IF (_GDIP_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export GDIP_DP
+' [pkg/fbx] #define GDIP_DP moved to gdiplus.ti
 #ENDIF
 ' ========================================================================================
 

@@ -36,18 +36,12 @@
 #include once "core.ti"
 
 #ifndef _DVARIANT_DEBUG_
-   #define _DVARIANT_DEBUG_ 0
-#export _DVARIANT_DEBUG_
+' [pkg/fbx] #define _DVARIANT_DEBUG_ moved to core.ti
 #ENDIF
 #ifndef _DVARIANT_DP_
    #define _DVARIANT_DP_ 1
 #export _DVARIANT_DP_
-   #MACRO DVARIANT_DP(st)
-      #IF (_DVARIANT_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export DVARIANT_DP
+' [pkg/fbx] #define DVARIANT_DP moved to core.ti
 #ENDIF
 ' ========================================================================================
 

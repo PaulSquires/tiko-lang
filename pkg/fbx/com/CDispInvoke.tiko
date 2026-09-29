@@ -33,20 +33,20 @@
 #import "fbx/core"
 #include once "com.ti"
 using core
+#ifdef _CDISPINVOKE_DEBUG_
+#export _CDISPINVOKE_DEBUG_
+#endif
+#ifdef CDISPINVOKE_DP
+#export CDISPINVOKE_DP
+#endif
 
 #ifndef _CDISPINVOKE_DEBUG_
-   #define _CDISPINVOKE_DEBUG_ 0
-#export _CDISPINVOKE_DEBUG_
+' [pkg/fbx] #define _CDISPINVOKE_DEBUG_ moved to com.ti
 #ENDIF
 #ifndef _CDISPINVOKE_DP_
    #define _CDISPINVOKE_DP_ 1
 #export _CDISPINVOKE_DP_
-   #MACRO CDISPINVOKE_DP(st)
-      #IF (_CDISPINVOKE_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CDISPINVOKE_DP
+' [pkg/fbx] #define CDISPINVOKE_DP moved to com.ti
 #ENDIF
 ' ========================================================================================
 

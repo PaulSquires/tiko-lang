@@ -9,6 +9,16 @@
 #include once "win/shellapi.bi"
 #include once "win/commdlg.bi"
 
+#ifndef _CEXPBROW_DEBUG_
+   #define _CEXPBROW_DEBUG_ 0
+#endif
+#ifndef _CEXPBROW_DP_
+   #MACRO CEXPBROW_DP(st)
+      #IF (_CEXPBROW_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif
 #ifndef _COSFD_DEBUG_
    #define _COSFD_DEBUG_ 0
 #endif

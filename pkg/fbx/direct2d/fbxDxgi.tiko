@@ -59,14 +59,14 @@ PUBLIC DIM SHARED IID_IDXGISwapChain4 AS GUID = (&h3D585D5A, &hBD4A, &h489E, {&h
 PUBLIC DIM SHARED IID_IDXGISwapChainMedia AS GUID = (&hDD95B90B, &hF05F, &h4F6A, {&hBD, &h65, &h25, &hBF, &hB2, &h64, &hBD, &h84})
 
 #ifndef _FACDXGI
-#define _FACDXGI    &h87a
+' [pkg/fbx] #define _FACDXGI moved to direct2d.ti
 #endif
 
 #ifndef MAKE_DXGI_STATUS
-#define MAKE_DXGI_STATUS(x)                         MAKE_HRESULT(0, _FACDXGI, x)
+' [pkg/fbx] #define MAKE_DXGI_STATUS moved to direct2d.ti
 #endif
 #ifndef MAKE_DXGI_HRESULT
-#define MAKE_DXGI_HRESULT(code) MAKE_HRESULT(1, _FACDXGI, code)
+' [pkg/fbx] #define MAKE_DXGI_HRESULT moved to direct2d.ti
 #endif
 
 '#if 0
@@ -79,19 +79,19 @@ PUBLIC DIM SHARED IID_IDXGISwapChainMedia AS GUID = (&hDD95B90B, &hF05F, &h4F6A,
 '#endif
 
 #ifndef DXGI_CPU_ACCESS_NONE
-#define DXGI_CPU_ACCESS_NONE       =  0
+' [pkg/fbx] #define DXGI_CPU_ACCESS_NONE moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_DYNAMIC
-#define DXGI_CPU_ACCESS_DYNAMIC    = 1
+' [pkg/fbx] #define DXGI_CPU_ACCESS_DYNAMIC moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_READ_WRITE
-#define DXGI_CPU_ACCESS_READ_WRITE = 2 
+' [pkg/fbx] #define DXGI_CPU_ACCESS_READ_WRITE moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_SCRATCH
-#define DXGI_CPU_ACCESS_SCRATCH    = 3
+' [pkg/fbx] #define DXGI_CPU_ACCESS_SCRATCH moved to direct2d.ti
 #endif
 #ifndef DXGI_CPU_ACCESS_FIELD
-#define DXGI_CPU_ACCESS_FIELD      = 15
+' [pkg/fbx] #define DXGI_CPU_ACCESS_FIELD moved to direct2d.ti
 #endif
 
 PUBLIC TYPE DXGI_USAGE AS UINT
@@ -1112,8 +1112,7 @@ END TYPE
 ' ########################################################################################
 
 
-#define DXGI_CREATE_FACTORY_DEBUG &h1
-#export DXGI_CREATE_FACTORY_DEBUG
+' [pkg/fbx] #define DXGI_CREATE_FACTORY_DEBUG moved to direct2d.ti
 
 PUBLIC DECLARE FUNCTION CreateDXGIFactory2 LIB "Dxgi" ALIAS "CreateDXGIFactory2" (BYVAL flags AS UINT, BYREF factory AS ANY PTR) AS HRESULT
 

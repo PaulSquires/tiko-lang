@@ -33,18 +33,12 @@
 #include once "core.ti"
 
 #ifndef _DSAFEARRAY_DEBUG_
-   #define _DSAFEARRAY_DEBUG_ 0
-#export _DSAFEARRAY_DEBUG_
+' [pkg/fbx] #define _DSAFEARRAY_DEBUG_ moved to core.ti
 #ENDIF
 #ifndef _DSAFEARRAY_DP_
    #define _DSAFEARRAY_DP_ 1
 #export _DSAFEARRAY_DP_
-   #MACRO DSAFEARRAY_DP(st)
-      #IF (_DSAFEARRAY_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export DSAFEARRAY_DP
+' [pkg/fbx] #define DSAFEARRAY_DP moved to core.ti
 #ENDIF
 ' ========================================================================================
 

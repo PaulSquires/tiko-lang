@@ -625,10 +625,9 @@ PUBLIC FUNCTION fbxBase64EncodeW (BYREF ustrData AS WSTRING) AS USTRING
 END FUNCTION
 ' ========================================================================================
 #ifndef UNICODE
-   #define fbxBase64Encode fbxBase64EncodeA
-#export fbxBase64Encode
+' [pkg/fbx] #define fbxBase64Encode moved to core.ti
 #else
-   #define fbxBase64Encode fbxBase64EncodeW
+' [pkg/fbx] #define fbxBase64Encode moved to core.ti
 #endif
 
 ' ========================================================================================
@@ -652,10 +651,9 @@ PUBLIC FUNCTION fbxBase64DecodeW (BYREF ustrData AS USTRING) AS USTRING
 END FUNCTION
 ' ========================================================================================
 #ifndef UNICODE
-   #define fbxBase64Decode fbxBase64DecodeA
-#export fbxBase64Decode
+' [pkg/fbx] #define fbxBase64Decode moved to core.ti
 #else
-   #define fbxBase64Decode fbxBase64DecodeW
+' [pkg/fbx] #define fbxBase64Decode moved to core.ti
 #endif
 
 ' ########################################################################################

@@ -6,3 +6,16 @@
 #include once "win/sql.bi"
 #include once "win/sqlucode.bi"
 
+#ifndef SQL_OV_ODBC3_80
+#define SQL_OV_ODBC3_80 380u
+#endif
+#ifndef _CODBC_DEBUG_
+   #define _CODBC_DEBUG_ 0
+#endif
+#ifndef _CODBC_DP_
+   #MACRO CODBC_DP(st)
+      #IF (_CODBC_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif

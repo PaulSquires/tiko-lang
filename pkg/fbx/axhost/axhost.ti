@@ -36,6 +36,26 @@
       #endif
    #ENDMACRO
 #endif
+#define __fbx_IWebBrowser_INTERFACE_DEFINED__
+#define __fbx_IWebBrowserApp_INTERFACE_DEFINED__
+#define __fbx_IWebBrowser2_INTERFACE_DEFINED__
+#define __fbx_IShellWindows_INTERFACE_DEFINED__
+#define __fbx_IShellUIHelper_INTERFACE_DEFINED__
+#define __fbx_IShellUIHelper2_INTERFACE_DEFINED__
+#define __fbx_IShellUIHelper3_INTERFACE_DEFINED__
+#define __fbx_IShellFavoritesNameSpace_INTERFACE_DEFINED__
+#define __fbx_IShellNameSpace_INTERFACE_DEFINED__
+#define __fbx_IScriptErrorList_INTERFACE_DEFINED__
+#ifndef _CMSHGRID_DEBUG_
+   #define _CMSHGRID_DEBUG_ 0
+#endif
+#ifndef _CMSHGRID_DP_
+   #MACRO CMSHGRID_DP(st)
+      #IF (_CMSHGRID_DEBUG_ = 1)
+         OutputDebugStringW(__FUNCTION__ + ": " + st)
+      #ENDIF
+   #ENDMACRO
+#endif
 #ifndef _CMSHGRIDEVT_DEBUG_
    #define _CMSHGRIDEVT_DEBUG_ 0
 #endif

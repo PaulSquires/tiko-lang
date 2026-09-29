@@ -34,6 +34,12 @@
 #include once "adodb.ti"
 using com
 using core
+#ifdef _CADOSTM_DEBUG_
+#export _CADOSTM_DEBUG_
+#endif
+#ifdef CADOSTM_DP
+#export CADOSTM_DP
+#endif
 #ifdef _CADODB_DEBUG_
 #export _CADODB_DEBUG_
 #endif

@@ -38,18 +38,12 @@ using gui
 ' To allow debugging, define _CMSHGRID_DEBUG_ 1 in your application before including this file.
 ' ========================================================================================
 #ifndef _CMSHGRID_DEBUG_
-   #define _CMSHGRID_DEBUG_ 0
-#export _CMSHGRID_DEBUG_
+' [pkg/fbx] #define _CMSHGRID_DEBUG_ moved to axhost.ti
 #ENDIF
 #ifndef _CMSHGRID_DP_
    #define _CMSHGRID_DP_ 1
 #export _CMSHGRID_DP_
-   #MACRO CMSHGRID_DP(st)
-      #IF (_CMSHGRID_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #ENDIF
-   #ENDMACRO
-#export CMSHGRID_DP
+' [pkg/fbx] #define CMSHGRID_DP moved to axhost.ti
 #ENDIF
 ' ========================================================================================
 

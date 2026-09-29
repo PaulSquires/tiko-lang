@@ -32,6 +32,12 @@
 using core
 using gui
 using scripting
+#ifdef INTERNET_MAX_URL_LENGTH
+#export INTERNET_MAX_URL_LENGTH
+#endif
+#ifdef PATHCCH_MAX_CCH
+#export PATHCCH_MAX_CCH
+#endif
 
 #include once "windows.bi"
 #include once "vbcompat.bi"

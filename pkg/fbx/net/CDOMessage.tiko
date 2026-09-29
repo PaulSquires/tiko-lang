@@ -17,14 +17,29 @@
 using adodb
 using com
 using core
+#ifdef _CXMLLITE_DEBUG_
+#export _CXMLLITE_DEBUG_
+#endif
+#ifdef CXMLLITE_DP
+#export CXMLLITE_DP
+#endif
 #ifdef IID_IXmlReader
 #export IID_IXmlReader
+#endif
+#ifdef IID_IXmlResolver
+#export IID_IXmlResolver
 #endif
 #ifdef IID_IXmlWriter
 #export IID_IXmlWriter
 #endif
 #ifdef IID_IXmlWriterLite
 #export IID_IXmlWriterLite
+#endif
+#ifdef IXmlReaderInput
+#export IXmlReaderInput
+#endif
+#ifdef IXmlWriterOutput
+#export IXmlWriterOutput
 #endif
 
 #include once "windows.bi"
