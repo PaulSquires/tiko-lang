@@ -1,0 +1,10 @@
+'' TKO0879, fbc's 17, 205 and 206: a member as a module constructor or destructor must be a
+'' public static one. See CheckModCtorMember_ in symbols/collectproc.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/module-ctor-member.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: module-ctor-member.bas(16,1): error TKO0879: 'm1' cannot be a module constructor: it is a method, with a THIS, and only a public static member may be one
+'' EXPECT-OUT: module-ctor-member.bas(18,1): error TKO0879: 'm2' cannot be a module destructor
+'' EXPECT-OUT: module-ctor-member.bas(20,1): error TKO0879: 'p1' cannot be a module constructor: it is private
+'' EXPECT-OUT: module-ctor-member.bas(22,1): error TKO0879: 'p2' cannot be a module destructor: it is protected
+'' EXPECT-MAX-DIAG: 4

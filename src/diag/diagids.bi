@@ -640,6 +640,8 @@
     DIAG( TKO0877, SEV_ERROR,   "an anonymous %0 cannot sit directly inside a %0; they must alternate" )
     '' fbc's 88 (24 from a nested type): a field of the type being declared -- see recursivetype.bas.
     DIAG( TKO0878, SEV_ERROR,   "'%0' cannot hold itself: it is still being declared, and only a pointer to it may be a field" )
+    '' fbc's 17, 205 and 206: a member as a module constructor or destructor -- see collectproc.bas.
+    DIAG( TKO0879, SEV_ERROR,   "'%0' cannot be a module %1: it is %2, and only a public static member may be one" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

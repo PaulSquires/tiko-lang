@@ -622,3 +622,47 @@ private function UndefKeeps_ _
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( hs->loc ) )
     return true
 end function
+
+'' A MEMBER AS A MODULE CONSTRUCTOR OR DESTRUCTOR -- 'sub UDT.m( ) constructor'. Measured on
+'' fbc-modern 1.20, 2026-09-28, over the member's DECLARATION in the type:
+''
+''     declare sub m( )                     error 17, "Syntax error" -- it has a THIS
+''     private:   declare static sub m( )   error 205, "Constructor has no public access"
+''     protected: declare static sub m( )   error 206 for 'destructor' (205 for 'constructor')
+''     declare static sub m( )              fine -- the runtime calls it with no object
+''
+'' tiko accepted every one, and ran a method with no object behind its THIS. 'os' is the
+'' owner type the definition resolved to.
+private sub CheckModCtorMember_ _
+    ( byref w as Walker, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval os as Tko.Symbol ptr )
+
+    if (sp->extra and (Tko.PF_MODCTOR or Tko.PF_MODDTOR)) = 0 then return
+    if (os = 0) orelse (os->inner = Tko.SCOPE_NONE) then return
+    dim as Tko.Symbol ptr ms = w.syms->SymbolAt( w.syms->LookupLocal( os->inner, sp->name ) )
+    dim as long guard = 0
+    while (ms <> 0) andalso (guard < 1000)
+        guard += 1
+        dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
+        if (md <> Tko.NODE_NONE) andalso (md <> id) andalso (w.ast->Kind( md ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr mp = @w.ast->stmts[cast( long, w.ast->nodes[cast( long, md )].data )]
+            if mp->b = Tko.NODE_NONE then
+                dim as string what = iif( (sp->extra and Tko.PF_MODCTOR) <> 0, "constructor", "destructor" )
+                dim as string why = ""
+                if (mp->extra and Tko.PF_STATIC) = 0 then
+                    why = "a method, with a THIS"
+                elseif (mp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then
+                    why = "private"
+                elseif (mp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then
+                    why = "protected"
+                end if
+                if len( why ) > 0 then
+                    w.diags->Report( Tko.TKO0879, Tko.PointRange( w.ast->Loc( id ) ), _
+                        w.names->Spelling( sp->name ), what, why )
+                end if
+                return
+            end if
+        end if
+        ms = w.syms->SymbolAt( ms->nextOverload )
+    wend
+end sub

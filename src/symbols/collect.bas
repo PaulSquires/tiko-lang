@@ -940,6 +940,7 @@ sub WalkNode _
                         w.names->Spelling( ownerNm ) )
                 elseif haveOwner then
                     if os->inner <> Tko.SCOPE_NONE then parentScope = os->inner
+                    if ownerIsUdt then CheckModCtorMember_( w, id, sp, os )
                 elseif isCtorDtor then
                     '' A STRUCTOR WHOSE OWNER IS NOT VISIBLE HERE. 'constructor UDT( )'
                     '' written outside the namespace that declares UDT is fbc error
