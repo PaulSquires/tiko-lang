@@ -1,0 +1,13 @@
+'' A 'string * N' for a 'byref as zstring' parameter is a temporary, copied back. See the
+'' source's header. RUN, because the failure was a wrong length read past the buffer.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/fixstr-byref-zstring.bas -o tests/driver/fixstrbyrefz.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/fixstrbyrefz.exe
+'' RUN: tests/driver/fixstrbyrefz.exe
+'' EXPECT-RUN-OUT: len 8 [a       ]
+'' EXPECT-RUN-OUT: back [xyz] 0 8
+'' EXPECT-RUN-OUT: const 3
+'' EXPECT-RUN-OUT: len 6 [hi    ]
+'' EXPECT-RUN-OUT: field [xyz] 0 1094795585

@@ -564,6 +564,45 @@ private function ByrefUdtArg_ _
 end function
 
 
+'' A 'string * N' FOR A BYREF ZSTRING PARAMETER GOES THROUGH A TEMPORARY. Its N bytes are
+'' space-padded and have no NUL after them, so its own address is not a zstring. Measured,
+'' fbc-modern 1.20, 2026-09-28, for 'PZ( fs )' over 'byref z as zstring':
+''
+''     fb_StrAssign( &TMP$5$0, -1ll, FS$0, <fixed 8>, 0 );
+''     PZ( *(char**)&TMP$5$0 );
+''     fb_StrAssign( FS$0, <fixed 8>, &TMP$5$0, -1ll, -1 );
+''     fb_StrDelete( &TMP$5$0 );
+''
+'' tiko passed FS$0 itself, and 'len( z )' ran on into the next variable: 10 where fbc
+'' prints 8. The temporary is registered for the copy-back (CopyBackUStrArgs_ writes a
+'' 'string * N' with fbc's -1 flag) and for deletion. False, emitting nothing, for anything
+'' that is not a 'string * N'.
+function FixStrZArgTemp_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
+      byref strTemps as FB.Array( of ulong ), byref strTempTypes as FB.Array( of ulong ), _
+      byref backNodes as FB.Array( of ulong ), byref backSlots as FB.Array( of ulong ) ) as boolean
+
+    if argNode = Tko.NODE_NONE then return false
+    dim as longint fn_
+    if StrSwapKind_( c, c.info->TypeOf_( argNode ), fn_ ) <> 3 then return false
+    dim as Tko.TypeId npt = c.types->Builtin( Tko.TY_STRING )
+    dim as MirValue tv
+    dim as long slot = -1
+    if ByvalStrTemp_( c, argNode, npt, tv, slot ) = false then return false
+    if slot < 0 then return false
+    strTemps.Push( cast( ulong, slot ) )
+    strTempTypes.Push( cast( ulong, npt ) )
+    backNodes.Push( cast( ulong, argNode ) )
+    backSlots.Push( cast( ulong, slot ) )
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR ) : fa.ty = cast( ubyte, MT_PTR )
+    fa.a = tv : fa.imm = 0
+    dim as MirValue pa = Emit( c, fa )
+    if pa.kind = cast( ubyte, MV_NONE ) then return false
+    outa = LowerExprLoad( c, pa, MT_PTR )
+    return (outa.kind <> cast( ubyte, MV_NONE ))
+end function
+
 '' A LVALUE USTRING FOR A WIDE PARAMETER IS ITS DATA POINTER, which is already UTF-16.
 '' NarrowToWideTemp_ ran fb_StrToWstr over those bytes as narrow and stopped after one
 '' character -- tracks' notes panel showed "T". Measured, fbc passes the data pointer:
