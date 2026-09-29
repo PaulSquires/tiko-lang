@@ -48,7 +48,7 @@ FACADES = {
     # hand" -- it is what a SELECT statement lowers to.
     "tasks": (["fb/scheduler.bi", "fb/channel.bi", "fb/sync.bi"],
               ["scheduler.bi", "channel.bi", "sync.bi"], True),
-    "maybe": (["fb/optional.bi", "fb/result.bi"], ["optional.bi", "result.bi"], False),
+    "outcome": (["fb/optional.bi", "fb/result.bi"], ["optional.bi", "result.bi"], False),
     "numeric": (["fb/math.bi", "fb/mathint.bi", "fb/complex.bi", "fb/mathtext.bi",
                  "fb/random.bi", "fb/stats.bi", "fb/fenv.bi", "fb/vector.bi"],
                 ["math.bi", "mathint.bi", "complex.bi", "mathtext.bi", "random.bi", "stats.bi",

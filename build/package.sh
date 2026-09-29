@@ -572,7 +572,7 @@ STD_CHECKS='strings|print strings.Replace( "k-o", "-", "" )|ko
 fs|print fs.PathExtension( "a.txt" )|.txt
 containers|dim as containers.Array( of long ) a : a.Push( 7 ) : print str( a[0] )|7
 chrono|print str( chrono.LocalDate( 2026, 9, 28 ).Day )|28
-maybe|print str( maybe.Some( of long )( 5 ).Value( ) )|5
+outcome|print str( outcome.Some( of long )( 5 ).Value( ) )|5
 numeric|print str( numeric.GCD( 12ull, 18ull ) )|6
 money|print money.DecimalFromInt( 12 ).ToString( )|12
 logs|print logs.LevelName( logs.LOG_WARN )|WARN

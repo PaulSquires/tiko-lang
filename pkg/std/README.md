@@ -18,7 +18,7 @@ builds tiko-lang from them.
 | `std/containers` | `containers.bi`: `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `Sort` | |
 | `std/chrono` | `fb/chrono.bi`: `DateTime`, `LocalDate`, `TimeSpan`, `Stopwatch`, `WallClock` … | |
 | `std/tasks` | `fb/scheduler.bi`, `channel.bi`, `sync.bi`: `Channel`, `WaitGroup`, `Context` … | `-mt` |
-| `std/maybe` | `fb/optional.bi`, `fb/result.bi`: `Optional`, `Result`, `Some`, `None`, `Ok`, `Fail` | |
+| `std/outcome` | `fb/optional.bi`, `fb/result.bi`: `Optional`, `Result`, `Some`, `None`, `Ok`, `Fail` | |
 | `std/numeric` | `fb/math.bi`, `mathint`, `complex`, `mathtext`, `random`, `stats`, `fenv`, `vector` | |
 | `std/money` | `fb/decimal.bi`, `currency`, `moneyformat`, `finance` | |
 | `std/logs` | `fb/logging.bi` | |
