@@ -1,0 +1,14 @@
+'' TKO0617, fbc's 119: a write through strptr( ) of a const string, into strptr( ) itself,
+'' or into a const string's characters; TKO0747, fbc's 181, for dropping the const. See
+'' symbols/latesweeps3.bas and the strptr row of symbols/intrinsics.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/strptr-const-write.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: strptr-const-write.bas(5,20): error TKO0617
+'' EXPECT-OUT: strptr-const-write.bas(13,7): error TKO0617
+'' EXPECT-OUT: strptr-const-write.bas(14,5): error TKO0617
+'' EXPECT-OUT: strptr-const-write.bas(15,12): error TKO0617
+'' EXPECT-OUT: strptr-const-write.bas(16,2): error TKO0617
+'' EXPECT-OUT: strptr-const-write.bas(17,2): error TKO0617
+'' EXPECT-OUT: strptr-const-write.bas(18,5): error TKO0747
+'' EXPECT-MAX-DIAG: 7

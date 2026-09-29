@@ -36,7 +36,20 @@ private function ConstDesignated_ ( byref c as Ctx, byval n as NodeId ) as boole
     dim as TypeId t = c.info->TypeOf_( n )
     if t = TYPE_NONE then return false
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Inner( t )
-    return c.types->IsConst( t )
+    if c.types->IsConst( t ) then return true
+    '' 's[ 0 ] = 1' OVER A CONST STRING is fbc's 119 too -- a var-len, fixed, or bare zstring
+    '' or wstring, '(*strptr( s ))[ 0 ]' among them -- but the subscript's own type is a plain
+    '' UBYTE, so the BASE is asked. A pointer base is not: its pointee answered above.
+    if c.ast->Kind( n ) <> N_INDEX then return false
+    dim as NodeId xb = c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target
+    if xb = NODE_NONE then return false
+    dim as TypeId bt = c.info->TypeOf_( xb )
+    if bt = TYPE_NONE then return false
+    if c.types->Kind( bt ) = TK_REFERENCE then bt = c.types->Inner( bt )
+    if c.types->Kind( bt ) = TK_POINTER then return false
+    if c.types->IsConst( bt ) then return true
+    if c.types->Kind( bt ) = TK_ARRAY then return c.types->IsConst( c.types->Inner( bt ) )
+    return false
 end function
 
 '' The assignment targets CheckAssignTarget_ does not reach: a DEREFERENCE and a CAST.
@@ -60,6 +73,21 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
                     dim as string cn = lcase( c.names->Spelling( _
                         c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
                     judged = (cn = "cast") orelse (cn = "cptr")
+                    '' 'strptr( s ) = 0' -- fbc types strptr of a VAR-LEN string as a CONST
+                    '' pointer, so assigning to the call is its 119, const string or not.
+                    '' A fixed one's is error 24 instead and is not judged here.
+                    if ((cn = "strptr") orelse (cn = "sadd")) andalso (lp->count >= 1) then
+                        dim as TypeId st0 = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
+                        if c.types->Kind( st0 ) = TK_REFERENCE then st0 = c.types->Inner( st0 )
+                        st0 = c.types->Unqualify( st0 )
+                        if c.types->Kind( st0 ) = TK_BUILTIN then
+                            select case c.types->BuiltinOf( st0 )
+                            case TY_STRING, TY_USTRING
+                                c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), SpellOf_( c, sp->a ) )
+                            end select
+                        end if
+                        return
+                    end if
                     '' 'mid( s, i, n ) = v' WRITES INTO s, so a const string there is
                     '' fbc's 119 -- while a const INDEX argument is fine. The call's own
                     '' type is the string it returns, so argument 0 is what is judged.
