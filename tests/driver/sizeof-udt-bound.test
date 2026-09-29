@@ -1,0 +1,10 @@
+'' An array bounded by 'sizeof( UDT )' is a static array of the right size. See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/sizeof-udt-bound.bas -o tests/driver/sizeofudtbound.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/sizeofudtbound.exe
+'' RUN: tests/driver/sizeofudtbound.exe
+'' EXPECT-RUN-OUT: bounds 2 2 3
+'' EXPECT-RUN-OUT: sizes 96 32
+'' EXPECT-RUN-OUT: store 7

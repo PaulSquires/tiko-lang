@@ -16,19 +16,17 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %8, 0)
     %9 = const i64 16
     call.rtl void fb_PrintLongint(0, %9, 0)
-    %10 = const i64 16
-    %11 = const i64 1
-    %12 = sub %10, %11
-    call.rtl void fb_PrintLongint(0, %12, 0)
-    %13 = load @d
-    call.rtl void fb_PrintLongint(0, %13, 1)
-    %14 = const i32 0
-    call.rtl void fb_End(%14)
-    %15 = load @$tmp0
-    ret %15
+    %10 = const i64 15
+    call.rtl void fb_PrintLongint(0, %10, 0)
+    %11 = load @d
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 23 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 21 insts, 0 statements not lowered, 0 scope imbalance

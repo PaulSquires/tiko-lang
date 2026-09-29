@@ -10,6 +10,7 @@
 '' answer for it.
 
 #include once "symbols/check.bi"
+#include once "types/udtlayout.bi"
 #include once "support/text.bi"
 
 namespace Tko.Check
@@ -555,8 +556,14 @@ private function ConstCall_ _
     '' without this the bound was not constant, so the declaration silently became a
     '' DYNAMIC array and the size check had nothing to check.
     ''
-    '' A UDT IS NOT ANSWERED HERE. Its layout is computed after Resolve, and Layout would
-    '' report 0 for one this early -- a wrong number rather than no number.
+    '' A UDT IS LAID OUT HERE, ON DEMAND. Its layout is otherwise computed after Resolve, and
+    '' Layout would report 0 for one this early -- a wrong number rather than no number. So
+    '' 'sizeof( UDT )' did not fold, and an array bounded by it -- 'dim shared as UDT t( 0 to
+    '' 64 \ sizeof( UDT ) )', a field 'f( 0 to 64 \ sizeof( UDT ) )' -- silently became a
+    '' DYNAMIC array: ubound -1 for the shared one, a 72-byte Container where fbc has 96, and
+    '' dim/array-too-big-udt-1..4 never reached the size check. ComputeUdtLayouts reports
+    '' nothing and lays out whatever is complete so far; a UDT still waiting on a field is
+    '' not found, and stays unanswered as before.
     if ((nm = "sizeof") orelse (nm = "len")) andalso (cp->count = 1) andalso _
        (types <> 0) andalso (info <> 0) then
         dim as Tko.NodeId ta = cast( Tko.NodeId, ast.children[cp->first] )
@@ -568,9 +575,35 @@ private function ConstCall_ _
                 if types->Kind( tu ) <> Tko.TK_UDT then
                     dim as long sz = types->Layout( tu ).size
                     if sz > 0 then return CVW_( cast( longint, sz ), 32 )
+                elseif syms <> 0 then
+                    dim as Tko.UdtLayouts ls
+                    Tko.ComputeUdtLayouts( *syms, *types, ls )
+                    dim as long ix = ls.Find( tu )
+                    if ix >= 0 then
+                        if ls.udts[ix].size > 0 then return CVW_( cast( longint, ls.udts[ix].size ), 32 )
+                    end if
                 end if
             end if
             return CVNone_( )
+        end if
+        '' ...AND A UDT NAMED BARE -- 'sizeof( UDT )'. Only a type KEYWORD makes the operand
+        '' a TYPEREF; a UDT's name parses as an identifier, so it is looked up here.
+        if (ast.Kind( ta ) = Tko.N_IDENT) andalso (syms <> 0) then
+            dim as Tko.Symbol ptr us = syms->SymbolAt( syms->LookupTyped( scope_, _
+                ast.idents[cast( long, ast.nodes[cast( long, ta )].data )].name, true ) )
+            if us <> 0 then
+                if (us->kind = cast( ubyte, Tko.SYM_UDT )) andalso (us->type_ <> Tko.TYPE_NONE) then
+                    dim as Tko.TypeId ut = types->Unqualify( us->type_ )
+                    if types->Kind( ut ) = Tko.TK_UDT then
+                        dim as Tko.UdtLayouts ls2
+                        Tko.ComputeUdtLayouts( *syms, *types, ls2 )
+                        dim as long ix2 = ls2.Find( ut )
+                        if ix2 >= 0 then
+                            if ls2.udts[ix2].size > 0 then return CVW_( cast( longint, ls2.udts[ix2].size ), 32 )
+                        end if
+                    end if
+                end if
+            end if
         end if
     end if
 

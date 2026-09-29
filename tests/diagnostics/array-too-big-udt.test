@@ -1,0 +1,10 @@
+'' TKO0613, fbc's 50: an array of a UDT over 2147483647 bytes, bounded with 'sizeof( UDT )'.
+'' See symbols/constfold.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-too-big-udt.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-too-big-udt.bas(9,19): error TKO0613: array 't1' is too big
+'' EXPECT-OUT: array-too-big-udt.bas(11,12): error TKO0613: array 'f1' is too big
+'' EXPECT-OUT: array-too-big-udt.bas(13,12): error TKO0613: array 't2' is too big
+'' EXPECT-OUT: array-too-big-udt.bas(15,19): error TKO0613: array 't3' is too big
+'' EXPECT-MAX-DIAG: 4
