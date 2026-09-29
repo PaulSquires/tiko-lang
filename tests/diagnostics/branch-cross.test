@@ -1,0 +1,16 @@
+'' TKO0880, fbc's 105: a GOTO over a definition that needs constructing -- a var-len string, an
+'' array, an object. Reported on the GOTO, once per variable. See symbols/branchcross.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/branch-cross.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: branch-cross.bas(14,1): error TKO0880: the jump to 'l1' crosses the definition of 's1', which needs constructing
+'' EXPECT-OUT: branch-cross.bas(14,1): error TKO0880: the jump to 'l1' crosses the definition of 's2'
+'' EXPECT-OUT: branch-cross.bas(17,1): error TKO0880: the jump to 'l2' crosses the definition of 'a2'
+'' EXPECT-OUT: branch-cross.bas(17,1): error TKO0880: the jump to 'l2' crosses the definition of 'r2'
+'' EXPECT-OUT: branch-cross.bas(21,1): error TKO0880: the jump to 'l3' crosses the definition of 'w3'
+'' EXPECT-OUT: branch-cross.bas(21,1): error TKO0880: the jump to 'l3' crosses the definition of 'o3'
+'' EXPECT-OUT: branch-cross.bas(21,1): error TKO0880: the jump to 'l3' crosses the definition of 'v3'
+'' EXPECT-OUT: branch-cross.bas(26,1): error TKO0880: the jump to 'l4' crosses the definition of 'u4'
+'' EXPECT-OUT: branch-cross.bas(32,5): error TKO0880: the jump to 'l5' crosses the definition of 's5'
+'' EXPECT-OUT: branch-cross.bas(37,11): error TKO0880: the jump to 'l6' crosses the definition of 's6'
+'' EXPECT-MAX-DIAG: 10
