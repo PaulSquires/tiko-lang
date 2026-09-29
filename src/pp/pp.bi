@@ -358,8 +358,11 @@ namespace Tko
     '' preprocessor asks the second from '#ifdef', '#ifndef' and 'defined'.
     '' 'at' is where the declaration is: one in a module's interface is not the importer's
     '' name, and 'defined( )' does not see it (RFC-0004 §5).
+    '' 'kind' is parser/declkind.bas's: 1 anything, 2 a variable, 3 a procedure. '#if' refuses
+    '' the last two by name.
     declare sub PpNoteDeclared _
-        ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE )
+        ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE, _
+          byval kind as long = 1 )
     '' A CONST'S VALUE, for '#if' to read -- see PpEngine.constMark.
     declare sub PpNoteConst _
         ( byref st as PpStream, byval nm as InternId, byval v as longint, _

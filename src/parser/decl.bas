@@ -119,12 +119,13 @@ end function
 ''
 '' Recording one that fbc would not is the dangerous direction: a later '#ifndef' would
 '' skip a declaration and say nothing.
+#include once "parser/declkind.bas"
 private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.InternId )
     if nm = Tko.INTERN_NONE then return
     if p.stream = 0 then return
     if p.aggDepth <> 0 then return
     if p.procDepth <> 0 then return
-    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc )
+    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ) )
 end sub
 
 private function DeclName _

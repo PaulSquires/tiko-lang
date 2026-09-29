@@ -1,0 +1,13 @@
+'' TKO0308, fbc's 11 and 17: a variable or a procedure named in '#if'. A const, a macro, a
+'' type and an undefined name are not. See parser/declkind.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/pp-if-nonconst.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: pp-if-nonconst.bas(18,1): error TKO0308: invalid expression in '#if'
+'' EXPECT-OUT: pp-if-nonconst.bas(20,1): error TKO0308
+'' EXPECT-OUT: pp-if-nonconst.bas(22,1): error TKO0308
+'' EXPECT-OUT: pp-if-nonconst.bas(24,1): error TKO0308
+'' EXPECT-OUT: pp-if-nonconst.bas(26,1): error TKO0308
+'' EXPECT-OUT: pp-if-nonconst.bas(28,1): error TKO0308
+'' EXPECT-OUT: pp-if-nonconst.bas(30,1): error TKO0308
+'' EXPECT-MAX-DIAG: 7

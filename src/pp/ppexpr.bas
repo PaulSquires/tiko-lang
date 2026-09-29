@@ -446,6 +446,14 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         if x.e <> 0 then
             dim as longint cv = 0
             if PpConstValue( *x.e, t.literal, cv ) then return PxNum( cv )
+            '' ...BUT A VARIABLE OR A PROCEDURE IS NOT A CONSTANT: fbc's errors 11 and 17
+            '' (parser/declkind.bas has the measurements). A TYPE, an ENUM and the rest
+            '' read as 0 below, quietly, as fbc's do. The directive reports TKO0308.
+            select case DeclaredKind_( *x.e, t.literal )
+            case 2, 3
+                x.bad = true
+                return PxNum( 0 )
+            end select
         end if
 
         '' An identifier that survived expansion is an undefined macro, which is 0.

@@ -216,14 +216,22 @@ end sub
 '' DECLARED-NAME MARKS. Kept on the engine, set by the parser through the stream, and
 '' read by 'defined'. The slot array grows on demand exactly as macroSlot's does; an
 '' InternId past the end has simply not been declared.
-private sub MarkDeclared_( byref e as PpEngine, byval id as InternId )
+private sub MarkDeclared_( byref e as PpEngine, byval id as InternId, byval kind as long = 1 )
     if id = INTERN_NONE then return
     dim as long ix = cast( long, id )
     while e.declaredMark.Count <= ix
         e.declaredMark.Push( 0 )
     wend
-    e.declaredMark[ix] = 1
+    e.declaredMark[ix] = cast( ulong, iif( kind < 1, 1, kind ) )
 end sub
+
+'' THE KIND a declared name was noted with -- parser/declkind.bas -- or 0 for none.
+private function DeclaredKind_( byref e as PpEngine, byval id as InternId ) as long
+    if id = INTERN_NONE then return 0
+    dim as long ix = cast( long, id )
+    if ix >= e.declaredMark.Count then return 0
+    return cast( long, e.declaredMark[ix] )
+end function
 
 private function IsDeclared_( byref e as PpEngine, byval id as InternId ) as boolean
     if id = INTERN_NONE then return false
@@ -283,10 +291,11 @@ function PpNotedConst _
     return PpConstValue( *cast( PpEngine ptr, st.engine ), nm, outv )
 end function
 
-sub PpNoteDeclared( byref st as PpStream, byval nm as InternId, byval at as SourceLoc )
+sub PpNoteDeclared _
+    ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as long )
     if st.engine = 0 then return
     if InIfaceFile_( *cast( PpEngine ptr, st.engine ), at ) then return
-    MarkDeclared_( *cast( PpEngine ptr, st.engine ), nm )
+    MarkDeclared_( *cast( PpEngine ptr, st.engine ), nm, kind )
 end sub
 
 function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
