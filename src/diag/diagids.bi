@@ -650,6 +650,10 @@
     DIAG( TKO0882, SEV_ERROR,   "iif cannot build a '%0': it has constructors, but neither a default nor a copy one" )
     '' fbc's error 28: a graphics GET's buffer as an element reached through a call -- constout.bas.
     DIAG( TKO0883, SEV_ERROR,   "GET cannot fill an array element reached through a function call; expected a pointer" )
+    '' fbc's error 156: a STATIC member of an anonymous union or type -- declempty.bas.
+    DIAG( TKO0884, SEV_ERROR,   "a static member cannot be declared in an anonymous %0" )
+    '' fbc's error 24: 'new string( any )' and 'new string[n] { any }' -- proccheck.bas.
+    DIAG( TKO0885, SEV_ERROR,   "'any' cannot leave a new STRING uninitialized" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

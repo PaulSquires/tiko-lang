@@ -206,6 +206,20 @@ private sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
     select case c.types->BuiltinOf( u )
     case TY_ZSTRING, TY_WSTRING
         c.diags->Report( TKO0705, PointRange( c.ast->Loc( id ) ) )
+    case TY_STRING
+        '' 'new string( any )' AND 'new string[10] { any }' -- fbc error 24, measured on
+        '' fbc-modern 1.20, 2026-09-29 (pointers/new-string-anyinit.bas, new-vector-...). A
+        '' STRING is a descriptor that must start empty; an integer or a ustring takes 'any'.
+        dim as ushort fl = c.ast->nodes[cast( long, id )].flags
+        dim as boolean anyInit = ((fl and NF_NOINIT) <> 0)
+        dim as long a0 = iif( (fl and NF_PLACEMENT) <> 0, 1, 0 )
+        if (anyInit = false) andalso ((fl and NF_ARRAY) = 0) andalso (lp->count = a0 + 1) then
+            dim as NodeId an = cast( NodeId, c.ast->children[lp->first + a0] )
+            if c.ast->Kind( an ) = N_IDENT then
+                anyInit = (lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, an )].data )].name ) ) = "any")
+            end if
+        end if
+        if anyInit then c.diags->Report( TKO0885, PointRange( c.ast->Loc( id ) ) )
     end select
 end sub
 

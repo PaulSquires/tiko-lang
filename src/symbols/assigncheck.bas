@@ -227,24 +227,68 @@ end sub
 '' a constant" it gives the variable itself. Measured: 'dim as const foo b = ( 3 )' then
 '' 'b.x = 4' is refused and 'print b.x' is not. Resolve refuses the BARE const variable;
 '' the member spelling reached here.
+''
+'' ...HOWEVER THE CONST OBJECT IS REACHED. Measured on fbc-modern 1.20, 2026-09-29, each 119:
+''
+''     cast( const UDT, x ).i = 5        const/cast-to-const-same-udt.bas, and -rttiudt.bas
+''     pcx->i = 5     (*pcx).i = 5       pcx a 'const UDT ptr'
+''     cx.a( 1 ) = 5                     an array FIELD of a const variable
+''
+'' and fine: 'cast( UDT, x ).i = 5', and 'cx.q->i = 5' through a pointer field of a const
+'' object -- the pointee is not const. tiko judged only a const variable's own '.', so the
+'' chain is walked one FIELD at a time: a '.' asks its object, a '->' its pointee.
 private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->op = 0 then return
-    if sp->a = NODE_NONE then return
-    if c.ast->Kind( sp->a ) <> N_MEMBER then return
-    dim as BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
-    if mp->lhs = NODE_NONE then return
-    if c.ast->Kind( mp->lhs ) <> N_IDENT then return
-    dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
-    if vs = 0 then return
-    if vs->kind <> cast( ubyte, SYM_VARIABLE ) then return
-    if vs->type_ = TYPE_NONE then return
-    if c.types->Kind( c.types->Unqualify( vs->type_ ) ) <> TK_UDT then return
-    if c.types->IsConst( vs->type_ ) = false then return
-    c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
-                     c.names->Spelling( vs->name ) )
+    dim as NodeId m = sp->a
+    for guard as long = 0 to 31
+        if m = NODE_NONE then return
+        select case c.ast->Kind( m )
+        case N_PAREN
+            dim as ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, m )].data )]
+            if pp->count <> 1 then return
+            m = cast( NodeId, c.ast->children[pp->first] )
+            continue for
+        case N_CALL
+            '' 'cx.a( 1 )' -- a subscript of an array FIELD; a method call is not a target.
+            m = c.ast->lists[cast( long, c.ast->nodes[cast( long, m )].data )].target
+            if (m = NODE_NONE) orelse (c.ast->Kind( m ) <> N_MEMBER) then return
+        case N_MEMBER
+        case else
+            return
+        end select
+        dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( m ) )
+        if fs = 0 then return
+        if fs->kind <> cast( ubyte, SYM_FIELD ) then return
+        if (fs->flags and SYMF_STATIC) <> 0 then return
+        dim as NodeId lhs = c.ast->binaries[cast( long, c.ast->nodes[cast( long, m )].data )].lhs
+        if lhs = NODE_NONE then return
+        dim as TypeId lt = TYPE_NONE
+        '' A VARIABLE'S OWN TYPE, where the walk may have seen a placeholder -- see above.
+        dim as Symbol ptr vs = 0
+        if c.ast->Kind( lhs ) = N_IDENT then vs = c.syms->SymbolAt( c.info->RefOf( lhs ) )
+        if (vs <> 0) andalso (vs->kind = cast( ubyte, SYM_VARIABLE )) then
+            lt = vs->type_
+        else
+            lt = c.info->TypeOf_( lhs )
+        end if
+        if lt = TYPE_NONE then return
+        if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Inner( lt )
+        if (c.ast->nodes[cast( long, m )].flags and NF_ARROW) <> 0 then
+            if c.types->Kind( c.types->Unqualify( lt ) ) <> TK_POINTER then return
+            lt = c.types->Inner( c.types->Unqualify( lt ) )
+            if c.types->IsConst( lt ) = false then return
+        elseif c.types->IsConst( lt ) = false then
+            m = lhs
+            continue for
+        end if
+        if c.types->Kind( c.types->Unqualify( lt ) ) <> TK_UDT then return
+        dim as string nm
+        if vs <> 0 then nm = c.names->Spelling( vs->name )
+        c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), nm )
+        return
+    next
 end sub
 
 '' THE POINTER RULE, AT A CALL. Measured: 'byval p as D ptr' given a B pointer is fbc error

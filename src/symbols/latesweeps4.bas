@@ -1426,4 +1426,31 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         if c.types->Kind( t ) <> TK_FORWARD then continue for
         c.diags->Report( TKO0810, PointRange( c.ast->Loc( an ) ), c.names->Spelling( c.types->NameOf( t ) ) )
     next
+
+    '' DELETE MEASURES THE OBJECT TOO: it destroys one and frees its bytes. Measured on
+    '' fbc-modern 1.20, 2026-09-29: 'delete a' and 'delete[] a' over a pointer to 'type T as
+    '' FWDREF' are error 71 while FWDREF is undeclared, or declared BELOW the delete -- from a
+    '' procedure body above it as well -- and fine once it is declared above. So is a pointer
+    '' typedef, 'type P as FWDREF ptr'. 'delete' over an 'any ptr' is fbc's. tiko accepted them.
+    for i as long = 1 to total
+        if c.ast->Kind( cast( NodeId, i ) ) <> N_DELETE_STMT then continue for
+        dim as NodeId dn = c.ast->stmts[cast( long, c.ast->nodes[i].data )].a
+        if dn = NODE_NONE then continue for
+        dim as TypeId t = c.info->TypeOf_( dn )
+        if t = TYPE_NONE then continue for
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) <> TK_POINTER then continue for
+        t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) = TK_FORWARD then
+            c.diags->Report( TKO0810, PointRange( c.ast->Loc( dn ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+        elseif c.types->Kind( t ) = TK_UDT then
+            dim as SymbolId usid = c.syms->LookupLocalTyped( cast( ScopeId, c.types->DeclScopeOf( t ) ), c.types->NameOf( t ), true )
+            dim as Symbol ptr us = c.syms->SymbolAt( usid )
+            if us = 0 then continue for
+            if (us->declAt = 0) orelse (cast( ulong, i ) >= us->declAt) then continue for
+            if Tko.ModSym.OrderFree( *c.syms, usid ) then continue for
+            c.diags->Report( TKO0811, PointRange( c.ast->Loc( dn ) ), c.names->Spelling( us->name ) )
+        end if
+    next
 end sub

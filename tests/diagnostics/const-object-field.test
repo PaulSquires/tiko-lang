@@ -1,0 +1,10 @@
+'' TKO0617, fbc's 119: a field of a const object reached through a cast, a pointer, a deref or
+'' an array field. See CheckConstUdtField_ in symbols/assigncheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-object-field.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-object-field.bas(11,21): error TKO0617
+'' EXPECT-OUT: const-object-field.bas(12,4): error TKO0617
+'' EXPECT-OUT: const-object-field.bas(13,7): error TKO0617
+'' EXPECT-OUT: const-object-field.bas(14,5): error TKO0617
+'' EXPECT-MAX-DIAG: 4

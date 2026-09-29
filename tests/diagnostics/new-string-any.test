@@ -1,0 +1,8 @@
+'' TKO0885, fbc's 24: 'new string( any )' and 'new string[n] { any }'. See CheckNewString_
+'' in symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/new-string-any.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: new-string-any.bas(2,24): error TKO0885
+'' EXPECT-OUT: new-string-any.bas(3,24): error TKO0885
+'' EXPECT-MAX-DIAG: 2

@@ -1,0 +1,10 @@
+'' TKO0612, fbc's 75: a dynamic array field's initializer; TKO0884, fbc's 156: a static
+'' member of an anonymous union or type. See AggMemberCheck_ in parser/declempty.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/agg-member-rules.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: agg-member-rules.bas(4,5): error TKO0612
+'' EXPECT-OUT: agg-member-rules.bas(5,16): error TKO0612
+'' EXPECT-OUT: agg-member-rules.bas(11,9): error TKO0884
+'' EXPECT-OUT: agg-member-rules.bas(17,9): error TKO0884
+'' EXPECT-MAX-DIAG: 4

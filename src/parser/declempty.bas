@@ -38,8 +38,56 @@ private function AggHasField_ ( byref p as Tko.ParserState, byval first as long,
     return false
 end function
 
+'' Is this node the bare word 'any'.
+private function IsAnyWord_ ( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
+    if (n = Tko.NODE_NONE) orelse (p.ast->nodes[cast( long, n )].kind <> Tko.N_IDENT) then return false
+    return lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, n )].data )].name ) ) = "any"
+end function
+
+'' TWO RULES ABOUT A MEMBER, asked of every body from here. Measured on fbc-modern 1.20,
+'' 2026-09-29:
+''
+''     array(any) as integer => 1            error 75, "Var-len arrays cannot be initialized"
+''     as integer array(any) = { 1, 2 }      ...either spelling, dim/dynamic-field-init-1..2
+''     b(any) as integer = any               fine, and so is a FIXED array field's initializer
+''
+''     union : i as integer : static x as integer : end union     inside a TYPE, error 156,
+''     "Static variable declared in anonymous UDT" -- a 'type' in a UNION the same way
+''     (dim/member-var-in-anon-1..2). A named type's static member is fbc's.
+''
+'' tiko accepted both. A dynamic field's bounds are each the word 'any'; its initializer is in
+'' 'c', or in 'b' for the type-first spelling.
+private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
+    if p.silent then return
+    for i as long = sp.first to sp.first + sp.count - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
+        if m = Tko.NODE_NONE then continue for
+        dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+        select case p.ast->nodes[cast( long, m )].kind
+        case Tko.N_VAR
+            if (sp.name = 0) andalso (mp->op = cast( ushort, Tko.KW_STATIC )) then
+                p.diags->Report( Tko.TKO0884, Tko.PointRange( p.ast->Loc( m ) ), iif( isUnion, "UNION", "TYPE" ) )
+            end if
+        case Tko.N_FIELD
+            if (mp->count < 1) orelse (mp->op <> cast( ushort, Tko.KW_DIM )) then continue for
+            dim as boolean dyn = true
+            for j as long = mp->first to mp->first + mp->count - 1
+                '' LOW/HIGH PAIRS, and '(any)' has no low bound: an empty slot is skipped.
+                dim as Tko.NodeId bj = cast( Tko.NodeId, p.ast->children[j] )
+                if (bj <> Tko.NODE_NONE) andalso (IsAnyWord_( p, bj ) = false) then dyn = false
+            next
+            if dyn = false then continue for
+            dim as Tko.NodeId ini = mp->c
+            if ini = Tko.NODE_NONE then ini = mp->b
+            if (ini = Tko.NODE_NONE) orelse IsAnyWord_( p, ini ) then continue for
+            p.diags->Report( Tko.TKO0612, Tko.PointRange( p.ast->Loc( m ) ), p.names->Spelling( mp->name ) )
+        end select
+    next
+end sub
+
 '' Asked with the member list pushed and the 'end' as the current token.
 private sub EmptyAggCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
+    AggMemberCheck_( p, sp, isUnion )
     if EndsHere_( p, iif( isUnion, Tko.KW_UNION, Tko.KW_TYPE ) ) = false then return
     if AggHasField_( p, sp.first, sp.count ) then return
     p.diags->Report( Tko.TKO0876, Tko.PointRange( Cur( p ).loc ), iif( isUnion, "UNION", "TYPE" ) )

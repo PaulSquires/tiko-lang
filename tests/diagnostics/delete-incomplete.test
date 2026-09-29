@@ -1,0 +1,9 @@
+'' TKO0810/TKO0811, fbc's 71: DELETE over a pointer to a type not yet complete. See the
+'' last loop of CheckIncompleteObjects_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/delete-incomplete.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: delete-incomplete.bas(10,12): error TKO0811
+'' EXPECT-OUT: delete-incomplete.bas(17,10): error TKO0811
+'' EXPECT-OUT: delete-incomplete.bas(18,8): error TKO0810
+'' EXPECT-MAX-DIAG: 3
