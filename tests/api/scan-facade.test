@@ -1,0 +1,15 @@
+'' A FACADE IN A SCAN (RFC-0009): std/fs is nothing but exported macros, so they are all
+'' of its members. Each names a declaration in the header the facade includes, and the
+'' record's ref is that declaration -- where an editor's hover and go-to-definition
+'' should land: fs.PathJoin at fspath.bi's 'declare function PathJoin', and std/path's
+'' folded DirName at PathParent's.
+'' TEST: cli
+'' ARGS: --dump-scan --pkg-dir pkg -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/fs.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: [5] fspath.bi
+'' EXPECT-OUT: [13] fs.bas
+'' EXPECT-OUT: define PathJoin as FB.PathJoin  @13:95:9  parent=135  flags=&h000  ref=5:140
+'' EXPECT-OUT: define DirName as FB.PathParent  @13:138:9  parent=135  flags=&h000  ref=5:101
+'' EXPECT-OUT: define FsError as FB.FsError  @13:55:9  parent=135  flags=&h000  ref=3:104
+'' EXPECT-OUT: namespace fs  @0:3:14  parent=-1
+'' EXPECT-OUT: diags: 0

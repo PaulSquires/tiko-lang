@@ -18,6 +18,7 @@
 #include once "driver/scan.bi"
 #include once "driver/unit.bi"
 #include once "driver/modiface.bi"
+#include once "symbols/modsym.bi"
 #include once "symbols/check.bi"
 #include once "support/text.bi"
 
@@ -231,6 +232,7 @@ private function AddRec_ _
     rec.kind = kind
     rec.parent = parent
     rec.file = -1
+    rec.refFile = -1
     if at <> Tko.LOC_NONE then
         dim as Tko.DecodedLoc d = h.ctx->sources.Decode( at )
         rec.file = FileOf_( h, d )
@@ -503,10 +505,77 @@ private sub CountRefs_( byref h as Harvest_ )
     next
 end sub
 
+'' AN EXPORTED MACRO'S BODY AS WRITTEN -- 'FB.PathJoin' -- when it is on one line; "".
+private function ExportBody_( byref h as Harvest_, byref pr as Tko.PpResult, byval k as long ) as string
+    dim as long f = cast( long, pr.expBodyFirst[k] )
+    dim as long n = cast( long, pr.expBodyCount[k] )
+    if n <= 0 then return ""
+    dim as Tko.DecodedLoc a = h.ctx->sources.Decode( pr.expBody[f].loc )
+    dim as Tko.DecodedLoc b = h.ctx->sources.Decode( pr.expBody[f + n - 1].loc )
+    if (a.file = Tko.FILE_NONE) orelse (a.file <> b.file) orelse (a.physLine <> b.physLine) then return ""
+    dim as string ln = h.ctx->sources.LineText( a.file, a.physLine )
+    dim as long ls = h.ctx->sources.LineStart( a.file, a.physLine )
+    dim as long st = a.offset - ls + 1
+    dim as long en = b.offset - ls + cast( long, pr.expBody[f + n - 1].length )
+    if (st < 1) orelse (en < st) then return ""
+    return mid( ln, st, en - st + 1 )
+end function
+
+'' WHAT AN EXPORTED MACRO NAMES, when its body is nothing but a name -- 'FB.PathJoin', a
+'' facade's every body -- looked up in the module's own unit, where the header that
+'' declares it was included: the record's ref is that declaration.
+private sub ExportTarget_( byref h as Harvest_, byref pr as Tko.PpResult, byval k as long, byval ri as long )
+    dim as long f = cast( long, pr.expBodyFirst[k] )
+    dim as long n = cast( long, pr.expBodyCount[k] )
+    if (n <= 0) orelse ((n and 1) = 0) then return
+    dim as Tko.ScopeId sc = Tko.ModSym.ModuleScope( *h.syms )
+    dim as Tko.Symbol ptr s = 0
+    for i as long = 0 to n - 1 step 2
+        if cast( Tko.TokenKind, pr.expBody[f + i].kind ) <> Tko.TK_IDENT then return
+        if i + 1 < n then
+            if cast( Tko.TokenKind, pr.expBody[f + i + 1].kind ) <> Tko.TK_DOT then return
+        end if
+        dim as Tko.InternId nm = h.ctx->names.Fold( cast( Tko.InternId, pr.expBody[f + i].literal ) )
+        dim as Tko.SymbolId sid = h.syms->LookupLocal( sc, nm )
+        if (sid = Tko.SYMBOL_NONE) andalso (i = 0) then sid = h.syms->LookupLocal( Tko.SCOPE_GLOBAL, nm )
+        s = h.syms->SymbolAt( sid )
+        if s = 0 then return
+        if i + 2 < n then
+            '' A qualifier: the namespace, past any type of the same name.
+            while (s <> 0) andalso (s->kind <> cast( ubyte, Tko.SYM_NAMESPACE ))
+                s = h.syms->SymbolAt( s->altClass )
+            wend
+            if s = 0 then return
+            sc = s->inner
+        end if
+    next
+    if (s = 0) orelse (s->loc = Tko.LOC_NONE) then return
+    dim as Tko.DecodedLoc d = h.ctx->sources.Decode( s->loc )
+    h.r->syms[ri].refFile = FileOf_( h, d )
+    h.r->syms[ri].refLine = d.lineNo
+end sub
+
+'' A MODULE'S EXPORTED MACROS, for the importer's alias: a macro is no symbol, so nothing
+'' else would show them, and a facade (RFC-0009) is nothing but these. Each is a DEFINE at
+'' its '#define', PUBLIC, so Finish re-parents it with the module's symbols. Only a module
+'' unit: a root's '#export' is TKO0369.
+private sub HarvestExports_( byref h as Harvest_, byref pr as Tko.PpResult )
+    if h.r->importing = false then return
+    for k as long = 0 to pr.expName.Count - 1
+        dim as Tko.SourceLoc at = Tko.LOC_NONE
+        if k < pr.expLoc.Count then at = cast( Tko.SourceLoc, pr.expLoc[k] )
+        dim as long ri = AddRec_( h, SK_DEFINE, pr.expName[k], -1, at, _
+                                  Tko.Text.LowerAscii( pr.expName[k] ) )
+        h.r->syms[ri].isPublic = true
+        h.r->syms[ri].typeText = ExportBody_( h, pr, k )
+        ExportTarget_( h, pr, k, ri )
+    next
+end sub
+
 private sub Harvest_Unit _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, _
       byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
-      byref macros as Tko.MacroInfoVec )
+      byref macros as Tko.MacroInfoVec, byref pr as Tko.PpResult )
 
     dim as ScanResult ptr r = cast( ScanResult ptr, ctx.scan )
     if r = 0 then return
@@ -558,8 +627,12 @@ private sub Harvest_Unit _
         '' The predefined ones (__fb_win32__ ...) have no location at all.
         if macros[i].loc = Tko.LOC_NONE then continue for
         if h.ctx->sources.IsBuiltin( macros[i].loc ) then continue for
+        '' ...and never an interface's own: '__tko_mac_<chain>__<name>' is how an exported
+        '' macro reaches an importer, and was listed at top level, in a file named '.tki'.
+        if left( folded, 6 ) = "__tko_" then continue for
         AddRec_( h, SK_DEFINE, "", -1, macros[i].loc, folded )
     next
+    HarvestExports_( h, pr )
 
     CountRefs_( h )
 end sub
@@ -586,7 +659,7 @@ sub RunUnit _
     if (ctx.modFileCount > 0) andalso ctx.importsBuilt then
         Tko.Modules.PublishInterface( ctx, pr, ast, syms, info )
     end if
-    Harvest_Unit( ctx, ast, syms, info, macros )
+    Harvest_Unit( ctx, ast, syms, info, macros, pr )
 end sub
 
 sub Finish( byref ctx as Tko.CompilerContext )
@@ -686,6 +759,7 @@ function Dump( byref r as ScanResult ) as string
         if (s->flags and SF_REFTRACKED) <> 0 then
             o &= "  refs=" & s->reads & "r" & s->writes & "w"
         end if
+        if s->refFile >= 0 then o &= "  ref=" & s->refFile & ":" & s->refLine
         o &= chr( 10 )
     next
     o &= "diags: " & r.diags.Count & chr( 10 )

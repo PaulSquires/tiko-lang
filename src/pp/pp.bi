@@ -299,6 +299,8 @@ namespace Tko
         as IdVec       expBodyFirst
         as IdVec       expBodyCount
         as TokenVec    expBody
+        '' ...and where its '#define' is, for an editor scan's record of it (driver/scan.bas).
+        as IdVec       expLoc
     end type
 
     '' ---------------------------------------------------------------- the stream

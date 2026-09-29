@@ -1,0 +1,15 @@
+'' A MODULE'S '#export'ED MACROS IN A SCAN are members of the root's alias for it, as its
+'' public symbols are: DEFINE records at their '#define' in the module's own source, the
+'' body as type text (none for a '#macro' block). The interface's '__tko_mac_...' names,
+'' how an exported macro reaches the importer, are never listed -- they were, at top
+'' level, in a file named '.tki'.
+'' TEST: cli
+'' ARGS: --dump-scan -i tests/modules/src/macros/libs tests/modules/src/macros/app/main.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: [1] chk.bas
+'' EXPECT-OUT: define CHECK as if ( x ) = 0 then Fail_( #x )  @1:8:9  parent=5  flags=&h000
+'' EXPECT-OUT: define TWICE  @1:9:8  parent=5  flags=&h000
+'' EXPECT-OUT: function Answer as long  @1:14:17  parent=5
+'' EXPECT-OUT: namespace chk  @0:4:15  parent=-1
+'' EXPECT-NOT: __tko_mac
+'' EXPECT-NOT: .tki

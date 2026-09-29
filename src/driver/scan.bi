@@ -13,7 +13,10 @@
 '' #IMPORT. The modules a root imports are scanned first, front end only, and their
 '' module-level PUBLIC symbols are then re-parented under the root's alias for them: a
 '' NAMESPACE record at the '#import' line, so 'middle.Twice' finds Twice as a child of
-'' 'middle', located in the module's own source.
+'' 'middle', located in the module's own source. So are the macros a module '#export's --
+'' a facade (RFC-0009) is nothing else -- as DEFINE records at their '#define', the body
+'' as their type text, and, when the body names a declaration ('FB.PathJoin'), that
+'' declaration's file and line as the record's REF.
 
 #pragma once
 
@@ -62,6 +65,8 @@ namespace Tko.Scan
         as long   bodyEndLine   '' ...and the line its END is on; 0 if declare-only
         as long   reads
         as long   writes
+        as long   refFile       '' what an exported macro names: its declaration; -1 if none
+        as long   refLine
         '' ---- bookkeeping, never exported ----
         as string  chain        '' the module a record came from; "" for a root's own
         as boolean isPublic     '' a module-level PUBLIC symbol of that module

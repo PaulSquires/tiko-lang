@@ -62,7 +62,8 @@ private sub Dump_( byval r as TKP_RESULT ptr )
                   iif( len( t ), " as " & t, "" ) & "  @" & .fileIndex & ":" & .lineNum & _
                   ":" & .colNum & "  parent=" & .parentIndex & "  body=" & .bodyLine & _
                   ".." & .bodyEndLine & "  flags=&h" & hex( .flags, 3 ) & _
-                  "  refs=" & .readCount & "r" & .writeCount & "w"
+                  "  refs=" & .readCount & "r" & .writeCount & "w" & _
+                  iif( .refFileIndex >= 0, "  ref=" & .refFileIndex & ":" & .refLine, "" )
         end with
     next
     print "diags: " & r->diagCount

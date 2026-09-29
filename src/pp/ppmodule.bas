@@ -417,6 +417,7 @@ private sub PpModRecordExport_( byref e as PpEngine, byval m as PpMacro ptr, byr
     for i as long = 0 to m->body.Count - 1
         r->expBody.Push( m->body[i] )
     next
+    r->expLoc.Push( cast( ulong, m->loc ) )
 end sub
 
 function PpModMacroName( byref chain as string, byref nm as string ) as string

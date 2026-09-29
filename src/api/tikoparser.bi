@@ -23,7 +23,9 @@
 ''     the name of what it EXTENDS ("object" for 'extends object'), or none.
 ''   - Filenames are absolute and UPPERCASED; the root file is fileOffsets[0].
 ''   - An '#import' alias is a NAMESPACE record at the '#import' line whose children are
-''     the imported module's PUBLIC symbols, located in the module's own source.
+''     the imported module's PUBLIC symbols, located in the module's own source -- and its
+''     '#export'ed macros, as DEFINE records at their '#define', the body as type text.
+''     A facade's are all of it (RFC-0009): 'fs.PathJoin' is '#define PathJoin FB.PathJoin'.
 ''   - Strings in the pool are UTF-16, NUL-terminated; offsets count wchars.
 ''
 '' THREADING: every call from ONE thread at a time. Each scan is independent -- nothing is
@@ -84,8 +86,8 @@ type TKP_SYMBOL
     bodyEndLine  as long       '' ...and the line its END is on, else 0
     readCount    as long       '' source references that READ it
     writeCount   as long       '' source references that WRITE it (assignment targets)
-    refFileIndex as long       '' reserved: -1
-    refLine      as long       '' reserved: 0
+    refFileIndex as long       '' an exported macro's body names a declaration: its file; else -1
+    refLine      as long       '' ...and its line; else 0
 end type
 
 type TKP_DIAG

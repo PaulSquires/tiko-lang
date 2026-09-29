@@ -131,8 +131,8 @@ private function Marshal_( byref r as Tko.Scan.ScanResult ) as TKP_RESULT ptr
             d->bodyEndLine = s->bodyEndLine
             d->readCount = s->reads
             d->writeCount = s->writes
-            d->refFileIndex = -1
-            d->refLine = 0
+            d->refFileIndex = s->refFile
+            d->refLine = iif( s->refFile >= 0, s->refLine, 0 )
         next
     end if
 
