@@ -708,6 +708,25 @@ function ResolveTypeRef _
             '' unresolved, so nothing came back to it.
             dim as boolean ready = (s->type_ <> Tko.TYPE_NONE)
             if ready then ready = (c.types->Kind( s->type_ ) <> Tko.TK_TYPEDEF)
+            '' ...BUT A PRELUDE TYPEDEF IS RESOLVED ON THE SPOT. The prelude is parsed AFTER the
+            '' unit, so 'int32' still held its placeholder when the unit's 'FB.Array( of int32 )'
+            '' was instantiated: the argument did not resolve, the instance was never built, and
+            '' the variable was typed as the TEMPLATE -- 'a.Count( )' then linked against a
+            '' FB::ARRAY::COUNT that was never emitted, and 'for each' over it lowered to nothing.
+            '' 'of long' and a program's own earlier typedef worked. The ten prelude typedefs name
+            '' builtins, so resolving one here cannot recurse.
+            if (ready = false) andalso (s->kind = cast( ubyte, Tko.SYM_TYPEDEF )) andalso (c.srcMgr <> 0) then
+                if c.srcMgr->IsBuiltin( s->loc ) then
+                    dim as Tko.NodeId pta = cast( Tko.NodeId, s->payload )
+                    if (pta <> Tko.NODE_NONE) andalso (c.ast->Kind( pta ) = Tko.N_TYPEREF) then
+                        dim as Tko.TypeId ptt = ResolveTypeRef( c, pta, cast( Tko.ScopeId, s->parent ) )
+                        if (ptt <> Tko.TYPE_NONE) andalso (c.types->Kind( ptt ) <> Tko.TK_TYPEDEF) then
+                            s->type_ = ptt
+                            ready = true
+                        end if
+                    end if
+                end if
+            end if
             if ready then base_ = s->type_
         elseif (tparam = false) andalso (qualExpr = false) then
             NoteUnboundType_( c, id, scope_ )    '' a type nothing declares -- fbc's 14
