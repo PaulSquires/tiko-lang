@@ -1,0 +1,8 @@
+'' TKO0883, fbc's 28: a graphics GET's buffer as an array element reached through a function
+'' call. See symbols/constout.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/get-elem-through-call.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: get-elem-through-call.bas(17,41): error TKO0883: GET cannot fill an array element reached through a function call; expected a pointer
+'' EXPECT-OUT: get-elem-through-call.bas(18,39): error TKO0883
+'' EXPECT-MAX-DIAG: 2

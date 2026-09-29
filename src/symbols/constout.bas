@@ -34,6 +34,54 @@ private function ConstOut_ ( byref c as Ctx, byval n as NodeId ) as boolean
     return false
 end function
 
+'' A GRAPHICS GET'S BUFFER AS AN ELEMENT REACHED THROUGH A CALL -- fbc's error 28, "Expected
+'' pointer". Measured on fbc-modern 1.20, 2026-09-29 (gfx/image-expr-sidefx-1..3):
+''
+''     get (0,0)-(31,31), f1( @x )->array( 0 )      error 28     f1 returns a pointer
+''     get (0,0)-(31,31), f3( x ).array( 0 )        error 28     byref or byval result
+''     ...x.array( 0 ), px->array( 0 ), (*px).array( 0 ), ba( 0 ), ba, img, f1( @x )    fine
+''     put (0,0), f1( @x )->array( 0 )             fine -- PUT only reads
+''
+'' fbc evaluates an element's base twice for GET, and a call there has side effects, so it
+'' refuses. tiko accepted each. Does 'n' reach its value through a procedure call?
+private function ThroughCall_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    for guard as long = 0 to 63
+        if n = NODE_NONE then return false
+        select case c.ast->Kind( n )
+        case N_PAREN
+            n = Unparen3_( c, n )
+        case N_MEMBER
+            n = c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )].lhs
+        case N_DEREF
+            n = c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )].operand
+        case N_CALL
+            dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target
+            if tg = NODE_NONE then return false
+            dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( n ) )
+            if ts = 0 then ts = c.syms->SymbolAt( c.info->RefOf( tg ) )
+            if ts <> 0 then
+                if ts->kind = cast( ubyte, SYM_PROC ) then return true
+            end if
+            n = tg
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
+private sub CheckGetElemThroughCall_ ( byref c as Ctx, byval n as NodeId )
+    '' THE ELEMENT: an indexing call over a field or variable -- not a call's own result.
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_CALL) then return
+    dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target
+    if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_MEMBER) then return
+    dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( tg ) )
+    if fs = 0 then return
+    if fs->kind <> cast( ubyte, SYM_FIELD ) then return
+    if ThroughCall_( c, c.ast->binaries[cast( long, c.ast->nodes[cast( long, tg )].data )].lhs ) = false then return
+    c.diags->Report( TKO0883, PointRange( c.ast->Loc( n ) ) )
+end sub
+
 private sub ConstOutReport_ ( byref c as Ctx, byval n as NodeId )
     if ConstOut_( c, n ) = false then return
     c.diags->Report( TKO0617, PointRange( c.ast->Loc( n ) ), SpellOf_( c, Unparen3_( c, n ) ) )
@@ -57,6 +105,8 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
             '' The LAST item, file form or graphics: the variable read into, the array filled.
             if sp->count < 1 then return
             ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + sp->count - 1] ) )
+            '' Bit 1 of 'extra' is the FILE form; the graphics one alone refuses a call's element.
+            if (sp->extra and 1) = 0 then CheckGetElemThroughCall_( c, cast( NodeId, c.ast->children[sp->first + sp->count - 1] ) )
         case KW_LSET, KW_RSET
             if sp->count < 1 then return
             dim as NodeId t0 = cast( NodeId, c.ast->children[sp->first] )
