@@ -1,6 +1,7 @@
 '' An importer of exported macros: used qualified they expand, and CHECK's call to the
 '' module's Fail_ is not captured by this file's own Fail_; bare, CHECK is not a macro at all,
-'' so it can name a variable.
+'' so it can name a variable. In another macro's argument, chk.LIMIT is still the module's
+'' LIMIT, not this file's.
 #import "acme/chk"
 dim as long Fail_ = 99
 chk.CHECK( 1 = 2 )
@@ -12,3 +13,6 @@ print "bare CHECK is a macro"
 #endif
 dim as long CHECK = chk.Answer( )
 print CHECK
+#define LIMIT 1
+#define SHOW_( x ) print x
+SHOW_( chk.LIMIT )

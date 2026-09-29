@@ -10,7 +10,8 @@ end function
     print s
     print s
 #endmacro
-#export CHECK, TWICE
+#define LIMIT 7
+#export CHECK, TWICE, LIMIT
 public function Answer( ) as long
     return 42
 end function

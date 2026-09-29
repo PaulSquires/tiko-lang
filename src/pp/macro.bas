@@ -503,6 +503,15 @@ private function PpReadArgs _
         '' line, past this invocation's ')'. pendingCommas below keeps that one.
         '' The first token it produces takes the NAME's spacing, first trigger winning --
         '' the rule ExpandedArgText_ explains.
+        '' 'alias . NAME' is the module's exported macro here too, as outside an argument,
+        '' and not a macro of the importer's own spelled NAME (sys/windows: SE_DEBUG_NAME).
+        if (k = TK_IDENT) andalso (e.modst.aliasIds.Count > 0) then
+            dim as boolean qSpace = ((t.flags and TF_SPACE_BEFORE) <> 0)
+            if PpModQualifiedMacro( e, t ) then
+                if pendSet = false then pendSet = true : pendSpace = qSpace
+                continue do
+            end if
+        end if
         if k = TK_IDENT then
             dim as InternId eid = cast( InternId, t.literal )
             dim as PpMacro ptr em = MacroFor( e, eid )

@@ -3,7 +3,9 @@
 '' qualified, 'chk.CHECK( ... )'. CHECK's body calls the module-private Fail_ through the
 '' module's own namespace, so the importer's own 'Fail_' neither captures the call nor is
 '' changed (99), and the name filter lets the module's own namespace through. Bare, CHECK is
-'' an ordinary name: the file declares a variable of it. TWICE is a '#macro' block.
+'' an ordinary name: the file declares a variable of it. TWICE is a '#macro' block. LIMIT,
+'' used qualified in the argument of the importer's own macro, is the module's 7 and not the
+'' importer's LIMIT, which reading the argument once expanded in its place.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i tests/modules/src/macros/libs tests/modules/src/macros/app/main.bas -o tests/modules/macroexport.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -14,3 +16,4 @@
 '' EXPECT-RUN-OUT: hi
 '' EXPECT-RUN-OUT:  99
 '' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT:  7
