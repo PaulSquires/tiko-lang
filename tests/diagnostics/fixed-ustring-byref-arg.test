@@ -1,0 +1,8 @@
+'' TKO0698, fbc's 58: a 'ustring * N' for 'byref as wstring' or 'byref as zstring'. See the
+'' byref branch of the argument check in symbols/assigncheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fixed-ustring-byref-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fixed-ustring-byref-arg.bas(22,5): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: fixed-ustring-byref-arg.bas(23,5): error TKO0698
+'' EXPECT-MAX-DIAG: 2

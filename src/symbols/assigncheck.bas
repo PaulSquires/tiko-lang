@@ -356,6 +356,21 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
                (c.types->Kind( c.types->Unqualify( at ) ) = TK_UDT) then
                 bad = PtrAssignBad_( c, c.types->Pointer_( pt ), c.types->Pointer_( at ) )
             end if
+            '' A FIXED USTRING for 'byref as wstring' or 'byref as zstring' is fbc's 58
+            '' (fbc-modern 1.20, 2026-09-28): 'ustring * 8' is a UTF-8 buffer, and neither of
+            '' those. A fixed wstring or zstring, a var-len ustring, and 'byref as ustring' or
+            '' 'as string' all take it.
+            dim as TypeId fe = Tko.Check.FixedStringElem( at, *c.types )
+            if fe <> TYPE_NONE then
+                if c.types->BuiltinOf( fe ) = TY_FIXUSTR then
+                    dim as TypeId pb = c.types->Unqualify( pt )
+                    if c.types->Kind( pb ) = TK_BUILTIN then
+                        select case c.types->BuiltinOf( pb )
+                        case TY_WSTRING, TY_ZSTRING : bad = true
+                        end select
+                    end if
+                end if
+            end if
         end if
         if bad then
             c.diags->Report( TKO0698, PointRange( c.ast->Loc( arg ) ) )
