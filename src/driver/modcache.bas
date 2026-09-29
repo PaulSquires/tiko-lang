@@ -23,7 +23,7 @@
 '' the pool is shared: two projects' 'main.util' must not overwrite each other's.
 ''
 '' ONE POOL SERVES EVERY PROJECT, so THE KEY SAYS WHERE: the module's directory and each
-'' include path are absolute. Written as given they were relative, and two projects laid
+'' include path are absolute (and case-folded on Windows -- KeyPath_). Written as given they were relative, and two projects laid
 '' out alike, built each from its own directory, made one key for one module source -- the
 '' second got the first's object, compiled against the first's headers, since deps.txt
 '' (absolute) names the first's files, which had not changed.
@@ -70,6 +70,18 @@ private sub Closure_ _
     next
 end sub
 
+'' A PATH AS THE KEY SPELLS IT: absolute, and CASE-FOLDED ON WINDOWS, where the filesystem
+'' folds case. The editor passes 'C:/dev/tiko-editor-tiko/Toolchains/...' and a shell
+'' '.../toolchains/...' -- one directory, and it made two keys, so every fbx module was
+'' rebuilt (~15 s) for a compile whose object was already cached. Elsewhere exactly.
+private function KeyPath_( byref p as string ) as string
+    #ifdef __FB_WIN32__
+        return Tko.Text.LowerAscii( AbsPath( p ) )
+    #else
+        return AbsPath( p )
+    #endif
+end function
+
 function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as string
     dim as string nl = Nl_( )
     dim as Tko.DriverOptions ptr o = @ctx.options
@@ -81,7 +93,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
          " w=" & iif( o->warningsAsErrors, 1, 0 ) & " maxinstdepth=" & o->maxInstDepth & nl
     '' A module's headers are found through these.
     for each p as string in o->includePaths
-        k &= "include " & AbsPath( p ) & nl
+        k &= "include " & KeyPath_( p ) & nl
     next
     '' ...and a #cinclude binding is made with these.
     for each p as string in o->cDefines
@@ -98,7 +110,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
         k &= "define " & d & nl
     next
     k &= "module " & ctx.ifaceChains[n] & nl
-    k &= "dir " & AbsPath( ctx.ifaceDirs[n] ) & nl
+    k &= "dir " & KeyPath_( ctx.ifaceDirs[n] ) & nl
     '' Its sources, in the order the unit reads them -- sorted already (ModuleFiles).
     for each f as ulong in ctx.modFiles
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )

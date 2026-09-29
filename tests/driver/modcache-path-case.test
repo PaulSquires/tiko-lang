@@ -1,0 +1,20 @@
+'' ONE DIRECTORY SPELLED IN ANOTHER CASE IS ONE KEY on Windows (modcache.bas, KeyPath_). The
+'' editor passes '.../Toolchains/...' and a shell '.../toolchains/...'; the key held the path
+'' as written, so the second spelling missed and every module was rebuilt -- ~15 s for fbx.gui
+'' -- although its object was already cached. The second build spells the include path and
+'' the source in upper case and must hit both modules.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-case/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-case
+'' COPY: tests/driver/src/modcache => build/.mct-case
+'' STEP: -v -target win64-msvc -i build/.mct-case/libs build/.mct-case/app/main.bas -o build/.mct-case/app.exe
+'' STEP-OUT: module acme.leaf: miss (new)
+'' STEP-OUT: module acme.middle: miss (new)
+'' ARGS: -v -target win64-msvc -i BUILD/.MCT-CASE/LIBS BUILD/.MCT-CASE/APP/MAIN.BAS -o build/.mct-case/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module acme.leaf: hit
+'' EXPECT-OUT: module acme.middle: hit
+'' EXPECT-NOT: miss
+'' RUN: build/.mct-case/app.exe
+'' EXPECT-RUN-OUT:  14
