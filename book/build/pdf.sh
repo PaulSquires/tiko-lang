@@ -103,6 +103,18 @@ out_pdf="out/the-tiko-programming-language${suffix}${only:+-ch$only}.pdf"
 echo "pdf.sh: wrote $out_pdf"
 
 if (( png )); then
-  "$TYPST" compile --root . --ppi 120 --pages 1-4 out/book.typ "out/page-{n}.png"
+  # The first four pages, for eyeballing the design. typst 0.12 added --pages; the typst that
+  # ships in Quarto today is 0.11, which rejects it, so there every page is rendered and the
+  # ones past the fourth are deleted. {n} is zero-padded to the width of the page count.
+  rm -f out/page-*.png
+  if "$TYPST" compile --help 2>&1 | grep -q -- '--pages'; then
+    "$TYPST" compile --root . --ppi 120 --pages 1-4 out/book.typ "out/page-{n}.png"
+  else
+    "$TYPST" compile --root . --ppi 120 out/book.typ "out/page-{n}.png"
+    for png_file in out/page-*.png; do
+      n="${png_file##*/page-}"; n="${n%.png}"
+      if (( 10#$n > 4 )); then rm -f "$png_file"; fi
+    done
+  fi
   echo "pdf.sh: wrote out/page-*.png"
 fi
