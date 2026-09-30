@@ -1,0 +1,9 @@
+guard around the defer:
+    acquired
+    released
+  work happens here, already released
+
+guard before the defer:
+    acquired
+  work happens here, still held
+    released

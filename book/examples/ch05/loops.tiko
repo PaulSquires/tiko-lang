@@ -1,0 +1,27 @@
+'' loops.tiko -- counting, repeating, and leaving early.
+for i as int32 = 1 to 3
+    print "for " & i
+next
+
+for i as int32 = 10 to 0 step -5
+    print "down " & i
+next
+
+dim as int32 n = 0
+do while n < 2
+    print "while " & n
+    n += 1
+loop
+
+n = 0
+do
+    print "until " & n
+    n += 1
+loop until n = 2
+
+'' exit leaves the loop; continue skips to the next pass.
+for i as int32 = 1 to 6
+    if i = 2 then continue for
+    if i = 4 then exit for
+    print "picked " & i
+next

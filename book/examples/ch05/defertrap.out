@@ -1,0 +1,14 @@
+a defer inside an if:
+  start
+    acquired
+    still inside the if
+    released
+  after the if -- already released
+
+a defer inside a loop body:
+  pass 1
+    end of pass 1
+  pass 2
+    end of pass 2
+  pass 3
+    end of pass 3

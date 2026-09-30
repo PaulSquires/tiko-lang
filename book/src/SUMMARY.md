@@ -9,6 +9,7 @@
 - [A Tour of tiko](ch02-a-tour-of-tiko.md)
 - [Types, Variables and Constants](ch03-types-variables.md)
 - [Operators and Expressions](ch04-operators.md)
+- [Control Flow, Scope and defer](ch05-control-flow.md)
 
 # Building Abstractions
 

@@ -1,0 +1,22 @@
+'' ex05-02.tiko -- the guard-and-defer trap, and the fix.
+sub TooEarly( )
+    if true then
+        print "    acquired"
+        defer print "    released"      '' at 'end if'
+    end if
+    print "  work happens here, already released"
+end sub
+
+sub Correct_( )
+    dim as boolean ready = true
+    if ready = false then exit sub      '' leave first
+    print "    acquired"
+    defer print "    released"          '' now at 'end sub'
+    print "  work happens here, still held"
+end sub
+
+print "guard around the defer:"
+TooEarly( )
+print
+print "guard before the defer:"
+Correct_( )

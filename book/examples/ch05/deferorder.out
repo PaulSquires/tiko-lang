@@ -1,0 +1,13 @@
+normal path:
+  open A
+  open B
+  doing the work
+  close B
+  close A
+
+early exit:
+  open A
+  open B
+  leaving early
+  close B
+  close A

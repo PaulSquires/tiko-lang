@@ -1,0 +1,21 @@
+'' deferorder.tiko -- defer runs on the way out, in reverse order.
+sub Work( byval failEarly as boolean )
+    print "  open A"
+    defer print "  close A"
+
+    print "  open B"
+    defer print "  close B"
+
+    if failEarly then
+        print "  leaving early"
+        exit sub
+    end if
+
+    print "  doing the work"
+end sub
+
+print "normal path:"
+Work( false )
+print
+print "early exit:"
+Work( true )

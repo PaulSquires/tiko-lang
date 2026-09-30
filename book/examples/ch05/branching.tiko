@@ -1,0 +1,27 @@
+'' branching.tiko -- if, and select case for more than two ways.
+dim as int32 score = 72
+
+if score >= 90 then
+    print "excellent"
+elseif score >= 60 then
+    print "a pass"
+else
+    print "not yet"
+end if
+
+'' A whole if on one line needs no 'end if'.
+if score > 0 then print "there is a score"
+
+'' select case compares one value against ranges, lists and open tests.
+select case score
+case 90 to 100
+    print "band: top"
+case 60 to 89
+    print "band: middle"
+case 0, 1, 2
+    print "band: barely started"
+case is < 0
+    print "band: impossible"
+case else
+    print "band: low"
+end select

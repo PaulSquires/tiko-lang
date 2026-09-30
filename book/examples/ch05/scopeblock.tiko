@@ -1,0 +1,11 @@
+'' scopeblock.tiko -- a block that exists only to bound a lifetime.
+dim as int32 outer = 1
+
+scope
+    dim as int32 inner = 2
+    defer print "  leaving the scope"
+    print "  inside: outer " & outer & ", inner " & inner
+end scope
+
+'' 'inner' is gone here, and the defer has already run.
+print "outside: outer " & outer

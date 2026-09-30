@@ -1,0 +1,3 @@
+  inside: outer 1, inner 2
+  leaving the scope
+outside: outer 1

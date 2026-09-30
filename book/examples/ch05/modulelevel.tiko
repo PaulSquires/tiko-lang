@@ -1,0 +1,5 @@
+'' modulelevel.tiko -- defer needs a scope to leave, and a module
+'' body is not one. Does not build.
+defer print "this never had a scope to leave"
+
+print "hello"

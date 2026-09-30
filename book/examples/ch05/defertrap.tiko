@@ -1,0 +1,23 @@
+'' defertrap.tiko -- defer belongs to the nearest enclosing BLOCK.
+sub Guarded( )
+    print "  start"
+    if true then
+        print "    acquired"
+        defer print "    released"    '' runs at end if, not end sub
+        print "    still inside the if"
+    end if
+    print "  after the if -- already released"
+end sub
+
+sub EachIteration( )
+    for i as int32 = 1 to 3
+        defer print "    end of pass " & i
+        print "  pass " & i
+    next
+end sub
+
+print "a defer inside an if:"
+Guarded( )
+print
+print "a defer inside a loop body:"
+EachIteration( )
