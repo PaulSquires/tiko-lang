@@ -686,6 +686,12 @@
     DIAG( TKO0908, SEV_ERROR,   "a constructor( ) chain call must be the first statement of the constructor" )
     '' fbc's error 141: a global 'operator ->' whose result is not a UDT -- declshape.bas.
     DIAG( TKO0909, SEV_ERROR,   "operator -> must return a UDT, by value or byref" )
+    '' fbc's errors 24 and 181: a pointer into an integer of another size -- declshape.bas.
+    DIAG( TKO0910, SEV_ERROR,   "a pointer does not fit in a '%0'; only a pointer-sized integer takes one" )
+    '' fbc's error 9: an empty 'type<T>( )' over a type with nothing to construct -- declshape.bas.
+    DIAG( TKO0911, SEV_ERROR,   "type<%0>( ) needs values: the type has no constructor to call" )
+    '' fbc's error 99: 'type<T>( ... )' over a type that extends OBJECT and declares no constructor -- declshape.bas.
+    DIAG( TKO0912, SEV_ERROR,   "no constructor of '%0' takes these values: a type that extends OBJECT is not filled field by field" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

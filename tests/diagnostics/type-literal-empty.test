@@ -1,0 +1,8 @@
+'' TKO0911 (fbc's 9) and TKO0912 (fbc's 99): a type literal that builds nothing. See
+'' CheckTypeLiteral_ in symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-literal-empty.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: type-literal-empty.bas(15,7): error TKO0911
+'' EXPECT-OUT: type-literal-empty.bas(16,16): error TKO0912
+'' EXPECT-MAX-DIAG: 2

@@ -1,0 +1,9 @@
+'' TKO0910, fbc's 24 and 181: a pointer into an integer of another size. See
+'' CheckPtrIntWidth_ in symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ptr-int-width.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ptr-int-width.bas(4,12): error TKO0910
+'' EXPECT-OUT: ptr-int-width.bas(5,5): error TKO0910
+'' EXPECT-OUT: ptr-int-width.bas(7,1): error TKO0910
+'' EXPECT-MAX-DIAG: 3

@@ -1,0 +1,7 @@
+'' TKO0726, fbc's 96: 'redim shared' in a scope over an array COMMON declared. See
+'' CheckDeclShape_ in symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redim-shared-common.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: redim-shared-common.bas(4,18): error TKO0726
+'' EXPECT-MAX-DIAG: 1

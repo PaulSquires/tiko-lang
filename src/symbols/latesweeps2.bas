@@ -1206,6 +1206,8 @@ private sub WalkExtra_ _
     if k = N_VAR then CheckStaticMemberDef_( c, id )
     if k = N_VAR then CheckDeclShape_( c, id )
     if k = N_PROC then CheckProcShape_( c, id )
+    if (k = N_VAR) orelse (k = N_AMBIGUOUS) then CheckPtrIntWidth_( c, id )
+    if k = N_TUPLE then CheckTypeLiteral_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )

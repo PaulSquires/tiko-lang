@@ -1399,6 +1399,29 @@ private sub CheckStaticInitConst_( byref c as Ctx )
             end if
         end if
 
+        '' '@x' OF A MODULE-LEVEL LOCAL: a 'dim' or 'static' at module level that is not SHARED
+        '' lives in the main procedure's frame, so its address is no constant -- fbc's 272,
+        '' "Local symbols can't be referenced", for 'static' and 11 for 'dim', from a namespace
+        '' variable's initializer (fbc-modern 1.20, 2026-09-29; dim/shared-init-using-static-5).
+        '' A SHARED target's is TKO0668's, and a module-level 'static' target is fine
+        '' (tests/diagnostics/static-source-init): only a NAMESPACE's variable is judged.
+        dim as SymScope ptr tsc = c.syms->ScopeAt( s->parent )
+        dim as boolean nsTarget = (tsc <> 0) andalso (tsc->kind = cast( ubyte, SCOPEK_NAMESPACE ))
+        if nsTarget andalso ((s->flags and SYMF_SHARED) = 0) andalso (c.ast->Kind( ip->b ) = N_ADDROF) then
+            dim as NodeId ao = c.ast->unaries[cast( long, c.ast->nodes[cast( long, ip->b )].data )].operand
+            if (ao <> NODE_NONE) andalso (c.ast->Kind( ao ) = N_IDENT) then
+                dim as Symbol ptr asrc = c.syms->SymbolAt( c.info->RefOf( ao ) )
+                if (asrc <> 0) andalso (asrc->kind = cast( ubyte, SYM_VARIABLE )) then
+                    if (asrc->flags and (SYMF_SHARED or SYMF_EXTERN or SYMF_COMMON)) = 0 then
+                        dim as SymScope ptr ascp = c.syms->ScopeAt( asrc->parent )
+                        if (ascp <> 0) andalso ((ascp->kind = cast( ubyte, SCOPEK_MODULE )) orelse (ascp->kind = cast( ubyte, SCOPEK_GLOBAL ))) then
+                            c.diags->Report( TKO0778, PointRange( c.ast->Loc( ip->b ) ), c.names->Spelling( s->name ) )
+                            continue for
+                        end if
+                    end if
+                end if
+            end if
+        end if
         dim as boolean ptrTarget = (c.types->Kind( vt ) = TK_POINTER)
         dim as NodeId leaf = RunTimeLeaf_( c, ip->b, ptrTarget, 0 )
         if leaf = NODE_NONE then continue for

@@ -72,6 +72,21 @@ private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
         if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
         dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
         dim as string nm = c.names->Spelling( ip->name )
+        '' 'redim shared' INSIDE A SCOPE OR A PROCEDURE over an array declared elsewhere --
+        '' 'common array( )' above it, say -- is fbc's 96 (61 in a procedure), as a new one
+        '' is (dim/redim-shared-in-a-scope-with-a-common-above). CheckSharedInBlock_ judges
+        '' the SYMBOLS a shared declaration makes, and this one makes none.
+        if (op = KW_REDIM) andalso ((c.ast->nodes[cast( long, id )].flags and NF_SHARED) <> 0) then
+            dim as SymScope ptr rsc = c.syms->ScopeAt( c.info->ScopeOf( id ) )
+            if (rsc <> 0) andalso ((rsc->kind = cast( ubyte, SCOPEK_BLOCK )) orelse (rsc->kind = cast( ubyte, SCOPEK_PROC ))) then
+                dim as Symbol ptr rs = c.syms->SymbolAt( c.info->RefOf( item ) )
+                if rs = 0 then rs = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false ) )
+                if (rs <> 0) andalso (rs->payload <> cast( ulong, item )) then
+                    c.diags->Report( TKO0726, PointRange( c.ast->Loc( item ) ), nm )
+                    continue for
+                end if
+            end if
+        end if
         '' THE BOUNDS: none, all 'any', or written -- and whether one is '...'.
         dim as boolean written = false, ell = false
         if (ip->c <> NODE_NONE) andalso (c.ast->Kind( ip->c ) = N_BLOCK) then
@@ -176,4 +191,123 @@ private sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
         end if
         if bad then c.diags->Report( TKO0909, PointRange( c.ast->Loc( id ) ) )
     end select
+end sub
+
+'' A POINTER INTO AN INTEGER OF ANOTHER SIZE, measured on fbc-modern 1.20, 2026-09-29, 64-bit:
+''
+''     dim shared a as long = @i  /  dim a as byte = @i  /  as ulong    error 24
+''     a = @i  (a as long)                                            error 181
+''     dim a as integer = @i  /  as ulongint  /  as any ptr           fine
+''
+'' dim/global-init-nonptrsizedint-from-offset writes the first. A float is TKO0670's.
+private function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return false
+    '' ONLY A RUN-TIME POINTER: an address, a variable or a field. 'b = cptr( any ptr, 0 )' is a
+    '' constant null, and fbc takes it into a byte (numbers/cast-nullptr.bas).
+    for up as long = 0 to 15
+        if (rhs = NODE_NONE) orelse (c.ast->Kind( rhs ) <> N_PAREN) then exit for
+        dim as ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rhs )].data )]
+        if pp->count <> 1 then exit for
+        rhs = cast( NodeId, c.ast->children[pp->first] )
+    next
+    if rhs = NODE_NONE then return false
+    select case c.ast->Kind( rhs )
+    case N_ADDROF, N_IDENT, N_MEMBER
+    case else
+        return false
+    end select
+    dim as TypeId lu = c.types->Unqualify( lt ), ru = c.types->Unqualify( rt )
+    if c.types->Kind( lu ) = TK_REFERENCE then lu = c.types->Unqualify( c.types->Inner( lu ) )
+    if c.types->Kind( ru ) = TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+    if (c.types->Kind( ru ) <> TK_POINTER) orelse (c.types->Kind( lu ) <> TK_BUILTIN) then return false
+    select case c.types->BuiltinOf( lu )
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT
+        return (c.types->Layout( lu ).size * 8) <> c.types->target.pointerBits
+    end select
+    return false
+end function
+
+private sub CheckPtrIntWidth_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if c.ast->Kind( id ) = N_AMBIGUOUS then
+        if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+        if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+        if PtrIntNarrow_( c, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), sp->b ) then
+            c.diags->Report( TKO0910, PointRange( c.ast->Loc( id ) ), c.types->Name( c.types->Unqualify( c.info->TypeOf_( sp->a ) ) ) )
+        end if
+        return
+    end if
+    for k as long = 0 to sp->count - 1
+        dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
+        if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
+        dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then continue for
+        if (c.ast->nodes[cast( long, item )].flags and NF_ARRAY) <> 0 then continue for
+        if PtrIntNarrow_( c, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ), ip->b ) then
+            c.diags->Report( TKO0910, PointRange( c.ast->Loc( item ) ), c.types->Name( c.types->Unqualify( c.info->TypeOf_( ip->a ) ) ) )
+        end if
+    next
+end sub
+
+'' A TYPE LITERAL THAT BUILDS NOTHING, measured the same day:
+''
+''     type<UDT>( ) / type<UDT> / type( ), UDT of plain fields         error 9    (structs/anon-
+''     ...over a UDT with a constructor, a string field, or OBJECT      fine        missing-initializer)
+''     type<UDT>( 1 ) / type( 1 ), UDT extends OBJECT, no constructor   error 99   (structs/anon-
+''     ...over a plain UDT, or one that only has a destructor           fine        ctorcall-no-match)
+''
+'' An empty literal over a type fbc has no constructor for has nothing to build; a type that
+'' extends OBJECT has a vtable, so it is constructed and never filled field by field. A type
+'' holding a string is TKO0757's where it is an initializer, and is not judged here.
+'' ExtendsObject_ is latechecks.bas's.
+'' Does a field of this type, or of one it extends, have a default initializer -- so fbc
+'' writes the type a constructor? 'i as integer = 123' is one (structs/anon-access.bas).
+private function FieldHasInit_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    for guard as long = 0 to 31
+        if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return false
+        dim as Symbol ptr us = UdtSymbolOf_( c, t )
+        if (us = 0) orelse (us->inner = SCOPE_NONE) then return false
+        dim as SymScope ptr sc = c.syms->ScopeAt( us->inner )
+        dim as SymbolId cur = iif( sc <> 0, sc->firstSym, SYMBOL_NONE )
+        for g2 as long = 0 to 9999
+            if cur = SYMBOL_NONE then exit for
+            dim as Symbol ptr f = c.syms->SymbolAt( cur )
+            if f = 0 then exit for
+            if (f->kind = cast( ubyte, SYM_FIELD )) andalso (f->payload <> 0) then
+                dim as NodeId fn = cast( NodeId, f->payload )
+                if c.ast->Kind( fn ) = N_FIELD then
+                    dim as StmtPayload ptr fp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, fn )].data )]
+                    if fp->c <> NODE_NONE then return true
+                    if (fp->b <> NODE_NONE) andalso ((f->flags and SYMF_BITFIELD) = 0) then return true
+                end if
+            end if
+            cur = f->nextInScope
+        next
+        t = BaseOf_( c, t )
+    next
+    return false
+end function
+
+private sub CheckTypeLiteral_ ( byref c as Ctx, byval id as NodeId )
+    if (c.ast->nodes[cast( long, id )].flags and NF_TYPE_LITERAL) = 0 then return
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as TypeId t = TYPE_NONE
+    if lp->target <> NODE_NONE then t = c.info->TypeOf_( lp->target )
+    if t = TYPE_NONE then t = c.info->TypeOf_( id )
+    if t = TYPE_NONE then return
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_UDT then return
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return
+    dim as string h = left( c.names->Spelling( tn ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return
+    if instr( c.names->Spelling( tn ), "<" ) > 0 then return
+    if StructorOf_( c, t, "__ctor" ) <> 0 then return
+    if lp->count = 0 then
+        if TcNeedsCtor_( c, t, 0 ) orelse FieldHasInit_( c, t ) then return
+        c.diags->Report( TKO0911, PointRange( c.ast->Loc( id ) ), c.names->Spelling( tn ) )
+    elseif ExtendsObject_( c, t ) then
+        c.diags->Report( TKO0912, PointRange( c.ast->Loc( id ) ), c.names->Spelling( tn ) )
+    end if
 end sub

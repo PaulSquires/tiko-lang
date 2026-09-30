@@ -1,0 +1,8 @@
+'' TKO0778, fbc's 272 and 11: a namespace variable initialized from the address of a
+'' module-level local. See CheckStaticInitConst_ in symbols/latesweeps3.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-init-local-addr.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: static-init-local-addr.bas(7,29): error TKO0778
+'' EXPECT-OUT: static-init-local-addr.bas(8,29): error TKO0778
+'' EXPECT-MAX-DIAG: 2
