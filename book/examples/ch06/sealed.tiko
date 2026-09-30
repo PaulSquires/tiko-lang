@@ -1,0 +1,8 @@
+'' sealed.tiko -- a procedure cannot see the module's variables.
+dim as int32 counter = 5
+
+sub ShowIt( )
+    print counter        '' error: procedures start with an empty slate
+end sub
+
+ShowIt( )

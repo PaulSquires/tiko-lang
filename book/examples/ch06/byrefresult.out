@@ -1,0 +1,4 @@
+start:             0 0
+after SlotAt(0)=42: 0 0
+after (SlotAt(0))=42: 42 0
+after slot = 7:    42 7

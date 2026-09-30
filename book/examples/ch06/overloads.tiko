@@ -1,0 +1,35 @@
+'' overloads.tiko -- one name, several signatures.
+
+declare function Area overload ( byval side as float64 ) as float64
+declare function Area overload ( byval w as float64, _
+                                byval h as float64 ) as float64
+declare function Area overload ( byref tag as ustring ) as float64
+
+function Area overload ( byval side as float64 ) as float64
+    print "  (square)"
+    return side * side
+end function
+
+function Area overload ( byval w as float64, _
+                         byval h as float64 ) as float64
+    print "  (rectangle)"
+    return w * h
+end function
+
+function Area overload ( byref tag as ustring ) as float64
+    print "  (by name: " & tag & ")"
+    return 0.0
+end function
+
+'' Each call prints which overload ran, then its answer.
+var square = Area( 3.0 )
+print "Area( 3.0 )      ="; square
+
+var rect = Area( 2.0, 5.0 )
+print "Area( 2.0, 5.0 ) ="; rect
+
+var widened = Area( 3 )
+print "Area( 3 )        ="; widened
+
+var named = Area( "lot" )
+print "Area( ""lot"" )    ="; named

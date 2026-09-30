@@ -1,0 +1,27 @@
+'' callbacks.tiko -- a procedure held in a variable.
+
+function Twice( byval x as float64 ) as float64
+    return x * 2.0
+end function
+
+function Square( byval x as float64 ) as float64
+    return x * x
+end function
+
+'' The parameter type names a shape, not a procedure.
+sub Tabulate( byref title as ustring, _
+              byval f as function( byval as float64 ) as float64 )
+    print title
+    for i as int32 = 1 to 3
+        print "  f("; i; " ) ="; f( i )
+    next
+end sub
+
+Tabulate( "doubling", @Twice )
+Tabulate( "squaring", procptr( Square ) )
+
+'' A variable of that type can be reassigned like any other.
+dim as function( byval as float64 ) as float64 op = @Twice
+print "op( 4 ) ="; op( 4.0 )
+op = @Square
+print "op( 4 ) ="; op( 4.0 )

@@ -1,0 +1,4 @@
+int32   with no keyword:  1
+ustring with no keyword: changed
+int32   byref:            99
+ustring byval:           kept

@@ -1,0 +1,20 @@
+'' forward.tiko -- declare names a procedure before it exists.
+''
+'' IsEven and IsOdd call each other, so whichever is written first
+'' refers to a name the compiler has not read yet.
+
+declare function IsOdd( byval n as int32 ) as boolean
+
+function IsEven( byval n as int32 ) as boolean
+    if n = 0 then return true
+    return IsOdd( n - 1 )
+end function
+
+function IsOdd( byval n as int32 ) as boolean
+    if n = 0 then return false
+    return IsEven( n - 1 )
+end function
+
+for i as int32 = 0 to 4
+    print i; " even="; IsEven( i ); " odd="; IsOdd( i )
+next

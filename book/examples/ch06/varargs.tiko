@@ -1,0 +1,23 @@
+'' varargs.tiko -- a procedure taking any number of arguments.
+''
+'' This is C's mechanism, so it needs C's calling convention and
+'' none of the type checking you get everywhere else.
+
+#include once "crt/stdarg.bi"
+
+function SumOf cdecl ( byval count as int32, ... ) as int64
+    dim as cva_list args
+    dim as int64 total = 0
+
+    cva_start( args, count )
+    for i as int32 = 1 to count
+        total += cva_arg( args, int32 )
+    next
+    cva_end( args )
+
+    return total
+end function
+
+print "SumOf( 3, 10, 20, 30 ) ="; SumOf( 3, 10, 20, 30 )
+print "SumOf( 1, 7 )          ="; SumOf( 1, 7 )
+print "SumOf( 0 )             ="; SumOf( 0 )

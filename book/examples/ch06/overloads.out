@@ -1,0 +1,8 @@
+  (square)
+Area( 3.0 )      = 9
+  (rectangle)
+Area( 2.0, 5.0 ) = 10
+  (square)
+Area( 3 )        = 9
+  (by name: lot)
+Area( "lot" )    = 0

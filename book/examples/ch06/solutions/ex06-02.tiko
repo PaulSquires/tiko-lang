@@ -1,0 +1,34 @@
+'' ex06-02.tiko -- which overload a call picks, and why.
+
+declare sub Describe overload ( byval n as int32 )
+declare sub Describe overload ( byval x as float64 )
+declare sub Describe overload ( byref s as ustring )
+
+sub Describe overload ( byval n as int32 )
+    print "int32:   "; n
+end sub
+
+sub Describe overload ( byval x as float64 )
+    print "float64: "; x
+end sub
+
+sub Describe overload ( byref s as ustring )
+    print "ustring: " & s
+end sub
+
+Describe( 42 )            '' int32 literal -> exact match
+Describe( 2.5 )           '' float64 literal -> exact match
+Describe( "text" )        '' string literal -> exact match
+
+dim as int16 small = 7
+Describe( small )         '' no int16 overload; widens to int32
+
+dim as int64 big = 5
+Describe( big )           '' no int64 overload either
+
+'' The last two are the interesting ones. Neither int16 nor int64 has
+'' an overload of its own, and both reach the int32 one -- so int64
+'' picked a NARROWING conversion over widening to float64. Overload
+'' resolution scores each argument's conversion and takes the cheapest
+'' total; it does not prefer conversions that cannot lose information.
+'' Give a number an overload of its own width when that matters.

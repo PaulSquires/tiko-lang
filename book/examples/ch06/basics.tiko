@@ -1,0 +1,30 @@
+'' basics.tiko -- a sub does something; a function answers something.
+
+sub Banner( byref title as ustring )
+    print "== " & title & " =="
+end sub
+
+'' Three ways to hand back a result. They compile to the same thing.
+function Doubled( byval n as int32 ) as int32
+    return n * 2
+end function
+
+function Tripled( byval n as int32 ) as int32
+    function = n * 3
+end function
+
+function Quadrupled( byval n as int32 ) as int32
+    Quadrupled = n * 4
+end function
+
+Banner( "results" )
+print Doubled( 5 ), Tripled( 5 ), Quadrupled( 5 )
+
+'' A function called for its answer and ignored is still called.
+function Noisy( ) as int32
+    print "Noisy ran"
+    return 0
+end function
+
+Banner( "called for effect" )
+Noisy( )

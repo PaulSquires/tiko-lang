@@ -1,0 +1,37 @@
+'' passing.tiko -- what a parameter with no byval or byref means.
+''
+'' Every procedure here writes to its parameter. Whether the caller
+'' sees that write is the whole question.
+
+sub PlainInt( n as int32 )
+    n = 99
+end sub
+
+sub PlainStr( s as ustring )
+    s = "changed"
+end sub
+
+'' The same two, written the other way round.
+sub ByrefInt( byref n as int32 )
+    n = 99
+end sub
+
+sub ByvalStr( byval s as ustring )
+    s = "changed"
+end sub
+
+dim as int32 a = 1
+PlainInt( a )
+print "int32   with no keyword: "; a
+
+dim as ustring t = "kept"
+PlainStr( t )
+print "ustring with no keyword: " & t
+
+dim as int32 b = 1
+ByrefInt( b )
+print "int32   byref:           "; b
+
+dim as ustring u = "kept"
+ByvalStr( u )
+print "ustring byval:           " & u

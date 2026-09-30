@@ -1,0 +1,17 @@
+'' gcd.tiko -- recursion, and a static local that outlives the call.
+
+function Gcd( byval a as int64, byval b as int64 ) as int64
+    static as int32 calls = 0
+    calls += 1
+
+    if b = 0 then
+        print "  reached the base case after"; calls; " calls"
+        calls = 0
+        return a
+    end if
+
+    return Gcd( b, a mod b )
+end function
+
+print "Gcd( 1071, 462 ) ="; Gcd( 1071, 462 )
+print "Gcd( 270, 192 )  ="; Gcd( 270, 192 )

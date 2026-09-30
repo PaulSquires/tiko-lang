@@ -1,0 +1,23 @@
+'' byrefresult.tiko -- a function that returns a place, not a value.
+
+function SlotAt( byval i as int32 ) byref as int32
+    static as int32 first  = 0
+    static as int32 second = 0
+    if i = 0 then return first
+    return second
+end function
+
+print "start:            "; SlotAt( 0 ); SlotAt( 1 )
+
+'' The obvious spelling. Watch what it does.
+SlotAt( 0 ) = 42
+print "after SlotAt(0)=42:"; SlotAt( 0 ); SlotAt( 1 )
+
+'' Parenthesise the call, and the assignment lands.
+( SlotAt( 0 ) ) = 42
+print "after (SlotAt(0))=42:"; SlotAt( 0 ); SlotAt( 1 )
+
+'' Or bind the reference to a name first, which reads better.
+dim byref as int32 slot = SlotAt( 1 )
+slot = 7
+print "after slot = 7:   "; SlotAt( 0 ); SlotAt( 1 )

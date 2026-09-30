@@ -1,0 +1,5 @@
+ 0 even=true odd=false
+ 1 even=false odd=true
+ 2 even=true odd=false
+ 3 even=false odd=true
+ 4 even=true odd=false

@@ -1,0 +1,6 @@
+'' constparam.tiko -- const says the procedure will not write to it.
+sub Bump( byval n as const int32 )
+    n += 1               '' error: that is what const forbids
+end sub
+
+Bump( 1 )

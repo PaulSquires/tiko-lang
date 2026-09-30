@@ -1,0 +1,17 @@
+'' ambiguous.tiko -- neither overload is a better match than the other.
+declare function Pick overload ( byval a as int32, _
+                                byval b as float64 ) as int32
+declare function Pick overload ( byval a as float64, _
+                                byval b as int32 ) as int32
+
+function Pick overload ( byval a as int32, _
+                         byval b as float64 ) as int32
+    return 1
+end function
+
+function Pick overload ( byval a as float64, _
+                         byval b as int32 ) as int32
+    return 2
+end function
+
+print Pick( 1, 1 )       '' error: int32 converts to float64 either way

@@ -1,0 +1,12 @@
+'' optional.tiko -- defaults, and leaving an argument out of the middle.
+
+sub Label( byref who as ustring, byval times as int32 = 1, _
+           byref mark as ustring = "!" )
+    for i as int32 = 1 to times
+        print who & mark
+    next
+end sub
+
+Label( "once" )
+Label( "twice", 2 )
+Label( "marked", , "?" )      '' times keeps its default
