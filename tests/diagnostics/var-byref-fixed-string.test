@@ -1,0 +1,7 @@
+'' TKO0636, fbc's 32: 'var byref' over a fixed-length zstring or wstring is an unsized
+'' alias; a written fixed-length reference is not. See symbols/checkinfer.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/var-byref-fixed-string.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: var-byref-fixed-string.bas(6,11): error TKO0636
+'' EXPECT-MAX-DIAG: 1

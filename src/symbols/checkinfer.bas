@@ -208,6 +208,15 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
                        ((s->flags and Tko.SYMF_BYREF) = 0) then
                         vt = c.types->Builtin( Tko.TY_STRING )
                     end if
+                    '' ...AND AN ALIAS OF A SIZED ONE IS UNSIZED: 'var byref rz = z' over a
+                    '' 'zstring * 10' is ZSTRING to fbc's typeof, and 'wstring * 10' gives
+                    '' WSTRING (fbc-modern 1.20, 2026-09-30; dim/byref.bas). Kept sized, it
+                    '' was a fixed-length string no reference may be (TKO0636).
+                    if ((s->flags and Tko.SYMF_BYREF) <> 0) andalso (c.types->Kind( vu ) = Tko.TK_ARRAY) then
+                        select case c.types->BuiltinOf( ve )
+                        case Tko.TY_ZSTRING, Tko.TY_WSTRING : vt = c.types->Builtin( c.types->BuiltinOf( ve ) )
+                        end select
+                    end if
                 end if
             end if
         end if

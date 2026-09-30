@@ -269,7 +269,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     ''
     '' A continuation INSIDE the parameter list is untouched -- PpReadParams has
     '' already consumed those, and fbc accepts '#macro m( a, _' with 'b )' below it.
-    SkipMacroHeader_( e )
+    SkipMacroHeader_( e ) : dim as long nest = 0   '' #macro inside #macro nests (pp/macro_nested1.bas)
     do
         dim as Token u
         if PeekTok( e, u ) = false then
@@ -292,7 +292,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
                 else
                     word = Text.LowerAscii( TokenKindText( Tk( w ) ) )
                 end if
-                isEnd = (word = "endmacro")
+                isEnd = (word = "endmacro") andalso (nest = 0) : nest += iif( word = "macro", 1, iif( word = "endmacro", -1, 0 ) )
             end if
             if isEnd then
                 SkipToEol( e )

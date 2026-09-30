@@ -1,0 +1,7 @@
+'' TKO0619, fbc's 263: a local type may extend one that brings no constructor or
+'' destructor. See BaseBringsStructors_ in symbols/resolveudt.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/local-type-derived.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: local-type-derived.bas(21,9): error TKO0619
+'' EXPECT-MAX-DIAG: 1

@@ -151,6 +151,25 @@ private sub CompareByref_ _
     next
 end sub
 
+'' Do the two declarations' ARRAY PARAMETERS agree on rank? Overrides_ does not ask, so
+'' 'f( array(any) )' beside 'f( array(any, any) )' in the base both matched the first --
+'' measured on fbc-modern 1.20, 2026-09-30, each override takes the overload of its own rank
+'' (virtual/virtual.bas, bydescParams2). The rank as written is the parameter's 'extra'.
+private function RanksAgree_ ( byref ast as AstArena, byval a as NodeId, byval b as NodeId ) as boolean
+    if (a = NODE_NONE) orelse (b = NODE_NONE) then return true
+    dim as StmtPayload ptr pa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
+    dim as StmtPayload ptr pb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+    if pa->count <> pb->count then return true
+    for i as long = 0 to pa->count - 1
+        dim as NodeId x = cast( NodeId, ast.children[pa->first + i] )
+        dim as NodeId y = cast( NodeId, ast.children[pb->first + i] )
+        if (ast.Kind( x ) <> N_PARAM) orelse (ast.Kind( y ) <> N_PARAM) then continue for
+        if ((ast.nodes[cast( long, x )].flags and NF_ARRAY) = 0) orelse ((ast.nodes[cast( long, y )].flags and NF_ARRAY) = 0) then continue for
+        if ast.stmts[cast( long, ast.nodes[cast( long, x )].data )].extra <> ast.stmts[cast( long, ast.nodes[cast( long, y )].data )].extra then return false
+    next
+    return true
+end function
+
 '' A RETURN TYPE MAY CHANGE ITS SIGNEDNESS AND NOTHING ELSE. Measured, and the first
 '' version of this check -- strict identity -- refused two files fbc accepts:
 ''
@@ -541,6 +560,7 @@ private function BuildOne_ _
     '' unchanged by this: the template pass matches the same inherited slots and the
     '' instantiation pass replaces them again.
     dim as ScopeId tmplScope = TemplateScopeOf_( ast, syms, s )
+    dim as long nInherited = v.count   '' slots below this came from the base
     for pass_ as long = 0 to 1
         dim as ScopeId msc = s->inner
         if pass_ = 0 then msc = tmplScope
@@ -572,15 +592,21 @@ private function BuildOne_ _
                             '' 'declare function f( ) as long override' carries neither
                             '' modifier tiko-lang records, and it is B's f that a call through
                             '' an A ptr must reach.
-                            dim as long at = -1
+                            dim as long at = -1, loose = -1
                             for i as long = 0 to v.count - 1
                                 dim as VtSlot ptr sl = @store.slots[v.first + i]
                                 if sl->name <> mo->name then continue for
                                 if Overrides_( ast, info, sl->decl, decl ) then
+                                    if loose < 0 then loose = i
+                                    if RanksAgree_( ast, sl->decl, decl ) = false then continue for
                                     at = i
                                     exit for
                                 end if
                             next
+                            '' ...falling back to the first INHERITED match, whose rank
+                            '' CompareByref_ reports. A sibling overload of another rank in
+                            '' this same type is a slot of its own, not an override.
+                            if (at < 0) andalso (loose >= 0) andalso (loose < nInherited) then at = loose
 
                             if at >= 0 then
                                 '' AN ABSTRACT SLOT IS NULL, and an override fills it.

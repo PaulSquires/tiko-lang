@@ -1,0 +1,7 @@
+'' A #macro inside a #macro body nests; the undeclared name at the end (fbc's 42) proves
+'' the outer macro ended where it should. See pp/macro.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/macro-nested-define.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: macro-nested-define.bas(10,1): error TKO0743
+'' EXPECT-MAX-DIAG: 1

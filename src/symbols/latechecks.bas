@@ -1130,6 +1130,22 @@ private function IifStringUdtArm_ _
     return false
 end function
 
+'' ...AND A STRING LITERAL MEETS A UDT THAT EXTENDS EITHER STRING KIND: 'iif( c, u1, "a" )'
+'' over a type that extends zstring, or one that extends wstring, is fine to fbc, while a
+'' STRING variable in the literal's place is its 24 (fbc-modern 1.20, 2026-09-30;
+'' udt-zstring/iif.bas, udt-wstring/iif.bas). The literal types as a STRING here.
+private function IifArmsMeet_ ( byref c as Ctx, byval id as NodeId, byval ua as TypeId, byval ub as TypeId ) as boolean
+    if IifStringUdtArm_( c, ua, ub ) orelse IifStringUdtArm_( c, ub, ua ) then return true
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for k as long = 1 to 2
+        if c.ast->Kind( cast( NodeId, c.ast->children[lp->first + k] ) ) <> N_STRING_LIT then continue for
+        dim as TypeId other = iif( k = 1, ub, ua )
+        if c.types->Kind( other ) <> TK_UDT then continue for
+        if ExtendsStrKind_( c, other, TY_ZSTRING ) orelse ExtendsStrKind_( c, other, TY_WSTRING ) then return true
+    next
+    return false
+end function
+
 private sub CheckConstDeclTypes_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

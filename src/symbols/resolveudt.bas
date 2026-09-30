@@ -62,6 +62,38 @@ private function TypeBringsProcs_ _
     return false
 end function
 
+'' A BASE counts only for the constructor, destructor or vtable it hands down -- measured
+'' on fbc-modern 1.20, 2026-09-30, a type declared in a sub is fine extending a plain-data
+'' type, a union, or one whose only member proc is a method (structs/scope-type-1.bas,
+'' dim/union-init.bas), and error 263 extending OBJECT, a type with a destructor, or one
+'' with a string field. Its methods stay its own.
+private function BaseBringsStructors_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval depth as long ) as boolean
+
+    if (t = Tko.TYPE_NONE) orelse (depth > 16) then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_BUILTIN then return (c.types->BuiltinOf( u ) = Tko.TY_STRING)
+    if c.types->Kind( u ) <> Tko.TK_UDT then return false
+    if c.names->Fold( c.types->NameOf( u ) ) = c.names->Fold( c.names->GetString( "object" ) ) then return true
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOfT_( c, u ) )
+    if (s = 0) orelse (s->inner = Tko.SCOPE_NONE) then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    dim as Tko.SymbolId m = iif( sc <> 0, sc->firstSym, Tko.SYMBOL_NONE )
+    dim as Tko.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
+    dim as Tko.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
+    while m <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr ms = c.syms->SymbolAt( m )
+        if ms = 0 then exit while
+        if ms->kind = cast( ubyte, Tko.SYM_PROC ) then
+            if (ms->name = ctorNm) orelse (ms->name = dtorNm) then return true
+        elseif ms->kind = cast( ubyte, Tko.SYM_FIELD ) then
+            if BaseBringsStructors_( c, ms->type_, depth + 1 ) then return true
+        end if
+        m = ms->nextInScope
+    wend
+    return false
+end function
+
 function UdtHasProcs_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as long ) as boolean
 
@@ -81,7 +113,11 @@ function UdtHasProcs_ _
         if ms = 0 then exit while
         if ms->kind = cast( ubyte, Tko.SYM_PROC ) then return true
         if ms->kind = cast( ubyte, Tko.SYM_FIELD ) then
-            if TypeBringsProcs_( c, ms->type_, depth ) then return true
+            if ms->name = c.names->Fold( c.names->GetString( "base" ) ) then
+                if BaseBringsStructors_( c, ms->type_, depth ) then return true
+            elseif TypeBringsProcs_( c, ms->type_, depth ) then
+                return true
+            end if
         end if
         m = ms->nextInScope
     wend
@@ -110,15 +146,9 @@ private sub CheckNoMethodsInProc_( byref c as Ctx )
         if ScopeIsInProc_( c, s->parent ) = false then continue for
         '' 'type U extends object' INSIDE A SUB is refused too -- fbc error 263, the same
         '' one -- with no method declared at all: extending gives the type a vtable
-        '' pointer and an implicit constructor to set it. So a BASE counts as a method
-        '' here. The base is the field Collect names 'base' in the type's scope.
-        dim as boolean hasBase = false
-        if s->inner <> Tko.SCOPE_NONE then
-            hasBase = (c.syms->LookupLocal( s->inner, _
-                c.names->Fold( c.names->GetString( "base" ) ) ) <> Tko.SYMBOL_NONE)
-        end if
-        if (hasBase = false) andalso _
-           (UdtHasProcs_( c, cast( Tko.SymbolId, i ), 0 ) = false) then continue for
+        '' pointer and an implicit constructor to set it. The base is the field Collect
+        '' names 'base' in the type's scope, and BaseBringsStructors_ judges it.
+        if UdtHasProcs_( c, cast( Tko.SymbolId, i ), 0 ) = false then continue for
         c.diags->Report( Tko.TKO0619, Tko.PointRange( s->loc ), _
                          c.names->Spelling( s->name ) )
     next

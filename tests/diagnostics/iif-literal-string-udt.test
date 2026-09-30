@@ -1,0 +1,7 @@
+'' TKO0655, fbc's 24: a string literal arm meets a UDT extending zstring; a STRING
+'' variable does not. See IifArmsMeet_ in symbols/latechecks.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/iif-literal-string-udt.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iif-literal-string-udt.bas(15,28): error TKO0655
+'' EXPECT-MAX-DIAG: 1

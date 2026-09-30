@@ -1,0 +1,7 @@
+'' TKO0740: overloads differing only in array rank are separate slots, each overridden
+'' by its own rank. See RanksAgree_ in types/vtable.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-array-rank.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: override-array-rank.bas(23,17): error TKO0740
+'' EXPECT-MAX-DIAG: 1
