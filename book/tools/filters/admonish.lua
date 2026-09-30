@@ -6,6 +6,16 @@
 
      becomes the typst callout the template draws. The style maps to the book's own kinds,
      so the site and the PDF show the same box with the same heading.
+
+     pandoc cannot read that fence itself: an info string of more than one word is not a
+     code-block class, so it is parsed as an inline code span and the admonition prints as raw
+     text. build/pdf.sh therefore runs tools/prep_admonish.py first, which rewrites each fence
+     into a fenced div,
+
+         ::: {.admonish style="danger" title="Pitfall"}
+
+     and this filter turns that div into the callout. The body stays markdown, so it is
+     typeset rather than verbatim, and a div can sit anywhere a block can.
 --]]
 
 local TITLE = {
@@ -24,32 +34,20 @@ local KIND = {          -- typst callout name, per admonish style
   warning = "tiko-status",
 }
 
-function CodeBlock(el)
-  local info = el.classes[1]
-  if info ~= "admonish" then return nil end
-  return nil        -- handled in Div/RawBlock form below
+local function has_class(el, name)
+  for _, c in ipairs(el.classes) do
+    if c == name then return true end
+  end
+  return false
 end
 
--- pandoc parses ```admonish <style> title="..." as a code block whose first class is
--- "admonish" and whose remaining words land in classes/attributes.
-function Block(el) return nil end
-
-function Pandoc(doc)
-  local out = {}
-  for _, b in ipairs(doc.blocks) do
-    if b.t == "CodeBlock" and b.classes[1] == "admonish" then
-      local style = b.classes[2] or "note"
-      local title = b.attributes["title"] or TITLE[style] or "Note"
-      local kind = KIND[style] or "note"
-      out[#out + 1] = pandoc.RawBlock("typst", '#callout("' .. kind .. '", [' .. title .. '])[')
-      -- the body is markdown inside the fence; parse it so it is typeset, not verbatim
-      local inner = pandoc.read(b.text, "markdown").blocks
-      for _, ib in ipairs(inner) do out[#out + 1] = ib end
-      out[#out + 1] = pandoc.RawBlock("typst", "]")
-    else
-      out[#out + 1] = b
-    end
-  end
-  doc.blocks = out
-  return doc
+function Div(el)
+  if not has_class(el, "admonish") then return nil end
+  local style = el.attributes["style"] or "note"
+  local title = el.attributes["title"] or TITLE[style] or "Note"
+  local kind = KIND[style] or "note"
+  local out = { pandoc.RawBlock("typst", '#callout("' .. kind .. '", [' .. title .. '])[') }
+  for _, b in ipairs(el.content) do out[#out + 1] = b end
+  out[#out + 1] = pandoc.RawBlock("typst", "]")
+  return out
 end

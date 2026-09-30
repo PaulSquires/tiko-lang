@@ -65,6 +65,19 @@ for f in "${entries[@]}"; do
 done
 [[ ${#files[@]} -gt 0 ]] || { echo "pdf.sh: nothing to build" >&2; exit 2; }
 
+# ---------------------------------------------------------------- admonitions
+# pandoc cannot read mdbook-admonish fences (more than one word in the info string), so they
+# are rewritten to fenced divs first; tools/filters/admonish.lua draws them. Every file goes
+# through this, draft or not: without it each admonition prints as raw text.
+mkdir -p out/prep
+prepped=()
+for f in "${files[@]}"; do
+  dest="out/prep/$(basename "$f")"
+  "$PYTHON" tools/prep_admonish.py "$f" > "$dest"
+  prepped+=("$dest")
+done
+files=("${prepped[@]}")
+
 # ---------------------------------------------------------------- markdown -> typst
 args=(
   --from markdown+fenced_divs+fenced_code_attributes+footnotes+pipe_tables+smart
