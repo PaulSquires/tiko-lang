@@ -1,0 +1,13 @@
+*.a
+*.dll
+*.exe
+*.lib
+*.ll
+*.o
+*.obj
+*.pdf
+*.res
+*.so
+*.tmp
+book/
+out/

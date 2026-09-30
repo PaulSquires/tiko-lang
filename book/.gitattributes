@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.bas text eol=lf
+*.bi  text eol=lf
+*.md  text eol=lf
+*.typ text eol=lf
+*.lua text eol=lf
+*.sh  text eol=lf
+*.out text eol=lf
+*.png binary
+*.pdf binary

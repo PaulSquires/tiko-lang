@@ -1,0 +1,27 @@
+The text of *The tiko Programming Language*
+===========================================
+
+Copyright (c) 2026 Paul Squires / PlanetSquires Software.
+
+The prose, figures, tables and the typeset PDF of this book are licensed under the
+
+    Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+    (CC BY-NC-SA 4.0)
+
+You are free to share and adapt this material for non-commercial purposes, provided you give
+appropriate credit and license your adaptations under the same terms.
+
+Full licence text: https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+Summary:           https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+THE CODE IS LICENSED SEPARATELY, AND MORE PERMISSIVELY. Every example and exercise solution in
+`examples/` is under the MIT licence -- see LICENSE-CODE. You may use listing code in your own
+programs, including commercial ones, without the NonCommercial or ShareAlike conditions.
+
+Third-party material
+--------------------
+
+- The tiko compiler, its runtime and its documentation are separate works with their own
+  licences. See C:\dev\tiko-lang\LICENSE.
+- This book contains no text from the FreeBASIC manual, which is GFDL-1.3 and the work of other
+  authors. Where the book covers the same ground, the text is original.

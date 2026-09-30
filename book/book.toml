@@ -1,0 +1,32 @@
+[book]
+title = "The tiko Programming Language"
+authors = ["Paul Squires"]
+description = "A book for programmers who know another language and are new to tiko: a compiled, statically typed language for building fast, self-contained programs."
+language = "en"
+src = "src"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/PaulSquires/tiko-lang"
+edit-url-template = "https://github.com/PaulSquires/tiko-lang/edit/master/book/{path}"
+site-url = "/book/"
+additional-css = ["./mdbook-admonish.css", "src/theme/tiko.css"]
+additional-js = ["src/theme/tiko-highlight.js"]
+copy-fonts = true
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.search]
+enable = true
+limit-results = 20
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "3.1.0" # do not edit: managed by `mdbook-admonish install`
+
+[build]
+build-dir = "book"
+create-missing = false

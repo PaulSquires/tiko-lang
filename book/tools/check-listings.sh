@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+# check-listings.sh -- compile and run every listing in the book, on every target.
+#
+#   tools/check-listings.sh                    both targets, all chapters
+#   tools/check-listings.sh --target win64-msvc
+#   tools/check-listings.sh ch01 ch05          only those chapters
+#   tools/check-listings.sh --list             show what would run
+#
+# A listing is examples/chNN/name.tiko (or name.bas, for legacy material). Beside it:
+#   name.out    expected stdout (required unless the listing expects a compile error)
+#   name.exit   expected exit code (default 0)
+#   name.args   command-line arguments, one line
+#   name.stdin  fed to the program
+#   name.meta   key: value lines --
+#                 targets: win64-msvc          restrict to one target
+#                 expect: compile-error TKO0413
+#                 modules: a.bas b.bas         extra sources in the same directory
+#                 forward: ch15                records a use-before-define
+#                 blocked: T13 linux-x86_64    a known compiler/toolchain defect, and
+#                                              where it bites; reported BLOCKED, not FAIL.
+#                                              The listing is NEVER weakened to pass --
+#                                              the work item gets fixed instead.
+#
+# Compiler flags belong in the listing itself (#cmdline "-exx"), so the file alone
+# reproduces the result.
+#
+# Exit: 0 all pass, 1 a listing failed, 2 the pin or toolchain is wrong.
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+# Git Bash rewrites anything that looks like a Unix path before handing it to a Windows
+# program, so wsl.exe would receive C:/Program Files/Git/mnt/c/... instead of /mnt/c/...
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
+
+# ------------------------------------------------------------------ the pin
+yaml_get() { # yaml_get <section> <key>   (flat enough for book.yaml's pin block)
+  awk -v sect="$1" -v key="$2" '
+    $0 ~ "^  " sect ":" { in_s = 1; next }
+    in_s && /^  [a-z_]+:/ { in_s = 0 }
+    in_s && $1 == key":" { gsub(/"/, "", $2); print $2; exit }
+  ' book.yaml
+}
+
+PIN_VERSION="$(awk '/^  version:/ { gsub(/"/, "", $2); print $2; exit }' book.yaml)"
+WIN_ROOT="$(yaml_get windows root)";  WIN_EXE="$(yaml_get windows exe)"
+LIN_ROOT="$(yaml_get linux root)";    LIN_EXE="$(yaml_get linux exe)"
+WSL_DISTRO="$(yaml_get linux wsl_distro)"
+
+targets=(win64-msvc linux-x86_64)
+chapters=(); list_only=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target) targets=("${2:?--target needs a name}"); shift ;;
+    --list)   list_only=1 ;;
+    ch*)      chapters+=("$1") ;;
+    *) echo "check-listings: unknown argument $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+# The roots in book.yaml are relative to this book directory, which lives inside the
+# compiler's repository -- so a clone anywhere works. The Linux side needs the same place
+# spelled as WSL sees it.
+to_wsl() { cygpath -w "$1" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g'; }
+
+win_tiko="$(cd "$root/$WIN_ROOT" && pwd)/$WIN_EXE"
+lin_tiko="$(to_wsl "$(cd "$root/$LIN_ROOT" && pwd)")/$LIN_EXE"
+book_wsl="$(cygpath -w "$root" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g')"
+
+# A stale toolchain yields a plausible number, not an error. Assert the pin first.
+assert_pin() {
+  local what="$1" got="$2"
+  if [[ "$got" != *"$PIN_VERSION"* ]]; then
+    echo "check-listings: $what reports '$got', which is not the pinned $PIN_VERSION" >&2
+    echo "  update book.yaml's pin deliberately, or point at the pinned toolchain." >&2
+    exit 2
+  fi
+}
+
+# --version says only "0.1.0-dev", which every build says, so it cannot tell two packagings
+# apart. The MANIFEST inside each toolchain records the commit it was built from; hold the
+# pin to that as well, or a repackaged toolchain silently changes what the book verified.
+assert_manifest() {
+  local what="$1" manifest="$2" want="$3"
+  [[ -n "$want" ]] || return 0
+  if [[ ! -f "$manifest" ]]; then
+    echo "check-listings: $what has no MANIFEST.txt at $manifest" >&2; exit 2
+  fi
+  local got; got="$(grep -m1 -oE '^commit +[0-9a-f]{7,40}' "$manifest" | awk '{print $2}')"
+  if [[ "$got" != "$want"* && "$want" != "$got"* ]]; then
+    echo "check-listings: the $what toolchain was packaged from $got, but book.yaml pins $want." >&2
+    echo "  Re-verify the listings and update the pin deliberately." >&2
+    exit 2
+  fi
+}
+
+assert_manifest "windows" "$(cygpath -u "$WIN_ROOT" 2>/dev/null || echo "$WIN_ROOT")/MANIFEST.txt" \
+  "$(awk '/^  windows:/,/^  linux:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+assert_manifest "linux" "$(cygpath -u "${LIN_ROOT/\/mnt\/c/C:}" 2>/dev/null || echo "$LIN_ROOT")/MANIFEST.txt" \
+  "$(awk '/^  linux:/,/^  targets:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+
+for t in "${targets[@]}"; do
+  case "$t" in
+    win64-msvc)
+      [[ -x "$win_tiko" ]] || { echo "check-listings: no tiko at $win_tiko" >&2; exit 2; }
+      assert_pin "$win_tiko" "$("$win_tiko" --version 2>&1 | head -1)" ;;
+    linux-x86_64)
+      v="$(wsl -d "$WSL_DISTRO" -- "$lin_tiko" --version 2>&1 | head -1 | tr -d '\r')"
+      [[ -n "$v" ]] || { echo "check-listings: no tiko at $lin_tiko (WSL $WSL_DISTRO)" >&2; exit 2; }
+      assert_pin "$lin_tiko" "$v" ;;
+    *) echo "check-listings: unknown target $t" >&2; exit 2 ;;
+  esac
+done
+
+# ------------------------------------------------------------------ listings
+meta_get() { [[ -f "$1" ]] && sed -nE "s/^$2:[[:space:]]*//p" "$1" | head -1; }
+
+mapfile -t all < <(find examples \( -name '*.tiko' -o -name '*.bas' \) | sed 's|\\|/|g' | sort)
+listings=()
+for f in "${all[@]}"; do
+  chap="$(basename "$(dirname "${f%/solutions/*}")")"
+  [[ "$(dirname "$f")" == */solutions ]] && chap="$(basename "$(dirname "$(dirname "$f")")")"
+  if [[ ${#chapters[@]} -gt 0 ]]; then
+    keep=0; for c in "${chapters[@]}"; do [[ "$chap" == "$c" ]] && keep=1; done
+    (( keep )) || continue
+  fi
+  # A module named by another listing's meta is built with it, not on its own.
+  base="$(basename "$f")"; dir="$(dirname "$f")"
+  if grep -qs -- "$base" "$dir"/*.meta 2>/dev/null && ! [[ -f "${f%.*}.meta" ]]; then
+    grep -qs "^modules:.*$base" "$dir"/*.meta && continue
+  fi
+  listings+=("$f")
+done
+
+if (( list_only )); then printf '%s\n' "${listings[@]}"; exit 0; fi
+[[ ${#listings[@]} -gt 0 ]] || { echo "check-listings: no listings found"; exit 0; }
+
+mkdir -p out/bin out/run
+report="out/listings-report.md"
+{ echo "# Listings report"; echo; echo "pin: tiko $PIN_VERSION"; echo;
+  hdr="| Listing |"; sep="|---|"
+  for t in "${targets[@]}"; do hdr+=" $t |"; sep+="---|"; done
+  echo "$hdr Note |"; echo "$sep---|"; } > "$report"
+
+pass=0; fail=0; wide=0; blockedn=0
+
+for f in "${listings[@]}"; do
+  base="${f%.*}"; name="$(basename "$base")"; dir="$(dirname "$f")"
+  meta="$base.meta"
+  only_targets="$(meta_get "$meta" targets)"
+  expect="$(meta_get "$meta" expect)"
+  modules="$(meta_get "$meta" modules)"
+  blocked="$(meta_get "$meta" blocked)"        # e.g. "T13 linux-x86_64"
+  blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
+  srcs=("$f"); for m in $modules; do srcs+=("$dir/$m"); done
+
+  # House style: listings fit the book's trim without wrapping.
+  long=$(awk 'length > 72 { n++ } END { print n+0 }' "$f")
+  (( long )) && { wide=$((wide+1)); }
+
+  results=(); note=""
+  for t in "${targets[@]}"; do
+    if [[ -n "$only_targets" && "$only_targets" != *"$t"* ]]; then results+=("n/a"); continue; fi
+
+    outdir="out/bin/$t"; mkdir -p "$outdir"
+    log="out/run/$name.$t.log"; rm -f "$log"
+
+    if [[ "$t" == win64-msvc ]]; then
+      exe="$outdir/$name.exe"; rm -f "$exe"
+      "$win_tiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
+    else
+      exe="$outdir/$name"; rm -f "$exe"
+      wsl -d "$WSL_DISTRO" -- "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
+    fi
+
+    if [[ -n "$expect" ]]; then           # this listing must NOT compile
+      want_id="${expect#compile-error }"
+      if (( crc == 0 )); then results+=("FAIL"); note="compiled, but expected $want_id"
+      elif grep -q "$want_id" "$log"; then results+=("PASS")
+      else results+=("FAIL"); note="failed without $want_id"; fi
+      continue
+    fi
+
+    if (( crc != 0 )); then
+      results+=("FAIL"); note="compile failed: $(head -2 "$log" | tr '\n' ' ' | cut -c1-90)"
+      continue
+    fi
+
+    args=""; [[ -f "$base.args" ]] && args="$(head -1 "$base.args")"
+    if [[ "$t" == win64-msvc ]]; then
+      if [[ -f "$base.stdin" ]]; then got="$(eval "./$exe" $args < "$base.stdin" 2>&1)"; else got="$(eval "./$exe" $args 2>&1)"; fi
+    else
+      if [[ -f "$base.stdin" ]]; then
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl' && ./$exe $args" < "$base.stdin" 2>&1)"
+      else
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl' && ./$exe $args" 2>&1)"
+      fi
+    fi
+    rc=$?
+    got="$(printf '%s' "$got" | tr -d '\r')"
+
+    # A program's own output can name its source file -- a runtime error does. The path
+    # it prints is whatever was passed to the compiler, which differs between a native
+    # build and a WSL one, so reduce every form of it to the bare file name. That is also
+    # what a reader compiling in the listing's own directory sees.
+    for s in "${srcs[@]}"; do
+      b="$(basename "$s")"
+      got="${got//$book_wsl\/$s/$b}"
+      got="${got//$s/$b}"
+      got="${got//${s//\//\\}/$b}"
+    done
+
+    want_rc=0; [[ -f "$base.exit" ]] && want_rc="$(head -1 "$base.exit")"
+    if [[ ! -f "$base.out" ]]; then
+      results+=("FAIL"); note="no expected output file ($name.out)"; continue
+    fi
+    want="$(tr -d '\r' < "$base.out")"; want="${want%$'\n'}"
+
+    if [[ "$got" == "$want" && "$rc" == "$want_rc" ]]; then
+      results+=("PASS")
+    else
+      results+=("FAIL")
+      if [[ "$rc" != "$want_rc" ]]; then note="exit $rc, expected $want_rc"
+      else note="output differs"; printf '%s\n' "--- expected"  "$want" "--- got" "$got" >> "$log"; fi
+    fi
+  done
+
+  # A failure on a target a work item is known to break is BLOCKED, not FAIL: it counts
+  # against the compiler, not the book, and the chapter cannot go final either way.
+  if [[ -n "$blocked_item" ]]; then
+    for i in "${!results[@]}"; do
+      if [[ "${results[$i]}" == FAIL ]] &&
+         { [[ "$blocked" == "$blocked_item" ]] || [[ "$blocked_where" == *"${targets[$i]}"* ]]; }; then
+        results[$i]="BLOCKED($blocked_item)"
+        note="${note:+$note; }known: $blocked_item"
+      fi
+    done
+  fi
+
+  row_fail=0; row_blocked=0
+  for r in "${results[@]}"; do
+    [[ "$r" == FAIL ]] && row_fail=1
+    [[ "$r" == BLOCKED* ]] && row_blocked=1
+  done
+  if (( row_fail )); then fail=$((fail+1))
+  elif (( row_blocked )); then blockedn=$((blockedn+1))
+  else pass=$((pass+1)); fi
+  (( long )) && note="${note:+$note; }$long line(s) over 72 columns"
+  row="| \`$f\` |"; for r in "${results[@]}"; do row+=" $r |"; done
+  echo "$row $note |" >> "$report"
+done
+
+{ echo; echo "**$pass passed, $fail failed, $blockedn blocked**, ${#listings[@]} listings, targets: ${targets[*]}.";
+  (( wide )) && echo; (( wide )) && echo "$wide listing(s) exceed 72 columns."; } >> "$report"
+
+echo "check-listings: $pass passed, $fail failed, $blockedn blocked (${#listings[@]} listings) -- $report"
+(( fail == 0 )) || exit 1
+exit 0

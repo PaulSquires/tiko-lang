@@ -1,0 +1,2 @@
+'' hello.tiko -- the smallest complete tiko program.
+print "hello, tiko"

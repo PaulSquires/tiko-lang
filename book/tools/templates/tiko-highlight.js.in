@@ -1,0 +1,78 @@
+// GENERATED from this template by tools/gen_syntax.py. Do not edit the copy in src/theme/.
+//
+// mdBook highlights with highlight.js, which has no tiko grammar. This registers one and
+// re-highlights the tiko blocks, because mdBook has already run by the time additional-js
+// executes. The word lists come from the compiler's own src/lexer/keywords.bi, so the site
+// cannot disagree with tiko about what a keyword is.
+//
+// This file is a TEMPLATE with @PLACEHOLDERS@, kept as real JavaScript rather than built
+// from a string in the generator: every previous attempt to emit it through nested quoting
+// lost a backslash and shipped a file that failed with "Invalid or unexpected token".
+(function () {
+    function register() {
+        if (typeof hljs === "undefined") return false;
+
+        hljs.registerLanguage("tiko", function () {
+            return {
+                name: "tiko",
+                case_insensitive: true,
+                keywords: {
+                    keyword: "@KEYWORDS@",
+                    built_in: "@BUILTINS@",
+                    literal: "true false"
+                },
+                contains: [
+                    { className: "comment", begin: "''", end: "$" },
+                    { className: "comment", begin: "\\brem\\b", end: "$" },
+                    { className: "comment", begin: "/'", end: "'/", contains: ["self"] },
+                    {
+                        className: "string",
+                        begin: "(?:[!$])?\"",
+                        end: "\"",
+                        illegal: "\\n",
+                        contains: [{ begin: "\"\"" }]
+                    },
+                    {
+                        className: "number",
+                        begin: "&[hH][0-9a-fA-F]+|&[oO][0-7]+|&[bB][01]+|\\b\\d+(?:\\.\\d*)?(?:[eEdD][-+]?\\d+)?"
+                    },
+                    { className: "meta", begin: "^\\s*#\\s*[A-Za-z_]+" },
+                    { className: "meta", begin: "\\b__[A-Z_]+__\\b" }
+                ]
+            };
+        });
+        return true;
+    }
+
+    function paint() {
+        document.querySelectorAll("code.language-tiko").forEach(function (el) {
+            if (el.dataset.tikoHighlighted) return;
+            el.dataset.tikoHighlighted = "1";
+            hljs.highlightBlock ? hljs.highlightBlock(el) : hljs.highlightElement(el);
+        });
+    }
+
+    function start() {
+        if (register()) {
+            paint();
+            return;
+        }
+        // highlight.js is not there yet; wait for it rather than failing silently.
+        var tries = 0;
+        var timer = setInterval(function () {
+            if (register()) {
+                clearInterval(timer);
+                paint();
+            } else if (++tries > 50) {
+                clearInterval(timer);
+                console.warn("tiko-highlight: highlight.js never appeared; listings are unstyled");
+            }
+        }, 50);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start);
+    } else {
+        start();
+    }
+})();

@@ -1,0 +1,3 @@
+'' ex01-02.tko -- greet by name, then exit with status 3.
+print "hello, Paul"
+end 3

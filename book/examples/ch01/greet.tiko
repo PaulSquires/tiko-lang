@@ -1,0 +1,4 @@
+'' greet.tko -- a program that reads its command line.
+dim as ustring who = command( 1 )
+if len( who ) = 0 then who = "world"
+print "hello, " & who

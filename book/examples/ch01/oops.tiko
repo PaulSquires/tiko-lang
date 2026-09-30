@@ -1,0 +1,3 @@
+'' oops.tko -- deliberately broken, to show a diagnostic.
+dim as int32 count
+count = "seven"

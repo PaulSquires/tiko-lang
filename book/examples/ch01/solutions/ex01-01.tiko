@@ -1,0 +1,6 @@
+'' ex01-01.tko -- which compiler built this program, and which version?
+#ifdef __TIKO_COMPILER__
+    print "compiler: tiko " & __TKO_VERSION__
+#else
+    print "compiler: not tiko"
+#endif

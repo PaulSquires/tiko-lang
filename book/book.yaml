@@ -1,0 +1,99 @@
+---
+title: "The tiko Programming Language"
+author: "Paul Squires"
+lang: en-CA
+date: 2026
+
+## --- the pin -------------------------------------------------------------
+## Every listing in this book is compiled and run with exactly these
+## toolchains. tools/check-listings.sh refuses to run if `tiko --version`
+## does not match, because a stale toolchain yields a plausible number
+## rather than an error.
+pin:
+  version: "0.1.0-dev"
+  windows:
+    root: "../toolchains/tiko-windows"      # relative to this book directory
+    exe: "tiko.exe"
+    commit: "a9326539"
+    packaged: "2026-09-30"
+  linux:
+    root: "../toolchains/tiko-linux"        # same path, reached through WSL
+    exe: "bin/tiko"
+    commit: "a9326539"
+    packaged: "2026-09-30"
+    wsl_distro: "Ubuntu"
+  targets: [win64-msvc, linux-x86_64]
+
+## --- production ----------------------------------------------------------
+trim: "7in x 9.25in"
+fonts:
+  body: "New Computer Modern"
+  code: "DejaVu Sans Mono"
+licence:
+  text: "CC BY-NC-SA 4.0"
+  code: "MIT"
+
+## --- contents ------------------------------------------------------------
+## status: planned | outlined | listings-green | drafted | reviewed | final
+##         blocked(Tnn)
+## The PDF build stamps this status on every chapter in --draft mode.
+front:
+  - { file: front/preface.md, status: planned }
+
+parts:
+  - name: "Basics"
+    chapters:
+      - { n: 1,  file: chapters/01-getting-started.md,   status: drafted }
+      - { n: 2,  file: chapters/02-a-tour-of-tiko.md,    status: planned }
+      - { n: 3,  file: chapters/03-types-variables.md,   status: planned }
+      - { n: 4,  file: chapters/04-operators.md,         status: planned }
+      - { n: 5,  file: chapters/05-control-flow.md,      status: planned }
+      - { n: 6,  file: chapters/06-procedures.md,        status: planned }
+      - { n: 7,  file: chapters/07-arrays.md,            status: planned }
+      - { n: 8,  file: chapters/08-strings-and-text.md,  status: planned }
+  - name: "Building Abstractions"
+    chapters:
+      - { n: 9,  file: chapters/09-user-defined-types.md, status: planned }
+      - { n: 10, file: chapters/10-pointers-memory.md,    status: planned }
+      - { n: 11, file: chapters/11-objects.md,            status: planned }
+      - { n: 12, file: chapters/12-operator-overloading.md, status: planned }
+      - { n: 13, file: chapters/13-inheritance.md,        status: planned }
+      - { n: 14, file: chapters/14-modules-packages.md,     status: planned }
+      - { n: 15, file: chapters/15-namespaces-preprocessor.md, status: planned }
+      - { n: 16, file: chapters/16-generics.md,           status: planned }
+      - { n: 17, file: chapters/17-errors.md,             status: planned }
+      - { n: 18, file: chapters/18-testing-debugging.md,  status: planned }
+  - name: "Advanced Language"
+    chapters:
+      - { n: 19, file: chapters/19-tuples-iterators.md,   status: planned }
+      - { n: 20, file: chapters/20-lambdas.md,            status: planned }
+      - { n: 21, file: chapters/21-resource-management.md, status: planned }
+      - { n: 22, file: chapters/22-concurrency.md,        status: planned }
+  - name: "The Standard Library"
+    chapters:
+      - { n: 23, file: chapters/23-containers.md,         status: planned }
+      - { n: 24, file: chapters/24-files-processes.md,    status: planned }
+      - { n: 25, file: chapters/25-dates-times.md,        status: planned }
+      - { n: 26, file: chapters/26-numbers.md,            status: planned }
+      - { n: 27, file: chapters/27-logging-tui-sqlite.md, status: planned }
+  - name: "Systems Programming"
+    chapters:
+      - { n: 28, file: chapters/28-interfacing-with-c.md, status: planned }
+      - { n: 29, file: chapters/29-building-shipping.md,  status: planned }
+  - name: "Legacy"
+    chapters:
+      - { n: 30, file: chapters/30-classic-basic.md,      status: planned }
+  - name: "Projects"
+    chapters:
+      - { n: 31, file: chapters/31-capstone-search.md,    status: planned }
+      - { n: 32, file: chapters/32-capstone-pipeline.md,  status: planned }
+      - { n: 33, file: chapters/33-capstone-ledger.md,    status: planned }
+
+appendices:
+  - { id: A, file: appendices/A-keywords.md,     status: planned,   generated: false }
+  - { id: B, file: appendices/B-diagnostics.md,  status: generated, generated: true }
+  - { id: C, file: appendices/C-cli.md,          status: generated, generated: true }
+  - { id: D, file: appendices/D-from-freebasic.md, status: planned, generated: false }
+  - { id: E, file: appendices/E-header-index.md, status: planned,   generated: true }
+  - { id: F, file: appendices/F-internals.md,    status: planned,   generated: false }
+  - { id: G, file: appendices/G-solutions.md,    status: planned,   generated: true }
