@@ -76,6 +76,10 @@ anchors to a file something includes partially.
 
 ## Rules
 
+**[STYLE.md](STYLE.md) is the full style guide** — voice, chapter shape, code style, callouts,
+evidence, and the checklist a chapter passes before it is done. The four rules below are the ones
+it refuses to bend on.
+
 1. **A failing listing is a compiler bug to file, not something to write around.** Work items
    are tracked in `C:\dev\docs\tiko-book\04-roadmap.md`.
 2. **Never paste code into prose.** If it is not in `examples/`, it was never compiled.
