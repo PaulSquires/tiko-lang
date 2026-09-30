@@ -15,7 +15,7 @@ Clears the back buffer and returns the frame to draw into. Everything you want o
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

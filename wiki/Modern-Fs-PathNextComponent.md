@@ -17,7 +17,7 @@ PathNextComponent( p, gram, from, outlen )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' The cursor PathSplit is built on, so the C side never allocates. It

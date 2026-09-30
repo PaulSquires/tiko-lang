@@ -7,19 +7,19 @@ Fused multiply-add: `x * y + z`, rounded **once**.
 ## Syntax
 
 ```freebasic
-Fma( byval x as double, byval y as double, byval z as double ) as double
+Fma( byval x as float64, byval y as float64, byval z as float64 ) as float64
 ```
 
 ## Notes
 
 - The product is computed to full precision and only the final sum is rounded, so the intermediate rounding of a plain `x * y + z` is not there.
 - That single rounding is what makes it the building block for exact dot products, polynomial evaluation and correctly-rounded division.
-- Overloaded on `double` and `single`; the single form does not widen.
+- Overloaded on `float64` and `float32`; the single form does not widen.
 
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print Fma( 2.0, 3.0, 4.0 )   '' 10

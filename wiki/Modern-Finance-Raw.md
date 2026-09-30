@@ -7,19 +7,19 @@ The underlying scaled integer: the amount times 10000.
 ## Syntax
 
 ```freebasic
-Raw( ) as longint
+Raw( ) as int64
 ```
 
 ## Notes
 
-- A Currency **is** this number -- four decimal places held in a `longint`, which is what makes the arithmetic exact.
+- A Currency **is** this number -- four decimal places held in a `int64`, which is what makes the arithmetic exact.
 - The form to store in a database column or a binary record: one integer, no rounding on the way out and none on the way back.
 - `CurrencyFromRaw` is the inverse.
 
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim as Currency c = CurrencyFromParts( 12, 3400 )

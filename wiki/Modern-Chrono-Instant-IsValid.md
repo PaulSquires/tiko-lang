@@ -11,7 +11,7 @@ Instant.IsValid
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print DateTime( 2026, 8, 13 ).IsValid     '' true

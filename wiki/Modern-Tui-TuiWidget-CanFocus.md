@@ -15,7 +15,7 @@ Whether this widget can take focus. False by default, so decoration is skipped b
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiParagraph p

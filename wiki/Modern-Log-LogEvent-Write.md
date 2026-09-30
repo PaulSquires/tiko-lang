@@ -11,7 +11,7 @@ Write( r )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' Write is the Sink side, not the LogEvent side: every Sink implements

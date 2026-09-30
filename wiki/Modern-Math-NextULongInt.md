@@ -7,7 +7,7 @@ A uniformly random 64-bit value.
 ## Syntax
 
 ```freebasic
-NextULongInt( ) as ulongint
+NextULongInt( ) as uint64
 ```
 
 ## Notes
@@ -19,13 +19,13 @@ NextULongInt( ) as ulongint
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
-dim as ulongint a = r.NextULongInt( )
-dim as ulongint b = r.NextULongInt( )
+dim as uint64 a = r.NextULongInt( )
+dim as uint64 b = r.NextULongInt( )
 
 print a <> b                 '' -1 (true), with overwhelming probability
 

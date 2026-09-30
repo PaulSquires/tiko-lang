@@ -17,7 +17,7 @@ InsertAt( s, insert, position )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print InsertAt( "1234567890", "--", 6 )    '' 12345--67890

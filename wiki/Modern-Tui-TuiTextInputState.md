@@ -7,9 +7,9 @@
 ```freebasic
 type TuiTextInputState
     as ustring text
-    as long cursor      '' CODE UNITS
-    as long selAnchor   '' -1 = no selection
-    as long scrollX     '' COLUMNS
+    as int32 cursor      '' CODE UNITS
+    as int32 selAnchor   '' -1 = no selection
+    as int32 scrollX     '' COLUMNS
 end type
 ```
 
@@ -20,7 +20,7 @@ The editor's state, owned by you. Note the units: `cursor` and `selAnchor` are U
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextInputState st

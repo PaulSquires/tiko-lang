@@ -17,7 +17,7 @@ CAcoth( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAcoth( CSet( 2, 1 ) ) )  '' 0.4023594781085251-0.23182380450040307i

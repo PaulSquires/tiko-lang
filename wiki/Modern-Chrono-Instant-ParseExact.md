@@ -12,7 +12,7 @@ Instant.ParseExact
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Parse against a PATTERN, for text whose layout you already know

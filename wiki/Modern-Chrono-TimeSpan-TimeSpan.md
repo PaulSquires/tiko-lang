@@ -20,7 +20,7 @@ TimeSpan( d, h, mi, s, ms )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' A FIXED duration -- an exact count of 100 ns ticks. Signed, so

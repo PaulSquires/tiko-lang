@@ -19,7 +19,7 @@ The VT parser. Feed it bytes, take events out. You need this only when driving y
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

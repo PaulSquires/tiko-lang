@@ -11,7 +11,7 @@ IsFinite( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print IsFinite( 1.0 )         '' true

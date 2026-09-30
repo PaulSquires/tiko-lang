@@ -15,7 +15,7 @@ Called once as the loop exits, including on the early-exit path where Init retur
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type Closer extends TuiApp

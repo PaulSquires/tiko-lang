@@ -3,15 +3,15 @@
 # Sorting
 
 ```freebasic
-#include once "fb/sort.bi"           ' or "containers.bi" for everything
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 ...
 Sort( v )                            ' ascending, by '<'
 StableSort( v )                      ' ascending, equal elements keep order
 
-SortBy( v, function( byref x as long, byref y as long ) as boolean
+SortBy( v, function( byref x as int32, byref y as int32 ) as boolean
     return x > y                     ' descending
 end function )
 
@@ -117,8 +117,8 @@ A comparer that returns TRUE for equal elements is the classic way to make a sor
 The comparer arrives through a GENERIC PARAMETER, 'of TCmp', rather than a procedure pointer, for the same reason FB.ForEach does. A CAPTURING lambda is a closure object and cannot convert to a procptr, so a procptr parameter would reject the most useful kind of comparer:
 
 ```freebasic
-dim as long comparisons = 0
-SortBy( v, function[ byref comparisons ]( byref x as long, byref y as long ) as boolean
+dim as int32 comparisons = 0
+SortBy( v, function[ byref comparisons ]( byref x as int32, byref y as int32 ) as boolean
     comparisons += 1
     return x < y
 end function )

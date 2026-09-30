@@ -11,10 +11,10 @@ NaN( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double n = NaN( )
+dim as float64 n = NaN( )
 
 print IsNaN( n )             '' true
 

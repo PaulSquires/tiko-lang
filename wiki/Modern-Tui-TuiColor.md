@@ -6,8 +6,8 @@
 
 ```freebasic
 type TuiColor
-    as ubyte kind      '' TuiColorKind
-    as ubyte r, g, b
+    as uint8 kind      '' TuiColorKind
+    as uint8 r, g, b
 end type
 ```
 
@@ -18,7 +18,7 @@ A tagged colour value, four bytes, deliberately not a UNION -- a ustring inside 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor d = TuiDefaultColor( )       '' the terminal's own default

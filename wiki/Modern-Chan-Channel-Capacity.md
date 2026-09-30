@@ -7,7 +7,7 @@ The buffer size the channel was constructed with.
 ## Syntax
 
 ```freebasic
-Capacity( ) as long
+Capacity( ) as int32
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ Capacity( ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim buffered as Channel( of long ) = Channel( of long )( 16 )
+dim buffered as Channel( of int32 ) = Channel( of int32 )( 16 )
 print buffered.Capacity( )   '' 16
 
 '' 0 is a RENDEZVOUS: Send waits for a receiver and hands the value
 '' over directly, which makes it an ordering point as well as a handoff
-dim rendezvous as Channel( of long ) = Channel( of long )( 0 )
+dim rendezvous as Channel( of int32 ) = Channel( of int32 )( 0 )
 print rendezvous.Capacity( ) '' 0
 ```
 

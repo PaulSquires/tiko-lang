@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRect.Bottom( ) as long
+TuiRect.Bottom( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ y + h -- one row past the last one inside the rect.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiRectOf( 4, 2, 20, 6 )

@@ -18,7 +18,7 @@ What to take from the terminal. Every field is off in a default-constructed valu
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTermOptions bare        '' everything FALSE

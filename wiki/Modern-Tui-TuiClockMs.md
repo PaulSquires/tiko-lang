@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiClockMs( ) as double
+TuiClockMs( ) as float64
 ```
 
 ## Description
@@ -15,10 +15,10 @@ A monotonic millisecond clock. The loop schedules ticks and frames from it; it i
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
-dim as double t0 = TuiClockMs( )
+dim as float64 t0 = TuiClockMs( )
 print t0 >= 0                      '' -1 (true)
 print TuiClockMs( ) >= t0          '' -1 (true)  -- monotonic, never goes backwards
 ```

@@ -7,7 +7,7 @@
 ```freebasic
 type TuiCaps
     as boolean isTerminal
-    as long depth          '' TuiColorDepth
+    as int32 depth          '' TuiColorDepth
     as boolean mouse, bracketedPaste, focusEvents, unicode
 end type
 ```
@@ -19,7 +19,7 @@ What this terminal can do, from TERM, COLORTERM, WT_SESSION, the Windows build n
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

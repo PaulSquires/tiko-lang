@@ -17,7 +17,7 @@ ClipRight( s, count )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print ClipRight( "1234567890", 3 )     '' 1234567

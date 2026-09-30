@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiFocusRing
-    as long cur
+    as int32 cur
     declare sub Add( byval w as TuiWidget ptr )
     declare sub Next_( )
     ...
@@ -20,7 +20,7 @@ Tab order, as a ring. It calls SetFocused for you and never owns or frees anythi
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type FormApp extends TuiApp

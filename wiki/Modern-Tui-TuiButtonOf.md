@@ -7,7 +7,7 @@
 ```freebasic
 type TuiButtonOf( of F ) extends TuiWidget
     as ustring label
-    as long id
+    as int32 id
     as F handler
 end type
 ```
@@ -19,13 +19,13 @@ A button whose handler is a CAPTURING lambda. It exists because of two hard comp
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
-dim as long clicks = 0
+dim as int32 clicks = 0
 
 '' the lambda CAPTURES clicks, so a plain TuiButton could not hold it
-var handler = sub( byval id as long )
+var handler = sub( byval id as int32 )
     clicks += 1
 end sub
 

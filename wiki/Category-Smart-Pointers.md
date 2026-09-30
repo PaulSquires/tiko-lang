@@ -8,7 +8,7 @@ using FB
 
 type Session
     as ustring user
-    as long    id
+    as int32   id
 end type
 
 dim s as SharedPtr( of Session ) = MakeShared( of Session )( )
@@ -56,7 +56,7 @@ operator let( byref rhs as SharedPtr( of T ) )
 Get( ) as T ptr                     ' the raw pointer, 0 when null
 Ref( ) byref as T                   ' checked dereference; raises when null
 IsNull( ) as boolean
-UseCount( ) as long                 ' number of SharedPtr handles
+UseCount( ) as int32                ' number of SharedPtr handles
 Reset( )                            ' drop this handle
 ```
 
@@ -72,7 +72,7 @@ operator let( byref rhs as SharedPtr( of T ) )
 
 Lock( ) as SharedPtr( of T )        ' null if the object is already gone
 Expired( ) as boolean
-UseCount( ) as long
+UseCount( ) as int32
 Reset( )
 ```
 

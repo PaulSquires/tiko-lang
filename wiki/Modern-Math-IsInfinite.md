@@ -11,7 +11,7 @@ IsInfinite( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print IsInfinite( Infinity( ) )       '' true

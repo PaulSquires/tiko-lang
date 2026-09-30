@@ -19,7 +19,7 @@ Ceiling( ) as Currency
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim as Currency c = CurrencyFromDouble( 12.34 )

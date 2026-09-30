@@ -11,7 +11,7 @@ AnnuityTermsMake( ratePerPeriod, periods, payment, presentValue, futureValue, ti
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Construction by named free function, never a one-argument constructor

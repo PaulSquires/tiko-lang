@@ -17,7 +17,7 @@ PathFileName( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 print PathFileName( "C:\dev\src\main.tko" )       '' main.tko

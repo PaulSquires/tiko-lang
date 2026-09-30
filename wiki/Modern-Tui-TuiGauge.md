@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiGauge extends TuiWidget
-    as double ratio
+    as float64 ratio
     as ustring label
     as TuiStyle bar, background
     as boolean useUnicode, showLabel
@@ -20,7 +20,7 @@ A progress bar. `ratio` is 0.0 to 1.0 and is clamped, so a computed value that o
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

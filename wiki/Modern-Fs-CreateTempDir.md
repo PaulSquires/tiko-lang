@@ -17,7 +17,7 @@ CreateTempDir( [ prefix ] )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' CREATES the directory and hands back its path. It does not return a

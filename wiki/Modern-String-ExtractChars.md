@@ -17,7 +17,7 @@ ExtractChars( start, s, chars [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print ExtractChars( 1, "abacadabra", "cd" )     '' aba -- stops at the first c or d

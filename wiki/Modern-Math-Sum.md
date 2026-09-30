@@ -17,12 +17,12 @@ Sum( a( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
 '' COMPENSATED summation (Neumaier), so the running error is tracked and
 '' folded back in rather than accumulating
-dim as double a( 0 to 3 ) = { 1e16, 1.0, -1e16, 1.0 }
+dim as float64 a( 0 to 3 ) = { 1e16, 1.0, -1e16, 1.0 }
 
 print Sum( a( ) )            '' 2 -- both 1.0s survive
 print NaiveSum( a( ) )       '' 1 -- the naive loop lost one of them

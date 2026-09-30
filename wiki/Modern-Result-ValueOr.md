@@ -11,13 +11,13 @@ ValueOr( byref dflt as T ) byref as T
 ## Examples
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
-dim good as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
-dim bad  as Result( of long, ustring ) = Fail( of long, ustring )( "nope" )
+dim good as Result( of int32, ustring ) = Ok( of int32, ustring )( 42 )
+dim bad  as Result( of int32, ustring ) = Fail( of int32, ustring )( "nope" )
 
-dim as long fallback = -1
+dim as int32 fallback = -1
 
 print good.ValueOr( fallback )     '' 42
 print bad.ValueOr( fallback )      '' -1

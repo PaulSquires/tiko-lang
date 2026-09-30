@@ -11,7 +11,7 @@ Keys( ) as Array( of TK )
 ## Examples
 
 ```freebasic
-#include once "fb/orderedmap.bi"
+#import "std/containers"
 using FB
 
 dim ages as OrderedMap( of ustring, integer )
@@ -21,7 +21,7 @@ ages.Put( "ada", 36 )
 '' A snapshot, already SORTED -- no sort needed afterwards, which is
 '' the difference from Map.Keys( )
 dim ks as Array( of ustring ) = ages.Keys( )
-for i as long = 0 to ks.Count - 1
+for i as int32 = 0 to ks.Count - 1
     print ks[ i ]                      '' ada / bob
 next
 ```

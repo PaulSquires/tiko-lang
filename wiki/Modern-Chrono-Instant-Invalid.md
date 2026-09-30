@@ -11,7 +11,7 @@ Instant.Invalid
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime bad = DateTime.Invalid( )

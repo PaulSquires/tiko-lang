@@ -11,18 +11,18 @@ IsValid( )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 '' Asked BEFORE every element, including the first: it is the loop
 '' condition, so an empty container runs the body zero times.
-dim v as Array( of long )
+dim v as Array( of int32 )
 
-dim it as ArrayIterator( of long ) = v.GetIterator( )
+dim it as ArrayIterator( of int32 ) = v.GetIterator( )
 print it.IsValid( )          '' false -- nothing to visit
 
 v.Push( 7 )
-dim jt as ArrayIterator( of long ) = v.GetIterator( )
+dim jt as ArrayIterator( of int32 ) = v.GetIterator( )
 print jt.IsValid( )          '' true
 
 jt.MoveNext( )

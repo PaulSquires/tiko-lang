@@ -19,7 +19,7 @@ OrderedSetIterator( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/orderedset.bi"
+#import "std/containers"
 using FB
 
 dim s as OrderedSet( of integer )

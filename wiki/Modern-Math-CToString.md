@@ -20,7 +20,7 @@ CToString( byref z as Complex ) as string
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CSet( 3, 4 ) )          '' 3+4i

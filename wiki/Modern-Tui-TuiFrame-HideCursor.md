@@ -15,7 +15,7 @@ Hides the cursor for this frame. The default -- a frame with nothing focused sho
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

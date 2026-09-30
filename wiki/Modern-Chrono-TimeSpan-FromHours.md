@@ -12,7 +12,7 @@ TimeSpan.FromHours( v )
 
 ## Notes
 
-- Takes a `double`, so a fractional hour is exact to the tick.
+- Takes a `float64`, so a fractional hour is exact to the tick.
 - Rounds **half away from zero** below the tick, matching the rest of the From* family.
 - NaN, an infinity, or a value beyond the representable span yields Invalid rather than wrapping or saturating.
 - An hour here is always exactly 60 minutes. Across a DST boundary a *calendar* hour may not be, which is `AddCalendarDays`' concern, not this one.
@@ -20,7 +20,7 @@ TimeSpan.FromHours( v )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromHours( 2 ).TotalMinutes       '' 120

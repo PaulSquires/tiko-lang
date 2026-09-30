@@ -11,7 +11,7 @@ LoanPayment( loanTerms )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The level payment, computed unrounded then ROUNDED EXACTLY ONCE -- and

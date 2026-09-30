@@ -9,8 +9,8 @@ type TuiParagraph extends TuiWidget
     as ustring text
     as TuiStyle st
     as boolean wrap
-    as ubyte align
-    as long scrollY
+    as uint8 align
+    as int32 scrollY
 end type
 ```
 
@@ -21,7 +21,7 @@ Text: wrapped or not, left/centre/right, scrollable. Embedded chr(10) starts a n
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

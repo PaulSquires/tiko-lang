@@ -15,7 +15,7 @@ Patches the style of every cell in a rect, leaving the characters alone. This is
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

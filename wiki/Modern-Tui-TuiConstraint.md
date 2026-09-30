@@ -6,8 +6,8 @@
 
 ```freebasic
 type TuiConstraint
-    as ubyte kind      '' TuiConstraintKind
-    as long a, b
+    as uint8 kind      '' TuiConstraintKind
+    as int32 a, b
 end type
 ```
 
@@ -18,7 +18,7 @@ One rule in a split: Length, Percent, Ratio, Min, Max or Fill. Build them with t
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs

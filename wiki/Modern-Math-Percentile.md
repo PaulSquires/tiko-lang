@@ -7,7 +7,7 @@ The value below which the given fraction of the data falls.
 ## Syntax
 
 ```freebasic
-Percentile( a( ) as T, byval p as double ) as double
+Percentile( a( ) as T, byval p as float64 ) as float64
 ```
 
 ## Notes
@@ -20,10 +20,10 @@ Percentile( a( ) as T, byval p as double ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print Percentile( a( ), 50.0 )   '' 4 -- the median
 print Percentile( a( ), 0.0 )    '' 2 -- the minimum

@@ -17,7 +17,7 @@ Wrap( s [, open] [, close] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Wrap( "Paul" )               '' "Paul" -- double quotes by default

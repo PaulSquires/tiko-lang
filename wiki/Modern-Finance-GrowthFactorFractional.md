@@ -11,7 +11,7 @@ GrowthFactorFractional( ratePerPeriod, periods )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A FRACTIONAL number of periods, which needs a real power and so takes

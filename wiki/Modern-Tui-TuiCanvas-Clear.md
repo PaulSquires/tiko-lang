@@ -15,7 +15,7 @@ Turns every dot off.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCanvas cv = TuiCanvas( 4, 2 )

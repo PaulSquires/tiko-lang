@@ -3,10 +3,10 @@
 # Set
 
 ```freebasic
-#include once "fb/set.bi"            ' or "containers.bi" for all four
+#import "std/containers"
 using FB
 
-dim seen as Set( of long )
+dim seen as Set( of int32 )
 
 if seen.Add( 42 ) then print "first time"
 
@@ -26,16 +26,16 @@ the natural spelling of "process each thing once".
 ## Members
 
 ```freebasic
-Count( ) as long                          O(1)
+Count( ) as int32                         O(1)
 IsEmpty( ) as boolean                     O(1)
-Capacity( ) as long                       O(1)
+Capacity( ) as int32                      O(1)
 
 Add( byref v as T ) as boolean            avg O(1)  FALSE if already present
 Contains( byref v as T ) as boolean       avg O(1)
 Remove( byref v as T ) as boolean         avg O(1)  TRUE if something went
 
 Clear( )                                  O(n)
-Reserve( byval n as long )                O(n)
+Reserve( byval n as int32 )                O(n)
 
 UnionWith( byref other as Set( of T ) )        O(|other|)
 IntersectWith( byref other as Set( of T ) )    O(n)
@@ -48,16 +48,16 @@ GetIterator( ) as SetIterator( of T )     O(1)
 The three set operations modify the receiver in place and leave the operand untouched:
 
 ```freebasic
-dim a as Set( of long )      ' { 1, 2, 3, 4, 5 }
-dim b as Set( of long )      ' { 4, 5, 6, 7, 8 }
+dim a as Set( of int32 )      ' { 1, 2, 3, 4, 5 }
+dim b as Set( of int32 )      ' { 4, 5, 6, 7, 8 }
 
-dim u as Set( of long ) = a
+dim u as Set( of int32 ) = a
 u.UnionWith( b )             ' { 1..8 }, a unchanged
 
-dim n as Set( of long ) = a
+dim n as Set( of int32 ) = a
 n.IntersectWith( b )         ' { 4, 5 }
 
-dim e as Set( of long ) = a
+dim e as Set( of int32 ) = a
 e.ExceptWith( b )            ' { 1, 2, 3 }
 ```
 
@@ -79,7 +79,7 @@ A user type is made usable by RE-OPENING the namespace:
 
 ```freebasic
 type Tag
-    as long id
+    as int32 id
 end type
 
 operator = ( byref x as Tag, byref y as Tag ) as boolean
@@ -87,7 +87,7 @@ operator = ( byref x as Tag, byref y as Tag ) as boolean
 end operator
 
 namespace FB
-    function HashOf overload ( byref k as Tag ) as ulongint
+    function HashOf overload ( byref k as Tag ) as uint64
         return HashOf( k.id )
     end function
 end namespace
@@ -127,8 +127,8 @@ If you need the elements in order, FB.OrderedSet is the same interface over a re
 Items( ) is a SNAPSHOT, returned as Array( of T ). Changing it does not change the set -- which is the safe way to remove while "iterating":
 
 ```freebasic
-dim all as Array( of long ) = s.Items( )
-for i as long = 0 to all.Count( )-1
+dim all as Array( of int32 ) = s.Items( )
+for i as int32 = 0 to all.Count( )-1
     if unwanted( all[ i ] ) then s.Remove( all[ i ] )
 next
 ```

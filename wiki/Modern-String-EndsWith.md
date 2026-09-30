@@ -17,7 +17,7 @@ EndsWith( s, suffix [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print EndsWith( "report.txt", ".txt" )         '' true

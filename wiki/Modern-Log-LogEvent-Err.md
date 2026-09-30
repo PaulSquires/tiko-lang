@@ -17,7 +17,7 @@ Err( v as FsError )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 #include once "fb/filesystem.bi"

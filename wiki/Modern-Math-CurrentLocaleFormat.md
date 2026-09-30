@@ -19,7 +19,7 @@ CurrentLocaleFormat( ) as NumFormat
 ## Examples
 
 ```freebasic
-#include once "fb/mathtext.bi"
+#import "std/numeric"
 using FB
 
 dim f as NumFormat = CurrentLocaleFormat( )

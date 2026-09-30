@@ -19,11 +19,11 @@ One line on a graph. THE RIGHTMOST SAMPLE IS THE NEWEST -- a history plot pushes
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSeries s
-for i as long = 0 to 99
+for i as int32 = 0 to 99
     s.data.Push( 50.0 + sin( i / 7.0 ) * 40.0 )
 next
 s.color = TuiRgb( 120, 220, 160 )

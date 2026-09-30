@@ -21,7 +21,7 @@ MoneyLayoutFromICurrency( v, byref precedes, byref sepBySpace )
 
 ```freebasic
 dim as boolean pre
-dim as long sep
+dim as int32 sep
 MoneyLayoutFromICurrency( 2, pre, sep )
 print MoneyCompose( "1.1", "$", "", pre, sep, 1 )   '' $ 1.1
 ```

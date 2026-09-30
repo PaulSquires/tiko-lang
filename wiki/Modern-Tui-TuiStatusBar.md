@@ -18,7 +18,7 @@ One row of items, packed from the left and from the right. Left items run in the
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -7,7 +7,7 @@ How two arrays vary together.
 ## Syntax
 
 ```freebasic
-Covariance( x( ) as T, y( ) as T ) as double
+Covariance( x( ) as T, y( ) as T ) as float64
 ```
 
 ## Notes
@@ -20,16 +20,16 @@ Covariance( x( ) as T, y( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double x( 0 to 4 ) = { 1.0, 2.0, 3.0, 4.0, 5.0 }
-dim as double y( 0 to 4 ) = { 2.0, 4.0, 6.0, 8.0, 10.0 }
+dim as float64 x( 0 to 4 ) = { 1.0, 2.0, 3.0, 4.0, 5.0 }
+dim as float64 y( 0 to 4 ) = { 2.0, 4.0, 6.0, 8.0, 10.0 }
 
 print Covariance( x( ), y( ) ) > 0            '' -1 (true) -- they rise together
 
 '' The magnitude is in the product of the units, so scaling y scales it
-dim as double z( 0 to 4 ) = { 20.0, 40.0, 60.0, 80.0, 100.0 }
+dim as float64 z( 0 to 4 ) = { 20.0, 40.0, 60.0, 80.0, 100.0 }
 print Covariance( x( ), z( ) ) > Covariance( x( ), y( ) )      '' -1 (true)
 
 '' Correlation is the version that does not move

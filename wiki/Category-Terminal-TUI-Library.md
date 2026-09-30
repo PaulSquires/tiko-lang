@@ -5,11 +5,11 @@
 > 📘 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard) — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type HelloApp extends TuiApp
-    as long presses
+    as int32 presses
     declare function Init( ) as TuiCmd override
     declare function Update( byref e as TuiEvent ) as TuiCmd override
     declare sub View( byref f as TuiFrame ) override
@@ -57,7 +57,7 @@ TARGETS: tiko's three, all x86-64 -- win64-msvc (the default on Windows), win64 
 ## What You Get
 
 ```freebasic
-A CELL GRID that is double-buffered and DIFFED, so an unchanged frame
+A CELL GRID that is float64-buffered and DIFFED, so an unchanged frame
   costs zero bytes and a changed one costs only what changed.
 24-BIT COLOUR with an automatic downgrade ladder -- truecolour, 256,
   ANSI-16 or mono, chosen from what the terminal actually reports.
@@ -302,7 +302,7 @@ ON WINDOWS, two settings are not optional and are handled for you:
 SetConsoleOutputCP( 65001 ). Render( ) emits UTF-8 and Flush( ) sends it
 with WriteFile, which the console decodes in its OUTPUT code page -- 437 or
 1252 by default. Without this every non-ASCII glyph is mojibake, one cell
-per UTF-8 byte.
+per UTF-8 int8.
 
 ENABLE_QUICK_EDIT_MODE cleared, ENABLE_EXTENDED_FLAGS set. QuickEdit is on
 by default in most Windows consoles and CONSUMES EVERY MOUSE EVENT for text
@@ -662,11 +662,11 @@ box.Render( f, area )                '' invisible
 print st.text                        '' read the value straight out
 ```
 
-EVERY FORM WIDGET POINTS AT YOUR STORAGE, and the shape varies by what it holds. TuiTextInput, TuiTextArea, TuiSelect take a .state pointer; TuiCheckbox takes a `boolean ptr checked` and TuiRadioGroup a `long ptr selected`, because their whole state is one value:
+EVERY FORM WIDGET POINTS AT YOUR STORAGE, and the shape varies by what it holds. TuiTextInput, TuiTextArea, TuiSelect take a .state pointer; TuiCheckbox takes a `boolean ptr checked` and TuiRadioGroup a `int32 ptr selected`, because their whole state is one value:
 
 ```freebasic
 dim as boolean agreed
-dim as long choice
+dim as int32 choice
 
 chk.label = "I agree" : chk.checked = @agreed
 rg.options.Push( "one" ) : rg.options.Push( "two" )
@@ -730,14 +730,14 @@ The braille block uses the HISTORICAL dot order, which is not raster order -- U+
 
 ```freebasic
 TuiGraph        one or more series, braille / block / bar, auto-scaled
-TuiSparkline    a single row of block characters
+TuiSparkline    a float32 row of block characters
 TuiBarChart     labelled bars, horizontal or vertical
 TuiMeter        a gradient bar with optional partial-cell precision
 
 g.graphKind = TUIGRAPH_BRAILLE
 g.autoScale = FALSE : g.minY = 0 : g.maxY = 100
 dim as TuiSeries s
-for i as long = 0 to 199 : s.data.Push( SomeValue( i ) ) : next
+for i as int32 = 0 to 199 : s.data.Push( SomeValue( i ) ) : next
 s.color = TuiRgb( 120, 220, 160 )
 g.series.Push( s )
 g.Render( f, area )

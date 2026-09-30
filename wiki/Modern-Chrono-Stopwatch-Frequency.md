@@ -7,7 +7,7 @@ Ticks per second of the underlying monotonic counter.
 ## Syntax
 
 ```freebasic
-Stopwatch.Frequency( ) as longint
+Stopwatch.Frequency( ) as int64
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ Stopwatch.Frequency( ) as longint
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print Stopwatch.Frequency( ) > 0              '' -1 (true)
 
 '' Only needed with the raw counter -- Elapsed is already in 100 ns ticks
-dim as longint a = Stopwatch.GetTimestamp( )
+dim as int64 a = Stopwatch.GetTimestamp( )
 sleep 20, 1
-dim as longint b = Stopwatch.GetTimestamp( )
+dim as int64 b = Stopwatch.GetTimestamp( )
 
 print ( b - a ) / Stopwatch.Frequency( ) > 0  '' -1 (true), in seconds
 ```

@@ -19,10 +19,10 @@ ByteSwap( byval x as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong x = &h12345678
+dim as uint32 x = &h12345678
 print hex( ByteSwap( x ) )   '' 78563412
 
 '' Its own inverse

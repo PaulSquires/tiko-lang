@@ -11,7 +11,7 @@ TimeSpan.Multiply( f )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as TimeSpan t = TimeSpan( 0, 30, 0 )

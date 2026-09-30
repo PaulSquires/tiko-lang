@@ -11,7 +11,7 @@ Instant.WeeksInYear( y )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' 52 or 53, depending on which weekdays the year starts and ends on

@@ -11,7 +11,7 @@ GetRoundingMode( )
 ## Examples
 
 ```freebasic
-#include once "fb/fenv.bi"
+#import "std/numeric"
 using FB
 
 '' The FPU's current rounding direction. TO NEAREST by default, which

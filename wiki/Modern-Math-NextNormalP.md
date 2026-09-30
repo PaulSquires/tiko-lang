@@ -11,17 +11,17 @@ NextNormalP( mean, sd )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
 '' Gaussian with a given mean and standard deviation
-dim as double total = 0
-for i as long = 1 to 2000
+dim as float64 total = 0
+for i as int32 = 1 to 2000
     total += r.NextNormalP( 100.0, 15.0 )
 next
-dim as double mean_ = total / 2000
+dim as float64 mean_ = total / 2000
 
 print mean_ > 95 andalso mean_ < 105      '' -1 (true)
 

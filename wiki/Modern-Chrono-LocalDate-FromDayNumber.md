@@ -11,7 +11,7 @@ LocalDate.FromDayNumber( days )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Days since 0001-01-01, which is day 0

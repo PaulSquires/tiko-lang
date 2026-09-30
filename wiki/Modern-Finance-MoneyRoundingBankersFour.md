@@ -11,7 +11,7 @@ MoneyRoundingBankersFour( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Four places, half-to-even -- the resolution FB.Currency carries, for

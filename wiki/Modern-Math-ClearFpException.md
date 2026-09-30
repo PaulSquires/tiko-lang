@@ -11,15 +11,15 @@ ClearFpException( e )
 ## Examples
 
 ```freebasic
-#include once "fb/fenv.bi"
+#import "std/numeric"
 using FB
 
 '' Clears ONE flag, leaving the others alone -- for code that cares
 '' about a single condition inside a larger computation
 ClearFpExceptions( )
 
-dim as double z = 0.0
-dim as double r = 1.0 / z
+dim as float64 z = 0.0
+dim as float64 r = 1.0 / z
 print TestFpException( FP_DIVBYZERO )     '' true
 
 ClearFpException( FP_DIVBYZERO )

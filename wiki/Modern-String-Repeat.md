@@ -17,7 +17,7 @@ Repeat( count, s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Repeat( 3, "ab" )       '' ababab

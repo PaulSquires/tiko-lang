@@ -11,7 +11,7 @@ Instant.WeekdayName( dow [, abbrev] )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Takes the ISO day number: Monday 1 through Sunday 7

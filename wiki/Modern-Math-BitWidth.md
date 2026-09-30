@@ -7,7 +7,7 @@ How many bits are needed to represent the value.
 ## Syntax
 
 ```freebasic
-BitWidth( byval x as T ) as long
+BitWidth( byval x as T ) as int32
 ```
 
 ## Notes
@@ -19,16 +19,16 @@ BitWidth( byval x as T ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong x = 8
+dim as uint32 x = 8
 print BitWidth( x )          '' 4 -- 1000 needs four bits
 
-dim as ulong y = 7
+dim as uint32 y = 7
 print BitWidth( y )          '' 3 -- 111 needs three
 
-dim as ulong zero_ = 0
+dim as uint32 zero_ = 0
 print BitWidth( zero_ )      '' 0 -- zero needs none
 ```
 

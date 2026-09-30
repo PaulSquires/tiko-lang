@@ -3,7 +3,7 @@
 # Filesystem
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 print PathJoin( "C:\dev", "tiko", "src" )    ' C:\dev\tiko\src
@@ -88,7 +88,7 @@ Platforms     win64 and linux-x86_64, both first-class.
 One header pulls in everything:
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 ```
 
 or include only what you use -- fb/fspath.bi, fb/fsinfo.bi, fb/fsdir.bi, fb/fsops.bi, fb/fsglob.bi, fb/fslink.bi, fb/fsvolume.bi, fb/fsadvanced.bi. fb/fserror.bi comes with all of them.
@@ -192,7 +192,7 @@ Decompose
 
 ```freebasic
 PathRoot( p )            "C:\", "\\srv\share\", "/", "" -- see below
-PathParent( p )          "" for a root and for a single relative component
+PathParent( p )          "" for a root and for a float32 relative component
 PathFileName( p )        the leaf; "" for a root
 PathStem( p )            the leaf without its extension
 PathExtension( p )       ".bas", WITH the dot; "" when there is none
@@ -358,8 +358,8 @@ FileInfo
 
 ```freebasic
 .Exists( ) .IsFile( ) .IsDirectory( ) .IsSymlink( ) .IsOther( )
-.Size( )                        ulongint
-.ModifiedUtc( )                 longint -- ticks, see below
+.Size( )                        uint64
+.ModifiedUtc( )                 int64 -- ticks, see below
 .CreatedUtc( ) .AccessedUtc( )
 .HasCreated( ) .HasAccessed( )
 .IsReadOnly( ) .IsHidden( )
@@ -546,7 +546,7 @@ Whole file
 
 ```freebasic
 ReadAllText( p )                 FsResultUStr
-ReadAllBytes( p, buf )           FsResultI64 -- fills Array( of ubyte )
+ReadAllBytes( p, buf )           FsResultI64 -- fills Array( of uint8 )
 ReadAllLines( p, lines )         FsResultLong -- fills Array( of ustring )
 WriteAllText( p, s )             FsResultBool
 WriteAllBytes( p, buf )          FsResultBool
@@ -830,8 +830,8 @@ MemoryMappedFile
 ```freebasic
 .Open( p [, writable ] )    FsResultBool
 .Close( )
-.Data( )                    ubyte ptr
-.Size( )                    ulongint
+.Data( )                    uint8 ptr
+.Size( )                    uint64
 .IsOpen( )
 .Flush( )                   FsResultBool
 ```

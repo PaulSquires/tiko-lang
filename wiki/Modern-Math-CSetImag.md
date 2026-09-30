@@ -7,7 +7,7 @@ Assigns the imaginary part in place.
 ## Syntax
 
 ```freebasic
-CSetImag( byref z as Complex, byval y as double )
+CSetImag( byref z as Complex, byval y as float64 )
 ```
 
 ## Notes
@@ -18,7 +18,7 @@ CSetImag( byref z as Complex, byval y as double )
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex z = CSet( 3, 4 )

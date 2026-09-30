@@ -9,7 +9,7 @@ type TuiSelect extends TuiWidget
     as TuiStringArray options
     as TuiSelectState ptr state
     as TuiStyle normal, focused_, listStyle, highlightStyle
-    as long maxVisible
+    as int32 maxVisible
 end type
 ```
 
@@ -20,7 +20,7 @@ A dropdown. When open it draws OUTSIDE its own area, over whatever is beneath --
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSelectState st

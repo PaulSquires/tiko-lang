@@ -11,13 +11,13 @@ Value( )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 1 ) : v.Push( 2 )
 
-dim it as ArrayIterator( of long ) = v.GetIterator( )
+dim it as ArrayIterator( of int32 ) = v.GetIterator( )
 print it.Value( )            '' 1 -- the element the iterator is on
 
 '' Array's Value( ) returns BYREF, so `for each byref x in v` can modify

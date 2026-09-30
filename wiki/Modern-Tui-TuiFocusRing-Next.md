@@ -15,7 +15,7 @@ Moves focus forward, wrapping at the end. This is Tab. The underscore is because
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCheckbox a, b

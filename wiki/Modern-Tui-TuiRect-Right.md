@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRect.Right( ) as long
+TuiRect.Right( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ x + w -- one column PAST the last one inside the rect, the way an end iterator w
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiRectOf( 4, 2, 20, 6 )

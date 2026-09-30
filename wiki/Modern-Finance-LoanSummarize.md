@@ -12,7 +12,7 @@ LoanSummarize( loanTerms, extras( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The whole loan in one record: what it costs, how long it runs, and --

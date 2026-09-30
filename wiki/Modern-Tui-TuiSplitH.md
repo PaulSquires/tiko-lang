@@ -15,7 +15,7 @@ Splits a rect into side-by-side columns. Nest freely: split a result again for a
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs

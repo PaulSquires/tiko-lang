@@ -11,7 +11,7 @@ DecimalZero( )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' Zero at scale 0.  A default-constructed Decimal is the same thing --

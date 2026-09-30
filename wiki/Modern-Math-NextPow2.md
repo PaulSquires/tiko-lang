@@ -19,17 +19,17 @@ NextPow2( byval x as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong a = 5
+dim as uint32 a = 5
 print NextPow2( a )          '' 8
 
 '' Already a power of two, so it does not move
-dim as ulong b = 8
+dim as uint32 b = 8
 print NextPow2( b )          '' 8
 
-dim as ulong zero_ = 0
+dim as uint32 zero_ = 0
 print NextPow2( zero_ )      '' 1
 ```
 

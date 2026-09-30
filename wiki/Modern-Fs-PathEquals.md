@@ -17,7 +17,7 @@ PathEquals( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Compares NORMALIZED paths, and case-insensitively where the grammar

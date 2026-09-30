@@ -17,15 +17,14 @@ StableSort( a )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
 '' Stability only means something when T carries more than the key.
 '' For scalars StableSort and Sort produce identical output.
 type Rec
     as ustring surname
-    as long    seq
+    as int32   seq
 end type
 
 operator < ( byref x as Rec, byref y as Rec ) as boolean
@@ -39,7 +38,7 @@ r.surname = "hopper"   : r.seq = 2 : v.Push( r )
 r.surname = "lovelace" : r.seq = 3 : v.Push( r )
 
 StableSort( v )          '' merge sort: equal elements keep their order
-for i as long = 0 to v.Count - 1
+for i as int32 = 0 to v.Count - 1
     print v[ i ].surname & " " & v[ i ].seq
 next                     '' hopper 2 / lovelace 1 / lovelace 3
 ```

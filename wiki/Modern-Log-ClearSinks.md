@@ -11,7 +11,7 @@ ClearSinks( )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim a as ConsoleSink

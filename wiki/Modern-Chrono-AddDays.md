@@ -17,7 +17,7 @@ AddDays( 1 )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' EXACT arithmetic: 86400 seconds, which does NOT keep the wall-clock

@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRectOf( byval x as long, byval y as long, byval w as long, byval h as long ) as TuiRect
+TuiRectOf( byval x as int32, byval y as int32, byval w as int32, byval h as int32 ) as TuiRect
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Builds a TuiRect. There is no constructor, so this is how you make one in an exp
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect full = TuiRectOf( 0, 0, 80, 24 )

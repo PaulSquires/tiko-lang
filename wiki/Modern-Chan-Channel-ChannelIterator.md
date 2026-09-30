@@ -20,12 +20,12 @@ ChannelIterator( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
-for i as long = 1 to 3
-    dim as long v = i
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
+for i as int32 = 1 to 3
+    dim as int32 v = i
     ch.Send( v )
 next
 ch.Close( )                  '' or the loop below would never end

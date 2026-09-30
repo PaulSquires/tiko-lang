@@ -11,7 +11,7 @@ FinSolverOptionsDefault( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The standard settings: bracket a rate, 128 iterations, |f| <= 1e-12.

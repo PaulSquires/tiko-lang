@@ -11,7 +11,7 @@ NetFutureValue( flows( ), ratePerPeriod )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The net present value carried forward to the end of the series.

@@ -17,7 +17,7 @@ Unescape( s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Unescape( "line\nnext" )      '' two lines

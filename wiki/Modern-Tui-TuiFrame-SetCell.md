@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiFrame.SetCell( byval x as long, byval y as long, byref ch as ustring, byval st as TuiStyle )
+TuiFrame.SetCell( byval x as int32, byval y as int32, byref ch as ustring, byval st as TuiStyle )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Writes one cell. THE STYLE IS ASSIGNED, NOT MERGED -- to compose with what is un
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -17,7 +17,7 @@ SpanOf( start, s, chars [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print SpanOf( 1, "   x", " " )        '' 3 -- three leading spaces

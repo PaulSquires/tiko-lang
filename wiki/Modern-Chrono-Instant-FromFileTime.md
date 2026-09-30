@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Instant.FromFileTime( longint )
+Instant.FromFileTime( int64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' A Windows FILETIME: 100 ns ticks since 1601-01-01 UTC

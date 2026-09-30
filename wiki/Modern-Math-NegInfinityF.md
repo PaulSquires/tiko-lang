@@ -11,10 +11,10 @@ NegInfinityF( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as single ninf = NegInfinityF( )
+dim as float32 ninf = NegInfinityF( )
 
 print IsInfinite( ninf )     '' true
 print IsNegative( ninf )     '' true

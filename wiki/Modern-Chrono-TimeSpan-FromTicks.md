@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-TimeSpan.FromTicks( longint )
+TimeSpan.FromTicks( int64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The tick is 100 ns, and is the unit everything here measures in

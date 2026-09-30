@@ -3,17 +3,17 @@
 # Map
 
 ```freebasic
-#include once "fb/map.bi"            ' or "containers.bi" for all four
+#import "std/containers"
 using FB
 
-dim ages as Map( of ustring, long )
+dim ages as Map( of ustring, int32 )
 
 ages.Put( "ada", 36 )
 ages.Add( "grace", 85 )
 
 if ages.Contains( "ada" ) then print ages[ "ada" ]
 
-dim n as long
+dim n as int32
 if ages.TryGet( "edsger", n ) then print n
 
 for each kv in ages
@@ -60,9 +60,9 @@ Use TryGet or Contains to read. Every dictionary API in every language has this 
 ## Members
 
 ```freebasic
-Count( ) as long                          O(1)
+Count( ) as int32                         O(1)
 IsEmpty( ) as boolean                     O(1)
-Capacity( ) as long                       O(1)
+Capacity( ) as int32                      O(1)
 
 m[ k ] byref as V                         avg O(1)  lvalue, INSERTS ON MISS
 Add( k, v ) as boolean                    avg O(1)  false if present;
@@ -74,7 +74,7 @@ Contains( k ) as boolean                  avg O(1)  no insertion
 Remove( k ) as boolean                    avg O(1)  true if something went
 
 Clear( )                                  O(n)
-Reserve( byval n as long )                O(n)
+Reserve( byval n as int32 )                O(n)
 Keys( ) as Array( of K )                  O(n)      snapshot
 Values( ) as Array( of V )                O(n)      snapshot
 GetIterator( ) as MapIterator( of K, V )  O(1)
@@ -108,7 +108,7 @@ A user type is made usable as a key by RE-OPENING the namespace:
 
 ```freebasic
 type PairKey
-    as long a, b
+    as int32 a, b
 end type
 
 operator = ( byref x as PairKey, byref y as PairKey ) as boolean
@@ -116,7 +116,7 @@ operator = ( byref x as PairKey, byref y as PairKey ) as boolean
 end operator
 
 namespace FB
-    function HashOf overload ( byref k as PairKey ) as ulongint
+    function HashOf overload ( byref k as PairKey ) as uint64
         return HashOf( k.a ) xor (HashOf( k.b ) shl 1)
     end function
 end namespace
@@ -205,7 +205,7 @@ dim doomed as Array( of ustring )
 for each kv in m
     if kv.value = 0 then doomed.Push( kv.key )
 next
-for i as long = 0 to doomed.Count( )-1
+for i as int32 = 0 to doomed.Count( )-1
     m.Remove( doomed[ i ] )
 next
 ```

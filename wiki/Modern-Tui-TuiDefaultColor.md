@@ -15,7 +15,7 @@ The terminal's own default foreground or background -- whatever the user configu
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 200, 200, 200 ), TuiDefaultColor( ), TUIATTR_NONE )

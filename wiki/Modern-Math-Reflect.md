@@ -19,7 +19,7 @@ Reflect( byref v as Vec3, byref n as Vec3 ) as Vec3
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Vec3 v = type<Vec3>( 1, -1, 0 )

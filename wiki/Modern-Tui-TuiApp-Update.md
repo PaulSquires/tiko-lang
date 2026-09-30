@@ -15,11 +15,11 @@ React to one event and return what the loop should do. NEVER DRAW HERE. Events a
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type App2 extends TuiApp
-    as long sel
+    as int32 sel
     declare function Init( ) as TuiCmd override
     declare function Update( byref e as TuiEvent ) as TuiCmd override
     declare sub View( byref f as TuiFrame ) override

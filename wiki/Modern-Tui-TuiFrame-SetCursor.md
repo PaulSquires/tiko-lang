@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiFrame.SetCursor( byval x as long, byval y as long )
+TuiFrame.SetCursor( byval x as int32, byval y as int32 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Puts the hardware cursor somewhere and makes it visible for this frame. A focuse
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -11,7 +11,7 @@ RateContinuousFromEffective( effectiveAnnual )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The continuously-compounded rate that produces a given effective

@@ -18,7 +18,7 @@ WalkDir( p, opts )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -29,7 +29,7 @@ CreateDir( PathJoin( dir_, "sub" ) )
 WriteAllText( PathJoin( dir_, "sub", "c.txt" ), "c" )
 
 '' RECURSIVE and PRE-ORDER: a directory is yielded before its contents
-dim as long files_ = 0
+dim as int32 files_ = 0
 for each r in WalkDir( dir_ )
     if r.IsOk( ) then
         if r.Value( ).IsFile( ) then files_ += 1

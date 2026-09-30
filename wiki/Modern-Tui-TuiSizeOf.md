@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiSizeOf( byval cols as long, byval rows as long ) as TuiSize
+TuiSizeOf( byval cols as int32, byval rows as int32 ) as TuiSize
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Builds a TuiSize.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSize s = TuiSizeOf( 100, 30 )

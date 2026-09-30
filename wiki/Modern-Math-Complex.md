@@ -8,13 +8,13 @@ A complex number: two doubles, a real part and an imaginary one.
 
 ```freebasic
 type Complex
-    as double re, im
+    as float64 re, im
 end type
 ```
 
 ## Notes
 
-- **Sixteen bytes, `double` only.** There is no single-precision `Complexf`. Both libraries this header draws on are double-only, and a single-precision complex buys nothing at 16 bytes versus 8 unless the consumer is an FFT holding millions of them.
+- **Sixteen bytes, `float64` only.** There is no single-precision `Complexf`. Both libraries this header draws on are double-only, and a single-precision complex buys nothing at 16 bytes versus 8 unless the consumer is an FFT holding millions of them.
 - The fields are named `re` and `im` and may be read directly, but `CReal` and `CImag` are the documented spelling — they survive a field rename and they say at the call site that the operand is complex.
 - Positional initialisation works — `type<Complex>( 3, 4 )` — and agrees exactly with `CSet( 3, 4 )`.
 - **No ordering operators.** `<` on complex numbers has no meaning, so none is defined. `=` and `<>` are.
@@ -22,7 +22,7 @@ end type
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex z = CSet( 3, 4 )

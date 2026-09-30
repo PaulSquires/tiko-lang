@@ -11,7 +11,7 @@ PAY_MONTHLY  PAY_BIWEEKLY  PAY_ACCELERATED_BIWEEKLY  ...
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' How often a PAYMENT is made -- a separate question from how often

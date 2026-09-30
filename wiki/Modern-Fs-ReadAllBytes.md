@@ -17,7 +17,7 @@ ReadAllBytes( p, buf )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Everything below happens inside a temp directory of its own, and is
@@ -28,7 +28,7 @@ dim as ustring dir_ = td.Value( )
 dim as ustring p = PathJoin( dir_, "f.bin" )
 WriteAllText( p, "AB" )
 
-dim buf as Array( of ubyte )
+dim buf as Array( of uint8 )
 dim r as FsResultI64 = ReadAllBytes( p, buf )
 
 print r.IsOk( )              '' true

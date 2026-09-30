@@ -17,7 +17,7 @@ PathRelativeTo( p, base )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' THE ONE PATH FUNCTION THAT CAN FAIL, so it returns an FsResult rather

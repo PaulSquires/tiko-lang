@@ -11,7 +11,7 @@ DecimalCompare( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' -1, 0 or +1, blind to the scale: 1.10 and 1.1 are the same number

@@ -7,7 +7,7 @@ A generator seeded with a value you choose, so the sequence repeats.
 ## Syntax
 
 ```freebasic
-RngSeeded( byval seed as ulongint ) as Rng
+RngSeeded( byval seed as uint64 ) as Rng
 ```
 
 ## Notes
@@ -19,16 +19,16 @@ RngSeeded( byval seed as ulongint ) as Rng
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
-dim as ulongint seed = 12345
+dim as uint64 seed = 12345
 dim a as Rng = RngSeeded( seed )
 dim b as Rng = RngSeeded( seed )
 
 '' The same seed gives the same sequence -- which is what makes a test
 '' with random input reproducible
-dim as longint lo = 1, hi = 1000000
+dim as int64 lo = 1, hi = 1000000
 print a.NextInt( lo, hi ) = b.NextInt( lo, hi )      '' -1 (true)
 print a.NextInt( lo, hi ) = b.NextInt( lo, hi )      '' -1 (true)
 ```

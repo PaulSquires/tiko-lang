@@ -17,7 +17,7 @@ RetainChars( s, chars [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print RetainChars( "abacadabra", "bc" )        '' bcb

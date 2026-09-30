@@ -11,7 +11,7 @@ CompoundAnnualGrowthRate( beginValue, endValue, years )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The single annual rate that turns the opening value into the closing

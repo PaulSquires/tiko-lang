@@ -6,16 +6,16 @@
 
 ```freebasic
 Fail( of T, E )
-Fail( of long, ustring )
+Fail( of int32, ustring )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
-dim r as Result( of long, ustring ) = Fail( of long, ustring )( "not a number" )
+dim r as Result( of int32, ustring ) = Fail( of int32, ustring )( "not a number" )
 
 print r.IsOk( )              '' false
 print r.Failure( )           '' not a number

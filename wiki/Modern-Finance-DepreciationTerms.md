@@ -11,7 +11,7 @@ t.Cost_  t.Salvage_  t.LifePeriods_  t.RateFactor_  t.PlacedInService_  t.Roundi
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' What an asset is worth, what it will be worth, and over how long.

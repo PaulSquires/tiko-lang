@@ -15,7 +15,7 @@ Moves focus backward, wrapping at the start. This is Shift+Tab.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCheckbox a, b

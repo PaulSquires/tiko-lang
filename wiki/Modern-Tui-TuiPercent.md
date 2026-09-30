@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiPercent( byval n as long ) as TuiConstraint
+TuiPercent( byval n as int32 ) as TuiConstraint
 ```
 
 ## Description
@@ -15,13 +15,13 @@ n per cent of the TOTAL being split -- not of what is left over.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs
 cs.Push( TuiPercent( 45 ) )
 cs.Push( TuiFill( ) )
-dim as Array( of long ) s = TuiSolve( 100, cs )
+dim as Array( of int32 ) s = TuiSolve( 100, cs )
 print s[0], s[1]                  '' 45 55
 ```
 

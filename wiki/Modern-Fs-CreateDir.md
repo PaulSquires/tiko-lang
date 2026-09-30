@@ -17,7 +17,7 @@ CreateDir( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Everything below happens inside a temp directory of its own, and is

@@ -11,12 +11,12 @@ CryptoULongInt( )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 '' Eight cryptographically secure bytes as one number
-dim as ulongint a = CryptoULongInt( )
-dim as ulongint b = CryptoULongInt( )
+dim as uint64 a = CryptoULongInt( )
+dim as uint64 b = CryptoULongInt( )
 
 print a <> b                 '' -1 (true), with overwhelming probability
 

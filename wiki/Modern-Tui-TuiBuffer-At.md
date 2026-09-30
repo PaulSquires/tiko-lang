@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiBuffer.At( byval x as long, byval y as long ) as TuiCell ptr
+TuiBuffer.At( byval x as int32, byval y as int32 ) as TuiCell ptr
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A pointer to one cell. It returns a POINTER rather than a byref because taking t
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBuffer b

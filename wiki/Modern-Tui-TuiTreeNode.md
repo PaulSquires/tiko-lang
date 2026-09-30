@@ -7,9 +7,9 @@
 ```freebasic
 type TuiTreeNode
     as ustring label
-    as long depth
+    as int32 depth
     as boolean hasChildren
-    as long userId
+    as int32 userId
 end type
 ```
 
@@ -20,7 +20,7 @@ One node of a tree, held in a FLAT array with a depth rather than as a linked st
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTree t

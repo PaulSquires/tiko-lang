@@ -17,11 +17,11 @@ IPow( base, exp )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
 '' INTEGER power by squaring -- exact, with no trip through double
-dim as longint b = 2, e = 10
+dim as int64 b = 2, e = 10
 print IPow( b, e )           '' 1024
 
 '' `2 ^ 10` goes through floating point and comes back as a double, so

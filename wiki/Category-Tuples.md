@@ -3,12 +3,12 @@
 # Tuples
 
 ```freebasic
-declare function MinMax( a( ) as long ) as (min as long, max as long)
+declare function MinMax( a( ) as int32 ) as (min as int32, max as int32)
 
 var (lo, hi) = MinMax( arr( ) )
 
-dim p as (long, ustring) = (3, "hi")
-dim q as (long, ustring) = (3, "hi")
+dim p as (int32, ustring) = (3, "hi")
+dim q as (int32, ustring) = (3, "hi")
 print p = q                          ' true
 ```
 
@@ -19,15 +19,15 @@ A tuple is an anonymous aggregate spelled '(T, U)' in any type position and '(a,
 FreeBASIC could not return two values. Every function that needed to picked one of three workarounds, and all three are worse than the problem:
 
 ```freebasic
-declare sub MinMax1( a( ) as long, byref lo as long, byref hi as long )
+declare sub MinMax1( a( ) as int32, byref lo as int32, byref hi as int32 )
 
 type MinMaxResult                    ' a TYPE used in exactly one place
-    as long lo, hi
+    as int32 lo, hi
 end type
-declare function MinMax2( a( ) as long ) as MinMaxResult
+declare function MinMax2( a( ) as int32 ) as MinMaxResult
 
-dim shared as long g_lo, g_hi        ' the honest version of the same thing
-declare sub MinMax3( a( ) as long )
+dim shared as int32 g_lo, g_hi        ' the honest version of the same thing
+declare sub MinMax3( a( ) as int32 )
 ```
 
 An out-parameter cannot be used in an expression and cannot be const. A one-off TYPE has to be named, declared somewhere, and then read by whoever calls the function. A shared global is not re-entrant.
@@ -35,14 +35,14 @@ An out-parameter cannot be used in an expression and cannot be const. A one-off 
 ## The Type
 
 ```freebasic
-dim p as (long, ustring)
-dim q as (single, single, single)
-dim n as ((long, long), ustring)     ' elements nest
-type Pair as (long, ustring)         ' a typedef, if you want a name
+dim p as (int32, ustring)
+dim q as (float32, float32, float32)
+dim n as ((int32, int32), ustring)     ' elements nest
+type Pair as (int32, ustring)         ' a typedef, if you want a name
 
-declare function f( ) as (long, long)
-declare sub g( byval p as (long, long) )
-declare sub h( byref p as (long, long) )
+declare function f( ) as (int32, int32)
+declare sub g( byval p as (int32, int32) )
+declare sub h( byref p as (int32, int32) )
 ```
 
 Minimum arity is TWO. '(long)' is a syntax error, not a 1-tuple -- see NO 1-TUPLES below.
@@ -64,7 +64,7 @@ An element may carry a name. The name is checked for duplicates within the decla
 Under tiko the name also reaches its element:
 
 ```freebasic
-function GetRect( ) as (tl as (x as long, y as long), br as (x as long, y as long))
+function GetRect( ) as (tl as (x as int32, y as int32), br as (x as int32, y as int32))
     return ((100, 200), (300, 400))
 end function
 
@@ -79,13 +79,13 @@ Under fbc a name is DOCUMENTATION and nothing else, so `r.tl` is error 18 there.
 var (lo, hi) = MinMax( arr( ) )
 ```
 
-THE NAMES ARE NOT PART OF THE TYPE. `(min as long, max as long)` and `(long, long)` are still one type -- see below -- with one layout and one mangled name. The names travel with the DECLARATION that an expression reaches, which is C#'s rule:
+THE NAMES ARE NOT PART OF THE TYPE. `(min as int32, max as int32)` and `(int32, int32)` are still one type -- see below -- with one layout and one mangled name. The names travel with the DECLARATION that an expression reaches, which is C#'s rule:
 
 ```freebasic
-type Pt as (x as long, y as long)
+type Pt as (x as int32, y as int32)
 
 dim a as Pt = (1, 2)
-dim b as (lo as long, hi as long) = a    ' one type, so assignable
+dim b as (lo as int32, hi as int32) = a    ' one type, so assignable
 print b.lo, a.x                          ' each read with its own declaration's names
 ```
 
@@ -95,7 +95,7 @@ print b.lo, a.x                          ' each read with its own declaration's 
 - an array element takes the array's element names: `arr( 1 ).x`;
 - a WITH block's `.name` uses the names of the WITH subject.
 
-A POSITIONAL NAME ALWAYS WINS. Over `(_2 as long, _1 as long)`, `t._1` is the FIRST element.
+A POSITIONAL NAME ALWAYS WINS. Over `(_2 as int32, _1 as int32)`, `t._1` is the FIRST element.
 
 What carries no names, so only `_1`..`_N` reach its elements:
 - a tuple LITERAL -- `(lo, hi)` does not name its elements after the variables;
@@ -108,11 +108,11 @@ An unknown name is still TKO0739, fbc's error 18.
 Two tuple types are THE SAME TYPE when they have the same element types in the same order. How they are spelled, and what the elements are called, never enters:
 
 ```freebasic
-dim a as (long, long)
-dim b as (min as long, max as long)
-dim c as (lo  as long, hi  as long)
-type Pair as (long, long) : dim d as Pair
-type MyLong as long       : dim e as (MyLong, MyLong)
+dim a as (int32, int32)
+dim b as (min as int32, max as int32)
+dim c as (lo  as int32, hi  as int32)
+type Pair as (int32, int32) : dim d as Pair
+type MyLong as int32      : dim e as (MyLong, MyLong)
 ```
 
 All five are one type, mutually assignable, and one interned symbol program-wide. This is C#'s rule, not Nim's -- Nim makes field names part of tuple equivalence.
@@ -124,7 +124,7 @@ THE CONSEQUENCE, STATED PLAINLY: a tuple cannot give you nominal type safety. If
 A parenthesised comma list of two or more expressions:
 
 ```freebasic
-dim t as (long, ustring) = (3, "hi")
+dim t as (int32, ustring) = (3, "hi")
 t = (4, "bye")
 return (lo, hi)
 Consume( (1, 2) )                    ' ONE argument, of type (long, long)
@@ -135,10 +135,10 @@ Elements are evaluated left to right, exactly once each.
 ## A Literal Adapts To Its Target; Two Tuples Do NOT Convert
 
 ```freebasic
-dim t as (double, ustring) = (1, "hi")       ' 1 -> 1.0, "hi" -> USTRING
-dim u as (long, long) = (cshort(1), cbyte(2))
+dim t as (float64, ustring) = (1, "hi")       ' 1 -> 1.0, "hi" -> USTRING
+dim u as (int32, int32) = (cshort(1), cbyte(2))
 
-function f( ) as (double, ustring)
+function f( ) as (float64, ustring)
     return (0, "")                           ' converts per element
 end function
 ```
@@ -146,8 +146,8 @@ end function
 ...but two tuple VALUES of different types do not convert:
 
 ```freebasic
-dim a as (long, long)
-dim b as (double, double) = a                ' error: type mismatch
+dim a as (int32, int32)
+dim b as (float64, float64) = a                ' error: type mismatch
 ```
 
 The literal is not converted -- it is BUILT AT the target type, each element converted as it is stored into its field. That works in the four places the target type is known: assignment, DIM initialisation, RETURN, and a call argument.
@@ -155,26 +155,26 @@ The literal is not converted -- it is BUILT AT the target type, each element con
 Arity is never inferred and never padded, in any direction:
 
 ```freebasic
-dim v as (long, long) = (1, 2, 3)    ' error 370
+dim v as (int32, int32) = (1, 2, 3)    ' error 370
 ```
 
 THE ONE LIMITATION: a NESTED literal is not context-typed. The outer literal's elements are parsed before the outer target type has been applied, so an inner literal sees only whatever context was already open. Where the inner elements' natural types already fit this is invisible:
 
 ```freebasic
-dim ok as ((double, double), long) = ((1, 2), 3)      ' fine
+dim ok as ((float64, float64), int32) = ((1, 2), 3)      ' fine
 ```
 
 Where they do not, it fails -- a string LITERAL is not a STRING:
 
 ```freebasic
-dim n as ((long, string), long) = ((1, "x"), 3)       ' error
+dim n as ((int32, string), int32) = ((1, "x"), 3)       ' error
 ```
 
 Build the inner tuple first:
 
 ```freebasic
-dim inner as (long, string) = (1, "x")
-dim n as ((long, string), long) = (inner, 3)
+dim inner as (int32, string) = (1, "x")
+dim n as ((int32, string), int32) = (inner, 3)
 ```
 
 This is pinned by a golden test so it cannot change by accident. Lifting it would mean putting speculative state on the hottest parse path in the language, for a case with a one-line workaround.
@@ -186,7 +186,7 @@ Two forms. 'var' declares; the bare paren list assigns.
 ```freebasic
 var (lo, hi) = MinMax( arr( ) )      ' declares lo and hi, infers both
 
-dim x as long, y as ustring
+dim x as int32, y as ustring
 (x, y) = GetPair( )                  ' assigns to existing lvalues
 ```
 
@@ -250,8 +250,8 @@ THE COMPARISON SHORT-CIRCUITS, THE OPERANDS DO NOT. '(F(1), F(2)) = (F(3), F(4))
 Both sides must be the SAME tuple type, which after structural interning is a pointer comparison. Different arity, or the same arity with different element types, is a type mismatch: a comparison supplies no target type, so nothing context-types anything.
 
 ```freebasic
-dim x1 as (long, long)
-dim x2 as (double, double)
+dim x1 as (int32, int32)
+dim x2 as (float64, float64)
 print (x1 = x2)                      ' error 20: Type mismatch
 ```
 
@@ -276,16 +276,16 @@ Arity 0 is not spellable either -- '()' has no use without a unit type.
 ## What Is NOT Spellable
 
 ```freebasic
-print sizeof( (long, string) )       ' error
-dim x as typeof( (long, string) )    ' error
-const c as (long, long) = 0          ' error 14: Expected identifier
-type Derived extends (long, long)    ' error 14: Expected identifier
+print sizeof( (int32, string) )       ' error
+dim x as typeof( (int32, string) )    ' error
+const c as (int32, int32) = 0          ' error 14: Expected identifier
+type Derived extends (int32, int32)    ' error 14: Expected identifier
 ```
 
 SIZEOF, LEN and TYPEOF decide "type or expression?" BEFORE parsing the argument, and then rely on being able to retry the same tokens as an expression if the type parse fails without consuming anything. The tuple arm cannot make that promise, and lookahead cannot rescue it: the lexer offers three tokens, and '( Foo ptr, long )' needs three just to reach the comma. Use a typedef:
 
 ```freebasic
-type P as (long, string)
+type P as (int32, string)
 print sizeof( P )
 ```
 
@@ -361,9 +361,9 @@ Two modules that both mention '(long, string)' must produce the same external sy
 That is why the name is a pure function of the element types and of nothing else -- not a counter, not declaration order, not the compilation order, and not element names:
 
 ```freebasic
-(long, long)            -> 8FBTUPLE2IiiE
-(long, string)          -> 8FBTUPLE2Ii8FBSTRINGE
-((long,long), string)   -> 8FBTUPLE2I8FBTUPLE2IiiE8FBSTRINGE
+(int32, int32)            -> 8FBTUPLE2IiiE
+(int32, string)          -> 8FBTUPLE2Ii8FBSTRINGE
+((int32,int32), string)   -> 8FBTUPLE2I8FBTUPLE2IiiE8FBSTRINGE
 ```
 
 So the two sides may spell the element names differently, or not at all, and still link.
@@ -386,17 +386,17 @@ tiko reports most of these. Measured 2026-09-25 against the twenty cases of fbc'
 - an unterminated element list, and `var (arr(1), b) = ...` (`TKO0401: expected ')'`);
 - a tuple constant (`TKO0748: a constant cannot have the type of 'c'`);
 - a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`) -- the declaration errors 367, 368 and 369, only the first problem in a list reported, as fbc does;
-- `extends (long, long)` (`TKO0824`; a typedef of a tuple after `extends` compiles under both);
+- `extends (int32, int32)` (`TKO0824`; a typedef of a tuple after `extends` compiles under both);
 - destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted by both;
-- `<`, `>`, `<=` and `>=` on tuples, and `=` or `<>` between two DIFFERENT tuple types -- `(long, long)` against `(double, double)`, against the literal `(1, 2)`, which is `(integer, integer)`, or against a scalar (`TKO0720`). One tuple type on both sides compares.
+- `<`, `>`, `<=` and `>=` on tuples, and `=` or `<>` between two DIFFERENT tuple types -- `(int32, int32)` against `(float64, float64)`, against the literal `(1, 2)`, which is `(integer, integer)`, or against a scalar (`TKO0720`). One tuple type on both sides compares.
 
 It compiles the other three with no diagnostic: SIZEOF and TYPEOF of a tuple type, and a nested tuple literal that is not context-typed. These are FBC-Modern's DOCUMENTED limitations, pinned in that file on purpose; tiko handles all three.
 
 `print (a, b)` compiles too. SIZEOF and `print (a, b)` are silently left out of the program (`--dump-ir` reports them as not lowered). Do not rely on tiko accepting any of fbc's rejections.
 
-A tuple element whose value is of ANOTHER type is converted by the element type's own `operator let`, over an element that has already been constructed -- `return ( wszKLID, bRes )` out of a function `as (DVARIANT, BOOLEAN)` takes DVARIANT's `let` from a wstring. Without a `let` that takes the value, fbc refuses the element -- error 24 in a declaration, 181 in an assignment or a `return` -- and so does tiko since 2026-09-25, with `TKO0831`. A `let` from a `long` takes a `double` and not a string; a constructor from the value's type is not enough. A plain type -- no constructor, no string field, no `extends object` -- takes a number without one. A string element does not take a number, nor a number element a string. Before 2026-09-25 tiko got this wrong for such elements, and dropped the whole initialiser of any tuple holding a type that `EXTENDS WSTRING` (fbx's DVARIANT and DWSTRING among them), so every element came back empty.
+A tuple element whose value is of ANOTHER type is converted by the element type's own `operator let`, over an element that has already been constructed -- `return ( wszKLID, bRes )` out of a function `as (DVARIANT, BOOLEAN)` takes DVARIANT's `let` from a wstring. Without a `let` that takes the value, fbc refuses the element -- error 24 in a declaration, 181 in an assignment or a `return` -- and so does tiko since 2026-09-25, with `TKO0831`. A `let` from a `int32` takes a `float64` and not a string; a constructor from the value's type is not enough. A plain type -- no constructor, no string field, no `extends object` -- takes a number without one. A string element does not take a number, nor a number element a string. Before 2026-09-25 tiko got this wrong for such elements, and dropped the whole initialiser of any tuple holding a type that `EXTENDS WSTRING` (fbx's DVARIANT and DWSTRING among them), so every element came back empty.
 
-A tuple VALUE of another tuple type is refused wherever fbc refuses it, which is everywhere, since two tuple types never convert. A `(long, long)` target given a `(integer, integer)` variable gets `TKO0738` in an initialiser, an assignment, a `return` or `function =` (fbc's 24 and 181). As an argument, byval or byref, it gets `TKO0698` (fbc's 58). As an element of a literal, as in `return (t, 3)`, it gets `TKO0831`. Before 2026-09-29 tiko accepted all of these and copied the bytes, so `(5, 6)` read back as `(5, 0)`. The fix is to declare the value at the target's type, `dim as (long, long) t = (5, 6)`, or to write the literal where it is used.
+A tuple VALUE of another tuple type is refused wherever fbc refuses it, which is everywhere, since two tuple types never convert. A `(int32, int32)` target given a `(integer, integer)` variable gets `TKO0738` in an initialiser, an assignment, a `return` or `function =` (fbc's 24 and 181). As an argument, byval or byref, it gets `TKO0698` (fbc's 58). As an element of a literal, as in `return (t, 3)`, it gets `TKO0831`. Before 2026-09-29 tiko accepted all of these and copied the bytes, so `(5, 6)` read back as `(5, 0)`. The fix is to declare the value at the target's type, `dim as (int32, int32) t = (5, 6)`, or to write the literal where it is used.
 
 A comparison of two tuples of one type is an `integer`, -1 or 0, as under fbc: `print a = b`, `str( a = b )` and `-( a = b )` all work. Before 2026-09-25 tiko gave the comparison no type, and each of those was silently left out of the program; only `if a = b` and `r = ( a = b )` worked. A tuple compares only if every element does. A UDT element needs the operator written for that comparison, over two of itself: with only `operator =` declared for it, `=` works and `<>` is `TKO0720`, fbc's error 20, and an `operator cast` does not help. A nested tuple element is judged by its own elements.
 
@@ -457,7 +457,7 @@ equality.bas       '=' and '<>' over scalar, STRING, pointer and nested
 elements; equality across two differently-named
 declarations; a NaN element -- 't = u' false AND 't <> u'
 true, which is what breaks if '<>' is built as 'not (=)';
-short-circuit proven with a counting element type.
+int16-circuit proven with a counting element type.
 ```
 
 equality-overload  a user-declared global 'operator =' wins. for-each.bas       'for each (k, v)' over a collection whose Value( ) returns

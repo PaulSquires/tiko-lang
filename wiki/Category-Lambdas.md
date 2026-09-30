@@ -4,12 +4,12 @@
 
 ```freebasic
 ' non-capturing: an ordinary procedure pointer
-dim double_ as function( byval x as long ) as long = _
-    function( byval x as long ) as long : return x * 2 : end function
+dim double_ as function( byval x as int32 ) as int32 = _
+    function( byval x as int32 ) as int32 : return x * 2 : end function
 
 ' capturing: '[ ]' lists what is captured, and how
-dim as long total = 0
-ForEach( nums, sub[ byref total ]( byref v as long )
+dim as int32 total = 0
+ForEach( nums, sub[ byref total ]( byref v as int32 )
     total += v
 end sub )
 ```
@@ -36,7 +36,7 @@ A NON-CAPTURING lambda lowers to a plain module-level procedure plus its address
 A CAPTURING lambda cannot be a procptr -- it has state and a procptr has nowhere to put it:
 
 ```freebasic
-dim f as Fn = function[ byval bias ]( byval x as long ) as long ...
+dim f as Fn = function[ byval bias ]( byval x as int32 ) as int32 ...
 ' error 355: A capturing lambda cannot convert to a procedure pointer
 ```
 
@@ -92,8 +92,8 @@ byval x     the closure holds a COPY, taken when the lambda is EVALUATED
 The BYVAL snapshot is the one that surprises people:
 
 ```freebasic
-dim as long bias = 10
-var a = function[ byval bias ]( byval x as long ) as long
+dim as int32 bias = 10
+var a = function[ byval bias ]( byval x as int32 ) as int32
     return x + bias
 end function
 bias = 999
@@ -114,7 +114,7 @@ A BYREF capture is '@local' with better ergonomics, and nothing checks it:
 
 ```freebasic
 function MakeCounter( ) as ???
-    dim n as long = 0
+    dim n as int32 = 0
     return sub[ byref n ]( ) : n += 1 : end sub    ' n dies with the frame
 end function
 ```
@@ -128,7 +128,7 @@ The closure TYPE is hoisted to module level, so it outlives the scope that named
 Scalars, strings, UDTs and containers alike:
 
 ```freebasic
-dim src as Array( of long )
+dim src as Array( of int32 )
 var c = sub[ byref src ]( ) : src.Push( 9 ) : end sub
 ```
 

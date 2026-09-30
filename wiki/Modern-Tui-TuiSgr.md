@@ -15,7 +15,7 @@ The escape sequence that moves a terminal from one style to another at a given d
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle a = TuiStyleDefault( )

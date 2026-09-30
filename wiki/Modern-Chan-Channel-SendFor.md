@@ -7,7 +7,7 @@ Sends a value, giving up after `ms` milliseconds.
 ## Syntax
 
 ```freebasic
-SendFor( byref v as T, byval ms as ulong ) as boolean
+SendFor( byref v as T, byval ms as uint32 ) as boolean
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ SendFor( byref v as T, byval ms as ulong ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 1 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 1 )
 
-dim as long a = 1
+dim as int32 a = 1
 print ch.SendFor( a, 100 )   '' true -- room in the buffer
 
-dim as long b = 2
+dim as int32 b = 2
 print ch.SendFor( b, 50 )    '' false -- full, and it waited 50 ms
 
 '' This is how a cancellable producer is written: wake regularly and

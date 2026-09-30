@@ -17,11 +17,11 @@ NaiveSum( a( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
 '' The straight loop -- FASTER, and NAMED SO YOU MEANT IT
-dim as double a( 0 to 3 ) = { 1e16, 1.0, -1e16, 1.0 }
+dim as float64 a( 0 to 3 ) = { 1e16, 1.0, -1e16, 1.0 }
 
 print NaiveSum( a( ) )       '' 1 -- one of the two 1.0s vanished into
                              '' the 1e16 and never came back

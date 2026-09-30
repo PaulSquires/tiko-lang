@@ -11,7 +11,7 @@ LevelFromName( s, byref out ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' Note the shape: the level comes back through an OUT PARAMETER and

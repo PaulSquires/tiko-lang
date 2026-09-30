@@ -19,7 +19,7 @@ Twelve named styles. There is NO ambient theme singleton -- you hold a theme and
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTheme th = TuiThemeDefault( )

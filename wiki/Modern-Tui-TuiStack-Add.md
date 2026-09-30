@@ -15,7 +15,7 @@ Appends a child and the constraint that sizes it. OWNERSHIP TRANSFERS -- the sta
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStack st

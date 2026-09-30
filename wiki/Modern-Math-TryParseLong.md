@@ -11,7 +11,7 @@ TryParseLong( s )
 ## Examples
 
 ```freebasic
-#include once "fb/mathtext.bi"
+#import "std/numeric"
 using FB
 
 var r = TryParseLong( "42" )

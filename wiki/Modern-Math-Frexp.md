@@ -7,7 +7,7 @@ Splits a value into a fraction in [0.5, 1) and a power of two.
 ## Syntax
 
 ```freebasic
-Frexp( byval x as double, byref expo as long ) as double
+Frexp( byval x as float64, byref expo as int32 ) as float64
 ```
 
 ## Notes
@@ -19,11 +19,11 @@ Frexp( byval x as double, byref expo as long ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as long e
-dim as double f = Frexp( 1024.0, e )
+dim as int32 e
+dim as float64 f = Frexp( 1024.0, e )
 
 print f                      '' 0.5
 print e                      '' 11

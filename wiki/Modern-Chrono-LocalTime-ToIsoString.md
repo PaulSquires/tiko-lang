@@ -11,7 +11,7 @@ LocalTime.ToIsoString
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print LocalTime( 14, 30, 5, 0 ).ToIsoString( )         '' 14:30:05

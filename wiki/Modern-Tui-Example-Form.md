@@ -33,7 +33,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' Build (win64-msvc, win64 or linux-x86_64):
 ''     tiko form.bas
 
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 '' ---------------------------------------------------------------------------
@@ -57,10 +57,10 @@ dim shared as TuiWidgetPtrArray gFields
 
 sub BuildButtons( byref theme as TuiTheme )
 	'' the closures, and the widgets that carry them, in one scope
-	var onReset = sub[ byref gStatus ]( byval id as long )
+	var onReset = sub[ byref gStatus ]( byval id as int32 )
 		gStatus = "cleared"
 	end sub
-	var onSubmit = sub[ byref gStatus, byref gConfirm ]( byval id as long )
+	var onSubmit = sub[ byref gStatus, byref gConfirm ]( byval id as int32 )
 		gConfirm = TRUE
 		gStatus = "review and confirm"
 	end sub
@@ -104,7 +104,7 @@ type FormApp extends TuiApp
 	as TuiTheme theme
 	as TuiTextInputState nameState, emailState
 	as boolean subscribed
-	as long planChoice
+	as int32 planChoice
 	as TuiFocusRing ring
 	as TuiMessageBox confirmBox
 
@@ -121,7 +121,7 @@ end type
 
 destructor FormApp( )
 	'' RFC-0007 section 2: whoever holds the pointers owns them.
-	for i as long = 0 to gFields.Count( ) - 1
+	for i as int32 = 0 to gFields.Count( ) - 1
 		if( gFields[i] <> 0 ) then delete gFields[i]
 	next
 	gFields.Clear( )

@@ -11,7 +11,7 @@ LocalTime.FromTicks
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Ticks since midnight, 100 ns each

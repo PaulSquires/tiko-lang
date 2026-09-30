@@ -11,7 +11,7 @@ GrowthFactor( ratePerPeriod, periods )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' ( 1 + i )^n for an INTEGER n, EXACT, by binary exponentiation -- about

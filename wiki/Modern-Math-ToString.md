@@ -9,7 +9,7 @@ shortest string that reads back EXACTLY
 ```freebasic
 ToString( v )
 ToString( v, fmt )
-ToString( longint )
+ToString( int64 )
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ ToString( longint )
 ## Examples
 
 ```freebasic
-#include once "fb/mathtext.bi"
+#import "std/numeric"
 using FB
 
 '' THE SHORTEST STRING THAT READS BACK EXACTLY -- round-trip precision,

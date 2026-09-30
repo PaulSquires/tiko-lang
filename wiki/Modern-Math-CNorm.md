@@ -7,7 +7,7 @@ The modulus squared — the square root is not taken.
 ## Syntax
 
 ```freebasic
-CNorm( byref z as Complex ) as double
+CNorm( byref z as Complex ) as float64
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ CNorm( byref z as Complex ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CNorm( CSet( 3, 4 ) )                              '' 25

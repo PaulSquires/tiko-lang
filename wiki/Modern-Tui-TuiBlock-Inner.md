@@ -15,7 +15,7 @@ The space left inside the border, which depends on which sides are drawn. ALWAYS
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBlock b

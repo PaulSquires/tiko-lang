@@ -17,7 +17,7 @@ WriteAllBytes( p, buf )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Everything below happens inside a temp directory of its own, and is
@@ -27,7 +27,7 @@ dim as ustring dir_ = td.Value( )
 
 dim as ustring p = PathJoin( dir_, "f.bin" )
 
-dim buf as Array( of ubyte )
+dim buf as Array( of uint8 )
 buf.Push( 65 ) : buf.Push( 66 )
 
 print WriteAllBytes( p, buf ).IsOk( )    '' true

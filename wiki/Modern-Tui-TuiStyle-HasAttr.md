@@ -15,7 +15,7 @@ Tests one attribute bit. The attributes are TUIATTR_BOLD, _DIM, _ITALIC, _UNDERL
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle s = TuiStyleOf( TuiWhite( ), TuiBlack( ), TUIATTR_BOLD or TUIATTR_UNDERLINE )

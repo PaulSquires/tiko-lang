@@ -17,7 +17,7 @@ TallyChars( s, chars [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print TallyChars( "hello world", "lo" )      '' 5 -- l, l, o, o, l

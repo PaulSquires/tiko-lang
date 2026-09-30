@@ -11,7 +11,7 @@ DiscountFactor( ratePerPeriod, periods )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' 1 / ( 1 + i )^n -- what a pound at period n is worth today.

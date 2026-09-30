@@ -11,7 +11,7 @@ s.ScheduledPayment_  s.FinalPayment_  s.PaymentCount_  s.TotalPaid_  s.TotalInte
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' What LoanSummarize returns.  The last three fields are the ones that

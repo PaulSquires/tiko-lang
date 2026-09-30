@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiColor.Index( ) as ubyte
+TuiColor.Index( ) as uint8
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The palette index, for an ANSI-16 or 256-colour value. Meaningless for RGB and d
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiIndexed( 214 ).Index( )             '' 214

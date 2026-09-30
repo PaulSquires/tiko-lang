@@ -11,8 +11,7 @@ IsSortedBy( a, less ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )

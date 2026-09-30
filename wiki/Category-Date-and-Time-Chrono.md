@@ -3,7 +3,7 @@
 # Date and Time (Chrono)
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime d = DateTime( 2025, 3, 4, 14, 30, 5, 0 ).WithOffset( 330 )
@@ -49,13 +49,13 @@ Five value types and four namespaces. Each type answers one question, and the sp
 ```freebasic
 TimeSpan      a fixed duration, signed. NOT a calendar period.
 LocalDate     a date, no time, no offset
-LocalTime     a time of day, no date, no offset: 0 .. a tick short of a day
+LocalTime     a time of day, no date, no offset: 0 .. a tick int16 of a day
 Instant       an absolute point on the UTC timeline. No offset field,
               because an absolute point does not have one.
 DateTime      a civil date-time PLUS a UTC offset
 
 WallClock         what time is it (can jump)
-Stopwatch     how long since (monotonic, never jumps)
+Stopwatch     how int32 since (monotonic, never jumps)
 CpuClock      how much CPU this process or thread burned
 TimeZoneInfo  the OS zone: offset at an instant, DST, names
 ```
@@ -147,22 +147,22 @@ TimeSpan( ticks )
 TimeSpan( h, mi, s )
 TimeSpan( d, h, mi, s, ms )
 .FromDays / FromHours / FromMinutes / FromSeconds /
-  FromMilliseconds( double )                  rounds half away from zero
-.FromMicroseconds( longint )                  longint, not double
-.FromTicks( longint )
+  FromMilliseconds( float64 )                  rounds half away from zero
+.FromMicroseconds( int64 )                  int64, not float64
+.FromTicks( int64 )
 .Zero / .MinValue / .MaxValue / .Invalid
 
-.Ticks                                        longint
+.Ticks                                        int64
 .TotalDays .TotalHours .TotalMinutes
-  .TotalSeconds .TotalMilliseconds            double, the whole span
-.TotalMicroseconds                            longint
+  .TotalSeconds .TotalMilliseconds            float64, the whole span
+.TotalMicroseconds                            int64
 .Days .Hours .Minutes .Seconds
-  .Milliseconds .Microseconds                 long, the broken-down pieces
+  .Milliseconds .Microseconds                 int32, the broken-down pieces
 .IsValid .IsZero .IsNegative
 
 .Negate .Duration                             Duration is absolute value
 .Add .Subtract .Multiply( f ) .Divide( f )
-.DivideBy( other )                            double; NaN on zero or Invalid
+.DivideBy( other )                            float64; NaN on zero or Invalid
 .CompareTo( other )                           -1 0 1, or -2
 
 .ToIsoString / .ToString                      P1DT2H3M4.5S
@@ -276,7 +276,7 @@ offsets and instants
 exact arithmetic -- ticks, no calendar
 
 .Add( span ) .Subtract( span ) .AddTicks( n )
-.AddDays .AddHours .AddMinutes .AddSeconds .AddMilliseconds   (double)
+.AddDays .AddHours .AddMinutes .AddSeconds .AddMilliseconds   (float64)
 
 calendar arithmetic -- LONG, not a TimeSpan
 
@@ -294,10 +294,10 @@ interop
 
 .FromUnixSeconds .FromUnixMilliseconds
 .UnixSeconds .UnixMilliseconds .UnixMicroseconds
-.FromSerial( double ) / .Serial            legacy datetime.bi
-.FromFileTime( longint ) / .FileTime       Win32 FILETIME
-.FromOleDate( double ) / .OleDate          OLE automation date
-.FromJulianDay( double ) / .JulianDay / .JulianDayNumber
+.FromSerial( float64 ) / .Serial            legacy datetime.bi
+.FromFileTime( int64 ) / .FileTime       Win32 FILETIME
+.FromOleDate( float64 ) / .OleDate          OLE automation date
+.FromJulianDay( float64 ) / .JulianDay / .JulianDayNumber
 
 text
 
@@ -455,9 +455,9 @@ THE PARSE CONTRACT, for every type:
    caller who ignores the return value cannot read a stale value.
 3. Never raises err( ), never throws, never writes to stderr.
 4. Leading and trailing ASCII whitespace is trimmed first. Interior
-   whitespace, other than the single RFC 3339 space, is an error.
+   whitespace, other than the float32 RFC 3339 space, is an error.
 5. Empty or all-whitespace input is a failure, not a zero value.
-6. Byte-oriented ASCII. A UTF-8 BOM is not skipped; it is an error.
+6. int8-oriented ASCII. A UTF-8 BOM is not skipped; it is an error.
 ```
 
 ParseIso is TryParseIso with the boolean dropped -- it returns Invalid on failure and is for the cases where a literal is known good.
@@ -624,11 +624,11 @@ Unix seconds/ms/us      Instant and DateTime, both directions
 Win32 FILETIME          .FileTime / .FromFileTime      1601-01-01
 OLE automation date     .OleDate / .FromOleDate        1899-12-30
 Julian day              .JulianDay / .JulianDayNumber / .FromJulianDay
-legacy serial double    .Serial / .FromSerial          datetime.bi
+legacy serial float64   .Serial / .FromSerial          datetime.bi
 
-dim as double serial = DateSerial( 2025, 3, 4 )
+dim as float64 serial = DateSerial( 2025, 3, 4 )
 dim as FB.DateTime d = FB.DateTime.FromSerial( serial )
-dim as double back   = d.Serial
+dim as float64 back   = d.Serial
 ```
 
 The serial bridge is LOSSY BELOW ABOUT A MILLISECOND -- a double carries ~15 significant digits and a present-day serial spends most of them on the integer part. Everything above millisecond resolution round-trips exactly, asserted over 1900-2100. Nothing else in this list is lossy.
@@ -657,8 +657,8 @@ AddDays( 1 ) across DST          exactly 86400s; the wall time moves
 AddMonths then reverse           does not return to the original day
 TotalHours vs Hours              26.05 vs 2, for the same span
 negative span components         all negative, so they reconstruct
-TimeSpan.DivideBy( zero )        NaN, not Invalid -- it is a double
-ToString( "d" )                  the named short-date format, not a field
+TimeSpan.DivideBy( zero )        NaN, not Invalid -- it is a float64
+ToString( "d" )                  the named int16-date format, not a field
 ToLocaleString                   not reproducible; never write it to a file
 ```
 

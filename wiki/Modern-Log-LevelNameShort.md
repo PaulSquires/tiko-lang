@@ -11,7 +11,7 @@ LevelNameShort( lv ) as ustring
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 print LevelNameShort( LOG_TRACE )    '' TRC

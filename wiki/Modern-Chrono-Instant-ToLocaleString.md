@@ -7,7 +7,7 @@ The date and time as the machine's locale writes them.
 ## Syntax
 
 ```freebasic
-ToLocaleString( byval style as long = lsShort ) as string
+ToLocaleString( byval style as int32 = lsShort ) as string
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ ToLocaleString( byval style as long = lsShort ) as string
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 0 )

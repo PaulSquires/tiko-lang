@@ -11,7 +11,7 @@ LoanBalanceAt( loanTerms, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The closed form, O(1) -- it does NOT walk, so it does not include

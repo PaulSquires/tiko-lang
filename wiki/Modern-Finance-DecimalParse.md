@@ -11,7 +11,7 @@ DecimalParse( s )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' Parses text exactly, with no double anywhere in the path

@@ -11,14 +11,14 @@ SortinoRatio( periodReturns( ), targetPerPeriod, frequency )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Sharpe's cousin, dividing by DOWNSIDE deviation instead of total
 '' volatility -- so a portfolio is not penalised for rising sharply.
-dim as double r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
+dim as float64 r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
                                0.01, -0.005, 0.02, 0.03, -0.015, 0.025 }
-dim as double b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
+dim as float64 b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
                                0.008, -0.004, 0.018, 0.028, -0.012, 0.022 }
 
 print SortinoRatio( r( ), 0.0, RETURN_MONTHLY ).Value( )         '' 4.323460152737352
@@ -30,7 +30,7 @@ dim as boolean higher = ( SortinoRatio( r( ), 0.0, RETURN_MONTHLY ).Value( ) > _
 print higher                             '' true
 
 '' Never below target means no downside deviation and so no ratio.
-dim as double up_( 0 to 3 ) = { 0.01, 0.02, 0.01, 0.03 }
+dim as float64 up_( 0 to 3 ) = { 0.01, 0.02, 0.01, 0.03 }
 print SortinoRatio( up_( ), 0.0, RETURN_MONTHLY ).Failure( ).Message( )
 ```
 

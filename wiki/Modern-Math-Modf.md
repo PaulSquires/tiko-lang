@@ -7,22 +7,22 @@ Splits a value into its integer and fractional parts.
 ## Syntax
 
 ```freebasic
-Modf( byval x as double, byref ipart as double ) as double
+Modf( byval x as float64, byref ipart as float64 ) as float64
 ```
 
 ## Notes
 
 - Returns the fraction and writes the integer part through `ipart`. **Both keep the sign of the input**, which is what makes the two parts add back to it.
 - That sign rule is the difference from `Floor`: `Modf( -2.5 )` gives -2 and -0.5, not -3 and 0.5.
-- The integer part comes back as a `double`, so it is exact for any magnitude the type can hold.
+- The integer part comes back as a `float64`, so it is exact for any magnitude the type can hold.
 
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double ip
+dim as float64 ip
 print Modf( 2.75, ip )       '' 0.75
 print ip                     '' 2
 

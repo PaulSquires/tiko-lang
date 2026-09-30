@@ -11,7 +11,7 @@ p.Digits_  p.Mode_  p.RoundEach_
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A rounding policy: how many places, which mode, and whether to round

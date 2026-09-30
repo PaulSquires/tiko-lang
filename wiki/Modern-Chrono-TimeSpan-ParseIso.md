@@ -11,7 +11,7 @@ TimeSpan.ParseIso( s )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as TimeSpan t = TimeSpan.ParseIso( "P1DT2H3M4S" )

@@ -7,7 +7,7 @@ The logarithm of the modulus, without forming the modulus.
 ## Syntax
 
 ```freebasic
-CLogAbs( byref z as Complex ) as double
+CLogAbs( byref z as Complex ) as float64
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ CLogAbs( byref z as Complex ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CLogAbs( CSet( 1e300, 1e300 ) )  '' 691.1221014884936

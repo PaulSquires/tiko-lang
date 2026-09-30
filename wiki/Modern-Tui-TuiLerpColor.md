@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiLerpColor( byval a as TuiColor, byval b as TuiColor, byval t as double ) as TuiColor
+TuiLerpColor( byval a as TuiColor, byval b as TuiColor, byval t as float64 ) as TuiColor
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Linear interpolation between two colours, t from 0 to 1. What a meter's gradient
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor green_ = TuiRgb( 0, 255, 0 )

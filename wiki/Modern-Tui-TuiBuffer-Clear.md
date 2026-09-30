@@ -15,7 +15,7 @@ Fills every cell with a blank in the given style.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBuffer b

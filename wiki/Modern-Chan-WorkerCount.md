@@ -7,7 +7,7 @@ How many OS threads the scheduler is running goroutines on.
 ## Syntax
 
 ```freebasic
-WorkerCount( ) as long
+WorkerCount( ) as int32
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ WorkerCount( ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 print WorkerCount( ) >= 1        '' -1 (true) -- at least one

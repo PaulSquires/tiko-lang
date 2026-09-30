@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiStylePatch( byval fg as TuiColor, byval bg as TuiColor, byval attrs as ushort, byval which as ushort ) as TuiStyle
+TuiStylePatch( byval fg as TuiColor, byval bg as TuiColor, byval attrs as uint16, byval which as uint16 ) as TuiStyle
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Builds a PARTIAL style: `which` is the mask of what this style actually sets. Ev
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 '' a style that sets ONLY the bold bit

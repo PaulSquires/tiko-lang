@@ -6,9 +6,9 @@
 
 ```freebasic
 type TuiSelectState
-    as long selected
+    as int32 selected
     as boolean open_
-    as long highlight
+    as int32 highlight
 end type
 ```
 
@@ -19,7 +19,7 @@ The dropdown's state. `selected` is the committed choice; `highlight` is where t
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSelectState st

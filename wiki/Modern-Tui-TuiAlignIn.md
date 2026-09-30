@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiAlignIn( byval outer as TuiRect, byval w as long, byval a as TuiAlign ) as TuiRect
+TuiAlignIn( byval outer as TuiRect, byval w as int32, byval a as TuiAlign ) as TuiRect
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A w-wide rect placed left, centre or right inside another, full height. What a s
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect outer_ = TuiRectOf( 0, 0, 20, 3 )

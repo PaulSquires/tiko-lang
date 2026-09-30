@@ -7,7 +7,7 @@ Spherical linear interpolation between two rotations.
 ## Syntax
 
 ```freebasic
-Slerp( byref a as Quat, byref b as Quat, byval t as single ) as Quat
+Slerp( byref a as Quat, byref b as Quat, byval t as float32 ) as Quat
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ Slerp( byref a as Quat, byref b as Quat, byval t as single ) as Quat
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Quat a = type<Quat>( 0, 0, 0, 1 )

@@ -11,7 +11,7 @@ LoanImpliedRate( principal, payment, termMonths, paymentFrequency, compounding )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The rate a known payment implies -- the phase-3 root finder reaching

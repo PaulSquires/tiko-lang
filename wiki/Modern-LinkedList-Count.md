@@ -5,19 +5,19 @@
 ## Syntax
 
 ```freebasic
-Count( ) as long
+Count( ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/linkedlist.bi"
+#import "std/containers"
 using FB
 
-dim q as LinkedList( of long )
+dim q as LinkedList( of int32 )
 print q.Count            '' 0
 
-for i as long = 1 to 3
+for i as int32 = 1 to 3
     q.PushBack( i )
 next
 print q.Count            '' 3

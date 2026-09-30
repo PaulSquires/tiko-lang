@@ -19,11 +19,11 @@ RunningStats.Reset( )
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
 dim rs as RunningStats
-for i as long = 1 to 5 : rs.Add( i ) : next
+for i as int32 = 1 to 5 : rs.Add( i ) : next
 print rs.Count( )            '' 5
 
 rs.Reset( )

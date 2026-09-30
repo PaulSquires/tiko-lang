@@ -8,8 +8,8 @@ Raises a complex number to a complex or real power.
 
 ```freebasic
 CPow( byref z as Complex, byref w as Complex ) as Complex
-CPow( byref z as Complex, byval p as double  ) as Complex
-CPow( byval x as double,  byref w as Complex ) as Complex
+CPow( byref z as Complex, byval p as float64 ) as Complex
+CPow( byval x as float64,  byref w as Complex ) as Complex
 ```
 
 ## Notes
@@ -22,7 +22,7 @@ CPow( byval x as double,  byref w as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CPow( CSet( 3, 4 ), 2.0 ) )        '' -6.999999999999998+24.000000000000004i

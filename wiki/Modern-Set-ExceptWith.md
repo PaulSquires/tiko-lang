@@ -19,7 +19,7 @@ ExceptWith( byref other as Set( of T ) )
 ## Examples
 
 ```freebasic
-#include once "fb/set.bi"
+#import "std/containers"
 using FB
 
 dim a as Set( of integer )

@@ -11,7 +11,7 @@ ValueOr( byref dflt as T ) byref as T
 ## Examples
 
 ```freebasic
-#include once "fb/optional.bi"
+#import "std/outcome"
 using FB
 
 dim some_ as Optional( of integer ) = Some( 42 )

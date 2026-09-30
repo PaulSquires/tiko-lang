@@ -11,7 +11,7 @@ LocalDate.TryParseIso
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalDate d

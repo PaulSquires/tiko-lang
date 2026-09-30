@@ -7,7 +7,7 @@ How many elements the array holds.
 ## Syntax
 
 ```freebasic
-Count( a( ) as T ) as ulongint
+Count( a( ) as T ) as uint64
 ```
 
 ## Notes
@@ -18,10 +18,10 @@ Count( a( ) as T ) as ulongint
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print Count( a( ) )          '' 5
 

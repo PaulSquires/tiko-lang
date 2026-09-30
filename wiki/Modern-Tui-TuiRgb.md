@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRgb( byval r as long, byval g as long, byval b as long ) as TuiColor
+TuiRgb( byval r as int32, byval g as int32, byval b as int32 ) as TuiColor
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A 24-bit colour. Write these freely: on a 256-colour or 16-colour terminal the r
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor c = TuiRgb( 120, 220, 160 )

@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiSpinner extends TuiWidget
-    as long frame
+    as int32 frame
     as TuiStringArray frames
     as TuiStyle st
 end type
@@ -19,7 +19,7 @@ A busy indicator. It does NOT animate itself -- call Advance on a tick, which ke
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSpinner s

@@ -12,15 +12,15 @@ TimeSpan.FromSeconds( v )
 
 ## Notes
 
-- Takes a `double`, so sub-second values survive down to the 100 ns tick.
+- Takes a `float64`, so sub-second values survive down to the 100 ns tick.
 - Rounds **half away from zero** below the tick.
 - NaN or an out-of-range value yields Invalid.
-- Below a millisecond, prefer `FromMicroseconds` or `FromTicks`: those take a `longint` and cannot lose a tick to floating point.
+- Below a millisecond, prefer `FromMicroseconds` or `FromTicks`: those take a `int64` and cannot lose a tick to floating point.
 
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromSeconds( 90 ).TotalMinutes    '' 1.5

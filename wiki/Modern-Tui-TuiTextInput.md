@@ -20,7 +20,7 @@ A one-line editor: cursor, selection, word movement, password masking. Editing k
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextInputState st

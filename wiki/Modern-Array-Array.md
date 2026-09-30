@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Array( of Array( of long ) )
+Array( of Array( of int32 ) )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 '' A growable array. Indices are ZERO-based -- a deliberate break with

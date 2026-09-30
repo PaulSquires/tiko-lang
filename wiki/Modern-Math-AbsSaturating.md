@@ -18,13 +18,13 @@ AbsSaturating( byval a as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte worst = -128
+dim as int8 worst = -128
 print AbsSaturating( worst ) '' 127 -- clamped, not left negative
 
-dim as byte ordinary = -5
+dim as int8 ordinary = -5
 print AbsSaturating( ordinary )               '' 5
 ```
 

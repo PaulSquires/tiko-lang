@@ -11,7 +11,7 @@ FinSolverOptionsWithGuess( guess )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The defaults, plus a starting point.  A good seed saves iterations; it

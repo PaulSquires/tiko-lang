@@ -15,7 +15,7 @@ What the terminal is believed to be showing. After Render the two buffers have s
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -11,7 +11,7 @@ Items( ) as Array( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/orderedset.bi"
+#import "std/containers"
 using FB
 
 dim s as OrderedSet( of integer )
@@ -20,7 +20,7 @@ s.Add( 30 ) : s.Add( 10 ) : s.Add( 20 )
 '' A snapshot, already SORTED -- the difference from Set.Items( ),
 '' which comes out in no particular order
 dim xs as Array( of integer ) = s.Items( )
-for i as long = 0 to xs.Count - 1
+for i as int32 = 0 to xs.Count - 1
     print xs[ i ];
 next
 print                    '' 10 20 30

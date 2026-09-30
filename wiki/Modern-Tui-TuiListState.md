@@ -6,8 +6,8 @@
 
 ```freebasic
 type TuiListState
-    as long selected   '' -1 = nothing selected
-    as long offset     '' first visible row
+    as int32 selected   '' -1 = nothing selected
+    as int32 offset     '' first visible row
 end type
 ```
 
@@ -18,7 +18,7 @@ A list's selection and scroll, owned by you. Set `selected` directly if your app
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiListState st

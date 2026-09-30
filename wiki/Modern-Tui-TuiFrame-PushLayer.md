@@ -15,7 +15,7 @@ Starts an overlay. A popup or an open dropdown draws inside a layer, which is wh
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

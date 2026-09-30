@@ -11,7 +11,7 @@ DepreciationDoubleDeclining( terms, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Declining balance at twice the straight-line rate.  It IGNORES

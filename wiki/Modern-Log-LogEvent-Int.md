@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Int_( k, v as longint )
+Int_( k, v as int64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

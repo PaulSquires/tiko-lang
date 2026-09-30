@@ -18,7 +18,7 @@ RoundHalfEven( x, digits )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 '' BANKER'S ROUNDING: a half goes to the EVEN neighbour, so a long run

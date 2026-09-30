@@ -11,10 +11,10 @@ FinSolveRoot( objective, ctx, options )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
-private function fRoot( byval x as double, byval ctx as any ptr ) as double
+private function fRoot( byval x as float64, byval ctx as any ptr ) as float64
     return x * x - 2.0
 end function
 

@@ -25,7 +25,7 @@ SplitCsv( s [, delim] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 '' A quoted comma is content -- this is what Split cannot do

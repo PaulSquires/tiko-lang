@@ -17,7 +17,7 @@ FsError.Code( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Every failing FS call returns a result carrying one of these

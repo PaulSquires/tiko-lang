@@ -11,7 +11,7 @@ RatePerPaymentFromNominal( nominalAnnual, compounding, paymentFrequency )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' THE FUNNEL every loan function goes through, and the reason this

@@ -11,13 +11,13 @@ IsEmpty( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/linkedlist.bi"
+#import "std/containers"
 using FB
 
-dim q as LinkedList( of long )
+dim q as LinkedList( of int32 )
 print q.IsEmpty          '' true
 
-dim as long x = 1
+dim as int32 x = 1
 q.PushBack( x )
 print q.IsEmpty          '' false
 

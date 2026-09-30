@@ -11,7 +11,7 @@ DAYCOUNT_ACTUAL_365_FIXED  DAYCOUNT_ACTUAL_360  DAYCOUNT_ACTUAL_ACTUAL_ISDA  DAY
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The six bases, and the case that separates the two 30/360 variants.

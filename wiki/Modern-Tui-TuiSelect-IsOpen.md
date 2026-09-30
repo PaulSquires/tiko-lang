@@ -15,7 +15,7 @@ Whether the dropdown is showing its list. Worth checking before you draw anythin
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSelectState st

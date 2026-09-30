@@ -15,7 +15,7 @@ Tells the widget it does or does not have focus. TuiFocusRing calls this for you
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCheckbox c

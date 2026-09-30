@@ -7,7 +7,7 @@
 ```freebasic
 type TuiFrame
     declare function Area( ) as TuiRect
-    declare function DrawText( ... ) as long
+    declare function DrawText( ... ) as int32
     ...
 end type
 ```
@@ -19,7 +19,7 @@ The per-frame draw target: a buffer plus a clip rect and a layer stack. DRAWING 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

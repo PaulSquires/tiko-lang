@@ -15,7 +15,7 @@ Adds a title to one side of the border. SEVERAL TITLES CAN SHARE ONE BORDER, eac
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

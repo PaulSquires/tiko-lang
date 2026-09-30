@@ -3,7 +3,7 @@
 # String Library
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Replace( "Hello World", "World", "Earth" )   ' Hello Earth
@@ -76,13 +76,13 @@ n is the input length, m the pattern length.
 SEARCH AND INSPECT                                          returns
 
 ```freebasic
-Tally( s, match [, ic] )                     O(n*m)   long
+Tally( s, match [, ic] )                     O(n*m)   int32
     Non-overlapping occurrences. "aaaa" contains "aa" TWICE.
-TallyChars( s, chars [, ic] )                O(n*k)   long
-InstrChars( start, s, chars [, ic] )         O(n*k)   long
-VerifySet( start, s, chars [, ic] )          O(n*k)   long
+TallyChars( s, chars [, ic] )                O(n*k)   int32
+InstrChars( start, s, chars [, ic] )         O(n*k)   int32
+VerifySet( start, s, chars [, ic] )          O(n*k)   int32
     First position NOT in the set, or 0 if every one is.
-SpanOf( start, s, chars [, ic] )             O(n*k)   long
+SpanOf( start, s, chars [, ic] )             O(n*k)   int32
 StartsWith( s, prefix [, ic] )               O(m)     boolean
 EndsWith( s, suffix [, ic] )                 O(m)     boolean
 Contains( s, match [, ic] )                  O(n*m)   boolean
@@ -419,7 +419,7 @@ tiko does the same (measured 2026-09-24 against fbc 1.20.0, FBC-Modern), and tes
 `fb/moneyformat.bi` renders an amount the way the user's locale writes money. Assign a numeric value, set the properties you care about, read back the string.
 
 ```freebasic
-#include once "fb/moneyformat.bi"
+#import "std/money"
 using FB
 
 dim as MoneyFormat m = DecimalParse( "-1234.5" ).Value( )

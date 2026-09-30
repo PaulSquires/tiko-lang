@@ -11,7 +11,7 @@ DepreciationStraightLine( terms, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The depreciable base spread evenly: ( cost - salvage ) / life.

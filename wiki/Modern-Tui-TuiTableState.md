@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiTableState
-    as long selected, offset
+    as int32 selected, offset
 end type
 ```
 
@@ -17,7 +17,7 @@ A table's selection and scroll, owned by you.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTableState st

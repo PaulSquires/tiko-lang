@@ -11,7 +11,7 @@ PathHasExtension( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 print PathHasExtension( "main.tko" )       '' true

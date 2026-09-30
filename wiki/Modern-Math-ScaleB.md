@@ -7,7 +7,7 @@ Multiplies by a power of two, exactly and without overflow in the exponent.
 ## Syntax
 
 ```freebasic
-ScaleB( byval x as double, byval n as long ) as double
+ScaleB( byval x as float64, byval n as int32 ) as float64
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ ScaleB( byval x as double, byval n as long ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print ScaleB( 1.0, 10 )      '' 1024

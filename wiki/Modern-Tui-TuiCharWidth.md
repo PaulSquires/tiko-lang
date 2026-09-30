@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCharWidth( byval cp as ulong ) as long
+TuiCharWidth( byval cp as uint32 ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ How many columns one codepoint occupies: 0, 1 or 2. From a table generated out o
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiCharWidth( asc( "A" ) )  '' 1

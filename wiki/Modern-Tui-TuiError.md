@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiError
-    as long code       '' TuiErrorCode
+    as int32 code       '' TuiErrorCode
     as string detail
     declare function Message( ) as string
 end type
@@ -19,7 +19,7 @@ The error carried by every Result in the module. Errors exist only at the termin
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiError e = TuiError( TUIERR_NOTATTY, "stdout is not a console", 0 )

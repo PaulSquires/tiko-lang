@@ -7,7 +7,7 @@ How many goroutines currently exist.
 ## Syntax
 
 ```freebasic
-GoroutineCount( ) as long
+GoroutineCount( ) as int32
 ```
 
 ## Notes
@@ -19,14 +19,14 @@ GoroutineCount( ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 print GoroutineCount( ) >= 0     '' -1 (true)
 
 '' Worth asserting at the end of a test: a count that keeps climbing
 '' between runs is a goroutine leak
-dim as long before = GoroutineCount( )
+dim as int32 before = GoroutineCount( )
 print before >= 0                '' -1 (true)
 ```
 

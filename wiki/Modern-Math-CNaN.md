@@ -19,7 +19,7 @@ CNaN( ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CIsNaN( CNaN( ) )     '' true

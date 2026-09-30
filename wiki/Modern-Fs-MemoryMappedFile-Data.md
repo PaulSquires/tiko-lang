@@ -17,7 +17,7 @@ MemoryMappedFile.Data( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -30,7 +30,7 @@ mm.Open( p )
 
 '' A raw pointer to the mapped bytes -- reading it touches the file
 '' through the page cache, with no read call at all
-dim as ubyte ptr b = mm.Data( )
+dim as uint8 ptr b = mm.Data( )
 print b[ 0 ]                 '' 104 -- "h"
 print chr( b[ 0 ] ) & chr( b[ 1 ] )       '' he
 

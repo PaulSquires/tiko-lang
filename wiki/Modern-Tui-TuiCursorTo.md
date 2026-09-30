@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCursorTo( byval x as long, byval y as long ) as string
+TuiCursorTo( byval x as int32, byval y as int32 ) as string
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The cursor-position sequence for a 0-BASED cell. VT is 1-based; this is the one 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiCursorTo( 0, 0 ) = chr( 27 ) & "[1;1H" '' -1 (true)

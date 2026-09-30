@@ -11,7 +11,7 @@ TimeSpan.IsZero
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.Zero( ).IsZero             '' true

@@ -15,7 +15,7 @@ Runs detection again, without entering. Useful before Enter -- to choose a theme
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

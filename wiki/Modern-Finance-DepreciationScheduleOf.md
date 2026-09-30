@@ -11,7 +11,7 @@ DepreciationScheduleOf( terms, method )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Builds the schedule for a method.  This is the ONLY way to reach

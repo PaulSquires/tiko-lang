@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiTerminal.Pending( ) as long
+TuiTerminal.Pending( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Bytes buffered and not yet flushed.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

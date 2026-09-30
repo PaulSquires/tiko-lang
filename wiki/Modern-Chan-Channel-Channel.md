@@ -21,24 +21,24 @@ Channel( of T )( [ capacity ] )
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 
 print ch.Capacity( )         '' 4
 print ch.IsNil( )            '' false -- constructed, not default
 
-dim as long v = 42
+dim as int32 v = 42
 ch.TrySend( v )
 print ch.Count( )            '' 1
 
-dim as long got
+dim as int32 got
 ch.TryReceive( got )
 print got                    '' 42
 
 '' A DEFAULT-CONSTRUCTED channel is nil, and blocks forever if used
-dim nilch as Channel( of long )
+dim nilch as Channel( of int32 )
 print nilch.IsNil( )         '' true
 ```
 

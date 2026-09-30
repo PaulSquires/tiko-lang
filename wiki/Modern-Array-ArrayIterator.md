@@ -20,20 +20,20 @@ ArrayIterator( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 1 ) : v.Push( 2 ) : v.Push( 3 )
 
-dim it as ArrayIterator( of long ) = v.GetIterator( )
+dim it as ArrayIterator( of int32 ) = v.GetIterator( )
 while it.IsValid( )
     print it.Value( )        '' 1 / 2 / 3
     it.MoveNext( )
 wend
 
 '' Value( ) is byref, so it assigns through
-dim jt as ArrayIterator( of long ) = v.GetIterator( )
+dim jt as ArrayIterator( of int32 ) = v.GetIterator( )
 jt.Value( ) = 99
 print v[ 0 ]                 '' 99
 ```

@@ -11,10 +11,10 @@ IsOk( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
-dim r as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
+dim r as Result( of int32, ustring ) = Ok( of int32, ustring )( 42 )
 
 '' The guard, and it costs nothing. READING THE WRONG SIDE RAISES:
 '' Value( ) on a failure and Failure( ) on a success both raise
@@ -25,7 +25,7 @@ else
     print r.Failure( )
 end if
 
-dim bad as Result( of long, ustring ) = Fail( of long, ustring )( "nope" )
+dim bad as Result( of int32, ustring ) = Fail( of int32, ustring )( "nope" )
 print bad.IsOk( )            '' false
 ```
 

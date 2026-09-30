@@ -17,15 +17,15 @@ ISqrt( n )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
 '' The EXACT floor of the true square root -- integer arithmetic
 '' throughout, so it cannot be off by one the way clng( sqr( n ) ) can
-dim as ulongint n = 26
+dim as uint64 n = 26
 print ISqrt( n )             '' 5
 
-dim as ulongint sq = 25
+dim as uint64 sq = 25
 print ISqrt( sq )            '' 5
 
 '' At sizes where a double runs out of significand, sqr( ) starts

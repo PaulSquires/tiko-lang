@@ -11,7 +11,7 @@ RatePerPeriod( nominalAnnual, compounding )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The quoted annual rate divided by its compounding frequency.  EXACT --

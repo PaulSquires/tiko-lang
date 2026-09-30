@@ -7,7 +7,7 @@ A single in [0, 1).
 ## Syntax
 
 ```freebasic
-NextSingle( ) as single
+NextSingle( ) as float32
 ```
 
 ## Notes
@@ -19,12 +19,12 @@ NextSingle( ) as single
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
-dim as single v = r.NextSingle( )
+dim as float32 v = r.NextSingle( )
 print v >= 0.0 andalso v < 1.0                '' -1 (true)
 ```
 

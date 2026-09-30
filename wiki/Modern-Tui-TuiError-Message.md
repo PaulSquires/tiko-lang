@@ -15,7 +15,7 @@ A formatted line: what went wrong, what was being attempted, and the OS error nu
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiError e = TuiError( TUIERR_RAWMODE, "SetConsoleMode(in)", 5 )

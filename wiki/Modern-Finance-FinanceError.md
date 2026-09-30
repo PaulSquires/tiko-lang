@@ -11,7 +11,7 @@ err.Code( )  err.Message( )  err.Iterations( )  err.Residual( )  err.BestGuess( 
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Every fallible finance call returns Result( of T, FinanceError ).

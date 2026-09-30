@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiWrap( byref s as ustring, byval cols as long ) as TuiStringArray
+TuiWrap( byref s as ustring, byval cols as int32 ) as TuiStringArray
 ```
 
 ## Description
@@ -15,11 +15,11 @@ Word-wraps to a column width, returning the lines. Embedded chr(10) starts a new
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStringArray lines_ = TuiWrap( "the quick brown fox jumps", 10 )
-for i as long = 0 to lines_.Count( ) - 1
+for i as int32 = 0 to lines_.Count( ) - 1
     print "["; lines_[i]; "]"
 next
 '' [the quick ]

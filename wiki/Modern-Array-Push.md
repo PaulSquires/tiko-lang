@@ -17,14 +17,14 @@ Push( byref v as T )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 
 '' Amortised O(1): the storage doubles rather than reallocating per push,
 '' which is what the `redim preserve` append idiom gets wrong
-for i as long = 1 to 5
+for i as int32 = 1 to 5
     v.Push( i * i )
 next
 

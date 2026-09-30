@@ -11,7 +11,7 @@ DecimalFromParts( lo, mid, hi, neg, scale )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' The .NET constructor, limb for limb: three 32-bit words of mantissa, a

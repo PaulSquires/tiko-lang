@@ -11,7 +11,7 @@ TimeSpan.ToIsoUString
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The same text as ToIsoString, as a USTRING -- for a call site that

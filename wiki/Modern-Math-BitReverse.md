@@ -12,17 +12,17 @@ BitReverse( byval x as T ) as T
 
 ## Notes
 
-- Every bit of the type, not just the significant ones -- so the answer depends on the width and reversing a `ulong` 1 gives the top bit set.
+- Every bit of the type, not just the significant ones -- so the answer depends on the width and reversing a `uint32` 1 gives the top bit set.
 - Used by FFTs, by some CRC formulations and by Gray-code addressing.
 - **Not** `ByteSwap`: that reorders bytes and leaves each byte's bits alone.
 
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong x = 1
+dim as uint32 x = 1
 print hex( BitReverse( x ) ) '' 80000000 -- the bit moved to the top
 
 '' Its own inverse, like ByteSwap

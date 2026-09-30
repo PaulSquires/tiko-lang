@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.Dot( byval x as long, byval y as long, byval c as TuiColor )
+TuiCanvas.Dot( byval x as int32, byval y as int32, byval c as TuiColor )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Sets one dot in DOT coordinates, with a colour that tints the cell containing it
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCanvas cv = TuiCanvas( 4, 2 )        '' 8 x 8 dots

@@ -17,7 +17,7 @@ DeleteAt( s, start, count )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print DeleteAt( "1234567890", 4, 3 )    '' 1237890

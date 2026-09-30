@@ -15,7 +15,7 @@ Fills a rect with one character in one style. This is how a block paints its bac
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

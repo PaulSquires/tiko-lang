@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Instant.FromSerial( double )
+Instant.FromSerial( float64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The OLE/BASIC serial date: days since 1899-12-30, fractional

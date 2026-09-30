@@ -11,7 +11,7 @@ DecimalFromDouble( d )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' NAMED, because it is not exact -- the DOUBLE 0.1 is not one tenth.

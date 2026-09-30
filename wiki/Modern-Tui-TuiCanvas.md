@@ -6,8 +6,8 @@
 
 ```freebasic
 type TuiCanvas
-    declare constructor( byval cols as long, byval rows as long )
-    declare sub Dot( byval x as long, byval y as long, byval c as TuiColor )
+    declare constructor( byval cols as int32, byval rows as int32 )
+    declare sub Dot( byval x as int32, byval y as int32, byval c as TuiColor )
     ...
 end type
 ```
@@ -19,7 +19,7 @@ A braille sub-cell drawing surface. Each terminal cell holds a 2x4 dot grid, so 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCanvas cv = TuiCanvas( 40, 10 )      '' CELLS

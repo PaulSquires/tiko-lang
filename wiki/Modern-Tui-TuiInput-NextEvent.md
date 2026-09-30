@@ -15,7 +15,7 @@ The next complete event, or nothing. ESC IS AMBIGUOUS and always will be: a lone
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

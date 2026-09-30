@@ -15,7 +15,7 @@ True when this is the terminal's own default colour rather than a chosen one. It
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiDefaultColor( ).IsDefault( )        '' true

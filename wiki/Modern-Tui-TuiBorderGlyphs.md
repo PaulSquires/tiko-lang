@@ -15,14 +15,14 @@ The glyph set for a border kind. Use TUIBORDER_ASCII when TuiCaps reports the te
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiBorderGlyphs( TUIBORDER_ASCII ).h        '' -
 print TuiBorderGlyphs( TUIBORDER_DOUBLE ).h <> "-" '' -1 (true)
 
 dim as TuiTerminal term
-dim as ubyte k = iif( term.DetectCaps( ).unicode, _
+dim as uint8 k = iif( term.DetectCaps( ).unicode, _
                       TUIBORDER_ROUNDED, TUIBORDER_ASCII )
 ```
 

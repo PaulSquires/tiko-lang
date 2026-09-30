@@ -7,7 +7,7 @@ An Instant from a count of microseconds since the Unix epoch.
 ## Syntax
 
 ```freebasic
-Instant.FromUnixMicroseconds( byval v as longint ) as Instant
+Instant.FromUnixMicroseconds( byval v as int64 ) as Instant
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ Instant.FromUnixMicroseconds( byval v as longint ) as Instant
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as Instant i = Instant.FromUnixMicroseconds( 1500000 )

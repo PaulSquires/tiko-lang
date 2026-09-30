@@ -11,13 +11,12 @@ StableSortBy( a, less )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
 type Rec
     as ustring surname
-    as long    seq
+    as int32   seq
 end type
 
 dim v as Array( of Rec )
@@ -31,7 +30,7 @@ StableSortBy( v, function( byref x as Rec, byref y as Rec ) as boolean
     return x.surname < y.surname
 end function )
 
-for i as long = 0 to v.Count - 1
+for i as int32 = 0 to v.Count - 1
     print v[ i ].surname & " " & v[ i ].seq
 next                     '' hopper 2 / lovelace 1 / lovelace 3
 

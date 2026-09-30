@@ -2,24 +2,24 @@
 
 # Complex operators
 
-Arithmetic on complex numbers: `= <> + - * / ^`, each with a `double` on either side.
+Arithmetic on complex numbers: `= <> + - * / ^`, each with a `float64` on either side.
 
 ## Syntax
 
 ```freebasic
 operator +  ( byref a as Complex, byref b as Complex ) as Complex
-operator +  ( byref z as Complex, byval x as double  ) as Complex
-operator +  ( byval x as double,  byref z as Complex ) as Complex
+operator +  ( byref z as Complex, byval x as float64 ) as Complex
+operator +  ( byval x as float64,  byref z as Complex ) as Complex
 ''  - * / ^ likewise, and unary -
 operator =  ( byref a as Complex, byref b as Complex ) as boolean
-operator =  ( byref z as Complex, byval x as double  ) as boolean
-operator =  ( byval x as double,  byref z as Complex ) as boolean
+operator =  ( byref z as Complex, byval x as float64 ) as boolean
+operator =  ( byval x as float64,  byref z as Complex ) as boolean
 ''  <> likewise, in all three arrangements
 ```
 
 ## Notes
 
-- **Every operator has all three arrangements** — `Complex` with `Complex`, `double` with `Complex`, `Complex` with `double`. That is why there is no `CAddReal`/`CMulImag` family: `z + 3.0` and `z * 2.0` already say it, and better.
+- **Every operator has all three arrangements** — `Complex` with `Complex`, `float64` with `Complex`, `Complex` with `float64`. That is why there is no `CAddReal`/`CMulImag` family: `z + 3.0` and `z * 2.0` already say it, and better.
 - **Division uses Smith's formula**, in all three overloads. The naive `(ac+bd)/(c²+d²)` overflows its denominator once the components pass about `1.3e154`, where the true quotient is an ordinary number.
 - **Multiplication is the plain four-multiply form**, matching .NET. C99's infinity-recovery path is deliberately not implemented — it costs a branch on every multiply for a case that only arises in deliberate infinity arithmetic.
 - **`^` is `CPow`.** `z ^ 2.0`, `z ^ w` and `2.0 ^ z` all resolve to it.
@@ -30,7 +30,7 @@ operator =  ( byval x as double,  byref z as Complex ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex a = CSet( 3, 4 ), b = CSet( -1, 2 )

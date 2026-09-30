@@ -15,11 +15,11 @@ Set up, and return a command the loop honours BEFORE the first poll. It returns 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type DashApp extends TuiApp
-    as long frames
+    as int32 frames
     declare function Init( ) as TuiCmd override
     declare function Update( byref e as TuiEvent ) as TuiCmd override
     declare sub View( byref f as TuiFrame ) override

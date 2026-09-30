@@ -8,19 +8,19 @@ The inverse hyperbolic cosine.
 
 ```freebasic
 CAcosh( byref z as Complex ) as Complex
-CAcosh( byval x as double ) as Complex
+CAcosh( byval x as float64 ) as Complex
 ```
 
 ## Notes
 
 - Reached through the inverse **trigonometric** functions, so it inherits the Hull–Fairgrieve–Tang conditioning rather than carrying its own copy. `acosh z = ±i·acos z`, with the sign chosen to keep the real part non-negative, which is the principal branch.
 - **Cut along `(-∞, 1)`.** Between -1 and 1 on the real axis the answer is purely imaginary, and that segment is answered directly so that the real part comes out `+0` rather than the `-0` the rotation would produce.
-- The `double` overload is AfxNova's `CArcCosHReal`: the real `acosh` is undefined below 1 while the complex one is not.
+- The `float64` overload is AfxNova's `CArcCosHReal`: the real `acosh` is undefined below 1 while the complex one is not.
 
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAcosh( CSet( 2, 1 ) ) )      '' 1.4693517443681854+0.5073563032171445i

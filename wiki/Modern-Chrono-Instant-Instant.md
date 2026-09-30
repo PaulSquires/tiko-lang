@@ -12,7 +12,7 @@ Instant( ticks )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' An INSTANT is a moment on the UTC timeline -- a tick count with no

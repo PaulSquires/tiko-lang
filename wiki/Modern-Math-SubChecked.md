@@ -19,15 +19,15 @@ SubChecked( byval a as T, byval b as T ) as Optional( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte a = 100, b = 100
+dim as int8 a = 100, b = 100
 
 var r = SubChecked( a, b )
 print r.HasValue( )          '' false -- 200 does not fit in a BYTE
 
-dim as byte small = 1
+dim as int8 small = 1
 var ok = SubChecked( small, small )
 print ok.HasValue( )         '' true
 print ok.Value( )

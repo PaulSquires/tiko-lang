@@ -17,7 +17,7 @@ AddSink( s as Sink ptr )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' THE LOGGER DOES NOT OWN THE SINK -- it stores a pointer, so the sink

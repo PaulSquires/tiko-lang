@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiSize
-    as long cols, rows
+    as int32 cols, rows
 end type
 ```
 
@@ -17,7 +17,7 @@ Columns and rows. Returned by TuiTerminal.Size, by SizeHint, and carried on a re
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSize s = TuiSizeOf( 80, 24 )

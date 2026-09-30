@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCenter( byval outer as TuiRect, byval w as long, byval h as long ) as TuiRect
+TuiCenter( byval outer as TuiRect, byval w as int32, byval h as int32 ) as TuiRect
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A w-by-h rect centred inside another. This is how a dialog is placed, and it re-
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect box = TuiCenter( TuiRectOf( 0, 0, 80, 24 ), 40, 8 )

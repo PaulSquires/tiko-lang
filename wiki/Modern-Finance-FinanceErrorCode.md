@@ -11,7 +11,7 @@ FIN_OK  FIN_INVALID_RATE  FIN_NO_SIGN_CHANGE  FIN_NO_CONVERGENCE  ...
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Thirteen codes, each one a thing a caller can act on differently.

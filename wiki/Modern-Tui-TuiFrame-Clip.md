@@ -15,7 +15,7 @@ The rect writes are currently confined to. Equal to Area until something pushes 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

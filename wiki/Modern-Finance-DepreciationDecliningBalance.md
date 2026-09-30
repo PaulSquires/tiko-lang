@@ -11,7 +11,7 @@ DepreciationDecliningBalance( terms, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A fixed fraction of the REMAINING book value each period, so the

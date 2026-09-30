@@ -11,7 +11,7 @@ ClearFpExceptions( )
 ## Examples
 
 ```freebasic
-#include once "fb/fenv.bi"
+#import "std/numeric"
 using FB
 
 '' Clears every sticky flag at once. They ACCUMULATE until cleared, so
@@ -19,8 +19,8 @@ using FB
 ClearFpExceptions( )
 print TestFpException( FP_DIVBYZERO )     '' false
 
-dim as double z = 0.0
-dim as double r = 1.0 / z
+dim as float64 z = 0.0
+dim as float64 r = 1.0 / z
 print TestFpException( FP_DIVBYZERO )     '' true
 ```
 

@@ -7,7 +7,7 @@
 ```freebasic
 type TuiButton extends TuiWidget
     as ustring label
-    as long id
+    as int32 id
     as TuiOnClick onclick
     as TuiStyle normal, active
 end type
@@ -20,10 +20,10 @@ A focusable button whose callback is a PLAIN procedure pointer. For a callback t
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
-sub OnSave( byval id as long )
+sub OnSave( byval id as int32 )
     print "saved, button id "; id
 end sub
 

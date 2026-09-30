@@ -17,7 +17,7 @@ PadCenter( s, width [, pad] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print PadCenter( "FreeBasic", 13, "*" )    '' **FreeBasic**

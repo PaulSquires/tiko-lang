@@ -11,7 +11,7 @@ MoneyRoundingExact( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The analytical policy: RoundEach_ is false, so MoneyRound is the

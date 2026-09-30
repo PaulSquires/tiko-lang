@@ -20,7 +20,7 @@ CAtan( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAtan( CSet( 0.5, 0.25 ) ) )  '' 0.4842544903299662+0.2005866181312343i

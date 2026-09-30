@@ -11,7 +11,7 @@ Instant.DaysInYear( y )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print DateTime.DaysInYear( 2025 )       '' 365

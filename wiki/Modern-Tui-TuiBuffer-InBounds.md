@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiBuffer.InBounds( byval x as long, byval y as long ) as boolean
+TuiBuffer.InBounds( byval x as int32, byval y as int32 ) as boolean
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Bounds check. At( ) does not check for you, so this is the guard when you index 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBuffer b

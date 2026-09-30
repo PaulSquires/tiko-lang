@@ -19,10 +19,10 @@ FloorDiv( byval a as T, byval b as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as long a = -7, b = 2
+dim as int32 a = -7, b = 2
 
 print FloorDiv( a, b )       '' -4 -- towards negative infinity
 print a \ b                  '' -3 -- the built-in truncates towards zero

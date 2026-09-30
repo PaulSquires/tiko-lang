@@ -11,7 +11,7 @@ LocalDate.IsoWeek
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The ISO 8601 week number, 1 to 53. A week belongs to the year that

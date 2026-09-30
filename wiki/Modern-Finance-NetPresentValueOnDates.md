@@ -11,7 +11,7 @@ NetPresentValueOnDates( flows( ), annualRate, basis )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' NPV over irregular DATES rather than equal periods.  The discount

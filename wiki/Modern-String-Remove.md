@@ -17,7 +17,7 @@ Remove( s, match [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Remove( "Hello World", "l" )       '' Heo Word

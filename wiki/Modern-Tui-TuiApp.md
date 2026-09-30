@@ -21,11 +21,11 @@ The application. Three methods you must write: Init to set up, Update to react, 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type CounterApp extends TuiApp
-    as long n
+    as int32 n
     declare function Init( ) as TuiCmd override
     declare function Update( byref e as TuiEvent ) as TuiCmd override
     declare sub View( byref f as TuiFrame ) override

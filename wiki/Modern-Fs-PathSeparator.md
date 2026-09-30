@@ -17,7 +17,7 @@ PathSeparator( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' The native separator, as a string

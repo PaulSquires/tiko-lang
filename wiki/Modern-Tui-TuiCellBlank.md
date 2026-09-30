@@ -15,7 +15,7 @@ A space in the given style -- what Clear fills a buffer with.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCell c = TuiCellBlank( TuiStyleOf( TuiWhite( ), TuiBlack( ) ) )

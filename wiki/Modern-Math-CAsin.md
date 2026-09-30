@@ -8,7 +8,7 @@ The inverse sine.
 
 ```freebasic
 CAsin( byref z as Complex ) as Complex
-CAsin( byval x as double ) as Complex
+CAsin( byval x as float64 ) as Complex
 ```
 
 ## Notes
@@ -16,13 +16,13 @@ CAsin( byval x as double ) as Complex
 - **The Hull–Fairgrieve–Tang method**, transcribed from .NET's `Asin_Internal`. The textbook `-i·Log( iz + CSqrt( 1 - z² ) )` cancels catastrophically near the branch points at ±1, which is exactly where an inverse sine is most often evaluated. This does not.
 - **Exactly ±1 on the real axis is answered directly.** `Asin_Internal` divides by zero there — its `t` term contains `1/( s + ( x - 1 ) )` and `s` is zero — so .NET's own `Asin( 1 )` is **NaN** rather than π/2.
 - **The cuts are the real axis beyond ±1, and the sign of a zero imaginary part decides the side.** .NET tests `imaginary < 0.0` here, and a negative zero is not less than zero, so .NET lands on the wrong branch for half the axis: its `Asin( 2 - 0i )` has a *positive* imaginary part where C99 gives a negative one. This tests the sign bit.
-- The `double` overload exists because the **real** arcsine is undefined outside `[-1, 1]` while the complex one is not — `CAsin( 2.0 )` is a perfectly ordinary complex number. AfxNova spelled it `CArcSinReal`.
+- The `float64` overload exists because the **real** arcsine is undefined outside `[-1, 1]` while the complex one is not — `CAsin( 2.0 )` is a perfectly ordinary complex number. AfxNova spelled it `CArcSinReal`.
 - `CSin( CAsin( z ) )` returns `z` on the principal strip.
 
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAsin( CSet( 0.5, 0.25 ) ) )  '' 0.5016088532755009+0.2813960562452928i

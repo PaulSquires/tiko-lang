@@ -12,7 +12,7 @@ Decimal(2)
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' A 128-BIT DECIMAL: a 96-bit mantissa, a scale of 0..28 and a sign, so

@@ -11,7 +11,7 @@ TimeSpan.IsNegative
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromHours( -2 ).IsNegative      '' true

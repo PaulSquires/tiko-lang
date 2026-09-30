@@ -18,7 +18,7 @@ CSwap( byref a as Complex, byref b as Complex )
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex a = CSet( 1, 2 ), b = CSet( 5, 6 )

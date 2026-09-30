@@ -18,7 +18,7 @@ LocalTime( h, mi, s, ms )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' A time of day with no date and no zone. One LONGINT of 100 ns ticks.

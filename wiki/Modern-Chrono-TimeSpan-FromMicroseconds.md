@@ -7,7 +7,7 @@ longint, not double
 ## Syntax
 
 ```freebasic
-TimeSpan.FromMicroseconds( longint )
+TimeSpan.FromMicroseconds( int64 )
 ```
 
 ## Notes
@@ -17,7 +17,7 @@ TimeSpan.FromMicroseconds( longint )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromMicroseconds( 1000000 ).TotalSeconds      '' 1

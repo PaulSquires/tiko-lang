@@ -15,7 +15,7 @@ One Init/View cycle against a screen with NO TERMINAL AT ALL, returning the byte
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as CounterApp app             '' see TuiApp for its definition

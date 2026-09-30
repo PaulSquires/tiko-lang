@@ -19,12 +19,12 @@ TrySend( byref v as T ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 1 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 1 )
 
-dim as long a = 1, b = 2
+dim as int32 a = 1, b = 2
 print ch.TrySend( a )        '' true
 print ch.TrySend( b )        '' false -- the buffer is full, and it did
                              '' NOT wait

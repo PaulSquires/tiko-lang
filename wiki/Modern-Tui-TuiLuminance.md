@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiLuminance( byval r as long, byval g as long, byval b as long ) as double
+TuiLuminance( byval r as int32, byval g as int32, byval b as int32 ) as float64
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Perceptual brightness, 0.0 to 1.0, using the Rec. 709 weights. This is the botto
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiLuminance( 255, 255, 255 )    '' 0.9999999999999999 -- the weights

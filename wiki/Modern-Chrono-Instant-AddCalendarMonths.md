@@ -11,7 +11,7 @@ Instant.AddCalendarMonths( n )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime d = DateTime( 2026, 1, 31, 12, 0, 0, 0 )

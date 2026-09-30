@@ -11,10 +11,10 @@ Clamp( v, lo, hi )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double lo = 0.0, hi = 10.0
+dim as float64 lo = 0.0, hi = 10.0
 
 print Clamp( 5.0, lo, hi )   '' 5 -- already inside
 print Clamp( -3.0, lo, hi )  '' 0 -- pulled up to the floor

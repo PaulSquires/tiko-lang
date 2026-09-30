@@ -5,22 +5,22 @@
 ## Syntax
 
 ```freebasic
-Capacity( ) as long
+Capacity( ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 print v.Capacity         '' 0 -- nothing allocated yet
 
 v.Push( 1 )
 print v.Capacity         '' 8 -- the minimum allocation
 
-for i as long = 2 to 9
+for i as int32 = 2 to 9
     v.Push( i )
 next
 print v.Count & " of " & v.Capacity     '' 9 of 16 -- doubled, not grown by one

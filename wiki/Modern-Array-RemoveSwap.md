@@ -7,7 +7,7 @@ O(1)   does NOT preserve order
 ## Syntax
 
 ```freebasic
-RemoveSwap( byval i as long )
+RemoveSwap( byval i as int32 )
 ```
 
 ## Notes
@@ -17,7 +17,7 @@ RemoveSwap( byval i as long )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )

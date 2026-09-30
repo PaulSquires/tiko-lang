@@ -17,7 +17,7 @@ PathChangeExtension( p, ext )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 print PathChangeExtension( "main.tko", ".o" )       '' main.o

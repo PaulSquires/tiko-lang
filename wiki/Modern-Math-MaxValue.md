@@ -7,7 +7,7 @@ The largest value added to a running accumulator.
 ## Syntax
 
 ```freebasic
-RunningStats.MaxValue( ) as double
+RunningStats.MaxValue( ) as float64
 ```
 
 ## Notes
@@ -18,11 +18,11 @@ RunningStats.MaxValue( ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
 dim rs as RunningStats
-for i as long = 1 to 5 : rs.Add( i ) : next
+for i as int32 = 1 to 5 : rs.Add( i ) : next
 
 print rs.MaxValue( )         '' 5
 print rs.MaxValue( ) - rs.MinValue( )         '' 4

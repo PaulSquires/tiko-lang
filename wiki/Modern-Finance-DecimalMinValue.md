@@ -11,7 +11,7 @@ DecimalMinValue( )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' -(2^96-1) at scale 0 -- the most negative value the type holds.  The

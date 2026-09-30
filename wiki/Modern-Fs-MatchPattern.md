@@ -17,7 +17,7 @@ MatchPattern( s, pattern )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' PURE -- no syscalls. It matches TEXT against a glob, and never asks

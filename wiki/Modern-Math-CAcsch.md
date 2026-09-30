@@ -17,7 +17,7 @@ CAcsch( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAcsch( CSet( 2, 1 ) ) )  '' 0.396568230112329-0.18631805410781552i

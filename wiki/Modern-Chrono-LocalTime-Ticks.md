@@ -11,7 +11,7 @@ LocalTime.Ticks
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalTime t = LocalTime( 1, 0, 0, 0 )

@@ -15,7 +15,7 @@ One of the sixteen classic colours. Use these when you want the user's palette h
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor c = TuiAnsi( TUIC_BRIGHTGREEN )

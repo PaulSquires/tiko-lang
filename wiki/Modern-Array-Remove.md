@@ -7,7 +7,7 @@ O(n)   preserves order
 ## Syntax
 
 ```freebasic
-Remove( byval i as long )
+Remove( byval i as int32 )
 ```
 
 ## Notes
@@ -17,7 +17,7 @@ Remove( byval i as long )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )

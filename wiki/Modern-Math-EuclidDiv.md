@@ -19,15 +19,15 @@ EuclidDiv( byval a as T, byval b as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as long a = -7, b = 2
+dim as int32 a = -7, b = 2
 print EuclidDiv( a, b )      '' -4
 print EuclidMod( a, b )      '' 1 -- non-negative
 
 '' It parts company with FloorDiv when the DIVISOR is negative
-dim as long c = -7, d = -2
+dim as int32 c = -7, d = -2
 print EuclidDiv( c, d )      '' 4
 print FloorDiv( c, d )       '' 3
 ```

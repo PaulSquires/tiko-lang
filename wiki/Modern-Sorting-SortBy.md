@@ -17,8 +17,7 @@ SortBy( a, less )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )
@@ -29,7 +28,7 @@ SortBy( v, function( byref x as ustring, byref y as ustring ) as boolean
     return len( x ) < len( y )
 end function )
 
-for i as long = 0 to v.Count - 1
+for i as int32 = 0 to v.Count - 1
     print v[ i ]
 next                         '' fig / pear / banana
 

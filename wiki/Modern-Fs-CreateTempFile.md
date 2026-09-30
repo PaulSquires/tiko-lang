@@ -17,7 +17,7 @@ CreateTempFile( [ prefix ] )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim r as FsResultUStr = CreateTempFile( "fbdoc" )

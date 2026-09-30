@@ -17,7 +17,7 @@ FsError.Path2( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' The SECOND path, for the two-path operations: CopyFile, MoveFile,

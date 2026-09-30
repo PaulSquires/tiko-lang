@@ -11,7 +11,7 @@ MoneyRoundingCents( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Two places, half-to-even, rounding every posted amount.  The default

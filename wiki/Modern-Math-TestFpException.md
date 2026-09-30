@@ -11,7 +11,7 @@ TestFpException( e )
 ## Examples
 
 ```freebasic
-#include once "fb/fenv.bi"
+#import "std/numeric"
 using FB
 
 '' The flags are STICKY: once raised they stay raised until cleared, so
@@ -20,8 +20,8 @@ using FB
 ClearFpExceptions( )
 print TestFpException( FP_OVERFLOW )      '' false
 
-dim as double big = 1e308
-dim as double r = big * 10
+dim as float64 big = 1e308
+dim as float64 r = big * 10
 print TestFpException( FP_OVERFLOW )      '' true
 ```
 

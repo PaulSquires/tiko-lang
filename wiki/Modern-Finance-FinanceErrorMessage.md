@@ -11,7 +11,7 @@ FinanceErrorMessage( code )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Fixed English for a code, with no allocation and no locale.  A program

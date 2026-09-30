@@ -17,7 +17,7 @@ StartsWith( s, prefix [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print StartsWith( "Hello", "He" )         '' true

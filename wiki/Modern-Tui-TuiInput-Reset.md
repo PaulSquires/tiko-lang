@@ -15,7 +15,7 @@ Throws away both the byte buffer and the event queue. Use it after a suspend, wh
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

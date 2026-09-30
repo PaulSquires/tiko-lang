@@ -11,7 +11,7 @@ row.Period_  row.DueDate_  row.OpeningBalance_  row.Payment_  row.Interest_  row
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' One posted period.  PRINCIPAL IS THE RESIDUAL -- Payment minus

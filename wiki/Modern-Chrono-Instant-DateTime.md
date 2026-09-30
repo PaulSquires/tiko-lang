@@ -19,7 +19,7 @@ DateTime( y, mo, d, h, mi, s, ms )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' A DateTime is the CIVIL view: calendar fields plus an optional

@@ -11,7 +11,7 @@ AnnualizeReturn( periodReturn, frequency )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' GEOMETRIC: ( 1 + r )^f - 1, NOT r * f.  Both are one-liners and the

@@ -17,7 +17,7 @@ PathStem( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' The leaf without its extension

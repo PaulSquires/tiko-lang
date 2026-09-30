@@ -134,13 +134,13 @@ waiting on a server.
 
 ```basic
 '' ex01 -- the sequential baseline
-sub FetchPage( byval id as long )
+sub FetchPage( byval id as int32 )
 	sleep 300, 1                        '' pretend: a network round-trip
 	print "fetched page " & id
 end sub
 
-dim as double t0 = timer
-for i as long = 1 to 3
+dim as float64 t0 = timer
+for i as int32 = 1 to 3
 	FetchPage( i )
 next
 print using "sequential: #.## seconds"; timer - t0
@@ -164,16 +164,16 @@ One new word: `spawn`.
 
 ```basic
 '' ex02 -- the same three fetches, concurrently
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub FetchPage( byval id as long )
+sub FetchPage( byval id as int32 )
 	sleep 300, 1
 	print "fetched page " & id
 end sub
 
-dim as double t0 = timer
-for i as long = 1 to 3
+dim as float64 t0 = timer
+for i as int32 = 1 to 3
 	spawn FetchPage( i )
 next
 sleep 1000, 1                           '' PLACEHOLDER -- chapter 5 removes this
@@ -212,7 +212,7 @@ goroutine. That is the whole reason `spawn` is a statement in the language and
 not a library call, and it makes the obvious loop do the obvious thing:
 
 ```basic
-for i as long = 1 to 10
+for i as int32 = 1 to 10
 	spawn Work( i )        '' each goroutine gets ITS OWN copy of i
 next
 ```
@@ -284,21 +284,21 @@ unlike blocking on a UI thread.
 
 ```basic
 '' ex03 -- getting an answer back
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub CountWords( byval text_ as ustring, byval reply as Channel( of long ) )
-	dim as long n = 0
-	for i as long = 0 to len( text_ ) - 1
+sub CountWords( byval text_ as ustring, byval reply as Channel( of int32 ) )
+	dim as int32 n = 0
+	for i as int32 = 0 to len( text_ ) - 1
 		if( text_[i] = asc( " " ) ) then n += 1
 	next
 	reply.Send( n + 1 )
 end sub
 
-dim reply as Channel( of long ) = Channel( of long )( 1 )
+dim reply as Channel( of int32 ) = Channel( of int32 )( 1 )
 spawn CountWords( "the quick brown fox jumps", reply )
 
-dim as long words
+dim as int32 words
 reply.Receive( words )                  '' blocks until the answer arrives
 print "words: " & words
 ```
@@ -317,8 +317,8 @@ not a second global.
 ### Channels are handles, and copies share
 
 ```basic
-dim a as Channel( of long ) = Channel( of long )( 8 )
-dim b as Channel( of long ) = a          '' NOT a copy of the queue
+dim a as Channel( of int32 ) = Channel( of int32 )( 8 )
+dim b as Channel( of int32 ) = a          '' NOT a copy of the queue
 ```
 
 A `Channel` is a **refcounted handle**. Handing a copy to each of four workers
@@ -350,9 +350,9 @@ The number you pass to the constructor is the **buffer capacity**, and choosing
 it is a real design decision, not a tuning knob.
 
 ```basic
-dim ch as Channel( of long ) = Channel( of long )( 16 )   '' buffered: holds 16
-dim rv as Channel( of long ) = Channel( of long )( 0 )    '' rendezvous
-dim nl as Channel( of long )                              '' NIL -- see below
+dim ch as Channel( of int32 ) = Channel( of int32 )( 16 )   '' buffered: holds 16
+dim rv as Channel( of int32 ) = Channel( of int32 )( 0 )    '' rendezvous
+dim nl as Channel( of int32 )                              '' NIL -- see below
 ```
 
 ### Capacity 0 is a rendezvous, not a zero-length buffer
@@ -368,21 +368,21 @@ that outruns its consumer is forced to slow down to the consumer's rate.
 
 ```basic
 '' ex04 -- backpressure: a fast producer against a slow consumer
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub FastProducer( byval out_ as Channel( of long ) )
-	for i as long = 1 to 6
+sub FastProducer( byval out_ as Channel( of int32 ) )
+	for i as int32 = 1 to 6
 		out_.Send( i )
 		print "  produced " & i & " (buffer now holds " & out_.Count( ) & ")"
 	next
 	out_.Close( )
 end sub
 
-dim q as Channel( of long ) = Channel( of long )( 2 )   '' room for two
+dim q as Channel( of int32 ) = Channel( of int32 )( 2 )   '' room for two
 spawn FastProducer( q )
 
-dim as long v
+dim as int32 v
 while q.Receive( v )
 	sleep 120, 1                        '' the slow consumer
 	print "consumed " & v
@@ -423,7 +423,7 @@ slow consumer into an out-of-memory kill, hours later, far from the cause.
 
 ### The nil channel
 
-A default-constructed `Channel` — `dim nl as Channel( of long )` with no
+A default-constructed `Channel` — `dim nl as Channel( of int32 )` with no
 constructor argument — is **nil**, and `Send` and `Receive` on it block
 **forever**.
 
@@ -444,12 +444,12 @@ wakes every blocked waiter.
 
 ```basic
 '' ex05 -- close, and the two ways to drain
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 sub ReadLines( byval out_ as Channel( of ustring ) )
 	dim as ustring lines_(0 to 2) = { "alpha", "beta", "gamma" }
-	for i as long = 0 to 2
+	for i as int32 = 0 to 2
 		out_.Send( lines_(i) )
 	next
 	out_.Close( )                       '' "no more values will be sent"
@@ -523,15 +523,15 @@ should handle, and it deserves to be loud. Hence the two rules:
 
 ```basic
 '' ex19 -- work still running at program exit is ABANDONED, silently
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub SaveDraft( byval id as long )
+sub SaveDraft( byval id as int32 )
 	sleep 300, 1
 	print "draft " & id & " saved"       '' you may never see this line
 end sub
 
-for i as long = 1 to 3
+for i as int32 = 1 to 3
 	spawn SaveDraft( i )
 next
 print "main is done"
@@ -556,10 +556,10 @@ it, and `Wait` blocks until it reaches zero.
 
 ```basic
 '' ex06 -- wait for a fan-out to finish, with a WaitGroup
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub UploadFile( byval id as long, byval wg as WaitGroup ptr )
+sub UploadFile( byval id as int32, byval wg as WaitGroup ptr )
 	sleep 100 + id * 40, 1
 	print "uploaded file " & id
 	wg->Done( )                         '' always, on every exit path
@@ -567,7 +567,7 @@ end sub
 
 sub Main( )
 	dim wg as WaitGroup
-	for i as long = 1 to 5
+	for i as int32 = 1 to 5
 		wg.Add( )                       '' BEFORE the spawn, never inside it
 		spawn UploadFile( i, @wg )
 	next
@@ -635,11 +635,11 @@ Two ideas make it work:
 
 ```basic
 '' ex07 -- a worker pool: fan-out to N workers, fan-in to one result stream
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub Worker( byval id      as long, _
-            byval jobs    as RecvChan( of long ), _
+sub Worker( byval id      as int32, _
+            byval jobs    as RecvChan( of int32 ), _
             byval results as SendChan( of ustring ), _
             byval wg      as WaitGroup ptr )
 	for each n in jobs                  '' every worker pulls from the SAME queue
@@ -661,22 +661,22 @@ sub Main( )
 	const NJOBS   = 12
 	const NWORKER = 4
 
-	dim jobs    as Channel( of long )    = Channel( of long )( NJOBS )
+	dim jobs    as Channel( of int32 )    = Channel( of int32 )( NJOBS )
 	dim results as Channel( of ustring ) = Channel( of ustring )( NJOBS )
 	dim wg      as WaitGroup
 
-	for i as long = 1 to NJOBS
+	for i as int32 = 1 to NJOBS
 		jobs.Send( i )
 	next
 	jobs.Close( )                       '' workers' 'for each' ends when it drains
 
-	for i as long = 1 to NWORKER
+	for i as int32 = 1 to NWORKER
 		wg.Add( )
 		spawn Worker( i, jobs, results, @wg )
 	next
 	spawn CloseWhenDone( results, @wg )
 
-	dim as long got = 0
+	dim as int32 got = 0
 	for each r in results
 		got += 1
 		print r
@@ -741,8 +741,8 @@ goroutine that does `wg.Wait( )` then `Close( )`.**
 Look at `Worker`'s signature in the previous chapter:
 
 ```basic
-sub Worker( byval id      as long, _
-            byval jobs    as RecvChan( of long ), _
+sub Worker( byval id      as int32, _
+            byval jobs    as RecvChan( of int32 ), _
             byval results as SendChan( of ustring ), _
             byval wg      as WaitGroup ptr )
 ```
@@ -759,15 +759,15 @@ most common channel bug there is.*
 
 ```basic
 '' ex08 -- directional channels write the contract into the signature
-sub Produce( byval out_ as SendChan( of long ) )     '' can send + close, cannot receive
-	for i as long = 1 to 3
+sub Produce( byval out_ as SendChan( of int32 ) )     '' can send + close, cannot receive
+	for i as int32 = 1 to 3
 		out_.Send( i * 10 )
 	next
 	out_.Close( )
 end sub
 
-sub Consume( byval in_ as RecvChan( of long ), byval done_ as SendChan( of boolean ) )
-	dim as long v                                    '' cannot send, cannot close
+sub Consume( byval in_ as RecvChan( of int32 ), byval done_ as SendChan( of boolean ) )
+	dim as int32 v                                    '' cannot send, cannot close
 	while in_.Receive( v )
 		print "consumed " & v
 	wend
@@ -808,13 +808,13 @@ ready first. It needs one extra include:
 
 ```basic
 '' ex09 -- select channel: whichever source answers first
-#include once "fb/sync.bi"
+#import "std/tasks"
 #include once "fb/select.bi"
 using FB
 
 sub Feed( byval ch as Channel( of ustring ), byval label_ as ustring, _
-          byval ms as ulong, byval n as long )
-	for i as long = 1 to n
+          byval ms as uint32, byval n as int32 )
+	for i as int32 = 1 to n
 		sleep ms, 1
 		ch.Send( label_ & " #" & i )
 	next
@@ -828,7 +828,7 @@ sub Main( )
 	spawn Feed( net,    "net",   300, 2 )
 
 	dim as ustring a, b
-	dim as long left_ = 5
+	dim as int32 left_ = 5
 	do
 		select channel
 			case receive a from cache_ : print "from cache: " & a
@@ -910,7 +910,7 @@ sub Main( )
 	spawn Feed( net,    "net",   250, 2 )
 
 	dim as ustring a, b
-	dim as long live = 2
+	dim as int32 live = 2
 
 	do
 		'' Receive leaves the variable UNTOUCHED when the channel is closed and
@@ -988,15 +988,15 @@ The `Try*` and `*For` forms return `FALSE` rather than raising when they give up
 
 ```basic
 '' ex18 -- a deadline on ONE operation, without a select
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub SlowService( byval reply as Channel( of ustring ), byval ms as ulong )
+sub SlowService( byval reply as Channel( of ustring ), byval ms as uint32 )
 	sleep ms, 1
 	reply.Send( "server said hello" )
 end sub
 
-sub Ask( byval delay_ as ulong, byval budget as ulong )
+sub Ask( byval delay_ as uint32, byval budget as uint32 )
 	dim reply as Channel( of ustring ) = Channel( of ustring )( 1 )
 	spawn SlowService( reply, delay_ )
 
@@ -1074,15 +1074,15 @@ arrives, with no polling and no flag.
 
 ```basic
 '' ex10 -- cancellation: the user hits Stop, or the deadline passes
-#include once "fb/sync.bi"
+#import "std/tasks"
 #include once "fb/select.bi"
 using FB
 
 sub SearchFolder( byval ctx  as Context, _
-                  byval jobs as Channel( of long ), _
+                  byval jobs as Channel( of int32 ), _
                   byval hits as SendChan( of ustring ), _
                   byval wg   as WaitGroup ptr )
-	dim as long n
+	dim as int32 n
 	do
 		select channel
 			case receive from ctx.Done( )        '' cancelled -- pack up
@@ -1098,15 +1098,15 @@ end sub
 
 sub Main( )
 	dim ctx  as CancelContext         = WithTimeout( Context( ), 500 )
-	dim jobs as Channel( of long )    = Channel( of long )( 64 )
+	dim jobs as Channel( of int32 )    = Channel( of int32 )( 64 )
 	dim hits as Channel( of ustring ) = Channel( of ustring )( 64 )
 	dim wg   as WaitGroup
 
-	for i as long = 1 to 40
+	for i as int32 = 1 to 40
 		jobs.Send( i )
 	next
 
-	for i as long = 1 to 3
+	for i as int32 = 1 to 3
 		wg.Add( )
 		spawn SearchFolder( ctx, jobs, hits, @wg )
 	next
@@ -1114,7 +1114,7 @@ sub Main( )
 	wg.Wait( )
 	hits.Close( )
 
-	dim as long found = 0
+	dim as int32 found = 0
 	for each h in hits
 		found += 1
 	next
@@ -1169,39 +1169,39 @@ made for it: it holds either a value or a reason, and `IsOk( )` says which.
 
 ```basic
 '' ex11 -- errors do not propagate out of a goroutine.  Send them.
-#include once "fb/sync.bi"
-#include once "fb/result.bi"
+#import "std/tasks"
+#import "std/outcome"
 using FB
 
-type ParseResult as Result( of long, ustring )
+type ParseResult as Result( of int32, ustring )
 
 sub ParseNumber( byval text_ as ustring, byval out_ as Channel( of ParseResult ) )
-	dim as long v = 0
+	dim as int32 v = 0
 	if( len( text_ ) = 0 ) then
-		out_.Send( Fail( of long, ustring )( "empty input" ) )
+		out_.Send( Fail( of int32, ustring )( "empty input" ) )
 		exit sub
 	end if
-	for i as long = 0 to len( text_ ) - 1
-		dim as long d = text_[i] - asc( "0" )
+	for i as int32 = 0 to len( text_ ) - 1
+		dim as int32 d = text_[i] - asc( "0" )
 		if( d < 0 orelse d > 9 ) then
-			out_.Send( Fail( of long, ustring )( "'" & text_ & "' is not a number" ) )
+			out_.Send( Fail( of int32, ustring )( "'" & text_ & "' is not a number" ) )
 			exit sub
 		end if
 		v = v * 10 + d
 	next
-	out_.Send( Ok( of long, ustring )( v ) )
+	out_.Send( Ok( of int32, ustring )( v ) )
 end sub
 
 sub Main( )
 	dim res as Channel( of ParseResult ) = Channel( of ParseResult )( 4 )
 	dim as ustring inputs(0 to 2) = { "1234", "12x4", "" }
 
-	for i as long = 0 to 2
+	for i as int32 = 0 to 2
 		spawn ParseNumber( inputs(i), res )
 	next
 
 	dim as ParseResult r
-	for i as long = 0 to 2
+	for i as int32 = 0 to 2
 		res.Receive( r )
 		if( r.IsOk( ) ) then
 			print "ok  : " & r.Value( )
@@ -1222,9 +1222,9 @@ fail: empty input
 
 Notes on `Result`:
 
-* Both type arguments must be written out at construction — `Ok( of long, ustring )( v )`
+* Both type arguments must be written out at construction — `Ok( of int32, ustring )( v )`
   — because inference reads parameter positions only and each factory mentions
-  just one of `T` and `E`. The `type ParseResult as Result( of long, ustring )`
+  just one of `T` and `E`. The `type ParseResult as Result( of int32, ustring )`
   alias is the usual way to say it once.
 * `Value( )` on a failure and `Failure( )` on a success both raise. `IsOk( )` is
   the guard, and it costs nothing.
@@ -1248,12 +1248,12 @@ own.
 
 ```basic
 '' ex12 -- a pipeline: read -> clean -> count, three stages running at once
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 sub Stage1_Read( byval out_ as SendChan( of ustring ) )
 	dim as ustring src(0 to 4) = { "  Hello ", "WORLD", "", " Fbc  ", "Modern" }
-	for i as long = 0 to 4
+	for i as int32 = 0 to 4
 		sleep 40, 1
 		out_.Send( src(i) )
 	next
@@ -1271,7 +1271,7 @@ end sub
 
 sub Stage3_Number( byval in_ as Channel( of ustring ), byval out_ as SendChan( of ustring ) )
 	dim as ustring s
-	dim as long n = 0
+	dim as int32 n = 0
 	while in_.Receive( s )
 		n += 1                          '' stage-local state: nobody else sees it
 		out_.Send( n & ": " & s )
@@ -1330,10 +1330,10 @@ Take a permit before the work, give it back after.
 
 ```basic
 '' ex17 -- a channel as a semaphore: at most N things in flight at once
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub Download( byval id as long, byval slots as Channel( of boolean ), byval wg as WaitGroup ptr )
+sub Download( byval id as int32, byval slots as Channel( of boolean ), byval wg as WaitGroup ptr )
 	dim as boolean tok
 	slots.Receive( tok )                '' take a permit (blocks if none free)
 	print "  -> start " & id
@@ -1348,11 +1348,11 @@ sub Main( )
 	dim slots as Channel( of boolean ) = Channel( of boolean )( LIMIT )
 	dim wg    as WaitGroup
 
-	for i as long = 1 to LIMIT
+	for i as int32 = 1 to LIMIT
 		slots.Send( TRUE )              '' LIMIT permits in the pool
 	next
 
-	for i as long = 1 to 9
+	for i as int32 = 1 to 9
 		wg.Add( )
 		spawn Download( i, slots, @wg )
 	next
@@ -1400,13 +1400,13 @@ unit of time*. A ticker goroutine gives you one.
 
 ```basic
 '' ex13 -- polling without blocking, and pacing a loop
-#include once "fb/sync.bi"
+#import "std/tasks"
 #include once "fb/select.bi"
 using FB
 
 '' A ticker: one value every 'ms', for 'n' ticks, then closed.
-sub Ticker( byval ch as Channel( of boolean ), byval ms as ulong, byval n as long )
-	for i as long = 1 to n
+sub Ticker( byval ch as Channel( of boolean ), byval ms as uint32, byval n as int32 )
+	for i as int32 = 1 to n
 		sleep ms, 1
 		ch.Send( TRUE )
 	next
@@ -1414,18 +1414,18 @@ sub Ticker( byval ch as Channel( of boolean ), byval ms as ulong, byval n as lon
 end sub
 
 sub Main( )
-	dim work as Channel( of long )    = Channel( of long )( 16 )
+	dim work as Channel( of int32 )    = Channel( of int32 )( 16 )
 	dim tick as Channel( of boolean ) = Channel( of boolean )( 1 )
 
-	for i as long = 1 to 5
+	for i as int32 = 1 to 5
 		work.Send( i * 100 )
 	next
 	spawn Ticker( tick, 150, 5 )
 
 	'' Rate limit: do at most one request per tick.
 	dim as boolean t
-	dim as long v
-	dim as long served = 0
+	dim as int32 v
+	dim as int32 served = 0
 	while served < 5
 		tick.Receive( t )               '' the pacing gate
 		if( work.TryReceive( v ) ) then '' TryReceive: never blocks
@@ -1477,13 +1477,13 @@ global 200,000 times. The answer must be 1,600,000.
 
 ```basic
 '' ex15 -- there is NO data-race protection.  This is a broken program.
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-dim shared as long g_counter
+dim shared as int32 g_counter
 
-sub BumpUnsafe( byval times_ as long, byval wg as WaitGroup ptr )
-	for i as long = 1 to times_
+sub BumpUnsafe( byval times_ as int32, byval wg as WaitGroup ptr )
+	for i as int32 = 1 to times_
 		g_counter += 1                  '' read, add, write -- three steps
 	next
 	wg->Done( )
@@ -1491,7 +1491,7 @@ end sub
 
 sub Main( )
 	dim wg as WaitGroup
-	for i as long = 1 to 8
+	for i as int32 = 1 to 8
 		wg.Add( )
 		spawn BumpUnsafe( 200000, @wg )
 	next
@@ -1525,32 +1525,32 @@ goroutine to own the variable**, and have the others send it messages.
 
 ```basic
 '' ex16 -- the same count, owned by ONE goroutine.  Correct by construction.
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
-sub Bump( byval times_ as long, byval ticks as SendChan( of long ), byval wg as WaitGroup ptr )
-	for i as long = 1 to times_
+sub Bump( byval times_ as int32, byval ticks as SendChan( of int32 ), byval wg as WaitGroup ptr )
+	for i as int32 = 1 to times_
 		ticks.Send( 1 )
 	next
 	wg->Done( )
 end sub
 
-sub CloseWhenDone( byval ticks as Channel( of long ), byval wg as WaitGroup ptr )
+sub CloseWhenDone( byval ticks as Channel( of int32 ), byval wg as WaitGroup ptr )
 	wg->Wait( )
 	ticks.Close( )
 end sub
 
 sub Main( )
-	dim ticks as Channel( of long ) = Channel( of long )( 1024 )
+	dim ticks as Channel( of int32 ) = Channel( of int32 )( 1024 )
 	dim wg    as WaitGroup
 
-	for i as long = 1 to 8
+	for i as int32 = 1 to 8
 		wg.Add( )
 		spawn Bump( 50000, ticks, @wg )
 	next
 	spawn CloseWhenDone( ticks, @wg )
 
-	dim as long total = 0                '' only THIS goroutine touches it
+	dim as int32 total = 0                '' only THIS goroutine touches it
 	for each t in ticks
 		total += t
 	next
@@ -1622,18 +1622,18 @@ is the exact bug the goroutine was introduced to fix.
 
 ```basic
 '' ex14 -- the desktop-app shape: a background scan, drained by the UI thread
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 type ScanResult
 	as ustring path_
-	as longint bytes_
+	as int64 bytes_
 end type
 
 '' Runs on an ARBITRARY worker thread.  It must not touch a window, a GDI
 '' object, or anything else owned by the UI thread.
-sub ScanFolder( byval out_ as Channel( of ScanResult ), byval n as long )
-	for i as long = 1 to n
+sub ScanFolder( byval out_ as Channel( of ScanResult ), byval n as int32 )
+	for i as int32 = 1 to n
 		sleep 90, 1                     '' pretend: stat a file
 		dim as ScanResult r
 		r.path_  = "C:\data\file" & i & ".dat"
@@ -1644,7 +1644,7 @@ sub ScanFolder( byval out_ as Channel( of ScanResult ), byval n as long )
 end sub
 
 '' Stands in for WM_TIMER: called on the UI thread, must return immediately.
-function OnTimerTick( byref results as Channel( of ScanResult ), byref rows as long ) as boolean
+function OnTimerTick( byref results as Channel( of ScanResult ), byref rows as int32 ) as boolean
 	dim as ScanResult r
 	while results.TryReceive( r )       '' TryReceive, never Receive
 		rows += 1
@@ -1657,7 +1657,7 @@ sub Main( )
 	dim results as Channel( of ScanResult ) = Channel( of ScanResult )( 64 )
 	spawn ScanFolder( results, 6 )
 
-	dim as long rows = 0
+	dim as int32 rows = 0
 	do
 		print "[pump] window still responsive"
 		sleep 200, 1                    '' stands in for the message loop idling
@@ -1706,7 +1706,7 @@ Three more notes:
   destruction can both end the scan. Do not close the window while a goroutine
   still holds its `HWND`.
 * **The channel type carries plain data.** `ScanResult` holds a `ustring` and a
-  `longint` — no `HWND`, no GDI handle, no interface pointer. Keep it that way.
+  `int64` — no `HWND`, no GDI handle, no interface pointer. Keep it that way.
 * **Buffer generously** (64, 256) so the scan is not throttled by your timer
   interval. If you *want* it throttled, a small buffer does that for free.
 

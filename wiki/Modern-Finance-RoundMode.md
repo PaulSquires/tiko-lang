@@ -7,7 +7,7 @@ Rounded to a number of decimal places, with the rule stated explicitly.
 ## Syntax
 
 ```freebasic
-RoundMode( byval digits as long, byval mode as long ) as Currency
+RoundMode( byval digits as int32, byval mode as int32 ) as Currency
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ RoundMode( byval digits as long, byval mode as long ) as Currency
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim as Currency c = CurrencyFromParts( 0, 2500 )      '' 0.2500

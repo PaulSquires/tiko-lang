@@ -17,7 +17,7 @@ IsBlank( s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print IsBlank( "" )                    '' true

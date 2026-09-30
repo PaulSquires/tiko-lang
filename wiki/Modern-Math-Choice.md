@@ -11,7 +11,7 @@ Choice( r, a( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )

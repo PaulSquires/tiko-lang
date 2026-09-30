@@ -11,7 +11,7 @@ t.Principal_  t.NominalAnnualRate_  t.Compounding_  t.PaymentFrequency_  t.TermM
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Everything a schedule needs, in one record.  COMPOUNDING AND PAYMENT

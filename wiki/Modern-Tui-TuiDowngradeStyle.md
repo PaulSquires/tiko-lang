@@ -15,7 +15,7 @@ Downgrades both colours of a style at once. At TUIDEPTH_MONO each colour collaps
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 235, 80, 80 ), TuiRgb( 20, 20, 30 ), TUIATTR_BOLD )

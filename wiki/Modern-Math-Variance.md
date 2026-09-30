@@ -7,7 +7,7 @@ The **sample** variance, dividing by n-1.
 ## Syntax
 
 ```freebasic
-Variance( a( ) as T ) as double
+Variance( a( ) as T ) as float64
 ```
 
 ## Notes
@@ -19,10 +19,10 @@ Variance( a( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print Variance( a( ) )           '' 2 -- divides by n-1 = 4
 print VariancePopulation( a( ) ) '' 1.6 -- divides by n = 5

@@ -15,7 +15,7 @@ Builds a status item value.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStatusBar sb

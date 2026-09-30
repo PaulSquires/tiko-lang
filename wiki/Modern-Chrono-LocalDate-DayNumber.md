@@ -11,7 +11,7 @@ LocalDate.DayNumber
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalDate d = LocalDate( 2026, 8, 13 )

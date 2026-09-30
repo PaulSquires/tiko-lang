@@ -11,10 +11,10 @@ InfinityF( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as single inf = InfinityF( )
+dim as float32 inf = InfinityF( )
 
 print IsInfinite( inf )      '' true
 

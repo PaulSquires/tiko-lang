@@ -11,13 +11,13 @@ Max( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double a = 3.0, b = 7.0
+dim as float64 a = 3.0, b = 7.0
 print Max( a, b )            '' 7
 
-dim as long i = 3, j = 7
+dim as int32 i = 3, j = 7
 print Max( i, j )            '' 7
 ```
 

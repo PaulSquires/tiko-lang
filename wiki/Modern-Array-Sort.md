@@ -17,15 +17,14 @@ Sort( a )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 5 ) : v.Push( 1 ) : v.Push( 4 ) : v.Push( 1 )
 
 Sort( v )                '' introsort, ascending, by T's own '<'
-for i as long = 0 to v.Count - 1
+for i as int32 = 0 to v.Count - 1
     print v[ i ];
 next
 print                    '' 1 1 4 5

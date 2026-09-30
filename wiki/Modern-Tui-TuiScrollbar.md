@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiScrollbar extends TuiWidget
-    as long total, visible, position
+    as int32 total, visible, position
     as boolean vertical
     as TuiStyle thumb, track
     as ustring thumbChar, trackChar
@@ -20,7 +20,7 @@ A scrollbar drawn from three numbers. It is passive -- it reflects a list's or t
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -11,7 +11,7 @@ TimeSpan.ToString
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan( 1, 2, 3, 4, 5 ).ToString( )        '' P1DT2H3M4.005S

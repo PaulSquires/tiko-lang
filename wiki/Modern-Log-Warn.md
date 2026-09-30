@@ -21,7 +21,7 @@ Warn( byref m as ustring )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

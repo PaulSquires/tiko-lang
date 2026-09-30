@@ -19,7 +19,7 @@ CToStringPolar( byref z as Complex ) as string
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToStringPolar( CSet( 3, 4 ) )     '' 5 * exp(0.9272952180016122i)

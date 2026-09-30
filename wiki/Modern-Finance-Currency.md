@@ -12,7 +12,7 @@ Currency(2)
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 '' A FIXED-POINT decimal: four decimal places in a longint, so money

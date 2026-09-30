@@ -15,7 +15,7 @@ The rect shrunk by a margin. It never goes negative -- a margin larger than the 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiRectOf( 0, 0, 20, 10 )

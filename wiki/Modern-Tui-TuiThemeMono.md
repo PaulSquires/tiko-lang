@@ -15,7 +15,7 @@ A theme built from ATTRIBUTES rather than colours -- bold, dim, reverse, underli
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTheme mo = TuiThemeMono( )

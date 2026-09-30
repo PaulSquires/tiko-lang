@@ -11,7 +11,7 @@ it.IsValid( )  it.Value( )  it.MoveNext( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The structural iterator protocol, which is what FOR EACH uses.  Walk
@@ -23,7 +23,7 @@ var sched = LoanSchedule( t )
 var it = sched.Value( ).GetIterator( )
 
 '' The first three rows.
-dim as long k = 0
+dim as int32 k = 0
 while( it.IsValid( ) andalso ( k < 3 ) )
     print it.Value( ).Period_; " "; it.Value( ).Interest_.ToStringFixed( 2 )
     it.MoveNext( )

@@ -17,7 +17,7 @@ SetTimes( p, mtimeUtc [, atimeUtc ] )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -28,7 +28,7 @@ WriteAllText( p, "hello" )
 #include once "fb/chrono.bi"
 
 '' Ticks, in UTC -- the same 100 ns tick fb/chrono.bi uses
-dim as longint when_ = Instant.FromUnixSeconds( 1767225600 ).Ticks
+dim as int64 when_ = Instant.FromUnixSeconds( 1767225600 ).Ticks
 
 print SetTimes( p, when_ ).IsOk( )        '' true
 print Stat( p ).Value( ).ModifiedUtc( ) = when_          '' -1 (true)

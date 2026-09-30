@@ -11,7 +11,7 @@ PAY_END_OF_PERIOD  PAY_BEGIN_OF_PERIOD
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' An ordinary annuity pays at the END of each period; an annuity due

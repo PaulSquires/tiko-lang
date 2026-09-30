@@ -15,7 +15,7 @@ Compares kind and components. Two colours that would render identically but were
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiRgb( 10, 20, 30 ).Equals( TuiRgb( 10, 20, 30 ) )    '' true

@@ -15,7 +15,7 @@ Do nothing. The right answer for an event your application does not care about -
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiNone( ).kind = TUICMD_NONE '' -1 (true)

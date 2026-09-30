@@ -11,7 +11,7 @@ FutureValueOfLump( amount, ratePerPeriod, periods )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A single amount compounded forward.  Also a plain multiply.

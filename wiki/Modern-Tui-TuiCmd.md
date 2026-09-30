@@ -6,8 +6,8 @@
 
 ```freebasic
 type TuiCmd
-    as ubyte kind      '' TuiCmdKind
-    as long arg        '' ms for TICK, exit code for QUIT
+    as uint8 kind      '' TuiCmdKind
+    as int32 arg        '' ms for TICK, exit code for QUIT
 end type
 ```
 
@@ -18,7 +18,7 @@ What Update and Init tell the loop to do. A plain value, so you can build one, p
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCmd c = TuiTick( 250 )

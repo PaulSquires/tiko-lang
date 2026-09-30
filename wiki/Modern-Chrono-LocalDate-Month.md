@@ -11,7 +11,7 @@ LocalDate.Month
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print LocalDate( 2026, 8, 13 ).Month      '' 8

@@ -15,7 +15,7 @@ The stock colour theme. Every example in the module starts here.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTheme th = TuiThemeDefault( )

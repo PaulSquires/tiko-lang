@@ -7,7 +7,7 @@ A double in [lo, hi).
 ## Syntax
 
 ```freebasic
-NextDoubleRange( byval lo as double, byval hi as double ) as double
+NextDoubleRange( byval lo as float64, byval hi as float64 ) as float64
 ```
 
 ## Notes
@@ -19,17 +19,17 @@ NextDoubleRange( byval lo as double, byval hi as double ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
-dim as double v = r.NextDoubleRange( 10.0, 20.0 )
+dim as float64 v = r.NextDoubleRange( 10.0, 20.0 )
 print v >= 10.0 andalso v < 20.0              '' -1 (true)
 
-dim as long outside = 0
-for i as long = 1 to 1000
-    dim as double x = r.NextDoubleRange( -1.0, 1.0 )
+dim as int32 outside = 0
+for i as int32 = 1 to 1000
+    dim as float64 x = r.NextDoubleRange( -1.0, 1.0 )
     if x < -1.0 orelse x >= 1.0 then outside += 1
 next
 print outside                '' 0

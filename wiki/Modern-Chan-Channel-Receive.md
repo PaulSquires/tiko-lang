@@ -20,19 +20,19 @@ Receive( byref out as T ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 
-for i as long = 1 to 3
-    dim as long v = i
+for i as int32 = 1 to 3
+    dim as int32 v = i
     ch.Send( v )
 next
 ch.Close( )                  '' no more values will be sent
 
 '' The consumer loop ends by itself: closed AND drained answers false
-dim as long v
+dim as int32 v
 while ch.Receive( v )
     print v                  '' 1 / 2 / 3
 wend

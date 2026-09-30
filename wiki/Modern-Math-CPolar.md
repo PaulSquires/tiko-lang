@@ -7,7 +7,7 @@ Builds a complex number from a modulus and a phase.
 ## Syntax
 
 ```freebasic
-CPolar( byval r as double, byval theta as double ) as Complex
+CPolar( byval r as float64, byval theta as float64 ) as Complex
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ CPolar( byval r as double, byval theta as double ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CPolar( 2.0, 0.0 ) )                   '' 2+0i   -- theta = 0 is the positive real axis

@@ -11,18 +11,18 @@ Contains( a, v ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 10 ) : v.Push( 20 )
 
 '' T is inferred from the array, so the value must already BE a T --
 '' a bare `20` is an INTEGER literal and gives error 340
-dim as long wanted = 20
+dim as int32 wanted = 20
 print Contains( v, wanted )      '' true
 
-dim as long absent = 99
+dim as int32 absent = 99
 print Contains( v, absent )      '' false
 
 '' Exactly IndexOf( ) >= 0, for the common case where the position is

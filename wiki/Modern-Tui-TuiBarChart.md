@@ -7,7 +7,7 @@
 ```freebasic
 type TuiBarChart extends TuiWidget
     as TuiBarArray bars
-    as long barWidth, barGap
+    as int32 barWidth, barGap
     as boolean horizontal, showLabels
     as TuiStyle labelStyle
 end type
@@ -20,7 +20,7 @@ Labelled bars, vertical or horizontal. Scaled to the largest value present.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr
@@ -28,7 +28,7 @@ scr.Resize( 30, 8 )
 dim as TuiFrame ptr f = scr.BeginFrame( )
 
 dim as TuiBarChart bc
-for i as long = 0 to 3
+for i as int32 = 0 to 3
     dim as TuiBar b
     b.label = chr( asc( "a" ) + i )
     b.value = ( i + 1 ) * 10.0

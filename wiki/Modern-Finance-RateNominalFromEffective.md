@@ -11,7 +11,7 @@ RateNominalFromEffective( effectiveAnnual, compounding )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The inverse of RateEffectiveFromNominal: the rate you would have to

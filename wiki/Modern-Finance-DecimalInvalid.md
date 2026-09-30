@@ -11,7 +11,7 @@ DecimalInvalid( )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' The one representation that is not a number -- scale 255, which no

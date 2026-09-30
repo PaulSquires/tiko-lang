@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.Line_( byval x0 as long, byval y0 as long, byval x1 as long, byval y1 as long, byval c as TuiColor )
+TuiCanvas.Line_( byval x0 as int32, byval y0 as int32, byval x1 as int32, byval y1 as int32, byval c as TuiColor )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A Bresenham line in dot coordinates. The underscore is because LINE is a stateme
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCanvas cv = TuiCanvas( 20, 5 )       '' 40 x 20 dots

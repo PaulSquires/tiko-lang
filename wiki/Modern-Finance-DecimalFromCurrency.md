@@ -11,7 +11,7 @@ DecimalFromCurrency( c )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 #include once "fb/currency.bi"

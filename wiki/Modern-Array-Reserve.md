@@ -7,7 +7,7 @@ O(n)   grow to at least n
 ## Syntax
 
 ```freebasic
-Reserve( byval n as long )
+Reserve( byval n as int32 )
 ```
 
 ## Notes
@@ -17,10 +17,10 @@ Reserve( byval n as long )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 
 '' Allocate once up front when the size is known
 v.Reserve( 1000 )

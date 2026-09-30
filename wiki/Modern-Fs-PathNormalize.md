@@ -17,7 +17,7 @@ PathNormalize( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Collapses duplicate separators and drops a trailing one

@@ -11,10 +11,10 @@ Infinity( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double inf = Infinity( )
+dim as float64 inf = Infinity( )
 
 print IsInfinite( inf )      '' true
 print inf > 1e308            '' -1 (true)

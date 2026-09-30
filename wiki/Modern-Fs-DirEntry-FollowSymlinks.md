@@ -11,7 +11,7 @@ DirEntry.FollowSymlinks
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -32,7 +32,7 @@ print opts.FollowSymlinks    '' false
 '' under here" delete something else
 opts.FollowSymlinks = true
 
-dim as long n = 0
+dim as int32 n = 0
 for each r in WalkDir( dir_, opts )
     n += 1
 next

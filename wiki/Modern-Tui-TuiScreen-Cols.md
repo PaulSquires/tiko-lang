@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiScreen.Cols( ) as long
+TuiScreen.Cols( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Current width in cells.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

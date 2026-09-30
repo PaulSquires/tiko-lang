@@ -17,7 +17,7 @@ FsChange.Kind( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -32,7 +32,7 @@ WriteAllText( PathJoin( dir_, "new.txt" ), "x" )
 dim changes as Array( of FsChange )
 w.Poll( changes, 500 )
 
-for i as long = 0 to changes.Count - 1
+for i as int32 = 0 to changes.Count - 1
     '' Created, Modified, Removed or Renamed
     print changes[ i ].Kind( ) >= 0       '' -1 (true)
 next

@@ -15,7 +15,7 @@ True once Enter was pressed on a button. Read `selected` to find out WHICH.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiMessageBox mb

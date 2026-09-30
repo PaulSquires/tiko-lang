@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiScreen.Resize( byval ncols as long, byval nrows as long )
+TuiScreen.Resize( byval ncols as int32, byval nrows as int32 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Reshapes both buffers and invalidates. Call this on a resize event -- TuiRun alr
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

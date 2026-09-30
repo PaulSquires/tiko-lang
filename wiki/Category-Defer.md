@@ -59,7 +59,7 @@ so a defer can rely on a local declared before it still being alive, and a destr
 Everything the deferred statement reads is read when it RUNS, not when it was written:
 
 ```freebasic
-dim as long v = 7
+dim as int32 v = 7
 defer print v
 v = 9
 ' prints 9
@@ -68,7 +68,7 @@ v = 9
 This is the single most common surprise. It matters most in a loop, where it does not look like a defer question at all:
 
 ```freebasic
-dim as long i = 0
+dim as int32 i = 0
 while( i < 3 )
     defer print i        ' prints 1, then 2 -- not 0, then 1
     i += 1
@@ -123,11 +123,11 @@ It is NOT a reserved word. Making it one would break every existing program that
 It is read as the keyword only when the NEXT token begins a statement. So all of this still compiles and behaves exactly as before:
 
 ```freebasic
-dim defer as long = 3
+dim defer as int32 = 3
 defer = 4
 defer += 5                  ' note: '+=' lexes as '+' then '='
-dim deferArr( 0 to 2 ) as long
-type T : as long defer : end type
+dim deferArr( 0 to 2 ) as int32
+type T : as int32 defer : end type
 h.defer = 5
 x = defer( 6 )              ' a function named 'defer'
 ```
@@ -143,7 +143,7 @@ defer( 6 )                  ' still a call
 
 Every call that produces a value is unaffected, because it needs the parentheses anyway. This is the same trade FOR EACH already makes with 'each'.
 
-> **Measured 2026-09-24, with `sub defer( byval n as long )` declared:** FBC-Modern's `fbc64` and tiko both call the sub for `defer 6`, `defer -1` and `defer( 6 )`, and both read `defer x` as a DEFER. fbc then reports error 10 on the statement `x`; tiko compiles it and drops that statement. The variable, array and member forms above work under both.
+> **Measured 2026-09-24, with `sub defer( byval n as int32 )` declared:** FBC-Modern's `fbc64` and tiko both call the sub for `defer 6`, `defer -1` and `defer( 6 )`, and both read `defer x` as a DEFER. fbc then reports error 10 on the statement `x`; tiko compiles it and drops that statement. The variable, array and member forms above work under both.
 
 ## Diagnostics
 

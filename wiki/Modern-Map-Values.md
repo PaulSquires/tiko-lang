@@ -11,7 +11,7 @@ Values( ) as Array( of V )
 ## Examples
 
 ```freebasic
-#include once "fb/map.bi"
+#import "std/containers"
 using FB
 
 dim ages as Map( of ustring, integer )
@@ -22,7 +22,7 @@ dim vs as Array( of integer ) = ages.Values( )
 print vs.Count                   '' 2
 
 dim as integer total
-for i as long = 0 to vs.Count - 1
+for i as int32 = 0 to vs.Count - 1
     total += vs[ i ]
 next
 print total                      '' 81

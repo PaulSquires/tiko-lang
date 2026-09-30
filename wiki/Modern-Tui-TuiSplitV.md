@@ -15,7 +15,7 @@ Splits a rect into stacked rows. The header/body/status-bar shape is one call.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs

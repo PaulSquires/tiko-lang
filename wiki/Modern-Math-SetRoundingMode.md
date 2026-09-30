@@ -11,12 +11,12 @@ SetRoundingMode( m )
 ## Examples
 
 ```freebasic
-#include once "fb/fenv.bi"
+#import "std/numeric"
 using FB
 
 '' PROCESS-WIDE AND STICKY: it changes every later floating-point
 '' operation in the program, not just the next one. Put it back.
-dim as long was = GetRoundingMode( )
+dim as int32 was = GetRoundingMode( )
 
 print SetRoundingMode( ROUND_TOWARD_ZERO )       '' true
 print GetRoundingMode( ) = ROUND_TOWARD_ZERO     '' -1 (true)

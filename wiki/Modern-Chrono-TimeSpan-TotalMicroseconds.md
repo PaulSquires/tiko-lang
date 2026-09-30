@@ -11,7 +11,7 @@ TimeSpan.TotalMicroseconds
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as TimeSpan t = TimeSpan.FromSeconds( 1 )

@@ -7,7 +7,7 @@ The k-th of the n n-th roots.
 ## Syntax
 
 ```freebasic
-CNthRoot( byref z as Complex, byval n as long, byval k as long = 0 ) as Complex
+CNthRoot( byref z as Complex, byval n as int32, byval k as int32 = 0 ) as Complex
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ CNthRoot( byref z as Complex, byval n as long, byval k as long = 0 ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex z = CSet( 3, 4 )

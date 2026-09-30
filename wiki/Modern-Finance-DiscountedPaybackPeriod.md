@@ -11,7 +11,7 @@ DiscountedPaybackPeriod( flows( ), ratePerPeriod )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Payback measured on DISCOUNTED flows, so later money counts for less.

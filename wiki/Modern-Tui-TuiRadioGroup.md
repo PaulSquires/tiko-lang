@@ -7,7 +7,7 @@
 ```freebasic
 type TuiRadioGroup extends TuiWidget
     as TuiStringArray options
-    as long ptr selected        '' CALLER-OWNED
+    as int32 ptr selected        '' CALLER-OWNED
     as TuiStyle normal, focused_, activeStyle
     as boolean horizontal, useUnicode
 end type
@@ -20,10 +20,10 @@ One-of-N. Like the checkbox it points at your own variable. `activeStyle` is COM
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
-dim as long choice
+dim as int32 choice
 dim as TuiTheme th = TuiThemeDefault( )
 
 dim as TuiRadioGroup rg

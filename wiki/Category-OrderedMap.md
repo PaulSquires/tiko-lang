@@ -3,11 +3,10 @@
 # OrderedMap
 
 ```freebasic
-#include once "fb/orderedmap.bi"     ' or "containers.bi" for everything
-#include once "fb/orderedset.bi"
+#import "std/containers"
 using FB
 
-dim ages as OrderedMap( of ustring, long )
+dim ages as OrderedMap( of ustring, int32 )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 
@@ -15,7 +14,7 @@ for each kv in ages
     print kv.key, kv.value           ' "ada" then "bob", always
 next
 
-dim seen as OrderedSet( of long )
+dim seen as OrderedSet( of int32 )
 if seen.Add( 42 ) then print "first time"
 ```
 
@@ -47,7 +46,7 @@ A type with an ordering and no hash cannot be an FB.Map key at all.
 OrderedMap( of TK, TV ):
 
 ```freebasic
-Count( ) as long                            O(1)
+Count( ) as int32                           O(1)
 IsEmpty( ) as boolean                       O(1)
 
 Put( k, v ) as boolean                      O(log n)  TRUE if k was new
@@ -67,7 +66,7 @@ Keys( ) as Array( of TK )                   O(n)      sorted snapshot
 Values( ) as Array( of TV )                 O(n)      in key order
 GetIterator( )                              O(log n)
 Pairs( )                                    O(1)      the tuple view
-BlackHeight( ) as long                      O(n)      -1 if corrupt
+BlackHeight( ) as int32                     O(n)      -1 if corrupt
 ```
 
 OrderedSet( of T ):
@@ -88,7 +87,7 @@ TryFloor( v, byref outv ) / TryCeiling( v, byref outv )
 
 Items( ) as Array( of T )                   O(n)      SORTED snapshot
 GetIterator( )                              O(log n)
-BlackHeight( ) as long                      O(n)
+BlackHeight( ) as int32                     O(n)
 ```
 
 NO Reserve AND NO Capacity on either, unlike FB.Map and FB.Set: a tree allocates exactly one node per entry when that entry arrives, so there is no table to size in advance and nothing to tune.
@@ -118,7 +117,7 @@ That is what std::map means by an equivalence, and it is why Put( ) can detect a
 The requirement lands on the TYPE, not on a call:
 
 ```freebasic
-dim m as OrderedMap( of NoLess, long )      ' error 20 here, at the DIM
+dim m as OrderedMap( of NoLess, int32 )      ' error 20 here, at the DIM
 ```
 
 That is deliberate and is the difference from Array's Sort, which is a free procedure so that an Array of an unorderable T still works. An ordered map has no meaning without an ordering, so there is nothing to defer. src/tests/generics/fail-container-noorder.bas pins the diagnostic.

@@ -17,7 +17,7 @@ PathExtension( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' WITH the dot, which is what makes it concatenate back on cleanly

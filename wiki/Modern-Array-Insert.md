@@ -7,7 +7,7 @@ O(n)
 ## Syntax
 
 ```freebasic
-Insert( byval i as long, byref v as T )
+Insert( byval i as int32, byref v as T )
 ```
 
 ## Notes
@@ -17,7 +17,7 @@ Insert( byval i as long, byref v as T )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )

@@ -18,7 +18,7 @@ COne( ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( COne( ) )                 '' 1+0i

@@ -20,17 +20,17 @@ RecvChan( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
-dim as long v = 42
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
+dim as int32 v = 42
 ch.Send( v )
 ch.Close( )
 
 '' The consumer's half: it can receive and cannot send or close
-dim r as RecvChan( of long ) = ch
-dim as long got
+dim r as RecvChan( of int32 ) = ch
+dim as int32 got
 print r.Receive( got )       '' true
 print got                    '' 42
 print r.Receive( got )       '' false -- closed and drained

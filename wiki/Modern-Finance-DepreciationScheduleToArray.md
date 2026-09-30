@@ -11,7 +11,7 @@ DepreciationScheduleToArray( depreciationSchedule )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The schedule as an array, for random access.

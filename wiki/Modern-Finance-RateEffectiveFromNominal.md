@@ -11,7 +11,7 @@ RateEffectiveFromNominal( nominalAnnual, compounding )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' What a quoted rate actually earns over a year once it compounds.

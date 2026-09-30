@@ -7,7 +7,7 @@ rounds half away from zero
 ## Syntax
 
 ```freebasic
-FromMilliseconds( double )
+FromMilliseconds( float64 )
 ```
 
 ## Notes
@@ -17,7 +17,7 @@ FromMilliseconds( double )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromMilliseconds( 1500 ).TotalSeconds     '' 1.5

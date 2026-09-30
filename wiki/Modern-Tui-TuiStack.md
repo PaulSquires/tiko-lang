@@ -19,7 +19,7 @@ A container that lays its children out with the constraint solver and forwards e
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStack st

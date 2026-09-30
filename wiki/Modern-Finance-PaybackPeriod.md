@@ -11,7 +11,7 @@ PaybackPeriod( flows( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' When the cumulative cash flow first turns positive, INTERPOLATED

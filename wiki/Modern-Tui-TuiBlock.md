@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiBlock extends TuiWidget
-    as ubyte borderKind, sides
+    as uint8 borderKind, sides
     as TuiStyle borderStyle, fillStyle
     as boolean fill
     as TuiTitleArray titles
@@ -20,7 +20,7 @@ A border with titles, and the Inner( ) rect inside it. Almost every panel starts
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

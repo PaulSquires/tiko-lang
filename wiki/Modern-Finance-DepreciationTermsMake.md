@@ -11,7 +11,7 @@ DepreciationTermsMake( cost, salvage, lifePeriods )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Construction by named free function.  It defaults RateFactor_ to 2,
@@ -23,7 +23,7 @@ print DepreciationStraightLine( t, 1 ).Value( ).ToStringFixed( 2 )       '' 6428
 
 '' The depreciable base is cost MINUS salvage -- 45000 here, not 50000.
 dim as Decimal total = DecimalZero( )
-for k as long = 1 to 7
+for k as int32 = 1 to 7
     total = total + DepreciationStraightLine( t, k ).Value( )
 next
 print total.ToStringFixed( 2 )           '' 45000.00

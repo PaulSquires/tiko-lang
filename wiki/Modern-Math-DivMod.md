@@ -17,12 +17,12 @@ DivMod( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
 '' Quotient and remainder from ONE divide, returned as a TUPLE -- which
 '' is where the tuple feature earns its keep
-dim as long a = 17, b = 5
+dim as int32 a = 17, b = 5
 
 '' DESTRUCTURE it. The fields are named in the signature but the value
 '' is taken apart positionally, so `.quotient` is error 18.

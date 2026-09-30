@@ -11,7 +11,7 @@ LoanTermsCanadianMortgage( principal, nominalAnnualRate, amortizationYears )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The Canadian convention: the Interest Act requires a mortgage rate to

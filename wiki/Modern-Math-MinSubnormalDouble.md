@@ -11,10 +11,10 @@ MinSubnormalDouble( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double m = MinSubnormalDouble( )
+dim as float64 m = MinSubnormalDouble( )
 
 '' The SMALLEST NON-ZERO double there is -- one bit of significand left
 print m > 0                  '' -1 (true)

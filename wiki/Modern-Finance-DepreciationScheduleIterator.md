@@ -11,7 +11,7 @@ it.IsValid( )  it.Value( )  it.MoveNext( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The iterator protocol behind FOR EACH -- walk it by hand to stop
@@ -22,7 +22,7 @@ dim as DepreciationTerms t = DepreciationTermsMake( DecimalParse( "50000" ).Valu
 var s = DepreciationScheduleOf( t, DEPRECIATION_SUM_OF_YEARS_DIGITS )
 var it = s.Value( ).GetIterator( )
 
-dim as long k = 0
+dim as int32 k = 0
 while( it.IsValid( ) andalso ( k < 3 ) )
     print it.Value( ).Period_; " "; it.Value( ).Expense_.ToStringFixed( 2 )
     it.MoveNext( )

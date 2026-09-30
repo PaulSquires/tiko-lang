@@ -11,7 +11,7 @@ Instant.AddDays
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' EXACT arithmetic -- 86400 seconds per day, and the argument is a

@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiTreeState
-    as long selected, offset
+    as int32 selected, offset
 end type
 ```
 
@@ -17,7 +17,7 @@ A tree's selection and scroll, owned by you. Expansion state lives in the tree i
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTreeState st

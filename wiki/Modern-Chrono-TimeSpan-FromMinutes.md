@@ -12,7 +12,7 @@ TimeSpan.FromMinutes( v )
 
 ## Notes
 
-- Takes a `double`, so half a minute is exact.
+- Takes a `float64`, so half a minute is exact.
 - Rounds **half away from zero** below the tick.
 - NaN or an out-of-range value yields Invalid.
 - A minute is always 60 seconds: this library has no leap seconds.
@@ -20,7 +20,7 @@ TimeSpan.FromMinutes( v )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromMinutes( 90 ).TotalHours      '' 1.5

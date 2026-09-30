@@ -15,7 +15,7 @@ Force a FULL repaint rather than a diff. Use it after anything that changed the 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiInvalidate( ).kind = TUICMD_INVALIDATE '' -1 (true)

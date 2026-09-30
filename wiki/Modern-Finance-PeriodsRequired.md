@@ -11,7 +11,7 @@ PeriodsRequired( annuityTerms )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' How many periods a payment needs to clear a balance.

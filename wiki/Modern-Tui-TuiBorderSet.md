@@ -17,7 +17,7 @@ The six glyphs a border is drawn from: horizontal, vertical, and the four corner
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBorderSet g = TuiBorderGlyphs( TUIBORDER_ASCII )

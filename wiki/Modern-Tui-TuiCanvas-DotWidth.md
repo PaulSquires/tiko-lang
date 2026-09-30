@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.DotWidth( ) as long
+TuiCanvas.DotWidth( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The canvas width in dots -- cells times 2.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiCanvas( 40, 10 ).DotWidth( )          '' 80

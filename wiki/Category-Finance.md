@@ -3,7 +3,7 @@
 # Finance
 
 ```freebasic
-#include once "fb/finance.bi"     ' the whole module -- everything below
+#import "std/money"
 
 using FB
 ```
@@ -83,7 +83,7 @@ ARITHMETIC
 ```freebasic
 a + b, a - b        EXACT, overflow-checked
 a * n  (integer)    EXACT, overflow-checked
-a * x  (double)     rounded half-to-even
+a * x  (float64)     rounded half-to-even
 a / n  (integer)    rounded HALF-TO-EVEN, not truncated
 a / b  (Currency)   DOUBLE -- a ratio is not an amount
 a MOD b, -a, comparisons
@@ -225,7 +225,7 @@ Lo( ) Mid( ) Hi( )                     ' the three mantissa limbs
 ToString( )                            ' exact, EXACTLY 'scale' decimals
 ToStringFixed( digits )                ' Rescale then ToString
 ToDouble( )                            ' BOUNDED, named
-ToLongInt( ) -> Optional( of longint ) ' truncates; None if it will not fit
+ToLongInt( ) -> Optional( of int64 ) ' truncates; None if it will not fit
 ToCurrency( )                          ' half-to-even to four places
 Round( digits )                        ' half-to-even, 0..28
 RoundMode( digits, mode )              ' DEC_HALF_EVEN DEC_HALF_UP
@@ -272,10 +272,10 @@ interest to cents, subtract:
 
 ```freebasic
 ' COMPILES TODAY, AND THE LAST ROW IS WRONG
-dim as double pmt = p * i / ( 1.0 - ( 1.0 + i ) ^ ( -n ) )
+dim as float64 pmt = p * i / ( 1.0 - ( 1.0 + i ) ^ ( -n ) )
 pmt = int( pmt * 100.0 + 0.5 ) / 100.0
-for k as long = 1 to 360
-    dim as double interest = int( bal * i * 100.0 + 0.5 ) / 100.0
+for k as int32 = 1 to 360
+    dim as float64 interest = int( bal * i * 100.0 + 0.5 ) / 100.0
     bal = bal - ( pmt - interest )
 next
 print bal                    ' -0.9699999996669249
@@ -288,7 +288,7 @@ interest is rounded independently of the principal so the row does not add up, a
 last period is treated like every other.
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 var t     = LoanTermsCanadianMortgage( principal, rate, 25 )
@@ -324,7 +324,7 @@ print LoanPayment( LoanTermsCanadianMortgage( p, r, 25 ) ).Value( ).ToStringFixe
 
 $17.64 a month, about $5,292 over the term.
 
-### Exact where it matters, `double` where it cannot be
+### Exact where it matters, `float64` where it cannot be
 
 `fb/decimal.bi` has no `Pow`, `Exp`, `Log` or `Sqrt`, so anything needing a power is
 either built from multiplication or is not exact. The boundary is drawn once and every
@@ -333,9 +333,9 @@ function states which side it is on, in its own doc comment:
 | | |
 |---|---|
 | **Exact** | growth and discount over an **integer** number of periods; every sum, product and quotient of money; day-count fractions |
-| **`double`** | fractional exponents -- nominal-from-effective, the Canadian sixth root, dated discounting; continuous compounding; every solver; all of `fb/finport.bi` |
+| **`float64`** | fractional exponents -- nominal-from-effective, the Canadian sixth root, dated discounting; continuous compounding; every solver; all of `fb/finport.bi` |
 
-A rate that crosses into `double` crosses back at a fixed scale, and **everything
+A rate that crosses into `float64` crosses back at a fixed scale, and **everything
 downstream of it is exact again**. A Canadian mortgage crosses once, at the rate
 conversion; the 300-row schedule that follows is exact `Decimal` arithmetic.
 

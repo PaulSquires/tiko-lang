@@ -11,14 +11,14 @@ EuclidMod(-7,-3)
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
 '' The remainder that is ALWAYS NON-NEGATIVE, whatever the signs
-dim as long a = -1, b = 5
+dim as int32 a = -1, b = 5
 print EuclidMod( a, b )      '' 4
 
-dim as long c = -1, d = -5
+dim as int32 c = -1, d = -5
 print EuclidMod( c, d )      '' 4 -- still non-negative
 print FloorMod( c, d )       '' -1 -- follows the divisor's sign instead
 ```

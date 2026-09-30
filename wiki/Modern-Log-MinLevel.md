@@ -20,7 +20,7 @@ MinLevel as LogLevel        '' get and set
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

@@ -19,14 +19,14 @@ TransformVector( byref a as Mat4, byref v as Vec3 ) as Vec3
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Mat4 m
-for i as long = 0 to 15
+for i as int32 = 0 to 15
     m.m( i ) = 0
 next
-for i as long = 0 to 3
+for i as int32 = 0 to 3
     m.m( i * 4 + i ) = 1
 next
 m.m( 12 ) = 10               '' translation, which a direction ignores

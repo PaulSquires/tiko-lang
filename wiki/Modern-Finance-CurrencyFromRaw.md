@@ -11,11 +11,11 @@ CurrencyFromRaw( scaled )
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 '' The scaled integer directly: 1 unit is 10000
-dim as longint raw = 123400
+dim as int64 raw = 123400
 print CurrencyFromRaw( raw ).ToString( )  '' 12.3400
 
 '' The inverse of Raw( ), for storing an amount in a database column or

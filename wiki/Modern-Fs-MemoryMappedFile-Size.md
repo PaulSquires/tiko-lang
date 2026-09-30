@@ -17,7 +17,7 @@ MemoryMappedFile.Size( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -32,8 +32,8 @@ print mm.Size( )             '' 5 -- the mapped length, in bytes
 
 '' The bound for Data( ): there is no terminator, so this is the only
 '' thing that says where the mapping ends
-dim as ubyte ptr b = mm.Data( )
-for i as ulongint = 0 to mm.Size( ) - 1
+dim as uint8 ptr b = mm.Data( )
+for i as uint64 = 0 to mm.Size( ) - 1
     print chr( b[ i ] );
 next
 print                        '' hello

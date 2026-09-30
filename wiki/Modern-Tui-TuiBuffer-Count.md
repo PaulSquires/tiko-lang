@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiBuffer.Count( ) as long
+TuiBuffer.Count( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ cols * rows.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBuffer b

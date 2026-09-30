@@ -15,7 +15,7 @@ Initialises a text-area state in place. A SUB, like its single-line sibling.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextAreaState st

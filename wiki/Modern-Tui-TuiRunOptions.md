@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiRunOptions
-    as long fps            '' 0 = the default 60
+    as int32 fps            '' 0 = the default 60
     as boolean quitOnCtrlC
 end type
 ```
@@ -18,7 +18,7 @@ Loop tuning. quitOnCtrlC exists because raw mode clears ISIG: Ctrl+C arrives nei
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRunOptions ro = TuiRunOptionsDefault( )

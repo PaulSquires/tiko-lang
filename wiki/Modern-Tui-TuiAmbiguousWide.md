@@ -15,7 +15,7 @@ The current ambiguous-width setting.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiAmbiguousWide( )         '' false -- narrow by default

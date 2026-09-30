@@ -5,18 +5,18 @@
 > 📘 **Also in this category:** [Goroutines Tutorial](Modern-Goroutines-Tutorial)
 
 ```freebasic
-#include once "fb/sync.bi"       ' pulls in channel.bi and scheduler.bi
+#import "std/tasks"
 #include once "fb/select.bi"
 using FB
 
-sub Produce( byval jobs as SendChan( of long ), byval n as long )
-    for i as long = 1 to n
+sub Produce( byval jobs as SendChan( of int32 ), byval n as int32 )
+    for i as int32 = 1 to n
         jobs.Send( i * i )
     next
     jobs.Close( )
 end sub
 
-dim jobs as Channel( of long ) = Channel( of long )( 16 )
+dim jobs as Channel( of int32 ) = Channel( of int32 )( 16 )
 
 spawn Produce( jobs, 100 )
 
@@ -33,15 +33,15 @@ FreeBASIC's concurrency surface is four opaque pointers.  ThreadCreate returns a
 
 ```freebasic
 ' before
-dim shared as long g_result
+dim shared as int32 g_result
 dim shared as boolean g_done
 dim shared as any ptr g_mutex, g_cond
 ...20 more lines, three globals, one predicate loop...
 
 ' after
-dim done as Channel( of long ) = Channel( of long )( 1 )
+dim done as Channel( of int32 ) = Channel( of int32 )( 1 )
 spawn Worker( done )
-dim as long answer
+dim as int32 answer
 done.Receive( answer )
 ```
 
@@ -107,7 +107,7 @@ spawn Worker( a, b )
 Runs Worker( a, b ) concurrently.  The arguments are evaluated HERE and copied, which is the whole reason this is a statement rather than a library call:
 
 ```freebasic
-for i as long = 1 to 10
+for i as int32 = 1 to 10
     spawn Work( i )        ' each goroutine gets ITS OWN i
 next
 ```
@@ -138,9 +138,9 @@ FB.Spawn( @Worker, @ctx ) is the library form the statement lowers to.  It is pu
 ## Channel
 
 ```freebasic
-dim ch as Channel( of long ) = Channel( of long )( 16 )   ' buffered
-dim rv as Channel( of long ) = Channel( of long )( 0 )    ' rendezvous
-dim nl as Channel( of long )                              ' NIL
+dim ch as Channel( of int32 ) = Channel( of int32 )( 16 )   ' buffered
+dim rv as Channel( of int32 ) = Channel( of int32 )( 0 )    ' rendezvous
+dim nl as Channel( of int32 )                              ' NIL
 
 Send( v )              blocks until there is room, or a receiver
 Receive( out )         blocks until there is a value; FALSE at end of stream
@@ -262,7 +262,7 @@ released.
 
 ```freebasic
 dim wg as WaitGroup
-for i as long = 1 to 8
+for i as int32 = 1 to 8
     wg.Add( )
     spawn Worker( i, @wg )      ' Worker calls wg.Done( ) on the way out
 next
@@ -319,8 +319,8 @@ A goroutine blocked in a syscall cannot be cancelled.  That is the cost, and it 
 ## Directional Channels
 
 ```freebasic
-sub Produce( byval jobs as SendChan( of long ) )    ' cannot receive
-sub Consume( byval jobs as RecvChan( of long ) )    ' cannot send or Close
+sub Produce( byval jobs as SendChan( of int32 ) )    ' cannot receive
+sub Consume( byval jobs as RecvChan( of int32 ) )    ' cannot send or Close
 ```
 
 RecvChan deliberately has no Close: closing is the producer's statement, and a consumer that closes its input is the most common channel bug there is.

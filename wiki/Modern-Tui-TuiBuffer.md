@@ -7,7 +7,7 @@
 ```freebasic
 type TuiBuffer
     as TuiCellArray cells
-    as long cols, rows
+    as int32 cols, rows
     ...
 end type
 ```
@@ -19,7 +19,7 @@ A flat grid of cells, row-major. TuiScreen owns two of these -- front and back -
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBuffer b

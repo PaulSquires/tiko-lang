@@ -3,17 +3,17 @@
 # Result
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
-type ParseResult as Result( of long, ustring )
+type ParseResult as Result( of int32, ustring )
 
 function Parse( byref s as ustring ) as ParseResult
     if( len( s ) = 0 ) then
-        return Fail( of long, ustring )( "empty" )
+        return Fail( of int32, ustring )( "empty" )
     end if
     ...
-    return Ok( of long, ustring )( n )
+    return Ok( of int32, ustring )( n )
 end function
 
 dim r as ParseResult = Parse( input_ )
@@ -30,7 +30,7 @@ end if
 The error was not part of the return type. It lived in a global status code, did not participate in the type system, and was trivially ignored:
 
 ```freebasic
-dim v as long = Parse( s )           ' did it work?  ask err, maybe
+dim v as int32 = Parse( s )           ' did it work?  ask err, maybe
 if( err <> 0 ) then
 ```
 
@@ -68,7 +68,7 @@ There is no FailureOr( ): a default reason for a success is not a thing anyone w
 ## A DEFAULT-CONSTRUCTED Result Is A Failure
 
 ```freebasic
-dim r as Result( of long, ustring )   ' failed, with an empty reason
+dim r as Result( of int32, ustring )   ' failed, with an empty reason
 ```
 
 This is the most important property of the type, and the choice is not arbitrary. A Result that nobody has set must not read as success, or every forgotten assignment becomes a silent Ok. There is no third state.
@@ -78,14 +78,14 @@ This is the most important property of the type, and the choice is not arbitrary
 Inference reads parameter positions only, and Ok( ) mentions just T while Fail( ) mentions just E, so neither call can infer the pair:
 
 ```freebasic
-return Ok( of long, ustring )( 3L )
-return Fail( of long, ustring )( "not a number" )
+return Ok( of int32, ustring )( 3L )
+return Fail( of int32, ustring )( "not a number" )
 ```
 
 That is more ceremony than Optional's Some( x ), and it is the reason the pairing is normally named once:
 
 ```freebasic
-type ParseResult as Result( of long, ustring )
+type ParseResult as Result( of int32, ustring )
 ```
 
 The usual inference rule still applies inside: an untyped integer literal is an INTEGER, so Ok( of long, ustring )( 3 ) is a mismatch and Ok( ... )( 3L ) is not.
@@ -115,8 +115,8 @@ and ValueOr( ) aliases either the stored value or the CALLER'S default, so passi
 ## Zero Is A Value
 
 ```freebasic
-Ok( of long, ustring )( 0L )          ' a success whose value is 0
-Fail( of long, ustring )( "" )        ' a failure whose reason is ""
+Ok( of int32, ustring )( 0L )          ' a success whose value is 0
+Fail( of int32, ustring )( "" )        ' a failure whose reason is ""
 ```
 
 Neither collapses into the other. Every "0 means error" or "empty means failed" convention Result replaces gets one of these wrong.
@@ -163,9 +163,9 @@ Not minimalism. Every member of a generic is instantiated whether it is called o
 So the members here use only default construction, copy and destruction, and Result instantiates over anything with those, including containers, which have no '=':
 
 ```freebasic
-dim r as Result( of Array( of long ), ustring )           ' fine
-dim s as Result( of long, Array( of long ) )              ' fine
-dim n as Result( of Result( of long, ustring ), ustring ) ' fine
+dim r as Result( of Array( of int32 ), ustring )           ' fine
+dim s as Result( of int32, Array( of int32 ) )              ' fine
+dim n as Result( of Result( of int32, ustring ), ustring ) ' fine
 ```
 
 ## Library Only

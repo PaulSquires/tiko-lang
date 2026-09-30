@@ -11,7 +11,7 @@ LocalDate.Quarter
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print LocalDate( 2026, 1, 1 ).Quarter       '' 1

@@ -15,7 +15,7 @@ Field-by-field comparison. Useful for skipping work when a computed layout has n
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect a = TuiRectOf( 1, 2, 3, 4 )

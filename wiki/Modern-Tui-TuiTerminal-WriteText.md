@@ -15,7 +15,7 @@ Appends a ustring, encoded as UTF-8. On Windows this is why Enter sets the conso
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

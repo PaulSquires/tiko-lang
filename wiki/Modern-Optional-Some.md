@@ -11,7 +11,7 @@ Some( v ) as Optional( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/optional.bi"
+#import "std/outcome"
 using FB
 
 dim o as Optional( of integer ) = Some( 42 )

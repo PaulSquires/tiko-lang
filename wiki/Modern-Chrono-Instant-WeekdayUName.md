@@ -11,7 +11,7 @@ Instant.WeekdayUName
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as ustring s = DateTime.WeekdayUName( 4 )

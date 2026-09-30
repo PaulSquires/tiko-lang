@@ -20,7 +20,7 @@ A floating panel. It ignores the area passed to Render and uses its own `area` f
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

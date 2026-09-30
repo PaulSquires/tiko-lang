@@ -7,7 +7,7 @@ Adds `c * num / den` to an accumulator, exactly.
 ## Syntax
 
 ```freebasic
-CurrencyAccum.AddScaled( byref c as Currency, byval num as longint, byval den as longint )
+CurrencyAccum.AddScaled( byref c as Currency, byval num as int64, byval den as int64 )
 ```
 
 ## Notes
@@ -19,14 +19,14 @@ CurrencyAccum.AddScaled( byref c as Currency, byval num as longint, byval den as
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim acc as CurrencyAccum
 dim as Currency total_ = CurrencyFromInt( 100 )
 
 '' Exactly one third, three times -- not 0.3333... three times
-for i as long = 1 to 3
+for i as int32 = 1 to 3
     acc.AddScaled( total_, 1, 3 )
 next
 

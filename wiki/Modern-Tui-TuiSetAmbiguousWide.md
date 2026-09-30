@@ -15,7 +15,7 @@ Switches the 179 East Asian AMBIGUOUS ranges between 1 and 2 columns. Narrow is 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiCharWidth( &h00A1 )      '' 1 -- INVERTED EXCLAMATION MARK, ambiguous

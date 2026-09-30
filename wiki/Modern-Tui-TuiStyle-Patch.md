@@ -15,7 +15,7 @@ Compose two styles: `over` supplies only what it SETS, and everything else is ke
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle base_ = TuiStyleOf( TuiRgb( 200, 200, 200 ), TuiRgb( 20, 20, 30 ), TUIATTR_NONE )

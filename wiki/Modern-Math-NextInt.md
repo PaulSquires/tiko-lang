@@ -17,15 +17,15 @@ NextInt( lo, hi )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
-dim as longint lo = 1, hi = 6
+dim as int64 lo = 1, hi = 6
 
 '' INCLUSIVE at both ends, and UNBIASED -- it rejects and retries rather
 '' than taking a modulus, which would favour the low end of the range
-dim as longint v = r.NextInt( lo, hi )
+dim as int64 v = r.NextInt( lo, hi )
 print v >= lo andalso v <= hi             '' -1 (true)
 ```
 

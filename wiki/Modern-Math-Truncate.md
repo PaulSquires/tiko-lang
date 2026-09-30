@@ -11,7 +11,7 @@ Truncate( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 '' TOWARDS ZERO, whichever side of it you are on

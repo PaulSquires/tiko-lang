@@ -11,7 +11,7 @@ PatternIsRecursive( pattern )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' ** means "this directory and everything under it"

@@ -15,7 +15,7 @@ True when this is a printable character rather than a named key -- that is, when
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiKey k

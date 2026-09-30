@@ -19,7 +19,7 @@ ToMatrix( byref q as Quat ) as Mat4
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Quat q = type<Quat>( 0, 0, 0, 1 )      '' identity

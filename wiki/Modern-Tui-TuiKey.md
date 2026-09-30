@@ -6,9 +6,9 @@
 
 ```freebasic
 type TuiKey
-    as ushort code     '' TuiKeyCode
-    as ubyte mods      '' TuiMod bits
-    as ulong ch        '' the codepoint, when code = TUIKEY_CHAR
+    as uint16 code     '' TuiKeyCode
+    as uint8 mods      '' TuiMod bits
+    as uint32 ch        '' the codepoint, when code = TUIKEY_CHAR
 end type
 ```
 
@@ -19,7 +19,7 @@ A key press. `code` is either TUIKEY_CHAR -- in which case `ch` holds the codepo
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiKey k

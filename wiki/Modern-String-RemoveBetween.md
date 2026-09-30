@@ -20,7 +20,7 @@ RemoveBetween( s, opening, closing [, removeAll] [, start] [, ignoreCase] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print RemoveBetween( "blah (text) blah", "(", ")" )       '' blah  blah

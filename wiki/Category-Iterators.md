@@ -60,7 +60,7 @@ That is the whole thing:
 type IntListIterator
     as IntNode ptr node
     declare function IsValid( ) as boolean
-    declare function Value( ) byref as long
+    declare function Value( ) byref as int32
     declare sub      MoveNext( )
 end type
 
@@ -68,7 +68,7 @@ function IntListIterator.IsValid( ) as boolean
     return this.node <> 0
 end function
 
-function IntListIterator.Value( ) byref as long
+function IntListIterator.Value( ) byref as int32
     return this.node->value
 end function
 
@@ -153,7 +153,7 @@ With generics the iterator is written once:
 ```freebasic
 type ArrayIterator( of T )
     as T ptr first
-    as long idx, count
+    as int32 idx, count
     declare function IsValid( ) as boolean
     declare function Value( ) byref as T
     declare sub      MoveNext( )
@@ -161,7 +161,7 @@ end type
 
 type Buf( of T )
     as T e( 0 to 7 )
-    as long n
+    as int32 n
     declare function GetIterator( ) as ArrayIterator( of T )
 end type
 ```
@@ -187,12 +187,12 @@ A collection is even allowed to BE its own iterator (GetIterator returning itsel
 ```freebasic
 overloads by constness alone:
 
-    declare function f( ) as long
-    declare const function f( ) as long
+    declare function f( ) as int32
+    declare const function f( ) as int32
     error 4: Duplicated definition
 
 So a type cannot supply a const and a non-const GetIterator pair. Declare
-the single GetIterator CONST -- it then serves const and non-const
+the float32 GetIterator CONST -- it then serves const and non-const
 collections alike, which is what a container wants anyway.
 ```
 

@@ -15,7 +15,7 @@ The capabilities detected at Enter. Cached -- detection runs once.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

@@ -11,7 +11,7 @@ Add( delta = 1 )
 ## Examples
 
 ```freebasic
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 '' A WaitGroup counts outstanding work. Add BEFORE spawning, never

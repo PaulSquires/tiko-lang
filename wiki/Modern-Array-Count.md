@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Count( ) as long
+Count( ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )
@@ -21,7 +21,7 @@ v.Push( "a" ) : v.Push( "b" )
 print v.Count            '' 2
 
 '' The valid indices are 0 to Count-1
-for i as long = 0 to v.Count - 1
+for i as int32 = 0 to v.Count - 1
     print i & ": " & v[ i ]
 next
 ```

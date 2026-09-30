@@ -11,7 +11,7 @@ TryFloor( k, byref outk ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/orderedmap.bi"
+#import "std/containers"
 using FB
 
 dim m as OrderedMap( of integer, ustring )

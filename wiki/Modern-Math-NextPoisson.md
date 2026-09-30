@@ -11,18 +11,18 @@ NextPoisson( lambda )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
 '' How many events arrive in one interval at rate lambda. Its mean IS
 '' lambda, and it is a count, so it never comes back negative.
-dim as longint total = 0
-for i as long = 1 to 2000
+dim as int64 total = 0
+for i as int32 = 1 to 2000
     total += r.NextPoisson( 4.0 )
 next
-dim as double mean_ = total / 2000
+dim as float64 mean_ = total / 2000
 
 print mean_ > 3.5 andalso mean_ < 4.5     '' -1 (true)
 ```

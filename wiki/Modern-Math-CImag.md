@@ -7,7 +7,7 @@ The imaginary part.
 ## Syntax
 
 ```freebasic
-CImag( byref z as Complex ) as double
+CImag( byref z as Complex ) as float64
 ```
 
 ## Notes
@@ -18,7 +18,7 @@ CImag( byref z as Complex ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex z = CSet( 3, 4 )

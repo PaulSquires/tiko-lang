@@ -8,7 +8,7 @@ The inverse hyperbolic tangent.
 
 ```freebasic
 CAtanh( byref z as Complex ) as Complex
-CAtanh( byval x as double ) as Complex
+CAtanh( byval x as float64 ) as Complex
 ```
 
 ## Notes
@@ -16,13 +16,13 @@ CAtanh( byval x as double ) as Complex
 - Reached through the inverse **trigonometric** functions, so it inherits the Hull–Fairgrieve–Tang conditioning rather than carrying its own copy. `atanh z = -i·atan( iz )`.
 - **Cut along the real axis beyond ±1, and that segment cannot be reached through `CAtan`**: forming `1 + iz` adds `+0.0` to `-0.0`, IEEE gives `+0.0`, and the bit that decides the side of the cut is gone before the logarithm sees it. It is computed directly — `atanh( x ± 0i ) = atanh( 1/x ) ± iπ/2`.
 - The imaginary axis is answered directly too: `atanh( ±0 + yi ) = ±0 + i·atan( y )`.
-- The `double` overload is AfxNova's `CArcTanHReal`.
+- The `float64` overload is AfxNova's `CArcTanHReal`.
 - `CAtanh( ±1 )` is infinite, which is the true value.
 
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAtanh( CSet( 0.5, 0.25 ) ) )  '' 0.5003700000525311+0.3143981432077165i

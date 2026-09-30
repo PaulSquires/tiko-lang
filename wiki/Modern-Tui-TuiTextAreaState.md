@@ -7,8 +7,8 @@
 ```freebasic
 type TuiTextAreaState
     as TuiStringArray lines_
-    as long cursorLine, cursorCol
-    as long offsetY
+    as int32 cursorLine, cursorCol
+    as int32 offsetY
 end type
 ```
 
@@ -19,7 +19,7 @@ The multi-line editor's state, owned by you. `lines_` carries the underscore bec
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextAreaState st

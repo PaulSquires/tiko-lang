@@ -11,7 +11,7 @@ TryParseSingle( s [, flags] )
 ## Examples
 
 ```freebasic
-#include once "fb/mathtext.bi"
+#import "std/numeric"
 using FB
 
 var r = TryParseSingle( "1.5" )

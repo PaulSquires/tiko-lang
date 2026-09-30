@@ -11,7 +11,7 @@ PresentValue( annuityTerms )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' What a stream of payments plus a final lump is worth today.

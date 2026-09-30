@@ -11,7 +11,7 @@ LocalTime.ToString
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalTime t = LocalTime( 14, 30, 5, 0 )

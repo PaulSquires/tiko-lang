@@ -11,7 +11,7 @@ Instant.MonthUName
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The same invariant English name as MonthName, as a USTRING

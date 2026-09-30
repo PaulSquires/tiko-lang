@@ -7,7 +7,7 @@ The distance between two points.
 ## Syntax
 
 ```freebasic
-Distance( byref a as Vec3, byref b as Vec3 ) as single
+Distance( byref a as Vec3, byref b as Vec3 ) as float32
 ```
 
 ## Notes
@@ -18,7 +18,7 @@ Distance( byref a as Vec3, byref b as Vec3 ) as single
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Vec3 a = type<Vec3>( 1, 2, 3 ), b = type<Vec3>( 4, 5, 6 )
@@ -26,7 +26,7 @@ dim as Vec3 a = type<Vec3>( 1, 2, 3 ), b = type<Vec3>( 4, 5, 6 )
 print Distance( a, b )       '' 5.196152 -- sqr( 27 )
 
 '' A proximity test needs no root: compare squares
-dim as single radius = 6
+dim as float32 radius = 6
 print DistanceSquared( a, b ) < radius * radius        '' -1 (true)
 ```
 

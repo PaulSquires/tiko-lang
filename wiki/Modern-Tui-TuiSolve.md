@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiSolve( byval total as long, byref cs as TuiConstraintArray ) as Array( of long )
+TuiSolve( byval total as int32, byref cs as TuiConstraintArray ) as Array( of int32 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The raw sizes, if you want to lay something out yourself. The rule is stated exa
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs
@@ -23,11 +23,11 @@ cs.Push( TuiLength( 3 ) )
 cs.Push( TuiFill( ) )
 cs.Push( TuiLength( 1 ) )
 
-dim as Array( of long ) s = TuiSolve( 24, cs )
+dim as Array( of int32 ) s = TuiSolve( 24, cs )
 print s[0], s[1], s[2]            '' 3 20 1
 
-dim as long total_ = 0
-for i as long = 0 to s.Count( ) - 1 : total_ += s[i] : next
+dim as int32 total_ = 0
+for i as int32 = 0 to s.Count( ) - 1 : total_ += s[i] : next
 print total_                      '' 24 -- always exactly the total
 ```
 

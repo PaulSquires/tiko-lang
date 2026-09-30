@@ -15,7 +15,7 @@ Show or hide the hardware cursor.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiShowCursorSeq( TRUE )  = chr( 27 ) & "[?25h" '' -1 (true)

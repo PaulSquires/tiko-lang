@@ -7,7 +7,7 @@ The middle value, or the mean of the two middle values.
 ## Syntax
 
 ```freebasic
-Median( a( ) as T ) as double
+Median( a( ) as T ) as float64
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ Median( a( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print Median( a( ) )         '' 4
 
 '' One absurd value moves the mean and leaves the median alone
-dim as double b( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 1e9 }
+dim as float64 b( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 1e9 }
 print Median( b( ) )         '' 4
 print Mean( b( ) ) > 1e8     '' -1 (true)
 ```

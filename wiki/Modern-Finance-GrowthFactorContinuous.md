@@ -11,7 +11,7 @@ GrowthFactorContinuous( continuousRate, years )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' exp( r * t ) -- continuous compounding, the limit of compounding ever

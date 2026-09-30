@@ -11,7 +11,7 @@ s.GetIterator( )  s.Count( )  s.Payment( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Holds the terms, not the rows.  Count( ) is the SCHEDULED number of

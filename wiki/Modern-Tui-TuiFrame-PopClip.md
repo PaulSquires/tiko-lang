@@ -15,7 +15,7 @@ Restores a clip returned by PushClip. Pass back exactly what PushClip gave you -
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

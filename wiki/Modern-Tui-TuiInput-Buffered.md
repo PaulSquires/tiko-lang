@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiInput.Buffered( ) as long
+TuiInput.Buffered( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Bytes held that have not yet formed an event.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

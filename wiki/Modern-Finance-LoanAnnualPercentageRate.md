@@ -11,7 +11,7 @@ LoanAnnualPercentageRate( loanTerms, financedFees )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The rate implied once financed fees are counted as part of the cost of

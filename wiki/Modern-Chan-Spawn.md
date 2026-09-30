@@ -20,7 +20,7 @@ spawn Procedure( [ args ] )
 ## Examples
 
 ```freebasic
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 '' THE SHAPE, with the Add BEFORE the spawn -- never inside the

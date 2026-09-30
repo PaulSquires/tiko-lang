@@ -7,7 +7,7 @@ The modulus — the distance from the origin.
 ## Syntax
 
 ```freebasic
-CAbs( byref z as Complex ) as double
+CAbs( byref z as Complex ) as float64
 ```
 
 ## Notes
@@ -20,7 +20,7 @@ CAbs( byref z as Complex ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex big_ = CSet( 1e200, 1e200 )

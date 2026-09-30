@@ -11,7 +11,7 @@ DayCountFraction( d1, d2, basis )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The year fraction, EXACT -- an integer over an integer.

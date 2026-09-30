@@ -83,7 +83,7 @@ A ustring works anywhere a STRING or WSTRING does, converting as above. Two case
 Passing a ustring to a WSTRING PTR parameter -- a Win32 ...W API, typically -- is a FREE pointer reinterpret where wchar_t is 16 bits, because a ustring already is UTF-16:
 
 ```freebasic
-declare function MessageBoxW( ..., byval txt as wstring ptr, ... ) as long
+declare function MessageBoxW( ..., byval txt as wstring ptr, ... ) as int32
 dim as ustring msg = "hello"
 MessageBoxW( ..., msg, ... )        '' no conversion, no copy
 ```

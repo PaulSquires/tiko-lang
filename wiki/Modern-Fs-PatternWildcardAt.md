@@ -17,7 +17,7 @@ PatternWildcardAt( pattern )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' The offset of the first wildcard, or -1 when the pattern is a plain

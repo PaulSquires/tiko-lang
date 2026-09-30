@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiPadAll( byval r as TuiRect, byval n as long ) as TuiRect
+TuiPadAll( byval r as TuiRect, byval n as int32 ) as TuiRect
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Shrinks by n on every side.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiPadAll( TuiRectOf( 0, 0, 20, 10 ), 2 )

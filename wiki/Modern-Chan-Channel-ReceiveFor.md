@@ -7,7 +7,7 @@ Receives a value, giving up after `ms` milliseconds.
 ## Syntax
 
 ```freebasic
-ReceiveFor( byref out as T, byval ms as ulong ) as boolean
+ReceiveFor( byref out as T, byval ms as uint32 ) as boolean
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ ReceiveFor( byref out as T, byval ms as ulong ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 1 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 1 )
 
-dim as long got
+dim as int32 got
 print ch.ReceiveFor( got, 50 )       '' false -- nothing arrived in 50 ms
 
-dim as long v = 7
+dim as int32 v = 7
 ch.Send( v )
 print ch.ReceiveFor( got, 100 )      '' true
 print got                            '' 7

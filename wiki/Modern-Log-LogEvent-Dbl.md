@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Dbl( k, v as double )
+Dbl( k, v as float64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

@@ -19,10 +19,10 @@ AbsChecked( byval a as T ) as Optional( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte worst = -128
+dim as int8 worst = -128
 
 var r = AbsChecked( worst )
 print r.HasValue( )          '' false -- there is no +128 in a BYTE
@@ -30,7 +30,7 @@ print r.HasValue( )          '' false -- there is no +128 in a BYTE
 '' Which is what the bare operator gets silently wrong
 print abs( worst )           '' -128
 
-dim as byte ordinary = -5
+dim as int8 ordinary = -5
 print AbsChecked( ordinary ).Value( )         '' 5
 ```
 

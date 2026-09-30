@@ -19,7 +19,7 @@ Remain( s, missing )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Remain( "Brevity is the soul of wit", "is " )   '' the soul of wit

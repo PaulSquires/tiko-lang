@@ -15,7 +15,7 @@ Fills an array with the default braille spinner frames. A SUB taking the array b
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStringArray fr

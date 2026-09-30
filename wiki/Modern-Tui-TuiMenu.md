@@ -18,7 +18,7 @@ One menu on a menu bar: its label and its drop-down items.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiMenu m

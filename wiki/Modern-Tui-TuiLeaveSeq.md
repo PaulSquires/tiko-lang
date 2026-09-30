@@ -15,7 +15,7 @@ The sequence Leave writes -- every mode Enter set, undone in reverse. It is deli
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTermOptions o = TuiTermOptionsDefault( )

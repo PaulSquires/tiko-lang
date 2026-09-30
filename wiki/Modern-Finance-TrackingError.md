@@ -11,14 +11,14 @@ TrackingError( assetReturns( ), benchmarkReturns( ), frequency )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The SAMPLE standard deviation of the active return -- asset minus
 '' benchmark -- annualized.  How tightly the portfolio follows its index.
-dim as double r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
+dim as float64 r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
                                0.01, -0.005, 0.02, 0.03, -0.015, 0.025 }
-dim as double b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
+dim as float64 b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
                                0.008, -0.004, 0.018, 0.028, -0.012, 0.022 }
 
 print TrackingError( r( ), b( ), RETURN_MONTHLY ).Value( )       '' 0.01038793005892372
@@ -27,7 +27,7 @@ print TrackingError( r( ), b( ), RETURN_MONTHLY ).Value( )       '' 0.0103879300
 print TrackingError( b( ), b( ), RETURN_MONTHLY ).Value( )       '' 0
 
 '' Mismatched lengths are a named refusal.
-dim as double short_( 0 to 4 ) = { 0.01, 0.02, 0.01, 0.02, 0.01 }
+dim as float64 short_( 0 to 4 ) = { 0.01, 0.02, 0.01, 0.02, 0.01 }
 print TrackingError( r( ), short_( ), RETURN_MONTHLY ).Failure( ).Message( )
 ```
 

@@ -17,7 +17,7 @@ AddCalendarDays( 1 )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' CALENDAR arithmetic: "same time tomorrow". It walks the civil date

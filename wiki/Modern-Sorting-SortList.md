@@ -17,11 +17,10 @@ SortList( l )
 ## Examples
 
 ```freebasic
-#include once "fb/linkedlist.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
-dim q as LinkedList( of long )
+dim q as LinkedList( of int32 )
 q.PushBack( 5 ) : q.PushBack( 1 ) : q.PushBack( 4 )
 
 SortList( q )                '' ascending, by T's own '<'

@@ -11,7 +11,7 @@ LoanTermsMake( principal, nominalAnnualRate, termMonths, paymentFrequency, compo
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The general constructor, for anything the two named mortgage forms do

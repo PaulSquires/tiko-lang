@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-LevelToSyslog( lv ) as long
+LevelToSyslog( lv ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' The RFC 5424 severity number, for a sink that speaks syslog rather

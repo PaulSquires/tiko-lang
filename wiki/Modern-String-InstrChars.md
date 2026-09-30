@@ -17,7 +17,7 @@ InstrChars( start, s, chars [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 dim as ustring s = "name = value"

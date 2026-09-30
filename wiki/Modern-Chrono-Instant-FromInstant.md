@@ -11,7 +11,7 @@ Instant.FromInstant( instant, offMin )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as Instant i = Instant.FromUnixSeconds( 1767225600 )

@@ -18,7 +18,7 @@ CImaginaryOne( ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CImaginaryOne( ) )                     '' 0+1i

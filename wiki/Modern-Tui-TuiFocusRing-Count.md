@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiFocusRing.Count( ) as long
+TuiFocusRing.Count( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ How many widgets are in the ring.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiFocusRing ring

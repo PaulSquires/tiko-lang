@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.Pattern( byval cx as long, byval cy as long ) as ubyte
+TuiCanvas.Pattern( byval cx as int32, byval cy as int32 ) as uint8
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The raw 8-bit braille pattern for one cell -- the byte added to U+2800. The bit 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCanvas cv = TuiCanvas( 1, 1 )        '' one cell: 2 x 4 dots

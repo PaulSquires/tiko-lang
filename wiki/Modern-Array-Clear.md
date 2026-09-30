@@ -17,7 +17,7 @@ Clear( )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )

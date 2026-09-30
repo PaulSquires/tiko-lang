@@ -11,7 +11,7 @@ DEPRECIATION_STRAIGHT_LINE  DEPRECIATION_DECLINING_BALANCE  DEPRECIATION_DOUBLE_
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Six methods.  The first-period expense is the quickest way to see how

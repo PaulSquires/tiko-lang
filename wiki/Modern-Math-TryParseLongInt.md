@@ -11,7 +11,7 @@ TryParseLongInt( s [, base] )
 ## Examples
 
 ```freebasic
-#include once "fb/mathtext.bi"
+#import "std/numeric"
 using FB
 
 var r = TryParseLongInt( "9223372036854775807" )

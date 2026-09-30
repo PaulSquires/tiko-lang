@@ -19,10 +19,10 @@ SubWrapping( byval a as T, byval b as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte a = -100, b = 100
+dim as int8 a = -100, b = 100
 
 print SubWrapping( a, b )        '' 56 -- wrapped below -128, and that is
                                  '' the point

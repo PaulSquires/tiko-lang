@@ -11,10 +11,10 @@ MinSubnormalSingle( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as single m = MinSubnormalSingle( )
+dim as float32 m = MinSubnormalSingle( )
 
 print m > 0                  '' -1 (true)
 print IsSubnormal( m )       '' true

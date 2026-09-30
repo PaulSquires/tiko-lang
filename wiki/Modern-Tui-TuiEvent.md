@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiEvent
-    as ubyte kind
+    as uint8 kind
     as TuiKey key
     as TuiMouse mouse
     as TuiSize size
@@ -22,7 +22,7 @@ A tagged union by convention rather than by UNION -- a ustring cannot live in on
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiEvent e

@@ -17,7 +17,7 @@ RemainChars( s, chars [, start] [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print RemainChars( "width: 80", ":=" )       '' " 80" -- everything after the ":"

@@ -19,14 +19,14 @@ MulSaturating( byval a as T, byval b as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte a = 100, b = 100
+dim as int8 a = 100, b = 100
 
 print MulSaturating( a, b )     '' 127 -- clamped to the maximum, not wrapped
 
-dim as byte lo = -100, lo2 = -100
+dim as int8 lo = -100, lo2 = -100
 print MulSaturating( lo, lo2 )   '' -128 -- clamped at the other end
 ```
 

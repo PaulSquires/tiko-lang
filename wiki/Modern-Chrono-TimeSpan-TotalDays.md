@@ -11,7 +11,7 @@ TimeSpan.TotalDays
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as TimeSpan t = TimeSpan( 1, 2, 3, 4, 0 )      '' 1d 2h 3m 4s

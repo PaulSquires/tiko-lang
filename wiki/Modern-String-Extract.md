@@ -19,7 +19,7 @@ Extract( 1, s, missing )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Extract( 1, "abacadabra", "cad" )    '' aba -- text before the match

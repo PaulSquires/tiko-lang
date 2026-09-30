@@ -21,7 +21,7 @@ A scrolling table whose columns are sized by the SAME constraint solver as the l
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTableState st

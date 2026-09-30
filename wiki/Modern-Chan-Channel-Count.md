@@ -7,7 +7,7 @@ How many values are currently buffered.
 ## Syntax
 
 ```freebasic
-Count( ) as long
+Count( ) as int32
 ```
 
 ## Notes
@@ -19,18 +19,18 @@ Count( ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 print ch.Count( )            '' 0
 
-dim as long v = 1
+dim as int32 v = 1
 ch.Send( v )
 print ch.Count( )            '' 1
 
 '' A rendezvous channel never buffers, so its Count stays 0
-dim r as Channel( of long ) = Channel( of long )( 0 )
+dim r as Channel( of int32 ) = Channel( of int32 )( 0 )
 print r.Capacity( )          '' 0
 print r.Count( )             '' 0
 ```

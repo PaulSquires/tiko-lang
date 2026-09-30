@@ -8,18 +8,18 @@ The inverse secant.
 
 ```freebasic
 CAsec( byref z as Complex ) as Complex
-CAsec( byval x as double ) as Complex
+CAsec( byval x as float64 ) as Complex
 ```
 
 ## Notes
 
 - `CAcos( CReciprocal( z ) )`, so it inherits the Hull–Fairgrieve–Tang conditioning.
-- The `double` overload is AfxNova's `CArcSecReal`: the real arcsecant is undefined inside `(-1, 1)` while the complex one is not.
+- The `float64` overload is AfxNova's `CArcSecReal`: the real arcsecant is undefined inside `(-1, 1)` while the complex one is not.
 
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAsec( CSet( 2, 1 ) ) )  '' 1.1692099351270904+0.21561241855582966i

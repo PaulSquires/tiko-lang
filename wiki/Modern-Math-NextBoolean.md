@@ -18,13 +18,13 @@ NextBoolean( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
-dim as long hits = 0
-for i as long = 1 to 1000
+dim as int32 hits = 0
+for i as int32 = 1 to 1000
     if r.NextBoolean( ) then hits += 1
 next
 

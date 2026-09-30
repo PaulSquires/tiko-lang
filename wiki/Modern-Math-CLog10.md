@@ -18,7 +18,7 @@ CLog10( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CLog10( CSet( 100, 0 ) ) )    '' 2+0i

@@ -17,10 +17,10 @@ Shrink( )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Reserve( 1000 )
 v.Push( 1 ) : v.Push( 2 )
 

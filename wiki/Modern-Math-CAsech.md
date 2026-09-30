@@ -17,7 +17,7 @@ CAsech( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAsech( CSet( 2, 1 ) ) )    '' 0.21561241855582966-1.1692099351270904i

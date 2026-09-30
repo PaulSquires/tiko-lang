@@ -15,7 +15,7 @@ Draws the canvas into a frame as braille characters, one per cell, each tinted b
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

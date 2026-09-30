@@ -7,7 +7,7 @@ A double in [0, 1).
 ## Syntax
 
 ```freebasic
-NextDouble( ) as double
+NextDouble( ) as float64
 ```
 
 ## Notes
@@ -19,17 +19,17 @@ NextDouble( ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
-dim as double v = r.NextDouble( )
+dim as float64 v = r.NextDouble( )
 print v >= 0.0 andalso v < 1.0                '' -1 (true)
 
 '' Half-open, so scaling never reaches the upper bound
-dim as long hits = 0
-for i as long = 1 to 1000
+dim as int32 hits = 0
+for i as int32 = 1 to 1000
     if r.NextDouble( ) >= 1.0 then hits += 1
 next
 print hits                   '' 0

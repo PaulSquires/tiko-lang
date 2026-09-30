@@ -17,7 +17,7 @@ TimeSpan.DivideBy( other )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as TimeSpan a = TimeSpan( 1, 0, 0 )
@@ -31,7 +31,7 @@ print a.DivideBy( b )        '' 2
 print b.DivideBy( a )        '' 0.5
 
 '' Dividing by a zero span gives NaN, and NaN is not equal to itself
-dim as double r = a.DivideBy( TimeSpan.Zero( ) )
+dim as float64 r = a.DivideBy( TimeSpan.Zero( ) )
 print ( r <> r )             '' -1 (true), i.e. NaN
 ```
 

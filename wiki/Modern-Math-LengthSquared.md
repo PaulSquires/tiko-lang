@@ -7,7 +7,7 @@ The squared length of a vector.
 ## Syntax
 
 ```freebasic
-LengthSquared( byref a as Vec3 ) as single
+LengthSquared( byref a as Vec3 ) as float32
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ LengthSquared( byref a as Vec3 ) as single
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Vec3 v = type<Vec3>( 3, 4, 0 )

@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiMax_( byval n as long ) as TuiConstraint
+TuiMax_( byval n as int32 ) as TuiConstraint
 ```
 
 ## Description
@@ -15,13 +15,13 @@ At most n cells. Use it to stop a sidebar growing absurdly wide on a big termina
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs
 cs.Push( TuiMax_( 30 ) )
 cs.Push( TuiFill( ) )
-dim as Array( of long ) s = TuiSolve( 200, cs )
+dim as Array( of int32 ) s = TuiSolve( 200, cs )
 print s[0] <= 30                   '' -1 (true)
 ```
 

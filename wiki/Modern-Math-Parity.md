@@ -7,7 +7,7 @@
 ## Syntax
 
 ```freebasic
-Parity( byval x as T ) as long
+Parity( byval x as T ) as int32
 ```
 
 ## Notes
@@ -18,13 +18,13 @@ Parity( byval x as T ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong x = &b1011
+dim as uint32 x = &b1011
 print Parity( x )            '' 1 -- three bits, odd
 
-dim as ulong y = &b1010
+dim as uint32 y = &b1010
 print Parity( y )            '' 0 -- two bits, even
 
 print Parity( x ) = PopCount( x ) mod 2       '' -1 (true)

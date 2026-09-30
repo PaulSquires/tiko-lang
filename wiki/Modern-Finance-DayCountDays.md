@@ -11,7 +11,7 @@ DayCountDays( d1, d2, basis )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The day count between two dates on a basis.  The actual bases count

@@ -15,7 +15,7 @@ True once Esc was pressed -- dismissed rather than answered, which is a differen
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiMessageBox mb

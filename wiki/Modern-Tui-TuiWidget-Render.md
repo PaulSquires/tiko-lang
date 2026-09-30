@@ -15,7 +15,7 @@ Draw yourself into `area`. It cannot fail and must not mutate application state 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

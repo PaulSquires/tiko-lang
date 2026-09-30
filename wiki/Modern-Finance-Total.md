@@ -19,12 +19,12 @@ CurrencyAccum.Total( ) as Currency
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim acc as CurrencyAccum
 
-for i as long = 1 to 3
+for i as int32 = 1 to 3
     acc.Add( CurrencyFromDouble( 0.1 ) )
 next
 

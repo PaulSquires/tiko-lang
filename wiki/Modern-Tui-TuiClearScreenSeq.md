@@ -15,7 +15,7 @@ ESC [ 2 J. The renderer emits this only after Invalidate, since an ordinary fram
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiClearScreenSeq( ) = chr( 27 ) & "[2J" '' -1 (true)

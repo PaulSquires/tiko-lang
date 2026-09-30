@@ -3,7 +3,7 @@
 # Logging
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim shared as ConsoleSink con
@@ -81,7 +81,7 @@ LOG_FATAL DOES NOT TERMINATE ANYTHING. It is a severity. spdlog and logrus do te
 LevelName( lv ) as ustring              "WARN"; an unnamed level gives "40"
 LevelNameShort( lv ) as ustring         "WRN"
 LevelFromName( s, byref out ) as boolean  "warn" / "WRN" / "40", any case
-LevelToSyslog( lv ) as long             RFC 5424 severity
+LevelToSyslog( lv ) as int32            RFC 5424 severity
 ```
 
 LevelFromName leaves the out-parameter ALONE when it fails -- a typo in an environment variable must not silently turn logging off.
@@ -118,7 +118,7 @@ Enabled( lv ) as boolean              one comparison, no lock
 
 AddSink( s as Sink ptr )              the LOGGER DOES NOT OWN THE SINK
 RemoveSink( s ) / ClearSinks( )
-SinkCount( ) as long
+SinkCount( ) as int32
 
 WithField( k, v as LogValue ) as Logger_    child, by value, deep copy
 WithName( n ) as Logger_                    child with a component name
@@ -132,8 +132,8 @@ Flush( )                              reaches every attached sink
 LogEvent -- every one returns BYREF to the same event:
 
 ```freebasic
-Str( k, v as ustring )        Int_( k, v as longint )
-UInt( k, v as ulongint )      Dbl( k, v as double )
+Str( k, v as ustring )        Int_( k, v as int64 )
+UInt( k, v as uint64 )      Dbl( k, v as float64 )
 Bool( k, v as boolean )       Ptr_( k, v as any ptr )
 Time( k, v as Instant )       Span( k, v as TimeSpan )
 Val( k, v as LogValue )       any tag, built by hand
@@ -165,7 +165,7 @@ ConsoleSink( target )                       CT_STDERR or CT_STDOUT
 ConsoleSink( target, r as Renderer ptr )    your renderer, not owned
 
 Write( r ) / Flush( ) / Close( )
-DroppedCount( ) as ulongint
+DroppedCount( ) as uint64
 Colour as boolean         property; overrides the auto-detection
 IsConsole as boolean      property; FALSE when redirected
 ```
@@ -195,7 +195,7 @@ type Sink extends object
     declare abstract sub Write( byref r as LogRecord )
     declare abstract sub Flush( )
     declare abstract sub Close( )
-    declare abstract function DroppedCount( ) as ulongint
+    declare abstract function DroppedCount( ) as uint64
     declare virtual destructor( )
 end type
 ```
@@ -296,7 +296,7 @@ type DebugSink extends FB.Sink
     declare sub Write( byref r as FB.LogRecord ) override
     declare sub Flush( ) override
     declare sub Close( ) override
-    declare function DroppedCount( ) as ulongint override
+    declare function DroppedCount( ) as uint64 override
     private:
     m_lock as any ptr
     m_rend as FB.TextRenderer
@@ -312,7 +312,7 @@ end sub
 
 sub DebugSink.Flush( ) : end sub
 sub DebugSink.Close( ) : end sub
-function DebugSink.DroppedCount( ) as ulongint : return 0 : end function
+function DebugSink.DroppedCount( ) as uint64 : return 0 : end function
 ```
 
 Note that fb/logging.bi declares the handful of Win32 functions it needs INSIDE namespace FB with an ALIAS to the real export. Declaring GetStdHandle globally would make any program that includes windows.bi fail with error 4 -- and most programs that want a logger are Win32 programs.

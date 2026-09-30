@@ -15,7 +15,7 @@ Sends the buffer in one write and empties it. A failure here is a real I/O error
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

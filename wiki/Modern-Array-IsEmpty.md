@@ -11,10 +11,10 @@ IsEmpty( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 print v.IsEmpty          '' true
 
 v.Push( 1 )

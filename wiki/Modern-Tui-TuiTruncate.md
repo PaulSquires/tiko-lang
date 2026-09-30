@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiTruncate( byref s as ustring, byval maxCols as long, byref ellipsis as ustring = "..." ) as ustring
+TuiTruncate( byref s as ustring, byval maxCols as int32, byref ellipsis as ustring = "..." ) as ustring
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Cuts a string to fit a column budget. THE ELLIPSIS DEFAULTS TO "..." and is itse
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiTruncate( "abcdefgh", 5 )                 '' ab... -- the ellipsis

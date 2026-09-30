@@ -11,7 +11,7 @@ PaymentAmount( annuityTerms )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The level payment that amortizes a principal over a term.

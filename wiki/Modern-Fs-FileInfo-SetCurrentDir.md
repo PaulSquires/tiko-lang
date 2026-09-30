@@ -17,7 +17,7 @@ SetCurrentDir( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim as ustring was = CurrentDir( ).Value( )

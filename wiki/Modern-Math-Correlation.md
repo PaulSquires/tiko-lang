@@ -7,7 +7,7 @@ The Pearson correlation coefficient: covariance normalised to [-1, 1].
 ## Syntax
 
 ```freebasic
-Correlation( x( ) as T, y( ) as T ) as double
+Correlation( x( ) as T, y( ) as T ) as float64
 ```
 
 ## Notes
@@ -20,16 +20,16 @@ Correlation( x( ) as T, y( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double x( 0 to 4 ) = { 1.0, 2.0, 3.0, 4.0, 5.0 }
-dim as double y( 0 to 4 ) = { 2.0, 4.0, 6.0, 8.0, 10.0 }
+dim as float64 x( 0 to 4 ) = { 1.0, 2.0, 3.0, 4.0, 5.0 }
+dim as float64 y( 0 to 4 ) = { 2.0, 4.0, 6.0, 8.0, 10.0 }
 
 print Correlation( x( ), y( ) )               '' 0.9999999999999998 --
                              '' a perfect line, to within one rounding
 
-dim as double down( 0 to 4 ) = { 10.0, 8.0, 6.0, 4.0, 2.0 }
+dim as float64 down( 0 to 4 ) = { 10.0, 8.0, 6.0, 4.0, 2.0 }
 print Correlation( x( ), down( ) )            '' -0.9999999999999998
 ```
 

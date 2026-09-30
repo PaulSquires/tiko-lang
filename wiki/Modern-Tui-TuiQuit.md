@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiQuit( byval code as long = 0 ) as TuiCmd
+TuiQuit( byval code as int32 = 0 ) as TuiCmd
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Leave the loop and return an exit code from TuiRun. Returning this from Init exi
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiQuit( ).arg              '' 0 -- the default

@@ -15,13 +15,13 @@ Steps to the next frame, wrapping at the end.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiSpinner s
 TuiSpinnerDefaultFrames( s.frames )
-dim as long n = s.frames.Count( )
-for i as long = 1 to n : s.Advance( ) : next
+dim as int32 n = s.frames.Count( )
+for i as int32 = 1 to n : s.Advance( ) : next
 print s.frame                     '' 0 -- a full cycle wrapped
 ```
 

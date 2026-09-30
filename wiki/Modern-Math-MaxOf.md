@@ -7,7 +7,7 @@ The largest value in the array.
 ## Syntax
 
 ```freebasic
-MaxOf( a( ) as T ) as double
+MaxOf( a( ) as T ) as float64
 ```
 
 ## Notes
@@ -18,10 +18,10 @@ MaxOf( a( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print MaxOf( a( ) )          '' 6
 print MaxOf( a( ) ) - MinOf( a( ) ) = Range( a( ) )   '' -1 (true)

@@ -11,7 +11,7 @@ DiskSpace.AvailableBytes
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim sp as DiskSpace = GetDiskSpace( "." ).Value( )
@@ -20,7 +20,7 @@ dim sp as DiskSpace = GetDiskSpace( "." ).Value( )
 '' quota can make it far smaller than FreeBytes
 print sp.AvailableBytes <= sp.FreeBytes    '' -1 (true)
 
-dim as ulongint need = 1024
+dim as uint64 need = 1024
 if sp.AvailableBytes > need then print "room to write"
 ```
 

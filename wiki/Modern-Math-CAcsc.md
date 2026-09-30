@@ -8,18 +8,18 @@ The inverse cosecant.
 
 ```freebasic
 CAcsc( byref z as Complex ) as Complex
-CAcsc( byval x as double ) as Complex
+CAcsc( byval x as float64 ) as Complex
 ```
 
 ## Notes
 
 - `CAsin( CReciprocal( z ) )`.
-- The `double` overload is AfxNova's `CArcCscReal`.
+- The `float64` overload is AfxNova's `CArcCscReal`.
 
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAcsc( CSet( 2, 1 ) ) )  '' 0.40158639166780613-0.21561241855582966i

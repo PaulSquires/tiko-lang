@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiStack.ChildRect( byval i as long ) as TuiRect
+TuiStack.ChildRect( byval i as int32 ) as TuiRect
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The rect a child was given at the last Render. Use it for hit-testing a mouse cl
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

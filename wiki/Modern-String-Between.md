@@ -17,7 +17,7 @@ Between( s, open, close [, start] [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Between( "blah (text here) blah", "(", ")" )   '' text here

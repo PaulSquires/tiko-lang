@@ -3,7 +3,7 @@
 # Array
 
 ```freebasic
-#include once "fb/array.bi"          ' or "containers.bi" for all four
+#import "std/containers"
 using FB
 
 dim v as Array( of ustring )
@@ -38,8 +38,8 @@ A deliberate break with 'dim arr(1 to 10)' BASIC tradition. Count and index arit
 ## Members
 
 ```freebasic
-Count( ) as long                          O(1)
-Capacity( ) as long                       O(1)
+Count( ) as int32                         O(1)
+Capacity( ) as int32                      O(1)
 IsEmpty( ) as boolean                     O(1)
 
 a[ i ]                                    O(1)   byref, and an lvalue
@@ -47,11 +47,11 @@ At( i ) byref as T                        O(1)   byref; see the note below
 
 Push( byref v as T )                      amortised O(1)
 Pop( ) as T                               O(1)   removes and returns the last
-Insert( byval i as long, byref v as T )   O(n)
-Remove( byval i as long )                 O(n)   preserves order
-RemoveSwap( byval i as long )             O(1)   does NOT preserve order
+Insert( byval i as int32, byref v as T )   O(n)
+Remove( byval i as int32 )                 O(n)   preserves order
+RemoveSwap( byval i as int32 )             O(1)   does NOT preserve order
 Clear( )                                  O(n)   drops elements, KEEPS capacity
-Reserve( byval n as long )                O(n)   grow to at least n
+Reserve( byval n as int32 )                O(n)   grow to at least n
 Shrink( )                                 O(n)   release unused capacity
 GetIterator( ) as ArrayIterator( of T )   O(1)
 ```
@@ -59,7 +59,7 @@ GetIterator( ) as ArrayIterator( of T )   O(1)
 and two FREE PROCEDURES, not members:
 
 ```freebasic
-IndexOf( a, v ) as long                   needs '=' on T; -1 if absent
+IndexOf( a, v ) as int32                  needs '=' on T; -1 if absent
 Contains( a, v ) as boolean               needs '=' on T
 ```
 
@@ -104,14 +104,14 @@ Capacity NEVER shrinks on its own, because a push/pop loop sitting on a capacity
 Clear( ) drops the elements but KEEPS the capacity, so a clear-and-refill loop does not reallocate. It also resets each slot, so a T holding a resource -- a string, another container -- releases it now rather than at the array's destruction.
 
 ```freebasic
-dim a as Array( of long )
+dim a as Array( of int32 )
 a.Reserve( 1000 )        ' one allocation, no reallocation for 1000 pushes
 ```
 
 ## Sorting
 
 ```freebasic
-#include once "fb/sort.bi"
+#import "std/containers"
 
 Sort( a )                   introsort, ascending, by '<' on T
 SortBy( a, less )           introsort, ascending, by a comparer

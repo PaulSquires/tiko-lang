@@ -3,16 +3,8 @@
 # Math Library
 
 ```freebasic
-#include once "fb/math.bi"        ' constants, rounding, classification, libm
-#include once "fb/mathint.bi"     ' integer arithmetic and bits
-#include once "fb/currency.bi"    ' money -- see the Finance category
-#include once "fb/decimal.bi"     ' money -- see the Finance category
-#include once "fb/mathtext.bi"    ' parsing that can fail, formatting that round-trips
-#include once "fb/random.bi"      ' seeded streams, unbiased ranges, distributions
-#include once "fb/stats.bi"       ' compensated summation, descriptive statistics
-#include once "fb/vector.bi"      ' Vec / Mat / Quat
-#include once "fb/complex.bi"     ' Complex, and its whole function surface
-#include once "fb/fenv.bi"        ' rounding modes and exception flags
+#import "std/numeric"
+#import "std/money"
 
 using FB
 ```
@@ -26,7 +18,7 @@ These headers add those. Everything is a library in namespace FB behind an #incl
 All four verified by compiling them, not asserted.
 
 ```freebasic
-dim as longint b = 3, e = 38
+dim as int64 b = 3, e = 38
 print b ^ e             ' 1350851717672992000  -- exact answer ends 089
 ```
 
@@ -63,14 +55,14 @@ None of these four are fixed in place.  '^', 'MOD', 'VAL', 'STR', 'RND' and 'RAN
 ## Nothing Becomes A Keyword
 
 ```freebasic
-dim as long min = 1, max = 2, round = 3, clamp = 4      ' still compiles
+dim as int32 min = 1, max = 2, round = 3, clamp = 4      ' still compiles
 ```
 
 Those four are the most obvious names here and all four are legal identifiers in FreeBASIC.  Twenty years of code uses them as variable names, so everything lives in namespace FB and 'using FB' is your decision.  Your own local shadows the library cleanly and the qualified name still works:
 
 ```freebasic
 using FB
-dim as double e = 2.0
+dim as float64 e = 2.0
 print e, FB.E                   ' 2    2.718281828459045
 ```
 
@@ -294,7 +286,7 @@ FORMATTING
 ```freebasic
 ToString( v )               shortest string that reads back EXACTLY
 ToString( v, fmt )          controlled
-ToString( longint )
+ToString( int64 )
 
 ToString( 0.1 + 0.2 )       ' 0.30000000000000004
 str( 0.1 + 0.2 )            ' 0.3
@@ -448,7 +440,7 @@ CSinh CCosh CTanh CSech CCsch CCoth    CAsinh CAcosh CAtanh CAsech CAcsch CAcoth
 CToString CToStringPolar
 
 = <> + - * / ^    each in all three arrangements: Complex with Complex,
-                  double with Complex, Complex with double
+                  float64 with Complex, Complex with float64
 ```
 
 EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn and Str are FreeBASIC intrinsics, and a function of one of those names in namespace FB SHADOWS the intrinsic for every later header -- measured, it broke fb/random.bi -- after which the intrinsic cannot be called back.  Given that the transcendentals must be prefixed, the prefix is applied UNIFORMLY: a mixed scheme would need the reader to know which of 'Sin' and 'Real' is an intrinsic in order to guess the spelling.  The TYPE is 'Complex', unprefixed.

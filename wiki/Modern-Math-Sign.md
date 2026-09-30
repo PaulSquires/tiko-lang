@@ -11,7 +11,7 @@ Sign( x ) as LONG
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print Sign( 42.0 )           '' 1

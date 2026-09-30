@@ -12,7 +12,7 @@ Instant.ParseIso
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime d = DateTime.ParseIso( "2026-08-13T14:30:05.123" )

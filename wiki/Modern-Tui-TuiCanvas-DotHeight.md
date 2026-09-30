@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.DotHeight( ) as long
+TuiCanvas.DotHeight( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The canvas height in dots -- cells times 4. Four times the vertical resolution i
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiCanvas( 40, 10 ).DotHeight( )         '' 40

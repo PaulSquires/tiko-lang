@@ -15,7 +15,7 @@ Reduces one colour to what a terminal of the given depth can show. You rarely ca
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor c = TuiRgb( 235, 80, 80 )

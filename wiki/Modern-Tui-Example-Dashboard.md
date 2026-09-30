@@ -39,7 +39,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' synthetic -- this is a layout and rendering demonstration, not a system
 '' monitor.
 
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 const HISTORY = 240        '' samples kept for the braille plots
@@ -48,12 +48,12 @@ const NPROC   = 24
 type DashApp extends TuiApp
 	as TuiTheme theme
 	as TuiDoubleArray cpuHistory, netDown, netUp
-	as double coreLoad( 0 to 3 )
-	as double memBar( 0 to 3 )
+	as float64 coreLoad( 0 to 3 )
+	as float64 memBar( 0 to 3 )
 	as TuiRowArray procs
 	as TuiTableState procState
 	as TuiRect procRect          '' remembered by ViewProcs, for mouse hit-testing
-	as long frameNo
+	as int32 frameNo
 
 	declare function Init( ) as TuiCmd override
 	declare function Update( byref e as TuiEvent ) as TuiCmd override
@@ -69,7 +69,7 @@ end type
 '' ---------------------------------------------------------------------------
 sub DashApp.Sample( )
 	frameNo += 1
-	dim as double t = frameNo / 6.0
+	dim as float64 t = frameNo / 6.0
 
 	'' one new sample per tick, oldest dropped -- the RIGHTMOST sample is the
 	'' newest, which is what TuiGraph draws
@@ -82,7 +82,7 @@ sub DashApp.Sample( )
 		netUp.Remove( 0 )
 	wend
 
-	for i as long = 0 to 3
+	for i as int32 = 0 to 3
 		coreLoad( i ) = 0.20 + ( sin( t + i * 0.8 ) + 1.0 ) * 0.3
 	next
 	memBar( 0 ) = 0.37 : memBar( 1 ) = 0.63
@@ -96,7 +96,7 @@ function DashApp.Init( ) as TuiCmd
 	procState.selected = 0
 	procState.offset = 0
 
-	for i as long = 0 to HISTORY - 1
+	for i as int32 = 0 to HISTORY - 1
 		cpuHistory.Push( 50.0 )
 		netDown.Push( 30.0 )
 		netUp.Push( 12.0 )
@@ -105,7 +105,7 @@ function DashApp.Init( ) as TuiCmd
 	dim as ustring names_( 0 to 9 ) = { "screencap", "mdworker", "zed", "Google C", _
 	                                    "iTerm2", "SiriSugg", "triald_s", "coreauth", _
 	                                    "nearbyd", "WhatsApp" }
-	for i as long = 0 to NPROC - 1
+	for i as int32 = 0 to NPROC - 1
 		dim as TuiRow r
 		r.cells.Push( str( 25513 - i * 3 ) )
 		r.cells.Push( names_( i mod 10 ) )
@@ -130,7 +130,7 @@ function DashApp.Update( byref e as TuiEvent ) as TuiCmd
 		if( e.key.code = TUIKEY_ESCAPE ) then return TuiQuit( 0 )
 		if( e.key.IsChar( ) andalso ( e.key.ch = asc( "q" ) ) ) then return TuiQuit( 0 )
 
-		dim as long h = 10
+		dim as int32 h = 10
 		select case e.key.code
 		case TUIKEY_UP       : procState.selected -= 1
 		case TUIKEY_DOWN     : procState.selected += 1
@@ -160,7 +160,7 @@ function DashApp.Update( byref e as TuiEvent ) as TuiCmd
 			procState.selected += 3
 		case TUIMOUSE_PRESS
 			if( procRect.Contains( e.mouse.x, e.mouse.y ) ) then
-				dim as long row = e.mouse.y - procRect.y - 1     '' -1 for the header
+				dim as int32 row = e.mouse.y - procRect.y - 1     '' -1 for the header
 				if( row >= 0 ) then procState.selected = procState.offset + row
 			end if
 		case else
@@ -249,7 +249,7 @@ sub DashApp.ViewCpu( byref f as TuiFrame, byval a as TuiRect )
 	g.series.Push( s )
 	g.Render( f, part[0] )
 
-	for i as long = 0 to 3
+	for i as int32 = 0 to 3
 		if( i >= part[1].h ) then exit for
 		dim as TuiConstraintArray rc
 		rc.Push( TuiLength( 3 ) )
@@ -297,7 +297,7 @@ sub DashApp.ViewMem( byref f as TuiFrame, byval a as TuiRect )
 	if( inner.IsEmpty( ) ) then exit sub
 
 	dim as ustring labels( 0 to 3 ) = { "Used ", "Avail", "Cache", "Free " }
-	for i as long = 0 to 3
+	for i as int32 = 0 to 3
 		if( i * 2 >= inner.h ) then exit for
 		dim as TuiConstraintArray rc
 		rc.Push( TuiLength( 6 ) )

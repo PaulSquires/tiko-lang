@@ -7,7 +7,7 @@ The raw monotonic counter value.
 ## Syntax
 
 ```freebasic
-Stopwatch.GetTimestamp( ) as longint
+Stopwatch.GetTimestamp( ) as int64
 ```
 
 ## Notes
@@ -19,12 +19,12 @@ Stopwatch.GetTimestamp( ) as longint
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
-dim as longint a = Stopwatch.GetTimestamp( )
+dim as int64 a = Stopwatch.GetTimestamp( )
 sleep 20, 1
-dim as longint b = Stopwatch.GetTimestamp( )
+dim as int64 b = Stopwatch.GetTimestamp( )
 
 print b > a                  '' -1 (true) -- monotonic
 

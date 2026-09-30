@@ -95,7 +95,7 @@ fbc -cimport windows.h -cimport-out win.bi -cimport-split bindings
 
 gives 147 parts and `bindings\win.bi` — 2,885,668 bytes in total against 2,860,389 for the single file. The difference is the per-part banners, **not** duplicated declarations, which is what makes this different from importing each header separately: done that way each `.bi` re-emits `windows.h` and comes to 2.8 MB *on its own*.
 
-**Include the index.** The parts are fragments: the index carries the banner, `crt/long.bi`, the `extern "C"` block and the forward pointer aliases, and each part carries only declarations and says so at the top.
+**Include the index.** The parts are fragments: the index carries the banner, `crt/int32.bi`, the `extern "C"` block and the forward pointer aliases, and each part carries only declarations and says so at the top.
 
 > **A header can produce more than one part, and that is not a defect.** A C header's declarations straddle its own `#include`s — `winnt.h` includes `ktmtypes.h` partway through, so `winnt.h`'s own declarations sit both before *and* after `ktmtypes.h`'s. One file per header would force `winnt.bi` into a single position and half its dependencies would land on the wrong side; the first version of this produced a `ktmtypes.bi` that used `PVOID` and `ULONG` before `winnt.bi` declared them, and ordering whole files by their last declaration fixed `stdio.h` while still failing `windows.h`.
 >
@@ -201,7 +201,7 @@ tiko has `-cinclude`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverif
 | | |
 | --- | --- |
 | structs, unions | layout verified, bit-fields included, anonymous members flattened or nested as FreeBASIC requires |
-| enums | as `type Color as ulong` plus a plain `Enum` block — never as a FreeBASIC `Enum`, which is 8 bytes where C says 4 |
+| enums | as `type Color as uint32` plus a plain `Enum` block — never as a FreeBASIC `Enum`, which is 8 bytes where C says 4 |
 | typedefs | kept by name, so `LPCWSTR` stays `LPCWSTR` |
 | functions | including variadics, and the calling convention the header states **for the target being built** — see [Calling conventions](#calling-conventions) |
 | function pointers | with their real signatures, so a callback handed to C is type-checked |
@@ -274,9 +274,9 @@ FreeBASIC's own default on win64 is `stdcall`. Both describe the same call.
 
 ```freebasic
 '' all three assign cleanly to an imported `cdecl` procedure pointer
-function A cdecl   ( byval x as long ) as long : return x : end function
-function B stdcall ( byval x as long ) as long : return x : end function
-function C         ( byval x as long ) as long : return x : end function
+function A cdecl   ( byval x as int32 ) as int32 : return x : end function
+function B stdcall ( byval x as int32 ) as int32 : return x : end function
+function C         ( byval x as int32 ) as int32 : return x : end function
 ```
 
 `pascal` is **not** in that set and still warns. It is not a mangling or a register difference — it reverses the argument order, on x86-64 as anywhere else, so a `pascal` procedure called through a `cdecl` pointer with `(1, 2)` returns `21`.
@@ -290,7 +290,7 @@ function C         ( byval x as long ) as long : return x : end function
 - **Function-like macros.** `#define MAKEINTRESOURCE(i) ((LPWSTR)((ULONG_PTR)(i)))` is an arbitrary token sequence with C's semantics, and translating one means writing a C expression compiler. There is no safe partial version: a macro that translates to *nearly* the right expression is worse than one that does not translate at all. Write the expansion yourself.
 - **`NULL`.** Dropped deliberately — FreeBASIC's own crt headers define it, and emitting it too would be a duplicate definition. Write `0`.
 - **C++.** C headers only.
-- **`long double`**, and **infinity/NaN** as constant values. FreeBASIC has no spelling for either; both are skipped, with the reason in the ledger.
+- **`int32 float64`**, and **infinity/NaN** as constant values. FreeBASIC has no spelling for either; both are skipped, with the reason in the ledger.
 - **On win64-msvc, the Universal CRT's inline functions.** tiko only: the UCRT's `stdio.h` defines `printf` and its family in the header as inline functions (`_CRT_STDIO_INLINE`), with no symbol. The fourteen of the `printf` and `scanf` families (`printf`, `fprintf`, `sprintf`, `snprintf`, `scanf`, `fscanf`, `sscanf` and their `v` forms) come across all the same, because tiko's runtime defines each one; any other inline function in a UCRT header does not, and a call to it is `TKO0743: '...' is not declared`. Before 2026-09-25 `printf` itself was among those. One difference remains: `snprintf` and `vsnprintf` into a buffer too small return the length that was wanted (C99), where fbc-modern's MinGW runtime returns -1.
 
 ## Working with `#foreignlib`
@@ -433,9 +433,9 @@ end function
 #cinclude once "sqlite3.h"
 #foreignlib SQLITE static "vendor/sqlite3"
 
-function OnRow ( byval user as any ptr, byval ncols as long, _
+function OnRow ( byval user as any ptr, byval ncols as int32, _
                        byval values as zstring ptr ptr, _
-                       byval names as zstring ptr ptr ) as long
+                       byval names as zstring ptr ptr ) as int32
 	print *values[0]
 	return 0
 end function

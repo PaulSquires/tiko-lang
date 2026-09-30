@@ -12,7 +12,7 @@ LoanSchedule( loanTerms, extras( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The amortization schedule -- LAZY, holding the terms rather than the
@@ -26,7 +26,7 @@ print sched.Value( ).Payment( ).ToStringFixed( 2 )       '' 2385.36
 
 '' Walk it with FOR EACH; the iterator owns no resource, so abandoning
 '' the loop early leaks nothing.
-dim as long n = 0
+dim as int32 n = 0
 dim as Decimal lastBalance = DecimalZero( )
 for each row in sched.Value( )
     n += 1

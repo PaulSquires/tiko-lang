@@ -15,7 +15,7 @@ SpCast( of D, B )
 using FB
 
 type Shape extends Object
-    as long id
+    as int32 id
     declare virtual destructor( )
 end type
 virtual destructor Shape( ) : end destructor

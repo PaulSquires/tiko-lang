@@ -11,7 +11,7 @@ row.Period_  row.OpeningBookValue_  row.Expense_  row.AccumulatedDepreciation_  
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' One period of a schedule.  SwitchedToStraightLine_ latches from the

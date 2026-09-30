@@ -11,7 +11,7 @@ RateConvertCompounding( nominalAnnual, fromCompounding, toCompounding )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Restate a quoted rate under a different compounding frequency, so two

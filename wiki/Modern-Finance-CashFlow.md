@@ -11,7 +11,7 @@ c.Amount_  c.Date_
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' An amount and the date it happens.  The dated NPV and IRR take these;

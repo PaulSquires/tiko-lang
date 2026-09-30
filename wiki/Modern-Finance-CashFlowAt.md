@@ -11,7 +11,7 @@ CashFlowAt( amount, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A period-indexed flow: Date_ is Invalid, deliberately, because the

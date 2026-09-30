@@ -15,7 +15,7 @@ Shorthand for TuiAnsi( TUIC_BLUE ) -- palette index 4.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor c = TuiBlue( )

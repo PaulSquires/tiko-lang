@@ -8,7 +8,7 @@
 type TuiTitle
     as ustring text
     as TuiStyle st
-    as ubyte align
+    as uint8 align
 end type
 ```
 
@@ -19,7 +19,7 @@ One title on a block's border. Built for you by AddTitle; TuiTitleOf makes one d
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTitle t = TuiTitleOf( " log ", TuiStyleDefault( ), _

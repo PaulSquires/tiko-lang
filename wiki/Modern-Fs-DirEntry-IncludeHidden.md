@@ -11,7 +11,7 @@ DirEntry.IncludeHidden
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -29,7 +29,7 @@ dim opts as WalkOptions
 print opts.IncludeHidden     '' true
 
 opts.IncludeHidden = false
-dim as long n = 0
+dim as int32 n = 0
 for each r in WalkDir( dir_, opts )
     n += 1
 next

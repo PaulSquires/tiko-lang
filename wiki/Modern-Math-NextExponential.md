@@ -11,18 +11,18 @@ NextExponential( lambda )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
 '' The waiting time between events arriving at rate lambda. Its mean is
 '' 1/lambda, so a bigger lambda gives shorter gaps.
-dim as double total = 0
-for i as long = 1 to 2000
+dim as float64 total = 0
+for i as int32 = 1 to 2000
     total += r.NextExponential( 2.0 )
 next
-dim as double mean_ = total / 2000
+dim as float64 mean_ = total / 2000
 
 print mean_ > 0.35 andalso mean_ < 0.65   '' -1 (true), around 0.5
 ```

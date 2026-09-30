@@ -17,7 +17,7 @@ Escape( s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 dim as ustring s = "path" & chr(9) & "c:\tmp" & chr(10)

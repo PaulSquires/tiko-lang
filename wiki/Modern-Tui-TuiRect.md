@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiRect
-    as long x, y, w, h
+    as int32 x, y, w, h
 end type
 ```
 
@@ -17,7 +17,7 @@ The only rectangle in the module. Everything is 0-based: VT coordinates are 1-ba
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiRectOf( 4, 2, 20, 6 )

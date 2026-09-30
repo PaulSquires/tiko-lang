@@ -11,14 +11,14 @@ SummarizeReturns( periodReturns( ), riskFreePerPeriod, frequency )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Every headline figure in one call.  It is a CONVENIENCE, not a second
 '' implementation -- each field equals its own standalone function.
-dim as double r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
+dim as float64 r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
                                0.01, -0.005, 0.02, 0.03, -0.015, 0.025 }
-dim as double b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
+dim as float64 b( 0 to 11 ) = { 0.018, -0.012, 0.025, 0.012, -0.02, 0.035, _
                                0.008, -0.004, 0.018, 0.028, -0.012, 0.022 }
 
 var s = SummarizeReturns( r( ), 0.0002, RETURN_MONTHLY )

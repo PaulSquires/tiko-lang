@@ -17,19 +17,18 @@ SortBy( a, less )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 5 ) : v.Push( 1 ) : v.Push( 4 )
 
 '' A caller-supplied strict '<'. Reverse it for descending order:
-SortBy( v, function( byref x as long, byref y as long ) as boolean
+SortBy( v, function( byref x as int32, byref y as int32 ) as boolean
     return x > y
 end function )
 
-for i as long = 0 to v.Count - 1
+for i as int32 = 0 to v.Count - 1
     print v[ i ];
 next
 print                    '' 5 4 1

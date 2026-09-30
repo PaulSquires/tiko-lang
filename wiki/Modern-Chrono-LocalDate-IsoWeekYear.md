@@ -11,7 +11,7 @@ LocalDate.IsoWeekYear
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The year the ISO WEEK belongs to, which is not always the calendar

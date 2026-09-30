@@ -21,7 +21,7 @@ MoneyLayoutFromINegCurr( v, byref precedes, byref sepBySpace, byref signPosn )
 
 ```freebasic
 dim as boolean pre
-dim as long sep, posn
+dim as int32 sep, posn
 MoneyLayoutFromINegCurr( 12, pre, sep, posn )
 print sep                                            '' 2
 print MoneyCompose( "1.1", "$", "-", pre, sep, posn ) '' $ -1.1

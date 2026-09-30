@@ -11,7 +11,7 @@ HoldingPeriodReturn( beginValue, endValue, income )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The one EXACT function on this surface -- a single Decimal division of

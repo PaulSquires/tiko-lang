@@ -11,7 +11,7 @@ Classify( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 '' One call instead of a chain of predicates, answering with an FpClass

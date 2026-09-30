@@ -11,7 +11,7 @@ DecimalFromScaled( mantissa, scale )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' value = mantissa / 10 ^ scale, exactly.  The usual way to write a

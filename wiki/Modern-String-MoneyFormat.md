@@ -7,7 +7,7 @@ Renders an amount the way the user's locale writes money. Assign a numeric value
 ## Syntax
 
 ```freebasic
-dim as MoneyFormat m = <longint | double | Currency | Decimal>
+dim as MoneyFormat m = <int64 | float64 | Currency | Decimal>
 m.<property> = <value>
 print m.ToString( )
 ```
@@ -15,7 +15,7 @@ print m.ToString( )
 ## Notes
 
 - In `fb/moneyformat.bi`, not `fb/string.bi`. It is the one member of this library that is a TYPE, because it carries state a function would need six arguments for.
-- Whatever you assign becomes an `FB.Decimal`, so there is one render path and one rounding rule. Integers and `Currency` widen exactly; a `double` does not, because a double is not exact to begin with.
+- Whatever you assign becomes an `FB.Decimal`, so there is one render path and one rounding rule. Integers and `Currency` widen exactly; a `float64` does not, because a double is not exact to begin with.
 - An invalid `Decimal` renders as the empty string rather than as `0.00`.
 - Settings: `Symbol`, `DecimalPoint`, `ThousandsSep`, `Grouping`, `FracDigits`, `SymbolPrecedes`, `SpaceBySymbol`, `Negative`, `BlankIfZero`, `ZeroText`, `ForcePlus`, `Rounding`. A getter reports the EFFECTIVE value: your override if you made one, otherwise the locale's.
 - Setting a property ALWAYS marks it as yours, so `m.Symbol = ""` SUPPRESSES the symbol. Only [UseLocale](Modern-String-MoneyFormat) gives it back. `FracDigits = -1` is the numeric spelling of the same thing.
@@ -26,7 +26,7 @@ print m.ToString( )
 ## Examples
 
 ```freebasic
-#include once "fb/moneyformat.bi"
+#import "std/money"
 using FB
 
 dim as MoneyFormat m = DecimalParse( "-1234.5" ).Value( )

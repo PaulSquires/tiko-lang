@@ -17,7 +17,7 @@ ReplaceChars( s, chars, with_ [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print ReplaceChars( "abacadabra", "bac", "*" )    '' *****d**r*

@@ -15,7 +15,7 @@ A printable name, modifiers included -- for a status line, a keybinding list, or
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiKey k

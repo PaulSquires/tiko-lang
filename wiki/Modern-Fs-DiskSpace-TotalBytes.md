@@ -11,7 +11,7 @@ DiskSpace.TotalBytes
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim sp as DiskSpace = GetDiskSpace( "." ).Value( )

@@ -19,7 +19,7 @@ Two buffers and the diff between them. Draw into the frame, call Render, and get
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

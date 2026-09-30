@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiTextInput.SelectionStart( ) as long
+TuiTextInput.SelectionStart( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The lower end of the selection in code units, or the cursor when nothing is sele
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextInputState st

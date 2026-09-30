@@ -20,23 +20,23 @@ Send( byref v as T ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 2 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 2 )
 
-dim as long a = 1, b = 2
+dim as int32 a = 1, b = 2
 print ch.Send( a )           '' true
 print ch.Send( b )           '' true -- still room in the buffer
 print ch.Count( )            '' 2
 
 '' Sending on a CLOSED channel RAISES -- illegal function call, not a
 '' FALSE -- so a producer that cannot know must ask first:
-dim as long got
+dim as int32 got
 ch.TryReceive( got )
 ch.Close( )
 if ch.IsClosed( ) = false then
-    dim as long c = 3
+    dim as int32 c = 3
     ch.Send( c )
 end if
 print "not sent"

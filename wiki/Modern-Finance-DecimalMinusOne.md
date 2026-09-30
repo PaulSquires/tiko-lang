@@ -11,7 +11,7 @@ DecimalMinusOne( )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' Minus one at scale 0.  Multiplying by it negates without the unary

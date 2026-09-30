@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiTick( byval ms as long ) as TuiCmd
+TuiTick( byval ms as int32 ) as TuiCmd
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Deliver one TUIEVENT_TICK after ms milliseconds. IT IS ONE-SHOT: to keep animati
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiTick( 250 ).arg          '' 250

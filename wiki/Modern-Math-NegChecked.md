@@ -19,10 +19,10 @@ NegChecked( byval a as T ) as Optional( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte worst = -128
+dim as int8 worst = -128
 
 var r = NegChecked( worst )
 print r.HasValue( )          '' false -- there is no +128 in a BYTE
@@ -32,7 +32,7 @@ print r.HasValue( )          '' false -- there is no +128 in a BYTE
 '' longer fits back in the type it came from
 print -worst                 '' 128
 
-dim as byte ordinary = 100
+dim as int8 ordinary = 100
 print NegChecked( ordinary ).Value( )         '' -100
 ```
 

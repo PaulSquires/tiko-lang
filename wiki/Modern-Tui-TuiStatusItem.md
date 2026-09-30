@@ -8,7 +8,7 @@
 type TuiStatusItem
     as ustring text
     as TuiStyle st
-    as ubyte align
+    as uint8 align
 end type
 ```
 
@@ -19,7 +19,7 @@ One piece of a status bar.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStatusItem i = TuiStatusItemOf( " q quit ", TuiStyleDefault( ), TUIALIGN_LEFT )

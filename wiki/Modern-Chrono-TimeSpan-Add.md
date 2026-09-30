@@ -11,7 +11,7 @@ TimeSpan.Add
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as TimeSpan a = TimeSpan( 1, 0, 0 )

@@ -11,7 +11,7 @@ VolumeInfo.MaxComponentLen
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim v as VolumeInfo = GetVolumeInfo( "." ).Value( )

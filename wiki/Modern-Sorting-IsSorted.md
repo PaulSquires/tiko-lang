@@ -11,11 +11,10 @@ IsSorted( a ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 1 ) : v.Push( 2 ) : v.Push( 2 ) : v.Push( 3 )
 
 print IsSorted( v )          '' true -- equal neighbours are still sorted

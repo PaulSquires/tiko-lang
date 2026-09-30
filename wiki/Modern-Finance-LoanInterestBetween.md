@@ -11,7 +11,7 @@ LoanInterestBetween( loanTerms, fromPeriod, toPeriod )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Interest posted across a range of periods -- what a year-end

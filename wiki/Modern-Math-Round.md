@@ -19,7 +19,7 @@ Round( x, digits )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 '' HALF AWAY FROM ZERO -- the school rule, and NOT what the CPU does

@@ -12,7 +12,7 @@ SolveRatePerPeriod( annuityTerms, solverOptions )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The rate implied by a known payment -- the one function on this

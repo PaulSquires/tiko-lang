@@ -11,11 +11,11 @@ CurrencyFromParts( w, tt )
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 '' Units and four-decimal fraction, given separately and exactly
-dim as longint units_ = 12, cents = 3400
+dim as int64 units_ = 12, cents = 3400
 print CurrencyFromParts( units_, cents ).ToString( )        '' 12.3400
 
 '' Which is how to write an amount down without going anywhere near a

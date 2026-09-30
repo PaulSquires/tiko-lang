@@ -15,7 +15,7 @@ The whole buffer, as a rect at 0,0. This is the root of every layout.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

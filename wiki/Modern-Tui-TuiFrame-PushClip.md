@@ -15,7 +15,7 @@ Narrows the clip to the intersection of the current clip and r, and RETURNS THE 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

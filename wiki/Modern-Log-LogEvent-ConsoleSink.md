@@ -21,7 +21,7 @@ ConsoleSink( target, r as Renderer ptr )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' Writes to stderr, with its own TextRenderer. Detects whether the

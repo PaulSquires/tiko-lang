@@ -17,7 +17,7 @@ GetVolumes( vols )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Every mounted volume, filling an Array
@@ -28,7 +28,7 @@ print r.IsOk( )              '' true
 print r.Value( ) >= 1        '' -1 (true) -- at least one
 print vols.Count = r.Value( )              '' -1 (true)
 
-for i as long = 0 to vols.Count - 1
+for i as int32 = 0 to vols.Count - 1
     print len( vols[ i ].RootPath ) > 0    '' -1 (true) for each
 next
 ```

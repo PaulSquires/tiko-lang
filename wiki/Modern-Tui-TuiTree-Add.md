@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiTree.Add( byref label as ustring, byval depth as long, byval hasChildren as boolean = FALSE, byval userId as long = 0 )
+TuiTree.Add( byref label as ustring, byval depth as int32, byval hasChildren as boolean = FALSE, byval userId as int32 = 0 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Appends a node. Order matters: a node's children are the nodes that follow it wi
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTree t

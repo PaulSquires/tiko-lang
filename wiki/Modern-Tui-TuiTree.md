@@ -20,7 +20,7 @@ A collapsible tree with guides and its own scroll. Left collapses, right expands
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTreeState st

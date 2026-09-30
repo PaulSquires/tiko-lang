@@ -17,7 +17,7 @@ PathIsCaseSensitive( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' COMPILE-TIME, PER PLATFORM -- not per volume. It answers what the

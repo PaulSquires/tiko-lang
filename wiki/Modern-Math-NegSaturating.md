@@ -19,13 +19,13 @@ NegSaturating( byval a as T ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte worst = -128
+dim as int8 worst = -128
 print NegSaturating( worst ) '' 127 -- clamped, not left at -128
 
-dim as byte ordinary = 100
+dim as int8 ordinary = 100
 print NegSaturating( ordinary )               '' -100
 ```
 

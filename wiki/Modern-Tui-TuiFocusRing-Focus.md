@@ -15,7 +15,7 @@ Focuses a specific widget, returning false when it is not in the ring. This is w
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCheckbox a, b, stranger

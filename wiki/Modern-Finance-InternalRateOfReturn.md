@@ -12,7 +12,7 @@ InternalRateOfReturn( flows( ), solverOptions )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The rate at which the net present value is zero.

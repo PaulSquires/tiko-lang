@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiStringWidth( byref s as ustring ) as long
+TuiStringWidth( byref s as ustring ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Columns for a whole string. Use this and never LEN when deciding whether text fi
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiStringWidth( "hello" )                    '' 5

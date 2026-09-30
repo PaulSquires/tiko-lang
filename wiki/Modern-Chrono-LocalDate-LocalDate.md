@@ -18,7 +18,7 @@ LocalDate( y, mo, d )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' A calendar date with no time and no zone. One LONG day number,

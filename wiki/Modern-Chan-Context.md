@@ -17,7 +17,7 @@ Context( )
 ## Examples
 
 ```freebasic
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 '' The background context: never cancelled, and the root every other

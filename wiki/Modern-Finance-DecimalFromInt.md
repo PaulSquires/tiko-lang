@@ -11,7 +11,7 @@ DecimalFromInt( n )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' A LONGINT, exactly -- every one of them fits

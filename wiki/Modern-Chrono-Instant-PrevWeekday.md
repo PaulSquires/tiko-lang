@@ -11,7 +11,7 @@ Instant.PrevWeekday( dow )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )

@@ -11,7 +11,7 @@ LoanRowAt( loanTerms, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' One row of the schedule.  It WALKS, and is therefore AUTHORITATIVE --

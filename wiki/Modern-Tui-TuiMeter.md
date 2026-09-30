@@ -6,12 +6,12 @@
 
 ```freebasic
 type TuiMeter extends TuiWidget
-    as double ratio
+    as float64 ratio
     as TuiColor from_, to_
     as TuiColor trackColor
     as boolean partialCells
-    as ubyte meterStyle
-    as long segmentEvery
+    as uint8 meterStyle
+    as int32 segmentEvery
 end type
 ```
 
@@ -22,7 +22,7 @@ A gradient bar: the colour interpolates from `from_` to `to_` ALONG THE BAR, so 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -17,7 +17,7 @@ Unwrap( s [, open] [, close] [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Unwrap( "<Paul>", "<", ">" )    '' Paul

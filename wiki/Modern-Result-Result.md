@@ -18,20 +18,20 @@ Result( of ustring, ustring )
 ## Examples
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
 '' A value, or the reason there isn't one. The difference from Optional
 '' is the E: Optional says "nothing is here", Result says "nothing is
 '' here, AND this is why".
-dim r as Result( of long, ustring )
+dim r as Result( of int32, ustring )
 
 '' A DEFAULT-CONSTRUCTED RESULT IS A FAILURE. That is deliberate: a
 '' Result nobody has set must not read as success, or every forgotten
 '' assignment becomes a silent Ok.
 print r.IsOk( )              '' false
 
-r = Ok( of long, ustring )( 42 )
+r = Ok( of int32, ustring )( 42 )
 print r.IsOk( )              '' true
 print r.Value( )             '' 42
 ```

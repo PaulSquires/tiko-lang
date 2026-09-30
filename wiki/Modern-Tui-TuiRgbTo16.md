@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRgbTo16( byval r as long, byval g as long, byval b as long ) as ubyte
+TuiRgbTo16( byval r as int32, byval g as int32, byval b as int32 ) as uint8
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The nearest of the sixteen classic colours, bright forms included.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiRgbTo16( 255, 0, 0 )          '' 9  -- bright red

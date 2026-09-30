@@ -19,17 +19,17 @@ IsPow2( byval x as T ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong a = 8
+dim as uint32 a = 8
 print IsPow2( a )            '' true
 
-dim as ulong b = 6
+dim as uint32 b = 6
 print IsPow2( b )            '' false
 
 '' ZERO IS NOT a power of two -- which the usual one-liner gets wrong
-dim as ulong zero_ = 0
+dim as uint32 zero_ = 0
 print IsPow2( zero_ )        '' false
 print ( ( zero_ and ( zero_ - 1 ) ) = 0 )     '' -1 -- the wrong answer
 ```

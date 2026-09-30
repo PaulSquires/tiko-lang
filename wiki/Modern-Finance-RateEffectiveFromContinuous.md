@@ -11,7 +11,7 @@ RateEffectiveFromContinuous( continuousRate )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' exp( r ) - 1 -- the effective annual return of a continuously

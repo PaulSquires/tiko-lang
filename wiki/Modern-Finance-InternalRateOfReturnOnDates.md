@@ -12,7 +12,7 @@ InternalRateOfReturnOnDates( flows( ), basis, solverOptions )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' IRR over irregular dates -- the equivalent of a spreadsheet's XIRR,

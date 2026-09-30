@@ -15,7 +15,7 @@ Windows only. The console input mode Enter will install, as a pure function of t
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 #ifdef __FB_WIN32__

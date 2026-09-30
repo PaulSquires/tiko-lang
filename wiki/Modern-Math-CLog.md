@@ -8,7 +8,7 @@ The natural logarithm, or the logarithm to a given base.
 
 ```freebasic
 CLog( byref z as Complex ) as Complex
-CLog( byref z as Complex, byval baseValue as double ) as Complex
+CLog( byref z as Complex, byval baseValue as float64 ) as Complex
 ```
 
 ## Notes
@@ -21,7 +21,7 @@ CLog( byref z as Complex, byval baseValue as double ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CLog( CSet( 3, 4 ) ) )       '' 1.6094379124341003+0.9272952180016122i

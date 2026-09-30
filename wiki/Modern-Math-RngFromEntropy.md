@@ -11,15 +11,15 @@ RngFromEntropy( )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 '' A generator seeded from the OS entropy source, so two runs differ.
 '' Rng( seed ) is the reproducible alternative.
 dim r as Rng = RngFromEntropy( )
 
-dim as longint lo = 1, hi = 6
-dim as longint roll = r.NextInt( lo, hi )
+dim as int64 lo = 1, hi = 6
+dim as int64 roll = r.NextInt( lo, hi )
 print roll >= 1 andalso roll <= 6         '' -1 (true)
 
 '' Seed it explicitly when a test has to be reproducible

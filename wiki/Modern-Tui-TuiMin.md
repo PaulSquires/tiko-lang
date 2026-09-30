@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiMin_( byval n as long ) as TuiConstraint
+TuiMin_( byval n as int32 ) as TuiConstraint
 ```
 
 ## Description
@@ -15,13 +15,13 @@ At least n cells, more if there is room. The underscore is because MIN is an int
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs
 cs.Push( TuiMin_( 20 ) )
 cs.Push( TuiFill( ) )
-dim as Array( of long ) s = TuiSolve( 60, cs )
+dim as Array( of int32 ) s = TuiSolve( 60, cs )
 print s[0] >= 20                   '' -1 (true)
 ```
 

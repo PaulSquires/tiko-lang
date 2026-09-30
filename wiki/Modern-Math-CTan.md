@@ -19,7 +19,7 @@ CTan( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex z = CSet( 3, 4 )

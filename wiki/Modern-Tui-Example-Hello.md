@@ -32,14 +32,14 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' Run it from a real terminal. Redirected output is rejected with an honest
 '' error rather than a dashboard drawn into a pipe.
 
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 '' ---------------------------------------------------------------------------
 '' The model. Update mutates it, View reads it, and nothing else touches it.
 '' ---------------------------------------------------------------------------
 type HelloApp extends TuiApp
-	as long presses
+	as int32 presses
 	as ustring lastKey
 	as TuiTheme theme
 

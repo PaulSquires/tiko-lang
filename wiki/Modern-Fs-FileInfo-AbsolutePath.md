@@ -17,7 +17,7 @@ AbsolutePath( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' PURELY TEXTUAL apart from needing the current directory: it prefixes

@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRect.Contains( byval px as long, byval py as long ) as boolean
+TuiRect.Contains( byval px as int32, byval py as int32 ) as boolean
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Point-in-rect, half-open on the right and bottom. This is the hit test for mouse
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect body = TuiRectOf( 10, 5, 30, 12 )
@@ -28,7 +28,7 @@ e.kind = TUIEVENT_MOUSE
 e.mouse.kind = TUIMOUSE_PRESS
 e.mouse.x = 12 : e.mouse.y = 8
 if( body.Contains( e.mouse.x, e.mouse.y ) ) then
-    dim as long row = e.mouse.y - body.y
+    dim as int32 row = e.mouse.y - body.y
     print "clicked row"; row      '' 3
 end if
 ```

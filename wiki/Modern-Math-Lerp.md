@@ -11,7 +11,7 @@ Lerp( a, b, t )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 '' Linear interpolation: t = 0 gives a, t = 1 gives b

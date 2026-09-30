@@ -11,7 +11,7 @@ LocalDate.ParseIso(+ USTRING overloads, .ToIsoUString)
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalDate d = LocalDate.ParseIso( "2026-08-13" )

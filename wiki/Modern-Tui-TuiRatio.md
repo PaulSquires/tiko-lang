@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRatio( byval num as long, byval den as long ) as TuiConstraint
+TuiRatio( byval num as int32, byval den as int32 ) as TuiConstraint
 ```
 
 ## Description
@@ -15,13 +15,13 @@ num/den of the total. TuiRatio( 1, 3 ) is a third -- clearer than TuiPercent( 33
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs
 cs.Push( TuiRatio( 1, 3 ) )
 cs.Push( TuiRatio( 2, 3 ) )
-dim as Array( of long ) s = TuiSolve( 90, cs )
+dim as Array( of int32 ) s = TuiSolve( 90, cs )
 print s[0], s[1]                  '' 30 60
 ```
 

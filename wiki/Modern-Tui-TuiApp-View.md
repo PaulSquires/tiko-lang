@@ -15,7 +15,7 @@ Draw the whole screen from your state. It must not mutate anything -- render the
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen a, b

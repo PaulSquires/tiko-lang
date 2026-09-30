@@ -12,7 +12,7 @@ Instant.TryParseExact
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as DateTime d

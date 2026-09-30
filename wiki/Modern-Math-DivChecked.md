@@ -19,18 +19,18 @@ DivChecked( byval a as T, byval b as T ) as Optional( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as byte a = 10, b = 0
+dim as int8 a = 10, b = 0
 print DivChecked( a, b ).HasValue( )          '' false -- divide by zero
 
 '' THE CASE A HAND-WRITTEN GUARD FORGETS: -128 \ -1 has no
 '' representation in a BYTE
-dim as byte worst = -128, neg = -1
+dim as int8 worst = -128, neg = -1
 print DivChecked( worst, neg ).HasValue( )    '' false
 
-dim as byte c = 10, d = 3
+dim as int8 c = 10, d = 3
 print DivChecked( c, d ).Value( )             '' 3
 ```
 

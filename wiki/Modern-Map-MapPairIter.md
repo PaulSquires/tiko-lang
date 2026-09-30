@@ -19,7 +19,7 @@ MapPairIter( of TK, TV )
 ## Examples
 
 ```freebasic
-#include once "fb/map.bi"
+#import "std/containers"
 using FB
 
 dim ages as Map( of ustring, integer )

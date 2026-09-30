@@ -17,7 +17,7 @@ Site( file, line, func )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' File, line and function. Phase 5's macro layer will fill these in

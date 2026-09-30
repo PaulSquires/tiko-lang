@@ -17,7 +17,7 @@ CanonicalPath( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' ASKS THE FILESYSTEM: it resolves every symlink and returns the real

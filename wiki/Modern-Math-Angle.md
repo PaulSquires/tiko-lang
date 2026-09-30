@@ -7,7 +7,7 @@ The angle between two vectors, in radians.
 ## Syntax
 
 ```freebasic
-Angle( byref a as Vec3, byref b as Vec3 ) as single
+Angle( byref a as Vec3, byref b as Vec3 ) as float32
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ Angle( byref a as Vec3, byref b as Vec3 ) as single
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Vec3 x = type<Vec3>( 1, 0, 0 ), y = type<Vec3>( 0, 1, 0 )

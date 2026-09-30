@@ -7,7 +7,7 @@ How many zero bits sit below the lowest set one.
 ## Syntax
 
 ```freebasic
-TrailingZeros( byval x as T ) as long
+TrailingZeros( byval x as T ) as int32
 ```
 
 ## Notes
@@ -19,17 +19,17 @@ TrailingZeros( byval x as T ) as long
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as ulong x = 8
+dim as uint32 x = 8
 print TrailingZeros( x )     '' 3 -- 8 is 1 shifted left three times
 
-dim as ulong odd_ = 7
+dim as uint32 odd_ = 7
 print TrailingZeros( odd_ )  '' 0 -- the lowest bit is set
 
 '' ZERO gives the full width instead of being undefined
-dim as ulong zero_ = 0
+dim as uint32 zero_ = 0
 print TrailingZeros( zero_ ) '' 32
 ```
 

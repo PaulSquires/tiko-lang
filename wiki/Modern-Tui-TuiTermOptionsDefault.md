@@ -15,7 +15,7 @@ Alternate screen, raw mode, hidden cursor and bracketed paste. MOUSE AND FOCUS E
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTermOptions o = TuiTermOptionsDefault( )

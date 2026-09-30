@@ -18,7 +18,7 @@ Log( lv, m )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' THERE IS NO PROCESS-WIDE DEFAULT LOGGER in phase 1. A `dim shared`

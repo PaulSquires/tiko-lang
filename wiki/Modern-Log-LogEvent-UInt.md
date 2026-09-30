@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-UInt( k, v as ulongint )
+UInt( k, v as uint64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

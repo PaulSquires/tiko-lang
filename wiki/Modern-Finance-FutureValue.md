@@ -11,7 +11,7 @@ FutureValue( annuityTerms )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' What a stream of payments will be worth at the end of the term.

@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiFrame.DrawText( byval x as long, byval y as long, byref s as ustring, byval st as TuiStyle ) as long
+TuiFrame.DrawText( byval x as int32, byval y as int32, byref s as ustring, byval st as TuiStyle ) as int32
 ```
 
 ## Description
@@ -15,18 +15,18 @@ Draws a string and returns the COLUMNS it advanced -- not the character count, w
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr
 scr.Resize( 40, 4 )
 dim as TuiFrame ptr f = scr.BeginFrame( )
 
-dim as long adv = f->DrawText( 0, 0, "hello", TuiStyleDefault( ) )
+dim as int32 adv = f->DrawText( 0, 0, "hello", TuiStyleDefault( ) )
 print adv                         '' 5
 
 '' the shape for laying out a row of pieces
-dim as long x = 0
+dim as int32 x = 0
 x += f->DrawText( x, 1, "name: ", TuiStyleDefault( ) )
 x += f->DrawText( x, 1, "quinn",  TuiStyleDefault( ) )
 print x                           '' 11

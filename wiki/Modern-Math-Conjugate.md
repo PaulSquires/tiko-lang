@@ -19,7 +19,7 @@ Conjugate( byref a as Quat ) as Quat
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Quat q = type<Quat>( 0, 0, 0, 1 )      '' identity rotation

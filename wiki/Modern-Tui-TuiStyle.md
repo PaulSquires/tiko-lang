@@ -7,8 +7,8 @@
 ```freebasic
 type TuiStyle
     as TuiColor fg, bg
-    as ushort attrs
-    as ushort mask
+    as uint16 attrs
+    as uint16 mask
 end type
 ```
 
@@ -19,7 +19,7 @@ Foreground, background, attribute bits, and a MASK saying which of those this st
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 200, 200, 200 ), TuiRgb( 20, 20, 30 ), TUIATTR_BOLD )

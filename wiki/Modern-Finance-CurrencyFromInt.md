@@ -11,11 +11,11 @@ CurrencyFromInt( n )
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 '' Whole units, exactly -- no rounding step at all
-dim as longint n = 42
+dim as int64 n = 42
 print CurrencyFromInt( n ).ToString( )    '' 42.0000
 
 '' The one to use for a literal amount, since it cannot pick up a

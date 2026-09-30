@@ -11,7 +11,7 @@ DepreciationSumOfYearsDigits( terms, period )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Weighted by position in the life: with a life of 7 the digits sum to

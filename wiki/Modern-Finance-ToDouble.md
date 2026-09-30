@@ -7,7 +7,7 @@ The amount as a double.
 ## Syntax
 
 ```freebasic
-ToDouble( ) as double
+ToDouble( ) as float64
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ ToDouble( ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim as Currency c = CurrencyFromParts( 12, 3400 )
@@ -28,7 +28,7 @@ print c.ToDouble( )          '' 12.34
 
 '' NAMED, never implicit -- the conversion has to be asked for, so it
 '' cannot happen by accident in the middle of an exact calculation
-dim as double d = c.ToDouble( )
+dim as float64 d = c.ToDouble( )
 print d * 3                  '' 37.02 -- and now it is floating point again
 ```
 

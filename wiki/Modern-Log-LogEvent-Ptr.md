@@ -11,14 +11,14 @@ Ptr_( k, v as any ptr )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink
 dim lg as Logger
 lg.AddSink( @con )
 
-dim as long target = 42
+dim as int32 target = 42
 
 '' Spelled Ptr_ WITH A TRAILING UNDERSCORE, because PTR is a FreeBASIC
 '' keyword -- the same reason as Int_

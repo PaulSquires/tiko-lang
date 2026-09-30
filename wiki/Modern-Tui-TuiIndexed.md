@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiIndexed( byval idx as ubyte ) as TuiColor
+TuiIndexed( byval idx as uint8 ) as TuiColor
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A colour from the 256-entry palette: 0-15 the classic set, 16-231 a 6x6x6 cube, 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor orange = TuiIndexed( 214 )

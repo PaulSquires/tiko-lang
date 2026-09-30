@@ -11,14 +11,14 @@ LCM( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as long a = 4, b = 6
+dim as int32 a = 4, b = 6
 print LCM( a, b )            '' 12
 
 '' LCM with zero is zero -- the absorbing element, matching the maths
-dim as long z = 0
+dim as int32 z = 0
 print LCM( a, z )            '' 0
 ```
 

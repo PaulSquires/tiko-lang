@@ -7,7 +7,7 @@ O(n)
 ## Syntax
 
 ```freebasic
-Reserve( byval n as long )
+Reserve( byval n as int32 )
 ```
 
 ## Notes
@@ -17,7 +17,7 @@ Reserve( byval n as long )
 ## Examples
 
 ```freebasic
-#include once "fb/set.bi"
+#import "std/containers"
 using FB
 
 dim seen as Set( of integer )

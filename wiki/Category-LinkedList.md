@@ -3,7 +3,7 @@
 # LinkedList
 
 ```freebasic
-#include once "fb/linkedlist.bi"     ' or "containers.bi" for all four
+#import "std/containers"
 using FB
 
 dim q as LinkedList( of ustring )
@@ -35,7 +35,7 @@ Array is faster for everything else -- contiguous storage, no per-element alloca
 ## Members
 
 ```freebasic
-Count( ) as long                                O(1)
+Count( ) as int32                               O(1)
 IsEmpty( ) as boolean                           O(1)
 
 PushFront( byref v as T )                       O(1)
@@ -84,7 +84,7 @@ The compiler-supplied copy would duplicate the head and tail pointers and give t
 COPY AND ASSIGNMENT ARE DEEP:
 
 ```freebasic
-dim b as LinkedList( of long ) = a       ' every node duplicated
+dim b as LinkedList( of int32 ) = a       ' every node duplicated
 b.PushBack( 99 )                         ' a is unchanged
 
 c = a                                    ' old contents freed, then copied
@@ -128,7 +128,7 @@ means what it looks like: the argument refers into a list that is about to be re
 ## Sorting
 
 ```freebasic
-#include once "fb/sort.bi"
+#import "std/containers"
 
 SortList( l )               ascending, by '<' on T
 SortListBy( l, less )       ascending, by a comparer

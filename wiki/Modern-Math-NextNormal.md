@@ -7,7 +7,7 @@ A draw from the standard normal distribution: mean 0, standard deviation 1.
 ## Syntax
 
 ```freebasic
-NextNormal( ) as double
+NextNormal( ) as float64
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ NextNormal( ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
 
-dim as double total = 0
-dim as long within = 0
-for i as long = 1 to 2000
-    dim as double v = r.NextNormal( )
+dim as float64 total = 0
+dim as int32 within = 0
+for i as int32 = 1 to 2000
+    dim as float64 v = r.NextNormal( )
     total += v
     if abs( v ) <= 1.0 then within += 1
 next

@@ -17,7 +17,7 @@ Join( parts [, delim] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 dim as Array( of string ) parts = Split( "a,b,c" )

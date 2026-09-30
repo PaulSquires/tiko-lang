@@ -11,13 +11,13 @@ Min( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as double a = 3.0, b = 7.0
+dim as float64 a = 3.0, b = 7.0
 print Min( a, b )            '' 3
 
-dim as long i = 3, j = 7
+dim as int32 i = 3, j = 7
 print Min( i, j )            '' 3 -- generic over the numeric types
 ```
 

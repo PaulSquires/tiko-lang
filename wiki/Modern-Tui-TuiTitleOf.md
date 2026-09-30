@@ -15,7 +15,7 @@ Builds a title value. NOTE THE ARGUMENT ORDER: the SIDE comes before the alignme
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTitle t = TuiTitleOf( " log ", TuiStyleDefault( ), _

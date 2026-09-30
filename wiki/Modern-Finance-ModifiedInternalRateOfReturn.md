@@ -11,7 +11,7 @@ ModifiedInternalRateOfReturn( flows( ), financeRate, reinvestRate )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The WELL-POSED alternative to IRR: it discounts the negative flows at

@@ -11,7 +11,7 @@ Floor( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print Floor( 2.7 )           '' 2

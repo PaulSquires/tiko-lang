@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiRgbTo256( byval r as long, byval g as long, byval b as long ) as ubyte
+TuiRgbTo256( byval r as int32, byval g as int32, byval b as int32 ) as uint8
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The 256-palette entry nearest an RGB triple -- the 6x6x6 cube, or the grey ramp 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiRgbTo256( 255, 0, 0 )         '' 196 -- the cube's pure red

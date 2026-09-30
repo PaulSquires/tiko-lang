@@ -11,7 +11,7 @@ Stopwatch.ElapsedTicks
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim sw as Stopwatch

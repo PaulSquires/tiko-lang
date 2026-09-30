@@ -17,7 +17,7 @@ ReadDir( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -29,7 +29,7 @@ WriteAllText( PathJoin( dir_, "sub", "c.txt" ), "c" )
 
 '' ONE LEVEL, lazily: entries come out as the directory is read, so a
 '' huge directory does not have to be materialised first
-dim as long n = 0
+dim as int32 n = 0
 for each r in ReadDir( dir_ )
     if r.IsOk( ) then n += 1
 next

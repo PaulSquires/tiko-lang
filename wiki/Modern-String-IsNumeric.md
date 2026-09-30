@@ -17,7 +17,7 @@ IsNumeric( s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print IsNumeric( " -1.5e+3 " )    '' true -- surrounding whitespace is allowed

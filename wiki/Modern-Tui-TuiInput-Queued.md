@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiInput.Queued( ) as long
+TuiInput.Queued( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Events parsed and waiting to be taken.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

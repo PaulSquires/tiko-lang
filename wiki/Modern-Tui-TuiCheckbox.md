@@ -20,7 +20,7 @@ A labelled checkbox. Its whole state is one boolean, so it points at YOUR boolea
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as boolean agreed

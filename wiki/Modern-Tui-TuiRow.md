@@ -17,7 +17,7 @@ One row of a table: the cells, in column order.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRow r

@@ -11,7 +11,7 @@ DecimalFromUInt( u )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' A ULONGINT, exactly.  The whole 64-bit range fits inside the 96-bit

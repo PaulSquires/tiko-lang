@@ -11,7 +11,7 @@ Stopwatch.Start
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim sw as Stopwatch
@@ -23,7 +23,7 @@ print sw.IsRunning           '' true
 '' Start after a Stop RESUMES: the banked time is kept and a new segment
 '' begins. Restart( ) is the one that zeroes first.
 sw.Stop_( )
-dim as longint banked = sw.ElapsedTicks
+dim as int64 banked = sw.ElapsedTicks
 sw.Start( )
 print sw.ElapsedTicks >= banked         '' -1 (true)
 ```

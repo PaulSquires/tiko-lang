@@ -15,7 +15,7 @@ Default foreground on default background, no attributes -- the style the termina
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle d = TuiStyleDefault( )

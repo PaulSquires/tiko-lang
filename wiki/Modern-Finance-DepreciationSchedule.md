@@ -11,7 +11,7 @@ s.GetIterator( )  s.Count( )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The whole write-off, period by period.  Unlike the loan schedule this

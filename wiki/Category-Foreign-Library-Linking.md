@@ -105,7 +105,7 @@ with no `Declare` and no `#ifdef` anywhere in the using code.
 #foreignlib MYLIB dynamic "lib/mylib"
 
 declare function mylib_add cdecl lib MYLIB alias "mylib_add" _
-    ( byval a as long, byval b as long ) as long
+    ( byval a as int32, byval b as int32 ) as int32
 ```
 
 ```freebasic

@@ -19,7 +19,7 @@ The terminal itself: raw mode, the alternate screen, capability detection and bu
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

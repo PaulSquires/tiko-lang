@@ -17,7 +17,7 @@ AddMonths( 1 )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Exact-field arithmetic on the calendar: the offset is left untouched

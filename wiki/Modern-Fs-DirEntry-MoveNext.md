@@ -17,7 +17,7 @@ DirEntry.MoveNext( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -29,7 +29,7 @@ WriteAllText( PathJoin( dir_, "sub", "c.txt" ), "c" )
 
 dim it as DirIterator = ReadDir( dir_ ).GetIterator( )
 
-dim as long n = 0
+dim as int32 n = 0
 while it.IsValid( )
     n += 1
     it.MoveNext( )           '' advance; it returns nothing

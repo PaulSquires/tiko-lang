@@ -11,7 +11,7 @@ LocalTime.CompareTo
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalTime a = LocalTime( 9, 0, 0, 0 )

@@ -15,7 +15,7 @@ Whether this frame asked for a cursor.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

@@ -15,7 +15,7 @@ Puts an event at the back of the queue. For synthesising input -- a replayed mac
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

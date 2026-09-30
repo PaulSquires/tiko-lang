@@ -17,7 +17,7 @@ FsError.Message( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim e as FsError = FsError( FS_NOT_FOUND, 2, "CreateFileW", "missing.txt" )

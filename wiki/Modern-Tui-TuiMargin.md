@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiMargin
-    as long left, top, right, bottom
+    as int32 left, top, right, bottom
 end type
 ```
 
@@ -17,7 +17,7 @@ A four-sided inset, used by TuiRect.Inner and TuiPad. The order is left, top, ri
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiMargin m = TuiMarginOf( 2, 1, 2, 1 )

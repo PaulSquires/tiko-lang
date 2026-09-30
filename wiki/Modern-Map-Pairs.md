@@ -13,7 +13,7 @@ Pairs( ) as MapPairView( of K, V )
 ## Examples
 
 ```freebasic
-#include once "fb/map.bi"
+#import "std/containers"
 using FB
 
 dim ages as Map( of ustring, integer )

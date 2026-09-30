@@ -11,7 +11,7 @@ ProfitabilityIndex( flows( ), ratePerPeriod )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The present value of everything after t = 0, over the initial outlay.

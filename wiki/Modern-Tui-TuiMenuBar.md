@@ -7,7 +7,7 @@
 ```freebasic
 type TuiMenuBar extends TuiWidget
     as TuiMenuArray menus
-    as long highlight
+    as int32 highlight
     as TuiStyle normal, activeStyle, listStyle, highlightStyle
 end type
 ```
@@ -19,7 +19,7 @@ A one-row menu bar with drop-downs. Left and right move between menus, Enter ope
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiMenuBar bar

@@ -7,7 +7,7 @@ type Box( of T )
     as T value
 end type
 
-dim b as Box( of long )
+dim b as Box( of int32 )
 b.value = 7
 
 function Max( of T )( byval a as T, byval b as T ) as T
@@ -16,7 +16,7 @@ function Max( of T )( byval a as T, byval b as T ) as T
 end function
 
 print Max( 3, 9 )               '' T inferred as INTEGER
-print Max( of double )( 1.5, 2.5 )
+print Max( of float64 )( 1.5, 2.5 )
 ```
 
 A generic is declared once and compiled once per distinct type-argument list. There is no textual substitution, no macro, and no separate template language: the body is captured as tokens at declaration and replayed through the real parser at instantiation, so the code inside a generic is ordinary FreeBASIC and is diagnosed as such.
@@ -56,22 +56,22 @@ type Bad extends Box            '' error 335
 An instantiation is created the first time a particular type-argument list is seen, and cached. The SAME argument list always yields the SAME type:
 
 ```freebasic
-dim b1 as Box( of long )
-dim b2 as Box( of long )
+dim b1 as Box( of int32 )
+dim b2 as Box( of int32 )
 b2 = b1                         '' fine -- one type, not two
 ```
 
 Different argument lists are unrelated types with no conversion between them:
 
 ```freebasic
-dim c as Box( of double )
+dim c as Box( of float64 )
 c = b1                          '' error 181: Invalid assignment/conversion
 ```
 
 Type arguments may be anything a type can be: scalars, strings, UDTs, pointers, and other instantiations.
 
 ```freebasic
-dim n as Box( of Box( of long ) )
+dim n as Box( of Box( of int32 ) )
 ```
 
 SIZEOF, VAR, arrays, pointers, BYREF and BYVAL parameters, function results and UDT fields all work on an instantiation exactly as on any other type.
@@ -133,7 +133,7 @@ function Pick( of A, B )( byval x as A, byval y as B ) as A
 Call with explicit type arguments, or let them be inferred from the argument types:
 
 ```freebasic
-print Max( of double )( 1.5, 2.5 )      '' explicit
+print Max( of float64 )( 1.5, 2.5 )      '' explicit
 print Max( 3, 9 )                       '' inferred
 ```
 
@@ -141,7 +141,7 @@ Inference reads the parameter positions only. A type parameter that appears only
 
 ```freebasic
 function MakeZero( of T )( ) as T
-dim z as long = MakeZero( of long )( )
+dim z as int32 = MakeZero( of int32 )( )
 ```
 
 When two arguments would bind the same parameter to different types, inference does not pick a winner -- it reports error 340 and asks for the arguments to be written out. An implicit promotion is not a match.
@@ -179,7 +179,7 @@ type Der( of T ) extends Root( of T )   '' generic extends generic
 VIRTUAL, ABSTRACT, overriding an override, and OBJECT-derived RTTI all behave as they do for plain types. 'x is T' works through a base pointer, and -- because RTTI compares mangled name strings at run time -- two DIFFERENT instantiations correctly report false for each other:
 
 ```freebasic
-print ( *r is Der( of long ) )          '' from a Root( of long ) ptr
+print ( *r is Der( of int32 ) )          '' from a Root( of long ) ptr
 ```
 
 ## SELF-REFERENCE, Nesting AND Depth
@@ -201,7 +201,7 @@ tiko takes '-maxinstdepth' too, with the same default, and reports going past it
 
 - **A field's type** is one deeper than the type that holds it: A3 holding a B3 holding a C3 is refused at `-maxinstdepth 2` and accepted at 3.
 - **A member or procedure body** is replayed at depth 1 however deep the instantiation that owns it. So what a body names is depth 2 -- refused at 1, accepted at 2 -- and a chain of bodies (A3's body naming B3, whose body names C3) is accepted at 2 as well.
-- **A type argument** costs nothing: `Box( of Box( of Box( of long ) ) )` is accepted at 1.
+- **A type argument** costs nothing: `Box( of Box( of Box( of int32 ) ) )` is accepted at 1.
 
 fbc reports the first on the header of the generic being expanded and stops. tiko reports each one, on the line that asked for the instantiation.
 
@@ -299,7 +299,7 @@ parameter in its own parameter list -- error 59, at parameter 1 of
 __FBINVOKE; fail-lambda-capture-typaram.bas pins it. tiko ACCEPTS it and runs
 it correctly (measured 2026-09-24 at origin/master 50c71751: 'sub[ byref
 total ]( byval v as T )' inside 'Outer( of T )' stores 5 for a long and 2.5
-for a double), so code that relies on this builds with tiko and not with fbc.
+for a float64), so code that relies on this builds with tiko and not with fbc.
 ```
 
 - typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is
@@ -315,7 +315,7 @@ an overloaded HashOf( ) rather than an #if dispatch.
 ```freebasic
 not: it emits every instantiated member 'linkonce_odr' in a COMDAT and the
 linker keeps one (measured 2026-09-24 at origin/master 50c71751 with
---emit-ir; two separately compiled modules instantiating Box( of long ) link
+--emit-ir; two separately compiled modules instantiating Box( of int32 ) link
 and run). See NAMES AND LINKAGE.
 ```
 

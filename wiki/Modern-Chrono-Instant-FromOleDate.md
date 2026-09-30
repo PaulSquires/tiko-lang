@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Instant.FromOleDate( double )
+Instant.FromOleDate( float64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The OLE automation date, the same serial Excel and ADO use

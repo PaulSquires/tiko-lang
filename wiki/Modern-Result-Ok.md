@@ -6,16 +6,16 @@
 
 ```freebasic
 Ok( of T, E )
-Ok( of long, ustring )
+Ok( of int32, ustring )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
-dim r as Result( of long, ustring ) = Ok( of long, ustring )( 42 )
+dim r as Result( of int32, ustring ) = Ok( of int32, ustring )( 42 )
 
 print r.IsOk( )              '' true
 print r.Value( )             '' 42

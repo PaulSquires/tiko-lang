@@ -11,7 +11,7 @@ LoanTermsUsMortgage( principal, nominalAnnualRate, termYears )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The US convention: interest compounds MONTHLY and payments are

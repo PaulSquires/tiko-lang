@@ -11,7 +11,7 @@ SimpleInterest( principal, annualRate, yearFraction )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Interest that does not compound: principal x rate x time.  EXACT.

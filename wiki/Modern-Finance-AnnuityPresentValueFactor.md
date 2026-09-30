@@ -11,7 +11,7 @@ AnnuityPresentValueFactor( ratePerPeriod, periods, timing )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' ( 1 - v^n ) / i -- what one unit per period is worth today.  Exposed

@@ -11,7 +11,7 @@ COMPOUND_ANNUAL  COMPOUND_SEMIANNUAL  COMPOUND_MONTHLY  COMPOUND_CONTINUOUS  COM
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' THE VALUES ARE PERIODS PER YEAR, so converting a rate is a division

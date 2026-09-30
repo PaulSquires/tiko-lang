@@ -11,7 +11,7 @@ Instant.MonthName( mo [, abbrev] )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print DateTime.MonthName( 8 )           '' August

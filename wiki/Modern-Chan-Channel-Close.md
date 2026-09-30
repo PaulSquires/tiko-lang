@@ -20,19 +20,19 @@ Close( )
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 
-dim as long v = 1
+dim as int32 v = 1
 ch.Send( v )
 ch.Close( )
 
 print ch.IsClosed( )         '' true
 
 '' The buffered value is still delivered -- closing does not discard
-dim as long got
+dim as int32 got
 print ch.Receive( got )      '' true
 print got                    '' 1
 print ch.Receive( got )      '' false -- now it is drained

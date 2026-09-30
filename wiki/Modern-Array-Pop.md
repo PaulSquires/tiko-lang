@@ -11,17 +11,17 @@ Pop( ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 10 ) : v.Push( 20 ) : v.Push( 30 )
 
 print v.Pop( )           '' 30 -- removes and returns the last element
 print v.Count            '' 2
 
 '' Popping an empty array is not an error: it yields a default-constructed T
-dim e as Array( of long )
+dim e as Array( of int32 )
 print e.Pop( )           '' 0
 ```
 

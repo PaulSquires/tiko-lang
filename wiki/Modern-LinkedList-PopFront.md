@@ -11,7 +11,7 @@ PopFront( ) as T
 ## Examples
 
 ```freebasic
-#include once "fb/linkedlist.bi"
+#import "std/containers"
 using FB
 
 dim q as LinkedList( of ustring )

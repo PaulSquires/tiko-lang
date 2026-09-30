@@ -22,7 +22,7 @@ SplitCsvRow( s [, delim] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 dim as Array( of string ) f = SplitCsvRow( !"a,\"b,c\",d" )

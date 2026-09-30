@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiBuffer.Resize( byval c as long, byval r as long )
+TuiBuffer.Resize( byval c as int32, byval r as int32 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Reshapes the grid and blanks it. Contents do not survive a resize, which is why 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBuffer b

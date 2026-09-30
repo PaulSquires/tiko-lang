@@ -11,7 +11,7 @@ o.Guess_  o.LowerBound_  o.UpperBound_  o.Tolerance_  o.StepTolerance_  o.MaxIte
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' How the root finder should search.  THE DEFAULT BOUNDS ARE RATE

@@ -17,7 +17,7 @@ Reverse( s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print Reverse( "abcdef" )     '' fedcba

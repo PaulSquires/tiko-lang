@@ -11,7 +11,7 @@ TimeSpan.FromDays
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print TimeSpan.FromDays( 1 ).TotalHours          '' 24

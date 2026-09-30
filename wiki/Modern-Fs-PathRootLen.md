@@ -17,7 +17,7 @@ PathRootLen( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 print PathRootLen( "C:\dev\src" )         '' 3 -- "C:\"

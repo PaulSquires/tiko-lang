@@ -16,7 +16,7 @@ Enters the terminal, runs the loop, and restores everything on the way out -- in
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as CounterApp app             '' see TuiApp for its definition

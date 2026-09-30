@@ -19,13 +19,13 @@ IsClosed( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 print ch.IsClosed( )         '' false
 
-dim as long v = 1
+dim as int32 v = 1
 ch.Send( v )
 ch.Close( )
 

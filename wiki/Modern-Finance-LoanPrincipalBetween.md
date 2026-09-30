@@ -11,7 +11,7 @@ LoanPrincipalBetween( loanTerms, fromPeriod, toPeriod )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Principal retired across a range -- including any extra payments made

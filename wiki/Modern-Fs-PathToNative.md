@@ -17,7 +17,7 @@ PathToNative( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Rewrites the separators to the platform's own, so a path read from a

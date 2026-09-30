@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiMarginAll( byval n as long ) as TuiMargin
+TuiMarginAll( byval n as int32 ) as TuiMargin
 ```
 
 ## Description
@@ -15,7 +15,7 @@ A margin of n on every side. This is what a one-cell border costs.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiRectOf( 0, 0, 30, 10 )

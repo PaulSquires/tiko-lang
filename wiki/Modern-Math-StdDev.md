@@ -7,7 +7,7 @@ The **sample** standard deviation: the square root of `Variance`.
 ## Syntax
 
 ```freebasic
-StdDev( a( ) as T ) as double
+StdDev( a( ) as T ) as float64
 ```
 
 ## Notes
@@ -19,10 +19,10 @@ StdDev( a( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print StdDev( a( ) )             '' 1.414213562373095
 print StdDev( a( ) ) ^ 2         '' 2 -- Variance, give or take rounding

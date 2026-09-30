@@ -15,7 +15,7 @@ Inserts text at the cursor, replacing any selection first. This is what a paste 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextInputState st

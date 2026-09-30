@@ -17,7 +17,7 @@ AddCalendarMonths( 1 )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' "Same time next month": AddMonths, then the offset re-resolved for

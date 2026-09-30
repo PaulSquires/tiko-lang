@@ -18,7 +18,7 @@ A single row of block characters -- one value per cell, eight height steps. For 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr
@@ -26,7 +26,7 @@ scr.Resize( 20, 1 )
 dim as TuiFrame ptr f = scr.BeginFrame( )
 
 dim as TuiSparkline sl
-for i as long = 0 to 19
+for i as int32 = 0 to 19
     sl.data.Push( cdbl( i ) )     '' TuiDoubleArray: push a double
 next
 sl.color = TuiRgb( 120, 220, 160 )

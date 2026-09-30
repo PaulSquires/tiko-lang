@@ -17,7 +17,7 @@ MemoryMappedFile.Flush( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -28,7 +28,7 @@ WriteAllText( p, "hello" )
 dim mm as MemoryMappedFile
 mm.Open( p, true )           '' writable
 
-dim as ubyte ptr b = mm.Data( )
+dim as uint8 ptr b = mm.Data( )
 b[ 0 ] = asc( "H" )
 
 '' Pushes the dirty pages to disk NOW. Without it the write still lands

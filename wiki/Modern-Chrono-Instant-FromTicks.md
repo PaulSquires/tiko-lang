@@ -12,7 +12,7 @@ Instant.FromTicks( t, offMin )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Ticks of 100 ns since 0001-01-01T00:00:00 UTC

@@ -15,7 +15,7 @@ Throws the pending buffer away without writing it. For abandoning a frame you de
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

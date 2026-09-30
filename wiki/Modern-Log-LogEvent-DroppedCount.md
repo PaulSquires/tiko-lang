@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-DroppedCount( ) as ulongint
+DroppedCount( ) as uint64
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

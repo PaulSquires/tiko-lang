@@ -11,7 +11,7 @@ GetIterator( ) as SetIterator( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/set.bi"
+#import "std/containers"
 using FB
 
 dim seen as Set( of integer )

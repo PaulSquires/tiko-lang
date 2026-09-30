@@ -7,7 +7,7 @@ The **population** standard deviation: the square root of `VariancePopulation`.
 ## Syntax
 
 ```freebasic
-StdDevPopulation( a( ) as T ) as double
+StdDevPopulation( a( ) as T ) as float64
 ```
 
 ## Notes
@@ -18,10 +18,10 @@ StdDevPopulation( a( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print StdDevPopulation( a( ) )   '' 1.264911064067352
 print StdDevPopulation( a( ) ) < StdDev( a( ) )       '' -1 (true)

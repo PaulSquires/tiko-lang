@@ -17,7 +17,7 @@ Shrink( s [, mask] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 dim as ustring s = ",,, one , two     three, four,"

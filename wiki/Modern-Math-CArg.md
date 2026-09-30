@@ -7,7 +7,7 @@ The phase — the angle from the positive real axis, in radians.
 ## Syntax
 
 ```freebasic
-CArg( byref z as Complex ) as double
+CArg( byref z as Complex ) as float64
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ CArg( byref z as Complex ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CArg( CSet( 1, 0 ) )      '' 0

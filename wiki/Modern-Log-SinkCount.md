@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-SinkCount( ) as long
+SinkCount( ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 dim con as ConsoleSink

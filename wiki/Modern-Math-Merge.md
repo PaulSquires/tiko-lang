@@ -19,14 +19,14 @@ RunningStats.Merge( byref other as RunningStats )
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
 dim a as RunningStats
 dim b as RunningStats
 
-for i as long = 1 to 3 : a.Add( i ) : next
-for i as long = 4 to 6 : b.Add( i ) : next
+for i as int32 = 1 to 3 : a.Add( i ) : next
+for i as int32 = 4 to 6 : b.Add( i ) : next
 
 a.Merge( b )
 print a.Count( )             '' 6

@@ -7,19 +7,19 @@ The distance from `x` to the next representable value.
 ## Syntax
 
 ```freebasic
-Ulp( byval x as double ) as double
+Ulp( byval x as float64 ) as float64
 ```
 
 ## Notes
 
 - Unit in the Last Place: the spacing of the floating-point grid **at this magnitude**, which grows as the magnitude does.
 - It is how an error bound is stated meaningfully -- "within 2 ulp" means something at 1e300 and at 1e-300, where "within 1e-15" does not.
-- Overloaded on `double` and `single`, and the answer differs between them because the grids differ.
+- Overloaded on `float64` and `float32`, and the answer differs between them because the grids differ.
 
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print Ulp( 1.0 ) > 0         '' -1 (true)

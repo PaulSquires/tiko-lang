@@ -7,7 +7,7 @@ Adds `c * rate` to an accumulator, without rounding at each step.
 ## Syntax
 
 ```freebasic
-CurrencyAccum.AddProduct( byref c as Currency, byval rate as double )
+CurrencyAccum.AddProduct( byref c as Currency, byval rate as float64 )
 ```
 
 ## Notes
@@ -19,14 +19,14 @@ CurrencyAccum.AddProduct( byref c as Currency, byval rate as double )
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim acc as CurrencyAccum
 dim as Currency line_ = CurrencyFromDouble( 19.99 )
 
 '' Rate applied per line, but rounded only ONCE, at the end
-for i as long = 1 to 3
+for i as int32 = 1 to 3
     acc.AddProduct( line_, 0.075 )
 next
 

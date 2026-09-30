@@ -7,7 +7,7 @@ The spread: the largest value minus the smallest.
 ## Syntax
 
 ```freebasic
-Range( a( ) as T ) as double
+Range( a( ) as T ) as float64
 ```
 
 ## Notes
@@ -19,15 +19,15 @@ Range( a( ) as T ) as double
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
-dim as double a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
+dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 
 print Range( a( ) )          '' 4
 
 '' Defined entirely by the extremes, so one outlier is the whole answer
-dim as double b( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 1e9 }
+dim as float64 b( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 1e9 }
 print Range( b( ) ) > 1e8    '' -1 (true)
 
 '' The robust alternative

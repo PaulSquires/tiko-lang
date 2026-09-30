@@ -11,7 +11,7 @@ RETURN_ANNUAL  RETURN_QUARTERLY  RETURN_MONTHLY  RETURN_WEEKLY  RETURN_DAILY_252
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' How many observations make a year.  BOTH DAILY FORMS ARE OFFERED

@@ -17,7 +17,7 @@ ClipLeft( s, count )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print ClipLeft( "1234567890", 3 )     '' 4567890

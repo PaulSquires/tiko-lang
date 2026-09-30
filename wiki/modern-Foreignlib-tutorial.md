@@ -128,7 +128,7 @@ select between them. The obvious fix:
 
 ```freebasic
 const MYLIB = "foo64"
-declare function foo_init cdecl lib MYLIB alias "foo_init" ( ) as long
+declare function foo_init cdecl lib MYLIB alias "foo_init" ( ) as int32
 ```
 
 ```
@@ -141,12 +141,12 @@ duplicated once per target:
 ```freebasic
 #ifdef __FB_WIN32__
   #ifdef __FB_64BIT__
-    declare function foo_init cdecl lib "foo64" alias "foo_init" ( ) as long
+    declare function foo_init cdecl lib "foo64" alias "foo_init" ( ) as int32
   #else
-    declare function foo_init cdecl lib "foo32" alias "foo_init" ( ) as long
+    declare function foo_init cdecl lib "foo32" alias "foo_init" ( ) as int32
   #endif
 #else
-  declare function foo_init cdecl lib "foo" alias "foo_init" ( ) as long
+  declare function foo_init cdecl lib "foo" alias "foo_init" ( ) as int32
 #endif
 ```
 

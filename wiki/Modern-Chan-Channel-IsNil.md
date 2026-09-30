@@ -19,17 +19,17 @@ IsNil( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long )
+dim ch as Channel( of int32 )
 print ch.IsNil( )            '' true -- default-constructed
 
 '' Assert initialisation before anything blocks on it, because the
 '' symptom of forgetting is a hang with no message
 if ch.IsNil( ) then print "not initialised"
 
-ch = Channel( of long )( 4 )
+ch = Channel( of int32 )( 4 )
 print ch.IsNil( )            '' false
 ```
 

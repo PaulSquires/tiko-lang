@@ -7,8 +7,8 @@
 ```freebasic
 type TuiGraph extends TuiWidget
     as TuiSeriesArray series
-    as ubyte graphKind
-    as double minY, maxY
+    as uint8 graphKind
+    as float64 minY, maxY
     as boolean autoScale, showAxes
 end type
 ```
@@ -20,7 +20,7 @@ A line graph over one or more series. TUIGRAPH_BRAILLE gives the highest resolut
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr
@@ -33,7 +33,7 @@ g.autoScale = FALSE               '' a percentage axis should not move
 g.minY = 0 : g.maxY = 100
 
 dim as TuiSeries s
-for i as long = 0 to 199
+for i as int32 = 0 to 199
     s.data.Push( 50.0 + sin( i / 9.0 ) * 45.0 )
 next
 s.color = TuiRgb( 120, 220, 160 )

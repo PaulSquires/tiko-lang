@@ -15,7 +15,7 @@ Forgets what the terminal is showing, so the next Render is a full repaint inclu
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

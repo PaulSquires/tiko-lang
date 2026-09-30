@@ -17,7 +17,7 @@ PathRoot( p )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 print PathRoot( "C:\dev\src" )            '' C:\

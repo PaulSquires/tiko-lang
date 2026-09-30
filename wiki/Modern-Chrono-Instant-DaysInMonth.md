@@ -11,7 +11,7 @@ Instant.DaysInMonth( y, mo )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print DateTime.DaysInMonth( 2026, 8 )   '' 31

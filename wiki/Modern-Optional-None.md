@@ -11,7 +11,7 @@ None( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/optional.bi"
+#import "std/outcome"
 using FB
 
 dim o as Optional( of integer ) = None( of integer )( )

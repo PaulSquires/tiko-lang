@@ -11,14 +11,14 @@ ModifiedDietzReturn( beginValue, endValue, flows( ), flowDayOffsets( ), periodDa
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The standard approximation to a time-weighted return when you cannot
 '' value the portfolio at every flow: each flow is weighted by the
 '' fraction of the period it was invested for.
 dim as Decimal fl( 0 to 0 ) = { DecimalParse( "10000" ).Value( ) }
-dim as long off( 0 to 0 ) = { 45 }
+dim as int32 off( 0 to 0 ) = { 45 }
 
 '' 100,000 grows to 112,000 with a 10,000 contribution on day 45 of 90,
 '' so the denominator is 100,000 + half of 10,000.
@@ -28,7 +28,7 @@ print ModifiedDietzReturn( DecimalParse( "100000" ).Value( ), _
 
 '' A flow on the FIRST day is fully weighted, one on the LAST day not at
 '' all -- which is the whole point of the weighting.
-dim as long first_( 0 to 0 ) = { 0 }
+dim as int32 first_( 0 to 0 ) = { 0 }
 print ModifiedDietzReturn( DecimalParse( "100000" ).Value( ), _
                            DecimalParse( "112000" ).Value( ), _
                            fl( ), first_( ), 90 ).Value( )

@@ -11,7 +11,7 @@ DayCountFractionDouble( d1, d2, basis )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The same fraction as a double, for the dated discounting in

@@ -7,7 +7,7 @@
 ```freebasic
 type TuiCell
     as TuiStyle st
-    as ubyte width
+    as uint8 width
     ...
 end type
 ```
@@ -19,7 +19,7 @@ One character cell: a base codepoint, a short combining tail, a style and a colu
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCell c = TuiCellBlank( TuiStyleDefault( ) )

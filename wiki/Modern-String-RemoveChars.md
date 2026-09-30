@@ -17,7 +17,7 @@ RemoveChars( s, chars [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print RemoveChars( "abacadabra", "bac" )      '' dr

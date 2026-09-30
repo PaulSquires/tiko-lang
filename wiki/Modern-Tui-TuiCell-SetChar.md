@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCell.SetChar( byval cp as ulong )
+TuiCell.SetChar( byval cp as uint32 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Sets the base codepoint and recomputes the cell's column width from the Unicode 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCell c = TuiCellBlank( TuiStyleDefault( ) )

@@ -11,7 +11,7 @@ PresentValueOfLump( amount, ratePerPeriod, periods )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A single amount discounted back.  A MULTIPLY, not a rearrangement of

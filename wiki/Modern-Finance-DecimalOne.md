@@ -11,13 +11,13 @@ DecimalOne( )
 ## Examples
 
 ```freebasic
-#include once "fb/decimal.bi"
+#import "std/money"
 using FB
 
 '' One at scale 0 -- the multiplicative identity, spelled out so that a
 '' loop accumulating a product has something to start from
 dim as Decimal acc = DecimalOne( )
-for i as long = 1 to 3
+for i as int32 = 1 to 3
     acc = acc * DecimalFromInt( i )
 next
 print acc.ToString( )        '' 6

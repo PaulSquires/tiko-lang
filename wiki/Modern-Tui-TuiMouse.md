@@ -6,8 +6,8 @@
 
 ```freebasic
 type TuiMouse
-    as ubyte kind, button, mods
-    as long x, y       '' ZERO-BASED
+    as uint8 kind, button, mods
+    as int32 x, y       '' ZERO-BASED
 end type
 ```
 
@@ -18,7 +18,7 @@ A mouse event. The coordinates are 0-based cell positions in the same space as e
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiEvent e

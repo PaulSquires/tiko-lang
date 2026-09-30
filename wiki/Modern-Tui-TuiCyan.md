@@ -15,7 +15,7 @@ Shorthand for TuiAnsi( TUIC_CYAN ) -- palette index 6.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiColor c = TuiCyan( )

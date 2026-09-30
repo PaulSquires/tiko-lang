@@ -17,7 +17,7 @@ GetIterator( )
 ## Examples
 
 ```freebasic
-#include once "fb/orderedmap.bi"
+#import "std/containers"
 using FB
 
 dim ages as OrderedMap( of ustring, integer )

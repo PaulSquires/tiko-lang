@@ -24,7 +24,7 @@ SharedPtr( of T )
 using FB
 
 type Node
-    as long id
+    as int32 id
 end type
 
 dim p as SharedPtr( of Node ) = MakeShared( of Node )( )

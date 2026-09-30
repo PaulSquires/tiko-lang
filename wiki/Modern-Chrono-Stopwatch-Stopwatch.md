@@ -11,7 +11,7 @@ Stopwatch( )
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The MONOTONIC clock: how long since. It never jumps, so unlike TIMER

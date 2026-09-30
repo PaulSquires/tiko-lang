@@ -11,15 +11,15 @@ GCD( a, b )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
-dim as long a = 12, b = 18
+dim as int32 a = 12, b = 18
 print GCD( a, b )            '' 6
 
 '' GCD with zero is the other operand, which is the identity that makes
 '' a fold over a list work with no special first case
-dim as long z = 0
+dim as int32 z = 0
 print GCD( a, z )            '' 12
 ```
 

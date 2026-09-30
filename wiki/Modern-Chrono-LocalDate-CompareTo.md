@@ -11,7 +11,7 @@ LocalDate.CompareTo
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalDate a = LocalDate( 2026, 1, 1 )

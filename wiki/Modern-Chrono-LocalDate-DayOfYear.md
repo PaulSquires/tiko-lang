@@ -11,7 +11,7 @@ LocalDate.DayOfYear
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print LocalDate( 2026, 1, 1 ).DayOfYear     '' 1 -- one-based

@@ -19,9 +19,9 @@ To call a C library from FreeBASIC you write a **binding**: a `.bi` full of `Dec
 
 extern "C"
 	declare function sqlite3_open cdecl alias "sqlite3_open" _
-		( byval filename as const zstring ptr, byval db as any ptr ptr ) as long
+		( byval filename as const zstring ptr, byval db as any ptr ptr ) as int32
 	declare function sqlite3_close cdecl alias "sqlite3_close" _
-		( byval db as any ptr ) as long
+		( byval db as any ptr ) as int32
 end extern
 ```
 
@@ -41,8 +41,8 @@ and the binding says
 
 ```freebasic
 type Rec
-	id     as long
-	stamp  as long        '' <-- should be LONGINT
+	id     as int32
+	stamp  as int32       '' <-- should be LONGINT
 	name   as zstring * 16
 end type
 ```
@@ -51,7 +51,7 @@ end type
 
 **2. The header changes and the binding does not.** A new SDK adds a field to the middle of a struct. Your binding is now describing last year's memory layout.
 
-**3. The binding is written for one target and used on another.** `long` is 4 bytes on win64 and 8 on linux-x86_64. `wchar_t` is 2 and 4. A binding that hard-codes either is right on exactly one of them.
+**3. The binding is written for one target and used on another.** `int32` is 4 bytes on win64 and 8 on linux-x86_64. `wchar_t` is 2 and 4. A binding that hard-codes either is right on exactly one of them.
 
 ### An experiment worth doing
 
@@ -179,16 +179,16 @@ This is the part a hand-written binding gets wrong most often, because the callb
 `sqlite3_exec` takes `int (*)(void*, int, char**, char**)`. The importer turned that into a FreeBASIC procedure-pointer type with that exact shape, so the compiler will now check your function against it:
 
 ```freebasic
-function OnRow ( byval user as any ptr, byval ncols as long, _
+function OnRow ( byval user as any ptr, byval ncols as int32, _
                        byval values as zstring ptr ptr, _
-                       byval names as zstring ptr ptr ) as long
-	dim as long ptr count = user
+                       byval names as zstring ptr ptr ) as int32
+	dim as int32 ptr count = user
 	*count += 1
 	print *names[0]; " = "; *values[0]
 	return 0                     '' 0 keeps going; anything else aborts
 end function
 
-dim as long rows
+dim as int32 rows
 sqlite3_exec( db, @"select name, qty from part;", @OnRow, @rows, @errmsg )
 print rows; " rows"
 ```
@@ -290,7 +290,7 @@ Leave the `#define` out and you get the ANSI API, exactly as C does. Both suffix
 An imported function pointer says whatever the header says for this target — often `cdecl`, because `WINAPI` and friends are defined away on win64. FreeBASIC's own default there is `stdcall`. On a 64-bit target those are the same call, and fbc treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable, so a plain
 
 ```freebasic
-function MyCallback( byval a as long ) as long
+function MyCallback( byval a as int32 ) as int32
 ```
 
 matches an imported `cdecl` pointer with no warning and no cast.

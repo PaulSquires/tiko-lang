@@ -17,7 +17,7 @@ UnionWith( other )
 ## Examples
 
 ```freebasic
-#include once "fb/orderedset.bi"
+#import "std/containers"
 using FB
 
 dim a as OrderedSet( of integer )

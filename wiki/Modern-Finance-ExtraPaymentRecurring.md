@@ -11,7 +11,7 @@ ExtraPaymentRecurring( fromPeriod, toPeriod, amount )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The same extra every period across a range.

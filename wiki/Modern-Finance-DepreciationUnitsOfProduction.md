@@ -11,7 +11,7 @@ DepreciationUnitsOfProduction( terms, unitsThisPeriod, totalUnits )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Depreciation by USE rather than by time -- the base times this

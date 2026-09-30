@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiTree.VisibleCount( ) as long
+TuiTree.VisibleCount( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ How many nodes are currently visible -- children of a collapsed node do not coun
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTreeState st

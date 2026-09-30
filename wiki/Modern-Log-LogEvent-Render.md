@@ -17,7 +17,7 @@ Render( r, byref outbuf as ustring )
 ## Examples
 
 ```freebasic
-#include once "fb/logging.bi"
+#import "std/logs"
 using FB
 
 '' Render is the Renderer side: it turns a LogRecord into text and

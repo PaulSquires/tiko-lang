@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiMarginOf( byval l as long, byval t as long, byval r as long, byval b as long ) as TuiMargin
+TuiMarginOf( byval l as int32, byval t as int32, byval r as int32, byval b as int32 ) as TuiMargin
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Builds a margin. Left, top, right, bottom.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiRect r = TuiRectOf( 0, 0, 30, 10 )

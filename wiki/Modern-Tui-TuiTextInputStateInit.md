@@ -15,7 +15,7 @@ Initialises a state in place -- a SUB, not a function returning one. Call it bef
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextInputState st

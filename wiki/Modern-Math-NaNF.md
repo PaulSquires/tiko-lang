@@ -11,10 +11,10 @@ NaNF( )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
-dim as single n = NaNF( )
+dim as float32 n = NaNF( )
 
 print IsNaN( n )             '' true
 

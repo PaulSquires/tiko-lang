@@ -17,7 +17,7 @@ SplitChars( s [, chars] [, ic] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 '' Split on a SET of characters rather than one delimiter string

@@ -11,7 +11,7 @@ PathStartsWith( p, pre )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Whole-COMPONENT prefix test, not a string prefix -- which is what

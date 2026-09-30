@@ -11,7 +11,7 @@ LocalTime.Microsecond
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' The constructor stops at MILLISECONDS -- there is no microsecond

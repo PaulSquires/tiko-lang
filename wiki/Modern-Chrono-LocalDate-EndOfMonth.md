@@ -11,7 +11,7 @@ LocalDate.EndOfMonth
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print LocalDate( 2026, 8, 13 ).EndOfMonth( ).ToIsoString( )     '' 2026-08-31

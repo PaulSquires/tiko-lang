@@ -11,7 +11,7 @@ x.FromPeriod_  x.ToPeriod_  x.Amount_
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Extra principal applied over a range of periods.  Overlapping ranges

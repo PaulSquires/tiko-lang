@@ -11,7 +11,7 @@ CurrencyParse( s )
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 '' Parses text exactly, with no double in the middle

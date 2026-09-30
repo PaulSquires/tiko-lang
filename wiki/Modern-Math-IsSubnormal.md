@@ -11,7 +11,7 @@ IsSubnormal( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 '' Below the smallest normal, where the exponent has bottomed out and

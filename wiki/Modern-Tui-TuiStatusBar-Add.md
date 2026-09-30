@@ -15,7 +15,7 @@ Appends an item. Include the padding spaces in the text -- the bar does not add 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStatusBar sb

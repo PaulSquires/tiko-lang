@@ -11,7 +11,7 @@ Ceil( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print Ceil( 2.1 )            '' 3

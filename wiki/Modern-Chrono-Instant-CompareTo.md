@@ -11,7 +11,7 @@ Instant.CompareTo
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as Instant a = Instant.FromUnixSeconds( 0 )

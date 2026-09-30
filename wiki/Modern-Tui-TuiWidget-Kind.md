@@ -15,7 +15,7 @@ A short type name. Used for diagnostics and for asserting what a container ended
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBlock b

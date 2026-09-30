@@ -19,11 +19,11 @@ Transpose( byref a as Mat4 ) as Mat4
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Mat4 m
-for i as long = 0 to 15
+for i as int32 = 0 to 15
     m.m( i ) = i
 next
 

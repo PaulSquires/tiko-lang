@@ -7,7 +7,7 @@ Assigns the real part in place.
 ## Syntax
 
 ```freebasic
-CSetReal( byref z as Complex, byval x as double )
+CSetReal( byref z as Complex, byval x as float64 )
 ```
 
 ## Notes
@@ -18,7 +18,7 @@ CSetReal( byref z as Complex, byval x as double )
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 dim as Complex z = CSet( 3, 4 )

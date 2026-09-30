@@ -14,13 +14,13 @@ Hypot( x, y )
 
 - Delegates to libm's `hypot`, which is required not to overflow for a representable result.
 - `Sqr( x*x + y*y )` overflows at about 1.3e154 for a double, which is why the hand-rolled version is wrong at the extremes: `Hypot( 1e200, 1e200 )` is finite where `sqr( 1e200*1e200 + 1e200*1e200 )` is +inf.
-- Overloaded on `double` and on `single`, so a single-precision call does not silently widen and narrow.
+- Overloaded on `float64` and on `float32`, so a single-precision call does not silently widen and narrow.
 - **BOUNDED** accuracy: correct to a stated ulp bound, with the platform libm as the dependency.
 
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print Hypot( 3.0, 4.0 )      '' 5

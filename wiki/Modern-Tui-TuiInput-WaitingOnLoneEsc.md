@@ -15,7 +15,7 @@ True when the parser is holding an ESC it cannot yet classify. This is what a lo
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

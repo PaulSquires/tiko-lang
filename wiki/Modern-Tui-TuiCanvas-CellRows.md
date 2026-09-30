@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.CellRows( ) as long
+TuiCanvas.CellRows( ) as int32
 ```
 
 ## Description
@@ -15,7 +15,7 @@ The canvas height in terminal cells.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print TuiCanvas( 40, 10 ).CellRows( )          '' 10

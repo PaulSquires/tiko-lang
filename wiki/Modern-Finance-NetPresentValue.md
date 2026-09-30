@@ -11,7 +11,7 @@ NetPresentValue( flows( ), ratePerPeriod )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' EXACT, and flows(0) IS AT t = 0 -- undiscounted.

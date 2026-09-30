@@ -17,7 +17,7 @@ WithTimeout( parent, ms )
 ## Examples
 
 ```freebasic
-#include once "fb/sync.bi"
+#import "std/tasks"
 using FB
 
 dim root as Context

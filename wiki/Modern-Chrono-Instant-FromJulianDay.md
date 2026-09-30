@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Instant.FromJulianDay( double )
+Instant.FromJulianDay( float64 )
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' Julian day: FRACTIONAL and NOON-BASED, which is where the half-day

@@ -17,7 +17,7 @@ PathSplit( p, comps )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' Fills an Array with the components and returns the count.
@@ -26,10 +26,10 @@ using FB
 '' three, not four -- PathRoot joined with these reconstructs the
 '' normalised path, and that is the round trip the split guarantees.
 dim parts as Array( of ustring )
-dim as long n = PathSplit( "C:\dev\src\main.tko", parts )
+dim as int32 n = PathSplit( "C:\dev\src\main.tko", parts )
 
 print n                      '' 3
-for i as long = 0 to parts.Count - 1
+for i as int32 = 0 to parts.Count - 1
     print parts[ i ]         '' dev / src / main.tko
 next
 

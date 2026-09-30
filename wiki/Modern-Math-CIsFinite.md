@@ -18,7 +18,7 @@ CIsFinite( byref z as Complex ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CIsFinite( CSet( 3, 4 ) )            '' true

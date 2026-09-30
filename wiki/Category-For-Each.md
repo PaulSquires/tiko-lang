@@ -17,7 +17,7 @@ The loop variable is declared by the statement, is scoped to the loop body, and 
 FreeBASIC's FOR counts. Every traversal is therefore an index loop:
 
 ```freebasic
-for i as long = lbound(arr) to ubound(arr)
+for i as int32 = lbound(arr) to ubound(arr)
     process( arr(i) )
 next
 ```
@@ -58,7 +58,7 @@ Value( ) and MoveNext( ).  See doc/iterator-protocol.txt.
 BYREF binding is permitted for arrays always, and for a user collection when its iterator's Value( ) is declared 'byref as E'. It is not permitted for strings.
 
 ```freebasic
-for each byref v as long in values
+for each byref v as int32 in values
     v *= 2                  '' modifies the array
 next
 ```
@@ -104,15 +104,15 @@ lbound and ubound are read ONCE, at loop entry. Resizing the array inside the lo
 'each' and 'in' are NOT reserved words. Neither is in the keyword table, and both remain usable as variable, procedure, field and type names. These still compile, with their existing meaning:
 
 ```freebasic
-for each as long = 1 to 3       '' 'each' is the counter
+for each as int32 = 1 to 3       '' 'each' is the counter
     print each
 next
 
-dim each as long
+dim each as int32
 for each = 1 to 3
 next
 
-dim in as long = 7
+dim in as int32 = 7
 ```
 
 One token of look-ahead separates the two forms with nothing left over. FreeBASIC's FOR requires a simple scalar counter --

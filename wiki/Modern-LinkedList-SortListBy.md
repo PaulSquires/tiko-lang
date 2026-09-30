@@ -17,8 +17,7 @@ SortListBy( l, less )
 ## Examples
 
 ```freebasic
-#include once "fb/linkedlist.bi"
-#include once "fb/sort.bi"
+#import "std/containers"
 using FB
 
 dim q as LinkedList( of ustring )

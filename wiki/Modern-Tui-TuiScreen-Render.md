@@ -15,7 +15,7 @@ Diffs back against front, emits the bytes, and swaps. The style is carried ACROS
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

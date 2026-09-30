@@ -23,11 +23,11 @@ The abstract base every widget derives from, so a container can hold a mixed Arr
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 type Ticker extends TuiWidget
-    as long n
+    as int32 n
     declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
     declare function Kind( ) as ustring override
 end type

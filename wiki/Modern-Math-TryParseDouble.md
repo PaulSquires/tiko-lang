@@ -11,7 +11,7 @@ TryParseDouble( s [, flags] )
 ## Examples
 
 ```freebasic
-#include once "fb/mathtext.bi"
+#import "std/numeric"
 using FB
 
 '' An Optional, so failure is absence rather than a zero that cannot be

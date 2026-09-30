@@ -15,7 +15,7 @@ Consumes the pending-resize flag: true once per resize, false afterwards. On Lin
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

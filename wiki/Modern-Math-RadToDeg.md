@@ -7,19 +7,19 @@ Converts radians to degrees.
 ## Syntax
 
 ```freebasic
-RadToDeg( byval x as double ) as double
+RadToDeg( byval x as float64 ) as float64
 ```
 
 ## Notes
 
 - The inverse of `DegToRad`, using the same full-precision constant.
 - For presenting an angle, not for computing with one -- the trigonometric functions all take radians.
-- Overloaded on `double` and `single`.
+- Overloaded on `float64` and `float32`.
 
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print RadToDeg( 3.141592653589793 )           '' 180

@@ -11,7 +11,7 @@ RaiseFpException( e )
 ## Examples
 
 ```freebasic
-#include once "fb/fenv.bi"
+#import "std/numeric"
 using FB
 
 '' Raises a flag by hand, so a routine can report a condition through

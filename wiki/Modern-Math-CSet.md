@@ -7,7 +7,7 @@ Builds a complex number from its real and imaginary parts.
 ## Syntax
 
 ```freebasic
-CSet( byval re as double, byval im as double ) as Complex
+CSet( byval re as float64, byval im as float64 ) as Complex
 ```
 
 ## Notes
@@ -18,7 +18,7 @@ CSet( byval re as double, byval im as double ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CSet( 3, 4 ) )    '' 3+4i

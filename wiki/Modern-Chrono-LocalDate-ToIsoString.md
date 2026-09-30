@@ -11,7 +11,7 @@ LocalDate.ToIsoString
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 print LocalDate( 2026, 8, 13 ).ToIsoString( )      '' 2026-08-13

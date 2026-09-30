@@ -11,7 +11,7 @@ ExtraPaymentOnce( period, amount )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A single lump prepayment.  It applies AFTER the scheduled split, so

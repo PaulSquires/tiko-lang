@@ -8,8 +8,8 @@
 type TuiMessageBox extends TuiWidget
     as ustring title, message
     as TuiStringArray buttons
-    as long selected
-    as ubyte msgKind
+    as int32 selected
+    as uint8 msgKind
     as TuiTheme theme
 end type
 ```
@@ -21,7 +21,7 @@ A modal dialog with buttons. `msgKind` is TUIMSG_INFO, _WARNING, _ERROR_ or _QUE
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiMessageBox mb

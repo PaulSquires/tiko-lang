@@ -15,7 +15,7 @@ The current terminal size, as Result( of TuiSize, TuiError ). It is never zero: 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

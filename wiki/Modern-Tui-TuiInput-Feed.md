@@ -15,7 +15,7 @@ Appends raw bytes. A sequence may arrive split across two reads; the parser keep
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiInput keys

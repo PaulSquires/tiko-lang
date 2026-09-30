@@ -17,7 +17,7 @@ TempDir( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 '' The system temp directory. It CREATES NOTHING -- it only reports

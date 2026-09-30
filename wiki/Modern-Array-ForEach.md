@@ -20,23 +20,23 @@ ForEach( byref a as Array( of T ), byref f as F )
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
-for i as long = 1 to 3
+dim v as Array( of int32 )
+for i as int32 = 1 to 3
     v.Push( i )
 next
 
 '' A CAPTURING lambda, which a procedure-pointer parameter could not take
-dim as longint total = 0
-ForEach( v, sub[ byref total ]( byref x as long )
+dim as int64 total = 0
+ForEach( v, sub[ byref total ]( byref x as int32 )
     total += x
 end sub )
 print total                  '' 6
 
 '' Byref, so it can modify in place
-ForEach( v, sub( byref x as long ) : x *= 10 : end sub )
+ForEach( v, sub( byref x as int32 ) : x *= 10 : end sub )
 print v[ 0 ]                 '' 10
 ```
 

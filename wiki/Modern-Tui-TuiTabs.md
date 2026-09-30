@@ -7,7 +7,7 @@
 ```freebasic
 type TuiTabs extends TuiWidget
     as TuiStringArray titles
-    as long selected
+    as int32 selected
     as ustring divider
     as TuiStyle normal, active
 end type
@@ -20,7 +20,7 @@ A one-row tab strip. It draws only the strip -- switching what is below it is yo
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

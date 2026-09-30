@@ -17,7 +17,7 @@ PadRight( s, width [, pad] )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print PadRight( "FreeBasic", 12, "*" )    '' FreeBasic***

@@ -11,12 +11,12 @@ FloorMod(-7,3)
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
 '' The remainder with the SIGN OF THE DIVISOR, which is what a wrapping
 '' index wants -- unlike MOD, which follows the dividend
-dim as long a = -1, b = 5
+dim as int32 a = -1, b = 5
 print FloorMod( a, b )       '' 4
 print a mod b                '' -1 -- the built-in, for comparison
 

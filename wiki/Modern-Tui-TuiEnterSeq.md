@@ -15,7 +15,7 @@ The escape sequence Enter writes for a given set of options. Exposed so it can b
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTermOptions o = TuiTermOptionsDefault( )

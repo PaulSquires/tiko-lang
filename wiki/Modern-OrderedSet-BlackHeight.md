@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-BlackHeight( ) as long
+BlackHeight( ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/orderedset.bi"
+#import "std/containers"
 using FB
 
 dim s as OrderedSet( of integer )

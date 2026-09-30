@@ -15,7 +15,7 @@ Tests one modifier bit: TUIMOD_SHIFT, TUIMOD_ALT or TUIMOD_CTRL. Also a bare boo
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiKey k

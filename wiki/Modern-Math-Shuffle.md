@@ -11,18 +11,18 @@ Shuffle( r, a( ) )
 ## Examples
 
 ```freebasic
-#include once "fb/random.bi"
+#import "std/numeric"
 using FB
 
 dim r as Rng = RngFromEntropy( )
-dim as long a( 0 to 4 ) = { 1, 2, 3, 4, 5 }
+dim as int32 a( 0 to 4 ) = { 1, 2, 3, 4, 5 }
 
 '' Fisher-Yates, in place and unbiased -- every permutation equally
 '' likely, which the sort-by-random-key trick does not give
 Shuffle( r, a( ) )
 
-dim as long total = 0
-for i as long = 0 to 4
+dim as int32 total = 0
+for i as int32 = 0 to 4
     total += a( i )
 next
 print total                  '' 15 -- the same elements, reordered

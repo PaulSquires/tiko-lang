@@ -11,18 +11,18 @@ IPowChecked( base, exp )
 ## Examples
 
 ```freebasic
-#include once "fb/mathint.bi"
+#import "std/numeric"
 using FB
 
 '' The overflow-safe form: an Optional, empty when the result does not
 '' fit rather than wrapping silently
-dim as longint b = 2, e = 10
+dim as int64 b = 2, e = 10
 var r = IPowChecked( b, e )
 
 print r.HasValue( )          '' true
 print r.Value( )             '' 1024
 
-dim as longint big = 1000000
+dim as int64 big = 1000000
 var over = IPowChecked( big, big )
 print over.HasValue( )       '' false -- it would have overflowed
 ```

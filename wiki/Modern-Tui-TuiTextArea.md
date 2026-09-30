@@ -19,7 +19,7 @@ A multi-line editor with an optional line-number gutter.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTextAreaState st

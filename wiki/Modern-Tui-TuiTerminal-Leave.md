@@ -15,7 +15,7 @@ Undoes everything Enter did, in exactly the reverse order, and restores the save
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiTerminal term

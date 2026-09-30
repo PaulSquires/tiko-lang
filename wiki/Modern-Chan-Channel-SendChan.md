@@ -20,18 +20,18 @@ SendChan( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 
 '' The producer's half: it can send and close, and cannot receive
-dim s as SendChan( of long ) = ch
-dim as long v = 42
+dim s as SendChan( of int32 ) = ch
+dim as int32 v = 42
 print s.Send( v )            '' true
 
 '' The same channel underneath
-dim as long got
+dim as int32 got
 print ch.TryReceive( got )   '' true
 print got                    '' 42
 ```

@@ -7,7 +7,7 @@ The length of a vector.
 ## Syntax
 
 ```freebasic
-Length( byref a as Vec3 ) as single
+Length( byref a as Vec3 ) as float32
 ```
 
 ## Notes
@@ -19,7 +19,7 @@ Length( byref a as Vec3 ) as single
 ## Examples
 
 ```freebasic
-#include once "fb/vector.bi"
+#import "std/numeric"
 using FB
 
 dim as Vec3 v = type<Vec3>( 3, 4, 0 )

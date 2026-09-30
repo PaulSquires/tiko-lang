@@ -17,7 +17,7 @@ Optional( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/result.bi"
+#import "std/outcome"
 using FB
 
 '' Optional is Result's smaller sibling: absence with no explanation.
@@ -29,7 +29,7 @@ dim o as Optional( of integer ) = Some( 42 )
 print o.HasValue( )          '' true
 print o.Value( )             '' 42
 
-dim r as Result( of long, ustring ) = Fail( of long, ustring )( "not a number" )
+dim r as Result( of int32, ustring ) = Fail( of int32, ustring )( "not a number" )
 print r.IsOk( )              '' false
 print r.Failure( )           '' not a number -- the part Optional cannot carry
 ```

@@ -7,7 +7,7 @@ Adds one value to a running accumulator.
 ## Syntax
 
 ```freebasic
-RunningStats.Add( byval x as double )
+RunningStats.Add( byval x as float64 )
 ```
 
 ## Notes
@@ -19,12 +19,12 @@ RunningStats.Add( byval x as double )
 ## Examples
 
 ```freebasic
-#include once "fb/stats.bi"
+#import "std/numeric"
 using FB
 
 dim rs as RunningStats
 
-for i as long = 1 to 5
+for i as int32 = 1 to 5
     rs.Add( i )
 next
 

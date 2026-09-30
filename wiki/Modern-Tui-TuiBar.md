@@ -7,7 +7,7 @@
 ```freebasic
 type TuiBar
     as ustring label
-    as double value
+    as float64 value
     as TuiColor color
 end type
 ```
@@ -19,7 +19,7 @@ One bar of a bar chart.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiBar b

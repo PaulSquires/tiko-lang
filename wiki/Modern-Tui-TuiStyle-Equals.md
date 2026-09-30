@@ -15,7 +15,7 @@ Full comparison including the mask. The renderer uses this to decide whether an 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle a = TuiStyleOf( TuiRgb( 1, 2, 3 ), TuiRgb( 4, 5, 6 ), TUIATTR_BOLD )

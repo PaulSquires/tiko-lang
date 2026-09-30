@@ -11,7 +11,7 @@ AnnualizeReturnOverPeriods( totalReturn, periods, frequency )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' A total return spread over a known number of observations, then

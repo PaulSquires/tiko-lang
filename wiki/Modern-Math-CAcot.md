@@ -18,7 +18,7 @@ CAcot( byref z as Complex ) as Complex
 ## Examples
 
 ```freebasic
-#include once "fb/complex.bi"
+#import "std/numeric"
 using FB
 
 print CToString( CAcot( CSet( 2, 1 ) ) )  '' 0.39269908169872414-0.1732867951399863i

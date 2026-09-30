@@ -11,11 +11,11 @@ GetIterator( ) as LinkedListIterator( of T )
 ## Examples
 
 ```freebasic
-#include once "fb/linkedlist.bi"
+#import "std/containers"
 using FB
 
-dim q as LinkedList( of long )
-for i as long = 1 to 3
+dim q as LinkedList( of int32 )
+for i as int32 = 1 to 3
     q.PushBack( i )
 next
 
@@ -25,7 +25,7 @@ next
 
 '' The protocol underneath. A LinkedList iterator stays valid across
 '' insertions elsewhere in the list, which an Array iterator cannot.
-dim it as LinkedListIterator( of long ) = q.GetIterator( )
+dim it as LinkedListIterator( of int32 ) = q.GetIterator( )
 while it.IsValid( )
     it.Value( ) *= 10    '' Value( ) is BYREF
     it.MoveNext( )

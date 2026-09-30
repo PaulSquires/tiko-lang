@@ -6,7 +6,7 @@
 
 ```freebasic
 type TuiPos
-    as long x, y
+    as int32 x, y
 end type
 ```
 
@@ -17,7 +17,7 @@ A cell coordinate. Returned by TuiFrame.CursorPos.
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiPos p

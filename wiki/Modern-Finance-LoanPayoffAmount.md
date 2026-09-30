@@ -11,7 +11,7 @@ LoanPayoffAmount( loanTerms, afterPeriod, asOf )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' What it costs to settle: the balance after a period, plus per-diem

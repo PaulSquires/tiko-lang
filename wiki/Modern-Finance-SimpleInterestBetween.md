@@ -11,7 +11,7 @@ SimpleInterestBetween( principal, annualRate, d1, d2, basis )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Simple interest across a real date span, on a chosen day-count basis.

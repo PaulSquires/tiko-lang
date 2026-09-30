@@ -11,7 +11,7 @@ MoneyWeightedReturn( flows( ), terminalValue, terminalDate, basis )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The dated internal rate of return of the contributions, with the

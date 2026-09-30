@@ -19,7 +19,7 @@ CurrencyInvalid( ) as Currency
 ## Examples
 
 ```freebasic
-#include once "fb/currency.bi"
+#import "std/money"
 using FB
 
 dim as Currency bad = CurrencyInvalid( )

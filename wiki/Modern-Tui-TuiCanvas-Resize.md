@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiCanvas.Resize( byval cols as long, byval rows as long )
+TuiCanvas.Resize( byval cols as int32, byval rows as int32 )
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Reshapes the canvas in CELLS and clears it. A graph does this every frame when i
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiCanvas cv = TuiCanvas( 10, 3 )

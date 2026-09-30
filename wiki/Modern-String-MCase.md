@@ -17,7 +17,7 @@ MCase( s )
 ## Examples
 
 ```freebasic
-#include once "fb/string.bi"
+#import "std/strings"
 using FB
 
 print MCase( "hello wide world" )     '' Hello Wide World

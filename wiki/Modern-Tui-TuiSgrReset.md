@@ -15,7 +15,7 @@ ESC [ 0 m -- back to the terminal's default everything. The leave sequence start
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 print len( TuiSgrReset( ) )            '' 4

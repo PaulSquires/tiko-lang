@@ -11,7 +11,7 @@ IsNegative( x )
 ## Examples
 
 ```freebasic
-#include once "fb/math.bi"
+#import "std/numeric"
 using FB
 
 print IsNegative( -1.0 )      '' true

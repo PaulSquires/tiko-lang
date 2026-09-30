@@ -11,7 +11,7 @@ MoneyRound( value, policy )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Applies a policy.  With RoundEach_ false it returns the value whole,

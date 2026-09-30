@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiFill( byval weight as long = 1 ) as TuiConstraint
+TuiFill( byval weight as int32 = 1 ) as TuiConstraint
 ```
 
 ## Description
@@ -15,13 +15,13 @@ Share whatever is left, in proportion to the weight. Two TuiFill( 1 ) split the 
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiConstraintArray cs
 cs.Push( TuiFill( 2 ) )
 cs.Push( TuiFill( 1 ) )
-dim as Array( of long ) s = TuiSolve( 30, cs )
+dim as Array( of int32 ) s = TuiSolve( 30, cs )
 print s[0], s[1]                  '' 20 10
 ```
 

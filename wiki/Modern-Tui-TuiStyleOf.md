@@ -5,7 +5,7 @@
 ## Syntax
 
 ```freebasic
-TuiStyleOf( byval fg as TuiColor, byval bg as TuiColor, byval attrs as ushort = TUIATTR_NONE ) as TuiStyle
+TuiStyleOf( byval fg as TuiColor, byval bg as TuiColor, byval attrs as uint16 = TUIATTR_NONE ) as TuiStyle
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Builds a style that sets all three things. For a style that sets only some of th
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 235, 80, 80 ), TuiDefaultColor( ), TUIATTR_BOLD )

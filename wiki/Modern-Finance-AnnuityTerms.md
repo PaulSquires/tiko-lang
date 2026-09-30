@@ -11,7 +11,7 @@ t.RatePerPeriod_  t.Periods_  t.Payment_  t.PresentValue_  t.FutureValue_  t.Tim
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The five quantities of an annuity in one record, so a transposed

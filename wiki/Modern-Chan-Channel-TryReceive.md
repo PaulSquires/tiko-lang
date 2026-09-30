@@ -19,15 +19,15 @@ TryReceive( byref out as T ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/channel.bi"
+#import "std/tasks"
 using FB
 
-dim ch as Channel( of long ) = Channel( of long )( 4 )
+dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 
-dim as long got
+dim as int32 got
 print ch.TryReceive( got )   '' false -- empty, and it did not wait
 
-dim as long v = 7
+dim as int32 v = 7
 ch.Send( v )
 print ch.TryReceive( got )   '' true
 print got                    '' 7

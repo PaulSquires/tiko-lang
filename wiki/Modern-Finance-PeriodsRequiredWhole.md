@@ -11,7 +11,7 @@ PeriodsRequiredWhole( annuityTerms )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' The convenience that ceils, named so the rounding is visible at the

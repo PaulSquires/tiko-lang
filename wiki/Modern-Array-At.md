@@ -11,10 +11,10 @@ At( i ) byref as T
 ## Examples
 
 ```freebasic
-#include once "fb/array.bi"
+#import "std/containers"
 using FB
 
-dim v as Array( of long )
+dim v as Array( of int32 )
 v.Push( 10 ) : v.Push( 20 )
 
 print v.At( 1 )          '' 20

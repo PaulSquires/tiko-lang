@@ -3,23 +3,23 @@
 # Optional
 
 ```freebasic
-#include once "fb/optional.bi"
+#import "std/outcome"
 using FB
 
-function Lookup( byref key as ustring ) as Optional( of long )
+function Lookup( byref key as ustring ) as Optional( of int32 )
     if( key = "ada" ) then
         return Some( 1815L )
     end if
-    return None( of long )( )
+    return None( of int32 )( )
 end function
 
-dim r as Optional( of long ) = Lookup( "ada" )
+dim r as Optional( of int32 ) = Lookup( "ada" )
 
 if( r.HasValue( ) ) then
     print r.Value( )                 ' 1815
 end if
 
-dim as long unknown = -1
+dim as int32 unknown = -1
 print Lookup( "nobody" ).ValueOr( unknown )      ' -1
 ```
 
@@ -28,10 +28,10 @@ print Lookup( "nobody" ).ValueOr( unknown )      ' -1
 FreeBASIC had no way to say "a value that might not be there". Absence was encoded as 0, -1, NULL, an empty string, or an out-parameter boolean -- differently in every library, and indistinguishable from a legitimate result whenever the sentinel is itself a legal value:
 
 ```freebasic
-function Find( ... ) as long         ' is -1 "absent", or an index?
+function Find( ... ) as int32        ' is -1 "absent", or an index?
 if( Find( ... ) = -1 ) then
 
-dim idx as long = IndexOf( v, x )    ' 0 could mean "found at 0"
+dim idx as int32 = IndexOf( v, x )    ' 0 could mean "found at 0"
                                      ' or "not found" -- depends on the API
 ```
 
@@ -58,19 +58,19 @@ There is deliberately no operator '=', no comparison, no ToString and no GetIter
 ## A DEFAULT-CONSTRUCTED Optional Is Empty
 
 ```freebasic
-dim o as Optional( of long )         ' empty, not "uninitialised"
+dim o as Optional( of int32 )         ' empty, not "uninitialised"
 ```
 
 There is no third state to get wrong. Construction by free procedure rather than by constructor is what lets T be inferred:
 
 ```freebasic
-dim o as Optional( of long ) = Some( 3L )        ' not Optional( of long )( 3 )
+dim o as Optional( of int32 ) = Some( 3L )        ' not Optional( of long )( 3 )
 ```
 
 None( ) exists so that returning nothing reads as a decision rather than as a forgotten assignment:
 
 ```freebasic
-return None( of long )( )           ' deliberate
+return None( of int32 )( )           ' deliberate
 return                              ' also empty, but says nothing
 ```
 
@@ -81,10 +81,10 @@ T cannot be inferred for None( ) -- there is no argument to infer it from -- so 
 Some( ) infers T from the ARGUMENT, and an untyped integer literal is an INTEGER:
 
 ```freebasic
-dim o as Optional( of long ) = Some( 3 )        ' Optional( of integer ):
+dim o as Optional( of int32 ) = Some( 3 )        ' Optional( of integer ):
                                                 ' type mismatch
 
-dim o as Optional( of long ) = Some( 3L )       ' correct
+dim o as Optional( of int32 ) = Some( 3L )       ' correct
 ```
 
 The same rule the containers already carry, for the same reason: inference reads parameter positions and does not coerce. Use a suffixed literal or a variable of the element type.
@@ -111,7 +111,7 @@ Both return BYREF. ValueOr( ) therefore aliases either the stored value or the C
 Value( ) IS usable as an assignment target, and writes through to the stored value:
 
 ```freebasic
-dim o as Optional( of long ) = Some( 1L )
+dim o as Optional( of int32 ) = Some( 1L )
 o.Value( ) = 5
 print o.Value( )                    ' 5
 ```
@@ -119,7 +119,7 @@ print o.Value( )                    ' 5
 Note this differs from Array.At( ), where 'a.At( 0 ) = 11' does NOT assign -- measured, both under -w 3, and both silent. Do not assume one from the other. Binding byref is unambiguous and works for both:
 
 ```freebasic
-dim byref as long r = o.Value( )
+dim byref as int32 r = o.Value( )
 r = 5
 ```
 
@@ -128,8 +128,8 @@ r = 5
 This is the whole point, and it is worth stating on its own:
 
 ```freebasic
-dim engaged as Optional( of long ) = Some( 0L )
-dim empty_  as Optional( of long )
+dim engaged as Optional( of int32 ) = Some( 0L )
+dim empty_  as Optional( of int32 )
 
 engaged.ValueOr( zero )             ' 0
 empty_.ValueOr( zero )              ' 0        -- same answer
@@ -146,7 +146,7 @@ Not minimalism. Every member of a generic is instantiated whether it is called o
 So Optional's members use only default construction, copy and destruction, and Optional( of T ) instantiates for any T that has those. Including containers, which have no '=':
 
 ```freebasic
-dim o as Optional( of Array( of long ) )        ' fine
+dim o as Optional( of Array( of int32 ) )        ' fine
 ```
 
 Anything needing more than that belongs in a free procedure, where the requirement lands on the call that actually needs it.
@@ -163,8 +163,8 @@ and T's default constructor runs for an empty Optional. That is the price of not
 
 ```freebasic
 type NoDefaultCtor
-    as long a
-    declare constructor( byval n as long )      ' suppresses the implicit one
+    as int32 a
+    declare constructor( byval n as int32 )      ' suppresses the implicit one
 end type
 
 dim o as Optional( of NoDefaultCtor )           ' error 183: TYPE or CLASS

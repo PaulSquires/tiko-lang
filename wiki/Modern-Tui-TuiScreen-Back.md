@@ -15,7 +15,7 @@ The buffer being drawn into. Reading cells out of it is how you assert what a Vi
 ## Example
 
 ```freebasic
-#include once "fb/tui.bi"
+#import "std/tui"
 using FB
 
 dim as TuiScreen scr

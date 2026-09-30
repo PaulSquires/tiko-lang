@@ -11,7 +11,7 @@ AnnuityFutureValueFactor( ratePerPeriod, periods, timing )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' ( (1+i)^n - 1 ) / i -- what one unit per period grows to by the end.

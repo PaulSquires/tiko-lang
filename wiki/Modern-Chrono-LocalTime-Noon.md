@@ -11,7 +11,7 @@ LocalTime.Noon
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 dim as LocalTime t = LocalTime.Noon( )

@@ -11,7 +11,7 @@ ScheduleToArray( amortizationSchedule )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Materialize the whole schedule when you genuinely want random access.

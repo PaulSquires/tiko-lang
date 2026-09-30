@@ -11,7 +11,7 @@ LocalDate.DayOfWeek
 ## Examples
 
 ```freebasic
-#include once "fb/chrono.bi"
+#import "std/chrono"
 using FB
 
 '' ISO NUMBERING: Monday is 1 through Sunday is 7. NOT the 0-based

@@ -17,7 +17,7 @@ FsChange.Path( )
 ## Examples
 
 ```freebasic
-#include once "fb/filesystem.bi"
+#import "std/fs"
 using FB
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
@@ -32,7 +32,7 @@ WriteAllText( PathJoin( dir_, "new.txt" ), "x" )
 dim changes as Array( of FsChange )
 w.Poll( changes, 500 )
 
-for i as long = 0 to changes.Count - 1
+for i as int32 = 0 to changes.Count - 1
     '' THE FULL PATH, not a bare leaf -- so it can be opened without
     '' joining it to the watched directory first
     print PathStartsWith( changes[ i ].Path( ), dir_ )    '' true

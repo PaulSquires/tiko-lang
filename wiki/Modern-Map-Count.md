@@ -5,13 +5,13 @@
 ## Syntax
 
 ```freebasic
-Count( ) as long
+Count( ) as int32
 ```
 
 ## Examples
 
 ```freebasic
-#include once "fb/map.bi"
+#import "std/containers"
 using FB
 
 dim ages as Map( of ustring, integer )

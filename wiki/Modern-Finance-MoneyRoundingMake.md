@@ -11,7 +11,7 @@ MoneyRoundingMake( digits, mode, roundEach )
 ## Examples
 
 ```freebasic
-#include once "fb/finance.bi"
+#import "std/money"
 using FB
 
 '' Build a policy explicitly when none of the three named ones fits --
