@@ -1,0 +1,31 @@
+'' matrix.tiko -- more than one subscript, and how it sits in memory.
+
+dim as int32 m( 0 to 1, 0 to 2 )
+
+dim as int32 n = 0
+for r as int32 = lbound( m, 1 ) to ubound( m, 1 )
+    for c as int32 = lbound( m, 2 ) to ubound( m, 2 )
+        m( r, c ) = n
+        n += 1
+    next
+next
+
+print "dimension 1:"; lbound( m, 1 ); " to"; ubound( m, 1 )
+print "dimension 2:"; lbound( m, 2 ); " to"; ubound( m, 2 )
+
+print "as a grid:"
+for r as int32 = lbound( m, 1 ) to ubound( m, 1 )
+    print "  ";
+    for c as int32 = lbound( m, 2 ) to ubound( m, 2 )
+        print m( r, c );
+    next
+    print
+next
+
+'' The same storage, read as one flat run of int32.
+dim as int32 ptr p = @m( 0, 0 )
+print "in memory:";
+for i as int32 = 0 to 5
+    print p[ i ];
+next
+print

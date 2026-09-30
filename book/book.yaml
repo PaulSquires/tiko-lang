@@ -49,7 +49,7 @@ parts:
       - { n: 4,  file: src/ch04-operators.md,            status: drafted }
       - { n: 5,  file: src/ch05-control-flow.md,         status: drafted }
       - { n: 6,  file: src/ch06-procedures.md,          status: drafted }
-      - { n: 7,  file: chapters/07-arrays.md,            status: planned }
+      - { n: 7,  file: src/ch07-arrays.md,               status: drafted }
       - { n: 8,  file: chapters/08-strings-and-text.md,  status: planned }
   - name: "Building Abstractions"
     chapters:

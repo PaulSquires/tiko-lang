@@ -1,0 +1,19 @@
+'' bounds.tiko -- an array's bounds are part of its declaration.
+
+dim as int32 a( 10 )           '' how many elements is that?
+dim as int32 b( 1 to 5 )
+dim as int32 c( -2 to 2 )
+
+print "a( 10 )      "; lbound( a ); " to"; ubound( a ); _
+      "  elements:"; ubound( a ) - lbound( a ) + 1
+print "b( 1 to 5 )  "; lbound( b ); " to"; ubound( b ); _
+      "  elements:"; ubound( b ) - lbound( b ) + 1
+print "c( -2 to 2 ) "; lbound( c ); " to"; ubound( c ); _
+      "  elements:"; ubound( c ) - lbound( c ) + 1
+
+'' Every element starts at zero. Nothing is left uninitialised.
+print "a( 7 ) before anything is written:"; a( 7 )
+
+'' An initialiser gives the values in order.
+dim as int32 d( 1 to 3 ) = { 10, 20, 30 }
+print "d ="; d( 1 ); d( 2 ); d( 3 )

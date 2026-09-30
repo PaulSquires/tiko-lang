@@ -1,0 +1,7 @@
+original (2 rows, 3 columns):
+   1 2 3
+   4 5 6
+transposed (3 rows, 2 columns):
+   1 4
+   2 5
+   3 6

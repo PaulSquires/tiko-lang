@@ -1,0 +1,38 @@
+'' ex07-02.tiko -- transpose a matrix into a second array.
+''
+'' The transposed array's dimensions are the original's, swapped, so
+'' its bounds come from ubound( m, 2 ) and ubound( m, 1 ) -- reversed.
+'' Writing them out by hand is how a transpose gets subtly wrong.
+
+sub Show( byref label as ustring, m( , ) as int32 )
+    print label
+    for r as int32 = lbound( m, 1 ) to ubound( m, 1 )
+        print "  ";
+        for c as int32 = lbound( m, 2 ) to ubound( m, 2 )
+            print m( r, c );
+        next
+        print
+    next
+end sub
+
+dim as int32 m( 1 to 2, 1 to 3 )
+dim as int32 n = 1
+for r as int32 = 1 to 2
+    for c as int32 = 1 to 3
+        m( r, c ) = n
+        n += 1
+    next
+next
+
+dim as int32 t( )
+redim t( lbound( m, 2 ) to ubound( m, 2 ), _
+         lbound( m, 1 ) to ubound( m, 1 ) )
+
+for r as int32 = lbound( m, 1 ) to ubound( m, 1 )
+    for c as int32 = lbound( m, 2 ) to ubound( m, 2 )
+        t( c, r ) = m( r, c )
+    next
+next
+
+Show( "original (2 rows, 3 columns):", m( ) )
+Show( "transposed (3 rows, 2 columns):", t( ) )

@@ -1,0 +1,19 @@
+'' textarray.tiko -- an array of text that grows as rows arrive.
+
+dim as ustring names( )
+
+'' Each append makes room for one more and writes into the new slot.
+dim as ustring incoming( 1 to 3 ) = { "Ada", "Grace", "Barbara" }
+
+for i as int32 = lbound( incoming ) to ubound( incoming )
+    redim preserve names( 0 to ubound( names ) + 1 )
+    names( ubound( names ) ) = incoming( i )
+next
+
+'' Take the count into a variable of its own before printing it.
+dim as int32 count = ubound( names ) - lbound( names ) + 1
+print "count ="; count
+
+for i as int32 = lbound( names ) to ubound( names )
+    print i; ": " & names( i )
+next

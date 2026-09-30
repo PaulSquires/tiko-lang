@@ -1,0 +1,40 @@
+'' ex07-01.tiko -- reverse an array in place, whatever its bounds.
+''
+'' The point of the exercise is to never write a literal 0 or a
+'' literal length. Everything comes from lbound and ubound, so the
+'' same procedure works on an array indexed from 1, from 0, or from
+'' -2 -- and keeps working after a redim changes the bounds.
+
+sub Reverse( a( ) as int32 )
+    dim as int32 lo = lbound( a )
+    dim as int32 hi = ubound( a )
+    do while lo < hi
+        swap a( lo ), a( hi )
+        lo += 1
+        hi -= 1
+    loop
+end sub
+
+sub Show( byref label as ustring, a( ) as int32 )
+    print label;
+    for i as int32 = lbound( a ) to ubound( a ) : print a( i ); : next
+    print
+end sub
+
+dim as int32 fromOne( 1 to 5 ) = { 1, 2, 3, 4, 5 }
+Reverse( fromOne( ) )
+Show( "from 1:   ", fromOne( ) )
+
+dim as int32 fromZero( 0 to 3 ) = { 1, 2, 3, 4 }
+Reverse( fromZero( ) )
+Show( "from 0:   ", fromZero( ) )
+
+dim as int32 negative( -2 to 2 ) = { 1, 2, 3, 4, 5 }
+Reverse( negative( ) )
+Show( "from -2:  ", negative( ) )
+
+'' An odd count leaves the middle element alone; an empty array makes
+'' the loop body run zero times, because ubound is below lbound.
+dim as int32 nothing_( )
+Reverse( nothing_( ) )
+Show( "empty:    ", nothing_( ) )

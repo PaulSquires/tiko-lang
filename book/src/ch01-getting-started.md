@@ -229,6 +229,10 @@ Running it stops at the bad index rather than carrying on with a corrupted array
 The process exits with status 6. Without `-exx` the same program writes 42 somewhere it should
 not and prints `not reached`, which is the outcome the check exists to prevent.
 
+The check covers arrays whose size is fixed at compile time. Arrays that grow while the program
+runs are not checked at this version — Chapter 7 says what to do about that, at the point where
+you first make one.
+
 There are three levels, and they stack: `-e` enables error checking, `-ex` adds to it, and `-exx`
 adds array bounds and null-pointer checks on top. Chapter 17 comes back to them alongside the
 error-handling model.

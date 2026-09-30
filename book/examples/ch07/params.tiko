@@ -1,0 +1,30 @@
+'' params.tiko -- an array argument carries its bounds with it.
+
+sub FillWith( a( ) as int32, byval v as int32 )
+    for i as int32 = lbound( a ) to ubound( a )
+        a( i ) = v
+    next
+end sub
+
+function SumOf( a( ) as int32 ) as int64
+    dim as int64 total = 0
+    for i as int32 = lbound( a ) to ubound( a )
+        total += a( i )
+    next
+    return total
+end function
+
+'' A parameter's rank is written with commas, and nothing else.
+sub Describe2D( m( , ) as int32 )
+    print "  rows"; lbound( m, 1 ); " to"; ubound( m, 1 ); _
+          ", columns"; lbound( m, 2 ); " to"; ubound( m, 2 )
+end sub
+
+dim as int32 a( 5 to 8 )
+FillWith( a( ), 3 )
+print "bounds inside were"; lbound( a ); " to"; ubound( a )
+print "sum ="; SumOf( a( ) )
+
+dim as int32 grid( 1 to 2, 0 to 3 )
+print "Describe2D saw:"
+Describe2D( grid( ) )

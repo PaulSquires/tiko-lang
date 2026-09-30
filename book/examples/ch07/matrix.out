@@ -1,0 +1,6 @@
+dimension 1: 0 to 1
+dimension 2: 0 to 2
+as a grid:
+   0 1 2
+   3 4 5
+in memory: 0 1 2 3 4 5

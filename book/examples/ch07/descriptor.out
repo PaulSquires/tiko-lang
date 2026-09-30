@@ -1,0 +1,5 @@
+a( 1 to 4 )       len =4 bytes =16
+grid( 0..1, 0..2 ) len =6 bytes =24
+an empty array     len =0
+descriptor: dimensions =1 element_len =4
+            dimTb( 0 ) = 1 to 4

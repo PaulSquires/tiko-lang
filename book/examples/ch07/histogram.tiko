@@ -1,0 +1,21 @@
+'' histogram.tiko -- an array indexed by the thing you are counting.
+
+'' Sixteen measurements, each a score from 0 to 100.
+dim as int32 scores( 1 to 16 ) = { 93, 71, 55, 88, 64, 79, 100, 42, _
+                                   67, 85, 90, 73, 58, 96, 81, 77 }
+
+'' One counter per band of ten. The bounds say what the index MEANS:
+'' band 4 counts 40-49. A perfect score is clamped into the top band.
+dim as int32 band( 0 to 9 )
+
+for i as int32 = lbound( scores ) to ubound( scores )
+    dim as int32 b = scores( i ) \ 10
+    if b > ubound( band ) then b = ubound( band )
+    band( b ) += 1
+next
+
+for b as int32 = ubound( band ) to lbound( band ) step -1
+    dim as ustring bar = ""
+    for n as int32 = 1 to band( b ) : bar &= "#" : next
+    print b * 10; "-"; b * 10 + 9; " "; bar
+next

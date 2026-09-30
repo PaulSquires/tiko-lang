@@ -1,0 +1,2 @@
+fixed after erase: ubound= 3  values: 0 0 0
+dynamic after erase: ubound=-1  (the storage is gone)

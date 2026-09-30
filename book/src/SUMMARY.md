@@ -11,6 +11,7 @@
 - [Operators and Expressions](ch04-operators.md)
 - [Control Flow, Scope and defer](ch05-control-flow.md)
 - [Procedures](ch06-procedures.md)
+- [Arrays](ch07-arrays.md)
 
 # Building Abstractions
 

@@ -1,0 +1,14 @@
+'' erasefixed.tiko -- erase means two different things.
+
+dim as int32 fixed_( 1 to 3 ) = { 7, 8, 9 }
+dim as int32 grown( )
+redim grown( 1 to 3 )
+grown( 1 ) = 7 : grown( 2 ) = 8 : grown( 3 ) = 9
+
+erase fixed_
+erase grown
+
+print "fixed after erase: ubound="; ubound( fixed_ ); _
+      "  values:"; fixed_( 1 ); fixed_( 2 ); fixed_( 3 )
+print "dynamic after erase: ubound="; ubound( grown ); _
+      "  (the storage is gone)"

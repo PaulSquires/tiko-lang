@@ -1,0 +1,32 @@
+'' dynamic.tiko -- an array whose size is decided while running.
+
+dim as int32 a( )              '' declared, but with no room yet
+
+print "empty:  lbound="; lbound( a ); " ubound="; ubound( a )
+print "  ubound < lbound is how an empty array reads"
+
+redim a( 1 to 3 )
+a( 1 ) = 10 : a( 2 ) = 20 : a( 3 ) = 30
+print "filled:"; a( 1 ); a( 2 ); a( 3 )
+
+'' redim on its own does NOT keep what was there.
+redim a( 1 to 5 )
+print "after redim( 1 to 5 ):";
+for i as int32 = lbound( a ) to ubound( a ) : print a( i ); : next
+print
+
+redim a( 1 to 3 )
+a( 1 ) = 10 : a( 2 ) = 20 : a( 3 ) = 30
+redim preserve a( 1 to 5 )
+print "after redim preserve:";
+for i as int32 = lbound( a ) to ubound( a ) : print a( i ); : next
+print
+
+'' Shrinking with preserve keeps the elements that still fit.
+redim preserve a( 1 to 2 )
+print "after shrinking:";
+for i as int32 = lbound( a ) to ubound( a ) : print a( i ); : next
+print
+
+erase a
+print "after erase: lbound="; lbound( a ); " ubound="; ubound( a )

@@ -1,0 +1,4 @@
+ValueAt( 2 )  = 20
+ValueAt( 9 )  =-1
+ValueAt( 0 )  =-1
+after shrinking, ValueAt( 3 ) =-1

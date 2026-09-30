@@ -1,0 +1,7 @@
+empty:  lbound= 0 ubound=-1
+  ubound < lbound is how an empty array reads
+filled: 10 20 30
+after redim( 1 to 5 ): 0 0 0 0 0
+after redim preserve: 10 20 30 0 0
+after shrinking: 10 20
+after erase: lbound= 0 ubound=-1

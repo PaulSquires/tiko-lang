@@ -1,0 +1,18 @@
+'' descriptor.tiko -- what the compiler keeps alongside the elements.
+#include once "fbc-int/array.bi"
+
+dim as int32 a( 1 to 4 )
+dim as int32 grid( 0 to 1, 0 to 2 )
+dim as int32 empty_( )
+
+print "a( 1 to 4 )       len ="; FB.ArrayLen( a( ) ); _
+      " bytes ="; FB.ArraySize( a( ) )
+print "grid( 0..1, 0..2 ) len ="; FB.ArrayLen( grid( ) ); _
+      " bytes ="; FB.ArraySize( grid( ) )
+print "an empty array     len ="; FB.ArrayLen( empty_( ) )
+
+dim as FBC.FBARRAY ptr d = FBC.ArrayDescriptorPtr( a( ) )
+print "descriptor: dimensions ="; d->dimensions; _
+      " element_len ="; d->element_len
+print "            dimTb( 0 ) ="; d->dimTb( 0 ).lbound; " to"; _
+      d->dimTb( 0 ).ubound

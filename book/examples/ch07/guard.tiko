@@ -1,0 +1,18 @@
+'' guard.tiko -- checking an index yourself, which is always available.
+
+function ValueAt( a( ) as int32, byval i as int32, _
+                  byval fallback as int32 ) as int32
+    if i < lbound( a ) orelse i > ubound( a ) then return fallback
+    return a( i )
+end function
+
+dim as int32 a( )
+redim a( 1 to 3 )
+a( 1 ) = 10 : a( 2 ) = 20 : a( 3 ) = 30
+
+print "ValueAt( 2 )  ="; ValueAt( a( ), 2, -1 )
+print "ValueAt( 9 )  ="; ValueAt( a( ), 9, -1 )
+print "ValueAt( 0 )  ="; ValueAt( a( ), 0, -1 )
+
+redim preserve a( 1 to 2 )
+print "after shrinking, ValueAt( 3 ) ="; ValueAt( a( ), 3, -1 )

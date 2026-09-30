@@ -1,0 +1,4 @@
+by index: 10 20 30 40
+for each: 10 20 30 40
+after writing to the copy: 10 20 30 40
+after for each byref: 20 40 60 80

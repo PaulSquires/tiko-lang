@@ -1,0 +1,31 @@
+'' walking.tiko -- three ways across an array, and what each can do.
+
+dim as int32 a( 1 to 4 ) = { 10, 20, 30, 40 }
+
+print "by index:";
+for i as int32 = lbound( a ) to ubound( a )
+    print a( i );
+next
+print
+
+print "for each:";
+for each v as int32 in a
+    print v;
+next
+print
+
+'' for each hands you a COPY. Writing to it changes nothing.
+for each v as int32 in a
+    v = 0
+next
+print "after writing to the copy:";
+for each v as int32 in a : print v; : next
+print
+
+'' for each byref hands you the element itself.
+for each byref v as int32 in a
+    v *= 2
+next
+print "after for each byref:";
+for each v as int32 in a : print v; : next
+print
