@@ -1,0 +1,8 @@
+'' TKO0644, fbc's 320: a 'static byref' field and an 'extern byref' are bound at their
+'' definition, which is judged. See ByrefNeedsInit_ in symbols/fieldctor.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-static-field-bind.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-static-field-bind.bas(12,11): error TKO0644
+'' EXPECT-OUT: byref-static-field-bind.bas(13,18): error TKO0644
+'' EXPECT-MAX-DIAG: 2

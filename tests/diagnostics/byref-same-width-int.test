@@ -1,0 +1,7 @@
+'' TKO0698, fbc's 58: INTEGER and LONGINT are one type to a BYREF parameter on 64-bit,
+'' overloaded or not; LONG is not. See ByrefSameInt_ in symbols/checkbase.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-same-width-int.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-same-width-int.bas(23,4): error TKO0698
+'' EXPECT-MAX-DIAG: 1

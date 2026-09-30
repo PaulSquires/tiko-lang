@@ -265,3 +265,26 @@ private function UdtArgInert_ _
     next
     return true
 end function
+
+'' TWO INTEGER BUILTINS OF ONE WIDTH AND SIGNEDNESS are one type to a BYREF parameter --
+'' measured on fbc-modern 1.20, 2026-09-30, 64-bit: an INTEGER variable for 'byref as
+'' longint' binds, and so does the reverse, alone or among overloads ('g( v )' over 'long'
+'' and 'longint' takes the longint one). The overload scoring's byref-exactness rule
+'' refused every such pair, so 'screeninfo w, h' over INTEGERs matched no overload once the
+'' prelude's 64-bit half took LONGINT, as fbc's does (gfx/screeninfo-params).
+private function ByrefSameInt_ _
+    ( byref c as Ctx, byval a as Tko.TypeId, byval b as Tko.TypeId ) as boolean
+    dim as Tko.TypeId ua = c.types->Unqualify( a ), ub = c.types->Unqualify( b )
+    if (c.types->Kind( ua ) <> Tko.TK_BUILTIN) orelse (c.types->Kind( ub ) <> Tko.TK_BUILTIN) then return false
+    dim as long sa = 0, sb = 0
+    select case c.types->BuiltinOf( ua )
+    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG, Tko.TY_INTEGER, Tko.TY_LONGINT : sa = 1
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT : sa = 2
+    end select
+    select case c.types->BuiltinOf( ub )
+    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG, Tko.TY_INTEGER, Tko.TY_LONGINT : sb = 1
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT : sb = 2
+    end select
+    if (sa = 0) orelse (sa <> sb) then return false
+    return c.types->Layout( ua ).size = c.types->Layout( ub ).size
+end function

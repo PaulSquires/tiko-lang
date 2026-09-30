@@ -51,7 +51,31 @@ private sub CheckFieldDefaultCtor_( byref c as Ctx )
             u = c.types->Unqualify( c.types->Inner( u ) )
         wend
         if c.types->Kind( u ) <> TK_UDT then continue for
-        if HasDefaultCtor_( c, u, isArray ) then continue for
+        if HasDefaultCtor_( c, u, false ) then continue for    '' a field array is not REDIM'd -- see HasDefaultCtor_
         c.diags->Report( TKO0657, PointRange( at ), c.names->Spelling( s->name ) )
     next
 end sub
+
+'' Is this N_VAR_ITEM declared by a REDIM? Its statement is built after it, and names it.
+private function ItemIsRedim_ ( byref c as Ctx, byval item as NodeId ) as boolean
+    for n as long = cast( long, item ) + 1 to c.ast->Count( ) - 1
+        if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        for k as long = 0 to sp->count - 1
+            if cast( NodeId, c.ast->children[sp->first + k] ) = item then return (sp->op = cast( ushort, KW_REDIM ))
+        next
+        if n > cast( long, item ) + 4096 then exit for
+    next
+    return false
+end function
+
+'' A 'static byref' FIELD is a declaration: it is bound where it is defined, 'dim byref
+'' T.ri as integer = x' outside the type, and fbc takes it without one there (fbc-modern
+'' 1.20, 2026-09-30; dim/byref2.bas, dim/byref-init-from-byref.bas). The definition is
+'' what must carry the initializer -- fbc's 320 is on its line. An EXTERN is the same:
+'' 'extern byref ri as integer' is fine alone (dim/byref.bas), and its 'dim' is judged.
+private function ByrefNeedsInit_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
+    if (s->flags and SYMF_EXTERN) <> 0 then return false
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    return (sc = 0) orelse (sc->kind <> cast( ubyte, SCOPEK_TYPE ))
+end function

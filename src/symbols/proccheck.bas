@@ -535,7 +535,7 @@ end function
 '' DEFAULTED is error 176, one with a calling convention written on it 174, and a
 '' destructor with one 175. Measured, one corpus file each; a parameterless cdecl pair is
 '' the ordinary case.
-private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId )
+private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_ERASE then return
@@ -549,7 +549,16 @@ private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId )
         if c.types->Kind( u ) <> TK_ARRAY then continue for
         dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
         if c.types->Kind( el ) <> TK_UDT then continue for
-        dim as Symbol ptr ct = StructorOf_( c, el, "__ctor" )
+        '' THE DESTRUCTOR IS CALLED, so a private or protected one is fbc's 206 from where it
+        '' cannot be reached -- visibility/private-dtor-public-erase and its protected twin,
+        '' which the cdecl rule below used to catch by accident. TKO0633, as for a 'dim'.
+        CheckOneStructor_( c, el, "__dtor", here, c.ast->Loc( arg ), av->name )
+        '' ...AND ONLY A FIXED ARRAY IS RECONSTRUCTED: a DYNAMIC one's elements are destroyed
+        '' and freed, so its constructors are not asked -- measured on fbc-modern 1.20,
+        '' 2026-09-30, a defaulted or stdcall default constructor over 'dim x( )' is fine. A
+        '' WRITTEN 'cdecl' is cdecl: only stdcall and pascal are refused
+        '' (visibility/private-dtor-private-usage and its two siblings write 'destructor cdecl').
+        dim as Symbol ptr ct = iif( c.types->IsDynArray( u ), cast( Symbol ptr, 0 ), StructorOf_( c, el, "__ctor" ) )
         dim as long guard = 0
         while (ct <> 0) andalso (guard < 1000)
             guard += 1
@@ -560,7 +569,7 @@ private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId )
                         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
                     if ParamCount_( c, cd ) > 0 then
                         c.diags->Report( TKO0719, PointRange( c.ast->Loc( arg ) ) )
-                    elseif (cp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0 then
+                    elseif (cp->extra and (PF_STDCALL or PF_PASCAL)) <> 0 then
                         c.diags->Report( TKO0719, PointRange( c.ast->Loc( arg ) ) )
                     end if
                     exit while
@@ -574,7 +583,7 @@ private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId )
             if (dd <> NODE_NONE) andalso (c.ast->Kind( dd ) = N_PROC) then
                 dim as StmtPayload ptr dp = _
                     @c.ast->stmts[cast( long, c.ast->nodes[cast( long, dd )].data )]
-                if (dp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0 then
+                if (dp->extra and (PF_STDCALL or PF_PASCAL)) <> 0 then
                     c.diags->Report( TKO0719, PointRange( c.ast->Loc( arg ) ) )
                 end if
             end if

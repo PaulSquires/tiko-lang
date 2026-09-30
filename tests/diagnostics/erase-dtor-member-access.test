@@ -1,0 +1,7 @@
+'' TKO0633, fbc's 206: a private destructor is callable from the type's own members,
+'' ERASE included. See CheckEraseStructors_ in symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/erase-dtor-member-access.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: erase-dtor-member-access.bas(14,10): error TKO0633
+'' EXPECT-MAX-DIAG: 1

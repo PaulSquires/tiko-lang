@@ -1025,7 +1025,7 @@ private function ResolveCall_ _
                                 end if
                             end if
                             if IsNumericBuiltin_( c, pt ) andalso IsNumericBuiltin_( c, at2 ) then
-                                if c.types->Unqualify( at2 ) <> c.types->Unqualify( pt ) then
+                                if (c.types->Unqualify( at2 ) <> c.types->Unqualify( pt )) andalso (ByrefSameInt_( c, at2, pt ) = false) then
                                     dim as Tko.NodeId an2 = Tko.NODE_NONE
                                     if ai < argCount then
                                         an2 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )

@@ -1,0 +1,7 @@
+'' TKO0658, fbc's 36: a REDIM's rank judges only the uses below it, and never a
+'' parameter's. See RecordedRankAbove_ in symbols/latesweeps.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redim-rank-before-use.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: redim-rank-before-use.bas(11,8): error TKO0658
+'' EXPECT-MAX-DIAG: 1

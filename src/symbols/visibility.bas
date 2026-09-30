@@ -797,7 +797,7 @@ private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
     '' is fbc error 36 exactly as over a fixed one, and 'a(0)' over 'a(any, any)' too.
     '' Only 'a()' -- rank 0, its shape whatever the last redim made it -- is not asked.
     if dims < 0 then dims = (-dims) - 1
-    if dims <= 0 then dims = RecordedRank_( c, c.info->RefOf( lp->target ) )
+    if dims <= 0 then dims = RecordedRankAbove_( c, ts, c.info->RefOf( lp->target ), id )   '' latesweeps.bas
     if dims <= 0 then return
     if lp->count = dims then return
     c.diags->Report( TKO0658, PointRange( c.ast->Loc( id ) ), _
@@ -1240,7 +1240,7 @@ private sub Walk_ _
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )
     WalkExtra_( c, id, k, innerByref, here )
-    if k = N_INTRINSIC then CheckEraseStructors_( c, id )
+    if k = N_INTRINSIC then CheckEraseStructors_( c, id, here )
     if k = N_SELECT then CheckSelectCaseKinds_( c, id )
     if k = N_WITH then CheckWithSubject_( c, id )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )

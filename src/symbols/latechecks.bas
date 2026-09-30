@@ -825,13 +825,12 @@ private function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isAr
     dim as Symbol ptr ct = StructorOf_( c, u, "__ctor" )
     '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
     if ct = 0 then return true
-    '' WHAT COUNTS AS DEFAULT IS STRICTER FOR AN ARRAY. The corpus measured two
-    '' constructors that CAN be called with no argument and that fbc still refuses to
-    '' build an array from (error 183): 'constructor( byval as integer = 0 )', whose
-    '' parameter is merely defaulted, and 'constructor stdcall( )', whose calling
-    '' convention is not the type's own. So for an array it is ZERO declared
-    '' parameters and no convention written. A scalar keeps the looser test -- the
-    '' stricter one is not measured there.
+    '' WHAT COUNTS AS DEFAULT IS STRICTER FOR A REDIM ('isArray'). fbc refuses two
+    '' constructors that CAN be called with no argument: 'constructor( byval as integer
+    '' = 0 )', merely defaulted, is error 173, and 'constructor stdcall( )' is 171 --
+    '' for 'redim as T x( 0 to 1 )' ONLY. Measured on fbc-modern 1.20, 2026-09-30:
+    '' 'dim as T x( 0 to 1 )', 'dim as T x( )' and a field array over either are fine
+    '' (structs/obj-array.bas, structs/extern-class-test.bas). A written 'cdecl' is cdecl.
     dim as Symbol ptr walk = ct
     dim as long g2 = 0
     while (walk <> 0) andalso (g2 < 1000)
@@ -845,7 +844,7 @@ private function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isAr
             dim as StmtPayload ptr cp = _
                 @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
             dim as boolean conv = _
-                ((cp->extra and (PF_CDECL or PF_STDCALL or PF_PASCAL)) <> 0)
+                ((cp->extra and (PF_STDCALL or PF_PASCAL)) <> 0)
             if (ParamCount_( c, cd ) = 0) andalso (conv = false) then
                 return true
             end if
@@ -920,10 +919,10 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
             u = c.types->Unqualify( c.types->Inner( u ) )
         wend
         if c.types->Kind( u ) <> TK_UDT then continue for
-        if HasDefaultCtor_( c, u, isArray ) then continue for
-        '' A MODULE'S VARIABLE, READ IN FROM ITS INTERFACE: the module constructs it, with
-        '' the initialiser the interface leaves out (ADR 0017).
-        if (s->flags and SYMF_IMPORTED) <> 0 then continue for
+        if HasDefaultCtor_( c, u, isArray andalso ItemIsRedim_( c, item ) ) then continue for
+        '' A MODULE'S VARIABLE, READ IN FROM ITS INTERFACE, OR AN EXTERN: constructed where it
+        '' is defined (ADR 0017; 'extern as T1 global1' is fbc's, structs/extern-class-test.bas).
+        if (s->flags and (SYMF_IMPORTED or SYMF_EXTERN)) <> 0 then continue for
         c.diags->Report( TKO0657, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )
     next
@@ -1202,7 +1201,7 @@ private sub CheckByrefBinding_( byref c as Ctx )
         dim as StmtPayload ptr ip = _
             @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
         if ip->b = NODE_NONE then
-            c.diags->Report( TKO0644, PointRange( s->loc ), c.names->Spelling( s->name ) )
+            if ByrefNeedsInit_( c, s ) then c.diags->Report( TKO0644, PointRange( c.ast->Loc( item ) ), c.names->Spelling( s->name ) )
             continue for
         end if
         dim as NodeId init = ip->b

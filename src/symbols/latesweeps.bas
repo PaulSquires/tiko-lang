@@ -831,6 +831,27 @@ private sub CheckUnionInitGroups_( byref c as Ctx )
     next
 end sub
 
+'' The rank a rank-0 array's FIRST REDIM gave it -- when that redim is ABOVE this use, and
+'' the array is no PARAMETER. Measured on fbc-modern 1.20, 2026-09-30, with 'dim a( )':
+''
+''     print a( 0 ) : redim a( 0 to 0, 0 to 0 )          fine -- the access came first
+''     redim a( 0 to 0 ) : print a( 0, 0 )               error 36
+''     sub f( a( ) as integer ) : redim a( 0 to 0 ) : redim a( 0 to 0, 0 to 0 )   fine,
+''     and so is a redim then an access of either rank -- a parameter's shape is the caller's
+''
+'' (dim/dynamic-wrong-dimensions-dim-access-redim-1..2, -param-*). The access check read the
+'' first redim wherever it was, and the redim check took a parameter's.
+private function RecordedRankAbove_ _
+    ( byref c as Ctx, byval ts as Symbol ptr, byval sid as SymbolId, byval use as NodeId ) as long
+    if (ts <> 0) andalso (ts->kind = cast( ubyte, SYM_PARAMETER )) then return 0
+    for i as long = 0 to c.redimSym.Count - 1
+        if c.redimSym[i] <> cast( ulong, sid ) then continue for
+        if c.redimItem[i] >= cast( ulong, use ) then return 0
+        return cast( long, c.redimRank[i] )
+    next
+    return 0
+end function
+
 private sub CheckRedimRank_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
@@ -922,7 +943,7 @@ private sub CheckRedimRank_( byref c as Ctx )
                     if c.redimItem[ri] = cast( ulong, item ) then isFirst = true
                 next
                 if isFirst then continue for
-                if s <> 0 then rank = RecordedRank_( c, c.info->RefOf( tgt ) )
+                if (s <> 0) andalso (s->kind <> cast( ubyte, SYM_PARAMETER )) then rank = RecordedRank_( c, c.info->RefOf( tgt ) )
             end if
             if rank <= 0 then continue for
             if written <= 0 then continue for

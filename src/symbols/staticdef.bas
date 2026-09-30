@@ -42,6 +42,12 @@ private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
         if ms->type_ = TYPE_NONE then continue for
         dim as boolean declByref = ((ms->flags and SYMF_BYREF) <> 0) orelse (c.types->Kind( ms->type_ ) = TK_REFERENCE)
         dim as boolean defByref = (((c.ast->nodes[cast( long, id )].flags or c.ast->nodes[cast( long, item )].flags) and NF_BYREF) <> 0)
+        '' 'dim byref T.ri as integer', with nothing to bind: fbc's 320 is HERE, and the
+        '' declaration in the type needs none (ByrefNeedsInit_, fieldctor.bas).
+        if declByref andalso defByref andalso (ip->b = NODE_NONE) then
+            c.diags->Report( TKO0644, PointRange( c.ast->Loc( item ) ), c.names->Spelling( ip->name ) )
+            continue for
+        end if
         dim as TypeId dt = ValueType_( c, ms->type_ )
         if (dt = TYPE_NONE) orelse (c.types->Kind( dt ) = TK_ARRAY) orelse c.types->IsDynArray( dt ) then continue for
         dim as boolean bad = (declByref <> defByref)

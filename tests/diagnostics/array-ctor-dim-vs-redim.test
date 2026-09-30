@@ -1,0 +1,7 @@
+'' TKO0657, fbc's 173: a merely-defaulted constructor builds a DIM'd array, not a
+'' REDIM'd one; an extern is not judged. See HasDefaultCtor_ in symbols/latechecks.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-ctor-dim-vs-redim.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-ctor-dim-vs-redim.bas(17,12): error TKO0657
+'' EXPECT-MAX-DIAG: 1
