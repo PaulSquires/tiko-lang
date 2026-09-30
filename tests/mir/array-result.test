@@ -1,0 +1,9 @@
+'' 'function foo( ) as integer( )' -- an array result: a hidden pointer that is filled by a
+'' redim and the element stores for a brace list, moved out of a local for 'return r', and
+'' moved into a 'var' at the call site. A tiko extension; see mir/lowerarrret.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/array-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' GOLDEN: expected/array-result.out

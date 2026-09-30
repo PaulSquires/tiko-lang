@@ -612,7 +612,7 @@ function TypeOf_ _
     case Tko.N_IDENT
         dim as Tko.SymbolId sid = ParenlessMethodOf_( c, c.info->RefOf( id ), id )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-        if s <> 0 then t = s->type_
+        if s <> 0 then t = s->type_ : if (s->kind = cast( ubyte, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
 
         '' A REFERENCE IS TRANSPARENT IN AN EXPRESSION. 'byref n as integer' makes the
         '' SYMBOL a reference-to-integer, because the slot has to hold an address, but

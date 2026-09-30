@@ -5,6 +5,7 @@
 
 #include once "symbols/tupleconv.bas"
 #include once "symbols/ptrwarn.bas"
+#include once "symbols/arrresult.bas"
 
 '' A DERIVED POINTER DOES NOT TAKE A BASE ONE -- fbc error 181. The conversion goes ONE
 '' WAY: a base pointer takes a derived one (an upcast, which is always valid), and the

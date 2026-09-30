@@ -927,6 +927,7 @@ function LowerSretResult _
       byval isReturn as boolean ) as boolean
     if c.sretParam < 0 then return false
     if valueE = Tko.NODE_NONE then return false
+    if c.types->IsDynArray( c.resultType ) then return LowerArrayResult_( c, valueE )   '' lowerarrret.bas
 
     '' A UDT RESULT WITH A COPY CONSTRUCTOR IS COPY-CONSTRUCTED INTO, not stored.
     ''

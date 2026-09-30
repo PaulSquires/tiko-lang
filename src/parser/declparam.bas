@@ -272,6 +272,34 @@ private function ByrefResult_( byref p as Tko.ParserState ) as boolean
     return true
 end function
 
+'' THE RESULT TYPE OF A PROCEDURE, and the '( )' that may follow it: 'function f( ) as T( )'
+'' returns a DYNAMIC ARRAY of T. A TIKO EXTENSION -- fbc has no array result and rejects
+'' the spelling (error 3).
+''
+'' THE PARENTHESES USED TO VANISH. TypeRef stops at the '(' and the trailing-modifier loop in
+'' ParseProc swallows every token up to the end of the line, so 'as integer( )' compiled as
+'' a plain 'integer' function and 'as integer( 3 )' the same -- a result with the wrong shape
+'' and nothing said. Only an EMPTY pair means an array; anything else is TKO0836 and is left
+'' for the loop to skip, as before.
+private function ResultTypeRef_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload ) as Tko.NodeId
+
+    dim as Tko.NodeId r = TypeRef( p )
+    if Peek( p ) <> Tko.TK_LPAREN then return r
+    dim as boolean emptyPair = false
+    if HasTok( p, p.pos + 1 ) then
+        emptyPair = (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_RPAREN)
+    end if
+    if emptyPair then
+        Advance( p )
+        Advance( p )
+        sp.extra or= Tko.PF_ARRAY_RESULT
+    else
+        p.diags->Report( Tko.TKO0836, Tko.PointRange( Cur( p ).loc ) )
+    end if
+    return r
+end function
+
 '' AN OPERATOR'S NAME CAN BE A TOKEN RATHER THAN A WORD: 'operator +'.
 ''
 '' IT WAS SKIPPED, NOT RECORDED. 'private operator = ( byref a as D, byref b as D ) as

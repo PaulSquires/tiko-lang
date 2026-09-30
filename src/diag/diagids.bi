@@ -727,6 +727,16 @@
     '' fbc's errors 188 and 185: a base with no default constructor -- symbols/basector.bas.
     DIAG( TKO0926, SEV_ERROR,   "'%0' needs a copy constructor: its base has no constructor that takes no argument, so none can be made for it" )
     DIAG( TKO0927, SEV_ERROR,   "this constructor of '%0' must call base( ... ): its base has no constructor that takes no argument" )
+    '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
+    '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in
+    '' symbols/arrresult.bas.
+    DIAG( TKO0836, SEV_ERROR,   "an array result is written 'as T( )', with nothing between the parentheses" )
+    DIAG( TKO0837, SEV_ERROR,   "a procedure type cannot return an array; return it from a named procedure" )
+    DIAG( TKO0838, SEV_ERROR,   "this function returns an array: 'return' takes a brace list, a local array, or a call that returns an array of the same element type" )
+    DIAG( TKO0839, SEV_ERROR,   "a nested brace list cannot be returned as an array result; write a flat list" )
+    DIAG( TKO0841, SEV_ERROR,   "'%0' returns an array, so it must be called with parentheses: '%0( )'" )
+    DIAG( TKO0842, SEV_ERROR,   "this call returns an array, which cannot be converted to another type" )
+    DIAG( TKO0840, SEV_ERROR,   "'%0' is not a local array of this procedure, so returning it would need a copy, which is not supported yet; return a local array or a brace list" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

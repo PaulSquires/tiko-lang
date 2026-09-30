@@ -63,7 +63,7 @@ function ArrayDescArg_ _
       byref outv as MirValue ) as boolean
 
     if (argNode = Tko.NODE_NONE) orelse (isArrayParam = false) then return false
-
+    if ArrayCallArg_( c, argNode, outv ) then return true   '' lowerarrret.bas
     dim as Tko.NodeId nameNode = argNode
     if c.ast->Kind( argNode ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
@@ -85,7 +85,6 @@ function ArrayDescArg_ _
     end if
     return SynthFixedArrayDesc( c, base_, at, outv )
 end function
-
 
 #include once "mir/lowerbyref.bas"
 

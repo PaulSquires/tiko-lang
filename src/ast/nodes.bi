@@ -327,6 +327,10 @@ namespace Tko
     '' A 'lib "name"' CLAUSE: the procedure is a library's export, linked by its own name or
     '' alias -- never nested under a module's chain (ADR 0017 §19).
     const PF_LIB            as ulong = &h00400000
+    '' 'function f( ) as T( )' -- THE RESULT IS A DYNAMIC ARRAY of T. A TIKO EXTENSION: fbc has
+    '' no array result. Set by ResultTypeRef_ (parser/declparam.bas) and read by Resolve, which
+    '' wraps the written result type in DynArrayOf( T, 0 ).
+    const PF_ARRAY_RESULT   as ulong = &h00800000
 
     type UnaryPayload
         as ushort op                '' TokenKind

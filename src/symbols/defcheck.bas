@@ -305,7 +305,7 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as ushort rd = c.ast->nodes[cast( long, decl )].flags and NF_BYREF
     dim as ushort rf = c.ast->nodes[cast( long, id )].flags and NF_BYREF
     if rd <> rf then return
-    if DefSameType_( c, dp->a, sp->a ) = false then
+    if (DefSameType_( c, dp->a, sp->a ) = false) orelse (((dp->extra xor sp->extra) and PF_ARRAY_RESULT) <> 0) then   '' 'as T( )' on one and not the other
         c.diags->Report( TKO0793, PointRange( c.ast->Loc( id ) ), _
                          DefName_( c, sp ) )
         c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( decl ) ) )

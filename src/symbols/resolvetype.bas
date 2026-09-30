@@ -899,3 +899,19 @@ function BindParamType_ _
     return t
 end function
 
+'' A PROCEDURE'S RESULT TYPE: the written type, made a DYNAMIC ARRAY of it when the parser saw
+'' 'as T( )' (PF_ARRAY_RESULT). A TIKO EXTENSION. Rank 0, the same unspecified rank an 'a( ) as
+'' T' parameter has, so the use decides the subscript count. A result that will not resolve
+'' yet stays TYPE_NONE and is revisited by the same call -- see pendResultProc.
+function ProcResultType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as Tko.TypeId
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.NodeId retRef = sp->a
+    dim as ulong pfl = sp->extra
+    dim as Tko.TypeId t = ResolveTypeRef( c, retRef, here )
+    if (t <> Tko.TYPE_NONE) andalso ((pfl and Tko.PF_ARRAY_RESULT) <> 0) then
+        t = c.types->DynArrayOf( t, 0 )
+    end if
+    return t
+end function

@@ -1145,7 +1145,7 @@ private sub Walk_ _
     if k = N_PROC then
         dim as StmtPayload ptr rpp = _
             @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-        innerResult = c.info->TypeOf_( rpp->a )
+        innerResult = ArrProcResult_( c, id )   '' arrresult.bas
     end if
     if k = N_PROC then
         inner = ProcOwner_( c, id )
@@ -1200,12 +1200,12 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckConcatAssign_( c, id )
     if k = N_AMBIGUOUS then CheckAssignTarget_( c, id )
     if k = N_AMBIGUOUS then CheckPtrFloatAssign_( c, id )
-    if k = N_AMBIGUOUS then CheckPtrAssign_( c, id, innerResult )
-    if k = N_RETURN then CheckPtrReturn_( c, id, innerResult )  '' ptrwarn.bas
+    if k = N_AMBIGUOUS then CheckPtrAssign_( c, id, innerResult ) : CheckArrayAssign_( c, id, innerResult )
+    if k = N_RETURN then CheckPtrReturn_( c, id, innerResult ) : CheckArrayReturn_( c, id, innerResult )  '' ptrwarn.bas, arrresult.bas
     if k = N_AMBIGUOUS then CheckConstUdtField_( c, id )
     if k = N_AMBIGUOUS then CheckStringNumberAssign_( c, id )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
-    if k = N_VAR_ITEM then CheckPtrInit_( c, id )
+    if k = N_VAR_ITEM then CheckPtrInit_( c, id ) : CheckArrayInit_( c, id )   '' arrresult.bas
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
     if k = N_CALL then CheckConstThisCall_( c, id, here, innerConst )
     if k = N_MEMBER then CheckExplicitStructor_( c, id )
@@ -1222,6 +1222,7 @@ private sub Walk_ _
     if k = N_CALL then CheckBaseInitCount_( c, id, here )
     if k = N_CALL then CheckIifArms_( c, id )
     if (k = N_IDENT) orelse (k = N_AMBIGUOUS) then CheckParenlessArgs_( c, id, k )
+    if k = N_IDENT then CheckArrayResultName_( c, id )
     if k = N_CALL then CheckCalledExpr_( c, id )
     if k = N_CALL then CheckProcPtrArgs_( c, id )
     if k = N_INTRINSIC then CheckSwapOperands_( c, id )

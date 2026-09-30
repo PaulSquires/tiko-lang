@@ -809,8 +809,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' A MOVE, not a copy -- so the source must not be destroyed.
                 dim as boolean movedFrom = (c.ast->Kind( ip->b ) = Tko.N_CALL)
                 if movedFrom then movedFrom = (dstT <> Tko.TYPE_NONE)
-                if movedFrom then movedFrom = (c.types->Kind( dstT ) = Tko.TK_UDT)
-                if movedFrom then movedFrom = HasDynArrayMember_( c, dstT )
+                if movedFrom then movedFrom = (c.types->Kind( dstT ) = Tko.TK_UDT) orelse c.types->IsDynArray( dstT )
+                if movedFrom then movedFrom = HasDynArrayMember_( c, dstT ) orelse c.types->IsDynArray( dstT )
                 if movedFrom then DropMovedTemp_( c, tmark, dstT )
                 '' AN INITIALISER THAT WOULD NOT LOWER IS A DECLINE, and was silent:
                 '' the store was simply skipped, so 'dim as integer r = iif( c, 10,

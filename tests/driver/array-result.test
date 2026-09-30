@@ -1,0 +1,33 @@
+'' ARRAY RESULTS: 'function foo( ) as integer( )' returns a dynamic array -- a tiko extension
+'' (fbc's error 3). The result travels through the hidden pointer, the caller owns it, and
+'' 'return' takes a brace list, a local array (moved) or a call that returns one. See
+'' symbols/arrresult.bas and mir/lowerarrret.bas.
+''
+'' RUN, because a lost move or a missing erase compiles, verifies and prints the right numbers
+'' before it faults -- the thousand-iteration loop at the end is what shows a double free.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/array-result.bas -o tests/driver/arrayresult.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/arrayresult.exe
+'' RUN: tests/driver/arrayresult.exe
+'' EXPECT-RUN-OUT: var 10 20 30 2
+'' EXPECT-RUN-OUT: local 0 16 4
+'' EXPECT-RUN-OUT: result 7 8
+'' EXPECT-RUN-OUT: replaced 4 5 1
+'' EXPECT-RUN-OUT: string alpha gamma 2
+'' EXPECT-RUN-OUT: ustring x yy
+'' EXPECT-RUN-OUT: empty -1
+'' EXPECT-RUN-OUT: relay 10 30
+'' EXPECT-RUN-OUT: double 0.5 1.5
+'' EXPECT-RUN-OUT: pick -1 11 12
+'' EXPECT-RUN-OUT: take 0 2 30
+'' EXPECT-RUN-OUT: show 0 2 20
+'' EXPECT-RUN-OUT: each 60
+'' EXPECT-RUN-OUT: assign 7 8 1
+'' EXPECT-RUN-OUT: statement ok
+'' EXPECT-RUN-OUT: loop 34000
+'' EXPECT-RUN-OUT: udt 3 4
+'' EXPECT-RUN-OUT: ctor 5 6
+'' EXPECT-RUN-OUT: counts 2 2
+'' EXPECT-RUN-OUT: strudt onetwo2

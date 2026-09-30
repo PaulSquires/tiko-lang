@@ -119,7 +119,7 @@ sub BackpatchTypedefs( byref c as Ctx )
         dim as Tko.NodeId pn2 = cast( Tko.NodeId, c.pendResultProc[i] )
         dim as Tko.StmtPayload ptr psp = StmtOf( c, pn2 )
         dim as Tko.TypeId rt3 = _
-            ResolveTypeRef( c, psp->a, cast( Tko.ScopeId, c.pendResultProcScope[i] ) )
+            ProcResultType_( c, pn2, cast( Tko.ScopeId, c.pendResultProcScope[i] ) )
         if rt3 = Tko.TYPE_NONE then continue for
         dim as Tko.Symbol ptr rs2 = c.syms->SymbolAt( c.info->RefOf( pn2 ) )
         if rs2 = 0 then continue for

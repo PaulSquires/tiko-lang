@@ -1386,7 +1386,7 @@ sub WalkStmt _
         '' The RETURN type belongs on the procedure's symbol, or a call to it can
         '' never be typed. Parameters are bound by the N_PARAM case below.
         dim as Tko.NodeId retRef = sp->a
-        dim as Tko.TypeId ret = ResolveTypeRef( c, retRef, here )
+        dim as Tko.TypeId ret = ProcResultType_( c, id, here )
         '' RE-FETCHED, because ResolveTypeRef may have INSTANTIATED A GENERIC, which
         '' re-parses into fresh nodes and moves ast.stmts -- leaving the 'sp' above
         '' pointing into a freed block that everything below reads.

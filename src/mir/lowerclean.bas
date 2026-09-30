@@ -254,7 +254,10 @@ sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
             a.ty = cast( ubyte, MT_PTR )
             a.id = slot
             dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 )
-            if dt <> Tko.SYMBOL_NONE then
+            if c.types->IsDynArray( t ) then
+                '' AN ARRAY RESULT'S TEMPORARY is erased, not destroyed -- see lowerarrret.bas.
+                EmitEraseDynAt_( c, a, t )
+            elseif dt <> Tko.SYMBOL_NONE then
                 dim as FB.Array( of ulong ) none_
                 EmitStructorCall( c, dt, -1, @a, @none_ )
             else

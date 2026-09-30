@@ -565,6 +565,16 @@ declare function EmitRtl _
         ( byref c as Ctx, byref v as MirValue ) as MirValue
     declare function AnyDimCount _
         ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as long
+    '' lowerarrret.bas -- the array result, a TIKO EXTENSION
+    declare function EmitRedimConst_ _
+        ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+          byval n as longint ) as boolean
+    declare function LowerArrayResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function ArrayCallArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function AssignArrayResult_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     declare function EmitArrayBounds _
         ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
           byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean

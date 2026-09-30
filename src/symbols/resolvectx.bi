@@ -121,6 +121,8 @@ declare function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
 declare function ResolveTypeRef _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
+declare function ProcResultType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as Tko.TypeId
 declare function ArrayFromBounds _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as long, _
       byval count as long, _

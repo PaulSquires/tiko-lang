@@ -84,6 +84,7 @@ private sub CheckFixLenParams_( byref c as Ctx )
         '' A FIXED-LENGTH string is an ARRAY of a character builtin -- that is what
         '' distinguishes it from the plain 'zstring' a byref parameter may take.
         if c.types->Kind( u ) <> TK_ARRAY then continue for
+        if (sk = SYM_PROC) andalso c.types->IsDynArray( u ) then continue for   '' 'as ustring( )': an ARRAY RESULT, not a fixed-length string
         dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
         if el = TYPE_NONE then continue for
         if c.types->Kind( el ) <> TK_BUILTIN then continue for

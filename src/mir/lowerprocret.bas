@@ -438,6 +438,12 @@ sub InitResultAtEntry_ _
     ( byref c as Ctx, byval rt as Tko.TypeId, byref dst as MirValue, _
       byval body as Tko.NodeId, byval zeroTrivial as boolean )
 
+    '' AN ARRAY RESULT STARTS EMPTY, whatever the body does -- a valid descriptor is what an early
+    '' 'exit function' must hand back, and 'return' then erases and fills it. See lowerarrret.bas.
+    if c.types->IsDynArray( rt ) then
+        InitDynArrayDesc( c, dst, rt )
+        exit sub
+    end if
     if c.types->Kind( rt ) = Tko.TK_UDT then
         dim as Tko.SymbolId rct = StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 0 )
         dim as boolean needsCtor = (rct <> Tko.SYMBOL_NONE) orelse TypeNeedsInit_( c, rt )

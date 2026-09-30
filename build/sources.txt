@@ -55,6 +55,7 @@ src/mir/lowercallemit.bas
 src/mir/lowerboundchk.bas
 src/mir/lowerarr.bas
 src/mir/lowerarrinit.bas
+src/mir/lowerarrret.bas
 src/mir/lowerconv.bas
 src/mir/lowerintr.bas
 src/mir/lowerselfop.bas

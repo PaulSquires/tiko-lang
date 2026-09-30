@@ -193,6 +193,19 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             end if
         end if
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
+        '' 'as function( ) as T( )': an array result is a NAMED procedure's, for now. The '( )' was
+        '' left for the caller to trip over -- see ResultTypeRef_ in declparam.bas.
+        if Peek( p ) = Tko.TK_LPAREN then
+            dim as boolean arrEmpty = false
+            if HasTok( p, p.pos + 1 ) then
+                arrEmpty = (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_RPAREN)
+            end if
+            if arrEmpty andalso (sp.a <> Tko.NODE_NONE) then
+                p.diags->Report( Tko.TKO0837, Tko.PointRange( Cur( p ).loc ) )
+                Advance( p )
+                Advance( p )
+            end if
+        end if
         if byrefRet then sp.extra or= Tko.PF_BYREF_RESULT
         '' Kept, for the type: a call through the pointer reverses -- see TF_PASCAL.
         if ptConv = Tko.CC_PASCAL then sp.extra or= Tko.PF_PASCAL

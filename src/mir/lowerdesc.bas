@@ -192,6 +192,9 @@ end function
 '' which is the same division of labour tiko-lang has with whatever consumes MIR.
 function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
+    '' A DYNAMIC ARRAY RESULT -- 'function f( ) as T( )', a TIKO EXTENSION -- always does: the caller
+    '' owns the descriptor and the callee builds it there. See lowerarrret.bas.
+    if c.types->IsDynArray( t ) then return true
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     if StructorOf( c, t, "__dtor" ) <> Tko.SYMBOL_NONE then return true
     '' ...AND AN IMPLICIT ONE, which is what the comment above has always said and the
@@ -778,6 +781,103 @@ function AnyDimCount _
     return n
 end function
 
+'' THE RUNTIME CALL OF A REDIM, given its bounds as VALUES: element type, dimension count, and
+'' the lo/hi pair of each dimension as (kind, id) in 'bk' and 'bi'. Split out of EmitArrayBounds,
+'' which reads its bounds off the AST, so that a redim whose bounds are known without a
+'' declaration -- an array result built from a brace list -- takes the same Ex / Obj decision.
+private function EmitRedimCall_ _
+    ( byref c as Ctx, byref desc as MirValue, byval et as Tko.TypeId, byval dims as long, _
+      byref bk as FB.Array( of ulong ), byref bi as FB.Array( of ulong ), _
+      byval presv as boolean, byval noCtor as boolean = false ) as boolean
+
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+    args.Push( cast( ulong, MV_CONST_INT ) )
+    args.Push( cast( ulong, SizeOfType( c, et ) ) )
+
+    dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
+    dim as Tko.SymbolId dtor = Tko.SYMBOL_NONE
+    if c.types->Kind( et ) = Tko.TK_UDT then
+        ctor = StructorOf( c, et, "__ctor" )
+        dtor = StructorOf( c, et, "__dtor" )
+    end if
+    '' ...OR NEEDS THEM WITHOUT DECLARING ANY -- see PushStructorPtr_. Deciding on
+    '' the WRITTEN structors alone sent 'redim preserve' over an array of such a
+    '' type to fb_ArrayRedimPresvEx, which moves the bytes and runs nothing.
+    dim as boolean useObj = (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE)
+    if c.types->Kind( et ) = Tko.TK_UDT then
+        useObj = useObj orelse TypeNeedsInit_( c, et ) orelse TypeNeedsDtor_( c, et )
+    end if
+
+    if useObj then
+        '' NO CONSTRUCTOR, when the caller constructs every element itself: a brace list does,
+        '' once, from its own initialiser -- and the runtime leaves an element with no
+        '' constructor zeroed, which is what that initialiser expects. The destructor stays.
+        if noCtor then
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        elseif PushStructorPtr_( c, args, ctor, et, 1 ) = false then
+            return false
+        end if
+        if PushStructorPtr_( c, args, dtor, et, 0 ) = false then return false
+    else
+        '' Argument 4 is -1 if and only if the element is a var-len STRING.
+        ''
+        '' Argument 3 is 32 for an FB fixed-length 'string * N' and -1 for every other
+        '' element type. Measured, one redim per element type:
+        ''
+        ''   string * 4    ( &A, 4,  32, 0, ... )    string * 8   ( &A, 8,  32, 0, ... )
+        ''   zstring * 4   ( &B, 4,  -1, 0, ... )    string * 40  ( &B, 40, 32, 0, ... )
+        ''   wstring * 4   ( &C, 8,  -1, 0, ... )    string       ( &E, 24, -1, -1, ... )
+        ''   ustring * 4   ( &D, 8,  -1, 0, ... )    long         ( &F, 4,  -1, 0, ... )
+        ''
+        '' -- so 32 is a TYPE TAG, not a length: it does not move with N.
+        ''
+        '' THIS USED TO DECLINE OUTRIGHT, on the grounds that 'string * N' and
+        '' 'zstring * N' could not be told apart. They can: the type system grew
+        '' TY_FIXSTR, and StrSwapKind_ answers 3 for the first and 1 for the second.
+        '' fbc-int/array-size.bas is written over every element type there is.
+        dim as longint a3 = -1
+        dim as longint a4 = 0
+        if IsStringType( c, et ) then
+            a4 = -1
+        else
+            dim as longint zn
+            if StrSwapKind_( c, et, zn ) = 3 then a3 = 32
+        end if
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a3 ) )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a4 ) )
+    end if
+
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dims ) )
+    for j as long = 0 to bk.Count - 1
+        args.Push( bk[j] ) : args.Push( bi[j] )
+    next
+
+    dim as RtlId r = RTL_ARRAY_REDIM
+    if useObj then
+        r = RTL_ARRAY_REDIM_OBJ
+        if presv then r = RTL_ARRAY_REDIM_PRESV_OBJ
+    elseif presv then
+        r = RTL_ARRAY_REDIM_PRESV
+    end if
+    EmitRtl( c, r, args )
+    return true
+end function
+
+'' 'redim desc( 0 to n - 1 )' with a constant n, over a descriptor whose address is in hand.
+function EmitRedimConst_ _
+    ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, byval n as longint ) as boolean
+
+    dim as MirType zt = DescIntTy_( c )
+    dim as FB.Array( of ulong ) bk
+    dim as FB.Array( of ulong ) bi
+    dim as MirValue lv = ConstInt( c, 0, zt )
+    dim as MirValue hv = ConstInt( c, n - 1, zt )
+    bk.Push( cast( ulong, lv.kind ) ) : bi.Push( cast( ulong, lv.id ) )
+    bk.Push( cast( ulong, hv.kind ) ) : bi.Push( cast( ulong, hv.id ) )
+    return EmitRedimCall_( c, desc, c.types->Inner( aty ), 1, bk, bi, false, true )
+end function
+
 function EmitArrayBounds _
     ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
       byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean
@@ -849,71 +949,7 @@ function EmitArrayBounds _
         bk.Push( cast( ulong, hv.kind ) ) : bi.Push( cast( ulong, hv.id ) )
     next
 
-    dim as FB.Array( of ulong ) args
-    args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
-    args.Push( cast( ulong, MV_CONST_INT ) )
-    args.Push( cast( ulong, SizeOfType( c, et ) ) )
-
-    dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
-    dim as Tko.SymbolId dtor = Tko.SYMBOL_NONE
-    if c.types->Kind( et ) = Tko.TK_UDT then
-        ctor = StructorOf( c, et, "__ctor" )
-        dtor = StructorOf( c, et, "__dtor" )
-    end if
-    '' ...OR NEEDS THEM WITHOUT DECLARING ANY -- see PushStructorPtr_. Deciding on
-    '' the WRITTEN structors alone sent 'redim preserve' over an array of such a
-    '' type to fb_ArrayRedimPresvEx, which moves the bytes and runs nothing.
-    dim as boolean useObj = (ctor <> Tko.SYMBOL_NONE) orelse (dtor <> Tko.SYMBOL_NONE)
-    if c.types->Kind( et ) = Tko.TK_UDT then
-        useObj = useObj orelse TypeNeedsInit_( c, et ) orelse TypeNeedsDtor_( c, et )
-    end if
-
-    if useObj then
-        if PushStructorPtr_( c, args, ctor, et, 1 ) = false then return false
-        if PushStructorPtr_( c, args, dtor, et, 0 ) = false then return false
-    else
-        '' Argument 4 is -1 if and only if the element is a var-len STRING.
-        ''
-        '' Argument 3 is 32 for an FB fixed-length 'string * N' and -1 for every other
-        '' element type. Measured, one redim per element type:
-        ''
-        ''   string * 4    ( &A, 4,  32, 0, ... )    string * 8   ( &A, 8,  32, 0, ... )
-        ''   zstring * 4   ( &B, 4,  -1, 0, ... )    string * 40  ( &B, 40, 32, 0, ... )
-        ''   wstring * 4   ( &C, 8,  -1, 0, ... )    string       ( &E, 24, -1, -1, ... )
-        ''   ustring * 4   ( &D, 8,  -1, 0, ... )    long         ( &F, 4,  -1, 0, ... )
-        ''
-        '' -- so 32 is a TYPE TAG, not a length: it does not move with N.
-        ''
-        '' THIS USED TO DECLINE OUTRIGHT, on the grounds that 'string * N' and
-        '' 'zstring * N' could not be told apart. They can: the type system grew
-        '' TY_FIXSTR, and StrSwapKind_ answers 3 for the first and 1 for the second.
-        '' fbc-int/array-size.bas is written over every element type there is.
-        dim as longint a3 = -1
-        dim as longint a4 = 0
-        if IsStringType( c, et ) then
-            a4 = -1
-        else
-            dim as longint zn
-            if StrSwapKind_( c, et, zn ) = 3 then a3 = 32
-        end if
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a3 ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, a4 ) )
-    end if
-
-    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, lp->count ) )
-    for j as long = 0 to bk.Count - 1
-        args.Push( bk[j] ) : args.Push( bi[j] )
-    next
-
-    dim as RtlId r = RTL_ARRAY_REDIM
-    if useObj then
-        r = RTL_ARRAY_REDIM_OBJ
-        if presv then r = RTL_ARRAY_REDIM_PRESV_OBJ
-    elseif presv then
-        r = RTL_ARRAY_REDIM_PRESV
-    end if
-    EmitRtl( c, r, args )
-    return true
+    return EmitRedimCall_( c, desc, et, cast( long, lp->count ), bk, bi, presv )
 end function
 
 

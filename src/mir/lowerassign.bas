@@ -246,6 +246,7 @@ end function
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId )
 
+    if AssignArrayResult_( c, target, value ) then return   '' lowerarrret.bas
     '' A string assignment is a runtime call, not a store. When it cannot be lowered
     '' -- 'a = b + a' needs a temporary -- it is SKIPPED, never allowed to fall
     '' through: an ordinary store would emit load/add/store over 24-byte descriptors,

@@ -906,7 +906,7 @@ private function ParseProc _
     '' fb/result.bi, fb/optional.bi and every conversion operator declared that way.
     '' Nothing said so -- an untyped result is not a diagnostic.
     dim as boolean byrefRet = ByrefResult_( p )
-    if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
+    if Accept( p, Tko.KW_AS ) then sp.a = ResultTypeRef_( p, sp )
     CheckPropertyShape_( p, sp, kw, t.loc )
 
     '' Trailing modifiers: static, const, export, alias "x", lib "y", cdecl ...
