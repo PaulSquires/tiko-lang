@@ -79,8 +79,8 @@ projects: a command-line search tool, a concurrent pipeline and a terminal-UI le
 Every listing in the book is a real program, compiled and run on Windows and Linux with its
 output checked. The book is being written.
 
-- **Read it online:** [tiko-lang.net/book](https://tiko-lang.net/book/), an mdBook. *(Placeholder: not live yet.)*
-- **Download the PDF:** [the-tiko-programming-language.pdf](https://tiko-lang.net/book/the-tiko-programming-language.pdf). *(Placeholder: not live yet.)*
+- **Read it online:** [tiko-lang.net/book](https://tiko-lang.net/book/), an mdBook.
+- **Download the PDF:** [the-tiko-programming-language.pdf](https://tiko-lang.net/book/the-tiko-programming-language.pdf).
 
 <br clear="right">
 
