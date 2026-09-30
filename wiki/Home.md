@@ -25,7 +25,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 
 ## The book
 
-<a href="https://tiko-lang.net/book/"><img align="right" src="https://raw.githubusercontent.com/PaulSquires/tiko-lang/master/brand/tiko-book-cover-spiral-sparse.svg" alt="The tiko Programming Language: book cover" width="200"></a>
+<a href="https://tiko-lang.net/book/"><img align="right" src="tiko-book-cover-spiral-sparse.svg" alt="The tiko Programming Language: book cover" width="200"></a>
 
 ***The tiko Programming Language*** is a book for programmers who know another language and are new to tiko. It teaches tiko as a language in its own right, and it is written in the tradition of *The Rust Programming Language* and K&R: the basics move briskly, and the idioms get room.
 
