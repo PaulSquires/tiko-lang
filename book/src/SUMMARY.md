@@ -12,6 +12,7 @@
 - [Control Flow, Scope and defer](ch05-control-flow.md)
 - [Procedures](ch06-procedures.md)
 - [Arrays](ch07-arrays.md)
+- [Strings and Text](ch08-strings-and-text.md)
 
 # Building Abstractions
 

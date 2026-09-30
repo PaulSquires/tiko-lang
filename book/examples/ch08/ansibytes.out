@@ -1,0 +1,7 @@
+Latin-1 bytes: 4 -> ustring units: 4
+  code units: 99 97 102 65533
+UTF-8 bytes:   5 -> ustring units: 4
+  code units: 99 97 102 233
+
+65533 is U+FFFD, the replacement character: the byte was not
+valid UTF-8, so the text it stood for is gone.

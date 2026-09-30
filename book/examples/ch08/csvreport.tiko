@@ -1,0 +1,26 @@
+'' csvreport.tiko -- reading a table and printing a report.
+#import "std/strings"
+
+dim as ustring text = _
+    "name,city,year" & chr( 10 ) & _
+    "Ada,""London, UK"",1815" & chr( 10 ) & _
+    "Grace,New York,1906" & chr( 10 ) & _
+    "Barbara,""Wilmington, DE"",1925"
+
+var rows = strings.SplitCsv( text )
+print "rows read:"; rows.Count( ); " (including the header)"
+print
+
+'' Row 0 is the header. Its field names become the column labels.
+var header = rows[ 0 ].fields
+
+for r as int32 = 1 to rows.Count( ) - 1
+    var f = rows[ r ].fields
+    for c as int32 = 0 to f.Count( ) - 1
+        print strings.PadRight( header[ c ], 6, " " ); ": "; f[ c ]
+    next
+    print
+next
+
+'' A quoted field keeps its comma. Writing one back out re-quotes it.
+print "field 1 of row 1 = ["; rows[ 1 ].fields[ 1 ]; "]"

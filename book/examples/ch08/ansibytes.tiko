@@ -1,0 +1,30 @@
+'' ansibytes.tiko -- a byte string is not automatically UTF-8.
+''
+'' Both of these hold "cafe" with an e-acute. One was saved by a
+'' program that wrote Latin-1; the other is UTF-8. Converting each to
+'' ustring shows what the difference costs.
+
+dim as string latin1 = chr( &h63 ) & chr( &h61 ) & chr( &h66 ) & _
+                       chr( &hE9 )
+dim as string utf8   = chr( &h63 ) & chr( &h61 ) & chr( &h66 ) & _
+                       chr( &hC3 ) & chr( &hA9 )
+
+dim as ustring fromLatin1 = latin1
+dim as ustring fromUtf8   = utf8
+
+print "Latin-1 bytes:"; len( latin1 ); " -> ustring units:"; _
+      len( fromLatin1 )
+print "  code units:";
+for i as int32 = 1 to len( fromLatin1 )
+    print asc( fromLatin1, i );
+next
+print
+
+print "UTF-8 bytes:  "; len( utf8 ); " -> ustring units:"; _
+      len( fromUtf8 )
+print "  code units:";
+for i as int32 = 1 to len( fromUtf8 ) : print asc( fromUtf8, i ); : next
+print
+print
+print "65533 is U+FFFD, the replacement character: the byte was not"
+print "valid UTF-8, so the text it stood for is gone."

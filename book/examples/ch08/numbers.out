@@ -1,0 +1,16 @@
+str( 42 )     = [42]
+str( -7 )     = [-7]
+str( 3.5 )    = [3.5]
+print puts a space where the sign would be: 42
+val( "42" )       = 42
+val( "42abc" )    = 42  <- stops at 'a'
+val( "abc" )      = 0  <- and a word gives 0
+valint( "42" )    = 42
+vallng( "4200000000" ) = 4200000000
+valuint( "&hFF" ) =255
+hex( 255 )    = [FF]
+hex( 255, 4 ) = [00FF]
+oct( 8 )      = [10]
+bin( 5 )      = [101]
+pi to two places:   3.14
+a whole number:    42

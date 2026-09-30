@@ -1,0 +1,3 @@
+mid( s, 2, 3 ) = "XYZ" -> [aXYZef]
+mid( t, 2 )    = "XY"  -> [aXYdef]
+overlong replacement   -> [aZZ]  len = 3

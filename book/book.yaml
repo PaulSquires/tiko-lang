@@ -50,7 +50,7 @@ parts:
       - { n: 5,  file: src/ch05-control-flow.md,         status: drafted }
       - { n: 6,  file: src/ch06-procedures.md,          status: drafted }
       - { n: 7,  file: src/ch07-arrays.md,               status: drafted }
-      - { n: 8,  file: chapters/08-strings-and-text.md,  status: planned }
+      - { n: 8,  file: src/ch08-strings-and-text.md,    status: drafted }
   - name: "Building Abstractions"
     chapters:
       - { n: 9,  file: chapters/09-user-defined-types.md, status: planned }

@@ -1,0 +1,28 @@
+'' intrinsics.tiko -- the operations that come with the language.
+
+dim as ustring s = "The quick brown fox"
+
+print "len            ="; len( s )
+print "left( s, 3 )   = ["; left( s, 3 ); "]"
+print "right( s, 3 )  = ["; right( s, 3 ); "]"
+print "mid( s, 5, 5 ) = ["; mid( s, 5, 5 ); "]"
+print "mid( s, 11 )   = ["; mid( s, 11 ); "]"
+
+print "instr( s, ""brown"" )  ="; instr( s, "brown" )
+print "instr( 5, s, ""o"" )   ="; instr( 5, s, "o" )
+print "instrrev( s, ""o"" )   ="; instrrev( s, "o" )
+print "instr( s, ""zebra"" )  ="; instr( s, "zebra" ); "   <- not found"
+
+print "ucase = ["; ucase( s ); "]"
+print "lcase = ["; lcase( s ); "]"
+
+dim as ustring padded = "   spaces   "
+print "trim  = ["; trim( padded ); "]"
+print "ltrim = ["; ltrim( padded ); "]"
+print "rtrim = ["; rtrim( padded ); "]"
+print "trim any = ["; trim( "xxcorexx", any "x" ); "]"
+
+print "space( 3 )        = ["; space( 3 ); "]"
+print "string( 5, ""-"" )   = ["; string( 5, "-" ); "]"
+print "chr( 65 )         = ["; chr( 65 ); "]"
+print "asc( ""A"" )        ="; asc( "A" )

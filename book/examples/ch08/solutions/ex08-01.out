@@ -1,0 +1,20 @@
+in    : [the quick brown fox]
+mine  : [The Quick Brown Fox]
+MCase : [The Quick Brown Fox]
+agree : true
+
+in    : [ALL CAPS SHOUTING]
+mine  : [All Caps Shouting]
+MCase : [All Caps Shouting]
+agree : true
+
+in    : [  leading and  double  spaces]
+mine  : [  Leading And  Double  Spaces]
+MCase : [  Leading And  Double  Spaces]
+agree : true
+
+in    : []
+mine  : []
+MCase : []
+agree : true
+

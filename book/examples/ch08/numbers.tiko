@@ -1,0 +1,21 @@
+'' numbers.tiko -- text to numbers and back.
+
+print "str( 42 )     = ["; str( 42 ); "]"
+print "str( -7 )     = ["; str( -7 ); "]"
+print "str( 3.5 )    = ["; str( 3.5 ); "]"
+print "print puts a space where the sign would be:"; 42
+
+print "val( ""42"" )       ="; val( "42" )
+print "val( ""42abc"" )    ="; val( "42abc" ); "  <- stops at 'a'"
+print "val( ""abc"" )      ="; val( "abc" ); "  <- and a word gives 0"
+print "valint( ""42"" )    ="; valint( "42" )
+print "vallng( ""4200000000"" ) ="; vallng( "4200000000" )
+print "valuint( ""&hFF"" ) ="; valuint( "&hFF" )
+
+print "hex( 255 )    = ["; hex( 255 ); "]"
+print "hex( 255, 4 ) = ["; hex( 255, 4 ); "]"
+print "oct( 8 )      = ["; oct( 8 ); "]"
+print "bin( 5 )      = ["; bin( 5 ); "]"
+
+print using "pi to two places: ###.##"; 3.14159
+print using "a whole number:   ###"; 42

@@ -1,0 +1,27 @@
+'' caesar.tiko -- shifting letters, which is arithmetic on asc codes.
+
+function Shift( byref text as ustring, byval by as int32 ) as ustring
+    dim as ustring built = ""
+
+    for i as int32 = 1 to len( text )
+        dim as int32 c = asc( text, i )
+
+        if c >= asc( "a" ) andalso c <= asc( "z" ) then
+            c = asc( "a" ) + ( ( c - asc( "a" ) + by + 26 ) mod 26 )
+        elseif c >= asc( "A" ) andalso c <= asc( "Z" ) then
+            c = asc( "A" ) + ( ( c - asc( "A" ) + by + 26 ) mod 26 )
+        end if
+
+        built &= chr( c )
+    next
+
+    return built
+end function
+
+dim as ustring plain = "Attack at dawn!"
+dim as ustring coded = Shift( plain, 3 )
+
+print "plain   : "; plain
+print "shifted : "; coded
+print "back    : "; Shift( coded, -3 )
+print "round trip holds: "; cbool( Shift( coded, -3 ) = plain )

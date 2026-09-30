@@ -1,0 +1,15 @@
+Split gave 3 parts: [alpha] [beta] [gamma]
+Join       = [alpha | beta | gamma]
+Replace    = [alpha,BETA,gamma]
+Between    = [value]
+StartsWith = true
+EndsWith   = true
+Contains   = true
+IsNumeric  = truefalse
+PadLeft    = [0007]
+PadRight   = [ab...]
+PadCenter  = [..ab..]
+Repeat     = [ababab]
+Reverse    = [cba]
+Wrap       = [<hi>]
+Escape     = [a\tb]

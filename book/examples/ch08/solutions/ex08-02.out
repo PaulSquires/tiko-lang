@@ -1,0 +1,6 @@
+key = [host]  value = [example.org]
+key = [port]  value = [8080]
+(blank line skipped)
+key = [motto]  value = [live = learn]
+no '=' in [nokeyhere] -- skipped
+key = [empty]  value = []

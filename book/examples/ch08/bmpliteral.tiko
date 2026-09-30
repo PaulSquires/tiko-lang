@@ -1,0 +1,11 @@
+'' bmpliteral.tiko -- the same character, written as a literal.
+''
+'' codeunits.tiko built its text from bytes at run time. This one
+'' writes it straight into the source, which is what anybody would do.
+
+dim as ustring face = "a😀b"
+
+print "len ="; len( face )
+print "code units:";
+for i as int32 = 1 to len( face ) : print asc( face, i ); : next
+print

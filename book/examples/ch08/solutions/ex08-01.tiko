@@ -1,0 +1,40 @@
+'' ex08-01.tiko -- title-case a sentence, then check the answer
+'' against the one the standard library gives.
+
+#import "std/strings"
+
+function TitleCase( byref text as ustring ) as ustring
+    dim as ustring built = ""
+    dim as boolean atWordStart = true
+
+    for i as int32 = 1 to len( text )
+        dim as ustring ch = mid( text, i, 1 )
+
+        if ch = " " then
+            atWordStart = true
+            built &= ch
+        elseif atWordStart then
+            built &= ucase( ch )
+            atWordStart = false
+        else
+            built &= lcase( ch )
+        end if
+    next
+
+    return built
+end function
+
+dim as ustring cases( 1 to 4 ) = { "the quick brown fox", _
+                                   "ALL CAPS SHOUTING", _
+                                   "  leading and  double  spaces", _
+                                   "" }
+
+for i as int32 = lbound( cases ) to ubound( cases )
+    dim as ustring mine = TitleCase( cases( i ) )
+    dim as ustring theirs = strings.MCase( cases( i ) )
+    print "in    : ["; cases( i ); "]"
+    print "mine  : ["; mine; "]"
+    print "MCase : ["; theirs; "]"
+    print "agree : "; cbool( mine = theirs )
+    print
+next

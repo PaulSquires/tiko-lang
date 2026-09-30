@@ -1,0 +1,21 @@
+'' binary.tiko -- a string as a container of bytes.
+
+'' mk* packs a number into its raw bytes; cv* reads it back.
+dim as string packed = mkl( 70000 ) & mkd( 3.5 ) & mkshort( 300 )
+print "packed bytes ="; len( packed )
+
+print "cvl   ="; cvl( mid( packed, 1, 4 ) )
+print "cvd   ="; cvd( mid( packed, 5, 8 ) )
+print "cvshort ="; cvshort( mid( packed, 13, 2 ) )
+
+'' Fixed-length strings can be aligned within their room.
+dim as string * 10 slot
+lset slot, "left"
+print "lset  = ["; slot; "]"
+rset slot, "right"
+print "rset  = ["; slot; "]"
+
+'' strptr and sadd reach the bytes themselves.
+dim as string s = "hello"
+print "first byte via sadd ="; peek( ubyte, sadd( s ) )
+print "asc of it           ="; asc( s, 1 )

@@ -1,0 +1,16 @@
+'' midstatement.tiko -- mid on the left of an assignment overwrites
+'' in place, without rebuilding the string.
+
+dim as string s = "abcdef"
+mid( s, 2, 3 ) = "XYZ"
+print "mid( s, 2, 3 ) = ""XYZ"" -> ["; s; "]"
+
+dim as string t = "abcdef"
+mid( t, 2 ) = "XY"              '' no length: as much as will fit
+print "mid( t, 2 )    = ""XY""  -> ["; t; "]"
+
+'' It never changes the length. A replacement longer than the room
+'' available is truncated rather than growing the string.
+dim as string u = "abc"
+mid( u, 2 ) = "ZZZZZZ"
+print "overlong replacement   -> ["; u; "]  len ="; len( u )

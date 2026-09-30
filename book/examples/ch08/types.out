@@ -1,0 +1,8 @@
+string       len = 5
+ustring      len = 5
+zstring * 16 len = 5
+wstring * 16 len = 5
+string * 8   len = 8   <- not 5
+string * 8   = [hello   ]
+sizeof( string )  = 24
+sizeof( ustring ) = 24

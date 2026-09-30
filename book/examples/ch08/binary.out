@@ -1,0 +1,8 @@
+packed bytes = 14
+cvl   = 70000
+cvd   = 3.5
+cvshort = 300
+lset  = [left      ]
+rset  = [     right]
+first byte via sadd =104
+asc of it           =104

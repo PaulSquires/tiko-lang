@@ -1,0 +1,15 @@
+rows read: 4 (including the header)
+
+name  : Ada
+city  : London, UK
+year  : 1815
+
+name  : Grace
+city  : New York
+year  : 1906
+
+name  : Barbara
+city  : Wilmington, DE
+year  : 1925
+
+field 1 of row 1 = [London, UK]

@@ -144,6 +144,24 @@ Five kinds, each with one job:
 - Output blocks are `text`, and their content comes from the `.out` file the harness compares
   against. Never retype output by hand.
 
+### Characters the PDF cannot print
+
+**Nothing in a chapter may use a character outside the PDF fonts' coverage.** New Computer Modern
+and DejaVu Sans Mono cover Latin, Greek, Cyrillic and ordinary punctuation. Anything beyond that —
+an emoji, an arrow such as U+2194, a box-drawing character — is **silently dropped by typst**, and
+the sentence around it survives with a hole in it.
+
+The site renders it correctly, so this is invisible until someone reads the PDF. Chapter 8 shipped
+a first draft saying `dim as ustring face = "a<emoji>b"` that typeset as `"a b"`, which reads as a
+different claim entirely.
+
+Name the character instead: **U+1F600**, not the glyph. Where a listing genuinely needs the bytes,
+build them with `chr( &hF0 )` and friends, which is clearer anyway and does not depend on how the
+file was saved. A listing that must contain the real character stays in `examples/` and is named
+from the prose rather than included.
+
+To check a chapter, scan it for code points above U+024F outside the allowed punctuation set.
+
 ## 8. Claims and evidence
 
 - **A statement about behaviour is backed by a listing the harness runs.** If you cannot write

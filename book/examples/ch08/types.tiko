@@ -1,0 +1,18 @@
+'' types.tiko -- five ways to hold text, and what len counts in each.
+
+dim as string       a = "hello"     '' bytes, length-counted, grows
+dim as ustring      b = "hello"     '' UTF-16 code units, grows
+dim as zstring * 16 c = "hello"     '' bytes, NUL-terminated, fixed room
+dim as wstring * 16 d = "hello"     '' wide characters, fixed room
+dim as string * 8   e = "hello"     '' bytes, fixed length, PADDED
+
+print "string       len ="; len( a )
+print "ustring      len ="; len( b )
+print "zstring * 16 len ="; len( c )
+print "wstring * 16 len ="; len( d )
+print "string * 8   len ="; len( e ); "   <- not 5"
+print "string * 8   = ["; e; "]"
+
+'' A string variable is a descriptor, not the characters themselves.
+print "sizeof( string )  ="; sizeof( string )
+print "sizeof( ustring ) ="; sizeof( ustring )
