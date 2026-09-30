@@ -801,17 +801,22 @@ sub WalkStmt _
         '' A DOTTED path -- 'using a.b' -- is walked component by component, the same
         '' way a qualified type name is: only the FIRST is visible from here, and each
         '' later one is looked up INSIDE what the previous opened.
+        '' ...AND A COMMA LIST, 'using a, b', keeps each later path as a child N_USING, in
+        '' order: the loop takes the statement itself (u = -1), then each child.
         dim as Tko.StmtPayload ptr usp = StmtOf( c, id )
-        if usp->name <> 0 then
-            dim as Tko.SymbolId nsid = LookupDottedNamespace_( c, here, usp->name )
+        for u as long = -1 to usp->count - 1
+            dim as Tko.NodeId un = id
+            if u >= 0 then un = cast( Tko.NodeId, c.ast->children[usp->first + u] )
+            dim as Tko.InternId unm = StmtOf( c, un )->name
+            if unm = 0 then continue for
+            c.info->SetScope( un, here )
+            dim as Tko.SymbolId nsid = LookupDottedNamespace_( c, here, unm )
             dim as Tko.Symbol ptr nss = c.syms->SymbolAt( nsid )
-            if nss <> 0 then
-                if nss->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
-                    c.syms->AddUsing( here, nss->inner )
-                    c.info->SetRef( id, nsid )    '' for CheckUsingAmbiguity_ (declshape.bas)
-                end if
-            end if
-        end if
+            if nss = 0 then continue for
+            if nss->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then continue for
+            c.syms->AddUsing( here, nss->inner )
+            c.info->SetRef( un, nsid )    '' for CheckUsingAmbiguity_ (declshape.bas)
+        next
         return
 
     case Tko.N_WITH

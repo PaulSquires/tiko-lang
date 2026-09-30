@@ -1,0 +1,8 @@
+'' TKO0406 (fbc's 14) for a trailing comma after USING, and TKO0919 (fbc's 255) for a name
+'' two namespaces of one comma list declare. See the KW_USING arm of parser/decltype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/using-list-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using-list-errors.bas(11,11): error TKO0919
+'' EXPECT-OUT: using-list-errors.bas(13,58): error TKO0406
+'' EXPECT-MAX-DIAG: 2

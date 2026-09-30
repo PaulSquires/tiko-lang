@@ -397,6 +397,37 @@ private function MarkPrivate _
     return n
 end function
 
+'' ONE USING PATH, DOTTED, as a single spelling -- the same shape a qualified TYPE
+'' REFERENCE and a member DEFINITION both keep.
+''
+'' It used to OVERWRITE the name per component, so 'using a.b' arrived as plain 'b' --
+'' which is not visible unqualified, so the lookup found nothing and AddUsing was never
+'' called at all. Seventeen corpus statements imported nothing and every name they were
+'' meant to bring in declined.
+''
+'' A LEADING '..' IS THE GLOBAL ROOT: 'using ..outer1' inside a namespace names the outer1
+'' at FILE scope. fbc accepts it -- the probe prints 7 -- and here the first token is a DOT,
+'' so DeclName failed, the path came out EMPTY, and the using imported nothing at all. The
+'' dots are kept in the path spelling; the resolver reads them.
+private function UsingPath_( byref p as Tko.ParserState ) as string
+    dim as string usePath
+    while Peek( p ) = Tko.TK_DOT
+        Advance( p )
+        usePath += "."
+    wend
+    dim as Tko.InternId head = 0
+    DeclName( p, head )
+    if head <> 0 then usePath += p.names->Spelling( head )
+    while Peek( p ) = Tko.TK_DOT
+        Advance( p )
+        dim as Tko.InternId comp = 0
+        DeclName( p, comp )
+        if comp = 0 then exit while
+        usePath += "." & p.names->Spelling( comp )
+    wend
+    return usePath
+end function
+
 private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.TokenKind k = Peek( p )
@@ -575,33 +606,30 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
     case Tko.KW_USING
         Advance( p )
         dim as Tko.StmtPayload sp
-        '' THE WHOLE PATH, DOTTED, in the one field -- the same shape a qualified TYPE
-        '' REFERENCE and a member DEFINITION both keep.
-        ''
-        '' It used to OVERWRITE the name per component, so 'using a.b' arrived as plain
-        '' 'b' -- which is not visible unqualified, so the lookup found nothing and
-        '' AddUsing was never called at all. Seventeen corpus statements imported
-        '' nothing and every name they were meant to bring in declined.
-        dim as string usePath
-        '' A LEADING '..' IS THE GLOBAL ROOT: 'using ..outer1' inside a namespace
-        '' names the outer1 at FILE scope. fbc accepts it -- the probe prints 7 --
-        '' and here the first token is a DOT, so DeclName failed, the path came out
-        '' EMPTY, and the using imported nothing at all. The dots are kept in the
-        '' path spelling; the resolver reads them.
-        while Peek( p ) = Tko.TK_DOT
-            Advance( p )
-            usePath += "."
-        wend
-        DeclName( p, sp.name )
-        if sp.name <> 0 then usePath += p.names->Spelling( sp.name )
-        while Peek( p ) = Tko.TK_DOT
-            Advance( p )
-            dim as Tko.InternId comp = 0
-            DeclName( p, comp )
-            if comp = 0 then exit while
-            usePath += "." & p.names->Spelling( comp )
-        wend
+        dim as string usePath = UsingPath_( p )
         if len( usePath ) > 0 then sp.name = p.names->GetString( usePath )
+        '' A COMMA LIST -- 'using a, b, c.d' imports each, in order, exactly as three USING
+        '' statements would (fbc-modern 1.20, measured 2026-09-30: it prints all three
+        '' namespaces' values). Each later path is a child N_USING of the first; a trailing
+        '' comma is fbc's error 14, "Expected identifier". Only the first path was read, and
+        '' the comma ended the statement with TKO0420.
+        dim as Tko.NodeIdVec moreUsing
+        while Accept( p, Tko.TK_COMMA )
+            dim as Tko.Token ut = Cur( p )
+            dim as string mp = UsingPath_( p )
+            if len( mp ) = 0 then
+                if p.silent = false then p.diags->Report( Tko.TKO0406, Tko.PointRange( Cur( p ).loc ) )
+                exit while
+            end if
+            dim as Tko.StmtPayload up
+            up.name = p.names->GetString( mp )
+            moreUsing.Push( cast( ulong, MakeStmt( p, Tko.N_USING, ut.loc, up ) ) )
+        wend
+        sp.first = p.ast->children.Count
+        sp.count = moreUsing.Count
+        for i as long = 0 to moreUsing.Count - 1
+            p.ast->children.Push( moreUsing[i] )
+        next
         return MakeStmt( p, Tko.N_USING, t.loc, sp )
 
     case Tko.KW_OPTION

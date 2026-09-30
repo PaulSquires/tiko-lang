@@ -1,0 +1,10 @@
+'' A comma list after USING imports every namespace named. See the source's header and the
+'' KW_USING arm of parser/decltype.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/using-list.bas -o tests/driver/usinglist.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/usinglist.exe
+'' RUN: tests/driver/usinglist.exe
+'' EXPECT-RUN-OUT: scoped 1 2
+'' EXPECT-RUN-OUT: list 1 2 3
