@@ -20,7 +20,7 @@ with no virtual machine and no garbage collector.
 '' Count the words in a sentence and return the most common one.
 function MostCommon( byval text as ustring ) as (word as ustring, count as int32)
     dim counts as containers.Map( of ustring, int32 )
-    for each w as ustring in strings.Split( text, " " )
+    for each w as ustring in strings.Split( LCase( text ), " " )
         counts[ w ] += 1
     next
 
