@@ -265,12 +265,15 @@ private sub CheckOverrideBody_ _
     '' ...AND SO IS THE CONSTNESS OF A BYREF RESULT: 'byref as integer' overridden by
     '' 'byref as const integer' is 225 too, while the covariant 'byref as B' over 'byref
     '' as A' stays legal -- so with both byref only the qualifier is compared here.
+    '' ...AND ONLY ONE WAY: the override may DROP the const -- 'byref as const integer'
+    '' overridden by 'byref as integer' is fine (fbc-modern 1.20, 2026-09-30;
+    '' virtual/compatible-override.bas): the caller was promised no more than that.
     if (isOperator = false) andalso ((obf <> 0) <> (nbf <> 0)) then
         NoteMismatch_( store, newd, VTM_RETURN )
         return
     end if
     if (isOperator = false) andalso bothByref then
-        if types.IsConst( ra ) <> types.IsConst( rb ) then
+        if (types.IsConst( ra ) = false) andalso types.IsConst( rb ) then
             NoteMismatch_( store, newd, VTM_RETURN )
             return
         end if

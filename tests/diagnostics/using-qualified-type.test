@@ -1,0 +1,7 @@
+'' TKO0808, fbc's 8: a qualified type name sees what its namespace imports with USING.
+'' See symbols/resolvetype.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/using-qualified-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using-qualified-type.bas(18,10): error TKO0808
+'' EXPECT-MAX-DIAG: 1

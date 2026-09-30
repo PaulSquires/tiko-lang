@@ -1,0 +1,10 @@
+'' TKO0654/0926/0927, fbc's 186/188/185/187: a base with no default constructor. fbc gives 185
+'' alone only once the type errors are gone. See symbols/basector.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/base-no-default-ctor.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: base-no-default-ctor.bas(18,1): error TKO0654
+'' EXPECT-OUT: base-no-default-ctor.bas(21,1): error TKO0926
+'' EXPECT-OUT: base-no-default-ctor.bas(33,5): error TKO0927
+'' EXPECT-OUT: base-no-default-ctor.bas(37,1): error TKO0926
+'' EXPECT-MAX-DIAG: 4

@@ -1137,6 +1137,10 @@ private function PpStep( byref e as PpEngine ) as boolean
         '' without it. They are not.
         dim as boolean isHash = (k = TK_HASH)
         dim as boolean atLineStart = (t.flags and TF_AT_LINE_START) <> 0
+        '' ...AND WHILE SKIPPING, a continuation does not join lines: '#if 0 / print _ /
+        '' #endif' closes at that '#endif' (fbc-modern 1.20, 2026-09-30; pp/if-skip-1.bas).
+        '' The lexer joined them, so the '#' is the first token of its physical line.
+        if (atLineStart = false) andalso ((t.flags and TF_LINE_JOINED) <> 0) then atLineStart = (Emitting( e ) = false)
         if isHash andalso atLineStart then
             Advance( e )
             PpDirective( e, t )

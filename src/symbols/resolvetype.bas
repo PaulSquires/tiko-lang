@@ -648,6 +648,7 @@ function ResolveTypeRef _
                     qsid = c.syms->Lookup( sc, cid )
                 else
                     qsid = c.syms->LookupLocalTyped( sc, cid, true )
+                    if qsid = Tko.SYMBOL_NONE then qsid = c.syms->LookupInNamespaceTyped( sc, cid, true )
                 end if
                 dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
                 if qs = 0 then
@@ -667,8 +668,12 @@ function ResolveTypeRef _
                 if dot = 0 then exit while
                 at = dot
             wend
+            '' ...AND A NAMESPACE'S OWN USINGS: 'dim v as A.T' with T from a 'using B' inside A
+            '' is fbc's (fbc-modern 1.20, 2026-09-30; namespace/dups.bas). A value already
+            '' went through LookupInNamespace; the type path looked in A alone.
             if ok andalso (first_ = false) then
                 sid = c.syms->LookupLocalTyped( sc, sp->name, true )
+                if sid = Tko.SYMBOL_NONE then sid = c.syms->LookupInNamespaceTyped( sc, sp->name, true )
             end if
         end if
         '' NEVER FOR A QUALIFIED NAME. 'type Q as NS.Foo' with no NS.Foo fell back to the

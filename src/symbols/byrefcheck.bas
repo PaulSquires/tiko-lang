@@ -112,6 +112,55 @@ private sub CheckByrefResultType_ _
     end if
 end sub
 
+'' A BYVAL PARAMETER fbc PASSES BY A HIDDEN REFERENCE is the caller's storage, not a local:
+'' measured on fbc-modern 1.20, 2026-09-30, 'function = u' in a byref-result function is
+'' fine over 'byval u as string', and over a UDT with a destructor -- written, inherited,
+'' or implied by a string, destructor-bearing or dynamic-array field, in an array too -- or
+'' one that extends OBJECT (functions/temp-strings.bas). A plain-data UDT, a scalar or a
+'' pointer is still error 272, and so is a UDT with only a copy constructor or 'let'.
+private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval depth as long = 0 ) as boolean
+    if (t = TYPE_NONE) orelse (depth > 16) then return false
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->IsDynArray( u ) then return (depth > 0)
+    select case c.types->Kind( u )
+    case TK_BUILTIN
+        select case c.types->BuiltinOf( u )
+        case TY_STRING, TY_USTRING
+            return true
+        end select
+        return false
+    case TK_ARRAY
+        return PassedByHiddenRef_( c, c.types->Inner( u ), depth + 1 )
+    case TK_UDT
+    case else
+        return false
+    end select
+    if ExtendsObject_( c, u ) then return true
+    dim as TypeId b = u
+    for g as long = 0 to 63
+        if b = TYPE_NONE then exit for
+        if StructorOf_( c, b, "__dtor" ) <> 0 then return true
+        dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( b ) )
+        dim as SymbolId ts = c.syms->LookupLocalTyped( ds, c.types->NameOf( b ), true )
+        if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, c.types->NameOf( b ), true )
+        dim as Symbol ptr s = c.syms->SymbolAt( ts )
+        if (s <> 0) andalso (s->inner <> SCOPE_NONE) then
+            dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+            dim as SymbolId cur = iif( sc <> 0, sc->firstSym, SYMBOL_NONE )
+            while cur <> SYMBOL_NONE
+                dim as Symbol ptr f = c.syms->SymbolAt( cur )
+                if f = 0 then exit while
+                if (f->kind = cast( ubyte, SYM_FIELD )) andalso ((f->flags and SYMF_STATIC) = 0) andalso (f->type_ <> u) then
+                    if PassedByHiddenRef_( c, f->type_, depth + 1 ) then return true
+                end if
+                cur = f->nextInScope
+            wend
+        end if
+        b = BaseOf_( c, b )
+    next
+    return false
+end function
+
 '' A BYREF RESULT CANNOT RETURN A LOCAL -- fbc error 272, "Local symbols can't be
 '' referenced". The caller is handed a reference, and the frame it points into is gone by
 '' the time it is read. Measured, all three shapes:
@@ -229,6 +278,7 @@ private sub CheckByrefResultValue_ _
     if s->kind = cast( ubyte, SYM_PARAMETER ) then
         if IsThisBase_( c, head ) then return
         if s->type_ = TYPE_NONE then return
+        if PassedByHiddenRef_( c, s->type_ ) then return
         select case c.types->Kind( c.types->Unqualify( s->type_ ) )
         case TK_REFERENCE, TK_ARRAY
             return

@@ -1236,6 +1236,7 @@ end sub
 #include once "symbols/iifudt.bas"
 #include once "symbols/staticdef.bas"
 #include once "symbols/declshape.bas"
+#include once "symbols/basector.bas"
 
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _

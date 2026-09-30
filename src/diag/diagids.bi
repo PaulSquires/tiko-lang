@@ -718,6 +718,9 @@
     DIAG( TKO0924, SEV_ERROR,   "recursive #define: '%0' names itself in its own body" )
     '' fbc's error 71: a bare 'type( ... )' with no single type to build -- declshape.bas.
     DIAG( TKO0925, SEV_ERROR,   "type( ... ) has no type to build here: write type<T>( ... )" )
+    '' fbc's errors 188 and 185: a base with no default constructor -- symbols/basector.bas.
+    DIAG( TKO0926, SEV_ERROR,   "'%0' needs a copy constructor: its base has no constructor that takes no argument, so none can be made for it" )
+    DIAG( TKO0927, SEV_ERROR,   "this constructor of '%0' must call base( ... ): its base has no constructor that takes no argument" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

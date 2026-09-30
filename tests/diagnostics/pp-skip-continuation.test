@@ -1,0 +1,7 @@
+'' While skipping, a line continuation does not join lines; the undeclared name at the end
+'' (fbc's 42) proves every #endif closed. See PpStep in pp/pp.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/pp-skip-continuation.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: pp-skip-continuation.bas(15,1): error TKO0743
+'' EXPECT-MAX-DIAG: 1

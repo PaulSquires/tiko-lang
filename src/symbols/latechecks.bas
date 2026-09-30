@@ -975,34 +975,7 @@ private sub CheckDynArrayInUnion_( byref c as Ctx )
     next
 end sub
 
-private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
-    for i as long = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
-        if s->type_ = TYPE_NONE then continue for
-        dim as TypeId base_ = BaseOf_( c, s->type_ )
-        if base_ = TYPE_NONE then continue for
-        dim as Symbol ptr bc = StructorOf_( c, base_, "__ctor" )
-        '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
-        if bc = 0 then continue for
-        dim as boolean sawDefault = false
-        dim as Symbol ptr walk = bc
-        dim as long guard = 0
-        while (walk <> 0) andalso (guard < 1000)
-            guard += 1
-            dim as long req = RequiredParams_( c, cast( NodeId, walk->payload ) )
-            '' A declaration that cannot be read is counted as a default rather than
-            '' against one: not knowing is not grounds for refusing.
-            if (req = 0) orelse (req = -1) then
-                sawDefault = true
-                exit while
-            end if
-            walk = c.syms->SymbolAt( walk->nextOverload )
-        wend
-        if sawDefault then continue for
-        c.diags->Report( TKO0654, PointRange( s->loc ), c.names->Spelling( s->name ) )
-    next
-end sub
+'' CheckBaseHasDefaultCtor_ is in basector.bas, included from latesweeps2.bas.
 
 '' A DERIVED TYPE CANNOT REACH A PRIVATE BASE STRUCTOR -- fbc errors 207 and 208.
 ''

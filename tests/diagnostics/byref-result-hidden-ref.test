@@ -1,0 +1,7 @@
+'' TKO0650, fbc's 272: a byval string, or a UDT with a destructor, is the caller's storage;
+'' plain data is a local. See PassedByHiddenRef_ in symbols/byrefcheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-result-hidden-ref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-result-hidden-ref.bas(24,20): error TKO0650
+'' EXPECT-MAX-DIAG: 1

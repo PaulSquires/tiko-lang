@@ -1,0 +1,7 @@
+'' TKO0622, fbc's 225: an override may drop the const of a byref result, not add it.
+'' See CheckOverrideBody_ in types/vtable.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-byref-drop-const.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: override-byref-drop-const.bas(16,17): error TKO0622
+'' EXPECT-MAX-DIAG: 1
