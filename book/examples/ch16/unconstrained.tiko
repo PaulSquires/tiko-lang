@@ -1,0 +1,17 @@
+'' unconstrained.tiko -- a type parameter promises nothing, so the
+'' body's demands are checked only once a type goes in. Fails to build.
+type Ranked( of T )
+    declare function Best( byval a as T, byval b as T ) as T
+    as T dummy
+end type
+
+function Ranked( of T ).Best( byval a as T, byval b as T ) as T
+    if a > b then return a        '' needs '>' on T
+    return b
+end function
+
+type Opaque_
+    as int32 x
+end type
+
+dim r as Ranked( of Opaque_ )     '' Opaque_ has no '>'

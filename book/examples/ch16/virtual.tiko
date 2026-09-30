@@ -1,0 +1,18 @@
+type Base_ extends Object
+    declare virtual function Name( ) as ustring
+end type
+function Base_.Name( ) as ustring
+    return "base"
+end function
+
+type Holder( of T ) extends Base_
+    declare virtual function Name( ) as ustring
+    as T v
+end type
+function Holder( of T ).Name( ) as ustring
+    return "holder"
+end function
+
+dim h as Holder( of int32 )
+dim p as Base_ ptr = @h
+print p->Name( )          '' virtual dispatch into an instantiation

@@ -1,0 +1,20 @@
+'' pair.tiko -- two type parameters, and an out-of-line member.
+type Pair( of K, V )
+    declare function Describe( ) as ustring
+    as K key
+    as V value
+end type
+
+function Pair( of K, V ).Describe( ) as ustring
+    return "(" & this.key & ", " & this.value & ")"
+end function
+
+dim score as Pair( of ustring, int32 )
+score.key = "gold"
+score.value = 3
+print score.Describe( )
+
+dim ratio as Pair( of ustring, float64 )
+ratio.key = "pi"
+ratio.value = 3.14
+print ratio.Describe( )

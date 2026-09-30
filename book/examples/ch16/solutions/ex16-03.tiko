@@ -1,0 +1,26 @@
+'' ex16-03.tiko -- making a type usable as a Map key: '=' and FB.HashOf.
+#import "std/containers"
+using FB
+
+type Version_
+    as int32 major, minor
+end type
+
+operator = ( byref a as Version_, byref b as Version_ ) as boolean
+    return ( a.major = b.major ) andalso ( a.minor = b.minor )
+end operator
+
+namespace FB
+    private function HashOf overload ( byref v as Version_ ) as ulongint
+        return HashOf( v.major ) * 31 + HashOf( v.minor )
+    end function
+end namespace
+
+dim names as containers.Map( of Version_, ustring )
+dim as Version_ v1 = ( 1, 0 ), v2 = ( 2, 5 ), again = ( 1, 0 )
+
+names[ v1 ] = "first release"
+names[ v2 ] = "current"
+
+print "distinct keys: " & names.Count
+print "1.0 is still: " & names[ again ]

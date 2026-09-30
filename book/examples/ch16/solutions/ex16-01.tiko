@@ -1,0 +1,36 @@
+'' ex16-01.tiko -- a generic Queue, first in first out.
+type Queue( of T )
+    public:
+        declare sub Enqueue( byval item as T )
+        declare function Dequeue( ) as T
+        declare property Count( ) as int32
+    private:
+        as T items( any )
+        as int32 head_, count_
+end type
+
+sub Queue( of T ).Enqueue( byval item as T )
+    if this.head_ + this.count_ > ubound( this.items ) then
+        redim preserve this.items( ( this.head_ + this.count_ ) * 2 + 3 )
+    end if
+    this.items( this.head_ + this.count_ ) = item
+    this.count_ += 1
+end sub
+
+function Queue( of T ).Dequeue( ) as T
+    dim as T item = this.items( this.head_ )
+    this.head_ += 1
+    this.count_ -= 1
+    return item
+end function
+
+property Queue( of T ).Count( ) as int32
+    return this.count_
+end property
+
+dim q as Queue( of ustring )
+q.Enqueue( "one" )
+q.Enqueue( "two" )
+print q.Dequeue( )
+print q.Dequeue( )
+print "count: " & q.Count

@@ -1,0 +1,14 @@
+'' ex16-02.tiko -- Swap( of T ), and why inference needs both arguments to agree.
+sub Swap_( of T )( byref a as T, byref b as T )
+    dim as T t = a
+    a = b
+    b = t
+end sub
+
+dim as int32 x = 1, y = 2
+Swap_( x, y )
+print x & " " & y
+
+dim as ustring s = "left", t = "right"
+Swap_( s, t )
+print s & " " & t

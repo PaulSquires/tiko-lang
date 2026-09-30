@@ -60,7 +60,7 @@ parts:
       - { n: 13, file: chapters/13-inheritance.md,        status: planned }
       - { n: 14, file: chapters/14-modules-packages.md,     status: planned }
       - { n: 15, file: chapters/15-namespaces-preprocessor.md, status: planned }
-      - { n: 16, file: chapters/16-generics.md,           status: planned }
+      - { n: 16, file: src/ch16-generics.md,              status: drafted }
       - { n: 17, file: chapters/17-errors.md,             status: planned }
       - { n: 18, file: chapters/18-testing-debugging.md,  status: planned }
   - name: "Advanced Language"

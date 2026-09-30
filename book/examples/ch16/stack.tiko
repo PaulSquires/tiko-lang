@@ -1,0 +1,40 @@
+'' stack.tiko -- a generic type with members, defined out of line.
+type Stack( of T )
+    public:
+        declare sub Push( byval item as T )
+        declare function Pop( ) as T
+        declare function IsEmpty( ) as boolean
+        declare property Count( ) as int32
+    private:
+        as T items( any )
+        as int32 count_
+end type
+
+sub Stack( of T ).Push( byval item as T )
+    if this.count_ > ubound( this.items ) then
+        redim preserve this.items( this.count_ * 2 + 3 )
+    end if
+    this.items( this.count_ ) = item
+    this.count_ += 1
+end sub
+
+function Stack( of T ).Pop( ) as T
+    this.count_ -= 1
+    return this.items( this.count_ )
+end function
+
+function Stack( of T ).IsEmpty( ) as boolean
+    return this.count_ = 0
+end function
+
+property Stack( of T ).Count( ) as int32
+    return this.count_
+end property
+
+dim words as Stack( of ustring )
+words.Push( "first" )
+words.Push( "second" )
+print "count: " & words.Count
+print words.Pop( )
+print words.Pop( )
+print "empty: " & words.IsEmpty( )

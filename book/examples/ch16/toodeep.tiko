@@ -1,0 +1,9 @@
+type Wrap( of T )
+    as T v
+end type
+'' each instantiation asks for another, one level deeper
+type Deep( of T )
+    as Wrap( of Deep( of Wrap( of T ) ) ) w
+end type
+dim d as Deep( of int32 )
+print sizeof( d )

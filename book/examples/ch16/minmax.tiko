@@ -1,0 +1,9 @@
+'' minmax.tiko -- a generic procedure, inferred and given explicitly.
+function Larger( of T )( byval a as T, byval b as T ) as T
+    if a > b then return a
+    return b
+end function
+
+print Larger( 3, 9 )                    '' T inferred from the arguments
+print Larger( of float64 )( 1.5, 2.5 )  '' or stated
+print Larger( "apple", "pear" )

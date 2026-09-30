@@ -1,0 +1,16 @@
+'' box.tiko -- a generic type, and one type per argument list.
+type Box( of T )
+    as T value
+end type
+
+dim b as Box( of int32 )
+dim s as Box( of ustring )
+dim n as Box( of Box( of int32 ) )    '' nesting is fine
+
+b.value = 42
+s.value = "hello"
+n.value.value = 7
+
+print b.value
+print s.value
+print n.value.value
