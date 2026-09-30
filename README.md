@@ -14,19 +14,18 @@ lambdas, typed errors, channels, direct use of C headers — compiled through LL
 with no virtual machine and no garbage collector.
 
 ```vb
-#include once "fb/map.bi"
-#include once "fb/string.bi"
-using FB
+#import "std/containers"
+#import "std/strings"
 
 '' Count the words in a sentence and return the most common one.
-function MostCommon( byval text as ustring ) as (word as ustring, count as long)
-    dim counts as Map( of ustring, long )
-    for each w as ustring in Split( LCase( text ), " " )
+function MostCommon( byval text as ustring ) as (word as ustring, count as int32)
+    dim counts as containers.Map( of ustring, int32 )
+    for each w as ustring in strings.Split( LCase( text ), " " )
         counts[ w ] += 1
     next
 
     dim as ustring best
-    dim as long most = 0
+    dim as int32 most = 0
     for each e in counts
         if e.Value > most then best = e.Key : most = e.Value
     next
@@ -69,10 +68,9 @@ print "'" & word & "' appears " & n & " times"
 unannounced and there is no error code to forget.
 
 ```vb
-#include once "fb/filesystem.bi"
-using FB
+#import "std/fs"
 
-var r = ReadAllText( "settings.ini" )
+var r = fs.ReadAllText( "settings.ini" )
 if r.IsOk( ) then
     print len( r.Value( ) ); " characters"
 else
@@ -87,7 +85,7 @@ end if
 sub Work( )
     print "open"
     defer print "close"
-    for i as long = 1 to 3
+    for i as int32 = 1 to 3
         if i = 2 then return      '' "close" still prints
         print "step"; i
     next
@@ -98,20 +96,19 @@ end sub
 ends when the sender closes it.
 
 ```vb
-#include once "fb/sync.bi"
-using FB
+#import "std/tasks"
 
-sub Squares( byval out_ as SendChan( of long ), byval n as long )
-    for i as long = 1 to n
+sub Squares( byval out_ as tasks.SendChan( of int32 ), byval n as int32 )
+    for i as int32 = 1 to n
         out_.Send( i * i )
     next
     out_.Close( )
 end sub
 
-dim results as Channel( of long ) = Channel( of long )( 8 )
+dim results as tasks.Channel( of int32 ) = tasks.Channel( of int32 )( 8 )
 spawn Squares( results, 5 )
 
-dim as long total = 0
+dim as int32 total = 0
 for each v in results
     total += v
 next
@@ -122,19 +119,17 @@ print "sum of squares:"; total       '' 55
 with C callbacks.
 
 ```vb
-#include once "fb/array.bi"
-#include once "fb/sort.bi"
-using FB
+#import "std/containers"
 
 type Point
-    x as double
-    y as double
+    x as float64
+    y as float64
 end type
 
-dim pts as Array( of Point )
+dim pts as containers.Array( of Point )
 pts.Push( type( 3, 4 ) ) : pts.Push( type( 1, 1 ) ) : pts.Push( type( 0, 2 ) )
 
-SortBy( pts, function( byref a as const Point, byref b as const Point ) as boolean
+containers.SortBy( pts, function( byref a as const Point, byref b as const Point ) as boolean
     return a.x * a.x + a.y * a.y < b.x * b.x + b.y * b.y
 end function )
 ```
@@ -148,15 +143,15 @@ print "cube root of 27 ="; cbrt( 27.0 )
 ```
 
 Every snippet on this page was compiled and run with the packaged Windows toolchain on
-2026-09-26.
+2026-09-30.
 
 ## Diagnostics that point at the problem
 
 ```
-area.tko(5,34): error TKO0698: this argument does not convert to the parameter's type
+area.tiko(5,35): error TKO0698: this argument does not convert to the parameter's type
      |
-   5 | dim total as double = Area( 3.0, "four" )
-     |                                  ^
+   5 | dim total as float64 = Area( 3.0, "four" )
+     |                                   ^
 ```
 
 Every diagnostic has a stable `TKOnnnn` id, a location and a caret. Add
@@ -181,7 +176,7 @@ Every diagnostic has a stable `TKOnnnn` id, a location and a caret. Add
 | --- | --- |
 | Collections | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet` |
 | Algorithms | introsort, stable merge sort, 37 string algorithms (`Split`, `Join`, `Replace`, …) |
-| Values | `Result`, `Optional`, `SharedPtr`, `WeakPtr`, `USTRING` (UTF-16 on every platform) |
+| Values | `Result`, `Optional`, `SharedPtr`, `WeakPtr`, `ustring` (UTF-16 on every platform) |
 | System | filesystem (paths, directory walks, globbing, file watching, memory mapping), date and time with time zones and a monotonic clock |
 | Numbers | math, statistics, vectors and matrices, seeded random streams, exact `Currency` and `Decimal`, finance functions |
 | Apps | structured logging, a terminal UI toolkit |
@@ -217,13 +212,13 @@ looks for it at `C:\Program Files\LLVM\bin\clang.exe` or `/usr/bin/clang`, or wh
 `TKO_CLANG` points.
 
 ```bash
-tiko hello.tko           # hello.exe on Windows, ./hello on Linux
-tiko -O2 app.tko         # optimised
-tiko -g -exx app.tko     # debug info and full runtime checks
-tiko -mt app.tko         # the thread-safe runtime, required by spawn and channels
+tiko hello.tiko          # hello.exe on Windows, ./hello on Linux
+tiko -O2 app.tiko        # optimised
+tiko -g -exx app.tiko    # debug info and full runtime checks
+tiko -mt app.tiko        # the thread-safe runtime, required by spawn and channels
 ```
 
-Source files are `.tko` and headers are `.ti`. `tiko --help` lists every option.
+Source files are `.tiko` and headers are `.ti`. `tiko --help` lists every option.
 
 ## Status
 
@@ -239,10 +234,10 @@ The day-to-day engineering state lives in [HANDOFF.md](HANDOFF.md) and
 
 ## Coming from FreeBASIC
 
-tiko compiles FreeBASIC 1.20 code (`#lang "fb"`), and on `-target win64` it links with
-objects built by fbc. All 68 in-scope run-and-compare programs in fbc's own test corpus print
-what fbc's builds print, byte for byte, and so do the 2,000 fuzz-generated programs.
-`.bas` and `.bi` files are still recognised, and they mix freely with `.tko` and `.ti`.
+tiko compiles FreeBASIC 1.20 code (`#lang "fb"`). All 68 in-scope run-and-compare programs in
+fbc's own test corpus print what fbc's builds print, byte for byte, and so do the 2,000
+fuzz-generated programs. `.bas` and `.bi` files are still recognised, and they mix freely with
+`.tiko` and `.ti`.
 What differs, what is refused and why is on
 [Compatibility](wiki/Compatibility.md). How that is measured is in
 [docs/compiler.md](docs/compiler.md).
