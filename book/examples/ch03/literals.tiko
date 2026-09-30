@@ -1,0 +1,12 @@
+'' literals.tiko -- how values are written.
+print "hex   &hFF      = " & &hFF
+print "octal &o755     = " & &o755
+print "binary &b1011   = " & &b1011
+print
+print "a suffix types the literal: " & sizeof( 1LL ) & " bytes for 1LL"
+print
+'' A plain string is literal; !"..." reads escapes; $"..." takes none.
+print !"escaped:\tone tab, then a newline\n"
+print $"raw: \t stays two characters"
+print
+print "true and false are values: " & true & " " & false

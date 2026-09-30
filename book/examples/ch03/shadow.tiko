@@ -1,0 +1,10 @@
+'' shadow.tiko -- the fixed-width names are typedefs, not keywords,
+'' not keywords, so a program is free to take one for itself.
+dim as int32 n = 1
+
+scope
+    dim as int32 int32 = 7     '' a variable named after its own type
+    print "shadowed: " & int32
+end scope
+
+print "outside:  " & n

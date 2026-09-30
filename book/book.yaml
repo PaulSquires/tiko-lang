@@ -45,7 +45,7 @@ parts:
     chapters:
       - { n: 1,  file: chapters/01-getting-started.md,   status: drafted }
       - { n: 2,  file: src/ch02-a-tour-of-tiko.md,       status: drafted }
-      - { n: 3,  file: chapters/03-types-variables.md,   status: planned }
+      - { n: 3,  file: src/ch03-types-variables.md,      status: drafted }
       - { n: 4,  file: chapters/04-operators.md,         status: planned }
       - { n: 5,  file: chapters/05-control-flow.md,      status: planned }
       - { n: 6,  file: chapters/06-procedures.md,        status: planned }

@@ -1,0 +1,26 @@
+'' declare.tiko -- naming values.
+dim as int32 counted = 3            '' the type, stated
+var inferred = 3                    '' inferred from the value
+var text = "hello"                  '' a ustring
+dim as float64 ratio = 1.5
+
+print counted & " " & inferred & " " & text & " " & ratio
+
+'' Several names of one type, and one left deliberately uninitialised.
+dim as int32 x, y, z
+dim as int32 scratch = any          '' left uninitialised
+x = 1 : y = 2 : z = 3
+print x + y + z
+
+'' A constant cannot be assigned to, and its type comes from the value.
+const MaxRetries = 3
+const Greeting as ustring = "hi"
+print MaxRetries & " " & Greeting
+
+'' An enumeration names related constants.
+enum Colour_
+    Red
+    Green = 10
+    Blue
+end enum
+print Red & " " & Green & " " & Blue

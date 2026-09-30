@@ -1,0 +1,11 @@
+cint( 2.5 )  = 2
+cint( 3.5 )  = 4
+cint( 2.6 )  = 3
+cint( -2.5 ) = -2
+
+int( 2.6 )   = 2
+int( -2.5 )  = -3
+fix( 2.6 )   = 2
+fix( -2.5 )  = -2
+
+dim as int32 = 2.6 gives 3

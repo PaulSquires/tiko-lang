@@ -1,0 +1,11 @@
+hex   &hFF      = 255
+octal &o755     = 493
+binary &b1011   = 11
+
+a suffix types the literal: 8 bytes for 1LL
+
+escaped:	one tab, then a newline
+
+raw: \t stays two characters
+
+true and false are values: true false

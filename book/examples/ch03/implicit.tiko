@@ -1,0 +1,6 @@
+'' implicit.tiko -- every variable is declared. There is no implicit
+'' creation, so a typo is a compile error, not a second variable.
+dim as int32 total = 0
+
+totl = total + 1      '' a typo, not a new variable
+print totl

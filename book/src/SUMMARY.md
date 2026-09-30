@@ -7,6 +7,7 @@
 
 - [Getting Started](ch01-getting-started.md)
 - [A Tour of tiko](ch02-a-tour-of-tiko.md)
+- [Types, Variables and Constants](ch03-types-variables.md)
 
 # Building Abstractions
 

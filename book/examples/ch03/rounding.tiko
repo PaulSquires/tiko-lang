@@ -1,0 +1,17 @@
+'' rounding.tiko -- converting a float to an integer ROUNDS.
+dim as float64 half = 2.5
+dim as float64 up   = 2.6
+dim as float64 neg  = -2.5
+
+print "cint( 2.5 )  = " & cint( half )    '' rounds to even
+print "cint( 3.5 )  = " & cint( 3.5 )
+print "cint( 2.6 )  = " & cint( up )
+print "cint( -2.5 ) = " & cint( neg )
+print
+print "int( 2.6 )   = " & int( up )       '' towards minus infinity
+print "int( -2.5 )  = " & int( neg )
+print "fix( 2.6 )   = " & fix( up )       '' towards zero, like C
+print "fix( -2.5 )  = " & fix( neg )
+print
+dim as int32 assigned = up                '' an assignment rounds too
+print "dim as int32 = 2.6 gives " & assigned

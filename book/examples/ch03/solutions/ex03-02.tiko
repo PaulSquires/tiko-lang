@@ -1,0 +1,8 @@
+'' ex03-02.tiko -- rounding, compared side by side over a few values.
+dim as float64 v( 5 ) = { 2.4, 2.5, 2.6, -2.4, -2.5, -2.6 }
+
+print "value   cint   int   fix"
+for i as int32 = 0 to 5
+    print using "##.# ###### ##### #####"; v( i ); cint( v( i ) ); _
+                                           int( v( i ) ); fix( v( i ) )
+next
