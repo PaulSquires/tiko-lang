@@ -22,15 +22,15 @@ using FB
 
 '' PURE -- no syscalls. It matches TEXT against a glob, and never asks
 '' whether anything exists.
-print MatchPattern( "main.tko", "*.tko" )          '' true
-print MatchPattern( "main.ti", "*.tko" )           '' false
+print MatchPattern( "main.tiko", "*.tiko" )          '' true
+print MatchPattern( "main.ti", "*.tiko" )           '' false
 
 '' ? is one character, [] is a set
-print MatchPattern( "a1.tko", "a?.tko" )           '' true
-print MatchPattern( "a1.tko", "a[0-9].tko" )       '' true
+print MatchPattern( "a1.tiko", "a?.tiko" )           '' true
+print MatchPattern( "a1.tiko", "a[0-9].tiko" )       '' true
 
 '' Case follows the grammar, so this is true on Windows
-print MatchPattern( "MAIN.TKO", "*.tko" )
+print MatchPattern( "MAIN.TIKO", "*.tiko" )
 ```
 
 ---

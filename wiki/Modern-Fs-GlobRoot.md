@@ -22,11 +22,11 @@ using FB
 
 '' The directory a pattern will be walked FROM -- the fixed prefix
 '' before the first wildcard
-print GlobRoot( "C:\dev\src\*.tko" )     '' C:\dev\src
-print GlobRoot( "C:\dev\**\*.tko" )      '' C:\dev
+print GlobRoot( "C:\dev\src\*.tiko" )     '' C:\dev\src
+print GlobRoot( "C:\dev\**\*.tiko" )      '' C:\dev
 
 '' A pattern with no wildcard at all is its own parent
-print GlobRoot( "C:\dev\main.tko" )       '' C:\dev
+print GlobRoot( "C:\dev\main.tiko" )       '' C:\dev
 
 '' Pure: it parses the pattern and touches nothing
 ```

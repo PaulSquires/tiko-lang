@@ -16,7 +16,7 @@ of those you *shouldn't* write.
   rather than link a single-threaded runtime and misbehave quietly.
 
 ```bash
-toolchains\tiko-windows\tiko.exe -mt example.tko
+toolchains\tiko-windows\tiko.exe -mt example.tiko
 ```
 
 **The reference** — every rule, every table, every edge case — is

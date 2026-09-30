@@ -2,7 +2,7 @@
 
 # PathExtension
 
-".tko", WITH the dot; "" when there is none
+".tiko", WITH the dot; "" when there is none
 
 ## Syntax
 
@@ -12,7 +12,7 @@ PathExtension( p )
 
 ## Notes
 
-- ".tko", WITH the dot; "" when there is none
+- ".tiko", WITH the dot; "" when there is none
 
 ## Examples
 
@@ -21,7 +21,7 @@ PathExtension( p )
 using FB
 
 '' WITH the dot, which is what makes it concatenate back on cleanly
-print PathExtension( "main.tko" )         '' .tko
+print PathExtension( "main.tiko" )         '' .tiko
 print PathExtension( "archive.tar.gz" )   '' .gz -- the last one
 
 '' Empty when there is none, and a leading dot is a name, not an

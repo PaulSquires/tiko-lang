@@ -22,7 +22,7 @@ dim as TuiRect body = TuiRectOf( 10, 5, 30, 12 )
 print body.Contains( 10, 5 )      '' true  -- the top-left corner is inside
 print body.Contains( 40, 5 )      '' false -- Right( ) is not
 
-'' hit-testing a mouse event, the shape used in examples/dashboard.bas
+'' hit-testing a mouse event, the shape used in examples/dashboard.tiko
 dim as TuiEvent e
 e.kind = TUIEVENT_MOUSE
 e.mouse.kind = TUIMOUSE_PRESS
@@ -42,7 +42,7 @@ end if
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Geometry  
-**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard)  
 **Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 

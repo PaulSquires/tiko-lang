@@ -14,7 +14,7 @@ PathHasExtension( p )
 #import "std/fs"
 using FB
 
-print PathHasExtension( "main.tko" )       '' true
+print PathHasExtension( "main.tiko" )       '' true
 print PathHasExtension( "README" )        '' false
 print PathHasExtension( ".gitignore" )    '' false -- a name, not an extension
 

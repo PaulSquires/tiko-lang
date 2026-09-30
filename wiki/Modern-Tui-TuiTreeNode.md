@@ -25,7 +25,7 @@ using FB
 
 dim as TuiTree t
 t.Add( "src", 0, TRUE, 100 )
-t.Add( "main.tko", 1, FALSE, 101 )
+t.Add( "main.tiko", 1, FALSE, 101 )
 print t.nodes.Count( )            '' 2
 print t.nodes[1].depth, t.nodes[1].userId      '' 1 101
 ```
@@ -39,7 +39,7 @@ print t.nodes[1].depth, t.nodes[1].userId      '' 1 101
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Overlays and Chrome  
-**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard)  
 **Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 

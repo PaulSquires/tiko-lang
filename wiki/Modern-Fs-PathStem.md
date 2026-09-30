@@ -21,7 +21,7 @@ PathStem( p )
 using FB
 
 '' The leaf without its extension
-print PathStem( "C:\dev\main.tko" )      '' main
+print PathStem( "C:\dev\main.tiko" )      '' main
 print PathStem( "archive.tar.gz" )        '' archive.tar -- the LAST dot only
 
 '' A dotfile with no extension keeps its whole name

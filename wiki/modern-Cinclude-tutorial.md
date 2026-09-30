@@ -125,12 +125,12 @@ If you are vendoring it — shipping the header inside your own tree — put it 
 
 ```
 myapp/
-    app.tko
+    app.tiko
     vendor/sqlite3.h
 ```
 
 ```
-tiko app.tko -cinclude vendor
+tiko app.tiko -cinclude vendor
 ```
 
 `-cinclude` is passed to Clang as `-I`.
@@ -142,7 +142,7 @@ You can also name the folder in the directive itself and drop the flag:
 ```
 
 ```
-tiko app.tko
+tiko app.tiko
 ```
 
 That is what FBC-Modern's shipped SQLite example does — but it works only while tiko is run **from the directory containing `vendor/`**. Build it from elsewhere and you are back to `-cinclude`, because the path is resolved against the working directory, not against the file that wrote it.
@@ -371,7 +371,7 @@ The two do **not** resolve paths the same way, and you will hit this.
 `#cinclude` does not do this. Clang resolves the header, against the working directory plus the `-cinclude` directories. So `mylib.ti` above still cannot say where its own header is; the build has to:
 
 ```
-tiko app.tko -cinclude mylib/vendor
+tiko app.tiko -cinclude mylib/vendor
 ```
 
 It is the same trap `#foreignlib` was written to close, still open on the header side. Until that changes, a vendored binding has to state the include directory it needs somewhere outside the `.ti` — a README, a makefile, a build script.

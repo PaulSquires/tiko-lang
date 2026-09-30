@@ -44,7 +44,7 @@ print len( scr.Render( TUIDEPTH_ANSI16 ) )         '' 0 -- nothing changed
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Buffer and Frame  
-**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard)  
 **Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 

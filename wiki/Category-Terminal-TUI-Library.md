@@ -2,7 +2,7 @@
 
 # Terminal TUI Library
 
-> 📘 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard) — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> 📘 **Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard) — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ```freebasic
 #import "std/tui"
@@ -83,12 +83,12 @@ And one thing you do not get, which is worth knowing before you start: there is 
 Working programs, not sketches. They live in examples/ next to this file:
 
 ```freebasic
-examples/hello.bas       the smallest complete program -- one box, one
+examples/hello.tiko       the smallest complete program -- one box, one
                          keypress counter, a clean exit
-examples/form.bas        focus traversal across text inputs, a checkbox,
+examples/form.tiko        focus traversal across text inputs, a checkbox,
                          a radio group and a select, with a confirm
                          dialog on submit
-examples/dashboard.bas   the btop-style screen this module was measured
+examples/dashboard.tiko   the btop-style screen this module was measured
                          against: braille history plots, gradient meters,
                          a scrolling process table with a scrollbar, a
                          status bar, mouse support and a 250 ms tick
@@ -97,14 +97,14 @@ examples/dashboard.bas   the btop-style screen this module was measured
 Build and run:
 
 ```freebasic
-tiko examples/hello.bas        ' win64-msvc on Windows, linux-x86_64 on Linux
+tiko examples/hello.tiko        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
 With a packaged toolchain no -i and no -p are needed: the headers and the runtime are in it. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
 
 tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` -- measured 2026-09-24 at origin/master 50c71751; they were built, not run, because they need a real terminal. fbc builds all three.
 
-Read dashboard.bas if you read only one. Everything in this document appears in it.
+Read dashboard.tiko if you read only one. Everything in this document appears in it.
 
 ## The Immediate-Mode Bargain
 
@@ -128,7 +128,7 @@ WIDGETS THAT HOLD FOCUS OR EDITING STATE MUST OUTLIVE THE FRAME.
 
 A TuiParagraph can be a local because nothing points at it afterwards. A TuiTextInput cannot: the focus ring holds a TuiWidget PTR, and a local dies at END SUB. Make focusable widgets FIELDS OF YOUR APP.
 
-This is not a hypothetical. examples/form.bas was written with its inputs as locals and could not Tab to any of them; it is defect 2 in the docset README.
+This is not a hypothetical. examples/form.tiko was written with its inputs as locals and could not Tab to any of them; it is defect 2 in the docset README.
 
 ```freebasic
 type FormApp extends TuiApp
@@ -270,7 +270,7 @@ THE MOUSE IS OPT-IN, and this catches people. A program that never asks will nev
 
 ```freebasic
 dim as TuiTermOptions opts = TuiTermOptionsDefault( )
-opts.mouse = TRUE                '' examples/dashboard.bas does exactly this
+opts.mouse = TRUE                '' examples/dashboard.tiko does exactly this
 TuiRun( app, opts )
 ```
 
@@ -470,7 +470,7 @@ TuiSplitV( area, cs )       stacked
 TuiSolve( total, cs )       the raw sizes, if you want them yourself
 ```
 
-Nest freely -- splitting a result again is how dashboard.bas builds its two-column screen with three stacked panels on the left.
+Nest freely -- splitting a result again is how dashboard.tiko builds its two-column screen with three stacked panels on the left.
 
 ```freebasic
 TuiPad( r, margin )         shrink by a margin
@@ -707,7 +707,7 @@ sb.Add( " q quit ", th.danger, TUIALIGN_LEFT )
 sb.Add( "3/24 ", th.accent, TUIALIGN_RIGHT )      '' hard against the edge
 
 tree.Add( "src", 0, TRUE, 1 )        '' label, depth, hasChildren, userId
-tree.Add( "main.tko", 1, FALSE, 2 )
+tree.Add( "main.tiko", 1, FALSE, 2 )
 tree.state = @treeState
 ```
 
@@ -893,9 +893,9 @@ The suites are fbc's fbcunit suites for this module, written against fbc; they a
 
 Three complete, working programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern). fbc builds each clean at `-w all`. tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: they need a real terminal).
 
-- [hello.bas](Modern-Tui-Example-Hello) — the smallest complete program: one box, a keypress counter, a clean exit.
-- [form.bas](Modern-Tui-Example-Form) — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.
-- [dashboard.bas](Modern-Tui-Example-Dashboard) — the btop-style screen this module was measured against: braille history plots, gradient meters, a scrolling process table, mouse support and a 250 ms tick.
+- [hello.tiko](Modern-Tui-Example-Hello) — the smallest complete program: one box, a keypress counter, a clean exit.
+- [form.tiko](Modern-Tui-Example-Form) — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.
+- [dashboard.tiko](Modern-Tui-Example-Dashboard) — the btop-style screen this module was measured against: braille history plots, gradient meters, a scrolling process table, mouse support and a 250 ms tick.
 
 ## Dialects
 

@@ -336,7 +336,7 @@ The declarations come out of the header for the target being built, and the righ
 > `#cinclude` does **not** do this. The header is resolved by **Clang**, against Clang's own include search: the compiler's working directory plus any `-cinclude` directories. So in the layout above, `#cinclude once "mylib.h"` needs
 >
 > ```
-> tiko app.tko -cinclude mylib/vendor
+> tiko app.tiko -cinclude mylib/vendor
 > ```
 >
 > and a bare `#cinclude "vendor/mylib.h"` inside `mylib.ti` resolves against wherever the user happened to stand, not against `mylib.ti`. It is the same trap `#foreignlib` was built to close, still open on the header side.

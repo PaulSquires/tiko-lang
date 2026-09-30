@@ -20,8 +20,8 @@ PathFileName( p )
 #import "std/fs"
 using FB
 
-print PathFileName( "C:\dev\src\main.tko" )       '' main.tko
-print PathFileName( "main.tko" )                  '' main.tko
+print PathFileName( "C:\dev\src\main.tiko" )       '' main.tiko
+print PathFileName( "main.tiko" )                  '' main.tiko
 
 '' Empty for a root: there is no leaf there
 print "[" & PathFileName( "C:\" ) & "]"           '' []

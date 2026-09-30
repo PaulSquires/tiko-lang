@@ -10,7 +10,7 @@ TuiTermOptionsDefault( ) as TuiTermOptions
 
 ## Description
 
-Alternate screen, raw mode, hidden cursor and bracketed paste. MOUSE AND FOCUS EVENTS ARE OFF -- both are opt-in, because a program that does not use them should not make the terminal send them. examples/dashboard.bas turns the mouse on explicitly, and a program that forgets to will never see a mouse event however much else is right.
+Alternate screen, raw mode, hidden cursor and bracketed paste. MOUSE AND FOCUS EVENTS ARE OFF -- both are opt-in, because a program that does not use them should not make the terminal send them. examples/dashboard.tiko turns the mouse on explicitly, and a program that forgets to will never see a mouse event however much else is right.
 
 ## Example
 
@@ -23,7 +23,7 @@ print o.altScreen, o.rawMode, o.hideCursor      '' true true true
 print o.bracketedPaste                          '' true
 print o.mouse, o.focusEvents                    '' false false -- OPT-IN
 
-'' asking for the mouse, the way examples/dashboard.bas does
+'' asking for the mouse, the way examples/dashboard.tiko does
 o.mouse = TRUE
 print o.mouse                                   '' true
 ```
@@ -37,7 +37,7 @@ print o.mouse                                   '' true
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Terminal  
-**Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  
+**Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard)  
 **Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 

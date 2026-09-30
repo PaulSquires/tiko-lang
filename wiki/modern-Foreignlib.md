@@ -83,7 +83,7 @@ Together they let a binding ship **entirely inside your own source tree**:
 
 with no `Declare` and no `#ifdef` anywhere in the using code.
 
-> ⚠️ **The two do not resolve paths the same way.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` does not: the header is resolved by **Clang**, against the compiler's working directory plus any `-cinclude` directories. A vendored header therefore still needs `tiko app.tko -cinclude mylib/vendor` on the command line. See [#cinclude](modern-Cinclude) for the detail.
+> ⚠️ **The two do not resolve paths the same way.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` does not: the header is resolved by **Clang**, against the compiler's working directory plus any `-cinclude` directories. A vendored header therefore still needs `tiko app.tiko -cinclude mylib/vendor` on the command line. See [#cinclude](modern-Cinclude) for the detail.
 
 ### See also
 

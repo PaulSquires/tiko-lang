@@ -20,13 +20,13 @@ PathChangeExtension( p, ext )
 #import "std/fs"
 using FB
 
-print PathChangeExtension( "main.tko", ".o" )       '' main.o
+print PathChangeExtension( "main.tiko", ".o" )       '' main.o
 
 '' The dot is optional in the argument -- both forms mean the same
-print PathChangeExtension( "main.tko", "o" )        '' main.o
+print PathChangeExtension( "main.tiko", "o" )        '' main.o
 
 '' An EMPTY extension REMOVES it
-print PathChangeExtension( "main.tko", "" )         '' main
+print PathChangeExtension( "main.tiko", "" )         '' main
 
 '' A file with no extension gains one
 print PathChangeExtension( "README", ".md" )        '' README.md

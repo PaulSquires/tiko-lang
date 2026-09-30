@@ -1,6 +1,6 @@
-[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Examples](Category-Terminal-TUI-Library) › **dashboard.bas**
+[Home](Home) › [Terminal TUI Library](Category-Terminal-TUI-Library) › [Examples](Category-Terminal-TUI-Library) › **dashboard.tiko**
 
-# dashboard.bas
+# dashboard.tiko
 
 > **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
@@ -9,7 +9,7 @@ Two columns, braille history plots, gradient meters per core, a scrolling proces
 ## Build and run
 
 ```freebasic
-tiko dashboard.bas        ' win64-msvc on Windows, linux-x86_64 on Linux
+tiko dashboard.tiko        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
 Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for win64-msvc and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
@@ -25,7 +25,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 ## Source
 
 ```freebasic
-'' examples/dashboard.bas -- the success criterion, as a running program.
+'' examples/dashboard.tiko -- the success criterion, as a running program.
 ''
 '' The btop-style screen this module was measured against: a two-column layout,
 '' braille history plots, gradient meters, a scrolling process table with a
@@ -33,7 +33,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' widget that draws it.
 ''
 '' Build (win64-msvc, win64 or linux-x86_64):
-''     tiko dashboard.bas
+''     tiko dashboard.tiko
 ''
 '' Keys: up/down move the process selection, q or Esc quits. The data is
 '' synthetic -- this is a layout and rendering demonstration, not a system
@@ -415,7 +415,7 @@ end if
 ---
 
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
-**Other examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form)
+**Other examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form)
   
 **Source:** `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 

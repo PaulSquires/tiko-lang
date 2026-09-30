@@ -459,8 +459,8 @@ The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built wit
 Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the headers and the runtime are in it:
 
 ```freebasic
-toolchains\tiko-windows\tiko.exe -mt yourprogram.tko
-toolchains/tiko-linux/bin/tiko   -mt yourprogram.tko
+toolchains\tiko-windows\tiko.exe -mt yourprogram.tiko
+toolchains/tiko-linux/bin/tiko   -mt yourprogram.tiko
 ```
 
 ## Dialects
