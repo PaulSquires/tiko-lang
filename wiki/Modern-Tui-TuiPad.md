@@ -2,10 +2,6 @@
 
 # TuiPad
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -32,7 +28,7 @@ print r.x, r.y, r.w, r.h          '' 2 1 16 8
 
 ---
 
-**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Layout  
 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  

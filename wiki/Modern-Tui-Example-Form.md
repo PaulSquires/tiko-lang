@@ -2,9 +2,7 @@
 
 # form.bas
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **Focus traversal and a confirm dialog.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> **Focus traversal and a confirm dialog.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 Text inputs, a checkbox, a radio group and a select, wired into a TuiFocusRing with Tab and Shift+Tab, and a TuiMessageBox on submit. This is the example that found two real defects, both recorded in the docset README.
 
@@ -318,7 +316,7 @@ end if
 
 ---
 
-**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Other examples:** [hello.bas](Modern-Tui-Example-Hello) · [dashboard.bas](Modern-Tui-Example-Dashboard)
   
 **Source:** `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

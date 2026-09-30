@@ -2,10 +2,6 @@
 
 # MoneyCompose
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [String Library](Category-String-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The layout primitive [MoneyFormat](Modern-String-MoneyFormat) composes with: given the number, the symbol and the sign as text, it assembles them per the POSIX `(precedes, sepBySpace, signPosn)` model. Matches `strfmon(3)` cell for cell.
 
 ## Syntax
@@ -34,7 +30,7 @@ print MoneyCompose( "1,234.50", "$", "-", false, 1, 3 )   '' 1,234.50 -$
 
 ---
 
-**Library:** [String Library](Category-String-Library) ✨  
+**Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** Money Formatting  
 **Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

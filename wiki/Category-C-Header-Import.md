@@ -2,13 +2,9 @@
 
 # C Header Import
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
-
 > **In tiko.** tiko imports C headers itself, through libclang loaded at first use and never linked, for win64-msvc (the Windows default), win64 and linux-x86_64 (decision 0016, `docs/architecture/decisions/0016-cinclude.md`). Its C-import options are `-cinclude`, `-cimport`, `-cimport-out` (`-` for standard output), `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`, plus the compiler-development option `--cimport-probe`. FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-force`, `-cimport-prefix` and `-cverbose` are not tiko options: each is `TKO0100: unknown option`. Command lines written `tiko` below were run with tiko and with FBC-Modern's `fbc`; those still written `fbc` are FBC-Modern's, for options tiko does not have. Where tiko behaves differently the page says so — a layout disagreement, the Universal CRT's inline functions on win64-msvc, `system:`. Measured 2026-09-24 at origin/master 50c71751 on win64-msvc and win64; linux-x86_64 is 0016's.
 
-> 📘 **Also in this category:** [#cinclude Tutorial](modern-Cinclude-tutorial) ✨
+> 📘 **Also in this category:** [#cinclude Tutorial](modern-Cinclude-tutorial)
 
 
 ## Syntax
@@ -303,8 +299,8 @@ Binding to a C library is **two** jobs, and these are the two halves:
 
 | | what it answers | |
 | --- | --- | --- |
-| [`#cinclude`](modern-Cinclude) ✨ | *what are these things?* — the types, the signatures, the constants | the **header** half |
-| [`#foreignlib`](modern-Foreignlib) ✨ | *where is the code?* — which file to link, for this target | the **linkage** half |
+| [`#cinclude`](modern-Cinclude) | *what are these things?* — the types, the signatures, the constants | the **header** half |
+| [`#foreignlib`](modern-Foreignlib) | *where is the code?* — which file to link, for this target | the **linkage** half |
 
 Neither implies the other. `#cinclude` declares everything and links nothing; `#foreignlib` links a library and declares nothing. Used together they let a binding ship **entirely inside your own source tree**, with no system-installed header and no system-installed library:
 
@@ -400,12 +396,11 @@ Every declaration carries `alias "<exact C name>"`, so a rename never changes th
 - The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing FreeBASIC text — runs per compilation, exactly as [`#include`](Include) does today. The key covers the importer's schema, the fbc version and build, the dialect, the target, the Clang version, the headers and the option vector; the entry also records every file Clang read, so editing any header in the tree invalidates it. That is FBC-Modern's key. tiko's is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`, and the first `gcc` on `PATH` for win64); every file clang read is re-checked on each hit (decision 0016 §5). A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on win64-msvc (measured 2026-09-24 at origin/master 50c71751).
 - `windows.h` is about **35,000 declarations**, of which 2,517 are records, all verified (FBC-Modern's figures). tiko's import has 42,945 declarations on win64-msvc and 36,139 on win64, with no record refused (measured 2026-09-24 at origin/master 50c71751); decision 0016 §5 counts 2,887 and 2,438 records, every one checked against a clang-compiled program.
 - Over-alignment (`__declspec(align(16))`) has no FreeBASIC spelling. C's tail padding is written out so `SizeOf` and every member offset are right, and the affected records are reported by name — but a local or array element is 8-byte aligned where C promises 16.
-- New to tiko-lang. Not present in FreeBASIC.
 
 ### See also
 
-- [#cinclude Tutorial](modern-Cinclude-tutorial) ✨ — start here
-- [`#foreignlib`](modern-Foreignlib) ✨ — linking a library shipped inside your own source tree, the other half of binding to a C library
+- [#cinclude Tutorial](modern-Cinclude-tutorial) — start here
+- [`#foreignlib`](modern-Foreignlib) — linking a library shipped inside your own source tree, the other half of binding to a C library
 - [`#include`](Include) · [`#inclib`](Inclib) · [`#libpath`](Libpath)
 - [`Alias`](Alias-Modifier) · [`Extern`](Extern) · [`Declare`](Declare)
 - [`DyLibLoad`](Dylibload) — how libclang is loaded
@@ -457,7 +452,7 @@ Both examples build with tiko, measured 2026-09-24 at origin/master 50c71751: th
 
 ## Pages in this category
 
-[#cinclude](modern-Cinclude) ✨ · [#cinclude Tutorial](modern-Cinclude-tutorial) ✨
+[#cinclude](modern-Cinclude) · [#cinclude Tutorial](modern-Cinclude-tutorial)
 
 ---
 

@@ -2,9 +2,7 @@
 
 # dashboard.bas
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 Two columns, braille history plots, gradient meters per core, a scrolling process table with a scrollbar, a status bar, mouse support and a 250 ms tick. This is the layout the module was measured against; if you read one example, read this one.
 
@@ -416,7 +414,7 @@ end if
 
 ---
 
-**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Other examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form)
   
 **Source:** `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

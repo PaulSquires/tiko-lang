@@ -3,7 +3,7 @@
 - [Home](Home)
 - [What Is tiko-lang](What-Is-tiko-lang)
 - [Quick Start](Quick-Start)
-- [Feature Index](Feature-Index) ✨
+- [Feature Index](Feature-Index)
 - [Compatibility](Compatibility)
 - [FAQ](tiko-lang-FAQ)
 
@@ -12,38 +12,38 @@
 - [Keyword Index](Keyword-Index)
 - [All Categories](Categories)
 
-### tiko-lang features ✨
+### tiko-lang features
 
-- [Generics](Category-Generics) ✨
-- [For Each](Category-For-Each) ✨
-- [Iterators](Category-Iterators) ✨
-- [Tuples](Category-Tuples) ✨
-- [Defer](Category-Defer) ✨
-- [Lambdas](Category-Lambdas) ✨
-- [C Header Import](Category-C-Header-Import) ✨
-- [Foreign Library Linking](Category-Foreign-Library-Linking) ✨
-- [UString](Category-UString) ✨
-- [Fixed-Width Types](Category-Fixed-Width-Types) ✨
-- [String Library](Category-String-Library) ✨
-- [Array](Category-Array) ✨
-- [Map](Category-Map) ✨
-- [Set](Category-Set) ✨
-- [LinkedList](Category-LinkedList) ✨
-- [OrderedMap](Category-OrderedMap) ✨
-- [OrderedSet](Category-OrderedSet) ✨
-- [Sorting](Category-Sorting) ✨
-- [Optional](Category-Optional) ✨
-- [Result](Category-Result) ✨
-- [Smart Pointers](Category-Smart-Pointers) ✨
-- [Date and Time (Chrono)](Category-Date-and-Time-Chrono) ✨
-- [Filesystem](Category-Filesystem) ✨
-- [Math Library](Category-Math-Library) ✨
-- [Finance](Category-Finance) ✨
-- [Logging](Category-Logging) ✨
-- [Terminal TUI Library](Category-Terminal-TUI-Library) ✨
-- [Goroutines and Channels](Category-Goroutines-and-Channels) ✨
-- [LLVM Backend](Category-LLVM-Backend) ✨
-- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨
+- [Generics](Category-Generics)
+- [For Each](Category-For-Each)
+- [Iterators](Category-Iterators)
+- [Tuples](Category-Tuples)
+- [Defer](Category-Defer)
+- [Lambdas](Category-Lambdas)
+- [C Header Import](Category-C-Header-Import)
+- [Foreign Library Linking](Category-Foreign-Library-Linking)
+- [UString](Category-UString)
+- [Fixed-Width Types](Category-Fixed-Width-Types)
+- [String Library](Category-String-Library)
+- [Array](Category-Array)
+- [Map](Category-Map)
+- [Set](Category-Set)
+- [LinkedList](Category-LinkedList)
+- [OrderedMap](Category-OrderedMap)
+- [OrderedSet](Category-OrderedSet)
+- [Sorting](Category-Sorting)
+- [Optional](Category-Optional)
+- [Result](Category-Result)
+- [Smart Pointers](Category-Smart-Pointers)
+- [Date and Time (Chrono)](Category-Date-and-Time-Chrono)
+- [Filesystem](Category-Filesystem)
+- [Math Library](Category-Math-Library)
+- [Finance](Category-Finance)
+- [Logging](Category-Logging)
+- [Terminal TUI Library](Category-Terminal-TUI-Library)
+- [Goroutines and Channels](Category-Goroutines-and-Channels)
+- [LLVM Backend](Category-LLVM-Backend)
+- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define)
 
 ### FreeBASIC manual
 

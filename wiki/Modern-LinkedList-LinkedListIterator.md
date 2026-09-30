@@ -2,10 +2,6 @@
 
 # LinkedListIterator
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [LinkedList](Category-LinkedList), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The iterator `for each` uses over a `LinkedList( of T )`.
 
 ## Syntax
@@ -44,7 +40,7 @@ print q.Back( )              '' 30
 
 ---
 
-**Library:** [LinkedList](Category-LinkedList) ✨  
+**Library:** [LinkedList](Category-LinkedList)  
 **Category:** [LinkedList](Category-LinkedList)  
 **Documented under:** Members  
 **Source:** `docs/linkedlist/linkedlist.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

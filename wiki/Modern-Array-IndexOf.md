@@ -2,10 +2,6 @@
 
 # IndexOf
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Array Container](Category-Array), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The index of the first element equal to `v`, or -1 when it is absent.
 
 ## Syntax
@@ -42,7 +38,7 @@ if IndexOf( v, wanted ) >= 0 then print "present"
 
 ---
 
-**Library:** [Array Container](Category-Array) ✨  
+**Library:** [Array Container](Category-Array)  
 **Category:** [Array](Category-Array)  
 **Documented under:** Members  
 **Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

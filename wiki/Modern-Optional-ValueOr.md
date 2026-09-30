@@ -2,10 +2,6 @@
 
 # ValueOr
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Optional](Category-Optional), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -31,7 +27,7 @@ print none_.ValueOr( fallback )    '' -1
 
 ---
 
-**Library:** [Optional](Category-Optional) ✨  
+**Library:** [Optional](Category-Optional)  
 **Category:** [Optional](Category-Optional)  
 **Documented under:** Members  
 **Source:** `docs/optional/optional.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

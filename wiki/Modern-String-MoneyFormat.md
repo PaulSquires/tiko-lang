@@ -2,10 +2,6 @@
 
 # MoneyFormat
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [String Library](Category-String-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Renders an amount the way the user's locale writes money. Assign a numeric value, set the properties you care about, read back the string. Every characteristic the locale specifies can be **overridden** or **suppressed** individually.
 
 ## Syntax
@@ -52,7 +48,7 @@ cell.Negative = MONEY_NEG_PARENS
 
 ---
 
-**Library:** [String Library](Category-String-Library) ✨  
+**Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** Money Formatting  
 **Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

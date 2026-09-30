@@ -2,10 +2,6 @@
 
 # CAsin
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The inverse sine.
 
 ## Syntax
@@ -37,7 +33,7 @@ print CToString( CAsin( CSet( 2, -0.0 ) ) )    '' 1.5707963267948966-1.316957896
 
 ---
 
-**Library:** [Math Library](Category-Math-Library) ✨  
+**Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

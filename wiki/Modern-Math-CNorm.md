@@ -2,10 +2,6 @@
 
 # CNorm
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The modulus squared — the square root is not taken.
 
 ## Syntax
@@ -34,7 +30,7 @@ print CNorm( CSet( 1e200, 1e200 ) )                      '' 1.#INF   -- this one
 
 ---
 
-**Library:** [Math Library](Category-Math-Library) ✨  
+**Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

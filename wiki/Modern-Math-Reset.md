@@ -2,10 +2,6 @@
 
 # Reset
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Empties a running accumulator so it can be reused.
 
 ## Syntax
@@ -40,7 +36,7 @@ print rs.Mean( )             '' 42
 
 ---
 
-**Library:** [Math Library](Category-Math-Library) ✨  
+**Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

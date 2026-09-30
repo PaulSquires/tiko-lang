@@ -2,10 +2,6 @@
 
 # OrderedSet
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [OrderedSet](Category-OrderedSet), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 A red-black tree set: always sorted.
 
 ## Syntax
@@ -42,7 +38,7 @@ if s.TryCeiling( 15, v ) then print v         '' 20
 
 ---
 
-**Library:** [OrderedSet](Category-OrderedSet) ✨  
+**Library:** [OrderedSet](Category-OrderedSet)  
 **Category:** [OrderedSet](Category-OrderedSet)  
 **Documented under:** Members  
 **Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -2,9 +2,7 @@
 
 # hello.bas
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **The smallest complete program.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> **The smallest complete program.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 One centred box, a keypress counter and a clean exit. Ninety lines, and every part of the module's shape is in it: a TuiApp with Init/Update/View, a TuiBlock with titles on two sides, a centred layout that re-centres itself on resize, and the TuiRun result checked before anything is printed.
 
@@ -119,7 +117,7 @@ end r.Value( )
 
 ---
 
-**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Other examples:** [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)
   
 **Source:** `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

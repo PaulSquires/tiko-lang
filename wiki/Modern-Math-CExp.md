@@ -2,10 +2,6 @@
 
 # CExp
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The exponential.
 
 ## Syntax
@@ -35,7 +31,7 @@ print CToString( CExp( CSet( 3, 4 ) ) )   '' -13.128783081462158-15.200784463067
 
 ---
 
-**Library:** [Math Library](Category-Math-Library) ✨  
+**Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -2,10 +2,6 @@
 
 # GetIterator
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [For Each](Category-For-Each), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -40,7 +36,7 @@ print                        '' 1 2 3
 
 ---
 
-**Library:** [For Each](Category-For-Each) ✨  
+**Library:** [For Each](Category-For-Each)  
 **Category:** [For Each](Category-For-Each)  
 **Documented under:** What Can Be Walked  
 **Source:** `docs/for_each/for-each.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

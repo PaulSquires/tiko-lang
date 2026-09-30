@@ -2,11 +2,7 @@
 
 # #foreignlib
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang extension.** This page documents a feature added by tiko-lang. It is **not** available in stock FreeBASIC 1.20.0. See [What Is tiko-lang](What-Is-tiko-lang).
-
-> 📘 **Also in this category:** [#foreignlib Tutorial](modern-Foreignlib-tutorial) ✨
+> 📘 **Also in this category:** [#foreignlib Tutorial](modern-Foreignlib-tutorial)
 
 Preprocessor directive
 
@@ -64,17 +60,16 @@ matches, the error lists every path that was tried.
   whatever it finds first — verified to link a **static** archive, silently,
   while saying `dynamic`. The keyword constrains only a **file** spec, where a
   file of the other kind is an error. See
-  [#cinclude](modern-Cinclude#system-does-not-give-you-a-dynamic-link) ✨ for the
+  [#cinclude](modern-Cinclude#system-does-not-give-you-a-dynamic-link) for the
   detail and for why a real guarantee is not simply a matter of adding a flag.
 - Declaring the same name twice with an identical set is allowed; with a
   different set it is an error.
 - The resolved library and its absolute directory are recorded in the object
   file, so separately compiled modules carry their own link recipe.
-- New to tiko-lang. Not present in FreeBASIC.
 
 ## Working with `#cinclude`
 
-Binding to a C library is **two** jobs. `#foreignlib` does the linkage half — *where is the code?* — and [`#cinclude`](modern-Cinclude) ✨ does the header half: *what are these things?* It hands the library's own `.h` to Clang and turns it into FreeBASIC declarations for the target being built, so the `Declare` above is not written by hand at all.
+Binding to a C library is **two** jobs. `#foreignlib` does the linkage half — *where is the code?* — and [`#cinclude`](modern-Cinclude) does the header half: *what are these things?* It hands the library's own `.h` to Clang and turns it into FreeBASIC declarations for the target being built, so the `Declare` above is not written by hand at all.
 
 Together they let a binding ship **entirely inside your own source tree**:
 
@@ -88,13 +83,13 @@ Together they let a binding ship **entirely inside your own source tree**:
 
 with no `Declare` and no `#ifdef` anywhere in the using code.
 
-> ⚠️ **The two do not resolve paths the same way.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` does not: the header is resolved by **Clang**, against the compiler's working directory plus any `-cinclude` directories. A vendored header therefore still needs `tiko app.tko -cinclude mylib/vendor` on the command line. See [#cinclude](modern-Cinclude) ✨ for the detail.
+> ⚠️ **The two do not resolve paths the same way.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` does not: the header is resolved by **Clang**, against the compiler's working directory plus any `-cinclude` directories. A vendored header therefore still needs `tiko app.tko -cinclude mylib/vendor` on the command line. See [#cinclude](modern-Cinclude) for the detail.
 
 ### See also
 
 - [#foreignlib Tutorial](modern-Foreignlib-tutorial) — a step-by-step walkthrough,
   from `#inclib` to vendoring SQLite as a DLL and then statically
-- [`#cinclude`](modern-Cinclude) ✨ — the header half of the same job
+- [`#cinclude`](modern-Cinclude) — the header half of the same job
 - [`#inclib`](Inclib)
 - [`#libpath`](Libpath)
 - [Compiler Option: -l](Compiler-Option-L)

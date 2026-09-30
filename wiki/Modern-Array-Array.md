@@ -2,10 +2,6 @@
 
 # Array
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Array Container](Category-Array), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -37,7 +33,7 @@ print v[ 0 ] & " " & w[ 0 ]      '' ada alan
 
 ---
 
-**Library:** [Array Container](Category-Array) ✨  
+**Library:** [Array Container](Category-Array)  
 **Category:** [Array](Category-Array)  
 **Documented under:** Why Sort, Indexof And Contains Are Not Members  
 **Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

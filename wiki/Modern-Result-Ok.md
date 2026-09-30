@@ -2,10 +2,6 @@
 
 # Ok
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Result](Category-Result), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -30,7 +26,7 @@ print r.Value( )             '' 42
 
 ---
 
-**Library:** [Result](Category-Result) ✨  
+**Library:** [Result](Category-Result)  
 **Category:** [Result](Category-Result)  
 **Documented under:** Members  
 **Source:** `docs/result/result.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

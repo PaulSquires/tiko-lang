@@ -2,10 +2,6 @@
 
 # OrderedMap
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [OrderedMap](Category-OrderedMap), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 A red-black tree map: always sorted by key.
 
 ## Syntax
@@ -43,7 +39,7 @@ print ks[ 0 ]                '' ada
 
 ---
 
-**Library:** [OrderedMap](Category-OrderedMap) ✨  
+**Library:** [OrderedMap](Category-OrderedMap)  
 **Category:** [OrderedMap](Category-OrderedMap)  
 **Documented under:** Members  
 **Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

@@ -2,10 +2,6 @@
 
 # Lambdas
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
-
 ```freebasic
 ' non-capturing: an ordinary procedure pointer
 dim double_ as function( byval x as long ) as long = _

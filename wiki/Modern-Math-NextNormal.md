@@ -2,10 +2,6 @@
 
 # NextNormal
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 A draw from the standard normal distribution: mean 0, standard deviation 1.
 
 ## Syntax
@@ -42,7 +38,7 @@ print within > 1200 andalso within < 1500     '' -1 (true) -- about 68%
 
 ---
 
-**Library:** [Math Library](Category-Math-Library) ✨  
+**Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

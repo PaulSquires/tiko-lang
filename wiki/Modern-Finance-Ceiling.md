@@ -2,10 +2,6 @@
 
 # Ceiling
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Finance](Category-Finance), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Rounded up to a whole unit.
 
 ## Syntax
@@ -38,7 +34,7 @@ print n.Truncate( ).ToString( )               '' -12.0000
 
 ---
 
-**Library:** [Finance](Category-Finance) ✨  
+**Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

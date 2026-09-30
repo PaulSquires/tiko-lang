@@ -22,42 +22,41 @@ That builds the compiler, the runtime and the graphics library, and assembles `t
 ## Compile a program
 
 ```bat
-toolchains\tiko-windows\tiko.exe hello.bas
+toolchains\tiko-windows\tiko.exe hello.tiko
 hello.exe
 ```
 
 ```bash
-toolchains/tiko-linux/bin/tiko hello.bas
+toolchains/tiko-linux/bin/tiko hello.tiko
 ./hello
 ```
 
-No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `win64-msvc` on Windows, `linux-x86_64` on Linux. `-target win64` selects the MinGW ABI.
+No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `win64-msvc` on Windows, `linux-x86_64` on Linux.
 
-## Hello, new features
+## A first tour
 
 ```freebasic
-#include once "containers.bi"
-using FB
+#import "std/containers"
 
 '' generics
 type Box( of T )
     as T value
 end type
 
-dim b as Box( of long )
+dim b as Box( of int32 )
 b.value = 7
 
-'' a typed container, and FOR EACH over it
-dim names as Array( of string )
+'' a typed container, and for each over it
+dim names as containers.Array( of ustring )
 names.Push( "ada" )
 names.Push( "grace" )
 
-for each n as string in names
+for each n as ustring in names
     print n
 next
 
 '' multiple return, by tuple
-function MinMax( ) as (min as long, max as long)
+function MinMax( ) as (min as int32, max as int32)
     return (3, 9)
 end function
 
@@ -71,7 +70,7 @@ scope
 end scope
 ```
 
-Built by tiko on win64-msvc and on linux-x86_64, it prints exactly what fbc's build prints:
+It prints:
 
 ```
 ada
@@ -83,6 +82,6 @@ cleaned up
 
 ## Next
 
-- [Feature Index](Feature-Index) ✨ — every extension with its reference page.
-- [Compatibility](Compatibility) — what changes for code you already have.
-- [Keyword Index](Keyword-Index) — the whole language reference, A–Z.
+- [Feature Index](Feature-Index) — every language feature and library, with its reference page.
+- [Compatibility](Compatibility) — what changes for FreeBASIC code you already have.
+- [Keyword Index](Keyword-Index) — every keyword, A–Z.

@@ -2,10 +2,6 @@
 
 # AddMonths
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Chrono Date and Time](Category-Date-and-Time-Chrono), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 calendar months, offset untouched.
 
 ## Syntax
@@ -36,7 +32,7 @@ print d.AddMonths( 1 ).ToIsoString( )    '' 2026-02-28T12:00:00 -- clamped
 
 ---
 
-**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
+**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono)  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
 **Documented under:** Exact Arithmetic Vs Calendar Arithmetic  
 **Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

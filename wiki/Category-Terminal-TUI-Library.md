@@ -2,11 +2,7 @@
 
 # Terminal TUI Library
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
-
-> 📘 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) ✨ · [form.bas](Modern-Tui-Example-Form) ✨ · [dashboard.bas](Modern-Tui-Example-Dashboard) ✨ — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> 📘 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard) — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ```freebasic
 #include once "fb/tui.bi"
@@ -897,9 +893,9 @@ The suites are fbc's fbcunit suites for this module, written against fbc; they a
 
 Three complete, working programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern). fbc builds each clean at `-w all`. tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: they need a real terminal).
 
-- [hello.bas](Modern-Tui-Example-Hello) ✨ — the smallest complete program: one box, a keypress counter, a clean exit.
-- [form.bas](Modern-Tui-Example-Form) ✨ — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.
-- [dashboard.bas](Modern-Tui-Example-Dashboard) ✨ — the btop-style screen this module was measured against: braille history plots, gradient meters, a scrolling process table, mouse support and a 250 ms tick.
+- [hello.bas](Modern-Tui-Example-Hello) — the smallest complete program: one box, a keypress counter, a clean exit.
+- [form.bas](Modern-Tui-Example-Form) — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.
+- [dashboard.bas](Modern-Tui-Example-Dashboard) — the btop-style screen this module was measured against: braille history plots, gradient meters, a scrolling process table, mouse support and a 250 ms tick.
 
 ## Dialects
 

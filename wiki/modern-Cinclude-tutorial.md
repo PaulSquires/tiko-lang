@@ -2,13 +2,9 @@
 
 # #cinclude Tutorial
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang extension.** Not available in stock FreeBASIC 1.20.0.
-
 > **In tiko.** tiko imports C headers itself, through libclang loaded at first use, for win64-msvc (the Windows default), win64 and linux-x86_64 (decision 0016, `docs/architecture/decisions/0016-cinclude.md`). It has `-cinclude`, `-cimport`, `-cimport-out`, `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`; FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir` (with `-cimport-outdir`, `-cimport-recurse`, `-cimport-force` and `-cimport-prefix`) and `-cverbose` are `TKO0100: unknown option` to tiko. Commands written `tiko` below were run with tiko and gave what FBC-Modern's `fbc` gives; those left as `fbc` are FBC-Modern's, and tiko has no equivalent. Measured 2026-09-24 at origin/master 50c71751.
 
-> 📘 **Reference:** [#cinclude](modern-Cinclude) ✨
+> 📘 **Reference:** [#cinclude](modern-Cinclude)
 
 This is the long way round. If you want the one-paragraph version, it is on the [reference page](modern-Cinclude).
 
@@ -329,8 +325,8 @@ Binding to a C library is two jobs, and there is a directive for each:
 
 | | answers | |
 | --- | --- | --- |
-| [`#cinclude`](modern-Cinclude) ✨ | *what are these things?* | the **header** half |
-| [`#foreignlib`](modern-Foreignlib) ✨ | *where is the code?* | the **linkage** half |
+| [`#cinclude`](modern-Cinclude) | *what are these things?* | the **header** half |
+| [`#foreignlib`](modern-Foreignlib) | *where is the code?* | the **linkage** half |
 
 Neither implies the other. `#cinclude` declares everything and links nothing; `#foreignlib` links a library and declares nothing.
 
@@ -399,14 +395,14 @@ fbc treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit ta
 
 ### See also
 
-- [#cinclude](modern-Cinclude) ✨ — the reference
-- [`#foreignlib`](modern-Foreignlib) ✨ · [#foreignlib Tutorial](modern-Foreignlib-tutorial) ✨
+- [#cinclude](modern-Cinclude) — the reference
+- [`#foreignlib`](modern-Foreignlib) · [#foreignlib Tutorial](modern-Foreignlib-tutorial)
 - [`#inclib`](Inclib) · [`#include`](Include)
 - [`Alias`](Alias-Modifier) · [`Declare`](Declare) · [`Extern`](Extern)
 
 ---
 
-**Category:** [C Header Import](Category-C-Header-Import) ✨
+**Category:** [C Header Import](Category-C-Header-Import)
 **Kind:** tutorial
 **Source:** `docs/cimport/cimport.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 

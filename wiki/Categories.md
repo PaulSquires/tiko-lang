@@ -2,38 +2,43 @@
 
 # All Categories
 
-Every category in this wiki. Categories marked ✨ are tiko-lang additions; the rest come from the FreeBASIC manual and may also contain tiko-lang pages, listed separately at the top of each one.
+The language and its standard library first, then the compatibility reference: the FreeBASIC manual, whose pages describe the `#lang "fb"` dialect tiko compiles.
 
-- [Generics](Category-Generics) ✨ — 1 pages — 1 tiko-lang page
-- [For Each](Category-For-Each) ✨ — 5 pages — 5 tiko-lang pages
-- [Iterators](Category-Iterators) ✨ — 1 pages — 1 tiko-lang page
-- [Tuples](Category-Tuples) ✨ — 1 pages — 1 tiko-lang page
-- [Defer](Category-Defer) ✨ — 1 pages — 1 tiko-lang page
-- [Lambdas](Category-Lambdas) ✨ — 1 pages — 1 tiko-lang page
-- [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ — 2 pages — 2 tiko-lang pages
-- [C Header Import](Category-C-Header-Import) ✨ — 2 pages — 2 tiko-lang pages
-- [UString](Category-UString) ✨ — 1 pages — 1 tiko-lang page
-- [Fixed-Width Types](Category-Fixed-Width-Types) ✨ — 1 pages — 1 tiko-lang page
-- [String Library](Category-String-Library) ✨ — 39 pages — 39 tiko-lang pages
-- [Array](Category-Array) ✨ — 22 pages — 22 tiko-lang pages
-- [Map](Category-Map) ✨ — 15 pages — 15 tiko-lang pages
-- [Set](Category-Set) ✨ — 11 pages — 11 tiko-lang pages
-- [LinkedList](Category-LinkedList) ✨ — 14 pages — 14 tiko-lang pages
-- [OrderedMap](Category-OrderedMap) ✨ — 18 pages — 18 tiko-lang pages
-- [OrderedSet](Category-OrderedSet) ✨ — 17 pages — 17 tiko-lang pages
-- [Sorting](Category-Sorting) ✨ — 9 pages — 9 tiko-lang pages
-- [Optional](Category-Optional) ✨ — 7 pages — 7 tiko-lang pages
-- [Result](Category-Result) ✨ — 10 pages — 10 tiko-lang pages
-- [Smart Pointers](Category-Smart-Pointers) ✨ — 12 pages — 12 tiko-lang pages
-- [Date and Time (Chrono)](Category-Date-and-Time-Chrono) ✨ — 191 pages — 191 tiko-lang pages
-- [Filesystem](Category-Filesystem) ✨ — 140 pages — 140 tiko-lang pages
-- [Math Library](Category-Math-Library) ✨ — 197 pages — 197 tiko-lang pages
-- [Finance](Category-Finance) ✨ — 151 pages — 151 tiko-lang pages
-- [Logging](Category-Logging) ✨ — 33 pages — 33 tiko-lang pages
-- [Terminal TUI Library](Category-Terminal-TUI-Library) ✨ — 257 pages — 257 tiko-lang pages
-- [Goroutines and Channels](Category-Goroutines-and-Channels) ✨ — 13 pages — 13 tiko-lang pages
-- [LLVM Backend](Category-LLVM-Backend) ✨ — 1 pages — 1 tiko-lang page
-- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨ — 1 pages — 1 tiko-lang page
+## The tiko language
+
+- [Generics](Category-Generics) — 1 pages
+- [For Each](Category-For-Each) — 5 pages
+- [Iterators](Category-Iterators) — 1 pages
+- [Tuples](Category-Tuples) — 1 pages
+- [Defer](Category-Defer) — 1 pages
+- [Lambdas](Category-Lambdas) — 1 pages
+- [Foreign Library Linking](Category-Foreign-Library-Linking) — 2 pages
+- [C Header Import](Category-C-Header-Import) — 2 pages
+- [UString](Category-UString) — 1 pages
+- [Fixed-Width Types](Category-Fixed-Width-Types) — 1 pages
+- [String Library](Category-String-Library) — 39 pages
+- [Array](Category-Array) — 22 pages
+- [Map](Category-Map) — 15 pages
+- [Set](Category-Set) — 11 pages
+- [LinkedList](Category-LinkedList) — 14 pages
+- [OrderedMap](Category-OrderedMap) — 18 pages
+- [OrderedSet](Category-OrderedSet) — 17 pages
+- [Sorting](Category-Sorting) — 9 pages
+- [Optional](Category-Optional) — 7 pages
+- [Result](Category-Result) — 10 pages
+- [Smart Pointers](Category-Smart-Pointers) — 12 pages
+- [Date and Time (Chrono)](Category-Date-and-Time-Chrono) — 191 pages
+- [Filesystem](Category-Filesystem) — 140 pages
+- [Math Library](Category-Math-Library) — 197 pages
+- [Finance](Category-Finance) — 151 pages
+- [Logging](Category-Logging) — 33 pages
+- [Terminal TUI Library](Category-Terminal-TUI-Library) — 257 pages
+- [Goroutines and Channels](Category-Goroutines-and-Channels) — 13 pages
+- [LLVM Backend](Category-LLVM-Backend) — 1 pages
+- [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) — 1 pages
+
+## Compatibility reference (the FreeBASIC manual)
+
 - [Language Documentation](Category-Language-Documentation) — 8 pages
 - [Programmer's Guide](Category-Programmer-s-Guide) — 4 pages
 - [Variable Declarations](Category-Variable-Declarations) — 8 pages

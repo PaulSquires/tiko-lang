@@ -2,10 +2,6 @@
 
 # #foreignlib Tutorial
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang extension.** This page documents a feature added by tiko-lang. It is **not** available in stock FreeBASIC 1.20.0. See [What Is tiko-lang](What-Is-tiko-lang).
-
 *A tutorial for FreeBASIC programmers meeting `#foreignlib` for the first time.*
 
 You already know how to link a C library from FreeBASIC. This tutorial starts

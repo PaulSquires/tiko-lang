@@ -2,10 +2,6 @@
 
 # IsNull
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [SharedPtr and WeakPtr](Category-Smart-Pointers), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -34,7 +30,7 @@ print p.IsNull( )            '' true -- back to owning nothing
 
 ---
 
-**Library:** [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨  
+**Library:** [SharedPtr and WeakPtr](Category-Smart-Pointers)  
 **Category:** [Smart Pointers](Category-Smart-Pointers)  
 **Documented under:** Members  
 **Source:** `docs/sharedptr/sharedptr.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

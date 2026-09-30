@@ -2,10 +2,6 @@
 
 # FsError.Path2
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Filesystem Library](Category-Filesystem), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 the second path, for CopyFile / MoveFile / CreateSymlink.
 
 ## Syntax
@@ -36,7 +32,7 @@ print "[" & e.Path2( ) & "]"     '' [] -- empty unless the call had two
 
 ---
 
-**Library:** [Filesystem Library](Category-Filesystem) ✨  
+**Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
 **Documented under:** Errors  
 **Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

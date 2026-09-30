@@ -2,10 +2,6 @@
 
 # LLVM Backend
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** How tiko generates code. It has one backend, and fbc's `-gen` switch does not exist in it.
-
 tiko compiles each module to **textual LLVM IR** and runs `clang -c` on it to make an object. clang then drives the link. There is no other code generator: no C emission, no `gas` or `gas64`, and no fallback. So there is no `-gen` option, and `tiko -gen llvm hello.tko` is refused:
 
 ```

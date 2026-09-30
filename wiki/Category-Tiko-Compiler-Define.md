@@ -2,10 +2,6 @@
 
 # __TIKO_COMPILER__
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** `__TIKO_COMPILER__` is tiko's identity define: the one symbol to test when a source tree asks "is this tiko?".
-
 tiko defines `__TIKO_COMPILER__`, always `1`. Stock fbc and FBC-Modern do not define it. Measured on win64-msvc on 2026-09-24, beside fbc-modern 1.20:
 
 ```freebasic
@@ -16,7 +12,7 @@ tiko defines `__TIKO_COMPILER__`, always `1`. Stock fbc and FBC-Modern do not de
 #endif
 ```
 
-## Guarding the extensions
+## Guarding tiko-only code
 
 Test it with `#ifdef` or `defined( )`, so that a compiler which does not define it takes the other branch rather than stopping:
 
@@ -55,11 +51,11 @@ tests/pp/tiko-compiler-define.test holds the define and its value.
 ### See also
 
 - [Compatibility](Compatibility) — what else differs from fbc, and what does not
-- [Feature Index](Feature-Index) ✨ — the extensions these guards protect
+- [Feature Index](Feature-Index) — the language features these guards protect
 - [`__FB_VERSION__`](Fb-Version) · [`__FB_SIGNATURE__`](Fb-Signature) · [`__FB_BACKEND__`](Fb-Backend)
 - [Intrinsic Defines](Category-Intrinsic-Defines) — the full list
 
 ---
 
-**Category:** [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨
+**Category:** [__TIKO_COMPILER__](Category-Tiko-Compiler-Define)
 **Kind:** intrinsic define

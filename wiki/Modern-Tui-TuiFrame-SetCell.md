@@ -2,10 +2,6 @@
 
 # TuiFrame.SetCell
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Terminal TUI Library](Category-Terminal-TUI-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 ## Syntax
 
 ```freebasic
@@ -41,7 +37,7 @@ f->SetCell( 1, 1, "*", under.Patch( TuiStylePatch( TuiRed( ), TuiDefaultColor( )
 
 ---
 
-**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library) ✨  
+**Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Category:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Documented under:** Buffer and Frame  
 **Working examples:** [hello.bas](Modern-Tui-Example-Hello) · [form.bas](Modern-Tui-Example-Form) · [dashboard.bas](Modern-Tui-Example-Dashboard)  

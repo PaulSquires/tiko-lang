@@ -2,10 +2,6 @@
 
 # MoneySetLocale
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [String Library](Category-String-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Forces the monetary settings to a named locale instead of the user's own. `""` means the user's. Returns false if the system does not know the name.
 
 ## Syntax
@@ -35,7 +31,7 @@ MoneySetLocale( "" )                  '' back to the user's own
 
 ---
 
-**Library:** [String Library](Category-String-Library) ✨  
+**Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** Money Formatting  
 **Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

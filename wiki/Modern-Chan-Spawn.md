@@ -2,10 +2,6 @@
 
 # Spawn
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Goroutines and Channels](Category-Goroutines-and-Channels), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Runs a procedure concurrently on the scheduler's worker pool.
 
 ## Syntax
@@ -49,7 +45,7 @@ print "all done"
 
 ---
 
-**Library:** [Goroutines and Channels](Category-Goroutines-and-Channels) ✨  
+**Library:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Documented under:** Members  
 **Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

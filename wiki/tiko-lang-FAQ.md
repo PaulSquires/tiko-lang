@@ -1,7 +1,13 @@
 # FAQ
 
+**What is tiko?**
+A compiled, statically typed programming language, with its own compiler, type system and runtime. See [What Is tiko](What-Is-tiko-lang).
+
+**Is tiko a BASIC?**
+No. Its syntax comes from the most readable family of languages ever designed for people, and it keeps that readability on purpose: `end function` and `next` tell a reviewer which block just closed, with no brace counting and no indentation errors. Everything underneath is tiko's own. One consequence is that it still compiles FreeBASIC code, which is what [Compatibility](Compatibility) is about.
+
 **Is tiko a fork of fbc?**
-No. It is a separate compiler, written from scratch in FreeBASIC, with its own frontend, its own typed IR and an LLVM backend. It compiles the same language as [FBC-Modern](https://github.com/PaulSquires/fbc-modern) (`#lang "fb"`, extensions included) and is measured against fbc, program by program. See [What Is tiko-lang](What-Is-tiko-lang).
+No. It is a separate compiler with its own frontend, its own typed IR and an LLVM backend. Where it accepts the same code as fbc, that is measured against fbc, program by program. See [What Is tiko](What-Is-tiko-lang).
 
 **Will my existing FreeBASIC code compile?**
 If it is `#lang "fb"` code, that is the aim: the same accept/reject decision as fbc and the same behaviour. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that must know it is being built by tiko tests `#ifdef __TIKO_COMPILER__`.
@@ -11,7 +17,7 @@ Yes, once. The repository holds the compiler's source, not a prebuilt toolchain.
 
 **Which targets are supported?**
 - `win64-msvc`: the default on Windows, and it needs no Visual Studio.
-- `win64`: the MinGW ABI.
+- `win64`: the legacy MinGW ABI, kept for now for objects built by fbc.
 - `linux-x86_64`: the default on Linux.
 
 x86-64 only: `-m32` and `-target win32` are refused. There is no macOS or ARM64 target.
@@ -20,7 +26,7 @@ x86-64 only: `-m32` and `-target win32` are refused. There is no macOS or ARM64 
 One: tiko emits LLVM IR and runs clang. There is no `-gen` switch. clang 18 or newer must be installed; tiko looks for it at a fixed path or in `TKO_CLANG`, not on `PATH`. See [LLVM Backend](Category-LLVM-Backend).
 
 **Can I use inline `ASM`?**
-Not in a module tiko compiles; it is refused with `TKO0407`. Build that module with fbc for `-target win64` and link it in: objects from the two compilers link both ways on that target.
+Not in tiko. It is refused with `TKO0407` rather than miscompiled.
 
 **Are generics macros?**
 No. tiko builds one concrete type per distinct type-argument list, checked like any other type, and mangles it exactly as fbc does, so the symbols match fbc's byte for byte. See [Generics](Category-Generics).
@@ -29,7 +35,7 @@ No. tiko builds one concrete type per distinct type-argument list, checked like 
 No. The language has none, in fbc or in tiko. This is why `IndexOf`/`Contains` and the whole sort library are free procedures rather than `Array` members.
 
 **Do the containers get special compiler treatment?**
-None at all. `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap` and `OrderedSet` are ordinary FreeBASIC headers, the same files FBC-Modern ships, written on top of generics, the iterator protocol and `FOR EACH`.
+None at all. `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap` and `OrderedSet` are ordinary library code, written on top of generics, the iterator protocol and `for each`.
 
 **What does a type need to be usable with `FOR EACH`?**
 `GetIterator( )` returning something with `IsValid( )`, `Value( )` and `MoveNext( )`. That is the whole contract — structural, with no base class, interface or registration. See [Iterator Protocol](Category-Iterators).
@@ -49,4 +55,4 @@ No. `spawn` copies the call's arguments at the spawn point and queues the call f
 <https://github.com/PaulSquires/tiko-lang/issues>
 
 **Where does the language reference in this wiki come from?**
-The official FreeBASIC manual, reproduced under the GNU Free Documentation License 1.3. The ✨ pages began as FBC-Modern's feature documentation. See [License](License).
+The keyword, statement, operator and function pages are the FreeBASIC 1.20.0 manual, reproduced under the GNU Free Documentation License 1.3, and they describe the dialect tiko compiles. tiko's own pages are written for this wiki. See [License](License).

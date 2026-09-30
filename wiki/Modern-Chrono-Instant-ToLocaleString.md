@@ -2,10 +2,6 @@
 
 # ToLocaleString
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Chrono Date and Time](Category-Date-and-Time-Chrono), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The date and time as the machine's locale writes them.
 
 ## Syntax
@@ -38,7 +34,7 @@ print d.ToIsoString( )       '' 2026-08-13T14:30:05
 
 ---
 
-**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨  
+**Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono)  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
 **Documented under:** Members  
 **Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

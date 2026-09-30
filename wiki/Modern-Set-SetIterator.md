@@ -2,10 +2,6 @@
 
 # SetIterator
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Set](Category-Set), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 The iterator `for each` uses over a `Set( of T )`.
 
 ## Syntax
@@ -42,7 +38,7 @@ print total                  '' 6
 
 ---
 
-**Library:** [Set](Category-Set) ✨  
+**Library:** [Set](Category-Set)  
 **Category:** [Set](Category-Set)  
 **Documented under:** Members  
 **Source:** `docs/set/set.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

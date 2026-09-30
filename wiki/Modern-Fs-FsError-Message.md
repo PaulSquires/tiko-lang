@@ -2,10 +2,6 @@
 
 # FsError.Message
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Filesystem Library](Category-Filesystem), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 a fixed English one-liner derived from Code( ).
 
 ## Syntax
@@ -35,7 +31,7 @@ print e.Message( )           '' a fixed English one-liner for the CODE
 
 ---
 
-**Library:** [Filesystem Library](Category-Filesystem) ✨  
+**Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
 **Documented under:** Errors  
 **Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

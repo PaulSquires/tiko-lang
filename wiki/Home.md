@@ -1,15 +1,8 @@
-# tiko-lang Wiki
+# The tiko Language
 
-**tiko is a FreeBASIC-compatible compiler, written from scratch in FreeBASIC. It compiles `#lang "fb"` with FBC-Modern's extensions: generics, an iterator protocol, `FOR EACH`, tuples and multiple return, `defer`, lambdas and a portable Unicode string type, plus the container, date/time and filesystem libraries built on them.**
+**Code you can read. Speed you can measure. Binaries you can ship.**
 
-This wiki is two things in one place:
-
-1. **The FreeBASIC language reference** — the complete FreeBASIC 1.20.0 manual, every keyword, statement, operator, function, tutorial and compiler page.
-2. **The extensions** — everything tiko compiles beyond stock FreeBASIC 1.20.0, and how tiko itself works. Those pages carry the badge below and a ✨ in every index, so you always know which is which.
-
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang extension.** A page marked like this documents a feature added by tiko-lang. It is **not** available in stock FreeBASIC 1.20.0.
+tiko is a compiled, statically typed programming language for building fast, self-contained programs. Its syntax is built to be read: blocks say what they close, keywords are words, and there is very little punctuation to learn. Underneath it is a systems language: generics, tuples, lambdas, typed errors, channels and direct use of C headers, compiled through LLVM to native code, with no virtual machine and no garbage collector.
 
 ---
 
@@ -17,27 +10,45 @@ This wiki is two things in one place:
 
 | | |
 |---|---|
-| [What Is tiko-lang](What-Is-tiko-lang) | What tiko is, what it compiles, and what it does not |
+| [What Is tiko](What-Is-tiko-lang) | What the language is, what it targets, and what it does not do |
 | [Quick Start](Quick-Start) | Build a toolchain and compile a program |
-| [Feature Index](Feature-Index) ✨ | Every tiko-lang feature, one line each, with its reference page |
-| [Compatibility](Compatibility) | What differs from fbc, measured, and what is the same |
+| [Feature Index](Feature-Index) | Every language feature and library, one line each, with its reference page |
 | [FAQ](tiko-lang-FAQ) | Short answers to the questions that come up first |
 
-## Browse the reference
+## Tutorials
 
 | | |
 |---|---|
-| [All Categories](Categories) | Every category in this wiki |
-| [Keyword Index](Keyword-Index) | Every page, A–Z |
+| [Goroutines Tutorial](Modern-Goroutines-Tutorial) | Concurrency from the first `spawn` to cancellation |
+| [C Header Import Tutorial](modern-Cinclude-tutorial) | Use a C library with `#cinclude` and no binding layer |
+| [Foreign Library Linking Tutorial](modern-Foreignlib-tutorial) | Link a library that ships inside your own source tree |
 
-## The extensions at a glance
+## The language
 
-**Language:** [Generics](Category-Generics) ✨ · [Iterator Protocol](Category-Iterators) ✨ · [For Each](Category-For-Each) ✨ · [Tuples](Category-Tuples) ✨ · [Defer](Category-Defer) ✨ · [Lambdas](Category-Lambdas) ✨ · [UString](Category-UString) ✨ · [Fixed-Width Types](Category-Fixed-Width-Types) ✨ · [Goroutines and Channels](Category-Goroutines-and-Channels) ✨
+[Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Goroutines and Channels](Category-Goroutines-and-Channels)
 
-**Library:** [Array](Category-Array) ✨ · [Map](Category-Map) ✨ · [Set](Category-Set) ✨ · [LinkedList](Category-LinkedList) ✨ · [OrderedMap and OrderedSet](Category-OrderedMap) ✨ · [Sorting](Category-Sorting) ✨ · [Optional](Category-Optional) ✨ · [Result](Category-Result) ✨ · [SharedPtr and WeakPtr](Category-Smart-Pointers) ✨ · [String Library](Category-String-Library) ✨ · [Chrono Date and Time](Category-Date-and-Time-Chrono) ✨ · [Filesystem Library](Category-Filesystem) ✨ · [Math Library](Category-Math-Library) ✨ · [Logging](Category-Logging) ✨
+## The standard library
 
-**Toolchain:** [Foreign Library Linking](Category-Foreign-Library-Linking) ✨ · [LLVM Backend](Category-LLVM-Backend) ✨ · [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) ✨ · [C Header Import](Category-C-Header-Import) ✨
+**Collections and algorithms:** [Array](Category-Array) · [Map](Category-Map) · [Set](Category-Set) · [LinkedList](Category-LinkedList) · [OrderedMap and OrderedSet](Category-OrderedMap) · [Sorting](Category-Sorting)
+
+**Values and text:** [Optional](Category-Optional) · [Result](Category-Result) · [SharedPtr and WeakPtr](Category-Smart-Pointers) · [String Library](Category-String-Library)
+
+**System and numbers:** [Chrono Date and Time](Category-Date-and-Time-Chrono) · [Filesystem Library](Category-Filesystem) · [Math Library](Category-Math-Library) · [Finance](Category-Finance) · [Logging](Category-Logging) · [Terminal TUI Library](Category-Terminal-TUI-Library)
+
+## The toolchain
+
+[C Header Import](Category-C-Header-Import) · [Foreign Library Linking](Category-Foreign-Library-Linking) · [LLVM Backend](Category-LLVM-Backend) · [__TIKO_COMPILER__](Category-Tiko-Compiler-Define)
 
 ---
 
-*The FreeBASIC manual pages in this wiki are reproduced under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html). See [License](License).*
+## Compatibility reference
+
+tiko's syntax comes from the most readable family of languages ever designed for people, and it still compiles FreeBASIC 1.20 code (`#lang "fb"`). If you are bringing existing code, or you want the precise definition of a keyword, statement or operator, start here:
+
+| | |
+|---|---|
+| [Compatibility](Compatibility) | What differs from fbc, measured, and what is the same |
+| [All Categories](Categories) | Every category, including the FreeBASIC manual's |
+| [Keyword Index](Keyword-Index) | Every keyword and page, A to Z |
+
+The keyword, statement, operator and function pages in this reference are the FreeBASIC 1.20.0 manual, reproduced under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html). See [License](License).

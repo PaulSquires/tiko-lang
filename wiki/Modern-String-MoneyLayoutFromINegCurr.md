@@ -2,10 +2,6 @@
 
 # MoneyLayoutFromINegCurr
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [String Library](Category-String-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Maps a Windows `LOCALE_INEGCURR` code (0..15) onto the POSIX `(precedes, sepBySpace, signPosn)` triple. Public so that all sixteen rows can be asserted individually -- a transcription slip here is a wrong string on somebody's machine and on nobody else's.
 
 ## Syntax
@@ -33,7 +29,7 @@ print MoneyCompose( "1.1", "$", "-", pre, sep, posn ) '' $ -1.1
 
 ---
 
-**Library:** [String Library](Category-String-Library) ✨  
+**Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** Money Formatting  
 **Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

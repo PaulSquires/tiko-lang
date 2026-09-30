@@ -2,10 +2,6 @@
 
 # StableSort
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Sorting](Category-Sorting), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 O(n log n) always  O(n) scratch, STABLE
 
 ## Syntax
@@ -51,7 +47,7 @@ next                         '' hopper 2 / lovelace 1 / lovelace 3
 
 ---
 
-**Library:** [Sorting](Category-Sorting) ✨  
+**Library:** [Sorting](Category-Sorting)  
 **Category:** [Sorting](Category-Sorting)  
 **Documented under:** Procedures  
 **Source:** `docs/sort/sort.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

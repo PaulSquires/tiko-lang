@@ -2,11 +2,7 @@
 
 # Goroutines and Channels
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
-
-> 📘 **Also in this category:** [Goroutines Tutorial](Modern-Goroutines-Tutorial) ✨
+> 📘 **Also in this category:** [Goroutines Tutorial](Modern-Goroutines-Tutorial)
 
 ```freebasic
 #include once "fb/sync.bi"       ' pulls in channel.bi and scheduler.bi

@@ -1,6 +1,6 @@
 # Compatibility
 
-tiko aims at **the same accept/reject decision as fbc** in `-lang fb`, and **the same observable behaviour**: what a program prints, returns and does. The reference is [FBC-Modern](https://github.com/PaulSquires/fbc-modern)'s `fbc` 1.20.0, and every compatibility fact is established by compiling a probe with it and running it.
+This page is for FreeBASIC code you already have. tiko is a language of its own, and it still compiles FreeBASIC 1.20 (`#lang "fb"`), so existing programs can move over and mix freely with tiko code. It aims at **the same accept/reject decision as fbc** in `-lang fb`, and **the same observable behaviour**: what a program prints, returns and does. The reference is [FBC-Modern](https://github.com/PaulSquires/fbc-modern)'s `fbc` 1.20.0, and every compatibility fact is established by compiling a probe with it and running it.
 
 The **diagnostic text** is tiko's own. Every message has a stable `TKOnnnn` id. fbc's error numbers survive only where a program can see them, through `ERR`.
 

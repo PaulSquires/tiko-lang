@@ -2,10 +2,6 @@
 
 # Complex operators
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [Math Library](Category-Math-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Arithmetic on complex numbers: `= <> + - * / ^`, each with a `double` on either side.
 
 ## Syntax
@@ -53,7 +49,7 @@ print CSet( 3, 1 ) = 3.0    '' false   -- equal real part, but not on the axis
 
 ---
 
-**Library:** [Math Library](Category-Math-Library) ✨  
+**Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
 **Documented under:** Members  
 **Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

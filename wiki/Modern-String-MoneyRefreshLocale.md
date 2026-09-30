@@ -2,10 +2,6 @@
 
 # MoneyRefreshLocale
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang API.** Part of [String Library](Category-String-Library), added by tiko-lang. Not available in stock FreeBASIC 1.20.0.
-
 Re-reads the monetary settings from the system -- after the user has changed Settings > Region, say.
 
 ## Syntax
@@ -30,7 +26,7 @@ RepaintEveryAmount( )
 
 ---
 
-**Library:** [String Library](Category-String-Library) ✨  
+**Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
 **Documented under:** Money Formatting  
 **Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).

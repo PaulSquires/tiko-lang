@@ -2,15 +2,11 @@
 
 # Fixed-Width Types
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang category.** Everything below is new in tiko-lang and is not part of stock FreeBASIC 1.20.0.
-
 ## The names
 
-Ten type names that say their width, alongside FreeBASIC's own:
+Ten type names that say their width, each the same type as an older name:
 
-| tiko-lang | Same type as | Bytes | Range |
+| tiko | Same type as | Bytes | Range |
 |---|---|---|---|
 | `int8` | [Byte](Byte) | 1 | -128 to 127 |
 | `uint8` | [UByte](Ubyte) | 1 | 0 to 255 |
@@ -73,7 +69,7 @@ This prints `4 8 5 7`, as fbc does. Because FreeBASIC ignores case, `INT32` and 
 - **`integer` and `uinteger`** have no fixed-width name, because they are 4 bytes on a 32-bit target and 8 on a 64-bit one.
 - **`boolean`** stays as it is, and there is no `bool`. FreeBASIC ignores case, so `bool` would be `BOOL`, which `win/windef.bi` declares as a 4-byte `long`.
 - **Pointers** keep the FreeBASIC spelling: `int32 ptr`, `any ptr`.
-- **Strings** are unchanged: `string`, `zstring`, `wstring` and [`ustring`](Category-UString) ✨.
+- **Strings** are unchanged: `string`, `zstring`, `wstring` and [`ustring`](Category-UString).
 
 ## Sharing source with fbc
 
@@ -94,7 +90,7 @@ fbc doesn't know these names. A file that has to compile under both compilers ca
 #endif
 ```
 
-See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define) ✨.
+See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 
 ---
 

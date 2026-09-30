@@ -2,10 +2,6 @@
 
 # Goroutines Tutorial
 
-[![tiko-lang](https://img.shields.io/badge/tiko--lang-extension-8A2BE2?style=flat-square)](What-Is-tiko-lang)
-
-> ✨ **tiko-lang extension.** This page documents a feature added by tiko-lang. It is **not** available in stock FreeBASIC 1.20.0. See [What Is tiko-lang](What-Is-tiko-lang).
-
 **Who this is for:** a FreeBASIC programmer who has never written a thread.
 No prior knowledge of concurrency, threads, locks or message passing is assumed.
 By the end you will be able to write a worker pool, a pipeline, a cancellable
