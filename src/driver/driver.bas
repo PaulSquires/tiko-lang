@@ -27,6 +27,7 @@
 #include once "driver/modgraph.bi"
 #include once "driver/modunit.bi"
 #include once "driver/modbuild.bi"
+#include once "driver/modcache.bi"
 #include once "fb/filesystem.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
@@ -659,6 +660,11 @@ function Run _
     end if
     if ctx.options.showHelp then
         print Tko.Cmdline.HelpText( ctx.options.helpCategory );
+        return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
+    end if
+    '' ...and so does --clean-module-cache, which takes no input (ADR 0017 §21).
+    if ctx.options.cleanModuleCache then
+        print Tko.Modules.CleanModuleCache( ctx );
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_OK )
     end if
 

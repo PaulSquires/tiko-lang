@@ -34,14 +34,120 @@
 #include once "codegen/target.bi"
 #include once "fb/filesystem.bi"
 
+'' The runtime's UTC clock: ticks of 100 ns since 0001-01-01, the unit FB.FileInfo's
+'' ModifiedUtc( ) reports -- so an entry's age is one subtraction. fbc-modern's runtime and
+'' tiko-rt both define it (lib/rt/src/chrono/clock.bas).
+extern "C"
+    declare function fb_DtClockUtcNow( ) as longint
+end extern
+
 namespace Tko.Modules
 
 private function Nl_( ) as string
     return chr( 10 )
 end function
 
-function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
-    if ctx.options.noModuleCache then return ""
+'' ------------------------------------------------------------ keeping the pool small
+''
+'' NOTHING WAS EVER DELETED -- 139 entries, 46 MB, in the author's first three days of
+'' modules (2026-09-30). A key names the compiler that built it by size and time, so each
+'' rebuild of tiko orphaned the whole pool, as did every edit to a module's sources and
+'' every scratch directory removed. Three things remove entries now (ADR 0017 §21):
+''
+''   SUPERSEDED, when a module is stored: the entry last stored for the same chain from the
+''   same directory, when its key differs only in the module's sources and its closure's
+''   interfaces -- one compiler, target, option set and include path. Another configuration's
+''   stays, or two installs or two targets would rebuild on every alternation.
+''
+''   UNUSED, at most once a day: an entry no build has written or read for seven days. A hit
+''   rewrites the entry's 'used' stamp. Go trims its build cache the same way.
+''
+''   ALL of them: 'tiko --clean-module-cache'.
+''
+'' Only a directory named like an entry -- sixteen hex digits -- holding a key.txt is ever
+'' removed, and never the pool itself: TKO_MODCACHE may name any directory.
+
+const TICKS_PER_DAY as longint = 864000000000ll
+const UNUSED_DAYS as long = 7
+
+private function Mtime_( byref p as string ) as longint
+    dim as FB.FsResultInfo r = FB.Stat( p )
+    if r.IsOk( ) = false then return 0
+    return r.Value( ).ModifiedUtc( )
+end function
+
+private function IsEntry_( byref root as string, byref nm as string ) as boolean
+    if len( nm ) <> 16 then return false
+    for i as long = 0 to 15
+        dim as ubyte c = nm[i]
+        dim as boolean hexd = ((c >= asc( "0" )) andalso (c <= asc( "9" ))) orelse _
+                              ((c >= asc( "a" )) andalso (c <= asc( "f" )))
+        if hexd = false then return false
+    next
+    return FB.IsFile( JoinPath( JoinPath( root, nm ), "key.txt" ) )
+end function
+
+'' When a build last wrote or read the entry: its 'used' stamp, else its key.
+private function LastUse_( byref d as string ) as longint
+    dim as longint t = Mtime_( JoinPath( d, "used" ) )
+    if t = 0 then t = Mtime_( JoinPath( d, "key.txt" ) )
+    return t
+end function
+
+'' A key without its sources and interfaces: what says which build the entry is for.
+private function Config_( byref key as string ) as string
+    dim as string r = ""
+    dim as long p = 1
+    while p <= len( key )
+        dim as long e = instr( p, key, Nl_( ) )
+        if e = 0 then e = len( key ) + 1
+        dim as string ln = mid( key, p, e - p )
+        p = e + 1
+        if left( ln, 7 ) = "source " then continue while
+        if left( ln, 6 ) = "iface " then continue while
+        r &= ln & Nl_( )
+    wend
+    return r
+end function
+
+'' The chain records whose entry is gone.
+private sub DropStaleChains_( byref root as string )
+    dim as string cd = JoinPath( root, "chains" )
+    dim as FB.Array( of FB.DirEntry ) es
+    if FB.ListDir( cd, es ).IsOk( ) = false then return
+    for k as long = 0 to es.Count - 1
+        if es[k].IsFile( ) = false then continue for
+        dim as string p = JoinPath( cd, es[k].Name( ) )
+        if right( p, 4 ) <> ".key" then continue for
+        dim as string last_
+        if Tko.DiskCache.ReadAll( p, last_ ) = false then continue for
+        if FB.IsDir( JoinPath( root, Tko.DiskCache.Hash( last_ ) ) ) = false then FB.RemoveFile( p )
+    next
+end sub
+
+'' At most once a day, the entries unused for UNUSED_DAYS. The stamp is written FIRST, so two
+'' builds starting together do not both walk the pool.
+private sub Trim_( byref root as string )
+    dim as string tf = JoinPath( root, "trim.txt" )
+    dim as longint now_ = fb_DtClockUtcNow( )
+    dim as longint last_ = Mtime_( tf )
+    if (last_ > 0) andalso (now_ - last_ < TICKS_PER_DAY) then return
+    Tko.DiskCache.Commit( tf, "", 7 )
+    dim as FB.Array( of FB.DirEntry ) es
+    if FB.ListDir( root, es ).IsOk( ) = false then return
+    for k as long = 0 to es.Count - 1
+        if es[k].IsDirectory( ) = false then continue for
+        dim as string nm = es[k].Name( )
+        if IsEntry_( root, nm ) = false then continue for
+        dim as string d = JoinPath( root, nm )
+        dim as longint used_ = LastUse_( d )
+        if used_ = 0 then continue for
+        if now_ - used_ > UNUSED_DAYS * TICKS_PER_DAY then FB.RemoveDirAll( d )
+    next
+    DropStaleChains_( root )
+end sub
+
+private function PoolDir_( byref ctx as Tko.CompilerContext ) as string
     dim as string root = environ( "TKO_MODCACHE" )
     if len( root ) = 0 then
         root = Tko.DiskCache.UserCacheDir( "modcache" )
@@ -56,6 +162,30 @@ function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
         return ""
     end if
     return root
+end function
+
+function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
+    if ctx.options.noModuleCache then return ""
+    dim as string root = PoolDir_( ctx )
+    if len( root ) > 0 then Trim_( root )
+    return root
+end function
+
+function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
+    dim as string root = PoolDir_( ctx )
+    if len( root ) = 0 then return ""
+    dim as long n = 0
+    dim as FB.Array( of FB.DirEntry ) es
+    if FB.ListDir( root, es ).IsOk( ) then
+        for k as long = 0 to es.Count - 1
+            if es[k].IsDirectory( ) = false then continue for
+            dim as string nm = es[k].Name( )
+            if IsEntry_( root, nm ) = false then continue for
+            if FB.RemoveDirAll( JoinPath( root, nm ) ).IsOk( ) then n += 1
+        next
+    end if
+    DropStaleChains_( root )
+    return "removed " & n & " module cache entr" & iif( n = 1, "y", "ies" ) & " from " & root & Nl_( )
 end function
 
 '' Module n's dependencies, all of them, each once.
@@ -178,7 +308,10 @@ function ModuleCacheLookup _
     if Tko.DiskCache.ReadAll( JoinPath( d, "iface.tki" ), iface ) = false then return false
     if Tko.DiskCache.ReadAll( JoinPath( d, "libs.txt" ), libs ) = false then return false
     objPath = JoinPath( d, "obj.o" )
-    return FB.IsFile( objPath )
+    if FB.IsFile( objPath ) = false then return false
+    '' USED: what keeps the entry past the seven-day trim.
+    Tko.DiskCache.Commit( JoinPath( d, "used" ), "", 8 )
+    return true
 end function
 
 '' The last key stored for this chain FROM THIS DIRECTORY: the key's own 'dir' line says
@@ -234,7 +367,17 @@ sub ModuleCacheStore _
     if Tko.DiskCache.Commit( JoinPath( d, "deps.txt" ), dl, 5 ) = false then return
     dim as string cd = JoinPath( root, "chains" )
     if FB.IsDir( cd ) = false then FB.CreateDirAll( cd )
-    Tko.DiskCache.Commit( ChainFile_( root, ctx.modChain, key ), key, 6 )
+    '' THE ENTRY THIS ONE SUPERSEDES: the same chain from the same directory, built the same
+    '' way, from sources or interfaces that have since changed. Nothing can hit it again.
+    dim as string cf = ChainFile_( root, ctx.modChain, key )
+    dim as string prev
+    if Tko.DiskCache.ReadAll( cf, prev ) then
+        if (prev <> key) andalso (Config_( prev ) = Config_( key )) then
+            dim as string pd = EntryDir_( root, prev )
+            if (pd <> d) andalso IsEntry_( root, Tko.DiskCache.Hash( prev ) ) then FB.RemoveDirAll( pd )
+        end if
+    end if
+    Tko.DiskCache.Commit( cf, key, 6 )
 end sub
 
 function MissReason _

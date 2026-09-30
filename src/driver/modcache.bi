@@ -13,6 +13,9 @@ namespace Tko.Modules
 '' build goes on uncached).
 declare function ModuleCacheRoot( byref ctx as Tko.CompilerContext ) as string
 
+'' '--clean-module-cache': every entry of the pool removed, and a line saying how many.
+declare function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
+
 '' THE KEY of module n of the build (ctx.ifaceChains[n]), whose dependencies' interfaces are
 '' already in ctx.ifaceTexts. One line per item.
 declare function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as string

@@ -555,6 +555,7 @@ function Parse _
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true
         case Tko.OPT_EMITTKI   : opts.emitTki = true
         case Tko.OPT_NOMODCACHE : opts.noModuleCache = true
+        case Tko.OPT_CLEANMODCACHE : opts.cleanModuleCache = true
         case Tko.OPT_CHECK     : opts.checkOnly = true
         case Tko.OPT_UDT       : opts.dumpUdt = true
         case Tko.OPT_CIMPORT_PROBE : opts.cimportProbe = value
