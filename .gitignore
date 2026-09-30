@@ -49,9 +49,8 @@ tests/vendor/**/*.o
 /lib/gfx/lib/
 
 # ------------------------------------------------------------- toolchains
-# Distributable builds. The TREE and its READMEs are tracked so the layout is
-# reviewable; every byte the packaging step drops into it is a build product and
-# is not. Listed per payload directory rather than as a blanket /toolchains/**,
+# Distributable builds. Only toolchains/README.md is tracked; every byte the
+# packaging step drops into a per-host directory is a build product and is not. Listed per payload directory rather than as a blanket /toolchains/**,
 # because git cannot re-include a file once its parent directory is excluded.
 /toolchains/*/bin/
 /toolchains/*/inc/

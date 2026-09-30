@@ -206,8 +206,9 @@ done
 
 if [ "$DO_CLEAN" = "1" ] && [ -d "$OUT" ]; then
     note "cleaning $OUT"
-    # Everything but the README, which is tracked and describes the layout.
-    find "$OUT" -mindepth 1 -maxdepth 1 ! -name README.md -exec rm -rf {} +
+    # Everything: the per-host toolchain directories hold build products only, and no
+    # README is kept or written there.
+    find "$OUT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 fi
 
 mkdir -p "$OUT"

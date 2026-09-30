@@ -50,8 +50,8 @@ output first, and `--help` lists the rest.
 
 A host packages itself -- `tiko-linux` comes from running it under Linux or WSL.
 
-The contents are gitignored, so a fresh clone has the two directories and these
-READMEs and nothing else.
+The contents are gitignored, so a fresh clone has this README and nothing else;
+`package.sh` creates each host's directory.
 
 ## Two directories per target
 
