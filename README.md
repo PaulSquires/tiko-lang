@@ -1,7 +1,7 @@
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/tiko-logo-on-dark.svg">
-  <img src="docs/brand/tiko-logo-on-light.svg" alt="tiko" width="320">
+  <source media="(prefers-color-scheme: dark)" srcset="brand/tiko-logo-on-dark.svg">
+  <img src="brand/tiko-logo-on-light.svg" alt="tiko" width="320">
 </picture>
 </p>
 
@@ -204,8 +204,7 @@ bash build/package.sh --verify
 
 This produces `toolchains/tiko-windows/` or `toolchains/tiko-linux/`. The toolchain is a
 self-contained directory: move it anywhere, and it finds its own headers and libraries. Building
-it needs FBC-Modern as the bootstrap compiler; [docs/compiler.md](docs/compiler.md#requirements)
-has the details.
+it needs FBC-Modern as the bootstrap compiler.
 
 **You need clang 18 or newer,** which tiko uses to assemble and link. It is not bundled. tiko
 looks for it at `C:\Program Files\LLVM\bin\clang.exe` or `/usr/bin/clang`, or wherever
@@ -229,9 +228,6 @@ Source files are `.tiko` and headers are `.ti`. `tiko --help` lists every option
 - **Not there yet:** macOS and ARM64 targets, binary releases and installers, a package
   manager, and CodeView debug info. Graphics links on Windows only.
 
-The day-to-day engineering state lives in [HANDOFF.md](HANDOFF.md) and
-[docs/compiler.md](docs/compiler.md).
-
 ## Coming from FreeBASIC
 
 tiko compiles FreeBASIC 1.20 code (`#lang "fb"`). All 68 in-scope run-and-compare programs in
@@ -239,8 +235,7 @@ fbc's own test corpus print what fbc's builds print, byte for byte, and so do th
 fuzz-generated programs. `.bas` and `.bi` files are still recognised, and they mix freely with
 `.tiko` and `.ti`.
 What differs, what is refused and why is on
-[Compatibility](wiki/Compatibility.md). How that is measured is in
-[docs/compiler.md](docs/compiler.md).
+[Compatibility](wiki/Compatibility.md).
 
 ## Documentation
 
@@ -251,7 +246,6 @@ What differs, what is refused and why is on
 | [Goroutines tutorial](wiki/Modern-Goroutines-Tutorial.md) | concurrency from first `spawn` to cancellation |
 | [C header import tutorial](wiki/modern-Cinclude-tutorial.md) | using a C library with no binding |
 | [bench/](bench/README.md) | the benchmarks and how to run them |
-| [docs/compiler.md](docs/compiler.md) | building, testing and hacking on the compiler itself |
 
 ## Licence
 

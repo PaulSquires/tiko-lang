@@ -91,3 +91,7 @@ tests/vendor/**/*.o
 # THE MODULE CACHE (ADR 0017, RFC-0005 §4), which a build writes beside its first root --
 # tests/modules fixtures among them.
 .tiko/
+
+# Engineering notes and design docs stay local; they are not published.
+/docs/
+/HANDOFF.md
