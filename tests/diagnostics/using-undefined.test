@@ -1,0 +1,11 @@
+'' TKO0923, fbc's 8 (3 for a bad later component): a USING of what is no namespace declared
+'' above it. See the N_USING arm of symbols/resolve.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/using-undefined.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using-undefined.bas(3,1): error TKO0923
+'' EXPECT-OUT: using-undefined.bas(16,1): error TKO0923
+'' EXPECT-OUT: using-undefined.bas(17,10): error TKO0923
+'' EXPECT-OUT: using-undefined.bas(18,1): error TKO0923
+'' EXPECT-OUT: using-undefined.bas(19,1): error TKO0923
+'' EXPECT-MAX-DIAG: 5

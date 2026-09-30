@@ -812,8 +812,13 @@ sub WalkStmt _
             c.info->SetScope( un, here )
             dim as Tko.SymbolId nsid = LookupDottedNamespace_( c, here, unm )
             dim as Tko.Symbol ptr nss = c.syms->SymbolAt( nsid )
-            if nss = 0 then continue for
-            if nss->kind <> cast( ubyte, Tko.SYM_NAMESPACE ) then continue for
+            '' ...AND A PATH THAT NAMES NO NAMESPACE ABOVE IT -- nothing, a type, a variable,
+            '' one declared below, an inner one from outside its parent -- is fbc's error 8
+            '' (3 for a bad later component; fbc-modern 1.20, 2026-09-30). It was dropped.
+            dim as boolean nsOk = (nss <> 0)
+            if nsOk then nsOk = (nss->kind = cast( ubyte, Tko.SYM_NAMESPACE )) andalso (DeclaredBelow_( c, nsid, un, here ) = false)
+            if nsOk = false then c.diags->Report( Tko.TKO0923, Tko.PointRange( c.ast->Loc( un ) ), c.names->Spelling( unm ) )
+            if nsOk = false then continue for
             c.syms->AddUsing( here, nss->inner )
             c.info->SetRef( un, nsid )    '' for CheckUsingAmbiguity_ (declshape.bas)
         next
