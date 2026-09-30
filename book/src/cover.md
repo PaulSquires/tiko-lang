@@ -6,8 +6,6 @@
 
 ### Code you can read. Speed you can measure. Binaries you can ship.
 
-Paul Squires
-
 </div>
 
 **tiko is a compiled, statically typed programming language for building fast, self-contained

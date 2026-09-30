@@ -121,7 +121,7 @@ $endif$
     #image("../src/brand/tiko-book-cover-spiral-sparse.svg", width: 4.2in)
     #v(0.45in)
     #v(0.35in)
-    #text(size: 13pt)[$for(author)$$author.name$$author$$sep$, $endfor$]
+    $if(author)$#text(size: 13pt)[$for(author)$$author.name$$author$$sep$, $endfor$]$endif$
     #v(0.15in)
     #text(size: 10pt, fill: luma(40%))[$if(date)$$date$$endif$]
     $if(draft)$#v(0.3in) #text(size: 10pt, fill: rgb("#b3261e"))[Draft -- not for distribution]$endif$

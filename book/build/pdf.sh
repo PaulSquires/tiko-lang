@@ -85,7 +85,7 @@ args=(
   --template template/book.typ
   --lua-filter tools/filters/mdbook_include.lua
   --lua-filter tools/filters/admonish.lua
-  --metadata title="The tiko Programming Language" --metadata author="Paul Squires"
+  --metadata title="The tiko Programming Language"
   --metadata syntax=../template/tiko.sublime-syntax
   --output out/book.typ
 )
