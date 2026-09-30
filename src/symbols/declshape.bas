@@ -619,3 +619,57 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         next
     next
 end sub
+
+'' A BARE 'type( ... )' WITH NO SINGLE TYPE TO BUILD -- fbc's error 71, "Incomplete type",
+'' measured on fbc-modern 1.20, 2026-09-30:
+''
+''     f( type( 0 ) ) over an OVERLOADED f                      structs/anon-ambigious-argument
+''     if type( 0 ) then                                        expressions/typeini-error-recovery-2
+''     f( type( 0 ) ) over one 'byref as integer' f             fine: the parameter is the type
+''
+'' tiko reached emission with no type for the literal: an internal error for the first, and
+'' IR clang refused for the second. One passed to a single procedure takes its parameter's.
+private sub CheckBareTypeLiterals_ ( byref c as Ctx )
+    dim as long total = c.ast->Count( )
+    dim as FB.Array( of ubyte ) argOf
+    for n as long = 0 to total
+        argOf.Push( 0 )
+    next
+    for n as long = 1 to total - 1
+        if c.ast->Kind( cast( NodeId, n ) ) <> N_CALL then continue for
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[n].data )]
+        if lp->target = NODE_NONE then continue for
+        dim as Symbol ptr hs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if hs = 0 then hs = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, n ) ) )
+        dim as ubyte mark = 1
+        if (hs <> 0) andalso (hs->kind = cast( ubyte, SYM_PROC )) andalso (hs->nextOverload <> SYMBOL_NONE) then mark = 2
+        for i as long = 0 to lp->count - 1
+            dim as NodeId a = cast( NodeId, c.ast->children[lp->first + i] )
+            if (a > 0) andalso (cast( long, a ) < total) then argOf[cast( long, a )] = mark
+        next
+    next
+    '' ...AND WHERE NOTHING SUPPLIES ONE: a condition, or the object of a member access. Check
+    '' types a context-less literal as an anonymous TUPLE, so its having a type says nothing
+    '' there ('print x.i = type( 1, 2 ).i' is fbc's 71 too). Only these positions are judged:
+    '' an assignment, a return, 'function =' or a nested '{ }' initializer takes a type from
+    '' what it fills, and 'no type recorded' was wrong for several of those (the corpus).
+    for n as long = 1 to total - 1
+        dim as NodeId cn = NODE_NONE, cn2 = NODE_NONE
+        select case c.ast->Kind( cast( NodeId, n ) )
+        case N_IF_BRANCH, N_WHILE, N_DO
+            cn = c.ast->stmts[cast( long, c.ast->nodes[n].data )].a
+        case N_MEMBER
+            cn = c.ast->binaries[cast( long, c.ast->nodes[n].data )].lhs
+        end select
+        if (cn > 0) andalso (cast( long, cn ) < total) then argOf[cast( long, cn )] = 3
+        if (cn2 > 0) andalso (cast( long, cn2 ) < total) then argOf[cast( long, cn2 )] = 3
+    next
+    for n as long = 1 to total - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_TUPLE then continue for
+        if (c.ast->nodes[n].flags and NF_TYPE_LITERAL) = 0 then continue for
+        if c.ast->lists[cast( long, c.ast->nodes[n].data )].target <> NODE_NONE then continue for
+        dim as boolean bad = (argOf[n] = 2) orelse (argOf[n] = 3)
+        if bad then c.diags->Report( TKO0925, PointRange( c.ast->Loc( id ) ) )
+    next
+end sub

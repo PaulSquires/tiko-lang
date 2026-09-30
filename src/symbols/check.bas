@@ -549,8 +549,7 @@ end function
 '' of which have to exist first.
 '' Defined below and used by the intrinsic tables included here: a UDT member by name,
 '' folded, procedures included.
-declare function UdtMemberSym_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+'' UdtMemberSym_ is declared in checkbase.bas, above.
 
 #include once "symbols/overload.bas"
 

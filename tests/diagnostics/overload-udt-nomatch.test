@@ -1,0 +1,7 @@
+'' TKO0632, fbc's 99: a UDT argument no overload takes and nothing converts. See UdtArgInert_
+'' in symbols/checkbase.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/overload-udt-nomatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: overload-udt-nomatch.bas(18,2): error TKO0632
+'' EXPECT-MAX-DIAG: 1

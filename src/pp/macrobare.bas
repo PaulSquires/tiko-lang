@@ -97,3 +97,27 @@ private sub PreExpandBareArgs_ _
         args.counts.Push( outA.counts[j] )
     next
 end sub
+
+'' TRUE SELF-RECURSION -- the name read out of ITS OWN body, with its '(' there too for a
+'' function-like one: '#define A A+1', '#define f(x) f(x)' are fbc's 89 (pp/expansion-recursive-1).
+'' An ARGUMENT's use (a use-site line) and a body name whose '(' follows the body (pp/hello.bas)
+'' are fbc's. The rest of that body is consumed, so nothing cascades to the frame cap.
+private function SelfRecursive_ _
+    ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
+    if e.frames.Count > 0 then
+        dim as long ft = e.frames.Count - 1
+        if (e.frames[ft].hides = m->name) andalso (e.frames[ft].useLoc <> LOC_NONE) then
+            dim as boolean fromBody = (e.src->Decode( use.loc ).file <> e.src->Decode( e.frames[ft].useLoc ).file) orelse (e.src->Decode( use.loc ).lineNo <> e.src->Decode( e.frames[ft].useLoc ).lineNo)
+            if fromBody andalso m->isFunc then
+                dim as long np_ = e.frames[ft].pos + 1
+                fromBody = (np_ < e.frames[ft].toks->Count) andalso (Tk( (*e.frames[ft].toks)[np_] ) = TK_LPAREN)
+            end if
+            if fromBody then
+                Report( e, TKO0924, e.frames[ft].useLoc, e.names->Spelling( m->name ) )
+                e.frames[ft].pos = e.frames[ft].toks->Count
+                return true
+            end if
+        end if
+    end if
+    return false
+end function

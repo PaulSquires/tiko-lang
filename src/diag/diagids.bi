@@ -714,6 +714,10 @@
     DIAG( TKO0922, SEV_ERROR,   "'%0' is not visible here: it is declared inside a namespace; qualify it" )
     '' fbc's error 8: 'using nosuch' -- a USING of what is no namespace declared above -- resolve.bas.
     DIAG( TKO0923, SEV_ERROR,   "'%0' is no namespace declared before this USING" )
+    '' fbc's error 89: '#define A A+1' -- a macro's body naming the macro itself -- pp/macro.bas.
+    DIAG( TKO0924, SEV_ERROR,   "recursive #define: '%0' names itself in its own body" )
+    '' fbc's error 71: a bare 'type( ... )' with no single type to build -- declshape.bas.
+    DIAG( TKO0925, SEV_ERROR,   "type( ... ) has no type to build here: write type<T>( ... )" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

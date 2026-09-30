@@ -1,0 +1,6 @@
+'' TKO0924, fbc's 89: a macro whose own body names it. See PpExpand in pp/macro.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/pp-recursive-define.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: pp-recursive-define.bas(7,1): error TKO0924
+'' EXPECT-MAX-DIAG: 1

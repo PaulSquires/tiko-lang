@@ -214,3 +214,54 @@ private function UdtShadowsIntrinsic_ _
     if bsym->type_ = Tko.TYPE_NONE then return false
     return (c.types->Kind( c.types->Unqualify( bsym->type_ ) ) = Tko.TK_UDT)
 end function
+
+'' A UDT ARGUMENT NOTHING CAN CONVERT, for the no-overload-matches report (overload.bas),
+'' which otherwise declines every UDT argument: a user cast, a parameter type's
+'' constructor, a base-class conversion or a generic instantiation may be the path the
+'' scoring does not model. None applies when the argument's type -- a named, non-generic
+'' UDT -- declares no 'operator cast' in itself or what it extends, and every candidate's
+'' parameters are builtins or pointers. Measured on fbc-modern 1.20, 2026-09-30: 'g( u )'
+'' over 'g( long )' and 'g( double )', and 'hashOf( k )' over fb/hash.bi's builtin
+'' overloads (generics/fail-container-nohash, -set), are fbc's error 99.
+declare function UdtMemberSym_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
+private function UdtArgInert_ _
+    ( byref c as Ctx, byval u as Tko.TypeId, byval callee as Tko.SymbolId ) as boolean
+    if c.types->Kind( u ) <> Tko.TK_UDT then return false
+    dim as Tko.InternId tn = c.types->NameOf( u )
+    if tn = 0 then return false
+    dim as string tsp = c.names->Spelling( tn )
+    dim as string h = left( tsp, 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") orelse (instr( tsp, "<" ) > 0) then return false
+    dim as Tko.TypeId t = u
+    for guard as long = 0 to 31
+        if (t = Tko.TYPE_NONE) orelse (c.types->Kind( t ) <> Tko.TK_UDT) then exit for
+        if UdtMemberSym_( c, t, "cast" ) <> Tko.SYMBOL_NONE then return false
+        t = c.types->BaseOf( t )
+    next
+    dim as Tko.SymbolId ck = callee
+    for guard as long = 0 to 999
+        if ck = Tko.SYMBOL_NONE then exit for
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( ck )
+        if cs = 0 then exit for
+        dim as Tko.NodeId cn = cast( Tko.NodeId, cs->payload )
+        if (cn = Tko.NODE_NONE) orelse (c.ast->Kind( cn ) <> Tko.N_PROC) then return false
+        dim as Tko.StmtPayload ptr cp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cn )].data )]
+        for i as long = 0 to cp->count - 1
+            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+            if c.ast->Kind( pn ) <> Tko.N_PARAM then continue for
+            dim as Tko.NodeId pa = c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].a
+            if pa = Tko.NODE_NONE then return false
+            dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( pa ) )
+            if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+            select case c.types->Kind( pt )
+            case Tko.TK_BUILTIN, Tko.TK_POINTER
+            case else
+                return false
+            end select
+        next
+        ck = cs->nextOverload
+    next
+    return true
+end function

@@ -522,7 +522,18 @@ private function PpReadArgs _
                     eager = PeekTokAhead( e, nx ) andalso (Tk( nx ) = TK_LPAREN)
                 end if
                 dim as boolean trigSpace = ((t.flags and TF_SPACE_BEFORE) <> 0)
-                if eager andalso PpExpand( e, em, t ) then
+                '' AN INVOCATION INSIDE AN ARGUMENT RECURSES NATIVELY, PpExpand into PpReadArgs,
+                '' and nothing bounded it: syntax/input-f.bas, where a '' comment swallows every
+                '' ')', nests each line's call in the one before and overflowed the stack.
+                if eager andalso (e.argNest >= PP_MAX_FRAMES) then
+                    Report( e, TKO0304, t.loc, str( PP_MAX_FRAMES ) )
+                    e.stopped = true
+                    return false
+                end if
+                if eager then e.argNest += 1
+                dim as boolean expanded = eager andalso PpExpand( e, em, t )
+                if eager then e.argNest -= 1
+                if expanded then
                     if pendSet = false then
                         pendSet = true
                         pendSpace = trigSpace
@@ -1427,6 +1438,8 @@ private function PpExpand _
     '' what '#if TRUE' did on the first attempt at this.
     if m->builtin = PPB_SELF then return false
     if m->builtin <> PPB_NONE then return PpExpandBuiltin( e, m, use )
+
+    if SelfRecursive_( e, m, use ) then return true    '' fbc's 89 -- macrobare.bas
 
     '' A function-like macro not followed by '(' is just an identifier, as in C.
     if m->isFunc then

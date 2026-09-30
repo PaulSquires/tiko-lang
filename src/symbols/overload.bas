@@ -1248,7 +1248,7 @@ private function ResolveCall_ _
                 end if
                 dim as Tko.TypeId a2u = c.types->Unqualify( a2t )
                 dim as Tko.TypeKind a2k = c.types->Kind( a2u )
-                if (a2k <> Tko.TK_BUILTIN) andalso (a2k <> Tko.TK_POINTER) then
+                if (a2k <> Tko.TK_BUILTIN) andalso (a2k <> Tko.TK_POINTER) andalso (UdtArgInert_( c, a2u, callee ) = false) then
                     allTyped = false
                     exit for
                 end if

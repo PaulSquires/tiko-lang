@@ -1,0 +1,9 @@
+'' TKO0925, fbc's 71: a bare type( ... ) with no single type to build. See
+'' CheckBareTypeLiterals_ in symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bare-type-literal.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bare-type-literal.bas(11,4): error TKO0925
+'' EXPECT-OUT: bare-type-literal.bas(12,4): error TKO0925
+'' EXPECT-OUT: bare-type-literal.bas(14,13): error TKO0925
+'' EXPECT-MAX-DIAG: 3

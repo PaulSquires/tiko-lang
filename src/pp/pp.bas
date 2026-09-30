@@ -64,6 +64,8 @@ end type
 const PP_OPTION_STACK_MAX = 32
 
 type PpEngine
+    '' How deep PpReadArgs' eager expansion is nested -- see its use in macro.bas.
+    as long argNest
     as SourceManager ptr src
     as Interner ptr      names
     as KeywordMap ptr    kw
