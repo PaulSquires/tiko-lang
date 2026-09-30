@@ -23,6 +23,21 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [C Header Import Tutorial](modern-Cinclude-tutorial) | Use a C library with `#cinclude` and no binding layer |
 | [Foreign Library Linking Tutorial](modern-Foreignlib-tutorial) | Link a library that ships inside your own source tree |
 
+## The book
+
+<a href="https://tiko-lang.net/book/"><img align="right" src="https://raw.githubusercontent.com/PaulSquires/tiko-lang/master/brand/tiko-book-cover-spiral-sparse.svg" alt="The tiko Programming Language: book cover" width="200"></a>
+
+***The tiko Programming Language*** is a book for programmers who know another language and are new to tiko. It teaches tiko as a language in its own right, and it is written in the tradition of *The Rust Programming Language* and K&R: the basics move briskly, and the idioms get room.
+
+It starts with the basics (types, control flow, procedures, arrays and strings), then builds abstractions (types, objects, modules, generics, errors, testing). It goes on to the advanced language (tuples, iterators, lambdas, `defer`, concurrency), the standard library, and systems programming: C interop with `#cinclude`, and building and shipping. It ends with three complete projects: a command-line search tool, a concurrent pipeline and a terminal-UI ledger.
+
+Every listing in the book is a real program, compiled and run on Windows and Linux with its output checked. The book is being written.
+
+- **Read it online:** [tiko-lang.net/book](https://tiko-lang.net/book/), an mdBook.
+- **Download the PDF:** [the-tiko-programming-language.pdf](https://tiko-lang.net/book/the-tiko-programming-language.pdf).
+
+<br clear="right">
+
 ## The language
 
 [Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Goroutines and Channels](Category-Goroutines-and-Channels)
