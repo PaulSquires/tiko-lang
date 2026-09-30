@@ -1,0 +1,8 @@
+'' TKO0914, fbc's 73: a whole array as the data of a file GET or PUT. See
+'' CheckFileGetPutArray_ in symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/file-getput-array.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: file-getput-array.bas(5,11): error TKO0914
+'' EXPECT-OUT: file-getput-array.bas(6,11): error TKO0914
+'' EXPECT-MAX-DIAG: 2

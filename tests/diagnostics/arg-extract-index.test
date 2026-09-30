@@ -1,0 +1,8 @@
+'' TKO0324, fbc's 17 and 42: __FB_ARG_EXTRACT__'s index is a float or an undefined name. See
+'' pp/macrobuiltin.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/arg-extract-index.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: arg-extract-index.bas(4,21): error TKO0324
+'' EXPECT-OUT: arg-extract-index.bas(5,21): error TKO0324
+'' EXPECT-MAX-DIAG: 2

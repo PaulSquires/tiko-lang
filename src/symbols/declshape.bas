@@ -132,6 +132,25 @@ private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
                 end if
             end if
         end if
+        '' AN ARRAY OF A TYPE WHOSE DESTRUCTOR IS STDCALL OR PASCAL: fbc's 172 for a REDIM and
+        '' 175 for a DIM, fixed or dynamic -- the runtime destroys elements through a cdecl
+        '' callback (fbc-modern 1.20, 2026-09-29; dim/redim-array-dtor-mismatch). A cdecl one
+        '' written out is fine, and so is a scalar.
+        if (((c.ast->nodes[cast( long, item )].flags and NF_ARRAY) <> 0) orelse (op = KW_REDIM)) andalso (ip->a <> NODE_NONE) then
+            dim as TypeId et = c.types->Unqualify( c.info->TypeOf_( ip->a ) )
+            if c.types->Kind( et ) = TK_UDT then
+                dim as Symbol ptr dts = StructorOf_( c, et, "__dtor" )
+                if (dts <> 0) andalso (dts->payload <> 0) then
+                    dim as NodeId dd = cast( NodeId, dts->payload )
+                    if c.ast->Kind( dd ) = N_PROC then
+                        if (c.ast->stmts[cast( long, c.ast->nodes[cast( long, dd )].data )].extra and (PF_STDCALL or PF_PASCAL)) <> 0 then
+                            c.diags->Report( TKO0913, PointRange( c.ast->Loc( item ) ), nm, c.names->Spelling( c.types->NameOf( et ) ) )
+                            continue for
+                        end if
+                    end if
+                end if
+            end if
+        end if
         '' '= any' OVER A CONST: the const is on the type reference the item was declared with.
         if (op <> KW_REDIM) andalso IsAnyNode_( c, ip->b ) andalso (ip->a <> NODE_NONE) then
             if (c.ast->nodes[cast( long, ip->a )].flags and NF_CONST) <> 0 then
@@ -310,4 +329,30 @@ private sub CheckTypeLiteral_ ( byref c as Ctx, byval id as NodeId )
     elseif ExtendsObject_( c, t ) then
         c.diags->Report( TKO0912, PointRange( c.ast->Loc( id ) ), c.names->Spelling( tn ) )
     end if
+end sub
+
+'' A WHOLE ARRAY AS THE DATA OF A FILE GET OR PUT -- fbc's error 73, "Array access, index
+'' expected": 'put #0, , values' over 'dim values( 0 to 0 )', a dynamic one the same (fbc-modern
+'' 1.20, 2026-09-29; expressions/nidxarray-3). 'values( )' writes the whole array and
+'' 'values( 0 )' one element; a fixed-length string is not this. The GRAPHICS forms take a bare
+'' array and are not judged: bit 1 of 'extra' marks the file form.
+private sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    select case cast( TokenKind, sp->op )
+    case KW_GET, KW_PUT
+    case else
+        return
+    end select
+    if (sp->extra and 1) = 0 then return
+    for i as long = 0 to sp->count - 1
+        dim as NodeId ch = cast( NodeId, c.ast->children[sp->first + i] )
+        if (ch = NODE_NONE) orelse (c.ast->Kind( ch ) <> N_IDENT) then continue for
+        dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( ch ) )
+        if (vs = 0) orelse (vs->kind <> cast( ubyte, SYM_VARIABLE )) orelse (vs->type_ = TYPE_NONE) then continue for
+        dim as TypeId vt = c.types->Unqualify( vs->type_ )
+        if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+        if c.types->Kind( vt ) <> TK_ARRAY then continue for
+        if Tko.Check.FixedStringElem( vt, *c.types ) <> TYPE_NONE then continue for
+        c.diags->Report( TKO0914, PointRange( c.ast->Loc( ch ) ), c.names->Spelling( vs->name ) )
+    next
 end sub

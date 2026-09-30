@@ -1,0 +1,8 @@
+'' TKO0915, fbc's 5: SCRN, CONS and ERR take no file name. See IntrOpen in
+'' parser/intrinsics.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/open-device-name.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: open-device-name.bas(2,11): error TKO0915
+'' EXPECT-OUT: open-device-name.bas(3,11): error TKO0915
+'' EXPECT-MAX-DIAG: 2

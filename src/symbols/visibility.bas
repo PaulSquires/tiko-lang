@@ -444,7 +444,7 @@ private sub RecordFirstRedims_( byref c as Ctx )
             '' The item's rank and target are redimrank.bas's, which overload resolution
             '' shares.
             dim as SymbolId sid
-            dim as long written = Tko.RedimRank.ItemRank( *c.ast, *c.syms, *c.types, *c.info, item, sid )
+            dim as long written = Tko.RedimRank.ItemRank( *c.ast, *c.syms, *c.types, *c.info, item, sid, c.info->ScopeOf( id ) )
             if written <= 0 then continue for
             if RecordedRank_( c, sid ) <> 0 then continue for
             c.redimSym.Push( cast( ulong, sid ) )

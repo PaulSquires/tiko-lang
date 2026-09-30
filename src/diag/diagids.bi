@@ -692,6 +692,12 @@
     DIAG( TKO0911, SEV_ERROR,   "type<%0>( ) needs values: the type has no constructor to call" )
     '' fbc's error 99: 'type<T>( ... )' over a type that extends OBJECT and declares no constructor -- declshape.bas.
     DIAG( TKO0912, SEV_ERROR,   "no constructor of '%0' takes these values: a type that extends OBJECT is not filled field by field" )
+    '' fbc's errors 172 and 175: an array of a type whose destructor is stdcall or pascal -- declshape.bas.
+    DIAG( TKO0913, SEV_ERROR,   "'%0' is an array of '%1', whose destructor is not cdecl; an array can only destroy through a cdecl one" )
+    '' fbc's error 73: a whole array as the data of a file GET or PUT -- declshape.bas.
+    DIAG( TKO0914, SEV_ERROR,   "'%0' is an array: GET # and PUT # take an element, or the whole array written '%0( )'" )
+    '' fbc's error 5: 'open scrn "name"' -- SCRN, CONS and ERR take no name -- parser/intrinsics.bas.
+    DIAG( TKO0915, SEV_ERROR,   "'%0' takes no name: the next thing is FOR or AS" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

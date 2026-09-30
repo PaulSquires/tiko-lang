@@ -235,6 +235,16 @@ private sub IntrOpen _
     sp.extra = (sp.extra and not Tko.OPEN_MODE_MASK) or 1
 
     sp.a = Expression( p )
+    '' 'open scrn "dead" for input as #1' -- SCRN, CONS and ERR name their device and take
+    '' no file name: fbc's error 5, "Expected 'AS'" (fbc-modern 1.20, 2026-09-29;
+    '' qb/file_open_scrn_fail). LPT, COM and PIPE do take one. The string was collected as a
+    '' stray item.
+    if (sp.a <> Tko.NODE_NONE) andalso (p.ast->Kind( sp.a ) = Tko.N_IDENT) andalso (Peek( p ) = Tko.TK_STRING_LIT) then
+        dim as string dev = lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, sp.a )].data )].name ) )
+        if ((dev = "scrn") orelse (dev = "cons") orelse (dev = "err")) andalso (p.silent = false) then
+            p.diags->Report( Tko.TKO0915, Tko.PointRange( Cur( p ).loc ), dev )
+        end if
+    end if
 
     dim as Tko.NodeIdVec items
     do

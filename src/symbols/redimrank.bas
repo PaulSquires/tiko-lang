@@ -11,7 +11,8 @@ namespace Tko.RedimRank
 
 function ItemRank _
     ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
-      byref info as SemanticInfo, byval item as NodeId, byref sid as SymbolId ) as long
+      byref info as SemanticInfo, byval item as NodeId, byref sid as SymbolId, _
+      byval scope_ as ScopeId = SCOPE_NONE ) as long
 
     sid = SYMBOL_NONE
     if ast.Kind( item ) <> N_VAR_ITEM then return 0
@@ -25,6 +26,12 @@ function ItemRank _
     dim as NodeId tgt = item
     if (ip->b <> NODE_NONE) andalso (ip->extra = cast( ushort, KW_REDIM )) then tgt = ip->b
     dim as SymbolId found = info.RefOf( tgt )
+    '' A DECLARING REDIM -- 'redim array( 0 to 0 ) as integer' over an existing array -- binds
+    '' nothing on its item, so the first redim of dim/dynamic-wrong-dimensions-extern-redim-
+    '' redim went unrecorded and the second, of another rank, was never judged (fbc's 36).
+    if (found = SYMBOL_NONE) andalso (tgt = item) andalso (scope_ <> SCOPE_NONE) then
+        found = syms.LookupTyped( scope_, ip->name, false )
+    end if
     dim as Symbol ptr s = syms.SymbolAt( found )
     if s = 0 then return 0
     if s->type_ = TYPE_NONE then return 0
@@ -47,7 +54,7 @@ function FirstRank _
         for i as long = 0 to sp->count - 1
             dim as SymbolId sid
             dim as long r = ItemRank( ast, syms, types, info, _
-                                      cast( NodeId, ast.children[sp->first + i] ), sid )
+                                      cast( NodeId, ast.children[sp->first + i] ), sid, info.ScopeOf( cast( NodeId, n ) ) )
             if (r > 0) andalso (sid = target) then return r
         next
     next

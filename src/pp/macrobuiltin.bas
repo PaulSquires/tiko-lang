@@ -202,8 +202,21 @@ function PpExpandBuiltin _
         if PpReadArgs( e, m, args ) then
             dim as boolean iok = false
             dim as longint i = BuiltinIntArg_( e, args, 0, iok )
+            '' ...AND NOT A FLOAT, NOR A NAME NO MACRO GIVES A VALUE: the evaluator reads
+            '' '3.147' as 3 and an unknown 'jimArg' as 0, where fbc gives 17 and 42
+            '' (fbc-modern 1.20, 2026-09-29; pp/macro-arg-extract-fail and -fail3).
+            if iok andalso (args.firsts.Count > 0) then
+                for ti as long = 0 to args.counts[0] - 1
+                    dim as Token at_ = args.flat[args.firsts[0] + ti]
+                    if Tk( at_ ) = TK_FLOAT_LIT then iok = false
+                    if Tk( at_ ) = TK_IDENT then
+                        if MacroFor( e, cast( InternId, at_.literal ) ) = 0 then iok = false
+                    end if
+                next
+            end if
             if (iok = false) orelse (i < 0) then
-                Report( e, TKO0324, use.loc, "1", e.names->Spelling( m->name ) )
+                '' At the USE SITE, where fbc reports it, not at the body token.
+                Report( e, TKO0324, UseSiteLoc_( e, use ), "1", e.names->Spelling( m->name ) )
             else
                 '' The LIST is everything after the index, expanded and RE-SPLIT --
                 '' so a macro standing in for several elements contributes all of

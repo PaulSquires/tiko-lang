@@ -1,0 +1,7 @@
+'' TKO0658, fbc's 36: a REDIM of another rank after a declaring 'redim ... as T'. See
+'' symbols/redimrank.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/redim-rank-declaring.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: redim-rank-declaring.bas(4,7): error TKO0658
+'' EXPECT-MAX-DIAG: 1

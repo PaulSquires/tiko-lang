@@ -1,0 +1,7 @@
+'' TKO0913, fbc's 172: an array of a type whose destructor is stdcall or pascal. See
+'' CheckDeclShape_ in symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-dtor-callconv.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-dtor-callconv.bas(14,12): error TKO0913
+'' EXPECT-MAX-DIAG: 1

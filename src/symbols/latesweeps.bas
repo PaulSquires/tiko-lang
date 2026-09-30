@@ -840,6 +840,15 @@ private sub CheckRedimRank_( byref c as Ctx )
                 tgt = ip->b
             end if
             dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+            '' A DECLARING REDIM binds nothing on its item; its name is looked up (redimrank.bas)
+            '' -- and only a DYNAMIC array is taken, for its rank. A fixed one found that way is
+            '' another rule's (TKO0600, TKO0723), which reported it already.
+            if (s = 0) andalso (tgt = item) then
+                dim as Symbol ptr ls = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false ) )
+                if (ls <> 0) andalso (ls->type_ <> TYPE_NONE) then
+                    if c.types->IsDynArray( c.types->Unqualify( ls->type_ ) ) then s = ls
+                end if
+            end if
             dim as TypeId u = TYPE_NONE
             dim as string nm = ""
             if s <> 0 then
