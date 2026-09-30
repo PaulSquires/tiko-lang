@@ -1,0 +1,21 @@
+'' bits.tiko -- shifting, masking, and the single-bit helpers.
+dim as uint32 flags = 0
+
+flags = bitset( flags, 0 )        '' turn bit 0 on
+flags = bitset( flags, 3 )
+print "flags        = " & flags & "  (binary " & bin( flags ) & ")"
+print "bit 3 set?   = " & cbool( bit( flags, 3 ) <> 0 )
+flags = bitreset( flags, 3 )
+print "after reset  = " & bin( flags )
+print
+
+print "1 shl 8      = " & ( 1 shl 8 )
+print "256 shr 4    = " & ( 256 shr 4 )
+print
+
+'' Picking halves out of a wider value.
+dim as uint32 packed = &hDEADBEEF
+print "packed       = " & hex( packed )
+print "low word     = " & hex( loword( packed ) )
+print "high word    = " & hex( hiword( packed ) )
+print "low byte     = " & hex( lobyte( packed ) )

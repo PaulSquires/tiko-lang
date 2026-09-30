@@ -1,0 +1,8 @@
+andalso stops once the answer is known:
+and always evaluates both:
+   (Loud was called)
+
+12 and 10 = 8
+12 or  10 = 14
+12 xor 10 = 6
+not 12    = -13

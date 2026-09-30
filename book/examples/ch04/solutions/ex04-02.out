@@ -1,0 +1,5 @@
+2 ^ 3 ^ 2       = 64   (left, so 64)
+1 shl 2 + 3     = 7    (shl first, so 7)
+a \ b \ c       = 2
+a \ (b \ c)     = 8
+not ready andalso not busy = false

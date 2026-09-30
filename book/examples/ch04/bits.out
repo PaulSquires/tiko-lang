@@ -1,0 +1,11 @@
+flags        = 9  (binary 1001)
+bit 3 set?   = true
+after reset  = 1
+
+1 shl 8      = 256
+256 shr 4    = 16
+
+packed       = DEADBEEF
+low word     = BEEF
+high word    = DEAD
+low byte     = EF

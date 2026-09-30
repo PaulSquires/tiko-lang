@@ -1,0 +1,20 @@
+'' logic.tiko -- two families of operator that look alike and are not.
+declare function Loud( byval v as boolean ) as boolean
+
+function Loud( byval v as boolean ) as boolean
+    print "   (Loud was called)"
+    return v
+end function
+
+print "andalso stops once the answer is known:"
+if false andalso Loud( true ) then print "unreachable"
+
+print "and always evaluates both:"
+if false and Loud( true ) then print "unreachable"
+
+print
+'' On integers the bitwise family works bit by bit.
+print "12 and 10 = " & ( 12 and 10 )
+print "12 or  10 = " & ( 12 or 10 )
+print "12 xor 10 = " & ( 12 xor 10 )
+print "not 12    = " & ( not 12 )

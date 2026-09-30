@@ -1,0 +1,12 @@
+'' arithmetic.tiko -- the operators, and the three that surprise people.
+print "7 / 2   = " & ( 7 / 2 )      '' always a float
+print "7 \ 2   = " & ( 7 \ 2 )      '' integer division
+print "7 mod 2 = " & ( 7 mod 2 )
+print
+'' mod takes the sign of the LEFT operand: a remainder, not a modulus.
+print "-7 mod 2 = " & ( -7 mod 2 )
+print " 7 mod -2 = " & ( 7 mod -2 )
+print
+'' '^' is floating point even when both operands are whole numbers.
+print "2 ^ 10 = " & ( 2 ^ 10 ) & _
+      "   and it is " & sizeof( typeof( 2 ^ 10 ) ) & " bytes wide"

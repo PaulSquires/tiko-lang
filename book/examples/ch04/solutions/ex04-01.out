@@ -1,0 +1,4 @@
+perms      = 11
+readable   = true
+executable = false
+mask form  = 11  same? true

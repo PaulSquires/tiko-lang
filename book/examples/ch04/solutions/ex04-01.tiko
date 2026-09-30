@@ -1,0 +1,18 @@
+'' ex04-01.tiko -- a mask built from named bit positions.
+const FlagRead  = 0
+const FlagWrite = 1
+const FlagExec  = 2
+
+dim as uint32 perms = 0
+perms = bitset( perms, FlagRead )
+perms = bitset( perms, FlagWrite )
+
+print "perms      = " & bin( perms )
+print "readable   = " & cbool( bit( perms, FlagRead ) <> 0 )
+print "executable = " & cbool( bit( perms, FlagExec ) <> 0 )
+
+'' The same thing with a mask instead of the helpers.
+const MaskRead  = 1 shl FlagRead
+const MaskWrite = 1 shl FlagWrite
+dim as uint32 both = MaskRead or MaskWrite
+print "mask form  = " & bin( both ) & "  same? " & cbool( both = perms )

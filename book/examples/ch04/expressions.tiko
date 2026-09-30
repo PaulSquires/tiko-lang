@@ -1,0 +1,22 @@
+'' expressions.tiko -- joining text, choosing a value, and shorthand.
+dim as ustring who = "world"
+
+'' '&' joins text. '+' also adds numbers, so '&' always means join.
+print "hello, " & who
+print "1 & 2 gives the text " & ( 1 & 2 )
+print "1 + 2 gives the number " & ( 1 + 2 )
+print
+
+'' iif picks between two values inside an expression.
+dim as int32 stock = 0
+print "in stock: " & iif( stock > 0, "yes", "no" )
+print
+
+'' Compound assignment, and swapping two variables.
+dim as int32 total = 10
+total += 5 : total *= 2
+print "total = " & total
+
+dim as ustring left_ = "first", right_ = "second"
+swap left_, right_
+print left_ & " " & right_

@@ -1,0 +1,11 @@
+'' ex04-02.tiko -- where parentheses change the answer.
+print "2 ^ 3 ^ 2       = " & ( 2 ^ 3 ^ 2 ) & "   (left, so 64)"
+print "1 shl 2 + 3     = " & ( 1 shl 2 + 3 ) & "    (shl first, so 7)"
+
+'' These two need them: the grouping is otherwise not what is meant.
+dim as int32 a = 8, b = 2, c = 2
+print "a \ b \ c       = " & ( a \ b \ c )
+print "a \ (b \ c)     = " & ( a \ ( b \ c ) )
+
+dim as boolean ready = true, busy = true
+print "not ready andalso not busy = " & ( not ready andalso not busy )
