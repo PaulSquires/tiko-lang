@@ -1,0 +1,7 @@
+'' TKO0620, fbc's 306: a bare type( ) for a parameter of an abstract type. See
+'' types/abstractcheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/abstract-bare-type-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: abstract-bare-type-arg.bas(12,6): error TKO0620
+'' EXPECT-MAX-DIAG: 1

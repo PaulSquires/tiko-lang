@@ -698,6 +698,20 @@
     DIAG( TKO0914, SEV_ERROR,   "'%0' is an array: GET # and PUT # take an element, or the whole array written '%0( )'" )
     '' fbc's error 5: 'open scrn "name"' -- SCRN, CONS and ERR take no name -- parser/intrinsics.bas.
     DIAG( TKO0915, SEV_ERROR,   "'%0' takes no name: the next thing is FOR or AS" )
+    '' fbc's error 98: a graphics target UDT with two casts to a pointer -- proccheck.bas.
+    DIAG( TKO0916, SEV_ERROR,   "this type has more than one conversion to a pointer, so the graphics statement cannot choose one" )
+    '' fbc's error 42: 'UDT( )' over a type with nothing to construct -- declshape.bas.
+    DIAG( TKO0917, SEV_ERROR,   "'%0' has no constructor, so '%0( ... )' is no call" )
+    '' fbc's error 24: '*@type<T>( ... ) = x' -- declshape.bas.
+    DIAG( TKO0918, SEV_ERROR,   "a store through the address of a temporary: the value is gone at the end of the statement" )
+    '' fbc's error 255: a name two usings both reach -- declshape.bas.
+    DIAG( TKO0919, SEV_ERROR,   "'%0' is ambiguous: more than one USING in effect declares it; qualify it" )
+    '' fbc's error 96: '#pragma reserve (asm)' inside a block -- parser/declempty.bas.
+    DIAG( TKO0920, SEV_ERROR,   "'#pragma reserve (asm)' belongs at module level, not inside a block" )
+    '' fbc's error 59: a capturing lambda's parameter typed by the enclosing generic's parameter -- declshape.bas.
+    DIAG( TKO0921, SEV_ERROR,   "the capturing lambda's parameter '%0' cannot be of the generic's type parameter '%1'" )
+    '' fbc's error 160: 'property UDT.foo' where UDT is not visible from here -- latesweeps.bas.
+    DIAG( TKO0922, SEV_ERROR,   "'%0' is not visible here: it is declared inside a namespace; qualify it" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

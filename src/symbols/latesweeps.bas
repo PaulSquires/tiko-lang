@@ -223,6 +223,25 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
         if (k = N_VAR_ITEM) andalso (sp->extra = cast( ushort, KW_REDIM )) then
             if (ns = SCOPE_NONE) orelse (sp->a = NODE_NONE) then continue for
         end if
+        '' THE OWNER'S FIRST NAME MUST BE VISIBLE FROM WHERE THE DEFINITION IS WRITTEN --
+        '' 'property UDT.foo( )' at module level over a UDT declared inside 'namespace ns' is
+        '' fbc's 160 (3 for a SUB), measured on fbc-modern 1.20, 2026-09-30 (namespace/outside-
+        '' prop-5). 'ns.UDT.foo', or the same after 'using ns', reaches it. A generic's owner
+        '' path, or a definition whose scope is not recorded, is not judged.
+        if (k = N_PROC) andalso OwnerHeadExists_( c, sp->ownerName ) then
+            dim as string ohq = c.names->Spelling( sp->ownerName )
+            dim as ScopeId osc = c.info->ScopeOf( id )
+            if (instr( ohq, "(" ) = 0) andalso (osc <> SCOPE_NONE) then
+                if instr( ohq, "." ) > 0 then ohq = left( ohq, instr( ohq, "." ) - 1 )
+                dim as InternId ohd = c.names->Fold( c.names->GetString( ohq ) )
+                dim as boolean ownerSeen = (c.syms->LookupTyped( osc, ohd, true ) <> SYMBOL_NONE)
+                if ownerSeen = false then ownerSeen = (c.syms->Lookup( osc, ohd ) <> SYMBOL_NONE)
+                if ownerSeen = false then
+                    c.diags->Report( TKO0922, PointRange( c.ast->Loc( id ) ), ohq )
+                    continue for
+                end if
+            end if
+        end if
         if (ns = SCOPE_NONE) andalso (k = N_PROC) then
             '' THE OWNER MAY BE A TYPE, and the rule is the same one fbc gives a
             '' namespace, with the same error 158: 'declare sub U.bbb( )' when the type

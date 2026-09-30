@@ -267,6 +267,9 @@ namespace Tko
         '' well, where the duplicate-reserve check needs them while directives are still
         '' being read.
         as IdVec    reservedNames
+        '' Where each '#pragma reserve (asm ...)' was, for the parser: inside a block it is
+        '' fbc's error 96, and only the parser knows the nesting (declempty.bas).
+        as IdVec    asmReserveAt
         '' A '#lang' this unit asked for and tiko-lang refused (TKO0317). The unit fails
         '' either way; in 'qb' or 'fblite' an undeclared name is an implicit variable,
         '' so the undeclared-name report is not made over one -- it would be noise.

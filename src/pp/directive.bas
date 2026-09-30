@@ -914,6 +914,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                         '' fbc still lets the source declare it. Measured: 'reserve foo'
                         '' then 'dim as integer foo' is error 4, and the parenthesised
                         '' forms are accepted.
+                        if ((modes and 2) <> 0) andalso (e.outp <> 0) then
+                            e.outp->asmReserveAt.Push( cast( ulong, at ) )
+                        end if
                         if (modes and 1) <> 0 then
                             if e.outp <> 0 then
                                 e.outp->reservedNames.Push( cast( ulong, rid ) )

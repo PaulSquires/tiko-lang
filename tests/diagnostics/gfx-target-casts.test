@@ -1,0 +1,8 @@
+'' TKO0709 (fbc's 99) and TKO0916 (98): a graphics target UDT with no pointer cast, or two.
+'' See symbols/proccheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/gfx-target-casts.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: gfx-target-casts.bas(19,6): error TKO0709
+'' EXPECT-OUT: gfx-target-casts.bas(20,6): error TKO0916
+'' EXPECT-MAX-DIAG: 2

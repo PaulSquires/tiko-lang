@@ -24,7 +24,7 @@ N_MODULE (41) <1:1>
             N_TYPEREF 'long' [LONG] <13:12>
         N_FOR <14:5>
           N_IDENT 'i' <14:9>
-          N_BLOCK (1) <14:30>
+          N_BLOCK (1) <22:5>
             N_IF <15:9>
               N_BLOCK (2) <15:9>
                 N_IF_BRANCH <15:9>

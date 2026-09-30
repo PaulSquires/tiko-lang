@@ -1,0 +1,7 @@
+'' TKO0917, fbc's 42: 'UDT( )' over a type with nothing to construct. See symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-call-no-ctor.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-call-no-ctor.bas(14,33): error TKO0917
+'' EXPECT-OUT: udt-call-no-ctor.bas(16,18): error TKO0917
+'' EXPECT-MAX-DIAG: 2

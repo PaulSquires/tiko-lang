@@ -85,6 +85,25 @@ private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPa
     next
 end sub
 
+'' '#pragma reserve (asm) name' INSIDE A BLOCK -- fbc's error 96, "Illegal inside a compound
+'' statement or scoped block", measured on fbc-modern 1.20, 2026-09-30 (pp/pragma-reserve-9);
+'' the plain '#pragma reserve name' there is fine. The preprocessor records where each one
+'' was, and it streams: a block's own statement loop has just made it read the lines it
+'' skipped, so any record past the block's start is inside it. Older ones are dropped.
+sub AsmReserveInBlock_( byref p as Tko.ParserState, byval blockAt as Tko.SourceLoc )
+    if p.stream = 0 then return
+    dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+    if st->outp = 0 then return
+    dim as long n = st->outp->asmReserveAt.Count
+    for i as long = p.asmSeen to n - 1
+        dim as Tko.SourceLoc at_ = cast( Tko.SourceLoc, st->outp->asmReserveAt[i] )
+        if (cast( ulong, at_ ) >= cast( ulong, blockAt )) andalso (p.silent = false) then
+            p.diags->Report( Tko.TKO0920, Tko.PointRange( at_ ) )
+        end if
+    next
+    p.asmSeen = n
+end sub
+
 '' Asked with the member list pushed and the 'end' as the current token.
 private sub EmptyAggCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
     AggMemberCheck_( p, sp, isUnion )

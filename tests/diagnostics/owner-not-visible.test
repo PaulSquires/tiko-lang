@@ -1,0 +1,7 @@
+'' TKO0922, fbc's 160: a member defined through an owner not visible from here. See
+'' symbols/latesweeps.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/owner-not-visible.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: owner-not-visible.bas(9,1): error TKO0922
+'' EXPECT-MAX-DIAG: 1

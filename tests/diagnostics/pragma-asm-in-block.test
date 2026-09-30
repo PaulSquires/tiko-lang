@@ -1,0 +1,6 @@
+'' TKO0920, fbc's 96: '#pragma reserve (asm)' inside a block. See parser/declempty.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/pragma-asm-in-block.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: pragma-asm-in-block.bas(4,5): error TKO0920
+'' EXPECT-MAX-DIAG: 1

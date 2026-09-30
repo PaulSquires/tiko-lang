@@ -295,7 +295,31 @@ private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
         '' A CONVERSION OPERATOR MAY SUPPLY THE POINTER, and which one is a question of
         '' overload choice this pass does not model -- any 'cast' at all is enough to
         '' decline.
-        if StructorOf_( c, u, "cast" ) <> 0 then return
+        '' ...AND IT MUST BE ONE CAST TO A POINTER, exactly -- measured on fbc-modern 1.20,
+        '' 2026-09-30: a type whose only cast is 'as string' or 'as integer' is fbc's 99, and
+        '' one with 'as ubyte ptr' and 'as ulong ptr' both is its 98 (gfx/image-expr-cast-
+        '' overload-nomatch and -ambigious). Any other cast beside the one is fine.
+        '' ...unless one of them is 'as any ptr', the exact match, which fbc takes over the rest
+        '' (gfx/image-expr.bas: 'as any ptr' beside 'as FB.IMAGE ptr').
+        dim as long ptrCasts = 0
+        dim as boolean anyPtr = false
+        dim as Symbol ptr gcs = StructorOf_( c, u, "cast" )
+        for guard as long = 0 to 63
+            if gcs = 0 then exit for
+            dim as TypeId grt = c.types->Unqualify( gcs->type_ )
+            if c.types->Kind( grt ) = TK_REFERENCE then grt = c.types->Unqualify( c.types->Inner( grt ) )
+            if c.types->Kind( grt ) = TK_POINTER then
+                ptrCasts += 1
+                dim as TypeId gin = c.types->Unqualify( c.types->Inner( grt ) )
+                if (c.types->Kind( gin ) = TK_BUILTIN) andalso (c.types->BuiltinOf( gin ) = TY_ANY) then anyPtr = true
+            end if
+            gcs = c.syms->SymbolAt( gcs->nextOverload )
+        next
+        if (ptrCasts = 1) orelse anyPtr then return
+        if ptrCasts > 1 then
+            c.diags->Report( TKO0916, PointRange( c.ast->Loc( sp->a ) ) )
+            return
+        end if
         c.diags->Report( TKO0709, PointRange( c.ast->Loc( sp->a ) ) )
     case TK_ARRAY
         '' AN ARRAY IS A LEGAL IMAGE BUFFER -- 'line array, (0,0)-(w,h), c' over a plain

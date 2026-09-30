@@ -1,0 +1,7 @@
+'' TKO0810, fbc's 71: a FOR over a pointer to a forward type, at the NEXT. See
+'' symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/for-ptr-fwd.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: for-ptr-fwd.bas(4,1): error TKO0810
+'' EXPECT-MAX-DIAG: 1

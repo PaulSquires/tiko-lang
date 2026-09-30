@@ -71,6 +71,7 @@ declare function SelectIsChannel_( byref p as Tko.ParserState ) as boolean
 declare function ParseSelectChannel_ _
     ( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
 declare sub SkipEols( byref p as Tko.ParserState )
+declare sub AsmReserveInBlock_( byref p as Tko.ParserState, byval blockAt as Tko.SourceLoc )  '' declempty.bas
 declare function AtEnd( byref p as Tko.ParserState ) as boolean
 declare function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
 declare sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
@@ -140,6 +141,7 @@ function Block( byref p as Tko.ParserState ) as Tko.NodeId
     do
         if p.pendingNext > 0 then exit do      '' 'next x, y' -- see AcceptNext_
         SkipEols( p )
+        AsmReserveInBlock_( p, t.loc )
         if AtEnd( p ) then exit do
         if IsBlockEnderAt( p ) then exit do
         dim as Tko.NodeId s = Statement( p )
@@ -613,6 +615,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     p.forDepth += 1
     sp.b = Block( p )
     p.forDepth -= 1
+    if sp.b <> Tko.NODE_NONE then p.ast->nodes[cast( long, sp.b )].loc = Cur( p ).loc   '' the NEXT, for diagnostics
     AcceptNext_( p, t.loc )
 
     return MakeStmt( p, Tko.N_FOR, t.loc, sp )

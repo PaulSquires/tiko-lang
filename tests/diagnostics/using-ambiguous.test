@@ -1,0 +1,6 @@
+'' TKO0919, fbc's 255: a name two usings both reach. See symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/using-ambiguous.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using-ambiguous.bas(12,11): error TKO0919
+'' EXPECT-MAX-DIAG: 1

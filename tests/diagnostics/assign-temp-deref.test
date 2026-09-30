@@ -1,0 +1,6 @@
+'' TKO0918, fbc's 24: a store through the address of a temporary. See symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/assign-temp-deref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: assign-temp-deref.bas(6,1): error TKO0918
+'' EXPECT-MAX-DIAG: 1

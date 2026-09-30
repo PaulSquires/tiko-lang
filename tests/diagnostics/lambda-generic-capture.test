@@ -1,0 +1,8 @@
+'' TKO0921, fbc's 59: a capturing lambda's parameter typed by the generic's parameter. See
+'' symbols/declshape.bas. The template and its instance both report.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/lambda-generic-capture.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: lambda-generic-capture.bas(6,15): error TKO0921
+'' EXPECT-OUT: lambda-generic-capture.bas(6,15): error TKO0921
+'' EXPECT-MAX-DIAG: 2

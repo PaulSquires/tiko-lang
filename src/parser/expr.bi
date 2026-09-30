@@ -129,6 +129,8 @@ namespace Tko
         '' parserend.bas's AcceptNext_.
         as long                 pendingNext
         as long                 forDepth
+        '' How many '#pragma reserve (asm)' records the blocks have already judged.
+        as long                 asmSeen
         '' The PROCEDURES declared so far, the prelude's included. fbc reads 'name :' as
         '' a label only when 'name' is not a procedure it knows at that point
         '' (parser-label.bas), so 'sleep : end 0' is a call and then END. See

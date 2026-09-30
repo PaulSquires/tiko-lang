@@ -153,6 +153,40 @@ sub CheckAbstractInstances _
                       names.Spelling( types.NameOf( types.Unqualify( tt ) ) ) )
     next
 
+    '' ...AND A BARE 'type( )' PASSED TO A PARAMETER, whose type Check did not give the node:
+    '' 'foo( type( ) )' over 'byref x as A' constructs an A (virtual/abstract-object-11,
+    '' fbc's 306). The parameter's own type reference answers it.
+    for n as long = 0 to ast.Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if ast.Kind( id ) <> N_CALL then continue for
+        dim as ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[n].data )]
+        if cp->target = NODE_NONE then continue for
+        dim as Symbol ptr ps = syms.SymbolAt( info.RefOf( id ) )
+        if ps = 0 then ps = syms.SymbolAt( info.RefOf( cp->target ) )
+        if (ps = 0) orelse (ps->kind <> cast( ubyte, SYM_PROC )) then continue for
+        dim as NodeId pd = cast( NodeId, ps->payload )
+        if (pd = NODE_NONE) orelse (ast.Kind( pd ) <> N_PROC) then continue for
+        dim as StmtPayload ptr pdp = @ast.stmts[cast( long, ast.nodes[cast( long, pd )].data )]
+        dim as long ai = 0
+        for pi_ as long = 0 to pdp->count - 1
+            dim as NodeId pn = cast( NodeId, ast.children[pdp->first + pi_] )
+            if (pn = NODE_NONE) orelse (ast.Kind( pn ) <> N_PARAM) then continue for
+            if ai >= cp->count then exit for
+            dim as NodeId arg = cast( NodeId, ast.children[cp->first + ai] )
+            ai += 1
+            if (arg = NODE_NONE) orelse (ast.Kind( arg ) <> N_TUPLE) then continue for
+            if (ast.nodes[cast( long, arg )].flags and NF_TYPE_LITERAL) = 0 then continue for
+            if ast.lists[cast( long, ast.nodes[cast( long, arg )].data )].target <> NODE_NONE then continue for
+            if info.TypeOf_( arg ) <> TYPE_NONE then continue for
+            dim as NodeId pta = ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )].a
+            if pta = NODE_NONE then continue for
+            dim as TypeId pt = types.Unqualify( info.TypeOf_( pta ) )
+            if types.Kind( pt ) = TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
+            if AbstractHere_( types, store, pt ) = false then continue for
+            diags.Report( TKO0620, PointRange( ast.Loc( arg ) ), names.Spelling( types.NameOf( pt ) ) )
+        next
+    next
+
     '' 'A( )' -- A CONSTRUCTED TEMPORARY, which is an ordinary CALL node whose callee
     '' happens to name a TYPE rather than a procedure. Its own type is the A, so unlike
     '' 'new A' the node carries what is wanted directly.

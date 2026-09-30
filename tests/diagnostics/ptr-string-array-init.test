@@ -1,0 +1,8 @@
+'' TKO0653, fbc's 24 and 14: a string literal for a pointer in an array initializer. See
+'' symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ptr-string-array-init.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ptr-string-array-init.bas(7,48): error TKO0653
+'' EXPECT-OUT: ptr-string-array-init.bas(8,43): error TKO0653
+'' EXPECT-MAX-DIAG: 2

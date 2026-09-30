@@ -808,6 +808,7 @@ sub WalkStmt _
             if nss <> 0 then
                 if nss->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
                     c.syms->AddUsing( here, nss->inner )
+                    c.info->SetRef( id, nsid )    '' for CheckUsingAmbiguity_ (declshape.bas)
                 end if
             end if
         end if

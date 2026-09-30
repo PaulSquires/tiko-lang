@@ -102,6 +102,36 @@ private sub RequireOperator_ _
     if u = TYPE_NONE then return
     if c.types->Kind( u ) <> TK_UDT then return
     dim as Symbol ptr st = StructorOf_( c, u, nm )
+    '' A GENERIC INSTANCE'S MEMBER SYMBOLS CARRY NO VISIBILITY -- the template's N_TYPE,
+    '' which is the instance symbol's payload, does. Measured, fbc's 202 for 'b = a' over
+    '' 'ComHeapPtr( of ushort )' (fb/comptr.bi; com/fail-comheapptr-copy), whose 'let' is
+    '' private. Judged from module level only, where no type could be a friend; every
+    '' overload of the name must be hidden.
+    if here = TYPE_NONE then
+        dim as Symbol ptr gts = UdtSymbolOf_( c, u )
+        if (gts <> 0) andalso (gts->payload <> 0) then
+            dim as NodeId gn = cast( NodeId, gts->payload )
+            if c.ast->Kind( gn ) = N_TYPE then
+                dim as StmtPayload ptr gp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gn )].data )]
+                if gp->b <> NODE_NONE then
+                    dim as long seenNm = 0, hiddenNm = 0
+                    for gi as long = 0 to gp->count - 1
+                        dim as NodeId gm = cast( NodeId, c.ast->children[gp->first + gi] )
+                        if (gm = NODE_NONE) orelse (c.ast->Kind( gm ) <> N_PROC) then continue for
+                        dim as StmtPayload ptr gmp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gm )].data )]
+                        if (gmp->name = 0) orelse (Text.LowerAscii( c.names->Spelling( gmp->name ) ) <> nm) then continue for
+                        seenNm += 1
+                        if (gmp->extra and (PF_MEMB_PRIVATE or PF_MEMB_PROTECTED)) <> 0 then hiddenNm += 1
+                    next
+                    if (seenNm > 0) andalso (hiddenNm = seenNm) then
+                        c.diags->Report( TKO0746, PointRange( c.ast->Loc( at ) ), "operator " & nm, _
+                                         c.names->Spelling( c.types->NameOf( u ) ) )
+                    end if
+                    if seenNm > 0 then return
+                end if
+            end if
+        end if
+    end if
     if st = 0 then return
     dim as Symbol ptr walk = st
     dim as long guard = 0
@@ -1034,7 +1064,12 @@ private sub CheckOperatorVisibility_ _
             dim as TypeId dt = ValueType_( c, c.info->TypeOf_( sp->a ) )
             dim as TypeId vt = ValueType_( c, c.info->TypeOf_( sp->b ) )
             if (dt = TYPE_NONE) orelse (vt = TYPE_NONE) then return
-            if dt = vt then return
+            '' ...AND BETWEEN TWO OF ONE UDT IT IS THE 'let': a private one is fbc's 202 too,
+            '' 'b = a' over fb/comptr.bi's non-copyable ComHeapPtr (com/fail-comheapptr-copy).
+            if dt = vt then
+                if c.types->Kind( dt ) = TK_UDT then RequireOperator_( c, dt, "let", here, id )
+                return
+            end if
             if c.types->Kind( dt ) = TK_UDT then return
             RequireOperator_( c, vt, "cast", here, id )
             return
@@ -1050,6 +1085,19 @@ private sub CheckOperatorVisibility_ _
         '' 'varptr', 'strptr' and 'procptr' share this node; only '@' is an operator.
         if cast( TokenKind, up->op ) <> TK_AT then return
         RequireOperator_( c, c.info->TypeOf_( up->operand ), "@", here, id )
+
+    case N_CALL
+        '' 'str( x )' AND 'wstr( x )' CONVERT THROUGH THE 'cast': a private one is fbc's 202
+        '' (measured 2026-09-30; overload/op_ctor_coercion-3 reaches it as str( type<T>( x1 ) )).
+        dim as ListPayload ptr clp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (clp->target = NODE_NONE) orelse (clp->count <> 1) then return
+        if c.ast->Kind( clp->target ) <> N_IDENT then return
+        if c.info->RefOf( clp->target ) <> SYMBOL_NONE then return
+        select case lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, clp->target )].data )].name ) )
+        case "str", "wstr"
+            dim as TypeId at_ = ValueType_( c, c.info->TypeOf_( cast( NodeId, c.ast->children[clp->first] ) ) )
+            if (at_ <> TYPE_NONE) andalso (c.types->Kind( at_ ) = TK_UDT) then RequireOperator_( c, at_, "cast", here, id )
+        end select
 
     case N_NEW
         dim as ListPayload ptr lp = _
@@ -1209,6 +1257,11 @@ private sub WalkExtra_ _
     if (k = N_VAR) orelse (k = N_AMBIGUOUS) then CheckPtrIntWidth_( c, id )
     if k = N_TUPLE then CheckTypeLiteral_( c, id )
     if k = N_INTRINSIC then CheckFileGetPutArray_( c, id )
+    if k = N_CALL then CheckUdtCallNoCtor_( c, id )
+    if k = N_AMBIGUOUS then CheckAssignTempDeref_( c, id )
+    if k = N_VAR then CheckPtrStringInit_( c, id )
+    if k = N_FOR then CheckForPtrFwd_( c, id )
+    if k = N_PROC then CheckLambdaTypeParam_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )
@@ -1228,6 +1281,7 @@ end sub
 private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckUdtInits_( c )
     CheckByrefInitShapes_( c )
+    CheckUsingAmbiguity_( c )
     CheckExternBlock_( c, c.root )
     CheckEllipsisUbound_( c )
     CheckAggregateInitVisibility_( c )

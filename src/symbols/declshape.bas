@@ -356,3 +356,266 @@ private sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
         c.diags->Report( TKO0914, PointRange( c.ast->Loc( ch ) ), c.names->Spelling( vs->name ) )
     next
 end sub
+
+'' 'UDT( )' OVER A TYPE WITH NOTHING TO CONSTRUCT -- fbc's error 42, "Variable not declared",
+'' measured on fbc-modern 1.20, 2026-09-30: 'DtorUdt( )' and 'DtorUdt( 1 )' over a type with
+'' only a destructor, and 'P( )' over one of plain fields, in an initializer or as a
+'' parameter's default (functions/paraminit-undeclared-1). A type with a constructor, a
+'' string field, a field initializer or OBJECT is constructed, and the call is fine.
+private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = 0 then return
+    if (ts->kind <> cast( ubyte, SYM_UDT )) andalso (ts->kind <> cast( ubyte, SYM_TYPEDEF )) then return
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return
+    dim as string h = left( c.names->Spelling( tn ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return
+    if instr( c.names->Spelling( tn ), "<" ) > 0 then return
+    if StructorOf_( c, t, "__ctor" ) <> 0 then return
+    if TcNeedsCtor_( c, t, 0 ) orelse FieldHasInit_( c, t ) then return
+    c.diags->Report( TKO0917, PointRange( c.ast->Loc( lp->target ) ), c.names->Spelling( tn ) )
+end sub
+
+'' '*@type<UDT>( 1 ) = x' -- A STORE THROUGH THE ADDRESS OF A TEMPORARY, fbc's error 24
+'' (structs/anon-invalid-initializer-2). '@type<UDT>( 1 )' read, or taken into a pointer,
+'' is fbc's.
+private function StripParens_ ( byref c as Ctx, byval n as NodeId ) as NodeId
+    for up as long = 0 to 15
+        if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_PAREN) then exit for
+        dim as ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if pp->count <> 1 then exit for
+        n = cast( NodeId, c.ast->children[pp->first] )
+    next
+    return n
+end function
+
+private sub CheckAssignTempDeref_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId d = StripParens_( c, sp->a )
+    if (d = NODE_NONE) orelse (c.ast->Kind( d ) <> N_DEREF) then return
+    dim as NodeId ad = StripParens_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, d )].data )].operand )
+    if (ad = NODE_NONE) orelse (c.ast->Kind( ad ) <> N_ADDROF) then return
+    dim as NodeId lit = StripParens_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, ad )].data )].operand )
+    if (lit = NODE_NONE) orelse (c.ast->Kind( lit ) <> N_TUPLE) then return
+    if (c.ast->nodes[cast( long, lit )].flags and NF_TYPE_LITERAL) = 0 then return
+    c.diags->Report( TKO0918, PointRange( c.ast->Loc( id ) ) )
+end sub
+
+'' A STRING LITERAL FOR A POINTER IN AN ARRAY'S '{ }' INITIALIZER -- fbc refuses it, with
+'' error 24 for a 'zstring ptr' element and 14 or 3 for a UDT field of one, measured on
+'' fbc-modern 1.20, 2026-09-30 (dim/udt-init-bad-1). '@"a"' is the spelling; and a SCALAR
+'' 'dim u as UDT = ( "a" )' is fine to fbc, so only an array's elements are judged.
+private function PtrStrElemBad_ ( byref c as Ctx, byval el as TypeId, byval e as NodeId ) as NodeId
+    if e = NODE_NONE then return NODE_NONE
+    if c.types->Kind( el ) = TK_POINTER then
+        e = StripParens_( c, e )
+        if (e <> NODE_NONE) andalso (c.ast->Kind( e ) = N_STRING_LIT) then return e
+        return NODE_NONE
+    end if
+    '' A UDT's element is its OWN parenthesised list -- '( "a" )' is one field's value, so
+    '' the parens are not stripped here.
+    if c.types->Kind( el ) <> TK_UDT then return NODE_NONE
+    dim as NodeKind ek = c.ast->Kind( e )
+    if (ek <> N_TUPLE) andalso (ek <> N_PAREN) then
+        return NODE_NONE
+    end if
+    dim as Symbol ptr us = UdtSymbolOf_( c, el )
+    if (us = 0) orelse (us->inner = SCOPE_NONE) then return NODE_NONE
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as SymScope ptr sc = c.syms->ScopeAt( us->inner )
+    dim as SymbolId cur = iif( sc <> 0, sc->firstSym, SYMBOL_NONE )
+    dim as long k = 0
+    for guard as long = 0 to 9999
+        if (cur = SYMBOL_NONE) orelse (k >= lp->count) then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if (f->kind = cast( ubyte, SYM_FIELD )) andalso ((f->flags and SYMF_STATIC) = 0) andalso (f->name <> c.baseName) then
+            dim as NodeId fe = StripParens_( c, cast( NodeId, c.ast->children[lp->first + k] ) )
+            k += 1
+            if (fe <> NODE_NONE) andalso (c.ast->Kind( fe ) = N_STRING_LIT) andalso (f->type_ <> TYPE_NONE) then
+                if c.types->Kind( c.types->Unqualify( f->type_ ) ) = TK_POINTER then return fe
+            end if
+        end if
+        cur = f->nextInScope
+    next
+    return NODE_NONE
+end function
+
+private sub CheckPtrStringInit_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for k as long = 0 to sp->count - 1
+        dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
+        if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
+        dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if (ip->b = NODE_NONE) orelse (c.ast->Kind( ip->b ) <> N_INITIALIZER) then continue for
+        if ip->a = NODE_NONE then continue for
+        dim as TypeId el = c.types->Unqualify( c.info->TypeOf_( ip->a ) )
+        if el = TYPE_NONE then continue for
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, ip->b )].data )]
+        for j as long = 0 to lp->count - 1
+            dim as NodeId bad = PtrStrElemBad_( c, el, cast( NodeId, c.ast->children[lp->first + j] ) )
+            if bad <> NODE_NONE then
+                '' fbc reports a UDT element's bad field where it chokes: the next element's '('.
+                dim as NodeId at_ = bad
+                if (c.types->Kind( el ) = TK_UDT) andalso (j + 1 < lp->count) then at_ = cast( NodeId, c.ast->children[lp->first + j + 1] )
+                c.diags->Report( TKO0653, PointRange( c.ast->Loc( at_ ) ), c.names->Spelling( ip->name ) )
+                exit for
+            end if
+        next
+    next
+end sub
+
+'' 'for i as foo ptr = 0 to 3' OVER A FORWARD TYPE -- fbc's error 71 at the NEXT: the step is
+'' pointer arithmetic, and the pointee has no size (compound/for-ptr-fwdref). Reported at the
+'' body block, which is the NEXT line when the body is empty and the first statement otherwise.
+private sub CheckForPtrFwd_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->a = NODE_NONE then return
+    dim as TypeId t = TYPE_NONE
+    if sp->c <> NODE_NONE then t = c.info->TypeOf_( sp->c )
+    if t = TYPE_NONE then t = c.info->TypeOf_( sp->a )
+    if t = TYPE_NONE then return
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_POINTER then return
+    dim as TypeId pt = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( pt ) <> TK_FORWARD then return
+    dim as NodeId at_ = iif( sp->b <> NODE_NONE, sp->b, id )
+    c.diags->Report( TKO0810, PointRange( c.ast->Loc( at_ ) ), c.names->Spelling( c.types->NameOf( pt ) ) )
+end sub
+
+'' A CAPTURING LAMBDA WHOSE PARAMETER IS THE ENCLOSING GENERIC'S TYPE PARAMETER -- fbc's error
+'' 59 at the generic, measured on fbc-modern 1.20, 2026-09-30 (generics/fail-lambda-capture-
+'' typaram): the closure's invoke member is built outside the binding that gives T a meaning.
+'' A non-capturing lambda, or a capturing one with concrete parameters, is fine. tiko lowers
+'' the case, but fbc's limitation is the one to match. The lifted procedure carries the
+'' generic's type parameters in 'c' and the closure as its first parameter, '__tko_cl'.
+private sub CheckLambdaTypeParam_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if left( lcase( c.names->Spelling( sp->name ) ), 13 ) <> "__tko_lambda_" then return
+    if (sp->c = NODE_NONE) orelse (c.ast->Kind( sp->c ) <> N_BLOCK) then return
+    dim as ListPayload ptr tp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->c )].data )]
+    if tp->count = 0 then return
+    dim as boolean capturing = false
+    for i as long = 0 to sp->count - 1
+        dim as NodeId pn = cast( NodeId, c.ast->children[sp->first + i] )
+        if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PARAM) then continue for
+        dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+        if lcase( c.names->Spelling( pp->name ) ) = "__tko_cl" then
+            capturing = true
+            continue for
+        end if
+        if capturing = false then continue for
+        if (pp->a = NODE_NONE) orelse (c.ast->Kind( pp->a ) <> N_TYPEREF) then continue for
+        if (c.ast->nodes[cast( long, pp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
+        dim as InternId pt = c.ast->stmts[cast( long, c.ast->nodes[cast( long, pp->a )].data )].name
+        if pt = 0 then continue for
+        for j as long = 0 to tp->count - 1
+            dim as NodeId tn = cast( NodeId, c.ast->children[tp->first + j] )
+            if (tn = NODE_NONE) orelse (c.ast->Kind( tn ) <> N_IDENT) then continue for
+            if c.names->Fold( c.ast->idents[cast( long, c.ast->nodes[cast( long, tn )].data )].name ) = c.names->Fold( pt ) then
+                c.diags->Report( TKO0921, PointRange( c.ast->Loc( sp->c ) ), c.names->Spelling( pp->name ), c.names->Spelling( pt ) )
+                return
+            end if
+        next
+    next
+end sub
+
+'' A NAME TWO USINGS BOTH REACH -- fbc's error 255, "Ambiguous symbol access, explicit scope
+'' resolution required", measured on fbc-modern 1.20, 2026-09-30 (namespace/dups_fail):
+''
+''     using a : using b : print foo            a.foo and b.foo           error 255
+''     using c : print foo                      c.foo, and a.foo through c's own 'using a'
+''     ...with 'dim as integer foo' declared in the scope first            fine
+''
+'' A USING applies from where it is written, so each one is taken at its node id (source
+'' order), against the scope it sits in. Resolve records the namespace on the N_USING node.
+private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as InternId, _
+                              byref got as FB.Array( of ulong ), byval depth as long )
+    if (ns = SCOPE_NONE) orelse (depth > 8) then return
+    dim as SymbolId sid = c.syms->LookupLocal( ns, nm )
+    if sid <> SYMBOL_NONE then
+        dim as boolean seen = false
+        for i as long = 0 to got.Count - 1
+            if got[i] = cast( ulong, sid ) then seen = true
+        next
+        if seen = false then got.Push( cast( ulong, sid ) )
+    end if
+    for i as long = 0 to c.syms->usingAt.Count - 1
+        if c.syms->usingAt[i] <> cast( ulong, ns ) then continue for
+        CollectNsNamed_( c, cast( ScopeId, c.syms->usingInner[i] ), nm, got, depth + 1 )
+    next
+end sub
+
+private sub CheckUsingAmbiguity_ ( byref c as Ctx )
+    dim as FB.Array( of ulong ) uNode, uScope, uInner
+    dim as long total = c.ast->Count( )
+    for n as long = 1 to total - 1
+        if c.ast->Kind( cast( NodeId, n ) ) <> N_USING then continue for
+        dim as Symbol ptr ns = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, n ) ) )
+        if (ns = 0) orelse (ns->kind <> cast( ubyte, SYM_NAMESPACE )) orelse (ns->inner = SCOPE_NONE) then continue for
+        uNode.Push( cast( ulong, n ) )
+        uScope.Push( cast( ulong, c.info->ScopeOf( cast( NodeId, n ) ) ) )
+        uInner.Push( cast( ulong, ns->inner ) )
+    next
+    if uNode.Count < 1 then return
+    '' The right side of a member access is qualified, and not this question.
+    dim as FB.Array( of ubyte ) qualified
+    for n as long = 0 to total
+        qualified.Push( 0 )
+    next
+    for n as long = 1 to total - 1
+        if c.ast->Kind( cast( NodeId, n ) ) <> N_MEMBER then continue for
+        dim as NodeId r = c.ast->binaries[cast( long, c.ast->nodes[n].data )].rhs
+        if (r > 0) andalso (cast( long, r ) < total) then qualified[cast( long, r )] = 1
+    next
+    for n as long = 1 to total - 1
+        dim as NodeId x = cast( NodeId, n )
+        if c.ast->Kind( x ) <> N_IDENT then continue for
+        if qualified[n] <> 0 then continue for
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( x ) )
+        if s = 0 then continue for
+        select case cast( SymbolKind, s->kind )
+        case SYM_VARIABLE, SYM_CONSTANT, SYM_PROC, SYM_ENUMCONST
+        case else
+            continue for
+        end select
+        dim as SymScope ptr home = c.syms->ScopeAt( s->parent )
+        if (home = 0) orelse (home->kind <> cast( ubyte, SCOPEK_NAMESPACE )) then continue for
+        dim as InternId nm = c.ast->idents[cast( long, c.ast->nodes[n].data )].name
+        '' AN EXPRESSION'S NAME HAS NO SCOPE RECORDED; its statement does, and is built after
+        '' it -- the first node past it with a scope is the statement it sits in.
+        dim as ScopeId sc = c.info->ScopeOf( x )
+        for f as long = n + 1 to total - 1
+            if sc <> SCOPE_NONE then exit for
+            sc = c.info->ScopeOf( cast( NodeId, f ) )
+        next
+        for guard as long = 0 to 255
+            if sc = SCOPE_NONE then exit for
+            '' A name declared in this scope, above the use, is what the use means.
+            dim as Symbol ptr loc_ = c.syms->SymbolAt( c.syms->LookupLocal( sc, nm ) )
+            if loc_ <> 0 then
+                if (loc_->declAt = 0) orelse (loc_->declAt < cast( ulong, n )) then exit for
+            end if
+            dim as FB.Array( of ulong ) got
+            for u as long = 0 to uNode.Count - 1
+                if uScope[u] <> cast( ulong, sc ) then continue for
+                if uNode[u] >= cast( ulong, n ) then continue for
+                CollectNsNamed_( c, cast( ScopeId, uInner[u] ), nm, got, 0 )
+            next
+            if got.Count >= 2 then
+                c.diags->Report( TKO0919, PointRange( c.ast->Loc( x ) ), c.names->Spelling( nm ) )
+                exit for
+            end if
+            if got.Count = 1 then exit for
+            dim as SymScope ptr ss = c.syms->ScopeAt( sc )
+            if ss = 0 then exit for
+            sc = ss->parent
+        next
+    next
+end sub
