@@ -190,6 +190,11 @@ function CompileIr _
         "-target " & target.triple & " -Wno-override-module -c " & _
         Q( irPath ) & " -o " & Q( objPath )
     if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
+    '' ONE SECTION PER PROCEDURE AND PER GLOBAL, so the link can drop what nothing reaches
+    '' (LinkExe's --gc-sections / /OPT:REF). Without them a unit is one .text, and a module
+    '' that emits every method of its classes -- pkg/fbx's gui -- linked every one of them
+    '' into every program that imported it, called or not.
+    cmd += " -ffunction-sections -fdata-sections"
     '' -fPIC FOR AN ELF SHARED LIBRARY, as fbc passes it -- measured, 'fbc -gen llvm
     '' -dll' on Linux hands clang '-fPIC'. clang's Linux default is PIE, which may
     '' reach the module's own globals directly, and ld refuses that in a shared object.
@@ -338,6 +343,23 @@ function LinkExe _
     '' the line tables are DWARF (llvmdebug.bi), not a PDB.
     if (target.id = TARGET_WIN64_MSVC) andalso (t.stripSymbols = false) then
         cmd += " -Xlinker -debug:dwarf"
+    end if
+    '' DROP WHAT NOTHING REACHES, a section at a time -- CompileIr gives each procedure and
+    '' global its own. What must stay is a root the linker already honours: the structor
+    '' tables' .CRT$X / .ctors / .init_array sections, fbrt0.o's constructor, /INCLUDE,
+    '' and a DLL's exports.
+    ''
+    '' ON EVERY LINK, '-g' TOO. lld-link turns /OPT:REF off by itself under -debug, so it
+    '' is named rather than left to the default; the gnu targets have no default to lean on.
+    ''
+    '' AND /OPT:NOICF, named because lld-link turns ICF on wherever REF is on. It folds
+    '' procedures with identical code into one, and two such procedures' addresses then
+    '' compare equal -- fbc's ld does no folding, so a program comparing procptrs must not
+    '' see it here. The MinGW frontend folds nothing unless asked.
+    if target.id = TARGET_WIN64_MSVC then
+        cmd += " -Xlinker -opt:ref -Xlinker -opt:noicf"
+    else
+        cmd += " -Wl,--gc-sections"
     end if
     '' '-s gui': THE WINDOWS SUBSYSTEM, which fbc gives ld as '-subsystem windows'. An
     '' executable only -- a DLL has no subsystem of its own to choose -- and COFF only.
