@@ -678,6 +678,14 @@
     DIAG( TKO0896, SEV_ERROR,   "'%0' is dynamic: a REDIM cannot take an ellipsis bound" )
     '' fbc's error 237: 'dim as const integer foo = any' -- declshape.bas.
     DIAG( TKO0897, SEV_ERROR,   "'%0' is const, so it needs a value: '= any' leaves it unset" )
+    '' fbc's error 24: 'dim x as any' -- declshape.bas.
+    DIAG( TKO0898, SEV_ERROR,   "'%0' cannot be of type ANY: only a pointer to it can" )
+    '' fbc's errors 24 and 71: 'type t as t' then a variable of it -- declshape.bas.
+    DIAG( TKO0899, SEV_ERROR,   "'%0' is a typedef defined in terms of itself" )
+    '' fbc's error 169: 'constructor( ... )' after the first statement -- declshape.bas.
+    DIAG( TKO0908, SEV_ERROR,   "a constructor( ) chain call must be the first statement of the constructor" )
+    '' fbc's error 141: a global 'operator ->' whose result is not a UDT -- declshape.bas.
+    DIAG( TKO0909, SEV_ERROR,   "operator -> must return a UDT, by value or byref" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )
     '' fbc's errors 367, 368 and 369: a tuple TYPE with fewer than two elements, a duplicated

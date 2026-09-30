@@ -375,6 +375,11 @@ sub WalkNode _
                         dim as boolean itemIsArray = _
                             ((w.ast->nodes[cast( long, item )].flags and _
                               Tko.NF_ARRAY) <> 0)
+                        '' ...AND ONLY WITH BOUNDS WRITTEN. 'dim array( )' or 'dim array( any )'
+                        '' after 'common array( )' re-declares it -- fbc's error 4, measured on
+                        '' fbc-modern 1.20, 2026-09-29 (dim/dupdef-dim-common-dynamic), as
+                        '' 'dim shared array( )' is -- while 'dim array( 0 to 1 )' sizes it.
+                        if redimLike andalso itemIsArray andalso IsDynArrayItem_( w, item ) then redimLike = false
                         if redimLike andalso itemIsArray then
                             sp->op = cast( ushort, Tko.KW_REDIM )
                         end if

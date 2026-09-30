@@ -1,0 +1,7 @@
+'' TKO0600, fbc's 4: DIM after COMMON without bounds re-declares the array. See the redimLike
+'' rule in symbols/collect.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/common-dim-dup.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: common-dim-dup.bas(4,5): error TKO0600
+'' EXPECT-OUT: common-dim-dup.bas(6,5): error TKO0600

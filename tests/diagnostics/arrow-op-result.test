@@ -1,0 +1,8 @@
+'' TKO0909, fbc's 141: a global operator -> whose result is not a UDT. See CheckProcShape_ in
+'' symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/arrow-op-result.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: arrow-op-result.bas(11,1): error TKO0909
+'' EXPECT-OUT: arrow-op-result.bas(14,1): error TKO0909
+'' EXPECT-MAX-DIAG: 2

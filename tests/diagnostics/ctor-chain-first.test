@@ -1,0 +1,7 @@
+'' TKO0908, fbc's 169: a constructor( ) chain call anywhere but first. See CheckProcShape_ in
+'' symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-chain-first.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-chain-first.bas(13,5): error TKO0908
+'' EXPECT-MAX-DIAG: 1

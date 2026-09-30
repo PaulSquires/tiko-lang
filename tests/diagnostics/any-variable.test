@@ -1,0 +1,10 @@
+'' TKO0898 (fbc's 24): a variable of type ANY; TKO0899 (fbc's 24 or 71): one whose typedef is
+'' itself. See symbols/declshape.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/any-variable.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: any-variable.bas(6,5): error TKO0898
+'' EXPECT-OUT: any-variable.bas(7,8): error TKO0898
+'' EXPECT-OUT: any-variable.bas(8,14): error TKO0899
+'' EXPECT-OUT: any-variable.bas(9,13): error TKO0899
+'' EXPECT-MAX-DIAG: 4
