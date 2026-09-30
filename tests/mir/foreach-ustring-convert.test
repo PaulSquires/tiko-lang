@@ -1,0 +1,15 @@
+'' FOR EACH CONVERTS each element to the LOOP VARIABLE's string kind, as fbc-modern does
+'' (tiko-book T15). 'for each w as ustring' over a 'string' array initialised the ustring
+'' with fb_StrInit -- narrow bytes in a UTF-16 descriptor, so "ab" read as one CJK unit and
+'' three words hashed to three keys where fbc makes two. Run against fbc, the loops now
+'' print the same text, lengths and code units, the iterator path included.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/foreach-ustring-convert.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: call.rtl ptr fb_UStrAssignFromA(@w, -1,
+'' EXPECT-OUT: call.rtl ptr fb_UStrAssignToA(@t, -1,
+'' EXPECT-OUT: call.rtl ptr fb_StrInit(@s, -1,
+'' EXPECT-NOT: fb_StrInit(@w,
+'' EXPECT-NOT: fb_UStrInit(@t,

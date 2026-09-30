@@ -30,6 +30,35 @@ declare function MemberNamed_ _
 ''
 '' TEST LAST, reached by a jump over the body, so an empty collection runs the body no
 '' times and MoveNext is not called before the first element.
+'' THE LOOP VARIABLE'S STRING KIND DECIDES, NOT THE ELEMENT'S. 'for each w as ustring in
+'' words' over a 'string' array initialised the ustring with fb_StrInit -- narrow bytes in
+'' a UTF-16 descriptor, so "ab" read back as one CJK unit, and three words hashed to three
+'' keys where fbc makes two (tiko-book T15). fbc converts, as 'dim as ustring u = s' already
+'' did here. Measured on fbc-modern 1.20, 2026-09-30: the same kind is a copy, narrow into
+'' ustring converts from UTF-8, and ustring into narrow converts back.
+private sub EachStrInit_ _
+    ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, _
+      byval srcIsU as boolean, byval dstIsU as boolean )
+
+    dim as FB.Array( of ulong ) args
+    if srcIsU = dstIsU then
+        PushStrArg( args, dst )
+        PushStrArg( args, src )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( 0 )
+        EmitRtl( c, iif( dstIsU, RTL_USTR_INIT, RTL_STR_INIT ), args )
+        return
+    end if
+    '' The converters take bare pointers with a size each, as lowerstrargs.bas passes them.
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    PushStrLen_( c, args, -1 )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    PushStrLen_( c, args, -1 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )   '' fill_rem
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )   '' is_init: dst is fresh
+    EmitRtl( c, iif( dstIsU, RTL_USTR_FROM_A, RTL_USTR_TO_A ), args )
+end sub
+
 function LowerForEachIter _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
       byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
@@ -226,12 +255,8 @@ function LowerForEachIter _
         if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
         dim as MirValue sv = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
         if sv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sargs
-        PushStrArg( sargs, vaddr )
-        PushStrArg( sargs, sv )
-        sargs.Push( cast( ulong, MV_CONST_INT ) )
-        sargs.Push( 0 )
-        EmitRtl( c, iif( IsUStringType( c, elT ), RTL_USTR_INIT, RTL_STR_INIT ), sargs )
+        EachStrInit_( c, vaddr, sv, IsUStringType( c, elT ), _
+                      iif( lvt <> Tko.TYPE_NONE, IsUStringType( c, lvt ), IsUStringType( c, elT ) ) )
         c.cleanupNode.Push( 0 )
         c.cleanupSlot.Push( vaddr.id )
         c.cleanupType.Push( 0 )
@@ -541,12 +566,9 @@ private function EachEmit_ _
         '' array. Measured -- fbc emits fb_StrInit from the element's ADDRESS and
         '' fb_StrDelete at the bottom of each iteration.
         if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
-        dim as FB.Array( of ulong ) args
-        PushStrArg( args, vaddr )
-        PushStrArg( args, ea )
-        args.Push( cast( ulong, MV_CONST_INT ) )
-        args.Push( 0 )
-        EmitRtl( c, iif( sq.elIsU, RTL_USTR_INIT, RTL_STR_INIT ), args )
+        dim as Tko.TypeId evt = c.info->TypeOf_( sp->a )
+        EachStrInit_( c, vaddr, ea, sq.elIsU, _
+                      iif( evt <> Tko.TYPE_NONE, IsUStringType( c, evt ), sq.elIsU ) )
         c.cleanupNode.Push( 0 )
         c.cleanupSlot.Push( vaddr.id )
         c.cleanupType.Push( 0 )
