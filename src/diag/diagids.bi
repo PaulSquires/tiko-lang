@@ -362,6 +362,12 @@
     DIAG( TKO0686, SEV_ERROR,   "these pointer types do not convert into each other" )
     '' fbc's error 58.
     DIAG( TKO0687, SEV_ERROR,   "a bydesc parameter takes an array of exactly its element type" )
+    '' fbc's error 342, which it reports for a USTRING as "Type is not iterable". A narrow
+    '' string IS walked, by both compilers, and yields its bytes; a ustring holds UTF-16 code
+    '' units, and what one iteration of it should hand back has not been decided. Saying so
+    '' beats the silence this replaced: Check accepted the loop, lowering declined it, and the
+    '' program ran zero iterations with no diagnostic at all (tiko-book T17).
+    DIAG( TKO0688, SEV_ERROR,   "'for each' cannot walk a ustring; index it with 'for' and 'mid' instead" )
     '' fbc's errors 275, 77, 237 and 67.
     DIAG( TKO0690, SEV_ERROR,   "the dynamic array field '%0' cannot have a const element type" )
     DIAG( TKO0691, SEV_ERROR,   "the array field '%0' cannot take an ellipsis bound" )

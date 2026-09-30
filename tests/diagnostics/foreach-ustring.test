@@ -1,0 +1,8 @@
+'' TKO0688: 'for each' over a ustring is refused, where it used to run zero times in
+'' silence. The narrow string below it must still walk, so the refusal is not a blanket
+'' one. See symbols/checkeach.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/foreach-ustring.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: foreach-ustring.bas(8,1): error TKO0688: 'for each' cannot walk a ustring; index it with 'for' and 'mid' instead
+'' EXPECT-MAX-DIAG: 1

@@ -44,6 +44,14 @@ private function IsFixedStrTypeC_( byref c as Ctx, byval t as Tko.TypeId ) as bo
     return false
 end function
 
+'' A VAR-LENGTH ustring. Not 'ustring * N', which is a fixed-length string and is caught
+'' by IsFixedStrTypeC_ above.
+private function IsUStringTypeC_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    return c.types->BuiltinOf( u ) = Tko.TY_USTRING
+end function
+
 '' An array's RANK. A dynamic array carries its own; a fixed one records it as the
 '' number of dimensions its bounds were retained for.
 private function ArrayRankOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
@@ -198,6 +206,13 @@ sub CheckForEach_( byref c as Ctx )
 
         if IsFixedStrTypeC_( c, seqT ) then
             c.diags->Report( Tko.TKO0609, r )
+            ok = false
+        elseif IsUStringTypeC_( c, seqT ) then
+            '' A USTRING IS NOT WALKED, and this is where it is refused -- not in lowering,
+            '' which used to decline it silently while Check had already accepted it. The
+            '' loop then emitted nothing and ran zero times, which is the one outcome worse
+            '' than either answer (tiko-book T17). fbc refuses it too, as error 342.
+            c.diags->Report( Tko.TKO0688, r )
             ok = false
         elseif c.types->Kind( seqT ) = Tko.TK_ARRAY then
             if ArrayRankOf_( c, seqT ) > 1 then
