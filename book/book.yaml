@@ -14,12 +14,12 @@ pin:
   windows:
     root: "../toolchains/tiko-windows"      # relative to this book directory
     exe: "tiko.exe"
-    commit: "a9326539"
+    commit: "8d14679e"
     packaged: "2026-09-30"
   linux:
     root: "../toolchains/tiko-linux"        # same path, reached through WSL
     exe: "bin/tiko"
-    commit: "a9326539"
+    commit: "8d14679e"
     packaged: "2026-09-30"
     wsl_distro: "Ubuntu"
   targets: [win64-msvc, linux-x86_64]
@@ -44,7 +44,7 @@ parts:
   - name: "Basics"
     chapters:
       - { n: 1,  file: chapters/01-getting-started.md,   status: drafted }
-      - { n: 2,  file: chapters/02-a-tour-of-tiko.md,    status: planned }
+      - { n: 2,  file: src/ch02-a-tour-of-tiko.md,       status: drafted }
       - { n: 3,  file: chapters/03-types-variables.md,   status: planned }
       - { n: 4,  file: chapters/04-operators.md,         status: planned }
       - { n: 5,  file: chapters/05-control-flow.md,      status: planned }

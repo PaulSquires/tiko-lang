@@ -1,0 +1,11 @@
+'' step1.tiko -- read the file, and say so if it is not there.
+#import "std/fs"
+
+var loaded = fs.ReadAllText( "words.txt" )
+if loaded.IsOk( ) = false then
+    print "cannot read words.txt"
+    end 1
+end if
+
+var text = loaded.Value( )
+print "characters: " & len( text )

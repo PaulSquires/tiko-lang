@@ -1,0 +1,49 @@
+'' wordcount.tiko -- the whole tour: read, split, count, rank, report.
+'' ANCHOR: all
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
+
+type Tally_
+    as ustring word
+    as int32 count
+end type
+
+'' ANCHOR: read
+var loaded = fs.ReadAllText( "words.txt" )
+if loaded.IsOk( ) = false then
+    print "cannot read words.txt"
+    end 1
+end if
+'' ANCHOR_END: read
+
+'' ANCHOR: count
+var flat = strings.Replace( loaded.Value( ), !"\n", " " )
+var words = strings.Split( flat, " " )
+
+dim counts as containers.Map( of ustring, int32 )
+for each w in words
+    if len( w ) > 0 then counts[ LCase( w ) ] += 1
+next
+'' ANCHOR_END: count
+
+'' ANCHOR: rank
+dim table as containers.Array( of Tally_ )
+for each entry in counts
+    dim as Tally_ t = ( entry.Key, entry.Value )
+    table.Push( t )
+next
+
+containers.SortBy( table, _
+    function( byref a as Tally_, byref b as Tally_ ) as boolean
+        return a.count > b.count
+    end function )
+'' ANCHOR_END: rank
+
+'' ANCHOR: report
+print "the three most common words"
+for i as int32 = 0 to 2
+    print using "  \    \ #"; table[ i ].word; table[ i ].count
+next
+'' ANCHOR_END: report
+'' ANCHOR_END: all

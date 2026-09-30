@@ -1,0 +1,22 @@
+'' step3.tiko -- count each word.
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
+
+var loaded = fs.ReadAllText( "words.txt" )
+if loaded.IsOk( ) = false then
+    print "cannot read words.txt"
+    end 1
+end if
+
+var flat = strings.Replace( loaded.Value( ), !"\n", " " )
+var words = strings.Split( flat, " " )
+
+dim counts as containers.Map( of ustring, int32 )
+for each w in words
+    if len( w ) > 0 then counts[ LCase( w ) ] += 1
+next
+
+print "distinct words: " & counts.Count
+print "the: " & counts[ "the" ]
+print "dog: " & counts[ "dog" ]

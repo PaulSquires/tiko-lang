@@ -136,8 +136,10 @@ Five kinds, each with one job:
 
 - Include part of a file with `{{#include ../examples/chNN/name.tiko:anchor}}`, where the region
   is marked `'' ANCHOR: name` … `'' ANCHOR_END: name`.
-- **A whole-file include does not strip those comments.** So only put anchors in a file something
-  includes partially, and when you do, always include it by anchor.
+- **A whole-file include does not strip those comments**, but an *anchored* one does — including
+  the nested markers inside the region. So a file that has anchors is always included **by
+  anchor**: give it a spanning `all` anchor for the times you want the whole program, and the
+  inner markers disappear from both editions.
 - Never select by line number. Line numbers drift; anchors do not.
 - Output blocks are `text`, and their content comes from the `.out` file the harness compares
   against. Never retype output by hand.

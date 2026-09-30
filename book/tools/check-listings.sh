@@ -190,12 +190,18 @@ for f in "${listings[@]}"; do
 
     args=""; [[ -f "$base.args" ]] && args="$(head -1 "$base.args")"
     if [[ "$t" == win64-msvc ]]; then
-      if [[ -f "$base.stdin" ]]; then got="$(eval "./$exe" $args < "$base.stdin" 2>&1)"; else got="$(eval "./$exe" $args 2>&1)"; fi
+      # Run from the listing's own directory, so a program can open a data file that sits
+      # beside it -- which is where a reader would keep it, and how they would run it.
+      if [[ -f "$base.stdin" ]]; then
+        got="$(cd "$dir" && eval "$root/$exe" $args < "$root/$base.stdin" 2>&1)"
+      else
+        got="$(cd "$dir" && eval "$root/$exe" $args 2>&1)"
+      fi
     else
       if [[ -f "$base.stdin" ]]; then
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl' && ./$exe $args" < "$base.stdin" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
       else
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl' && ./$exe $args" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$book_wsl/$exe' $args" 2>&1)"
       fi
     fi
     rc=$?

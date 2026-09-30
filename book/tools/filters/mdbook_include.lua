@@ -39,7 +39,14 @@ local function take_anchor(text, name, path)
   if #out == 0 then
     error("mdbook_include.lua: anchor '" .. name .. "' not found in " .. path)
   end
-  return table.concat(out, "\n")
+  -- A region may contain other anchors -- a spanning "all" anchor contains every one of them.
+  -- mdBook drops those marker lines from an anchored include, so this must too, or the PDF
+  -- prints scaffolding that the site does not.
+  local kept = {}
+  for _, line in ipairs(out) do
+    if not line:match("^%s*''%s*ANCHOR") then kept[#kept + 1] = line end
+  end
+  return table.concat(kept, "\n")
 end
 
 -- Whole-file includes drop the anchor comments; they are scaffolding, not code.

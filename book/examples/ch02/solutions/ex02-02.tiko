@@ -1,0 +1,23 @@
+'' ex02-02.tiko -- list the words that appear exactly once, in order.
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
+
+var loaded = fs.ReadAllText( "../words.txt" )
+if loaded.IsOk( ) = false then
+    print "cannot read words.txt"
+    end 1
+end if
+
+var flat = strings.Replace( loaded.Value( ), !"\n", " " )
+var words = strings.Split( flat, " " )
+
+dim counts as containers.OrderedMap( of ustring, int32 )
+for each w in words
+    if len( w ) > 0 then counts[ LCase( w ) ] += 1
+next
+
+print "words appearing exactly once:"
+for each entry in counts
+    if entry.Value = 1 then print "  " & entry.Key
+next
