@@ -64,7 +64,7 @@ print "'" & word & "' appears " & n & " times"
 
 ## The tiko-lang book
 
-<a href="https://tiko-lang.net/book/"><img align="right" src="brand/tiko-book-cover-spiral-sparse.svg" alt="The tiko Programming Language: placeholder cover" width="200"></a>
+<a href="https://tiko-lang.net/book/"><img align="right" src="brand/tiko-book-cover-spiral-sparse.svg" alt="The tiko Programming Language: book cover" width="200"></a>
 
 ***The tiko Programming Language*** is a book for programmers who know another language and are
 new to tiko. It teaches tiko as a language in its own right, and it is written in the tradition
