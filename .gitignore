@@ -49,17 +49,9 @@ tests/vendor/**/*.o
 /lib/gfx/lib/
 
 # ------------------------------------------------------------- toolchains
-# Distributable builds. Only toolchains/README.md is tracked; every byte the
-# packaging step drops into a per-host directory is a build product and is not. Listed per payload directory rather than as a blanket /toolchains/**,
-# because git cannot re-include a file once its parent directory is excluded.
-/toolchains/*/bin/
-/toolchains/*/inc/
-/toolchains/*/include/
-/toolchains/*/lib/
-/toolchains/*/tiko
-/toolchains/*/tiko.exe
-/toolchains/*/licences/
-/toolchains/*/MANIFEST.txt
+# Packaged toolchains are local build products and are never published here: the
+# whole folder is ignored, and the archives ship as GitHub Releases instead.
+/toolchains/
 
 # fbc's -gen gcc INTERMEDIATE C, written beside the .bas it came from. The root
 # rule above catches a build run from the top; a build of src/ leaves one .c per
