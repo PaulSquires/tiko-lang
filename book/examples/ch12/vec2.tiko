@@ -1,0 +1,64 @@
+'' vec2.tiko -- a value type that reads like a number.
+
+type Vec2
+    x as float64
+    y as float64
+    declare operator +=( byref o as Vec2 )       '' members: they
+    declare operator cast( ) as string           '' change or convert
+end type                                         '' this object
+
+'' Binary operators are global: neither operand is "this".
+operator + ( byref a as Vec2, byref b as Vec2 ) as Vec2
+    return type( a.x + b.x, a.y + b.y )
+end operator
+
+operator - ( byref a as Vec2, byref b as Vec2 ) as Vec2
+    return type( a.x - b.x, a.y - b.y )
+end operator
+
+operator - ( byref a as Vec2 ) as Vec2               '' unary minus
+    return type( -a.x, -a.y )
+end operator
+
+'' Scaling needs both orders, or 2 * v will not compile.
+operator * ( byref a as Vec2, byval k as float64 ) as Vec2
+    return type( a.x * k, a.y * k )
+end operator
+
+operator * ( byval k as float64, byref a as Vec2 ) as Vec2
+    return a * k
+end operator
+
+operator = ( byref a as Vec2, byref b as Vec2 ) as boolean
+    return a.x = b.x andalso a.y = b.y
+end operator
+
+operator <> ( byref a as Vec2, byref b as Vec2 ) as boolean
+    return not ( a = b )
+end operator
+
+operator abs ( byref a as Vec2 ) as float64          '' the length
+    return sqr( a.x * a.x + a.y * a.y )
+end operator
+
+operator Vec2.+=( byref o as Vec2 )
+    x += o.x
+    y += o.y
+end operator
+
+operator Vec2.cast( ) as string
+    return "(" & x & ", " & y & ")"
+end operator
+
+dim as Vec2 a = ( 1, 2 ), b = ( 3, 4 )
+
+print "a + b     = "; a + b
+print "b - a     = "; b - a
+print "-a        = "; -a
+print "2 * a     = "; 2 * a
+print "a + b * 2 = "; a + b * 2; "   (* still binds first)"
+print "abs( b )  ="; abs( b )
+print "a = b: "; a = b; ",  a <> b: "; a <> b
+
+a += b
+print "a += b  -> "; a

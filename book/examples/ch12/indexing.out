@@ -1,0 +1,4 @@
+g[0], g[4], g[5] = 7 42 7
+via @g: 42
+hd.target is the cells, not the Grid: true
+through ->: w = 3,  through *: h = 2

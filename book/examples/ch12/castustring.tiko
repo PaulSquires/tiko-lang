@@ -1,0 +1,18 @@
+'' castustring.tiko -- a cast to ustring, printed.
+''
+'' The same type as vec2.tiko, converting to ustring rather than
+'' string. It should print (4, 6) twice.
+
+type Vec2
+    x as float64
+    y as float64
+    declare operator cast( ) as ustring
+end type
+
+operator Vec2.cast( ) as ustring
+    return "(" & x & ", " & y & ")"
+end operator
+
+dim as Vec2 v = ( 4, 6 )
+print v
+print "via &: " & v

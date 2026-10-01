@@ -56,7 +56,7 @@ parts:
       - { n: 9,  file: src/ch09-user-defined-types.md,   status: drafted }
       - { n: 10, file: src/ch10-pointers-memory.md,       status: drafted }
       - { n: 11, file: src/ch11-objects.md,               status: drafted }
-      - { n: 12, file: chapters/12-operator-overloading.md, status: planned }
+      - { n: 12, file: src/ch12-operator-overloading.md,  status: drafted }
       - { n: 13, file: chapters/13-inheritance.md,        status: planned }
       - { n: 14, file: chapters/14-modules-packages.md,     status: planned }
       - { n: 15, file: chapters/15-namespaces-preprocessor.md, status: planned }

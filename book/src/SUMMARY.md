@@ -19,6 +19,7 @@
 - [User-Defined Types and Layout](ch09-user-defined-types.md)
 - [Pointers, References and Memory](ch10-pointers-memory.md)
 - [Objects](ch11-objects.md)
+- [Operator Overloading](ch12-operator-overloading.md)
 - [Generics](ch16-generics.md)
 
 # Appendices

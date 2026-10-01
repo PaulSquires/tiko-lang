@@ -1,0 +1,5 @@
+fixed:   0.1 + 0.2 = 0.300   equal to 0.3: true
+float64: 0.1 + 0.2 = 0.3   equal to 0.3: false
+19.99 * 3 = 59.970
+as a float64: 59.97
+19.99 < 20: true

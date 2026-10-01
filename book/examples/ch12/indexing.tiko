@@ -1,0 +1,65 @@
+'' indexing.tiko -- [] , let from another type, and smart handles.
+
+type Grid
+    declare constructor( byval w as int32, byval h as int32 )
+    declare destructor( )
+    declare operator []( byval i as int32 ) byref as int32
+    declare operator let( byval fill as int32 )
+    declare operator @( ) as int32 ptr
+    w as int32
+    h as int32
+  private:
+    cells as int32 ptr
+end type
+
+constructor Grid( byval w as int32, byval h as int32 )
+    this.w = w
+    this.h = h
+    cells = callocate( w * h, sizeof( int32 ) )
+end constructor
+
+destructor Grid( )
+    deallocate( cells )
+end destructor
+
+'' Returning byref is what lets g[4] appear on the LEFT of =.
+operator Grid.[]( byval i as int32 ) byref as int32
+    return cells[i]
+end operator
+
+'' let from an int32: "g = 7" fills every cell.
+operator Grid.let( byval fill as int32 )
+    for i as int32 = 0 to w * h - 1 : cells[i] = fill : next
+end operator
+
+'' @g gives the first cell, which is what a C function would want.
+operator Grid.@( ) as int32 ptr
+    return cells
+end operator
+
+dim as Grid g = Grid( 3, 2 )
+g = 7
+g[4] = 42
+print "g[0], g[4], g[5] ="; g[0]; g[4]; g[5]
+print "via @g:"; ( @g )[4]
+
+'' A handle that forwards -> and * to the Grid it refers to. These
+'' two are global operators, taking the handle as their operand.
+type GridHandle
+    target as Grid ptr
+end type
+
+operator -> ( byref hnd as GridHandle ) byref as Grid
+    return *hnd.target
+end operator
+
+operator * ( byref hnd as GridHandle ) byref as Grid
+    return *hnd.target
+end operator
+
+dim as GridHandle hd
+hd.target = @g        '' careful: this is Grid's own @, so a cell!
+print "hd.target is the cells, not the Grid: "; _
+      cbool( hd.target = cast( Grid ptr, @g ) )
+hd.target = varptr( g )      '' varptr is never overloaded
+print "through ->: w ="; hd->w; ",  through *: h ="; ( *hd ).h

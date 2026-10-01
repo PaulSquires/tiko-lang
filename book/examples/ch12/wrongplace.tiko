@@ -1,0 +1,6 @@
+'' wrongplace.tiko -- a binary operator declared as a member.
+type Vec2
+    x as float64
+    y as float64
+    declare operator +( byref o as Vec2 ) as Vec2   '' refused
+end type

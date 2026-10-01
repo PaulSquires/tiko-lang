@@ -1,0 +1,66 @@
+'' fixedpoint.tiko -- exact decimals, stored as whole thousandths.
+''
+'' 0.1 + 0.2 is not 0.3 in floating point. Stored as an integer count
+'' of thousandths, it is exactly 300.
+
+type Fixed
+    raw as int64                              '' thousandths
+    declare operator let( byval v as float64 )
+    declare operator cast( ) as float64
+    declare operator cast( ) as string
+end type
+
+'' let from another type: assigning a float64 rounds it once, here.
+operator Fixed.let( byval v as float64 )
+    raw = cint( v * 1000 )
+end operator
+
+operator Fixed.cast( ) as float64
+    return raw / 1000
+end operator
+
+operator Fixed.cast( ) as string
+    dim as int64 whole = raw \ 1000
+    dim as int64 part = abs( raw ) mod 1000
+    dim as ustring sign = iif( raw < 0 andalso whole = 0, "-", "" )
+    return sign & whole & "." & right( "00" & part, 3 )
+end operator
+
+operator + ( byref a as Fixed, byref b as Fixed ) as Fixed
+    dim as Fixed r
+    r.raw = a.raw + b.raw
+    return r
+end operator
+
+operator * ( byref a as Fixed, byref b as Fixed ) as Fixed
+    dim as Fixed r
+    r.raw = ( a.raw * b.raw ) \ 1000
+    return r
+end operator
+
+operator < ( byref a as Fixed, byref b as Fixed ) as boolean
+    return a.raw < b.raw
+end operator
+
+operator = ( byref a as Fixed, byref b as Fixed ) as boolean
+    return a.raw = b.raw
+end operator
+
+dim as Fixed p, q, sum, want
+p = 0.1
+q = 0.2
+want = 0.3
+sum = p + q
+print "fixed:   0.1 + 0.2 = "; sum; "   equal to 0.3: "; sum = want
+
+dim as float64 fp = 0.1 + 0.2
+print "float64: 0.1 + 0.2 ="; fp; "   equal to 0.3: "; cbool( fp = 0.3 )
+
+dim as Fixed price, qty
+price = 19.99
+qty = 3
+print "19.99 * 3 = "; price * qty
+print "as a float64:"; cast( float64, price * qty )
+dim as Fixed twenty
+twenty = 20
+print "19.99 < 20: "; price < twenty

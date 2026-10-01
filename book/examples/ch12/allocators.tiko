@@ -1,0 +1,30 @@
+'' allocators.tiko -- a type that controls where its objects live.
+
+type Tracked
+    declare operator new( byval size as uinteger ) as any ptr
+    declare operator delete( byval p as any ptr )
+    n as int32
+end type
+
+dim shared as int32 live      '' a count every Tracked shares
+
+'' new and delete are static members: there is no object yet in new,
+'' and none left in delete. They allocate; they do not construct.
+operator Tracked.new( byval size as uinteger ) as any ptr
+    live += 1
+    print "  allocating "; size; " bytes"
+    return allocate( size )
+end operator
+
+operator Tracked.delete( byval p as any ptr )
+    live -= 1
+    print "  releasing"
+    deallocate( p )
+end operator
+
+dim as Tracked ptr a = new Tracked
+dim as Tracked ptr b = new Tracked
+print "live objects:"; live
+delete a
+delete b
+print "live objects:"; live

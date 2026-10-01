@@ -1,0 +1,63 @@
+'' rangecounter.tiko -- a type that a for loop can count with.
+''
+'' for e as T = first to last [step s] calls five operators on T:
+'' for (once, at the start), next (should the loop go on?) and step
+'' (advance) -- each in a form with and without the step value.
+
+type Every
+    declare constructor( byval startAt as int32, byval stepBy as int32 )
+    declare operator for( )
+    declare operator for( byref stp as Every )
+    declare operator step( )
+    declare operator step( byref stp as Every )
+    declare operator next( byref last as Every ) as integer
+    declare operator next( byref last as Every, _
+                           byref stp as Every ) as integer
+    declare operator cast( ) as string
+    value as int32
+    by_ as int32
+end type
+
+constructor Every( byval startAt as int32, byval stepBy as int32 )
+    value = startAt
+    by_ = stepBy
+end constructor
+
+operator Every.for( )                   '' nothing to prepare
+end operator
+
+operator Every.for( byref stp as Every )
+end operator
+
+operator Every.step( )                  '' no step clause: own stride
+    value += by_
+end operator
+
+operator Every.step( byref stp as Every )   '' step clause given
+    value += stp.value
+end operator
+
+operator Every.next( byref last as Every ) as integer
+    return value <= last.value
+end operator
+
+operator Every.next( byref last as Every, _
+                     byref stp as Every ) as integer
+    return value <= last.value
+end operator
+
+operator Every.cast( ) as string
+    return str( value )
+end operator
+
+print "every third from 1 to 12:";
+for e as Every = Every( 1, 3 ) to Every( 12, 0 )
+    print " "; e;
+next
+print
+
+print "0 to 20, step 5:";
+for e as Every = Every( 0, 1 ) to Every( 20, 0 ) step Every( 5, 0 )
+    print " "; e;
+next
+print

@@ -1,0 +1,45 @@
+'' ex12-02.tiko -- a counter that runs downwards.
+''
+'' The for protocol does not assume a direction: next decides whether
+'' to continue, so a type that counts down simply tests the other way.
+
+type Countdown
+    declare constructor( byval n as int32 )
+    declare operator for( )
+    declare operator step( )
+    declare operator next( byref last as Countdown ) as integer
+    declare operator cast( ) as string
+    value as int32
+end type
+
+constructor Countdown( byval n as int32 )
+    value = n
+end constructor
+
+operator Countdown.for( )
+end operator
+
+operator Countdown.step( )
+    value -= 1
+end operator
+
+operator Countdown.next( byref last as Countdown ) as integer
+    return value >= last.value
+end operator
+
+operator Countdown.cast( ) as string
+    if value = 0 then return "liftoff"
+    return str( value )
+end operator
+
+for t as Countdown = Countdown( 5 ) to Countdown( 0 )
+    print t; " ";
+next
+print
+
+'' A range that starts below its end runs zero times, as for does.
+dim as int32 passes = 0
+for t as Countdown = Countdown( 0 ) to Countdown( 3 )
+    passes += 1
+next
+print "passes from 0 down to 3:"; passes
