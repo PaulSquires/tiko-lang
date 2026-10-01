@@ -164,3 +164,22 @@ scope
     var us = ss( )
     print "strudt " & us( 0 ).a & us( 1 ).a & us( 1 ).n
 end scope
+
+'' an array result as the argument of a call that returns one -- it was left untyped, and the
+'' whole statement vanished without a diagnostic
+function doubled( a( ) as integer ) as integer( )
+    dim r( ) as integer
+    redim r( lbound( a ) to ubound( a ) )
+    for k as long = lbound( a ) to ubound( a )
+        r( k ) = a( k ) * 2
+    next
+    return r
+end function
+var dd = doubled( foo( ) )
+print "nested " & lbound( dd ) & " " & ubound( dd ) & " " & dd( 0 ) & " " & dd( 2 )
+dim as long nsum
+for each x as integer in doubled( foo( ) )
+    nsum += x
+next
+print "nestedeach " & nsum
+show( doubled( foo( ) ) )

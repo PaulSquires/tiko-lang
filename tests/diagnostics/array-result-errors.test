@@ -1,7 +1,8 @@
 '' TKO0836-TKO0842 -- ARRAY RESULTS, 'function f( ) as T( )', a tiko extension (fbc's error 3).
 '' The parentheses used to vanish: 'as integer( 3 )' compiled as a plain integer function, and an
 '' array result that could not be given away (a parameter, a shared array, a copy) or that was
-'' converted to a scalar compiled and crashed or stored nothing. TKO0612 stays what fbc says
+'' converted to a scalar, or passed to a scalar parameter, compiled and crashed or
+'' stored nothing. TKO0612 stays what fbc says
 '' of an initialised dynamic array, and a declaration written 'as integer( )' must be
 '' defined 'as integer( )' (TKO0793). See symbols/arrresult.bas and parser/declparam.bas.
 '' TEST: cli
@@ -21,4 +22,5 @@
 '' EXPECT-OUT: array-result-errors.bas(38,1): error TKO0842: this call returns an array
 '' EXPECT-OUT: array-result-errors.bas(41,5): error TKO0842: this call returns an array
 '' EXPECT-OUT: array-result-errors.bas(45,1): error TKO0793: the result of 'a10' does not match its declaration
-'' EXPECT-MAX-DIAG: 14
+'' EXPECT-OUT: array-result-errors.bas(52,19): error TKO0842: this call returns an array
+'' EXPECT-MAX-DIAG: 15

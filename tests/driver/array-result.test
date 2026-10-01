@@ -31,3 +31,6 @@
 '' EXPECT-RUN-OUT: ctor 5 6
 '' EXPECT-RUN-OUT: counts 2 2
 '' EXPECT-RUN-OUT: strudt onetwo2
+'' EXPECT-RUN-OUT: nested 0 2 20 60
+'' EXPECT-RUN-OUT: nestedeach 120
+'' EXPECT-RUN-OUT: show 0 2 40

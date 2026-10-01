@@ -224,6 +224,7 @@ private function IsArrayArgShape_ _
 
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_CALL then return false
+    if c.types->IsDynArray( c.types->Unqualify( c.info->TypeOf_( e ) ) ) then return true   '' 'f( )' that RETURNS an array
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
     if lp->count <> 0 then return false
@@ -644,7 +645,6 @@ function UserUnaryOp_ _
     return best
 end function
 
-
 '' Are these two symbols the SAME PROCEDURE -- a declaration and its definition that
 '' Collect could not pair up? Compared by MANGLED NAME, which is exactly the question:
 '' two symbols that mangle alike are one linker symbol.
@@ -818,6 +818,7 @@ private function ResolveCall_ _
             if ConcatHasWideStr_( c, a ) then at = c.types->Builtin( Tko.TY_WSTRING )
             if ConcatHasUString_( c, a ) then at = c.types->Builtin( Tko.TY_USTRING )
         end if
+        if (c.ast->Kind( a ) = Tko.N_CALL) andalso c.types->IsDynArray( c.types->Unqualify( at ) ) then at = c.types->Inner( c.types->Unqualify( at ) )   '' an ARRAY RESULT arrives as its element, as 'a( )' does
         argT.Push( cast( ulong, at ) )
     next
 

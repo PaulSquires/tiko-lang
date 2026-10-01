@@ -1220,7 +1220,7 @@ private sub Walk_ _
         if c.diags->ErrorCount( ) = argErr0 then CheckDirectCallArgs_( c, id )
     end if
     if k = N_CALL then CheckBaseInitCount_( c, id, here )
-    if k = N_CALL then CheckIifArms_( c, id )
+    if k = N_CALL then CheckIifArms_( c, id ) : CheckArrayArgs_( c, id )   '' arrresult.bas
     if (k = N_IDENT) orelse (k = N_AMBIGUOUS) then CheckParenlessArgs_( c, id, k )
     if k = N_IDENT then CheckArrayResultName_( c, id )
     if k = N_CALL then CheckCalledExpr_( c, id )

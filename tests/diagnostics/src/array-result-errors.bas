@@ -45,3 +45,8 @@ declare function a10( ) as integer( )
 function a10( ) as integer
     return 1
 end function
+
+function TakesInt( byval n as integer ) as integer
+    return n
+end function
+print TakesInt( a2( ) )

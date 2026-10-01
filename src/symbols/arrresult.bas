@@ -193,3 +193,44 @@ private sub CheckArrayResultName_ ( byref c as Ctx, byval id as NodeId )
     if c.types->IsDynArray( c.types->Unqualify( s->type_ ) ) = false then return
     c.diags->Report( TKO0841, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
 end sub
+
+'' AN ARRAY RESULT AS THE ARGUMENT OF A SCALAR PARAMETER. No overload takes it, so the call was
+'' left untyped and the statement around it dropped with nothing said: 'print TakesInt( f( ) )'
+'' printed nothing. Refused when no procedure of the name has an array parameter in that place.
+private sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count = 0 then return
+    dim as SymbolId head = c.info->RefOf( id )
+    if (head = SYMBOL_NONE) andalso (lp->target <> NODE_NONE) then head = c.info->RefOf( lp->target )
+    dim as Symbol ptr hs = c.syms->SymbolAt( head )
+    if hs = 0 then return
+    if hs->kind <> cast( ubyte, SYM_PROC ) then return
+    for ai as long = 0 to lp->count - 1
+        dim as NodeId an = cast( NodeId, c.ast->children[lp->first + ai] )
+        if ArrIsResultCall_( c, an ) = false then continue for
+        dim as boolean taken = false
+        dim as SymbolId cur = head
+        for guard as long = 0 to 255
+            if cur = SYMBOL_NONE then exit for
+            dim as Symbol ptr cs = c.syms->SymbolAt( cur )
+            if cs = 0 then exit for
+            dim as NodeId pn = cast( NodeId, cs->payload )
+            if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
+                dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+                dim as long seen = 0
+                for i as long = 0 to pp->count - 1
+                    dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+                    if c.ast->Kind( prm ) <> N_PARAM then continue for
+                    if seen = ai then
+                        if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) <> 0 then taken = true
+                        exit for
+                    end if
+                    seen += 1
+                next
+            end if
+            if taken then exit for
+            cur = cs->nextOverload
+        next
+        if taken = false then c.diags->Report( TKO0842, PointRange( c.ast->Loc( an ) ) )
+    next
+end sub
