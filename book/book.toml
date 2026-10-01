@@ -6,6 +6,9 @@ language = "en"
 src = "src"
 
 [output.html]
+# Content-hashed asset names (toc-<hash>.js, tiko-highlight-<hash>.js, ...). The site
+# serves .js/.css with max-age=604800, so an unhashed toc.js kept showing a week-old sidebar.
+hash-files = true
 default-theme = "light"
 preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/PaulSquires/tiko-lang"
