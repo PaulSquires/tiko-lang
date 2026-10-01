@@ -1,0 +1,19 @@
+'' T46, RUN: text passed through 'base( ... )' arrives intact. The base path had its own
+'' argument loop, which knew a byref UDT and a byref wstring but not a string: a variable
+'' went over as its loaded descriptor and clang refused the call, a literal reached the
+'' base empty, and a parameter left to its default dropped the statement. It now uses
+'' PushCtorArgs_, as every other constructor call does. Also covers the wstring and byref
+'' UDT arguments that path rerouted. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/base-call-string.bas -o tests/codegen/basecallstring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/basecallstring.exe
+'' RUN: tests/codegen/basecallstring.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: variable 7
+'' EXPECT-RUN-OUT: literal 3
+'' EXPECT-RUN-OUT: expression! 7
+'' EXPECT-RUN-OUT: wide text
+'' EXPECT-RUN-OUT: pt 3,4
+'' EXPECT-RUN-OUT: by value

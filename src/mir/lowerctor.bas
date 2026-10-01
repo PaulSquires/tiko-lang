@@ -1399,85 +1399,24 @@ function LowerBaseCtorCall_ _
         return LowerBaseFieldInit_( c, frecv, bt, cp->first, cp->count )
     end if
 
-    '' Argument VALUES first, then the pick: the types are needed to choose, and the
-    '' values must be evaluated in source order whichever overload wins.
+    '' THE PICK FROM THE ARGUMENTS' TYPES, then the arguments through PushCtorArgs_ --
+    '' the same rule every other constructor call uses. This path had its own copy, which
+    '' knew a byref UDT and a byref WSTRING but not a STRING or a USTRING: 'base( label )'
+    '' passed the loaded 24-byte descriptor where the byref parameter wants its address
+    '' (clang: '%t5 defined with type [24 x i8] but expected ptr'), 'base( "boiler" )'
+    '' reached the base as an EMPTY string, and with a parameter left to its default the
+    '' call was short an argument and the statement dropped (T46). PushCtorArgs_ also
+    '' fills those defaults, as fbc does at the call. Each argument is still lowered
+    '' once, in source order: the pick needs only types, which CtorArgTypeOf_ gives
+    '' without lowering anything.
     dim as FB.Array( of ulong ) argT
-    dim as FB.Array( of ulong ) argKind
-    dim as FB.Array( of ulong ) argId
-    dim as FB.Array( of ulong ) argNode
     for i as long = 0 to cp->count - 1
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-        '' A LITERAL FOR A BYREF WSTRING WAITS FOR ITS PARAMETER -- CtorLitArgIsWide_.
-        if CtorLitArgIsWide_( c, ctors, cp->first, cp->count, i ) then
-            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
-            argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
-            continue for
-        end if
-        '' ...AND SO DOES A STRING OR A UDT-RETURNING CALL -- CtorArgLowersLate_, as in LowerCtorInit.
-        if CtorArgLowersLate_( c, a ) then
-            argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) ) : argKind.Push( cast( ulong, MV_NONE ) )
-            argId.Push( 0 ) : argNode.Push( cast( ulong, a ) )
-            continue for
-        end if
-        dim as MirValue av = LowerExpr( c, a )
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-        argT.Push( cast( ulong, CtorArgTypeOf_( c, a ) ) )
-        argKind.Push( cast( ulong, av.kind ) )
-        argId.Push( cast( ulong, av.id ) )
-        argNode.Push( cast( ulong, a ) )
+        argT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
     next
-
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
-    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
-    dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
-    if pn = Tko.NODE_NONE then return false
-
-    '' Coerced to the chosen overload's PARAMETER types: MIR has no implicit
-    '' conversions, and the overload was picked knowing a conversion would be needed.
-    dim as Tko.StmtPayload ptr cpp = StmtOf( c, pn )
-    dim as long ai = 0
     dim as FB.Array( of ulong ) cargs
-    for i as long = 0 to cpp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
-        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if ai >= argT.Count then exit for
-        dim as MirValue av
-        av.kind = cast( ubyte, argKind[ai] )
-        av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
-        av.id = argId[ai]
-        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        '' A BYREF UDT PARAMETER TAKES AN ADDRESS, and the parameter's own type does
-        '' NOT say so: a reference is transparent to TypeOf_, which answers with the
-        '' referent. 'constructor udt4( byref u3 as udt3, ... )' doing 'base( u3 )'
-        '' passed the LOADED 72-byte aggregate where the signature wants a pointer,
-        '' and clang refused it. The same rule PushCtorArgs_ and LowerUdtInitCtor_
-        '' already ask the N_PARAM's NF_BYREF flag for.
-        dim as MirValue cv
-        dim as boolean tookAddr = false
-        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
-            '' ...AND A BYREF WSTRING TAKES WIDE CHARACTERS -- WideRefCtorArg_. 'base( "Sept" )'
-            '' passed the narrow text, and 'base( s )' the loaded descriptor.
-            tookAddr = WideRefCtorArg_( c, cast( Tko.NodeId, argNode[ai] ), pt, cv )
-            dim as Tko.TypeId pu = c.types->Unqualify( pt )
-            if c.types->Kind( pu ) = Tko.TK_UDT then
-                dim as MirValue ra = LowerAddr( c, cast( Tko.NodeId, argNode[ai] ) )
-                if ra.kind <> cast( ubyte, MV_NONE ) then
-                    cv = ra
-                    tookAddr = true
-                end if
-            end if
-        end if
-        if tookAddr = false then
-            if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, cast( Tko.NodeId, argNode[ai] ) ) : av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
-            cv = CoerceTy( c, av, LowerType( pt, *c.types ), pt )
-        end if
-        if cv.kind = cast( ubyte, MV_NONE ) then return false
-        cargs.Push( cast( ulong, cv.kind ) ) : cargs.Push( cast( ulong, cv.id ) )
-        ai += 1
-    next
-    if ai <> cast( long, argT.Count ) then return false
+    if PushCtorArgs_( c, pick, cp->first, cp->count, cargs ) = false then return false
 
     dim as MirValue recv
     if delegating then
