@@ -9,6 +9,7 @@
 #   build/package.sh --no-inc               skip the ~100 MB header copy
 #   build/package.sh --clean                empty the output directory first
 #   build/package.sh --verify               compile and RUN a program per target
+#   build/package.sh --implibs              regenerate the MSVC import libraries (*.lib)
 #   build/package.sh --fbc-tree DIR         the reference fbc install (or FBC_TREE)
 #   build/package.sh --out DIR              somewhere other than toolchains/
 #
@@ -52,11 +53,13 @@ DO_BUILD=1
 DO_INC=1
 DO_CLEAN=0
 DO_VERIFY=0
+DO_IMPLIBS=0
+T0=$(date +%s)
 FBC_TREE=${FBC_TREE:-/c/dev/fbc-modern}
 OUT=
 
 die( ) { echo "package: $*" >&2; exit 1; }
-note( ) { echo "package: $*"; }
+note( ) { echo "package: [$(( $(date +%s) - T0 ))s] $*"; }
 # THE MANIFEST IS WRITTEN WITH printf, NOT echo. dash -- Linux's /bin/sh -- expands
 # backslash escapes in echo's arguments, so the Windows clang path came out as
 # 'C:\Program Files\LLVMin': its '\b' was a backspace. Git Bash's sh does not, which
@@ -64,7 +67,7 @@ note( ) { echo "package: $*"; }
 say( ) { printf '%s\n' "$*"; }
 
 usage( ) {
-    sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
 }
 
@@ -77,6 +80,7 @@ while [ $# -gt 0 ]; do
         --no-inc)    DO_INC=0;    shift ;;
         --clean)     DO_CLEAN=1;  shift ;;
         --verify)    DO_VERIFY=1; shift ;;
+        --implibs)   DO_IMPLIBS=1; shift ;;
         -h|--help)   usage ;;
         *)           die "unknown option '$1' (try --help)" ;;
     esac
@@ -155,13 +159,40 @@ note "output $OUT"
 # previous toolchain intact rather than half-replaced.
 
 if [ "$DO_BUILD" = "1" ]; then
+    # THE PARTS BUILD CONCURRENTLY. The compiler, each target's runtime and the
+    # graphics library share nothing: the runtime and lib/gfx build with fbc, not with
+    # bin/tiko, and each writes its own obj/<target>/<config> tree. Run one after
+    # another they were most of a Windows package's wall-clock time.
+    mkdir -p "$ROOT/lib/rt/obj" "$ROOT/lib/gfx/obj"
     note "building the compiler [$CFG]"
     # --no-dll: the editor's tikoParser.dll ships with the editor, not in a toolchain.
-    sh "$ROOT/build/build.sh" "$CFG" --no-dll >/dev/null
-
+    sh "$ROOT/build/build.sh" "$CFG" --no-dll >"$ROOT/lib/rt/obj/package-tiko.log" 2>&1 &
+    _pid_tiko=$!
+    _pids_rt=""
     for t in $TARGETS; do
         note "building the runtime [$CFG $t]"
-        sh "$ROOT/lib/rt/build/build.sh" "$CFG" "$t" >/dev/null
+        sh "$ROOT/lib/rt/build/build.sh" "$CFG" "$t" >"$ROOT/lib/rt/obj/package-$t.log" 2>&1 &
+        _pids_rt="$_pids_rt $t:$!"
+    done
+    # The graphics library too -- see the note below on why its failure is not fatal.
+    _pids_gfx=""
+    for t in $TARGETS; do
+        gfx_has_target "$t" || continue
+        note "building the graphics library [$CFG $t]"
+        sh "$ROOT/lib/gfx/build/build.sh" "$CFG" "$t" >"$ROOT/lib/gfx/obj/package-$t.log" 2>&1 &
+        _pids_gfx="$_pids_gfx $t:$!"
+    done
+    if ! wait $_pid_tiko; then
+        tail -20 "$ROOT/lib/rt/obj/package-tiko.log" >&2
+        die "the compiler build failed -- lib/rt/obj/package-tiko.log"
+    fi
+    note "compiler built"
+    for _tp in $_pids_rt; do
+        if ! wait "${_tp#*:}"; then
+            tail -20 "$ROOT/lib/rt/obj/package-${_tp%%:*}.log" >&2
+            die "the runtime build failed for ${_tp%%:*} -- lib/rt/obj/package-${_tp%%:*}.log"
+        fi
+        note "runtime built [${_tp%%:*}]"
     done
 
     # THE GRAPHICS LIBRARY IS BUILT, NOT SCAVENGED. It used to be neither: the
@@ -175,17 +206,17 @@ if [ "$DO_BUILD" = "1" ]; then
     # toolchain fbc will not do. Aborting the whole package because the graphics
     # library could not build would take the compiler and runtime down with it.
     # The manifest records the reason instead, so the absence is never silent.
-    for t in $TARGETS; do
-        gfx_has_target "$t" || continue
-        note "building the graphics library [$CFG $t]"
-        # obj/ IS GITIGNORED, so a fresh clone or worktree has none -- and the redirect
-        # below then failed before build.sh ran, reporting a build failure that never
-        # happened and packaging whatever stale archive was lying about.
-        mkdir -p "$ROOT/lib/gfx/obj"
-        if ! sh "$ROOT/lib/gfx/build/build.sh" "$CFG" "$t" >"$ROOT/lib/gfx/obj/package.log" 2>&1; then
-            GFX_FAIL=$( grep -m1 -iE 'error|die|no ' "$ROOT/lib/gfx/obj/package.log" | cut -c1-120 )
-            [ -n "$GFX_FAIL" ] || GFX_FAIL="see lib/gfx/obj/package.log"
-            note "WARNING: graphics build failed for $t -- $GFX_FAIL"
+    # obj/ IS GITIGNORED, so a fresh clone or worktree has none -- the mkdir above makes
+    # it, or the redirect failed before build.sh ran, reporting a build failure that never
+    # happened and packaging whatever stale archive was lying about.
+    for _tp in $_pids_gfx; do
+        _gl="$ROOT/lib/gfx/obj/package-${_tp%%:*}.log"
+        if wait "${_tp#*:}"; then
+            note "graphics library built [${_tp%%:*}]"
+        else
+            GFX_FAIL=$( grep -m1 -iE 'error|die|no ' "$_gl" | cut -c1-120 )
+            [ -n "$GFX_FAIL" ] || GFX_FAIL="see lib/gfx/obj/package-${_tp%%:*}.log"
+            note "WARNING: graphics build failed for ${_tp%%:*} -- $GFX_FAIL"
         fi
     done
 else
@@ -203,6 +234,9 @@ done
 [ -d "$FBTC" ] || die "no reference fbc toolchain at $FBTC -- set FBC_TREE or --fbc-tree"
 
 # ----------------------------------------------------------------- the assembly
+
+# What the last package said of its import libraries, for when they are kept below.
+_IMPLIB_PREV=$( sed -n 's/^import libraries: //p' "$OUT/MANIFEST.txt" 2>/dev/null | sed 's/ (kept.*//' | head -1 )
 
 if [ "$DO_CLEAN" = "1" ] && [ -d "$OUT" ]; then
     note "cleaning $OUT"
@@ -314,7 +348,14 @@ GFX_STATE=""
 
 for t in $TARGETS; do
     note "runtime -> lib/$t/  (tiko-rt)"
-    rm -rf "$OUT/lib/$t"
+    # THE MSVC IMPORT LIBRARIES STAY, unless --implibs: they are generated from fbc's
+    # MinGW libraries, which do not change between packages, so regenerating all 843 on
+    # every run bought nothing. Everything else in the directory is replaced.
+    if [ "$DO_IMPLIBS" = "0" ] && [ -d "$OUT/lib/$t" ]; then
+        find "$OUT/lib/$t" -mindepth 1 -maxdepth 1 ! -name '*.lib' -exec rm -rf {} +
+    else
+        rm -rf "$OUT/lib/$t"
+    fi
     mkdir -p "$OUT/lib/$t"
     cp -f "$ROOT/lib/rt/lib/$t/libfb.a"   "$OUT/lib/$t/"
     cp -f "$ROOT/lib/rt/lib/$t/libfbmt.a" "$OUT/lib/$t/"
@@ -396,7 +437,11 @@ done
 # could not be generated would be the wrong trade. The manifest records what
 # happened either way.
 IMPLIB_STATE="not generated"
-if [ "$HOST" = "windows" ] && [ -d "$OUT/lib/win64-fb" ] && [ -d "$OUT/lib/win64-msvc" ]; then
+_IMPLIB_N=$( ls "$OUT/lib/win64-msvc/"*.lib 2>/dev/null | wc -l | tr -d ' ' )
+if [ "$HOST" = "windows" ] && [ "$DO_IMPLIBS" = "0" ] && [ "$_IMPLIB_N" -gt 0 ]; then
+    IMPLIB_STATE="${_IMPLIB_PREV:-$_IMPLIB_N libraries} (kept; --implibs regenerates them)"
+    note "msvc import libraries kept: $_IMPLIB_N in lib/win64-msvc/ (--implibs regenerates them)"
+elif [ "$HOST" = "windows" ] && [ -d "$OUT/lib/win64-fb" ] && [ -d "$OUT/lib/win64-msvc" ]; then
     note "msvc import libraries -> lib/win64-msvc/  (generated from lib/win64-fb)"
     if IMPLIB_OUT=$( sh "$ROOT/build/mkmsvcimplibs.sh" "$OUT/lib/win64-fb" "$OUT/lib/win64-msvc" 2>&1 ); then
         IMPLIB_STATE=$( echo "$IMPLIB_OUT" | sed -n 's/^mkmsvcimplibs: //p' | head -1 )
