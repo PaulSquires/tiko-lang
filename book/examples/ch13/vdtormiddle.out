@@ -1,0 +1,7 @@
+middle destructor not virtual:
+  ~File
+  ~Resource
+middle destructor virtual:
+  ~SafeLog: flushed
+  ~SafeFile
+  ~Resource

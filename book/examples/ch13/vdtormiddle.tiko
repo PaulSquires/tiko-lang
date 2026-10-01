@@ -1,0 +1,50 @@
+'' vdtormiddle.tiko -- 'virtual' is not inherited by a destructor that
+'' does not say it. Each level that will be deleted through a base
+'' pointer declares its destructor virtual.
+
+type Resource extends Object
+    declare virtual destructor( )
+end type
+destructor Resource( )
+    print "  ~Resource"
+end destructor
+
+type File extends Resource
+    declare destructor( )              '' not virtual
+    handle as int32
+end type
+destructor File( )
+    print "  ~File"
+end destructor
+
+type LogFile extends File
+    declare destructor( )
+    lines as int32
+end type
+destructor LogFile( )
+    print "  ~LogFile: flushed"
+end destructor
+
+type SafeFile extends Resource
+    declare virtual destructor( )      '' virtual again
+    handle as int32
+end type
+destructor SafeFile( )
+    print "  ~SafeFile"
+end destructor
+
+type SafeLog extends SafeFile
+    declare destructor( )
+    lines as int32
+end type
+destructor SafeLog( )
+    print "  ~SafeLog: flushed"
+end destructor
+
+print "middle destructor not virtual:"
+dim as Resource ptr r = new LogFile
+delete r
+
+print "middle destructor virtual:"
+r = new SafeLog
+delete r

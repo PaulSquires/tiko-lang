@@ -139,4 +139,4 @@ How arguments are parsed
 | `--time-passes` | report wall time per phase |
 | `--bootstrap-subset-check` | reject constructs outside the self-hosting subset |
 
-<!-- 72 options, generated 2026-10-01 from src/driver/options.bi at cbbf9556 -->
+<!-- 72 options, generated 2026-10-01 from src/driver/options.bi at b940592d -->

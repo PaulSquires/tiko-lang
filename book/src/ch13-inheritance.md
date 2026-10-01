@@ -60,19 +60,17 @@ write its own copy constructor. fbc refuses the same program with its error 188.
 Give the base a constructor that takes no arguments, or default its parameters as `extends.tiko`
 does, and every type derived from it can be copied without writing anything.
 
-````admonish warning title="Status in this version"
-**Text passed to a base constructor is lost.** `base( label )` with a `ustring` or `string`
-argument fails inside clang (`TKO0113`), and `base( "literal" )` compiles but the base receives an
-empty string:
+`base( … )` passes whatever the base's constructors take, chosen the way any overloaded call is.
+Here it hands a label up, and the base's default value for it, `"unnamed"`, is what keeps
+`Sensor` copyable:
 
 ```tiko
 {{#include ../examples/ch13/basestring.tiko}}
 ```
 
-fbc prints `boiler reads 81.5`. Numbers pass through `base( … )` correctly. Until this is fixed,
-leave the text out of `base( … )` and assign it in the derived constructor: `this.label = label`.
-Tracked as **T46**; the listing is marked blocked.
-````
+```text
+{{#include ../examples/ch13/basestring.out}}
+```
 
 ## Calling through the base
 
@@ -126,19 +124,7 @@ from `Circle` could not override it again. `Rect` declares its `Kind` as `virtua
 which both replaces `Shape`'s and opens it to `Rect`'s own descendants. That is what lets `Square`
 override it in turn. `Square` keeps `Rect`'s `Area`, because a square's area is a rectangle's.
 
-````admonish warning title="Status in this version"
-**An explicit `base( … )` call leaves the object with its base's methods.** `Square`'s constructor
-calls `base( side, side )`, and afterwards a call through a `Shape ptr` reaches `Rect.Kind`: the
-pinned compiler prints `rectangle, area 4` where fbc prints `square, area 4`. Calls made directly on
-the variable are correct; only calls through a base type go wrong. Any constructor that calls
-`base( … )` explicitly is affected, at any depth.
-
-Tracked as **T48**; `shapes.tiko` is marked blocked, and its expected output is fbc's. Until it is
-fixed, set the base's fields in the derived constructor instead of calling `base( … )`, for any
-type you will call through a base pointer.
-````
-
-And the rule about `override` is enforced loosely:
+Leave `virtual` off, and the next level down cannot override:
 
 ```tiko
 {{#include ../examples/ch13/notvirtual.tiko}}
@@ -148,16 +134,14 @@ And the rule about `override` is enforced loosely:
 {{#include ../examples/ch13/notvirtual.out}}
 ```
 
-That is fbc's output, and the right one. `Dog.Speak` is an override but not virtual, so `Puppy`'s
-`Speak` hides it without replacing it, and a call through an `Animal` still reaches `Dog`'s.
+`Dog.Speak` is an override but not virtual, so `Puppy`'s `Speak` hides it without replacing it.
+Called on a `Puppy` directly it answers `yip`; called through an `Animal` it reaches `Dog`'s.
+Writing `override` on `Puppy.Speak` would not help: there is no open slot for it to fill, and the
+compiler says so (`TKO0621`). The fix is one word in `Dog`, `virtual … override`, exactly as
+`Rect` does in `shapes.tiko`.
 
-```admonish warning title="Status in this version"
-**The pinned compiler treats every override as virtual.** It prints `yip` for both lines of
-`notvirtual.tiko`, and it accepts `override` on `Puppy.Speak`, which fbc refuses with its error 223.
-Code written for tiko alone can therefore depend on a dispatch that fbc does not do. Write
-`virtual … override` whenever a derived type may override again, as `shapes.tiko` does, and the
-two compilers agree. Tracked as **T47**.
-```
+C++ programmers expect the opposite, because there an override stays virtual all the way down.
+tiko follows fbc, where it does not, so code moves between the two compilers unchanged.
 
 ### Abstract types
 
@@ -230,6 +214,24 @@ With `declare virtual destructor( )` in the base, `delete q` finds the right des
 table, runs it, and then runs the base's, in that order. **A type meant to be derived from and
 deleted through its base declares a virtual destructor**, even an empty one.
 ```
+
+The rule from the previous section applies to destructors as well, and this is where it costs most.
+A destructor is virtual only if it says so, so a middle level that declares a plain one closes the
+chain below it:
+
+```tiko
+{{#include ../examples/ch13/vdtormiddle.tiko}}
+```
+
+```text
+{{#include ../examples/ch13/vdtormiddle.out}}
+```
+
+`LogFile`'s destructor never ran, although `Resource`'s is virtual and `LogFile` declares one of its
+own. `File` declared a destructor without `virtual`, and from there down nothing overrides.
+`SafeFile` says `virtual` again, and its descendant is destroyed properly. The same happens when
+the middle type declares no destructor at all: the one the compiler writes for it is not virtual.
+**Every level that may be deleted through a base pointer declares `virtual destructor`.**
 
 ## Asking what an object really is
 
@@ -343,19 +345,18 @@ contract and hold the something else as a field.
   derived type **hides** the base's; it does not replace it for code that sees the base.
 - `extends Object` adds a table pointer. `virtual` methods are looked up in it at run time;
   `override` replaces one (`TKO0621` if there is nothing to replace); `abstract` declares one with
-  no body. **An override is not virtual unless you also write `virtual`.**
+  no body. **An override is not virtual unless you also write `virtual`**, so a type derived from it
+  hides the method instead of overriding it.
 - A type with an abstract method cannot be created (`TKO0620`). `--dump-vtable` shows the table the
   compiler built.
 - **Give a base that will be deleted through a pointer a virtual destructor**, or the derived
-  destructor never runs.
+  destructor never runs, and **repeat `virtual` at every level below it**: a plain destructor in
+  the middle stops the chain.
 - `a is T` is true for `T` and anything derived from it; guard every `cast( T ptr, @a )` with it.
   Prefer a virtual method to a chain of `is` tests.
 - **Passing by value slices** an object to its base part. Pass objects with virtual methods `byref`.
 - Use inheritance for "is a" and composition for "has a". An abstract type with no data is
   tiko's interface; `implements` is reserved and means nothing (`TKO0420`).
-- At this version, **text cannot be passed through `base( … )` (T46)**, **every override is
-  treated as virtual (T47)**, and **an explicit `base( … )` call breaks dispatch through a base
-  pointer (T48)**.
 
 ## Exercises
 
