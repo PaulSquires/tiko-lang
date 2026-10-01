@@ -114,9 +114,9 @@ function ConcatTermsAreU_ _
     ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
 
     for i as long = 0 to terms.Count - 1
-        if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
-            return true
-        end if
+        dim as Tko.NodeId tid = cast( Tko.NodeId, terms[i] )
+        if IsUStringType( c, c.info->TypeOf_( tid ) ) then return true
+        if UdtCastIsUStr_( c, tid ) then return true  '' a UDT whose cast is a ustring (T39)
     next
     return false
 end function

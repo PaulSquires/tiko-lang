@@ -930,6 +930,30 @@ function UserCastToStr_ _
     return true
 end function
 
+'' WHETHER THE STRING 'operator cast' UserCastToStr_ PICKS RETURNS A USTRING (T39). Its
+'' result is then a UTF-16 descriptor, and every consumer that keyed on the ITEM's type
+'' -- a UDT, so "narrow" -- printed its bytes as narrow text: an 'operator cast( ) as
+'' ustring' returning "(4, 6)" printed '(', NUL, '4', NUL, ',', NUL and stopped, where
+'' assigning it to a ustring first gave "(4, 6)". The same overload, chosen the same way.
+function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        dim as Tko.TypeId rt = cse->type_
+        if rt <> Tko.TYPE_NONE then
+            dim as longint zn
+            if IsStringType( c, rt ) then return IsUStringType( c, rt )
+            if StrSwapKind_( c, rt, zn ) = 1 then return false
+        end if
+        cur = cse->nextOverload
+    wend
+    return false
+end function
+
 '' THE SAME QUESTION ON THE WIDE SIDE: the 'operator cast' that yields a WSTRING.
 ''
 '' UserCastToStr_ answers for 'string' and 'zstring' only, and the wide half of the

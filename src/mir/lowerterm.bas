@@ -456,6 +456,7 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     '' tracks' 'dim as ustring path_ = this.ConfigFilename' was this, and every setting
     '' failed to load with 'config: no such file or directory'.
     if WideCastOverload_( c, tt ) <> Tko.SYMBOL_NONE then return STF_WIDE
+    if UdtCastIsUStr_( c, t2 ) then return STF_UTF16     '' ...and one with 'as ustring' is UTF-16 (T39)
     return STF_NEUTRAL
 end function
 
@@ -662,6 +663,7 @@ function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as bo
     '' for a UDT. Every ustring chain holding one was dropped: tracks' 's &= "TwsHost=" &
     '' this.TwsHost & nl' and its CATEGORY line lost their settings on each save. A UDT with
     '' a NARROW cast as well is left alone -- fbc joins that one narrow; see above.
+    if UdtCastIsUStr_( c, term ) then return false     '' a ustring cast is a UTF-16 term (T39)
     if WideCastOverload_( c, tt ) <> Tko.SYMBOL_NONE then
         if NarrowCastOverload_( c, tt ) = Tko.SYMBOL_NONE then return false
     end if

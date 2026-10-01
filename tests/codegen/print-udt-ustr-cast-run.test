@@ -1,0 +1,25 @@
+'' T39, RUN: a UDT whose 'operator cast' returns a USTRING reaches PRINT and '&' as a
+'' ustring. The item's type is the UDT, so every consumer took it as narrow and printed
+'' the UTF-16 bytes with the character count as a byte count: '(', NUL, '4', NUL, ','.
+'' Now PRINT picks fb_PrintUstring for it, and a concatenation with one in it is a
+'' ustring chain whose term is that cast's descriptor -- into a string or a ustring, with
+'' a rendered number, and beside a type that also casts to long. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/print-udt-ustr-cast.bas -o tests/codegen/printudtustrcast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/printudtustrcast.exe
+'' RUN: tests/codegen/printudtustrcast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: (4, 6)
+'' EXPECT-RUN-OUT: a=(4, 6)
+'' EXPECT-RUN-OUT: (4, 6)!
+'' EXPECT-RUN-OUT: (4, 6) w3
+'' EXPECT-RUN-OUT: (4, 6) 6
+'' EXPECT-RUN-OUT: b=w3
+'' EXPECT-RUN-OUT: x(4, 6)
+'' EXPECT-RUN-OUT: (4, 6) 6
+'' EXPECT-RUN-OUT: (4, 6)(4, 6)
+'' EXPECT-RUN-OUT: n=(4, 6)5
+'' EXPECT-RUN-OUT: (4, 6)w3

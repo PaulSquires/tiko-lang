@@ -877,6 +877,7 @@ declare function EmitRtl _
     declare function UserCastToStr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
           byref raw as boolean ) as boolean
+    declare function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function UserCastToWide_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerStrOf_ _
