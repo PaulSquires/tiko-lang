@@ -1,0 +1,6 @@
+a( 3 ) = 30
+after shrinking to 1 to 2:
+
+Aborting due to runtime error 6 (out of bounds array access) at line 12 of exxdynamic.tiko::(), 
+'A' accessed with invalid index = 3, must be between 1 and 2
+

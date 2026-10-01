@@ -167,14 +167,7 @@ bracelater.tiko(5,10): error TKO0846: a '{ ... }' list can only initialize an ar
 To refill an array, loop over it, or assign the elements one at a time. A container from the
 standard library is the one other thing a brace list can fill; Chapter 16 shows how.
 
-```admonish warning title="Status in this version"
-**The pinned compiler accepts both refused listings and throws the list away.** `total` prints 0,
-and `scores` keeps `70 85 90`. Nothing says a line was ignored. fbc refuses both, with its errors 63
-and 73.
-
-The refusals are on master (`bcaecaf6`) and reach the book with the next toolchain. Until then they
-are tracked as **T44**, and the two listings are marked blocked.
-```
+fbc refuses both lines too, with its errors 63 and 73.
 
 ## Passing an array to a procedure
 
@@ -274,12 +267,6 @@ parentheses, so `var b = FirstPrimes` is `TKO0841` rather than a call. An array 
 `TKO0612`, as it is for any initialised dynamic array: `var` takes the result, `dim` does not.
 
 ```admonish warning title="Status in this version"
-**A call whose argument is another array result is dropped at the pinned compiler.**
-`var d = Doubled( Evens( 4 ) )` compiles, prints nothing and says nothing, and passing such a call
-to a scalar parameter does the same. Both are fixed in the repository after the pin: the first
-works, and the second is `TKO0842`. Until the pin moves, put the inner result in a variable first —
-`var e = Evens( 4 )`, then `Doubled( e( ) )`.
-
 Two limits remain. A function type cannot return an array (`as function( ) as int32( )` is
 `TKO0837`), and array results of properties and operators have not been tried.
 ```
@@ -328,18 +315,21 @@ An index outside the bounds reads or writes memory that belongs to something els
 introduced `-exx`, which adds a check to every array access and stops the program with runtime
 error 6 rather than letting it continue with nonsense.
 
-```admonish warning title="Status in this version"
-**`-exx` does not check dynamic arrays.** A fixed array is checked, as Chapter 1's listing shows.
-An array that has been through a `redim` is not: on a three-element dynamic array, reading `a( 9 )`
-returns 0 and **writing `a( 9 ) = 42` succeeds**, corrupting whatever follows, and the program
-exits normally.
+The check covers a dynamic array as well as a fixed one. Its bounds are not in the source, so the
+check reads them from the array's descriptor at run time, on every access, and a `redim` that
+shrinks the array moves the limit with it:
 
-fbc traps on the same program. This is tiko's own gap, tracked as **T21**, and it is the one to
-watch for, because the arrays it misses are the ones whose size you cannot see in the source.
+```tiko
+{{#include ../examples/ch07/exxdynamic.tiko}}
 ```
 
-Until that lands — and afterwards, in any build without `-exx` — the check you write yourself is
-the one you can rely on:
+```text
+{{#include ../examples/ch07/exxdynamic.out}}
+```
+
+The program stops with exit code 6 at the first bad write, before it can corrupt anything.
+
+In a build without `-exx`, the check you write yourself is the one you can rely on:
 
 ```tiko
 {{#include ../examples/ch07/guard.tiko}}
@@ -428,7 +418,7 @@ simpler, and stop as soon as it is not.
 - Elements are zero-initialised; an initialiser in braces fills them in order, one level of braces
   per dimension, and `1 to ...` lets the list set the size.
 - **Braces initialize arrays and nothing else**: not a single value (`TKO0845`), and not an
-  assignment after the declaration (`TKO0846`). Not yet in the pinned compiler (T44).
+  assignment after the declaration (`TKO0846`).
 - `dim a( )` is empty, with `ubound` below `lbound`, so loops over it run zero times.
 - **`redim` discards the contents; `redim preserve` keeps them.** `erase` frees a dynamic array and
   zeroes a fixed one.
@@ -440,7 +430,8 @@ simpler, and stop as soon as it is not.
   replaces what `m` held. A parameter or `shared` array cannot be returned (`TKO0840`).
 - `for each` gives copies, `for each byref` gives the elements, and neither will walk a
   multi-dimensional array (`TKO0608`).
-- **`-exx` does not check dynamic arrays at this version (T21)** — compare against `lbound` and
+- **`-exx` checks every subscript, fixed or dynamic**, against the bounds the array has at that
+  moment. Without it, compare against `lbound` and
   `ubound` yourself when the index is not obviously safe.
 - **Never write `a = b` between arrays (T22)**, and keep `ustring` arrays out of parameter lists
   (T23).

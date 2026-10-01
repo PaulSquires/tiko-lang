@@ -42,9 +42,7 @@ bracesudt.tiko(9,20): error TKO0845: 'bad' is not an array, so it cannot take a 
      |                    ^
 ```
 
-The pinned compiler accepts that line and throws the braces away, so `bad.x` holds whatever the
-stack held. The refusal arrives with the next toolchain (T44). Until then, the rule is yours to
-keep: braces for arrays, parentheses for types.
+fbc refuses it in the same place, with its error 63. Braces are for arrays, parentheses for types.
 
 ```admonish note
 `name` is one of the compiler's predeclared words, so a field called `name` is refused. That is why
@@ -345,7 +343,6 @@ Chapter 11 — with a constructor.
 
 - `type` groups named fields; a field may have an initialiser, and may itself be a type.
   `( a, b )` fills fields in order. **Braces are for arrays** — `{ a, b }` on a type is `TKO0845`
-  (not yet in the pinned compiler, T44).
 - **Assignment copies the whole value**, text included. **`=` does not compare types** —
   `TKO0720` — until Chapter 12 defines it.
 - **With no keyword, a type is passed `byref`.** `byval` copies; a function may return a type.

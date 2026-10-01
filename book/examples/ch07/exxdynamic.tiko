@@ -1,0 +1,13 @@
+'' exxdynamic.tiko -- -exx checks a dynamic array too: its bounds are
+'' read from the descriptor, at run time, on every access.
+#cmdline "-exx"
+
+dim as int32 a( )
+redim a( 1 to 3 )
+a( 3 ) = 30
+print "a( 3 ) ="; a( 3 )
+
+redim preserve a( 1 to 2 )
+print "after shrinking to 1 to 2:"
+a( 3 ) = 42                     '' stops here, with runtime error 6
+print "never printed"

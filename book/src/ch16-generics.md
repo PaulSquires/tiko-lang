@@ -116,16 +116,21 @@ unconstrained.tiko(9,10): error TKO0720: no operator > compares this type
      |
    9 |     if a > b then return a        '' needs '>' on T
      |          ^
+unconstrained.tiko(17,10): note: in instantiation of 'ranked( of opaque_ )'
+     |
+  17 | dim r as Ranked( of Opaque_ )     '' Opaque_ has no '>'
+     |          ^
 ```
 
 ```admonish danger title="Pitfall"
-**The error points at the generic's body, not at the line that asked for the instantiation.**
-Nothing in that message names `Ranked( of Opaque_ )` or the line that wrote it. In a program with
-one instantiation that is a small annoyance; in a program with thirty it is a hunt.
+**The error is in the generic's body; the cause is usually the instantiation.** The first line
+points at `Ranked`'s `>`, which is correct code. The mistake is line 17, where `Opaque_`, a type
+with no `>`, was handed to it. Read only the first line and you start editing a generic that was
+never wrong.
 
-Until that improves, the practical move is to comment a generic's demands where a reader will see
-them — "`T` needs `>`" above the type — and, when an error lands in a body you did not write, look
-for the instantiation you most recently added.
+The `note: in instantiation of` line underneath names the instantiation and the line that wrote it.
+Read to the end of an error before you edit. And comment a generic's demands where a reader will
+see them, "`T` needs `>`" above the type, so the next person reaches line 17 first.
 ```
 
 The upside of the same rule is that a generic costs nothing to declare. `Stack( of T )` works for
@@ -192,14 +197,6 @@ fillnone.tiko(13,20): error TKO0843: 'c' cannot take an initializer list: its ty
      |                    ^
 ```
 
-```admonish warning title="Status in this version"
-**Collection initializers are newer than the pinned compiler.** They are on master (`99eb5dba`, and
-`97f245e0` for `shared` and namespace variables) and reach the book with the next toolchain,
-tracked as **T44**. Until then the pinned compiler accepts `fill.tiko` and throws every list away,
-and the program crashes reading the empty containers. Both listings in this section are marked
-blocked.
-```
-
 ## Overloading, and when a second generic is unreachable
 
 Two generic procedures may share a name when they take different numbers of arguments, and the
@@ -251,13 +248,13 @@ produces real diagnostics where a macro produces diagnostics about the expansion
   inference never works backwards from the return type.
 - Members may be defined out of line, repeating the `( of T )`. Declaration order does not matter.
 - An instantiation is an ordinary type: it can extend a base and override virtual methods.
-- **A type parameter promises nothing.** The body is checked per instantiation, and the error
-  lands in the body rather than at the instantiation that caused it.
+- **A type parameter promises nothing.** The body is checked per instantiation; the error lands
+  in the body, and a `note: in instantiation of` names the instantiation that caused it.
 - A container states its demands in its docs: `Map`'s key needs `=` and an `FB.HashOf` overload,
   added by re-opening `namespace FB`.
 - **A brace list fills a container**: one `Add`, `PushBack` or `Push` per element, after
   construction, and `{ k, v }` supplies one call's arguments. Any type that needs constructing and
-  has one of those methods takes part (T44: not yet in the pinned compiler).
+  has one of those methods takes part.
 - Instantiation stops at 64 levels deep; `-maxinstdepth` raises it.
 
 ## Exercises
