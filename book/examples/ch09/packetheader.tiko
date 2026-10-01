@@ -1,0 +1,28 @@
+'' packetheader.tiko -- fields narrower than a byte.
+
+'' The first 32 bits of an IPv4 header, as bitfields. Each field
+'' says how many bits it occupies; together they fill one uint32.
+type Header
+    version : 4  as uint32
+    ihl     : 4  as uint32
+    tos     : 8  as uint32
+    length  : 16 as uint32
+end type
+
+dim as Header h
+h.version = 4
+h.ihl     = 5
+h.tos     = 0
+h.length  = 1500
+
+print "sizeof( Header ) ="; sizeof( Header )
+print "version "; h.version; "  ihl "; h.ihl; "  length "; h.length
+
+'' The whole thing, read as one number. The first field declared
+'' is in the LOWEST bits: version is the last hex digit.
+dim as uint32 ptr whole = cast( uint32 ptr, @h )
+print "as one uint32: &h"; hex( *whole, 8 )
+
+'' A value too wide for its field is cut down to fit, silently.
+h.version = 17
+print "after version = 17, version is "; h.version

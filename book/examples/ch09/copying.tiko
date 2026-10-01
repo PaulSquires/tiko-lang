@@ -1,0 +1,17 @@
+'' copying.tiko -- assignment copies the whole value, text included.
+
+type Account
+    owner   as ustring
+    balance as int64
+end type
+
+dim as Account a
+a.owner = "Ada"
+a.balance = 100
+
+dim as Account b = a            '' a complete, independent copy
+b.owner = "Grace"
+b.balance = 250
+
+print "a: "; a.owner; a.balance
+print "b: "; b.owner; b.balance

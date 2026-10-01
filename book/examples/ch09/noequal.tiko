@@ -1,0 +1,8 @@
+'' noequal.tiko -- a type can be copied, but not compared.
+type Point
+    x as int32
+    y as int32
+end type
+
+dim as Point a = ( 1, 2 ), b = ( 1, 2 )
+if a = b then print "equal"     '' refused: what would equal mean?

@@ -1,0 +1,32 @@
+'' ex09-01.tiko -- a type laid out to match a fixed binary format.
+''
+'' A 16-byte record header: magic (4), version (2), flags (2),
+'' payload length (4), checksum (4). The spec says no padding, so the
+'' type must be packed -- and the program checks that the compiler
+'' agrees with the spec, instead of trusting it.
+
+type RecordHeader field = 1
+    magic    as uint32
+    version  as uint16
+    flags    as uint16
+    length   as uint32
+    checksum as uint32
+end type
+
+sub Expect( byref what as ustring, byval got as integer, _
+            byval want as integer )
+    dim as ustring verdict = "ok"
+    if got <> want then verdict = "WRONG"
+    print what; " ="; got; "  (spec says"; want; ")  "; verdict
+end sub
+
+Expect( "sizeof          ", sizeof( RecordHeader ), 16 )
+Expect( "offset magic    ", offsetof( RecordHeader, magic ), 0 )
+Expect( "offset version  ", offsetof( RecordHeader, version ), 4 )
+Expect( "offset flags    ", offsetof( RecordHeader, flags ), 6 )
+Expect( "offset length   ", offsetof( RecordHeader, length ), 8 )
+Expect( "offset checksum ", offsetof( RecordHeader, checksum ), 12 )
+
+'' This layout happens to need no padding even without field = 1,
+'' because every field already falls on a multiple of its own size.
+'' The field = 1 is there for the day someone inserts a uint8.

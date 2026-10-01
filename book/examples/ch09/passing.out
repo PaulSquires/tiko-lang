@@ -1,0 +1,3 @@
+after NoKeyword: 99   <- the caller's Point changed
+after Copied:    1
+Shifted gave 11, and a is still 1

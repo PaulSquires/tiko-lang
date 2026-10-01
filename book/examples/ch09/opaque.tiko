@@ -1,0 +1,5 @@
+'' opaque.tiko -- a type known only by name.
+type Handle as HandleImpl          '' never declared in this file
+
+dim as Handle ptr h = 0            '' a pointer is fine
+dim as Handle whole                '' a value is not: how big is it?

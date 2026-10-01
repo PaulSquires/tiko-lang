@@ -53,7 +53,7 @@ parts:
       - { n: 8,  file: src/ch08-strings-and-text.md,    status: drafted }
   - name: "Building Abstractions"
     chapters:
-      - { n: 9,  file: chapters/09-user-defined-types.md, status: planned }
+      - { n: 9,  file: src/ch09-user-defined-types.md,   status: drafted }
       - { n: 10, file: chapters/10-pointers-memory.md,    status: planned }
       - { n: 11, file: chapters/11-objects.md,            status: planned }
       - { n: 12, file: chapters/12-operator-overloading.md, status: planned }

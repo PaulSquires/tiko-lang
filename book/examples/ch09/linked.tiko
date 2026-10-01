@@ -1,0 +1,38 @@
+'' linked.tiko -- types that point at each other.
+
+'' A type may point at itself: the compiler only needs to know the
+'' size of a pointer, which it always does.
+type Node
+    value as int32
+    next_ as Node ptr
+end type
+
+dim as Node a, b, c
+a.value = 1 : b.value = 2 : c.value = 3
+a.next_ = @b : b.next_ = @c : c.next_ = 0
+
+dim as Node ptr p = @a
+print "the list:";
+do while p <> 0
+    print p->value;
+    p = p->next_
+loop
+print
+
+'' Two types that point at EACH OTHER need one of them named before
+'' it is declared. A forward alias does that.
+type ChildFwd as Child
+
+type Parent
+    firstChild as ChildFwd ptr
+end type
+
+type Child
+    owner as Parent ptr
+end type
+
+dim as Parent mum
+dim as Child kid
+mum.firstChild = @kid
+kid.owner = @mum
+print "the child's owner is the parent: "; cbool( kid.owner = @mum )

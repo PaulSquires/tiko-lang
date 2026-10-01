@@ -16,6 +16,7 @@
 
 # Building Abstractions
 
+- [User-Defined Types and Layout](ch09-user-defined-types.md)
 - [Generics](ch16-generics.md)
 
 # Appendices

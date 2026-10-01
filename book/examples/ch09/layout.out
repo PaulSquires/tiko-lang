@@ -1,0 +1,5 @@
+Loose   sizeof 12  b at 4  c at 8
+Ordered sizeof 8  a at 4  c at 5
+Packed  sizeof 6  b at 1  c at 5
+Holder       p at 4  sizeof 12
+PackedHolder p at 1  sizeof 7

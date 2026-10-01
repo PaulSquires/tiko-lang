@@ -1,0 +1,27 @@
+'' pointrect.tiko -- a type groups values that belong together.
+
+type Point
+    x as int32
+    y as int32
+end type
+
+type Rect
+    topLeft as Point                  '' a type inside a type
+    size    as Point = ( 10, 20 )     '' fields can start with a value
+    title   as ustring = "untitled"
+    visible as boolean = true
+end type
+
+dim as Rect r
+print "a fresh Rect: size"; r.size.x; r.size.y; _
+      ", title "; r.title; ", visible "; r.visible
+
+r.topLeft.x = 5                       '' reach in with dots
+r.title = "window"
+print "after edits:  topLeft"; r.topLeft.x; r.topLeft.y; _
+      ", title "; r.title
+
+'' A literal in parentheses fills the fields in order.
+dim as Point origin = ( 0, 0 )
+dim as Point corner = ( 640, 480 )
+print "corner:"; corner.x; corner.y; "  origin:"; origin.x; origin.y

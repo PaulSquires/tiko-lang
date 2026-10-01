@@ -1,0 +1,5 @@
+sizeof( Bits32 ) = 4
+1.0 as float32 is the bit pattern &h3F800000
+its highest byte is 63
+Value: sizeof 16, i and f both at offset 8 8
+holding the float 2.5

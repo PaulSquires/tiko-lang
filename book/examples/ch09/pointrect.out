@@ -1,0 +1,3 @@
+a fresh Rect: size 10 20, title untitled, visible true
+after edits:  topLeft 5 0, title window
+corner: 640 480  origin: 0 0

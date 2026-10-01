@@ -1,0 +1,28 @@
+'' ex09-02.tiko -- the same fields, ordered two ways.
+''
+'' Ordering fields largest first is the cheapest layout optimisation
+'' there is: no code changes, and the type gets smaller.
+
+type Careless
+    active  as boolean        '' 1 byte
+    id      as int64          '' 8
+    level   as uint8          '' 1
+    score   as float64        '' 8
+    flags   as uint16         '' 2
+    count   as int32          '' 4
+end type
+
+type Careful
+    id      as int64
+    score   as float64
+    count   as int32
+    flags   as uint16
+    active  as boolean
+    level   as uint8
+end type
+
+print "Careless:"; sizeof( Careless ); " bytes"
+print "Careful: "; sizeof( Careful ); " bytes"
+
+print "a million of each would take"; sizeof( Careless ) * 1000000; _
+      " vs"; sizeof( Careful ) * 1000000; " bytes"

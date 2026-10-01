@@ -1,0 +1,43 @@
+'' udtarray.tiko -- an array whose elements are records.
+
+type Reading
+    station as ustring
+    celsius as float64
+end type
+
+'' A small function that builds one record keeps the call sites to a
+'' single readable line each.
+function MakeReading( byref station as ustring, _
+                      byval celsius as float64 ) as Reading
+    dim as Reading r
+    r.station = station
+    r.celsius = celsius
+    return r
+end function
+
+dim as Reading log_( 1 to 4 )
+log_( 1 ) = MakeReading( "north", 11.5 )
+log_( 2 ) = MakeReading( "south", 18.0 )
+log_( 3 ) = MakeReading( "east",  14.25 )
+log_( 4 ) = MakeReading( "west",  9.75 )
+
+'' By index, when the position matters.
+dim as int32 warmest = lbound( log_ )
+for i as int32 = lbound( log_ ) to ubound( log_ )
+    if log_( i ).celsius > log_( warmest ).celsius then warmest = i
+next
+print "warmest: "; log_( warmest ).station; log_( warmest ).celsius
+
+'' for each byref, when it does not. Each record is used in place,
+'' without being copied.
+dim as float64 total = 0
+for each byref r as Reading in log_
+    total += r.celsius
+next
+print "mean:"; total / ( ubound( log_ ) - lbound( log_ ) + 1 )
+
+'' byref also lets the loop change them.
+for each byref r as Reading in log_
+    r.celsius = r.celsius * 9 / 5 + 32
+next
+print "north in fahrenheit:"; log_( 1 ).celsius

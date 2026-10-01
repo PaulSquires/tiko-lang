@@ -1,0 +1,30 @@
+'' unions.tiko -- several views of the same bytes.
+
+union Bits32
+    asFloat as float32
+    asInt   as uint32
+    bytes( 0 to 3 ) as uint8
+end union
+
+dim as Bits32 u
+u.asFloat = 1.0
+print "sizeof( Bits32 ) ="; sizeof( Bits32 )
+print "1.0 as float32 is the bit pattern &h"; hex( u.asInt, 8 )
+print "its highest byte is "; u.bytes( 3 )
+
+'' An anonymous union inside a type: one slot, two meanings, and a
+'' field beside it that says which meaning is current.
+type Value
+    isFloat as boolean
+    union
+        i as int64
+        f as float64
+    end union
+end type
+
+dim as Value v
+v.isFloat = true
+v.f = 2.5
+print "Value: sizeof"; sizeof( Value ); ", i and f both at offset"; _
+      offsetof( Value, i ); offsetof( Value, f )
+if v.isFloat then print "holding the float"; v.f

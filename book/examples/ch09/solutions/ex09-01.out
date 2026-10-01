@@ -1,0 +1,6 @@
+sizeof           = 16  (spec says 16)  ok
+offset magic     = 0  (spec says 0)  ok
+offset version   = 4  (spec says 4)  ok
+offset flags     = 6  (spec says 6)  ok
+offset length    = 8  (spec says 8)  ok
+offset checksum  = 12  (spec says 12)  ok

@@ -1,0 +1,45 @@
+'' layout.tiko -- where the bytes go, and what decides it.
+
+'' Each field sits at a multiple of its own size, so a 4-byte int32
+'' after a 1-byte field leaves a 3-byte gap.
+type Loose
+    a as uint8
+    b as int32
+    c as uint8
+end type
+
+'' The same fields, largest first: the gaps disappear.
+type Ordered
+    b as int32
+    a as uint8
+    c as uint8
+end type
+
+'' field = n caps the alignment at n bytes.
+type Packed field = 1
+    a as uint8
+    b as int32
+    c as uint8
+end type
+
+print "Loose   sizeof"; sizeof( Loose ); _
+      "  b at"; offsetof( Loose, b ); "  c at"; offsetof( Loose, c )
+print "Ordered sizeof"; sizeof( Ordered ); _
+      "  a at"; offsetof( Ordered, a ); "  c at"; offsetof( Ordered, c )
+print "Packed  sizeof"; sizeof( Packed ); _
+      "  b at"; offsetof( Packed, b ); "  c at"; offsetof( Packed, c )
+
+'' field = packs the INSIDE of a type. Put that type inside another,
+'' and the outer one still aligns it.
+type Holder
+    tag as uint8
+    p   as Packed
+end type
+type PackedHolder field = 1
+    tag as uint8
+    p   as Packed
+end type
+print "Holder       p at"; offsetof( Holder, p ); _
+      "  sizeof"; sizeof( Holder )
+print "PackedHolder p at"; offsetof( PackedHolder, p ); _
+      "  sizeof"; sizeof( PackedHolder )

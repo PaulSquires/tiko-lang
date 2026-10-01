@@ -1,0 +1,24 @@
+'' withblock.tiko -- naming the thing once.
+
+type Settings
+    width   as int32
+    height  as int32
+    title   as ustring
+    resizable as boolean
+end type
+
+dim as Settings s
+
+with s
+    .width     = 800
+    .height    = 600
+    .title     = "Report"
+    .resizable = false
+end with
+
+print s.title; ":"; s.width; " x"; s.height; ", resizable "; s.resizable
+
+'' An alias is another name for the same type, not a new type.
+type Dimensions as Settings
+dim as Dimensions d = s
+print "through the alias: "; d.title; d.width
