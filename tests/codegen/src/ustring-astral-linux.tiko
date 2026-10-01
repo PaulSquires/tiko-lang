@@ -1,0 +1,3 @@
+'' T25: a ustring literal above U+FFFF, compiled for linux-x86_64, where wchar is 4 bytes.
+dim as ustring face = "a😀b"
+print len( face )

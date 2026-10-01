@@ -364,9 +364,38 @@ end function
 '' tiko-lang's own source manager could not open an include file.
 ''
 '' So each wide global passed to an fb_UStr* entry point is swapped for a UTF-16 twin,
-'' made once per literal. The wchar original stays for any other use. A unit above
-'' U+FFFF would need a surrogate pair and a different length; that literal is left as
-'' it was rather than half-converted.
+'' made once per literal. The wchar original stays for any other use.
+''
+'' A UNIT ABOVE U+FFFF BECOMES A SURROGATE PAIR (T25), and the length the same call
+'' passes beside the pointer is rewritten to the UTF-16 count. This used to leave such a
+'' literal as it was, and the UTF-32 units then reached a UTF-16 entry point: on Linux
+'' 'dim as ustring face = "a<U+1F600>b"' held "a" alone, len 1, where Windows held the
+'' four units 97 55357 56832 98. When the length cannot be found -- no constant for it
+'' in this call -- the literal is still left alone rather than half-converted.
+''
+'' The length is an M_CONST operand of the call: the count of the literal's units, or
+'' that count with the top bit set, which is how lowering marks a literal's length.
+private function FixUtf16Length_ _
+    ( byval f as MirFunction ptr, byref argPool as FB.Array( of ulong ), _
+      byval ak as long, byval oldCount as long, byval newCount as long ) as boolean
+
+    if (ak + 1) >= argPool.Count then return false
+    if argPool[ak] <> cast( ulong, MV_TEMP ) then return false
+    dim as ulong tid = argPool[ak + 1]
+    for bi as long = 0 to f->blocks.Count - 1
+        for ii as long = 0 to f->blocks[bi].insts.Count - 1
+            dim as MirInst ptr ci = @f->blocks[bi].insts[ii]
+            if ci->result <> tid then continue for
+            if cast( MirOp, ci->op ) <> M_CONST then return false
+            dim as longint flag = ci->imm and &h8000000000000000ll
+            if (ci->imm and &h7FFFFFFFFFFFFFFFll) <> oldCount then return false
+            ci->imm = flag or cast( longint, newCount )
+            return true
+        next
+    next
+    return false
+end function
+
 sub MirModule.SplitUtf16Literals( byref names as Interner )
     for fi as long = 0 to this.functions.Count - 1
         dim as MirFunction ptr f = this.functions[fi]
@@ -389,13 +418,25 @@ sub MirModule.SplitUtf16Literals( byref names as Interner )
                     '' The units, copied out first: pushing a pool element into its own
                     '' pool hands Push a reference the reallocation invalidates.
                     dim as FB.Array( of ulong ) units
-                    dim as boolean fits = true
+                    dim as boolean astral = false
                     for u as long = 0 to this.globals[gi].wcharCount - 1
                         dim as ulong cu = this.wcharPool[this.globals[gi].wcharFirst + u]
-                        if cu > &hFFFF then fits = false
-                        units.Push( cu )
+                        if cu > &hFFFF then
+                            astral = true
+                            cu -= &h10000
+                            units.Push( &hD800 + (cu shr 10) )
+                            units.Push( &hDC00 + (cu and &h3FF) )
+                        else
+                            units.Push( cu )
+                        end if
                     next
-                    if fits = false then continue for
+                    '' The longer text needs its length: the call's NEXT operand.
+                    if astral then
+                        if FixUtf16Length_( f, this.argPool, ak + 2, _
+                                            this.globals[gi].wcharCount, units.Count ) = false then
+                            continue for
+                        end if
+                    end if
                     dim as long twin = -1
                     for gj as long = 0 to this.globals.Count - 1
                         if this.globals[gj].isUtf16 = false then continue for

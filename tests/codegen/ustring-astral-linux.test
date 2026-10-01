@@ -1,0 +1,10 @@
+'' T25: a ustring literal holding a character above U+FFFF reaches fb_UStr* as UTF-16 on
+'' linux-x86_64 too -- a surrogate pair, and a length of 4 units. The literal was left
+'' as UTF-32 there, and the program held only "a" (len 1). The twin and its length are
+'' checked in the MIR, since the suite runs on Windows.
+'' TEST: cli
+'' ARGS: --dump-ir -target linux-x86_64 tests/codegen/src/ustring-astral-linux.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: global u16str $ustr1 "a\uD83D\uDE00b"
+'' EXPECT-OUT: const i64 -9223372036854775804
+'' EXPECT-OUT: fb_UStrInit(@face, -1, @@$ustr1,
