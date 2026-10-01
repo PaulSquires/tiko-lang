@@ -268,7 +268,9 @@ private sub InitTooMany_ _
 
     if init = Tko.NODE_NONE then return
     dim as Tko.NodeKind ik = c.ast->Kind( init )
-    dim as boolean isList = (ik = Tko.N_INITIALIZER) orelse (ik = Tko.N_TUPLE)
+    '' A BRACE LIST on anything but an array is TKO0845's now (braceinit.bas), so only a
+    '' paren list is counted here.
+    dim as boolean isList = (ik = Tko.N_TUPLE)
     if isList = false then return
 
     dim as Tko.ListPayload ptr lp = _

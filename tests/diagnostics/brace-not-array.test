@@ -1,0 +1,26 @@
+'' TKO0845/TKO0846 -- A BRACE LIST INITIALIZES AN ARRAY, and nothing else: fbc's error 63
+'' ("Expected array") on a non-array declarator, field initializer or nested field, and its
+'' errors 9, 237, 1 and 3 for a UDT array element, a parameter default, 'var', an assignment,
+'' an argument and 'print'. Every line here compiled under tiko and the list was DROPPED: a
+'' local Pod held stack garbage, a scalar was 0, the assignment did nothing. See
+'' symbols/braceinit.bas; tests/codegen/brace-legal-run.test has the shapes that stay legal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/brace-not-array.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: brace-not-array.bas(9,17): error TKO0845: 'p1' is not an array
+'' EXPECT-OUT: brace-not-array.bas(10,24): error TKO0845: 'p2' is not an array
+'' EXPECT-OUT: brace-not-array.bas(12,21): error TKO0845: 'p3' is not an array
+'' EXPECT-OUT: brace-not-array.bas(13,24): error TKO0845: 'p4' is not an array
+'' EXPECT-OUT: brace-not-array.bas(15,17): error TKO0845: 'x' is not an array
+'' EXPECT-OUT: brace-not-array.bas(16,19): error TKO0845: 's' is not an array
+'' EXPECT-OUT: brace-not-array.bas(17,17): error TKO0845: 'pe' is not an array
+'' EXPECT-OUT: brace-not-array.bas(18,21): error TKO0845: 'pp' is not an array
+'' EXPECT-OUT: brace-not-array.bas(20,16): error TKO0845: 'f' is not an array
+'' EXPECT-OUT: brace-not-array.bas(22,16): error TKO0846: a '{ ... }' list can only initialize an array
+'' EXPECT-OUT: brace-not-array.bas(23,22): error TKO0846: a '{ ... }' list can only initialize an array
+'' EXPECT-OUT: brace-not-array.bas(24,35): error TKO0845: 'd' is not an array
+'' EXPECT-OUT: brace-not-array.bas(26,9): error TKO0845: 'v' is not an array
+'' EXPECT-OUT: brace-not-array.bas(27,6): error TKO0846: a '{ ... }' list can only initialize an array
+'' EXPECT-OUT: brace-not-array.bas(28,14): error TKO0846: a '{ ... }' list can only initialize an array
+'' EXPECT-OUT: brace-not-array.bas(29,7): error TKO0846: a '{ ... }' list can only initialize an array
+'' EXPECT-MAX-DIAG: 16

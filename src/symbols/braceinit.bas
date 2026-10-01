@@ -1,0 +1,313 @@
+'' braceinit.bas -- A BRACE LIST INITIALIZES AN ARRAY, and nothing else: fbc's error 63,
+'' "Expected array", and its neighbours. Included from latesweeps2.bas.
+''
+'' Measured on fbc-modern 1.20, 2026-10-01. '{ ... }' is accepted in exactly two places:
+''
+''     dim a(1) as long = { 1, 2 }                     the initializer of an ARRAY, nested
+''     dim g(1, 1) as long = { {1, 2}, {3, 4} }        once per dimension and no deeper
+''     dim r as R = ( {1, 2} )                         inside a paren list, for an ARRAY field
+''
+'' and refused everywhere else:
+''
+''     dim p as Pod = { 7, 8 }                         error 63 -- local, shared, static alike
+''     dim x as long = { 5 }                           error 63 -- a scalar too
+''     type Q : p as Pod = { 1, 2 } : end type         error 63 -- a field initializer
+''     dim o as O = ( {1, 2}, 3 )                      error 63 -- a nested UDT field
+''     dim a(1) as Pod = { {1, 2}, {3, 4} }            error 9  -- a UDT element is '( ... )'
+''     sub g( byval p as Pod = { 1, 2 } )              error 9
+''     var p = { 1, 2 }                                error 237
+''     p = { 1, 2 }  /  f( { 1, 2 } )  /  print { 1 }  errors 9, 1, 3
+''
+'' tiko accepted every refused line and DROPPED the list: a local Pod held whatever the stack
+'' did, a scalar was 0, the assignment did nothing. Two tiko extensions are legal too: an
+'' array result's 'return { ... }' / 'function = { ... }' (arrresult.bas checks its shape),
+'' and a collection initializer, whose list Resolve has already detached from the tree
+'' (collinit.bas). A type that NEEDS CONSTRUCTION is left alone here: its brace list is a
+'' collection initializer or TKO0843 / TKO0844 / TKO0757 already.
+
+'' Does a UDT hold an array anywhere -- a field, or a field of a field? Then a brace list
+'' inside its paren initializer may be filling it. Not mapped to the exact field: the flat
+'' and the nested paren forms make that a layout walk, and a type with no array at all is
+'' the case that was silently dropped.
+private function BrHoldsArray_ ( byref c as Ctx, byval t as TypeId, byval depth as long ) as boolean
+    if depth > 8 then return false
+    dim as TypeId u = ValueType_( c, t )
+    if u = TYPE_NONE then return false
+    if c.types->Kind( u ) <> TK_UDT then return false
+    dim as Symbol ptr ts = UdtSymbolOf_( c, u )
+    if ts = 0 then return false
+    if ts->inner = SCOPE_NONE then return false
+    dim as SymScope ptr sc = c.syms->ScopeAt( ts->inner )
+    if sc = 0 then return false
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if (f->kind = cast( ubyte, SYM_FIELD )) andalso (f->type_ <> TYPE_NONE) then
+            dim as TypeId ft = c.types->Unqualify( f->type_ )
+            if c.types->Kind( ft ) = TK_ARRAY then return true
+            if c.types->IsDynArray( ft ) then return true
+            if BrHoldsArray_( c, ft, depth + 1 ) then return true
+        end if
+        cur = f->nextInScope
+    next
+    return false
+end function
+
+'' An array type, dynamic or fixed.
+private function BrArrayType_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->IsDynArray( u ) then return true
+    return c.types->Kind( u ) = TK_ARRAY
+end function
+
+private sub BrReportList_ ( byref c as Ctx, byval n as NodeId )
+    c.diags->Report( TKO0846, PointRange( c.ast->Loc( n ) ) )
+end sub
+
+'' A paren list -- '( ... )' over a UDT, or one element of it -- and the type it fills.
+private sub BrTuple_ ( byref c as Ctx, byval n as NodeId, byval t as TypeId )
+    dim as NodeKind k = c.ast->Kind( n )
+    if (k <> N_TUPLE) andalso (k <> N_PAREN) then return
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+    dim as long first_ = lp->first
+    dim as long count_ = lp->count
+    '' NO TYPE TO JUDGE BY -- 'function = type( { 123 } )', whose type is the destination's
+    '' -- and the braces may be filling an array field, as they are there.
+    dim as boolean holds = (t = TYPE_NONE)
+    if holds = false then holds = BrHoldsArray_( c, t, 0 )
+    for i as long = 0 to count_ - 1
+        dim as NodeId el = cast( NodeId, c.ast->children[first_ + i] )
+        select case c.ast->Kind( el )
+        case N_INITIALIZER
+            if holds = false then BrReportList_( c, el )
+        case N_TUPLE, N_PAREN
+            BrTuple_( c, el, t )
+        end select
+    next
+end sub
+
+'' A brace list that IS an array's initializer: one level of nesting per dimension, and
+'' the element level holds values or, for a UDT element, paren lists.
+private sub BrArrayList_ _
+    ( byref c as Ctx, byval n as NodeId, byval depth as long, byval dims as long, _
+      byval elemT as TypeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+    dim as long first_ = lp->first
+    dim as long count_ = lp->count
+    for i as long = 0 to count_ - 1
+        dim as NodeId el = cast( NodeId, c.ast->children[first_ + i] )
+        select case c.ast->Kind( el )
+        case N_INITIALIZER
+            if depth + 1 < dims then
+                BrArrayList_( c, el, depth + 1, dims, elemT )
+            else
+                BrReportList_( c, el )
+            end if
+        case N_TUPLE, N_PAREN
+            BrTuple_( c, el, elemT )
+        end select
+    next
+end sub
+
+'' The initializer of a declarator, a field or a parameter, against its declared type.
+'' 'named' is false for a 'var', which has no type of its own to judge.
+private sub BrDeclInit_ _
+    ( byref c as Ctx, byval init as NodeId, byval t as TypeId, byval nm as InternId, _
+      byval isVar as boolean, byval declDims as long = 0 )
+    if init = NODE_NONE then return
+    dim as NodeKind ik = c.ast->Kind( init )
+    if isVar then
+        if ik = N_INITIALIZER then
+            c.diags->Report( TKO0845, PointRange( c.ast->Loc( init ) ), c.names->Spelling( nm ) )
+        end if
+        return
+    end if
+    if t = TYPE_NONE then return          '' a generic's template, or a type never resolved
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->IsDynArray( u ) then return          '' TKO0612's
+    if c.types->Kind( u ) = TK_ARRAY then
+        if ik <> N_INITIALIZER then return
+        dim as long dims = c.types->types[cast( long, u )].dims
+        '' THE DECLARATOR'S OWN DIMENSIONS when it wrote more: 'dim a(0 to 1, 0 to ...)' after
+        '' a one-dimensional 'extern a' is refused for the mismatch, and its symbol has the
+        '' extern's rank, so its nested list is not reported a second time.
+        if declDims > dims then dims = declDims
+        if dims < 1 then dims = 1
+        BrArrayList_( c, init, 0, dims, c.types->Unqualify( c.types->Inner( u ) ) )
+        return
+    end if
+    if TcNeedsCtor_( c, u, 0 ) then return           '' collinit.bas, TKO0757
+    select case ik
+    case N_INITIALIZER
+        c.diags->Report( TKO0845, PointRange( c.ast->Loc( init ) ), c.names->Spelling( nm ) )
+    case N_TUPLE, N_PAREN
+        BrTuple_( c, init, u )
+    end select
+end sub
+
+'' The symbol a declarator or a field node declared, by its payload.
+private function BrSymOf_ _
+    ( byref c as Ctx, byref map as FB.Array( of ulong ), byval n as NodeId ) as Symbol ptr
+    if cast( long, n ) >= map.Count then return 0
+    dim as ulong s = map[cast( long, n )]
+    if s = 0 then return 0
+    return c.syms->SymbolAt( cast( SymbolId, s - 1 ) )
+end function
+
+private sub BrWalk_ _
+    ( byref c as Ctx, byref map as FB.Array( of ulong ), byval id as NodeId, _
+      byval arrRes as boolean, byval isVar as boolean )
+    if id = NODE_NONE then return
+    dim as NodeKind k = c.ast->Kind( id )
+
+    select case k
+    case N_INITIALIZER
+        '' REACHED BY THE GENERIC WALK, so in no position that takes one.
+        BrReportList_( c, id )
+        return
+    case N_VAR_ITEM
+        dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as NodeId init = ip->b
+        dim as NodeId bnds = ip->c
+        dim as InternId nm = ip->name
+        dim as Symbol ptr s = BrSymOf_( c, map, id )
+        dim as TypeId t = TYPE_NONE
+        if s <> 0 then t = s->type_
+        dim as long declDims = 0
+        if bnds <> NODE_NONE then
+            if c.ast->Kind( bnds ) = N_BLOCK then declDims = c.ast->lists[cast( long, c.ast->nodes[cast( long, bnds )].data )].count
+        end if
+        if (s <> 0) orelse isVar then BrDeclInit_( c, init, t, nm, isVar, declDims )
+        '' ...AND AN ORDINARY INITIALIZER IS AN EXPRESSION like any other: 'f( { 1 } )'.
+        if init <> NODE_NONE then
+            select case c.ast->Kind( init )
+            case N_INITIALIZER, N_TUPLE, N_PAREN
+            case else
+                BrWalk_( c, map, init, arrRes, false )
+            end select
+        end if
+        BrWalk_( c, map, bnds, arrRes, false )
+        return
+    case N_FIELD
+        dim as Symbol ptr fs = BrSymOf_( c, map, id )
+        if fs = 0 then return
+        dim as StmtPayload ptr fp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        BrDeclInit_( c, fp->c, fs->type_, fp->name, false )
+        return
+    case N_PARAM
+        '' NO PARAMETER TAKES ONE: an array parameter has no default at all.
+        dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if pp->b <> NODE_NONE then
+            if c.ast->Kind( pp->b ) = N_INITIALIZER then
+                c.diags->Report( TKO0845, PointRange( c.ast->Loc( pp->b ) ), c.names->Spelling( pp->name ) )
+            end if
+        end if
+        return
+    case N_PROC
+        arrRes = BrArrayType_( c, ArrProcResult_( c, id ) )     '' arrresult.bas
+    case N_VAR
+        isVar = (c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )].op = cast( ushort, KW_VAR ))
+    case N_CONST
+        return                                '' TKO0748 judges a constant's type
+    case N_RETURN
+        dim as NodeId rv = c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )].a
+        if (rv <> NODE_NONE) andalso arrRes then
+            if c.ast->Kind( rv ) = N_INITIALIZER then return    '' an array result
+        end if
+    case N_AMBIGUOUS
+        '' 'function = { ... }' and 'f = { ... }' in an array-result procedure.
+        dim as StmtPayload ptr ap = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (ap->op = cast( ushort, TK_EQ )) andalso (ap->b <> NODE_NONE) andalso (ap->a <> NODE_NONE) then
+            if arrRes andalso (c.ast->Kind( ap->b ) = N_INITIALIZER) then
+                dim as boolean toResult = (c.ast->Kind( ap->a ) = N_FUNCRESULT)
+                if (toResult = false) andalso (c.ast->Kind( ap->a ) = N_IDENT) then
+                    dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( ap->a ) )
+                    if ls <> 0 then toResult = (ls->kind = cast( ubyte, SYM_PROC ))
+                end if
+                if toResult then return
+            end if
+        end if
+    end select
+
+    '' EVERY OTHER NODE: its children, the way visibility.bas's Walk_ reaches them.
+    select case NodeKindCategory( k )
+    case NCAT_EXPR
+        select case k
+        case N_BINARY, N_MEMBER
+            dim as BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+            dim as NodeId lhs = bp->lhs
+            dim as NodeId rhs = bp->rhs
+            BrWalk_( c, map, lhs, arrRes, false )
+            if k = N_BINARY then BrWalk_( c, map, rhs, arrRes, false )
+        case N_UNARY, N_ADDROF, N_DEREF
+            BrWalk_( c, map, c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )].operand, arrRes, false )
+        case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_STRCAT
+            dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+            dim as NodeId tgt = lp->target
+            dim as long first_ = lp->first
+            dim as long count_ = lp->count
+            '' 'type<R>( {1, 2} )' fills R the way a declarator's paren list does.
+            if k = N_TUPLE then
+                dim as TypeId tt = TYPE_NONE
+                if tgt <> NODE_NONE then tt = c.info->TypeOf_( tgt )
+                BrTuple_( c, id, tt )
+            else
+                BrWalk_( c, map, tgt, arrRes, false )
+                for i as long = 0 to count_ - 1
+                    BrWalk_( c, map, cast( NodeId, c.ast->children[first_ + i] ), arrRes, false )
+                next
+            end if
+        end select
+        return
+    case NCAT_TYPE
+        return
+    end select
+
+    if (k = N_MODULE) orelse (k = N_BLOCK) then
+        dim as ListPayload ptr bl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as long first_ = bl->first
+        dim as long count_ = bl->count
+        for i as long = 0 to count_ - 1
+            BrWalk_( c, map, cast( NodeId, c.ast->children[first_ + i] ), arrRes, false )
+        next
+        return
+    end if
+
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId a = sp->a
+    dim as NodeId b = sp->b
+    dim as NodeId cc = sp->c
+    dim as long first_ = sp->first
+    dim as long count_ = sp->count
+    BrWalk_( c, map, a, arrRes, false )
+    BrWalk_( c, map, b, arrRes, false )
+    BrWalk_( c, map, cc, arrRes, false )
+    for i as long = 0 to count_ - 1
+        BrWalk_( c, map, cast( NodeId, c.ast->children[first_ + i] ), arrRes, isVar )
+    next
+end sub
+
+private sub CheckBraceLists_ ( byref c as Ctx )
+    '' node -> symbol + 1, for the declarators and fields: their TYPE is on the symbol.
+    dim as FB.Array( of ulong ) map
+    for i as long = 0 to c.ast->Count( )
+        map.Push( 0 )
+    next
+    for i as long = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        dim as boolean isVarSym = (s->kind = cast( ubyte, SYM_VARIABLE ))
+        dim as boolean isField = (s->kind = cast( ubyte, SYM_FIELD ))
+        if (isVarSym = false) andalso (isField = false) then continue for
+        if isField andalso ((s->flags and SYMF_BITFIELD) <> 0) then continue for
+        if (s->payload <= 0) orelse (s->payload >= map.Count) then continue for
+        dim as NodeId n = cast( NodeId, s->payload )
+        dim as NodeKind nk = c.ast->Kind( n )
+        if isVarSym andalso (nk <> N_VAR_ITEM) then continue for
+        if isField andalso (nk <> N_FIELD) then continue for
+        map[cast( long, n )] = cast( ulong, i + 1 )
+    next
+    BrWalk_( c, map, c.root, false, false )
+end sub

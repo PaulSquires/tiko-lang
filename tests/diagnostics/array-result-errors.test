@@ -9,6 +9,9 @@
 '' ARGS: --dump-ir tests/diagnostics/src/array-result-errors.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: array-result-errors.bas(1,26): error TKO0836: an array result is written 'as T( )', with nothing between the parentheses
+'' ...and, the result being no array, its 'return { 1 }' is a brace list where none is allowed --
+'' fbc's error 9 on the same line (braceinit.bas).
+'' EXPECT-OUT: array-result-errors.bas(2,12): error TKO0846: a '{ ... }' list can only initialize an array
 '' EXPECT-OUT: array-result-errors.bas(5,33): error TKO0837: a procedure type cannot return an array; return it from a named procedure
 '' EXPECT-OUT: array-result-errors.bas(8,5): error TKO0838: this function returns an array
 '' EXPECT-OUT: array-result-errors.bas(12,14): error TKO0839: a nested brace list cannot be returned as an array result; write a flat list
@@ -23,4 +26,4 @@
 '' EXPECT-OUT: array-result-errors.bas(41,5): error TKO0842: this call returns an array
 '' EXPECT-OUT: array-result-errors.bas(45,1): error TKO0793: the result of 'a10' does not match its declaration
 '' EXPECT-OUT: array-result-errors.bas(52,19): error TKO0842: this call returns an array
-'' EXPECT-MAX-DIAG: 15
+'' EXPECT-MAX-DIAG: 16

@@ -1,0 +1,16 @@
+'' Brace lists that stay legal after TKO0845/TKO0846, RUN: each prints what it initialized.
+'' fbc accepts every line but the array result, a tiko extension.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/brace-legal.bas -o tests/codegen/bracelegal.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/bracelegal.exe
+'' RUN: tests/codegen/bracelegal.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1 2 3 4
+'' EXPECT-RUN-OUT: 5 6 7
+'' EXPECT-RUN-OUT: 8 9
+'' EXPECT-RUN-OUT: 10 11
+'' EXPECT-RUN-OUT: 12 13
+'' EXPECT-RUN-OUT: 20 21
+'' EXPECT-RUN-OUT: 14 16

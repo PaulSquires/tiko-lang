@@ -89,7 +89,7 @@ An empty list `= { }` constructs the variable and calls nothing. Several declara
 
 **Not yet.** `dim shared`, a variable declared in a `namespace`, and a static member's definition are refused with `TKO0844`: their initializers run in the module initializer, not at the declaration. Field initializers inside a `type`, `var`, and assignment `x = { … }` are not collection initializers.
 
-**Plain data is unchanged.** A type that needs no construction is not a collection, even with a `Push` method. Its initializer keeps its field-list meaning: `dim p as Pod = ( 7, 8 )`.
+**Plain data is unchanged.** A type that needs no construction is not a collection, even with a `Push` method. Its initializer keeps its field-list meaning: `dim p as Pod = ( 7, 8 )`. A brace list on it, `dim p as Pod = { 7, 8 }`, is error `TKO0845`, as it is fbc's error 63: braces initialize an array or a collection, nothing else.
 
 ## Errors
 
@@ -97,6 +97,7 @@ An empty list `= { }` constructs the variable and calls nothing. Several declara
 | --- | --- |
 | `TKO0843` | The type needs construction but has no `Add`, `PushBack` or `Push`. |
 | `TKO0844` | The variable is `shared` or belongs to a namespace (not supported yet). |
+| `TKO0845`, `TKO0846` | A brace list on a type that is neither an array nor a collection, or in a position that takes no initializer at all. |
 | `TKO0775`, `TKO0698`, … | An element's call is wrong: the ordinary diagnostic for that call, at that element. `{ {1, 2} }` into an `Array( of integer )` passes two arguments to `Push`. |
 
 ## Compatibility
