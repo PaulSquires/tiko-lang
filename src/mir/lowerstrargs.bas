@@ -234,7 +234,29 @@ function StrArgOwnDescriptor_ _
     if IsUStringType( c, at ) andalso (IsUStringType( c, pt ) = false) then return false
     if IsUStringType( c, at ) <> IsUStringType( c, pt ) then return true
     select case c.ast->Kind( e )
-    case Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+    case Tko.N_MEMBER
+        '' A QUALIFIED CONST NAMES NO STORAGE. 'ns.P' and a module's 'ec.P' are member
+        '' nodes, and answering 'owns it' sent the const to a user procedure as a POOL
+        '' descriptor -- the hazard above. 'for i = 1 to len( s ) : r &= mid( s, i, 1 )'
+        '' came back EMPTY: fb_StrLen consumed the slot before the loop began, while
+        '' 'F( LC )' over a bare const copied into a temporary and was right. Measured,
+        '' fbc copies both: 'fb_StrAssign( &TMP, -1, "plain", 6, 0 ); F( &TMP )'.
+        ''
+        '' A PROPERTY GETTER, 'o.Name', is the same shape -- a member node that is a CALL
+        '' -- and came back empty the same way; fbc copies its result too.
+        ''
+        '' Only the two kinds that cannot be storage are refused. Answering 'copy' for a
+        '' member that IS storage would lose a byref write silently, so anything else --
+        '' including no symbol at all -- keeps passing its own descriptor.
+        dim as Tko.Symbol ptr msy = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if msy <> 0 then
+            select case msy->kind
+            case cast( ubyte, Tko.SYM_CONSTANT ), cast( ubyte, Tko.SYM_PROC )
+                return false
+            end select
+        end if
+        return true
+    case Tko.N_INDEX, Tko.N_DEREF
         return true
     case Tko.N_IDENT
         '' AN IDENTIFIER THAT NAMES STORAGE owns its descriptor; one that merely LOOKS

@@ -1,0 +1,20 @@
+'' A STRING CONST NAMED THROUGH A NAMESPACE -- 'ns.P', and a module's exported const, which
+'' an importer names the same way -- passed to a 'byref as string' parameter of a USER
+'' procedure. It was handed over as a POOL descriptor (fb_StrAllocTempDescZEx), and the
+'' callee's first string call recycled it: 'for i = 1 to len( s )' over 'mid( s, i, 1 )' saw
+'' an empty string. fbc copies it into a real temporary, as it does for a bare const --
+'' and so it does for a property getter, 'o.Name', which came back empty the same way.
+'' RUN, because the IR verifies either way.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/str-byref-qualified-const.bas -o tests/driver/strbyrefqconst.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/strbyrefqconst.exe
+'' RUN: tests/driver/strbyrefqconst.exe
+'' EXPECT-RUN-OUT: member plain 5
+'' EXPECT-RUN-OUT: nested deep 4
+'' EXPECT-RUN-OUT: bare plain 5
+'' EXPECT-RUN-OUT: using plain 5
+'' EXPECT-RUN-OUT: [PLAIN] [plain]
+'' EXPECT-RUN-OUT: property field 5
+'' EXPECT-RUN-OUT: written field+
