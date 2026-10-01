@@ -1,0 +1,17 @@
+'' T49, RUN: a virtual property dispatches. LowerPropertyGet_ and LowerPropertySet_ called
+'' the accessor the resolver bound -- the static type's -- directly, so 'pa->P' through an
+'' A ptr on a B returned A's value and the setter stored A's way, while the vtable beside
+'' them held B's. They now ask VirtualSlotOf_, as a method call does. Output identical to
+'' fbc-modern's; the previous compiler differed on four of the five lines.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/virtual-property.bas -o tests/codegen/virtualproperty.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/virtualproperty.exe
+'' RUN: tests/codegen/virtualproperty.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A ptr on B: 3 200 B
+'' EXPECT-RUN-OUT: setter via A ptr stored: 70
+'' EXPECT-RUN-OUT: byref A: 3 300 B | P=3 Name=B
+'' EXPECT-RUN-OUT: A ptr on C: 30 200  B ptr on C: 30 200
+'' EXPECT-RUN-OUT: plain A: 1 2 A

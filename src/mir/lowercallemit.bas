@@ -112,7 +112,8 @@ end function
 
 function EmitMemberCallArgs_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-      byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
+      byval rt as MirType, byval args as FB.Array( of ulong ) ptr, _
+      byval vslot as long ) as MirValue
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
@@ -213,6 +214,21 @@ function EmitMemberCallArgs_ _
     ins.first = first
     ins.count = nargs
     ins.callee = fidx
+    '' A VIRTUAL PROPERTY GOES THROUGH THE RECEIVER'S VPTR, exactly as a virtual method
+    '' does in LowerCallParts (T49). The getter and setter came here with the name the
+    '' resolver bound -- the STATIC type's accessor -- and called it directly, so 'pa->P'
+    '' through an A ptr on a B returned A's value while the table beside it held B's.
+    '' The caller asks VirtualSlotOf_, which keeps 'base.P' direct. The signature rides
+    '' along as callee + 1, the convention an M_CALL_IND uses (see DeclIndexFor_).
+    if vslot >= 0 then
+        dim as MirValue vfp = VirtualCalleeOf_( c, self_, vslot )
+        if vfp.kind <> cast( ubyte, MV_NONE ) then
+            ins.op = cast( ushort, M_CALL_IND )
+            ins.a = vfp
+            ins.callee = cast( ulong, fidx + 1 )
+            if callTy = MT_AGG then ins.imm = SizeOfType( c, s->type_ )
+        end if
+    end if
     dim as MirValue r = Emit( c, ins )
     '' The call's VALUE is the TEMPORARY, not the pointer the callee handed back --
     '' the same contract LowerCallParts has: 'v = F( )' and 'F( ).field' both read

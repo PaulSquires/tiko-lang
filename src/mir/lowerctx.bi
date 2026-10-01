@@ -629,7 +629,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-          byval rt as MirType, byval args as FB.Array( of ulong ) ptr ) as MirValue
+          byval rt as MirType, byval args as FB.Array( of ulong ) ptr, _
+          byval vslot as long = -1 ) as MirValue
     '' lowerselfop.bas
     declare function SelfOpMemberCall_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _

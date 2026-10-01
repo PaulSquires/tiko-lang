@@ -1302,6 +1302,20 @@ private function OperandValue_ _
     return true
 end function
 
+'' THE VTABLE SLOT A PROPERTY ACCESS DISPATCHES THROUGH, or -1 for a direct call (T49).
+'' The same question a method call asks VirtualSlotOf_ -- the 'virtual' keyword on the
+'' bound accessor, 'base.P' kept direct -- over the MEMBER, which an indexed property
+'' spells as the target of a call: 'f.bar( 0 )'.
+private function PropertyVSlot_ _
+    ( byref c as Ctx, byval node as Tko.NodeId, byval acc as Tko.SymbolId ) as long
+    dim as Tko.NodeId member = node
+    if c.ast->Kind( node ) = Tko.N_CALL then
+        member = c.ast->lists[cast( long, c.ast->nodes[cast( long, node )].data )].target
+    end if
+    if member = Tko.NODE_NONE then return -1
+    return VirtualSlotOf_( c, member, acc )
+end function
+
 '' 't.V' as a value: the GETTER, called on the base.
 function LowerPropertyGet_ _
     ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -1332,7 +1346,7 @@ function LowerPropertyGet_ _
         c.sretIntoAtNode = false
         c.sretIntoOn = true
     end if
-    outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs )
+    outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs, PropertyVSlot_( c, node, g ) )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
@@ -1421,6 +1435,12 @@ function LowerPropertySet_ _
         end if
     end if
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    '' A VIRTUAL SETTER DISPATCHES TOO (T49); a plain one is called by name, as before.
+    dim as long svs = PropertyVSlot_( c, target, sset )
+    if svs >= 0 then
+        dim as MirValue sr = EmitMemberCallArgs_( c, sset, self_, MT_VOID, @args, svs )
+        return true
+    end if
     EmitStructorCall( c, sset, -1, @self_, @args )
     return true
 end function
