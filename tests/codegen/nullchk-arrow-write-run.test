@@ -1,0 +1,10 @@
+'' T33, RUN: under -exx, storing to 'p->y' through a null pointer is runtime error 7, exit
+'' 7, as fbc reports it. tiko segfaulted. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/nullchk-arrow-write.bas -o tests/codegen/nullchkarrowwrite.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/nullchkarrowwrite.exe
+'' RUN: tests/codegen/nullchkarrowwrite.exe
+'' EXPECT-RUN-EXIT: 7
+'' EXPECT-RUN-OUT: runtime error 7 (null pointer access) at line 6 of

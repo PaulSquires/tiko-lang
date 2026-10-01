@@ -1,0 +1,16 @@
+'' T33, RUN: the -exx null checks on '->' and pointer indexing leave valid pointers alone:
+'' a compound store through '->', indexed reads and writes, and a method's bare field and
+'' 'this.x' (fbc checks neither of those) all run. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/nullchk-ok.bas -o tests/codegen/nullchkok.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/nullchkok.exe
+'' RUN: tests/codegen/nullchkok.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 3 5
+'' EXPECT-RUN-OUT: 2 9
+'' EXPECT-RUN-OUT: ok
+'' EXPECT-RUN-OUT: 7 7
+'' EXPECT-RUN-OUT: 7 7
+'' EXPECT-RUN-OUT: end

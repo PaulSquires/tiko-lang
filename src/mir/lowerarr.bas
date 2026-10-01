@@ -651,6 +651,14 @@ function LowerAddr _
             '' be const too -- 'byval p as const T ptr' -- so it is unqualified as well.
             base_ = LowerExpr( c, mp->lhs )
             bt = c.types->Unqualify( c.types->Inner( bt ) )
+            '' -exx CHECKS 'p->x' FOR NULL, as it checks '*p' (T33). The base pointer is
+            '' what fbc passes to fb_NullPtrChk; without it a null 'p->x' segfaulted where
+            '' fbc stops with runtime error 7. An explicit '->' only: a method's own
+            '' 'this.x' and bare 'x' are unchecked in fbc's C, and stay so.
+            if (c.errLevel >= 3) andalso _
+               ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) then
+                EmitNullCheck_( c, id, base_ )
+            end if
         else
             base_ = LowerAddr( c, mp->lhs )
         end if
@@ -1035,6 +1043,19 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         '' pointer variable lives.
         base_ = LowerExpr( c, sp->target )
         if base_.kind = cast( ubyte, MV_NONE ) then return none_
+        '' -exx CHECKS 'p[ i ]' FOR NULL (T33): the BASE pointer, not base + i, which is
+        '' what fbc passes. A character pointee is left alone, as '*pz' is above.
+        if c.errLevel >= 3 then
+            dim as boolean charPointee = false
+            dim as Tko.TypeId elu = c.types->Unqualify( el )
+            if c.types->Kind( elu ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( elu )
+                case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_STRING, Tko.TY_USTRING
+                    charPointee = true
+                end select
+            end if
+            if charPointee = false then EmitNullCheck_( c, id, base_ )
+        end if
     end if
 
     dim as MirType offTy = MT_I64

@@ -1,0 +1,12 @@
+'' T33, RUN: under -exx, 'q[2]' through a null 'long ptr' is runtime error 7, exit 7, as
+'' fbc reports it: fbc checks the BASE pointer, not base + offset, so a null base is caught
+'' at any index. A zstring/wstring ptr index is not checked, by fbc or tiko. tiko
+'' segfaulted. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/nullchk-index.bas -o tests/codegen/nullchkindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/nullchkindex.exe
+'' RUN: tests/codegen/nullchkindex.exe
+'' EXPECT-RUN-EXIT: 7
+'' EXPECT-RUN-OUT: runtime error 7 (null pointer access) at line 2 of

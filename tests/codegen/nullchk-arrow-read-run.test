@@ -1,0 +1,12 @@
+'' T33, RUN: under -exx, reading 'p->y' through a null pointer is runtime error 7, exit 7,
+'' as fbc reports it -- it checks the base pointer of every '->'. tiko checked '*p' and
+'' '(*p).y' but not the arrow, so the program segfaulted. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/nullchk-arrow-read.bas -o tests/codegen/nullchkarrowread.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/nullchkarrowread.exe
+'' RUN: tests/codegen/nullchkarrowread.exe
+'' EXPECT-RUN-EXIT: 7
+'' EXPECT-RUN-OUT: a
+'' EXPECT-RUN-OUT: runtime error 7 (null pointer access) at line 7 of
