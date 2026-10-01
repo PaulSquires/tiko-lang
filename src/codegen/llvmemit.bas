@@ -749,12 +749,18 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     '' as a second operand because fbc emits it; LLVM has nowhere to put it, so it is
     '' dropped HERE rather than in lowering, where it is the only record of which
     '' signature the cursor walks.
+    ''
+    '' THE UNSUFFIXED NAMES (T20). '@llvm.va_start.p0' is how LLVM 19 spells the
+    '' overloaded intrinsic, and clang 18 -- Ubuntu 24.04's -- does not know it: it took
+    '' both names for ordinary external symbols and 'ld' failed on 'undefined reference
+    '' to llvm.va_start.p0'. The plain names are what LLVM 18 defines, and LLVM 19 and
+    '' later auto-upgrade them to the overloaded form, so one spelling works on both.
     case M_VA_START
-        Line( e, "call void @llvm.va_start.p0(ptr " & ValStr( e, ins.a ) & ")" )
+        Line( e, "call void @llvm.va_start(ptr " & ValStr( e, ins.a ) & ")" )
     case M_VA_END
-        Line( e, "call void @llvm.va_end.p0(ptr " & ValStr( e, ins.a ) & ")" )
+        Line( e, "call void @llvm.va_end(ptr " & ValStr( e, ins.a ) & ")" )
     case M_VA_COPY
-        Line( e, "call void @llvm.va_copy.p0(ptr " & ValStr( e, ins.a ) & _
+        Line( e, "call void @llvm.va_copy(ptr " & ValStr( e, ins.a ) & _
                  ", ptr " & ValStr( e, ins.b ) & ")" )
     case M_VA_ARG
         Line( e, res & " = va_arg ptr " & ValStr( e, ins.a ) & ", " & ty )
@@ -1088,11 +1094,11 @@ private function IntrinsicDecls _
 
     dim as string vas( ... ) = { "va_start", "va_end" }
     for i as long = lbound( vas ) to ubound( vas )
-        if instr( body, "@llvm." & vas( i ) & ".p0(" ) = 0 then continue for
-        r += "declare void @llvm." & vas( i ) & ".p0(ptr) nounwind" & chr( 10 )
+        if instr( body, "@llvm." & vas( i ) & "(" ) = 0 then continue for
+        r += "declare void @llvm." & vas( i ) & "(ptr) nounwind" & chr( 10 )
     next
-    if instr( body, "@llvm.va_copy.p0(" ) > 0 then
-        r += "declare void @llvm.va_copy.p0(ptr, ptr) nounwind" & chr( 10 )
+    if instr( body, "@llvm.va_copy(" ) > 0 then
+        r += "declare void @llvm.va_copy(ptr, ptr) nounwind" & chr( 10 )
     end if
 
     '' The four libm functions with no intrinsic. Declared with their real signatures
