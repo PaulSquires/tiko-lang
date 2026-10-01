@@ -1262,7 +1262,7 @@ end function
 ''
 '' The base subobject sits at offset 0, which is the same fact single inheritance rests
 '' on everywhere else in this file.
-private function LowerBaseFieldInit_ _
+function LowerBaseFieldInit_ _
     ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
       byval first_ as long, byval count as long ) as boolean
 
@@ -1299,11 +1299,16 @@ private function LowerBaseFieldInit_ _
     for i as long = 0 to count - 1
         dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         dim as MirType fmt = LowerType( fld->type_, *c.types )
-        if (fmt = MT_VOID) orelse (fmt = MT_AGG) then return false
+        if fmt = MT_VOID then return false
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
+        '' A RECORD-TYPED FIELD takes a value of exactly its type, stored whole with its
+        '' size: 'new Line2( type<Point>( 1, 2 ), 9 )' (T32). Anything else is declined.
+        if fmt = MT_AGG then
+            if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( fld->type_ ) then return false
+        end if
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        av = CoerceTy( c, av, fmt, c.info->TypeOf_( a ))
+        if fmt <> MT_AGG then av = CoerceTy( c, av, fmt, c.info->TypeOf_( a ))
         if av.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )

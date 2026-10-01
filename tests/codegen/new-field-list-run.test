@@ -1,0 +1,18 @@
+'' T32, RUN: 'new T( a, b )' over a type with no constructor ignored its arguments and
+'' returned a calloc-zeroed object -- 'new Point( 3, 4 )' gave 0 0, where fbc fills the
+'' fields in order. It now uses the field-by-field initialiser 'base( ... )' uses, inside
+'' new's null guard: a short list zeroes the rest, a record-typed field takes a value of
+'' its type, and placement new works the same way. Plain data only: a type that needs
+'' construction takes no field list (fbc's error 99). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-field-list.bas -o tests/codegen/newfieldlist.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/newfieldlist.exe
+'' RUN: tests/codegen/newfieldlist.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 3 4
+'' EXPECT-RUN-OUT: 7 0
+'' EXPECT-RUN-OUT: 1 2 9
+'' EXPECT-RUN-OUT: 5 6
+'' EXPECT-RUN-OUT: 8 0

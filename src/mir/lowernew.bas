@@ -242,6 +242,28 @@ private function LowerNewArray_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' Whether the first 'n' fields of 'el' can take the 'n' arguments one value each -- a
+'' scalar, or a record given a value of exactly its type -- the shape LowerBaseFieldInit_
+'' fills (T32).
+private function ScalarFieldList_ _
+    ( byref c as Ctx, byval el as Tko.TypeId, byval n as long, byval first_ as long ) as boolean
+    dim as long ui = c.udts->Find( el )
+    if ui < 0 then return false
+    dim as long f0 = c.udts->udts[ui].first
+    if n > c.udts->udts[ui].count then return false
+    for i as long = 0 to n - 1
+        dim as MirType fmt = LowerType( c.udts->fields[f0 + i].type_, *c.types )
+        if fmt = MT_VOID then return false
+        '' A record field needs an argument of exactly its type (LowerBaseFieldInit_).
+        if fmt = MT_AGG then
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
+            if c.types->Unqualify( c.info->TypeOf_( a ) ) <> _
+               c.types->Unqualify( c.udts->fields[f0 + i].type_ ) then return false
+        end if
+    next
+    return true
+end function
+
 function LowerNew_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -418,6 +440,23 @@ function LowerNew_ _
         end if
     end if
 
+    '' 'new T( a, b )' OVER A TYPE WITH NO CONSTRUCTOR FILLS ITS FIELDS IN ORDER, as
+    '' 'dim as T x = ( a, b )' does (T32). Nothing above matched it, so the arguments were
+    '' dropped and 'new Point( 3, 4 )' came back calloc-zeroed, '0 0', where fbc gives
+    '' '3 4'. The field-by-field initialiser is the one 'base( ... )' uses for a base with
+    '' no constructor, run inside the same null guard as every other initialiser here.
+    dim as boolean fieldInit = false
+    '' PLAIN DATA ONLY: a type that needs construction -- a string field, say -- takes no
+    '' field list from 'new', and fbc refuses one (error 99).
+    if (ctor = Tko.SYMBOL_NONE) andalso (argCount >= 1) andalso (implCopy = false) andalso _
+       (scalarInit = false) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
+        fieldInit = (TypeNeedsInit_( c, el ) = false)
+        '' ...AND ONLY A LIST OF SCALAR FIELDS, decided BEFORE the guard is built: the
+        '' field-by-field initialiser refuses a record-typed field, and refusing after
+        '' the branch was emitted left a block with no terminator.
+        if fieldInit then fieldInit = ScalarFieldList_( c, el, argCount, argFirst )
+    end if
+
     '' PLACEMENT NEW OVER A TYPE WITH NO CONSTRUCTOR ZEROES, because there is no
     '' calloc to have done it. Measured: '__builtin_memset( TMP$2$0, 0, 8ull )', and
     '' fbc emits NO memset when a constructor runs or when a scalar initialiser is
@@ -427,6 +466,7 @@ function LowerNew_ _
         dim as boolean noCtor = (ctor = Tko.SYMBOL_NONE)
         if noCtor then noCtor = (implCtor = false)
         if noCtor then noCtor = (scalarInit = false)
+        if noCtor then noCtor = (fieldInit = false)
         placeZero = noCtor
     end if
     dim as FB.Array( of ulong ) cargs
@@ -444,6 +484,7 @@ function LowerNew_ _
     if needsGuard = false then needsGuard = scalarInit
     if needsGuard = false then needsGuard = implCopy
     if needsGuard = false then needsGuard = placeZero
+    if needsGuard = false then needsGuard = fieldInit
     if needsGuard then
         dim as MirValue pv = LowerExprLoad( c, saddr, MT_PTR )
         if pv.kind = cast( ubyte, MV_NONE ) then return false
@@ -481,6 +522,8 @@ function LowerNew_ _
             iv = CoerceTy( c, iv, LowerType( el, *c.types ), el)
             if iv.kind = cast( ubyte, MV_NONE ) then return false
             StoreThrough( c, pv, iv )
+        elseif fieldInit then
+            if LowerBaseFieldInit_( c, pv, el, argFirst, argCount ) = false then return false
         elseif placeZero then
             dim as FB.Array( of ulong ) pz
             pz.Push( cast( ulong, pv.kind ) ) : pz.Push( cast( ulong, pv.id ) )

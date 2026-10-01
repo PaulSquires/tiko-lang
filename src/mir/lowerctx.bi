@@ -627,6 +627,11 @@ declare function EmitRtl _
           byval withSret as boolean = false ) as MirValue
     declare function MemberCallRetTy_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
+    '' lowerctor.bas: a type with no constructor filled from an argument list, field by
+    '' field -- 'base( 1, 2 )', and 'new T( 1, 2 )' (T32).
+    declare function LowerBaseFieldInit_ _
+        ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
+          byval first_ as long, byval count as long ) as boolean
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
           byval rt as MirType, byval args as FB.Array( of ulong ) ptr, _
