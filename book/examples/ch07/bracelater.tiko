@@ -1,0 +1,6 @@
+'' bracelater.tiko -- braces belong to the declaration. Filling an
+'' array again is a loop, or one element at a time.
+
+dim as int32 scores( 0 to 2 ) = { 70, 85, 90 }
+scores = { 0, 0, 0 }                '' refused
+print scores( 0 )

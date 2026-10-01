@@ -155,6 +155,51 @@ which entry in that bucket is yours, and a hash that agrees while equality disag
 that stores duplicates and finds nothing.
 ```
 
+## Filling a container from a list
+
+A container starts empty, and filling it used to take one statement per element. A brace list says
+the same thing at the declaration, the way it does for an array:
+
+```tiko
+{{#include ../examples/ch16/fill.tiko}}
+```
+
+```text
+{{#include ../examples/ch16/fill.out}}
+```
+
+Each element becomes one call, in order, after the container is constructed. `primes` gets four
+calls to `Push`, `queue` three to `PushBack`, and `ages` two to `Add`. An element that is itself a
+brace list supplies the *arguments* of one call, which is how `{ "Ada", 36 }` becomes
+`ages.Add( "Ada", 36 )`. They are ordinary calls, so the ordinary conversions apply: `"Ada"` is a
+string literal and arrives as the `ustring` key the map wants.
+
+The demand is the same kind this chapter has been describing: **a shape, not a declaration.** A
+brace list fills a type that needs constructing and has a member called `Add`, `PushBack` or
+`Push`, looked for in that order. Nothing says "I am a collection". `Bag( of T )` takes part
+because it has an `Add`, and because its dynamic array is a field that needs constructing.
+
+A type that needs constructing but has none of the three methods is refused:
+
+```tiko
+{{#include ../examples/ch16/fillnone.tiko}}
+```
+
+```
+fillnone.tiko(13,20): error TKO0843: 'c' cannot take an initializer list: its type has no Add, PushBack or Push method
+     |
+  13 | dim c as Counter = { 1, 2 }         '' refused
+     |                    ^
+```
+
+```admonish warning title="Status in this version"
+**Collection initializers are newer than the pinned compiler.** They are on master (`99eb5dba`, and
+`97f245e0` for `shared` and namespace variables) and reach the book with the next toolchain,
+tracked as **T44**. Until then the pinned compiler accepts `fill.tiko` and throws every list away,
+and the program crashes reading the empty containers. Both listings in this section are marked
+blocked.
+```
+
 ## Overloading, and when a second generic is unreachable
 
 Two generic procedures may share a name when they take different numbers of arguments, and the
@@ -210,6 +255,9 @@ produces real diagnostics where a macro produces diagnostics about the expansion
   lands in the body rather than at the instantiation that caused it.
 - A container states its demands in its docs: `Map`'s key needs `=` and an `FB.HashOf` overload,
   added by re-opening `namespace FB`.
+- **A brace list fills a container**: one `Add`, `PushBack` or `Push` per element, after
+  construction, and `{ k, v }` supplies one call's arguments. Any type that needs constructing and
+  has one of those methods takes part (T44: not yet in the pinned compiler).
 - Instantiation stops at 64 levels deep; `-maxinstdepth` raises it.
 
 ## Exercises

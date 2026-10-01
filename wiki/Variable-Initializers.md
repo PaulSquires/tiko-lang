@@ -106,6 +106,8 @@ Dynamic allocations with initializer:
  `or:`  
  `(7) Dim ByRef ref_udt_symbol As UdtName = *New UdtName( argument_list )`
 
+ **tiko:** braces are not one of these forms. `Dim udt_symbol As UdtName = { ... }` is `TKO0845`, as it is fbc's error 63, and so is a brace list on a pre-built type such as `Dim d As Double = { 1.5 }`. The exception is a type that needs constructing and has an `Add`, `PushBack` or `Push` method: it takes a brace list as a [collection initializer](Category-Collection-Initializers), one call to that method per element.
+
 *Parameters*
 
 **-** `argument_list`:
@@ -508,6 +510,8 @@ Sleep
 
 Even in the [`-lang fb`](Compiler-Option-Lang), `'Var'` can not be used instead of `'Dim'`, because `'Var'` does not support the array declaration.
 
+ **tiko:** a brace list initializes an array and nothing else. On a variable, field or parameter default that is not an array it is `TKO0845`; in a position that takes no initializer at all, such as an assignment `a = { ... }` or an argument, it is `TKO0846`. Braces nest once per dimension, `{ { 1, 2 }, { 3, 4 } }`, and an element of a UDT type takes parentheses, `{ ( 1, 2 ), ( 3, 4 ) }`. Inside a UDT's parentheses, braces fill an array field: `( { 1, 2 }, 3 )`. Two tiko extensions also take a brace list: a [collection initializer](Category-Collection-Initializers), `dim a as containers.Array( of integer ) = { 10, 20, 30 }`, and an [array result](Category-Array-Results)'s `return { ... }`.
+
 Back to top
 
 4. Nested Initializer syntax with another
@@ -598,6 +602,7 @@ Differences from QB
 See also
 
 - [Implicit declarations](Implicit-Declarations)
+- [Collection Initializers](Category-Collection-Initializers) (tiko)
 - [Constant Expressions](Constant-Expressions)
 - [`Dim`](Dim)
 - [`Shared`](Shared)

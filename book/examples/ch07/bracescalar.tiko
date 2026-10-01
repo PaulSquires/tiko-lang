@@ -1,0 +1,5 @@
+'' bracescalar.tiko -- a brace list initializes an ARRAY. A single
+'' value takes '=' and the value.
+
+dim as int32 total = { 0 }          '' refused
+print total

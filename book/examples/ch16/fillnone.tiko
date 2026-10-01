@@ -1,0 +1,14 @@
+'' fillnone.tiko -- a type that needs constructing but has no Add,
+'' PushBack or Push cannot take a brace list.
+
+type Counter
+    declare constructor( )
+    as int32 n
+end type
+
+constructor Counter( )
+    this.n = 100
+end constructor
+
+dim c as Counter = { 1, 2 }         '' refused
+print c.n

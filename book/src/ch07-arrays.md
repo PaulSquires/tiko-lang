@@ -120,6 +120,62 @@ loop runs. Iterating with the last subscript innermost walks memory forwards and
 that is fetched gets used. Swapping the loops reads one element per cache line, and on a large
 array that is the difference between fast and slow, with identical source.
 
+## Filling an array with braces
+
+```tiko
+{{#include ../examples/ch07/braces.tiko}}
+```
+
+```text
+{{#include ../examples/ch07/braces.out}}
+```
+
+A brace list gives the elements in index order, from `lbound` up. An array with more than one
+dimension takes one level of braces per dimension, in the order the last section described: the
+first inner list is row 0, so `{ { 1, 2, 3 }, { 4, 5, 6 } }` puts `4 5 6` in row 1.
+
+`...` as the upper bound lets the list decide the size. `squares( 1 to ... )` has four elements
+because four values were given, so adding a fifth value cannot leave the bounds behind.
+
+Braces are for arrays, and only at the declaration. A single value takes `=` and the value. A brace
+list on anything that is not an array is refused:
+
+```tiko
+{{#include ../examples/ch07/bracescalar.tiko}}
+```
+
+```
+bracescalar.tiko(4,22): error TKO0845: 'total' is not an array, so it cannot take a '{ ... }' initializer
+     |
+   4 | dim as int32 total = { 0 }          '' refused
+     |                      ^
+```
+
+A brace list is not a value either, so it cannot be assigned later:
+
+```tiko
+{{#include ../examples/ch07/bracelater.tiko}}
+```
+
+```
+bracelater.tiko(5,10): error TKO0846: a '{ ... }' list can only initialize an array, and nothing here is one
+     |
+   5 | scores = { 0, 0, 0 }                '' refused
+     |          ^
+```
+
+To refill an array, loop over it, or assign the elements one at a time. A container from the
+standard library is the one other thing a brace list can fill; Chapter 16 shows how.
+
+```admonish warning title="Status in this version"
+**The pinned compiler accepts both refused listings and throws the list away.** `total` prints 0,
+and `scores` keeps `70 85 90`. Nothing says a line was ignored. fbc refuses both, with its errors 63
+and 73.
+
+The refusals are on master (`bcaecaf6`) and reach the book with the next toolchain. Until then they
+are tracked as **T44**, and the two listings are marked blocked.
+```
+
 ## Passing an array to a procedure
 
 ```tiko
@@ -369,7 +425,10 @@ simpler, and stop as soon as it is not.
 
 - An array carries **bounds**, not a length: `lbound` and `ubound` are the first and last index.
 - **`a( 10 )` is eleven elements**, indexed 0 to 10. Write both bounds.
-- Elements are zero-initialised; an initialiser in braces fills them in order.
+- Elements are zero-initialised; an initialiser in braces fills them in order, one level of braces
+  per dimension, and `1 to ...` lets the list set the size.
+- **Braces initialize arrays and nothing else**: not a single value (`TKO0845`), and not an
+  assignment after the declaration (`TKO0846`). Not yet in the pinned compiler (T44).
 - `dim a( )` is empty, with `ubound` below `lbound`, so loops over it run zero times.
 - **`redim` discards the contents; `redim preserve` keeps them.** `erase` frees a dynamic array and
   zeroes a fixed one.

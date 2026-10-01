@@ -28,6 +28,24 @@ A field may carry an initialiser — `size as Point = ( 10, 20 )` — and every 
 starts with it. Fields without one start at zero, or empty for a string, exactly as variables do. A
 value in parentheses, `( 640, 480 )`, fills a type's fields in declaration order.
 
+**Parentheses, not braces.** Braces are how an *array* is filled (Chapter 7), and a type is not an
+array:
+
+```tiko
+{{#include ../examples/ch09/bracesudt.tiko}}
+```
+
+```
+bracesudt.tiko(9,20): error TKO0845: 'bad' is not an array, so it cannot take a '{ ... }' initializer
+     |
+   9 | dim as Point bad = { 3, 4 }         '' refused
+     |                    ^
+```
+
+The pinned compiler accepts that line and throws the braces away, so `bad.x` holds whatever the
+stack held. The refusal arrives with the next toolchain (T44). Until then, the rule is yours to
+keep: braces for arrays, parentheses for types.
+
 ```admonish note
 `name` is one of the compiler's predeclared words, so a field called `name` is refused. That is why
 the listing says `title`. Appendix A lists the names that collide.
@@ -326,7 +344,8 @@ Chapter 11 — with a constructor.
 ## Summary
 
 - `type` groups named fields; a field may have an initialiser, and may itself be a type.
-  `( a, b )` fills fields in order.
+  `( a, b )` fills fields in order. **Braces are for arrays** — `{ a, b }` on a type is `TKO0845`
+  (not yet in the pinned compiler, T44).
 - **Assignment copies the whole value**, text included. **`=` does not compare types** —
   `TKO0720` — until Chapter 12 defines it.
 - **With no keyword, a type is passed `byref`.** `byval` copies; a function may return a type.

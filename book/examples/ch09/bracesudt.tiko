@@ -1,0 +1,10 @@
+'' bracesudt.tiko -- a type is filled with parentheses. Braces are for
+'' arrays, and a Point is not one.
+
+type Point
+    as int32 x, y
+end type
+
+dim as Point good = ( 3, 4 )
+dim as Point bad = { 3, 4 }         '' refused
+print good.x, bad.x

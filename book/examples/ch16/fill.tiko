@@ -1,0 +1,28 @@
+'' fill.tiko -- a brace list fills a container: one call per element,
+'' in order, after the container is constructed.
+#import "std/containers"
+
+'' Your own generic takes part by having an Add, a PushBack or a Push.
+type Bag( of T )
+    declare sub Add( byval item as T )
+    as T items( any )
+end type
+
+sub Bag( of T ).Add( byval item as T )
+    redim preserve this.items( ubound( this.items ) + 1 )
+    this.items( ubound( this.items ) ) = item
+end sub
+
+dim primes as containers.Array( of int32 ) = { 2, 3, 5, 7 }
+dim queue as containers.LinkedList( of ustring ) = { "a", "b", "c" }
+dim ages as containers.Map( of ustring, int32 ) = _
+    { { "Ada", 36 }, { "Grace", 85 } }
+dim bag as Bag( of float64 ) = { 0.5, 1.5 }
+
+print "primes:"; primes.Count( ); ", last"; primes[3]
+for each s as ustring in queue
+    print s;
+next
+print
+print "Grace is"; ages["Grace"]
+print "bag holds"; ubound( bag.items ) + 1; ", last"; bag.items( 1 )

@@ -1,0 +1,23 @@
+'' braces.tiko -- a brace list fills an array: one value per element,
+'' and one level of braces per dimension.
+
+dim as int32 primes( 0 to 4 ) = { 2, 3, 5, 7, 11 }
+dim as int32 grid( 0 to 1, 0 to 2 ) = { { 1, 2, 3 }, { 4, 5, 6 } }
+
+'' '...' as the upper bound: the list decides how many there are.
+dim as int32 squares( 1 to ... ) = { 1, 4, 9, 16 }
+
+print "primes:";
+for i as int32 = lbound( primes ) to ubound( primes )
+    print primes( i );
+next
+print
+
+print "grid, row 1:";
+for c as int32 = lbound( grid, 2 ) to ubound( grid, 2 )
+    print grid( 1, c );
+next
+print
+
+print "squares:"; ubound( squares ); " of them, the last";
+print squares( ubound( squares ) )
