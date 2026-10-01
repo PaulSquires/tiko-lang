@@ -1,0 +1,18 @@
+'' T48, RUN: a constructor that writes 'base( ... )' keeps its own vtable. Its prologue
+'' -- fields, then the vptr -- used to be emitted in front of the body, so the base
+'' constructor's vptr store came last and won: a Square built through 'base( s, s )'
+'' answered 'rect' through a Rect ptr. And the fields were constructed before the base.
+'' Output identical to fbc-modern's for the same program.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/base-call-vptr.bas -o tests/codegen/basecallvptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/basecallvptr.exe
+'' RUN: tests/codegen/basecallvptr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: Base1 constructor, Who() = Base1
+'' EXPECT-RUN-OUT: Part (a field) constructed
+'' EXPECT-RUN-OUT: Der1 body, Who() = Der1, n = 7, k = 42
+'' EXPECT-RUN-OUT: through Base1: Der1
+'' EXPECT-RUN-OUT: through Rect: square cube 3
+'' EXPECT-RUN-OUT: new through Rect: cube

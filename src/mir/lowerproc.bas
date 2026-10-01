@@ -715,7 +715,7 @@ sub LowerProc _
                 '' way an explicit 'base( )' does, would zero the fields a second time
                 '' AFTER the constructor it delegates to had filled them.
                 if BodyDelegatesCtor_( c, sp->b ) = false then
-                    EmitCtorPrologue_( c, structorType, tv, BodyCallsBase_( c, sp->b ) )
+                    BeginCtorPrologue_( c, structorType, tv, BodyCallsBase_( c, sp->b ) )
                 end if
             else
                 '' THE VPTR FIRST in a destructor, so its body -- and anything it calls

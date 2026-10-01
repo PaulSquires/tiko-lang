@@ -46,13 +46,13 @@ func void _ZN2C2C1ER2P1u7INTEGER(ptr $0, ptr $1, i64 $2) {
     %3 = alloca ptr e0
     store @e0, $2
     %4 = load @this
-    %5 = field.addr %4, 16
-    %6 = call.rtl ptr memset(%5, 0, 8)
-    %7 = load @this
-    %8 = field.addr %7, 0
-    %9 = load @p
-    %10 = load %9
-    store %8, %10
+    %5 = load @this
+    %6 = field.addr %5, 0
+    %7 = load @p
+    %8 = load %7
+    store %6, %8
+    %9 = field.addr %4, 16
+    %10 = call.rtl ptr memset(%9, 0, 8)
     %11 = load @this
     %12 = field.addr %11, 16
     %13 = load @e0

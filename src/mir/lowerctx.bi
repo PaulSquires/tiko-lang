@@ -204,6 +204,16 @@ type Ctx
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
     as Tko.SymbolId         curProcSym
 
+    '' THE PROLOGUE OF A CONSTRUCTOR THAT WRITES 'base( ... )' -- its fields and its vptr
+    '' -- waits for that call, and is emitted right after it (lower.bas,
+    '' BeginCtorPrologue_). Emitted in front of the body, the vptr store came BEFORE the
+    '' base constructor, whose own store then won: every virtual call through a base
+    '' pointer reached the base's method (T48). Keyed by the function, so a prologue left
+    '' pending by a base call that failed to lower is never spent in another one.
+    as Tko.TypeId           pendPrologueType
+    as MirValue             pendPrologueThis
+    as MirFunction ptr      pendPrologueFn
+
     '' The result slot of the procedure being lowered, or -1 for a SUB and for any
     '' result type this does not handle. Measured from fbc's own C:
     ''
@@ -1273,6 +1283,9 @@ declare function EmitRtl _
     declare sub EmitCtorPrologue_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
           byval skipBase as boolean = false )
+    declare sub BeginCtorPrologue_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
+          byval callsBase as boolean )
     declare sub EmitDtorEpilogue_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue )
     declare function ImplicitCtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string

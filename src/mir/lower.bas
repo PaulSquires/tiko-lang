@@ -77,6 +77,7 @@ end sub
 
 declare sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
 declare sub LowerVarDecl_( byref c as Ctx, byval id as Tko.NodeId )
+declare sub EmitPendingCtorPrologue_( byref c as Ctx )
 
 '' A STATEMENT LOOKS NAMES UP FROM WHERE IT IS WRITTEN. Lowering finds a declaration's
 '' own symbol by name, and after an '#undef' later in the same scope the newest
@@ -353,7 +354,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' 'base( n )' IS THE BASE-CLASS CONSTRUCTOR, not a call to anything
                 '' named 'base' -- tried first, because the ordinary call path has no
                 '' callee to bind and would decline it.
-                if LowerBaseCtorCall_( c, sp->a ) = false then
+                if LowerBaseCtorCall_( c, sp->a ) then
+                    EmitPendingCtorPrologue_( c )
+                else
                     dim as MirValue dv = LowerExpr( c, sp->a )
                     '' A DISCARDED STRING RESULT IS STILL A CALL, and it is released.
                     '' 'hex( i )' as a statement is, measured:
@@ -862,6 +865,37 @@ end sub
 
 
 
+
+'' A CONSTRUCTOR'S PROLOGUE -- the base, the fields in declaration order, then the vptr --
+'' in fbc's measured order. With no explicit 'base( ... )' it is emitted at once, in front
+'' of the body. WITH ONE, the base is that call, and the fields and the vptr must follow
+'' it: emitted first, the base constructor's own vptr store overwrote this type's, and an
+'' object built through 'base( side, side )' answered every virtual call through a base
+'' pointer with its base's method (T48). Measured on fbc: the explicit base call, then the
+'' field initialisers, then the vptr, then the rest of the body.
+sub BeginCtorPrologue_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
+      byval callsBase as boolean )
+    c.pendPrologueType = Tko.TYPE_NONE
+    c.pendPrologueFn = 0
+    if callsBase = false then
+        EmitCtorPrologue_( c, t, thisPtr, false )
+        return
+    end if
+    c.pendPrologueType = t
+    c.pendPrologueThis = thisPtr
+    c.pendPrologueFn = c.f
+end sub
+
+'' After an explicit 'base( ... )': this constructor's fields and vptr, once.
+sub EmitPendingCtorPrologue_( byref c as Ctx )
+    if c.pendPrologueType = Tko.TYPE_NONE then return
+    if c.pendPrologueFn <> c.f then return
+    dim as Tko.TypeId t = c.pendPrologueType
+    c.pendPrologueType = Tko.TYPE_NONE
+    c.pendPrologueFn = 0
+    EmitCtorPrologue_( c, t, c.pendPrologueThis, true )
+end sub
 
 #include once "mir/lowervarinit.bas"
 
