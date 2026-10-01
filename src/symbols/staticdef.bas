@@ -1,6 +1,6 @@
 '' staticdef.bas -- A STATIC MEMBER'S DEFINITION THAT DISAGREES WITH ITS DECLARATION, and a
 '' CONVERSION INTRINSIC OVER A POINTER OR A UDT: CheckStaticMemberDef_ (asked of every N_VAR)
-'' and CheckConvIntrinsic_ (every N_CALL).
+'' and CheckConvIntrinsic_ (every N_CALL), which also asks CheckMathIntrinsic_.
 ''
 '' Included from latesweeps2.bas, below iifudt.bas, in the same namespace and over the same Ctx.
 
@@ -99,14 +99,115 @@ private function ConvTarget_ ( byref nm as string ) as BuiltinType
     return TY_NONE
 end function
 
+'' A MATHS INTRINSIC OVER WHAT IS NOT A NUMBER (T51) -- fbc's error 24, measured on
+'' fbc-modern 1.20 2026-10-01 across sqr, abs, int, sgn, frac, sin and both atan2 sides:
+''
+''     a string of any kind, fixed or not      a pointer        a boolean
+''     a UDT with no numeric 'operator cast' OF ITS OWN -- one casting only to a string
+''     or a pointer, and one whose BASE has the numeric cast, included
+''
+'' are all refused, and a number or an enum is taken. tiko took every one of them and
+'' then dropped the statement: 'print sqr( n )' compiled and printed nothing. A UDT is
+'' taken when an 'operator sqr' (or abs, ...) is declared over exactly that type -- one
+'' over another type changes nothing, measured -- and left alone when it extends
+'' something that is not a UDT, or is anonymous or generic.
+private function MathArgIsNumber_ _
+    ( byref c as Ctx, byval bound as SymbolId, byval scope_ as ScopeId, byref nm as string, _
+      byval at as TypeId ) as boolean
+
+    if at = TYPE_NONE then return true
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    select case c.types->Kind( at )
+    case TK_POINTER
+        return false
+    case TK_ARRAY
+        return (Tko.Check.FixedStringElem( at, *c.types ) = TYPE_NONE)
+    case TK_BUILTIN
+        select case c.types->BuiltinOf( at )
+        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_BOOLEAN
+            return false
+        end select
+        return true
+    case TK_UDT
+        '' What the name BINDS to, which is the operator when there is one; the scope lookup
+        '' is the fallback, and on its own found nothing this late.
+        dim as SymbolId uo = bound
+        if uo = SYMBOL_NONE then uo = c.syms->Lookup( scope_, c.names->Fold( c.names->GetString( nm ) ) )
+        for guard as long = 0 to 63
+            dim as Symbol ptr os = c.syms->SymbolAt( uo )
+            if os = 0 then exit for
+            if os->payload <> 0 then
+                if c.ast->Kind( cast( NodeId, os->payload ) ) = N_PROC then
+                    dim as long rk
+                    dim as TypeId pt = ParamTypeAt_( c, cast( NodeId, os->payload ), 0, rk )
+                    if pt <> TYPE_NONE then
+                        pt = c.types->Unqualify( pt )
+                        if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+                        if pt = at then return true
+                    end if
+                end if
+            end if
+            uo = os->nextOverload
+        next
+        dim as InternId un = c.types->NameOf( at )
+        if un = 0 then return true
+        dim as string h = left( c.names->Spelling( un ), 1 )
+        if (h = "(") orelse (h = "$") orelse (h = "~") then return true
+        if instr( c.names->Spelling( un ), "<" ) > 0 then return true
+        dim as TypeId bt = BaseOf_( c, at )
+        if bt <> TYPE_NONE then
+            if c.types->Kind( c.types->Unqualify( bt ) ) <> TK_UDT then return true
+        end if
+        dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
+        for guard as long = 0 to 63
+            if cs = 0 then exit for
+            dim as TypeId rt = c.types->Unqualify( cs->type_ )
+            if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+            if c.types->Kind( rt ) = TK_ENUM then return true
+            if c.types->Kind( rt ) = TK_BUILTIN then
+                select case c.types->BuiltinOf( rt )
+                case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_VOID
+                case else
+                    return true
+                end select
+            end if
+            cs = c.syms->SymbolAt( cs->nextOverload )
+        next
+        return false
+    end select
+    return true
+end function
+
+private sub CheckMathIntrinsic_ _
+    ( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr, byref nm as string )
+
+    if instr( " sin cos tan atn asin acos atan2 exp log sqr abs sgn int fix frac ", " " & nm & " " ) = 0 then return
+    dim as long want = iif( nm = "atan2", 2, 1 )
+    if lp->count <> want then return
+    for i as long = 0 to want - 1
+        dim as TypeId at = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + i] ) )
+        if MathArgIsNumber_( c, c.info->RefOf( lp->target ), c.info->ScopeOf( id ), nm, at ) = false then
+            c.diags->Report( TKO0928, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
+            return
+        end if
+    next
+end sub
+
 private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if (lp->target = NODE_NONE) orelse (lp->count <> 1) then return
+    if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
-    if (c.info->RefOf( lp->target ) <> SYMBOL_NONE) orelse (c.info->RefOf( id ) <> SYMBOL_NONE) then return
     dim as string nm = lcase( SpellOf_( c, lp->target ) )
+    '' ASKED BEFORE THE BINDING TEST: these names are keywords, so what binds one is a
+    '' user 'operator sqr', and MathArgIsNumber_ matches that against the argument itself.
     dim as BuiltinType want = ConvTarget_( nm )
-    if want = TY_NONE then return
+    if want = TY_NONE then
+        CheckMathIntrinsic_( c, id, lp, nm )
+        return
+    end if
+    if (c.info->RefOf( lp->target ) <> SYMBOL_NONE) orelse (c.info->RefOf( id ) <> SYMBOL_NONE) then return
+    if lp->count <> 1 then return
     dim as NodeId arg = cast( NodeId, c.ast->children[lp->first] )
     dim as TypeId at = c.info->TypeOf_( arg )
     if at = TYPE_NONE then return

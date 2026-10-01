@@ -1,0 +1,18 @@
+'' TKO0928, fbc's 24 (T51): a maths intrinsic over what is not a number -- a string, a
+'' pointer, a boolean, a UDT with no numeric 'operator cast' of its own (one casting to a
+'' string, one whose base has the cast), on either side of atan2. tiko accepted each and
+'' dropped the statement. The last line is all accepted by fbc and by tiko except
+'' 'sqr( vdf )': a number, a numeric cast, a user 'operator sqr' over exactly that type,
+'' an enum, and atan2 over a numeric cast. Lines identical to fbc-modern's errors. See
+'' CheckMathIntrinsic_ in symbols/staticdef.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/math-intrinsic-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: math-intrinsic-arg.bas(39,10): error TKO0928
+'' EXPECT-OUT: math-intrinsic-arg.bas(40,10): error TKO0928
+'' EXPECT-OUT: math-intrinsic-arg.bas(41,10): error TKO0928
+'' EXPECT-OUT: math-intrinsic-arg.bas(42,10): error TKO0928
+'' EXPECT-OUT: math-intrinsic-arg.bas(43,10): error TKO0928
+'' EXPECT-OUT: math-intrinsic-arg.bas(44,12): error TKO0928
+'' EXPECT-OUT: math-intrinsic-arg.bas(45,31): error TKO0928
+'' EXPECT-MAX-DIAG: 7

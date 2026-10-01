@@ -731,6 +731,8 @@
     '' fbc's errors 188 and 185: a base with no default constructor -- symbols/basector.bas.
     DIAG( TKO0926, SEV_ERROR,   "'%0' needs a copy constructor: its base has no constructor that takes no argument, so none can be made for it" )
     DIAG( TKO0927, SEV_ERROR,   "this constructor of '%0' must call base( ... ): its base has no constructor that takes no argument" )
+    '' fbc's error 24: a maths intrinsic over what is not a number -- staticdef.bas (T51).
+    DIAG( TKO0928, SEV_ERROR,   "'%0' takes a number, not a '%1'" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in
     '' symbols/arrresult.bas.
