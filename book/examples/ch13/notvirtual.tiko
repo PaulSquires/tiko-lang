@@ -1,0 +1,35 @@
+'' notvirtual.tiko -- an override is not itself virtual. A type
+'' derived from Dog that writes Speak again hides it; it does not
+'' override it.
+
+type Animal extends Object
+    declare virtual function Speak( ) as ustring
+end type
+
+function Animal.Speak( ) as ustring
+    return "..."
+end function
+
+type Dog extends Animal
+    declare function Speak( ) as ustring override
+end type
+
+function Dog.Speak( ) as ustring
+    return "woof"
+end function
+
+type Puppy extends Dog
+    declare function Speak( ) as ustring     '' hides Dog's
+end type
+
+function Puppy.Speak( ) as ustring
+    return "yip"
+end function
+
+sub Listen( byref a as Animal )
+    print "  through Animal: "; a.Speak( )
+end sub
+
+dim as Puppy pup
+print "directly: "; pup.Speak( )
+Listen( pup )

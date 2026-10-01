@@ -1,0 +1,8 @@
+'' abstract.tiko -- a type with an unwritten method cannot be created.
+
+type Shape extends Object
+    declare abstract function Area( ) as float64
+end type
+
+dim as Shape s
+print s.Area( )

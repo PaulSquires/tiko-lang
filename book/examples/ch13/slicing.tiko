@@ -1,0 +1,39 @@
+'' slicing.tiko -- a derived object passed by value arrives as a copy of
+'' its base part, and only that.
+
+type Animal extends Object
+    declare virtual function Speak( ) as ustring
+    legs as int32
+end type
+
+function Animal.Speak( ) as ustring
+    return "..."
+end function
+
+type Dog extends Animal
+    declare function Speak( ) as ustring override
+    tricks as int32
+end type
+
+function Dog.Speak( ) as ustring
+    return "woof"
+end function
+
+sub ByReference( byref a as Animal )
+    print "byref:  "; a.Speak( ); ", a Dog? "; ( a is Dog )
+end sub
+
+sub ByValue( byval a as Animal )
+    print "byval:  "; a.Speak( ); ", a Dog? "; ( a is Dog )
+end sub
+
+dim as Dog rex
+rex.tricks = 3
+ByReference( rex )
+ByValue( rex )
+
+dim as Animal copy = rex
+print "copied: "; copy.Speak( )
+
+'' The hidden field: one pointer, to the type's table of methods.
+print "sizes:"; sizeof( Object ); sizeof( Animal ); sizeof( Dog )

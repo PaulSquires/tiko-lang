@@ -1,0 +1,48 @@
+'' isdown.tiko -- asking what an object really is, and treating it as
+'' that type once the answer is yes.
+
+type Animal extends Object
+    declare virtual function Speak( ) as ustring
+end type
+
+function Animal.Speak( ) as ustring
+    return "..."
+end function
+
+type Dog extends Animal
+    declare virtual function Speak( ) as ustring override
+    tricks as int32
+end type
+
+function Dog.Speak( ) as ustring
+    return "woof"
+end function
+
+type Puppy extends Dog
+    declare function Speak( ) as ustring override
+end type
+
+function Puppy.Speak( ) as ustring
+    return "yip"
+end function
+
+sub Inspect( byref a as Animal )
+    print a.Speak( );
+    if a is Dog then
+        '' a really is a Dog (or something derived from one)
+        dim as Dog ptr d = cast( Dog ptr, @a )
+        print ", knows"; d->tricks; " tricks";
+    end if
+    if a is Puppy then print ", and is a puppy";
+    print
+end sub
+
+dim as Animal cat
+dim as Dog rex
+rex.tricks = 3
+dim as Puppy pup
+pup.tricks = 1
+
+Inspect( cat )
+Inspect( rex )
+Inspect( pup )

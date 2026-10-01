@@ -1,0 +1,24 @@
+'' basestring.tiko -- passing text up to the base's constructor.
+
+type Labelled
+    declare constructor( byref label as ustring = "unnamed" )
+    label as ustring
+end type
+
+constructor Labelled( byref label as ustring )
+    this.label = label
+end constructor
+
+type Sensor extends Labelled
+    declare constructor( byref label as ustring, _
+                         byval reading as float64 )
+    reading as float64
+end type
+
+constructor Sensor( byref label as ustring, byval reading as float64 )
+    base( label )
+    this.reading = reading
+end constructor
+
+dim as Sensor s = Sensor( "boiler", 81.5 )
+print s.label; " reads"; s.reading

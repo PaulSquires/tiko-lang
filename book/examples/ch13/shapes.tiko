@@ -1,0 +1,81 @@
+'' shapes.tiko -- one loop over different shapes, each one answering
+'' for itself.
+
+type Shape extends Object
+    declare abstract function Area( ) as float64
+    declare virtual function Kind( ) as ustring
+    declare function Describe( ) as ustring
+end type
+
+function Shape.Kind( ) as ustring
+    return "shape"
+end function
+
+'' Not virtual, yet the calls inside it are.
+function Shape.Describe( ) as ustring
+    return Kind( ) & ", area " & Area( )
+end function
+
+type Circle extends Shape
+    declare constructor( byval r as float64 )
+    declare function Area( ) as float64 override
+    declare function Kind( ) as ustring override
+    r as float64
+end type
+
+constructor Circle( byval r as float64 )
+    this.r = r
+end constructor
+
+function Circle.Area( ) as float64
+    return 3.14159 * r * r
+end function
+
+function Circle.Kind( ) as ustring
+    return "circle"
+end function
+
+type Rect extends Shape
+    declare constructor( byval w as float64 = 1, _
+                         byval h as float64 = 1 )
+    declare function Area( ) as float64 override
+    '' virtual AND override: a type derived from Rect may override
+    '' it again.
+    declare virtual function Kind( ) as ustring override
+    w as float64
+    h as float64
+end type
+
+constructor Rect( byval w as float64, byval h as float64 )
+    this.w = w : this.h = h
+end constructor
+
+function Rect.Area( ) as float64
+    return w * h
+end function
+
+function Rect.Kind( ) as ustring
+    return "rectangle"
+end function
+
+type Square extends Rect
+    declare constructor( byval side as float64 )
+    declare function Kind( ) as ustring override
+end type
+
+constructor Square( byval side as float64 )
+    base( side, side )
+end constructor
+
+function Square.Kind( ) as ustring
+    return "square"
+end function
+
+dim as Circle c = Circle( 1 )
+dim as Rect r = Rect( 2, 3 )
+dim as Square s = Square( 2 )
+dim as Shape ptr all( 0 to 2 ) = { @c, @r, @s }
+
+for i as int32 = lbound( all ) to ubound( all )
+    print all( i )->Describe( )
+next

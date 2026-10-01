@@ -1,0 +1,9 @@
+'' implements.tiko -- 'implements' is reserved, and means nothing yet.
+
+type Printable extends Object
+    declare abstract sub Show( )
+end type
+
+type Report extends Object implements Printable
+    pages as int32
+end type

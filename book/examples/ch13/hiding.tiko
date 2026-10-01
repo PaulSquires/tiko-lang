@@ -1,0 +1,27 @@
+'' hiding.tiko -- without virtual, the call is chosen by the type the
+'' compiler sees, not by the object that is really there.
+
+type Vehicle
+    declare function Kind( ) as ustring
+    wheels as int32
+end type
+
+function Vehicle.Kind( ) as ustring
+    return "vehicle"
+end function
+
+type Bicycle extends Vehicle
+    declare function Kind( ) as ustring
+end type
+
+function Bicycle.Kind( ) as ustring
+    return "bicycle"
+end function
+
+sub Show( byref v as Vehicle )
+    print "  Show sees a "; v.Kind( )
+end sub
+
+dim as Bicycle bike
+print "directly: "; bike.Kind( )
+Show( bike )

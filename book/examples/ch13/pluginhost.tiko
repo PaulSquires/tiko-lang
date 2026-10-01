@@ -1,0 +1,78 @@
+'' pluginhost.tiko -- an abstract type as the contract, and a host that
+'' is built from parts rather than derived from one.
+
+'' The contract: anything that can transform a line of text.
+type Plugin extends Object
+    declare abstract function Name( ) as ustring
+    declare abstract function Apply( byref text as ustring ) as ustring
+    declare virtual destructor( )
+end type
+
+destructor Plugin( )
+end destructor
+
+type Shout extends Plugin
+    declare function Name( ) as ustring override
+    declare function Apply( byref text as ustring ) as ustring override
+end type
+
+function Shout.Name( ) as ustring
+    return "shout"
+end function
+
+function Shout.Apply( byref text as ustring ) as ustring
+    return ucase( text ) & "!"
+end function
+
+type Reverse extends Plugin
+    declare function Name( ) as ustring override
+    declare function Apply( byref text as ustring ) as ustring override
+end type
+
+function Reverse.Name( ) as ustring
+    return "reverse"
+end function
+
+function Reverse.Apply( byref text as ustring ) as ustring
+    dim as ustring result
+    for i as int32 = len( text ) to 1 step -1
+        result &= mid( text, i, 1 )
+    next
+    return result
+end function
+
+'' The host HAS plugins; it is not one. It owns them, so it deletes
+'' them -- through Plugin ptr, which is why the destructor is virtual.
+type Host
+    declare destructor( )
+    declare sub Add( byval p as Plugin ptr )
+    declare function Run( byref text as ustring ) as ustring
+    plugins( any ) as Plugin ptr
+end type
+
+destructor Host( )
+    for i as int32 = lbound( plugins ) to ubound( plugins )
+        delete plugins( i )
+    next
+end destructor
+
+sub Host.Add( byval p as Plugin ptr )
+    redim preserve plugins( 0 to ubound( plugins ) + 1 )
+    plugins( ubound( plugins ) ) = p
+end sub
+
+function Host.Run( byref text as ustring ) as ustring
+    dim as ustring t = text
+    for i as int32 = lbound( plugins ) to ubound( plugins )
+        t = plugins( i )->Apply( t )
+        print "  after "; plugins( i )->Name( ); ": "; t
+    next
+    return t
+end function
+
+scope
+    dim as Host h
+    h.Add( new Reverse )
+    h.Add( new Shout )
+    print h.Run( "plugins" )
+end scope

@@ -1,0 +1,5 @@
+plain destructor:
+  ~Plain
+virtual destructor:
+  ~CarefulFile: the file is closed
+  ~Careful

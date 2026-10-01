@@ -4,10 +4,8 @@
 
 dim as int32 a( )
 redim a( 1 to 3 )
-a( 3 ) = 30
-print "a( 3 ) ="; a( 3 )
+a( 3 ) = 30                     '' fine: 3 is inside 1 to 3
 
-redim preserve a( 1 to 2 )
-print "after shrinking to 1 to 2:"
+redim preserve a( 1 to 2 )      '' the limit moves with the array
 a( 3 ) = 42                     '' stops here, with runtime error 6
-print "never printed"
+print "not reached"

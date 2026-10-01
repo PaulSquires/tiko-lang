@@ -1,0 +1,55 @@
+'' ex13-01.tiko -- a new shape joins the loop without the loop changing.
+
+type Shape extends Object
+    declare abstract function Area( ) as float64
+    declare virtual function Kind( ) as ustring
+    declare function Describe( ) as ustring
+end type
+
+function Shape.Kind( ) as ustring
+    return "shape"
+end function
+
+function Shape.Describe( ) as ustring
+    return Kind( ) & ", area " & Area( )
+end function
+
+type Circle extends Shape
+    declare function Area( ) as float64 override
+    declare function Kind( ) as ustring override
+    r as float64
+end type
+
+function Circle.Area( ) as float64
+    return 3.14159 * r * r
+end function
+
+function Circle.Kind( ) as ustring
+    return "circle"
+end function
+
+'' The new one. Nothing above this line was edited.
+type Triangle extends Shape
+    declare function Area( ) as float64 override
+    declare function Kind( ) as ustring override
+    base_ as float64
+    height as float64
+end type
+
+function Triangle.Area( ) as float64
+    return base_ * height / 2
+end function
+
+function Triangle.Kind( ) as ustring
+    return "triangle"
+end function
+
+dim as Circle c
+c.r = 2
+dim as Triangle t
+t.base_ = 3 : t.height = 4
+dim as Shape ptr all( 0 to 1 ) = { @c, @t }
+
+for i as int32 = lbound( all ) to ubound( all )
+    print all( i )->Describe( )
+next

@@ -1,0 +1,23 @@
+'' nodefault.tiko -- a base with no default constructor leaves the
+'' derived type with no way to copy itself.
+
+type Vehicle
+    declare constructor( byval wheels as int32 )
+    wheels as int32
+end type
+
+constructor Vehicle( byval wheels as int32 )
+    this.wheels = wheels
+end constructor
+
+type Bicycle extends Vehicle
+    declare constructor( )
+    gears as int32
+end type
+
+constructor Bicycle( )
+    base( 2 )
+end constructor
+
+dim as Bicycle bike
+print bike.wheels

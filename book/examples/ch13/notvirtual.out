@@ -1,0 +1,2 @@
+directly: yip
+  through Animal: woof

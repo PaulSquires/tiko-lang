@@ -1,0 +1,42 @@
+'' extends.tiko -- a derived type starts as its base, and adds to it.
+
+type Vehicle
+    declare constructor( byval wheels as int32 = 4 )
+    declare function Describe( ) as ustring
+    wheels as int32
+    speed as int32
+end type
+
+constructor Vehicle( byval wheels as int32 )
+    this.wheels = wheels
+end constructor
+
+function Vehicle.Describe( ) as ustring
+    return wheels & " wheels at " & speed & " km/h"
+end function
+
+type Bicycle extends Vehicle
+    declare constructor( byval gears as int32 )
+    declare function Describe( ) as ustring
+    gears as int32
+end type
+
+constructor Bicycle( byval gears as int32 )
+    base( 2 )                     '' build the Vehicle part first
+    this.gears = gears
+end constructor
+
+function Bicycle.Describe( ) as ustring
+    return base.Describe( ) & ", " & gears & " gears"
+end function
+
+dim as Bicycle bike = Bicycle( 21 )
+bike.speed = 25                   '' a field it inherited
+print bike.Describe( )
+
+dim as Vehicle car
+print car.Describe( )
+
+print "sizes:"; sizeof( Vehicle ); sizeof( Bicycle )
+print "offsets:"; offsetof( Bicycle, wheels ); _
+    offsetof( Bicycle, speed ); offsetof( Bicycle, gears )

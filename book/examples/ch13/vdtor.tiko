@@ -1,0 +1,45 @@
+'' vdtor.tiko -- delete through a base pointer runs the destructor the
+'' pointer's type names, unless that destructor is virtual.
+
+type Plain
+    declare destructor( )
+    id as int32
+end type
+
+destructor Plain( )
+    print "  ~Plain"
+end destructor
+
+type PlainFile extends Plain
+    declare destructor( )
+    handle as int32
+end type
+
+destructor PlainFile( )
+    print "  ~PlainFile: the file is closed"
+end destructor
+
+type Careful extends Object
+    declare virtual destructor( )
+end type
+
+destructor Careful( )
+    print "  ~Careful"
+end destructor
+
+type CarefulFile extends Careful
+    declare destructor( )
+    handle as int32
+end type
+
+destructor CarefulFile( )
+    print "  ~CarefulFile: the file is closed"
+end destructor
+
+print "plain destructor:"
+dim as Plain ptr p = new PlainFile
+delete p
+
+print "virtual destructor:"
+dim as Careful ptr q = new CarefulFile
+delete q
