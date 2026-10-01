@@ -35,6 +35,12 @@ namespace Tko
         '' the symbol table for every candidate.
         as InternId name
         as NodeId   decl
+        '' WHO FILLED THIS SLOT LAST, and whether that declaration left it OPEN -- virtual
+        '' or abstract -- for a further-derived type to override (T47). fbc's rule: a
+        '' method that overrides is itself virtual only if it says 'virtual' too, so
+        '' 'declare function f( ) as long override' closes the slot below it.
+        as TypeId   owner
+        as boolean  open
     end type
 
     '' WHY a matched override is still incompatible. fbc has a separate error number for

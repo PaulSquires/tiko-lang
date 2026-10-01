@@ -493,6 +493,69 @@ private function TemplateScopeOf_ _
     return gs->inner
 end function
 
+'' THE NEAREST DECLARATION DECIDES, as fbc measures it (T47). A derived method of the same
+'' signature overrides an inherited slot only while that slot is OPEN -- the declaration
+'' that last filled it said 'virtual' or 'abstract' -- and only if no type between this
+'' one's base and the slot's owner declares the same NAME, which hides every inherited
+'' overload of it. Measured on fbc-modern 1.20, A virtual F, then:
+''
+''     B: F override          C: F            through an A ptr on a C:  B
+''     B: F override          C: F override   error 223 (TKO0621 here)
+''     B: F                   C: F            B -- an implicit override is not virtual
+''     B: virtual F override  C: F            C
+''     B: (no F)              C: F            C -- B declares nothing, so A's slot is open
+''     B: F( long ) override  C: F( string )  A's F( string ) -- B's F hides it
+''
+'' A DESTRUCTOR follows the same rule with one difference: a type that declares none
+'' still HAS one (the implicit destructor that calls its base's), and that one is not
+'' virtual. So a derived destructor overrides only when its DIRECT base's destructor was
+'' declared virtual: 'A virtual destructor, B nothing, C destructor' runs '~A' alone when
+'' a C is deleted through an A ptr, in fbc and now here.
+''
+'' Before this, any matching name and signature replaced the slot -- C++'s rule, not
+'' fbc's -- so the same program dispatched differently under the two compilers.
+private function DeclaresName_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byval t as TypeId, byval nm as InternId ) as boolean
+
+    dim as Symbol ptr s = syms.SymbolAt( UdtSymbolOf_( syms, types, t ) )
+    if s = 0 then return false
+    for pass_ as long = 0 to 1
+        dim as ScopeId sc = s->inner
+        if pass_ = 1 then sc = TemplateScopeOf_( ast, syms, s )
+        if sc = SCOPE_NONE then continue for
+        dim as Symbol ptr m = syms.SymbolAt( syms.LookupLocal( sc, nm ) )
+        if m <> 0 then
+            if m->kind = cast( ubyte, SYM_PROC ) then return true
+        end if
+    next
+    return false
+end function
+
+private function SlotClosedFor_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as VTables, byval t as TypeId, byval bt as TypeId, _
+      byval sl as VtSlot ptr, byval nm as InternId, byval isDtor as boolean ) as boolean
+
+    '' THIS TYPE RE-FILLING ITS OWN SLOT: an instantiation's out-of-line definitions
+    '' landing on the slots its template's declarations opened (see BuildOne_).
+    if sl->owner = t then return false
+    if sl->owner = TYPE_NONE then return false
+    if sl->open = false then return true
+    if isDtor then return (sl->owner <> bt)
+    dim as TypeId cur = bt
+    for guard as long = 0 to 64
+        if (cur = TYPE_NONE) orelse (cur = sl->owner) then return false
+        if DeclaresName_( ast, syms, types, cur, nm ) then return true
+        dim as Symbol ptr cs = syms.SymbolAt( UdtSymbolOf_( syms, types, cur ) )
+        if cs = 0 then return false
+        dim as TypeId up = BaseTypeOf_( syms, cs, store.baseName )
+        if up = cur then return false
+        cur = up
+    next
+    return false
+end function
+
 private function BuildOne_ _
     ( byval t as TypeId, byref ast as AstArena, byref syms as SymbolTable, _
       byref types as TypeContext, byref info as SemanticInfo, _
@@ -607,6 +670,14 @@ private function BuildOne_ _
                             '' CompareByref_ reports. A sibling overload of another rank in
                             '' this same type is a slot of its own, not an override.
                             if (at < 0) andalso (loose >= 0) andalso (loose < nInherited) then at = loose
+                            '' ...BUT ONLY AN OPEN SLOT, not hidden on the way down (T47 --
+                            '' SlotClosedFor_). A closed one is not overridden: the method
+                            '' HIDES it, and opens a slot of its own only if it says 'virtual'.
+                            if at >= 0 then
+                                dim as boolean isDtor = (cast( TokenKind, pp->op ) = KW_DESTRUCTOR)
+                                if SlotClosedFor_( ast, syms, types, store, t, bt, _
+                                                   @store.slots[v.first + at], mo->name, isDtor ) then at = -1
+                            end if
 
                             if at >= 0 then
                                 '' AN ABSTRACT SLOT IS NULL, and an override fills it.
@@ -615,11 +686,21 @@ private function BuildOne_ _
                                 CheckOverrideBody_( ast, info, types, store, sl->decl, decl )
                                 sl->proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
                                 sl->decl = decl
+                                '' Open for the next level only if THIS declaration is virtual
+                                '' -- or this type's own template already opened it.
+                                if sl->owner = t then
+                                    sl->open = sl->open orelse isVirtual
+                                else
+                                    sl->open = isVirtual
+                                end if
+                                sl->owner = t
                             elseif isVirtual then
                                 dim as VtSlot ns
                                 ns.proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
                                 ns.name = mo->name
                                 ns.decl = decl
+                                ns.owner = t
+                                ns.open = true
                                 store.slots.Push( ns )
                                 v.count += 1
                             end if

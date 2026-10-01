@@ -1,0 +1,10 @@
+'' T47 -- TKO0621 where fbc says error 223: 'override' on a method whose slot a non-virtual
+'' override (B), or an implicit one (B2), has closed. A method that overrides is virtual only
+'' if it also says 'virtual'. The same three lines fbc refuses, and no others.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/override-closed.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: override-closed.bas(17,13): error TKO0621: 'f' is marked 'override' but overrides no virtual method
+'' EXPECT-OUT: override-closed.bas(18,13): error TKO0621: 'g' is marked 'override' but overrides no virtual method
+'' EXPECT-OUT: override-closed.bas(31,13): error TKO0621: 'f' is marked 'override' but overrides no virtual method
+'' EXPECT-MAX-DIAG: 3

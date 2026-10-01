@@ -1,0 +1,20 @@
+'' T47, RUN: a method that overrides is virtual only if it also says 'virtual' -- fbc's
+'' rule, where tiko used C++'s. A plain re-declaration under a non-virtual override HIDES
+'' it; 'virtual' over a closed slot opens a new one; a level that declares nothing leaves
+'' the slot open; a sibling overload hides the inherited ones; and a destructor overrides
+'' only a DIRECT base's virtual destructor. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/override-not-virtual.bas -o tests/codegen/overridenotvirtual.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/overridenotvirtual.exe
+'' RUN: tests/codegen/overridenotvirtual.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: override, then plain:   B
+'' EXPECT-RUN-OUT: virtual override, plain: C
+'' EXPECT-RUN-OUT: virtual over closed:     B C3
+'' EXPECT-RUN-OUT: skip a level:            C4
+'' EXPECT-RUN-OUT: hidden overload:         B.n A.s
+'' EXPECT-RUN-OUT: plain middle:  ~B~A
+'' EXPECT-RUN-OUT: no middle:   ~A
+'' EXPECT-RUN-OUT: virtual mid:  ~G ~F~A
