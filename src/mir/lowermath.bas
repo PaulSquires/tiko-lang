@@ -57,13 +57,32 @@ function LowerMathCall_ _
     '' BY NAME, because nothing BINDS it: 'sqr( t )' parses as a CALL and Check
     '' types the intrinsic, not the operator. The symbol an 'operator sqr' declares
     '' is spelled exactly 'sqr', which is what the parser folds it under.
+    '' ...AND WITH NO OPERATOR OF ITS OWN, ITS NUMERIC 'operator cast' (T40). Measured:
+    '' fbc's 'sqr( f )' over a type converting itself to double is the square root of
+    '' that double, 1.58113883008419 for 2.5. This declined instead, and what was left
+    '' printed 3.117401420081966e-312 for 'dim as float64 r = sqr( f )' and truncated
+    '' 'print abs( f )'. The converted value stands in for the argument below, and its
+    '' type for the argument's type, so each family member sees an ordinary number.
+    dim as boolean havePre = false
+    dim as MirValue pre
     if c.types->Kind( c.types->Unqualify( at ) ) = Tko.TK_UDT then
         dim as Tko.SymbolId uop = c.syms->Lookup( _
             c.info->ScopeOf( id ), c.names->Fold( c.names->GetString( nm ) ) )
-        if uop = Tko.SYMBOL_NONE then return false
-        dim as MirType urt = LowerType( c.info->TypeOf_( id ), *c.types )
-        if urt = MT_VOID then urt = MT_F64
-        return LowerUserUnaryOpSym_( c, uop, a0, urt, outv )
+        if uop <> Tko.SYMBOL_NONE then
+            dim as MirType urt = LowerType( c.info->TypeOf_( id ), *c.types )
+            if urt = MT_VOID then urt = MT_F64
+            return LowerUserUnaryOpSym_( c, uop, a0, urt, outv )
+        end if
+        '' ONLY FOR THE MATHS FAMILY: every call reaches this function, and converting first
+        '' emitted the cast twice for 'wants( q )' over a user function -- once here, once
+        '' for the real call -- before the name below declined it.
+        if instr( " sin cos tan atn asin acos atan2 exp log sqr abs sgn int fix frac ", " " & nm & " " ) = 0 then return false
+        dim as Tko.SymbolId cov = UserCastNumOverload_( c, c.types->Unqualify( at ) )
+        if cov = Tko.SYMBOL_NONE then return false
+        if UserCastToNum_( c, a0, pre ) = false then return false
+        if pre.kind = cast( ubyte, MV_NONE ) then return false
+        havePre = true
+        at = c.types->Unqualify( c.syms->SymbolAt( cov )->type_ )
     end if
     dim as MirType amt = LowerType( at, *c.types )
     dim as boolean isFlt = (amt = MT_F32) orelse (amt = MT_F64)
@@ -73,9 +92,11 @@ function LowerMathCall_ _
     if nm = "atan2" then
         if cp->count <> 2 then return false
         dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
-        dim as MirValue v0 = LowerExpr( c, a0 )
+        dim as MirValue v0 = pre
+        if havePre = false then v0 = LowerExpr( c, a0 )
         if v0.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue v1 = LowerExpr( c, a1 )
+        dim as MirValue v1     '' a UDT second argument converts through its numeric cast too (T40)
+        if UserCastToNum_( c, a1, v1 ) = false then v1 = LowerExpr( c, a1 )
         if v1.kind = cast( ubyte, MV_NONE ) then return false
         '' SINGLE IN, SINGLE OUT, THROUGH A DIFFERENT ENTRY POINT. Measured:
         '' 'atan2( f, f )' over two SINGLEs is 'atan2f( F, F )' returning a float, and
@@ -114,7 +135,8 @@ function LowerMathCall_ _
     dim as boolean truncFamily = _
         ((nm = "fix") orelse (nm = "int") orelse (nm = "frac"))
     if (isFlt = false) andalso truncFamily then
-        dim as MirValue iv = LowerExpr( c, a0 )
+        dim as MirValue iv = pre
+        if havePre = false then iv = LowerExpr( c, a0 )
         if iv.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirType iwant = LowerType( c.info->TypeOf_( id ), *c.types )
         if iwant = MT_VOID then iwant = amt
@@ -148,7 +170,8 @@ function LowerMathCall_ _
         end if
     end select
     if r <> RTL_NONE then
-        dim as MirValue v0 = LowerExpr( c, a0 )
+        dim as MirValue v0 = pre
+        if havePre = false then v0 = LowerExpr( c, a0 )
         if v0.kind = cast( ubyte, MV_NONE ) then return false
         v0 = Coerce( c, v0, want, uns )
         dim as FB.Array( of ulong ) aa
@@ -213,7 +236,8 @@ function LowerMathCall_ _
     '' abs and int chose their width above; the nine others follow a SINGLE argument.
     if (amt = MT_F32) andalso (rty = MT_F64) then rty = MT_F32
 
-    dim as MirValue v0 = LowerExpr( c, a0 )
+    dim as MirValue v0 = pre
+    if havePre = false then v0 = LowerExpr( c, a0 )
     if v0.kind = cast( ubyte, MV_NONE ) then return false
     v0 = Coerce( c, v0, rty, uns )
     dim as MirInst ins

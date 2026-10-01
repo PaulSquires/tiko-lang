@@ -1,0 +1,21 @@
+'' T40, RUN: a maths intrinsic -- sqr, abs, int, fix, frac, sgn, exp, log, atn, atan2 --
+'' over a UDT with no operator of that name and a numeric 'operator cast' is the
+'' intrinsic of the converted value, as fbc gives it. Check left the call untyped, so
+'' 'print sqr( f )' printed nothing, and the lowering declined, so 'dim r as double =
+'' sqr( f )' read garbage. Over casts to long AND string the numeric one is taken; a
+'' single cast stays single; atan2 converts either argument. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/math-udt-cast.bas -o tests/codegen/mathudtcast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/mathudtcast.exe
+'' RUN: tests/codegen/mathudtcast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1.58113883008419
+'' EXPECT-RUN-OUT: 3.75-4-3-0.75-1
+'' EXPECT-RUN-OUT: 9-1 3
+'' EXPECT-RUN-OUT: 12.18249396070347 0.9162907318741551 1.190289949682532
+'' EXPECT-RUN-OUT: 2.58113883008419 0.3805063771123649-1.080839000541168
+'' EXPECT-RUN-OUT: 1.581139 2.5 2
+'' EXPECT-RUN-OUT: 1.58113883008419

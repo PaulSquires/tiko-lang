@@ -389,7 +389,8 @@ private function ExprIntrinsicType_ _
             ''
             '' A UDT has no BUILTIN type, so every one of those came out UNTYPED:
             '' 'print asc( u )' declined while 'dim k as integer = asc( u )' lowered.
-            dim as Tko.TypeId sc = UdtStringCastType_( c, a0 )
+            dim as Tko.TypeId sc = iif( instr( " sin cos tan atn asin acos atan2 exp log sqr abs sgn int fix frac ", " " & nm & " " ), UdtCastResultOf_( c, a0, false ), Tko.TYPE_NONE )
+            if sc = Tko.TYPE_NONE then sc = UdtStringCastType_( c, a0 )   '' the maths family takes the NUMERIC cast first, as fbc's 'abs( g )' over long and string casts does (T40); untyped, 'print sqr( f )' vanished
             if sc <> Tko.TYPE_NONE then ab = c.types->BuiltinOf( sc )
         end if
     end if
