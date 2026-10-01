@@ -1,0 +1,13 @@
+new and delete:
+  constructor 7
+  destructor 7
+an array in a scope:
+  default constructor
+  default constructor
+  destructor 20
+  destructor-1
+placement new:
+  constructor 42
+  placed->n = 42
+  destructor 42
+done

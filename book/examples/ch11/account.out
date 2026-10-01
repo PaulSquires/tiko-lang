@@ -1,0 +1,8 @@
+  opened Ada
+  opened Grace
+Ada withdraws 500: false
+Ada withdraws 30:  true
+Ada's balance: 120
+  closed Grace with 20
+  closed Ada with 120
+after the scope

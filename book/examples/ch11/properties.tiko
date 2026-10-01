@@ -1,0 +1,44 @@
+'' properties.tiko -- methods that read like fields.
+
+type Thermostat
+    declare property Celsius( ) as float64                '' get
+    declare property Celsius( byval c as float64 )        '' set
+    declare property Fahrenheit( ) as float64             '' get only
+    declare property Reading( byval i as int32 ) as float64
+    declare property Reading( byval i as int32, byval v as float64 )
+  private:
+    c_ as float64
+    readings( 0 to 2 ) as float64
+end type
+
+property Thermostat.Celsius( ) as float64
+    return c_
+end property
+
+'' The setter is where a type defends its own rules.
+property Thermostat.Celsius( byval c as float64 )
+    if c < -273.15 then c = -273.15
+    c_ = c
+end property
+
+property Thermostat.Fahrenheit( ) as float64
+    return c_ * 9 / 5 + 32
+end property
+
+property Thermostat.Reading( byval i as int32 ) as float64
+    return readings( i )
+end property
+
+property Thermostat.Reading( byval i as int32, byval v as float64 )
+    readings( i ) = v
+end property
+
+dim as Thermostat t
+t.Celsius = 21.5
+print "celsius"; t.Celsius; ", fahrenheit"; t.Fahrenheit
+
+t.Celsius = -500
+print "asked for -500, got "; t.Celsius
+
+t.Reading( 1 ) = 3.5               '' an indexed property
+print "reading 1 is"; t.Reading( 1 )

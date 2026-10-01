@@ -1,0 +1,45 @@
+'' heapobjects.tiko -- objects that do not live in a scope.
+
+type Noisy
+    declare constructor( )
+    declare constructor( byval n as int32 )
+    declare destructor( )
+    n as int32
+end type
+
+constructor Noisy( )
+    n = -1
+    print "  default constructor"
+end constructor
+
+constructor Noisy( byval n as int32 )
+    this.n = n
+    print "  constructor"; n
+end constructor
+
+destructor Noisy( )
+    print "  destructor"; n
+end destructor
+
+'' new runs the constructor; delete runs the destructor, then frees.
+print "new and delete:"
+dim as Noisy ptr one = new Noisy( 7 )
+delete one
+
+'' An array in a scope constructs every element, and destroys them
+'' all when the scope ends.
+print "an array in a scope:"
+scope
+    dim as Noisy pair( 1 to 2 )
+    pair( 2 ).n = 20
+end scope
+
+'' Placement new builds an object in memory you already have, and you
+'' must run the destructor yourself before freeing that memory.
+print "placement new:"
+dim as any ptr raw = allocate( sizeof( Noisy ) )
+dim as Noisy ptr placed = new( raw ) Noisy( 42 )
+print "  placed->n ="; placed->n
+placed->destructor( )
+deallocate( raw )
+print "done"

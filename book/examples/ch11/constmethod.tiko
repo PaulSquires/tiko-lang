@@ -1,0 +1,9 @@
+'' constmethod.tiko -- a const method that tries to change the object.
+type Tally
+    declare const sub Bump( )
+    n as int32
+end type
+
+const sub Tally.Bump( )
+    n += 1                            '' refused: Bump promised not to
+end sub

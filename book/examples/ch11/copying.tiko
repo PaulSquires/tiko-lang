@@ -1,0 +1,58 @@
+'' copying.tiko -- a type that owns memory must say how to copy it.
+
+type Buffer
+    declare constructor( byval n as int32 )
+    declare constructor( byref other as const Buffer )    '' copy
+    declare operator let( byref other as const Buffer )   '' assign
+    declare destructor( )
+    items as int32 ptr
+    size  as int32
+end type
+
+constructor Buffer( byval n as int32 )
+    items = callocate( n, sizeof( int32 ) )
+    size = n
+end constructor
+
+'' Copy construction: a brand-new object, so there is nothing to free.
+constructor Buffer( byref other as const Buffer )
+    size = other.size
+    items = allocate( size * sizeof( int32 ) )
+    for i as int32 = 0 to size - 1 : items[i] = other.items[i] : next
+    print "  copy constructor"
+end constructor
+
+'' Assignment: this object already owns memory. Free it first -- but
+'' not when assigning an object to itself, or the source goes too.
+operator Buffer.let( byref other as const Buffer )
+    if @this = @other then
+        print "  let: assigned to itself, nothing to do"
+        exit operator
+    end if
+    deallocate( items )
+    size = other.size
+    items = allocate( size * sizeof( int32 ) )
+    for i as int32 = 0 to size - 1 : items[i] = other.items[i] : next
+    print "  let"
+end operator
+
+destructor Buffer( )
+    deallocate( items )
+end destructor
+
+scope
+    dim as Buffer a = Buffer( 4 )
+    a.items[0] = 1
+
+    dim as Buffer b = a           '' copy constructor
+    b.items[0] = 99
+    print "a[0] ="; a.items[0]; "  b[0] ="; b.items[0]; _
+          "  separate memory: "; cbool( a.items <> b.items )
+
+    dim as Buffer c = Buffer( 2 )
+    c = a                         '' operator let
+    print "c now has size"; c.size
+
+    c = c                         '' must not destroy itself
+end scope
+print "every buffer freed exactly once"

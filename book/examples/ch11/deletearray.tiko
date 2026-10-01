@@ -1,0 +1,24 @@
+'' deletearray.tiko -- delete[] on an array of objects.
+''
+'' new[] runs a constructor for each element. delete[] must run the
+'' destructor for each, or everything the objects own is leaked.
+
+type Noisy
+    declare constructor( )
+    declare destructor( )
+    n as int32
+end type
+
+constructor Noisy( )
+    n = -1
+    print "  constructor"
+end constructor
+
+destructor Noisy( )
+    print "  destructor"; n
+end destructor
+
+dim as Noisy ptr three = new Noisy[ 3 ]
+three[1].n = 10
+delete[] three
+print "done"

@@ -1,0 +1,49 @@
+'' account.tiko -- a type that looks after its own data.
+
+type Account
+    declare constructor( byref owner as ustring, _
+                         byval opening as int64 )
+    declare destructor( )
+    declare sub Deposit( byval amount as int64 )
+    declare function Withdraw( byval amount as int64 ) as boolean
+    declare function Balance( ) as int64
+
+    owner_   as ustring
+    balance_ as int64
+end type
+
+'' Bodies live outside the type, named Type.Member.
+constructor Account( byref owner as ustring, byval opening as int64 )
+    this.owner_ = owner          '' this is the object being built
+    balance_ = opening           '' ... and "this." may be left off
+    print "  opened "; owner_
+end constructor
+
+destructor Account( )
+    print "  closed "; owner_; " with"; balance_
+end destructor
+
+sub Account.Deposit( byval amount as int64 )
+    balance_ += amount
+end sub
+
+function Account.Withdraw( byval amount as int64 ) as boolean
+    if amount > balance_ then return false
+    balance_ -= amount
+    return true
+end function
+
+function Account.Balance( ) as int64
+    return balance_
+end function
+
+scope
+    dim as Account ada = Account( "Ada", 100 )
+    dim as Account grace = Account( "Grace", 20 )
+
+    ada.Deposit( 50 )
+    print "Ada withdraws 500: "; ada.Withdraw( 500 )
+    print "Ada withdraws 30:  "; ada.Withdraw( 30 )
+    print "Ada's balance:"; ada.Balance( )
+end scope                        '' both destructors run here
+print "after the scope"

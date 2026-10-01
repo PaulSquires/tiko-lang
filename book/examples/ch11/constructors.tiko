@@ -1,0 +1,47 @@
+'' constructors.tiko -- several ways in, one of them implicit.
+
+type Temp
+    declare constructor( )
+    declare constructor( byval c as float64 )
+    declare constructor( byref text as ustring )
+    celsius as float64
+end type
+
+constructor Temp( )
+    celsius = 20
+    print "  default constructor"
+end constructor
+
+constructor Temp( byval c as float64 )
+    celsius = c
+    print "  from a float64"
+end constructor
+
+'' Delegation: hand the work to another constructor, then add to it.
+constructor Temp( byref text as ustring )
+    this.constructor( val( text ) )
+    print "  ... reached through the text constructor"
+end constructor
+
+sub Show( byref t as const Temp )
+    print "  Show sees"; t.celsius
+end sub
+
+print "dim as Temp a"
+dim as Temp a
+
+print "dim as Temp b = Temp( 5.0 )"
+dim as Temp b = Temp( 5.0 )
+
+print "dim as Temp c = Temp( ""31.5"" )"
+dim as Temp c = Temp( "31.5" )
+
+'' A one-argument constructor is also a CONVERSION: the compiler will
+'' call it on its own whenever a float64 is offered where a Temp is
+'' wanted.
+print "dim as Temp d = 7.5"
+dim as Temp d = 7.5
+print "Show( 12.0 )"
+Show( 12.0 )
+
+print "values:"; a.celsius; b.celsius; c.celsius; d.celsius

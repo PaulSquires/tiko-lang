@@ -1,0 +1,13 @@
+dim as Temp a
+  default constructor
+dim as Temp b = Temp( 5.0 )
+  from a float64
+dim as Temp c = Temp( "31.5" )
+  from a float64
+  ... reached through the text constructor
+dim as Temp d = 7.5
+  from a float64
+Show( 12.0 )
+  from a float64
+  Show sees 12
+values: 20 5 31.5 7.5

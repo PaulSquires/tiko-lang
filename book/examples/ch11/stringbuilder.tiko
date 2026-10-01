@@ -1,0 +1,54 @@
+'' stringbuilder.tiko -- building text without copying it every time.
+''
+'' Joining with &= in a loop copies everything built so far on every
+'' pass. A builder keeps spare room and copies only when it runs out.
+
+type StringBuilder
+    declare sub Add( byref piece as string )
+    declare property Length( ) as int32
+    declare property Capacity( ) as int32
+    declare function Text( ) as string
+  private:
+    buf_ as string                '' the room, mostly unused
+    len_ as int32                 '' how much of it holds text
+end type
+
+sub StringBuilder.Add( byref piece as string )
+    dim as int32 n = len( piece )
+    if n = 0 then exit sub
+
+    '' Out of room: at least double it, so growth stays rare.
+    if len_ + n > len( buf_ ) then
+        dim as int32 grow = iif( len( buf_ ) = 0, 16, len( buf_ ) )
+        do while len_ + n > len( buf_ ) + grow : grow *= 2 : loop
+        buf_ &= space( grow )
+    end if
+
+    mid( buf_, len_ + 1, n ) = piece  '' overwrite in place: no copy
+    len_ += n
+end sub
+
+property StringBuilder.Length( ) as int32
+    return len_
+end property
+
+property StringBuilder.Capacity( ) as int32
+    return len( buf_ )
+end property
+
+function StringBuilder.Text( ) as string
+    return left( buf_, len_ )
+end function
+
+dim as StringBuilder sb
+for i as int32 = 1 to 12
+    sb.Add( "item" & i & ";" )
+next
+print "length"; sb.Length; ", capacity"; sb.Capacity
+print left( sb.Text( ), 40 ); "..."
+
+'' Every field copies itself correctly, so the type needs no copy
+'' constructor, no operator let and no destructor of its own.
+dim as StringBuilder copy_ = sb
+copy_.Add( "more" )
+print "original"; sb.Length; ", copy"; copy_.Length

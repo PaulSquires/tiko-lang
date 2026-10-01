@@ -1,0 +1,6 @@
+  copy constructor
+a[0] = 1  b[0] = 99  separate memory: true
+  let
+c now has size 4
+  let: assigned to itself, nothing to do
+every buffer freed exactly once

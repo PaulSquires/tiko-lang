@@ -1,0 +1,13 @@
+'' access.tiko -- private means private.
+type Thermostat
+    declare property Celsius( ) as float64
+  private:
+    c_ as float64
+end type
+
+property Thermostat.Celsius( ) as float64
+    return c_
+end property
+
+dim as Thermostat t
+t.c_ = 5                           '' refused: c_ is private

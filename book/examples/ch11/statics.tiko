@@ -1,0 +1,32 @@
+'' statics.tiko -- members that belong to the type, and methods that
+'' promise not to change the object.
+
+type Ticket
+    declare constructor( )
+    declare static function Issued( ) as int32
+    declare const function Describe( ) as ustring
+    static issued_ as int32           '' one, shared by every Ticket
+    number_ as int32                  '' one per Ticket
+end type
+
+dim as int32 Ticket.issued_ = 0      '' a static field is defined once
+
+constructor Ticket( )
+    issued_ += 1
+    number_ = issued_
+end constructor
+
+'' A static method has no this: it is called on the type.
+static function Ticket.Issued( ) as int32
+    return issued_
+end function
+
+'' A const method may read the object but not change it.
+const function Ticket.Describe( ) as ustring
+    return "ticket #" & number_
+end function
+
+dim as Ticket a, b, c
+print "issued so far:"; Ticket.Issued( )
+print b.Describe( )
+print c.Describe( )

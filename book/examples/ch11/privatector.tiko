@@ -1,0 +1,15 @@
+'' privatector.tiko -- access applies to the calls you never write.
+type Fortress
+    x as int32
+  private:
+    declare constructor( )
+    declare destructor( )
+end type
+
+constructor Fortress( )
+end constructor
+
+destructor Fortress( )
+end destructor
+
+dim as Fortress f                 '' needs both, and may call neither
