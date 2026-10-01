@@ -45,6 +45,10 @@ namespace Tko
         as TypeIdVec3 nodeType      '' NodeId -> TypeId    (type references)
         as SymIdVec   nodeScope     '' NodeId -> ScopeId   (recorded by Collect)
         as ByteVec    ambiguous     '' NodeId -> AmbiguousResolution
+        '' NodeId -> the instantiation frame (DiagnosticEngine.AddInstFrame) a re-parsed
+        '' generic body belongs to, or 0. Set on the body's N_PROC; a pass that walks the
+        '' body enters the frame, so what it reports names the instantiation (T16).
+        as SymIdVec   instFrame
 
         declare sub Resize( byval nodeCount as long )
         declare sub SetRef( byval n as NodeId, byval s as SymbolId )
@@ -55,6 +59,8 @@ namespace Tko
         declare function ScopeOf( byval n as NodeId ) as ScopeId
         declare sub SetAmbiguous( byval n as NodeId, byval a as AmbiguousResolution )
         declare function AmbiguousOf( byval n as NodeId ) as AmbiguousResolution
+        declare sub SetInstFrame( byval n as NodeId, byval f as long )
+        declare function InstFrameOf( byval n as NodeId ) as long
     end type
 
 end namespace

@@ -47,6 +47,15 @@ namespace Tko
         '' tikoParser.dll: Flush renders nothing and KEEPS the list -- the scan hands it to
         '' its host, and a GUI host has no console for it to go to.
         as boolean    muted
+        '' THE INSTANTIATION CHAIN (T16). An error inside a generic's body is reported at
+        '' the body, which is where the offending code is -- but the body is checked once
+        '' per instantiation, and nothing said WHICH one, so a program with thirty had to be
+        '' searched by hand. A pass that checks an instantiated body enters its frame;
+        '' anything reported meanwhile carries it, and Flush renders the chain as TKO0903
+        '' notes pointing at each line that asked. Stored here because every pass that can
+        '' report from inside an instantiation -- resolve, check, visibility -- shares this.
+        as InstFrameVec instFrames
+        as FB.Array( of long ) instActive
 
         declare constructor( )
         declare sub Attach( byval src as SourceManager ptr )
@@ -65,6 +74,14 @@ namespace Tko
               byval a0 as string = "", byval a1 as string = "", byval a2 as string = "" )
 
         declare sub Flush( )
+
+        '' A new frame, numbered from 1. 'parent' is the frame active when the
+        '' instantiation was ASKED FOR -- ActiveInst( ) at that moment -- or 0.
+        declare function AddInstFrame _
+            ( byref text as string, byval rng as SourceRange, byval parent as long ) as long
+        declare sub EnterInst( byval frame as long )     '' 0 is accepted and ignored
+        declare sub LeaveInst( byval frame as long )     '' pairs with EnterInst( frame )
+        declare function ActiveInst( ) as long
 
         declare function ErrorCount( ) as long
         declare function WarningCount( ) as long

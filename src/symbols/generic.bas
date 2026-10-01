@@ -14,6 +14,8 @@ declare sub InstantiateMembers_ _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
       byval argFirst as long, byval argCount as long )
 
+#include once "symbols/instframe.bas"
+
 '' INSTANTIATE A GENERIC TYPE -- 'Box( of long )'.
 ''
 '' Monomorphisation, the same thing fbc does: one concrete UDT per (generic, argument
@@ -183,6 +185,7 @@ function InstantiateGeneric_ _
     '' the note on spCount above; ResolveTypeRef here can instantiate.
     dim as long gpCount = gp->count
     dim as long gpFirst = gp->first
+    dim as long tfr = InstFrameFor_( c, id, gs->name, argTypes, 0 ) : c.diags->EnterInst( tfr )
     c.instDepth += 1 : c.instChain += 1  '' a field's type is one deeper -- InstDepthOk_
     for i as long = 0 to gpCount - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[gpFirst + i] )
@@ -201,7 +204,7 @@ function InstantiateGeneric_ _
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
         if fs <> 0 then fs->type_ = ft
     next
-    c.instDepth -= 1 : c.instChain -= 1
+    c.instDepth -= 1 : c.instChain -= 1 : c.diags->LeaveInst( tfr )
 
     '' 'gs' RE-FETCHED: it points INTO THE SYMBOL TABLE, and the field loop above calls
     '' DeclareSym once per field, which pushes into that table and reallocates it.
@@ -229,6 +232,7 @@ function InstantiateGeneric_ _
     c.pendInst.Push( cast( ulong, argFirst ) )
     c.pendInst.Push( cast( ulong, spCount ) )
     c.pendInstChain.Push( cast( ulong, c.instChain + 1 ) )
+    c.pendInstFrame.Push( cast( ulong, tfr ) )     '' the frame the fields were resolved in
 
     while c.gparamName.Count > gmark
         c.gparamName.Pop( )
@@ -753,6 +757,8 @@ function InstantiateProcAt_ _
     c.pendProc.Push( cast( ulong, argFirst ) )
     c.pendProc.Push( cast( ulong, taCount ) )
     c.pendProcChain.Push( cast( ulong, c.instChain + 1 ) )
+    c.pendProcFrame.Push( cast( ulong, _
+        InstFrameFor_( c, at_, gname, argTypes, c.curInstFrame ) ) )
     return isid
 end function
 
@@ -781,6 +787,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
         dim as long sDepth = c.instDepth, sChain = c.instChain
         c.instDepth = 1 : c.instChain = 1
         if i \ 6 < c.pendProcChain.Count then c.instChain = cast( long, c.pendProcChain[i \ 6] )
+        dim as long pfr = PendingFrame_( c.pendProcFrame, i \ 6 )
 
         '' The parameters bind for as long as the fresh nodes are being resolved.
         dim as long gmark = c.gparamName.Count
@@ -882,10 +889,12 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             '' lowered, which is what says the shape is fine and only the order was
             '' wrong. COLLECT still runs lambdas-first: '@__tko_lambda_...' in the
             '' body has to resolve, and that needs the symbol, not the walk.
+            MarkInstBody_( c, fresh, q, pfr ) : c.diags->EnterInst( pfr )
             WalkStmt( c, fresh, home )
             for li as long = 0 to q.lambdas.Count - 1
                 WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), home )
             next
+            c.diags->LeaveInst( pfr )
             '' Collect declares its own symbol for a fresh unqualified definition, and
             '' that one carries the node. The symbol the CALL SITE was given is the one
             '' declared before the body existed, so it is pointed at the same node here
@@ -1222,9 +1231,10 @@ sub InstantiatePending_( byref c as Ctx )
         dim as long i = c.pendDone
         c.pendDone += 7
         '' A replayed body runs at DEPTH 1, and extends the real chain -- InstDepthOk_.
-        dim as long sDepth = c.instDepth, sChain = c.instChain
+        dim as long sDepth = c.instDepth, sChain = c.instChain, sFrame = c.curInstFrame
         c.instDepth = 1 : c.instChain = 1
         if i \ 7 < c.pendInstChain.Count then c.instChain = cast( long, c.pendInstChain[i \ 7] )
+        c.curInstFrame = PendingFrame_( c.pendInstFrame, i \ 7 )
         InstantiateMembers_( c, cast( Tko.NodeId, c.pendInst[i] ), _
                              cast( Tko.InternId, c.pendInst[i + 1] ), _
                              cast( Tko.InternId, c.pendInst[i + 2] ), _
@@ -1236,7 +1246,7 @@ sub InstantiatePending_( byref c as Ctx )
                                   cast( Tko.ScopeId, c.pendInst[i + 4] ), _
                                   cast( long, c.pendInst[i + 5] ), _
                                   cast( long, c.pendInst[i + 6] ) )
-        c.instDepth = sDepth : c.instChain = sChain
+        c.instDepth = sDepth : c.instChain = sChain : c.curInstFrame = sFrame
     wend
 end sub
 
@@ -1467,10 +1477,12 @@ private sub InstantiateMembers_ _
         '' BODY FIRST, then its lambdas -- the same order and the same reason as in
         '' InstantiatePendingProcs_ above: a capturing lambda's closure type is
         '' synthesised by the walk of the N_CLOSURE node inside the body.
+        MarkInstBody_( c, fresh, q, c.curInstFrame ) : c.diags->EnterInst( c.curInstFrame )
         WalkStmt( c, fresh, scope_ )
         for li as long = 0 to q.lambdas.Count - 1
             WalkStmt( c, cast( Tko.NodeId, q.lambdas[li] ), scope_ )
         next
+        c.diags->LeaveInst( c.curInstFrame )
     next
 
     while c.gparamName.Count > gmark

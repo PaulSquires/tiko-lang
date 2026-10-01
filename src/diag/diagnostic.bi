@@ -53,6 +53,17 @@ namespace Tko
 
     type NoteVec as FB.Array( of DiagNote )
 
+    '' ONE INSTANTIATION, for the 'in instantiation of' chain (T16, TKO0903): what was
+    '' instantiated, where it was asked for, and the frame that was active when it was --
+    '' 0 at the top. Frames are numbered from 1 so that 0 can mean "none".
+    type InstFrame
+        as string      text          '' 'Ranked( of opaque_ )'
+        as SourceRange range         '' the line that asked for it
+        as long        parent
+    end type
+
+    type InstFrameVec as FB.Array( of InstFrame )
+
     type Diagnostic
         as DiagId      id
         as Severity    sev           '' after -Werror / -w policy is applied
@@ -60,6 +71,10 @@ namespace Tko
         as string      text          '' already formatted
         as NoteVec     notes
         as boolean     hasLocation
+        '' The instantiation being checked when this was reported, or 0. Expanded into
+        '' TKO0903 notes at Flush, AFTER any AddNote ones, so 'declared here' stays next to
+        '' the error it explains and the chain reads outward from it.
+        as long        instFrame
     end type
 
     type DiagVec as FB.Array( of Diagnostic )

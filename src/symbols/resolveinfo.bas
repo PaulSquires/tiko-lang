@@ -11,6 +11,7 @@ sub SemanticInfo.Resize( byval nodeCount as long )
         this.nodeType.Push( 0 )
         this.nodeScope.Push( 0 )
         this.ambiguous.Push( 0 )
+        this.instFrame.Push( 0 )
     wend
 end sub
 
@@ -58,3 +59,13 @@ function SemanticInfo.AmbiguousOf( byval n as NodeId ) as AmbiguousResolution
     return cast( AmbiguousResolution, this.ambiguous[cast( long, n )] )
 end function
 
+sub SemanticInfo.SetInstFrame( byval n as NodeId, byval f as long )
+    if cast( long, n ) < this.instFrame.Count then
+        this.instFrame[cast( long, n )] = cast( ulong, f )
+    end if
+end sub
+
+function SemanticInfo.InstFrameOf( byval n as NodeId ) as long
+    if cast( long, n ) >= this.instFrame.Count then return 0
+    return cast( long, this.instFrame[cast( long, n )] )
+end function

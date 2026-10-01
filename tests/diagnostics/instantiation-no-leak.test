@@ -1,0 +1,10 @@
+'' TKO0903 (T16): the instantiation frames are entered and left in pairs, so an error in
+'' plain code after them -- line 16 -- carries no note. The failing instantiation's own
+'' error, line 8, still does: exactly one note in the output.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/instantiation-no-leak.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: instantiation-no-leak.bas(8,14): error TKO0720: no operator = compares this type
+'' EXPECT-OUT: instantiation-no-leak.bas(14,12): note: in instantiation of 'box( of opaque_ )'
+'' EXPECT-OUT: instantiation-no-leak.bas(16,6): error TKO0720: no operator > compares this type
+'' EXPECT-MAX-DIAG: 2

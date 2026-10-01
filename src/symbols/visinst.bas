@@ -18,6 +18,11 @@ private sub WalkGenericInstances_ ( byref c as Ctx )
         dim as NodeId pn = cast( NodeId, c.ast->extraTopLevel[i] )
         if pn = NODE_NONE then continue for
         if c.ast->Kind( pn ) <> N_PROC then continue for
+        '' INSIDE THE INSTANTIATION'S FRAME, so what this reports names the line that asked
+        '' for it -- 'a > b' on a type with no '>' is reported here (T16, instframe.bas).
+        dim as long fr = c.info->InstFrameOf( pn )
+        c.diags->EnterInst( fr )
         Walk_( c, pn, TYPE_NONE )
+        c.diags->LeaveInst( fr )
     next
 end sub

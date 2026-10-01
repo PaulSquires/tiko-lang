@@ -102,6 +102,10 @@ type Ctx
     '' counted depth and 'instChain' the real one; each queued entry keeps its chain.
     as long                  instDepth, instChain, maxInstDepth
     as FB.Array( of ulong )  pendInstChain, pendProcChain
+    '' ...and each queued entry's instantiation frame, for the TKO0903 chain (T16,
+    '' instframe.bas); curInstFrame is the TYPE instantiation being drained, or 0.
+    as FB.Array( of ulong )  pendInstFrame, pendProcFrame
+    as long                  curInstFrame
     '' THE INSTANTIATION CACHE for generic procedures, one entry each: the key and the
     '' symbol it produced. A SIDE table rather than a name lookup, because the key has
     '' to name the GENERIC as well as the arguments and the symbol's name must not --

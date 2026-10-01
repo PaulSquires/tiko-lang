@@ -142,7 +142,60 @@ sub DiagnosticEngine.Push _
     d.range = rng
     d.text = FormatDiag( *DiagInfoOf( id )->format, a0, a1, a2 )
     d.hasLocation = hasLoc
+    d.instFrame = this.ActiveInst( )
     this.pending.Push( d )
+end sub
+
+'' ------------------------------------------------------------ instantiations
+
+function DiagnosticEngine.AddInstFrame _
+    ( byref text as string, byval rng as SourceRange, byval parent as long ) as long
+
+    dim as InstFrame f
+    f.text = text
+    f.range = rng
+    '' A parent is always an EARLIER frame. Holding to that here is what lets Flush walk
+    '' the chain without a visited set: every step goes to a smaller number.
+    f.parent = iif( (parent > 0) andalso (parent <= this.instFrames.Count), parent, 0 )
+    this.instFrames.Push( f )
+    return this.instFrames.Count
+end function
+
+sub DiagnosticEngine.EnterInst( byval frame as long )
+    if frame <= 0 then return
+    this.instActive.Push( frame )
+end sub
+
+sub DiagnosticEngine.LeaveInst( byval frame as long )
+    if frame <= 0 then return
+    if this.instActive.IsEmpty( ) then return
+    if this.instActive[this.instActive.Count - 1] = frame then this.instActive.Pop( )
+end sub
+
+function DiagnosticEngine.ActiveInst( ) as long
+    if this.instActive.IsEmpty( ) then return 0
+    return this.instActive[this.instActive.Count - 1]
+end function
+
+'' The chain as notes, innermost first: the instantiation whose body holds the error,
+'' then the one that asked for it, out to the line in the program. Capped, because a
+'' runaway instantiation is already its own error (TKO0829) and needs no 256 notes.
+private sub AppendInstNotes_ _
+    ( byref frames as InstFrameVec, byref d as Diagnostic )
+
+    const MAX_INST_NOTES = 16
+    dim as long f = d.instFrame, shown = 0
+    while (f > 0) andalso (f <= frames.Count) andalso (shown < MAX_INST_NOTES)
+        dim as DiagNote n
+        n.id = TKO0903
+        n.range = frames[f - 1].range
+        n.text = FormatDiag( *DiagInfoOf( TKO0903 )->format, frames[f - 1].text, "", "" )
+        d.notes.Push( n )
+        shown += 1
+        dim as long p = frames[f - 1].parent
+        if p >= f then exit while
+        f = p
+    wend
 end sub
 
 sub DiagnosticEngine.Report _
@@ -188,6 +241,11 @@ sub DiagnosticEngine.Flush( )
         stderrHandle = fh
     end if
     dim as long h = stderrHandle
+
+    '' The instantiation chain goes on LAST, after every AddNote -- see Diagnostic.
+    for i as long = 0 to this.pending.Count - 1
+        if this.pending[i].instFrame > 0 then AppendInstNotes_( this.instFrames, this.pending[i] )
+    next
 
     for each d as Diagnostic in this.pending
         dim as string rendered = Tko.Render.Diagnostic_( d, *this.sources, this.outputFormat, colour )

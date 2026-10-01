@@ -1,0 +1,16 @@
+'' TKO0903 (T16): an error in an instantiated generic body is followed by one note per
+'' instantiation, innermost first, each at the line that asked for it -- a field of
+'' another generic, a call in another generic's body, and the program's own line. The
+'' error stays where it was, in the body. Notes are not ': error' lines, so MAX-DIAG
+'' still counts two. See symbols/instframe.bas and diag/engine.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/instantiation-chain.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: instantiation-chain.bas(14,14): error TKO0720: no operator > compares this type
+'' EXPECT-OUT: instantiation-chain.bas(17,8): note: in instantiation of 'inner( of opaque_ )'
+'' EXPECT-OUT: instantiation-chain.bas(19,10): note: in instantiation of 'outer( of opaque_ )'
+'' EXPECT-OUT: instantiation-chain.bas(23,10): error TKO0720: no operator > compares this type
+'' EXPECT-OUT: instantiation-chain.bas(31,26): note: in instantiation of 'larger( of opaque_ )'
+'' EXPECT-OUT: instantiation-chain.bas(33,10): note: in instantiation of 'holder( of opaque_ )'
+'' EXPECT-NOT: holder( of long )
+'' EXPECT-MAX-DIAG: 2
