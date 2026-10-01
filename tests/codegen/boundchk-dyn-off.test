@@ -1,0 +1,7 @@
+'' Without -exx a dynamic subscript is not checked: the T21 checks cost nothing in an
+'' ordinary build.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/boundchk-dyn.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: fb_ArrayDimensionChk
+'' EXPECT-NOT: fb_ArrayBoundChkEx

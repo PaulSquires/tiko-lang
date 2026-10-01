@@ -1,0 +1,10 @@
+'' T21, RUN: in-range subscripts on dynamic arrays under -exx run normally -- a negative
+'' lbound, two dimensions, and an array shrunk by REDIM PRESERVE, read at its new ubound.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/boundchk-dyn-legal.bas -o tests/codegen/boundchkdynlegal.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/boundchkdynlegal.exe
+'' RUN: tests/codegen/boundchkdynlegal.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -20 0 99

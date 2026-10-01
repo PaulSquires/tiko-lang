@@ -1,0 +1,20 @@
+'' '-exx' CHECKS A DYNAMIC ARRAY'S SUBSCRIPT TOO (T21). It used to check only a fixed one,
+'' whose bounds fold at compile time; a REDIM-ed array was not checked at all, so an
+'' out-of-range WRITE succeeded and the program exited 0. fbc's shape, measured from its
+'' '-gen llvm -r' on this source, two calls per access:
+''
+''     fb_ArrayDimensionChk( i64 subscripts, ptr @descriptor, i32 line, ... )
+''     fb_ArrayBoundChkEx( i64 idx, i64 lbound, i64 ubound, i32 line, ... )
+''
+'' with the bounds LOADED from the descriptor -- DIMTB[0].LBOUND at offset 56 and .UBOUND
+'' at 64 on a 64-bit target. See mir/lowerboundchk.bas and LowerDynArrayIndex.
+'' TEST: cli
+'' ARGS: -exx --emit-ir tests/codegen/src/boundchk-dyn.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare ptr @"fb_ArrayDimensionChk"
+'' EXPECT-OUT: call ptr @"fb_ArrayDimensionChk"(i64 1, ptr
+'' EXPECT-OUT: i64 56
+'' EXPECT-OUT: i64 64
+'' EXPECT-OUT: call ptr @"fb_ArrayBoundChkEx"
+'' The line the subscript sits on.
+'' EXPECT-OUT: i32 4

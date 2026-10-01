@@ -1,0 +1,13 @@
+'' T21, RUN: an out-of-range WRITE to a REDIM-ed array under -exx stops with runtime error
+'' 6 and exit 6, fbc's message word for word. Before T21 the write went past the block and
+'' the program exited 0. Nothing is printed first: the abort goes to stderr unbuffered
+'' and a print would race it.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/boundchk-dyn-run.bas -o tests/codegen/boundchkdynrun.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/boundchkdynrun.exe
+'' RUN: tests/codegen/boundchkdynrun.exe
+'' EXPECT-RUN-EXIT: 6
+'' EXPECT-RUN-OUT: runtime error 6 (out of bounds array access) at line 4 of
+'' EXPECT-RUN-OUT: 'A' accessed with invalid index = 9, must be between 1 and 3

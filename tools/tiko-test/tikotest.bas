@@ -19,8 +19,11 @@
 ''                              in both, \t \n \r and \\ in s are TAB, LF, CR, backslash
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
 ''     '' RUN: path                 after a build for one of the HOST's targets, run the
-''                              program the build made; it must exit 0. Skipped, not
-''                              failed, for any other target. The file is deleted first
+''                              program the build made; it must exit 0 (or the
+''                              EXPECT-RUN-EXIT status). Skipped, not failed, for any
+''                              other target. The file is deleted first
+''     '' EXPECT-RUN-EXIT: 6        the status RUN's program must exit with -- a runtime
+''                              abort, which is what an -exx check is FOR
 ''     '' EXPECT-RUN-OUT: text      required substring of the program's output
 ''                              (repeatable), IN ORDER: each must appear after the
 ''                              previous one's match, so an initialisation order can be
@@ -121,6 +124,7 @@ type TestCase
     '' above asserts what the COMPILER did; nothing asserted what the program did, so
     '' "links and prints a then b" was checked by hand and recorded in commit messages.
     as string runExe
+    as long   runExit       '' EXPECT-RUN-EXIT; 0 when not given
     as Array( of string ) expectRunOut
     '' THE STEPS, in order, each 'KIND' TAB 'rest': CLEAN, COPY, WRITE, STEP, STEP-OUT,
     '' STEP-NOT. See the header.
@@ -296,6 +300,7 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
     tc.haveMaxDiag = false
     tc.env.Clear( )
     tc.runExe = ""
+    tc.runExit = 0
 
     dim as long slash = 0
     for i as long = len( path ) to 1 step -1
@@ -365,6 +370,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.env.Push( Trim_( mid( ln, 5 ) ) )
         elseif StartsWith( ln, "RUN:" ) then
             tc.runExe = Trim_( mid( ln, 5 ) )
+        elseif StartsWith( ln, "EXPECT-RUN-EXIT:" ) then
+            tc.runExit = valint( Trim_( mid( ln, 17 ) ) )
         elseif StartsWith( ln, "EXPECT-RUN-OUT:" ) then
             tc.expectRunOut.Push( Trim_( mid( ln, 16 ) ) )
         elseif StartsWith( ln, "CLEAN:" ) then
@@ -617,8 +624,8 @@ function CheckRun_ _
     dim as long rc = shell( NativePath( tc.runExe ) & " > " & NativePath( tmp ) & " 2>&1" )
     dim as string outp = NormalizeEol( ReadTextFile( tmp ) )
     Kill( tmp )
-    if rc <> 0 then
-        why = "RUN: " & tc.runExe & " exited " & rc & ", expected 0"
+    if rc <> tc.runExit then
+        why = "RUN: " & tc.runExe & " exited " & rc & ", expected " & tc.runExit
         return false
     end if
     dim as long from_ = 1

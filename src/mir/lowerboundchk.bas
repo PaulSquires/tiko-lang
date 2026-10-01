@@ -101,6 +101,72 @@ sub EmitBoundsCheck_ _
     EmitErrorJump_( c, r )
 end sub
 
+'' THE SAME CHECK WITH BOUNDS KNOWN ONLY AT RUN TIME -- a DYNAMIC array (T21).
+''
+'' The constant check above declines a dynamic array, and nothing else checked one, so
+'' under -exx 'a( 9 ) = 42' on a three-element REDIM-ed array wrote past the block and
+'' the program exited 0. fbc checks it, measured from its '-gen llvm -r' output on that
+'' program: the dimension's lbound and ubound are LOADED from the descriptor -- offsets
+'' 56 and 64 for dimension 0 on a 64-bit target -- and passed to
+''
+''     fb_ArrayBoundChkEx( idx, lbound, ubound, line, filename, varname )
+''
+'' -- the signed form always, since the lbound is not known to be 0. The caller loads
+'' the bounds (lowerdesc.bas owns the descriptor layout); this makes the call, and the
+'' runtime's message is the fixed-array one: "'A' accessed with invalid index = 9,
+'' must be between 1 and 3". An array never REDIM-ed is NOT caught here -- its bounds
+'' are zero-filled, so index 0 passes 0..0 and the null data pointer is what fails; that
+'' is EmitDimensionCheck_'s job, which runs first.
+sub EmitBoundsCheckRange_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref iv as MirValue, byref lov as MirValue, byref hiv as MirValue )
+
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+    dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
+
+    dim as FB.Array( of ulong ) ba
+    PushArg_( ba, iv )
+    PushArg_( ba, lov )
+    PushArg_( ba, hiv )
+    PushArg_( ba, ConstInt( c, fd.lineNo, MT_I32 ) )
+    PushArg_( ba, fileV )
+    PushArg_( ba, nameV )
+    EmitErrorJump_( c, EmitRtl( c, RTL_ARRAY_BOUND_CHK_EX, ba ) )
+end sub
+
+'' -exx: IS THE ARRAY DIMENSIONED, AND WITH THIS MANY SUBSCRIPTS? Once per access to a
+'' DYNAMIC array, before the bounds (T21). fbc emits it ahead of every
+'' fb_ArrayBoundChkEx on a dynamic array -- measured from its '-gen llvm -r':
+''
+''     fb_ArrayDimensionChk( subscripts, @descriptor, line, filename, varname )
+''
+'' and it is what turns 'dim a( )' then 'a( 0 )' into runtime error 18, "'A' not
+'' dimensioned and array elements are not allocated", exit 18. Without it the bounds
+'' check passes -- a fresh descriptor's bounds are zero-filled, so 0 is inside 0..0 --
+'' and the access reads through a null data pointer: tiko crashed, measured, where fbc
+'' reported. The runtime (lib/rt/src/array/boundchk.bas) also reports a subscript count
+'' that differs from the array's rank, which a 'dim a( )' cannot tell at compile time.
+sub EmitDimensionCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref desc as MirValue, byval count as long )
+
+    if desc.kind = cast( ubyte, MV_NONE ) then return
+    dim as MirType zt = MT_I64
+    if c.types->target.pointerBits = 32 then zt = MT_I32
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+    dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
+
+    dim as FB.Array( of ulong ) da
+    PushArg_( da, ConstInt( c, count, zt ) )
+    PushArg_( da, desc )
+    PushArg_( da, ConstInt( c, fd.lineNo, MT_I32 ) )
+    PushArg_( da, fileV )
+    PushArg_( da, nameV )
+    EmitErrorJump_( c, EmitRtl( c, RTL_ARRAY_DIMENSION_CHK, da ) )
+end sub
+
 '' THE JUMP A FAILED CHECK HANDS BACK. Every -e check returns an address: null when
 '' the operation succeeded, and otherwise the place to continue at. fbc tests it and
 '' jumps, measured on the same source:

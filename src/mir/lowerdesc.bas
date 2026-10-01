@@ -42,6 +42,21 @@ private function DescIntTy_( byref c as Ctx ) as MirType
     return MT_I64
 end function
 
+'' One word of DIMTB[k]: 0 = ELEMENTS, 1 = LBOUND, 2 = UBOUND. The table starts after
+'' the six header words, three words to a dimension.
+private function DescDimField_ _
+    ( byref c as Ctx, byref desc as MirValue, byval k as long, byval which as long, _
+      byval ty as MirType ) as MirValue
+
+    dim as long pb = iif( c.types->target.pointerBits = 32, 4, 8 )
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = desc
+    fa.imm = 6 * pb + k * 3 * pb + which * pb
+    return LowerExprLoad( c, Emit( c, fa ), ty )
+end function
+
 private function DescPtrBytes_( byref c as Ctx ) as long
     return c.types->target.pointerBits \ 8
 end function
@@ -981,12 +996,23 @@ function LowerDynArrayIndex _
     dim as MirType offTy = DescIntTy_( c )
     dim as long pb = DescPtrBytes_( c )
 
+    '' -exx: dimensioned at all, and with this rank -- before any bound is read (T21).
+    if c.errLevel >= 3 then EmitDimensionCheck_( c, id, sp->target, desc, rank )
+
     dim as MirValue acc
     for k as long = 0 to rank - 1
         dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         dim as MirValue iv = LowerExpr( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
         iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
+
+        '' -exx: CHECKED against this dimension's bounds, read from the descriptor --
+        '' DIMTB[k] is ELEMENTS, LBOUND, UBOUND (T21; lowerboundchk.bas).
+        if c.errLevel >= 3 then
+            dim as MirValue lov = DescDimField_( c, desc, k, 1, offTy )
+            dim as MirValue hiv = DescDimField_( c, desc, k, 2, offTy )
+            EmitBoundsCheckRange_( c, id, sp->target, iv, lov, hiv )
+        end if
 
         if acc.kind = cast( ubyte, MV_NONE ) then
             acc = iv

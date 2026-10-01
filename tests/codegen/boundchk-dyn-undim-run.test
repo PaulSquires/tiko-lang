@@ -1,0 +1,13 @@
+'' T21, RUN: a dynamic array never REDIM-ed is "not dimensioned" -- runtime error 18, exit
+'' 18, as fbc reports it. Its bounds are zero-filled, so a bounds check alone would pass
+'' index 0 and read through a null pointer: the first version of the T21 fix did exactly
+'' that and crashed. fb_ArrayDimensionChk runs first and catches it.
+'' TEST: cli
+'' ARGS: -exx -target win64-msvc tests/codegen/src/boundchk-dyn-undim.bas -o tests/codegen/boundchkdynundim.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/boundchkdynundim.exe
+'' RUN: tests/codegen/boundchkdynundim.exe
+'' EXPECT-RUN-EXIT: 18
+'' EXPECT-RUN-OUT: runtime error 18 (array not dimensioned) at line 2 of
+'' EXPECT-RUN-OUT: 'A' not dimensioned and array elements are not allocated

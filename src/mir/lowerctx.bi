@@ -314,6 +314,12 @@ declare sub EmitBoundsCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
       byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
       byval offTy as MirType )
+declare sub EmitBoundsCheckRange_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref iv as MirValue, byref lov as MirValue, byref hiv as MirValue )
+declare sub EmitDimensionCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref desc as MirValue, byval count as long )
 declare function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
 
