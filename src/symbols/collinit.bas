@@ -229,20 +229,20 @@ private function CollInit_ _
         return false
     end if
 
-    '' NOT YET where the initialiser runs in the module initialiser rather than at the
-    '' declaration: 'dim shared', a namespace's variables, a static member's definition.
+    '' A 'dim shared' or NAMESPACE variable is filled in the MODULE INITIALISER, right after
+    '' it is constructed there (mir/lowermodinit.bas). NOT YET a static member's definition,
+    '' 'dim shared T.x as ... = { ... }': the calls would name an unqualified 'x', which is
+    '' not in scope where the definition stands. Nor an extern or a common, which have no
+    '' initialiser of their own to give.
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocal( here, ip->name ) )
     dim as boolean elsewhere = _
         ((c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) <> 0)
     if vs <> 0 then
-        if (vs->flags and (Tko.SYMF_SHARED or Tko.SYMF_EXTERN or Tko.SYMF_COMMON)) <> 0 then
-            elsewhere = true
-        end if
+        if (vs->flags and (Tko.SYMF_EXTERN or Tko.SYMF_COMMON)) <> 0 then elsewhere = true
     end if
     dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
     if hs <> 0 then
-        if (hs->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE )) orelse _
-           (hs->kind = cast( ubyte, Tko.SCOPEK_TYPE )) then elsewhere = true
+        if hs->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then elsewhere = true
     end if
     if elsewhere then
         c.diags->Report( Tko.TKO0844, Tko.PointRange( c.ast->Loc( braces ) ), _

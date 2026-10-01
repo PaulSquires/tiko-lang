@@ -106,6 +106,10 @@ type Ctx
     '' initialiser: '_ZN3FOOC1Eu7INTEGER( &F$, 7ll )'.
     as FB.Array( of ulong ) modInitCall
     as FB.Array( of ulong ) modInitType
+    '' The DECLARATOR of a module global with a COLLECTION INITIALISER -- 'dim shared a as
+    '' Array( of long ) = { 1, 2 }' -- or NODE_NONE. Parallel to modInitGlobal: its calls
+    '' run in the module initialiser right after the constructor (lowermodinit.bas).
+    as FB.Array( of ulong ) modInitColl
     '' The virtual method tables, for emitting them and for dispatching through one.
     as Tko.VTables ptr      vts
     '' THE CLEANUP MODEL (docs/plan/08 section 6).

@@ -1031,6 +1031,12 @@ sub InitSharedGlobal _
                         if convInit then ctorCall = init
                     end if
                     c.modInitCall.Push( cast( ulong, ctorCall ) )
+                    dim as Tko.NodeId ciItem = cast( Tko.NodeId, gs->payload )
+                    if ciItem <> Tko.NODE_NONE then
+                        if c.ast->Kind( ciItem ) <> Tko.N_VAR_ITEM then ciItem = Tko.NODE_NONE
+                    end if
+                    if Tko.CollInitOf( *c.ast, ciItem ) = Tko.NODE_NONE then ciItem = Tko.NODE_NONE
+                    c.modInitColl.Push( cast( ulong, ciItem ) )
                 end if
             end if
         end if

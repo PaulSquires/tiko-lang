@@ -743,7 +743,7 @@
     '' COLLECTION INITIALISERS (symbols/collinit.bas), a tiko extension: a brace list over a
     '' type that needs construction calls its Add, PushBack or Push once per element.
     DIAG( TKO0843, SEV_ERROR,   "'%0' cannot take an initializer list: its type has no Add, PushBack or Push method" )
-    DIAG( TKO0844, SEV_ERROR,   "an initializer list on '%0' is not supported yet: it is shared or global, and only a local, module-level or static variable can take one" )
+    DIAG( TKO0844, SEV_ERROR,   "an initializer list on the static member '%0' is not supported yet; fill it with calls after its definition" )
     '' A BRACE LIST INITIALIZES AN ARRAY and nothing else -- fbc's error 63 and its
     '' neighbours (symbols/braceinit.bas). tiko accepted the rest and dropped the list.
     DIAG( TKO0845, SEV_ERROR,   "'%0' is not an array, so it cannot take a '{ ... }' initializer" )

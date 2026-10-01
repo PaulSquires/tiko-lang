@@ -659,13 +659,15 @@ end sub
 '' A COLLECTION INITIALISER (symbols/collinit.bas): the 'x.Push( e )' statements Resolve
 '' built for this declarator, run after it was constructed. Not for a STATIC local, whose
 '' calls run inside its run-once guard instead -- LowerStaticLocalInit_ -- or every call
-'' of the procedure would add the elements again.
+'' of the procedure would add the elements again; nor for a SHARED or namespace one, whose
+'' calls run in the module initialiser (lowermodinit.bas).
 sub LowerCollInit_( byref c as Ctx, byval id as Tko.NodeId, byval item as Tko.NodeId )
     if Tko.CollInitOf( *c.ast, item ) = Tko.NODE_NONE then return
     dim as Tko.SymbolId sid = _
         c.syms->LookupLocalTyped( c.info->ScopeOf( id ), StmtOf( c, item )->name, false )
     if sid <> Tko.SYMBOL_NONE then
         if IsStaticLocal( c, sid ) then return
+        if IsSharedVar( c, sid ) then return     '' the module initialiser runs them
     end if
     LowerCollInitCalls_( c, item )
 end sub

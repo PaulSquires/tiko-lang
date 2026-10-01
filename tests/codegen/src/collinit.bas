@@ -35,6 +35,19 @@ sub Pod.Push( byval v as long )
     a = -1
 end sub
 
+'' SHARED and NAMESPACE: filled in the module initialiser, before the first statement, and
+'' read here from a procedure. A constant is fine in the list; a frame variable is not.
+const K = 40
+dim shared sa as FB.Array( of integer ) = { 1, 2, 3 }
+dim shared sm as FB.Map( of ustring, long ) = { {"k", 7}, {"j", 8} }
+dim shared sk as FB.LinkedList( of long ) = { K, K + 1 }
+namespace NS
+    dim nv as FB.Array( of ustring ) = { "p", "q" }
+end namespace
+sub ShowShared( )
+    print "shared"; sa.Count( ); sa[2]; sm.Count( ); sm["j"]; sk.Count( ); NS.nv.Count( ); " "; NS.nv[1]
+end sub
+
 '' STATIC: filled once, inside the run-once guard.
 sub Twice( )
     static s as FB.Array( of long ) = { 1, 2 }
@@ -54,6 +67,8 @@ sub InProc( byval k as long )
         print "oset"; o.Count( )
     end if
 end sub
+
+ShowShared( )
 
 dim a as FB.Array( of integer ) = { 10, 20, 30 }
 print a.Count( ); ":";

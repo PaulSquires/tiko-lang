@@ -1,7 +1,8 @@
 '' Collection initialisers, RUN: 'dim a as FB.Array( of integer ) = { 10, 20, 30 }' and the
 '' same over LinkedList, Map (nested braces: one Add per pair), Set, OrderedMap, OrderedSet,
 '' an empty list, two declarators, a user type with Add, one with only PushBack after its
-'' own constructor, a STATIC filled once, and locals whose elements are expressions.
+'' own constructor, a STATIC filled once, SHARED and NAMESPACE variables filled by the
+'' module initialiser, and locals whose elements are expressions.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/codegen/src/collinit.bas -o tests/codegen/collinit.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -9,6 +10,7 @@
 '' EXPECT-FILE: tests/codegen/collinit.exe
 '' RUN: tests/codegen/collinit.exe
 '' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: shared 3 3 2 8 2 2 q
 '' EXPECT-RUN-OUT: 3: 10 20 30
 '' EXPECT-RUN-OUT: xyz
 '' EXPECT-RUN-OUT: 2 1 2

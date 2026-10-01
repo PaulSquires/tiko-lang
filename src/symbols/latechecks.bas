@@ -1243,9 +1243,11 @@ private sub CheckQualifiedInits_( byref c as Ctx )
     next
 end sub
 
+#include once "symbols/collinitshared.bas"
 private sub CheckSharedInits_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
+        CollInitSharedRefs_( c, s )     '' collinitshared.bas
         if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
         if (s->flags and SYMF_SHARED) = 0 then continue for
         if s->payload = 0 then continue for

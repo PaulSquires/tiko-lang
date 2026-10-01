@@ -1,0 +1,36 @@
+'' collinitshared.bas -- A SHARED COLLECTION INITIALISER NAMES NO FRAME VARIABLE.
+''
+''     dim n as long = 5
+''     dim shared a as Array( of long ) = { n }     TKO0668, as fbc's error 272 for any
+''                                                  shared initialiser that names 'n'
+''
+'' A 'dim shared' or namespace variable's collection initialiser runs in the MODULE
+'' INITIALISER, before main's frame exists (mir/lowermodinit.bas). Its brace list was
+'' detached by Resolve (collinit.bas), so CheckSharedRef_ never saw the elements: this hands
+'' it the arguments of each recorded call. Included from latechecks.bas, after
+'' CheckSharedRef_.
+
+private sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_VARIABLE ) then return
+    if s->payload <= 0 then return
+    dim as NodeId item = cast( NodeId, s->payload )
+    if c.ast->Kind( item ) <> N_VAR_ITEM then return
+    dim as NodeId blk = CollInitOf( *c.ast, item )
+    if blk = NODE_NONE then return
+    dim as boolean inModule = ((s->flags and SYMF_SHARED) <> 0)
+    if inModule = false then
+        dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+        if sc <> 0 then inModule = (sc->kind = cast( ubyte, SCOPEK_NAMESPACE ))
+    end if
+    if inModule = false then return
+    dim as ListPayload ptr bl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, blk )].data )]
+    dim as long first_ = bl->first
+    dim as long count_ = bl->count
+    for k as long = 0 to count_ - 1
+        dim as NodeId st = cast( NodeId, c.ast->children[first_ + k] )
+        '' The statement's call: CheckSharedRef_ walks its ARGUMENTS and not its callee,
+        '' which is 'x.Push' -- the variable itself.
+        CheckSharedRef_( c, c.ast->stmts[cast( long, c.ast->nodes[cast( long, st )].data )].a, s->name )
+    next
+end sub

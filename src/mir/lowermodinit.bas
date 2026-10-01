@@ -70,6 +70,11 @@ sub EmitModuleInit_( byref c as Ctx )
                     elseif TypeNeedsInit_( c, gt ) then
                         CallImplicitCtor_( c, gt, ga )
                     end if
+                    '' ...AND A COLLECTION INITIALISER'S CALLS, now that it exists:
+                    '' 'dim shared a as Array( of long ) = { 1, 2 }'. symbols/collinit.bas.
+                    if i < c.modInitColl.Count then
+                        LowerCollInitCalls_( c, cast( Tko.NodeId, c.modInitColl[i] ) )
+                    end if
                 else
                     dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, gt, "__dtor" ), 0 )
                     if dt <> Tko.SYMBOL_NONE then
