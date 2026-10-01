@@ -9,6 +9,9 @@ src = "src"
 # Content-hashed asset names (toc-<hash>.js, tiko-highlight-<hash>.js, ...). The site
 # serves .js/.css with max-age=604800, so an unhashed toc.js kept showing a week-old sidebar.
 hash-files = true
+# The sidebar numbers are written into SUMMARY.md, because mdBook numbers by position and
+# the drafted chapters have gaps (Generics is chapter 16 but the 13th entry).
+no-section-label = true
 default-theme = "light"
 preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/PaulSquires/tiko-lang"

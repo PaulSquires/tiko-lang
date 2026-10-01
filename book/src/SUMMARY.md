@@ -5,22 +5,22 @@
 
 # Basics
 
-- [Getting Started](ch01-getting-started.md)
-- [A Tour of tiko](ch02-a-tour-of-tiko.md)
-- [Types, Variables and Constants](ch03-types-variables.md)
-- [Operators and Expressions](ch04-operators.md)
-- [Control Flow, Scope and defer](ch05-control-flow.md)
-- [Procedures](ch06-procedures.md)
-- [Arrays](ch07-arrays.md)
-- [Strings and Text](ch08-strings-and-text.md)
+- [1. Getting Started](ch01-getting-started.md)
+- [2. A Tour of tiko](ch02-a-tour-of-tiko.md)
+- [3. Types, Variables and Constants](ch03-types-variables.md)
+- [4. Operators and Expressions](ch04-operators.md)
+- [5. Control Flow, Scope and defer](ch05-control-flow.md)
+- [6. Procedures](ch06-procedures.md)
+- [7. Arrays](ch07-arrays.md)
+- [8. Strings and Text](ch08-strings-and-text.md)
 
 # Building Abstractions
 
-- [User-Defined Types and Layout](ch09-user-defined-types.md)
-- [Pointers, References and Memory](ch10-pointers-memory.md)
-- [Objects](ch11-objects.md)
-- [Operator Overloading](ch12-operator-overloading.md)
-- [Generics](ch16-generics.md)
+- [9. User-Defined Types and Layout](ch09-user-defined-types.md)
+- [10. Pointers, References and Memory](ch10-pointers-memory.md)
+- [11. Objects](ch11-objects.md)
+- [12. Operator Overloading](ch12-operator-overloading.md)
+- [16. Generics](ch16-generics.md)
 
 # Appendices
 

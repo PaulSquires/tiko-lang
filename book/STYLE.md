@@ -187,7 +187,11 @@ Mechanical, in order:
 4. `build/pdf.sh` — the chapter typesets; callouts and listings survive the second pipeline.
 5. Summary bullets cover every section. Every exercise with a solution has one, and the solutions
    pass the harness like any listing.
-6. Update `book.yaml`'s status and `src/SUMMARY.md`.
+6. Update `book.yaml`'s status and `src/SUMMARY.md`. **A `SUMMARY.md` entry carries its chapter
+   number in the link text** — `- [16. Generics](ch16-generics.md)` — because `book.toml` sets
+   `no-section-label`: mdBook numbers by position, and the chapters are drafted with gaps. The
+   number is the one in the file name and in `book.yaml`. Appendices take no number. The PDF
+   reads only the file paths from `SUMMARY.md`, so the number never reaches it.
 
 ## 10. Lineage
 
