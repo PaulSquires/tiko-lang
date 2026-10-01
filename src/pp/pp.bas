@@ -781,6 +781,26 @@ end sub
 '' -------------------------------------------------------------- token spelling
 '' Needed by stringisation and by ## pasting, both of which work on source text.
 
+'' A BLOCK STRING spells back as ONE LINE: the escaped literal with the same value. Its
+'' payload holds real newlines, and a spelling gets re-lexed -- by a paste, by
+'' __FB_UNQUOTE__, and by a module interface, which writes a const or a generic body out as
+'' text -- where a newline would end the literal. The payload's '""' pairs stay, since an
+'' escaped literal collapses them too; a plain or raw payload's backslashes are doubled.
+private function BlockSpelling_( byref payload as string, byval kind as StringKind ) as string
+    dim as string r = "!" & chr( 34 )
+    for i as long = 0 to len( payload ) - 1
+        dim as ubyte ch = payload[i]
+        if ch = 10 then
+            r &= chr( 92, 110 )
+        elseif (ch = 92) andalso (kind <> STRK_ESCAPED) then
+            r &= chr( 92, 92 )
+        else
+            r &= chr( ch )
+        end if
+    next
+    return r & chr( 34 )
+end function
+
 function PpSpell _
     ( byref src as SourceManager, byref names as Interner, _
       byref lits as LiteralVec, byref t as Token ) as string
@@ -875,6 +895,9 @@ function PpSpell _
                     '' note left behind read that as 'synthesised literals take no
                     '' prefix'. They do -- a nested __FB_QUOTE__ gives fbc
                     '' '$"1 2 3" $"4 5 6"' -- and strKind is what says which.
+                    if (k = TK_STRING_LIT) andalso (lp->strBlock <> 0) then
+                        return BlockSpelling_( ls, cast( StringKind, lp->strKind ) )
+                    end if
                     if k = TK_STRING_LIT then
                         dim as string pfx = ""
                         select case cast( StringKind, lp->strKind )

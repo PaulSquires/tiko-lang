@@ -1,0 +1,7 @@
+'' A block string with no closing line: TKO0207 at the opener, and the rest of the file is
+'' its body -- nothing else can say where it was meant to stop.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/diagnostics/src/block-string-unterminated.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: block-string-unterminated.bas(1,19): error TKO0207: block string has no closing line; one must start with three quotes
+'' EXPECT-MAX-DIAG: 1

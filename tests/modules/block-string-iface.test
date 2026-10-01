@@ -1,0 +1,12 @@
+'' A BLOCK STRING THROUGH A MODULE INTERFACE. The interface is text: a public const and a
+'' generic body holding block strings are written into it and re-lexed by the importer, so
+'' each literal must spell back as ONE escaped line with its newline, '"' and '\' intact
+'' (pp.bas BlockSpelling_).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i tests/modules/src/blockstr/libs tests/modules/src/blockstr/app/main.bas -o tests/modules/blockstr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/blockstr.exe
+'' RUN: tests/modules/blockstr.exe
+'' EXPECT-RUN-OUT: usage: tool "x"|  -p  C:\path 29
+'' EXPECT-RUN-OUT: <tag>7 6

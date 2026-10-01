@@ -142,6 +142,8 @@ Print "See the ""word"" contained in double quotes."
  A string may be explicitly specified as non-escaped when prefixed by the [`$ Operator`](Operator-Escaped-String-Literal) (Non-Escaped String Literal).  
  `Print $"C:\temp"`
 
+ **tiko:** a string that spans several lines is written as a [block string](Category-Block-Strings): `"""` at the end of a line opens it, and a line starting with `"""` closes it.
+
  Besides ASCII files with Unicode escape sequences (`\u`), FreeBASIC can parse UTF-8, UTF-16LE, UTF-16BE, UTF-32LE and UTF-32BE source files as long as they were saved with Byte Order Mark (BOM), allowing unicode characters directly in the string literal.
  **Note:** The most reliable cross-platform code is obtained by encoding without BOM in ASCII/UTF-8 characters.
 

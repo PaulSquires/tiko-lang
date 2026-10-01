@@ -1,0 +1,67 @@
+file tests/lexer/src/block-strings.bas, 66 tokens
+    0    1:87   EOL
+    1    2:53   EOL
+    2    3:1    KW_PRINT            'PRINT'
+    3    3:7    STRING              kind=0 <""abc"">
+    4    3:16   EOL
+    5    4:1    KW_PRINT            'PRINT'
+    6    4:7    STRING              kind=0 <"">
+    7    4:11   EOL
+    8    5:1    KW_DIM              'DIM'
+    9    5:5    KW_AS               'AS'
+   10    5:8    KW_STRING           'STRING'
+   11    5:15   IDENT               'a'
+   12    5:17   TK_EQ               '='
+   13    5:19   STRING              kind=0 block <select id, name<LF>  from users<LF><LF>where q = ""x"" and """" and """""" mid>
+   14   10:8    EOL
+   15   11:1    KW_DIM              'DIM'
+   16   11:5    KW_AS               'AS'
+   17   11:8    KW_STRING           'STRING'
+   18   11:15   IDENT               'b'
+   19   11:17   TK_EQ               '='
+   20   11:19   STRING              kind=0 block <  two>
+   21   13:4    EOL
+   22   14:1    KW_DIM              'DIM'
+   23   14:5    KW_AS               'AS'
+   24   14:8    KW_STRING           'STRING'
+   25   14:15   IDENT               'c'
+   26   14:17   TK_EQ               '='
+   27   14:19   STRING              kind=0 block <line<LF>>
+   28   17:8    EOL
+   29   18:1    KW_DIM              'DIM'
+   30   18:5    KW_AS               'AS'
+   31   18:8    KW_STRING           'STRING'
+   32   18:15   IDENT               'd'
+   33   18:17   TK_EQ               '='
+   34   18:19   STRING              kind=1 block wide <a\tb c\"q\" \\ \u0041>
+   35   21:8    EOL
+   36   22:1    KW_DIM              'DIM'
+   37   22:5    KW_AS               'AS'
+   38   22:8    KW_STRING           'STRING'
+   39   22:15   IDENT               'e'
+   40   22:17   TK_EQ               '='
+   41   22:19   STRING              kind=2 block <C:\new\table>
+   42   24:8    EOL
+   43   25:1    KW_DIM              'DIM'
+   44   25:5    KW_AS               'AS'
+   45   25:8    KW_STRING           'STRING'
+   46   25:15   IDENT               'f'
+   47   25:17   TK_EQ               '='
+   48   25:19   STRING              kind=0 block <>
+   49   26:8    EOL
+   50   27:1    KW_DIM              'DIM'
+   51   27:5    KW_AS               'AS'
+   52   27:8    KW_STRING           'STRING'
+   53   27:15   IDENT               'g'
+   54   27:17   TK_EQ               '='
+   55   27:19   STRING              kind=0 block <x<LF>	y>
+   56   30:12   EOL
+   57   31:1    KW_PRINT            'PRINT'
+   58   31:7    KW_LEN              'LEN'
+   59   31:10   TK_LPAREN           '('
+   60   31:12   STRING              kind=0 block <arg>
+   61   33:9    TK_AMP              '&'
+   62   33:11   STRING              kind=0 <tail>
+   63   33:18   TK_RPAREN           ')'
+   64   33:19   EOL
+   65   34:1    EOF

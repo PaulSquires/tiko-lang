@@ -672,6 +672,185 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
     PushLiteral( s, lit, first )
 end sub
 
+'' ------------------------------------------------------------- block strings
+''
+'' A BLOCK STRING, a tiko extension (docs/tiko-strings RFC-0001):
+''
+''     dim as string sql = """
+''         select id
+''           from users
+''         """
+''
+'' OPENS with '"""' -- after an optional ! or $ -- when nothing but spaces and tabs follows
+'' it on its line. That condition IS the compatibility argument: fbc reads '"""abc"""' as
+'' the 5-character string '"abc"', and a '"""' that ends its line is the only spelling that
+'' is not already a valid literal (it is fbc's warning 12 and TKO0201). Measured over the
+'' vendored fbc suite, pkg/ and tests/: no such opener anywhere.
+''
+'' CLOSES at the first line that starts, after spaces and tabs, with '"""'. That line's
+'' indentation is the MARGIN, removed from every body line; a non-blank line that does not
+'' start with it, byte for byte, is TKO0208. Whatever follows the closing '"""' is lexed
+'' as ordinary tokens. The newlines after the opener and before the closer are not part
+'' of the value, and every line break inside it is LF whatever the file uses.
+''
+'' The body is VERBATIM: '"' needs no doubling, '\' is an ordinary byte. '!"""' reads
+'' backslash escapes as '!"..."' does, and a backslash ending a line joins it to the next.
+'' '$"""' is '"""' -- a plain literal is never escaped under #lang "fb".
+''
+'' Unlike every other literal the payload is not a span of the file. It is built here --
+'' dedented, re-encoded with each '"' doubled so the existing readers of a literal of that
+'' kind decode it unchanged -- into a virtual buffer the literal points at. Escapes are
+'' left raw for the same readers to decode, which is why dedent comes first: a '\t' in the
+'' body never moves the margin.
+
+'' 'q' is the first quote. True when it starts '"""' with only spaces/tabs (and a CR) after
+'' it and then a newline -- no newline, no body, so EOF right after it is not an opener.
+private function IsBlockOpener( byref s as Scanner, byval q as long ) as boolean
+    if q + 2 >= s.n then return false
+    if (s.p[q + 1] <> 34) orelse (s.p[q + 2] <> 34) then return false
+    dim as long j = q + 3
+    while (j < s.n) andalso ((s.p[j] = 32) orelse (s.p[j] = 9) orelse (s.p[j] = 13))
+        j += 1
+    wend
+    return (j < s.n) andalso (s.p[j] = 10)
+end function
+
+private sub ScanBlockString( byref s as Scanner, byval kind as Tko.StringKind, byval first as long )
+    dim as long q = first
+    if kind <> Tko.STRK_PLAIN then q += 1
+    dim as long j = q + 3
+    while s.p[j] <> 10                          '' IsBlockOpener found this newline
+        j += 1
+    wend
+    dim as long bodyFirst = j + 1
+
+    '' The closing line: the first that starts, after spaces and tabs, with '"""'.
+    dim as long closerLine = -1, closerQuote = -1
+    dim as long ln = bodyFirst
+    while ln < s.n
+        dim as long k = ln
+        while (k < s.n) andalso ((s.p[k] = 32) orelse (s.p[k] = 9))
+            k += 1
+        wend
+        if (k + 2 < s.n) andalso (s.p[k] = 34) andalso (s.p[k + 1] = 34) andalso (s.p[k + 2] = 34) then
+            closerLine = ln
+            closerQuote = k
+            exit while
+        end if
+        while (k < s.n) andalso (s.p[k] <> 10)
+            k += 1
+        wend
+        ln = k + 1
+    wend
+
+    dim as long bodyEnd = closerLine
+    dim as long margin = 0
+    if closerLine < 0 then
+        '' Everything to the end of the file is the body, undedented: nothing else can
+        '' say where it was meant to stop.
+        s.i = j
+        Report( s, Tko.TKO0207, first )
+        bodyEnd = s.n
+    else
+        margin = closerQuote - closerLine
+    end if
+
+    '' Each body byte becomes at most two ('"' doubles), plus one LF per line.
+    dim as string outp = space( 2 * (bodyEnd - bodyFirst) + 2 )
+    dim as long n = 0
+    dim as boolean wide = false
+    dim as boolean firstLine = true
+    dim as boolean joinNext = false
+    dim as long ls = bodyFirst
+    while ls < bodyEnd
+        dim as long le = ls
+        while (le < bodyEnd) andalso (s.p[le] <> 10)
+            le += 1
+        wend
+        dim as long ce = le
+        if (ce > ls) andalso (s.p[ce - 1] = 13) then ce -= 1
+
+        if (firstLine = false) andalso (joinNext = false) then
+            outp[n] = 10
+            n += 1
+        end if
+        firstLine = false
+        joinNext = false
+
+        dim as boolean blank = true
+        for bi as long = ls to ce - 1
+            if (s.p[bi] <> 32) andalso (s.p[bi] <> 9) then
+                blank = false
+                exit for
+            end if
+        next
+
+        if blank = false then
+            dim as boolean indented = (ce - ls) >= margin
+            if indented then
+                for mi as long = 0 to margin - 1
+                    if s.p[ls + mi] <> s.p[closerLine + mi] then
+                        indented = false
+                        exit for
+                    end if
+                next
+            end if
+            dim as long k = ls + margin
+            if indented = false then
+                dim as Tko.SourceRange r
+                r.first = LocAt( s, ls )
+                r.last = LocAt( s, ce )
+                s.diags->Report( Tko.TKO0208, r, "" )
+                '' Recover with the line's own leading whitespace, up to the margin.
+                k = ls
+                while (k < ce) andalso (k < ls + margin) andalso ((s.p[k] = 32) orelse (s.p[k] = 9))
+                    k += 1
+                wend
+            end if
+
+            while k < ce
+                dim as ubyte c = s.p[k]
+                if (kind = Tko.STRK_ESCAPED) andalso (c = 92) then
+                    if k + 1 >= ce then
+                        joinNext = true             '' a backslash ending the line
+                        exit while
+                    end if
+                    dim as ubyte nx = s.p[k + 1]
+                    if (nx = 117) orelse (nx = 85) then wide = true
+                    outp[n] = c
+                    outp[n + 1] = nx
+                    n += 2
+                    k += 2
+                    continue while
+                end if
+                outp[n] = c
+                n += 1
+                if c = 34 then
+                    outp[n] = 34
+                    n += 1
+                end if
+                k += 1
+            wend
+        end if
+        ls = le + 1
+    wend
+
+    s.i = iif( closerLine >= 0, closerQuote + 3, s.n )
+
+    '' The buffer holds the literal's own spelling, so the payload starts at 1 -- and a
+    '' body that begins with a byte-order mark is not taken for one by the source manager.
+    dim as string payload = left( outp, n )
+    dim as Tko.Literal lit
+    lit.kind = cast( ubyte, Tko.TK_STRING_LIT )
+    lit.strKind = cast( ubyte, kind )
+    if wide then lit.strWide = 1
+    lit.strBlock = 1
+    lit.textFile = cast( long, s.src->AddVirtual( "<block string>", chr( 34 ) & payload & chr( 34 ) ) )
+    lit.textOffset = 1
+    lit.textLength = n
+    PushLiteral( s, lit, first )
+end sub
+
 '' ---------------------------------------------------------------- punctuation
 
 private sub ScanPunct( byref s as Scanner )
@@ -942,7 +1121,11 @@ sub Run _
         end if
 
         if c = 34 then                              '' "..."
-            ScanString( s, Tko.STRK_PLAIN, s.i )
+            if IsBlockOpener( s, s.i ) then
+                ScanBlockString( s, Tko.STRK_PLAIN, s.i )
+            else
+                ScanString( s, Tko.STRK_PLAIN, s.i )
+            end if
             continue while
         end if
 
@@ -951,7 +1134,11 @@ sub Run _
             if quoteNext then
                 dim as Tko.StringKind k = Tko.STRK_ESCAPED
                 if c = 36 then k = Tko.STRK_RAW
-                ScanString( s, k, s.i )
+                if IsBlockOpener( s, s.i + 1 ) then
+                    ScanBlockString( s, k, s.i )
+                else
+                    ScanString( s, k, s.i )
+                end if
                 continue while
             end if
         end if
@@ -1022,7 +1209,19 @@ function Dump _
                 payload = space( lit->textLength )
                 memcpy( strptr( payload ), @f->text[lit->textOffset], lit->textLength )
             end if
-            row += "kind=" & lit->strKind & " <" & payload & ">"
+            '' A block string's payload holds real newlines; one row per token stays.
+            if lit->strBlock <> 0 then
+                dim as string shown = ""
+                for k as long = 0 to len( payload ) - 1
+                    shown += iif( payload[k] = 10, "<LF>", chr( payload[k] ) )
+                next
+                payload = shown
+                row += "kind=" & lit->strKind & " block"
+                if lit->strWide <> 0 then row += " wide"
+                row += " <" & payload & ">"
+            else
+                row += "kind=" & lit->strKind & " <" & payload & ">"
+            end if
         case else
             dim as string spellText = Tko.TokenKindText( k )
             if len( spellText ) > 0 then row += "'" & spellText & "'"

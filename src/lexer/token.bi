@@ -203,6 +203,11 @@ namespace Tko
         '' A STRING LITERAL WITH A UNICODE ESCAPE IS WIDE, whatever code point it names:
         '' fbc types !"<backslash>u0041" as a wstring. Nonzero when the raw text has one.
         as ubyte      strWide
+        '' A BLOCK STRING ('"""' ending its line). Its span is not in the source file: it
+        '' indexes a virtual buffer holding the dedented body, re-encoded so every reader
+        '' of an ordinary literal of the same kind decodes it unchanged. The one thing that
+        '' differs is that the payload may hold a real newline -- see PpSpell.
+        as ubyte      strBlock
         as ulongint   intValue
         as double     fltValue
         '' The string payload is a RAW SPAN, undecoded -- OPTION ESCAPE is not known

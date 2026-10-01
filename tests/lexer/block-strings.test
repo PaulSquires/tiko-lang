@@ -1,0 +1,9 @@
+'' BLOCK STRINGS (docs/tiko-strings RFC-0001), a tiko extension. '"""' opens one only when
+'' nothing but whitespace follows it on its line, so '"""abc"""' and '""""' keep their fbc
+'' meaning; the closer's indentation is the margin; blank lines are exempt from it; '"' and
+'' '"""' inside a body need no escape; tokens after the closer are lexed as usual.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/block-strings.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO02
+'' GOLDEN: expected/block-strings.out

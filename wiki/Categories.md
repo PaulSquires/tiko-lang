@@ -12,6 +12,7 @@ The language and its standard library first, then the compatibility reference: t
 - [Tuples](Category-Tuples) — 1 pages
 - [Defer](Category-Defer) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
+- [Block Strings](Category-Block-Strings) — 1 pages
 - [Foreign Library Linking](Category-Foreign-Library-Linking) — 2 pages
 - [C Header Import](Category-C-Header-Import) — 2 pages
 - [UString](Category-UString) — 1 pages

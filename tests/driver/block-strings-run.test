@@ -1,0 +1,22 @@
+'' BLOCK STRINGS, run (docs/tiko-strings RFC-0001): the bytes of each value, LF shown as '|'
+'' and TAB as '<TAB>'. Dedent with relative indentation kept, a blank line, '"' and '"""'
+'' in a body; a closer at column 0; a trailing LF from a blank line; '!"""' escapes and a
+'' backslash line join; '$"""'; an empty block; tokens after the closer; a block in a
+'' '#define'; a stringised block, which spells back as one escaped line; a const; a ustring.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/block-strings.bas -o tests/driver/blockstrings.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/blockstrings.exe
+'' RUN: tests/driver/blockstrings.exe
+'' EXPECT-RUN-OUT: a [select id, name|  from users||where q = "x" and """ mid] 55
+'' EXPECT-RUN-OUT: b [  two] 5
+'' EXPECT-RUN-OUT: c [line|] 5
+'' EXPECT-RUN-OUT: d [a<TAB>b c"q" \ end] 14
+'' EXPECT-RUN-OUT: e [C:\new\table] 12
+'' EXPECT-RUN-OUT: f [] 0
+'' EXPECT-RUN-OUT: g [arg+tail] 8
+'' EXPECT-RUN-OUT: h [hello|  world] 13
+'' EXPECT-RUN-OUT: i !"p\nq\\r"
+'' EXPECT-RUN-OUT: j [k1|k2] 5
+'' EXPECT-RUN-OUT: k  9

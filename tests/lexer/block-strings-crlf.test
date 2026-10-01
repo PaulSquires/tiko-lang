@@ -1,0 +1,6 @@
+'' A block string in a CRLF file has the payload the same block has in an LF file: every
+'' line break inside it is LF (docs/tiko-strings RFC-0001 section 5.4).
+'' TEST: cli
+'' ARGS: --dump-tokens tests/lexer/src/block-strings-crlf.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: STRING              kind=0 block <select id, name<LF>  from users<LF><LF>where q = 1>

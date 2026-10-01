@@ -1,0 +1,9 @@
+'' A non-blank body line that does not begin with the closing line's indentation, byte for
+'' byte, is TKO0208: a shallower line, and a TAB where the margin has spaces. No guess at
+'' what a tab is worth.
+'' TEST: cli
+'' ARGS: --dump-tokens tests/diagnostics/src/block-string-margin.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: block-string-margin.bas(3,1): error TKO0208: block string line does not start with the closing line's indentation
+'' EXPECT-OUT: block-string-margin.bas(4,1): error TKO0208: block string line does not start with the closing line's indentation
+'' EXPECT-MAX-DIAG: 2

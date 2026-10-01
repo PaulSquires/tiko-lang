@@ -108,6 +108,10 @@
     '' branch, and a suffix inside a '#macro' body warns ONCE PER EXPANSION -- fbc puts
     '' each at the invocation's line, this at the body's own.
     DIAG( TKO0206, SEV_WARNING, "suffix ignored in '%0'" )
+    '' BLOCK STRINGS (docs/tiko-strings RFC-0001), a tiko extension: '"""' ending its line
+    '' opens one, and the first line that starts with '"""' after its indentation closes it.
+    DIAG( TKO0207, SEV_ERROR,   "block string has no closing line; one must start with three quotes" )
+    DIAG( TKO0208, SEV_ERROR,   "block string line does not start with the closing line's indentation" )
 
     '' -------------------------------------------------------------- preprocessor
     DIAG( TKO0300, SEV_ERROR,   "unknown directive '#%0'" )
