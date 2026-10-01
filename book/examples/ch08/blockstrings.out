@@ -1,0 +1,12 @@
+select id, name
+  from users
+ where name = "Ada"
+ 48
+roses
+  are
+red
+---
+[    indented]
+name	value
+one long line, continued
+ 5

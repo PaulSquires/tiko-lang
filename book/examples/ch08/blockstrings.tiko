@@ -1,0 +1,41 @@
+'' Text that spans lines, written as it reads.
+
+'' ANCHOR: all
+'' ANCHOR: query
+dim as ustring query = """
+    select id, name
+      from users
+     where name = "Ada"
+    """
+print query
+print len( query )
+'' ANCHOR_END: query
+
+'' ANCHOR: margin
+dim as ustring poem = """
+  roses
+    are
+  red
+
+  """
+print poem;
+print "---"
+'' ANCHOR_END: margin
+
+'' ANCHOR: shifted
+dim as ustring shifted = """
+    indented
+"""
+print "["; shifted; "]"
+'' ANCHOR_END: shifted
+
+'' ANCHOR: escaped
+dim as ustring row = !"""
+    name\tvalue
+    one long line, \
+    continued
+    """
+print row
+print instr( row, chr( 9 ) )
+'' ANCHOR_END: escaped
+'' ANCHOR_END: all

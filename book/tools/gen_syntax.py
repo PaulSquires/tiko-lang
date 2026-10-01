@@ -90,6 +90,13 @@ def build(words: dict[str, list[str]]) -> str:
         "              pop: true",
         "",
         "  strings:",
+        # A block string: '"""' ending its line, to the first line starting with '"""'.
+        # Ahead of the one-line rule, which would close it at '""'.
+        "    - match: '(?i:[!$])?\"\"\"(?=[ \\t]*$)'",
+        "      push:",
+        "        - meta_scope: string.quoted.triple.tiko",
+        "        - match: '^[ \\t]*\"\"\"'",
+        "          pop: true",
         "    - match: '(?i:[!$])?\"'",
         "      push:",
         "        - meta_scope: string.quoted.double.tiko",

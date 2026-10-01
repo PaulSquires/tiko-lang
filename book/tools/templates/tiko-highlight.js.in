@@ -25,6 +25,13 @@
                     { className: "comment", begin: "''", end: "$" },
                     { className: "comment", begin: "\\brem\\b", end: "$" },
                     { className: "comment", begin: "/'", end: "'/", contains: ["self"] },
+                    // A BLOCK STRING: '"""' that ends its line, closed by the first line that
+                    // starts with '"""'. Ahead of the one-line rule, which would close it at '""'.
+                    {
+                        className: "string",
+                        begin: "(?:[!$])?\"\"\"(?=[ \\t]*$)",
+                        end: "^[ \\t]*\"\"\""
+                    },
                     {
                         className: "string",
                         begin: "(?:[!$])?\"",

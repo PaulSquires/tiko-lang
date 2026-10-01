@@ -55,6 +55,60 @@ that assumes a byte width is not.
 underneath you when the target does.
 ```
 
+## Text that spans lines
+
+A line ends a statement in tiko, so an ordinary string literal ends where its line does. A query,
+a usage message or a block of JSON is several lines of text, and writing it as one literal per
+line, glued with `&` and `chr( 10 )`, buries the text under the punctuation. A **block string**
+holds it the way it reads:
+
+```tiko
+{{#include ../examples/ch08/blockstrings.tiko:all}}
+```
+
+```text
+{{#include ../examples/ch08/blockstrings.out}}
+```
+
+**`"""` at the end of a line opens one, and the first line that starts with `"""` closes it.**
+Only spaces may follow the opening `"""`. Anything after the closing one is ordinary code, so a
+block string can sit inside an expression or an argument list like any other literal.
+
+**The closing line's indentation is the margin.** It is removed from the front of every line, so
+the text indents with the code around it, while indentation that belongs to the text — the two
+extra spaces before `from` — is kept. A blank line is always allowed. Any other line that starts
+left of the margin is an error:
+
+```tiko
+{{#include ../examples/ch08/blockmargin.tiko}}
+```
+
+```
+blockmargin.tiko(4,1): error TKO0208: block string line does not start with the closing line's indentation
+     |
+   4 |   second
+     | ^~~~~~~~~
+```
+
+**The line breaks at the two ends are not part of the text.** `query` is 48 characters and does
+not end in a line feed. To end with one, leave an empty line before the closing line, as `poem`
+does — which is why `print poem;` still put `---` on a line of its own.
+
+**Inside the block, nothing needs escaping.** A `"` is an ordinary character, so `"Ada"` is
+written as it reads. Every line break is a single line feed, `chr( 10 )`, whatever line endings
+the file was saved with, so the same source gives the same string on every machine.
+
+**`!"""` reads escapes**, exactly as `!"…"` does: `\t` became the tab `instr` found at position 5.
+A backslash at the very end of a line joins it to the next with no line break, for a long line
+you want to wrap in the source.
+
+```admonish danger title="Pitfall"
+**The closing line sets the margin, not the first line.** `shifted` closes at the left edge, so
+nothing is removed: the four spaces that were only there to indent the code are now part of the
+text. It compiles, and the output above shows them, inside the brackets. When a block string comes
+out shifted right, look at where its closing `"""` sits.
+```
+
 ## The operations that come with the language
 
 ```tiko
@@ -331,6 +385,9 @@ printed.
 - Five types: **`ustring` for text**, `string` for bytes, `zstring`/`wstring` for C, `string * n`
   fixed and **space-padded**.
 - `wstring` is 2 bytes per character on Windows and 4 on Linux; `ustring` is UTF-16 everywhere.
+- **A block string** opens with `"""` at the end of a line and closes at the first line starting
+  with `"""`; **that closing line's indentation is the margin** removed from every line.
+  `!"""` reads escapes, and every line break inside is `chr( 10 )`.
 - **Positions start at 1, and "not found" is 0.**
 - The `mid` statement overwrites in place and never changes the length — **and is a no-op on a
   `ustring` at this version (T26)**.

@@ -1,0 +1,6 @@
+'' A line that starts left of the closing line is an error.
+dim as ustring note = """
+    first
+  second
+    """
+print note
