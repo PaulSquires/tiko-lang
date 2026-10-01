@@ -592,7 +592,11 @@ private function EachEmit_ _
         elseif NeedsLetBody_( c, sq.elT ) then
             CallImplicitCopy_( c, sq.elT, vaddr, ea )
         else
-            dim as MirValue whole = LowerExprLoad( c, ea, MT_AGG )
+            '' A PLAIN RECORD IS LOADED WHOLE -- WITH ITS SIZE (T28). Without it the load
+            '' was '[0 x i8]', the store into the loop variable wanted '[8 x i8]', and
+            '' clang refused 'for each p as Point in pts' on both targets while the
+            '' byref form, which copies nothing, compiled. fbc runs it.
+            dim as MirValue whole = LowerExprLoad( c, ea, MT_AGG, SizeOfType( c, sq.elT ) )
             if whole.kind = cast( ubyte, MV_NONE ) then return false
             StoreThrough( c, vaddr, whole )
         end if

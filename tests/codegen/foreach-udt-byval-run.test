@@ -1,0 +1,15 @@
+'' T28, RUN: 'for each' by value over an array of records loaded each element as an
+'' aggregate with no size -- '[0 x i8]' against the loop variable's '[8 x i8]' -- and
+'' clang refused it on both targets (TKO0113). The load now carries the element's size.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/foreach-udt-byval.bas -o tests/codegen/foreachudtbyval.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/foreachudtbyval.exe
+'' RUN: tests/codegen/foreachudtbyval.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1 10 2 20 3 30
+'' EXPECT-RUN-OUT: 1
+'' EXPECT-RUN-OUT: 5 6
+'' EXPECT-RUN-OUT: 0 0 2.5 7
