@@ -47,6 +47,10 @@ really does keep working after the answer is settled.
 A function may also be called and its answer discarded, as `Noisy( )` is above — nothing forces you
 to use it.
 
+The answer is usually a single value, but it can be a whole array: write `( )` after the result type,
+as in `function Squares( ... ) as int32( )`. Chapter 7 covers what such a function may return and who
+owns the result.
+
 ```admonish note
 A function that reaches `end function` without ever setting its result returns a zero-initialised
 value, silently. There is no warning. If a branch can fall off the end, put an explicit `return`

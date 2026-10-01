@@ -10,6 +10,7 @@ The language and its standard library first, then the compatibility reference: t
 - [For Each](Category-For-Each) — 5 pages
 - [Iterators](Category-Iterators) — 1 pages
 - [Tuples](Category-Tuples) — 1 pages
+- [Array Results](Category-Array-Results) — 1 pages
 - [Defer](Category-Defer) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
 - [Block Strings](Category-Block-Strings) — 1 pages

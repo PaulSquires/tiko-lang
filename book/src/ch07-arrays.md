@@ -156,6 +156,78 @@ Tracked as **T23**. Until it lands, keep a `ustring` array in the scope that own
 bounds through a variable.
 ```
 
+## Returning an array
+
+A function that builds a table has to give it to its caller somehow, and the old answers are both
+awkward. The caller can create the array first and let the function fill it in, which means the
+caller must know the size before the function has decided it. Or the array can be wrapped in a
+container just to cross one `return`. tiko lets a function return the array itself: write `( )`
+after the result type.
+
+```tiko
+{{#include ../examples/ch07/returning.tiko}}
+```
+
+```text
+{{#include ../examples/ch07/returning.out}}
+```
+
+The result is an ordinary dynamic array. It is what `dim a( )` makes, it is indexed the same way,
+and a parameter written `a( )` accepts it. It is not a container. Only an empty `( )` means an
+array: `as int32( 3 )` is refused (`TKO0836`), where it used to be quietly read as a plain `int32`.
+
+`return` takes three things:
+
+- **A brace list.** The array is sized to the list, indexed from 0, and filled. A list inside a
+  list is refused (`TKO0839`); write it flat. Any element type works, and each element is built
+  once.
+- **A local array**, as `Squares` does. It is **moved**, not copied: the function's own variable
+  is left empty and the caller receives the array it built, bounds included. `sq` runs from 1 to
+  5 because `Squares` said so.
+- **A call that returns an array**, handed straight through.
+
+`function = value` takes the same three and carries on afterwards, as it does for any result. A
+function that never sets one returns an empty array: `ubound` is −1 and a loop over it runs zero
+times.
+
+The caller owns what comes back. `var p = FirstPrimes( )` takes the array itself. `m = Squares( 3 )`
+frees what `m` held and moves the new array in. `ShowSum( Squares( 4 ) )` and `for each` over a call
+use the array and free it when the statement ends, and a result nobody uses is freed there too. Two
+calls never share a buffer, so there is nothing to release by hand.
+
+Only an array that belongs to the function can be moved out. A parameter, a `shared` or `static`
+array and a field all belong to somebody else: handing one back would leave its owner pointing at
+freed memory, and the other way to do it is a copy, which tiko does not make for you yet.
+
+```tiko
+{{#include ../examples/ch07/returnparam.tiko}}
+```
+
+```text
+returnparam.tiko(5,5): error TKO0840: 'a' is not a local array of this procedure, so returning it would need a copy, which is not supported yet; return a local array or a brace list
+     |
+   5 |     return a
+     |     ^
+```
+
+To hand back a copy, build a local array element by element and return that.
+
+The same care applies at the call. The name of a function that returns an array needs its
+parentheses, so `var b = FirstPrimes` is `TKO0841` rather than a call. An array is not a number, so
+`dim as int32 x = FirstPrimes( )` is `TKO0842`. And `dim a( ) as int32 = FirstPrimes( )` is
+`TKO0612`, as it is for any initialised dynamic array: `var` takes the result, `dim` does not.
+
+```admonish warning title="Status in this version"
+**A call whose argument is another array result is dropped at the pinned compiler.**
+`var d = Doubled( Evens( 4 ) )` compiles, prints nothing and says nothing, and passing such a call
+to a scalar parameter does the same. Both are fixed in the repository after the pin: the first
+works, and the second is `TKO0842`. Until the pin moves, put the inner result in a variable first —
+`var e = Evens( 4 )`, then `Doubled( e( ) )`.
+
+Two limits remain. A function type cannot return an array (`as function( ) as int32( )` is
+`TKO0837`), and array results of properties and operators have not been tried.
+```
+
 ## Walking it
 
 ```tiko
@@ -290,6 +362,8 @@ simpler, and stop as soon as it is not.
   measure before you decide it is not worth it afterwards.
 - **`for each byref` avoids copying each element**, which is free to write and matters for large
   ones.
+- **Returning an array moves it.** The cost is one descriptor, a fixed few hundred bytes, whatever
+  the length of the array; the elements are never copied.
 
 ## Summary
 
@@ -302,6 +376,9 @@ simpler, and stop as soon as it is not.
 - Dimensions are comma-separated, `ubound( m, 2 )` names one, and **the last subscript varies
   fastest**.
 - Arrays pass by reference as `a( )`, carrying their bounds; a rank-2 parameter is written `m( , )`.
+- A function returns an array with `as int32( )`. `return` takes a brace list, a **local** array
+  (moved, never copied) or another call, and the caller owns the result: `var` takes it, `m = f( )`
+  replaces what `m` held. A parameter or `shared` array cannot be returned (`TKO0840`).
 - `for each` gives copies, `for each byref` gives the elements, and neither will walk a
   multi-dimensional array (`TKO0608`).
 - **`-exx` does not check dynamic arrays at this version (T21)** — compare against `lbound` and
@@ -327,3 +404,7 @@ simpler, and stop as soon as it is not.
    version is for.
 5. Build a 200 × 200 array and sum it twice: once with the last subscript innermost, once with the
    loops swapped. Both give the same total. Which do you expect to be faster, and why?
+6. Write `Evens( byval n as int32 )`, returning the first `n` even numbers as an array indexed from
+   1, and `Doubled( a( ) as int32 )`, returning a new array of the same bounds with every element
+   doubled. Take `var e = Evens( 4 )` and print `Doubled( e( ) )` with `for each`. Why can `Doubled`
+   not simply `return a`?

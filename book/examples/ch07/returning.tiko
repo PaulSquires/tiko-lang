@@ -1,0 +1,53 @@
+'' returning.tiko -- a function can hand back a dynamic array.
+
+'' A brace list: the array is sized to the list and filled.
+function FirstPrimes( ) as int32( )
+    return { 2, 3, 5, 7, 11 }
+end function
+
+'' A local array, built in a loop and moved out. Nothing is copied,
+'' and the bounds the function chose travel with it.
+function Squares( byval n as int32 ) as int32( )
+    dim r( ) as int32
+    redim r( 1 to n )
+    for i as int32 = 1 to n
+        r( i ) = i * i
+    next
+    return r
+end function
+
+'' Any element type works.
+function Greetings( ) as ustring( )
+    return { "hello", "bonjour", "hola" }
+end function
+
+sub ShowSum( a( ) as int32 )
+    dim as int32 total = 0
+    for i as int32 = lbound( a ) to ubound( a )
+        total += a( i )
+    next
+    print "sum of " & lbound( a ) & " to " & ubound( a ) & " = " & total
+end sub
+
+'' var takes the result as it is: type, bounds and all.
+var p = FirstPrimes( )
+print "primes " & lbound( p ) & " to " & ubound( p ) & _
+      ", p(4) = " & p( 4 )
+
+var sq = Squares( 5 )
+print "squares " & lbound( sq ) & " to " & ubound( sq ) & _
+      ", sq(5) = " & sq( 5 )
+
+'' A result can go straight to a parameter that takes an array.
+ShowSum( Squares( 4 ) )
+
+'' for each walks a result, and the array is freed afterwards.
+for each g as ustring in Greetings( )
+    print g
+next
+
+'' Assigning moves the new array in and frees the old one.
+dim as int32 m( )
+m = FirstPrimes( )
+m = Squares( 3 )
+print "m is now " & lbound( m ) & " to " & ubound( m )

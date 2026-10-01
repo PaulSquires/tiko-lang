@@ -18,6 +18,7 @@
 - [For Each](Category-For-Each)
 - [Iterators](Category-Iterators)
 - [Tuples](Category-Tuples)
+- [Array Results](Category-Array-Results)
 - [Defer](Category-Defer)
 - [Lambdas](Category-Lambdas)
 - [C Header Import](Category-C-Header-Import)

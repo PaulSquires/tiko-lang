@@ -1,0 +1,6 @@
+'' returnparam.tiko -- an array that is not the function's own cannot
+'' be handed back: its owner would be left holding freed memory.
+
+function Same( a( ) as int32 ) as int32( )
+    return a
+end function

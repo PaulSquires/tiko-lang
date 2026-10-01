@@ -50,6 +50,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Array Container](Category-Array) — *Array*
 - [Array Functions](Array-Functions) — *Array Functions*
 - [Array Index](Array-Index) — *Tutorials*
+- [Array Results](Category-Array-Results) — *Array Results*
 - [ArrayIterator](Modern-Array-ArrayIterator) — *Array*
 - [Arraylen](Arraylen) — *Array Functions*
 - [Arrays](Arrays) — *Compiler Internals*

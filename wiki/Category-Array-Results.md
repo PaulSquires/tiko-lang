@@ -40,7 +40,7 @@ end function
 
 `function = { 1, 2 }` takes the same three; a second `function =` replaces the first. A body that returns nothing returns an empty array (`ubound` is `-1`).
 
-A **parameter**, a `shared` or `static` array or a field would have to be *copied*, which is not supported yet: TKO0840. Move-only is deliberate -- moving one of those out would leave its owner holding freed memory.
+A **parameter**, a `shared` or `static` array or a field would have to be *copied*, which is not supported yet: TKO0840 (TKO0838 when written `this.items`). Move-only is deliberate -- moving one of those out would leave its owner holding freed memory.
 
 ## At The Call Site
 
@@ -49,6 +49,7 @@ var i = foo( )                 ' the variable IS the array
 dim as integer m( )
 m = foo( )                     ' the old elements are erased, the new ones moved in
 show( foo( ) )                 ' into a by-descriptor parameter; erased with the statement
+var d = Doubled( foo( ) )      ' one array result straight into another call
 for each e as integer in foo( ) : print e : next
 foo( )                         ' an unused result is erased at the end of the statement
 ```
@@ -63,7 +64,7 @@ A result is always **owned by the caller**, so none of these copies or leaks. Tw
 | `as function( ) as integer( )` | a procedure type cannot return an array (TKO0837) |
 | `return 5`, `return r` over a different element type | not something an array result can be built from (TKO0838) |
 | `var b = foo` | write the parentheses (TKO0841) |
-| `dim x as integer = foo( )`, `return foo( )` from an `integer` function | an array converts to nothing else (TKO0842) |
+| `dim x as integer = foo( )`, `return foo( )` from an `integer` function, `TakesInt( foo( ) )` | an array converts to nothing else (TKO0842) |
 | `dim a( ) as integer = foo( )` | TKO0612, as fbc says of any initialised dynamic array. Use `var a = foo( )` |
 | `declare ... as integer( )` defined `as integer` | the result must agree with its declaration (TKO0793) |
 | `foo( )( 1 )` | not a procedure pointer (TKO0772). Assign the result to a variable first |
