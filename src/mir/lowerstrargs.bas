@@ -699,6 +699,8 @@ function UStrOutOperand_ _
     '' 'anyChain' -- a concatenation whose terms are ustrings.
     if UStrResultArgTemp_( c, it, ut, outv, outSlot, true ) then return true
     if FixedUStrArgTemp_( c, it, outv, outSlot ) then return true
+    '' A UDT CASTING TO A USTRING passes the cast's own descriptor, as PRINT does (T50).
+    if UdtCastIsUStr_( c, it ) then return StrDescriptorOf_( c, it, outv )
     if IsUStringType( c, c.info->TypeOf_( it ) ) = false then return false
     outv = LowerAddr( c, it )
     return (outv.kind <> cast( ubyte, MV_NONE ))

@@ -551,9 +551,11 @@ end function
 '' folded, procedures included.
 '' UdtMemberSym_ is declared in checkbase.bas, above.
 
+declare function UdtCastsToUStr_( byref c as Ctx, byval t as Tko.TypeId ) as boolean   '' udtcastu.bas, below
 #include once "symbols/overload.bas"
 
 #include once "symbols/intrinsics.bas"
+#include once "symbols/udtcastu.bas"
 
 
 '' THE '__fbinvoke' OF A CLOSURE TYPE, or nothing when this is not one. Resolve

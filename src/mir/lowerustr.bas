@@ -51,6 +51,9 @@ function LowerUStrIntrin_ _
             if a0t.Count > 1 then a0U = ConcatTermsAreU_( c, a0t )
         end if
     end if
+    '' ...AND SO DOES A UDT WHOSE STRING CONVERSION IS A USTRING (T50): StrDescriptorOf_
+    '' below hands back the cast's own UTF-16 descriptor, which the narrow twin misread.
+    if a0U = false then a0U = UdtCastIsUStr_( c, a0 )
     if a0U = false then return false
 
     dim as Tko.NodeId a1 = Tko.NODE_NONE

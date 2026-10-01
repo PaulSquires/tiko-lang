@@ -507,7 +507,7 @@ private function ExprIntrinsicType_ _
     '' every 'asc' fed a LONGINT where fbc has a LONG.
     case "asc"      '' ...but LONG over a USTRING, whose fb_UStrAsc is int32: measured, typeof( asc( u ) )
         if isStr = false then return NotAString_( c, cp, nm, a0 )
-        return c.types->Builtin( iif( ab = Tko.TY_USTRING, Tko.TY_LONG, Tko.TY_ULONG ) )
+        return c.types->Builtin( iif( (ab = Tko.TY_USTRING) andalso (c.types->Kind( c.types->Unqualify( a0 ) ) <> Tko.TK_UDT), Tko.TY_LONG, Tko.TY_ULONG ) )   '' a UDT casting to one stays ULONG, measured (T50)
     '' THE VAL FAMILY, which was not in this table at all -- so 'print val( s )' had
     '' nothing to print and declined, while 'dim as double d = val( s )' lowered
     '' because the DECLARATION supplies the type. Measured with '#print typeof', and

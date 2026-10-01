@@ -97,6 +97,7 @@ private function WriteOne_ _
     '' A CHAIN IS ONE if any term is, the rule PrintStrRtl_ follows: Check types every
     '' '&' as STRING, so the type alone says narrow for 'u1 & u2'.
     dim as boolean itIsU = IsUStringType( c, t )
+    if itIsU = false then itIsU = UdtCastIsUStr_( c, it )   '' a UDT casting to a ustring (T50)
     if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
         dim as FB.Array( of ulong ) uts
         FlattenConcat( c, it, uts )

@@ -713,7 +713,7 @@ private function ConcatHasUString_ _
     if t = Tko.TYPE_NONE then return false
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return UdtCastsToUStr_( c, u )   '' a UDT term casting to a ustring (T50)
     dim as Tko.BuiltinType bt = c.types->BuiltinOf( u )
     if bt = Tko.TY_USTRING then return true
     if c.ast->Kind( id ) <> Tko.N_BINARY then return false

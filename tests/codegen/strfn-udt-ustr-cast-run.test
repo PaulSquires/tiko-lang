@@ -1,0 +1,24 @@
+'' T50, RUN: the string functions over a UDT whose 'operator cast' returns a USTRING take
+'' it as a ustring, as fbc does: ucase, lcase, left, right, mid, trim and its twins,
+'' instr and instrrev, asc (ULONG, as fbc types it), str -- the cast itself, USTRING --
+'' and write, directly and inside a concatenation. tiko read the cast's UTF-16 data as
+'' narrow bytes ('(' or '(4,' for '(4, 6)'), and once T39 made it UTF-16 'str' converted
+'' it to narrow under a USTRING type. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/strfn-udt-ustr-cast.bas -o tests/codegen/strfnudtustrcast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/strfnudtustrcast.exe
+'' RUN: tests/codegen/strfnudtustrcast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: (4, 6) (4, 6) Q(4, 6)
+'' EXPECT-RUN-OUT: (4 6) 4,  4, 6)
+'' EXPECT-RUN-OUT: (4, 6)(4, 6)(4, 6)(4, 6)
+'' EXPECT-RUN-OUT: (4, 6) w3 6
+'' EXPECT-RUN-OUT:  840 5 3 0
+'' EXPECT-RUN-OUT: "(4, 6)"
+'' EXPECT-RUN-OUT: "(4, 6)",5,"w3"
+'' EXPECT-RUN-OUT: (4, 6)
+'' EXPECT-RUN-OUT: (4, 6)
+'' EXPECT-RUN-OUT: (4
+'' EXPECT-RUN-OUT: (4, 6)!W3w

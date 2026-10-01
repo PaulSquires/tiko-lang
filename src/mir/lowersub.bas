@@ -276,6 +276,9 @@ function LowerStrOf_ _
     '' operand may be a wstring, a 'wstring * N' or a UDT that CASTS to one, which is
     '' exactly the set TermIsWide_ answers for.
     '' ...and OVER A USTRING it converts too -- see UStrOperandToNarrow_.
+    '' ...BUT OVER A UDT WHOSE CAST IS A USTRING IT IS THAT CAST, unconverted (T50): measured,
+    '' '#print typeof( str( v ) )' is USTRING and fbc emits the cast then fb_UStrAssign.
+    if UdtCastIsUStr_( c, sa ) then return StrDescriptorOf_( c, sa, outv )
     dim as boolean nconv = false
     if NarrowConvOf_( c, sa, outv, nconv ) then return true
     if nconv then return false
@@ -549,6 +552,7 @@ function LowerStrNumCall_ _
         '' while 'w = u' and 'dim w as wstring * 10 = u' beside it both lowered, because
         '' WideOperand_ has known about the cast all along.
         dim as boolean ascU = IsUStringType( c, c.info->TypeOf_( a0asc ) )  '' fb_UStrAsc( u, -1, n )
+        if ascU = false then ascU = UdtCastIsUStr_( c, a0asc )   '' a UDT casting to a ustring (T50)
         dim as RtlId ascR = RTL_STR_ASC : if ascU then ascR = RTL_USTR_ASC
         dim as MirValue sd
         dim as FB.Array( of ulong ) aa
@@ -655,6 +659,7 @@ function LowerStrNumCall_ _
     '' "x", "x" )' went to the NARROW fb_StrInstr over the UTF-16 temporary and answered 0.
     '' Measured, fbc concatenates with fb_UStrConcat and calls fb_UStrInstr: 7.
     isU = isU orelse IsUStrChain_( c, sE ) orelse IsUStrChain_( c, tE )
+    isU = isU orelse UdtCastIsUStr_( c, sE ) orelse UdtCastIsUStr_( c, tE )   '' a ustring cast (T50)
     '' ...AND A WIDE OPERAND BESIDE ONE IS CONVERTED, not refused. This declined, so
     '' 'print instr( u, wchr( c ) )' printed nothing and 'return instr( s, wchr( c ) ) <> 0'
     '' returned no value at all -- clang's "value doesn't match function result type",
