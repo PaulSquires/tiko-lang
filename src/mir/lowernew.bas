@@ -448,8 +448,9 @@ function LowerNew_ _
     dim as boolean fieldInit = false
     '' PLAIN DATA ONLY: a type that needs construction -- a string field, say -- takes no
     '' field list from 'new', and fbc refuses one (error 99).
-    if (ctor = Tko.SYMBOL_NONE) andalso (argCount >= 1) andalso (implCopy = false) andalso _
-       (scalarInit = false) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
+    dim as boolean fiCand = (ctor = Tko.SYMBOL_NONE) andalso (argCount >= 1)
+    fiCand = fiCand andalso (implCopy = false) andalso (scalarInit = false)
+    if fiCand andalso (c.types->Kind( el ) = Tko.TK_UDT) then
         fieldInit = (TypeNeedsInit_( c, el ) = false)
         '' ...AND ONLY A LIST OF SCALAR FIELDS, decided BEFORE the guard is built: the
         '' field-by-field initialiser refuses a record-typed field, and refusing after
