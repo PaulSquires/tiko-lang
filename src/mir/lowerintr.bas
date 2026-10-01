@@ -178,9 +178,9 @@ end function
 '' libc's free -- not an fb_* entry point. 'delete[] q' over a scalar array is the same
 '' without the destructor call.
 ''
-'' DECLINED for an ARRAY of a type that HAS a destructor: fbc has to run one per
-'' element and needs the count to do it, which is not in the pointer. Getting that wrong
-'' would leak or double-free, so it declines rather than guesses.
+'' AN ARRAY of a type that HAS a destructor runs one per element, last first, with the
+'' count read from the cookie 'new T[n]' wrote before the first element, and releases
+'' the cookie's address -- LowerDeleteArray_ in lowernew.bas (T37).
 '' 'new T', 'new T( args )', 'new T[ n ]'.
 ''
 '' Measured, and the surprises are worth stating because none of them is guessable:
@@ -243,7 +243,7 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' and fbc warns 38 on it.
     dim as boolean anyDtor = (dtor <> Tko.SYMBOL_NONE)
     if anyDtor = false then anyDtor = implDtor
-    if isArray andalso anyDtor then return false
+    if isArray andalso anyDtor then return LowerDeleteArray_( c, sp->a, el, dtor, implDtor )
 
     dim as MirValue p = LowerExpr( c, sp->a )
     if p.kind = cast( ubyte, MV_NONE ) then return false

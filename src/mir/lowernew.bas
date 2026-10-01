@@ -23,7 +23,8 @@
 ''
 '' -- so the count is a RUNTIME value, the loop runs backwards to zero, and the whole
 '' thing is guarded by the same null check the scalar form has. There is no cookie: a
-'' trivial destructor needs no count and fbc emits none.
+'' trivial destructor needs no count and fbc emits none. A type WITH ONE gets the cookie
+'' (T37) -- see 'THE COOKIE' below, and LowerDeleteArray_ for the other half.
 ''
 '' fbc accepts no constructor ARGUMENTS in this form, so the child list holds the count
 '' and nothing else.
@@ -70,6 +71,33 @@ private function LowerNewArray_ _
     mul.b = ConstInt( c, esz, zt )
     dim as MirValue bytes_ = Emit( c, mul )
     if bytes_.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' THE COOKIE (T37), keyed on "the type has a destructor" -- a written one or the one
+    '' fbc writes for a string field -- and never on a placement array. Measured:
+    ''
+    ''     void* vr = calloc( 20ull, 1ull );        3 * 4 + 8: the header is in the size,
+    ''     if( TMP == 0 ) goto DONE;                and in what 'operator new[]' and the
+    ''     *(uint64*)TMP = 3ull;                    '{ any }' malloc are handed too
+    ''     TMP = (struct NOISY*)((uint8*)TMP + 8ll);
+    ''
+    '' Without it 'delete[]' had no count, declined, and ran no destructor at all.
+    dim as long ckBytes = c.types->target.pointerBits \ 8
+    dim as boolean cookie = false
+    if isPlace = false then
+        cookie = (DtorOf_( c, el ) <> Tko.SYMBOL_NONE)
+        if cookie = false then
+            if c.types->Kind( el ) = Tko.TK_UDT then cookie = TypeNeedsDtor_( c, el )
+        end if
+    end if
+    if cookie then
+        dim as MirInst hdr
+        hdr.op = cast( ushort, M_ADD )
+        hdr.ty = cast( ubyte, zt )
+        hdr.a = bytes_
+        hdr.b = ConstInt( c, ckBytes, zt )
+        bytes_ = Emit( c, hdr )
+        if bytes_.kind = cast( ubyte, MV_NONE ) then return false
+    end if
 
     '' A PLACEMENT ARRAY ALLOCATES NOTHING EITHER, and it has no cookie to write,
     '' so the byte count computed above is used only to ZERO a trivial element type.
@@ -129,6 +157,32 @@ private function LowerNewArray_ _
     saddr.ty = cast( ubyte, MT_PTR )
     saddr.id = slot
     StoreThrough( c, saddr, raw )
+
+    '' The count at offset 0 and the pointer past it, inside the allocation's null check.
+    if cookie then
+        dim as MirInst ckz
+        ckz.op = cast( ushort, M_ICMP_NE )
+        ckz.ty = cast( ubyte, MT_I32 )
+        ckz.a = raw
+        ckz.b = ConstInt( c, 0, MT_PTR )
+        dim as MirValue ckok = Emit( c, ckz )
+        if ckok.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long ckB = NewBlock( c, "newarr.cookie" )
+        dim as long ckJ = NewBlock( c, "newarr.cookied" )
+        Terminate( c, MTERM_CONDBR, ckB, ckJ, ckok )
+        c.curBlock = ckB
+        StoreThrough( c, raw, cnt )
+        dim as MirInst bump
+        bump.op = cast( ushort, M_PTR_ADD )
+        bump.ty = cast( ubyte, MT_PTR )
+        bump.a = raw
+        bump.b = ConstInt( c, ckBytes, zt )
+        dim as MirValue past = Emit( c, bump )
+        if past.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, saddr, past )
+        Terminate( c, MTERM_BR, ckJ, -1, NoVal( ) )
+        c.curBlock = ckJ
+    end if
 
     '' A CONSTRUCTOR PER ELEMENT, guarded by the null check and counted down. A type
     '' with none needs no loop at all: calloc has already zeroed the storage.
@@ -540,4 +594,130 @@ function LowerNew_ _
 
     outv = LowerExprLoad( c, saddr, MT_PTR )
     return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'delete[] p' OVER A TYPE WITH A DESTRUCTOR (T37) -- the other half of the cookie
+'' LowerNewArray_ writes. Measured, fbc:
+''
+''     if( P == 0 ) goto DONE;
+''     N = *(int64*)((uint8*)P + -8ll);
+''     CUR = (struct NOISY*)((uint8*)P + (N << 2));
+''     LOOP: if( N == 0 ) goto END;
+''           CUR = (struct NOISY*)((uint8*)CUR + -4ll);
+''           _ZN5NOISYD1Ev( CUR );                 LAST ELEMENT FIRST
+''           N = N - 1;  goto LOOP;
+''     END:  free( (void*)((uint8*)P + -8ll) );   or 'operator delete[]', same pointer
+''     DONE:
+''
+'' The destructor is called directly, by the static type, as fbc does for an array.
+function LowerDeleteArray_ _
+    ( byref c as Ctx, byval pe as Tko.NodeId, byval el as Tko.TypeId, _
+      byval dtor as Tko.SymbolId, byval implDtor as boolean ) as boolean
+
+    dim as long esz = SizeOfType( c, c.types->Unqualify( el ) )
+    if esz <= 0 then return false
+    dim as MirType zt = MT_I64
+    if c.types->target.pointerBits = 32 then zt = MT_I32
+    dim as long pbytes = c.types->target.pointerBits \ 8
+
+    dim as MirValue p = LowerExpr( c, pe )
+    if p.kind = cast( ubyte, MV_NONE ) then return false
+    p = Coerce( c, p, MT_PTR )
+    dim as MirInst nz
+    nz.op = cast( ushort, M_ICMP_NE )
+    nz.ty = cast( ubyte, MT_I32 )
+    nz.a = p
+    nz.b = ConstInt( c, 0, MT_PTR )
+    dim as MirValue okv = Emit( c, nz )
+    if okv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long bodyB = NewBlock( c, "delarr.body" )
+    dim as long testB = NewBlock( c, "delarr.test" )
+    dim as long loopB = NewBlock( c, "delarr.loop" )
+    dim as long freeB = NewBlock( c, "delarr.free" )
+    dim as long joinB = NewBlock( c, "delarr.join" )
+    Terminate( c, MTERM_CONDBR, bodyB, joinB, okv )
+
+    c.curBlock = bodyB
+    dim as MirInst hb
+    hb.op = cast( ushort, M_PTR_ADD )
+    hb.ty = cast( ubyte, MT_PTR )
+    hb.a = p
+    hb.b = ConstInt( c, -pbytes, zt )
+    dim as MirValue base_ = Emit( c, hb )
+    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue n = LowerExprLoad( c, base_, zt )
+    if n.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst mul
+    mul.op = cast( ushort, M_MUL )
+    mul.ty = cast( ubyte, zt )
+    mul.a = n
+    mul.b = ConstInt( c, esz, zt )
+    dim as MirInst endp
+    endp.op = cast( ushort, M_PTR_ADD )
+    endp.ty = cast( ubyte, MT_PTR )
+    endp.a = p
+    endp.b = Emit( c, mul )
+    dim as MirValue ev = Emit( c, endp )
+    if ev.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long cursor = NewTempLocal( c, MT_PTR, pbytes )
+    dim as long left_ = NewTempLocal( c, zt, TyWidthBytes_( zt ) )
+    if (cursor < 0) orelse (left_ < 0) then return false
+    dim as MirValue cur, rem_
+    cur.kind = cast( ubyte, MV_LOCAL ) : cur.ty = cast( ubyte, MT_PTR ) : cur.id = cursor
+    rem_.kind = cast( ubyte, MV_LOCAL ) : rem_.ty = cast( ubyte, MT_PTR ) : rem_.id = left_
+    StoreThrough( c, cur, ev )
+    StoreThrough( c, rem_, n )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = testB
+    dim as MirValue rv = LowerExprLoad( c, rem_, zt )
+    if rv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst more
+    more.op = cast( ushort, M_ICMP_NE )
+    more.ty = cast( ubyte, MT_I32 )
+    more.a = rv
+    more.b = ConstInt( c, 0, zt )
+    dim as MirValue mv = Emit( c, more )
+    if mv.kind = cast( ubyte, MV_NONE ) then return false
+    Terminate( c, MTERM_CONDBR, loopB, freeB, mv )
+
+    c.curBlock = loopB
+    dim as MirValue cv = LowerExprLoad( c, cur, MT_PTR )
+    if cv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst back
+    back.op = cast( ushort, M_PTR_ADD )
+    back.ty = cast( ubyte, MT_PTR )
+    back.a = cv
+    back.b = ConstInt( c, -esz, zt )
+    dim as MirValue pv = Emit( c, back )
+    if pv.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, cur, pv )
+    if dtor <> Tko.SYMBOL_NONE then
+        EmitStructorCall( c, dtor, -1, @pv )
+    elseif implDtor then
+        CallImplicitDtor_( c, el, pv )
+    end if
+    dim as MirValue rv2 = LowerExprLoad( c, rem_, zt )
+    if rv2.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst dec
+    dec.op = cast( ushort, M_SUB )
+    dec.ty = cast( ubyte, zt )
+    dec.a = rv2
+    dec.b = ConstInt( c, 1, zt )
+    StoreThrough( c, rem_, Emit( c, dec ) )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    '' THE COOKIE'S ADDRESS IS WHAT WAS ALLOCATED, so it is what is released.
+    c.curBlock = freeB
+    dim as FB.Array( of ulong ) da
+    da.Push( cast( ulong, base_.kind ) ) : da.Push( cast( ulong, base_.id ) )
+    dim as Tko.SymbolId opDel = StructorWithArity( c, StructorOf( c, el, "delete[]" ), 1 )
+    if opDel <> Tko.SYMBOL_NONE then
+        EmitDirectCall_( c, opDel, MT_VOID, da )
+    else
+        EmitRtl( c, RTL_FREE, da )
+    end if
+    Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
+    c.curBlock = joinB
+    return true
 end function

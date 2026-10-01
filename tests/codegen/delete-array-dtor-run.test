@@ -1,0 +1,28 @@
+'' T37, RUN: 'delete[]' over a type with a destructor runs it once per element, last
+'' first, as fbc does. 'new T[n]' wrote no count, so 'delete[]' had none to loop over,
+'' declined, and ran no destructor at all. 'new T[n]' now writes fbc's cookie -- the
+'' element count in 8 bytes before the first element, counted in the allocation's size
+'' -- for a written destructor or one a string field implies, with '{ any }', with
+'' 'operator new[]' (handed 2 * 4 + 8 = 16) and for a zero count; 'delete[]' reads it
+'' back and releases the cookie's address, through 'operator delete[]' where there is
+'' one. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/delete-array-dtor.bas -o tests/codegen/deletearraydtor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/deletearraydtor.exe
+'' RUN: tests/codegen/deletearraydtor.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor
+'' EXPECT-RUN-OUT: ctor
+'' EXPECT-RUN-OUT: ctor
+'' EXPECT-RUN-OUT: dtor 2
+'' EXPECT-RUN-OUT: dtor 1
+'' EXPECT-RUN-OUT: dtor 0
+'' EXPECT-RUN-OUT: d 6
+'' EXPECT-RUN-OUT: d 5
+'' EXPECT-RUN-OUT: new[]16
+'' EXPECT-RUN-OUT: od 0
+'' EXPECT-RUN-OUT: od 0
+'' EXPECT-RUN-OUT: delete[]
+'' EXPECT-RUN-OUT: end
