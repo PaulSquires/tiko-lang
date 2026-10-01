@@ -1,0 +1,5 @@
+p[2] = 30,  *( p + 3 ) = 40
+int32 ptr + 1 moves 4
+uint8 ptr + 1 moves 1
+any ptr   + 1 moves 1
+walked: 10 20 30 40 50

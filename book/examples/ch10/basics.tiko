@@ -1,0 +1,25 @@
+'' basics.tiko -- an address, and what lives at it.
+
+dim as int32 n = 10
+dim as int32 ptr p = @n          '' @ takes the address
+
+print "*p ="; *p                 '' * reads what p points at
+*p = 20                          '' ... or writes it
+print "n is now"; n
+
+print "varptr( n ) is the same address: "; cbool( varptr( n ) = p )
+
+'' A pointer to a type reaches its fields with ->.
+type Point
+    x as int32
+    y as int32
+end type
+
+dim as Point pt = ( 3, 4 )
+dim as Point ptr pp = @pt
+pp->x = 30
+print "pt.x ="; pt.x; ", and (*pp).y ="; ( *pp ).y
+
+'' Zero is the null pointer: it points at nothing.
+dim as int32 ptr nothing_ = 0
+print "nothing_ is null: "; cbool( nothing_ = 0 )

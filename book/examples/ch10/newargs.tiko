@@ -1,0 +1,13 @@
+'' newargs.tiko -- new with a field list.
+''
+'' For a type with no constructor, the arguments to new fill its
+'' fields in order, as they do in a dim. This should print 3 4.
+
+type Point
+    x as int32
+    y as int32
+end type
+
+dim as Point ptr pt = new Point( 3, 4 )
+print pt->x; pt->y
+delete pt

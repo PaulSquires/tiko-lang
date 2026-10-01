@@ -1,0 +1,11 @@
+'' constptr.tiko -- const on either side of ptr.
+dim as int32 n = 5, m = 6
+
+dim as const int32 ptr readOnly = @n    '' can move; cannot write
+dim as int32 const ptr fixed_ = @n      '' cannot move; can write
+
+readOnly = @m                           '' fine
+*fixed_ = 9                             '' fine
+
+*readOnly = 1                           '' refused
+fixed_ = @m                             '' refused

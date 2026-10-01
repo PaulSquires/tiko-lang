@@ -1,0 +1,3 @@
+strptr( full )   is null: false
+strptr( empty_ ) is null: true
+after was = "", strptr is null: true

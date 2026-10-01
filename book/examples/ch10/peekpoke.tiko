@@ -1,0 +1,17 @@
+'' peekpoke.tiko -- reading and writing a value of a stated type at
+'' an address.
+
+dim as int32 v = &h01020304
+
+'' The lowest-addressed byte is the least significant: little-endian.
+'' @v is an int32 ptr, so @v + 3 would be 12 bytes on. Step in bytes
+'' through a uint8 ptr instead.
+dim as uint8 ptr at = cast( uint8 ptr, @v )
+print "byte 0 = "; peek( uint8, at ); _
+      "  byte 3 = "; peek( uint8, at + 3 )
+
+poke uint8, @v, &hFF                '' overwrite one byte
+print "after poking byte 0: &h"; hex( v, 8 )
+
+poke int32, @v, 7                   '' overwrite all four
+print "after poking an int32:"; v

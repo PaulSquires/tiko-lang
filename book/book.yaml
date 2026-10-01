@@ -54,7 +54,7 @@ parts:
   - name: "Building Abstractions"
     chapters:
       - { n: 9,  file: src/ch09-user-defined-types.md,   status: drafted }
-      - { n: 10, file: chapters/10-pointers-memory.md,    status: planned }
+      - { n: 10, file: src/ch10-pointers-memory.md,       status: drafted }
       - { n: 11, file: chapters/11-objects.md,            status: planned }
       - { n: 12, file: chapters/12-operator-overloading.md, status: planned }
       - { n: 13, file: chapters/13-inheritance.md,        status: planned }

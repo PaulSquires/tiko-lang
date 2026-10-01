@@ -231,7 +231,8 @@ not and prints `not reached`, which is the outcome the check exists to prevent.
 
 The check covers arrays whose size is fixed at compile time. Arrays that grow while the program
 runs are not checked at this version — Chapter 7 says what to do about that, at the point where
-you first make one.
+you first make one. The null-pointer check is similarly partial: it catches `*p`, but not yet
+`p->field` or `p[i]`, which Chapter 10 covers.
 
 There are three levels, and they stack: `-e` enables error checking, `-ex` adds to it, and `-exx`
 adds array bounds and null-pointer checks on top. Chapter 17 comes back to them alongside the

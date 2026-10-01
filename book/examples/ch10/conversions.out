@@ -1,0 +1,4 @@
+through any ptr and back: 70000
+the bytes of 70000: 112 17 1 0
+as two uint16: 4464 1
+and 4464 + 1 * 65536 = 70000 -- the low half comes first

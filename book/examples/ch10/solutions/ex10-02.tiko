@@ -1,0 +1,53 @@
+'' ex10-02.tiko -- reverse a linked list in place.
+''
+'' Three pointers walk the list once: the node already reversed, the
+'' current node, and the one after it -- saved before current's link
+'' is overwritten, or the rest of the list is lost.
+
+type Node
+    value as int32
+    next_ as Node ptr
+end type
+
+function Reverse( byval head as Node ptr ) as Node ptr
+    dim as Node ptr done_ = 0
+    dim as Node ptr cur = head
+    do while cur <> 0
+        dim as Node ptr after = cur->next_   '' save it first
+        cur->next_ = done_
+        done_ = cur
+        cur = after
+    loop
+    return done_
+end function
+
+sub Show( byref label as ustring, byval p as Node ptr )
+    print label;
+    do while p <> 0
+        print p->value;
+        p = p->next_
+    loop
+    print
+end sub
+
+'' Build 1 -> 2 -> 3 -> 4 by appending at the tail.
+dim as Node ptr head = 0, tail = 0
+for i as int32 = 1 to 4
+    dim as Node ptr n = new Node
+    n->value = i
+    if head = 0 then head = n else tail->next_ = n
+    tail = n
+next
+
+Show( "before:", head )
+head = Reverse( head )
+Show( "after: ", head )
+
+'' Reversing an empty list, or a single node, must also work.
+Show( "empty: ", Reverse( 0 ) )
+
+do while head <> 0
+    dim as Node ptr after = head->next_
+    delete head
+    head = after
+loop

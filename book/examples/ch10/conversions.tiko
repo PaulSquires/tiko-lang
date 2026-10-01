@@ -1,0 +1,19 @@
+'' conversions.tiko -- any ptr, and changing what a pointer points at.
+
+dim as int32 n = 70000
+
+'' any ptr holds an address of anything. Every pointer converts to
+'' it, and it converts back to any pointer type, without a cast.
+dim as any ptr raw = @n
+dim as int32 ptr back = raw
+print "through any ptr and back:"; *back
+
+'' Between two typed pointers, say what you mean with cptr or cast.
+dim as uint8 ptr bytes = cptr( uint8 ptr, @n )
+print "the bytes of 70000:";
+for i as int32 = 0 to 3 : print " "; bytes[i]; : next
+print
+
+dim as uint16 ptr halves = cast( uint16 ptr, @n )
+print "as two uint16: "; halves[0]; " "; halves[1]
+print "and 4464 + 1 * 65536 = 70000 -- the low half comes first"

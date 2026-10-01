@@ -1,0 +1,22 @@
+'' newdelete.tiko -- typed allocation.
+
+'' new knows the type: no sizeof, no cast, and the memory is zeroed.
+dim as int32 ptr one = new int32( 42 )
+print "new int32( 42 ):"; *one
+delete one
+
+dim as float64 ptr several = new float64[ 3 ]
+several[0] = 1.5 : several[2] = 2.5
+print "new float64[ 3 ]:"; several[0]; several[1]; several[2]
+delete[] several                '' [] matches the [] in new
+
+type Point
+    x as int32
+    y as int32
+end type
+
+dim as Point ptr pt = new Point
+print "new Point starts at"; pt->x; pt->y
+pt->x = 3 : pt->y = 4
+print "and is now"; pt->x; pt->y
+delete pt

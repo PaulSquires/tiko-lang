@@ -1,0 +1,5 @@
+allocated: 10 20 30 40
+reallocated: 10 40 and new 50 60
+callocated: 0 0 0 0
+after clear( 255 ): -1 -1
+done

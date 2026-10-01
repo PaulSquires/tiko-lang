@@ -1,0 +1,13 @@
+'' nullmember.tiko -- a field through a null pointer, under -exx.
+''
+'' -exx checks *p. It should check p->x too, and stop with the same
+'' runtime error 7 that nullcheck.tiko shows.
+#cmdline "-exx"
+
+type Point
+    x as int32
+end type
+
+dim as Point ptr p = 0
+print p->x
+print "not reached"

@@ -1,0 +1,38 @@
+'' linkednodes.tiko -- a list built on the heap, walked, and freed.
+
+type Node
+    value as int32
+    next_ as Node ptr
+end type
+
+'' Push a value on the front. The new node points at the old head,
+'' and becomes the head.
+function Push( byval head as Node ptr, byval v as int32 ) as Node ptr
+    dim as Node ptr n = new Node
+    n->value = v
+    n->next_ = head
+    return n
+end function
+
+dim as Node ptr head = 0
+for i as int32 = 1 to 5
+    head = Push( head, i * i )
+next
+
+print "the list:";
+dim as Node ptr p = head
+do while p <> 0
+    print p->value;
+    p = p->next_
+loop
+print
+
+'' Free every node. Read next_ BEFORE deleting the node it is in.
+dim as int32 freed = 0
+do while head <> 0
+    dim as Node ptr after = head->next_
+    delete head
+    head = after
+    freed += 1
+loop
+print "freed"; freed; " nodes"

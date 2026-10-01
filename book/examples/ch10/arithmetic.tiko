@@ -1,0 +1,24 @@
+'' arithmetic.tiko -- pointer arithmetic counts elements, not bytes.
+
+dim as int32 a( 0 to 4 ) = { 10, 20, 30, 40, 50 }
+dim as int32 ptr p = @a( 0 )
+
+print "p[2] ="; p[2]; ",  *( p + 3 ) ="; *( p + 3 )
+
+'' How far does + 1 move? It depends on what the pointer points at.
+dim as uint8 ptr b = cast( uint8 ptr, p )
+dim as any ptr v = p
+
+print "int32 ptr + 1 moves"; cast( integer, p + 1 ) - cast( integer, p )
+print "uint8 ptr + 1 moves"; cast( integer, b + 1 ) - cast( integer, b )
+print "any ptr   + 1 moves"; cast( integer, v + 1 ) - cast( integer, v )
+
+'' Walking a run of elements with a pointer.
+dim as int32 ptr last_ = @a( 4 )
+dim as int32 ptr q = p
+print "walked:";
+do while q <= last_
+    print *q;
+    q += 1
+loop
+print

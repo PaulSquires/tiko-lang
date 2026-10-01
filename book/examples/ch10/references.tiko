@@ -1,0 +1,23 @@
+'' references.tiko -- a second name for an existing variable.
+
+'' A byref parameter is a reference the caller sets up.
+sub Double_( byref n as int32 )
+    n *= 2
+end sub
+
+dim as int32 a = 21
+Double_( a )
+print "after Double_:"; a
+
+'' dim byref makes a reference inside a procedure or module. It must
+'' be bound when it is declared, and it stays bound to that variable.
+dim as int32 b = 5
+dim byref as int32 alias_ = b
+alias_ = 9
+print "b ="; b; ", same address: "; cbool( @alias_ = @b )
+
+'' A reference reads like a variable; a pointer reads like an
+'' address. Same machine code, different promises.
+dim as int32 ptr ptr_ = @b
+*ptr_ = 11
+print "b ="; b; " via a pointer, and"; alias_; " via the reference"

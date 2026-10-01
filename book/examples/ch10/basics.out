@@ -1,0 +1,5 @@
+*p = 10
+n is now 20
+varptr( n ) is the same address: true
+pt.x = 30, and (*pp).y = 4
+nothing_ is null: true
