@@ -112,7 +112,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 3 blocks, 62 insts, 3 statements not lowered, 0 scope imbalance
   inside N_VAR 3
-  skip-site src\mir\lower.bas:207 1
+  skip-site src\mir\lowervarinit.bas:15 1
   skip-site src\mir\lowerstore.bas:1243 2
 tests/diagnostics/src/extern-and-byref-init.bas(7,5): error TKO0600: 'a2' is already declared in this scope
      |

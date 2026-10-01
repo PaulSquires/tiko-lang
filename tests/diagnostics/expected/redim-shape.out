@@ -290,7 +290,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 269 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7
-  skip-site src\mir\lower.bas:224 7
+  skip-site src\mir\lowervarinit.bas:15 7
 tests/diagnostics/src/redim-shape.bas(18,7): error TKO0751: a REDIM that declares 'undeclared' must write its type
      |
   18 | redim undeclared( 1 to 2 )

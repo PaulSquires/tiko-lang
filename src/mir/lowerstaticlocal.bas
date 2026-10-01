@@ -234,6 +234,9 @@ function LowerStaticLocalInit_ _
         end if
     end if
 
+    '' A COLLECTION INITIALISER'S CALLS, inside the guard, so the elements go in once.
+    LowerCollInitCalls_( c, cast( Tko.NodeId, c.syms->SymbolAt( sid )->payload ) )
+
     '' ...AND THE INITIALISER'S TEMPORARIES DIE HERE, after the atexit call and still
     '' inside the guard -- measured, 'fb_StrDelete( &TMP$9$1 ); _ZN1HD1Ev( &TMP$6$1 );'
     '' on the line before the label. The statement's own flush runs in the join, on

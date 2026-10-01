@@ -18,6 +18,8 @@ for each s in q
 next
 ```
 
+A brace list fills one at the declaration: `dim l as LinkedList( of long ) = { 1, 2, 3 }` calls `PushBack` once per element. See [Collection Initializers](Category-Collection-Initializers).
+
 ## When To Use It
 
 It is the least important of the four containers, and it is here so that the answer to "what if I need a queue" is not "write your own".

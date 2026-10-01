@@ -475,6 +475,12 @@ namespace Tko
         '' left for an N_PROC that is not already somebody else's.
         as ChildPool   structorPrio
 
+        '' COLLECTION INITIALISERS -- 'dim a as Array( of integer ) = { 1, 2 }', a tiko
+        '' extension. Triples (item, original brace list, N_BLOCK of the method-call
+        '' statements Resolve built for that declarator) in the shared child pool. See
+        '' ast/collinit.bas and symbols/collinit.bas.
+        as ChildPool   collInit
+
         '' WHERE A PROCEDURE'S BODY ENDS -- pairs (proc node, loc of the last token of its
         '' 'end sub' / 'end function' ...), one per definition with a body. Nothing in the
         '' compiler reads it: the editor scan (src/driver/scan*.bas) does, to answer "which
@@ -499,6 +505,13 @@ namespace Tko
     end type
 
     declare function NodeKindName( byval k as NodeKind ) as string
+
+    '' ast/collinit.bas.
+    declare sub RecordCollInit _
+        ( byref ast as AstArena, byval item as NodeId, byval braces as NodeId, _
+          byval block as NodeId )
+    declare function CollInitOf( byref ast as AstArena, byval item as NodeId ) as NodeId
+
     declare function NodeKindCategory( byval k as NodeKind ) as NodeCategory
 
     '' OPEN's clause words, packed into StmtPayload.extra on the N_INTRINSIC node.

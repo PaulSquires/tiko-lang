@@ -1,0 +1,25 @@
+'' Collection initialisers, RUN: 'dim a as FB.Array( of integer ) = { 10, 20, 30 }' and the
+'' same over LinkedList, Map (nested braces: one Add per pair), Set, OrderedMap, OrderedSet,
+'' an empty list, two declarators, a user type with Add, one with only PushBack after its
+'' own constructor, a STATIC filled once, and locals whose elements are expressions.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/codegen/src/collinit.bas -o tests/codegen/collinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/collinit.exe
+'' RUN: tests/codegen/collinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 3: 10 20 30
+'' EXPECT-RUN-OUT: xyz
+'' EXPECT-RUN-OUT: 2 1 2
+'' EXPECT-RUN-OUT: set 2
+'' EXPECT-RUN-OUT: omap 2
+'' EXPECT-RUN-OUT: empty 0
+'' EXPECT-RUN-OUT: 1 2 3
+'' EXPECT-RUN-OUT: 1 pqr
+'' EXPECT-RUN-OUT: tally 404
+'' EXPECT-RUN-OUT: pod 7 8
+'' EXPECT-RUN-OUT: static 3
+'' EXPECT-RUN-OUT: static 4
+'' EXPECT-RUN-OUT: 5 10 5
+'' EXPECT-RUN-OUT: oset 3

@@ -1,0 +1,9 @@
+'' Collection initialisers through the std/containers facade: 'dim b as
+'' containers.Array( of integer ) = { 10, 20, 30 }', and LinkedList and Map (nested braces).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/collinit.bas -o tests/modules/stdcollinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdcollinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 3 10 30 2 2 2

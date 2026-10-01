@@ -13,6 +13,7 @@ src/source/manager.bas
 src/lexer/lexer.bas
 src/pp/pp.bas
 src/parser/expr.bas
+src/ast/collinit.bas
 src/parser/parser.bas
 src/parser/parserend.bas
 src/types/type.bas

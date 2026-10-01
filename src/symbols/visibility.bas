@@ -1312,6 +1312,7 @@ private sub Walk_ _
     Walk_( c, sp->a, inner, innerByref, innerConst, innerWith, innerResult )
     Walk_( c, sp->b, inner, innerByref, innerConst, innerWith, innerResult )
     Walk_( c, sp->c, inner, innerByref, innerConst, innerWith, innerResult )
+    if k = N_VAR_ITEM then Walk_( c, CollInitOf( *c.ast, id ), inner, innerByref, innerConst, innerWith, innerResult )  '' collinit.bas
     for i as long = 0 to sp->count - 1
         Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
     next

@@ -21,6 +21,8 @@ for each kv in ages
 next
 ```
 
+A brace list fills one at the declaration: `dim m as Map( of ustring, long ) = { {"a", 1}, {"b", 2} }` calls `Add( "a", 1 )` and `Add( "b", 2 )`. See [Collection Initializers](Category-Collection-Initializers).
+
 ## Why It Exists
 
 FreeBASIC had no hash map. The available answer was a COM Scripting.Dictionary from the Windows Script Runtime:

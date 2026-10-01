@@ -101,6 +101,7 @@ end function
 #include once "symbols/resolvearr.bas"
 #include once "symbols/resolveintr.bas"
 #include once "symbols/resolveunbound.bas"
+#include once "symbols/collinit.bas"
 
 private sub BindThis _
     ( byref c as Ctx, byval procScope as Tko.ScopeId, _
@@ -1115,8 +1116,10 @@ sub WalkStmt _
             '' AFTER the revisit test, not before it: a declaration whose type is not
             '' resolved yet comes through here twice, and reporting on the first pass
             '' gave the same error two lines apart.
-            if revisit = false then InitTooMany_( c, t, ip->b, ip->name, here )
             BindDeclType( c, here, ip->name, t, false )
+            if CollInit_( c, id, item, t, revisit, here, sp, ip ) = false then
+                if revisit = false then InitTooMany_( c, t, ip->b, ip->name, here )
+            end if
             WalkStmt( c, ip->b, here )
             '' ...AND THE BOUNDS. 'dim a( 1 to n )' sizes its array at RUN TIME, and
             '' the bounds are ordinary expressions exactly as a REDIM's are -- which

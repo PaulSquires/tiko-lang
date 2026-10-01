@@ -20,6 +20,8 @@ for each name in v
 next
 ```
 
+A brace list fills one at the declaration: `dim v as Array( of ustring ) = { "ada", "grace" }` calls `Push` once per element. See [Collection Initializers](Category-Collection-Initializers).
+
 ## Why It Exists
 
 FreeBASIC had no growable array. What existed was 'redim preserve', which reallocates and copies on EVERY call, so the idiomatic append is quadratic:

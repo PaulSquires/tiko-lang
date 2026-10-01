@@ -740,6 +740,10 @@
     DIAG( TKO0839, SEV_ERROR,   "a nested brace list cannot be returned as an array result; write a flat list" )
     DIAG( TKO0841, SEV_ERROR,   "'%0' returns an array, so it must be called with parentheses: '%0( )'" )
     DIAG( TKO0842, SEV_ERROR,   "this call returns an array, which cannot be converted to another type" )
+    '' COLLECTION INITIALISERS (symbols/collinit.bas), a tiko extension: a brace list over a
+    '' type that needs construction calls its Add, PushBack or Push once per element.
+    DIAG( TKO0843, SEV_ERROR,   "'%0' cannot take an initializer list: its type has no Add, PushBack or Push method" )
+    DIAG( TKO0844, SEV_ERROR,   "an initializer list on '%0' is not supported yet: it is shared or global, and only a local, module-level or static variable can take one" )
     DIAG( TKO0840, SEV_ERROR,   "'%0' is not a local array of this procedure, so returning it would need a copy, which is not supported yet; return a local array or a brace list" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.bas.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )

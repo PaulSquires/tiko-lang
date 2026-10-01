@@ -21,7 +21,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 1 functions, 1 blocks, 10 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
-  skip-site src\mir\lower.bas:254 1
+  skip-site src\mir\lowervarinit.bas:63 1
 tests/diagnostics/src/static-member-var.bas(19,5): error TKO0661: 'missing.i' was not declared as a static member variable
      |
   19 | dim Missing.i as integer

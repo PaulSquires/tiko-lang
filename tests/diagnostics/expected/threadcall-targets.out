@@ -183,7 +183,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 14 functions, 14 blocks, 86 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7
-  skip-site src\mir\lower.bas:819 7
+  skip-site src\mir\lowervarinit.bas:638 7
 tests/diagnostics/src/threadcall-targets.bas(76,39): warning TKO0797: 'threadcall' is not supported: 'goodsub' will not run, and the thread handle is 0
      |
   76 | dim t1 as any ptr = threadcall goodSub( )
