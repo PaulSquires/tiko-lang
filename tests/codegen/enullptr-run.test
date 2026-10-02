@@ -1,0 +1,7 @@
+'' T64, RUN: -enullptr alone checks a null dereference: runtime error 7.
+'' TEST: cli
+'' ARGS: -target win64-msvc -enullptr tests/codegen/src/errparts/null.bas -o tests/codegen/enullptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/enullptr.exe
+'' EXPECT-RUN-EXIT: 7

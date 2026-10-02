@@ -218,7 +218,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
     dim as string k = "tki-format 1" & nl
     k &= "tiko " & Tko.DiskCache.Stamp( command( 0 ) ) & nl
     k &= "triple " & Tko.Codegen.TargetFor( o->target ).triple & nl
-    k &= "options e=" & o->errLevel & " g=" & iif( o->debugInfo, 1, 0 ) & _
+    k &= "options e=" & o->errFlags & " g=" & iif( o->debugInfo, 1, 0 ) & _
          " O=" & o->optLevel & " mt=" & iif( o->threadSafe, 1, 0 ) & _
          " w=" & iif( o->warningsAsErrors, 1, 0 ) & " maxinstdepth=" & o->maxInstDepth & nl
     '' A module's headers are found through these.

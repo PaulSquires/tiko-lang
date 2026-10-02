@@ -1,0 +1,8 @@
+'' T64, RUN: fbc's eight -e<part> options are accepted and each sets its bit of __FB_ERR__:
+'' 8 + 16 + 32 + 64 + 128 + 256 + 512 + 1024 = 2040; -edebug makes __FB_DEBUG__ -1.
+'' TEST: cli
+'' ARGS: -target win64-msvc -earray -enullptr -eassert -edebuginfo -edebug -elocation -eunwind -earraydims tests/codegen/src/errparts/show.bas -o tests/codegen/errparts.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/errparts.exe
+'' EXPECT-RUN-OUT:  2040-1

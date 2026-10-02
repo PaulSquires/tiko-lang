@@ -213,7 +213,7 @@ namespace Tko
         '' getting it wrong compiles quietly.
         as boolean    threadSafe
         '' -e / -ex / -exx as a level, for __FB_ERR__.
-        as long       errLevel
+        as long       errFlags     '' Options.errFlags: what __FB_ERR__ reports
         '' '-g', for __FB_DEBUG__: fbc's '#print' gives -1 with the flag and 0 without,
         '' and 'assert' is compiled in exactly when it is -1.
         as boolean    debugInfo

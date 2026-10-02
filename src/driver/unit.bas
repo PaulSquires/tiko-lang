@@ -362,7 +362,7 @@ function CompileUnit _
         if ctx.modFileCount > 0 then isMain = false
         Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                        ctx.sources, udts, vts, mm, lst, isMain, modName, _
-                       ctx.options.errLevel, @ctx.diags, cast( long, id ) )
+                       ctx.options.errFlags, @ctx.diags, cast( long, id ) )
         '' THE THREAD-SAFE RUNTIME IS CHOSEN HERE, not on the command line
         '' alone -- see Tko.Mir.UsesThreadRtl for what fbc does and how it
         '' was measured. tiko-editor links no '-mt' and creates five threads:

@@ -655,7 +655,7 @@ function LowerAddr _
             '' what fbc passes to fb_NullPtrChk; without it a null 'p->x' segfaulted where
             '' fbc stops with runtime error 7. An explicit '->' only: a method's own
             '' 'this.x' and bare 'x' are unchecked in fbc's C, and stay so.
-            if (c.errLevel >= 3) andalso _
+            if ((c.errFlags and 16) <> 0) andalso _
                ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) then
                 EmitNullCheck_( c, id, base_ )
             end if
@@ -789,7 +789,7 @@ function LowerAddr _
                 end if
             end if
         end scope
-        if (c.errLevel >= 3) andalso (strPointee = false) then
+        if ((c.errFlags and 16) <> 0) andalso (strPointee = false) then
             EmitNullCheck_( c, id, pv )
         end if
         return pv
@@ -1045,7 +1045,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         if base_.kind = cast( ubyte, MV_NONE ) then return none_
         '' -exx CHECKS 'p[ i ]' FOR NULL (T33): the BASE pointer, not base + i, which is
         '' what fbc passes. A character pointee is left alone, as '*pz' is above.
-        if c.errLevel >= 3 then
+        if (c.errFlags and 16) <> 0 then          '' -enullptr, in -exx
             dim as boolean charPointee = false
             dim as Tko.TypeId elu = c.types->Unqualify( el )
             if c.types->Kind( elu ) = Tko.TK_BUILTIN then
@@ -1136,7 +1136,7 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         iv = Coerce( c, iv, offTy )
 
         '' -exx: CHECK THE SUBSCRIPT BEFORE IT BECOMES AN ADDRESS.
-        if c.errLevel >= 3 then EmitBoundsCheck_( c, id, sp->target, at, k, iv, offTy )
+        if (c.errFlags and 8) <> 0 then EmitBoundsCheck_( c, id, sp->target, at, k, iv, offTy )
 
         '' A stride of 1 needs no multiply, which is most of the single-dimension cases.
         dim as MirValue term = iv

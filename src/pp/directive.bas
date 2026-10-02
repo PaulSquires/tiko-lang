@@ -1365,7 +1365,9 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     ''
     '' This was hard-coded to 0, so '-mt' changed nothing anywhere.
     PpDefineValue( e, "__FB_MT__", iif( e.cfg->threadSafe, "-1", "0" ) )
-    PpDefineValue( e, "__FB_DEBUG__", iif( e.cfg->debugInfo, "-1", "0" ) )
+    '' -1 under -g or -edebug, bit 128: fbc's, and NOT the debug information itself --
+    '' -edebuginfo emits that and leaves __FB_DEBUG__ at 0 (T64).
+    PpDefineValue( e, "__FB_DEBUG__", iif( (e.cfg->errFlags and 128) <> 0, "-1", "0" ) )
     '' ...AND UNDER -g, ASSERT AND ASSERTWARN ARE fbc's OWN MACROS. Measured -- fbc's C
     '' annotates the expansion it made:
     ''
@@ -1375,26 +1377,16 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' and fb_Assert prints "a.bas(7): assertion failed at CHECK: n = 1" and ends the
     '' program, where fb_AssertWarn prints and carries on. Without -g the lowering emits
     '' nothing and never evaluates the argument, which is fbc's behaviour there too.
-    if e.cfg->debugInfo then
+    '' Under -g or -eassert, bit 32 (T64).
+    if (e.cfg->errFlags and 32) <> 0 then
         PpDefineFunc1( e, "assert", _
             "if (x) = 0 then __tko_assert( __FILE__, __LINE__, __FUNCTION__, #x ) end if" )
         PpDefineFunc1( e, "assertwarn", _
             "if (x) = 0 then __tko_assertwarn( __FILE__, __LINE__, __FUNCTION__, #x ) end if" )
     end if
-    '' __FB_ERR__ IS A BITMASK, and the values are fbc's, measured with '#print':
-    ''
-    ''     no flag  0        -e  513        -ex  515        -exx  1823
-    ''
-    '' Not decoded into named bits here. The corpus tests the WHOLE value, headers
-    '' branch on 'is it nonzero', and inventing names for bits whose meaning has not
-    '' been measured would be a guess wearing a label.
-    dim as string errVal = "0"
-    select case e.cfg->errLevel
-    case 1 : errVal = "513"
-    case 2 : errVal = "515"
-    case 3 : errVal = "1823"
-    end select
-    PpDefineValue( e, "__FB_ERR__", errVal )
+    '' __FB_ERR__ IS fbc's BITMASK, built by the command line (Options.errFlags): 0, 513
+    '' for -e, 515 -ex, 1823 -exx, 224 -g, and one bit per -e<part> option (T63, T64).
+    PpDefineValue( e, "__FB_ERR__", str( e.cfg->errFlags ) )
     PpDefineValue( e, "__FB_GCC__", "0" )
     '' STRINGS, not numbers. The corpus writes '#if __FB_FPMODE__ = "fast"' and
     '' '#if __FB_FPMODE__ <> "fast"' -- comparing those against 0 is not false, it is

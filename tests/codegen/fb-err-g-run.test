@@ -1,0 +1,8 @@
+'' T63, RUN: -g sets __FB_ERR__'s bits 32, 64 and 128 (assertions, debug info, debug), so
+'' 224 alone, and __FB_DEBUG__ is -1 -- fbc-modern 1.20's values. tiko gave 0.
+'' TEST: cli
+'' ARGS: -target win64-msvc -g tests/codegen/src/errparts/show.bas -o tests/codegen/errg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/errg.exe
+'' EXPECT-RUN-OUT:  224-1

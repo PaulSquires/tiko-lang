@@ -1,0 +1,7 @@
+'' T64, RUN: -elocation alone records the procedure an error happens in, for erfn.
+'' TEST: cli
+'' ARGS: -target win64-msvc -elocation tests/codegen/src/errparts/location.bas -o tests/codegen/elocation.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/elocation.exe
+'' EXPECT-RUN-OUT: err 7 in F

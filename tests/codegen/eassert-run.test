@@ -1,0 +1,8 @@
+'' T64, RUN: -eassert alone enables assert, without the rest of -g.
+'' TEST: cli
+'' ARGS: -target win64-msvc -eassert tests/codegen/src/errparts/assert.bas -o tests/codegen/eassert.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/eassert.exe
+'' EXPECT-RUN-EXIT: 1
+'' EXPECT-RUN-OUT: assertion failed at __FB_MAINPROC__: n > 0

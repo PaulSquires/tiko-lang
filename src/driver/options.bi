@@ -82,6 +82,14 @@ namespace Tko
     OPT( OPT_ERRCHKX,   "-ex",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "as -e: RESUME, which fbc adds here, does not exist in the fb dialect" )
     OPT( OPT_ERRCHKXX,  "-exx",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "-ex plus array bounds and null-pointer checking" )
     OPT( OPT_DEBUG,     "-g",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "emit debug information" )
+    OPT( OPT_EARRAY,      "-earray",      OPTK_FLAG, OPTCAT_OUTPUT, "", "check array bounds (one part of -exx)" )
+    OPT( OPT_ENULLPTR,    "-enullptr",    OPTK_FLAG, OPTCAT_OUTPUT, "", "check pointer dereferences for null (one part of -exx)" )
+    OPT( OPT_ELOCATION,   "-elocation",   OPTK_FLAG, OPTCAT_OUTPUT, "", "record the procedure and module an error happens in (one part of -exx)" )
+    OPT( OPT_EARRAYDIMS,  "-earraydims",  OPTK_FLAG, OPTCAT_OUTPUT, "", "check that an array is dimensioned, and with the rank used (one part of -exx)" )
+    OPT( OPT_EASSERT,     "-eassert",     OPTK_FLAG, OPTCAT_OUTPUT, "", "enable assert and assertwarn (one part of -g)" )
+    OPT( OPT_EDEBUG,      "-edebug",      OPTK_FLAG, OPTCAT_OUTPUT, "", "define __FB_DEBUG__ as -1 (one part of -g)" )
+    OPT( OPT_EDEBUGINFO,  "-edebuginfo",  OPTK_FLAG, OPTCAT_OUTPUT, "", "emit debug information alone (one part of -g)" )
+    OPT( OPT_EUNWIND,     "-eunwind",     OPTK_FLAG, OPTCAT_OUTPUT, "", "unwind information (one part of -e; always emitted)" )
     OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3" )
     OPT( OPT_MT,        "-mt",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "link the thread-safe runtime" )
     OPT( OPT_MAINMOD,   "-m",         OPTK_VALUE, OPTCAT_OUTPUT,  "name",     "which module owns main; the others become module constructors" )
@@ -227,7 +235,12 @@ namespace Tko
         '' fbc's -e / -ex / -exx, and they are CUMULATIVE: -exx implies -ex implies
         '' -e. Held as a level rather than three booleans so 'is checking on at all'
         '' and 'is bounds checking on' are each one comparison.
-        as long    errLevel      '' 0 none, 1 -e, 2 -ex, 3 -exx
+        '' THE ERROR-CHECKING BITS, fbc's FB_ERRMSG values -- what __FB_ERR__ reports (T63, T64):
+        ''   1 error checking   2 resume   4 extra   8 array bounds   16 null pointers
+        ''   32 assert   64 debug info   128 __FB_DEBUG__   256 error location
+        ''   512 unwind   1024 array dimensions
+        '' -e is 513, -ex 515, -exx 1823 and -g 224; each -e<part> option sets one bit.
+        as long    errFlags
         as Tko.OutputKind outKind
         as boolean compileOnly
         as boolean debugInfo

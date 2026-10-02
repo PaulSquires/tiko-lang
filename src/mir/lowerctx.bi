@@ -24,7 +24,7 @@ type Ctx
     as LowerStats ptr       st
     as long                 curBlock
     '' -e/-ex/-exx. Only level 3 changes emission today: array bounds checks.
-    as long                 errLevel
+    as long                 errFlags     '' Options.errFlags: which runtime checks to emit
     '' The module name those checks report, filled once at entry.
     as string               errModName
     '' 'ON ERROR GOTO label' -- the blocks a runtime error may jump to in the procedure

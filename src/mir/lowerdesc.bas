@@ -997,7 +997,7 @@ function LowerDynArrayIndex _
     dim as long pb = DescPtrBytes_( c )
 
     '' -exx: dimensioned at all, and with this rank -- before any bound is read (T21).
-    if c.errLevel >= 3 then EmitDimensionCheck_( c, id, sp->target, desc, rank )
+    if (c.errFlags and 1024) <> 0 then EmitDimensionCheck_( c, id, sp->target, desc, rank )
 
     dim as MirValue acc
     for k as long = 0 to rank - 1
@@ -1008,7 +1008,7 @@ function LowerDynArrayIndex _
 
         '' -exx: CHECKED against this dimension's bounds, read from the descriptor --
         '' DIMTB[k] is ELEMENTS, LBOUND, UBOUND (T21; lowerboundchk.bas).
-        if c.errLevel >= 3 then
+        if (c.errFlags and 8) <> 0 then           '' -earray, in -exx
             dim as MirValue lov = DescDimField_( c, desc, k, 1, offTy )
             dim as MirValue hiv = DescDimField_( c, desc, k, 2, offTy )
             EmitBoundsCheckRange_( c, id, sp->target, iv, lov, hiv )

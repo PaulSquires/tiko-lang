@@ -739,7 +739,7 @@ sub LowerProc _
     ''
     '' -exx ONLY. Measured across the whole family: '-e', '-ex' and no flag at all emit
     '' none of this, and only '-exx' does.
-    dim as boolean namesProc = (c.errLevel >= 3)
+    dim as boolean namesProc = ((c.errFlags and 256) <> 0)   '' -elocation, in -exx
     dim as MirValue savedModName, savedFuncName
     if namesProc then
         dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( id ) )
@@ -1266,7 +1266,7 @@ sub LowerMainModule _
     ''
     '' -exx ONLY. Measured across the whole family: '-e', '-ex' and no flag at all emit
     '' none of this, and only '-exx' does.
-    dim as boolean namesProc = (c.errLevel >= 3)
+    dim as boolean namesProc = ((c.errFlags and 256) <> 0)   '' -elocation, in -exx
     dim as MirValue savedModName, savedFuncName
     if namesProc then
         '' AN EMPTY NAME AT MODULE LEVEL, and that is fbc's OUTPUT rather than its
@@ -1446,7 +1446,7 @@ function Lower _
       byref m as MirModule, byref st as LowerStats, _
       byval isMainModule as boolean = true, _
       byref moduleName as string = "", _
-      byval errLevel as long = 0, _
+      byval errFlags as long = 0, _
       byval diags as any ptr = 0, byval moduleFile as long = -1 ) as long
 
     dim as Ctx c
@@ -1462,7 +1462,7 @@ function Lower _
     c.m = @m
     c.st = @st
     c.curBlock = -1
-    c.errLevel = errLevel
+    c.errFlags = errFlags
     '' THE FILE NAME THE ERROR MESSAGES CARRY. fbc puts the module's own path
     '' into every bounds-check call so the abort can say which file the bad
     '' index came from. Taken once here rather than decoded at each access.

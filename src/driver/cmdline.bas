@@ -55,7 +55,7 @@ constructor DriverOptions( )
     this.targetName = ""
     this.target = Tko.HostTarget( )
     this.widthOverride = 0
-    this.errLevel = 0
+    this.errFlags = 0
     this.outKind = Tko.OUT_EXE
     this.compileOnly = false
     this.debugInfo = false
@@ -422,13 +422,22 @@ function Parse _
         '' artefact is a .so rather than a .dll.
         case Tko.OPT_DLL, Tko.OPT_DYLIB : opts.outKind = Tko.OUT_DLL
         case Tko.OPT_STATICLIB          : opts.outKind = Tko.OUT_STATICLIB
-        '' THE HIGHEST WINS, whatever the order: '-exx -e' is still -exx. fbc reads
-        '' them as cumulative levels rather than as independent switches, so taking
-        '' the maximum is what reproduces it.
-        case Tko.OPT_ERRCHK   : if opts.errLevel < 1 then opts.errLevel = 1
-        case Tko.OPT_ERRCHKX  : if opts.errLevel < 2 then opts.errLevel = 2
-        case Tko.OPT_ERRCHKXX : if opts.errLevel < 3 then opts.errLevel = 3
-        case Tko.OPT_DEBUG    : opts.debugInfo = true
+        '' BITS, ORED, whatever the order: '-exx -e' is still -exx, because each level's
+        '' bits contain the one below's. The values are fbc's, measured with __FB_ERR__
+        '' on fbc-modern 1.20 (T63, T64): -g sets 32, 64 and 128 as well as emitting
+        '' debug information, and each -e<part> option sets the one bit it names.
+        case Tko.OPT_ERRCHK      : opts.errFlags or= 513
+        case Tko.OPT_ERRCHKX     : opts.errFlags or= 515
+        case Tko.OPT_ERRCHKXX    : opts.errFlags or= 1823
+        case Tko.OPT_DEBUG       : opts.debugInfo = true : opts.errFlags or= 224
+        case Tko.OPT_EARRAY      : opts.errFlags or= 8
+        case Tko.OPT_ENULLPTR    : opts.errFlags or= 16
+        case Tko.OPT_EASSERT     : opts.errFlags or= 32
+        case Tko.OPT_EDEBUGINFO  : opts.debugInfo = true : opts.errFlags or= 64
+        case Tko.OPT_EDEBUG      : opts.errFlags or= 128
+        case Tko.OPT_ELOCATION   : opts.errFlags or= 256
+        case Tko.OPT_EUNWIND     : opts.errFlags or= 512
+        case Tko.OPT_EARRAYDIMS  : opts.errFlags or= 1024
         case Tko.OPT_MT       : opts.threadSafe = true
 
         case Tko.OPT_OPTLEVEL
