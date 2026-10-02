@@ -1,0 +1,400 @@
+' ########################################################################################
+' Platform: Microsoft Windows
+' Purpose:  Windows controls
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca
+'
+' License: Distributed under the MIT license.
+'
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this
+' software and associated documentation files (the “Software”), to deal in the Software
+' without restriction, including without limitation the rights to use, copy, modify, merge,
+' publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+' persons to whom the Software is furnished to do so, subject to the following conditions:
+
+' The above copyright notice and this permission notice shall be included in all copies or
+' substantial portions of the Software.
+
+' THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+' INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+' PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+' FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+' OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+' DEALINGS IN THE SOFTWARE.'
+' ########################################################################################
+
+#module "tkGui"
+#include once "tkGui.ti"
+
+#include once "windows.bi"
+#include once "win/commctrl.bi"
+#include once "win/Windowsx.bi"
+' // include files for Windows standard controls
+
+' ========================================================================================
+' Creates an animation control. Animate_Create calls the CreateWindow function to create
+' the animation control.
+' ========================================================================================
+PUBLIC FUNCTION tkPropSheet_Create (BYVAL hParent AS HWND, BYVAL id AS LONG_PTR, BYVAL dwStyle AS DWORD, BYVAL hInstance AS HINSTANCE) AS HWND
+   RETURN CreateWindowW("SysAnimate32", NULL, dwStyle, 0, 0, 0, 0, hParent, cast(HMENU, id), hInstance, NULL)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Opens an AVI clip and displays its first frame in an animation control. You can use this
+' macro or send the ACM_OPEN message explicitly.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_Open (BYVAL hAnimate AS HWND, BYVAL pwzName AS WSTRING PTR) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_OPENW, 0, cast(LPARAM, pwzName))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Opens an AVI clip and displays its first frame in an animation control. You can use this
+' macro or send the ACM_OPEN message explicitly.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_OpenEx (BYVAL hAnimate AS HWND, BYVAL hInstance AS HINSTANCE, BYVAL pwzName AS WSTRING PTR) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_OPENW, cast(WPARAM, hInstance), cast(LPARAM, pwzName))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Plays an AVI clip in an animation control. The control plays the clip in the background
+' while the thread continues executing. You can use this macro or send the ACM_PLAY message
+' explicitly.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_Play (BYVAL hAnimate AS HWND, BYVAL from AS UINT, BYVAL _to AS UINT, BYVAL rep AS UINT) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_PLAY, rep, cast(LPARAM, MAKELONG(from, _to)))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Stops playing an AVI clip in an animation control. You can use this macro or send the
+' ACM_STOP message explicitly.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_Stop (BYVAL hAnimate AS HWND) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_STOP, 0, 0)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Checks to see if an Audio-Video Interleaved (AVI) clip is playing. You can use this macro
+' or send an ACM_ISPLAYING message.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_IsPlaying (BYVAL hAnimate AS HWND) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_ISPLAYING, 0, 0)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Closes an AVI clip. You can use this macro or send the ACM_OPEN message explicitly,
+' passing in NULL parameters.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_Close (BYVAL hAnimate AS HWND) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_OPEN, 0, NULL)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Directs an animation control to display a particular frame of an AVI clip. The control
+' displays the clip in the background while the thread continues executing. You can use
+' this macro or send the ACM_PLAY message explicitly.
+' ========================================================================================
+PUBLIC FUNCTION tkAnimate_Seek (BYVAL hAnimate AS HWND, BYVAL frame AS UINT) AS BOOLEAN
+   RETURN SendMessageW(hAnimate, ACM_PLAY, 1, cast(LPARAM, MAKELONG(frame, frame)))
+END FUNCTION
+' ========================================================================================
+
+
+' ########################################################################################
+'                                    *** HOTKEY ***
+' ########################################################################################
+
+' ========================================================================================
+' Gets the virtual key code and modifier flags of a hot key from a hot key control.
+' Returns the virtual key code and modifier flags. The LOBYTE of the LOWORD is the virtual
+' key code of the hot key. The HIBYTE of the LOWORD is the key modifier that specifies the
+' keys that define a hot key combination. The modifier flags can be a combination of the
+' following values:
+'   HOTKEYF_ALT      ALT key
+'   HOTKEYF_CONTROL  CONTROL key
+'   HOTKEYF_EXT      Extended key
+'   HOTKEYF_SHIFT    SHIFT key
+' ========================================================================================
+PUBLIC FUNCTION tkHotKey_GetHotKey (BYVAL hHotKey AS HWND) AS DWORD
+   RETURN SendMessageW(hHotKey, HKM_GETHOTKEY, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the hot key combination for a hot key control.
+' - vkCode: The virtual key code of the hot key.
+' - fMods: The key modifier that indicates the keys that define a hot key combination.
+' For a list of modifier flag values, see the description of the HotKey_GetHotKey function.
+' ========================================================================================
+PUBLIC SUB tkHotKey_SetHotKey (BYVAL hHotKey AS HWND, BYVAL vkCode AS SHORT, BYVAL fMods AS SHORT)
+   SendMessageW(hHotKey, HKM_SETHOTKEY, MAKELONG(vkCode, fMods), 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Defines the invalid combinations and the default modifier combination for a hot key control.
+' - fwCombInv: An array of flags that specify invalid key combinations. This parameter can be a combination
+'   of the following values:
+' Value Meaning
+'   HKCOMB_A ALT
+'   HKCOMB_C CTRL
+'   HKCOMB_CA CTRL+ALT
+'   HKCOMB_NONE Unmodified keys
+'   HKCOMB_S SHIFT
+'   HKCOMB_SA SHIFT+ALT
+'   HKCOMB_SC SHIFT+CTRL
+'   HKCOMB_SCA SHIFT+CTRL+ALT
+' - fwModInv: An array of flags that specify the key combination to use when the user enters
+'   an invalid combination. For a list of modifier flag values, see the description of the
+'   HotKey_GetHotKey message.
+' ========================================================================================
+PUBLIC SUB tkHotKey_SetRules (BYVAL hHotKey AS HWND, BYVAL fwCombInv AS WORD, BYVAL fwModInv AS WORD)
+   SendMessageW(hHotKey, HKM_SETRULES, cast(WPARAM, fwCombInv), cast(LPARAM, MAKELONG(fwModInv, 0)))
+END SUB
+' ========================================================================================
+
+
+' ########################################################################################
+'                                   *** IP ADDRESS ***
+' ########################################################################################
+
+' ========================================================================================
+' Clears the contents of the IP address control.
+' ========================================================================================
+PUBLIC SUB tkIPAddress_ClearAddress (BYVAL hIPM AS HWND)
+   SendMessageW(hIPM, IPM_CLEARADDRESS, 0, 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Gets the address values for all four fields in the IP address control.
+' Returns the number of nonblank fields.
+' ========================================================================================
+PUBLIC FUNCTION tkIPAddress_GetAddress (BYVAL hIPM AS HWND, BYVAL pdwAddr AS DWORD PTR) AS LONG
+   RETURN SendMessageW(hIPM, IPM_GETADDRESS, 0, CAST(LPARAM, pdwAddr))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if all fields in the IP address control are blank.
+' ========================================================================================
+PUBLIC SUB tkIPAddress_IsBlank (BYVAL hIPM AS HWND)
+   SendMessageW(hIPM, IPM_ISBLANK, 0, 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Sets the address values for all four fields in the IP address control.
+' ========================================================================================
+PUBLIC SUB tkIPAddress_SetAddress (BYVAL hIPM AS HWND, BYVAL dwAddr AS DWORD)
+   SendMessageW(hIPM, IPM_SETADDRESS, 0, cast(LPARAM, dwAddr))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Sets the keyboard focus to the specified field in the IP address control.
+' All of the text in that field will be selected.
+' ========================================================================================
+PUBLIC SUB tkIPAddress_SetFocus (BYVAL hIPM AS HWND, BYVAL nField AS LONG)
+   SendMessageW(hIPM, IPM_SETFOCUS, cast(WPARAM, nField), 0)
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Sets the valid range for the specified field in the IP address control.
+' Returns TRUE if successful, or FALSE otherwise.
+' ========================================================================================
+PUBLIC FUNCTION tkIPAddress_SetRange (BYVAL hIPM AS HWND, BYVAL nField AS LONG, BYVAL loRange AS BYTE, BYVAL hiRange AS BYTE) AS BOOLEAN
+   RETURN SendMessageW(hIPM, IPM_SETRANGE, cast(WPARAM, nField), cast(LPARAM, MAKEIPRANGE(loRange, hiRange)))
+END FUNCTION
+' ========================================================================================
+
+
+' ########################################################################################
+'                                   *** SYSLINK ***
+' ########################################################################################
+
+' ========================================================================================
+' Retrieves the preferred height of a link for the control's current width.
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_GetIdealHeight (BYVAL hLM AS HWND) AS LONG
+   RETURN SendMessageW(hLM, LM_GETIDEALHEIGHT, 0, 0)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the preferred height of a link for the control's current width.
+' Note: It is the same message that LM_GETIDEALHEIGHT with sifferent values.
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_GetIdealSize OVERLOAD (BYVAL hLM AS HWND, BYVAL cxMaxWidth AS LONG, BYVAL psize AS SIZE PTR) AS LONG
+   RETURN SendMessageW(hLM, LM_GETIDEALHEIGHT, cxMaxWidth, cast(LPARAM, psize))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_GetIdealSize OVERLOAD (BYVAL hLM AS HWND, BYVAL cxMaxWidth AS LONG, BYREF sz AS SIZE) AS LONG
+   RETURN SendMessageW(hLM, LM_GETIDEALHEIGHT, cxMaxWidth, cast(LPARAM, @sz))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_GetIdealSize OVERLOAD (BYVAL hLM AS HWND, BYVAL cxMaxWidth AS LONG) AS SIZE
+   DIM sz AS SIZE
+   SendMessageW(hLM, LM_GETIDEALHEIGHT, cxMaxWidth, cast(LPARAM, @sz))
+   RETURN sz
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the states and attributes of an item.
+' Returns TRUE if the message succeeds in getting the values and attributes specified.
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_GetItem OVERLOAD (BYVAL hLM AS HWND, BYVAL pItem AS LITEM PTR) AS BOOLEAN
+   FUNCTION = SendMessageW(hLM, LM_GETITEM, 0, cast(LPARAM, pItem))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_GetItem OVERLOAD (BYVAL hLM AS HWND, BYREF item AS LITEM) AS BOOLEAN
+   FUNCTION = SendMessageW(hLM, LM_GETITEM, 0, cast(LPARAM, @item))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Determines if the user clicked the specified link.
+' Returns TRUE if user clicked on a link, otherwise returns FALSE.
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_HitTest OVERLOAD (BYVAL hLM AS HWND, BYVAL phti AS LHITTESTINFO PTR) AS BOOLEAN
+   FUNCTION = SendMessageW(hLM, LM_HITTEST, 0, cast(LPARAM, phti))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_HitTest OVERLOAD (BYVAL hLM AS HWND, BYREF hti AS LHITTESTINFO) AS BOOLEAN
+   FUNCTION = SendMessageW(hLM, LM_HITTEST, 0, cast(LPARAM, @hti))
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the states and attributes of an item.
+' Returns TRUE if the message succeeds in setting the values and attributes specified.
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_SetItem OVERLOAD (BYVAL hLM AS HWND, BYVAL pItem AS LITEM PTR) AS BOOLEAN
+   FUNCTION = SendMessageW(hLM, LM_SETITEM, 0, cast(LPARAM, pItem))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkSysLink_SetItem OVERLOAD (BYVAL hLM AS HWND, BYREF item AS LITEM) AS BOOLEAN
+   FUNCTION = SendMessageW(hLM, LM_SETITEM, 0, cast(LPARAM, @item))
+END FUNCTION
+' ========================================================================================
+
+
+' ########################################################################################
+'                                    *** SCROLLBAR ***
+' ########################################################################################
+
+' ========================================================================================
+' Enables or disables a scroll bar control.
+' This method expands to a call to EnableScrollBar with SB_CTL in the wSBFlags parameter.
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_Enable (BYVAL hSB AS HWND, BYVAL flags AS UINT) AS BOOLEAN
+   RETURN EnableScrollBar(hSB, SB_CTL, flags)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Shows or hides a scroll bar control.
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_Show OVERLOAD (BYVAL hSB AS HWND, BYVAL fShow AS BOOLEAN) AS BOOLEAN
+   RETURN ShowWindow(hSB, iif(fShow, SW_SHOWNORMAL, SW_HIDE))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_Show OVERLOAD (BYVAL hSB AS HWND) AS BOOLEAN
+   RETURN ShowWindow(hSB, SW_SHOWNORMAL)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_Hide (BYVAL hSB AS HWND) AS BOOLEAN
+   RETURN ShowWindow(hSB, SW_HIDE)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the position of the scroll box (thumb) in the specified scroll bar and, if requested,
+' redraws the scroll bar to reflect the new position of the scroll box.
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_SetPos (BYVAL hSB AS HWND, BYVAL nPos AS LONG, BYVAL fRedraw AS BOOLEAN) AS BOOLEAN
+   RETURN SetScrollPos(hSB, SB_CTL, nPos, fRedraw)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Retrieves the position of the scroll box (thumb) in the specified scroll bar.
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_GetPos (BYVAL hSB AS HWND) AS LONG
+   RETURN GetScrollPos(hSB, SB_CTL)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Sets the range of a scroll bar.
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_SetRange (BYVAL hSB AS HWND, BYVAL posMin AS LONG, BYVAL posMax AS LONG, BYVAL fRedraw AS BOOLEAN) AS BOOLEAN
+   RETURN SetScrollRange(hSB, SB_CTL, posMin, posMax, fRedraw)
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Gets the range of a scroll bar.
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_GetRange OVERLOAD (BYVAL hSB AS HWND, BYVAL posMin AS LONG PTR, BYVAL posMax AS LONG PTR) AS BOOLEAN
+   RETURN GetScrollRange(hSB, SB_CTL, posMin, posMax)
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkScrollBar_GetRange OVERLOAD (BYVAL hSB AS HWND, BYREF posMin AS LONG, BYREF posMax AS LONG) AS BOOLEAN
+   RETURN GetScrollRange(hSB, SB_CTL, @posMin, @posMax)
+END FUNCTION
+' ========================================================================================
+
+
+#if _WIN32_WINNT = &h0602
+
+' ########################################################################################
+'                                    *** PROPSHEET ***
+' ########################################################################################
+
+' ========================================================================================
+' PSM_SETNEXTTEXTW         = (WM_USER + 137)
+' PSM_SETNEXTTEXT          = PSM_SETNEXTTEXTW
+' ========================================================================================
+PUBLIC SUB tkPropSheet_SetNextText (BYVAL hDlg AS HWND, BYVAL pwszText AS WSTRING PTR)
+   SendMessageW(hDlg, WM_USER + 137, 0, cast(LPARAM, pwszText))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' PSWIZB_SHOW                    = 0
+' PSWIZB_RESTORE                 = 1
+' PSM_SHOWWIZBUTTONS             = (WM_USER + 138)
+' ========================================================================================
+PUBLIC SUB tkPropSheet_ShowWizButtons (BYVAL hDlg AS HWND, BYVAL dwFlag AS DWORD, BYVAL dwButton AS DWORD)
+   SendMessageW(hDlg, WM_USER + 138, cast(WPARAM, dwFlag), cast(LPARAM, dwButton))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' PSM_ENABLEWIZBUTTONS           = (WM_USER + 139)
+' ========================================================================================
+PUBLIC SUB tkPropSheet_EnableWizButtons (BYVAL hDlg AS HWND, BYVAL dwState AS DWORD, BYVAL dwMask AS DWORD)
+   SendMessageW(hDlg, WM_USER + 139, cast(WPARAM, dwState), cast(LPARAM, dwMask))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' PSM_SETBUTTONTEXTW         = (WM_USER + 140)
+' PSM_SETBUTTONTEXT          = PSM_SETBUTTONTEXTW
+' ========================================================================================
+PUBLIC SUB tkPropSheet_SetButtonText (BYVAL hDlg AS HWND, BYVAL dwButton AS DWORD, BYVAL pwszText AS WSTRING PTR)
+   SendMessageW(hDlg, WM_USER + 140, cast(WPARAM, dwButton), cast(LPARAM, pwszText))
+END SUB
+' ========================================================================================
+
+#endif
