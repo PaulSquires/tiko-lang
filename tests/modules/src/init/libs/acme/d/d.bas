@@ -1,7 +1,8 @@
 '' The bottom of the diamond. Its initialisation in its three stages -- a global's
 '' constructor, top-level code, a 'constructor' sub -- and its finalisation reversed.
 #module "d"
-type Loud
+'' Public: the public 'g' is one, and an importer must be able to name its type (TKO0868).
+public type Loud
     s as string
     declare constructor( byref x as string )
     declare destructor( )

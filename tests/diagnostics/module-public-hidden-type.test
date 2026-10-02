@@ -1,0 +1,18 @@
+'' TKO0868: A PUBLIC DECLARATION THAT NAMES A MODULE-PRIVATE TYPE (RFC-0002 §3) -- a
+'' procedure's result or parameter, through a pointer too; a public shared variable; a
+'' public typedef's target; a field or method of a public type that is not 'private:'.
+'' An importer handed such a value could not declare a variable to hold it. A private
+'' member, a public type, a procedure that is not public and a generic's T are fine.
+'' TEST: cli
+'' ARGS: -c -i tests/diagnostics/src/modules/hiddentype/libs tests/diagnostics/src/modules/hiddentype/libs/acme/hid -o tests/diagnostics/hiddentype.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: hid.bas(12,5): error TKO0868: 'secret' is module-private but appears in the public declaration of 'holder.pub'
+'' EXPECT-OUT: hid.bas(13,13): error TKO0868: 'secret' is module-private but appears in the public declaration of 'holder.peek'
+'' EXPECT-OUT: hid.bas(20,8): error TKO0868: 'secret' is module-private but appears in the public declaration of 'make'
+'' EXPECT-OUT: hid.bas(23,8): error TKO0868: 'secret' is module-private but appears in the public declaration of 'take'
+'' EXPECT-OUT: hid.bas(28,19): error TKO0868: 'shade' is module-private but appears in the public declaration of 'current'
+'' EXPECT-OUT: hid.bas(29,8): error TKO0868: 'secret' is module-private but appears in the public declaration of 'alias_'
+'' EXPECT-NOT: 'holder.hidden'
+'' EXPECT-NOT: 'fine'
+'' EXPECT-NOT: 'internal'
+'' EXPECT-NOT: 'gen'

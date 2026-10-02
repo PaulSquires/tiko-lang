@@ -9,6 +9,7 @@
 #include once "ast/nodes.bi"
 #include once "source/manager.bi"
 #include once "diag/engine.bi"
+#include once "types/type.bi"
 
 namespace Tko.ModSym
 
@@ -54,5 +55,12 @@ declare sub ProcLinkage _
 '' A SYMBOL MADE AFTER Mark -- a generic instance's re-parsed body -- takes its generic's
 '' module marks.
 declare sub Inherit( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, byval from as Tko.SymbolId )
+
+'' A PUBLIC DECLARATION THAT NAMES A MODULE-PRIVATE TYPE (RFC-0002 §3): TKO0868. An importer
+'' handed a value of a type it cannot name could not declare a variable to hold it. After
+'' Check: a declaration's types are not all known until Resolve has run.
+declare sub CheckPublicTypes _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref diags as Tko.DiagnosticEngine )
 
 end namespace

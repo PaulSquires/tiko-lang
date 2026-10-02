@@ -270,4 +270,103 @@ sub ProcLinkage _
     isExported = false
 end sub
 
+'' THE FIRST MODULE-PRIVATE NAMED TYPE 't' is built from, or SYMBOL_NONE. Through pointers,
+'' references, arrays and a procedure type's result and parameters. A PUBLIC typedef is a
+'' name the importer has, whatever it stands for, so the walk stops there; a generic's type
+'' parameter is declared in the generic, not at module level, and is never module code.
+private function HiddenTypeIn_ _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byval t as Tko.TypeId, byval depth as long ) as Tko.SymbolId
+
+    if (t = Tko.TYPE_NONE) orelse (depth > 16) then return Tko.SYMBOL_NONE
+    select case types.Kind( t )
+    case Tko.TK_POINTER, Tko.TK_REFERENCE, Tko.TK_ARRAY
+        return HiddenTypeIn_( syms, types, types.Inner( t ), depth + 1 )
+    case Tko.TK_PROC
+        dim as Tko.SymbolId h = HiddenTypeIn_( syms, types, types.Inner( t ), depth + 1 )
+        for i as long = 0 to types.ProcParamCount( t ) - 1
+            if h <> Tko.SYMBOL_NONE then exit for
+            h = HiddenTypeIn_( syms, types, types.ProcParam( t, i ), depth + 1 )
+        next
+        return h
+    case Tko.TK_UDT, Tko.TK_ENUM, Tko.TK_TYPEDEF, Tko.TK_FORWARD
+        dim as Tko.InternId tn = types.NameOf( t )
+        if tn = 0 then return Tko.SYMBOL_NONE
+        dim as Tko.ScopeId ds = cast( Tko.ScopeId, types.DeclScopeOf( t ) )
+        dim as Tko.SymbolId ts = syms.LookupLocalTyped( ds, tn, true )
+        dim as Tko.Symbol ptr ns = syms.SymbolAt( ts )
+        if ns = 0 then return Tko.SYMBOL_NONE
+        if (ns->flags and Tko.SYMF_MODSRC) = 0 then return Tko.SYMBOL_NONE
+        if (ns->flags and Tko.SYMF_PUBLIC) <> 0 then return Tko.SYMBOL_NONE
+        return ts
+    end select
+    return Tko.SYMBOL_NONE
+end function
+
+'' WHAT AN IMPORTER SEES of 's': a public module-level declaration, or a member of a public
+'' type that is not 'private:' or 'protected:'. Its name as a message spells it.
+private function Exposed_ _
+    ( byref syms as Tko.SymbolTable, byval s as Tko.Symbol ptr, byref what as string ) as boolean
+
+    const PUB = Tko.SYMF_MODSRC or Tko.SYMF_PUBLIC
+    what = syms.names->Spelling( s->name )
+    if (s->flags and PUB) = PUB then return true
+    dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
+    if ps = 0 then return false
+    if ps->kind <> cast( ubyte, Tko.SCOPEK_TYPE ) then return false
+    dim as Tko.Symbol ptr ow = syms.SymbolAt( ps->owner )
+    if ow = 0 then return false
+    if ow->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    if (ow->flags and PUB) <> PUB then return false
+    if (s->flags and (Tko.SYMF_MEMB_PRIVATE or Tko.SYMF_MEMB_PROTECTED)) <> 0 then return false
+    what = syms.names->Spelling( ow->name ) & "." & what
+    return true
+end function
+
+sub CheckPublicTypes _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref diags as Tko.DiagnosticEngine )
+
+    if (syms.modFileCount = 0) orelse (syms.names = 0) then return
+    dim as ulong savePos = syms.usePos
+    syms.usePos = Tko.USEPOS_LATEST
+    for si as long = 1 to syms.Count( )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+        if s = 0 then continue for
+        if (s->flags and Tko.SYMF_GENERIC_INST) <> 0 then continue for
+        select case s->kind
+        case cast( ubyte, Tko.SYM_PROC ), cast( ubyte, Tko.SYM_VARIABLE ), _
+             cast( ubyte, Tko.SYM_CONSTANT ), cast( ubyte, Tko.SYM_FIELD ), _
+             cast( ubyte, Tko.SYM_TYPEDEF )
+        case else
+            continue for
+        end select
+        dim as string what
+        if Exposed_( syms, s, what ) = false then continue for
+        '' A typedef is checked for what it stands for: its own name is the public one.
+        dim as Tko.TypeId t = s->type_
+        if (s->kind = cast( ubyte, Tko.SYM_TYPEDEF )) andalso (types.Kind( t ) = Tko.TK_TYPEDEF) then
+            t = types.Inner( t )
+        end if
+        dim as Tko.SymbolId h = HiddenTypeIn_( syms, types, t, 0 )
+        '' A procedure's parameters are the symbols of the scope it opens.
+        if (h = Tko.SYMBOL_NONE) andalso (s->kind = cast( ubyte, Tko.SYM_PROC )) then
+            dim as Tko.SymScope ptr ins = syms.ScopeAt( s->inner )
+            dim as Tko.SymbolId p = iif( ins = 0, Tko.SYMBOL_NONE, ins->firstSym )
+            while (p <> Tko.SYMBOL_NONE) andalso (h = Tko.SYMBOL_NONE)
+                dim as Tko.Symbol ptr ps = syms.SymbolAt( p )
+                if ps = 0 then exit while
+                if ps->kind = cast( ubyte, Tko.SYM_PARAMETER ) then
+                    h = HiddenTypeIn_( syms, types, ps->type_, 0 )
+                end if
+                p = ps->nextInScope
+            wend
+        end if
+        if h = Tko.SYMBOL_NONE then continue for
+        diags.Report( Tko.TKO0868, Tko.PointRange( s->loc ), _
+                      syms.names->Spelling( syms.SymbolAt( h )->name ), what )
+    next
+    syms.usePos = savePos
+end sub
+
 end namespace

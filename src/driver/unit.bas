@@ -268,6 +268,8 @@ function CompileUnit _
         '' AFTER Check: a member access needs its symbol, and only Check binds
         '' one -- a field means nothing until its base has a type.
         Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info )
+        '' A MODULE'S PUBLIC DECLARATIONS NAME ONLY WHAT AN IMPORTER CAN (TKO0868).
+        if ctx.modFileCount > 0 then Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )
         dim as Tko.Mir.MirModule mm
         dim as Tko.Mir.LowerStats lst
         dim as Tko.UdtLayouts udts
@@ -564,6 +566,7 @@ function CompileUnit _
         dim as Tko.Check.Stats cst
         Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                        info, cst )
+        Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )
         if pr.langRefused = false then
             Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
                                         info, rst, pr.reservedNames, syms )
