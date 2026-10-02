@@ -1,0 +1,14 @@
+'' T58, RUN: a name declared anywhere on the scope chain -- the module, an enclosing
+'' namespace -- beats a 'using' written in a sub, a scope or a namespace, as fbc rules;
+'' the using answers only when the chain has nothing. tiko took the nearer using first.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/using-precedence.bas -o tests/codegen/usingprec.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/usingprec.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: sub: 1 10 100
+'' EXPECT-RUN-OUT: scope: 1 10 100
+'' EXPECT-RUN-OUT: M: 3
+'' EXPECT-RUN-OUT: only: 1

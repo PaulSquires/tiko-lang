@@ -360,10 +360,24 @@ function SymbolTable.LookupLocalTyped _
     return alt
 end function
 
+'' A DECLARATION ON THE SCOPE CHAIN BEATS EVERY 'using' -- fbc's rule, measured on fbc-modern
+'' 1.20, 2026-10-02: under a 'using N' in a sub, a 'const C' at module level is what 'C'
+'' means, and N.C only when nothing on the chain declares one, whatever scope the using is
+'' written in. tiko took the using first wherever it was nearer (T58). The usings are only
+'' asked when the chain has nothing -- or has only a declaration BELOW the use, which fbc,
+'' reading top to bottom, has not met yet (declAt; never in an order-free module).
+private function DeclaredAbove_( byref t as SymbolTable, byval id as SymbolId ) as boolean
+    if t.usePos = USEPOS_LATEST then return true
+    if t.modFileCount > 0 then return true
+    dim as ulong at = t.symbols[cast( long, id )].declAt
+    return (at = 0) orelse (at <= t.usePos)
+end function
+
 function SymbolTable.LookupTyped _
     ( byval scope_ as ScopeId, byval nm as InternId, _
       byval wantType as boolean ) as SymbolId
 
+    dim as SymbolId decl = SYMBOL_NONE
     dim as ScopeId sc = scope_
     dim as long guard = 0
     while (sc <> SCOPE_NONE) andalso (guard < 256)
@@ -371,56 +385,80 @@ function SymbolTable.LookupTyped _
         dim as SymbolId got = this.LookupLocalTyped( sc, nm, wantType )
         if got <> SYMBOL_NONE then
             dim as Symbol ptr g = @this.symbols[cast( long, got )]
-            if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return got
+            if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then
+                decl = got
+                exit while
+            end if
         end if
-
-        '' 'using ns' MAKES ITS TYPE NAMES VISIBLE TOO. Lookup( ) walks the using
-        '' scopes and this did not, so 'using ns1 : dim b as B' found nothing and the
-        '' variable's slot lowered to void -- while 'ns1.B' and an unqualified VALUE
-        '' from the same namespace both worked. Searched after the scope's own names
-        '' and before its parent's, which is the order Lookup( ) already uses.
-        for i as long = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( ulong, sc ) then continue for
-            '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
-            '' LookupInNamespaceTyped: a single probe missed every transitive one.
-            got = this.LookupInNamespaceTyped( _
-                cast( ScopeId, this.usingInner[i] ), nm, wantType, 0 )
-            if got <> SYMBOL_NONE then return got
-        next
-
         dim as SymScope ptr s_ = this.ScopeAt( sc )
         if s_ = 0 then exit while
         sc = s_->parent
     wend
+    if decl <> SYMBOL_NONE then
+        if (this.usingAt.Count = 0) orelse DeclaredAbove_( this, decl ) then return decl
+    end if
+
+    '' 'using ns' MAKES ITS TYPE NAMES VISIBLE TOO, innermost using first. Lookup( ) walked
+    '' the using scopes and this did not, so 'using ns1 : dim b as B' found nothing and the
+    '' variable's slot lowered to void.
+    sc = scope_
+    guard = 0
+    while (sc <> SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        for i as long = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( ulong, sc ) then continue for
+            '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
+            '' LookupInNamespaceTyped: a single probe missed every transitive one.
+            dim as SymbolId got = this.LookupInNamespaceTyped( _
+                cast( ScopeId, this.usingInner[i] ), nm, wantType, 0 )
+            if got <> SYMBOL_NONE then return got
+        next
+        dim as SymScope ptr s_ = this.ScopeAt( sc )
+        if s_ = 0 then exit while
+        sc = s_->parent
+    wend
+    if decl <> SYMBOL_NONE then return decl
     return this.Lookup( scope_, nm )
 end function
 
 function SymbolTable.Lookup _
     ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 
+    '' The declarations on the chain, innermost first...
+    dim as SymbolId decl = SYMBOL_NONE
     dim as ScopeId s = scope_
     dim as long guard = 0
     while s <> SCOPE_NONE
         guard += 1
         if guard > 1024 then exit while          '' a cycle would be a table bug
-        dim as SymbolId got = this.LookupLocal( s, nm )
-        if got <> SYMBOL_NONE then return got
-
-        '' 'using ns' makes the namespace's names visible UNQUALIFIED from here on.
-        '' Searched AFTER the scope's own names and BEFORE its parent's, which is the
-        '' order that makes a local declaration win over an import and an import win
-        '' over an outer name.
-        for i as long = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( ulong, s ) then continue for
-            got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
-            if got <> SYMBOL_NONE then return got
-        next
-
+        decl = this.LookupLocal( s, nm )
+        if decl <> SYMBOL_NONE then exit while
         dim as SymScope ptr sc = this.ScopeAt( s )
         if sc = 0 then exit while
         s = sc->parent
     wend
-    return SYMBOL_NONE
+    if decl <> SYMBOL_NONE then
+        if (this.usingAt.Count = 0) orelse DeclaredAbove_( this, decl ) then return decl
+    end if
+
+    '' ...then 'using ns', which makes the namespace's names visible UNQUALIFIED from where
+    '' it stands, innermost first. Two usings that both supply the name are TKO0919, checked
+    '' after Resolve (declshape.bas).
+    s = scope_
+    guard = 0
+    while s <> SCOPE_NONE
+        guard += 1
+        if guard > 1024 then exit while
+        for i as long = 0 to this.usingAt.Count - 1
+            if this.usingAt[i] <> cast( ulong, s ) then continue for
+            dim as SymbolId got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
+            if got <> SYMBOL_NONE then return got
+        next
+        dim as SymScope ptr sc = this.ScopeAt( s )
+        if sc = 0 then exit while
+        s = sc->parent
+    wend
+    return decl
 end function
 
 '' A LOCAL THAT SHADOWS AN OUTER NAME, born at its own declaration. LiveGen already

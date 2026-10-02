@@ -595,28 +595,38 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
             if sc <> SCOPE_NONE then exit for
             sc = c.info->ScopeOf( cast( NodeId, f ) )
         next
+        '' A NAME DECLARED ANYWHERE ON THE CHAIN, above the use, is what the use means: it
+        '' beats every using (T58, Lookup). Otherwise the usings of EVERY scope on the chain
+        '' are asked together -- fbc's 255 names an inner using's and an outer one's alike.
+        dim as boolean declared = false
+        dim as ScopeId walk = sc
+        for guard as long = 0 to 255
+            if walk = SCOPE_NONE then exit for
+            dim as Symbol ptr loc_ = c.syms->SymbolAt( c.syms->LookupLocal( walk, nm ) )
+            if loc_ <> 0 then
+                if (loc_->declAt = 0) orelse (loc_->declAt < cast( ulong, n )) then declared = true
+            end if
+            if declared then exit for
+            dim as SymScope ptr ss = c.syms->ScopeAt( walk )
+            if ss = 0 then exit for
+            walk = ss->parent
+        next
+        if declared then continue for
+        dim as FB.Array( of ulong ) got
         for guard as long = 0 to 255
             if sc = SCOPE_NONE then exit for
-            '' A name declared in this scope, above the use, is what the use means.
-            dim as Symbol ptr loc_ = c.syms->SymbolAt( c.syms->LookupLocal( sc, nm ) )
-            if loc_ <> 0 then
-                if (loc_->declAt = 0) orelse (loc_->declAt < cast( ulong, n )) then exit for
-            end if
-            dim as FB.Array( of ulong ) got
             for u as long = 0 to uNode.Count - 1
                 if uScope[u] <> cast( ulong, sc ) then continue for
                 if uNode[u] >= cast( ulong, n ) then continue for
                 CollectNsNamed_( c, cast( ScopeId, uInner[u] ), nm, got, 0 )
             next
-            if got.Count >= 2 then
-                c.diags->Report( TKO0919, PointRange( c.ast->Loc( x ) ), c.names->Spelling( nm ) )
-                exit for
-            end if
-            if got.Count = 1 then exit for
             dim as SymScope ptr ss = c.syms->ScopeAt( sc )
             if ss = 0 then exit for
             sc = ss->parent
         next
+        if got.Count >= 2 then
+            c.diags->Report( TKO0919, PointRange( c.ast->Loc( x ) ), c.names->Spelling( nm ) )
+        end if
     next
 end sub
 
