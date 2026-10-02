@@ -18,7 +18,11 @@ namespace Tko
 private sub TakenName_( byref e as PpEngine, byref t as Token, byval id as InternId )
     dim as string what
     if Tk( t ) <> TK_IDENT then
-        if DereservedId_( e, Tk( t ) ) = INTERN_NONE then what = "a reserved word"
+        '' Not under a '#lang' already refused (TKO0317): 'qb' reserves fewer words, and
+        '' fbc's own lex-numlit-qb.bas defines 'typeof' there.
+        dim as boolean refused = false
+        if e.outp <> 0 then refused = e.outp->langRefused
+        if (DereservedId_( e, Tk( t ) ) = INTERN_NONE) andalso (refused = false) then what = "a reserved word"
     else
         dim as long ix = cast( long, e.names->Fold( id ) )
         dim as ulong mark_ = 0
