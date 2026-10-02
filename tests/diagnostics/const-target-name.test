@@ -1,0 +1,9 @@
+'' T34 (1): TKO0617 over a write through a const pointer names the target as it is written
+'' -- '*pc', 'pc[ ]' -- where it said "cannot modify ''". See ExprSpelling_ in
+'' symbols/latesweeps3.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-target-name.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-target-name.bas(3,1): error TKO0617: cannot modify '*pc': it is a constant
+'' EXPECT-OUT: const-target-name.bas(4,3): error TKO0617: cannot modify 'pc[ ]': it is a constant
+'' EXPECT-MAX-DIAG: 2

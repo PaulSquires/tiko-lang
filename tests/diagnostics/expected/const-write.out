@@ -156,16 +156,16 @@ func void _ZN14WITHCONSTFIELDC1Ev(ptr $0) {
 verify: ok
 lowered: 2 functions, 2 blocks, 117 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
-  skip-site src\mir\lowerutil.bas:40 2
-tests/diagnostics/src/const-write.bas(22,1): error TKO0617: cannot modify '': it is a constant
+  skip-site src\mir\lowerutil.bas:90 2
+tests/diagnostics/src/const-write.bas(22,1): error TKO0617: cannot modify '*ptrtoconst': it is a constant
      |
   22 | *ptrToConst = 1
      | ^
-tests/diagnostics/src/const-write.bas(23,1): error TKO0617: cannot modify '': it is a constant
+tests/diagnostics/src/const-write.bas(23,1): error TKO0617: cannot modify 'cast( ... )': it is a constant
      |
   23 | cast( const integer, i ) = 1
      | ^
-tests/diagnostics/src/const-write.bas(24,1): error TKO0617: cannot modify '': it is a constant
+tests/diagnostics/src/const-write.bas(24,1): error TKO0617: cannot modify '*cptr( ... )': it is a constant
      |
   24 | *cptr( const integer ptr, ptrToConst ) = 123
      | ^
@@ -189,7 +189,7 @@ tests/diagnostics/src/const-write.bas(42,6): error TKO0617: cannot modify 'the i
      |
   42 | line constImage, (0, 0)-(1, 1), 0
      |      ^
-tests/diagnostics/src/const-write.bas(47,1): error TKO0617: cannot modify '': it is a constant
+tests/diagnostics/src/const-write.bas(47,1): error TKO0617: cannot modify '*pcf': it is a constant
      |
   47 | *pcf = 0
      | ^

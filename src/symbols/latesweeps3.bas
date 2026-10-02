@@ -14,6 +14,47 @@ private function SpellOf_ ( byref c as Ctx, byval n as NodeId ) as string
         c.ast->idents[cast( long, c.ast->nodes[cast( long, n )].data )].name )
 end function
 
+'' A WRITE TARGET AS THE READER WROTE IT (T34): '*pc', 'pc[ ]', 'pt->v', '( *pc )'. TKO0617
+'' over a dereference said "cannot modify ''" -- SpellOf_ spells a bare name and nothing else.
+private function ExprSpelling_ ( byref c as Ctx, byval n as NodeId, byval depth as long = 0 ) as string
+    if (n = NODE_NONE) orelse (depth > 8) then return ""
+    dim as string r = ""
+    select case c.ast->Kind( n )
+    case N_IDENT
+        return SpellOf_( c, n )
+    case N_DEREF
+        r = ExprSpelling_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )].operand, depth + 1 )
+        if len( r ) then r = "*" & r
+    case N_INDEX
+        r = ExprSpelling_( c, c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target, depth + 1 )
+        if len( r ) then r &= "[ ]"
+    case N_PAREN
+        dim as ListPayload ptr pl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if pl->count = 1 then r = ExprSpelling_( c, cast( NodeId, c.ast->children[pl->first] ), depth + 1 )
+        if len( r ) then r = "( " & r & " )"
+    case N_MEMBER
+        dim as BinaryPayload ptr mb = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        r = ExprSpelling_( c, mb->lhs, depth + 1 )
+        dim as string rr = SpellOf_( c, mb->rhs )
+        if (len( r ) > 0) andalso (len( rr ) > 0) then
+            r &= iif( (c.ast->nodes[cast( long, n )].flags and NF_ARROW) <> 0, "->", "." ) & rr
+        else
+            r = ""
+        end if
+    case N_CALL
+        r = SpellOf_( c, c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target )
+        if len( r ) then r &= "( ... )"
+    end select
+    return r
+end function
+
+'' ...or, when it has no spelling of its own, a phrase rather than an empty pair of quotes.
+private function TargetSpelling_ ( byref c as Ctx, byval n as NodeId ) as string
+    dim as string r = ExprSpelling_( c, n )
+    if len( r ) = 0 then r = "this target"
+    return r
+end function
+
 '' NOTHING CONST MAY BE WRITTEN -- fbc error 119, "Cannot modify a constant". The simple
 '' case, an assignment straight to a const VARIABLE, is CheckAssignTarget_'s; these are the
 '' spellings that reach const storage through an expression, and every one was measured:
@@ -107,7 +148,7 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
     end if
     if judged = false then return
     if ConstDesignated_( c, sp->a ) = false then return
-    c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), "" )
+    c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), TargetSpelling_( c, sp->a ) )
 end sub
 
 '' SWAP WRITES BOTH OPERANDS, so a const on either side is fbc's 119. Measured both ways.
