@@ -736,6 +736,10 @@
     '' fbc's error 99: 'type( ... )' over a record holding a var-len string -- typelitstr.bas (T30).
     '' fbc's error 73: a whole array as an assignment target -- arrresult.bas (T22).
     DIAG( TKO0930, SEV_ERROR,   "a whole array cannot be assigned or swapped: index it, as in 'a( i )'" )
+    '' fbc's warning 34: 'f( x ) = v' over a byref result, read as 'f( x = v )' -- byrefcheck.bas (T19).
+    DIAG( TKO0931, SEV_WARNING, "'=' is read as a comparison inside the argument of '%0', not as an assignment to its byref result; to assign, write '( %0( ... ) ) = value'" )
+    '' fbc's error 3: 'f( ... ) = v' over a function that returns by value -- byrefcheck.bas.
+    DIAG( TKO0932, SEV_ERROR,   "'%0' returns its result by value, so a call to it cannot be assigned to" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

@@ -42,8 +42,9 @@ private function ReadCallAssignAsCall_ _
     if sp->a = Tko.NODE_NONE then return false
     if sp->b = Tko.NODE_NONE then return false
     if c.ast->Kind( sp->a ) <> Tko.N_CALL then return false
-    '' Only a plain '=': '+=' and its family are never a comparison.
+    '' Only a plain '=': '+=' and its family are never a comparison, and neither is '=>'.
     if cast( Tko.TokenKind, sp->op ) <> Tko.TK_EQ then return false
+    if (c.ast->nodes[cast( long, id )].flags and Tko.NF_FAT_ARROW) <> 0 then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     '' A MEMBER CALL HAS NOT BOUND YET. Resolve runs before Check, so
     '' 'a.At( 2 ) = 88' has no RefOf on its member node and 'sid' falls back to the
@@ -112,7 +113,13 @@ private function ReadCallAssignAsCall_ _
     if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
 
     dim as Tko.ListPayload ptr lp = ListOf( c, sp->a )
-    if lp->count < 1 then return false
+    '' EXACTLY ONE WRITTEN ARGUMENT, not "at least one" (T19). fbc re-reads 'f( x ) = v' because
+    '' '( x ) = v' is itself an expression -- the parentheses belong to it, not to the call --
+    '' and '( a, b )' is not one. Measured on fbc-modern 1.20, 2026-10-02: 'Two( 0, 1 ) = 42',
+    '' 'Three( 1, 1, 1 ) = 42', 'a.At2( 2, 2 ) = 88' and 'OptB( 5, 1 ) = 9' over byref results
+    '' all ASSIGN, with no warning; 'OptB( 5 ) = 9' folds and warns. tiko folded every one, and
+    '' the store the writer meant never happened.
+    if lp->count <> 1 then return false
 
     '' ONE OR MORE WRITTEN ARGUMENTS. With NONE there is nothing to fold the '='
     '' into, and fbc keeps the assignment: measured, 'br0( ) = 456' is
@@ -131,7 +138,7 @@ private function ReadCallAssignAsCall_ _
     c.ast->binaries.Push( bp )
     dim as Tko.AstNode bn
     bn.kind = cast( ushort, Tko.N_BINARY )
-    bn.flags = 0
+    bn.flags = Tko.NF_FOLDED_EQ         '' Check's warning 34 reads it -- byrefcheck.bas (T19)
     bn.loc = c.ast->Loc( id )
     bn.data = cast( ulong, c.ast->binaries.Count - 1 )
     c.ast->nodes.Push( bn )

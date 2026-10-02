@@ -170,6 +170,18 @@ namespace Tko
     '' 'function = ( 5, 6 )' with error 7, and the two build the same node otherwise.
     const NF_TYPE_LITERAL as ushort = &h0080
 
+    '' N_BINARY: the comparison ReadCallAssignAsCall_ builds when it re-reads 'f( x ) = v' as
+    '' 'f( x = v )', as fbc does -- so Check can give fbc's warning 34 for the one it built and
+    '' not for an 'f( x = v )' written that way (T19). Shares NF_HAS_COMMA's bit, which is
+    '' N_TUPLE's and N_PAREN's and never an N_BINARY's.
+    const NF_FOLDED_EQ as ushort = &h0004
+
+    '' N_AMBIGUOUS: the assignment was written '=>', which the parser otherwise folds into '='.
+    '' 'f( 0 ) => 2' can never be the comparison 'f( 0 = 2 )', so ReadCallAssignAsCall_ leaves
+    '' it the byref result's assignment -- measured, fbc stores 2 and does not warn, where
+    '' 'f( 0 ) = 3' stores nothing and warns 34 (T19). Shares NF_HAS_COMMA's bit.
+    const NF_FAT_ARROW as ushort = &h0004
+
     '' N_PARAM: 'byval' was WRITTEN. The passing mode is not decided by the parser --
     '' with neither keyword the default depends on the TYPE, which is not resolved yet
     '' -- so the absence of NF_BYREF cannot mean "byval" on its own.

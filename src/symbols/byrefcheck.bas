@@ -293,3 +293,98 @@ private sub CheckByrefResultValue_ _
     c.diags->Report( TKO0650, PointRange( c.ast->Loc( sp->b ) ), _
                      c.names->Spelling( s->name ) )
 end sub
+
+'' 'f( x ) = v' OVER A BYREF RESULT READ AS 'f( x = v )' -- fbc's warning 34, "'=' parsed as
+'' equality operator in function argument, not assignment to BYREF function result" (T19).
+''
+'' Both compilers read the statement as a call with the comparison as its argument -- see
+'' ReadCallAssignAsCall_ in resolveamb.bas -- so the store the writer meant never happens.
+'' fbc says so; tiko said nothing, and 'SlotAt( 0 ) = 42' simply left the slot at 0.
+'' Measured on fbc-modern 1.20, 2026-10-02:
+''
+''     SlotAt( 0 ) = 42     SlotAt 0 = 42     a.At( 2 ) = 88     warning 34
+''     Two( 0, 1 ) = 42     -- two arguments                    no warning
+''     Plain( 0 ) = 42      -- a byval result                   no warning
+''     SlotAt( 0 = 42 )     ( SlotAt( 0 ) ) = 42     NoArg( ) = 42    no warning
+private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_CALL then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->a = NODE_NONE then return
+    dim as NodeId callee = sp->a
+    dim as NodeId arg = NODE_NONE
+    if c.ast->Kind( sp->a ) = N_CALL then
+        '' 'f( x ) = v': ReadCallAssignAsCall_ folded the '=' into the last argument and
+        '' marked the comparison it built. Exactly one argument was written.
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        if lp->count <> 1 then return
+        arg = cast( NodeId, c.ast->children[lp->first] )
+        if c.ast->Kind( arg ) <> N_BINARY then return
+        if (c.ast->nodes[cast( long, arg )].flags and NF_FOLDED_EQ) = 0 then return
+        callee = lp->target
+    else
+        '' 'f x = v': a call without parentheses whose one argument is the comparison.
+        select case c.ast->Kind( sp->a )
+        case N_IDENT, N_MEMBER
+        case else
+            return
+        end select
+        if sp->count <> 1 then return
+        arg = cast( NodeId, c.ast->children[sp->first] )
+        if c.ast->Kind( arg ) <> N_BINARY then return
+        if cast( TokenKind, c.ast->binaries[cast( long, c.ast->nodes[cast( long, arg )].data )].op ) <> TK_EQ then return
+    end if
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if (s = 0) andalso (callee <> NODE_NONE) then s = c.syms->SymbolAt( c.info->RefOf( callee ) )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    '' ANY OVERLOAD OF THE NAME WITH A BYREF RESULT, not the one the call chose: fbc's own
+    '' warnings/byref-function-assign-2 has 'f1( 123 ) = 123' warn where the one-argument
+    '' f1 returns by value and only 'f1( )' is byref -- measured, warning 34 on all ten of
+    '' its lines of that shape.
+    dim as boolean anyByref = false
+    dim as SymbolId cur = c.syms->LookupLocal( s->parent, s->name )
+    if cur = SYMBOL_NONE then cur = c.info->RefOf( sp->a )
+    for guard as long = 0 to 255
+        dim as Symbol ptr os = c.syms->SymbolAt( cur )
+        if os = 0 then exit for
+        if os->kind = cast( ubyte, SYM_PROC ) then
+            dim as NodeId pn = cast( NodeId, os->payload )
+            if pn <> NODE_NONE then
+                if c.ast->Kind( pn ) = N_PROC then
+                    if (c.ast->nodes[cast( long, pn )].flags and NF_BYREF) <> 0 then anyByref = true
+                end if
+            end if
+        end if
+        if anyByref then exit for
+        cur = os->nextOverload
+    next
+    if anyByref = false then return
+    c.diags->Report( TKO0931, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+end sub
+
+'' ...AND 'f( a, b ) = v' OVER A BYVAL RESULT, which is no assignment at all: fbc's error 3,
+'' "Expected End-of-Line, found '='", for 'P2( 0, 1 ) = 42' and 'P0( ) = 42' alike, measured.
+'' tiko accepted both and dropped the statement in silence. With one argument the statement
+'' is re-read as a call instead (ReadCallAssignAsCall_), and with two or more it is the byref
+'' result's assignment -- so this is what is left: a call that returns a value, not a place.
+'' A property setter and an array element are assignments, and are not calls to a procedure.
+private sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->a = NODE_NONE then return
+    if c.ast->Kind( sp->a ) <> N_CALL then return
+    if c.info->AmbiguousOf( sp->a ) = AMB_PROPERTY_SET then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if s = 0 then
+        dim as NodeId tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )].target
+        if tg <> NODE_NONE then s = c.syms->SymbolAt( c.info->RefOf( tg ) )
+    end if
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as NodeId pn = cast( NodeId, s->payload )
+    if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
+    if (c.ast->nodes[cast( long, pn )].flags and NF_BYREF) <> 0 then return
+    dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+    if cast( TokenKind, pp->op ) <> KW_FUNCTION then return
+    c.diags->Report( TKO0932, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( s->name ) )
+end sub

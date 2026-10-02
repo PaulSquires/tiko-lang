@@ -1174,7 +1174,7 @@ private sub Walk_ _
         '' PROCEDURE node -- so it is carried down rather than looked up at each return.
         innerByref = ((c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0)
     end if
-    if k = N_AMBIGUOUS then CheckByrefResultValue_( c, id, innerByref )
+    if k = N_AMBIGUOUS then CheckByrefResultValue_( c, id, innerByref ) : CheckEqParsedAsArg_( c, id ) : CheckByvalResultTarget_( c, id )
     if k = N_AMBIGUOUS then CheckByrefResultType_( c, id, innerByref, innerResult )
     if k = N_MEMBER then CheckMember_( c, id, here )
     '' ...AND THE MEMBER NAMED WITHOUT A QUALIFIER. Inside a DERIVED type's method the

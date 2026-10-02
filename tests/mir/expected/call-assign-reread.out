@@ -146,3 +146,11 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 5 functions, 5 blocks, 107 insts, 0 statements not lowered, 0 scope imbalance
+tests/mir/src/call-assign-reread.bas(28,1): warning TKO0931: '=' is read as a comparison inside the argument of 'br', not as an assignment to its byref result; to assign, write '( br( ... ) ) = value'
+     |
+  28 | br( 1 ) = 456
+     | ^
+tests/mir/src/call-assign-reread.bas(34,1): warning TKO0931: '=' is read as a comparison inside the argument of 'at', not as an assignment to its byref result; to assign, write '( at( ... ) ) = value'
+     |
+  34 | a.At( 2 ) = 88
+     | ^

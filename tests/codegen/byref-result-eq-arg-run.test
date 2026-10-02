@@ -1,0 +1,20 @@
+'' T19, RUN: 'f( x ) = v' over a BYREF result with ONE written argument is read as the
+'' call 'f( x = v )', and now warns, TKO0931, where fbc warns 34 -- free, paren-less and
+'' member calls alike. With two or more written arguments it is the byref result's
+'' assignment, as in fbc: tiko folded those too and 'Two( 0, 1 ) = 42' stored nothing. A
+'' byval result, an explicit 'f( x = v )', a parenthesised target and an empty argument
+'' list do not warn; a name with a byref overload warns whichever overload is called, and
+'' 'SlotAt( 2 ) => 5' -- the arrow is never a comparison -- assigns. Warning lines and
+'' output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/byref-result-eq-arg.bas -o tests/codegen/byrefresulteqarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: byref-result-eq-arg.bas(28,1): warning TKO0931
+'' EXPECT-OUT: byref-result-eq-arg.bas(29,1): warning TKO0931
+'' EXPECT-OUT: byref-result-eq-arg.bas(30,1): warning TKO0931
+'' EXPECT-OUT: byref-result-eq-arg.bas(37,1): warning TKO0931
+'' EXPECT-FILE: tests/codegen/byrefresulteqarg.exe
+'' RUN: tests/codegen/byrefresulteqarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 7 42 5 0 0

@@ -857,7 +857,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
                               (k = Tko.TK_SLASHEQ) orelse (k = Tko.TK_BSLASHEQ) orelse _
                               (k = Tko.TK_CARETEQ) orelse (k = Tko.TK_AMPEQ)
     if isAssign then
-        if k = Tko.TK_FATARROW then k = Tko.TK_EQ
+        dim as boolean fatArrow = (k = Tko.TK_FATARROW) : if fatArrow then k = Tko.TK_EQ
         sp.op = cast( ushort, k )
         Advance( p )
         '' 'i +=> 1' IS THE SAME STATEMENT AS 'i += 1'. FreeBASIC spells every
@@ -867,7 +867,9 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
         '' Without it 'i +=> 1' was 'expected an expression' at the '>'.
         Accept( p, Tko.TK_GT )
         sp.b = Expression( p )
-        return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
+        dim as Tko.NodeId an = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
+        if fatArrow then p.ast->nodes[cast( long, an )].flags or= Tko.NF_FAT_ARROW
+        return an
     end if
 
     '' A COMPOUND ASSIGNMENT SPELLED WITH A SPACE -- 'i + => 5' and 'i + = 5'. The fused

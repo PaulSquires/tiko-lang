@@ -1,0 +1,13 @@
+'' TKO0932, fbc's 3 (T19): 'f( ... ) = v' over a function that returns BY VALUE, with no
+'' argument or with two or more -- free and member alike. tiko accepted them and dropped
+'' the statement in silence. With exactly one argument the statement is re-read as the
+'' call 'f( x = v )' instead, and an explicit 'P2( 0, 1 = 42 )' is a call; neither is
+'' refused. Lines identical to fbc-modern's errors. See CheckByvalResultTarget_ in
+'' symbols/byrefcheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byval-result-assign.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byval-result-assign.bas(15,3): error TKO0932
+'' EXPECT-OUT: byval-result-assign.bas(16,3): error TKO0932
+'' EXPECT-OUT: byval-result-assign.bas(17,7): error TKO0932
+'' EXPECT-MAX-DIAG: 3
