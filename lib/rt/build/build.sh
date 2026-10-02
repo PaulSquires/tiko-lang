@@ -34,8 +34,79 @@
 
 set -e
 
+# A WORKER: 'build.sh --one <source> <object>' -- one source to one object, the two
+# compiles and nothing else. build_one runs RT_JOBS of these at once and checks every
+# object afterwards in one pass. It reads what it needs from the RTW_* variables
+# build_one exports and does NOT source common.sh: on Windows every process costs
+# ~25 ms under MSYS, and the per-source checks this used to run -- an 'ar t' of fbc's
+# archive, two nm pipelines, sort and comm -- were ~0.9 s of each source's ~1.05 s,
+# where fbc takes 0.04 s and clang 0.08 s.
+rtw_die( ) { echo "tiko-rt: $RTW_WHAT: $*" >&2; exit 2; }
+compile_src( ) {
+    src=$1
+    obj=$2
+
+    # THE ASSEMBLE STEP IS OURS WHEN THE TRIPLE IS NOT fbc's.
+    #
+    # fbc cannot be asked for the Microsoft ABI: llvmTriple( ) is a two-way
+    # switch on the target with no MSVC branch, and -Wc does not reach the
+    # -gen llvm clang call at all (hCompileStage2ModuleLlvm builds its own
+    # option string and never appends extopt.gcc). Measured 2026-09-04.
+    #
+    # So -r stops fbc at the .ll -- it emits no object then, verified -- and
+    # clang is called here with the triple we want. The .ll is NOT edited:
+    # clang's --target overrides the module's own 'target triple' line, and
+    # the resulting object is symbol-for-symbol identical to one built from a
+    # rewritten .ll. RFC-0006 section 12.
+    #
+    # The clang line mirrors fbc's own, which is visible with -v:
+    #   clang --target=<t> -march=x86-64 -O<n> -Wno-override-module x.ll -c -o x.o
+    if [ -n "$RTW_TRIPLE" ]; then
+        __ll="${obj%.o}.ll"
+        rm -f "$__ll"
+        "$TKORT_FBC" -c "$RT_ROOT/src/$src" -target "$RTW_FBCTARGET" -gen llvm -r $RTW_INC \
+            $RTW_FLAGS -o "$obj" || rtw_die "$src failed to compile"
+        [ -f "$__ll" ] || rtw_die "$src produced no .ll"
+        # -ffunction-sections IS WHY A HELLO WORLD HALVED. Each FreeBASIC
+        # module compiles to ONE object holding every procedure in it, so a
+        # linker that discards unreferenced code could not: the unit it can
+        # drop is a section, and there was one section for the lot. A 'print'
+        # therefore dragged io_print.o, which dragged io_devscrn2.o for
+        # fb_DevScrnInit_Write, which dragged io_devfile.o -- 70 members
+        # pulled in for hello world where fbc's C libfb pulls 40.
+        #
+        # NO GC FLAG IS NEEDED AT THE LINK, which was the surprise. MSVC's
+        # linker already applies /OPT:REF in a non-debug link; it simply had
+        # nothing to work with. Measured 2026-09-06, win64-msvc hello world:
+        #
+        #     without   352,768 bytes   .text 270,560
+        #     with      164,352 bytes   .text  98,752
+        #
+        # The archive GROWS, 766 KB to 900 KB, because per-function sections
+        # cost headers. That is a build artefact; the executable is what ships.
+        #
+        # THIS TARGET ONLY, and not by choice. The gnu path below hands the
+        # whole compile to fbc, and -Wc does not reach its -gen llvm clang
+        # call (RFC-0006 section 12), so win64 keeps one section per module.
+        "$CLANG" --target="$RTW_TRIPLE" -march=x86-64 "-O$RTW_OPT" -ffunction-sections \
+            -fdata-sections -Wno-override-module "$__ll" -c -o "$obj" \
+            || rtw_die "$src failed to assemble for $RTW_TRIPLE"
+        rm -f "$__ll"
+    else
+        "$TKORT_FBC" -c "$RT_ROOT/src/$src" -target "$RTW_FBCTARGET" -gen llvm $RTW_INC \
+            $RTW_FLAGS $RTW_PIC -o "$obj" || rtw_die "$src failed to compile"
+    fi
+    [ -f "$obj" ] || rtw_die "$src produced no object"
+}
+if [ "${1:-}" = "--one" ]; then
+    compile_src "$2" "$3"
+    exit 0
+fi
+
 . "$(dirname "$0")/common.sh"
 rt_check_tools
+RT_SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+RT_JOBS=${TKORT_JOBS:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}
 
 CFG=${1:-Debug}
 FLAGS=$(rt_cfg_flags "$CFG") || rt_die "unknown configuration '$CFG' (Debug|Release|RelWithDebInfo)"
@@ -48,9 +119,9 @@ done
 
 SOURCES=$(rt_sources)
 
-build_one( ) {
-    target=$1
-    thread=$2                       # st | mt | stpic | mtpic
+# The variant's flags, directories and reference library: what build_one and a --one
+# worker both need, from $target, $thread and $CFG.
+thread_vars( ) {
     picdef=""; cpic=""
     case $thread in
         st)    archive=libfb.a;      mtdef="" ;;
@@ -61,6 +132,17 @@ build_one( ) {
 
     objdir="$RT_ROOT/obj/$target/$CFG/$thread"
     libdir="$RT_ROOT/lib/$target"
+    REFLIB=""
+    _refdir=$(rt_reflib "$target" 2>/dev/null || true)
+    if [ -n "$_refdir" ] && [ -f "$_refdir/libfb.a" ]; then
+        REFLIB="$_refdir/libfb.a"
+    fi
+}
+
+build_one( ) {
+    target=$1
+    thread=$2                       # st | mt | stpic | mtpic
+    thread_vars
     rm -rf "$objdir"
     mkdir -p "$objdir" "$libdir"
 
@@ -83,147 +165,128 @@ build_one( ) {
 
     # A stale object yields a plausible archive, never an error, so the object
     # directory is removed above rather than reused.
-    REFLIB=""
-    _refdir=$(rt_reflib "$target" 2>/dev/null || true)
-    if [ -n "$_refdir" ] && [ -f "$_refdir/libfb.a" ]; then
-        REFLIB="$_refdir/libfb.a"
+
+    # THE SOURCES COMPILE IN PARALLEL, RT_JOBS at a time (TKORT_JOBS, else every CPU),
+    # each by a --one worker -- see compile_src at the top. The archive below still
+    # takes the objects in sources.txt order.
+    RTW_WHAT="$target/$thread"
+    RTW_TRIPLE=$(rt_clang_triple "$target")
+    RTW_FBCTARGET=$(rt_fbc_target "$target")
+    RTW_INC=$(rt_incflags)
+    RTW_FLAGS="$FLAGS $mtdef $(rt_abi_define "$target")"
+    RTW_PIC=$picdef
+    RTW_OPT=$(rt_opt_level "$CFG")
+    export TKORT_FBC CLANG RT_ROOT RTW_WHAT RTW_TRIPLE RTW_FBCTARGET RTW_INC RTW_FLAGS RTW_PIC RTW_OPT
+    rt_sources | awk -v d="$objdir" '{ o = $0; gsub("/", "_", o); sub(/\.bas$/, ".o", o); print $0, d "/" o }' \
+        > "$objdir/.pairs"
+    if ! xargs -P "$RT_JOBS" -n 2 sh "$RT_SELF" --one < "$objdir/.pairs"; then
+        rt_die "$target/$thread: a source failed to build -- see above"
     fi
+    objs=$(awk '{ printf " %s", $2 }' "$objdir/.pairs")
 
-    objs=""
-    for src in $SOURCES; do
-        obj="$objdir/$(echo "$src" | tr '/' '_' | sed 's/\.bas$/.o/')"
-
-        # THE ASSEMBLE STEP IS OURS WHEN THE TRIPLE IS NOT fbc's.
-        #
-        # fbc cannot be asked for the Microsoft ABI: llvmTriple( ) is a two-way
-        # switch on the target with no MSVC branch, and -Wc does not reach the
-        # -gen llvm clang call at all (hCompileStage2ModuleLlvm builds its own
-        # option string and never appends extopt.gcc). Measured 2026-09-04.
-        #
-        # So -r stops fbc at the .ll -- it emits no object then, verified -- and
-        # clang is called here with the triple we want. The .ll is NOT edited:
-        # clang's --target overrides the module's own 'target triple' line, and
-        # the resulting object is symbol-for-symbol identical to one built from a
-        # rewritten .ll. RFC-0006 section 12.
-        #
-        # The clang line mirrors fbc's own, which is visible with -v:
-        #   clang --target=<t> -march=x86-64 -O<n> -Wno-override-module x.ll -c -o x.o
-        __ct=$(rt_clang_triple "$target")
-        if [ -n "$__ct" ]; then
-            __ll="${obj%.o}.ll"
-            rm -f "$__ll"
-            if ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                     -target "$(rt_fbc_target "$target")" -gen llvm -r $(rt_incflags)                     $FLAGS $mtdef $(rt_abi_define "$target") -o "$obj"; then
-                rt_die "$target/$thread: $src failed to compile"
-            fi
-            [ -f "$__ll" ] || rt_die "$target/$thread: $src produced no .ll"
-            # -ffunction-sections IS WHY A HELLO WORLD HALVED. Each FreeBASIC
-            # module compiles to ONE object holding every procedure in it, so a
-            # linker that discards unreferenced code could not: the unit it can
-            # drop is a section, and there was one section for the lot. A 'print'
-            # therefore dragged io_print.o, which dragged io_devscrn2.o for
-            # fb_DevScrnInit_Write, which dragged io_devfile.o -- 70 members
-            # pulled in for hello world where fbc's C libfb pulls 40.
-            #
-            # NO GC FLAG IS NEEDED AT THE LINK, which was the surprise. MSVC's
-            # linker already applies /OPT:REF in a non-debug link; it simply had
-            # nothing to work with. Measured 2026-09-06, win64-msvc hello world:
-            #
-            #     without   352,768 bytes   .text 270,560
-            #     with      164,352 bytes   .text  98,752
-            #
-            # The archive GROWS, 766 KB to 900 KB, because per-function sections
-            # cost headers. That is a build artefact; the executable is what ships.
-            #
-            # THIS TARGET ONLY, and not by choice. The gnu path below hands the
-            # whole compile to fbc, and -Wc does not reach its -gen llvm clang
-            # call (RFC-0006 section 12), so win64 keeps one section per module.
-            if ! "$CLANG" --target="$__ct" -march=x86-64 "-O$(rt_opt_level "$CFG")" -ffunction-sections -fdata-sections                     -Wno-override-module "$__ll" -c -o "$obj"; then
-                rt_die "$target/$thread: $src failed to assemble for $__ct"
-            fi
-            rm -f "$__ll"
-        elif ! "$TKORT_FBC" -c "$RT_ROOT/src/$src"                 -target "$target" -gen llvm $(rt_incflags)                 $FLAGS $mtdef $picdef -o "$obj"; then
-            rt_die "$target/$thread: $src failed to compile"
+    # THE TWO CHECKS EVERY OBJECT GETS, made ONCE over all of them: one nm of the
+    # objects, one of fbc's archive, and one awk joining them by member name.
+    #
+    # A NAME COLLISION WITH AN fbc MEMBER MUST NOT LOSE SYMBOLS.
+    #
+    # Objects are named after their source path -- io/input.bas became
+    # io_input.o -- and gate.sh merges them INTO fbc's archive, so llvm-ar
+    # REPLACES any member of the same name. fbc has an io_input.o of its own,
+    # and the merge dropped fb_hConsoleGetKey, fb_ConsoleHasFocus and five
+    # more that this project does not define.
+    #
+    # IT WAS SILENT ON ALL THREE TARGETS. win64 and win32 passed the whole
+    # 2,715-file suite with that member gone; only linux-x86_64 failed, and
+    # only because time_sleep.c happens to reference one of the lost symbols
+    # there.
+    #
+    # Replacing a member IS the point of the port -- str/core.bas becomes
+    # str_core.o and supplies all ten of its symbols. What must never happen
+    # is replacing one by NAME while leaving some of its symbols undefined.
+    # So the test is not "does the name collide" but "does the collision lose
+    # anything".
+    #
+    # A SOURCE THAT CONTRIBUTES NO GLOBAL SYMBOL SHIPPED NOTHING.
+    #
+    # src/error/errmsg.bas defined __fb_errmsg as a bare "dim shared" inside
+    # an EXTERN "c" block, which FreeBASIC emits as a FILE-LOCAL symbol --
+    # nm shows lowercase b, not B. tiko-rt's archive therefore still carried
+    # an UNDEFINED reference to the name and fbc's own error_message.o kept
+    # supplying it.
+    #
+    # ALL THREE EXISTING CHECKS PASSED. symbols.sh compares the names
+    # tiko-rt DOES define, and an absent symbol is not a mismatch. gate.sh
+    # deletes fbc's members BY SYMBOL, and there was none to delete. The
+    # differential was reading fbc's buffer.
+    #
+    # A check that compares what was emitted cannot see what was not. This
+    # one asks a different question: did this file put anything in the
+    # archive at all.
+    #
+    # A MODULE THAT IS DELIBERATELY EMPTY ON SOME TARGETS MUST SAY SO, with
+    # a marker naming them -- io/conprint.bas is the POSIX console writer and
+    # is #ifdef-ed to nothing on Windows. The marker is what separates that
+    # from a module that meant to define something and did not.
+    "$TKORT_NM" --defined-only $objs > "$objdir/.ours" 2>/dev/null || true
+    : > "$objdir/.theirs"
+    [ -z "$REFLIB" ] || "$TKORT_NM" --defined-only "$REFLIB" > "$objdir/.theirs" 2>/dev/null || true
+    awk '
+        FILENAME == ARGV[1] { n = split($2, p, /[/\\]/); src[p[n]] = $1; order[++no] = p[n]; next }
+        /:$/                { c = $0; sub(/:$/, "", c); n = split(c, p, /[/\\]/); c = p[n]; next }
+        NF == 3 {
+            tdb = ($2 == "T" || $2 == "D" || $2 == "B")
+            if (FILENAME == ARGV[2]) { if (tdb) th[c] = th[c] " " $3 }
+            else {
+                if (tdb) ou[c, $3] = 1
+                if (tdb || $2 == "R") g[c]++
+            }
+        }
+        END {
+            for (i = 1; i <= no; i++) {
+                c = order[i]
+                if (c in th) {
+                    k = split(th[c], ss, " "); m = 0
+                    for (j = 1; j <= k && m < 5; j++)
+                        if (!((c, ss[j]) in ou)) { print "LOSES", src[c], c, ss[j]; m++ }
+                }
+                if (!(c in g)) print "EMPTY", src[c], c
+            }
+        }' "$objdir/.pairs" "$objdir/.theirs" "$objdir/.ours" > "$objdir/.checks"
+    _loses=""
+    while read -r _k _src _o _sym; do
+        [ "$_k" = "LOSES" ] || continue
+        if [ "$_loses" != "$_o" ]; then
+            [ -z "$_loses" ] || rt_die "rename the source, or define those symbols too"
+            echo "build: $_src compiles to $_o, an fbc member name," >&2
+            echo "build: so the gate's merge would REPLACE it -- losing:" >&2
+            _loses=$_o
         fi
-        [ -f "$obj" ] || rt_die "$target/$thread: $src produced no object"
-
-        # A NAME COLLISION WITH AN fbc MEMBER MUST NOT LOSE SYMBOLS.
-        #
-        # Objects are named after their source path -- io/input.bas became
-        # io_input.o -- and gate.sh merges them INTO fbc's archive, so llvm-ar
-        # REPLACES any member of the same name. fbc has an io_input.o of its own,
-        # and the merge dropped fb_hConsoleGetKey, fb_ConsoleHasFocus and five
-        # more that this project does not define.
-        #
-        # IT WAS SILENT ON ALL THREE TARGETS. win64 and win32 passed the whole
-        # 2,715-file suite with that member gone; only linux-x86_64 failed, and
-        # only because time_sleep.c happens to reference one of the lost symbols
-        # there.
-        #
-        # Replacing a member IS the point of the port -- str/core.bas becomes
-        # str_core.o and supplies all ten of its symbols. What must never happen
-        # is replacing one by NAME while leaving some of its symbols undefined.
-        # So the test is not "does the name collide" but "does the collision lose
-        # anything".
-        objname=$(basename "$obj")
-        if [ -n "$REFLIB" ] && "$TKORT_AR" t "$REFLIB" 2>/dev/null | grep -qx "$objname"; then
-            "$TKORT_NM" --defined-only "$obj" 2>/dev/null                 | awk '$2=="T"||$2=="D"||$2=="B"{print $3}' | sort -u > "$objdir/.ours.tmp"
-            "$TKORT_NM" --defined-only "$REFLIB" 2>/dev/null                 | awk -v m="$objname" '/:$/{c=$0; sub(":","",c)} c==m && ($2=="T"||$2=="D"||$2=="B"){print $3}'                 | sort -u > "$objdir/.theirs.tmp"
-            missing=$(comm -23 "$objdir/.theirs.tmp" "$objdir/.ours.tmp" | head -5)
-            rm -f "$objdir/.ours.tmp" "$objdir/.theirs.tmp"
-            if [ -n "$missing" ]; then
-                echo "build: $src compiles to $objname, an fbc member name," >&2
-                echo "build: so the gate's merge would REPLACE it -- losing:" >&2
-                echo "$missing" | sed 's/^/    /' >&2
-                rt_die "rename the source, or define those symbols too"
-            fi
+        echo "    $_sym" >&2
+    done < "$objdir/.checks"
+    [ -z "$_loses" ] || rt_die "rename the source, or define those symbols too"
+    while read -r _k _src _o _sym; do
+        [ "$_k" = "EMPTY" ] || continue
+        # THE PLATFORM, NOT THE ABI. win64-msvc is win64 with a different
+        # calling-convention-free ABI: the same files are empty on it for
+        # the same reasons, and hinitposix.bas is empty on both because
+        # neither is POSIX. Matching the full target name instead would
+        # mean adding "win64-msvc" to every EMPTY-ON line in the tree, and
+        # again to each one for any later ABI variant.
+        __base=${target%-msvc}
+        if grep -qE "EMPTY-ON:.*($target|$__base)" "$RT_ROOT/src/$_src" 2>/dev/null; then
+            : # declared empty for this target
+        else
+            echo "build: $_src compiles to an object with NO GLOBAL SYMBOLS on $target." >&2
+            echo "build: it is in build/sources.txt but contributes nothing to the archive." >&2
+            echo "build: a data definition needs the EXTERN ... ALIAS declaration inside" >&2
+            echo "build: an extern block AND the DIM SHARED outside it -- a bare" >&2
+            echo "build: dim shared inside the block is file-local. See src/utf/core.bas." >&2
+            echo "build: if the file is empty on this target BY DESIGN, add a comment" >&2
+            echo "build: line naming them, e.g.   '' EMPTY-ON: win64" >&2
+            rt_die "define something, mark it EMPTY-ON, or take it out of sources.txt"
         fi
-
-        # A SOURCE THAT CONTRIBUTES NO GLOBAL SYMBOL SHIPPED NOTHING.
-        #
-        # src/error/errmsg.bas defined __fb_errmsg as a bare "dim shared" inside
-        # an EXTERN "c" block, which FreeBASIC emits as a FILE-LOCAL symbol --
-        # nm shows lowercase b, not B. tiko-rt's archive therefore still carried
-        # an UNDEFINED reference to the name and fbc's own error_message.o kept
-        # supplying it.
-        #
-        # ALL THREE EXISTING CHECKS PASSED. symbols.sh compares the names
-        # tiko-rt DOES define, and an absent symbol is not a mismatch. gate.sh
-        # deletes fbc's members BY SYMBOL, and there was none to delete. The
-        # differential was reading fbc's buffer.
-        #
-        # A check that compares what was emitted cannot see what was not. This
-        # one asks a different question: did this file put anything in the
-        # archive at all.
-        #
-        # A MODULE THAT IS DELIBERATELY EMPTY ON SOME TARGETS MUST SAY SO, with
-        # a marker naming them -- io/conprint.bas is the POSIX console writer and
-        # is #ifdef-ed to nothing on Windows. The marker is what separates that
-        # from a module that meant to define something and did not.
-        ngl=$("$TKORT_NM" --defined-only "$obj" 2>/dev/null | awk '$2=="T"||$2=="D"||$2=="B"||$2=="R"' | wc -l)
-        if [ "$ngl" -eq 0 ]; then
-            # THE PLATFORM, NOT THE ABI. win64-msvc is win64 with a different
-            # calling-convention-free ABI: the same files are empty on it for
-            # the same reasons, and hinitposix.bas is empty on both because
-            # neither is POSIX. Matching the full target name instead would
-            # mean adding "win64-msvc" to every EMPTY-ON line in the tree, and
-            # again to each one for any later ABI variant.
-            __base=${target%-msvc}
-            if grep -qE "EMPTY-ON:.*($target|$__base)" "$RT_ROOT/src/$src" 2>/dev/null; then
-                : # declared empty for this target
-            else
-                echo "build: $src compiles to an object with NO GLOBAL SYMBOLS on $target." >&2
-                echo "build: it is in build/sources.txt but contributes nothing to the archive." >&2
-                echo "build: a data definition needs the EXTERN ... ALIAS declaration inside" >&2
-                echo "build: an extern block AND the DIM SHARED outside it -- a bare" >&2
-                echo "build: dim shared inside the block is file-local. See src/utf/core.bas." >&2
-                echo "build: if the file is empty on this target BY DESIGN, add a comment" >&2
-                echo "build: line naming them, e.g.   '' EMPTY-ON: win64" >&2
-                rt_die "define something, mark it EMPTY-ON, or take it out of sources.txt"
-            fi
-        fi
-
-        objs="$objs $obj"
-    done
+    done < "$objdir/.checks"
+    rm -f "$objdir/.pairs" "$objdir/.ours" "$objdir/.theirs" "$objdir/.checks"
 
     # ------------------------------------------------------------ the C residue
     #
@@ -314,7 +377,7 @@ build_one( ) {
     echo "build: $target/$archive [$CFG] -- $(echo $objs | wc -w) objects, $n text symbols"
 }
 
-echo "build: tiko-rt [$CFG] with $TKORT_FBC"
+echo "build: tiko-rt [$CFG] with $TKORT_FBC ($RT_JOBS jobs)"
 for target in $TARGETS; do
     build_one "$target" st
     build_one "$target" mt
