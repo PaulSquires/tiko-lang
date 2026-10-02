@@ -15,7 +15,8 @@
 '' The compile unit is full debug info, and it lists the globals.
 '' EXPECT-OUT: emissionKind: FullDebug, globals: !{
 '' A local's home is its alloca, declared once for the whole procedure.
-'' EXPECT-OUT: #dbg_declare(ptr %s
+'' The intrinsic, not LLVM 19's #dbg_declare record, so clang 18 reads it (T67).
+'' EXPECT-OUT: call void @llvm.dbg.declare(metadata ptr %s
 '' EXPECT-OUT: !DILocalVariable(name: "MyLong"
 '' Names keep the DECLARED spelling -- identifiers intern folded -- and a parameter is
 '' numbered.

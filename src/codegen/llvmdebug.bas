@@ -226,8 +226,12 @@ function DbgDeclare _
                                   TypeRef_( ty ) & ")" )
     dim as long at = NewNode_( d, "!DILocation(line: " & str( ln ) & ", scope: !" & _
                                    str( d.curSp ) & ")" )
-    return "    #dbg_declare(ptr " & slotName & ", !" & str( v ) & _
-           ", !DIExpression(), !" & str( at ) & ")" & chr( 10 )
+    '' THE INTRINSIC, NOT THE RECORD (T67). '#dbg_declare( ... )' is LLVM 19's spelling,
+    '' and Ubuntu's clang 18 -- tiko's stated minimum, and the default /usr/bin/clang on
+    '' 24.04 -- refused the whole file at it: "expected instruction opcode". The call
+    '' form is read by 18 and upgraded to a record by 19 and later, so it serves both.
+    return "    call void @llvm.dbg.declare(metadata ptr " & slotName & ", metadata !" & _
+           str( v ) & ", metadata !DIExpression()), !dbg !" & str( at ) & chr( 10 )
 end function
 
 '' The procedure a symbol is declared inside, 0 at module level.
@@ -309,7 +313,10 @@ function DbgFinish( byref d as DebugInfo ) as string
                             "emissionKind: " & kind_ & gl & ")" )
     dim as long fv = NewNode_( d, "!{i32 2, !""Debug Info Version"", i32 3}" )
     dim as long dv = NewNode_( d, "!{i32 7, !""Dwarf Version"", i32 4}" )
-    return chr( 10 ) & "!llvm.dbg.cu = !{!" & str( d.cuId ) & "}" & chr( 10 ) & _
+    '' The intrinsic the variable declarations call (T67); a declaration nothing calls costs
+    '' nothing.
+    return chr( 10 ) & "declare void @llvm.dbg.declare(metadata, metadata, metadata)" & chr( 10 ) & _
+           "!llvm.dbg.cu = !{!" & str( d.cuId ) & "}" & chr( 10 ) & _
            "!llvm.module.flags = !{!" & str( fv ) & ", !" & str( dv ) & "}" & chr( 10 ) & _
            d.nodes
 end function
