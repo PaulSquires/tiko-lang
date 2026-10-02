@@ -815,6 +815,20 @@ function TypeContext.Name( byval t as TypeId ) as string
 
     select case this.Kind( t )
     case TK_BUILTIN
+        if this.spellSized then
+            select case this.BuiltinOf( t )
+            case TY_BYTE     : return prefix & "int8"
+            case TY_UBYTE    : return prefix & "uint8"
+            case TY_SHORT    : return prefix & "int16"
+            case TY_USHORT   : return prefix & "uint16"
+            case TY_LONG     : return prefix & "int32"
+            case TY_ULONG    : return prefix & "uint32"
+            case TY_LONGINT  : return prefix & "int64"
+            case TY_ULONGINT : return prefix & "uint64"
+            case TY_SINGLE   : return prefix & "float32"
+            case TY_DOUBLE   : return prefix & "float64"
+            end select
+        end if
         return prefix & BuiltinName( this.BuiltinOf( t ) )
     case TK_POINTER
         return prefix & this.Name( this.Inner( t ) ) & " ptr"

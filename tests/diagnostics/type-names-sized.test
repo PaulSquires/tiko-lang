@@ -1,0 +1,9 @@
+'' T34 (2): a program written with tiko's sized names -- int32, float64, uint8 -- reads them
+'' back in diagnostics, where it was told about a 'double ptr' from a 'long ptr'. The names
+'' are prelude typedefs, so the unit's own spelling decides (UnitSpellsSized_, unit.bas);
+'' type-names-fbc is the same program in fbc's names, which keeps them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-names-sized.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: warning TKO0830: suspicious pointer assignment: a 'float64 ptr' from a 'int32 ptr'
+'' EXPECT-OUT: warning TKO0830: suspicious pointer assignment: a 'int32 ptr' from a 'uint8 ptr'

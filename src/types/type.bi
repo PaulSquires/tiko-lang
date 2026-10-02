@@ -282,6 +282,12 @@ namespace Tko
         as FB.Array( of long )  instArgFirst
         as FB.Array( of long )  instArgCount
         as FB.Array( of ulong ) instArgs
+        '' NAME A BUILTIN THE WAY THIS PROGRAM DOES (T34): int32, float64, uint8 ... rather than
+        '' long, double, ubyte. Those sized names are prelude typedefs, so a type that came from
+        '' 'int32' IS 'long' here and the spelling is gone; the driver sets this per unit from
+        '' which style the unit's own source writes (unit.bas). Display only -- nothing that
+        '' compares a name looks at a builtin's.
+        as boolean spellSized
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr, byref tgt as TargetLayout )

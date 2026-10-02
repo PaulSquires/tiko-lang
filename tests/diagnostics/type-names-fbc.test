@@ -1,0 +1,7 @@
+'' T34 (2): the same program as type-names-sized, written in fbc's names, keeps fbc's names
+'' in its diagnostics.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-names-fbc.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: warning TKO0830: suspicious pointer assignment: a 'double ptr' from a 'long ptr'
+'' EXPECT-OUT: warning TKO0830: suspicious pointer assignment: a 'long ptr' from a 'ubyte ptr'

@@ -34,6 +34,44 @@
 
 namespace Tko.Driver
 
+'' WHICH SPELLING OF THE SIZED BUILTINS THIS UNIT'S OWN SOURCE WRITES (T34): 'int32',
+'' 'float64' ... -- tiko's, prelude typedefs -- or fbc's 'long', 'double' ...; diagnostics then
+'' name types the same way. 'dim as float64 ptr f = @n' over an int32 n warned about "a
+'' 'double ptr' from a 'long ptr'", which the reader wrote neither of. Counted over the
+'' unit's own files only -- the root, or a module's -- so a header written in fbc's names
+'' does not outvote the program; a tie keeps fbc's names.
+private function UnitSpellsSized_ _
+    ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, byval rootId as Tko.FileId, _
+      byref modFiles as Tko.IdVec ) as boolean
+    dim as long sized = 0, legacy = 0
+    for n as long = 1 to ast.Count( ) - 1
+        if ast.Kind( cast( Tko.NodeId, n ) ) <> Tko.N_TYPEREF then continue for
+        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( long, ast.nodes[n].data )]
+        dim as long vote = 0
+        select case cast( Tko.TokenKind, tp->op )
+        case Tko.TK_IDENT
+            select case lcase( ctx.names.Spelling( tp->name ) )
+            case "int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64", "float32", "float64"
+                vote = 1
+            end select
+        case Tko.KW_BYTE, Tko.KW_UBYTE, Tko.KW_SHORT, Tko.KW_USHORT, Tko.KW_LONG, Tko.KW_ULONG, _
+             Tko.KW_LONGINT, Tko.KW_ULONGINT, Tko.KW_SINGLE, Tko.KW_DOUBLE
+            vote = -1
+        end select
+        if vote = 0 then continue for
+        dim as Tko.FileId f = ctx.sources.Decode( ast.Loc( cast( Tko.NodeId, n ) ) ).file
+        dim as boolean own = (f = rootId)
+        if own = false then
+            for k as long = 0 to modFiles.Count - 1
+                if cast( Tko.FileId, modFiles[k] ) = f then own = true : exit for
+            next
+        end if
+        if own = false then continue for
+        if vote > 0 then sized += 1 else legacy += 1
+    next
+    return (sized > legacy)
+end function
+
 function CompileUnit _
     ( byref ctx as Tko.CompilerContext, byval i as long, byval srcCount as long, _
       byval restartDepth as long, byval wantsOutput as boolean, _
@@ -70,6 +108,7 @@ function CompileUnit _
                         Tko.CC_STDCALL, Tko.CC_CDECL )
 
     dim as Tko.NodeId root = Tko.Parse.Unit( p )
+    ctx.types.spellSized = UnitSpellsSized_( ctx, ast, id, modFiles )
     '' The editor scan wants the unit's macros, and PpClose frees them.
     dim as Tko.MacroInfoVec scanMacros
     if ctx.scan <> 0 then Tko.PpSnapshotMacros( st, scanMacros )
