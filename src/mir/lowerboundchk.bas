@@ -210,6 +210,55 @@ sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
     c.curBlock = contB
 end sub
 
+'' A RUNTIME STATEMENT THAT FAILED, under -e (bit 1 of errFlags; T68). The function form
+'' of OPEN, CLOSE, GET and the rest hands its error code back; the STATEMENT form drops
+'' it, and under -e fbc does not -- measured from its C (rtlErrorCheck):
+''
+''     int32 vr$2 = fb_FileOpen( ... );
+''     if( (int64)vr$2 == 0ll) goto label$2;
+''     void* vr$4 = fb_ErrorThrowAt( 2, (char*)"io.bas", (void*)0ull, (void*)0ull );
+''     goto *vr$4;
+''
+'' fb_ErrorThrowAt throws the error the runtime just recorded, so a missing file under
+'' -e stops with runtime error 2 or reaches the ON ERROR handler. tiko dropped the code
+'' and carried on. The throw is the one LowerError makes, through the same jump.
+sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirValue )
+    if (c.errFlags and 1) = 0 then return
+    if rc.kind = cast( ubyte, MV_NONE ) then return
+
+    dim as MirInst ne_
+    ne_.op = cast( ushort, M_ICMP_NE )
+    ne_.ty = cast( ubyte, MT_I8 )
+    ne_.a = rc
+    ne_.b = ConstInt( c, 0, cast( MirType, rc.ty ) )
+    dim as MirValue failed = Emit( c, ne_ )
+
+    '' The throw block first, for the reason EmitErrorJump_ gives.
+    dim as long throwB = NewBlock( c, "rterr" )
+    dim as long contB = NewBlock( c, "rtok" )
+    Terminate( c, MTERM_CONDBR, throwB, contB, failed )
+    c.curBlock = throwB
+
+    dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as string fname = ""
+    dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
+    if sf <> 0 then fname = c.names->Spelling( sf->displayPath )
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, d.lineNo ) )
+    args.Push( cast( ulong, MV_GLOBAL ) )
+    args.Push( cast( ulong, c.m->AddStringLiteral( fname, *c.names ) ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    dim as MirValue jr = EmitRtl( c, RTL_ERROR_THROW_AT, args )
+    if jr.kind = cast( ubyte, MV_NONE ) then
+        Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    else
+        c.errIndirectBlocks.Push( cast( ulong, c.curBlock ) )
+        Terminate( c, MTERM_INDIRECTBR, -1, -1, jr )
+    end if
+    c.curBlock = contB
+end sub
+
 '' EVERY JUMP GETS ITS DESTINATIONS, once the procedure is finished and every ON ERROR
 '' in it has been seen. Run from the two places a procedure body ends.
 sub ResolveErrorJumps_( byref c as Ctx )

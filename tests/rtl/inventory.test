@@ -33,4 +33,5 @@
 '' AND THREE MORE, 2026-09-26: fb_UStrTrimEx and its L and R twins, the pattern form of
 '' trim over a ustring (tests/mir/ustring-trim-pattern).
 '' EXPECT-OUT: fb_UStrRTrimEx ptr (ptr, i64, ptr, i64)
-'' EXPECT-OUT: rtl: 532 entries
+'' TWO MORE, 2026-10-02: fb_InputUStr and fb_FileLineInputUStr, a ustring's readers (T66).
+'' EXPECT-OUT: rtl: 534 entries

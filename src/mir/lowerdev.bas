@@ -29,7 +29,7 @@ private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boo
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, ch.kind ) ) : args.Push( cast( ulong, ch.id ) )
     args.Push( cast( ulong, po.kind ) ) : args.Push( cast( ulong, po.id ) )
-    EmitRtl( c, RTL_FILE_SEEK, args )
+    EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_SEEK, args ) )     '' -e (T68)
     return true
 end function
 
@@ -168,6 +168,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
             dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
             dim as MirValue dr = EmitRtl( c, RTL_WIDTH_DEV, dargs )
+            EmitRtlErrorCheck_( c, id, dr )                 '' -e (T68)
             return (dr.kind <> cast( ubyte, MV_NONE ))
         end if
     end if
@@ -190,6 +191,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
         end if
     next
     dim as MirValue wr = EmitRtl( c, RTL_WIDTH, args )
+    EmitRtlErrorCheck_( c, id, wr )                         '' -e (T68)
     return (wr.kind <> cast( ubyte, MV_NONE ))
 end function
 
@@ -291,7 +293,9 @@ end function
 private function LowerNameStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as MirValue r
-    return EmitRename_( c, sp->a, sp->b, r )
+    if EmitRename_( c, sp->a, sp->b, r ) = false then return false
+    EmitRtlErrorCheck_( c, id, r )                          '' -e (T68)
+    return true
 end function
 
 '' 'name( old, new )' IN EXPRESSION POSITION yields rename's RESULT CODE. Measured:

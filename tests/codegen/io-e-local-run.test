@@ -1,0 +1,9 @@
+'' T68, RUN: under -e, a CLOSE of a closed channel reaches the procedure's own local
+'' handler, and the program carries on after it.
+'' TEST: cli
+'' ARGS: -target win64-msvc -e tests/codegen/src/io-e-local.bas -o tests/codegen/ioelocal.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ioelocal.exe
+'' EXPECT-RUN-OUT: close: 1
+'' EXPECT-RUN-OUT: after

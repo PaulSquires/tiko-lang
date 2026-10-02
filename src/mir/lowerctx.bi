@@ -356,6 +356,8 @@ declare function EmitRtl _
     '' lowerboundchk.bas -- the indirect jump a failed -e check hands back, and the
     '' pass that gives it its destinations once the procedure's handlers are known.
     declare sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
+    '' ...and, under -e, a runtime STATEMENT's error code thrown when it is not 0 (T68).
+    declare sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirValue )
     declare sub ResolveErrorJumps_( byref c as Ctx )
     declare function NewBlock( byref c as Ctx, byref label as string ) as long
     declare sub Terminate _

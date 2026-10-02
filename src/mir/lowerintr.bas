@@ -24,8 +24,6 @@ declare function StrSwapKind_ _
 '' same call -- the '#' is decoration and the parser has already dropped it -- 'close
 '' #1, #2' is two calls in source order, and a bare 'close' is 'fb_FileCloseAll( )'.
 '' No new shape, no state, nothing conditional.
-''
-'' 137 corpus statements across 39 files, none of which lowered before.
 function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
 
@@ -45,7 +43,7 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as FB.Array( of ulong ) args
         fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( it ))
         args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
-        EmitRtl( c, RTL_FILE_CLOSE, args )
+        EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_CLOSE, args ) )    '' -e (T68)
     next
     return true
 end function
@@ -1375,6 +1373,7 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             dim as MirValue gv
             handled = LowerFileGetPut( c, id, _
                 (ip->op = cast( ushort, Tko.KW_PUT )), gv )
+            if handled then EmitRtlErrorCheck_( c, id, gv )     '' -e (T68)
         end if
     end select
     if ip->op = cast( ushort, Tko.KW_INPUT ) then handled = LowerInput( c, id, false )

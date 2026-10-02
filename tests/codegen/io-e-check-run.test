@@ -1,0 +1,9 @@
+'' T68, RUN: under -e, OPEN of a missing file raises runtime error 2 and CLOSE of a closed
+'' channel error 1, each reaching its handler -- fbc's rtlErrorCheck. They carried on.
+'' TEST: cli
+'' ARGS: -target win64-msvc -e tests/codegen/src/io-e-check.bas -o tests/codegen/ioecheck.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ioecheck.exe
+'' EXPECT-RUN-OUT: close: 1
+'' EXPECT-RUN-OUT: open: 2

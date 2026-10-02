@@ -861,8 +861,10 @@ function LowerFileGetPut _
 end function
 
 function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-    dim as MirValue ignored
-    return LowerOpenCall_( c, id, ignored )
+    dim as MirValue rc
+    if LowerOpenCall_( c, id, rc ) = false then return false
+    EmitRtlErrorCheck_( c, id, rc )                    '' -e (T68)
+    return true
 end function
 
 '' A DEVICE WORD IS AN ORDINARY IDENTIFIER, and only the SYMBOL TABLE tells it from a
@@ -1044,6 +1046,55 @@ end function
 '' 10 -- an unsized zstring has no length of its own, so without the extra argument the
 '' runtime would be told 0.
 ''
+'' LINE INPUT INTO A USTRING (T66). Measured, fbc-modern 1.20:
+''
+''     line input #f, u    fb_FileLineInputUStr( F$0, &U$0 )
+''     line input u        fb_LineInput( prompt, &TMP, -1, 0, 0, -1 )
+''                         fb_UStrAssignFromA( &U$0, -1, &TMP, -1, 0, 0 )
+''
+'' tiko passed the ustring to fb_FileLineInput and fb_LineInput as if it were a STRING:
+'' the same 24 bytes, so it linked and ran, and the callee then read the narrow bytes
+'' as UTF-16 -- 'tiko' came back as two unrelated characters.
+private function LineInputFileUStr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval chanE as Tko.NodeId, _
+      byref da as MirValue ) as boolean
+    dim as MirValue fn = LowerExpr( c, chanE )
+    if fn.kind = cast( ubyte, MV_NONE ) then return false
+    fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( chanE ))
+    dim as FB.Array( of ulong ) a
+    a.Push( cast( ulong, fn.kind ) ) : a.Push( cast( ulong, fn.id ) )
+    a.Push( cast( ulong, da.kind ) ) : a.Push( cast( ulong, da.id ) )
+    '' fbc marks it throwable: under -e a failed read raises (T68).
+    EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_LINEINPUT_U, a ) )
+    return true
+end function
+
+'' The narrow temporary a console LINE INPUT reads into: 'da' becomes its address.
+private function UStrLineTemp_( byref c as Ctx, byref da as MirValue ) as boolean
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    da.kind = cast( ubyte, MV_LOCAL )
+    da.ty = cast( ubyte, MT_PTR )
+    da.id = slot
+    ZeroStrDescriptor( c, da )
+    return true
+end function
+
+'' ...converted into the ustring, and released.
+private sub UStrFromLineTemp_( byref c as Ctx, byref u as MirValue, byref tmp as MirValue )
+    dim as FB.Array( of ulong ) a
+    a.Push( cast( ulong, u.kind ) ) : a.Push( cast( ulong, u.id ) )
+    PushStrLen_( c, a, -1 )
+    a.Push( cast( ulong, tmp.kind ) ) : a.Push( cast( ulong, tmp.id ) )
+    PushStrLen_( c, a, -1 )
+    a.Push( cast( ulong, MV_CONST_INT ) ) : a.Push( 0 )
+    a.Push( cast( ulong, MV_CONST_INT ) ) : a.Push( 0 )
+    EmitRtl( c, RTL_USTR_FROM_A, a )
+    dim as FB.Array( of ulong ) d
+    d.Push( cast( ulong, tmp.kind ) ) : d.Push( cast( ulong, tmp.id ) )
+    EmitRtl( c, RTL_STR_DELETE, d )
+end sub
+
 '' A LEADING ';' -- 'line input; "", s' -- makes the last argument 0 rather than -1:
 '' the runtime does not echo the newline.
 function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -1073,6 +1124,14 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as MirValue da = LowerAddr( c, dst )
     if da.kind = cast( ubyte, MV_NONE ) then return false
+    '' A USTRING DESTINATION (T66): the file form has fb_FileLineInputUStr; the console
+    '' one reads into a narrow temporary and converts, as fbc does.
+    dim as boolean ustr = IsUStringType( c, dt )
+    dim as MirValue ustrDst = da
+    if ustr then
+        if sp->a <> Tko.NODE_NONE then return LineInputFileUStr_( c, id, sp->a, da )
+        if UStrLineTemp_( c, da ) = false then return false
+    end if
 
     '' The explicit maximum, when one was written.
     dim as MirValue mx
@@ -1157,6 +1216,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     else
         EmitRtl( c, RTL_LINEINPUT, args )
     end if
+    if ustr then UStrFromLineTemp_( c, ustrDst, da )
     return true
 end function
 
@@ -1170,6 +1230,7 @@ private function InputRtlFor _
         n = WideStringElems( c, t )
         return RTL_INPUT_WSTR
     end if
+    if IsUStringType( c, t ) then return RTL_INPUT_USTR      '' T66
     dim as longint zn
     dim as long sk = StrSwapKind_( c, t, zn )
     if sk = 0 then return RTL_INPUT_STRING
@@ -1263,6 +1324,19 @@ function LowerInput _
         if InputRtlFor( c, c.info->TypeOf_( dst ), dn ) = RTL_NONE then return false
         dim as MirValue da = LowerAddr( c, dst )
         if da.kind = cast( ubyte, MV_NONE ) then return false
+        dim as boolean ustr = IsUStringType( c, c.info->TypeOf_( dst ) )   '' T66
+        dim as MirValue ustrDst = da
+        if ustr then
+            if toFile then
+                dim as FB.Array( of ulong ) ua
+                ua.Push( cast( ulong, chan.kind ) ) : ua.Push( cast( ulong, chan.id ) )
+                ua.Push( cast( ulong, da.kind ) ) : ua.Push( cast( ulong, da.id ) )
+                EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_LINEINPUT_U, ua ) )
+                return true
+            end if
+            if UStrLineTemp_( c, da ) = false then return false
+            dn = -1
+        end if
 
         dim as FB.Array( of ulong ) args
         if toFile then
@@ -1282,6 +1356,7 @@ function LowerInput _
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addQuestion ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, echoNewline ) )
         EmitRtl( c, RTL_LINEINPUT, args )
+        if ustr then UStrFromLineTemp_( c, ustrDst, da )
         return true
     end if
 
@@ -1323,7 +1398,8 @@ function LowerInput _
         elseif r = RTL_INPUT_WSTR then
             dargs.Push( cast( ulong, MV_CONST_INT ) ) : dargs.Push( cast( ulong, dn3 ) )
         end if
-        EmitRtl( c, r, dargs )
+        dim as MirValue ir = EmitRtl( c, r, dargs )
+        if r = RTL_INPUT_USTR then EmitRtlErrorCheck_( c, id, ir )   '' fbc's is throwable
     next
     return true
 end function

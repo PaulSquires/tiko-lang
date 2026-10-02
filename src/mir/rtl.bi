@@ -809,6 +809,11 @@ namespace Tko.Mir
         RTL( RTL_INPUT_DOUBLE,      "fb_InputDouble",      "l",   "p"     )
         RTL( RTL_INPUT_STRING,      "fb_InputString",      "l",   "pzl"   )
         RTL( RTL_INPUT_WSTR,        "fb_InputWstr",        "l",   "pz"    )
+        '' A USTRING DESTINATION has entry points of its own (T66): fbc-modern reads a
+        '' text file's bytes into one through them, where the narrow ones above handed a
+        '' byte string to a UTF-16 descriptor.
+        RTL( RTL_INPUT_USTR,        "fb_InputUStr",        "l",   "p"     )
+        RTL( RTL_FILE_LINEINPUT_U,  "fb_FileLineInputUStr","l",   "lp"    )
 
         '' THE ADDRESSABLE REST OF THE RUNTIME. warnings/rtl-prototypes.bas takes
         '' 'procptr( fb_Xxx )' of 554 entry points and asserts each is non-null; 84 of
