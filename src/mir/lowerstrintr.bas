@@ -24,11 +24,8 @@
 '' -- so a char BUFFER is wrapped in a temporary descriptor and a real descriptor is
 '' passed as it stands. An OMITTED LENGTH is -1, not 0 and not the source's length.
 ''
-'' THE UTF-16 VAR-LENGTH FLAVOUR IS NOT MODELLED HERE and declines: 'mid( u, 1 ) = x'
-'' over a ustring is fb_UStrAssignMid, a SIX-argument entry point with tagged lengths
-'' on both sides, which is not in the inventory. Approximating it with the narrow call
-'' would write UTF-8 bytes into a UTF-16 buffer, which is the exact mistake the string
-'' work has already made once.
+'' THE UTF-16 VAR-LENGTH FLAVOUR is fb_UStrAssignMid, a SIX-argument entry point with
+'' tagged lengths on both sides -- see the USTRING branch below.
 function LowerMidAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
@@ -103,7 +100,16 @@ function LowerMidAssign _
         dim as MirValue wd
         if WideOperand_( c, dstN, wd ) = false then return false
         dim as MirValue wsrc
-        if WideOperand_( c, value, wsrc ) = false then return false
+        '' A USTRING SOURCE passes its data pointer -- measured, fbc writes
+        '' '(uint16*)*(uint16**)&US$0' -- since both are UTF-16 (T26).
+        if IsUStringType( c, c.info->TypeOf_( value ) ) then
+            dim as MirValue usd
+            if StrDescriptorOf_( c, value, usd ) = false then return false
+            wsrc = LowerExprLoad( c, usd, MT_PTR )
+            if wsrc.kind = cast( ubyte, MV_NONE ) then return false
+        elseif WideOperand_( c, value, wsrc ) = false then
+            return false
+        end if
         dim as FB.Array( of ulong ) wa
         wa.Push( cast( ulong, wd.kind ) ) : wa.Push( cast( ulong, wd.id ) )
         wa.Push( cast( ulong, MV_CONST_INT ) ) : wa.Push( cast( ulong, dn ) )
@@ -126,23 +132,28 @@ function LowerMidAssign _
     '' -- six arguments, a (pointer, length) pair at each end, -1 meaning 'as
     '' declared'. Measured.
     ''
-    '' THE SOURCE MUST BE A USTRING TOO. fbc converts a narrow one first --
-    '' 'mid( a, 2 ) = n' over a STRING passes the result of a conversion, and a
-    '' LITERAL becomes a UTF-16 array with a tagged length -- and neither
-    '' conversion is modelled here, so those still decline rather than pass bytes
-    '' of the wrong width. fb/string.bi's Join writes both of its mids with a
-    '' ustring on the right, which is the 14 corpus statements this is for.
-    if IsUStringType( c, dt ) then
-        if IsUStringType( c, c.info->TypeOf_( value ) ) = false then return false
-        dim as MirValue ud
-        if StrDescriptorOf_( c, dstN, ud ) = false then return false
-        dim as MirValue us
-        if StrDescriptorOf_( c, value, us ) = false then return false
+    '' A SOURCE THAT IS NOT A USTRING IS CONVERTED, as fbc converts it (T26): a LITERAL
+    '' becomes a UTF-16 array with a tagged length -- 'fb_UStrAssignMid( &U, -1, 2, 3,
+    '' (uint16[]){0x58,0x59,0x5A,0}, <tagged 3> )' -- and a STRING goes through
+    '' fb_StrToUStr first, measured on fbc-modern 1.20 2026-10-02. That is the operand
+    '' rule a ustring comparison follows, UStrCmpOperand_. This used to decline any
+    '' source but a ustring, and 'mid( u, 2, 3 ) = "XYZ"' -- the in-place overwrite
+    '' over the book's own string type -- was dropped with nothing said.
+    '' ...AND A 'ustring * N' DESTINATION is the same call over its BUFFER and TAGGED
+    '' LENGTH -- 'fb_UStrAssignMid( UF$0, <tagged 10>, 2, 2, ... )', measured -- the pair
+    '' EmitStrTerm pushes for one.
+    if IsUStringType( c, dt ) orelse (dk = 4) then
         dim as FB.Array( of ulong ) ua
-        PushStrArg( ua, ud )
+        if dk = 4 then
+            if EmitStrTerm( c, ua, dstN, true ) = false then return false
+        else
+            dim as MirValue ud
+            if StrDescriptorOf_( c, dstN, ud ) = false then return false
+            PushStrArg( ua, ud )
+        end if
         ua.Push( cast( ulong, sv.kind ) ) : ua.Push( cast( ulong, sv.id ) )
         ua.Push( cast( ulong, lv.kind ) ) : ua.Push( cast( ulong, lv.id ) )
-        PushStrArg( ua, us )
+        if UStrCmpOperand_( c, ua, value ) = false then return false
         '' A VOID RESULT IS STILL A CALL -- see the wide branch above.
         EmitRtl( c, RTL_USTR_ASSIGN_MID, ua )
         return true
@@ -175,8 +186,15 @@ function LowerMidAssign _
         return false
     end if
 
+    '' A USTRING SOURCE IS CONVERTED TO NARROW FIRST (T26): measured, fbc emits
+    '' 'fb_UStrToStr( &US, -1 )' and passes that to fb_StrAssignMid. Passed as it stood,
+    '' its UTF-16 bytes were written into the string as narrow text -- 'a� def' for 'aÄÖf'.
     dim as MirValue src
-    if StrDescriptorOf_( c, value, src ) = false then return false
+    if UStrOperandToNarrow_( c, value, src ) then
+        if src.kind = cast( ubyte, MV_NONE ) then return false
+    elseif StrDescriptorOf_( c, value, src ) = false then
+        return false
+    end if
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, ddesc.kind ) ) : args.Push( cast( ulong, ddesc.id ) )

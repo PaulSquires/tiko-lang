@@ -1,0 +1,29 @@
+'' T26, RUN: 'mid( u, start[, len] ) = x' over a USTRING overwrites in place, as fbc-modern
+'' does: fb_UStrAssignMid with the source converted to UTF-16 -- a literal, a string, a
+'' zstring, a wstring, a concatenation, a function's string result -- and over a
+'' 'ustring * N' through its buffer and tagged length. tiko declined every source but a
+'' ustring and dropped the statement with nothing said. The other direction too: a
+'' ustring source into a string or zstring is converted to narrow (fb_UStrToStr), where
+'' its UTF-16 bytes were written as narrow text, and into a wstring it passes its data
+'' pointer, where it was dropped. Output byte-identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/mid-stmt-ustring.bas -o tests/codegen/midstmtustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/midstmtustring.exe
+'' RUN: tests/codegen/midstmtustring.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: aXYZefgh
+'' EXPECT-RUN-OUT: aXYZefQR
+'' EXPECT-RUN-OUT: 1XYZefQR
+'' EXPECT-RUN-OUT: hÉLLÖ wörld 11
+'' EXPECT-RUN-OUT: aab
+'' EXPECT-RUN-OUT: WWxy##gh
+'' EXPECT-RUN-OUT: WWxy##gL 8
+'' EXPECT-RUN-OUT:  4 88
+'' EXPECT-RUN-OUT: 1zz456
+'' EXPECT-RUN-OUT: aÄÖf
+'' EXPECT-RUN-OUT: abÄÖ
+'' EXPECT-RUN-OUT:  619699
+'' EXPECT-RUN-OUT: aZZdef
+'' EXPECT-RUN-OUT: aZZÄÖf
