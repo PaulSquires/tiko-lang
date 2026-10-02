@@ -742,6 +742,8 @@
     DIAG( TKO0932, SEV_ERROR,   "'%0' returns its result by value, so a call to it cannot be assigned to" )
     '' fbc's error 71: '*a' or 'a[ i ]' over an 'any ptr' -- anyptrderef.bas (T31).
     DIAG( TKO0933, SEV_ERROR,   "an 'any ptr' points at nothing with a type; cast it to a typed pointer before dereferencing it" )
+    '' fbc's errors 1 and 196: reading a property that has only a setter -- setteronly.bas (T35).
+    DIAG( TKO0934, SEV_ERROR,   "'%0' is a property with only a setter: it can be assigned, not read" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

@@ -1,0 +1,14 @@
+'' TKO0934, fbc's 1 and 196 (T35): reading a property that has only a setter -- an
+'' initialiser, a print item, an expression, an indexed setter, '.P' in a 'with' -- is
+'' refused. tiko compiled them: the read gave 0 or garbage and a print item truncated its
+'' statement. Setting it, plain or indexed, and reading a property that also has a getter
+'' are fine. Lines identical to fbc-modern's errors. See symbols/setteronly.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/setter-only-read.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: setter-only-read.bas(22,19): error TKO0934
+'' EXPECT-OUT: setter-only-read.bas(23,15): error TKO0934
+'' EXPECT-OUT: setter-only-read.bas(24,7): error TKO0934
+'' EXPECT-OUT: setter-only-read.bas(26,9): error TKO0934
+'' EXPECT-OUT: setter-only-read.bas(30,11): error TKO0934
+'' EXPECT-MAX-DIAG: 5
