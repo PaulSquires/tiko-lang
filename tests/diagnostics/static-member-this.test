@@ -1,0 +1,13 @@
+'' TKO0937, fbc's 42 / 215 / 14 (T41): 'this', '@this' and a field by itself inside a
+'' member with no object -- operator new, new[] and delete, and a 'static' method -- are
+'' refused. tiko compiled them and read garbage. An ordinary method keeps both. Lines
+'' identical to fbc-modern's errors. See symbols/staticthis.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/static-member-this.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: static-member-this.bas(9,11): error TKO0937
+'' EXPECT-OUT: static-member-this.bas(13,11): error TKO0937
+'' EXPECT-OUT: static-member-this.bas(17,24): error TKO0937
+'' EXPECT-OUT: static-member-this.bas(29,11): error TKO0937
+'' EXPECT-OUT: static-member-this.bas(30,11): error TKO0937
+'' EXPECT-MAX-DIAG: 5
