@@ -1,0 +1,10 @@
+#import "cbr"
+using cbr
+
+dim as T a = T( 1, "hi", 2 )
+print a.v
+dim as T b = T( 3 )
+print b.v
+dim as Pt p = ( 4 )
+dim as T c = T( "abc", "de", p )
+print c.v

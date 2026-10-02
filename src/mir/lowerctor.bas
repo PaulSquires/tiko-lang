@@ -988,15 +988,13 @@ function LowerCtorInit _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
         decl->isDefinition = false
-        '' THIS, then the constructor's own arguments in their lowered types -- the
-        '' same types the argument values below are coerced to.
-        decl->AddParam( MT_PTR )
-        for ai as long = 0 to argT.Count - 1
-            dim as Tko.TypeId at_ = cast( Tko.TypeId, argT[ai] )
-            decl->AddParam( LowerType( at_, *c.types ), _
-                            cast( ulong, SizeOfType( c, at_ ) ), _
-                            ClassifyEightbytes( c, at_ ) )
-        next
+        '' THIS, then the constructor's DECLARED parameters -- SignatureFromProc, as
+        '' EmitStructorCall does. Built from the argument types instead, a byref
+        '' parameter was lowered as its pointee: 'byref w as wstring' came out 'void',
+        '' 'declare void _ZN1M1TC1EiRw(ptr, i32, void)', and clang refused the module.
+        '' Only a constructor this module does not define reaches here, so it took an
+        '' imported one to show -- pkg/tkl's CGraphCtx.
+        SignatureFromProc( c, decl, pn, false, true )
         fidx = c.m->functions.Count - 1
     end if
 

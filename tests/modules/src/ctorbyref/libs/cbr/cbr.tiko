@@ -1,0 +1,19 @@
+#module "cbr"
+
+public type Pt
+    x as long
+end type
+
+public type T
+    declare constructor ( byval a as long, byref w as wstring = "", byval b as long = 0 )
+    declare constructor ( byref z as zstring, byref s as string, byref p as Pt )
+    v as long
+end type
+
+constructor T ( byval a as long, byref w as wstring = "", byval b as long = 0 )
+    v = a + len( w ) * 10 + b * 100
+end constructor
+
+constructor T ( byref z as zstring, byref s as string, byref p as Pt )
+    v = len( z ) + len( s ) * 10 + p.x * 100
+end constructor
