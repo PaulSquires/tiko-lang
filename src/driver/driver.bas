@@ -233,6 +233,9 @@ end function
 
 function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     dim as Tko.PpConfig cfg
+    static as string prelude_
+    if len( prelude_ ) = 0 then prelude_ = Tko.Parse.PreludeProcSpellings( )
+    cfg.preludeProcs = prelude_
     cfg.includePaths = @ctx.options.includePaths
     cfg.defines = @ctx.options.defines
     cfg.targetIsWindows = Tko.TargetIsWindows( ctx.options.target )

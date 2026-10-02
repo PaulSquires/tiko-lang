@@ -180,6 +180,9 @@
     DIAG( TKO0365, SEV_ERROR,   "'#export %0': no macro of that name is defined here" )
     DIAG( TKO0366, SEV_ERROR,   "%0 is not allowed in a module file" )
     DIAG( TKO0367, SEV_ERROR,   "'%0' is part of module '%1' and cannot be #included" )
+    '' fbc's error 4 for a '#define' or '#macro' over a name that already means something
+    '' (T62): a reserved word, a module-level declaration above, a predeclared procedure.
+    DIAG( TKO0371, SEV_ERROR,   "'%0' cannot be defined as a macro: it is %1" )
     DIAG( TKO0369, SEV_ERROR,   "%0 is allowed only in a module file" )
 
     '' -------------------------------------------------------------------- parser

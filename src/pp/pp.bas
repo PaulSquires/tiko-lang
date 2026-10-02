@@ -108,6 +108,9 @@ type PpEngine
     '' nothing of scopes, overloads or types. What it answers is exactly the question
     '' a header guard asks -- has this name been declared above me.
     as IdVec                  declaredMark
+    '' ...AND THE ONES DECLARED OUTSIDE ANY NAMESPACE, by folded id: what a '#define' may
+    '' not take (TKO0371). fbc's '#define' over 'N.foo' at module level is fine.
+    as IdVec                  topDeclared
     '' ...AND THE VALUE, for the ones that have one. FreeBASIC's '#if' reads a CONST
     '' like any other term -- measured, 'const K = 5' then '#if K = 5' takes the true
     '' branch under fbc and did not under tiko-lang, because an identifier that
@@ -331,10 +334,18 @@ sub PpNoteType _
 end sub
 
 sub PpNoteDeclared _
-    ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as long )
+    ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as long, _
+      byval atTop as boolean )
     if st.engine = 0 then return
-    if InIfaceFile_( *cast( PpEngine ptr, st.engine ), at ) then return
-    MarkDeclared_( *cast( PpEngine ptr, st.engine ), nm, kind )
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    if InIfaceFile_( *e, at ) then return
+    MarkDeclared_( *e, nm, kind )
+    if (atTop = false) orelse (nm = INTERN_NONE) then return
+    dim as long ix = cast( long, e->names->Fold( nm ) )
+    while e->topDeclared.Count <= ix
+        e->topDeclared.Push( 0 )
+    wend
+    e->topDeclared[ix] = 1
 end sub
 
 function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
@@ -1062,6 +1073,7 @@ declare function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as
 end namespace
 
 #include once "pp/ppexpr.bas"
+#include once "pp/macrotaken.bas"
 #include once "pp/macro.bas"
 #include once "pp/directive.bas"
 #include once "pp/ppmodule.bas"

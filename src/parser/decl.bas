@@ -125,7 +125,7 @@ private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.Inter
     if p.stream = 0 then return
     if p.aggDepth <> 0 then return
     if p.procDepth <> 0 then return
-    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ) )
+    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ), p.nsDepth = 0 )
 end sub
 
 private function DeclName _

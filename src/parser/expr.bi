@@ -58,6 +58,9 @@ namespace Tko
         '' 'defined' once its procedure has ended. Recording one would make a later
         '' '#ifndef' skip a declaration it should have taken -- silently.
         as long                 procDepth
+        '' How many NAMESPACE bodies enclose the cursor: a name declared in one is not one a
+        '' module-level '#define' collides with (PpNoteDeclared's atTop, T62).
+        as long                 nsDepth
         '' THE CONVENTION A PROCEDURE GETS WHEN IT WRITES NONE -- fbc's 'fbcall', stdcall
         '' on Windows and cdecl on Linux. Only the '...' rule reads it (CheckVarargConv_),
         '' and CC_NONE, the default, turns that rule off: the prelude and a generic

@@ -741,6 +741,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             end if
         end if
         if passOn then
+            FreeTakenName_( e, cast( InternId, ut.literal ) )   '' a '#define' may take it now (T62)
             EmitTok( e, hashTok )
             EmitTok( e, w )
             EmitTok( e, ut )

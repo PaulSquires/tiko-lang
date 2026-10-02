@@ -144,6 +144,9 @@ namespace Tko
 
     type PpConfig
         as StrVec ptr includePaths   '' -i, searched after the including file's dir
+        '' THE PREDECLARED PROCEDURES, "|kill|sleep|...|" -- PreludeProcSpellings. fbc has
+        '' them in its symbol table, so '#define kill 5' is its error 4 (TKO0371, T62).
+        as string     preludeProcs
         '' SHARED ACROSS EVERY UNIT OF ONE INVOCATION, or 0 for a private one.
         ''
         '' A header included by 92 modules was LEXED 92 TIMES: the token cache lived on
@@ -369,7 +372,7 @@ namespace Tko
     '' the last two by name.
     declare sub PpNoteDeclared _
         ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE, _
-          byval kind as long = 1 )
+          byval kind as long = 1, byval atTop as boolean = true )
     '' A DECLARED TYPE, for '#if typeof( name )' to read -- see PpEngine.varTypeKey (T61).
     '' 'what' says whose: a variable's, a typedef's target, or a named type's own name.
     const PP_TYPE_VAR = 0

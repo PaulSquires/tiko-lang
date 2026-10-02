@@ -1,0 +1,14 @@
+'' TKO0371 (T62): '#define' over a name that already means something is fbc's error 4 --
+'' a reserved word (FIELD), a predeclared procedure (KILL), a module-level declaration
+'' above (counter). tiko took them, and a use of the keyword then vanished from its
+'' statement. A namespace member is not in the way, nor a name '#undef' removed, nor a
+'' keyword '#undef' freed -- all measured on fbc-modern 1.20.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/define-taken.bas -o tests/diagnostics/definetaken.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: define-taken.bas(1,9): error TKO0371: 'field' cannot be defined as a macro: it is a reserved word
+'' EXPECT-OUT: define-taken.bas(2,9): error TKO0371: 'kill' cannot be defined as a macro: it is a predeclared procedure
+'' EXPECT-OUT: define-taken.bas(4,9): error TKO0371: 'counter' cannot be defined as a macro: it is already declared
+'' EXPECT-NOT: 'helper'
+'' EXPECT-NOT: 'gone'
+'' EXPECT-NOT: 'print'

@@ -163,7 +163,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
         return
     end if
     if Tk( t ) <> TK_IDENT then
-        '' Redefining a keyword is legal in FreeBASIC and the corpus does it.
+        '' A KEYWORD is read on, and refused by TakenName_ unless '#undef' freed it.
         if IsKeywordKind( Tk( t ) ) = false then
             Report( e, TKO0316, t.loc, iif( isBlock, "macro", "define" ) )
             SkipToEol( e )
@@ -175,7 +175,7 @@ private sub PpDefine( byref e as PpEngine, byval at as SourceLoc, byval isBlock 
     if Tk( t ) <> TK_IDENT then
         id = e.names->GetString( Text.LowerAscii( TokenKindText( Tk( t ) ) ) )
     end if
-    Advance( e )
+    TakenName_( e, t, id ) : Advance( e )
 
     '' A '?' directly after the name marks the macro as callable WITHOUT parentheses.
     '' It must be consumed before the parameter list, or the '(' that follows is never
@@ -383,6 +383,7 @@ private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
     if Tk( t ) = TK_IDENT then
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
         if m <> 0 then PpModJournal( e, m ) : m->isDefined = false
+        FreeTakenName_( e, cast( InternId, t.literal ) )
     elseif IsKeywordKind( Tk( t ) ) then
         '' '#undef short'. fbc keeps keywords in the symbol table, so undefining one
         '' removes the reserved word itself; here that is a de-reservation applied to

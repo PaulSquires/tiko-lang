@@ -344,6 +344,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     wend
 
     dim as Tko.NodeIdVec members
+    p.nsDepth += 1
     do
         SkipEols( p )
         if AtEnd( p ) then exit do
@@ -353,6 +354,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         if s <> Tko.NODE_NONE then members.Push( cast( ulong, s ) )
         if p.pos = before then Advance( p )
     loop
+    p.nsDepth -= 1
 
     sp.first = p.ast->children.Count
     sp.count = members.Count
