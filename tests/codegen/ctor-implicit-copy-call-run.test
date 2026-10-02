@@ -1,0 +1,25 @@
+'' RUN: 'C( c1 )' spelt out, over a type whose only declared constructor takes a long, binds
+'' to the IMPLICIT copy constructor its string field gives it -- so do 'C( f( ) )' (copied
+'' from the temporary, which is then destroyed), 'C( *pc )', and 'H( h1 )' where the string
+'' is a field's. PickCtor sees declared constructors only, so each declined silently
+'' (lowervarinit.bas, "statements not lowered") and left the variable default-constructed:
+'' 0 and an empty string. Output identical to fbc-modern's, destructor order included.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ctor-implicit-copy-call.bas -o tests/codegen/ctorimplcopy.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ctorimplcopy.exe
+'' RUN: tests/codegen/ctorimplcopy.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor 1
+'' EXPECT-RUN-OUT:  1 s1
+'' EXPECT-RUN-OUT: ctor 7
+'' EXPECT-RUN-OUT: dtor 7
+'' EXPECT-RUN-OUT:  7 s7
+'' EXPECT-RUN-OUT:  1 s1
+'' EXPECT-RUN-OUT:  5 n5
+'' EXPECT-RUN-OUT: dtor 1
+'' EXPECT-RUN-OUT: dtor 7
+'' EXPECT-RUN-OUT: dtor 1
+'' EXPECT-RUN-OUT: dtor 1
+'' EXPECT-RUN-OUT: end

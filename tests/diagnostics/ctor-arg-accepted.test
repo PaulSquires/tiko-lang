@@ -4,11 +4,11 @@
 '' 'byref as wstring', an overload set, and 'C( c1 )' through the IMPLICIT copy constructor a
 '' string field gives C -- which is why a one-argument call over a UDT is never judged.
 ''
-'' Diagnostics only. That last line is a statement tiko does not lower (lowervarinit.bas,
-'' 'c2.v' prints 0), which predates the check and is not what this test asks.
+'' Diagnostics only; ctor-implicit-copy-call-run.test runs the copy.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/ctor-arg-accepted.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-NOT: TKO0698
 '' EXPECT-NOT: error

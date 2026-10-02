@@ -614,6 +614,37 @@ function LowerUserLetConv_ _
     return true
 end function
 
+'' 'C( c1 )' SPELT OUT IS THE IMPLICIT COPY CONSTRUCTOR when no declared one takes it.
+'' A string field gives C one, and fbc binds the explicit call to it -- measured,
+'' 'dim c2 as C = C( c1 )' over only 'constructor C( byval a as long )' prints c1's v
+'' (with plain fields fbc says error 58 instead, TKO0698 here). PickCtor sees declared
+'' constructors only, so this declined, the store path found nothing to store, and c2
+'' was left default-constructed: "1 statements not lowered", and 0 where fbc prints 1.
+'' An argument of exactly the type only -- a derived value still declines. A call result
+'' is copied from its temporary, which is then destroyed, as fbc does: 'C( f( ) )'.
+private function ImplicitCopyCall_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+      byval cp as Tko.ListPayload ptr, byval selfv as MirValue ptr ) as boolean
+
+    if cp->count <> 1 then return false
+    if CopyCtorOf_( c, t ) <> Tko.SYMBOL_NONE then return false
+    if NeedsLetBody_( c, t ) = false then return false
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first] )
+    if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( t ) then return false
+    dim as MirValue src = LowerAddr( c, a )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue dst
+    if selfv <> 0 then
+        dst = *selfv
+    else
+        dst.kind = cast( ubyte, MV_LOCAL )
+        dst.ty = cast( ubyte, MT_PTR )
+        dst.id = slot
+    end if
+    CallImplicitCopy_( c, t, dst, src )
+    return true
+end function
+
 
 function LowerCtorInit _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
@@ -681,6 +712,9 @@ function LowerCtorInit _
             preT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
         next
         dim as Tko.SymbolId pre = PickCtor( c, ctors, preT )
+        if pre = Tko.SYMBOL_NONE then
+            if ImplicitCopyCall_( c, slot, t, cp, selfv ) then return true
+        end if
         if pre <> Tko.SYMBOL_NONE then
             for i as long = 0 to cp->count - 1
                 if ParamIsByref( c, pre, i ) then
