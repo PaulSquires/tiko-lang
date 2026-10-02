@@ -688,7 +688,24 @@ private function Unprintable_ ( byref c as Ctx, byval e as NodeId ) as TypeId
         if clp->target = NODE_NONE then return TYPE_NONE
         dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( clp->target ) )
         if cs = 0 then cs = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if (cs = 0) orelse (cs->kind <> cast( ubyte, SYM_PROC )) then return TYPE_NONE
+        '' ...or a TYPE, whose call is its constructor: 'print Box( 7 )' (T27). fbc's 24 like the
+        '' variable; tiko dropped the item AND the rest of the statement, newline included.
+        '' ...an ELEMENT of an array, and 'iif( c, a, b )', an intrinsic bound to nothing.
+        if cs = 0 then
+            if c.ast->Kind( clp->target ) <> N_IDENT then return TYPE_NONE
+            if lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, clp->target )].data )].name ) ) <> "iif" then return TYPE_NONE
+        elseif cs->kind = cast( ubyte, SYM_UDT ) then
+            '' NAMED, not reached through another call: 'P( 3 )( 1 )' is TKO0772's.
+            if c.ast->Kind( clp->target ) = N_CALL then return TYPE_NONE
+        elseif cs->kind <> cast( ubyte, SYM_PROC ) then
+            select case cast( SymbolKind, cs->kind )
+            case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+                dim as TypeId vt = c.types->Unqualify( cs->type_ )
+                if (c.types->Kind( vt ) <> TK_ARRAY) andalso (c.types->IsDynArray( vt ) = false) then return TYPE_NONE
+            case else
+                return TYPE_NONE
+            end select
+        end if
     end select
     dim as TypeId t = c.info->TypeOf_( e )
     if t = TYPE_NONE then return TYPE_NONE

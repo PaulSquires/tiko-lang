@@ -1,0 +1,19 @@
+'' TKO0871, fbc's 24 (T27): a 'print' item of a type with no printable form is refused
+'' whatever shape the value takes -- a constructor call 'Box( 7 )', 'type<T>( ... )', a
+'' dereference, an array element, a field, an 'iif', a function result. tiko refused a
+'' variable and a function result but not a constructor call, an element or an 'iif':
+'' those compiled, and the item that could not be lowered took the rest of the
+'' statement with it -- 'print "X["; Box( 7 ); "]Y"' printed 'X[' and no newline. The
+'' last line -- a zstring element, a number element, a numeric iif -- still prints.
+'' Lines identical to fbc-modern's errors. See Unprintable_ in symbols/latesweeps4.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/print-unprintable-temp.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: print-unprintable-temp.bas(27,16): error TKO0871
+'' EXPECT-OUT: print-unprintable-temp.bas(28,12): error TKO0871
+'' EXPECT-OUT: print-unprintable-temp.bas(29,12): error TKO0871
+'' EXPECT-OUT: print-unprintable-temp.bas(30,14): error TKO0871
+'' EXPECT-OUT: print-unprintable-temp.bas(31,13): error TKO0871
+'' EXPECT-OUT: print-unprintable-temp.bas(32,15): error TKO0871
+'' EXPECT-OUT: print-unprintable-temp.bas(33,19): error TKO0871
+'' EXPECT-MAX-DIAG: 7
