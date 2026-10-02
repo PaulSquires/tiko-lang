@@ -285,7 +285,21 @@ private sub GenericArgsCheck_ _
     end if
 end sub
 
+declare function ResolveTypeRefAt_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
+
+'' THE TYPE NAME'S OWN NODE is where an import alias in it is looked up from (M22): a file
+'' that never imported 'util' cannot write 'util.Pair' however the declaration is reached.
 function ResolveTypeRef _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
+    dim as ulong saved = c.syms->aliasPos
+    c.syms->aliasPos = cast( ulong, id )
+    dim as Tko.TypeId t = ResolveTypeRefAt_( c, id, scope_ )
+    c.syms->aliasPos = saved
+    return t
+end function
+
+function ResolveTypeRefAt_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
     if id = Tko.NODE_NONE then return Tko.TYPE_NONE

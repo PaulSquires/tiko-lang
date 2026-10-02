@@ -1,0 +1,9 @@
+'' AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22; RFC-0002 §2). b.bas never imports
+'' util, so neither 'util.Pair' nor 'util.Twice' names anything there, though a.bas, a
+'' file of the same module, imported it -- and the note says where it did.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/diagnostics/src/modules/perfile/main.bas -o tests/diagnostics/perfile.exe
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: b.bas(3,14): error TKO0808: the type 'util.pair' is not declared
+'' EXPECT-OUT: b.bas(4,12): error TKO0743: 'util' is not declared
+'' EXPECT-OUT: a.bas(2,1): note: 'util' is imported by another file of this module; an import belongs to the file that writes it

@@ -71,6 +71,7 @@ constructor SymbolTable( )
     this.scopes.Push( g )
 
     this.usePos = USEPOS_LATEST
+    this.aliasPos = 0
     this.undefs = 0
     this.shadows = 0
     this.Rehash( SYMTAB_INITIAL_SLOTS )
@@ -165,8 +166,26 @@ function SymbolTable.LookupLocal _
     dim as long slot = this.SlotFor( scope_, nm )
     dim as SymbolId head = cast( SymbolId, this.slots[slot] )
     if head = SYMBOL_NONE then return head
+    if this.aliasPairSym.Count > 0 then
+        if this.AliasHidden( head ) then return SYMBOL_NONE
+    end if
     if (this.undefs = 0) andalso (this.shadows = 0) then return head
     return this.LiveGen( head )
+end function
+
+function SymbolTable.AliasHidden( byval sid as SymbolId ) as boolean
+    dim as ulong at = this.usePos
+    if at = USEPOS_LATEST then at = this.aliasPos
+    if (at = 0) orelse (at >= cast( ulong, this.nodeModFile.Count )) then return false
+    dim as ulong f = this.nodeModFile[at]
+    if f = 0 then return false
+    dim as boolean isAlias = false
+    for k as long = 0 to this.aliasPairSym.Count - 1
+        if this.aliasPairSym[k] <> cast( ulong, sid ) then continue for
+        isAlias = true
+        if this.aliasPairFile[k] = f then return false
+    next
+    return isAlias
 end function
 
 '' THE GENERATION OF A NAME VISIBLE FROM 'usePos' -- see UndefSym. Newest first: a

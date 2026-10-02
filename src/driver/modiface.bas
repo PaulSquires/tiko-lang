@@ -139,6 +139,29 @@ private sub BindReexports_ _
     next
 end sub
 
+'' WHICH FILE OF A MODULE UNIT 'loc' is in, 1-based, or 0 for a header's or nothing's.
+private function UnitFileOf_ _
+    ( byref ctx as Tko.CompilerContext, byval loc as Tko.SourceLoc, _
+      byref lo as Tko.FileIdVec, byref hi as Tko.FileIdVec ) as ulong
+    for i as long = 0 to lo.Count - 1
+        if (loc >= lo[i]) andalso (loc <= hi[i]) then return cast( ulong, i + 1 )
+    next
+    return 0
+end function
+
+'' AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22): in a unit of several files, every
+'' node's file, for SymbolTable.AliasHidden. A node of a header is its own file's, not the
+'' includer's, and is left 0 -- an alias written in a header is the includer's choice.
+private sub MapNodeFiles_ _
+    ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref lo as Tko.FileIdVec, byref hi as Tko.FileIdVec )
+    syms.nodeModFile.Clear( )
+    syms.nodeModFile.Push( 0 )
+    for i as long = 1 to ast.Count( )
+        syms.nodeModFile.Push( UnitFileOf_( ctx, ast.Loc( cast( Tko.NodeId, i ) ), lo, hi ) )
+    next
+end sub
+
 sub BindImports _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, _
       byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
@@ -171,6 +194,17 @@ sub BindImports _
 
     '' Each '#import''s alias, bound to its module's scope.
     dim as FB.Array( of ulong ) aliasSym, aliasMod, aliasRec
+    '' ...and, in a unit of several files, the file each one is written in (M22).
+    dim as Tko.FileIdVec lo, hi
+    if ctx.modFileCount > 1 then
+        for each f as ulong in ctx.modFiles
+            dim as Tko.FileId fid = cast( Tko.FileId, f )
+            dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( fid )
+            if sf = 0 then continue for
+            lo.Push( cast( ulong, ctx.sources.LocFor( fid, 0 ) ) )
+            hi.Push( cast( ulong, ctx.sources.LocFor( fid, sf->text.Count ) ) )
+        next
+    end if
     for k as long = 0 to imports.Count - 1
         dim as long n = ImportIndex( ctx, imports[k] )
         if n < 0 then continue for
@@ -188,10 +222,18 @@ sub BindImports _
             elseif aliasMod[mine] <> cast( ulong, n ) then
                 ctx.diags.Report( Tko.TKO0862, Tko.PointRange( imports[k].loc ), _
                                   imports[k].alias_, imports[aliasRec[mine]].path )
+            elseif lo.Count > 0 then
+                '' The same module under the same alias, imported by another file too.
+                syms.aliasPairSym.Push( cast( ulong, asid ) )
+                syms.aliasPairFile.Push( UnitFileOf_( ctx, imports[k].loc, lo, hi ) )
             end if
             continue for
         end if
         BindView_( syms, asid, nsOf[n], modScope )
+        if lo.Count > 0 then
+            syms.aliasPairSym.Push( cast( ulong, asid ) )
+            syms.aliasPairFile.Push( UnitFileOf_( ctx, imports[k].loc, lo, hi ) )
+        end if
         syms.importPaths.Push( imports[k].path )
         syms.importAliases.Push( Tko.Text.LowerAscii( imports[k].alias_ ) )
         syms.importLocs.Push( cast( ulong, imports[k].loc ) )
@@ -199,6 +241,7 @@ sub BindImports _
         aliasMod.Push( cast( ulong, n ) )
         aliasRec.Push( cast( ulong, k ) )
     next
+    if syms.aliasPairSym.Count > 0 then MapNodeFiles_( ctx, ast, syms, lo, hi )
 end sub
 
 sub InitOrder( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )

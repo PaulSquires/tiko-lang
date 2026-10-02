@@ -821,6 +821,8 @@
     '' Beside TKO0743 for a name that is a SEGMENT of an import's path but not its alias:
     '' '#import "std/strings"' binds 'strings', so 'std.replace' named nothing.
     DIAG( TKO0907, SEV_NOTE,    "did you mean '%0'? '#import ""%1""' binds the name '%0'" )
+    '' Beside TKO0743 / TKO0808 for an import alias another file of the module wrote (M22).
+    DIAG( TKO0940, SEV_NOTE,    "'%0' is imported by another file of this module; an import belongs to the file that writes it" )
 
     '' ---------------------------------------------------------- compiler / limits
     DIAG( TKO0990, SEV_ERROR,   "too many errors; stopping" )

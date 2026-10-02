@@ -89,6 +89,16 @@ private function ImportSegmentOf_( byref syms as Tko.SymbolTable, byref nm as st
     return -1
 end function
 
+'' AN ALIAS ANOTHER FILE OF THE MODULE IMPORTED (M22): the index of that import in
+'' syms.importAliases, or -1. Only a unit whose aliases are per file has any.
+private function ImportedElsewhere_( byref syms as Tko.SymbolTable, byref nm as string ) as long
+    if syms.aliasPairSym.Count = 0 then return -1
+    for k as long = 0 to syms.importAliases.Count - 1
+        if syms.importAliases[k] = nm then return k
+    next
+    return -1
+end function
+
 sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
@@ -278,6 +288,11 @@ sub ReportUndeclared _
                 diags.AddNote( Tko.TKO0907, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
                                syms.importAliases[ik], syms.importPaths[ik] )
             end if
+            ik = ImportedElsewhere_( syms, nm )
+            if ik >= 0 then
+                diags.AddNote( Tko.TKO0940, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
+                               syms.importAliases[ik] )
+            end if
         end if
     next
 
@@ -320,5 +335,13 @@ sub ReportUndeclared _
         done.Push( cast( ulong, dl.file ) )
         done.Push( cast( ulong, dl.physLine ) )
         diags.Report( Tko.TKO0808, Tko.PointRange( ast.Loc( id ) ), tn )
+        dim as long dot = instr( tn, "." )
+        if dot > 1 then
+            dim as long ik = ImportedElsewhere_( syms, Tko.Text.LowerAscii( left( tn, dot - 1 ) ) )
+            if ik >= 0 then
+                diags.AddNote( Tko.TKO0940, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
+                               syms.importAliases[ik] )
+            end if
+        end if
     next
 end sub

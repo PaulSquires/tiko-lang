@@ -280,6 +280,17 @@ namespace Tko
         as StrVec     importPaths
         as StrVec     importAliases
         as FB.Array( of ulong ) importLocs
+        '' AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22; RFC-0002 §2). In a module unit of
+        '' several files, each alias symbol and each file of the unit that imported it, as
+        '' pairs; and for each node id, the unit file it was written in, 1-based, or 0 for a
+        '' header's node or one made later. A lookup from a node of a file that did not import
+        '' the alias does not find it (AliasHidden). Empty everywhere else.
+        as FB.Array( of ulong ) aliasPairSym
+        as FB.Array( of ulong ) aliasPairFile
+        as FB.Array( of ulong ) nodeModFile
+        '' ...and the node a TYPE NAME is resolved for, which AliasHidden reads when usePos
+        '' says USEPOS_LATEST, as Collect's does: 0 for none.
+        as ulong      aliasPos
         '' ...and every name of theirs a lookup through their namespaces found but did not
         '' return, because the interface does not call it 'public' (SymbolTable.PublicOnly).
         as FB.Array( of ulong ) hiddenHits
@@ -371,6 +382,9 @@ namespace Tko
         '' is what a leading '.name' needs: it must not see an ordinary local.
         '' got, unless it is a module's name its interface does not call 'public'.
         declare function PublicOnly( byval got as SymbolId ) as SymbolId
+        '' ...and whether 'sid' is an import alias the file of the node being looked up
+        '' from did not write (aliasPairSym). Never for a lookup at USEPOS_LATEST.
+        declare function AliasHidden( byval sid as SymbolId ) as boolean
         '' ...and whether 'sid' is a module's own interface namespace, which an exported
         '' macro's body names the module's helpers through (RFC-0004 §6).
         declare function IsImportNs( byval sid as SymbolId ) as boolean
