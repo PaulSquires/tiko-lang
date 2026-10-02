@@ -746,6 +746,8 @@
     DIAG( TKO0934, SEV_ERROR,   "'%0' is a property with only a setter: it can be assigned, not read" )
     '' fbc's error 276: a const object calling a method that is not const -- constcall.bas (T36).
     DIAG( TKO0935, SEV_ERROR,   "'%0' is not a const method, so a const object cannot call it" )
+    '' fbc's error 17: a word between DECLARE and the procedure keyword -- 'explicit' (T38).
+    DIAG( TKO0936, SEV_ERROR,   "'%0' is not a procedure modifier; 'declare' takes const, static, virtual or abstract before the procedure keyword" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

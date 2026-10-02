@@ -389,8 +389,34 @@ private sub ReadOperatorName _
     end if
 end sub
 
-
-
-
-
-
+'' THE PROCEDURE KEYWORD AFTER 'declare' AND ITS MODIFIERS -- and a word between them that
+'' is not a modifier (T38). fbc has no 'explicit constructor': 'declare explicit
+'' constructor( byval n as long )' is its error 17, "Syntax error, found 'explicit'",
+'' measured on fbc-modern 1.20 2026-10-02. tiko took 'explicit' as the procedure keyword
+'' and accepted the declaration, and the implicit conversion the reader meant to switch
+'' off still happened. The word is reported and skipped, so the declaration that follows
+'' is kept and nothing cascades from it.
+private function DeclareProcKeyword_ _
+    ( byref p as Tko.ParserState, byval declareOnly as boolean ) as Tko.TokenKind
+    dim as Tko.TokenKind kw = Peek( p )
+    if (declareOnly = false) orelse (HasTok( p, p.pos + 1 ) = false) then return kw
+    select case kw
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+         Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+        return kw
+    '' A MODIFIER LEFT OVER is a misordered one -- 'virtual const sub' -- and TKO0678's.
+    case Tko.KW_CONST, Tko.KW_STATIC, Tko.KW_VIRTUAL, Tko.KW_ABSTRACT
+        return kw
+    end select
+    select case cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+         Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+        dim as string w = Tko.TokenKindText( kw )
+        if Tko.IsKeywordKind( kw ) then w = lcase( mid( Tko.TokenKindName( kw ), 4 ) )
+        if kw = Tko.TK_IDENT then w = p.names->Spelling( Cur( p ).ident )
+        if p.silent = false then p.diags->Report( Tko.TKO0936, Tko.PointRange( Cur( p ).loc ), w )
+        Advance( p )
+        kw = Peek( p )
+    end select
+    return kw
+end function

@@ -1,0 +1,12 @@
+'' TKO0936, fbc's 17 (T38): a word between 'declare' and the procedure keyword that is not
+'' a modifier -- 'explicit', which fbc does not have, or any other -- is refused. tiko took
+'' it as the procedure keyword and accepted 'declare explicit constructor', so the implicit
+'' conversion the writer meant to switch off still happened. 'const' and 'static' are
+'' modifiers and are fine. Lines identical to fbc-modern's errors. See
+'' DeclareProcKeyword_ in parser/declparam.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/declare-stray-word.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: declare-stray-word.bas(3,13): error TKO0936
+'' EXPECT-OUT: declare-stray-word.bas(4,13): error TKO0936
+'' EXPECT-MAX-DIAG: 2

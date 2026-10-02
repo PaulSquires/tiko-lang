@@ -706,7 +706,7 @@ private function ParseProc _
         end if
     loop
 
-    dim as Tko.TokenKind kw = Peek( p )
+    dim as Tko.TokenKind kw = DeclareProcKeyword_( p, declareOnly )   '' declparam.bas: a stray word is T38's
     if sawVA then
         '' STATIC AND VIRTUAL DO NOT COMBINE, IN EITHER ORDER. 'virtual static' is caught
         '' by the run test above; 'static virtual' reads cleanly and is fbc's error 17
