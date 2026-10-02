@@ -190,21 +190,6 @@ without being told anything else.
 A multi-dimensional parameter states its **rank** with commas and nothing more: `m( , ) as int32`
 takes any two-dimensional `int32` array. Rank is fixed at compile time; bounds are not.
 
-```admonish warning title="Status in this version"
-**An array of `ustring` cannot be a parameter** at the pinned compiler. `sub S( a( ) as ustring )`
-is refused with `TKO0636: parameter 'a' cannot be a fixed-length string` — the wrong diagnostic for
-a type that is not fixed-length. An array of `string` is accepted.
-
-The same gap has a second face: `lbound( )` and `ubound( )` of a `ustring` array produce nothing
-when used inside a larger expression, so `print "n="; ubound( names )` prints `n=` and then
-discards the rest of the statement. Taking the value into an `int32` first works, and
-`for i = lbound( names ) to ubound( names )` is correct — which is why every listing in this
-chapter is written that way.
-
-Tracked as **T23**. Until it lands, keep a `ustring` array in the scope that owns it, and move its
-bounds through a variable.
-```
-
 ## Returning an array
 
 A function that builds a table has to give it to its caller somehow, and the old answers are both
@@ -343,13 +328,10 @@ Comparing against `lbound` and `ubound` costs two comparisons and works on every
 kind, in every build. Where an index comes from outside the program — a file, an argument, a
 calculation you are not certain of — that guard is not optional.
 
-```admonish danger title="Pitfall"
-**Do not assign one array to another.** `a = b` compiles, with no diagnostic, and copies the
-*source's* byte size into the destination regardless of how big the destination is. Measured: a
-two-element `int32` array assigned from an eight-element one wrote 24 bytes past its end. `-exx`
-does not catch it, and fbc refuses the statement outright.
-
-To copy an array, loop. Tracked as **T22**.
+```admonish note
+**One array is not assigned to another.** `a = b` between arrays is refused —
+`TKO0930: a whole array cannot be assigned or swapped` — and so is `swap a, b`, because the two
+may not even be the same size. To copy an array, loop over its elements.
 ```
 
 ## Text stored in an array
@@ -433,8 +415,7 @@ simpler, and stop as soon as it is not.
 - **`-exx` checks every subscript, fixed or dynamic**, against the bounds the array has at that
   moment. Without it, compare against `lbound` and
   `ubound` yourself when the index is not obviously safe.
-- **Never write `a = b` between arrays (T22)**, and keep `ustring` arrays out of parameter lists
-  (T23).
+- **An array is not assigned or swapped whole** (`TKO0930`); copy it element by element.
 - The array variable is a descriptor; `fbc-int/array.bi` exposes `FB.ArrayLen`, `FB.ArraySize` and
   the record itself.
 - **Stop using a raw array when you start writing bookkeeping around it** — a live count, a doubling

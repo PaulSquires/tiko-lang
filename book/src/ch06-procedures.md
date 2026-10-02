@@ -141,17 +141,8 @@ constparam.tiko(3,5): error TKO0617: cannot modify 'n': it is a constant
 ```
 
 `byref x as const T` is the right shape for any parameter you only intend to read, and it is
-documentation the compiler checks.
-
-```admonish warning title="Status in this version"
-**`const` is not enforced on `string` or `ustring` parameters** at the pinned compiler. A procedure
-declared `byref s as const ustring` may assign to `s`; it compiles without a word, and the caller's
-variable changes. The check works correctly for numbers, as above, and for types you define.
-
-This is tiko's own gap — fbc refuses the same program — and it is tracked as work item **T18**.
-Until it lands, `const` on a string parameter states your intent to a reader without being
-verified, so read the body rather than trusting the signature.
-```
+documentation the compiler checks — for every type, text included: `byref s as const ustring` may not
+be assigned either.
 
 ## Arguments you can leave out
 
@@ -259,8 +250,10 @@ slot = 7
 The second is worth preferring. It names the thing being modified, and it cannot be broken later by
 someone removing a pair of parentheses that looked redundant.
 
-**fbc warns about this and tiko does not** — work item **T19**. Until that lands, nothing at all
-tells you the assignment was dropped.
+The compiler says so, at least: it warns `TKO0931: '=' is read as a comparison inside the argument
+of 'slotat', not as an assignment to its byref result`. Read that warning as an error. (With two or
+more arguments there is no ambiguity — `( a, b ) = v` is not an expression — and `f( a, b ) = v`
+assigns through the result as written.)
 ````
 
 ## Any number of arguments
@@ -331,14 +324,13 @@ The costs worth knowing are the ones you choose:
 - `declare` introduces a name before its body, which mutual recursion requires.
 - **With no keyword, numbers are passed `byval`, and strings and your own types `byref`.** Write the
   keyword on every parameter.
-- `byref x as const T` is a reference you cannot write through — **except for `string`/`ustring` at
-  this version (T18)**.
+- `byref x as const T` is a reference you cannot write through, whatever T is.
 - Optional parameters follow the required ones, and a middle argument can be left empty.
 - `overload` is required to share a name; resolution scores conversions and refuses ties with
   `TKO0660`. It does not avoid narrowing.
 - `static` locals persist between calls and are shared by every level of a recursion.
-- **Assigning to a `byref` function result needs `( f( x ) ) = v` or a `dim byref` name** — the bare
-  form parses as an equality test and is silently discarded (T19).
+- **Assigning to a one-argument `byref` function result needs `( f( x ) ) = v` or a `dim byref`
+  name** — the bare form parses as an equality test, and `TKO0931` warns that it did.
 - `...` needs `cdecl` and does no type checking.
 - Procedure pointers hold any procedure of a matching shape; `@P` and `procptr( P )` are the same.
 - The costs you choose: a `byval` copy of something large, a `byref` indirection to save eight

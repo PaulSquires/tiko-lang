@@ -139,16 +139,8 @@ so `if instr( s, x ) > 0` is the test. There is no separate "not found" value to
 ```
 
 The `mid` **statement** never changes the length. A replacement longer than the room available is
-truncated, as the third case shows. That is what makes it cheap: nothing is reallocated.
-
-```admonish warning title="Status in this version"
-**The `mid` statement does nothing on a `ustring`.** `mid( u, 2, 3 ) = "XYZ"` leaves `u` exactly as
-it was — no diagnostic, no warning, the assignment is discarded. It works correctly on a `string`,
-which is what the listing above uses.
-
-Tracked as **T26**. Until it lands, rebuild the text instead:
-`u = left( u, 1 ) & "XYZ" & mid( u, 5 )`.
-```
+truncated, as the third case shows. That is what makes it cheap: nothing is reallocated. It works
+the same on a `ustring`, counting UTF-16 units.
 
 ## Numbers and text
 
@@ -332,27 +324,15 @@ This works for ASCII letters and stops there. It is a cipher exercise, not a tex
 technique — `ucase` on a `ustring` already knows about every alphabet, and hand-rolled arithmetic
 does not.
 
-## A print that eats its own output
-
-````admonish danger title="Pitfall"
-**A value `print` cannot render can take the rest of the line with it.** Given a type with a
-constructor:
+## A value with no printable form
 
 ```tiko
-print "X["; Box( 7 ); "]Y"      '' prints X[ and stops
-print "Z"
+print "X["; Box( 7 ); "]Y"      '' refused
 ```
 
-That compiles, prints `X[`, and discards the `]Y` **and the newline**, so the next line runs into
-it. The same type held in a *variable* is refused properly, with
-`TKO0871: a 'box' has no printable form`.
-
-The difference is whether the operand is a variable or a temporary. Tracked as **T27**, and it is
-the general form of the missing `ubound` recorded in Chapter 7.
-
-If output goes missing and the text before it survives, look at the item after the last thing that
-printed.
-````
+A type that has no conversion to text has nothing for `print` to show, whether it arrives as a
+variable or as a temporary like `Box( 7 )`: both are refused with `TKO0871: a 'box' has no printable
+form`. Give the type an `operator cast( ) as ustring` — Chapter 12 — and it prints.
 
 ## What it costs
 
@@ -375,8 +355,8 @@ printed.
   with `"""`; **that closing line's indentation is the margin** removed from every line.
   `!"""` reads escapes, and every line break inside is `chr( 10 )`.
 - **Positions start at 1, and "not found" is 0.**
-- The `mid` statement overwrites in place and never changes the length — **and is a no-op on a
-  `ustring` at this version (T26)**.
+- The `mid` statement overwrites in place and never changes the length, on `string` and `ustring`
+  alike.
 - `str` has no padding; `print` reserves a column for the sign. `hex`/`oct`/`bin` take a width.
 - **`val( )` cannot fail** — it returns 0 for text that is not a number. Use `IsNumeric`, or
   Chapter 17's `Outcome`, when it matters.
@@ -391,7 +371,7 @@ printed.
 - **CSV is not a `Split` problem** — use `SplitCsv` or `SplitCsvRow`, which understand quoting.
 - `mk*`/`cv*` pack numbers into bytes; `lset`/`rset` align in a fixed-length string; `strptr`/`sadd`
   reach the characters for C.
-- **A `print` item that cannot be rendered may silently swallow the rest of the line (T27).**
+- **A value with no printable form is refused by `print`** (`TKO0871`), variable or temporary.
 
 ## Exercises
 

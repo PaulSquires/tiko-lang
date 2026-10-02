@@ -118,9 +118,9 @@ warning applies in the other direction: once `Fixed` converts to `float64`, it c
 `float64` would be accepted, including places nobody intended.
 
 Two conversions are worse than one. Give a type casts to both `float64` and `int64`, call a procedure
-overloaded for both, and the call is genuinely ambiguous — there is no reason to prefer either. fbc
-refuses it. tiko, at this version, **silently picks the `float64` overload** (tracked as **T42**), so
-adding a second `cast` can quietly change which procedure an existing line calls.
+overloaded for both, and the call is genuinely ambiguous — there is no reason to prefer either — so
+it is refused, `TKO0660`. Adding a second `cast` can therefore turn a line that compiled into one
+that does not.
 
 Give a type the conversions its users genuinely need, and prefer a named method — `ToFloat( )` —
 for the rest.
@@ -153,7 +153,7 @@ The middle of the listing is a warning about `@`. Because `Grid` overloads `@` t
 cells instead of the grid. The compiler noticed:
 
 ```text
-indexing.tiko(61,1): warning TKO0830: suspicious pointer assignment: a 'grid ptr' from a 'long ptr'
+indexing.tiko(61,1): warning TKO0830: suspicious pointer assignment: a 'grid ptr' from a 'int32 ptr'
 ```
 
 `varptr( g )` is never overloaded, and always means the address of `g`, which is why the listing uses
@@ -200,9 +200,8 @@ bytes come from and go back to. That makes them the place for a memory pool, an 
 as here, or a check that every object was freed.
 
 They are implicitly `static`: in `new` the object does not exist yet, and in `delete` it no longer
-does, so there is no `this`. At this version tiko does not enforce that — `this.n` inside
-`operator new` compiles and reads whatever bytes are there, where fbc reports `this` as undeclared.
-Tracked as **T41**; never touch `this` in either.
+does, so there is no `this` — and neither `this` nor a bare field may be used in either
+(`TKO0937`).
 
 ## What not to overload
 

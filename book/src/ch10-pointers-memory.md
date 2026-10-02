@@ -83,19 +83,10 @@ exactly what you want, and usually it is a bug.
 The listing reads the four bytes of 70000 and then the two 16-bit halves. Both show the low part
 first: on every target in this book the least significant byte has the lowest address.
 
-```admonish danger title="Pitfall"
-**Do not dereference an `any ptr`.** It has no element type, so there is nothing defined to read —
-and at this version tiko does not stop you. `dim as int32 v = *a` compiles and reads garbage, `*a =
-7` compiles and writes nothing, and `print *a` silently swallows the rest of the line.
-
-fbc refuses all three with `Incomplete type`, which is the right answer. Tracked as **T31**. Convert
-to a typed pointer first: `*cptr( int32 ptr, a )`.
-```
-
 ```admonish note
-The warning above names the types as `double ptr` and `long ptr`, though the source said `float64`
-and `int32`. Diagnostics use the older spellings — they are the same types, as Chapter 3 said. It
-is tracked with other wording issues as **T34**.
+**An `any ptr` cannot be dereferenced.** It has no element type, so there is nothing defined to
+read: `*a` and `a[ i ]` are refused with `TKO0933`. Convert to a typed pointer first:
+`*cptr( int32 ptr, a )`.
 ```
 
 ### const on either side
@@ -109,7 +100,7 @@ constptr.tiko(11,1): error TKO0617: cannot modify 'fixed_': it is a constant
      |
   11 | fixed_ = @m                             '' refused
      | ^
-constptr.tiko(10,1): error TKO0617: cannot modify '': it is a constant
+constptr.tiko(10,1): error TKO0617: cannot modify '*readonly': it is a constant
      |
   10 | *readOnly = 1                           '' refused
      | ^
@@ -119,8 +110,6 @@ constptr.tiko(10,1): error TKO0617: cannot modify '': it is a constant
 through. `int32 const ptr` is a constant pointer: it always points at the same place, but what is
 there may change. Read the declaration from the right — "a const pointer to an int32", "a pointer
 to a const int32" — and the rule falls out.
-
-The second diagnostic names `''` rather than `*readOnly`; that is T34 again, not a different rule.
 
 ## Asking for memory
 
@@ -308,7 +297,7 @@ needs that in mind.
 - **Pointer arithmetic counts elements**: `p + 1` moves `sizeof( T )` bytes. Step in bytes through a
   `uint8 ptr`.
 - `any ptr` converts to and from every pointer type; between typed pointers use `cptr` or `cast`.
-- **Never dereference an `any ptr`** — tiko does not stop you at this version (T31).
+- **An `any ptr` is not dereferenced** (`TKO0933`); convert it to a typed pointer first.
 - `const T ptr` cannot write through; `T const ptr` cannot be moved.
 - `allocate`/`callocate`/`reallocate`/`deallocate`: **check for 0, keep `reallocate`'s result
   separately, null the pointer after freeing.** `clear` sets bytes.

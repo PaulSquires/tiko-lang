@@ -57,10 +57,8 @@ is wanted — `dim as Temp d = 7.5` and `Show( 12.0 )` both did, silently, in th
 That is convenient for a type that genuinely *is* a number with extra meaning, and surprising for
 one that merely takes a number to get started. A `Buffer( 1024 )` constructor makes `Show( 1024 )`
 compile for a procedure that wants a buffer. Nothing turns the conversion off, so give such a
-constructor a second parameter, or create the object through a named function instead.
-
-`declare explicit constructor` is accepted at this version and **does nothing** — the conversion
-still happens. fbc rejects the syntax outright. Tracked as **T38**; do not rely on it.
+constructor a second parameter, or create the object through a named function instead. There is
+no `explicit` keyword to switch it off: `declare explicit constructor` is refused (`TKO0936`).
 ```
 
 ## Copying an object that owns something
@@ -131,11 +129,7 @@ A property with only a getter is read-only — `Fahrenheit` is computed from the
 stored, so it can never disagree with `Celsius`. A property may take an index, as `Reading( i )`
 does, which reads like an array whose elements the type controls.
 
-```admonish note
-At this version, a property with only a **setter** can be read anyway: the read compiles and yields
-0, and inside a `print` it swallows the rest of the line. fbc refuses the read
-(`PROPERTY has no GET method`). Tracked as **T35**; give every property you read a getter.
-```
+A property with only a **setter** is write-only: reading it is refused, `TKO0934`.
 
 ## Keeping fields private
 
@@ -203,16 +197,6 @@ constmethod.tiko(8,5): error TKO0664: 'n' cannot be written from a const method
      |
    8 |     n += 1                            '' refused: Bump promised not to
      |     ^
-```
-
-```admonish warning title="Status in this version"
-**A `const` object can call a method that is not `const`.** Given `dim as const Ticket k`, a plain
-method that changes `k` compiles and runs, and `k` changes. The same through a
-`byref t as const Ticket` parameter. fbc refuses both (`Const UDT cannot invoke non-const method`).
-
-The half of the rule inside the method works, as the listing above shows; the half at the call site
-does not. Tracked as **T36**. Mark every method that does not change the object `const` anyway — the
-declaration is still true, and it will be checked once the gap closes.
 ```
 
 ## Objects on the heap
@@ -291,13 +275,13 @@ and the type composed of them needs no management at all.
 - **Rule of three:** a type with a destructor needs a copy constructor and an `operator let`, and the
   `let` must survive self-assignment. **Rule of zero:** better still, build from fields that copy
   themselves.
-- Properties are methods that read like fields; the setter enforces the type's rules. **Give every
-  property you read a getter (T35).**
+- Properties are methods that read like fields; the setter enforces the type's rules. A property
+  with only a setter cannot be read (`TKO0934`).
 - `private:` fields are reachable only from the type's own methods; access is enforced on the
   constructor and destructor calls the compiler makes too.
 - `static` fields are shared and defined once; `static` methods have no `this`.
-- `const` methods may not change the object — **but a `const` object can still call a non-`const`
-  method at this version (T36)**.
+- `const` methods may not change the object, and a `const` object may call only `const` methods
+  (`TKO0935`).
 - `new`/`delete` run constructor and destructor; placement `new` constructs in existing memory, and
   you call the destructor yourself. `new[]`/`delete[]` run them for every element.
 

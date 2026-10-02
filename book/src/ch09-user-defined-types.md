@@ -302,23 +302,12 @@ choice, because the alternative copies every field — text included — on ever
 `MakeReading` builds one record per call, which keeps each line of setup readable. Chapter 11 turns
 that function into a **constructor**, which is where it belongs.
 
-````admonish danger title="Pitfall"
-**Do not assign a `type( ... )` value to a record that holds text.** This compiles:
-
-```tiko
-log_( 2 ) = type( "south", 18.0 )      '' Reading holds a ustring
+```admonish note
+**A record that holds text is not built with `type( ... )`.** `log_( 2 ) = type( "south", 18.0 )`
+over a `Reading` holding a `ustring` is refused — `TKO0929: type( ... ) cannot build a 'reading'` —
+because only a constructor can fill a var-len string. Build such records through a function like
+`MakeReading`, or — from Chapter 11 — with a constructor, which `type( ... )` then calls.
 ```
-
-and the program corrupts its heap. On Windows it dies at exit with `0xC0000374`; on Linux it aborts
-with `free(): double free`; and with a `ustring` field the text reads back garbled first.
-
-The compiler correctly refuses the same expression as an *initialiser* when the field is a `string`
-(`TKO0757: 'r' holds a var-len string, which an initializer list cannot fill`), and fbc refuses it in
-both places. The assignment form is simply not checked. Tracked as **T30**.
-
-Build records that hold text field by field, through a function like `MakeReading`, or — from
-Chapter 11 — with a constructor.
-````
 
 ## What it costs
 
@@ -349,7 +338,8 @@ Chapter 11 — with a constructor.
   alias never completed is an opaque type usable only through a pointer.
 - Arrays of types: index for position, `for each` otherwise — **`for each byref` for records**, which
   the by-value form would copy field by field.
-- **Never assign `type( ... )` to a record holding a string (T30)**; build it through a function.
+- **`type( ... )` cannot build a record holding text** (`TKO0929`); build it through a function or a
+  constructor.
 
 ## Exercises
 
