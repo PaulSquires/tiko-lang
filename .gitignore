@@ -67,6 +67,8 @@ tests/vendor/**/*.o
 # assertion pass -- which means they exist between runs and one got committed.
 /tests/driver/*.dll
 /tests/driver/*.dll.a
+/tests/modules/*.dll
+/tests/modules/*.dll.a
 /tests/driver/*.a
 /tests/driver/*.exe
 /tests/driver/*.ll
