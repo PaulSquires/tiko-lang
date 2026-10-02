@@ -55,6 +55,7 @@ const QSYMCLASS_ENUM      as long = 9
 const QSYMCLASS_STRUCT    as long = 10
 const QSYMCLASS_FIELD     as long = 12
 const QSYMCLASS_TYPEDEF   as long = 13
+const QSYMCLASS_RESERVED  as long = 16
 
 const QSYMDT_VOID     as long = 0
 const QSYMDT_BOOLEAN  as long = 1
@@ -131,6 +132,18 @@ function LowerQuerySymbol_ _
                (c.syms->symbols[i].name = lk) then
                 sy = @c.syms->symbols[i]
                 exit for
+            end if
+        next
+    end if
+
+    '' A NAME '#pragma reserve' TOOK has no symbol and is a class of its own: fbc answers
+    '' FB_SYMBCLASS_RESERVED (fbc-int/query-symbol.bas). It was 0.
+    if (sy = 0) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
+        dim as ulong rn = cast( ulong, c.names->Fold( c.ast->idents[cast( long, c.ast->nodes[cast( long, sn )].data )].name ) )
+        for each r as ulong in c.syms->reservedNames
+            if r = rn then
+                outv = ConstInt( c, QSYMCLASS_RESERVED, MT_I64 )
+                return true
             end if
         next
     end if

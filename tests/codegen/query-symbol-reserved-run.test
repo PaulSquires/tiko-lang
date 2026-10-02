@@ -1,0 +1,12 @@
+'' __FB_QUERY_SYMBOL__ OF A RESERVED NAME, RUN: asking about a name '#pragma reserve' took
+'' is not a use of it (no TKO0770), and the answer is FB_SYMBCLASS_RESERVED, 16, as
+'' fbc-modern gives. It was TKO0770, and with that out of the way 0.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/query-symbol-reserved.bas -o tests/codegen/qsymres.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0770
+'' RUN: tests/codegen/qsymres.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  16 16

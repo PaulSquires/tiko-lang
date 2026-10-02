@@ -294,6 +294,9 @@ namespace Tko
         '' ...and every name of theirs a lookup through their namespaces found but did not
         '' return, because the interface does not call it 'public' (SymbolTable.PublicOnly).
         as FB.Array( of ulong ) hiddenHits
+        '' THE NAMES '#pragma reserve' TOOK, folded: no symbol carries one, and
+        '' '__FB_QUERY_SYMBOL__' answers FB_SYMBCLASS_RESERVED for them (lowerqsym.bas).
+        as FB.Array( of ulong ) reservedNames
         '' SET WHILE A LOOKUP IS QUALIFIED BY A MODULE'S OWN NAMESPACE rather than an alias:
         '' PublicOnly lets everything through.
         as boolean    privileged

@@ -203,9 +203,33 @@ function CompileUnit _
     '' A DECLARATION IS NOT AN N_IDENT, so this cannot double-report with the
     '' declaration rule below: 'dim as integer foo' carries the name on an
     '' N_VAR_ITEM payload and creates no identifier node at all.
+    '' ...EXCEPT THE SYMBOL '__FB_QUERY_SYMBOL__( q, sym )' ASKS ABOUT, which is not a use
+    '' of it: fbc answers FB_SYMBCLASS_RESERVED, and its own fbc-int/query-symbol.bas
+    '' asks. The names go on the table too, for the lowering that answers.
+    dim as Tko.IdVec queried
+    syms.reservedNames.Clear( )
+    for each r as ulong in pr.reservedNames
+        syms.reservedNames.Push( r )
+    next
+    if pr.reservedNames.Count > 0 then
+        for n as long = 1 to ast.Count( )
+            if ast.Kind( cast( Tko.NodeId, n ) ) <> Tko.N_CALL then continue for
+            dim as Tko.ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[n].data )]
+            if (cp->count <> 2) orelse (cp->target = Tko.NODE_NONE) then continue for
+            if ast.Kind( cp->target ) <> Tko.N_IDENT then continue for
+            dim as Tko.InternId cn = ast.idents[cast( long, ast.nodes[cast( long, cp->target )].data )].name
+            if Tko.Text.LowerAscii( ctx.names.Spelling( cn ) ) <> "__fb_query_symbol__" then continue for
+            queried.Push( ast.children[cp->first + 1] )
+        next
+    end if
     for n as long = 1 to ast.Count( )
         dim as Tko.NodeId un = cast( Tko.NodeId, n )
         if ast.Kind( un ) <> Tko.N_IDENT then continue for
+        dim as boolean asked = false
+        for each q as ulong in queried
+            if q = cast( ulong, n ) then asked = true
+        next
+        if asked then continue for
         dim as Tko.IdentPayload ptr uip = _
             @ast.idents[cast( long, ast.nodes[cast( long, un )].data )]
         for k as long = 0 to pr.reservedNames.Count - 1
