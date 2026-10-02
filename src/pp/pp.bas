@@ -123,6 +123,15 @@ type PpEngine
     '' no value keeps the old answer of 0 rather than guessing.
     as IdVec                  constMark
     as FB.Array( of longint ) constVal
+    '' WHAT '#if typeof( name )' READS (T61), filled by the parser on the same terms: by
+    '' folded InternId, a variable's declared type and a typedef's target as a KEY --
+    '' 'K<token kind>' for a builtin or 'N<InternId>' for a named type, then ' ptr' per
+    '' level -- or "" for none; and a mark on each TYPE, UNION and ENUM name, the types
+    '' that are their own answer. Only what the parser could spell is recorded: a 'var'
+    '' or a parameter is not, and keeps the old TKO0308 rather than a guess.
+    as StrVec                 varTypeKey
+    as StrVec                 typedefKey
+    as IdVec                  typeNameMark
     as FB.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
     '' WHERE THE LITERALS AND THE LEXED FILES ACTUALLY LIVE -- this engine's own, or
     '' the invocation's shared ones. See PpConfig.sharedLits.
@@ -292,6 +301,34 @@ function PpNotedConst _
     if st.engine = 0 then return false
     return PpConstValue( *cast( PpEngine ptr, st.engine ), nm, outv )
 end function
+
+sub PpNoteType _
+    ( byref st as PpStream, byval nm as InternId, byref key as string, _
+      byval what as long, byval at as SourceLoc )
+    if (st.engine = 0) orelse (nm = INTERN_NONE) then return
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    if InIfaceFile_( *e, at ) then return
+    dim as long ix = cast( long, e->names->Fold( nm ) )
+    select case what
+    case PP_TYPE_NAMED
+        while e->typeNameMark.Count <= ix
+            e->typeNameMark.Push( 0 )
+        wend
+        e->typeNameMark[ix] = 1
+    case PP_TYPE_TYPEDEF
+        if len( key ) = 0 then return
+        while e->typedefKey.Count <= ix
+            e->typedefKey.Push( "" )
+        wend
+        e->typedefKey[ix] = key
+    case else
+        if len( key ) = 0 then return
+        while e->varTypeKey.Count <= ix
+            e->varTypeKey.Push( "" )
+        wend
+        e->varTypeKey[ix] = key
+    end select
+end sub
 
 sub PpNoteDeclared _
     ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as long )

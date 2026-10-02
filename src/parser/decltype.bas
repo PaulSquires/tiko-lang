@@ -428,6 +428,8 @@ private function UsingPath_( byref p as Tko.ParserState ) as string
     return usePath
 end function
 
+#include once "parser/pptypenote.bas"
+
 '' '#pragma private' IN EFFECT AT TOKEN pos (PpResult.privateAt): fbc makes every procedure
 '' defined under it private, a method's body too, unless it says 'public'.
 private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as long ) as boolean
@@ -597,16 +599,22 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
     select case k
     case Tko.KW_DIM, Tko.KW_REDIM, Tko.KW_VAR, Tko.KW_STATIC, Tko.KW_SHARED, _
          Tko.KW_COMMON, Tko.KW_EXTERN
-        return MarkPrivate( p, ParseVarDecl( p ), visKw )
+        dim as Tko.NodeId vn = ParseVarDecl( p )
+        NoteTypes_( p, vn )
+        return MarkPrivate( p, vn, visKw )
 
     case Tko.KW_CONST
         return MarkPrivate( p, ParseConstDecl( p ), visKw )
 
     case Tko.KW_TYPE, Tko.KW_UNION
-        return MarkPrivate( p, ParseTypeDecl( p ), visKw )
+        dim as Tko.NodeId tn = ParseTypeDecl( p )
+        NoteTypes_( p, tn )
+        return MarkPrivate( p, tn, visKw )
 
     case Tko.KW_ENUM
-        return MarkPrivate( p, ParseEnumDecl( p ), visKw )
+        dim as Tko.NodeId en = ParseEnumDecl( p )
+        NoteTypes_( p, en )
+        return MarkPrivate( p, en, visKw )
 
     case Tko.KW_NAMESPACE
         return MarkPrivate( p, ParseNamespaceDecl( p ), visKw )

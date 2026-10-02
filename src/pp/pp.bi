@@ -370,6 +370,14 @@ namespace Tko
     declare sub PpNoteDeclared _
         ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE, _
           byval kind as long = 1 )
+    '' A DECLARED TYPE, for '#if typeof( name )' to read -- see PpEngine.varTypeKey (T61).
+    '' 'what' says whose: a variable's, a typedef's target, or a named type's own name.
+    const PP_TYPE_VAR = 0
+    const PP_TYPE_TYPEDEF = 1
+    const PP_TYPE_NAMED = 2
+    declare sub PpNoteType _
+        ( byref st as PpStream, byval nm as InternId, byref key as string, _
+          byval what as long, byval at as SourceLoc = LOC_NONE )
     '' A CONST'S VALUE, for '#if' to read -- see PpEngine.constMark.
     declare sub PpNoteConst _
         ( byref st as PpStream, byval nm as InternId, byval v as longint, _

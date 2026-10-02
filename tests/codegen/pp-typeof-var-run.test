@@ -1,0 +1,17 @@
+'' T61, RUN: '#if typeof( name )' of a variable, a pointer, a typedef, an enum and a UDT
+'' -- POINT is a keyword -- answers as fbc-modern does: the parser tells the preprocessor
+'' each declaration's type as it finishes it. It was TKO0308. The two WRONG lines must
+'' not print: 'long ptr' is not 'long', nor 'long' 'integer'.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-typeof-var.bas -o tests/codegen/pptypeof.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/pptypeof.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: n long
+'' EXPECT-RUN-OUT: pn long ptr
+'' EXPECT-RUN-OUT: pt Point
+'' EXPECT-RUN-OUT: pt Alias_
+'' EXPECT-RUN-OUT: ml long
+'' EXPECT-RUN-OUT: sh Shade
+'' EXPECT-RUN-OUT: s string

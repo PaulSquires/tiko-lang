@@ -118,6 +118,92 @@ private function TypeIdentityOf( byval k as TokenKind ) as long
     return -1
 end function
 
+'' WHAT tiko's FIXED-WIDTH NAMES STAND FOR when the program has not typedef'd them itself:
+'' the prelude's ten, which are parsed after the unit and so never noted (prelude.bas).
+private function FixedWidthKind_( byref nm as string ) as long
+    select case lcase( nm )
+    case "int8"    : return cast( long, KW_BYTE )
+    case "uint8"   : return cast( long, KW_UBYTE )
+    case "int16"   : return cast( long, KW_SHORT )
+    case "uint16"  : return cast( long, KW_USHORT )
+    case "int32"   : return cast( long, KW_LONG )
+    case "uint32"  : return cast( long, KW_ULONG )
+    case "int64"   : return cast( long, KW_LONGINT )
+    case "uint64"  : return cast( long, KW_ULONGINT )
+    case "float32" : return cast( long, KW_SINGLE )
+    case "float64" : return cast( long, KW_DOUBLE )
+    end select
+    return 0
+end function
+
+'' 'typeof( name )' OF A VARIABLE OR A NAMED TYPE (T61): fbc reads every declaration above
+'' an '#if', and so does this, through what the parser noted (PpEngine.varTypeKey). The
+'' operand -- '[const] T [ptr ...]' or a variable -- as a key, with its ')' consumed; ""
+'' when it is anything else, which stays unevaluable.
+private function PxTypeOperand_( byref x as PpExprState ) as string
+    if PxPeek( x ) = KW_CONST then PxNext( x )
+    dim as TokenKind k = PxPeek( x )
+    dim as Token t = PxTok( x )
+    dim as string key
+    '' A KEYWORD THAT IS NO BUILTIN TYPE names a type like any identifier: 'type Point' is
+    '' legal, and POINT is the graphics function's keyword.
+    dim as InternId nmId = INTERN_NONE
+    if k = TK_IDENT then
+        nmId = cast( InternId, t.literal )
+    elseif IsKeywordKind( k ) andalso (TypeIdentityOf( k ) < 0) then
+        nmId = x.e->names->GetString( Text.LowerAscii( TokenKindText( k ) ) )
+    end if
+    if nmId <> INTERN_NONE then
+        dim as long ix = cast( long, x.e->names->Fold( nmId ) )
+        dim as boolean isType = false
+        if ix < x.e->typedefKey.Count then isType = (len( x.e->typedefKey[ix] ) > 0)
+        if (isType = false) andalso (ix < x.e->typeNameMark.Count) then isType = (x.e->typeNameMark[ix] <> 0)
+        if isType = false then isType = (FixedWidthKind_( x.e->names->Spelling( cast( InternId, ix ) ) ) > 0)
+        if (isType = false) andalso (ix < x.e->varTypeKey.Count) then key = x.e->varTypeKey[ix]
+        if isType then key = "N" & str( ix )
+        if len( key ) = 0 then return ""
+    elseif TypeIdentityOf( k ) >= 0 then
+        key = "K" & str( cast( long, k ) )
+    else
+        return ""
+    end if
+    PxNext( x )
+    while (PxPeek( x ) = KW_PTR) orelse (PxPeek( x ) = KW_POINTER)
+        key &= " ptr"
+        PxNext( x )
+    wend
+    if PxPeek( x ) <> TK_RPAREN then return ""
+    PxNext( x )
+    return key
+end function
+
+'' A KEY'S VALUE: typedefs followed to what they stand for. A plain builtin is its token
+'' kind, as 'typeof( long )' always was; anything else -- a pointer, a named type -- a
+'' string no number can equal.
+private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpValue
+    for guard as long = 0 to 15
+        dim as long sp = instr( key, " " )
+        dim as string base_ = iif( sp > 0, left( key, sp - 1 ), key )
+        dim as string rest = iif( sp > 0, mid( key, sp ), "" )
+        if left( base_, 1 ) <> "N" then exit for
+        dim as long ix = valint( mid( base_, 2 ) )
+        if ix < e.typedefKey.Count then
+            if len( e.typedefKey[ix] ) > 0 then
+                key = e.typedefKey[ix] & rest
+                continue for
+            end if
+        end if
+        dim as long fw = FixedWidthKind_( e.names->Spelling( cast( InternId, ix ) ) )
+        if fw > 0 then key = "K" & str( fw ) & rest
+        exit for
+    next
+    if (left( key, 1 ) = "K") andalso (instr( key, " " ) = 0) then return PxNum( valint( mid( key, 2 ) ) )
+    dim as PpValue r
+    r.isStr = true
+    r.str_ = "type:" & key
+    return r
+end function
+
 '' primary := number | string | identifier | defined(id) | '(' expr ')'
 private function PxPrimary( byref x as PpExprState ) as PpValue
     dim as TokenKind k = PxPeek( x )
@@ -317,6 +403,12 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         PxNext( x )
         dim as boolean paren = (PxPeek( x ) = TK_LPAREN)
         if paren then PxNext( x )
+        if paren andalso (k = KW_TYPEOF) then
+            dim as long at0 = x.pos
+            dim as string key = PxTypeOperand_( x )
+            if len( key ) > 0 then return PxTypeValue_( *x.e, key )
+            x.pos = at0
+        end if
         dim as TokenKind inner = PxPeek( x )
         dim as long v = -1
         if k = KW_SIZEOF then
