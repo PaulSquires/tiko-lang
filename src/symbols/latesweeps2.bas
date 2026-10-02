@@ -1239,6 +1239,7 @@ end sub
 #include once "symbols/ctorargs.bas"
 #include once "symbols/braceinit.bas"
 #include once "symbols/typelitstr.bas"
+#include once "symbols/anyptrderef.bas"
 #include once "symbols/basector.bas"
 
 private sub WalkExtra_ _
@@ -1295,6 +1296,7 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckRedimDeclShape_( c )
     CheckAggregateInitFields_( c )
     CheckTypeLiteralText_( c )  '' typelitstr.bas
+    CheckAnyPtrDeref_( c )      '' anyptrderef.bas
     CheckBraceLists_( c )       '' braceinit.bas
     CheckAnyInitTypes_( c )
     CheckStaticInitConst_( c )

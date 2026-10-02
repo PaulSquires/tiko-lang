@@ -740,6 +740,8 @@
     DIAG( TKO0931, SEV_WARNING, "'=' is read as a comparison inside the argument of '%0', not as an assignment to its byref result; to assign, write '( %0( ... ) ) = value'" )
     '' fbc's error 3: 'f( ... ) = v' over a function that returns by value -- byrefcheck.bas.
     DIAG( TKO0932, SEV_ERROR,   "'%0' returns its result by value, so a call to it cannot be assigned to" )
+    '' fbc's error 71: '*a' or 'a[ i ]' over an 'any ptr' -- anyptrderef.bas (T31).
+    DIAG( TKO0933, SEV_ERROR,   "an 'any ptr' points at nothing with a type; cast it to a typed pointer before dereferencing it" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

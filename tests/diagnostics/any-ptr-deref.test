@@ -1,0 +1,18 @@
+'' TKO0933, fbc's 71 (T31): '*a' and 'a[ i ]' over an 'any ptr' are refused in every
+'' position -- an initialiser, an assignment target, a print item, the outer '*' of '**pa',
+'' an index, an argument, '@( *a )' and 'sizeof( *a )'. tiko took them all: a read gave
+'' garbage, a write did nothing, a print item truncated its statement. 'cptr( long ptr,
+'' a )', a typed pointer made from it and '*pa' itself are fine. Lines identical to
+'' fbc-modern's errors. See symbols/anyptrderef.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/any-ptr-deref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: any-ptr-deref.bas(4,17): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(5,1): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(6,13): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(10,7): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(12,8): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(15,7): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(16,9): error TKO0933
+'' EXPECT-OUT: any-ptr-deref.bas(17,15): error TKO0933
+'' EXPECT-MAX-DIAG: 8
