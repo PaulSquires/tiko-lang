@@ -1,0 +1,8 @@
+#cmdline "-g"
+
+function Average( byval total as int32, byval n as int32 ) as int32
+    assert( n > 0 )
+    return total \ n
+end function
+
+dim as int32 a = Average( 10, 0 )

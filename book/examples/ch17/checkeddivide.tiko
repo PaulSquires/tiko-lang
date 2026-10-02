@@ -1,0 +1,24 @@
+#import "std/outcome"
+
+type Quotient as outcome.Result( of float64, ustring )
+
+function Divide( byval a as float64, byval b as float64 ) as Quotient
+    if b = 0 then
+        return outcome.Fail( of float64, ustring )( "division by zero" )
+    end if
+    return outcome.Ok( of float64, ustring )( a / b )
+end function
+
+'' The average of a total over a count, which can fail the same way.
+function Average( byval total as float64, byval n as int32 ) as Quotient
+    var q = Divide( total, n )
+    if q.IsOk( ) = false then
+        var why = "no average: " & q.Failure( )
+        return outcome.Fail( of float64, ustring )( why )
+    end if
+    return q
+end function
+
+print Average( 10, 4 ).ValueOr( 0 )
+var bad = Average( 10, 0 )
+print bad.IsOk( ); " "; bad.Failure( )

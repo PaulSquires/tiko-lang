@@ -1,0 +1,6 @@
+const SLOTS = 12
+
+#assert SLOTS mod 4 = 0          '' holds
+#assert SLOTS <= 8               '' refused
+
+print "built"

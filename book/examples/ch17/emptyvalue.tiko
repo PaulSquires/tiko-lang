@@ -1,0 +1,14 @@
+#import "std/outcome"
+
+sub ShowValue( byval o as outcome.Optional( of int32 ) )
+    on local error goto empty
+    dim as int32 v = o.Value( )
+    print "value:"; v
+    exit sub
+empty:
+    dim as int32 code = err
+    print "no value: runtime error"; code
+end sub
+
+ShowValue( outcome.Some( of int32 )( 42 ) )
+ShowValue( outcome.None( of int32 )( ) )

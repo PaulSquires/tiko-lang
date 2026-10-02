@@ -23,6 +23,7 @@
 - [13. Inheritance and Polymorphism](ch13-inheritance.md)
 - [14. Modules and Packages](ch14-modules-packages.md)
 - [16. Generics](ch16-generics.md)
+- [17. Errors: Optional, Result and Runtime Checks](ch17-errors.md)
 
 # Appendices
 

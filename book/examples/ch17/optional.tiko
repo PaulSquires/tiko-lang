@@ -1,0 +1,21 @@
+#import "std/outcome"
+
+'' Where v is in a, if it is anywhere.
+function FindIndex( a() as int32, byval v as int32 ) _
+    as outcome.Optional( of int32 )
+    for i as int32 = lbound( a ) to ubound( a )
+        if a( i ) = v then return outcome.Some( i )
+    next
+    return outcome.None( of int32 )( )
+end function
+
+dim xs( 0 to 3 ) as int32 = { 4, 8, 15, 16 }
+
+var found = FindIndex( xs(), 15 )
+if found.HasValue( ) then print "15 is at"; found.Value( )
+
+var missing = FindIndex( xs(), 99 )
+print "99 is at "; str( missing.ValueOr( -1 ) ); ", which means nowhere"
+
+dim nothing as outcome.Optional( of ustring )
+print "a new Optional has a value: "; nothing.HasValue( )

@@ -1,0 +1,7 @@
+#cmdline "-exx"
+
+'' Which runtime checks this program was compiled with.
+print "__FB_ERR__ ="; __FB_ERR__
+print "error checking:  "; iif( __FB_ERR__ and 1, "on", "off" )
+print "array bounds:    "; iif( __FB_ERR__ and 8, "on", "off" )
+print "null pointers:   "; iif( __FB_ERR__ and 16, "on", "off" )

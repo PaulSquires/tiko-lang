@@ -1,0 +1,24 @@
+#import "std/outcome"
+
+type DigitResult as outcome.Result( of int32, ustring )
+
+function ParseDigit( byval s as ustring ) as DigitResult
+    if ( len( s ) = 1 ) andalso ( s >= "0" ) andalso ( s <= "9" ) then
+        return outcome.Ok( of int32, ustring )( asc( s ) - 48 )
+    end if
+    var why = "'" & s & "' is not a digit"
+    return outcome.Fail( of int32, ustring )( why )
+end function
+
+dim inputs( 0 to 2 ) as ustring = { "7", "x", "42" }
+for each s as ustring in inputs
+    var r = ParseDigit( s )
+    if r.IsOk( ) then
+        print s; " ->"; r.Value( )
+    else
+        print s; " -> "; r.Failure( )
+    end if
+next
+
+dim blank as DigitResult
+print "a new Result succeeded: "; blank.IsOk( )

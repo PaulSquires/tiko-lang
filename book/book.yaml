@@ -61,7 +61,7 @@ parts:
       - { n: 14, file: src/ch14-modules-packages.md,      status: drafted }
       - { n: 15, file: chapters/15-namespaces-preprocessor.md, status: planned }
       - { n: 16, file: src/ch16-generics.md,              status: drafted }
-      - { n: 17, file: chapters/17-errors.md,             status: planned }
+      - { n: 17, file: src/ch17-errors.md,               status: drafted }
       - { n: 18, file: chapters/18-testing-debugging.md,  status: planned }
   - name: "Advanced Language"
     chapters:

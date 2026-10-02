@@ -1,0 +1,8 @@
+#import "std/fs"
+
+var r = fs.ReadAllText( "no-such-file.txt" )
+if r.IsOk( ) = false then
+    var e = r.Failure( )
+    if e.Code( ) = fs.FS_NOT_FOUND then print "not found"
+    print e.Operation( ); " "; e.Path( ); ": "; e.Message( )
+end if

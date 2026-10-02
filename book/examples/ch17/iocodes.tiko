@@ -1,0 +1,7 @@
+dim as int32 f = freefile
+
+'' The function form of OPEN returns an error code; it does not raise.
+print "missing:"; open( "no-such-file.txt" for input as #f )
+print "present:"; open( "notes.txt" for input as #f )
+print "close:"; close( #f )
+print "again:"; close( #f )

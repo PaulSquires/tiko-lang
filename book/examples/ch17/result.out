@@ -1,0 +1,4 @@
+7 -> 7
+x -> 'x' is not a digit
+42 -> '42' is not a digit
+a new Result succeeded: false

@@ -1,0 +1,35 @@
+#import "std/outcome"
+
+type Number as outcome.Result( of float64, ustring )
+
+function Divide( byval a as float64, byval b as float64 ) as Number
+    if b = 0 then
+        return outcome.Fail( of float64, ustring )( "divide by 0" )
+    end if
+    return outcome.Ok( of float64, ustring )( a / b )
+end function
+
+function Root( byval x as float64 ) as Number
+    if x < 0 then
+        return outcome.Fail( of float64, ustring )( "negative root" )
+    end if
+    return outcome.Ok( of float64, ustring )( sqr( x ) )
+end function
+
+'' sqr( a / b ): the first failure wins, and says which step it was.
+function RootOfRatio( byval a as float64, byval b as float64 ) as Number
+    var q = Divide( a, b )
+    if q.IsOk( ) = false then return q
+    return Root( q.Value( ) )
+end function
+
+dim pairs( 0 to 2 ) as ustring = { "18 2", "1 0", "-8 2" }
+for each pair as ustring in pairs
+    var a = val( pair ), b = val( mid( pair, instr( pair, " " ) + 1 ) )
+    var r = RootOfRatio( a, b )
+    if r.IsOk( ) then
+        print pair; " ->"; r.Value( )
+    else
+        print pair; " -> "; r.Failure( )
+    end if
+next

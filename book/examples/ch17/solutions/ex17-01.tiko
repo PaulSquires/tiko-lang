@@ -1,0 +1,24 @@
+#import "std/outcome"
+
+'' A whole number, written as digits with an optional leading minus.
+function ToInt( byval s as ustring ) as outcome.Optional( of int32 )
+    var t = trim( s )
+    var first = iif( left( t, 1 ) = "-", 2, 1 )
+    if len( t ) < first then return outcome.None( of int32 )( )
+    for i as int32 = first to len( t )
+        var c = mid( t, i, 1 )
+        if ( c < "0" ) orelse ( c > "9" ) then
+            return outcome.None( of int32 )( )
+        end if
+    next
+    return outcome.Some( of int32 )( valint( t ) )
+end function
+
+dim entries( 0 to 5 ) as ustring = _
+    { "12", "x", " 30 ", "-4", "", "7a" }
+dim as int32 total = 0, refused = 0
+for each e as ustring in entries
+    var n = ToInt( e )
+    if n.HasValue( ) then total += n.Value( ) else refused += 1
+next
+print "total:"; total; ", refused:"; refused

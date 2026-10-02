@@ -1,0 +1,98 @@
+#import "std/outcome"
+
+'' WHY A LINE WAS REFUSED, modelled on fs.FsError: a code to branch
+'' on, the line it happened on, and a message for people.
+enum ConfigCode
+    CFG_OK
+    CFG_NO_EQUALS
+    CFG_EMPTY_KEY
+    CFG_NOT_A_NUMBER
+end enum
+
+type ConfigError
+    code as ConfigCode
+    lineNo as int32
+    declare constructor( )
+    declare constructor( byval c as ConfigCode, byval n as int32 )
+    declare function Message( ) as ustring
+end type
+
+constructor ConfigError( )
+end constructor
+
+constructor ConfigError( byval c as ConfigCode, byval n as int32 )
+    code = c : lineNo = n
+end constructor
+
+function ConfigError.Message( ) as ustring
+    dim as ustring what
+    select case code
+    case CFG_NO_EQUALS    : what = "expected key=value"
+    case CFG_EMPTY_KEY    : what = "the key is empty"
+    case CFG_NOT_A_NUMBER : what = "the value is not a number"
+    end select
+    return "line " & str( lineNo ) & ": " & what
+end function
+
+type Setting
+    key as ustring
+    value as int32
+end type
+
+type SettingResult as outcome.Result( of Setting, ConfigError )
+
+function Refuse( byval c as ConfigCode, byval n as int32 ) _
+    as SettingResult
+    var e = ConfigError( c, n )
+    return outcome.Fail( of Setting, ConfigError )( e )
+end function
+
+function ParseLine( byval text as ustring, byval n as int32 ) _
+    as SettingResult
+    var eq = instr( text, "=" )
+    if eq = 0 then return Refuse( CFG_NO_EQUALS, n )
+    dim s as Setting
+    s.key = trim( left( text, eq - 1 ) )
+    if len( s.key ) = 0 then return Refuse( CFG_EMPTY_KEY, n )
+    var v = trim( mid( text, eq + 1 ) )
+    if ( len( v ) = 0 ) orelse ( str( valint( v ) ) <> v ) then
+        return Refuse( CFG_NOT_A_NUMBER, n )
+    end if
+    s.value = valint( v )
+    return outcome.Ok( of Setting, ConfigError )( s )
+end function
+
+'' Every line, or the first failure: the error travels up unchanged.
+function ParseConfig( lines() as ustring, settings() as Setting ) _
+    as outcome.Result( of int32, ConfigError )
+    for i as int32 = lbound( lines ) to ubound( lines )
+        var r = ParseLine( lines( i ), i + 1 )
+        if r.IsOk( ) = false then
+            return outcome.Fail( of int32, ConfigError )( r.Failure( ) )
+        end if
+        redim preserve settings( ubound( settings ) + 1 )
+        settings( ubound( settings ) ) = r.Value( )
+    next
+    return outcome.Ok( of int32, ConfigError )( ubound( settings ) + 1 )
+end function
+
+sub Load( lines() as ustring )
+    dim settings() as Setting
+    var r = ParseConfig( lines(), settings() )
+    if r.IsOk( ) then
+        print "loaded"; r.Value( ); " settings:";
+        for each s as Setting in settings
+            print " "; s.key; "="; str( s.value );
+        next
+        print
+    else
+        print "refused, "; r.Failure( ).Message( )
+    end if
+end sub
+
+dim good( 0 to 2 ) as ustring = _
+    { "width = 80", "height=24", "tabs = 4" }
+dim bad( 0 to 2 ) as ustring = _
+    { "width = 80", "height=tall", "tabs = 4" }
+Load( good() )
+Load( bad() )

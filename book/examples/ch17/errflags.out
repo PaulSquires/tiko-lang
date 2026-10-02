@@ -1,0 +1,4 @@
+__FB_ERR__ = 1823
+error checking:  on
+array bounds:    on
+null pointers:   on

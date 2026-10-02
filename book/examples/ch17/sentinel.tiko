@@ -1,0 +1,15 @@
+'' The coldest reading, or -1 when there are none.
+function Coldest( temps() as int32 ) as int32
+    if ubound( temps ) < lbound( temps ) then return -1
+    var lowest = temps( lbound( temps ) )
+    for i as int32 = lbound( temps ) + 1 to ubound( temps )
+        if temps( i ) < lowest then lowest = temps( i )
+    next
+    return lowest
+end function
+
+dim none() as int32
+dim winter( 0 to 2 ) as int32 = { 3, -1, 2 }
+
+print "no readings:"; Coldest( none() )
+print "a cold day: "; Coldest( winter() )

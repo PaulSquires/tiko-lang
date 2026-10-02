@@ -1,0 +1,20 @@
+#cmdline "-exx"
+
+function Ratio( byval a as int32, byval b as int32 ) as int32
+    if b = 0 then error 11            '' 11: division by zero
+    return a \ b
+end function
+
+sub Report( byval a as int32, byval b as int32 )
+    on local error goto failed
+    dim as int32 r = Ratio( a, b )
+    print a; " /"; b; " ="; r
+    exit sub
+failed:
+    '' Copy the error out first: the next runtime call may clear it.
+    dim as int32 code = err, where_ = erl
+    print "error"; code; " at line"; where_; " in "; *erfn( )
+end sub
+
+Report( 12, 4 )
+Report( 1, 0 )
