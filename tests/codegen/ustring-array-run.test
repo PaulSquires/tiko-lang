@@ -1,0 +1,20 @@
+'' T23, RUN: an array of ustring is an ARRAY, not a fixed-length string. 'ubound( us )' and
+'' 'lbound( us )' print, go through str( ), add and compare; and 'a( ) as ustring' is a
+'' parameter. FixedStringElem listed TY_USTRING, so every ustring array was taken for a
+'' 'ustring * N': the bound came out untyped and its 'print' vanished with the newline,
+'' and the parameter was TKO0636. 'ustring * N' is TY_FIXUSTR. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ustring-array.bas -o tests/codegen/ustringarray.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ustringarray.exe
+'' RUN: tests/codegen/ustringarray.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: n= 2
+'' EXPECT-RUN-OUT: m=2!
+'' EXPECT-RUN-OUT:  3-1
+'' EXPECT-RUN-OUT:  4
+'' EXPECT-RUN-OUT: xyz
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT: end

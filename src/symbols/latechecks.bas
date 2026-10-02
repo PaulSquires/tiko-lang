@@ -94,8 +94,10 @@ private sub CheckFixLenParams_( byref c as Ctx )
         '' instantiated as a string is an array of TY_STRING -- fb/sort.bi's
         '' SortMergeBy writes one, and refusing it turned generics/container-sort.bas,
         '' which fbc accepts, into an error.
+        '' ...AND SO IS TY_USTRING (T23): a 'ustring' is var-length, and 'a( ) as ustring' is an
+        '' ARRAY OF USTRINGS, which fbc takes as a parameter. A 'ustring * N' is TY_FIXUSTR.
         select case c.types->BuiltinOf( el )
-        case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        case TY_ZSTRING, TY_WSTRING, TY_FIXSTR, TY_FIXUSTR
         case else
             continue for
         end select

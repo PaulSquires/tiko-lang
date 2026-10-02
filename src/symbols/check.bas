@@ -257,8 +257,9 @@ function FixedStringElem _
     '' against a 'ustring' parameter. The call then bound to nothing and came out
     '' UNTYPED, so whatever consumed it declined. The narrow twin was listed and
     '' worked, which is what kept this invisible.
-    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, Tko.TY_FIXSTR, _
-         Tko.TY_FIXUSTR
+    '' NOT TY_USTRING (T23): an array of ustring is an ARRAY ('ustring * N' is TY_FIXUSTR). Listed,
+    '' 'ubound( us )' came out untyped and 'a( ) as ustring' was refused as a parameter.
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
         return e
     end select
     return Tko.TYPE_NONE
