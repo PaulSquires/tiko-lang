@@ -662,7 +662,7 @@ private function ExprIntrinsicType_ _
     '' item by its type and had none -- while 'dim as double r = frac( d )' lowered,
     '' because that one is typed by its DESTINATION. The lowering was there all along.
     case "abs", "int", "fix", "frac"
-        if ab = Tko.TY_NONE then return Tko.TYPE_NONE
+        if ab = Tko.TY_NONE then return iif( c.types->Kind( a0 ) = Tko.TK_ENUM, c.types->Builtin( Tko.TY_INTEGER ), Tko.TYPE_NONE )   '' an ENUM is INTEGER, measured (T53); untyped, 'print abs( e )' vanished
         if IsFloat_( ab ) then return c.types->Builtin( ab )
         if IsInt_( ab ) then return c.types->Builtin( Tko.TY_INTEGER )
         return Tko.TYPE_NONE

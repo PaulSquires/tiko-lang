@@ -1,0 +1,14 @@
+'' T53, RUN: abs, int, fix and frac of an ENUM value are INTEGER, as fbc types them, and
+'' sgn and sqr were already typed. Check left the first four untyped -- an enum has no
+'' builtin type -- and an untyped item took the whole 'print' with it: the line printed
+'' nothing. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/math-enum.bas -o tests/codegen/mathenum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/mathenum.exe
+'' RUN: tests/codegen/mathenum.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  4-4-4 0-1 2.645751311064591 7
+'' EXPECT-RUN-OUT:  11
+'' EXPECT-RUN-OUT: end
