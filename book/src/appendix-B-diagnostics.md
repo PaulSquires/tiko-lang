@@ -491,4 +491,4 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO0992` | error | not implemented in this build: ‹arg1› |
 | `TKO0993` | error | internal compiler error in emission: ‹arg1› |
 
-<!-- 443 rows, generated 2026-10-02 from src/diag/diagids.bi at 4e5ea526 -->
+<!-- 443 rows, generated 2026-10-02 from src/diag/diagids.bi at 251ddb70 -->
