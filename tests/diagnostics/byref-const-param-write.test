@@ -1,0 +1,20 @@
+'' TKO0617, fbc's 119 (T18): assigning to a 'byref ... as const' parameter by name --
+'' long, a UDT, string and ustring, '=' and '&=' -- is refused, as fbc refuses it. Only a
+'' field write ('p.x = 1') was caught; the rest wrote through the reference into the
+'' caller's variable. A byval const parameter, 'mid( s, ... ) =' and 'swap' were caught
+'' already; a non-const byref parameter and a method's own field stay writable. Lines
+'' identical to fbc-modern's errors. See CheckAssignTarget_ in symbols/assigntarget.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byref-const-param-write.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-const-param-write.bas(5,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(8,6): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(11,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(14,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(17,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(20,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(21,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(24,5): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(30,10): error TKO0617
+'' EXPECT-OUT: byref-const-param-write.bas(33,10): error TKO0617
+'' EXPECT-MAX-DIAG: 10

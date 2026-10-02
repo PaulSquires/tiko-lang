@@ -38,10 +38,17 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
         '' are walked; the typedef is back-patched afterwards, so Resolve's own test saw
         '' no type and said nothing. Resolve marks what it DID report AMB_ERROR, which is
         '' what keeps this from repeating it. fbc error 119; ten corpus files in const/.
-        if mk <> SYM_VARIABLE then return
+        '' ...AND A 'byref ... as const' PARAMETER (T18). Its type is a REFERENCE to the const
+        '' type, so the reference is looked through: 's = "x"' and 's &= "x"' over 'byref s as
+        '' const string' -- or const ustring, long, a UDT -- are fbc's 119, measured, and tiko
+        '' wrote through the reference into the caller's variable. A byval const parameter
+        '' is Resolve's, marked AMB_ERROR below.
+        if (mk <> SYM_VARIABLE) andalso (mk <> SYM_PARAMETER) then return
         if c.info->AmbiguousOf( id ) = AMB_ERROR then return
         if es->type_ = TYPE_NONE then return
-        if c.types->IsConst( es->type_ ) = false then return
+        dim as TypeId et = es->type_
+        if c.types->Kind( et ) = TK_REFERENCE then et = c.types->Inner( et )
+        if c.types->IsConst( et ) = false then return
         c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
                          c.names->Spelling( es->name ) )
     case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
