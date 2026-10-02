@@ -288,3 +288,31 @@ private function ByrefSameInt_ _
     if (sa = 0) orelse (sa <> sb) then return false
     return c.types->Layout( ua ).size = c.types->Layout( ub ).size
 end function
+
+'' A TIE WHOSE UDT ARGUMENTS EACH CONVERT THROUGH TWO OR MORE 'operator cast's (T42) -- one
+'' the overload scoring models, so it is reported like any other tie. Measured on
+'' fbc-modern 1.20, 2026-10-02: a type casting to double AND to longint, passed to
+'' 'Take( double )' / 'Take( longint )', is error 99 -- each overload is reached exactly,
+'' through a different cast -- and tiko bound one in silence, because a UDT argument
+'' otherwise keeps the tie report quiet (overload.bas says why). A builtin or pointer
+'' argument beside it is fine; any other UDT argument still keeps it quiet.
+function UdtCastTie_( byref c as Ctx, byref argT as FB.Array( of ulong ) ) as boolean
+    dim as boolean any_ = false
+    for i as long = 0 to argT.Count - 1
+        dim as Tko.TypeId a = c.types->Unqualify( cast( Tko.TypeId, argT[i] ) )
+        if a = Tko.TYPE_NONE then return false
+        if c.types->Kind( a ) = Tko.TK_REFERENCE then a = c.types->Unqualify( c.types->Inner( a ) )
+        select case c.types->Kind( a )
+        case Tko.TK_BUILTIN, Tko.TK_POINTER
+        case Tko.TK_UDT
+            dim as Tko.SymbolId cs = UdtMemberSym_( c, a, "cast" )
+            if cs = Tko.SYMBOL_NONE then return false
+            dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
+            if (s = 0) orelse (s->nextOverload = Tko.SYMBOL_NONE) then return false
+            any_ = true
+        case else
+            return false
+        end select
+    next
+    return any_
+end function

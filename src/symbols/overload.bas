@@ -1338,7 +1338,7 @@ private function ResolveCall_ _
                 exit for
             end if
         next
-        if tieTyped then
+        if tieTyped orelse UdtCastTie_( c, argT ) then   '' two casts, two overloads: T42, checkbase.bas
             c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( id ) ), _
                              c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
         end if

@@ -1,0 +1,12 @@
+'' TKO0660, fbc's 99 (T42): a type with 'operator cast( ) as double' AND 'as longint',
+'' passed to a procedure overloaded for double and longint -- each overload reached
+'' exactly, through a different cast -- is ambiguous, beside a builtin argument too.
+'' tiko bound the double one in silence: a UDT argument kept the tie report quiet. A
+'' one-cast type, a single procedure and a builtin argument still bind. Lines identical
+'' to fbc-modern's errors. See UdtCastTie_ in symbols/checkbase.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/cast-overload-tie.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-overload-tie.bas(31,5): error TKO0660
+'' EXPECT-OUT: cast-overload-tie.bas(32,6): error TKO0660
+'' EXPECT-MAX-DIAG: 2
