@@ -4,7 +4,7 @@ type Vec2
     x as float64
     y as float64
     declare operator +=( byref o as Vec2 )       '' members: they
-    declare operator cast( ) as string           '' change or convert
+    declare operator cast( ) as ustring          '' change or convert
 end type                                         '' this object
 
 '' Binary operators are global: neither operand is "this".
@@ -46,7 +46,7 @@ operator Vec2.+=( byref o as Vec2 )
     y += o.y
 end operator
 
-operator Vec2.cast( ) as string
+operator Vec2.cast( ) as ustring
     return "(" & x & ", " & y & ")"
 end operator
 

@@ -234,15 +234,20 @@ without allocating. It is for memory pools and for objects that must live at a p
 Because nothing was allocated, `delete` is wrong here: you call the destructor yourself, explicitly,
 and free the memory the way you got it.
 
-```admonish warning title="Status in this version"
-**`delete[]` does not run destructors.** `new Noisy[ 3 ]` runs three constructors, but `delete[]` on
-the result frees the memory without destroying a single element — on both targets. fbc runs all
-three. Every resource the elements own leaks.
+`new T[ n ]` and `delete[]` do the same for an array on the heap: a constructor for each element,
+then a destructor for each, last first.
 
-Tracked as **T37**; `examples/ch11/deletearray.tiko` is the repro, marked blocked. Until it lands,
-prefer an array in a scope, or `FB.Array( of T )` from Chapter 23, over `new[]` for any type with a
-destructor.
+```tiko
+{{#include ../examples/ch11/deletearray.tiko}}
 ```
+
+```text
+{{#include ../examples/ch11/deletearray.out}}
+```
+
+`delete[]` knows how many elements there are because, for a type with a destructor, `new[]`
+recorded the count just before the first one. That is one more reason the families must not be
+mixed: `delete` or `deallocate` on such memory starts at the wrong address.
 
 ## A builder that needs none of the three
 
@@ -294,7 +299,7 @@ and the type composed of them needs no management at all.
 - `const` methods may not change the object — **but a `const` object can still call a non-`const`
   method at this version (T36)**.
 - `new`/`delete` run constructor and destructor; placement `new` constructs in existing memory, and
-  you call the destructor yourself. **`delete[]` runs no destructors at this version (T37).**
+  you call the destructor yourself. `new[]`/`delete[]` run them for every element.
 
 ## Exercises
 

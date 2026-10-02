@@ -226,20 +226,6 @@ That is the rule worth memorising. A `ustring` assigned to a `string` is encoded
 `string` assigned to a `ustring` is decoded as UTF-8. There is no locale involved and no target
 dependence.
 
-```admonish warning title="Status in this version"
-**On linux-x86_64, a non-BMP character written as a *literal* is dropped**, along with everything
-after it in the same literal. A `ustring` literal holding U+1F600 —
-`examples/ch08/bmpliteral.tiko`, which is in the companion tree rather than printed here —
-gives the correct four code units on win64-msvc and `len` 1, holding only `"a"`, on Linux — at compile time, with no diagnostic.
-
-The runtime conversion is correct on both targets, which is why the listing above builds its text
-from bytes and passes everywhere. Only literals are affected, and only the 4-byte UTF-8 sequences;
-2-byte and 3-byte literals are identical on both.
-
-Tracked as **T25**. `examples/ch08/bmpliteral.tiko` is the repro and is marked blocked on Linux
-rather than rewritten.
-```
-
 ## Bytes that are not UTF-8
 
 ```tiko
@@ -400,7 +386,6 @@ printed.
   target**, and lossless.
 - **Bytes that are not UTF-8 become U+FFFD, silently.** Convert at the boundary, knowing what you
   have.
-- **A non-BMP `ustring` literal is truncated on linux-x86_64 at this version (T25).**
 - `#import "std/strings"` adds ~45 operations including `Split`/`Join`, `Replace`, the `Pad*`
   family, `Between` and the CSV parsers. `Join( Split( s, d ), d )` is `s`.
 - **CSV is not a `Split` problem** — use `SplitCsv` or `SplitCsvRow`, which understand quoting.

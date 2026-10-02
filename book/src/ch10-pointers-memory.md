@@ -168,15 +168,19 @@ pointer comes back typed. Pair them exactly: memory from `new` goes back with `d
 undefined, and Chapter 11 shows the version where it visibly breaks — once a type has a destructor,
 `delete` runs it and `deallocate` does not.
 
-```admonish warning title="Status in this version"
-**`new T( a, b )` ignores its arguments** for a type with no constructor. `new Point( 3, 4 )`
-compiles and returns a zeroed `Point`; fbc fills the fields in order, as `dim … = ( 3, 4 )` does.
-`new int32( 42 )` is correct.
+`new` takes a value too. For a type with no constructor the arguments fill the fields in order, as
+`dim … = ( 3, 4 )` does, and any left out are zero:
 
-Tracked as **T32**; `examples/ch10/newargs.tiko` is the repro, marked blocked. Until it lands, set
-the fields after `new`, as the listing does — or give the type a constructor, which Chapter 11
-does, and which is the better answer anyway.
+```tiko
+{{#include ../examples/ch10/newargs.tiko}}
 ```
+
+```text
+{{#include ../examples/ch10/newargs.out}}
+```
+
+`new int32( 42 )` works the same way for a single value. A type with a constructor takes its
+arguments through that instead — Chapter 11.
 
 ## Structures that link
 
@@ -268,15 +272,16 @@ Under `-exx`, reading or writing through a null pointer with `*` stops the progr
 error 7, and the process exits with status 7, instead of crashing somewhere further on. Without
 `-exx` the same program crashes with an access violation.
 
-```admonish warning title="Status in this version"
-**`-exx` checks `*p`, but not `p->field` or `p[i]`.** Reading or writing a field through a null
-type pointer, or indexing a null pointer, crashes with an access violation on both targets instead
-of stopping with error 7. fbc traps all three.
+The same check covers `->` and indexing — `p->x` and `p[i]` through null stop with error 7 too.
+That is the common case: a null object pointer is reached through `->` far more often than
+through `*`.
 
-That gap is in the common case: a null object pointer is reached through `->` far more often than
-through `*`. Tracked as **T33**; `examples/ch10/nullmember.tiko` is the repro. Until it lands, test
-a pointer against 0 before following it whenever 0 is a possible value — which is the habit to keep
-afterwards too.
+```tiko
+{{#include ../examples/ch10/nullmember.tiko}}
+```
+
+```text
+{{#include ../examples/ch10/nullmember.out}}
 ```
 
 ```admonish note
@@ -308,13 +313,13 @@ needs that in mind.
 - `allocate`/`callocate`/`reallocate`/`deallocate`: **check for 0, keep `reallocate`'s result
   separately, null the pointer after freeing.** `clear` sets bytes.
 - `new`/`delete` and `new[]`/`delete[]` allocate typed and zeroed memory — **pair each family with
-  its own release**. `new T( a, b )` ignores its arguments at this version (T32).
+  its own release**. `new T( a, b )` fills a constructor-less type's fields in order.
 - **Read a node's link before deleting the node.**
 - References are bound once and never null; prefer them when "nothing" is not a valid answer.
 - **`strptr` of an empty string is null**, and any `strptr` is valid only until the string changes.
 - `peek`/`poke` read and write a stated type at an address. The targets are little-endian.
-- **`-exx` traps `*p` through null, but not `p->x` or `p[i]` at this version (T33)** — test before
-  you follow.
+- **`-exx` traps `*p`, `p->x` and `p[i]` through null** with runtime error 7. Still test a pointer
+  that may be 0 before you follow it.
 
 ## Exercises
 

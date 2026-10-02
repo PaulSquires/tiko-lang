@@ -1,7 +1,7 @@
 '' nullmember.tiko -- a field through a null pointer, under -exx.
 ''
-'' -exx checks *p. It should check p->x too, and stop with the same
-'' runtime error 7 that nullcheck.tiko shows.
+'' -exx checks p->x as it checks *p, and stops with the same runtime
+'' error 7 that nullcheck.tiko shows.
 #cmdline "-exx"
 
 type Point

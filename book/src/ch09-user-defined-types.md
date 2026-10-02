@@ -299,15 +299,6 @@ An array of a type works like any array, and Chapter 7's advice carries over: in
 position matters, `for each byref` when it does not. For records, `byref` is more than a style
 choice, because the alternative copies every field — text included — on every pass.
 
-```admonish warning title="Status in this version"
-**`for each` by value over an array of a type fails to compile.** `for each p as Point in pts` —
-the form Chapter 7 taught for numbers — dies inside clang with a type-mismatch error and
-`TKO0113`, on both targets. `for each byref` works, and is the better choice for records anyway.
-
-fbc compiles the by-value form correctly. Tracked as **T28**; `examples/ch09/foreachudt.tiko` is the
-repro, and it is marked blocked rather than rewritten.
-```
-
 `MakeReading` builds one record per call, which keeps each line of setup readable. Chapter 11 turns
 that function into a **constructor**, which is where it belongs.
 
@@ -356,8 +347,8 @@ Chapter 11 — with a constructor.
 - `with` shortens repeated access; `type A as B` is an alias for the same type.
 - A type may point at itself; **types that point at each other need a forward alias**, and an
   alias never completed is an opaque type usable only through a pointer.
-- Arrays of types: index for position, `for each byref` otherwise — **the by-value `for each` does
-  not compile at this version (T28)**.
+- Arrays of types: index for position, `for each` otherwise — **`for each byref` for records**, which
+  the by-value form would copy field by field.
 - **Never assign `type( ... )` to a record holding a string (T30)**; build it through a function.
 
 ## Exercises

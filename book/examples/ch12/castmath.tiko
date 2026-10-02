@@ -1,6 +1,6 @@
 '' castmath.tiko -- a built-in maths function given a type with a cast.
 ''
-'' Fixed converts itself to float64, so sqr( f ) should be sqr( 2.5 ):
+'' Fixed converts itself to float64, so sqr( f ) is sqr( 2.5 ):
 '' 1.58113883008419.
 
 type Fixed

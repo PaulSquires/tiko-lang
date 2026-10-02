@@ -285,14 +285,6 @@ Variadics exist mainly so that C libraries can be called; `printf` is the reason
 there. In tiko code, prefer an overload, an optional parameter or an array. Chapter 28 covers
 `cva_list` in full, alongside the rest of C interoperation.
 
-```admonish warning title="Status in this version"
-**A variadic procedure does not link on linux-x86_64** with the pinned toolchain. tiko emits the
-`llvm.va_start.p0` spelling of the intrinsic, which exists only from LLVM 19; the Linux clang is
-18.1.3 and treats it as an ordinary symbol, so the link fails with an undefined reference. The
-Windows host's clang is newer, which is the only reason that side works. Tracked as **T20**;
-`varargs.tiko` is marked blocked on that target rather than rewritten.
-```
-
 ## Procedures as values
 
 ```tiko
@@ -347,7 +339,7 @@ The costs worth knowing are the ones you choose:
 - `static` locals persist between calls and are shared by every level of a recursion.
 - **Assigning to a `byref` function result needs `( f( x ) ) = v` or a `dim byref` name** — the bare
   form parses as an equality test and is silently discarded (T19).
-- `...` needs `cdecl`, does no type checking, and does not link on linux-x86_64 yet (T20).
+- `...` needs `cdecl` and does no type checking.
 - Procedure pointers hold any procedure of a matching shape; `@P` and `procptr( P )` are the same.
 - The costs you choose: a `byval` copy of something large, a `byref` indirection to save eight
   bytes, a procedure pointer that cannot be inlined, and a `static` that makes a procedure

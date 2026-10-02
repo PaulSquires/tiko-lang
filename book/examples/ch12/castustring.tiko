@@ -1,7 +1,7 @@
 '' castustring.tiko -- a cast to ustring, printed.
 ''
 '' The same type as vec2.tiko, converting to ustring rather than
-'' string. It should print (4, 6) twice.
+'' string. It prints (4, 6) twice.
 
 type Vec2
     x as float64

@@ -1,7 +1,7 @@
 '' foreachudt.tiko -- for each, by value, over an array of records.
 ''
 '' Chapter 7 taught this form for numbers. It is equally valid for a
-'' type you define, and should print 1 2 3.
+'' type you define, and prints 1 2 3.
 
 type Point
     x as int32

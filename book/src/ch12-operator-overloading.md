@@ -36,19 +36,9 @@ A few things in that listing are deliberate:
 - **Precedence does not change.** `a + b * 2` still multiplies first, because the compiler parses
   the expression before it decides which procedures to call.
 
-`operator cast( ) as string` is what makes `print a + b` work: `print` takes the vector's conversion
-to text. It is also what makes `"x" & v` work, and an assignment to a `string`.
-
-```admonish warning title="Status in this version"
-**A cast to `ustring` prints garbage.** With `operator cast( ) as ustring` instead of `as string`,
-`print v` writes the UTF-16 bytes of the result as though they were narrow text — `(`, NUL, `4`,
-NUL, `,`, NUL — and stops. `"…" & v` does the same. Assigning to a `ustring` variable first gives the
-right text.
-
-Tracked as **T39**; `examples/ch12/castustring.tiko` is the repro, marked blocked. Until it lands,
-make a type printable with `cast( ) as string`, as `vec2.tiko` does — this is the one place the book
-departs from `ustring` for text.
-```
+`operator cast( ) as ustring` is what makes `print a + b` work: `print` takes the vector's conversion
+to text. It is also what makes `"x" & v` work, an assignment to a `ustring`, and the string
+functions — `ucase( v )`, `left( v, 2 )` — treat the vector as its text.
 
 ## Member or global
 
@@ -109,15 +99,18 @@ Two conversions make it convenient:
 
 A type may have several `cast` operators — `Fixed` has two — distinguished by the type they produce.
 
-```admonish warning title="Status in this version"
-**The built-in maths functions ignore a type's `cast`.** Given a `Fixed` holding 2.5,
-`dim as float64 r = sqr( f )` gives **3.1e-312** instead of 1.58 — no error, a wrong number — and
-`abs( f )` or `int( f )` inside a `print` swallow the rest of the line. A procedure of your own taking
-a `float64` converts correctly, and fbc's `sqr( f )` is right.
+The built-in maths functions take it too. `sqr`, `abs`, `int` and the rest accept a type with a
+numeric `cast`, convert, and work on the number:
 
-Tracked as **T40**; `examples/ch12/castmath.tiko` is the repro. Until it lands, convert explicitly
-before calling a built-in: `sqr( cast( float64, f ) )`.
+```tiko
+{{#include ../examples/ch12/castmath.tiko}}
 ```
+
+```text
+{{#include ../examples/ch12/castmath.out}}
+```
+
+A type with no numeric `cast` — and no `operator sqr` of its own — is refused: `TKO0928`.
 
 ```admonish danger title="Pitfall"
 **A `cast` operator is an implicit conversion, like a one-parameter constructor.** Chapter 11's
@@ -247,10 +240,9 @@ Break it and every expression using the type becomes a puzzle.
   `cast`, `[]`, `@`, the `for` protocol and `new`/`delete` are members** — the compiler enforces it
   (`TKO0790`, `TKO0697`).
 - Define both orders of a mixed-type operator, and define `<>` alongside `=`.
-- **`cast( ) as string` makes a type printable — use `string`, not `ustring`, at this version
-  (T39).**
-- `let` from another type and `cast` to another type are conversions in and out. **Built-in maths
-  functions ignore `cast` at this version (T40)**; convert explicitly.
+- **`cast( ) as ustring` makes a type printable**, and usable with `&` and the string functions.
+- `let` from another type and `cast` to another type are conversions in and out; the built-in maths
+  functions use a numeric `cast`.
 - `[]` returning `byref` gives an assignable index.
 - **Overloading `@` changes the meaning of every `@`**; `varptr` is never overloaded.
 - `for`, `step` and `next` make a type a `for` counter, in either direction.
