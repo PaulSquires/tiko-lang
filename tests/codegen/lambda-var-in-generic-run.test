@@ -1,0 +1,16 @@
+'' T43, RUN: a lambda held in a 'var' is called inside a generic member, as fbc-modern
+'' allows -- instantiated at long, and in a generic nothing instantiates. In the
+'' TEMPLATE's own body the lambda over T is not hoisted yet, so 'f' typed as a pointer to
+'' its result and 'f( a, b )' was TKO0772; the call is judged in the instance, where 'f'
+'' is a procedure pointer. The same lambda in a plain sub was always fine. Output
+'' identical to fbc-modern's. See symbols/tmpllocal.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/lambda-var-in-generic.bas -o tests/codegen/lambdavaringeneric.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/lambdavaringeneric.exe
+'' RUN: tests/codegen/lambdavaringeneric.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: end

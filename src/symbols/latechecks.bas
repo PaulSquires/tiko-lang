@@ -232,6 +232,7 @@ end sub
 '' 24, '(a)(1)' over an array error 73, and '(g)(1)' over a procedure NAME error 1,
 '' because the parentheses already called g. tiko's parser has no types, so it built
 '' the call anyway and lowering declined it without a word.
+#include once "symbols/tmpllocal.bas"   '' LocalInTemplate_ (T43)
 private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -253,6 +254,8 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
         end select
         if (lcase( c.names->Spelling( vs->name ) ) = "base") orelse (lcase( c.names->Spelling( vs->name ) ) = "this") then return
         if (vs->flags and SYMF_REDIM) <> 0 then return
+        '' A TEMPLATE'S OWN LOCAL is judged in the instantiation (T43) -- see tmpllocal.bas.
+        if LocalInTemplate_( c, vs ) then return
         dim as Symbol ptr tys = c.syms->SymbolAt( c.syms->LookupTyped( vs->parent, vs->name, true ) )  '' may be vs itself
         if (tys <> 0) andalso ((tys->kind = cast( ubyte, SYM_UDT )) orelse (tys->kind = cast( ubyte, SYM_TYPEDEF ))) then return
         dim as NodeId dn = cast( NodeId, vs->payload )
