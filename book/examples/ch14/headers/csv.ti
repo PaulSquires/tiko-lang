@@ -1,0 +1,9 @@
+'' csv.ti -- a header library: its code is pasted into every includer.
+function Parse( byval s as ustring ) as int32
+    '' the number of fields in a comma-separated line
+    var n = 1
+    for i as int32 = 1 to len( s )
+        if mid( s, i, 1 ) = "," then n += 1
+    next
+    return n
+end function

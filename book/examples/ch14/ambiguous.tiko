@@ -1,0 +1,6 @@
+#import "./tag"
+#import "./label"
+using tag
+using label
+
+print Kind( )                             '' refused

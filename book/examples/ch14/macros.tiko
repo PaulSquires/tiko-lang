@@ -1,0 +1,12 @@
+#import "./check"
+
+'' A Fail_ of this program's own, which the macro must not call.
+sub Fail_( byval what as ustring, byval f as ustring, _
+           byval ln as int32 )
+    print "wrong Fail_"
+end sub
+
+var items = 12
+check.Ensure( items <= check.MAX_ITEMS )
+check.Ensure( items > 0 )
+print "done"

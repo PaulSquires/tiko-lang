@@ -1,0 +1,5 @@
+'' ini.ti -- another header library, by another author.
+function Parse( byval s as ustring ) as int32
+    '' where the value starts in a "key=value" line
+    return instr( s, "=" ) + 1
+end function

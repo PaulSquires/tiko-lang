@@ -1,0 +1,23 @@
+#module "logger"
+
+type Sink
+    lines as int32
+    declare constructor( )
+    declare destructor( )
+end type
+
+constructor Sink( )
+    print "  logger: sink opened"
+end constructor
+
+destructor Sink( )
+    print "  logger: sink closed after"; lines; " line(s)"
+end destructor
+
+dim shared sink_ as Sink
+print "  logger: top-level code"
+
+public sub Info( byval s as ustring )
+    sink_.lines += 1
+    print "  log: "; s
+end sub

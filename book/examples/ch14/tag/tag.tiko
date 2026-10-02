@@ -1,0 +1,5 @@
+#module "tag"
+
+public function Kind( ) as ustring
+    return "tag"
+end function

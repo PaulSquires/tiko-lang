@@ -1,0 +1,9 @@
+#module "cfg"
+
+public function Mode( ) as ustring
+#ifdef VERBOSE
+    return "verbose"
+#else
+    return "quiet"
+#endif
+end function

@@ -1,0 +1,12 @@
+#import "./shapes" as sh
+#import "./greet"
+using greet
+
+dim c as sh.Circle
+c.r = 2
+print c.Area( )
+
+var u = sh.UnitCircle( )
+print u.r, sh.PI_
+
+print Hello( "using" )

@@ -1,0 +1,7 @@
+constructor 101
+  logger: sink opened
+  logger: top-level code
+  log: store opening
+main: store has 3 items
+  log: store closing
+  logger: sink closed after 2 line(s)

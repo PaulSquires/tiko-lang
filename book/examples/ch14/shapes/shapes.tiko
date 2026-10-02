@@ -1,0 +1,16 @@
+#module "shapes"
+
+public const PI_ = 3.14159265358979
+
+public type Circle
+    r as float64
+    declare function Area( ) as float64
+end type
+
+function Circle.Area( ) as float64
+    return PI_ * r * r
+end function
+
+public function UnitCircle( ) as Circle
+    return type( 1.0 )
+end function

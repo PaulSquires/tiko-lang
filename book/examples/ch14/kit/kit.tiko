@@ -1,0 +1,7 @@
+#module "kit"
+#import "../greet" public       '' re-exported: importers see kit.greet
+#import "../shapes"             '' kit's own business
+
+public function Banner( ) as ustring
+    return greet.Hello( "kit" ) & " pi=" & left( str( shapes.PI_ ), 4 )
+end function

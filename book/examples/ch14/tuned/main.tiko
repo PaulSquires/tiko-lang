@@ -1,0 +1,3 @@
+#import "acme/text/pad"
+
+print pad.Cell( "tiko" ); pad.Cell( "modules" ); "|"

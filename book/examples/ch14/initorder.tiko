@@ -1,0 +1,7 @@
+#import "./store"
+
+sub Early( ) constructor 101
+    print "constructor 101"
+end sub
+
+print "main: store has"; store.Count( ); " items"

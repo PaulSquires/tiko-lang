@@ -1,0 +1,5 @@
+#import "./left"
+#import "./right"
+#import "./counter"
+
+print "main: hits ="; counter.hits

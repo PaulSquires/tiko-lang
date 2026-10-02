@@ -1,0 +1,5 @@
+#module "right"
+#import "../counter"
+
+print "right: init"
+counter.hits += 1

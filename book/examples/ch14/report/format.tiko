@@ -1,0 +1,13 @@
+#module "report"
+
+'' Both helpers are module-private: report.tiko calls them, and
+'' nothing outside the module can.
+function PadRight_( byval s as ustring ) as ustring
+    return left( s & space( LABEL_WIDTH ), LABEL_WIDTH )
+end function
+
+function Format_( byval n as int32 ) as ustring
+    return right( space( 6 ) & str( n ), 6 )
+end function
+
+const LABEL_WIDTH = 10

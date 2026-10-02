@@ -1,0 +1,8 @@
+[package]
+name = "tuned"
+
+[dependencies]
+acme = { path = "../acme" }
+
+[dependencies.acme.defines]
+ACME_COLUMNS = "4"

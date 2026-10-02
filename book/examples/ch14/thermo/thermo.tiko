@@ -1,0 +1,10 @@
+'' thermo -- the same library, as a module.
+#module "thermo"
+
+function Round1_( byval x as float64 ) as float64
+    return int( x * 10 + 0.5 ) / 10
+end function
+
+public function ToFahrenheit( byval c as float64 ) as float64
+    return Round1_( c * 9 / 5 + 32 )
+end function

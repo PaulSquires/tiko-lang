@@ -1,0 +1,4 @@
+#include once "headers/csv.ti"
+#include once "headers/ini.ti"
+
+print Parse( "a,b,c" )

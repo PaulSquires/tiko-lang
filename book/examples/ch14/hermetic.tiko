@@ -1,0 +1,7 @@
+#import "./cfg"
+#cmdline "-d VERBOSE"
+
+#ifdef VERBOSE
+print "main: VERBOSE is defined"
+#endif
+print "cfg:  "; cfg.Mode( )

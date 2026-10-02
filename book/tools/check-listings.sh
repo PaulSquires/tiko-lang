@@ -11,6 +11,8 @@
 #   name.exit   expected exit code (default 0)
 #   name.args   command-line arguments, one line
 #   name.stdin  fed to the program
+# A file whose first directive is #module belongs to a module directory and is built
+# through the listing that imports it.
 #   name.meta   key: value lines --
 #                 targets: win64-msvc          restrict to one target
 #                 expect: compile-error TKO0413
@@ -120,12 +122,17 @@ meta_get() { [[ -f "$1" ]] && sed -nE "s/^$2:[[:space:]]*//p" "$1" | head -1; }
 mapfile -t all < <(find examples \( -name '*.tiko' -o -name '*.bas' \) | sed 's|\\|/|g' | sort)
 listings=()
 for f in "${all[@]}"; do
-  chap="$(basename "$(dirname "${f%/solutions/*}")")"
-  [[ "$(dirname "$f")" == */solutions ]] && chap="$(basename "$(dirname "$(dirname "$f")")")"
+  # The chapter is the first directory under examples/: a listing may sit deeper, in a
+  # project of its own (ch14/app/main.tiko) or among the solutions.
+  rel="${f#examples/}"; chap="${rel%%/*}"
   if [[ ${#chapters[@]} -gt 0 ]]; then
     keep=0; for c in "${chapters[@]}"; do [[ "$chap" == "$c" ]] && keep=1; done
     (( keep )) || continue
   fi
+  # A file of a module begins with #module (comments may come first). It is compiled
+  # through the listing that imports it, never on its own.
+  first="$(grep -m1 -vE "^[[:space:]]*('.*)?$" "$f" | tr -d '')"
+  [[ "$first" == '#module'* ]] && continue
   # A module named by another listing's meta is built with it, not on its own.
   base="$(basename "$f")"; dir="$(dirname "$f")"
   if grep -qs -- "$base" "$dir"/*.meta 2>/dev/null && ! [[ -f "${f%.*}.meta" ]]; then

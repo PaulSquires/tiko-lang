@@ -1,0 +1,9 @@
+#module "greet"
+
+public function Hello( byval who as ustring ) as ustring
+    return "Hello, " & Capitalise_( who ) & "!"
+end function
+
+function Capitalise_( byval s as ustring ) as ustring
+    return ucase( left( s, 1 ) ) & mid( s, 2 )
+end function

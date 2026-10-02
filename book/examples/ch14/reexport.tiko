@@ -1,0 +1,4 @@
+#import "./kit"
+
+print kit.Banner( )
+print kit.greet.Hello( "again" )

@@ -1,0 +1,3 @@
+#import "./greet"
+
+print greet.Capitalise_( "world" )        '' refused

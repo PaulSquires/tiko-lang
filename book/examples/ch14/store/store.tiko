@@ -1,0 +1,12 @@
+#module "store"
+#import "../logger"
+
+logger.Info( "store opening" )
+
+sub Close_( ) destructor
+    logger.Info( "store closing" )
+end sub
+
+public function Count( ) as int32
+    return 3
+end function

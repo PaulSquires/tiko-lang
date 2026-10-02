@@ -1,0 +1,14 @@
+#module "check"
+
+#macro Ensure( cond )
+    if ( cond ) = 0 then Fail_( #cond, __FILE__, __LINE__ )
+#endmacro
+#export Ensure
+
+#define MAX_ITEMS 10
+#export MAX_ITEMS
+
+sub Fail_( byval what as ustring, byval f as ustring, _
+           byval ln as int32 )
+    print "check failed: "; what; " ("; f; " line"; ln; ")"
+end sub

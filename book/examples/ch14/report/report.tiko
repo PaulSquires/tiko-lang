@@ -1,0 +1,6 @@
+#module "report"
+
+public function Row( byval label as ustring, _
+                       byval value as int32 ) as ustring
+    return PadRight_( label ) & Format_( value )
+end function

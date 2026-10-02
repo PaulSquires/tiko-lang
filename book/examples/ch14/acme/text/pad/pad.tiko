@@ -1,0 +1,7 @@
+#module "pad"
+#import "acme/config"
+
+public function Cell( byval s as ustring ) as ustring
+    return "|" & left( s & space( config.Columns( ) ), _
+                       config.Columns( ) )
+end function

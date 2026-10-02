@@ -1,0 +1,3 @@
+#include once "classic/thermo.ti"
+
+print Thermo.ToFahrenheit( 21.5 )

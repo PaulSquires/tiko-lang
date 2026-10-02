@@ -1,0 +1,7 @@
+# The package acme: two modules, and one setting with a default.
+[package]
+name = "acme"
+version = "0.3.0"
+
+[defines]
+ACME_COLUMNS = "8"

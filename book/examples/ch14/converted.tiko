@@ -1,0 +1,3 @@
+#import "./thermo"
+
+print thermo.ToFahrenheit( 21.5 )

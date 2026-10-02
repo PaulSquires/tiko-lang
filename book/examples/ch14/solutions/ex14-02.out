@@ -1,0 +1,5 @@
+counter: init
+left: init
+right: init
+main: hits = 2
+counter: done

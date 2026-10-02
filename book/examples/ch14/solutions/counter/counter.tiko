@@ -1,0 +1,9 @@
+#module "counter"
+
+print "counter: init"
+
+sub Done_( ) destructor
+    print "counter: done"
+end sub
+
+public dim shared hits as int32

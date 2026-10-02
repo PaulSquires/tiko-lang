@@ -1,0 +1,7 @@
+#module "config"
+
+'' ACME_COLUMNS comes from the package's tiko.toml, or from the
+'' program that depends on acme -- never from the program's code.
+public function Columns( ) as int32
+    return ACME_COLUMNS
+end function

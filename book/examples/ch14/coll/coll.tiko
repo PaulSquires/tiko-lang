@@ -1,0 +1,37 @@
+#module "coll"
+
+public type Stack( of T )
+    declare sub Push( byval v as T )
+    declare function Pop( ) as T
+    declare function Count( ) as int32
+private:
+    items( any ) as T
+end type
+
+sub Stack( of T ).Push( byval v as T )
+    redim preserve items( ubound( items ) + 1 )
+    items( ubound( items ) ) = v
+    Counted_( )
+end sub
+
+function Stack( of T ).Pop( ) as T
+    var v = items( ubound( items ) )
+    if ubound( items ) = 0 then
+        erase items
+    else
+        redim preserve items( ubound( items ) - 1 )
+    end if
+    return v
+end function
+
+function Stack( of T ).Count( ) as int32
+    return ubound( items ) + 1
+end function
+
+'' Module-private, yet reached from the importer: Push's body is
+'' instantiated there, and calls it.
+sub Counted_( )
+    pushes += 1
+end sub
+
+public dim shared pushes as int32

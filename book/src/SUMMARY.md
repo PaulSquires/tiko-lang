@@ -21,6 +21,7 @@
 - [11. Objects](ch11-objects.md)
 - [12. Operator Overloading](ch12-operator-overloading.md)
 - [13. Inheritance and Polymorphism](ch13-inheritance.md)
+- [14. Modules and Packages](ch14-modules-packages.md)
 - [16. Generics](ch16-generics.md)
 
 # Appendices

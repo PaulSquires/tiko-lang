@@ -1,0 +1,12 @@
+#import "./coll"
+
+dim nums as coll.Stack( of int32 )
+nums.Push( 1 )
+nums.Push( 2 )
+print nums.Pop( ); nums.Count( )
+
+dim names as coll.Stack( of ustring )
+names.Push( "ada" )
+print names.Pop( ); names.Count( )
+
+print "pushes:"; coll.pushes

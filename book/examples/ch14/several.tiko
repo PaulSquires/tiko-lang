@@ -1,0 +1,4 @@
+#import "./report"
+
+print report.Row( "apples", 12 )
+print report.Row( "pears", 3075 )
