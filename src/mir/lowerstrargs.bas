@@ -453,7 +453,12 @@ function ByvalStrTemp_ _
             dim as Tko.Symbol ptr ups = c.syms->SymbolAt( c.info->RefOf( argNode ) )
             dim as boolean upc = false
             if ups <> 0 then upc = (ups->kind = cast( ubyte, Tko.SYM_PROC ))
-            if (c.ast->Kind( argNode ) = Tko.N_CALL) orelse upc then
+            '' ...BUT AN ARRAY ELEMENT IS AN N_CALL TOO -- 'w( 1 )' parses as one -- and it
+            '' HAS an address: taking its value handed fb_UStrAssign the 24-byte
+            '' descriptor itself, which clang refused (T65).
+            dim as boolean isCall = (c.ast->Kind( argNode ) = Tko.N_CALL)
+            if isCall then isCall = (IsArrayIndex( c, argNode ) = false)
+            if isCall orelse upc then
                 usrc = LowerExpr( c, argNode )
             else
                 usrc = LowerAddr( c, argNode )
