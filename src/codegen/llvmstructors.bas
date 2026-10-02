@@ -235,6 +235,22 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
             end if
             continue for
         end if
+        '' A CLASSIC UNIT'S TOP-LEVEL CODE (fb_ctor__<name>, the code of a module that is not
+        '' main) IS DECLARED FIRST, ahead of its 'constructor' subs: fbc-modern 1.20 runs a
+        '' non-main module's 'constructor' sub before its top-level code on win64 and after
+        '' it on Linux -- the walks above, over that order. tiko had it last, so each
+        '' platform ran the two the other way round (T60).
+        if isCtor then
+            for k as long = 0 to dflt.Count - 1
+                if left( e.names->Spelling( m.functions[dflt[k]]->name ), 9 ) <> "fb_ctor__" then continue for
+                dim as long top_ = dflt[k]
+                for j as long = k to 1 step -1
+                    dflt[j] = dflt[j - 1]
+                next
+                dflt[0] = top_
+                exit for
+            next
+        end if
         dim as boolean rev = (e.tgt->id = Tko.TARGET_WIN64)
         dim as string items
         for k as long = 0 to dflt.Count - 1

@@ -1,0 +1,16 @@
+'' T60, RUN: a module that is not main constructs its globals, runs its 'constructor' sub
+'' and then its top-level code on win64-msvc, as fbc-modern does on Windows (Linux runs the
+'' top-level code first, there and in fbc alike: .init_array walks the other way). tiko had
+'' the top-level code last in the unit's list, so each platform ran the pair reversed.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ctor-order/main.bas tests/codegen/src/ctor-order/other.bas -o tests/codegen/ctororder.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ctororder.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: other: global constructed
+'' EXPECT-RUN-OUT: other: constructor sub
+'' EXPECT-RUN-OUT: other: top-level code
+'' EXPECT-RUN-OUT: main
+'' EXPECT-RUN-OUT: other: destructor sub
+'' EXPECT-RUN-OUT: other: global destroyed
