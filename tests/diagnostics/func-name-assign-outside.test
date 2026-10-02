@@ -1,0 +1,12 @@
+'' TKO0939, fbc's 317 (T54): assigning to a function's name outside that function -- at
+'' module level or inside another procedure, byref result or not -- is refused. tiko read
+'' it as an assignment to the procedure itself and the program segfaulted. A function's
+'' own name, an overload's, and a member function's are its result, as before. Lines
+'' identical to fbc-modern's errors. See resolveamb.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/func-name-assign-outside.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: func-name-assign-outside.bas(9,5): error TKO0939
+'' EXPECT-OUT: func-name-assign-outside.bas(12,1): error TKO0939
+'' EXPECT-OUT: func-name-assign-outside.bas(13,1): error TKO0939
+'' EXPECT-MAX-DIAG: 3

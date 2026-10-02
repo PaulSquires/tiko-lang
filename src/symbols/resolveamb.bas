@@ -507,6 +507,34 @@ private sub ResolveAmbiguous _
         '' Assigning to the enclosing function name is BASIC's result assignment.
         dim as boolean isResult = (c.currentProc <> Tko.SYMBOL_NONE) andalso _
                                   (sid = c.currentProc)
+        '' ...AND ANY OTHER FUNCTION'S NAME IS NOT A TARGET AT ALL (T54). 'NoArg = 42' at module
+        '' level, or inside another procedure, is fbc's error 317, "Function result assignment
+        '' outside of the function" -- byref result or not, measured. tiko read it as an
+        '' assignment to the procedure itself, and the program segfaulted at that line. A
+        '' PROPERTY is a setter call, and another overload of the current function is its own
+        '' result, so neither is judged.
+        if (isResult = false) andalso bareName andalso (s <> 0) then
+            if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+                dim as Tko.NodeId fpn = cast( Tko.NodeId, s->payload )
+                dim as boolean isFunc = false
+                if (fpn <> Tko.NODE_NONE) andalso (c.ast->Kind( fpn ) = Tko.N_PROC) then
+                    isFunc = (StmtOf( c, fpn )->op = cast( ushort, Tko.KW_FUNCTION ))
+                end if
+                dim as boolean ownOverload = false
+                dim as Tko.SymbolId ov = sid
+                for guard as long = 0 to 255
+                    if ov = Tko.SYMBOL_NONE then exit for
+                    if ov = c.currentProc then ownOverload = true
+                    ov = c.syms->SymbolAt( ov )->nextOverload
+                next
+                if isFunc andalso (ownOverload = false) then
+                    c.diags->Report( Tko.TKO0939, Tko.PointRange( c.ast->Loc( sp->a ) ), _
+                                     c.names->Spelling( s->name ) )
+                    c.info->SetAmbiguous( id, Tko.AMB_ERROR )
+                    return
+                end if
+            end if
+        end if
         if isResult then
             c.info->SetAmbiguous( id, Tko.AMB_RESULT )
         else
