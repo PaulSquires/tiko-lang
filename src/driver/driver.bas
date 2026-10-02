@@ -956,8 +956,11 @@ function Run _
         '' HOISTED, each to its own boolean: a four-term 'andalso' chain mixing a
         '' flag with three comparisons is warning 38, which this file already treats
         '' as a rule rather than as noise.
-        '' ...and never under '--emit-ir' or '--emit-asm', which stop at their file.
-        dim as boolean emitStops = ctx.options.emitIr orelse ctx.options.emitAsm
+        '' ...and never under '--emit-ir' or '--emit-asm', which stop at their file -- nor
+        '' '--dump-udt' or '--dump-vtable', which stop at their dump and build no object (T29):
+        '' with an '-o' they printed the layout and then failed the link, TKO0102.
+        dim as boolean emitStops = ctx.options.emitIr orelse ctx.options.emitAsm orelse _
+                                   ctx.options.dumpUdt orelse ctx.options.dumpVtable
         dim as boolean linkWanted = wantsOutput andalso (emitStops = false)
         dim as boolean notCompileOnly = (ctx.options.compileOnly = false)
         dim as boolean toolsOk = (toolExit = Tko.EXIT_OK)

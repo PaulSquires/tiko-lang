@@ -1,0 +1,9 @@
+'' T29: '--dump-udt' with an '-o' prints the layout and stops, exit 0, as it does alone.
+'' It printed the layout and then failed the link -- TKO0102, "no input files" -- because
+'' the dump builds no object; the book's harness always passes '-o', so a layout listing
+'' could not be verified. '--dump-vtable' had the same shape and is in dump-vtable-with-o.
+'' TEST: cli
+'' ARGS: --dump-udt tests/driver/src/dump-udt-with-o.bas -o tests/driver/dumpudtwitho.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: p size 16 align 8
+'' EXPECT-OUT: p off y 8
