@@ -1225,7 +1225,7 @@ private sub Walk_ _
     if k = N_IDENT then CheckArrayResultName_( c, id )
     if k = N_CALL then CheckCalledExpr_( c, id )
     if k = N_CALL then CheckProcPtrArgs_( c, id )
-    if k = N_INTRINSIC then CheckSwapOperands_( c, id )
+    if k = N_INTRINSIC then CheckSwapOperands_( c, id ) : CheckArraySwap_( c, id )
     if k = N_PROC then CheckAbstractBody_( c, id )
     if k = N_PROC then
         '' One report per statement: the definition's own agreement rules go first.

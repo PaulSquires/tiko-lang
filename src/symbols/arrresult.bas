@@ -152,12 +152,64 @@ end sub
 
 '' 'function = expr' -- the same rule, for the assignment spelling of a result -- and 'x = f( )',
 '' which moves the array in when x is one and is refused for any other target.
+'' A WHOLE ARRAY, NOT AN ELEMENT: its name -- 'a', 'h.arr' -- or 'a( )' with no index, which
+'' Check does not type as the array. 'wt' is the array type. A fixed-length string is an array
+'' of its character in this type model, and is not one.
+private function WholeArray_ ( byref c as Ctx, byval n as NodeId, byref wt as TypeId ) as boolean
+    wt = TYPE_NONE
+    if n = NODE_NONE then return false
+    if c.ast->Kind( n ) = N_CALL then
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if (lp->count <> 0) orelse (lp->target = NODE_NONE) then return false
+        n = lp->target
+    end if
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( n ) )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    dim as boolean whole = c.types->IsDynArray( t )
+    if (whole = false) andalso (c.types->Kind( t ) = TK_ARRAY) then
+        whole = (Tko.Check.FixedStringElem( t, *c.types ) = TYPE_NONE)
+    end if
+    if whole then wt = t
+    return whole
+end function
+
+'' ...AND NO 'swap' OPERAND (T22): fbc's 73 for 'swap a, c', measured. tiko swapped two arrays
+'' of one size and silently dropped the statement for two of different sizes.
+private sub CheckArraySwap_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_SWAP then return
+    dim as TypeId wt
+    if WholeArray_( c, sp->a, wt ) then
+        c.diags->Report( TKO0930, PointRange( c.ast->Loc( sp->a ) ) )
+    elseif WholeArray_( c, sp->b, wt ) then
+        c.diags->Report( TKO0930, PointRange( c.ast->Loc( sp->b ) ) )
+    end if
+end sub
+
 private sub CheckArrayAssign_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if sp->op <> cast( ushort, TK_EQ ) then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     dim as boolean isRes = (c.ast->Kind( sp->a ) = N_FUNCRESULT)
+    '' A WHOLE ARRAY IS NO ASSIGNMENT TARGET (T22) -- fbc's error 73, "Array access, index
+    '' expected", for 'a = b', 'a = 5', 'a += b' and a field array alike, measured on
+    '' fbc-modern 1.20 2026-10-02 ('a( ) = b( )' is its 181). tiko accepted them and copied the
+    '' SOURCE's byte size into the destination: a 2-element 'long' array assigned from an
+    '' 8-element one overwrote 24 bytes past it, and -exx did not see it. The one whole-array
+    '' assignment tiko has is its own extension, 'd = f( )' moving an array result into a
+    '' dynamic array -- see below.
+    if (isRes = false) andalso (c.info->AmbiguousOf( id ) = AMB_ASSIGN) then
+        dim as TypeId wt
+        if WholeArray_( c, sp->a, wt ) then
+            dim as boolean moveIn = (sp->op = cast( ushort, TK_EQ )) andalso c.types->IsDynArray( wt )
+            if moveIn then moveIn = ArrIsResultCall_( c, sp->b )
+            if moveIn = false then
+                c.diags->Report( TKO0930, PointRange( c.ast->Loc( sp->a ) ) )
+                return
+            end if
+        end if
+    end if
+    if sp->op <> cast( ushort, TK_EQ ) then return
     dim as TypeId lt = resultType
     if isRes = false then lt = c.info->TypeOf_( sp->a )
     if c.types->IsDynArray( c.types->Unqualify( lt ) ) then

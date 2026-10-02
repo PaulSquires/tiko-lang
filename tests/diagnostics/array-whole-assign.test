@@ -1,0 +1,21 @@
+'' TKO0930, fbc's 73 (T22): a whole array as an assignment target or a 'swap' operand --
+'' from another array of either size, a dynamic one, a string array, a field array, the
+'' 'a( ) = b( )' spelling (fbc's 181 there), '+=', a scalar, and 'swap a, c'. tiko
+'' accepted them and copied the source's byte size into the destination, overrunning a
+'' smaller one, or dropped a 'swap' of two sizes in silence. Accepted, as by fbc: a record
+'' assignment, an element, a fixed-length string, and swapping two elements -- and tiko's
+'' own extension, 'd = MakeArr( )' moving an array result into a dynamic array. Lines
+'' identical to fbc-modern's errors. See WholeArray_ in symbols/arrresult.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-whole-assign.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-whole-assign.bas(12,1): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(13,1): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(14,1): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(15,2): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(16,1): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(17,3): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(18,1): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(19,1): error TKO0930
+'' EXPECT-OUT: array-whole-assign.bas(20,6): error TKO0930
+'' EXPECT-MAX-DIAG: 9
