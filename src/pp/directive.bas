@@ -511,6 +511,15 @@ declare sub PpDefineValue _
 '' Ignoring them left __FB_OPTION_PRIVATE__ at 0 for ever, and the two corpus files
 '' that test these pragmas assert their way through all six states -- 21 '#assert'
 '' lines that fbc passes and tiko-lang would have called failures.
+'' ...AND '#pragma private' DOES WHAT IT SAYS: the parser makes a procedure written under
+'' it private (PpResult.privateAt). It only redefined the macro, so 'sub Helper' under
+'' 'push( private, true )' stayed public and collided at the link (T59).
+private sub PragmaPrivateAt_( byref e as PpEngine, byval idx as long, byval v as long )
+    if (idx <> 0) orelse (e.outp = 0) then return
+    e.outp->privateAt.Push( cast( ulong, e.outp->tokens.Count ) )
+    e.outp->privateAt.Push( iif( v <> 0, 1ul, 0ul ) )
+end sub
+
 private sub PragmaOption _
     ( byref e as PpEngine, byval at as SourceLoc, byval which as string, _
       byval isPush as boolean, byval isPop as boolean )
@@ -527,6 +536,7 @@ private sub PragmaOption _
         dim as long v = e.optionStack( idx * PP_OPTION_STACK_MAX + e.optionDepth( idx ) )
         e.optionValue( idx ) = v
         PpDefineValue( e, nm, str( v ) )
+        PragmaPrivateAt_( e, idx, v )
         return
     end if
 
@@ -560,6 +570,7 @@ private sub PragmaOption _
     end if
     e.optionValue( idx ) = v
     PpDefineValue( e, nm, str( v ) )
+    PragmaPrivateAt_( e, idx, v )
 end sub
 
 '' ------------------------------------------------------------------- dispatch
@@ -946,7 +957,15 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         case else
             SkipToEol( e )
             select case which
-            case "push", "pop", "msg", "reserve"
+            case "push", "pop"
+                '' fbc's other options are accepted and have no effect here; any other
+                '' name is fbc's error 17, and was taken in silence (T59).
+                select case opt
+                case "msbitfields", "constness"
+                case else
+                    if len( opt ) > 0 then Report( e, TKO0312, at, which & "( " & opt & " )" )
+                end select
+            case "msg", "reserve"
             case else
                 if len( which ) > 0 then Report( e, TKO0312, at, which )
             end select

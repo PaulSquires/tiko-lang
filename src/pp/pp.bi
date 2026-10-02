@@ -270,6 +270,10 @@ namespace Tko
         '' Where each '#pragma reserve (asm ...)' was, for the parser: inside a block it is
         '' fbc's error 96, and only the parser knows the nesting (declempty.bas).
         as IdVec    asmReserveAt
+        '' '#pragma private' -- each change of the option, as (token index, value) pairs in
+        '' source order: from that output token on, a procedure that writes no 'public' or
+        '' 'private' is private (fbc's FBOPTION_PROCPUBLIC, T59). The parser reads it.
+        as IdVec    privateAt
         '' A '#lang' this unit asked for and tiko-lang refused (TKO0317). The unit fails
         '' either way; in 'qb' or 'fblite' an undeclared name is an implicit variable,
         '' so the undeclared-name report is not made over one -- it would be noise.

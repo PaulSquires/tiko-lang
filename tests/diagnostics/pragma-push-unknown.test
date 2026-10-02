@@ -1,0 +1,9 @@
+'' TKO0312 FOR AN UNKNOWN OPTION IN push/pop (T59): fbc's error 17; it was taken in silence.
+'' fbc's own options -- msbitfields here -- stay quiet.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/diagnostics/src/pragma-push-unknown.bas -o tests/diagnostics/pragmapush.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: pragma-push-unknown.bas(1,1): warning TKO0312: unknown '#pragma push( fooey )'
+'' EXPECT-OUT: pragma-push-unknown.bas(2,1): warning TKO0312: unknown '#pragma pop( fooey )'
+'' EXPECT-NOT: msbitfields

@@ -428,6 +428,20 @@ private function UsingPath_( byref p as Tko.ParserState ) as string
     return usePath
 end function
 
+'' '#pragma private' IN EFFECT AT TOKEN pos (PpResult.privateAt): fbc makes every procedure
+'' defined under it private, a method's body too, unless it says 'public'.
+private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as long ) as boolean
+    if p.stream = 0 then return false
+    dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+    if st->outp = 0 then return false
+    dim as boolean on_ = false
+    for i as long = 0 to st->outp->privateAt.Count - 2 step 2
+        if cast( long, st->outp->privateAt[i] ) > pos_ then exit for
+        on_ = (st->outp->privateAt[i + 1] <> 0)
+    next
+    return on_
+end function
+
 private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.TokenKind k = Peek( p )
@@ -440,6 +454,8 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
         Advance( p )
         k = Peek( p )
     end if
+    dim as Tko.TokenKind procVis = visKw
+    if (procVis = 0) andalso PragmaPrivate_( p, p.pos ) then procVis = Tko.KW_PRIVATE
 
     '' 'extern "C" ... end extern' is a linkage BLOCK; 'extern x as long' is a
     '' variable declaration. The string literal is what tells them apart.
@@ -571,7 +587,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 q += 1
             case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
                  Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
-                return MarkPrivate( p, ParseProc( p, false ), visKw )
+                return MarkPrivate( p, ParseProc( p, false ), procVis )
             case else
                 exit do
             end select
@@ -597,11 +613,11 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
 
     case Tko.KW_DECLARE
         Advance( p )
-        return MarkPrivate( p, ParseProc( p, true ), visKw )
+        return MarkPrivate( p, ParseProc( p, true ), procVis )
 
     case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_CONSTRUCTOR, _
          Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR
-        return MarkPrivate( p, ParseProc( p, false ), visKw )
+        return MarkPrivate( p, ParseProc( p, false ), procVis )
 
     case Tko.KW_USING
         Advance( p )
