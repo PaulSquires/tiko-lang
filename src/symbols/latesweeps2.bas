@@ -1236,6 +1236,7 @@ end sub
 #include once "symbols/iifudt.bas"
 #include once "symbols/staticdef.bas"
 #include once "symbols/declshape.bas"
+#include once "symbols/ctorargs.bas"
 #include once "symbols/braceinit.bas"
 #include once "symbols/typelitstr.bas"
 #include once "symbols/basector.bas"
@@ -1261,6 +1262,7 @@ private sub WalkExtra_ _
     if k = N_TUPLE then CheckTypeLiteral_( c, id )
     if k = N_INTRINSIC then CheckFileGetPutArray_( c, id )
     if k = N_CALL then CheckUdtCallNoCtor_( c, id )
+    if (k = N_CALL) orelse (k = N_NEW) then CheckCtorCallArgs_( c, id, k )
     if k = N_AMBIGUOUS then CheckAssignTempDeref_( c, id )
     if k = N_VAR then CheckPtrStringInit_( c, id )
     if k = N_FOR then CheckForPtrFwd_( c, id )

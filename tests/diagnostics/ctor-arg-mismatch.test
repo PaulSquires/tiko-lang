@@ -1,0 +1,24 @@
+'' AN ARGUMENT A TYPE'S ONLY CONSTRUCTOR CANNOT TAKE IS AN ERROR -- fbc's 58. A string to
+'' 'byref w as long' compiled, and the constructor read a string descriptor as its long:
+'' CheckDirectCallArgs_ judged a sub's arguments and left a structor alone. See
+'' src/symbols/ctorargs.bas.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-02: error 58 on
+'' exactly lines 18-25, and no others --
+''
+''     18-19  a literal and a string variable to 'byref as long', in an initialiser
+''     20     an argument's constructor call       21  'new T( ... )'
+''     22     'var z = T( ... )'                   23  an assignment's source
+''     24     a string literal to 'byval as double'
+''     25     an INTEGER variable to 'byref as long' -- the byref width rule
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-arg-mismatch.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-arg-mismatch.bas(18,20): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(19,20): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(20,10): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(21,28): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(22,15): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(23,11): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(24,18): error TKO0698
+'' EXPECT-OUT: ctor-arg-mismatch.bas(25,20): error TKO0698

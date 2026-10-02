@@ -1,0 +1,14 @@
+'' THE NEIGHBOURS fbc ACCEPTS are not refused -- see ctor-arg-mismatch.test. fbc-modern 1.20
+'' compiles ctor-arg-accepted.bas clean and prints ' 4 16 7 8 1 3 33 1 1 1 2 4': numbers that
+'' convert, a ulong to 'byref as long', a fixed zstring to 'byref as string', a string to
+'' 'byref as wstring', an overload set, and 'C( c1 )' through the IMPLICIT copy constructor a
+'' string field gives C -- which is why a one-argument call over a UDT is never judged.
+''
+'' Diagnostics only. That last line is a statement tiko does not lower (lowervarinit.bas,
+'' 'c2.v' prints 0), which predates the check and is not what this test asks.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-arg-accepted.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: TKO0698
+'' EXPECT-NOT: error
