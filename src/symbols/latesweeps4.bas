@@ -880,6 +880,11 @@ private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
         redim mark( 0 to n + 1 )
         for i as long = 1 to n
             dim as NodeKind ik = c.ast->Kind( cast( NodeId, i ) )
+            '' ONLY THESE TWO HAVE A STATEMENT PAYLOAD. Every other node's 'data' indexes
+            '' its own pool -- idents, lists, binaries -- and taking it into 'stmts' read past
+            '' the end whenever that pool was the longer: garbage, mostly, and an abort when
+            '' the index met the vector's capacity (fbc-int/query-symbol.bas, Debug build).
+            if (ik <> N_AMBIGUOUS) andalso (ik <> N_INTRINSIC) then continue for
             dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[i].data )]
             dim as NodeId a = NODE_NONE
             if ik = N_AMBIGUOUS then
