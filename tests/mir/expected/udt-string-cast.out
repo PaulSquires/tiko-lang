@@ -135,33 +135,31 @@ func void G() {
     call.rtl void fb_WstrDelete(%36)
     %37 = load @$tmp8
     call.rtl void fb_WstrDelete(%37)
-    %38 = call ptr _ZN1WcvwEv(@ww)
-    call.rtl void fb_PrintWstr(0, %38, 1)
-    %39 = alloca ptr rv
-    %40 = const i64 1
-    %41 = call.rtl ptr fb_StrMid(@s, %40, -1)
-    %42 = call.rtl ptr fb_WstrAssignFromA(@rv, 50, %41, -1)
-    %43 = alloca ptr ru
-    %44 = const i64 1
-    %45 = call ptr _ZN1UcvcEv(@uu)
-    %46 = call.rtl ptr fb_StrAllocTempDescZ(%45)
-    %47 = call.rtl ptr fb_StrMid(%46, %44, -1)
-    %48 = call.rtl ptr fb_WstrAssignFromA(@ru, 50, %47, -1)
-    %49 = alloca ptr rt
-    %50 = call.rtl ptr memset(@rt, 0, 50)
-    %51 = alloca ptr r
-    %52 = call.rtl ptr fb_StrToWstr(@rt)
-    %53 = alloca ptr $tmp14
-    store @$tmp14, %52
-    %54 = load @$tmp14
-    %55 = call.rtl i32 fb_WstrCompare(%54, @rv)
-    %56 = icmp.eq %55, 0
-    %57 = neg %56
-    %58 = const i8 0
-    %59 = icmp.ne %57, %58
-    store @r, %59
-    %60 = load @$tmp14
-    call.rtl void fb_WstrDelete(%60)
+    %38 = alloca ptr rv
+    %39 = const i64 1
+    %40 = call.rtl ptr fb_StrMid(@s, %39, -1)
+    %41 = call.rtl ptr fb_WstrAssignFromA(@rv, 50, %40, -1)
+    %42 = alloca ptr ru
+    %43 = const i64 1
+    %44 = call ptr _ZN1UcvcEv(@uu)
+    %45 = call.rtl ptr fb_StrAllocTempDescZ(%44)
+    %46 = call.rtl ptr fb_StrMid(%45, %43, -1)
+    %47 = call.rtl ptr fb_WstrAssignFromA(@ru, 50, %46, -1)
+    %48 = alloca ptr rt
+    %49 = call.rtl ptr memset(@rt, 0, 50)
+    %50 = alloca ptr r
+    %51 = call.rtl ptr fb_StrToWstr(@rt)
+    %52 = alloca ptr $tmp14
+    store @$tmp14, %51
+    %53 = load @$tmp14
+    %54 = call.rtl i32 fb_WstrCompare(%53, @rv)
+    %55 = icmp.eq %54, 0
+    %56 = neg %55
+    %57 = const i8 0
+    %58 = icmp.ne %56, %57
+    store @r, %58
+    %59 = load @$tmp14
+    call.rtl void fb_WstrDelete(%59)
     call.rtl void fb_StrDelete(@s)
     ret
 }
@@ -257,4 +255,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 19 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 7 functions, 19 blocks, 149 insts, 0 statements not lowered, 0 scope imbalance

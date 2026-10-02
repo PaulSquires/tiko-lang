@@ -45,7 +45,7 @@ sub G( )
     '' A UDT whose cast yields a WSTRING is a WIDE term, and asking that has to cost a
     '' walk rather than an emission -- the concatenation path decides before it emits.
     print ww & ", " & wstr( "x" )
-    print wstr( ww )
+    '' ('wstr( ww )' was here: fbc refuses it, error 24 -- tiko's TKO0938 since T52.)
 
     '' A NARROW RVALUE ASSIGNED TO A WIDE VARIABLE: 'mid( s, 1 )' has no address, and
     '' every branch of the wide assignment asked for one.

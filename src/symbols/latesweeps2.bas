@@ -1243,6 +1243,7 @@ end sub
 #include once "symbols/setteronly.bas"
 #include once "symbols/constcall.bas"
 #include once "symbols/staticthis.bas"
+#include once "symbols/udtstrintr.bas"
 #include once "symbols/basector.bas"
 
 private sub WalkExtra_ _
@@ -1274,8 +1275,8 @@ private sub WalkExtra_ _
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )
-    if k = N_INTRINSIC then CheckSwapConst_( c, id ) : CheckUnprintable_( c, id )
-    if k = N_CALL then CheckUnprintableStr_( c, id ) : CheckBuiltinArity_( c, id ) : CheckSubAsValue_( c, id )
+    if k = N_INTRINSIC then CheckSwapConst_( c, id ) : CheckUnprintable_( c, id ) : CheckUdtPrintUsing_( c, id )
+    if k = N_CALL then CheckUnprintableStr_( c, id ) : CheckBuiltinArity_( c, id ) : CheckSubAsValue_( c, id ) : CheckUdtStrIntrinsic_( c, id )
     if k = N_IDENT then CheckBareBuiltin_( c, id )
     if k = N_INTRINSIC then CheckSwapTypes_( c, id )
     if k = N_INTRINSIC then CheckThreadCall_( c, id )

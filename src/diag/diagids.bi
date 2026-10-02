@@ -750,6 +750,8 @@
     DIAG( TKO0936, SEV_ERROR,   "'%0' is not a procedure modifier; 'declare' takes const, static, virtual or abstract before the procedure keyword" )
     '' fbc's errors 42 / 215 / 14: 'this' or a bare field in a static member or operator new/delete -- staticthis.bas (T41).
     DIAG( TKO0937, SEV_ERROR,   "'%0' needs an object, and '%1' has none: it is a static member" )
+    '' fbc's errors 24 / 98 / 58: wstr, val and print using over a type that casts to text -- udtstrintr.bas (T52).
+    DIAG( TKO0938, SEV_ERROR,   "'%0' cannot take a '%1': convert it explicitly first" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

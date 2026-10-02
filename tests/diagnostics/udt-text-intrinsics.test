@@ -1,0 +1,21 @@
+'' TKO0938, fbc's 24 / 98 / 58 (T52): over a type whose 'operator cast' yields text,
+'' 'wstr' is refused whatever the text (ustring, string, wstring), the val family is refused
+'' for a ustring cast, and a 'print using' item for a string or ustring cast -- exactly the
+'' cells fbc refuses, and none wider: 'val' over a string or wstring cast, and 'print using'
+'' over a wstring or numeric cast, still compile. tiko compiled all of them and printed
+'' '(', 0 or nothing. Lines identical to fbc-modern's errors (a numeric-cast 'wstr' is
+'' TKO0871, a numeric 'val' TKO0626, already). See symbols/udtstrintr.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-text-intrinsics.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-text-intrinsics.bas(35,13): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(36,12): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(37,18): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(38,13): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(40,18): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(41,15): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(42,15): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(43,13): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(46,13): error TKO0871
+'' EXPECT-OUT: udt-text-intrinsics.bas(47,12): error TKO0626
+'' EXPECT-MAX-DIAG: 10

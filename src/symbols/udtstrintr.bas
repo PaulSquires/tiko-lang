@@ -1,0 +1,116 @@
+'' udtstrintr.bas -- WSTR, THE VAL FAMILY AND PRINT USING OVER A TYPE THAT CASTS TO TEXT (T52).
+''
+'' Included from latesweeps2.bas, below staticthis.bas, in the same namespace and over the
+'' same Ctx.
+''
+'' Measured on fbc-modern 1.20, 2026-10-02, over types whose 'operator cast' returns a
+'' ustring, a string, a byref wstring, or a double:
+''
+''                      ustring   string   wstring   double
+''     wstr( x )          24        24        24       24     (the double: TKO0871 already)
+''     val( x )           98        ok        ok       58     (valint, vallng: 98 too)
+''     print using "&"    58        58        ok       ok     (with a numeric cast beside: ok)
+''
+'' tiko compiled every one of them: 'wstr( u )' printed '(', 'val( u )' 0, and the 'print
+'' using' item nothing. Each refusal here is exactly a cell of that table and no wider.
+
+'' The builtin a type's first TEXT 'operator cast' yields -- through a reference or a
+'' byref pointer -- or TY_NONE. A type extending something that is not a UDT -- 'extends
+'' wstring' -- is not judged at all.
+private function UdtTextCast_ ( byref c as Ctx, byval t as TypeId ) as BuiltinType
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_UDT then return TY_NONE
+    if TcTuple_( c, t ) then return TY_NONE
+    '' ANYWHERE UP THE BASE CHAIN: fbc's udt-wstring tests declare 'UWSTRING_FIXED extends
+    '' UWSTRING_FIXED_BASE extends wstring', and 'wstr( u )' over one is accepted.
+    dim as TypeId bt = BaseOf_( c, t )
+    for depth as long = 0 to 31
+        if bt = TYPE_NONE then exit for
+        bt = c.types->Unqualify( bt )
+        if c.types->Kind( bt ) <> TK_UDT then return TY_NONE
+        bt = BaseOf_( c, bt )
+    next
+    dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
+    for guard as long = 0 to 63
+        if cs = 0 then exit for
+        dim as TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if c.types->Kind( rt ) = TK_POINTER then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if c.types->Kind( rt ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( rt )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING
+                return c.types->BuiltinOf( rt )
+            end select
+        end if
+        cs = c.syms->SymbolAt( cs->nextOverload )
+    next
+    return TY_NONE
+end function
+
+'' ...and whether it also has a NUMERIC one, which a 'print using' item takes instead:
+'' measured, a type casting to string or ustring AND to double is accepted by fbc under
+'' '#.##' and '&' alike.
+private function UdtHasNumericCast_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_UDT then return false
+    dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
+    for guard as long = 0 to 63
+        if cs = 0 then exit for
+        dim as TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if c.types->Kind( rt ) = TK_ENUM then return true
+        if c.types->Kind( rt ) = TK_BUILTIN then
+            select case c.types->BuiltinOf( rt )
+            case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_VOID, TY_ANY
+            case else
+                return true
+            end select
+        end if
+        cs = c.syms->SymbolAt( cs->nextOverload )
+    next
+    return false
+end function
+
+private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->count < 1) orelse (lp->target = NODE_NONE) then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as string nm = lcase( c.names->Spelling( _
+        c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )
+    dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
+    dim as TypeId at = c.info->TypeOf_( a )
+    if at = TYPE_NONE then return
+    dim as BuiltinType k = UdtTextCast_( c, at )
+    if k = TY_NONE then return
+    dim as boolean bad = false
+    select case nm
+    case "wstr"
+        bad = true
+    case "val", "valint", "vallng", "valuint", "valulng"
+        bad = (k = TY_USTRING)
+    end select
+    if bad then c.diags->Report( TKO0938, PointRange( c.ast->Loc( a ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
+end sub
+
+private sub CheckUdtPrintUsing_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cast( TokenKind, sp->op ) <> KW_PRINT then return
+    if sp->extra = 0 then return
+    '' The format is not one of the children; every child is an item or a separator.
+    for i as long = 0 to sp->count - 1
+        dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( it ) = N_PRINT_SEP then continue for
+        dim as TypeId at = c.info->TypeOf_( it )
+        if at = TYPE_NONE then continue for
+        dim as BuiltinType k = UdtTextCast_( c, at )
+        dim as boolean textOnly = (k = TY_STRING) orelse (k = TY_USTRING)
+        if textOnly then textOnly = (UdtHasNumericCast_( c, at ) = false)
+        if textOnly then
+            c.diags->Report( TKO0938, PointRange( c.ast->Loc( it ) ), "print using", c.types->Name( c.types->Unqualify( at ) ) )
+            return
+        end if
+    next
+end sub
