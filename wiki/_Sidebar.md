@@ -21,6 +21,7 @@
 - [Array Results](Category-Array-Results)
 - [Defer](Category-Defer)
 - [Lambdas](Category-Lambdas)
+- [Block Strings](Category-Block-Strings)
 - [C Header Import](Category-C-Header-Import)
 - [Foreign Library Linking](Category-Foreign-Library-Linking)
 - [UString](Category-UString)
