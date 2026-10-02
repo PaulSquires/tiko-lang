@@ -142,6 +142,7 @@ private sub CheckPtrAssign_ _
     '' not a conversion. A literal on the right is still judged element by element.
     dim as boolean destructure = (c.ast->Kind( sp->a ) = N_TUPLE) andalso (c.ast->Kind( sp->b ) <> N_TUPLE)
     if (sp->op = cast( ushort, TK_EQ )) andalso (destructure = false) then
+        if TypeLitTextBad_( c, lt, sp->b, false ) then return  '' tupleconv.bas (T30)
         if TupleConvBad_( c, lt, sp->b, 0 ) then return  '' tupleconv.bas
     end if
     if ConstDropped_( c, lt, rt ) then
@@ -163,6 +164,7 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId lt = c.info->TypeOf_( ip->a )
     dim as TypeId rt = c.info->TypeOf_( ip->b )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if TypeLitTextBad_( c, lt, ip->b, true ) then return  '' tupleconv.bas (T30)
     if TupleConvBad_( c, lt, ip->b, 0 ) then return  '' tupleconv.bas
     if ConstDropped_( c, lt, rt ) then
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )

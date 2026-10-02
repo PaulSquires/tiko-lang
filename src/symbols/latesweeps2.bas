@@ -1237,6 +1237,7 @@ end sub
 #include once "symbols/staticdef.bas"
 #include once "symbols/declshape.bas"
 #include once "symbols/braceinit.bas"
+#include once "symbols/typelitstr.bas"
 #include once "symbols/basector.bas"
 
 private sub WalkExtra_ _
@@ -1291,6 +1292,7 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckConstDeclTypes2_( c )
     CheckRedimDeclShape_( c )
     CheckAggregateInitFields_( c )
+    CheckTypeLiteralText_( c )  '' typelitstr.bas
     CheckBraceLists_( c )       '' braceinit.bas
     CheckAnyInitTypes_( c )
     CheckStaticInitConst_( c )

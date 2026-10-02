@@ -733,6 +733,8 @@
     DIAG( TKO0927, SEV_ERROR,   "this constructor of '%0' must call base( ... ): its base has no constructor that takes no argument" )
     '' fbc's error 24: a maths intrinsic over what is not a number -- staticdef.bas (T51).
     DIAG( TKO0928, SEV_ERROR,   "'%0' takes a number, not a '%1'" )
+    '' fbc's error 99: 'type( ... )' over a record holding a var-len string -- typelitstr.bas (T30).
+    DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in
     '' symbols/arrresult.bas.

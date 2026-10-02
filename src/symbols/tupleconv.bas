@@ -183,6 +183,74 @@ end function
 '' The tuple literal 'rn' against the tuple type 't'. The first element that cannot take
 '' its value is reported -- fbc reports one error per statement -- and nested literals
 '' are judged by their own elements.
+'' 'type( ... )' OVER A RECORD THAT HOLDS TEXT (T30) -- see typelitstr.bas for the measurement.
+'' The first var-len 'string' field of t -- or 'ustring' too, with wantU -- through record
+'' fields, or 0. A type with a constructor, or a base, builds its fields itself and is not
+'' judged: 'type( ... )' over one is a constructor call.
+private function TlTextField_ _
+    ( byref c as Ctx, byval t as TypeId, byval depth as long, byval wantU as boolean ) as Symbol ptr
+    if depth > 8 then return 0
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_UDT then return 0
+    if TcTuple_( c, t ) then return 0
+    if StructorOf_( c, t, "__ctor" ) <> 0 then return 0
+    if BaseOf_( c, t ) <> TYPE_NONE then return 0
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return 0
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if (s = 0) orelse (s->inner = SCOPE_NONE) then return 0
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return 0
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if (f->kind = cast( ubyte, SYM_FIELD )) andalso (f->type_ <> TYPE_NONE) then
+            dim as TypeId ft = c.types->Unqualify( f->type_ )
+            if c.types->Kind( ft ) = TK_BUILTIN then
+                if c.types->BuiltinOf( ft ) = TY_STRING then return f
+                if wantU andalso (c.types->BuiltinOf( ft ) = TY_USTRING) then return f
+            elseif c.types->Kind( ft ) = TK_UDT then
+                dim as Symbol ptr deeper = TlTextField_( c, ft, depth + 1, wantU )
+                if deeper <> 0 then return deeper
+            end if
+        end if
+        cur = f->nextInScope
+    next
+    return 0
+end function
+
+'' A non-empty 'type( ... )' with no type of its own -- Check types it as a tuple -- filling
+'' 'dest', a record that holds text: TKO0929, fbc's 99. An assignment, a 'return' and a
+'' 'dim' ask this; a literal Check typed as the record itself -- an argument, 'type<T>( )' --
+'' is typelitstr.bas's sweep. In a 'dim', a 'string' field is TKO0757's already.
+private function TypeLitTextBad_ _
+    ( byref c as Ctx, byval dest as TypeId, byval rn as NodeId, byval isDim as boolean ) as boolean
+    if (rn = NODE_NONE) orelse (dest = TYPE_NONE) then return false
+    while c.ast->Kind( rn ) = N_PAREN
+        dim as ListPayload ptr pl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+        if pl->count <> 1 then exit while
+        rn = cast( NodeId, c.ast->children[pl->first] )
+    wend
+    if c.ast->Kind( rn ) <> N_TUPLE then return false
+    if (c.ast->nodes[cast( long, rn )].flags and NF_TYPE_LITERAL) = 0 then return false
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, rn )].data )]
+    if (lp->count = 0) orelse (lp->target <> NODE_NONE) then return false
+    if TcTuple_( c, c.info->TypeOf_( rn ) ) = false then return false
+    dim as Symbol ptr f = TlTextField_( c, dest, 0, true )
+    if f = 0 then return false
+    if isDim andalso (TlTextField_( c, dest, 0, false ) <> 0) then return false
+    dim as TypeId du = c.types->Unqualify( dest )
+    if c.types->Kind( du ) = TK_REFERENCE then du = c.types->Unqualify( c.types->Inner( du ) )
+    c.diags->Report( TKO0929, PointRange( c.ast->Loc( rn ) ), c.types->Name( du ), c.names->Spelling( f->name ) )
+    return true
+end function
+
 private function TupleConvBad_ _
     ( byref c as Ctx, byval t as TypeId, byval rn as NodeId, byval depth as long ) as boolean
     if (rn = NODE_NONE) orelse (depth > 8) then return false

@@ -141,7 +141,16 @@ destructor Counted( ) : dtors += 1 : end destructor
 type Holder
     as string a
     as long n
+    '' A CONSTRUCTOR, so 'type<Holder>( "one", 1 )' below is a call to it: without one fbc
+    '' refuses a type( ... ) over a record holding a string (error 99; tiko's TKO0929, T30).
+    declare constructor( )
+    declare constructor( byref s as string, byval k as long )
 end type
+constructor Holder( )
+end constructor
+constructor Holder( byref s as string, byval k as long )
+    a = s : n = k
+end constructor
 
 function pts( ) as Pt( )
     return { type<Pt>( 1, 2 ), type<Pt>( 3, 4 ) }

@@ -1,0 +1,21 @@
+'' TKO0929, fbc's 99 (T30): a non-empty 'type( ... )' over a record that holds a var-len
+'' 'string' or 'ustring' -- directly or in a record field -- and has no constructor, in
+'' every position: an assignment, an array element, a field, 'type<T>( )', an argument, a
+'' 'return', and a 'dim' over a 'ustring' field (a 'string' one is TKO0757's). tiko
+'' compiled them; the assignment freed the string twice (0xC0000374 at exit) and a
+'' 'ustring' read back as CJK. Accepted, as by fbc: a plain or fixed-string record,
+'' 'type( )', and a type with a constructor. Lines identical to fbc-modern's errors. See
+'' symbols/typelitstr.bas and TypeLitTextBad_ in symbols/tupleconv.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typelit-text.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typelit-text.bas(34,12): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(43,6): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(44,6): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(45,17): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(46,10): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(47,6): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(48,12): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(49,6): error TKO0929
+'' EXPECT-OUT: typelit-text.bas(50,9): error TKO0929
+'' EXPECT-MAX-DIAG: 9
