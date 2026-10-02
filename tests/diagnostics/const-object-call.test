@@ -1,0 +1,14 @@
+'' TKO0935, fbc's 276 (T36): a const object calling a method that is not const -- a const
+'' variable, a 'byref ... as const' parameter, a 'const T ptr' through '->', a statement
+'' call and a plain property read -- is refused. tiko compiled them and changed the const
+'' object. A 'const function', a 'const property' and any call on a non-const object are
+'' fine. Lines identical to fbc-modern's errors. See symbols/constcall.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-object-call.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-object-call.bas(26,12): error TKO0935
+'' EXPECT-OUT: const-object-call.bas(30,8): error TKO0935
+'' EXPECT-OUT: const-object-call.bas(32,2): error TKO0935
+'' EXPECT-OUT: const-object-call.bas(33,8): error TKO0935
+'' EXPECT-OUT: const-object-call.bas(38,9): error TKO0935
+'' EXPECT-MAX-DIAG: 5

@@ -1,0 +1,65 @@
+'' constcall.bas -- A CONST OBJECT CALLING A METHOD THAT IS NOT CONST (T36).
+''
+'' Included from latesweeps2.bas, below setteronly.bas, in the same namespace and over the
+'' same Ctx.
+''
+'' Measured on fbc-modern 1.20, 2026-10-02: over 'dim as const Counter k', 'k.Id( )' -- a
+'' plain method that changes the object -- is error 276, "Const UDT cannot invoke
+'' non-const method", and so are the same call through a 'byref t as const Counter'
+'' parameter and a 'const Counter ptr' ('pk->Id( )'), a statement call 'k.Reset( )' and a
+'' plain property read 'k.Val'. 'k.Peek( )' over a 'const function' and 'k.CVal' over a
+'' 'const property' are fine, as is any call on a non-const object. tiko compiled them all
+'' and changed the const object: 0, 1, 2 on successive calls. A write INSIDE a const
+'' method was already refused (TKO0664); this is the other half of the rule.
+
+'' The member procedure a reference binds to, when it needs a non-const THIS.
+private function NonConstMethod_ ( byref c as Ctx, byval sid as SymbolId ) as boolean
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, SYM_PROC ) then return false
+    dim as NodeId pn = cast( NodeId, s->payload )
+    if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return false
+    dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+    select case cast( TokenKind, pp->op )
+    case KW_FUNCTION, KW_SUB, KW_PROPERTY
+    case else
+        return false
+    end select
+    if (pp->extra and (PF_CONST or PF_STATIC)) <> 0 then return false
+    '' A MEMBER: declared in a type's scope.
+    dim as SymScope ptr ps = c.syms->ScopeAt( s->parent )
+    if ps = 0 then return false
+    return (ps->kind = cast( ubyte, SCOPEK_TYPE ))
+end function
+
+'' Is the object this member reference reaches const? '.': the base's own type, through a
+'' reference. '->': the pointee.
+private function ConstObject_ ( byref c as Ctx, byval m as NodeId ) as boolean
+    dim as NodeId b = c.ast->binaries[cast( long, c.ast->nodes[cast( long, m )].data )].lhs
+    if b = NODE_NONE then return false
+    dim as TypeId t = c.info->TypeOf_( b )
+    if t = TYPE_NONE then return false
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Inner( t )
+    if (c.ast->nodes[cast( long, m )].flags and NF_ARROW) <> 0 then
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) <> TK_POINTER then return false
+        t = c.types->Inner( t )
+    end if
+    return c.types->IsConst( t )
+end function
+
+private sub CheckConstObjectCalls_ ( byref c as Ctx )
+    dim as long total = c.ast->Count( )
+    for n as long = 1 to total - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_MEMBER then continue for
+        dim as SymbolId sid = c.info->RefOf( id )
+        if sid = SYMBOL_NONE then
+            sid = c.info->RefOf( c.ast->binaries[cast( long, c.ast->nodes[n].data )].rhs )
+        end if
+        if sid = SYMBOL_NONE then continue for
+        if NonConstMethod_( c, sid ) = false then continue for
+        if ConstObject_( c, id ) = false then continue for
+        c.diags->Report( TKO0935, PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.syms->SymbolAt( sid )->name ) )
+    next
+end sub
