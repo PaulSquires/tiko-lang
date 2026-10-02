@@ -724,6 +724,13 @@ function Run _
                 "a module directory with other inputs or linked (phase P3); use 'tiko -c <dir>'" )
             return Tko.DiagOut.Finish( ctx, Tko.EXIT_USER_ERROR )
         end if
+        '' '--emit-tki': the module built as an importer builds it (T55), not alone -- a
+        '' module unit alone cannot read the interfaces of what it imports.
+        if ctx.options.emitTki then
+            dim as long erc = Tko.Modules.EmitInterface( ctx, modDirs[0] )
+            ctx.diags.Flush( )
+            return Tko.DiagOut.Finish( ctx, erc )
+        end if
         if Tko.Modules.PrepareModuleUnit( ctx, modDirs[0], srcInputs ) = false then
             return Tko.DiagOut.Finish( ctx, Tko.EXIT_USER_ERROR )
         end if

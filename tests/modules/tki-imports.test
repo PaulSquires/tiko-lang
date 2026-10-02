@@ -1,0 +1,10 @@
+'' --emit-tki OF A MODULE THAT IMPORTS (T55): built as an importer builds it -- config
+'' first, against whose interface pad compiles, and with the package's [defines], which
+'' config's body needs -- and pad's interface printed under its package's chain.
+'' TEST: cli
+'' ARGS: --emit-tki tests/modules/src/tkiimp/acme/text/pad
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: '' module acme.text.pad
+'' EXPECT-OUT: namespace __tko_mod_acme_text_pad
+'' EXPECT-OUT: public declare function Cell( byval s as string ) as string
+'' EXPECT-NOT: TKO0992

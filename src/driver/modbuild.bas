@@ -176,4 +176,57 @@ function BuildImports _
     return (toolExit = Tko.EXIT_OK) andalso (Tko.Driver.FrontendFailed_( ctx ) = false)
 end function
 
+function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string ) as long
+    dim as string d = AbsPath( dir_ )
+    while (len( d ) > 1) andalso (right( d, 1 ) = "/")
+        d = left( d, len( d ) - 1 )
+    wend
+    dim as Tko.StrVec files
+    ModuleFiles( d, files )
+    if files.Count = 0 then
+        ctx.diags.ReportGlobal( Tko.TKO0147, d )
+        return Tko.EXIT_USER_ERROR
+    end if
+    dim as string parent = DirOfFile( d )
+    '' THE ROOT: one line importing the directory, standing beside it as a file would. A
+    '' directory under a search root or the toolchain's pkg/ is imported by its package
+    '' path, so its chain is the one 'tiko -c <dir>' gives it; any other relatively, so the
+    '' nearest tiko.toml above it names its package, as for a dependency's importer.
+    dim as ModWhere w
+    ChainForDir( ctx, dir_, w )            '' as given: the search roots are spelled so too
+    dim as string path_ = "./" & mid( d, instrrev( d, "/" ) + 1 )
+    if w.pkgName <> ANON_PACKAGE then
+        path_ = w.chain
+        for i as long = 0 to len( path_ ) - 1
+            if path_[i] = 46 then path_[i] = 47
+        next
+    end if
+    ctx.sources.AddBuffer( JoinPath( parent, "__tko_emit_tki__.tiko" ), _
+                           "#import " & chr( 34 ) & path_ & chr( 34 ) & chr( 10 ) )
+    '' Each module the build compiles leaves an intermediate object, named after the
+    '' output; there is none, so they go to the temporary directory and are deleted.
+    dim as string tmp = environ( "TEMP" )
+    if len( tmp ) = 0 then tmp = environ( "TMPDIR" )
+    if len( tmp ) = 0 then tmp = "/tmp"
+    ctx.options.outputPath = JoinPath( tmp, "tiko-emit-tki-" & hex( cast( ulong, timer * 1000 ) ) )
+    dim as Tko.StrVec linkObjs, tempObjs
+    dim as long toolExit = Tko.EXIT_OK
+    dim as boolean ok = BuildImports( ctx, 1, linkObjs, tempObjs, toolExit )
+    for each t as string in tempObjs
+        if FB.IsFile( t ) then kill( t )
+    next
+    if ok = false then return iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR )
+    for i as long = 0 to ctx.ifaceDirs.Count - 1
+        dim as string a = AbsPath( ctx.ifaceDirs[i] ), b = AbsPath( d )
+        #ifdef __FB_WIN32__
+            a = Tko.Text.LowerAscii( a ) : b = Tko.Text.LowerAscii( b )
+        #endif
+        if a <> b then continue for
+        print ctx.ifaceTexts[i];
+        return Tko.EXIT_OK
+    next
+    ctx.diags.ReportGlobal( Tko.TKO0152 )
+    return Tko.EXIT_CMDLINE
+end function
+
 end namespace

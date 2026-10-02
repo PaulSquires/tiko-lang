@@ -1,0 +1,5 @@
+[package]
+name = "acme"
+
+[defines]
+ACME_COLUMNS = "8"

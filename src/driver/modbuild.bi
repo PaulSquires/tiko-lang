@@ -23,4 +23,10 @@ declare function BuildImports _
 '' their names: '<chain>.o' beside the archive -- 'std.strings.o'.
 declare function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
 
+'' '--emit-tki <dir>': THE INTERFACE OF THE MODULE IN dir_, printed, built the way a program
+'' that imports it builds it -- its own imports first, its package's [defines] applied, the
+'' module cache used -- because a module that imports is compiled against interfaces only
+'' that build makes. The exit code.
+declare function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string ) as long
+
 end namespace
