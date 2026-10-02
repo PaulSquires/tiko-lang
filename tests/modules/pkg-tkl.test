@@ -1,0 +1,11 @@
+'' pkg/tkl: the toolchain's tkl library, imported. Headers come through TKO_INCLUDE, not -i:
+'' an '-i' directory is also a package root.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/pkgtkl/main.tiko -o tests/modules/pkgtkl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/pkgtkl.exe
+'' EXPECT-RUN-OUT: TIKO lang
+'' EXPECT-RUN-OUT: FF010203
+'' EXPECT-RUN-OUT: ok

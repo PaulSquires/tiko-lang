@@ -1,0 +1,11 @@
+'' tkl through #import: tkStrings with 'using', gdiplus qualified, and tkGui's CWindow --
+'' the largest module, and the one that imports the other two.
+#import "tkl/tkStrings"
+#import "tkl/gdiplus"
+#import "tkl/tkGui"
+using tkStrings
+
+print tkUcase( "tiko" ); " "; tkLcase( "LANG" )
+print hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
+dim as tkGui.CWindow w
+print "ok"
