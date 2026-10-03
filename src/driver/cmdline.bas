@@ -241,6 +241,18 @@ private sub AppendBundledLibDirs_( byref opts as Tko.DriverOptions )
     dim as ustring env_ = environ( "TKO_LIBPATH" )
     if len( env_ ) > 0 then
         opts.defaultLibPaths.Push( env_ )
+        '' ...AND ITS '-fb' SIBLING, as the bundled tree gets below (T70). That is
+        '' where fbrt0.o lives, the runtime's constructor on every gnu target, and the
+        '' link names it only if a library path has it. TKO_LIBPATH=lib/linux-x86_64
+        '' alone linked no fbrt0.o, so fb_hRtInit and fb_hRtExit never ran: no
+        '' locale, no "Aborting due to runtime error" on stderr, and nothing said so.
+        '' win64-msvc has no sibling and needs none -- msvcinit.c does that job.
+        dim as ustring dir_ = env_
+        do while (len( dir_ ) > 1) andalso _
+                 ((right( dir_, 1 ) = "/") orelse (right( dir_, 1 ) = "\"))
+            dir_ = left( dir_, len( dir_ ) - 1 )
+        loop
+        if FB.IsDir( dir_ & "-fb" ) then opts.defaultLibPaths.Push( dir_ & "-fb" )
         return
     end if
 
