@@ -82,7 +82,7 @@ parts:
       - { n: 29, file: src/ch29-building-shipping.md,   status: drafted }
   - name: "Legacy"
     chapters:
-      - { n: 30, file: chapters/30-classic-basic.md,      status: planned }
+      - { n: 30, file: src/ch30-classic-basic.md,       status: drafted }
   - name: "Projects"
     chapters:
       - { n: 31, file: chapters/31-capstone-search.md,    status: planned }

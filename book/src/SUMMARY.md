@@ -45,6 +45,10 @@
 - [28. Interfacing with C](ch28-interfacing-c.md)
 - [29. Building and Shipping](ch29-building-shipping.md)
 
+# Legacy
+
+- [30. Classic BASIC and Compatibility](ch30-classic-basic.md)
+
 # Appendices
 
 - [Appendix B: Diagnostics](appendix-B-diagnostics.md)

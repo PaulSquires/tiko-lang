@@ -1,0 +1,4 @@
+parent: chaining
+  child: running
+parent: back; the child's exit code was 3
+a missing program gives-1
