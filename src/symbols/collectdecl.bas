@@ -38,6 +38,25 @@
 '' which is why a method never collides. It runs when the VALUE is declared, which is
 '' what keeps the value-first order legal: by then the type's body has been collected,
 '' and a type that comes later is never asked.
+''
+'' A LOCAL MAY NOT TAKE THE NAME OF A CONST OR A PROCEDURE of the scope its procedure or
+'' block was opened in -- fbc's error 4 again (TKO0945). Measured on fbc-modern 1.20.0, 'X'
+'' declared in namespace N, or at module level, and then a 'sub s' there:
+''
+''     X a const, a sub, a declare or an overload set,  error 4
+''       or s's own name ('function f : dim f')
+''     ...by dim, static, var, const, redim, an array,  error 4
+''       'for X' or a parameter of the definition, in
+''       any block -- and in a SCOPE or IF at module level
+''     X a shared or extern variable, a type alias, a   accepted
+''       plain type, or an enum member
+''     X declared AFTER s, in an OUTER namespace, or    accepted
+''       reached through 'using'; s a method or a
+''       generic; a parameter of a DECLARE
+''
+'' so the check is made where the walk stops, in a module or namespace scope it reached by
+'' leaving a procedure or a block, and only of what Collect has declared there SO FAR.
+'' A name read from an #import'ed module's interface is not asked: it is the 'using' case.
 
 '' Anything but fields in the type's own scope, or a base. A generic is never one.
 private function IsClassLikeUdt_ _
@@ -74,7 +93,27 @@ private function IsClassLikeUdt_ _
     return false
 end function
 
-'' The type with members whose name a value declaration takes, or SYMBOL_NONE.
+'' A CONST OR A PROCEDURE in scope 'sc' named 'nm', in either name class, or SYMBOL_NONE.
+private function OuterValueTaken_ _
+    ( byref w as Walker, byval sc as Tko.ScopeId, byval nm as Tko.InternId ) as Tko.SymbolId
+
+    dim as Tko.SymbolId sid = w.syms->LookupLocal( sc, nm )
+    for pass as long = 0 to 1
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
+        if s = 0 then exit for
+        select case cast( Tko.SymbolKind, s->kind )
+        case Tko.SYM_CONSTANT, Tko.SYM_PROC
+            dim as boolean own = ((s->flags and Tko.SYMF_IMPORTED) = 0)
+            if own then own = (w.src->IsBuiltin( s->loc ) = false)
+            if own then return sid
+        end select
+        sid = s->altClass
+    next
+    return Tko.SYMBOL_NONE
+end function
+
+'' The type with members, or the const or procedure, whose name a value declaration takes,
+'' or SYMBOL_NONE.
 private function ClassNameTaken_ _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval k as Tko.SymbolKind, byval loc as Tko.SourceLoc ) as Tko.SymbolId
@@ -128,6 +167,12 @@ private function ClassNameTaken_ _
         select case cast( Tko.ScopeKind, ss->kind )
         case Tko.SCOPEK_PROC, Tko.SCOPEK_BLOCK
             sc = ss->parent
+        case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE, Tko.SCOPEK_NAMESPACE
+            if sc <> scope_ then
+                dim as Tko.SymbolId vid = OuterValueTaken_( w, sc, nm )
+                if vid <> Tko.SYMBOL_NONE then return vid
+            end if
+            exit while
         case else
             exit while
         end select
@@ -326,7 +371,10 @@ private function Declare_ _
         if cs <> 0 then
             w.duplicates += 1
             dim as Tko.DiagId cdi = Tko.TKO0777
-            if cs->kind = cast( ubyte, Tko.SYM_ENUM ) then cdi = Tko.TKO0834
+            select case cast( Tko.SymbolKind, cs->kind )
+            case Tko.SYM_ENUM : cdi = Tko.TKO0834
+            case Tko.SYM_CONSTANT, Tko.SYM_PROC : cdi = Tko.TKO0945
+            end select
             w.diags->Report( cdi, Tko.PointRange( loc ), w.names->Spelling( nm ) )
             w.diags->AddNote( Tko.TKO0901, Tko.PointRange( cs->loc ) )
         end if

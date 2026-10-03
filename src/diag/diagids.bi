@@ -771,6 +771,9 @@
     '' fbc's error 146 over a NUMBERED LINE, '10 print "x"' (T86): the line has no keyword
     '' to name in TKO0409, so it gets its own text -- see parser/intrinsics.bas.
     DIAG( TKO0944, SEV_ERROR,   "a line number is not available in the fb dialect; name the line with a label" )
+    '' fbc's error 4 for a local, a parameter or a block's value named like a CONST or a
+    '' PROCEDURE of the scope its procedure or block was opened in. See symbols/collectdecl.bas.
+    DIAG( TKO0945, SEV_ERROR,   "'%0' is already a constant or procedure of the enclosing scope, which no local may share" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in
