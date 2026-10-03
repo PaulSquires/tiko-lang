@@ -1,0 +1,18 @@
+'' Exercise 18-2: TRACEVAL( x ) shows an expression as written
+'' and its value. '#' turns a macro argument into a string.
+#define TRACING
+#include once "../trace.ti"
+
+#ifdef TRACING
+    #define TRACEVAL( x ) TRACE( #x & " = " & ( x ) )
+#else
+    #define TRACEVAL( x )
+#endif
+
+function Area( byval w as float64, byval h as float64 ) as float64
+    TRACEVAL( w * h )
+    return w * h
+end function
+
+var a = Area( 2.5, 4 )
+TRACEVAL( a / 2 )

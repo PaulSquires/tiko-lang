@@ -1,0 +1,12 @@
+'' Three fields, six bytes of data, twelve bytes of record.
+type Packet
+    kind as uint8
+    length as uint32
+    flags as uint8
+end type
+
+function Square( byval x as int32 ) as int32
+    return x * x
+end function
+
+print sizeof( Packet ); Square( 9 )

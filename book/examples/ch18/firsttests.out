@@ -1,0 +1,9 @@
+      firsttests.tiko(48) : error : TESTS.LIFO.COUNTS_PUSHES CU_ASSERT_EQUAL(s.Count( ),2)
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+       5         4         1  lifo                                           3
+--------  --------  --------  --------------------------------------  --------
+       5         4         1  Total                                          3

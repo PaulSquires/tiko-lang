@@ -1,0 +1,52 @@
+'' A stack of int32, and the tests that pin its behaviour down.
+#include once "fbcunit.bi"
+
+type Stack
+    declare sub Push( byval v as int32 )
+    declare function Pop( ) as int32
+    declare function Count( ) as int32
+private:
+    dim items( any ) as int32
+end type
+
+sub Stack.Push( byval v as int32 )
+    redim preserve items( ubound( items ) + 1 )
+    items( ubound( items ) ) = v
+end sub
+
+function Stack.Pop( ) as int32
+    var top = items( ubound( items ) )
+    if ubound( items ) = 0 then
+        erase items
+    else
+        redim preserve items( ubound( items ) - 1 )
+    end if
+    return top
+end function
+
+function Stack.Count( ) as int32
+    return ubound( items ) + 1
+end function
+
+SUITE( lifo )
+    TEST( starts_empty )
+        dim s as Stack
+        CU_ASSERT_EQUAL( s.Count( ), 0 )
+    END_TEST
+
+    TEST( pops_in_reverse )
+        dim s as Stack
+        s.Push( 1 ) : s.Push( 2 ) : s.Push( 3 )
+        CU_ASSERT_EQUAL( s.Pop( ), 3 )
+        CU_ASSERT_EQUAL( s.Pop( ), 2 )
+        CU_ASSERT_EQUAL( s.Count( ), 1 )
+    END_TEST
+
+    TEST( counts_pushes )
+        dim s as Stack
+        s.Push( 7 )
+        CU_ASSERT_EQUAL( s.Count( ), 2 )   '' wrong on purpose
+    END_TEST
+END_SUITE
+
+end iif( fbcu.run_tests( ), 0, 1 )

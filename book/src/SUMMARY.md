@@ -24,6 +24,7 @@
 - [14. Modules and Packages](ch14-modules-packages.md)
 - [16. Generics](ch16-generics.md)
 - [17. Errors: Optional, Result and Runtime Checks](ch17-errors.md)
+- [18. Testing, Debugging and Tooling](ch18-testing-debugging.md)
 
 # Appendices
 

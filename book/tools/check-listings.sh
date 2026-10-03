@@ -7,7 +7,8 @@
 #   tools/check-listings.sh --list             show what would run
 #
 # A listing is examples/chNN/name.tiko (or name.bas, for legacy material). Beside it:
-#   name.out    expected stdout (required unless the listing expects a compile error)
+#   name.out    expected stdout (required unless the listing expects a compile error);
+#               name.<target>.out, where it exists, replaces it on that target
 #   name.exit   expected exit code (default 0)
 #   name.args   command-line arguments, one line
 #   name.stdin  fed to the program
@@ -226,10 +227,12 @@ for f in "${listings[@]}"; do
     done
 
     want_rc=0; [[ -f "$base.exit" ]] && want_rc="$(head -1 "$base.exit")"
-    if [[ ! -f "$base.out" ]]; then
+    # A program whose output depends on the platform carries one file per target.
+    outf="$base.out"; [[ -f "$base.$t.out" ]] && outf="$base.$t.out"
+    if [[ ! -f "$outf" ]]; then
       results+=("FAIL"); note="no expected output file ($name.out)"; continue
     fi
-    want="$(tr -d '\r' < "$base.out")"; want="${want%$'\n'}"
+    want="$(tr -d '\r' < "$outf")"; want="${want%$'\n'}"
 
     if [[ "$got" == "$want" && "$rc" == "$want_rc" ]]; then
       results+=("PASS")

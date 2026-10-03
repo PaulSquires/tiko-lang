@@ -1,0 +1,10 @@
+'' It compiles. It prints the wrong numbers. The compiler said so.
+sub Fill( byval p as int32 ptr, byval n as int32 )
+    for i as int32 = 0 to n - 1
+        p[i] = i * i
+    next
+end sub
+
+dim squares( 0 to 3 ) as int64
+Fill( @squares( 0 ), 4 )
+print squares( 0 ); squares( 1 ); squares( 2 ); squares( 3 )

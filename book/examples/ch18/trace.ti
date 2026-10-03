@@ -1,0 +1,18 @@
+'' trace.ti -- TRACE( msg ) reports where it was called from, on
+'' stderr. Without TRACING defined it compiles to nothing.
+#pragma once
+
+#ifdef TRACING
+    #define TRACE( msg ) _
+        TraceAt( __FILE__, __LINE__, __FUNCTION__, msg )
+#else
+    #define TRACE( msg )
+#endif
+
+sub TraceAt( byval file as ustring, byval lineNo as int32, _
+             byval proc as ustring, byval msg as ustring )
+    var f = freefile( )
+    open err for output as #f
+    print #f, file & "(" & lineNo & ") " & proc & ": " & msg
+    close #f
+end sub

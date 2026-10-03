@@ -1,0 +1,34 @@
+#module "stacks"
+
+'' A last-in, first-out stack of int32.
+public type Stack
+    declare sub Push( byval v as int32 )
+    declare function Pop( ) as int32
+    declare function Peek( ) as int32
+    declare function Count( ) as int32
+private:
+    dim items( any ) as int32
+end type
+
+sub Stack.Push( byval v as int32 )
+    redim preserve items( ubound( items ) + 1 )
+    items( ubound( items ) ) = v
+end sub
+
+function Stack.Pop( ) as int32
+    var top = items( ubound( items ) )
+    if ubound( items ) = 0 then
+        erase items
+    else
+        redim preserve items( ubound( items ) - 1 )
+    end if
+    return top
+end function
+
+function Stack.Peek( ) as int32
+    return items( ubound( items ) )
+end function
+
+function Stack.Count( ) as int32
+    return ubound( items ) + 1
+end function
