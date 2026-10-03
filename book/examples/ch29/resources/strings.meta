@@ -1,0 +1,2 @@
+targets: win64-msvc
+modules: strings.rc

@@ -1,0 +1,2 @@
+prebuild: -c greet.tiko
+modules: greet.o

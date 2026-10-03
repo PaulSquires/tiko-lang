@@ -1,0 +1,4 @@
+platform: Windows
+C runtime: Microsoft's Universal CRT
+pointer size: 8 bytes
+backend: llvm

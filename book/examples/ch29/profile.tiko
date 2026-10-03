@@ -1,0 +1,10 @@
+'' Build settings can live in the source, so the file alone says how
+'' it must be built.
+#cmdline "-mt -O2"
+
+print "thread-safe runtime: "; cbool( __FB_MT__ )
+#if __FB_DEBUG__
+    print "debug build"
+#else
+    print "release build"
+#endif

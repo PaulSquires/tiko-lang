@@ -1,0 +1,6 @@
+'' A checked build: -exx adds bounds and null-pointer checks.
+#cmdline "-exx"
+
+dim scores( 1 to 3 ) as int32 = { 70, 85, 90 }
+dim as int32 i = 4
+dim as int32 total = scores( i )

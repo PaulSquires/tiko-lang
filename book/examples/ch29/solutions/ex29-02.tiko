@@ -1,0 +1,10 @@
+'' Reports how it was built, from the predefined symbols.
+#cmdline "-exx -mt"
+
+print "error checking: "; cbool( __FB_ERR__ <> 0 )
+print "thread-safe runtime: "; cbool( __FB_MT__ )
+#ifdef __FB_MSVC__
+    print "linked against: the Universal CRT"
+#else
+    print "linked against: the system C library"
+#endif

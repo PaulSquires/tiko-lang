@@ -43,6 +43,7 @@
 # Systems Programming
 
 - [28. Interfacing with C](ch28-interfacing-c.md)
+- [29. Building and Shipping](ch29-building-shipping.md)
 
 # Appendices
 

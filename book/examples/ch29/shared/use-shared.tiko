@@ -1,0 +1,9 @@
+'' Links mathlib.dll through libmathlib.dll.a on Windows, or
+'' libmathlib.so on Linux. The library must be found again at run time.
+#inclib "mathlib"
+
+declare function Gcd( byval a as int64, byval b as int64 ) as int64
+declare function Factorial( byval n as int32 ) as int64
+
+print "Gcd( 84, 36 ) ="; Gcd( 84, 36 )
+print "Factorial( 20 ) ="; Factorial( 20 )

@@ -1,0 +1,5 @@
+'' Linked with the object file greet.o: 'tiko main.tiko greet.o'.
+declare sub Greet( byref who as ustring )
+
+print "main starts"
+Greet( "world" )

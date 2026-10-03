@@ -1,0 +1,11 @@
+'' Uses lcmlib, built first with 'tiko -lib lcmlib.tiko'.
+#inclib "lcmlib"
+
+declare function Lcm( byval a as int64, byval b as int64 ) as int64
+
+'' The smallest number every one of 1 to 20 divides.
+dim as int64 l = 1
+for i as int32 = 2 to 20
+    l = Lcm( l, i )
+next
+print "Lcm of 1 to 20 ="; l

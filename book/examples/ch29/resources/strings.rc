@@ -1,0 +1,7 @@
+// strings.rc -- a resource script, compiled into the executable.
+#define IDS_GREETING 101
+
+STRINGTABLE
+BEGIN
+    IDS_GREETING "Hello from a resource"
+END

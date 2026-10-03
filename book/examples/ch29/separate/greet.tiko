@@ -1,0 +1,8 @@
+'' Compiled on its own with 'tiko -c greet.tiko'; main.tiko calls it.
+sub Greet( byref who as ustring )
+    print "hello, "; who
+end sub
+
+'' The top level of a module that is not main runs first, as a module
+'' constructor.
+print "greet.tiko is set up"

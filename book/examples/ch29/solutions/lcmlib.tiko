@@ -1,0 +1,15 @@
+'' A static library of two functions, the second built on the first.
+function Gcd( byval a as int64, byval b as int64 ) as int64
+    do while b <> 0
+        dim as int64 t = a mod b
+        a = b
+        b = t
+    loop
+    return abs( a )
+end function
+
+function Lcm( byval a as int64, byval b as int64 ) as int64
+    if a = 0 orelse b = 0 then return 0
+    '' \ binds more loosely than *, so the division is bracketed.
+    return abs( ( a \ Gcd( a, b ) ) * b )
+end function

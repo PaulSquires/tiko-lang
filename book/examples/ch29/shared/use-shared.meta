@@ -1,0 +1,2 @@
+prebuild: -dll mathlib.tiko
+env: LD_LIBRARY_PATH=.

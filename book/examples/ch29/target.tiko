@@ -1,0 +1,14 @@
+'' What the compiler says about the target, through predefined symbols.
+#ifdef __FB_WIN32__
+    print "platform: Windows"
+#endif
+#ifdef __FB_LINUX__
+    print "platform: Linux"
+#endif
+#ifdef __FB_MSVC__
+    print "C runtime: Microsoft's Universal CRT"
+#else
+    print "C runtime: the system's C library"
+#endif
+print "pointer size:"; sizeof( any ptr ); " bytes"
+print "backend: "; __FB_BACKEND__

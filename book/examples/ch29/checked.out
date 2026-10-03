@@ -1,0 +1,4 @@
+
+Aborting due to runtime error 6 (out of bounds array access) at line 6 of checked.tiko::(), 
+'SCORES' accessed with invalid index = 4, must be between 1 and 3
+

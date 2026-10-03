@@ -79,7 +79,7 @@ parts:
   - name: "Systems Programming"
     chapters:
       - { n: 28, file: src/ch28-interfacing-c.md,       status: drafted }
-      - { n: 29, file: chapters/29-building-shipping.md,  status: planned }
+      - { n: 29, file: src/ch29-building-shipping.md,   status: drafted }
   - name: "Legacy"
     chapters:
       - { n: 30, file: chapters/30-classic-basic.md,      status: planned }

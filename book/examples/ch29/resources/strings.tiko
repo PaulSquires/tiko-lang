@@ -1,0 +1,10 @@
+'' Built with 'tiko strings.tiko strings.rc': the .rc is compiled by
+'' llvm-rc and linked into the executable.
+#include once "windows.bi"
+
+const IDS_GREETING = 101
+
+dim as wstring * 64 buf
+var n = LoadStringW( GetModuleHandle( 0 ), IDS_GREETING, @buf, 64 )
+dim as ustring text = buf
+print "string"; IDS_GREETING; ","; n; " characters: "; text

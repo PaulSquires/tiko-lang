@@ -1,0 +1,17 @@
+'' A small library, built with 'tiko -lib mathlib.tiko'.
+function Gcd( byval a as int64, byval b as int64 ) as int64
+    do while b <> 0
+        dim as int64 t = a mod b
+        a = b
+        b = t
+    loop
+    return abs( a )
+end function
+
+function Factorial( byval n as int32 ) as int64
+    dim as int64 r = 1
+    for i as int32 = 2 to n
+        r *= i
+    next
+    return r
+end function

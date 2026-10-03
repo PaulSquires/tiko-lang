@@ -22,6 +22,11 @@
 #                 cwd: listing                 compile in the listing's own directory, as a
 #                                              reader would -- for #cinclude, whose header
 #                                              clang resolves against the working directory
+#                 prebuild: -lib a.tiko        tiko commands run first, in the listing's
+#                                              directory, ';' between them -- a library the
+#                                              listing links. Implies cwd: listing; a source
+#                                              named here is not a listing of its own
+#                 env: LD_LIBRARY_PATH=.       set for the run, on every target
 #                 blocked: T13 linux-x86_64    a known compiler/toolchain defect, and
 #                                              where it bites; reported BLOCKED, not FAIL.
 #                                              The listing is NEVER weakened to pass --
@@ -140,7 +145,7 @@ for f in "${all[@]}"; do
   # A module named by another listing's meta is built with it, not on its own.
   base="$(basename "$f")"; dir="$(dirname "$f")"
   if grep -qs -- "$base" "$dir"/*.meta 2>/dev/null && ! [[ -f "${f%.*}.meta" ]]; then
-    grep -qs "^modules:.*$base" "$dir"/*.meta && continue
+    grep -qsE "^(modules|prebuild):.*$base" "$dir"/*.meta && continue
   fi
   listings+=("$f")
 done
@@ -165,6 +170,9 @@ for f in "${listings[@]}"; do
   modules="$(meta_get "$meta" modules)"
   blocked="$(meta_get "$meta" blocked)"        # e.g. "T13 linux-x86_64"
   cwd="$(meta_get "$meta" cwd)"
+  prebuild="$(meta_get "$meta" prebuild)"
+  runenv="$(meta_get "$meta" env)"
+  [[ -n "$prebuild" ]] && cwd=listing
   blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
   srcs=("$f"); for m in $modules; do srcs+=("$dir/$m"); done
   local_srcs=(); for s in "${srcs[@]}"; do local_srcs+=("$(basename "$s")"); done
@@ -180,17 +188,34 @@ for f in "${listings[@]}"; do
     outdir="out/bin/$t"; mkdir -p "$outdir"
     log="out/run/$name.$t.log"; rm -f "$log"
 
+    # The prebuild commands, each a tiko invocation in the listing's directory.
+    pre_ok=1
+    if [[ -n "$prebuild" ]]; then
+      IFS=';' read -ra pre_cmds <<< "$prebuild"
+      for pc in "${pre_cmds[@]}"; do
+        if [[ "$t" == win64-msvc ]]; then
+          ( cd "$dir" && eval "\"$win_tiko\" $pc" ) >> "$log" 2>&1 || pre_ok=0
+        else
+          wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' $pc" >> "$log" 2>&1 || pre_ok=0
+        fi
+      done
+    fi
+    if (( ! pre_ok )); then
+      results+=("FAIL"); note="prebuild failed: $(head -2 "$log" | tr '\n' ' ' | cut -c1-80)"
+      continue
+    fi
+
     if [[ "$t" == win64-msvc ]]; then
       exe="$outdir/$name.exe"; rm -f "$exe"
       if [[ "$cwd" == listing ]]; then
-        ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) > "$log" 2>&1; crc=$?
+        ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) >> "$log" 2>&1; crc=$?
       else
         "$win_tiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
       fi
     else
       exe="$outdir/$name"; rm -f "$exe"
       if [[ "$cwd" == listing ]]; then
-        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' ${local_srcs[*]} -o '$book_wsl/$exe'" > "$log" 2>&1; crc=$?
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' ${local_srcs[*]} -o '$book_wsl/$exe'" >> "$log" 2>&1; crc=$?
       else
         wsl -d "$WSL_DISTRO" -- "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
       fi
@@ -214,15 +239,15 @@ for f in "${listings[@]}"; do
       # Run from the listing's own directory, so a program can open a data file that sits
       # beside it -- which is where a reader would keep it, and how they would run it.
       if [[ -f "$base.stdin" ]]; then
-        got="$(cd "$dir" && eval "$root/$exe" $args < "$root/$base.stdin" 2>&1)"
+        got="$(cd "$dir" && eval $runenv "$root/$exe" $args < "$root/$base.stdin" 2>&1)"
       else
-        got="$(cd "$dir" && eval "$root/$exe" $args 2>&1)"
+        got="$(cd "$dir" && eval $runenv "$root/$exe" $args 2>&1)"
       fi
     else
       if [[ -f "$base.stdin" ]]; then
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
       else
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$book_wsl/$exe' $args" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv '$book_wsl/$exe' $args" 2>&1)"
       fi
     fi
     rc=$?
