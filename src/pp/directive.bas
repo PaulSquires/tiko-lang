@@ -14,6 +14,11 @@ private function PpLangMeta_( byref e as PpEngine, byval r as Lex.Result ptr ) a
         if e.outp->langRefused = false then Report( e, TKO0317, r->langMetaAt, r->langMeta )
         e.outp->langRefused = true
     end if
+    '' ...AND THE OTHER METACOMMANDS, '$include' and the rest, are TKO0409 (T86) -- unless
+    '' the file already asked for another dialect, which says everything they would.
+    if (len( r->otherMeta ) > 0) andalso (e.outp->langRefused = false) then
+        Report( e, TKO0409, r->otherMetaAt, r->otherMeta )
+    end if
     return @r->tokens
 end function
 

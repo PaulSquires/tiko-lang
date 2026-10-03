@@ -37,7 +37,7 @@ function IsStatementIntrinsic( byval k as TokenKind ) as boolean
     select case IntrinsicFormOf( k )
     case IFORM_GENERIC, IFORM_NOARGS, IFORM_PRINT, IFORM_INPUT, IFORM_LINE, _
          IFORM_OPEN, IFORM_FILENUM, IFORM_GETPUT, IFORM_DATA, IFORM_ON, _
-         IFORM_SWAP, IFORM_NAME, IFORM_DEFTYPE, IFORM_GFX, IFORM_UNSUPPORTED
+         IFORM_SWAP, IFORM_NAME, IFORM_GFX, IFORM_UNSUPPORTED
         return true
     end select
     return false
@@ -610,6 +610,9 @@ private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     sp.extra = 2
     sp.a = Expression( p )
     if Peek( p ) = Tko.KW_GOSUB then
+        '' ...AND 'on n gosub' IS GOSUB (T86): refused as the bare statement is. It used to
+        '' pass the front end and fail in clang, 'value doesn't match function result type'.
+        ErrorNode( p, Tko.TKO0409, "GOSUB" )
         sp.extra = 3
         Advance( p )
     elseif Peek( p ) = Tko.KW_GOTO then
@@ -631,28 +634,35 @@ private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     next
 end sub
 
-'' DEFINT A-Z: letter ranges, not expressions.
-private sub IntrDefType( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
-    dim as Tko.NodeIdVec items
-    do
-        if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
-        dim as Tko.Token t = Cur( p )
-        if (Peek( p ) = Tko.TK_IDENT) orelse Tko.IsKeywordKind( Peek( p ) ) then
-            items.Push( cast( ulong, MakeIdent( p, t ) ) )
-        end if
+'' TWO MORE SHAPES fbc's fb dialect refuses with its error 146 (T86), each a whole
+'' statement, reached from Statement's dispatch on the first token:
+''
+''     call Hello( )        'CALL' before a call -- TKO0408, "expected a statement", before
+''     10 print "x"         a NUMBERED LINE -- TKO0420 at the token after the number
+''
+'' Measured on fbc-modern 1.20, 2026-10-03. The rest of the line is skipped: it is the
+'' qb-dialect statement the reader meant, and nothing in it can be checked as fb.
+private function LegacyStatement_( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.NodeId n
+    '' A NUMBER IS A LINE NUMBER ONLY AS A PHYSICAL LINE'S FIRST TOKEN. After a ':' it is
+    '' an expression statement -- ': 0 = 1' is the literal-target error, not this.
+    if Peek( p ) = Tko.TK_INT_LIT then
+        dim as boolean lineStart = (p.pos = 0)
+        if lineStart = false then lineStart = ((Cur( p ).flags and Tko.TF_AT_LINE_START) <> 0)
+        if lineStart = false then return ParseAmbiguous( p )
+    end if
+    if Peek( p ) = Tko.KW_CALL then
+        n = ErrorNode( p, Tko.TKO0409, "CALL" )
+    else
+        n = ErrorNode( p, Tko.TKO0944 )
+    end if
+    '' UP TO THE LINE'S END, NOT PAST IT: Statement consumes the terminator, and taking
+    '' it here as well swallowed the next line -- '20 end' after '10 print' went unseen.
+    do while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
         Advance( p )
-        if (Peek( p ) = Tko.TK_MINUS) orelse (Peek( p ) = Tko.TK_COMMA) then
-            Advance( p )
-            continue do
-        end if
-        exit do
     loop
-    sp.first = p.ast->children.Count
-    sp.count = items.Count
-    for i as long = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
-    next
-end sub
+    return n
+end function
 
 '' The entry point: dispatch on the registry.
 function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
@@ -683,7 +693,6 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
     case Tko.IFORM_GETPUT   : IntrGetPut( p, sp )
     case Tko.IFORM_DATA     : IntrData( p, sp )
     case Tko.IFORM_ON       : IntrOn( p, sp )
-    case Tko.IFORM_DEFTYPE  : IntrDefType( p, sp )
 
     case Tko.IFORM_SWAP, Tko.IFORM_NAME
         sp.a = Expression( p )
@@ -701,7 +710,11 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
 
     case Tko.IFORM_UNSUPPORTED
         ErrorNode( p, Tko.TKO0409, Tko.TokenKindText( k ) )
-        EndOfStatement( p )
+        '' To the line's end, not past it -- as LegacyStatement_ does, and for its
+        '' reason: a second 'gosub' on the next line went unreported (T86).
+        do while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
+            Advance( p )
+        loop
 
     case else
         '' LSET AND RSET TAKE AN ASSIGNMENT, and '=>' spells one. Measured: fbc

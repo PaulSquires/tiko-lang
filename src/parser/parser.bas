@@ -1094,6 +1094,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean consumesLine = true
 
     select case k
+    case Tko.KW_CALL, Tko.TK_INT_LIT : n = LegacyStatement_( p )   '' T86, intrinsics.bas
     case Tko.KW_IF
         n = ParseIf( p )
         '' A single-line IF's inner statement already ran EndOfStatement and so ate
@@ -1329,11 +1330,10 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' statement is the same call-or-assign ambiguity as a bare name.
             n = ParseAmbiguous( p )
         elseif k = Tko.KW_LET then
-            '' 'let (a, b) = f( )' -- the multiple assignment. Measured: in the fb
-            '' dialect ONLY the parenthesised form exists; plain 'let a = 5' is fbc
-            '' error 146, valid in deprecated/fblite/qb alone. The keyword is consumed
-            '' and what follows is the ordinary call-or-assign ambiguity, so the target
-            '' being a tuple needs nothing special here.
+            '' 'let (a, b) = f( )' -- the multiple assignment, the ONLY 'let' in the fb
+            '' dialect: 'let a = 5' is fbc's error 146 (T86), TKO0409 here. What follows
+            '' is the ordinary call-or-assign ambiguity either way.
+            if NextTokIs_( p, Tko.TK_LPAREN ) = false then ErrorNode( p, Tko.TKO0409, "LET" )
             Advance( p )
             n = ParseAmbiguous( p )
             MarkLetList_( p, n )    '' not tuple destructuring -- see NF_LET_LIST, parserend.bas

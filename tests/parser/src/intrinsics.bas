@@ -20,7 +20,6 @@ on error goto handler
 on n goto a, b, c
 swap f, n
 name "old" as "new"
-defint a-z
 color 15, 0
 pset (1, 2), 4
 write #1, s

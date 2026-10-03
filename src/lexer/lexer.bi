@@ -38,6 +38,11 @@ namespace Tko.Lex
         '' preprocessor refuses anything but "fb" exactly as it refuses '#lang'.
         as string         langMeta
         as Tko.SourceLoc  langMetaAt
+        '' ...and '$include', '$dynamic' or '$static', the qb-dialect metacommands fbc's fb
+        '' dialect refuses with its error 146 (T86). The first one, upper-cased; the
+        '' preprocessor reports it.
+        as string         otherMeta
+        as Tko.SourceLoc  otherMetaAt
     end type
 
     declare sub Run _

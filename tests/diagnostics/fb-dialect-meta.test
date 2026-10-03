@@ -1,0 +1,8 @@
+'' '$dynamic' IS A QB METACOMMAND, refused in the fb dialect as fbc refuses it (error 146),
+'' and a comment that merely MENTIONS '$static' is still a comment -- fbc says nothing about
+'' line 3 either (measured 2026-10-03). See fb-dialect-refusals.test (T86).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fb-dialect-meta.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fb-dialect-meta.bas(2,2): error TKO0409: '$DYNAMIC' is not available in the fb dialect
+'' EXPECT-NOT: (3,

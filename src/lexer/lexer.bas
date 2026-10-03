@@ -285,6 +285,30 @@ end function
 '' '$LANG: "qb"' and 'rem $lang: "qb"' all switch dialect, anywhere in the file.
 '' Only the first is kept. Until this was read, tiko dropped it as a comment and
 '' compiled a QB program as FB, failing later on a name only QB has ('stick').
+'' '$include', '$dynamic' or '$static' at 'at', the '$' (T86). fbc refuses each in the fb
+'' dialect, error 146 -- measured, '$include: 'f.bi'' and '$dynamic -- where tiko dropped
+'' them as comments, so an '$include' silently included nothing. Only these three words:
+'' any other '$' in a comment is a comment.
+private sub OtherMeta_( byref s as Scanner, byval at as long )
+    if len( s.outp->otherMeta ) > 0 then exit sub
+    dim as long i = at + 1
+    dim as string w
+    while (i < s.n) andalso (len( w ) < 8)
+        dim as ubyte c = s.p[i]
+        if (c >= 97) andalso (c <= 122) then c -= 32
+        if (c < 65) orelse (c > 90) then exit while
+        w &= chr( c )
+        i += 1
+    wend
+    if (w <> "INCLUDE") andalso (w <> "DYNAMIC") andalso (w <> "STATIC") then exit sub
+    if i < s.n then
+        dim as ubyte c = s.p[i]
+        if ((c >= 48) andalso (c <= 57)) orelse (c = 95) then exit sub
+    end if
+    s.outp->otherMeta = "$" & w
+    s.outp->otherMetaAt = LocAt( s, at )
+end sub
+
 private sub LangMeta_( byref s as Scanner, byval at as long )
     if len( s.outp->langMeta ) > 0 then exit sub
     dim as long i = at
@@ -294,7 +318,10 @@ private sub LangMeta_( byref s as Scanner, byval at as long )
     wend
     if (i + 5 >= s.n) orelse (s.p[i] <> 36) then exit sub             '' $
     dim as string w = lcase( chr( s.p[i + 1], s.p[i + 2], s.p[i + 3], s.p[i + 4] ) )
-    if w <> "lang" then exit sub
+    if w <> "lang" then
+        OtherMeta_( s, i )
+        exit sub
+    end if
     dim as long mark = i
     i += 5
     while (i < s.n) andalso ((s.p[i] = 32) orelse (s.p[i] = 9))

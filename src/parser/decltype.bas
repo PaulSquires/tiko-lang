@@ -659,11 +659,14 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
         return MakeStmt( p, Tko.N_USING, t.loc, sp )
 
     case Tko.KW_OPTION
+        '' fbc refuses every OPTION statement in -lang fb, error 146 -- 'option explicit',
+        '' 'option base 1' -- and this said nothing (T86). Reported, then still parsed as
+        '' one statement, because warnings/suffix-fblite.bas writes it.
+        ErrorNode( p, Tko.TKO0409, "OPTION" )
         Advance( p )
         dim as Tko.StmtPayload sp
         DeclName( p, sp.name )
-        '' 'option base 1' TAKES A NUMBER. fbc refuses the statement in -lang fb (error
-        '' 146) but it is still one statement, and warnings/suffix-fblite.bas writes it.
+        '' 'option base 1' TAKES A NUMBER.
         if sp.name <> 0 then
             if Tko.Text.LowerAscii( p.names->Spelling( sp.name ) ) = "base" then
                 sp.a = Expression( p )

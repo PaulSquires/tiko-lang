@@ -39,9 +39,9 @@ namespace Tko
         IFORM_ON            '' ON expr GOTO/GOSUB list, ON ERROR GOTO label
         IFORM_SWAP          '' SWAP a, b
         IFORM_NAME          '' NAME old AS new
-        IFORM_DEFTYPE       '' DEFINT A-Z
         IFORM_GFX           '' PSET/PRESET/CIRCLE/PAINT/DRAW/VIEW/WINDOW/PALETTE/...
-        IFORM_UNSUPPORTED   '' GOSUB, RESUME: not in -lang fb (probes D1, D2)
+        IFORM_UNSUPPORTED   '' GOSUB, RESUME, LPRINT, DEFINT and family: not in -lang fb
+                            '' (probes D1, D2; T86) -- fbc's error 146, TKO0409 here
         IFORM_CVA_ARG       '' cva_arg( list, TYPE ) -- the second argument is a type
         IFORM_DECLARED      '' OPTION, REDIM: parsed by the declaration layer instead
     end enum
@@ -121,7 +121,7 @@ namespace Tko
 
         '' ---- statements with their own grammar
         INTR( KW_PRINT,       IFORM_PRINT )
-        INTR( KW_LPRINT,      IFORM_PRINT )
+        INTR( KW_LPRINT,      IFORM_UNSUPPORTED )
         INTR( KW_WRITE,       IFORM_PRINT )
         INTR( KW_INPUT,       IFORM_INPUT )
         INTR( KW_WINPUT,      IFORM_INPUT )
@@ -138,19 +138,19 @@ namespace Tko
         INTR( KW_SWAP,        IFORM_SWAP )
         INTR( KW_NAME,        IFORM_NAME )
 
-        INTR( KW_DEFBYTE,     IFORM_DEFTYPE )
-        INTR( KW_DEFDBL,      IFORM_DEFTYPE )
-        INTR( KW_DEFINT,      IFORM_DEFTYPE )
-        INTR( KW_DEFLNG,      IFORM_DEFTYPE )
-        INTR( KW_DEFLONGINT,  IFORM_DEFTYPE )
-        INTR( KW_DEFSHORT,    IFORM_DEFTYPE )
-        INTR( KW_DEFSNG,      IFORM_DEFTYPE )
-        INTR( KW_DEFSTR,      IFORM_DEFTYPE )
-        INTR( KW_DEFUBYTE,    IFORM_DEFTYPE )
-        INTR( KW_DEFUINT,     IFORM_DEFTYPE )
-        INTR( KW_DEFULNG,     IFORM_DEFTYPE )
-        INTR( KW_DEFULONGINT, IFORM_DEFTYPE )
-        INTR( KW_DEFUSHORT,   IFORM_DEFTYPE )
+        INTR( KW_DEFBYTE,     IFORM_UNSUPPORTED )
+        INTR( KW_DEFDBL,      IFORM_UNSUPPORTED )
+        INTR( KW_DEFINT,      IFORM_UNSUPPORTED )
+        INTR( KW_DEFLNG,      IFORM_UNSUPPORTED )
+        INTR( KW_DEFLONGINT,  IFORM_UNSUPPORTED )
+        INTR( KW_DEFSHORT,    IFORM_UNSUPPORTED )
+        INTR( KW_DEFSNG,      IFORM_UNSUPPORTED )
+        INTR( KW_DEFSTR,      IFORM_UNSUPPORTED )
+        INTR( KW_DEFUBYTE,    IFORM_UNSUPPORTED )
+        INTR( KW_DEFUINT,     IFORM_UNSUPPORTED )
+        INTR( KW_DEFULNG,     IFORM_UNSUPPORTED )
+        INTR( KW_DEFULONGINT, IFORM_UNSUPPORTED )
+        INTR( KW_DEFUSHORT,   IFORM_UNSUPPORTED )
 
         '' ---- graphics: lowered to gfxlib2, never reimplemented (plan README 1.2)
         INTR( KW_CIRCLE,      IFORM_GFX )

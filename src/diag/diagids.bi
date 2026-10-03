@@ -768,6 +768,9 @@
     '' fbc's error 357: 'spawn' names something that is not a procedure (T76). See
     '' symbols/resolvesynth.bas.
     DIAG( TKO0943, SEV_ERROR,   "'spawn' needs a sub or function declared at module level, and '%0' is not one" )
+    '' fbc's error 146 over a NUMBERED LINE, '10 print "x"' (T86): the line has no keyword
+    '' to name in TKO0409, so it gets its own text -- see parser/intrinsics.bas.
+    DIAG( TKO0944, SEV_ERROR,   "a line number is not available in the fb dialect; name the line with a label" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

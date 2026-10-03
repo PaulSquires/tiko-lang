@@ -1,0 +1,28 @@
+'' WHAT fbc's fb DIALECT REFUSES, tiko refuses (T86) -- fbc's error 146, "Only valid in
+'' -lang deprecated or fblite or qb", as TKO0409 naming the keyword, and TKO0944 for a
+'' numbered line. 'let', 'lprint', 'option' and '$include' compiled with no diagnostic,
+'' 'on k gosub' reached clang, and 'call', 'defint' and a numbered line were refused with
+'' TKO0408, TKO0743 and TKO0420. See src/parser/intrinsics.bas, LegacyStatement_.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-03: error 146 on
+'' exactly lines 2 and 11-19, and 24 on 22 -- one report per line, the second numbered line
+'' included. 'let ( a, b ) = pp' (20) is the fb dialect's own LET and stays legal, and
+'' ': 0 = 1' (22) is a literal target, not a line number.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fb-dialect-refusals.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fb-dialect-refusals.bas(2,2): error TKO0409: '$INCLUDE' is not available in the fb dialect
+'' EXPECT-OUT: fb-dialect-refusals.bas(11,1): error TKO0409: 'LET' is not available in the fb dialect
+'' EXPECT-OUT: fb-dialect-refusals.bas(12,1): error TKO0409: 'CALL'
+'' EXPECT-OUT: fb-dialect-refusals.bas(13,8): error TKO0409: 'LPRINT'
+'' EXPECT-OUT: fb-dialect-refusals.bas(14,1): error TKO0409: 'OPTION'
+'' EXPECT-OUT: fb-dialect-refusals.bas(15,6): error TKO0409: 'GOSUB'
+'' EXPECT-OUT: fb-dialect-refusals.bas(16,8): error TKO0409: 'DEFINT'
+'' EXPECT-OUT: fb-dialect-refusals.bas(17,8): error TKO0409: 'DEFLNG'
+'' EXPECT-OUT: fb-dialect-refusals.bas(18,1): error TKO0944: a line number is not available in the fb dialect
+'' EXPECT-OUT: fb-dialect-refusals.bas(19,1): error TKO0944
+'' EXPECT-OUT: fb-dialect-refusals.bas(22,9): error TKO0652
+'' EXPECT-NOT: (20,
+'' EXPECT-NOT: (21,
+'' EXPECT-NOT: TKO0408
+'' EXPECT-NOT: TKO0420
