@@ -94,6 +94,17 @@ function InstantiateGeneric_ _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, gp->b )].data )]
     if plist->count <> spCount then return Tko.TYPE_NONE
 
+    '' THE REST READ NOW, like spCount: 'gs' points into the SYMBOL TABLE, 'gp' and
+    '' 'plist' into AST arenas, and both the argument resolve and the DeclareSym below
+    '' can reallocate them. 'gs->flags' read after DeclareSym was a freed block: silent
+    '' on Windows, a SEGV on Linux in an 18-line program using fb/logging.bi.
+    dim as long plFirst = plist->first
+    dim as long gpCount = gp->count
+    dim as long gpFirst = gp->first
+    dim as Tko.InternId gname = gs->name
+    dim as ulong gflags = gs->flags
+    dim as Tko.ScopeId ghome = gs->parent
+
     '' The ARGUMENTS, resolved in the scope that wrote them. One that does not resolve
     '' means no instantiation rather than a wrong one -- every use then declines, which
     '' is the honest outcome and the same rule the tuple path uses.
@@ -109,7 +120,7 @@ function InstantiateGeneric_ _
     '' sent it looking for a namespace that does not exist and opened every member body
     '' at module scope instead, so the mangled names came out as the bare source
     '' spelling and every call site linked to nothing.
-    dim as string key = c.names->Spelling( gs->name ) & "<"
+    dim as string key = c.names->Spelling( gname ) & "<"
     dim as FB.Array( of ulong ) argTypes
     for i as long = 0 to spCount - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[spFirst + i] )
@@ -132,7 +143,6 @@ function InstantiateGeneric_ _
     '' separate symbols without the name having to carry a qualifier -- which is what a
     '' spelling-derived key got wrong in the other direction: 'N.It( of long )' at a use
     '' site and 'It( of long )' inside N are the same type and produced two.
-    dim as Tko.ScopeId ghome = gs->parent
     if ghome = Tko.SCOPE_NONE then ghome = Tko.SCOPE_GLOBAL
 
     '' CACHED. 'b2 = b' over two spellings of one instantiation has to be the same
@@ -141,14 +151,14 @@ function InstantiateGeneric_ _
     dim as Tko.SymbolId prev = c.syms->LookupLocalTyped( ghome, inm, true )
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( prev )
     if ps <> 0 then return ps->type_
-    if InstDepthOk_( c, id, gs->name ) = false then return Tko.TYPE_NONE
+    if InstDepthOk_( c, id, gname ) = false then return Tko.TYPE_NONE
 
     dim as boolean dup = false
     dim as Tko.SymbolId isid = c.syms->DeclareSym( ghome, inm, _
         Tko.SYM_UDT, c.ast->Loc( id ), dup )
     dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
     if isym = 0 then return Tko.TYPE_NONE
-    isym->flags or= (gs->flags and Tko.SYMF_MODMASK)   '' a module's generic's instance is module code
+    isym->flags or= (gflags and Tko.SYMF_MODMASK)   '' a module's generic's instance is module code
     '' A GENERIC UNION INSTANTIATES AS A UNION. Collect marks an ordinary one from the
     '' declaration's NF_IS_UNION and the layout pass reads SYMF_UNION_KIND off the
     '' symbol; nothing set it here, so 'union Pun( of T )' laid out as a STRUCT --
@@ -162,7 +172,7 @@ function InstantiateGeneric_ _
     '' FOR THE MANGLER, which spells this 3BoxI8FBSTRINGE by the DECLARED name.
     scope
         dim as Tko.InternId gspell = StmtOf( c, gn )->rawName
-        if gspell = 0 then gspell = gs->name
+        if gspell = 0 then gspell = gname
         Tko.Mangle.RegisterInst( *c.types, inm, gspell, argTypes )
     end scope
     '' The symbol is published BEFORE the fields are walked, so a generic that refers
@@ -173,7 +183,7 @@ function InstantiateGeneric_ _
     '' The parameters bind for as long as the fields are being resolved.
     dim as long gmark = c.gparamName.Count
     for i as long = 0 to spCount - 1
-        dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plist->first + i] )
+        dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plFirst + i] )
         if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr pip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, pn )].data )]
@@ -181,11 +191,7 @@ function InstantiateGeneric_ _
         c.gparamType.Push( argTypes[i] )
     next
 
-    '' EXTENT AND PAYLOAD READ BEFORE THE RESOLVE THAT CAN MOVE THEM -- see
-    '' the note on spCount above; ResolveTypeRef here can instantiate.
-    dim as long gpCount = gp->count
-    dim as long gpFirst = gp->first
-    dim as long tfr = InstFrameFor_( c, id, gs->name, argTypes, 0 ) : c.diags->EnterInst( tfr )
+    dim as long tfr = InstFrameFor_( c, id, gname, argTypes, 0 ) : c.diags->EnterInst( tfr )
     c.instDepth += 1 : c.instChain += 1  '' a field's type is one deeper -- InstDepthOk_
     for i as long = 0 to gpCount - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[gpFirst + i] )
