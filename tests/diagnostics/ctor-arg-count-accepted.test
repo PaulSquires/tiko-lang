@@ -1,0 +1,13 @@
+'' THE ARITIES fbc ACCEPTS are not refused -- see ctor-arg-count.test. A defaulted
+'' parameter left out, each member of an overload set, 'new T( ... )', and 'S( s0 )' through
+'' the IMPLICIT copy constructor a string field gives S, which the symbol table does not
+'' hold. fbc-modern 1.20 prints ' 3 6 6 7 6 12', 2026-10-03.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/diagnostics/src/ctor-arg-count-accepted.bas -o tests/diagnostics/ctorargcount.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: error
+'' EXPECT-FILE: tests/diagnostics/ctorargcount.exe
+'' RUN: tests/diagnostics/ctorargcount.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3 6 6 7 6 12

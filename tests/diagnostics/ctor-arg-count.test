@@ -1,0 +1,29 @@
+'' A COUNT OF ARGUMENTS NO CONSTRUCTOR TAKES IS AN ERROR (T82) -- fbc's 1 over one
+'' constructor, 99 over a set. 'T( ... )' with no constructor of that arity compiled with
+'' no diagnostic and built the value from some other constructor: chrono's
+'' 'TimeSpan( 0, 1, 30, 0 )', against constructors of three and five, gave thirty minutes.
+'' See src/symbols/ctorargs.bas, CheckCtorArity_.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-03: error 1 on lines
+'' 21-29 and 99 on 30-32, and no others --
+''
+''     21-26  too many, over one constructor: 'var', 'dim', an assignment, an argument,
+''            'new T( ... )', and through a typedef
+''     27     none, to a constructor that needs one
+''     28-29  past a defaulted parameter, and short of the one that is not
+''     30-32  no member of an overload set: between, above and below their arities
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-arg-count.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-arg-count.bas(21,11): error TKO0775: this call passes 2 argument(s), but 'p.constructor' takes 1
+'' EXPECT-OUT: ctor-arg-count.bas(22,16): error TKO0775
+'' EXPECT-OUT: ctor-arg-count.bas(23,7): error TKO0775
+'' EXPECT-OUT: ctor-arg-count.bas(24,5): error TKO0775
+'' EXPECT-OUT: ctor-arg-count.bas(25,19): error TKO0775
+'' EXPECT-OUT: ctor-arg-count.bas(26,12): error TKO0775
+'' EXPECT-OUT: ctor-arg-count.bas(27,11): error TKO0775: this call passes 0 argument(s), but 'p.constructor' takes 1
+'' EXPECT-OUT: ctor-arg-count.bas(28,11): error TKO0775: this call passes 3 argument(s), but 'q.constructor' takes 1 to 2
+'' EXPECT-OUT: ctor-arg-count.bas(29,11): error TKO0775
+'' EXPECT-OUT: ctor-arg-count.bas(30,11): error TKO0632: no overload of 'r.constructor' matches these arguments
+'' EXPECT-OUT: ctor-arg-count.bas(31,11): error TKO0632
+'' EXPECT-OUT: ctor-arg-count.bas(32,11): error TKO0632
