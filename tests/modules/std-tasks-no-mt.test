@@ -1,0 +1,7 @@
+'' T75: std/tasks needs -mt, and says so: TKO0309 from the facade's '#error'. It compiled
+'' and the program then crashed or hung -- the headers' own guard can never fire.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdtasks-mt/nomt.bas -o tests/modules/stdtasksnomt.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0309: #error: "std/tasks needs the multithreaded runtime: build with -mt"

@@ -4,6 +4,9 @@
 '' the interface (ADR 0017, required headers), so FB.<name> is the same thing.
 '' The goroutine headers need the multithreaded runtime: build with -mt.
 #module "tasks"
+#if __FB_MT__ = 0
+    #error "std/tasks needs the multithreaded runtime: build with -mt"
+#endif
 #include once "fb/scheduler.bi"
 #include once "fb/channel.bi"
 #include once "fb/sync.bi"

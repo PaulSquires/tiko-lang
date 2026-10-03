@@ -121,9 +121,12 @@ function PpModPreDirective _
     if e.modst.headerClosed then return false
     if Emitting( e ) = false then return false
 
+    '' '#cmdline' TOO (T75): it chooses the options the IMPORTED modules are built with --
+    '' '-mt' for std/tasks -- so it belongs with the imports, before or after them, and
+    '' the driver reads it from this header before any module is built.
     select case word
     case "module", "import", "lang", "if", "ifdef", "ifndef", "elseif", "elseifdef", _
-         "elseifndef", "else", "endif"
+         "elseifndef", "else", "endif", "cmdline"
         return false
     case "pragma"
         dim as Token t

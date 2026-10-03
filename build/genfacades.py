@@ -247,6 +247,13 @@ def render(mod, names):
     if FACADES[mod][2]:
         out.append("'' The goroutine headers need the multithreaded runtime: build with -mt.")
     out.append('#module "%s"' % mod)
+    if FACADES[mod][2]:
+        # THE HEADERS' OWN GUARD NEVER FIRES (T75): they test 'defined( __FB_MT__ )', and
+        # __FB_MT__ is always defined -- 0 or -1 -- so a build without -mt compiled and
+        # then crashed or hung. Its value is what says.
+        out.append("#if __FB_MT__ = 0")
+        out.append('    #error "std/%s needs the multithreaded runtime: build with -mt"' % mod)
+        out.append("#endif")
     for h in includes:
         out.append('#include once "%s"' % h)
     out.append("")

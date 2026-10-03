@@ -920,6 +920,19 @@ function Run _
         '' THE MODULES THE ROOTS IMPORT ARE BUILT FIRST, dependencies first (ADR 0017), into
         '' objects that join the link. Only for a build: a dump names no objects.
         dim as boolean builds = wantsOutput andalso (ctx.modFileCount = 0)
+        '' ...WITH THE ROOT'S '#cmdline' OPTIONS (T75). The unit's own pass restarts on a
+        '' '#cmdline', but the modules it imports are built before that pass, so
+        '' '#cmdline "-mt"' reached the program and never std/tasks. The root's header
+        '' is read for it now, and the restart happens before anything is built.
+        if builds andalso (restartDepth = 0) andalso (ctx.sources.Count( ) > 0) then
+            dim as Tko.PpResult hpr
+            dim as Tko.PpConfig hcfg = MakePpConfig( ctx )
+            hcfg.scanHeader = true
+            hcfg.scanQuiet = true
+            Tko.PpRun( ctx.sources, cast( Tko.FileId, 1 ), ctx.names, ctx.keywords, _
+                       ctx.diags, hcfg, hpr )
+            if hpr.cmdlineArgs.Count > 0 then return RestartWith_( args, hpr.cmdlineArgs, restartDepth )
+        end if
         if builds then
             if Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit ) = false then
                 ctx.diags.Flush( )
