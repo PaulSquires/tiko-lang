@@ -46,14 +46,9 @@ The constructors take their fields from largest to smallest: `LocalDate( y, mo, 
 for a span, `TimeSpan( h, mi, s )` or `TimeSpan( d, h, mi, s, ms )`. `TimeSpan` also has
 `FromDays`, `FromHours`, `FromMinutes`, `FromSeconds` and `FromMilliseconds`.
 
-```admonish warning title="Status in this version"
-**A constructor call through a module or namespace name is not checked against the
-constructors.** `chrono.TimeSpan( 0, 1, 30, 0 )` — four arguments, where the constructors take
-three or five — compiles, and what it builds is undefined: one build gave thirty minutes, another
-crashed. fbc reports error 99, no matching overloaded function. The same call written without the
-qualifier, after `using`, is refused: `TKO0632: no overload of 'timespan.constructor' matches these
-arguments`. Count the arguments against the list above. Tracked as **T87**.
-```
+A call whose argument count no constructor takes is refused: `chrono.TimeSpan( 0, 1, 30, 0 )` — four
+arguments, where the constructors take three or five — is
+`TKO0632: no overload of 'timespan.constructor' matches these arguments`.
 
 ## Validity
 
