@@ -262,6 +262,38 @@ end sub
 '' EVERY JUMP GETS ITS DESTINATIONS, once the procedure is finished and every ON ERROR
 '' in it has been seen. Run from the two places a procedure body ends.
 sub ResolveErrorJumps_( byref c as Ctx )
+    '' 'ON LOCAL ERROR' PUTS BACK WHAT IT REPLACED (T69), before every 'ret': this IR
+    '' has no single exit. A terminator is not in its block's instruction list, so
+    '' this lands after the result is computed and before the ret. The buffer first,
+    '' through fb_ErrorJmpBuf, which arms it; then the handler, which disarms it again
+    '' when the caller had none -- every non-null handler was installed with a setjmp.
+    if c.errLocalSave > 0 then
+        dim as long savedCurBlk = c.curBlock
+        for bi as long = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+            c.curBlock = bi
+            dim as FB.Array( of ulong ) none
+            dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
+            dim as FB.Array( of ulong ) cp
+            cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
+            cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, c.errLocalSave - 1 ) )
+            cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
+            EmitRtl( c, RTL_MEM_COPY, cp )
+            dim as MirInst ld
+            ld.op = cast( ushort, M_LOAD )
+            ld.ty = cast( ubyte, MT_PTR )
+            ld.a.kind = cast( ubyte, MV_LOCAL )
+            ld.a.ty = cast( ubyte, MT_PTR )
+            ld.a.id = c.errLocalHandler
+            dim as MirValue h = Emit( c, ld )
+            dim as FB.Array( of ulong ) ha
+            ha.Push( cast( ulong, h.kind ) ) : ha.Push( cast( ulong, h.id ) )
+            EmitRtl( c, RTL_ERROR_SET_HANDLER, ha )
+        next
+        c.curBlock = savedCurBlk
+        c.errLocalSave = 0
+    end if
+
     '' THE HANDLER ADDRESSES FIRST: every 'ON ERROR GOTO label' left a null placeholder
     '' where the block address belongs, because the label's block did not exist yet and
     '' could not be made to. Now it does -- the label has been lowered in its own order.

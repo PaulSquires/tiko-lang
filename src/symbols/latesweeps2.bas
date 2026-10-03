@@ -879,7 +879,8 @@ end sub
 
 '' 'on s goto ...' OVER A STRING -- fbc error 20, "Type mismatch, before 'goto'": the
 '' selector is a number. Measured: a string variable and a literal are refused, a double
-'' is accepted. The parser records 2 for GOTO and 3 for GOSUB in 'extra'; ON ERROR is 1.
+'' is accepted. The parser records 2 for GOTO and 3 for GOSUB in 'extra'; ON ERROR is 1,
+'' ON LOCAL ERROR 4.
 private sub CheckOnGotoSelector_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]

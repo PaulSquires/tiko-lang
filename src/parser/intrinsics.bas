@@ -572,11 +572,17 @@ end sub
 
 '' ON expr GOTO l1, l2 ...   /   ON [LOCAL] ERROR GOTO label
 private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
-    if Peek( p ) = Tko.KW_LOCAL then Advance( p )
+    '' LOCAL IS RECORDED (T69): 'extra' is 4 rather than 1, because the handler it
+    '' installs is restored when the procedure returns -- see LowerOnError_.
+    dim as boolean isLocal = false
+    if Peek( p ) = Tko.KW_LOCAL then
+        isLocal = true
+        Advance( p )
+    end if
 
     if Peek( p ) = Tko.KW_ERROR then
         Advance( p )
-        sp.extra = 1
+        sp.extra = iif( isLocal, 4, 1 )
         if (Peek( p ) = Tko.KW_GOTO) orelse (Peek( p ) = Tko.KW_GOSUB) then Advance( p )
         '' 'ON ERROR GOTO 0' DISABLES THE HANDLER, and it is the only integer spelling
         '' that means anything here: a NUMERIC LABEL is fbc's error 146 in the fb

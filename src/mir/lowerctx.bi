@@ -13,6 +13,11 @@
 
 namespace Tko.Mir
 
+'' How much of tiko-rt's setjmp buffer 'ON LOCAL ERROR' saves and restores: from the
+'' 16-aligned address fb_ErrorJmpBuf returns, more than Windows x64's 256-byte jmp_buf
+'' and glibc's 200, and within the 528 the context holds past the alignment.
+const ERR_LOCAL_JMP_BYTES = 512
+
 type Ctx
     as Tko.AstArena ptr     ast
     as Tko.SymbolTable ptr  syms
@@ -51,6 +56,11 @@ type Ctx
     '' so the jump is dead code, and emitting it would mean an indirectbr with no
     '' destinations, which LLVM will not take.
     as boolean              hasErrHandler
+    '' 'ON LOCAL ERROR' (T69): the temporaries the handler and the setjmp buffer it
+    '' replaced are saved in. errLocalSave is the buffer's slot + 1, 0 for none;
+    '' ResolveErrorJumps_ restores both before every 'ret' and clears it.
+    as long                 errLocalSave
+    as long                 errLocalHandler
     '' THE UNIT'S MODULE SCOPE, recorded once. Lowering has no scope of its own -- it
     '' walks a typed tree -- but a CONSTANT FOLD needs one: ConstOf answers 'unknown'
     '' for every identifier when it is handed no symbol table, and Lookup walks

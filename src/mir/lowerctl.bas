@@ -995,6 +995,19 @@ end sub
 '' 'on n GOSUB' is a separate statement -- it pushes a return address -- and is NOT
 '' lowered: it declines rather than jumping without one. 'on error goto' likewise; it
 '' needs the error-handler machinery, which is not built.
+'' fb_ErrorSetHandler returns the handler it replaced: 'ON LOCAL ERROR' keeps it.
+private sub SaveOldHandler_( byref c as Ctx, byref old as MirValue )
+    if old.kind = cast( ubyte, MV_NONE ) then return
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a.kind = cast( ubyte, MV_LOCAL )
+    st.a.ty = cast( ubyte, MT_PTR )
+    st.a.id = c.errLocalHandler
+    st.b = old
+    Emit( c, st )
+end sub
+
 '' 'ON ERROR GOTO label' and 'ON ERROR GOTO 0'. Measured from fbc's own C:
 ''
 ''     fb_ErrorSetHandler( &&label$2 );      installs
@@ -1010,6 +1023,39 @@ end sub
 private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
 
+    '' 'ON LOCAL ERROR' SAVES WHAT IT REPLACES (T69); ResolveErrorJumps_ puts it back
+    '' before every 'ret'. Measured, fbc-modern 1.20:
+    ''
+    ''     TMP$1 = fb_ErrorSetHandler( &&label$4 );     the first ON LOCAL ERROR
+    ''     label$3: fb_ErrorSetHandler( TMP$1 );        the procedure's exit
+    ''
+    '' At the FIRST such statement, not at entry, and nothing at module level -- both
+    '' as fbc. tiko has more to put back than the handler: the setjmp buffer, which
+    '' names THIS frame once the statement has run. Left behind, the caller's next
+    '' error longjmped into a frame that had returned and crashed, its own handler
+    '' never reached. fb_ErrorJmpBuf arms the buffer as it hands it over; harmless,
+    '' since the handler is replaced and the buffer re-captured before anything runs.
+    dim as boolean saving = false
+    if (sp->extra = 4) andalso (c.errLocalSave = 0) andalso _
+       (c.curProcSym <> Tko.SYMBOL_NONE) then
+        dim as long hs = NewTempLocal( c, MT_PTR, 8 )
+        dim as long bs = NewTempLocal( c, MT_AGG, ERR_LOCAL_JMP_BYTES )
+        if (hs >= 0) andalso (bs >= 0) then
+            dim as FB.Array( of ulong ) none
+            dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
+            if jb.kind <> cast( ubyte, MV_NONE ) then
+                dim as FB.Array( of ulong ) cp
+                cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, bs ) )
+                cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
+                cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
+                EmitRtl( c, RTL_MEM_COPY, cp )
+                c.errLocalSave = bs + 1
+                c.errLocalHandler = hs
+                saving = true
+            end if
+        end if
+    end if
+
     dim as FB.Array( of ulong ) args
     if sp->name = 0 then
         '' 'ON ERROR GOTO 0' -- a null handler. The parser leaves the name empty for the
@@ -1017,7 +1063,8 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
         '' error 146 here, so there is no other integer to mean.
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( 0 )
-        EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
+        dim as MirValue old0 = EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
+        if saving then SaveOldHandler_( c, old0 )
         return
     end if
 
@@ -1041,7 +1088,8 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     dim as long argAt = c.m->argPool.Count
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( 0 )
-    EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
+    dim as MirValue old = EmitRtl( c, RTL_ERROR_SET_HANDLER, args )
+    if saving then SaveOldHandler_( c, old )
     c.errPendingArg.Push( cast( ulong, argAt ) )
     c.errPendingSlot.Push( cast( ulong, slot ) )
 
@@ -1107,8 +1155,9 @@ end sub
 
 sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    '' 'ON ERROR GOTO' is its own statement and not a computed goto at all.
-    if sp->extra = 1 then
+    '' 'ON ERROR GOTO' is its own statement and not a computed goto at all; 4 is
+    '' 'ON LOCAL ERROR GOTO'.
+    if (sp->extra = 1) orelse (sp->extra = 4) then
         LowerOnError_( c, id )
         return
     end if

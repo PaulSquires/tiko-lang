@@ -1,0 +1,11 @@
+'' T69, RUN: ON LOCAL ERROR nested two deep, called three times, in a function returning a
+'' value, and as ON LOCAL ERROR GOTO 0; output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/local-error-shapes.bas -o tests/codegen/localerrshapes.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/localerrshapes.exe
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT: off
+'' EXPECT-RUN-OUT: top: 0
