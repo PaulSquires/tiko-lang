@@ -12,6 +12,89 @@
 '' It runs BEFORE the walk, beside the type inference it mirrors, so the diagnostic
 '' lands on the loop rather than on some consequence of it three statements later.
 
+'' THE 'for each' LOOP VARIABLE, where Resolve could not work it out.
+''
+'' Resolve types it from the sequence's SYMBOL, which is all it can do -- an
+'' expression's type is Check's to record and Check has not run yet. That covers a
+'' variable and a parameter and nothing else: 'for each dd in d.Value( )' is a CALL,
+'' whose symbol is the procedure, and the sequence type is its RETURN type. Which
+'' Check knows and Resolve does not.
+''
+'' A PRE-PASS, before the walk, for the same reason InferUnusedVarTypes_ is: every
+'' USE of the loop variable is inside the body, and the walk types those.
+'' A VAR-LENGTH string, either width. 'string * N' is an ARRAY of a character builtin,
+'' so it is not this and is not walked as one -- see LowerForEachStr_.
+private function IsVarLenStringType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType b = c.types->BuiltinOf( t )
+    return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
+end function
+
+private sub InferForEachVarTypes_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_FOREACH then continue for
+        dim as Tko.StmtPayload ptr sp = _
+            @c.ast->stmts[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if sp->a = Tko.NODE_NONE then continue for
+        if sp->count <> 1 then continue for
+        dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if vsym = 0 then continue for
+        if vsym->type_ <> Tko.TYPE_NONE then continue for
+
+        dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.TypeId seqT = TypeOf_( c, seqE )
+        if seqT = Tko.TYPE_NONE then continue for
+        seqT = c.types->Unqualify( seqT )
+        if c.types->Kind( seqT ) = Tko.TK_REFERENCE then
+            seqT = c.types->Unqualify( c.types->Inner( seqT ) )
+        end if
+        if c.types->Kind( seqT ) = Tko.TK_ARRAY then
+            vsym->type_ = c.types->Inner( seqT )
+        elseif IsVarLenStringType_( c, seqT ) then
+            '' 'for each ch in s' over a VAR-LENGTH STRING walks its CHARACTERS, and
+            '' a character is a UBYTE -- measured, fbc declares the loop variable
+            '' 'uint8'. Without this the variable was declared and untyped, so every
+            '' use of it in the body had no operand type to work from.
+            vsym->type_ = c.types->Builtin( Tko.TY_UBYTE )
+        elseif c.types->Kind( seqT ) = Tko.TK_UDT then
+            '' The RFC-0002 protocol: GetIterator gives the iterator's type and its
+            '' Value( ) gives the element's.
+            dim as Tko.SymbolId gi = UdtMemberSym_( c, seqT, "getiterator" )
+            dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
+            if gs <> 0 then
+                dim as Tko.SymbolId vo = UdtMemberSym_( c, gs->type_, "value" )
+                dim as Tko.Symbol ptr vs2 = c.syms->SymbolAt( vo )
+                if vs2 <> 0 then
+                    dim as Tko.TypeId et = vs2->type_
+                    if et <> Tko.TYPE_NONE then
+                        if c.types->Kind( et ) = Tko.TK_REFERENCE then
+                            et = c.types->Inner( et )
+                        end if
+                    end if
+                    vsym->type_ = et
+                end if
+            end if
+        end if
+        '' ...AND 'for each byref' STAYS BYREF (T71), as Resolve's typing keeps it. A
+        '' collection declared with 'var' has no type until Check, so its loop
+        '' variable is typed here -- and was typed as the element, a copy: 'n *= 100'
+        '' changed nothing, silently, where the same loop over a 'dim' changed the
+        '' collection.
+        '' NOT over a string: there it binds a copy, as it always has -- fbc refuses
+        '' that loop outright (error 345), which is a separate item, T72.
+        dim as boolean wrap = (cast( Tko.TokenKind, sp->op ) = Tko.KW_BYREF)
+        if vsym->type_ = Tko.TYPE_NONE then wrap = false
+        if IsVarLenStringType_( c, seqT ) then wrap = false
+        if wrap then
+            if c.types->Kind( vsym->type_ ) <> Tko.TK_REFERENCE then
+                vsym->type_ = c.types->Reference( vsym->type_ )
+            end if
+        end if
+    next
+end sub
+
 '' The declaring symbol of a UDT type. Same lookup UdtMemberSym_ does, stopping one step
 '' earlier because what is wanted here is the SCOPE and not one name in it.
 private function UdtSymOfType_ _

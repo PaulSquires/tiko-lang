@@ -1,0 +1,10 @@
+'' T71, RUN: for each byref over a var-declared collection writes the collection,
+'' as fbc-modern does (100 200). tiko printed 1 2.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/foreach-byref-var.bas -o tests/codegen/eachbyrefvar.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/eachbyrefvar.exe
+'' EXPECT-RUN-OUT:  100 200
+'' EXPECT-RUN-OUT:  200 300 2
+'' EXPECT-RUN-OUT:  6 7
