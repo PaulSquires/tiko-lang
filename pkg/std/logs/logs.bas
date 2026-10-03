@@ -9,6 +9,9 @@
 #define ConsoleTarget FB.ConsoleTarget
 #define CT_STDERR FB.CT_STDERR
 #define CT_STDOUT FB.CT_STDOUT
+#define FileSink FB.FileSink
+#define GetLogErrorHandler FB.GetLogErrorHandler
+#define JsonRenderer FB.JsonRenderer
 #define LevelFromName FB.LevelFromName
 #define LevelName FB.LevelName
 #define LevelNameShort FB.LevelNameShort
@@ -29,16 +32,27 @@
 #define LOG_OFF FB.LOG_OFF
 #define LOG_TRACE FB.LOG_TRACE
 #define LOG_WARN FB.LOG_WARN
+#define LogDefaultErrorHandler FB.LogDefaultErrorHandler
+#define LogDoubleText FB.LogDoubleText
+#define LogErrorHandler FB.LogErrorHandler
 #define LogEvent FB.LogEvent
 #define LogField FB.LogField
 #define LogFieldArray FB.LogFieldArray
 #define Logger FB.Logger
+#define LogInit FB.LogInit
 #define LogKind FB.LogKind
 #define LogLevel FB.LogLevel
 #define LogRecord FB.LogRecord
+#define LogShutdown FB.LogShutdown
 #define LogValue FB.LogValue
 #define LogValueToText FB.LogValueToText
 #define Renderer FB.Renderer
+#define RotatePolicy FB.RotatePolicy
+#define RP_BOTH FB.RP_BOTH
+#define RP_DAILY FB.RP_DAILY
+#define RP_NONE FB.RP_NONE
+#define RP_SIZE FB.RP_SIZE
+#define SetLogErrorHandler FB.SetLogErrorHandler
 #define Sink FB.Sink
 #define SinkPtrArray FB.SinkPtrArray
 #define TextRenderer FB.TextRenderer
@@ -49,9 +63,12 @@
 #define TS_NONE FB.TS_NONE
 #define TS_TIME_ONLY FB.TS_TIME_ONLY
 
-#export ConsoleSink, ConsoleTarget, CT_STDERR, CT_STDOUT, LevelFromName, LevelName
-#export LevelNameShort, LevelToSyslog, LK_BOOL, LK_DBL, LK_INSTANT, LK_INT, LK_NULL, LK_PTR
-#export LK_STR, LK_TIMESPAN, LK_UINT, LOG_DEBUG, LOG_ERROR, LOG_FATAL, LOG_INFO, LOG_OFF
-#export LOG_TRACE, LOG_WARN, LogEvent, LogField, LogFieldArray, Logger, LogKind, LogLevel
-#export LogRecord, LogValue, LogValueToText, Renderer, Sink, SinkPtrArray, TextRenderer
-#export TextStamp, TS_ISO_LOCAL, TS_ISO_UTC, TS_MONO, TS_NONE, TS_TIME_ONLY
+#export ConsoleSink, ConsoleTarget, CT_STDERR, CT_STDOUT, FileSink, GetLogErrorHandler
+#export JsonRenderer, LevelFromName, LevelName, LevelNameShort, LevelToSyslog, LK_BOOL
+#export LK_DBL, LK_INSTANT, LK_INT, LK_NULL, LK_PTR, LK_STR, LK_TIMESPAN, LK_UINT, LOG_DEBUG
+#export LOG_ERROR, LOG_FATAL, LOG_INFO, LOG_OFF, LOG_TRACE, LOG_WARN, LogDefaultErrorHandler
+#export LogDoubleText, LogErrorHandler, LogEvent, LogField, LogFieldArray, Logger, LogInit
+#export LogKind, LogLevel, LogRecord, LogShutdown, LogValue, LogValueToText, Renderer
+#export RotatePolicy, RP_BOTH, RP_DAILY, RP_NONE, RP_SIZE, SetLogErrorHandler, Sink
+#export SinkPtrArray, TextRenderer, TextStamp, TS_ISO_LOCAL, TS_ISO_UTC, TS_MONO, TS_NONE
+#export TS_TIME_ONLY
