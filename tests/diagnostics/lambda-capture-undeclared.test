@@ -1,0 +1,9 @@
+'' TKO0743 at the capture, fbc's 354: a capture list naming no variable (T73). tiko said
+'' nothing there -- the error surfaced at a use in the body, or with none, in clang.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/lambda-capture-undeclared.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: lambda-capture-undeclared.bas(4,22): error TKO0743: 'totl' is not declared
+'' EXPECT-OUT: lambda-capture-undeclared.bas(7,23): error TKO0743: 'missing' is not declared
+'' EXPECT-OUT: lambda-capture-undeclared.bas(5,5): error TKO0743: 'total' is not declared
+'' EXPECT-MAX-DIAG: 3

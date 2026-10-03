@@ -172,7 +172,14 @@ private sub BuildClosureType_ _
         if c.ast->Kind( cn ) <> Tko.N_IDENT then return
         dim as Tko.SymbolId csid = c.syms->LookupTyped( scope_, IdentNameOf( c, cn ), false )
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( csid )
-        if cs = 0 then return
+        '' A CAPTURE THAT NAMES NOTHING is reported where it is written (T73): fbc's
+        '' error 354, as the TKO0743 every other undeclared name gets. Left silent, the
+        '' error surfaced at some use in the body -- or, with none, as a 'void'
+        '' parameter clang refused.
+        if cs = 0 then
+            NoteUnbound_( c, cn, scope_ )
+            return
+        end if
         dim as Tko.TypeId ct = cs->type_
         if ct = Tko.TYPE_NONE then return
         if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
