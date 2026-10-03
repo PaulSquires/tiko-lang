@@ -210,8 +210,21 @@ end function
 
 '' system(), AND NOTHING ELSE -- SHELL inherits every property of it, including
 '' that metacharacters in the program name are interpreted.
+''
+'' ON POSIX system() RETURNS A WAIT STATUS, not an exit code (T81): 'exit 3' came
+'' back as 768, 3 shl 8. fbc's unix/sys_hshell.c decodes it -- WIFEXITED, then
+'' WEXITSTATUS -- and reads 127, "/bin/sh could not be executed", as -1. So does
+'' this, with the two macros spelled out: WIFEXITED is (st and &h7F) = 0, and
+'' WEXITSTATUS is (st shr 8) and &hFF. Windows' system() already returns the code.
 function tkort_hShell alias "fb_hShell" ( byval program as zstring ptr ) as long
-	return crt_system( program )
+	dim as long errcode = crt_system( program )
+	#ifndef __FB_WIN32__
+		if( (errcode <> -1) andalso ((errcode and &h7F) = 0) ) then
+			errcode = (errcode shr 8) and &hFF
+			if( errcode = 127 ) then errcode = -1
+		end if
+	#endif
+	return errcode
 end function
 
 end extern
