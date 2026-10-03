@@ -1,0 +1,10 @@
+'' sizeof( cva_list ) naming the type, on Linux x86-64: 24, the SysV register-save record,
+'' the same as cva-layout-linux.test's --dump-types and a variable's size. See
+'' cva-sizeof-name.test (T84).
+'' TEST: cli
+'' ARGS: --dump-ir -target linux-x86_64 tests/mir/src/cva-sizeof-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0743
+'' EXPECT-NOT: const i64 8
+'' EXPECT-OUT: const i64 24
+'' EXPECT-OUT: 0 statements not lowered

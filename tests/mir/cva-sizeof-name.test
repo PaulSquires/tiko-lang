@@ -1,0 +1,12 @@
+'' 'sizeof( cva_list )' NAMING THE TYPE (T84). The name parses as an expression there, and
+'' only a declaration's type reference predefined it, so it was TKO0743: 'cva_list' is not
+'' declared, where fbc-modern 1.20 prints 8 on win64 -- as it does for the size of a
+'' variable of the type, which already worked. See src/symbols/exprtypename.bas.
+'' TEST: cli
+'' ARGS: --dump-ir -target win64-msvc tests/mir/src/cva-sizeof-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0743
+'' EXPECT-OUT: store @named, %
+'' EXPECT-OUT: const i64 8
+'' EXPECT-OUT: store @vialen, %
+'' EXPECT-OUT: 0 statements not lowered
