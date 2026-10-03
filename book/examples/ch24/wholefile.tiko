@@ -1,0 +1,21 @@
+#import "std/fs"
+#import "std/containers"
+
+'' Replace the whole file in one step: a reader sees the old file or
+'' the new one, never half of either.
+var ok = fs.WriteAtomic( "app.ini", _
+    "[main]" & chr( 10 ) & "mode=fast" & chr( 10 ) )
+print "written: "; ok.IsOk( )
+
+dim lines as containers.Array( of ustring )
+var n = fs.ReadAllLines( "app.ini", lines )
+print n.Value( ); " lines: "; lines[0]; " / "; lines[1]
+print "as text: "; fs.ReadAllText( "app.ini" ).Value( );
+
+var missing = fs.ReadAllText( "nowhere/app.ini" )
+if missing.IsOk( ) = false then
+    var why = missing.Failure( )
+    print "could not read: "; _
+          iif( why.Code( ) = fs.FS_NOT_FOUND, "not found", "other" )
+end if
+fs.RemoveFile( "app.ini" )

@@ -1,0 +1,25 @@
+#import "std/fs"
+
+fs.WriteAllText( "word.txt", "tiko" )
+
+'' Map the file into memory and change a byte in place.
+dim m as fs.MemoryMappedFile
+if m.Open( "word.txt", true ).IsOk( ) then
+    print "mapped"; m.Size( ); " bytes"
+    m.Data( )[0] = asc( "T" )
+    m.Flush( )
+    m.Close( )                        '' Data( ) is invalid after this
+end if
+print fs.ReadAllText( "word.txt" ).Value( )
+
+'' An advisory lock: it binds only programs that also ask for it.
+dim guard as fs.FileLock
+print "locked: "; guard.Acquire( "word.txt" ).IsOk( ); guard.IsHeld( )
+guard.Release( )
+print "held after release: "; guard.IsHeld( )
+fs.RemoveFile( "word.txt" )
+
+'' A temporary file is created for you, under a fresh name.
+var tmp = fs.CreateTempFile( "book" )
+print "temp file exists: "; fs.IsFile( tmp.Value( ) )
+fs.RemoveFile( tmp.Value( ) )         '' nothing removes it for you

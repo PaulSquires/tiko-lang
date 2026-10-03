@@ -1,0 +1,12 @@
+#import "std/fs"
+
+'' Build a path inside "uploads" from a name somebody else chose.
+dim as ustring folder = "uploads"
+dim names( 0 to 2 ) as ustring = _
+    { "photo.png", "/etc/passwd", "C:\Windows\win.ini" }
+
+for each n in names
+    var full = fs.PathJoin( folder, n )
+    var inside = fs.PathStartsWith( fs.PathNormalize( full ), folder )
+    print n; " -> "; full; "   inside: "; inside
+next

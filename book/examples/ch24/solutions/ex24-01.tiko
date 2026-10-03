@@ -1,0 +1,23 @@
+'' Exercise 24-1: count the files in a tree by extension.
+#import "std/fs"
+#import "std/containers"
+
+var root = fs.CreateTempDir( "ex" ).Value( )
+fs.CreateDirAll( fs.PathJoin( root, "a", "b" ) )
+fs.WriteAllText( fs.PathJoin( root, "one.txt" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "a", "two.txt" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "a", "b", "three.tiko" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "a", "b", "noext" ), "" )
+
+dim byExt as containers.OrderedMap( of ustring, int32 )
+for each r in fs.WalkDir( root )
+    if r.IsOk( ) andalso r.Value( ).IsFile( ) then
+        var ext = fs.PathExtension( r.Value( ).Name( ) )
+        if len( ext ) = 0 then ext = "(none)"
+        byExt[ ext ] += 1
+    end if
+next
+for each (ext, n) in byExt.Pairs( )
+    print ext; n
+next
+fs.RemoveDirAll( root )

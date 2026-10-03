@@ -1,0 +1,10 @@
+0 readme.txt
+0 src/
+1 lib/
+1 main.tiko
+2 todo.txt
+2 util.tiko
+glob: util.tiko
+glob: main.tiko
+copied: 5
+removed: 12, still there: false

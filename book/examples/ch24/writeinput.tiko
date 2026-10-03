@@ -1,0 +1,19 @@
+'' write # quotes strings and separates with commas; input # reads
+'' the fields back, commas inside quotes and all.
+var f = freefile( )
+open "people.csv" for output as #f
+write #f, "ada", 36, 1.5
+write #f, "hopper, grace", 85, 2
+close #f
+
+f = freefile( )
+open "people.csv" for input as #f
+dim as ustring who
+dim as int32 age
+dim as float64 rating
+do until eof( f )
+    input #f, who, age, rating
+    print who; " |"; age; " |"; rating
+loop
+close #f
+kill "people.csv"

@@ -1,0 +1,39 @@
+#import "std/fs"
+#import "std/containers"
+
+'' A small tree in a fresh temporary directory.
+var made = fs.CreateTempDir( "book" )
+if made.IsOk( ) = false then end 1
+var root = made.Value( )
+fs.CreateDirAll( fs.PathJoin( root, "src", "lib" ) )
+fs.WriteAllText( fs.PathJoin( root, "readme.txt" ), "read me" )
+fs.WriteAllText( fs.PathJoin( root, "src", "main.tiko" ), "print 1" )
+fs.WriteAllText( fs.PathJoin( root, "src", "lib", "util.tiko" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "src", "lib", "todo.txt" ), "" )
+
+'' Every entry below root, at any depth. Each element is a Result.
+dim found as containers.Array( of ustring )
+for each r in fs.WalkDir( root )
+    if r.IsOk( ) then
+        var e = r.Value( )
+        found.Push( e.Depth( ) & " " & e.Name( ) & _
+                    iif( e.IsDirectory( ), "/", "" ) )
+    end if
+next
+containers.Sort( found )              '' directory order is not defined
+for each s in found
+    print s
+next
+
+'' Every .tiko file, at any depth.
+dim hits as containers.Array( of ustring )
+fs.Glob( fs.PathJoin( root, "**", "*.tiko" ), hits )
+containers.Sort( hits )
+for each h in hits
+    print "glob: "; fs.PathFileName( h )
+next
+
+print "copied:"; fs.CopyDir( fs.PathJoin( root, "src" ), _
+                             fs.PathJoin( root, "backup" ) ).Value( )
+print "removed:"; fs.RemoveDirAll( root ).Value( ); _
+      ", still there: "; fs.Exists( root )

@@ -1,0 +1,13 @@
+#include once "fbio.bi"
+
+'' Colour and cursor positions are for a person at a console. When the
+'' output goes to a file or a pipe, print plain text instead.
+if IsRedirected( ) then
+    print "report (plain): 3 warnings"
+else
+    cls
+    color 14
+    locate 2, 4
+    print "report: 3 warnings"
+    color 7
+end if

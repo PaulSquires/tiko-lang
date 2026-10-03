@@ -1,0 +1,12 @@
+'' command( n ) is the n-th argument; command( ) is all of them.
+dim as int32 i = 1
+do while len( command( i ) ) > 0
+    print i; ": "; command( i )
+    i += 1
+loop
+print "all: "; command( )
+
+'' Environment variables: set one, read it, read one that is not set.
+setenviron "REPORT_MODE=draft"
+print "REPORT_MODE="; environ( "REPORT_MODE" )
+print "UNSET_VARIABLE=["; environ( "UNSET_VARIABLE_XYZ" ); "]"

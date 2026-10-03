@@ -1,0 +1,10 @@
+'' Run a command through the shell, and read its output through a pipe.
+var code = shell( "exit 3" )
+print "shell returned"; code
+
+var f = freefile( )
+open pipe "echo from the child" for input as #f
+dim as ustring got
+line input #f, got
+close #f
+print "read: "; trim( got )

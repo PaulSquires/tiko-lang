@@ -1,0 +1,25 @@
+#import "std/fs"
+
+fs.WriteAllText( "hello.txt", "hello" & chr( 10 ) )
+
+'' One call, every fact about the file.
+var st = fs.Stat( "hello.txt" )
+if st.IsOk( ) then
+    var info = st.Value( )
+    print "size:"; info.Size( ); ", file: "; info.IsFile( ); _
+          ", directory: "; info.IsDirectory( )
+end if
+
+'' A file that is not there is a failure with a reason, not a zero.
+var gone = fs.Stat( "no-such-file.txt" )
+if gone.IsOk( ) = false then
+    var code = gone.Failure( ).Code( )
+    print "missing file: "; _
+          iif( code = fs.FS_NOT_FOUND, "not found", "other" )
+end if
+
+'' The yes/no predicates fold every failure into false.
+print fs.Exists( "hello.txt" ); fs.IsFile( "hello.txt" ); _
+      fs.IsDir( "hello.txt" )
+fs.RemoveFile( "hello.txt" )
+print fs.Exists( "hello.txt" )

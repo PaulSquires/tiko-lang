@@ -1,0 +1,3 @@
+photo.png -> uploads/photo.png   inside: true
+/etc/passwd -> /etc/passwd   inside: false
+C:\Windows\win.ini -> uploads/C:\Windows\win.ini   inside: true

@@ -1,0 +1,15 @@
+'' The statements every program has had: directories, renames, removal.
+mkdir "scratch"
+chdir "scratch"
+print "now in: "; right( curdir( ), 7 )
+
+open "draft.txt" for output as #1
+close #1
+name "draft.txt" as "final.txt"
+print "final.txt: ["; dir( "final.txt" ); "]  "; _
+      "draft.txt: ["; dir( "draft.txt" ); "]"
+
+kill "final.txt"
+chdir ".."
+rmdir "scratch"
+print "scratch left behind: ["; dir( "scratch", &h10 ); "]"

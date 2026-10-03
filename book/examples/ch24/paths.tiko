@@ -1,0 +1,12 @@
+#import "std/fs"
+
+'' The path algebra: functions over strings, no file system involved.
+print fs.PathJoin( "data", "2026", "report.txt" )
+print fs.PathFileName( "logs/2026/report.tar.gz" )
+print fs.PathStem( "report.tar.gz" ); "  "; _
+      fs.PathExtension( "report.tar.gz" )
+print fs.PathStem( ".gitignore" ); "  ["; _
+      fs.PathExtension( ".gitignore" ); "]"
+print fs.PathParent( "logs/2026/report.txt" )
+print fs.PathNormalize( "logs/./2026/../report.txt" )
+print fs.PathChangeExtension( "report.txt", ".md" )

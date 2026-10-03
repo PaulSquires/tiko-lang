@@ -1,0 +1,5 @@
+'' The exit code is what a script or a build tool checks.
+dim as int32 errors = 4
+print errors; " errors"
+if errors > 0 then end errors     '' the process exits with status 4
+print "never printed"
