@@ -1,0 +1,15 @@
+'' A FIELD NAMED Function OR Scope OPENS NO BLOCK (T89). The preprocessor scopes a macro to
+'' the SUB, FUNCTION or SCOPE it is defined in, and read 'Function as long' as one opening:
+'' win/winnt.bi has three such fields, so windows.bi left it three blocks deep, every macro
+'' defined after it was taken as block-local, and the next header's 'end function' dropped
+'' them -- '#import "std/tui"' then '#import "std/fs"' lost every tui name. The drop needs a
+'' closer below the define's depth, which field-named-function-b.bi supplies as fb/sort.bi
+'' does: a lambda argument, whose head opens nothing and whose 'end function' closes one.
+'' fbc-modern 1.20 compiles the source and prints 42; the unfixed tiko stops at the #error
+'' (2026-10-03). See src/pp/pp.bas, the opener rule.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/field-named-function.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: KEEP_ME was dropped
+'' EXPECT-NOT: error
+'' EXPECT-OUT: 0 statements not lowered

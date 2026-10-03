@@ -1170,12 +1170,14 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
             closer = true
         elseif e.stmtDirty = false then
             opener = true
-            if k = KW_FUNCTION then
-                '' 'function = expr' assigns the result; it opens nothing.
-                dim as Token nx
-                if PeekTok( e, nx ) then
-                    if Tk( nx ) = TK_EQ then opener = false
-                end if
+            '' 'function = expr' assigns the result, and 'Function as DWORD' is a FIELD --
+            '' win/winnt.bi has three -- so neither opens anything (T89). Counted as blocks,
+            '' they left windows.bi three deep, and every macro defined after it was dropped
+            '' at the next header's 'end function': '#import "std/tui"' then "std/fs" lost tui.
+            dim as Token nx
+            if PeekTok( e, nx ) then
+                if (k = KW_FUNCTION) andalso (Tk( nx ) = TK_EQ) then opener = false
+                if Tk( nx ) = KW_AS then opener = false
             end if
         end if
     end if
