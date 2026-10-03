@@ -531,14 +531,11 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
         case Tko.KW_IMPORT, Tko.KW_EXPORT
             '' 'extern import _ctype alias "_ctype" as ushort ptr ptr' -- a DLL-imported
-            '' variable, which is how the CRT headers declare every one of theirs.
-            '' Without this the modifier was read as the variable's NAME and the real
-            '' name as its type, so ctype.bi and stdlib.bi each failed twice and every
-            '' corpus file that reaches the C runtime through them failed with it.
-            ''
-            '' It affects the linkage, not the declaration, and tiko-lang emits no import
-            '' table -- so it is consumed and NOT recorded, which is honest about
-            '' producing the same declaration either way.
+            '' variable, which is how the CRT headers declare every one of theirs. Read
+            '' as the NAME, it failed ctype.bi and stdlib.bi. IMPORT is RECORDED (T85):
+            '' consumed and dropped, the variable was referenced directly, and lld-link
+            '' has no '__imp_' fallback for data -- 'undefined symbol: MyDll_Data'.
+            if k = Tko.KW_IMPORT then sp.extra or= Tko.VF_DLLIMPORT
             Advance( p )
         case Tko.KW_BYREF
             '' 'dim byref rb as string = a' -- a REFERENCE variable. Without this the

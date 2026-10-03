@@ -510,6 +510,7 @@ sub WalkNode _
                     Tko.NF_BYREF) <> 0 then s->flags or= Tko.SYMF_BYREF
                 if isExtern then
                     s->flags or= Tko.SYMF_EXTERN
+                    if (sp->extra and Tko.VF_DLLIMPORT) <> 0 then s->flags or= Tko.SYMF_DLLIMPORT
                     '' ...AND THE NAME IT LINKS BY. Measured on fbc's object file:
                     '' 'extern MyThing as long' leaves an undefined 'MYTHING$', and
                     '' the same declaration inside 'extern "C"' leaves 'MyThing',

@@ -343,6 +343,9 @@ namespace Tko
     '' no array result. Set by ResultTypeRef_ (parser/declparam.bas) and read by Resolve, which
     '' wraps the written result type in DynArrayOf( T, 0 ).
     const PF_ARRAY_RESULT   as ulong = &h00800000
+    '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
+    '' a DLL exports, reached through its import pointer (T85). See llvmglobal.bas.
+    const VF_DLLIMPORT      as ulong = &h00000001
 
     type UnaryPayload
         as ushort op                '' TokenKind

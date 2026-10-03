@@ -126,6 +126,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     dim as boolean sharedOut = (isExtDef orelse isCommon orelse memberStatic)
     if isExt then
         c.m->globals[g].isExternal = true
+        c.m->globals[g].isDllImport = ((s->flags and Tko.SYMF_DLLIMPORT) <> 0)
     elseif modVar then
         '' Module code: 'private' is internal; 'public' external; the default external
         '' and hidden (RFC-0002 §4).

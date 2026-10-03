@@ -1,0 +1,11 @@
+'' 'extern import' IS A DLL'S VARIABLE, AND IS LOADED THROUGH ITS IMPORT POINTER (T85). The
+'' keyword was consumed and dropped, so the variable was referenced directly, and an import
+'' library defines only '__imp_<name>' for data: against a clang-built DLL exporting
+'' 'int MyDll_Data', 'lld-link: error: undefined symbol: MyDll_Data'. Emitted 'dllimport'
+'' now, it reads &h1234, and a write and an '@' go through the DLL's own storage (measured
+'' 2026-10-03). A plain 'extern' is unchanged. See src/codegen/llvmglobal.bas.
+'' TEST: cli
+'' ARGS: --emit-ir -target win64-msvc tests/codegen/src/extern-import.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: @"MyDll_Data" = external dllimport global i32
+'' EXPECT-OUT: @"Plain_Data" = external global i32

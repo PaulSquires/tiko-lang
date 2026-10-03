@@ -519,6 +519,9 @@ namespace Tko.Mir
         '' because it lives in the runtime. Without saying so, an empty table would
         '' read as a real one with no entries.
         as boolean  isExternal
+        '' ...AND IN A DLL: 'extern import' (T85). Emitted 'dllimport' on COFF, so every
+        '' access loads through the '__imp_<name>' pointer the loader fills in.
+        as boolean  isDllImport
         '' ...AND NOBODY ELSE'S AT ALL. A 'dim shared' is one module's variable, and
         '' fbc says so: 'static int32 SH$ = 1;', internal linkage, where only an
         '' EXTERN's definition is 'int32 E$ = 5;'. Emitted external, two modules that

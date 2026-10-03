@@ -80,7 +80,12 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
         '' pointer would let a read of it take 8.
         dim as string ety = "ptr"
         if g.isVar then ety = LlvmType( cast( MirType, g.ty ), g.size )
-        e.outp += nm & " = external global " & ety & chr( 10 )
+        '' ...AND A DLL'S, on Windows (T85): 'dllimport' makes LLVM load the address from
+        '' '__imp_<name>', which is all an import library defines for DATA -- unlike a
+        '' function, a variable has no thunk. ELF resolves it through the GOT unasked.
+        dim as string dllimp = ""
+        if g.isDllImport andalso (e.tgt->objFormat = OBJ_COFF) then dllimp = "dllimport "
+        e.outp += nm & " = external " & dllimp & "global " & ety & chr( 10 )
         return
     end if
 

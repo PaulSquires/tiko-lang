@@ -1,0 +1,8 @@
+'' 'extern import' on Linux: ELF reaches a shared object's variable through the GOT with no
+'' marking, so nothing changes there -- 'dllimport' is a COFF storage class. See
+'' extern-import.test (T85).
+'' TEST: cli
+'' ARGS: --emit-ir -target linux-x86_64 tests/codegen/src/extern-import.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: dllimport
+'' EXPECT-OUT: @"MyDll_Data" = external global i32

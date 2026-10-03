@@ -173,6 +173,8 @@ namespace Tko
     '' 'public' is SYMF_PUBLIC; without it, it is there only for the module's own generic
     '' bodies to find.
     const SYMF_IMPORTED       as ulong = &h04000000
+    '' 'extern import': a DLL's variable, loaded through '__imp_<name>' on COFF (T85).
+    const SYMF_DLLIMPORT      as ulong = &h08000000
 
     type Symbol
         as ubyte     kind
