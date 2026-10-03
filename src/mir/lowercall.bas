@@ -90,56 +90,6 @@ end function
 
 
 
-'' THE MODULE'S DECLARATION FOR A CALLEE, found or made. An INDIRECT call needs one
-'' too: a virtual call reaches its target through the vptr, but the DECLARATION it
-'' was mangled from is in hand, and without a signature the ABI pass has nothing to
-'' classify against. See HANDOFF 7g. The scan is linear for now.
-function DeclIndexFor_ _
-    ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
-      byval cs as Tko.Symbol ptr, byval withSret as boolean, _
-      byval withThis as boolean ) as long
-
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = cnm then
-            '' AN EXISTING DECLARATION MAY HAVE BEEN BUILT WITHOUT THE RECEIVER. The
-            '' name is the only key, so an entry made where 'withThis' was false
-            '' stayed that way and a later member call went out with one argument
-            '' against a signature declaring none -- 'calls ARRAY<7>::COUNT with 1
-            '' arguments, which declares 0', twelve times, in the module that only
-            '' CALLS an instantiation it did not instantiate. A DEFINITION is never
-            '' rewritten: its signature came from its own body.
-            dim as MirFunction ptr have = c.m->functions[i]
-            if (have->isDefinition = false) andalso (cs <> 0) then
-                dim as long wantN = 0
-                if withSret then wantN += 1
-                if withThis then wantN += 1
-                if have->paramTys.Count < wantN then
-                    have->paramTys.Clear( )
-                    SignatureFromProc( c, have, cast( Tko.NodeId, cs->payload ), _
-                                       withSret, withThis )
-                end if
-            end if
-            return i
-        end if
-    next
-    dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
-    if decl = 0 then return -1
-    '' The return's SIZE, where it is an aggregate -- the ABI pass classifies by
-    '' byte count and a declaration is where that number would otherwise be lost.
-    if (callTy = MT_AGG) andalso (cs <> 0) then
-        decl->retSize = SizeOfType( c, cs->type_ )
-        decl->retClass = ClassifyEightbytes( c, cs->type_ )
-    end if
-    decl->isDefinition = false
-    '' THE SIGNATURE, from the procedure this call resolved to. The two hidden
-    '' parameters are reported rather than re-derived: whether a hidden result
-    '' pointer and a receiver were passed was decided by the CALL, and the
-    '' declaration has to agree with the argument list it is built beside.
-    if cs <> 0 then
-        SignatureFromProc( c, decl, cast( Tko.NodeId, cs->payload ), withSret, withThis )
-    end if
-    return c.m->functions.Count - 1
-end function
 
 function LowerCallParts _
     ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _

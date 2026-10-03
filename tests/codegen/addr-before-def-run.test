@@ -1,0 +1,23 @@
+'' RUN: a procedure's address taken BEFORE its definition, then direct calls. '@X' declared
+'' X with no parameters and no result, every later call bound to that empty declaration, and
+'' the build said 'verify: calls X with N arguments, which declares 0' -- and with an
+'' aggregate result clang refused it outright ('[0 x i8]' against '[32 x i8]'). A sub, a
+'' function, a string result, an aggregate result, and a call between the address and the
+'' definition. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/addr-before-def.bas -o tests/codegen/addrbeforedef.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/addrbeforedef.exe
+'' RUN: tests/codegen/addrbeforedef.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: early, direct 6
+'' EXPECT-RUN-OUT: private, direct 1
+'' EXPECT-RUN-OUT: private, pointer 1
+'' EXPECT-RUN-OUT: public, direct 2
+'' EXPECT-RUN-OUT: public, pointer 2
+'' EXPECT-RUN-OUT: twice 6 8
+'' EXPECT-RUN-OUT: words 5 / words 5
+'' EXPECT-RUN-OUT: big 10 13 20 23
+'' EXPECT-RUN-OUT: early, pointer 6

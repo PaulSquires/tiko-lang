@@ -1320,6 +1320,10 @@ declare function EmitRtl _
         ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean
     declare function StrIifAbandon_ _
         ( byref c as Ctx, byval joinB as long, byval elseB as long ) as boolean
+    declare function DeclIndexFor_ _
+        ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
+          byval cs as Tko.Symbol ptr, byval withSret as boolean, _
+          byval withThis as boolean ) as long
     declare function SretCallType_ _
         ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
           byval sigT as Tko.TypeId ) as Tko.TypeId

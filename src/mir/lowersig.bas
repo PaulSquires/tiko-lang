@@ -210,4 +210,74 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
     return c.m->functions.Count - 1
 end function
 
+'' THE MODULE'S DECLARATION FOR A CALLEE, found or made. An INDIRECT call needs one
+'' too: a virtual call reaches its target through the vptr, but the DECLARATION it
+'' was mangled from is in hand, and without a signature the ABI pass has nothing to
+'' classify against. See HANDOFF 7g. The scan is linear for now. Moved here from
+'' lowercall.bas on 2026-10-03 for the 1500-line cap.
+function DeclIndexFor_ _
+    ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
+      byval cs as Tko.Symbol ptr, byval withSret as boolean, _
+      byval withThis as boolean ) as long
+
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = cnm then
+            '' AN EXISTING DECLARATION MAY HAVE BEEN BUILT WITHOUT THE RECEIVER. The
+            '' name is the only key, so an entry made where 'withThis' was false
+            '' stayed that way and a later member call went out with one argument
+            '' against a signature declaring none -- 'calls ARRAY<7>::COUNT with 1
+            '' arguments, which declares 0', twelve times, in the module that only
+            '' CALLS an instantiation it did not instantiate. A DEFINITION is never
+            '' rewritten: its signature came from its own body.
+            dim as MirFunction ptr have = c.m->functions[i]
+            '' A PARAMETERLESS VOID STUB IS REBUILT WHOLE, as if this call had made it.
+            '' FuncAddrOf makes one when '@X' meets X before its definition: an address
+            '' needs a function index and has no call to say what the signature is. A
+            '' later call found the stub, so 'X( a, b )' went out against a declaration
+            '' of nothing -- 'calls X with 2 arguments, which declares 0' -- whenever the
+            '' address came first, private or not (fbc-modern's fb/logerror.bi, 2026-10-03).
+            '' The rebuild is the bottom of this function's, so the stub ends up exactly
+            '' as a fresh declaration would; a real 'declare sub X( )' rebuilds to itself.
+            if (have->isDefinition = false) andalso (cs <> 0) andalso _
+               (have->paramTys.Count = 0) andalso (cast( MirType, have->retTy ) = MT_VOID) then
+                have->retTy = cast( ubyte, callTy )
+                if callTy = MT_AGG then
+                    have->retSize = SizeOfType( c, cs->type_ )
+                    have->retClass = ClassifyEightbytes( c, cs->type_ )
+                end if
+                SignatureFromProc( c, have, cast( Tko.NodeId, cs->payload ), withSret, withThis )
+                return i
+            end if
+            if (have->isDefinition = false) andalso (cs <> 0) then
+                dim as long wantN = 0
+                if withSret then wantN += 1
+                if withThis then wantN += 1
+                if have->paramTys.Count < wantN then
+                    have->paramTys.Clear( )
+                    SignatureFromProc( c, have, cast( Tko.NodeId, cs->payload ), _
+                                       withSret, withThis )
+                end if
+            end if
+            return i
+        end if
+    next
+    dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
+    if decl = 0 then return -1
+    '' The return's SIZE, where it is an aggregate -- the ABI pass classifies by
+    '' byte count and a declaration is where that number would otherwise be lost.
+    if (callTy = MT_AGG) andalso (cs <> 0) then
+        decl->retSize = SizeOfType( c, cs->type_ )
+        decl->retClass = ClassifyEightbytes( c, cs->type_ )
+    end if
+    decl->isDefinition = false
+    '' THE SIGNATURE, from the procedure this call resolved to. The two hidden
+    '' parameters are reported rather than re-derived: whether a hidden result
+    '' pointer and a receiver were passed was decided by the CALL, and the
+    '' declaration has to agree with the argument list it is built beside.
+    if cs <> 0 then
+        SignatureFromProc( c, decl, cast( Tko.NodeId, cs->payload ), withSret, withThis )
+    end if
+    return c.m->functions.Count - 1
+end function
+
 end namespace

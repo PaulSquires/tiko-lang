@@ -1,0 +1,9 @@
+'' A procedure's address taken before its definition: the declaration '@X' made is rebuilt
+'' by the first call, so every call matches it and the module verifies. Was 'verify: 6
+'' FAILURES', one per shape. Same source as tests/codegen/addr-before-def-run.test.
+'' TEST: cli
+'' ARGS: --dump-ir tests/codegen/src/addr-before-def.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-NOT: FAILURES
+'' EXPECT-NOT: which declares
