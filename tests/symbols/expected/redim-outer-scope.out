@@ -1,10 +1,12 @@
-scopes: 4  symbols: 7  (builtin: 229)
+scopes: 4  symbols: 9  (builtin: 229)
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
     const     '__function__' funcname
     const     '__function_nq__'
-scope 2 module parent=1 (2)
+scope 2 module parent=1 (4)
+    var       '__fb_argc__'
+    var       '__fb_argv__'
     var       'arr'
     var       'brr'
 scope 4 block parent=2 (1)

@@ -192,6 +192,24 @@ private sub BindCallConv _
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( s->loc ) )
 end sub
 
+'' __FB_ARGC__ AND __FB_ARGV__ (T80) are fbc's MAIN PROCEDURE'S OWN PARAMETERS --
+'' fb-main.bas adds them with symbAddProcParam -- so they are visible to the module's
+'' top-level code and to nothing else: inside a SUB, fbc reports error 42. Declared
+'' as variables of the MODULE scope, which is exactly that visibility here: a
+'' module-scope variable is hidden from procedures (resolveunbound.bas). Lowering
+'' reads main's parameters for them (lowerexpr.bas, LowerMainArg_); they have no slot.
+private sub DeclareMainArg_ _
+    ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byval moduleScope as Tko.ScopeId, byval spelling as string, _
+      byval t as Tko.TypeId )
+
+    dim as boolean dup = false
+    dim as Tko.SymbolId sid = syms.DeclareSym( moduleScope, _
+        names.Fold( names.GetString( spelling ) ), Tko.SYM_VARIABLE, Tko.LOC_NONE, dup )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s <> 0 then s->type_ = t
+end sub
+
 private function DeclareGlobal _
     ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref diags as Tko.DiagnosticEngine, byval spelling as string ) as Tko.SymbolId

@@ -136,6 +136,19 @@ private function CompleteClosureFields_( byref c as Ctx ) as long
     return filled
 end function
 
+'' __FB_ARGV__ (T80): ZSTRING PTR PTR, as fbc types main's parameter, given on the
+'' first use rather than in Collect -- see collecthelp.bas, DeclareMainArg_.
+function MainArgvType_( byref c as Ctx, byval s as Tko.Symbol ptr ) as Tko.TypeId
+    if s->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return Tko.TYPE_NONE
+    if s->payload <> 0 then return Tko.TYPE_NONE
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = 0 then return Tko.TYPE_NONE
+    if sc->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then return Tko.TYPE_NONE
+    if c.names->Spelling( s->name ) <> "__fb_argv__" then return Tko.TYPE_NONE
+    s->type_ = c.types->Pointer_( c.types->Pointer_( c.types->Builtin( Tko.TY_ZSTRING ) ) )
+    return s->type_
+end function
+
 private sub InferUnusedVarTypes_( byref c as Ctx )
     '' 'to Count( )', not 'to Count( ) - 1'. SymbolTable.Count already returns
     '' 'symbols.Count - 1', so the valid ids are 1..Count( ) -- subtracting again

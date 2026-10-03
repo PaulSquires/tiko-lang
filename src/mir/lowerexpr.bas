@@ -66,6 +66,40 @@ private function IsIntMirTy_( byval t as MirType ) as boolean
     return false
 end function
 
+'' __FB_ARGC__ AND __FB_ARGV__ (T80): main's own two parameters, read where they are.
+'' Collect declared them in the module scope (collecthelp.bas, DeclareMainArg_), so a
+'' procedure never sees them. Top-level code that is NOT main -- a module's, or a
+'' library's, which becomes a constructor -- has no arguments to give, and gets 0 and
+'' a null pointer rather than a slot nothing ever wrote.
+private function LowerMainArg_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_IDENT then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = 0 then return false
+    if sc->kind <> cast( ubyte, Tko.SCOPEK_MODULE ) then return false
+    dim as string nm = c.names->Spelling( s->name )
+    dim as long which = -1
+    if nm = "__fb_argc__" then which = 0
+    if nm = "__fb_argv__" then which = 1
+    if which < 0 then return false
+    dim as MirType mt = iif( which = 0, MT_I32, MT_PTR )
+    dim as boolean inMain = (c.f <> 0)
+    if inMain then inMain = (c.f->isModuleCtor = false)
+    if inMain then inMain = (c.curProcSym = Tko.SYMBOL_NONE)
+    if inMain = false then
+        outv = ConstInt( c, 0, mt )
+        return true
+    end if
+    outv.kind = cast( ubyte, MV_PARAM )
+    outv.ty = cast( ubyte, mt )
+    outv.id = which
+    return true
+end function
+
 function LowerExpr _
     ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
@@ -203,6 +237,7 @@ function LowerExpr _
         '' member-specific.
         dim as MirValue pre = LowerPredeclared( c, id )
         if pre.kind <> cast( ubyte, MV_NONE ) then return pre
+        if LowerMainArg_( c, id, pre ) then return pre
 
         '' A BITFIELD HAS NO ADDRESS OF ITS OWN: it is bits inside a unit its
         '' neighbours share, so it is read by masking rather than by loading.

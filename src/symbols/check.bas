@@ -487,6 +487,7 @@ private function IsBareCharStrBuiltin_ _
     return (b = Tko.TY_ZSTRING) orelse (b = Tko.TY_WSTRING)
 end function
 
+declare function MainArgvType_( byref c as Ctx, byval s as Tko.Symbol ptr ) as Tko.TypeId
 declare function TypeOf_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
@@ -625,6 +626,7 @@ function TypeOf_ _
         if t <> Tko.TYPE_NONE then
             if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
         end if
+        if (t = Tko.TYPE_NONE) andalso (s <> 0) then t = MainArgvType_( c, s )   '' T80
         '' 'const K = 7' declares no type of its own, so the symbol carries none and
         '' every use of K was untyped -- which made the whole enclosing statement
         '' decline. Its type is its INITIALISER's, measured: K is INTEGER, 'const D =

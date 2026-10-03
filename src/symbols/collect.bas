@@ -1285,6 +1285,11 @@ function Run _
 
     dim as Tko.ScopeId moduleScope = syms.OpenScope( Tko.SCOPEK_MODULE, _
                                                      Tko.SCOPE_GLOBAL, Tko.SYMBOL_NONE )
+    '' fbc's main( ) parameters: LONG, and ZSTRING PTR PTR -- which Check gives
+    '' __FB_ARGV__ on its first use (MainArgvType_), so a program that never names it
+    '' builds no pointer types it would not otherwise have.
+    DeclareMainArg_( syms, names, moduleScope, "__fb_argc__", types.Builtin( Tko.TY_LONG ) )
+    DeclareMainArg_( syms, names, moduleScope, "__fb_argv__", Tko.TYPE_NONE )
     WalkNode( w, root, moduleScope )
     return w.duplicates
 end function

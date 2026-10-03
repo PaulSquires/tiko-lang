@@ -1,0 +1,6 @@
+'' TKO0743, fbc's 42: __FB_ARGC__ is visible to top-level code only (T80).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fb-argc-in-sub.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fb-argc-in-sub.bas(4,11): error TKO0743: '__fb_argc__' is not declared
+'' EXPECT-MAX-DIAG: 1
