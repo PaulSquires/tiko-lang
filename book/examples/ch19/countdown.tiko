@@ -1,0 +1,35 @@
+'' The smallest iterable: a collection and its iterator.
+type CountdownIterator
+    n as int32
+    declare function IsValid( ) as boolean
+    declare function Value( ) as int32
+    declare sub MoveNext( )
+end type
+
+function CountdownIterator.IsValid( ) as boolean
+    return n > 0                    '' still on an element?
+end function
+
+function CountdownIterator.Value( ) as int32
+    return n                        '' the current element
+end function
+
+sub CountdownIterator.MoveNext( )
+    n -= 1                          '' advance
+end sub
+
+type Countdown
+    from as int32
+    declare function GetIterator( ) as CountdownIterator
+end type
+
+function Countdown.GetIterator( ) as CountdownIterator
+    print "(GetIterator)"
+    return type( from )             '' already on the first element
+end function
+
+dim launch as Countdown = type( 5 )
+for each t in launch
+    print t;
+next
+print " lift-off"

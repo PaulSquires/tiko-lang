@@ -1,0 +1,13 @@
+'' Two tuple types are the same when their element types match,
+'' in order. Names and spellings do not enter.
+type Point as (x as int32, y as int32)
+
+dim p as Point = (3, 4)
+dim span as (lo as int32, hi as int32) = p   '' the same type
+dim plain as (int32, int32) = span
+
+print span.lo; span.hi; plain._1; plain._2
+print p = plain; p <> plain                  '' element by element
+plain._2 = 5
+print p = plain; p <> plain
+print sizeof( Point ); sizeof( (int32, int32, int64) )

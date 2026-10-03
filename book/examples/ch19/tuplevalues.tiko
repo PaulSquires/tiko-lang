@@ -1,0 +1,27 @@
+'' A tuple literal is built at the type it is assigned to.
+dim reading as (float64, ustring) = (21, "north")
+print reading._1; " "; reading._2
+
+function Origin( ) as (x as float64, y as float64)
+    return (0, 0)                     '' each 0 becomes a float64
+end function
+var o = Origin( )
+print o.x; o.y
+
+'' Assigning to a list of places: the right side is read first.
+dim a as int32 = 1, b as int32 = 2
+(a, b) = (b, a)
+print a; b
+
+dim slots( 0 to 2 ) as int32
+type Cell
+    row as int32
+    col as int32
+end type
+dim c as Cell
+(c.row, c.col, slots( 2 )) = (4, 7, 9)
+print c.row; c.col; slots( 2 )
+
+'' Tuples nest.
+dim span as ((int32, int32), ustring) = ((9, 17), "office hours")
+print span._2; ":"; span._1._1; " to"; span._1._2

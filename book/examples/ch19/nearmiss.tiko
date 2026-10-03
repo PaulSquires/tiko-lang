@@ -1,0 +1,25 @@
+type Ticker
+    n as int32
+    declare function GetIterator( ) as Ticker
+    declare function IsValid( ) as boolean
+    declare function Value( ) as int32
+    declare sub MoveNxt( )
+end type
+
+function Ticker.GetIterator( ) as Ticker
+    return this
+end function
+function Ticker.IsValid( ) as boolean
+    return n > 0
+end function
+function Ticker.Value( ) as int32
+    return n
+end function
+sub Ticker.MoveNxt( )
+    n -= 1
+end sub
+
+dim t as Ticker = type( 3 )
+for each x in t
+    print x
+next

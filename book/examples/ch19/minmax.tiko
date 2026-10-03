@@ -1,0 +1,18 @@
+'' One function, two answers, no out-parameters.
+function MinMax( values( ) as int32 ) as (lo as int32, hi as int32)
+    var lo = values( lbound( values ) ), hi = lo
+    for each v in values
+        if v < lo then lo = v
+        if v > hi then hi = v
+    next
+    return (lo, hi)
+end function
+
+dim temps( 0 to 4 ) as int32 = { 12, -3, 25, 7, 0 }
+
+var (lo, hi) = MinMax( temps( ) )          '' two new variables
+print "range"; lo; " to"; hi
+
+var r = MinMax( temps( ) )                 '' one tuple
+print "by name:"; r.lo; r.hi
+print "by position:"; r._1; r._2

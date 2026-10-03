@@ -1,0 +1,4 @@
+dim word as ustring = "tiko"
+for each ch in word
+    print ch
+next

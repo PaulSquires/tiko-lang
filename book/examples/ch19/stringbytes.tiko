@@ -1,0 +1,9 @@
+'' A string is walked one byte at a time.
+dim word as string = "caf" & chr( &hC3, &hA9 )  '' e-acute in UTF-8
+var n = 0
+for each b in word
+    print b;
+    n += 1
+next
+print
+print n; " steps for"; len( word ); " bytes"

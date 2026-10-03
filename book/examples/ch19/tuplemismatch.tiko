@@ -1,0 +1,2 @@
+dim whole as (int32, int32) = (1, 2)
+dim exact as (float64, float64) = whole    '' refused

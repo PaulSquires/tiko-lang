@@ -1,0 +1,49 @@
+'' A sequence that is computed as it is walked, never stored.
+type FibIterator
+    a as int64
+    b as int64
+    limit as int64
+    declare function IsValid( ) as boolean
+    declare function Value( ) as int64
+    declare sub MoveNext( )
+end type
+
+function FibIterator.IsValid( ) as boolean
+    return a <= limit
+end function
+
+function FibIterator.Value( ) as int64
+    return a
+end function
+
+sub FibIterator.MoveNext( )
+    var nxt = a + b
+    a = b
+    b = nxt
+end sub
+
+type Fibonacci
+    upTo as int64
+    declare function GetIterator( ) as FibIterator
+end type
+
+function Fibonacci.GetIterator( ) as FibIterator
+    return type( 0, 1, upTo )
+end function
+
+dim small as Fibonacci = type( 100 )
+for each f in small
+    print f;
+next
+print
+
+'' Effectively endless: only the values the loop asks for exist.
+dim all as Fibonacci = type( 9223372036854775807 )
+var steps = 0
+for each f in all
+    steps += 1
+    if f > 1000000 then
+        print "first above a million:"; f; ", term"; steps
+        exit for
+    end if
+next

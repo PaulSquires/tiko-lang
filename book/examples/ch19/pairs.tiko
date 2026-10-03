@@ -1,0 +1,17 @@
+#import "std/containers"
+
+dim ages as containers.OrderedMap( of ustring, int32 )
+ages.Put( "grace", 85 )
+ages.Put( "ada", 36 )
+ages.Put( "edsger", 72 )
+
+'' Pairs( ) yields tuples, which for each takes apart.
+for each (who, age) in ages.Pairs( )
+    print who; " is"; age
+next
+
+'' The map itself yields named key/value pairs.
+for each kv in ages
+    print kv.key; "="; kv.value; " ";
+next
+print

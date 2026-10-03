@@ -1,0 +1,81 @@
+'' A ring buffer keeps the newest N values; for each walks them
+'' oldest first. Value( ) is byref, so byref loops can write.
+type RingIterator( of T )
+    buf as T ptr
+    cap as int32
+    at as int32
+    left as int32
+    declare function IsValid( ) as boolean
+    declare function Value( ) byref as T
+    declare sub MoveNext( )
+end type
+
+function RingIterator( of T ).IsValid( ) as boolean
+    return left > 0
+end function
+
+function RingIterator( of T ).Value( ) byref as T
+    return buf[at]
+end function
+
+sub RingIterator( of T ).MoveNext( )
+    at = ( at + 1 ) mod cap
+    left -= 1
+end sub
+
+type Ring( of T )
+    declare constructor( byval capacity as int32 )
+    declare sub Add( byval v as T )
+    declare function GetIterator( ) as RingIterator( of T )
+private:
+    dim items( any ) as T
+    dim head as int32               '' the next slot to write
+    dim count as int32
+end type
+
+constructor Ring( of T )( byval capacity as int32 )
+    redim items( 0 to capacity - 1 )
+end constructor
+
+sub Ring( of T ).Add( byval v as T )
+    var cap = ubound( items ) + 1
+    items( head ) = v
+    head = ( head + 1 ) mod cap
+    if count < cap then count += 1
+end sub
+
+function Ring( of T ).GetIterator( ) as RingIterator( of T )
+    dim it as RingIterator( of T )
+    it.cap = ubound( items ) + 1
+    it.buf = @items( 0 )
+    it.at = ( head - count + it.cap ) mod it.cap
+    it.left = count
+    return it
+end function
+
+dim words( 0 to 4 ) as ustring = _
+    { "alpha", "beta", "gamma", "delta", "epsilon" }
+var recent = Ring( of ustring )( 3 )
+for each w in words
+    recent.Add( w )
+next
+for each w in recent
+    print w; " ";
+next
+print
+
+var nums = Ring( of int32 )( 4 )
+nums.Add( 1 ) : nums.Add( 2 )
+for each byref n in nums
+    n *= 100
+next
+for each n in nums
+    print n;
+next
+print
+
+var none = Ring( of int32 )( 2 )
+for each n in none
+    print "never printed"
+next
+print "an empty ring walks zero times"

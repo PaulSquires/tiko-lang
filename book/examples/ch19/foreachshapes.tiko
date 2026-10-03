@@ -1,0 +1,34 @@
+#import "std/containers"
+
+'' An array, whatever its bounds. The variable is a copy.
+dim scores( 1 to 4 ) as int32 = { 70, 85, 90, 62 }
+for each s in scores
+    print s;
+next
+print
+
+'' byref binds to the element itself.
+for each byref s in scores
+    s += 5
+next
+
+'' 'as' gives the element a type; the usual conversions apply.
+for each s as float64 in scores
+    print s / 10;
+next
+print
+
+'' exit for and continue for work as in any for loop.
+for each s in scores
+    if s < 80 then continue for
+    if s > 94 then exit for
+    print "pass"; s
+next
+
+'' Library collections are walked the same way.
+dim queue as containers.LinkedList( of ustring ) = _
+    { "build", "test", "ship" }
+for each task in queue
+    print task; " ";
+next
+print

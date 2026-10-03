@@ -26,6 +26,10 @@
 - [17. Errors: Optional, Result and Runtime Checks](ch17-errors.md)
 - [18. Testing, Debugging and Tooling](ch18-testing-debugging.md)
 
+# Advanced Language
+
+- [19. Tuples, Iterators and For Each](ch19-tuples-iterators.md)
+
 # Appendices
 
 - [Appendix B: Diagnostics](appendix-B-diagnostics.md)

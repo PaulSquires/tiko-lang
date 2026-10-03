@@ -1,0 +1,11 @@
+'' Exercise 19-1: quotient and remainder from one call.
+function DivMod( byval a as int32, byval b as int32 ) _
+        as (quotient as int32, remainder as int32)
+    return (a \ b, a mod b)
+end function
+
+var (q, r) = DivMod( 47, 5 )
+print "47 = 5 *"; q; " +"; r
+
+var hours = DivMod( 135, 60 )
+print hours.quotient; " h"; hours.remainder; " min"

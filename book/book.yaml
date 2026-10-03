@@ -65,7 +65,7 @@ parts:
       - { n: 18, file: src/ch18-testing-debugging.md,     status: drafted }
   - name: "Advanced Language"
     chapters:
-      - { n: 19, file: chapters/19-tuples-iterators.md,   status: planned }
+      - { n: 19, file: src/ch19-tuples-iterators.md,     status: drafted }
       - { n: 20, file: chapters/20-lambdas.md,            status: planned }
       - { n: 21, file: chapters/21-resource-management.md, status: planned }
       - { n: 22, file: chapters/22-concurrency.md,        status: planned }
