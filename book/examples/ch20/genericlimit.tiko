@@ -1,0 +1,13 @@
+#import "std/containers"
+
+function CountAbove( of T )( byref xs as containers.Array( of T ), _
+                             byval limit as T ) as int32
+    dim as int32 n = 0
+    containers.ForEach( xs, sub[ byref n, byval limit ]( byref x as T )
+        if x > limit then n += 1
+    end sub )
+    return n
+end function
+
+dim marks as containers.Array( of int32 ) = { 55, 91, 70, 38 }
+print CountAbove( of int32 )( marks, 60 )

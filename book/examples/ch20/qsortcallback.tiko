@@ -1,0 +1,16 @@
+'' The C library's qsort takes a comparer by address. A lambda that
+'' captures nothing is exactly that: a procedure and its address.
+#include once "crt/stdlib.bi"
+
+dim scores( 0 to 5 ) as int32 = { 42, 7, 19, 88, 3, 56 }
+
+qsort( @scores( 0 ), 6, sizeof( int32 ), _
+    function cdecl( byval a as const any ptr, _
+                    byval b as const any ptr ) as long
+        return *cptr( int32 ptr, a ) - *cptr( int32 ptr, b )
+    end function )
+
+for each s in scores
+    print s;
+next
+print

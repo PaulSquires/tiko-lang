@@ -1,0 +1,14 @@
+'' Exercise 20-2: sort by name length, then alphabetically.
+#import "std/containers"
+
+dim names as containers.Array( of ustring ) = _
+    { "grace", "ada", "edsger", "alan", "barbara", "ken" }
+containers.SortBy( names, _
+    function( byref a as ustring, byref b as ustring ) as boolean
+        if len( a ) <> len( b ) then return len( a ) < len( b )
+        return a < b
+    end function )
+for each n in names
+    print n; " ";
+next
+print

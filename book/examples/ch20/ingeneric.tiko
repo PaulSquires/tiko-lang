@@ -1,0 +1,31 @@
+#import "std/containers"
+
+'' A lambda that captures nothing may use T freely.
+sub SortDown( of T )( byref xs as containers.Array( of T ) )
+    containers.SortBy( xs, function( byref a as T, byref b as T ) _
+            as boolean
+        return a > b
+    end function )
+end sub
+
+'' A capturing lambda may capture a T, but not take one as a parameter:
+'' give it a concrete parameter type instead.
+function CountAbove( of T )( byref xs as containers.Array( of T ), _
+                             byval limit as T ) as int32
+    dim as int32 n = 0
+    var check = sub[ byref n, byval limit ]( byval v as float64 )
+        if v > limit then n += 1
+    end sub
+    for i as int32 = 0 to xs.Count( ) - 1
+        check( xs[i] )
+    next
+    return n
+end function
+
+dim marks as containers.Array( of int32 ) = { 55, 91, 70, 38 }
+SortDown( marks )
+for each m in marks
+    print m;
+next
+print
+print CountAbove( of int32 )( marks, 60 ); " above 60"

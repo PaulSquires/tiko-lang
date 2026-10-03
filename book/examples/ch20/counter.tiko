@@ -1,0 +1,20 @@
+'' A closure carries its own state. Each one is a separate object.
+sub Repeat( of F )( byval times as int32, byref action as F )
+    for i as int32 = 1 to times
+        action( )
+    next
+end sub
+
+dim as int32 clicks = 0, pings = 0
+var click = sub[ byref clicks ]( ) : clicks += 1 : end sub
+var ping = sub[ byref pings ]( ) : pings += 1 : end sub
+
+Repeat( 3, click )
+Repeat( 2, ping )
+click( )
+print "clicks"; clicks; ", pings"; pings
+
+'' A closure is a value: copying one copies its captures.
+var again = click
+again( )
+print "clicks"; clicks

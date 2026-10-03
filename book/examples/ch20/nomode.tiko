@@ -1,0 +1,5 @@
+dim as int32 n = 1
+var show = sub[ n ]( )
+    print n
+end sub
+show( )

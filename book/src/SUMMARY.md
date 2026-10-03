@@ -29,6 +29,7 @@
 # Advanced Language
 
 - [19. Tuples, Iterators and For Each](ch19-tuples-iterators.md)
+- [20. Lambdas and Closures](ch20-lambdas-closures.md)
 
 # Appendices
 

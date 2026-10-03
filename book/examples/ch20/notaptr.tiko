@@ -1,0 +1,6 @@
+type Scale as function( byval x as int32 ) as int32
+dim as int32 factor = 3
+dim times3 as Scale = _
+    function[ byval factor ]( byval x as int32 ) as int32
+    return x * factor
+end function

@@ -1,0 +1,20 @@
+#import "std/containers"
+
+dim prices as containers.Array( of float64 ) = { 4.5, 12.0, 7.25 }
+
+'' byref: the lambda works on the caller's own variable.
+dim total as float64
+containers.ForEach( prices, sub[ byref total ]( byref p as float64 )
+    total += p
+end sub )
+print "total"; total
+
+'' byval: the lambda keeps its own copy. Mixed modes are fine.
+dim as float64 rate = 0.25
+dim as int32 taxed = 0
+containers.ForEach( prices, _
+    sub[ byval rate, byref taxed ]( byref p as float64 )
+        p += p * rate               '' writes the array's element
+        taxed += 1
+    end sub )
+print taxed; " prices taxed:"; prices[0]; prices[1]; prices[2]

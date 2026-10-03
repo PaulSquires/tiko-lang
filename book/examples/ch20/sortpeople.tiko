@@ -1,0 +1,44 @@
+#import "std/containers"
+
+type Person
+    name as ustring
+    age as int32
+end type
+
+sub Show( byref people as containers.Array( of Person ) )
+    for each p in people
+        print p.name; p.age; "  ";
+    next
+    print
+end sub
+
+dim people as containers.Array( of Person )
+dim p as Person
+p.name = "grace"  : p.age = 85 : people.Push( p )
+p.name = "ada"    : p.age = 36 : people.Push( p )
+p.name = "edsger" : p.age = 72 : people.Push( p )
+p.name = "alan"   : p.age = 41 : people.Push( p )
+
+'' The comparer answers one question: does a come before b?
+containers.SortBy( people, _
+    function( byref a as Person, byref b as Person ) as boolean
+        return a.age < b.age
+    end function )
+Show( people )
+
+'' A capturing comparer: the direction comes from outside.
+dim as boolean oldestFirst = true
+containers.SortBy( people, _
+    function[ byval oldestFirst ]( byref a as Person, _
+                                   byref b as Person ) as boolean
+        if oldestFirst then return a.age > b.age
+        return a.age < b.age
+    end function )
+Show( people )
+
+'' A predicate: how many are over forty?
+dim as int32 over40 = 0
+containers.ForEach( people, sub[ byref over40 ]( byref q as Person )
+    if q.age > 40 then over40 += 1
+end sub )
+print over40; " over forty"

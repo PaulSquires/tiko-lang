@@ -1,0 +1,12 @@
+dim as int32 bias = 10
+
+var addBias = function[ byval bias ]( byval x as int32 ) as int32
+    return x + bias
+end function
+var addBiasNow = function[ byref bias ]( byval x as int32 ) as int32
+    return x + bias
+end function
+
+bias = 1000
+print addBias( 5 )          '' the copy taken when the lambda was made
+print addBiasNow( 5 )       '' the variable as it is now
