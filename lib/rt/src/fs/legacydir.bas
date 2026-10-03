@@ -302,19 +302,21 @@ end function
 '' THE LOOP CONDITION IS `(*spec) OR (*name)`, so a spec that runs out with name
 '' left over falls into the default branch and compares NUL against a character.
 '' That is what makes "ab" not match "abc" without a separate length test.
-private function hMatchSpec( byval name_ as zstring ptr ) as long
+''
+'' ALL OF IT OVER `ubyte ptr` (T78). Indexing a `zstring ptr` gives a ONE-CHARACTER
+'' ZSTRING, not a byte, so every test below compared strings: `name_[0] <> 0` read
+'' the character as a NUMBER, and a letter is 0, so no wildcard ever matched --
+'' `dir( "*.dat" )` returned nothing on Linux while the exact-name path, which never
+'' comes here, worked. Windows globs in the CRT and never calls this.
+private function hMatchSpec( byval namez as zstring ptr ) as long
 
 	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
-	dim as zstring ptr any_ = 0
-	dim as zstring ptr spec = @ctx->filespec
+	dim as ubyte ptr name_ = cptr( ubyte ptr, namez )
+	dim as ubyte ptr any_ = 0
+	dim as ubyte ptr spec = cptr( ubyte ptr, @ctx->filespec )
 
 	while( (spec[0] <> 0) orelse (name_[0] <> 0) )
-		'' THE SELECTOR IS CAST EXPLICITLY. `spec[0]` on a `zstring ptr` types as
-		'' a one-character ZSTRING rather than a byte, so `select case spec[0]`
-		'' compared a string against an integer literal and gave error 24 --
-		'' pointing at the trailing comment, not at the selector, which is why
-		'' the first two attempts to fix it removed the wrong thing.
-		select case cast( long, spec[0] )
+		select case spec[0]
 		case 42                                  '' asterisk
 			any_ = spec
 			spec += 1
