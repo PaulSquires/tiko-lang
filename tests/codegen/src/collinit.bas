@@ -55,14 +55,14 @@ sub Twice( )
     print "static"; s.Count( )
 end sub
 
-sub InProc( byval k as long )
+sub InProc( byval n as long )
     dim x as integer = 5
-    dim a as FB.Array( of integer ) = { x, x * 2, k + 1 }
+    dim a as FB.Array( of integer ) = { x, x * 2, n + 1 }
     for i as integer = 0 to a.Count( ) - 1
         print a[i];
     next
     print
-    if k > 0 then
+    if n > 0 then
         dim o as FB.OrderedSet( of long ) = { 3, 1, 2, 3 }
         print "oset"; o.Count( )
     end if
