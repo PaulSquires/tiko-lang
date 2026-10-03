@@ -124,6 +124,18 @@ private function InferArgType_ _
         if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
         return t
     case Tko.N_CALL
+        '' 'Channel( of long )( 1 )' -- CONSTRUCTING A GENERIC, which Resolve has
+        '' already instantiated and recorded on the call (GenericCtorCall_). Without
+        '' this a 'var' initialised that way inferred nothing, so 'var ch = ...' then
+        '' 'select channel ... case receive v from ch' could not instantiate the
+        '' select generics: TKO0809 (T77), where a 'dim' of the same channel worked.
+        scope
+            dim as long gtf, gtc
+            if c.ast->CallTypeArgsOf( a, gtf, gtc ) then
+                dim as Tko.TypeId gt = c.info->TypeOf_( a )
+                if gt <> Tko.TYPE_NONE then return gt
+            end if
+        end scope
         '' 'Some( cast( T, a \ b ) )' -- A CONVERSION NAMES ITS OWN TYPE, which is
         '' the whole answer and needs no expression typing at all. The corpus writes it
         '' more often than it writes a bare name: every narrowing result in the checked
