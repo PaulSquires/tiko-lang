@@ -263,7 +263,7 @@ private sub WalkExpr _
     case Tko.N_IDENT
         '' A FUNCTION-LIKE MACRO'S NAME WITHOUT '(' BINDS NOTHING: fbc never looks it up, so
         '' it is undeclared (error 42, TKO0743) even where a 'using' shows a symbol so named.
-        if (n->flags and Tko.NF_BARE_MACRO) <> 0 then
+        if ((n->flags and Tko.NF_BARE_MACRO) <> 0) andalso BareMacroAtGlobal_( c, scope_ ) then
             c.st->undefined_ += 1
             NoteUnbound_( c, id, scope_ )
             return

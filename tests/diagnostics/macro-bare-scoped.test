@@ -1,0 +1,11 @@
+'' Where a function-like macro's name IS an ordinary name: inside a namespace and inside a
+'' member's body. fbc's '#define' sits in its global table, and its lookup finds a local, a
+'' parameter, a field or the namespace's own member first -- a namespace body, its
+'' procedures, 'sub N.q', 'sub T.m' and 'sub T.k' all compile under fbc-modern 1.20. Found by
+'' the corpus: fbc's fbc-int/query-symbol.bas reads a const named like symbol.bi's
+'' isUDT( sym ) inside fbcunit's SUITE namespace, and the first cut of macro-bare-use
+'' refused it.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/macro-bare-scoped.bas -o tests/diagnostics/macrobarescoped.o
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: error

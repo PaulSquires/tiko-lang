@@ -241,9 +241,12 @@ private sub ProcParams_ _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
       byval kw as Tko.TokenKind, byval declareOnly as boolean )
     StrayWordBeforeParams_( p, sp )
-    if declareOnly = false then p.bodyParams += 1
+    '' A BODY's parameters, and not a member's ('sub T.m', 'sub N.s' -- sp.ownerName): see
+    '' BareMacroDecl_. A DECLARE's never collide.
+    dim as boolean checkNames = (declareOnly = false) andalso (sp.ownerName = 0)
+    if checkNames then p.bodyParams += 1
     ParseParamList( p, sp )
-    if declareOnly = false then p.bodyParams -= 1
+    if checkNames then p.bodyParams -= 1
     CheckVarargConv_( p, sp, Tko.CallConvOf( sp.extra ), _
                       (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR), _
                       declareOnly andalso (p.aggDepth > 0) )

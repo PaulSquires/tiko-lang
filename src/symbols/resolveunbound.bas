@@ -3,6 +3,42 @@
 ''
 '' Included from resolve.bas, inside its namespace, before WalkExpr.
 
+'' WHERE fbc FINDS ITS '#define' FIRST. A '#define' sits in fbc's global table, which its
+'' lookup reaches after everything enclosing the use and before a namespace a 'using'
+'' imports. So a function-like macro's name written without '(' (NF_BARE_MACRO) is
+'' undeclared, error 42, at GLOBAL level -- module code, and a procedure that is neither in
+'' a namespace nor a member -- and an ordinary name inside a namespace or a member's body,
+'' where a local, a parameter, a field or the namespace's own member is found before the
+'' define. Measured on fbc-modern 1.20, 2026-10-03, with 'sub N.s' and 'sub T.m' bodies
+'' and both kinds of namespace body; fbc's fbc-int/query-symbol.bas reads a const named
+'' like fbc-int/symbol.bi's isUDT( sym ) inside fbcunit's SUITE namespace.
+private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as boolean
+    dim as long guard = 0
+    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
+        if sc = 0 then exit while
+        select case sc->kind
+        case Tko.SCOPEK_NAMESPACE, Tko.SCOPEK_TYPE
+            return false
+        case Tko.SCOPEK_PROC
+            '' A QUALIFIED definition -- 'sub N.s', 'sub T.m' -- is its owner's: its scope
+            '' chain does not pass through the type, so the N_PROC's flag says it instead.
+            dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
+            if os <> 0 then
+                dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
+                if (dn > 0) andalso (cast( long, dn ) <= c.ast->Count( )) then
+                    if c.ast->Kind( dn ) = Tko.N_PROC then
+                        if (c.ast->nodes[cast( long, dn )].flags and Tko.NF_QUALIFIED) <> 0 then return false
+                    end if
+                end if
+            end if
+        end select
+        scope_ = sc->parent
+    wend
+    return true
+end function
+
 '' Is this scope inside a generic TEMPLATE -- the body of a generic procedure, or of a
 '' member of a generic type? A type parameter there is a name nothing declares --
 '' 'sizeof( T )' in fb/comptr.bi, 'TK' in fb/map.bi -- until an instantiation re-parses

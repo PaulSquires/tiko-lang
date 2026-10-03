@@ -23,10 +23,12 @@
 '' procedure's is error 4, "Duplicated definition": a DIM, SHARED or local, a CONST, a TYPE,
 '' a NAMESPACE, a FOR variable, a parameter of a procedure BODY. One that enters a table of
 '' its own does not collide: a TYPE's field, an ENUM's member (named or not), a namespace's
-'' member, a DECLARE's parameter (read with 'record' false). Measured, fbc-modern 1.20,
-'' 2026-10-03; tiko took every one of them.
+'' member, a DECLARE's parameter (read with 'record' false) -- and anything in a MEMBER's
+'' body, 'sub T.m' or 'sub N.s', parameters included: fbc looks there before the global
+'' table. Measured, fbc-modern 1.20, 2026-10-03; tiko took every one of them.
 private sub BareMacroDecl_( byref p as Tko.ParserState )
     if (p.aggDepth <> 0) orelse (p.nsDepth <> 0) orelse (p.bareNameOk <> 0) orelse p.silent then return
+    if p.memberDepth <> 0 then return
     dim as Tko.InternId id = cast( Tko.InternId, Cur( p ).literal )
     p.diags->Report( Tko.TKO0600, Tko.PointRange( Cur( p ).loc ), p.names->Spelling( id ) )
 end sub
