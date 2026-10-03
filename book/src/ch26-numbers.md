@@ -325,13 +325,8 @@ times, which is 99.99. `DecimalApportion( total, scale, weights( ), parts( ) )` 
 for `Currency` hand the leftover cents out so the parts always add up to the total. The weights
 are an array of `int64`.
 
-```admonish warning title="Status in this version"
-**An array of the wrong type passed for the weights is not refused.** fbc reports error 58, type
-mismatch, when a `Decimal` array goes to an `int64` array parameter. This compiler accepts it,
-and `DecimalApportion` then reads the bytes of each `Decimal` as if they were whole numbers: with
-three `Decimal` weights of one, 100.00 splits as 0.00, 100.00, 0.00. Pass `int64` weights.
-Tracked as **T83**.
-```
+A `Decimal` array passed for the weights is refused:
+`TKO0687: a bydesc parameter takes an array of exactly its element type`.
 
 ### Loans
 

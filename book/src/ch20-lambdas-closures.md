@@ -114,14 +114,9 @@ evaluated. A lambda that pushes onto it changes its copy, and the caller's conta
 old contents.
 ````
 
-```admonish warning title="Status in this version"
-**A capture that names no variable is not reported at the capture.** In `sub[ byref totl ]( … )`,
-where only `total` exists, tiko does not say that `totl` is undeclared. If the body uses `total`,
-the error lands there instead — `TKO0743: 'total' is not declared` — because the capture did not
-bring it in. If the body uses neither name, the build fails later, in clang, with `TKO0113: clang
-failed`. Tracked as **T73**; when either message appears near a lambda, check the capture list's
-spelling first.
-```
+A capture must name a variable that exists. In `sub[ byref totl ]( … )`, where only `total`
+exists, the capture itself is `TKO0743: 'totl' is not declared`, and a use of `total` in the body
+is reported too, because the capture did not bring it in.
 
 ### A closure is not a procedure pointer
 

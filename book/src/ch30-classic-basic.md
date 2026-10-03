@@ -160,10 +160,11 @@ reports and the replacement.
 |---|---|---|
 | `gosub label` … `return` | `TKO0409: 'GOSUB' is not available in the fb dialect` | a `sub`, with what it changed passed `byref` |
 | `resume`, `resume next` | `TKO0409: 'RESUME' is not available …` | handle the error where it is caught, or return a `Result` (Chapter 17) |
-| `dim count%`, `defint a-z` | `TKO0320: 'count' has no type …` | `dim as int32 count` — every variable is declared with its type |
+| `dim count%` | `TKO0320: 'count' has no type …` | `dim as int32 count` — every variable is declared with its type |
+| `defint a-z` and the other `def` statements | `TKO0409: 'DEFINT' is not available …` | the same: declare each variable with its type |
 | `#lang "qb"` | `TKO0317: unsupported language mode 'qb'` | port the code to `fb` |
 | `asm` … `end asm` | `TKO0407: inline assembly is not supported` | a C function (Chapter 28), or compile that module with fbc |
-| `10 print "x"` | refused | labels: `start:` |
+| `10 print "x"` | `TKO0944: a line number is not available in the fb dialect` | labels: `start:` |
 
 ```tiko
 {{#include ../examples/ch30/gosub.bas}}
@@ -207,10 +208,11 @@ assembly to go. A routine that needs particular instructions can be written in C
 intrinsics reach them, and called through Chapter 28's interface — or that one module can be
 compiled with fbc and linked in.
 
-Several more classic statements are refused by fbc in the `fb` dialect, each with its error 146,
-"only valid in -lang deprecated or fblite or qb": **`let`** in front of an assignment, **`call`** in
-front of a procedure call, **`lprint`** to the printer, the **`option`** statements (`option
-explicit`, `option base`) and the **`'$` metacommands** (`'$include`, `'$dynamic`). Drop `let` and
+Several more classic statements are refused in the `fb` dialect — by fbc with its error 146,
+"only valid in -lang deprecated or fblite or qb", and by tiko with `TKO0409` naming the keyword:
+**`let`** in front of an assignment, **`call`** in front of a procedure call, **`lprint`** to the
+printer, the **`option`** statements (`option explicit`, `option base`), `on n gosub`, and the
+**`'$` metacommands** (`'$include`, `'$dynamic`, `'$static`). Drop `let` and
 `call` — `k = 5` and `Hello( )` say the same — open the printer as a file to print to it,
 `#include` a file, and give arrays explicit bounds.
 
@@ -218,14 +220,12 @@ explicit`, `option base`) and the **`'$` metacommands** (`'$include`, `'$dynamic
 {{#include ../examples/ch30/let.bas}}
 ```
 
-```admonish warning title="Status in this version"
-**tiko accepts several of these without a word.** `let k = 5` compiles and assigns; `lprint`,
-`option explicit`, `option base 1`, `'$dynamic` and `'$include: 'file'` compile and are ignored —
-the last silently includes nothing — and `on n gosub` reaches the code generator and fails there.
-fbc refuses each with error 146. `call`, `defint` and a numbered line are refused, but with the
-wrong message: `TKO0408: expected a statement`, `TKO0743: 'a' is not declared` and `TKO0420`. The
-listing above is blocked until each reports `TKO0409`. Tracked as **T86**.
+```text
+let.bas(3,1): error TKO0409: 'LET' is not available in the fb dialect
 ```
+
+`let` is still a keyword of the `fb` dialect in one place: `let ( a, b ) = t` assigns a type's
+fields to several variables at once, and that form compiles.
 
 ## Bringing old code across
 
@@ -262,9 +262,9 @@ Then, when the program works, the modern forms in this chapter's notes — array
   with numeric patterns for anything stored.
 - `common shared` shares a variable between modules; `chain` runs a program and returns its exit
   code, sharing nothing.
-- Refused: `gosub` and `resume` (`TKO0409`), suffixes and `defint` (`TKO0320`), `asm`
-  (`TKO0407`), other dialects (`TKO0317`), numbered lines; and in fbc's `fb` dialect also `let`,
-  `call`, `lprint`, `option` and `'$` metacommands.
+- Refused: `gosub`, `resume`, `let`, `call`, `lprint`, `option`, `defint` and the `'$`
+  metacommands (`TKO0409`), suffixes (`TKO0320`), `asm` (`TKO0407`), other dialects (`TKO0317`)
+  and numbered lines (`TKO0944`).
 
 ## Exercises
 

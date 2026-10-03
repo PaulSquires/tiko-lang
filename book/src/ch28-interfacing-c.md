@@ -194,11 +194,7 @@ A `cva_list` is 8 bytes on Windows (a pointer) and 24 on Linux (a small record),
 something to store or pass by value across platforms. Pass it to C's `v` functions — `vsnprintf`
 and the rest — which take a `va_list`.
 
-```admonish warning title="Status in this version"
-**`sizeof( cva_list )`, naming the type itself, is `TKO0743: 'cva_list' is not declared`.** fbc
-accepts it. The size of a variable works, as in the listing, and so does
-`sizeof( typeof( v ) )`. Tracked as **T84**.
-```
+`sizeof( cva_list )` names the type directly and gives the same 8 and 24.
 
 ## Calling conventions and names
 

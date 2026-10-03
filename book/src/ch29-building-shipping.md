@@ -140,12 +140,8 @@ A variable that a C DLL exports is reached with **`extern import`**, which tells
 go through the pointer Windows fills in when the DLL loads:
 `extern import MyDll_Data alias "MyDll_Data" as int32`.
 
-```admonish warning title="Status in this version"
-**`extern import` does not link on `win64-msvc`.** The compiler refers to the variable directly
-rather than through the DLL's import pointer, and `lld-link` reports `undefined symbol`. fbc's
-own build fails too, by a different route: it asks for the 32-bit spelling of the import name.
-Export a function that returns the variable's address instead. Tracked as **T85**.
-```
+Against a C DLL exporting `int MyDll_Data = 0x1234`, that line reads `&h1234`, and a write or an `@`
+reaches the DLL's own copy. On Linux, `extern import` compiles as a plain `extern`.
 
 ## Windows programs
 

@@ -47,11 +47,12 @@ for a span, `TimeSpan( h, mi, s )` or `TimeSpan( d, h, mi, s, ms )`. `TimeSpan` 
 `FromDays`, `FromHours`, `FromMinutes`, `FromSeconds` and `FromMilliseconds`.
 
 ```admonish warning title="Status in this version"
-**A constructor call whose argument count matches no constructor is accepted without a
-diagnostic**, and the value it builds is wrong: `chrono.TimeSpan( 0, 1, 30, 0 )` — four
-arguments, where the constructors take three or five — compiles and gives thirty minutes. fbc
-reports error 99, no matching overloaded function. Count the arguments against the list above.
-Tracked as **T82**.
+**A constructor call through a module or namespace name is not checked against the
+constructors.** `chrono.TimeSpan( 0, 1, 30, 0 )` — four arguments, where the constructors take
+three or five — compiles, and what it builds is undefined: one build gave thirty minutes, another
+crashed. fbc reports error 99, no matching overloaded function. The same call written without the
+qualifier, after `using`, is refused: `TKO0632: no overload of 'timespan.constructor' matches these
+arguments`. Count the arguments against the list above. Tracked as **T87**.
 ```
 
 ## Validity

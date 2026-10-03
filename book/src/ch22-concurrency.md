@@ -31,20 +31,15 @@ file (`TKO0362`). A program can ask how it was built: `__FB_MT__` is −1 under 
 without it.
 
 ````admonish danger title="Pitfall"
-**A program built without `-mt` compiles and then misbehaves.** The `std/tasks` headers mean to
-refuse a build without `-mt`, but they test `defined( __FB_MT__ )` — and `__FB_MT__` is always
-defined; only its value changes. So nothing stops the build. The goroutine program in the next
-section, built without `-mt`, printed its correct result and then, run three times, crashed once
-with a segmentation fault and hung twice at exit. That is the worst kind of failure: the output
-looks right.
+**`std/tasks` refuses a build without `-mt`; the headers beneath it do not.** `#import "std/tasks"`
+without `-mt` stops at once: `TKO0309: #error: "std/tasks needs the multithreaded runtime: build
+with -mt"`. A program that includes the thread headers directly — `#include once "fb/channel.bi"`
+— is not checked, and compiles. Built without `-mt`, the goroutine program in the next section
+printed its correct result and then, run three times, crashed once with a segmentation fault and
+hung twice at exit. That is the worst kind of failure: the output looks right.
 
 Every listing in this chapter carries `#cmdline "-mt"`. Do the same in yours.
 ````
-
-```admonish warning title="Status in this version"
-**The headers' `-mt` check never fires**, for the reason above. Tracked as **T75**; until it is
-fixed, `-mt` is yours to remember.
-```
 
 ## OS threads
 
@@ -155,11 +150,8 @@ must change something of yours, pass a pointer and own that decision.
 `spawn` takes a procedure declared at module level — a `sub`, or a `function` whose result is
 discarded. A method, a lambda and a procedure pointer cannot be spawned.
 
-```admonish warning title="Status in this version"
-**Spawning a lambda reports the wrong problem.** `var greet = sub( ) … end sub` then
-`spawn greet( )` is refused, as it should be, but with `TKO0743: 'greet' is not declared` rather
-than a message saying that `spawn` needs a module-level procedure. Tracked as **T76**.
-```
+Anything else is refused: with `var greet = sub( ) … end sub`, `spawn greet( )` is
+`TKO0943: 'spawn' needs a sub or function declared at module level, and 'greet' is not one`.
 
 ## Channels
 
@@ -251,21 +243,12 @@ It is part of the language, and its runtime support comes from one more header,
 | `case timeout ms` | nothing else became ready within `ms` milliseconds |
 | `case else` | nothing is ready right now — the `select` does not wait at all |
 
-A `select` may have one `timeout` or one `else`, not both: `else` would fire first every time, and
-the timeout could never be reached. When
+A `select` may have one `timeout` or one `else`, not both — writing both is `TKO0942` — because
+`else` would fire first every time, and the timeout could never be reached. When
 several cases are ready at once, one is chosen in a varying order, so a channel that is always
 ready cannot starve the others. A closed channel counts as ready to receive, and a nil channel
 never does — assigning a nil channel to a variable is how a case is switched off.
 
-```admonish warning title="Status in this version"
-**A channel declared with `var` cannot be used in `select channel`.** With
-`var answers = tasks.Channel( of int32 )( 1 )`, the `select` above is refused:
-`TKO0809: cannot infer the type arguments of 'selectaddrecv'`. Declare a channel that a `select`
-reads with `dim … as tasks.Channel( of T )`, as the listing does. Tracked as **T77**.
-
-**A `select` with both `case timeout` and `case else` is accepted.** It should be refused; as it
-is, `else` fires and the timeout is dead code. Tracked as **T79**; write one or the other.
-```
 
 ## Coordinating goroutines
 
@@ -354,11 +337,6 @@ the other runtime state that a statement leaves behind for the next one. Keep a 
 that depend on each other inside one goroutine.
 ````
 
-```admonish warning title="Status in this version"
-**On Linux, `dir( )` with a wildcard pattern finds nothing.** `dir( "part*.dat" )` returns an
-empty string even when matching files exist; a name with no wildcard works. Tracked as **T78**;
-the listing above is correct on Windows and blocked on Linux until it is fixed.
-```
 
 ## Threads or goroutines?
 

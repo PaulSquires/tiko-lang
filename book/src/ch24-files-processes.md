@@ -267,12 +267,6 @@ nothing:
 `dir( )` keeps one listing per thread, so two listings cannot be interleaved and a goroutine cannot
 continue the main program's (Chapter 22). `ReadDir` has neither limit.
 
-```admonish warning title="Status in this version"
-**On Linux, `dir( )` with a wildcard pattern finds nothing** in the pinned toolchain — tracked as
-**T78**, fixed in the compiler and reaching the book with the next toolchain. An exact name, as in
-the listing above, works on both platforms.
-```
-
 ## The console as a device
 
 The console is something a program can draw on — but only when there is a console. When the output
@@ -318,11 +312,10 @@ last one; `command( 0 )` is the program's own path, and `command( )` all the arg
 string. `environ( name )` reads an environment variable — an empty string if it is not set — and
 `setenviron "NAME=value"` sets one for this process and the programs it starts.
 
-```admonish warning title="Status in this version"
-**`__FB_ARGC__` and `__FB_ARGV__` are not defined.** They give the number of arguments and the
-array of them in the main module, and fbc defines both. Tracked as **T80**; loop over `command( n )`
-until it returns an empty string, as the listing does.
-```
+In the main module, `__FB_ARGC__` is the number of arguments counting the program itself, and
+`__FB_ARGV__` the C array of them, a `zstring ptr ptr` — the form a C library that parses its own
+command line expects. They belong to the main module's top level, as in fbc: inside a procedure
+they are `TKO0743: '__fb_argc__' is not declared`, and another module's top level reads 0.
 
 ### Running other programs
 
@@ -346,12 +339,6 @@ until it returns an empty string, as the listing does.
 shell's language; `exec` starts a program with no shell in between, which is safer when an argument
 came from a user. `open pipe … for input` reads what the command prints, a line at a time, as if it
 were a file; `for output` sends lines to its input instead.
-
-```admonish warning title="Status in this version"
-**On Linux, `shell( )` returns the raw wait status instead of the exit code**: `shell( "exit 3" )`
-returns 768, which is 3 × 256. fbc returns 3, and `exec( )` already returns the exit code on both
-platforms. Tracked as **T81**; the listing is blocked on Linux until it is fixed.
-```
 
 ### Exit codes
 
