@@ -758,6 +758,10 @@
     DIAG( TKO0938, SEV_ERROR,   "'%0' cannot take a '%1': convert it explicitly first" )
     '' fbc's error 317: a function's name assigned outside that function -- resolveamb.bas (T54).
     DIAG( TKO0939, SEV_ERROR,   "'%0' is a function: its result can be assigned only inside it" )
+    '' fbc's error 345 again, for a STRING: 'for each byref c in s' has no element to bind,
+    '' since a character of a var-length string has no stable address (T72). tiko bound a
+    '' copy and the loop changed nothing. See symbols/checkeach.bas.
+    DIAG( TKO0941, SEV_ERROR,   "'for each byref' cannot walk a string: a character has no stable address; walk it by value, or index it with 'for'" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

@@ -1,0 +1,8 @@
+'' TKO0941, fbc's 345: 'for each byref' over a string, declared with 'dim' or 'var' (T72).
+'' tiko bound a copy of each character and the loop changed nothing.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/foreach-byref-string.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: foreach-byref-string.bas(8,1): error TKO0941: 'for each byref' cannot walk a string: a character has no stable address; walk it by value, or index it with 'for'
+'' EXPECT-OUT: foreach-byref-string.bas(12,1): error TKO0941: 'for each byref' cannot walk a string: a character has no stable address; walk it by value, or index it with 'for'
+'' EXPECT-MAX-DIAG: 2

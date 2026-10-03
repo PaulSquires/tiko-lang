@@ -82,8 +82,7 @@ private sub InferForEachVarTypes_( byref c as Ctx )
         '' variable is typed here -- and was typed as the element, a copy: 'n *= 100'
         '' changed nothing, silently, where the same loop over a 'dim' changed the
         '' collection.
-        '' NOT over a string: there it binds a copy, as it always has -- fbc refuses
-        '' that loop outright (error 345), which is a separate item, T72.
+        '' NOT over a string, which CheckForEach_ refuses with TKO0941 (T72).
         dim as boolean wrap = (cast( Tko.TokenKind, sp->op ) = Tko.KW_BYREF)
         if vsym->type_ = Tko.TYPE_NONE then wrap = false
         if IsVarLenStringType_( c, seqT ) then wrap = false
@@ -306,6 +305,12 @@ sub CheckForEach_( byref c as Ctx )
             end if
         elseif IsVarLenStringType_( c, seqT ) then
             elT = c.types->Builtin( Tko.TY_UBYTE )
+            '' 'for each BYREF' OVER A STRING binds nothing: fbc's error 345 (T72). tiko
+            '' bound a copy of each character and the loop changed nothing, silently.
+            if sp->op = cast( ushort, Tko.KW_BYREF ) then
+                c.diags->Report( Tko.TKO0941, r )
+                ok = false
+            end if
         elseif c.types->Kind( seqT ) = Tko.TK_UDT then
             dim as Tko.SymbolId gi = UdtMemberSym_( c, seqT, "getiterator" )
             dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
