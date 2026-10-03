@@ -1,0 +1,18 @@
+'' RUN: 'dim as N.T x = N.T( args )' -- a QUALIFIED constructor call as an initialiser -- builds x
+'' in place, as the unqualified spelling does: the constructor's @this is x, in a procedure, at
+'' module level, and through a nested namespace. It was built in a temporary and its bytes copied
+'' out, so an object that hands '@this' away pointed it at a dead slot: FB.AsyncSink's worker,
+'' through std/logs, hung the program. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/qualified-ctor-init.bas -o tests/codegen/qualifiedctorinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/qualifiedctorinit.exe
+'' RUN: tests/codegen/qualifiedctorinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: proc qualified in place: yes v= 1
+'' EXPECT-RUN-OUT: proc nested in place: yes v= 2
+'' EXPECT-RUN-OUT: proc unqualified in place: yes v= 3
+'' EXPECT-RUN-OUT: proc ctors= 3 dtors= 3
+'' EXPECT-RUN-OUT: module qualified in place: yes v= 4
+'' EXPECT-NOT: in place: no
