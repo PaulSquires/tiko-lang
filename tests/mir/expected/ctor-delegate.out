@@ -69,7 +69,6 @@ func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg v size 8
   local agg w size 8
-  local agg $tmp3 size 8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -80,25 +79,21 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i64 3
     call void _ZN1QC1Eu7INTEGER(@v, %5)
     %6 = alloca ptr w
-    call void _ZN2NS1RC1Ev(@w)
-    %7 = alloca ptr $tmp3
-    %8 = const i64 7
-    call void _ZN2NS1RC1Eu7INTEGER(@$tmp3, %8)
-    %9 = load @$tmp3
-    store @w, %9
-    %10 = field.addr @v, 0
+    %7 = const i64 7
+    call void _ZN2NS1RC1Eu7INTEGER(@w, %7)
+    %8 = field.addr @v, 0
+    %9 = load %8
+    call.rtl void fb_PrintLongint(0, %9, 2)
+    %10 = field.addr @w, 0
     %11 = load %10
-    call.rtl void fb_PrintLongint(0, %11, 2)
-    %12 = field.addr @w, 0
-    %13 = load %12
-    call.rtl void fb_PrintLongint(0, %13, 1)
-    %14 = const i32 0
-    call.rtl void fb_End(%14)
-    %15 = load @$tmp0
-    ret %15
+    call.rtl void fb_PrintLongint(0, %11, 1)
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 68 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 64 insts, 0 statements not lowered, 0 scope imbalance
