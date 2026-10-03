@@ -1,4 +1,5 @@
-'' std/logs (RFC-0009): a LogLevel into an FB.LogLevel parameter, its members, LevelName, LevelNameShort, LevelFromName.
+'' std/logs (RFC-0009): a LogLevel into an FB.LogLevel parameter, its members, LevelName, LevelNameShort, LevelFromName;
+'' and the default logger through an AsyncSink (DefaultLogger, LogInit, LogShutdown, OP_BLOCK), drained on shutdown.
 '' It is a facade -- exported macros over the header, found through -i as a user's toolchain
 '' finds it in its inc/ -- and the program includes that header too, so the facade's names
 '' and the header's FB names are shown to be one and the same.
@@ -9,3 +10,5 @@
 '' RUN: tests/modules/stdlogs.exe
 '' EXPECT-RUN-OUT: WARN ERR
 '' EXPECT-RUN-OUT: true -1
+'' EXPECT-RUN-OUT: INFO   via the facade  n=7
+'' EXPECT-RUN-OUT: dropped0

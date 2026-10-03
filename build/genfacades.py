@@ -59,7 +59,7 @@ FACADES = {
                "finsolve.bi", "fintvm.bi"], False),
     "logs": (["fb/logging.bi"],
              ["logging.bi", "logger.bi", "logrecord.bi", "logrender.bi", "logsink.bi",
-              "logdefault.bi", "logerror.bi", "logfile.bi"], False),
+              "logdefault.bi", "logerror.bi", "logfile.bi", "logasync.bi"], False),
     "tui": (["fb/tui.bi"],
             ["tui.bi", "tuiapp.bi", "tuibuffer.bi", "tuichrome.bi", "tuicore.bi", "tuidraw.bi",
              "tuiform.bi", "tuiinput.bi", "tuilayout.bi", "tuiterm.bi", "tuiwidget.bi",
@@ -99,10 +99,10 @@ EXCLUDE_NAMES = {
     "DoubleBits", "SingleBits", "SystemFunction036",
     # money: the 192-bit intermediate, a locale snapshot, a libc shim
     "DecWide", "MoneySnapshot_", "llabs_",
-    # logs: users write Logger, the alias. And FB.Log( ), the one-call logger (fbc-modern's
-    # logging phase 4): LOG is tiko's natural-log intrinsic, so 'logs.Log' could never expand.
-    # It is still FB.Log through fb/logging.bi.
-    "Logger_", "Log",
+    # logs: users write Logger, the alias. (Phase 4's FB.Log( ) needed excluding too -- LOG is
+    # tiko's natural-log intrinsic -- until fbc-modern renamed it FB.DefaultLogger( ): inside
+    # namespace FB it took log( x ) from fb/random.bi, complex.bi and fintvm.bi.)
+    "Logger_",
     # tui: terminal state, signal handlers, generated width tables
     "TuiSavedMode", "TuiSaved", "TuiResizeFlag", "TuiEmergencyRestore", "TuiCtrlHandler",
     "TuiSignalHandler", "TuiWinchHandler", "TuiWidthTabWide", "TuiWidthTabZero",
