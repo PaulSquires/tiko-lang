@@ -261,6 +261,13 @@ private sub WalkExpr _
         return
 
     case Tko.N_IDENT
+        '' A FUNCTION-LIKE MACRO'S NAME WITHOUT '(' BINDS NOTHING: fbc never looks it up, so
+        '' it is undeclared (error 42, TKO0743) even where a 'using' shows a symbol so named.
+        if (n->flags and Tko.NF_BARE_MACRO) <> 0 then
+            c.st->undefined_ += 1
+            NoteUnbound_( c, id, scope_ )
+            return
+        end if
         dim as Tko.InternId nm = IdentNameOf( c, id )
         '' A name in EXPRESSION position wants the VALUE, not a type of the same
         '' spelling. 'sub UDT1( )' beside 'type UDT1' is legal -- the two live in

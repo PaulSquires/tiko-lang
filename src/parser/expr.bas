@@ -349,23 +349,7 @@ private function SizedCvKeyword_ _
     return wk
 end function
 
-function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
-    dim as Tko.IdentPayload ip
-    ip.name = cast( Tko.InternId, t.literal )
-    '' A KEYWORD token carries no interned spelling in 'literal', so an identifier
-    '' built from one -- 'abs( x )', 'len( s )', a member called '.type' -- had an
-    '' EMPTY name. It showed in the AST dump as N_IDENT '' and made every such callee
-    '' unrecognisable to anything that matches on the name.
-    if Tko.IsKeywordKind( cast( Tko.TokenKind, t.kind ) ) then
-        ip.name = p.names->GetString( _
-            Tko.Text.LowerAscii( Tko.TokenKindText( cast( Tko.TokenKind, t.kind ) ) ) )
-    end if
-    dim as Tko.DecodedLoc d = p.src->Decode( t.loc )
-    ip.spellOffset = d.offset
-    ip.spellLength = cast( long, t.length )
-    p.ast->idents.Push( ip )
-    return Tko.NewNode( *p.ast, Tko.N_IDENT, t.loc, p.ast->idents.Count - 1 )
-end function
+#include once "parser/makeident.bas"
 
 '' NF_CALL_TARGET on a name that is called, addressed or assigned -- see nodes.bi.
 '' '(g)( 1 )' calls the name inside the parentheses, so that name is marked too.

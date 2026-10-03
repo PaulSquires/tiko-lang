@@ -59,8 +59,18 @@ namespace Tko
         '' '#ifndef' skip a declaration it should have taken -- silently.
         as long                 procDepth
         '' How many NAMESPACE bodies enclose the cursor: a name declared in one is not one a
-        '' module-level '#define' collides with (PpNoteDeclared's atTop, T62).
+        '' module-level '#define' collides with (PpNoteDeclared's atTop, T62)...
         as long                 nsDepth
+        '' ...UNLESS a module-level 'using' imports that namespace: then fbc refuses the
+        '' '#define' too. The enclosing namespaces' path, folded and dotted ("a.b"), told to
+        '' the preprocessor with every declaration in them; "" at module level.
+        as string               nsPath
+        '' NAMES THAT MAY BE A FUNCTION-LIKE MACRO'S: an ENUM member and a 'using' path. Above
+        '' zero, DeclName does not refuse one (BareMacroDecl_, declkind.bas).
+        as long                 bareNameOk
+        '' Above zero while a procedure BODY's parameters are read: those enter the
+        '' procedure's table, so BareMacroDecl_ refuses one; a DECLARE's do not.
+        as long                 bodyParams
         '' THE CONVENTION A PROCEDURE GETS WHEN IT WRITES NONE -- fbc's 'fbcall', stdcall
         '' on Windows and cdecl on Linux. Only the '...' rule reads it (CheckVarargConv_),
         '' and CC_NONE, the default, turns that rule off: the prelude and a generic

@@ -150,6 +150,11 @@ namespace Tko
     '' the invocation's text. These bits are the fallback for those.
     const TF_SUFFIX_SHIFT  as ushort = 8
     const TF_SUFFIX_MASK   as ushort = &h0700
+    '' AN IDENTIFIER THAT NAMES A FUNCTION-LIKE MACRO, passed through unexpanded because
+    '' no '(' followed it. fbc does not look such a name up at all: a bare use is error
+    '' 42, "Variable not declared", even where a 'using' makes a symbol of that name
+    '' visible (measured, fbc-modern 1.20). Set by PpExpand; read by MakeIdent.
+    const TF_BARE_FNMACRO  as ushort = &h0800
 
     enum SuffixChar
         SUFC_NONE = 0

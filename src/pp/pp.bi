@@ -372,7 +372,10 @@ namespace Tko
     '' the last two by name.
     declare sub PpNoteDeclared _
         ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE, _
-          byval kind as long = 1, byval atTop as boolean = true )
+          byval kind as long = 1, byval atTop as boolean = true, byval nsPath as string = "" )
+    '' A MODULE-LEVEL 'using' of the namespace 'path' (folded, dotted): see NoteUsing_ in
+    '' parser/decltype.bas and TakenName_ in macrotaken.bas.
+    declare sub PpNoteUsing( byref st as PpStream, byval path as string )
     '' A DECLARED TYPE, for '#if typeof( name )' to read -- see PpEngine.varTypeKey (T61).
     '' 'what' says whose: a variable's, a typedef's target, or a named type's own name.
     const PP_TYPE_VAR = 0

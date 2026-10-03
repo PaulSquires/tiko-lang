@@ -214,6 +214,10 @@ namespace Tko
     '' not a paren-less read, which picks its overload by arity (see ParenlessMethodOf_).
     '' Same bit again: neither kind can carry NF_HAS_COMMA or NF_NOINIT.
     const NF_CALL_TARGET as ushort = &h0004
+    '' N_IDENT: the name is a FUNCTION-LIKE MACRO's, written without '(' -- TF_BARE_FNMACRO.
+    '' Resolve binds it to nothing, so it is TKO0743 as it is fbc's error 42. Shares its bit
+    '' with NF_SINGLE_LINE, which only an N_IF carries.
+    const NF_BARE_MACRO as ushort = &h0008
 
     '' N_VAR: THE DECLARATION WAS WRITTEN, and its nodes were built where it stands.
     '' The parser also SYNTHESIZES declarations -- a lambda's captures, a spawn's frame,

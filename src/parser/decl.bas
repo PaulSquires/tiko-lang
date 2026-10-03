@@ -125,7 +125,7 @@ private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.Inter
     if p.stream = 0 then return
     if p.aggDepth <> 0 then return
     if p.procDepth <> 0 then return
-    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ), p.nsDepth = 0 )
+    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ), p.nsDepth = 0, p.nsPath )
 end sub
 
 private function DeclName _
@@ -135,6 +135,7 @@ private function DeclName _
     dim as Tko.TokenKind k = Peek( p )
     if k = Tko.TK_IDENT then
         outName = cast( Tko.InternId, Cur( p ).literal )
+        if record andalso ((Cur( p ).flags and Tko.TF_BARE_FNMACRO) <> 0) then BareMacroDecl_( p )
         Advance( p )
         if record then NoteDeclaredName_( p, outName )
         return true

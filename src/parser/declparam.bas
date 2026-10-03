@@ -55,6 +55,7 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
         sp.rawName = RawSpelling( p )
         '' NOT RECORDED for 'defined': a parameter of a module-level DECLARE is at
         '' procDepth zero, and fbc does not see one. See NoteDeclaredName_.
+        if (p.bodyParams > 0) andalso ((Cur( p ).flags and Tko.TF_BARE_FNMACRO) <> 0) then BareMacroDecl_( p )
         if DeclName( p, sp.name, false ) = false then return ErrorNode( p, Tko.TKO0406 )
     end if
 
@@ -240,7 +241,9 @@ private sub ProcParams_ _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
       byval kw as Tko.TokenKind, byval declareOnly as boolean )
     StrayWordBeforeParams_( p, sp )
+    if declareOnly = false then p.bodyParams += 1
     ParseParamList( p, sp )
+    if declareOnly = false then p.bodyParams -= 1
     CheckVarargConv_( p, sp, Tko.CallConvOf( sp.extra ), _
                       (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR), _
                       declareOnly andalso (p.aggDepth > 0) )

@@ -1453,7 +1453,7 @@ private function PpExpand _
         '' and fbc reports the name as an undeclared variable rather than expanding it.
         dim as boolean bare = false
         if haveParen = false then
-            if m->optParens = false then return false
+            if m->optParens = false then use.flags or= TF_BARE_FNMACRO : return false
             bare = true
         end if
 

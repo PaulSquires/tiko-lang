@@ -1,0 +1,16 @@
+'' TKO0371 through a 'using': '#define' over a name that a module-level 'using' imports is
+'' fbc's error 4 too -- an enum member, a const, a sub, a shared variable, and a member of a
+'' nested namespace imported as 'using NS.Inner'. tiko took them, and a bare use of the name
+'' after the '#define' then resolved to the namespace member where fbc says error 42.
+'' A namespace that only a PROCEDURE's 'using' imported is not in the way, nor a name no
+'' namespace declares. Line for line what fbc-modern 1.20 reports.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/define-taken-using.bas -o tests/diagnostics/definetakenusing.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: define-taken-using.bas(21,9): error TKO0371: 'one' cannot be defined as a macro: it is already declared, in namespace 'ns' that a 'using' imports
+'' EXPECT-OUT: define-taken-using.bas(22,9): error TKO0371: 'k' cannot be defined as a macro
+'' EXPECT-OUT: define-taken-using.bas(23,9): error TKO0371: 'helper' cannot be defined as a macro
+'' EXPECT-OUT: define-taken-using.bas(24,9): error TKO0371: 'v' cannot be defined as a macro
+'' EXPECT-OUT: define-taken-using.bas(25,9): error TKO0371: 'deep' cannot be defined as a macro: it is already declared, in namespace 'ns.inner' that a 'using' imports
+'' EXPECT-NOT: 'free'
+'' EXPECT-NOT: 'unrelated'

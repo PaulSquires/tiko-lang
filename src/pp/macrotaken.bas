@@ -31,6 +31,25 @@ private sub TakenName_( byref e as PpEngine, byref t as Token, byval id as Inter
         '' (sys/windows: '#define ABC ..ABC') -- and fbc compiles no module to object.
         dim as boolean inModule = (e.cfg->moduleFiles <> 0)
         if (mark_ = 1) andalso (inModule = false) then what = "already declared"
+        '' ...OR DECLARED IN A NAMESPACE A MODULE-LEVEL 'using' IMPORTED ABOVE: fbc's error 4
+        '' as well -- 'using FB' then '#define LOG_TRACE( m )' over FB's LOG_TRACE. tiko took
+        '' it, and every bare LOG_TRACE after it then compiled where fbc says error 42.
+        if (len( what ) = 0) andalso (inModule = false) andalso (ix < e.nsMemberOf.Count) then
+            dim as string ofs = e.nsMemberOf[ix]
+            if len( ofs ) > 0 then
+                dim as long a = 2
+                while a <= len( ofs )
+                    dim as long b = instr( a, ofs, "|" )
+                    if b = 0 then exit while
+                    dim as string ns = mid( ofs, a, b - a )
+                    if instr( e.usingPaths, "|" & ns & "|" ) > 0 then
+                        what = "already declared, in namespace '" & ns & "' that a 'using' imports"
+                        exit while
+                    end if
+                    a = b + 1
+                wend
+            end if
+        end if
         '' ...but '#undef sleep' does not free a predeclared procedure: fbc still says error 4.
         dim as boolean free_ = inModule
         if (len( what ) = 0) andalso (free_ = false) andalso (len( e.cfg->preludeProcs ) > 0) then

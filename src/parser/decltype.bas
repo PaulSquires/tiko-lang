@@ -234,7 +234,10 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
 
         dim as Tko.Token it = Cur( p )
         dim as Tko.StmtPayload ip
-        if DeclName( p, ip.name ) = false then
+        p.bareNameOk += 1                   '' an ENUM member is its enum's (BareMacroDecl_)
+        dim as boolean gotName = DeclName( p, ip.name )
+        p.bareNameOk -= 1
+        if gotName = false then
             Advance( p )
             continue do
         end if
@@ -344,6 +347,11 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     wend
 
     dim as Tko.NodeIdVec members
+    dim as string outerNs = p.nsPath
+    for i as long = 0 to parts.Count - 1
+        if len( p.nsPath ) > 0 then p.nsPath += "."
+        p.nsPath += Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, parts[i] ) ) )
+    next
     p.nsDepth += 1
     do
         SkipEols( p )
@@ -355,6 +363,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         if p.pos = before then Advance( p )
     loop
     p.nsDepth -= 1
+    p.nsPath = outerNs
 
     sp.first = p.ast->children.Count
     sp.count = members.Count
@@ -413,6 +422,7 @@ end function
 '' dots are kept in the path spelling; the resolver reads them.
 private function UsingPath_( byref p as Tko.ParserState ) as string
     dim as string usePath
+    p.bareNameOk += 1                   '' a path names, it does not declare
     while Peek( p ) = Tko.TK_DOT
         Advance( p )
         usePath += "."
@@ -427,8 +437,25 @@ private function UsingPath_( byref p as Tko.ParserState ) as string
         if comp = 0 then exit while
         usePath += "." & p.names->Spelling( comp )
     wend
+    p.bareNameOk -= 1
     return usePath
 end function
+
+'' A MODULE-LEVEL 'using', for the preprocessor: from here on a '#define' may not take a
+'' name that namespace declares -- fbc's error 4 (TKO0371). Measured on fbc-modern 1.20,
+'' 2026-10-03: 'using FB' then '#define LOG_TRACE( m ) ...' over FB's enum member
+'' LOG_TRACE is "Duplicated definition", and so is one over a const, a sub or a shared
+'' variable of FB; without the 'using' all four are accepted. A 'using' inside a
+'' procedure or a namespace body is not recorded.
+private sub NoteUsing_( byref p as Tko.ParserState, byref path as string )
+    if (p.stream = 0) orelse (p.nsDepth <> 0) orelse (p.procDepth <> 0) then return
+    if len( path ) = 0 then return
+    dim as string q = path
+    while left( q, 1 ) = "."
+        q = mid( q, 2 )
+    wend
+    Tko.PpNoteUsing( *cast( Tko.PpStream ptr, p.stream ), Tko.Text.LowerAscii( q ) )
+end sub
 
 #include once "parser/pptypenote.bas"
 
@@ -634,6 +661,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.StmtPayload sp
         dim as string usePath = UsingPath_( p )
         if len( usePath ) > 0 then sp.name = p.names->GetString( usePath )
+        NoteUsing_( p, usePath )
         '' A COMMA LIST -- 'using a, b, c.d' imports each, in order, exactly as three USING
         '' statements would (fbc-modern 1.20, measured 2026-09-30: it prints all three
         '' namespaces' values). Each later path is a child N_USING of the first; a trailing
@@ -649,6 +677,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
             end if
             dim as Tko.StmtPayload up
             up.name = p.names->GetString( mp )
+            NoteUsing_( p, mp )
             moreUsing.Push( cast( ulong, MakeStmt( p, Tko.N_USING, ut.loc, up ) ) )
         wend
         sp.first = p.ast->children.Count

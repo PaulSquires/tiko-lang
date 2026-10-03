@@ -1,0 +1,16 @@
+'' A FUNCTION-LIKE MACRO'S NAME WRITTEN WITHOUT '(' IS NOT LOOKED UP. fbc never resolves it:
+'' a value use is error 42, "Variable not declared" -- even where a 'using' makes an enum
+'' member of that name visible, which tiko bound to, printing 10. The qualified NS.LOWEST, a
+'' field named like the macro (t.ZZ), and the macro called with '(' all stay legal. fbc
+'' refuses the same four lines (12, 14, 16, 17; at 14 and 16 as error 9).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/macro-bare-use.bas -o tests/diagnostics/macrobareuse.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: macro-bare-use.bas(12,17): error TKO0743: 'lowest' is not declared
+'' EXPECT-OUT: macro-bare-use.bas(14,6): error TKO0743: 'lowest' is not declared
+'' EXPECT-OUT: macro-bare-use.bas(16,12): error TKO0743: 'lowest' is not declared
+'' EXPECT-OUT: macro-bare-use.bas(17,17): error TKO0743: 'zz' is not declared
+'' EXPECT-NOT: (19,
+'' EXPECT-NOT: (20,
+'' EXPECT-NOT: (21,
+'' EXPECT-NOT: (22,

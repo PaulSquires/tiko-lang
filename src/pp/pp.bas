@@ -111,6 +111,11 @@ type PpEngine
     '' ...AND THE ONES DECLARED OUTSIDE ANY NAMESPACE, by folded id: what a '#define' may
     '' not take (TKO0371). fbc's '#define' over 'N.foo' at module level is fine.
     as IdVec                  topDeclared
+    '' ...AND THE ONES DECLARED IN A NAMESPACE, by folded id: "|fb|a.b|", the namespaces
+    '' that declare it. A '#define' may not take one of those either once a module-level
+    '' 'using' has imported the namespace -- usingPaths, "|fb|" (TKO0371).
+    as StrVec                 nsMemberOf
+    as string                 usingPaths
     '' ...AND THE VALUE, for the ones that have one. FreeBASIC's '#if' reads a CONST
     '' like any other term -- measured, 'const K = 5' then '#if K = 5' takes the true
     '' branch under fbc and did not under tiko-lang, because an identifier that
@@ -335,17 +340,35 @@ end sub
 
 sub PpNoteDeclared _
     ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as long, _
-      byval atTop as boolean )
+      byval atTop as boolean, byval nsPath as string )
     if st.engine = 0 then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if InIfaceFile_( *e, at ) then return
     MarkDeclared_( *e, nm, kind )
-    if (atTop = false) orelse (nm = INTERN_NONE) then return
+    if nm = INTERN_NONE then return
     dim as long ix = cast( long, e->names->Fold( nm ) )
+    if (atTop = false) andalso (len( nsPath ) > 0) then
+        while e->nsMemberOf.Count <= ix
+            e->nsMemberOf.Push( "" )
+        wend
+        dim as string tagged = "|" & nsPath & "|"
+        if instr( e->nsMemberOf[ix], tagged ) = 0 then
+            if len( e->nsMemberOf[ix] ) = 0 then e->nsMemberOf[ix] = "|"
+            e->nsMemberOf[ix] += nsPath & "|"
+        end if
+    end if
+    if atTop = false then return
     while e->topDeclared.Count <= ix
         e->topDeclared.Push( 0 )
     wend
     e->topDeclared[ix] = 1
+end sub
+
+sub PpNoteUsing( byref st as PpStream, byval path as string )
+    if (st.engine = 0) orelse (len( path ) = 0) then return
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    if len( e->usingPaths ) = 0 then e->usingPaths = "|"
+    if instr( e->usingPaths, "|" & path & "|" ) = 0 then e->usingPaths += path & "|"
 end sub
 
 function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean

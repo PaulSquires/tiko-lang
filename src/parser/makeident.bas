@@ -1,0 +1,23 @@
+'' makeident.bas -- MakeIdent, the N_IDENT for a token. #included by expr.bas inside
+'' namespace Tko.Parse; split out of it at the 1500-line cap.
+
+function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
+    dim as Tko.IdentPayload ip
+    ip.name = cast( Tko.InternId, t.literal )
+    '' A KEYWORD token carries no interned spelling in 'literal', so an identifier
+    '' built from one -- 'abs( x )', 'len( s )', a member called '.type' -- had an
+    '' EMPTY name. It showed in the AST dump as N_IDENT '' and made every such callee
+    '' unrecognisable to anything that matches on the name.
+    if Tko.IsKeywordKind( cast( Tko.TokenKind, t.kind ) ) then
+        ip.name = p.names->GetString( _
+            Tko.Text.LowerAscii( Tko.TokenKindText( cast( Tko.TokenKind, t.kind ) ) ) )
+    end if
+    dim as Tko.DecodedLoc d = p.src->Decode( t.loc )
+    ip.spellOffset = d.offset
+    ip.spellLength = cast( long, t.length )
+    p.ast->idents.Push( ip )
+    dim as Tko.NodeId n = Tko.NewNode( *p.ast, Tko.N_IDENT, t.loc, p.ast->idents.Count - 1 )
+    '' A FUNCTION-LIKE MACRO'S NAME WITHOUT '(' -- see TF_BARE_FNMACRO.
+    if (t.flags and Tko.TF_BARE_FNMACRO) <> 0 then p.ast->nodes[cast( long, n )].flags or= Tko.NF_BARE_MACRO
+    return n
+end function

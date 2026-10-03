@@ -1,0 +1,20 @@
+'' DECLARING A FUNCTION-LIKE MACRO'S NAME, where fbc's '#define' collides: its global table and
+'' a procedure's. A SHARED variable, a CONST, a TYPE, a NAMESPACE, a procedure body's
+'' parameter and its local are each fbc's error 4, "Duplicated definition"; tiko took them
+'' all. A namespace's member, a DECLARE's parameter, a TYPE's field and an ENUM's member --
+'' named or not -- live in tables of their own and stay legal. Line for line what
+'' fbc-modern 1.20 reports.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/macro-bare-decl.bas -o tests/diagnostics/macrobaredecl.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: macro-bare-decl.bas(12,20): error TKO0600: 'm1' is already declared in this scope
+'' EXPECT-OUT: macro-bare-decl.bas(13,7): error TKO0600: 'm2' is already declared in this scope
+'' EXPECT-OUT: macro-bare-decl.bas(14,6): error TKO0600: 'm3' is already declared in this scope
+'' EXPECT-OUT: macro-bare-decl.bas(17,11): error TKO0600: 'm4' is already declared in this scope
+'' EXPECT-OUT: macro-bare-decl.bas(20,17): error TKO0600: 'm6' is already declared in this scope
+'' EXPECT-OUT: macro-bare-decl.bas(21,21): error TKO0600: 'm7' is already declared in this scope
+'' EXPECT-NOT: 'm5'
+'' EXPECT-NOT: 'm8'
+'' EXPECT-NOT: 'm9'
+'' EXPECT-NOT: 'm10'
+'' EXPECT-NOT: 'm11'
