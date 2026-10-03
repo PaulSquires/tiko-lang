@@ -1,7 +1,7 @@
 func void P() {
   local agg c size 4
   local agg i size 4
-  local agg p size 4
+  local agg q size 4
   local agg $abi3 size 4
   local agg $abi4 size 4
   entry0:
@@ -14,11 +14,11 @@ func void P() {
     store @$abi3, %8
     %4 = load @$abi3
     store @i, %4
-    %5 = alloca ptr p
+    %5 = alloca ptr q
     %10 = call i32 _ZN4CollIiE1AEv(@c)
     store @$abi4, %10
     %6 = load @$abi4
-    store @p, %6
+    store @q, %6
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)

@@ -6,7 +6,7 @@ sub P( )
     dim as zstring * 8 z
     dim as wstring * 8 w, w2
     dim as long l : dim as double dd : dim as byte b
-    dim as integer p
+    dim as integer q
 
     '' WRITE is one-to-one with PRINT minus SPC, TAB and USING. Its ONLY separator is
     '' ',' -- fbc rejects 'write s;' with error 3 -- so the only masks it can produce
@@ -24,9 +24,9 @@ sub P( )
     ''
     '' The destination has to be a pointer VALUE. 'store @p, v' means 'into the slot p'
     '' in this IR, so '@p' had to be materialised or an i8 went into an i64 slot.
-    poke byte, @p, 5
-    poke integer, @p, 7
-    poke @p, 3
+    poke byte, @q, 5
+    poke integer, @q, 7
+    poke @q, 3
 
     '' LSET/RSET pad or truncate INTO a destination that already has storage. A ZSTRING
     '' destination has no descriptor, so it borrows a temporary one. Its payload is ONE

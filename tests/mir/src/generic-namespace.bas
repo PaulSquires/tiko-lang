@@ -72,5 +72,5 @@ sub P( )
     dim as N.Coll( of long ) c
     '' QUALIFIED HERE, unqualified inside N: the same instantiation either way.
     dim as N.It( of long ) i = c.GetIterator( )
-    dim as N.Plain p = c.A( )
+    dim as N.Plain q = c.A( )
 end sub

@@ -5,12 +5,12 @@ sub P( )
     dim as string s = "x"
     dim as long n
     dim as double d
-    dim as any ptr p
+    dim as any ptr q
     print
     print s
     print n
     print d
-    print p
+    print q
     print "lit"
     print s; n
     print s, n

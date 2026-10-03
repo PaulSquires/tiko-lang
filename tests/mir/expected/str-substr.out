@@ -4,15 +4,15 @@ global str $str2 "!"
 func void P(i32 $0) {
   local i32 n
   local agg a size 24
-  local agg p size 24
+  local agg q size 24
   local agg b size 24
   entry0:
     %1 = alloca ptr n
     store @n, $0
     %2 = alloca ptr a
     %3 = call.rtl ptr fb_StrInit(@a, -1, @@$str0, 7, 0)
-    %4 = alloca ptr p
-    %5 = call.rtl ptr fb_StrInit(@p, -1, @@$str1, 2, 0)
+    %4 = alloca ptr q
+    %5 = call.rtl ptr fb_StrInit(@q, -1, @@$str1, 2, 0)
     %6 = alloca ptr b
     %7 = call.rtl ptr memset(@b, 0, 24)
     %8 = field.addr @b, 0
@@ -23,9 +23,9 @@ func void P(i32 $0) {
     store %10, 0
     %11 = call.rtl ptr fb_TRIM(@a)
     %12 = call.rtl ptr fb_StrAssign(@b, -1, %11, -1, 0)
-    %13 = call.rtl ptr fb_TrimEx(@a, @p)
+    %13 = call.rtl ptr fb_TrimEx(@a, @q)
     %14 = call.rtl ptr fb_StrAssign(@b, -1, %13, -1, 0)
-    %15 = call.rtl ptr fb_TrimAny(@a, @p)
+    %15 = call.rtl ptr fb_TrimAny(@a, @q)
     %16 = call.rtl ptr fb_StrAssign(@b, -1, %15, -1, 0)
     %17 = call.rtl ptr fb_LTRIM(@a)
     %18 = call.rtl ptr fb_StrAssign(@b, -1, %17, -1, 0)
@@ -58,16 +58,16 @@ func void P(i32 $0) {
     %45 = call.rtl ptr fb_StrAssign(@b, -1, %44, -1, 0)
     %46 = call.rtl ptr fb_StrConcatAssign(@b, -1, @@$str2, 2, 0)
     %47 = call.rtl ptr fb_StrAssign(@b, -1, @a, -1, 0)
-    %48 = call.rtl ptr fb_StrConcatAssign(@b, -1, @p, -1, 0)
+    %48 = call.rtl ptr fb_StrConcatAssign(@b, -1, @q, -1, 0)
     %49 = call.rtl ptr fb_TRIM(@a)
     %50 = call.rtl ptr fb_StrAssign(@b, -1, %49, -1, 0)
-    %51 = call.rtl ptr fb_StrConcatAssign(@b, -1, @p, -1, 0)
+    %51 = call.rtl ptr fb_StrConcatAssign(@b, -1, @q, -1, 0)
     %52 = call.rtl ptr fb_TRIM(@a)
     call.rtl void fb_PrintString(0, %52, 1)
     %53 = call.rtl ptr fb_StrUcase2(@a, 0)
     call.rtl void fb_PrintString(0, %53, 1)
     call.rtl void fb_StrDelete(@b)
-    call.rtl void fb_StrDelete(@p)
+    call.rtl void fb_StrDelete(@q)
     call.rtl void fb_StrDelete(@a)
     ret
 }

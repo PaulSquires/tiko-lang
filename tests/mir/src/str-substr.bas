@@ -8,11 +8,11 @@
 '' wrong in both directions.
 
 sub P( byval n as long )
-    dim as string a = "  ab  ", p = "x", b
+    dim as string a = "  ab  ", q = "x", b
 
     b = trim( a )
-    b = trim( a, p )
-    b = trim( a, any p )
+    b = trim( a, q )
+    b = trim( a, any q )
     b = ltrim( a )
     b = rtrim( a )
     b = left( a, n )
@@ -26,8 +26,8 @@ sub P( byval n as long )
     '' strings -- fbc emits assign-then-concat-assign for both -- and only '+' was
     '' being flattened, so 'b = a & p' declined while 'b = a + p' lowered.
     b = ucase( trim( a ) ) & "!"
-    b = a & p
-    b = trim( a ) & p
+    b = a & q
+    b = trim( a ) & q
 
     '' In a PRINT item. This has to be recognised BEFORE the string-type test:
     '' Check DOES type these calls as STRING, so the type test catches them and then

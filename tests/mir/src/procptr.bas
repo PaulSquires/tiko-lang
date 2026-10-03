@@ -11,8 +11,8 @@ G( procptr( F ) )
 '' and the pointee is where it lives.
 type FN as function( byval x as double, byval c as any ptr ) as double
 
-sub IndirectResult( byval f as FN, byval ctx as any ptr )
-    dim as double a = f( 1.0, ctx )
+sub IndirectResult( byval h as FN, byval ctx as any ptr )
+    dim as double a = h( 1.0, ctx )
     dim as double b
-    b = f( 2.0, ctx )
+    b = h( 2.0, ctx )
 end sub

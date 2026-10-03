@@ -4,7 +4,7 @@ func void P() {
   local agg s size 24
   local i32 n
   local f64 d
-  local ptr p
+  local ptr q
   entry0:
     %1 = alloca ptr s
     %2 = call.rtl ptr fb_StrInit(@s, -1, @@$str0, 2, 0)
@@ -12,15 +12,15 @@ func void P() {
     %4 = call.rtl ptr memset(@n, 0, 4)
     %5 = alloca ptr d
     %6 = call.rtl ptr memset(@d, 0, 8)
-    %7 = alloca ptr p
-    %8 = call.rtl ptr memset(@p, 0, 8)
+    %7 = alloca ptr q
+    %8 = call.rtl ptr memset(@q, 0, 8)
     call.rtl void fb_PrintVoid(0, 1)
     call.rtl void fb_PrintString(0, @s, 1)
     %9 = load @n
     call.rtl void fb_PrintInt(0, %9, 1)
     %10 = load @d
     call.rtl void fb_PrintDouble(0, %10, 1)
-    %11 = load @p
+    %11 = load @q
     %12 = bitcast %11
     call.rtl void fb_PrintULongint(0, %12, 1)
     %13 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 3)

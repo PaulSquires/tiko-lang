@@ -1,38 +1,6 @@
 global str $str0 "called"
 global str $str1 "body"
 global str $str2 "deferred"
-func void DEFER(i32 $0) {
-  local i32 n
-  entry0:
-    %1 = alloca ptr n
-    store @n, $0
-    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 6)
-    call.rtl void fb_PrintString(0, %2, 0)
-    %3 = load @n
-    call.rtl void fb_PrintInt(0, %3, 1)
-    ret
-}
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
-declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
-declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
-func void CALLS() {
-  entry0:
-    %1 = const i64 5
-    %2 = trunc %1
-    call void DEFER(%2)
-    %3 = const i64 6
-    %4 = trunc %3
-    call void DEFER(%4)
-    %5 = const i64 7
-    %6 = neg %5
-    %7 = trunc %6
-    call void DEFER(%7)
-    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
-    call.rtl void fb_PrintString(0, %8, 1)
-    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 8)
-    call.rtl void fb_PrintString(0, %9, 1)
-    ret
-}
 func void ARRAYNAMEDDEFER() {
   local agg defer size 12
   entry0:
@@ -54,6 +22,7 @@ func void ARRAYNAMEDDEFER() {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 func void UDTNAMEDDEFER() {
   local agg defer size 4
   entry0:
@@ -66,6 +35,37 @@ func void UDTNAMEDDEFER() {
     %6 = field.addr @defer, 0
     %7 = load %6
     call.rtl void fb_PrintInt(0, %7, 1)
+    ret
+}
+func void DEFER(i32 $0) {
+  local i32 n
+  entry0:
+    %1 = alloca ptr n
+    store @n, $0
+    %2 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 6)
+    call.rtl void fb_PrintString(0, %2, 0)
+    %3 = load @n
+    call.rtl void fb_PrintInt(0, %3, 1)
+    ret
+}
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
+declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
+func void CALLS() {
+  entry0:
+    %1 = const i64 5
+    %2 = trunc %1
+    call void DEFER(%2)
+    %3 = const i64 6
+    %4 = trunc %3
+    call void DEFER(%4)
+    %5 = const i64 7
+    %6 = neg %5
+    %7 = trunc %6
+    call void DEFER(%7)
+    %8 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 4)
+    call.rtl void fb_PrintString(0, %8, 1)
+    %9 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 8)
+    call.rtl void fb_PrintString(0, %9, 1)
     ret
 }
 func i32 main(i32 $0, ptr $1) {

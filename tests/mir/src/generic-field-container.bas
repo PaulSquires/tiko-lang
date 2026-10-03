@@ -43,8 +43,8 @@ sub P( )
     b.Add( 65, "a" )
     b.Add( 66, "b" )
 
-    dim as Pool p
-    p.items.Push( b )
+    dim as Pool q
+    q.items.Push( b )
 
     '' DEEP COPY: assigning the owner copies the container, storage and all.
     dim as Buf b2 = b

@@ -9,7 +9,7 @@ func void P() {
   local i32 l
   local f64 dd
   local i8 b
-  local i64 p
+  local i64 q
   entry0:
     %1 = alloca ptr s1
     %2 = call.rtl ptr fb_StrInit(@s1, -1, @@$str0, 2, 0)
@@ -27,8 +27,8 @@ func void P() {
     %14 = call.rtl ptr memset(@dd, 0, 8)
     %15 = alloca ptr b
     %16 = call.rtl ptr memset(@b, 0, 1)
-    %17 = alloca ptr p
-    %18 = call.rtl ptr memset(@p, 0, 8)
+    %17 = alloca ptr q
+    %18 = call.rtl ptr memset(@q, 0, 8)
     %19 = load @l
     call.rtl void fb_WriteInt(0, %19, 2)
     call.rtl void fb_WriteString(0, @s1, 2)
@@ -46,14 +46,14 @@ func void P() {
     call.rtl void fb_WriteInt(0, %25, 2)
     %26 = const i64 5
     %27 = trunc %26
-    %28 = field.addr @p, 0
+    %28 = field.addr @q, 0
     store %28, %27
     %29 = const i64 7
-    %30 = field.addr @p, 0
+    %30 = field.addr @q, 0
     store %30, %29
     %31 = const i64 3
     %32 = trunc %31
-    %33 = field.addr @p, 0
+    %33 = field.addr @q, 0
     store %33, %32
     call.rtl void fb_StrLset(@s1, @s2)
     call.rtl void fb_StrRset(@s1, @s2)
