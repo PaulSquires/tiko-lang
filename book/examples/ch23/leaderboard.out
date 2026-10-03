@@ -1,0 +1,9 @@
+ 95 alan
+ 110 edsger
+ 120 ada
+ 140 grace
+lowest: 95 alan
+highest: 140 grace
+best at or below 130: 120
+first at or above 130: 140
+anything at or above 200? false

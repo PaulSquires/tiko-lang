@@ -1,0 +1,15 @@
+'' Exercise 23-2: when is the next booking at or after a given time?
+#import "std/containers"
+
+dim booked as containers.OrderedSet( of int32 ) = { 900, 1000, 1400 }
+dim asks( 0 to 2 ) as int32 = { 930, 1000, 1500 }
+dim as int32 nxt
+for each a in asks
+    if booked.Contains( a ) then
+        print a; " is booked"
+    elseif booked.TryCeiling( a, nxt ) then
+        print a; " is free until"; nxt
+    else
+        print a; " is free for the rest of the day"
+    end if
+next

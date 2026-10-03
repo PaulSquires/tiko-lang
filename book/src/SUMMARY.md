@@ -33,6 +33,10 @@
 - [21. Resource Management](ch21-resource-management.md)
 - [22. Concurrency](ch22-concurrency.md)
 
+# The Standard Library
+
+- [23. Containers and Sorting](ch23-containers.md)
+
 # Appendices
 
 - [Appendix B: Diagnostics](appendix-B-diagnostics.md)

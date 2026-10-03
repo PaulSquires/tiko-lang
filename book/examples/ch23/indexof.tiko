@@ -1,0 +1,9 @@
+#import "std/containers"
+
+dim scores as containers.Array( of int32 ) = { 70, 85, 90 }
+
+'' Searching is a free procedure, not a member.
+dim as int32 wanted = 85, missing = 60
+print containers.IndexOf( scores, wanted )
+print containers.IndexOf( scores, missing )
+print containers.Contains( scores, wanted )

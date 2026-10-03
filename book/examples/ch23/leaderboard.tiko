@@ -1,0 +1,22 @@
+#import "std/containers"
+
+'' An OrderedMap keeps its keys sorted: here, scores.
+dim board as containers.OrderedMap( of int32, ustring )
+board.Put( 120, "ada" )
+board.Put( 95, "alan" )
+board.Put( 140, "grace" )
+board.Put( 110, "edsger" )
+
+for each (score, who) in board.Pairs( )      '' always in key order
+    print score; " "; who
+next
+
+dim as int32 k
+dim as ustring who
+if board.TryFirst( k, who ) then print "lowest:"; k; " "; who
+if board.TryLast( k, who ) then print "highest:"; k; " "; who
+
+'' The neighbours of a value that is not a key.
+if board.TryFloor( 130, k ) then print "best at or below 130:"; k
+if board.TryCeiling( 130, k ) then print "first at or above 130:"; k
+print "anything at or above 200? "; board.TryCeiling( 200, k )

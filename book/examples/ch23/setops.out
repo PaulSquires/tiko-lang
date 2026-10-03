@@ -1,0 +1,4 @@
+add 4 again: false
+evens and small: 2 4
+evens or small: 1 2 3 4 6 8
+evens not small: 6 8

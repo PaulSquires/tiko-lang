@@ -1,0 +1,5 @@
+next: fetch, last: test
+doing fetch
+doing build
+doing test
+empty: true

@@ -1,0 +1,40 @@
+#import "std/containers"
+
+type Player
+    name as ustring
+    team as ustring
+    points as int32
+end type
+
+sub Show( byref ps as containers.Array( of Player ) )
+    for each p in ps
+        print p.team; " "; p.name; p.points
+    next
+    print "--"
+end sub
+
+dim ps as containers.Array( of Player )
+dim p as Player
+p.name = "ada"  : p.team = "red"  : p.points = 31 : ps.Push( p )
+p.name = "bob"  : p.team = "blue" : p.points = 27 : ps.Push( p )
+p.name = "cy"   : p.team = "red"  : p.points = 27 : ps.Push( p )
+p.name = "dee"  : p.team = "blue" : p.points = 35 : ps.Push( p )
+
+'' Best first: a comparer says whether a goes before b.
+containers.SortBy( ps, function( byref a as Player, _
+                                 byref b as Player ) as boolean
+    return a.points > b.points
+end function )
+Show( ps )
+
+'' Then by team, STABLY: within a team, best-first is kept.
+containers.StableSortBy( ps, function( byref a as Player, _
+                                       byref b as Player ) as boolean
+    return a.team < b.team
+end function )
+Show( ps )
+
+dim nums as containers.Array( of int32 ) = { 9, 4, 7 }
+print containers.IsSorted( nums );
+containers.Sort( nums )
+print containers.IsSorted( nums ); nums[0]; nums[1]; nums[2]

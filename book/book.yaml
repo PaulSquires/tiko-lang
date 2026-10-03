@@ -71,7 +71,7 @@ parts:
       - { n: 22, file: src/ch22-concurrency.md,          status: drafted }
   - name: "The Standard Library"
     chapters:
-      - { n: 23, file: chapters/23-containers.md,         status: planned }
+      - { n: 23, file: src/ch23-containers.md,           status: drafted }
       - { n: 24, file: chapters/24-files-processes.md,    status: planned }
       - { n: 25, file: chapters/25-dates-times.md,        status: planned }
       - { n: 26, file: chapters/26-numbers.md,            status: planned }

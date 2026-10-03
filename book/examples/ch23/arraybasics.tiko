@@ -1,0 +1,31 @@
+#import "std/containers"
+
+sub Show( byref label as ustring, _
+          byref xs as containers.Array( of int32 ) )
+    print label; ":";
+    for each x in xs
+        print x;
+    next
+    print "   (count"; xs.Count( ); ", capacity"; xs.Capacity( ); ")"
+end sub
+
+dim xs as containers.Array( of int32 ) = { 5, 3, 9 }
+Show( "start", xs )
+
+xs.Push( 7 )                      '' append
+Show( "push 7", xs )
+print "pop gives"; xs.Pop( ); ", xs[0] is"; xs[0]   '' indices from 0
+
+xs.Insert( 0, 1 )                 '' shifts everything after it
+Show( "insert at 0", xs )
+xs.Remove( 1 )                    '' keeps the order
+Show( "remove at 1", xs )
+xs.RemoveSwap( 0 )                '' moves the last element into the gap
+Show( "removeswap 0", xs )
+
+xs.Reserve( 100 )                 '' room for 100 without regrowing
+Show( "reserve 100", xs )
+xs.Clear( )                       '' drops elements, keeps capacity
+Show( "clear", xs )
+xs.Shrink( )                      '' gives the capacity back
+Show( "shrink", xs )

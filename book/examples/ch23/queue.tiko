@@ -1,0 +1,13 @@
+#import "std/containers"
+
+'' A LinkedList is a queue at both ends.
+dim jobs as containers.LinkedList( of ustring )
+jobs.PushBack( "build" )
+jobs.PushBack( "test" )
+jobs.PushFront( "fetch" )             '' jumps the queue
+
+print "next: "; jobs.Front( ); ", last: "; jobs.Back( )
+do until jobs.IsEmpty( )
+    print "doing "; jobs.PopFront( )
+loop
+print "empty: "; jobs.IsEmpty( )

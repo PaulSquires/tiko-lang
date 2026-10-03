@@ -1,0 +1,9 @@
+#import "std/containers"
+
+dim ages as containers.Map( of ustring, int32 )
+print ages.Add( "ada", 36 )       '' true: inserted
+print ages.Add( "ada", 99 )       '' false: already there, unchanged
+print ages[ "ada" ]
+print ages.Put( "ada", 37 )       '' false: was there, now replaced
+print ages[ "ada" ]
+print ages.Remove( "ada" ); ages.Count( )

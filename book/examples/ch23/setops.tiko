@@ -1,0 +1,29 @@
+#import "std/containers"
+
+sub Show( byref label as ustring, _
+          byref s as containers.Set( of int32 ) )
+    var items = s.Items( )            '' a Set has no order either
+    containers.Sort( items )
+    print label; ":";
+    for each x in items
+        print x;
+    next
+    print
+end sub
+
+dim evens as containers.Set( of int32 ) = { 2, 4, 6, 8 }
+dim small as containers.Set( of int32 ) = { 1, 2, 3, 4 }
+
+print "add 4 again: "; evens.Add( 4 )     '' false: already present
+
+dim both as containers.Set( of int32 ) = evens
+both.IntersectWith( small )
+Show( "evens and small", both )
+
+dim either as containers.Set( of int32 ) = evens
+either.UnionWith( small )
+Show( "evens or small", either )
+
+dim onlyEven as containers.Set( of int32 ) = evens
+onlyEven.ExceptWith( small )
+Show( "evens not small", onlyEven )

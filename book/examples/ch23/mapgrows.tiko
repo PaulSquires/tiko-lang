@@ -1,0 +1,12 @@
+#import "std/containers"
+
+dim stock as containers.Map( of ustring, int32 )
+stock[ "apples" ] = 12
+stock[ "pears" ] = 0
+
+'' Reading through [ ] looks harmless...
+if stock[ "plums" ] = 0 then print "no plums"
+if stock[ "kiwis" ] = 0 then print "no kiwis"
+
+'' ...but each miss inserted a zero.
+print "items in stock map:"; stock.Count( )

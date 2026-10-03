@@ -1,0 +1,4 @@
+#import "std/containers"
+
+dim scores as containers.Array( of int32 ) = { 70, 85, 90 }
+print containers.IndexOf( scores, 85 )   '' 85 is an integer, not int32

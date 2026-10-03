@@ -1,0 +1,31 @@
+'' Exercise 23-1: the three most frequent words.
+#import "std/containers"
+
+type WordCount
+    word as ustring
+    n as int32
+end type
+
+dim text( 0 to 11 ) as ustring = { "a", "rose", "is", "a", "rose", _
+    "is", "a", "rose", "and", "a", "rose", "too" }
+
+dim counts as containers.Map( of ustring, int32 )
+for each t in text
+    counts[ t ] += 1
+next
+
+dim ranked as containers.Array( of WordCount )
+for each (word, n) in counts.Pairs( )
+    dim wc as WordCount
+    wc.word = word : wc.n = n
+    ranked.Push( wc )
+next
+'' Most frequent first; ties alphabetically, so the order is fixed.
+containers.SortBy( ranked, function( byref a as WordCount, _
+                                     byref b as WordCount ) as boolean
+    if a.n <> b.n then return a.n > b.n
+    return a.word < b.word
+end function )
+for i as int32 = 0 to 2
+    print ranked[i].word; ranked[i].n
+next
