@@ -75,7 +75,7 @@ parts:
       - { n: 24, file: src/ch24-files-processes.md,     status: drafted }
       - { n: 25, file: src/ch25-dates-times.md,         status: drafted }
       - { n: 26, file: src/ch26-numbers.md,             status: drafted }
-      - { n: 27, file: chapters/27-logging-tui-sqlite.md, status: planned }
+      - { n: 27, file: src/ch27-logging-tui-sqlite.md,  status: drafted }
   - name: "Systems Programming"
     chapters:
       - { n: 28, file: src/ch28-interfacing-c.md,       status: drafted }

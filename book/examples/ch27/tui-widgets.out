@@ -1,0 +1,7 @@
++ files -----++ sizes -----------------+
+|  notes.txt ||Name              Bytes |
+|> todo.md   ||notes.txt         1204  |
+|  data.csv  ||todo.md           88    |
+|            ||                        |
++------------++------------------------+
+ q quit                             2/3

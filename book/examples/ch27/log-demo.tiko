@@ -1,0 +1,33 @@
+#import "std/logs"
+
+'' A renderer with no timestamp, so the output is the same every run.
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+
+'' Logs normally go to stderr; this listing sends them to stdout.
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+
+dim lg as logs.Logger
+lg.MinLevel = logs.LOG_DEBUG
+lg.AddSink( @con )
+
+'' One call per record. Below MinLevel, nothing is built at all.
+lg.Info( "server started" )
+lg.Debug( "cache warm" )
+lg.Trace( "not shown: trace is below debug" )
+
+'' Fields are typed, and chained; Msg( ) sends the record.
+lg.Warn( ).Str( "user", "quinn" ).Int_( "attempts", 3 ) _
+          .Msg( "login failed" )
+
+'' A child logger carries fields of its own into every record.
+var db = lg.WithField( "component", logs.LogValue( "db" ) )
+db.Info( ).Int_( "rows", 42 ).Dbl( "ms", 1.5 ) _
+          .Msg( "query complete" )
+
+'' Levels as text, both ways.
+dim lv as logs.LogLevel
+if logs.LevelFromName( "warn", lv ) then
+    print "warn is level"; lv; ", "; logs.LevelName( logs.LOG_ERROR ); _
+          " is"; logs.LOG_ERROR
+end if

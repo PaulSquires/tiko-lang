@@ -1,0 +1,5 @@
+INFO   server started
+DEBUG  cache warm
+WARN   login failed  user=quinn attempts=3
+INFO   query complete  component=db rows=42 ms=1.5
+warn is level 40, ERROR is 50

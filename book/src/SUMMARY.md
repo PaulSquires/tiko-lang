@@ -39,6 +39,7 @@
 - [24. Files, Processes and the Environment](ch24-files-processes.md)
 - [25. Dates and Times](ch25-dates-times.md)
 - [26. Numbers](ch26-numbers.md)
+- [27. Logging, Terminal UIs and SQLite](ch27-logging-tui-sqlite.md)
 
 # Systems Programming
 

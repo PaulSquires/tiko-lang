@@ -1,0 +1,10 @@
++---------- hello -----------+
+|      keys pressed: 0       |
+|                            |
++----------------------------+
+Update asked to redraw: true
++---------- hello -----------+
+|      keys pressed: 1       |
+|                            |
++----------------------------+
+bytes written: 158 14 0

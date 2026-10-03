@@ -1,0 +1,24 @@
+'' The CSV companion: real CSV, with quoted fields and empty values.
+#include once "fbsqlite_csv.bi"
+
+dim db as SQLite.Database
+db.OpenMemory( )
+
+'' The header row names the columns, and the table is created from it.
+var loaded = SQLite.ImportCsv( db, "people", "people.csv" )
+if loaded.IsOk( ) = false then
+    print "import failed: "; loaded.Failure( ).Message( )
+    end 1
+end if
+print loaded.Value( ); " rows imported"
+
+var rows = db.Query( "select name, city, phone from people " & _
+                     "order by name" )
+for each r in rows.Value( )
+    dim as ustring phone = "(none)"
+    if r[ "phone" ].IsNull( ) = false then
+        phone = r[ "phone" ].AsText( )
+    end if
+    print r[ "name" ].AsText( ); " | "; r[ "city" ].AsText( ); _
+          " | "; phone
+next

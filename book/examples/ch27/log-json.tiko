@@ -1,0 +1,24 @@
+#import "std/logs"
+
+'' JSON lines in a file: one object per record, for other programs.
+dim js as logs.JsonRenderer
+dim file_ as logs.FileSink = logs.FileSink( "orders.log", @js )
+
+dim lg as logs.Logger
+lg.AddSink( @file_ )
+lg.Info( ).Str( "user", "quinn" ).Int_( "items", 3 ) _
+          .Msg( "order placed" )
+lg.Error( ).Str( "card", "visa" ).Msg( "payment declined" )
+file_.Close( )
+
+'' Each line starts with the time, which differs on every run, so this
+'' prints each record from its level onwards.
+dim as int32 f = freefile( )
+open "orders.log" for input as #f
+dim as ustring record
+do until eof( f )
+    line input #f, record
+    print "{"; mid( record, instr( record, """level""" ) )
+loop
+close #f
+kill "orders.log"

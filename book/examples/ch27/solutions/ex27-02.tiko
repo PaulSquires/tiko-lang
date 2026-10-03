@@ -1,0 +1,20 @@
+'' The minimum level comes from the command line, by name.
+#import "std/logs"
+
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+dim lg as logs.Logger
+lg.AddSink( @con )
+
+'' A name that is not a level leaves the default, INFO, in place.
+dim as logs.LogLevel wanted = logs.LOG_INFO
+if logs.LevelFromName( command( 1 ), wanted ) = false then
+    print "unknown level '"; command( 1 ); "', using INFO"
+end if
+lg.MinLevel = wanted
+
+lg.Debug( "debug detail" )
+lg.Info( "normal operation" )
+lg.Warn( "disk 90% full" )
+lg.Error( "write failed" )

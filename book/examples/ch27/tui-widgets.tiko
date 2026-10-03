@@ -1,0 +1,88 @@
+#import "std/tui"
+
+'' Widget STATE outlives the frame, so it lives in the app.
+type FilesApp extends tui.TuiApp
+    as tui.TuiListState listState
+    as tui.TuiTableState tableState
+    declare function Init( ) as tui.TuiCmd override
+    declare function Update( byref e as tui.TuiEvent ) _
+                             as tui.TuiCmd override
+    declare sub View( byref f as tui.TuiFrame ) override
+end type
+
+function FilesApp.Init( ) as tui.TuiCmd
+    listState.selected = 1
+    return tui.TuiNone( )
+end function
+
+function FilesApp.Update( byref e as tui.TuiEvent ) as tui.TuiCmd
+    return tui.TuiNone( )
+end function
+
+function Boxed( byref title as ustring ) as tui.TuiBlock
+    dim as tui.TuiBlock b
+    b.borderKind = tui.TUIBORDER_ASCII
+    b.sides = tui.TUISIDE_ALL
+    b.AddTitle( title, tui.TuiStyleDefault( ), _
+                tui.TUISIDE_TOP, tui.TUIALIGN_LEFT )
+    return b
+end function
+
+sub FilesApp.View( byref f as tui.TuiFrame )
+    '' Layout: a body that fills, over a status bar one row high ...
+    dim as tui.TuiConstraintArray rowsC
+    rowsC.Push( tui.TuiFill( ) )
+    rowsC.Push( tui.TuiLength( 1 ) )
+    dim as tui.TuiRectArray band = tui.TuiSplitV( f.Area( ), rowsC )
+
+    '' ... and the body split into a 14-column list and the rest.
+    dim as tui.TuiConstraintArray colsC
+    colsC.Push( tui.TuiLength( 14 ) )
+    colsC.Push( tui.TuiFill( ) )
+    dim as tui.TuiRectArray col = tui.TuiSplitH( band[0], colsC )
+
+    var lb = Boxed( " files " )
+    lb.Render( f, col[0] )
+    dim as tui.TuiList lst
+    lst.items.Push( "notes.txt" )
+    lst.items.Push( "todo.md" )
+    lst.items.Push( "data.csv" )
+    lst.state = @listState
+    lst.selectPrefix = "> "
+    lst.Render( f, lb.Inner( col[0] ) )
+
+    var tb = Boxed( " sizes " )
+    tb.Render( f, col[1] )
+    dim as tui.TuiTable t
+    t.headers.Push( "Name" ) : t.widths.Push( tui.TuiFill( ) )
+    t.headers.Push( "Bytes" ) : t.widths.Push( tui.TuiLength( 6 ) )
+    dim as tui.TuiRow r
+    r.cells.Push( "notes.txt" ) : r.cells.Push( "1204" )
+    t.rows.Push( r )
+    r.cells.Clear( )
+    r.cells.Push( "todo.md" ) : r.cells.Push( "88" )
+    t.rows.Push( r )
+    t.state = @tableState
+    t.showHeader = true
+    t.Render( f, tb.Inner( col[1] ) )
+
+    dim as tui.TuiStatusBar sb
+    sb.Add( " q quit ", tui.TuiStyleDefault( ), tui.TUIALIGN_LEFT )
+    sb.Add( "2/3 ", tui.TuiStyleDefault( ), tui.TUIALIGN_RIGHT )
+    sb.Render( f, band[1] )
+end sub
+
+dim as FilesApp app
+dim as tui.TuiScreen scr
+scr.Resize( 40, 7 )
+app.Init( )
+tui.TuiRenderOnce( app, scr )
+
+dim as tui.TuiBuffer ptr bf = scr.Front( )
+for y as int32 = 0 to bf->rows - 1
+    dim as ustring row
+    for x as int32 = 0 to bf->cols - 1
+        if bf->At( x, y )->width > 0 then row &= bf->At( x, y )->text
+    next
+    print rtrim( row )
+next

@@ -1,0 +1,19 @@
+#import "std/logs"
+
+'' The process-wide default logger is defined in exactly one module.
+FB_LOG_IMPLEMENT( )
+
+'' Any procedure, in any module, can then log without being handed a
+'' logger.
+sub SaveSettings( byref path as ustring )
+    logs.DefaultLogger( ).Info( ).Str( "path", path ).Msg( "saved" )
+end sub
+
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+
+logs.LogInit( @con, logs.LOG_INFO )
+logs.DefaultLogger( ).Info( "starting" )
+SaveSettings( "settings.ini" )
+logs.LogShutdown( )

@@ -1,0 +1,40 @@
+'' No module fronts the SQLite wrapper, so it is included as a header.
+#include once "fbsqlite.bi"
+
+dim db as SQLite.Database
+db.OpenMemory( )
+db.Execute( "create table contact( id integer primary key, " & _
+            "name text not null, email text )" )
+
+'' Values go in as parameters, never pasted into the SQL text.
+dim as ustring names( ... ) = { "Grace", "Ada", "Edsger" }
+dim as ustring emails( ... ) = { "grace@example.org", _
+                                 "ada@example.org", "" }
+for i as int32 = 0 to ubound( names )
+    db.Execute( "insert into contact( name, email ) values( ?, ? )", _
+                SQLite.Args( names( i ), emails( i ) ) )
+next
+print "last id:"; db.LastInsertRowId( )
+
+'' A query returns a Result holding rows; each column is read by name.
+var rows = db.Query( "select id, name, email from contact " & _
+                     "where email <> '' order by name" )
+if rows.IsOk( ) then
+    for each r in rows.Value( )
+        print r[ "id" ].AsInt64( ); "  "; r[ "name" ].AsText( ); _
+              "  "; r[ "email" ].AsText( )
+    next
+end if
+
+'' A transaction: everything in it happens, or nothing does.
+dim t as SQLite.Transaction
+t.Begin( db )
+db.Execute( "delete from contact" )
+t.Rollback( )
+var count_ = db.QueryScalar( "select count(*) from contact" )
+print "after the rollback:"; count_.Value( ).Value( ).AsInt64( ); _
+      " contacts"
+
+'' A failure is a value with a message, not a runtime error.
+var bad = db.Execute( "insert into contact( email ) values( 'x' )" )
+if bad.IsOk( ) = false then print "refused: "; bad.Failure( ).Message( )

@@ -1,0 +1,2 @@
+{"level":"INFO","msg":"order placed","user":"quinn","items":3}
+{"level":"ERROR","msg":"payment declined","card":"visa"}

@@ -1,0 +1,77 @@
+#import "std/tui"
+
+'' An application is three methods: Init, Update and View.
+type HelloApp extends tui.TuiApp
+    as int32 presses
+    declare function Init( ) as tui.TuiCmd override
+    declare function Update( byref e as tui.TuiEvent ) _
+                             as tui.TuiCmd override
+    declare sub View( byref f as tui.TuiFrame ) override
+end type
+
+function HelloApp.Init( ) as tui.TuiCmd
+    presses = 0
+    return tui.TuiNone( )
+end function
+
+'' Update changes state and says what should happen next.
+function HelloApp.Update( byref e as tui.TuiEvent ) as tui.TuiCmd
+    if e.kind = tui.TUIEVENT_KEY then
+        if e.key.code = tui.TUIKEY_ESCAPE then return tui.TuiQuit( 0 )
+        presses += 1
+        return tui.TuiRedraw( )
+    end if
+    return tui.TuiNone( )
+end function
+
+'' View draws the whole screen from state, every frame.
+sub HelloApp.View( byref f as tui.TuiFrame )
+    dim as tui.TuiBlock b
+    b.borderKind = tui.TUIBORDER_ASCII
+    b.sides = tui.TUISIDE_ALL
+    b.AddTitle( " hello ", tui.TuiStyleDefault( ), _
+                tui.TUISIDE_TOP, tui.TUIALIGN_CENTER )
+    b.Render( f, f.Area( ) )
+    dim as tui.TuiParagraph p
+    p.align = tui.TUIALIGN_CENTER
+    p.text = "keys pressed: " & str( presses )
+    p.Render( f, b.Inner( f.Area( ) ) )
+end sub
+
+'' Print what a screen buffer holds, one row per line.
+sub Dump( byref scr as tui.TuiScreen )
+    dim as tui.TuiBuffer ptr bf = scr.Front( )
+    for y as int32 = 0 to bf->rows - 1
+        dim as ustring row
+        for x as int32 = 0 to bf->cols - 1
+            dim as tui.TuiCell ptr c = bf->At( x, y )
+            if c->width > 0 then row &= c->text
+        next
+        print rtrim( row )
+    next
+end sub
+
+'' With no terminal: render once into a 30 x 4 screen.
+dim as HelloApp app
+dim as tui.TuiScreen scr
+scr.Resize( 30, 4 )
+app.Init( )
+var first = tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+'' Feed Update a key press, as the loop would, and render again.
+dim as tui.TuiEvent k
+k.kind = tui.TUIEVENT_KEY
+k.key.code = tui.TUIKEY_CHAR
+k.key.ch = asc( "a" )
+var cmd = app.Update( k )
+print "Update asked to redraw: "; cbool( cmd.kind = tui.TUICMD_REDRAW )
+var second = tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+'' Unchanged state renders nothing.
+var third = tui.TuiRenderOnce( app, scr )
+print "bytes written:"; len( first ); len( second ); len( third )
+
+'' A real program hands the app to the loop instead:
+''     tui.TuiRun( app, tui.TuiTermOptionsDefault( ) )
