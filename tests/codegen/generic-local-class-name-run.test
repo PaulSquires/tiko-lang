@@ -1,0 +1,16 @@
+'' RUN: a value inside a GENERIC procedure may take the name of a type with members -- a
+'' local, a local in a nested block, a parameter, instantiated or not. fbc refuses each in an
+'' ordinary procedure (tests/diagnostics/class-value-names.test) and accepts all of them here;
+'' tiko gave TKO0777. Found through fb/select.bi's 'dim as T ptr sink' inside namespace FB,
+'' refused once fb/logging.bi had declared FB.Sink -- in that include order only. Output
+'' identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/generic-local-class-name.bas -o tests/codegen/genericlocalclassname.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/genericlocalclassname.exe
+'' RUN: tests/codegen/genericlocalclassname.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: drop true
+'' EXPECT-RUN-OUT: param true
+'' EXPECT-RUN-OUT: nested 3

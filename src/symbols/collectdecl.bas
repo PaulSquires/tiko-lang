@@ -25,6 +25,8 @@
 ''     a parameter of a procedure DEFINITION             error 4
 ''     a parameter of a DECLARE                          accepted
 ''     a local or a parameter in ANY type's method       accepted
+''     a local, in any block, or a parameter of a        accepted, instantiated or not
+''       GENERIC procedure ('sub g( of T )')
 ''     a value in a namespace with C outside it, or      accepted
 ''       C in a namespace with the value outside it
 ''     the value declared BEFORE the type                accepted
@@ -94,6 +96,20 @@ private function ClassNameTaken_ _
         guard += 1
         dim as Tko.SymScope ptr ss = w.syms->ScopeAt( sc )
         if ss = 0 then exit while
+        '' A GENERIC PROCEDURE'S BODY IS NEVER ASKED -- see the table above. fb/select.bi's
+        '' 'dim as T ptr sink' inside namespace FB was refused once fb/logging.bi had
+        '' declared FB.Sink, and only in that include order.
+        if cast( Tko.ScopeKind, ss->kind ) = Tko.SCOPEK_PROC then
+            dim as Tko.Symbol ptr ps = w.syms->SymbolAt( ss->owner )
+            dim as Tko.NodeId pn = Tko.NODE_NONE
+            if ps <> 0 then pn = cast( Tko.NodeId, ps->payload )
+            dim as boolean isProc = (pn <> Tko.NODE_NONE)
+            if isProc then isProc = (cast( long, pn ) < w.ast->nodes.Count)
+            if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
+            if isProc then
+                if (StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE
+            end if
+        end if
         dim as Tko.SymbolId uid = w.syms->LookupLocalTyped( sc, nm, true )
         if IsClassLikeUdt_( w, uid ) then return uid
         '' ...AND AN ENUM, for a VARIABLE -- fbc's error 120 whatever the variable's own
