@@ -211,11 +211,11 @@ WinDbg cannot read a tiko program's variables. lldb, and `lldb-dap` for editors,
 LLVM `bin` directory as clang.
 ```
 
-```admonish warning title="Status in this version"
-**`-g` does not build on Linux with clang 18.** The pinned compiler writes debug records in a form
-clang 18 does not read, as Chapter 17 noted (**T67**). The fix is in the compiler and reaches this
-book with the next toolchain. Measured with it, gdb — which Ubuntu installs by default — stops in
-`readings.tiko` and shows the same locals, records and strings.
+```admonish info title="On Linux"
+gdb, which Ubuntu installs by default, reads the same DWARF. `break readings.tiko:10`, `run` and
+`info locals` stop in `Total` and show `sum` and `i`; `print rs` in the caller shows the three
+records with their strings. Unlike lldb, gdb honours the declared lower bound: its `print rs[1]` is
+the element the program calls `rs( 1 )`, `"north"`.
 ```
 
 ### The debugger in the editor

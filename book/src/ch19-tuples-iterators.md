@@ -192,6 +192,9 @@ would call a letter, and no diagnostic says so. For text, keep the `ustring` and
 `for` and `mid`, as the `TKO0688` message says.
 ````
 
+Binding a string's bytes by reference is refused: `for each byref b in word` is `TKO0941: 'for each
+byref' cannot walk a string: a character has no stable address`.
+
 ### Taking pairs apart
 
 When a collection's elements are tuples, `for each` can destructure each one into names:
@@ -294,15 +297,6 @@ pointer to the storage, where to start, and how many elements are left; it knows
 how they got there. Because `Value( )` is `byref as T`, the second loop multiplies the stored
 numbers in place. And the empty ring needs no special case: its iterator starts with nothing
 left, so the loop body never runs.
-
-```admonish warning title="Status in this version"
-**A `for each byref` loop over a collection declared with `var` writes to a copy.** In the listing,
-`nums` is declared `var nums = Ring( of int32 )( 4 )`, and `for each byref n in nums` changes a
-copy of each element, so the program prints ` 1 2` where it should print ` 100 200`. Declaring
-`dim nums as Ring( of int32 ) = Ring( of int32 )( 4 )`, or writing `for each byref n as int32 in
-nums`, binds the element itself. Tracked as **T71**; the listing shows the program as it should be
-written, with its correct output.
-```
 
 ## Laziness
 

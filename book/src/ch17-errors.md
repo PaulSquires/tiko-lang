@@ -143,14 +143,6 @@ constructor with no arguments that `Result` needs. `ParseLine` fails in three di
 `ParseConfig` stops at the first failing line and passes its error up unchanged. The caller sees
 exactly which line failed and why, and nothing below it had to print anything.
 
-```admonish warning title="Status in this version"
-**An element of a `ustring` array parameter cannot yet be passed `byval` to a `ustring`
-parameter.** `ParseLine( lines( i ), i + 1 )` inside `ParseConfig` stops the build at the code
-generator: tiko hands clang a 24-byte value where a pointer is expected. A `string` array works,
-and so does a `byref` parameter. Tracked as **T65**; the listing above shows the program as it
-should be written, and its output is the program's with `byref text`.
-```
-
 The standard library's own errors work the same way. Reading a file that is not there:
 
 ```tiko
@@ -185,19 +177,6 @@ Written as a statement — `open "notes.txt" for input as #f` — the same failu
 unless the program was compiled with `-e`, and then it stops the program with runtime error 2. A
 missing file that nothing reports is the worst outcome of the three, which is the reason to use
 the function form whenever a missing file is an expected event rather than a bug.
-
-```admonish warning title="Status in this version"
-**Under `-e`, a failing I/O statement does not raise its runtime error.** `open`, `close` and
-`get` written as statements carry on silently where fbc stops with error 2 or 1. Tracked as
-**T68**; the function forms above report correctly.
-```
-
-```admonish warning title="Status in this version"
-**`line input` and `input` into a `ustring` misread an ordinary text file.** The file's bytes are
-taken as UTF-16, so a file containing `tiko` reads back as two unrelated characters; reading into a
-`string` is correct. Tracked as **T66**. Chapter 24 covers files properly; until then, read lines
-into a `string`.
-```
 
 ## Runtime errors
 
@@ -294,12 +273,10 @@ The values are 0 with no option, 513 with `-e`, 515 with `-ex` and 1823 with `-e
 error checking, 8 array bounds and 16 null pointers; the rest are documented with the
 compiler's options.
 
-```admonish warning title="Status in this version"
-**Two parts of the checking family are missing.** fbc's finer-grained options — `-earray`,
-`-enullptr`, `-elocation`, `-eassert` and the rest — are unknown options to tiko (**T64**); use
-`-exx`. And `-g` does not set its bits in `__FB_ERR__` — 32, 64 and 128, so 224 on its own and 2047
-with `-exx` — where fbc does (**T63**).
-```
+Each check also has an option of its own, for a build that wants one check and not the rest:
+`-earray` (8), `-enullptr` (16), `-elocation`, `-eassert`, `-edebug`, `-edebuginfo`, `-eunwind` and
+`-earraydims`, each setting only its own bit. `-g` sets 32, 64 and 128 — assertions, debug
+information and `__FB_DEBUG__` — so `__FB_ERR__` is 224 with `-g` alone and 2047 with `-g -exx`.
 
 **Checks cost speed.** `-exx` adds a comparison to every array access and a test to every pointer
 dereference. Use it while developing and testing, and decide deliberately whether a release
@@ -338,12 +315,6 @@ compiles to nothing at all, so it can stay in code that ships:
 
 The failure names the file, the line, the procedure and the condition as written, and the program
 exits with status 1. `assertwarn` does the same and carries on.
-
-```admonish warning title="Status in this version"
-**`-g` does not build on Linux with clang 18.** tiko writes its debug information in the form
-LLVM 19 introduced, so Ubuntu's default clang 18 refuses the intermediate file; clang 19 and later
-accept it, and Windows is unaffected. Tracked as **T67**.
-```
 
 An assertion is for a mistake in the program — a caller passing 0 where the documentation says
 "never 0". A condition the program should expect, like a missing file, is a `Result`.

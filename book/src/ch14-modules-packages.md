@@ -136,13 +136,10 @@ the linker either. A module-private procedure is still an external symbol, becau
 expansion, are compiled in the importer. A `private` one is local to the module's object and
 cannot be reached that way at all. The section on generics shows the difference.
 
-```admonish warning title="Status in this version"
-**A public procedure may name a type that is not public.** `public function Make( ) as Secret`,
-where `Secret` has no `public`, is accepted, and an importer can then declare a `Secret` of its
-own. The module system's design refuses the procedure instead — an importer should never be handed
-a value of a type it cannot name — and that check has not landed. Tracked as **T56**; mark every
-type that appears in a public signature `public`.
-```
+**A public procedure may not name a type that is not public.** An importer should never be handed
+a value of a type it cannot name, so `public function Make( ) as Secret`, where `Secret` has no
+`public`, is refused: `TKO0868: 'secret' is module-private but appears in the public declaration
+of 'make'`. Every type that appears in a public signature is public too.
 
 ## A module with several files
 
@@ -177,12 +174,11 @@ code outside any module keeps declare-before-use for everything, as Chapter 6 de
 in `format.tiko`; each file starts from the same clean slate. A macro several files need belongs
 in a small header that each of them includes.
 
-```admonish warning title="Status in this version"
-**An import is visible in every file of the module, not only the file that wrote it.** The design
-makes imports belong to the file — each file says where its names come from — but at this version
-an `#import "../util"` in one file lets a sibling file write `util.` too. Tracked as **T57**. Write
-the imports each file uses in that file; it will be required.
-```
+**Imports do not cross between the files either.** An import belongs to the file that writes it,
+so each file says where its own names come from. A sibling file that writes `util.` without an
+`#import "../util"` of its own gets `TKO0743: 'util' is not declared`, with a note pointing at the
+file that did import it: `'util' is imported by another file of this module; an import belongs to
+the file that writes it`.
 
 ## Importing
 
@@ -522,12 +518,6 @@ end namespace
 (The real output carries a `#line` before each declaration, pointing back at the source.) The
 module-private `Round1_` is in it, without `public`: that is how a generic or macro body
 compiled in the importer can reach it, while the importer's own code cannot.
-
-```admonish warning title="Status in this version"
-**`--emit-tki` handles only a module that imports nothing.** Given one that does, it reports
-`TKO0992: not implemented in this build` at the module's first `#import`, and it does not apply
-the module's package `[defines]`. Tracked as **T55**.
-```
 
 ### Objects, libraries and DLLs
 
