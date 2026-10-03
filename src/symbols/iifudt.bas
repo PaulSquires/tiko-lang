@@ -81,12 +81,48 @@ private function IifUdtCopyable_ ( byref c as Ctx, byval t as TypeId ) as boolea
     return IifFieldNeedsCtor_( c, t )
 end function
 
+'' THE KIND OF STRING an IIF result operand is, for CheckIifUdt_: "" if it is no string. fbc
+'' keeps three apart -- narrow (STRING, ZSTRING, a literal), wide (WSTRING, WSTR( )) and USTRING.
+private function IifStringKind_ ( byref c as Ctx, byval n as NodeId ) as string
+    dim as TypeId t = c.info->TypeOf_( n )
+    if t = TYPE_NONE then return ""
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    '' 'zstring * 8', 'wstring * 8' and WSTR( )'s result are ARRAYS of the character type.
+    if c.types->Kind( t ) = TK_ARRAY then
+        t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) <> TK_BUILTIN then return ""
+        select case c.types->BuiltinOf( t )
+        case TY_ZSTRING, TY_WSTRING, TY_USTRING
+        case else
+            return ""
+        end select
+    end if
+    if c.types->Kind( t ) <> TK_BUILTIN then return ""
+    select case c.types->BuiltinOf( t )
+    case TY_STRING, TY_ZSTRING : return "narrow string"
+    case TY_WSTRING            : return "wstring"
+    case TY_USTRING            : return "ustring"
+    end select
+    return ""
+end function
+
 private sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count <> 3) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     if lcase( SpellOf_( c, lp->target ) ) <> "iif" then return
+    '' TWO KINDS OF STRING (T88). 'iif( c, "(none)", u )' with u a USTRING compiled, and
+    '' either branch printed the narrow bytes read as UTF-16. fbc-modern 1.20 refuses every
+    '' mix of the three kinds with error 24 -- a literal or a STRING with a USTRING or a
+    '' WSTRING, and a USTRING with a WSTRING, either way round; measured 2026-10-03.
+    dim as string sk1 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
+    dim as string sk2 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 2] ) )
+    if (len( sk1 ) > 0) andalso (len( sk2 ) > 0) andalso (sk1 <> sk2) then
+        c.diags->Report( TKO0946, PointRange( c.ast->Loc( id ) ), sk1, sk2 )
+        return
+    end if
     for k as long = 1 to 2
         '' ONLY AN OPERAND THAT HAS TO BE COPIED -- a variable, a field, an element, a deref.
         '' 'iif( c, CtorUdt( 123 ), CtorUdt( 456 ) )' picks one of two TEMPORARIES, and fbc

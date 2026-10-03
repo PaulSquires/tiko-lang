@@ -1,0 +1,23 @@
+'' IIF'S TWO RESULTS MUST BE THE SAME KIND OF STRING (T88) -- narrow (STRING, ZSTRING, a
+'' literal), wide (WSTRING, WSTR( )) or USTRING. 'iif( c, "(none)", u )' with u a USTRING
+'' compiled, and either branch printed narrow bytes read as UTF-16. See
+'' src/symbols/iifudt.bas, IifStringKind_.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-03: error 24 on
+'' exactly lines 7-13, 17 and 18. Lines 14-16 -- two USTRINGs, two literals, a STRING and a
+'' ZSTRING -- are fine; a fixed 'zstring * 8' and 'wstring * 8' are the narrow and wide kinds.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/iif-string-kinds.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iif-string-kinds.bas(7,10): error TKO0946: iif cannot choose between a narrow string and a ustring: both results must be the same kind of string
+'' EXPECT-OUT: iif-string-kinds.bas(8,10): error TKO0946: iif cannot choose between a ustring and a narrow string
+'' EXPECT-OUT: iif-string-kinds.bas(9,10): error TKO0946
+'' EXPECT-OUT: iif-string-kinds.bas(10,10): error TKO0946
+'' EXPECT-OUT: iif-string-kinds.bas(11,10): error TKO0946: iif cannot choose between a narrow string and a wstring
+'' EXPECT-OUT: iif-string-kinds.bas(12,10): error TKO0946
+'' EXPECT-OUT: iif-string-kinds.bas(13,10): error TKO0946: iif cannot choose between a ustring and a wstring
+'' EXPECT-OUT: iif-string-kinds.bas(17,10): error TKO0946: iif cannot choose between a wstring and a ustring
+'' EXPECT-OUT: iif-string-kinds.bas(18,23): error TKO0946
+'' EXPECT-NOT: (14,
+'' EXPECT-NOT: (15,
+'' EXPECT-NOT: (16,

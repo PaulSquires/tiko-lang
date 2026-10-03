@@ -774,6 +774,8 @@
     '' fbc's error 4 for a local, a parameter or a block's value named like a CONST or a
     '' PROCEDURE of the scope its procedure or block was opened in. See symbols/collectdecl.bas.
     DIAG( TKO0945, SEV_ERROR,   "'%0' is already a constant or procedure of the enclosing scope, which no local may share" )
+    '' fbc's error 24 over 'iif( c, "lit", u )' with u a USTRING (T88) -- see symbols/iifudt.bas.
+    DIAG( TKO0946, SEV_ERROR,   "iif cannot choose between a %0 and a %1: both results must be the same kind of string" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in
