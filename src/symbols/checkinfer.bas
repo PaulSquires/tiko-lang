@@ -90,6 +90,52 @@ private function RepairTypeofRef_ _
     return tt
 end function
 
+'' A CLOSURE FIELD OVER A 'var' (T74). Resolve built the closure type with that field
+'' TYPE_NONE, because a 'var' has no type until Check; by the time this runs the first
+'' inference pass has typed it, so the field takes the variable's type -- a pointer to
+'' it for a byref capture -- and the capture node the variable's own, exactly as
+'' Resolve does for a declared one. Before the walk, which types the body's prologue
+'' 'var byref total = *__tko_cl.__CAP_TOTAL' through the field. Returns how many fields
+'' it filled: that prologue 'var' was inferred, as nothing, by the pass before this one,
+'' and the caller runs that pass again so it reads the field's new type.
+private function CompleteClosureFields_( byref c as Ctx ) as long
+    dim as long filled = 0
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_CLOSURE then continue for
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, n )
+        if sp->name = 0 then continue for
+        dim as Tko.Symbol ptr ts = c.syms->SymbolAt( _
+            c.syms->LookupLocalTyped( Tko.SCOPE_GLOBAL, sp->name, true ) )
+        if ts = 0 then continue for
+        if ts->inner = Tko.SCOPE_NONE then continue for
+        for k as long = 0 to sp->count - 1
+            dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+            if c.ast->Kind( cn ) <> Tko.N_IDENT then continue for
+            dim as Tko.InternId cnm = _
+                c.ast->idents[cast( long, c.ast->nodes[cast( long, cn )].data )].name
+            dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
+                "__CAP_" & c.names->Spelling( cnm ) ) )
+            dim as Tko.Symbol ptr fs = c.syms->SymbolAt( _
+                c.syms->LookupLocalTyped( ts->inner, fnm, false ) )
+            if fs = 0 then continue for
+            if fs->type_ <> Tko.TYPE_NONE then continue for
+            dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( cn ) )
+            if vs = 0 then continue for
+            dim as Tko.TypeId ct = vs->type_
+            if ct = Tko.TYPE_NONE then continue for
+            if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
+            c.info->SetType( cn, ct )
+            if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
+                ct = c.types->Pointer_( ct )
+            end if
+            fs->type_ = ct
+            filled += 1
+        next
+    next
+    return filled
+end function
+
 private sub InferUnusedVarTypes_( byref c as Ctx )
     '' 'to Count( )', not 'to Count( ) - 1'. SymbolTable.Count already returns
     '' 'symbols.Count - 1', so the valid ids are 1..Count( ) -- subtracting again

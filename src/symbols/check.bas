@@ -1420,6 +1420,7 @@ function Run _
     '' second pass stays because a typeof whose operand needs the walk resolves then.
     RecordUdtBases_( c )
     InferUnusedVarTypes_( c )
+    if CompleteClosureFields_( c ) > 0 then InferUnusedVarTypes_( c )
     InferForEachVarTypes_( c )
     CheckForEach_( c )
     WalkAll( c )

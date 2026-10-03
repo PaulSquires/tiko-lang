@@ -166,6 +166,12 @@ private sub BuildClosureType_ _
 
     '' EVERY CAPTURE MUST RESOLVE, or the type is not built at all: a closure with a
     '' missing field would lower to an object whose body reads the wrong offsets.
+    ''
+    '' ...BUT A 'var' IS RESOLVED WITHOUT A TYPE (T74). 'var total = 0' is typed by
+    '' Check, so its capture's field is left TYPE_NONE here and filled in by Check's
+    '' CompleteClosureFields_, before its walk and long before the layout pass. Without
+    '' that the type was never built, the invoke procedure's receiver was 'void', and
+    '' clang refused the module.
     dim as FB.Array( of ulong ) fTy
     for k as long = 0 to sp->count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
@@ -181,9 +187,13 @@ private sub BuildClosureType_ _
             return
         end if
         dim as Tko.TypeId ct = cs->type_
-        if ct = Tko.TYPE_NONE then return
-        if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
         c.info->SetRef( cn, csid )
+        if ct = Tko.TYPE_NONE then
+            if cs->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return
+            fTy.Push( cast( ulong, Tko.TYPE_NONE ) )
+            continue for
+        end if
+        if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
         c.info->SetType( cn, ct )
         if (c.ast->nodes[cast( long, cn )].flags and Tko.NF_BYREF) <> 0 then
             ct = c.types->Pointer_( ct )
