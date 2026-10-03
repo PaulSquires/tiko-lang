@@ -6,6 +6,9 @@
 '' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-03: error 24 on
 '' exactly lines 7-13, 17 and 18. Lines 14-16 -- two USTRINGs, two literals, a STRING and a
 '' ZSTRING -- are fine; a fixed 'zstring * 8' and 'wstring * 8' are the narrow and wide kinds.
+'' Lines 20-23 mix kinds under a CONSTANT condition -- -1, 0, a CONST, TRUE -- which fbc folds,
+'' choosing a branch before the other's kind matters, and compiles (its own wstring/iif.bas
+'' and udt-wstring/iif.bas do exactly this).
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/iif-string-kinds.bas
 '' EXPECT-EXIT: 1
@@ -21,3 +24,7 @@
 '' EXPECT-NOT: (14,
 '' EXPECT-NOT: (15,
 '' EXPECT-NOT: (16,
+'' EXPECT-NOT: (20,
+'' EXPECT-NOT: (21,
+'' EXPECT-NOT: (22,
+'' EXPECT-NOT: (23,

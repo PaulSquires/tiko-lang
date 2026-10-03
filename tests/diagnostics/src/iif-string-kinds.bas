@@ -16,3 +16,8 @@ print iif( c, "a", "b" )
 print iif( c, s, z )
 print iif( c, wstr( "x" ), u )
 dim as ustring r = iif( c, "lit", u )
+const K = 1
+print iif( -1, w, "lit" )
+print iif( 0, "lit", u )
+print iif( K, u, "x" )
+print iif( true, w, s )

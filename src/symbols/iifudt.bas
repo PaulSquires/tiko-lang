@@ -107,6 +107,32 @@ private function IifStringKind_ ( byref c as Ctx, byval n as NodeId ) as string
     return ""
 end function
 
+'' A CONDITION FBC FOLDS: literals, TRUE and FALSE, constants and enum members, through
+'' operators. fbc picks the branch at compile time then, and the other operand's string
+'' kind never meets it -- fbc's own wstring/iif.bas and udt-wstring/iif.bas pass '0' and '-1'
+'' with a WSTRING on one side and a narrow literal on the other, and fbc compiles them.
+private function IifCondConst_ ( byref c as Ctx, byval n as NodeId, byval depth as long = 0 ) as boolean
+    if (n = NODE_NONE) orelse (depth > 32) then return false
+    n = Unparen3_( c, n )
+    select case c.ast->Kind( n )
+    case N_INT_LIT, N_FLOAT_LIT
+        return true
+    case N_UNARY
+        return IifCondConst_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )].operand, depth + 1 )
+    case N_BINARY
+        dim as BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as NodeId l = bp->lhs, r = bp->rhs
+        return IifCondConst_( c, l, depth + 1 ) andalso IifCondConst_( c, r, depth + 1 )
+    case N_IDENT
+        dim as string nm = lcase( SpellOf_( c, n ) )
+        if (nm = "true") orelse (nm = "false") then return true
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if s = 0 then return false
+        return (s->kind = cast( ubyte, SYM_CONSTANT )) orelse (s->kind = cast( ubyte, SYM_ENUMCONST ))
+    end select
+    return false
+end function
+
 private sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count <> 3) then return
@@ -119,7 +145,10 @@ private sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
     '' WSTRING, and a USTRING with a WSTRING, either way round; measured 2026-10-03.
     dim as string sk1 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
     dim as string sk2 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 2] ) )
-    if (len( sk1 ) > 0) andalso (len( sk2 ) > 0) andalso (sk1 <> sk2) then
+    dim as boolean mixed = (len( sk1 ) > 0) andalso (len( sk2 ) > 0)
+    if mixed then mixed = (sk1 <> sk2)
+    if mixed then mixed = (IifCondConst_( c, cast( NodeId, c.ast->children[lp->first] ) ) = false)
+    if mixed then
         c.diags->Report( TKO0946, PointRange( c.ast->Loc( id ) ), sk1, sk2 )
         return
     end if
