@@ -593,6 +593,7 @@ private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as bo
     return WholeArrayType_( c, ts ) <> TYPE_NONE
 end function
 
+#include once "symbols/arrayelem.bas"
 private sub CheckBydescArgs_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as ListPayload ptr lp = _
@@ -602,6 +603,9 @@ private sub CheckBydescArgs_ _
     if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if callee = 0 then return
     if callee->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as Symbol ptr head = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    dim as boolean inSet = (callee->nextOverload <> SYMBOL_NONE)
+    if head <> 0 then inSet = inSet orelse (head->nextOverload <> SYMBOL_NONE)
     dim as NodeId decl = cast( NodeId, callee->payload )
     if decl = NODE_NONE then return
     if c.ast->Kind( decl ) <> N_PROC then return
@@ -655,14 +659,8 @@ private sub CheckBydescArgs_ _
                         c.diags->Report( TKO0687, PointRange( c.ast->Loc( arg ) ) )
                         return
                     end if
-                    '' ...AND TWO BUILTINS DO NOT CONVERT EITHER: an integer array to
-                    '' 'a() as double' and a long array to 'a() as integer' are both
-                    '' fbc's error 58. Measured.
-                    '' ...EXCEPT 'a( ) as any', which takes any element at all --
-                    '' this suite's own any-array-param test passes three through one.
-                    if (c.types->Kind( ael ) = TK_BUILTIN) andalso _
-                       (c.types->Kind( pel ) = TK_BUILTIN) andalso (ael <> pel) andalso _
-                       (c.types->BuiltinOf( pel ) <> TY_ANY) then
+                    '' ...AND TWO BUILTINS, OR A UDT AND A BUILTIN -- arrayelem.bas.
+                    if ArrayElemBad_( c, ael, pel, inSet ) then
                         c.diags->Report( TKO0687, PointRange( c.ast->Loc( arg ) ) )
                         return
                     end if

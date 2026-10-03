@@ -1,0 +1,26 @@
+'' A BYDESC PARAMETER OF A BUILTIN ELEMENT DOES NOT TAKE A UDT ARRAY, NOR THE OTHER WAY
+'' ROUND (T83). The element check compared two UDTs or two builtins and never one of each,
+'' so a Decimal array went to DecimalApportion's 'weights( ) as longint', which read each
+'' 16-byte element as an 8-byte integer: 100.00 in three came out 0.00, 100.00, 0.00. See
+'' src/symbols/arrayelem.bas.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-03: error 58 on lines
+'' 20-23 and 99 on 24, and no others --
+''
+''     20-21  a UDT array, of 16 and of 8 bytes, to 'a( ) as longint'
+''     22-23  a longint and a string array to 'a( ) as D'
+''     24     a UDT array to an overload SET: TKO0632 alone, not a second report
+''     25-28  the matching arrays, accepted
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bydesc-udt-builtin.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bydesc-udt-builtin.bas(20,5): error TKO0687: a bydesc parameter takes an array of exactly its element type
+'' EXPECT-OUT: bydesc-udt-builtin.bas(21,6): error TKO0687
+'' EXPECT-OUT: bydesc-udt-builtin.bas(22,5): error TKO0687
+'' EXPECT-OUT: bydesc-udt-builtin.bas(23,5): error TKO0687
+'' EXPECT-OUT: bydesc-udt-builtin.bas(24,2): error TKO0632
+'' EXPECT-NOT: (24,5)
+'' EXPECT-NOT: (25,
+'' EXPECT-NOT: (26,
+'' EXPECT-NOT: (27,
+'' EXPECT-NOT: (28,
