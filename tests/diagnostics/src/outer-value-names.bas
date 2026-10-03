@@ -12,6 +12,9 @@ sub Q1 overload( byval a as string )
 end sub
 dim shared as long V1
 type A1 as long
+function GX( of T )( byval v as T ) as T
+	return v
+end function
 
 sub s1( )
 	dim as long C1 = 2                          '' REFUSED
@@ -20,6 +23,7 @@ sub s1( )
 	dim as long Q1 = 2                          '' REFUSED
 	dim as long V1 = 2
 	dim as long A1 = 2
+	dim as long GX = 2
 	dim as long Later = 2
 end sub
 

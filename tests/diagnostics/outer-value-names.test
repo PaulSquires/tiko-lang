@@ -2,16 +2,17 @@
 '' take the name of a CONST or a PROCEDURE (a declare, an overload set, its own procedure's
 '' name) of the namespace or module scope its procedure or block was opened in: TKO0945.
 '' Accepted, as in fbc: a shared variable or type alias of that name, one declared LATER, one
-'' in an OUTER namespace or reached through 'using', and anything in a method or a generic.
+'' in an OUTER namespace or reached through 'using', a GENERIC procedure of that name, and
+'' anything in a method or a generic.
 '' tiko accepted all ten refusals.
 ''
 '' MEASURED, fbc-modern 1.20.0 win64, 'fbc64 -maxerr 100 -c' on the source -- error 4 on
 '' exactly the ten lines marked REFUSED, and nothing else:
 ''
-''   outer-value-names.bas(17) C1  (18) P2  (19) P3  (20) Q1     dim in a namespace sub
-''   outer-value-names.bas(26) parameter c1  (28) static p2  (30) for p3
-''   outer-value-names.bas(58) var G1  (59) const F1             a function at module level
-''   outer-value-names.bas(64) redim G1                          a SCOPE at module level
+''   outer-value-names.bas(20) C1  (21) P2  (22) P3  (23) Q1     dim in a namespace sub
+''   outer-value-names.bas(30) parameter c1  (32) static p2  (34) for p3
+''   outer-value-names.bas(62) var G1  (63) const F1             a function at module level
+''   outer-value-names.bas(68) redim G1                          a SCOPE at module level
 ''
 '' NOT COVERED: a local named like a NAMESPACE (fbc's error 120); tiko still accepts it.
 '' TEST: cli

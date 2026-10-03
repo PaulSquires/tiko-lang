@@ -25,6 +25,7 @@ func void _ZN1N2S1Ev() {
   local i32 q1
   local i32 v1
   local i32 a1
+  local i32 gx
   local i32 later
   entry0:
     %1 = alloca ptr c1
@@ -51,10 +52,14 @@ func void _ZN1N2S1Ev() {
     %17 = const i64 2
     %18 = trunc %17
     store @a1, %18
-    %19 = alloca ptr later
+    %19 = alloca ptr gx
     %20 = const i64 2
     %21 = trunc %20
-    store @later, %21
+    store @gx, %21
+    %22 = alloca ptr later
+    %23 = const i64 2
+    %24 = trunc %23
+    store @later, %24
     ret
 }
 func void _ZN1N2S2Ei(i32 $0) {
@@ -188,84 +193,84 @@ declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare i32 fb_ArrayErase(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 10 functions, 17 blocks, 109 insts, 0 statements not lowered, 0 scope imbalance
-tests/diagnostics/src/outer-value-names.bas(17,21): error TKO0945: 'c1' is already a constant or procedure of the enclosing scope, which no local may share
+lowered: 10 functions, 17 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance
+tests/diagnostics/src/outer-value-names.bas(20,21): error TKO0945: 'c1' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  17 | 	dim as long C1 = 2                          '' REFUSED
+  20 | 	dim as long C1 = 2                          '' REFUSED
      | 	                   ^
 tests/diagnostics/src/outer-value-names.bas(5,7): note: declared here
      |
    5 | const C1 = 1
      |       ^
-tests/diagnostics/src/outer-value-names.bas(18,21): error TKO0945: 'p2' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(21,21): error TKO0945: 'p2' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  18 | 	dim as long P2 = 2                          '' REFUSED
+  21 | 	dim as long P2 = 2                          '' REFUSED
      | 	                   ^
 tests/diagnostics/src/outer-value-names.bas(6,1): note: declared here
      |
    6 | sub P2( )
      | ^
-tests/diagnostics/src/outer-value-names.bas(19,21): error TKO0945: 'p3' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(22,21): error TKO0945: 'p3' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  19 | 	dim as long P3 = 2                          '' REFUSED
+  22 | 	dim as long P3 = 2                          '' REFUSED
      | 	                   ^
 tests/diagnostics/src/outer-value-names.bas(8,9): note: declared here
      |
    8 | declare function P3( ) as long
      |         ^
-tests/diagnostics/src/outer-value-names.bas(20,21): error TKO0945: 'q1' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(23,21): error TKO0945: 'q1' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  20 | 	dim as long Q1 = 2                          '' REFUSED
+  23 | 	dim as long Q1 = 2                          '' REFUSED
      | 	                   ^
 tests/diagnostics/src/outer-value-names.bas(9,1): note: declared here
      |
    9 | sub Q1 overload( byval a as long )
      | ^
-tests/diagnostics/src/outer-value-names.bas(26,9): error TKO0945: 'c1' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(30,9): error TKO0945: 'c1' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  26 | sub s2( byval c1 as long )                      '' REFUSED
+  30 | sub s2( byval c1 as long )                      '' REFUSED
      |         ^
 tests/diagnostics/src/outer-value-names.bas(5,7): note: declared here
      |
    5 | const C1 = 1
      |       ^
-tests/diagnostics/src/outer-value-names.bas(28,32): error TKO0945: 'p2' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(32,32): error TKO0945: 'p2' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  28 | 		static as long p2                       '' REFUSED
+  32 | 		static as long p2                       '' REFUSED
      | 		                             ^
 tests/diagnostics/src/outer-value-names.bas(6,1): note: declared here
      |
    6 | sub P2( )
      | ^
-tests/diagnostics/src/outer-value-names.bas(30,13): error TKO0945: 'p3' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(34,13): error TKO0945: 'p3' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  30 | 	for p3 as long = 1 to 2                     '' REFUSED
+  34 | 	for p3 as long = 1 to 2                     '' REFUSED
      | 	           ^
 tests/diagnostics/src/outer-value-names.bas(8,9): note: declared here
      |
    8 | declare function P3( ) as long
      |         ^
-tests/diagnostics/src/outer-value-names.bas(58,13): error TKO0945: 'g1' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(62,13): error TKO0945: 'g1' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  58 | 	var G1 = 2                                  '' REFUSED
+  62 | 	var G1 = 2                                  '' REFUSED
      | 	           ^
-tests/diagnostics/src/outer-value-names.bas(56,7): note: declared here
+tests/diagnostics/src/outer-value-names.bas(60,7): note: declared here
      |
-  56 | const G1 = 1
+  60 | const G1 = 1
      |       ^
-tests/diagnostics/src/outer-value-names.bas(59,15): error TKO0945: 'f1' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(63,15): error TKO0945: 'f1' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  59 | 	const F1 = 3                                '' REFUSED
+  63 | 	const F1 = 3                                '' REFUSED
      | 	             ^
-tests/diagnostics/src/outer-value-names.bas(57,1): note: declared here
+tests/diagnostics/src/outer-value-names.bas(61,1): note: declared here
      |
-  57 | function F1( ) as long
+  61 | function F1( ) as long
      | ^
-tests/diagnostics/src/outer-value-names.bas(64,23): error TKO0945: 'g1' is already a constant or procedure of the enclosing scope, which no local may share
+tests/diagnostics/src/outer-value-names.bas(68,23): error TKO0945: 'g1' is already a constant or procedure of the enclosing scope, which no local may share
      |
-  64 | 	redim as long G1( 2 )                       '' REFUSED
+  68 | 	redim as long G1( 2 )                       '' REFUSED
      | 	                     ^
-tests/diagnostics/src/outer-value-names.bas(56,7): note: declared here
+tests/diagnostics/src/outer-value-names.bas(60,7): note: declared here
      |
-  56 | const G1 = 1
+  60 | const G1 = 1
      |       ^

@@ -52,7 +52,8 @@
 ''       plain type, or an enum member
 ''     X declared AFTER s, in an OUTER namespace, or    accepted
 ''       reached through 'using'; s a method or a
-''       generic; a parameter of a DECLARE
+''       generic, or X a generic; a parameter of a
+''       DECLARE
 ''
 '' so the check is made where the walk stops, in a module or namespace scope it reached by
 '' leaving a procedure or a block, and only of what Collect has declared there SO FAR.
@@ -105,6 +106,15 @@ private function OuterValueTaken_ _
         case Tko.SYM_CONSTANT, Tko.SYM_PROC
             dim as boolean own = ((s->flags and Tko.SYMF_IMPORTED) = 0)
             if own then own = (w.src->IsBuiltin( s->loc ) = false)
+            '' A GENERIC procedure does not count: 'function G( of T )' and then a local G
+            '' compiles in fbc.
+            if own andalso (s->kind = cast( ubyte, Tko.SYM_PROC )) then
+                dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+                dim as boolean isProc = (pn <> Tko.NODE_NONE)
+                if isProc then isProc = (cast( long, pn ) < w.ast->nodes.Count)
+                if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
+                if isProc then own = ((StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) = 0)
+            end if
             if own then return sid
         end select
         sid = s->altClass
