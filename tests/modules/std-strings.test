@@ -1,4 +1,4 @@
-'' std/strings (RFC-0009): Split's Array into an FB.Array parameter, Tally, PadLeft, Repeat with the count first, Replace, the case-blind StartsWith -- and std/strings' own generic Surround.
+'' std/strings (RFC-0009): Split's Array into an FB.Array parameter, Tally, PadLeft, Repeat with the count first, Replace, Reverse and the case-blind StartsWith.
 '' It is a facade -- exported macros over the header, found through -i as a user's toolchain
 '' finds it in its inc/ -- and the program includes that header too, so the facade's names
 '' and the header's FB names are shown to be one and the same.
@@ -8,4 +8,4 @@
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdstrings.exe
 '' EXPECT-RUN-OUT: 3 2 007 xyxy
-'' EXPECT-RUN-OUT: Zaul Squires (7) true
+'' EXPECT-RUN-OUT: Zaul Squires okit true

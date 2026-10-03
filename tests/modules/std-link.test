@@ -3,8 +3,7 @@
 '' Both are facades over fb/ headers, found through -i as a user's toolchain finds them in
 '' its inc/: Split returns an Array( of string ), Repeat takes the count first, and fs keeps
 '' std/path's names for the header's functions -- so '/x' is not absolute on Windows, and
-'' 'C:\x' is. Surround is std/strings' own public generic, whose body calls a module-private
-'' helper, instantiated here for a long and a double.
+'' 'C:\x' is.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stduse/main.bas -o tests/modules/stdlink.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -13,6 +12,6 @@
 '' EXPECT-RUN-OUT:  4 abc
 '' EXPECT-RUN-OUT: true          true          false
 '' EXPECT-RUN-OUT: a+b+c ababab
-'' EXPECT-RUN-OUT: [42]<1.5>
+'' EXPECT-RUN-OUT: okit 007
 '' EXPECT-RUN-OUT: c.txt .txt a/b
 '' EXPECT-RUN-OUT: false true a\b

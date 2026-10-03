@@ -3,7 +3,7 @@
 
 print strings.Replace( "a-b-c", "-", "+" )
 print strings.StartsWith( "tiko-lang", "tiko" )
-print strings.Surround( 42, "[", "]" )
+print strings.Reverse( "tiko" )
 
 print fs.PathStem( "notes.txt" ); " "; fs.PathExtension( "notes.txt" )
 print fs.PathFileName( "logs/today.txt" )

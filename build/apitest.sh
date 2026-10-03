@@ -63,14 +63,15 @@ fi
 HOST=$(mktemp -d)
 cp "$H" "$DLL" "$HOST/"
 # std/strings is a facade over fb/string.bi (RFC-0009), so the header is found through
-# TKP_INCDIR. Its one real symbol is its generic Surround; the rest are exported macros,
-# listed as DEFINE (k12) members of the alias, each with a ref to the header's declaration.
+# TKP_INCDIR. Its names are exported macros, listed as DEFINE (k12) members of the alias
+# (the k13 record), each with a ref to the header's declaration. The alias record exists
+# only when the package was found, which is what the pkgDir checks test.
 STDINC=$(cygpath -w "$ROOT/toolchains/tiko-windows/inc")
 printf '#import "std/strings"
-print strings.Surround( 42, "[", "]" )
+print strings.Reverse( "tiko" )
 ' > "$HOST/usestd.bas"
 out=$(TKP_INCDIR="$STDINC" TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
-if echo "$out" | grep -qE "k[0-9]+ Surround" && echo "$out" | grep -qF "diags: 0"; then
+if echo "$out" | grep -qE "k13 strings" && echo "$out" | grep -qF "diags: 0"; then
     echo "ok    #import std/strings through pkgDir"
 else
     echo "FAIL  #import std/strings through pkgDir"; echo "$out" | sed 's/^/      /'; FAIL=1
@@ -82,7 +83,7 @@ else
     echo "FAIL  strings.Replace as a member of strings (alias record '$ALIAS')"; echo "$out" | grep -E "k13 strings|Replace" | sed 's/^/      /'; FAIL=1
 fi
 out=$(TKP_INCDIR="$STDINC" "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
-if echo "$out" | grep -qE "k[0-9]+ Surround"; then
+if echo "$out" | grep -qE "k13 strings"; then
     echo "FAIL  std/strings resolved with no pkgDir -- this check proves nothing"; FAIL=1
 else
     echo "ok    ...and without pkgDir it is not found (the check is live)"

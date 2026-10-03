@@ -557,9 +557,6 @@ header's `FB.Replace`. Two things follow from that:
 - **A facade value and a header value are the same type.** A `containers.Map( of ustring, int32 )`
   can be passed where the header's `FB.Map( of ustring, int32 )` is expected.
 
-`std` also holds ordinary module code: `strings.Surround`, the generic in the listing, is written
-in the module itself.
-
 ## Converting a header library into a module
 
 Most existing libraries are headers. Moving one to a module is mostly mechanical, and the result

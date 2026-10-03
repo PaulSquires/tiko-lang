@@ -8,6 +8,6 @@
 '' EXPECT-RUN-OUT:  4 abc
 '' EXPECT-RUN-OUT: true          true          false
 '' EXPECT-RUN-OUT: a+b+c ababab
-'' EXPECT-RUN-OUT: [42]<1.5>
+'' EXPECT-RUN-OUT: okit 007
 '' EXPECT-RUN-OUT: c.txt .txt a/b
 '' EXPECT-RUN-OUT: false true a\b

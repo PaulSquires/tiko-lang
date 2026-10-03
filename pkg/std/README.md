@@ -13,7 +13,7 @@ builds tiko-lang from them.
 
 | Module | Fronts | Needs |
 |---|---|---|
-| `std/strings` | `fb/string.bi`, plus its own generic `Surround` | |
+| `std/strings` | `fb/string.bi` | |
 | `std/fs` | `fb/filesystem.bi`: paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
 | `std/containers` | `containers.bi`: `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `Sort` | |
 | `std/chrono` | `fb/chrono.bi`: `DateTime`, `LocalDate`, `TimeSpan`, `Stopwatch`, `WallClock` … | |
@@ -67,8 +67,6 @@ from the repository root whenever a header changes, and commit the result:
 python build/genfacades.py            # rewrite every facade
 python build/genfacades.py --check    # exit 1 if one would change
 ```
-
-`strings/surround.bas` is hand-written and is left alone.
 
 `build/package.sh --verify` builds and runs one value from every facade, per target, so a
 header that renames or drops an exported name fails the packaging run.
