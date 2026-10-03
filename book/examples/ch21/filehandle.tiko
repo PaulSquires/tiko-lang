@@ -1,0 +1,42 @@
+'' A handle type: the file is open exactly as long as the object lives.
+type TextWriter
+    declare constructor( byref path as ustring )
+    declare destructor( )
+    declare sub WriteLine( byref text as ustring )
+private:
+    declare constructor( byref other as TextWriter )   '' no copies
+    declare operator let( byref other as TextWriter )
+    dim channel as int32
+end type
+
+constructor TextWriter( byref path as ustring )
+    channel = freefile( )
+    open path for output as #channel
+end constructor
+
+destructor TextWriter( )
+    close #channel
+    print "(closed)"
+end destructor
+
+sub TextWriter.WriteLine( byref text as ustring )
+    print #channel, text
+end sub
+
+sub SaveReport( byref path as ustring )
+    dim w as TextWriter = TextWriter( path )
+    w.WriteLine( "rows: 3" )
+    w.WriteLine( "status: ok" )
+end sub                     '' w is closed here, on every way out
+
+SaveReport( "report.txt" )
+
+dim as int32 f = freefile( )
+open "report.txt" for input as #f
+dim as ustring lineText
+do until eof( f )
+    line input #f, lineText
+    print "read: "; lineText
+loop
+close #f
+kill "report.txt"

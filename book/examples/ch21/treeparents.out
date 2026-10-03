@@ -1,0 +1,5 @@
+-- leaky tree out of scope
+kid's parent: root
+freed root
+freed kid
+-- tree out of scope

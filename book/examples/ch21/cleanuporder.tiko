@@ -1,0 +1,26 @@
+'' Destructors and defers share one rule: when a block ends, everything
+'' it set up is undone, newest first.
+type Resource
+    tag as ustring
+    declare constructor( byref t as ustring )
+    declare destructor( )
+end type
+
+constructor Resource( byref t as ustring )
+    tag = t
+    print "open "; tag
+end constructor
+
+destructor Resource( )
+    print "close "; tag
+end destructor
+
+sub Work( )
+    dim a as Resource = Resource( "a" )
+    defer print "deferred 1"
+    dim b as Resource = Resource( "b" )
+    defer print "deferred 2"
+    print "working"
+end sub
+
+Work( )

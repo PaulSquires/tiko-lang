@@ -1,0 +1,5 @@
+#include once "fb/sharedptr.bi"
+
+dim count as FB.SharedPtr( of int32 ) = FB.MakeShared( of int32 )( )
+*count = 3                    '' fine: * works for any T
+print count->value            '' -> needs a type with fields

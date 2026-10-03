@@ -1,0 +1,36 @@
+'' Exercise 21-1: a scratch file that deletes itself.
+type ScratchFile
+    declare constructor( byref path as ustring )
+    declare destructor( )
+    declare function Path( ) as ustring
+private:
+    declare constructor( byref other as ScratchFile )
+    declare operator let( byref other as ScratchFile )
+    dim name_ as ustring
+end type
+
+constructor ScratchFile( byref path as ustring )
+    name_ = path
+    dim as int32 f = freefile( )
+    open name_ for output as #f
+    print #f, "scratch"
+    close #f
+end constructor
+
+destructor ScratchFile( )
+    kill name_
+end destructor
+
+function ScratchFile.Path( ) as ustring
+    return name_
+end function
+
+function Exists( byref path as ustring ) as ustring
+    return iif( len( dir( path ) ) > 0, "yes", "no" )
+end function
+
+scope
+    dim tmp as ScratchFile = ScratchFile( "scratch.tmp" )
+    print "exists inside: "; Exists( tmp.Path( ) )
+end scope
+print "exists after:  "; Exists( "scratch.tmp" )

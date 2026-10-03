@@ -1,0 +1,7 @@
+open a
+open b
+working
+deferred 2
+close b
+deferred 1
+close a

@@ -1,0 +1,47 @@
+#import "std/containers"
+#include once "fb/sharedptr.bi"
+
+'' Children own each other upward AND downward: a cycle.
+type LeakyNode
+    name as ustring
+    kids as containers.Array( of FB.SharedPtr( of LeakyNode ) )
+    parent as FB.SharedPtr( of LeakyNode )
+    declare destructor( )
+end type
+destructor LeakyNode( )
+    print "freed "; name
+end destructor
+
+'' The parent link observes instead of owning.
+type Node
+    name as ustring
+    kids as containers.Array( of FB.SharedPtr( of Node ) )
+    parent as FB.WeakPtr( of Node )
+    declare destructor( )
+end type
+destructor Node( )
+    print "freed "; name
+end destructor
+
+scope
+    var root = FB.MakeShared( of LeakyNode )( )
+    root->name = "leaky root"
+    var kid = FB.MakeShared( of LeakyNode )( )
+    kid->name = "leaky kid"
+    kid->parent = root
+    root->kids.Push( kid )
+end scope
+print "-- leaky tree out of scope"
+
+scope
+    var root = FB.MakeShared( of Node )( )
+    root->name = "root"
+    var kid = FB.MakeShared( of Node )( )
+    kid->name = "kid"
+    kid->parent = root
+    root->kids.Push( kid )
+
+    var up = kid->parent.Lock( )        '' a real owner, or null
+    if up.IsNull( ) = false then print "kid's parent: "; up->name
+end scope
+print "-- tree out of scope"

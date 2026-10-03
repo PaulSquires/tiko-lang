@@ -1,0 +1,26 @@
+'' One object, several owners; the last owner to go destroys it.
+#include once "fb/sharedptr.bi"
+
+type Session
+    user as ustring
+    id as int32
+    declare destructor( )
+end type
+
+destructor Session( )
+    print "session"; id; " closed"
+end destructor
+
+dim s as FB.SharedPtr( of Session ) = FB.MakeShared( of Session )( )
+s->user = "ada"
+s->id = 1815
+
+scope
+    dim t as FB.SharedPtr( of Session ) = s     '' a second owner
+    print "owners:"; t.UseCount( )
+    t->id = 1816
+end scope                                       '' t goes; s remains
+print s->user; s->id; ", owners:"; s.UseCount( )
+
+s.Reset( )                                  '' the last owner lets go
+print "after reset, null: "; s.IsNull( )

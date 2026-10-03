@@ -30,6 +30,7 @@
 
 - [19. Tuples, Iterators and For Each](ch19-tuples-iterators.md)
 - [20. Lambdas and Closures](ch20-lambdas-closures.md)
+- [21. Resource Management](ch21-resource-management.md)
 
 # Appendices
 

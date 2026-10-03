@@ -1,0 +1,20 @@
+'' Exercise 21-2: a cache that observes and never keeps alive.
+#include once "fb/sharedptr.bi"
+
+type Image
+    name as ustring
+end type
+
+dim cached as FB.WeakPtr( of Image )
+
+scope
+    var img = FB.MakeShared( of Image )( )
+    img->name = "logo.png"
+    cached = img
+    var hit = cached.Lock( )
+    if hit.IsNull( ) = false then print "cache hit: "; hit->name
+end scope
+
+var miss = cached.Lock( )
+print "after the last owner: null "; miss.IsNull( ); _
+      ", expired "; cached.Expired( )

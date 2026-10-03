@@ -1,0 +1,23 @@
+#include once "fb/sharedptr.bi"
+
+type Shape extends object
+    declare destructor( )               '' not virtual
+end type
+destructor Shape( )
+    print "shape gone"
+end destructor
+
+type Circle extends Shape
+    r as float64
+    declare destructor( )
+end type
+destructor Circle( )
+    print "circle gone"
+end destructor
+
+scope
+    var c = FB.MakeShared( of Circle )( )
+    var s = FB.SpCast( of Circle, Shape )( c )   '' derived to base
+    c.Reset( )
+    print "the Shape handle is the last owner"
+end scope

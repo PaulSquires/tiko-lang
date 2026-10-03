@@ -1,0 +1,27 @@
+#include once "fb/sharedptr.bi"
+
+type Config
+    name as ustring
+end type
+
+sub Show( byref c as FB.SharedPtr( of Config ) )
+    print "byref: owners"; c.UseCount( )
+end sub
+
+sub Keep( byval c as FB.SharedPtr( of Config ) )
+    print "byval: owners"; c.UseCount( )
+end sub
+
+dim cfg as FB.SharedPtr( of Config ) = FB.MakeShared( of Config )( )
+Show( cfg )
+Keep( cfg )
+print "after:   owners"; cfg.UseCount( )
+
+'' Ref( ) is the checked way in: on an empty handle it raises.
+on local error goto failed
+dim nothing as FB.SharedPtr( of Config )
+print nothing.Ref( ).name
+end
+failed:
+dim as int32 code = err
+print "runtime error"; code

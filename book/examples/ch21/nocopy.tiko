@@ -1,0 +1,12 @@
+type TextWriter
+    declare constructor( byref path as ustring )
+private:
+    declare constructor( byref other as TextWriter )
+    dim channel as int32
+end type
+
+constructor TextWriter( byref path as ustring )
+end constructor
+
+dim a as TextWriter = TextWriter( "a.txt" )
+dim b as TextWriter = a                       '' a second owner? refused
