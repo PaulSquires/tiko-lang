@@ -1,0 +1,18 @@
+#include once "crt/long.bi"
+#include once "crt/stddef.bi"
+
+'' C's types do not have the same sizes everywhere.
+print "int       "; sizeof( int32 )
+print "long      "; sizeof( clong )
+print "long long "; sizeof( int64 )
+print "size_t    "; sizeof( size_t )
+print "void *    "; sizeof( any ptr )
+print "wchar_t   "; sizeof( wchar_t )
+print "wstring character "; sizeof( wstring * 1 )
+
+'' The compiler says which C runtime it is building against.
+#ifdef __FB_MSVC__
+    print "C runtime: Microsoft's"
+#else
+    print "C runtime: the system's"
+#endif

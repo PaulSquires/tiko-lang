@@ -1,0 +1,21 @@
+'' Three linkages for one kind of function. --dump-mangle shows the
+'' symbol each becomes.
+function Plain( byval x as int32 ) as int32
+    return x + 1
+end function
+
+extern "C"
+    function c_style( byval x as int32 ) as int32
+        return x + 2
+    end function
+end extern
+
+extern "C++"
+    namespace geo
+        function cpp_style( byval x as int32 ) as int32
+            return x + 3
+        end function
+    end namespace
+end extern
+
+print Plain( 1 ); c_style( 1 ); geo.cpp_style( 1 )

@@ -40,6 +40,10 @@
 - [25. Dates and Times](ch25-dates-times.md)
 - [26. Numbers](ch26-numbers.md)
 
+# Systems Programming
+
+- [28. Interfacing with C](ch28-interfacing-c.md)
+
 # Appendices
 
 - [Appendix B: Diagnostics](appendix-B-diagnostics.md)

@@ -1,0 +1,9 @@
+'' A library spec that matches no file: the error lists every name
+'' that was tried, most specific first.
+#foreignlib SHAPES static "geom/shapes"
+
+extern "C" lib SHAPES
+    declare function shapes_version( ) as const zstring ptr
+end extern
+
+print *shapes_version( )

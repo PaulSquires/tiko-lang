@@ -1,0 +1,28 @@
+'' Bind C's bsearch and find values in a sorted array.
+type Compare as function cdecl( byval a as const any ptr, _
+                                byval b as const any ptr ) as int32
+
+extern "C"
+    declare function bsearch( byval key as const any ptr, _
+                              byval base_ as const any ptr, _
+                              byval n as uinteger, _
+                              byval size as uinteger, _
+                              byval cmp as Compare ) as any ptr
+end extern
+
+function ByValue cdecl( byval a as const any ptr, _
+                        byval b as const any ptr ) as int32
+    return *cptr( const int32 ptr, a ) - *cptr( const int32 ptr, b )
+end function
+
+dim primes( 0 to 7 ) as int32 = { 2, 3, 5, 7, 11, 13, 17, 19 }
+dim tests( ... ) as int32 = { 7, 8, 19, 1 }
+for i as int32 = 0 to ubound( tests )
+    dim as int32 ptr hit = bsearch( @tests( i ), @primes( 0 ), 8, _
+                                    sizeof( int32 ), @ByValue )
+    if hit <> 0 then
+        print tests( i ); " found at index"; hit - @primes( 0 )
+    else
+        print tests( i ); " not found"
+    end if
+next

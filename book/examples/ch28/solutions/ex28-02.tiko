@@ -1,0 +1,21 @@
+'' strtol reports where it stopped, so a loop can read number after
+'' number and tell where the text stopped being numbers. It returns a
+'' C long, which is clong: 4 bytes on Windows, 8 on Linux.
+#include once "crt/long.bi"
+
+extern "C"
+    declare function strtol( byval s as const zstring ptr, _
+                             byval endp as zstring ptr ptr, _
+                             byval base_ as int32 ) as clong
+end extern
+
+dim as string text = "12 -7 0x1F 99 apples"
+dim as zstring ptr p = strptr( text )
+do
+    dim as zstring ptr stop_
+    dim as clong n = strtol( p, @stop_, 0 )
+    if stop_ = p then exit do
+    print "read " & n
+    p = stop_
+loop
+print "stopped at: """; *p; """"

@@ -1,0 +1,26 @@
+'' A struct C will read must match C's layout byte for byte.
+
+'' Natural alignment: 'value' starts on a 4-byte boundary, as in C.
+type Natural
+    as ubyte tag
+    as int32 value
+end type
+
+'' 'field = 1' packs it, as C's #pragma pack(1) does.
+type Packed field = 1
+    as ubyte tag
+    as int32 value
+end type
+
+print "Natural: size"; sizeof( Natural ); _
+      ", value at"; offsetof( Natural, value )
+print "Packed:  size"; sizeof( Packed ); _
+      ", value at"; offsetof( Packed, value )
+
+'' A fixed-size zstring is an inline char array, like C's char[8].
+type Record
+    as zstring * 8 name_
+    as int32 id
+end type
+print "Record:  size"; sizeof( Record ); _
+      ", id at"; offsetof( Record, id )

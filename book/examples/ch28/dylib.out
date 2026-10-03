@@ -1,0 +1,3 @@
+found cos: true, found no_such_function: false
+cos( 0 ) = 1
+cos( pi ) =-1

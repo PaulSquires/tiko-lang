@@ -78,7 +78,7 @@ parts:
       - { n: 27, file: chapters/27-logging-tui-sqlite.md, status: planned }
   - name: "Systems Programming"
     chapters:
-      - { n: 28, file: chapters/28-interfacing-with-c.md, status: planned }
+      - { n: 28, file: src/ch28-interfacing-c.md,       status: drafted }
       - { n: 29, file: chapters/29-building-shipping.md,  status: planned }
   - name: "Legacy"
     chapters:

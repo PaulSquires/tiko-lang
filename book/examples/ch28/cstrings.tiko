@@ -1,0 +1,29 @@
+extern "C"
+    declare function strlen( byval s as const zstring ptr ) as uinteger
+    declare function strchr( byval s as const zstring ptr, _
+                             byval c as int32 ) as zstring ptr
+    declare function malloc( byval n as uinteger ) as any ptr
+    declare sub free( byval p as any ptr )
+    declare function strcpy( byval dst as zstring ptr, _
+                             byval src as const zstring ptr ) _
+                             as zstring ptr
+end extern
+
+'' Into C: a string's own bytes, ending in a zero, through strptr.
+dim as string s = "key=value"
+print "length from C: "; strlen( strptr( s ) )
+
+'' Out of C: a pointer into memory the C side owns. '*p' copies the
+'' characters into a tiko string at once.
+dim as zstring ptr eq = strchr( strptr( s ), asc( "=" ) )
+if eq <> 0 then
+    dim as string rest = *( eq + 1 )
+    print "after '=': "; rest
+end if
+
+'' Memory C allocates, C must free.
+dim as zstring ptr copy_ = malloc( len( s ) + 1 )
+strcpy( copy_, strptr( s ) )
+dim as ustring u = *copy_
+free( copy_ )
+print "copied into a ustring: "; u

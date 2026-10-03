@@ -1,0 +1,33 @@
+#include once "crt/stddef.bi"
+
+'' Calling a variadic C function: declare the fixed part, then '...'.
+extern "C"
+    declare function snprintf( byval buf as zstring ptr, _
+                               byval n as size_t, _
+                               byval fmt as const zstring ptr, _
+                               ... ) as int32
+end extern
+
+dim as zstring * 64 buf
+var n = snprintf( @buf, 64, "%d items at %.2f each: %s", _
+                  3, 4.5, "ok" )
+print buf; " ("; n; " characters)"
+
+'' Writing one: cva_list walks the arguments after the fixed ones.
+'' The caller has to say how many there are -- here, the first one.
+function Total cdecl( byval count as int32, ... ) as int32
+    dim args as cva_list
+    cva_start( args, count )
+    dim as int32 sum = 0
+    for i as int32 = 1 to count
+        sum += cva_arg( args, int32 )
+    next
+    cva_end( args )
+    return sum
+end function
+
+print "Total:"; Total( 4, 10, 20, 30, 40 )
+
+'' A cva_list is a pointer on Windows and a 24-byte record on Linux.
+dim probe as cva_list
+print "cva_list is"; sizeof( probe ); " bytes"

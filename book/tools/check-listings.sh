@@ -19,6 +19,9 @@
 #                 expect: compile-error TKO0413
 #                 modules: a.bas b.bas         extra sources in the same directory
 #                 forward: ch15                records a use-before-define
+#                 cwd: listing                 compile in the listing's own directory, as a
+#                                              reader would -- for #cinclude, whose header
+#                                              clang resolves against the working directory
 #                 blocked: T13 linux-x86_64    a known compiler/toolchain defect, and
 #                                              where it bites; reported BLOCKED, not FAIL.
 #                                              The listing is NEVER weakened to pass --
@@ -161,8 +164,10 @@ for f in "${listings[@]}"; do
   expect="$(meta_get "$meta" expect)"
   modules="$(meta_get "$meta" modules)"
   blocked="$(meta_get "$meta" blocked)"        # e.g. "T13 linux-x86_64"
+  cwd="$(meta_get "$meta" cwd)"
   blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
   srcs=("$f"); for m in $modules; do srcs+=("$dir/$m"); done
+  local_srcs=(); for s in "${srcs[@]}"; do local_srcs+=("$(basename "$s")"); done
 
   # House style: listings fit the book's trim without wrapping.
   long=$(awk 'length > 72 { n++ } END { print n+0 }' "$f")
@@ -177,10 +182,18 @@ for f in "${listings[@]}"; do
 
     if [[ "$t" == win64-msvc ]]; then
       exe="$outdir/$name.exe"; rm -f "$exe"
-      "$win_tiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
+      if [[ "$cwd" == listing ]]; then
+        ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) > "$log" 2>&1; crc=$?
+      else
+        "$win_tiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
+      fi
     else
       exe="$outdir/$name"; rm -f "$exe"
-      wsl -d "$WSL_DISTRO" -- "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
+      if [[ "$cwd" == listing ]]; then
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' ${local_srcs[*]} -o '$book_wsl/$exe'" > "$log" 2>&1; crc=$?
+      else
+        wsl -d "$WSL_DISTRO" -- "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
+      fi
     fi
 
     if [[ -n "$expect" ]]; then           # this listing must NOT compile

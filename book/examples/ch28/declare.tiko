@@ -1,0 +1,23 @@
+'' Two ways to declare a C function. The C runtime is always linked,
+'' so neither needs a library named.
+
+'' One at a time: 'cdecl' for C's convention, 'alias' for its exact
+'' name, so the tiko name can differ from it.
+declare function CLength cdecl alias "strlen" _
+    ( byval s as const zstring ptr ) as uinteger
+
+'' A block: everything inside is cdecl, and keeps its name as written.
+extern "C"
+    declare function toupper( byval c as int32 ) as int32
+    declare function abs_ alias "abs" ( byval n as int32 ) as int32
+end extern
+
+dim as zstring * 16 word = "interface"
+print "strlen: "; CLength( @word )
+
+for i as int32 = 0 to len( word ) - 1
+    word[ i ] = toupper( word[ i ] )
+next
+print "toupper: "; word
+
+print "abs:"; abs_( -42 )

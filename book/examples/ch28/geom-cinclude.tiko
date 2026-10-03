@@ -1,0 +1,15 @@
+'' The same library, with the declarations taken from its own header.
+#cinclude once "geom/geom.h"
+#foreignlib GEOM static "geom/geom"
+
+sub Visit cdecl( byval p as const geom_point ptr, _
+                 byval user as any ptr )
+    print "  ("; p->x; ","; p->y; " )"
+end sub
+
+print *geom_version( ); ", major version"; GEOM_VERSION_MAJOR
+
+dim pts( 0 to 2 ) as geom_point = _
+    { ( 0, 0 ), ( 4, 0 ), ( 4, 3 ) }
+print "distance:"; geom_distance( pts( 0 ), pts( 2 ) )
+geom_each( @pts( 0 ), 3, @Visit, 0 )

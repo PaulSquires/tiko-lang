@@ -1,0 +1,45 @@
+'' A hand-written binding: the library, and a declaration per function.
+#foreignlib GEOM static "geom/geom"
+
+type geom_point
+    as float64 x, y
+end type
+
+type geom_visit as sub cdecl( byval p as const geom_point ptr, _
+                              byval user as any ptr )
+
+extern "C" lib GEOM
+    declare function geom_version( ) as const zstring ptr
+    declare function geom_distance( byval a as geom_point, _
+                                    byval b as geom_point ) as float64
+    declare function geom_centroid( byval pts as const geom_point ptr, _
+                                    byval n as int32, _
+                                    byval out_ as geom_point ptr ) _
+                                    as int32
+    declare sub geom_each( byval pts as const geom_point ptr, _
+                           byval n as int32, byval fn as geom_visit, _
+                           byval user as any ptr )
+end extern
+
+'' A callback C will call: cdecl, and only the parameters C passes.
+sub Visit cdecl( byval p as const geom_point ptr, _
+                 byval user as any ptr )
+    dim as int32 ptr count = user
+    *count += 1
+    print "  visit"; *count; ": ("; p->x; ","; p->y; " )"
+end sub
+
+print *geom_version( )
+
+dim pts( 0 to 2 ) as geom_point = _
+    { ( 0, 0 ), ( 4, 0 ), ( 4, 3 ) }
+print "distance:"; geom_distance( pts( 0 ), pts( 2 ) )
+
+dim c as geom_point
+if geom_centroid( @pts( 0 ), 3, @c ) then
+    print "centroid: ("; c.x; ","; c.y; " )"
+end if
+
+dim as int32 seen = 0
+geom_each( @pts( 0 ), 3, @Visit, @seen )
+print "visited"; seen

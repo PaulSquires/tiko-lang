@@ -11,3 +11,6 @@
 *.tmp
 book/
 out/
+# Chapter 28 vendors a prebuilt C library per target (rebuilt by its build.sh).
+!examples/ch28/geom/*.a
+!examples/ch28/geom/*.lib
