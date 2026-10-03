@@ -1,0 +1,7 @@
+float64: 0.1 + 0.2 = 0.3 is false
+Decimal: 0.1 + 0.2 = 0.3 is true
+3 at 19.99 = 59.9700
+2 / 3      = 0.6667
+parse 1.23456 as Currency: false
+tax at 8.25% = 4.947525, to cents 4.95
+100.00 in three: 33.34 33.33 33.33

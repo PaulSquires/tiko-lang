@@ -1,0 +1,23 @@
+#import "std/numeric"
+#import "std/containers"
+
+'' Roll two dice 36000 times with a fixed seed, so every run agrees.
+dim rng as numeric.Rng = numeric.RngSeeded( 2026 )
+dim totals as containers.Array( of float64 )
+dim counts( 2 to 12 ) as int32
+for i as int32 = 1 to 36000
+    var t = rng.NextInt( 1, 6 ) + rng.NextInt( 1, 6 )
+    totals.Push( cdbl( t ) )
+    counts( t ) += 1
+next
+
+'' A sideways bar chart, one # for every 100 rolls.
+for t as int32 = 2 to 12
+    print right( " " & t, 2 ); right( space( 6 ) & counts( t ), 6 ); _
+          "  "; string( counts( t ) \ 100, "#" )
+next
+
+'' Summary statistics over the whole array.
+print "mean   "; numeric.Round( numeric.Mean( totals ), 3 )
+print "median "; numeric.Median( totals )
+print "stddev "; numeric.Round( numeric.StdDev( totals ), 3 )

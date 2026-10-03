@@ -1,0 +1,26 @@
+#import "std/numeric"
+#import "std/containers"
+
+'' One pass, constant space: RunningStats sees each value once.
+dim temps( ... ) as float64 = { 21.5, 23.0, 19.5, 25.0, 22.0, 24.5 }
+dim acc as numeric.RunningStats
+for i as int32 = 0 to ubound( temps )
+    acc.Add( temps( i ) )
+next
+print "count "; acc.Count( ); ", mean"; acc.Mean( ); _
+      ", min"; acc.MinValue( ); ", max"; acc.MaxValue( )
+print "stddev"; numeric.Round( acc.StdDev( ), 4 )
+
+'' Adding many small values to a large one: the plain loop loses them.
+dim values as containers.Array( of float64 )
+values.Push( 1e16 )
+for i as int32 = 1 to 100000
+    values.Push( 1.0 )
+next
+dim as float64 loopTotal = 0
+for each v in values
+    loopTotal += v
+next
+print "loop:      "; numeric.ToString( loopTotal )
+print "NaiveSum:  "; numeric.ToString( numeric.NaiveSum( values ) )
+print "Sum:       "; numeric.ToString( numeric.Sum( values ) )

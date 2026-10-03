@@ -1,0 +1,22 @@
+#import "std/numeric"
+
+'' Half away from zero, and half to even (banker's rounding).
+print "Round:         "; numeric.Round( 2.5 ); numeric.Round( 3.5 ); _
+      numeric.Round( -2.5 )
+print "RoundHalfEven: "; numeric.RoundHalfEven( 2.5 ); _
+      numeric.RoundHalfEven( 3.5 ); numeric.RoundHalfEven( -2.5 )
+
+'' Floor, Ceil and Truncate say which way they go.
+print "Floor( -1.5 ) ="; numeric.Floor( -1.5 ); _
+      ", Ceil( -1.5 ) ="; numeric.Ceil( -1.5 ); _
+      ", Truncate( -1.5 ) ="; numeric.Truncate( -1.5 )
+
+'' Rounding to places scales by a power of ten first.
+print "Round( 3.14159, 2 ) ="; numeric.Round( 3.14159, 2 )
+print "Round( 2.675, 2 )   ="; numeric.Round( 2.675, 2 )
+
+'' Selection.
+print "Min ="; numeric.Min( 3, 8 ); ", Max ="; numeric.Max( 3, 8 ); _
+      ", Clamp( 15, 0, 10 ) ="; numeric.Clamp( 15, 0, 10 )
+print "Lerp( 0, 200, 0.25 ) ="; numeric.Lerp( 0.0, 200.0, 0.25 )
+print "Sign( -0.5 ) ="; numeric.Sign( -0.5 )

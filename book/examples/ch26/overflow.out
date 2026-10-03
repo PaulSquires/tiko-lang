@@ -1,0 +1,8 @@
+top + 1, as int32 =-2147483648
+AddChecked has a value: false
+AddChecked( top, -1 ) = 2147483646
+AddSaturating     = 2147483647
+AddWrapping       =-2147483648
+abs( lo )         =-9223372036854775808
+AbsChecked has a value: false
+PopCount = 3, TrailingZeros = 4, NextPow2( 100 ) =128

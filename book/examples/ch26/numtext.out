@@ -1,0 +1,10 @@
+val( "42abc" ) = 42, val( "abc" ) = 0
+"2.5"   2.5
+"42abc" refused
+" 7"    refused
+"1e3"   1000
+""      refused
+str:      0.3
+ToString: 0.30000000000000004
+str reads back: false, ToString reads back: true
+1,234,567.89

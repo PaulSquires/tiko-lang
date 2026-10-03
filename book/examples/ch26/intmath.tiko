@@ -1,0 +1,22 @@
+#import "std/numeric"
+
+'' ^ always works in float64; above 2^53 the answer is wrong.
+dim as int64 b = 3, e = 38
+dim as int64 viaPow = b ^ e
+print "3 ^ 38       ="; viaPow
+print "IPow( 3, 38 ) ="; numeric.IPow( b, e )
+
+'' Three kinds of remainder, each named for what it does.
+print "-7 mod 3        ="; -7 mod 3
+print "FloorMod( -7, 3 ) ="; numeric.FloorMod( -7, 3 )
+print "EuclidMod( -7, -3 ) ="; numeric.EuclidMod( -7, -3 )
+
+'' A quotient and a remainder from one division, as a tuple.
+var (pages, left_) = numeric.DivMod( 47, 10 )
+print "47 items, 10 a page:"; pages; " full pages and"; left_; " over"
+
+'' Exact integer square root, greatest common divisor, least common
+'' multiple.
+print "ISqrt( 99 ) ="; numeric.ISqrt( 99 ); _
+      ", GCD( 12, 18 ) ="; numeric.GCD( 12, 18 ); _
+      ", LCM( 4, 6 ) ="; numeric.LCM( 4, 6 )

@@ -1,0 +1,26 @@
+#import "std/numeric"
+
+'' One divided by three, under a chosen rounding mode. The mode is
+'' put back when 'r' goes out of scope, however the function ends.
+function Third( byval mode as int32 ) as float64
+    dim r as numeric.ScopedRounding = numeric.ScopedRounding( mode )
+    dim as float64 one = 1.0, three = 3.0
+    return one / three
+end function
+
+print "toward +inf: "; _
+      numeric.ToString( Third( numeric.ROUND_TOWARD_POSITIVE ) )
+print "toward -inf: "; _
+      numeric.ToString( Third( numeric.ROUND_TOWARD_NEGATIVE ) )
+print "nearest:     "; _
+      numeric.ToString( Third( numeric.ROUND_TO_NEAREST ) )
+print "restored:    "; _
+      cbool( numeric.GetRoundingMode( ) = numeric.ROUND_TO_NEAREST )
+
+'' Exception flags record what went wrong, without stopping anything.
+numeric.ClearFpExceptions( )
+dim as float64 x = 1.0, zero = 0.0
+var r = x / zero
+print "divide by zero flagged: "; _
+      numeric.TestFpException( numeric.FP_DIVBYZERO )
+print "result is infinite:     "; numeric.IsInfinite( r )

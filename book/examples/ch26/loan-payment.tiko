@@ -1,0 +1,31 @@
+#import "std/money"
+
+'' The usual float64 amortization: round the payment, round each
+'' month's interest, subtract. The balance does not end at zero.
+dim as float64 bal = 400000, i = 0.0595 / 12
+dim as float64 pmt = bal * i / ( 1 - ( 1 + i ) ^ -360 )
+pmt = int( pmt * 100 + 0.5 ) / 100
+for k as int32 = 1 to 360
+    dim as float64 interest = int( bal * i * 100 + 0.5 ) / 100
+    bal -= pmt - interest
+next
+print "float64 payment"; pmt; ", final balance"; bal
+
+'' The same loan in Decimal, with the last payment absorbing the rest.
+var p = money.DecimalParse( "400000" ).Value( )
+var r = money.DecimalParse( "0.0595" ).Value( )
+var t = money.LoanTermsUsMortgage( p, r, 30 )
+dim as int32 n = 0
+dim as money.Decimal last
+for each row in money.LoanSchedule( t ).Value( )
+    n += 1
+    last = row.ClosingBalance_
+next
+var payment = money.LoanPayment( t ).Value( )
+print "Decimal payment "; payment.ToStringFixed( 2 ); ","; n; _
+      " payments, final balance "; last.ToStringFixed( 2 )
+
+'' A Canadian mortgage compounds half-yearly but is paid monthly.
+var ca = money.LoanTermsCanadianMortgage( p, r, 30 )
+print "Canadian payment "; _
+      money.LoanPayment( ca ).Value( ).ToStringFixed( 2 )

@@ -1,0 +1,26 @@
+#import "std/numeric"
+
+'' The special values are functions, not constants.
+var nan_ = numeric.NaN( )
+var inf = numeric.Infinity( )
+
+'' A NaN equals nothing, not even itself: ask with IsNaN.
+print "NaN = NaN:      "; cbool( nan_ = nan_ )
+print "IsNaN:          "; numeric.IsNaN( nan_ )
+print "IsInfinite:     "; numeric.IsInfinite( inf )
+print "IsFinite( 1e308 * 10 ): "; numeric.IsFinite( 1e308 * 10 )
+
+'' Classify names the kind of value.
+print "Classify( 0 ) is FP_ZERO: "; _
+      cbool( numeric.Classify( 0.0 ) = numeric.FP_ZERO )
+print "Classify( inf ) is FP_INFINITE: "; _
+      cbool( numeric.Classify( inf ) = numeric.FP_INFINITE )
+
+'' NaN survives Min instead of quietly disappearing.
+print "Min( NaN, 1 ) is NaN: "; _
+      numeric.IsNaN( numeric.Min( nan_, 1.0 ) )
+
+'' Two zeros: equal as numbers, different in the sign bit.
+dim as float64 negZero = -0.0
+print "-0 = 0: "; cbool( negZero = 0.0 ); _
+      ", IsNegative( -0 ): "; numeric.IsNegative( negZero )

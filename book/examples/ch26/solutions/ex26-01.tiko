@@ -1,0 +1,12 @@
+#import "std/money"
+
+'' 1000.00 at 4% a year, interest credited and rounded to cents yearly.
+var balance = money.DecimalParse( "1000.00" ).Value( )
+var rate = money.DecimalParse( "0.04" ).Value( )
+for year as int32 = 1 to 10
+    var interest = ( balance * rate ).Round( 2 )
+    balance = balance + interest
+    print "year"; right( space( 3 ) & year, 3 ); "  interest "; _
+          right( space( 6 ) & interest.ToStringFixed( 2 ), 6 ); _
+          "  balance "; balance.ToStringFixed( 2 )
+next

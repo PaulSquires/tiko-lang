@@ -1,0 +1,8 @@
+NaN = NaN:      false
+IsNaN:          true
+IsInfinite:     true
+IsFinite( 1e308 * 10 ): false
+Classify( 0 ) is FP_ZERO: true
+Classify( inf ) is FP_INFINITE: true
+Min( NaN, 1 ) is NaN: true
+-0 = 0: true, IsNegative( -0 ): true

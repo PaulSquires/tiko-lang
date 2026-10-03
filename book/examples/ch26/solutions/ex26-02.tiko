@@ -1,0 +1,16 @@
+#import "std/numeric"
+
+'' Throw points at the unit square; the share inside the quarter
+'' circle approaches pi / 4.
+dim rng as numeric.Rng = numeric.RngSeeded( 7 )
+const N = 1000000
+dim as int32 inside = 0
+for i as int32 = 1 to N
+    var x = rng.NextDouble( )
+    var y = rng.NextDouble( )
+    if x * x + y * y < 1.0 then inside += 1
+next
+var estimate = 4.0 * inside / N
+print "estimate:"; numeric.Round( estimate, 3 )
+print "within 0.01 of pi: "; _
+      cbool( abs( estimate - numeric.PI ) < 0.01 )

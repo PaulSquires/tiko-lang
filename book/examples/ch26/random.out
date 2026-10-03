@@ -1,0 +1,4 @@
+ten dice: 5 1 6 1 4 1 1 2 3 6
+a double in [0, 1): 0.7818442024444772
+shuffled: 8 3 2 4 1 7 6 5
+original and copy agree: true

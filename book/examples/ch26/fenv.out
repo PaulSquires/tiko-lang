@@ -1,0 +1,6 @@
+toward +inf: 0.33333333333333337
+toward -inf: 0.3333333333333333
+nearest:     0.3333333333333333
+restored:    true
+divide by zero flagged: true
+result is infinite:     true

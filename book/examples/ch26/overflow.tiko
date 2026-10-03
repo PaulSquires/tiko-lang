@@ -1,0 +1,30 @@
+#import "std/numeric"
+
+dim as int32 top = 2147483647
+
+'' Stored back in an int32, a sum past the top wraps, silently.
+dim as int32 wrapped = top + 1
+print "top + 1, as int32 ="; wrapped
+
+'' Checked: an empty Optional instead of a wrong number.
+var sum = numeric.AddChecked( top, 1 )
+print "AddChecked has a value: "; sum.HasValue( )
+var ok = numeric.AddChecked( top, -1 )
+print "AddChecked( top, -1 ) ="; ok.Value( )
+
+'' Saturating: stop at the end of the range.
+print "AddSaturating     ="; numeric.AddSaturating( top, 1 )
+
+'' Wrapping: what + does, spelled so the reader knows it was meant.
+print "AddWrapping       ="; numeric.AddWrapping( top, 1 )
+
+'' abs of the most negative value has no positive partner.
+dim as int64 lo = -9223372036854775807 - 1
+print "abs( lo )         ="; abs( lo )
+print "AbsChecked has a value: "; numeric.AbsChecked( lo ).HasValue( )
+
+'' The bit functions.
+dim as uint32 flags = &b10110000
+print "PopCount ="; numeric.PopCount( flags ); _
+      ", TrailingZeros ="; numeric.TrailingZeros( flags ); _
+      ", NextPow2( 100 ) ="; numeric.NextPow2( 100ul )

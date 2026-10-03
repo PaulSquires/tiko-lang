@@ -1,0 +1,5 @@
+count 6, mean 22.58333333333333, min 19.5, max 25
+stddev 2.0351
+loop:      1e+16
+NaiveSum:  1e+16
+Sum:       10000000000100000

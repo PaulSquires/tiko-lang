@@ -38,6 +38,7 @@
 - [23. Containers and Sorting](ch23-containers.md)
 - [24. Files, Processes and the Environment](ch24-files-processes.md)
 - [25. Dates and Times](ch25-dates-times.md)
+- [26. Numbers](ch26-numbers.md)
 
 # Appendices
 

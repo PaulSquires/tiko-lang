@@ -1,0 +1,8 @@
+Round:          3 4-3
+RoundHalfEven:  2 4-2
+Floor( -1.5 ) =-2, Ceil( -1.5 ) =-1, Truncate( -1.5 ) =-1
+Round( 3.14159, 2 ) = 3.14
+Round( 2.675, 2 )   = 2.68
+Min = 3, Max = 8, Clamp( 15, 0, 10 ) = 10
+Lerp( 0, 200, 0.25 ) = 50
+Sign( -0.5 ) =-1

@@ -1,0 +1,15 @@
+'' The built-in numeric functions need no import.
+print "abs( -3.5 ) ="; abs( -3.5 ); ", sgn( -2 ) ="; sgn( -2 )
+
+'' int rounds down, fix rounds toward zero, frac is what fix drops.
+print "int( -2.5 ) ="; int( -2.5 ); ", fix( -2.5 ) ="; fix( -2.5 ); _
+      ", frac( -2.5 ) ="; frac( -2.5 )
+
+print "sqr( 2 )    ="; sqr( 2 )
+print "atn( 1 ) * 4 ="; atn( 1 ) * 4
+print "exp( 1 )    ="; exp( 1 )
+print "log( 10 )   ="; log( 10 ); "  (natural log)"
+print "sin( 0.5 )^2 + cos( 0.5 )^2 ="; sin( 0.5 ) ^ 2 + cos( 0.5 ) ^ 2
+
+'' mod truncates: the remainder takes the sign of the left side.
+print "-7 mod 3 ="; -7 mod 3; ", -7 \ 3 ="; -7 \ 3
