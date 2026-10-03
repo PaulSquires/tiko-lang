@@ -78,9 +78,30 @@ private function SpawnByrefParam_ _
     return false
 end function
 
+'' 'spawn' OF SOMETHING THAT IS NOT A PROCEDURE (T76) -- a lambda in a variable, a
+'' procedure pointer -- is fbc's error 357. tiko reported 'not declared' for a name
+'' that was declared: the thunk calls it from module level, where a local is out of
+'' sight. Reported here, and the thunk's callee bound to what was found so the
+'' undeclared-name pass does not say it again.
+private function SpawnNotAProc_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->aliasName = 0 then return false
+    dim as Tko.SymbolId sid = c.syms->Lookup( scope_, sp->aliasName )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    if s->kind = cast( ubyte, Tko.SYM_PROC ) then return false
+    c.diags->Report( Tko.TKO0943, Tko.PointRange( c.ast->Loc( id ) ), _
+                     c.names->Spelling( s->name ) )
+    if sp->c <> Tko.NODE_NONE then c.info->SetRef( sp->c, sid )
+    return true
+end function
+
 private sub BuildSpawnFrame_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
+    if SpawnNotAProc_( c, id, scope_ ) then return
     if SpawnByrefParam_( c, id, scope_ ) then return
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->name = 0 then return

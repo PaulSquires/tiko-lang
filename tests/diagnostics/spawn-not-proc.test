@@ -1,0 +1,6 @@
+'' TKO0943, fbc's 357: 'spawn' names a variable, not a module-level procedure (T76).
+'' TEST: cli
+'' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/diagnostics/src/spawn-not-proc.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: spawn-not-proc.bas(5,1): error TKO0943: 'spawn' needs a sub or function declared at module level, and 'greet' is not one
+'' EXPECT-MAX-DIAG: 1

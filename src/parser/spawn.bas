@@ -299,6 +299,9 @@ function MakeSpawn_ _
         p.ast->idents[cast( long, p.ast->nodes[cast( long, calleeN )].data )].name
     ssp.extra = cast( ushort, argc )
     ssp.b = scN
+    '' ...and the CALLEE NODE, the one the thunk's call reuses, so Resolve can tell
+    '' 'spawn' names no procedure (T76) and stop the thunk reporting it as undeclared.
+    ssp.c = calleeN
     return MakeStmt( p, Tko.N_SPAWN, t.loc, ssp )
 end function
 
