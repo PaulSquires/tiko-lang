@@ -1,0 +1,33 @@
+'' Exercise 22-2: fan-in. Two producers share one channel, and a
+'' WaitGroup decides when it is closed.
+#import "std/tasks"
+#cmdline "-mt"
+
+sub Produce( byval first as int32, _
+             byval out_ as tasks.SendChan( of int32 ), _
+             byval wg as FB.WaitGroup ptr )
+    for i as int32 = first to first + 2
+        out_.Send( i )
+    next
+    wg->Done( )
+end sub
+
+sub CloseAfter( byval wg as FB.WaitGroup ptr, _
+                byval merged as tasks.Channel( of int32 ) )
+    wg->Wait( )
+    merged.Close( )
+end sub
+
+dim merged as tasks.Channel( of int32 ) = tasks.Channel( of int32 )( 0 )
+dim wg as tasks.WaitGroup
+wg.Add( 2 )
+spawn Produce( 1, merged, @wg )
+spawn Produce( 100, merged, @wg )
+spawn CloseAfter( @wg, merged )
+
+dim as int32 total = 0, count = 0
+for each v in merged
+    total += v
+    count += 1
+next
+print count; " values, total"; total

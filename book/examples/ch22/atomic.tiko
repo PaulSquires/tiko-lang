@@ -1,0 +1,19 @@
+#cmdline "-mt"
+#include once "fbatomic.bi"
+
+'' No mutex: each add is one indivisible step.
+sub Bump( byval p as any ptr )
+    for i as int32 = 1 to 100000
+        FB.AtomicFetchAddLong( cptr( long ptr, p ), 1 )
+    next
+end sub
+
+dim as long hits
+dim workers( 0 to 3 ) as any ptr
+for i as int32 = 0 to 3
+    workers( i ) = threadcreate( @Bump, @hits )
+next
+for i as int32 = 0 to 3
+    threadwait( workers( i ) )
+next
+print "hits:"; FB.AtomicLoadLong( @hits )

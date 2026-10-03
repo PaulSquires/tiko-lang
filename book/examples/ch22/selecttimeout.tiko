@@ -1,0 +1,32 @@
+#import "std/tasks"
+#cmdline "-mt"
+#include once "fb/select.bi"
+
+sub SlowAnswer( byval delayMs as int32, _
+                byval out_ as tasks.SendChan( of int32 ) )
+    sleep delayMs, 1
+    out_.Send( 42 )
+end sub
+
+dim answers as tasks.Channel( of int32 ) = _
+    tasks.Channel( of int32 )( 1 )
+dim as int32 v
+
+'' case else: do not wait at all.
+select channel
+    case receive v from answers : print "got"; v
+    case else                   : print "nothing ready yet"
+end select
+
+'' case timeout: wait, but only so long.
+spawn SlowAnswer( 2000, answers )
+select channel
+    case receive v from answers : print "got"; v
+    case timeout 100            : print "gave up after 100 ms"
+end select
+
+'' This time the answer arrives while we wait.
+select channel
+    case receive v from answers : print "got"; v
+    case timeout 10000          : print "gave up"
+end select

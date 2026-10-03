@@ -1,0 +1,40 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+sub Worker( byval jobs as tasks.RecvChan( of int32 ), _
+            byval results as tasks.SendChan( of int32 ), _
+            byval wg as FB.WaitGroup ptr )
+    dim as int32 job
+    do while jobs.Receive( job )      '' until the jobs channel closes
+        results.Send( job * 2 )
+    loop
+    wg->Done( )
+end sub
+
+sub CloseWhenDone( byval wg as FB.WaitGroup ptr, _
+                   byval results as tasks.Channel( of int32 ) )
+    wg->Wait( )
+    results.Close( )
+end sub
+
+var jobs = tasks.Channel( of int32 )( 16 )
+var results = tasks.Channel( of int32 )( 16 )
+dim wg as tasks.WaitGroup
+
+for w as int32 = 1 to 3
+    wg.Add( )                         '' before the spawn, never inside
+    spawn Worker( jobs, results, @wg )
+next
+spawn CloseWhenDone( @wg, results )
+
+for j as int32 = 1 to 10
+    jobs.Send( j )
+next
+jobs.Close( )
+
+dim as int32 total = 0, count = 0
+for each r in results
+    total += r
+    count += 1
+next
+print count; " results, total"; total

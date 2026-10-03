@@ -1,0 +1,27 @@
+#import "std/tasks"
+#import "std/containers"
+#cmdline "-mt"
+
+sub Report( byval id as int32, byval label as ustring, _
+            byval out_ as tasks.SendChan( of ustring ) )
+    out_.Send( label & " #" & id )
+end sub
+
+dim results as tasks.Channel( of ustring ) = _
+    tasks.Channel( of ustring )( 8 )
+dim as ustring label = "job"
+for i as int32 = 1 to 4
+    spawn Report( i, label, results )   '' its own i and label
+next
+label = "changed"                         '' too late to matter
+
+dim got as containers.Array( of ustring )
+dim as ustring s
+for i as int32 = 1 to 4
+    results.Receive( s )
+    got.Push( s )
+next
+containers.Sort( got )                    '' arrival order varies
+for each g in got
+    print g
+next

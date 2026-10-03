@@ -1,0 +1,20 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' A goroutine returns nothing: the channel is its way back.
+sub Square( byval n as int32, _
+            byval results as tasks.SendChan( of int32 ) )
+    results.Send( n * n )
+end sub
+
+var results = tasks.Channel( of int32 )( 8 )
+for i as int32 = 1 to 5
+    spawn Square( i, results )        '' i is copied, here
+next
+
+dim as int32 total = 0, v
+for i as int32 = 1 to 5
+    results.Receive( v )
+    total += v
+next
+print "sum of squares 1..5:"; total

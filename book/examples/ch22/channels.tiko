@@ -1,0 +1,20 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+dim box as tasks.Channel( of int32 ) = tasks.Channel( of int32 )( 2 )
+
+'' Try* never blocks: the third send finds the buffer full.
+print box.TrySend( 10 ); box.TrySend( 20 ); box.TrySend( 30 )
+print "count"; box.Count( ); ", capacity"; box.Capacity( )
+
+box.Close( )                      '' no more sends; what is queued stays
+for each v in box                 '' drains, then ends because closed
+    print v;
+next
+print
+
+dim as int32 x = -1
+print "receive after drain: "; box.Receive( x ); ", x still"; x
+
+dim quiet as tasks.Channel( of int32 ) = tasks.Channel( of int32 )( 1 )
+print "receive with a 50 ms limit: "; quiet.ReceiveFor( x, 50 )

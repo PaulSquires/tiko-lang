@@ -1,0 +1,29 @@
+#cmdline "-mt"
+'' Four OS threads add to one total. The mutex makes each += whole.
+type Counter
+    lock as any ptr
+    total as int64
+end type
+
+sub AddMany( byval p as any ptr )
+    var c = cptr( Counter ptr, p )
+    for i as int32 = 1 to 100000
+        mutexlock( c->lock )
+        c->total += 1
+        mutexunlock( c->lock )
+    next
+end sub
+
+dim c as Counter
+c.lock = mutexcreate( )
+
+dim workers( 0 to 3 ) as any ptr
+for i as int32 = 0 to 3
+    workers( i ) = threadcreate( @AddMany, @c )
+next
+for i as int32 = 0 to 3
+    threadwait( workers( i ) )            '' join: wait for it to end
+next
+mutexdestroy( c.lock )
+
+print "total:"; c.total

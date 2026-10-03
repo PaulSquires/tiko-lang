@@ -1,0 +1,34 @@
+#import "std/tasks"
+#cmdline "-mt"
+#include once "fb/select.bi"
+
+'' Works until its context says stop, then reports how it ended.
+sub Poll( byval ctx as tasks.Context, _
+          byval done_ as tasks.SendChan( of ustring ) )
+    do
+        select channel
+            case receive from ctx.Done( ) : exit do
+            case timeout 5                : '' one round of work
+        end select
+    loop
+    done_.Send( "stopped: " & ctx.Err( ) )
+end sub
+
+dim finished as tasks.Channel( of ustring ) = _
+    tasks.Channel( of ustring )( 1 )
+dim as ustring why
+
+'' Cancelled by hand.
+dim byHand as tasks.CancelContext = tasks.WithCancel( tasks.Context( ) )
+spawn Poll( byHand, finished )
+sleep 50, 1
+byHand.Cancel( )
+finished.Receive( why )
+print why
+
+'' Cancelled by its own deadline.
+dim byClock as tasks.CancelContext = _
+    tasks.WithTimeout( tasks.Context( ), 50 )
+spawn Poll( byClock, finished )
+finished.Receive( why )
+print why

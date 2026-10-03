@@ -68,7 +68,7 @@ parts:
       - { n: 19, file: src/ch19-tuples-iterators.md,     status: drafted }
       - { n: 20, file: src/ch20-lambdas-closures.md,      status: drafted }
       - { n: 21, file: src/ch21-resource-management.md,  status: drafted }
-      - { n: 22, file: chapters/22-concurrency.md,        status: planned }
+      - { n: 22, file: src/ch22-concurrency.md,          status: drafted }
   - name: "The Standard Library"
     chapters:
       - { n: 23, file: chapters/23-containers.md,         status: planned }

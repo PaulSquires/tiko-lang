@@ -1,0 +1,9 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+sub Fill( byref total as int32 )
+    total = 42
+end sub
+
+dim as int32 answer
+spawn Fill( answer )

@@ -1,0 +1,26 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+function Found( byref entry as ustring ) as ustring
+    return iif( len( entry ) > 0, "a file", "nothing" )
+end function
+
+sub NextName( byval out_ as tasks.SendChan( of ustring ) )
+    out_.Send( "[" & dir( ) & "]" )       '' continue... which listing?
+end sub
+
+open "part1.dat" for output as #1 : close #1
+open "part2.dat" for output as #1 : close #1
+
+print "main's first match:  "; Found( dir( "part*.dat" ) )
+
+dim names as tasks.Channel( of ustring ) = _
+    tasks.Channel( of ustring )( 1 )
+spawn NextName( names )
+dim as ustring fromGoroutine
+names.Receive( fromGoroutine )
+print "goroutine's next:    "; fromGoroutine
+
+print "main's next match:   "; Found( dir( ) )
+
+kill "part1.dat" : kill "part2.dat"

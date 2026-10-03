@@ -1,0 +1,32 @@
+#import "std/tasks"
+#cmdline "-mt"
+
+'' Two stages, each a goroutine, joined by channels; the main program is
+'' the third. Each stage closes its output when its input runs dry.
+sub Generate( byval upTo as int32, _
+              byval out_ as tasks.SendChan( of int32 ) )
+    for i as int32 = 1 to upTo
+        out_.Send( i )
+    next
+    out_.Close( )
+end sub
+
+sub Square( byval in_ as tasks.RecvChan( of int32 ), _
+            byval out_ as tasks.SendChan( of int32 ) )
+    dim as int32 v
+    do while in_.Receive( v )
+        out_.Send( v * v )
+    loop
+    out_.Close( )
+end sub
+
+var numbers = tasks.Channel( of int32 )( 0 )      '' rendezvous
+var squares = tasks.Channel( of int32 )( 0 )
+
+spawn Generate( 6, numbers )
+spawn Square( numbers, squares )
+
+for each s in squares
+    print s;
+next
+print

@@ -1,0 +1,25 @@
+'' Exercise 22-1: sum an array in four parallel chunks.
+#import "std/tasks"
+#cmdline "-mt"
+
+sub SumRange( byval first as int32, byval last as int32, _
+              byval out_ as tasks.SendChan( of int64 ) )
+    dim as int64 s = 0
+    for i as int32 = first to last
+        s += i
+    next
+    out_.Send( s )
+end sub
+
+dim partials as tasks.Channel( of int64 ) = _
+    tasks.Channel( of int64 )( 4 )
+const N = 1000000
+for k as int32 = 0 to 3
+    spawn SumRange( k * ( N \ 4 ) + 1, ( k + 1 ) * ( N \ 4 ), partials )
+next
+dim as int64 total = 0, part
+for k as int32 = 0 to 3
+    partials.Receive( part )
+    total += part
+next
+print "sum 1..1000000 ="; total

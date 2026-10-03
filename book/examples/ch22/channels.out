@@ -1,0 +1,5 @@
+truetruefalse
+count 2, capacity 2
+ 10 20
+receive after drain: false, x still-1
+receive with a 50 ms limit: false

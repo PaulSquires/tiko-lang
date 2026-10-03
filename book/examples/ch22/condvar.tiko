@@ -1,0 +1,33 @@
+#cmdline "-mt"
+'' One thread waits until another says the data is ready.
+type Mailbox
+    lock as any ptr
+    ready as any ptr          '' the condition
+    full as boolean
+    message as ustring
+end type
+
+sub Deliver( byval p as any ptr )
+    var box = cptr( Mailbox ptr, p )
+    mutexlock( box->lock )
+    box->message = "parcel"
+    box->full = true
+    condsignal( box->ready )
+    mutexunlock( box->lock )
+end sub
+
+dim box as Mailbox
+box.lock = mutexcreate( )
+box.ready = condcreate( )
+
+var courier = threadcreate( @Deliver, @box )
+mutexlock( box.lock )
+do until box.full                 '' re-test: a wake-up is only a hint
+    condwait( box.ready, box.lock )
+loop
+print "received: "; box.message
+mutexunlock( box.lock )
+
+threadwait( courier )
+conddestroy( box.ready )
+mutexdestroy( box.lock )
