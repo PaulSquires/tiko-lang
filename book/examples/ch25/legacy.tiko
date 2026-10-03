@@ -1,0 +1,24 @@
+#import "std/chrono"
+#include "datetime.bi"
+
+'' datetime.bi keeps a date as a double: days since 1899-12-30.
+dim as float64 serial = dateserial( 2025, 3, 4 ) _
+                     + timeserial( 14, 30, 0 )
+var d = chrono.DateTime.FromSerial( serial )
+print "from serial: "; d.ToIsoString( )
+print "and back:    "; cbool( d.Serial( ) = serial )
+
+'' The two count the days of the week differently.
+print "weekday( ):  "; weekday( serial ); "  (1 = Sunday)"
+print "DayOfWeek:   "; d.DayOfWeek( ); "  (1 = Monday)"
+
+'' dateserial rolls over; the chrono constructors refuse.
+dim as float64 rolled = dateserial( 2025, 13, 40 )
+print "dateserial( 2025, 13, 40 ): "; year( rolled ) & "-" & _
+      month( rolled ) & "-" & day( rolled )
+print "DateTime( 2025, 13, 40 ) valid: "; _
+      chrono.DateTime( 2025, 13, 40 ).IsValid( )
+
+'' Unix time is one more epoch, both ways.
+var epoch = chrono.Instant.FromUnixSeconds( 1741098600 )
+print "unix 1741098600: "; epoch.ToIsoString( )

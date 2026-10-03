@@ -1,0 +1,49 @@
+#import "std/chrono"
+
+'' Log lines from three servers, each stamped in its own offset.
+dim lines( ... ) as ustring = { _
+    "2025-03-04T09:15:02-05:00 build started", _
+    "2025-03-04T15:14:40+01:00 tests started", _
+    "2025-03-04T14:20:11Z build finished", _
+    "2025-03-04T19:59:58+05:30 tests finished", _
+    "not-a-time something odd" }
+
+type Entry
+    as chrono.Instant at
+    as ustring text
+end type
+
+dim entries( ) as Entry
+for i as int32 = 0 to ubound( lines )
+    dim as int32 sp = instr( lines( i ), " " )
+    dim t as chrono.Instant
+    if chrono.Instant.TryParseIso( left( lines( i ), sp - 1 ), t ) then
+        redim preserve entries( ubound( entries ) + 1 )
+        entries( ubound( entries ) ).at = t
+        entries( ubound( entries ) ).text = mid( lines( i ), sp + 1 )
+    else
+        print "skipped: "; lines( i )
+    end if
+next
+
+'' Instants sort by the moment itself, whatever offset they came in.
+for i as int32 = 1 to ubound( entries )
+    var e = entries( i )
+    dim as int32 j = i - 1
+    do while j >= 0 andalso entries( j ).at > e.at
+        entries( j + 1 ) = entries( j )
+        j -= 1
+    loop
+    entries( j + 1 ) = e
+next
+
+'' Log in UTC, with the gap since the previous line.
+for i as int32 = 0 to ubound( entries )
+    dim as ustring gap
+    if i > 0 then
+        var since = entries( i ).at - entries( i - 1 ).at
+        gap = "+" & since.ToIsoString( )
+    end if
+    print entries( i ).at.ToIsoString( ); "  "; _
+          left( gap & space( 10 ), 10 ); entries( i ).text
+next

@@ -1,0 +1,22 @@
+#import "std/chrono"
+
+'' The offset depends on the moment: ask for it AT that instant.
+var jan = chrono.Instant.ParseIso( "2025-01-15T12:00:00Z" )
+var jul = chrono.Instant.ParseIso( "2025-07-15T12:00:00Z" )
+dim as int32 offJan = chrono.TimeZoneInfo.LocalOffsetAt( jan )
+dim as int32 offJul = chrono.TimeZoneInfo.LocalOffsetAt( jul )
+
+'' What this machine says varies; these facts do not.
+print "January offset in range: "; cbool( abs( offJan ) <= 18 * 60 )
+print "July offset in range:    "; cbool( abs( offJul ) <= 18 * 60 )
+
+'' Local wall time for a moment, and back to the same moment.
+var localJul = chrono.DateTime.FromInstant( jul, offJul )
+print "round trip: "; ( localJul.ToInstant( ) = jul )
+
+'' Now, as a DateTime, carries the offset it was taken under.
+var now = chrono.WallClock.Now( )
+print "Now has an offset: "; now.HasOffset( )
+dim as int32 nowOff = _
+    chrono.TimeZoneInfo.LocalOffsetAt( now.ToInstant( ) )
+print "Now matches the zone: "; cbool( now.OffsetMinutes( ) = nowOff )

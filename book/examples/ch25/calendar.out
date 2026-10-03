@@ -1,0 +1,11 @@
+Jan 31 + 1 month:      2025-02-28
+  and back 1 month:    2025-01-28
+Jan 31 + 2 months:     2025-03-31
+  as two steps of 1:   2025-03-28
+2024-02-29 + 1 year:   2025-02-28
+StartOfWeek  2025-03-03T00:00:00
+EndOfDay     2025-03-04T23:59:59.9999999
+StartOfMonth 2025-03-01T00:00:00
+EndOfYear    2025-12-31T23:59:59.9999999
+next Tuesday 2025-03-11T14:30:00
+2025-12-29: Year 2025, week 1 of 2026

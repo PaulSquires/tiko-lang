@@ -1,0 +1,7 @@
+from serial: 2025-03-04T14:30:00
+and back:    true
+weekday( ):   3  (1 = Sunday)
+DayOfWeek:    2  (1 = Monday)
+dateserial( 2025, 13, 40 ): 2026-2-9
+DateTime( 2025, 13, 40 ) valid: false
+unix 1741098600: 2025-03-04T14:30:00Z

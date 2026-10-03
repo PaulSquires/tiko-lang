@@ -1,0 +1,22 @@
+#import "std/chrono"
+
+'' Five value types, one clock tick: 100 nanoseconds.
+var day  = chrono.LocalDate( 2025, 3, 4 )
+var tod  = chrono.LocalTime( 14, 30, 5, 250 )
+var when = chrono.DateTime( 2025, 3, 4, 14, 30, 5, 250 )
+var at   = when.WithOffset( 60 ).ToInstant( )
+var span = chrono.TimeSpan( 1, 2, 3, 4, 500 )
+
+print "LocalDate  "; day.ToIsoString( )
+print "LocalTime  "; tod.ToIsoString( )
+print "DateTime   "; when.ToIsoString( )
+print "Instant    "; at.ToIsoString( )
+print "TimeSpan   "; span.ToIsoString( )
+
+'' The parts are read with methods; 1 = Monday.
+print "year"; day.Year( ); ", month"; day.Month( ); ", day"; _
+      day.Day( ); ", weekday"; day.DayOfWeek( )
+print "one second ="; chrono.TimeSpan.FromSeconds( 1 ).Ticks( ); _
+      " ticks"
+print "first: "; chrono.DateTime.MinValue( ).ToIsoString( )
+print "last:  "; chrono.DateTime.MaxValue( ).ToIsoString( )

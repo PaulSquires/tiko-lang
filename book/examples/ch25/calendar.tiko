@@ -1,0 +1,27 @@
+#import "std/chrono"
+
+'' Months have no fixed length, so month arithmetic clamps.
+var jan31 = chrono.LocalDate( 2025, 1, 31 )
+print "Jan 31 + 1 month:      "; jan31.AddMonths( 1 ).ToIsoString( )
+print "  and back 1 month:    "; _
+      jan31.AddMonths( 1 ).AddMonths( -1 ).ToIsoString( )
+print "Jan 31 + 2 months:     "; jan31.AddMonths( 2 ).ToIsoString( )
+print "  as two steps of 1:   "; _
+      jan31.AddMonths( 1 ).AddMonths( 1 ).ToIsoString( )
+print "2024-02-29 + 1 year:   "; _
+      chrono.LocalDate( 2024, 2, 29 ).AddYears( 1 ).ToIsoString( )
+
+'' Periods: start and end. End is the LAST tick, not the next day.
+var t = chrono.DateTime( 2025, 3, 4, 14, 30, 0, 0 )
+print "StartOfWeek  "; t.StartOfWeek( ).ToIsoString( )
+print "EndOfDay     "; t.EndOfDay( ).ToIsoString( )
+print "StartOfMonth "; t.StartOfMonth( ).ToIsoString( )
+print "EndOfYear    "; t.EndOfYear( ).ToIsoString( )
+
+'' NextWeekday is strictly later: a Tuesday's next Tuesday.
+print "next Tuesday "; t.NextWeekday( 2 ).ToIsoString( )
+
+'' The ISO week belongs to the ISO week-year, not to Year.
+var dec29 = chrono.LocalDate( 2025, 12, 29 )
+print "2025-12-29: Year"; dec29.Year( ); ", week"; _
+      dec29.IsoWeek( ); " of"; dec29.IsoWeekYear( )

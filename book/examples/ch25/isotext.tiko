@@ -1,0 +1,24 @@
+#import "std/chrono"
+
+dim inputs( ... ) as ustring = { _
+    "2025-03-04T14:30:05Z", "2025-03-04 14:30:05+05:30", _
+    "20250304T143005Z", "2025-W10-2", "2025-063", _
+    "2025-03-04T14:30:05.5-05:00", _
+    "03/04/2025", "25-03-04", "2025-03-04T24:00:00" }
+
+'' One canonical form out, several ISO 8601 forms in.
+for i as int32 = 0 to ubound( inputs )
+    dim d as chrono.DateTime
+    var ok = chrono.DateTime.TryParseIso( inputs( i ), d )
+    print left( inputs( i ) & space( 28 ), 28 ); _
+          iif( ok, d.ToIsoString( ), "refused" )
+next
+
+'' Durations: weeks are accepted, months are not.
+dim spans( ... ) as ustring = { "PT90M", "P1W", "P1DT0.25S", "P1M" }
+for i as int32 = 0 to ubound( spans )
+    dim span as chrono.TimeSpan
+    var ok = chrono.TimeSpan.TryParseIso( spans( i ), span )
+    print left( spans( i ) & space( 12 ), 12 ); _
+          iif( ok, span.ToIsoString( ), "refused" )
+next

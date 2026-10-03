@@ -1,0 +1,21 @@
+#import "std/chrono"
+
+'' Out-of-range parts are refused, never rolled into March.
+var feb30 = chrono.LocalDate( 2025, 2, 30 )
+print "2025-02-30 valid: "; feb30.IsValid( )
+print "as text: ["; feb30.ToIsoString( ); "]"
+
+'' A default date is Invalid; a default span is a real zero.
+dim d as chrono.LocalDate
+dim s as chrono.TimeSpan
+print "default date valid: "; d.IsValid( )
+print "default span zero:  "; s.IsZero( )
+
+'' Invalid absorbs arithmetic, and equals nothing, not even itself.
+print "Invalid + 10 days valid: "; feb30.AddDays( 10 ).IsValid( )
+print "Invalid = Invalid: "; ( feb30 = feb30 )
+print "CompareTo:"; feb30.CompareTo( chrono.LocalDate( 2025, 3, 1 ) )
+
+'' The ends of the range do not wrap around.
+var last = chrono.DateTime.MaxValue( )
+print "MaxValue + 1 tick valid: "; last.AddTicks( 1 ).IsValid( )

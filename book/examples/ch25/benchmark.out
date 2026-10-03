@@ -1,0 +1,5 @@
+same hits: true, 1000
+binary faster: true
+paused 300 ms, counted under 100 ms: true
+slept: wall >= 250 ms: true
+slept: CPU < 100 ms: true

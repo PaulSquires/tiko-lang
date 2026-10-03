@@ -1,0 +1,20 @@
+#import "std/chrono"
+
+'' No offset: a reading on some clock, nobody has said which.
+var naive = chrono.DateTime( 2025, 3, 4, 9, 0, 0, 0 )
+print "naive      "; naive.ToIsoString( ); _
+      "  has offset: "; naive.HasOffset( )
+print "ToInstant valid: "; naive.ToInstant( ).IsValid( )
+print "AssumeUtc  "; naive.AssumeUtc( ).ToIsoString( )
+
+'' WithOffset says which clock; ToOffset moves to another one.
+var toronto = naive.WithOffset( -300 )
+print "Toronto    "; toronto.ToIsoString( )
+print "in UTC     "; toronto.ToOffset( 0 ).ToIsoString( )
+print "in Kolkata "; toronto.ToOffset( 330 ).ToIsoString( )
+print "relabelled "; toronto.WithOffset( 330 ).ToIsoString( )
+
+'' The same moment, read on two clocks, is one Instant.
+var a = toronto.ToInstant( )
+var b = toronto.ToOffset( 330 ).ToInstant( )
+print "same instant: "; ( a = b )

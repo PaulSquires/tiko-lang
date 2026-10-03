@@ -1,0 +1,58 @@
+#import "std/chrono"
+
+'' Two ways to look values up in a sorted array.
+function FindLinear( a( ) as int32, byval v as int32 ) as boolean
+    for i as int32 = 0 to ubound( a )
+        if a( i ) = v then return true
+    next
+    return false
+end function
+
+function FindBinary( a( ) as int32, byval v as int32 ) as boolean
+    dim as int32 lo = 0, hi = ubound( a )
+    do while lo <= hi
+        dim as int32 mid_ = ( lo + hi ) \ 2
+        if a( mid_ ) = v then return true
+        if a( mid_ ) < v then lo = mid_ + 1 else hi = mid_ - 1
+    loop
+    return false
+end function
+
+dim as int32 sorted( 0 to 199999 )
+for i as int32 = 0 to ubound( sorted )
+    sorted( i ) = i * 3
+next
+
+'' A Stopwatch reads the monotonic clock: it never jumps.
+dim as int32 hitsA, hitsB
+var sw = chrono.Stopwatch.StartNew( )
+for k as int32 = 0 to 999
+    if FindLinear( sorted( ), k * 600 ) then hitsA += 1
+next
+var linearTime = sw.Elapsed( )
+sw.Restart( )
+for k as int32 = 0 to 999
+    if FindBinary( sorted( ), k * 600 ) then hitsB += 1
+next
+var binaryTime = sw.Elapsed( )
+print "same hits: "; cbool( hitsA = hitsB ); ","; hitsA
+print "binary faster: "; ( binaryTime < linearTime )
+
+'' Stop_ pauses it; time spent stopped is not counted.
+sw.Restart( )
+sw.Stop_( )
+sleep 300, 1
+sw.Start( )
+sw.Stop_( )
+print "paused 300 ms, counted under 100 ms: "; _
+      cbool( sw.ElapsedMilliseconds( ) < 100 )
+
+'' CpuClock counts processor time, which sleeping does not use.
+var wall = chrono.Stopwatch.StartNew( )
+var cpu0 = chrono.CpuClock.ProcessTime( )
+sleep 300, 1
+var cpuUsed = chrono.CpuClock.ProcessTime( ) - cpu0
+print "slept: wall >= 250 ms: "; _
+      cbool( wall.Elapsed( ).TotalMilliseconds( ) >= 250 )
+print "slept: CPU < 100 ms: "; _
+      cbool( cpuUsed.TotalMilliseconds( ) < 100 )

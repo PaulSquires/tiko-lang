@@ -1,0 +1,8 @@
+2025-02-30 valid: false
+as text: []
+default date valid: false
+default span zero:  true
+Invalid + 10 days valid: false
+Invalid = Invalid: false
+CompareTo:-2
+MaxValue + 1 tick valid: false

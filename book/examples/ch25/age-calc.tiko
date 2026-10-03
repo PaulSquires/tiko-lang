@@ -1,0 +1,33 @@
+#import "std/chrono"
+
+'' Whole years from 'born' to 'today': the birthday may not have
+'' come round yet this year.
+function AgeOn( byval born as chrono.LocalDate, _
+                byval today as chrono.LocalDate ) as int32
+    dim as int32 years = today.Year( ) - born.Year( )
+    if born.AddYears( years ) > today then years -= 1
+    return years
+end function
+
+'' The next birthday on or after 'today'.
+function NextBirthday( byval born as chrono.LocalDate, _
+                       byval today as chrono.LocalDate ) _
+                       as chrono.LocalDate
+    dim as int32 years = today.Year( ) - born.Year( )
+    if born.AddYears( years ) < today then years += 1
+    return born.AddYears( years )
+end function
+
+'' A fixed 'today' keeps the output reproducible; a real program
+'' would use chrono.WallClock.Today( ).
+var today = chrono.LocalDate( 2025, 3, 4 )
+
+dim births( ... ) as ustring = { _
+    "1990-03-04", "1990-03-05", "2004-02-29", "1969-07-20" }
+for i as int32 = 0 to ubound( births )
+    var born = chrono.LocalDate.ParseIso( births( i ) )
+    var nb = NextBirthday( born, today )
+    print born.ToIsoString( ); "  age"; AgeOn( born, today ); _
+          "  next birthday "; nb.ToIsoString( ); _
+          ", days away:"; nb - today
+next
