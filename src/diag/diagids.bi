@@ -762,6 +762,12 @@
     '' since a character of a var-length string has no stable address (T72). tiko bound a
     '' copy and the loop changed nothing. See symbols/checkeach.bas.
     DIAG( TKO0941, SEV_ERROR,   "'for each byref' cannot walk a string: a character has no stable address; walk it by value, or index it with 'for'" )
+    '' fbc's error 365: a 'select channel' with both 'case timeout' and 'case else' (T79).
+    '' See parser/selchan.bas.
+    DIAG( TKO0942, SEV_ERROR,   "'case timeout' and 'case else' cannot both appear in one 'select channel': 'else' fires first, so the timeout is never reached" )
+    '' fbc's error 357: 'spawn' names something that is not a procedure (T76). See
+    '' symbols/resolvesynth.bas.
+    DIAG( TKO0943, SEV_ERROR,   "'spawn' needs a sub or function declared at module level, and '%0' is not one" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

@@ -285,6 +285,14 @@ function ParseSelectChannel_ _
         bodies.Push( cast( ulong, Block( p ) ) )
     loop
 
+    '' BOTH A TIMEOUT AND AN ELSE (T79): fbc's error 365, reported at 'end select' as
+    '' fbc reports it. ELSE fires the moment nothing is ready, so the timeout could
+    '' never be reached; tiko accepted the pair and the timeout was dead code.
+    if sawTimeout andalso sawElse then
+        ErrorNode( p, Tko.TKO0942 )
+        bad = true
+    end if
+
     ExpectEnd( p, Tko.KW_SELECT )
 
     dim as boolean noCases = (kinds.Count = 0)

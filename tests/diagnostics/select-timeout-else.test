@@ -1,0 +1,7 @@
+'' TKO0942, fbc's 365: a 'select channel' with both 'case timeout' and 'case else' (T79).
+'' It was accepted, and the timeout was dead code.
+'' TEST: cli
+'' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/diagnostics/src/select-timeout-else.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: select-timeout-else.bas(10,1): error TKO0942: 'case timeout' and 'case else' cannot both appear in one 'select channel': 'else' fires first, so the timeout is never reached
+'' EXPECT-MAX-DIAG: 1
