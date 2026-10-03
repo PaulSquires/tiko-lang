@@ -1,0 +1,20 @@
+'' A QUALIFIED TYPE NAME IS ARITY-CHECKED AS A PLAIN ONE IS (T87). T82 judged a constructor
+'' call only when its target was a bare name, so 'Geo.P( 1, 2 )' -- and the book's own
+'' 'chrono.TimeSpan( 0, 1, 30, 0 )' -- compiled with no diagnostic and built an undefined
+'' value; the chrono call crashed. See src/symbols/ctorargs.bas, CheckCtorCallArgs_.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-03: error 1 on lines
+'' 23, 24 and 26, error 99 on 25, and no others: a namespace, a typed 'dim', an overload set
+'' and a nested namespace with a defaulted parameter. Lines 27-29 are the arities fbc
+'' accepts. (A one-argument call with a value of the type itself stays unjudged, qualified or
+'' not -- see ctor-arg-accepted.test.)
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-arg-count-qualified.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-arg-count-qualified.bas(23,15): error TKO0775: this call passes 2 argument(s), but 'p.constructor' takes 1
+'' EXPECT-OUT: ctor-arg-count-qualified.bas(24,24): error TKO0775
+'' EXPECT-OUT: ctor-arg-count-qualified.bas(25,15): error TKO0632: no overload of 'r.constructor' matches these arguments
+'' EXPECT-OUT: ctor-arg-count-qualified.bas(26,21): error TKO0775: this call passes 3 argument(s), but 'q.constructor' takes 1 to 2
+'' EXPECT-NOT: (27,
+'' EXPECT-NOT: (28,
+'' EXPECT-NOT: (29,

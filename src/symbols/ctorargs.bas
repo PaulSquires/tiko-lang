@@ -153,8 +153,16 @@ private sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as 
         CheckCtorArgsOf_( c, c.info->TypeOf_( lp->target ), first, count )
         return
     end if
-    if c.ast->Kind( lp->target ) <> N_IDENT then return
-    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    '' ...OR A QUALIFIED ONE (T87): 'chrono.TimeSpan( 0, 1, 30, 0 )', 'FB.TimeSpan( ... )',
+    '' 'N.P( 1, 2 )' -- an N_MEMBER, whose type is the reference of its right-hand name.
+    '' Only an N_IDENT was judged, so the chapter's own example compiled and crashed.
+    dim as NodeId tg = lp->target
+    if (c.ast->Kind( tg ) <> N_IDENT) andalso (c.ast->Kind( tg ) <> N_MEMBER) then return
+    dim as SymbolId tsid = c.info->RefOf( tg )
+    if (tsid = SYMBOL_NONE) andalso (c.ast->Kind( tg ) = N_MEMBER) then
+        tsid = c.info->RefOf( c.ast->binaries[cast( long, c.ast->nodes[cast( long, tg )].data )].rhs )
+    end if
+    dim as Symbol ptr ts = c.syms->SymbolAt( tsid )
     if ts = 0 then return
     if (ts->kind <> cast( ubyte, SYM_UDT )) andalso (ts->kind <> cast( ubyte, SYM_TYPEDEF )) then return
     if CheckCtorArity_( c, c.info->TypeOf_( id ), lp->first, lp->count, id ) then return
