@@ -11,7 +11,7 @@ define void @"FUDT1"(i64 %p0, i8 %p1, i64 %p2) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i64, align 8
   store i64 %p0, ptr %s0, align 8
-  %s1 = alloca [1 x i8], align 1
+  %s1 = alloca [1 x i8], align 8
   store i8 %p1, ptr %s1, align 1
   %s2 = alloca i64, align 8
   store i64 %p2, ptr %s2, align 8
@@ -106,7 +106,7 @@ define void @"FUDT2"(i64 %p0, i16 %p1, i64 %p2) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i64, align 8
   store i64 %p0, ptr %s0, align 8
-  %s1 = alloca [2 x i8], align 2
+  %s1 = alloca [2 x i8], align 8
   store i16 %p1, ptr %s1, align 2
   %s2 = alloca i64, align 8
   store i64 %p2, ptr %s2, align 8
@@ -201,8 +201,8 @@ define void @"FUDT3"(i64 %p0, ptr %p1, i64 %p2) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i64, align 8
   store i64 %p0, ptr %s0, align 8
-  %s1 = alloca [3 x i8], align 2
-  %t40 = load [3 x i8], ptr %p1, align 2
+  %s1 = alloca [3 x i8], align 8
+  %t40 = load [3 x i8], ptr %p1, align 1
   store [3 x i8] %t40, ptr %s1, align 2
   %s2 = alloca i64, align 8
   store i64 %p2, ptr %s2, align 8
@@ -297,8 +297,8 @@ define void @"FUDT5"(i64 %p0, ptr %p1, i64 %p2) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i64, align 8
   store i64 %p0, ptr %s0, align 8
-  %s1 = alloca [5 x i8], align 4
-  %t40 = load [5 x i8], ptr %p1, align 4
+  %s1 = alloca [5 x i8], align 8
+  %t40 = load [5 x i8], ptr %p1, align 1
   store [5 x i8] %t40, ptr %s1, align 4
   %s2 = alloca i64, align 8
   store i64 %p2, ptr %s2, align 8
@@ -393,8 +393,8 @@ define void @"FUDT7"(i64 %p0, ptr %p1, i64 %p2) nounwind uwtable(sync) {
 L0:
   %s0 = alloca i64, align 8
   store i64 %p0, ptr %s0, align 8
-  %s1 = alloca [7 x i8], align 4
-  %t40 = load [7 x i8], ptr %p1, align 4
+  %s1 = alloca [7 x i8], align 8
+  %t40 = load [7 x i8], ptr %p1, align 1
   store [7 x i8] %t40, ptr %s1, align 4
   %s2 = alloca i64, align 8
   store i64 %p2, ptr %s2, align 8
@@ -582,26 +582,26 @@ L13:
 
 define i32 @"main"(i32 %p0, ptr %p1) nounwind uwtable(sync) {
 L0:
-  %s73 = alloca [1 x i8], align 1
-  %s74 = alloca [1 x i8], align 1
-  %s75 = alloca [1 x i8], align 1
-  %s76 = alloca [1 x i8], align 1
-  %s77 = alloca [2 x i8], align 2
-  %s78 = alloca [2 x i8], align 2
-  %s79 = alloca [2 x i8], align 2
-  %s80 = alloca [2 x i8], align 2
-  %s81 = alloca [3 x i8], align 2
-  %s82 = alloca [3 x i8], align 2
-  %s83 = alloca [3 x i8], align 2
-  %s84 = alloca [3 x i8], align 2
-  %s85 = alloca [5 x i8], align 4
-  %s86 = alloca [5 x i8], align 4
-  %s87 = alloca [5 x i8], align 4
-  %s88 = alloca [5 x i8], align 4
-  %s89 = alloca [7 x i8], align 4
-  %s90 = alloca [7 x i8], align 4
-  %s91 = alloca [7 x i8], align 4
-  %s92 = alloca [7 x i8], align 4
+  %s73 = alloca [1 x i8], align 8
+  %s74 = alloca [1 x i8], align 8
+  %s75 = alloca [1 x i8], align 8
+  %s76 = alloca [1 x i8], align 8
+  %s77 = alloca [2 x i8], align 8
+  %s78 = alloca [2 x i8], align 8
+  %s79 = alloca [2 x i8], align 8
+  %s80 = alloca [2 x i8], align 8
+  %s81 = alloca [3 x i8], align 8
+  %s82 = alloca [3 x i8], align 8
+  %s83 = alloca [3 x i8], align 8
+  %s84 = alloca [3 x i8], align 8
+  %s85 = alloca [5 x i8], align 8
+  %s86 = alloca [5 x i8], align 8
+  %s87 = alloca [5 x i8], align 8
+  %s88 = alloca [5 x i8], align 8
+  %s89 = alloca [7 x i8], align 8
+  %s90 = alloca [7 x i8], align 8
+  %s91 = alloca [7 x i8], align 8
+  %s92 = alloca [7 x i8], align 8
   %s93 = alloca [8 x i8], align 8
   %s94 = alloca [8 x i8], align 8
   %s95 = alloca [8 x i8], align 8
@@ -614,7 +614,7 @@ L0:
   %s2 = alloca i64, align 8
   store i64 3437087965, ptr %s2, align 8
   call void @"fb_PrintLongint"(i32 0, i64 1, i32 0)
-  %s3 = alloca [1 x i8], align 1
+  %s3 = alloca [1 x i8], align 8
   %t10 = call ptr @"memset"(ptr %s3, i32 0, i64 1)
   %s4 = alloca i64, align 8
   store i64 0, ptr %s4, align 8
@@ -628,7 +628,7 @@ L0:
   %s12 = alloca i64, align 8
   %s13 = alloca i64, align 8
   %s14 = alloca i64, align 8
-  %s15 = alloca [2 x i8], align 2
+  %s15 = alloca [2 x i8], align 8
   %s16 = alloca i64, align 8
   %s17 = alloca ptr, align 8
   %s18 = alloca i64, align 8
@@ -640,7 +640,7 @@ L0:
   %s24 = alloca i64, align 8
   %s25 = alloca i64, align 8
   %s26 = alloca i64, align 8
-  %s27 = alloca [3 x i8], align 2
+  %s27 = alloca [3 x i8], align 8
   %s28 = alloca i64, align 8
   %s29 = alloca ptr, align 8
   %s30 = alloca i64, align 8
@@ -652,7 +652,7 @@ L0:
   %s36 = alloca i64, align 8
   %s37 = alloca i64, align 8
   %s38 = alloca i64, align 8
-  %s39 = alloca [5 x i8], align 4
+  %s39 = alloca [5 x i8], align 8
   %s40 = alloca i64, align 8
   %s41 = alloca ptr, align 8
   %s42 = alloca i64, align 8
@@ -664,7 +664,7 @@ L0:
   %s48 = alloca i64, align 8
   %s49 = alloca i64, align 8
   %s50 = alloca i64, align 8
-  %s51 = alloca [7 x i8], align 4
+  %s51 = alloca [7 x i8], align 8
   %s52 = alloca i64, align 8
   %s53 = alloca ptr, align 8
   %s54 = alloca i64, align 8
@@ -954,7 +954,7 @@ L31:
 L32:
   %t179 = load i64, ptr %s14, align 8
   %t180 = load ptr, ptr %s17, align 8
-  %t181 = load [2 x i8], ptr %t180, align 2
+  %t181 = load [2 x i8], ptr %t180, align 1
   %t182 = load i64, ptr %s13, align 8
   store [2 x i8] %t181, ptr %s78, align 2
   %t820 = load i16, ptr %s78, align 2
@@ -1021,7 +1021,7 @@ L40:
   %t213 = load i64, ptr %s20, align 8
   %t215 = mul i64 %t213, 2
   %t216 = getelementptr i8, ptr %s19, i64 %t215
-  %t217 = load [2 x i8], ptr %t216, align 2
+  %t217 = load [2 x i8], ptr %t216, align 1
   %t218 = load i64, ptr %s13, align 8
   store [2 x i8] %t217, ptr %s79, align 2
   %t822 = load i16, ptr %s79, align 2
@@ -1089,7 +1089,7 @@ L48:
   %t256 = load i64, ptr %s23, align 8
   %t258 = mul i64 %t256, 2
   %t259 = getelementptr i8, ptr %t255, i64 %t258
-  %t260 = load [2 x i8], ptr %t259, align 2
+  %t260 = load [2 x i8], ptr %t259, align 1
   %t261 = load i64, ptr %s13, align 8
   store [2 x i8] %t260, ptr %s80, align 2
   %t824 = load i16, ptr %s80, align 2
@@ -1159,7 +1159,7 @@ L55:
 L56:
   %t314 = load i64, ptr %s26, align 8
   %t315 = load ptr, ptr %s29, align 8
-  %t316 = load [3 x i8], ptr %t315, align 2
+  %t316 = load [3 x i8], ptr %t315, align 1
   %t317 = load i64, ptr %s25, align 8
   store [3 x i8] %t316, ptr %s82, align 2
   call void @"FUDT3"(i64 %t317, ptr %s82, i64 %t314)
@@ -1225,7 +1225,7 @@ L64:
   %t348 = load i64, ptr %s32, align 8
   %t350 = mul i64 %t348, 3
   %t351 = getelementptr i8, ptr %s31, i64 %t350
-  %t352 = load [3 x i8], ptr %t351, align 2
+  %t352 = load [3 x i8], ptr %t351, align 1
   %t353 = load i64, ptr %s25, align 8
   store [3 x i8] %t352, ptr %s83, align 2
   call void @"FUDT3"(i64 %t353, ptr %s83, i64 %t347)
@@ -1292,7 +1292,7 @@ L72:
   %t391 = load i64, ptr %s35, align 8
   %t393 = mul i64 %t391, 3
   %t394 = getelementptr i8, ptr %t390, i64 %t393
-  %t395 = load [3 x i8], ptr %t394, align 2
+  %t395 = load [3 x i8], ptr %t394, align 1
   %t396 = load i64, ptr %s25, align 8
   store [3 x i8] %t395, ptr %s84, align 2
   call void @"FUDT3"(i64 %t396, ptr %s84, i64 %t389)
@@ -1361,7 +1361,7 @@ L79:
 L80:
   %t449 = load i64, ptr %s38, align 8
   %t450 = load ptr, ptr %s41, align 8
-  %t451 = load [5 x i8], ptr %t450, align 4
+  %t451 = load [5 x i8], ptr %t450, align 1
   %t452 = load i64, ptr %s37, align 8
   store [5 x i8] %t451, ptr %s86, align 4
   call void @"FUDT5"(i64 %t452, ptr %s86, i64 %t449)
@@ -1427,7 +1427,7 @@ L88:
   %t483 = load i64, ptr %s44, align 8
   %t485 = mul i64 %t483, 5
   %t486 = getelementptr i8, ptr %s43, i64 %t485
-  %t487 = load [5 x i8], ptr %t486, align 4
+  %t487 = load [5 x i8], ptr %t486, align 1
   %t488 = load i64, ptr %s37, align 8
   store [5 x i8] %t487, ptr %s87, align 4
   call void @"FUDT5"(i64 %t488, ptr %s87, i64 %t482)
@@ -1494,7 +1494,7 @@ L96:
   %t526 = load i64, ptr %s47, align 8
   %t528 = mul i64 %t526, 5
   %t529 = getelementptr i8, ptr %t525, i64 %t528
-  %t530 = load [5 x i8], ptr %t529, align 4
+  %t530 = load [5 x i8], ptr %t529, align 1
   %t531 = load i64, ptr %s37, align 8
   store [5 x i8] %t530, ptr %s88, align 4
   call void @"FUDT5"(i64 %t531, ptr %s88, i64 %t524)
@@ -1563,7 +1563,7 @@ L103:
 L104:
   %t584 = load i64, ptr %s50, align 8
   %t585 = load ptr, ptr %s53, align 8
-  %t586 = load [7 x i8], ptr %t585, align 4
+  %t586 = load [7 x i8], ptr %t585, align 1
   %t587 = load i64, ptr %s49, align 8
   store [7 x i8] %t586, ptr %s90, align 4
   call void @"FUDT7"(i64 %t587, ptr %s90, i64 %t584)
@@ -1629,7 +1629,7 @@ L112:
   %t618 = load i64, ptr %s56, align 8
   %t620 = mul i64 %t618, 7
   %t621 = getelementptr i8, ptr %s55, i64 %t620
-  %t622 = load [7 x i8], ptr %t621, align 4
+  %t622 = load [7 x i8], ptr %t621, align 1
   %t623 = load i64, ptr %s49, align 8
   store [7 x i8] %t622, ptr %s91, align 4
   call void @"FUDT7"(i64 %t623, ptr %s91, i64 %t617)
@@ -1696,7 +1696,7 @@ L120:
   %t661 = load i64, ptr %s59, align 8
   %t663 = mul i64 %t661, 7
   %t664 = getelementptr i8, ptr %t660, i64 %t663
-  %t665 = load [7 x i8], ptr %t664, align 4
+  %t665 = load [7 x i8], ptr %t664, align 1
   %t666 = load i64, ptr %s49, align 8
   store [7 x i8] %t665, ptr %s92, align 4
   call void @"FUDT7"(i64 %t666, ptr %s92, i64 %t659)
@@ -1766,7 +1766,7 @@ L127:
 L128:
   %t719 = load i64, ptr %s62, align 8
   %t720 = load ptr, ptr %s65, align 8
-  %t721 = load [8 x i8], ptr %t720, align 8
+  %t721 = load [8 x i8], ptr %t720, align 1
   %t722 = load i64, ptr %s61, align 8
   store [8 x i8] %t721, ptr %s94, align 8
   %t840 = load i64, ptr %s94, align 8
@@ -1833,7 +1833,7 @@ L136:
   %t753 = load i64, ptr %s68, align 8
   %t755 = mul i64 %t753, 8
   %t756 = getelementptr i8, ptr %s67, i64 %t755
-  %t757 = load [8 x i8], ptr %t756, align 8
+  %t757 = load [8 x i8], ptr %t756, align 1
   %t758 = load i64, ptr %s61, align 8
   store [8 x i8] %t757, ptr %s95, align 8
   %t842 = load i64, ptr %s95, align 8
@@ -1901,7 +1901,7 @@ L144:
   %t796 = load i64, ptr %s71, align 8
   %t798 = mul i64 %t796, 8
   %t799 = getelementptr i8, ptr %t795, i64 %t798
-  %t800 = load [8 x i8], ptr %t799, align 8
+  %t800 = load [8 x i8], ptr %t799, align 1
   %t801 = load i64, ptr %s61, align 8
   store [8 x i8] %t800, ptr %s96, align 8
   %t844 = load i64, ptr %s96, align 8
