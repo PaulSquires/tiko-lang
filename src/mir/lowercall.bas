@@ -510,8 +510,11 @@ function LowerCallParts _
                 end if
             end if
             '' A USTRING CALL RESULT IS COPIED, CALLED ON AND DELETED -- UStrResultArgTemp_.
+            '' ANY CHAIN, all-UTF-16 too: 'dumpu( left( u, 3 ) & right( u, 2 ) )' handed the
+            '' callee the concatenation's TEMPORARY descriptor, which its first 'len( u )'
+            '' consumed -- fbc prints '5: 5: [ABCFG]', tiko '5: 0: []' -- and leaked it.
             if (a.kind = cast( ubyte, MV_NONE )) andalso UStrResultArgTemp_( c, argNode, _
-                    ArgParamType_( c, callee, calleeSigT, i + pbase ), a, tempSlot ) then
+                    ArgParamType_( c, callee, calleeSigT, i + pbase ), a, tempSlot, true ) then
                 strTemps.Push( cast( ulong, tempSlot ) )
                 strTempTypes.Push( cast( ulong, c.types->Builtin( Tko.TY_USTRING ) ) )
             end if

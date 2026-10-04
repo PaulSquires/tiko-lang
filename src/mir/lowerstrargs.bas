@@ -348,6 +348,12 @@ function ByvalStrTemp_ _
     '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
     dim as Tko.NodeId sica = StrIdentityConvOperand_( c, argNode )
     if sica <> Tko.NODE_NONE then argNode = sica
+    '' A UTF-16 CONCATENATION FOR A USTRING PARAMETER is built as one, into the copy:
+    '' 'bv( a & a )' over 'byval u as ustring' went through fb_UStrAssignToA and the
+    '' callee read a NARROW descriptor as UTF-16 -- mojibake, and an over-read of 2 x len.
+    if IsUStringType( c, pt ) andalso (c.ast->Kind( Unparen_( c, argNode ) ) = Tko.N_BINARY) then
+        if UStrResultArgTemp_( c, argNode, pt, outa, outSlot, true ) then return true
+    end if
     dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false
     dim as MirValue dst
