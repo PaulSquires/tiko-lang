@@ -442,8 +442,11 @@ function LowerCallParts _
             '' A CONCATENATION IS A WIDE SOURCE TOO when any term is: it has no
             '' address and, depending on the terms, no type of its own either, so
             '' the type test alone said no to 'G( w & "z" )'.
+            '' ...AND SO IS A LITERAL WITH A UNICODE ESCAPE (T90), which is typed narrow
+            '' but is wide -- see TermIsWide_. Passed as its own descriptor, the callee got
+            '' the escape's SPELLING, '\u00E4b' as seven narrow bytes, read as UTF-16.
             if IsWideString_( c, c.info->TypeOf_( argNode ) ) orelse _
-               ConcatHasWideTerm_( c, argNode ) then
+               ConcatHasWideTerm_( c, argNode ) orelse LitHasUnicodeEscape_( c, argNode ) then
                 dim as Tko.TypeId wsp = c.types->Builtin( Tko.TY_STRING )
                 if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, _
                                                     i + pbase ) ) then

@@ -1,0 +1,16 @@
+'' T90, RUN: A LITERAL WITH A UNICODE ESCAPE, passed straight to a BYREF string parameter, arrives
+'' as its text. It is typed narrow but is wide (TermIsWide_), and the byref-descriptor path asked
+'' only the type: it passed the escape's SPELLING as a narrow temporary descriptor, which a
+'' 'byref ustring' callee read as UTF-16 -- len( !"\u00E4b" ) was 7, and an lcase/instr search
+'' of two such literals found nothing. Converted now as a wide source is, into the parameter's own
+'' flavour. Output identical to fbc-modern 1.20's, 2026-10-03. See src/mir/lowercall.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/byref-escaped-literal.bas -o tests/codegen/byrefescapedlit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/byrefescapedlit.exe
+'' RUN: tests/codegen/byrefescapedlit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2 5 5 3
+'' EXPECT-RUN-OUT:  2 5
+'' EXPECT-RUN-OUT:  12
