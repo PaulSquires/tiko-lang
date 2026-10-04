@@ -2,15 +2,17 @@
 '' PUBLIC symbols hang under the root's alias -- a namespace at the '#import' line -- at
 '' their TRUE position in the module's own source (not the interface's). A module only a
 '' module imports is not the root's to see. Nothing is built, so no TKO0992, and the
-'' module cache is neither read nor written: no '.tiko' beside the sources.
+'' module cache is neither read nor written: no '.tiko' beside the sources. leaf's header,
+'' leafcfg.bi, is named by nothing public -- only by Seed's body -- so it does not travel
+'' with leaf's interface either, and LEAF_BASE is not the root's (RFC-0004 §3; T91).
 '' TEST: cli
 '' ARGS: --dump-scan -i tests/driver/src/modcache/libs tests/driver/src/modcache/app/main.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: [0] main.bas
 '' EXPECT-OUT: namespace middle  @0:1:15  parent=-1
-'' EXPECT-OUT: function Twice as long  @3:3:17  parent=2  body=3..5  flags=&h000
-'' EXPECT-OUT: const LEAF_BASE as integer
+'' EXPECT-OUT: function Twice as long  @3:3:17  parent=1  body=3..5  flags=&h000
 '' EXPECT-OUT: diags: 0
 '' EXPECT-NOT: Seed
+'' EXPECT-NOT: LEAF_BASE
 '' EXPECT-NOT: TKO0992
 '' EXPECT-NO-FILE: tests/driver/src/modcache/app/.tiko
