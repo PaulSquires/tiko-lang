@@ -7,6 +7,22 @@
 
 '' -------------------------------------------------------------------- builtins
 
+private function FileShown_( byref e as PpEngine, byref d as DecodedLoc ) as string
+    if d.shownName <> INTERN_NONE then return e.src->ShownPathOf( d )
+    dim as boolean included = false
+    for each f as ulong in e.allIncluded
+        if cast( FileId, f ) = d.file then included = true
+    next
+    if included = false then return e.src->ShownPathOf( d )
+    dim as string ap = e.src->AbsPathOf( d.file )
+    #ifdef __FB_WIN32__
+        for k as long = 0 to len( ap ) - 1
+            if ap[k] = 47 then ap[k] = 92
+        next
+    #endif
+    return ap
+end function
+
 function PpExpandBuiltin _
     ( byref e as PpEngine, byval m as PpMacro ptr, byref use as Token ) as boolean
 
@@ -26,11 +42,34 @@ function PpExpandBuiltin _
     case PPB_LINE
         RelexInto( e, str( d.lineNo ), use.loc, *buf )
 
+    '' AN INCLUDED FILE'S __FILE__ IS ITS ABSOLUTE PATH -- measured, fbc prints
+    '' 'C:\...\f68\sub\inc.bi' where tiko printed the spelling 'sub/inc.bi'; the root
+    '' keeps the name it was given, and a '#line' name wins over both (audit F-68).
     case PPB_FILE
-        RelexInto( e, """" & e.src->ShownPathOf( d ) & """", use.loc, *buf )
+        RelexInto( e, """" & FileShown_( e, d ) & """", use.loc, *buf )
 
-    case PPB_FILE_NQ, PPB_PATH
+    case PPB_FILE_NQ
         RelexInto( e, e.src->ShownPathOf( d ), use.loc, *buf )
+
+    '' __PATH__ IS THE FILE'S DIRECTORY, ABSOLUTE AND QUOTED -- measured, fbc prints
+    '' 'C:\Users\...\f54' for a file in that directory. It shared __FILE_NQ__'s branch
+    '' and expanded to the bare file name: 'print __PATH__' over p2.bas was ''p2' is not
+    '' declared' (audit F-54).
+    case PPB_PATH
+        dim as string ap = e.src->AbsPathOf( d.file )
+        #ifdef __FB_WIN32__
+            for k as long = 0 to len( ap ) - 1
+                if ap[k] = 47 then ap[k] = 92
+            next
+        #endif
+        dim as long cut = 0
+        for k as long = len( ap ) - 1 to 0 step -1
+            if (ap[k] = 47) orelse (ap[k] = 92) then
+                cut = k
+                exit for
+            end if
+        next
+        RelexInto( e, """" & left( ap, cut ) & """", use.loc, *buf )
 
     case PPB_DATE
         RelexInto( e, """" & date( ) & """", use.loc, *buf )
@@ -362,4 +401,98 @@ function PpExpandBuiltin _
     e.outp->expansionCount += 1
     PushFrame( e, buf, m->name, FILE_NONE, true, use.loc )
     return true
+end function
+
+'' Moved here from macro.bas and directive.bas at the 1500-line cap.
+
+'' The stringised form of an argument, as fbc spells it. MEASURED:
+''
+''     #define S(a) #a
+''     S( x = "5" )      ->   $"x = ""5"""
+''
+'' Two things, and the first was missing. A quote INSIDE the argument is DOUBLED, or
+'' it closes the literal early -- 'x = "5"' re-lexed as three tokens, "x = " then 5
+'' then "", which is why 113 corpus files reported 'expected )' at a fbcunit assert.
+''
+'' And the literal is '$'-prefixed, i.e. NON-escaped, so a backslash in the argument
+'' stays a backslash rather than becoming an escape. That costs nothing today (tiko-lang does
+'' not decode escapes yet) and is free to get right now rather than later.
+function Stringised_( byref t as string ) as string
+    dim as string r = "$"""
+    '' A NEWLINE BECOMES A SPACE. A string literal cannot carry a raw one, so the
+    '' result would not re-lex: with the macro bodies written across lines, as the
+    '' corpus writes them, a nested __FB_QUOTE__ arrived as
+    '' '<EOL>$"1 2 3"<EOL> <EOL>$"4 5 6"<EOL>' and the literal was truncated at the
+    '' first one -- 'missing closing quote', and a WRONG STRING beside it. fbc gives
+    '' '$"1 2 3" $"4 5 6"', which is the whitespace runs collapsed and trimmed.
+    ''
+    '' ...BUT A RUN OF SPACES OR TABS IS KEPT AS WRITTEN: measured, '#x' over 'a   +   b'
+    '' is "a   +   b" in fbc, and tiko collapsed it to "a + b" (audit F-54). Only a run
+    '' with a line break in it becomes one space; leading and trailing runs go.
+    dim as string pend = ""
+    dim as boolean pendBreak = false
+    dim as boolean seenAny = false
+    for i as long = 0 to len( t ) - 1
+        dim as long ch = t[i]
+        dim as boolean isWs = (ch = 32) orelse (ch = 9)
+        if isWs = false then isWs = (ch = 13) orelse (ch = 10)
+        if isWs then
+            '' Leading whitespace is dropped rather than turned into a space.
+            if seenAny then
+                if (ch = 13) orelse (ch = 10) then pendBreak = true else pend += chr( ch )
+            end if
+            continue for
+        end if
+        if pendBreak then
+            r += " "
+        elseif len( pend ) > 0 then
+            r += pend
+        end if
+        pend = "" : pendBreak = false
+        seenAny = true
+        if ch = 34 then r += """"
+        r += chr( ch )
+    next
+    return r + """"
+end function
+
+'' A TOKEN OF '#print' / '#error' AS fbc SHOWS IT: an object-like macro is EXPANDED --
+'' measured, '#define K 5' then '#print K' prints 5 where tiko printed K (audit F-68).
+'' A function-like macro or a builtin is shown as written; the depth stops a cycle.
+private function PrintSpell_( byref e as PpEngine, byref t as Token, byval depth as long ) as string
+    if (Tk( t ) = TK_IDENT) andalso (depth < 32) then
+        dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
+        if m <> 0 then
+            if (m->isFunc = false) andalso (m->builtin = PPB_NONE) then
+                dim as string r = ""
+                for k as long = 0 to m->body.Count - 1
+                    if k > 0 then r += " "
+                    r += PrintSpell_( e, m->body[k], depth + 1 )
+                next
+                return r
+            end if
+        end if
+    end if
+    return SpellOf( e, t )
+end function
+
+'' THE WHITESPACE BETWEEN TWO ARGUMENT TOKENS, AS WRITTEN, when both come straight from one
+'' line of source: '#x' over 'a   +   b' is "a   +   b" in fbc (audit F-54). Anything else
+'' -- a token an expansion made, a gap across a line, a comment in it -- is one space.
+function GapText_( byref e as PpEngine, byref a as Token, byref b as Token ) as string
+    dim as FileId fileA, fileB
+    dim as long oa = e.src->LocOffset( a.loc, fileA )
+    dim as long ob = e.src->LocOffset( b.loc, fileB )
+    if (fileA = FILE_NONE) orelse (fileA <> fileB) then return " "
+    dim as long gapFrom = oa + cast( long, a.length )
+    if (ob <= gapFrom) orelse (ob - gapFrom > 256) then return " "
+    dim as SourceFile ptr f = e.src->FileAt( fileA )
+    if f = 0 then return " "
+    dim as string g = ""
+    for k as long = gapFrom to ob - 1
+        dim as ubyte ch = f->text[k]
+        if (ch <> 32) andalso (ch <> 9) then return " "
+        g += chr( ch )
+    next
+    return g
 end function

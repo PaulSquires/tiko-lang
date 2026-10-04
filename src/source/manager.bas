@@ -109,6 +109,14 @@ function SourceManager.Find( byref absPath as ustring ) as FileId
 end function
 
 private sub BuildLineIndex( byval f as SourceFile ptr )
+    '' A LONE CR IS A LINE END, as in a classic Mac file: fbc compiles 'print 1<CR>print 2'
+    '' and tiko refused it (audit F-54). Rewritten to LF in place -- one byte for one, so
+    '' no offset moves -- before the lines are indexed and anything lexes the text.
+    for k as long = 0 to f->text.Count - 1
+        if f->text[k] = 13 then
+            if (k + 1 >= f->text.Count) orelse (f->text[k + 1] <> 10) then f->text[k] = 10
+        end if
+    next
     f->lineStarts.Clear( )
     f->lineStarts.Push( 0 )
 

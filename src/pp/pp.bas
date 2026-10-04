@@ -147,6 +147,9 @@ type PpEngine
     as FB.Array( of any ptr ) ptr lexp
     as boolean                    ownsLexed
     as IdVec                  onceFiles     '' FileId values marked #include once
+    '' EVERY file included so far, once or not: '#include once' skips one already in here
+    '' -- measured, fbc does, after a plain '#include' of it (audit F-54).
+    as IdVec                  allIncluded
     as FileId                 rootFile
     as long                   uniqueCounter
     '' '##_' AT THE END OF A MACRO BODY LINE IS A LINE JOIN, and what it joins is the

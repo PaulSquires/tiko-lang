@@ -755,6 +755,8 @@ end function
 '' ONE ARGUMENT'S TOKENS, MACRO-EXPANDED, as text.
 ''
 '' Split out of BuiltinIntArg_, which did the same walk and then read an integer.
+declare function GapText_( byref e as PpEngine, byref a as Token, byref b as Token ) as string
+
 private function ExpandedArgText_ _
     ( byref e as PpEngine, byref args as ArgList, byval idx as long ) as string
 
@@ -792,6 +794,7 @@ private function ExpandedArgText_ _
     '' begins with, and an inner macro at the head of that body must not overwrite it.
     dim as boolean pendSet = false
     dim as boolean pendSpace = false
+    dim as Token prevT
     dim as long guard = 0
     do
         guard += 1
@@ -820,8 +823,8 @@ private function ExpandedArgText_ _
             spBefore = pendSpace
             pendSet = false
         end if
-        if spBefore andalso (n > 0) then outp += " "
-        outp += SpellOf( e, t )
+        if spBefore andalso (n > 0) then outp += GapText_( e, prevT, t )   '' macrobuiltin.bas
+        outp += SpellOf( e, t ) : prevT = t
         n += 1
     loop
     e.frameFloor = savedFloor
@@ -1026,47 +1029,7 @@ private function ArgIndexOf( byval m as PpMacro ptr, byval id as InternId ) as l
     return -1
 end function
 
-'' The stringised form of an argument, as fbc spells it. MEASURED:
-''
-''     #define S(a) #a
-''     S( x = "5" )      ->   $"x = ""5"""
-''
-'' Two things, and the first was missing. A quote INSIDE the argument is DOUBLED, or
-'' it closes the literal early -- 'x = "5"' re-lexed as three tokens, "x = " then 5
-'' then "", which is why 113 corpus files reported 'expected )' at a fbcunit assert.
-''
-'' And the literal is '$'-prefixed, i.e. NON-escaped, so a backslash in the argument
-'' stays a backslash rather than becoming an escape. That costs nothing today (tiko-lang does
-'' not decode escapes yet) and is free to get right now rather than later.
-private function Stringised_( byref t as string ) as string
-    dim as string r = "$"""
-    '' A NEWLINE BECOMES A SPACE. A string literal cannot carry a raw one, so the
-    '' result would not re-lex: with the macro bodies written across lines, as the
-    '' corpus writes them, a nested __FB_QUOTE__ arrived as
-    '' '<EOL>$"1 2 3"<EOL> <EOL>$"4 5 6"<EOL>' and the literal was truncated at the
-    '' first one -- 'missing closing quote', and a WRONG STRING beside it. fbc gives
-    '' '$"1 2 3" $"4 5 6"', which is the whitespace runs collapsed and trimmed.
-    dim as boolean pendSpace = false
-    dim as boolean seenAny = false
-    for i as long = 0 to len( t ) - 1
-        dim as long ch = t[i]
-        dim as boolean isWs = (ch = 32) orelse (ch = 9)
-        if isWs = false then isWs = (ch = 13) orelse (ch = 10)
-        if isWs then
-            '' Leading whitespace is dropped rather than turned into a space.
-            if seenAny then pendSpace = true
-            continue for
-        end if
-        if pendSpace then
-            r += " "
-            pendSpace = false
-        end if
-        seenAny = true
-        if ch = 34 then r += """"
-        r += chr( ch )
-    next
-    return r + """"
-end function
+declare function Stringised_( byref t as string ) as string   '' macrobuiltin.bas
 
 '' The inverse of Stringised_: the VALUE of a text that is ONE string literal.
 ''

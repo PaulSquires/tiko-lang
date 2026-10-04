@@ -1,0 +1,16 @@
+'' The preprocessor against fbc (audit F-54, F-68): '#x' keeps the spaces as written,
+'' through a nested macro too; '#include once' after a plain '#include' of the same file
+'' is skipped (it was included twice: a duplicate definition); __FILE__ in an included
+'' file is its absolute path, __PATH__ the quoted absolute directory; __FB_MAIN__ is
+'' defined. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-fixes.bas -o tests/codegen/ppfixes.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppfixes.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: a   +   b|a  +b|p   q
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT: ere.bi-1
+'' EXPECT-RUN-OUT: -1src
+'' EXPECT-RUN-OUT: main

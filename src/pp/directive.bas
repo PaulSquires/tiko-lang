@@ -287,7 +287,13 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
 
     PpModNoteHeader( e, d.file, got )
     if PpAlreadyOnce( e, got ) then return
-    if isOnce then e.onceFiles.Push( cast( ulong, got ) )
+    if isOnce then
+        for each f as ulong in e.allIncluded
+            if cast( FileId, f ) = got then return
+        next
+        e.onceFiles.Push( cast( ulong, got ) )
+    end if
+    e.allIncluded.Push( cast( ulong, got ) )
 
     e.outp->includeCount += 1
     dim as TokenVec ptr toks = PpLexFile( e, got )
@@ -777,7 +783,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             if Tk( rest[i] ) = TK_EOL then
                 msg += ":"
             else
-                msg += SpellOf( e, rest[i] )
+                msg += PrintSpell_( e, rest[i], 0 )
             end if
         next
         Report( e, iif( word = "error", TKO0309, TKO0315 ), at, msg )
