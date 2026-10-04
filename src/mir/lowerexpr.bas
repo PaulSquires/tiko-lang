@@ -308,6 +308,12 @@ function LowerExpr _
         return Emit( c, ins )
 
     case Tko.N_ADDROF
+        '' '@f' OVER AN OVERLOAD SET is the overload the target's type names -- see
+        '' LowerExprWant_.
+        scope
+            dim as MirValue pwv
+            if ProcAddrForWanted_( c, id, pwv ) then return pwv
+        end scope
         '' '@x' IS THE ADDRESS, which is what LowerAddr already computes for every
         '' lvalue -- a local, a global, a field, an array element, a byref parameter.
         '' There was no case for it at all, so every '@' in the tree produced NOTHING:

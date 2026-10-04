@@ -632,7 +632,7 @@ sub LowerVarItem_ _
             '' whole derived aggregate, and storing sixteen bytes into an
             '' eight-byte slot is not an instruction clang will take.
             if UpcastAggInit_( c, ip->b, dstT, val ) = false then
-                val = LowerExpr( c, ip->b )
+                val = LowerExprWant_( c, ip->b, dstT )
             end if
          end if
         end if

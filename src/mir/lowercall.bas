@@ -931,7 +931,7 @@ function LowerCallParts _
                 '' refuses. See UpcastAggInit_ -- the same rule an initialiser needs.
                 dim as Tko.TypeId bvPt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 if UpcastAggInit_( c, argNode, bvPt, a ) = false then
-                    if ThisByvalArg_( c, argNode, bvPt, a ) = false then a = LowerExpr( c, argNode )
+                    if ThisByvalArg_( c, argNode, bvPt, a ) = false then a = LowerExprWant_( c, argNode, bvPt )
                 end if
             end if
             '' AN ARGUMENT THAT WOULD NOT LOWER IS A DECLINE, not a hole. It used to be

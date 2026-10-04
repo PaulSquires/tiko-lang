@@ -293,6 +293,11 @@ type Ctx
     as FB.Array( of ulong ) labelPaths
     as FB.Array( of ulong ) scanPath       '' the pre-scan's open keys
     as long                 labelBase      '' scopeMark index of the body's own scope
+    '' THE PROCEDURE TYPE an '@f' or 'procptr( f )' is wanted as -- the target of the
+    '' store, initialiser or argument that holds it, for the one node being lowered
+    '' there. It picks the overload of f; see LowerExprWant_ (lowerprocptr.bas).
+    as Tko.NodeId           procWantNode
+    as Tko.TypeId           procWantType
 end type
 
 '' A scope key for a scope that only SOME instances of a construct open -- a FOR over a
@@ -1383,6 +1388,10 @@ declare function EmitRtl _
           byval isCtor as boolean, byval skip as long = 0 )
     declare sub EmitModuleInit_( byref c as Ctx )
     declare function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as long
+    declare function LowerExprWant_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval t as Tko.TypeId ) as MirValue
+    declare function ProcAddrForWanted_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function StructorPrioOf_( byref c as Ctx, byval id as Tko.NodeId ) as long
     declare sub EmitImplicitStructors( byref c as Ctx )
 

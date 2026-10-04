@@ -1,0 +1,18 @@
+'' RUN: '@f' and 'procptr( f )' over an overload set take the overload whose signature
+'' the TARGET's type names -- a store, an initialiser, an argument, a field. The address
+'' was always the first overload's, so 'p( 1.5 )' through a 'sub( byval as double )'
+'' ran the LONG body with a double's bits. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/procptr-overload-target.bas -o tests/codegen/procptrovl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/procptrovl.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: f double 1.5
+'' EXPECT-RUN-OUT: f double 2.5
+'' EXPECT-RUN-OUT: f double 3.5
+'' EXPECT-RUN-OUT: f double 4.5
+'' EXPECT-RUN-OUT: f double 5.5
+'' EXPECT-RUN-OUT: f long 7
+'' EXPECT-RUN-OUT: g string x
+'' EXPECT-RUN-OUT: g long9

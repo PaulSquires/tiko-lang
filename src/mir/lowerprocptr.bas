@@ -10,6 +10,53 @@ declare function SameProcResult_ _
 declare function SameParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval pi as long, _
       byval st as Tko.TypeId, byval si as long ) as boolean
+declare function ProcPtrByType_ _
+    ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+'' E LOWERED AS A VALUE OF TYPE T. Only one thing reads T: an '@f' or a 'procptr( f )' that
+'' IS e, where f names an overload set -- the overload is the one whose signature T is.
+'' Without it the address was always the FIRST overload's: over 'f( byval as long )' and
+'' 'f( byval as double )', 'dim p as sub( byval as double ) = @f : p( 1.5 )' ran the LONG
+'' body with a double's bits in it. Measured, fbc takes the overload the target names --
+'' '_Z1Fd' -- for a store, an initialiser, an argument and a field alike.
+function LowerExprWant_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval t as Tko.TypeId ) as MirValue
+
+    dim as Tko.NodeId savedN = c.procWantNode
+    dim as Tko.TypeId savedT = c.procWantType
+    c.procWantNode = e
+    c.procWantType = t
+    dim as MirValue v = LowerExpr( c, e )
+    c.procWantNode = savedN
+    c.procWantType = savedT
+    return v
+end function
+
+'' The address LowerExprWant_ asked for, when ID is the node it asked about and names one
+'' procedure of an overload set. False -- nothing emitted -- otherwise, and the caller
+'' carries on as it always did.
+function ProcAddrForWanted_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if (id = Tko.NODE_NONE) orelse (id <> c.procWantNode) then return false
+    dim as Tko.NodeId fnE = Tko.NODE_NONE
+    select case c.ast->Kind( id )
+    case Tko.N_ADDROF
+        fnE = c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )].operand
+    case Tko.N_CALL
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (lp->count <> 1) orelse (lp->target = Tko.NODE_NONE) then return false
+        fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
+    end select
+    if fnE = Tko.NODE_NONE then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( fnE ) )
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if s->nextOverload = Tko.SYMBOL_NONE then return false
+    return ProcPtrByType_( c, fnE, c.procWantType, outv )
+end function
 
 '' The overload in the chain that starts at whatever 'fnE' is bound to whose signature
 '' is the procedure type 'sigN' names, as an M_FUNC_ADDR.
@@ -35,7 +82,16 @@ private function ProcPtrBySignature_ _
             end if
         end if
     end if
+    return ProcPtrByType_( c, fnE, st, outv )
+end function
+
+'' ...the same, for a procedure TYPE already in hand -- or a pointer to one.
+function ProcPtrByType_ _
+    ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
     if st = Tko.TYPE_NONE then return false
+    st = c.types->Unqualify( st )
     if c.types->Kind( st ) = Tko.TK_POINTER then
         st = c.types->Unqualify( c.types->Inner( st ) )
     end if
@@ -134,6 +190,11 @@ function LowerProcPtr _
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
     '' between, a name that did not resolve -- has no single address to take.
     dim as Tko.NodeId fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
+
+    '' THE OVERLOAD THE TARGET'S TYPE NAMES -- see LowerExprWant_.
+    if lp->count = 1 then
+        if ProcAddrForWanted_( c, id, outv ) then return true
+    end if
 
     '' 'procptr( T.m, VIRTUAL )' IS NOT AN ADDRESS. Measured: fbc folds it to the
     '' member's VTABLE SLOT INDEX as an int64 -- 1 for the second virtual member and 0
