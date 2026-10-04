@@ -300,6 +300,73 @@ private sub Line( byref e as EmitCtx, byref t as string )
     e.outp += "  " & t & chr( 10 )
 end sub
 
+'' THE WIDTH OF AN LLVM INTEGER TYPE, 0 for anything else.
+private function IntTypeBits_( byref ty as string ) as long
+    select case ty
+    case "i8"  : return 8
+    case "i16" : return 16
+    case "i32" : return 32
+    case "i64" : return 64
+    end select
+    return 0
+end function
+
+'' FLOAT TO INTEGER AS x86 CONVERTS IT. fptosi and fptoui are POISON for a value out of
+'' range and for NaN, so at -O2 'clng( 1e20 )' and 'cuint( -1.0 )' printed register
+'' contents where fbc -- and tiko at -O0 -- print the processor's answer. That answer is
+'' cvttsd2si's: the INTEGER INDEFINITE value, the type's minimum, for anything outside
+'' its range or NaN. An unsigned target converts through the 64-bit signed form, as gcc
+'' does for fbc: 'cuint( -1.0 )' is 18446744073709551615, and a value of 2^63 or more
+'' goes through the subtract-and-flip half. Narrower than 32 bits truncates the 32-bit
+'' answer. In range, the value is the plain instruction's.
+private sub EmitFloatToInt_ _
+    ( byref e as EmitCtx, byref res as string, byval op as MirOp, byref src as string, _
+      byref x as string, byref ty as string )
+
+    '' 2^63, -2^63, 2^31, -2^31 -- exact in both float and double, in LLVM's hex form.
+    const P63 = "0x43E0000000000000"
+    const N63 = "0xC3E0000000000000"
+    const P31 = "0x41E0000000000000"
+    const N31 = "0xC1E0000000000000"
+    dim as long w = IntTypeBits_( ty )
+    if w = 0 then
+        Line( e, res & " = " & iif( op = M_FPTOSI, "fptosi ", "fptoui " ) & src & " " & x & " to " & ty )
+        return
+    end if
+    if (op = M_FPTOSI) andalso (w <= 32) then
+        Line( e, res & ".lo = fcmp oge " & src & " " & x & ", " & N31 )
+        Line( e, res & ".hi = fcmp olt " & src & " " & x & ", " & P31 )
+        Line( e, res & ".ok = and i1 " & res & ".lo, " & res & ".hi" )
+        Line( e, res & ".v = fptosi " & src & " " & x & " to i32" )
+        dim as string r32 = res
+        if w < 32 then r32 = res & ".w"
+        Line( e, r32 & " = select i1 " & res & ".ok, i32 " & res & ".v, i32 -2147483648" )
+        if w < 32 then Line( e, res & " = trunc i32 " & r32 & " to " & ty )
+        return
+    end if
+    '' The 64-bit signed conversion, which every other case is built from.
+    Line( e, res & ".lo = fcmp oge " & src & " " & x & ", " & N63 )
+    Line( e, res & ".hi = fcmp olt " & src & " " & x & ", " & P63 )
+    Line( e, res & ".ok = and i1 " & res & ".lo, " & res & ".hi" )
+    Line( e, res & ".v = fptosi " & src & " " & x & " to i64" )
+    dim as string s64 = res & ".s"
+    if (op = M_FPTOSI) andalso (w = 64) then s64 = res
+    Line( e, s64 & " = select i1 " & res & ".ok, i64 " & res & ".v, i64 -9223372036854775808" )
+    if op = M_FPTOSI then return
+    if w < 64 then
+        Line( e, res & " = trunc i64 " & s64 & " to " & ty )
+        return
+    end if
+    '' uint64 from 2^63 up: subtract 2^63, convert, put the top bit back.
+    Line( e, res & ".big = fcmp oge " & src & " " & x & ", " & P63 )
+    Line( e, res & ".d = fsub " & src & " " & x & ", " & P63 )
+    Line( e, res & ".bok = fcmp olt " & src & " " & res & ".d, " & P63 )
+    Line( e, res & ".bv = fptosi " & src & " " & res & ".d to i64" )
+    Line( e, res & ".bs = select i1 " & res & ".bok, i64 " & res & ".bv, i64 -9223372036854775808" )
+    Line( e, res & ".bx = xor i64 " & res & ".bs, -9223372036854775808" )
+    Line( e, res & " = select i1 " & res & ".big, i64 " & res & ".bx, i64 " & s64 )
+end sub
+
 '' CmpPred, MathIntrinsic and LibmName -- opcode spellings -- live in llvmtype.bas.
 
 '' The argument list of a call, read out of the module's argument pool. The pool holds
@@ -556,8 +623,24 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         case M_LSHR : o = "lshr"
         case M_ASHR : o = "ashr"
         end select
-        Line( e, res & " = " & o & " " & ty & " " & ValStr( e, ins.a ) & _
-                 ", " & ValStr( e, ins.b ) )
+        dim as string cnt = ValStr( e, ins.b )
+        '' A SHIFT COUNT IS TAKEN MODULO THE WIDTH, as the x86 instruction takes it --
+        '' which is what fbc's program does and what tiko's did at -O0. LLVM makes a
+        '' count of the width or more POISON, so at -O2 '1 shl 65' printed whatever a
+        '' register held where fbc prints 2. A constant count is reduced here; any other
+        '' is masked first.
+        if (op = M_SHL) orelse (op = M_LSHR) orelse (op = M_ASHR) then
+            dim as long sw = IntTypeBits_( ty )
+            if sw > 0 then
+                if IsIntegerText_( cnt ) then
+                    cnt = str( vallng( cnt ) and (sw - 1) )
+                else
+                    Line( e, res & ".m = and " & ty & " " & cnt & ", " & str( sw - 1 ) )
+                    cnt = res & ".m"
+                end if
+            end if
+        end if
+        Line( e, res & " = " & o & " " & ty & " " & ValStr( e, ins.a ) & ", " & cnt )
 
     '' NEGATION IS A SUBTRACTION FROM ZERO on an integer and its own instruction on a
     '' float, where 'fsub 0.0, x' is NOT the same thing: it gets -0.0 wrong.
@@ -632,6 +715,10 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
                 e.isConst[rid] = 1
                 e.constText[rid] = ValStr( e, ins.a )
             end if
+            return
+        end if
+        if (op = M_FPTOSI) orelse (op = M_FPTOUI) then
+            EmitFloatToInt_( e, res, op, src, ValStr( e, ins.a ), ty )
             return
         end if
         Line( e, res & " = " & o & " " & src & " " & ValStr( e, ins.a ) & " to " & ty )

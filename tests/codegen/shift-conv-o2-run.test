@@ -1,0 +1,25 @@
+'' RUN at -O2: a shift count of the width or more, and a float to integer conversion out
+'' of range or of NaN, give the x86 answer fbc gives -- LLVM makes both poison, so -O2
+'' printed register contents. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc -O2 tests/codegen/src/shift-conv-o2.bas -o tests/codegen/shiftconvo2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/shiftconvo2.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: wrap-2147483648
+'' EXPECT-RUN-OUT: cmp-wrap no
+'' EXPECT-RUN-OUT: cmp-wrapq yes
+'' EXPECT-RUN-OUT: neg 2147483648
+'' EXPECT-RUN-OUT: abs 2147483648
+'' EXPECT-RUN-OUT: shl33 8589934592
+'' EXPECT-RUN-OUT: shr33-1
+'' EXPECT-RUN-OUT: shl32 4294967296
+'' EXPECT-RUN-OUT: shlq65 2
+'' EXPECT-RUN-OUT: shlneg-9223372036854775808
+'' EXPECT-RUN-OUT: cint-9223372036854775808
+'' EXPECT-RUN-OUT: clng-2147483648
+'' EXPECT-RUN-OUT: culng4294967295
+'' EXPECT-RUN-OUT: clngnan-2147483648
+'' EXPECT-RUN-OUT: byte-128
+'' EXPECT-RUN-OUT: loop 21
