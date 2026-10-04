@@ -336,6 +336,47 @@ end sub
 '' 1.20, 2026-09-29; expressions/nidxarray-3). 'values( )' writes the whole array and
 '' 'values( 0 )' one element; a fixed-length string is not this. The GRAPHICS forms take a bare
 '' array and are not judged: bit 1 of 'extra' marks the file form.
+'' AN AMOUNT FOR WHAT HAS ITS OWN LENGTH -- fbc's error 277, "Elements must be empty for
+'' strings and arrays", measured on fbc-modern 1.20: 'get #1, 21, s, 4' over a var-len string,
+'' a 'string * 10' and a whole array 'a( )', GET and PUT alike. A zstring or wstring buffer,
+'' an element 'a( 0 )' and a number take one. tiko accepted all of them (audit F-71).
+private sub CheckFileGetPutAmount_ ( byref c as Ctx, byval sp as StmtPayload ptr )
+    if sp->count < 3 then return
+    dim as NodeId amt = cast( NodeId, c.ast->children[sp->first + 2] )
+    if (amt = NODE_NONE) orelse (c.ast->Kind( amt ) = N_ELIDED) then return
+    dim as NodeId v = cast( NodeId, c.ast->children[sp->first + 1] )
+    if (v = NODE_NONE) orelse (c.ast->Kind( v ) = N_ELIDED) then return
+    dim as boolean bad = false
+    if c.ast->Kind( v ) = N_CALL then
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, v )].data )]
+        if (lp->count = 0) andalso (lp->target <> NODE_NONE) then
+            if c.ast->Kind( lp->target ) = N_IDENT then
+                dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+                if vs <> 0 then
+                    if (vs->kind = cast( ubyte, SYM_VARIABLE )) andalso (vs->type_ <> TYPE_NONE) then
+                        dim as TypeId at_ = c.types->Unqualify( vs->type_ )
+                        if c.types->Kind( at_ ) = TK_REFERENCE then at_ = c.types->Unqualify( c.types->Inner( at_ ) )
+                        bad = (c.types->Kind( at_ ) = TK_ARRAY)
+                    end if
+                end if
+            end if
+        end if
+    end if
+    if bad = false then
+        dim as TypeId t = c.info->TypeOf_( v )
+        if t = TYPE_NONE then return
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) = TK_BUILTIN then
+            bad = (c.types->BuiltinOf( t ) = TY_STRING)
+        else
+            dim as TypeId fe = Tko.Check.FixedStringElem( t, *c.types )
+            if fe <> TYPE_NONE then bad = (c.types->BuiltinOf( fe ) = TY_FIXSTR)
+        end if
+    end if
+    if bad then c.diags->Report( TKO0959, PointRange( c.ast->Loc( amt ) ) )
+end sub
+
 private sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     select case cast( TokenKind, sp->op )
@@ -344,6 +385,7 @@ private sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
         return
     end select
     if (sp->extra and 1) = 0 then return
+    CheckFileGetPutAmount_( c, sp )
     for i as long = 0 to sp->count - 1
         dim as NodeId ch = cast( NodeId, c.ast->children[sp->first + i] )
         if (ch = NODE_NONE) orelse (c.ast->Kind( ch ) <> N_IDENT) then continue for

@@ -1,0 +1,10 @@
+'' An amount for what has its own length -- fbc's error 277 over a var-len string (GET and
+'' PUT), a 'string * 10' and a whole array 'a( )'. A zstring buffer, an element and a number
+'' take one (audit F-71).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/getput-amount1.bas tests/diagnostics/src/getput-amount2.bas tests/diagnostics/src/getput-amount4.bas tests/diagnostics/src/getput-amount5.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: getput-amount1.bas(7,16): error TKO0959
+'' EXPECT-OUT: getput-amount2.bas(7,16): error TKO0959
+'' EXPECT-OUT: getput-amount4.bas(7,15): error TKO0959
+'' EXPECT-OUT: getput-amount5.bas(7,16): error TKO0959

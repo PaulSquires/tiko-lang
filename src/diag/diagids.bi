@@ -793,6 +793,12 @@
     '' fbc's 59 and 140 -- symbols/defcheck.bas (audit F-69).
     DIAG( TKO0957, SEV_ERROR,   "'as any' declares a parameter of any type; a definition must name the type" )
     DIAG( TKO0958, SEV_ERROR,   "an 'operator cast' cannot convert to the type it is a member of" )
+    '' fbc's 277 -- symbols/declshape.bas (audit F-71).
+    DIAG( TKO0959, SEV_ERROR,   "GET # and PUT # take no amount for a string or a whole array: its length is its own" )
+    '' fbc's 92 under -exx / -earray -- mir/lowerboundchk.bas (audit F-71).
+    DIAG( TKO0960, SEV_ERROR,   "the subscript %0 is outside the array's bounds, %1 to %2" )
+    '' fbc's 120 / 4 -- symbols/collectdecl.bas (audit F-69).
+    DIAG( TKO0961, SEV_ERROR,   "'%0' is already a namespace of the enclosing scope, which no local may share" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )
     DIAG( TKO0954, SEV_ERROR,   "the diagnostics file '%0' is one of the inputs, and writing it would destroy it" )
