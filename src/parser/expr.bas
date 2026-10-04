@@ -865,14 +865,19 @@ private function Prefix( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeId operand = Expression( p, Tko.PREC_NOT )
         return MakeUnary( p, k, t.loc, operand )
 
+    '' '@' AND '*' TAKE THE TIGHTEST OPERAND THERE IS -- a primary and its postfix chain
+    '' -- and no binary operator, '^' included. At PREC_SIGN they took the '^' in:
+    '' '*p ^ 2' was '*(p ^ 2)', which typed as nothing and was dropped, where fbc's
+    '' cDerefExpression and cAddrOfExpression parse a highest-precedence expression
+    '' and '(*p) ^ 2' is 9.
     case Tko.TK_AT
         Advance( p )
-        dim as Tko.NodeId operand = Expression( p, Tko.PREC_SIGN )
+        dim as Tko.NodeId operand = Expression( p, Tko.PREC_POSTFIX )
         return MakeUnary( p, k, t.loc, operand, Tko.N_ADDROF )
 
     case Tko.TK_STAR
         Advance( p )
-        dim as Tko.NodeId operand = Expression( p, Tko.PREC_SIGN )
+        dim as Tko.NodeId operand = Expression( p, Tko.PREC_POSTFIX )
         return MakeUnary( p, k, t.loc, operand, Tko.N_DEREF )
 
     case Tko.KW_BYVAL

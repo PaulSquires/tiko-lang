@@ -19,9 +19,11 @@ namespace Tko
     enum Precedence
         PREC_NONE     = 0
         PREC_ANDALSO  = 1      '' andalso, orelse -- ONE level, left-associative
-        PREC_IMP      = 2      '' imp, eqv -- ONE level, left-associative
+        PREC_IMP      = 2      '' imp, eqv, xor -- ONE level, left-associative
         PREC_EQV      = 2      '' measured: 'a imp b eqv c' is '(a imp b) eqv c'
-        PREC_XOR      = 4
+        '' XOR TOO: fbc's cLogExpression takes XOR, EQV and IMP in one loop, so '0 imp -1
+        '' xor -1' is '(0 imp -1) xor -1', 0. A level of its own above IMP made it -1.
+        PREC_XOR      = 2
         PREC_OR       = 5
         PREC_AND      = 6
         PREC_NOT      = 7      '' unary NOT: looser than relationals, tighter than AND

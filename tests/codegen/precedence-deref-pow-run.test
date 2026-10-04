@@ -1,0 +1,51 @@
+'' RUN: '@' and '*' take a highest-precedence operand, so '*p ^ 2' is '(*p) ^ 2'; and XOR,
+'' EQV and IMP are ONE level, so '0 imp -1 xor -1' is 0. A broad precedence table beside
+'' them. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/precedence-deref-pow.bas -o tests/codegen/precedencederefpow.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/precedencederefpow.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: y= 4
+'' EXPECT-RUN-OUT: z= 8
+'' EXPECT-RUN-OUT: w= 10
+'' EXPECT-RUN-OUT: end
+'' EXPECT-RUN-OUT: imp-xor 0
+'' EXPECT-RUN-OUT: imp-xor 0
+'' EXPECT-RUN-OUT: imp-xor L 0
+'' EXPECT-RUN-OUT: imp-xor R-1
+'' EXPECT-RUN-OUT: xor-imp-1
+'' EXPECT-RUN-OUT: eqv-xor-1
+'' EXPECT-RUN-OUT: imp-eqv 2
+'' EXPECT-RUN-OUT: eqv-imp 6
+'' EXPECT-RUN-OUT: imp-or-1
+'' EXPECT-RUN-OUT: deref-pow 4
+'' EXPECT-RUN-OUT: deref-pow2 4
+'' EXPECT-RUN-OUT: neg-pow-4
+'' EXPECT-RUN-OUT: pow-neg 0.25
+'' EXPECT-RUN-OUT: pow-chain 64
+'' EXPECT-RUN-OUT: neg-pow-chain-64
+'' EXPECT-RUN-OUT: pow-not 1
+'' EXPECT-RUN-OUT: not-rel-1
+'' EXPECT-RUN-OUT: not-and 3
+'' EXPECT-RUN-OUT: shl-plus 5
+'' EXPECT-RUN-OUT: plus-shl 5
+'' EXPECT-RUN-OUT: mod-idiv 1
+'' EXPECT-RUN-OUT: idiv-mul 1
+'' EXPECT-RUN-OUT: cat-plusa3
+'' EXPECT-RUN-OUT: cat-eq-1
+'' EXPECT-RUN-OUT: ao-1
+'' EXPECT-RUN-OUT: oa 0
+'' EXPECT-RUN-OUT: minus-mod-1
+'' EXPECT-RUN-OUT: plus-not 0
+'' EXPECT-RUN-OUT: rel-chain-1
+'' EXPECT-RUN-OUT: iif 11
+'' EXPECT-RUN-OUT: neg-neg 3
+'' EXPECT-RUN-OUT: neg-deref-4
+'' EXPECT-RUN-OUT: and-or 1
+'' EXPECT-RUN-OUT: shr-neg-4
+'' EXPECT-RUN-OUT: pow-pp 4
+'' EXPECT-RUN-OUT: mul-neg-pow-12
+'' EXPECT-RUN-OUT: idx-pow 9
+'' EXPECT-RUN-OUT: at-plus 1
