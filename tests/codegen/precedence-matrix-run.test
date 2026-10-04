@@ -1,0 +1,938 @@
+'' RUN: the precedence matrix (audit Phase 3 item 8; F-13, F-16, F-17, F-32, F-33): every
+'' pair of binary operators as 'a op1 b op2 c', every unary-then-binary pair, and every
+'' pair again inside '#if', with values that tell the groupings apart. Pairs fbc refuses
+'' are left out. Output identical to fbc-modern's, at -O0 and -O2.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/precedence-matrix.bas -o tests/codegen/precedencematrix.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/precedencematrix.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ^|^ 46656
+'' EXPECT-RUN-OUT: ^|* 432
+'' EXPECT-RUN-OUT: ^|/ 108
+'' EXPECT-RUN-OUT: ^|\ 108
+'' EXPECT-RUN-OUT: ^|mod 0
+'' EXPECT-RUN-OUT: ^|+ 218
+'' EXPECT-RUN-OUT: ^|- 214
+'' EXPECT-RUN-OUT: ^|shl 864
+'' EXPECT-RUN-OUT: ^|shr 54
+'' EXPECT-RUN-OUT: ^|= 0
+'' EXPECT-RUN-OUT: ^|<>-1
+'' EXPECT-RUN-OUT: ^|< 0
+'' EXPECT-RUN-OUT: ^|>-1
+'' EXPECT-RUN-OUT: ^|<= 0
+'' EXPECT-RUN-OUT: ^|>=-1
+'' EXPECT-RUN-OUT: ^|and 0
+'' EXPECT-RUN-OUT: ^|or 218
+'' EXPECT-RUN-OUT: ^|xor 218
+'' EXPECT-RUN-OUT: ^|eqv-219
+'' EXPECT-RUN-OUT: ^|imp-217
+'' EXPECT-RUN-OUT: ^|andalso-1
+'' EXPECT-RUN-OUT: ^|orelse-1
+'' EXPECT-RUN-OUT: *|^ 54
+'' EXPECT-RUN-OUT: *|* 36
+'' EXPECT-RUN-OUT: *|/ 9
+'' EXPECT-RUN-OUT: *|\ 9
+'' EXPECT-RUN-OUT: *|mod 0
+'' EXPECT-RUN-OUT: *|+ 20
+'' EXPECT-RUN-OUT: *|- 16
+'' EXPECT-RUN-OUT: *|shl 72
+'' EXPECT-RUN-OUT: *|shr 4
+'' EXPECT-RUN-OUT: *|= 0
+'' EXPECT-RUN-OUT: *|<>-1
+'' EXPECT-RUN-OUT: *|< 0
+'' EXPECT-RUN-OUT: *|>-1
+'' EXPECT-RUN-OUT: *|<= 0
+'' EXPECT-RUN-OUT: *|>=-1
+'' EXPECT-RUN-OUT: *|and 2
+'' EXPECT-RUN-OUT: *|or 18
+'' EXPECT-RUN-OUT: *|xor 16
+'' EXPECT-RUN-OUT: *|eqv-17
+'' EXPECT-RUN-OUT: *|imp-17
+'' EXPECT-RUN-OUT: *|andalso-1
+'' EXPECT-RUN-OUT: *|orelse-1
+'' EXPECT-RUN-OUT: /|^ 0.6666666666666666
+'' EXPECT-RUN-OUT: /|* 4
+'' EXPECT-RUN-OUT: /|/ 1
+'' EXPECT-RUN-OUT: /|\ 1
+'' EXPECT-RUN-OUT: /|mod 0
+'' EXPECT-RUN-OUT: /|+ 4
+'' EXPECT-RUN-OUT: /|- 0
+'' EXPECT-RUN-OUT: /|shl 8
+'' EXPECT-RUN-OUT: /|shr 0
+'' EXPECT-RUN-OUT: /|=-1
+'' EXPECT-RUN-OUT: /|<> 0
+'' EXPECT-RUN-OUT: /|< 0
+'' EXPECT-RUN-OUT: /|> 0
+'' EXPECT-RUN-OUT: /|<=-1
+'' EXPECT-RUN-OUT: /|>=-1
+'' EXPECT-RUN-OUT: /|and 2
+'' EXPECT-RUN-OUT: /|or 2
+'' EXPECT-RUN-OUT: /|xor 0
+'' EXPECT-RUN-OUT: /|eqv-1
+'' EXPECT-RUN-OUT: /|imp-1
+'' EXPECT-RUN-OUT: /|andalso-1
+'' EXPECT-RUN-OUT: /|orelse-1
+'' EXPECT-RUN-OUT: \|^ 0
+'' EXPECT-RUN-OUT: \|* 1
+'' EXPECT-RUN-OUT: \|/ 3
+'' EXPECT-RUN-OUT: \|\ 1
+'' EXPECT-RUN-OUT: \|mod 0
+'' EXPECT-RUN-OUT: \|+ 4
+'' EXPECT-RUN-OUT: \|- 0
+'' EXPECT-RUN-OUT: \|shl 8
+'' EXPECT-RUN-OUT: \|shr 0
+'' EXPECT-RUN-OUT: \|=-1
+'' EXPECT-RUN-OUT: \|<> 0
+'' EXPECT-RUN-OUT: \|< 0
+'' EXPECT-RUN-OUT: \|> 0
+'' EXPECT-RUN-OUT: \|<=-1
+'' EXPECT-RUN-OUT: \|>=-1
+'' EXPECT-RUN-OUT: \|and 2
+'' EXPECT-RUN-OUT: \|or 2
+'' EXPECT-RUN-OUT: \|xor 0
+'' EXPECT-RUN-OUT: \|eqv-1
+'' EXPECT-RUN-OUT: \|imp-1
+'' EXPECT-RUN-OUT: \|andalso-1
+'' EXPECT-RUN-OUT: \|orelse-1
+'' EXPECT-RUN-OUT: mod|^ 6
+'' EXPECT-RUN-OUT: mod|* 0
+'' EXPECT-RUN-OUT: mod|/ 0
+'' EXPECT-RUN-OUT: mod|\ 0
+'' EXPECT-RUN-OUT: mod|mod 0
+'' EXPECT-RUN-OUT: mod|+ 2
+'' EXPECT-RUN-OUT: mod|--2
+'' EXPECT-RUN-OUT: mod|shl 0
+'' EXPECT-RUN-OUT: mod|shr 0
+'' EXPECT-RUN-OUT: mod|= 0
+'' EXPECT-RUN-OUT: mod|<>-1
+'' EXPECT-RUN-OUT: mod|<-1
+'' EXPECT-RUN-OUT: mod|> 0
+'' EXPECT-RUN-OUT: mod|<=-1
+'' EXPECT-RUN-OUT: mod|>= 0
+'' EXPECT-RUN-OUT: mod|and 0
+'' EXPECT-RUN-OUT: mod|or 2
+'' EXPECT-RUN-OUT: mod|xor 2
+'' EXPECT-RUN-OUT: mod|eqv-3
+'' EXPECT-RUN-OUT: mod|imp-1
+'' EXPECT-RUN-OUT: mod|andalso 0
+'' EXPECT-RUN-OUT: mod|orelse-1
+'' EXPECT-RUN-OUT: +|^ 15
+'' EXPECT-RUN-OUT: +|* 12
+'' EXPECT-RUN-OUT: +|/ 7.5
+'' EXPECT-RUN-OUT: +|\ 7
+'' EXPECT-RUN-OUT: +|mod 7
+'' EXPECT-RUN-OUT: +|+ 11
+'' EXPECT-RUN-OUT: +|- 7
+'' EXPECT-RUN-OUT: +|shl 18
+'' EXPECT-RUN-OUT: +|shr 6
+'' EXPECT-RUN-OUT: +|= 0
+'' EXPECT-RUN-OUT: +|<>-1
+'' EXPECT-RUN-OUT: +|< 0
+'' EXPECT-RUN-OUT: +|>-1
+'' EXPECT-RUN-OUT: +|<= 0
+'' EXPECT-RUN-OUT: +|>=-1
+'' EXPECT-RUN-OUT: +|and 0
+'' EXPECT-RUN-OUT: +|or 11
+'' EXPECT-RUN-OUT: +|xor 11
+'' EXPECT-RUN-OUT: +|eqv-12
+'' EXPECT-RUN-OUT: +|imp-10
+'' EXPECT-RUN-OUT: +|andalso-1
+'' EXPECT-RUN-OUT: +|orelse-1
+'' EXPECT-RUN-OUT: -|^-3
+'' EXPECT-RUN-OUT: -|* 0
+'' EXPECT-RUN-OUT: -|/ 4.5
+'' EXPECT-RUN-OUT: -|\ 5
+'' EXPECT-RUN-OUT: -|mod 5
+'' EXPECT-RUN-OUT: -|+ 5
+'' EXPECT-RUN-OUT: -|- 1
+'' EXPECT-RUN-OUT: -|shl-6
+'' EXPECT-RUN-OUT: -|shr 6
+'' EXPECT-RUN-OUT: -|= 0
+'' EXPECT-RUN-OUT: -|<>-1
+'' EXPECT-RUN-OUT: -|< 0
+'' EXPECT-RUN-OUT: -|>-1
+'' EXPECT-RUN-OUT: -|<= 0
+'' EXPECT-RUN-OUT: -|>=-1
+'' EXPECT-RUN-OUT: -|and 2
+'' EXPECT-RUN-OUT: -|or 3
+'' EXPECT-RUN-OUT: -|xor 1
+'' EXPECT-RUN-OUT: -|eqv-2
+'' EXPECT-RUN-OUT: -|imp-2
+'' EXPECT-RUN-OUT: -|andalso-1
+'' EXPECT-RUN-OUT: -|orelse-1
+'' EXPECT-RUN-OUT: shl|^ 3072
+'' EXPECT-RUN-OUT: shl|* 384
+'' EXPECT-RUN-OUT: shl|/ 24
+'' EXPECT-RUN-OUT: shl|\ 12
+'' EXPECT-RUN-OUT: shl|mod 12
+'' EXPECT-RUN-OUT: shl|+ 50
+'' EXPECT-RUN-OUT: shl|- 46
+'' EXPECT-RUN-OUT: shl|shl 192
+'' EXPECT-RUN-OUT: shl|shr 12
+'' EXPECT-RUN-OUT: shl|= 0
+'' EXPECT-RUN-OUT: shl|<>-1
+'' EXPECT-RUN-OUT: shl|< 0
+'' EXPECT-RUN-OUT: shl|>-1
+'' EXPECT-RUN-OUT: shl|<= 0
+'' EXPECT-RUN-OUT: shl|>=-1
+'' EXPECT-RUN-OUT: shl|and 0
+'' EXPECT-RUN-OUT: shl|or 50
+'' EXPECT-RUN-OUT: shl|xor 50
+'' EXPECT-RUN-OUT: shl|eqv-51
+'' EXPECT-RUN-OUT: shl|imp-49
+'' EXPECT-RUN-OUT: shl|andalso-1
+'' EXPECT-RUN-OUT: shl|orelse-1
+'' EXPECT-RUN-OUT: shr|^ 0
+'' EXPECT-RUN-OUT: shr|* 0
+'' EXPECT-RUN-OUT: shr|/ 1
+'' EXPECT-RUN-OUT: shr|\ 3
+'' EXPECT-RUN-OUT: shr|mod 3
+'' EXPECT-RUN-OUT: shr|+ 2
+'' EXPECT-RUN-OUT: shr|--2
+'' EXPECT-RUN-OUT: shr|shl 0
+'' EXPECT-RUN-OUT: shr|shr 0
+'' EXPECT-RUN-OUT: shr|= 0
+'' EXPECT-RUN-OUT: shr|<>-1
+'' EXPECT-RUN-OUT: shr|<-1
+'' EXPECT-RUN-OUT: shr|> 0
+'' EXPECT-RUN-OUT: shr|<=-1
+'' EXPECT-RUN-OUT: shr|>= 0
+'' EXPECT-RUN-OUT: shr|and 0
+'' EXPECT-RUN-OUT: shr|or 2
+'' EXPECT-RUN-OUT: shr|xor 2
+'' EXPECT-RUN-OUT: shr|eqv-3
+'' EXPECT-RUN-OUT: shr|imp-1
+'' EXPECT-RUN-OUT: shr|andalso 0
+'' EXPECT-RUN-OUT: shr|orelse-1
+'' EXPECT-RUN-OUT: =|^ 0
+'' EXPECT-RUN-OUT: =|*-1
+'' EXPECT-RUN-OUT: =|/ 0
+'' EXPECT-RUN-OUT: =|\ 0
+'' EXPECT-RUN-OUT: =|mod 0
+'' EXPECT-RUN-OUT: =|+ 0
+'' EXPECT-RUN-OUT: =|- 0
+'' EXPECT-RUN-OUT: =|shl 0
+'' EXPECT-RUN-OUT: =|shr 0
+'' EXPECT-RUN-OUT: =|= 0
+'' EXPECT-RUN-OUT: =|<>-1
+'' EXPECT-RUN-OUT: =|<-1
+'' EXPECT-RUN-OUT: =|> 0
+'' EXPECT-RUN-OUT: =|<=-1
+'' EXPECT-RUN-OUT: =|>= 0
+'' EXPECT-RUN-OUT: =|and 0
+'' EXPECT-RUN-OUT: =|or 2
+'' EXPECT-RUN-OUT: =|xor 2
+'' EXPECT-RUN-OUT: =|eqv-3
+'' EXPECT-RUN-OUT: =|imp-1
+'' EXPECT-RUN-OUT: =|andalso 0
+'' EXPECT-RUN-OUT: =|orelse-1
+'' EXPECT-RUN-OUT: <>|^-1
+'' EXPECT-RUN-OUT: <>|* 0
+'' EXPECT-RUN-OUT: <>|/-1
+'' EXPECT-RUN-OUT: <>|\-1
+'' EXPECT-RUN-OUT: <>|mod-1
+'' EXPECT-RUN-OUT: <>|+-1
+'' EXPECT-RUN-OUT: <>|--1
+'' EXPECT-RUN-OUT: <>|shl-1
+'' EXPECT-RUN-OUT: <>|shr-1
+'' EXPECT-RUN-OUT: <>|= 0
+'' EXPECT-RUN-OUT: <>|<>-1
+'' EXPECT-RUN-OUT: <>|<-1
+'' EXPECT-RUN-OUT: <>|> 0
+'' EXPECT-RUN-OUT: <>|<=-1
+'' EXPECT-RUN-OUT: <>|>= 0
+'' EXPECT-RUN-OUT: <>|and 2
+'' EXPECT-RUN-OUT: <>|or-1
+'' EXPECT-RUN-OUT: <>|xor-3
+'' EXPECT-RUN-OUT: <>|eqv 2
+'' EXPECT-RUN-OUT: <>|imp 2
+'' EXPECT-RUN-OUT: <>|andalso-1
+'' EXPECT-RUN-OUT: <>|orelse-1
+'' EXPECT-RUN-OUT: <|^-1
+'' EXPECT-RUN-OUT: <|* 0
+'' EXPECT-RUN-OUT: <|/ 0
+'' EXPECT-RUN-OUT: <|\ 0
+'' EXPECT-RUN-OUT: <|mod 0
+'' EXPECT-RUN-OUT: <|+ 0
+'' EXPECT-RUN-OUT: <|- 0
+'' EXPECT-RUN-OUT: <|shl-1
+'' EXPECT-RUN-OUT: <|shr 0
+'' EXPECT-RUN-OUT: <|= 0
+'' EXPECT-RUN-OUT: <|<>-1
+'' EXPECT-RUN-OUT: <|<-1
+'' EXPECT-RUN-OUT: <|> 0
+'' EXPECT-RUN-OUT: <|<=-1
+'' EXPECT-RUN-OUT: <|>= 0
+'' EXPECT-RUN-OUT: <|and 0
+'' EXPECT-RUN-OUT: <|or 2
+'' EXPECT-RUN-OUT: <|xor 2
+'' EXPECT-RUN-OUT: <|eqv-3
+'' EXPECT-RUN-OUT: <|imp-1
+'' EXPECT-RUN-OUT: <|andalso 0
+'' EXPECT-RUN-OUT: <|orelse-1
+'' EXPECT-RUN-OUT: >|^ 0
+'' EXPECT-RUN-OUT: >|* 0
+'' EXPECT-RUN-OUT: >|/-1
+'' EXPECT-RUN-OUT: >|\-1
+'' EXPECT-RUN-OUT: >|mod-1
+'' EXPECT-RUN-OUT: >|+-1
+'' EXPECT-RUN-OUT: >|--1
+'' EXPECT-RUN-OUT: >|shl 0
+'' EXPECT-RUN-OUT: >|shr-1
+'' EXPECT-RUN-OUT: >|= 0
+'' EXPECT-RUN-OUT: >|<>-1
+'' EXPECT-RUN-OUT: >|<-1
+'' EXPECT-RUN-OUT: >|> 0
+'' EXPECT-RUN-OUT: >|<=-1
+'' EXPECT-RUN-OUT: >|>= 0
+'' EXPECT-RUN-OUT: >|and 2
+'' EXPECT-RUN-OUT: >|or-1
+'' EXPECT-RUN-OUT: >|xor-3
+'' EXPECT-RUN-OUT: >|eqv 2
+'' EXPECT-RUN-OUT: >|imp 2
+'' EXPECT-RUN-OUT: >|andalso-1
+'' EXPECT-RUN-OUT: >|orelse-1
+'' EXPECT-RUN-OUT: <=|^-1
+'' EXPECT-RUN-OUT: <=|*-1
+'' EXPECT-RUN-OUT: <=|/ 0
+'' EXPECT-RUN-OUT: <=|\ 0
+'' EXPECT-RUN-OUT: <=|mod 0
+'' EXPECT-RUN-OUT: <=|+ 0
+'' EXPECT-RUN-OUT: <=|- 0
+'' EXPECT-RUN-OUT: <=|shl-1
+'' EXPECT-RUN-OUT: <=|shr 0
+'' EXPECT-RUN-OUT: <=|= 0
+'' EXPECT-RUN-OUT: <=|<>-1
+'' EXPECT-RUN-OUT: <=|<-1
+'' EXPECT-RUN-OUT: <=|> 0
+'' EXPECT-RUN-OUT: <=|<=-1
+'' EXPECT-RUN-OUT: <=|>= 0
+'' EXPECT-RUN-OUT: <=|and 0
+'' EXPECT-RUN-OUT: <=|or 2
+'' EXPECT-RUN-OUT: <=|xor 2
+'' EXPECT-RUN-OUT: <=|eqv-3
+'' EXPECT-RUN-OUT: <=|imp-1
+'' EXPECT-RUN-OUT: <=|andalso 0
+'' EXPECT-RUN-OUT: <=|orelse-1
+'' EXPECT-RUN-OUT: >=|^ 0
+'' EXPECT-RUN-OUT: >=|*-1
+'' EXPECT-RUN-OUT: >=|/-1
+'' EXPECT-RUN-OUT: >=|\-1
+'' EXPECT-RUN-OUT: >=|mod-1
+'' EXPECT-RUN-OUT: >=|+-1
+'' EXPECT-RUN-OUT: >=|--1
+'' EXPECT-RUN-OUT: >=|shl 0
+'' EXPECT-RUN-OUT: >=|shr-1
+'' EXPECT-RUN-OUT: >=|= 0
+'' EXPECT-RUN-OUT: >=|<>-1
+'' EXPECT-RUN-OUT: >=|<-1
+'' EXPECT-RUN-OUT: >=|> 0
+'' EXPECT-RUN-OUT: >=|<=-1
+'' EXPECT-RUN-OUT: >=|>= 0
+'' EXPECT-RUN-OUT: >=|and 2
+'' EXPECT-RUN-OUT: >=|or-1
+'' EXPECT-RUN-OUT: >=|xor-3
+'' EXPECT-RUN-OUT: >=|eqv 2
+'' EXPECT-RUN-OUT: >=|imp 2
+'' EXPECT-RUN-OUT: >=|andalso-1
+'' EXPECT-RUN-OUT: >=|orelse-1
+'' EXPECT-RUN-OUT: and|^ 0
+'' EXPECT-RUN-OUT: and|* 6
+'' EXPECT-RUN-OUT: and|/ 2
+'' EXPECT-RUN-OUT: and|\ 0
+'' EXPECT-RUN-OUT: and|mod 0
+'' EXPECT-RUN-OUT: and|+ 4
+'' EXPECT-RUN-OUT: and|- 0
+'' EXPECT-RUN-OUT: and|shl 4
+'' EXPECT-RUN-OUT: and|shr 0
+'' EXPECT-RUN-OUT: and|= 0
+'' EXPECT-RUN-OUT: and|<> 6
+'' EXPECT-RUN-OUT: and|< 0
+'' EXPECT-RUN-OUT: and|> 6
+'' EXPECT-RUN-OUT: and|<= 0
+'' EXPECT-RUN-OUT: and|>= 6
+'' EXPECT-RUN-OUT: and|and 2
+'' EXPECT-RUN-OUT: and|or 2
+'' EXPECT-RUN-OUT: and|xor 0
+'' EXPECT-RUN-OUT: and|eqv-1
+'' EXPECT-RUN-OUT: and|imp-1
+'' EXPECT-RUN-OUT: and|andalso-1
+'' EXPECT-RUN-OUT: and|orelse-1
+'' EXPECT-RUN-OUT: or|^ 15
+'' EXPECT-RUN-OUT: or|* 6
+'' EXPECT-RUN-OUT: or|/ 6
+'' EXPECT-RUN-OUT: or|\ 7
+'' EXPECT-RUN-OUT: or|mod 7
+'' EXPECT-RUN-OUT: or|+ 7
+'' EXPECT-RUN-OUT: or|- 7
+'' EXPECT-RUN-OUT: or|shl 14
+'' EXPECT-RUN-OUT: or|shr 6
+'' EXPECT-RUN-OUT: or|= 6
+'' EXPECT-RUN-OUT: or|<>-1
+'' EXPECT-RUN-OUT: or|< 6
+'' EXPECT-RUN-OUT: or|>-1
+'' EXPECT-RUN-OUT: or|<= 6
+'' EXPECT-RUN-OUT: or|>=-1
+'' EXPECT-RUN-OUT: or|and 6
+'' EXPECT-RUN-OUT: or|or 7
+'' EXPECT-RUN-OUT: or|xor 5
+'' EXPECT-RUN-OUT: or|eqv-6
+'' EXPECT-RUN-OUT: or|imp-6
+'' EXPECT-RUN-OUT: or|andalso-1
+'' EXPECT-RUN-OUT: or|orelse-1
+'' EXPECT-RUN-OUT: xor|^ 15
+'' EXPECT-RUN-OUT: xor|* 0
+'' EXPECT-RUN-OUT: xor|/ 4
+'' EXPECT-RUN-OUT: xor|\ 7
+'' EXPECT-RUN-OUT: xor|mod 7
+'' EXPECT-RUN-OUT: xor|+ 3
+'' EXPECT-RUN-OUT: xor|- 7
+'' EXPECT-RUN-OUT: xor|shl 10
+'' EXPECT-RUN-OUT: xor|shr 6
+'' EXPECT-RUN-OUT: xor|= 6
+'' EXPECT-RUN-OUT: xor|<>-7
+'' EXPECT-RUN-OUT: xor|< 6
+'' EXPECT-RUN-OUT: xor|>-7
+'' EXPECT-RUN-OUT: xor|<= 6
+'' EXPECT-RUN-OUT: xor|>=-7
+'' EXPECT-RUN-OUT: xor|and 4
+'' EXPECT-RUN-OUT: xor|or 5
+'' EXPECT-RUN-OUT: xor|xor 7
+'' EXPECT-RUN-OUT: xor|eqv-8
+'' EXPECT-RUN-OUT: xor|imp-6
+'' EXPECT-RUN-OUT: xor|andalso-1
+'' EXPECT-RUN-OUT: xor|orelse-1
+'' EXPECT-RUN-OUT: eqv|^-16
+'' EXPECT-RUN-OUT: eqv|*-1
+'' EXPECT-RUN-OUT: eqv|/-5
+'' EXPECT-RUN-OUT: eqv|\-8
+'' EXPECT-RUN-OUT: eqv|mod-8
+'' EXPECT-RUN-OUT: eqv|+-4
+'' EXPECT-RUN-OUT: eqv|--8
+'' EXPECT-RUN-OUT: eqv|shl-11
+'' EXPECT-RUN-OUT: eqv|shr-7
+'' EXPECT-RUN-OUT: eqv|=-7
+'' EXPECT-RUN-OUT: eqv|<> 6
+'' EXPECT-RUN-OUT: eqv|<-7
+'' EXPECT-RUN-OUT: eqv|> 6
+'' EXPECT-RUN-OUT: eqv|<=-7
+'' EXPECT-RUN-OUT: eqv|>= 6
+'' EXPECT-RUN-OUT: eqv|and-5
+'' EXPECT-RUN-OUT: eqv|or-6
+'' EXPECT-RUN-OUT: eqv|xor-8
+'' EXPECT-RUN-OUT: eqv|eqv 7
+'' EXPECT-RUN-OUT: eqv|imp 7
+'' EXPECT-RUN-OUT: eqv|andalso-1
+'' EXPECT-RUN-OUT: eqv|orelse-1
+'' EXPECT-RUN-OUT: imp|^-7
+'' EXPECT-RUN-OUT: imp|*-1
+'' EXPECT-RUN-OUT: imp|/-5
+'' EXPECT-RUN-OUT: imp|\-7
+'' EXPECT-RUN-OUT: imp|mod-7
+'' EXPECT-RUN-OUT: imp|+-3
+'' EXPECT-RUN-OUT: imp|--7
+'' EXPECT-RUN-OUT: imp|shl-3
+'' EXPECT-RUN-OUT: imp|shr-7
+'' EXPECT-RUN-OUT: imp|=-7
+'' EXPECT-RUN-OUT: imp|<>-1
+'' EXPECT-RUN-OUT: imp|<-7
+'' EXPECT-RUN-OUT: imp|>-1
+'' EXPECT-RUN-OUT: imp|<=-7
+'' EXPECT-RUN-OUT: imp|>=-1
+'' EXPECT-RUN-OUT: imp|and-5
+'' EXPECT-RUN-OUT: imp|or-5
+'' EXPECT-RUN-OUT: imp|xor-7
+'' EXPECT-RUN-OUT: imp|eqv 6
+'' EXPECT-RUN-OUT: imp|imp 6
+'' EXPECT-RUN-OUT: imp|andalso-1
+'' EXPECT-RUN-OUT: imp|orelse-1
+'' EXPECT-RUN-OUT: andalso|^-1
+'' EXPECT-RUN-OUT: andalso|*-1
+'' EXPECT-RUN-OUT: andalso|/-1
+'' EXPECT-RUN-OUT: andalso|\-1
+'' EXPECT-RUN-OUT: andalso|mod-1
+'' EXPECT-RUN-OUT: andalso|+-1
+'' EXPECT-RUN-OUT: andalso|--1
+'' EXPECT-RUN-OUT: andalso|shl-1
+'' EXPECT-RUN-OUT: andalso|shr 0
+'' EXPECT-RUN-OUT: andalso|= 0
+'' EXPECT-RUN-OUT: andalso|<>-1
+'' EXPECT-RUN-OUT: andalso|< 0
+'' EXPECT-RUN-OUT: andalso|>-1
+'' EXPECT-RUN-OUT: andalso|<= 0
+'' EXPECT-RUN-OUT: andalso|>=-1
+'' EXPECT-RUN-OUT: andalso|and-1
+'' EXPECT-RUN-OUT: andalso|or-1
+'' EXPECT-RUN-OUT: andalso|xor-1
+'' EXPECT-RUN-OUT: andalso|eqv-1
+'' EXPECT-RUN-OUT: andalso|imp-1
+'' EXPECT-RUN-OUT: andalso|andalso-1
+'' EXPECT-RUN-OUT: andalso|orelse-1
+'' EXPECT-RUN-OUT: orelse|^-1
+'' EXPECT-RUN-OUT: orelse|*-1
+'' EXPECT-RUN-OUT: orelse|/-1
+'' EXPECT-RUN-OUT: orelse|\-1
+'' EXPECT-RUN-OUT: orelse|mod-1
+'' EXPECT-RUN-OUT: orelse|+-1
+'' EXPECT-RUN-OUT: orelse|--1
+'' EXPECT-RUN-OUT: orelse|shl-1
+'' EXPECT-RUN-OUT: orelse|shr-1
+'' EXPECT-RUN-OUT: orelse|=-1
+'' EXPECT-RUN-OUT: orelse|<>-1
+'' EXPECT-RUN-OUT: orelse|<-1
+'' EXPECT-RUN-OUT: orelse|>-1
+'' EXPECT-RUN-OUT: orelse|<=-1
+'' EXPECT-RUN-OUT: orelse|>=-1
+'' EXPECT-RUN-OUT: orelse|and-1
+'' EXPECT-RUN-OUT: orelse|or-1
+'' EXPECT-RUN-OUT: orelse|xor-1
+'' EXPECT-RUN-OUT: orelse|eqv-1
+'' EXPECT-RUN-OUT: orelse|imp-1
+'' EXPECT-RUN-OUT: orelse|andalso-1
+'' EXPECT-RUN-OUT: orelse|orelse-1
+'' EXPECT-RUN-OUT: -|^-216
+'' EXPECT-RUN-OUT: -|*-18
+'' EXPECT-RUN-OUT: -|/-2
+'' EXPECT-RUN-OUT: -|\-2
+'' EXPECT-RUN-OUT: -|mod 0
+'' EXPECT-RUN-OUT: -|+-3
+'' EXPECT-RUN-OUT: -|--9
+'' EXPECT-RUN-OUT: -|shl-48
+'' EXPECT-RUN-OUT: -|shr-1
+'' EXPECT-RUN-OUT: -|= 0
+'' EXPECT-RUN-OUT: -|<>-1
+'' EXPECT-RUN-OUT: -|<-1
+'' EXPECT-RUN-OUT: -|> 0
+'' EXPECT-RUN-OUT: -|<=-1
+'' EXPECT-RUN-OUT: -|>= 0
+'' EXPECT-RUN-OUT: -|and 2
+'' EXPECT-RUN-OUT: -|or-5
+'' EXPECT-RUN-OUT: -|xor-7
+'' EXPECT-RUN-OUT: -|eqv 6
+'' EXPECT-RUN-OUT: -|imp 7
+'' EXPECT-RUN-OUT: -|andalso-1
+'' EXPECT-RUN-OUT: -|orelse-1
+'' EXPECT-RUN-OUT: not|^-217
+'' EXPECT-RUN-OUT: not|*-19
+'' EXPECT-RUN-OUT: not|/-3
+'' EXPECT-RUN-OUT: not|\-3
+'' EXPECT-RUN-OUT: not|mod-1
+'' EXPECT-RUN-OUT: not|+-10
+'' EXPECT-RUN-OUT: not|--4
+'' EXPECT-RUN-OUT: not|shl-49
+'' EXPECT-RUN-OUT: not|shr-1
+'' EXPECT-RUN-OUT: not|=-1
+'' EXPECT-RUN-OUT: not|<> 0
+'' EXPECT-RUN-OUT: not|<-1
+'' EXPECT-RUN-OUT: not|> 0
+'' EXPECT-RUN-OUT: not|<=-1
+'' EXPECT-RUN-OUT: not|>= 0
+'' EXPECT-RUN-OUT: not|and 1
+'' EXPECT-RUN-OUT: not|or-5
+'' EXPECT-RUN-OUT: not|xor-6
+'' EXPECT-RUN-OUT: not|eqv 5
+'' EXPECT-RUN-OUT: not|imp 7
+'' EXPECT-RUN-OUT: not|andalso-1
+'' EXPECT-RUN-OUT: not|orelse-1
+'' EXPECT-RUN-OUT: #*|* T
+'' EXPECT-RUN-OUT: #*|\ T
+'' EXPECT-RUN-OUT: #*|mod F
+'' EXPECT-RUN-OUT: #*|+ T
+'' EXPECT-RUN-OUT: #*|- T
+'' EXPECT-RUN-OUT: #*|shl T
+'' EXPECT-RUN-OUT: #*|shr T
+'' EXPECT-RUN-OUT: #*|= F
+'' EXPECT-RUN-OUT: #*|<> T
+'' EXPECT-RUN-OUT: #*|< F
+'' EXPECT-RUN-OUT: #*|> T
+'' EXPECT-RUN-OUT: #*|<= F
+'' EXPECT-RUN-OUT: #*|>= T
+'' EXPECT-RUN-OUT: #*|and T
+'' EXPECT-RUN-OUT: #*|or T
+'' EXPECT-RUN-OUT: #*|xor T
+'' EXPECT-RUN-OUT: #*|eqv T
+'' EXPECT-RUN-OUT: #*|imp T
+'' EXPECT-RUN-OUT: #*|andalso T
+'' EXPECT-RUN-OUT: #*|orelse T
+'' EXPECT-RUN-OUT: #\|* T
+'' EXPECT-RUN-OUT: #\|\ T
+'' EXPECT-RUN-OUT: #\|mod F
+'' EXPECT-RUN-OUT: #\|+ T
+'' EXPECT-RUN-OUT: #\|- F
+'' EXPECT-RUN-OUT: #\|shl T
+'' EXPECT-RUN-OUT: #\|shr F
+'' EXPECT-RUN-OUT: #\|= T
+'' EXPECT-RUN-OUT: #\|<> F
+'' EXPECT-RUN-OUT: #\|< F
+'' EXPECT-RUN-OUT: #\|> F
+'' EXPECT-RUN-OUT: #\|<= T
+'' EXPECT-RUN-OUT: #\|>= T
+'' EXPECT-RUN-OUT: #\|and T
+'' EXPECT-RUN-OUT: #\|or T
+'' EXPECT-RUN-OUT: #\|xor F
+'' EXPECT-RUN-OUT: #\|eqv T
+'' EXPECT-RUN-OUT: #\|imp T
+'' EXPECT-RUN-OUT: #\|andalso T
+'' EXPECT-RUN-OUT: #\|orelse T
+'' EXPECT-RUN-OUT: #mod|* F
+'' EXPECT-RUN-OUT: #mod|\ F
+'' EXPECT-RUN-OUT: #mod|mod F
+'' EXPECT-RUN-OUT: #mod|+ T
+'' EXPECT-RUN-OUT: #mod|- T
+'' EXPECT-RUN-OUT: #mod|shl F
+'' EXPECT-RUN-OUT: #mod|shr F
+'' EXPECT-RUN-OUT: #mod|= F
+'' EXPECT-RUN-OUT: #mod|<> T
+'' EXPECT-RUN-OUT: #mod|< T
+'' EXPECT-RUN-OUT: #mod|> F
+'' EXPECT-RUN-OUT: #mod|<= T
+'' EXPECT-RUN-OUT: #mod|>= F
+'' EXPECT-RUN-OUT: #mod|and F
+'' EXPECT-RUN-OUT: #mod|or T
+'' EXPECT-RUN-OUT: #mod|xor T
+'' EXPECT-RUN-OUT: #mod|eqv T
+'' EXPECT-RUN-OUT: #mod|imp T
+'' EXPECT-RUN-OUT: #mod|andalso F
+'' EXPECT-RUN-OUT: #mod|orelse T
+'' EXPECT-RUN-OUT: #+|* T
+'' EXPECT-RUN-OUT: #+|\ T
+'' EXPECT-RUN-OUT: #+|mod T
+'' EXPECT-RUN-OUT: #+|+ T
+'' EXPECT-RUN-OUT: #+|- T
+'' EXPECT-RUN-OUT: #+|shl T
+'' EXPECT-RUN-OUT: #+|shr T
+'' EXPECT-RUN-OUT: #+|= F
+'' EXPECT-RUN-OUT: #+|<> T
+'' EXPECT-RUN-OUT: #+|< F
+'' EXPECT-RUN-OUT: #+|> T
+'' EXPECT-RUN-OUT: #+|<= F
+'' EXPECT-RUN-OUT: #+|>= T
+'' EXPECT-RUN-OUT: #+|and F
+'' EXPECT-RUN-OUT: #+|or T
+'' EXPECT-RUN-OUT: #+|xor T
+'' EXPECT-RUN-OUT: #+|eqv T
+'' EXPECT-RUN-OUT: #+|imp T
+'' EXPECT-RUN-OUT: #+|andalso T
+'' EXPECT-RUN-OUT: #+|orelse T
+'' EXPECT-RUN-OUT: #-|* F
+'' EXPECT-RUN-OUT: #-|\ T
+'' EXPECT-RUN-OUT: #-|mod T
+'' EXPECT-RUN-OUT: #-|+ T
+'' EXPECT-RUN-OUT: #-|- T
+'' EXPECT-RUN-OUT: #-|shl T
+'' EXPECT-RUN-OUT: #-|shr T
+'' EXPECT-RUN-OUT: #-|= F
+'' EXPECT-RUN-OUT: #-|<> T
+'' EXPECT-RUN-OUT: #-|< F
+'' EXPECT-RUN-OUT: #-|> T
+'' EXPECT-RUN-OUT: #-|<= F
+'' EXPECT-RUN-OUT: #-|>= T
+'' EXPECT-RUN-OUT: #-|and T
+'' EXPECT-RUN-OUT: #-|or T
+'' EXPECT-RUN-OUT: #-|xor T
+'' EXPECT-RUN-OUT: #-|eqv T
+'' EXPECT-RUN-OUT: #-|imp T
+'' EXPECT-RUN-OUT: #-|andalso T
+'' EXPECT-RUN-OUT: #-|orelse T
+'' EXPECT-RUN-OUT: #shl|* T
+'' EXPECT-RUN-OUT: #shl|\ T
+'' EXPECT-RUN-OUT: #shl|mod T
+'' EXPECT-RUN-OUT: #shl|+ T
+'' EXPECT-RUN-OUT: #shl|- T
+'' EXPECT-RUN-OUT: #shl|shl T
+'' EXPECT-RUN-OUT: #shl|shr T
+'' EXPECT-RUN-OUT: #shl|= F
+'' EXPECT-RUN-OUT: #shl|<> T
+'' EXPECT-RUN-OUT: #shl|< F
+'' EXPECT-RUN-OUT: #shl|> T
+'' EXPECT-RUN-OUT: #shl|<= F
+'' EXPECT-RUN-OUT: #shl|>= T
+'' EXPECT-RUN-OUT: #shl|and F
+'' EXPECT-RUN-OUT: #shl|or T
+'' EXPECT-RUN-OUT: #shl|xor T
+'' EXPECT-RUN-OUT: #shl|eqv T
+'' EXPECT-RUN-OUT: #shl|imp T
+'' EXPECT-RUN-OUT: #shl|andalso T
+'' EXPECT-RUN-OUT: #shl|orelse T
+'' EXPECT-RUN-OUT: #shr|* F
+'' EXPECT-RUN-OUT: #shr|\ T
+'' EXPECT-RUN-OUT: #shr|mod T
+'' EXPECT-RUN-OUT: #shr|+ T
+'' EXPECT-RUN-OUT: #shr|- T
+'' EXPECT-RUN-OUT: #shr|shl F
+'' EXPECT-RUN-OUT: #shr|shr F
+'' EXPECT-RUN-OUT: #shr|= F
+'' EXPECT-RUN-OUT: #shr|<> T
+'' EXPECT-RUN-OUT: #shr|< T
+'' EXPECT-RUN-OUT: #shr|> F
+'' EXPECT-RUN-OUT: #shr|<= T
+'' EXPECT-RUN-OUT: #shr|>= F
+'' EXPECT-RUN-OUT: #shr|and F
+'' EXPECT-RUN-OUT: #shr|or T
+'' EXPECT-RUN-OUT: #shr|xor T
+'' EXPECT-RUN-OUT: #shr|eqv T
+'' EXPECT-RUN-OUT: #shr|imp T
+'' EXPECT-RUN-OUT: #shr|andalso F
+'' EXPECT-RUN-OUT: #shr|orelse T
+'' EXPECT-RUN-OUT: #=|* T
+'' EXPECT-RUN-OUT: #=|\ F
+'' EXPECT-RUN-OUT: #=|mod F
+'' EXPECT-RUN-OUT: #=|+ F
+'' EXPECT-RUN-OUT: #=|- F
+'' EXPECT-RUN-OUT: #=|shl F
+'' EXPECT-RUN-OUT: #=|shr F
+'' EXPECT-RUN-OUT: #=|= F
+'' EXPECT-RUN-OUT: #=|<> T
+'' EXPECT-RUN-OUT: #=|< T
+'' EXPECT-RUN-OUT: #=|> F
+'' EXPECT-RUN-OUT: #=|<= T
+'' EXPECT-RUN-OUT: #=|>= F
+'' EXPECT-RUN-OUT: #=|and F
+'' EXPECT-RUN-OUT: #=|or T
+'' EXPECT-RUN-OUT: #=|xor T
+'' EXPECT-RUN-OUT: #=|eqv T
+'' EXPECT-RUN-OUT: #=|imp T
+'' EXPECT-RUN-OUT: #=|andalso F
+'' EXPECT-RUN-OUT: #=|orelse T
+'' EXPECT-RUN-OUT: #<>|* F
+'' EXPECT-RUN-OUT: #<>|\ T
+'' EXPECT-RUN-OUT: #<>|mod T
+'' EXPECT-RUN-OUT: #<>|+ T
+'' EXPECT-RUN-OUT: #<>|- T
+'' EXPECT-RUN-OUT: #<>|shl T
+'' EXPECT-RUN-OUT: #<>|shr T
+'' EXPECT-RUN-OUT: #<>|= F
+'' EXPECT-RUN-OUT: #<>|<> T
+'' EXPECT-RUN-OUT: #<>|< T
+'' EXPECT-RUN-OUT: #<>|> F
+'' EXPECT-RUN-OUT: #<>|<= T
+'' EXPECT-RUN-OUT: #<>|>= F
+'' EXPECT-RUN-OUT: #<>|and T
+'' EXPECT-RUN-OUT: #<>|or T
+'' EXPECT-RUN-OUT: #<>|xor T
+'' EXPECT-RUN-OUT: #<>|eqv T
+'' EXPECT-RUN-OUT: #<>|imp T
+'' EXPECT-RUN-OUT: #<>|andalso T
+'' EXPECT-RUN-OUT: #<>|orelse T
+'' EXPECT-RUN-OUT: #<|* F
+'' EXPECT-RUN-OUT: #<|\ F
+'' EXPECT-RUN-OUT: #<|mod F
+'' EXPECT-RUN-OUT: #<|+ F
+'' EXPECT-RUN-OUT: #<|- F
+'' EXPECT-RUN-OUT: #<|shl T
+'' EXPECT-RUN-OUT: #<|shr F
+'' EXPECT-RUN-OUT: #<|= F
+'' EXPECT-RUN-OUT: #<|<> T
+'' EXPECT-RUN-OUT: #<|< T
+'' EXPECT-RUN-OUT: #<|> F
+'' EXPECT-RUN-OUT: #<|<= T
+'' EXPECT-RUN-OUT: #<|>= F
+'' EXPECT-RUN-OUT: #<|and F
+'' EXPECT-RUN-OUT: #<|or T
+'' EXPECT-RUN-OUT: #<|xor T
+'' EXPECT-RUN-OUT: #<|eqv T
+'' EXPECT-RUN-OUT: #<|imp T
+'' EXPECT-RUN-OUT: #<|andalso F
+'' EXPECT-RUN-OUT: #<|orelse T
+'' EXPECT-RUN-OUT: #>|* F
+'' EXPECT-RUN-OUT: #>|\ T
+'' EXPECT-RUN-OUT: #>|mod T
+'' EXPECT-RUN-OUT: #>|+ T
+'' EXPECT-RUN-OUT: #>|- T
+'' EXPECT-RUN-OUT: #>|shl F
+'' EXPECT-RUN-OUT: #>|shr T
+'' EXPECT-RUN-OUT: #>|= F
+'' EXPECT-RUN-OUT: #>|<> T
+'' EXPECT-RUN-OUT: #>|< T
+'' EXPECT-RUN-OUT: #>|> F
+'' EXPECT-RUN-OUT: #>|<= T
+'' EXPECT-RUN-OUT: #>|>= F
+'' EXPECT-RUN-OUT: #>|and T
+'' EXPECT-RUN-OUT: #>|or T
+'' EXPECT-RUN-OUT: #>|xor T
+'' EXPECT-RUN-OUT: #>|eqv T
+'' EXPECT-RUN-OUT: #>|imp T
+'' EXPECT-RUN-OUT: #>|andalso T
+'' EXPECT-RUN-OUT: #>|orelse T
+'' EXPECT-RUN-OUT: #<=|* T
+'' EXPECT-RUN-OUT: #<=|\ F
+'' EXPECT-RUN-OUT: #<=|mod F
+'' EXPECT-RUN-OUT: #<=|+ F
+'' EXPECT-RUN-OUT: #<=|- F
+'' EXPECT-RUN-OUT: #<=|shl T
+'' EXPECT-RUN-OUT: #<=|shr F
+'' EXPECT-RUN-OUT: #<=|= F
+'' EXPECT-RUN-OUT: #<=|<> T
+'' EXPECT-RUN-OUT: #<=|< T
+'' EXPECT-RUN-OUT: #<=|> F
+'' EXPECT-RUN-OUT: #<=|<= T
+'' EXPECT-RUN-OUT: #<=|>= F
+'' EXPECT-RUN-OUT: #<=|and F
+'' EXPECT-RUN-OUT: #<=|or T
+'' EXPECT-RUN-OUT: #<=|xor T
+'' EXPECT-RUN-OUT: #<=|eqv T
+'' EXPECT-RUN-OUT: #<=|imp T
+'' EXPECT-RUN-OUT: #<=|andalso F
+'' EXPECT-RUN-OUT: #<=|orelse T
+'' EXPECT-RUN-OUT: #>=|* T
+'' EXPECT-RUN-OUT: #>=|\ T
+'' EXPECT-RUN-OUT: #>=|mod T
+'' EXPECT-RUN-OUT: #>=|+ T
+'' EXPECT-RUN-OUT: #>=|- T
+'' EXPECT-RUN-OUT: #>=|shl F
+'' EXPECT-RUN-OUT: #>=|shr T
+'' EXPECT-RUN-OUT: #>=|= F
+'' EXPECT-RUN-OUT: #>=|<> T
+'' EXPECT-RUN-OUT: #>=|< T
+'' EXPECT-RUN-OUT: #>=|> F
+'' EXPECT-RUN-OUT: #>=|<= T
+'' EXPECT-RUN-OUT: #>=|>= F
+'' EXPECT-RUN-OUT: #>=|and T
+'' EXPECT-RUN-OUT: #>=|or T
+'' EXPECT-RUN-OUT: #>=|xor T
+'' EXPECT-RUN-OUT: #>=|eqv T
+'' EXPECT-RUN-OUT: #>=|imp T
+'' EXPECT-RUN-OUT: #>=|andalso T
+'' EXPECT-RUN-OUT: #>=|orelse T
+'' EXPECT-RUN-OUT: #and|* T
+'' EXPECT-RUN-OUT: #and|\ F
+'' EXPECT-RUN-OUT: #and|mod F
+'' EXPECT-RUN-OUT: #and|+ T
+'' EXPECT-RUN-OUT: #and|- F
+'' EXPECT-RUN-OUT: #and|shl T
+'' EXPECT-RUN-OUT: #and|shr F
+'' EXPECT-RUN-OUT: #and|= F
+'' EXPECT-RUN-OUT: #and|<> T
+'' EXPECT-RUN-OUT: #and|< F
+'' EXPECT-RUN-OUT: #and|> T
+'' EXPECT-RUN-OUT: #and|<= F
+'' EXPECT-RUN-OUT: #and|>= T
+'' EXPECT-RUN-OUT: #and|and T
+'' EXPECT-RUN-OUT: #and|or T
+'' EXPECT-RUN-OUT: #and|xor F
+'' EXPECT-RUN-OUT: #and|eqv T
+'' EXPECT-RUN-OUT: #and|imp T
+'' EXPECT-RUN-OUT: #and|andalso T
+'' EXPECT-RUN-OUT: #and|orelse T
+'' EXPECT-RUN-OUT: #or|* T
+'' EXPECT-RUN-OUT: #or|\ T
+'' EXPECT-RUN-OUT: #or|mod T
+'' EXPECT-RUN-OUT: #or|+ T
+'' EXPECT-RUN-OUT: #or|- T
+'' EXPECT-RUN-OUT: #or|shl T
+'' EXPECT-RUN-OUT: #or|shr T
+'' EXPECT-RUN-OUT: #or|= T
+'' EXPECT-RUN-OUT: #or|<> T
+'' EXPECT-RUN-OUT: #or|< T
+'' EXPECT-RUN-OUT: #or|> T
+'' EXPECT-RUN-OUT: #or|<= T
+'' EXPECT-RUN-OUT: #or|>= T
+'' EXPECT-RUN-OUT: #or|and T
+'' EXPECT-RUN-OUT: #or|or T
+'' EXPECT-RUN-OUT: #or|xor T
+'' EXPECT-RUN-OUT: #or|eqv T
+'' EXPECT-RUN-OUT: #or|imp T
+'' EXPECT-RUN-OUT: #or|andalso T
+'' EXPECT-RUN-OUT: #or|orelse T
+'' EXPECT-RUN-OUT: #xor|* F
+'' EXPECT-RUN-OUT: #xor|\ T
+'' EXPECT-RUN-OUT: #xor|mod T
+'' EXPECT-RUN-OUT: #xor|+ T
+'' EXPECT-RUN-OUT: #xor|- T
+'' EXPECT-RUN-OUT: #xor|shl T
+'' EXPECT-RUN-OUT: #xor|shr T
+'' EXPECT-RUN-OUT: #xor|= T
+'' EXPECT-RUN-OUT: #xor|<> T
+'' EXPECT-RUN-OUT: #xor|< T
+'' EXPECT-RUN-OUT: #xor|> T
+'' EXPECT-RUN-OUT: #xor|<= T
+'' EXPECT-RUN-OUT: #xor|>= T
+'' EXPECT-RUN-OUT: #xor|and T
+'' EXPECT-RUN-OUT: #xor|or T
+'' EXPECT-RUN-OUT: #xor|xor T
+'' EXPECT-RUN-OUT: #xor|eqv T
+'' EXPECT-RUN-OUT: #xor|imp T
+'' EXPECT-RUN-OUT: #xor|andalso T
+'' EXPECT-RUN-OUT: #xor|orelse T
+'' EXPECT-RUN-OUT: #eqv|* T
+'' EXPECT-RUN-OUT: #eqv|\ T
+'' EXPECT-RUN-OUT: #eqv|mod T
+'' EXPECT-RUN-OUT: #eqv|+ T
+'' EXPECT-RUN-OUT: #eqv|- T
+'' EXPECT-RUN-OUT: #eqv|shl T
+'' EXPECT-RUN-OUT: #eqv|shr T
+'' EXPECT-RUN-OUT: #eqv|= T
+'' EXPECT-RUN-OUT: #eqv|<> T
+'' EXPECT-RUN-OUT: #eqv|< T
+'' EXPECT-RUN-OUT: #eqv|> T
+'' EXPECT-RUN-OUT: #eqv|<= T
+'' EXPECT-RUN-OUT: #eqv|>= T
+'' EXPECT-RUN-OUT: #eqv|and T
+'' EXPECT-RUN-OUT: #eqv|or T
+'' EXPECT-RUN-OUT: #eqv|xor T
+'' EXPECT-RUN-OUT: #eqv|eqv T
+'' EXPECT-RUN-OUT: #eqv|imp T
+'' EXPECT-RUN-OUT: #eqv|andalso T
+'' EXPECT-RUN-OUT: #eqv|orelse T
+'' EXPECT-RUN-OUT: #imp|* T
+'' EXPECT-RUN-OUT: #imp|\ T
+'' EXPECT-RUN-OUT: #imp|mod T
+'' EXPECT-RUN-OUT: #imp|+ T
+'' EXPECT-RUN-OUT: #imp|- T
+'' EXPECT-RUN-OUT: #imp|shl T
+'' EXPECT-RUN-OUT: #imp|shr T
+'' EXPECT-RUN-OUT: #imp|= T
+'' EXPECT-RUN-OUT: #imp|<> T
+'' EXPECT-RUN-OUT: #imp|< T
+'' EXPECT-RUN-OUT: #imp|> T
+'' EXPECT-RUN-OUT: #imp|<= T
+'' EXPECT-RUN-OUT: #imp|>= T
+'' EXPECT-RUN-OUT: #imp|and T
+'' EXPECT-RUN-OUT: #imp|or T
+'' EXPECT-RUN-OUT: #imp|xor T
+'' EXPECT-RUN-OUT: #imp|eqv T
+'' EXPECT-RUN-OUT: #imp|imp T
+'' EXPECT-RUN-OUT: #imp|andalso T
+'' EXPECT-RUN-OUT: #imp|orelse T
+'' EXPECT-RUN-OUT: #andalso|* T
+'' EXPECT-RUN-OUT: #andalso|\ T
+'' EXPECT-RUN-OUT: #andalso|mod T
+'' EXPECT-RUN-OUT: #andalso|+ T
+'' EXPECT-RUN-OUT: #andalso|- T
+'' EXPECT-RUN-OUT: #andalso|shl T
+'' EXPECT-RUN-OUT: #andalso|shr F
+'' EXPECT-RUN-OUT: #andalso|= F
+'' EXPECT-RUN-OUT: #andalso|<> T
+'' EXPECT-RUN-OUT: #andalso|< F
+'' EXPECT-RUN-OUT: #andalso|> T
+'' EXPECT-RUN-OUT: #andalso|<= F
+'' EXPECT-RUN-OUT: #andalso|>= T
+'' EXPECT-RUN-OUT: #andalso|and T
+'' EXPECT-RUN-OUT: #andalso|or T
+'' EXPECT-RUN-OUT: #andalso|xor T
+'' EXPECT-RUN-OUT: #andalso|eqv T
+'' EXPECT-RUN-OUT: #andalso|imp T
+'' EXPECT-RUN-OUT: #andalso|andalso T
+'' EXPECT-RUN-OUT: #andalso|orelse T
+'' EXPECT-RUN-OUT: #orelse|* T
+'' EXPECT-RUN-OUT: #orelse|\ T
+'' EXPECT-RUN-OUT: #orelse|mod T
+'' EXPECT-RUN-OUT: #orelse|+ T
+'' EXPECT-RUN-OUT: #orelse|- T
+'' EXPECT-RUN-OUT: #orelse|shl T
+'' EXPECT-RUN-OUT: #orelse|shr T
+'' EXPECT-RUN-OUT: #orelse|= T
+'' EXPECT-RUN-OUT: #orelse|<> T
+'' EXPECT-RUN-OUT: #orelse|< T
+'' EXPECT-RUN-OUT: #orelse|> T
+'' EXPECT-RUN-OUT: #orelse|<= T
+'' EXPECT-RUN-OUT: #orelse|>= T
+'' EXPECT-RUN-OUT: #orelse|and T
+'' EXPECT-RUN-OUT: #orelse|or T
+'' EXPECT-RUN-OUT: #orelse|xor T
+'' EXPECT-RUN-OUT: #orelse|eqv T
+'' EXPECT-RUN-OUT: #orelse|imp T
+'' EXPECT-RUN-OUT: #orelse|andalso T
+'' EXPECT-RUN-OUT: #orelse|orelse T
