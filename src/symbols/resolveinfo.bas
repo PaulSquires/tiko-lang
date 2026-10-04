@@ -17,6 +17,9 @@ end sub
 
 sub SemanticInfo.SetRef( byval n as NodeId, byval s as SymbolId )
     if cast( long, n ) < this.refSymbol.Count then
+        if this.refSymbol[cast( long, n )] <> cast( ulong, s ) then this.version += 1
+    end if
+    if cast( long, n ) < this.refSymbol.Count then
         this.refSymbol[cast( long, n )] = cast( ulong, s )
     end if
 end sub
@@ -28,6 +31,7 @@ end function
 
 sub SemanticInfo.SetType( byval n as NodeId, byval t as TypeId )
     if cast( long, n ) < this.nodeType.Count then
+        if this.nodeType[cast( long, n )] <> cast( ulong, t ) then this.version += 1
         this.nodeType[cast( long, n )] = cast( ulong, t )
     end if
 end sub

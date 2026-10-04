@@ -1,0 +1,6 @@
+'' 24 nested calls over an untyped leaf: one TKO0743, no exponential retyping (audit F-36).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/untyped-nest.bas -o tests/diagnostics/src/untyped-nest.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0743
+'' EXPECT-MAX-DIAG: 1

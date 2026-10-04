@@ -20,6 +20,11 @@ type Ctx
     '' so a circular pair would recurse until the stack ran out; a compiler must not
     '' fall over on input fbc merely rejects.
     as long                     constDepth
+    '' THE UNTYPED MEMO -- see TypeOf_ (audit F-36).
+    as long                     typeDepth
+    as ulong                    memoEpoch
+    as FB.Array( of ulong )     memoEp
+    as FB.Array( of ulong )     memoVer
 end type
 
 const CONST_DEPTH_MAX as long = 64
@@ -604,7 +609,37 @@ private function ClosureInvokeOf_ _
         c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
 end function
 
+declare function TypeOfUncached_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+'' A NODE FOUND UNTYPED STAYS UNTYPED within one outermost question, until a SetType or
+'' SetRef anywhere (SemanticInfo.version). 'f( f( ... f( zz ) ... ) )' re-typed every
+'' argument per overload attempt: 2x per level, 24 levels took 89 s (audit F-36).
 function TypeOf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+    if id = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId known = c.info->TypeOf_( id )
+    if known <> Tko.TYPE_NONE then return known
+    dim as long n = cast( long, id )
+    if c.typeDepth = 0 then c.memoEpoch += 1
+    if n < c.memoEp.Count then
+        if (c.memoEp[n] = c.memoEpoch) andalso (c.memoVer[n] = c.info->version) then
+            return Tko.TYPE_NONE
+        end if
+    end if
+    c.typeDepth += 1
+    dim as Tko.TypeId t = TypeOfUncached_( c, id )
+    c.typeDepth -= 1
+    if t = Tko.TYPE_NONE then
+        while c.memoEp.Count <= n : c.memoEp.Push( 0 ) : c.memoVer.Push( 0 ) : wend
+        c.memoEp[n] = c.memoEpoch
+        c.memoVer[n] = c.info->version
+    end if
+    return t
+end function
+
+private function TypeOfUncached_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
     if id = Tko.NODE_NONE then return Tko.TYPE_NONE

@@ -42,6 +42,9 @@ namespace Tko
     '' this is cheaper and simpler than a map.
     type SemanticInfo
         as SymIdVec   refSymbol     '' NodeId -> SymbolId  (identifiers, call targets)
+        '' Bumped by every SetType and SetRef that CHANGES something: Check's "this node
+        '' is untyped" memo is valid only while it is unchanged.
+        as ulong      version
         as TypeIdVec3 nodeType      '' NodeId -> TypeId    (type references)
         as SymIdVec   nodeScope     '' NodeId -> ScopeId   (recorded by Collect)
         as ByteVec    ambiguous     '' NodeId -> AmbiguousResolution
