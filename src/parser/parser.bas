@@ -61,7 +61,7 @@ declare function AcceptNext_( byref p as Tko.ParserState, byval openedAt as Tko.
 declare function IsLabelHere_( byref p as Tko.ParserState ) as boolean
 declare function ParenlessFnCall_( byref p as Tko.ParserState, byval callee as Tko.NodeId, _
     byval loc as Tko.SourceLoc, byref args as Tko.NodeIdVec ) as Tko.NodeId
-declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean
+declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean : declare sub ParenGroupOperand_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byref args as Tko.NodeIdVec )
 declare function CheckEndOfStatement_( byref p as Tko.ParserState, byval n as Tko.NodeId = Tko.NODE_NONE ) as boolean
 declare function EndClosesOther_ _
     ( byref p as Tko.ParserState, byval what as Tko.TokenKind ) as boolean
@@ -918,7 +918,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     '' Anything else on the line is a paren-less argument list.
-    dim as Tko.NodeIdVec args
+    dim as Tko.NodeIdVec args : ParenGroupOperand_( p, sp, args )  '' 'f (x) * 0' -- parserend.bas
 
     '' 'proc (x), y' IS ONE CALL WITH TWO ARGUMENTS, the first of them parenthesised.
     '' The postfix parser has already taken '(x)' as the call's whole ARGUMENT LIST,

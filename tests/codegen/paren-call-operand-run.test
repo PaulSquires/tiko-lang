@@ -1,0 +1,12 @@
+'' RUN: 'func ((5 - 1) + 1) * 0' is one call whose argument is the whole expression. The
+'' paren group was taken as the call's argument list and '* 0' dropped: fbc prints 0, 5, 6,
+'' tiko printed 5, 5, 2. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/paren-call-operand.bas -o tests/codegen/parencalloperand.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/parencalloperand.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: n= 0
+'' EXPECT-RUN-OUT: n= 5
+'' EXPECT-RUN-OUT: n= 6

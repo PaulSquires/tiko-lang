@@ -1343,8 +1343,10 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
     return ErrorNode( p, Tko.TKO0400 )
 end function
 
+'' 'seed' is a LEFT OPERAND already parsed -- see ParenGroupOperand_ in parserend.bas.
 function Expression _
-    ( byref p as Tko.ParserState, byval minPrec as long = 1 ) as Tko.NodeId
+    ( byref p as Tko.ParserState, byval minPrec as long = 1, _
+      byval seed as Tko.NodeId = Tko.NODE_NONE ) as Tko.NodeId
 
     p.depth += 1
     if p.depth > Tko.PARSE_MAX_DEPTH then
@@ -1352,7 +1354,8 @@ function Expression _
         return ErrorNode( p, Tko.TKO0403, str( Tko.PARSE_MAX_DEPTH ) )
     end if
 
-    dim as Tko.NodeId left = Prefix( p )
+    dim as Tko.NodeId left = seed
+    if left = Tko.NODE_NONE then left = Prefix( p )
 
     do
         dim as Tko.TokenKind k = Peek( p )

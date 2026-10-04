@@ -743,6 +743,8 @@ private sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k
         end select
         return
     end if
+    '' '*p.i' over a pointer p is TKO0630's, on the '.', and not reported twice.
+    if c.ast->Kind( opnd ) = N_MEMBER then return
     dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( opnd ) )
     if t = TYPE_NONE then return
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )

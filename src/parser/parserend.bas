@@ -278,6 +278,27 @@ end sub
 '' procedure the program declared itself under one of these names is left alone.
 const PARENLESS_FN_CALLS_ = "|bin|hex|oct|wbin|whex|woct|left|right|space|wspace|dir|"
 
+'' 'func ((5 - 1) + 1) * 0' IS ONE CALL WHOSE ARGUMENT IS '((5 - 1) + 1) * 0' -- 0. The
+'' postfix parser took the paren group as the call's whole argument list, and what
+'' followed was read as more paren-less arguments: '* 0' became a SECOND argument, a
+'' dereference of 0, and was dropped -- fbc prints 0, 5, 6 for '* 0', '* 1' and 'func (2)
+'' * 3', tiko printed 5, 5, 2. structs/obj_static_dyn.bas writes it. A ONE-ITEM group
+'' followed by a binary operator is the first argument's left operand; a comma after the
+'' argument continues the list.
+sub ParenGroupOperand_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byref args as Tko.NodeIdVec )
+    dim as Tko.TokenKind k = Peek( p )
+    if (k = Tko.TK_EQ) orelse (Tko.InfixPrec( k ) = 0) then return
+    if sp.a = Tko.NODE_NONE then return
+    if p.ast->Kind( sp.a ) <> Tko.N_CALL then return
+    dim as Tko.ListPayload ptr lcp = @p.ast->lists[cast( long, p.ast->nodes[cast( long, sp.a )].data )]
+    if (lcp->count <> 1) orelse (lcp->target = Tko.NODE_NONE) then return
+    dim as Tko.NodeId inner = cast( Tko.NodeId, p.ast->children[lcp->first] )
+    sp.a = lcp->target
+    args.Push( cast( ulong, Expression( p, 1, inner ) ) )
+    Accept( p, Tko.TK_COMMA )
+end sub
+
 function ParenlessFnCall_ _
     ( byref p as Tko.ParserState, byval callee as Tko.NodeId, byval loc as Tko.SourceLoc, _
       byref args as Tko.NodeIdVec ) as Tko.NodeId

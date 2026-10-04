@@ -180,7 +180,8 @@ declare function ArgOrElided _
     ( byref p as Tko.ParserState, byval closer as Tko.TokenKind, byval tyOk as boolean = true ) as Tko.NodeId
 
     declare function Expression _
-        ( byref p as Tko.ParserState, byval minPrec as long = 1 ) as Tko.NodeId
+        ( byref p as Tko.ParserState, byval minPrec as long = 1, _
+          byval seed as Tko.NodeId = Tko.NODE_NONE ) as Tko.NodeId
 
     '' Parse one whole token vector as a single expression. Used by the expression
     '' tests and by the precedence differential harness.
