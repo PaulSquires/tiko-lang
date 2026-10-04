@@ -931,8 +931,12 @@ function Run _
             dim as Tko.PpConfig hcfg = MakePpConfig( ctx )
             hcfg.scanHeader = true
             hcfg.scanQuiet = true
+            '' Its diagnostics are forgotten: the compile reads the file again (F-52).
+            dim as long hp0, he0, hw0, hs0
+            ctx.diags.Snapshot( hp0, he0, hw0, hs0 )
             Tko.PpRun( ctx.sources, cast( Tko.FileId, 1 ), ctx.names, ctx.keywords, _
                        ctx.diags, hcfg, hpr )
+            ctx.diags.RollBack( hp0, he0, hw0, hs0 )
             if hpr.cmdlineArgs.Count > 0 then return RestartWith_( args, hpr.cmdlineArgs, restartDepth )
         end if
         if builds then

@@ -1,0 +1,7 @@
+'' A LEXER WARNING IS REPORTED ONCE: the module graph's header scan lexed through the real
+'' engine, and 'print "abc' came out three times (audit F-52).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/lexer-warning-once.bas -o tests/diagnostics/src/lexer-warning-once.o
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: lexer-warning-once.bas(1,7): warning TKO0201
+'' EXPECT-MAX-DIAG: 1

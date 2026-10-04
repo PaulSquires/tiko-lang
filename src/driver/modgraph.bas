@@ -47,7 +47,14 @@ private sub ScanFile_ _
     cfg.cmdlineIgnored = true
     dim as Tko.StrVec noDefines
     if isRoot = false then cfg.defines = @noDefines
+    '' WHAT THE SCAN REPORTS IS FORGOTTEN: the compile preprocesses the same file and
+    '' says it once. Through the real engine a lexer warning came out twice in a build
+    '' ('print "abc' -- TKO0201 twice), and a lexer ERROR stopped the graph and hid
+    '' every later error with it (audit F-52). The graph's own errors come after.
+    dim as long p0, e0, w0, s0
+    ctx.diags.Snapshot( p0, e0, w0, s0 )
     Tko.PpRun( ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
+    ctx.diags.RollBack( p0, e0, w0, s0 )
 end sub
 
 '' Every import of one file, resolved and added as an edge from node 'from' -- or, for a
