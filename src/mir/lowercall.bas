@@ -740,6 +740,20 @@ function LowerCallParts _
                         end if
                     end if
                 end if
+            elseif (callee <> Tko.SYMBOL_NONE) orelse (calleeSigT <> Tko.TYPE_NONE) then
+                '' A NARROW STRING IN A VARIADIC TAIL IS ITS DATA POINTER, as for a 'zstring
+                '' ptr' parameter. With no parameter to coerce to it went out as LowerExpr
+                '' made it -- the 24-byte DESCRIPTOR, by value -- so 'printf( !"%s", s )'
+                '' printed nothing or faulted, and 's & "x"' did not lower at all. Measured,
+                '' fbc passes '*(char**)&S$0', a fixed string's own address, and an rvalue's
+                '' temporary: 'fb_StrAssign( &TMP, -1, vr, -1, 0 ); printf( .., *(char**)&TMP )'.
+                dim as Tko.TypeId vat = c.info->TypeOf_( argNode )
+                if vat <> Tko.TYPE_NONE then
+                    wantsZPtr = IsStringType( c, vat ) andalso (IsUStringType( c, vat ) = false)
+                    dim as longint vakn
+                    dim as long vak = StrSwapKind_( c, vat, vakn )
+                    if (vak = 1) orelse (vak = 3) then wantsZPtr = true
+                end if
             end if
             if wantsWPtr then
                 if WideArgOperand_( c, argNode, a, strTemps, strTempTypes ) = false then

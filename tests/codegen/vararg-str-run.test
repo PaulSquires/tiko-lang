@@ -1,0 +1,19 @@
+'' RUN: a narrow string in a C variadic tail is its DATA POINTER -- a variable, a
+'' concatenation, a fixed string, a call result, a field and an array element, as fbc
+'' passes each. It went out as the 24-byte descriptor by value, and the concatenation
+'' did not lower at all. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/vararg-str.bas -o tests/codegen/varargstr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/varargstr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1[abc]
+'' EXPECT-RUN-OUT: 2[abcx]
+'' EXPECT-RUN-OUT: 3[fixed]
+'' EXPECT-RUN-OUT: 4[fstr  ]
+'' EXPECT-RUN-OUT: 5[fromfn]
+'' EXPECT-RUN-OUT: 6[field]
+'' EXPECT-RUN-OUT: 7[e1]
+'' EXPECT-RUN-OUT: 8[lit 3]
