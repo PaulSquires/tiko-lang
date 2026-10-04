@@ -1,0 +1,15 @@
+'' RUN: a graphics GET into a POINTER passes the pointer's value, and a PUT from an ARRAY
+'' ELEMENT passes the element's address. GET took the address of the pointer variable and
+'' PUT loaded the element, and both wrote or read through garbage. Output identical to
+'' fbc-modern's, on a GFX_NULL screen.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/gfx-get-put-ptr.bas -o tests/codegen/gfxgetputptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gfxgetputptr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: 8             8              4            32
+'' EXPECT-RUN-OUT: FF0A141E
+'' EXPECT-RUN-OUT: FF0A141E

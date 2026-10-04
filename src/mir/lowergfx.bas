@@ -435,6 +435,30 @@ function LowerGfxDraw( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     return true
 end function
 
+'' THE IMAGE BUFFER OF A GET OR A PUT: a POINTER is its VALUE, anything else its ADDRESS
+'' -- the rule PALETTE ... USING below was measured with. GET took the address first and
+'' PUT the value first, so each was wrong for half the shapes:
+''
+''     get (8,6)-(11,9), img          img as any ptr  ->  fb_GfxGet( .., @img, .. )
+''     put (40,40), buf( 0 ), pset    buf as ulong array  ->  the ELEMENT'S VALUE
+''
+'' and both crashed -- GET wrote the image header and pixels over the pointer variable
+'' and whatever followed it. Measured, fbc passes 'IMG$0' for the first and '&BUF$0[0]'
+'' for the second. An rvalue with no address -- 'imagecreate( 4, 4 )' -- is a pointer
+'' and takes the first arm.
+private function GfxBufferOperand_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
+    dim as MirValue v
+    dim as Tko.TypeId t = c.info->TypeOf_( n )
+    if t <> Tko.TYPE_NONE then t = c.types->Unqualify( t )
+    if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( t ) = Tko.TK_POINTER) then
+        v = LowerExpr( c, n )
+    else
+        v = LowerAddr( c, n )
+        if v.kind = cast( ubyte, MV_NONE ) then v = LowerExpr( c, n )
+    end if
+    return v
+end function
+
 '' GET [target,] (x1,y1)-(x2,y2), destination
 ''
 '' The eighth argument is an ARRAY DESCRIPTOR when the destination is an array element
@@ -453,8 +477,7 @@ function LowerGfxGet( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.NodeId dn = GfxArg( c, sp, 4 )
     if dn = Tko.NODE_NONE then return false
-    dim as MirValue dst = LowerAddr( c, dn )
-    if dst.kind = cast( ubyte, MV_NONE ) then dst = LowerExpr( c, dn )
+    dim as MirValue dst = GfxBufferOperand_( c, dn )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
     dst = Coerce( c, dst, MT_PTR )
 
@@ -505,8 +528,7 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.NodeId sn = GfxArg( c, sp, 2 )
     if sn = Tko.NODE_NONE then return false
-    dim as MirValue src = LowerExpr( c, sn )
-    if src.kind = cast( ubyte, MV_NONE ) then src = LowerAddr( c, sn )
+    dim as MirValue src = GfxBufferOperand_( c, sn )
     if src.kind = cast( ubyte, MV_NONE ) then return false
     src = Coerce( c, src, MT_PTR )
 
