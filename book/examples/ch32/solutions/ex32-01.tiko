@@ -1,0 +1,22 @@
+'' Exercise 32-1: equal hashes are a strong hint, not a proof. Compare
+'' the bytes before calling two files copies.
+#import "std/fs"
+#import "std/containers"
+
+function SameBytes( byref a as ustring, byref b as ustring ) as boolean
+    dim as containers.Array( of ubyte ) x, y
+    if fs.ReadAllBytes( a, x ).IsOk( ) = false then return false
+    if fs.ReadAllBytes( b, y ).IsOk( ) = false then return false
+    if x.Count( ) <> y.Count( ) then return false
+    for i as int32 = 0 to x.Count( ) - 1
+        if x[ i ] <> y[ i ] then return false
+    next
+    return true
+end function
+
+print SameBytes( "../sample/docs/notes.txt", _
+                 "../sample/archive/notes-old.txt" )
+print SameBytes( "../sample/photos/lighthouse.img", _
+                 "../sample/archive/2025/IMG_0042.img" )
+print SameBytes( "../sample/photos/lighthouse.img", _
+                 "../sample/photos/harbour.img" )

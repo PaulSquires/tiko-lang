@@ -53,6 +53,7 @@
 # Projects
 
 - [31. Capstone: a CLI Search Tool](ch31-tsearch.md)
+- [32. Capstone: a Concurrent Pipeline](ch32-thash.md)
 
 # Appendices
 

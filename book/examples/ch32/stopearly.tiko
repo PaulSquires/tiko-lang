@@ -1,0 +1,34 @@
+#import "std/tasks"
+#cmdline "-mt"
+#include once "fb/select.bi"
+
+'' Would send a million values; stops as soon as its context is done.
+sub Produce( byval ctx as tasks.Context, _
+             byval out_ as tasks.Channel( of int32 ), _
+             byval done_ as tasks.SendChan( of ustring ) )
+    dim as int32 sent = 0
+    for i as int32 = 1 to 1000000
+        select channel
+            case send i to out_            : sent += 1
+            case receive from ctx.Done( )  : exit for
+        end select
+    next
+    out_.Close( )
+    done_.Send( "producer sent " & sent & ", then " & ctx.Err( ) )
+end sub
+
+var ctx = tasks.WithCancel( tasks.Context( ) )
+var values = tasks.Channel( of int32 )( 0 )   '' no buffer: a handover
+var finished = tasks.Channel( of ustring )( 1 )
+spawn Produce( ctx, values, finished )
+
+dim as int32 v
+for k as int32 = 1 to 3
+    values.Receive( v )
+    print "got"; v
+next
+ctx.Cancel( )                                  '' enough
+
+dim as ustring why
+finished.Receive( why )
+print why

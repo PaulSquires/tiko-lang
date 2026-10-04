@@ -1,0 +1,233 @@
+'' ANCHOR: head
+#import "std/tasks"
+#cmdline "-mt"
+#import "std/fs"
+#import "std/containers"
+#import "std/numeric"
+#import "std/chrono"
+#import "std/logs"
+#include once "fb/select.bi"
+'' ANCHOR_END: head
+
+'' ANCHOR: types
+'' What one run of thash was asked to do.
+type Options
+    as ustring root
+    as int32 workers = 4
+    as int32 timeoutMs = 0          '' 0: no time limit
+    as boolean verbose
+end type
+
+'' What a hasher found out about one file.
+type FileHash
+    as ustring path
+    as int64 size
+    as ulongint hash
+    as ustring problem              '' "" when the file was read
+end type
+'' ANCHOR_END: types
+
+'' A path as thash prints it: '/' between components everywhere.
+function DisplayPath( byref path as ustring ) as ustring
+    dim as ustring p = path
+    for i as int32 = 0 to len( p ) - 1
+        if p[ i ] = asc( "\" ) then p[ i ] = asc( "/" )
+    next
+    return p
+end function
+
+'' ANCHOR: parse
+'' Read the command line into opts; "" if it makes sense, else why not.
+function ParseArgs( byref opts as Options ) as ustring
+    dim as int32 i = 1
+    do while len( command( i ) ) > 0
+        dim as ustring a = command( i )
+        select case a
+        case "-j", "-t"
+            i += 1
+            dim as int32 n = valint( command( i ) )
+            if n < 1 then return a & " needs a number above 0"
+            if a = "-j" then opts.workers = n else opts.timeoutMs = n
+        case "-v" : opts.verbose = true
+        case else
+            if left( a, 1 ) = "-" then return "unknown option " & a
+            if len( opts.root ) > 0 then return "only one directory"
+            opts.root = a
+        end select
+        i += 1
+    loop
+    if len( opts.root ) = 0 then return "no directory given"
+    if fs.IsDir( opts.root ) = false then
+        return opts.root & " is not a directory"
+    end if
+    return ""
+end function
+'' ANCHOR_END: parse
+
+'' ANCHOR: walk
+'' Stage 1: every file under root, into paths. Stops early when the
+'' context is done; closes paths either way, so the hashers finish.
+'' A select case needs the channel itself, not a SendChan view of it.
+sub Walk( byval root as ustring, byval ctx as tasks.Context, _
+          byval paths as tasks.Channel( of ustring ) )
+    for each r in fs.WalkDir( root )
+        if r.IsOk( ) andalso r.Value( ).IsFile( ) then
+            dim as ustring p = r.Value( ).Path( )
+            select channel
+                case send p to paths            : '' on to the next
+                case receive from ctx.Done( )   : exit for
+            end select
+        end if
+    next
+    paths.Close( )
+end sub
+'' ANCHOR_END: walk
+
+'' ANCHOR: hash
+'' Stage 2, run by several goroutines at once: read each file whole and
+'' hash its bytes. A file that cannot be read is reported, not dropped.
+sub Hasher( byval ctx as tasks.Context, _
+            byval paths as tasks.RecvChan( of ustring ), _
+            byval results as tasks.SendChan( of FileHash ), _
+            byval lg as logs.Logger ptr, _
+            byval wg as FB.WaitGroup ptr )
+    dim as ustring p
+    do while paths.Receive( p )
+        if len( ctx.Err( ) ) > 0 then exit do
+        dim fh as FileHash
+        fh.path = p
+        dim bytes as containers.Array( of ubyte )
+        var got = fs.ReadAllBytes( p, bytes )
+        if got.IsOk( ) = false then
+            fh.problem = got.Failure( ).Message( )
+            lg->Warn( ).Str( "path", DisplayPath( p ) ) _
+                       .Msg( fh.problem )
+        else
+            fh.size = got.Value( )
+            if fh.size = 0 then
+                fh.hash = containers.HashBytes( 0, 0 )
+            else
+                fh.hash = containers.HashBytes( @bytes[ 0 ], fh.size )
+            end if
+            lg->Debug( ).Str( "path", DisplayPath( p ) ) _
+                        .Int_( "bytes", fh.size ).Msg( "hashed" )
+        end if
+        results.Send( fh )
+    loop
+    wg->Done( )
+end sub
+
+'' Closes results once every hasher has finished: the collector's
+'' 'for each' ends there.
+sub CloseWhenDone( byval wg as FB.WaitGroup ptr, _
+                   byval results as tasks.Channel( of FileHash ) )
+    wg->Wait( )
+    results.Close( )
+end sub
+'' ANCHOR_END: hash
+
+'' ANCHOR: report
+'' Groups of identical files, each sorted, the groups in order of their
+'' first path; then how much space the extra copies take.
+sub Report( byref byHash as containers.Map _
+                ( of ulongint, containers.Array( of ustring ) ), _
+            byref bytesOf as containers.Map( of ulongint, int64 ) )
+    dim heads as containers.Array( of ustring )
+    dim headHash as containers.Map( of ustring, ulongint )
+    for each kv in byHash
+        if kv.value.Count( ) > 1 then
+            var group = kv.value
+            containers.Sort( group )
+            heads.Push( group[ 0 ] )
+            headHash[ group[ 0 ] ] = kv.key
+        end if
+    next
+    containers.Sort( heads )
+
+    dim as int64 wasted = 0
+    for each h in heads
+        var group = byHash[ headHash[ h ] ]
+        containers.Sort( group )
+        dim as int64 size = bytesOf[ headHash[ h ] ]
+        print group.Count( ); " copies of"; size; " bytes, ";
+        print "hash "; lcase( hex( headHash[ h ], 16 ) )
+        for each p in group
+            print "    "; DisplayPath( p )
+        next
+        wasted += size * ( group.Count( ) - 1 )
+    next
+    print heads.Count( ); " groups;"; wasted; " bytes in extra copies"
+end sub
+'' ANCHOR_END: report
+
+'' ANCHOR: main
+dim opts as Options
+var problem = ParseArgs( opts )
+if len( problem ) > 0 then
+    dim as int32 e = freefile( )
+    open err for output as #e
+    print #e, "thash: "; problem
+    print #e, "usage: thash [-j workers] [-t ms] [-v] directory"
+    close #e
+    end 2
+end if
+
+'' Diagnostics go to stderr; -v adds a line for every file hashed.
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDERR, @tr )
+dim lg as logs.Logger
+lg.MinLevel = iif( opts.verbose, logs.LOG_DEBUG, logs.LOG_WARN )
+lg.AddSink( @con )
+
+dim ctx as tasks.CancelContext
+if opts.timeoutMs > 0 then
+    ctx = tasks.WithTimeout( tasks.Context( ), opts.timeoutMs )
+else
+    ctx = tasks.WithCancel( tasks.Context( ) )
+end if
+
+'' Buffered channels: a full one makes its sender wait.
+var paths = tasks.Channel( of ustring )( opts.workers * 2 )
+var results = tasks.Channel( of FileHash )( opts.workers )
+dim wg as tasks.WaitGroup
+
+var clock = chrono.Stopwatch.StartNew( )
+spawn Walk( opts.root, ctx, paths )
+for w as int32 = 1 to opts.workers
+    wg.Add( )
+    spawn Hasher( ctx, paths, results, @lg, @wg )
+next
+spawn CloseWhenDone( @wg, results )
+
+'' Stage 3, here in the main program: collect.
+dim byHash as containers.Map _
+    ( of ulongint, containers.Array( of ustring ) )
+dim bytesOf as containers.Map( of ulongint, int64 )
+dim sizes as numeric.RunningStats
+dim as int64 total = 0
+dim as int32 unreadable = 0
+for each fh in results
+    if len( fh.problem ) > 0 then
+        unreadable += 1
+    else
+        byHash[ fh.hash ].Push( fh.path )
+        bytesOf[ fh.hash ] = fh.size
+        sizes.Add( fh.size )
+        total += fh.size
+    end if
+next
+var stopped = ctx.Err( )
+ctx.Cancel( )
+
+print sizes.Count( ); " files,"; total; " bytes; smallest"; _
+      sizes.MinValue( ); ", largest"; sizes.MaxValue( ); ", mean"; _
+      numeric.Round( sizes.Mean( ), 1 )
+Report( byHash, bytesOf )
+if unreadable > 0 then print unreadable; " files could not be read"
+if len( stopped ) > 0 then print "stopped early ("; stopped; ")"
+if opts.verbose then
+    lg.Info( ).Int_( "ms", clock.ElapsedMilliseconds( ) ).Msg( "done" )
+end if
+end iif( unreadable > 0 orelse len( stopped ) > 0, 1, 0 )
+'' ANCHOR_END: main

@@ -1,0 +1,41 @@
+'' Exercise 32-2: two walkers, one per directory, feeding one channel.
+'' The last one to finish closes it -- a WaitGroup decides which.
+#import "std/tasks"
+#cmdline "-mt"
+#import "std/fs"
+#import "std/containers"
+
+sub Walk( byval root as ustring, _
+          byval paths as tasks.SendChan( of ustring ), _
+          byval wg as FB.WaitGroup ptr )
+    for each r in fs.WalkDir( root )
+        if r.IsOk( ) andalso r.Value( ).IsFile( ) then
+            paths.Send( r.Value( ).Name( ) )
+        end if
+    next
+    wg->Done( )
+end sub
+
+sub CloseWhenDone( byval wg as FB.WaitGroup ptr, _
+                   byval paths as tasks.Channel( of ustring ) )
+    wg->Wait( )
+    paths.Close( )
+end sub
+
+var paths = tasks.Channel( of ustring )( 4 )
+dim wg as tasks.WaitGroup
+wg.Add( )
+spawn Walk( "../sample/docs", paths, @wg )
+wg.Add( )
+spawn Walk( "../sample/photos", paths, @wg )
+spawn CloseWhenDone( @wg, paths )
+
+'' The two walkers interleave, so sort before printing.
+dim names as containers.Array( of ustring )
+for each p in paths
+    names.Push( p )
+next
+containers.Sort( names )
+for each n in names
+    print n
+next

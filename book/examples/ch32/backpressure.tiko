@@ -1,0 +1,28 @@
+#import "std/tasks"
+#cmdline "-mt"
+#include once "fbatomic.bi"
+
+'' Sends as fast as it can, counting each value the channel accepted.
+sub Produce( byval out_ as tasks.SendChan( of int32 ), _
+             byval sent as long ptr )
+    for i as int32 = 1 to 6
+        out_.Send( i )
+        FB.AtomicFetchAddLong( sent, 1 )
+    next
+    out_.Close( )
+end sub
+
+dim as long sent
+var queue = tasks.Channel( of int32 )( 2 )    '' room for two values
+spawn Produce( queue, @sent )
+
+'' Nobody receives yet: the producer fills the buffer, then waits.
+sleep 200, 1
+print "sent before anyone received:"; FB.AtomicLoadLong( @sent )
+
+dim as int32 total = 0
+for each v in queue
+    total += v
+next
+print "received them all, total"; total; _
+      ", sent"; FB.AtomicLoadLong( @sent )
