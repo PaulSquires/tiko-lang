@@ -2,6 +2,7 @@
 
 #include once "driver/diagout.bi"
 #include once "diag/machine.bi"
+#include once "driver/modresolve.bi"
 
 namespace Tko.DiagOut
 
@@ -12,6 +13,22 @@ function Start( byref ctx as Tko.CompilerContext ) as boolean
     '' user sees before anything is compiled, not a silent loss at the end; and a run that
     '' dies before Finish leaves an empty file rather than the last run's records, which
     '' an editor would otherwise show as this build's.
+    '' NEVER ONE OF THE INPUTS: opening it for output truncates it, and the source was
+    '' gone before a byte of it was read (audit F-65).
+    dim as string dfAbs = Tko.Modules.AbsPath( ctx.options.diagFile )
+    for k as long = 0 to ctx.options.inputs.Count - 1
+        dim as string inAbs = Tko.Modules.AbsPath( ctx.options.inputs[k] )
+        #ifdef __FB_WIN32__
+            dim as boolean same = (lcase( inAbs ) = lcase( dfAbs ))
+        #else
+            dim as boolean same = (inAbs = dfAbs)
+        #endif
+        if same then
+            ctx.diags.ReportGlobal( Tko.TKO0954, ctx.options.diagFile )
+            ctx.options.diagFile = ""
+            return false
+        end if
+    next
     dim as long fh = freefile
     '' Spelled as its own statement: the function form of OPEN inside an IF condition
     '' confuses the parser (see BuildFromIr).

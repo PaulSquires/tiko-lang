@@ -1,0 +1,6 @@
+'' '--diagnostics-file' naming an INPUT is refused: opening it for output truncated the
+'' source before it was read (audit F-65).
+'' TEST: cli
+'' ARGS: --diagnostics-file tests/driver/src/multi-c-a.bas -c tests/driver/src/multi-c-a.bas -o tests/driver/diagin.o
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0954
