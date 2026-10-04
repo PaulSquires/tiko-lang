@@ -1,0 +1,12 @@
+'' RUN: sgn over any integer is INTEGER and over a float keeps the float's type, as fbc
+'' types it: it was LONG for all, so 'hex( sgn( clng( -4 ) ), 11 )' printed 000FFFFFFFF and
+'' 'sgn( d ) / 4' integer-divided. Found by build/difflane.sh, seed 235.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/sgn-type.bas -o tests/codegen/sgntype.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/sgntype.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1              1            FFFFFFFFFFF   -1
+'' EXPECT-RUN-OUT: -0.25          0.25

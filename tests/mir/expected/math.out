@@ -68,59 +68,63 @@ func void P() {
     store @n, %44
     %45 = load @q
     %46 = call.rtl i32 fb_SGNl(%45)
-    store @n, %46
-    %47 = load @n
-    %48 = sext %47
-    %49 = call.rtl i32 fb_SGNl(%48)
-    store @n, %49
-    %50 = load @x
-    %51 = sqrt %50
-    store @y, %51
-    %52 = load @x
-    %53 = sin %52
-    store @y, %53
+    %47 = sext %46
+    %48 = trunc %47
+    store @n, %48
+    %49 = load @n
+    %50 = sext %49
+    %51 = call.rtl i32 fb_SGNl(%50)
+    %52 = sext %51
+    %53 = trunc %52
+    store @n, %53
     %54 = load @x
-    %55 = cos %54
+    %55 = sqrt %54
     store @y, %55
     %56 = load @x
-    %57 = tan %56
+    %57 = sin %56
     store @y, %57
     %58 = load @x
-    %59 = asin %58
+    %59 = cos %58
     store @y, %59
     %60 = load @x
-    %61 = acos %60
+    %61 = tan %60
     store @y, %61
     %62 = load @x
-    %63 = atan %62
+    %63 = asin %62
     store @y, %63
     %64 = load @x
-    %65 = log %64
+    %65 = acos %64
     store @y, %65
     %66 = load @x
-    %67 = exp %66
+    %67 = atan %66
     store @y, %67
     %68 = load @x
-    %69 = load @x
-    %70 = call.rtl f64 atan2(%68, %69)
-    store @y, %70
-    %71 = load @x
-    %72 = load @y
-    %73 = call.rtl f64 pow(%71, %72)
-    store @y, %73
-    %74 = load @n
-    %75 = load @n
-    %76 = sitofp %74
-    %77 = sitofp %75
-    %78 = call.rtl f64 pow(%76, %77)
-    store @y, %78
-    %79 = load @f
-    %80 = load @f
-    %81 = fpext %79
-    %82 = fpext %80
-    %83 = call.rtl f64 pow(%81, %82)
-    %84 = fptrunc %83
-    store @g, %84
+    %69 = log %68
+    store @y, %69
+    %70 = load @x
+    %71 = exp %70
+    store @y, %71
+    %72 = load @x
+    %73 = load @x
+    %74 = call.rtl f64 atan2(%72, %73)
+    store @y, %74
+    %75 = load @x
+    %76 = load @y
+    %77 = call.rtl f64 pow(%75, %76)
+    store @y, %77
+    %78 = load @n
+    %79 = load @n
+    %80 = sitofp %78
+    %81 = sitofp %79
+    %82 = call.rtl f64 pow(%80, %81)
+    store @y, %82
+    %83 = load @f
+    %84 = load @f
+    %85 = fpext %83
+    %86 = fpext %84
+    %87 = call.rtl f64 pow(%85, %86)
+    %88 = fptrunc %87
+    store @g, %88
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -149,4 +153,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 127 insts, 0 statements not lowered, 0 scope imbalance

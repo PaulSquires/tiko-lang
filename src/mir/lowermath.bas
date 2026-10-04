@@ -177,6 +177,11 @@ function LowerMathCall_ _
         dim as FB.Array( of ulong ) aa
         aa.Push( cast( ulong, v0.kind ) ) : aa.Push( cast( ulong, v0.id ) )
         outv = EmitRtl( c, r, aa )
+        '' fb_SGN* answer an int32; sgn over an integer is INTEGER -- SIGN-extended here, as
+        '' a -1 must stay -1 whatever widens it next (difflane seed 235).
+        if (nm = "sgn") andalso (outv.kind <> cast( ubyte, MV_NONE )) andalso (isFlt = false) then
+            outv = Coerce( c, outv, MT_I64, false )
+        end if
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
 
