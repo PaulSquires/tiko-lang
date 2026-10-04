@@ -1014,6 +1014,14 @@ function Run _
                 end if
             end if
         end if
+        '' AN INTERMEDIATE OBJECT GOES WHATEVER HAPPENED. LinkAll and ArchiveAll removed them
+        '' only on success, so a failed link, a failed second module or a frontend error
+        '' left 'main.exe.1.o' behind -- 92 of them were found in src/driver (audit F-74).
+        if ctx.options.keepTemps = false then
+            for each t as string in tempObjs
+                dim as long kr = kill( t )   '' the function form: one already gone is no error
+            next
+        end if
 
     elseif ctx.options.dumpAst orelse ctx.options.parseOnly then
         dim as longint nodes = 0

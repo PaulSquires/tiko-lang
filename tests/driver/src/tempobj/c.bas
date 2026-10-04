@@ -1,0 +1,2 @@
+declare sub nolink()
+nolink()
