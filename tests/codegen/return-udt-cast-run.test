@@ -1,0 +1,11 @@
+'' RUN: a UDT returned from a scalar function goes through its 'operator cast', by 'return'
+'' and by 'function =' alike. The aggregate was emitted as the result and clang refused the
+'' module ('value doesn't match function result type'). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/return-udt-cast.bas -o tests/codegen/returnudtcast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/returnudtcast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  7

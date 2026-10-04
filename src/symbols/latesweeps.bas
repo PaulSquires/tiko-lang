@@ -364,14 +364,19 @@ end sub
 '' when the fact being reported is about the procedure as a whole.
 private sub ScanReturnStyles_ _
     ( byref c as Ctx, byval id as NodeId, byref sawReturn as boolean, _
-      byref sawAssign as boolean )
+      byref sawAssign as boolean, byval valRet as NodeId ptr = 0 )
 
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     '' A NESTED PROCEDURE IS ITS OWN QUESTION -- and in FreeBASIC there are none inside a
     '' body, so this is a guard rather than a case that arises.
     if k = N_PROC then return
-    if k = N_RETURN then sawReturn = true
+    if k = N_RETURN then
+        sawReturn = true
+        if valRet <> 0 then
+            if (*valRet = NODE_NONE) andalso (c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )].a <> NODE_NONE) then *valRet = id
+        end if
+    end if
     if k = N_EXIT then
         dim as StmtPayload ptr xp = _
             @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
@@ -393,17 +398,17 @@ private sub ScanReturnStyles_ _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
         for i as long = 0 to lp->count - 1
             ScanReturnStyles_( c, cast( NodeId, c.ast->children[lp->first + i] ), _
-                               sawReturn, sawAssign )
+                               sawReturn, sawAssign, valRet )
         next
         return
     end if
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    ScanReturnStyles_( c, sp->b, sawReturn, sawAssign )
-    ScanReturnStyles_( c, sp->c, sawReturn, sawAssign )
+    ScanReturnStyles_( c, sp->b, sawReturn, sawAssign, valRet )
+    ScanReturnStyles_( c, sp->c, sawReturn, sawAssign, valRet )
     for i as long = 0 to sp->count - 1
         ScanReturnStyles_( c, cast( NodeId, c.ast->children[sp->first + i] ), _
-                           sawReturn, sawAssign )
+                           sawReturn, sawAssign, valRet )
     next
 end sub
 
@@ -426,6 +431,21 @@ private sub CheckByrefResultSet_( byref c as Ctx )
         if sawReturn orelse sawAssign then continue for
         c.diags->Report( TKO0710, PointRange( c.ast->Loc( id ) ), _
                          c.names->Spelling( sp->name ) )
+    next
+end sub
+
+'' A PROCEDURE WITH NO RESULT RETURNS NO VALUE -- fbc's error 17 for 'return 5' in a sub,
+'' a constructor or a property setter. tiko emitted 'ret i64 5' in a void function and
+'' clang refused it (TKO0113).
+private sub CheckSubReturnValue_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if (sp->a <> NODE_NONE) orelse (sp->b = NODE_NONE) then continue for
+        dim as boolean sr = false, sa = false
+        dim as NodeId vr = NODE_NONE
+        ScanReturnStyles_( c, sp->b, sr, sa, @vr )
+        if vr <> NODE_NONE then c.diags->Report( TKO0952, PointRange( c.ast->Loc( vr ) ) )
     next
 end sub
 

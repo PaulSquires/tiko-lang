@@ -267,7 +267,13 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             elseif UdtConvResult_( c, sp->b, false ) then
                 '' Another type into a UDT result slot: the type's own 'let'. See UdtConvResult_.
             else
-                dim as MirValue rval = LowerExpr( c, sp->b )
+                dim as MirValue rval
+                '' A UDT INTO A SCALAR RESULT through its 'operator cast' -- see N_RETURN.
+                dim as boolean rCast = false
+                if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( sp->b ) ) ) = Tko.TK_UDT then
+                    rCast = UserConvToScalar_( c, sp->b, c.resultType, rval )
+                end if
+                if rCast = false then rval = LowerExpr( c, sp->b )
                 if rval.kind = cast( ubyte, MV_NONE ) then
                     SkipHere( c )
                 else
@@ -794,7 +800,16 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
         dim as MirValue rv
         if sp->a <> Tko.NODE_NONE then
-            rv = LowerExpr( c, sp->a )
+            '' A UDT RETURNED AS A SCALAR goes through its 'operator cast', as 'k = u' does:
+            '' 'return u' from an integer function emitted the aggregate and clang refused it.
+            dim as boolean viaCast = false
+            dim as MirType rmt0 = cast( MirType, c.resultTy )
+            if (rmt0 <> MT_VOID) andalso (rmt0 <> MT_AGG) then
+                if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( sp->a ) ) ) = Tko.TK_UDT then
+                    viaCast = UserConvToScalar_( c, sp->a, c.resultType, rv )
+                end if
+            end if
+            if viaCast = false then rv = LowerExpr( c, sp->a )
             '' 'return expr' WHOSE VALUE WOULD NOT LOWER was silent: the terminator
             '' went out with nothing in it and the statement counted as fully lowered,
             '' so a function returned whatever the ABI happened to leave behind. Every

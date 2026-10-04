@@ -347,6 +347,10 @@ end sub
 
 '' 'return expr' in a function declared 'as T ptr'. A byref result returns an address and
 '' is not this question.
+declare sub JudgeConversion_ _
+    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
+      byval byAssign as boolean )
+
 private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
     if resultType = TYPE_NONE then return
     if c.types->Kind( resultType ) = TK_REFERENCE then return
@@ -355,4 +359,9 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.bas (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.bas
     PtrWarn_( c, id, resultType, c.info->TypeOf_( e ), e )
+    '' ...AND AS AN ASSIGNMENT'S VALUE IS: 'return 1.5' from a pointer function, 'return p'
+    '' from a double one and 'return 5' from a UDT one are fbc's 181, as 'r = v' is.
+    PtrFloatPair_( c, e, resultType, c.info->TypeOf_( e ) )
+    '' 'return this' is the object, though tiko types the receiver as its pointer.
+    if IsThisBase_( c, e ) = false then JudgeConversion_( c, e, resultType, c.info->TypeOf_( e ), false )
 end sub

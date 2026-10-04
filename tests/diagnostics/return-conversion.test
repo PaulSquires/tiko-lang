@@ -1,0 +1,17 @@
+'' A RETURN'S VALUE IS JUDGED AS AN ASSIGNMENT'S: 'return u' from an integer function,
+'' 'return 5' from a UDT one, 'return 1.5' as a pointer and 'return p' as a double are
+'' fbc's 181, 'return 5' in a sub its 17. tiko accepted the middle three, and the first
+'' and last reached clang ('value doesn't match function result type').
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/return-conversion.bas -o tests/diagnostics/src/return-conversion.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: return-conversion.bas(7,
+'' EXPECT-OUT: return-conversion.bas(10,
+'' EXPECT-OUT: return-conversion.bas(13,
+'' EXPECT-OUT: return-conversion.bas(17,
+'' EXPECT-OUT: return-conversion.bas(20,5): error TKO0952
+'' EXPECT-NOT: return-conversion.bas(23,
+'' EXPECT-NOT: return-conversion.bas(26,
+'' EXPECT-NOT: return-conversion.bas(29,
+'' EXPECT-NOT: return-conversion.bas(32,
+'' EXPECT-MAX-DIAG: 5

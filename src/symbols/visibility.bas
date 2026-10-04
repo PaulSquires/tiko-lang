@@ -1476,7 +1476,7 @@ sub Run _
     CheckOutsideNamespace_( c )
     CheckStructorOutsideNamespace_( c )
     CheckConstBounds_( c )
-    CheckReturnStyles_( c )
+    CheckReturnStyles_( c ) : CheckSubReturnValue_( c )
     CheckByrefResultSet_( c )
     CheckAliasAgrees_( c )
     CheckDuplicateOverloads_( c )
