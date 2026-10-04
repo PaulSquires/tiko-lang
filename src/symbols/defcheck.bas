@@ -198,9 +198,42 @@ private function DefName_ ( byref c as Ctx, byval sp as StmtPayload ptr ) as str
     return c.names->Spelling( sp->name )
 end function
 
+'' TWO SHAPES ONLY A DEFINITION CAN GET WRONG (audit F-69), each fbc's:
+''   'sub f( byref a as any )' WITH A BODY -- 59, Illegal specification. 'as any' declares
+''     a parameter of any type; the definition has to say which.
+''   'operator T.cast( ) as T ptr' (or 'as T') -- 140, a cast to the type it is a member of.
+private sub CheckDefinitionShape_ ( byref c as Ctx, byval id as NodeId, byval sp as StmtPayload ptr )
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        dim as NodeId pt = DefStmt_( c, prm )->a
+        if pt = NODE_NONE then continue for
+        dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( pt ) )
+        if c.types->Kind( t ) <> TK_BUILTIN then continue for
+        if c.types->BuiltinOf( t ) <> TY_ANY then continue for
+        c.diags->Report( TKO0957, PointRange( c.ast->Loc( prm ) ) )
+        return
+    next
+    if sp->op <> cast( ushort, KW_OPERATOR ) then return
+    if Text.LowerAscii( c.names->Spelling( sp->name ) ) <> "cast" then return
+    if sp->a = NODE_NONE then return
+    dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if ps = 0 then return
+    dim as SymScope ptr sc = c.syms->ScopeAt( ps->parent )
+    if sc = 0 then return
+    if sc->kind <> cast( ubyte, SCOPEK_TYPE ) then return
+    dim as Symbol ptr os = c.syms->SymbolAt( sc->owner )
+    if os = 0 then return
+    dim as TypeId own = c.types->Unqualify( os->type_ )
+    dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+    if c.types->Kind( rt ) = TK_POINTER then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if (rt = own) andalso (own <> TYPE_NONE) then c.diags->Report( TKO0958, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = DefStmt_( c, id )
     if sp->b = NODE_NONE then return
+    CheckDefinitionShape_( c, id, sp )
     if (sp->extra and PF_GENERIC_PROC) <> 0 then return
     dim as SymbolId sid = c.info->RefOf( id )
     dim as Symbol ptr s = c.syms->SymbolAt( sid )

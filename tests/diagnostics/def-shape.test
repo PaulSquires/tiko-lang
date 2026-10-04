@@ -1,0 +1,9 @@
+'' Two shapes only a DEFINITION can get wrong (audit F-69): 'byref a as any' in a
+'' procedure with a body (fbc's 59 -- 'as any' only DECLARES) and an 'operator cast' to
+'' the type it is a member of, here 'as T ptr' (fbc's 140). Both compiled.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/def-shape.bas -o tests/diagnostics/src/def-shape.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: def-shape.bas(1,8): error TKO0957
+'' EXPECT-OUT: def-shape.bas(8,1): error TKO0958
+'' EXPECT-MAX-DIAG: 2

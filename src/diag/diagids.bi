@@ -790,6 +790,9 @@
     DIAG( TKO0952, SEV_ERROR,   "this procedure has no result, so its 'return' takes no value" )
     '' fbc's 52 (and 14 for '*p'): a FOR counter that is not a plain variable -- declshape.bas.
     '' fbc's 110 and 35 -- parser/parserend.bas, parser.bas (audit F-57).
+    '' fbc's 59 and 140 -- symbols/defcheck.bas (audit F-69).
+    DIAG( TKO0957, SEV_ERROR,   "'as any' declares a parameter of any type; a definition must name the type" )
+    DIAG( TKO0958, SEV_ERROR,   "an 'operator cast' cannot convert to the type it is a member of" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )
     DIAG( TKO0954, SEV_ERROR,   "the diagnostics file '%0' is one of the inputs, and writing it would destroy it" )
