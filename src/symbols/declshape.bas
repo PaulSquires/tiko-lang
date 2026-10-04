@@ -489,6 +489,20 @@ private sub CheckForPtrFwd_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0810, PointRange( c.ast->Loc( at_ ) ), c.names->Spelling( c.types->NameOf( pt ) ) )
 end sub
 
+'' A FOR WRITES ITS COUNTER, so a const one is fbc's 119: 'dim as const integer c' then
+'' 'for c = 1 to 2' ran the loop. A counter declared by the FOR itself is new storage.
+private sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (sp->a = NODE_NONE) orelse (sp->c <> NODE_NONE) then return
+    if c.ast->Kind( sp->a ) <> N_IDENT then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if s = 0 then return
+    dim as boolean k = ((s->flags and SYMF_CONST) <> 0) orelse _
+                       (cast( SymbolKind, s->kind ) = SYM_CONSTANT) orelse c.types->IsConst( s->type_ )
+    if k = false then return
+    c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( s->name ) )
+end sub
+
 '' A CAPTURING LAMBDA WHOSE PARAMETER IS THE ENCLOSING GENERIC'S TYPE PARAMETER -- fbc's error
 '' 59 at the generic, measured on fbc-modern 1.20, 2026-09-30 (generics/fail-lambda-capture-
 '' typaram): the closure's invoke member is built outside the binding that gives T a meaning.

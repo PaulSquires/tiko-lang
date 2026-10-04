@@ -81,9 +81,22 @@ private function ConstDesignated_ ( byref c as Ctx, byval n as NodeId ) as boole
     '' 's[ 0 ] = 1' OVER A CONST STRING is fbc's 119 too -- a var-len, fixed, or bare zstring
     '' or wstring, '(*strptr( s ))[ 0 ]' among them -- but the subscript's own type is a plain
     '' UBYTE, so the BASE is asked. A pointer base is not: its pointee answered above.
-    if c.ast->Kind( n ) <> N_INDEX then return false
+    if (c.ast->Kind( n ) <> N_INDEX) andalso (c.ast->Kind( n ) <> N_CALL) then return false
     dim as NodeId xb = c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )].target
     if xb = NODE_NONE then return false
+    '' 'a( 0 ) = 5' over 'dim as const integer a( 2 )' -- fbc's 119 -- and 'S[ 0 ] = 65' over
+    '' 'const S = "abc"': the first wrote the element, the second stopped as unlowered.
+    if c.ast->Kind( xb ) = N_IDENT then
+        dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( xb ) )
+        if bs <> 0 then
+            if cast( SymbolKind, bs->kind ) = SYM_CONSTANT then return true
+            dim as TypeId at0 = c.types->Unqualify( bs->type_ )
+            if (c.ast->Kind( n ) = N_CALL) andalso (c.types->Kind( at0 ) = TK_ARRAY) then
+                return c.types->IsConst( c.types->Inner( at0 ) ) orelse c.types->IsConst( bs->type_ )
+            end if
+        end if
+    end if
+    if c.ast->Kind( n ) = N_CALL then return false
     dim as TypeId bt = c.info->TypeOf_( xb )
     if bt = TYPE_NONE then return false
     if c.types->Kind( bt ) = TK_REFERENCE then bt = c.types->Inner( bt )
@@ -110,6 +123,9 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
         if lp->target <> NODE_NONE then
             if c.ast->Kind( lp->target ) = N_IDENT then
+                '' A SUBSCRIPTED VARIABLE -- an array element -- is judged like an index.
+                dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+                if ts <> 0 then judged = (cast( SymbolKind, ts->kind ) = SYM_VARIABLE)
                 if c.info->RefOf( lp->target ) = SYMBOL_NONE then
                     dim as string cn = lcase( c.names->Spelling( _
                         c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )].name ) )

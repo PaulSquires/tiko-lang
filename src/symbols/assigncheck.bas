@@ -316,6 +316,11 @@ private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
         if fs = 0 then return
         if fs->kind <> cast( ubyte, SYM_FIELD ) then return
         if (fs->flags and SYMF_STATIC) <> 0 then return
+        '' A CONST FIELD of any object: 'as const integer k = 1' then 'x.k = 2' wrote it.
+        if c.types->IsConst( fs->type_ ) andalso (m = sp->a) then
+            c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( fs->name ) )
+            return
+        end if
         dim as NodeId lhs = c.ast->binaries[cast( long, c.ast->nodes[cast( long, m )].data )].lhs
         if lhs = NODE_NONE then return
         dim as TypeId lt = TYPE_NONE

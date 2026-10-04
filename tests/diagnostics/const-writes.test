@@ -1,0 +1,17 @@
+'' TKO0617, fbc's 119: a const array's element, a const field (in a constructor too), a
+'' const FOR counter, and a subscript of a 'const' string. tiko wrote the first three and
+'' stopped the last as an unlowered statement.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/const-writes.bas -o tests/diagnostics/src/const-writes.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-writes.bas(3,2): error TKO0617
+'' EXPECT-OUT: const-writes.bas(6,2): error TKO0617
+'' EXPECT-OUT: const-writes.bas(8,5): error TKO0617
+'' EXPECT-OUT: const-writes.bas(11,2): error TKO0617
+'' EXPECT-OUT: const-writes.bas(24,
+'' EXPECT-NOT: const-writes.bas(13,
+'' EXPECT-NOT: const-writes.bas(14,
+'' EXPECT-NOT: const-writes.bas(15,
+'' EXPECT-NOT: const-writes.bas(18,
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 5
