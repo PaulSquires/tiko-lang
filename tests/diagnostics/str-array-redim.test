@@ -1,0 +1,7 @@
+'' ...but REDIM of a string array is not an initialiser: a shared one, a static one in a
+'' sub, and a field array through 'this' all compile, as in fbc. The first try at the
+'' check above refused fb/array.bi's 'redim preserve this.items( ... )'.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/str-array-redim.bas -o tests/diagnostics/src/str-array-redim.o
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0628

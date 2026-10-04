@@ -1416,16 +1416,15 @@ private sub CheckStaticStringInits( byref c as Ctx )
         if s->kind <> cast( ubyte, SYM_VARIABLE ) then continue for
         if s->type_ = TYPE_NONE then continue for
         dim as TypeId u = c.types->Unqualify( s->type_ )
-        '' A FIXED string is an ARRAY of a character builtin and is NOT this: it has
-        '' storage of its own, and the loader can fill it.
+        '' AN ARRAY OF THEM TOO -- fbc's 87; tiko declined it in lowering, TKO0994 (audit F-71).
+        while c.types->Kind( u ) = TK_ARRAY : u = c.types->Unqualify( c.types->Inner( u ) ) : wend
+        '' A FIXED string (an ARRAY of a character builtin) is NOT this: the loader fills it.
         if c.types->Kind( u ) <> TK_BUILTIN then continue for
         if c.types->BuiltinOf( u ) <> TY_STRING then continue for
 
         '' A DEFINITION OF AN EXTERN IS THE EXTERN SWEEP'S -- latesweeps2.bas reports that
-        '' shape at this very item, so reporting it here as well is the same diagnostic
-        '' twice at one location. Measured: 'extern s as string' with 'dim shared s as
-        '' string = "foo"' has been two TKO0628 since this check landed, where fbc reports
-        '' its error 87 once.
+        '' shape at this very item; reporting it here too gave 'extern s as string' with
+        '' 'dim shared s as string = "foo"' two TKO0628 where fbc reports its 87 once.
         if (s->flags and SYMF_EXTERN_DEF) <> 0 then continue for
         dim as boolean flagged = ((s->flags and (SYMF_SHARED or _
             SYMF_STATIC or SYMF_EXTERN)) <> 0)

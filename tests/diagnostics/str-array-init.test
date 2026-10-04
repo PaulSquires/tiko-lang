@@ -1,0 +1,10 @@
+'' A var-len string ARRAY with static storage cannot be initialised either -- fbc's 87 for
+'' 'dim shared' and 'static' alike. tiko let it through to a lowering decline, TKO0994
+'' (audit F-71).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/str-array-init.bas -o tests/diagnostics/src/str-array-init.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: str-array-init.bas(1,22): error TKO0628
+'' EXPECT-OUT: str-array-init.bas(3,22): error TKO0628
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 2
