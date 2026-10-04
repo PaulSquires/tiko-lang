@@ -126,6 +126,9 @@ type TestCase
     as string runExe
     as long   runExit       '' EXPECT-RUN-EXIT; 0 when not given
     as Array( of string ) expectRunOut
+    '' 'RUN-LANE: no' -- left out of the --run-args lane, for a program whose output
+    '' legitimately depends on the flags (__FB_OPTIMIZE__, undefined behaviour).
+    as boolean noLane
     '' THE STEPS, in order, each 'KIND' TAB 'rest': CLEAN, COPY, WRITE, STEP, STEP-OUT,
     '' STEP-NOT. See the header.
     as Array( of string ) steps
@@ -140,6 +143,11 @@ type Options
     '' HOW MANY TESTS RUN AT ONCE. 0 means one per processor; 1 is serial, which is
     '' what --accept forces and what -j 1 asks for when a failure needs isolating.
     as long jobs
+    '' THE RUN LANE: '--run-args "-O2"' runs ONLY the tests that RUN what they build, with
+    '' these flags added to the compile, and checks what the program did -- not the
+    '' goldens, which are the IR at the flags the test names. Every RUN test at -O2 is
+    '' the lane the audit asked for (Phase 3): -O2 had no run coverage at all.
+    as string runArgs
 end type
 
 '' ---------------------------------------------------------------- small helpers
@@ -332,6 +340,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
 
         if StartsWith( ln, "TEST:" ) then
             tc.kind = Trim_( mid( ln, 6 ) )
+        elseif StartsWith( ln, "RUN-LANE:" ) then
+            tc.noLane = (lcase( left( Trim_( mid( ln, 10 ) ), 2 ) ) = "no")
         elseif StartsWith( ln, "ARGS:" ) then
             tc.args = Trim_( mid( ln, 6 ) )
         elseif StartsWith( ln, "EXPECT-EXIT:" ) then
@@ -798,7 +808,9 @@ function RunOne _
         dim as boolean ok_ = RunSteps_( tc, opts, tgt, why, slotId )
         '' NAMED, ALWAYS. See the TARGETS note at the top of this file.
         if ok_ then
-            rc = RunTko( opts.tikoPath, "-target " & tgt & " " & args, outText, slotId )
+            dim as string laneArgs = args
+            if len( opts.runArgs ) > 0 then laneArgs = args & " " & opts.runArgs
+            rc = RunTko( opts.tikoPath, "-target " & tgt & " " & laneArgs, outText, slotId )
             ok_ = CheckOne_( tc, opts, tgt, rc, outText, why )
         end if
         '' HOISTED, each term a boolean of its own: warning 38 otherwise.
@@ -829,6 +841,10 @@ function CheckOne_ _
         why = "exit code " & rc & ", expected " & tc.expectExit
         return false
     end if
+
+    '' THE RUN LANE checks the PROGRAM: the compile's own messages (a cache hit, a
+    '' warning) are the test's flags' business, as the goldens are.
+    if len( opts.runArgs ) > 0 then return true
 
     for each want as string in tc.expectOut
         dim as long tab_ = instr( want, chr( 9 ) )
@@ -940,7 +956,7 @@ function CheckOne_ _
         end if
     end if
 
-    if len( tc.golden ) > 0 then
+    if (len( tc.golden ) > 0) andalso (len( opts.runArgs ) = 0) then
         '' A PER-TARGET GOLDEN IF ONE EXISTS, the shared one otherwise. On --accept
         '' the per-target file is written only when it is already there: creating one
         '' for every target would turn 310 shared goldens into 620.
@@ -1103,6 +1119,7 @@ while len( command( argi ) ) > 0
     case "--filter" : argi += 1 : opts.filter = command( argi )
     case "--tiko-lang"    : argi += 1 : opts.tikoPath = command( argi )
     case "-j"       : argi += 1 : opts.jobs = valint( command( argi ) )
+    case "--run-args" : argi += 1 : opts.runArgs = command( argi )
     case else
         if StartsWith( a, "-" ) then
             print "tiko-test: unknown option '" & a & "'"
@@ -1143,6 +1160,11 @@ for each path as string in files
 
     dim as TestCase ptr tc = new TestCase
     if ParseTest( path, *tc ) = false then
+        skipped += 1
+        delete tc
+        continue for
+    end if
+    if (len( opts.runArgs ) > 0) andalso ((len( tc->runExe ) = 0) orelse tc->noLane) then
         skipped += 1
         delete tc
         continue for

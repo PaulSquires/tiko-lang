@@ -2,6 +2,7 @@
 '' fb_Init, and '5 \ 0' prints runtime error 11 and exits 11. tiko never emitted it, and
 '' the process died with 0xC0000094 (audit F-59).
 '' TEST: cli
+'' RUN-LANE: no      -- '5 \ 0' is undefined behaviour the optimiser may fold
 '' ARGS: -e -target win64-msvc tests/codegen/src/init-signals.bas -o tests/codegen/initsignals.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' EXPECT-EXIT: 0
