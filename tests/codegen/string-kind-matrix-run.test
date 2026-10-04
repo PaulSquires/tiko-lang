@@ -1,0 +1,32 @@
+'' RUN: the string-kind matrix (audit Phase 3 item 7; F-07, F-41, F-42): 'swap' of every
+'' pair of string, zstring * N, string * N and ustring between guard variables, and '&='
+'' with a literal, itself and a concatenation on every kind. Output identical to
+'' fbc-modern's; the guards prove nothing was overrun.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/string-kind-matrix.bas -o tests/codegen/stringkindmatrix.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/stringkindmatrix.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ss: [S2] [S1] 111 222 333
+'' EXPECT-RUN-OUT: sz: [Z2] [S1] 111 222 333
+'' EXPECT-RUN-OUT: sf: [F2    ] [S1    ] 111 222 333
+'' EXPECT-RUN-OUT: zs: [S2] [Z1] 111 222 333
+'' EXPECT-RUN-OUT: zz: [Z2] [Z1] 111 222 333
+'' EXPECT-RUN-OUT: zf: [F2    ] [Z1    ] 111 222 333
+'' EXPECT-RUN-OUT: fs: [S2    ] [F1    ] 111 222 333
+'' EXPECT-RUN-OUT: fz: [Z2    ] [F1    ] 111 222 333
+'' EXPECT-RUN-OUT: ff: [F2    ] [F1    ] 111 222 333
+'' EXPECT-RUN-OUT: uu: [U2] [U1] 111 222 333
+'' EXPECT-RUN-OUT: s&='ab': [S1abab] 6 111 222
+'' EXPECT-RUN-OUT: s&=x: [S1S1S1S1] 8 111 222
+'' EXPECT-RUN-OUT: s&='' & 12: [S11212] 6 111 222
+'' EXPECT-RUN-OUT: z&='ab': [Z1abab] 6 111 222
+'' EXPECT-RUN-OUT: z&=x: [Z1Z1Z1Z] 7 111 222
+'' EXPECT-RUN-OUT: z&='' & 12: [Z11212] 6 111 222
+'' EXPECT-RUN-OUT: f&='ab': [F1    ] 6 111 222
+'' EXPECT-RUN-OUT: f&=x: [F1    ] 6 111 222
+'' EXPECT-RUN-OUT: f&='' & 12: [F1    ] 6 111 222
+'' EXPECT-RUN-OUT: u&='ab': [U1abab] 6 111 222
+'' EXPECT-RUN-OUT: u&=x: [U1U1U1U1] 8 111 222
+'' EXPECT-RUN-OUT: u&='' & 12: [U11212] 6 111 222
