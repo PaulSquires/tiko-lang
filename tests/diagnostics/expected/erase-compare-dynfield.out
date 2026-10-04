@@ -82,43 +82,40 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %31, 1)
     %32 = alloca ptr badarr
     %33 = field.addr @badarr, 0
-    %34 = const i64 0
+    %34 = const i64 1
     call void _ZN7DEFCTORC1Eu7INTEGER(%33, %34)
-    %35 = field.addr @badarr, 0
-    %36 = const i64 1
-    call void _ZN7DEFCTORC1Eu7INTEGER(%35, %36)
-    %37 = alloca ptr $tmp6
-    %38 = field.addr @$tmp6, 0
-    store %38, @badarr
-    %39 = field.addr @$tmp6, 8
-    store %39, @badarr
+    %35 = alloca ptr $tmp6
+    %36 = field.addr @$tmp6, 0
+    store %36, @badarr
+    %37 = field.addr @$tmp6, 8
+    store %37, @badarr
+    %38 = const i64 8
+    %39 = field.addr @$tmp6, 16
+    store %39, %38
     %40 = const i64 8
-    %41 = field.addr @$tmp6, 16
+    %41 = field.addr @$tmp6, 24
     store %41, %40
-    %42 = const i64 8
-    %43 = field.addr @$tmp6, 24
+    %42 = const i64 1
+    %43 = field.addr @$tmp6, 32
     store %43, %42
-    %44 = const i64 1
-    %45 = field.addr @$tmp6, 32
+    %44 = const i64 49
+    %45 = field.addr @$tmp6, 40
     store %45, %44
-    %46 = const i64 49
-    %47 = field.addr @$tmp6, 40
+    %46 = const i64 1
+    %47 = field.addr @$tmp6, 48
     store %47, %46
-    %48 = const i64 1
-    %49 = field.addr @$tmp6, 48
+    %48 = const i64 0
+    %49 = field.addr @$tmp6, 56
     store %49, %48
     %50 = const i64 0
-    %51 = field.addr @$tmp6, 56
+    %51 = field.addr @$tmp6, 64
     store %51, %50
-    %52 = const i64 0
-    %53 = field.addr @$tmp6, 64
-    store %53, %52
-    %54 = func.addr ptr _ZN7DEFCTORC1Eu7INTEGER
-    %55 = call.rtl i32 fb_ArrayClearObj(@$tmp6, %54, 0)
-    %56 = const i32 0
-    call.rtl void fb_End(%56)
-    %57 = load @$tmp0
-    ret %57
+    %52 = func.addr ptr _ZN7DEFCTORC1Eu7INTEGER
+    %53 = call.rtl i32 fb_ArrayClearObj(@$tmp6, %52, 0)
+    %54 = const i32 0
+    call.rtl void fb_End(%54)
+    %55 = load @$tmp0
+    ret %55
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_ArrayClear(ptr $0)
@@ -126,11 +123,11 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare i32 fb_ArrayClearObj(ptr $0, ptr $1, ptr $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 98 insts, 2 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 95 insts, 2 statements not lowered, 0 scope imbalance
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2
   unlowered intrinsic KW_PRINT 2
-  skip-site src\mir\lowerctl.bas:206 2
+  skip-site src\mir\lowerctl.bas:218 2
 tests/diagnostics/src/erase-compare-dynfield.bas(40,8): error TKO0721: the dynamic array field 'arr' must write its rank: '(any)'
      |
   40 |     arr() as integer
