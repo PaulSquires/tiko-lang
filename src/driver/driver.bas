@@ -471,11 +471,20 @@ function BuildFromIr _
     print #fh, irText;
     close #fh
 
+    '' A COMPILER THAT EXITS 0 AND WRITES NOTHING IS A FAILURE. With 'TKO_CLANG=where.exe'
+    '' the compile "succeeded", the .ll was deleted, and the missing object surfaced only as
+    '' a link error -- or, with an object left from an earlier build, not at all (audit F-74,
+    '' CG-17). So the old object goes first, and the new one must exist afterwards.
+    dim as long okill = kill( objPath )
     dim as long rc = Tko.Codegen.CompileIr( tools, td, irPath, objPath, _
                                             ctx.options.keepTemps )
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
     end if
+    dim as long ofh = freefile
+    dim as long orc2 = open( objPath for binary access read as #ofh )
+    if orc2 <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0962, objPath )
+    close #ofh
 
     dim as boolean fmtKnown = false
     dim as boolean isElf = ObjectLooksElf_( objPath, fmtKnown )

@@ -63,6 +63,8 @@
     DIAG( TKO0111, SEV_ERROR,   "no usable toolchain: %0" )
     DIAG( TKO0112, SEV_ERROR,   "cannot write intermediate file '%0'" )
     DIAG( TKO0113, SEV_ERROR,   "clang failed on '%0' (exit %1)" )
+    '' ...and the same when it exits 0 with no object (audit F-74, CG-17).
+    DIAG( TKO0962, SEV_ERROR,   "clang reported success but wrote no object '%0'" )
     DIAG( TKO0114, SEV_ERROR,   "'%0' is a %1 object, but target triple '%2' links the other format" )
     DIAG( TKO0115, SEV_ERROR,   "archiving failed (exit %0)" )
     DIAG( TKO0116, SEV_ERROR,   "link failed (exit %0)" )

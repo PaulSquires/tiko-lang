@@ -1,0 +1,10 @@
+'' A COMPILER THAT EXITS 0 AND WRITES NO OBJECT IS A FAILURE, said as such: Git's 'true.exe'
+'' standing in for clang "succeeded", and the missing object surfaced only as a link
+'' error (audit F-74, CG-17). The stand-in is Git for Windows' own, which the suite already runs under.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/tempobj/a.bas -o tests/driver/src/tempobj/fake.exe
+'' ENV: TKO_CLANG=C:/Program Files/Git/usr/bin/true.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: error TKO0962: clang reported success but wrote no object
+'' EXPECT-NO-FILE: tests/driver/src/tempobj/fake.exe
