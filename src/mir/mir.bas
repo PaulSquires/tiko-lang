@@ -215,21 +215,24 @@ end function
 
 '' The three entry kinds. Each APPENDS, so a table has to be filled before the next one
 '' is opened -- the pool is shared and the runs are contiguous.
-sub MirModule.PushPtrNull( byval g as long )
+sub MirModule.PushPtrNull( byval g as long, byval off as long = -1 )
     this.ptrKinds.Push( 0 )
     this.ptrRefs.Push( 0 )
+    this.ptrOffs.Push( off )
     this.globals[g].ptrCount += 1
 end sub
 
-sub MirModule.PushPtrGlobal( byval g as long, byval which as long )
+sub MirModule.PushPtrGlobal( byval g as long, byval which as long, byval off as long = -1 )
     this.ptrKinds.Push( 1 )
     this.ptrRefs.Push( cast( ulong, which ) )
+    this.ptrOffs.Push( off )
     this.globals[g].ptrCount += 1
 end sub
 
-sub MirModule.PushPtrFunc( byval g as long, byval nm as InternId )
+sub MirModule.PushPtrFunc( byval g as long, byval nm as InternId, byval off as long = -1 )
     this.ptrKinds.Push( 2 )
     this.ptrRefs.Push( cast( ulong, nm ) )
+    this.ptrOffs.Push( off )
     this.globals[g].ptrCount += 1
 end sub
 

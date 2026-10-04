@@ -1048,7 +1048,8 @@ end function
 function FoldAggInit_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
       byval size_ as long, byref outBytes as string, _
-      byval vscope as Tko.ScopeId = Tko.SCOPE_NONE ) as boolean
+      byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
+      byval relocs as FB.Array( of ulong ) ptr = 0 ) as boolean
 
     if size_ <= 0 then return false
     if init = Tko.NODE_NONE then return false
@@ -1201,6 +1202,21 @@ function FoldAggInit_ _
         case else
             return false
         end select
+
+        '' AN ADDRESS IN A POINTER FIELD IS A RELOCATION, when the caller can hold one:
+        '' its bytes stay zero and RELOCS gets (offset, kind, ref) -- see AddrWordOf_.
+        '' Without it '( @g, 5 )' declined as a whole and the global came out zeroed.
+        if (relocs <> 0) andalso (fmt = MT_PTR) then
+            dim as long rk
+            dim as ulong rr
+            if AddrWordOf_( c, e, rk, rr ) then
+                if (off < 0) orelse (off + wid > size_) then return false
+                relocs->Push( cast( ulong, off ) )
+                relocs->Push( cast( ulong, rk ) )
+                relocs->Push( rr )
+                continue for
+            end if
+        end if
 
         if (fmt <> MT_F32) andalso (fmt <> MT_F64) then
             '' WITH THE SYMBOL TABLE. ConstOf answers 'unknown' for every identifier

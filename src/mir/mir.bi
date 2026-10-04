@@ -512,6 +512,11 @@ namespace Tko.Mir
         as boolean  isPtrTable
         as long     ptrFirst
         as long     ptrCount
+        '' A VARIABLE WHOSE INITIALISER MIXES ADDRESSES WITH DATA -- 'dim shared x as T =
+        '' ( @g, 5 )'. initBytes is then the whole object's image, with zeros where the
+        '' addresses go, and each pointer entry is a RELOCATION at the byte offset in
+        '' MirModule.ptrOffs rather than the next word of a table.
+        as boolean  ptrMixed
         as long     wcharFirst
         as long     wcharCount
         '' DECLARED HERE, DEFINED ELSEWHERE. 'object' has an RTTI record that fbc
@@ -590,6 +595,9 @@ namespace Tko.Mir
         '' 2 a function's address (ref is the InternId of its emitted name).
         as FB.Array( of long )  ptrKinds
         as FB.Array( of ulong ) ptrRefs
+        '' ...and each entry's BYTE OFFSET in its object, -1 for a table's word, which
+        '' is its index times the pointer size. Read only for a ptrMixed global.
+        as FB.Array( of long )  ptrOffs
         '' Every wide literal's code units, pooled beside the data blocks and for the
         '' same reason: an FB.Array by value inside a struct that itself lives in an
         '' FB.Array is a copy hazard.
@@ -670,9 +678,9 @@ namespace Tko.Mir
         '' identical tables are still two tables, because their addresses are what
         '' tells one type from the other at run time.
         declare function AddPtrTable( byval nm as InternId ) as long
-        declare sub PushPtrNull( byval g as long )
-        declare sub PushPtrGlobal( byval g as long, byval which as long )
-        declare sub PushPtrFunc( byval g as long, byval nm as InternId )
+        declare sub PushPtrNull( byval g as long, byval off as long = -1 )
+        declare sub PushPtrGlobal( byval g as long, byval which as long, byval off as long = -1 )
+        declare sub PushPtrFunc( byval g as long, byval nm as InternId, byval off as long = -1 )
         declare function AddVarGlobal _
             ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
               byval sizeBytes as long ) as long

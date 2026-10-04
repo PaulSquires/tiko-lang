@@ -240,10 +240,13 @@ function DumpModule _
             '' zstring ptr = { @"a1", @"a2" }'. The same words a vtable prints,
             '' on a VAR rather than on a table of its own.
             if m.globals[i].ptrCount > 0 then
-                outp += " = ["
+                '' A MIXED IMAGE prints each address at its byte offset, '+8 @g'; the
+                '' data bytes between them are the initialiser's own constants.
+                outp += iif( m.globals[i].ptrMixed, " = image [", " = [" )
                 for k as long = 0 to m.globals[i].ptrCount - 1
                     dim as long e = m.globals[i].ptrFirst + k
                     if k > 0 then outp += ","
+                    if m.globals[i].ptrMixed then outp += " +" & str( m.ptrOffs[e] )
                     select case m.ptrKinds[e]
                     case 0 : outp += " 0"
                     case 1 : outp += " @" & names.Spelling( _

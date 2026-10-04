@@ -716,6 +716,55 @@ declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
       byref outv as FB.Array( of ulong ) )
 
+'' THE ADDRESS AN INITIALISER LEAF NAMES, as a pointer-table entry: kind 1 and a global's
+'' index for '@g' or '@"lit"' -- a string literal already lives in a global of its own --
+'' and kind 2 and a function's emitted name for '@f'. False for anything else.
+''
+'' 'onlyStatic' refuses the address of anything with no module storage -- a local has
+'' none until its frame exists. The pointer-table path has always taken GlobalFor's
+'' answer as it stands, and keeps doing so.
+function AddrWordOf_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref kind as long, byref ref as ulong, _
+      byval onlyStatic as boolean = true ) as boolean
+
+    e = Unparen_( c, e )
+    if c.ast->Kind( e ) <> Tko.N_ADDROF then return false
+    dim as Tko.UnaryPayload ptr up = _
+        @c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.NodeId opnd = Unparen_( c, up->operand )
+    '' '@"a1"' IS THE LITERAL'S OWN GLOBAL, which is where a string literal already
+    '' lives.
+    if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then
+        kind = 1
+        ref = cast( ulong, c.m->AddStringLiteral( StringLitText_( c, opnd ), *c.names ) )
+        return true
+    end if
+    if c.ast->Kind( opnd ) <> Tko.N_IDENT then return false
+    dim as Tko.SymbolId osid = c.info->RefOf( opnd )
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( osid )
+    if sy = 0 then return false
+    if sy->kind = cast( ubyte, Tko.SYM_PROC ) then
+        dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
+        if pn = Tko.NODE_NONE then return false
+        if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+        kind = 2
+        ref = cast( ulong, c.names->GetString( _
+            Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) ) )
+        return true
+    end if
+    if onlyStatic then
+        if sy->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return false
+        dim as boolean isGlobalVar = ((sy->flags and Tko.SYMF_SHARED) <> 0)
+        isGlobalVar = isGlobalVar orelse IsStaticLocal( c, osid )
+        if isGlobalVar = false then return false
+    end if
+    dim as long og = GlobalFor( c, osid )
+    if og < 0 then return false
+    kind = 1
+    ref = cast( ulong, og )
+    return true
+end function
+
 private function GlobalPtrArrayInit_ _
     ( byref c as Ctx, byval g as long, byval t as Tko.TypeId, _
       byval init as Tko.NodeId ) as boolean
@@ -775,35 +824,11 @@ private function GlobalPtrArrayInit_ _
     for k as long = 0 to total - 1
         dim as Tko.NodeId e = Unparen_( c, cast( Tko.NodeId, leaves[k] ) )
         if c.ast->Kind( e ) = Tko.N_ADDROF then
-            dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )]
-            dim as Tko.NodeId opnd = Unparen_( c, up->operand )
-            '' '@"a1"' IS THE LITERAL'S OWN GLOBAL, which is where a string literal
-            '' already lives.
-            if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then
-                kinds.Push( 1 )
-                refs.Push( cast( ulong, c.m->AddStringLiteral( _
-                    StringLitText_( c, opnd ), *c.names ) ) )
-                continue for
-            end if
-            if c.ast->Kind( opnd ) <> Tko.N_IDENT then return false
-            dim as Tko.SymbolId osid = c.info->RefOf( opnd )
-            dim as Tko.Symbol ptr sy = c.syms->SymbolAt( osid )
-            if sy = 0 then return false
-            if sy->kind = cast( ubyte, Tko.SYM_PROC ) then
-                dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
-                if pn = Tko.NODE_NONE then return false
-                if c.ast->Kind( pn ) <> Tko.N_PROC then return false
-                kinds.Push( 2 )
-                refs.Push( cast( ulong, c.names->GetString( _
-                    Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, _
-                                         *c.types, *c.info ) ) ) )
-                continue for
-            end if
-            dim as long og = GlobalFor( c, osid )
-            if og < 0 then return false
-            kinds.Push( 1 )
-            refs.Push( cast( ulong, og ) )
+            dim as long wk
+            dim as ulong wr
+            if AddrWordOf_( c, e, wk, wr, false ) = false then return false
+            kinds.Push( wk )
+            refs.Push( wr )
             continue for
         end if
         '' A NULL WORD is the only non-address a pointer table may hold.
@@ -1130,6 +1155,32 @@ sub InitSharedGlobal _
             c.m->globals[g].initBytes = img
             c.m->globals[g].hasInit = true
             return
+        end if
+        '' ADDRESSES AMONG THE DATA. 'dim shared pl as PL = ( @ga, 5 )' over a pointer
+        '' field and a long is neither a pointer table nor a byte image, so both folds
+        '' refused it, the declaration declined -- silently -- and the global was zero:
+        '' 'pl.p' was null and the program faulted on it. fbc writes
+        '' 'static struct $2PL PL1$ = { (int32*)&GA$, 5 };'. The image keeps zeros where
+        '' the addresses go, and each address is a relocation at its offset.
+        dim as FB.Array( of ulong ) rel
+        if FoldAggInit_( c, c.m->globals[g].frontendType, init, _
+                         c.m->globals[g].size, img, VarScopeOf_( c, sid ), @rel ) then
+            if rel.Count > 0 then
+                c.m->globals[g].initBytes = img
+                c.m->globals[g].ptrMixed = true
+                c.m->globals[g].ptrFirst = c.m->ptrKinds.Count
+                c.m->globals[g].ptrCount = 0
+                for k as long = 0 to rel.Count \ 3 - 1
+                    dim as long ro = cast( long, rel[k * 3] )
+                    if rel[k * 3 + 1] = 2 then
+                        c.m->PushPtrFunc( g, cast( Tko.InternId, rel[k * 3 + 2] ), ro )
+                    else
+                        c.m->PushPtrGlobal( g, cast( long, rel[k * 3 + 2] ), ro )
+                    end if
+                next
+                c.m->globals[g].hasInit = true
+                return
+            end if
         end if
         '' ...UNLESS THE MODULE INITIALISER IS GOING TO CONSTRUCT IT. A constructor call
         '' is not foldable to bytes and never will be; it was recorded above and is

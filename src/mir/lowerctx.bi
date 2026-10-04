@@ -839,10 +839,15 @@ declare function EmitRtl _
           byval nchars as long )
 
     '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.bas.
+    '' lowerstore.bas -- the address an initialiser leaf names, as a pointer-table entry.
+    declare function AddrWordOf_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref kind as long, byref ref as ulong, _
+          byval onlyStatic as boolean = true ) as boolean
     declare function FoldAggInit_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
           byval size_ as long, byref outBytes as string, _
-          byval vscope as Tko.ScopeId = Tko.SCOPE_NONE ) as boolean
+          byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
+          byval relocs as FB.Array( of ulong ) ptr = 0 ) as boolean
 
     '' 'type<T>( ... )' as a value or an address -- lowersub.bas.
     '' An UPCAST initialiser: the base subobject of a derived value, sized to the

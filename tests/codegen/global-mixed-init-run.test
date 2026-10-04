@@ -1,0 +1,19 @@
+'' RUN: 'dim shared pl as PL = ( @ga, 5 )' -- addresses among data in a shared or static
+'' UDT, an array of them, and a procedure pointer between two integers. Neither the
+'' pointer-table fold nor the byte-image fold took it, the declaration declined silently,
+'' and the global was zero: '*pl.p' faulted. Each address is now a relocation at its
+'' offset in the image. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/global-mixed-init.bas -o tests/codegen/globalmixedinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/globalmixedinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  11 5
+'' EXPECT-RUN-OUT: alpha beta gamma
+'' EXPECT-RUN-OUT: x1 y1
+'' EXPECT-RUN-OUT:  7 22 2.5
+'' EXPECT-RUN-OUT:  11 1 22 2
+'' EXPECT-RUN-OUT:  22
+'' EXPECT-RUN-OUT:  3 42 9
+'' EXPECT-RUN-OUT:  22 4

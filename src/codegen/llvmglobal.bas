@@ -177,6 +177,59 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
     EmitVarGlobal( e, g, nm )
 end sub
 
+'' The packed-struct initialiser of a ptrMixed global -- see EmitVarGlobal.
+private sub EmitMixedGlobal_ _
+    ( byref e as EmitCtx, byref g as MirGlobal, byref nm as string )
+
+    dim as long pw = e.tgt->layout.pointerBits \ 8
+    dim as string img = g.initBytes
+    while len( img ) < g.size
+        img += chr( 0 )
+    wend
+    dim as string mtys, mvals
+    dim as long at = 0
+    for i as long = 0 to g.ptrCount - 1
+        dim as long off = e.m->ptrOffs[g.ptrFirst + i]
+        if (off < at) orelse (off + pw > g.size) then
+            Ice( e, "a relocation outside its object, or out of order" )
+            return
+        end if
+        if off > at then
+            if len( mtys ) > 0 then mtys += ", " : mvals += ", "
+            mtys += "[" & str( off - at ) & " x i8]"
+            mvals += "[" & str( off - at ) & " x i8] " & CString( mid( img, at + 1, off - at ) )
+        end if
+        dim as long k = e.m->ptrKinds[g.ptrFirst + i]
+        dim as ulong ref = e.m->ptrRefs[g.ptrFirst + i]
+        dim as string pv = "ptr null"
+        select case k
+        case 1
+            if cast( long, ref ) >= e.m->globals.Count then
+                Ice( e, "a relocation naming a global that does not exist" )
+                return
+            end if
+            pv = "ptr " & GlobalName( e, e.m->globals[cast( long, ref )].name )
+        case 2
+            pv = "ptr @" & chr( 34 ) & e.names->Spelling( cast( Tko.InternId, ref ) ) & chr( 34 )
+        end select
+        if len( mtys ) > 0 then mtys += ", " : mvals += ", "
+        mtys += "ptr"
+        mvals += pv
+        at = off + pw
+    next
+    if at < g.size then
+        if len( mtys ) > 0 then mtys += ", " : mvals += ", "
+        mtys += "[" & str( g.size - at ) & " x i8]"
+        mvals += "[" & str( g.size - at ) & " x i8] " & CString( mid( img, at + 1, g.size - at ) )
+    end if
+    dim as string mdbg = ""
+    if (e.dbg <> 0) andalso (g.isExternal = false) then
+        mdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
+    end if
+    e.outp += nm & " = " & VarLinkage( e, g ) & "global <{ " & mtys & " }> <{ " & mvals & _
+              " }>, align " & str( AlignOf( e, MT_AGG, g.size ) ) & mdbg & chr( 10 )
+end sub
+
 '' A DIM SHARED VARIABLE. The initialiser is part of the DEFINITION and not a store
 '' executed in main -- 'static int32 H$ = 5;' is what fbc writes -- so it appears here
 '' or nowhere.
@@ -198,6 +251,14 @@ sub EmitVarGlobal _
     '' said so: tests/mir/static-ptr-record checks the MIR, where the words are
     '' present, and stops there.
     ''
+    '' A MIXED IMAGE -- addresses among data -- is a PACKED STRUCT of the image's byte
+    '' runs with a 'ptr' at each relocation's offset: '<{ ptr @ga, [8 x i8] c"..." }>'.
+    '' Packed, so nothing is padded that the image does not already pad.
+    if g.ptrMixed andalso (g.ptrCount > 0) then
+        EmitMixedGlobal_( e, g, nm )
+        return
+    end if
+
     '' ONLY WHEN THE WORDS ARE THE WHOLE OBJECT. A UDT with a pointer field and an
     '' integer one is not a table, and writing it as '[n x ptr]' would shorten it.
     if g.ptrCount > 0 then
