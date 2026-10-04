@@ -54,6 +54,8 @@ end function
 private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if (p.stream = 0) orelse (n = Tko.NODE_NONE) then return
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+    '' The payload is read only for the kinds that have one -- N_ERROR's data is 0 (F-72).
+    if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return
     dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
     select case p.ast->Kind( n )
     case Tko.N_VAR

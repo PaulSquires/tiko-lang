@@ -397,6 +397,9 @@ private function MarkPrivate _
       byval visKw as Tko.TokenKind ) as Tko.NodeId
 
     if (visKw = 0) orelse (n = Tko.NODE_NONE) then return n
+    '' ONLY A DECLARATION HAS A STATEMENT PAYLOAD. A failed parse returns N_ERROR, whose
+    '' data is 0, and the flag landed on stmts[0] -- another statement's (audit F-72).
+    if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return n
     dim as Tko.StmtPayload ptr sp = _
         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
     if visKw = Tko.KW_PUBLIC then
