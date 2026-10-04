@@ -1,0 +1,9 @@
+'' RUN: an unterminated string in a CRLF file ends before the CR -- fbc's len is 3, tiko's
+'' was 4, the CR kept in the literal (audit F-68). Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/crlf-unterminated.bas -o tests/codegen/crlfunterminated.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/crlfunterminated.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3

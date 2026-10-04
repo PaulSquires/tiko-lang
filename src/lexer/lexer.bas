@@ -700,8 +700,10 @@ private sub ScanString( byref s as Scanner, byval kind as Tko.StringKind, byval 
         s.i += 1
     else
         '' fbc closes it at the newline and warns rather than failing (probe L3), so
-        '' tiko-lang must also accept the file.
+        '' tiko-lang must also accept the file. ...BEFORE a CR: in a CRLF file the literal
+        '' kept it, 'print "abc' wrote abc<CR><CR><LF> (audit F-68).
         Report( s, Tko.TKO0201, first )
+        if (textLast > first) andalso (s.p[textLast - 1] = 13) then textLast -= 1
     end if
 
     dim as Tko.Literal lit

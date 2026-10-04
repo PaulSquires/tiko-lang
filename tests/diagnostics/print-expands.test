@@ -1,0 +1,6 @@
+'' '#print' EXPANDS object-like macros, as fbc does: '#print J' over '#define J K + 1' and
+'' '#define K 5' prints '5 + 1'; tiko printed 'J' (audit F-68).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/print-expands.bas -o tests/diagnostics/src/print-expands.o
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: note TKO0315: #print 5 + 1
