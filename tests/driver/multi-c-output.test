@@ -1,0 +1,8 @@
+'' '-c' OVER SEVERAL SOURCES: each its own object, as fbc does -- the '-o' that follows a
+'' source names that source's object, and the others take their stem. All of them went
+'' to the one '-o', so only the last source's symbols survived (audit F-47).
+'' TEST: cli
+'' ARGS: -c -m multi-c-b tests/driver/src/multi-c-a.bas -o tests/driver/multica.o tests/driver/src/multi-c-b.bas -o tests/driver/multicb.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/multica.o
+'' EXPECT-FILE: tests/driver/multicb.o

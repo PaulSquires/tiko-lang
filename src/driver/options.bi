@@ -213,6 +213,10 @@ namespace Tko
         as StrVec  defines
 
         as string  outputPath
+        '' WHICH INPUT EACH '-o' FOLLOWED, as pairs (input, output): fbc's '-o' names the
+        '' output of the source BEFORE it, so 'fbc -c a.bas -o a1.o b.bas -o b1.o' writes
+        '' both, and 'fbc -c a.bas b.bas -o ab.o' writes a.o and ab.o (audit F-47).
+        as StrVec  outputFor
         as string  targetName
         '' The parsed form of targetName. Everything downstream reads THIS: layout,
         '' the preprocessor's predefines, and eventually the ABI. targetName was

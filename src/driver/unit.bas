@@ -7,6 +7,7 @@
 
 #include once "driver/unit.bi"
 #include once "driver/modunit.bi"
+#include once "driver/modresolve.bi"
 #include once "symbols/modsym.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
@@ -107,6 +108,23 @@ private function IsMainUnit_ _
     '' A MODULE IS NEVER MAIN: its top-level code is its initialiser (RFC-0006).
     if ctx.modFileCount > 0 then isMain = false
     return isMain
+end function
+
+private function ObjectFor_ _
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long, _
+      byval srcCount as long ) as string
+    dim as string src = ctx.sources.PathOf( id )
+    dim as string srcAbs = Tko.Modules.AbsPath( src )
+    dim as string lone = ""
+    for k as long = 0 to ctx.options.outputFor.Count - 2 step 2
+        if len( ctx.options.outputFor[k] ) = 0 then
+            lone = ctx.options.outputFor[k + 1]
+        elseif Tko.Modules.AbsPath( ctx.options.outputFor[k] ) = srcAbs then
+            return ctx.options.outputFor[k + 1]
+        end if
+    next
+    if (len( lone ) > 0) andalso (i = srcCount) then return lone
+    return StripExt_( src ) & ".o"
 end function
 
 function CompileUnit _
@@ -495,6 +513,12 @@ function CompileUnit _
                     '' named after the OUTPUT plus the module's index so two
                     '' sources cannot collide, and deleted after the link.
                     dim as string objPath = ctx.options.outputPath
+                    '' '-c' OVER SEVERAL SOURCES: each its own object -- the '-o' that followed
+                    '' it, else its stem; a lone '-o' given before every input is the LAST
+                    '' source's, as fbc's is. All of them went to the one '-o' (audit F-47).
+                    if ctx.options.compileOnly andalso (srcCount > 1) then
+                        objPath = ObjectFor_( ctx, id, i, srcCount )
+                    end if
                     if ctx.options.compileOnly = false then
                         objPath = ctx.options.outputPath & "." & str( i ) & ".o"
                         '' A STATIC LIBRARY'S MEMBERS ARE NAMED AFTER THEIR

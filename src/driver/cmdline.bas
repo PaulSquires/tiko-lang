@@ -428,7 +428,11 @@ function Parse _
         case Tko.OPT_MAINMOD  : opts.mainModule = value
         case Tko.OPT_LIB      : opts.libs.Push( value )
 
-        case Tko.OPT_OUTPUT   : opts.outputPath = value
+        case Tko.OPT_OUTPUT
+            opts.outputPath = value
+            '' The input it follows, or "" when it came before every input.
+            opts.outputFor.Push( iif( opts.inputs.Count > 0, opts.inputs[opts.inputs.Count - 1], "" ) )
+            opts.outputFor.Push( value )
         case Tko.OPT_COMPILE  : opts.compileOnly = true
         '' -dylib IS -dll. fbc's own help says 'Same as -dylib' and the two set one
         '' flag there too; the second spelling exists for the platforms where the
@@ -454,8 +458,13 @@ function Parse _
         case Tko.OPT_MT       : opts.threadSafe = true
 
         case Tko.OPT_OPTLEVEL
+            '' '-O 2' AS fbc TAKES IT, the level a separate argument; and only a DIGIT: '-Os'
+            '' read as valint( "s" ) = 0 and built at -O0 in silence -- fbc's 81 (F-64).
+            if (len( value ) = 0) andalso (i + 1 < n) then
+                if (len( args[i + 1] ) = 1) andalso (instr( "0123", args[i + 1] ) > 0) then value = args[i + 1] : i += 1
+            end if
             dim as long lvl = valint( value )
-            dim as boolean bad = (len( value ) <> 1) orelse (lvl < 0) orelse (lvl > 3)
+            dim as boolean bad = (len( value ) <> 1) orelse (instr( "0123", value ) = 0)
             if bad then
                 diags.ReportGlobal( Tko.TKO0106, value, "-O" )
                 ok = false

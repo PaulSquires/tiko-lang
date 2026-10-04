@@ -1,0 +1,5 @@
+'' '-O 2' with the level as a separate argument, as fbc takes it (F-64).
+'' TEST: cli
+'' ARGS: -O 2 -c tests/driver/src/multi-c-a.bas -o tests/driver/optlevel2.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/optlevel2.o
