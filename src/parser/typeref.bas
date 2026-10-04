@@ -107,6 +107,34 @@ private function TupleElemBad_( byref p as Tko.ParserState, byval n as Tko.NodeI
     return false
 end function
 
+'' The cursor is on typeof's '('. True when its operand is itself '( ... )' with no comma
+'' at the operand's own level -- a parenthesised expression, which no type is.
+private function ParenOperandIsExpr_( byref p as Tko.ParserState ) as boolean
+    if HasTok( p, p.pos + 1 ) = false then return false
+    '' ...AND 'name * x' IS A PRODUCT: 'typeof( l * 2 )' read as the fixed-length type
+    '' 'l * 2' (audit F-56) -- fbc's INTEGER, so 'typeof( l * 1000000000 ) y = 3000000000'
+    '' kept -1294967296. A string type is spelled with its keyword, which is not a name.
+    if HasTok( p, p.pos + 2 ) then
+        if (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_IDENT) andalso _
+           (cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_STAR) then return true
+    end if
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_LPAREN then return false
+    dim as long depth = 0
+    dim as long i = p.pos + 1
+    while HasTok( p, i )
+        select case cast( Tko.TokenKind, p.toks->At( i ).kind )
+        case Tko.TK_LPAREN : depth += 1
+        case Tko.TK_RPAREN
+            depth -= 1
+            if depth = 0 then return true
+        case Tko.TK_COMMA : if depth = 1 then return false
+        case Tko.TK_EOL, Tko.TK_EOF : return false
+        end select
+        i += 1
+    wend
+    return false
+end function
+
 function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.StmtPayload sp
@@ -371,7 +399,11 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         '' parser reads a builtin type name, so these were discarded and the
         '' declaration came out untyped. Speculative like the expression attempt
         '' below: it counts only when the parse lands exactly on the ')'.
-        if tookName = false then
+        '' '( x )' WITH NO COMMA IS A PARENTHESISED EXPRESSION, never a type -- a tuple type
+        '' has two elements at least. 'typeof( (l) )' read as the tuple type '(long)' where
+        '' fbc says LONG, and 'dim as typeof( (l) ) z' could not even be printed. The
+        '' expression attempt below takes it.
+        if (tookName = false) andalso (ParenOperandIsExpr_( p ) = false) then
             dim as long saveT = p.pos
             dim as boolean savedSilentT = p.silent
             dim as long savedErrorsT = p.errors

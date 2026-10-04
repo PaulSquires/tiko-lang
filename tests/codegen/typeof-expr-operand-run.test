@@ -1,0 +1,14 @@
+'' RUN: 'typeof( (l) )' and 'typeof( l * N )' are EXPRESSIONS: the first read as the
+'' one-element tuple type '(long)', the second as the fixed-length type 'l * N', so
+'' 'dim as typeof( l * 1000000000 ) y = 3000000000' kept -1294967296 (audit F-56).
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/typeof-expr-operand.bas -o tests/codegen/typeofexproperand.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/typeofexproperand.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3000000000
+'' EXPECT-RUN-OUT: a 2.5 1
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  5
