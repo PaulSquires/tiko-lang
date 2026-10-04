@@ -65,16 +65,27 @@ function Snippet _
 
     '' Build the caret row in DISPLAY columns, expanding tabs the same way the
     '' source line will render them.
+    '' a.column is a DISPLAY column -- a tab advances to the next stop -- so the row is
+    '' built by walking the line's CHARACTERS: a tab is echoed as a tab and lands on the
+    '' same stop, anything else is as many spaces as it is wide. Indexing the line BY
+    '' the display column put the caret three cells right after one leading tab (F-67).
     dim as string caret = ""
-    for i as long = 1 to a.column - 1
-        dim as boolean isTab = false
-        if i <= len( lineText ) then isTab = (lineText[i - 1] = 9)
-        if isTab then
-            caret += chr( 9 )
-        else
-            caret += " "
-        end if
-    next
+    scope
+        dim as long col = 1, bi = 0, n = len( lineText )
+        dim as const ubyte ptr lp = cast( const ubyte ptr, strptr( lineText ) )
+        while (col < a.column) andalso (bi < n)
+            if lp[bi] = 9 then
+                caret += chr( 9 )
+                col = ((col - 1) \ Tko.Text.DEFAULT_TAB_WIDTH + 1) * Tko.Text.DEFAULT_TAB_WIDTH + 1
+                bi += 1
+            else
+                dim as long w = Tko.Text.DisplayWidth( Tko.Text.DecodeUtf8( lp, n, bi ) )
+                caret += space( w )
+                col += w
+            end if
+        wend
+        if col < a.column then caret += space( a.column - col )
+    end scope
     caret += "^"
     for i as long = a.column + 1 to lastCol
         caret += "~"

@@ -197,7 +197,7 @@ lowered: 10 functions, 17 blocks, 113 insts, 0 statements not lowered, 0 scope i
 tests/diagnostics/src/outer-value-names.bas(20,21): error TKO0945: 'c1' is already a constant or procedure of the enclosing scope, which no local may share
      |
   20 | 	dim as long C1 = 2                          '' REFUSED
-     | 	                   ^
+     | 	            ^
 tests/diagnostics/src/outer-value-names.bas(5,7): note: declared here
      |
    5 | const C1 = 1
@@ -205,7 +205,7 @@ tests/diagnostics/src/outer-value-names.bas(5,7): note: declared here
 tests/diagnostics/src/outer-value-names.bas(21,21): error TKO0945: 'p2' is already a constant or procedure of the enclosing scope, which no local may share
      |
   21 | 	dim as long P2 = 2                          '' REFUSED
-     | 	                   ^
+     | 	            ^
 tests/diagnostics/src/outer-value-names.bas(6,1): note: declared here
      |
    6 | sub P2( )
@@ -213,7 +213,7 @@ tests/diagnostics/src/outer-value-names.bas(6,1): note: declared here
 tests/diagnostics/src/outer-value-names.bas(22,21): error TKO0945: 'p3' is already a constant or procedure of the enclosing scope, which no local may share
      |
   22 | 	dim as long P3 = 2                          '' REFUSED
-     | 	                   ^
+     | 	            ^
 tests/diagnostics/src/outer-value-names.bas(8,9): note: declared here
      |
    8 | declare function P3( ) as long
@@ -221,7 +221,7 @@ tests/diagnostics/src/outer-value-names.bas(8,9): note: declared here
 tests/diagnostics/src/outer-value-names.bas(23,21): error TKO0945: 'q1' is already a constant or procedure of the enclosing scope, which no local may share
      |
   23 | 	dim as long Q1 = 2                          '' REFUSED
-     | 	                   ^
+     | 	            ^
 tests/diagnostics/src/outer-value-names.bas(9,1): note: declared here
      |
    9 | sub Q1 overload( byval a as long )
@@ -237,7 +237,7 @@ tests/diagnostics/src/outer-value-names.bas(5,7): note: declared here
 tests/diagnostics/src/outer-value-names.bas(32,32): error TKO0945: 'p2' is already a constant or procedure of the enclosing scope, which no local may share
      |
   32 | 		static as long p2                       '' REFUSED
-     | 		                             ^
+     | 		               ^
 tests/diagnostics/src/outer-value-names.bas(6,1): note: declared here
      |
    6 | sub P2( )
@@ -245,7 +245,7 @@ tests/diagnostics/src/outer-value-names.bas(6,1): note: declared here
 tests/diagnostics/src/outer-value-names.bas(34,13): error TKO0945: 'p3' is already a constant or procedure of the enclosing scope, which no local may share
      |
   34 | 	for p3 as long = 1 to 2                     '' REFUSED
-     | 	           ^
+     | 	    ^
 tests/diagnostics/src/outer-value-names.bas(8,9): note: declared here
      |
    8 | declare function P3( ) as long
@@ -253,7 +253,7 @@ tests/diagnostics/src/outer-value-names.bas(8,9): note: declared here
 tests/diagnostics/src/outer-value-names.bas(62,13): error TKO0945: 'g1' is already a constant or procedure of the enclosing scope, which no local may share
      |
   62 | 	var G1 = 2                                  '' REFUSED
-     | 	           ^
+     | 	    ^
 tests/diagnostics/src/outer-value-names.bas(60,7): note: declared here
      |
   60 | const G1 = 1
@@ -261,7 +261,7 @@ tests/diagnostics/src/outer-value-names.bas(60,7): note: declared here
 tests/diagnostics/src/outer-value-names.bas(63,15): error TKO0945: 'f1' is already a constant or procedure of the enclosing scope, which no local may share
      |
   63 | 	const F1 = 3                                '' REFUSED
-     | 	             ^
+     | 	      ^
 tests/diagnostics/src/outer-value-names.bas(61,1): note: declared here
      |
   61 | function F1( ) as long
@@ -269,7 +269,7 @@ tests/diagnostics/src/outer-value-names.bas(61,1): note: declared here
 tests/diagnostics/src/outer-value-names.bas(68,23): error TKO0945: 'g1' is already a constant or procedure of the enclosing scope, which no local may share
      |
   68 | 	redim as long G1( 2 )                       '' REFUSED
-     | 	                     ^
+     | 	              ^
 tests/diagnostics/src/outer-value-names.bas(60,7): note: declared here
      |
   60 | const G1 = 1
