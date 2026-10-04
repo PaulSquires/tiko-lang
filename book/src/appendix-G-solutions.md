@@ -72,7 +72,7 @@ A solution is one way to do the exercise, not the only one. Several build on a c
 | 31.2 | Capstone: a CLI Search Tool | Add whole-word matching, so that `dog` matches `the lazy dog.` and `hot-dog` but not `dogma` or `underdog`. | `ch31/solutions/ex31-02.tiko` |
 | 32.1 | Capstone: a Concurrent Pipeline | Write `SameBytes( a, b )`, which compares two files byte by byte, and check it on the groups that `thash` reports for `sample/`. | `ch32/solutions/ex32-01.tiko` |
 | 32.2 | Capstone: a Concurrent Pipeline | Start two walkers, one for `sample/docs` and one for `sample/photos`, both sending to a single channel, and print every file name they find in sorted order. | `ch32/solutions/ex32-02.tiko` |
-| 33.1 | Capstone: a TUI Ledger | Print the spending in each category over the whole ledger, the largest first. | `ch33/solutions/ex33-01.tiko` (blocked: T91) |
-| 33.2 | Capstone: a TUI Ledger | Accept a quick-entry line, `date;payee;category;amount`, and check it with `ParseTxn`. | `ch33/solutions/ex33-02.tiko` (blocked: T91) |
+| 33.1 | Capstone: a TUI Ledger | Print the spending in each category over the whole ledger, the largest first. | `ch33/solutions/ex33-01.tiko` |
+| 33.2 | Capstone: a TUI Ledger | Accept a quick-entry line, `date;payee;category;amount`, and check it with `ParseTxn`. | `ch33/solutions/ex33-02.tiko` |
 
 <!-- 66 solutions of 155 exercises, generated 2026-10-04 -->

@@ -9,8 +9,8 @@ Three tables come from the compiler at the pinned commit, so the page cannot dri
 
 The rest -- which names are contextual, where a keyword may name a field -- is MEASURED, not
 read: every keyword and runtime name was compiled as a variable, a procedure, a field, a local
-and a namespace member, with tiko and with fbc-modern 1.20, and the two agree (2026-10-04, after
-T93). The statements below say so where they make a claim.
+and a namespace member, with tiko and with fbc-modern 1.20, and the two agree (2026-10-04). The
+statements below say so where they make a claim.
 
     python tools/gen_keywords.py [--tiko-src C:/dev/tiko-lang]
 """
@@ -122,8 +122,7 @@ def main() -> int:
         "**contextual word** is a keyword only where its statement expects it. A **fixed-width "
         "type name** is predeclared and may be replaced. Everything else is free. The rules "
         "below were measured by compiling each word in each position with tiko and with "
-        "fbc-modern 1.20. With the compiler fix described under *Keywords as field names*, "
-        "the two give the same answer for every word in every position.",
+        "fbc-modern 1.20, and the two give the same answer for every word in every position.",
         "",
         f"## Reserved words ({len(words)}) {{#app-kw-reserved}}",
         "",
@@ -159,15 +158,6 @@ def main() -> int:
         "- In the type-first spelling, `alias` is not a name either. `alias as long` is fine.",
         "- `rem` starts a comment where a statement can end, so `rem as long` is a comment. "
         "`as long rem` declares a field named `rem`, and `t.rem` reads it.",
-        "",
-        "```admonish warning title=\"Status in this version\"",
-        "Some of these field-name rules came from a fix to the compiler (**T93**) that is not "
-        "yet in the toolchain this book is checked against. With that toolchain, the operator "
-        "words, `delete`, `new` and `alias` are accepted as field names, a field called "
-        "`constructor` or `destructor` cannot be read (`TKO0666`), and `as long rem` declares "
-        "nothing. A `sub` with no name, such as `sub rem( )`, compiles without a diagnostic "
-        "instead of being refused.",
-        "```",
         "",
         f"## Runtime names ({len(ovl) + len(rtl)}) {{#app-kw-runtime}}",
         "",
@@ -257,14 +247,7 @@ def main() -> int:
         "```",
         "",
         "`&` binds looser than `+` and `-`, so `\"a\" & 1 + 2` means `\"a\" & (1 + 2)`, and "
-        "fbc prints `a3`.",
-        "",
-        "```admonish warning title=\"Status in this version\"",
-        "tiko parses `\"a\" & 1 + 2` as `\"a\" & (1 + 2)`, but then evaluates the `+` on "
-        "strings, as `\"1\" + \"2\"`, and prints `a12`. A `+` whose result is an operand of "
-        "`&` is affected; `*` and `-` are not, and neither is a `+` in parentheses. Write "
-        "`\"a\" & (1 + 2)` until it is fixed. Tracked as **T94**.",
-        "```",
+        "both compilers print `a3`.",
         "",
         f"<!-- {len(words)} reserved words, {len(ovl) + len(rtl)} runtime names, generated "
         f"{datetime.date.today().isoformat()} from src/lexer/keywords.bi, "

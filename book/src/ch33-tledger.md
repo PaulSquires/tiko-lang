@@ -311,21 +311,6 @@ imported 14 transactions from bank.csv
 Given a file name instead of `:memory:`, the ledger persists, and `tledger ledger.db` opens the
 screens on it.
 
-```admonish warning title="Status in this version"
-**A module that included a header put that header into its interface whether or not anything
-public named it.** Every program importing `ledger` therefore compiled `fbsqlite.bi` a second
-time, and the link refused its procedures as defined twice. Next to `std/tui`, it also collided
-with a Windows macro. This is fixed in the compiler (**T91**), but not yet in the toolchain this
-book is checked against, so every listing in this chapter is blocked on both platforms. The
-outputs shown are the programs' real output, measured with the fixed compiler on Windows, and on
-Linux for `schema.tiko`.
-
-**On Linux, importing `std/tui` before `std/money` fails** in `crt/math.bi`, whose `INFINITY` and
-`FP_INFINITE` macros collide with names `fb/math.bi` has already declared. The same headers
-included with `#include` compile. So the programs that use the screens still fail on Linux with
-the fixed compiler. Tracked as **T92**.
-```
-
 ## Shipping
 
 `fbsqlite` links **SQLite itself** into the program. `sqlite3.bi` says `#inclib "sqlite3"`, and

@@ -66,8 +66,12 @@ assert.bas(2): assertion failed at __FB_MAINPROC__: x = 3
 The defines a program can test with `#ifdef`, and their values. **The same in both:**
 `__FB_VERSION__` (`"1.20.0"`), `__FB_LANG__` (`"fb"`), `__FB_64BIT__`, `__FB_X86__`,
 `__FB_WIN32__` on Windows and `__FB_LINUX__` and `__FB_UNIX__` on Linux, `__FB_ASM__`,
-`__FB_FPU__`, `__FB_FPMODE__`, `__FB_DEBUG__`, `__FB_ERR__`, `__FB_MT__`, every `__FB_OPTION_…__`
-and `__FB_OUT_…__`, and the macro-like ones: `__FB_ARG_COUNT__` and the other `__FB_ARG_…__`,
+`__FB_PCOS__` on Windows, `__FB_FPU__`, `__FB_FPMODE__`, `__FB_DEBUG__`, `__FB_ERR__`, `__FB_MT__`,
+`__FB_VER_MAJOR__`, `__FB_VER_MINOR__` and `__FB_VER_PATCH__` (`1`, `20`, `0`), `__FB_GUI__` (`-1`
+under `-s gui`), `__FB_OPTIMIZE__` (the `-O` level), `__FB_PROFILE__` and `__FB_VECTORIZE__` (`0`),
+`__FB_MAIN__` in the module that becomes `main`, `__FB_ARGC__` and `__FB_ARGV__` (`main`'s own
+parameters, usable in module-level code only), an empty `__FB_BUILD_SHA1__`, every
+`__FB_OPTION_…__` and `__FB_OUT_…__`, and the macro-like ones: `__FB_ARG_COUNT__` and the other `__FB_ARG_…__`,
 `__FB_EVAL__`, `__FB_IIF__`, `__FB_JOIN__`, `__FB_QUOTE__`, `__FB_UNQUOTE__` and the
 `__FB_UNIQUEID…__` family.
 
@@ -81,19 +85,9 @@ and `__FB_OUT_…__`, and the macro-like ones: `__FB_ARG_COUNT__` and the other 
 | `__FB_BACKEND__` | `"gcc"` | `"llvm"` |
 | `__FB_GCC__` | `-1` | `0` |
 | `__FB_MIN_VERSION__( … )` | defined | not defined: `#if __FB_MIN_VERSION__( 1, 20, 0 )` is `TKO0308` |
-| `__FB_VER_MAJOR__`, `_MINOR__`, `_PATCH__` | `1`, `20`, `0` | not defined |
-| `__FB_ARGC__`, `__FB_ARGV__`, `__FB_MAIN__` | defined | not defined |
-| `__FB_BUILD_DATE__`, `__FB_BUILD_DATE_ISO__`, `__FB_BUILD_SHA1__`, `__FB_BUILD_FORK_ID__` | the compiler's build | not defined |
-| `__FB_GUI__`, `__FB_OPTIMIZE__`, `__FB_PROFILE__`, `__FB_VECTORIZE__` | `0` | not defined |
-| `__FB_QUERY_SYMBOL__( … )` | defined | not defined |
-| `__FB_PCOS__` on Linux | not defined | defined |
-
-```admonish warning title="Status in this version"
-**Two of those rows are defects, not choices.** tiko defines `__FB_PCOS__` on Linux, where fbc
-does not, so `#ifdef __FB_PCOS__` takes its Windows branch there. And the missing
-`__FB_VER_MAJOR__` family, `__FB_ARGC__`, `__FB_MAIN__` and the four `0`-valued defines break
-code that tests them. Tracked as **T96**.
-```
+| `__FB_BUILD_FORK_ID__` | `"fbc-modern"` | `"tiko-lang"` |
+| `__FB_BUILD_DATE__`, `__FB_BUILD_DATE_ISO__` | the date fbc was built | the date tiko was built |
+| `__FB_QUERY_SYMBOL__( … )` | defined | not defined: it queries fbc's symbol table while preprocessing, and tiko preprocesses before any symbol exists |
 
 ## Command-line options
 
@@ -144,13 +138,10 @@ The usual mistakes, side by side:
 | calling something that is not a procedure | 10 Expected '=' | `TKO0772` |
 | a string initialising a pointer | 24 Invalid data types | `TKO0653` |
 | `end function` closing a `sub` | 125 Expected 'END SUB' | `TKO0405` |
-
-```admonish warning title="Status in this version"
-**Three mistakes compile under tiko that fbc refuses.** `return "s"` in a function declared
-`as long` (fbc's 181) compiles, and the call returns a garbage number. `exit for` outside any `for`
-(fbc's 239) compiles to nothing. `goto` to a label that does not exist (fbc's 104) compiles, and
-the program runs. Tracked as **T95**.
-```
+| a string returned from a numeric function | 181 Invalid assignment/conversion | `TKO0702` |
+| `exit for` outside any `for` | 239 Illegal outside a FOR compound statement | `TKO0947` |
+| `exit for, for` inside only one `for` | 247 No outer FOR compound statement found | `TKO0948` |
+| `goto` to a label the procedure does not have | 48 Undefined label (104 at module level) | `TKO0949` |
 
 ## Other differences
 

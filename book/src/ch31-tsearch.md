@@ -205,14 +205,6 @@ terminal or anything outside `sample/`, so it can run on every build.
 The program itself is tested the way the runs above were: by running it on known files and
 comparing its output and exit code with what they should be.
 
-```admonish warning title="Status in this version"
-**A `!"…"` literal with a `\u` escape, passed straight to a `byref ustring` parameter, arrives
-garbled**: the escapes are not processed and the bytes are read as UTF-16, so
-`folding_is_not_only_ascii` fails. Assigned to a `ustring` variable first, or passed `byval`, the
-same literal is correct. The listing is blocked on both platforms until it is fixed; the output
-above is the suite's correct result. Tracked as **T90**.
-```
-
 ## What it costs
 
 - **Every file is read whole** with `ReadAllLines`, so a search holds one file in memory at a
