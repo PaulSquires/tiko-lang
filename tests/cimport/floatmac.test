@@ -1,0 +1,10 @@
+'' A float macro is written with the shortest spelling that reads back as the same double:
+'' 'str( d )' stopped at 16 digits, so DBL_MAX came back INF and 0.1 + 0.2 came back 0.3
+'' (audit F-50).
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/floatmac.h -cimport-out -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 1.7976931348623157e+308
+'' EXPECT-OUT: 0.30000000000000004
+'' EXPECT-OUT: 0.1
+'' EXPECT-OUT: 0.5

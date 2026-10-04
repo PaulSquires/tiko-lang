@@ -135,6 +135,18 @@ private function ProbeIndex_( byref nm as string, byref prefix as string ) as lo
 end function
 
 '' A value clang folded, as FreeBASIC text -- or "" when there is nothing to import.
+'' THE SHORTEST SPELLING THAT READS BACK AS THE SAME DOUBLE -- 15, 16 or 17 significant
+'' digits. 'str( d )' gave 16 at most, so DBL_MAX's 1.797693134862316e+308 read back as
+'' INF and 0.1 + 0.2 as 0.3 (audit F-50); 17 always round-trips.
+private function FloatText_( byval d as double ) as string
+    dim as zstring * 40 buf
+    for digits as long = 15 to 17
+        snprintf( @buf, 40, "%.*g", digits, d )
+        if strtod( @buf, 0 ) = d then exit for
+    next
+    return buf
+end function
+
 private function ValueText_( byref x as CImp, byval vd as CXCursor ) as string
     '' A POINTER-VALUED macro -- '((HANDLE)-1)', '((void*)0)' -- evaluates to an integer
     '' too. It is not a constant FreeBASIC can hold as the same thing, so it is dropped.
@@ -157,7 +169,7 @@ private function ValueText_( byref x as CImp, byval vd as CXCursor ) as string
         '' A FINITE STAND-IN FOR INFINITY WOULD BE A DIFFERENT NUMBER WEARING THE RIGHT
         '' NAME. NaN is the value unequal to itself; infinity is the one that stays itself
         '' when halved. Either is marked, to be ledgered rather than lost without a word.
-        if (d = d) andalso ((d = 0) orelse (d / 2 <> d)) then r = str( d ) else r = NONFINITE_
+        if (d = d) andalso ((d = 0) orelse (d / 2 <> d)) then r = FloatText_( d ) else r = NONFINITE_
     case CXEval_StrLiteral
         dim as zstring ptr z = x.api->EvalResult_getAsStr( ev )
         if z <> 0 then
