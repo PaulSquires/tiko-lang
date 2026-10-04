@@ -1,0 +1,10 @@
+'' SysV passes a 3-, 5- or 13-byte aggregate in registers loaded and stored at 4 and 8
+'' bytes, and the slots were sized to the aggregate: 'load i32' out of a '[3 x i8]' copy,
+'' 'store i64' into a '[5 x i8]' parameter slot -- reads past the copy that -O1 folded to
+'' poison, and writes over the next local. Each slot is now as wide as its registers;
+'' the linux-x86_64 golden shows 4, 8 and 16. Run in WSL: 7123 / 405 / 129 at -O0, -O1
+'' and -O2, which fbc prints.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/sysv-odd-agg.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/sysv-odd-agg.out

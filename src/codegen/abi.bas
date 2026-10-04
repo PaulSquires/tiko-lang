@@ -107,6 +107,20 @@ private function RegSlotSize_( byval sz as long, byref target as TargetDescripti
     return (sz + 7) and (not 7)
 end function
 
+'' THE BYTES A SysV ARGUMENT'S REGISTERS TOUCH in a slot holding SZ: each eightbyte is
+'' loaded or stored at the width SysvEightbyteType gives it, which is wider than what is
+'' left when the last one is 3, 5, 6 or 7 bytes -- 'i32' over 3, 'i64' over 5 to 7.
+'' Every other size is exactly its registers. Win64 passes no aggregate in pieces.
+private function ArgSlotSize_( byval sz as long, byref target as TargetDescription ) as long
+    if target.abi = ABI_WIN64 then return sz
+    dim as long tail_ = sz and 7
+    select case tail_
+    case 3 : return sz + 1
+    case 5, 6, 7 : return sz - tail_ + 8
+    end select
+    return sz
+end function
+
 '' ---------------------------------------------------------------- helpers
 ''
 '' The pass builds each block's instruction list ANEW rather than inserting into the
@@ -331,9 +345,12 @@ private sub RewriteCallArgs _
             continue for
         end if
 
-        '' The per-call copy.
+        '' The per-call copy -- as wide as its REGISTERS on SysV, because each one is
+        '' loaded out of it at its full width: a 3-byte argument was 'load i32' from an
+        '' '[3 x i8]' slot and a 5-byte one 'load i64', reading past the copy, and at -O1
+        '' LLVM folded the out-of-bounds bytes to poison. See ArgSlotSize_.
         av.ty = cast( ubyte, MT_AGG )
-        dim as long slot = NewAggSlot( r, sz, names )
+        dim as long slot = NewAggSlot( r, ArgSlotSize_( sz, *r.tgt ), names )
         if (av.kind = cast( ubyte, MV_LOCAL )) orelse (av.kind = cast( ubyte, MV_GLOBAL )) then
             dim as MirValue loaded = LoadAs( r, av, MT_AGG, sz )
             StoreAggInto( r, slot, loaded, sz )
@@ -581,6 +598,13 @@ private sub RewriteParamStore _
     end if
 
     '' DIRECT: one register per eightbyte, each written at its own offset in the slot.
+    ''
+    '' THE SLOT HOLDS WHAT THE REGISTERS WRITE. Each is stored at its full width, and a
+    '' 5-byte parameter's 'store i64' into its '[5 x i8]' slot wrote three bytes into
+    '' whatever the frame put next -- a neighbouring byte parameter read back changed. The
+    '' body's slot grows to ArgSlotSize_; the bytes past 'sz' are padding nothing reads.
+    dim as long wantSz = ArgSlotSize_( sz, *r.tgt )
+    if r.f->locals[dslot].size < wantSz then r.f->locals[dslot].size = wantSz
     for k as long = 0 to parts.Count - 1
         dim as long j = parts[k]
         dim as MirValue pv
