@@ -174,12 +174,6 @@ library steps down to what the terminal supports.
 navigated. Make every widget that takes the focus a field of the app, as the state records are.
 ```
 
-```admonish warning title="Status in this version"
-**`#import "std/tui"` followed by `#import "std/containers"` or `#import "std/fs"` hides the
-`tui` names**: every `tui.` type is then `TKO0808: the type 'tui.tuirect' is not declared`. The
-other order works. Import `std/tui` last. Tracked as **T89**.
-```
-
 ## SQLite
 
 SQLite is a database in a library: no server, one file per database (or none, in memory), and
