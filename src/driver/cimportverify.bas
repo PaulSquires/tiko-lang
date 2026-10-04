@@ -243,7 +243,9 @@ function ImportChecked _
             io.refuseWhy.Push( badWhy[i] )
         next
     next
-    return 0
+    '' THE BACKSTOP IS A FAILURE, not a pass: the sixteenth round still refused records,
+    '' so the binding in 'res' holds layouts that differ from clang's (audit F-75).
+    return 5
 end function
 
 end namespace

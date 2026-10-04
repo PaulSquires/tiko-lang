@@ -53,8 +53,10 @@ private sub Candidates_( byref clangExe as string, cand() as string, byref n as 
         return
     end if
 #ifdef __FB_WIN32__
-    '' The LLVM installer puts libclang.dll in bin\, beside clang.exe.
-    cand( n ) = DirOf_( clangExe ) & "libclang.dll" : n += 1
+    '' The LLVM installer puts libclang.dll in bin\, beside clang.exe. ONLY WITH A DIRECTORY:
+    '' a clang found as a bare 'clang' made the candidate a bare 'libclang.dll', which the
+    '' loader looks for in the current directory first -- one planted there ran (audit F-75).
+    if len( DirOf_( clangExe ) ) then cand( n ) = DirOf_( clangExe ) & "libclang.dll" : n += 1
     cand( n ) = "C:\Program Files\LLVM\bin\libclang.dll" : n += 1
 #else
     '' /usr/bin/clang -> /usr/lib/llvm-18/bin/clang, whose ../lib holds libclang.so.1.
