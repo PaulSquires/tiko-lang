@@ -231,8 +231,10 @@ func void VIARETURN(ptr $0, ptr $1, ptr $2) {
     store @$tmp3, %7
     %9 = load @$tmp3
     call void _ZN2WSC1ERw(@$tmp0, %9)
-    %10 = load @$tmp0
-    store $0, %10
+    %10 = load @$tmp3
+    call.rtl void fb_WstrDelete(%10)
+    %11 = load @$tmp0
+    store $0, %11
     ret
 }
 func void VIAASSIGN(ptr $0, ptr $1) {
@@ -313,8 +315,10 @@ func ptr VIARETURND(ptr $0, ptr $1, ptr $2) {
     store @$tmp3, %9
     %11 = load @$tmp3
     call void _ZN2WDC1ERw(%5, %11)
-    %12 = load @$tmp0
-    ret %12
+    %12 = load @$tmp3
+    call.rtl void fb_WstrDelete(%12)
+    %13 = load @$tmp0
+    ret %13
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -482,4 +486,4 @@ declare ptr fb_WstrToStr(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 17 functions, 17 blocks, 308 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 17 functions, 17 blocks, 312 insts, 0 statements not lowered, 0 scope imbalance

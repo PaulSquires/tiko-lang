@@ -32,6 +32,9 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as bool
         end if
     end if
     '' A RETURN leaves every open scope, so their actions run before the terminator.
+    '' THE STATEMENT'S TEMPORARIES GO BEFORE THE RETURN, the result now copied out of them --
+    '' fbc's 'fb_WstrDelete( TMP )' right after the assign (audit F-58).
+    ReleaseUdtTemps_( c, c.stmtUdtMark ) : ReleaseStrTemps_( c, c.stmtStrMark ) : ReleaseWstrTemps_( c, c.stmtWstrMark )
     EmitCleanupsTo( c, 0 )
 
     dim as MirValue rsa

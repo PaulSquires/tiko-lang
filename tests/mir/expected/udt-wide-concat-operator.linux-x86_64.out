@@ -146,11 +146,14 @@ func ptr TITLE(ptr $0, ptr $1, i32 $2) {
     store %23, %22
     call void _ZN2WSD1Ev(@$tmp3)
     call void _ZN2WSD1Ev(@$tmp4)
+    call.rtl void fb_StrDelete(@$tmp6)
+    call.rtl void fb_StrDelete(@$tmp5)
     %24 = load @$tmp0
     ret %24
 }
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_IntToStr(i32 $0)
+declare void fb_StrDelete(ptr $0)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg a size 256
@@ -243,10 +246,9 @@ func i32 main(i32 $0, ptr $1) {
     ret %46
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void fb_StrDelete(ptr $0)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintWstr(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 8 functions, 8 blocks, 171 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 173 insts, 0 statements not lowered, 0 scope imbalance

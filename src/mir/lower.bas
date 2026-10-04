@@ -134,9 +134,12 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
     dim as long utmpMark = c.udtTemps.Count
     dim as long savedUdtMark = c.stmtUdtMark
     c.stmtUdtMark = utmpMark
+    dim as long savedStrMark = c.stmtStrMark, savedWstrMark = c.stmtWstrMark
+    c.stmtStrMark = tmpMark : c.stmtWstrMark = wtmpMark
 
     LowerStmtInner( c, id )
 
+    c.stmtStrMark = savedStrMark : c.stmtWstrMark = savedWstrMark
     c.stmtUdtMark = savedUdtMark
     ReleaseUdtTemps_( c, utmpMark )
 
@@ -723,7 +726,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' ran two constructors per call and no destructor at all.
             ''
             '' AFTER the result has been copied out, because the result is often one of them.
-            ReleaseUdtTemps_( c, c.stmtUdtMark )
+            ReleaseUdtTemps_( c, c.stmtUdtMark ) : ReleaseStrTemps_( c, c.stmtStrMark ) : ReleaseWstrTemps_( c, c.stmtWstrMark )
             EmitCleanupsTo( c, 0 )
             dim as MirValue ura2
             ura2.kind = cast( ubyte, MV_LOCAL )
@@ -748,7 +751,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' ran two constructors per call and no destructor at all.
             ''
             '' AFTER the result has been copied out, because the result is often one of them.
-            ReleaseUdtTemps_( c, c.stmtUdtMark )
+            ReleaseUdtTemps_( c, c.stmtUdtMark ) : ReleaseStrTemps_( c, c.stmtStrMark ) : ReleaseWstrTemps_( c, c.stmtWstrMark )
             EmitCleanupsTo( c, 0 )
             dim as MirValue spa
             spa.kind = cast( ubyte, MV_LOCAL )
@@ -790,7 +793,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 '' ran two constructors per call and no destructor at all.
                 ''
                 '' AFTER the result has been copied out, because the result is often one of them.
-                ReleaseUdtTemps_( c, c.stmtUdtMark )
+                ReleaseUdtTemps_( c, c.stmtUdtMark ) : ReleaseStrTemps_( c, c.stmtStrMark ) : ReleaseWstrTemps_( c, c.stmtWstrMark )
                 EmitCleanupsTo( c, 0 )
                 Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
                 c.curBlock = -1
@@ -838,7 +841,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' ran two constructors per call and no destructor at all.
         ''
         '' AFTER the result has been copied out, because the result is often one of them.
-        ReleaseUdtTemps_( c, c.stmtUdtMark )
+        ReleaseUdtTemps_( c, c.stmtUdtMark ) : ReleaseStrTemps_( c, c.stmtStrMark ) : ReleaseWstrTemps_( c, c.stmtWstrMark )
         EmitCleanupsTo( c, 0 )
         Terminate( c, MTERM_RET, -1, -1, rv )
         '' The cursor goes DEAD rather than opening a block nothing branches to.

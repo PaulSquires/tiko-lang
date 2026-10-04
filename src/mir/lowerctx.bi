@@ -173,6 +173,11 @@ type Ctx
     '' it terminates the block, and the release then has nowhere to emit. The
     '' return paths use this mark to let go of them BEFORE they terminate.
     as long stmtUdtMark
+    '' ...and the same marks for the statement's STRING and WIDE temporaries, which a RETURN
+    '' leaked the same way: 'return wstr( n )' from a string function kept the wide
+    '' temporary, 29 MB over a million calls where fbc's stays at 4 (audit F-58).
+    as long stmtStrMark
+    as long stmtWstrMark
     as FB.Array( of ulong ) udtTempTypes
     '' ONE BYTE PER AST NODE: has LowerUserBinaryOp_ already declined this one?
     '' A speculative attempt that DESCENDS before it can fail costs its whole
