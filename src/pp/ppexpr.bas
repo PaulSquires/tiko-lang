@@ -547,7 +547,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 PxNext( x )
                 if MacroFor( *x.e, want ) <> 0 then
                     r = PxNum( -1 )
-                elseif IsDeclared_( *x.e, want ) then
+                elseif IsDefinedBuiltin_( *x.e, want ) then
                     r = PxNum( -1 )
                 end if
             elseif IsKeywordKind( PxPeek( x ) ) then
