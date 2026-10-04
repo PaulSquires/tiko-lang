@@ -298,3 +298,16 @@ private sub ForwardTypeRef_ _
     c.diags->Report( Tko.TKO0784, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
     c.diags->AddNote( Tko.TKO0901, Tko.PointRange( s->loc ) )
 end sub
+
+'' THE SCOPE A PARAMETER'S DEFAULT IS RESOLVED IN: the one the procedure is declared in,
+'' not the procedure's own. Walked inside it, the default saw the parameters -- over
+'' 'dim shared a = 7', 'sub f( byval a as long, byval b as long = a )' bound b's default to
+'' the parameter a, so 'f( 2 )' printed '2 0' where fbc prints '2 7', and a default naming
+'' only an earlier parameter (fbc's error 42) was accepted.
+function ParamDefaultScope_( byref c as Ctx, byval here as Tko.ScopeId ) as Tko.ScopeId
+    dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
+    if hs = 0 then return here
+    if hs->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then return here
+    if hs->parent = Tko.SCOPE_NONE then return here
+    return hs->parent
+end function

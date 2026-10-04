@@ -1152,7 +1152,8 @@ sub WalkStmt _
                 c.pendParamScope.Push( cast( ulong, here ) )
             end if
         end if
-        c.inParamDefault = true : WalkStmt( c, sp->b, here ) : c.inParamDefault = false
+        '' Where the PROCEDURE is declared, not inside it -- see ParamDefaultScope_.
+        c.inParamDefault = true : WalkStmt( c, sp->b, ParamDefaultScope_( c, here ) ) : c.inParamDefault = false
         return
 
     case Tko.N_TYPEDEF

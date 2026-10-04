@@ -1,0 +1,13 @@
+'' RUN: a parameter's default is resolved where the procedure is declared, not inside it:
+'' over 'dim shared a = 7', 'sub f( byval a as long, byval b as long = a )' bound b's
+'' default to the parameter a. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/param-default-scope.bas -o tests/codegen/paramdefaultscope.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/paramdefaultscope.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2 7
+'' EXPECT-RUN-OUT:  2 3
+'' EXPECT-RUN-OUT:  3 140
+'' EXPECT-RUN-OUT:  14
