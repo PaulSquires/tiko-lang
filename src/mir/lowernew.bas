@@ -463,6 +463,10 @@ function LowerNew_ _
     if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 1) then
         dim as MirType emt = LowerType( el, *c.types )
         scalarInit = (emt <> MT_VOID) andalso (emt <> MT_AGG)
+        '' ...AND A VAR-LENGTH STRING, which lowers as an aggregate and so fell past this:
+        '' 'new string( "newstr" )' came back calloc-empty. Measured, fbc initialises the
+        '' descriptor inside the same guard: 'fb_StrInit( TMP, -1, "newstr", 7, 0 )'.
+        if scalarInit = false then scalarInit = IsStringType( c, el )
     end if
 
     '' 'new T( x )' WITH x A T, AND NO COPY CONSTRUCTOR OF T's OWN, IS THE IMPLICIT ONE.
@@ -570,6 +574,13 @@ function LowerNew_ _
             EmitStructorCall( c, ctor, -1, @pv, @cargs )
         elseif implCopy then
             CallImplicitCopy_( c, el, pv, copySrc )
+        elseif scalarInit andalso IsStringType( c, el ) then
+            '' calloc zeroed the descriptor, so it is a valid empty string to assign into;
+            '' placement storage is zeroed first, as nothing else did it.
+            dim as Tko.NodeId sve = cast( Tko.NodeId, c.ast->children[argFirst] )
+            if isPlace then ZeroStrDescriptor( c, pv )
+            if LowerStringAssignTo( c, pv, Tko.NODE_NONE, sve, _
+                    iif( IsUStringType( c, el ), 1, 0 ) ) = false then return false
         elseif scalarInit then
             dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->children[argFirst] )
             dim as MirValue iv = LowerExpr( c, ive )

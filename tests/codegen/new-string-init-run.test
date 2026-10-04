@@ -1,0 +1,11 @@
+'' RUN: 'new string( init )' initialises the string -- it came back empty: a string
+'' lowers as an aggregate and fell past the scalar initialiser. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-string-init.bas -o tests/codegen/newstringinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/newstringinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: newstr
+'' EXPECT-RUN-OUT: abcdef 6
