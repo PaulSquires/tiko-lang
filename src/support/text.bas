@@ -458,15 +458,19 @@ function DecodeEscapedBody _
     dim as long n = len( body )
     '' A UNICODE escape promotes the WHOLE literal to a wstring, which is a different
     '' object and not this routine's to invent.
-    for k as long = 1 to n - 1
+    '' PAIR BY PAIR: the 'U' in '\\Users' follows an escaped backslash and is text.
+    dim as long k = 1
+    while k <= n - 1
         if asc( mid( body, k, 1 ) ) = 92 then
             dim as long nx = asc( mid( body, k + 1, 1 ) )
             if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
                 outWide = true
                 return ""
             end if
+            k += 1
         end if
-    next
+        k += 1
+    wend
     dim as string r = ""
     dim as long i = 1
     while i <= n

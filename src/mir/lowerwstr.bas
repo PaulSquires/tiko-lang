@@ -574,12 +574,16 @@ function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolea
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = 0 then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
-    for k as long = 0 to lp->strLength - 2
+    '' PAIR BY PAIR, so the 'u' after an escaped backslash is text -- see lowerstr.bas.
+    dim as long k = 0
+    while k < lp->strLength - 1
         if f->text[lp->strOffset + k] = 92 then
             dim as ubyte nx = f->text[lp->strOffset + k + 1]
             if (nx = asc( "u" )) orelse (nx = asc( "U" )) then return true
+            k += 1
         end if
-    next
+        k += 1
+    wend
     return false
 end function
 

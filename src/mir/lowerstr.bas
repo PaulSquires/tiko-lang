@@ -305,17 +305,9 @@ function StringLitText_ _
     '' produce a literal that is neither compiler's answer. 2120 occurrences in the
     '' corpus, and they stay an OPEN GAP rather than a wrong one.
     dim as boolean decode = (lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ))
-    if decode then
-        for k as long = 0 to lp->strLength - 2
-            if f->text[lp->strOffset + k] = 92 then
-                dim as ubyte nx = f->text[lp->strOffset + k + 1]
-                if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
-                    decode = false
-                    exit for
-                end if
-            end if
-        next
-    end if
+    '' NOT AFTER AN ESCAPED BACKSLASH: the 'U' in a '\\Users' path is text, and taking it
+    '' for an escape left '!"C:\\Users"' undecoded -- LitHasUnicodeEscape_ walks in pairs.
+    if decode then decode = (LitHasUnicodeEscape_( c, id ) = false)
 
     while i < lp->strLength
         dim as ubyte ch = f->text[lp->strOffset + i]

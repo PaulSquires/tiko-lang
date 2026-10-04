@@ -1,0 +1,15 @@
+'' RUN: '!"C:\\Users\\x"' is decoded: the 'U' after an escaped backslash is text, not a
+'' unicode escape, which left the whole literal undecoded with both slashes in it.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/escaped-backslash-u.bas -o tests/codegen/escapedbackslashu.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/escapedbackslashu.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: C:\Users\x
+'' EXPECT-RUN-OUT:  10
+'' EXPECT-RUN-OUT: C:\Users       8
+'' EXPECT-RUN-OUT:  2            65            66
+'' EXPECT-RUN-OUT:  1            A
+'' EXPECT-RUN-OUT:  4
