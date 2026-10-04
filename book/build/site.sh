@@ -23,6 +23,8 @@ esac
 "$PYTHON" tools/gen_syntax.py
 "$PYTHON" tools/gen_diagnostics.py
 "$PYTHON" tools/gen_cli.py
+"$PYTHON" tools/gen_keywords.py
+"$PYTHON" tools/gen_solutions.py
 
 if [[ "${1:-}" == "--serve" ]]; then
   exec "$MDBOOK" serve --open

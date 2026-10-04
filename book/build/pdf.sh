@@ -38,6 +38,8 @@ mkdir -p out out/src
 "$PYTHON" tools/gen_syntax.py --check || { echo "pdf.sh: regenerating syntax"; "$PYTHON" tools/gen_syntax.py; }
 "$PYTHON" tools/gen_diagnostics.py
 "$PYTHON" tools/gen_cli.py
+"$PYTHON" tools/gen_keywords.py
+"$PYTHON" tools/gen_solutions.py
 
 # ---------------------------------------------------------------- input list
 # SUMMARY.md is the order, so the site and the PDF cannot fall out of step. Every link

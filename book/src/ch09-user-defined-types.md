@@ -45,8 +45,9 @@ bracesudt.tiko(9,20): error TKO0845: 'bad' is not an array, so it cannot take a 
 fbc refuses it in the same place, with its error 63. Braces are for arrays, parentheses for types.
 
 ```admonish note
-`name` is one of the compiler's predeclared words, so a field called `name` is refused. That is why
-the listing says `title`. Appendix A lists the names that collide.
+`name` is a reserved word — the `name` statement renames a file — so it cannot name a variable or
+a procedure. A **field** may still be called `name`, and `b.name` reads it: a field's name is only
+read after `.` or `->`. Appendix A lists the reserved words and the few that cannot name a field.
 ```
 
 ## A type is a value

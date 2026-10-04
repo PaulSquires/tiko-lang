@@ -58,5 +58,9 @@
 
 # Appendices
 
+- [Appendix A: Keywords and Operator Precedence](appendix-A-keywords.md)
 - [Appendix B: Diagnostics](appendix-B-diagnostics.md)
 - [Appendix C: Command-line reference](appendix-C-cli.md)
+- [Appendix D: Coming from FreeBASIC](appendix-D-from-freebasic.md)
+- [Appendix F: Compiler Internals](appendix-F-internals.md)
+- [Appendix G: Solutions](appendix-G-solutions.md)

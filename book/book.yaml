@@ -90,10 +90,10 @@ parts:
       - { n: 33, file: src/ch33-tledger.md,             status: drafted }
 
 appendices:
-  - { id: A, file: appendices/A-keywords.md,     status: planned,   generated: false }
+  - { id: A, file: src/appendix-A-keywords.md,   status: generated, generated: true }
   - { id: B, file: appendices/B-diagnostics.md,  status: generated, generated: true }
   - { id: C, file: appendices/C-cli.md,          status: generated, generated: true }
-  - { id: D, file: appendices/D-from-freebasic.md, status: planned, generated: false }
+  - { id: D, file: src/appendix-D-from-freebasic.md, status: drafted, generated: false }
   - { id: E, file: appendices/E-header-index.md, status: planned,   generated: true }
-  - { id: F, file: appendices/F-internals.md,    status: planned,   generated: false }
-  - { id: G, file: appendices/G-solutions.md,    status: planned,   generated: true }
+  - { id: F, file: src/appendix-F-internals.md,  status: drafted,   generated: false }
+  - { id: G, file: src/appendix-G-solutions.md,  status: generated, generated: true }
