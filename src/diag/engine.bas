@@ -109,6 +109,7 @@ sub DiagnosticEngine.Push _
     dim as boolean inRange = (id > DIAG_NONE) andalso (id < DIAG_COUNT)
     if inRange = false then return
 
+    this.lastDropped = true
     if this.policy[id] = POLICY_IGNORE then
         this.suppressedCount += 1
         return
@@ -144,6 +145,7 @@ sub DiagnosticEngine.Push _
     d.hasLocation = hasLoc
     d.instFrame = this.ActiveInst( )
     this.pending.Push( d )
+    this.lastDropped = false
 end sub
 
 '' ------------------------------------------------------------ instantiations
@@ -216,7 +218,7 @@ sub DiagnosticEngine.AddNote _
     ( byval id as DiagId, byval rng as SourceRange, _
       byval a0 as string = "", byval a1 as string = "", byval a2 as string = "" )
 
-    if this.pending.IsEmpty( ) then return
+    if this.pending.IsEmpty( ) orelse this.lastDropped then return
 
     dim as DiagNote n
     n.id = id
@@ -258,6 +260,28 @@ sub DiagnosticEngine.Flush( )
     next
 
     this.pending.Clear( )
+end sub
+
+sub DiagnosticEngine.Snapshot _
+    ( byref pendingAt as long, byref errorsAt as long, byref warningsAt as long, _
+      byref suppressedAt as long )
+    pendingAt = this.pending.Count
+    errorsAt = this.errors
+    warningsAt = this.warnings
+    suppressedAt = this.suppressedCount
+end sub
+
+sub DiagnosticEngine.RollBack _
+    ( byval pendingAt as long, byval errorsAt as long, byval warningsAt as long, _
+      byval suppressedAt as long )
+    while this.pending.Count > pendingAt
+        this.pending.Pop( )
+    wend
+    this.errors = errorsAt
+    this.warnings = warningsAt
+    this.suppressedCount = suppressedAt
+    if this.errors < this.maxErrors then this.capReported = false
+    this.lastDropped = false
 end sub
 
 function DiagnosticEngine.ErrorCount( ) as long

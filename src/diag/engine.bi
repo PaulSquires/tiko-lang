@@ -36,6 +36,10 @@ namespace Tko
         as long       maxErrors
         as boolean    warningsAsErrors
         as boolean    capReported
+        '' The last Push was DROPPED -- ignored by -Wno or past the error cap -- so the
+        '' notes that follow it belong to nothing and go nowhere (audit F-51): they hung
+        '' under TKO0990, or under an unrelated diagnostic reported earlier.
+        as boolean    lastDropped
         as DiagColorMode  colorMode
         as DiagOutputFormat outputFormat
         as SeverityVec policy        '' per-DiagId override; -1 = default, -2 = ignore
@@ -84,6 +88,13 @@ namespace Tko
         declare function ActiveInst( ) as long
 
         declare function ErrorCount( ) as long
+        '' A SNAPSHOT, and a return to it: everything reported since is forgotten,
+        '' counts included. For a pass whose diagnostics the real one repeats -- the
+        '' module graph's header scan (audit F-52).
+        declare sub Snapshot( byref pendingAt as long, byref errorsAt as long, _
+                              byref warningsAt as long, byref suppressedAt as long )
+        declare sub RollBack( byval pendingAt as long, byval errorsAt as long, _
+                              byval warningsAt as long, byval suppressedAt as long )
         declare function WarningCount( ) as long
         declare function HasErrors( ) as boolean
 

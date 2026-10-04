@@ -1,0 +1,9 @@
+'' A NOTE FOLLOWS ITS DIAGNOSTIC INTO SILENCE. Past -fmax-errors the second duplicate's
+'' 'declared here' hung under TKO0990, attached to nothing (audit F-51).
+'' TEST: cli
+'' ARGS: -fmax-errors 1 -c tests/diagnostics/src/notes-after-cap.bas -o tests/diagnostics/src/notes-after-cap.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: notes-after-cap.bas(2,16): error TKO0600
+'' EXPECT-OUT: notes-after-cap.bas(1,16): note: declared here
+'' EXPECT-OUT: error TKO0990
+'' EXPECT-NOT: notes-after-cap.bas(3,16): note
