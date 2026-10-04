@@ -875,7 +875,11 @@ private function EmitRedimCall_ _
     elseif presv then
         r = RTL_ARRAY_REDIM_PRESV
     end if
-    EmitRtl( c, r, args )
+    '' UNDER -e A FAILED REDIM IS A RUNTIME ERROR: fbc checks fb_ArrayRedimEx's result and
+    '' stops with error 1, illegal function call, at the line -- tiko carried on with the
+    '' array unchanged (audit F-71).
+    dim as MirValue rrc = EmitRtl( c, r, args )
+    EmitRtlErrorCheck_( c, cast( Tko.NodeId, c.curStmtNode ), rrc )
     return true
 end function
 
