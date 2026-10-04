@@ -257,6 +257,7 @@ private sub PlaceGroup _
 
         dim as long at2 = 0
         dim as long bitAt = 0
+        dim as long unitAt = 0, unitLen = 0
 
         if bw > 0 then
             '' A BITFIELD. Its unit is as wide as its declared type and aligned to it,
@@ -289,20 +290,39 @@ private sub PlaceGroup _
                 unitStart = (bitNext \ anchorBits) * anchorBits
             end if
             if (bitNext - unitStart) + bw > unitBits then
-                unitStart += unitBits
+                '' IT DOES NOT FIT, so a NEW run begins -- of THIS field's type, not the
+                '' open run's. Keeping the open width put 'd : 10 as ushort' after two
+                '' ubyte bitfields into an 8-bit unit: the type was 5 bytes where fbc's is
+                '' 6, and 'd = 1023' read back 255. Measured: the new unit starts at the END
+                '' of the open one, rounded UP to the field's packed alignment: 'field=1 :
+                '' long a:20, b:20' puts b at bit 32; 'field=1 : ubyte a:7, ulong d:30' puts
+                '' d at bit 8, unpacked at 32; 'field=1 : ubyte p, long a:20, ushort b:14'
+                '' at bit 40.
+                dim as long ovAnchor = fa * 8
+                if ovAnchor < 8 then ovAnchor = 8
+                unitStart = ((unitStart + unitBits + ovAnchor - 1) \ ovAnchor) * ovAnchor
+                bitRunSize = fs
+                unitBits = fs * 8
+                if natural > grpAlign then grpAlign = natural
                 bitNext = unitStart
             end if
             bitRunStart = unitStart
 
             at2 = bitNext \ 8
             bitAt = bitNext mod 8
+            unitAt = unitStart \ 8
+            unitLen = bitRunSize
             bitNext += bw
 
             if isUnion then
-                dim as long ub = (bw + 7) \ 8
+                '' THE WHOLE UNIT, in a union: a 'u : 3 as long' member occupies four bytes,
+                '' not one -- fbc makes the anonymous union holding it four bytes long.
+                dim as long ub = fs
                 if ub > grpSize then grpSize = ub
                 at2 = 0
                 bitAt = 0
+                unitAt = 0
+                unitLen = fs
                 bitNext = 0
                 bitRunSize = 0
             else
@@ -344,6 +364,10 @@ private sub PlaceGroup _
             uf.offset = baseOff + at2
             uf.bitOffset = bitAt
             uf.bitWidth = bw
+            if bw > 0 then
+                uf.unitOffset = baseOff + unitAt
+                uf.unitBytes = unitLen
+            end if
             store.fields.Push( uf )
             u.count += 1
         end if

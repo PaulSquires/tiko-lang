@@ -43,7 +43,7 @@ function BitfieldParts _
 
     dim as long ui = c.udts->Find( bt )
     if ui < 0 then return false
-    dim as long off = 0
+    dim as long off = 0, uOff = 0, uLen = 0
     dim as boolean got = false
     for i as long = 0 to c.udts->udts[ui].count - 1
         dim as long fi = c.udts->udts[ui].first + i
@@ -51,6 +51,8 @@ function BitfieldParts _
             off = c.udts->fields[fi].offset
             bitOff = c.udts->fields[fi].bitOffset
             bitWidth = c.udts->fields[fi].bitWidth
+            uOff = c.udts->fields[fi].unitOffset
+            uLen = c.udts->fields[fi].unitBytes
             got = true
             exit for
         end if
@@ -63,8 +65,20 @@ function BitfieldParts _
     '' THE UNIT IS ADDRESSED AT ITS OWN START, not at the field's byte: reading a
     '' four-byte unit from byte 1 of a four-byte structure runs one byte past it, and
     '' writing it rewrites whatever follows. fbc addresses the unit and shifts.
+    '' THE RUN'S OWN UNIT when the layout recorded one: the field's type at its aligned
+    '' byte cannot hold 'b' in 'ulong a:5, ushort b:12', nor 'd' in 'field=1 : ubyte
+    '' a:7, ushort d:10' -- 4095 read back 127 and 1023 read 255.
     dim as long usz = c.types->Layout( fs->type_ ).size
-    if usz > 0 then
+    if (uLen = 1) orelse (uLen = 2) orelse (uLen = 4) orelse (uLen = 8) then
+        bitOff += (off - uOff) * 8
+        off = uOff
+        select case uLen
+        case 1 : unitTy = MT_I8
+        case 2 : unitTy = MT_I16
+        case 4 : unitTy = MT_I32
+        case else : unitTy = MT_I64
+        end select
+    elseif usz > 0 then
         dim as long unitStart = (off \ usz) * usz
         bitOff += (off - unitStart) * 8
         off = unitStart
@@ -122,6 +136,24 @@ function LowerBitfieldRead _
     an.b = ConstInt( c, BitMask_( bitWidth ), MT_I64 )
     dim as MirValue masked = Emit( c, an )
     if masked.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' A BOOLEAN BITFIELD READS AS A BOOLEAN: set, it is -1, not 1. 'a : 1 as boolean' then
+    '' 'x.a = true' and 'dim k as integer = x.a' gave 1, '( x.a = true )' gave 0 and 'if
+    '' x.a = -1' was not taken; fbc says -1 to all three. The bit is negated.
+    dim as Tko.Symbol ptr bfs = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if bfs <> 0 then
+        dim as Tko.TypeId bft = c.types->Unqualify( bfs->type_ )
+        if c.types->Kind( bft ) = Tko.TK_BUILTIN then
+            if c.types->BuiltinOf( bft ) = Tko.TY_BOOLEAN then
+                dim as MirInst ng
+                ng.op = cast( ushort, M_NEG )
+                ng.ty = cast( ubyte, MT_I64 )
+                ng.a = masked
+                masked = Emit( c, ng )
+                if masked.kind = cast( ubyte, MV_NONE ) then return false
+            end if
+        end if
+    end if
 
     '' At the NODE's type, which Check makes UINTEGER for every bitfield -- not at the
     '' unit's. The masked value is never negative, so the widening is exact.

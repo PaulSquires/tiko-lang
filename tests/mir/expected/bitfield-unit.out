@@ -39,15 +39,15 @@ func void F() {
     %34 = or %29, %33
     %35 = trunc %34
     store %23, %35
-    %36 = field.addr @@x, 1
+    %36 = field.addr @@x, 0
     %37 = const i64 1
     %38 = load %36
     %39 = zext %38
-    %40 = const i64 -17
+    %40 = const i64 -4097
     %41 = and %39, %40
     %42 = const i64 1
     %43 = and %37, %42
-    %44 = const i64 4
+    %44 = const i64 12
     %45 = shl %43, %44
     %46 = or %41, %45
     %47 = trunc %46
@@ -74,10 +74,10 @@ func void F() {
     %65 = const i64 15
     %66 = and %64, %65
     call.rtl void fb_PrintULongint(0, %66, 2)
-    %67 = field.addr @@x, 1
+    %67 = field.addr @@x, 0
     %68 = load %67
     %69 = zext %68
-    %70 = const i64 4
+    %70 = const i64 12
     %71 = ashr %69, %70
     %72 = const i64 1
     %73 = and %71, %72

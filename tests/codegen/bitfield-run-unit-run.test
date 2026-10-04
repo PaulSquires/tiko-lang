@@ -1,0 +1,31 @@
+'' RUN: bitfield runs across types, packed and unpacked. A field that overflows the open
+'' run starts a new unit at the END of it, rounded up to the field's packed alignment, and
+'' every access goes through the RUN's unit -- 'ulong a:5, ushort b:12' read b = 4095 as 127.
+'' Sizes, offsets and values identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/bitfield-run-unit.bas -o tests/codegen/bitfieldrununit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/bitfieldrununit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3 4 3 6 6 8
+'' EXPECT-RUN-OUT:  4 8 16 9 8 8
+'' EXPECT-RUN-OUT: 1271023
+'' EXPECT-RUN-OUT: 7151000200
+'' EXPECT-RUN-OUT: 409563
+'' EXPECT-RUN-OUT: 107374182331
+'' EXPECT-RUN-OUT: 1001000000000
+'' EXPECT-RUN-OUT: 40006033
+'' EXPECT-RUN-OUT: 115292150460684697563
+'' EXPECT-RUN-OUT: 3140951048575
+'' EXPECT-RUN-OUT: 10191234563
+'' EXPECT-RUN-OUT:  12 8 6 4 8 6 6 5 7 6
+'' EXPECT-RUN-OUT:  12 8 12 8 9 8 10 9 8 7
+'' EXPECT-RUN-OUT:  9 8 5 4 10 9 3 2
+'' EXPECT-RUN-OUT:  13 12 16 12 13 12 24 16
+'' EXPECT-RUN-OUT: 107374182310995116277759
+'' EXPECT-RUN-OUT:  8 4 5 4 8 4 5
+'' EXPECT-RUN-OUT: 3140957
+'' EXPECT-RUN-OUT: 819110237
+'' EXPECT-RUN-OUT: 819110007
+'' EXPECT-RUN-OUT: 9314000

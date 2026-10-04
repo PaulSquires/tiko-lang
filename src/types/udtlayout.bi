@@ -34,6 +34,13 @@ namespace Tko
         '' at zero, so nothing that ignores them changes meaning.
         as long     bitOffset
         as long     bitWidth
+        '' A BITFIELD's UNIT -- the run it was packed into: its byte offset, absolute
+        '' like 'offset', and its width in bytes. What a read or a write loads and stores.
+        '' The unit is NOT the field's own type at the field's aligned byte: 'ulong a:5,
+        '' ushort b:12' puts b in bits 5..16 of a four-byte unit, which a ushort at 0
+        '' cannot hold. 0 for an ordinary field.
+        as long     unitOffset
+        as long     unitBytes
     end type
 
     type UdtInfo

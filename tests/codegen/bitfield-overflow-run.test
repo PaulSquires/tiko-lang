@@ -1,0 +1,16 @@
+'' RUN: a bitfield that does not fit the open run starts a NEW run of its own type. 'd : 10
+'' as ushort' after two ubyte bitfields went into an 8-bit unit (5 bytes, d = 1023 read 255);
+'' a union bitfield reserves its whole unit. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/bitfield-overflow.bas -o tests/codegen/bitfieldoverflow.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/bitfieldoverflow.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  12            7             15            1023          1048575       12345678
+'' EXPECT-RUN-OUT:  8             4
+'' EXPECT-RUN-OUT:  4            127           3             -1            32767         -1
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: neg1
+'' EXPECT-RUN-OUT:  0             0

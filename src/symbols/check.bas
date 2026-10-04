@@ -1061,8 +1061,12 @@ function TypeOf_ _
                     t = f->type_
                     '' A BITFIELD READ IS UINTEGER, measured: 'sizeof( x.a )' is 8 for 'short
                     '' a :4', and 'x.b - 20' over 12 is 18446744073709551608. See lowerbf.bas.
+                    '' A BOOLEAN one is a signed BYTE: 'sizeof' 1, 'x.a - 2' is -3, 'print' -1.
                     if (f->flags and Tko.SYMF_BITFIELD) <> 0 then
-                        t = c.types->Builtin( Tko.TY_UINTEGER )
+                        dim as Tko.TypeId bft = c.types->Unqualify( f->type_ )
+                        dim as boolean bfb = (c.types->Kind( bft ) = Tko.TK_BUILTIN) andalso _
+                            (c.types->BuiltinOf( bft ) = Tko.TY_BOOLEAN)
+                        t = c.types->Builtin( iif( bfb, Tko.TY_BYTE, Tko.TY_UINTEGER ) )
                     end if
                 end if
             end if
