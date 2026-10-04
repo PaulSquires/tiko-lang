@@ -789,6 +789,9 @@
     '' fbc's 17: 'return 5' where the procedure has no result -- symbols/latesweeps.bas.
     DIAG( TKO0952, SEV_ERROR,   "this procedure has no result, so its 'return' takes no value" )
     '' fbc's 52 (and 14 for '*p'): a FOR counter that is not a plain variable -- declshape.bas.
+    '' fbc's 110 and 35 -- parser/parserend.bas, parser.bas (audit F-57).
+    DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
+    DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )
     DIAG( TKO0954, SEV_ERROR,   "the diagnostics file '%0' is one of the inputs, and writing it would destroy it" )
     DIAG( TKO0953, SEV_ERROR,   "a FOR counter must be a scalar variable, not a field, element, dereference or byref parameter" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )

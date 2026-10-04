@@ -698,7 +698,7 @@ private function ParseProc _
             case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
                  Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
             case else
-                p.diags->Report( Tko.TKO0678, Tko.PointRange( Cur( p ).loc ) )
+                p.diags->Report( Tko.TKO0678, Tko.PointRange( Cur( p ).loc ) ) : p.silent = true   '' its one error
                 exit do
             end select
         end if
@@ -921,7 +921,7 @@ private function ParseProc _
         '' identifier and is recognised by its interned spelling.
         if Peek( p ) = Tko.TK_IDENT then
             dim as Tko.InternId onm = cast( Tko.InternId, Cur( p ).literal )
-            if p.names->Spelling( onm ) = "override" then sp.extra or= Tko.PF_OVERRIDE
+            HeaderIdent_( p, sp, onm )   '' 'override', or junk -- parserend.bas
         end if
         '' 'BYREF' IS NOT A TRAILING MODIFIER. A byref result is spelled
         '' 'function f( ) BYREF as T' -- the keyword sits between the parameter list and

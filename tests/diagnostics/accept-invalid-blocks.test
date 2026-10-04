@@ -1,0 +1,13 @@
+'' Five shapes fbc refuses, each with one error on fbc's line (audit F-57): a second CASE
+'' ELSE (fbc 35; the second won), FOR with no TO (12; an ICE), CASE IS without a
+'' relational operator (285; reached clang), a word after a procedure header (3; dropped)
+'' and END IF with no IF (110; it ENDED THE PROGRAM, 'if' read as the exit code).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/accept-invalid-blocks.bas -o tests/diagnostics/src/accept-invalid-blocks.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: accept-invalid-blocks.bas(5,1): error TKO0956
+'' EXPECT-OUT: accept-invalid-blocks.bas(7,10): error TKO0401: expected 'to'
+'' EXPECT-OUT: accept-invalid-blocks.bas(10,9): error TKO0401: expected 'a relational operator'
+'' EXPECT-OUT: accept-invalid-blocks.bas(12,10): error TKO0420
+'' EXPECT-OUT: accept-invalid-blocks.bas(14,5): error TKO0955: 'end if' closes no 'if' block
+'' EXPECT-MAX-DIAG: 5

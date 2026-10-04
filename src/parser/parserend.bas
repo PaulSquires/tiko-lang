@@ -322,6 +322,46 @@ sub ChainTooLong_( byref p as Tko.ParserState )
     wend
 end sub
 
+'' 'END IF' (and END SELECT, END SUB ...) WHERE NO SUCH BLOCK IS OPEN -- fbc's 110, 'END IF
+'' without IF'. Statement only reaches END when IsBlockEnderAt said it closes nothing, and
+'' the keyword after it was read as END's EXIT CODE: 'end if' stopped the program there,
+'' in silence (audit F-57). An ordinary 'end [code]' is unchanged.
+sub EndOperand_( byref p as Tko.ParserState, byref ep as Tko.StmtPayload )
+    select case Peek( p )
+    case Tko.KW_IF, Tko.KW_SELECT, Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_TYPE, Tko.KW_ENUM, _
+         Tko.KW_WITH, Tko.KW_SCOPE, Tko.KW_NAMESPACE, Tko.KW_UNION, Tko.KW_CONSTRUCTOR, _
+         Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR, Tko.KW_PROPERTY, Tko.KW_EXTERN
+        p.diags->Report( Tko.TKO0955, Tko.PointRange( Cur( p ).loc ), _
+                         lcase( Tko.TokenKindText( Peek( p ) ) ) )
+        p.errors += 1
+        Advance( p )
+        return
+    end select
+    if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then ep.a = Expression( p )
+end sub
+
+function IsRelOp_( byval k as Tko.TokenKind ) as boolean
+    select case k
+    case Tko.TK_EQ, Tko.TK_NE, Tko.TK_LT, Tko.TK_GT, Tko.TK_LE, Tko.TK_GE : return true
+    end select
+    return false
+end function
+
+'' AN IDENTIFIER AFTER A PROCEDURE'S PARAMETERS is a modifier fbc knows by spelling --
+'' 'override' -- or junk: 'sub s( ) junk' is fbc's 3, Expected End-of-Line, and the
+'' modifier loop advanced over it in silence (audit F-57). Reported once; the loop then
+'' skips the rest of the line as it always has.
+sub HeaderIdent_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval onm as Tko.InternId )
+    dim as string w = lcase( p.names->Spelling( onm ) )
+    if w = "override" then
+        sp.extra or= Tko.PF_OVERRIDE
+    elseif w = "naked" then
+        '' fbc's NAKED: accepted, and nothing to record
+    elseif p.silent = false then
+        ErrorNode( p, Tko.TKO0420 )
+    end if
+end sub
+
 sub ParenGroupOperand_ _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byref args as Tko.NodeIdVec )
     dim as Tko.TokenKind k = Peek( p )

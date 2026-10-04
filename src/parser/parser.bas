@@ -61,7 +61,7 @@ declare function AcceptNext_( byref p as Tko.ParserState, byval openedAt as Tko.
 declare function IsLabelHere_( byref p as Tko.ParserState ) as boolean
 declare function ParenlessFnCall_( byref p as Tko.ParserState, byval callee as Tko.NodeId, _
     byval loc as Tko.SourceLoc, byref args as Tko.NodeIdVec ) as Tko.NodeId
-declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean : declare sub ParenGroupOperand_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byref args as Tko.NodeIdVec )
+declare sub EndOperand_( byref p as Tko.ParserState, byref ep as Tko.StmtPayload ) : declare function IsRelOp_( byval k as Tko.TokenKind ) as boolean : declare function EndsSingleLineStmt( byref p as Tko.ParserState ) as boolean : declare sub HeaderIdent_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval onm as Tko.InternId ) : declare sub ParenGroupOperand_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byref args as Tko.NodeIdVec )
 declare function CheckEndOfStatement_( byref p as Tko.ParserState, byval n as Tko.NodeId = Tko.NODE_NONE ) as boolean
 declare function EndClosesOther_ _
     ( byref p as Tko.ParserState, byval what as Tko.TokenKind ) as boolean
@@ -426,6 +426,7 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
         Advance( p )
 
         if Accept( p, Tko.KW_ELSE ) then
+            if sp.c <> Tko.NODE_NONE then p.diags->Report( Tko.TKO0956, Tko.PointRange( ct.loc ) )   '' fbc's 35
             sp.c = Block( p )
             continue do
         end if
@@ -442,6 +443,7 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
                 if isConst then
                     p.diags->Report( Tko.TKO0419, Tko.PointRange( pt.loc ) )
                 end if
+                if IsRelOp_( Peek( p ) ) = false then ErrorNode( p, Tko.TKO0401, "a relational operator" )   '' fbc's 285
                 pat.op = cast( ushort, Peek( p ) )
                 Advance( p )
                 pat.a = Expression( p )
@@ -603,7 +605,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     dim as boolean sawInit = Accept( p, Tko.TK_EQ )
     if sawInit = false then sawInit = Accept( p, Tko.TK_FATARROW )
     if sawInit then fromExpr = Expression( p )
-    if Accept( p, Tko.KW_TO ) then toExpr = Expression( p )
+    if Expect( p, Tko.KW_TO, "to" ) then toExpr = Expression( p )   '' fbc's 12: 'for i = 1' was an ICE
     if Accept( p, Tko.KW_STEP ) then stepExpr = Expression( p )
 
     sp.first = p.ast->children.Count
@@ -1360,9 +1362,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             '' IsBlockEnderAt already decided this END does not close a block.
             Advance( p )
             dim as Tko.StmtPayload ep
-            if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then
-                ep.a = Expression( p )
-            end if
+            EndOperand_( p, ep )   '' parserend.bas: 'end if' with no IF is not an exit code
             n = MakeStmt( p, Tko.N_END_STMT, t.loc, ep )
         elseif k = Tko.KW_BASE then
             '' 'base.vs( )' -- a call on the BASE-class receiver. Like '.field' inside a
