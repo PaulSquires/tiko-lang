@@ -13,6 +13,49 @@ destructor MirModule( )
     next
 end destructor
 
+function IdMap.Find( byval k as ulong ) as long
+    dim as long cap = this.keys.Count
+    if cap = 0 then return -1
+    dim as long i = cast( long, (k * 2654435761ul) and cast( ulong, cap - 1 ) )
+    do
+        dim as ulong at = this.keys[i]
+        if at = 0 then return -1
+        if at = k then return this.vals[i]
+        i = (i + 1) and (cap - 1)
+    loop
+end function
+
+sub IdMap.Put( byval k as ulong, byval v as long )
+    if (this.used + 1) * 2 > this.keys.Count then
+        dim as FB.Array( of ulong ) ok = this.keys
+        dim as FB.Array( of long ) ov = this.vals
+        dim as long ncap = iif( this.keys.Count = 0, 64, this.keys.Count * 2 )
+        this.keys.Clear( ) : this.vals.Clear( )
+        for j as long = 1 to ncap
+            this.keys.Push( 0 ) : this.vals.Push( 0 )
+        next
+        this.used = 0
+        for j as long = 0 to ok.Count - 1
+            if ok[j] <> 0 then this.Put( ok[j], ov[j] )
+        next
+    end if
+    dim as long cap = this.keys.Count
+    dim as long i = cast( long, (k * 2654435761ul) and cast( ulong, cap - 1 ) )
+    do
+        if this.keys[i] = 0 then
+            this.keys[i] = k
+            this.vals[i] = v
+            this.used += 1
+            return
+        end if
+        if this.keys[i] = k then
+            this.vals[i] = v
+            return
+        end if
+        i = (i + 1) and (cap - 1)
+    loop
+end sub
+
 sub MirFunction.AddParam _
     ( byval ty as MirType, byval aggSize as ulong, byval aggClass as ulong, _
       byval attr as ubyte, byval ext as ubyte )

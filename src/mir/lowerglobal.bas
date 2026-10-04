@@ -52,9 +52,8 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     '' Keyed by SYMBOL, not by spelling. Two statics called 'n' in sibling scopes of one
     '' procedure are two declarations and therefore two symbols; keying on the name
     '' merged them into a single variable that both scopes incremented.
-    for i as long = 0 to c.gvarSym.Count - 1
-        if c.gvarSym[i] = cast( ulong, sid ) then return c.gvarSlot[i]
-    next
+    dim as long knownG = c.gvarBySym.Find( cast( ulong, sid ) )
+    if knownG >= 0 then return knownG
 
     dim as Tko.InternId nm = s->name
     '' HOISTED because it decides the LINKAGE too, further down: a static MEMBER is the
@@ -168,6 +167,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     end if
     c.gvarSym.Push( cast( ulong, sid ) )
     c.gvarSlot.Push( g )
+    c.gvarBySym.Put( cast( ulong, sid ), g )
     return g
 end function
 
@@ -175,20 +175,13 @@ end function
 private function UniqueGlobalName _
     ( byref c as Ctx, byval nm as Tko.InternId ) as Tko.InternId
 
-    dim as boolean taken = false
-    for i as long = 0 to c.m->globals.Count - 1
-        if c.m->globals[i].isVar andalso (c.m->globals[i].name = nm) then taken = true
-    next
-    if taken = false then return nm
+    '' By the module's name index, not a scan of every global (audit F-63).
+    if c.m->FindVarGlobal( nm ) < 0 then return nm
 
     dim as string base_ = c.names->Spelling( nm )
     for n as long = 2 to 1000
         dim as Tko.InternId cand = c.names->GetString( base_ & "$" & str( n ) )
-        dim as boolean used = false
-        for i as long = 0 to c.m->globals.Count - 1
-            if c.m->globals[i].isVar andalso (c.m->globals[i].name = cand) then used = true
-        next
-        if used = false then return cand
+        if c.m->FindVarGlobal( cand ) < 0 then return cand
     next
     return nm
 end function

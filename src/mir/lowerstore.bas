@@ -84,21 +84,17 @@ function LocalFor _
     ''
     '' GlobalFor below has carried a comment describing exactly this bug, fixed on its
     '' own table, since before this one existed.
-    for i as long = 0 to c.f->locals.Count - 1
-        if c.f->locals[i].sym = cast( ulong, sid ) then return i
-    next
+    dim as long known = c.f->localBySym.Find( cast( ulong, sid ) )
+    if known >= 0 then return known
     dim as MirLocal l
     l.sym = cast( ulong, sid )
     '' The DUMP addresses a slot by name, so two slots of one spelling need telling
     '' apart there as well, exactly as a static local does.
     l.name = s->name
-    for i as long = 0 to c.f->locals.Count - 1
-        if c.f->locals[i].name = s->name then
-            l.name = c.names->GetString( _
-                c.names->Spelling( s->name ) & "$" & str( c.f->locals.Count ) )
-            exit for
-        end if
-    next
+    if c.f->localByName.Find( cast( ulong, s->name ) ) >= 0 then
+        l.name = c.names->GetString( _
+            c.names->Spelling( s->name ) & "$" & str( c.f->locals.Count ) )
+    end if
     dim as boolean indirectUdtParam = false
     l.frontendType = s->type_
     l.ty = cast( ubyte, LowerType( s->type_, *c.types ) )
@@ -143,6 +139,8 @@ function LocalFor _
     '' ...and the slot is then a POINTER'S worth of storage, not the object's.
     if indirectUdtParam then l.size = c.types->target.pointerBits \ 8
     c.f->locals.Push( l )
+    c.f->localBySym.Put( cast( ulong, sid ), c.f->locals.Count - 1 )
+    c.f->localByName.Put( cast( ulong, l.name ), c.f->locals.Count - 1 )
 
     '' The alloca goes in the ENTRY block, which is a verifier rule and also what
     '' lets LLVM's mem2reg promote the slot.

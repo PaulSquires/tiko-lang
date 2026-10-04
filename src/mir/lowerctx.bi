@@ -276,6 +276,8 @@ type Ctx
     '' the spelling merged them into one variable.
     as FB.Array( of ulong ) gvarSym
     as FB.Array( of long )  gvarSlot
+    '' ...and the same pairs indexed, symbol -> slot (audit F-63).
+    as IdMap                gvarBySym
 
     '' Labels, three parallel arrays. The DEPTH is filled by a pre-scan before the body
     '' is lowered, because a forward 'goto' has to know how many scopes it leaves before

@@ -329,6 +329,18 @@ namespace Tko.Mir
 
     type MirLocalVec as FB.Array( of MirLocal )
 
+    '' A SMALL HASH MAP, a nonzero ulong key to a long -- what a lowering lookup by symbol
+    '' or by name wants. Open addressing, linear probing, grown at half full. Every
+    '' local and every global was found by a LINEAR scan, so lowering was quadratic:
+    '' 20,000 locals took 5 s to lower, 20,000 globals 7 s (audit F-63).
+    type IdMap
+        as FB.Array( of ulong ) keys
+        as FB.Array( of long )  vals
+        as long                 used
+        declare function Find( byval k as ulong ) as long     '' -1 when absent
+        declare sub Put( byval k as ulong, byval v as long )
+    end type
+
     type MirFunction
         as InternId name            '' ALREADY MANGLED -- MIR never sees a source name
         as ubyte    retTy
@@ -349,6 +361,10 @@ namespace Tko.Mir
         as ulong    procSym
         as long     paramCount
         as MirLocalVec locals
+        '' locals by SYMBOL and by NAME, index plus nothing -- see IdMap. LocalFor keeps
+        '' them; a temporary has no symbol and a '$' name no source can spell.
+        as IdMap       localBySym
+        as IdMap       localByName
         as MirBlockVec blocks
         as long     nextTemp
         '' GCC's constructor / destructor attribute. fbc emits '_GLOBAL__I' and
