@@ -1,0 +1,5 @@
+'' ...and without -exx or -earray it compiles, as fbc's does: there is no check to make.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/const-oob.bas -o tests/diagnostics/src/const-oob.o
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0960

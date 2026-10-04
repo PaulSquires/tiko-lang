@@ -65,6 +65,39 @@ end function
 '' bounds in a descriptor and takes a different path entirely; a fixed one whose
 '' bounds did not fold has nothing to compare against, and inventing a limit would
 '' turn a missing check into a wrong one.
+'' A SUBSCRIPT'S VALUE WHEN IT IS A CONSTANT: the M_CONST just emitted for it, through the
+'' sext Coerce may have added and the 'neg' of a negative literal. Only the last few instructions of the block are read --
+'' the constant is always among them -- so a long block costs nothing.
+private function ConstIndex_( byref c as Ctx, byval v as MirValue, byref outV as longint ) as boolean
+    if (c.f = 0) orelse (c.curBlock < 0) then return false
+    dim as longint sign_ = 1
+    for hop as long = 0 to 3
+        if v.kind <> cast( ubyte, MV_TEMP ) then return false
+        dim as MirBlock ptr b = @c.f->blocks[c.curBlock]
+        dim as MirInst ptr found = 0
+        dim as long stopAt = b->insts.Count - 8
+        if stopAt < 0 then stopAt = 0
+        for i as long = b->insts.Count - 1 to stopAt step -1
+            if b->insts[i].result = v.id then found = @b->insts[i] : exit for
+        next
+        if found = 0 then return false
+        select case cast( MirOp, found->op )
+        case M_CONST
+            if IsFloatTy( cast( MirType, found->ty ) ) then return false
+            outV = found->imm * sign_
+            return true
+        case M_SEXT
+            v = found->a
+        case M_NEG
+            sign_ = -sign_
+            v = found->a
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
 sub EmitBoundsCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
       byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
@@ -74,6 +107,24 @@ sub EmitBoundsCheck_ _
     dim as longint lo = c.types->ArrayBound( at, k, false, loKnown )
     dim as longint hi = c.types->ArrayBound( at, k, true, hiKnown )
     if (loKnown = false) orelse (hiKnown = false) then return
+
+    '' A CONSTANT SUBSCRIPT OUTSIDE CONSTANT BOUNDS IS A COMPILE-TIME ERROR -- fbc's 92,
+    '' "Array out-of-bounds", under -exx or -earray only (measured on fbc-modern 1.20: 'print
+    '' a( 0 )' over 'a( 1 to 3 )', a field array, a shared one read in a SUB). tiko built it
+    '' and left it to the run time (audit F-71). Once per place, however often it lowers.
+    dim as longint cv
+    if (c.diags <> 0) andalso ConstIndex_( c, iv, cv ) then
+        if (cv < lo) orelse (cv > hi) then
+            dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
+            dim as boolean seen = false
+            for i as long = 0 to de->pending.Count - 1
+                if (de->pending[i].id = Tko.TKO0960) andalso (de->pending[i].range.first = c.ast->Loc( id )) then seen = true
+            next
+            if seen = false then
+                de->Report( Tko.TKO0960, Tko.PointRange( c.ast->Loc( id ) ), str( cv ), str( lo ), str( hi ) )
+            end if
+        end if
+    end if
 
     '' THE SOURCE FILE, not the module stem. Measured against fbc: its abort says
     '' 'at line 4 of oob.bas::()', and the string it hands the check is the path as

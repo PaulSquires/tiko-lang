@@ -1,0 +1,10 @@
+'' Under -exx a constant subscript outside a fixed array's constant bounds is a compile-time
+'' error -- fbc's 92, measured, a field array included; 'a( 2 )' is fine (audit F-71).
+'' TEST: cli
+'' ARGS: -exx -c tests/diagnostics/src/const-oob.bas -o tests/diagnostics/src/const-oob.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-oob.bas(2,8): error TKO0960: the subscript 0 is outside the array's bounds, 1 to 3
+'' EXPECT-OUT: const-oob.bas(3,8): error TKO0960: the subscript -1
+'' EXPECT-OUT: const-oob.bas(4,2): error TKO0960: the subscript 4
+'' EXPECT-OUT: const-oob.bas(10,10): error TKO0960: the subscript 7
+'' EXPECT-MAX-DIAG: 4
