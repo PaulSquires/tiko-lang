@@ -1381,7 +1381,7 @@ private function IntrinsicTableType_ _
         elseif bIsBool andalso (aIsBool = false) then
             if NumericBuiltin_( c, ta ) then return ta
         end if
-        return BinaryResult( Tko.TK_PLUS, ta, tb, *c.types )
+        return IifResult( ta, tb, *c.types )   '' binresult.bas: not '+'s promotion
     end if
 
     '' 'procptr( T.m, virtual )' takes a SECOND argument naming which override to

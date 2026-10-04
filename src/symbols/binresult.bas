@@ -222,3 +222,33 @@ function BinaryResult _
     end if
     return IntResult_( lb, rb, types )
 end function
+
+'' THE TYPE OF 'iif( c, a, b )' -- NOT '+'s promotion, which is what was borrowed. Measured
+'' over every pair of the ten numeric builtins (audit F-62): a float on either side is a
+'' float, DOUBLE if either is one, else SINGLE (even against a LONGINT); two integers give
+'' the LARGER, with no promotion -- byte with byte is BYTE, byte with short SHORT -- and on
+'' a tie of sizes the UNSIGNED one: 'iif( c, cubyte( 200 ), cbyte( -1 ) )' is a UBYTE, and
+'' its false arm prints 255. tiko made every one of them INTEGER. Anything else -- strings,
+'' pointers, an enum, a UDT -- is still '+'s answer.
+function IifResult _
+    ( byval lhs as Tko.TypeId, byval rhs as Tko.TypeId, byref types as Tko.TypeContext ) as Tko.TypeId
+    dim as Tko.TypeId a = types.Unqualify( lhs ), b = types.Unqualify( rhs )
+    dim as boolean bothBuiltin = (types.Kind( a ) = Tko.TK_BUILTIN) andalso (types.Kind( b ) = Tko.TK_BUILTIN)
+    if bothBuiltin then
+        dim as Tko.BuiltinType ab = types.BuiltinOf( a ), bb = types.BuiltinOf( b )
+        dim as boolean aNum = IsInt_( ab ) orelse IsFloat_( ab )
+        dim as boolean bNum = IsInt_( bb ) orelse IsFloat_( bb )
+        if aNum andalso bNum then
+            if IsFloat_( ab ) orelse IsFloat_( bb ) then
+                if (ab = Tko.TY_DOUBLE) orelse (bb = Tko.TY_DOUBLE) then return types.Builtin( Tko.TY_DOUBLE )
+                return types.Builtin( Tko.TY_SINGLE )
+            end if
+            dim as long sa = types.Layout( a ).size, sb = types.Layout( b ).size
+            if sa > sb then return a
+            if sb > sa then return b
+            if IsUnsignedInt_( bb ) andalso (IsUnsignedInt_( ab ) = false) then return b
+            return a
+        end if
+    end if
+    return BinaryResult( Tko.TK_PLUS, lhs, rhs, types )
+end function
