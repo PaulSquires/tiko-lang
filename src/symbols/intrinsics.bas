@@ -526,23 +526,12 @@ private function ExprIntrinsicType_ _
     case "peek"
         if (isNum orelse isPtr) = false then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_UBYTE )
-    '' SGN TAKES NO POINTER. fbc rejects 'sgn( p )' outright, and the general isNum
-    '' above says yes to one because most of this table's arithmetic does accept a
-    '' pointer. Answering LONG for it made a rejected program lower.
+    '' SGN TAKES NO POINTER: fbc rejects 'sgn( p )', though isNum above says yes to one.
     case "sgn"
         if isPtr then return Tko.TYPE_NONE
         if isNum = false then return Tko.TYPE_NONE
-        '' A FLOAT keeps its type and ANY INTEGER is INTEGER -- measured, '#print typeof'
-        '' of sgn over byte, short, long, ulong, longint and uinteger is INTEGER, over a
-        '' single SINGLE, over a double DOUBLE. LONG for all of them made
-        '' 'hex( sgn( clng( -4 ) ), 11 )' 000FFFFFFFF where fbc's is FFFFFFFFFFF, and
-        '' 'sgn( d ) / 4' integer-divided (build/difflane.sh, seed 235).
-        dim as Tko.TypeId sga = c.types->Unqualify( a0 )
-        if c.types->Kind( sga ) = Tko.TK_BUILTIN then
-            select case c.types->BuiltinOf( sga )
-            case Tko.TY_SINGLE, Tko.TY_DOUBLE : return sga
-            end select
-        end if
+        '' A FLOAT keeps its type, ANY INTEGER is INTEGER -- measured; LONG broke 'hex( sgn( l ), 11 )'.
+        if (c.types->Kind( c.types->Unqualify( a0 ) ) = Tko.TK_BUILTIN) andalso IsFloat_( ab ) then return c.types->Unqualify( a0 )
         return c.types->Builtin( Tko.TY_INTEGER )
     '' BIT / BITSET / BITRESET are LONGINT whatever they are given. Measured, over a
     '' LONG and over a UBYTE alike, fbc widens the operand and keeps the result wide:
