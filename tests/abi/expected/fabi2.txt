@@ -1,0 +1,4 @@
+regx 43201  expect 43201
+regi 43201  expect 43201
+regm 43201  expect 43201
+cbx 43201  expect 43201
