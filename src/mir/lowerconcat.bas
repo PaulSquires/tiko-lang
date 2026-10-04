@@ -228,6 +228,18 @@ sub FlattenConcat _
         '' call and one DVARIANT term. Split, the chain showed a USTRING term that is not
         '' there, and 'dim s as string = dv & " " & ustr' dropped its initialiser.
         if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then bop = Tko.TK_EOF
+        '' ...AND A '+' ONLY WHEN IT IS A STRING '+' -- the rule the parenthesised case above
+        '' already followed. '"a" & 1 + 2' is '"a" & ( 1 + 2 )': '+' binds tighter, and its
+        '' operands are numbers. Flattened, 1 and 2 became two STRING terms and the program
+        '' printed a12 where fbc prints a3 (T94). An UNTYPED '+' still flattens: a wide
+        '' concatenation through a UDT's 'cast( ) byref as const wstring' is one Check leaves
+        '' without a type (mir/udt-wide-concat-operator).
+        if bop = Tko.TK_PLUS then
+            dim as Tko.TypeId pt = c.info->TypeOf_( id )
+            dim as boolean strP = IsStringType( c, pt ) orelse IsWideString_( c, pt )
+            strP = strP orelse IsUStringType( c, pt ) orelse (pt = Tko.TYPE_NONE)
+            if strP = false then bop = Tko.TK_EOF
+        end if
         if (bop = Tko.TK_PLUS) orelse (bop = Tko.TK_AMP) then
             FlattenConcat( c, bp->lhs, outp )
             FlattenConcat( c, bp->rhs, outp )

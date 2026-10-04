@@ -1,0 +1,21 @@
+'' T94, RUN: '"a" & 1 + 2' is '"a" & ( 1 + 2 )', and printed a12: the concatenation
+'' flattener split every '+' below an '&' into string terms, arithmetic ones included. A '+'
+'' is now flattened only when Check typed it a string. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/concat-arith.bas -o tests/codegen/concatarith.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/concatarith.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: a3
+'' EXPECT-RUN-OUT: a3
+'' EXPECT-RUN-OUT: a3
+'' EXPECT-RUN-OUT: a3
+'' EXPECT-RUN-OUT: a2
+'' EXPECT-RUN-OUT: a1
+'' EXPECT-RUN-OUT: 3b
+'' EXPECT-RUN-OUT: x3
+'' EXPECT-RUN-OUT: xyzx
+'' EXPECT-RUN-OUT: u2uu7
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT: p2.5q3
