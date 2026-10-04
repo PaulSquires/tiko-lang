@@ -1251,6 +1251,24 @@ function StaticMemberName _
     return outp
 end function
 
+'' A VARIABLE OF AN 'extern "C++"' BLOCK -- the C++ name, spelled as WRITTEN and with no '$':
+'' measured, fbc names 'extern cppv as long' _Z4cppv and the same in 'namespace cn' _ZN2cn3nsvE.
+'' tiko gave fbc's own 'CPPV$', so a C++ library's variable never linked (audit F-55, SYM-10).
+function CxxVarName _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner, byref written as string ) as string
+
+    dim as FB.Array( of string ) quals
+    dim as FB.Array( of ulong ) qualTypes
+    QualifierChain( syms, sc, names, quals, qualTypes, 0, false )
+    if quals.Count = 0 then return "_Z" & SrcName( written )
+    dim as string outp = "_ZN"
+    for i as long = 0 to quals.Count - 1
+        outp += SrcName( quals[i] )
+    next
+    return outp & SrcName( written ) & "E"
+end function
+
 '' A MODULE'S VARIABLE (ADR 0017; RFC-0002 §5): the nested name of its chain, any namespace
 '' inside the module, and the name upper-cased -- 'public dim shared counter' in acme.net.http
 '' is _ZN4ACME3NET4HTTP7COUNTERE. No '$': that marks fbc's own spellings, and a module's names

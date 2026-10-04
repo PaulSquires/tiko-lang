@@ -14,6 +14,7 @@
 #include once "symbols/collect.bi"
 #include once "lexer/token.bi"
 #include once "support/text.bi"
+#include once "symbols/mangle.bi"
 
 namespace Tko.Collect
 
@@ -531,6 +532,9 @@ sub WalkNode _
                     elseif (sp->extra and Tko.PF_FOREIGN) <> 0 then
                         s->linkName = ip->rawName
                         if s->linkName = 0 then s->linkName = ip->name
+                    elseif (sp->extra and Tko.PF_CXX) <> 0 then
+                        dim as Tko.InternId cxw = iif( ip->rawName <> 0, ip->rawName, ip->name )
+                        s->linkName = w.names->GetString( Tko.Mangle.CxxVarName( *w.syms, scope_, *w.names, w.names->Spelling( cxw ) ) )
                     else
                         s->linkName = w.names->GetString( _
                             Tko.Text.UpperAscii( w.names->Spelling( ip->name ) ) & "$" )

@@ -92,6 +92,9 @@ namespace Tko.Mangle
     declare function StaticMemberName _
         ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
           byref names as Tko.Interner, byref member as string ) as string
+    declare function CxxVarName _
+        ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+          byref names as Tko.Interner, byref written as string ) as string
 
     declare function SourceQualifiedName _
         ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
