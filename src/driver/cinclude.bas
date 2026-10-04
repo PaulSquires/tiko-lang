@@ -9,6 +9,7 @@
 '' together with the first, seeded with everything the first decided, and written as only
 '' what is new (cimport/state.bas). The session tracks the unit by its root file.
 
+#include once "support/diskcache.bi"
 #include once "driver/cinclude.bi"
 #include once "driver/cimportmode.bi"
 #include once "driver/cimportverify.bi"
@@ -138,6 +139,7 @@ private function Hook_ cdecl _
     dim as string croot, ckey
     if hit < 0 then
         croot = CacheRoot( *ctx )
+        if Tko.DiskCache.CompilerStamp( ) = "" then croot = ""   '' no stamp, no cache (F-38)
         if len( croot ) then
             ckey = CacheKey( *ctx, s->api, key )
             dim as string bpath, btext, bstate

@@ -7,6 +7,7 @@
 '' right.
 
 #include once "support/diskcache.bi"
+#include once "support/platform.bi"
 #include once "fb/filesystem.bi"
 
 namespace Tko.DiskCache
@@ -26,6 +27,18 @@ function Stamp( byref path_ as string ) as string
     dim as FB.FileInfo fi = r.Value( )
     if fi.IsFile( ) = false then return ""
     return str( fi.Size( ) ) & chr( 9 ) & str( fi.ModifiedUtc( ) )
+end function
+
+'' THE RUNNING COMPILER'S STAMP, from its real path -- Platform.SelfPath -- and "" when it
+'' cannot be had. command( 0 ) was what the user typed: a bare 'tiko' from PATH named no
+'' file, so every cache key carried an empty stamp and a rebuilt compiler was handed the
+'' old one's objects (audit F-38). A cache must not be used without one.
+function CompilerStamp( ) as string
+    dim as string p = Tko.Platform.SelfPath( )
+    if len( p ) = 0 then return ""
+    dim as string st = Stamp( p )
+    if len( st ) = 0 then return ""
+    return p & chr( 9 ) & st
 end function
 
 function ReadAll( byref path_ as string, byref text as string ) as boolean

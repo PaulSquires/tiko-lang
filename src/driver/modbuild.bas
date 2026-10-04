@@ -14,6 +14,7 @@
 '' object is linked from the entry, its interface read from it, and what it adds to the
 '' link replayed. '-v' says which, per module.
 
+#include once "support/diskcache.bi"
 #include once "driver/modbuild.bi"
 #include once "driver/modgraph.bi"
 #include once "driver/unit.bi"
@@ -115,6 +116,9 @@ function BuildImports _
         end if
 
         dim as string key, hitObj, hitIface, hitLibs
+        '' NO COMPILER STAMP, NO CACHE: an entry it made could not be told from one an older
+        '' compiler made (audit F-38).
+        if Tko.DiskCache.CompilerStamp( ) = "" then cacheRoot = ""
         if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )
         if ModuleCacheLookup( ctx, cacheRoot, key, hitObj, hitIface, hitLibs ) then
             if ctx.options.verbose then print "module " & ctx.modChain & ": hit"

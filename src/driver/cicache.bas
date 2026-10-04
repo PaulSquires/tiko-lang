@@ -65,7 +65,7 @@ function CacheKey _
       byref importKey as string ) as string
     dim as string nl = chr( 10 )
     dim as string k = "tiko-cimport-cache 1" & nl & importKey
-    k &= "tiko " & Tko.DiskCache.Stamp( command( 0 ) ) & nl
+    k &= "tiko " & Tko.DiskCache.CompilerStamp( ) & nl
     k &= "libclang " & api.libPath & nl & "clang " & api.version & nl
     k &= "resource " & Tko.CImport.ClangResourceDir( api ) & nl
     k &= "cwd " & curdir( ) & nl

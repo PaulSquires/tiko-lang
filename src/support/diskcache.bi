@@ -13,6 +13,8 @@ declare function Hash( byref s as string ) as string
 
 '' The file's size and modification time, TAB-separated. "" when it is not a file.
 declare function Stamp( byref path_ as string ) as string
+'' The running compiler's own path and stamp; "" when unknown -- then cache nothing.
+declare function CompilerStamp( ) as string
 
 '' The whole file. False when it cannot be opened.
 declare function ReadAll( byref path_ as string, byref text as string ) as boolean

@@ -216,7 +216,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
     dim as string nl = Nl_( )
     dim as Tko.DriverOptions ptr o = @ctx.options
     dim as string k = "tki-format 1" & nl
-    k &= "tiko " & Tko.DiskCache.Stamp( command( 0 ) ) & nl
+    k &= "tiko " & Tko.DiskCache.CompilerStamp( ) & nl
     k &= "triple " & Tko.Codegen.TargetFor( o->target ).triple & nl
     k &= "options e=" & o->errFlags & " g=" & iif( o->debugInfo, 1, 0 ) & _
          " O=" & o->optLevel & " mt=" & iif( o->threadSafe, 1, 0 ) & _
@@ -233,6 +233,12 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
         k &= "copt " & p & nl
     next
     k &= "csysroot " & o->cSysroot & " cnomacros " & iif( o->cNoMacros, 1, 0 ) & nl
+    '' ...and the C include directories a #cinclude in the module searched, and what the
+    '' object is FOR: a Linux '-dll' needs position-independent objects (audit F-38).
+    for each p as string in o->cIncludes
+        k &= "cinclude " & KeyPath_( p ) & nl
+    next
+    k &= "outkind " & o->outKind & nl
     '' The package's [defines], which the module is compiled with.
     dim as Tko.StrVec pdefs
     PackageDefines( ctx, ctx.modPkgName, pdefs )

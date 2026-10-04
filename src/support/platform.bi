@@ -27,6 +27,12 @@ namespace Tko.Platform
     '' harmless if it fails -- the caller has already decided colour is wanted.
     declare sub EnableAnsi( )
 
+    '' THE FILE THE RUNNING COMPILER WAS LOADED FROM, as UTF-8 -- the module containing this
+    '' code, so inside tikoParser.dll it is the DLL, not the editor. "" when it cannot be
+    '' found. command( 0 ) is what the user TYPED: a bare 'tiko' from PATH, which named no
+    '' file, so every cache key carried an empty compiler stamp (audit F-38).
+    declare function SelfPath( ) as string
+
 end namespace
 
 #endif
