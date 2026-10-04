@@ -423,7 +423,11 @@ private function hProcessMask _
 	  byval chThousandsSep as ubyte, byval chDecimalPoint as ubyte, _
 	  byval chDateSep as ubyte, byval chTimeSep as ubyte ) as long
 
-	dim as zstring * 128 FixPart, FracPart, ExpPart
+	'' FixPart TAKES THE APPENDED ZEROES of a magnitude past 2^63 -- up to 309 digits for a
+	'' double -- and was 128 bytes: 'format( 1e300, "0.0" )' wrote ~180 bytes past it on
+	'' the stack (audit F-60; inherited, fbc hangs there). 400 holds any double.
+	dim as zstring * 400 FixPart
+	dim as zstring * 128 FracPart, ExpPart
 	dim as ubyte chSign = 0
 	dim as integer LenFix = any, LenFrac = any, LenExp = 0
 	dim as integer IndexFix = any, IndexFrac = any, IndexExp = 0
@@ -1270,6 +1274,12 @@ function tkort_hStrFormat alias "fb_hStrFormat" _
 	dim as ubyte chDateSep = any, chTimeSep = any
 
 	tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	'' A NON-FINITE VALUE FORMATS AS ZERO. Measured, fbc's FORMAT$ of +Inf, -Inf and NaN
+	'' under '0.0', '#.##', '#,##0', '$0.00' and '0%' is exactly what 0 gives; under an
+	'' exponent mask fbc hangs, and with no mask it prints junk ('', '-'). tiko-rt
+	'' segfaulted on all of them (audit F-60). Tested on the bits: an all-ones exponent.
+	if( ((cptr( ulongint ptr, @value )[0] shr 52) and &h7FF) = &h7FF ) then value = 0.0
 
 	'' THE FOUR LOCALE CHARACTERS ARE READ UNDER ONE LOCK, so a concurrent
 	'' fb_I18nSet cannot produce a string using two different locales.
