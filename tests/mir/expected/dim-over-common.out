@@ -1,5 +1,5 @@
-global var agg a size 240
-global var agg b size 240
+global var agg A$ size 240
+global var agg B$ size 240
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local i64 l
@@ -13,18 +13,18 @@ func i32 main(i32 $0, ptr $1) {
     %4 = const i64 0
     %5 = const i64 1
     %6 = const i64 2
-    %7 = call.rtl i32 fb_ArrayRedimEx(@@a, 8, -1, 0, 1, %5, %6)
+    %7 = call.rtl i32 fb_ArrayRedimEx(@@A$, 8, -1, 0, 1, %5, %6)
     %8 = const i64 1
     %9 = const i64 8
     %10 = mul %8, %9
-    %11 = load @@a
+    %11 = load @@A$
     %12 = ptr.add %11, %10
     %13 = const i64 5
     store %12, %13
     %14 = const i64 1
     %15 = const i64 8
     %16 = mul %14, %15
-    %17 = load @@a
+    %17 = load @@A$
     %18 = ptr.add %17, %16
     %19 = load %18
     call.rtl void fb_PrintLongint(0, %19, 1)
@@ -37,18 +37,18 @@ func i32 main(i32 $0, ptr $1) {
     %24 = const i64 0
     %25 = load @l
     %26 = load @u
-    %27 = call.rtl i32 fb_ArrayRedimEx(@@b, 8, -1, 0, 1, %25, %26)
+    %27 = call.rtl i32 fb_ArrayRedimEx(@@B$, 8, -1, 0, 1, %25, %26)
     %28 = const i64 2
     %29 = const i64 8
     %30 = mul %28, %29
-    %31 = load @@b
+    %31 = load @@B$
     %32 = ptr.add %31, %30
     %33 = const i64 7
     store %32, %33
     %34 = const i64 2
     %35 = const i64 8
     %36 = mul %34, %35
-    %37 = load @@b
+    %37 = load @@B$
     %38 = ptr.add %37, %36
     %39 = load %38
     call.rtl void fb_PrintLongint(0, %39, 1)

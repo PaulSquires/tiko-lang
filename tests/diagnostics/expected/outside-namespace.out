@@ -1,4 +1,4 @@
-global var i64 EV$
+global var i64 _ZN5KNOWN3EV$E
 global var i64 placeholder
 func void _ZN5KNOWN8DECLAREDEv() {
   entry0:

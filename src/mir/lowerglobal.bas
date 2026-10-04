@@ -91,6 +91,32 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
     dim as boolean isExtDef = ((s->flags and Tko.SYMF_EXTERN_DEF) <> 0)
     dim as boolean linksByName = (isExt orelse isExtDef)
     if linksByName andalso (s->linkName <> 0) then nm = s->linkName
+    '' A COMMON LINKS BY NAME TOO, as 'NAME$' -- measured, fbc writes 'int32 COMV$
+    '' __attribute__((common))' -- and a namespaced extern or common by its NESTED name,
+    '' '_ZN2N12V$E', the static member's form. Both went out as the bare name: two
+    '' namespaces each with 'extern v : dim v' were ONE variable ('print N1.v, N2.v' gave
+    '' '2 2' where fbc gives '1 2'), and a common shared with an fbc-built object was two.
+    '' An ALIAS or an extern "C" name is the user's spelling and stays as it is.
+    dim as boolean isCommonVar = ((s->flags and Tko.SYMF_COMMON) <> 0)
+    if linksByName orelse isCommonVar then
+        dim as string dflt = Tko.Text.UpperAscii( c.names->Spelling( s->name ) ) & "$"
+        dim as boolean ownSpelling = false
+        if linksByName andalso (s->linkName <> 0) then
+            ownSpelling = (c.names->Spelling( s->linkName ) <> dflt)
+        end if
+        if ownSpelling = false then
+            nm = c.names->GetString( dflt )
+            dim as Tko.SymScope ptr vps = c.syms->ScopeAt( s->parent )
+            if vps <> 0 then
+                if vps->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ) then
+                    dim as string qn = Tko.Mangle.StaticMemberName( _
+                        *c.syms, s->parent, *c.names, c.names->Spelling( s->name ) )
+                    if len( qn ) > 0 then nm = c.names->GetString( qn )
+                end if
+            end if
+        end if
+        linksByName = true
+    end if
     '' A MODULE'S VARIABLE LINKS BY ITS CHAIN (ADR 0017): _ZN4ACME3NET4HTTP7COUNTERE.
     dim as boolean modVar = ((s->flags and Tko.SYMF_MODSRC) <> 0)
     if modVar then modVar = (linksByName = false)

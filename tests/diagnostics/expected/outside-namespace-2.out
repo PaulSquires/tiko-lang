@@ -1,4 +1,4 @@
-global var i64 EV$
+global var i64 _ZN1A3EV$E
 global var i64 plain
 global var i64 SCALAR$
 func void _ZN1A8DECLAREDEv() {

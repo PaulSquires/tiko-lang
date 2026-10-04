@@ -19,7 +19,7 @@
 '' EXPECT-OUT: @"P$sl" = internal global
 '' VISIBLE AND UNVALUED, so the linker merges the copies. 'common shared' is always
 '' here: it cannot be initialized at all.
-'' EXPECT-OUT: @"cm" = common global i32 0
+'' EXPECT-OUT: @"CM$" = common global i32 0
 '' EXPECT-OUT: @"_ZN1V2A$E" = common global i32 0
 '' EXPECT-OUT: @"E$" = common global i32 0
 '' VISIBLE AND VALUED -- a definition, and the same two shapes as the line above. It is
@@ -29,7 +29,7 @@
 '' Marking either of those two 'common' would be an LLVM error, since a common global
 '' must be zero-initialised; marking any of the six above 'internal' is the duplicate
 '' symbol pointing the other way, a reference from another module that cannot resolve.
-'' EXPECT-NOT: @"cm" = internal
+'' EXPECT-NOT: @"CM$" = internal
 '' EXPECT-NOT: @"E$" = internal
 '' EXPECT-NOT: @"EI$" = common
 '' EXPECT-NOT: @"_ZN1V2B$E" = common

@@ -1,0 +1,13 @@
+'' RUN: an extern or common variable inside a namespace links by its nested name,
+'' _ZN2N12V$E, and a common by NAME$: two namespaces each with 'extern v : dim v' were
+'' one variable, 'print N1.v, N2.v' giving '2 2'. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ns-extern-common.bas -o tests/codegen/nsexterncommon.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/nsexterncommon.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              2
+'' EXPECT-RUN-OUT:  11
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  9
