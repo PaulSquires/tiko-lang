@@ -19,6 +19,20 @@ private sub Fail _
     r.report += "  " & where_ & ": " & why & chr( 10 )
 end sub
 
+'' A VALUE THAT NAMES A TEMP MUST NAME ONE IN RANGE AND ALREADY PRODUCED. The range half
+'' is new (audit F-45): a temp id past the function's counter indexed past 'defined_'.
+private sub CheckUse_ _
+    ( byref r as VerifyResult, byref iw as string, byref v as MirValue, _
+      defined_ as FB.Array( of ubyte ) )
+
+    if v.kind <> cast( ubyte, MV_TEMP ) then return
+    if cast( long, v.id ) >= defined_.Count then
+        Fail( r, iw, "uses %" & str( v.id ) & " past the function's temp counter" )
+    elseif defined_[cast( long, v.id )] = 0 then
+        Fail( r, iw, "uses %" & str( v.id ) & " before it is defined" )
+    end if
+end sub
+
 function Verify _
     ( byref m as MirModule, byref names as Tko.Interner, _
       byval strict as boolean = false ) as VerifyResult
@@ -113,6 +127,9 @@ function Verify _
                             Fail( r, iw, "temp %" & str( ins->result ) & " defined twice" )
                         end if
                         defined_[cast( long, ins->result )] = 1
+                    else
+                        Fail( r, iw, "temp %" & str( ins->result ) & _
+                              " is past the function's temp counter" )
                     end if
                 elseif ins->result <> 0 then
                     Fail( r, iw, "opcode with no result carries a result temp" )
@@ -142,18 +159,22 @@ function Verify _
 
                 '' Operands that name a temp must name one that exists.
                 dim as long n = OpArity( op )
-                if n >= 1 then
-                    if ins->a.kind = cast( ubyte, MV_TEMP ) then
-                        if defined_[cast( long, ins->a.id )] = 0 then
-                            Fail( r, iw, "uses %" & str( ins->a.id ) & " before it is defined" )
-                        end if
-                    end if
-                end if
-                if n >= 2 then
-                    if ins->b.kind = cast( ubyte, MV_TEMP ) then
-                        if defined_[cast( long, ins->b.id )] = 0 then
-                            Fail( r, iw, "uses %" & str( ins->b.id ) & " before it is defined" )
-                        end if
+                if n >= 1 then CheckUse_( r, iw, ins->a, defined_ )
+                if n >= 2 then CheckUse_( r, iw, ins->b, defined_ )
+
+                '' A CALL'S ARGUMENTS ARE OPERANDS TOO, held in the module's pool as (kind, id)
+                '' pairs, and nothing checked them (audit F-45).
+                if (op = M_CALL) orelse (op = M_CALL_RTL) orelse (op = M_CALL_IND) then
+                    if (ins->count > 0) andalso _
+                       ((ins->first < 0) orelse ((ins->first + ins->count) * 2 > m.argPool.Count)) then
+                        Fail( r, iw, "call arguments past the end of the pool" )
+                    else
+                        for q as long = 0 to ins->count - 1
+                            dim as MirValue av
+                            av.kind = cast( ubyte, m.argPool[(ins->first + q) * 2] )
+                            av.id = m.argPool[(ins->first + q) * 2 + 1]
+                            CheckUse_( r, iw, av, defined_ )
+                        next
                     end if
                 end if
 
@@ -231,6 +252,23 @@ function Verify _
                     end if
                 end if
             next
+
+            '' THE TERMINATOR'S OPERANDS, checked after the block's instructions have
+            '' defined theirs (audit F-45): a branch condition or a returned value that
+            '' names no temp, and a RET whose value disagrees with the signature -- 'return 5'
+            '' in a sub was IR clang refused, and this said ok.
+            if tk = MTERM_CONDBR then CheckUse_( r, bn, b->cond, defined_ )
+            if tk = MTERM_RET then
+                CheckUse_( r, bn, b->cond, defined_ )
+                CheckUse_( r, bn, b->ret2, defined_ )
+                dim as boolean hasVal = (b->cond.kind <> cast( ubyte, MV_NONE ))
+                if (f->retTy = cast( ubyte, MT_VOID )) andalso hasVal then
+                    Fail( r, bn, "a function returning void returns a value" )
+                elseif (f->retTy <> cast( ubyte, MT_VOID )) andalso (hasVal = false) then
+                    Fail( r, bn, "a function returning " & TypeName( cast( MirType, f->retTy ) ) & _
+                                 " returns no value" )
+                end if
+            end if
         next
 
         '' Rule 9: no block is unreachable from entry -- but only under STRICT.

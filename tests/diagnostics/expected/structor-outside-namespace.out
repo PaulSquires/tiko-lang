@@ -64,7 +64,8 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare void fb_End(i32 $0)
-verify: ok
+verify: 1 FAILURES
+  _ZN2NS4BARE10FOO__get__Ev:0: a function returning void returns a value
 lowered: 6 functions, 6 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/structor-outside-namespace.bas(35,1): error TKO0722: the type 'ns' never declared this constructor, destructor or property
      |
