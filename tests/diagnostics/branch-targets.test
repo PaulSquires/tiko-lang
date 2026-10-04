@@ -1,0 +1,15 @@
+'' T95: an EXIT or CONTINUE outside a block of its kind (fbc's 239-242, 253, 254, 144),
+'' 'exit for, for' inside one FOR (247), and a GOTO to a label its procedure does not define
+'' (48, or 104 from module level). tiko-lang compiled every one. S6 is all legal.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/branch-targets.bas -o tests/diagnostics/branchtargets.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: branch-targets.bas(2,1): error TKO0947: 'exit for' is not inside a FOR loop
+'' EXPECT-OUT: branch-targets.bas(5,9): error TKO0947: 'exit for' is not inside a FOR loop
+'' EXPECT-OUT: branch-targets.bas(9,5): error TKO0947: 'exit function' is not inside a FUNCTION
+'' EXPECT-OUT: branch-targets.bas(12,5): error TKO0947: 'exit sub' is not inside a SUB
+'' EXPECT-OUT: branch-targets.bas(16,9): error TKO0948: there is no outer FOR loop for 'exit for' to leave
+'' EXPECT-OUT: branch-targets.bas(20,5): error TKO0949: there is no label 'nowhere' in this procedure
+'' EXPECT-OUT: branch-targets.bas(25,1): error TKO0949: there is no label 'here' in this procedure
+'' EXPECT-OUT: branch-targets.bas(40,1): error TKO0947: 'exit operator' is not inside an OPERATOR
+'' EXPECT-MAX-DIAG: 8

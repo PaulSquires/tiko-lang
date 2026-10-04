@@ -1246,6 +1246,7 @@ end sub
 #include once "symbols/staticthis.bas"
 #include once "symbols/udtstrintr.bas"
 #include once "symbols/basector.bas"
+#include once "symbols/branchtarget.bas"
 
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
@@ -1302,6 +1303,7 @@ private sub RunLateSweeps2_ ( byref c as Ctx )
     CheckAggregateInitFields_( c )
     CheckTypeLiteralText_( c )  '' typelitstr.bas
     CheckAnyPtrDeref_( c )      '' anyptrderef.bas
+    CheckBranchTargets_( c )    '' branchtarget.bas (T95)
     CheckSetterOnlyReads_( c )  '' setteronly.bas
     CheckConstObjectCalls_( c ) '' constcall.bas
     CheckStaticThis_( c )       '' staticthis.bas

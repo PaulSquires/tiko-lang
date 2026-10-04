@@ -1,0 +1,12 @@
+'' T95: TKO0702, fbc's 181, for a function's result set across the string/number line --
+'' 'return', 'function =' and the function's own name alike. tiko-lang compiled all three,
+'' and the 'as long' function returned a number made from the string's address. A string
+'' into a string result, and a number into a number one, are fine.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/result-string-number.bas -o tests/diagnostics/resultstrnum.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: result-string-number.bas(3,5): error TKO0702
+'' EXPECT-OUT: result-string-number.bas(6,5): error TKO0702
+'' EXPECT-OUT: result-string-number.bas(9,5): error TKO0702
+'' EXPECT-OUT: result-string-number.bas(12,5): error TKO0702
+'' EXPECT-MAX-DIAG: 4

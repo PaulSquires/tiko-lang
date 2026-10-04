@@ -776,6 +776,12 @@
     DIAG( TKO0945, SEV_ERROR,   "'%0' is already a constant or procedure of the enclosing scope, which no local may share" )
     '' fbc's error 24 over 'iif( c, "lit", u )' with u a USTRING (T88) -- see symbols/iifudt.bas.
     DIAG( TKO0946, SEV_ERROR,   "iif cannot choose between a %0 and a %1: both results must be the same kind of string" )
+    '' fbc's errors 239-242, 253, 254, 144, 165, 193: an EXIT or CONTINUE outside a block of its
+    '' kind; 247: 'exit for, for' with fewer FORs around it; 48 and 104: a GOTO to a label its
+    '' procedure does not define -- symbols/branchtarget.bas (T95).
+    DIAG( TKO0947, SEV_ERROR,   "'%0' is not inside %1" )
+    DIAG( TKO0948, SEV_ERROR,   "there is no outer %1 for '%0' to leave" )
+    DIAG( TKO0949, SEV_ERROR,   "there is no label '%0' in this procedure" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

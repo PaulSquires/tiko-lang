@@ -575,10 +575,40 @@ private function CharAccess_ _
     return false
 end function
 
-private sub CheckStringNumberAssign_ ( byref c as Ctx, byval id as NodeId )
+declare function StrNumMismatch_ _
+    ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, _
+      byval ln as NodeId, byval rn as NodeId ) as boolean
+
+private sub CheckStringNumberAssign_ _
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-    if cast( TokenKind, sp->op ) <> TK_EQ then return
+    '' THE FUNCTION'S RESULT, set three ways -- 'return v', 'function = v' and 'F = v'
+    '' inside F -- is the same question, against the declared result type, which the walk
+    '' carries because Check leaves the result untyped. fbc's error 181 for each of them,
+    '' measured; tiko-lang compiled all three, and 'return "s"' from an 'as long' function
+    '' returned whatever the string's address made of it (T95).
+    dim as NodeId tgt = sp->a
+    dim as NodeId v = sp->b
+    if c.ast->Kind( id ) = N_RETURN then
+        tgt = NODE_NONE
+        v = sp->a
+    elseif cast( TokenKind, sp->op ) <> TK_EQ then
+        return
+    elseif (sp->a <> NODE_NONE) andalso (sp->b <> NODE_NONE) then
+        if c.ast->Kind( sp->a ) = N_FUNCRESULT then tgt = NODE_NONE
+        if c.info->AmbiguousOf( id ) = AMB_RESULT then tgt = NODE_NONE
+    end if
+    if tgt = NODE_NONE then
+        if (resultType = TYPE_NONE) orelse (v = NODE_NONE) then return
+        if c.types->Kind( resultType ) = TK_REFERENCE then return
+        '' An ARRAY result is CheckArrayAssign_'s and CheckArrayReturn_'s (TKO0838).
+        if c.types->Kind( c.types->Unqualify( resultType ) ) = TK_ARRAY then return
+        if StrNumMismatch_( c, resultType, c.info->TypeOf_( v ), NODE_NONE, v ) then
+            c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
+        end if
+        return
+    end if
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     '' A PROPERTY ON THE LEFT IS A CALL, and its setter may be OVERLOADED: structs/
     '' obj_property.bas declares 'property v( byval as integer )' and 'property v( byval
@@ -587,9 +617,17 @@ private sub CheckStringNumberAssign_ ( byref c as Ctx, byval id as NodeId )
     '' refused a file fbc accepts; which overload runs is not modelled here.
     dim as Symbol ptr lps = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
     if (lps <> 0) andalso (lps->kind = cast( ubyte, SYM_PROC )) then return
-    dim as TypeId lt = c.info->TypeOf_( sp->a )
-    dim as TypeId rt = c.info->TypeOf_( sp->b )
-    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if StrNumMismatch_( c, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), sp->a, sp->b ) then
+        c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
+    end if
+end sub
+
+'' Would storing a value of type rt into lt cross between a string and a number? ln and rn
+'' are the two nodes, for the character-access rule below; NODE_NONE when there is none.
+private function StrNumMismatch_ _
+    ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, _
+      byval ln as NodeId, byval rn as NodeId ) as boolean
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return false
     dim as TypeId lu = c.types->Unqualify( lt )
     dim as TypeId ru = c.types->Unqualify( rt )
     if c.types->Kind( lu ) = TK_REFERENCE then lu = c.types->Unqualify( c.types->Inner( lu ) )
@@ -597,7 +635,7 @@ private sub CheckStringNumberAssign_ ( byref c as Ctx, byval id as NodeId )
     '' A FIXED STRING is an array of a character builtin: look through it to the element.
     if c.types->Kind( lu ) = TK_ARRAY then lu = c.types->Unqualify( c.types->Inner( lu ) )
     if c.types->Kind( ru ) = TK_ARRAY then ru = c.types->Unqualify( c.types->Inner( ru ) )
-    if (c.types->Kind( lu ) <> TK_BUILTIN) orelse (c.types->Kind( ru ) <> TK_BUILTIN) then return
+    if (c.types->Kind( lu ) <> TK_BUILTIN) orelse (c.types->Kind( ru ) <> TK_BUILTIN) then return false
     dim as boolean lStr = IsStringyType_( c, lu )
     dim as boolean rStr = IsStringyType_( c, ru )
     '' A CHARACTER IS A NUMBER. '*pz' through a 'zstring ptr' and 'pz[1]' are one
@@ -612,15 +650,15 @@ private sub CheckStringNumberAssign_ ( byref c as Ctx, byval id as NodeId )
     '' BOTH, so an access through one is not judged at all, on either side; what remains
     '' is the plain scalar case, which is what the corpus files write with a byte pointer
     '' ('*p = s' over 'byte ptr' types as a BYTE and is refused as measured).
-    if CharAccess_( c, sp->a, lu ) orelse CharAccess_( c, sp->b, ru ) then return
-    if lStr = rStr then return
+    if CharAccess_( c, ln, lu ) orelse CharAccess_( c, rn, ru ) then return false
+    if lStr = rStr then return false
     dim as TypeId num = ru
     if rStr then num = lu
     select case c.types->BuiltinOf( num )
     case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
          TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE
     case else
-        return
+        return false
     end select
-    c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
-end sub
+    return true
+end function
