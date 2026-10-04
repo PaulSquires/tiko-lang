@@ -17,6 +17,9 @@ type PpValue
     '' rounded, for the builtins that only read an integer.
     as boolean  isFlt
     as double   fnum
+    '' AN UNSIGNED integer -- a decimal literal above the longint range, and what is
+    '' computed from one. Compared and divided unsigned; 'num' holds its 64 bits.
+    as boolean  isUns
     as string   str_
     '' THE VALUE CAME FROM AN ESCAPED LITERAL somewhere -- '!"..."'. The span this
     '' evaluator reads is RAW SOURCE, so a backslash escape has not been decoded and a
@@ -84,7 +87,14 @@ end function
 '' An operand as a double, and as an integer -- FreeBASIC rounds a float to nearest.
 private function PxD( byref v as PpValue ) as double
     if v.isFlt then return v.fnum
+    if v.isUns then return cast( double, cast( ulongint, v.num ) )
     return cdbl( v.num )
+end function
+
+private function PxNumU( byval v as longint, byval uns as boolean ) as PpValue
+    dim as PpValue r = PxNum( v )
+    r.isUns = uns
+    return r
 end function
 
 private function PxI( byref v as PpValue ) as longint
@@ -98,6 +108,7 @@ private function PxTruth( byref v as PpValue ) as boolean
 end function
 
 declare function PxOrElse( byref x as PpExprState ) as PpValue
+declare function PxNot( byref x as PpExprState ) as PpValue
 
 '' The size of a BUILTIN type is target data, which the preprocessor legitimately
 '' knows -- '#if sizeof( integer ) = 8' needs no symbol table. A user type does, and
@@ -260,10 +271,10 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         else
             '' A DECIMAL ABOVE THE LONGINT RANGE IS UNSIGNED in code -- see
             '' Check.DecimalLitUnsigned -- and '#if 18446744073709551615 > 0' is true to
-            '' fbc. Read as a longint it was -1. It is carried as a double, which every
-            '' comparison and arithmetic here already takes.
+            '' fbc. Read as a longint it was -1. It is carried UNSIGNED, so it still
+            '' equals a '&hFFFFFFFFFFFFFFFF' beside it, which a double would not.
             dim as ulongint uv = valulng( digits )
-            if uv > &h7FFFFFFFFFFFFFFFull then return PxFlt( cast( double, uv ) )
+            if uv > &h7FFFFFFFFFFFFFFFull then return PxNumU( cast( longint, uv ), true )
             v = cast( longint, uv )
         end if
         return PxNum( v )
@@ -347,6 +358,12 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         dim as PpValue v = PxPrimary( x )
         if v.isFlt then return PxFlt( -v.fnum )
         return PxNum( -v.num )
+
+    '' NOT AS AN OPERAND, as in code: 'FOO = TRUE' over '#define TRUE NOT FALSE' is
+    '' 'not false = not false', and the second NOT is the right side of '='. It takes
+    '' what NOT takes anywhere -- a relational.
+    case KW_NOT
+        return PxNot( x )
 
     case TK_PLUS
         PxNext( x )
@@ -625,7 +642,7 @@ private function PxMul( byref x as PpExprState ) as PpValue
         elseif l.isFlt orelse r.isFlt then
             l = PxFlt( PxD( l ) * PxD( r ) )
         else
-            l = PxNum( l.num * r.num )
+            l = PxNumU( l.num * r.num, l.isUns orelse r.isUns )
         end if
     loop
     return l
@@ -639,6 +656,8 @@ private function PxIntDiv( byref x as PpExprState ) as PpValue
         if PxI( r ) = 0 then
             x.bad = true
             l = PxNum( 0 )
+        elseif l.isUns orelse r.isUns then
+            l = PxNumU( cast( longint, cast( ulongint, PxI( l ) ) \ cast( ulongint, PxI( r ) ) ), true )
         else
             l = PxNum( PxI( l ) \ PxI( r ) )
         end if
@@ -654,6 +673,8 @@ private function PxMod( byref x as PpExprState ) as PpValue
         if PxI( r ) = 0 then
             x.bad = true
             l = PxNum( 0 )
+        elseif l.isUns orelse r.isUns then
+            l = PxNumU( cast( longint, cast( ulongint, PxI( l ) ) mod cast( ulongint, PxI( r ) ) ), true )
         else
             l = PxNum( PxI( l ) mod PxI( r ) )
         end if
@@ -669,7 +690,9 @@ private function PxShift( byref x as PpExprState ) as PpValue
         PxNext( x )
         dim as PpValue r = PxMod( x )
         if k = KW_SHL then
-            l = PxNum( PxI( l ) shl PxI( r ) )
+            l = PxNumU( PxI( l ) shl PxI( r ), l.isUns )
+        elseif l.isUns then
+            l = PxNumU( cast( longint, cast( ulongint, PxI( l ) ) shr PxI( r ) ), true )
         else
             l = PxNum( PxI( l ) shr PxI( r ) )
         end if
@@ -695,9 +718,9 @@ private function PxAdd( byref x as PpExprState ) as PpValue
         elseif l.isFlt orelse r.isFlt then
             l = PxFlt( iif( k = TK_PLUS, PxD( l ) + PxD( r ), PxD( l ) - PxD( r ) ) )
         elseif k = TK_PLUS then
-            l = PxNum( l.num + r.num )
+            l = PxNumU( l.num + r.num, l.isUns orelse r.isUns )
         else
-            l = PxNum( l.num - r.num )
+            l = PxNumU( l.num - r.num, l.isUns orelse r.isUns )
         end if
     loop
     return l
@@ -753,6 +776,16 @@ private function PxRel( byref x as PpExprState ) as PpValue
             case TK_GT : res = (a > b)
             case else  : res = (a >= b)
             end select
+        elseif l.isUns orelse r.isUns then
+            dim as ulongint a = cast( ulongint, l.num ), b = cast( ulongint, r.num )
+            select case k
+            case TK_EQ : res = (a = b)
+            case TK_NE : res = (a <> b)
+            case TK_LT : res = (a < b)
+            case TK_LE : res = (a <= b)
+            case TK_GT : res = (a > b)
+            case else  : res = (a >= b)
+            end select
         else
             select case k
             case TK_EQ : res = (l.num = r.num)
@@ -770,7 +803,7 @@ private function PxRel( byref x as PpExprState ) as PpValue
 end function
 
 '' NOT -- looser than the relationals, tighter than AND: 'not a = b' is 'not (a = b)'.
-private function PxNot( byref x as PpExprState ) as PpValue
+function PxNot( byref x as PpExprState ) as PpValue
     if PxPeek( x ) = KW_NOT then
         PxNext( x )
         dim as PpValue v = PxNot( x )

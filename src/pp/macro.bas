@@ -681,8 +681,7 @@ private function EvalLiteral_ _
     ( byref v as PpValue, byref ok as boolean ) as string
 
     ok = true
-    if v.isFlt then return str( v.fnum )
-    if v.isStr = false then return str( v.num )
+    if v.isStr = false then return iif( v.isFlt, str( v.fnum ), iif( v.isUns, str( cast( ulongint, v.num ) ), str( v.num ) ) )
     '' A WIDE RESULT IS STILL REFUSED. It re-emits as '!"\uXXXX"' per character,
     '' four UPPERCASE hex digits -- measured, __FB_EVAL__( wstr("A") ) is
     '' '\u0041' -- and the preprocessor has no wide value to render.
