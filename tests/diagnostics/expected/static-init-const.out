@@ -431,8 +431,16 @@ func void _ZN2TZaSERKS_(ptr $0, ptr $1) {
 verify: ok
 lowered: 23 functions, 31 blocks, 173 insts, 53 statements not lowered, 0 scope imbalance
   inside N_VAR 53
-  skip-site src\mir\lowerstore.bas:1247 34
-  skip-site src\mir\lowerstore.bas:1227 19
+  skip-site src\mir\lowerstore.bas:1212 34
+  skip-site src\mir\lowerstore.bas:1192 19
+tests/diagnostics/src/static-init-const.bas(98,20): error TKO0725: 'e21' has static storage and must be initialised from a constant, not a variable
+     |
+  98 |     static as long e21 = iif( 1, gx, 2 )
+     |                    ^
+tests/diagnostics/src/static-init-const.bas(100,20): error TKO0725: 'e23' has static storage and must be initialised from a constant, not a variable
+     |
+ 100 |     static as long e23 = iif( KK, gx, f( ) )
+     |                    ^
 tests/diagnostics/src/static-init-const.bas(74,25): error TKO0778: 'e1' has static storage and must be initialised from a constant expression
      |
   74 | dim shared as P e1 = mkp( 3 )
@@ -513,18 +521,10 @@ tests/diagnostics/src/static-init-const.bas(97,31): error TKO0778: 'e20' has sta
      |
   97 |     static as long e20 = iif( gx, 1, 2 )
      |                               ^
-tests/diagnostics/src/static-init-const.bas(98,34): error TKO0778: 'e21' has static storage and must be initialised from a constant expression
-     |
-  98 |     static as long e21 = iif( 1, gx, 2 )
-     |                                  ^
 tests/diagnostics/src/static-init-const.bas(99,38): error TKO0778: 'e22' has static storage and must be initialised from a constant expression
      |
   99 |     static as long e22 = iif( 0, 2, f( ) )
      |                                      ^
-tests/diagnostics/src/static-init-const.bas(100,35): error TKO0778: 'e23' has static storage and must be initialised from a constant expression
-     |
- 100 |     static as long e23 = iif( KK, gx, f( ) )
-     |                                   ^
 tests/diagnostics/src/static-init-const.bas(101,38): error TKO0778: 'e24' has static storage and must be initialised from a constant expression
      |
  101 |     static as long e24 = cast( long, gx )

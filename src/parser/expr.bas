@@ -756,7 +756,7 @@ function PostfixChain _
                 loop
             end if
             Expect( p, closer, iif( closer = Tko.TK_RPAREN, ")", "]" ) )
-            result = MakeList( p, kind, t.loc, result, items )
+            result = FoldConstIif_( p, MakeList( p, kind, t.loc, result, items ) )   '' declconst.bas
 
             '' THE PENDING TYPE ARGUMENTS BELONG TO THIS CALL. Cleared afterwards, so a
             '' second call in the same postfix chain does not inherit them.

@@ -187,6 +187,7 @@ declare function ArgOrElided _
     ( byref p as Tko.ParserState, byval closer as Tko.TokenKind, byval tyOk as boolean = true ) as Tko.NodeId
 
     declare sub ChainTooLong_( byref p as Tko.ParserState )
+    declare function FoldConstIif_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as Tko.NodeId
     declare function Expression _
         ( byref p as Tko.ParserState, byval minPrec as long = 1, _
           byval seed as Tko.NodeId = Tko.NODE_NONE ) as Tko.NodeId

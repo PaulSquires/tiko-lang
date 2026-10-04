@@ -62,3 +62,20 @@ private function ConstFoldsToInt_ _
     end select
     return false
 end function
+
+'' 'iif( CONST, a, b )' IS THE CHOSEN ARM -- fbc folds it before anything is typed: measured,
+'' 'iif( 1, "a", 2 )' prints a and 'iif( 0, "a", 2 )' prints 2, and '#print typeof( iif( 1,
+'' 1, 2.5 ) )' is INTEGER where a run-time condition makes it DOUBLE. tiko refused the first
+'' two (TKO0655) and typed the third DOUBLE (audit F-70). The arm not chosen is not
+'' evaluated, which is what the fold means. Only what ConstFoldsToInt_ can read counts.
+function FoldConstIif_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as Tko.NodeId
+    if p.ast->Kind( n ) <> Tko.N_CALL then return n
+    dim as Tko.ListPayload ptr lp = @p.ast->lists[cast( long, p.ast->nodes[cast( long, n )].data )]
+    if (lp->count <> 3) orelse (lp->target = Tko.NODE_NONE) then return n
+    if p.ast->Kind( lp->target ) <> Tko.N_IDENT then return n
+    dim as Tko.InternId nm = p.ast->idents[cast( long, p.ast->nodes[cast( long, lp->target )].data )].name
+    if lcase( p.names->Spelling( nm ) ) <> "iif" then return n
+    dim as longint v = 0
+    if ConstFoldsToInt_( p, cast( Tko.NodeId, p.ast->children[lp->first] ), v ) = false then return n
+    return cast( Tko.NodeId, p.ast->children[lp->first + iif( v <> 0, 1, 2 )] )
+end function
