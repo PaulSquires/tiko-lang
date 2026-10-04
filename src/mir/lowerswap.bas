@@ -212,17 +212,26 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if (ka = 2) <> (kb = 2) then return false
         dim as FB.Array( of ulong ) args
         args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, na ) )
         if ka = 2 then
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, na ) )
             args.Push( cast( ulong, lb.kind ) ) : args.Push( cast( ulong, lb.id ) )
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, nb_ ) )
             EmitRtl( c, RTL_WSTR_SWAP, args )
             return true
         end if
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        '' THE LENGTH THROUGH PushStrLen_, AND -1 TO FILL A 'string * N'. A fixed narrow
+        '' string's length is TAGGED -- '&h8000000000000000 or N' -- and pushed raw into
+        '' a 32-bit constant it came out as plain N, so the runtime took the operand for a
+        '' 'zstring * N': 'swap f4, f8' over 'string * 4' and 'string * 8' copied a NUL
+        '' and two stale bytes into the padding and wrote past f4 into the next local.
+        '' Measured: fbc passes the tag and fill -1 for each fixed side --
+        '' 'fb_StrSwap( F4, -9223372036854775804ll, -1, F8, -9223372036854775800ll, -1 )',
+        '' and 'fb_StrSwap( &S, -1ll, 0, F8, -9223372036854775800ll, -1 )' when one is not.
+        PushStrLen_( c, args, na )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, iif( ka = 3, -1, 0 ) ) )
         args.Push( cast( ulong, lb.kind ) ) : args.Push( cast( ulong, lb.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, nb_ ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        PushStrLen_( c, args, nb_ )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, iif( kb = 3, -1, 0 ) ) )
         EmitRtl( c, RTL_STR_SWAP, args )
         return true
     end if
