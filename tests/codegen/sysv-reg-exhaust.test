@@ -1,0 +1,11 @@
+'' linux-x86_64: an aggregate whose eightbytes no longer all fit in the registers the
+'' earlier parameters left goes to MEMORY whole, at the call and at the definition alike;
+'' one that still fits stays split. Each signature below run against gcc in WSL: 43201.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir tests/codegen/src/sysv-reg-exhaust.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare double @"regx"(double, double, double, double, double, double, double, ptr byval([16 x i8]) align 8, double)
+'' EXPECT-OUT: declare i64 @"regi"(i64, i64, i64, i64, i64, ptr byval([16 x i8]) align 8, i64)
+'' EXPECT-OUT: declare double @"regm"(i64, i64, i64, i64, i64, double, double, double, double, double, double, double, double, ptr byval([16 x i8]) align 8, i64)
+'' EXPECT-OUT: declare double @"regok"(double, double, double, double, double, double, double, double, double)
+'' EXPECT-OUT: define double @"MYREGX"(double %p0, double %p1, double %p2, double %p3, double %p4, double %p5, double %p6, ptr byval([16 x i8]) align 8 %p7, double %p8)

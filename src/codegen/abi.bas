@@ -913,6 +913,57 @@ sub PascalParamOrder _
     next
 end sub
 
+'' SYSV REGISTER EXHAUSTION. An aggregate goes in registers only if ALL its eightbytes
+'' fit in what the parameters before it left -- six GPRs, eight SSE -- and otherwise goes
+'' to MEMORY whole (psABI 3.2.3). tiko classified each aggregate on its own: gcc's
+'' 'regx( 7 doubles, struct{ double, double }, double )' took the struct in xmm7 and
+'' half of it on the stack, and printed 24301 where gcc's own caller prints 43201.
+''
+'' Decided ONCE per signature, before any call site or body is rewritten, and recorded
+'' as the parameter's class -- so the call sites and the definition, which both read
+'' it, cannot disagree. Counted in the order the arguments are WRITTEN: a hidden result
+'' pointer first, then the parameters, reversed for pascal (PascalParamOrder).
+private sub SysvRegisterBudget_ _
+    ( byval f as MirFunction ptr, byref target as TargetDescription )
+
+    if target.abi = ABI_WIN64 then return
+    dim as long gpr = 6, sse = 8
+    if (cast( MirType, f->retTy ) = MT_AGG) andalso (f->retSize > 0) then
+        dim as MirType t0, t1
+        if (SysvReturnUnmodelled_( f->retSize, f->retClass, target ) = false) andalso _
+           (RetDirect_( f->retSize, f->retClass, target, t0, t1 ) = false) then gpr -= 1
+    end if
+    dim as long n = f->paramTys.Count
+    dim as boolean rev = (f->callConv = TKO_CC_PASCAL) andalso (f->isVariadic = false)
+    for k as long = 0 to n - 1
+        dim as long i = iif( rev, n - 1 - k, k )
+        dim as MirType pt = cast( MirType, f->paramTys[i] )
+        select case pt
+        case MT_VOID
+        case MT_F32, MT_F64
+            if sse > 0 then sse -= 1
+        case MT_AGG
+            dim as long sz = cast( long, f->paramAggs[i] )
+            if (sz <= 0) orelse (sz > 16) orelse (i >= f->paramClasses.Count) then continue for
+            dim as ulong packed = f->paramClasses[i]
+            if (packed = TKO_EB_MEMORY) orelse (packed = 0) then continue for
+            dim as long ng = 0, ns = 0
+            if TKO_EB0( packed ) = TKO_EB_SSE then ns += 1 else ng += 1
+            if sz > 8 then
+                if TKO_EB1( packed ) = TKO_EB_SSE then ns += 1 else ng += 1
+            end if
+            if (ng > gpr) orelse (ns > sse) then
+                f->paramClasses[i] = TKO_EB_MEMORY
+            else
+                gpr -= ng
+                sse -= ns
+            end if
+        case else
+            if gpr > 0 then gpr -= 1
+        end select
+    next
+end sub
+
 '' ---------------------------------------------------------------- the pass
 ''
 '' TWO WALKS OVER EACH BODY, and the order matters.
@@ -1161,6 +1212,11 @@ sub LowerModule _
       byref target as TargetDescription, byref st as AbiStats )
 
     DeclineInconsistentReturns( m, st )
+
+    '' WHICH AGGREGATES STILL FIT IN REGISTERS, every signature, before anything reads it.
+    for fi as long = 0 to m.functions.Count - 1
+        if m.functions[fi] <> 0 then SysvRegisterBudget_( m.functions[fi], target )
+    next
 
     '' CALL SITES, against the signatures the frontend produced.
     for fi as long = 0 to m.functions.Count - 1
