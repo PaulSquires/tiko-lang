@@ -1,0 +1,15 @@
+'' RUN: the cleanup-trace matrix (audit F-04, F-20, F-21, F-22): a goto out of an IF arm,
+'' out of a scope into a sibling, backward over a dim, an exit from a WITH over a
+'' temporary, and a defer registered again by a backward goto. Each destructor and defer
+'' runs exactly as fbc runs it. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/cleanup-trace.bas -o tests/codegen/cleanuptrace.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/cleanuptrace.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: + 6- 6[lbl3]
+'' EXPECT-RUN-OUT: + 3- 3[lbl]
+'' EXPECT-RUN-OUT: + 0- 0+ 1- 1+ 2- 2
+'' EXPECT-RUN-OUT: + 1- 1
+'' EXPECT-RUN-OUT: [d2][d3][d4]
