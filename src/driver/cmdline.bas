@@ -497,6 +497,11 @@ function Parse _
             dim as Tko.DiagId d = Tko.DiagIdFromName( value )
             if d = Tko.DIAG_NONE then
                 diags.ReportGlobal( Tko.TKO0105, value )
+            '' AN ERROR CANNOT BE SILENCED: '-Wno-TKO0743' over 'print undefinedThing + 1'
+            '' exited 0 with the statement dropped (audit F-37). Only a warning or a note.
+            elseif Tko.DiagInfoOf( d )->defaultSev = Tko.SEV_ERROR then
+                diags.ReportGlobal( Tko.TKO0106, value, "-Wno" )
+                ok = false
             else
                 opts.ignoredDiags.Push( Tko.DiagIdName( d ) )
             end if
