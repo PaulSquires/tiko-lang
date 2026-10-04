@@ -456,11 +456,9 @@ private function InferProcTypeArgs_ _
             '' a name with no body and no result, WITH NO DECLINE to say so.
             '' fbc emits '_Z5DerefIiEPi( &V$0 )' and the program prints ok.
             ''
-            '' One level, and only for a bare 'T': the argument's own pointer is
-            '' stripped and T binds to the POINTEE.
-            '' A POINTER TYPE-REF WRAPS: the OUTER node carries NF_PTR and its 'a' is
-            '' the pointee's own type-ref, so the name is one level in and not on the
-            '' node the flag is on.
+            '' One level, a bare 'T': the argument's pointer is stripped, T binds to the POINTEE.
+            '' A POINTER TYPE-REF WRAPS: the OUTER node carries NF_PTR and its 'a' is the
+            '' pointee's own type-ref, so the name is one level in, not on the flagged node.
             dim as boolean isPtrParam = ((tn->flags and Tko.NF_PTR) <> 0)
             dim as Tko.InternId ptrName = 0
             if isPtrParam andalso (tp->a <> Tko.NODE_NONE) then
@@ -482,9 +480,12 @@ private function InferProcTypeArgs_ _
                 if MergeInferred_( c, got, el ) = false then return false
                 continue for
             end if
-            if (tn->flags and (Tko.NF_PTR or Tko.NF_PROC_TYPE or Tko.NF_ARRAY)) <> 0 then
-                continue for
+            if isPtrParam then
+                dim as long pi_ = InferPtrInst_( c, tp, want, cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_, got )
+                if pi_ < 0 then return false
+                if pi_ > 0 then continue for
             end if
+            if (tn->flags and (Tko.NF_PTR or Tko.NF_PROC_TYPE or Tko.NF_ARRAY)) <> 0 then continue for
             if tp->name <> want then
                 '' 'byref dst as Box( of T )' -- THE PARAMETER IS AN INSTANTIATION and
                 '' the type parameter is one of ITS arguments. Only a bare 'T' was

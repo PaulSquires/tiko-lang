@@ -94,6 +94,9 @@ private function InferArgType_ _
         dim as boolean okKind = (sy->kind = cast( ubyte, Tko.SYM_VARIABLE ))
         if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_PARAMETER ))
         if okKind = false then okKind = (sy->kind = cast( ubyte, Tko.SYM_FIELD ))
+        '' 'true' AND 'false' are builtin BOOLEAN constants: 'Show( true )' inferred nothing
+        '' and was refused, where fbc-modern makes T BOOLEAN (audit F-55).
+        if okKind = false then okKind = ((sy->flags and Tko.SYMF_BUILTIN) <> 0) andalso (sy->type_ = c.types->Builtin( Tko.TY_BOOLEAN ))
         if okKind = false then return Tko.TYPE_NONE
         dim as Tko.TypeId t = sy->type_
         '' A 'VAR' HAS NO TYPE YET -- Check gives it one, and Check has not run -- so
@@ -456,6 +459,11 @@ private function InferArgType_ _
         end select
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT
+        '' ...AND FOR A FLOAT: '1.5f' is SINGLE, as Check's LiteralType_ says. 'Show( 1.5f )'
+        '' instantiated Show( of double ) where fbc-modern makes T SINGLE (audit F-55).
+        dim as Tko.LiteralPayload ptr flp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )]
+        if cast( Tko.NumSuffix, flp->suffix ) = Tko.NSUF_SINGLE then return c.types->Builtin( Tko.TY_SINGLE )
         return c.types->Builtin( Tko.TY_DOUBLE )
     case Tko.N_STRING_LIT
         return c.types->Builtin( Tko.TY_STRING )
@@ -539,4 +547,44 @@ private function InferArgType_ _
         return c.types->Pointer_( vinner )
     end select
     return Tko.TYPE_NONE
+end function
+
+declare function InstArgsOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as FB.Array( of ulong ) ) as boolean
+declare function SameGeneric_ _
+    ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
+declare function MergeInferred_ _
+    ( byref c as Ctx, byref got as Tko.TypeId, byval cand as Tko.TypeId ) as boolean
+
+'' 'byval n as Node( of T ) ptr' -- A POINTER TO AN INSTANTIATION. Only a bare 'T ptr' and an
+'' instantiation by value were matched, so 'Val0( @a )' over a 'Node( of long )' inferred
+'' nothing and was refused where fbc-modern binds T = LONG (audit F-55). 'tp' is the outer
+'' pointer type-ref. Returns 1 when T was merged, 0 when the parameter is not this shape,
+'' and -1 when it is and the argument cannot match, which fails the candidate.
+private function InferPtrInst_ _
+    ( byref c as Ctx, byval tp as Tko.StmtPayload ptr, byval want as Tko.InternId, _
+      byval aNode as Tko.NodeId, byval scope_ as Tko.ScopeId, byref got as Tko.TypeId ) as long
+
+    if tp->a = Tko.NODE_NONE then return 0
+    if c.ast->Kind( tp->a ) <> Tko.N_TYPEREF then return 0
+    dim as Tko.StmtPayload ptr ip = StmtOf( c, tp->a )
+    dim as long at_ = -1
+    for j as long = 0 to ip->count - 1
+        dim as Tko.NodeId an2 = cast( Tko.NodeId, c.ast->children[ip->first + j] )
+        if c.ast->Kind( an2 ) <> Tko.N_TYPEREF then continue for
+        if StmtOf( c, an2 )->name = want then at_ = j : exit for
+    next
+    if at_ < 0 then return 0
+    dim as Tko.TypeId aU = InferArgType_( c, aNode, scope_ )
+    if aU = Tko.TYPE_NONE then return -1
+    aU = c.types->Unqualify( aU )
+    if c.types->Kind( aU ) = Tko.TK_REFERENCE then aU = c.types->Unqualify( c.types->Inner( aU ) )
+    if c.types->Kind( aU ) <> Tko.TK_POINTER then return -1
+    dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( aU ) )
+    dim as FB.Array( of ulong ) iargs
+    if InstArgsOf_( c, el, iargs ) = false then return -1
+    if SameGeneric_( c, el, ip->name ) = false then return -1
+    if at_ >= iargs.Count then return -1
+    if MergeInferred_( c, got, cast( Tko.TypeId, iargs[at_] ) ) = false then return -1
+    return 1
 end function
