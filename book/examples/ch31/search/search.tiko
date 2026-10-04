@@ -1,0 +1,131 @@
+'' ANCHOR: head
+#module "search"
+#import "std/fs"
+#import "std/containers"
+'' ANCHOR_END: head
+
+'' ANCHOR: types
+'' What one run of tsearch was asked to do.
+public type Options
+    as ustring pattern
+    as containers.Array( of ustring ) roots
+    as boolean ignoreCase
+    as boolean lineNumbers
+    as boolean filesOnly
+    as ustring nameGlob             '' "" matches every file name
+end type
+
+'' One matching line.
+public type Hit
+    as int32 lineNo
+    as ustring text
+end type
+'' ANCHOR_END: types
+
+'' ANCHOR: display
+'' A path as tsearch prints it: '/' between components everywhere.
+public function DisplayPath( byref path as ustring ) as ustring
+    dim as ustring p = path
+    for i as int32 = 0 to len( p ) - 1
+        if p[ i ] = asc( "\" ) then p[ i ] = asc( "/" )
+    next
+    return p
+end function
+'' ANCHOR_END: display
+
+'' ANCHOR: parse
+'' Read the arguments into opts. Returns "" when they make sense, and
+'' otherwise what is wrong with them, for the usage message.
+public function ParseArgs _
+    ( byref args as containers.Array( of ustring ), _
+      byref opts as Options ) as ustring
+    dim as int32 i = 0
+    do while i < args.Count( )
+        var a = args[ i ]
+        select case a
+        case "-i" : opts.ignoreCase = true
+        case "-n" : opts.lineNumbers = true
+        case "-l" : opts.filesOnly = true
+        case "-g"
+            i += 1
+            if i >= args.Count( ) then return "-g needs a pattern"
+            opts.nameGlob = args[ i ]
+        case else
+            if left( a, 1 ) = "-" then return "unknown option " & a
+            if len( opts.pattern ) = 0 then
+                opts.pattern = a
+            else
+                opts.roots.Push( a )
+            end if
+        end select
+        i += 1
+    loop
+    if len( opts.pattern ) = 0 then return "no pattern given"
+    if opts.roots.Count( ) = 0 then opts.roots.Push( "." )
+    return ""
+end function
+'' ANCHOR_END: parse
+
+'' ANCHOR: match
+'' Does line contain pattern? lcase folds Unicode text, not only ASCII.
+public function LineMatches( byref line_ as ustring, _
+                             byref pattern as ustring, _
+                             byval ignoreCase as boolean ) as boolean
+    if ignoreCase then
+        return instr( lcase( line_ ), lcase( pattern ) ) > 0
+    end if
+    return instr( line_, pattern ) > 0
+end function
+'' ANCHOR_END: match
+
+'' ANCHOR: find
+'' Every file under root whose name matches nameGlob, sorted so the
+'' output does not depend on the order the file system returns. What
+'' could not be read goes into problems, one message each.
+public function FindFiles _
+    ( byref root as ustring, byref nameGlob as ustring, _
+      byref files as containers.Array( of ustring ), _
+      byref problems as containers.Array( of ustring ) ) as int32
+    if fs.IsFile( root ) then
+        files.Push( root )
+        return 1
+    end if
+    for each r in fs.WalkDir( root )
+        if r.IsOk( ) = false then
+            problems.Push( DisplayPath( root ) & ": " & _
+                           r.Failure( ).Message( ) )
+        elseif r.Value( ).IsFile( ) then
+            var nm = r.Value( ).Name( )
+            if len( nameGlob ) = 0 then
+                files.Push( r.Value( ).Path( ) )
+            elseif fs.MatchPattern( nm, nameGlob ) then
+                files.Push( r.Value( ).Path( ) )
+            end if
+        end if
+    next
+    containers.Sort( files )
+    return files.Count( )
+end function
+'' ANCHOR_END: find
+
+'' ANCHOR: searchfile
+'' The matching lines of one file. A file that cannot be read is an
+'' FsError in the Result, for the caller to report.
+public function SearchFile( byref path as ustring, _
+                            byref opts as Options, _
+                            byref hits as containers.Array( of Hit ) ) _
+                            as fs.FsResultLong
+    dim lines as containers.Array( of ustring )
+    var got = fs.ReadAllLines( path, lines )
+    if got.IsOk( ) = false then return got
+    for i as int32 = 0 to lines.Count( ) - 1
+        if LineMatches( lines[ i ], opts.pattern, opts.ignoreCase ) then
+            dim h as Hit
+            h.lineNo = i + 1
+            h.text = lines[ i ]
+            hits.Push( h )
+        end if
+    next
+    return got
+end function
+'' ANCHOR_END: searchfile

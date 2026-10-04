@@ -1,0 +1,5 @@
+the lazy dog.   substring: true, word: true
+dogma           substring: true, word: false
+hot-dog stand   substring: true, word: true
+Dog days        substring: true, word: true
+underdog        substring: true, word: false

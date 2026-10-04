@@ -50,6 +50,10 @@
 
 - [30. Classic BASIC and Compatibility](ch30-classic-basic.md)
 
+# Projects
+
+- [31. Capstone: a CLI Search Tool](ch31-tsearch.md)
+
 # Appendices
 
 - [Appendix B: Diagnostics](appendix-B-diagnostics.md)

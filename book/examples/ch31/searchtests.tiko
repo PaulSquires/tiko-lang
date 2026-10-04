@@ -1,0 +1,83 @@
+'' tsearch's tests: the search module, without the command line.
+#import "./search"
+#import "std/containers"
+#include once "fbcunit.bi"
+
+function Args3( byref a as ustring, byref b as ustring, _
+                byref c as ustring ) as containers.Array( of ustring )
+    dim r as containers.Array( of ustring )
+    if len( a ) then r.Push( a )
+    if len( b ) then r.Push( b )
+    if len( c ) then r.Push( c )
+    return r
+end function
+
+SUITE( arguments )
+    TEST( pattern_and_default_root )
+        dim o as search.Options
+        var problem = search.ParseArgs( Args3( "-i", "fox", "" ), o )
+        CU_ASSERT_EQUAL( problem, "" )
+        CU_ASSERT( o.ignoreCase )
+        CU_ASSERT_EQUAL( o.pattern, "fox" )
+        CU_ASSERT_EQUAL( o.roots[ 0 ], "." )
+    END_TEST
+
+    TEST( refuses_what_it_cannot_use )
+        dim o1 as search.Options, o2 as search.Options
+        dim o3 as search.Options
+        CU_ASSERT_EQUAL( search.ParseArgs( Args3( "-x", "", "" ), _
+                                           o1 ), "unknown option -x" )
+        CU_ASSERT_EQUAL( search.ParseArgs( Args3( "-n", "", "" ), _
+                                           o2 ), "no pattern given" )
+        CU_ASSERT_EQUAL( search.ParseArgs( Args3( "fox", "-g", "" ), _
+                                           o3 ), "-g needs a pattern" )
+    END_TEST
+END_SUITE
+
+SUITE( matching )
+    TEST( case_matters_unless_asked )
+        CU_ASSERT( search.LineMatches( "a quick fox", "fox", false ) )
+        CU_ASSERT( search.LineMatches( "A FOX", "fox", false ) = false )
+        CU_ASSERT( search.LineMatches( "A FOX", "fox", true ) )
+    END_TEST
+
+    TEST( folding_is_not_only_ascii )
+        CU_ASSERT( search.LineMatches( !"STRA\u00DFE UND \u00C4RGER", _
+                                       !"\u00E4rger", true ) )
+    END_TEST
+END_SUITE
+
+SUITE( files )
+    TEST( finds_and_filters_in_order )
+        dim all_ as containers.Array( of ustring )
+        dim txt as containers.Array( of ustring )
+        dim problems as containers.Array( of ustring )
+        CU_ASSERT_EQUAL( search.FindFiles( "sample", "", all_, _
+                                           problems ), 3 )
+        CU_ASSERT_EQUAL( search.FindFiles( "sample", "*.txt", txt, _
+                                           problems ), 2 )
+        CU_ASSERT_EQUAL( search.DisplayPath( txt[ 0 ] ), _
+                         "sample/notes/todo.txt" )
+        CU_ASSERT_EQUAL( problems.Count( ), 0 )
+    END_TEST
+
+    TEST( reports_line_numbers )
+        dim o as search.Options
+        o.pattern = "dog"
+        dim hits as containers.Array( of search.Hit )
+        var got = search.SearchFile( "sample/poems/fox.txt", o, hits )
+        CU_ASSERT( got.IsOk( ) )
+        CU_ASSERT_EQUAL( hits.Count( ), 3 )
+        CU_ASSERT_EQUAL( hits[ 2 ].lineNo, 4 )
+    END_TEST
+
+    TEST( a_missing_file_is_an_error_value )
+        dim o as search.Options
+        o.pattern = "x"
+        dim hits as containers.Array( of search.Hit )
+        var got = search.SearchFile( "sample/absent.txt", o, hits )
+        CU_ASSERT( got.IsOk( ) = false )
+    END_TEST
+END_SUITE
+
+end iif( fbcu.run_tests( ), 0, 1 )

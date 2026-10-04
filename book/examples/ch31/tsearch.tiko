@@ -1,0 +1,77 @@
+'' tsearch -- print the lines of files that contain a pattern.
+''
+''     tsearch [-i] [-n] [-l] [-g glob] pattern [path ...]
+''
+'' Exit code: 0 if anything matched, 1 if nothing did, 2 on an error.
+#import "./search"
+#import "std/containers"
+#include once "fbio.bi"
+
+const EXIT_FOUND = 0, EXIT_NONE = 1, EXIT_ERROR = 2
+
+sub Complain( byref message as ustring )
+    dim as int32 f = freefile( )
+    open err for output as #f
+    print #f, "tsearch: "; message
+    close #f
+end sub
+
+'' The arguments, without the program's own name.
+dim args as containers.Array( of ustring )
+dim as int32 n = 1
+do while len( command( n ) ) > 0
+    args.Push( command( n ) )
+    n += 1
+loop
+
+dim opts as search.Options
+var problem = search.ParseArgs( args, opts )
+if len( problem ) > 0 then
+    Complain( problem )
+    Complain( "usage: tsearch [-i] [-n] [-l] [-g glob] " & _
+              "pattern [path ...]" )
+    end EXIT_ERROR
+end if
+
+'' Colour only when a person is watching; never into a pipe or a file.
+dim as boolean colour = ( IsRedirected( ) = false )
+
+dim as int32 matched = 0, failures = 0
+for each root in opts.roots
+    dim files as containers.Array( of ustring )
+    dim problems as containers.Array( of ustring )
+    search.FindFiles( root, opts.nameGlob, files, problems )
+    for each p in problems
+        Complain( p )
+        failures += 1
+    next
+    for each path in files
+        dim hits as containers.Array( of search.Hit )
+        var got = search.SearchFile( path, opts, hits )
+        if got.IsOk( ) = false then
+            Complain( search.DisplayPath( path ) & ": " & _
+                      got.Failure( ).Message( ) )
+            failures += 1
+            continue for
+        end if
+        if hits.Count( ) = 0 then continue for
+        matched += hits.Count( )
+        var shown = search.DisplayPath( path )
+        if opts.filesOnly then
+            print shown
+            continue for
+        end if
+        for each h in hits
+            dim as ustring where_ = shown & ":"
+            if opts.lineNumbers then where_ &= h.lineNo & ":"
+            if colour then
+                print !"\27[35m"; where_; !"\27[0m"; h.text
+            else
+                print where_; h.text
+            end if
+        next
+    next
+next
+
+if failures > 0 then end EXIT_ERROR
+end iif( matched > 0, EXIT_FOUND, EXIT_NONE )

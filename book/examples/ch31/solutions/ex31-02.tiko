@@ -1,0 +1,46 @@
+'' Exercise 31-2: match whole words, so 'dog' does not match 'dogma'.
+#import "../search"
+
+function IsWordChar( byval c as int32 ) as boolean
+    select case c
+    case asc( "a" ) to asc( "z" ), asc( "A" ) to asc( "Z" ), _
+         asc( "0" ) to asc( "9" ), asc( "_" )
+        return true
+    end select
+    return false
+end function
+
+function WordMatches( byref line_ as ustring, byref word as ustring, _
+                      byval ignoreCase as boolean ) as boolean
+    dim as ustring hay = line_, needle = word
+    if ignoreCase then
+        hay = lcase( hay )
+        needle = lcase( needle )
+    end if
+    dim as int32 at = instr( hay, needle )
+    do while at > 0
+        dim as boolean startOk = ( at = 1 )
+        if startOk = false then
+            startOk = not IsWordChar( hay[ at - 2 ] )
+        end if
+        dim as int32 after = at + len( needle )
+        dim as boolean endOk = ( after > len( hay ) )
+        if endOk = false then
+            endOk = not IsWordChar( hay[ after - 1 ] )
+        end if
+        if startOk andalso endOk then return true
+        at = instr( at + 1, hay, needle )
+    loop
+    return false
+end function
+
+dim tests( ... ) as ustring = { "the lazy dog.", "dogma", _
+                                "hot-dog stand", "Dog days", _
+                                "underdog" }
+for i as int32 = 0 to ubound( tests )
+    print left( tests( i ) & space( 16 ), 16 ); _
+          "substring: "; _
+          search.LineMatches( tests( i ), "dog", true ); _
+          ", word: "; _
+          WordMatches( tests( i ), "dog", true )
+next
