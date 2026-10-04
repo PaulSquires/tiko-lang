@@ -1,0 +1,11 @@
+'' A 'using' format is followed by ';' and the items it formats are separated by ';' only
+'' -- each of these is fbc's error 47, expected ';', and tiko took a ',' (audit F-71).
+'' 'print using "#"; 1; 2', 'print using "#";' and a ',' BEFORE the using compile in both.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/print-using-sep1.bas tests/diagnostics/src/print-using-sep3.bas tests/diagnostics/src/print-using-sep5.bas tests/diagnostics/src/print-using-sep7.bas tests/diagnostics/src/print-using-sep9.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: print-using-sep1.bas(1,16): error TKO0401
+'' EXPECT-OUT: print-using-sep3.bas(1,19): error TKO0401
+'' EXPECT-OUT: print-using-sep5.bas(1,24): error TKO0401
+'' EXPECT-OUT: print-using-sep7.bas(1,19): error TKO0401
+'' EXPECT-OUT: print-using-sep9.bas(1,16): error TKO0401

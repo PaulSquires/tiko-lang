@@ -93,10 +93,16 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         end if
     end if
 
+    '' A 'using' FORMAT IS FOLLOWED BY ';', AND THE ITEMS IT FORMATS ARE SEPARATED BY ';'
+    '' ONLY -- measured, 'print using "#", 1', 'print using "#"', 'print using "#"; 1, 2'
+    '' and 'print "a", using "#"; 1, 2' are all fbc's error 47, expected ';'. tiko took
+    '' a ',' in either place (audit F-71).
+    dim as boolean afterUsing = false
     if (Peek( p ) = Tko.KW_USING) andalso (isWrite = false) then
         Advance( p )
         sp.c = Expression( p )
-        if Accept( p, Tko.TK_SEMICOLON ) = false then Accept( p, Tko.TK_COMMA )
+        Expect( p, Tko.TK_SEMICOLON, ";" )
+        afterUsing = true
         sp.extra = 1                      '' marks the USING form for lowering
     end if
 
@@ -117,6 +123,10 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         '' 'silent' flag is for.
         if isWrite andalso cbool( (k = Tko.TK_SEMICOLON) orelse (k = Tko.KW_USING) ) then
             ErrorNode( p, Tko.TKO0420 )
+            exit do
+        end if
+        if (k = Tko.TK_COMMA) andalso afterUsing then
+            ErrorNode( p, Tko.TKO0401, ";" )
             exit do
         end if
         if (k = Tko.TK_SEMICOLON) orelse (k = Tko.TK_COMMA) then
@@ -144,7 +154,8 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
             usp.op = cast( ushort, Tko.KW_USING )
             usp.a = Expression( p )
             items.Push( cast( ulong, MakeStmt( p, Tko.N_PRINT_SEP, ut.loc, usp ) ) )
-            if Accept( p, Tko.TK_SEMICOLON ) = false then Accept( p, Tko.TK_COMMA )
+            Expect( p, Tko.TK_SEMICOLON, ";" )
+            afterUsing = true
             continue do
         end if
         dim as long before = p.pos
