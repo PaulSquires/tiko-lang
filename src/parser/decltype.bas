@@ -575,6 +575,11 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                     vp->extra or= Tko.PF_FOREIGN
                 end if
                 if cxx_ then MarkCxx_( p, m )
+                '' A NAMESPACE IN A FOREIGN BLOCK MANGLES -- it has to say the namespace -- and
+                '' keeps the written case, which is what PF_CXX means: measured, fbc names
+                '' 'namespace cns : declare sub cfun( .. )' in 'extern "C"' _ZN3cns4cfunEi,
+                '' where tiko upper-cased it to _ZN3CNS4CFUNEi and the link missed.
+                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_NAMESPACE) then MarkCxx_( p, m )
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_PROC) then
                     dim as Tko.StmtPayload ptr mp = _
                         @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]

@@ -993,6 +993,45 @@ private function ProcNameCore _
     '' n as integer )' there is _Z2g2u7INTEGER and the same line outside it is
     '' plain 'H' -- the C++ block mangles, and mangles what was WRITTEN.
     dim as boolean isCxx = ((sp->extra and Tko.PF_CXX) <> 0)
+    '' ...OR ITS DECLARATION'S: 'sub cns.cfun( .. )' defined after the block is the
+    '' procedure the block declared, and fbc names both _ZN3cns4cfunEi -- read from the
+    '' declaration the way an alias is, above.
+    if isCxx = false then
+        dim as Tko.Symbol ptr csym = syms.SymbolAt( info.RefOf( proc_ ) )
+        if csym <> 0 then
+            dim as Tko.NodeId cxDecl = cast( Tko.NodeId, csym->payload )
+            if (cxDecl <> Tko.NODE_NONE) andalso (cxDecl <> proc_) then
+                if ast.Kind( cxDecl ) = Tko.N_PROC then
+                    isCxx = ((StmtOf( ast, cxDecl )->extra and Tko.PF_CXX) <> 0)
+                end if
+            end if
+        end if
+    end if
+    '' ...AND SO DOES A METHOD OF A TYPE DECLARED THERE, in the block or defined outside
+    '' it. Its members never got PF_CXX, so 'Widget.doThing' went out _ZN6Widget7DOTHINGEi
+    '' and every call into a real C++ class was an undefined symbol. Measured, fbc keeps
+    '' the written case: _ZN6Widget7doThingEi. The TYPE says it -- it keeps its rawName.
+    if isCxx = false then
+        dim as Tko.SymScope ptr msc = syms.ScopeAt( info.ScopeOf( proc_ ) )
+        '' A member's own scope, or a declare's, sits inside the TYPE's.
+        dim as long mup = 0
+        while (msc <> 0) andalso (mup < 4)
+            if msc->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then exit while
+            msc = syms.ScopeAt( msc->parent )
+            mup += 1
+        wend
+        if msc <> 0 then
+            if msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                dim as Tko.Symbol ptr mown = syms.SymbolAt( msc->owner )
+                if mown <> 0 then
+                    dim as long moi = cast( long, mown->type_ )
+                    if (moi > 0) andalso (moi < types.types.Count) then
+                        isCxx = (types.types[moi].rawName <> 0)
+                    end if
+                end if
+            end if
+        end if
+    end if
     dim as string ident = ""
     if aliased then
         ident = names.Spelling( aliasNm )

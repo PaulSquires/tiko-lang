@@ -1,0 +1,11 @@
+'' A method of an extern "C++" type keeps its written case, defined in the block's type or
+'' outside it, and so does a namespaced procedure of an extern "C" block. They were
+'' upper-cased, an undefined symbol against any real C++ class. Names measured with fbc's
+'' objects.
+'' TEST: cli
+'' ARGS: --dump-mangle tests/mangle/src/cxx-member-case.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _ZN6Widget7doThingEi
+'' EXPECT-OUT: _ZN6Widget8getValueEv
+'' EXPECT-OUT: _ZN4lib15Gizmo4spinEd
+'' EXPECT-OUT: _ZN3cns4cfunEi
