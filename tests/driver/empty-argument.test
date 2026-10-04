@@ -1,0 +1,6 @@
+'' AN EMPTY ARGUMENT IS SKIPPED, as fbc skips it. The argument loop stopped at the first
+'' empty one, so everything after it -- the inputs included -- was never seen (F-64).
+'' TEST: cli
+'' ARGS: "" -c tests/driver/src/multi-c-a.bas -o tests/driver/emptyarg.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/emptyarg.o
