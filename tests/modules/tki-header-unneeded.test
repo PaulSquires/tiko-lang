@@ -1,0 +1,9 @@
+'' THE INTERFACE INCLUDES ONLY THE HEADERS ITS WRITTEN DECLARATIONS NAME (RFC-0004 §3; T91):
+'' onetu's one.bi is named by nothing public -- its one use is a private variable -- so the
+'' .tki has no '#include' for it. tki-header.test keeps the header that is named.
+'' TEST: cli
+'' ARGS: --emit-tki -i toolchains/tiko-windows/inc -i tests/modules/src/onetu/libs tests/modules/src/onetu/libs/acme/onetu
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: public declare function Twice( ) as long
+'' EXPECT-NOT: one.bi
+'' EXPECT-NOT: Counter

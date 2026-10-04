@@ -93,12 +93,32 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
     for each m as ulong in *e.cfg->moduleFiles
         if m = cast( ulong, from ) then own = true
     next
-    if own = false then return
-    dim as string p = e.src->AbsPathOf( got )
-    for each h as string in e.outp->modHeaders
-        if h = p then return
+    dim as long root = -1
+    if own then
+        dim as string p = e.src->AbsPathOf( got )
+        for k as long = 0 to e.outp->modHeaders.Count - 1
+            if e.outp->modHeaders[k] = p then root = k
+        next
+        if root < 0 then
+            root = e.outp->modHeaders.Count
+            e.outp->modHeaders.Push( p )
+        end if
+    else
+        '' A file a header includes belongs to that header's subtree.
+        for k as long = 0 to e.outp->modHdrFile.Count - 1
+            if e.outp->modHdrFile[k] = cast( ulong, from ) then
+                root = cast( long, e.outp->modHdrRoot[k] )
+                exit for
+            end if
+        next
+        if root < 0 then return
+    end if
+    '' The first header to reach a file keeps it.
+    for each f as ulong in e.outp->modHdrFile
+        if f = cast( ulong, got ) then return
     next
-    e.outp->modHeaders.Push( p )
+    e.outp->modHdrFile.Push( cast( ulong, got ) )
+    e.outp->modHdrRoot.Push( cast( ulong, root ) )
 end sub
 
 '' Reading for an '#import': a module's interface, or a header it includes (RFC-0004 §5).

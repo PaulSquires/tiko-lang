@@ -41,6 +41,9 @@ type TkiWriter_
     '' definition that follows its 'declare' adds nothing an importer can see.
     as FB.Array( of ubyte )    firstSight
     as string                  text
+    '' Per token: 1 once it has been written. The headers the interface needs are the ones
+    '' its WRITTEN tokens name something from (RequiredHeaders_).
+    as FB.Array( of ubyte )    emitted
     '' The source line the next output line stands for, so '#line' is written only when
     '' the two part.
     as ulong                   lineFile
@@ -157,6 +160,7 @@ private sub Tok_( byref w as TkiWriter_, byval i as long )
     else
         w.text &= Rewritten_( w, i )
     end if
+    w.emitted[i] = 1
     w.prevTok = i
 end sub
 
@@ -725,6 +729,62 @@ private sub Qualify_( byref w as TkiWriter_ )
     next
 end sub
 
+'' THE HEADERS THE INTERFACE NEEDS (RFC-0004 §3): those a written token names a symbol from,
+'' where a symbol belongs to the header the module reached its file through. Every header
+'' the module included used to travel, needed or not -- and a header-only library meant for
+'' ONE unit, fbsqlite.bi, was then compiled into every importer too, its members defined
+'' twice at the link (T91). An exported macro can name anything, so with one, all travel.
+private function RequiredHeaders_ _
+    ( byref w as TkiWriter_, byref headers as Tko.StrVec, byval pr as Tko.PpResult ptr, _
+      byval allOf as boolean ) as string
+    dim as FB.Array( of ubyte ) need
+    dim as boolean every = allOf orelse (pr = 0)
+    dim as ubyte seed = iif( every, 1, 0 )
+    for k as long = 0 to headers.Count - 1
+        need.Push( seed )
+    next
+    if every = false then
+        for id as long = 1 to w.ast->Count( )
+            dim as Tko.NodeId nd = cast( Tko.NodeId, id )
+            dim as Tko.InternId nm = Tko.INTERN_NONE
+            select case w.ast->Kind( nd )
+            case Tko.N_TYPEREF
+                nm = w.ast->stmts[cast( long, w.ast->nodes[id].data )].name
+            case Tko.N_IDENT
+                nm = w.ast->idents[cast( long, w.ast->nodes[id].data )].name
+            case else
+                continue for
+            end select
+            dim as long t = TokAt_( w, cast( ulong, w.ast->Loc( nd ) ) )
+            if t < 0 then continue for
+            if w.emitted[t] = 0 then continue for
+            dim as Tko.SymbolId sid = w.info->RefOf( nd )
+            '' A generic's body is not bound until it is instantiated: its names are
+            '' looked up from where they are written.
+            if (sid = Tko.SYMBOL_NONE) andalso (nm <> Tko.INTERN_NONE) then
+                dim as Tko.ScopeId look = w.info->ScopeOf( nd )
+                if look = Tko.SCOPE_NONE then look = Tko.ModSym.ModuleScope( *w.syms )
+                sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
+            end if
+            dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
+            if s = 0 then continue for
+            dim as ulong f = cast( ulong, w.ctx->sources.Decode( s->loc ).file )
+            for k as long = 0 to pr->modHdrFile.Count - 1
+                if pr->modHdrFile[k] = f then
+                    dim as long r = cast( long, pr->modHdrRoot[k] )
+                    if (r >= 0) andalso (r < need.Count) then need[r] = 1
+                    exit for
+                end if
+            next
+        next
+    end if
+    dim as string res = ""
+    for k as long = 0 to headers.Count - 1
+        if need[k] then res &= "#include once """ & headers[k] & """" & !"\n"
+    next
+    return res
+end function
+
 function WriteInterface _
     ( byref ctx as Tko.CompilerContext, byref toks as Tko.TokenVec, _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
@@ -740,6 +800,7 @@ function WriteInterface _
     for j as long = 0 to toks.Count - 1
         w.endAt.Push( 0 )
         w.nodeAt.Push( 0 )
+        w.emitted.Push( 0 )
     next
     for j as long = 0 to ast.Count( )
         w.firstSight.Push( 0 )
@@ -800,17 +861,16 @@ function WriteInterface _
 
     Qualify_( w )
 
-    w.text = "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n"
-    for each h as string in headers
-        w.text &= "#include once """ & h & """" & !"\n"
-    next
-    if pr <> 0 then w.text &= ExportedMacros_( w, *pr )
-    w.text &= "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
+    dim as string macros = ""
+    if pr <> 0 then macros = ExportedMacros_( w, *pr )
+    '' The declarations first: which headers travel depends on what they wrote.
+    w.text = "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
     w.lineFile = 0
     dim as long i = 0
     Level_( w, i, Tko.ModSym.ModuleScope( syms ), 0 )
     w.text &= "end namespace" & !"\n"
-    return w.text
+    return "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n" & _
+           RequiredHeaders_( w, headers, pr, len( macros ) > 0 ) & macros & w.text
 end function
 
 end namespace
