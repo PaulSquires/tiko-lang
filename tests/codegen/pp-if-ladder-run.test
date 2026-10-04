@@ -1,0 +1,22 @@
+'' RUN: '#if' evaluates with the language's precedence -- NOT below the relationals, SHL
+'' above '+', '\' and MOD levels of their own -- floats as floats, '/' as a float
+'' division, and an unsigned decimal literal above the longint range as unsigned. Each
+'' line is a branch fbc takes. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-if-ladder.bas -o tests/codegen/ppifladder.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppifladder.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A1 not-binds-loose
+'' EXPECT-RUN-OUT: A2 shl-higher-than-plus
+'' EXPECT-RUN-OUT: A3 intdiv-lower-than-mul
+'' EXPECT-RUN-OUT: A4 mod-lower-than-mul
+'' EXPECT-RUN-OUT: A5 or-higher-than-xor
+'' EXPECT-RUN-OUT: A6 slash-is-float
+'' EXPECT-RUN-OUT: A7 0.4 true
+'' EXPECT-RUN-OUT: A8 hex64 signed
+'' EXPECT-RUN-OUT: A9 dec64 unsigned
+'' EXPECT-RUN-OUT: A10 wraps
+'' EXPECT-RUN-OUT: A11 and-lower-than-eq
+'' EXPECT-RUN-OUT: A12 shr arith

@@ -13,6 +13,10 @@ namespace Tko
 type PpValue
     as boolean  isStr
     as longint  num
+    '' A FLOATING value -- a float literal, or '/' of anything. 'num' then holds it
+    '' rounded, for the builtins that only read an integer.
+    as boolean  isFlt
+    as double   fnum
     as string   str_
     '' THE VALUE CAME FROM AN ESCAPED LITERAL somewhere -- '!"..."'. The span this
     '' evaluator reads is RAW SOURCE, so a backslash escape has not been decoded and a
@@ -69,8 +73,27 @@ private function PxNum( byval v as longint ) as PpValue
     return r
 end function
 
+private function PxFlt( byval d as double ) as PpValue
+    dim as PpValue r
+    r.isFlt = true
+    r.fnum = d
+    if (d > -9.2e18) andalso (d < 9.2e18) then r.num = clngint( d )
+    return r
+end function
+
+'' An operand as a double, and as an integer -- FreeBASIC rounds a float to nearest.
+private function PxD( byref v as PpValue ) as double
+    if v.isFlt then return v.fnum
+    return cdbl( v.num )
+end function
+
+private function PxI( byref v as PpValue ) as longint
+    return v.num
+end function
+
 private function PxTruth( byref v as PpValue ) as boolean
     if v.isStr then return (len( v.str_ ) > 0)
+    if v.isFlt then return (v.fnum <> 0)
     return (v.num <> 0)
 end function
 
@@ -235,14 +258,22 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 v = v * radix + d
             next
         else
-            v = vallng( digits )
+            '' A DECIMAL ABOVE THE LONGINT RANGE IS UNSIGNED in code -- see
+            '' Check.DecimalLitUnsigned -- and '#if 18446744073709551615 > 0' is true to
+            '' fbc. Read as a longint it was -1. It is carried as a double, which every
+            '' comparison and arithmetic here already takes.
+            dim as ulongint uv = valulng( digits )
+            if uv > &h7FFFFFFFFFFFFFFFull then return PxFlt( cast( double, uv ) )
+            v = cast( longint, uv )
         end if
         return PxNum( v )
 
     case TK_FLOAT_LIT
+        '' A FLOAT, not a rounded integer: '#if 2.6 = 3' was TRUE and '#if 0.4' FALSE,
+        '' where fbc compares the double and answers the other way round both times.
         dim as string sp = SpellOf( *x.e, t )
         PxNext( x )
-        return PxNum( clngint( val( sp ) ) )
+        return PxFlt( val( sp ) )
 
     case TK_STRING_LIT
         '' ADJACENT LITERALS ARE ONE STRING. '"#define " "X" " 1"' is a single value
@@ -314,6 +345,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
     case TK_MINUS
         PxNext( x )
         dim as PpValue v = PxPrimary( x )
+        if v.isFlt then return PxFlt( -v.fnum )
         return PxNum( -v.num )
 
     case TK_PLUS
@@ -560,104 +592,159 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
     end select
 end function
 
-private function PxUnary( byref x as PpExprState ) as PpValue
-    if PxPeek( x ) = KW_NOT then
-        PxNext( x )
-        dim as PpValue v = PxUnary( x )
-        return PxNum( not v.num )
-    end if
-    return PxPrimary( x )
+'' Two string values, concatenated.
+private function PxJoin_( byref l as PpValue, byref r as PpValue ) as PpValue
+    dim as PpValue c
+    c.isStr = true
+    c.str_ = l.str_ + r.str_
+    c.escaped = l.escaped orelse r.escaped
+    c.wide = l.wide orelse r.wide
+    return c
 end function
 
+'' THE LANGUAGE'S PRECEDENCE, which is fbc's -- '#if' goes through the same expression
+'' parser as code there. Loosest first:
+''
+''     andalso orelse | xor eqv imp | or | and | not | relational | & | + - | shl shr
+''     | mod | \ | * /
+''
+'' The ladder here had NOT binding tightest, '* / \ mod' as one level and SHL below
+'' '+', so '#if not 1 = 2', '#if 1 shl 2 + 1 = 5', '#if 7 \ 2 * 2 = 1' and '#if 10 mod 4
+'' * 2 = 2' each took the other branch from fbc -- silently, as a wrong branch is.
+'' '/' is FLOATING, as it is in code: '#if 7 / 2 = 3.5' is true. '\' and MOD by zero is
+'' fbc's error 100, not 0.
 private function PxMul( byref x as PpExprState ) as PpValue
-    dim as PpValue l = PxUnary( x )
+    dim as PpValue l = PxPrimary( x )
     do
         dim as TokenKind k = PxPeek( x )
-        dim as boolean isMul = (k = TK_STAR) orelse (k = TK_SLASH) orelse _
-                               (k = TK_BACKSLASH) orelse (k = KW_MOD)
-        if isMul = false then exit do
+        if (k <> TK_STAR) andalso (k <> TK_SLASH) then exit do
         PxNext( x )
-        dim as PpValue r = PxUnary( x )
-        select case k
-        case TK_STAR      : l = PxNum( l.num * r.num )
-        case TK_SLASH     : if r.num <> 0 then l = PxNum( l.num \ r.num ) else l = PxNum( 0 )
-        case TK_BACKSLASH : if r.num <> 0 then l = PxNum( l.num \ r.num ) else l = PxNum( 0 )
-        case else         : if r.num <> 0 then l = PxNum( l.num mod r.num ) else l = PxNum( 0 )
-        end select
+        dim as PpValue r = PxPrimary( x )
+        if k = TK_SLASH then
+            l = PxFlt( PxD( l ) / PxD( r ) )
+        elseif l.isFlt orelse r.isFlt then
+            l = PxFlt( PxD( l ) * PxD( r ) )
+        else
+            l = PxNum( l.num * r.num )
+        end if
+    loop
+    return l
+end function
+
+private function PxIntDiv( byref x as PpExprState ) as PpValue
+    dim as PpValue l = PxMul( x )
+    while PxPeek( x ) = TK_BACKSLASH
+        PxNext( x )
+        dim as PpValue r = PxMul( x )
+        if PxI( r ) = 0 then
+            x.bad = true
+            l = PxNum( 0 )
+        else
+            l = PxNum( PxI( l ) \ PxI( r ) )
+        end if
+    wend
+    return l
+end function
+
+private function PxMod( byref x as PpExprState ) as PpValue
+    dim as PpValue l = PxIntDiv( x )
+    while PxPeek( x ) = KW_MOD
+        PxNext( x )
+        dim as PpValue r = PxIntDiv( x )
+        if PxI( r ) = 0 then
+            x.bad = true
+            l = PxNum( 0 )
+        else
+            l = PxNum( PxI( l ) mod PxI( r ) )
+        end if
+    wend
+    return l
+end function
+
+private function PxShift( byref x as PpExprState ) as PpValue
+    dim as PpValue l = PxMod( x )
+    do
+        dim as TokenKind k = PxPeek( x )
+        if (k <> KW_SHL) andalso (k <> KW_SHR) then exit do
+        PxNext( x )
+        dim as PpValue r = PxMod( x )
+        if k = KW_SHL then
+            l = PxNum( PxI( l ) shl PxI( r ) )
+        else
+            l = PxNum( PxI( l ) shr PxI( r ) )
+        end if
     loop
     return l
 end function
 
 private function PxAdd( byref x as PpExprState ) as PpValue
-    dim as PpValue l = PxMul( x )
+    dim as PpValue l = PxShift( x )
     do
         dim as TokenKind k = PxPeek( x )
-        dim as boolean isAdd = (k = TK_PLUS) orelse (k = TK_MINUS) orelse (k = TK_AMP)
-        if isAdd = false then exit do
+        if (k <> TK_PLUS) andalso (k <> TK_MINUS) then exit do
         PxNext( x )
-        dim as PpValue r = PxMul( x )
-        '' '+' AND '&' OVER TWO STRINGS CONCATENATE. Nothing here did: both operands
-        '' went through '.num', which is zero for a string, so '"A" + "B"' folded to 0.
-        '' '#if' never writes it, but __FB_EVAL__ is written with almost nothing else --
-        '' and fbc concatenates, measured.
-        if l.isStr andalso r.isStr andalso (k <> TK_MINUS) then
-            dim as PpValue c
-            c.isStr = true
-            c.str_ = l.str_ + r.str_
-            c.escaped = l.escaped orelse r.escaped
-            c.wide = l.wide orelse r.wide
-            l = c
-        elseif (l.isStr orelse r.isStr) then
-            '' A STRING AND A NUMBER IS NOT SOMETHING TO GUESS AT. fbc has its own rule
-            '' for it and it has not been measured, so it is refused rather than folded
-            '' to whichever operand happens to be numeric.
+        dim as PpValue r = PxShift( x )
+        '' '+' OVER TWO STRINGS CONCATENATES -- see PxCat. A string and a number is not
+        '' something to guess at: fbc has its own rule for it and it has not been
+        '' measured, so it is refused rather than folded.
+        if l.isStr andalso r.isStr andalso (k = TK_PLUS) then
+            l = PxJoin_( l, r )
+        elseif l.isStr orelse r.isStr then
             x.bad = true
             l = PxNum( 0 )
+        elseif l.isFlt orelse r.isFlt then
+            l = PxFlt( iif( k = TK_PLUS, PxD( l ) + PxD( r ), PxD( l ) - PxD( r ) ) )
         elseif k = TK_PLUS then
             l = PxNum( l.num + r.num )
-        elseif k = TK_MINUS then
-            l = PxNum( l.num - r.num )
         else
-            x.bad = true
-            l = PxNum( 0 )
+            l = PxNum( l.num - r.num )
         end if
     loop
     return l
 end function
 
-private function PxShift( byref x as PpExprState ) as PpValue
+'' '&' -- looser than '+', as in code. Over two strings it concatenates, which is what
+'' __FB_EVAL__ is written with; anything else is refused, as before.
+private function PxCat( byref x as PpExprState ) as PpValue
     dim as PpValue l = PxAdd( x )
-    do
-        dim as TokenKind k = PxPeek( x )
-        dim as boolean isShift = (k = KW_SHL) orelse (k = KW_SHR)
-        if isShift = false then exit do
+    while PxPeek( x ) = TK_AMP
         PxNext( x )
         dim as PpValue r = PxAdd( x )
-        if k = KW_SHL then
-            l = PxNum( l.num shl r.num )
+        if l.isStr andalso r.isStr then
+            l = PxJoin_( l, r )
         else
-            l = PxNum( l.num shr r.num )
+            x.bad = true
+            l = PxNum( 0 )
         end if
-    loop
+    wend
     return l
 end function
 
 private function PxRel( byref x as PpExprState ) as PpValue
-    dim as PpValue l = PxShift( x )
+    dim as PpValue l = PxCat( x )
     do
         dim as TokenKind k = PxPeek( x )
         dim as boolean isRel = (k = TK_EQ) orelse (k = TK_NE) orelse (k = TK_LT) orelse _
                                (k = TK_LE) orelse (k = TK_GT) orelse (k = TK_GE)
         if isRel = false then exit do
         PxNext( x )
-        dim as PpValue r = PxShift( x )
+        dim as PpValue r = PxCat( x )
 
         dim as boolean res = false
-        dim as boolean bothStr = l.isStr orelse r.isStr
-        if bothStr then
+        if l.isStr orelse r.isStr then
             dim as string a = l.str_, b = r.str_
             if l.isStr = false then a = str( l.num )
             if r.isStr = false then b = str( r.num )
+            select case k
+            case TK_EQ : res = (a = b)
+            case TK_NE : res = (a <> b)
+            case TK_LT : res = (a < b)
+            case TK_LE : res = (a <= b)
+            case TK_GT : res = (a > b)
+            case else  : res = (a >= b)
+            end select
+        elseif l.isFlt orelse r.isFlt then
+            dim as double a = PxD( l ), b = PxD( r )
             select case k
             case TK_EQ : res = (a = b)
             case TK_NE : res = (a <> b)
@@ -682,54 +769,69 @@ private function PxRel( byref x as PpExprState ) as PpValue
     return l
 end function
 
+'' NOT -- looser than the relationals, tighter than AND: 'not a = b' is 'not (a = b)'.
+private function PxNot( byref x as PpExprState ) as PpValue
+    if PxPeek( x ) = KW_NOT then
+        PxNext( x )
+        dim as PpValue v = PxNot( x )
+        return PxNum( not PxI( v ) )
+    end if
+    return PxRel( x )
+end function
+
 private function PxAnd( byref x as PpExprState ) as PpValue
-    dim as PpValue l = PxRel( x )
+    dim as PpValue l = PxNot( x )
     while PxPeek( x ) = KW_AND
         PxNext( x )
-        dim as PpValue r = PxRel( x )
-        l = PxNum( l.num and r.num )
+        dim as PpValue r = PxNot( x )
+        l = PxNum( PxI( l ) and PxI( r ) )
     wend
     return l
 end function
 
 private function PxOr( byref x as PpExprState ) as PpValue
     dim as PpValue l = PxAnd( x )
-    do
-        dim as TokenKind k = PxPeek( x )
-        dim as boolean isOr = (k = KW_OR) orelse (k = KW_XOR) orelse _
-                              (k = KW_EQV) orelse (k = KW_IMP)
-        if isOr = false then exit do
+    while PxPeek( x ) = KW_OR
         PxNext( x )
         dim as PpValue r = PxAnd( x )
+        l = PxNum( PxI( l ) or PxI( r ) )
+    wend
+    return l
+end function
+
+'' XOR, EQV and IMP -- one level, as fbc's cLogExpression has them.
+private function PxLog( byref x as PpExprState ) as PpValue
+    dim as PpValue l = PxOr( x )
+    do
+        dim as TokenKind k = PxPeek( x )
+        if (k <> KW_XOR) andalso (k <> KW_EQV) andalso (k <> KW_IMP) then exit do
+        PxNext( x )
+        dim as PpValue r = PxOr( x )
         select case k
-        case KW_OR  : l = PxNum( l.num or r.num )
-        case KW_XOR : l = PxNum( l.num xor r.num )
-        case KW_EQV : l = PxNum( not (l.num xor r.num) )
-        case else   : l = PxNum( (not l.num) or r.num )
+        case KW_XOR : l = PxNum( PxI( l ) xor PxI( r ) )
+        case KW_EQV : l = PxNum( not (PxI( l ) xor PxI( r )) )
+        case else   : l = PxNum( (not PxI( l )) or PxI( r ) )
         end select
     loop
     return l
 end function
 
-private function PxAndAlso( byref x as PpExprState ) as PpValue
-    dim as PpValue l = PxOr( x )
-    while PxPeek( x ) = KW_ANDALSO
-        PxNext( x )
-        dim as PpValue r = PxOr( x )
-        dim as boolean b = PxTruth( l ) andalso PxTruth( r )
-        l = PxNum( iif( b, -1, 0 ) )
-    wend
-    return l
-end function
-
+'' ANDALSO and ORELSE -- one level, left to right, as in code.
 function PxOrElse( byref x as PpExprState ) as PpValue
-    dim as PpValue l = PxAndAlso( x )
-    while PxPeek( x ) = KW_ORELSE
+    dim as PpValue l = PxLog( x )
+    do
+        dim as TokenKind k = PxPeek( x )
+        if (k <> KW_ANDALSO) andalso (k <> KW_ORELSE) then exit do
         PxNext( x )
-        dim as PpValue r = PxAndAlso( x )
-        dim as boolean b = PxTruth( l ) orelse PxTruth( r )
+        dim as PpValue r = PxLog( x )
+        dim as boolean b
+        if k = KW_ANDALSO then
+            b = PxTruth( l ) andalso PxTruth( r )
+        else
+            b = PxTruth( l ) orelse PxTruth( r )
+        end if
         l = PxNum( iif( b, -1, 0 ) )
-    wend
+    loop
     return l
 end function
 

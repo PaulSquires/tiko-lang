@@ -681,6 +681,7 @@ private function EvalLiteral_ _
     ( byref v as PpValue, byref ok as boolean ) as string
 
     ok = true
+    if v.isFlt then return str( v.fnum )
     if v.isStr = false then return str( v.num )
     '' A WIDE RESULT IS STILL REFUSED. It re-emits as '!"\uXXXX"' per character,
     '' four UPPERCASE hex digits -- measured, __FB_EVAL__( wstr("A") ) is
