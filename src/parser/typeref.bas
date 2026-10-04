@@ -565,6 +565,11 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 gt->kind = cast( ushort, Tko.TK_EQ )
                 gt->length = 1
                 gt->loc += 1
+                gt->flags or= Tko.TF_SPLIT_GE
+                closed = true
+            elseif (Peek( p ) = Tko.TK_EQ) andalso (((*p.toks)[p.pos].flags and Tko.TF_SPLIT_GE) <> 0) then
+                '' ...SPLIT ALREADY, by a parse that then backtracked (audit F-72, PAR-11): the
+                '' '>' is gone from the buffer, so this reads as the '>' it was.
                 closed = true
             elseif closed then
                 Advance( p )

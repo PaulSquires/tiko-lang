@@ -159,6 +159,9 @@ namespace Tko
     '' carries. fbc reads 'as long rem' in a TYPE as a field named REM, and only the parser
     '' knows it is in a field: this is what lets it take the comment back as the name (T93).
     const TF_REM_COMMENT   as ushort = &h1000
+    '' THE '=' LEFT WHEN 'integer<8>=' SPLIT ITS '>=' -- see typeref.bas. The split is made in
+    '' the shared token buffer, so a parse that backtracks over it must know the '>' was there.
+    const TF_SPLIT_GE      as ushort = &h2000
 
     enum SuffixChar
         SUFC_NONE = 0
