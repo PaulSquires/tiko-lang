@@ -170,7 +170,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         c.loopScope.Push( c.scopeMark.Count )
         c.loopKind.Push( cast( long, Tko.KW_SCOPE ) )
         dim as long scAt = c.breakTo.Count - 1
-        PushScope( c )
+        PushScope( c, cast( ulong, StmtOf( c, id )->b ) )
         LowerBlock( c, StmtOf( c, id )->b )
         CloseScope( c )
         dim as long scExit = c.breakTo[scAt]
@@ -515,7 +515,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         c.loopKind.Push( cast( long, Tko.KW_WHILE ) )
         '' A loop BODY is a scope: its locals and defers run on every iteration
         '' (docs/plan/08 rule 4), which the measurement confirms.
-        PushScope( c )
+        PushScope( c, cast( ulong, sp->b ) )
         LowerBlock( c, sp->b )
         CloseScope( c )
         c.loopScope.Pop( )
@@ -557,8 +557,35 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' inside the body, which is the honest outcome and what happened before.
         dim as Tko.StmtPayload ptr wp = StmtOf( c, id )
         dim as boolean wpushed = false
+        dim as boolean wscope = false
         if wp->a <> Tko.NODE_NONE then
+            dim as long wumark = c.udtTemps.Count
             dim as MirValue wa = LowerAddr( c, wp->a )
+            '' A TEMPORARY SUBJECT LIVES AS LONG AS THE BODY, and dies on every way out of
+            '' it. Left on the statement's list it died only when the WITH ended by falling
+            '' out of the bottom: 'with mk( 1 ) : if .v = 1 then exit sub' never destroyed
+            '' it, nor did 'exit for', 'continue', 'return' or 'goto' out of the body. fbc
+            '' prints '+1-1' there and tiko printed '+1'. A scope of its own makes it a
+            '' cleanup every exit already runs.
+            if (c.udtTemps.Count > wumark) andalso (c.curBlock >= 0) then
+                PushScope( c, cast( ulong, wp->b ) or SCOPE_KEY_OPT )
+                wscope = true
+                dim as long wk = wumark
+                while wk < c.udtTemps.Count
+                    dim as Tko.TypeId wt = cast( Tko.TypeId, c.udtTempTypes[wk] )
+                    if c.types->IsDynArray( wt ) then
+                        wk += 1
+                    else
+                        RegisterForUdtDtor_( c, wt, cast( long, c.udtTemps[wk] ) )
+                        for m as long = wk to c.udtTemps.Count - 2
+                            c.udtTemps[m] = c.udtTemps[m + 1]
+                            c.udtTempTypes[m] = c.udtTempTypes[m + 1]
+                        next
+                        c.udtTemps.Pop( )
+                        c.udtTempTypes.Pop( )
+                    end if
+                wend
+            end if
             if wa.kind <> cast( ubyte, MV_NONE ) then
                 '' INTO A SLOT, not held as a value. A GOTO may jump INTO the body --
                 '' warnings/branch-cross-with is a corpus file that does exactly that,
@@ -587,6 +614,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             end if
         end if
         LowerBlock( c, wp->b )
+        if wscope then CloseScope( c )
         if wpushed then
             c.withNode.Pop( )
             c.withKind.Pop( )

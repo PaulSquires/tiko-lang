@@ -662,9 +662,7 @@ sub LowerProc _
     next
 
     '' Labels are per-function: the same name in two procedures is two labels.
-    while c.labelName.Count > 0
-        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
-    wend
+    ClearLabels( c, 0 )
 
     '' THE IMPLICIT PROLOGUE OF A CONSTRUCTOR, and the vptr of a destructor.
     ''
@@ -780,6 +778,7 @@ sub LowerProc _
 
     '' Depths are recorded relative to the scope just opened for the body, which is the
     '' depth a label written directly in the procedure sees.
+    c.labelBase = scopeDepthIn + 1
     ScanLabels( c, sp->b, scopeDepthIn + 1 )
     LowerBlock( c, sp->b )
     CloseScope( c )
@@ -1243,9 +1242,7 @@ sub LowerMainModule _
         EmitRtl( c, RTL_INIT, ia )
     end if
 
-    while c.labelName.Count > 0
-        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
-    wend
+    ClearLabels( c, 0 )
 
     '' The implicit restore, immediately after fb_Init and before the module body --
     '' which is where fbc puts it. Emitted only when this module actually has a DATA
@@ -1294,6 +1291,7 @@ sub LowerMainModule _
     '' the wrong pool -- the mistake this file has made three times already.
     dim as Tko.ListPayload ptr mp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
+    c.labelBase = scopeDepthIn + 1
     for i as long = 0 to mp->count - 1
         ScanLabels( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ), _
                     scopeDepthIn + 1 )

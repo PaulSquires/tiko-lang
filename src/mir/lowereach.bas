@@ -154,7 +154,7 @@ function LowerForEachIter _
     c.contTo.Push( contB )
     c.loopScope.Push( c.scopeMark.Count )
     c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c )
+    PushScope( c, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
 
     '' VALUE( ) RETURNS BY VALUE, so its result lands in an sret temporary that the
     '' call registers for destruction. Registered where? In the ENCLOSING scope,
@@ -524,7 +524,7 @@ private function EachEmit_ _
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
     c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c )
+    PushScope( c, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
 
     '' A BYREF LOOP VARIABLE IS BOUND, not filled. Its type is a REFERENCE -- see
     '' resolve.bas -- so its slot holds the ELEMENT'S ADDRESS and every read and

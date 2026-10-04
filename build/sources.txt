@@ -48,6 +48,7 @@ src/mir/lowerswap.bas
 src/mir/lowerwstr.bas
 src/mir/lowerwstru.bas
 src/mir/lowerctl.bas
+src/mir/lowerlabel.bas
 src/mir/lowereach.bas
 src/mir/eightbyte.bas
 src/mir/lowerstore.bas

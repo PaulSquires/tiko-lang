@@ -1,0 +1,22 @@
+'' RUN: the cleanups a GOTO runs come from WHERE its label is, not from a depth. A jump
+'' to a label in its own IF arm destroyed the arm's locals at the jump and again at the
+'' end of the arm (the label pre-scan did not know an arm is a scope) -- a double free
+'' for a type owning memory; a jump into a SIBLING scope ran nothing for the one it left;
+'' a BACKWARD jump ran nothing for what was defined after its label. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/goto-cleanup.bas -o tests/codegen/gotocleanup.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gotocleanup.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: +6[lbl1]-6[end]
+'' EXPECT-RUN-OUT: [lbl2 50]
+'' EXPECT-RUN-OUT: [lbl2 50]
+'' EXPECT-RUN-OUT: val= 1
+'' EXPECT-RUN-OUT: val= 2
+'' EXPECT-RUN-OUT: val= 3
+'' EXPECT-RUN-OUT: +3-3[lbl4][end]
+'' EXPECT-RUN-OUT: +0-0+1-1+2-2[out]
+'' EXPECT-RUN-OUT: [d1][d2][d3][out]
+'' EXPECT-RUN-OUT: survived

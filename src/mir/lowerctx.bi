@@ -144,6 +144,11 @@ type Ctx
     '' the TYPE and the name is derived from that.
     as FB.Array( of ulong ) cleanupType
     as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
+    '' WHICH CONSTRUCT each open scope belongs to -- the AST node whose body it brackets,
+    '' or SCOPE_KEY_OPT or'd with the construct for a scope only some instances open. A
+    '' GOTO compares these with its label's to find the scopes it really leaves; a depth
+    '' alone cannot tell a sibling from the scope it is in (ScanLabels).
+    as FB.Array( of ulong ) scopeKey
     '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
     '' scopes they are leaving.
     as FB.Array( of long )  loopScope
@@ -278,7 +283,25 @@ type Ctx
     as FB.Array( of ulong ) labelName
     as FB.Array( of long )  labelBlock     '' -1 until the block is created
     as FB.Array( of long )  labelDepth     '' -1 when the pre-scan never saw it
+    '' ...and WHERE each label is: its scope keys, inner to the body's own scope, as a
+    '' run of labelPaths -- from the pre-scan, then from the scopes actually open when
+    '' the label is lowered -- and how many cleanup entries were registered at that
+    '' point, -1 until then. A backward GOTO runs the ones registered after it.
+    as FB.Array( of long )  labelPathAt
+    as FB.Array( of long )  labelPathLen
+    as FB.Array( of long )  labelCleanupAt
+    as FB.Array( of ulong ) labelPaths
+    as FB.Array( of ulong ) scanPath       '' the pre-scan's open keys
+    as long                 labelBase      '' scopeMark index of the body's own scope
 end type
+
+'' A scope key for a scope that only SOME instances of a construct open -- a FOR over a
+'' UDT counter, a SELECT over a wide subject, a FOR EACH. The pre-scan records it for
+'' every instance and a GOTO skips it where the lowering opened no such scope.
+const SCOPE_KEY_OPT = &h80000000ul
+
+'' A label name declared more than once in one procedure -- see ScanLabels.
+const LABEL_AMBIGUOUS = -2
 
 declare function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
 declare function NoVal( ) as MirValue
@@ -360,6 +383,9 @@ declare function EmitRtl _
     declare sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
     declare sub ScanLabels _
         ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )
+    declare sub ClearLabels( byref c as Ctx, byval base_ as long )
+    '' lowerfor.bas -- a UDT object in SLOT destroyed as a scope cleanup.
+    declare sub RegisterForUdtDtor_( byref c as Ctx, byval ct as Tko.TypeId, byval slot as long )
 
 
     '' lower.bas -- shared by the other lowering files.
@@ -375,9 +401,10 @@ declare function EmitRtl _
           byval t2 as long, byref cond as MirValue )
     declare function IsUnsignedType _
         ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-    declare sub PushScope( byref c as Ctx )
+    declare sub PushScope( byref c as Ctx, byval key as ulong = 0 )
     declare sub CloseScope( byref c as Ctx )
     declare sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
+    declare sub EmitCleanupsFrom( byref c as Ctx, byval firstEntry as long )
     declare function LowerExprLoad _
     ( byref c as Ctx, byref addr as MirValue, byval t as MirType, _
       byval sizeBytes as long = 0 ) as MirValue

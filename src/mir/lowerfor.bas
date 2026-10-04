@@ -32,7 +32,7 @@ using Tko
 '' conversions fbc applies to it. The corpus's two uses are both step-free.
 '' Register one of the FOR protocol's objects for destruction at the end of the
 '' scope that encloses the loop. Same three pushes FOR EACH makes for its element.
-private sub RegisterForUdtDtor_ _
+sub RegisterForUdtDtor_ _
     ( byref c as Ctx, byval ct as Tko.TypeId, byval slot as long )
 
     if slot < 0 then return
@@ -180,7 +180,7 @@ private function LowerForUdt_ _
     '' A SCOPE answers both: CloseScope emits in reverse registration order, which
     '' is fbc's step-limit-counter, and EmitCleanupsTo is what every non-local exit
     '' already walks.
-    PushScope( c )
+    PushScope( c, cast( ulong, sp->a ) or SCOPE_KEY_OPT )
     RegisterForUdtDtor_( c, ct, addr.id )
     RegisterForUdtDtor_( c, ct, limSlot )
     if hasStep then RegisterForUdtDtor_( c, ct, stpAddr.id )
@@ -196,7 +196,7 @@ private function LowerForUdt_ _
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
     c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c )
+    PushScope( c, cast( ulong, sp->b ) )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
@@ -536,7 +536,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     c.contTo.Push( stepB )
     c.loopScope.Push( c.scopeMark.Count )
     c.loopKind.Push( cast( long, Tko.KW_FOR ) )
-    PushScope( c )
+    PushScope( c, cast( ulong, sp->b ) )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )

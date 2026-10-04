@@ -1,0 +1,14 @@
+'' RUN: 'with mk( n )' -- a WITH over a temporary -- destroys the temporary on every way
+'' out of the body: exit sub, continue for, exit for, goto, and from inside a nested
+'' WITH. It stayed on the statement's list and died only when the WITH fell out of the
+'' bottom, so every early exit leaked it. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/with-temp-exit.bas -o tests/codegen/withtempexit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/withtempexit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: +1-1
+'' EXPECT-RUN-OUT: +11-11+12-12[x]
+'' EXPECT-RUN-OUT: +3-3[l]
+'' EXPECT-RUN-OUT: +4+5-5-4

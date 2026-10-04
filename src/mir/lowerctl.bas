@@ -12,8 +12,6 @@ namespace Tko.Mir
 declare function MemberNamed_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
-'' A label name declared more than once in one procedure -- see ScanLabels.
-const LABEL_AMBIGUOUS = -2
 
 '' Local to this file.
 declare function LowerCaseTest _
@@ -534,7 +532,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     '' that path before its 'goto' to the exit, and at the end of the SELECT.
     dim as boolean wideScope = (strMode = 1)
     if wideScope then
-        PushScope( c )
+        PushScope( c, cast( ulong, id ) or SCOPE_KEY_OPT )
         for k as long = swmark to c.wstrTemps.Count - 1
             c.cleanupNode.Push( CLEANUP_WSTR_DELETE )
             c.cleanupSlot.Push( cast( long, c.wstrTemps[k] ) )
@@ -595,7 +593,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
 
         dim as long savedCur = c.curBlock
         c.curBlock = bodyB
-        PushScope( c )
+        PushScope( c, cast( ulong, cp->b ) )
         LowerBlock( c, cp->b )
         CloseScope( c )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
@@ -604,7 +602,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
 
     '' CASE ELSE is the trailing block, reached when every test failed.
     if sp->c <> Tko.NODE_NONE then
-        PushScope( c )
+        PushScope( c, cast( ulong, sp->c ) )
         LowerBlock( c, sp->c )
         CloseScope( c )
     end if
@@ -845,132 +843,6 @@ private function LowerCaseTest _
 end function
 
 
-'' ------------------------------------------------------------ labels and GOTO
-
-'' The label slot for a name, created on first mention. A goto may be lowered before
-'' its label exists, so both directions come through here.
-private function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
-    for i as long = 0 to c.labelName.Count - 1
-        if c.labelName[i] = cast( ulong, nm ) then return i
-    next
-    c.labelName.Push( cast( ulong, nm ) )
-    c.labelBlock.Push( -1 )
-    c.labelDepth.Push( -1 )
-    return c.labelName.Count - 1
-end function
-
-private function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
-    if c.labelBlock[slot] < 0 then
-        c.labelBlock[slot] = NewBlock( c, "lbl." & c.names->Spelling( _
-            cast( Tko.InternId, c.labelName[slot] ) ) )
-    end if
-    return c.labelBlock[slot]
-end function
-
-'' Records the scope depth of every label in the body BEFORE any of it is lowered.
-''
-'' The measurement (tests/semantic/cleanup/trace-goto) is that a scope-crossing jump
-'' runs the cleanups of every scope it leaves, innermost first, BEFORE the branch. To
-'' emit those at a forward goto, the target's depth has to be known already -- hence a
-'' pre-pass rather than a fixup.
-''
-'' This mirrors the scope discipline of the lowering rather than sharing it, so the two
-'' could drift. They are not left to drift silently: LowerLabel asserts that the depth
-'' recorded here equals the depth actually open when the label is reached, so any
-'' divergence is reported on the first program that shows it instead of quietly
-'' producing the wrong number of destructor calls.
-sub ScanLabels _
-    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )
-
-    if id = Tko.NODE_NONE then return
-    dim as Tko.NodeKind k = c.ast->Kind( id )
-
-    select case k
-    case Tko.N_LABEL
-        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
-        '' The SAME NAME twice in one procedure. Labels are scoped in FreeBASIC, so
-        '' sibling scopes may each declare 'label1' -- fbcunit's TEST macro produces
-        '' exactly that. Slots are keyed by name alone, which cannot tell them apart,
-        '' so the name is marked AMBIGUOUS rather than resolved to whichever came last.
-        '' A goto naming it then declines to lower instead of branching somewhere that
-        '' merely looks plausible.
-        if c.labelDepth[slot] <> -1 then
-            c.labelDepth[slot] = LABEL_AMBIGUOUS
-        else
-            c.labelDepth[slot] = depth
-        end if
-        return
-
-    case Tko.N_BLOCK
-        dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        for i as long = 0 to lp->count - 1
-            ScanLabels( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth )
-        next
-        return
-
-    case Tko.N_SCOPE, Tko.N_WHILE, Tko.N_DO, Tko.N_FOR, Tko.N_FOREACH
-        '' Each of these opens exactly one scope around its body, matching the
-        '' PushScope in the corresponding Lower* routine.
-        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        ScanLabels( c, sp->a, depth + 1 )
-        ScanLabels( c, sp->b, depth + 1 )
-        ScanLabels( c, sp->c, depth + 1 )
-        return
-
-    case Tko.N_SELECT
-        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        if sp->b <> Tko.NODE_NONE then
-            dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
-            for i as long = 0 to lp->count - 1
-                dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
-                if c.ast->Kind( cs ) = Tko.N_CASE then
-                    ScanLabels( c, StmtOf( c, cs )->b, depth + 1 )
-                end if
-            next
-        end if
-        ScanLabels( c, sp->c, depth + 1 )
-        return
-
-    case Tko.N_IF
-        '' An IF branch is NOT a scope in this lowering, so its arms stay at depth.
-        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        ScanLabels( c, sp->b, depth )
-        ScanLabels( c, sp->c, depth )
-        return
-    end select
-
-    if Tko.NodeKindCategory( k ) = Tko.NCAT_STMT then
-        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-        ScanLabels( c, sp->b, depth )
-        ScanLabels( c, sp->c, depth )
-    end if
-end sub
-
-sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
-
-    '' An ambiguous name gets a FRESH block per occurrence. Sharing one block between
-    '' two same-named labels would splice unrelated code together; nothing branches to
-    '' these, since LowerGoto declines them.
-    dim as long b
-    if c.labelDepth[slot] = LABEL_AMBIGUOUS then
-        b = NewBlock( c, "lbl.dup" )
-    else
-        '' The pre-scan's depth against the depth actually open. They must agree: a
-        '' goto has already emitted cleanups based on the recorded number.
-        if c.labelDepth[slot] <> c.scopeMark.Count then
-            c.st->labelDepthMismatch += 1
-            c.labelDepth[slot] = c.scopeMark.Count
-        end if
-        b = LabelBlockOf( c, slot )
-    end if
-    Terminate( c, MTERM_BR, b, -1, NoVal( ) )
-    c.curBlock = b
-end sub
 
 '' 'on n goto l1, l2, l3' -- the COMPUTED GOTO, which was not lowered at all.
 ''
@@ -1261,38 +1133,6 @@ sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     c.curBlock = afterB
 end sub
 
-sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
-    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp->name = 0 then
-        SkipHere( c )
-        return
-    end if
-    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
-    dim as long d = c.labelDepth[slot]
-    if d = LABEL_AMBIGUOUS then
-        '' Two labels of this name in one procedure; which one is meant depends on
-        '' scope, which these slots do not record.
-        SkipHere( c )
-        return
-    end if
-    if d < 0 then
-        '' A label the pre-scan never saw, so the jump is to somewhere outside this
-        '' body. Emitting a branch to a block that will never exist is worse than
-        '' declining to lower it.
-        SkipHere( c )
-        return
-    end if
-
-    '' Leaving scopes runs their cleanups, innermost first. Jumping INWARD leaves
-    '' nothing, and the loop below simply does not run -- fbc permits that jump with
-    '' warning 14 rather than rejecting it, so it must lower, not fail.
-    EmitCleanupsTo( c, d )
-    Terminate( c, MTERM_BR, LabelBlockOf( c, slot ), -1, NoVal( ) )
-
-    '' Statements after an unconditional jump are unreachable but still lower, so they
-    '' need somewhere to go that is not the block just terminated.
-    c.curBlock = NewBlock( c, "goto.after" )
-end sub
 
 sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
@@ -1350,7 +1190,7 @@ sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     c.contTo.Push( headB )
     c.loopScope.Push( c.scopeMark.Count )
     c.loopKind.Push( cast( long, Tko.KW_DO ) )
-    PushScope( c )
+    PushScope( c, cast( ulong, sp->b ) )
     LowerBlock( c, sp->b )
     CloseScope( c )
     c.loopScope.Pop( )
@@ -1446,7 +1286,7 @@ sub LowerIf _
         '' wrote -- the probe crashed. Measured against fbc, which destroys at the
         '' END OF THE ARM, before the statement after the IF.
         c.curBlock = thenB
-        PushScope( c )
+        PushScope( c, cast( ulong, bp->b ) )
         LowerBlock( c, bp->b )
         CloseScope( c )
         Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
@@ -1455,7 +1295,7 @@ sub LowerIf _
 
     '' ...AND THE ELSE BODY, for the same reason.
     if sp->c <> Tko.NODE_NONE then
-        PushScope( c )
+        PushScope( c, cast( ulong, sp->c ) )
         LowerBlock( c, sp->c )
         CloseScope( c )
     end if

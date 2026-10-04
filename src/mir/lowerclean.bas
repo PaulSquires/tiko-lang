@@ -9,8 +9,116 @@ namespace Tko.Mir
 
 '' -------------------------------------------------------------- cleanup model
 
-sub PushScope( byref c as Ctx )
+sub PushScope( byref c as Ctx, byval key as ulong = 0 )
     c.scopeMark.Push( c.cleanupNode.Count )
+    c.scopeKey.Push( key )
+end sub
+
+'' One registered cleanup action, run in place.
+private sub EmitCleanupEntry_( byref c as Ctx, byval i as long )
+    if c.cleanupSlot[i] < 0 then
+        '' A bare 'defer' (TKO0828) registered nothing to run -- parser/defer.bas.
+        if c.cleanupNode[i] <> Tko.NODE_NONE then LowerStmt( c, cast( Tko.NodeId, c.cleanupNode[i] ) )
+    elseif c.cleanupNode[i] = CLEANUP_DTOR_EPILOGUE then
+        '' A DESTRUCTOR'S OWN EPILOGUE -- the fields in reverse, then the base.
+        '' Registered as a cleanup action rather than appended after the body,
+        '' because a 'return' inside a destructor leaves through here and would
+        '' otherwise release nothing. It is registered FIRST, so reverse order runs
+        '' it LAST: after every local the body declared.
+        ''
+        '' The slot holds THIS, which is a POINTER, so it is loaded rather than
+        '' having its address taken.
+        dim as MirValue ta
+        ta.kind = cast( ubyte, MV_LOCAL )
+        ta.ty = cast( ubyte, MT_PTR )
+        ta.id = c.cleanupSlot[i]
+        dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
+        if tv.kind <> cast( ubyte, MV_NONE ) then
+            EmitDtorEpilogue_( c, cast( Tko.TypeId, c.cleanupType[i] ), tv )
+        end if
+    elseif c.cleanupNode[i] = CLEANUP_DESTROY_ARRAY then
+        '' AN ARRAY OF T IS N OBJECTS. The entry names the ARRAY type, which is
+        '' where both the element type and the count come from.
+        EmitArrayElems_( c, c.cleanupSlot[i], _
+                         cast( Tko.TypeId, c.cleanupType[i] ), false )
+    elseif c.cleanupNode[i] = CLEANUP_IMPLICIT_DTOR then
+        '' THE DESTRUCTOR FBC WRITES FOR YOU. It has no symbol -- there is no
+        '' declaration anywhere -- so the entry names the TYPE and the emitted name
+        '' comes from that.
+        dim as MirValue ia
+        ia.kind = cast( ubyte, MV_LOCAL )
+        ia.ty = cast( ubyte, MT_PTR )
+        ia.id = c.cleanupSlot[i]
+        CallImplicitDtor_( c, cast( Tko.TypeId, c.cleanupType[i] ), ia )
+    elseif c.cleanupNode[i] = CLEANUP_DESTRUCT_STR_ARRAY then
+        '' A FIXED ARRAY OF VAR-LENGTH STRINGS owns N descriptors, and every one
+        '' of them held a buffer nothing was releasing. Measured: fbc builds the
+        '' array's descriptor and hands it to fb_ArrayDestructStr -- the same call
+        '' ERASE makes over the same shape, which is why the entry carries the
+        '' ARRAY type and rebuilds the descriptor here rather than keeping one.
+        dim as MirValue sab
+        sab.kind = cast( ubyte, MV_LOCAL )
+        sab.ty = cast( ubyte, MT_PTR )
+        sab.id = c.cleanupSlot[i]
+        dim as MirValue sad
+        if SynthFixedArrayDesc( c, sab, _
+                                cast( Tko.TypeId, c.cleanupType[i] ), sad ) then
+            dim as FB.Array( of ulong ) saa
+            saa.Push( cast( ulong, sad.kind ) )
+            saa.Push( cast( ulong, sad.id ) )
+            dim as Tko.TypeId sae = _
+                c.types->Inner( cast( Tko.TypeId, c.cleanupType[i] ) )
+            if IsUStringType( c, sae ) then
+                EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, saa )
+            else
+                EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, saa )
+            end if
+        end if
+    elseif c.cleanupNode[i] = CLEANUP_WSTR_DELETE then
+        '' A WIDE TEMPORARY that must outlive its statement -- a SELECT's subject,
+        '' which every case reads -- and still die on a RETURN or EXIT out of a case.
+        '' The slot holds the allocation's POINTER, so it is loaded, as
+        '' ReleaseWstrTemps_ does.
+        dim as MirValue wsa
+        wsa.kind = cast( ubyte, MV_LOCAL )
+        wsa.ty = cast( ubyte, MT_PTR )
+        wsa.id = c.cleanupSlot[i]
+        dim as MirValue wsv = LowerExprLoad( c, wsa, MT_PTR )
+        if wsv.kind <> cast( ubyte, MV_NONE ) then
+            dim as FB.Array( of ulong ) wsargs
+            wsargs.Push( cast( ulong, wsv.kind ) ) : wsargs.Push( cast( ulong, wsv.id ) )
+            EmitRtl( c, RTL_WSTR_DELETE, wsargs )
+        end if
+    elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
+        '' A local DYNAMIC array is erased at scope exit whatever its element
+        '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /
+        '' fb_ArrayEraseObj for every one of them.
+        ''
+        '' The marker is an IMPOSSIBLE SymbolId rather than a small number.
+        '' Cleanup entries are otherwise symbol ids, and 1 is a perfectly valid
+        '' one -- using it as a sentinel would have destructed whatever symbol 1
+        '' happened to be. That is the pool-confusion mistake this project has
+        '' made seven times; not an eighth.
+        EmitEraseDynLocal( c, c.cleanupSlot[i] )
+    elseif c.cleanupNode[i] = 0 then
+        '' A string local is released with fb_StrDelete. This is the
+        '' DestroyLocal action the cleanup model was built for and has had
+        '' nothing to register until now.
+        dim as MirValue addr
+        addr.kind = cast( ubyte, MV_LOCAL )
+        addr.ty = cast( ubyte, MT_PTR )
+        addr.id = c.cleanupSlot[i]
+        dim as FB.Array( of ulong ) args
+        args.Push( cast( ulong, addr.kind ) )
+        args.Push( cast( ulong, addr.id ) )
+        '' A USTRING IS RELEASED BY fb_UStrDelete. The two descriptors are the same
+        '' SIZE, so calling the narrow one on a UTF-16 descriptor lowered, verified
+        '' and freed the wrong thing.
+        EmitRtl( c, StrRtlFor_( c, c.f->locals[c.cleanupSlot[i]].frontendType, _
+                                RTL_STR_DELETE ), args )
+    else
+        EmitDtorCall( c, cast( Tko.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
+    end if
 end sub
 
 '' Emit one scope's actions, innermost registration LAST, without popping: an EXIT or
@@ -21,109 +129,7 @@ private sub EmitScopeCleanup( byref c as Ctx, byval depth as long )
     dim as long upto = c.cleanupNode.Count
     if depth + 1 < c.scopeMark.Count then upto = c.scopeMark[depth + 1]
     for i as long = upto - 1 to from_ step -1
-        if c.cleanupSlot[i] < 0 then
-            '' A bare 'defer' (TKO0828) registered nothing to run -- parser/defer.bas.
-            if c.cleanupNode[i] <> Tko.NODE_NONE then LowerStmt( c, cast( Tko.NodeId, c.cleanupNode[i] ) )
-        elseif c.cleanupNode[i] = CLEANUP_DTOR_EPILOGUE then
-            '' A DESTRUCTOR'S OWN EPILOGUE -- the fields in reverse, then the base.
-            '' Registered as a cleanup action rather than appended after the body,
-            '' because a 'return' inside a destructor leaves through here and would
-            '' otherwise release nothing. It is registered FIRST, so reverse order runs
-            '' it LAST: after every local the body declared.
-            ''
-            '' The slot holds THIS, which is a POINTER, so it is loaded rather than
-            '' having its address taken.
-            dim as MirValue ta
-            ta.kind = cast( ubyte, MV_LOCAL )
-            ta.ty = cast( ubyte, MT_PTR )
-            ta.id = c.cleanupSlot[i]
-            dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
-            if tv.kind <> cast( ubyte, MV_NONE ) then
-                EmitDtorEpilogue_( c, cast( Tko.TypeId, c.cleanupType[i] ), tv )
-            end if
-        elseif c.cleanupNode[i] = CLEANUP_DESTROY_ARRAY then
-            '' AN ARRAY OF T IS N OBJECTS. The entry names the ARRAY type, which is
-            '' where both the element type and the count come from.
-            EmitArrayElems_( c, c.cleanupSlot[i], _
-                             cast( Tko.TypeId, c.cleanupType[i] ), false )
-        elseif c.cleanupNode[i] = CLEANUP_IMPLICIT_DTOR then
-            '' THE DESTRUCTOR FBC WRITES FOR YOU. It has no symbol -- there is no
-            '' declaration anywhere -- so the entry names the TYPE and the emitted name
-            '' comes from that.
-            dim as MirValue ia
-            ia.kind = cast( ubyte, MV_LOCAL )
-            ia.ty = cast( ubyte, MT_PTR )
-            ia.id = c.cleanupSlot[i]
-            CallImplicitDtor_( c, cast( Tko.TypeId, c.cleanupType[i] ), ia )
-        elseif c.cleanupNode[i] = CLEANUP_DESTRUCT_STR_ARRAY then
-            '' A FIXED ARRAY OF VAR-LENGTH STRINGS owns N descriptors, and every one
-            '' of them held a buffer nothing was releasing. Measured: fbc builds the
-            '' array's descriptor and hands it to fb_ArrayDestructStr -- the same call
-            '' ERASE makes over the same shape, which is why the entry carries the
-            '' ARRAY type and rebuilds the descriptor here rather than keeping one.
-            dim as MirValue sab
-            sab.kind = cast( ubyte, MV_LOCAL )
-            sab.ty = cast( ubyte, MT_PTR )
-            sab.id = c.cleanupSlot[i]
-            dim as MirValue sad
-            if SynthFixedArrayDesc( c, sab, _
-                                    cast( Tko.TypeId, c.cleanupType[i] ), sad ) then
-                dim as FB.Array( of ulong ) saa
-                saa.Push( cast( ulong, sad.kind ) )
-                saa.Push( cast( ulong, sad.id ) )
-                dim as Tko.TypeId sae = _
-                    c.types->Inner( cast( Tko.TypeId, c.cleanupType[i] ) )
-                if IsUStringType( c, sae ) then
-                    EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, saa )
-                else
-                    EmitRtl( c, RTL_ARRAY_DESTRUCT_STR, saa )
-                end if
-            end if
-        elseif c.cleanupNode[i] = CLEANUP_WSTR_DELETE then
-            '' A WIDE TEMPORARY that must outlive its statement -- a SELECT's subject,
-            '' which every case reads -- and still die on a RETURN or EXIT out of a case.
-            '' The slot holds the allocation's POINTER, so it is loaded, as
-            '' ReleaseWstrTemps_ does.
-            dim as MirValue wsa
-            wsa.kind = cast( ubyte, MV_LOCAL )
-            wsa.ty = cast( ubyte, MT_PTR )
-            wsa.id = c.cleanupSlot[i]
-            dim as MirValue wsv = LowerExprLoad( c, wsa, MT_PTR )
-            if wsv.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) wsargs
-                wsargs.Push( cast( ulong, wsv.kind ) ) : wsargs.Push( cast( ulong, wsv.id ) )
-                EmitRtl( c, RTL_WSTR_DELETE, wsargs )
-            end if
-        elseif c.cleanupNode[i] = CLEANUP_ERASE_ARRAY then
-            '' A local DYNAMIC array is erased at scope exit whatever its element
-            '' type -- measured; fbc emits fb_ArrayErase / fb_ArrayStrErase /
-            '' fb_ArrayEraseObj for every one of them.
-            ''
-            '' The marker is an IMPOSSIBLE SymbolId rather than a small number.
-            '' Cleanup entries are otherwise symbol ids, and 1 is a perfectly valid
-            '' one -- using it as a sentinel would have destructed whatever symbol 1
-            '' happened to be. That is the pool-confusion mistake this project has
-            '' made seven times; not an eighth.
-            EmitEraseDynLocal( c, c.cleanupSlot[i] )
-        elseif c.cleanupNode[i] = 0 then
-            '' A string local is released with fb_StrDelete. This is the
-            '' DestroyLocal action the cleanup model was built for and has had
-            '' nothing to register until now.
-            dim as MirValue addr
-            addr.kind = cast( ubyte, MV_LOCAL )
-            addr.ty = cast( ubyte, MT_PTR )
-            addr.id = c.cleanupSlot[i]
-            dim as FB.Array( of ulong ) args
-            args.Push( cast( ulong, addr.kind ) )
-            args.Push( cast( ulong, addr.id ) )
-            '' A USTRING IS RELEASED BY fb_UStrDelete. The two descriptors are the same
-            '' SIZE, so calling the narrow one on a UTF-16 descriptor lowered, verified
-            '' and freed the wrong thing.
-            EmitRtl( c, StrRtlFor_( c, c.f->locals[c.cleanupSlot[i]].frontendType, _
-                                    RTL_STR_DELETE ), args )
-        else
-            EmitDtorCall( c, cast( Tko.SymbolId, c.cleanupNode[i] ), c.cleanupSlot[i] )
-        end if
+        EmitCleanupEntry_( c, i )
     next
 end sub
 
@@ -136,10 +142,21 @@ sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
     next
 end sub
 
+'' Every action registered from entry 'firstEntry' on, newest first -- what a BACKWARD
+'' goto to a label in a scope still open runs: the objects defined after the label, in
+'' that scope and in any scope inside it, die before the jump re-runs their definitions.
+sub EmitCleanupsFrom( byref c as Ctx, byval firstEntry as long )
+    if firstEntry < 0 then firstEntry = 0
+    for i as long = c.cleanupNode.Count - 1 to firstEntry step -1
+        EmitCleanupEntry_( c, i )
+    next
+end sub
+
 private sub PopScope( byref c as Ctx )
     if c.scopeMark.Count = 0 then return
     dim as long mark = c.scopeMark[c.scopeMark.Count - 1]
     c.scopeMark.Pop( )
+    if c.scopeKey.Count > 0 then c.scopeKey.Pop( )
     '' ALL THREE COLUMNS. The type column was added later and was not popped here, so
     '' it grew for the life of the compilation while the other two shrank -- and every
     '' entry after the first scope read a type belonging to some earlier, unrelated
