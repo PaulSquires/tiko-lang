@@ -651,8 +651,39 @@ private function ByvalConstTwin_ _
     return sawTwin
 end function
 
+'' TWO SPELLINGS OF ONE TYPE -- 'Box( of tdl )' beside 'Box( of long )', 'unsigned tdl' beside
+'' 'ulong', with 'type tdl as long'. Collect compares what is WRITTEN and let both through,
+'' so the pair reached clang as "invalid redefinition", TKO0113, where fbc says error 4
+'' (audit F-69). Every parameter's RESOLVED type must be equal, neither an array or a
+'' '...', and an explicit byref/byval must agree, as Collect's own rule asks.
+'' ONLY IN A MODULE WITH NO EARLIER ERROR: a declaration the parser recovered from ('declare
+'' virtual const sub b1( )') is named 'sub', and two of them looked like a pair.
+private function AliasTwin_ _
+    ( byref c as Ctx, byval a as NodeId, byval b as NodeId, byval n as long ) as boolean
+    for i as long = 0 to n - 1
+        dim as NodeId pa = ParamNodeAt_( c, a, i )
+        dim as NodeId pb = ParamNodeAt_( c, b, i )
+        if (pa = NODE_NONE) orelse (pb = NODE_NONE) then return false
+        if ((c.ast->nodes[cast( long, pa )].flags or c.ast->nodes[cast( long, pb )].flags) and NF_ARRAY) <> 0 then return false
+        dim as StmtPayload ptr sa = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pa )].data )]
+        dim as StmtPayload ptr sb = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pb )].data )]
+        if (sa->op = cast( ushort, TK_ELLIPSIS )) orelse (sb->op = cast( ushort, TK_ELLIPSIS )) then return false
+        if (sa->extra <> 0) andalso (sb->extra <> 0) andalso (sa->extra <> sb->extra) then return false
+        dim as long ra, rb
+        dim as TypeId ta = ParamTypeAt_( c, a, i, ra )
+        dim as TypeId tb = ParamTypeAt_( c, b, i, rb )
+        if (ta = TYPE_NONE) orelse (ta <> tb) then return false
+        '' NOT A PROCEDURE POINTER: one TypeId holds 'sub stdcall( )' and 'sub cdecl( )', which
+        '' fbc keeps apart (vendor functions/mangling-procptr.bas compiles three of them).
+        dim as TypeId tp_ = c.types->Unqualify( ta )
+        while c.types->Kind( tp_ ) = TK_POINTER : tp_ = c.types->Unqualify( c.types->Inner( tp_ ) ) : wend
+        if c.types->Kind( tp_ ) = TK_PROC then return false
+    next
+    return true
+end function
+
 private function SameSignature_ _
-    ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as boolean
+    ( byref c as Ctx, byval a as NodeId, byval b as NodeId, byval aliasOk as boolean ) as boolean
 
     dim as long na = ParamCount_( c, a )
     dim as long nb = ParamCount_( c, b )
@@ -695,7 +726,7 @@ private function SameSignature_ _
     next
     '' ...EXCEPT a pair that differs only by a top-level CONST where the two are not both
     '' byref, which fbc takes for one overload -- see ByvalConstTwin_.
-    if anyBydesc = false then return ByvalConstTwin_( c, a, b, na )
+    if anyBydesc = false then return ByvalConstTwin_( c, a, b, na ) orelse (aliasOk andalso AliasTwin_( c, a, b, na ))
 
     for i as long = 0 to na - 1
         dim as long ra, rb
@@ -725,6 +756,7 @@ private function SameSignature_ _
 end function
 
 private sub CheckDuplicateOverloads_( byref c as Ctx )
+    dim as boolean aliasOk = (c.diags->ErrorCount( ) = 0)
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( ubyte, SYM_PROC ) then continue for
@@ -763,7 +795,9 @@ private sub CheckDuplicateOverloads_( byref c as Ctx )
                             o = c.syms->SymbolAt( o->nextOverload )
                             continue while
                         end if
-                        if SameSignature_( c, da, db ) then
+                        '' Not past an '#undef': the removed one is not there any more.
+                        dim as boolean live = (s->diedAt = 0) andalso (o->diedAt = 0)
+                        if live andalso SameSignature_( c, da, db, aliasOk ) then
                             c.diags->Report( TKO0677, PointRange( c.ast->Loc( db ) ), _
                                              c.names->Spelling( s->name ) )
                         end if

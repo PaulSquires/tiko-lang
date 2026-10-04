@@ -1,0 +1,8 @@
+'' Overloads that differ only in how one type is SPELLED -- 'Box( of tdl )' beside 'Box( of
+'' long )', 'unsigned tdl' beside 'ulong', with 'type tdl as long' -- are duplicates, fbc's
+'' error 4. They reached clang as TKO0113, "invalid redefinition" (audit F-69).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/overload-alias-dup1.bas -o tests/diagnostics/src/overload-alias-dup1.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: overload-alias-dup1.bas(7,1): error TKO0677
+'' EXPECT-NOT: TKO0113
