@@ -622,7 +622,7 @@ private function ExprIntrinsicType_ _
         '' strptr( ustr ), len( ustr ) )' over two overloads and matched neither.
         '' A CONST VAR-LEN operand gives a CONST pointee: fbc types it 'CONST ZSTRING * 8 CONST
         '' PTR', so a write through it is error 119 (const/strptr.bas). A fixed one does not.
-        dim as ushort spq = iif( ((ab = Tko.TY_STRING) orelse (ab = Tko.TY_USTRING)) andalso c.types->IsConst( iif( c.types->Kind( a0 ) = Tko.TK_REFERENCE, c.types->Inner( a0 ), a0 ) ), Tko.TF_CONST, 0 )
+        dim as ushort spq = iif( cbool( (ab = Tko.TY_STRING) orelse (ab = Tko.TY_USTRING) ) andalso c.types->IsConst( iif( c.types->Kind( a0 ) = Tko.TK_REFERENCE, c.types->Inner( a0 ), a0 ) ), Tko.TF_CONST, 0 )
         if ab = Tko.TY_USTRING then return c.types->Pointer_( c.types->Qualify( c.types->Builtin( Tko.TY_USHORT ), spq ) )
         if ab = Tko.TY_WSTRING then return c.types->Pointer_( c.types->Builtin( Tko.TY_WSTRING ) )
         return c.types->Pointer_( c.types->Qualify( c.types->Builtin( Tko.TY_ZSTRING ), spq ) )

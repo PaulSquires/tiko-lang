@@ -1078,8 +1078,8 @@ function ConstOf _
         '' shr 4' folded as -1 shr 4 = -1 where fbc's is 268435455, and '4000000000ul *
         '' 2ul' to -589934592 where fbc's is 8000000000. The same expression at run time
         '' was right, so the constant and the code disagreed.
-        if (w > 32) andalso (l.bits = 32) andalso l.uns then a = cast( longint, cast( ulong, a ) )
-        if (w > 32) andalso (r.bits = 32) andalso r.uns then b = cast( longint, cast( ulong, b ) )
+        if cbool( w > 32 ) andalso cbool( l.bits = 32 ) andalso l.uns then a = cast( longint, cast( ulong, a ) )
+        if cbool( w > 32 ) andalso cbool( r.bits = 32 ) andalso r.uns then b = cast( longint, cast( ulong, b ) )
         '' ...AND NEVER NARROWER THAN INTEGER, which is where fbc promotes both operands
         '' first. Measured: 'const a as long = 2000000000 : a + a' is 4000000000 and
         '' folded to -294967296, and 'ula shl one' over a ULONG and a UBYTE is 8589934590

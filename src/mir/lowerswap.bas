@@ -1030,7 +1030,7 @@ function LowerCompoundUserOp_ _
     if udtTarget then
         if ot <> tt then return false
     else
-        if (tmt = MT_VOID) orelse (tmt = MT_AGG) orelse IsStringType( c, tt ) then return false
+        if cbool( tmt = MT_VOID ) orelse cbool( tmt = MT_AGG ) orelse IsStringType( c, tt ) then return false
         if (c.types->Kind( ot ) = Tko.TK_UDT) orelse IsStringType( c, ot ) then return false
     end if
     '' The left operand as the parameter takes it: the target's address for a receiver or
@@ -1043,7 +1043,7 @@ function LowerCompoundUserOp_ _
             if lpt <> tt then return false
         else
             lpmt = LowerType( lpt, *c.types )
-            if (lpmt = MT_VOID) orelse (lpmt = MT_AGG) orelse udtTarget then return false
+            if cbool( lpmt = MT_VOID ) orelse cbool( lpmt = MT_AGG ) orelse udtTarget then return false
         end if
     end if
 

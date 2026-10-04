@@ -49,7 +49,7 @@ private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
             continue for
         end if
         dim as TypeId dt = ValueType_( c, ms->type_ )
-        if (dt = TYPE_NONE) orelse (c.types->Kind( dt ) = TK_ARRAY) orelse c.types->IsDynArray( dt ) then continue for
+        if cbool( dt = TYPE_NONE ) orelse cbool( c.types->Kind( dt ) = TK_ARRAY ) orelse c.types->IsDynArray( dt ) then continue for
         dim as boolean bad = (declByref <> defByref)
         if bad = false then
             dim as TypeId vt = TYPE_NONE

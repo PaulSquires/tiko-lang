@@ -372,7 +372,7 @@ function ArrayFromPairs _
         '' A LOWER BOUND ABOVE THE UPPER -- or an upper of LONGINT's minimum -- is fbc's
         '' error 182, and it is NOT a dynamic array: the 'total <= 0' below made it one, so
         '' 'dim array(1 to 0)' compiled. Kept fixed, for ArrayTooBig_ to report TKO0887.
-        if known andalso ((hi < lo) orelse (hi = &h8000000000000000ll)) then badOrder = true
+        if known andalso cbool( (hi < lo) orelse (hi = &h8000000000000000ll) ) then badOrder = true
         bounds.Push( lo )
         bounds.Push( hi )
     next

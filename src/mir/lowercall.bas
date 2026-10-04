@@ -1292,7 +1292,7 @@ function LowerCallParts _
     ''
     '' fb/decimal.bi returns 'this' and a byref Value( ) that way, so all eight
     '' finance suites were built on it.
-    if byrefUdtRef andalso (mt = MT_AGG) andalso (wantRef = false) then
+    if byrefUdtRef andalso cbool( mt = MT_AGG ) andalso (wantRef = false) then
         dim as long rsz = SizeOfType( c, cs->type_ )
         if rsz > 0 then return LowerExprLoad( c, cv, MT_AGG, rsz )
     end if

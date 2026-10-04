@@ -1063,7 +1063,7 @@ sub EmitLetBody_ _
     '' the SOURCE's table: 'new Shape( aCircle )', 'dim as Shape s = aCircle' and 's =
     '' aCircle' all dispatched as a Circle, where fbc's copy keeps Shape's own. The vptr
     '' is the object's type, not part of its value.
-    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) andalso (IsObjectT_( c, bt ) = false) then
+    if cbool( bt <> Tko.TYPE_NONE ) andalso cbool( bt <> t ) andalso (IsObjectT_( c, bt ) = false) then
         CopyMember_( c, FieldAddr_( c, dst, t, c.vts->baseName ), _
                      FieldAddr_( c, src, t, c.vts->baseName ), bt )
     end if

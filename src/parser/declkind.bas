@@ -27,7 +27,7 @@
 '' body, 'sub T.m' or 'sub N.s', parameters included: fbc looks there before the global
 '' table. Measured, fbc-modern 1.20, 2026-10-03; tiko took every one of them.
 private sub BareMacroDecl_( byref p as Tko.ParserState )
-    if (p.aggDepth <> 0) orelse (p.nsDepth <> 0) orelse (p.bareNameOk <> 0) orelse p.silent then return
+    if cbool( p.aggDepth <> 0 ) orelse cbool( p.nsDepth <> 0 ) orelse cbool( p.bareNameOk <> 0 ) orelse p.silent then return
     if p.memberDepth <> 0 then return
     dim as Tko.InternId id = cast( Tko.InternId, Cur( p ).literal )
     p.diags->Report( Tko.TKO0600, Tko.PointRange( Cur( p ).loc ), p.names->Spelling( id ) )

@@ -568,7 +568,7 @@ private function AssertEval_ _
             dim as TypeId lt, rt
             dim as boolean li, ri
             if AssertIntrinsic_( c, bp->lhs, ln, lt, li ) andalso AssertIntrinsic_( c, bp->rhs, rn, rt, ri ) then
-                if (ln = "typeof") andalso (rn = "typeof") andalso AssertTypeJudged_( c, lt ) andalso _
+                if cbool( ln = "typeof" ) andalso cbool( rn = "typeof" ) andalso AssertTypeJudged_( c, lt ) andalso _
                    AssertTypeJudged_( c, rt ) then
                     v = iif( (lt = rt) = (op = TK_EQ), -1, 0 )
                     typed = true

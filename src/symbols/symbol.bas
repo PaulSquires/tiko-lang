@@ -675,7 +675,7 @@ function SymbolTable.DeclareSym _
                                     (k <> SYM_ENUMCONST)
         if enumYields then
             existing = SYMBOL_NONE
-        elseif split andalso ((e->altClass = SYMBOL_NONE) orelse (altOlder <> SYMBOL_NONE)) then
+        elseif split andalso cbool( (e->altClass = SYMBOL_NONE) orelse (altOlder <> SYMBOL_NONE) ) then
             chainTo = existing
         elseif bothProcs = false then
             duplicate = true

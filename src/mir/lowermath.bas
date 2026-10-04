@@ -179,7 +179,7 @@ function LowerMathCall_ _
         outv = EmitRtl( c, r, aa )
         '' fb_SGN* answer an int32; sgn over an integer is INTEGER -- SIGN-extended here, as
         '' a -1 must stay -1 whatever widens it next (difflane seed 235).
-        if (nm = "sgn") andalso (outv.kind <> cast( ubyte, MV_NONE )) andalso (isFlt = false) then
+        if cbool( nm = "sgn" ) andalso cbool( outv.kind <> cast( ubyte, MV_NONE ) ) andalso (isFlt = false) then
             outv = Coerce( c, outv, MT_I64, false )
         end if
         return (outv.kind <> cast( ubyte, MV_NONE ))

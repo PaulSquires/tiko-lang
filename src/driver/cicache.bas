@@ -50,7 +50,7 @@ private function GccOnPath_( ) as string
         dim as long en = instr( st, p, sep )
         if en = 0 then en = len( p ) + 1
         dim as string d = mid( p, st, en - st )
-        if len( d ) andalso FB.IsFile( d & exe ) then return d & exe
+        if cbool( len( d ) > 0 ) andalso FB.IsFile( d & exe ) then return d & exe
         st = en + 1
     wend
     return ""

@@ -115,7 +115,7 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         '' Neither of WRITE's two refusals -- see the head of this procedure. One
         '' diagnostic and then the rest of the line, which is what ErrorNode's own
         '' 'silent' flag is for.
-        if isWrite andalso ((k = Tko.TK_SEMICOLON) orelse (k = Tko.KW_USING)) then
+        if isWrite andalso cbool( (k = Tko.TK_SEMICOLON) orelse (k = Tko.KW_USING) ) then
             ErrorNode( p, Tko.TKO0420 )
             exit do
         end if
@@ -241,7 +241,7 @@ private sub IntrOpen _
     '' stray item.
     if (sp.a <> Tko.NODE_NONE) andalso (p.ast->Kind( sp.a ) = Tko.N_IDENT) andalso (Peek( p ) = Tko.TK_STRING_LIT) then
         dim as string dev = lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, sp.a )].data )].name ) )
-        if ((dev = "scrn") orelse (dev = "cons") orelse (dev = "err")) andalso (p.silent = false) then
+        if cbool( (dev = "scrn") orelse (dev = "cons") orelse (dev = "err") ) andalso (p.silent = false) then
             p.diags->Report( Tko.TKO0915, Tko.PointRange( Cur( p ).loc ), dev )
         end if
     end if

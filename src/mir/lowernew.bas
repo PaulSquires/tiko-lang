@@ -482,8 +482,8 @@ function LowerNew_ _
     '' 'new' is written, as every other argument is.
     dim as boolean implCopy = false
     dim as MirValue copySrc
-    if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 1) andalso (isPlace = false) andalso _
-       (c.types->Kind( el ) = Tko.TK_UDT) then
+    if cbool( ctor = Tko.SYMBOL_NONE ) andalso cbool( argCount = 1 ) andalso (isPlace = false) andalso _
+       cbool( c.types->Kind( el ) = Tko.TK_UDT ) then
         dim as Tko.NodeId csn = cast( Tko.NodeId, c.ast->children[argFirst] )
         dim as Tko.TypeId cst = c.types->Unqualify( c.info->TypeOf_( csn ) )
         if c.types->Kind( cst ) = Tko.TK_REFERENCE then

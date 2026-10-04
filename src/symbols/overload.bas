@@ -1249,7 +1249,7 @@ private function ResolveCall_ _
                 end if
                 dim as Tko.TypeId a2u = c.types->Unqualify( a2t )
                 dim as Tko.TypeKind a2k = c.types->Kind( a2u )
-                if (a2k <> Tko.TK_BUILTIN) andalso (a2k <> Tko.TK_POINTER) andalso (UdtArgInert_( c, a2u, callee ) = false) then
+                if cbool( a2k <> Tko.TK_BUILTIN ) andalso cbool( a2k <> Tko.TK_POINTER ) andalso (UdtArgInert_( c, a2u, callee ) = false) then
                     allTyped = false
                     exit for
                 end if
@@ -1297,7 +1297,7 @@ private function ResolveCall_ _
             '' setter; LowerPropertySet_ does the binding, with the value in hand.
             dim as boolean propSetTarget = _
                 (c.info->AmbiguousOf( id ) = Tko.AMB_PROPERTY_SET)
-            if allTyped andalso scorable andalso (argT.Count > 0) andalso _
+            if allTyped andalso scorable andalso cbool( argT.Count > 0 ) andalso _
                (propSetTarget = false) then
                 c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), _
                                  c.names->Spelling( c.syms->SymbolAt( callee )->name ) )

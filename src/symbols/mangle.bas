@@ -1091,7 +1091,7 @@ private function ProcNameCore _
     '' two structors both came out _Z10LinkedListIiEv, a redefinition clang refused in
     '' every container and ComPtr file; fbc writes _ZN10LinkedListIiEC1Ev and ...D1Ev.
     dim as long procInst = -1
-    if (aliased = false) andalso (kw <> cast( ushort, Tko.KW_OPERATOR )) andalso _
+    if (aliased = false) andalso cbool( kw <> cast( ushort, Tko.KW_OPERATOR ) ) andalso _
        (isCtor = false) andalso (isDtor = false) then
         procInst = FindInst_( types, sp->name )
     end if

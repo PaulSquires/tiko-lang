@@ -199,7 +199,7 @@ private sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
         dim as long nArgs = lp->count
         if (c.ast->nodes[cast( long, id )].flags and NF_PLACEMENT) <> 0 then nArgs -= 1
         dim as boolean isArr = ((c.ast->nodes[cast( long, id )].flags and NF_ARRAY) <> 0)
-        if (isArr orelse (nArgs <= 0)) andalso (HasDefaultCtor_( c, u, false ) = false) then
+        if (isArr orelse cbool( nArgs <= 0 )) andalso (HasDefaultCtor_( c, u, false ) = false) then
             c.diags->Report( TKO0657, PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( u ) ) )
         end if
         return

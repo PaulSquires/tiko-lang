@@ -521,8 +521,8 @@ private sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
     if c.ast->Kind( sp->a ) <> N_IDENT then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
     if s = 0 then return
-    dim as boolean k = ((s->flags and SYMF_CONST) <> 0) orelse _
-                       (cast( SymbolKind, s->kind ) = SYM_CONSTANT) orelse c.types->IsConst( s->type_ )
+    dim as boolean k = cbool( (s->flags and SYMF_CONST) <> 0 ) orelse _
+                       cbool( cast( SymbolKind, s->kind ) = SYM_CONSTANT ) orelse c.types->IsConst( s->type_ )
     if k = false then return
     c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( s->name ) )
 end sub
