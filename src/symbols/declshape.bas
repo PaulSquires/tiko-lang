@@ -491,6 +491,30 @@ end sub
 
 '' A FOR WRITES ITS COUNTER, so a const one is fbc's 119: 'dim as const integer c' then
 '' 'for c = 1 to 2' ran the loop. A counter declared by the FOR itself is new storage.
+'' A FOR COUNTER IS A SCALAR VARIABLE -- fbc's 52, "Expected scalar counter", for a field
+'' ('for t.x = 1 to 3'), an array element, a byref parameter, and its 14 for '*p'. tiko
+'' ran none of those loops (MIR-7), and since F-01 stopped them as unlowered. A UDT
+'' variable is a counter too -- its 'operator for' / 'next' -- and a byval parameter is.
+private sub CheckForScalarCounter_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (sp->a = NODE_NONE) orelse (sp->c <> NODE_NONE) then return
+    dim as boolean bad = (c.ast->Kind( sp->a ) <> N_IDENT)
+    if bad = false then
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if s = 0 then return
+        select case cast( SymbolKind, s->kind )
+        case SYM_VARIABLE
+        case SYM_PARAMETER
+            bad = ((s->flags and SYMF_BYREF) <> 0) orelse (c.types->Kind( s->type_ ) = TK_REFERENCE)
+        case SYM_FIELD
+            bad = true
+        case else
+            return
+        end select
+    end if
+    if bad then c.diags->Report( TKO0953, PointRange( c.ast->Loc( sp->a ) ) )
+end sub
+
 private sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if (sp->a = NODE_NONE) orelse (sp->c <> NODE_NONE) then return

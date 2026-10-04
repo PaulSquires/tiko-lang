@@ -788,6 +788,8 @@
     DIAG( TKO0951, SEV_ERROR,   "'@' takes the address of a variable, and a literal is not one" )
     '' fbc's 17: 'return 5' where the procedure has no result -- symbols/latesweeps.bas.
     DIAG( TKO0952, SEV_ERROR,   "this procedure has no result, so its 'return' takes no value" )
+    '' fbc's 52 (and 14 for '*p'): a FOR counter that is not a plain variable -- declshape.bas.
+    DIAG( TKO0953, SEV_ERROR,   "a FOR counter must be a scalar variable, not a field, element, dereference or byref parameter" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

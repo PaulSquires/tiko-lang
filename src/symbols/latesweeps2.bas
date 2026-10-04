@@ -1272,7 +1272,7 @@ private sub WalkExtra_ _
     if (k = N_CALL) orelse (k = N_NEW) then CheckCtorCallArgs_( c, id, k )
     if k = N_AMBIGUOUS then CheckAssignTempDeref_( c, id )
     if k = N_VAR then CheckPtrStringInit_( c, id )
-    if k = N_FOR then CheckForPtrFwd_( c, id ) : CheckForConstCounter_( c, id )
+    if k = N_FOR then CheckForPtrFwd_( c, id ) : CheckForConstCounter_( c, id ) : CheckForScalarCounter_( c, id )
     if k = N_PROC then CheckLambdaTypeParam_( c, id )
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )

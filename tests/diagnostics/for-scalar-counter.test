@@ -1,0 +1,13 @@
+'' TKO0953, fbc's 52 ("Expected scalar counter") and 14: a FOR over a field, an array
+'' element, a dereference or a byref parameter. tiko ran none of those loops, then (F-01)
+'' stopped each as an unlowered statement. A byval parameter, a shared variable, a static
+'' and a plain variable are counters.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/for-scalar-counter.bas -o tests/diagnostics/src/for-scalar-counter.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: for-scalar-counter.bas(6,
+'' EXPECT-OUT: for-scalar-counter.bas(7,
+'' EXPECT-OUT: for-scalar-counter.bas(8,
+'' EXPECT-OUT: for-scalar-counter.bas(10,
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 4
