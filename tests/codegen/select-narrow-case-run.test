@@ -1,0 +1,14 @@
+'' RUN: a SELECT CASE over a narrow subject compares a WIDER case value in the promoted
+'' type. Narrowing it to the subject's width was taken to be harmless when the two have
+'' the same signedness: over 'dim as short s = -2', 'case 65534' became -2 and matched.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/select-narrow-case.bas -o tests/codegen/selectnarrowcase.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/selectnarrowcase.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: a nomatch
+'' EXPECT-RUN-OUT: b nomatch
+'' EXPECT-RUN-OUT: c lt
+'' EXPECT-RUN-OUT: d out

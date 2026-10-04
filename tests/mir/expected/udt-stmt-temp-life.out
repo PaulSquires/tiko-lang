@@ -1026,9 +1026,9 @@ func void MAIN() {
     %317 = add %315, %316
     %318 = const i64 1
     %319 = sub %317, %318
-    %320 = trunc %319
-    %321 = load @$tmp41
-    %322 = icmp.eq %321, %320
+    %320 = load @$tmp41
+    %321 = sext %320
+    %322 = icmp.eq %321, %319
     call void _ZN1HD1Ev(@$tmp42)
     condbr %322, sel.body16, sel.next17
   if.then13:

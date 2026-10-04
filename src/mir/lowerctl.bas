@@ -718,6 +718,42 @@ private function StrCaseCompare_ _
     return Emit( c, ins )
 end function
 
+private function MirTypeBits_( byval t as MirType ) as long
+    select case t
+    case MT_I8  : return 8
+    case MT_I16 : return 16
+    case MT_I32 : return 32
+    case MT_I64 : return 64
+    end select
+    return 0
+end function
+
+'' DOES A SAME-SIGNEDNESS CASE VALUE NEED NO PROMOTION? When it is no wider than the
+'' subject, or a constant inside the subject's range. Anything else -- a wider
+'' variable, or a constant outside -- is compared in the promoted type.
+private function CaseValueFits_ _
+    ( byref c as Ctx, byval smt as MirType, byval vmt as MirType, _
+      byval uns as boolean, byval vnode as Tko.NodeId ) as boolean
+
+    dim as long sw = MirTypeBits_( smt )
+    dim as long vw = MirTypeBits_( vmt )
+    if (sw = 0) orelse (vw = 0) then return true
+    if vw <= sw then return true
+    if vnode = Tko.NODE_NONE then return false
+    dim as Tko.ScopeId sc = c.info->ScopeOf( vnode )
+    if sc = Tko.SCOPE_NONE then sc = c.procScope
+    if sc = Tko.SCOPE_NONE then sc = c.modScope
+    dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
+        *c.ast, vnode, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, sc )
+    if cv.known = false then return false
+    dim as longint v = cv.value
+    if uns then
+        if v < 0 then return false
+        return (v <= ((1ll shl sw) - 1))
+    end if
+    return (v >= -(1ll shl (sw - 1))) andalso (v <= ((1ll shl (sw - 1)) - 1))
+end function
+
 '' THE TYPE A CASE COMPARISON HAPPENS IN. A SELECT CASE test is a comparison, and fbc
 '' promotes the subject and the case value exactly as it does for one written out --
 '' see lowerexpr.bas. Comparing at the SUBJECT's width and signedness answered the
@@ -732,15 +768,22 @@ end function
 '' subject has its own path. The caller then keeps the subject's own width, as before.
 private function CasePromote_ _
     ( byref c as Ctx, byval subjT as Tko.TypeId, byval valT as Tko.TypeId, _
-      byref pmt as MirType, byref puns as boolean ) as boolean
+      byref pmt as MirType, byref puns as boolean, _
+      byval vnode as Tko.NodeId = Tko.NODE_NONE ) as boolean
 
     if (subjT = Tko.TYPE_NONE) orelse (valT = Tko.TYPE_NONE) then return false
     if IsBooleanType( c, subjT ) orelse IsBooleanType( c, valT ) then return false
-    '' Only a MIXED pair needs promoting -- see lowerexpr.bas. Same signedness answers
-    '' the same at either width, and every CASE test keeps the IR it had.
-    if IsUnsignedType( c, subjT ) = IsUnsignedType( c, valT ) then return false
     dim as MirType smt = LowerType( subjT, *c.types )
     dim as MirType vmt = LowerType( valT, *c.types )
+    '' A MIXED pair is promoted -- see lowerexpr.bas -- and so is a WIDER value of the
+    '' same signedness, unless it is a constant the subject's own width holds exactly.
+    '' Narrowing the value to the subject was taken to be harmless at the same sign, and
+    '' it is not: over 'dim as short s = -2', 'case 65534' became -2 and matched, and over
+    '' a long 0, 'case 4294967296' became 0. fbc compares in the promoted type and
+    '' matches neither. A constant that fits keeps the narrow compare it always had.
+    if IsUnsignedType( c, subjT ) = IsUnsignedType( c, valT ) then
+        if CaseValueFits_( c, smt, vmt, IsUnsignedType( c, subjT ), vnode ) then return false
+    end if
     dim as boolean okS = (smt = MT_I8) orelse (smt = MT_I16) orelse _
                          (smt = MT_I32) orelse (smt = MT_I64)
     dim as boolean okV = (vmt = MT_I8) orelse (vmt = MT_I16) orelse _
@@ -756,6 +799,10 @@ private function CasePromote_ _
     puns = IsUnsignedType( c, pt )
     return true
 end function
+
+
+
+
 
 '' One CASE value against the subject: an equality, a range, or a relational test.
 private function LowerCaseTest _
@@ -774,7 +821,7 @@ private function LowerCaseTest _
             '' two promote to.
             dim as MirType rmt = mt
             dim as boolean runs = isUns
-            CasePromote_( c, subjT, c.info->TypeOf_( rp->a ), rmt, runs )
+            CasePromote_( c, subjT, c.info->TypeOf_( rp->a ), rmt, runs, rp->a )
             dim as MirValue cur = _
                 CoerceTy( c, LowerExprLoad( c, slotAddr, mt ), rmt, subjT )
             dim as MirValue rhs = CoerceTy( c, LowerExpr( c, rp->a ), rmt, _
@@ -793,7 +840,7 @@ private function LowerCaseTest _
         '' on its own: the two ends need not be the same type.
         dim as MirType lmt = mt
         dim as boolean luns = isUns
-        CasePromote_( c, subjT, c.info->TypeOf_( rp->a ), lmt, luns )
+        CasePromote_( c, subjT, c.info->TypeOf_( rp->a ), lmt, luns, rp->a )
         dim as MirValue lo = CoerceTy( c, LowerExpr( c, rp->a ), lmt, _
                                        c.info->TypeOf_( rp->a ), subjT )
         dim as MirValue c1 = none_
@@ -807,7 +854,7 @@ private function LowerCaseTest _
         end if
         dim as MirType hmt = mt
         dim as boolean huns = isUns
-        CasePromote_( c, subjT, c.info->TypeOf_( rp->b ), hmt, huns )
+        CasePromote_( c, subjT, c.info->TypeOf_( rp->b ), hmt, huns, rp->b )
         dim as MirValue hi = CoerceTy( c, LowerExpr( c, rp->b ), hmt, _
                                        c.info->TypeOf_( rp->b ), subjT )
         if (c1.kind = cast( ubyte, MV_NONE )) orelse (hi.kind = cast( ubyte, MV_NONE )) then
@@ -836,7 +883,7 @@ private function LowerCaseTest _
     '' long -1' is false to fbc and true if the two meet as 32 bits.
     dim as MirType emt = mt
     dim as boolean euns = isUns
-    CasePromote_( c, subjT, c.info->TypeOf_( val ), emt, euns )
+    CasePromote_( c, subjT, c.info->TypeOf_( val ), emt, euns, val )
     dim as MirValue rhs2 = CoerceTy( c, LowerExpr( c, val ), emt, _
                                      c.info->TypeOf_( val ), subjT )
     if rhs2.kind = cast( ubyte, MV_NONE ) then return none_
