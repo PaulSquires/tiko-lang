@@ -1,0 +1,9 @@
+'' AN '#inclib' NAME IS ONE ARGUMENT. 'kernel32 -o <path>' put an '-o' on the link line and
+'' the program was written where the source said (audit F-49). Now it is a library that
+'' does not exist: the link fails and nothing is written there.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/inclib-injection.bas -o tests/driver/inclibinjection.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 5
+'' EXPECT-NO-FILE: tests/driver/inclibinjected.exe
+'' EXPECT-NO-FILE: tests/driver/inclibinjection.exe

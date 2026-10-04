@@ -120,8 +120,27 @@ function FindTools _
 end function
 
 '' A path with spaces in it needs quoting, and on Windows most of them have spaces.
+'' ...QUOTED AS THE CHILD WILL PARSE IT -- the Windows rules, which fbc's Unix exec
+'' (fb_hParseArgs) applies too: backslashes are literal except before a quote, where
+'' they pair up, and a quote inside is escaped. '"' & s & '"' broke on 'C:\libs\':
+'' the closing quote was escaped and the next argument swallowed (audit F-49).
 private function Q( byref s as string ) as string
-    return """" & s & """"
+    dim as string r = """"
+    dim as long bs = 0
+    for i as long = 0 to len( s ) - 1
+        dim as ubyte ch = s[i]
+        if ch = 92 then
+            bs += 1
+        elseif ch = 34 then
+            r += string( bs * 2 + 1, 92 ) & """"
+            bs = 0
+        else
+            if bs > 0 then r += string( bs, 92 )
+            bs = 0
+            r += chr( ch )
+        end if
+    next
+    return r & string( bs * 2, 92 ) & """"
 end function
 
 '' EVERY TOOL RUNS THROUGH HERE, so '-v' can show the command -- the whole link line
@@ -306,7 +325,7 @@ function LinkExe _
         if target.id = TARGET_WIN64_MSVC then
             cmd += " -Xlinker -dll"
             if len( t.implibPath ) > 0 then
-                cmd += " -Xlinker -implib:" & t.implibPath
+                cmd += " -Xlinker " & Q( "-implib:" & t.implibPath )
             end if
         elseif target.objFormat = OBJ_COFF then
             cmd += " -shared"
@@ -521,7 +540,9 @@ function LinkExe _
                     ln = left( ln, len( ln ) - 4 )
                 end if
             end if
-            cmd += " -l" & ln
+            '' ONE ARGUMENT, quoted: '#inclib "kernel32 -o C:\x.exe"' put an '-o' on the
+            '' link line and wrote the program somewhere else (audit F-49).
+            cmd += " " & Q( "-l" & ln )
         end if
     next
 
