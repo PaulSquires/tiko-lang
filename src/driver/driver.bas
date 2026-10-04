@@ -913,7 +913,11 @@ function Run _
                 ctx.diags.ReportGlobal( Tko.TKO0109, rt_.why )
                 exit for
             end if
+            '' NAMED AFTER THE OUTPUT, like every intermediate object: '<stem>.res' beside the
+            '' '.rc' overwrote a '.res' of the user's own of that name and then deleted it
+            '' (audit F-74, CG-16).
             dim as string resPath = StripExt_( rcInputs[i] ) & ".res"
+            if len( ctx.options.outputPath ) then resPath = ctx.options.outputPath & ".rc" & str( i + 1 ) & ".res"
             dim as long rrc = Tko.Codegen.CompileRc( rt_, rcInputs[i], resPath )
             if rrc <> 0 then
                 ctx.diags.ReportGlobal( Tko.TKO0110, rcInputs[i], str( rrc ) )
