@@ -1,0 +1,7 @@
+'' A local or a parameter named like a namespace of the enclosing scope -- fbc's 120 and 4,
+'' measured; tiko accepted both (audit F-69).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/local-shadows-ns.bas tests/diagnostics/src/param-shadows-ns.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: local-shadows-ns.bas(4,18): error TKO0961
+'' EXPECT-OUT: param-shadows-ns.bas(3,10): error TKO0961

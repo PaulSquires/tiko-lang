@@ -116,6 +116,10 @@ private function OuterValueTaken_ _
                 if isProc then own = ((StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) = 0)
             end if
             if own then return sid
+        '' ...AND A NAMESPACE: 'dim as integer NS' in a sub, or 'byval NS as integer', with
+        '' 'namespace NS' outside -- fbc's 120 and 4, measured; tiko accepted both (audit F-69).
+        case Tko.SYM_NAMESPACE
+            if ((s->flags and Tko.SYMF_IMPORTED) = 0) andalso (w.src->IsBuiltin( s->loc ) = false) then return sid
         end select
         sid = s->altClass
     next
@@ -384,6 +388,7 @@ private function Declare_ _
             select case cast( Tko.SymbolKind, cs->kind )
             case Tko.SYM_ENUM : cdi = Tko.TKO0834
             case Tko.SYM_CONSTANT, Tko.SYM_PROC : cdi = Tko.TKO0945
+            case Tko.SYM_NAMESPACE : cdi = Tko.TKO0961
             end select
             w.diags->Report( cdi, Tko.PointRange( loc ), w.names->Spelling( nm ) )
             w.diags->AddNote( Tko.TKO0901, Tko.PointRange( cs->loc ) )
