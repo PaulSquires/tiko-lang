@@ -52,3 +52,9 @@ tests/types/expected/fbc-layout-linux-x86_64.txt text eol=lf
 # both, and the abtest gate would report every recording STALE on a fresh clone.
 lib/gfx/tools/golden/** text eol=lf
 lib/gfx/**/*.sh text eol=lf
+
+# THE SUITE IS BYTES, NOT TEXT. Goldens, expected outputs and sources are compared byte
+# for byte, so a checkout under core.autocrlf=true -- the Windows default -- rewrote
+# them to CRLF and 43 tests failed on a fresh clone (audit F-66). -text stores and
+# checks out exactly what was committed.
+tests/** -text
