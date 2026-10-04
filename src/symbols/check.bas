@@ -373,6 +373,7 @@ private function FieldOf_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval nm as Tko.InternId ) as Tko.SymbolId
 
     if (t = Tko.TYPE_NONE) orelse (nm = 0) then return Tko.SYMBOL_NONE
+    dim as Tko.InternId litNm = nm
     '' 'x.constructor( )' AND 'x.destructor( )' NAME THE STRUCTORS, which are
     '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
     '' and '_ZN1TD1Ev( &X )' -- an ordinary explicit call. The mapping existed
@@ -403,6 +404,17 @@ private function FieldOf_ _
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
     if s = 0 then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    '' ...UNLESS THE TYPE HAS A FIELD OF THAT NAME. 'as long constructor' is a legal field,
+    '' and 't.constructor' is then that field -- measured, fbc-modern 1.20 stores into it and
+    '' reads it back. Mapped regardless, the statement bound to no structor at all and was
+    '' dropped from the program without a word (T93).
+    if litNm <> nm then
+        dim as Tko.SymbolId lit = c.syms->LookupLocal( s->inner, litNm )
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lit )
+        if ls <> 0 then
+            if ls->kind = cast( ubyte, Tko.SYM_FIELD ) then return lit
+        end if
+    end if
     dim as Tko.SymbolId found = c.syms->LookupLocal( s->inner, nm )
     if found <> Tko.SYMBOL_NONE then return found
 
@@ -419,7 +431,7 @@ private function FieldOf_ _
         if bf <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
             if (b <> 0) andalso (b->type_ <> Tko.TYPE_NONE) andalso (b->type_ <> t) then
-                dim as Tko.SymbolId up = FieldOf_( c, b->type_, nm )
+                dim as Tko.SymbolId up = FieldOf_( c, b->type_, litNm )
                 if up <> Tko.SYMBOL_NONE then return up
             end if
         end if

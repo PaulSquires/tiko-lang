@@ -1,0 +1,15 @@
+'' T93, RUN: fields named by keywords fbc accepts. 't.constructor' and 't.destructor' over
+'' a type with FIELDS of those names were TKO0666, an explicit structor call; 'as long rem'
+'' declared nothing and 't.rem' was TKO0402, because the lexer read every REM as a comment.
+'' REM after '.' or '->' is now a member name, and a type-first field takes REM back from
+'' the comment. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/keyword-field-names.bas -o tests/codegen/keywordfields.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/keywordfields.exe
+'' RUN: tests/codegen/keywordfields.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 2 3 4 5
+'' EXPECT-RUN-OUT:  13 1
+'' EXPECT-RUN-OUT:  7

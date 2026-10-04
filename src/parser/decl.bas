@@ -778,6 +778,8 @@ private function ParseProc _
             sp.rawName = RawSpelling( p )
             DeclName( p, sp.name )
         wend
+    else
+        ProcNameMissing_( p, kw )
     end if
 
     '' An operator's name can be a token rather than a word: 'operator +'.
@@ -1220,7 +1222,7 @@ private function ParseAggregateBody _
             do
                 dim as Tko.Token ft = Cur( p )
                 dim as Tko.StmtPayload fp
-                if DeclName( p, fp.name ) = false then
+                if FieldName_( p, fp.name, ft ) = false then
                     NameExpectedHere_( p )
                     exit do
                 end if

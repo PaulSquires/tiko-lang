@@ -933,6 +933,7 @@ private sub CheckConstThisCall_ _
                      c.names->Spelling( ps->name ) )
 end sub
 
+#include once "symbols/structorfield.bas"
 '' 'x.constructor( )' AND 'x.destructor( )' NAME A STRUCTOR EXPLICITLY -- which is legal
 '' only when the type DECLARED one. fbc gives error 18, "Element not defined": the IMPLICIT
 '' structor is not a member anything can name.
@@ -964,7 +965,7 @@ private sub CheckExplicitStructor_ ( byref c as Ctx, byval id as NodeId )
     wend
     ot = c.types->Unqualify( ot )
     if c.types->Kind( ot ) <> TK_UDT then return
-    if StructorOf_( c, ot, want ) <> 0 then return
+    if (StructorOf_( c, ot, want ) <> 0) orelse StructorIsField_( c, ot, nm ) then return
     c.diags->Report( TKO0666, PointRange( c.ast->Loc( mp->rhs ) ), nm )
 end sub
 

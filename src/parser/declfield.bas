@@ -27,12 +27,22 @@ private function IsFieldNamedByKeyword _
     if Tko.IsKeywordKind( k ) = false then return false
     select case k
     case Tko.KW_AND, Tko.KW_ANDALSO, Tko.KW_EQV, Tko.KW_IMP, Tko.KW_MOD, _
-         Tko.KW_NOT, Tko.KW_OR, Tko.KW_ORELSE, Tko.KW_SHL, Tko.KW_SHR, Tko.KW_XOR
+         Tko.KW_NOT, Tko.KW_OR, Tko.KW_ORELSE, Tko.KW_SHL, Tko.KW_SHR, Tko.KW_XOR, _
+         Tko.KW_DELETE, Tko.KW_NEW
+        '' ...AND SAID SO, when it is written as one. 'and as long' is fbc's error 14,
+        '' and nothing else in a TYPE body reads it: the line was skipped to its end and
+        '' the type came out a field short, with nothing said (T93).
+        if HasTok( p, p.pos + 1 ) andalso (p.silent = false) then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.KW_AS then
+                p.diags->Report( Tko.TKO0406, Tko.PointRange( Cur( p ).loc ) )
+                p.silent = true
+            end if
+        end if
         return false
     case Tko.KW_CONST, Tko.KW_DECLARE, Tko.KW_DIM, Tko.KW_ENUM, Tko.KW_REDIM, _
          Tko.KW_STATIC, Tko.KW_PRIVATE, Tko.KW_PROTECTED, Tko.KW_PUBLIC
         return false
-    case Tko.KW_AS, Tko.KW_DELETE, Tko.KW_NEW, Tko.KW_REM
+    case Tko.KW_AS, Tko.KW_REM
         return false
     end select
     if HasTok( p, p.pos + 1 ) = false then return false
@@ -82,6 +92,29 @@ private sub StrayAfterField_( byref p as Tko.ParserState )
     p.diags->Report( Tko.TKO0420, Tko.PointRange( Cur( p ).loc ) )
     p.silent = true
 end sub
+
+'' THE NAME IN THE TYPE-FIRST SPELLING, 'as T name' (T93). Measured over every keyword
+'' against fbc-modern 1.20: like the name-first spelling it takes a keyword as the name,
+'' except the eleven operator words, DELETE and NEW -- its error 14 -- and ALIAS, error 17
+'' ('alias as long' is fine). tiko-lang took all fourteen. And REM, which fbc DOES take
+'' here: 'as long rem' declares a field named rem. The lexer skipped it as a comment, so
+'' it is taken back from the line's end, which says where it was (TF_REM_COMMENT).
+private function FieldName_ _
+    ( byref p as Tko.ParserState, byref nm as Tko.InternId, byref ft as Tko.Token ) as boolean
+    select case Peek( p )
+    case Tko.KW_AND, Tko.KW_ANDALSO, Tko.KW_EQV, Tko.KW_IMP, Tko.KW_MOD, Tko.KW_NOT, _
+         Tko.KW_OR, Tko.KW_ORELSE, Tko.KW_SHL, Tko.KW_SHR, Tko.KW_XOR, _
+         Tko.KW_DELETE, Tko.KW_NEW, Tko.KW_ALIAS
+        return false
+    case Tko.TK_EOL
+        if (Cur( p ).flags and Tko.TF_REM_COMMENT) = 0 then return false
+        nm = p.names->GetString( "rem" )
+        ft.loc = cast( Tko.SourceLoc, Cur( p ).literal )
+        NoteDeclaredName_( p, nm )
+        return true
+    end select
+    return DeclName( p, nm )
+end function
 
 '' 'as ubyte( 0 to 3 ) b' -- the TYPE-FIRST spelling with the bounds written in the
 '' type's position rather than after the name. fbc's error 14, "Expected identifier,

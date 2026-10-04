@@ -1,0 +1,22 @@
+'' structorfield.bas -- 't.constructor' where the type has a FIELD of that name.
+''
+'' Included from visibility.bas, above CheckExplicitStructor_, in the same namespace.
+''
+'' fbc takes the field: 'type T : as long constructor : end type' compiles, and
+'' 't.constructor = 3' stores into it and reads it back (measured, fbc-modern 1.20). The
+'' name is an explicit structor call only when no such field exists; tiko-lang refused the
+'' field as a structor the type does not declare, TKO0666 (T93).
+private function StructorIsField_ _
+    ( byref c as Ctx, byval ot as TypeId, byref nm as string ) as boolean
+    dim as InternId tn = c.types->NameOf( ot )
+    if tn = 0 then return false
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( ot ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return false
+    if s->inner = SCOPE_NONE then return false
+    dim as Symbol ptr f = c.syms->SymbolAt( c.syms->LookupLocal( s->inner, c.names->GetString( nm ) ) )
+    if f = 0 then return false
+    return (f->kind = cast( ubyte, SYM_FIELD ))
+end function

@@ -209,6 +209,7 @@ type Scanner
     as Tko.DiagnosticEngine ptr diags
     as Tko.Lex.Result ptr outp
     as ushort pendingFlags
+    as long   remAt = -1            '' where the last REM comment began, -1 when none is open
 end type
 
 private function LocAt( byref s as Scanner, byval offset as long ) as Tko.SourceLoc
@@ -417,8 +418,20 @@ private sub ScanIdentifier( byref s as Scanner )
     dim as Tko.TokenKind kind = s.kwmap->KindOf( id )
     s.pendingFlags or= extra
 
-    '' REM comments to end of line, and is a keyword everywhere else it appears.
+    '' REM comments to end of line -- except after '.' or '->', where fbc reads it as a
+    '' MEMBER'S NAME: 't.rem' is the field a TYPE declared as 'as long rem' (T93). The
+    '' line's end remembers where a skipped REM began (TF_REM_COMMENT).
     if kind = Tko.KW_REM then
+        dim as long nt = s.outp->tokens.Count
+        if nt > 0 then
+            dim as Tko.TokenKind pk = cast( Tko.TokenKind, s.outp->tokens[nt - 1].kind )
+            if (pk = Tko.TK_DOT) orelse (pk = Tko.TK_ARROW) then
+                Emit( s, Tko.TK_IDENT, first, cast( ulong, id ) )
+                return
+            end if
+        end if
+        s.remAt = first
+        s.pendingFlags or= Tko.TF_REM_COMMENT
         SkipLineComment( s )
         return
     end if
@@ -1046,7 +1059,10 @@ sub Run _
         if c = 10 then
             dim as long first = s.i
             s.i += 1
-            Emit( s, Tko.TK_EOL, first )
+            dim as ulong remLoc = 0
+            if s.remAt >= 0 then remLoc = cast( ulong, LocAt( s, s.remAt ) )
+            s.remAt = -1
+            Emit( s, Tko.TK_EOL, first, remLoc )
             s.pendingFlags = Tko.TF_AT_LINE_START
             continue while
         end if

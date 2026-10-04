@@ -402,6 +402,25 @@ end sub
 '' and accepted the declaration, and the implicit conversion the reader meant to switch
 '' off still happened. The word is reported and skipped, so the declaration that follows
 '' is kept and nothing cascades from it.
+'' A SUB, FUNCTION OR PROPERTY WITH NO NAME: 'sub ' and a comment where the name goes, or
+'' 'sub rem( )', whose REM the lexer reads as one. fbc says error 14, "Expected identifier"
+'' (error 4 for REM, a keyword); tiko-lang said nothing, declared nothing and compiled the
+'' body (T93). A constructor, a destructor and an operator have no name to miss.
+private sub ProcNameMissing_( byref p as Tko.ParserState, byval kw as Tko.TokenKind )
+    select case kw
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY
+    case else
+        return
+    end select
+    if p.silent then return
+    dim as Tko.SourceLoc at = Cur( p ).loc
+    if (Peek( p ) = Tko.TK_EOL) andalso ((Cur( p ).flags and Tko.TF_REM_COMMENT) <> 0) then
+        at = cast( Tko.SourceLoc, Cur( p ).literal )
+    end if
+    p.diags->Report( Tko.TKO0406, Tko.PointRange( at ) )
+    p.silent = true
+end sub
+
 private function DeclareProcKeyword_ _
     ( byref p as Tko.ParserState, byval declareOnly as boolean ) as Tko.TokenKind
     dim as Tko.TokenKind kw = Peek( p )

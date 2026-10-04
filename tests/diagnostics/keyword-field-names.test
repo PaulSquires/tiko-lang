@@ -1,0 +1,15 @@
+'' T93: names fbc refuses, on the same six lines as fbc-modern 1.20. The operator words,
+'' DELETE and NEW as a field name in either spelling (its error 14), ALIAS as a type-first
+'' field name (error 17), and a SUB with no name -- a comment where the name goes, or
+'' 'sub rem( )' (errors 14 and 4). tiko-lang accepted all of them, the last two silently
+'' declaring nothing.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/keyword-field-names.bas -o tests/diagnostics/keywordfields.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: keyword-field-names.bas(4,13): error TKO0406
+'' EXPECT-OUT: keyword-field-names.bas(8,5): error TKO0406
+'' EXPECT-OUT: keyword-field-names.bas(12,13): error TKO0406
+'' EXPECT-OUT: keyword-field-names.bas(16,13): error TKO0406
+'' EXPECT-OUT: keyword-field-names.bas(18,14): error TKO0406
+'' EXPECT-OUT: keyword-field-names.bas(20,5): error TKO0406
+'' EXPECT-MAX-DIAG: 6

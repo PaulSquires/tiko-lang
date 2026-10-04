@@ -155,6 +155,10 @@ namespace Tko
     '' 42, "Variable not declared", even where a 'using' makes a symbol of that name
     '' visible (measured, fbc-modern 1.20). Set by PpExpand; read by MakeIdent.
     const TF_BARE_FNMACRO  as ushort = &h0800
+    '' THE LINE'S END AFTER A 'REM' COMMENT, whose source position the EOL token's literal
+    '' carries. fbc reads 'as long rem' in a TYPE as a field named REM, and only the parser
+    '' knows it is in a field: this is what lets it take the comment back as the name (T93).
+    const TF_REM_COMMENT   as ushort = &h1000
 
     enum SuffixChar
         SUFC_NONE = 0
