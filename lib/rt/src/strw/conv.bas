@@ -108,16 +108,19 @@ extern "rtlib"
 
 '' WSTRING -> STRING, as a temporary.
 ''
-'' NOTE THE MEASURE PASS IS wcstombs( NULL, ... ) AND ITS FAILURE IS NOT
-'' CHECKED. On invalid input wcstombs returns (size_t)-1, which is not 0, so the
-'' `chars = 0` test lets it through and fb_hStrAllocTemp is called with -1.
-'' Reproduced -- it is fbc's behaviour on input no valid program produces, and
-'' guarding it here would make tiko-rt accept what fbc does not.
+'' THE MEASURE PASS IS wcstombs( NULL, ... ), AND IT FAILS on any character the C
+'' locale cannot spell -- one CJK character under cp1252 is enough, so a VALID program
+'' reaches it. fbc does not check: (size_t)-1 is not 0, fb_hStrAllocTemp is called
+'' with -1, and the result has length 2^63-1 over a corrupted heap. That was
+'' reproduced here as parity; crash parity is not compatibility (audit F-61). A failed
+'' measure now takes the ASCII fallback's length, one byte per character at most, and
+'' fb_wstr_ConvToA's own fallback writes '?' for what cannot be spelt.
 function tkort_WstrToStr alias "fb_WstrToStr" ( byval src as wstring ptr ) as FBSTRING ptr
 
 	if( src = 0 ) then return TKORT_NULLSTR()
 
 	dim as integer chars = cast( integer, wcstombs( 0, src, 0 ) )
+	if( chars < 0 ) then chars = FB_WSTR_LEN( src )
 	if( chars = 0 ) then return TKORT_NULLSTR()
 
 	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, chars )
