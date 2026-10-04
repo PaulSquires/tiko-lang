@@ -226,6 +226,25 @@ function SourceManager.LocFor( byval id as FileId, byval offset as long ) as Sou
     return f->locBase + cast( SourceLoc, offset )
 end function
 
+function SourceManager.LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as long
+    fileOut = FILE_NONE
+    if loc = LOC_NONE then return 0
+    dim as long lo = 0, hi = this.files.Count - 1
+    while lo <= hi
+        dim as long midIdx = (lo + hi) \ 2
+        dim as SourceFile ptr f = this.files[midIdx]
+        if loc < f->locBase then
+            hi = midIdx - 1
+        elseif loc > f->locBase + cast( SourceLoc, f->text.Count ) then
+            lo = midIdx + 1
+        else
+            fileOut = cast( FileId, midIdx + 1 )
+            return cast( long, loc - f->locBase )
+        end if
+    wend
+    return 0
+end function
+
 function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
     dim as DecodedLoc d
     d.file = FILE_NONE

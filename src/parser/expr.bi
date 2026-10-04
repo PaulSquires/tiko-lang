@@ -24,6 +24,11 @@
 namespace Tko
 
     const PARSE_MAX_DEPTH as long = 256
+    '' Statement nesting and the length of one operator chain (audit F-46): past them the
+    '' later stages' recursion ran out of stack with no diagnostic -- 5,000 nested IFs,
+    '' a 20,000-term '+' -- where fbc takes 25,000 terms. TKO0991 says so instead.
+    const PARSE_MAX_BLOCKS as long = 1024
+    const PARSE_MAX_CHAIN as long = 12000
 
     type ParserState
         as TokenVec ptr         toks
@@ -44,6 +49,8 @@ namespace Tko
         '' lets them be declared the way everything else is.
         as any ptr              kw          '' KeywordTable ptr, or 0 for no prelude
         as long                 depth
+        '' How many BLOCKS enclose the cursor -- see Block in parserend.bas.
+        as long                 blockDepth
         '' How many TYPE/UNION bodies enclose the cursor. An anonymous 'union' or
         '' 'type' is legal ONLY inside one; at module level a bare 'type' is an error
         '' worth keeping, so the two cases are told apart by this rather than by
@@ -179,6 +186,7 @@ declare function TryLambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
 declare function ArgOrElided _
     ( byref p as Tko.ParserState, byval closer as Tko.TokenKind, byval tyOk as boolean = true ) as Tko.NodeId
 
+    declare sub ChainTooLong_( byref p as Tko.ParserState )
     declare function Expression _
         ( byref p as Tko.ParserState, byval minPrec as long = 1, _
           byval seed as Tko.NodeId = Tko.NODE_NONE ) as Tko.NodeId

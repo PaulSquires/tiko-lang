@@ -1,0 +1,6 @@
+'' TKO0991 past 1,024 nested blocks: 5,000 nested IFs crashed (0xC0000005, no diagnostic).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/limit-blocks.bas -o tests/diagnostics/src/limit-blocks.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: limit-blocks.bas(1026,10): error TKO0991
+'' EXPECT-MAX-DIAG: 1

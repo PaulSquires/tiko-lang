@@ -1,0 +1,6 @@
+'' TKO0991 past a 12,000-operator chain: 20,000 terms crashed; 10,000 took 6.8 s, now 0.3 s.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/limit-chain.bas -o tests/diagnostics/src/limit-chain.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0991: input exceeds a compiler limit: an expression of more than 12000 operators
+'' EXPECT-MAX-DIAG: 1

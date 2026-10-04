@@ -88,6 +88,10 @@ namespace Tko
 
         declare function LocFor( byval id as FileId, byval offset as long ) as SourceLoc
         declare function Decode( byval loc as SourceLoc ) as DecodedLoc
+        '' The OFFSET alone, and the file -- no line, no column. Decode's column scans from
+        '' the line's start, so a caller wanting only the offset paid O(line) per call: a
+        '' 10,000-term 'a + a + ...' line took 6.4 s to parse (audit F-46).
+        declare function LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as long
 
         declare function LineCount( byval id as FileId ) as long
 

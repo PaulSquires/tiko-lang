@@ -820,8 +820,8 @@ function PostfixChain _
             if opNm <> 0 then
                 dim as Tko.IdentPayload oip
                 oip.name = opNm
-                dim as Tko.DecodedLoc odl = p.src->Decode( nameTok.loc )
-                oip.spellOffset = odl.offset
+                dim as Tko.FileId odf
+                oip.spellOffset = p.src->LocOffset( nameTok.loc, odf )
                 oip.spellLength = cast( long, nameTok.length )
                 p.ast->idents.Push( oip )
                 member = NewNode( *p.ast, Tko.N_IDENT, nameTok.loc, _
@@ -1357,11 +1357,14 @@ function Expression _
     dim as Tko.NodeId left = seed
     if left = Tko.NODE_NONE then left = Prefix( p )
 
+    dim as long chain = 0
     do
         dim as Tko.TokenKind k = Peek( p )
         dim as long prec = Tko.InfixPrec( k )
         if prec = 0 then exit do
         if prec < minPrec then exit do
+        chain += 1   '' PAST PARSE_MAX_CHAIN in one chain: refused -- ChainTooLong_, parserend.bas
+        if chain > Tko.PARSE_MAX_CHAIN then ChainTooLong_( p ) : exit do
 
         dim as Tko.Token opTok = Cur( p )
         Advance( p )

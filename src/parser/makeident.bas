@@ -12,8 +12,8 @@ function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.No
         ip.name = p.names->GetString( _
             Tko.Text.LowerAscii( Tko.TokenKindText( cast( Tko.TokenKind, t.kind ) ) ) )
     end if
-    dim as Tko.DecodedLoc d = p.src->Decode( t.loc )
-    ip.spellOffset = d.offset
+    dim as Tko.FileId df
+    ip.spellOffset = p.src->LocOffset( t.loc, df )
     ip.spellLength = cast( long, t.length )
     p.ast->idents.Push( ip )
     dim as Tko.NodeId n = Tko.NewNode( *p.ast, Tko.N_IDENT, t.loc, p.ast->idents.Count - 1 )

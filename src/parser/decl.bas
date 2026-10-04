@@ -66,7 +66,7 @@ private function RawSpelling( byref p as Tko.ParserState ) as Tko.InternId
     dim as Tko.Token t = Cur( p )
     if Peek( p ) <> Tko.TK_IDENT then return 0
     if t.length <= 0 then return 0
-    dim as Tko.DecodedLoc d = p.src->Decode( t.loc )
+    dim as Tko.DecodedLoc d : d.offset = p.src->LocOffset( t.loc, d.file )   '' no column: O(1)
     dim as Tko.SourceFile ptr f = p.src->FileAt( d.file )
     if f = 0 then return 0
     if (d.offset + cast( long, t.length )) > f->text.Count then return 0

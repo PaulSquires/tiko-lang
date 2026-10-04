@@ -41,7 +41,7 @@ namespace Tko.Parse
 
 declare function IsDeclarationStart( byval k as Tko.TokenKind ) as boolean
 declare function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
-declare function Block( byref p as Tko.ParserState ) as Tko.NodeId
+declare function Block( byref p as Tko.ParserState ) as Tko.NodeId : declare function BlockBody_( byref p as Tko.ParserState ) as Tko.NodeId
 
 '' Defined in decl.bas, which is compiled after this file: the body rewrite that turns
 '' the destructuring FOR EACH into the ordinary one.
@@ -135,7 +135,7 @@ private function FollowedByAssign( byref p as Tko.ParserState ) as boolean
 end function
 
 '' A statement list, stopping before whatever closes the enclosing construct.
-function Block( byref p as Tko.ParserState ) as Tko.NodeId
+function BlockBody_( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.NodeIdVec items
     do

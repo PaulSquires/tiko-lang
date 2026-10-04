@@ -285,6 +285,43 @@ const PARENLESS_FN_CALLS_ = "|bin|hex|oct|wbin|whex|woct|left|right|space|wspace
 '' * 3', tiko printed 5, 5, 2. structs/obj_static_dyn.bas writes it. A ONE-ITEM group
 '' followed by a binary operator is the first argument's left operand; a comma after the
 '' argument continues the list.
+declare function AtEnd( byref p as Tko.ParserState ) as boolean
+declare function BlockBody_( byref p as Tko.ParserState ) as Tko.NodeId
+
+'' PAST PARSE_MAX_BLOCKS NESTED BLOCKS the input is refused, once, and the rest of the
+'' file is skipped quietly so every open block unwinds without a cascade of its own.
+function Block( byref p as Tko.ParserState ) as Tko.NodeId
+    if p.blockDepth >= Tko.PARSE_MAX_BLOCKS then
+        dim as Tko.Token t = Cur( p )
+        p.diags->Report( Tko.TKO0991, Tko.PointRange( t.loc ), _
+                         "statements nested more than " & Tko.PARSE_MAX_BLOCKS & " deep" )
+        p.errors += 1
+        while AtEnd( p ) = false
+            Advance( p )
+        wend
+        p.silent = true
+        dim as Tko.NodeIdVec none_
+        return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, none_ )
+    end if
+    p.blockDepth += 1
+    dim as Tko.NodeId n = BlockBody_( p )
+    p.blockDepth -= 1
+    return n
+end function
+
+'' ...AND PAST PARSE_MAX_CHAIN OPERATORS IN ONE CHAIN: refused once, and the line skipped.
+sub ChainTooLong_( byref p as Tko.ParserState )
+    if p.silent = false then
+        p.diags->Report( Tko.TKO0991, Tko.PointRange( Cur( p ).loc ), _
+                         "an expression of more than " & Tko.PARSE_MAX_CHAIN & " operators" )
+        p.silent = true
+    end if
+    p.errors += 1
+    while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
+        Advance( p )
+    wend
+end sub
+
 sub ParenGroupOperand_ _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byref args as Tko.NodeIdVec )
     dim as Tko.TokenKind k = Peek( p )
