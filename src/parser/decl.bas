@@ -1450,10 +1450,10 @@ private sub ParseFieldClause( byref p as Tko.ParserState, byref sp as Tko.StmtPa
     if Accept( p, Tko.TK_EQ ) = false then return
     dim as Tko.NodeId nExpr = Expression( p )
     sp.extra = 0
-    if nExpr = Tko.NODE_NONE then return
-    if p.ast->Kind( nExpr ) <> Tko.N_INT_LIT then return
-    sp.extra = cast( ushort, _
-        p.ast->literals[cast( long, p.ast->nodes[cast( long, nExpr )].data )].intValue )
+    '' A CONSTANT, not only a literal: 'field = PK', '( 1 )' and '1 + 0' were ignored (sizeof 8; fbc's 5).
+    dim as longint fv = 0 : if nExpr = Tko.NODE_NONE then return
+    if (ConstFoldsToInt_( p, nExpr, fv ) = false) orelse (fv < 0) orelse (fv > 65535) then return
+    sp.extra = cast( ushort, fv )
 end sub
 
 '' The names in a generic's parameter list, after the 'of', as an N_BLOCK of N_IDENT.
