@@ -331,8 +331,12 @@ sub EndOperand_( byref p as Tko.ParserState, byref ep as Tko.StmtPayload )
     case Tko.KW_IF, Tko.KW_SELECT, Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_TYPE, Tko.KW_ENUM, _
          Tko.KW_WITH, Tko.KW_SCOPE, Tko.KW_NAMESPACE, Tko.KW_UNION, Tko.KW_CONSTRUCTOR, _
          Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR, Tko.KW_PROPERTY, Tko.KW_EXTERN
-        p.diags->Report( Tko.TKO0955, Tko.PointRange( Cur( p ).loc ), _
-                         lcase( Tko.TokenKindText( Peek( p ) ) ) )
+        '' ONLY AS A FIRST ERROR: after one, a block the recovery closed early leaves its
+        '' own END behind, and fbc says nothing there (the corpus' compound/ files).
+        if p.diags->ErrorCount( ) = 0 then
+            p.diags->Report( Tko.TKO0955, Tko.PointRange( Cur( p ).loc ), _
+                             lcase( Tko.TokenKindText( Peek( p ) ) ) )
+        end if
         p.errors += 1
         Advance( p )
         return

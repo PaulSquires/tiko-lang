@@ -11,5 +11,4 @@ case is + 5 : print 1
 end select
 sub s( ) junk
 end sub
-end if
 print "after"

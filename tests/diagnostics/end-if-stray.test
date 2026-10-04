@@ -1,0 +1,8 @@
+'' END IF WITH NO IF is fbc's 110. 'if' was read as END's EXIT CODE and the program
+'' stopped there, in silence (audit F-57). Reported as a first error only: after one,
+'' fbc says nothing about the END a recovery leaves behind.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/end-if-stray.bas -o tests/diagnostics/src/end-if-stray.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: end-if-stray.bas(2,5): error TKO0955: 'end if' closes no 'if' block
+'' EXPECT-MAX-DIAG: 1
