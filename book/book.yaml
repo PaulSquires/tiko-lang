@@ -87,7 +87,7 @@ parts:
     chapters:
       - { n: 31, file: src/ch31-tsearch.md,             status: drafted }
       - { n: 32, file: src/ch32-thash.md,               status: drafted }
-      - { n: 33, file: chapters/33-capstone-ledger.md,    status: planned }
+      - { n: 33, file: src/ch33-tledger.md,             status: drafted }
 
 appendices:
   - { id: A, file: appendices/A-keywords.md,     status: planned,   generated: false }

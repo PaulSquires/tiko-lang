@@ -1,0 +1,253 @@
+'' ANCHOR: head
+#module "ui"
+#import "std/tui"
+#import "std/containers"
+#import "std/money"
+#import "../ledger"
+'' ANCHOR_END: head
+
+'' ANCHOR: app
+public enum Page
+    PAGE_LIST
+    PAGE_ENTRY
+    PAGE_REPORT
+end enum
+
+'' A generic is named through an alias before it can be a field.
+public type TxnArray as containers.Array( of ledger.Txn )
+
+'' Everything the screens show is drawn from this state, every frame.
+public type LedgerApp extends tui.TuiApp
+    as Page page
+    as TxnArray txns
+    as tui.TuiTableState listState
+    '' The form's four fields -- date, payee, category, amount -- and
+    '' which of them has the keys.
+    as tui.TuiTextInputState inputs( 0 to 3 )
+    as int32 focus
+    as ustring message                          '' the status line
+    declare function Init( ) as tui.TuiCmd override
+    declare function Update( byref e as tui.TuiEvent ) _
+                             as tui.TuiCmd override
+    declare sub View( byref f as tui.TuiFrame ) override
+    declare sub Reload( )
+    declare sub StartEntry( )
+    declare sub Save( )
+end type
+'' ANCHOR_END: app
+
+'' Text pushed to the right of a column w wide: amounts line up.
+public function RightIn( byref s as ustring, byval w as int32 ) _
+                         as ustring
+    if len( s ) >= w then return s
+    return space( w - len( s ) ) & s
+end function
+
+'' An amount as money, right-aligned in a column w wide.
+public function MoneyCell _
+    ( byref d as money.Decimal, byval w as int32 ) as ustring
+    return RightIn( ledger.FormatMoney( d ), w )
+end function
+
+function Boxed( byref title as ustring ) as tui.TuiBlock
+    dim as tui.TuiBlock b
+    b.borderKind = tui.TUIBORDER_ASCII
+    b.sides = tui.TUISIDE_ALL
+    b.AddTitle( title, tui.TuiStyleDefault( ), _
+                tui.TUISIDE_TOP, tui.TUIALIGN_LEFT )
+    return b
+end function
+
+'' ANCHOR: update
+function LedgerApp.Init( ) as tui.TuiCmd
+    page = PAGE_LIST
+    Reload( )
+    return tui.TuiNone( )
+end function
+
+sub LedgerApp.Reload( )
+    txns.Clear( )
+    var why = ledger.ListTxns( txns )
+    if len( why ) > 0 then message = why
+end sub
+
+sub LedgerApp.StartEntry( )
+    for i as int32 = 0 to 3
+        tui.TuiTextInputStateInit( inputs( i ) )
+    next
+    focus = 0
+    message = "Tab: next field   Enter: save   Esc: cancel"
+    page = PAGE_ENTRY
+end sub
+
+'' The form's text goes through the same check as an imported line.
+sub LedgerApp.Save( )
+    dim t as ledger.Txn
+    var why = ledger.ParseTxn( inputs( 0 ).text, inputs( 1 ).text, _
+                               inputs( 2 ).text, inputs( 3 ).text, t )
+    if len( why ) = 0 then why = ledger.AddTxn( t )
+    if len( why ) > 0 then
+        message = why                   '' stay on the form, fix, retry
+        return
+    end if
+    Reload( )
+    for i as int32 = 0 to txns.Count( ) - 1
+        if txns[ i ].id = t.id then listState.selected = i
+    next
+    message = "added: " & t.payee
+    page = PAGE_LIST
+end sub
+
+function LedgerApp.Update( byref e as tui.TuiEvent ) as tui.TuiCmd
+    if e.kind <> tui.TUIEVENT_KEY then return tui.TuiNone( )
+    select case e.key.code
+    case tui.TUIKEY_F1 : page = PAGE_LIST : message = ""
+    case tui.TUIKEY_F2 : StartEntry( )
+    case tui.TUIKEY_F3 : page = PAGE_REPORT : message = ""
+    case tui.TUIKEY_ESCAPE
+        if page = PAGE_LIST then return tui.TuiQuit( 0 )
+        page = PAGE_LIST
+        message = ""
+    case else
+        if page = PAGE_LIST then
+            if e.key.code = tui.TUIKEY_UP then listState.selected -= 1
+            if e.key.code = tui.TUIKEY_DOWN then listState.selected += 1
+            if listState.selected >= txns.Count( ) then
+                listState.selected = txns.Count( ) - 1
+            end if
+            if listState.selected < 0 then listState.selected = 0
+        elseif page = PAGE_ENTRY then
+            if e.key.code = tui.TUIKEY_TAB then
+                focus = ( focus + 1 ) mod 4
+            elseif e.key.code = tui.TUIKEY_ENTER then
+                Save( )
+            else
+                '' A widget is a value: make one over the state, hand
+                '' it the key, and let it edit the text.
+                dim as tui.TuiTextInput box
+                box.state = @inputs( focus )
+                box.isFocused = true            '' or it ignores keys
+                box.HandleEvent( e )
+                '' This box was never drawn, so it does not know how
+                '' wide the field is and scrolls as if one column were.
+                '' The next frame's box knows: let it do the scrolling.
+                inputs( focus ).scrollX = 0
+            end if
+        end if
+    end select
+    return tui.TuiRedraw( )
+end function
+'' ANCHOR_END: update
+
+'' ANCHOR: list
+sub ViewList( byref app as LedgerApp, byref f as tui.TuiFrame, _
+              byval area as tui.TuiRect )
+    var b = Boxed( " transactions " )
+    b.Render( f, area )
+    dim as tui.TuiTable t
+    '' A table puts no gap between columns: the widths leave one.
+    t.headers.Push( "Date" )      : t.widths.Push( tui.TuiLength( 11 ) )
+    t.headers.Push( "Payee" )     : t.widths.Push( tui.TuiFill( ) )
+    t.headers.Push( " Category" ) : t.widths.Push( tui.TuiLength( 10 ) )
+    t.headers.Push( RightIn( "Amount", 10 ) )
+    t.widths.Push( tui.TuiLength( 10 ) )
+    for each x in app.txns
+        dim as tui.TuiRow r
+        r.cells.Push( x.day.ToIsoUString( ) )
+        r.cells.Push( x.payee )
+        r.cells.Push( " " & x.category )
+        r.cells.Push( MoneyCell( x.amount, 10 ) )
+        t.rows.Push( r )
+    next
+    t.state = @app.listState
+    t.showHeader = true
+    t.Render( f, b.Inner( area ) )
+end sub
+'' ANCHOR_END: list
+
+'' ANCHOR: entry
+sub ViewEntry( byref app as LedgerApp, byref f as tui.TuiFrame, _
+               byval area as tui.TuiRect )
+    var b = Boxed( " new transaction " )
+    b.Render( f, area )
+    var inner = b.Inner( area )
+    dim as ustring labels( 0 to 3 ) = _
+        { "Date", "Payee", "Category", "Amount" }
+    dim as ustring hints( 0 to 3 ) = _
+        { "YYYY-MM-DD", "who was paid, or who paid", "food, rent ...", _
+          "-12.50 out, 12.50 in" }
+    for i as int32 = 0 to 3
+        if i * 2 >= inner.h then exit for
+        dim as tui.TuiParagraph lab
+        lab.text = iif( i = app.focus, "> ", "  " ) & labels( i )
+        dim as int32 y = inner.y + i * 2
+        lab.Render( f, tui.TuiRectOf( inner.x, y, 12, 1 ) )
+        dim as tui.TuiTextInput box
+        box.state = @app.inputs( i )
+        box.placeholder = hints( i )
+        box.isFocused = ( i = app.focus )
+        box.Render( f, tui.TuiRectOf( inner.x + 12, y, _
+                                      inner.w - 12, 1 ) )
+    next
+end sub
+'' ANCHOR_END: entry
+
+'' ANCHOR: reportview
+sub ViewReport( byref app as LedgerApp, byref f as tui.TuiFrame, _
+                byval area as tui.TuiRect )
+    var b = Boxed( " monthly report " )
+    b.Render( f, area )
+    dim months as ledger.MonthMap
+    ledger.MonthlyReport( months )
+    dim as tui.TuiTable t
+    t.headers.Push( "Month" ) : t.widths.Push( tui.TuiLength( 8 ) )
+    t.headers.Push( RightIn( "Income", 11 ) )
+    t.widths.Push( tui.TuiLength( 11 ) )
+    t.headers.Push( RightIn( "Spending", 11 ) )
+    t.widths.Push( tui.TuiLength( 11 ) )
+    t.headers.Push( RightIn( "Net", 11 ) )
+    t.widths.Push( tui.TuiLength( 11 ) )
+    for each m in months
+        dim as tui.TuiRow r
+        r.cells.Push( m.key )
+        r.cells.Push( MoneyCell( m.value.income, 11 ) )
+        r.cells.Push( MoneyCell( m.value.spending, 11 ) )
+        var net = m.value.income + m.value.spending
+        r.cells.Push( MoneyCell( net, 11 ) )
+        t.rows.Push( r )
+    next
+    t.showHeader = true
+    t.Render( f, b.Inner( area ) )
+end sub
+'' ANCHOR_END: reportview
+
+'' ANCHOR: view
+sub LedgerApp.View( byref f as tui.TuiFrame )
+    dim as tui.TuiConstraintArray rowsC
+    rowsC.Push( tui.TuiLength( 1 ) )        '' the page tabs
+    rowsC.Push( tui.TuiFill( ) )            '' the page
+    rowsC.Push( tui.TuiLength( 1 ) )        '' the status line
+    dim as tui.TuiRectArray band = tui.TuiSplitV( f.Area( ), rowsC )
+
+    dim as tui.TuiStatusBar tabs
+    tabs.Add( " F1 list  F2 add  F3 report  Esc quit", _
+              tui.TuiStyleDefault( ), tui.TUIALIGN_LEFT )
+    tabs.Add( "tledger ", tui.TuiStyleDefault( ), tui.TUIALIGN_RIGHT )
+    tabs.Render( f, band[0] )
+
+    select case page
+    case PAGE_LIST   : ViewList( this, f, band[1] )
+    case PAGE_ENTRY  : ViewEntry( this, f, band[1] )
+    case PAGE_REPORT : ViewReport( this, f, band[1] )
+    end select
+
+    dim as tui.TuiStatusBar sb
+    sb.Add( " " & message, tui.TuiStyleDefault( ), tui.TUIALIGN_LEFT )
+    if page = PAGE_LIST andalso txns.Count( ) > 0 then
+        sb.Add( str( listState.selected + 1 ) & "/" & _
+                str( txns.Count( ) ) & " ", _
+                tui.TuiStyleDefault( ), tui.TUIALIGN_RIGHT )
+    end if
+    sb.Render( f, band[2] )
+end sub
+'' ANCHOR_END: view

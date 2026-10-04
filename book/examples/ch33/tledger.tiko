@@ -1,0 +1,102 @@
+'' tledger -- a personal ledger in a terminal.
+''
+''     tledger [--import file.csv]... [--list | --report] ledger.db
+''
+'' With --list or --report it prints and exits; otherwise it opens the
+'' interactive screens. Exit code: 0, 1 if an import was refused, 2 for
+'' a bad command line or a ledger that cannot be opened.
+#import "./ledger"
+#import "./ui"
+#import "std/tui"
+#import "std/containers"
+
+sub Complain( byref msg as ustring )
+    dim as int32 e = freefile( )
+    open err for output as #e
+    print #e, "tledger: "; msg
+    close #e
+end sub
+
+sub PrintReport( )
+    dim months as ledger.MonthMap
+    var why = ledger.MonthlyReport( months )
+    if len( why ) > 0 then Complain( why ) : return
+    print "Month  "; ui.RightIn( "Income", 13 ); _
+          ui.RightIn( "Spending", 12 ); ui.RightIn( "Net", 12 )
+    dim total as ledger.MonthTotals
+    for each m in months
+        var mt = m.value
+        print m.key; ui.MoneyCell( mt.income, 13 ); _
+              ui.MoneyCell( mt.spending, 12 ); _
+              ui.MoneyCell( mt.income + mt.spending, 12 )
+        total.income = total.income + mt.income
+        total.spending = total.spending + mt.spending
+    next
+    print "total  "; ui.MoneyCell( total.income, 13 ); _
+          ui.MoneyCell( total.spending, 12 ); _
+          ui.MoneyCell( total.income + total.spending, 12 )
+end sub
+
+dim imports as containers.Array( of ustring )
+dim as ustring mode, path
+dim as int32 i = 1
+do while len( command( i ) ) > 0
+    dim as ustring a = command( i )
+    select case a
+    case "--import"
+        i += 1
+        if len( command( i ) ) = 0 then
+            Complain( "--import needs a file" )
+            end 2
+        end if
+        imports.Push( command( i ) )
+    case "--list", "--report" : mode = a
+    case else
+        if left( a, 1 ) = "-" orelse len( path ) > 0 then
+            Complain( "usage: tledger [--import file.csv]... " & _
+                      "[--list | --report] ledger.db" )
+            end 2
+        end if
+        path = a
+    end select
+    i += 1
+loop
+if len( path ) = 0 then Complain( "no ledger file given" ) : end 2
+
+var why = ledger.OpenLedger( path )
+if len( why ) > 0 then Complain( path & ": " & why ) : end 2
+
+dim as int32 status = 0
+for each f in imports
+    dim problems as containers.Array( of ustring )
+    var added = ledger.ImportCsv( f, problems )
+    for each p in problems
+        Complain( p )
+    next
+    if problems.Count( ) > 0 then
+        Complain( f & ": nothing imported" )
+        status = 1
+    else
+        print "imported"; added; " transactions from "; f
+    end if
+next
+
+select case mode
+case "--list"
+    dim txns as ui.TxnArray
+    ledger.ListTxns( txns )
+    for each t in txns
+        print t.day.ToIsoUString( ); "  "; _
+              left( t.payee & space( 28 ), 28 ); _
+              left( t.category & space( 10 ), 10 ); _
+              ui.MoneyCell( t.amount, 11 )
+    next
+case "--report"
+    PrintReport( )
+case else
+    dim app as ui.LedgerApp
+    var r = tui.TuiRun( app, tui.TuiTermOptionsDefault( ) )
+    if r.IsOk( ) = false then Complain( "no terminal" ) : status = 2
+end select
+ledger.CloseLedger( )
+end status

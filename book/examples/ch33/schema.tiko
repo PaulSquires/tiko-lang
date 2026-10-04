@@ -1,0 +1,13 @@
+'' Migrations: a new file is brought to the latest schema; opening it
+'' again finds nothing to do.
+#import "./ledger"
+
+kill "schema-demo.db"                 '' start from nothing
+print "open: ["; ledger.OpenLedger( "schema-demo.db" ); "]"
+print "schema version"; ledger.SchemaVersion( )
+ledger.CloseLedger( )
+
+print "reopen: ["; ledger.OpenLedger( "schema-demo.db" ); "]"
+print "schema version"; ledger.SchemaVersion( )
+ledger.CloseLedger( )
+kill "schema-demo.db"

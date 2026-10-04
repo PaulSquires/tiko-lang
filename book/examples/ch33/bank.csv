@@ -1,0 +1,15 @@
+date,payee,category,amount
+2026-01-02,Harbour Property Management,rent,-1450.00
+2026-01-05,Northwind Ltd,salary,3200.00
+2026-01-09,Corner Grocer,food,-86.42
+2026-01-17,"Smith, Jones & Co",utilities,-112.30
+2026-01-24,Corner Grocer,food,-64.15
+2026-02-02,Harbour Property Management,rent,-1450.00
+2026-02-05,Northwind Ltd,salary,3200.00
+2026-02-11,City Transit,transport,-98.00
+2026-02-14,Corner Grocer,food,-71.80
+2026-02-20,"Smith, Jones & Co",utilities,-104.95
+2026-03-02,Harbour Property Management,rent,-1450.00
+2026-03-05,Northwind Ltd,salary,3200.00
+2026-03-06,Tax refund,income,412.60
+2026-03-12,Corner Grocer,food,-93.27

@@ -1,0 +1,248 @@
+'' ANCHOR: head
+#module "ledger"
+#import "std/chrono"
+#import "std/money"
+#import "std/containers"
+'' fbsqlite is header-only and must be compiled into ONE unit, so this
+'' module is the only place that includes it. Nothing from it is public.
+#include once "fbsqlite.bi"
+#include once "fbsqlite_csv.bi"
+'' ANCHOR_END: head
+
+'' ANCHOR: model
+'' One line of the ledger. Money in is positive, money out negative.
+public type Txn
+    as longint id
+    as chrono.LocalDate day
+    as ustring payee
+    as ustring category
+    as money.Decimal amount
+end type
+
+'' One month of the report.
+public type MonthTotals
+    as money.Decimal income
+    as money.Decimal spending       '' zero or negative
+end type
+
+'' Months by "YYYY-MM". A generic is named through an alias.
+public type MonthMap as containers.OrderedMap( of ustring, MonthTotals )
+'' ANCHOR_END: model
+
+'' The program's one database. Open and Close bracket its use.
+private dim shared as SQLite.Database db
+
+'' ANCHOR: parse
+'' Check four fields of text and build a Txn from them: "" if they make
+'' a transaction, else what is wrong. The import and the entry form
+'' both come through here, so they refuse exactly the same things.
+public function ParseTxn _
+    ( byref day as ustring, byref payee as ustring, _
+      byref category as ustring, byref amount as ustring, _
+      byref t as Txn ) as ustring
+    if chrono.LocalDate.TryParseIso( day, t.day ) = false then
+        return "'" & day & "' is not a date (YYYY-MM-DD)"
+    end if
+    t.payee = trim( payee )
+    if len( t.payee ) = 0 then return "the payee is empty"
+    t.category = lcase( trim( category ) )
+    if len( t.category ) = 0 then t.category = "other"
+    var d = money.DecimalParse( trim( amount ) )
+    if d.HasValue( ) = false then
+        return "'" & amount & "' is not an amount"
+    end if
+    if d.Value( ).Scale( ) > 2 then
+        return "'" & amount & "' has more than two decimal places"
+    end if
+    t.amount = d.Value( )
+    return ""
+end function
+'' ANCHOR_END: parse
+
+'' ANCHOR: schema
+'' The schema, one step per version. A step that has shipped is never
+'' edited -- some database has already run it -- so a change to the
+'' schema is always a new step at the end.
+const LATEST_SCHEMA = 2
+
+function SchemaStep( byval v as int32 ) as ustring
+    select case v
+    case 1
+        return "create table txn( " & _
+               "id integer primary key, " & _
+               "day text not null, " & _
+               "payee text not null, " & _
+               "category text not null, " & _
+               "amount text not null )"
+    case 2
+        return "create index txn_day on txn( day )"
+    end select
+    return ""
+end function
+
+public function SchemaVersion( ) as int32
+    var v = db.QueryScalar( "pragma user_version" )
+    if v.IsOk( ) = false then return -1
+    return v.Value( ).Value( ).AsInt64( )
+end function
+
+'' Bring the schema up to date, one transaction per step, so a failure
+'' leaves the database at the last version that completed.
+function Migrate( ) as ustring
+    var current = SchemaVersion( )
+    if current > LATEST_SCHEMA then
+        return "the database is from a newer tledger (schema" & _
+               str( current ) & ")"
+    end if
+    for v as int32 = current + 1 to LATEST_SCHEMA
+        dim t as SQLite.Transaction
+        t.Begin( db )
+        var r = db.Execute( SchemaStep( v ) )
+        if r.IsOk( ) then r = db.Execute( "pragma user_version = " & v )
+        if r.IsOk( ) = false then
+            t.Rollback( )
+            return "schema step" & str( v ) & ": " & _
+                   r.Failure( ).Message( )
+        end if
+        t.Commit( )
+    next
+    return ""
+end function
+'' ANCHOR_END: schema
+
+'' ANCHOR: open
+'' Open (or create) a ledger file, or ":memory:" for one that is gone
+'' when the program ends. Returns "" or why it could not.
+public function OpenLedger( byref path as ustring ) as ustring
+    var r = iif( path = ":memory:", db.OpenMemory( ), db.Open( path ) )
+    if r.IsOk( ) = false then return r.Failure( ).Message( )
+    return Migrate( )
+end function
+
+public sub CloseLedger( )
+    db.Close( )
+end sub
+'' ANCHOR_END: open
+
+'' ANCHOR: store
+'' Dates are stored as ISO text, which sorts in date order; amounts as
+'' the Decimal's own text, which is exact. SQL never does arithmetic on
+'' them: sum( ) would turn them into binary floating point.
+function Insert( byref t as Txn ) as ustring
+    var r = db.Execute( "insert into txn( day, payee, category, " & _
+                        "amount ) values( ?, ?, ?, ? )", _
+                        SQLite.Args( t.day.ToIsoUString( ), _
+                                     t.payee, t.category, _
+                                     t.amount.ToString( ) ) )
+    if r.IsOk( ) = false then return r.Failure( ).Message( )
+    t.id = db.LastInsertRowId( )
+    return ""
+end function
+
+public function AddTxn( byref t as Txn ) as ustring
+    return Insert( t )
+end function
+
+'' Every transaction, oldest first.
+public function ListTxns( byref txns as containers.Array( of Txn ) ) _
+                          as ustring
+    var rows = db.Query( "select id, day, payee, category, amount " & _
+                         "from txn order by day, id" )
+    if rows.IsOk( ) = false then return rows.Failure( ).Message( )
+    for each r in rows.Value( )
+        dim t as Txn
+        t.id = r[ "id" ].AsInt64( )
+        t.day = chrono.LocalDate.ParseIso( r[ "day" ].AsText( ) )
+        t.payee = r[ "payee" ].AsText( )
+        t.category = r[ "category" ].AsText( )
+        var amount = money.DecimalParse( r[ "amount" ].AsText( ) )
+        t.amount = amount.Value( )
+        txns.Push( t )
+    next
+    return ""
+end function
+'' ANCHOR_END: store
+
+'' ANCHOR: import
+'' Load a bank's CSV export (date,payee,category,amount). All or
+'' nothing: one bad line and no line is kept, so the file can be fixed
+'' and loaded again without making duplicates. Returns the number of
+'' rows added; problems get one message per bad line.
+public function ImportCsv _
+    ( byref path as ustring, _
+      byref problems as containers.Array( of ustring ) ) as int32
+    db.Execute( "drop table if exists import_raw" )
+    var loaded = SQLite.ImportCsv( db, "import_raw", path )
+    if loaded.IsOk( ) = false then
+        problems.Push( path & ": " & loaded.Failure( ).Message( ) )
+        return 0
+    end if
+    var rows = db.Query( "select rowid, * from import_raw " & _
+                         "order by rowid" )
+    if rows.IsOk( ) = false then
+        problems.Push( path & ": " & rows.Failure( ).Message( ) )
+        return 0
+    end if
+
+    dim as int32 added = 0
+    dim tr as SQLite.Transaction
+    tr.Begin( db )
+    for each r in rows.Value( )
+        dim t as Txn
+        var why = ParseTxn( r[ "date" ].AsText( ), _
+                            r[ "payee" ].AsText( ), _
+                            r[ "category" ].AsText( ), _
+                            r[ "amount" ].AsText( ), t )
+        if len( why ) = 0 then why = Insert( t )
+        if len( why ) > 0 then
+            '' rowid 1 is the line after the header: line 2 of the file.
+            dim as longint lineNo = r[ "rowid" ].AsInt64( ) + 1
+            problems.Push( path & ":" & str( lineNo ) & ": " & why )
+        else
+            added += 1
+        end if
+    next
+    if problems.Count( ) > 0 then
+        tr.Rollback( )
+        added = 0
+    else
+        tr.Commit( )
+    end if
+    db.Execute( "drop table import_raw" )
+    return added
+end function
+'' ANCHOR_END: import
+
+'' ANCHOR: report
+'' Income and spending per month, keyed "YYYY-MM". An OrderedMap keeps
+'' its keys sorted, so the months come out in calendar order.
+public function MonthlyReport( byref months as MonthMap ) as ustring
+    dim txns as containers.Array( of Txn )
+    var why = ListTxns( txns )
+    if len( why ) > 0 then return why
+    for each t in txns
+        var key = left( t.day.ToIsoUString( ), 7 )
+        if t.amount.IsNegative( ) then
+            months[ key ].spending = months[ key ].spending + t.amount
+        else
+            months[ key ].income = months[ key ].income + t.amount
+        end if
+    next
+    return ""
+end function
+
+'' Money as the reports print it. Every field is set, so the text is
+'' the same whatever the locale of the machine running the program.
+public function FormatMoney( byref d as money.Decimal ) as ustring
+    dim as money.MoneyFormat mf = d
+    mf.Symbol = "$"
+    mf.DecimalPoint = "."
+    mf.ThousandsSep = ","
+    mf.Grouping = "3"
+    mf.FracDigits = 2
+    mf.SymbolPrecedes = true
+    mf.SpaceBySymbol = false
+    mf.Negative = money.MONEY_NEG_MINUS
+    return mf.ToString( )
+end function
+'' ANCHOR_END: report

@@ -1,0 +1,32 @@
+'' Exercise 33-2: a quick-entry line, "date;payee;category;amount",
+'' checked by the same ParseTxn the import and the form use.
+#import "../ledger"
+#import "../ui"
+
+function QuickEntry( byref line_ as ustring, byref t as ledger.Txn ) _
+                     as ustring
+    dim as ustring f( 0 to 3 )
+    dim as int32 at_ = 1
+    for k as int32 = 0 to 3
+        dim as int32 semi = instr( at_, line_, ";" )
+        if k = 3 then semi = len( line_ ) + 1
+        if semi = 0 then return "expected four fields"
+        f( k ) = mid( line_, at_, semi - at_ )
+        at_ = semi + 1
+    next
+    return ledger.ParseTxn( f( 0 ), f( 1 ), f( 2 ), f( 3 ), t )
+end function
+
+dim as ustring tries( ... ) = { "2026-04-02;Corner Cafe;Food;-4.75", _
+                                "2026-04-02;Corner Cafe", _
+                                "2026-04-02;Corner Cafe;food;4,75" }
+for i as int32 = 0 to ubound( tries )
+    dim t as ledger.Txn
+    var why = QuickEntry( tries( i ), t )
+    if len( why ) > 0 then
+        print "refused: "; why
+    else
+        print t.day.ToIsoUString( ); " "; t.payee; _
+              " ("; t.category; ")"; ui.MoneyCell( t.amount, 9 )
+    end if
+next

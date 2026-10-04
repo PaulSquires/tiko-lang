@@ -1,0 +1,67 @@
+'' The three screens, drawn with no terminal: keys are fed to Update
+'' as TuiRun would feed them, and each frame is printed as text.
+#import "./ledger"
+#import "./ui"
+#import "std/tui"
+#import "std/containers"
+
+sub Dump( byref scr as tui.TuiScreen )
+    dim as tui.TuiBuffer ptr bf = scr.Front( )
+    for y as int32 = 0 to bf->rows - 1
+        dim as ustring row
+        for x as int32 = 0 to bf->cols - 1
+            dim as tui.TuiCell ptr c = bf->At( x, y )
+            if c->width > 0 then row &= c->text
+        next
+        print rtrim( row )
+    next
+    print
+end sub
+
+sub Press( byref app as ui.LedgerApp, byval code as tui.TuiKeyCode )
+    app.Update( tui.TuiKeyEvent( code ) )
+end sub
+
+sub TypeText( byref app as ui.LedgerApp, byref s as ustring )
+    for i as int32 = 0 to len( s ) - 1
+        app.Update( tui.TuiCharEvent( s[ i ] ) )
+    next
+end sub
+
+ledger.OpenLedger( ":memory:" )
+dim problems as containers.Array( of ustring )
+ledger.ImportCsv( "bank.csv", problems )
+
+dim app as ui.LedgerApp
+dim as tui.TuiScreen scr
+scr.Resize( 64, 13 )
+app.Init( )
+for k as int32 = 1 to 3
+    Press( app, tui.TUIKEY_DOWN )
+next
+tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+'' F2, then a line typed into the form -- with a date that is wrong.
+Press( app, tui.TUIKEY_F2 )
+TypeText( app, "2026-03-32" ) : Press( app, tui.TUIKEY_TAB )
+TypeText( app, "Corner Cafe" ) : Press( app, tui.TUIKEY_TAB )
+TypeText( app, "Food" ) : Press( app, tui.TUIKEY_TAB )
+TypeText( app, "-4.75" )
+Press( app, tui.TUIKEY_ENTER )
+tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+'' Back to the date: Tab round to it, rub out the 32, save again.
+Press( app, tui.TUIKEY_TAB )
+Press( app, tui.TUIKEY_END_ )
+Press( app, tui.TUIKEY_BACKSPACE ) : Press( app, tui.TUIKEY_BACKSPACE )
+TypeText( app, "13" )
+Press( app, tui.TUIKEY_ENTER )
+tui.TuiRenderOnce( app, scr )
+Dump( scr )
+
+Press( app, tui.TUIKEY_F3 )
+tui.TuiRenderOnce( app, scr )
+Dump( scr )
+ledger.CloseLedger( )
