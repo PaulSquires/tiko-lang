@@ -1240,6 +1240,8 @@ sub LowerMainModule _
         dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
         ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
         EmitRtl( c, RTL_INIT, ia )
+        '' -e: fbc's 'fb_InitSignals( )' after fb_Init -- 'b \ 0' is runtime error 11 (F-59).
+        dim as FB.Array( of ulong ) noArgs : if (c.errFlags and 1) <> 0 then EmitRtl( c, RTL_INIT_SIGNALS, noArgs )
     end if
 
     ClearLabels( c, 0 )
