@@ -1,0 +1,16 @@
+'' RUN: object lifetimes (audit F-08, F-09): a constructed temporary passed byref, a
+'' function result passed byref, an array initialised from constructor calls, a local, and
+'' a member read off a returned temporary -- each constructor and destructor exactly as
+'' fbc runs them. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/object-lifetime.bas -o tests/codegen/objectlifetime.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/objectlifetime.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: +1[1]-1
+'' EXPECT-RUN-OUT: +2[2]-2
+'' EXPECT-RUN-OUT: +a+b|-b-a
+'' EXPECT-RUN-OUT: +5|-5
+'' EXPECT-RUN-OUT: +7*7
+'' EXPECT-RUN-OUT: -7

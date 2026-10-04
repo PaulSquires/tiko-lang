@@ -192,6 +192,18 @@ private sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId t = c.info->TypeOf_( lp->target )
     if t = TYPE_NONE then return
     dim as TypeId u = c.types->Unqualify( t )
+    '' 'new T' AND 'new T[n]' CONSTRUCT BY DEFAULT -- fbc's 183 over a type with
+    '' constructors but none taking no argument, '{ any }' included. tiko built them
+    '' and called nothing. The placement buffer is not a constructor argument.
+    if c.types->Kind( u ) = TK_UDT then
+        dim as long nArgs = lp->count
+        if (c.ast->nodes[cast( long, id )].flags and NF_PLACEMENT) <> 0 then nArgs -= 1
+        dim as boolean isArr = ((c.ast->nodes[cast( long, id )].flags and NF_ARRAY) <> 0)
+        if (isArr orelse (nArgs <= 0)) andalso (HasDefaultCtor_( c, u, false ) = false) then
+            c.diags->Report( TKO0657, PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( u ) ) )
+        end if
+        return
+    end if
     if c.types->Kind( u ) = TK_ARRAY then
         '' A fixed-length string is an array of a character builtin.
         dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )

@@ -1,0 +1,11 @@
+'' TKO0657, fbc's 183: 'new T', 'new T[n]' and 'new T[n] { any }' construct by default, so a
+'' type whose constructors all take arguments is refused. tiko built them and called
+'' nothing. 'new T( 4 )' is fine.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/new-no-default-ctor.bas -o tests/diagnostics/src/new-no-default-ctor.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: new-no-default-ctor.bas(6,21): error TKO0657
+'' EXPECT-OUT: new-no-default-ctor.bas(7,21): error TKO0657
+'' EXPECT-OUT: new-no-default-ctor.bas(9,21): error TKO0657
+'' EXPECT-NOT: new-no-default-ctor.bas(8,
+'' EXPECT-MAX-DIAG: 3
