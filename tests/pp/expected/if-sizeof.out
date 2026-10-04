@@ -1,4 +1,4 @@
-preprocessed  29 file(s),  43 tokens,  0 includes,  0 expansions
+preprocessed  40 file(s),  43 tokens,  0 includes,  0 expansions
 tests/pp/src/if-sizeof.bas(19,1): note TKO0315: #print WSTRING - 2
      |
   19 | #print WSTRING-2

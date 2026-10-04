@@ -222,6 +222,11 @@ namespace Tko
         '' fbc's '#print', exactly one of the four is -1 per build; they were fixed at the
         '' EXE values, so a header that branches on building a DLL took the wrong half.
         as long       outKind
+        '' -s gui, the -O level, and whether this unit's top-level code becomes 'main':
+        '' __FB_GUI__, __FB_OPTIMIZE__ and __FB_MAIN__ (T96).
+        as boolean    guiSubsystem
+        as long       optLevel
+        as boolean    isMainModule
         as any ptr    queryCtx       '' passed back to queryFn
         as any ptr    queryFn        '' PpQueryFn; NULL until Phase 5
         '' '#cinclude': the driver's C importer (D16), as a PpCImportFn. The preprocessor

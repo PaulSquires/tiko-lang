@@ -1290,6 +1290,8 @@ private sub PpDefineBuiltinMacro _
     m->builtin = cast( ubyte, which )
 end sub
 
+#include once "pp/ppdefines.bas"
+
 private sub PpDefineBuiltins( byref e as PpEngine )
     '' Identity. __FB_VERSION__ deliberately reports the fbc release tiko-lang is
     '' compatible with, so existing '#if __FB_VERSION__ >= ...' guards keep working;
@@ -1304,6 +1306,7 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     PpDefineValue( e, "__FB_SIGNATURE__", """tiko-lang""" )
     PpDefineValue( e, "__FB_LANG__", """fb""" )
     PpDefineValue( e, "__FB_BACKEND__", """llvm""" )
+    PpDefineMore_( e )      '' ppdefines.bas (T96)
 
     '' Target. From the TARGET, not from an '#ifdef' at tiko-lang's own compile time, which
     '' is what made '-target linux-x86_64' produce a Windows environment.
@@ -1317,6 +1320,10 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' '#if __FB_WIN32__' is error 9 "Expected expression" in fbc, not a true branch.
     if onWindows then
         PpDefineValue( e, "__FB_WIN32__", "" )
+        '' "PC OS" is DOS and Windows: fbc-modern defines it there and NOT on Linux,
+        '' measured. tiko-lang defined it everywhere, so a Linux build took the Windows
+        '' half of every '#ifdef __FB_PCOS__' (T96).
+        PpDefineValue( e, "__FB_PCOS__", "" )
     else
         PpDefineValue( e, "__FB_LINUX__", "" )
         PpDefineValue( e, "__FB_UNIX__", "" )
@@ -1329,7 +1336,6 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     if on64 then
         PpDefineValue( e, "__FB_64BIT__", "" )
     end if
-    PpDefineValue( e, "__FB_PCOS__", "" )
 
     '' __FB_MSVC__ -- EMPTY-BODIED, and defined only on the MSVC-ABI target.
     ''

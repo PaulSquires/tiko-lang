@@ -72,6 +72,43 @@ private function UnitSpellsSized_ _
     return (sized > legacy)
 end function
 
+'' DOES UNIT i's TOP-LEVEL CODE BECOME 'main'? Decided once and asked twice: by the
+'' preprocessor, for __FB_MAIN__ (T96), and by the lowering. The rules are below.
+private function IsMainUnit_ _
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long ) as boolean
+    dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
+    if ctx.modFileCount > 0 then modName = ctx.modName
+    dim as boolean isMain = false
+    if len( ctx.options.mainModule ) > 0 then
+        isMain = (Tko.Text.LowerAscii( modName ) = _
+                  Tko.Text.LowerAscii( ctx.options.mainModule ))
+    elseif ctx.options.compileOnly then
+        isMain = false
+    elseif ctx.options.outKind <> Tko.OUT_EXE then
+        '' A LIBRARY AND A DLL HAVE NO MAIN MODULE unless one is NAMED.
+        '' Measured, over a first module that has top-level code:
+        ''
+        ''     fbc -lib lc.bas lb.bas   static void fb_ctor__lc( void )
+        ''                              __attribute__(( constructor ))
+        ''     fbc -dll lc.bas          the same
+        ''     fbc -lib -m lc lc.bas    int32 main( int32, char** )
+        ''
+        '' -- so the top-level code becomes a module CONSTRUCTOR, exactly as
+        '' it does in any non-main module, and only -m brings a main back.
+        '' tiko made the FIRST source the main module regardless, so every
+        '' static library carried a main: linking one into a program is then
+        '' 'lld-link: error: duplicate symbol: main', which is 77 of the
+        '' corpus link failures build/linkscan.sh reports -- every file that
+        '' links against a tiko-built libfbcunit.a.
+        isMain = false
+    else
+        isMain = (i = 1)
+    end if
+    '' A MODULE IS NEVER MAIN: its top-level code is its initialiser (RFC-0006).
+    if ctx.modFileCount > 0 then isMain = false
+    return isMain
+end function
+
 function CompileUnit _
     ( byref ctx as Tko.CompilerContext, byval i as long, byval srcCount as long, _
       byval restartDepth as long, byval wantsOutput as boolean, _
@@ -81,6 +118,7 @@ function CompileUnit _
     dim as Tko.FileId id = cast( Tko.FileId, i )
     dim as Tko.PpResult pr
     dim as Tko.PpConfig cfg = MakePpConfig( ctx )
+    cfg.isMainModule = IsMainUnit_( ctx, id, i )
     cfg.cmdlineIgnored = (i > 1)
     '' A MODULE UNIT: every file of the module in this one engine, with the hermetic seed.
     dim as Tko.IdVec modFiles
@@ -332,34 +370,7 @@ function CompileUnit _
         '' exists to prevent.
         dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
         if ctx.modFileCount > 0 then modName = ctx.modName
-        dim as boolean isMain
-        if len( ctx.options.mainModule ) > 0 then
-            isMain = (Tko.Text.LowerAscii( modName ) = _
-                      Tko.Text.LowerAscii( ctx.options.mainModule ))
-        elseif ctx.options.compileOnly then
-            isMain = false
-        elseif ctx.options.outKind <> Tko.OUT_EXE then
-            '' A LIBRARY AND A DLL HAVE NO MAIN MODULE unless one is NAMED.
-            '' Measured, over a first module that has top-level code:
-            ''
-            ''     fbc -lib lc.bas lb.bas   static void fb_ctor__lc( void )
-            ''                              __attribute__(( constructor ))
-            ''     fbc -dll lc.bas          the same
-            ''     fbc -lib -m lc lc.bas    int32 main( int32, char** )
-            ''
-            '' -- so the top-level code becomes a module CONSTRUCTOR, exactly as
-            '' it does in any non-main module, and only -m brings a main back.
-            '' tiko made the FIRST source the main module regardless, so every
-            '' static library carried a main: linking one into a program is then
-            '' 'lld-link: error: duplicate symbol: main', which is 77 of the
-            '' corpus link failures build/linkscan.sh reports -- every file that
-            '' links against a tiko-built libfbcunit.a.
-            isMain = false
-        else
-            isMain = (i = 1)
-        end if
-        '' A MODULE IS NEVER MAIN: its top-level code is its initialiser (RFC-0006).
-        if ctx.modFileCount > 0 then isMain = false
+        dim as boolean isMain = IsMainUnit_( ctx, id, i )
         Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                        ctx.sources, udts, vts, mm, lst, isMain, modName, _
                        ctx.options.errFlags, @ctx.diags, cast( long, id ) )

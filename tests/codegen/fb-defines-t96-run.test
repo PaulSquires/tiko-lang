@@ -1,0 +1,15 @@
+'' T96, RUN: __FB_VER_MAJOR__/_MINOR__/_PATCH__, __FB_GUI__, __FB_OPTIMIZE__,
+'' __FB_PROFILE__, __FB_VECTORIZE__, the __FB_BUILD_...__ family, __FB_MAIN__ in the main
+'' module, and __FB_ARGC__/__FB_ARGV__ as main's own parameters -- all missing before.
+'' The values are fbc-modern's, except the fork (tiko-lang) and the build date (tiko's).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/fb-defines-t96.bas -o tests/codegen/fbdefinest96.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/fbdefinest96.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 20 0
+'' EXPECT-RUN-OUT:  0 0 0 0
+'' EXPECT-RUN-OUT: tiko-lang 10 10 0
+'' EXPECT-RUN-OUT: main
+'' EXPECT-RUN-OUT:  1-1

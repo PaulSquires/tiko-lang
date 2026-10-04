@@ -1,0 +1,7 @@
+'' T96: __FB_PCOS__ is not defined for a Linux target -- fbc-modern defines it on Windows
+'' only -- so this file stops at the Linux '#error' and never reaches the PCOS one.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/diagnostics/src/fb-pcos-linux.bas -o tests/diagnostics/fbpcos.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: #error: linux
+'' EXPECT-NOT: #error: pcos

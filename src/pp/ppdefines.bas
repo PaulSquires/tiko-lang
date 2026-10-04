@@ -1,0 +1,34 @@
+'' ppdefines.bas -- the intrinsic defines fbc-modern has that tiko-lang lacked (T96).
+''
+'' Included from directive.bas, above PpDefineBuiltins, which calls PpDefineMore_ once its
+'' own identity and target defines are in place. Split out at the 1500-line lint cap.
+
+private sub PpDefineMore_( byref e as PpEngine )
+    '' T96, each measured from fbc-modern's '#print'. The version's parts as numbers; the
+    '' compiler's own build, spelled as fbc's ("mm-dd-yyyy", ISO, a SHA-1 -- empty, as
+    '' fbc-modern's is -- and the fork); -s gui and the -O level; no profiler and no
+    '' vectoriser; __FB_MAIN__ only in the module that becomes 'main'; and main's own
+    '' parameters. Those two are names already (T80: lowerexpr.bas reads main's parameters
+    '' where they are written, and a procedure finds them undeclared). Each is DEFINED AND
+    '' NEVER EXPANDING, as TRUE and FALSE are (PPB_SELF): '#ifdef __FB_ARGC__' sees it, and
+    '' the name reaches the parser untouched -- fbc's '#print __FB_ARGC__' prints the name.
+    dim as string fv = TKO_FBC_COMPAT
+    dim as long d1 = instr( fv, "." )
+    dim as long d2 = instr( d1 + 1, fv, "." )
+    PpDefineValue( e, "__FB_VER_MAJOR__", str( valint( left( fv, d1 - 1 ) ) ) )
+    PpDefineValue( e, "__FB_VER_MINOR__", str( valint( mid( fv, d1 + 1, d2 - d1 - 1 ) ) ) )
+    PpDefineValue( e, "__FB_VER_PATCH__", str( valint( mid( fv, d2 + 1 ) ) ) )
+    PpDefineValue( e, "__FB_BUILD_DATE__", """" & __DATE__ & """" )
+    PpDefineValue( e, "__FB_BUILD_DATE_ISO__", """" & __DATE_ISO__ & """" )
+    PpDefineValue( e, "__FB_BUILD_SHA1__", """""" )
+    PpDefineValue( e, "__FB_BUILD_FORK_ID__", """tiko-lang""" )
+    if e.cfg <> 0 then
+        PpDefineValue( e, "__FB_GUI__", iif( e.cfg->guiSubsystem, "-1", "0" ) )
+        PpDefineValue( e, "__FB_OPTIMIZE__", str( e.cfg->optLevel ) )
+        if e.cfg->isMainModule then PpDefineValue( e, "__FB_MAIN__", "" )
+    end if
+    PpDefineValue( e, "__FB_PROFILE__", "0" )
+    PpDefineValue( e, "__FB_VECTORIZE__", "0" )
+    PpDefineBuiltinMacro( e, "__FB_ARGC__", PPB_SELF, false )
+    PpDefineBuiltinMacro( e, "__FB_ARGV__", PPB_SELF, false )
+end sub
