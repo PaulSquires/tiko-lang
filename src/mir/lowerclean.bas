@@ -214,6 +214,7 @@ end sub
 '' temporary made inside ONE ARM of an 'iif' was deleted in the JOIN, on the path
 '' that never built it. See LowerStringIif_.
 sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
+    FlushStrCopyBacks( c, mark )
     while c.strTemps.Count > mark
         dim as long slot = cast( long, c.strTemps[c.strTemps.Count - 1] )
         c.strTemps.Pop( )

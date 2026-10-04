@@ -158,6 +158,11 @@ type Ctx
     as FB.Array( of long )  loopKind
     '' Slots holding string temporaries whose life ends with the current STATEMENT.
     as FB.Array( of ulong ) strTemps
+    '' ...AND THE COPY-BACKS SOME OF THEM OWE, as (argument node, slot) pairs: a fixed string
+    '' given to a constructor's byref string parameter is written back before its temporary
+    '' is released -- see FlushStrCopyBacks.
+    as FB.Array( of ulong ) strBackNode
+    as FB.Array( of ulong ) strBackSlot
     '' The same, for WIDE temporaries -- a separate list because they are released
     '' differently: a wide temporary slot holds a POINTER to an allocation, so its
     '' release is fb_WstrDelete on the pointer LOADED from the slot, where a narrow one
@@ -338,6 +343,8 @@ declare sub CallTempsInSourceOrder_ _
       byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
 declare sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
 declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
+declare sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
+declare sub CopyBackStrArgs( byref c as Ctx, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
 declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )
 declare function ThisObjectAddr_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId, _

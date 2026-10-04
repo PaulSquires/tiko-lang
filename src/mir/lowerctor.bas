@@ -446,6 +446,9 @@ function LowerConvCtorInit_ _
         av = adv
     elseif CtorArgValue_( c, init_, pt, av ) = false then
         return false
+    elseif wideToNarrow andalso (c.types->IsConst( pt ) = false) andalso (c.strTemps.Count > 0) then
+        '' THE TEMPORARY IS WRITTEN BACK, the parameter being byref -- FlushStrCopyBacks.
+        c.strBackNode.Push( cast( ulong, init_ ) ) : c.strBackSlot.Push( c.strTemps[c.strTemps.Count - 1] )
     end if
     dim as FB.Array( of ulong ) cargs
     cargs.Push( cast( ulong, av.kind ) )
@@ -805,6 +808,7 @@ function LowerCtorInit _
     '' The caller-built string descriptors, deleted after the call returns.
     dim as FB.Array( of ulong ) strTmp
     dim as FB.Array( of ulong ) strTmpTy
+    dim as FB.Array( of ulong ) backN, backS   '' byref copy-backs owed -- FlushStrCopyBacks
     dim as long ai2 = 0
     for i as long = 0 to cpp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
@@ -867,6 +871,7 @@ function LowerCtorInit _
                         argT[ai2] = cast( ulong, pty )
                         strTmp.Push( cast( ulong, wslot ) )
                         strTmpTy.Push( cast( ulong, wnt ) )
+                        if c.types->IsConst( pty ) = false then backN.Push( argNode[ai2] ) : backS.Push( cast( ulong, wslot ) )
                         ai2 += 1
                         continue for
                     end if
@@ -1050,6 +1055,7 @@ function LowerCtorInit _
     ins.callee = fidx
     Emit( c, ins )
 
+    if backN.Count > 0 then CopyBackStrArgs( c, backN, backS )
     '' ...AND RELEASED, in reverse, which is the order the ordinary call path uses
     '' when there is more than one.
     for k as long = strTmp.Count - 1 to 0 step -1

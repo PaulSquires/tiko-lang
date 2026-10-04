@@ -1,0 +1,15 @@
+'' A constructor's byref string parameter given a fixed string -- 'zstring * 16' or 'string *
+'' 10' -- converts through a temporary that is COPIED BACK, as for a sub: fbc prints [changed]
+'' for both the explicit 'K( z )' and the conversion 'dim as K k3 = z'. tiko dropped the
+'' temporary and printed [orig] (audit F-71, LOW-13).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ctor-byref-str-copyback.bas -o tests/codegen/ctorbyrefstrcopyback.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ctorbyrefstrcopyback.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [changed]
+'' EXPECT-RUN-OUT: [changed]
+'' EXPECT-RUN-OUT: [subbed]
+'' EXPECT-RUN-OUT: [subbed]
+'' EXPECT-RUN-OUT: [changed]

@@ -823,6 +823,37 @@ private sub CopyBackUStrArgs_ _
     next
 end sub
 
+'' A CONSTRUCTOR'S BYREF STRING PARAMETER GIVEN A FIXED STRING WRITES BACK -- measured, fbc
+'' converts 'K( z )' over a 'zstring * 16' or a 'string * 10' through a temporary and then
+'' 'fb_StrAssign( Z$, 16, &TMP, -1, 0 )'; a constructor that changed its argument changed
+'' 'z'. tiko built the temporary and dropped it, so 'z' kept its old text (audit F-71,
+'' LOW-13). The pairs CtorArgValue_ recorded for the temporaries above 'mark' are written
+'' back here, just before ReleaseStrTemps_ deletes them; the rest stay for an outer mark.
+sub CopyBackStrArgs( byref c as Ctx, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
+    CopyBackUStrArgs_( c, nodes, slots )
+end sub
+
+sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
+    if c.strBackSlot.Count = 0 then exit sub
+    dim as FB.Array( of ulong ) nodes, slots, keepN, keepS
+    for k as long = 0 to c.strBackSlot.Count - 1
+        dim as boolean mine = false
+        for j as long = mark to c.strTemps.Count - 1
+            if c.strTemps[j] = c.strBackSlot[k] then mine = true : exit for
+        next
+        if mine then
+            nodes.Push( c.strBackNode[k] ) : slots.Push( c.strBackSlot[k] )
+        else
+            keepN.Push( c.strBackNode[k] ) : keepS.Push( c.strBackSlot[k] )
+        end if
+    next
+    c.strBackNode.Clear( ) : c.strBackSlot.Clear( )
+    for k as long = 0 to keepN.Count - 1
+        c.strBackNode.Push( keepN[k] ) : c.strBackSlot.Push( keepS[k] )
+    next
+    if (nodes.Count > 0) andalso (c.curBlock >= 0) then CopyBackUStrArgs_( c, nodes, slots )
+end sub
+
 '' ...and their release, after the call returns.
 private sub DeleteStrArgTemps_ _
     ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
