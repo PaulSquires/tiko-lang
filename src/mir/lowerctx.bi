@@ -1376,11 +1376,13 @@ declare function EmitRtl _
     declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare sub EmitArrayElems_ _
-        ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean )
+        ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean, _
+          byval skip as long = 0 )
     declare sub EmitArrayElemsAt_ _
         ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, _
-          byval isCtor as boolean )
+          byval isCtor as boolean, byval skip as long = 0 )
     declare sub EmitModuleInit_( byref c as Ctx )
+    declare function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as long
     declare function StructorPrioOf_( byref c as Ctx, byval id as Tko.NodeId ) as long
     declare sub EmitImplicitStructors( byref c as Ctx )
 

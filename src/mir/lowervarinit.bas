@@ -121,6 +121,7 @@ sub LowerVarItem_ _
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
     dim as boolean constructed = false
     dim as boolean strInited = false
+    dim as long elemsListed = 0       '' elements a brace list builds -- see below
 
     '' EVERY LOCAL WITH NO INITIALISER IS ZEROED, and none of them were.
     ''
@@ -464,7 +465,14 @@ sub LowerVarItem_ _
                     CallImplicitCtor_( c, vs->type_, va )
                 end if
             elseif ArrayElemNeedsInit_( c, vs->type_ ) then
-                EmitArrayElems_( c, slot, vs->type_, true )
+                '' AN ELEMENT A BRACE INITIALISER BUILDS IS NOT DEFAULT-CONSTRUCTED FIRST.
+                '' 'dim arr( 1 ) as Obj = { Obj( "a" ), Obj( "b" ) }' ran Obj( ) on both
+                '' elements and then built each again over it: whatever the default
+                '' constructor allocated leaked, and the sequence was not fbc's, which
+                '' constructs each listed element once and default-constructs the rest
+                '' AFTER them -- below, once the list has been lowered.
+                elemsListed = FlatInitCount_( c, ip->b )
+                if elemsListed = 0 then EmitArrayElems_( c, slot, vs->type_, true )
             end if
             '' AN EMPTY 'T( )' IS FINISHED HERE: the synthesised constructor
             '' has run and the call has no value to store. 'type<P>( 5, 6 )'
@@ -550,8 +558,12 @@ sub LowerVarItem_ _
     if needsStore andalso (slot >= 0) then
         if LowerArrayInit( c, slot, c.syms->SymbolAt( sid )->type_, ip->b ) then
             needsStore = false
+            if elemsListed > 0 then EmitArrayElems_( c, slot, vs->type_, true, elemsListed )
+            elemsListed = 0
         end if
     end if
+    '' ...and EVERY element when the list did not build them after all.
+    if elemsListed > 0 then EmitArrayElems_( c, slot, vs->type_, true )
 
     '' A FIXED WSTRING initialiser is a runtime call, not a store: the slot
     '' holds the buffer itself, so 'dim w as wstring * 50 = trim( t )' has to

@@ -760,6 +760,39 @@ private function ByvalUdtCopyArg_ _
     '' The bitwise fallback is fine for a type whose destructor owns nothing -- fbc
     '' itself memcpys one -- but here the temporary would hold a SECOND descriptor
     '' over the caller's data, and destroying it after the call would erase it.
+    '' A CONSTRUCTOR CALL IS BUILT WHERE THE COPY WOULD GO, and is that copy. 'takeo(
+    '' Obj( 1 ) )' and 'takeo( type<Obj>( 2 ) )' over 'byval o as Obj' made the object in
+    '' a temporary of its own and then copied it -- bitwise, for a type with no copy
+    '' constructor -- into this one, and destroyed BOTH: a buffer the constructor
+    '' allocated was freed twice, 0xC0000374. Measured, fbc constructs straight into the
+    '' argument's temporary and destroys it once after the call:
+    ''
+    ''     _ZN3OBJC1Ei( &TMP$2$0, 1 );  TAKEO( &TMP$2$0 );  _ZN3OBJD1Ev( &TMP$2$0 );
+    ''
+    '' Decided BEFORE a slot is made, so a call that is not a constructor -- an array
+    '' element, a function result -- takes the copy path below with nothing emitted.
+    dim as Tko.TypeId upt = c.types->Unqualify( pt )
+    dim as boolean ctorArg = (TypeCtorTypeOf_( c, argNode ) = upt)
+    if (ctorArg = false) andalso (c.ast->Kind( argNode ) = Tko.N_TUPLE) then
+        ctorArg = ((c.ast->nodes[cast( long, argNode )].flags and Tko.NF_TYPE_LITERAL) <> 0) _
+                  andalso (c.types->Unqualify( c.info->TypeOf_( argNode ) ) = upt)
+    end if
+    if ctorArg andalso (StructorOf( c, upt, "__ctor" ) <> Tko.SYMBOL_NONE) then
+        dim as long cslot = NewTempLocal( c, MT_AGG, sz )
+        if cslot < 0 then return false
+        if LowerCtorInit( c, cslot, upt, argNode ) then
+            outa.kind = cast( ubyte, MV_LOCAL )
+            outa.ty = cast( ubyte, MT_PTR )
+            outa.id = cslot
+            if TypeNeedsDtor_( c, pt ) then
+                outSlot = cslot
+                outType = pt
+            end if
+            return true
+        end if
+        '' Not a call LowerCtorInit builds -- the copy path below, as before.
+    end if
+
     if (how = 0) andalso HasDynArrayMember_( c, pt ) then return false
 
     '' THE SOURCE HAS TO HAVE AN ADDRESS. A copy constructor takes one, and a bitwise

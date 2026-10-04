@@ -58,6 +58,19 @@ end sub
 
 '' The destination is a SLOT or, for storage with no slot, an ADDRESS -- selfv. A
 '' STATIC local and a UDT FIELD are both storage without a frame slot.
+'' HOW MANY ELEMENTS A FLAT BRACE INITIALISER NAMES -- 0 for anything else, nested lists
+'' included, whose rows are not elements.
+function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as long
+    if init = Tko.NODE_NONE then return 0
+    if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return 0
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    for i as long = 0 to lp->count - 1
+        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) = Tko.N_INITIALIZER then return 0
+    next
+    return lp->count
+end function
+
 function LowerArrayInit _
     ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
@@ -357,6 +370,13 @@ function LowerUdtElemInit_ _
     ( byref c as Ctx, byref dst as MirValue, byval et as Tko.TypeId, _
       byval e as Tko.NodeId ) as boolean
 
+    '' A CONSTRUCTOR CALL SPELT OUT -- '{ C( 1 ), C( 2 ) }' -- constructs INTO the
+    '' element, exactly as it does into a variable's slot. FIRST: its type IS the
+    '' element's, so the copy branch below claimed it, built it in a temporary and copied
+    '' it in -- bitwise for a type with no copy constructor, so the element and the
+    '' temporary shared a buffer and both destructors freed it, 0xC0000374.
+    if LowerCtorInit( c, -1, et, e, @dst ) then return true
+
     dim as Tko.TypeId ivt = c.info->TypeOf_( e )
     if (ivt <> Tko.TYPE_NONE) andalso (ivt = et) then
         dim as Tko.SymbolId ucp = CopyCtorOf_( c, et )
@@ -374,10 +394,6 @@ function LowerUdtElemInit_ _
             return true
         end if
     end if
-
-    '' A CONSTRUCTOR CALL SPELT OUT -- '{ C( 1 ), C( 2 ) }' -- constructs INTO the
-    '' element, exactly as it does into a variable's slot.
-    if LowerCtorInit( c, -1, et, e, @dst ) then return true
 
     '' ...AND ONE THAT IS NOT SPELT OUT IS STILL A CONSTRUCTOR CALL. 'dim tb(0 to 1) as
     '' foo = { 7, 8 }' over a 'constructor foo( byval v as integer )' fell past both

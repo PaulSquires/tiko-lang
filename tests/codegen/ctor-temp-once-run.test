@@ -1,0 +1,34 @@
+'' RUN: a constructor call passed BYVAL -- 'takeo( Obj( 1 ) )', 'takeo( type<Obj>( 2 ) )'
+'' -- is built straight into the argument's temporary, and an element a brace initialiser
+'' names is built once, in place, with only the unnamed ones default-constructed. Both
+'' used to make a second object over the first one's buffer and free it twice. Output
+'' identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ctor-temp-once.bas -o tests/codegen/ctortemponce.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ctortemponce.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor1
+'' EXPECT-RUN-OUT: in takeo n1
+'' EXPECT-RUN-OUT: dtor n1
+'' EXPECT-RUN-OUT: after1
+'' EXPECT-RUN-OUT: ctor2
+'' EXPECT-RUN-OUT: in takeo n2
+'' EXPECT-RUN-OUT: dtor n2
+'' EXPECT-RUN-OUT: after2
+'' EXPECT-RUN-OUT: ctor(a)
+'' EXPECT-RUN-OUT: ctor(b)
+'' EXPECT-RUN-OUT: ctor()
+'' EXPECT-RUN-OUT: built abdefault
+'' EXPECT-RUN-OUT: dtor default
+'' EXPECT-RUN-OUT: dtor b
+'' EXPECT-RUN-OUT: dtor a
+'' EXPECT-RUN-OUT: ctor(a)
+'' EXPECT-RUN-OUT: ctor(b)
+'' EXPECT-RUN-OUT: ctor()
+'' EXPECT-RUN-OUT: built abdefault
+'' EXPECT-RUN-OUT: dtor default
+'' EXPECT-RUN-OUT: dtor b
+'' EXPECT-RUN-OUT: dtor a
+'' EXPECT-RUN-OUT: end

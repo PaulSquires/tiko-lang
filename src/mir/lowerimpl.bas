@@ -1394,19 +1394,19 @@ end function
 '' reaches are small and the instruction count is bounded by the element count, which
 '' is a compile-time constant or this is not a fixed array at all.
 sub EmitArrayElems_ _
-    ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean )
+    ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean, byval skip as long = 0 )
 
     if slot < 0 then return
     dim as MirValue sbase
     sbase.kind = cast( ubyte, MV_LOCAL )
     sbase.ty = cast( ubyte, MT_PTR )
     sbase.id = slot
-    EmitArrayElemsAt_( c, sbase, at, isCtor )
+    EmitArrayElemsAt_( c, sbase, at, isCtor, skip )
 end sub
 
 '' The same, from an ADDRESS rather than a slot: a module-lifetime array is a global.
 sub EmitArrayElemsAt_ _
-    ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, byval isCtor as boolean )
+    ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, byval isCtor as boolean, byval skip as long = 0 )
 
     if base_.kind = cast( ubyte, MV_NONE ) then return
     if c.types->Kind( at ) <> Tko.TK_ARRAY then return
@@ -1418,7 +1418,7 @@ sub EmitArrayElemsAt_ _
     dim as long esz = SizeOfType( c, el )
     if esz <= 0 then return
 
-    for k as long = 0 to n - 1
+    for k as long = iif( isCtor, skip, 0 ) to n - 1   '' 'skip': built by an initialiser
         dim as long idx = iif( isCtor, k, n - 1 - k )
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )
