@@ -282,6 +282,20 @@ private function AlignOf _
     return a
 end function
 
+'' THE ALIGNMENT AN AGGREGATE ACCESS MAY CLAIM. Through a SLOT or a GLOBAL it is the
+'' storage's own, which AlignOf above declared at least this large. Through a COMPUTED
+'' address -- a field, an element, a pointer -- nothing is known, and in LLVM an
+'' over-statement is undefined, not safe: a 12-byte UDT of longs at offset 12 of an array
+'' was copied with 'align 8' (audit F-74, CG-15). So it claims 1; x86 loses nothing.
+private function AggAccessAlign_ _
+    ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as long, byref addr as MirValue ) as long
+    if t <> MT_AGG then return AlignOf( e, t, sizeBytes )
+    if (addr.kind = cast( ubyte, MV_LOCAL )) orelse (addr.kind = cast( ubyte, MV_GLOBAL )) then
+        return AlignOf( e, t, sizeBytes )
+    end if
+    return 1
+end function
+
 
 '' ---------------------------------------------------------------- instructions
 ''
@@ -545,8 +559,12 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
             Ice( e, "an alloca of a void slot" )
             return
         end if
-        Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & _
-                 ", align " & str( AlignOf( e, st, sz ) ) )
+        '' AN AGGREGATE SLOT TAKES THE TARGET'S MAXIMUM: over-aligning STORAGE is always
+        '' safe, and a scalar read from its start -- a SysV slot's i32 -- then never
+        '' claims more than the slot has (audit F-74, CG-15).
+        dim as long sal = AlignOf( e, st, sz )
+        if (st = MT_AGG) andalso (sal < e.tgt->layout.maxAlign) then sal = e.tgt->layout.maxAlign
+        Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & ", align " & str( sal ) )
         if e.dbg <> 0 then e.outp += DbgDeclare( *e.dbg, e.f->locals[slot].sym, _
             e.f->locals[slot].frontendType, (st = MT_PTR), SlotName( slot ) )
 
@@ -557,7 +575,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
         dim as long sz = AggSizeOfAddr( e, ins.a, ins.imm )
         Line( e, res & " = load " & LlvmType( rt, sz ) & ", ptr " & ValStr( e, ins.a ) & _
-                 ", align " & str( AlignOf( e, rt, sz ) ) )
+                 ", align " & str( AggAccessAlign_( e, rt, sz, ins.a ) ) )
 
     case M_STORE
         dim as MirType vt = cast( MirType, ins.b.ty )
@@ -582,7 +600,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
         Line( e, "store " & LlvmType( vt, sz ) & " " & ValStr( e, ins.b ) & _
                  ", ptr " & ValStr( e, ins.a ) & _
-                 ", align " & str( AlignOf( e, vt, sz ) ) )
+                 ", align " & str( AggAccessAlign_( e, vt, sz, ins.a ) ) )
 
     '' BOTH ADDRESS OPCODES ARE A BYTE GEP. MIR's offsets are already in BYTES -- which
     '' is the whole reason M_PTR_ADD is not M_ADD -- so the element type is i8 and LLVM
