@@ -1,0 +1,18 @@
+'' RUN: a 'byref as string' argument that is an ARRAY ELEMENT passes the element's own
+'' descriptor. It is spelled as a call, and StrArgOwnDescriptor_ answered 'copy' for every
+'' call, so 'modr( a( 1 ) )' wrote a temporary and a( 1 ) kept 'q' where fbc prints 'qX'.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/strarg-element.bas -o tests/codegen/strargelem.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/strargelem.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: gX
+'' EXPECT-RUN-OUT: qX
+'' EXPECT-RUN-OUT: qXX
+'' EXPECT-RUN-OUT: qXXY
+'' EXPECT-RUN-OUT: qXXYF
+'' EXPECT-RUN-OUT: qXXYFF
+'' EXPECT-RUN-OUT: qXXYFFX
+'' EXPECT-RUN-OUT: qXXYFFXX

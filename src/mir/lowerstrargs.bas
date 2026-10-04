@@ -258,6 +258,14 @@ function StrArgOwnDescriptor_ _
         return true
     case Tko.N_INDEX, Tko.N_DEREF
         return true
+    case Tko.N_CALL
+        '' AN ARRAY ELEMENT IS SPELLED AS A CALL, and it is storage like any variable.
+        '' Falling to 'false' below built a temporary for 'modr( a( 1 ) )' over 'byref s
+        '' as string', so the callee wrote the copy and the element kept its old value:
+        '' fbc prints 'qX' where tiko printed 'q'. Measured, fbc passes the element's own
+        '' descriptor, 'MODR( (FBSTRING*)A$0 + 1 )', and the same for a 'byref as string'
+        '' function's result, which is somebody else's descriptor too.
+        return IsArrayIndex( c, e ) orelse CallReturnsByref_( c, e )
     case Tko.N_IDENT
         '' AN IDENTIFIER THAT NAMES STORAGE owns its descriptor; one that merely LOOKS
         '' like an identifier does not. 'curdir', 'time' and 'date' take no arguments and
