@@ -520,6 +520,14 @@ declare function TypeOf_ _
 '' THE CONSTANT FOLDER ALREADY KNEW -- LitBits_ and SuffixUnsigned_ beside each other
 '' in constfold.bas, with the same measurements written above them. Only the TYPE
 '' question was never asked.
+function DecimalLitUnsigned( byref lp as Tko.LiteralPayload ) as boolean
+    if cast( Tko.NumSuffix, lp.suffix ) <> Tko.NSUF_NONE then return false
+    if (lp.radix <> 10) andalso (lp.radix <> 0) then return false
+    dim as ulongint v = lp.intValue
+    if v >= &h8000000000000000ull then return true
+    return (v >= &h80000000ull) andalso (v <= &hFFFFFFFFull)
+end function
+
 private function LiteralType_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
 
@@ -534,6 +542,10 @@ private function LiteralType_ _
         case Tko.NSUF_ULONGINT : return c.types->Builtin( Tko.TY_ULONGINT )
         case Tko.NSUF_UINTEGER : return c.types->Builtin( Tko.TY_UINTEGER )
         end select
+        '' BY MAGNITUDE, when there is no suffix -- see DecimalLitUnsigned. Typed INTEGER
+        '' always, 's < 3000000000' over 'dim s as integer = -1' was TRUE and '3000000000
+        '' \ -2' negative, where fbc reads the literal unsigned and answers the other way.
+        if DecimalLitUnsigned( *lp ) then return c.types->Builtin( Tko.TY_UINTEGER )
         return c.types->Builtin( Tko.TY_INTEGER )
     case Tko.N_FLOAT_LIT
         '' THE SUFFIX TYPES IT, exactly as it does for an integer literal one arm

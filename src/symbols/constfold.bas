@@ -164,12 +164,16 @@ private function CVBool_( byval b as boolean ) as ConstVal
     return CV_( iif( b, cast( longint, -1 ), cast( longint, 0 ) ) )
 end function
 
+'' BY SQUARING: a loop of 'e' multiplications hung on 'const KP = 1 ^ 9000000000000000000'
+'' and took five seconds over 1 ^ 2000000000. The wrap is the same either way.
 private function IPow_( byval b as longint, byval e as longint ) as longint
     if e < 0 then return 0
     dim as longint r = 1
-    for i as longint = 1 to e
-        r *= b
-    next
+    while e > 0
+        if (e and 1) <> 0 then r *= b
+        e shr= 1
+        if e > 0 then b *= b
+    wend
     return r
 end function
 
@@ -206,6 +210,10 @@ private function LitNum_ _
         '' is 41641895 -- the product of the three single values taken in DOUBLE, then
         '' rounded -- where the exact decimals give 41641893.
         if cast( Tko.NumSuffix, lp->suffix ) = Tko.NSUF_SINGLE then d = cast( single, d )
+    elseif DecimalLitUnsigned( *lp ) orelse SuffixUnsigned_( lp->suffix ) then
+        '' AN UNSIGNED LITERAL CONVERTS AS ONE: '10000000000000000000 / 3' folded the
+        '' bits as a signed -8.4e18 and printed -2.8e18 where fbc prints 3.3e18.
+        d = cast( double, lp->intValue )
     else
         d = cast( double, cast( longint, lp->intValue ) )
     end if
@@ -686,13 +694,35 @@ private function ConstCall_ _
         if ast.Kind( a0 ) <> Tko.N_STRING_LIT then return CVNone_( )
         dim as Tko.LiteralPayload ptr lp = _
             @ast.literals[cast( long, ast.nodes[cast( long, a0 )].data )]
-        if nm = "len" then return CV_( lp->strLength )
-        if lp->strLength <= 0 then return CVNone_( )
-        dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( a0 ) )
-        dim as Tko.SourceFile ptr f = src.FileAt( dl.file )
+        '' THE DECODED TEXT, not the span: 'asc( !"\n" )' read the backslash, 92, where
+        '' fbc's is 10, and 'len( "a""b" )' counted the doubled quote. A wide literal is
+        '' not folded here.
+        dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lp->strFile ) )
+        if f = 0 then
+            dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( a0 ) )
+            f = src.FileAt( dl.file )
+        end if
         if f = 0 then return CVNone_( )
-        if lp->strOffset >= f->text.Count then return CVNone_( )
-        return CV_( f->text[lp->strOffset] )
+        if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return CVNone_( )
+        dim as string body = space( lp->strLength )
+        for i as long = 0 to lp->strLength - 1
+            body[i] = f->text[lp->strOffset + i]
+        next
+        dim as string txt
+        dim as long i2 = 0
+        while i2 < len( body )
+            txt += chr( body[i2] )
+            if (body[i2] = 34) andalso (i2 + 1 < len( body )) andalso (body[i2 + 1] = 34) then i2 += 1
+            i2 += 1
+        wend
+        if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then
+            dim as boolean wasWide = false
+            txt = Tko.Text.DecodeEscapedBody( txt, wasWide )
+            if wasWide then return CVNone_( )
+        end if
+        if nm = "len" then return CV_( len( txt ) )
+        if len( txt ) = 0 then return CVNone_( )
+        return CV_( txt[0] )
     end if
 
     '' THE CV FAMILY OVER A LITERAL. 'cvshort( "ABCDEFGH" )' is the first two bytes of
@@ -783,18 +813,17 @@ private function ConstCall_ _
         '' Wrapping instead gives 1410065408 for clng(1e10) -- a plausible number and
         '' the wrong one. CINT is exempt because it targets 64-bit INTEGER, so
         '' cint(1e10) does not overflow at all.
+        ''
+        '' AN INTEGER WRAPS: 'clng( &hFFFFFFFF )' is -1 and 'clng( 3000000000 )'
+        '' -1294967296, measured -- the indefinite value is a FLOAT conversion's, and an
+        '' integer literal took the float path because it is a literal.
+        if iv.known then return CV_( cast( longint, cast( long, iv.value ) ) )
         if isNum then
             dim as longint r = RoundHalfEven_( d )
             if (r > 2147483647ll) orelse (r < -2147483648ll) then
                 return CV_( -2147483648ll )
             end if
             return CV_( r )
-        end if
-        if iv.known then
-            if (iv.value > 2147483647ll) orelse (iv.value < -2147483648ll) then
-                return CV_( -2147483648ll )
-            end if
-            return CV_( iv.value )
         end if
     case "int"
         if isNum then return CV_( cast( longint, int( d ) ) )
@@ -895,6 +924,10 @@ function ConstOf _
         dim as Tko.LiteralPayload ptr lp = _
             @ast.literals[cast( long, ast.nodes[cast( long, id )].data )]
         dim as longint iv = cast( longint, lp->intValue )
+        '' ...AND AN UNSUFFIXED DECIMAL OF 2^31 TO 2^32 - 1, OR 2^63 UP, IS UINTEGER, as
+        '' Check types it -- 'const BIGC = 18446744073709551615 : print BIGC > 0' folded
+        '' as -1 > 0.
+        if DecimalLitUnsigned( *lp ) then return CVWU_( iv, intBits, true )
         return CVWU_( iv, LitBits_( lp->suffix, iv, intBits ), _
                       SuffixUnsigned_( lp->suffix ) )
 
@@ -1039,6 +1072,14 @@ function ConstOf _
         '' back to it. A COMPARISON is not arithmetic: its result is INTEGER, so it takes
         '' the target's width whatever the operands were.
         dim as long w = WiderOf_( l, r )
+        if w < intBits then w = intBits
+        '' A 32-BIT UNSIGNED OPERAND WIDENS BY ZERO-EXTENSION. It is stored sign-extended
+        '' (CVW_), which is right at its own width and wrong one width up: '&hFFFFFFFFul
+        '' shr 4' folded as -1 shr 4 = -1 where fbc's is 268435455, and '4000000000ul *
+        '' 2ul' to -589934592 where fbc's is 8000000000. The same expression at run time
+        '' was right, so the constant and the code disagreed.
+        if (w > 32) andalso (l.bits = 32) andalso l.uns then a = cast( longint, cast( ulong, a ) )
+        if (w > 32) andalso (r.bits = 32) andalso r.uns then b = cast( longint, cast( ulong, b ) )
         '' ...AND NEVER NARROWER THAN INTEGER, which is where fbc promotes both operands
         '' first. Measured: 'const a as long = 2000000000 : a + a' is 4000000000 and
         '' folded to -294967296, and 'ula shl one' over a ULONG and a UBYTE is 8589934590
@@ -1085,8 +1126,11 @@ function ConstOf _
             if b = 0 then return CVNone_( )
             if uw then return CVWU_( cast( longint, ua mod ub ), w, true )
             return CVWU_( a mod b, w, false )
-        case Tko.TK_CARET     : return CVW_( IPow_( a, b ), w )
-        case Tko.KW_SHL       : return CVW_( a shl sb, w )
+        case Tko.TK_CARET     : return CVWU_( IPow_( a, b ), w, uw )
+        '' SIGNEDNESS KEPT, as the arithmetic operators keep it: '(1ull shl 63) > 0' was
+        '' false and '(&hFFFFFFFFFFFFFFFFull or 0ull) \ 2' 0, where fbc says -1 and
+        '' 9223372036854775807.
+        case Tko.KW_SHL       : return CVWU_( a shl sb, w, uw )
         case Tko.KW_SHR
             '' SHR is ARITHMETIC unless the RESULT is unsigned, when it is LOGICAL: over
             '' 'const u as uinteger = &hFFFFFFFFFFFFFFFFull', 'u shr 1' is
@@ -1095,11 +1139,11 @@ function ConstOf _
             if uw then return CVWU_( cast( longint, ua shr sb ), w, true )
             if w = 32 then return CVWU_( cast( longint, cast( long, a ) ) shr sb, w, false )
             return CVWU_( a shr sb, w, false )
-        case Tko.KW_AND       : return CVW_( a and b, w )
-        case Tko.KW_OR        : return CVW_( a or b, w )
-        case Tko.KW_XOR       : return CVW_( a xor b, w )
-        case Tko.KW_EQV       : return CVW_( a eqv b, w )
-        case Tko.KW_IMP       : return CVW_( a imp b, w )
+        case Tko.KW_AND       : return CVWU_( a and b, w, uw )
+        case Tko.KW_OR        : return CVWU_( a or b, w, uw )
+        case Tko.KW_XOR       : return CVWU_( a xor b, w, uw )
+        case Tko.KW_EQV       : return CVWU_( a eqv b, w, uw )
+        case Tko.KW_IMP       : return CVWU_( a imp b, w, uw )
         case Tko.TK_EQ        : return CVBool_( a = b )
         case Tko.TK_NE        : return CVBool_( a <> b )
         case Tko.TK_LT

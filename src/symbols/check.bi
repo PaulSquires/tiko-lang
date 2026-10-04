@@ -241,6 +241,11 @@ namespace Tko.Check
     '' 'types' and 'info' are for ONE question -- 'sizeof( T )' -- and both are optional
     '' for the same reason 'syms' is: a caller with no type context gets the honest answer
     '' for a caller with no type context, which is "not a constant".
+    '' AN UNSUFFIXED DECIMAL LITERAL IS UINTEGER from 2^31 to 2^32 - 1 and from 2^63 up,
+    '' INTEGER otherwise -- measured with fbc's '#print typeof': 2147483648, 3000000000 and
+    '' 4294967295 are UINTEGER, 4294967296 is INTEGER, 9223372036854775808 is UINTEGER.
+    '' A hex, octal or binary literal is not this rule's: '&hFFFFFFFF' is INTEGER.
+    declare function DecimalLitUnsigned( byref lp as Tko.LiteralPayload ) as boolean
     declare function ConstOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
           byref src as Tko.SourceManager, byref names as Tko.Interner, _

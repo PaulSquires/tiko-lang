@@ -653,7 +653,9 @@ private sub ScanNumber( byref s as Scanner )
         lit.fltValue = val( spelling )
     else
         lit.kind = cast( ubyte, Tko.TK_INT_LIT )
-        lit.intValue = cast( ulongint, vallng( spelling ) )
+        '' UNSIGNED, so 18446744073709551615 keeps all 64 bits -- the TYPE then says
+        '' how to read them (Check.DecimalLitUnsigned).
+        lit.intValue = valulng( spelling )
     end if
 
     PushLiteral( s, lit, first )

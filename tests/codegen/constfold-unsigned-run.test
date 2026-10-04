@@ -1,0 +1,61 @@
+'' RUN: constants folded as the same expression runs: a 32-bit unsigned operand widens
+'' by zero-extension, the bitwise operators keep the result's signedness, 'clng' of
+'' an integer wraps, and 'asc'/'len' of an escaped literal read its decoded text.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/constfold-unsigned.bas -o tests/codegen/constfoldunsigned.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/constfoldunsigned.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: K1  9.223372036854776e+018
+'' EXPECT-RUN-OUT: K2  0.5
+'' EXPECT-RUN-OUT: K3  100
+'' EXPECT-RUN-OUT: K4 -1
+'' EXPECT-RUN-OUT: K5 -1294967296
+'' EXPECT-RUN-OUT: rt clng(3e9) -1294967296
+'' EXPECT-RUN-OUT: K6 -1
+'' EXPECT-RUN-OUT: inline (1ull shl 63) > 0 -1
+'' EXPECT-RUN-OUT: rt (u1 shl 63) > 0 -1
+'' EXPECT-RUN-OUT: K7 -1
+'' EXPECT-RUN-OUT: K8 9223372036854775807
+'' EXPECT-RUN-OUT: rt K8 9223372036854775807
+'' EXPECT-RUN-OUT: K9  0
+'' EXPECT-RUN-OUT: K10 -56
+'' EXPECT-RUN-OUT: K11 44
+'' EXPECT-RUN-OUT: K12 -56
+'' EXPECT-RUN-OUT: K13 -9223372036854775808
+'' EXPECT-RUN-OUT: K14  1
+'' EXPECT-RUN-OUT: K15  64
+'' EXPECT-RUN-OUT: K16 -4
+'' EXPECT-RUN-OUT: K17  6
+'' EXPECT-RUN-OUT: K18  10000000000
+'' EXPECT-RUN-OUT: K19  2
+'' EXPECT-RUN-OUT: K20  1
+'' EXPECT-RUN-OUT: K21  268435455
+'' EXPECT-RUN-OUT: K22 -1
+'' EXPECT-RUN-OUT: K23 -1
+'' EXPECT-RUN-OUT: rt 1ul-2ul -1
+'' EXPECT-RUN-OUT: K24  8000000000
+'' EXPECT-RUN-OUT: K25  131070
+'' EXPECT-RUN-OUT: K26 -3
+'' EXPECT-RUN-OUT: K27  4
+'' EXPECT-RUN-OUT: K28 10
+'' EXPECT-RUN-OUT: inline asc(!"\n") 10
+'' EXPECT-RUN-OUT: K29 65
+'' EXPECT-RUN-OUT: K30  5208208757389214273
+'' EXPECT-RUN-OUT: K31  2.5
+'' EXPECT-RUN-OUT: K32  3.5
+'' EXPECT-RUN-OUT: K33  3
+'' EXPECT-RUN-OUT: K34  3
+'' EXPECT-RUN-OUT: K35  1
+'' EXPECT-RUN-OUT: K36 -1
+'' EXPECT-RUN-OUT: K37  0.3333333
+'' EXPECT-RUN-OUT: K38  2
+'' EXPECT-RUN-OUT: K39  4
+'' EXPECT-RUN-OUT: K40 -294967296
+'' EXPECT-RUN-OUT: K41 18446744073709551615
+'' EXPECT-RUN-OUT: K42 true
+'' EXPECT-RUN-OUT: K43  4294967296
+'' EXPECT-RUN-OUT: K44  4.611686018427388e+018
+'' EXPECT-RUN-OUT: K45  1.215766545905693e+019

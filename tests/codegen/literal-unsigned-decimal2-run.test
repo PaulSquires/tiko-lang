@@ -1,0 +1,25 @@
+'' RUN: the same rule printed, divided, compared and converted to double, over every
+'' range boundary. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/literal-unsigned-decimal2.bas -o tests/codegen/literalunsigneddecimal2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/literalunsigneddecimal2.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: iif(c0, 2, 3.5) =  3.5
+'' EXPECT-RUN-OUT: iif(c1, 2.5, 3) =  2.5
+'' EXPECT-RUN-OUT: iif(c0, 1ul, -1) = -1
+'' EXPECT-RUN-OUT: dv =  3.7
+'' EXPECT-RUN-OUT: 18446744073709551615 = 18446744073709551615
+'' EXPECT-RUN-OUT: as double  1.844674407370955e+019
+'' EXPECT-RUN-OUT: as ulongint 18446744073709551615
+'' EXPECT-RUN-OUT: 9223372036854775808 \ 2 = 4611686018427387904
+'' EXPECT-RUN-OUT: 10000000000000000000 / 3 =  3.333333333333334e+018
+'' EXPECT-RUN-OUT: 3000000000 > -1 :  0
+'' EXPECT-RUN-OUT: m1 < 3000000000 :  0
+'' EXPECT-RUN-OUT: m1 < 2147483648 :  0
+'' EXPECT-RUN-OUT: sgn(-2.5) \ 2  0
+'' EXPECT-RUN-OUT: len(str(sgn(-2.5)))  2
+'' EXPECT-RUN-OUT: cdbl(18446744073709551615)  1.844674407370955e+019
+'' EXPECT-RUN-OUT: const BIGC 18446744073709551615
+'' EXPECT-RUN-OUT: BIGC > 0 -1

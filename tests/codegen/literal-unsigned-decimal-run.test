@@ -1,0 +1,17 @@
+'' RUN: an unsuffixed decimal literal of 2^31 to 2^32 - 1, or 2^63 and up, is UINTEGER, as
+'' fbc types it: 's < 3000000000' over an integer -1, '3000000000 \ -2' and
+'' '18446744073709551615 \ 2' each read the literal signed. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/literal-unsigned-decimal.bas -o tests/codegen/literalunsigneddecimal.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/literalunsigneddecimal.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: a 0
+'' EXPECT-RUN-OUT: b 0
+'' EXPECT-RUN-OUT: c 0
+'' EXPECT-RUN-OUT: d0
+'' EXPECT-RUN-OUT: e1500000000
+'' EXPECT-RUN-OUT: f9223372036854775807
+'' EXPECT-RUN-OUT: g 0
