@@ -170,7 +170,54 @@ function LowerConcatAssignStmt _
     if IsWideString_( c, tt ) then
         return LowerWideConcatAssign( c, target, WideStringElems( c, tt ), value )
     end if
-    return false
+
+    '' A FIXED NARROW STRING, and '*zp'. Nothing here took one, so 'z &= "def"' over a
+    '' 'zstring * 30' -- or through a 'zstring ptr' -- was DROPPED: 'abc' stayed 'abc'.
+    '' Measured, fbc appends to a 'string * N' in place and rebuilds the other two:
+    ''
+    ''     f &= "cd"     fb_StrConcatAssign( F, <tag>, "cd", 3, -1 )
+    ''     z &= "def"    vr = fb_StrConcat( &TMP, Z, 30, "def", 4 )
+    ''                   fb_StrAssign( Z, 30, vr, -1, 0 )
+    ''
+    '' -- the unsized '*zp' passing length 0, as it does everywhere.
+    dim as longint fxn
+    dim as long fxk = StrSwapKind_( c, tt, fxn )
+    if (fxk <> 1) andalso (fxk <> 3) then return false
+    if StrTermFlavour_( c, value ) = STF_UTF16 then return false
+    if StrTermFlavour_( c, value ) = STF_WIDE then return false
+    dim as MirValue fdst = LowerAddr( c, target )
+    if fdst.kind = cast( ubyte, MV_NONE ) then return false
+    if fxk = 3 then
+        dim as FB.Array( of ulong ) fa
+        fa.Push( cast( ulong, fdst.kind ) ) : fa.Push( cast( ulong, fdst.id ) )
+        PushStrLen_( c, fa, fxn )
+        if EmitStrTerm( c, fa, value, false ) = false then return false
+        fa.Push( cast( ulong, MV_CONST_INT ) ) : fa.Push( cast( ulong, -1 ) )
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, fa )
+        return true
+    end if
+    dim as long tslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if tslot < 0 then return false
+    dim as MirValue ftmp
+    ftmp.kind = cast( ubyte, MV_LOCAL )
+    ftmp.ty = cast( ubyte, MT_PTR )
+    ftmp.id = tslot
+    ZeroStrTempAtEntry_( c, ftmp )
+    dim as FB.Array( of ulong ) ca
+    ca.Push( cast( ulong, ftmp.kind ) ) : ca.Push( cast( ulong, ftmp.id ) )
+    ca.Push( cast( ulong, fdst.kind ) ) : ca.Push( cast( ulong, fdst.id ) )
+    PushStrLen_( c, ca, fxn )
+    if EmitStrTerm( c, ca, value, false ) = false then return false
+    dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, ca )
+    if acc.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) aa
+    aa.Push( cast( ulong, fdst.kind ) ) : aa.Push( cast( ulong, fdst.id ) )
+    PushStrLen_( c, aa, fxn )
+    aa.Push( cast( ulong, acc.kind ) ) : aa.Push( cast( ulong, acc.id ) )
+    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, -1 ) )
+    aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 0 )
+    EmitRtl( c, RTL_STR_ASSIGN, aa )
+    return true
 end function
 
 '' Flatten a left-leaning '+' chain into its terms, in source order.
