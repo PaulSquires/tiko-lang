@@ -782,6 +782,10 @@
     DIAG( TKO0947, SEV_ERROR,   "'%0' is not inside %1" )
     DIAG( TKO0948, SEV_ERROR,   "there is no outer %1 for '%0' to leave" )
     DIAG( TKO0949, SEV_ERROR,   "there is no label '%0' in this procedure" )
+    '' OPERANDS NO BUILTIN OPERATOR TAKES, fbc's 28 and 24: '*i' over an integer, '@5'.
+    '' tiko left both untyped and the statement unlowered -- symbols/proccheck.bas.
+    DIAG( TKO0950, SEV_ERROR,   "'*' dereferences a pointer, and this is not one" )
+    DIAG( TKO0951, SEV_ERROR,   "'@' takes the address of a variable, and a literal is not one" )
     DIAG( TKO0929, SEV_ERROR,   "type( ... ) cannot build a '%0': its field '%1' is a var-len string, which only a constructor can fill" )
     '' ARRAY RESULTS, 'function f( ) as T( )' -- A TIKO EXTENSION, fbc has none. 0836 and 0837
     '' are the parser's (parser/declparam.bas, typeref.bas); 0838-0842 are Check's, in

@@ -830,7 +830,9 @@ function TypeOf_ _
                     t = BinaryResult( Tko.KW_AND, inner, inner, *c.types )
                 end if
             elseif (op = Tko.TK_MINUS) orelse (op = Tko.TK_PLUS) then
-                t = BinaryResult( Tko.TK_PLUS, inner, inner, *c.types )
+                '' '-s' is no concatenation: a string has no sign (fbc's 20).
+                t = BinaryResult( Tko.TK_MINUS, inner, inner, *c.types )
+                if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( inner ) = Tko.TK_POINTER) then t = Tko.TYPE_NONE
                 '' NEGATION IS SIGNED: '-u' is -12 for u = 12 at every unsigned width, measured;
                 '' the 64-bit two printed 18446744073709551604.
                 if (op = Tko.TK_MINUS) andalso (t <> Tko.TYPE_NONE) then

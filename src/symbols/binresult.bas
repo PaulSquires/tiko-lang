@@ -79,13 +79,21 @@ function BinaryResult _
     dim as boolean lPtr = (types.Kind( lhs2 ) = Tko.TK_POINTER)
     dim as boolean rPtr = (types.Kind( rhs2 ) = Tko.TK_POINTER)
     if lPtr orelse rPtr then
+        '' 'p andalso 1' and 'p orelse q' are INTEGER, as a pointer compares: fbc takes
+        '' them, and with no type tiko refused to lower the statement.
+        if IsShortCircuit_( op ) then return types.Builtin( Tko.TY_INTEGER )
+        '' THE OFFSET IS AN INTEGER: 'p + 1.5' and 'p - d' are error 20, measured, and
+        '' were typed as the pointer.
+        dim as Tko.TypeId oth = iif( lPtr, rhs2, lhs2 )
+        dim as boolean othInt = (types.Kind( oth ) = Tko.TK_BUILTIN) andalso _
+                                IsInt_( types.BuiltinOf( oth ) )
         if op = Tko.TK_MINUS then
             if lPtr andalso rPtr then return types.Builtin( Tko.TY_INTEGER )
-            if lPtr then return lhs2
+            if lPtr andalso othInt then return lhs2
             return Tko.TYPE_NONE
         end if
         if op = Tko.TK_PLUS then
-            if lPtr andalso rPtr then return Tko.TYPE_NONE
+            if (lPtr andalso rPtr) orelse (othInt = false) then return Tko.TYPE_NONE
             if lPtr then return lhs2
             return rhs2
         end if
@@ -126,8 +134,11 @@ function BinaryResult _
     '' Without this the pair had NO TYPE, and with no type the concat fallback won:
     '' 'print *p + 0' came out as fb_StrConcat and printed "abc0". It verified.
     '' '&' is decided above and stays a concatenation either way.
-    dim as boolean lBare = (lb = Tko.TY_ZSTRING) orelse (lb = Tko.TY_WSTRING)
-    dim as boolean rBare = (rb = Tko.TY_ZSTRING) orelse (rb = Tko.TY_WSTRING)
+    '' ...and only a BARE one: 'zstring * 8' flavours to ZSTRING above but does not decay.
+    dim as boolean lBare = ((lb = Tko.TY_ZSTRING) orelse (lb = Tko.TY_WSTRING)) andalso _
+                           (FixedStringElem( lhs, types ) = Tko.TYPE_NONE)
+    dim as boolean rBare = ((rb = Tko.TY_ZSTRING) orelse (rb = Tko.TY_WSTRING)) andalso _
+                           (FixedStringElem( rhs, types ) = Tko.TYPE_NONE)
     '' COMPARISON DECAYS TOO, when the other side is a number: measured, fbc writes
     '' '(int64)(uint8)*P$0 >= 65ll' for '*p >= 65' -- a NUMERIC comparison, not a
     '' string one -- and '#print typeof' says INTEGER. '*p = "abc"' still compares as

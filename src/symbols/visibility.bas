@@ -1243,6 +1243,7 @@ private sub Walk_ _
     if k = N_INTRINSIC then CheckEraseStructors_( c, id, here )
     if k = N_SELECT then CheckSelectCaseKinds_( c, id )
     if k = N_WITH then CheckWithSubject_( c, id )
+    if (k = N_DEREF) orelse (k = N_ADDROF) then CheckDerefAddrOperand_( c, id, k )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
     if k = N_INDEX then CheckIndexNeedsPointer_( c, id )
     if k = N_NEW then CheckNewString_( c, id )

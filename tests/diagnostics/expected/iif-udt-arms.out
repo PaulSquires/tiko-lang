@@ -17,7 +17,7 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp8 size 8
   local agg $tmp9 size 8
   local agg $tmp10 size 8
-  local ptr $tmp11
+  local agg $tmp11 size 8
   local agg $tmp12 size 16
   entry0:
     %1 = alloca ptr $tmp0
@@ -44,7 +44,7 @@ func i32 main(i32 $0, ptr $1) {
     %22 = alloca ptr $tmp9
     %27 = alloca ptr $tmp10
     %32 = alloca ptr $tmp11
-    %38 = alloca ptr $tmp12
+    %37 = alloca ptr $tmp12
     condbr %16, iif.then1, iif.else2
   iif.then1:
     %18 = load @a
@@ -87,6 +87,7 @@ func i32 main(i32 $0, ptr $1) {
     condbr %31, iif.then10, iif.else11
   iif.then10:
     %33 = load @a
+    store @$tmp11, %33
     br iif.join12
   iif.else11:
     %34 = load @pp_
@@ -94,24 +95,23 @@ func i32 main(i32 $0, ptr $1) {
     br iif.join12
   iif.join12:
     %35 = load @$tmp11
-    %36 = load %35
-    store @a, %36
-    %37 = load @cond
-    condbr %37, iif.then13, iif.else14
+    store @a, %35
+    %36 = load @cond
+    condbr %36, iif.then13, iif.else14
   iif.then13:
     call void _ZN7PARENT_C1ERKS_(@$tmp12, @bs)
     br iif.join15
   iif.else14:
-    %39 = load @dv
-    store @$tmp12, %39
+    %38 = load @dv
+    store @$tmp12, %38
     br iif.join15
   iif.join15:
-    %40 = load @$tmp12
-    store @bs, %40
-    %41 = const i32 0
-    call.rtl void fb_End(%41)
-    %42 = load @$tmp0
-    ret %42
+    %39 = load @$tmp12
+    store @bs, %39
+    %40 = const i32 0
+    call.rtl void fb_End(%40)
+    %41 = load @$tmp0
+    ret %41
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -159,9 +159,7 @@ func void _ZN7PARENT_aSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 5 functions, 20 blocks, 82 insts, 1 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 1
-  skip-site src\mir\lowerutil.bas:40 1
+lowered: 5 functions, 20 blocks, 82 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/iif-udt-arms.bas(27,8): error TKO0655: the two arms of 'iif' have incompatible types
      |
   27 | a = iif( cond, a, o )

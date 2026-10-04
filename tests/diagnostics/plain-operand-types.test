@@ -1,0 +1,21 @@
+'' TKO0820, TKO0950, TKO0951 -- fbc's 20, 28 and 24: operands no builtin operator takes.
+'' 's + 1' and 'b + 1' were lowered as a concatenation ('s + 1' printed "x1"), 'p + 1.5'
+'' was typed as the pointer, and '*i', '@5' and '-b' stopped the build as an unlowered
+'' statement. 'p andalso 1' is INTEGER in fbc and was refused. See proccheck.bas.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/plain-operand-types.bas -o tests/diagnostics/src/plain-operand-types.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: plain-operand-types.bas(8,9): error TKO0820: no operator '+' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(9,9): error TKO0820: no operator '+' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(10,9): error TKO0820: no operator '+' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(11,9): error TKO0820: no operator '*' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(12,10): error TKO0820: no operator '+' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(13,10): error TKO0820: no operator '-' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(14,7): error TKO0820: no operator '-' takes these operand types
+'' EXPECT-OUT: plain-operand-types.bas(15,7): error TKO0950: '*' dereferences a pointer, and this is not one
+'' EXPECT-OUT: plain-operand-types.bas(16,7): error TKO0951: '@' takes the address of a variable, and a literal is not one
+'' EXPECT-NOT: plain-operand-types.bas(18,
+'' EXPECT-NOT: plain-operand-types.bas(19,
+'' EXPECT-NOT: plain-operand-types.bas(20,
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 9

@@ -1,6 +1,6 @@
-'' A statement lowering declines. Check accepts 'print s - "a"' today (fbc's error 20),
-'' so this is the shape to use until it does not -- then pick another decline.
-dim as string s = "xyz"
-print "before"
-print s - "a"
+'' A statement lowering declines. Check accepts 'cast( integer, t )' over a UDT today (fbc's
+'' error 20), so this is the shape to use until it does not -- then pick another decline.
+type T : a as integer : end type
+dim as T t : print "before"
+print cast( integer, t )
 print "after"

@@ -614,6 +614,27 @@ end function
 '' an 'operator cast' (UdtOperandBinaryType_); a node with a UDT operand, both operand
 '' types known, and NEITHER is the case. Not inside a template: its T operands are
 '' untyped, and so is not reported.
+'' WHAT AN OPERAND IS, for the two sweeps below: 0 nothing judged here (a UDT, a 'void'
+'' result, 'any', an untyped one), 1 a number, boolean, enum or pointer, 2 a string --
+'' a fixed-length one being an ARRAY of a string builtin. Two strings are never judged:
+'' 'wstring + ustring' is a concatenation BinaryResult does not type.
+private function OperandClass_( byref c as Ctx, byval t as TypeId ) as long
+    dim as TypeId t0 = t
+    select case c.types->Kind( t )
+    case TK_POINTER, TK_ENUM : return 1
+    case TK_ARRAY : t = c.types->Unqualify( c.types->Inner( t ) )
+    case TK_BUILTIN
+    case else : return 0
+    end select
+    if c.types->Kind( t ) <> TK_BUILTIN then return 0
+    select case c.types->BuiltinOf( t )
+    case TY_VOID, TY_ANY, TY_CVA_LIST : return 0
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR : return 2
+    end select
+    '' A BARE ARRAY of numbers has its own diagnostic.
+    return iif( c.types->Kind( t0 ) = TK_ARRAY, 0, 1 )
+end function
+
 private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPayload ptr )
     if (bp->lhs = NODE_NONE) orelse (bp->rhs = NODE_NONE) then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
@@ -627,7 +648,17 @@ private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPa
     if TupleLike_( c, lt ) orelse TupleLike_( c, rt ) then return
     dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
     dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
-    if (lUdt orelse rUdt) = false then return
+    '' ...AND OVER TWO PLAIN OPERANDS that no builtin operator takes -- 's + 1', 'b + 1',
+    '' 'p + 1.5', all error 20. BinaryResult left them untyped and a concatenation
+    '' fallback lowered them: 's + 1' printed "x1".
+    if (lUdt orelse rUdt) = false then
+        dim as long lc = OperandClass_( c, lt ), rc = OperandClass_( c, rt )
+        if (lc <> 0) andalso (rc <> 0) andalso ((lc = 2) andalso (rc = 2)) = false then
+            c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
+                             lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
+        end if
+        return
+    end if
     if lUdt then
         if StructorOf_( c, lt, "cast" ) <> 0 then return
     end if
@@ -699,6 +730,35 @@ private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), selfNm )
 end sub
 
+'' '*i' OVER A NUMBER and '@5' OVER A LITERAL -- fbc's 28 and 24. A string is left to
+'' the rules that already judge it.
+private sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+    dim as UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId opnd = up->operand
+    if opnd = NODE_NONE then return
+    if k = N_ADDROF then
+        select case c.ast->Kind( opnd )
+        case N_INT_LIT, N_FLOAT_LIT
+            c.diags->Report( TKO0951, PointRange( c.ast->Loc( id ) ) )
+        end select
+        return
+    end if
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( opnd ) )
+    if t = TYPE_NONE then return
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    select case c.types->Kind( t )
+    case TK_ENUM
+    case TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR, TY_ANY
+            return
+        end select
+    case else
+        return
+    end select
+    c.diags->Report( TKO0950, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 private sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
     dim as UnaryPayload ptr up = @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
     select case cast( TokenKind, up->op )
@@ -710,9 +770,15 @@ private sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
     dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( up->operand ) )
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
-    if c.types->Kind( t ) <> TK_UDT then return
-    if TupleLike_( c, t ) then return
-    if StructorOf_( c, t, "cast" ) <> 0 then return
+    if c.types->Kind( t ) <> TK_UDT then
+        '' ...and over a plain operand Check could not type: '-b' over a boolean.
+        if (t = TYPE_NONE) orelse (c.info->TypeOf_( id ) <> TYPE_NONE) then return
+        if OperandClass_( c, t ) = 0 then return
+        if (c.types->Kind( t ) = TK_POINTER) andalso (up->op = KW_NOT) then return
+    else
+        if TupleLike_( c, t ) then return
+        if StructorOf_( c, t, "cast" ) <> 0 then return
+    end if
     c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
                      lcase( TokenKindText( cast( TokenKind, up->op ) ) ) )
 end sub
