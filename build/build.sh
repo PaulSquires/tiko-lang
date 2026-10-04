@@ -108,7 +108,12 @@ build_dll( ) {
     ( cd "$ROOT" && "$TKO_STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
-    if [ ! -d "$EDITOR" ]; then
+    # ONLY AN OPTIMISED DLL GOES INTO THE EDITOR. A Debug build is ~44 MB, runs -O 0 frames
+    # in the editor's process and overflowed its stack on deep input (audit F-53); it stays
+    # in bin/. 'build/build.sh Release --dll' is the one that updates the editor.
+    if [ "$CFG" = "Debug" ]; then
+        echo "build: Debug tikoParser.dll stays in bin/ -- the editor takes a Release one (build.sh Release --dll)"
+    elif [ ! -d "$EDITOR" ]; then
         echo "build: no editor at $EDITOR -- tikoParser.dll stays in bin/ (set TKO_EDITOR_DIR)"
     elif cp -f "$ROOT/bin/tikoParser.dll" "$EDITOR/tikoParser.dll"; then
         echo "build: tikoParser.dll -> $EDITOR"

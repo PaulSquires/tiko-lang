@@ -16,4 +16,24 @@ while len( command( i ) ) > 0
     i += 1
 wend
 
-end Driver.Run( args )
+'' THE COMPILER RUNS ON A 64 MB STACK. Every stage recurses over the tree, and on the 2 MB
+'' main stack 200 nested IFs, a 3,000-term '+' chain or 1,000 nested parentheses crashed
+'' with 0xC0000005 and no diagnostic (F-46); fbc takes 25,000 terms. A thread is the one
+'' portable way to choose the size -- Linux gives the main thread whatever ulimit says.
+'' Should the thread not start, the compile runs here as it always did.
+type RunJob_
+    as StrVec ptr args
+    as long rc
+end type
+
+private sub RunOnBigStack_( byval p as any ptr )
+    dim as RunJob_ ptr j = p
+    j->rc = Driver.Run( *j->args )
+end sub
+
+dim as RunJob_ job
+job.args = @args
+dim as any ptr th = threadcreate( @RunOnBigStack_, @job, 64 * 1024 * 1024 )
+if th = 0 then end Driver.Run( args )
+threadwait( th )
+end job.rc

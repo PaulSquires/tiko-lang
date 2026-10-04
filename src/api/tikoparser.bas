@@ -153,6 +153,16 @@ private function Marshal_( byref r as Tko.Scan.ScanResult ) as TKP_RESULT ptr
     return res
 end function
 
+type ScanJob_
+    as Tko.StrVec ptr args
+    as Tko.Scan.ScanResult ptr r
+end type
+
+private sub ScanOnBigStack_( byval p as any ptr )
+    dim as ScanJob_ ptr j = p
+    Tko.Driver.Run( *j->args, 0, j->r )
+end sub
+
 private function DoScan_ _
     ( byref file as string, byval hasText as boolean, byref text as string, _
       byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as long
@@ -186,7 +196,17 @@ private function DoScan_ _
     dim as Tko.Scan.ScanResult r
     r.hasRootText = hasText
     r.rootText = text
-    Tko.Driver.Run( args, 0, @r )
+    '' ON A 64 MB STACK OF ITS OWN, not the editor's: the scan recurses over the tree, and
+    '' 250 nested IFs overflowed the host thread's stack and killed the EDITOR (F-53).
+    dim as ScanJob_ job
+    job.args = @args
+    job.r = @r
+    dim as any ptr th = threadcreate( @ScanOnBigStack_, @job, 64 * 1024 * 1024 )
+    if th = 0 then
+        Tko.Driver.Run( args, 0, @r )
+    else
+        threadwait( th )
+    end if
     *ppResult = Marshal_( r )
     return TKP_OK
 end function
