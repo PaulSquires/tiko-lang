@@ -43,9 +43,23 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
+    '' AN EMPTY ITEM -- a separator with no item before it, 'write 1, , 3' -- is
+    '' fb_WriteVoid( ch, 2 ): measured, fbc writes '1,<TAB>3' where tiko wrote '1,3'
+    '' (audit F-73, RT-19). A trailing comma still ends nothing.
+    dim as boolean prevSep = true
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
-        if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
+        if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
+            if prevSep then
+                dim as FB.Array( of ulong ) ea
+                ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
+                PushConst( ea, 2 )
+                EmitRtl( c, RTL_WRITE_VOID, ea )
+            end if
+            prevSep = true
+            continue for
+        end if
+        prevSep = false
 
         '' A comma FOLLOWING this item pads to the next zone; running out of children
         '' ends the line. A trailing comma is still a pad, which is why the 2 stands

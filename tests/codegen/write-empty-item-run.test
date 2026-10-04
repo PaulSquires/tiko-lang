@@ -1,0 +1,13 @@
+'' RUN: WRITE with an empty item -- 'write 1, , 3' -- writes fb_WriteVoid's separator for
+'' it: fbc '1,<TAB>3', tiko wrote '1,3'. A trailing comma still ends nothing.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/write-empty-item.bas -o tests/codegen/writeemptyitem.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/writeemptyitem.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 	3
+'' EXPECT-RUN-OUT: 1,		2
+'' EXPECT-RUN-OUT: 1,1,	
+'' EXPECT-RUN-OUT: "x",2
