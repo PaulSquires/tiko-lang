@@ -37,6 +37,7 @@ N_MODULE (35) <1:1>
     N_IDENT 's' <13:14>
   N_INTRINSIC [GET] <14:1>
     N_INT_LIT 1 radix=10 <14:6>
+    N_ELIDED <14:9>
     N_IDENT 'n' <14:11>
   N_INTRINSIC [PUT] <15:1>
     N_INT_LIT 10 radix=10 <15:6>

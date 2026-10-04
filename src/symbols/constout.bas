@@ -102,11 +102,14 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
                 ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + i] ) )
             next
         case KW_GET
-            '' The LAST item, file form or graphics: the variable read into, the array filled.
+            '' The variable read into: the SECOND item of the positional file form -- an
+            '' amount and a bytes-read may follow it -- the LAST of the graphics one.
             if sp->count < 1 then return
-            ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + sp->count - 1] ) )
+            dim as long gi = sp->count - 1
+            if ((sp->extra and 1) <> 0) andalso (sp->count >= 2) then gi = 1
+            ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + gi] ) )
             '' Bit 1 of 'extra' is the FILE form; the graphics one alone refuses a call's element.
-            if (sp->extra and 1) = 0 then CheckGetElemThroughCall_( c, cast( NodeId, c.ast->children[sp->first + sp->count - 1] ) )
+            if (sp->extra and 1) = 0 then CheckGetElemThroughCall_( c, cast( NodeId, c.ast->children[sp->first + gi] ) )
         case KW_LSET, KW_RSET
             if sp->count < 1 then return
             dim as NodeId t0 = cast( NodeId, c.ast->children[sp->first] )

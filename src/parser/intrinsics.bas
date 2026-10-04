@@ -511,7 +511,20 @@ private sub IntrGetPut( byref p as Tko.ParserState, byref sp as Tko.StmtPayload 
     end if
 
     dim as Tko.NodeIdVec items
+    '' THE FILE FORM IS POSITIONAL -- '#f, pos, var, amount, bytesread' -- so an EMPTY slot
+    '' is kept, as the expression form keeps it: 'put #1, , buf( 0 ), 10' dropped the
+    '' position and read as position buf( 0 ), variable 10.
+    if isFile then
+        do
+            if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
+            dim as long before = p.pos
+            items.Push( cast( ulong, ArgOrElided( p, Tko.TK_EOL, false ) ) )
+            if Accept( p, Tko.TK_COMMA ) = false then exit do
+            if p.pos = before then exit do
+        loop
+    end if
     do
+        if isFile then exit do
         if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then exit do
         if Peek( p ) = Tko.TK_COMMA then
             Advance( p )

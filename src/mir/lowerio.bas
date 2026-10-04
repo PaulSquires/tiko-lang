@@ -697,6 +697,36 @@ end function
 '' A STRING OPERAND TAKES A DIFFERENT ENTRY POINT, fb_FileGetStrLarge, whose last
 '' argument is a signed length rather than a byte count. Not modelled here: it declines,
 '' which is the honest answer for a shape whose argument means something else.
+'' THE BYTES-READ VARIABLE, 'get #f, pos, v, n, nread' -- its ADDRESS, appended, and the
+'' position widened to the IOB entry points' int64. Measured, fbc:
+''
+''     fb_FileGetLargeIOB( 2, 33ll, (void*)Q$0, 8ull, &NREAD$0 )
+''
+'' tiko read only the first two items, so nread stayed 0 where fbc's is 8. False when there
+'' is none; 'ok' false when there is one and its address cannot be taken.
+private function FileGetIob_ _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval isPut as boolean, _
+      byref args as FB.Array( of ulong ), byref ok as boolean ) as boolean
+    ok = true
+    if isPut orelse (sp->count < 4) then return false
+    dim as Tko.NodeId nrN = cast( Tko.NodeId, c.ast->children[sp->first + 3] )
+    if nrN = Tko.NODE_NONE then return false
+    if c.ast->Kind( nrN ) = Tko.N_ELIDED then return false
+    dim as MirValue na = LowerAddr( c, nrN )
+    if na.kind = cast( ubyte, MV_NONE ) then
+        ok = false
+        return false
+    end if
+    '' args[2..3] is the position: the IOB forms take it as an int64 on every target.
+    dim as MirValue pv
+    pv.kind = cast( ubyte, args[2] ) : pv.id = args[3]
+    pv.ty = cast( ubyte, iif( c.types->target.pointerBits = 32, MT_I32, MT_I64 ) )
+    pv = Coerce( c, pv, MT_I64 )
+    args[2] = cast( ulong, pv.kind ) : args[3] = pv.id
+    args.Push( cast( ulong, na.kind ) ) : args.Push( cast( ulong, na.id ) )
+    return true
+end function
+
 function LowerFileGetPut _
     ( byref c as Ctx, byval id as Tko.NodeId, byval isPut as boolean, _
       byref outv as MirValue ) as boolean
@@ -767,6 +797,12 @@ function LowerFileGetPut _
         sargs.Push( cast( ulong, pv.kind ) ) : sargs.Push( cast( ulong, pv.id ) )
         sargs.Push( cast( ulong, sa.kind ) ) : sargs.Push( cast( ulong, sa.id ) )
         PushStrLen_( c, sargs, -1 )
+        dim as boolean sok
+        if FileGetIob_( c, sp, isPut, sargs, sok ) then
+            outv = EmitRtl( c, RTL_FILE_GET_STR_LARGE_IOB, sargs )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+        if sok = false then return false
         outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT_STR, RTL_FILE_GET_STR ), sargs )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
@@ -801,6 +837,12 @@ function LowerFileGetPut _
         wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
         dim as MirValue wn = ConstInt( c, nel, zt )
         wargs.Push( cast( ulong, wn.kind ) ) : wargs.Push( cast( ulong, wn.id ) )
+        dim as boolean wok
+        if FileGetIob_( c, sp, isPut, wargs, wok ) then
+            outv = EmitRtl( c, RTL_FILE_GET_WSTR_LARGE_IOB, wargs )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+        if wok = false then return false
         outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT_STR, RTL_FILE_GET_WSTR ), wargs )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
@@ -835,14 +877,22 @@ function LowerFileGetPut _
                     @c.ast->lists[cast( long, c.ast->nodes[cast( long, varN )].data )]
                 aet = c.info->TypeOf_( avp2->target )
             end if
-            if c.types->IsDynArray( aet ) = false then
+            '' A DYNAMIC ARRAY TOO: its slot IS the descriptor fbc passes, '&DYN$0'. It was
+            '' refused when tiko built none, and 'get #f, 1, dyn()' left the array zero.
+            scope
                 dim as FB.Array( of ulong ) aargs
                 aargs.Push( cast( ulong, chan.kind ) ) : aargs.Push( cast( ulong, chan.id ) )
                 aargs.Push( cast( ulong, pv.kind ) ) : aargs.Push( cast( ulong, pv.id ) )
                 aargs.Push( cast( ulong, adesc.kind ) ) : aargs.Push( cast( ulong, adesc.id ) )
+                dim as boolean aok
+                if FileGetIob_( c, sp, isPut, aargs, aok ) then
+                    outv = EmitRtl( c, RTL_FILE_GET_ARRAY_LARGE_IOB, aargs )
+                    return (outv.kind <> cast( ubyte, MV_NONE ))
+                end if
+                if aok = false then return false
                 outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT_ARRAY, RTL_FILE_GET_ARRAY ), aargs )
                 return (outv.kind <> cast( ubyte, MV_NONE ))
-            end if
+            end scope
         end if
     end if
     dim as long vsz = SizeOfType( c, vt )
@@ -855,7 +905,32 @@ function LowerFileGetPut _
     args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
     args.Push( cast( ulong, va.kind ) ) : args.Push( cast( ulong, va.id ) )
     dim as MirValue sv = ConstInt( c, vsz, zt )
+    '' THE AMOUNT IS IN ELEMENTS: 'put #1, , buf( 0 ), 10' over a LONG array is 40 bytes,
+    '' measured ('fb_FilePutLarge( 1, 0ll, BUF$0, 40ull )'). tiko wrote one element.
+    if sp->count >= 3 then
+        dim as Tko.NodeId amtN = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
+        if amtN <> Tko.NODE_NONE then
+            if c.ast->Kind( amtN ) <> Tko.N_ELIDED then
+                dim as MirValue av = LowerExpr( c, amtN )
+                if av.kind = cast( ubyte, MV_NONE ) then return false
+                av = CoerceTy( c, av, zt, c.info->TypeOf_( amtN ) )
+                dim as MirInst mi
+                mi.op = cast( ushort, M_MUL )
+                mi.ty = cast( ubyte, zt )
+                mi.a = av
+                mi.b = sv
+                sv = Emit( c, mi )
+                if sv.kind = cast( ubyte, MV_NONE ) then return false
+            end if
+        end if
+    end if
     args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
+    dim as boolean gok
+    if FileGetIob_( c, sp, isPut, args, gok ) then
+        outv = EmitRtl( c, RTL_FILE_GET_LARGE_IOB, args )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if gok = false then return false
     outv = EmitRtl( c, iif( isPut, RTL_FILE_PUT, RTL_FILE_GET ), args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
