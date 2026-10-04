@@ -423,6 +423,46 @@ function CompileUnit _
         '' void slot IS the declined declaration, and the message the user
         '' needs is the one above it.
         if FrontendFailed_( ctx ) then doCodegen = false
+        '' THE VERIFIER RUNS BEFORE THE EMITTER, and a module it rejects, or one with a
+        '' statement lowering declined, is NOT BUILT. Both used to be reported after the
+        '' object and the link already existed -- a verify failure on stderr, a decline as
+        '' a count under --dump-ir -- and the exit code was 0 either way, so the program
+        '' ran without the statement. Five audits of this compiler found that path on
+        '' their own (2026-10-03). The MIR dump and its report are unchanged.
+        dim as Tko.Mir.VerifyResult vr = Tko.Mir.Verify( mm, ctx.names )
+        if doCodegen then
+            if vr.failures > 0 then
+                dim as long vnl = instr( vr.report, chr( 10 ) )
+                dim as string vfirst = iif( vnl > 0, left( vr.report, vnl - 1 ), vr.report )
+                toolExit = ToolFail_( ctx, Tko.EXIT_ICE, Tko.TKO0993, _
+                    "the MIR verifier found " & str( vr.failures ) & " fault(s): " & vfirst )
+                doCodegen = false
+            elseif (lst.scopeImbalance > 0) orelse (lst.labelDepthMismatch > 0) then
+                toolExit = ToolFail_( ctx, Tko.EXIT_ICE, Tko.TKO0993, _
+                    "scopes opened and closed out of step -- " & str( lst.scopeImbalance ) & _
+                    " imbalance(s), " & str( lst.labelDepthMismatch ) & " label mismatch(es)" )
+                doCodegen = false
+            elseif lst.skipped > 0 then
+                '' '--allow-unlowered' makes it a WARNING and builds without the statement, as
+                '' every build did before -- for a program that has to build while its
+                '' declines are fixed. -Werror still stops it.
+                dim as Tko.DiagId sid = Tko.TKO0994
+                if ctx.options.allowUnlowered then sid = Tko.TKO0995
+                dim as long sbefore = ctx.diags.ErrorCount( )
+                for k as long = 0 to lst.skipLocs.Count - 1
+                    ctx.diags.Report( sid, _
+                        Tko.PointRange( cast( Tko.SourceLoc, lst.skipLocs[k] ) ), str( lst.skipped ) )
+                next
+                if lst.skipLocs.Count = 0 then ctx.diags.ReportGlobal( sid, str( lst.skipped ) )
+                dim as long sadded = ctx.diags.ErrorCount( ) - sbefore
+                ctx.diags.Flush( )
+                if sadded > 0 then
+                    ctx.toolErrors += sadded
+                    if toolExit = Tko.EXIT_OK then toolExit = Tko.EXIT_ICE
+                    doCodegen = false
+                end if
+            end if
+        end if
         if doCodegen then
             dim as Tko.Codegen.TargetDescription td = _
                 Tko.Codegen.TargetFor( ctx.options.target )
@@ -534,8 +574,7 @@ function CompileUnit _
         '' stdout is a report already and the two stay together.
         dim as boolean quiet = ctx.options.emitIr orelse ctx.options.emitAsm orelse wantsOutput
         '' The verifier is an ICE check, not a diagnostic: a failure means
-        '' the compiler built something malformed.
-        dim as Tko.Mir.VerifyResult vr = Tko.Mir.Verify( mm, ctx.names )
+        '' the compiler built something malformed. It ran above, before the emitter.
         if quiet then
             '' STDERR, opened here rather than through the diagnostic engine:
             '' this is not a diagnostic, it is the compiler reporting that it

@@ -108,6 +108,8 @@ namespace Tko
     '' FOR AN EDITOR. The console text is unchanged; this writes the same diagnostics
     '' AGAIN as tab-separated records -- docs/internals/diagnostics-file.md.
     OPT( OPT_DIAGFILE,  "--diagnostics-file", OPTK_VALUE, OPTCAT_DIAG, "path", "also write every diagnostic to <path> as tab-separated records" )
+    '' A STATEMENT THE COMPILER CANNOT LOWER STOPS THE BUILD (TKO0994); this builds without it.
+    OPT( OPT_ALLOWUNLOWERED, "--allow-unlowered", OPTK_FLAG, OPTCAT_DIAG, "", "warn (TKO0995) instead of failing when a statement could not be compiled" )
 
     OPT( OPT_DUMPSRC,   "--dump-source",  OPTK_FLAG, OPTCAT_DEVEL, "",        "list loaded source files and stop" )
     OPT( OPT_DUMPTOK,   "--dump-tokens",  OPTK_OPTVALUE, OPTCAT_DEVEL, "raw|pp", "dump the token stream, before or after the preprocessor" )
@@ -294,6 +296,7 @@ namespace Tko
         as boolean dumpVtable
         as boolean dumpRtl
         as boolean dumpIr
+        as boolean allowUnlowered
         as boolean emitIr
         as boolean emitAsm
         as boolean keepTemps

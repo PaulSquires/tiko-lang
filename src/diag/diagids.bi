@@ -858,6 +858,12 @@
     '' An emission failure: the compiler could not emit something it accepted. It was
     '' 'emit: ICE: ...' on STDOUT -- where under --emit-ir it landed inside the .ll.
     DIAG( TKO0993, SEV_ERROR,   "internal compiler error in emission: %0" )
+    '' A STATEMENT LOWERING DECLINED, in a build. It was a count printed under --dump-ir and
+    '' nothing else, so the object went out without the statement and the build said
+    '' nothing: 'spawn W' that never ran, 'print s - "a"' that vanished. driver/unit.bas.
+    DIAG( TKO0994, SEV_ERROR,   "internal compiler error: this statement was not compiled (%0 in this module); the build stops rather than leave it out" )
+    '' ...and the same under '--allow-unlowered', which builds the program without it.
+    DIAG( TKO0995, SEV_WARNING, "internal compiler error: this statement was not compiled (%0 in this module) and is left out of the build" )
 
 #endmacro
 

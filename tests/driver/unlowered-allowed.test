@@ -1,0 +1,11 @@
+'' '--allow-unlowered' turns TKO0994 into the warning TKO0995 and builds the program
+'' without the statement, as every build did before.
+'' TEST: cli
+'' ARGS: -target win64-msvc --allow-unlowered tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredallowed.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unlowered-stops-build.bas(5,1): warning TKO0995
+'' RUN: tests/driver/unloweredallowed.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: before
+'' EXPECT-RUN-OUT: after

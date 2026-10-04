@@ -86,6 +86,7 @@ constructor DriverOptions( )
     this.dumpScan = false
     this.resolveOnly = false
     this.dumpIr = false
+    this.allowUnlowered = false
     this.emitIr = false
     this.emitAsm = false
     this.keepTemps = false
@@ -594,6 +595,7 @@ function Parse _
         case Tko.OPT_VTABLE    : opts.dumpVtable = true
         case Tko.OPT_RTL       : opts.dumpRtl = true
         case Tko.OPT_DUMPIR    : opts.dumpIr = true
+        case Tko.OPT_ALLOWUNLOWERED : opts.allowUnlowered = true
         case Tko.OPT_EMITIR    : opts.emitIr = true
         case Tko.OPT_EMITASM   : opts.emitAsm = true
         case Tko.OPT_KEEPTEMPS : opts.keepTemps = true

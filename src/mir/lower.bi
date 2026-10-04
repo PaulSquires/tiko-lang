@@ -32,6 +32,8 @@ namespace Tko.Mir
         as long blocks
         as long insts
         as long skipped        '' statements this slice does not lower yet
+        '' WHERE the first of them are, as SourceLocs -- what a build reports (TKO0994).
+        as FB.Array( of ulong ) skipLocs
         '' Non-zero means the label pre-scan disagreed with the depth actually open at
         '' the label. Always zero unless ScanLabels has drifted from the lowering.
         as long labelDepthMismatch

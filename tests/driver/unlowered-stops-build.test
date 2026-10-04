@@ -1,0 +1,10 @@
+'' A statement the lowering declines STOPS THE BUILD: TKO0994 at its line, exit 4, no
+'' executable. It was a count printed only under --dump-ir, and the program was built
+'' without the statement. When Check starts refusing 'print s - "a"' (fbc's error 20)
+'' this test needs another declining shape, not a new expectation.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredstops.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 4
+'' EXPECT-OUT: unlowered-stops-build.bas(5,1): error TKO0994
+'' EXPECT-NO-FILE: tests/driver/unloweredstops.exe

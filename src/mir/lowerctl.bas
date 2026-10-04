@@ -135,6 +135,13 @@ sub SkipAt _
         c.st->innerKind.Push( 0 )
     wend
     c.st->innerKind[k] += 1
+    '' THE SOURCE LINE, kept for a build to report -- the first twenty, which is enough
+    '' to say what to look at and no more than an error list should hold.
+    if c.st->skipLocs.Count < 20 then
+        dim as ulong locAt = c.curStmtNode
+        if c.blameNode <> 0 then locAt = NonMacroNode_( c, c.blameNode )
+        if locAt <> 0 then c.st->skipLocs.Push( cast( ulong, c.ast->Loc( cast( Tko.NodeId, locAt ) ) ) )
+    end if
     '' CONSUMED. A blame set for one decline must not be reported for the next.
     c.blameNode = 0
 end sub
