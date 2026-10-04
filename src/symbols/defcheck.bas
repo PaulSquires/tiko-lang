@@ -81,6 +81,11 @@ private function DefSameSpelling_ _
         if (ap->count <> 0) orelse (bp->count <> 0) then return false
         if ap->op = cast( ushort, TK_IDENT ) then
             if ap->name <> bp->name then return false
+            '' ...AND THE SAME QUALIFIER: 'A.T' and 'B.T' are two types, and comparing only
+            '' the last name let 'declare sub f( byref q as A.T )' take a body over B.T --
+            '' which then read 16 bytes out of a 4-byte object. A different qualifier is
+            '' left to the resolved types below, so 'T' and 'B.T' naming one type agree.
+            if ap->ownerName <> bp->ownerName then return false
         end if
         a = ap->a : b = bp->a
     wend

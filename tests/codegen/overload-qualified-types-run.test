@@ -1,0 +1,11 @@
+'' RUN: overloads over 'A.T' and 'B.T' are two signatures; the second was refused as a
+'' duplicate (TKO0677) because only the last name was compared. Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/overload-qualified-types.bas -o tests/codegen/overloadqualifiedtypes.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/overloadqualifiedtypes.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A 3
+'' EXPECT-RUN-OUT: B 2.5

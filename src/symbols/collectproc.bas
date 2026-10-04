@@ -39,6 +39,9 @@ private function SameWrittenType_ _
     if ap->op <> bp->op then return false
     if ap->op = cast( ushort, Tko.TK_IDENT ) then
         if ap->name <> bp->name then return false
+        '' THE QUALIFIER TOO: overloads over 'A.T' and 'B.T' are two signatures, and fbc
+        '' takes both; read as one, the second was refused as a duplicate (TKO0677).
+        if ap->ownerName <> bp->ownerName then return false
     end if
     '' PTR nests another N_TYPEREF in 'a', so recursing compares the pointed-to type
     '' and, by arriving at different depths, the pointer depth with it.

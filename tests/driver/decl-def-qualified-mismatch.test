@@ -1,0 +1,6 @@
+'' A definition over 'B.T' does not match a declaration over 'A.T': two types, and comparing
+'' only the last name let the body read 16 bytes out of a 4-byte object. fbc's error 58.
+'' TEST: cli
+'' ARGS: -c tests/driver/src/decl-def-qualified-mismatch.bas -o tests/driver/declqualmismatch.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0795: parameter 1 of 'f' does not match its declaration
