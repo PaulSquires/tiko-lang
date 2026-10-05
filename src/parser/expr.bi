@@ -25,10 +25,12 @@ namespace Tko
 
     const PARSE_MAX_DEPTH as long = 256
     '' Statement nesting and the length of one operator chain (audit F-46): past them the
-    '' later stages' recursion ran out of stack with no diagnostic -- 5,000 nested IFs,
-    '' a 20,000-term '+' -- where fbc takes 25,000 terms. TKO0991 says so instead.
+    '' later stages' recursion ran out of stack with no diagnostic. TKO0991 says so instead.
+    '' The chain is ~5 KB of stack per operator on the 1 GB compile thread (driver/main.bas):
+    '' 150,000 leaves room, where fbc segfaults at 50,000 '+' and the old 12,000 refused
+    '' a 50,000-term '&' fbc compiles. fbc dies at 250 nested IFs; 1,024 holds.
     const PARSE_MAX_BLOCKS as long = 1024
-    const PARSE_MAX_CHAIN as long = 12000
+    const PARSE_MAX_CHAIN as long = 150000
 
     type ParserState
         as TokenVec ptr         toks

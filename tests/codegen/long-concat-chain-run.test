@@ -1,0 +1,10 @@
+'' A 25,000-TERM '&' CHAIN COMPILES, as fbc's does (it takes 50,000). The old 12,000-operator
+'' cap refused it, set where the 64 MB compile thread ran out; the thread now RESERVES 1 GB,
+'' committed only as deep as the recursion goes (audit Phase 5).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/long-concat-chain.bas -o tests/codegen/longconcatchain.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/longconcatchain.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  25000

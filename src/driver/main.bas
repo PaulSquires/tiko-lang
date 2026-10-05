@@ -47,11 +47,16 @@ dim as StrVec args
     next
 #endif
 
-'' THE COMPILER RUNS ON A 64 MB STACK. Every stage recurses over the tree, and on the 2 MB
+'' THE COMPILER RUNS ON A 1 GB STACK. Every stage recurses over the tree, and on the 2 MB
 '' main stack 200 nested IFs, a 3,000-term '+' chain or 1,000 nested parentheses crashed
-'' with 0xC0000005 and no diagnostic (F-46); fbc takes 25,000 terms. A thread is the one
-'' portable way to choose the size -- Linux gives the main thread whatever ulimit says.
+'' with 0xC0000005 and no diagnostic (F-46). 64 MB stopped at ~20,000 terms, below fbc's
+'' 25,000 '+' and its 50,000+ '&' (audit Phase 5); 1 GB took a 200,000-term chain. A
+'' thread is the one portable way to choose the size -- Linux gives the main thread
+'' whatever ulimit says -- and the size is RESERVED, not committed: on Windows
+'' threadcreate COMMITS its whole stack (1 GB of commit charge per compile, measured),
+'' so CreateThread is called with STACK_SIZE_PARAM_IS_A_RESERVATION; Linux maps it lazily.
 '' Should the thread not start, the compile runs here as it always did.
+const BIG_STACK_ as uinteger = 1024ull * 1024 * 1024
 type RunJob_
     as StrVec ptr args
     as long rc
@@ -64,7 +69,25 @@ end sub
 
 dim as RunJob_ job
 job.args = @args
-dim as any ptr th = threadcreate( @RunOnBigStack_, @job, 64 * 1024 * 1024 )
-if th = 0 then end Driver.Run( args )
-threadwait( th )
+#ifdef __FB_WIN32__
+    extern "Windows"
+        declare function CreateThread_ alias "CreateThread" ( byval attrs as any ptr, byval stackSize as uinteger, _
+            byval start as function( byval as any ptr ) as ulong, byval param as any ptr, _
+            byval flags as ulong, byval tid as ulong ptr ) as any ptr
+        declare function WaitForSingleObject_ alias "WaitForSingleObject" ( byval h as any ptr, byval ms as ulong ) as ulong
+        declare function CloseHandle_ alias "CloseHandle" ( byval h as any ptr ) as long
+    end extern
+    private function BigStackEntry_ stdcall( byval p as any ptr ) as ulong
+        RunOnBigStack_( p )
+        return 0
+    end function
+    dim as any ptr wth = CreateThread_( 0, BIG_STACK_, @BigStackEntry_, @job, &h00010000, 0 )
+    if wth = 0 then end Driver.Run( args )
+    WaitForSingleObject_( wth, &hFFFFFFFFul )
+    CloseHandle_( wth )
+#else
+    dim as any ptr th = threadcreate( @RunOnBigStack_, @job, BIG_STACK_ )
+    if th = 0 then end Driver.Run( args )
+    threadwait( th )
+#endif
 end job.rc
