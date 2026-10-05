@@ -459,7 +459,7 @@ declare function EmitRtl _
           byval dstUnsigned as boolean = false ) as MirValue
     declare function EmitImpEqv_ _
         ( byref c as Ctx, byval tk as Tko.TokenKind, byval ty as MirType, _
-          byref l as MirValue, byref r as MirValue ) as MirValue
+          byref l as MirValue, byref r as MirValue, byval isBool as boolean = false ) as MirValue
     declare function BinOpFor _
         ( byval tk as Tko.TokenKind, byval t as MirType, _
           byval isUnsigned as boolean ) as MirOp

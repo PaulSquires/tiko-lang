@@ -1339,11 +1339,24 @@ end function
 '' below: measured from fbc, 'a imp b' is '~A | B' and 'a eqv b' is '~(A ^ B)'. Both
 '' are bitwise on integers, so this is the same shape the other bitwise operators take
 '' with a NOT in front of one of them.
+'' ...AND OVER TWO BOOLEANS THE RESULT IS MASKED TO ITS LOW BIT: a boolean is 0 or 1, and the NOT
+'' made 'false eqv true' -2, which is true. Measured, fbc's 'cbool( 0 ) eqv cbool( 1 )' is false
+'' and 'cbool( 1 ) imp cbool( 0 )' false (boolean/boolean_bop.bas asserts the whole table).
 function EmitImpEqv_ _
     ( byref c as Ctx, byval tk as Tko.TokenKind, byval ty as MirType, _
-      byref l as MirValue, byref r as MirValue ) as MirValue
+      byref l as MirValue, byref r as MirValue, byval isBool as boolean = false ) as MirValue
 
     dim as MirValue none_
+    if isBool then
+        dim as MirValue raw = EmitImpEqv_( c, tk, ty, l, r, false )
+        if raw.kind = cast( ubyte, MV_NONE ) then return none_
+        dim as MirInst m1
+        m1.op = cast( ushort, M_AND )
+        m1.ty = cast( ubyte, ty )
+        m1.a = raw
+        m1.b = ConstInt( c, 1, ty )
+        return Emit( c, m1 )
+    end if
     if tk = Tko.KW_IMP then
         dim as MirInst n1
         n1.op = cast( ushort, M_NOT )

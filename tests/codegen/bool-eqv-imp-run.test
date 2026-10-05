@@ -1,0 +1,18 @@
+'' EQV AND IMP OVER TWO BOOLEANS. A boolean is 0 or 1, and the NOT made 'false eqv true' -2 --
+'' true. Expected output is fbc-modern's (fbc's boolean/boolean_bop.bas asserts the whole table).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/bool-eqv-imp.bas -o tests/codegen/booleqvimp.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/booleqvimp.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: falsetruetrue
+'' EXPECT-RUN-OUT: false
+'' EXPECT-RUN-OUT: truefalse
+'' EXPECT-RUN-OUT: falsetrue
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: truetruetrue
+'' EXPECT-RUN-OUT: falsefalsetrue
+'' EXPECT-RUN-OUT: truetruetrue
+'' EXPECT-RUN-OUT: truetruetrue
+'' EXPECT-RUN-OUT: truetrue

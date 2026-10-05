@@ -1106,7 +1106,7 @@ function LowerExpr _
         end if
         '' IMP and EQV are two instructions each and so have no entry in the table.
         if (tk = Tko.KW_IMP) orelse (tk = Tko.KW_EQV) then
-            return EmitImpEqv_( c, tk, opTy, l, r )
+            return EmitImpEqv_( c, tk, opTy, l, r, IsBooleanType( c, lt ) andalso IsBooleanType( c, rt ) )
         end if
         '' SIGNED OR UNSIGNED IS THE RESULT TYPE'S, for everything but a comparison. It
         '' was the LEFT operand's, and FreeBASIC promotes first: 'ulong \ integer' is an
