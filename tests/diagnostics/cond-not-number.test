@@ -1,0 +1,16 @@
+'' TKO0966, fbc's 24 / 20 / 99: a condition -- if, while, loop until, iif, andalso -- over a string
+'' or a UDT with no numeric or pointer cast. tiko let clang refuse it. symbols/condcheck.bas.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/cond-not-number.bas -o tests/diagnostics/src/cond-not-number.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cond-not-number.bas(9,4): error TKO0966
+'' EXPECT-OUT: cond-not-number.bas(10,4): error TKO0966
+'' EXPECT-OUT: cond-not-number.bas(11,7): error TKO0966
+'' EXPECT-OUT: cond-not-number.bas(12,17): error TKO0966
+'' EXPECT-OUT: cond-not-number.bas(13,12): error TKO0966
+'' EXPECT-OUT: cond-not-number.bas(14,4): error TKO0966
+'' EXPECT-OUT: cond-not-number.bas(15,4): error TKO0966
+'' EXPECT-NOT: cond-not-number.bas(16,
+'' EXPECT-NOT: cond-not-number.bas(17,
+'' EXPECT-NOT: cond-not-number.bas(18,
+'' EXPECT-MAX-DIAG: 7

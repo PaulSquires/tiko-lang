@@ -1299,6 +1299,7 @@ end sub
 #include once "symbols/udtstrintr.bas"
 #include once "symbols/basector.bas"
 #include once "symbols/branchtarget.bas"
+#include once "symbols/condcheck.bas"
 
 private sub WalkExtra_ _
     ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
@@ -1306,6 +1307,7 @@ private sub WalkExtra_ _
     CheckOperatorVisibility_( c, id, k, here )
     if k = N_AMBIGUOUS then CheckLetUnpackVisibility_( c, id, here )
     if k = N_AMBIGUOUS then CheckUdtAssign_( c, id )
+    CheckConditions_( c, id, k )   '' condcheck.bas
     if k = N_MEMBER then CheckMemberExists_( c, id )
     if k = N_INTRINSIC then CheckEraseDefaultCtor_( c, id )
     if k = N_PROC then CheckProcDefinitionShapes_( c, id )

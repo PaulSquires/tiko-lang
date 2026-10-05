@@ -801,6 +801,8 @@
     '' fbc's 24 -- symbols/proccheck.bas CheckSelectCaseKinds_.
     DIAG( TKO0964, SEV_ERROR,   "'select case' cannot take a '%0'; select on a field or a conversion of it" )
     '' fbc's 7 and 24 -- symbols/latesweeps3.bas CheckAggregateInitFields_.
+    '' fbc's 24 / 20 / 99 -- symbols/condcheck.bas.
+    DIAG( TKO0966, SEV_ERROR,   "a condition needs a number or a pointer, and this is a '%0'" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )
