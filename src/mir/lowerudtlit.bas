@@ -100,7 +100,11 @@ function UdtLiteralSlot_ _
     '' LowerUdtParenInit_ emits it below; constructing here as well put TWO
     '' '_ZN1AC1Ev( @$tmp4 )' calls in tests/diagnostics/abstract-expression's dump where
     '' fbc emits one.
-    if (lp->count > 0) andalso TypeNeedsInit_( c, lt ) then
+    '' ...NOT FOR A TYPE WITH CONSTRUCTORS, whose 'type<T>( args )' IS a constructor call that
+    '' LowerUdtParenInit_ makes: running the implicit one first constructed the object twice --
+    '' 'with type<UDT>( 123 )' counted 2 constructors and 1 destructor where fbc counts 1 and 1
+    '' (fbc's compound/with.bas).
+    if (lp->count > 0) andalso TypeNeedsInit_( c, lt ) andalso (StructorOf( c, lt, "__ctor" ) = Tko.SYMBOL_NONE) then
         dim as MirValue cselfv
         cselfv.kind = cast( ubyte, MV_LOCAL )
         cselfv.ty = cast( ubyte, MT_PTR )

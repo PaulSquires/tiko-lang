@@ -1,0 +1,13 @@
+'' type<T>( args ) OVER A TYPE WITH CONSTRUCTORS is one constructor call, also where its address
+'' is taken (a byref argument, a WITH subject). tiko default-constructed it first: two
+'' constructors, one destructor. Expected output is fbc-modern's (fbc's compound/with.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-typelit-ctor.bas -o tests/codegen/udttypelitctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udttypelitctor.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A:[c 5] takeR 5[d]  1 1
+'' EXPECT-RUN-OUT: B:[c 6] 6[d]  1 1
+'' EXPECT-RUN-OUT: C:[c 7] takeR 7[d]  1 1
+'' EXPECT-RUN-OUT: D:[c 8] 8[d]  1 1
