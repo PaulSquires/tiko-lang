@@ -319,6 +319,10 @@ function IifArmsScalar_ _
         if c.types->Kind( t ) = Tko.TK_POINTER then continue for
         if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
         if IsStringType( c, t ) then return false
+        '' ...and so is a DEREFERENCED zstring: '*pz' is an unsized ZSTRING, which
+        '' IsStringType does not count, and 'iif( c, *pa, *pb )' was taken for a number --
+        '' measured, fbc builds a string temporary from either arm (expressions/iif.bas).
+        if c.types->BuiltinOf( t ) = Tko.TY_ZSTRING then return false
     next
     return true
 end function

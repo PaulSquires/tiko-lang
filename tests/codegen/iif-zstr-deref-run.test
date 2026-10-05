@@ -1,0 +1,13 @@
+'' 'iif( c, *pa, *pb )' over ZSTRING POINTERS is a string: an unsized zstring was taken for a
+'' scalar arm and the statement declined (fbc's expressions/iif.bas). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/iif-zstr-deref.bas -o tests/codegen/iifzstrderef.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/iifzstrderef.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1234
+'' EXPECT-RUN-OUT: 5678
+'' EXPECT-RUN-OUT:  0            -1
+'' EXPECT-RUN-OUT: 7B
+'' EXPECT-RUN-OUT: 12345678       8
