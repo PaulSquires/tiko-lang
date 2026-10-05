@@ -1,0 +1,13 @@
+'' '@f' and 'procptr( f )' over an overload set take the overload the TARGET type names -- an
+'' initialiser, an assignment, an argument, byref-ness included -- as fbc does. Check records the
+'' choice and types '@f' by it; lowering reads it (overload re-pick refactor, Phase 1).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/procaddr-target-overload.bas -o tests/codegen/procaddrtargetoverload.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/procaddrtargetoverload.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: double 1.5
+'' EXPECT-RUN-OUT: long 7
+'' EXPECT-RUN-OUT: double 2.5
+'' EXPECT-RUN-OUT: byref2 3 4

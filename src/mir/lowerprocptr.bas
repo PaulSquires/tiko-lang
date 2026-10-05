@@ -10,6 +10,8 @@ declare function SameProcResult_ _
 declare function SameParamType_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval pi as long, _
       byval st as Tko.TypeId, byval si as long ) as boolean
+declare function ProcPickByType_ _
+    ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId ) as Tko.SymbolId
 declare function ProcPtrByType_ _
     ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId, _
       byref outv as MirValue ) as boolean
@@ -55,7 +57,14 @@ function ProcAddrForWanted_ _
     if s = 0 then return false
     if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
     if s->nextOverload = Tko.SYMBOL_NONE then return false
-    return ProcPtrByType_( c, fnE, c.procWantType, outv )
+    '' WHICH OVERLOAD IS CHECK'S, recorded on 'f' (checkdecide.bas DecideProcAddr_) by the same
+    '' signature rule ProcPickByType_ applies -- and '@f' is typed by it, where Check used to
+    '' type it from the overload Resolve bound (overload re-pick refactor, Phase 1). None
+    '' recorded is no match: the address is the bound overload's, as before.
+    dim as Tko.SymbolId pick = c.info->DecisionOf( fnE )
+    if pick = Tko.SYMBOL_NONE then return false
+    outv = FuncAddrOf( c, pick )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 '' The overload in the chain that starts at whatever 'fnE' is bound to whose signature
@@ -86,19 +95,19 @@ private function ProcPtrBySignature_ _
 end function
 
 '' ...the same, for a procedure TYPE already in hand -- or a pointer to one.
-function ProcPtrByType_ _
-    ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId, _
-      byref outv as MirValue ) as boolean
+'' THE OVERLOAD ITSELF, for ProcPtrByType_ and the shadow audit beside its caller.
+function ProcPickByType_ _
+    ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId ) as Tko.SymbolId
 
-    if st = Tko.TYPE_NONE then return false
+    if st = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     st = c.types->Unqualify( st )
     if c.types->Kind( st ) = Tko.TK_POINTER then
         st = c.types->Unqualify( c.types->Inner( st ) )
     end if
-    if c.types->Kind( st ) <> Tko.TK_PROC then return false
+    if c.types->Kind( st ) <> Tko.TK_PROC then return Tko.SYMBOL_NONE
 
     dim as Tko.SymbolId first_ = c.info->RefOf( fnE )
-    if first_ = Tko.SYMBOL_NONE then return false
+    if first_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
 
     dim as long want = c.types->ProcParamCount( st )
     dim as Tko.TypeId wantRet = c.types->Inner( st )
@@ -117,14 +126,21 @@ function ProcPtrByType_ _
                     end if
                 next
             end if
-            if ok then
-                outv = FuncAddrOf( c, cur )
-                return (outv.kind <> cast( ubyte, MV_NONE ))
-            end if
+            if ok then return cur
         end if
         cur = cs->nextOverload
     wend
-    return false
+    return Tko.SYMBOL_NONE
+end function
+
+function ProcPtrByType_ _
+    ( byref c as Ctx, byval fnE as Tko.NodeId, byval st as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.SymbolId pick = ProcPickByType_( c, fnE, st )
+    if pick = Tko.SYMBOL_NONE then return false
+    outv = FuncAddrOf( c, pick )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 

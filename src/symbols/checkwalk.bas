@@ -149,5 +149,6 @@ private sub WalkAll( byref c as Ctx )
             end if
         end select
     next
+    DecideProcAddrs_( c )   '' checkdecide.bas: '@f' by its target type
     c.syms->usePos = Tko.USEPOS_LATEST
 end sub
