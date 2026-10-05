@@ -711,7 +711,7 @@ declare function EmitRtl _
     '' the same pair, so none of them can disagree about when the operator runs.
     declare function UdtCastValue_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId, _
-          byref outv as MirValue ) as boolean
+          byref outv as MirValue, byval constructing as boolean = true ) as boolean
     declare function UdtCastToUdt_ _
         ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
     declare function UdtCastArgOk_ _

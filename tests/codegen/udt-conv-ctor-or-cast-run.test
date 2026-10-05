@@ -1,0 +1,20 @@
+'' A UDT both convertible by the target's CONSTRUCTOR and by its own 'operator cast': fbc runs
+'' the constructor where the target is being constructed -- byval argument, initialiser,
+'' return, new -- and the CAST everywhere else: byref argument, assignment, field and element
+'' stores, an explicit cast( ). tiko ran the constructor for a byref argument and, for the
+'' rest, copied A's own bytes into the B2 (overload re-pick refactor, Phase 3).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-conv-ctor-or-cast.bas -o tests/codegen/udtconvctororcast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtconvctororcast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: byval 300
+'' EXPECT-RUN-OUT: byref 400
+'' EXPECT-RUN-OUT: init 300
+'' EXPECT-RUN-OUT: assign 400
+'' EXPECT-RUN-OUT: cast 400
+'' EXPECT-RUN-OUT: return 300
+'' EXPECT-RUN-OUT: field 400
+'' EXPECT-RUN-OUT: elem 400
+'' EXPECT-RUN-OUT: new 300

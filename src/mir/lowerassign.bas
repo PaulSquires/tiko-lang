@@ -757,7 +757,7 @@ private sub LowerAssign _
     dim as MirValue val
     '' ...AND A UDT VALUE ASSIGNED TO ANOTHER UDT IS ONE TOO -- see UdtCastValue_.
     if UserConvToScalar_( c, value, c.info->TypeOf_( target ), val ) = false then
-        if UdtCastValue_( c, value, c.info->TypeOf_( target ), val ) = false then
+        if UdtCastValue_( c, value, c.info->TypeOf_( target ), val, false ) = false then
             val = LowerExprWant_( c, value, c.info->TypeOf_( target ) )
         end if
     end if

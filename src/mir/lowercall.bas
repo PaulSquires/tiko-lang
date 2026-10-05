@@ -32,7 +32,8 @@ declare function BareTypeLiteralArg_ _
       byref outSlot as long ) as boolean
 declare function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId, _
+      byval preferCast as boolean = false ) as boolean
 declare function ArgNeedsUdtConv_ _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
       byval argNode as Tko.NodeId ) as boolean

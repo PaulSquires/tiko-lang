@@ -294,6 +294,23 @@ function LowerAddr _
                                 if xa.kind = cast( ubyte, MV_NONE ) then return xa
                                 return LowerExprLoad( c, xa, MT_PTR )
                             end if
+                            '' AN UNRELATED UDT IS CONVERTED, NOT REINTERPRETED: 'cast( B2, a ).w' over an A
+                            '' with 'operator cast( ) as B2' is the operator's result -- measured, fbc 400 --
+                            '' where the operand's own address read A's bytes as a B2 (overload re-pick
+                            '' refactor, Phase 3). Only a base of the operand is its own address.
+                            dim as Tko.TypeId xot = c.types->Unqualify( c.info->TypeOf_( xop ) )
+                            if (c.types->Kind( xot ) = Tko.TK_UDT) andalso (c.types->BaseDistance( xot, xtt ) < 0) then
+                                dim as MirValue xcv
+                                if UdtCastValue_( c, xop, xtt, xcv, false ) then
+                                    dim as long xslot = NewTempLocal( c, MT_AGG, SizeOfType( c, xtt ) )
+                                    if xslot >= 0 then
+                                        dim as MirValue xta
+                                        xta.kind = cast( ubyte, MV_LOCAL ) : xta.ty = cast( ubyte, MT_PTR ) : xta.id = xslot
+                                        StoreThrough( c, xta, xcv )
+                                        return xta
+                                    end if
+                                end if
+                            end if
                             return LowerAddr( c, xop )
                         end if
                     end if

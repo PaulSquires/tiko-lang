@@ -225,12 +225,20 @@ end function
 '' 24-byte one prints the operator's values through every one of those positions, and
 '' tiko-lang blitted the source's first 24 bytes into the destination instead.
 ''
-'' The CONSTRUCTOR on the destination wins where there is one, as it does for an
-'' argument, and a derived value is not a conversion at all -- it is the base
-'' subobject, which the ordinary copy already gets right.
+'' WHICH OF THE TWO RUNS DEPENDS ON WHETHER THE DESTINATION IS BEING CONSTRUCTED. Measured on
+'' fbc-modern, A casting to B2 and B2 constructible from A:
+''
+''     dim as B2 b = a / byval argument / return a / new B2( a )   the CONSTRUCTOR   300
+''     b = a / h.f = a / arr( 0 ) = a / cast( B2, a ) / byref arg  the CAST          400
+''
+'' 'constructing' says which: an initialiser passes true and the constructor wins; an
+'' assignment and an explicit 'cast( )' pass false. tiko let the constructor block the cast
+'' everywhere -- and an assignment, having no constructor to run either, copied A's own bytes
+'' into the B2 (overload re-pick refactor, Phase 3). A derived value is not a conversion at
+'' all: it is the base subobject, which the ordinary copy already gets right.
 function UdtCastValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId, _
-      byref outv as MirValue ) as boolean
+      byref outv as MirValue, byval constructing as boolean = true ) as boolean
 
     if e = Tko.NODE_NONE then return false
     if dstT = Tko.TYPE_NONE then return false
@@ -242,7 +250,7 @@ function UdtCastValue_ _
     dim as Tko.TypeId au = ArgUdtType_( c, e )
     if au = Tko.TYPE_NONE then return false
     if c.types->BaseDistance( au, du ) >= 0 then return false
-    if HasUdtConvCtor_( c, du, au ) then return false
+    if constructing andalso HasUdtConvCtor_( c, du, au ) then return false
     dim as Tko.SymbolId cs = Tko.SYMBOL_NONE
     if UdtCastArgOk_( c, au, du ) then cs = UdtCastToUdt_( c, au, du )
     if cs = Tko.SYMBOL_NONE then return false
@@ -254,7 +262,8 @@ end function
 
 private function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+      byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId, _
+      byval preferCast as boolean = false ) as boolean
 
     outSlot = -1
     outType = Tko.TYPE_NONE
@@ -285,7 +294,9 @@ private function UdtConvTemp_ _
     '' The temporary is NOT registered for destruction: UdtCastArgOk_ has already
     '' refused every destination that would need it.
     dim as Tko.TypeId aut = ArgUdtType_( c, argNode )
-    if (aut <> Tko.TYPE_NONE) andalso (HasUdtConvCtor_( c, pt, aut ) = false) then
+    '' ...OR, for a BYREF argument, whenever it has one: fbc passes a byref parameter the
+    '' CAST's result even beside a converting constructor (UdtCastValue_'s table).
+    if (aut <> Tko.TYPE_NONE) andalso (preferCast orelse (HasUdtConvCtor_( c, pt, aut ) = false)) then
         dim as Tko.SymbolId dcast = Tko.SYMBOL_NONE
         if UdtCastArgOk_( c, aut, pt ) then dcast = UdtCastToUdt_( c, aut, pt )
         if dcast <> Tko.SYMBOL_NONE then
