@@ -76,3 +76,25 @@ function Dump _
 end function
 
 #include once "symbols/undeclared.bas"
+
+function DumpDecisions _
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+      byref names as Tko.Interner, byref syms as Tko.SymbolTable, _
+      byref info as Tko.SemanticInfo ) as string
+
+    dim as string outp
+    dim as long n_ = 0
+    for i as long = 1 to ast.Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        dim as Tko.SymbolId d = info.DecisionOf( n )
+        if d = Tko.SYMBOL_NONE then continue for
+        dim as Tko.Symbol ptr sp = syms.SymbolAt( d )
+        if sp = 0 then continue for
+        dim as Tko.DecodedLoc at = src.Decode( ast.Loc( n ) )
+        dim as Tko.DecodedLoc dl = src.Decode( sp->loc )
+        outp &= at.lineNo & ":" & at.column & " " & Tko.NodeKindName( ast.Kind( n ) ) & _
+                " -> " & names.Spelling( sp->name ) & "@" & dl.lineNo & chr( 10 )
+        n_ += 1
+    next
+    return outp & "decisions: " & n_ & chr( 10 )
+end function

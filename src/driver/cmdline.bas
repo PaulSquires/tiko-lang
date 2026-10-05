@@ -92,6 +92,7 @@ constructor DriverOptions( )
     this.keepTemps = false
     this.stats = false
     this.timePasses = false
+    this.dumpDecisions = false
     this.bootstrapCheck = false
 end constructor
 
@@ -593,6 +594,7 @@ function Parse _
         case Tko.OPT_NOMODCACHE : opts.noModuleCache = true
         case Tko.OPT_CLEANMODCACHE : opts.cleanModuleCache = true
         case Tko.OPT_CHECK     : opts.checkOnly = true
+        case Tko.OPT_DUMPDECIDE : opts.checkOnly = true : opts.dumpDecisions = true
         case Tko.OPT_UDT       : opts.dumpUdt = true
         case Tko.OPT_CIMPORT_PROBE : opts.cimportProbe = value
         case Tko.OPT_CINCLUDE  : opts.cIncludes.Push( value )

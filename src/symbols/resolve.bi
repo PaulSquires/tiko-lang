@@ -52,6 +52,12 @@ namespace Tko
         '' generic body belongs to, or 0. Set on the body's N_PROC; a pass that walks the
         '' body enters the frame, so what it reports names the instantiation (T16).
         as SymIdVec   instFrame
+        '' NodeId -> the PROCEDURE CHECK CHOSE FOR A DECISION THE NODE IMPLIES but does not
+        '' name: the constructor of 'dim x as T = v' or 'T( args )', the 'operator let' of
+        '' 'x = v', the conversion an argument or operand undergoes. Kept apart from
+        '' refSymbol, which is what the node NAMES (scan.bas counts its reads and writes),
+        '' so lowering reads the choice instead of making it again (audit Phase 4).
+        as SymIdVec   decision
 
         declare sub Resize( byval nodeCount as long )
         declare sub SetRef( byval n as NodeId, byval s as SymbolId )
@@ -64,6 +70,8 @@ namespace Tko
         declare function AmbiguousOf( byval n as NodeId ) as AmbiguousResolution
         declare sub SetInstFrame( byval n as NodeId, byval f as long )
         declare function InstFrameOf( byval n as NodeId ) as long
+        declare sub SetDecision( byval n as NodeId, byval s as SymbolId )
+        declare function DecisionOf( byval n as NodeId ) as SymbolId
     end type
 
 end namespace

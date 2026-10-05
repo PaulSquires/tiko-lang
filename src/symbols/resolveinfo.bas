@@ -12,6 +12,7 @@ sub SemanticInfo.Resize( byval nodeCount as long )
         this.nodeScope.Push( 0 )
         this.ambiguous.Push( 0 )
         this.instFrame.Push( 0 )
+        this.decision.Push( 0 )
     wend
 end sub
 
@@ -72,4 +73,16 @@ end sub
 function SemanticInfo.InstFrameOf( byval n as NodeId ) as long
     if cast( long, n ) >= this.instFrame.Count then return 0
     return cast( long, this.instFrame[cast( long, n )] )
+end function
+
+sub SemanticInfo.SetDecision( byval n as NodeId, byval s as SymbolId )
+    if cast( long, n ) < this.decision.Count then
+        if this.decision[cast( long, n )] <> cast( ulong, s ) then this.version += 1
+        this.decision[cast( long, n )] = cast( ulong, s )
+    end if
+end sub
+
+function SemanticInfo.DecisionOf( byval n as NodeId ) as SymbolId
+    if cast( long, n ) >= this.decision.Count then return SYMBOL_NONE
+    return cast( SymbolId, this.decision[cast( long, n )] )
 end function

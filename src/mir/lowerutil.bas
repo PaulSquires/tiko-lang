@@ -670,3 +670,34 @@ function CallsUserProcNamedLikeBuiltin _
         @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
     return Tko.Check.IsTypedIntrinsicName( Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) )
 end function
+
+'' THE SHADOW AUDIT (audit Phase 4, node-recorded overload decisions). A lowering site that
+'' still chooses an overload itself calls this with its own pick and the one Check recorded;
+'' under TKO_PICK_AUDIT=1 a disagreement goes to stderr as
+''     pick-audit: <file>:<line> <site> lowered=<name>@<decl line> recorded=<name>@<line>
+'' so the suite, the corpus and pkg/ say where the two differ before a site is switched over.
+'' Agreement costs one comparison; the environment is read only on a disagreement.
+private function AuditName_( byref c as Ctx, byval s as Tko.SymbolId ) as string
+    dim as Tko.Symbol ptr sp = c.syms->SymbolAt( s )
+    if sp = 0 then return "(none)"
+    dim as long ln = 0
+    if c.srcMgr <> 0 then ln = c.srcMgr->Decode( sp->loc ).lineNo
+    return c.names->Spelling( sp->name ) & "@" & ln
+end function
+
+sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
+    byval lowered as Tko.SymbolId, byval recorded as Tko.SymbolId )
+
+    if lowered = recorded then exit sub
+    if environ( "TKO_PICK_AUDIT" ) = "" then exit sub
+    dim as string where_ = "?"
+    if (c.srcMgr <> 0) andalso (n <> Tko.NODE_NONE) then
+        dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( n ) )
+        where_ = c.srcMgr->PathOf( d.file ) & ":" & d.lineNo
+    end if
+    dim as long eh = freefile
+    open err for output as #eh
+    print #eh, "pick-audit: " & where_ & " " & site & " lowered=" & AuditName_( c, lowered ) & _
+               " recorded=" & AuditName_( c, recorded )
+    close #eh
+end sub

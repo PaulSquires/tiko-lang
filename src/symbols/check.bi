@@ -277,6 +277,13 @@ namespace Tko.Check
           byref types as Tko.TypeContext, byref names as Tko.Interner, _
           byref info as Tko.SemanticInfo, byref st as Stats ) as string
 
+    '' '--dump-decisions': one line per node with a recorded decision (SemanticInfo.decision)
+    '' -- 'line:col KIND -> name@declline' -- the record lowering reads instead of choosing.
+    declare function DumpDecisions _
+        ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+          byref names as Tko.Interner, byref syms as Tko.SymbolTable, _
+          byref info as Tko.SemanticInfo ) as string
+
 end namespace
 
 #endif

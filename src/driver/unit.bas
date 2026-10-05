@@ -657,7 +657,11 @@ function CompileUnit _
             Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
                                         info, rst, pr.reservedNames, syms )
         end if
-        print Tko.Check.Dump( ast, ctx.sources, ctx.types, ctx.names, info, cst );
+        if ctx.options.dumpDecisions then
+            print Tko.Check.DumpDecisions( ast, ctx.sources, ctx.names, syms, info );
+        else
+            print Tko.Check.Dump( ast, ctx.sources, ctx.types, ctx.names, info, cst );
+        end if
     elseif ctx.options.emitTki then
         '' A MODULE'S INTERFACE, written only from a unit that checked clean: an importer
         '' parses it, and an interface over a declaration the module got wrong would move

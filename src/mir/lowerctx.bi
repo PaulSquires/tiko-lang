@@ -343,6 +343,9 @@ declare sub CallTempsInSourceOrder_ _
       byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
 declare sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
 declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
+'' THE SHADOW AUDIT of a lowering site that still makes its own overload choice -- lowerutil.bas.
+declare sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
+    byval lowered as Tko.SymbolId, byval recorded as Tko.SymbolId )
 declare sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
 declare sub CopyBackStrArgs( byref c as Ctx, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
 declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )

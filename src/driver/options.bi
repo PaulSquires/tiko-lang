@@ -122,6 +122,7 @@ namespace Tko
     OPT( OPT_RESOLVE,   "--resolve",      OPTK_FLAG, OPTCAT_DEVEL, "",        "collect and resolve; report reference binding" )
     OPT( OPT_MANGLE,    "--dump-mangle",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print the emitted symbol name of each procedure" )
     OPT( OPT_CHECK,     "--check",        OPTK_FLAG, OPTCAT_DEVEL, "",        "type expressions; report the type of each PRINT argument" )
+    OPT( OPT_DUMPDECIDE, "--dump-decisions", OPTK_FLAG, OPTCAT_DEVEL, "",     "type expressions; list the overload Check chose for each node that implies one" )
     OPT( OPT_UDT,       "--dump-udt",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's size, alignment and field offsets" )
     OPT( OPT_CIMPORT_PROBE, "--cimport-probe", OPTK_VALUE, OPTCAT_DEVEL, "header", "load libclang, parse one C header, print what clang saw" )
     OPT( OPT_CINCLUDE,  "-cinclude",      OPTK_VALUE, OPTCAT_CIMPORT, "dir",  "add a C include directory (clang's -I) for #cinclude" )
@@ -282,6 +283,7 @@ namespace Tko
         as boolean resolveOnly
         as boolean dumpMangle
         as boolean checkOnly
+        as boolean dumpDecisions
         as boolean dumpUdt
         '' C HEADER IMPORT. The directories are clang's, not FreeBASIC's: '-i' is never
         '' passed to clang, and '-cinclude' never reaches #include.
