@@ -1,0 +1,8 @@
+'' ...and what fbc accepts beside them compiles: a byval wstring DECLARED is still 28 (one
+'' line here), but a 'declare function ... as wstring', a byref result, a default or byref
+'' zstring parameter and a zstring ptr are fine.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/bare-str-ok.bas -o tests/diagnostics/src/bare-str-ok.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bare-str-ok.bas(1,16): error TKO0963
+'' EXPECT-MAX-DIAG: 1

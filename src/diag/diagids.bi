@@ -796,6 +796,8 @@
     DIAG( TKO0960, SEV_ERROR,   "the subscript %0 is outside the array's bounds, %1 to %2" )
     '' fbc's 120 / 4 -- symbols/collectdecl.bas (audit F-69).
     DIAG( TKO0961, SEV_ERROR,   "'%0' is already a namespace of the enclosing scope, which no local may share" )
+    '' fbc's 28 -- symbols/declshape.bas.
+    DIAG( TKO0963, SEV_ERROR,   "a bare zstring or wstring is not passed or returned by value; use a pointer or byref" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )
     DIAG( TKO0954, SEV_ERROR,   "the diagnostics file '%0' is one of the inputs, and writing it would destroy it" )

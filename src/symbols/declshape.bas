@@ -174,8 +174,38 @@ end sub
 '' result is judged only where it is WRITTEN a pointer or a builtin: fb/comptr.bi and
 '' fb/sharedptr.bi define a generic 'byref as T', which fbc accepts for a scalar T until
 '' the arrow is used. tiko accepted every refused line.
+'' A BARE 'zstring' OR 'wstring' BY VALUE -- fbc's error 28, "Expected pointer": a BYVAL parameter
+'' of one, declared or defined, and a DEFINITION's result. Measured on fbc-modern 1.20: 'byref'
+'' and a 'zstring ptr' are fine, a plain 'z as zstring' is byref already, and 'declare
+'' function f( ) as wstring' alone is accepted. tiko took them and the IR failed later --
+'' TKO0993 from the verifier for a result, TKO0113 from clang for a parameter.
+private function IsBareCharStr_( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> TK_BUILTIN then return false
+    return (c.types->BuiltinOf( t ) = TY_ZSTRING) orelse (c.types->BuiltinOf( t ) = TY_WSTRING)
+end function
+
+private sub CheckBareStrByValue_ ( byref c as Ctx, byval id as NodeId, byval sp as StmtPayload ptr )
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if (c.ast->nodes[cast( long, prm )].flags and NF_BYVAL_WRITTEN) = 0 then continue for
+        dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
+        if pp->a = NODE_NONE then continue for
+        if IsBareCharStr_( c, c.info->TypeOf_( pp->a ) ) then
+            c.diags->Report( TKO0963, PointRange( c.ast->Loc( prm ) ) )
+            return
+        end if
+    next
+    if (sp->b = NODE_NONE) orelse (sp->a = NODE_NONE) then return
+    if ((sp->extra and PF_BYREF_RESULT) <> 0) orelse ((c.ast->nodes[cast( long, id )].flags and NF_BYREF) <> 0) then return   '' a byref result: NF_BYREF on the N_PROC
+    if IsBareCharStr_( c, c.info->TypeOf_( sp->a ) ) then c.diags->Report( TKO0963, PointRange( c.ast->Loc( id ) ) )
+end sub
+
 private sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    CheckBareStrByValue_( c, id, sp )
     select case cast( TokenKind, sp->op )
     case KW_CONSTRUCTOR
         if (sp->b = NODE_NONE) orelse (c.ast->Kind( sp->b ) <> N_BLOCK) then return

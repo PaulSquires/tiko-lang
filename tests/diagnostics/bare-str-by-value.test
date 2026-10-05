@@ -1,0 +1,11 @@
+'' A bare zstring or wstring BY VALUE is fbc's error 28, "Expected pointer": a definition's
+'' result ('as zstring', 'as wstring') and a 'byval' parameter. tiko took them and the IR
+'' failed -- TKO0993 from the verifier, TKO0113 from clang.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/bare-str-result1.bas tests/diagnostics/src/bare-str-result2.bas tests/diagnostics/src/bare-str-param.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bare-str-result1.bas(1,1): error TKO0963
+'' EXPECT-OUT: bare-str-result2.bas(1,1): error TKO0963
+'' EXPECT-OUT: bare-str-param.bas(1,8): error TKO0963
+'' EXPECT-NOT: TKO0993
+'' EXPECT-NOT: TKO0113
