@@ -82,11 +82,13 @@ end function
 '' a T argument 58 -- a constructor takes a source's cast only into a string (structpick.bas
 '' StructorStrCastCost). Rescued_ let T's constructor and S's cast vouch for it, and the
 '' lowering, finding no conversion, copied S's bytes into the T.
-private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId ) as boolean
+private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId, byval byAssign as boolean ) as boolean
     if TcTuple_( c, dst ) orelse TcTuple_( c, src ) then return true   '' a tuple's elements are judged in tupleconv.bas
     dim as FB.Array( of ulong ) one
     one.Push( cast( ulong, src ) )
-    for k as long = 0 to 1
+    '' AN ASSIGNMENT IS NOT A CONSTRUCTION: 'q = s' and 'function = s' over a T built from
+    '' S's string cast are fbc's 181 (Rescued_'s table: a LET or a CAST rescues it).
+    for k as long = iif( byAssign, 1, 0 ) to 1
         dim as SymbolId head = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, dst, iif( k = 0, "__ctor", "let" ) )
         if head <> SYMBOL_NONE then
             if Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, head, one ) <> SYMBOL_NONE then return true
@@ -217,7 +219,7 @@ private sub JudgeConversion_ _
     if lu = ru then return
     if lUdt andalso rUdt then
         if DerivesFrom_( c, ru, lu ) then return
-        if Rescued_( c, lu, ru, byAssign ) andalso UdtPairConverts_( c, lu, ru ) then return
+        if Rescued_( c, lu, ru, byAssign ) andalso UdtPairConverts_( c, lu, ru, byAssign ) then return
         c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
         return
     end if

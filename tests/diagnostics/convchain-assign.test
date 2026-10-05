@@ -1,0 +1,10 @@
+'' TKO0738, fbc's 181: a T built from S's string cast by a constructor is still not ASSIGNED
+'' one -- 'q = s1' and 'function = sv'. latesweeps2.bas UdtPairConverts_, assigncheck.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/convchain-assign.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: convchain-assign.bas(18,5): error TKO0738
+'' EXPECT-OUT: convchain-assign.bas(22,1): error TKO0738
+'' EXPECT-NOT: convchain-assign.bas(16,
+'' EXPECT-NOT: convchain-assign.bas(21,
+'' EXPECT-MAX-DIAG: 2

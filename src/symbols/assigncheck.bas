@@ -144,6 +144,10 @@ private sub CheckPtrAssign_ _
     if (sp->op = cast( ushort, TK_EQ )) andalso (destructure = false) then
         if TypeLitTextBad_( c, lt, sp->b, false ) then return  '' tupleconv.bas (T30)
         if TupleConvBad_( c, lt, sp->b, 0 ) then return  '' tupleconv.bas
+        '' 'function = x' BETWEEN TWO UDTs IS AN ASSIGNMENT: a T result given an S that only a
+        '' constructor takes is fbc's 181, as 'q = s' is (latesweeps2.bas UdtPairConverts_).
+        if (c.ast->Kind( sp->a ) = N_FUNCRESULT) andalso (c.types->Kind( c.types->Unqualify( lt ) ) = TK_UDT) andalso _
+           (c.types->Kind( c.types->Unqualify( rt ) ) = TK_UDT) then JudgeConversion_( c, id, lt, rt, true )
     end if
     if ConstDropped_( c, lt, rt ) then
         c.diags->Report( TKO0747, PointRange( c.ast->Loc( id ) ) )
