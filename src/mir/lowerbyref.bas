@@ -235,7 +235,9 @@ function ByrefTemp_ _
         case else             : sz = 8
         end select
     else
-        if pmt <> MT_AGG then rv = CoerceTy( c, rv, pmt, pt)
+        '' FROM THE ARGUMENT'S TYPE TO THE PARAMETER'S: a 'byref as boolean' given 256, 'k * 1' or 0.5
+        '' is TRUE to fbc, and the source-only coercion truncated it to a byte -- false.
+        if pmt <> MT_AGG then rv = CoerceTy( c, rv, pmt, c.info->TypeOf_( argNode ), pt )
         sz = c.types->Layout( pt ).size
         if pmt = MT_AGG then sz = SizeOfType( c, pt )
     end if
