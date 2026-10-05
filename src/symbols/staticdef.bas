@@ -203,6 +203,19 @@ private sub CheckUdtRadixChr_ _
 
     '' ...AND 'string( n, x )' / 'wstring( n, x )' OVER A UDT x WITH NO NUMERIC CAST is 58 too: the
     '' fill is a character code ('string( 2, m )' over a long cast is AA), never a string cast.
+    '' ...AND 'strptr( x )' / 'sadd( x )' OVER A UDT is fbc's 24 whatever it casts to -- 'string' or
+    '' 'byref as zstring' alike, measured. Its own udt-zstring/strptr.bas passes a type that EXTENDS
+    '' zstring, which PlainUdtOperand_ does not judge.
+    if ((nm = "strptr") orelse (nm = "sadd")) andalso (lp->count = 1) then
+        dim as NodeId sa = cast( NodeId, c.ast->children[lp->first] )
+        dim as TypeId st = c.info->TypeOf_( sa )
+        if st = TYPE_NONE then return
+        st = c.types->Unqualify( st )
+        if c.types->Kind( st ) = TK_REFERENCE then st = c.types->Unqualify( c.types->Inner( st ) )
+        if PlainUdtOperand_( c, st ) = false then return
+        c.diags->Report( TKO0698, PointRange( c.ast->Loc( sa ) ) )
+        return
+    end if
     if ((nm = "string") orelse (nm = "wstring")) andalso (lp->count = 2) then
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
         dim as NodeId fa = cast( NodeId, c.ast->children[lp->first + 1] )
