@@ -776,6 +776,18 @@ function LowerExpr _
         if cmpStr = false then
             cmpStr = TermIsWide_( c, bp->lhs ) orelse TermIsWide_( c, bp->rhs )
         end if
+        '' ...AND TWO UDTs WHOSE ONLY WAY IN IS A NARROW STRING CAST -- 'byref as zstring': measured,
+        '' fbc compares the strings ('a = b' is -1 over equal text). The objects went to icmp and
+        '' clang refused them. (The wide twin is TermIsWide_'s.)
+        if cmpStr = false then
+            dim as Tko.TypeId clu = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
+            dim as Tko.TypeId cru = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
+            if (c.types->Kind( clu ) = Tko.TK_UDT) andalso (c.types->Kind( cru ) = Tko.TK_UDT) then
+                cmpStr = HasNarrowStrCast_( c, clu ) andalso HasNarrowStrCast_( c, cru ) andalso _
+                         (Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, clu, Tko.TYPE_NONE ) = Tko.SYMBOL_NONE) andalso _
+                         (Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, cru, Tko.TYPE_NONE ) = Tko.SYMBOL_NONE)
+            end if
+        end if
         '' ...UNLESS ONE SIDE IS A SINGLE CHARACTER AND THE OTHER A NUMBER. Measured:
         '' 'pw[0] = asc( "1" )' is '(uint64)(int64)*PW$0 == 49ull' -- an unsigned
         '' INTEGER comparison of one element -- while '*pz = "723"' beside it stays a

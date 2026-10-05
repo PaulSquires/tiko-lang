@@ -1,0 +1,10 @@
+'' TWO UDTs WHOSE ONLY CAST IS 'byref as zstring' COMPARE AS STRINGS. tiko compared the objects
+'' with icmp and clang refused the module. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-zstr-compare.bas -o tests/codegen/udtzstrcompare.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtzstrcompare.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1 0-1-1-1-1
+'' EXPECT-RUN-OUT: abab abac
