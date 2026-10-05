@@ -92,6 +92,45 @@ MAINMOD=$(basename "$MAIN" .bas)
 
 mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 
+# THE UNITS IN PARALLEL, THEN ONE LINK. A single fbc call over every source compiles them one
+# after another: measured 2026-10-05 on 8 cores, 136 s for a Debug compiler, where one 'fbc
+# -c' per unit, TKO_JOBS at a time (default: one per processor), then a link of the objects
+# takes about 35. The same flags reach every unit and the main module still gets '-m', so
+# the program is the one the single call built -- the suite passes against it unchanged.
+#
+# EVERY UNIT, EVERY TIME: there is no dependency tracking, so no object can be stale -- a
+# header edit cannot leave a unit built against the old one. The objects live under
+# build/obj/<what>/, not beside the sources, so two builds of one tree no longer write the
+# same intermediate files either. Each unit's output is collected and printed in source
+# order once all have finished; a unit that left no object fails the build.
+#
+#   compile_units <objdir> <main module or ""> <flags> <sources...>   -> $OBJS
+JOBS=${TKO_JOBS:-$(nproc 2>/dev/null || echo 4)}
+compile_units( ) {
+    cu_dir=$1; cu_main=$2; cu_flags=$3; shift 3
+    rm -rf "$cu_dir"; mkdir -p "$cu_dir"
+    printf '%s\n' "$@" > "$cu_dir/units.txt"
+    export TKO_STAGE0 cu_dir cu_main cu_flags
+    ( cd "$ROOT" && xargs -P "$JOBS" -I{} sh -c '
+        f="{}"; n=$(echo "$f" | tr "/." "__")
+        m=""; [ "$(basename "$f" .bas)" = "$cu_main" ] && m="-m $cu_main"
+        "$TKO_STAGE0" -c "$f" $m -i src $cu_flags -o "$cu_dir/$n.o" > "$cu_dir/$n.log" 2>&1
+        exit 0' < "$cu_dir/units.txt" )
+    OBJS=""
+    cu_fail=0
+    while IFS= read -r f; do
+        n=$(echo "$f" | tr "/." "__")
+        [ -s "$cu_dir/$n.log" ] && cat "$cu_dir/$n.log"
+        if [ -f "$cu_dir/$n.o" ]; then
+            OBJS="$OBJS $cu_dir/$n.o"
+        else
+            echo "build: $f did not compile" >&2
+            cu_fail=1
+        fi
+    done < "$cu_dir/units.txt"
+    [ "$cu_fail" = "0" ] || exit 1
+}
+
 # THE EDITOR'S DLL, bin/tikoParser.dll (src/api; contract src/api/tikoparser.bi): the
 # compiler's own sources less the main module, plus the entry points. Built INSTEAD of the
 # compiler, so bin/tiko and the build stamp are not touched. NEVER WITH -exx: a failed
@@ -103,9 +142,15 @@ mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 # which holds the DLL open, and the compiler that was just built is still good.
 build_dll( ) {
     DLLFLAGS=$(echo "$FLAGS" | sed 's/-exx//')
+    # '-mt' SAID, not inferred: tikoparser.bas starts a thread, and fbc marks the object
+    # that does as needing the threaded runtime. One call over every source made the whole
+    # link threaded; units compiled apart left the others unmarked and fbc warned (20,
+    # mixed multithreading). Saying it gives the same link and no warning.
+    DLLFLAGS="$DLLFLAGS -mt"
     LIBSRC=$(echo "$SOURCES" | tail -n +2)
     echo "build: tikoParser.dll [$CFG] with $TKO_STAGE0"
-    ( cd "$ROOT" && "$TKO_STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+    compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.bas
+    ( cd "$ROOT" && "$TKO_STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
     # ONLY AN OPTIMISED DLL GOES INTO THE EDITOR. A Debug build is ~44 MB, runs -O 0 frames
@@ -129,7 +174,12 @@ if [ "$DLL" = "1" ]; then
 fi
 
 echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
-( cd "$ROOT" && "$TKO_STAGE0" $SOURCES -m "$MAINMOD" -i src $FLAGS -x "bin/tiko$EXT" )
+# ...and the same for the compiler OFF WINDOWS, where driver/main.bas starts its big-stack
+# thread with threadcreate (Windows uses CreateThread, which fbc does not see).
+CFLAGS_="$FLAGS"
+[ "$HOSTWIN" = "1" ] || CFLAGS_="$FLAGS -mt"
+compile_units "$ROOT/build/obj/$CFG" "$MAINMOD" "$CFLAGS_" $SOURCES
+( cd "$ROOT" && "$TKO_STAGE0" $OBJS $CFLAGS_ -x "bin/tiko$EXT" )
 
 if [ "$TESTRUNNER" = "1" ]; then
     echo "build: tiko-test [$CFG]"
