@@ -1,0 +1,10 @@
+'' 'dim x as CONST T = ( 1 )' is a field list like the unqualified form; the const qualifier
+'' made tiko store the integer over the UDT and decline (fbc's overload/byval-as-const.bas). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/const-udt-paren-init.bas -o tests/codegen/constudtpareninit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/constudtpareninit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 1              2              1             2
+'' EXPECT-RUN-OUT:  5

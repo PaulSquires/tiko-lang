@@ -270,6 +270,9 @@ function LowerUdtParenInit_ _
 
     if (slot < 0) andalso (selfv = 0) then return false
     if t = Tko.TYPE_NONE then return false
+    '' 'dim x as CONST T = ( 1 )' is the same field list: the qualifier said "not a UDT"
+    '' and the int was stored over the aggregate (overload/byval-as-const.bas).
+    t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     select case c.ast->Kind( init )
     case Tko.N_TUPLE, Tko.N_PAREN
