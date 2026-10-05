@@ -188,21 +188,31 @@ private function PropertyReadAccessor_ _
     dim as Tko.Symbol ptr f0 = c.syms->SymbolAt( fs )
     if f0 = 0 then return fs
     if f0->kind <> cast( ubyte, Tko.SYM_PROC ) then return fs
-    if f0->type_ <> Tko.TYPE_NONE then return fs
     dim as Tko.NodeId f0n = cast( Tko.NodeId, f0->payload )
     if f0n = Tko.NODE_NONE then return fs
     if c.ast->Kind( f0n ) <> Tko.N_PROC then return fs
     if StmtOf( c, f0n )->op <> cast( ushort, Tko.KW_PROPERTY ) then return fs
 
-    dim as Tko.SymbolId nx = f0->nextOverload
+    '' THE GETTER WITH NO INDEX, from the chain's HEAD: a bare 'o.P' passes no argument, so
+    '' 'property P( byval i as long ) as long' declared before 'property P( ) as long' is not
+    '' it -- taken for being first with a result, the call went out with an argument short.
+    '' Lowering reads this choice (overload re-pick refactor, Phase 1). With no such getter,
+    '' the first accessor with a result, as before.
+    dim as Tko.SymbolId nx = c.syms->LookupLocal( f0->parent, f0->name )
+    if nx = Tko.SYMBOL_NONE then nx = fs
+    dim as Tko.SymbolId firstRes = Tko.SYMBOL_NONE
     dim as long pg = 0
-    while (nx <> Tko.SYMBOL_NONE) andalso (pg < 64)
+    while (nx <> Tko.SYMBOL_NONE) andalso (pg < 4096)
         dim as Tko.Symbol ptr ns = c.syms->SymbolAt( nx )
         if ns = 0 then exit while
-        if ns->type_ <> Tko.TYPE_NONE then return nx
+        if ns->type_ <> Tko.TYPE_NONE then
+            if firstRes = Tko.SYMBOL_NONE then firstRes = nx
+            if ProcParamCount_( c, nx ) = 0 then return nx
+        end if
         nx = ns->nextOverload
         pg += 1
     wend
+    if firstRes <> Tko.SYMBOL_NONE then return firstRes
     return fs
 end function
 private function SignedFlip_ _

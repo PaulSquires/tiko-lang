@@ -287,39 +287,23 @@ sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as l
     c.udtTempTypes.Push( cast( ulong, t ) )
 end sub
 
-'' A PAREN-LESS PROPERTY'S GETTER: the one accessor on the member's chain that has a
-'' result and takes no index. Walked from the chain's HEAD, as PropertyAt_ walks it.
-'' Nothing when there is no such getter, or more than one.
+'' A PAREN-LESS PROPERTY'S GETTER: CHECK'S CHOICE, recorded on the member -- the accessor with
+'' a result and no index (PropertyReadAccessor_). Nothing when the member is not such a getter.
+'' This walked the chain itself, from the head, as a second copy of the rule (overload re-pick
+'' refactor, Phase 1).
 private function SoleGetter_( byref c as Ctx, byval member as Tko.NodeId ) as Tko.SymbolId
     dim as Tko.SymbolId sid = c.info->RefOf( member )
-    if sid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-    dim as Tko.Symbol ptr s0 = c.syms->SymbolAt( sid )
-    if s0 = 0 then return Tko.SYMBOL_NONE
-    dim as Tko.SymbolId cur = c.syms->LookupLocal( s0->parent, s0->name )
-    if cur = Tko.SYMBOL_NONE then cur = sid
-    dim as Tko.SymbolId found = Tko.SYMBOL_NONE
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
-        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
-            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-            if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
-                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-                if (pp->op = cast( ushort, Tko.KW_PROPERTY )) andalso (pp->a <> Tko.NODE_NONE) then
-                    dim as long np = 0
-                    for i as long = 0 to pp->count - 1
-                        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[pp->first + i] ) ) = Tko.N_PARAM then np += 1
-                    next
-                    if np = 0 then
-                        if found <> Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-                        found = cur
-                    end if
-                end if
-            end if
-        end if
-        cur = s->nextOverload
-    wend
-    return found
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if (pp->op <> cast( ushort, Tko.KW_PROPERTY )) orelse (pp->a = Tko.NODE_NONE) then return Tko.SYMBOL_NONE
+    for i as long = 0 to pp->count - 1
+        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[pp->first + i] ) ) = Tko.N_PARAM then return Tko.SYMBOL_NONE
+    next
+    return sid
 end function
 
 '' 'dim as T x = f( )' CONSTRUCTS x IN PLACE when f's result travels through the hidden

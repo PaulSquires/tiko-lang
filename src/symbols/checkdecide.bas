@@ -70,3 +70,19 @@ function LenOperatorFor_( byref c as Ctx, byval lat as Tko.TypeId ) as Tko.Symbo
     wend
     return Tko.SYMBOL_NONE
 end function
+
+'' WHERE A CALL'S OVERLOAD WALK STARTS: a PROPERTY's chain HEAD. Typing 't.P' binds the member
+'' to its no-index getter (PropertyReadAccessor_), which need not be first -- and a chain is
+'' singly linked, so 't.P( 7 )' resolved from there could not see an indexed getter declared
+'' before it: TKO0632 where fbc calls it. Anything else starts where Resolve bound it.
+function CallChainStart_( byref c as Ctx, byval callee as Tko.SymbolId ) as Tko.SymbolId
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
+    if s = 0 then return callee
+    if s->kind <> cast( ubyte, Tko.SYM_PROC ) then return callee
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return callee
+    if StmtOf( c, pn )->op <> cast( ushort, Tko.KW_PROPERTY ) then return callee
+    dim as Tko.SymbolId h = c.syms->LookupLocal( s->parent, s->name )
+    if h = Tko.SYMBOL_NONE then return callee
+    return h
+end function

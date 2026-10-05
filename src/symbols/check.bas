@@ -1164,7 +1164,7 @@ private function TypeOfUncached_ _
             '' The builtin kept beside a user overload: the CALL's copied binding goes too (lowering reads it first).
             if (t <> Tko.TYPE_NONE) andalso (c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE) then c.info->SetRef( id, Tko.SYMBOL_NONE )
             if t = Tko.TYPE_NONE then
-                dim as Tko.SymbolId callee = c.info->RefOf( cp->target )
+                dim as Tko.SymbolId callee = CallChainStart_( c, c.info->RefOf( cp->target ) )
                 '' 'P( 3 )' IS AN OBJECT OF TYPE P. The callee is bound to the UDT
                 '' rather than to a procedure, so overload resolution had nothing to
                 '' work with and the expression came out UNTYPED -- which is what made
