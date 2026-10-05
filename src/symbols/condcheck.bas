@@ -14,6 +14,9 @@ private function CondBadType_ ( byref c as Ctx, byval e as NodeId ) as TypeId
     dim as TypeId b = u
     if c.types->Kind( b ) = TK_ARRAY then b = c.types->Unqualify( c.types->Inner( b ) )
     if c.types->Kind( b ) = TK_BUILTIN then
+        '' A CHARACTER READ THROUGH A POINTER IS A NUMBER: 'while *p' over a 'zstring ptr' walks a
+        '' string to its NUL -- fbc's own compound/select_const.bas does it.
+        if CharAccess_( c, e, b ) then return TYPE_NONE
         select case c.types->BuiltinOf( b )
         case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
             return u

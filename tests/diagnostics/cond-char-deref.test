@@ -1,0 +1,5 @@
+'' TKO0966 is not a character read through a pointer: 'while *p' is a number.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/cond-char-deref.bas -o tests/diagnostics/src/cond-char-deref.o
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0
