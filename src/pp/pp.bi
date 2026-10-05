@@ -307,6 +307,10 @@ namespace Tko
         '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
         '' cache entry depends on besides its sources (RFC-0005 §4).
         as FileIdVec   filesRead
+        '' ...AND EVERY '#include' CANDIDATE TRIED AND NOT THERE before the one that was:
+        '' a file created at one of them later SHADOWS the header the unit read, which a
+        '' cache keyed on what was read cannot see (audit Phase 5, negative dependencies).
+        as StrVec      probesMissed
         '' THE MACROS A MODULE '#export's (RFC-0004 §6), as they were when exported: the
         '' name as written, whether it is a '#macro' block and takes arguments, its
         '' parameters (folded ids, a run of expParamCount[k] from expParamFirst[k]) and its

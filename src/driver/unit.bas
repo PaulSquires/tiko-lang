@@ -228,6 +228,10 @@ function CompileUnit _
     for each f as ulong in pr.filesRead
         ctx.unitFilesRead.Push( f )
     next
+    ctx.unitProbesMissed.Clear( )
+    for each m_ as string in pr.probesMissed
+        ctx.unitProbesMissed.Push( m_ )
+    next
     ctx.unitThreadRtl = false
 
     dim as Tko.SymbolTable syms

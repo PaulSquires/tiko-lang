@@ -68,6 +68,7 @@ namespace Tko
         '' the thread-safe runtime -- what its cache entry records (modcache.bas).
         as StrVec                 ifaceTexts
         as FileIdVec              unitFilesRead
+        as StrVec                 unitProbesMissed   '' include candidates that were absent
         as boolean                unitThreadRtl
         as FileIdVec              ifaceFiles
         '' '-c' OF A PROGRAM THAT IMPORTS (RFC-0005 §6): each module's object, written as

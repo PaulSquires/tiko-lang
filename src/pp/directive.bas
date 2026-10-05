@@ -269,12 +269,15 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     end if
     dim as ustring firstTry = FB.PathJoin( dir_, relJ )
     got = e.src->LoadFile( firstTry, why )
+    dim as StrVec missed_
+    if got = FILE_NONE then missed_.Push( firstTry )
 
     if got = FILE_NONE then
         for each p as string in *e.cfg->includePaths
             dim as ustring cand = FB.PathJoin( p, relJ )
             got = e.src->LoadFile( cand, why )
             if got <> FILE_NONE then exit for
+            missed_.Push( cand )
         next
     end if
 
@@ -284,6 +287,9 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
         Report( e, TKO0301, at, rel )
         return
     end if
+    for each m_ as string in missed_
+        e.outp->probesMissed.Push( m_ )
+    next
 
     PpModNoteHeader( e, d.file, got )
     if PpAlreadyOnce( e, got ) then return

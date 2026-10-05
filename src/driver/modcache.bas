@@ -309,6 +309,12 @@ function ModuleCacheLookup _
         dim as long t2 = 0
         if t1 > 0 then t2 = instr( t1 + 1, ln, chr( 9 ) )
         if t2 = 0 then return false
+        '' AN ABSENT DEPENDENCY must still be absent: a header now at an include candidate
+        '' tried before the one read would shadow it (audit Phase 5).
+        if left( ln, t2 - 1 ) = "-" & chr( 9 ) & "-" then
+            if Tko.DiskCache.Stamp( mid( ln, t2 + 1 ) ) <> "" then return false
+            continue while
+        end if
         if Tko.DiskCache.Stamp( mid( ln, t2 + 1 ) ) <> left( ln, t2 - 1 ) then return false
     wend
     if Tko.DiskCache.ReadAll( JoinPath( d, "iface.tki" ), iface ) = false then return false
@@ -363,6 +369,16 @@ sub ModuleCacheStore _
         dim as string st = Tko.DiskCache.Stamp( p )
         if len( st ) = 0 then return
         dl &= st & chr( 9 ) & p & Nl_( )
+    next
+    for each m_ as string in ctx.unitProbesMissed
+        dim as string ap_ = AbsPath( m_ )
+        dim as boolean dup = false
+        for each x as string in done_
+            if x = "-" & ap_ then dup = true
+        next
+        if dup then continue for
+        done_.Push( "-" & ap_ )
+        dl &= "-" & chr( 9 ) & "-" & chr( 9 ) & ap_ & Nl_( )
     next
     dim as string obj
     if Tko.DiskCache.ReadAll( objPath, obj ) = false then return
