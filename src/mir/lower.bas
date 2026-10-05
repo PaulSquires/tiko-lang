@@ -18,6 +18,8 @@ declare function LowerByrefResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
 declare function LowerTypeLitConvert_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+declare function ScalarTypeLitOperand_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId ) as Tko.NodeId
 declare function TypeLitCopySource_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as Tko.NodeId
 declare function StrSwapKind_ _
@@ -270,13 +272,16 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             elseif UdtConvResult_( c, sp->b, false ) then
                 '' Another type into a UDT result slot: the type's own 'let'. See UdtConvResult_.
             else
+                '' 'function = type( e )' out of a scalar function -- ScalarTypeLitOperand_.
+                dim as Tko.NodeId resE = ScalarTypeLitOperand_( c, sp->b, c.resultType )
+                if resE = Tko.NODE_NONE then resE = sp->b
                 dim as MirValue rval
                 '' A UDT INTO A SCALAR RESULT through its 'operator cast' -- see N_RETURN.
                 dim as boolean rCast = false
-                if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( sp->b ) ) ) = Tko.TK_UDT then
-                    rCast = UserConvToScalar_( c, sp->b, c.resultType, rval )
+                if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( resE ) ) ) = Tko.TK_UDT then
+                    rCast = UserConvToScalar_( c, resE, c.resultType, rval )
                 end if
-                if rCast = false then rval = LowerExpr( c, sp->b )
+                if rCast = false then rval = LowerExpr( c, resE )
                 if rval.kind = cast( ubyte, MV_NONE ) then
                     SkipHere( c )
                 else
@@ -291,7 +296,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                     '' MIR has no implicit conversions, so the narrowing FreeBASIC
                     '' allows on a result assignment is explicit here, exactly as it
                     '' is for an ordinary assignment.
-                    rs.b = CoerceTy( c, rval, cast( MirType, c.resultTy ), c.info->TypeOf_( sp->b ) )
+                    rs.b = CoerceTy( c, rval, cast( MirType, c.resultTy ), c.info->TypeOf_( resE ) )
                     Emit( c, rs )
                 end if
             end if
@@ -805,16 +810,19 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
         dim as MirValue rv
         if sp->a <> Tko.NODE_NONE then
+            '' 'return type( e )' out of a scalar function is 'return e' -- ScalarTypeLitOperand_.
+            dim as Tko.NodeId retE = ScalarTypeLitOperand_( c, sp->a, c.resultType )
+            if retE = Tko.NODE_NONE then retE = sp->a
             '' A UDT RETURNED AS A SCALAR goes through its 'operator cast', as 'k = u' does:
             '' 'return u' from an integer function emitted the aggregate and clang refused it.
             dim as boolean viaCast = false
             dim as MirType rmt0 = cast( MirType, c.resultTy )
             if (rmt0 <> MT_VOID) andalso (rmt0 <> MT_AGG) then
-                if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( sp->a ) ) ) = Tko.TK_UDT then
-                    viaCast = UserConvToScalar_( c, sp->a, c.resultType, rv )
+                if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( retE ) ) ) = Tko.TK_UDT then
+                    viaCast = UserConvToScalar_( c, retE, c.resultType, rv )
                 end if
             end if
-            if viaCast = false then rv = LowerExpr( c, sp->a )
+            if viaCast = false then rv = LowerExpr( c, retE )
             '' 'return expr' WHOSE VALUE WOULD NOT LOWER was silent: the terminator
             '' went out with nothing in it and the statement counted as fully lowered,
             '' so a function returned whatever the ABI happened to leave behind. Every
@@ -828,7 +836,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             if rv.kind <> cast( ubyte, MV_NONE ) then
                 dim as MirType rmt = cast( MirType, c.resultTy )
                 if (rmt <> MT_VOID) andalso (rmt <> MT_AGG) then
-                    rv = CoerceTy( c, rv, rmt, c.info->TypeOf_( sp->a ), c.resultType )
+                    rv = CoerceTy( c, rv, rmt, c.info->TypeOf_( retE ), c.resultType )
                 end if
             end if
         else

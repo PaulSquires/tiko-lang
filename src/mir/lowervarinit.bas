@@ -626,23 +626,26 @@ sub LowerVarItem_ _
         dim as Tko.TypeId dstT = Tko.TYPE_NONE
         dim as Tko.Symbol ptr dsym = c.syms->SymbolAt( sid )
         if dsym <> 0 then dstT = dsym->type_
+        '' 'dim x as <scalar> = type( e )' is '= e' -- see ScalarTypeLitOperand_.
+        dim as Tko.NodeId initE = ScalarTypeLitOperand_( c, ip->b, dstT )
+        if initE = Tko.NODE_NONE then initE = ip->b
         '' See DropMovedTemp_: what this expression registers for destruction
         '' has to be known before it is lowered.
         dim as long tmark = c.udtTemps.Count
         '' ...AND A UDT INITIALISER FOR ANOTHER UDT IS ONE TOO -- UdtCastValue_.
-        if UserConvToScalar_( c, ip->b, dstT, val ) = false then
-         if UdtCastValue_( c, ip->b, dstT, val ) = false then
+        if UserConvToScalar_( c, initE, dstT, val ) = false then
+         if UdtCastValue_( c, initE, dstT, val ) = false then
             '' 'dim as parent p = c' OVER A DERIVED VALUE COPIES THE BASE
             '' SUBOBJECT ONLY -- see UpcastAggInit_. LowerExpr hands back the
             '' whole derived aggregate, and storing sixteen bytes into an
             '' eight-byte slot is not an instruction clang will take.
-            if UpcastAggInit_( c, ip->b, dstT, val ) = false then
-                val = LowerExprWant_( c, ip->b, dstT )
+            if UpcastAggInit_( c, initE, dstT, val ) = false then
+                val = LowerExprWant_( c, initE, dstT )
             end if
          end if
         end if
         '' A MOVE, not a copy -- so the source must not be destroyed.
-        dim as boolean movedFrom = (c.ast->Kind( ip->b ) = Tko.N_CALL)
+        dim as boolean movedFrom = (c.ast->Kind( initE ) = Tko.N_CALL)
         if movedFrom then movedFrom = (dstT <> Tko.TYPE_NONE)
         if movedFrom then movedFrom = (c.types->Kind( dstT ) = Tko.TK_UDT) orelse c.types->IsDynArray( dstT )
         if movedFrom then movedFrom = HasDynArrayMember_( c, dstT ) orelse c.types->IsDynArray( dstT )
@@ -658,7 +661,7 @@ sub LowerVarItem_ _
             '' it: 'dim as boolean b = i' is a comparison and 'dim as byte b = t'
             '' a negate, and both are MT_I8 to the slot.
             val = CoerceTy( c, val, cast( MirType, c.f->locals[slot].ty ), _
-                            c.info->TypeOf_( ip->b ), dstT )
+                            c.info->TypeOf_( initE ), dstT )
             dim as MirValue addr
             addr.kind = cast( ubyte, MV_LOCAL )
             addr.ty = cast( ubyte, MT_PTR )

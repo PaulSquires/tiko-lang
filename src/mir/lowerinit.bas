@@ -559,6 +559,26 @@ function NarrowingTypeLitOperand_( byref c as Ctx, byval id as Tko.NodeId ) as T
     return Tko.NODE_NONE
 end function
 
+'' 'type( e )' WITH NO TYPE WRITTEN takes its type from the DESTINATION, and over one that is
+'' not a UDT it is e, converted. Measured on fbc-modern: 'function = type( array(3) )' out of
+'' an integer function is the element, and 'dim d as double = type( 2.5 )' is 2.5
+'' (functions/paraminit-int.bi). Check types bottom-up and made it a one-element TUPLE, which
+'' no scalar store could take, so the statement declined. The operand, or NODE_NONE.
+function ScalarTypeLitOperand_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId ) as Tko.NodeId
+
+    if (e = Tko.NODE_NONE) orelse (dstT = Tko.TYPE_NONE) then return Tko.NODE_NONE
+    if c.ast->Kind( e ) <> Tko.N_TUPLE then return Tko.NODE_NONE
+    if (c.ast->nodes[cast( long, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr tp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if (tp->count <> 1) orelse (tp->target <> Tko.NODE_NONE) then return Tko.NODE_NONE
+    dim as Tko.TypeId dt = c.types->Unqualify( dstT )
+    if c.types->Kind( dt ) = Tko.TK_UDT then return Tko.NODE_NONE
+    if c.types->Kind( dt ) = Tko.TK_ARRAY then return Tko.NODE_NONE
+    return cast( Tko.NodeId, c.ast->children[tp->first] )
+end function
+
 function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     dim as Tko.NodeId n = id
     for guard as long = 0 to 15

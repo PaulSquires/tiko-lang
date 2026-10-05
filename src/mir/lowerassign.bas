@@ -246,6 +246,9 @@ end function
 private sub LowerAssign _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId )
 
+    '' 'x = type( e )' over a scalar x is 'x = e' -- see ScalarTypeLitOperand_.
+    dim as Tko.NodeId stl = ScalarTypeLitOperand_( c, value, c.info->TypeOf_( target ) )
+    if stl <> Tko.NODE_NONE then value = stl
     if AssignArrayResult_( c, target, value ) then return   '' lowerarrret.bas
     '' A string assignment is a runtime call, not a store. When it cannot be lowered
     '' -- 'a = b + a' needs a temporary -- it is SKIPPED, never allowed to fall
