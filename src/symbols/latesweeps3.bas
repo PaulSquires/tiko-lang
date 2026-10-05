@@ -1116,6 +1116,8 @@ private sub CheckAnyInitTypes_( byref c as Ctx )
     next
 end sub
 
+#include once "symbols/aggctorfield.bas"   '' UdtHasCtorField_ -- split out at the line cap
+
 private sub CheckAggregateInitFields_( byref c as Ctx )
     for i as long = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -1142,6 +1144,10 @@ private sub CheckAggregateInitFields_( byref c as Ctx )
         if sf <> 0 then
             c.diags->Report( TKO0757, PointRange( c.ast->Loc( item ) ), _
                              c.names->Spelling( s->name ) )
+            continue for
+        end if
+        if (c.ast->Kind( ip->b ) <> N_INITIALIZER) andalso (UdtHasCtorField_( c, s->type_, 0 ) <> 0) then
+            c.diags->Report( TKO0965, PointRange( c.ast->Loc( item ) ), c.names->Spelling( s->name ) )
             continue for
         end if
         '' THE BITFIELD HALF IS STATIC-STORAGE ONLY.

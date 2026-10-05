@@ -800,6 +800,8 @@
     DIAG( TKO0963, SEV_ERROR,   "a bare zstring or wstring is not passed or returned by value; use a pointer or byref" )
     '' fbc's 24 -- symbols/proccheck.bas CheckSelectCaseKinds_.
     DIAG( TKO0964, SEV_ERROR,   "'select case' cannot take a '%0'; select on a field or a conversion of it" )
+    '' fbc's 7 and 24 -- symbols/latesweeps3.bas CheckAggregateInitFields_.
+    DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )
     DIAG( TKO0954, SEV_ERROR,   "the diagnostics file '%0' is one of the inputs, and writing it would destroy it" )

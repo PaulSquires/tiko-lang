@@ -1,0 +1,11 @@
+'' TKO0965, fbc's 7 and 24: a parenthesised initializer list over a type that holds a field with a
+'' constructor (so has an implicit one). tiko filled the fields. latesweeps3.bas, aggctorfield.bas.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/flist-ctor-field.bas -o tests/diagnostics/src/flist-ctor-field.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: flist-ctor-field.bas(27,10): error TKO0965
+'' EXPECT-OUT: flist-ctor-field.bas(28,10): error TKO0965
+'' EXPECT-OUT: flist-ctor-field.bas(29,11): error TKO0965
+'' EXPECT-NOT: flist-ctor-field.bas(30,
+'' EXPECT-NOT: flist-ctor-field.bas(31,
+'' EXPECT-MAX-DIAG: 3
