@@ -153,15 +153,11 @@ private function UserConvCost_ _
                 if c.types->Kind( ru ) = Tko.TK_REFERENCE then
                     ru = c.types->Unqualify( c.types->Inner( ru ) )
                 end if
-                '' AN 'operator cast( ) as any ptr' IS NO CANDIDATE IN AN OVERLOAD SET. Measured
-                '' on fbc, over a UDT whose only cast yields 'any ptr': 'f( uv )' is error 99,
-                '' "No matching overloaded function", once f is overloaded -- against 'wstring
-                '' ptr', 'long ptr' and even 'any ptr' -- and a 'long ptr' cast still selects
-                '' 'f( long ptr )'. Ranked as a pointer conversion, AfxNova's BSTRING bound
-                '' DWSTRING.Add( wstring ptr ) where fbc takes Add( byref string ).
-                '' ON A SINGLE PROCEDURE fbc BINDS IT, and dropping it there too left AfxNova's
-                '' 'RETURN NOT SetEnvironmentVariable( dwsName, dwsValue )' untyped: the RETURN
-                '' had no value and clang refused PsCalendar's module.
+                '' AN 'operator cast( ) as any ptr' IS NO CANDIDATE IN AN OVERLOAD SET -- measured, fbc's
+                '' 99 once f is overloaded (vs 'wstring ptr', 'long ptr', 'any ptr'); a 'long ptr' cast
+                '' still selects 'f( long ptr )'. As a pointer conversion it bound AfxNova's BSTRING to
+                '' DWSTRING.Add( wstring ptr ), not Add( byref string ). ON A SINGLE PROCEDURE fbc BINDS
+                '' IT: dropping it there left PsCalendar's 'RETURN NOT SetEnvironmentVariable( .. )' untyped.
                 dim as boolean anyPtrCast = false
                 if overloaded andalso (c.types->Kind( ru ) = Tko.TK_POINTER) then
                     dim as Tko.TypeId rp = c.types->Unqualify( c.types->Inner( ru ) )
@@ -194,6 +190,10 @@ private function UserConvCost_ _
                 if (anyPtrCast = false) andalso (strToPtr = false) then
                     sc = ConversionCost( ru, t, *c.types )
                 end if
+                '' EXACT STRING CAST BEATS EXACT NUMERIC, as fbc; two numerics tie, its 99 (F-55, SYM-11).
+                dim as boolean numT = (c.types->Kind( t ) = Tko.TK_BUILTIN)
+                if numT then numT = (IsStringy_( c.types->BuiltinOf( t ) ) = false)
+                if numT andalso (sc < CONV_NONE) then sc += 2
                 if sc < CONV_NONE then
                     if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc
                 end if
