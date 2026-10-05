@@ -530,7 +530,11 @@ function LowerUserLetConv_ _
     dim as boolean ulTook = false
     if ulByref then
         dim as Tko.TypeId vu = c.types->Unqualify( c.info->TypeOf_( value ) )
-        if c.types->Kind( vu ) = Tko.TK_UDT then
+        '' ...NOT A UDT REACHING A STRING PARAMETER THROUGH ITS CAST, which takes the value path
+        '' below and so calls the cast: 'tt = s' over 'let( byref as string )' handed the let S's
+        '' bytes as an FBSTRING and crashed (StructorStrCastCost, as LowerConvCtorInit_).
+        dim as boolean viaStrCast = (Tko.Check.StructorStrCastCost( *c.ast, *c.syms, *c.types, *c.names, vu, pt ) < Tko.Check.CONV_NONE)
+        if (c.types->Kind( vu ) = Tko.TK_UDT) andalso (viaStrCast = false) then
             '' A PAREN-LESS FUNCTION IS A CALL HERE TOO -- the same care lowerassign.bas
             '' takes in its same-type branch, which a CONVERTING 'let' never reaches.
             '' 'wst = pStream.ReadLine', wst a BSTRING and ReadLine returning a DWSTRING,
@@ -555,6 +559,7 @@ function LowerUserLetConv_ _
         '' and passed THAT, which clang refused ("defined with type 'i16' but expected
         '' 'ptr'"); 'wstring * N' is an ARRAY of the builtin and went in as all 32 bytes.
         '' Only for the SAME character type: a let taking 'byref as string' converts.
+        if (ulTook = false) andalso viaStrCast then ulTook = WideRefCtorArg_( c, value, pt, av )   '' a wide parameter
         if ulTook = false then
             dim as Tko.TypeId pu = c.types->Unqualify( pt )
             dim as Tko.TypeId ve = vu
