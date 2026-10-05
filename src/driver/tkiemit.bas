@@ -582,7 +582,7 @@ end function
 private function Encloses_ _
     ( byref w as TkiWriter_, byval outer as Tko.ScopeId, byval inner as Tko.ScopeId ) as boolean
     dim as long guard = 0
-    while (inner <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (inner <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         if inner = outer then return true
         dim as Tko.SymScope ptr s = w.syms->ScopeAt( inner )

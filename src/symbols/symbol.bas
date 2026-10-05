@@ -380,7 +380,7 @@ function SymbolTable.LookupTyped _
     dim as SymbolId decl = SYMBOL_NONE
     dim as ScopeId sc = scope_
     dim as long guard = 0
-    while (sc <> SCOPE_NONE) andalso (guard < 256)
+    while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
         dim as SymbolId got = this.LookupLocalTyped( sc, nm, wantType )
         if got <> SYMBOL_NONE then
@@ -403,7 +403,7 @@ function SymbolTable.LookupTyped _
     '' variable's slot lowered to void.
     sc = scope_
     guard = 0
-    while (sc <> SCOPE_NONE) andalso (guard < 256)
+    while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
         for i as long = 0 to this.usingAt.Count - 1
             if this.usingAt[i] <> cast( ulong, sc ) then continue for

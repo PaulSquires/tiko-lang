@@ -14,7 +14,7 @@
 '' like fbc-int/symbol.bi's isUDT( sym ) inside fbcunit's SUITE namespace.
 private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as boolean
     dim as long guard = 0
-    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
         if sc = 0 then exit while
@@ -46,7 +46,7 @@ end function
 '' an instance, which is not a template.
 private function InTemplate_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as boolean
     dim as long guard = 0
-    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
         if sc = 0 then exit while
@@ -120,7 +120,7 @@ private function DeclaredBelow_ _
     '' ...NOT IN A MODULE, whose declarations have no order (ADR 0017; RFC-0003 §5).
     if Tko.ModSym.OrderFree( *c.syms, sid ) then return false
     dim as long guard = 0
-    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
         if sc = 0 then exit while
@@ -236,7 +236,7 @@ private function VisibleAbove_ _
     if DeclaredBelow_( c, sid, use, scope_ ) = false then return sid
     dim as Tko.ScopeId sc = scope_
     dim as long guard = 0
-    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymbolId got = c.syms->LookupLocalTyped( sc, nm, false )
         if VisibleValue_( c, got, use, scope_ ) then return got

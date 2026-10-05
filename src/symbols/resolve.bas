@@ -47,7 +47,7 @@ private function FileScopeOf_ _
 
     dim as Tko.ScopeId sc = from_
     dim as long guard = 0
-    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr s_ = c.syms->ScopeAt( sc )
         if s_ = 0 then exit while

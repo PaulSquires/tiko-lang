@@ -28,6 +28,10 @@ namespace Tko
 
     const SYMBOL_NONE as SymbolId = 0
     const SCOPE_NONE  as ScopeId  = 0
+    '' HOW FAR A SCOPE-CHAIN WALK GOES before it gives up -- a backstop against a cycle, not a
+    '' limit on programs. It was 256, under the parser's 1024 nested blocks, so a name used
+    '' 600 IFs deep was 'not declared' (audit Phase 5). Every walk below uses this one.
+    const SCOPE_WALK_MAX as long = 65536
     const SCOPE_GLOBAL as ScopeId = 1
     const USEPOS_LATEST as ulong = &hFFFFFFFF
 

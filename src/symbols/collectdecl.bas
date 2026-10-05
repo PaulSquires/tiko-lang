@@ -145,7 +145,7 @@ private function ClassNameTaken_ _
 
     dim as Tko.ScopeId sc = scope_
     dim as long guard = 0
-    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr ss = w.syms->ScopeAt( sc )
         if ss = 0 then exit while

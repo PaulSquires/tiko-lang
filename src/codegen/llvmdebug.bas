@@ -238,7 +238,7 @@ end function
 private function OwningProc_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as ulong
     dim as Tko.ScopeId sc = s->parent
     dim as long guard = 0
-    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
         if sp = 0 then exit while
         if sp->kind = cast( ubyte, Tko.SCOPEK_PROC ) then return cast( ulong, sp->owner )

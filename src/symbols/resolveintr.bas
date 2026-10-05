@@ -60,7 +60,7 @@ private sub BuiltinCallTarget_ _
     if ns->kind <> cast( ubyte, Tko.SCOPEK_NAMESPACE ) then return
     dim as Tko.ScopeId sc = scope_
     dim as long guard = 0
-    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         if sc = bs->parent then return
         dim as Tko.SymScope ptr s_ = c.syms->ScopeAt( sc )

@@ -15,7 +15,7 @@ private function TemplateTypeParam_ _
     ( byref c as Ctx, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId ) as boolean
 
     dim as long guard = 0
-    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
         if sc = 0 then exit while
@@ -128,7 +128,7 @@ private function EnumPastValue_ _
     end select
     dim as Tko.ScopeId sc = scope_
     dim as long guard = 0
-    while (sc <> Tko.SCOPE_NONE) andalso (guard < 256)
+    while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymbolId got = c.syms->LookupLocal( sc, nm )
         dim as Tko.Symbol ptr gs = c.syms->SymbolAt( got )
