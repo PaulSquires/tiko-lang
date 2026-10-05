@@ -97,9 +97,9 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
     if addr.kind = cast( ubyte, MV_NONE ) then return false
     dim as Tko.NodeId vn = cast( Tko.NodeId, c.ast->children[base_ + 1] )
-    dim as MirValue val = LowerExpr( c, vn )
+    dim as MirValue val = LowerExprN_( c, vn )
     if val.kind = cast( ubyte, MV_NONE ) then return false
-    val = CoerceTy( c, val, mt, c.info->TypeOf_( vn ))
+    val = CoerceTy( c, val, mt, NumSrcType_( c, vn ))
 
     '' THE DESTINATION MUST BE A POINTER VALUE, not a slot. In this IR 'store @p, v'
     '' means 'into the slot p' and 'store %t, v' means 'through the pointer in %t' --

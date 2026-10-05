@@ -1004,9 +1004,9 @@ function LowerDynArrayIndex _
     dim as MirValue acc
     for k as long = 0 to rank - 1
         dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
-        dim as MirValue iv = LowerExpr( c, ix )
+        dim as MirValue iv = LowerExprN_( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
-        iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
+        iv = CoerceTy( c, iv, offTy, NumSrcType_( c, ix ))
 
         '' -exx: CHECKED against this dimension's bounds, read from the descriptor --
         '' DIMTB[k] is ELEMENTS, LBOUND, UBOUND (T21; lowerboundchk.bas).

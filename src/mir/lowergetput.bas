@@ -269,9 +269,9 @@ function LowerFileGetPut _
         dim as Tko.NodeId amtN = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
         if amtN <> Tko.NODE_NONE then
             if c.ast->Kind( amtN ) <> Tko.N_ELIDED then
-                dim as MirValue av = LowerExpr( c, amtN )
+                dim as MirValue av = LowerExprN_( c, amtN )
                 if av.kind = cast( ubyte, MV_NONE ) then return false
-                av = CoerceTy( c, av, zt, c.info->TypeOf_( amtN ) )
+                av = CoerceTy( c, av, zt, NumSrcType_( c, amtN ) )
                 dim as MirInst mi
                 mi.op = cast( ushort, M_MUL )
                 mi.ty = cast( ubyte, zt )

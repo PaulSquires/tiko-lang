@@ -1425,11 +1425,11 @@ function LowerWideRvalue _
             '' left/right/mid take a 64-bit COUNT; the source expression is whatever
             '' integer width the program used, so it is widened here. The case mode
             '' is an int32 instead, which is the width fbc declares.
-            dim as MirValue n1 = LowerExpr( c, a1 )
+            dim as MirValue n1 = LowerExprN_( c, a1 )
             if n1.kind = cast( ubyte, MV_NONE ) then return false
             dim as MirType nw = MT_I64
             if secondIsMode then nw = MT_I32
-            n1 = CoerceTy( c, n1, nw, c.info->TypeOf_( a1 ))
+            n1 = CoerceTy( c, n1, nw, NumSrcType_( c, a1 ))
             args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
         end if
     end if

@@ -84,12 +84,12 @@ function LowerBitOp _
 
     dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
-    dim as MirValue av = LowerExpr( c, an )
+    dim as MirValue av = LowerExprN_( c, an )
     if av.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue bv = LowerExpr( c, bn )
+    dim as MirValue bv = LowerExprN_( c, bn )
     if bv.kind = cast( ubyte, MV_NONE ) then return false
-    av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( an ))
-    bv = CoerceTy( c, bv, MT_I64, c.info->TypeOf_( bn ))
+    av = CoerceTy( c, av, MT_I64, NumSrcType_( c, an ))
+    bv = CoerceTy( c, bv, MT_I64, NumSrcType_( c, bn ))
 
     dim as MirValue k63
     k63.kind = cast( ubyte, MV_CONST_INT )

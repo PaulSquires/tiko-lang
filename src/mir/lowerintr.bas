@@ -38,10 +38,10 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' An ELIDED slot is 'close ,' -- the corpus reaches it through a variadic
         '' macro invoked with an empty argument. fbc closes nothing for it.
         if c.ast->Kind( it ) = Tko.N_ELIDED then continue for
-        dim as MirValue fn = LowerExpr( c, it )
+        dim as MirValue fn = LowerExprN_( c, it )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) args
-        fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( it ))
+        fn = CoerceTy( c, fn, MT_I32, NumSrcType_( c, it ))
         args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
         EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_CLOSE, args ) )    '' -e (T68)
     next

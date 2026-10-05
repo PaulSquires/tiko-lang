@@ -187,11 +187,11 @@ function BitfieldCompound_ _
     '' never wider than its declared type, so the unit's type is the working type.
     dim as MirValue cur
     if LowerBitfieldRead( c, target, cur ) = false then return false
-    dim as MirValue rhs = LowerExpr( c, value )
+    dim as MirValue rhs = LowerExprN_( c, value )
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
     dim as boolean uns = IsUnsignedType( c, c.info->TypeOf_( target ) )
     cur = Coerce( c, cur, MT_I64, uns )
-    rhs = CoerceTy( c, rhs, MT_I64, c.info->TypeOf_( value ))
+    rhs = CoerceTy( c, rhs, MT_I64, NumSrcType_( c, value ))
 
     dim as MirValue res
     if (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then

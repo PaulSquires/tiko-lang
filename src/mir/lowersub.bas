@@ -1196,6 +1196,29 @@ function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
     return Tko.SYMBOL_NONE
 end function
 
+'' A VALUE THAT IS ABOUT TO BE COERCED TO A NUMBER: a UDT with a numeric 'operator cast' runs it
+'' (NumericCastPick, by no particular destination), anything else is LowerExpr. NumSrcType_ is
+'' the type to coerce FROM -- the cast's result for such a UDT, the node's own type otherwise.
+'' Used only where the coercion that follows is always to a number: 'bit( 8, m )', 'poke long,
+'' @v, m' and the rest lowered the object, coerced nothing and emitted a hole.
+function LowerExprN_( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    if IsUdtValue_( c, e ) then
+        dim as MirValue v
+        if UserCastToNum_( c, e, v ) then return v
+    end if
+    return LowerExpr( c, e )
+end function
+
+function NumSrcType_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    if IsUdtValue_( c, e ) then
+        dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
+        if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+        dim as Tko.SymbolId nc = UserCastNumOverload_( c, t, Tko.TYPE_NONE )
+        if nc <> Tko.SYMBOL_NONE then return c.syms->SymbolAt( nc )->type_
+    end if
+    return c.info->TypeOf_( e )
+end function
+
 '' Is E's value a UDT (through a reference)?
 function IsUdtValue_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )

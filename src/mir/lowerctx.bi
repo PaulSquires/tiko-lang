@@ -1111,6 +1111,8 @@ declare function EmitRtl _
     declare function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
     declare function LowerNumArg_( byref c as Ctx, byval e as Tko.NodeId, byval mt as MirType ) as MirValue
     declare function IsUdtValue_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function LowerExprN_( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    declare function NumSrcType_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function ChainHasRenderedNumber_ _
         ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
     '' A ustring destination built in place, each rendered number converted. lowerconcat.bas.
