@@ -177,9 +177,8 @@ function LowerUStrIntrin_ _
     dim as boolean wantsSecond = _
         (r = RTL_USTR_LEFT) orelse (r = RTL_USTR_RIGHT) orelse (r = RTL_USTR_MID)
     if wantsSecond andalso (a1 <> Tko.NODE_NONE) then
-        dim as MirValue n1 = LowerExpr( c, a1 )
+        dim as MirValue n1 = LowerNumArg_( c, a1, MT_I64 )
         if n1.kind = cast( ubyte, MV_NONE ) then return false
-        n1 = CoerceTy( c, n1, MT_I64, c.info->TypeOf_( a1 ))
         args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
     end if
 
@@ -188,9 +187,8 @@ function LowerUStrIntrin_ _
         '' empty string instead of the rest of the source. Same rule as the narrow one.
         if cp->count = 3 then
             dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
-            dim as MirValue n2 = LowerExpr( c, a2 )
+            dim as MirValue n2 = LowerNumArg_( c, a2, MT_I64 )
             if n2.kind = cast( ubyte, MV_NONE ) then return false
-            n2 = CoerceTy( c, n2, MT_I64, c.info->TypeOf_( a2 ))
             args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) )

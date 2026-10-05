@@ -1,0 +1,11 @@
+'' A UDT AS tab( )'s AND spc( )'s COLUMN runs its numeric cast, as do the device statements'
+'' numbers (color, width, locate). tiko dropped each statement. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-numarg3.bas -o tests/codegen/udtnumarg3.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtnumarg3.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [l]x
+'' EXPECT-RUN-OUT: [l]y
+'' EXPECT-RUN-OUT: ab[l]z

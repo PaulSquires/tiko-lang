@@ -321,9 +321,8 @@ function LowerDir _
     if attr = Tko.NODE_NONE then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 33 )
     else
-        dim as MirValue av = LowerExpr( c, attr )
+        dim as MirValue av = LowerNumArg_( c, attr, MT_I32 )
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        av = CoerceTy( c, av, MT_I32, c.info->TypeOf_( attr ))
         args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     end if
     args.Push( cast( ulong, outp.kind ) ) : args.Push( cast( ulong, outp.id ) )

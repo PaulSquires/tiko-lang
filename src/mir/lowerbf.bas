@@ -221,9 +221,8 @@ function LowerBitfieldStore _
         return false
     end if
 
-    dim as MirValue val = LowerExpr( c, value )
+    dim as MirValue val = LowerNumArg_( c, value, MT_I64 )
     if val.kind = cast( ubyte, MV_NONE ) then return false
-    val = CoerceTy( c, val, MT_I64, c.info->TypeOf_( value ))
     return BitfieldStoreParts_( c, addr, bitOff, bitWidth, unitTy, unitUns, val )
 end function
 

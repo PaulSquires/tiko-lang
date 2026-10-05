@@ -379,9 +379,8 @@ function LowerRgbCall_ _
     dim as MirValue parts( 0 to 3 )
     for i as long = 0 to want - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-        dim as MirValue v = LowerExpr( c, an )
+        dim as MirValue v = LowerNumArg_( c, an, MT_I64 )
         if v.kind = cast( ubyte, MV_NONE ) then return false
-        v = CoerceTy( c, v, MT_I64, c.info->TypeOf_( an ))
         dim as MirInst m
         m.op = cast( ushort, M_AND )
         m.ty = cast( ubyte, MT_I64 )

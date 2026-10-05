@@ -1297,9 +1297,8 @@ function LowerWideRvalue _
         wca.Push( cast( ulong, MV_CONST_INT ) ) : wca.Push( cast( ulong, cp->count ) )
         for i as long = 0 to cp->count - 1
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-            dim as MirValue av = LowerExpr( c, ai )
+            dim as MirValue av = LowerNumArg_( c, ai, MT_I64 )
             if av.kind = cast( ubyte, MV_NONE ) then return false
-            av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( ai ))
             wca.Push( cast( ulong, av.kind ) ) : wca.Push( cast( ulong, av.id ) )
         next
         outv = EmitRtl( c, RTL_WSTR_CHR, wca )
@@ -1433,9 +1432,8 @@ function LowerWideRvalue _
         '' produce an empty string instead of the rest of the source.
         if cp->count = 3 then
             dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
-            dim as MirValue n2 = LowerExpr( c, a2 )
+            dim as MirValue n2 = LowerNumArg_( c, a2, MT_I64 )
             if n2.kind = cast( ubyte, MV_NONE ) then return false
-            n2 = CoerceTy( c, n2, MT_I64, c.info->TypeOf_( a2 ))
             args.Push( cast( ulong, n2.kind ) ) : args.Push( cast( ulong, n2.id ) )
         else
             args.Push( cast( ulong, MV_CONST_INT ) )

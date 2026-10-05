@@ -19,12 +19,10 @@ private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boo
     if (c.ast->Kind( chE ) = Tko.N_ELIDED) orelse _
        (c.ast->Kind( poE ) = Tko.N_ELIDED) then return false
 
-    dim as MirValue ch = LowerExpr( c, chE )
+    dim as MirValue ch = LowerNumArg_( c, chE, MT_I32 )
     if ch.kind = cast( ubyte, MV_NONE ) then return false
-    ch = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( chE ))
-    dim as MirValue po = LowerExpr( c, poE )
+    dim as MirValue po = LowerNumArg_( c, poE, MT_I64 )
     if po.kind = cast( ubyte, MV_NONE ) then return false
-    po = CoerceTy( c, po, MT_I64, c.info->TypeOf_( poE ))
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, ch.kind ) ) : args.Push( cast( ulong, ch.id ) )
@@ -67,9 +65,8 @@ private function LowerColorArgs_ _
             mask or= (1 shl k)
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
         else
-            dim as MirValue v = LowerExpr( c, e )
+            dim as MirValue v = LowerNumArg_( c, e, MT_I32 )
             if v.kind = cast( ubyte, MV_NONE ) then return false
-            v = CoerceTy( c, v, MT_I32, c.info->TypeOf_( e ))
             args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
         end if
     next
@@ -131,9 +128,8 @@ end function
 private function LowerErrSet_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->a = Tko.NODE_NONE then return false
-    dim as MirValue v = LowerExpr( c, sp->a )
+    dim as MirValue v = LowerNumArg_( c, sp->a, MT_I32 )
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    v = CoerceTy( c, v, MT_I32, c.info->TypeOf_( sp->a ))
     if v.kind = cast( ubyte, MV_NONE ) then return false
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
@@ -161,9 +157,8 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             if StrDescriptorOf_( c, a0, dv ) = false then return false
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
             if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
-            dim as MirValue nv = LowerExpr( c, a1 )
+            dim as MirValue nv = LowerNumArg_( c, a1, MT_I32 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
-            nv = CoerceTy( c, nv, MT_I32, c.info->TypeOf_( a1 ))
             dim as FB.Array( of ulong ) dargs
             dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
             dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
@@ -184,9 +179,8 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             args.Push( cast( ulong, MV_CONST_INT ) )
             args.Push( cast( ulong, cast( ulongint, -1 ) ) )
         else
-            dim as MirValue v = LowerExpr( c, e )
+            dim as MirValue v = LowerNumArg_( c, e, MT_I32 )
             if v.kind = cast( ubyte, MV_NONE ) then return false
-            v = CoerceTy( c, v, MT_I32, c.info->TypeOf_( e ))
             args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
         end if
     next
@@ -226,15 +220,13 @@ private function LowerLockStmt_ _
     if sp->count > 3 then return false
 
     dim as Tko.NodeId hn = cast( Tko.NodeId, c.ast->children[sp->first] )
-    dim as MirValue hv = LowerExpr( c, hn )
+    dim as MirValue hv = LowerNumArg_( c, hn, MT_I32 )
     if hv.kind = cast( ubyte, MV_NONE ) then return false
-    hv = CoerceTy( c, hv, MT_I32, c.info->TypeOf_( hn ) )
     if hv.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
-    dim as MirValue av = LowerExpr( c, an )
+    dim as MirValue av = LowerNumArg_( c, an, MT_I64 )
     if av.kind = cast( ubyte, MV_NONE ) then return false
-    av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( an ) )
     if av.kind = cast( ubyte, MV_NONE ) then return false
 
     '' The default bound is materialised only when there is no 'to', so the range form
@@ -242,9 +234,8 @@ private function LowerLockStmt_ _
     dim as MirValue bv
     if sp->count = 3 then
         dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
-        bv = LowerExpr( c, bn )
+        bv = LowerNumArg_( c, bn, MT_I64 )
         if bv.kind = cast( ubyte, MV_NONE ) then return false
-        bv = CoerceTy( c, bv, MT_I64, c.info->TypeOf_( bn ) )
     else
         bv = ConstInt( c, 0, MT_I64 )
     end if
@@ -351,21 +342,18 @@ private function LowerScreenFn_ _
 
     '' Source order, then swapped at the call: fbc evaluates the row expression first
     '' even though the column is passed first, and either may have a side effect.
-    dim as MirValue rowV = LowerExpr( c, rowN )
+    dim as MirValue rowV = LowerNumArg_( c, rowN, MT_I32 )
     if rowV.kind = cast( ubyte, MV_NONE ) then return false
-    rowV = CoerceTy( c, rowV, MT_I32, c.info->TypeOf_( rowN ) )
     if rowV.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue colV = LowerExpr( c, colN )
+    dim as MirValue colV = LowerNumArg_( c, colN, MT_I32 )
     if colV.kind = cast( ubyte, MV_NONE ) then return false
-    colV = CoerceTy( c, colV, MT_I32, c.info->TypeOf_( colN ) )
     if colV.kind = cast( ubyte, MV_NONE ) then return false
 
     dim as MirValue flagV
     if cp->count = 3 then
         dim as Tko.NodeId fN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
-        flagV = LowerExpr( c, fN )
+        flagV = LowerNumArg_( c, fN, MT_I32 )
         if flagV.kind = cast( ubyte, MV_NONE ) then return false
-        flagV = CoerceTy( c, flagV, MT_I32, c.info->TypeOf_( fN ) )
     else
         flagV = ConstInt( c, 0, MT_I32 )
     end if

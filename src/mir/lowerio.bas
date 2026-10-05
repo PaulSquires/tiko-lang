@@ -814,18 +814,16 @@ function LowerOpenCall_ _
         return false
     end if
 
-    dim as MirValue num = LowerExpr( c, sp->b )
+    dim as MirValue num = LowerNumArg_( c, sp->b, MT_I32 )
     if num.kind = cast( ubyte, MV_NONE ) then return false
-    num = CoerceTy( c, num, MT_I32, c.info->TypeOf_( sp->b ))
     if num.kind = cast( ubyte, MV_NONE ) then return false
 
     '' The record length, or 0 -- NOT 128. Lowered before the argument list is built so
     '' a failure declines rather than leaving half a call behind.
     dim as MirValue rl
     if sp->c <> Tko.NODE_NONE then
-        rl = LowerExpr( c, sp->c )
+        rl = LowerNumArg_( c, sp->c, MT_I32 )
         if rl.kind = cast( ubyte, MV_NONE ) then return false
-        rl = CoerceTy( c, rl, MT_I32, c.info->TypeOf_( sp->c ))
         if rl.kind = cast( ubyte, MV_NONE ) then return false
     else
         rl = ConstInt( c, 0, MT_I32 )
@@ -888,9 +886,8 @@ end function
 private function LineInputFileUStr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval chanE as Tko.NodeId, _
       byref da as MirValue ) as boolean
-    dim as MirValue fn = LowerExpr( c, chanE )
+    dim as MirValue fn = LowerNumArg_( c, chanE, MT_I32 )
     if fn.kind = cast( ubyte, MV_NONE ) then return false
-    fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( chanE ))
     dim as FB.Array( of ulong ) a
     a.Push( cast( ulong, fn.kind ) ) : a.Push( cast( ulong, fn.id ) )
     a.Push( cast( ulong, da.kind ) ) : a.Push( cast( ulong, da.id ) )
@@ -974,9 +971,8 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as FB.Array( of ulong ) args
     if sp->a <> Tko.NODE_NONE then
-        dim as MirValue fn = LowerExpr( c, sp->a )
+        dim as MirValue fn = LowerNumArg_( c, sp->a, MT_I32 )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
-        fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( sp->a ))
         args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
     else
         '' THE PROMPT IS A DESCRIPTOR on the narrow path and a uint16* on the wide one,

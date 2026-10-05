@@ -75,9 +75,8 @@ function LowerCloseCall_ _
     dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first] )
     if c.ast->Kind( it ) = Tko.N_ELIDED then return false
 
-    dim as MirValue fn = LowerExpr( c, it )
+    dim as MirValue fn = LowerNumArg_( c, it, MT_I32 )
     if fn.kind = cast( ubyte, MV_NONE ) then return false
-    fn = CoerceTy( c, fn, MT_I32, c.info->TypeOf_( it ))
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
     outv = EmitRtl( c, RTL_FILE_CLOSE, args )
@@ -114,9 +113,8 @@ function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then return false
     dim as Tko.NodeId numE = cast( Tko.NodeId, c.ast->children[sp->first] )
-    dim as MirValue num = LowerExpr( c, numE )
+    dim as MirValue num = LowerNumArg_( c, numE, MT_I32 )
     if num.kind = cast( ubyte, MV_NONE ) then return false
-    num = CoerceTy( c, num, MT_I32, c.info->TypeOf_( numE ))
 
     dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as string fname = ""

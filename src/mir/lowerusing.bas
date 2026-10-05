@@ -539,9 +539,8 @@ function LowerPrintPos _
     end if
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
-    dim as MirValue n = LowerExpr( c, a0 )
+    dim as MirValue n = LowerNumArg_( c, a0, want )   '' a UDT through its numeric cast
     if n.kind = cast( ubyte, MV_NONE ) then return false
-    n = CoerceTy( c, n, want, c.info->TypeOf_( a0 ))
 
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
