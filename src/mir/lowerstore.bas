@@ -188,109 +188,14 @@ end function
 '' The ADDRESS of a variable, wherever its storage lives.
 '' The ctor or dtor of a type, or SYMBOL_NONE. They live in the type's scope under a
 '' synthetic name, because neither has a name of its own in the source.
-'' Pick the constructor overload for a set of argument types, using the same cost
-'' model overload resolution uses -- the one fitted to 1,274 measured fbc choices.
-'' Constructors chain like any other overload set precisely because they were given a
-'' synthetic name, so nothing here is special-cased.
+'' Pick the constructor (or 'let') overload for a set of argument types. THE RULE IS
+'' symbols/structpick.bas's PickStructor, shared with Check (overload re-pick refactor,
+'' Phase 2): this file held the only copy, and Check's access check chose by a narrower
+'' one of its own.
 function PickCtor _
     ( byref c as Ctx, byval first_ as Tko.SymbolId, _
       byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
-
-    dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-    dim as long bestCost = Tko.Check.CONV_NONE
-    dim as long ties = 0
-    dim as Tko.SymbolId cur = first_
-
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
-        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
-            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-            dim as long np = 0
-            for i as long = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
-                if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
-            next
-            '' A CONSTRUCTOR WITH DEFAULTED TRAILING PARAMETERS IS VIABLE FOR THE
-            '' SHORTER CALL. 'constructor( byval c as long, byval os as long = 0 )'
-            '' answers 'A( 5 )' -- measured, fbc emits '_ZN1AC1Eii( &A1, 5, 0 )'
-            '' for it -- and an exact-arity test alone found no constructor at
-            '' all, so 'dim as A a1 = A( 5 )' fell to default-construct-then-copy:
-            '' the DEFAULT constructor ran over a1 and a temporary's bytes were
-            '' written on top of it. Two constructors on one object where fbc
-            '' runs one.
-            dim as boolean arityOk = (np = argT.Count)
-            if (arityOk = false) andalso (np > argT.Count) then
-                arityOk = true
-                dim as long sd = 0
-                for i as long = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-                    if sd >= argT.Count then
-                        if StmtOf( c, prm )->b = Tko.NODE_NONE then
-                            arityOk = false
-                            exit for
-                        end if
-                    end if
-                    sd += 1
-                next
-            end if
-            if arityOk then
-                dim as long total = 0
-                dim as long ai = 0
-                dim as boolean viable = true
-                for i as long = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
-                    if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-                    '' The defaulted tail costs nothing: there is no argument to convert.
-                    if ai >= argT.Count then exit for
-                    dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
-                    '' AN ARRAY PARAMETER IS MATCHED BY ITS ELEMENT TYPE. Its declared
-                    '' type IS the element -- the array-ness is the parameter node's
-                    '' flag -- so 'constructor T( array( ) as integer )' was costed as
-                    '' though it took one INTEGER, the whole array argument was
-                    '' unconvertible, and 'dim x as T = a( )' found no constructor at
-                    '' all. structs/udt-array-ops-1.bas is 24 statements of it.
-                    dim as Tko.TypeId at2 = cast( Tko.TypeId, argT[ai] )
-                    dim as Tko.TypeId pt2 = c.info->TypeOf_( sp2->a )
-                    dim as long cost = 0
-                    if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
-                        dim as Tko.TypeId ae = at2
-                        if ae <> Tko.TYPE_NONE then
-                            if c.types->Kind( ae ) = Tko.TK_ARRAY then
-                                ae = c.types->Inner( ae )
-                            end if
-                        end if
-                        cost = Tko.Check.ConversionCost( ae, pt2, *c.types )
-                    else
-                        cost = Tko.Check.ConversionCost( at2, pt2, *c.types )
-                        if cost >= Tko.Check.CONV_NONE then cost = CtorUserConvCost_( c, at2, pt2 )
-                    end if
-                    ai += 1
-                    if cost >= Tko.Check.CONV_NONE then
-                        viable = false
-                        exit for
-                    end if
-                    total += cost
-                next
-                if viable then
-                    if total < bestCost then
-                        bestCost = total
-                        best = cur
-                        ties = 0
-                    elseif total = bestCost then
-                        ties += 1
-                    end if
-                end if
-            end if
-        end if
-        cur = s->nextOverload
-    wend
-
-    '' A tie is an ambiguous call, not a silent pick.
-    if ties > 0 then return Tko.SYMBOL_NONE
-    return best
+    return Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
 end function
 
 function StructorOf _

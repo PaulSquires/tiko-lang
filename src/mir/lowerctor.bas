@@ -185,44 +185,11 @@ private function CtorArgValue_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
-'' A UDT PARAMETER THE ARGUMENT REACHES THROUGH ONE OF THAT UDT'S OWN CONSTRUCTORS, for
-'' PickCtor. ConversionCost knows only the standard conversions, so 'dim as X x2 = 13'
-'' over 'constructor X( byref w as W )' and 'constructor W( byval v as long )' found no
-'' viable constructor and the declaration declined, where fbc writes
-'' '_ZN1WC1Ei( &TMP$38$0, 13 ); _ZN1XC1ER1W( &X2$0, &TMP$38$0 )'. Priced as the
-'' frontend's UserConvCost_ prices it -- CONV_USERDEF plus the standard conversion into
-'' the constructor's parameter -- and one level only: a copy constructor never counts.
-'' Here rather than beside PickCtor, which is at its size limit.
+'' A UDT PARAMETER THE ARGUMENT REACHES THROUGH ONE OF THAT UDT'S OWN CONSTRUCTORS -- the
+'' shared rule in symbols/structpick.bas (StructorUserConvCost).
 function CtorUserConvCost_ _
     ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
-
-    if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return Tko.Check.CONV_NONE
-    dim as Tko.TypeId t = c.types->Unqualify( pt )
-    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
-    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.Check.CONV_NONE
-    dim as long best = Tko.Check.CONV_NONE
-    dim as Tko.SymbolId cur = StructorOf( c, t, "__ctor" )
-    dim as long guard = 0
-    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
-        guard += 1
-        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
-        if ParamCountOf( c, cur ) = 1 then
-            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
-            if cpt <> Tko.TYPE_NONE then
-                dim as Tko.TypeId cu = c.types->Unqualify( cpt )
-                if c.types->Kind( cu ) = Tko.TK_REFERENCE then cu = c.types->Unqualify( c.types->Inner( cu ) )
-                if cu <> t then
-                    dim as long sc = Tko.Check.ConversionCost( at, cpt, *c.types )
-                    if sc < Tko.Check.CONV_NONE then
-                        if (Tko.Check.CONV_USERDEF + sc) < best then best = Tko.Check.CONV_USERDEF + sc
-                    end if
-                end if
-            end if
-        end if
-        cur = s->nextOverload
-    wend
-    return best
+    return Tko.Check.StructorUserConvCost( *c.ast, *c.syms, *c.types, *c.names, *c.info, at, pt )
 end function
 
 '' A CHARACTER-POINTER CONVERTING CONSTRUCTOR, chosen by the initialiser's WIDTH.

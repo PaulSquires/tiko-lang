@@ -184,6 +184,19 @@ namespace Tko.Check
           byref types as Tko.TypeContext, _
           byval overloaded as boolean = false ) as long
 
+    '' WHICH CONSTRUCTOR OR 'let' -- one resolver for Check and lowering (structpick.bas).
+    declare function StructorNamed _
+        ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId, byref which as string ) as Tko.SymbolId
+    declare function StructorUserConvCost _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
+          byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+    declare function PickStructor _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
+          byval first_ as Tko.SymbolId, byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
+
     '' Whether 'target = source' is allowed, and whether fbc warns about it.
     '' Assignment legality is a DIFFERENT question from binary promotion and does not
     '' follow from it: every numeric-to-numeric assignment is accepted, narrowing and

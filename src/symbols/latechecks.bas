@@ -1359,63 +1359,11 @@ private function CtorChosenBy_ _
         argT.Push( cast( ulong, at ) )
     next
 
-    dim as SymbolId best = SYMBOL_NONE
-    dim as long bestCost = 0
-    dim as long ties = 0
-    dim as SymbolId walkId = headId
-    dim as long guard = 0
-    while (walkId <> SYMBOL_NONE) andalso (guard < 1000)
-        guard += 1
-        dim as Symbol ptr walk = c.syms->SymbolAt( walkId )
-        if walk = 0 then exit while
-        dim as NodeId decl = cast( NodeId, walk->payload )
-        dim as long req = RequiredParams_( c, decl )
-        dim as long total = ParamCount_( c, decl )
-        dim as boolean fits = (req >= 0) andalso (total >= 0) andalso _
-                              (cast( long, argT.Count ) >= req) andalso _
-                              (cast( long, argT.Count ) <= total)
-        if fits then
-            dim as long cost = 0
-            dim as boolean ok = true
-            dim as StmtPayload ptr dp = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, decl )].data )]
-            dim as long ai = 0
-            for i as long = 0 to dp->count - 1
-                dim as NodeId prm = cast( NodeId, c.ast->children[dp->first + i] )
-                if c.ast->Kind( prm ) <> N_PARAM then continue for
-                if ai >= cast( long, argT.Count ) then exit for
-                dim as StmtPayload ptr pp = _
-                    @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
-                dim as TypeId pt = c.info->TypeOf_( pp->a )
-                if pt = TYPE_NONE then
-                    ok = false
-                    exit for
-                end if
-                dim as long one = Tko.Check.ConversionCost( cast( TypeId, argT[ai] ), pt, *c.types, true )
-                if one < 0 then
-                    ok = false
-                    exit for
-                end if
-                cost += one
-                ai += 1
-            next
-            if ok then
-                if (best = SYMBOL_NONE) orelse (cost < bestCost) then
-                    best = walkId
-                    bestCost = cost
-                    ties = 0
-                elseif cost = bestCost then
-                    ties += 1
-                end if
-            end if
-        end if
-        walkId = walk->nextOverload
-    wend
-
-    '' A TIE IS NOT A PICK. Check reports its own ambiguity diagnostic for that; saying
-    '' nothing here leaves it to the pass that owns the question.
-    if ties > 0 then return SYMBOL_NONE
-    return best
+    '' THE SHARED RESOLVER (symbols/structpick.bas), the one lowering's PickCtor calls -- so
+    '' the constructor checked for access is the one that runs. This kept a narrower copy,
+    '' which took a non-viable candidate (its 'cost < 0' test never met CONV_NONE) as a
+    '' pick. A tie or no viable one is NONE: Check reports ambiguity itself.
+    return Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, headId, argT )
 end function
 
 private sub CheckImplicitStructors_( byref c as Ctx )
