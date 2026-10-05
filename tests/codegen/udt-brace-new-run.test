@@ -1,0 +1,12 @@
+'' A UDT AS A NUMERIC ARRAY'S BRACE ELEMENT, AND AS 'new long( x )'s VALUE, runs its numeric cast.
+'' tiko stored nothing and declined both. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-brace-new.bas -o tests/codegen/udtbracenew.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtbracenew.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [l][l] 6
+'' EXPECT-RUN-OUT: [l] 3 2
+'' EXPECT-RUN-OUT: [l] 3
+'' EXPECT-RUN-OUT: [l] 3

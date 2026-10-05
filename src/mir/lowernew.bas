@@ -583,9 +583,14 @@ function LowerNew_ _
                     iif( IsUStringType( c, el ), 1, 0 ) ) = false then return false
         elseif scalarInit then
             dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->children[argFirst] )
-            dim as MirValue iv = LowerExpr( c, ive )
-            if iv.kind = cast( ubyte, MV_NONE ) then return false
-            iv = CoerceTy( c, iv, LowerType( el, *c.types ), el)
+            dim as MirValue iv
+            if IsUdtValue_( c, ive ) then
+                iv = LowerNumArg_( c, ive, LowerType( el, *c.types ) )   '' 'new long( m )': its numeric cast
+            else
+                iv = LowerExpr( c, ive )
+                if iv.kind = cast( ubyte, MV_NONE ) then return false
+                iv = CoerceTy( c, iv, LowerType( el, *c.types ), el)
+            end if
             if iv.kind = cast( ubyte, MV_NONE ) then return false
             StoreThrough( c, pv, iv )
         elseif fieldInit then

@@ -159,7 +159,10 @@ function LowerArrayInit _
     for i as long = 0 to leaves.Count - 1
         if (total > 0) andalso (i >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
-        dim as MirValue ev = LowerExpr( c, e )
+        '' A UDT ELEMENT runs its numeric cast -- '{ m, m }' into a long array is fbc's 3 and 3.
+        dim as boolean udtNum = IsUdtValue_( c, e ) andalso (emt <> MT_AGG) andalso (emt <> MT_PTR) andalso (emt <> MT_VOID)
+        dim as MirValue ev
+        if udtNum then ev = LowerNumArg_( c, e, emt ) else ev = LowerExpr( c, e )
         if ev.kind = cast( ubyte, MV_NONE ) then return false
 
         dim as MirInst fa
@@ -176,7 +179,7 @@ function LowerArrayInit _
         st.a = ea
         '' THE ELEMENT TYPE AS THE DESTINATION: '{ <single 3e9> }' into a ULONG array
         '' is fbc's '(uint32)fb_F2L( s )', and without it a signed i32 conversion.
-        st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ), el )
+        if udtNum then st.b = ev else st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ), el )
         Emit( c, st )
     next
     return true
