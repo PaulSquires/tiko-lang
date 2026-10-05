@@ -1,0 +1,11 @@
+'' TKO0698, fbc's 58: a byref number given another numeric type's lvalue, against the overload
+'' fbc chooses -- tiko called the byval double one instead. checkdecide.bas DecideByrefNumArgs_.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/byref-num-overload.bas -o tests/diagnostics/src/byref-num-overload.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byref-num-overload.bas(12,4): error TKO0698
+'' EXPECT-OUT: byref-num-overload.bas(13,4): error TKO0698
+'' EXPECT-NOT: byref-num-overload.bas(10,
+'' EXPECT-NOT: byref-num-overload.bas(11,
+'' EXPECT-NOT: byref-num-overload.bas(14,
+'' EXPECT-MAX-DIAG: 2

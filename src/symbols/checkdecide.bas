@@ -322,3 +322,52 @@ private sub DecidePtrCastArgs_( byref c as Ctx )
         next
     next
 end sub
+
+'' A BYREF NUMERIC PARAMETER GIVEN AN LVALUE OF ANOTHER NUMERIC TYPE -- fbc's 58, against the overload
+'' it CHOSE: measured, 'r( i )' over r( byref x as long ) and r( byval x as double ) with i an
+'' INTEGER picks the long one (the closer type) and refuses it, where tiko quietly called the
+'' double one. One procedure alone is the same 58. A constant gets a temporary and is fine;
+'' integer and its same-width twin are one type (ByrefSameInt_).
+private sub DecideByrefNumArgs_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
+        dim as Tko.SymbolId callee = c.info->RefOf( n )
+        if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then continue for
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
+        dim as Tko.StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+        if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then continue for
+        '' ONE PROCEDURE ALONE is ReportArgMismatch_'s: only a chain of two or more is judged here.
+        dim as Tko.SymbolId hd = c.syms->LookupLocal( s->parent, s->name )
+        if hd = Tko.SYMBOL_NONE then continue for
+        if (c.syms->SymbolAt( hd )->nextOverload = Tko.SYMBOL_NONE) then continue for
+        dim as long ai = 0
+        for k as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            if ai >= cp->count then exit for
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + ai] )
+            ai += 1
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) = 0 then continue for
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then continue for
+            dim as Tko.NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].a
+            if pta = Tko.NODE_NONE then continue for
+            dim as Tko.TypeId pt = TypeOf_( c, pta )
+            dim as Tko.TypeId at = TypeOf_( c, a )
+            if IsNumericBuiltin_( c, pt ) andalso IsNumericBuiltin_( c, at ) then
+                if (c.types->Unqualify( at ) <> c.types->Unqualify( pt )) andalso (ByrefSameInt_( c, at, pt ) = false) then
+                    if IsLvalueShape_( c, a ) then
+                        c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( a ) ) )
+                        exit for
+                    end if
+                end if
+            end if
+        next
+    next
+end sub

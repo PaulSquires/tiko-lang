@@ -1025,18 +1025,8 @@ private function ResolveCall_ _
                                     exit for
                                 end if
                             end if
-                            if IsNumericBuiltin_( c, pt ) andalso IsNumericBuiltin_( c, at2 ) then
-                                if (c.types->Unqualify( at2 ) <> c.types->Unqualify( pt )) andalso (ByrefSameInt_( c, at2, pt ) = false) then
-                                    dim as Tko.NodeId an2 = Tko.NODE_NONE
-                                    if ai < argCount then
-                                        an2 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
-                                    end if
-                                    if IsLvalueShape_( c, an2 ) then
-                                        viable = false
-                                        exit for
-                                    end if
-                                end if
-                            end if
+                            '' A NUMERIC LVALUE OF ANOTHER TYPE stays viable: fbc scores it, chooses it and
+                            '' then refuses it (58) -- DecideByrefNumArgs_, checkdecide.bas.
                         end if
                     end if
 
