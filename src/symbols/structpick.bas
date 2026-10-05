@@ -429,6 +429,11 @@ function NumericCastPick _
     if want <> Tko.TYPE_NONE then
         w = types.Unqualify( want )
         if types.Kind( w ) = Tko.TK_REFERENCE then w = types.Unqualify( types.Inner( w ) )
+        '' A BOOLEAN meets the cast nearest a BYTE: measured, fbc takes byte over double and ubyte,
+        '' short over ulong, longint over single, single over double for 'dim as boolean b = m'.
+        if types.Kind( w ) = Tko.TK_BUILTIN then
+            if types.BuiltinOf( w ) = Tko.TY_BOOLEAN then w = types.Builtin( Tko.TY_BYTE )
+        end if
         if NumericCastRank( types, w ) = 0 then w = Tko.TYPE_NONE
     end if
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
