@@ -116,8 +116,9 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     static as long nLab, nVar, nTmp
     static as any ptr forAst = 0
     static as long forCount = -1
+    static as ulong forGen = 0
     dim as long n = c.ast->Count( )
-    if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) then
+    if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) orelse (forGen <> VisRunGen_( )) then
         redim lab( 0 to 15 ) : redim vars( 0 to 15 ) : redim tmps( 0 to 15 )
         nLab = 0 : nVar = 0 : nTmp = 0
         for i as long = 1 to n
@@ -140,7 +141,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
                 vars( nVar ) = i : nVar += 1
             end if
         next
-        forAst = c.ast : forCount = n
+        forAst = c.ast : forCount = n : forGen = VisRunGen_( )
     end if
 
     dim as StmtPayload ptr gp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]

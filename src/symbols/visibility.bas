@@ -454,9 +454,9 @@ private sub RecordFirstRedims_( byref c as Ctx )
     next
 end sub
 
+#include once "symbols/visrungen.bas"
 #include once "symbols/latechecks.bas"
 #include once "symbols/latesweeps.bas"
-
 
 '' 'iif' RETURNS ONE TYPE, so its two arms may not disagree about what they are -- fbc
 '' error 24, "Invalid data types". Measured:
@@ -1113,7 +1113,6 @@ end sub
 #include once "symbols/defcheck.bas"
 #include once "symbols/latesweeps2.bas"
 
-
 private sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
       byval byrefResult as boolean = false, byval constMethod as boolean = false, _
@@ -1451,6 +1450,7 @@ sub Run _
       byref diags as DiagnosticEngine, byref info as SemanticInfo )
 
     dim as Ctx c
+    VisRunGen_( true )
     c.ast = @ast
     c.syms = @syms
     c.types = @types

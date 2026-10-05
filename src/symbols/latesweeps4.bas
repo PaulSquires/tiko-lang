@@ -875,8 +875,9 @@ private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
     static as ubyte mark( )
     static as any ptr forAst = 0
     static as long forCount = -1
+    static as ulong forGen = 0
     dim as long n = c.ast->Count( )
-    if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) then
+    if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) orelse (forGen <> VisRunGen_( )) then
         redim mark( 0 to n + 1 )
         for i as long = 1 to n
             dim as NodeKind ik = c.ast->Kind( cast( NodeId, i ) )
@@ -899,7 +900,7 @@ private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
                 if c.ast->Kind( a ) = N_CALL then mark( a ) = 1
             end if
         next
-        forAst = c.ast : forCount = n
+        forAst = c.ast : forCount = n : forGen = VisRunGen_( )
     end if
     if (id < 0) orelse (id > n) then return false
     return (mark( id ) <> 0)
