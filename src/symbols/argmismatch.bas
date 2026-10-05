@@ -221,6 +221,12 @@ private function AmBadPair_ _
         '' A POINTER CAST THAT DOES NOT REACH THE POINTER PARAMETER -- 'long ptr' into 'byte ptr' (PtrCastFit).
         if c.types->Kind( pt ) = Tko.TK_POINTER then
             if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = 1 then return true
+            '' ...AND ONE WITH NO POINTER CAST AT ALL: a string cast does not decay to a 'zstring ptr'
+            '' parameter -- 'k( s )' and the C library's strlen( s ) are fbc's 58 (UserConvCost_ already
+            '' finds no conversion; this is the report it was owed, where lowering ICEd).
+            if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = -1 then
+                if AmPlainUdt_( c, at, "cast", "" ) = false then return true
+            end if
         end if
         '' ...AND A 'string' PARAMETER NEEDS A CAST YIELDING TEXT (UdtHasStrCast): numbers only is 58.
         if AmString_( c, pt ) andalso (c.types->BuiltinOf( pt ) = Tko.TY_STRING) then
