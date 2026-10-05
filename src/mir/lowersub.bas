@@ -1178,6 +1178,13 @@ function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
     return Tko.SYMBOL_NONE
 end function
 
+'' Is E's value a UDT (through a reference)?
+function IsUdtValue_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    return (c.types->Kind( t ) = Tko.TK_UDT)
+end function
+
 '' A NUMERIC INTRINSIC ARGUMENT -- a count, a position, a fill character -- coerced to MT. A UDT goes
 '' through its numeric 'operator cast' first (NumericCastPick, by the integer it meets): measured,
 '' fbc runs 'space( a )', 'string( a, "x" )' and 'left( s, a )' over a type casting to long, and

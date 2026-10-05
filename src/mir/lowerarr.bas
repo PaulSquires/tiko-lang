@@ -1079,9 +1079,10 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     if c.types->target.pointerBits = 32 then offTy = MT_I32
 
     dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first] )
-    dim as MirValue iv = LowerExpr( c, ix )
+    dim as MirValue iv
+    if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )   '' a UDT through its cast
     if iv.kind = cast( ubyte, MV_NONE ) then return none_
-    iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
+    if IsUdtValue_( c, ix ) = false then iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
 
     dim as MirValue term = iv
     if esz <> 1 then
@@ -1148,9 +1149,12 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as MirValue acc
     for k as long = 0 to sp->count - 1
         dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
-        dim as MirValue iv = LowerExpr( c, ix )
+        '' A UDT SUBSCRIPT runs its numeric cast: 'ar( m )' over a type casting to long is fbc's
+        '' element 3; tiko multiplied the object and the emitter had no operand.
+        dim as MirValue iv
+        if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
-        iv = Coerce( c, iv, offTy )
+        if IsUdtValue_( c, ix ) = false then iv = Coerce( c, iv, offTy )
 
         '' -exx: CHECK THE SUBSCRIPT BEFORE IT BECOMES AN ADDRESS.
         if (c.errFlags and 8) <> 0 then EmitBoundsCheck_( c, id, sp->target, at, k, iv, offTy )
