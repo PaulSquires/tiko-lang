@@ -1,0 +1,22 @@
+'' WHICH POINTER 'operator cast': the exact pointer type the value meets, else the 'any ptr'
+'' overload -- for a declaration, an assignment, a byval argument and a condition. tiko took
+'' the first pointer overload every time. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ptrcast-pick.bas -o tests/codegen/ptrcastpick.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ptrcastpick.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [long] pl 7
+'' EXPECT-RUN-OUT: [double] pd 2.5
+'' EXPECT-RUN-OUT: [any] pa
+'' EXPECT-RUN-OUT: [long] tl 7
+'' EXPECT-RUN-OUT: [double] td 2.5
+'' EXPECT-RUN-OUT: [any] ta
+'' EXPECT-RUN-OUT: [long] pl= 7
+'' EXPECT-RUN-OUT: [double] pd= 2.5
+'' EXPECT-RUN-OUT: [any] b1
+'' EXPECT-RUN-OUT: [any] l3
+'' EXPECT-RUN-OUT: [any] z1
+'' EXPECT-RUN-OUT: [any] if1
+'' EXPECT-RUN-OUT: [any] if3

@@ -210,6 +210,57 @@ end function
 '' (NumericCastRank). Lowering ranked always, so 'x + 1' added 2.75 and 'dim as long k =
 '' x' stored 3 where fbc has 101 and 100; Check typed 'x + 1' DOUBLE where fbc says
 '' INTEGER. A number is an ENUM or any builtin that is not a string flavour or VOID.
+'' THE POINTER 'operator cast' -- by what the value meets. Measured on fbc-modern, with casts to
+'' 'any ptr', 'long ptr' and 'double ptr' in any order:
+''
+''     dim as double ptr p = x / byval double ptr / p = x     the EXACT pointer       [double]
+''     dim as byte ptr p = x  (long ptr + any ptr)             the 'any ptr' one       [any]
+''     if x then              (long ptr + any ptr)             the 'any ptr' one       [any]
+''     dim as any ptr p = x   (long ptr + double ptr)          error 98, ambiguous
+''
+'' tiko took the first pointer overload every time, and 'pd' read a long's bytes as a double.
+'' WANT is the destination, TYPE_NONE where none is named; where fbc is ambiguous this keeps
+'' the first, as before.
+function PtrCastPick _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
+
+    if udt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId wi = Tko.TYPE_NONE
+    if want <> Tko.TYPE_NONE then
+        dim as Tko.TypeId w = types.Unqualify( want )
+        if types.Kind( w ) = Tko.TK_REFERENCE then w = types.Unqualify( types.Inner( w ) )
+        if types.Kind( w ) = Tko.TK_POINTER then wi = types.Unqualify( types.Inner( w ) )
+    end if
+    dim as Tko.SymbolId first = Tko.SYMBOL_NONE, anyp = Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_POINTER then
+                dim as Tko.TypeId ri = types.Unqualify( types.Inner( rt ) )
+                if (wi <> Tko.TYPE_NONE) andalso (ri = wi) then return cur
+                if first = Tko.SYMBOL_NONE then first = cur
+                if anyp = Tko.SYMBOL_NONE then
+                    if types.Kind( ri ) = Tko.TK_BUILTIN then
+                        if types.BuiltinOf( ri ) = Tko.TY_ANY then anyp = cur
+                    end if
+                end if
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    if anyp <> Tko.SYMBOL_NONE then return anyp
+    return first
+end function
+
 function NumericCastPick _
     ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
       byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId

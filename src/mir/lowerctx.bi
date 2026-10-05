@@ -721,7 +721,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
           byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
     declare function UserCastToPtr_ _
-        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
     declare function UdtSelfAddr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function UserCastToWstr_ _

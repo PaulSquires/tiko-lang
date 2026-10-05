@@ -1028,28 +1028,20 @@ end function
 '' 'icmp ne [8 x i8] %t9, 0' over the loaded aggregate, and structs/udt-ops-4
 '' passed a TV to a 'TU ptr' parameter with no operand at all -- 'emit: ICE: an
 '' operand with no kind'.
+'' WHICH ONE is the shared rule, by the destination WANT -- symbols/structpick.bas PtrCastPick.
 function UserCastToPtr_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
 
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
-        if rt <> Tko.TYPE_NONE then
-            if c.types->Kind( rt ) = Tko.TK_POINTER then
-                dim as MirValue self_
-                if UdtSelfAddr_( c, id, self_ ) = false then return false
-                outv = EmitMemberCall( c, cur, self_, MT_PTR )
-                return (outv.kind <> cast( ubyte, MV_NONE ))
-            end if
-        end if
-        cur = cse->nextOverload
-    wend
-    return false
+    dim as Tko.SymbolId cur = Tko.Check.PtrCastPick( *c.syms, *c.types, *c.names, t, want )
+    if cur = Tko.SYMBOL_NONE then return false
+    dim as MirValue self_
+    if UdtSelfAddr_( c, id, self_ ) = false then return false
+    outv = EmitMemberCall( c, cur, self_, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 '' THE OVERLOAD THAT YIELDS A NUMBER, exactly as UserCastToStr_ picks the one that
@@ -1087,7 +1079,7 @@ function UserConvToScalar_ _
     '' kind. structs/udt-ops-4.bas passes exactly that, and the ICE names the
     '' enclosing procedure rather than the argument.
     if c.types->Kind( d ) = Tko.TK_POINTER then
-        if UserCastToPtr_( c, id, outv ) then return true
+        if UserCastToPtr_( c, id, outv, d ) then return true
     end if
     return UserCastToNum_( c, id, outv, d )
 end function

@@ -196,6 +196,9 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
           byval defaulted as boolean ) as Tko.SymbolId
+    declare function PtrCastPick _
+        ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
     declare function NumericCastPick _
         ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
           byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
