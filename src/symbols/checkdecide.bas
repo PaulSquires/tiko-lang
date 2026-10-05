@@ -235,3 +235,43 @@ private sub DecideProcAddrs_( byref c as Ctx )
         end select
     next
 end sub
+
+'' 'T( args )' -- WHICH CONSTRUCTOR, by the shared resolver (structpick.bas), recorded on the
+'' call for lowering's EmitTypeCtorInto_. Only when every argument is typed: an untyped one
+'' has no cost, and lowering keeps its arity answer for that case.
+private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as Tko.ListPayload ptr, byval t as Tko.TypeId )
+    if (t = Tko.TYPE_NONE) orelse (cp->count <= 0) then return
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return
+    dim as FB.Array( of ulong ) argT
+    for i as long = 0 to cp->count - 1
+        dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) )
+        if at = Tko.TYPE_NONE then return
+        argT.Push( cast( ulong, at ) )
+    next
+    dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "__ctor" )
+    if first_ = Tko.SYMBOL_NONE then return
+    c.info->SetDecision( id, Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT ) )
+end sub
+
+'' EVERY 'T( args )' IN THE UNIT, found as lowering finds one (TypeCtorTypeOf_): a call whose
+'' target names a UDT or a typedef of one -- 'Channel( of boolean )( 1 )' included, which
+'' Resolve types on its own and Check's call typing never reaches.
+private sub DecideCtorCalls_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if cp->target = Tko.NODE_NONE then continue for
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+        if s = 0 then continue for
+        if (s->kind <> cast( ubyte, Tko.SYM_UDT )) andalso (s->kind <> cast( ubyte, Tko.SYM_TYPEDEF )) then continue for
+        dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( cp->target ) )
+        if (ct = Tko.TYPE_NONE) orelse (c.types->Kind( ct ) <> Tko.TK_UDT) then
+            ct = s->type_
+            if ct = Tko.TYPE_NONE then continue for
+            if c.types->Kind( ct ) <> Tko.TK_UDT then continue for
+        end if
+        DecideCtorCall_( c, n, cp, ct )
+    next
+end sub

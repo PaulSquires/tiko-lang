@@ -356,7 +356,7 @@ function LowerTypeCtorExpr_ _
 
     dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
     if slot < 0 then return false
-    if EmitTypeCtorInto_( c, t, slot, cp ) = false then return false
+    if EmitTypeCtorInto_( c, t, slot, cp, id ) = false then return false
 
     dim as MirValue addr
     addr.kind = cast( ubyte, MV_LOCAL )
@@ -509,7 +509,7 @@ function LowerTypeCtorTempAddr_ _
 
     dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
     if slot < 0 then return false
-    if EmitTypeCtorInto_( c, t, slot, cp ) = false then return false
+    if EmitTypeCtorInto_( c, t, slot, cp, id ) = false then return false
 
     '' DESTROYED AT THE END OF THE STATEMENT. 'T( args )' written as an EXPRESSION
     '' builds a real object here, and nothing was ever going to destroy it: the

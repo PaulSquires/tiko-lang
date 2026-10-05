@@ -150,5 +150,6 @@ private sub WalkAll( byref c as Ctx )
         end select
     next
     DecideProcAddrs_( c )   '' checkdecide.bas: '@f' by its target type
+    DecideCtorCalls_( c )   '' ...and which constructor each 'T( args )' runs
     c.syms->usePos = Tko.USEPOS_LATEST
 end sub

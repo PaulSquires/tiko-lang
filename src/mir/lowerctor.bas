@@ -1043,7 +1043,7 @@ end function
 '' no temporary at all.
 function EmitTypeCtorInto_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval slot as long, _
-      byval cp as Tko.ListPayload ptr ) as boolean
+      byval cp as Tko.ListPayload ptr, byval callId as Tko.NodeId ) as boolean
 
     '' PICKED BY THE ARGUMENT TYPES, with arity as the fallback.
     ''
@@ -1065,6 +1065,7 @@ function EmitTypeCtorInto_ _
     '' could not type has no cost, so that case keeps the arity answer rather than
     '' inventing one.
     dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
+    dim as boolean ctPicked = false
     if (t <> Tko.TYPE_NONE) andalso (cp->count > 0) then
         if c.types->Kind( t ) = Tko.TK_UDT then
             dim as FB.Array( of ulong ) ctArgT
@@ -1079,11 +1080,16 @@ function EmitTypeCtorInto_ _
                 ctArgT.Push( cast( ulong, at3 ) )
             next
             if ctTyped then
-                ctor = PickCtor( c, StructorOf( c, t, "__ctor" ), ctArgT )
+                '' CHECK'S CHOICE, recorded on the call (checkdecide.bas DecideCtorCall_) by the
+                '' shared resolver -- PickStructor, which PickCtor also is (overload re-pick
+                '' refactor, Phase 2). NONE is a tie or no viable constructor: a DECLINE, where
+                '' this fell back to the first constructor of the right arity and called it.
+                ctor = c.info->DecisionOf( callId )
+                ctPicked = true
             end if
         end if
     end if
-    if ctor = Tko.SYMBOL_NONE then
+    if (ctor = Tko.SYMBOL_NONE) andalso (ctPicked = false) then
         ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), cp->count )
     end if
 

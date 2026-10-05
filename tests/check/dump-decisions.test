@@ -1,0 +1,11 @@
+'' --dump-decisions lists the overload choices Check records for lowering to read (overload
+'' re-pick refactor): the constructor 'U( 2.5 )' runs (the DOUBLE one, by the shared
+'' resolver), the 'operator len' for U's own type, and the overload '@f' names for a
+'' 'sub( byval as double )' target.
+'' TEST: cli
+'' ARGS: --dump-decisions tests/check/src/dump-decisions.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 15:15 N_CALL -> __ctor@4
+'' EXPECT-OUT: 16:24 N_IDENT -> len@12
+'' EXPECT-OUT: 17:36 N_IDENT -> f@14
+'' EXPECT-OUT: decisions: 3

@@ -924,7 +924,7 @@ declare function EmitRtl _
     declare function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
     declare function EmitTypeCtorInto_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval slot as long, _
-          byval cp as Tko.ListPayload ptr ) as boolean
+          byval cp as Tko.ListPayload ptr, byval callId as Tko.NodeId ) as boolean
     declare function LowerUserUnaryOp_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
           byval mt as MirType, byref outv as MirValue ) as boolean
