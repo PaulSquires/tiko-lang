@@ -416,6 +416,53 @@ function PtrCastFit _
     return 1
 end function
 
+'' A UDT WITH NO NUMERIC CAST BUT A 'byref as zstring|wstring' ONE, MEETING A NUMBER, is its FIRST
+'' CHARACTER: measured on fbc-modern, over "ab", 'z + 1' is 98, '1 + z' 98, 'z * 2' 194, 'z = 97'
+'' -1, 'z + 1.5' 98.5 -- fbc's character class is integer, and a reference to one reads it.
+'' tiko concatenated ("ab1") or failed to lower. Returns that cast, or NONE; CHARTYPE is ubyte
+'' for zstring and the target's wchar (ushort on Windows, ulong on Linux) for wstring.
+function CharRefCastPick _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byref charType as Tko.TypeId ) as Tko.SymbolId
+
+    charType = Tko.TYPE_NONE
+    if udt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    if NumericCastPick( syms, types, names, u, Tko.TYPE_NONE ) <> Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        dim as boolean byRes = false
+        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+        if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
+            byRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0) orelse _
+                    ((ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0)
+        end if
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) ) : byRes = true
+            if byRes andalso (types.Kind( rt ) = Tko.TK_POINTER) then rt = types.Unqualify( types.Inner( rt ) )
+            if byRes andalso (types.Kind( rt ) = Tko.TK_BUILTIN) then
+                select case types.BuiltinOf( rt )
+                case Tko.TY_ZSTRING
+                    charType = types.Builtin( Tko.TY_UBYTE )
+                    return cur
+                case Tko.TY_WSTRING
+                    charType = types.Builtin( iif( types.target.wcharBytes = 4, Tko.TY_ULONG, Tko.TY_USHORT ) )
+                    return cur
+                end select
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 function NumericCastPick _
     ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
       byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId

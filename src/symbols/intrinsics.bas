@@ -155,6 +155,14 @@ private function UdtOperandBinaryType_ _
             if IsStringy_( c.types->BuiltinOf( oth ) ) then sc = UdtStringCastType_( c, st )
         end if
         if sc = Tko.TYPE_NONE then sc = UdtCastResultOf_( c, st, false, iif( side = 0, iif( IsUdtOperand_( c, rt ), Tko.TYPE_NONE, rt ), iif( IsUdtOperand_( c, lt ), Tko.TYPE_NONE, lt ) ) )
+        '' ...AND A 'byref as zstring|wstring' CAST MEETING A NUMBER IS ITS FIRST CHARACTER
+        '' (structpick.bas CharRefCastPick): 'z + 1' is 98 over "ab".
+        if (sc = Tko.TYPE_NONE) andalso (op <> Tko.TK_AMP) andalso (c.types->Kind( oth ) = Tko.TK_BUILTIN) then
+            if IsStringy_( c.types->BuiltinOf( oth ) ) = false then
+                dim as Tko.TypeId chT
+                if Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, st, chT ) <> Tko.SYMBOL_NONE then sc = chT
+            end if
+        end if
         if (sc = Tko.TYPE_NONE) andalso IsComparison_( op ) then sc = UdtStringCastType_( c, st )
         if sc = Tko.TYPE_NONE then continue for
         if side = 0 then lt2 = sc else rt2 = sc

@@ -1115,7 +1115,25 @@ function UserCastToNum_ _
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId pick = UserCastNumOverload_( c, t, want )
-    if pick = Tko.SYMBOL_NONE then return false
+    if pick = Tko.SYMBOL_NONE then
+        '' NO NUMERIC CAST, BUT A 'byref as zstring|wstring' ONE, MEETING A NUMBER: the first character,
+        '' zero-extended (structpick.bas CharRefCastPick) -- 'z + 1' is 98 over "ab" to fbc.
+        if want = Tko.TYPE_NONE then return false
+        dim as Tko.TypeId wu = c.types->Unqualify( want )
+        if c.types->Kind( wu ) <> Tko.TK_BUILTIN then return false
+        if IsStringType( c, wu ) orelse IsWideString_( c, wu ) then return false
+        dim as Tko.TypeId chT
+        dim as Tko.SymbolId cref = Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, t, chT )
+        if cref = Tko.SYMBOL_NONE then return false
+        dim as MirValue cself
+        if UdtSelfAddr_( c, id, cself ) = false then return false
+        dim as MirValue cp = EmitMemberCall( c, cref, cself, MT_PTR )
+        if cp.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue ch = LowerExprLoad( c, cp, LowerType( chT, *c.types ) )
+        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        outv = CoerceTy( c, ch, MT_I32, chT )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
     dim as MirValue self_
     if UdtSelfAddr_( c, id, self_ ) = false then return false
     outv = EmitMemberCall( c, pick, self_, LowerType( c.types->Unqualify( c.syms->SymbolAt( pick )->type_ ), *c.types ) )

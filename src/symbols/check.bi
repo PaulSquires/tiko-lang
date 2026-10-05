@@ -203,6 +203,9 @@ namespace Tko.Check
     declare function UdtHasStrCast _
         ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId ) as boolean
+    declare function CharRefCastPick _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byref charType as Tko.TypeId ) as Tko.SymbolId
     declare function PtrCastFit _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as long

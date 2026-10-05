@@ -642,6 +642,13 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     dim as Tko.BinaryPayload ptr cbp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, e )].data )]
     if cast( Tko.TokenKind, cbp->op ) = Tko.TK_PLUS then
+        '' A '+' CHECK TYPED AS A NUMBER is arithmetic: 'w + 1' over a 'byref as wstring' cast is its
+        '' first character plus one (structpick.bas CharRefCastPick), not a concatenation.
+        dim as Tko.TypeId cnt = c.types->Unqualify( c.info->TypeOf_( e ) )
+        dim as boolean numTyped = (c.types->Kind( cnt ) = Tko.TK_BUILTIN)
+        if numTyped then numTyped = (IsStringType( c, cnt ) = false)
+        if numTyped then numTyped = (IsWideString_( c, cnt ) = false)
+        if numTyped then return false
         dim as boolean lIsChar = (CharLvalueTy_( c, cbp->lhs ) <> MT_VOID)
         dim as boolean rIsChar = (CharLvalueTy_( c, cbp->rhs ) <> MT_VOID)
         dim as boolean lNum = NumericTerm_( c, cbp->lhs )

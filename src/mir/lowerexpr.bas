@@ -800,6 +800,11 @@ function LowerExpr _
             dim as boolean rChar = (CharLvalueTy_( c, bp->rhs ) <> MT_VOID)
             if lChar andalso NumericTerm_( c, bp->rhs ) then cmpStr = false
             if rChar andalso NumericTerm_( c, bp->lhs ) then cmpStr = false
+            '' ...AND A UDT WHOSE ONLY CAST IS 'byref as zstring|wstring' AGAINST A NUMBER compares its
+            '' first character: 'w = 97' is -1 over "ab" (structpick.bas CharRefCastPick).
+            dim as Tko.TypeId crT
+            if NumericTerm_( c, bp->rhs ) andalso (Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, c.info->TypeOf_( bp->lhs ), crT ) <> Tko.SYMBOL_NONE) then cmpStr = false
+            if NumericTerm_( c, bp->lhs ) andalso (Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, c.info->TypeOf_( bp->rhs ), crT ) <> Tko.SYMBOL_NONE) then cmpStr = false
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, id, bp, tk )
