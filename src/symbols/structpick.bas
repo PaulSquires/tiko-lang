@@ -141,6 +141,7 @@ function StructorCastCost _
         if nc = Tko.SYMBOL_NONE then return CONV_NONE
         dim as long sc = ConversionCost( types.Unqualify( syms.SymbolAt( nc )->type_ ), p, types )
         if sc >= CONV_NONE then return CONV_NONE
+        if sc > 0 then sc = CONV_NUMERIC   '' a cast then ANY conversion: one flat score, as fbc ranks it
         return CONV_USERDEF + sc + 2   '' a string cast beats a numeric one, as UserConvCost_ prices them
     end if
     dim as long best = CONV_NONE

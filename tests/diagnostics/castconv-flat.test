@@ -1,0 +1,8 @@
+'' TKO0660, fbc's 98: a UDT's cast followed by any standard conversion is one flat score,
+'' so two such overloads tie. tiko ranked the conversions and called j( integer ).
+'' symbols/overload.bas UserConvCost_, structpick.bas StructorCastCost.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/castconv-flat.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: castconv-flat.bas(14,2): error TKO0660
+'' EXPECT-MAX-DIAG: 1

@@ -188,7 +188,7 @@ private function UserConvCost_ _
                 end if
                 dim as long sc = CONV_NONE
                 if (anyPtrCast = false) andalso (strToPtr = false) then
-                    sc = ConversionCost( ru, t, *c.types )
+                    sc = ConversionCost( ru, t, *c.types ) : if (sc > 0) andalso (sc < CONV_NONE) then sc = CONV_NUMERIC   '' cast + any conversion: one flat score, fbc's 98
                 end if
                 '' EXACT STRING CAST BEATS EXACT NUMERIC, as fbc; two numerics tie, its 99 (F-55, SYM-11).
                 dim as boolean numT = (c.types->Kind( t ) = Tko.TK_BUILTIN)
