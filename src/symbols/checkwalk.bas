@@ -151,5 +151,6 @@ private sub WalkAll( byref c as Ctx )
     next
     DecideProcAddrs_( c )   '' checkdecide.bas: '@f' by its target type
     DecideCtorCalls_( c )   '' ...and which constructor each 'T( args )' runs
+    DecidePtrCastArgs_( c )   '' ...and an 'any ptr' argument two pointer casts reach (fbc 98)
     c.syms->usePos = Tko.USEPOS_LATEST
 end sub

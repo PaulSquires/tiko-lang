@@ -287,3 +287,38 @@ private sub DecideCtorCalls_( byref c as Ctx )
         DecideCtorCall_( c, n, cp, ct )
     next
 end sub
+
+'' A UDT ARGUMENT WHOSE POINTER CASTS BOTH REACH AN 'any ptr' PARAMETER -- fbc's 98, measured over
+'' casts to 'long ptr' and 'double ptr' and 'sub tk( byval p as any ptr )'. The initialiser and
+'' assignment forms are latesweeps2.bas's (PtrCastFit); a call's argument was accepted and the
+'' first cast taken.
+private sub DecidePtrCastArgs_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
+        dim as Tko.SymbolId callee = c.info->RefOf( cp->target )
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then continue for
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
+        dim as Tko.StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+        dim as long ai = 0
+        for k as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            if ai >= cp->count then exit for
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + ai] )
+            ai += 1
+            dim as Tko.NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].a
+            if pta = Tko.NODE_NONE then continue for
+            dim as Tko.TypeId at = TypeOf_( c, a )
+            if at = Tko.TYPE_NONE then continue for
+            if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, TypeOf_( c, pta ) ) = 2 then
+                c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( a ) ), "operator cast" )
+            end if
+        next
+    next
+end sub

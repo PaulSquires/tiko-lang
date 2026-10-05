@@ -1,5 +1,5 @@
 '' TKO0738, TKO0698 and TKO0660 for a UDT's pointer 'operator cast': it reaches only its own
-'' pointer type, or any pointer through 'any ptr' (fbc's 24, 181, 58 and 98 -- see the source).
+'' pointer type, or any pointer through 'any ptr' (fbc's 24, 181, 58 and 98, the last by argument too -- see the source).
 '' symbols/structpick.bas PtrCastFit, the rule lowering's PtrCastPick follows.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/ptrcast-reach.bas
@@ -13,4 +13,5 @@
 '' EXPECT-NOT: ptrcast-reach.bas(26,
 '' EXPECT-NOT: ptrcast-reach.bas(27,
 '' EXPECT-NOT: ptrcast-reach.bas(28,
-'' EXPECT-MAX-DIAG: 6
+'' EXPECT-OUT: ptrcast-reach.bas(30,5): error TKO0660
+'' EXPECT-MAX-DIAG: 7

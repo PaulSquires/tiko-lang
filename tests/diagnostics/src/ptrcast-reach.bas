@@ -1,6 +1,6 @@
 '' A UDT's pointer 'operator cast' reaches only its own pointer type, or any pointer
 '' through 'any ptr'. Measured on fbc-modern: lines 18-20 and 22 are errors 24, 24, 181
-'' and 58; lines 24-25 are 98 (two casts both reach 'any ptr'); 26-28 compile.
+'' and 58; lines 24-25 and 30 are 98 (two casts both reach 'any ptr'); 26-28 compile.
 dim shared as long gl = 7
 type A2
     as long v
@@ -26,3 +26,5 @@ v1 = o2
 dim as long ptr l1 = o2
 dim as double ptr d1 = o2
 dim as any ptr v3 = o4
+sub ta( byval p as any ptr ) : end sub
+ta( o2 )
