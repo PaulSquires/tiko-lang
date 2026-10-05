@@ -395,7 +395,11 @@ end function
 function LowerDestructure _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
-    if c.ast->Kind( target ) <> Tko.N_TUPLE then return false
+    '' ...or a 'let( x )' of ONE name, an N_PAREN the parser marked NF_LET_LIST: the first field.
+    if c.ast->Kind( target ) <> Tko.N_TUPLE then
+        if c.ast->Kind( target ) <> Tko.N_PAREN then return false
+        if (c.ast->nodes[cast( long, target )].flags and Tko.NF_LET_LIST) = 0 then return false
+    end if
     dim as Tko.ListPayload ptr tl = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, target )].data )]
     if tl->count <= 0 then return false

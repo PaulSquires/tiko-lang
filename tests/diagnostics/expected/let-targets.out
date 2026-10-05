@@ -5,6 +5,9 @@ func i32 main(i32 $0, ptr $1) {
   local i64 b
   local ptr $tmp4
   local ptr $tmp5
+  local ptr $tmp6
+  local ptr $tmp7
+  local ptr $tmp8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -27,31 +30,43 @@ func i32 main(i32 $0, ptr $1) {
     %15 = field.addr %14, 8
     %16 = load %15
     store @b, %16
-    %17 = load @x
-    %18 = load @x
-    %19 = load @x
-    %20 = alloca ptr $tmp5
+    %17 = alloca ptr $tmp5
     store @$tmp5, @x
-    %21 = load @$tmp5
-    %22 = field.addr %21, 0
-    %23 = load %22
-    store @a, %23
-    %24 = load @$tmp5
-    %25 = field.addr %24, 8
-    %26 = const i32 0
-    call.rtl void fb_End(%26)
-    %27 = load @$tmp0
-    ret %27
+    %18 = load @$tmp5
+    %19 = field.addr %18, 0
+    %20 = load %19
+    store @a, %20
+    %21 = alloca ptr $tmp6
+    store @$tmp6, @x
+    %22 = load @$tmp6
+    %23 = field.addr %22, 0
+    %24 = load @x
+    %25 = alloca ptr $tmp7
+    store @$tmp7, @x
+    %26 = load @$tmp7
+    %27 = field.addr %26, 0
+    %28 = load @x
+    %29 = alloca ptr $tmp8
+    store @$tmp8, @x
+    %30 = load @$tmp8
+    %31 = field.addr %30, 0
+    %32 = load %31
+    store @a, %32
+    %33 = load @$tmp8
+    %34 = field.addr %33, 8
+    %35 = const i32 0
+    call.rtl void fb_End(%35)
+    %36 = load @$tmp0
+    ret %36
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 35 insts, 4 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 4
-  skip-site src\mir\lowerutil.bas:40 1
-  skip-site src\mir\lowerassign.bas:440 2
-  skip-site src\mir\lowerassign.bas:309 1
+lowered: 1 functions, 1 blocks, 48 insts, 3 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 3
+  skip-site src\mir\lowerassign.bas:765 2
+  skip-site src\mir\lowerassign.bas:505 1
 tests/diagnostics/src/let-targets.bas(13,6): error TKO0652: a literal cannot be assigned to
      |
   13 | let( 0 ) = x

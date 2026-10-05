@@ -228,13 +228,15 @@ function AcceptNext_ _
 end function
 
 '' 'let ( a, b ) = x' marks its target list NF_LET_LIST, so the destructuring checks
-'' (symbols/checkeach.bas) leave FreeBASIC's multiple assignment alone.
+'' (symbols/checkeach.bas) leave FreeBASIC's multiple assignment alone. ONE NAME is a list
+'' too: 'let( foo ) = f( )' parses as an N_PAREN, and fbc takes the first field into foo
+'' (measured, expressions/mult-assign.bas) -- an ordinary assignment would store the whole UDT.
 sub MarkLetList_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if n = Tko.NODE_NONE then return
     if p.ast->Kind( n ) <> Tko.N_AMBIGUOUS then return
     dim as Tko.NodeId tg = p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )].a
     if tg = Tko.NODE_NONE then return
-    if p.ast->Kind( tg ) <> Tko.N_TUPLE then return
+    if (p.ast->Kind( tg ) <> Tko.N_TUPLE) andalso (p.ast->Kind( tg ) <> Tko.N_PAREN) then return
     p.ast->nodes[cast( long, tg )].flags or= Tko.NF_LET_LIST
 end sub
 
