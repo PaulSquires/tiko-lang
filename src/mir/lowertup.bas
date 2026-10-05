@@ -225,7 +225,25 @@ function TupleElemCmp_ _
         dim as string uop = "<>"
         if isEq then uop = "="
         dim as Tko.SymbolId ucmp = TupleUdtCmpOp_( c, c.types->Unqualify( et ), uop )
-        if ucmp = Tko.SYMBOL_NONE then return none_
+        '' ...OR, WITH NO SUCH OPERATOR, THROUGH ITS NUMERIC CAST: measured on fbc-modern, a type
+        '' with 'operator =' and 'operator cast( ) as long' but no '<>' compares the two casts
+        '' for '<>' (prints -1 for 2 against 3). The cast is the shared rule's with nothing to
+        '' meet -- NumericCastPick -- as for a plain UDT operand.
+        if ucmp = Tko.SYMBOL_NONE then
+            dim as Tko.SymbolId ccs = UserCastNumOverload_( c, c.types->Unqualify( et ) )
+            if ccs = Tko.SYMBOL_NONE then return none_
+            dim as Tko.TypeId crt = c.types->Unqualify( c.syms->SymbolAt( ccs )->type_ )
+            dim as MirType cmt = LowerType( crt, *c.types )
+            dim as MirValue lcv = EmitMemberCall( c, ccs, laddr, cmt )
+            dim as MirValue rcv = EmitMemberCall( c, ccs, raddr, cmt )
+            if (lcv.kind = cast( ubyte, MV_NONE )) orelse (rcv.kind = cast( ubyte, MV_NONE )) then return none_
+            dim as MirInst ccmp
+            ccmp.op = cast( ushort, BinOpFor( etk, cmt, IsUnsignedType( c, crt ) ) )
+            ccmp.ty = cast( ubyte, MT_I32 )
+            ccmp.a = lcv : ccmp.b = rcv
+            if ccmp.op = cast( ushort, M_NONE ) then return none_
+            return Emit( c, ccmp )
+        end if
         dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( ucmp )
         if ucs = 0 then return none_
         dim as MirType urt = MT_I64
@@ -233,7 +251,16 @@ function TupleElemCmp_ _
         dim as FB.Array( of ulong ) uargs
         uargs.Push( cast( ulong, laddr.kind ) ) : uargs.Push( cast( ulong, laddr.id ) )
         uargs.Push( cast( ulong, raddr.kind ) ) : uargs.Push( cast( ulong, raddr.id ) )
-        return EmitDirectCall_( c, ucmp, urt, uargs )
+        '' RAW, AS EVERY ELEMENT IS: the chain above negates a 1/0 into FreeBASIC's -1/0, and the
+        '' operator already answers -1 -- negated, 't1 = t2' printed 1 where fbc-modern prints -1.
+        dim as MirValue ures = EmitDirectCall_( c, ucmp, urt, uargs )
+        if (ures.kind = cast( ubyte, MV_NONE )) orelse (urt = MT_VOID) orelse (urt = MT_AGG) then return ures
+        dim as MirInst unz
+        unz.op = cast( ushort, BinOpFor( Tko.TK_NE, urt, false ) )
+        unz.ty = cast( ubyte, MT_I32 )
+        unz.a = ures : unz.b = ConstInt( c, 0, urt )
+        if unz.op = cast( ushort, M_NONE ) then return ures
+        return Emit( c, unz )
     end if
     dim as MirValue lv = LowerExprLoad( c, laddr, emt )
     dim as MirValue rv = LowerExprLoad( c, raddr, emt )

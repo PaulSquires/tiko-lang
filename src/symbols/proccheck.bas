@@ -864,7 +864,10 @@ private function TupleElemsCompare_ _
             if TupleLike_( c, ft ) then
                 if TupleElemsCompare_( c, ft, nm, depth + 1 ) = false then return false
             elseif c.types->Kind( ft ) = TK_UDT then
-                if UdtHasCmpOp_( c, ft, nm ) = false then return false
+                '' ...OR A NUMERIC CAST: measured on fbc-modern, a tuple element of a type with
+                '' 'operator =' and 'cast( ) as long' but no '<>' compares by the cast for '<>' --
+                '' where tiko refused it, TKO0720 -- while a STRING cast does not (error 20, below).
+                if (UdtHasCmpOp_( c, ft, nm ) = false) andalso (Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, ft, TYPE_NONE ) = SYMBOL_NONE) then return false
             end if
         end if
         cur = f->nextInScope

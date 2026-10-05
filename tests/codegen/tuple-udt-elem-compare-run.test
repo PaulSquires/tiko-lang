@@ -1,0 +1,13 @@
+'' Tuple '=' and '<>' over UDT elements, as fbc-modern: an element type's own operator -- its
+'' result normalised, so 't1 = t2' is -1 and not 1 -- and, where the type has no such operator
+'' but a numeric cast, the casts compared (tiko refused that one, TKO0720).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/tuple-udt-elem-compare.bas -o tests/codegen/tupleudtelemcompare.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/tupleudtelemcompare.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: NS.eq-1
+'' EXPECT-RUN-OUT: NS.ne 0
+'' EXPECT-RUN-OUT: Q.eq 0
+'' EXPECT-RUN-OUT: -1
