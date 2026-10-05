@@ -1,0 +1,10 @@
+'' 'len( u )' over a UDT calls the 'operator len' declared for ITS type, or the intrinsic when
+'' there is none: tiko's lowering called the chain head, another type's operator -- 77 where
+'' fbc prints 12 (overload re-pick refactor: Check decides, lowering reads the record).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/operator-len-other-type.bas -o tests/codegen/operatorlenothertype.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/operatorlenothertype.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  77             12            12

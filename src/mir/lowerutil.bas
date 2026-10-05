@@ -673,7 +673,8 @@ end function
 
 '' THE SHADOW AUDIT (audit Phase 4, node-recorded overload decisions). A lowering site that
 '' still chooses an overload itself calls this with its own pick and the one Check recorded;
-'' under TKO_PICK_AUDIT=1 a disagreement goes to stderr as
+'' under TKO_PICK_AUDIT=1 a disagreement goes to stderr -- or, when the variable names a FILE,
+'' is appended there, which is how a whole suite or corpus is audited -- as
 ''     pick-audit: <file>:<line> <site> lowered=<name>@<decl line> recorded=<name>@<line>
 '' so the suite, the corpus and pkg/ say where the two differ before a site is switched over.
 '' Agreement costs one comparison; the environment is read only on a disagreement.
@@ -689,14 +690,19 @@ sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
     byval lowered as Tko.SymbolId, byval recorded as Tko.SymbolId )
 
     if lowered = recorded then exit sub
-    if environ( "TKO_PICK_AUDIT" ) = "" then exit sub
+    dim as string dest = environ( "TKO_PICK_AUDIT" )
+    if dest = "" then exit sub
     dim as string where_ = "?"
     if (c.srcMgr <> 0) andalso (n <> Tko.NODE_NONE) then
         dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( n ) )
         where_ = c.srcMgr->PathOf( d.file ) & ":" & d.lineNo
     end if
     dim as long eh = freefile
-    open err for output as #eh
+    if dest = "1" then
+        open err for output as #eh
+    elseif open( dest for append as #eh ) <> 0 then
+        exit sub
+    end if
     print #eh, "pick-audit: " & where_ & " " & site & " lowered=" & AuditName_( c, lowered ) & _
                " recorded=" & AuditName_( c, recorded )
     close #eh

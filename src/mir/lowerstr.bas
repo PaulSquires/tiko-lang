@@ -1050,36 +1050,11 @@ function LowerLen _
         dim as Tko.TypeId lat = c.types->Unqualify( c.info->TypeOf_( a ) )
         if lat <> Tko.TYPE_NONE then
             if c.types->Kind( lat ) = Tko.TK_UDT then
-                '' FROM THE TYPE'S OWN DECLARING SCOPE, not the expression's:
-                '' Check records no scope on an expression node inside a
-                '' procedure -- Collect never walks a body -- and a type and the
-                '' operators over it are declared together. The same lookup
-                '' UserBinaryOp_ makes, and for the same reason.
-                dim as Tko.ScopeId lsc = _
-                    cast( Tko.ScopeId, c.types->DeclScopeOf( lat ) )
-                dim as Tko.SymbolId lop = Tko.SYMBOL_NONE
-                if lsc <> Tko.SCOPE_NONE then
-                    lop = c.syms->Lookup( lsc, _
-                        c.names->Fold( c.names->GetString( "len" ) ) )
-                end if
-                '' THE OVERLOAD FOR THIS TYPE, not the chain's head, at ITS result width. With
-                '' 'operator len' over A (as uinteger) and over B (as long), 'len( b1 )' called
-                '' A's -- fbc prints -5, tiko printed 100 (tests/mir/operator-len-type).
-                dim as Tko.SymbolId lpick = lop
-                dim as Tko.SymbolId lwalk = lop
-                while lwalk <> Tko.SYMBOL_NONE
-                    dim as Tko.Symbol ptr lws = c.syms->SymbolAt( lwalk )
-                    if lws = 0 then exit while
-                    dim as Tko.TypeId lpu = c.types->Unqualify( ParamTypeAt( c, lwalk, 0 ) )
-                    if lpu <> Tko.TYPE_NONE then
-                        if c.types->Kind( lpu ) = Tko.TK_REFERENCE then lpu = c.types->Unqualify( c.types->Inner( lpu ) )
-                        if lpu = lat then
-                            lpick = lwalk
-                            exit while
-                        end if
-                    end if
-                    lwalk = lws->nextOverload
-                wend
+                '' WHICH 'operator len' IS CHECK'S, recorded on the argument (checkdecide.bas
+                '' LenOperatorFor_): the one declared for this TYPE, or none -- and none is the
+                '' intrinsic. Walked here, no exact match called the chain HEAD: 'len( b1 )' over
+                '' a type without one ran another type's operator, 77 where fbc prints 12.
+                dim as Tko.SymbolId lpick = c.info->DecisionOf( a )
                 if lpick <> Tko.SYMBOL_NONE then
                     dim as MirValue lov
                     dim as MirType lrt = MT_I64

@@ -584,10 +584,9 @@ end function
 
 declare function UdtCastsToUStr_( byref c as Ctx, byval t as Tko.TypeId ) as boolean   '' udtcastu.bas, below
 #include once "symbols/overload.bas"
-
+#include once "symbols/checkdecide.bas"
 #include once "symbols/intrinsics.bas"
 #include once "symbols/udtcastu.bas"
-
 
 '' THE '__fbinvoke' OF A CLOSURE TYPE, or nothing when this is not one. Resolve
 '' declares it in the type's own scope precisely so a CALL can find the procedure
@@ -1357,7 +1356,7 @@ private function TypeOfUncached_ _
                     '' A BYREF result is a REFERENCE to the element; the element's own
                     '' type is what the expression has, exactly as a byref parameter's
                     '' use does.
-                    dim as Tko.SymbolId ixs = UdtOperatorNamed_( c, pt, "[]" )
+                    dim as Tko.SymbolId ixs = IndexOperatorFor_( c, pt, iif( xp->count > 0, cast( Tko.NodeId, c.ast->children[xp->first] ), Tko.NODE_NONE ) )
                     if ixs <> Tko.SYMBOL_NONE then
                         dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
                         if ixsym <> 0 then

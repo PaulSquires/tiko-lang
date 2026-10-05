@@ -450,21 +450,9 @@ private function ExprIntrinsicType_ _
             dim as Tko.TypeId lu = c.types->Unqualify( a0 )
             if c.types->Kind( lu ) = Tko.TK_REFERENCE then lu = c.types->Unqualify( c.types->Inner( lu ) )
             if c.types->Kind( lu ) = Tko.TK_UDT then
-                dim as Tko.SymbolId lop = c.info->RefOf( cp->target )
-                while lop <> Tko.SYMBOL_NONE
-                    dim as Tko.Symbol ptr lsy = c.syms->SymbolAt( lop )
-                    if lsy = 0 then exit while
-                    if lsy->kind <> cast( ubyte, Tko.SYM_PROC ) then exit while
-                    dim as Tko.TypeId lpt = ProcParamTypeAt_( c, lop, 0 )
-                    if lpt <> Tko.TYPE_NONE then
-                        dim as Tko.TypeId lpu = c.types->Unqualify( lpt )
-                        if c.types->Kind( lpu ) = Tko.TK_REFERENCE then
-                            lpu = c.types->Unqualify( c.types->Inner( lpu ) )
-                        end if
-                        if (lpu = lu) andalso (lsy->type_ <> Tko.TYPE_NONE) then return lsy->type_
-                    end if
-                    lop = lsy->nextOverload
-                wend
+                '' WHICH ONE is checkdecide.bas's, and recorded for LowerLen on the argument.
+                dim as Tko.SymbolId lop = LenOperatorFor_( c, lu )
+                if lop <> Tko.SYMBOL_NONE then c.info->SetDecision( cast( Tko.NodeId, c.ast->children[cp->first] ), lop ) : return c.syms->SymbolAt( lop )->type_
             end if
         end if
         return c.types->Builtin( Tko.TY_INTEGER )

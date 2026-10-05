@@ -398,52 +398,11 @@ function LowerUdtIndexOp_ _
     if pt = Tko.TYPE_NONE then return false
     if c.types->Kind( pt ) <> Tko.TK_UDT then return false
 
-    dim as Tko.SymbolId ixs = UdtMemberNamed_( c, pt, "[]" )
+    '' WHICH 'operator []' IS CHECK'S, recorded on the node (checkdecide.bas IndexOperatorFor_):
+    '' by conversion cost over the written index, uniquely, else the chain head -- the rule
+    '' this file applied itself while Check typed the node by the head (audit Phase 4).
+    dim as Tko.SymbolId ixs = c.info->RefOf( id )
     if ixs = Tko.SYMBOL_NONE then return false
-
-    '' 'operator []' MAY BE OVERLOADED, and UdtMemberNamed_ answers with the HEAD of the
-    '' chain. overload/op-ptrindex.bas declares three on one type -- by integer, by
-    '' string and by double -- so taking the head matched 'x[ "abc" ]' against the
-    '' INTEGER one: at HEAD that silently passed a truncated string pointer as a
-    '' subscript, and it lowered and verified.
-    ''
-    '' Chosen the way PropertyAt_ chooses between a getter and a setter: by conversion
-    '' cost over the written index, uniquely or not at all. A tie is a decline rather
-    '' than a guess -- picking either of two equal candidates is how the wrong one gets
-    '' called with nothing to say so.
-    dim as Tko.NodeId ie0 = cast( Tko.NodeId, c.ast->children[sp->first] )
-    dim as Tko.TypeId at0 = c.types->Unqualify( c.info->TypeOf_( ie0 ) )
-    if at0 <> Tko.TYPE_NONE then
-        dim as Tko.SymbolId best = Tko.SYMBOL_NONE
-        dim as long bestCost = Tko.Check.CONV_NONE
-        dim as long ties = 0
-        dim as Tko.SymbolId cur = ixs
-        dim as long guard = 0
-        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
-            guard += 1
-            dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-            if cs = 0 then exit while
-            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
-            if cpt <> Tko.TYPE_NONE then
-                dim as Tko.TypeId cpu = c.types->Unqualify( cpt )
-                if c.types->Kind( cpu ) = Tko.TK_REFERENCE then
-                    cpu = c.types->Unqualify( c.types->Inner( cpu ) )
-                end if
-                dim as long cst = Tko.Check.ConversionCost( at0, cpu, *c.types )
-                if cst < Tko.Check.CONV_NONE then
-                    if cst < bestCost then
-                        bestCost = cst
-                        best = cur
-                        ties = 0
-                    elseif cst = bestCost then
-                        ties += 1
-                    end if
-                end if
-            end if
-            cur = cs->nextOverload
-        wend
-        if (best <> Tko.SYMBOL_NONE) andalso (ties = 0) then ixs = best
-    end if
 
     dim as MirValue self_ = LowerAddr( c, sp->target )
     if self_.kind = cast( ubyte, MV_NONE ) then return false
