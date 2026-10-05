@@ -194,6 +194,32 @@ private sub CheckMathIntrinsic_ _
     next
 end sub
 
+'' HEX, OCT, BIN AND CHR OVER A UDT -- measured on fbc-modern, over a type casting to long:
+'' 'hex( a )' (and oct, bin, their wide halves) is error 98, the overloads all reaching it
+'' through the one cast at one flat score; 'chr( a )' and 'wchr( a )' are 58. tiko took the
+'' cast, or failed to lower. A tuple is tiko's own; a user overload of the name is not this.
+private sub CheckUdtRadixChr_ _
+    ( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr, byref nm as string )
+
+    if instr( " hex oct bin whex woct wbin chr wchr ", " " & nm & " " ) = 0 then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
+    dim as TypeId at = c.info->TypeOf_( a0 )
+    if at = TYPE_NONE then return
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    if c.types->Kind( at ) <> TK_UDT then return
+    dim as InternId un = c.types->NameOf( at )
+    if un = 0 then return
+    dim as string h = left( c.names->Spelling( un ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return
+    if right( nm, 3 ) = "chr" then
+        c.diags->Report( TKO0698, PointRange( c.ast->Loc( a0 ) ) )
+    else
+        c.diags->Report( TKO0660, PointRange( c.ast->Loc( id ) ), nm )
+    end if
+end sub
+
 private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
@@ -204,6 +230,7 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as BuiltinType want = ConvTarget_( nm )
     if want = TY_NONE then
         CheckMathIntrinsic_( c, id, lp, nm )
+        CheckUdtRadixChr_( c, id, lp, nm )
         return
     end if
     if (c.info->RefOf( lp->target ) <> SYMBOL_NONE) orelse (c.info->RefOf( id ) <> SYMBOL_NONE) then return

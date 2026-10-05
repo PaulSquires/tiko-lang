@@ -430,6 +430,12 @@ private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId su = c.types->Unqualify( st )
     if c.types->Kind( su ) = TK_REFERENCE then su = c.types->Unqualify( c.types->Inner( su ) )
     if c.types->Kind( su ) = TK_ARRAY then su = c.types->Unqualify( c.types->Inner( su ) )
+    '' A UDT SUBJECT IS fbc's 24 whatever casts it declares -- measured over one casting to long,
+    '' one to string and one with none. tiko took its cast. A tuple is tiko's own, not judged.
+    if (c.types->Kind( su ) = TK_UDT) andalso (TcTuple_( c, su ) = false) then
+        c.diags->Report( TKO0964, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( c.types->NameOf( su ) ) )
+        return
+    end if
     if c.types->Kind( su ) <> TK_BUILTIN then return
     if CharAccess_( c, sp->a, su ) then return
     dim as boolean subjStr = IsStringyType_( c, su )

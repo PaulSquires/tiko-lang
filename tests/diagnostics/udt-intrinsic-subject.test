@@ -1,0 +1,15 @@
+'' TKO0964, TKO0660 and TKO0698: a UDT as a 'select case' subject (fbc's 24, any UDT), as the
+'' argument of hex/oct/bin and their wide halves (98) and of chr/wchr (58). tiko took the cast
+'' or failed to lower. proccheck.bas CheckSelectCaseKinds_, staticdef.bas CheckUdtRadixChr_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-intrinsic-subject.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-intrinsic-subject.bas(18,13): error TKO0964
+'' EXPECT-OUT: udt-intrinsic-subject.bas(21,13): error TKO0964
+'' EXPECT-OUT: udt-intrinsic-subject.bas(24,13): error TKO0964
+'' EXPECT-OUT: udt-intrinsic-subject.bas(27,10): error TKO0660
+'' EXPECT-OUT: udt-intrinsic-subject.bas(28,10): error TKO0660
+'' EXPECT-OUT: udt-intrinsic-subject.bas(29,11): error TKO0660
+'' EXPECT-OUT: udt-intrinsic-subject.bas(30,12): error TKO0698
+'' EXPECT-OUT: udt-intrinsic-subject.bas(31,13): error TKO0698
+'' EXPECT-MAX-DIAG: 8
