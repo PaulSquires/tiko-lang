@@ -1023,8 +1023,17 @@ sub InitSharedGlobal _
             if c.ast->Kind( wa ) = Tko.N_STRING_LIT then flit = wa
         end if
     end if
-    if (fsk >= 1) andalso (fsk <= 4) andalso (c.ast->Kind( flit ) = Tko.N_STRING_LIT) then
-        dim as string ftxt = StringLitText_( c, flit )
+    '' ...AND ANY CONSTANT TEXT -- 'chr( 92 )', a concatenation of literals: fbc folds
+    '' 'dim shared as zstring * 2 z = chr( 92 )' (string/escape.bas) and it declined here.
+    dim as string ftxt
+    dim as boolean fconst = (c.ast->Kind( flit ) = Tko.N_STRING_LIT)
+    if fconst then
+        ftxt = StringLitText_( c, flit )
+    elseif (fsk >= 1) andalso (fsk <= 4) then
+        fconst = ConstStringTextOf_( c, flit, ftxt )
+    end if
+    if fconst then fconst = (fsk >= 1) andalso (fsk <= 4)
+    if fconst then
         '' N, from the type's own element count -- StrSwapKind_ answers the ENCODED
         '' length tag, which is not a count.
         dim as long cap = 0
