@@ -418,6 +418,15 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         end if
     end if
 
+    '' 'SELECT CASE AS CONST *p' OVER A STRING POINTER IS A JUMP ON THE CHARACTER, not a string
+    '' compare: fbc's compound/select_const.bas walks a zstring this way, 250 included. tiko copied
+    '' the rest of the string and compared it against each case turned into text -- case else.
+    if (strMode >= 0) andalso (cast( Tko.TokenKind, sp->op ) = Tko.KW_CONST) andalso _
+       (CharLvalueTy_( c, sp->a ) <> MT_VOID) then
+        strMode = -1
+        mt = CharLvalueTy_( c, sp->a )   '' the character, unsigned: 250 is 250
+        subjT = c.types->Builtin( iif( mt = MT_I8, Tko.TY_UBYTE, iif( c.types->target.wcharBytes = 4, Tko.TY_ULONG, Tko.TY_USHORT ) ) )
+    end if
     dim as MirValue slotAddr
     dim as long swmark = c.wstrTemps.Count
     if strMode >= 0 then
