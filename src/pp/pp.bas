@@ -266,13 +266,14 @@ private function IsDeclared_( byref e as PpEngine, byval id as InternId ) as boo
     return (e.declaredMark[ix] <> 0)
 end function
 
-'' DEFINED TO '#ifdef' AND 'defined( )' THOUGH THE PARSER EXPANDS THEM: '__FUNCTION__' and
-'' '__FUNCTION_NQ__'. Measured, fbc takes the true branch for both; tiko took neither.
+'' DEFINED TO '#ifdef' AND 'defined( )' THOUGH THE PARSER EXPANDS THEM: '__FUNCTION__',
+'' '__FUNCTION_NQ__' and '__FB_QUERY_SYMBOL__'. Measured, fbc takes the true branch for all
+'' three; tiko took none.
 private function IsDefinedBuiltin_( byref e as PpEngine, byval id as InternId ) as boolean
     if IsDeclared_( e, id ) then return true
     if id = INTERN_NONE then return false
     dim as string s = lcase( e.names->Spelling( id ) )
-    return (s = "__function__") orelse (s = "__function_nq__")
+    return (s = "__function__") orelse (s = "__function_nq__") orelse (s = "__fb_query_symbol__")
 end function
 
 private sub MarkConst_ _

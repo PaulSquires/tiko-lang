@@ -1,0 +1,42 @@
+'' '#ifdef' over thirty-three builtin names answers as fbc does, name for name -- including
+'' __FUNCTION__, __FUNCTION_NQ__ and __FB_QUERY_SYMBOL__, which the parser and not a macro
+'' expands, and __FB_MIN_VERSION__.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-ifdef-builtin-table.bas -o tests/codegen/ppifdefbuiltintable.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppifdefbuiltintable.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: __FUNCTION__ 1
+'' EXPECT-RUN-OUT: __FUNCTION_NQ__ 1
+'' EXPECT-RUN-OUT: __FB_ARGC__ 1
+'' EXPECT-RUN-OUT: __FB_ARGV__ 1
+'' EXPECT-RUN-OUT: __DATE__ 1
+'' EXPECT-RUN-OUT: __TIME__ 1
+'' EXPECT-RUN-OUT: __DATE_ISO__ 1
+'' EXPECT-RUN-OUT: __FB_VERSION__ 1
+'' EXPECT-RUN-OUT: __FB_UNIQUEID__ 1
+'' EXPECT-RUN-OUT: __FB_OPTION_BYVAL__ 1
+'' EXPECT-RUN-OUT: __FB_MT__ 1
+'' EXPECT-RUN-OUT: __FB_DEBUG__ 1
+'' EXPECT-RUN-OUT: __FB_ERR__ 1
+'' EXPECT-RUN-OUT: __FB_GUI__ 1
+'' EXPECT-RUN-OUT: __FB_LANG__ 1
+'' EXPECT-RUN-OUT: __FB_BACKEND__ 1
+'' EXPECT-RUN-OUT: __FB_GCC__ 1
+'' EXPECT-RUN-OUT: __FB_OPTIMIZE__ 1
+'' EXPECT-RUN-OUT: __FB_PCOS__ 1
+'' EXPECT-RUN-OUT: __FB_64BIT__ 1
+'' EXPECT-RUN-OUT: __FB_EVAL__ 1
+'' EXPECT-RUN-OUT: __FB_QUOTE__ 1
+'' EXPECT-RUN-OUT: __FB_UNQUOTE__ 1
+'' EXPECT-RUN-OUT: __FB_JOIN__ 1
+'' EXPECT-RUN-OUT: __FB_ARG_COUNT__ 1
+'' EXPECT-RUN-OUT: __FB_IIF__ 1
+'' EXPECT-RUN-OUT: __FB_QUERY_SYMBOL__ 1
+'' EXPECT-RUN-OUT: __FB_BUILD_DATE__ 1
+'' EXPECT-RUN-OUT: __FB_SIGNATURE__ 1
+'' EXPECT-RUN-OUT: __FB_MIN_VERSION__ 1
+'' EXPECT-RUN-OUT: __FB_X86__ 1
+'' EXPECT-RUN-OUT: __FB_PPC__ 0
+'' EXPECT-RUN-OUT: __FB_ARM__ 0
