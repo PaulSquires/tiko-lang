@@ -186,6 +186,10 @@ function ConstInt _
     ins.op = cast( ushort, M_CONST )
     ins.ty = cast( ubyte, t )
     ins.imm = v
+    '' ...AND A FLOAT CONSTANT READS 'fimm': 'ConstInt( c, 1, MT_F64 )' -- a FOR loop's implicit
+    '' step over a double counter -- went out as 'const f64 0', and 'for d as double = 1 to 3'
+    '' never advanced. fbc prints 1 2 3.
+    if IsFloatTy( t ) then ins.fimm = cdbl( v )
     return Emit( c, ins )
 end function
 
