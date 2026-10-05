@@ -17,7 +17,6 @@ Each of these is a diagnostic, not a silent difference:
 | `#lang "qb"`, `"fblite"`, `"deprecated"` | accepted | `TKO0317: unsupported language mode 'qb'; tiko-lang implements "fb" only` |
 | `GOSUB` | error 146 in `-lang fb` (it is valid only in `fblite` and `qb`) | `TKO0409: 'GOSUB' is not available in the fb dialect` |
 | inline `ASM` | compiles | `TKO0407: inline assembly is not supported; compile that module with fbc` |
-| `#if __FB_MIN_VERSION__( 1, 20, 0 )` | true: fbc defines `__FB_MIN_VERSION__` | `TKO0308: invalid expression in '#if'`, because tiko does not define it |
 | `-lang`, `-gen`, `-x` | accepted | `TKO0100: unknown option` |
 | `-m32`, `-target win32` | | `TKO0104`, `TKO0103`: x86-64 only |
 
