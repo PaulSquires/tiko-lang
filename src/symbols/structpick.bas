@@ -258,4 +258,58 @@ function NumericCastPick _
     return best
 end function
 
+'' THE COPY CONSTRUCTOR of a UDT, or NONE: a constructor whose FIRST parameter is the type itself
+'' (by reference, const or not) and, with DEFAULTED, whose every other parameter has a default.
+'' TWO QUESTIONS, and fbc answers them differently. Measured on fbc-modern, with
+'' 'constructor( byref r as T, byval extra as long = 0 )' beside 'constructor( byval n as long )':
+''
+''     dim as T b = a              the defaulted one copies      101   (DEFAULTED = true)
+''     dim as T g = gives( )       it copies on return AND here  205
+''     takes( a ) / byval          no copy at all                  1   (DEFAULTED = false)
+''
+'' fbc's own copy-constructor FACT (symb-comp.bas, symbCheckCompCtor) counts a constructor of
+'' exactly one parameter, so the type stays trivial -- passed by value, returned in registers --
+'' while an initialiser still resolves the overload and finds the defaulted copy.
+function CopyStructorOf _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
+      byval defaulted as boolean ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = types.Unqualify( t )
+    if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "__ctor" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 10000)
+        guard += 1
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
+        if s = 0 then exit while
+        dim as Tko.NodeId pn = SpProcNode_( ast, syms, cur )
+        if pn <> Tko.NODE_NONE then
+            dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
+            dim as long seen = 0
+            dim as boolean ok = false
+            for i as long = 0 to pp->count - 1
+                dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+                if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+                if seen = 0 then
+                    dim as Tko.TypeId pt = info.TypeOf_( SpStmt_( ast, prm )->a )
+                    if pt = Tko.TYPE_NONE then exit for
+                    pt = types.Unqualify( pt )
+                    if types.Kind( pt ) = Tko.TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
+                    ok = (pt = u)
+                    if ok = false then exit for
+                elseif (defaulted = false) orelse (SpStmt_( ast, prm )->b = Tko.NODE_NONE) then
+                    ok = false
+                    exit for
+                end if
+                seen += 1
+            next
+            if ok then return cur
+        end if
+        cur = s->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 end namespace

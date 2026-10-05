@@ -22,22 +22,37 @@
 '' SYNTHESISED '<T>C1ERKS_', which is not emitted for a type that declares its own.
 '' Measured: 'lld-link: error: undefined symbol: COUNTED::COUNTED(COUNTED const&)'.
 function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
-    dim as Tko.SymbolId cur = StructorOf( c, t, "__ctor" )
-    dim as long guard = 0
-    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 10000)
-        guard += 1
-        dim as Tko.SymbolId one = StructorWithArity( c, cur, 1 )
-        if one = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-        dim as Tko.TypeId pt = ParamTypeAt( c, one, 0 )
-        if pt <> Tko.TYPE_NONE then
-            if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
-            if c.types->Unqualify( pt ) = c.types->Unqualify( t ) then return one
-        end if
-        dim as Tko.Symbol ptr os = c.syms->SymbolAt( one )
-        if os = 0 then return Tko.SYMBOL_NONE
-        cur = os->nextOverload
-    wend
-    return Tko.SYMBOL_NONE
+    return Tko.Check.CopyStructorOf( *c.ast, *c.syms, *c.types, *c.names, *c.info, t, false )   '' symbols/structpick.bas
+end function
+
+'' THE ONE AN INITIALISER RUNS: 'dim as T b = a' resolves the overload, so a copy constructor
+'' with defaulted trailing parameters counts here -- and only here; see CopyStructorOf.
+function InitCopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    return Tko.Check.CopyStructorOf( *c.ast, *c.syms, *c.types, *c.names, *c.info, t, true )
+end function
+
+'' 'return r' OVER A TRIVIAL RESULT WHOSE ONLY COPY CONSTRUCTOR HAS DEFAULTED PARAMETERS. The
+'' result is still initialised from r, so fbc resolves the overload and runs it -- measured,
+'' '[conv][ret][copy]' and 105 where tiko stored r's bytes and printed 5. A call result and
+'' every other shape keep the store; only a same-type value with an address is copied.
+function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    if (c.resultSlot < 0) orelse (valueE = Tko.NODE_NONE) then return false
+    if c.ast->Kind( valueE ) = Tko.N_CALL then return false
+    dim as Tko.TypeId rt = c.types->Unqualify( c.resultType )
+    dim as Tko.TypeId vt = c.info->TypeOf_( valueE )
+    if vt = Tko.TYPE_NONE then return false
+    vt = c.types->Unqualify( vt )
+    if c.types->Kind( vt ) = Tko.TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+    if vt <> rt then return false
+    dim as Tko.SymbolId cc = InitCopyCtorOf_( c, rt )
+    if (cc = Tko.SYMBOL_NONE) orelse (cc = CopyCtorOf_( c, rt )) then return false
+    dim as MirValue src = LowerAddr( c, valueE )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) cargs
+    cargs.Push( cast( ulong, src.kind ) )
+    cargs.Push( cast( ulong, src.id ) )
+    EmitStructorCall( c, cc, c.resultSlot, 0, @cargs )
+    return true
 end function
 
 '' Is E a call's RESULT -- an N_CALL that is NOT A SUBSCRIPT? FreeBASIC spells both

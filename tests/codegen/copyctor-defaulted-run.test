@@ -1,0 +1,15 @@
+'' A COPY CONSTRUCTOR WITH A DEFAULTED SECOND PARAMETER. An initialiser and a 'return' resolve
+'' the overload and run it; a byval argument does not, because fbc's copy-constructor fact
+'' counts only a one-parameter one, so the type stays trivial. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/copyctor-defaulted.bas -o tests/codegen/copyctordefaulted.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/copyctordefaulted.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [init][conv][ret][copy][copy] g: 205
+'' EXPECT-RUN-OUT: [conv][ret][copy] h: 105
+'' EXPECT-RUN-OUT: [conv][copy] k: 107
+'' EXPECT-RUN-OUT: [conv]
+'' EXPECT-RUN-OUT:  in: 1
+'' EXPECT-RUN-OUT: [copy] b: 101

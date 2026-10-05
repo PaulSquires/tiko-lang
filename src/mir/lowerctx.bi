@@ -1371,6 +1371,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
     declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function InitCopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function IifArmsScalar_ _
         ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean

@@ -686,7 +686,9 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 dim as Tko.TypeId uthT = Tko.TYPE_NONE
                 dim as MirValue uthA
                 dim as boolean wideBuilt = false
-                if ThisObjectAddr_( c, sp->a, uthT, uthA ) then
+                if InitCopyReturn_( c, sp->a ) then
+                    wideBuilt = true                    '' copy-constructed in -- lowerinit.bas
+                elseif ThisObjectAddr_( c, sp->a, uthT, uthA ) then
                     dim as long uthSz = SizeOfType( c, uthT )
                     if uthSz > 0 then uval = LowerExprLoad( c, uthA, MT_AGG, uthSz )
                 elseif UdtConvResult_( c, sp->a, true ) then

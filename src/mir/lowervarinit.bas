@@ -316,7 +316,7 @@ sub LowerVarItem_ _
                 '' 'constructor( byval n as long )' and nothing else had that
                 '' one picked as its copy constructor -- and was handed an
                 '' ADDRESS where a long belonged.
-                dim as Tko.SymbolId ucp = CopyCtorOf_( c, dvt )
+                dim as Tko.SymbolId ucp = InitCopyCtorOf_( c, dvt )
                 '' A FUNCTION RESULT IS ALREADY A TEMPORARY, so it is MOVED
                 '' and not copied. fbc hands the callee the destination and
                 '' the object is built there once -- 'F( &T$1 )' with no copy
@@ -367,8 +367,13 @@ sub LowerVarItem_ _
                     '' only a move when the two are the SAME object; for a
                     '' base slice fbc still copy-constructs and THEN destroys
                     '' the temporary, so it has to stay registered.
+                    '' ...AND ONLY OVER A TYPE WHOSE RESULT IS BUILT IN PLACE. A copy constructor
+                    '' with defaulted trailing parameters is not fbc's copy-constructor fact, so the
+                    '' type stays trivial, its result comes back by value, and fbc copies it into
+                    '' the variable: 'dim as T g = gives( )' is 205, two copies, not 105.
                     dim as boolean movedRes = false
                     if (c.ast->Kind( ip->b ) = Tko.N_CALL) andalso _
+                       ((ucp = Tko.SYMBOL_NONE) orelse (ucp = CopyCtorOf_( c, dvt ))) andalso _
                        (ivt = vs->type_) andalso _
                        (ssa.kind = cast( ubyte, MV_LOCAL )) then
                         for k as long = cmark to c.udtTemps.Count - 1
