@@ -743,8 +743,25 @@ function PropertyAt_ _
         dim as Tko.SymbolId h = c.syms->LookupLocal( s0->parent, s0->name )
         if h <> Tko.SYMBOL_NONE then head = h
     end if
+    '' A GETTER IS CHECK'S CHOICE, recorded on the node -- PropertyReadAccessor_ for 't.P', the
+    '' call's resolution for 't.P( i )' -- and agrees with the walk below everywhere it was
+    '' audited (overload re-pick refactor, Phase 1). Only a PROPERTY with a result counts:
+    '' a setter-only 't.P' read has none and declines, as before. The walk is the setter's.
     dim as Tko.SymbolId cur = head
     dim as Tko.SymbolId want_ = Tko.SYMBOL_NONE
+    if want = 0 then
+        cur = Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr rgs = c.syms->SymbolAt( c.info->RefOf( node ) )
+        if rgs <> 0 then
+            if (rgs->kind = cast( ubyte, Tko.SYM_PROC )) andalso (rgs->payload <> 0) then
+                dim as Tko.NodeId rgn = cast( Tko.NodeId, rgs->payload )
+                if c.ast->Kind( rgn ) = Tko.N_PROC then
+                    dim as Tko.StmtPayload ptr rgp = StmtOf( c, rgn )
+                    if (rgp->op = cast( ushort, Tko.KW_PROPERTY )) andalso (rgp->a <> Tko.NODE_NONE) then want_ = c.info->RefOf( node )
+                end if
+            end if
+        end if
+    end if
     dim as long bestCost = Tko.Check.CONV_NONE
     dim as long ties = 0
     while cur <> Tko.SYMBOL_NONE

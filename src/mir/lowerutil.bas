@@ -703,7 +703,9 @@ sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
     elseif open( dest for append as #eh ) <> 0 then
         exit sub
     end if
+    '' ONE WRITE PER LINE, newline included: parallel compiles append to one file, and a
+    '' separate newline write let their lines interleave.
     print #eh, "pick-audit: " & where_ & " " & site & " lowered=" & AuditName_( c, lowered ) & _
-               " recorded=" & AuditName_( c, recorded )
+               " recorded=" & AuditName_( c, recorded ) & chr( 10 );
     close #eh
 end sub
