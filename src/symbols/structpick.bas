@@ -117,6 +117,33 @@ private function StrKind_( byref types as Tko.TypeContext, byval t as Tko.TypeId
     return 0
 end function
 
+'' DOES A UDT DECLARE A CAST YIELDING TEXT -- a string of any width, or a character pointer?
+'' Measured on fbc-modern: a type casting only to long and double is error 24 as a 'string'
+'' initialiser, 181 assigned to one and 58 passed as one; tiko converted the number.
+function UdtHasStrCast _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId ) as boolean
+
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
+            if types.Kind( rt ) = Tko.TK_POINTER then rt = types.Unqualify( types.Inner( rt ) )
+            if StrKind_( types, rt ) <> 0 then return true
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
 '' A UDT ARGUMENT REACHING A CONSTRUCTOR'S (or 'let's) STRING OR NUMERIC PARAMETER THROUGH ITS OWN
 '' 'operator cast', or CONV_NONE. Measured on fbc-modern: S casting to string (or 'byref as
 '' wstring') and T constructible from 'byref/byval as string' or 'byref as wstring' -- 'T( s )',

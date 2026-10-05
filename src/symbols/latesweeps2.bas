@@ -248,6 +248,15 @@ private sub JudgeConversion_ _
         case TY_ANY, TY_FIXSTR, TY_FIXUSTR
             return
         end select
+        '' A UDT INTO A 'string' NEEDS A CAST YIELDING TEXT: one casting only to numbers is fbc's
+        '' 24 and 181 (structpick.bas UdtHasStrCast) -- its cast vouched for it and tiko converted
+        '' the number. A fixed 'zstring * N' or 'wstring * N' is not this question; fbc takes them.
+        if rUdt andalso (c.types->BuiltinOf( other ) = TY_STRING) then
+            if DeclaresAnywhere_( c, udt, "cast" ) andalso (Tko.Check.UdtHasStrCast( *c.syms, *c.types, *c.names, udt ) = false) then
+                c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
+                return
+            end if
+        end if
     end if
     if Rescued_( c, lu, ru, byAssign ) then return
     c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )

@@ -222,6 +222,10 @@ private function AmBadPair_ _
         if c.types->Kind( pt ) = Tko.TK_POINTER then
             if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = 1 then return true
         end if
+        '' ...AND A 'string' PARAMETER NEEDS A CAST YIELDING TEXT (UdtHasStrCast): numbers only is 58.
+        if AmString_( c, pt ) andalso (c.types->BuiltinOf( pt ) = Tko.TY_STRING) then
+            if Tko.Check.UdtHasStrCast( *c.syms, *c.types, *c.names, at ) = false then return true
+        end if
         if AmPlainUdt_( c, at, "cast", "" ) = false then return false
         if AmPtrLike_( c, pt ) then return true
         if AmString_( c, pt ) then

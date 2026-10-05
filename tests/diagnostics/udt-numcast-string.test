@@ -1,0 +1,12 @@
+'' TKO0738 and TKO0698, fbc's 24, 181 and 58: a UDT casting only to numbers is not a 'string'.
+'' tiko converted the number. structpick.bas UdtHasStrCast, latesweeps2.bas, argmismatch.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-numcast-string.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-numcast-string.bas(11,15): error TKO0738
+'' EXPECT-OUT: udt-numcast-string.bas(12,1): error TKO0738
+'' EXPECT-OUT: udt-numcast-string.bas(16,5): error TKO0698
+'' EXPECT-OUT: udt-numcast-string.bas(18,5): error TKO0698
+'' EXPECT-NOT: udt-numcast-string.bas(13,
+'' EXPECT-NOT: udt-numcast-string.bas(14,
+'' EXPECT-MAX-DIAG: 4
