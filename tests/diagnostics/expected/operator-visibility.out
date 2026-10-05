@@ -205,7 +205,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg hf2 size 8
   local agg pf size 8
   local agg hf3 size 8
+  local ptr $tmp28
   local agg pf3 size 8
+  local ptr $tmp30
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -257,7 +259,9 @@ func i32 main(i32 $0, ptr $1) {
     %73 = alloca ptr hf2
     %76 = alloca ptr pf
     %79 = alloca ptr hf3
-    %82 = alloca ptr pf3
+    %81 = alloca ptr $tmp28
+    %85 = alloca ptr pf3
+    %87 = alloca ptr $tmp30
     condbr %24, del.body1, del.join2
   del.body1:
     call void _ZN5ALLOCdlEPS_(%22)
@@ -350,15 +354,23 @@ func i32 main(i32 $0, ptr $1) {
     %78 = field.addr @pf, 0
     store %78, %77
     %80 = call.rtl ptr memset(@hf3, 0, 8)
-    %81 = load @hf3
-    %83 = call.rtl ptr memset(@pf3, 0, 8)
-    %84 = load @pf3
-    %85 = const i64 123
-    call.rtl void fb_PrintLongint(0, %85, 1)
-    %86 = const i32 0
-    call.rtl void fb_End(%86)
-    %87 = load @$tmp0
-    ret %87
+    store @$tmp28, @hf3
+    %82 = load @$tmp28
+    %83 = field.addr %82, 0
+    %84 = load %83
+    store @n, %84
+    %86 = call.rtl ptr memset(@pf3, 0, 8)
+    store @$tmp30, @pf3
+    %88 = load @$tmp30
+    %89 = field.addr %88, 0
+    %90 = load %89
+    store @n, %90
+    %91 = const i64 123
+    call.rtl void fb_PrintLongint(0, %91, 1)
+    %92 = const i32 0
+    call.rtl void fb_End(%92)
+    %93 = load @$tmp0
+    ret %93
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN7COUNTERC1ERKS_(ptr $0, ptr $1)
@@ -382,9 +394,7 @@ func void _ZN7COUNTERaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 18 functions, 32 blocks, 218 insts, 2 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 2
-  skip-site src\mir\lowerutil.bas:40 2
+lowered: 18 functions, 32 blocks, 228 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/operator-visibility.bas(102,24): error TKO0625: 'myconst' is not accessible here
      |
  102 |     dim as integer n = MYCONST

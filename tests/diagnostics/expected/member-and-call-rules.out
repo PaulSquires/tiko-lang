@@ -132,18 +132,20 @@ func i32 main(i32 $0, ptr $1) {
     %11 = alloca ptr cf
     %12 = const i64 3
     %13 = field.addr @cf, 0
-    %14 = load %13
-    call.rtl void fb_PrintLongint(0, %14, 1)
-    %15 = field.addr @cf, 0
-    %16 = const i64 4
-    store %15, %16
-    %17 = load @pb
-    call void WANTSDPTR(%17)
+    store %13, %12
+    %14 = field.addr @cf, 0
+    %15 = load %14
+    call.rtl void fb_PrintLongint(0, %15, 1)
+    %16 = field.addr @cf, 0
+    %17 = const i64 4
+    store %16, %17
+    %18 = load @pb
+    call void WANTSDPTR(%18)
     call void WANTSD(@vb)
-    %18 = const i32 0
-    call.rtl void fb_End(%18)
-    %19 = load @$tmp0
-    ret %19
+    %19 = const i32 0
+    call.rtl void fb_End(%19)
+    %20 = load @$tmp0
+    ret %20
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN1BC1Ev(ptr $0)
@@ -172,9 +174,7 @@ func void _ZN1DC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 16 functions, 16 blocks, 70 insts, 1 statements not lowered, 0 scope imbalance
-  inside N_VAR 1
-  skip-site src\mir\lowerutil.bas:90 1
+lowered: 16 functions, 16 blocks, 72 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/member-and-call-rules.bas(66,5): error TKO0619: 'local2' is declared inside a procedure and cannot have methods
      |
   66 |     type Local2 extends object

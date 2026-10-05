@@ -19,6 +19,8 @@ func i32 main(i32 $0, ptr $1) {
   local i64 $tmp14
   local i64 $tmp15
   local agg u size 8
+  local ptr $tmp17
+  local ptr $tmp18
   local ptr pcf
   entry0:
     %1 = alloca ptr $tmp0
@@ -88,54 +90,64 @@ func i32 main(i32 $0, ptr $1) {
     store @vb, %43
     %44 = alloca ptr u
     %45 = call.rtl ptr memset(@u, 0, 8)
-    %46 = load @u
-    %47 = load @u
-    %48 = const i64 1
-    %49 = const i64 1
-    %50 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_StrAssignMid(@cs, %48, %49, %50)
-    %51 = load @ca
-    %52 = const i64 1
-    %53 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    call.rtl void fb_StrAssignMid(@vs, %51, %52, %53)
-    %54 = load @constimage
-    %55 = const i64 0
-    %56 = sitofp %55
-    %57 = const i64 0
-    %58 = sitofp %57
-    %59 = const i64 1
-    %60 = sitofp %59
-    %61 = const i64 1
+    %46 = alloca ptr $tmp17
+    store @$tmp17, @u
+    %47 = load @$tmp17
+    %48 = field.addr %47, 0
+    %49 = load %48
+    store @ca, %49
+    %50 = alloca ptr $tmp18
+    store @$tmp18, @u
+    %51 = load @$tmp18
+    %52 = field.addr %51, 0
+    %53 = load %52
+    store @va, %53
+    %54 = const i64 1
+    %55 = const i64 1
+    %56 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_StrAssignMid(@cs, %54, %55, %56)
+    %57 = load @ca
+    %58 = const i64 1
+    %59 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
+    call.rtl void fb_StrAssignMid(@vs, %57, %58, %59)
+    %60 = load @constimage
+    %61 = const i64 0
     %62 = sitofp %61
     %63 = const i64 0
-    %64 = trunc %63
-    %65 = const i32 65535
-    call.rtl void fb_GfxLine(%54, %56, %58, %60, %62, %64, 0, %65, 0)
-    %66 = load @image
-    %67 = const i64 0
+    %64 = sitofp %63
+    %65 = const i64 1
+    %66 = sitofp %65
+    %67 = const i64 1
     %68 = sitofp %67
     %69 = const i64 0
-    %70 = sitofp %69
-    %71 = const i64 1
-    %72 = sitofp %71
-    %73 = const i64 1
+    %70 = trunc %69
+    %71 = const i32 65535
+    call.rtl void fb_GfxLine(%60, %62, %64, %66, %68, %70, 0, %71, 0)
+    %72 = load @image
+    %73 = const i64 0
     %74 = sitofp %73
     %75 = const i64 0
-    %76 = trunc %75
-    %77 = const i32 65535
-    call.rtl void fb_GfxLine(%66, %68, %70, %72, %74, %76, 0, %77, 0)
-    %78 = alloca ptr pcf
-    %79 = field.addr @wcf, 0
-    store @pcf, %79
-    %80 = load @pcf
+    %76 = sitofp %75
+    %77 = const i64 1
+    %78 = sitofp %77
+    %79 = const i64 1
+    %80 = sitofp %79
     %81 = const i64 0
-    store %80, %81
+    %82 = trunc %81
+    %83 = const i32 65535
+    call.rtl void fb_GfxLine(%72, %74, %76, %78, %80, %82, 0, %83, 0)
+    %84 = alloca ptr pcf
+    %85 = field.addr @wcf, 0
+    store @pcf, %85
+    %86 = load @pcf
+    %87 = const i64 0
+    store %86, %87
     call.rtl void fb_StrDelete(@vs)
     call.rtl void fb_StrDelete(@cs)
-    %82 = const i32 0
-    call.rtl void fb_End(%82)
-    %83 = load @$tmp0
-    ret %83
+    %88 = const i32 0
+    call.rtl void fb_End(%88)
+    %89 = load @$tmp0
+    ret %89
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -154,9 +166,7 @@ func void _ZN14WITHCONSTFIELDC1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 2 functions, 2 blocks, 117 insts, 2 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 2
-  skip-site src\mir\lowerutil.bas:90 2
+lowered: 2 functions, 2 blocks, 127 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/const-write.bas(22,1): error TKO0617: cannot modify '*ptrtoconst': it is a constant
      |
   22 | *ptrToConst = 1
