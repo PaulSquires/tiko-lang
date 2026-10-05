@@ -1,11 +1,11 @@
-'' A CONSTRUCTOR TAKES A SOURCE'S 'operator cast' ONLY INTO A STRING. Measured on fbc-modern,
-'' S casting to LONG and T constructible from a long: lines 20-23 are errors 58, 58, 24 and
+'' A SOURCE'S CAST THAT DOES NOT CONVERT TO THE CONSTRUCTOR'S PARAMETER. Measured on fbc-modern,
+'' S casting to STRING and T constructible from a long: lines 20-23 are errors 58, 58, 24 and
 '' 181, and 'T( s1 )' and 'T( ww )' on lines 25-26 are 99.
 type S
     as long k
-    declare operator cast( ) as long
+    declare operator cast( ) as string
 end type
-operator S.cast( ) as long : return k * 10 : end operator
+operator S.cast( ) as string : return str( k * 10 ) : end operator
 type T
     as double v
     declare constructor( )

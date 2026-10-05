@@ -198,6 +198,12 @@ function PickCtor _
     return Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
 end function
 
+'' (Moved from lowerctor.bas at its 1500-line cap.)
+function CtorUserConvCost_ _
+    ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+    return Tko.Check.StructorUserConvCost( *c.ast, *c.syms, *c.types, *c.names, *c.info, at, pt )
+end function
+
 function StructorOf _
     ( byref c as Ctx, byval t as Tko.TypeId, byref which as string ) as Tko.SymbolId
 

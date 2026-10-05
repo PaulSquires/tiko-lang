@@ -117,13 +117,15 @@ private function StrKind_( byref types as Tko.TypeContext, byval t as Tko.TypeId
     return 0
 end function
 
-'' A UDT ARGUMENT REACHING A STRING PARAMETER OF A CONSTRUCTOR THROUGH ITS OWN STRING CAST, or
-'' CONV_NONE. Measured on fbc-modern: with S casting to string (or 'byref as wstring') and T
-'' constructible from 'byref/byval as string' or 'byref as wstring', 'T( s )', 'dim as T q = s',
-'' a byval or byref T argument and an operand all run [cast][ctor]; the same over 'long' is
-'' error 99, 24 or 58 -- a constructor takes a source's cast only into a STRING. tiko priced
-'' neither, picked no constructor and copied S's bytes into the T.
-function StructorStrCastCost _
+'' A UDT ARGUMENT REACHING A CONSTRUCTOR'S (or 'let's) STRING OR NUMERIC PARAMETER THROUGH ITS OWN
+'' 'operator cast', or CONV_NONE. Measured on fbc-modern: S casting to string (or 'byref as
+'' wstring') and T constructible from 'byref/byval as string' or 'byref as wstring' -- 'T( s )',
+'' 'dim as T q = s', a T argument and an operand all run [cast][ctor]; and over numbers every
+'' CONVERTING pair does too (a 'double' cast into 'constructor( byval as long )', 'short' into
+'' 'integer', ...). fbc refuses only the pairs whose types are IDENTICAL -- 'long' into 'long',
+'' 'double' into 'double' -- with error 99, which is its defect, not a rule: tiko takes those too
+'' (the F-76 precedent). A numeric cast is the one NumericCastPick takes for the parameter.
+function StructorCastCost _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
 
@@ -133,7 +135,14 @@ function StructorStrCastCost _
     if types.Kind( a ) <> Tko.TK_UDT then return CONV_NONE
     dim as Tko.TypeId p = types.Unqualify( pt )
     if types.Kind( p ) = Tko.TK_REFERENCE then p = types.Unqualify( types.Inner( p ) )
-    if StrKind_( types, p ) = 0 then return CONV_NONE
+    if StrKind_( types, p ) = 0 then
+        if NumericCastRank( types, p ) = 0 then return CONV_NONE
+        dim as Tko.SymbolId nc = NumericCastPick( syms, types, names, a, p )
+        if nc = Tko.SYMBOL_NONE then return CONV_NONE
+        dim as long sc = ConversionCost( types.Unqualify( syms.SymbolAt( nc )->type_ ), p, types )
+        if sc >= CONV_NONE then return CONV_NONE
+        return CONV_USERDEF + sc + 2   '' a string cast beats a numeric one, as UserConvCost_ prices them
+    end if
     dim as long best = CONV_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, a, "cast" )
     dim as long guard = 0
@@ -226,7 +235,7 @@ function PickStructor _
                     else
                         cost = ConversionCost( at2, pt2, types )
                         if cost >= CONV_NONE then cost = StructorUserConvCost( ast, syms, types, names, info, at2, pt2 )
-                        if cost >= CONV_NONE then cost = StructorStrCastCost( ast, syms, types, names, at2, pt2 )
+                        if cost >= CONV_NONE then cost = StructorCastCost( ast, syms, types, names, at2, pt2 )
                     end if
                     ai += 1
                     if cost >= CONV_NONE then

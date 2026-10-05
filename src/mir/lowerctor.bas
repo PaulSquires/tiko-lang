@@ -174,6 +174,20 @@ private function CtorArgValue_ _
         end if
     end if
 
+    '' A UDT FOR A NUMERIC PARAMETER goes through its numeric cast (StructorCastCost's chain).
+    if pt <> Tko.TYPE_NONE then
+        dim as Tko.TypeId au = c.types->Unqualify( at )
+        if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+        if c.types->Kind( au ) = Tko.TK_UDT then
+            dim as Tko.SymbolId nc = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, au, pt )
+            dim as MirType nmt = LowerType( pt, *c.types )
+            if (nc <> Tko.SYMBOL_NONE) andalso (nmt <> MT_VOID) andalso (nmt <> MT_AGG) then
+                if UserCastToNum_( c, argNode, outv, pt ) = false then return false
+                outv = CoerceTy( c, outv, nmt, c.syms->SymbolAt( nc )->type_, pt )
+                return (outv.kind <> cast( ubyte, MV_NONE ))
+            end if
+        end if
+    end if
     outv = LowerExpr( c, argNode )
     if outv.kind = cast( ubyte, MV_NONE ) then return false
     if pt <> Tko.TYPE_NONE then
@@ -187,11 +201,6 @@ end function
 
 '' A UDT PARAMETER THE ARGUMENT REACHES THROUGH ONE OF THAT UDT'S OWN CONSTRUCTORS -- the
 '' shared rule in symbols/structpick.bas (StructorUserConvCost).
-function CtorUserConvCost_ _
-    ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
-    return Tko.Check.StructorUserConvCost( *c.ast, *c.syms, *c.types, *c.names, *c.info, at, pt )
-end function
-
 '' A CHARACTER-POINTER CONVERTING CONSTRUCTOR, chosen by the initialiser's WIDTH.
 ''
 '' Two shapes need it and neither can be picked by TYPE. An 'iif' has no type at
@@ -373,10 +382,10 @@ function LowerConvCtorInit_ _
     end if
     '' ...AND A UDT THAT REACHES A STRING PARAMETER THROUGH ITS OWN CAST takes the value path too,
     '' which calls the cast: the address arm handed the constructor the UDT's bytes as an
-    '' FBSTRING ('dim as T q = s' over 'byref as string', StructorStrCastCost) and it crashed.
+    '' FBSTRING ('dim as T q = s' over 'byref as string', StructorCastCost) and it crashed.
     dim as boolean viaStrCast = false
     if (fromArray = false) andalso ptByref andalso (tookAddr = false) then
-        viaStrCast = (Tko.Check.StructorStrCastCost( *c.ast, *c.syms, *c.types, *c.names, it, pt ) < Tko.Check.CONV_NONE)
+        viaStrCast = (Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, it, pt ) < Tko.Check.CONV_NONE)
     end if
     if (fromArray = false) andalso ptByref andalso (tookAddr = false) andalso (wideToNarrow = false) andalso (viaStrCast = false) then
         '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
@@ -532,8 +541,8 @@ function LowerUserLetConv_ _
         dim as Tko.TypeId vu = c.types->Unqualify( c.info->TypeOf_( value ) )
         '' ...NOT A UDT REACHING A STRING PARAMETER THROUGH ITS CAST, which takes the value path
         '' below and so calls the cast: 'tt = s' over 'let( byref as string )' handed the let S's
-        '' bytes as an FBSTRING and crashed (StructorStrCastCost, as LowerConvCtorInit_).
-        dim as boolean viaStrCast = (Tko.Check.StructorStrCastCost( *c.ast, *c.syms, *c.types, *c.names, vu, pt ) < Tko.Check.CONV_NONE)
+        '' bytes as an FBSTRING and crashed (StructorCastCost, as LowerConvCtorInit_).
+        dim as boolean viaStrCast = (Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, vu, pt ) < Tko.Check.CONV_NONE)
         if (c.types->Kind( vu ) = Tko.TK_UDT) andalso (viaStrCast = false) then
             '' A PAREN-LESS FUNCTION IS A CALL HERE TOO -- the same care lowerassign.bas
             '' takes in its same-type branch, which a CONVERTING 'let' never reaches.
@@ -924,6 +933,19 @@ function LowerCtorInit _
                 argKind[ai2] = cast( ulong, cpv.kind )
                 argId[ai2] = cast( ulong, cpv.id )
                 argT[ai2] = cast( ulong, pty )
+                ai2 += 1
+                continue for
+            end if
+        end scope
+        '' A UDT FOR A NUMERIC PARAMETER converts through its cast -- CtorArgValue_'s numeric arm.
+        scope
+            dim as Tko.TypeId nau = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, argNode[ai2] ) ) )
+            dim as MirType npm = LowerType( pty, *c.types )
+            if (c.types->Kind( nau ) = Tko.TK_UDT) andalso (npm <> MT_VOID) andalso (npm <> MT_AGG) andalso _
+               (Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, nau, pty ) <> Tko.SYMBOL_NONE) then
+                dim as MirValue ncv
+                if CtorArgValue_( c, cast( Tko.NodeId, argNode[ai2] ), pty, ncv ) = false then return false
+                argKind[ai2] = ncv.kind : argId[ai2] = ncv.id : argT[ai2] = cast( ulong, pty )
                 ai2 += 1
                 continue for
             end if

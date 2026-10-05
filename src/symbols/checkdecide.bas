@@ -254,7 +254,7 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
     dim as Tko.SymbolId pick = Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
     c.info->SetDecision( id, pick )
     '' ONE UDT ARGUMENT NO CONSTRUCTOR TAKES -- fbc's 99, measured over 'T( w )' with W unrelated
-    '' and over an S that casts only to a number (StructorStrCastCost). Lowering found nothing
+    '' and over an S that casts only to a number (StructorCastCost). Lowering found nothing
     '' either and stopped with TKO0994. Only this shape: a scalar or string argument keeps
     '' lowering's own fallbacks (CharPtrCtorInit_ and the wide ones).
     if (pick = Tko.SYMBOL_NONE) andalso (argT.Count = 1) then

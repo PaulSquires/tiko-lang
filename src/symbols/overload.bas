@@ -126,7 +126,7 @@ private function UserConvCost_ _
                         '' the recursion is bounded by the guard rather than by
                         '' hoping the type graph is acyclic.
                         if (sc >= CONV_NONE) andalso (depth = 0) then
-                            sc = Tko.Check.StructorStrCastCost( *c.ast, *c.syms, *c.types, *c.names, f, pt )   '' into a STRING only: 'long' is 58
+                            sc = Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, f, pt )   '' a string or numeric chain, one level
                         end if
                         if sc < CONV_NONE then
                             if (CONV_USERDEF + sc) < best then best = CONV_USERDEF + sc

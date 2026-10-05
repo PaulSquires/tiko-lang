@@ -80,7 +80,7 @@ end function
 '' overload pick accepts it in, or a cast on the source yielding a UDT. Measured on fbc-modern,
 '' S casting to LONG and T constructible from a long: 'dim as T q = s' is 24, 'q = s' 181 and
 '' a T argument 58 -- a constructor takes a source's cast only into a string (structpick.bas
-'' StructorStrCastCost). Rescued_ let T's constructor and S's cast vouch for it, and the
+'' StructorCastCost). Rescued_ let T's constructor and S's cast vouch for it, and the
 '' lowering, finding no conversion, copied S's bytes into the T.
 private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId, byval byAssign as boolean ) as boolean
     if TcTuple_( c, dst ) orelse TcTuple_( c, src ) then return true   '' a tuple's elements are judged in tupleconv.bas

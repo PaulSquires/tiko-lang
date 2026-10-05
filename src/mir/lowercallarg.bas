@@ -475,7 +475,20 @@ private function UdtConvTemp_ _
             av = ByrefTemp_( c, argNode, cpt )
         end if
     else
-        av = LowerExpr( c, argNode )
+        '' A UDT FOR A NUMERIC PARAMETER goes through its numeric cast first -- the [cast][ctor]
+        '' chain (structpick.bas StructorCastCost), coerced from the cast's own result type.
+        dim as Tko.SymbolId numCast = Tko.SYMBOL_NONE
+        if c.types->Kind( au ) = Tko.TK_UDT then numCast = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, au, cpu )
+        if numCast <> Tko.SYMBOL_NONE then
+            if UserCastToNum_( c, argNode, av, cpu ) = false then return false
+            dim as MirType nmt = LowerType( cpt, *c.types )
+            if (nmt = MT_VOID) orelse (nmt = MT_AGG) then return false
+            av = CoerceTy( c, av, nmt, c.syms->SymbolAt( numCast )->type_, cpt )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+            chainCast = numCast   '' converted: no second coercion below
+        else
+            av = LowerExpr( c, argNode )
+        end if
     end if
     if av.kind = cast( ubyte, MV_NONE ) then return false
     if (byrefP = false) andalso (chainCast = Tko.SYMBOL_NONE) then

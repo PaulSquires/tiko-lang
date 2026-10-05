@@ -1,0 +1,10 @@
+'' A UDT REACHES A CONSTRUCTOR'S NUMERIC PARAMETER THROUGH ITS OWN NUMERIC CAST: 'T( s )', an
+'' initialiser and a byval argument run [cast][ctor] (a 'double' cast into 'byval as long').
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/convchain-num.bas -o tests/codegen/convchainnum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/convchainnum.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [c][k] 30[c][k] 30[c][k] t 30
