@@ -48,7 +48,6 @@
     DIAG( TKO0104, SEV_ERROR,   "32-bit targets are not supported; x86-64 only" )
     DIAG( TKO0105, SEV_WARNING, "unknown diagnostic id '%0'" )
     DIAG( TKO0106, SEV_ERROR,   "'%0' is not a recognised value for '%1'" )
-    DIAG( TKO0107, SEV_WARNING, "ignoring unsupported option '%0'" )
     '' A resource script only means something on Windows. Reported rather than
     '' skipped: a '.rc' on a Linux command line is a mistake, and silently dropping
     '' it is how a program ships with its icon and version block missing.
@@ -101,8 +100,7 @@
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )
     DIAG( TKO0202, SEV_ERROR,   "unterminated block comment" )
     DIAG( TKO0203, SEV_ERROR,   "'%0' is not followed by any digits" )
-    DIAG( TKO0204, SEV_ERROR,   "unexpected character %0 in source" )
-    DIAG( TKO0205, SEV_ERROR,   "numeric literal is too large for any integer type" )
+    DIAG( TKO0205, SEV_WARNING, "numeric literal is too large for 64 bits, truncated" )
     '' fbc's warning 44, "Suffix ignored in '<what was written>'". A '$ % & ! #' on a
     '' RESERVED WORD -- 'end% scope%', 'for% i as% integer' -- is accepted and dropped,
     '' and this is the whole of what says so. Lexical, hence the number; emitted from
@@ -130,7 +128,6 @@
     DIAG( TKO0310, SEV_ERROR,   "'#%0' is not implemented in this build" )
     DIAG( TKO0311, SEV_ERROR,   "'#macro' without '#endmacro'" )
     DIAG( TKO0312, SEV_WARNING, "unknown '#pragma %0'" )
-    DIAG( TKO0313, SEV_ERROR,   "assertion failed" )
     DIAG( TKO0314, SEV_ERROR,   "builtin macro '%0' is not implemented in this build" )
     DIAG( TKO0315, SEV_NOTE,    "#print %0" )
     DIAG( TKO0316, SEV_ERROR,   "expected an identifier after '#%0'" )
@@ -221,7 +218,6 @@
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )
-    DIAG( TKO0601, SEV_ERROR,   "'%0' is undefined" )
     DIAG( TKO0602, SEV_ERROR,   "'%0' is a %1, not a procedure" )
     DIAG( TKO0603, SEV_ERROR,   "calling convention does not match the declaration of '%0'" )
     DIAG( TKO0604, SEV_ERROR,   "#assert condition failed" )
@@ -361,7 +357,6 @@
     '' fbc's errors 17, 219, and 210/211/212 -- VIRTUAL and ABSTRACT, misplaced.
     DIAG( TKO0678, SEV_ERROR,   "nothing may follow VIRTUAL or ABSTRACT but the procedure keyword" )
     DIAG( TKO0679, SEV_ERROR,   "VIRTUAL and ABSTRACT belong to a member of a type" )
-    DIAG( TKO0680, SEV_ERROR,   "VIRTUAL and ABSTRACT belong to the declaration, not to the body" )
     DIAG( TKO0681, SEV_ERROR,   "a structor cannot be declared this way" )
     '' fbc's errors 259, 258, 234 and 78.
     DIAG( TKO0682, SEV_ERROR,   "CONST is for a member procedure, which has a THIS to be const" )
@@ -863,9 +858,7 @@
     '' -------------------------------------------------------------------- notes
     DIAG( TKO0900, SEV_NOTE,    "%0" )
     DIAG( TKO0901, SEV_NOTE,    "declared here" )
-    DIAG( TKO0902, SEV_NOTE,    "expanded from macro '%0'" )
     DIAG( TKO0903, SEV_NOTE,    "in instantiation of '%0'" )
-    DIAG( TKO0904, SEV_NOTE,    "required from here" )
     DIAG( TKO0905, SEV_NOTE,    "unclosed '%0' opened here" )
     DIAG( TKO0906, SEV_NOTE,    "imported here" )
     '' Beside TKO0743 for a name that is a SEGMENT of an import's path but not its alias:

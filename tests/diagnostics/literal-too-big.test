@@ -1,0 +1,12 @@
+'' A literal past 64 bits is fbc's warning 8, "Literal number too big, truncated" -- decimal
+'' and '&h' alike, measured on lines 1, 2 and 4 here; the all-ones value was already fbc's.
+'' TKO0205 had a message and no emitter, one of eight such ids; the other seven are gone
+'' (audit F-67).
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/literal-too-big.bas -o tests/diagnostics/src/literal-too-big.o
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: literal-too-big.bas(1,7): warning TKO0205
+'' EXPECT-OUT: literal-too-big.bas(2,7): warning TKO0205
+'' EXPECT-OUT: literal-too-big.bas(4,7): warning TKO0205
+'' EXPECT-NOT: (3,7): warning
+'' EXPECT-NOT: (5,7): warning

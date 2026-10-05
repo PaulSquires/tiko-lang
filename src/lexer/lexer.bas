@@ -550,9 +550,11 @@ private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
 
     dim as ulongint value = 0
     dim as long digits = 0
+    dim as boolean over = false
     while s.i < s.n
         dim as long d = DigitValue( s.p[s.i] )
         if (d < 0) orelse (d >= radix) then exit while
+        if value > ((&hFFFFFFFFFFFFFFFFull - d) \ radix) then over = true
         value = value * radix + d
         digits += 1
         s.i += 1
@@ -563,6 +565,7 @@ private sub ScanRadixLiteral( byref s as Scanner, byval first as long )
         Emit( s, Tko.TK_INVALID, first )
         return
     end if
+    if over then Report( s, Tko.TKO0205, first )
 
     dim as Tko.Literal lit
     lit.kind = cast( ubyte, Tko.TK_INT_LIT )
@@ -656,6 +659,12 @@ private sub ScanNumber( byref s as Scanner )
         '' UNSIGNED, so 18446744073709551615 keeps all 64 bits -- the TYPE then says
         '' how to read them (Check.DecimalLitUnsigned).
         lit.intValue = valulng( spelling )
+        '' PAST 64 BITS IS fbc's WARNING 8, "Literal number too big, truncated" -- the value
+        '' was already fbc's (all ones); only the word was missing (audit F-67).
+        dim as long nz = 1
+        while (nz < len( spelling )) andalso (spelling[nz - 1] = 48) : nz += 1 : wend
+        dim as string dg = mid( spelling, nz )
+        if (len( dg ) > 20) orelse ((len( dg ) = 20) andalso (dg > "18446744073709551615")) then Report( s, Tko.TKO0205, first )
     end if
 
     PushLiteral( s, lit, first )
