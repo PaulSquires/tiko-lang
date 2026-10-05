@@ -246,6 +246,16 @@ function ConstFloatOf _
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
                              outd, depth + 1, syms, scope_, names )
 
+    '' ...and 'type<double>( 2.5 )', a one-element literal of a builtin type, is its element.
+    case Tko.N_TUPLE
+        if (ast.nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return false
+        dim as Tko.ListPayload ptr tl = _
+            @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return false
+        if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return false
+        return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), _
+                             outd, depth + 1, syms, scope_, names )
+
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
             @ast.unaries[cast( long, ast.nodes[cast( long, id )].data )]
@@ -1165,6 +1175,17 @@ function ConstOf _
 
     case Tko.N_CALL
         return ConstCall_( ast, id, src, names, intBits, syms, scope_, depth, types, info )
+
+    '' 'type<byte>( 1 )' -- A ONE-ELEMENT LITERAL OF A BUILTIN TYPE is its element at that type:
+    '' 'dim shared b as byte = type<byte>( 1 )' folds in fbc (dim/global-init.bas) and declined here.
+    case Tko.N_TUPLE
+        if (ast.nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return CVNone_( )
+        dim as Tko.ListPayload ptr tl = @ast.lists[cast( long, ast.nodes[cast( long, id )].data )]
+        if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return CVNone_( )
+        if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return CVNone_( )
+        dim as ConstVal tv = ConstOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), src, names, _
+                                      intBits, syms, scope_, depth + 1, types, info )
+        return ClampConstToTypeRef( ast, tl->target, tv, intBits )
     end select
 
     return CVNone_( )

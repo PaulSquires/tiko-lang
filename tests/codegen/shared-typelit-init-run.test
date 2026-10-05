@@ -1,0 +1,9 @@
+'' A SHARED VARIABLE INITIALISED WITH 'type<builtin>( x )' folds to x at that type (fbc's
+'' dim/global-init.bas). tiko declined it. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/shared-typelit-init.bas -o tests/codegen/sharedtypelitinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/sharedtypelitinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  144 2.5 1
