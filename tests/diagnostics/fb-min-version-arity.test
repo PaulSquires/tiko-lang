@@ -1,0 +1,7 @@
+'' __FB_MIN_VERSION__ takes exactly three arguments -- two is fbc's error 1, an argument
+'' count mismatch.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/fb-min-version-arity.bas -o tests/diagnostics/src/fb-min-version-arity.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: fb-min-version-arity.bas(1,7): error TKO0306
+'' EXPECT-MAX-DIAG: 1

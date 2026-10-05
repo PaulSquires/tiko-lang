@@ -60,6 +60,7 @@ namespace Tko
         PPB_UNIQUEID         '' __FB_UNIQUEID__( id )      -> the name's current id
         PPB_UNIQUEID_PUSH    '' __FB_UNIQUEID_PUSH__( id ) -> nothing; makes a new one
         PPB_UNIQUEID_POP     '' __FB_UNIQUEID_POP__( id )  -> nothing; restores the last
+        PPB_MIN_VERSION      '' __FB_MIN_VERSION__( maj, min, patch ) -> -1 / 0
         PPB_FILE             '' __FILE__ / __FILE_NQ__ / __PATH__
         PPB_FILE_NQ
         PPB_PATH

@@ -220,6 +220,37 @@ function PpExpandBuiltin _
             end if
         end if
 
+    '' __FB_MIN_VERSION__( major, minor, patch ): -1 when the compiler is at least that
+    '' version, else 0 -- in an expression and in '#if' alike. Measured on fbc-modern
+    '' 1.20.0: ( 1, 20, 0 ) is -1, ( 1, 20, 1 ) is 0, and two arguments are its error 1,
+    '' an argument count mismatch. tiko answers for TKO_FBC_COMPAT, the version it is
+    '' compatible with and reports as __FB_VER_MAJOR__ and the rest.
+    case PPB_MIN_VERSION
+        dim as ArgList args
+        if PpReadArgs( e, m, args ) then
+            if args.firsts.Count <> 3 then
+                Report( e, TKO0306, UseSiteLoc_( e, use ), e.names->Spelling( m->name ), "3" )
+            else
+                dim as boolean ok0, ok1, ok2
+                dim as longint wa = BuiltinIntArg_( e, args, 0, ok0 )
+                dim as longint wb = BuiltinIntArg_( e, args, 1, ok1 )
+                dim as longint wc = BuiltinIntArg_( e, args, 2, ok2 )
+                if (ok0 andalso ok1 andalso ok2) = false then
+                    Report( e, TKO0324, UseSiteLoc_( e, use ), "1", e.names->Spelling( m->name ) )
+                else
+                    dim as string fv = TKO_FBC_COMPAT
+                    dim as long d1 = instr( fv, "." )
+                    dim as long d2 = instr( d1 + 1, fv, "." )
+                    dim as longint ha = valint( left( fv, d1 - 1 ) )
+                    dim as longint hb = valint( mid( fv, d1 + 1, d2 - d1 - 1 ) )
+                    dim as longint hc = valint( mid( fv, d2 + 1 ) )
+                    dim as boolean atLeast = (ha > wa)
+                    if ha = wa then atLeast = (hb > wb) orelse ((hb = wb) andalso (hc >= wc))
+                    RelexInto( e, iif( atLeast, "-1", "0" ), use.loc, *buf )
+                end if
+            end if
+        end if
+
     case PPB_ARG_COUNT
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
