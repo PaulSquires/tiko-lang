@@ -1,0 +1,10 @@
+'' A PROCEDURE-POINTER TYPE WITH A BYREF RESULT: 'R' and the type, with only the TYPE a
+'' substitution candidate -- fbc's names, measured on its object. Registering 'R<T>' as
+'' well shifted every later back-reference by one (audit F-55, SYM-9).
+'' TEST: cli
+'' ARGS: --dump-mangle -target win64-msvc tests/codegen/src/mangle-byref-result.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _ZN2NS2A1EPFRNS_1QERS0_E
+'' EXPECT-OUT: _ZN2NS2A2EPFRiRiE
+'' EXPECT-OUT: _ZN2NS2A3EPFRNS_1QEvERS0_
+'' EXPECT-OUT: _ZN2NS2A4EPFR8FBSTRINGRS0_E

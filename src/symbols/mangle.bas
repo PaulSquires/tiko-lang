@@ -538,7 +538,17 @@ function TypeCode _
     case Tko.TK_PROC
         '' F <return> <params...> E. A function TYPE encodes its return type, unlike
         '' a procedure NAME, which never does.
-        dim as string body = "F" & TypeCode( types.Inner( t ), types, syms, names, subs )
+        '' ...AND A BYREF RESULT IS 'R' AND ITS TYPE, with only the TYPE a substitution
+        '' candidate: measured, fbc writes 'function( byref as long ) byref as long' as
+        '' 'PFRiRiE', where registering 'Ri' made it 'PFRiS0_E' and the link missed
+        '' (audit F-55, SYM-9).
+        dim as Tko.TypeId rt_ = types.Inner( t )
+        dim as string body
+        if (rt_ <> Tko.TYPE_NONE) andalso (types.Kind( rt_ ) = Tko.TK_REFERENCE) then
+            body = "FR" & TypeCode( types.Inner( rt_ ), types, syms, names, subs )
+        else
+            body = "F" & TypeCode( rt_, types, syms, names, subs )
+        end if
         dim as long n = 0
         if ti <> 0 then n = ti->count
         if n <= 0 then
