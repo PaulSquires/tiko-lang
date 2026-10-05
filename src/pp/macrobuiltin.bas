@@ -40,7 +40,7 @@ function PpExpandBuiltin _
 
     select case as const m->builtin
     case PPB_LINE
-        RelexInto( e, str( d.lineNo ), use.loc, *buf )
+        RelexInto( e, str( e.src->Decode( LineSiteLoc_( e, use ) ).lineNo ), use.loc, *buf )
 
     '' AN INCLUDED FILE'S __FILE__ IS ITS ABSOLUTE PATH -- measured, fbc prints
     '' 'C:\...\f68\sub\inc.bi' where tiko printed the spelling 'sub/inc.bi'; the root

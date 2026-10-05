@@ -42,6 +42,10 @@ type PpFrame
     '' than the 'use' token PpExpandBuiltin already has. Every fbcunit assertion in the
     '' corpus reported its '#define' line instead of the failing line without it.
     as SourceLoc useLoc
+    '' ...BUT __LINE__ ANSWERS FOR THE INVOCATION'S END: measured, fbc prints 4 for a call
+    '' written 'SHOW( 1, _' on line 3 and '2 )' on line 4, and 7 for one spanning 5 to 7.
+    '' The closing ')' -- or useLoc when there is none (audit LEX16).
+    as SourceLoc lineLoc
     '' A MODULE'S INTERFACE (RFC-0004 §5): read as the module wrote it -- no macro of the
     '' importer's expands inside it.
     as boolean   iface
@@ -434,7 +438,7 @@ end sub
 private sub PushFrame _
     ( byref e as PpEngine, byval toks as TokenVec ptr, byval hides as InternId, _
       byval file as FileId, byval owned as boolean, _
-      byval useLoc as SourceLoc = LOC_NONE )
+      byval useLoc as SourceLoc = LOC_NONE, byval lineLoc as SourceLoc = LOC_NONE )
 
     if e.frames.Count >= PP_MAX_FRAMES then
         Report( e, TKO0304, LOC_NONE, str( PP_MAX_FRAMES ) )
@@ -450,6 +454,7 @@ private sub PushFrame _
     f.file = file
     f.owned = owned
     f.useLoc = useLoc
+    f.lineLoc = iif( lineLoc <> LOC_NONE, lineLoc, useLoc )
     if e.frames.Count > 0 then f.inImport = e.frames[e.frames.Count - 1].inImport
     e.frames.Push( f )
     if e.frames.Count > e.outp->maxDepth then e.outp->maxDepth = e.frames.Count
@@ -481,6 +486,19 @@ private function UseSiteLoc_ _
 
     for i as long = fileAt + 1 to e.frames.Count - 1
         if e.frames[i].useLoc <> LOC_NONE then return e.frames[i].useLoc
+    next
+    return use.loc
+end function
+
+'' The same walk for __LINE__, which answers with the outermost expansion's LINE site.
+private function LineSiteLoc_( byref e as PpEngine, byref use as Token ) as SourceLoc
+    dim as long fileAt = -1
+    for i as long = e.frames.Count - 1 to 0 step -1
+        if e.frames[i].file <> FILE_NONE then fileAt = i : exit for
+    next
+    if fileAt < 0 then return use.loc
+    for i as long = fileAt + 1 to e.frames.Count - 1
+        if e.frames[i].lineLoc <> LOC_NONE then return e.frames[i].lineLoc
     next
     return use.loc
 end function

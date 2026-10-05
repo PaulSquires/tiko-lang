@@ -1,0 +1,16 @@
+'' __LINE__ in a macro body answers for the END of the invocation -- the closing ')' -- as fbc
+'' does when the call spans lines with '_'; nested and #macro forms too. tiko answered for
+'' the line of the macro name (audit LEX16).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-line-multiline-call.bas -o tests/codegen/pplinemultilinecall.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/pplinemultilinecall.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1  2  4
+'' EXPECT-RUN-OUT:  3  4  7
+'' EXPECT-RUN-OUT:  9
+'' EXPECT-RUN-OUT:  10
+'' EXPECT-RUN-OUT:  1  9  13
+'' EXPECT-RUN-OUT:  2  9  15
+'' EXPECT-RUN-OUT:  5             20

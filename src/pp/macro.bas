@@ -401,6 +401,7 @@ type ArgList
     as FB.Array( of long ) firsts    '' index into flat
     as FB.Array( of long ) counts
     as TokenVec            flat
+    as SourceLoc           closeLoc   '' the closing ')', for __LINE__ -- see PpFrame.lineLoc
 end type
 
 '' Read '( a, b )' from the input, honouring nesting and string literals and expanding
@@ -464,6 +465,7 @@ private function PpReadArgs _
             '' 'foo bar( 1, 2, 3 ), baz( 4, 5, 6 )' -- brought depth back to 0 and
             '' ended the invocation there, one argument in.
             if (depth = 0) andalso (bare = false) then
+                args.closeLoc = t.loc
                 Advance( e )
                 exit do
             end if
@@ -1445,7 +1447,7 @@ private function PpExpand _
         PpSubstitute( e, m, args, use.loc, *buf )
         TrimExpansionTail_( use, *buf )
         e.outp->expansionCount += 1
-        PushFrame( e, buf, m->name, FILE_NONE, true, use.loc )
+        PushFrame( e, buf, m->name, FILE_NONE, true, use.loc, args.closeLoc )
         return true
     end if
 
