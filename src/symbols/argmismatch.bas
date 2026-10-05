@@ -222,11 +222,6 @@ private function AmBadPair_ _
         if c.types->Kind( pt ) = Tko.TK_POINTER then
             if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = 1 then return true
         end if
-        '' ANOTHER UDT NOTHING CONVERTS, past the overload pick: fbc's 58 (UdtPairConverts_, latesweeps2.bas).
-        '' Not a TUPLE ('$tup...' / '(...)'), whose own refusal is tupleconv.bas's.
-        dim as string tn0 = left( c.names->Spelling( c.types->NameOf( c.types->Unqualify( at ) ) ), 1 )
-        dim as boolean tup0 = (tn0 = "(") orelse (tn0 = "$") orelse (tn0 = "~")
-        if (tup0 = false) andalso (c.types->Kind( pt ) = Tko.TK_UDT) andalso (c.types->BaseDistance( at, pt ) < 0) then return true
         if AmPlainUdt_( c, at, "cast", "" ) = false then return false
         if AmPtrLike_( c, pt ) then return true
         if AmString_( c, pt ) then
@@ -311,6 +306,18 @@ private sub ReportArgMismatch_ _
         if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
         if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
         dim as boolean byref_ = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        '' A UDT WITH A CAST, FOR ANOTHER UDT NOTHING CONVERTS IT TO -- fbc's 58: a constructor takes
+        '' the cast's result only into a string (UdtPairConverts_, latesweeps2.bas). A plain UDT is
+        '' AmBadPair_'s; a tuple tupleconv.bas's; an operator falls back to the intrinsic.
+        if (pp->op <> cast( ushort, Tko.KW_OPERATOR )) andalso (c.types->Kind( au ) = Tko.TK_UDT) andalso _
+           (c.types->Kind( pu ) = Tko.TK_UDT) then
+            dim as string tn0 = left( c.names->Spelling( c.types->NameOf( au ) ), 1 )
+            dim as boolean tup0 = (tn0 = "(") orelse (tn0 = "$") orelse (tn0 = "~")
+            if (tup0 = false) andalso (AmPlainUdt_( c, au, "cast", "" ) = false) andalso (c.types->BaseDistance( au, pu ) < 0) then
+                c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( a ) ) )
+                exit sub
+            end if
+        end if
         if AmBadPair_( c, au, pu, byref_, a ) then
             c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( a ) ) )
             exit sub

@@ -174,11 +174,15 @@ func void _ZN1DC1Ev(ptr $0) {
 verify: ok
 lowered: 16 functions, 16 blocks, 70 insts, 1 statements not lowered, 0 scope imbalance
   inside N_VAR 1
-  skip-site src\mir\lowerutil.bas:40 1
+  skip-site src\mir\lowerutil.bas:90 1
 tests/diagnostics/src/member-and-call-rules.bas(66,5): error TKO0619: 'local2' is declared inside a procedure and cannot have methods
      |
   66 |     type Local2 extends object
      |     ^
+tests/diagnostics/src/member-and-call-rules.bas(64,9): error TKO0698: this argument does not convert to the parameter's type
+     |
+  64 | wantsD( vb )
+     |         ^
 tests/diagnostics/src/member-and-call-rules.bas(54,1): error TKO0696: STATIC is written on this definition but not on its declaration
      |
   54 | static sub T.normal( )
