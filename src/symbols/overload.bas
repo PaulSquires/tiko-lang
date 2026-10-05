@@ -182,9 +182,9 @@ private function UserConvCost_ _
                 '' error 99 overloaded -- although a plain wstring variable does, and offered
                 '' { zstring ptr, byref string } such a UDT takes the string.
                 dim as boolean strToPtr = false
-                if (c.types->Kind( t ) = Tko.TK_POINTER) andalso _
-                   (c.types->Kind( ru ) = Tko.TK_BUILTIN) then
-                    strToPtr = IsStringy_( c.types->BuiltinOf( ru ) )
+                if c.types->Kind( t ) = Tko.TK_POINTER then
+                    if c.types->Kind( ru ) = Tko.TK_BUILTIN then strToPtr = IsStringy_( c.types->BuiltinOf( ru ) )
+                    if c.types->Kind( ru ) = Tko.TK_POINTER then strToPtr = (Tko.Check.PtrCastReaches( *c.types, ru, t ) = false)   '' 'long ptr' to 'byte ptr' is 58
                 end if
                 dim as long sc = CONV_NONE
                 if (anyPtrCast = false) andalso (strToPtr = false) then

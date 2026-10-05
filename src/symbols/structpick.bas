@@ -261,6 +261,68 @@ function PtrCastPick _
     return first
 end function
 
+'' DOES A UDT'S POINTER 'operator cast' REACH THE POINTER WANT? -1 when it declares none (not
+'' this question), 0 when one does, 1 when none does, 2 when several do and none is better.
+'' Measured on fbc-modern: a cast reaches only its EXACT pointer type, or any pointer when it
+'' yields 'any ptr', or 'any ptr' from any pointer. 'long ptr' into 'byte ptr' or 'zstring ptr'
+'' is error 24 by initialiser, 181 by assignment, 58 as an argument; 'long ptr' and 'double ptr'
+'' both into 'any ptr' is error 98. A 'byref as' result is the thing itself, not a pointer.
+'' Does a cast yielding the pointer RES reach the pointer DST? Its own type, or either is 'any ptr'.
+function PtrCastReaches( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
+    dim as Tko.TypeId ri = types.Unqualify( types.Inner( types.Unqualify( res ) ) )
+    dim as Tko.TypeId di = types.Unqualify( types.Inner( types.Unqualify( dst ) ) )
+    if ri = di then return true
+    if (types.Kind( ri ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( ri ) = Tko.TY_ANY) then return true
+    if (types.Kind( di ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( di ) = Tko.TY_ANY) then return true
+    return false
+end function
+
+function PtrCastFit _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as long
+
+    if (udt = Tko.TYPE_NONE) orelse (want = Tko.TYPE_NONE) then return -1
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return -1
+    dim as Tko.TypeId w = types.Unqualify( want )
+    if types.Kind( w ) = Tko.TK_REFERENCE then w = types.Unqualify( types.Inner( w ) )
+    if types.Kind( w ) <> Tko.TK_POINTER then return -1
+    dim as Tko.TypeId wi = types.Unqualify( types.Inner( w ) )
+    dim as boolean wantAny = false
+    if types.Kind( wi ) = Tko.TK_BUILTIN then wantAny = (types.BuiltinOf( wi ) = Tko.TY_ANY)
+    dim as long nPtr = 0, nFit = 0
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        dim as boolean byrefRes = false
+        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+        if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
+            byrefRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+        end if
+        if (rt <> Tko.TYPE_NONE) andalso (byrefRes = false) then
+            if types.Kind( rt ) = Tko.TK_POINTER then
+                nPtr += 1
+                dim as Tko.TypeId ri = types.Unqualify( types.Inner( rt ) )
+                if ri = wi then return 0
+                dim as boolean resAny = false
+                if types.Kind( ri ) = Tko.TK_BUILTIN then resAny = (types.BuiltinOf( ri ) = Tko.TY_ANY)
+                if resAny then return 0
+                if wantAny then nFit += 1
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    if nPtr = 0 then return -1
+    if nFit = 1 then return 0
+    if nFit > 1 then return 2
+    return 1
+end function
+
 function NumericCastPick _
     ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
       byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId

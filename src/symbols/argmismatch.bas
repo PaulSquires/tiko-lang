@@ -218,6 +218,10 @@ private function AmBadPair_ _
       byval byref_ as boolean, byval a as Tko.NodeId ) as boolean
 
     if c.types->Kind( at ) = Tko.TK_UDT then
+        '' A POINTER CAST THAT DOES NOT REACH THE POINTER PARAMETER -- 'long ptr' into 'byte ptr' (PtrCastFit).
+        if c.types->Kind( pt ) = Tko.TK_POINTER then
+            if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = 1 then return true
+        end if
         if AmPlainUdt_( c, at, "cast", "" ) = false then return false
         if AmPtrLike_( c, pt ) then return true
         if AmString_( c, pt ) then

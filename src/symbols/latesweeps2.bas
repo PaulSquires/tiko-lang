@@ -200,6 +200,19 @@ private sub JudgeConversion_ _
     if rUdt then other = lu : udt = ru
     dim as TypeKind ok = c.types->Kind( other )
     if (ok <> TK_BUILTIN) andalso (ok <> TK_POINTER) then return
+    '' A UDT INTO A POINTER, WHEN IT HAS POINTER CASTS, takes one that reaches it -- see
+    '' PtrCastFit (structpick.bas), which is the rule lowering's PtrCastPick follows.
+    if rUdt andalso (ok = TK_POINTER) then
+        select case Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, udt, other )
+        case 0 : return
+        case 1
+            c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
+            return
+        case 2
+            c.diags->Report( TKO0660, PointRange( c.ast->Loc( at ) ), "operator cast" )
+            return
+        end select
+    end if
     if ok = TK_BUILTIN then
         select case c.types->BuiltinOf( other )
         case TY_ANY, TY_FIXSTR, TY_FIXUSTR
