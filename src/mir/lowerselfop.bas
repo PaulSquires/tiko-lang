@@ -109,6 +109,7 @@ function SelfOpMemberCall_ _
     '' the parameter is declared with.
     dim as Tko.TypeId aet = ArrayArgElem_( c, value )
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
+    if Tko.Check.FixedStringElem( vt, *c.types ) <> Tko.TYPE_NONE then aet = Tko.TYPE_NONE   '' a 'zstring * 4' is a STRING, not an array
     '' A WIDE VALUE may have no Check type at all -- see WideCharOverload_ below.
     dim as boolean wideVal = WideValueForCharMember_( c, value )
     dim as boolean noType = (vt = Tko.TYPE_NONE) andalso (aet = Tko.TYPE_NONE)
@@ -171,6 +172,13 @@ function SelfOpMemberCall_ _
                     cost = Tko.Check.CONV_EXACT
                 elseif vt <> Tko.TYPE_NONE then
                     cost = Tko.Check.ConversionCost( vt, pu, *c.types )
+                    '' A FIXED-LENGTH STRING IS COSTED AS THE STRING IT HOLDS: 'a += z' over a 'zstring * 4'
+                    '' reaches '+=( byref s as string )', measured -- the array type converted to
+                    '' nothing and the statement was not compiled (TKO0994).
+                    if cost >= Tko.Check.CONV_NONE then
+                        dim as Tko.TypeId fse = Tko.Check.FixedStringElem( vt, *c.types )
+                        if fse <> Tko.TYPE_NONE then cost = Tko.Check.ConversionCost( fse, pu, *c.types )
+                    end if
                 end if
                 if cost < best then
                     best = cost
@@ -222,6 +230,12 @@ function SelfOpMemberCall_ _
         if UStrParamArgTemp_( c, value, bpt, av ) = false then
             if NarrowParamArgTemp_( c, value, bpt, av ) = false then
                 av = LowerAddr( c, value )
+            elseif (Tko.Check.FixedStringElem( vt, *c.types ) <> Tko.TYPE_NONE) andalso (c.types->IsConst( bpt ) = false) then
+                '' A FIXED STRING'S TEMPORARY IS COPIED BACK, the parameter being byref: measured,
+                '' an operator that writes its 'byref s as string' changes the 'zstring * 8' it was
+                '' given -- fbc prints [MOD], tiko printed [zz]. FlushStrCopyBacks, at the end of
+                '' the statement, as for a constructor's argument (LOW-13).
+                c.strBackNode.Push( cast( ulong, value ) ) : c.strBackSlot.Push( c.strTemps[c.strTemps.Count - 1] )
             end if
         end if
     else
