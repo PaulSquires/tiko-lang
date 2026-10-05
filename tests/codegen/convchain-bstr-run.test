@@ -1,0 +1,12 @@
+'' A UDT ARGUMENT REACHING A CONSTRUCTOR'S STRING PARAMETER THROUGH ITS OWN STRING CAST -- a
+'' byval and a byref argument, an operand, an initialiser and 'T( s )' all run [cast][ctor].
+'' tiko picked no constructor and copied the source's bytes. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/convchain-bstr.bas -o tests/codegen/convchainbstr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/convchainbstr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [c][k] take 30
+'' EXPECT-RUN-OUT: [c][k] takeR 30
+'' EXPECT-RUN-OUT: [c][k] q 30

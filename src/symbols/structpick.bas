@@ -106,6 +106,61 @@ function StructorUserConvCost _
     return best
 end function
 
+'' 1 a narrow string (string, zstring, ustring), 2 a wstring, 0 anything else.
+private function StrKind_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return 0
+    if types.Kind( t ) <> Tko.TK_BUILTIN then return 0
+    select case types.BuiltinOf( t )
+    case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING : return 1
+    case Tko.TY_WSTRING : return 2
+    end select
+    return 0
+end function
+
+'' A UDT ARGUMENT REACHING A STRING PARAMETER OF A CONSTRUCTOR THROUGH ITS OWN STRING CAST, or
+'' CONV_NONE. Measured on fbc-modern: with S casting to string (or 'byref as wstring') and T
+'' constructible from 'byref/byval as string' or 'byref as wstring', 'T( s )', 'dim as T q = s',
+'' a byval or byref T argument and an operand all run [cast][ctor]; the same over 'long' is
+'' error 99, 24 or 58 -- a constructor takes a source's cast only into a STRING. tiko priced
+'' neither, picked no constructor and copied S's bytes into the T.
+function StructorStrCastCost _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+
+    if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return CONV_NONE
+    dim as Tko.TypeId a = types.Unqualify( at )
+    if types.Kind( a ) = Tko.TK_REFERENCE then a = types.Unqualify( types.Inner( a ) )
+    if types.Kind( a ) <> Tko.TK_UDT then return CONV_NONE
+    dim as Tko.TypeId p = types.Unqualify( pt )
+    if types.Kind( p ) = Tko.TK_REFERENCE then p = types.Unqualify( types.Inner( p ) )
+    if StrKind_( types, p ) = 0 then return CONV_NONE
+    dim as long best = CONV_NONE
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, a, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+        dim as boolean byrefRes = false
+        if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
+            byrefRes = ((ast.nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0)
+        end if
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
+            if byrefRes andalso (types.Kind( rt ) = Tko.TK_POINTER) then rt = types.Unqualify( types.Inner( rt ) )
+            dim as long rk = StrKind_( types, rt )
+            if rk <> 0 then
+                dim as long cost = CONV_USERDEF + iif( rk = StrKind_( types, p ), 0, 1 )
+                if cost < best then best = cost
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return best
+end function
+
 '' THE CONSTRUCTOR (or 'let') OVERLOAD FOR A SET OF ARGUMENT TYPES, from the chain at
 '' 'first_'; NONE for no viable one, and NONE for a tie -- an ambiguous construction, not
 '' a silent pick.
@@ -171,6 +226,7 @@ function PickStructor _
                     else
                         cost = ConversionCost( at2, pt2, types )
                         if cost >= CONV_NONE then cost = StructorUserConvCost( ast, syms, types, names, info, at2, pt2 )
+                        if cost >= CONV_NONE then cost = StructorStrCastCost( ast, syms, types, names, at2, pt2 )
                     end if
                     ai += 1
                     if cost >= CONV_NONE then

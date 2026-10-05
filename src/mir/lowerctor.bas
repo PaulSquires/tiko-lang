@@ -371,7 +371,14 @@ function LowerConvCtorInit_ _
     if ptByref andalso (tookAddr = false) then
         wideToNarrow = NarrowStrCtorParamConverts_( c, init_, pt )
     end if
-    if (fromArray = false) andalso ptByref andalso (tookAddr = false) andalso (wideToNarrow = false) then
+    '' ...AND A UDT THAT REACHES A STRING PARAMETER THROUGH ITS OWN CAST takes the value path too,
+    '' which calls the cast: the address arm handed the constructor the UDT's bytes as an
+    '' FBSTRING ('dim as T q = s' over 'byref as string', StructorStrCastCost) and it crashed.
+    dim as boolean viaStrCast = false
+    if (fromArray = false) andalso ptByref andalso (tookAddr = false) then
+        viaStrCast = (Tko.Check.StructorStrCastCost( *c.ast, *c.syms, *c.types, *c.names, it, pt ) < Tko.Check.CONV_NONE)
+    end if
+    if (fromArray = false) andalso ptByref andalso (tookAddr = false) andalso (wideToNarrow = false) andalso (viaStrCast = false) then
         '' A BYREF SCALAR TOO, not only a UDT. 'dim b as UDT = a' over a
         '' 'constructor UDT( byref rhs as const long )' -- which is how an
         '' 'extern "C++"' class spells a converting constructor -- handed the VALUE

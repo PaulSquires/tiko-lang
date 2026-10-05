@@ -354,6 +354,9 @@ function HasUdtConvCtor_ _
                 if c.types->Kind( cpt ) = Tko.TK_UDT then
                     if c.types->BaseDistance( at, cpt ) >= 0 then return true
                 end if
+                '' ...OR A STRING ONE THE ARGUMENT REACHES THROUGH ITS OWN STRING CAST -- see
+                '' StructorStrCastCost (structpick.bas): fbc's [cast][ctor] chain.
+                if Tko.Check.StructorStrCastCost( *c.ast, *c.syms, *c.types, *c.names, at, cpt ) < Tko.Check.CONV_NONE then return true
             end if
         end if
         cur = cs->nextOverload
@@ -687,7 +690,10 @@ function WideRefCtorArg_ _
     if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
     if c.types->BuiltinOf( u ) <> Tko.TY_WSTRING then return false
     if WideOperand_( c, argNode, outv ) then return true
-    if IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) = false then return false
+    '' ...OR A UDT WITH A NARROW STRING CAST, widened like any narrow string: fbc's [cast][ctor]
+    '' chain over 'constructor( byref as wstring )' (StructorStrCastCost).
+    if (IsNarrowStrArg_( c, c.info->TypeOf_( argNode ) ) = false) andalso _
+       (HasNarrowStrCast_( c, c.info->TypeOf_( argNode ) ) = false) then return false
     return NarrowToWideTemp_( c, argNode, outv )
 end function
 

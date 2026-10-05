@@ -197,6 +197,9 @@ namespace Tko.Check
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
           byval defaulted as boolean ) as Tko.SymbolId
     declare function PtrCastReaches( byref types as Tko.TypeContext, byval res as Tko.TypeId, byval dst as Tko.TypeId ) as boolean
+    declare function StructorStrCastCost _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
     declare function PtrCastFit _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval want as Tko.TypeId ) as long
