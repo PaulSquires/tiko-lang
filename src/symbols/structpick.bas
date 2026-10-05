@@ -196,4 +196,66 @@ function PickStructor _
     return best
 end function
 
+'' WHICH NUMERIC 'operator cast' A UDT VALUE TAKES (overload re-pick refactor, Phase 4). Measured on
+'' fbc-modern, over a type casting to BYTE (100) and DOUBLE (2.75), in either declaration order:
+''
+''     x + 1, x + n (long), x * 2, x \ 2, x = 100       the BYTE cast     101 200 50 -1
+''     x + d (double), x + s (single)                    the DOUBLE cast   4.25
+''     dim as long k = x / dim as byte b = x             BYTE              100
+''     dim as double d = x / dim as single g = x         DOUBLE            2.75
+''     -x, abs( x ), sqr( x ), int( x ), x + y (two UDTs) DOUBLE           -2.75 ...
+''
+'' -- the cast CHEAPEST to convert to what the value meets ('want': the other operand or
+'' the destination), the higher-ranked on a tie; with nothing to meet, the highest-ranked
+'' (NumericCastRank). Lowering ranked always, so 'x + 1' added 2.75 and 'dim as long k =
+'' x' stored 3 where fbc has 101 and 100; Check typed 'x + 1' DOUBLE where fbc says
+'' INTEGER. A number is an ENUM or any builtin that is not a string flavour or VOID.
+function NumericCastPick _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
+
+    if udt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    '' Only a NUMBER is something to meet: a UDT, a string or a pointer leaves the rank.
+    dim as Tko.TypeId w = Tko.TYPE_NONE
+    if want <> Tko.TYPE_NONE then
+        w = types.Unqualify( want )
+        if types.Kind( w ) = Tko.TK_REFERENCE then w = types.Unqualify( types.Inner( w ) )
+        if NumericCastRank( types, w ) = 0 then w = Tko.TYPE_NONE
+    end if
+    dim as Tko.SymbolId best = Tko.SYMBOL_NONE
+    dim as long bestCost = CONV_NONE, bestRank = 0
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        dim as long rk = 0
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_ENUM then rk = NumericCastRank( types, rt )
+            if types.Kind( rt ) = Tko.TK_BUILTIN then
+                select case types.BuiltinOf( rt )
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, Tko.TY_VOID
+                case else
+                    rk = NumericCastRank( types, rt )
+                    if rk = 0 then rk = 1   '' a number the rank table does not list still counts
+                end select
+            end if
+        end if
+        if rk > 0 then
+            dim as long cost = 0
+            if w <> Tko.TYPE_NONE then cost = ConversionCost( rt, w, types )
+            if (cost < bestCost) orelse ((cost = bestCost) andalso (rk > bestRank)) then
+                best = cur : bestCost = cost : bestRank = rk
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return best
+end function
+
 end namespace

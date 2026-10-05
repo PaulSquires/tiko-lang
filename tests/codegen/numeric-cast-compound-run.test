@@ -1,0 +1,17 @@
+'' A UDT casting to BYTE and to DOUBLE takes, per use, the cast closest to what it meets --
+'' the other operand or the destination -- and the highest-ranked when nothing is met
+'' (unary, intrinsics, two UDTs). fbc's choices, measured in both declaration orders; tiko
+'' always took DOUBLE: 'x + 1' was 4 and 'dim as long k = x' 3 (overload re-pick refactor).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/numeric-cast-compound.bas -o tests/codegen/numericcastcompound.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/numericcastcompound.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  101
+'' EXPECT-RUN-OUT:  200
+'' EXPECT-RUN-OUT:  2.75
+'' EXPECT-RUN-OUT:  100
+'' EXPECT-RUN-OUT:  2.75
+'' EXPECT-RUN-OUT: -2.75
+'' EXPECT-RUN-OUT:  105

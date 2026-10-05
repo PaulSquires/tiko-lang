@@ -267,11 +267,11 @@ function LowerCompoundViaCast_ _
     end select
 
     '' EVERY QUESTION BEFORE THE FIRST INSTRUCTION.
-    dim as Tko.SymbolId cs = UserCastNumOverload_( c, ut )
-    if cs = Tko.SYMBOL_NONE then return false
-    dim as Tko.TypeId ct = c.types->Unqualify( c.syms->SymbolAt( cs )->type_ )
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
     if c.types->Kind( vt ) = Tko.TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+    dim as Tko.SymbolId cs = UserCastNumOverload_( c, ut, vt )   '' the cast closest to the value
+    if cs = Tko.SYMBOL_NONE then return false
+    dim as Tko.TypeId ct = c.types->Unqualify( c.syms->SymbolAt( cs )->type_ )
     if (vt = Tko.TYPE_NONE) orelse (c.types->Kind( vt ) = Tko.TK_UDT) then return false
     dim as Tko.TypeId rt = Tko.Check.BinaryResult( bop, ct, vt, *c.types )
     if rt = Tko.TYPE_NONE then return false

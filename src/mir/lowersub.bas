@@ -1089,99 +1089,42 @@ function UserConvToScalar_ _
     if c.types->Kind( d ) = Tko.TK_POINTER then
         if UserCastToPtr_( c, id, outv ) then return true
     end if
-    return UserCastToNum_( c, id, outv )
+    return UserCastToNum_( c, id, outv, d )
 end function
 
 '' THE 'operator cast' OVERLOAD THAT YIELDS A NUMBER, as a symbol. Split out of
 '' UserCastToNum_ so that a caller which needs the RESULT TYPE -- WRITE, to pick its
 '' per-width entry point -- asks the same question rather than repeating the rule
 '' and drifting from it.
+'' THE NUMERIC 'operator cast' -- the shared rule (symbols/structpick.bas NumericCastPick),
+'' by what the value meets, which UserCastToNum_ calls too: the two used to be a first-match
+'' walk and a ranked walk, so a caller called one overload and typed it as the other.
 function UserCastNumOverload_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
-
-    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
-    dim as Tko.SymbolId cur2 = UdtMemberNamed_( c, t, "cast" )
-    while cur2 <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( cur2 )
-        if cs2 = 0 then exit while
-        dim as Tko.TypeId rt2 = c.types->Unqualify( cs2->type_ )
-        if rt2 <> Tko.TYPE_NONE then
-            dim as boolean num2 = false
-            if c.types->Kind( rt2 ) = Tko.TK_ENUM then num2 = true
-            if c.types->Kind( rt2 ) = Tko.TK_BUILTIN then
-                select case c.types->BuiltinOf( rt2 )
-                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, _
-                     Tko.TY_VOID
-                case else
-                    num2 = true
-                end select
-            end if
-            if num2 then
-                dim as MirType m2 = LowerType( rt2, *c.types )
-                if (m2 <> MT_VOID) andalso (m2 <> MT_AGG) then return cur2
-            end if
-        end if
-        cur2 = cs2->nextOverload
-    wend
-    return Tko.SYMBOL_NONE
+    ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.TypeId = Tko.TYPE_NONE ) as Tko.SymbolId
+    dim as Tko.SymbolId pick = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, t, want )
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
+    if ps = 0 then return Tko.SYMBOL_NONE
+    dim as MirType m2 = LowerType( c.types->Unqualify( ps->type_ ), *c.types )
+    if (m2 = MT_VOID) orelse (m2 = MT_AGG) then return Tko.SYMBOL_NONE
+    return pick
 end function
 
 function UserCastToNum_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
 
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
-
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    dim as Tko.SymbolId want = Tko.SYMBOL_NONE
-    dim as MirType wantTy = MT_VOID
-    dim as long bestRank = 0
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
-        if rt <> Tko.TYPE_NONE then
-            dim as boolean num = false
-            if c.types->Kind( rt ) = Tko.TK_ENUM then num = true
-            if c.types->Kind( rt ) = Tko.TK_BUILTIN then
-                select case c.types->BuiltinOf( rt )
-                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING, _
-                     Tko.TY_VOID
-                case else
-                    num = true
-                end select
-            end if
-            if num then
-                dim as MirType mt2 = LowerType( rt, *c.types )
-                if (mt2 <> MT_VOID) andalso (mt2 <> MT_AGG) then
-                    '' THE BEST-RANKED ONE, not the first. Taking the first is a
-                    '' silent miscompile: over a type declaring both 'cast( ) as byte'
-                    '' and 'cast( ) as double', 'show( l + r )' with both operands
-                    '' 100.0 called the BYTE cast and added in i8, so 200 came out as
-                    '' -56 where fbc prints 200.
-                    dim as long rk = Tko.Check.NumericCastRank( *c.types, rt )
-                    if rk > bestRank then
-                        bestRank = rk
-                        want = cur
-                        wantTy = mt2
-                    end if
-                end if
-            end if
-        end if
-        cur = cse->nextOverload
-    wend
-    if want = Tko.SYMBOL_NONE then return false
-
+    dim as Tko.SymbolId pick = UserCastNumOverload_( c, t, want )
+    if pick = Tko.SYMBOL_NONE then return false
     dim as MirValue self_
     if UdtSelfAddr_( c, id, self_ ) = false then return false
-    outv = EmitMemberCall( c, want, self_, wantTy )
+    outv = EmitMemberCall( c, pick, self_, LowerType( c.types->Unqualify( c.syms->SymbolAt( pick )->type_ ), *c.types ) )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 
-'' A member of a UDT by name, folded. Nothing when the type has no such member.
 function UdtMemberNamed_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 

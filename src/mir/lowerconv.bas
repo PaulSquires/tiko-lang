@@ -484,7 +484,7 @@ function LowerConvIntrinsic _
             '' useful. UserCastNumOverload_ is the same choice UserCastToNum_ made.
             dim as boolean srcU2 = false
             dim as Tko.SymbolId ucs2 = _
-                UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( arg ) ) )
+                UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( arg ) ), dstT )
             if ucs2 <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr uss2 = c.syms->SymbolAt( ucs2 )
                 if uss2 <> 0 then srcU2 = IsUnsignedType( c, uss2->type_ )

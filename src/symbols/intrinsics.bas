@@ -105,46 +105,29 @@ end function
 '' operator and then derefs its result, and '-v' calls the numeric one and negates ITS
 '' result, with the operator's return type as the type of the whole expression.
 private function UdtCastResultOf_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byval wantPtr as boolean ) as Tko.TypeId
+    ( byref c as Ctx, byval t as Tko.TypeId, byval wantPtr as boolean, byval want as Tko.TypeId = Tko.TYPE_NONE ) as Tko.TypeId
 
     if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    '' A NUMBER IS THE SHARED RULE'S, chosen by what the value meets (structpick.bas).
+    if wantPtr = false then
+        dim as Tko.Symbol ptr ncs = c.syms->SymbolAt( Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, u, want ) )
+        if ncs = 0 then return Tko.TYPE_NONE
+        return c.types->Unqualify( ncs->type_ )
+    end if
+    '' A POINTER: the first pointer-returning cast -- one in every shape the corpus writes.
     dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
-    '' THE BEST-RANKED numeric cast, not the first in the chain -- see NumericCastRank.
-    '' The pointer branch below still takes the first: there is one pointer cast in
-    '' every shape the corpus writes, and no measurement to rank two.
-    dim as Tko.TypeId bestNum = Tko.TYPE_NONE
-    dim as long bestNumRank = 0
     while cs <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
         if cse = 0 then exit while
-        dim as Tko.TypeId rt = cse->type_
-        if rt <> Tko.TYPE_NONE then
-            dim as Tko.TypeId ru = c.types->Unqualify( rt )
-            if c.types->Kind( ru ) = Tko.TK_REFERENCE then
-                ru = c.types->Unqualify( c.types->Inner( ru ) )
-            end if
-            if wantPtr then
-                if c.types->Kind( ru ) = Tko.TK_POINTER then return ru
-            else
-                '' A NUMBER, which is every builtin that is not one of the four string
-                '' flavours -- those are UdtStringCastType_'s and mean something else at
-                '' every site that asks this.
-                if c.types->Kind( ru ) = Tko.TK_BUILTIN then
-                    if IsStringy_( c.types->BuiltinOf( ru ) ) = false then
-                        dim as long nrk = Tko.Check.NumericCastRank( *c.types, ru )
-                        if nrk > bestNumRank then
-                            bestNumRank = nrk
-                            bestNum = ru
-                        end if
-                    end if
-                end if
-            end if
+        if cse->type_ <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+            if c.types->Kind( ru ) = Tko.TK_POINTER then return ru
         end if
         cs = cse->nextOverload
     wend
-    if (wantPtr = false) andalso (bestNum <> Tko.TYPE_NONE) then return bestNum
     return Tko.TYPE_NONE
 end function
 
@@ -163,7 +146,7 @@ private function UdtOperandBinaryType_ _
     for side as long = 0 to 1
         dim as Tko.TypeId st = iif( side = 0, lt, rt )
         if IsUdtOperand_( c, st ) = false then continue for
-        dim as Tko.TypeId sc = UdtCastResultOf_( c, st, false )
+        dim as Tko.TypeId sc = UdtCastResultOf_( c, st, false, iif( side = 0, iif( IsUdtOperand_( c, rt ), Tko.TYPE_NONE, rt ), iif( IsUdtOperand_( c, lt ), Tko.TYPE_NONE, lt ) ) )
         if (sc = Tko.TYPE_NONE) andalso IsComparison_( op ) then sc = UdtStringCastType_( c, st )
         if sc = Tko.TYPE_NONE then continue for
         if side = 0 then lt2 = sc else rt2 = sc

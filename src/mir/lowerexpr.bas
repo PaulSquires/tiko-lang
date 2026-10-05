@@ -819,8 +819,9 @@ function LowerExpr _
         '' of the RESULT. See UserCastToNum_.
         dim as MirValue l
         dim as MirValue r
-        dim as boolean lCast = UserCastToNum_( c, bp->lhs, l )
-        dim as boolean rCast = UserCastToNum_( c, bp->rhs, r )
+        '' Each UDT side takes the cast closest to the OTHER side's type -- NumericCastPick.
+        dim as boolean lCast = UserCastToNum_( c, bp->lhs, l, c.info->TypeOf_( bp->rhs ) )
+        dim as boolean rCast = UserCastToNum_( c, bp->rhs, r, c.info->TypeOf_( bp->lhs ) )
 
         dim as boolean noType = (c.info->TypeOf_( id ) = Tko.TYPE_NONE)
         dim as boolean noCast = (lCast = false) andalso (rCast = false)
