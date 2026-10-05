@@ -334,7 +334,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     '' takeR( mkH( 2 ) ) + cnt( )' destroys 1, then 5, then 2, all before the first
     '' iteration, and the limit and the step each see the destructors before them.
     dim as long hmark = c.udtTemps.Count
-    dim as MirValue init_ = CoerceTy( c, LowerExpr( c, fromE ), ity, c.info->TypeOf_( fromE ) )
+    dim as MirValue init_ = LowerNumArg_( c, fromE, ity )
     if init_.kind <> cast( ubyte, MV_NONE ) then
         dim as MirInst st0
         st0.op = cast( ushort, M_STORE )
@@ -379,7 +379,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
             limAddr.ty = cast( ubyte, MT_PTR )
             limAddr.id = limSlot
             dim as MirValue lv0 = _
-                CoerceTy( c, LowerExpr( c, toE ), ity, c.info->TypeOf_( toE ) )
+                LowerNumArg_( c, toE, ity )
             if lv0.kind = cast( ubyte, MV_NONE ) then
                 SkipHere( c )
                 return
@@ -425,7 +425,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
         stepAddr.kind = cast( ubyte, MV_LOCAL )
         stepAddr.ty = cast( ubyte, MT_PTR )
         stepAddr.id = stepSlot
-        dim as MirValue sv0 = CoerceTy( c, LowerExpr( c, stepE ), ity, c.info->TypeOf_( stepE ) )
+        dim as MirValue sv0 = LowerNumArg_( c, stepE, ity )
         if sv0.kind = cast( ubyte, MV_NONE ) then
             SkipHere( c )
             return
@@ -492,7 +492,7 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     if limSlot >= 0 then
         lim = LowerExprLoad( c, limAddr, ity )
     else
-        lim = CoerceTy( c, LowerExpr( c, toE ), ity, c.info->TypeOf_( toE ) )
+        lim = LowerNumArg_( c, toE, ity )
     end if
 
     if signSlot >= 0 then

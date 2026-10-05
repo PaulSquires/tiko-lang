@@ -1188,7 +1188,7 @@ function LowerNumArg_( byref c as Ctx, byval e as Tko.NodeId, byval mt as MirTyp
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
     if c.types->Kind( t ) = Tko.TK_UDT then
-        dim as Tko.TypeId want = c.types->Builtin( Tko.TY_INTEGER )
+        dim as Tko.TypeId want = c.types->Builtin( iif( IsFloatTy( mt ), Tko.TY_DOUBLE, Tko.TY_INTEGER ) )   '' the number it meets
         dim as Tko.SymbolId nc = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, t, want )
         if nc = Tko.SYMBOL_NONE then return v
         if UserCastToNum_( c, e, v, want ) = false then return v
