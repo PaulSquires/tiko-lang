@@ -431,8 +431,16 @@ private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( su ) = TK_REFERENCE then su = c.types->Unqualify( c.types->Inner( su ) )
     if c.types->Kind( su ) = TK_ARRAY then su = c.types->Unqualify( c.types->Inner( su ) )
     '' A UDT SUBJECT IS fbc's 24 whatever casts it declares -- measured over one casting to long,
-    '' one to string and one with none. tiko took its cast. A tuple is tiko's own, not judged.
+    '' one to string and one with none. tiko took its cast. A tuple is tiko's own, not judged;
+    '' and a type whose base chain ENDS IN A BUILTIN -- 'extends wstring', 'extends zstring' --
+    '' is a string to fbc, whose own udt-wstring/select.bas selects on one.
     if (c.types->Kind( su ) = TK_UDT) andalso (TcTuple_( c, su ) = false) then
+        dim as TypeId bb = c.types->BaseOf( su )
+        for guard as long = 0 to 63
+            if bb = TYPE_NONE then exit for
+            if c.types->Kind( c.types->Unqualify( bb ) ) <> TK_UDT then return
+            bb = c.types->BaseOf( c.types->Unqualify( bb ) )
+        next
         c.diags->Report( TKO0964, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( c.types->NameOf( su ) ) )
         return
     end if
