@@ -220,6 +220,36 @@ private sub CheckUdtRadixChr_ _
     end if
 end sub
 
+'' A UDT VALUE FOR AN EXPLICIT CONVERSION TO THE BUILTIN 'want' -- 'cast( T, x )': it needs an
+'' 'operator cast' yielding exactly that type, TKO0890 otherwise. The same test the conversion
+'' intrinsics' UDT arm makes below; a tuple, a generic instance and a derived type are not judged.
+private sub CheckUdtExactCast_ _
+    ( byref c as Ctx, byval id as NodeId, byval arg as NodeId, byval want as BuiltinType, byref nm as string )
+
+    if (c.info->RefOf( id ) <> SYMBOL_NONE) then return
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    if c.types->Kind( at ) <> TK_UDT then return
+    dim as InternId un = c.types->NameOf( at )
+    if un = 0 then return
+    dim as string h = left( c.names->Spelling( un ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return
+    if instr( c.names->Spelling( un ), "<" ) > 0 then return
+    if BaseOf_( c, at ) <> TYPE_NONE then return
+    dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
+    if cs = 0 then return   '' no cast at all is another rule's
+    for guard as long = 0 to 63
+        if cs = 0 then exit for
+        dim as TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if (c.types->Kind( rt ) = TK_BUILTIN) andalso (c.types->BuiltinOf( rt ) = want) then return
+        cs = c.syms->SymbolAt( cs->nextOverload )
+    next
+    c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( at ) )
+end sub
+
 private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
@@ -228,6 +258,19 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     '' ASKED BEFORE THE BINDING TEST: these names are keywords, so what binds one is a
     '' user 'operator sqr', and MathArgIsNumber_ matches that against the argument itself.
     dim as BuiltinType want = ConvTarget_( nm )
+    '' 'cast( T, x )' OVER A UDT NEEDS A CAST YIELDING EXACTLY T, as cint and the rest do --
+    '' measured: over a type casting to long, 'cast( long, a )' compiles and 'cast( integer, a )',
+    '' 'cast( double, a )' are fbc's 20. A builtin T only; the type argument comes first.
+    if (nm = "cast") andalso (lp->count = 2) then
+        dim as TypeId ct = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
+        if ct <> TYPE_NONE then
+            ct = c.types->Unqualify( ct )
+            if c.types->Kind( ct ) = TK_BUILTIN then want = c.types->BuiltinOf( ct )
+        end if
+        if want = TY_NONE then return
+        CheckUdtExactCast_( c, id, cast( NodeId, c.ast->children[lp->first + 1] ), want, nm )
+        return
+    end if
     if want = TY_NONE then
         CheckMathIntrinsic_( c, id, lp, nm )
         CheckUdtRadixChr_( c, id, lp, nm )

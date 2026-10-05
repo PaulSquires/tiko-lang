@@ -1,0 +1,9 @@
+'' TKO0890, fbc's 20: 'cast( T, x )' over a UDT with no 'operator cast' yielding exactly T. tiko
+'' took a near cast. symbols/staticdef.bas CheckUdtExactCast_, beside cint and the rest.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/cast-udt-exact.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-udt-exact.bas(18,7): error TKO0890
+'' EXPECT-OUT: cast-udt-exact.bas(19,7): error TKO0890
+'' EXPECT-OUT: cast-udt-exact.bas(21,7): error TKO0890
+'' EXPECT-MAX-DIAG: 3
