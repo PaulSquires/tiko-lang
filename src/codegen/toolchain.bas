@@ -143,6 +143,14 @@ private function Q( byref s as string ) as string
     return r & string( bs * 2, 92 ) & """"
 end function
 
+'' True the first time 'key' is offered, false after. 'seen' starts as chr( 0 ) and
+'' holds every key so far, each closed by a NUL, so one instr answers it.
+private function FirstTime_( byref seen as string, byref key as string ) as boolean
+    if instr( seen, chr( 0 ) & key & chr( 0 ) ) > 0 then return false
+    seen &= key & chr( 0 )
+    return true
+end function
+
 '' EVERY TOOL RUNS THROUGH HERE, so '-v' can show the command -- the whole link line
 '' included, which is the one thing a missing object (fbrt0.o was one) cannot hide
 '' from. Printed before it runs, as fbc's own '-v' does, so a tool that hangs or
@@ -274,6 +282,7 @@ function LinkExe _
     '' instead -- we ship an import library for it -- is a decision about which CRT
     '' the runtime uses, not a flag.
     dim as string cmd = "-target " & target.triple & " -fuse-ld=lld"
+    dim as boolean viaLld = true
     '' ...WHERE THERE IS ONE. Ubuntu's clang package does not carry lld, and on such a
     '' host every link died with clang's 'invalid linker name in argument
     '' -fuse-ld=lld'. Beside clang or on the system path it is used; otherwise clang
@@ -283,6 +292,7 @@ function LinkExe _
         if (FileExists_( left( t.clangExe, sl ) & "ld.lld" ) = false) andalso _
            (FileExists_( "/usr/bin/ld.lld" ) = false) then
             cmd = "-target " & target.triple
+            viaLld = false
         end if
     #endif
 
@@ -479,7 +489,22 @@ function LinkExe _
     '' to a file here would quietly pick the static.
     '' The '#foreignlib' bindings first: they named an exact file, so there is
     '' nothing to resolve and no reason to let a search path answer differently.
+    ''
+    '' EACH LIBRARY ONCE. Every 'declare ... lib "user32"' asks for its library, and every
+    '' module replays its own list from the cache, so a WebView2 example over seven tkl
+    '' modules put '-luser32', '-ldwmapi' and '-lpropsys' on the line hundreds of times
+    '' each -- a line heading for Windows' 32,767-character command limit. lld reads archives in any order, so the
+    '' first mention is enough. GNU ld searches each archive once, where it appears, and
+    '' a repeat can be the one that resolves a later reference: without lld the line is
+    '' left as asked. Keyed on the argument as written, case-folded on COFF, where
+    '' 'Crypt32' and 'crypt32' are one file.
+    dim as string seenLib = chr( 0 )
     for i as long = 0 to t.libFiles.Count - 1
+        if viaLld then
+            dim as string key = t.libFiles[i]
+            if target.objFormat = OBJ_COFF then key = lcase( key )
+            if FirstTime_( seenLib, key ) = false then continue for
+        end if
         cmd += " " & Q( t.libFiles[i] )
     next
 
@@ -526,9 +551,7 @@ function LinkExe _
         end if
         '' Nothing found means it is not ours to resolve: a system library lives in
         '' none of these directories, and '-l' is what reaches it.
-        if len( named ) > 0 then
-            cmd += " " & Q( named )
-        else
+        if len( named ) = 0 then
             '' 'lib "dwmapi.dll"' IS A DLL NAME, and on this target the import library
             '' drops the suffix. fbc passes '-ldwmapi.dll' too, and MinGW ld finds
             '' libdwmapi.dll.a from it; lld-link asked for 'dwmapi.dll.lib', which no
@@ -542,8 +565,16 @@ function LinkExe _
             end if
             '' ONE ARGUMENT, quoted: '#inclib "kernel32 -o C:\x.exe"' put an '-o' on the
             '' link line and wrote the program somewhere else (audit F-49).
-            cmd += " " & Q( "-l" & ln )
+            named = "-l" & ln
         end if
+        '' Once, judged on what reaches the linker: 'dwmapi.dll' and 'dwmapi' are one
+        '' '-ldwmapi' here, and a found libgreet.a is the same file however it was asked.
+        if viaLld then
+            dim as string key = named
+            if target.objFormat = OBJ_COFF then key = lcase( key )
+            if FirstTime_( seenLib, key ) = false then continue for
+        end if
+        cmd += " " & Q( named )
     next
 
     '' THE RUNTIME, AND WHICH ONE. '-mt' picks libfbmt.a over libfb.a, which is

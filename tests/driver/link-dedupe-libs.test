@@ -1,0 +1,16 @@
+'' EACH LIBRARY ONCE ON THE LINK LINE. Every '#inclib' and every 'declare ... lib' went on
+'' as asked, and each module replayed its own list, so a WebView2 example over seven tkl
+'' modules named user32, dwmapi and propsys hundreds of times each. lld reads archives in
+'' any order: the first mention stays, the repeats -- case-folded on COFF, and 'x.dll'
+'' as the '-lx' it becomes -- go.
+'' TEST: cli
+'' ARGS: -v -target win64-msvc tests/driver/src/link-dedupe-libs.bas -o tests/driver/linkdedupelibs.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: "-lshlwapi" "-lcomctl32" "
+'' EXPECT-NOT: "-lSHLWAPI"
+'' EXPECT-NOT: "-lcomctl32" "-lshlwapi"
+'' EXPECT-NOT: "-lcomctl32" "-lcomctl32"
+'' EXPECT-FILE: tests/driver/linkdedupelibs.exe
+'' RUN: tests/driver/linkdedupelibs.exe
+'' EXPECT-RUN-OUT: ok -1
