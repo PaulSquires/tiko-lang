@@ -614,7 +614,7 @@ function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     '' A UDT WITH 'operator cast' TO A WSTRING is wide too, and asking that costs a
     '' walk rather than an emission -- which is the whole reason this predicate exists
     '' separately from UserCastToWide_.
-    if WideCastOverload_( c, c.info->TypeOf_( e ) ) <> Tko.SYMBOL_NONE then return true
+    if (WideCastOverload_( c, c.info->TypeOf_( e ) ) <> Tko.SYMBOL_NONE) andalso (HasNarrowStrCast_( c, c.info->TypeOf_( e ) ) = false) then return true   '' a narrow cast wins (lowersub.bas)
     return IsWstrCall_( c, e )
 end function
 

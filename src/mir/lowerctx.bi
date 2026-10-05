@@ -716,6 +716,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
     declare function UdtCastArgOk_ _
         ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
+    declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean   '' lowersub.bas
     declare function UserCastToNum_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
           byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean

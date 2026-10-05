@@ -27,26 +27,26 @@ private function UdtStringCastType_ _
     if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    '' A NARROW CAST BEFORE A WIDE ONE, whatever the order declared: measured, fbc's 'ucase( x )'
+    '' over casts to wstring and to string calls the STRING one; tiko took the first.
+    dim as Tko.TypeId wide_ = Tko.TYPE_NONE
     dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
     while cs <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
         if cse = 0 then exit while
-        dim as Tko.TypeId rt = cse->type_
-        if rt <> Tko.TYPE_NONE then
-            dim as Tko.TypeId ru = c.types->Unqualify( rt )
-            if c.types->Kind( ru ) = Tko.TK_REFERENCE then
-                ru = c.types->Unqualify( c.types->Inner( ru ) )
-            end if
+        if cse->type_ <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
             if c.types->Kind( ru ) = Tko.TK_BUILTIN then
                 select case c.types->BuiltinOf( ru )
-                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING
-                    return ru
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING : return ru
+                case Tko.TY_WSTRING : if wide_ = Tko.TYPE_NONE then wide_ = ru
                 end select
             end if
         end if
         cs = cse->nextOverload
     wend
-    return Tko.TYPE_NONE
+    return wide_
 end function
 
 '' DERIVES FROM A WIDE STRING? One that extends wstring IS one, which beats its own

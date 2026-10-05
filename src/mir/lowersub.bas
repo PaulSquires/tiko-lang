@@ -1125,6 +1125,32 @@ function UserCastToNum_ _
 end function
 
 
+'' WHETHER A UDT HAS A NARROW STRING CAST -- to string, zstring (byref or a pointer) or ustring. A
+'' narrow context takes it over a wide one: measured, fbc's 'dim as string s = x' and 'ucase( x )'
+'' over a type casting to string and to wstring call the STRING cast, in either declaration
+'' order; tiko called the wstring one and transcoded it (TermIsWide_, lowerwstr.bas).
+function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if c.types->Kind( rt ) = Tko.TK_POINTER then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if c.types->Kind( rt ) = Tko.TK_BUILTIN then
+            select case c.types->BuiltinOf( rt )
+            case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING : return true
+            end select
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
 function UdtMemberNamed_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
