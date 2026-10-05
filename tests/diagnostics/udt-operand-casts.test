@@ -1,0 +1,21 @@
+'' TKO0820, fbc's 20: the cast a UDT operand needs with no user operator -- a string one for '&',
+'' a number or a byref z/wstring one each between two UDTs, a string one for '+' against a string. proccheck.bas
+'' UdtCastOperands_. A real compile: --dump-ir hides late checks behind a declined statement.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/udt-operand-casts.bas -o tests/diagnostics/src/udt-operand-casts.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-operand-casts.bas(21,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(22,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(23,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(24,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(25,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(26,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(27,10): error TKO0820
+'' EXPECT-OUT: udt-operand-casts.bas(28,10): error TKO0820
+'' EXPECT-NOT: udt-operand-casts.bas(29,
+'' EXPECT-NOT: udt-operand-casts.bas(30,
+'' EXPECT-NOT: udt-operand-casts.bas(31,
+'' EXPECT-NOT: udt-operand-casts.bas(32,
+'' EXPECT-NOT: udt-operand-casts.bas(33,
+'' EXPECT-NOT: udt-operand-casts.bas(34,
+'' EXPECT-MAX-DIAG: 8

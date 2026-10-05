@@ -889,9 +889,94 @@ private function TupleElemsCompare_ _
     return true
 end function
 
+'' WHICH CAST A UDT OPERAND NEEDS, with no user operator. Measured on fbc-modern, over casts to
+'' 'string', 'ustring', 'byref as zstring', 'byref as wstring', the two string pointers and long:
+''
+''   '&'                         each UDT side needs a string cast -- a pointer one is not   20
+''   two UDTs: + - * / and the comparisons
+''                               each side needs a number or a BYREF z/wstring cast; 'string'
+''                               and 'ustring' do not count ('s = s' is 20, 'w = w' is -1)
+''   one UDT against a string: '+' and the comparisons
+''                               the UDT needs a string cast ('m + "x"' is 20)
+''
+'' tiko took whichever cast it found, or failed to lower. A tuple, a generic instance and a type
+'' extending a builtin are not judged here.
+private function PlainUdtOperand_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if c.types->Kind( t ) <> TK_UDT then return false
+    if TupleLike_( c, t ) then return false
+    if instr( c.names->Spelling( c.types->NameOf( t ) ), "<" ) > 0 then return false
+    if c.types->BaseOf( t ) <> TYPE_NONE then return false
+    return (StructorOf_( c, t, "cast" ) <> 0)
+end function
+
+'' What a UDT's casts offer: a number, a string (by value or a BYREF z/wstring), a BYREF z/wstring.
+private sub UdtCastKinds_ _
+    ( byref c as Ctx, byval t as TypeId, byref hasNum as boolean, byref hasStr as boolean, byref hasCharRef as boolean )
+    hasNum = false : hasStr = false : hasCharRef = false
+    dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
+    for guard as long = 0 to 255
+        if cs = 0 then exit for
+        dim as TypeId rt = c.types->Unqualify( cs->type_ )
+        dim as boolean byRes = false
+        dim as NodeId pn = cast( NodeId, cs->payload )
+        if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
+            byRes = ((c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].extra and PF_BYREF_RESULT) <> 0) orelse _
+                    ((c.ast->nodes[cast( long, pn )].flags and NF_BYREF) <> 0)
+        end if
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) ) : byRes = true
+        if byRes andalso (c.types->Kind( rt ) = TK_POINTER) then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        select case c.types->Kind( rt )
+        case TK_ENUM : hasNum = true
+        case TK_BUILTIN
+            select case c.types->BuiltinOf( rt )
+            case TY_STRING, TY_USTRING : hasStr = true
+            case TY_ZSTRING, TY_WSTRING
+                if byRes then hasStr = true : hasCharRef = true
+            case TY_VOID, TY_ANY
+            case else : hasNum = true
+            end select
+        end select
+        cs = c.syms->SymbolAt( cs->nextOverload )
+    next
+end sub
+
+private sub UdtCastOperands_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPayload ptr )
+    if (bp->lhs = NODE_NONE) orelse (bp->rhs = NODE_NONE) then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( bp->lhs ) )
+    dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( bp->rhs ) )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    dim as boolean lU = PlainUdtOperand_( c, lt ), rU = PlainUdtOperand_( c, rt )
+    if (lU orelse rU) = false then return
+    dim as boolean lN, lS, lC, rN, rS, rC
+    if lU then UdtCastKinds_( c, lt, lN, lS, lC )
+    if rU then UdtCastKinds_( c, rt, rN, rS, rC )
+    dim as TokenKind op = cast( TokenKind, bp->op )
+    dim as boolean bad = false
+    if op = TK_AMP then
+        if lU andalso (lS = false) then bad = true
+        if rU andalso (rS = false) then bad = true
+    else
+        select case op
+        case TK_PLUS, TK_MINUS, TK_STAR, TK_SLASH, TK_EQ, TK_NE, TK_LT, TK_GT, TK_LE, TK_GE
+        case else
+            return
+        end select
+        if lU andalso rU then
+            bad = ((lN orelse lC) = false) orelse ((rN orelse rC) = false)
+        elseif (op <> TK_MINUS) andalso (op <> TK_STAR) andalso (op <> TK_SLASH) then
+            if OperandClass_( c, iif( lU, rt, lt ) ) = 2 then bad = iif( lU, lS, rS ) = false
+        end if
+    end if
+    if bad then c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), lcase( TokenKindText( op ) ) )
+end sub
+
 private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
         @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    UdtCastOperands_( c, id, bp )
     dim as string opnm = ""
     select case cast( TokenKind, bp->op )
     case TK_EQ : opnm = "="
