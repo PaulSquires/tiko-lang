@@ -1190,42 +1190,6 @@ end function
 
 '' The 'operator cast' overload that yields a WSTRING, called on 'id'. Returns the
 '' uint16* it gives back.
-'' THE 'operator cast' OVERLOAD THAT YIELDS A WSTRING, or nothing. Split out because
-'' the CONCATENATION and COMPARISON paths have to know whether a term is wide BEFORE
-'' anything is emitted for it, and the only way to find out is this walk: 'operator
-'' cast' may be declared several times over different targets, so the chain is walked
-'' rather than its head taken.
-function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
-    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = cse->type_
-        if rt <> Tko.TYPE_NONE then
-            '' BYREF makes it a POINTER to the wstring, so both spellings count -- and a
-            '' REFERENCE is the third, which 'byref as const wstring' resolves to. CONST
-            '' is stripped with it: 'const wstring' is the same wstring.
-            dim as Tko.TypeId inner = c.types->Unqualify( rt )
-            if c.types->Kind( inner ) = Tko.TK_REFERENCE then
-                inner = c.types->Unqualify( c.types->Inner( inner ) )
-            end if
-            if c.types->Kind( inner ) = Tko.TK_POINTER then
-                inner = c.types->Unqualify( c.types->Inner( inner ) )
-            end if
-            if IsWideString_( c, inner ) then return cur
-            if inner <> Tko.TYPE_NONE then
-                if c.types->Kind( inner ) = Tko.TK_BUILTIN then
-                    if c.types->BuiltinOf( inner ) = Tko.TY_WSTRING then return cur
-                end if
-            end if
-        end if
-        cur = cse->nextOverload
-    wend
-    return Tko.SYMBOL_NONE
-end function
-
 function UserCastToWide_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

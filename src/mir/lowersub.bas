@@ -877,47 +877,52 @@ function UserCastToStr_ _
     '' THE OVERLOAD THAT YIELDS A STRING. 'operator cast' can be declared several
     '' times over different targets -- as long, as string, as zstring -- and they hang
     '' off one symbol as a chain, so the first is not necessarily the right one.
-    dim as Tko.SymbolId cur = cs
+    dim as Tko.SymbolId cur
     dim as Tko.SymbolId want = Tko.SYMBOL_NONE
     dim as boolean wantRaw = false
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = cse->type_
-        if rt <> Tko.TYPE_NONE then
-            dim as longint zn
-            if IsStringType( c, rt ) then
-                want = cur
-                wantRaw = false
-                exit while
-            elseif StrSwapKind_( c, rt, zn ) = 1 then
-                want = cur
-                wantRaw = true
-                exit while
-            else
-                '' A BARE 'zstring' -- no length -- which is what a BYREF conversion
-                '' operator returns: 'operator cast( ) byref as zstring', and fbc's own
-                '' C says the result is a plain 'char*'. It is neither the TK_ARRAY a
-                '' 'zstring * N' variable is nor IsStringType, so both tests above miss
-                '' it, and byref makes it a POINTER to that -- which is why both
-                '' spellings are accepted here.
-                dim as Tko.TypeId inner = rt
-                if c.types->Kind( inner ) = Tko.TK_POINTER then
-                    inner = c.types->Inner( inner )
-                end if
-                if inner <> Tko.TYPE_NONE then
-                    if c.types->Kind( inner ) = Tko.TK_BUILTIN then
-                        if c.types->BuiltinOf( inner ) = Tko.TY_ZSTRING then
-                            want = cur
-                            wantRaw = true
-                            exit while
+    for pass as long = 0 to 1
+        cur = cs
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+            if cse = 0 then exit while
+            if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
+            dim as Tko.TypeId rt = cse->type_
+            if rt <> Tko.TYPE_NONE then
+                dim as longint zn
+                if IsStringType( c, rt ) then
+                    want = cur
+                    wantRaw = false
+                    exit while
+                elseif StrSwapKind_( c, rt, zn ) = 1 then
+                    want = cur
+                    wantRaw = true
+                    exit while
+                else
+                    '' A BARE 'zstring' -- no length -- which is what a BYREF conversion
+                    '' operator returns: 'operator cast( ) byref as zstring', and fbc's own
+                    '' C says the result is a plain 'char*'. It is neither the TK_ARRAY a
+                    '' 'zstring * N' variable is nor IsStringType, so both tests above miss
+                    '' it, and byref makes it a POINTER to that -- which is why both
+                    '' spellings are accepted here.
+                    dim as Tko.TypeId inner = rt
+                    if c.types->Kind( inner ) = Tko.TK_POINTER then
+                        inner = c.types->Inner( inner )
+                    end if
+                    if inner <> Tko.TYPE_NONE then
+                        if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                            if c.types->BuiltinOf( inner ) = Tko.TY_ZSTRING then
+                                want = cur
+                                wantRaw = true
+                                exit while
+                            end if
                         end if
                     end if
                 end if
             end if
-        end if
-        cur = cse->nextOverload
-    wend
+            cur = cse->nextOverload
+        wend
+        if want <> Tko.SYMBOL_NONE then exit for
+    next
     if want = Tko.SYMBOL_NONE then return false
 
     dim as MirValue self_
@@ -944,18 +949,22 @@ function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = cse->type_
-        if rt <> Tko.TYPE_NONE then
-            dim as longint zn
-            if IsStringType( c, rt ) then return IsUStringType( c, rt )
-            if StrSwapKind_( c, rt, zn ) = 1 then return false
-        end if
-        cur = cse->nextOverload
-    wend
+    dim as Tko.SymbolId cur
+    for pass as long = 0 to 1
+        cur = UdtMemberNamed_( c, t, "cast" )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+            if cse = 0 then exit while
+            if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
+            dim as Tko.TypeId rt = cse->type_
+            if rt <> Tko.TYPE_NONE then
+                dim as longint zn
+                if IsStringType( c, rt ) then return IsUStringType( c, rt )
+                if StrSwapKind_( c, rt, zn ) = 1 then return false
+            end if
+            cur = cse->nextOverload
+        wend
+    next
     return false
 end function
 
@@ -981,30 +990,34 @@ function UserCastToWstr_ _
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
-        '' Through a REFERENCE or a POINTER: 'byref as wstring' is either spelling
-        '' by the time it reaches here, and both mean the same buffer.
-        if c.types->Kind( rt ) = Tko.TK_REFERENCE then
-            rt = c.types->Unqualify( c.types->Inner( rt ) )
-        elseif c.types->Kind( rt ) = Tko.TK_POINTER then
-            rt = c.types->Unqualify( c.types->Inner( rt ) )
-        end if
-        if rt <> Tko.TYPE_NONE then
-            if c.types->Kind( rt ) = Tko.TK_BUILTIN then
-                if c.types->BuiltinOf( rt ) = Tko.TY_WSTRING then
-                    dim as MirValue self_
-                    if UdtSelfAddr_( c, id, self_ ) = false then return false
-                    outv = EmitMemberCall( c, cur, self_, MT_PTR )
-                    return (outv.kind <> cast( ubyte, MV_NONE ))
+    dim as Tko.SymbolId cur
+    for pass as long = 0 to 1
+        cur = UdtMemberNamed_( c, t, "cast" )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+            if cse = 0 then exit while
+            if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
+            dim as Tko.TypeId rt = c.types->Unqualify( cse->type_ )
+            '' Through a REFERENCE or a POINTER: 'byref as wstring' is either spelling
+            '' by the time it reaches here, and both mean the same buffer.
+            if c.types->Kind( rt ) = Tko.TK_REFERENCE then
+                rt = c.types->Unqualify( c.types->Inner( rt ) )
+            elseif c.types->Kind( rt ) = Tko.TK_POINTER then
+                rt = c.types->Unqualify( c.types->Inner( rt ) )
+            end if
+            if rt <> Tko.TYPE_NONE then
+                if c.types->Kind( rt ) = Tko.TK_BUILTIN then
+                    if c.types->BuiltinOf( rt ) = Tko.TY_WSTRING then
+                        dim as MirValue self_
+                        if UdtSelfAddr_( c, id, self_ ) = false then return false
+                        outv = EmitMemberCall( c, cur, self_, MT_PTR )
+                        return (outv.kind <> cast( ubyte, MV_NONE ))
+                    end if
                 end if
             end if
-        end if
-        cur = cse->nextOverload
-    wend
+            cur = cse->nextOverload
+        wend
+    next
     return false
 end function
 
@@ -1116,6 +1129,61 @@ function UserCastToNum_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+
+'' A CAST THAT YIELDS A POINTER -- 'as zstring ptr', 'as wstring ptr' -- and not 'byref as', which is
+'' the string itself. Measured on fbc-modern: beside 'as string' or 'byref as wstring', in either
+'' order, print, an initialiser and '&' take the non-pointer cast; tiko took the first declared.
+'' The string-cast walks look at pointer ones only when no other matched.
+function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
+    if (s = 0) orelse (s->type_ = Tko.TYPE_NONE) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+        if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    end if
+    return (c.types->Kind( c.types->Unqualify( s->type_ ) ) = Tko.TK_POINTER)
+end function
+
+'' (Moved from lowerwstr.bas at its 1500-line cap.)
+'' THE 'operator cast' OVERLOAD THAT YIELDS A WSTRING, or nothing. Split out because
+'' the CONCATENATION and COMPARISON paths have to know whether a term is wide BEFORE
+'' anything is emitted for it, and the only way to find out is this walk: 'operator
+'' cast' may be declared several times over different targets, so the chain is walked
+'' rather than its head taken.
+function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur
+    for pass as long = 0 to 1
+        cur = UdtMemberNamed_( c, t, "cast" )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+            if cse = 0 then exit while
+            if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
+            dim as Tko.TypeId rt = cse->type_
+            if rt <> Tko.TYPE_NONE then
+                '' BYREF makes it a POINTER to the wstring, so both spellings count -- and a
+                '' REFERENCE is the third, which 'byref as const wstring' resolves to. CONST
+                '' is stripped with it: 'const wstring' is the same wstring.
+                dim as Tko.TypeId inner = c.types->Unqualify( rt )
+                if c.types->Kind( inner ) = Tko.TK_REFERENCE then
+                    inner = c.types->Unqualify( c.types->Inner( inner ) )
+                end if
+                if c.types->Kind( inner ) = Tko.TK_POINTER then
+                    inner = c.types->Unqualify( c.types->Inner( inner ) )
+                end if
+                if IsWideString_( c, inner ) then return cur
+                if inner <> Tko.TYPE_NONE then
+                    if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                        if c.types->BuiltinOf( inner ) = Tko.TY_WSTRING then return cur
+                    end if
+                end if
+            end if
+            cur = cse->nextOverload
+        wend
+    next
+    return Tko.SYMBOL_NONE
+end function
 
 '' WHETHER A UDT HAS A NARROW STRING CAST -- to string, zstring (byref or a pointer) or ustring. A
 '' narrow context takes it over a wide one: measured, fbc's 'dim as string s = x' and 'ucase( x )'

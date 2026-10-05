@@ -627,27 +627,31 @@ end function
 function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
-    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
-    while cur <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
-        if cse->type_ <> Tko.TYPE_NONE then
-            dim as Tko.TypeId inner = c.types->Unqualify( cse->type_ )
-            if c.types->Kind( inner ) = Tko.TK_REFERENCE then
-                inner = c.types->Unqualify( c.types->Inner( inner ) )
+    dim as Tko.SymbolId cur
+    for pass as long = 0 to 1
+        cur = UdtMemberNamed_( c, t, "cast" )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+            if cse = 0 then exit while
+            if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
+            if cse->type_ <> Tko.TYPE_NONE then
+                dim as Tko.TypeId inner = c.types->Unqualify( cse->type_ )
+                if c.types->Kind( inner ) = Tko.TK_REFERENCE then
+                    inner = c.types->Unqualify( c.types->Inner( inner ) )
+                end if
+                if c.types->Kind( inner ) = Tko.TK_POINTER then
+                    inner = c.types->Unqualify( c.types->Inner( inner ) )
+                end if
+                if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                    select case c.types->BuiltinOf( inner )
+                    case Tko.TY_ZSTRING, Tko.TY_STRING
+                        return cur
+                    end select
+                end if
             end if
-            if c.types->Kind( inner ) = Tko.TK_POINTER then
-                inner = c.types->Unqualify( c.types->Inner( inner ) )
-            end if
-            if c.types->Kind( inner ) = Tko.TK_BUILTIN then
-                select case c.types->BuiltinOf( inner )
-                case Tko.TY_ZSTRING, Tko.TY_STRING
-                    return cur
-                end select
-            end if
-        end if
-        cur = cse->nextOverload
-    wend
+            cur = cse->nextOverload
+        wend
+    next
     return Tko.SYMBOL_NONE
 end function
 
