@@ -146,7 +146,15 @@ private function UdtOperandBinaryType_ _
     for side as long = 0 to 1
         dim as Tko.TypeId st = iif( side = 0, lt, rt )
         if IsUdtOperand_( c, st ) = false then continue for
-        dim as Tko.TypeId sc = UdtCastResultOf_( c, st, false, iif( side = 0, iif( IsUdtOperand_( c, rt ), Tko.TYPE_NONE, rt ), iif( IsUdtOperand_( c, lt ), Tko.TYPE_NONE, lt ) ) )
+        '' '+' BESIDE A STRING TAKES THE STRING CAST: measured, '"<" + n + ">"' over a type casting to
+        '' long, double and string calls the string one -- the numeric pick left it untyped and
+        '' PRINT dropped it.
+        dim as Tko.TypeId oth = c.types->Unqualify( iif( side = 0, rt, lt ) )
+        dim as Tko.TypeId sc = Tko.TYPE_NONE
+        if (op = Tko.TK_PLUS) andalso (c.types->Kind( oth ) = Tko.TK_BUILTIN) then
+            if IsStringy_( c.types->BuiltinOf( oth ) ) then sc = UdtStringCastType_( c, st )
+        end if
+        if sc = Tko.TYPE_NONE then sc = UdtCastResultOf_( c, st, false, iif( side = 0, iif( IsUdtOperand_( c, rt ), Tko.TYPE_NONE, rt ), iif( IsUdtOperand_( c, lt ), Tko.TYPE_NONE, lt ) ) )
         if (sc = Tko.TYPE_NONE) andalso IsComparison_( op ) then sc = UdtStringCastType_( c, st )
         if sc = Tko.TYPE_NONE then continue for
         if side = 0 then lt2 = sc else rt2 = sc
