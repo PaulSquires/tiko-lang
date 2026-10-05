@@ -956,13 +956,11 @@ function EmitArrayBounds _
         '' A bare 'a(9)' has an implicit lower bound of 0.
         dim as MirValue lv = ConstInt( c, 0, zt )
         if loN <> Tko.NODE_NONE then
-            lv = LowerExpr( c, loN )
+            lv = LowerNumArg_( c, loN, zt )
             if lv.kind = cast( ubyte, MV_NONE ) then return false
-            lv = CoerceTy( c, lv, zt, c.info->TypeOf_( loN ))
         end if
-        dim as MirValue hv = LowerExpr( c, hiN )
+        dim as MirValue hv = LowerNumArg_( c, hiN, zt )
         if hv.kind = cast( ubyte, MV_NONE ) then return false
-        hv = CoerceTy( c, hv, zt, c.info->TypeOf_( hiN ))
 
         bk.Push( cast( ulong, lv.kind ) ) : bi.Push( cast( ulong, lv.id ) )
         bk.Push( cast( ulong, hv.kind ) ) : bi.Push( cast( ulong, hv.id ) )

@@ -46,9 +46,8 @@ function LowerMidAssign _
     dim as Tko.NodeId lenN = Tko.NODE_NONE
     if cp->count = 3 then lenN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
 
-    dim as MirValue sv = LowerExpr( c, startN )
+    dim as MirValue sv = LowerNumArg_( c, startN, MT_I64 )
     if sv.kind = cast( ubyte, MV_NONE ) then return false
-    sv = CoerceTy( c, sv, MT_I64, c.info->TypeOf_( startN ))
 
     '' AN OMITTED LENGTH IS -1 -- 'to the end' -- and not 0.
     dim as MirValue lv
@@ -56,9 +55,8 @@ function LowerMidAssign _
     lv.ty = cast( ubyte, MT_I64 )
     lv.id = cast( ulong, cast( ulongint, -1 ) )
     if lenN <> Tko.NODE_NONE then
-        lv = LowerExpr( c, lenN )
+        lv = LowerNumArg_( c, lenN, MT_I64 )
         if lv.kind = cast( ubyte, MV_NONE ) then return false
-        lv = CoerceTy( c, lv, MT_I64, c.info->TypeOf_( lenN ))
     end if
 
     dim as Tko.TypeId dt = c.info->TypeOf_( dstN )

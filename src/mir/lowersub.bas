@@ -568,13 +568,12 @@ function LowerStrNumCall_ _
         end if
         if cp->count = 2 then
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
-            dim as MirValue nv = LowerExpr( c, a1 )
-            if nv.kind = cast( ubyte, MV_NONE ) then return false
             '' The POSITION follows the pointer -- int64 on win64 and int32 on
             '' win32, measured on both halves of the family.
             dim as MirType pw = MT_I64
             if c.types->target.pointerBits = 32 then pw = MT_I32
-            nv = CoerceTy( c, nv, pw, c.info->TypeOf_( a1 ))
+            dim as MirValue nv = LowerNumArg_( c, a1, pw )   '' a UDT through its numeric cast
+            if nv.kind = cast( ubyte, MV_NONE ) then return false
             aa.Push( cast( ulong, nv.kind ) ) : aa.Push( cast( ulong, nv.id ) )
         else
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )

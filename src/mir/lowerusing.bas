@@ -338,7 +338,15 @@ private function UsingOne_ _
                 dim as MirValue uv
                 if UserCastToNum_( c, it, uv ) then
                     if uv.kind <> cast( ubyte, MV_NONE ) then
-                        uv = CoerceTy( c, uv, LowerType( ut, *c.types ), ut )
+                        '' TO THE ENTRY POINT'S WIDTH, not the cast's: a long cast goes to fb_PrintUsingLongint
+                        '' and must arrive as an i64 -- 'i32 but expected i64', clang's words.
+                        dim as MirType uwant = MT_I64
+                        select case uwhich
+                        case RTL_USING_SINGLE  : uwant = MT_F32
+                        case RTL_USING_DOUBLE  : uwant = MT_F64
+                        case RTL_USING_BOOLEAN : uwant = MT_I8
+                        end select
+                        uv = CoerceTy( c, uv, uwant, ut )
                         dim as FB.Array( of ulong ) uargs
                         uargs.Push( cast( ulong, chan.kind ) )
                         uargs.Push( cast( ulong, chan.id ) )
@@ -434,9 +442,8 @@ private function UsingOne_ _
     case RTL_USING_BOOLEAN : want = MT_I8
     end select
 
-    dim as MirValue v = LowerExpr( c, it )
+    dim as MirValue v = LowerNumArg_( c, it, want )   '' a UDT through its numeric cast
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    v = CoerceTy( c, v, want, t)
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
     PushConst( args, mask )
     EmitRtl( c, which, args )
@@ -473,6 +480,12 @@ private function UsingRtlFor _
     if IsStringType( c, t ) then return RTL_USING_STR
 
     select case c.types->Kind( t )
+    '' A UDT IS ITS NUMERIC CAST'S RESULT -- measured, 'print using "##"; a' over a type casting
+    '' to long prints 3; tiko coerced the aggregate and clang refused the module.
+    case Tko.TK_UDT
+        dim as Tko.SymbolId nc = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, c.types->Unqualify( t ), Tko.TYPE_NONE )
+        if nc = Tko.SYMBOL_NONE then return RTL_NONE
+        return UsingRtlFor( c, c.syms->SymbolAt( nc )->type_, isWide )
     case Tko.TK_ENUM
         '' fbc sends an enum through fb_PrintUsingDouble, with its own warning 5.
         return RTL_USING_DOUBLE
