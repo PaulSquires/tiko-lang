@@ -1,6 +1,6 @@
-'' A UDT WHERE FBC TAKES NO CAST AT ALL. Measured on fbc-modern over M1 casting to long, S1 to
-'' string and P1 with none: 'select case' over any of them is error 24 (lines 18, 21, 24);
-'' 'hex', 'oct' and 'whex' of M1 are 98 (27-29); 'chr' and 'wchr' of it 58 (30-31).
+'' A UDT WHERE FBC TAKES NO CAST. Measured on fbc-modern over M1 (cast to long), S1 (to string), P1
+'' (none): 'select case' on any is 24 (lines 18, 21, 24); hex, oct, whex of M1 98 (27-29); chr and
+'' wchr of M1 58 (30-31), as is string( )'s fill over S1 (32); over M1 it compiles (33).
 type M1
     as long q
     declare operator cast( ) as long
@@ -29,3 +29,5 @@ print oct( a )
 print whex( a )
 print chr( a )
 print wchr( a )
+print string( 2, b )
+print string( 65, a )

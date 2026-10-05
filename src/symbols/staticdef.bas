@@ -201,6 +201,23 @@ end sub
 private sub CheckUdtRadixChr_ _
     ( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr, byref nm as string )
 
+    '' ...AND 'string( n, x )' / 'wstring( n, x )' OVER A UDT x WITH NO NUMERIC CAST is 58 too: the
+    '' fill is a character code ('string( 2, m )' over a long cast is AA), never a string cast.
+    if ((nm = "string") orelse (nm = "wstring")) andalso (lp->count = 2) then
+        if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+        dim as NodeId fa = cast( NodeId, c.ast->children[lp->first + 1] )
+        dim as TypeId ft = c.info->TypeOf_( fa )
+        if ft = TYPE_NONE then return
+        ft = c.types->Unqualify( ft )
+        if c.types->Kind( ft ) = TK_REFERENCE then ft = c.types->Unqualify( c.types->Inner( ft ) )
+        if c.types->Kind( ft ) <> TK_UDT then return
+        dim as string fh = left( c.names->Spelling( c.types->NameOf( ft ) ), 1 )
+        if (fh = "(") orelse (fh = "$") orelse (fh = "~") then return
+        if BaseOf_( c, ft ) <> TYPE_NONE then return
+        if Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, ft, TYPE_NONE ) <> SYMBOL_NONE then return
+        c.diags->Report( TKO0698, PointRange( c.ast->Loc( fa ) ) )
+        return
+    end if
     if instr( " hex oct bin whex woct wbin chr wchr ", " " & nm & " " ) = 0 then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
