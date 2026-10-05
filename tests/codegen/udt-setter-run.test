@@ -1,0 +1,14 @@
+'' A UDT AS A PROPERTY SETTER'S VALUE runs its cast: a string cast into 'byref v as string', a
+'' numeric one into 'byval v as long'. tiko found no setter for the string one and wrote over the
+'' getter (a crash); the numeric one stored into the getter's address. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-setter.bas -o tests/codegen/udtsetter.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtsetter.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [d] 3
+'' EXPECT-RUN-OUT: [s]ab
+'' EXPECT-RUN-OUT: [d] 103
+'' EXPECT-RUN-OUT: [d] 6.5
+'' EXPECT-RUN-OUT: [d] 3

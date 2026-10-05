@@ -689,6 +689,9 @@ private function PropIndexCost_ _
             if (c.types->BuiltinOf( vpu ) = Tko.TY_WSTRING) andalso _
                (WideCastOverload_( c, vat ) <> Tko.SYMBOL_NONE) then vc = Tko.Check.CONV_USERDEF
         end if
+        '' ...AND ANY UDT THROUGH ITS STRING OR NUMERIC CAST (structpick.bas StructorCastCost): 'b.T2 = s'
+        '' over 'byref v as string' found no setter and became a string store over the getter.
+        if vc >= Tko.Check.CONV_NONE then vc = Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, vat, vpt )
         if vc >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
         total += vc
     end if
@@ -1393,7 +1396,19 @@ function LowerPropertySet_ _
         end if
     end if
     if (gotV = false) andalso (pt <> Tko.TYPE_NONE) then
-        if IsStringType( c, pt ) then
+        if IsStringType( c, pt ) andalso IsUdtValue_( c, value ) then
+            '' A UDT THROUGH ITS STRING CAST is built into a string temporary, as a constructor's
+            '' argument is (CtorArgValue_): 'b.T2 = s' over 'byref v as string' borrowed the cast's
+            '' result and the program crashed. fbc prints the text.
+            dim as long sslot = -1
+            dim as Tko.TypeId snu = c.types->Unqualify( pt )
+            if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
+            gotV = ByvalStrTemp_( c, value, snu, v, sslot )
+            if gotV andalso (sslot >= 0) then
+                c.f->locals[sslot].frontendType = snu
+                c.strTemps.Push( cast( ulong, sslot ) )
+            end if
+        elseif IsStringType( c, pt ) then
             gotV = StrDescriptorOf_( c, value, v )
         end if
     end if
@@ -1408,6 +1423,17 @@ function LowerPropertySet_ _
                 v = pa
                 gotV = true
             end if
+        end if
+    end if
+    '' A UDT VALUE FOR A NUMERIC SETTER goes through its numeric cast: 'b.N2 = m' lowered the object,
+    '' coerced nothing, declined -- and the numeric store below wrote over the GETTER's address.
+    dim as boolean udtVal = (gotV = false) andalso cbool( pt <> Tko.TYPE_NONE )
+    if udtVal then udtVal = IsUdtValue_( c, value )
+    if udtVal then
+        dim as MirType nvt = LowerType( pt, *c.types )
+        if (nvt <> MT_VOID) andalso (nvt <> MT_AGG) andalso (nvt <> MT_PTR) then
+            v = LowerNumArg_( c, value, nvt )
+            gotV = (v.kind <> cast( ubyte, MV_NONE ))
         end if
     end if
     if gotV = false then v = LowerExpr( c, value )
