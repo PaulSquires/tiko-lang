@@ -1109,6 +1109,7 @@ declare function EmitRtl _
     '' A UDT's 'operator cast' to zstring or string, else SYMBOL_NONE. lowerterm.bas.
     declare function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
+    declare function LowerNumArg_( byref c as Ctx, byval e as Tko.NodeId, byval mt as MirType ) as MirValue
     declare function ChainHasRenderedNumber_ _
         ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
     '' A ustring destination built in place, each rendered number converted. lowerconcat.bas.

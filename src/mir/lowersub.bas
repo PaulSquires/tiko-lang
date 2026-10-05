@@ -148,20 +148,18 @@ function LowerStrRvalue _
     dim as MirValue v2
     if (r = RTL_STR_MID) andalso (cp->count = 3) then
         dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
-        v2 = LowerExpr( c, a2 )
+        v2 = LowerNumArg_( c, a2, MT_I64 )
         if v2.kind = cast( ubyte, MV_NONE ) then return false
-        v2 = CoerceTy( c, v2, MT_I64, c.info->TypeOf_( a2 ))
     end if
     dim as MirValue v1
     if a1 <> Tko.NODE_NONE then
         if secondIsStr then
             if StrDescriptorOf_( c, a1, v1 ) = false then return false
         else
-            v1 = LowerExpr( c, a1 )
-            if v1.kind = cast( ubyte, MV_NONE ) then return false
             dim as MirType nw = MT_I64
             if secondIsMode then nw = MT_I32
-            v1 = CoerceTy( c, v1, nw, c.info->TypeOf_( a1 ))
+            v1 = LowerNumArg_( c, a1, nw )
+            if v1.kind = cast( ubyte, MV_NONE ) then return false
         end if
     end if
     dim as MirValue s0
@@ -223,9 +221,8 @@ function LowerStrOf_ _
         ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cp->count ) )
         for i as long = 0 to cp->count - 1
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-            dim as MirValue av = LowerExpr( c, ai )
+            dim as MirValue av = LowerNumArg_( c, ai, MT_I64 )
             if av.kind = cast( ubyte, MV_NONE ) then return false
-            av = CoerceTy( c, av, MT_I64, c.info->TypeOf_( ai ))
             ca.Push( cast( ulong, av.kind ) ) : ca.Push( cast( ulong, av.id ) )
         next
         outv = EmitRtl( c, RTL_STR_CHR, ca )
@@ -251,9 +248,8 @@ function LowerStrOf_ _
     if mr <> RTL_NONE then
         if cp->count <> 1 then return false
         dim as Tko.NodeId ma = cast( Tko.NodeId, c.ast->children[cp->first] )
-        dim as MirValue mv = LowerExpr( c, ma )
+        dim as MirValue mv = LowerNumArg_( c, ma, mt2 )
         if mv.kind = cast( ubyte, MV_NONE ) then return false
-        mv = CoerceTy( c, mv, mt2, c.info->TypeOf_( ma ))
         dim as FB.Array( of ulong ) ma2
         ma2.Push( cast( ulong, mv.kind ) ) : ma2.Push( cast( ulong, mv.id ) )
         outv = EmitRtl( c, mr, ma2 )
@@ -676,9 +672,8 @@ function LowerStrNumCall_ _
     dim as boolean startFirst = isRev andalso (startE <> Tko.NODE_NONE)
     dim as boolean startLast = (isRev = false) andalso (startE <> Tko.NODE_NONE)
     if startFirst then
-        stv = LowerExpr( c, startE )
+        stv = LowerNumArg_( c, startE, MT_I64 )
         if stv.kind = cast( ubyte, MV_NONE ) then return false
-        stv = CoerceTy( c, stv, MT_I64, c.info->TypeOf_( startE ))
     end if
     if isWide then
         if WideOperand_( c, tE, td ) = false then return false
@@ -711,9 +706,8 @@ function LowerStrNumCall_ _
         end if
     end if
     if startLast then
-        stv = LowerExpr( c, startE )
+        stv = LowerNumArg_( c, startE, MT_I64 )
         if stv.kind = cast( ubyte, MV_NONE ) then return false
-        stv = CoerceTy( c, stv, MT_I64, c.info->TypeOf_( startE ))
     end if
 
     dim as FB.Array( of ulong ) args
@@ -1183,6 +1177,26 @@ function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
         wend
     next
     return Tko.SYMBOL_NONE
+end function
+
+'' A NUMERIC INTRINSIC ARGUMENT -- a count, a position, a fill character -- coerced to MT. A UDT goes
+'' through its numeric 'operator cast' first (NumericCastPick, by the integer it meets): measured,
+'' fbc runs 'space( a )', 'string( a, "x" )' and 'left( s, a )' over a type casting to long, and
+'' tiko lowered the UDT itself, coerced nothing and dropped the statement.
+function LowerNumArg_( byref c as Ctx, byval e as Tko.NodeId, byval mt as MirType ) as MirValue
+    dim as MirValue v
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) = Tko.TK_UDT then
+        dim as Tko.TypeId want = c.types->Builtin( Tko.TY_INTEGER )
+        dim as Tko.SymbolId nc = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, t, want )
+        if nc = Tko.SYMBOL_NONE then return v
+        if UserCastToNum_( c, e, v, want ) = false then return v
+        return CoerceTy( c, v, mt, c.syms->SymbolAt( nc )->type_ )
+    end if
+    v = LowerExpr( c, e )
+    if v.kind = cast( ubyte, MV_NONE ) then return v
+    return CoerceTy( c, v, mt, c.info->TypeOf_( e ) )
 end function
 
 '' WHETHER A UDT HAS A NARROW STRING CAST -- to string, zstring (byref or a pointer) or ustring. A

@@ -712,15 +712,17 @@ private function ExprIntrinsicType_ _
     '' STRING and STRING, and 'WSTRING * 1' for the wide one -- the same shape wstr( )
     '' has. Untyped, 'len( string( 3, "a" ) )' had nothing to measure and declined,
     '' while 'dim as string a = string( 3, "a" )' beside it lowered.
+    '' ...A UDT WITH A NUMERIC CAST COUNTS: fbc runs 'space( a )' through it (lowersub.bas
+    '' LowerNumArg_), and untyped it made 'space( a ) & "|"' decline.
     case "space"
-        if isNum = false then return Tko.TYPE_NONE
+        if (isNum = false) andalso (UdtCastResultOf_( c, a0, false, Tko.TYPE_NONE ) = Tko.TYPE_NONE) then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_STRING )
     '' ...and WSPACE( n ) is the wide one, 'WSTRING * 1' like wstr( ). Measured. It was
     '' the only wide string intrinsic left untyped, and an untyped TERM makes the whole
     '' CONCAT it is in look narrow: 's = w + wspace(28)' took the narrow comparison
     '' branch and the statement declined, where 's = w + whex(255)' beside it lowered.
     case "wspace"
-        if isNum = false then return Tko.TYPE_NONE
+        if (isNum = false) andalso (UdtCastResultOf_( c, a0, false, Tko.TYPE_NONE ) = Tko.TYPE_NONE) then return Tko.TYPE_NONE
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     case "string"
         return c.types->Builtin( Tko.TY_STRING )

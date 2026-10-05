@@ -1317,9 +1317,7 @@ function LowerWideRvalue _
     if nm = "wspace" then
         if cp->count <> 1 then return false
         dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first] )
-        dim as MirValue nv = LowerExpr( c, sn )
-        if nv.kind = cast( ubyte, MV_NONE ) then return false
-        nv = CoerceTy( c, nv, MT_I64, c.info->TypeOf_( sn ))
+        dim as MirValue nv = LowerNumArg_( c, sn, MT_I64 )   '' a UDT through its numeric cast
         if nv.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )

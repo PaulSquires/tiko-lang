@@ -51,9 +51,8 @@ function LowerRadixCall_ _
     '' neither takes a width.
     if nm = "space" then
         if cp->count <> 1 then return false
-        dim as MirValue n0 = LowerExpr( c, a0 )
+        dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
-        n0 = CoerceTy( c, n0, MT_I64, c.info->TypeOf_( a0 ))
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
         outv = EmitRtl( c, RTL_STR_SPACE, sa )
@@ -81,13 +80,11 @@ function LowerRadixCall_ _
                 return false
             end if
         else
-            fv = LowerExpr( c, a1 )
+            fv = LowerNumArg_( c, a1, MT_I32 )
             if fv.kind = cast( ubyte, MV_NONE ) then return false
-            fv = CoerceTy( c, fv, MT_I32, c.info->TypeOf_( a1 ))
         end if
-        dim as MirValue n0 = LowerExpr( c, a0 )
+        dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
-        n0 = CoerceTy( c, n0, MT_I64, c.info->TypeOf_( a0 ))
         dim as FB.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
         sa.Push( cast( ulong, fv.kind ) ) : sa.Push( cast( ulong, fv.id ) )
@@ -231,9 +228,8 @@ function LowerRadixCall_ _
     '' THE DIGIT COUNT FIRST: hex( G( 1 ), G( 2 ) ) is 21 to fbc, oct the same.
     dim as MirValue n1
     if a1 <> Tko.NODE_NONE then
-        n1 = LowerExpr( c, a1 )
+        n1 = LowerNumArg_( c, a1, MT_I32 )
         if n1.kind = cast( ubyte, MV_NONE ) then return false
-        n1 = CoerceTy( c, n1, MT_I32, c.info->TypeOf_( a1 ))
     end if
     dim as MirValue v0 = LowerExpr( c, a0 )
     if v0.kind = cast( ubyte, MV_NONE ) then return false
