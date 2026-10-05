@@ -222,6 +222,11 @@ private function AmBadPair_ _
         if c.types->Kind( pt ) = Tko.TK_POINTER then
             if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, pt ) = 1 then return true
         end if
+        '' ANOTHER UDT NOTHING CONVERTS, past the overload pick: fbc's 58 (UdtPairConverts_, latesweeps2.bas).
+        '' Not a TUPLE ('$tup...' / '(...)'), whose own refusal is tupleconv.bas's.
+        dim as string tn0 = left( c.names->Spelling( c.types->NameOf( c.types->Unqualify( at ) ) ), 1 )
+        dim as boolean tup0 = (tn0 = "(") orelse (tn0 = "$") orelse (tn0 = "~")
+        if (tup0 = false) andalso (c.types->Kind( pt ) = Tko.TK_UDT) andalso (c.types->BaseDistance( at, pt ) < 0) then return true
         if AmPlainUdt_( c, at, "cast", "" ) = false then return false
         if AmPtrLike_( c, pt ) then return true
         if AmString_( c, pt ) then

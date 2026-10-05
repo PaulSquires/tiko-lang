@@ -1,0 +1,14 @@
+'' TKO0698, TKO0738 and TKO0632 where a constructor would need a source's NUMERIC cast: fbc's
+'' 58, 24, 181 and 99 (see the source). tiko let T's constructor and S's cast vouch for the
+'' conversion and copied S's bytes into the T. latesweeps2.bas UdtPairConverts_, checkdecide.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/convchain-refused.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: convchain-refused.bas(20,7): error TKO0698
+'' EXPECT-OUT: convchain-refused.bas(21,8): error TKO0698
+'' EXPECT-OUT: convchain-refused.bas(22,10): error TKO0738
+'' EXPECT-OUT: convchain-refused.bas(23,1): error TKO0738
+'' EXPECT-OUT: convchain-refused.bas(25,15): error TKO0632
+'' EXPECT-OUT: convchain-refused.bas(26,16): error TKO0632
+'' EXPECT-NOT: convchain-refused.bas(24,
+'' EXPECT-MAX-DIAG: 6

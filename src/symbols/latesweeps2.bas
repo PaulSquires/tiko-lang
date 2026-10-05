@@ -76,6 +76,34 @@ private function ValueType_ ( byref c as Ctx, byval t as TypeId ) as TypeId
     return u
 end function
 
+'' BETWEEN TWO UDTs, A RESCUER THAT ACTUALLY TAKES THE SOURCE: a constructor or 'let' the
+'' overload pick accepts it in, or a cast on the source yielding a UDT. Measured on fbc-modern,
+'' S casting to LONG and T constructible from a long: 'dim as T q = s' is 24, 'q = s' 181 and
+'' a T argument 58 -- a constructor takes a source's cast only into a string (structpick.bas
+'' StructorStrCastCost). Rescued_ let T's constructor and S's cast vouch for it, and the
+'' lowering, finding no conversion, copied S's bytes into the T.
+private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId ) as boolean
+    if TcTuple_( c, dst ) orelse TcTuple_( c, src ) then return true   '' a tuple's elements are judged in tupleconv.bas
+    dim as FB.Array( of ulong ) one
+    one.Push( cast( ulong, src ) )
+    for k as long = 0 to 1
+        dim as SymbolId head = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, dst, iif( k = 0, "__ctor", "let" ) )
+        if head <> SYMBOL_NONE then
+            if Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, head, one ) <> SYMBOL_NONE then return true
+        end if
+    next
+    dim as SymbolId cur = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, src, "cast" )
+    dim as long guard = 0
+    while (cur <> SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if c.types->Kind( ValueType_( c, cs->type_ ) ) = TK_UDT then return true
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
 '' AN OPERATOR INVOKED IMPLICITLY IS STILL A MEMBER ACCESS -- fbc error 202, "Illegal
 '' member access". The name is never written at the use site, so CheckMember_ has nothing
 '' to bind and every one of these went through. Measured, private and protected alike,
@@ -189,7 +217,7 @@ private sub JudgeConversion_ _
     if lu = ru then return
     if lUdt andalso rUdt then
         if DerivesFrom_( c, ru, lu ) then return
-        if Rescued_( c, lu, ru, byAssign ) then return
+        if Rescued_( c, lu, ru, byAssign ) andalso UdtPairConverts_( c, lu, ru ) then return
         c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
         return
     end if

@@ -251,7 +251,19 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
     next
     dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "__ctor" )
     if first_ = Tko.SYMBOL_NONE then return
-    c.info->SetDecision( id, Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT ) )
+    dim as Tko.SymbolId pick = Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
+    c.info->SetDecision( id, pick )
+    '' ONE UDT ARGUMENT NO CONSTRUCTOR TAKES -- fbc's 99, measured over 'T( w )' with W unrelated
+    '' and over an S that casts only to a number (StructorStrCastCost). Lowering found nothing
+    '' either and stopped with TKO0994. Only this shape: a scalar or string argument keeps
+    '' lowering's own fallbacks (CharPtrCtorInit_ and the wide ones).
+    if (pick = Tko.SYMBOL_NONE) andalso (argT.Count = 1) then
+        dim as Tko.TypeId a0 = c.types->Unqualify( cast( Tko.TypeId, argT[0] ) )
+        if c.types->Kind( a0 ) = Tko.TK_REFERENCE then a0 = c.types->Unqualify( c.types->Inner( a0 ) )
+        if (c.types->Kind( a0 ) = Tko.TK_UDT) andalso (c.types->BaseDistance( a0, t ) < 0) then
+            c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+        end if
+    end if
 end sub
 
 '' EVERY 'T( args )' IN THE UNIT, found as lowering finds one (TypeCtorTypeOf_): a call whose
