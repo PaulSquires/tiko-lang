@@ -47,17 +47,26 @@ func void _ZN2OKC1Ev(ptr $0) {
     %8 = const i64 5
     %9 = trunc %8
     store %7, %9
-    %10 = field.addr $0, 28
-    %11 = call.rtl ptr memset(%10, 0, 4)
-    %12 = field.addr $0, 32
-    %13 = call.rtl ptr memset(%12, 0, 4)
-    %14 = field.addr $0, 36
-    %15 = call.rtl ptr memset(%14, 0, 4)
+    %10 = const i64 0
+    %11 = field.addr $0, 28
+    %12 = load %11
+    %13 = zext %12
+    %14 = const i64 -8
+    %15 = and %13, %14
+    %16 = const i64 7
+    %17 = and %10, %16
+    %18 = or %15, %17
+    %19 = trunc %18
+    store %11, %19
+    %20 = field.addr $0, 32
+    %21 = call.rtl ptr memset(%20, 0, 4)
+    %22 = field.addr $0, 36
+    %23 = call.rtl ptr memset(%22, 0, 4)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 verify: ok
-lowered: 3 functions, 3 blocks, 40 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 3 functions, 3 blocks, 49 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/field-decl-end-of-line.bas(21,15): error TKO0420: expected the end of the statement
      |
   21 |     b as ubyte( 0 to 3 )

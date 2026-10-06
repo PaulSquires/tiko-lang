@@ -489,9 +489,9 @@ sub EmitCtorPrologue_ _
             continue for
         end if
 
+        if BitfieldMemberInit_( c, thisPtr, t, f, fi ) then continue for   '' a bitfield: through its unit (lowerbf.bas)
         dim as MirValue fa = FieldAddr_( c, thisPtr, t, f->name )
         if fa.kind = cast( ubyte, MV_NONE ) then continue for
-
         '' A FIELD WITH NOTHING ELSE TO INITIALISE IT IS ZEROED, and this ran off the
         '' end of the loop instead. Measured, and it is a PER-FIELD memset of the
         '' field's own declared size rather than one over the whole object:

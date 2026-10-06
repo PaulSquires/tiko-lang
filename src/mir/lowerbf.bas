@@ -337,4 +337,28 @@ private function BitfieldStoreParts_ _
     return true
 end function
 
+
+'' A BITFIELD MEMBER IN THE CONSTRUCTOR PROLOGUE: its initialiser -- or 0 -- through its unit.
+'' 'f1:8 as integer = 11' took the ordinary path, which stores a field's whole declared width
+'' at its address, so the unit came out 0 0 0 0 where fbc reads 11 22 33 44
+'' (structs/ctor_bitfield.bas); a per-field zero fill would clobber its neighbours the same way.
+'' False when 'f' is not a bitfield, so the caller carries on.
+function BitfieldMemberInit_ _
+    ( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, _
+      byval f as Tko.Symbol ptr, byval init as Tko.NodeId ) as boolean
+    if (f = 0) orelse ((f->flags and Tko.SYMF_BITFIELD) = 0) then return false
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return false
+    dim as long fi = -1
+    for i as long = 0 to c.udts->udts[ui].count - 1
+        if c.udts->fields[c.udts->udts[ui].first + i].name = f->name then fi = c.udts->udts[ui].first + i : exit for
+    next
+    if fi < 0 then return false
+    dim as MirValue v = ConstInt( c, 0, MT_I64 )
+    if init <> Tko.NODE_NONE then v = LowerNumArg_( c, init, MT_I64 )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if BitfieldFieldStore_( c, thisPtr, fi, v ) = false then SkipHere( c )
+    return true
+end function
+
 end namespace

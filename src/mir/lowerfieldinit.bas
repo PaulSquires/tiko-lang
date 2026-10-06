@@ -32,12 +32,36 @@ declare function StrSwapKind_ _
 ''
 '' A BITFIELD IS EXCLUDED because its payload is NOT a node: Resolve overwrites it with
 '' the width in bits, and reading that as a node id would index the AST with a 3.
+'' The N_FIELD named 'nm' in a type's body, looking into its anonymous nested types.
+private function FieldNodeIn_( byref c as Ctx, byval tn as Tko.NodeId, byval nm as Tko.InternId, byval depth as long ) as Tko.NodeId
+    if (tn = Tko.NODE_NONE) orelse (depth > 8) then return Tko.NODE_NONE
+    if c.ast->Kind( tn ) <> Tko.N_TYPE then return Tko.NODE_NONE
+    dim as Tko.StmtPayload ptr tp = StmtOf( c, tn )
+    for i as long = 0 to tp->count - 1
+        dim as Tko.NodeId ch = cast( Tko.NodeId, c.ast->children[tp->first + i] )
+        if (c.ast->Kind( ch ) = Tko.N_FIELD) andalso (StmtOf( c, ch )->name = nm) then return ch
+        if (c.ast->Kind( ch ) = Tko.N_TYPE) andalso (StmtOf( c, ch )->name = 0) then
+            dim as Tko.NodeId r = FieldNodeIn_( c, ch, nm, depth + 1 )
+            if r <> Tko.NODE_NONE then return r
+        end if
+    next
+    return Tko.NODE_NONE
+end function
+
 function FieldInitOf_ _
     ( byref c as Ctx, byval f as Tko.Symbol ptr ) as Tko.NodeId
 
     if f = 0 then return Tko.NODE_NONE
-    if (f->flags and Tko.SYMF_BITFIELD) <> 0 then return Tko.NODE_NONE
+    '' A BITFIELD'S counts too: the prologue stores it through its unit (BitfieldMemberInit_). Its
+    '' 'payload' is its WIDTH (resolve.bas), so its N_FIELD is found in the owning type's body.
     dim as Tko.NodeId n = cast( Tko.NodeId, f->payload )
+    if (f->flags and Tko.SYMF_BITFIELD) <> 0 then
+        dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( f->parent )
+        if fsc = 0 then return Tko.NODE_NONE
+        dim as Tko.Symbol ptr ow = c.syms->SymbolAt( fsc->owner )
+        if ow = 0 then return Tko.NODE_NONE
+        n = FieldNodeIn_( c, cast( Tko.NodeId, ow->declAt ), f->name, 0 )
+    end if
     if n = Tko.NODE_NONE then return Tko.NODE_NONE
     if c.ast->Kind( n ) <> Tko.N_FIELD then return Tko.NODE_NONE
     return StmtOf( c, n )->c
