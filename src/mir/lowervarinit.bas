@@ -83,6 +83,10 @@ sub LowerVarItem_ _
         '' instead. Same value: the referent is module storage too, so its
         '' address is the same on every pass through this line.
         if isByrefLocal then
+            '' 'extern byref ri as integer' BINDS NOTHING: it declares the alias, and the
+            '' 'dim shared byref ri as integer = i' that defines it binds it (fbc's
+            '' dim/byref2.bas). With no referent to take the address of, it declined.
+            if ip->b = Tko.NODE_NONE then return
             if BindAliasStorage( c, sid, ip->b, true ) = false then
                 SkipHere( c )
                 c.st->varByref += 1
