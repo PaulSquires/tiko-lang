@@ -299,6 +299,7 @@ function LowerConvCtorInit_ _
 
     if init_ = Tko.NODE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    if ByrefCastInit_( c, slot, t, init_, selfv ) then return true   '' a source casting 'byref as T' (lowercallarg.bas)
     '' AN ARRAY INITIALISER -- 'dim x as T = a( )' over 'constructor T( array( ) as
     '' integer )'. The argument is a DESCRIPTOR and its type is the ARRAY's, not the
     '' element's, so it is taken from the name inside the empty call rather than from

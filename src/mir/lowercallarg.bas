@@ -209,9 +209,35 @@ function UdtCastArgOk_ _
     return true
 end function
 
+'' A CAST THAT RETURNS A REFERENCE -- 'operator cast( ) byref as TU' -- hands back an object
+'' that already exists, so it serves ANY destination: a byref parameter takes the reference
+'' itself, and anything else copies out of it with the destination's own copy. Measured on
+'' fbc, TV casting 'byref as TU' to a TU with a copy constructor and a destructor:
+''
+''     s2( v )    over 'byref u as TU'   cast -- nothing else, even beside 'TU( byref as TV )'
+''     s1( v )    over 'byval u as TU'   cast, copy constructor, destructor (no TU( TV ))
+''
+'' tiko took neither and passed v's own bytes as a TU (structs/udt-init-ops-2.bas).
+declare function ArgUdtType_( byref c as Ctx, byval argNode as Tko.NodeId ) as Tko.TypeId
+declare function DirectUdtCtor_( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
+
+function UdtByrefCast_ _
+    ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
+
+    dim as Tko.SymbolId cs = UdtCastToUdt_( c, au, pt )
+    if cs = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    '' 'byref' on a result is the procedure's NF_BYREF, not part of its type -- CallReturnsByref_.
+    dim as Tko.Symbol ptr csy = c.syms->SymbolAt( cs )
+    if csy = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId cpn = cast( Tko.NodeId, csy->payload )
+    if (cpn = Tko.NODE_NONE) orelse (c.ast->Kind( cpn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
+    if (c.ast->nodes[cast( long, cpn )].flags and Tko.NF_BYREF) = 0 then return Tko.SYMBOL_NONE
+    return cs
+end function
+
 '' The argument's type, as the conversion picks see it: a reference is the thing it
 '' refers to, and a qualifier is not part of the question.
-private function ArgUdtType_( byref c as Ctx, byval argNode as Tko.NodeId ) as Tko.TypeId
+function ArgUdtType_( byref c as Ctx, byval argNode as Tko.NodeId ) as Tko.TypeId
     dim as Tko.TypeId at = c.info->TypeOf_( argNode )
     if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
     if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Inner( at )
@@ -260,6 +286,84 @@ function UdtCastValue_ _
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' COPY-CONSTRUCT 'dst' OF TYPE 'pt' FROM THE OBJECT AT 'src': its copy constructor, else
+'' the implicit copy, else the bytes. 'dst' is raw storage.
+function CopyIntoFromRef_ _
+    ( byref c as Ctx, byval pt as Tko.TypeId, byref dst as MirValue, byref src as MirValue ) as boolean
+
+    dim as Tko.SymbolId cc = CopyCtorOf_( c, pt )
+    if cc <> Tko.SYMBOL_NONE then
+        dim as FB.Array( of ulong ) cargs
+        cargs.Push( cast( ulong, src.kind ) ) : cargs.Push( cast( ulong, src.id ) )
+        dim as MirValue cdst = dst
+        EmitStructorCall( c, cc, -1, @cdst, @cargs )
+        return true
+    end if
+    if NeedsLetBody_( c, pt ) then
+        CallImplicitCopy_( c, pt, dst, src )
+        return true
+    end if
+    dim as long sz = SizeOfType( c, pt )
+    if sz <= 0 then return false
+    dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, sz )
+    if whole.kind = cast( ubyte, MV_NONE ) then return false
+    StoreThrough( c, dst, whole )
+    return true
+end function
+
+'' 'dim a as TU = v' OVER A 'TV.cast( ) byref as TU' and no 'TU( byref as TV )': the cast, then
+'' a's copy out of the reference. Measured on fbc: "cast", "ctor<-TU", and a's destructor at
+'' scope end -- tiko took v's own bytes as a TU. False, emitting nothing, when it is not that
+'' shape.
+function ByrefCastInit_ _
+    ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, byval init_ as Tko.NodeId, _
+      byval selfv as MirValue ptr ) as boolean
+
+    if (slot < 0) andalso (selfv = 0) then return false
+    dim as MirValue dst
+    if selfv <> 0 then
+        dst = *selfv
+    else
+        dst.kind = cast( ubyte, MV_LOCAL ) : dst.ty = cast( ubyte, MT_PTR ) : dst.id = slot
+    end if
+    dim as Tko.TypeId au = ArgUdtType_( c, init_ )
+    if (au = Tko.TYPE_NONE) orelse (c.types->Kind( au ) <> Tko.TK_UDT) then return false
+    dim as Tko.TypeId pt = c.types->Unqualify( t )
+    if au = pt then return false
+    if c.types->BaseDistance( au, pt ) >= 0 then return false
+    dim as Tko.SymbolId bcast = UdtByrefCast_( c, au, pt )
+    if bcast = Tko.SYMBOL_NONE then return false
+    if DirectUdtCtor_( c, pt, au ) then return false
+    if UdtCastArgOk_( c, au, pt ) then return false
+    dim as MirValue bself = LowerAddr( c, init_ )
+    if bself.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue bref = EmitMemberCall( c, bcast, bself, MT_PTR )
+    if bref.kind = cast( ubyte, MV_NONE ) then return false
+    return CopyIntoFromRef_( c, pt, dst, bref )
+end function
+
+'' A one-parameter constructor of 'pt' taking 'at' itself or one of its bases -- not one
+'' reached through a conversion of 'at'.
+function DirectUdtCtor_( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
+    dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        if ParamCountOf( c, cur ) = 1 then
+            dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
+            if cpt <> Tko.TYPE_NONE then
+                cpt = c.types->Unqualify( cpt )
+                if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Unqualify( c.types->Inner( cpt ) )
+                if (c.types->Kind( cpt ) = Tko.TK_UDT) andalso (c.types->BaseDistance( at, cpt ) >= 0) then return true
+            end if
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
 private function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId, _
@@ -296,6 +400,36 @@ private function UdtConvTemp_ _
     dim as Tko.TypeId aut = ArgUdtType_( c, argNode )
     '' ...OR, for a BYREF argument, whenever it has one: fbc passes a byref parameter the
     '' CAST's result even beside a converting constructor (UdtCastValue_'s table).
+    '' A REFERENCE-RETURNING CAST -- see UdtByrefCast_ -- unless the parameter's type has a
+    '' constructor taking the argument's own type: HasUdtConvCtor_ also counts the COPY
+    '' constructor reached THROUGH this cast, and that path passed the argument's bytes to it
+    '' uncast. A trivial destination copied by value keeps the path below.
+    dim as Tko.SymbolId bcast = Tko.SYMBOL_NONE
+    if aut <> Tko.TYPE_NONE then bcast = UdtByrefCast_( c, aut, pt )
+    if (bcast <> Tko.SYMBOL_NONE) andalso (preferCast orelse (DirectUdtCtor_( c, pt, aut ) = false)) andalso _
+       (preferCast orelse (UdtCastArgOk_( c, aut, pt ) = false)) then
+        dim as MirValue bself = LowerAddr( c, argNode )
+        if bself.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirValue bref = EmitMemberCall( c, bcast, bself, MT_PTR )
+        if bref.kind = cast( ubyte, MV_NONE ) then return false
+        if preferCast then
+            outa = bref
+            return true
+        end if
+        dim as long bslot = NewTempLocal( c, MT_AGG, sz )
+        if bslot < 0 then return false
+        dim as MirValue bdst
+        bdst.kind = cast( ubyte, MV_LOCAL )
+        bdst.ty = cast( ubyte, MT_PTR )
+        bdst.id = bslot
+        if CopyIntoFromRef_( c, pt, bdst, bref ) = false then return false
+        if TypeNeedsDtor_( c, pt ) then
+            outSlot = bslot
+            outType = pt
+        end if
+        outa = bdst
+        return true
+    end if
     if (aut <> Tko.TYPE_NONE) andalso (preferCast orelse (HasUdtConvCtor_( c, pt, aut ) = false)) then
         dim as Tko.SymbolId dcast = Tko.SYMBOL_NONE
         if UdtCastArgOk_( c, aut, pt ) then dcast = UdtCastToUdt_( c, aut, pt )
@@ -680,7 +814,7 @@ private function ArgNeedsUdtConv_ _
         if HasUdtConvCtor_( c, pt, at ) then return true
         '' ...OR THE ARGUMENT CASTS TO IT -- see UdtCastArgOk_, which is the same
         '' test the conversion makes, so a yes here is a conversion that happens.
-        return UdtCastArgOk_( c, at, pt )
+        return UdtCastArgOk_( c, at, pt ) orelse (UdtByrefCast_( c, at, pt ) <> Tko.SYMBOL_NONE)
     end if
     return true
 end function

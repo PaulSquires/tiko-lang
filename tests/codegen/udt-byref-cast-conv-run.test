@@ -1,0 +1,12 @@
+'' structs: 'operator cast( ) byref as TU' converts a TV argument or initialiser (structs/udt-init-ops-2.bas, udt-ops-1.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-byref-cast-conv.bas -o tests/codegen/udtbyrefcastconv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtbyrefcastconv.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A:castctor<-TUdtor
+'' EXPECT-RUN-OUT: B:cast
+'' EXPECT-RUN-OUT: C:castctor<-TUdtor
+'' EXPECT-RUN-OUT: D:let<-TVdtor
+'' EXPECT-RUN-OUT: dtor
