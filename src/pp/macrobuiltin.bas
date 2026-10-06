@@ -141,15 +141,10 @@ function PpExpandBuiltin _
                     e.uidValues.Pop( )
                 end if
             else
-                '' A bare __FB_UNIQUEID__ with no push in front of it still has to
-                '' name something, so it opens the stack itself.
-                if utop < 0 then
-                    e.uniqueCounter += 1
-                    e.uidNames.Push( cast( ulong, ukey ) )
-                    e.uidValues.Push( cast( ulong, e.uniqueCounter ) )
-                    utop = e.uidNames.Count - 1
-                end if
-                RelexInto( e, "__tko_uid_" & e.uidValues[utop], use.loc, *buf )
+                '' A BARE __FB_UNIQUEID__ WITH NO STACK -- never pushed, or popped back to empty -- is
+                '' NOTHING: '__FB_QUOTE__( __FB_UNIQUEID__( k ) )' is "" (pp/macro-uniqueid.bas). It opened
+                '' a stack of its own and named an id.
+                if utop >= 0 then RelexInto( e, "__tko_uid_" & e.uidValues[utop], use.loc, *buf )
             end if
         end if
 
