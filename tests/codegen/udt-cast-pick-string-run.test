@@ -1,0 +1,79 @@
+'' Which 'operator cast' a string context calls, by fbc's score against the context's target (castpick.bas).
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-cast-pick-string.bas -o tests/codegen/udtcastpickstring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtcastpickstring.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: BZ_S: p:<S>s
+'' EXPECT-RUN-OUT: <S> a:s
+'' EXPECT-RUN-OUT: <S> i:s
+'' EXPECT-RUN-OUT:  f:<S><S> c:xs
+'' EXPECT-RUN-OUT: <S> cw
+'' EXPECT-RUN-OUT: <BZ> us:z
+'' EXPECT-RUN-OUT: <S> ws
+'' EXPECT-RUN-OUT: S_BZ: p:<S>s
+'' EXPECT-RUN-OUT: <S> a:s
+'' EXPECT-RUN-OUT: <S> i:s
+'' EXPECT-RUN-OUT:  f:<S><S> c:xs
+'' EXPECT-RUN-OUT: <S> cw
+'' EXPECT-RUN-OUT: <BZ> us:z
+'' EXPECT-RUN-OUT: <S> ws
+'' EXPECT-RUN-OUT: U_S: p:<S>s
+'' EXPECT-RUN-OUT: <S> a:s
+'' EXPECT-RUN-OUT: <S> i:s
+'' EXPECT-RUN-OUT:  f:<S><S> c:xs
+'' EXPECT-RUN-OUT: <S> cw
+'' EXPECT-RUN-OUT: <U> us:u
+'' EXPECT-RUN-OUT: <U> ws
+'' EXPECT-RUN-OUT: U_BZ: p:<BZ>z
+'' EXPECT-RUN-OUT: <BZ> a:z
+'' EXPECT-RUN-OUT: <BZ> i:z
+'' EXPECT-RUN-OUT:  f:<BZ><BZ> c:xz
+'' EXPECT-RUN-OUT: <BZ> cw
+'' EXPECT-RUN-OUT: <U> us:u
+'' EXPECT-RUN-OUT: <U> ws
+'' EXPECT-RUN-OUT: BZ_U: p:<BZ>z
+'' EXPECT-RUN-OUT: <BZ> a:z
+'' EXPECT-RUN-OUT: <BZ> i:z
+'' EXPECT-RUN-OUT:  f:<BZ><BZ> c:xz
+'' EXPECT-RUN-OUT: <BZ> cw
+'' EXPECT-RUN-OUT: <U> us:u
+'' EXPECT-RUN-OUT: <U> ws
+'' EXPECT-RUN-OUT: S_BW: p:<S>s
+'' EXPECT-RUN-OUT: <S> a:s
+'' EXPECT-RUN-OUT: <S> i:s
+'' EXPECT-RUN-OUT:  f:<S><S> c:xs
+'' EXPECT-RUN-OUT: <S> cw
+'' EXPECT-RUN-OUT: <S> us:s
+'' EXPECT-RUN-OUT: <BW> ws
+'' EXPECT-RUN-OUT: BW_S: p:<S>s
+'' EXPECT-RUN-OUT: <S> a:s
+'' EXPECT-RUN-OUT: <S> i:s
+'' EXPECT-RUN-OUT:  f:<S><S> c:xs
+'' EXPECT-RUN-OUT: <S> cw
+'' EXPECT-RUN-OUT: <S> us:s
+'' EXPECT-RUN-OUT: <BW> ws
+'' EXPECT-RUN-OUT: U_BW: p:<U>u
+'' EXPECT-RUN-OUT: <U> a:u
+'' EXPECT-RUN-OUT: <U> i:u
+'' EXPECT-RUN-OUT:  f:<U><U> c:xu
+'' EXPECT-RUN-OUT: <U> cw
+'' EXPECT-RUN-OUT: <U> us:u
+'' EXPECT-RUN-OUT: <BW> ws
+'' EXPECT-RUN-OUT: BW_U: p:<U>u
+'' EXPECT-RUN-OUT: <U> a:u
+'' EXPECT-RUN-OUT: <U> i:u
+'' EXPECT-RUN-OUT:  f:<U><U> c:xu
+'' EXPECT-RUN-OUT: <U> cw
+'' EXPECT-RUN-OUT: <U> us:u
+'' EXPECT-RUN-OUT: <BW> ws
+'' EXPECT-RUN-OUT: S_U: p:<S>s
+'' EXPECT-RUN-OUT: <S> a:s
+'' EXPECT-RUN-OUT: <S> i:s
+'' EXPECT-RUN-OUT:  f:<S><S> c:xs
+'' EXPECT-RUN-OUT: <S> cw
+'' EXPECT-RUN-OUT: <U> us:u
+'' EXPECT-RUN-OUT: <U> ws
