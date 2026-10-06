@@ -15,6 +15,26 @@
 
 namespace Tko.Check
 
+'' THE POW A PROGRAM CALLS. A program tiko builds for Windows links the UCRT, whose pow is SSE
+'' code; this compiler links msvcrt, whose pow is x87 code and runs at whatever precision the
+'' thread's control word says -- 53 bits on the compile thread, where FB's main thread has 64. So
+'' a folded '2.5 ^ 2.5' came out one ulp off the same 'x ^ x' at run time (consteval.bas). The
+'' UCRT's own pow is used when it can be found; elsewhere, FB's '^'. No inline asm: tiko builds
+'' tiko, and refuses it.
+private function FoldPow_( byval x as double, byval y as double ) as double
+#ifdef __FB_WIN32__
+    static as function cdecl( byval as double, byval as double ) as double upow
+    static as boolean tried
+    if tried = false then
+        tried = true
+        dim as any ptr ulib = dylibload( "ucrtbase.dll" )
+        if ulib <> 0 then upow = dylibsymbol( ulib, "pow" )
+    end if
+    if upow <> 0 then return upow( x, y )
+#endif
+    return x ^ y
+end function
+
 '' -------------------------------------------------------- constant evaluation
 
 '' Everything below matches fbc exactly, and most of it would be wrong if guessed:
@@ -295,7 +315,7 @@ function ConstFloatOf _
         '' '^' IS A FLOAT OPERATOR AND ITS RESULT IS A DOUBLE. '2^63' is how the
         '' corpus writes every power-of-two boundary -- numbers/cast_f2ll.bas writes
         '' six of them -- and with no case for it the whole constant was unknown.
-        case Tko.TK_CARET : outd = l ^ r
+        case Tko.TK_CARET : outd = FoldPow_( l, r )   '' the program's pow -- see FoldPow_
         case else : return false
         end select
         return true
