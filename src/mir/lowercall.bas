@@ -585,7 +585,10 @@ function LowerCallParts _
             end if
             if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         elseif wantsZ then
-            if (FixStrZArgTemp_( c, argNode, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot ) = false) andalso (ZstrDataOf_( c, argNode, a ) = false) then a = LowerAddr( c, argNode )   '' 'string * N': FixStrZArgTemp_
+            '' A WIDE LVALUE IS CONVERTED TOO, not passed: its address is UTF-16, which the callee read as
+            '' 'T' (functions/zwstring-params.bas). Left without an address it takes the temporary below.
+            dim as boolean zWideArg = IsWideString_( c, c.info->TypeOf_( argNode ) ) andalso (IsUStringType( c, c.info->TypeOf_( argNode ) ) = false)
+            if (zWideArg = false) andalso (FixStrZArgTemp_( c, argNode, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot ) = false) andalso (ZstrDataOf_( c, argNode, a ) = false) then a = LowerAddr( c, argNode )   '' 'string * N': FixStrZArgTemp_
             '' A WIDE ARGUMENT IS CONVERTED. Measured, for 'byref z as zstring':
             ''
             ''     fb_WstrAssignToA( &TMP$7$0, -1, TMP$5$0, 0 );

@@ -1,0 +1,13 @@
+'' A wstring passed to 'byref z as zstring' is converted to a narrow temporary, lvalue or not --
+'' its own buffer read as narrow was 'T' (functions/zwstring-params.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/byref-zstring-wide-arg.bas -o tests/codegen/byrefzstringwidearg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/byrefzstringwidearg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [Test]
+'' EXPECT-RUN-OUT: [Test]
+'' EXPECT-RUN-OUT: [Test]
+'' EXPECT-RUN-OUT: [Test]
+'' EXPECT-RUN-OUT: [Test]
