@@ -651,6 +651,8 @@ private sub LowerAssign _
     end if
     dim as Tko.TypeId avt = c.info->TypeOf_( value )
     if avt = Tko.TYPE_NONE then avt = UntypedCallResult_( c, value )
+    '' A CONST SOURCE IS THE SAME TYPE: 'x2 = x1' over 'dim x1 as const UDT' bit-copied (implicit-methods.bas).
+    if avt <> Tko.TYPE_NONE then avt = c.types->Unqualify( avt )
     dim as boolean atlUpcast = false
     if atl <> Tko.TYPE_NONE then
         atlUpcast = IsBaseOf_( c, atl, avt )

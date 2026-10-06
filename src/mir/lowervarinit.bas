@@ -292,6 +292,10 @@ sub LowerVarItem_ _
             '' ...AND A CALL CHECK LEFT UNTYPED is its binding's result:
             '' 'mk( a + " 2027" )' over a DWSTRING. See UntypedCallResult_.
             if ivt = Tko.TYPE_NONE then ivt = UntypedCallResult_( c, ip->b )
+            '' CONST IS NOT ANOTHER TYPE: 'dim x2 as UDT = x1' over 'dim x1 as const UDT' is a COPY. Unmatched,
+            '' it default-constructed and bit-copied, sharing x1's string -- 0xC0000374 (implicit-methods.bas).
+            if ivt <> Tko.TYPE_NONE then ivt = c.types->Unqualify( ivt )
+            dim as Tko.TypeId vst = iif( vs->type_ <> Tko.TYPE_NONE, c.types->Unqualify( vs->type_ ), Tko.TYPE_NONE )
             '' ...AND AN UPCAST IS A COPY OF THE BASE SUBOBJECT, which sits at
             '' offset zero -- so the source address needs no adjustment and
             '' every question below is asked of the DESTINATION type. The
@@ -310,7 +314,7 @@ sub LowerVarItem_ _
                 ivtUpcast = IsBaseOf_( c, vs->type_, ivt )
             end if
             if (ivt <> Tko.TYPE_NONE) andalso _
-               ((ivt = vs->type_) orelse ivtUpcast) andalso _
+               ((ivt = vst) orelse ivtUpcast) andalso _
                (c.types->Kind( ivt ) = Tko.TK_UDT) then
                 '' THE DESTINATION'S TYPE, not the source's: an upcast copies
                 '' with the BASE's copy constructor.
@@ -344,7 +348,7 @@ sub LowerVarItem_ _
                 end if
                 '' A HIDDEN-POINTER RESULT IS BUILT IN THE VARIABLE: no default
                 '' constructor, no temporary, no copy -- see SretInPlaceInit_.
-                if (ivt = vs->type_) andalso SretInPlaceInit_( c, slot, dvt, ip->b ) then
+                if (ivt = vst) andalso SretInPlaceInit_( c, slot, dvt, ip->b ) then
                     constructed = true
                 elseif (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
                     dim as MirValue dsa
@@ -378,7 +382,7 @@ sub LowerVarItem_ _
                     dim as boolean movedRes = false
                     if (c.ast->Kind( ip->b ) = Tko.N_CALL) andalso _
                        ((ucp = Tko.SYMBOL_NONE) orelse (ucp = CopyCtorOf_( c, dvt ))) andalso _
-                       (ivt = vs->type_) andalso _
+                       (ivt = vst) andalso _
                        (ssa.kind = cast( ubyte, MV_LOCAL )) then
                         for k as long = cmark to c.udtTemps.Count - 1
                             if cast( long, c.udtTemps[k] ) = ssa.id then

@@ -1,0 +1,12 @@
+'' A CONST source is the same type: 'dim x2 as UDT = x1' and 'x2 = x1' over 'dim x1 as const UDT'
+'' copy through the type's own copy and let -- they bit-copied, sharing a string (implicit-methods.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/const-udt-source-copy.bas -o tests/codegen/constudtsourcecopy.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/constudtsourcecopy.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2              0             1
+'' EXPECT-RUN-OUT:  3             0             2
+'' EXPECT-RUN-OUT: abc           -1
+'' EXPECT-RUN-OUT: abc           -1
