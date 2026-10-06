@@ -67,6 +67,8 @@ namespace Tko
         '' 'defined' once its procedure has ended. Recording one would make a later
         '' '#ifndef' skip a declaration it should have taken -- silently.
         as long                 procDepth
+        '' Inside the body of a 'sub f( ) static': a 'dim' or 'var' there is 'static'.
+        as boolean              staticLocals
         '' How many NAMESPACE bodies enclose the cursor: a name declared in one is not one a
         '' module-level '#define' collides with (PpNoteDeclared's atTop, T62)...
         as long                 nsDepth

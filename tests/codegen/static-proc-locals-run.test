@@ -1,0 +1,13 @@
+'' 'sub f( ) static' MAKES EVERY LOCAL STATIC: 'dim n' counts 1 2 3 over three calls and a string
+'' grows (fbc semantics). tiko swallowed the trailing STATIC and every call started over -- silently.
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/static-proc-locals.bas -o tests/codegen/staticproclocals.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/staticproclocals.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 x
+'' EXPECT-RUN-OUT:  2 xx
+'' EXPECT-RUN-OUT:  3 xxx
+'' EXPECT-RUN-OUT:  1             3             6

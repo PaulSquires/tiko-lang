@@ -520,7 +520,7 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.TokenKind k = Peek( p )
         select case k
         case Tko.KW_DIM, Tko.KW_REDIM, Tko.KW_VAR, Tko.KW_COMMON, Tko.KW_EXTERN
-            Advance( p )
+            Advance( p ) : if p.staticLocals andalso cbool( (k = Tko.KW_DIM) orelse (k = Tko.KW_VAR) ) then flags or= Tko.NF_STATIC   '' 'sub f( ) static'
         case Tko.KW_SHARED
             flags or= Tko.NF_SHARED
             Advance( p )
@@ -943,10 +943,10 @@ private function ParseProc _
         '' accepts it. Reading the definition's own modifiers refused that file. The
         '' DECLARE half below is syntactic and stays; the member half is owed from the
         '' checker, which has both nodes.
-        '' EXPORT IS RECORDED, and was not. The loop's own comment listed it among
-        '' the modifiers it handles while doing nothing with it, which is the same
-        '' shape as the CONSTRUCTOR case below: checked, advanced past, gone.
+        '' EXPORT IS RECORDED, and was not: the loop listed it among the modifiers it
+        '' handles and did nothing with it. So is a trailing STATIC -- PF_STATIC_LOCALS.
         if Peek( p ) = Tko.KW_EXPORT then sp.extra or= Tko.PF_EXPORT
+        if Peek( p ) = Tko.KW_STATIC then sp.extra or= Tko.PF_STATIC_LOCALS
         if (Peek( p ) = Tko.KW_CONSTRUCTOR) orelse (Peek( p ) = Tko.KW_DESTRUCTOR) then
             dim as boolean modBad = declareOnly
             if modBad then
@@ -1059,11 +1059,11 @@ private function ParseProc _
     end if
     '' See ParserState.procDepth: nothing declared inside a body is told to the
     '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
-    p.procDepth += 1
+    p.procDepth += 1 : dim as boolean outerSL = p.staticLocals : p.staticLocals = ((sp.extra and Tko.PF_STATIC_LOCALS) <> 0)
     if isMember then p.memberDepth += 1
     sp.b = Block( p )
     if isMember then p.memberDepth -= 1
-    p.procDepth -= 1
+    p.procDepth -= 1 : p.staticLocals = outerSL
     if inGeneric then
         p.genericDepth -= 1
         p.genericParams.Pop( )
