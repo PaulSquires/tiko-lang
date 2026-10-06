@@ -406,7 +406,11 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
     '' same reason from the other side: over integers they are identity or zero,
     '' which is true but useless, and the float arguments the corpus actually
     '' writes are refused before they reach here.
-    case KW_ABS, KW_SGN, KW_LEN
+    '' FRAC, INT, FIX AND SQR FOLD TOO, and ABS and SGN over a FLOAT -- measured, fbc's '#if'
+    '' takes 'frac( 1.5 ) = .5', 'int( -1.5 ) = -2' and 'fix( -1.5 ) = -1'; the generated
+    '' cases of optimizations/consteval.bas write '#if ... (frac( val2 ) <> .0)' a hundred
+    '' times. ABS and SGN read a float as one; they took its rounded integer.
+    case KW_ABS, KW_SGN, KW_LEN, KW_FRAC, KW_INT, KW_FIX, KW_SQR
         PxNext( x )
         dim as boolean fparen = (PxPeek( x ) = TK_LPAREN)
         if fparen then PxNext( x )
@@ -419,7 +423,22 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             end if
         end if
         if x.bad then return PxNum( 0 )
+        if (k <> KW_LEN) andalso a0.isStr then
+            x.bad = true
+            return PxNum( 0 )
+        end if
         select case k
+        case KW_FRAC
+            if a0.isFlt = false then return PxNum( 0 )
+            return PxFlt( frac( a0.fnum ) )
+        case KW_INT
+            if a0.isFlt = false then return a0
+            return PxFlt( int( a0.fnum ) )
+        case KW_FIX
+            if a0.isFlt = false then return a0
+            return PxFlt( fix( a0.fnum ) )
+        case KW_SQR
+            return PxFlt( sqr( PxD( a0 ) ) )
         case KW_LEN
             if a0.isStr then return PxNum( len( a0.str_ ) )
             '' LEN of a non-string is a TYPE question here, and the
@@ -431,6 +450,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 x.bad = true
                 return PxNum( 0 )
             end if
+            if a0.isFlt then return PxFlt( abs( a0.fnum ) )
             if a0.num < 0 then return PxNum( -a0.num )
             return PxNum( a0.num )
         case else
@@ -438,6 +458,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 x.bad = true
                 return PxNum( 0 )
             end if
+            if a0.isFlt then return PxNum( sgn( a0.fnum ) )
             if a0.num > 0 then return PxNum( 1 )
             if a0.num < 0 then return PxNum( -1 )
             return PxNum( 0 )
