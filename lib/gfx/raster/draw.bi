@@ -161,7 +161,7 @@ private sub Draw32( _
             i += 1
             dim as longint v = DrawParseNumber( cmd, i )
             if v = DRAW_NAN then exit while
-            fg = cast( ulong, v )
+            fg = FixColor( s.bpp, cast( ulong, v ) )     '' gfx_draw.c: fb_hFixColor, as every entry
 
         case "S"
             i += 1

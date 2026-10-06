@@ -1,4 +1,4 @@
-'' gfx: LINE's 16-bit style mask, every direction, clipped and not, plus styled LINE B (gfx/line.bas).
+'' gfx: LINE's 16-bit style mask, every direction, clipped and not, plus styled LINE B, at 8/16/32 bpp (gfx/line.bas).
 '' See the source's header.
 '' TEST: cli
 '' ARGS: -target win64-msvc tests/codegen/src/gfx-line-style.bas -o tests/codegen/gfxlinestyle.exe
@@ -15,6 +15,14 @@
 '' EXPECT-RUN-OUT:  8 2 1 3104DB64
 '' EXPECT-RUN-OUT:  8 3 0 29109E31
 '' EXPECT-RUN-OUT:  8 3 1 E9327A5B
+'' EXPECT-RUN-OUT:  16 0 0 E2FD4635
+'' EXPECT-RUN-OUT:  16 0 1 FF860BCF
+'' EXPECT-RUN-OUT:  16 1 0 8D41F47D
+'' EXPECT-RUN-OUT:  16 1 1 1137BDF
+'' EXPECT-RUN-OUT:  16 2 0 770E2495
+'' EXPECT-RUN-OUT:  16 2 1 F49195EF
+'' EXPECT-RUN-OUT:  16 3 0 7D3DE3DD
+'' EXPECT-RUN-OUT:  16 3 1 2E438B77
 '' EXPECT-RUN-OUT:  32 0 0 27964133
 '' EXPECT-RUN-OUT:  32 0 1 433AF286
 '' EXPECT-RUN-OUT:  32 1 0 C57F06E9

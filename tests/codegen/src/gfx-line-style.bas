@@ -1,6 +1,5 @@
 '' Styled LINE and LINE B against gfxlib2: every direction, clipped and not, in
-'' 8 and 32 bpp (16 bpp also differs with SOLID lines -- a colour-conversion gap, not
-'' the style; left out). Prints one hash per case.
+'' 8, 16 and 32 bpp. Prints one hash per case.
 #include once "fbgfx.bi"
 
 const W = 96, H = 64
@@ -16,10 +15,10 @@ function Hash( ) as ulong
 end function
 
 dim as ushort styles(0 to 3) = { &b1000000011110000, &hAAAA, &h0F0F, &b1100100010000001 }
-dim as integer depths(0 to 1) = { 8, 32 }
+dim as integer depths(0 to 2) = { 8, 16, 32 }
 
 open cons for output as #1
-for di as integer = 0 to 1
+for di as integer = 0 to 2
     screenres W, H, depths(di), , fb.GFX_NULL
     for si as integer = 0 to 3
         dim as ushort st = styles(si)

@@ -74,7 +74,7 @@ sub TkoGfxPset alias "fb_GfxPset" ( _
     if (flags and TkoGfx.COORD_COLOR_DEF) <> 0 then
         col = iif( ispreset <> 0, c->draw.bg_color, c->draw.fg_color )
     else
-        col = colour
+        col = TkoGfx.FixColor( c->surf.bpp, colour )     '' see ResolveColor
     end if
 
     TkoGfx.PSetAny( c->surf, x, y, col )
@@ -149,11 +149,15 @@ sub TkoGfxPaint alias "fb_GfxPaint" ( _
     dim as long x, y
     TkoGfx.CoordB( *c, fx, fy, flags, x, y )
 
-    dim as ulong border = bordercolour
-    if (flags and TkoGfx.COORD_BORDER_DEF) <> 0 then border = c->draw.fg_color
+    '' AN OMITTED BORDER IS THE FILL COLOUR, not the foreground -- gfx_paint.c, and measured:
+    '' 'color 14 : line (2,2)-(30,20), 12, b : paint (10,10), 12' fills the box and stops at
+    '' its edge; taking 14 as the border flooded the whole screen.
+    dim as ulong fillc = TkoGfx.ResolveColor( *c, colour, flags )
+    dim as ulong border = TkoGfx.FixColor( c->surf.bpp, bordercolour )     '' see ResolveColor
+    if (flags and TkoGfx.COORD_BORDER_DEF) <> 0 then border = fillc
 
     if ispattern = 0 then
-        TkoGfx.PaintAny( c->surf, x, y, TkoGfx.ResolveColor( *c, colour, flags ), border )
+        TkoGfx.PaintAny( c->surf, x, y, fillc, border )
         exit sub
     end if
 

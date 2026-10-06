@@ -108,7 +108,7 @@ function TkoGfxDrawString alias "fb_GfxDrawString" ( _
     if (mode = TkoGfx.PUTMODE_BLEND) orelse ((flags and TkoGfx.COORD_COLOR_DEF) <> 0) then
         col = c->draw.fg_color
     else
-        col = colour
+        col = TkoGfx.FixColor( c->surf.bpp, colour )     '' see ResolveColor
     end if
 
     '' The font is the one the SCREEN MODE selects. A custom font image is not

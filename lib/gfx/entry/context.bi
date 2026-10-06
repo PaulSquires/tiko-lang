@@ -360,10 +360,16 @@ end sub
 '' A defaulted colour is not a separate argument: the caller passes 0 and sets
 '' bit 31 of the flags. So "was a colour written" is a flags question, and the
 '' answer when it was not is the context's current foreground.
+''
+'' A WRITTEN COLOUR IS CONVERTED FOR THE TARGET'S DEPTH -- fb_hFixColor, which every
+'' gfxlib2 drawing entry applies: an 8-bit index is truncated, a 16-bit target packs
+'' RGB888 into RGB565. Measured, 'pset (3,3), 9' on a 16 bpp screen stores 1 (blue 9
+'' shr 3); this stored 9, so every colour on a 16 bpp screen came out wrong. The
+'' foreground is converted already (raster/color.bi).
 private function ResolveColor( byref c as GfxContext, _
         byval colour as ulong, byval flags as long ) as ulong
     if (flags and COORD_COLOR_DEF) <> 0 then return c.draw.fg_color
-    return colour
+    return FixColor( c.surf.bpp, colour )
 end function
 
 '' ------------------------------------------------------- coordinate decoding
