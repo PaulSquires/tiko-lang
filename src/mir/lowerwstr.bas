@@ -676,6 +676,9 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
         dim as boolean arith = false
         if lIsChar andalso rNum then arith = true
         if rIsChar andalso lNum then arith = true
+        '' A UDT AND A NUMBER: fbc casts the UDT to a number (or refuses it, error 20) -- never a
+        '' concatenation, even over a wstring cast: 'u + 1' over [byref as wstring, as long] is 8.
+        if (IsUdtValue_( c, cbp->lhs ) andalso rNum) orelse (IsUdtValue_( c, cbp->rhs ) andalso lNum) then arith = true
         if arith then return false
     end if
     dim as FB.Array( of ulong ) vt

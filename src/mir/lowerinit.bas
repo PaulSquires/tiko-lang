@@ -164,6 +164,10 @@ function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
             '' UserCastToNum_ RATHER THAN UserConvToScalar_, which wants a
             '' DESTINATION type to check against and a condition names none.
             gotCast = UserCastToNum_( c, e, r )
+            '' ...A CHARACTER REFERENCE BEFORE A POINTER: fbc's condition takes the most precise
+            '' simple type, and a 'byref as zstring|wstring' is one (its first character) where a
+            '' pointer is not -- measured, [as zstring ptr, byref as zstring] tests the character.
+            if gotCast = false then gotCast = UserCastCharRef_( c, e, r )
             if gotCast = false then gotCast = UserCastToPtr_( c, e, r )
         end if
     end if

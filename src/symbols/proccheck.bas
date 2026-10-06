@@ -973,6 +973,14 @@ private sub UdtCastOperands_ ( byref c as Ctx, byval id as NodeId, byval bp as B
         elseif (op <> TK_MINUS) andalso (op <> TK_STAR) andalso (op <> TK_SLASH) then
             if OperandClass_( c, iif( lU, rt, lt ) ) = 2 then bad = iif( lU, lS, rS ) = false
         end if
+        '' A UDT AGAINST A NUMBER takes a number from its casts -- a numeric one or a character
+        '' reference. Strings or pointers alone are fbc's 20: tiko tried a concatenation and ICEd.
+        if (lU xor rU) andalso (OperandClass_( c, iif( lU, rt, lt ) ) = 1) then
+            if (op = TK_PLUS) orelse (op = TK_MINUS) orelse (op = TK_STAR) orelse (op = TK_SLASH) then
+                dim as boolean nOk = iif( lU, lN orelse lC, rN orelse rC )
+                if nOk = false then bad = true
+            end if
+        end if
     end if
     if bad then c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), lcase( TokenKindText( op ) ) )
 end sub

@@ -807,6 +807,10 @@ function LowerExpr _
             dim as Tko.TypeId crT
             if NumericTerm_( c, bp->rhs ) andalso (Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, c.info->TypeOf_( bp->lhs ), crT ) <> Tko.SYMBOL_NONE) then cmpStr = false
             if NumericTerm_( c, bp->lhs ) andalso (Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, c.info->TypeOf_( bp->rhs ), crT ) <> Tko.SYMBOL_NONE) then cmpStr = false
+            '' ...AND A UDT WITH A NUMERIC CAST AGAINST A NUMBER takes that cast, whatever string casts it
+            '' has: fbc's 'u + 1', 'u * 2' and 'u = 7' over [byref as wstring, as long] are the long's.
+            if NumericTerm_( c, bp->rhs ) andalso IsUdtValue_( c, bp->lhs ) andalso (UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( bp->lhs ) ) ) <> Tko.SYMBOL_NONE) then cmpStr = false
+            if NumericTerm_( c, bp->lhs ) andalso IsUdtValue_( c, bp->rhs ) andalso (UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( bp->rhs ) ) ) <> Tko.SYMBOL_NONE) then cmpStr = false
         end if
         if cmpStr then
             dim as MirValue sc = LowerStrCompare( c, id, bp, tk )

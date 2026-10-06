@@ -952,6 +952,25 @@ function UserCastNumOverload_ _
     return pick
 end function
 
+'' A 'byref as zstring|wstring' CAST READ AS A NUMBER: its first character, zero-extended to a
+'' long (structpick.bas CharRefCastPick picks it). False when the UDT has none.
+function UserCastCharRef_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId chT
+    dim as Tko.SymbolId cref = Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, t, chT )
+    if cref = Tko.SYMBOL_NONE then return false
+    dim as MirValue cself
+    if UdtSelfAddr_( c, id, cself ) = false then return false
+    dim as MirValue cp = EmitMemberCall( c, cref, cself, MT_PTR )
+    if cp.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue ch = LowerExprLoad( c, cp, LowerType( chT, *c.types ) )
+    if ch.kind = cast( ubyte, MV_NONE ) then return false
+    outv = CoerceTy( c, ch, MT_I32, chT )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
 function UserCastToNum_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
       byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
@@ -967,17 +986,7 @@ function UserCastToNum_ _
         dim as Tko.TypeId wu = c.types->Unqualify( want )
         if c.types->Kind( wu ) <> Tko.TK_BUILTIN then return false
         if IsStringType( c, wu ) orelse IsWideString_( c, wu ) then return false
-        dim as Tko.TypeId chT
-        dim as Tko.SymbolId cref = Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, t, chT )
-        if cref = Tko.SYMBOL_NONE then return false
-        dim as MirValue cself
-        if UdtSelfAddr_( c, id, cself ) = false then return false
-        dim as MirValue cp = EmitMemberCall( c, cref, cself, MT_PTR )
-        if cp.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue ch = LowerExprLoad( c, cp, LowerType( chT, *c.types ) )
-        if ch.kind = cast( ubyte, MV_NONE ) then return false
-        outv = CoerceTy( c, ch, MT_I32, chT )
-        return (outv.kind <> cast( ubyte, MV_NONE ))
+        return UserCastCharRef_( c, id, outv )
     end if
     dim as MirValue self_
     if UdtSelfAddr_( c, id, self_ ) = false then return false

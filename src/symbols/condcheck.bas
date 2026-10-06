@@ -28,6 +28,9 @@ private function CondBadType_ ( byref c as Ctx, byval e as NodeId ) as TypeId
     if c.types->BaseOf( u ) <> TYPE_NONE then return TYPE_NONE
     if Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, u, TYPE_NONE ) <> SYMBOL_NONE then return TYPE_NONE
     if Tko.Check.PtrCastPick( *c.syms, *c.types, *c.names, u, TYPE_NONE ) <> SYMBOL_NONE then return TYPE_NONE
+    '' ...and so is a 'byref as zstring|wstring' cast: fbc tests its first character (measured).
+    dim as TypeId crT
+    if Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, u, crT ) <> SYMBOL_NONE then return TYPE_NONE
     return u
 end function
 

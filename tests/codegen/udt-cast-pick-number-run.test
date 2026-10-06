@@ -1,0 +1,20 @@
+'' Which 'operator cast' a NUMBER context calls -- a condition, 'u + 1', 'u * 2' -- by fbc's precision rule.
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-cast-pick-number.bas -o tests/codegen/udtcastpicknumber.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtcastpicknumber.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: BZ:<BZ> if:T plus:<BZ> 123 times:<BZ> 244
+'' EXPECT-RUN-OUT: BW:<BW> if:T plus:<BW> 120 times:<BW> 238
+'' EXPECT-RUN-OUT: BZ_BW:<BW> if:T plus:<BW> 120 times:<BW> 238
+'' EXPECT-RUN-OUT: BW_BZ:<BW> if:T plus:<BW> 120 times:<BW> 238
+'' EXPECT-RUN-OUT: ZP_BZ:<BZ> if:T plus:<BZ> 123 times:<BZ> 244
+'' EXPECT-RUN-OUT: BZ_AP:<BZ> if:T plus:<BZ> 123 times:<BZ> 244
+'' EXPECT-RUN-OUT: BW_L:<L> if:T plus:<L> 8 times:<L> 14
+'' EXPECT-RUN-OUT: L_BW:<L> if:T plus:<L> 8 times:<L> 14
+'' EXPECT-RUN-OUT: L_D:<D> if:T plus:<L> 8 times:<L> 14
+'' EXPECT-RUN-OUT: D_L:<D> if:T plus:<L> 8 times:<L> 14
+'' EXPECT-RUN-OUT: ZP_AP:<AP> if:T
+'' EXPECT-RUN-OUT: S_BZ:<BZ> if:T plus:<BZ> 123 times:<BZ> 244

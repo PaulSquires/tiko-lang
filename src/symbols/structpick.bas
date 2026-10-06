@@ -431,6 +431,10 @@ function CharRefCastPick _
     if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
     if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
     if NumericCastPick( syms, types, names, u, Tko.TYPE_NONE ) <> Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    '' A WIDE REFERENCE BEATS A NARROW ONE, either order: fbc's numeric pick takes the more precise
+    '' type, and WCHAR ranks above CHAR -- measured, 'if u' and 'u + 1' over [byref as zstring,
+    '' byref as wstring] call the wstring one. NARROW holds the first zstring one, for no wstring.
+    dim as Tko.SymbolId narrow = Tko.SYMBOL_NONE
     dim as Tko.SymbolId cur = StructorNamed( syms, types, names, u, "cast" )
     dim as long guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
@@ -450,8 +454,7 @@ function CharRefCastPick _
             if byRes andalso (types.Kind( rt ) = Tko.TK_BUILTIN) then
                 select case types.BuiltinOf( rt )
                 case Tko.TY_ZSTRING
-                    charType = types.Builtin( Tko.TY_UBYTE )
-                    return cur
+                    if narrow = Tko.SYMBOL_NONE then narrow = cur
                 case Tko.TY_WSTRING
                     charType = types.Builtin( iif( types.target.wcharBytes = 4, Tko.TY_ULONG, Tko.TY_USHORT ) )
                     return cur
@@ -460,7 +463,8 @@ function CharRefCastPick _
         end if
         cur = cs->nextOverload
     wend
-    return Tko.SYMBOL_NONE
+    if narrow <> Tko.SYMBOL_NONE then charType = types.Builtin( Tko.TY_UBYTE )
+    return narrow
 end function
 
 function NumericCastPick _
