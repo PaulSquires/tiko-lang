@@ -570,4 +570,23 @@ function CopyStructorOf _
     return Tko.SYMBOL_NONE
 end function
 
+'' A STRING CAST REACHING A STRING OF ITS OWN WIDTH -- narrow to narrow, wide to wide -- is
+'' closer than one changing width. Measured, offered 'p( byref as const wstring )' and
+'' 'p( byref as const string )', a UDT with 'operator cast( ) byref as zstring' picks STRING
+'' and one with 'byref as wstring' WSTRING. Both scored the flat cast-and-convert tier, and
+'' the call was ambiguous (structs/implicit-cast.bas). USTRING counts as wide.
+function StringSameWidth _
+    ( byref types as Tko.TypeContext, byval a as Tko.TypeId, byval b as Tko.TypeId ) as boolean
+
+    if (types.Kind( a ) <> Tko.TK_BUILTIN) orelse (types.Kind( b ) <> Tko.TK_BUILTIN) then return false
+    dim as Tko.BuiltinType ab = types.BuiltinOf( a ), bb = types.BuiltinOf( b )
+    select case ab
+    case Tko.TY_STRING, Tko.TY_ZSTRING
+        return (bb = Tko.TY_STRING) orelse (bb = Tko.TY_ZSTRING)
+    case Tko.TY_WSTRING, Tko.TY_USTRING
+        return (bb = Tko.TY_WSTRING) orelse (bb = Tko.TY_USTRING)
+    end select
+    return false
+end function
+
 end namespace

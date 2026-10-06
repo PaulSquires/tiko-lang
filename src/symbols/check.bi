@@ -192,6 +192,8 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
           byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+    declare function StringSameWidth _
+        ( byref types as Tko.TypeContext, byval a as Tko.TypeId, byval b as Tko.TypeId ) as boolean
     declare function CopyStructorOf _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
