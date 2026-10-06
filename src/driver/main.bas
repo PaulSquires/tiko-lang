@@ -64,6 +64,13 @@ end type
 
 private sub RunOnBigStack_( byval p as any ptr )
     dim as RunJob_ ptr j = p
+    '' THE MAIN THREAD'S x87 PRECISION. A new thread starts at control word 0x27F (53-bit) where FB's
+    '' main thread runs at 0x37F, and msvcrt's pow is x87 code: a folded '2.5 ^ 2.5' came out one ulp
+    '' off the same value computed by the program at run time (optimizations/consteval.bas).
+#ifdef __FB_X86__
+    dim as ushort x87cw = &h37F
+    asm fldcw word ptr [x87cw]
+#endif
     j->rc = Driver.Run( *j->args )
 end sub
 
