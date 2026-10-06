@@ -144,6 +144,13 @@ type PpEngine
     as StrVec                 varTypeKey
     as StrVec                 typedefKey
     as IdVec                  typeNameMark
+    '' ...AND WHERE: by folded id, the namespaces declaring a type of that name, "|ns|" each
+    '' and "||" for none; every 'using' as "|from>to|"; and the namespace being parsed.
+    '' fbc's 'typeof' names a type IN FULL -- 'N1.T' -- and finds a bare 'T' in the current
+    '' namespace, then the enclosing ones, then through the usings (namespace/ns-using*.bas).
+    as StrVec                 typeNs
+    as string                 usingIn
+    as string                 curNs
     as FB.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
     '' WHERE THE LITERALS AND THE LEXED FILES ACTUALLY LIVE -- this engine's own, or
     '' the invocation's shared ones. See PpConfig.sharedLits.
@@ -379,6 +386,30 @@ sub PpNoteDeclared _
         e->topDeclared.Push( 0 )
     wend
     e->topDeclared[ix] = 1
+end sub
+
+sub PpSetNamespace( byref st as PpStream, byval path as string )
+    if st.engine = 0 then return
+    cast( PpEngine ptr, st.engine )->curNs = path
+end sub
+
+sub PpNoteUsingIn( byref st as PpStream, byval fromNs as string, byval path as string )
+    if (st.engine = 0) orelse (len( path ) = 0) then return
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    dim as string pr = fromNs & ">" & path
+    if len( e->usingIn ) = 0 then e->usingIn = "|"
+    if instr( e->usingIn, "|" & pr & "|" ) = 0 then e->usingIn += pr & "|"
+end sub
+
+sub PpNoteTypeNs( byref st as PpStream, byval nm as InternId, byval nsPath as string )
+    if (st.engine = 0) orelse (nm = INTERN_NONE) then return
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    dim as long ix = cast( long, e->names->Fold( nm ) )
+    while e->typeNs.Count <= ix
+        e->typeNs.Push( "" )
+    wend
+    if len( e->typeNs[ix] ) = 0 then e->typeNs[ix] = "|"
+    if instr( e->typeNs[ix], "|" & nsPath & "|" ) = 0 then e->typeNs[ix] += nsPath & "|"
 end sub
 
 sub PpNoteUsing( byref st as PpStream, byval path as string )

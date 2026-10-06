@@ -365,6 +365,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         if len( p.nsPath ) > 0 then p.nsPath += "."
         p.nsPath += Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, parts[i] ) ) )
     next
+    if p.stream <> 0 then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
     p.nsDepth += 1
     do
         SkipEols( p )
@@ -377,6 +378,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     loop
     p.nsDepth -= 1
     p.nsPath = outerNs
+    if p.stream <> 0 then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
 
     sp.first = p.ast->children.Count
     sp.count = members.Count
@@ -464,12 +466,14 @@ end function
 '' variable of FB; without the 'using' all four are accepted. A 'using' inside a
 '' procedure or a namespace body is not recorded.
 private sub NoteUsing_( byref p as Tko.ParserState, byref path as string )
-    if (p.stream = 0) orelse (p.nsDepth <> 0) orelse (p.procDepth <> 0) then return
-    if len( path ) = 0 then return
+    if (p.stream = 0) orelse (len( path ) = 0) then return
     dim as string q = path
     while left( q, 1 ) = "."
         q = mid( q, 2 )
     wend
+    '' Every 'using', at any depth, for '#if typeof' (PpEngine.typeNs); the rest is module-level.
+    Tko.PpNoteUsingIn( *cast( Tko.PpStream ptr, p.stream ), p.nsPath, Tko.Text.LowerAscii( q ) )
+    if (p.nsDepth <> 0) orelse (p.procDepth <> 0) then return
     Tko.PpNoteUsing( *cast( Tko.PpStream ptr, p.stream ), Tko.Text.LowerAscii( q ) )
 end sub
 

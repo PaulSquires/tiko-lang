@@ -187,8 +187,96 @@ end function
 '' an '#if', and so does this, through what the parser noted (PpEngine.varTypeKey). The
 '' operand -- '[const] T [ptr ...]' or a variable -- as a key, with its ')' consumed; ""
 '' when it is anything else, which stays unevaluable.
+'' Is a type of folded id ix declared in namespace ns ("" the global one)?
+private function TypeInNs_( byref e as PpEngine, byval ix as long, byref ns as string ) as boolean
+    if (ix < 0) orelse (ix >= e.typeNs.Count) then return false
+    return instr( e.typeNs[ix], "|" & ns & "|" ) > 0
+end function
+
+'' 'Q<ns>:<id>', with an EMPTY ns for the global one: resolved, so never resolved again.
+private function NsKey_( byref ns as string, byval ix as long ) as string
+    return "Q" & ns & ":" & str( ix )
+end function
+
+'' The namespace a 'using' in ns imported that declares ix, or NONE ("?").
+private function TypeThroughUsing_( byref e as PpEngine, byval ix as long, byref ns as string ) as string
+    dim as string pre = "|" & ns & ">"
+    dim as long at = instr( e.usingIn, pre )
+    while at > 0
+        dim as long st_ = at + len( pre )
+        dim as string tgt = mid( e.usingIn, st_, instr( st_, e.usingIn, "|" ) - st_ )
+        if TypeInNs_( e, ix, tgt ) then return tgt
+        at = instr( at + 1, e.usingIn, pre )
+    wend
+    return "?"
+end function
+
+'' A TYPE NAME RESOLVED THROUGH NAMESPACES, as fbc's 'typeof' does: qualified 'a.b' is that
+'' namespace or what its usings import; '..' is the global one; bare is the current one, then
+'' each enclosing one, then the usings made along that chain. "" when nothing declares it,
+'' and the caller keeps the namespace-blind answer.
+private function NsTypeKey_ _
+    ( byref e as PpEngine, byval ix as long, byref qual as string, byval isGlobal as boolean ) as string
+    if isGlobal then
+        if TypeInNs_( e, ix, "" ) then return NsKey_( "", ix )
+        return ""
+    end if
+    if len( qual ) > 0 then
+        if TypeInNs_( e, ix, qual ) then return NsKey_( qual, ix )
+        dim as string qu = TypeThroughUsing_( e, ix, qual )
+        if qu <> "?" then return NsKey_( qu, ix )
+        return ""
+    end if
+    for pass as long = 0 to 1
+        dim as string ns = e.curNs
+        do
+            if pass = 0 then
+                if TypeInNs_( e, ix, ns ) then return NsKey_( ns, ix )
+            else
+                dim as string un = TypeThroughUsing_( e, ix, ns )
+                if un <> "?" then return NsKey_( un, ix )
+            end if
+            if len( ns ) = 0 then exit do
+            dim as long dp = instrrev( ns, "." )
+            ns = iif( dp > 0, left( ns, dp - 1 ), "" )
+        loop
+    next
+    return ""
+end function
+
 private function PxTypeOperand_( byref x as PpExprState ) as string
     if PxPeek( x ) = KW_CONST then PxNext( x )
+    '' A QUALIFIED NAME -- '..T', 'N1.T', 'a.b.T' -- resolved through the namespaces.
+    dim as boolean qGlobal = false
+    if (PxPeek( x ) = TK_DOT) andalso (x.pos + 1 < x.toks->Count) then
+        if Tk( (*x.toks)[x.pos + 1] ) = TK_DOT then
+            qGlobal = true
+            PxNext( x ) : PxNext( x )
+        end if
+    end if
+    dim as string qual = ""
+    while (PxPeek( x ) = TK_IDENT) andalso (x.pos + 2 < x.toks->Count)
+        if Tk( (*x.toks)[x.pos + 1] ) <> TK_DOT then exit while
+        if Tk( (*x.toks)[x.pos + 2] ) <> TK_IDENT then exit while
+        if len( qual ) > 0 then qual &= "."
+        qual &= Text.LowerAscii( x.e->names->Spelling( cast( InternId, PxTok( x ).literal ) ) )
+        PxNext( x ) : PxNext( x )
+    wend
+    if (PxPeek( x ) = TK_IDENT) andalso (qGlobal orelse (len( qual ) > 0) orelse (len( x.e->curNs ) > 0) orelse (len( x.e->usingIn ) > 0)) then
+        dim as long qix = cast( long, x.e->names->Fold( cast( InternId, PxTok( x ).literal ) ) )
+        dim as string qkey = NsTypeKey_( *x.e, qix, qual, qGlobal )
+        if len( qkey ) > 0 then
+            PxNext( x )
+            while (PxPeek( x ) = KW_PTR) orelse (PxPeek( x ) = KW_POINTER)
+                qkey &= " ptr"
+                PxNext( x )
+            wend
+            if PxPeek( x ) <> TK_RPAREN then return ""
+            PxNext( x )
+            return qkey
+        end if
+        if qGlobal orelse (len( qual ) > 0) then return ""
+    end if
     dim as TokenKind k = PxPeek( x )
     dim as Token t = PxTok( x )
     dim as string key
@@ -242,6 +330,12 @@ private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpV
         end if
         dim as long fw = FixedWidthKind_( e.names->Spelling( cast( InternId, ix ) ) )
         if fw > 0 then key = "K" & str( fw ) & rest
+        '' ...AND A NAMED TYPE THROUGH THE NAMESPACES, so a variable's 'UDT' reads as the type
+        '' itself does: 'NS.UDT' (fbc-int/query-symbol.bas, a type declared in a TEST).
+        if fw <= 0 then
+            dim as string nk = NsTypeKey_( e, ix, "", false )
+            if left( nk, 1 ) = "Q" then key = nk & rest
+        end if
         exit for
     next
     '' fbc's 'typeof' IS TEXT -- the type's name in capitals: 'LONG', 'LONG PTR', 'T' for a
@@ -255,6 +349,10 @@ private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpV
     dim as string txt
     if left( b2, 1 ) = "K" then
         txt = TokenKindText( cast( TokenKind, valint( mid( b2, 2 ) ) ) )
+    elseif left( b2, 1 ) = "Q" then
+        dim as long qc = instr( b2, ":" )
+        txt = e.names->Spelling( cast( InternId, valint( mid( b2, qc + 1 ) ) ) )
+        if qc > 2 then txt = mid( b2, 2, qc - 2 ) & "." & txt
     else
         txt = e.names->Spelling( cast( InternId, valint( mid( b2, 2 ) ) ) )
     end if

@@ -391,6 +391,12 @@ namespace Tko
     '' A MODULE-LEVEL 'using' of the namespace 'path' (folded, dotted): see NoteUsing_ in
     '' parser/decltype.bas and TakenName_ in macrotaken.bas.
     declare sub PpNoteUsing( byref st as PpStream, byval path as string )
+    '' FOR '#if typeof( T )' AND ITS NAMESPACES -- PpEngine.typeNs: the namespace the parser is
+    '' in now, a 'using' made in namespace 'fromNs' (any depth; "" at module level or in a
+    '' procedure there), and a TYPE, TYPEDEF or ENUM named in namespace 'nsPath'. Folded, dotted.
+    declare sub PpSetNamespace( byref st as PpStream, byval path as string )
+    declare sub PpNoteUsingIn( byref st as PpStream, byval fromNs as string, byval path as string )
+    declare sub PpNoteTypeNs( byref st as PpStream, byval nm as InternId, byval nsPath as string )
     '' A DECLARED TYPE, for '#if typeof( name )' to read -- see PpEngine.varTypeKey (T61).
     '' 'what' says whose: a variable's, a typedef's target, or a named type's own name.
     const PP_TYPE_VAR = 0

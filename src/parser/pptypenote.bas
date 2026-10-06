@@ -90,5 +90,6 @@ private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
         next
     case Tko.N_TYPE, Tko.N_ENUM
         Tko.PpNoteType( *st, sp->name, "", Tko.PP_TYPE_NAMED, p.ast->Loc( n ) )
+        Tko.PpNoteTypeNs( *st, sp->name, p.nsPath )
     end select
 end sub
