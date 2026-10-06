@@ -27,7 +27,7 @@ type Ctx
     as MirModule ptr        m
     as MirFunction ptr      f
     as LowerStats ptr       st
-    as long                 curBlock
+    as long                 curBlock, strCastTarget   '' strCastTarget: ScoredStrTerm_ (lowercastpick.bas)
     '' -e/-ex/-exx. Only level 3 changes emission today: array bounds checks.
     as long                 errFlags     '' Options.errFlags: which runtime checks to emit
     '' The module name those checks report, filled once at entry.
@@ -502,7 +502,7 @@ declare function EmitRtl _
           byref outv as MirValue ) as boolean
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
-          byval value as Tko.NodeId ) as boolean
+          byval value as Tko.NodeId ) as boolean : declare function LowerStringInit_( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
     '' lowerstore.bas -- frame slot vs module storage.
     declare function LocalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
@@ -718,7 +718,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
     declare function UdtCastArgOk_ _
         ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean : declare function UdtByrefCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId : declare function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as long ) as boolean : declare function UdtPtrCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId, byref isRef as boolean ) as Tko.SymbolId : declare function ByrefCastInit_( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
-    declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean   '' lowersub.bas
+    declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function UdtTermWide_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as long   '' lowercastpick.bas
     declare function UserCastToNum_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
           byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
@@ -758,7 +758,7 @@ declare function EmitRtl _
     '' 0 says narrow and 1 USTRING, for an address -- a FIELD -- that carries neither.
     declare function LowerStringAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
-          byval value as Tko.NodeId, byval dstFlavour as long = -1 ) as boolean
+          byval value as Tko.NodeId, byval dstFlavour as long = -1 ) as boolean : declare function LowerStringAssignTo_( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, byval value as Tko.NodeId, byval dstFlavour as long ) as boolean
     declare function LowerInput _
         ( byref c as Ctx, byval id as Tko.NodeId, byval isLine as boolean ) as boolean
     declare function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
@@ -1033,7 +1033,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerWideAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as long, _
-          byval value as Tko.NodeId ) as boolean
+          byval value as Tko.NodeId ) as boolean : declare function LowerWideAssignTo_( byref c as Ctx, byref dst as MirValue, byval n as long, byval value as Tko.NodeId ) as boolean
     declare function LowerWideConcatAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as long, _
           byval value as Tko.NodeId ) as boolean

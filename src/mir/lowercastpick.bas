@@ -1,6 +1,42 @@
 '' lowercastpick.bas -- WHICH 'operator cast' a lowered string term calls. Moved out of
 '' lowersub.bas, which includes it; the choice itself is Check's StrCastPick (castpick.bas).
 
+'' WHAT A UDT TERM IS IN A STRING CONTEXT, by fbc's own pick: the cast that scores best against
+'' STRING (castpick.bas) -- which is the target print, '&', a string assignment and a string
+'' argument ask with. 0 when the score decides nothing (no cast, a tie, or a pointer or number
+'' winning -- Check's diagnostics), and the callers keep their own walk; else 1 narrow (string,
+'' byref zstring), 2 ustring, 3 wide (byref wstring). SYM is the winner.
+''
+'' Measured differences from the walks it overrides, each an fbc-modern pick:
+''     [byref as zstring, as string]       the STRING one, either order (walk: the first)
+''     [as ustring, as string]             STRING          (walk: the first)
+''     [as ustring, byref as zstring]      the ZSTRING one (walk: the first)
+''     [as ustring, byref as wstring]      USTRING, a UTF-16 term -- StrTermFlavour_ said WIDE
+function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as long
+    sym = Tko.SYMBOL_NONE
+    dim as long oc, cls
+    dim as long tg = c.strCastTarget
+    if tg = 0 then tg = Tko.Check.CT_STRING
+    dim as Tko.SymbolId s = Tko.Check.StrCastPick( *c.ast, *c.syms, *c.types, *c.names, t, tg, oc, cls )
+    if oc <> Tko.Check.CP_OK then return 0
+    sym = s
+    select case cls
+    case Tko.Check.CR_USTRING : return 2
+    case Tko.Check.CR_WCHAR   : return 3
+    end select
+    return 1
+end function
+
+'' IS A UDT TERM WIDE in a string context? The score's answer, else the old one: a wstring cast
+'' and no narrow one.
+function UdtTermWide_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    dim as Tko.SymbolId sym
+    dim as long k = ScoredStrTerm_( c, t, sym )
+    if k <> 0 then return (k = 3)
+    if WideCastOverload_( c, t ) = Tko.SYMBOL_NONE then return false
+    return (HasNarrowStrCast_( c, t ) = false)
+end function
+
 function UserCastToStr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
       byref raw as boolean ) as boolean
@@ -14,6 +50,20 @@ function UserCastToStr_ _
     if cs = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
     if s = 0 then return false
+
+    '' FBC'S PICK FIRST (ScoredStrTerm_): a narrow or ustring winner is the cast; a wide one means
+    '' this is not a narrow term at all. Only when the score decides nothing does the walk below.
+    dim as Tko.SymbolId scored
+    dim as long sk = ScoredStrTerm_( c, t, scored )
+    if sk = 3 then return false
+    if sk <> 0 then
+        dim as MirValue sself
+        if UdtSelfAddr_( c, id, sself ) = false then return false
+        outv = EmitMemberCall( c, scored, sself, MT_PTR )
+        if outv.kind = cast( ubyte, MV_NONE ) then return false
+        raw = (Tko.Check.CastResultClass( *c.ast, *c.syms, *c.types, scored ) = Tko.Check.CR_CHAR)
+        return true
+    end if
 
     '' THE OVERLOAD THAT YIELDS A STRING. 'operator cast' can be declared several
     '' times over different targets -- as long, as string, as zstring -- and they hang
@@ -90,6 +140,9 @@ function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.SymbolId scored
+    dim as long sk = ScoredStrTerm_( c, t, scored )     '' fbc's pick, as UserCastToStr_ takes it
+    if sk <> 0 then return (sk = 2)
     dim as Tko.SymbolId cur
     for pass as long = 0 to 1
         cur = UdtMemberNamed_( c, t, "cast" )
@@ -227,4 +280,98 @@ function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
         cur = cs->nextOverload
     wend
     return false
+end function
+
+'' (Moved from lowerwstr.bas at its 1500-line cap.)
+'' The 'operator cast' overload that yields a WSTRING, called on 'id'. Returns the
+'' uint16* it gives back.
+function UserCastToWide_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )
+    if want = Tko.SYMBOL_NONE then return false
+    '' ...AND FBC'S PICK OVER IT (ScoredStrTerm_): when a narrow or ustring cast outscores the
+    '' wide one, that one is called and WIDENED -- measured, 'u & wstr( "x" )' over [as string,
+    '' byref as wstring] is the string cast then fb_StrToWstr, in either declaration order. Asked
+    '' only of a type WITH a wide cast: callers try this to choose a path, and a narrow-only type
+    '' must keep answering no ('dim ru as wstring * 50 = mid( uu, 1 )' is fb_StrMid, then assign).
+    dim as Tko.SymbolId scored
+    dim as long sk = ScoredStrTerm_( c, c.info->TypeOf_( id ), scored )
+    if (sk = 1) orelse (sk = 2) then return NarrowToWideTemp_( c, id, outv )
+
+    '' A PAREN-LESS CALL IS A CALL: LowerAddr on a bare procedure name is its CODE address,
+    '' which 'AfxGetExePathName & "\x"' handed the cast as 'this' -- tracks died in wcslen.
+    '' Called as MT_AGG, what the definition returns (MT_PTR made the ABI pass decline the
+    '' function), then copied to a temporary for an address, as UdtSelfAddr_ does; the
+    '' call's own result slot is the one registered for destruction.
+    dim as MirValue self_, brv
+    dim as Tko.Symbol ptr bs = 0
+    dim as Tko.NodeKind ik = c.ast->Kind( id )
+    if (ik = Tko.N_IDENT) orelse (ik = Tko.N_MEMBER) then bs = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if (bs <> 0) andalso (bs->kind = cast( ubyte, Tko.SYM_PROC )) then
+        dim as long bsz = SizeOfType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) )
+        if bsz <= 0 then return false
+        if LowerBareProcCall_( c, id, MT_AGG, brv ) = false then return false
+        self_.kind = cast( ubyte, MV_LOCAL ) : self_.ty = cast( ubyte, MT_PTR )
+        self_.id = NewTempLocal( c, MT_AGG, bsz )
+        if cast( long, self_.id ) < 0 then return false
+        StoreThrough( c, self_, brv )
+    elseif UdtSelfAddr_( c, id, self_ ) = false then   '' an operator's result has no address
+        return false
+    end if
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    outv = EmitMemberCall( c, want, self_, MT_PTR )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' THE TARGET A DESTINATION ASKS WITH. A ustring or wstring destination fed DIRECTLY by a UDT asks
+'' fbc's cast pick with USTRING or WSTRING (castpick.bas) -- measured, 'dim as ustring s = u' over
+'' [as string, byref as zstring] calls the zstring cast and 'w = u' over [as string, byref as
+'' wstring] the wstring one -- while a UDT inside a concatenation asks with STRING whatever the
+'' destination ('w = u & wstr( "x" )' calls the string cast). So only a direct term sets it, and
+'' only the OUTERMOST destination decides: a chain lowered as 'assign the first term, then
+'' concat-assign' re-enters here with that term as if it were direct, and must keep STRING.
+private function DirectUdtSource_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
+    if value = Tko.NODE_NONE then return false
+    dim as Tko.NodeId uv = Unparen_( c, value )
+    '' A CONCATENATION IS NEVER ONE, even where Check leaves it typed as a UDT term's type.
+    if c.ast->Kind( uv ) = Tko.N_BINARY then return false
+    return IsUdtValue_( c, uv )
+end function
+
+function LowerStringAssignTo _
+    ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
+      byval value as Tko.NodeId, byval dstFlavour as long ) as boolean
+    dim as boolean isU = IsUStringType( c, c.info->TypeOf_( target ) )
+    if target = Tko.NODE_NONE then isU = IsUStringDest_( c, dst )
+    if dstFlavour >= 0 then isU = (dstFlavour = 1)
+    dim as long saveT = c.strCastTarget
+    if c.strCastTarget = 0 then c.strCastTarget = iif( isU andalso DirectUdtSource_( c, value ), Tko.Check.CT_USTRING, Tko.Check.CT_STRING )
+    dim as boolean ok = LowerStringAssignTo_( c, dst, target, value, dstFlavour )
+    c.strCastTarget = saveT
+    return ok
+end function
+
+function LowerWideAssignTo _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval value as Tko.NodeId ) as boolean
+    dim as long saveT = c.strCastTarget
+    if c.strCastTarget = 0 then c.strCastTarget = iif( DirectUdtSource_( c, value ), Tko.Check.CT_WSTRING, Tko.Check.CT_STRING )
+    dim as boolean ok = LowerWideAssignTo_( c, dst, n, value )
+    c.strCastTarget = saveT
+    return ok
+end function
+
+'' THE DECLARATION FORM -- 'dim as ustring s = u' -- which never reaches LowerStringAssignTo.
+function LowerStringInit _
+    ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
+      byval value as Tko.NodeId ) as boolean
+    dim as boolean isU = false
+    if slot >= 0 then isU = IsUStringType( c, c.f->locals[slot].frontendType )
+    if isU = false then isU = IsUStringType( c, c.info->TypeOf_( target ) )
+    dim as long saveT = c.strCastTarget
+    if c.strCastTarget = 0 then c.strCastTarget = iif( isU andalso DirectUdtSource_( c, value ), Tko.Check.CT_USTRING, Tko.Check.CT_STRING )
+    dim as boolean ok = LowerStringInit_( c, slot, target, value )
+    c.strCastTarget = saveT
+    return ok
 end function

@@ -554,7 +554,7 @@ end sub
 '' Init and Assign differ because Assign releases whatever the destination already
 '' held; at a declaration there is nothing to release and the descriptor is garbage,
 '' so calling Assign on it would free that garbage.
-function LowerStringInit _
+function LowerStringInit_ _
     ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
       byval value as Tko.NodeId ) as boolean
 
@@ -1394,7 +1394,7 @@ end function
 
 '' The body of both: 'target' is only needed to spot a self-reference in the chain and
 '' may be NODE_NONE when the destination is a slot with no node of its own.
-function LowerStringAssignTo _
+function LowerStringAssignTo_ _
     ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
       byval value as Tko.NodeId, byval dstFlavour as long ) as boolean
 

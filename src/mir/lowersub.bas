@@ -644,10 +644,8 @@ function LowerStrNumCall_ _
     '' ...and a UDT decides by its 'operator cast'. 'instr( ut, up )' has a UDT on
     '' BOTH sides and no wide type anywhere in the expression, so nothing but the cast
     '' overload can say which family the call belongs to.
-    isWide = isWide orelse _
-        (WideCastOverload_( c, c.info->TypeOf_( sE ) ) <> Tko.SYMBOL_NONE)
-    isWide = isWide orelse _
-        (WideCastOverload_( c, c.info->TypeOf_( tE ) ) <> Tko.SYMBOL_NONE)
+    isWide = isWide orelse UdtTermWide_( c, c.info->TypeOf_( sE ) )
+    isWide = isWide orelse UdtTermWide_( c, c.info->TypeOf_( tE ) )
 
     '' EVERY OPERAND BEFORE ANYTHING IS EMITTED. StrDescriptorOf_ may emit a call of
     '' its own, and declining afterwards would leave it behind with nothing using it.

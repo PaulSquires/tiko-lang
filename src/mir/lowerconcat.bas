@@ -530,7 +530,7 @@ function LowerUStrInPlaceWithNumbers_ _
             dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, cv )
             if uv.kind = cast( ubyte, MV_NONE ) then return false
             PushStrArg( args, uv )
-        elseif WideCastOverload_( c, c.info->TypeOf_( Unparen_( c, term ) ) ) <> Tko.SYMBOL_NONE then
+        elseif UdtTermWide_( c, c.info->TypeOf_( Unparen_( c, term ) ) ) then
             '' A UDT THAT CASTS TO A WSTRING (AfxNova's DWSTRING) is converted first, as
             '' PushChainTerm_ does for the fold: EmitStrTerm has no UTF-16 form for it, so
             '' 't = u & n & dws' declined here with 't = u' already emitted.

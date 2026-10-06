@@ -455,8 +455,13 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     '' fb_UStrInit -- the conversion WideTermAsUStr_ already makes once it is asked.
     '' tracks' 'dim as ustring path_ = this.ConfigFilename' was this, and every setting
     '' failed to load with 'config: no such file or directory'.
-    if WideCastOverload_( c, tt ) <> Tko.SYMBOL_NONE then return STF_WIDE
+    if UdtTermWide_( c, tt ) then return STF_WIDE      '' fbc's pick: [ustring, byref wstring] is UTF-16
     if UdtCastIsUStr_( c, t2 ) then return STF_UTF16     '' ...and one with 'as ustring' is UTF-16 (T39)
+    '' ...AND ONE WHOSE PICKED CAST IS NARROW IS NARROW, not 'follow the destination': into a ustring
+    '' it CONVERTS. Measured, 'dim as ustring s = u' over [as string, byref as zstring] is the
+    '' zstring cast and fb_UStrAssignFromA; NEUTRAL handed the char* to fb_UStrInit as UTF-16.
+    dim as Tko.SymbolId nsym
+    if ScoredStrTerm_( c, tt, nsym ) = 1 then return STF_NARROW
     return STF_NEUTRAL
 end function
 
@@ -668,9 +673,7 @@ function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as bo
     '' this.TwsHost & nl' and its CATEGORY line lost their settings on each save. A UDT with
     '' a NARROW cast as well is left alone -- fbc joins that one narrow; see above.
     if UdtCastIsUStr_( c, term ) then return false     '' a ustring cast is a UTF-16 term (T39)
-    if WideCastOverload_( c, tt ) <> Tko.SYMBOL_NONE then
-        if NarrowCastOverload_( c, tt ) = Tko.SYMBOL_NONE then return false
-    end if
+    if UdtTermWide_( c, tt ) then return false
     dim as longint tsk
     return (StrSwapKind_( c, tt, tsk ) = -1)
 end function

@@ -110,7 +110,7 @@ end function
 '' DIM INITIALISER -- which has a slot and no target expression -- reaches it too.
 '' 'dim rt as wstring * 50 = trim( t )' was otherwise declining in a corpus file that
 '' does it 814 times.
-function LowerWideAssignTo _
+function LowerWideAssignTo_ _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
       byval value as Tko.NodeId ) as boolean
 
@@ -463,7 +463,7 @@ private function NarrowDestWideSource_ _
             if src.kind <> cast( ubyte, MV_NONE ) then return true
         end if
     end if
-    return UserCastToWide_( c, value, src )
+    if IsUdtValue_( c, value ) andalso (not UdtTermWide_( c, c.info->TypeOf_( value ) )) then return false else return UserCastToWide_( c, value, src )   '' a UDT goes wide only by fbc's pick
 end function
 
 private sub EmitWideToNarrow_ _
@@ -634,7 +634,7 @@ function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     '' A UDT WITH 'operator cast' TO A WSTRING is wide too, and asking that costs a
     '' walk rather than an emission -- which is the whole reason this predicate exists
     '' separately from UserCastToWide_.
-    if (WideCastOverload_( c, c.info->TypeOf_( e ) ) <> Tko.SYMBOL_NONE) andalso (HasNarrowStrCast_( c, c.info->TypeOf_( e ) ) = false) then return true   '' a narrow cast wins (lowersub.bas)
+    if UdtTermWide_( c, c.info->TypeOf_( e ) ) then return true   '' fbc's pick (lowercastpick.bas)
     return IsWstrCall_( c, e )
 end function
 
@@ -1249,39 +1249,6 @@ function WideOperand_ _
         end if
     end if
     return false
-end function
-
-'' The 'operator cast' overload that yields a WSTRING, called on 'id'. Returns the
-'' uint16* it gives back.
-function UserCastToWide_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-
-    dim as Tko.SymbolId want = WideCastOverload_( c, c.info->TypeOf_( id ) )
-    if want = Tko.SYMBOL_NONE then return false
-
-    '' A PAREN-LESS CALL IS A CALL: LowerAddr on a bare procedure name is its CODE address,
-    '' which 'AfxGetExePathName & "\x"' handed the cast as 'this' -- tracks died in wcslen.
-    '' Called as MT_AGG, what the definition returns (MT_PTR made the ABI pass decline the
-    '' function), then copied to a temporary for an address, as UdtSelfAddr_ does; the
-    '' call's own result slot is the one registered for destruction.
-    dim as MirValue self_, brv
-    dim as Tko.Symbol ptr bs = 0
-    dim as Tko.NodeKind ik = c.ast->Kind( id )
-    if (ik = Tko.N_IDENT) orelse (ik = Tko.N_MEMBER) then bs = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if (bs <> 0) andalso (bs->kind = cast( ubyte, Tko.SYM_PROC )) then
-        dim as long bsz = SizeOfType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) )
-        if bsz <= 0 then return false
-        if LowerBareProcCall_( c, id, MT_AGG, brv ) = false then return false
-        self_.kind = cast( ubyte, MV_LOCAL ) : self_.ty = cast( ubyte, MT_PTR )
-        self_.id = NewTempLocal( c, MT_AGG, bsz )
-        if cast( long, self_.id ) < 0 then return false
-        StoreThrough( c, self_, brv )
-    elseif UdtSelfAddr_( c, id, self_ ) = false then   '' an operator's result has no address
-        return false
-    end if
-    if self_.kind = cast( ubyte, MV_NONE ) then return false
-    outv = EmitMemberCall( c, want, self_, MT_PTR )
-    return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
 
