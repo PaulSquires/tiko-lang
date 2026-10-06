@@ -374,6 +374,28 @@ function LowerUdtParenInit_ _
     dim as Tko.ListPayload ptr pl0 = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
 
+    '' A LITERAL OF A DERIVED TYPE IS ITS OWN TEMPORARY, sliced into this base. Measured,
+    '' 'dim as t1 u1 = type<t2>( type<t3>( type<t4>( 1, 2, 3, 4 ) ) )' is a T4, a T3 and a T2
+    '' temporary, each a memcpy of the one inside, then 8 bytes into u1 -- dtor counts 4 3 2 1
+    '' (structs/udt-upcast-4.bas). Read as a field list of t1 the outer 'type<t2>' vanished and
+    '' its temporary with it: 3 2 2 1.
+    if (c.ast->Kind( init ) = Tko.N_TUPLE) andalso _
+       ((c.ast->nodes[cast( long, init )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
+        dim as Tko.TypeId litT = c.types->Unqualify( c.info->TypeOf_( init ) )
+        if (litT <> Tko.TYPE_NONE) andalso (litT <> t) andalso (c.types->BaseDistance( litT, t ) > 0) then
+            dim as long dsz = SizeOfType( c, t )
+            dim as MirValue lsa = LowerAddr( c, init )
+            if (dsz <= 0) orelse (lsa.kind = cast( ubyte, MV_NONE )) then return false
+            dim as FB.Array( of ulong ) uca
+            uca.Push( cast( ulong, self_.kind ) ) : uca.Push( cast( ulong, self_.id ) )
+            uca.Push( cast( ulong, lsa.kind ) ) : uca.Push( cast( ulong, lsa.id ) )
+            dim as MirValue unb = ConstInt( c, dsz, MT_I64 )
+            uca.Push( cast( ulong, unb.kind ) ) : uca.Push( cast( ulong, unb.id ) )
+            EmitRtl( c, RTL_MEM_COPY, uca )
+            return true
+        end if
+    end if
+
     '' 'type<T>( )' WITH NO ARGUMENTS IS THE DEFAULT CONSTRUCTOR, on a temporary.
     ''
     '' Measured: fbc emits '_ZN1CC1Ev( &TMP$2$0 )' and then reads out of TMP, and it
@@ -414,6 +436,17 @@ function LowerUdtParenInit_ _
                     dim as MirValue cdst = self_
                     '' The whole overload chain -- see CopyCtorOf_.
                     dim as Tko.SymbolId lcc = CopyCtorOf_( c, t )
+                    '' ...BUT A LITERAL OF THE SAME TYPE INSIDE IS THE OBJECT ITSELF, with no copy
+                    '' constructor to run: 'dim as t3 u3 = type<t3>( type<t3>( 1, 2, 3 ) )' builds
+                    '' u3 once and destroys it once under fbc (structs/udt-upcast-4.bas). tiko built
+                    '' a temporary, copied it and destroyed both. A copy constructor still copies:
+                    '' measured, 'type<C>( type<C>( 5 ) )' is one constructor and one copy.
+                    dim as Tko.NodeId inLit = Unparen_( c, only_ )
+                    if (lcc = Tko.SYMBOL_NONE) andalso (c.ast->Kind( inLit ) = Tko.N_TUPLE) then
+                        if (c.ast->nodes[cast( long, inLit )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+                            return LowerUdtParenInit_( c, slot, t, inLit, selfv )
+                        end if
+                    end if
                     dim as MirValue csrc = LowerAddr( c, only_ )
                     if csrc.kind = cast( ubyte, MV_NONE ) then return false
                     if lcc <> Tko.SYMBOL_NONE then
