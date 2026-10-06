@@ -49,6 +49,14 @@ sub LowerVarItem_ _
       byval isByrefLocal as boolean )
     if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return
     dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+    '' 'var f1 = foo' -- A BARE TYPE NAME AS THE INITIALISER is a default construction, as 'dim f1 as
+    '' foo' is (dim/auto_var2.bas): fbc calls the default constructor and nothing else, where tiko then
+    '' stored 'foo' read as a variable over it. Lowered as though no initialiser were written.
+    dim as Tko.StmtPayload ipNoInit
+    if (ip->b <> Tko.NODE_NONE) andalso (c.ast->Kind( ip->b ) = Tko.N_IDENT) then
+        dim as Tko.Symbol ptr tns = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
+        if (tns <> 0) andalso (tns->kind = cast( ubyte, Tko.SYM_UDT )) then ipNoInit = *ip : ipNoInit.b = Tko.NODE_NONE : ip = @ipNoInit
+    end if
     '' The VARIABLE, not a type name that happens to share the spelling.
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
     if (c.ast->nodes[cast( long, item )].flags and Tko.NF_QUALIFIED) = 0 then
