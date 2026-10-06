@@ -222,6 +222,22 @@ namespace Tko.Check
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
           byval first_ as Tko.SymbolId, byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
 
+    '' WHICH 'operator cast' A STRING CONTEXT CALLS -- one rule, scored as fbc scores it
+    '' (castpick.bas). CR_*: what a cast yields; CT_*: the target a context asks with;
+    '' CP_*: the outcome.
+    const CR_NONE = 0, CR_STRING = 1, CR_USTRING = 2, CR_CHAR = 3, CR_CHARPTR = 4, CR_WCHAR = 5
+    const CR_WCHARPTR = 6, CR_INT = 7, CR_FLOAT = 8, CR_OTHERPTR = 9
+    const CT_STRING = 1, CT_USTRING = 2, CT_WSTRING = 3
+    const CP_OK = 0, CP_NONE = 1, CP_AMBIGUOUS = 2, CP_NOCONV = 3
+    declare function CastResultClass _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byval sym as Tko.SymbolId ) as long
+    declare function StrCastScore( byval target as long, byval cls as long ) as long
+    declare function StrCastPick _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long, _
+          byref outcome as long, byref winCls as long ) as Tko.SymbolId
+
     '' Whether 'target = source' is allowed, and whether fbc warns about it.
     '' Assignment legality is a DIFFERENT question from binary promotion and does not
     '' follow from it: every numeric-to-numeric assignment is accepted, narrowing and

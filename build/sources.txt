@@ -29,6 +29,7 @@ src/symbols/mangle.bas
 src/symbols/constfold.bas
 src/symbols/check.bas
 src/symbols/structpick.bas
+src/symbols/castpick.bas
 src/symbols/visibility.bas
 src/symbols/redimrank.bas
 src/types/udtlayout.bas
