@@ -111,43 +111,41 @@ func void S1() {
     %85 = ashr %83, %84
     %86 = const i64 1
     %87 = and %85, %86
-    %88 = field.addr @x, 0
-    %89 = load %88
-    %90 = const i64 -2
-    %91 = and %89, %90
-    %92 = const i64 1
-    %93 = and %87, %92
-    %94 = or %91, %93
-    store %88, %94
-    %95 = field.addr @x, 0
-    %96 = load %95
-    %97 = const i64 -3
-    %98 = and %96, %97
+    %88 = load %78
+    %89 = const i64 -2
+    %90 = and %88, %89
+    %91 = const i64 1
+    %92 = and %87, %91
+    %93 = or %90, %92
+    store %78, %93
+    %94 = load %82
+    %95 = const i64 -3
+    %96 = and %94, %95
+    %97 = const i64 1
+    %98 = and %81, %97
     %99 = const i64 1
-    %100 = and %81, %99
-    %101 = const i64 1
-    %102 = shl %100, %101
-    %103 = or %98, %102
-    store %95, %103
-    %104 = field.addr @x, 0
-    %105 = load %104
-    %106 = const i64 1
-    %107 = and %105, %106
-    call.rtl void fb_PrintULongint(0, %107, 2)
-    %108 = field.addr @x, 0
-    %109 = load %108
+    %100 = shl %98, %99
+    %101 = or %96, %100
+    store %82, %101
+    %102 = field.addr @x, 0
+    %103 = load %102
+    %104 = const i64 1
+    %105 = and %103, %104
+    call.rtl void fb_PrintULongint(0, %105, 2)
+    %106 = field.addr @x, 0
+    %107 = load %106
+    %108 = const i64 1
+    %109 = ashr %107, %108
     %110 = const i64 1
-    %111 = ashr %109, %110
-    %112 = const i64 1
-    %113 = and %111, %112
-    call.rtl void fb_PrintULongint(0, %113, 2)
-    %114 = field.addr @x, 0
-    %115 = load %114
-    %116 = const i64 2
-    %117 = ashr %115, %116
-    %118 = const i64 63
-    %119 = and %117, %118
-    call.rtl void fb_PrintULongint(0, %119, 1)
+    %111 = and %109, %110
+    call.rtl void fb_PrintULongint(0, %111, 2)
+    %112 = field.addr @x, 0
+    %113 = load %112
+    %114 = const i64 2
+    %115 = ashr %113, %114
+    %116 = const i64 63
+    %117 = and %115, %116
+    call.rtl void fb_PrintULongint(0, %117, 1)
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -173,4 +171,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 149 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 147 insts, 0 statements not lowered, 0 scope imbalance
