@@ -131,7 +131,7 @@ sub LowerProc _
 
     '' MIR carries the MANGLED name and never a source one.
     dim as Tko.InternId nm = c.names->GetString( _
-        Tko.Mangle.ProcName( *c.ast, id, *c.syms, *c.names, *c.types, *c.info ) )
+        Tko.Mangle.ProcName( *c.ast, DeclForName_( c, id, s ), *c.syms, *c.names, *c.types, *c.info ) )
 
     '' A STRING-RETURNING FUNCTION RETURNS A POINTER. fbc's own C says so --
     '' 'FBSTRING* F( void )' -- because the value leaves through

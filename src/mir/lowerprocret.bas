@@ -537,4 +537,32 @@ private function RetFromUserOp_( byref c as Ctx, byval valueE as Tko.NodeId ) as
     return (c.info->RefOf( rop ) <> Tko.SYMBOL_NONE)
 end function
 
+
+'' THE NODE A DEFINITION IS NAMED BY: its own, or its DECLARATION's when that one took 'byref as any'.
+'' 'declare sub f( byref p as any )' then 'sub f( byref p as integer )' is one procedure to fbc, named
+'' by the declaration -- TEST_CONST(void&) -- and every call names it so; the body went out as
+'' F(long long&) and nothing linked (functions/void_param.bas).
+function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId
+    if s = 0 then return id
+    dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
+    if (dn = Tko.NODE_NONE) orelse (dn = id) orelse (c.ast->Kind( dn ) <> Tko.N_PROC) then return id
+    dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
+    for k as long = 0 to dp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[dp->first + k] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
+        if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+        if (c.types->Kind( pt ) = Tko.TK_BUILTIN) andalso (c.types->BuiltinOf( pt ) = Tko.TY_ANY) then return dn
+    next
+    return id
+end function
+
+'' Is T the bare ANY a 'byref as any' parameter has (a reference to it included)?
+function ParamIsAny_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    return (c.types->Kind( t ) = Tko.TK_BUILTIN) andalso (c.types->BuiltinOf( t ) = Tko.TY_ANY)
+end function
+
 end namespace

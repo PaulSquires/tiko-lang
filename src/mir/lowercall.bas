@@ -397,6 +397,9 @@ function LowerCallParts _
             continue for
         end if
 
+        dim as boolean litAny = wantsRef andalso ParamIsAny_( c, ArgParamType_( c, callee, calleeSigT, i + pbase ) )   '' a literal for 'byref as any' is its BYTES (void_param.bas)
+        if litAny then litAny = (c.ast->Kind( argNode ) = Tko.N_STRING_LIT)
+        if litAny then dim as MirValue lav = LowerStringLitAddr( c, argNode ) : slotKind[i] = cast( ulong, lav.kind ) : slotId[i] = cast( ulong, lav.id ) : continue for
         dim as MirValue a
         '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none.
         '' Measured: fbc builds one -- 'fb_StrAllocTempDescZEx( "x.txt", 5 )' -- and

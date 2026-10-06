@@ -1454,7 +1454,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as long
     declare function VirtualCalleeOf_ _
         ( byref c as Ctx, byref self_ as MirValue, byval slot as long ) as MirValue
-    declare sub WantVirtualImplicitDtors_( byref c as Ctx ) : declare function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long : declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as FB.Array( of ulong ) ptr ) as boolean : declare function EmitVirtualDtor_ _
+    declare sub WantVirtualImplicitDtors_( byref c as Ctx ) : declare function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId : declare function ParamIsAny_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long : declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as FB.Array( of ulong ) ptr ) as boolean : declare function EmitVirtualDtor_ _
         ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
           byref p as MirValue ) as boolean
 
