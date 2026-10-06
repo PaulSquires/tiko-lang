@@ -1,0 +1,15 @@
+'' A USTRING OR WIDE OPERAND OF A NARROW-ONLY ENTRY POINT is converted: fb_UStrToStr for a ustring
+'' (and a 'ustring * N', with its tag), fb_WstrAssignToA into a temporary for a wide one. Measured
+'' against fbc's C (tka-probes/phase4/pa): a ustring reached fb_GfxDrawString as its own UTF-16
+'' descriptor, a 'ustring * N' or wide operand was an ICE, and 'width *pz, 80' took the NUMERIC
+'' form fb_Width. fbc has fb_GfxDrawStringUStr; libtkogfx does not, so a ustring is converted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/narrow-only-operands.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_UStrToStr
+'' EXPECT-OUT: fb_WstrAssignToA
+'' EXPECT-OUT: fb_WidthDev
+'' EXPECT-NOT: fb_Width(
+'' GOLDEN: expected/narrow-only-operands.out

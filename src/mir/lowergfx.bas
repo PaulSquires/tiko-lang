@@ -434,7 +434,7 @@ function LowerGfxDrawString_ _
     dim as Tko.NodeId sn = GfxArg( c, sp, 2 )
     if sn = Tko.NODE_NONE then return false
     dim as MirValue sv
-    if StrDescriptorOf_( c, sn, sv ) = false then return false
+    if NarrowOperandAny_( c, sn, sv ) = false then return false   '' a ustring or wide text too
 
     dim as boolean hasCol = false
     dim as MirValue col = GfxInt( c, sp, 3, 0, hasCol, ok )
@@ -470,7 +470,7 @@ function LowerGfxDraw( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId sn = GfxArg( c, sp, 0 )
     if sn = Tko.NODE_NONE then return false
     dim as MirValue sv
-    if StrDescriptorOf_( c, sn, sv ) = false then return false
+    if NarrowOperandAny_( c, sn, sv ) = false then return false   '' a ustring or wide text too
 
     dim as FB.Array( of ulong ) args
     PushV( args, tgt )

@@ -136,6 +136,18 @@ function UStrToStrAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mir
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
 
+'' ANY STRING AS A NARROW DESCRIPTOR, for an entry point that has only a narrow form -- DRAW
+'' STRING, DRAW, WIDTH's device name. Measured, fbc converts a ustring with fb_UStrToStr (its
+'' fb_GfxDrawStringUStr aside, which libtkogfx does not have) and a wide value into a narrow
+'' temporary with fb_WstrAssignToA; every narrow shape is StrDescriptorOf_'s. A ustring or
+'' wide operand reached these entry points as its own descriptor or not at all (an ICE).
+function NarrowOperandAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    if UStrToStrAny_( c, e, outv ) then return true
+    dim as boolean wideSrc = IsWideString_( c, c.info->TypeOf_( e ) ) orelse TermIsWide_( c, e ) orelse ConcatHasWideTerm_( c, e )
+    if wideSrc then return WideToNarrowTemp_( c, e, outv )
+    return StrDescriptorOf_( c, e, outv )
+end function
+
 '' A USTRING WHERE A ZSTRING'S BYTES ARE WANTED -- a 'zstring ptr' or 'byref as zstring'
 '' parameter, NAME's two paths -- is a NARROW COPY, not its own data pointer, which is
 '' UTF-16: 'C:\...' read as narrow is the string "C". fileexists, filelen and

@@ -19,6 +19,7 @@ declare function StrSwapKind_ _
 declare function WriteRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
 declare function UFixDestTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue, byref outSlot as long ) as boolean
 declare sub UFixDestBack_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long )
+declare function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as long
 declare function WriteOne_ _
     ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean

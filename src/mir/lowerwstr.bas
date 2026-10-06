@@ -1132,6 +1132,18 @@ private function WideLitUnits_ _
     return true
 end function
 
+'' A WIDE CONSTANT'S CODE-UNIT COUNT -- a literal, a constant, 'wstr( "cd" )' -- or -1 when
+'' the operand has no constant text. PUT of a wide rvalue passes it, plus one (lowergetput).
+function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as long
+    dim as string wt
+    dim as FB.Array( of ulong ) wu
+    if WideLitUnits_( c, Unparen_( c, id ), wt, wu ) then return wu.Count
+    '' 'wstr( "cd" )' folds to its operand's text (ConstStringTextOf_), one unit per character.
+    dim as string nt
+    if ConstStringTextOf_( c, Unparen_( c, id ), nt ) then return len( nt )
+    return -1
+end function
+
 function WideOperand_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

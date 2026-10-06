@@ -1,0 +1,10 @@
+'' PUT of a wide rvalue -- wstr( "cd" ), a wide concatenation -- and of *pw. fbc hands the narrow
+'' entry the wide buffer with the constant's element count or 0, so the file holds half the UTF-16;
+'' tiko ICEd on the rvalues. Mirrored so files read back the same. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/put-wide-rvalue.bas -o tests/codegen/putwidervalue.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/putwidervalue.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 9909797

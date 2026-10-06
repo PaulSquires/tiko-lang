@@ -94,7 +94,8 @@ function LowerFileGetPut _
     '' The DESTINATION is written through, so its address and its size in bytes. A
     '' var-length string is a descriptor and takes the other entry point entirely.
     dim as Tko.TypeId vt = c.info->TypeOf_( varN )
-    if vt = Tko.TYPE_NONE then return false
+    '' An untyped WIDE CONCATENATION on PUT is the wide-rvalue arm's, below.
+    if (vt = Tko.TYPE_NONE) andalso ((isPut = false) orelse ((ConcatHasWideTerm_( c, varN ) orelse TermIsWide_( c, varN )) = false)) then return false
 
     '' A VAR-LENGTH STRING TAKES ITS OWN ENTRY POINT, and it is not the byte-count
     '' one: the destination is a DESCRIPTOR, and the runtime resizes it. Measured --
@@ -117,6 +118,33 @@ function LowerFileGetPut _
         largs.Push( cast( ulong, ln.kind ) ) : largs.Push( cast( ulong, ln.id ) )
         outv = EmitRtl( c, RTL_FILE_PUT_STR, largs )
         return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    '' ...AND A WIDE RVALUE ON PUT, which has no address: fbc hands the narrow entry its buffer
+    '' with the constant's element count or 0 -- 'fb_FilePutStrLarge( 1, 0ll, L"cd", 3ll )',
+    '' and for 'w & wstr( "ef" )' the concatenation with 0 -- so its bytes are half the
+    '' UTF-16, exactly as for a 'wstring * N' below. Mirrored rather than refused (it was an
+    '' ICE): a file written by either compiler reads back the same. BEFORE the narrow arm: Check
+    '' types 'w & wstr( "ef" )' as STRING.
+    dim as boolean wideRv = false
+    select case c.ast->Kind( Unparen_( c, varN ) )
+    case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+    case else
+        wideRv = isPut andalso (IsWideString_( c, vt ) orelse TermIsWide_( c, varN ) orelse ConcatHasWideTerm_( c, varN ))
+    end select
+    if wideRv then
+        dim as MirValue wra
+        scope
+            if WideOperand_( c, varN, wra ) = false then return false
+            dim as longint wrn = WideConstUnitCount_( c, varN ) + 1   '' -1 + 1: no constant text, 0
+            dim as FB.Array( of ulong ) wrargs
+            wrargs.Push( cast( ulong, chan.kind ) ) : wrargs.Push( cast( ulong, chan.id ) )
+            wrargs.Push( cast( ulong, pv.kind ) ) : wrargs.Push( cast( ulong, pv.id ) )
+            wrargs.Push( cast( ulong, wra.kind ) ) : wrargs.Push( cast( ulong, wra.id ) )
+            dim as MirValue wrc = ConstInt( c, wrn, zt )
+            wrargs.Push( cast( ulong, wrc.kind ) ) : wrargs.Push( cast( ulong, wrc.id ) )
+            outv = EmitRtl( c, RTL_FILE_PUT_STR, wrargs )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end scope
     end if
     if IsStringType( c, vt ) then
         '' NARROW ONLY: a ustring descriptor is UTF-16 and fb_FileGetStrLarge would

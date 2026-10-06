@@ -149,12 +149,16 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
 
     '' THE DEVICE FORM, and the first argument being a STRING is what says so.
     if a0 <> Tko.NODE_NONE then
+        '' ...ANY string: a 'string * N', a zstring, '*pz', a ustring and a wide value too. Only
+        '' a var-length string counted, so '*pz' and 'wstr( "lpt1:" )' took the NUMERIC form.
+        dim as Tko.TypeId a0t = c.info->TypeOf_( a0 )
+        dim as longint a0n
         dim as boolean isStr = (c.ast->Kind( a0 ) = Tko.N_STRING_LIT)
-        if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a0 ) )
+        if isStr = false then isStr = IsStringType( c, a0t ) orelse IsWideString_( c, a0t ) orelse (StrSwapKind_( c, a0t, a0n ) >= 1) orelse TermIsWide_( c, a0 )
         if isStr then
             if sp->count <> 2 then return false
             dim as MirValue dv
-            if StrDescriptorOf_( c, a0, dv ) = false then return false
+            if NarrowOperandAny_( c, a0, dv ) = false then return false
             dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
             if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
             dim as MirValue nv = LowerNumArg_( c, a1, MT_I32 )
