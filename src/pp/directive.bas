@@ -572,8 +572,11 @@ private sub PragmaOption _
             case "true"  : v = -1
             end select
         end if
-        if k = TK_INT_LIT then
-            if t.literal = 0 then v = 0 else v = -1
+        '' A NUMBER is its VALUE, read from the literal pool -- 't.literal' is the pool INDEX,
+        '' which is 0 only for a file's first literal, so 'private = 0' read as true.
+        if (k = TK_INT_LIT) andalso (e.lits <> 0) then
+            dim as long li = cast( long, t.literal )
+            if (li >= 0) andalso (li < (*e.lits).Count) then v = iif( (*e.lits)[li].intValue = 0, 0, -1 )
         end if
         Advance( e )
     wend

@@ -1,0 +1,6 @@
+'' '#pragma private = N' / 'push( private, N )' take N's value, not its literal-pool index
+'' (measured: fbc-modern 1.20 gives 0, -1, 0). See the source's header.
+'' TEST: cli
+'' ARGS: --pp-only tests/pp/src/pragma-option-literal.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0309
