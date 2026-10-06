@@ -5,14 +5,14 @@ func void _ZN1T2RWEv(ptr $0) {
     store @this, $0
     ret
 }
-func void _ZN1T6ALSOROEv(ptr $0) {
+func void _ZNK1T6ALSOROEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
     store @this, $0
     ret
 }
-func void _ZN1T2ROEv(ptr $0) {
+func void _ZNK1T2ROEv(ptr $0) {
   local ptr this
   local ptr $tmp1
   local agg other size 8
@@ -50,7 +50,6 @@ func void _ZN1T2ROEv(ptr $0) {
     ret
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-declare void _ZNK1T6ALSOROEv(ptr $0)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
