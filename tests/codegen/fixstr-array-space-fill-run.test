@@ -1,0 +1,10 @@
+'' A local array of 'string * N' starts as spaces, as one 'string * N' does: fbc emits
+'' 'memset( S1, 32, 2 )' (string/string-fixed-array.bas); tiko zero-filled it.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/fixstr-array-space-fill.bas -o tests/codegen/fixstrarrayspacefill.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/fixstrarrayspacefill.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 32             32
+'' EXPECT-RUN-OUT: 32

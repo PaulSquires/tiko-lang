@@ -547,7 +547,11 @@ sub LowerVarItem_ _
         '' that a zstring's zero-fill would get wrong rather than merely leave
         '' untidy. Emitted before any initialiser, which then overwrites it.
         dim as longint fsn3
-        if StrSwapKind_( c, vs->type_, fsn3 ) = 3 then
+        '' ...AND SO IS AN ARRAY OF THEM: 'dim as string * 1 s1( 0 to 1 )' is 'memset( S1$1, 32, 2 )'
+        '' (string/string-fixed-array.bas); tiko zero-filled it.
+        dim as boolean fsArr = (c.types->Kind( vs->type_ ) = Tko.TK_ARRAY) andalso (c.types->IsDynArray( vs->type_ ) = false)
+        if fsArr then fsArr = (StrSwapKind_( c, c.types->Inner( vs->type_ ), fsn3 ) = 3)
+        if fsArr orelse (StrSwapKind_( c, vs->type_, fsn3 ) = 3) then
             dim as MirValue fsa
             fsa.kind = cast( ubyte, MV_LOCAL )
             fsa.ty = cast( ubyte, MT_PTR )
@@ -556,7 +560,7 @@ sub LowerVarItem_ _
             fma.Push( cast( ulong, fsa.kind ) ) : fma.Push( cast( ulong, fsa.id ) )
             fma.Push( cast( ulong, MV_CONST_INT ) ) : fma.Push( 32 )
             fma.Push( cast( ulong, MV_CONST_INT ) )
-            fma.Push( cast( ulong, c.types->ElemCount( vs->type_ ) ) )
+            fma.Push( cast( ulong, iif( fsArr, SizeOfType( c, vs->type_ ), c.types->ElemCount( vs->type_ ) ) ) )
             EmitRtl( c, RTL_MEMSET, fma )
         end if
     end if
