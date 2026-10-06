@@ -194,6 +194,50 @@ private sub CheckStructorOutsideNamespace_( byref c as Ctx )
     next
 end sub
 
+'' A QUALIFIED DEFINITION OF AN EXTERN DEFINES IT. 'namespace a : namespace b : extern i as integer'
+'' then 'dim a.b.i as integer' outside, or 'dim b.i as integer' inside 'a', is fbc's one variable
+'' with storage; Collect merges only the unqualified spelling (it skips a qualified item), so the
+'' symbol stayed EXTERN, every reference went out as an external and nothing defined it --
+'' 'undefined symbol: A::B::I$' (namespace/outside.bas, namespace/dups.bas). The owner path is
+'' walked from the definition's own scope, as StaticMemberSym_ walks it when lowering.
+private sub DefineQualifiedExterns_( byref c as Ctx )
+    for n as long = 0 to c.ast->Count( ) - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_VAR then continue for
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
+        if (sp->op = cast( ushort, KW_EXTERN )) orelse (sp->op = cast( ushort, KW_COMMON )) then continue for
+        dim as ScopeId here = c.info->ScopeOf( id )
+        if here = SCOPE_NONE then continue for
+        for i as long = 0 to sp->count - 1
+            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+            if (c.ast->nodes[cast( long, item )].flags and NF_QUALIFIED) = 0 then continue for
+            dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+            if ip->ownerName = 0 then continue for
+            dim as string path = c.names->Spelling( ip->ownerName ) & "."
+            dim as ScopeId sc = here
+            dim as boolean ok = true, first = true
+            dim as long at = 1
+            while at <= len( path )
+                dim as long dot = instr( at, path, "." )
+                dim as InternId pn = c.names->Fold( c.names->GetString( mid( path, at, dot - at ) ) )
+                dim as SymbolId osid = iif( first, c.syms->Lookup( sc, pn ), c.syms->LookupLocal( sc, pn ) )
+                first = false
+                dim as Symbol ptr os = c.syms->SymbolAt( osid )
+                if (os = 0) orelse (os->kind <> cast( ubyte, SYM_NAMESPACE )) orelse (os->inner = SCOPE_NONE) then ok = false : exit while
+                sc = os->inner
+                at = dot + 1
+            wend
+            if ok = false then continue for
+            dim as Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocalTyped( sc, ip->name, false ) )
+            if (vs = 0) orelse (vs->kind <> cast( ubyte, SYM_VARIABLE )) then continue for
+            if (vs->flags and SYMF_EXTERN) = 0 then continue for
+            vs->flags = (vs->flags and not SYMF_EXTERN) or SYMF_SHARED or SYMF_EXTERN_DEF
+            vs->payload = cast( long, item )
+        next
+    next
+end sub
+
 private sub CheckOutsideNamespace_( byref c as Ctx )
     for n as long = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )

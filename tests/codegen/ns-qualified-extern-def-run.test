@@ -1,0 +1,8 @@
+'' namespaces: 'dim a.b.i' / 'dim b.i' define 'extern i' (namespace/outside.bas, namespace/dups.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ns-qualified-extern-def.bas -o tests/codegen/nsqualifiedexterndef.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/nsqualifiedexterndef.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2              3             5

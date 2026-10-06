@@ -1472,7 +1472,7 @@ sub Run _
     CheckNestedStatics_( c )
     CheckSharedInits_( c )
     CheckQualifiedInits_( c )
-    CheckOutsideNamespace_( c )
+    CheckOutsideNamespace_( c ) : DefineQualifiedExterns_( c )
     CheckStructorOutsideNamespace_( c )
     CheckConstBounds_( c )
     CheckReturnStyles_( c ) : CheckSubReturnValue_( c )
