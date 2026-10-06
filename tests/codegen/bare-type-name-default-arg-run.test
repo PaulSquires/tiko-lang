@@ -1,0 +1,10 @@
+'' 'byref param as foo = foo' -- a bare TYPE NAME as the argument is a default-constructed temporary,
+'' one per call (structs/obj_default_param.bas); tiko read 'foo' as a fresh variable.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/bare-type-name-default-arg.bas -o tests/codegen/baretypenamedefaultarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/baretypenamedefaultarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1              1234
+'' EXPECT-RUN-OUT: -1             1234

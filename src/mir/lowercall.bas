@@ -643,6 +643,9 @@ function LowerCallParts _
                 end if
             end if
 
+            '' 'f( foo )' / '= foo' -- a TYPE NAME is a default-constructed temporary (lowerparam.bas).
+            dim as MirValue bta
+            if BareTypeNameTemp_( c, argNode, bta ) then slotKind[i] = cast( ulong, bta.kind ) : slotId[i] = cast( ulong, bta.id ) : continue for
             '' 'f( type( ) )' -- see BareTypeLiteralArg_. The literal has no type of
             '' its own, so nothing typed it and LowerAddr had nothing to take.
             dim as long btSlot = -1

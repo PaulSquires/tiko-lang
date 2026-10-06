@@ -131,4 +131,38 @@ function ParamIsArray _
     return false
 end function
 
+
+'' A BARE TYPE NAME AS AN ARGUMENT -- 'byref param as foo = foo', the default written as the type --
+'' is a DEFAULT-CONSTRUCTED TEMPORARY of that type, destroyed with the statement's others. Lowered as
+'' an expression the name became a fresh variable called 'foo', never constructed, and the callee read
+'' 0 where fbc reads the constructor's default (structs/obj_default_param.bas). False, emitting
+'' nothing, for anything else.
+function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean
+    e = Unparen_( c, e )
+    if (e = Tko.NODE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_IDENT) then return false
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( e ) )
+    if (s = 0) orelse (s->kind <> cast( ubyte, Tko.SYM_UDT )) then return false
+    dim as Tko.TypeId t = c.types->Unqualify( s->type_ )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as long sz = SizeOfType( c, t )
+    if sz <= 0 then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, sz )
+    if slot < 0 then return false
+    outa.kind = cast( ubyte, MV_LOCAL ) : outa.ty = cast( ubyte, MT_PTR ) : outa.id = slot
+    dim as Tko.SymbolId dc = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 )
+    if dc <> Tko.SYMBOL_NONE then
+        EmitStructorCall( c, dc, slot )
+    elseif TypeNeedsInit_( c, t ) then
+        CallImplicitCtor_( c, t, outa )
+    else
+        dim as FB.Array( of ulong ) za
+        za.Push( cast( ulong, outa.kind ) ) : za.Push( cast( ulong, outa.id ) )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, sz ) )
+        EmitRtl( c, RTL_MEMSET, za )
+    end if
+    if TypeNeedsDtor_( c, t ) then c.udtTemps.Push( cast( ulong, slot ) ) : c.udtTempTypes.Push( cast( ulong, t ) )
+    return true
+end function
+
 end namespace
