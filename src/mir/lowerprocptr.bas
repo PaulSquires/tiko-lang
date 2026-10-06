@@ -292,8 +292,27 @@ function LowerProcPtr _
 
     '' A RUNTIME ENTRY POINT, which fbc predeclares and nothing in the source declares:
     '' 'procptr( fb_ArrayRedimEx )'. Its address is the same M_FUNC_ADDR over the
-    '' inventory's own linker name.
-    if c.ast->Kind( fnE ) = Tko.N_IDENT then
+    '' inventory's own linker name. ...ONLY WHEN NOTHING IN THE SOURCE IS NAMED SO: fbcunit's
+    '' 'procptr( val )' over a 'sub val' (a TEST named val) took the address of fb_VAL, and
+    '' the suite runner called it -- an access violation (functions/fixstr_arg.bas).
+    '' The name's own lookup, from where it is written: the operand of an intrinsic is not
+    '' always bound by Resolve, and a bare 'val' then read as the runtime's.
+    dim as Tko.SymbolId usid = c.info->RefOf( fnE )
+    if (usid = Tko.SYMBOL_NONE) andalso (c.ast->Kind( fnE ) = Tko.N_IDENT) then
+        usid = c.syms->Lookup( c.info->ScopeOf( fnE ), c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )].name )
+    end if
+    dim as boolean userBound = false
+    dim as Tko.Symbol ptr ubs = c.syms->SymbolAt( usid )
+    if ubs <> 0 then userBound = (ubs->kind = cast( ubyte, Tko.SYM_PROC )) andalso ((ubs->flags and Tko.SYMF_BUILTIN) = 0)
+    if userBound then   '' ...and declared in the program, not the prelude's runtime declarations
+        dim as Tko.SourceFile ptr usf = c.srcMgr->FileAt( c.srcMgr->Decode( ubs->loc ).file )
+        if (usf = 0) orelse usf->isVirtual then userBound = false
+    end if
+    if userBound andalso (lp->count = 1) andalso (c.info->RefOf( fnE ) = Tko.SYMBOL_NONE) then
+        outv = FuncAddrOf( c, usid )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if (c.ast->Kind( fnE ) = Tko.N_IDENT) andalso (userBound = false) then
         dim as Tko.IdentPayload ptr rip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, fnE )].data )]
         dim as RtlId rr = RtlByName( c.names->Spelling( rip->name ) )

@@ -1,0 +1,12 @@
+'' 'procptr( val )' OVER A PROGRAM'S OWN 'sub val' is that sub, not the runtime's VAL -- fbcunit
+'' registers a TEST named val that way, and tiko handed the runner fb_VAL's address: an access
+'' violation (fbc's functions/fixstr_arg.bas). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/procptr-user-over-rtl.bas -o tests/codegen/procptruseroverrtl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/procptruseroverrtl.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: user val
+'' EXPECT-RUN-OUT: user val
+'' EXPECT-RUN-OUT: main
