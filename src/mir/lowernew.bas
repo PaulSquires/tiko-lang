@@ -352,6 +352,8 @@ function LowerNew_ _
     ''     label$10:;
     dim as boolean isPlace = _
         ((c.ast->nodes[cast( long, id )].flags and Tko.NF_PLACEMENT) <> 0)
+    '' 'new T( any )' -- allocated and NOT initialised: no constructor, no zeroing.
+    dim as boolean noInit = ((c.ast->nodes[cast( long, id )].flags and Tko.NF_NOINIT) <> 0)
     dim as long argFirst = np->first
     dim as long argCount = np->count
     dim as MirValue raw
@@ -384,6 +386,11 @@ function LowerNew_ _
             dim as FB.Array( of ulong ) na
             na.Push( cast( ulong, MV_CONST_INT ) ) : na.Push( cast( ulong, esz ) )
             raw = EmitDirectCall_( c, opNew, MT_PTR, na )
+        elseif noInit then
+            '' 'new T( any )': malloc( bytes ), which zeroes nothing.
+            dim as FB.Array( of ulong ) ma
+            ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, esz ) )
+            raw = EmitRtl( c, RTL_MALLOC, ma )
         else
             '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
             '' passes 1, folding the whole size into the first -- not the other way round.
@@ -464,8 +471,11 @@ function LowerNew_ _
         if ctTyped then ctor = PickCtor( c, StructorOf( c, el, "__ctor" ), ctArgT )
     end if
     if ctor = Tko.SYMBOL_NONE then ctor = CtorOf_( c, el, argCount )
+    if noInit then ctor = Tko.SYMBOL_NONE
     dim as boolean implCtor = false
-    if (ctor = Tko.SYMBOL_NONE) andalso (argCount = 0) then
+    dim as boolean implCand = (ctor = Tko.SYMBOL_NONE) andalso (argCount = 0)
+    if noInit then implCand = false
+    if implCand then
         implCtor = (c.types->Kind( el ) = Tko.TK_UDT) andalso TypeNeedsInit_( c, el )
     end if
 

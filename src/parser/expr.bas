@@ -1024,7 +1024,12 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
             end if
         elseif Peek( p ) = Tko.TK_LPAREN then
             Advance( p )
-            if Peek( p ) <> Tko.TK_RPAREN then
+            '' 'new T( any )' -- ONE OBJECT, UNINITIALISED: fbc mallocs it (or calls T's 'operator
+            '' new') and runs nothing on it (overload/op_new_delete.bas). 'any' declined here.
+            if Peek( p ) = Tko.KW_ANY then
+                Advance( p )
+                nNoInit = true
+            elseif Peek( p ) <> Tko.TK_RPAREN then
                 do
                     nargs.Push( cast( ulong, Expression( p ) ) )
                     if Accept( p, Tko.TK_COMMA ) = false then exit do

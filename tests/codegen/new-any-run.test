@@ -1,0 +1,11 @@
+'' 'new T( any )' allocates ONE object and initialises nothing -- through T's own 'operator new'
+'' when it has one, else malloc (fbc's overload/op_new_delete.bas). tiko parsed 'any' as an
+'' argument and declined. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-any.bas -o tests/codegen/newany.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/newany.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT: after
