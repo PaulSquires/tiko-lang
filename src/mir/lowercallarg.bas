@@ -235,6 +235,55 @@ function UdtByrefCast_ _
     return cs
 end function
 
+'' ...OR ANY CAST TO A TYPE THAT COPIES OR DESTROYS: fbc gives that one a STATIC result and
+'' returns a pointer to it (EmitMemberCallArgs_), so it too hands back an object to copy out
+'' of. Measured, 'dim as TU u = v' over 'TV.cast( ) as TU' and 'TU( byref as TU )': the cast,
+'' then the copy constructor (structs/udt-init-ops-1.bas). A trivial TU keeps its by-value
+'' path -- UdtCastArgOk_. 'isRef' says which: only a reference may be passed on as itself.
+function UdtPtrCast_ _
+    ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId, byref isRef as boolean ) as Tko.SymbolId
+
+    isRef = false
+    dim as Tko.SymbolId cs = UdtByrefCast_( c, au, pt )
+    if cs <> Tko.SYMBOL_NONE then
+        isRef = true
+        return cs
+    end if
+    if UdtCastArgOk_( c, au, pt ) then return Tko.SYMBOL_NONE
+    return UdtCastToUdt_( c, au, pt )
+end function
+
+'' WHERE UdtPtrCast_'s RESULT IS: the reference, or the value -- in the call's hidden-pointer
+'' temporary, or one of its own when the aggregate comes back by value. A byref parameter is
+'' handed it as it is: fbc's 's2( v )' over 'TV.cast( ) as TU' is 'cast', the copy inside it,
+'' one destructor.
+private function CastResultAddr_ _
+    ( byref c as Ctx, byval cs as Tko.SymbolId, byval isRef as boolean, byref self_ as MirValue, _
+      byval pt as Tko.TypeId ) as MirValue
+
+    dim as MirValue none_
+    if isRef then return EmitMemberCall( c, cs, self_, MT_PTR )
+    '' A HIDDEN-POINTER RESULT is already in a temporary of its own, registered for
+    '' destruction at the end of the statement -- which fbc does too: 'dim as TU a = v' over
+    '' 'TV.cast( ) as TU' is 'cast', the copy inside it, a's copy, and two destructors.
+    dim as long tmark = c.udtTemps.Count
+    dim as MirValue v = EmitMemberCall( c, cs, self_, MT_AGG )
+    if v.kind = cast( ubyte, MV_NONE ) then return none_
+    if c.udtTemps.Count > tmark then
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL ) : sa.ty = cast( ubyte, MT_PTR )
+        sa.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+        return sa
+    end if
+    dim as long rslot = NewTempLocal( c, MT_AGG, SizeOfType( c, pt ) )
+    if rslot < 0 then return none_
+    dim as MirValue ra
+    ra.kind = cast( ubyte, MV_LOCAL ) : ra.ty = cast( ubyte, MT_PTR ) : ra.id = rslot
+    StoreThrough( c, ra, v )
+    if TypeNeedsDtor_( c, pt ) then c.udtTemps.Push( cast( ulong, rslot ) ) : c.udtTempTypes.Push( cast( ulong, pt ) )
+    return ra
+end function
+
 '' The argument's type, as the conversion picks see it: a reference is the thing it
 '' refers to, and a qualifier is not part of the question.
 function ArgUdtType_( byref c as Ctx, byval argNode as Tko.NodeId ) as Tko.TypeId
@@ -331,19 +380,23 @@ function ByrefCastInit_ _
     dim as Tko.TypeId pt = c.types->Unqualify( t )
     if au = pt then return false
     if c.types->BaseDistance( au, pt ) >= 0 then return false
-    dim as Tko.SymbolId bcast = UdtByrefCast_( c, au, pt )
+    dim as boolean bIsRef
+    dim as Tko.SymbolId bcast = UdtPtrCast_( c, au, pt, bIsRef )
     if bcast = Tko.SYMBOL_NONE then return false
     if DirectUdtCtor_( c, pt, au ) then return false
     if UdtCastArgOk_( c, au, pt ) then return false
     dim as MirValue bself = LowerAddr( c, init_ )
     if bself.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirValue bref = EmitMemberCall( c, bcast, bself, MT_PTR )
+    dim as MirValue bref = CastResultAddr_( c, bcast, bIsRef, bself, pt )
     if bref.kind = cast( ubyte, MV_NONE ) then return false
     return CopyIntoFromRef_( c, pt, dst, bref )
 end function
 
-'' A one-parameter constructor of 'pt' taking 'at' itself or one of its bases -- not one
-'' reached through a conversion of 'at'.
+'' A one-parameter constructor of 'pt' that takes 'at' -- itself, a base, or through another of
+'' its casts -- OTHER THAN the copy constructor, which a cast to 'pt' reaches too. Measured on
+'' fbc, TV casting to both STRING and TU, TU constructible from a string and from TU:
+'' 'dim as TU u = v' is the string cast and the string constructor (structs/udt-init-ops-1.bas
+'' ns12) -- the TU cast and the copy only when no other constructor takes TV at all.
 function DirectUdtCtor_( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
     dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )
     dim as long guard = 0
@@ -356,7 +409,10 @@ function DirectUdtCtor_( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko
             if cpt <> Tko.TYPE_NONE then
                 cpt = c.types->Unqualify( cpt )
                 if c.types->Kind( cpt ) = Tko.TK_REFERENCE then cpt = c.types->Unqualify( c.types->Inner( cpt ) )
-                if (c.types->Kind( cpt ) = Tko.TK_UDT) andalso (c.types->BaseDistance( at, cpt ) >= 0) then return true
+                if cpt <> c.types->Unqualify( pt ) then
+                    if (c.types->Kind( cpt ) = Tko.TK_UDT) andalso (c.types->BaseDistance( at, cpt ) >= 0) then return true
+                    if Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, at, cpt ) < Tko.Check.CONV_NONE then return true
+                end if
             end if
         end if
         cur = cs->nextOverload
@@ -405,12 +461,13 @@ private function UdtConvTemp_ _
     '' constructor reached THROUGH this cast, and that path passed the argument's bytes to it
     '' uncast. A trivial destination copied by value keeps the path below.
     dim as Tko.SymbolId bcast = Tko.SYMBOL_NONE
-    if aut <> Tko.TYPE_NONE then bcast = UdtByrefCast_( c, aut, pt )
+    dim as boolean bIsRef = false
+    if aut <> Tko.TYPE_NONE then bcast = UdtPtrCast_( c, aut, pt, bIsRef )
     if (bcast <> Tko.SYMBOL_NONE) andalso (preferCast orelse (DirectUdtCtor_( c, pt, aut ) = false)) andalso _
        (preferCast orelse (UdtCastArgOk_( c, aut, pt ) = false)) then
         dim as MirValue bself = LowerAddr( c, argNode )
         if bself.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue bref = EmitMemberCall( c, bcast, bself, MT_PTR )
+        dim as MirValue bref = CastResultAddr_( c, bcast, bIsRef, bself, pt )
         if bref.kind = cast( ubyte, MV_NONE ) then return false
         if preferCast then
             outa = bref
@@ -814,7 +871,8 @@ private function ArgNeedsUdtConv_ _
         if HasUdtConvCtor_( c, pt, at ) then return true
         '' ...OR THE ARGUMENT CASTS TO IT -- see UdtCastArgOk_, which is the same
         '' test the conversion makes, so a yes here is a conversion that happens.
-        return UdtCastArgOk_( c, at, pt ) orelse (UdtByrefCast_( c, at, pt ) <> Tko.SYMBOL_NONE)
+        dim as boolean nIsRef
+        return UdtCastArgOk_( c, at, pt ) orelse (UdtPtrCast_( c, at, pt, nIsRef ) <> Tko.SYMBOL_NONE)
     end if
     return true
 end function
@@ -1016,9 +1074,19 @@ end function
 '' emitted NOTHING for the statement. Only into a parameter type UdtCastArgOk_ allows -- the
 '' cast's result is bit-copied into a temporary that is not destroyed. False, emitting nothing,
 '' when no 'let' takes such a type.
+declare function LetParamType_( byref c as Ctx, byval sym as Tko.SymbolId ) as Tko.TypeId
+
+'' THE DESTINATION LetViaCast_ ASSIGNS: the one it was handed -- a function result -- or
+'' the target's address.
+private function DstAddr_( byref c as Ctx, byval target as Tko.NodeId, byval dstp as MirValue ptr ) as MirValue
+    if dstp <> 0 then return *dstp
+    return LowerAddr( c, target )
+end function
+
+
 function LetViaCast_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
-      byval atl as Tko.TypeId, byval avt as Tko.TypeId ) as boolean
+      byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = 0 ) as boolean
     if (atl = Tko.TYPE_NONE) orelse (avt = Tko.TYPE_NONE) orelse (atl = avt) then return false
     if (c.types->Kind( atl ) <> Tko.TK_UDT) orelse (c.types->Kind( avt ) <> Tko.TK_UDT) then return false
     dim as Tko.SymbolId cur = StructorOf( c, atl, "let" )
@@ -1027,16 +1095,62 @@ function LetViaCast_ _
         guard += 1
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
         if ls = 0 then exit while
-        dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
-        dim as Tko.TypeId pt = Tko.TYPE_NONE
-        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
-            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-            for k as long = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
-                if c.ast->Kind( prm ) = Tko.N_PARAM then pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) ) : exit for
-            next
+        dim as Tko.TypeId pt = LetParamType_( c, cur )
+        '' A 'let' TAKING THE SOURCE'S OWN TYPE is not this function's: no conversion at all.
+        if (pt <> Tko.TYPE_NONE) andalso (c.types->BaseDistance( avt, pt ) >= 0) then return false
+        cur = ls->nextOverload
+    wend
+    '' A 'let( byref as string )' OVER THE SOURCE'S STRING CAST comes first: measured, TV casting
+    '' to STRING and to TU, TU with both lets -- 'u = v' is the string cast and the string let
+    '' (structs/udt-init-ops-1.bas ns32), not the TU cast.
+    if HasNarrowStrCast_( c, avt ) then
+        cur = StructorOf( c, atl, "let" )
+        guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+            guard += 1
+            dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
+            if ls = 0 then exit while
+            dim as Tko.TypeId spt = LetParamType_( c, cur )
+            if (spt <> Tko.TYPE_NONE) andalso (c.types->Kind( spt ) = Tko.TK_BUILTIN) andalso _
+               (c.types->BuiltinOf( spt ) = Tko.TY_STRING) then
+                dim as MirValue sda = DstAddr_( c, target, dstp )
+                if sda.kind = cast( ubyte, MV_NONE ) then return false
+                dim as MirValue ssd
+                if StrDescriptorOf_( c, value, ssd ) = false then return false
+                dim as FB.Array( of ulong ) sargs
+                sargs.Push( cast( ulong, ssd.kind ) ) : sargs.Push( cast( ulong, ssd.id ) )
+                EmitStructorCall( c, cur, -1, @sda, @sargs )
+                return true
+            end if
+            cur = ls->nextOverload
+        wend
+    end if
+    cur = StructorOf( c, atl, "let" )
+    guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
+        if ls = 0 then exit while
+        dim as Tko.TypeId pt = LetParamType_( c, cur )
+        '' A CAST THAT HANDS BACK AN OBJECT -- see UdtPtrCast_. Measured, 'u = v' over
+        '' 'TV.cast( ) as TU' and 'TU.let( byref as TU )', TU constructible from TV too: the
+        '' cast, the copy inside it, the let -- the cast beats the constructor
+        '' (structs/udt-init-ops-1.bas ns33).
+        dim as boolean lIsRef
+        dim as Tko.SymbolId lpc = Tko.SYMBOL_NONE
+        if pt <> Tko.TYPE_NONE then lpc = UdtPtrCast_( c, avt, pt, lIsRef )
+        if lpc <> Tko.SYMBOL_NONE then
+            dim as MirValue lself = LowerAddr( c, value )
+            if lself.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue lref = CastResultAddr_( c, lpc, lIsRef, lself, pt )
+            if lref.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue lda = DstAddr_( c, target, dstp )
+            if lda.kind = cast( ubyte, MV_NONE ) then return false
+            dim as FB.Array( of ulong ) llargs
+            llargs.Push( cast( ulong, lref.kind ) ) : llargs.Push( cast( ulong, lref.id ) )
+            EmitStructorCall( c, cur, -1, @lda, @llargs )
+            return true
         end if
-        if (pt <> Tko.TYPE_NONE) andalso (c.types->Kind( pt ) = Tko.TK_REFERENCE) then pt = c.types->Unqualify( c.types->Inner( pt ) )
         if (pt <> Tko.TYPE_NONE) andalso UdtCastArgOk_( c, avt, pt ) then
             dim as Tko.SymbolId cs = UdtCastToUdt_( c, avt, pt )
             dim as MirValue self_ = LowerAddr( c, value )
@@ -1048,7 +1162,7 @@ function LetViaCast_ _
             dim as MirValue ta
             ta.kind = cast( ubyte, MV_LOCAL ) : ta.ty = cast( ubyte, MT_PTR ) : ta.id = slot
             StoreThrough( c, ta, cv )
-            dim as MirValue da = LowerAddr( c, target )
+            dim as MirValue da = DstAddr_( c, target, dstp )
             if da.kind = cast( ubyte, MV_NONE ) then return false
             dim as FB.Array( of ulong ) largs
             largs.Push( cast( ulong, ta.kind ) ) : largs.Push( cast( ulong, ta.id ) )
@@ -1057,5 +1171,42 @@ function LetViaCast_ _
         end if
         cur = ls->nextOverload
     wend
+    '' ...ELSE A TEMPORARY OF THE TARGET'S TYPE, built by its constructor from the source, and
+    '' that type's own 'let'. Measured, no cast and 'TU( byref as TV )': 'ctor<-TV let<-TU'
+    '' (ns34). tiko passed v itself to 'let( byref as TU )'.
+    if DirectUdtCtor_( c, atl, avt ) then
+        dim as FB.Array( of ulong ) tletT
+        tletT.Push( cast( ulong, atl ) )
+        dim as Tko.SymbolId tlet = PickCtor( c, StructorOf( c, atl, "let" ), tletT )
+        if (tlet <> Tko.SYMBOL_NONE) andalso (LetParamType_( c, tlet ) = atl) then
+            dim as long cslot = NewTempLocal( c, MT_AGG, SizeOfType( c, atl ) )
+            if cslot < 0 then return false
+            dim as MirValue cda = DstAddr_( c, target, dstp )
+            if cda.kind = cast( ubyte, MV_NONE ) then return false
+            if LowerConvCtorInit_( c, cslot, atl, value, 0 ) = false then return false
+            if TypeNeedsDtor_( c, atl ) then c.udtTemps.Push( cast( ulong, cslot ) ) : c.udtTempTypes.Push( cast( ulong, atl ) )
+            dim as FB.Array( of ulong ) cargs
+            cargs.Push( cast( ulong, MV_LOCAL ) ) : cargs.Push( cast( ulong, cslot ) )
+            EmitStructorCall( c, tlet, -1, @cda, @cargs )
+            return true
+        end if
+    end if
     return false
+end function
+
+'' The type of an 'operator let''s one parameter, reference and qualifiers stripped.
+private function LetParamType_( byref c as Ctx, byval sym as Tko.SymbolId ) as Tko.TypeId
+    dim as Tko.Symbol ptr ls = c.syms->SymbolAt( sym )
+    if ls = 0 then return Tko.TYPE_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
+    if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+        dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+        for k as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+            if c.ast->Kind( prm ) = Tko.N_PARAM then pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) ) : exit for
+        next
+    end if
+    if (pt <> Tko.TYPE_NONE) andalso (c.types->Kind( pt ) = Tko.TK_REFERENCE) then pt = c.types->Unqualify( c.types->Inner( pt ) )
+    return pt
 end function

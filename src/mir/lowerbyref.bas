@@ -498,7 +498,8 @@ function ByrefConvNeeded_ _
         '' temporary holding the converted value, exactly as a byval one takes a copy
         '' of it: UdtConvTemp_ builds the same temporary for both.
         if HasUdtConvCtor_( c, pu, au ) = false then
-            if (UdtCastArgOk_( c, au, pu ) = false) andalso (UdtByrefCast_( c, au, pu ) = Tko.SYMBOL_NONE) then return false
+            dim as boolean bIsRef
+            if (UdtCastArgOk_( c, au, pu ) = false) andalso (UdtPtrCast_( c, au, pu, bIsRef ) = Tko.SYMBOL_NONE) then return false
         end if
     elseif c.ast->Kind( Unparen_( c, argNode ) ) = Tko.N_TUPLE then
         return false

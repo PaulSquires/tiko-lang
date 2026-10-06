@@ -131,7 +131,35 @@ private function SretCopyResult_ _
             if (xvt <> Tko.TYPE_NONE) andalso (xvt <> c.types->Unqualify( rt )) then
                 dim as FB.Array( of ulong ) xT
                 xT.Push( cast( ulong, xvt ) )
-                if PickCtor( c, StructorOf( c, c.types->Unqualify( rt ), "__ctor" ), xT ) <> Tko.SYMBOL_NONE then
+                dim as Tko.TypeId urt = c.types->Unqualify( rt )
+                '' ANOTHER UDT WITH NO CONSTRUCTOR TO TAKE IT is the DEFAULT constructor and then the
+                '' assignment ladder 'u = v' walks. Measured, 'return v' over TU with lets only:
+                '' 'ctor()', then 'let( byref as TV )' -- or the TV cast and 'let( byref as TU )'
+                '' (structs/udt-init-ops-1.bas ns54, ns53a, ns54a). A cast to a TU that copies is
+                '' ByrefCastInit_'s, inside LowerConvCtorInit_ (ns53).
+                dim as boolean noCtor = (PickCtor( c, StructorOf( c, urt, "__ctor" ), xT ) = Tko.SYMBOL_NONE)
+                dim as boolean xRef
+                if (c.types->Kind( xvt ) = Tko.TK_UDT) andalso (UdtPtrCast_( c, xvt, urt, xRef ) <> Tko.SYMBOL_NONE) then
+                    dim as MirValue bsa
+                    bsa.kind = cast( ubyte, MV_LOCAL ) : bsa.ty = cast( ubyte, MT_PTR ) : bsa.id = c.sretParam
+                    dim as MirValue bdst = LowerExprLoad( c, bsa, MT_PTR )
+                    if bdst.kind <> cast( ubyte, MV_NONE ) then
+                        if ByrefCastInit_( c, -1, urt, valueE, @bdst ) then return true
+                    end if
+                end if
+                if noCtor andalso (c.types->Kind( xvt ) = Tko.TK_UDT) andalso (StructorOf( c, urt, "let" ) <> Tko.SYMBOL_NONE) then
+                    dim as Tko.SymbolId zct = StructorWithArity( c, StructorOf( c, urt, "__ctor" ), 0 )
+                    dim as MirValue ysa
+                    ysa.kind = cast( ubyte, MV_LOCAL ) : ysa.ty = cast( ubyte, MT_PTR ) : ysa.id = c.sretParam
+                    dim as MirValue ydst = LowerExprLoad( c, ysa, MT_PTR )
+                    if (zct <> Tko.SYMBOL_NONE) andalso (ydst.kind <> cast( ubyte, MV_NONE )) then
+                        EmitStructorCall( c, zct, -1, @ydst )
+                        if LetViaCast_( c, Tko.NODE_NONE, valueE, urt, xvt, @ydst ) then return true
+                        if LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.sretParam ) then return true
+                        return false
+                    end if
+                end if
+                if noCtor = false then
                     dim as MirValue xsa
                     xsa.kind = cast( ubyte, MV_LOCAL )
                     xsa.ty = cast( ubyte, MT_PTR )
@@ -252,6 +280,18 @@ function UdtConvResult_ _
         dim as Tko.SymbolId over = Tko.SYMBOL_NONE
         if isReturn then
             over = PickCtor( c, StructorOf( c, rt, "__ctor" ), argT )
+            '' ...AND NO CONSTRUCTOR TAKES ANOTHER UDT: the default one, then the assignment
+            '' ladder -- SretCopyResult_ says why (structs/udt-init-ops-1.bas ns53a, ns54a).
+            dim as Tko.TypeId uvt = c.types->Unqualify( vt )
+            if (over = Tko.SYMBOL_NONE) andalso (c.types->Kind( uvt ) = Tko.TK_UDT) andalso (StructorOf( c, rt, "let" ) <> Tko.SYMBOL_NONE) then
+                dim as Tko.SymbolId zct = StructorWithArity( c, StructorOf( c, rt, "__ctor" ), 0 )
+                if zct = Tko.SYMBOL_NONE then return false
+                EmitStructorCall( c, zct, c.resultSlot )
+                dim as MirValue rsa
+                rsa.kind = cast( ubyte, MV_LOCAL ) : rsa.ty = cast( ubyte, MT_PTR ) : rsa.id = c.resultSlot
+                if LetViaCast_( c, Tko.NODE_NONE, valueE, rt, uvt, @rsa ) then return true
+                return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.resultSlot, true )
+            end if
         else
             over = PickCtor( c, StructorOf( c, rt, "let" ), argT )
         end if
@@ -284,6 +324,14 @@ function SretAssignResult_ _
     '' descriptor and the program died with 0xC0000374 -- and AfxNova's
     '' AfxPathRemoveBackslashEx copied a 65536-byte one, which crashed clang outright.
     if (isThis = false) andalso (vt <> c.types->Unqualify( rt )) then
+        '' ...OR THROUGH THE SOURCE'S CAST, or a temporary built from it, as 'u = v' is: the
+        '' same ladder -- LetViaCast_ (structs/udt-init-ops-1.bas ns42-44).
+        if (vt <> Tko.TYPE_NONE) andalso (c.types->Kind( vt ) = Tko.TK_UDT) then
+            dim as MirValue lsa
+            lsa.kind = cast( ubyte, MV_LOCAL ) : lsa.ty = cast( ubyte, MT_PTR ) : lsa.id = c.sretParam
+            dim as MirValue ldst = LowerExprLoad( c, lsa, MT_PTR )
+            if (ldst.kind <> cast( ubyte, MV_NONE )) andalso LetViaCast_( c, Tko.NODE_NONE, valueE, c.types->Unqualify( rt ), vt, @ldst ) then return true
+        end if
         return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.sretParam )
     end if
     if vt <> c.types->Unqualify( rt ) then return false

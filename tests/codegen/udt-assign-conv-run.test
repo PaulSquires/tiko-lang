@@ -1,0 +1,10 @@
+'' structs: a UDT of another type assigned, 'function ='d or returned -- cast, converting ctor, or default ctor + let (structs/udt-init-ops-1.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-assign-conv.bas -o tests/codegen/udtassignconv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtassignconv.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor() |ctor() assign: cast ctor<-TU let<-TU 
+'' EXPECT-RUN-OUT: fn=: ctor() cast ctor<-TU let<-TU 
+'' EXPECT-RUN-OUT: return: ctor2() let2<-TV 
