@@ -357,7 +357,10 @@ sub LowerVarItem_ _
                 end if
                 '' A HIDDEN-POINTER RESULT IS BUILT IN THE VARIABLE: no default
                 '' constructor, no temporary, no copy -- see SretInPlaceInit_.
-                if (ivt = vst) andalso SretInPlaceInit_( c, slot, dvt, ip->b ) then
+                '' ...ONLY FOR A TYPE THAT COPIES OR CONSTRUCTS. A destructor alone is a temporary, a memcpy and the
+                '' temporary's destructor: fbc's 'dim x as DtorUdt = test1( ... )' is 'TEST1( &TMP, ... );
+                '' memcpy( &X, &TMP, 8 ); _ZN7DTORUDTD1Ev( &TMP )' (structs/temp-var-dtors.bas).
+                if (ivt = vst) andalso ((ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy orelse (StructorOf( c, dvt, "__ctor" ) <> Tko.SYMBOL_NONE) orelse HasDynArrayMember_( c, dvt )) andalso SretInPlaceInit_( c, slot, dvt, ip->b ) then
                     constructed = true
                 elseif (ucp <> Tko.SYMBOL_NONE) orelse wantImplCopy then
                     dim as MirValue dsa

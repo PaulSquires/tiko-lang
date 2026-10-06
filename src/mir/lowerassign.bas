@@ -300,6 +300,9 @@ private sub LowerAssign _
         if tlPlain then
             tlPlain = (StructorOf( c, tlt, "__ctor" ) = Tko.SYMBOL_NONE)
             tlPlain = tlPlain andalso (TypeNeedsInit_( c, tlt ) = false)
+            '' ...NOR A DESTRUCTOR: 'x = type<DtorUdt>( 123 )' builds a temporary, copies it and
+            '' destroys it -- two destructors with x's own (structs/temp-var-dtors.bas testAnon).
+            tlPlain = tlPlain andalso (TypeNeedsDtor_( c, tlt ) = false)
         end if
         if tlPlain then
             dim as boolean isList = (c.ast->Kind( value ) = Tko.N_TUPLE)
