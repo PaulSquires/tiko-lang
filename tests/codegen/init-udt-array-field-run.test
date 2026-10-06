@@ -1,0 +1,13 @@
+'' A FIELD THAT IS AN ARRAY OF UDTs takes a brace list of field lists, nested as deep as the
+'' type is (fbc's structs/field-init.bas nestedArrays); tiko declined it. Expected output is
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/init-udt-array-field.bas -o tests/codegen/initudtarrayfield.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/initudtarrayfield.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  146
+'' EXPECT-RUN-OUT:  71019
+'' EXPECT-RUN-OUT: 32
+'' EXPECT-RUN-OUT:  12343217

@@ -1,0 +1,16 @@
+'' A NESTED LIST IN AN INITIALISER FILLS ITS OWN FIELD AND PADS IT -- '( ( 1 ), 3 )' is p = ( 1, 0 ),
+'' z = 3, and '{ ( 1 ), ( 2, 3 ) }' element by element. tiko flattened values and fields and paired
+'' them by position, silently shifting later values, in shared, static and module-level forms.
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/init-nested-align.bas -o tests/codegen/initnestedalign.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/initnestedalign.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 0 3
+'' EXPECT-RUN-OUT:  120056
+'' EXPECT-RUN-OUT:  1 0 2 3 4 0
+'' EXPECT-RUN-OUT:  7 8 9
+'' EXPECT-RUN-OUT:  1 0 2 3 4 0
+'' EXPECT-RUN-OUT:  5 0 6

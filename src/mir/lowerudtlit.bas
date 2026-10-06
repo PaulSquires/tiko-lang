@@ -50,6 +50,10 @@ declare function FlattenUdtFields_ _
       byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
       byval depth as long, byref fts as FB.Array( of ulong ) ) as boolean
 
+'' Matching an initialiser's values to the fields they fill -- AlignInitValues_. Split out
+'' at the 1500-line cap, and INCLUDED here because it shares this unit's private helpers.
+#include once "mir/lowerinitalign.bas"
+
 '' 'type<P>( 5, 6 )' AS A VALUE, not as an initialiser -- an argument, a parameter
 '' default, anything that is not the right-hand side of a declaration. fbc builds a
 '' TEMPORARY and field-initialises it, exactly as it does for a declaration:
@@ -575,7 +579,13 @@ function LowerUdtParenInit_ _
     if fCount <= 0 then return false
 
     dim as FB.Array( of ulong ) vNode
-    if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    '' WHERE EACH VALUE STARTS -- see AlignInitValues_. Positional pairing when it declines.
+    dim as FB.Array( of ulong ) vStart
+    dim as boolean aligned = AlignInitValues_( c, t, init, vNode, vStart )
+    if aligned = false then
+        vNode.Clear( )
+        if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    end if
     dim as long vCount = vNode.Count
     if vCount <= 0 then return false
     '' MORE VALUES THAN FIELDS is not this construct -- it declines rather than
@@ -594,6 +604,8 @@ function LowerUdtParenInit_ _
     '' SIGN-EXTENDED AGGREGATE -- and wrote every field after it one place early.
     dim as FB.Array( of ulong ) vals
     dim as FB.Array( of ulong ) vOff
+    dim as FB.Array( of ulong ) gOff
+    dim as FB.Array( of ulong ) gLen
     dim as long cur = 0
     '' A STRING LEAF is recorded by its NODE and written at the store site, because it
     '' takes fb_StrInit rather than a store and there is no value to hold here.
@@ -615,6 +627,18 @@ function LowerUdtParenInit_ _
     dim as FB.Array( of ulong ) lTy
     for i as long = 0 to vCount - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
+        if aligned then
+            if cast( long, vStart[i] ) < cur then return false
+            '' A GAP -- the leaves a nested list left to their defaults -- is zeroed, as the
+            '' tail is below: the bytes from the first skipped leaf to this value's.
+            if (cast( long, vStart[i] ) > cur) andalso (cast( long, vStart[i] ) <= fCount) then
+                dim as long gEnd = c.udts->udts[ui].size
+                if cast( long, vStart[i] ) < fCount then gEnd = cast( long, fOff[vStart[i]] )
+                gOff.Push( fOff[cur] )
+                gLen.Push( cast( ulong, gEnd - cast( long, fOff[cur] ) ) )
+            end if
+            cur = cast( long, vStart[i] )
+        end if
         if cur >= fCount then return false
         dim as MirType fmt = cast( MirType, fTy[cur] )
         '' ...UNLESS THE VALUE IS THE WHOLE UDT FIELD that leaf opens. 'return (kv.key,
@@ -871,6 +895,23 @@ function LowerUdtParenInit_ _
                               cast( Tko.NodeId, lNode[i] ), lps ) = false then return false
     next
 
+    '' THE GAPS a nested list left -- see the alignment above.
+    for i as long = 0 to cast( long, gOff.Count ) - 1
+        if cast( long, gLen[i] ) <= 0 then continue for
+        dim as MirInst gfa
+        gfa.op = cast( ushort, M_FIELD_ADDR )
+        gfa.ty = cast( ubyte, MT_PTR )
+        gfa.a = base_
+        gfa.imm = cast( long, gOff[i] )
+        dim as MirValue gaddr = Emit( c, gfa )
+        if gaddr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) gma
+        gma.Push( cast( ulong, gaddr.kind ) ) : gma.Push( cast( ulong, gaddr.id ) )
+        gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( 0 )
+        gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( gLen[i] )
+        EmitRtl( c, RTL_MEMSET, gma )
+    next
+
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
     '' field with no value to the end of the object. A UNION gets none: measured, and
     '' the one place the two shapes disagree.
@@ -984,6 +1025,20 @@ function FlattenUdtFields_ _
                 end if
                 dim as Tko.TypeId et = c.types->Inner( fld->type_ )
                 dim as MirType emt = LowerType( et, *c.types )
+                '' AN ARRAY OF UDTs contributes each element's own leaves, as a nested UDT field
+                '' does: 'f( 0 to 1 ) as foo' in structs/field-init.bas's nestedArrays.
+                dim as Tko.TypeId eu = c.types->Unqualify( et )
+                dim as boolean udtElems = (c.types->Kind( eu ) = Tko.TK_UDT)
+                if udtElems then udtElems = (emt = MT_AGG) andalso (IsStringType( c, eu ) = false)
+                if udtElems then
+                    dim as long usz = SizeOfType( c, eu )
+                    dim as long un = c.types->ElemCount( fld->type_ )
+                    if (usz <= 0) orelse (un <= 0) then return false
+                    for k as long = 0 to un - 1
+                        if FlattenUdtFields_( c, eu, base_ + fld->offset + k * usz, offs, tys, depth + 1, fts ) = false then return false
+                    next
+                    continue for
+                end if
                 if (emt = MT_VOID) orelse (emt = MT_AGG) then return false
                 dim as long esz = c.types->Layout( et ).size
                 if esz <= 0 then return false
@@ -1187,7 +1242,14 @@ function FoldAggInit_ _
         return false
     end if
     dim as FB.Array( of ulong ) vNode
-    if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    '' EACH VALUE AT ITS OWN FIELD'S LEAF -- AlignInitValues_; positional when it declines.
+    '' The image starts zeroed, so a gap a nested list leaves needs nothing more.
+    dim as FB.Array( of ulong ) vStart
+    dim as boolean aligned = AlignInitValues_( c, t, init, vNode, vStart )
+    if aligned = false then
+        vNode.Clear( )
+        if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    end if
     if vNode.Count <= 0 then return false
     if vNode.Count > fOff.Count then return false
 
@@ -1195,8 +1257,11 @@ function FoldAggInit_ _
     '' included, and a static's storage starts that way in any case.
     dim as string img = string( size_, chr( 0 ) )
 
-    for i as long = 0 to vNode.Count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
+    for vi as long = 0 to vNode.Count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, vNode[vi] )
+        dim as long i = vi
+        if aligned then i = cast( long, vStart[vi] )
+        if i >= fOff.Count then return false
         dim as MirType fmt = cast( MirType, fTy[i] )
         dim as long off = cast( long, fOff[i] )
         dim as longint bits = 0
