@@ -1,0 +1,18 @@
+'' A string, string*N, wstring*N or ustring argument for a zstring ptr / wstring ptr parameter of a
+'' constructor or a method -- PtrStrArg_, the encoder the call path and the constructor path share.
+'' T( s ) over a zstring ptr constructor was an operand with no kind (TKO0993). Expected output is
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/strarg-ptr-param-ctor.bas -o tests/codegen/strargptrparamctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/strargptrparamctor.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: z:str
+'' EXPECT-RUN-OUT: z:fix   
+'' EXPECT-RUN-OUT: z:wid
+'' EXPECT-RUN-OUT: w:str
+'' EXPECT-RUN-OUT: w:ust
+'' EXPECT-RUN-OUT: mz:fix   
+'' EXPECT-RUN-OUT: mz:wid
+'' EXPECT-RUN-OUT: mz:str+

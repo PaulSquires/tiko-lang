@@ -1089,6 +1089,72 @@ function UStrParamArgTemp_ _
     return UStrRefArg_( c, argNode, pt, outv, c.strTemps, tt, c.strBackNode, c.strBackSlot )
 end function
 
+'' THE ONE STRING-TO-POINTER ENCODER (audit G3): a string argument for a 'zstring ptr' or a
+'' 'wstring ptr' parameter, or in a variadic tail. A call and a constructor take the same
+'' shapes -- measured, fbc over 'constructor( byval p as zstring ptr )':
+''
+''     T( s )      _ZN1TC1EPc( &A, *(char**)&S )                         its data pointer
+''     T( f )      fb_StrAssign( &TMP, -1, F, <tag>, 0 ); ... *(char**)&TMP
+''                 fb_StrAssign( F, <tag>, &TMP, -1, -1 )                 terminated, copied back
+''     T( w )      vr = fb_WstrToStr( W ); fb_StrAssign( &TMP, ... )      a narrow temporary
+''     T( u, 1 )   _ZN1TC1EPwi( &G, *(uint16**)&U, 1 )                    a ustring's UTF-16 data
+''
+'' -- and the constructor path had only the wide half, so 'T( s )' over a 'zstring ptr' went out
+'' as an operand with no kind (TKO0993). 'ppt' NONE with 'vararg' is a variadic tail, which
+'' takes a 'string * N' raw, as fbc does for printf. 1 encoded into 'outv'; 0 not a string
+'' argument for a pointer, nothing emitted; -1 one that did not lower.
+function PtrStrArg_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, _
+      byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), _
+      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as long
+
+    dim as boolean wantsZPtr = false
+    dim as boolean wantsWPtr = false
+    dim as Tko.TypeId at = c.info->TypeOf_( e )
+    dim as longint akn
+    dim as long ak = StrSwapKind_( c, at, akn )
+    if ppt <> Tko.TYPE_NONE then
+        if c.types->Kind( c.types->Unqualify( ppt ) ) <> Tko.TK_POINTER then return 0
+        dim as Tko.TypeId pin = c.types->Unqualify( c.types->Inner( c.types->Unqualify( ppt ) ) )
+        if c.types->Kind( pin ) <> Tko.TK_BUILTIN then return 0
+        if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
+            '' A WIDE ARGUMENT COUNTS TOO, converted into the same narrow temporary; and a FIXED
+            '' one, which IsStringType says no to -- 'zstring * 50' is an ARRAY of the character.
+            wantsZPtr = IsStringType( c, at ) orelse IsWideString_( c, at ) orelse cbool( ak = 1 ) orelse cbool( ak = 3 )
+        elseif c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
+            '' A NARROW ARGUMENT COUNTS TOO, and is CONVERTED (fb_StrToWstr); 'string * N' too.
+            wantsWPtr = IsWideString_( c, at ) orelse IsStringType( c, at ) orelse cbool( ak = 1 ) orelse cbool( ak = 3 )
+        end if
+    elseif vararg andalso (at <> Tko.TYPE_NONE) then
+        '' A NARROW STRING IN A VARIADIC TAIL IS ITS DATA POINTER; a descriptor by value made
+        '' 'printf( !"%s", s )' print nothing.
+        wantsZPtr = (IsStringType( c, at ) andalso (IsUStringType( c, at ) = false)) orelse cbool( ak = 1 ) orelse cbool( ak = 3 )
+    end if
+
+    if wantsWPtr then
+        if WideArgOperand_( c, e, outv, temps, tempTypes ) = false then NarrowToWideTemp_( c, e, outv )
+        if outv.kind = cast( ubyte, MV_NONE ) then return -1
+        return 1
+    end if
+    if wantsZPtr = false then return 0
+    '' 'string * N': terminated + copied back (FixStrZArgTemp_); a vararg takes the raw bytes.
+    if (ppt <> Tko.TYPE_NONE) andalso FixStrZArgTemp_( c, e, outv, temps, tempTypes, backN, backS ) then return 1
+    if ZstrDataOf_( c, e, outv ) then return 1
+    '' AN RVALUE HAS NO DESCRIPTOR TO TAKE THE DATA POINTER OUT OF: fbc builds one, passes its
+    '' data pointer and deletes it after the call -- the byval string temporary, read one level
+    '' further. A NARROW one whatever the source: a wide argument is converted into it.
+    dim as Tko.TypeId zpt = at
+    if IsStringType( c, zpt ) = false then zpt = c.types->Builtin( Tko.TY_STRING )
+    dim as MirValue zt
+    dim as long slot = -1
+    if ByvalStrTemp_( c, e, zpt, zt, slot ) = false then return -1
+    temps.Push( cast( ulong, slot ) )
+    tempTypes.Push( cast( ulong, zpt ) )
+    outv = LowerExprLoad( c, zt, MT_PTR )
+    if outv.kind = cast( ubyte, MV_NONE ) then return -1
+    return 1
+end function
+
 '' THE ONE 'byref as ustring' ENCODER (audit G3) -- the USTRING twin of NarrowRefStrArg_, for a
 '' call, a constructor, an operator and a self-operator alike. Four shapes need a temporary;
 '' everything else is a ustring that owns its descriptor and passes it. Measured, fbc:

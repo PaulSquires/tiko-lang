@@ -642,120 +642,17 @@ function LowerCallParts _
             '' variable the callee will write through.
             if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
         else
-            '' A STRING PASSED TO A 'zstring ptr' PARAMETER IS ITS DATA POINTER.
-            '' Measured: fbc writes 'F( (char*)*(char**)&S )', and for an rvalue it
-            '' copies into a temporary descriptor first. Without it the argument
-            '' lowered to NOTHING and went out as a malformed operand -- a call with a
-            '' hole in it that the verifier does not look at.
+            '' A STRING FOR A 'zstring ptr' / 'wstring ptr' PARAMETER OR A VARIADIC TAIL -- PtrStrArg_,
+            '' the one encoder a constructor shares: its data pointer, a terminated copy of a
+            '' 'string * N' (copied back), or a converted temporary.
             dim as Tko.TypeId ppt = ArgParamType_( c, callee, calleeSigT, i + pbase )
-            dim as boolean wantsZPtr = false
-            dim as boolean wantsWPtr = false
-            if ppt <> Tko.TYPE_NONE then
-                if c.types->Kind( c.types->Unqualify( ppt ) ) = Tko.TK_POINTER then
-                    dim as Tko.TypeId pin = _
-                        c.types->Unqualify( c.types->Inner( c.types->Unqualify( ppt ) ) )
-                    if c.types->Kind( pin ) = Tko.TK_BUILTIN then
-                        if c.types->BuiltinOf( pin ) = Tko.TY_ZSTRING then
-                            '' A WIDE ARGUMENT COUNTS TOO, and is converted through
-                            '' the same narrow temporary: measured,
-                            '' 'G3( (char*)*(char**)&TMP$10$0, 0 )' after an
-                            '' fb_WstrAssignToA into it.
-                            dim as Tko.TypeId zat = c.info->TypeOf_( argNode )
-                            wantsZPtr = IsStringType( c, zat )
-                            wantsZPtr = wantsZPtr orelse IsWideString_( c, zat )
-                            '' A FIXED-LENGTH STRING COUNTS TOO, and IsStringType
-                            '' says no to one: 'zstring * 50' is an ARRAY of the
-                            '' character builtin, not the builtin. Measured, fbc
-                            '' passes the array's ADDRESS and loads nothing --
-                            '' 'G( (char*)Z$0 )' -- while this fell to the generic
-                            '' path, which LOADED the fifty bytes and then asked
-                            '' for a pointer-sized value out of them.
-                            dim as longint zaskn
-                            dim as long zask = StrSwapKind_( c, zat, zaskn )
-                            if (zask = 1) orelse (zask = 3) then wantsZPtr = true
-                        elseif c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
-                            '' A 'wstring ptr' PARAMETER TAKES THE WIDE DATA POINTER,
-                            '' which is what a wide value already IS: measured, fbc
-                            '' writes 'TMP = fb_WstrHex_l( 255 ); TAKEWSTRINGPTR( TMP )'
-                            '' and passes it straight through.
-                            '' A NARROW ARGUMENT COUNTS TOO, and is CONVERTED.
-                            '' Measured: 'f( s )' and 'f( z )' against a 'wstring ptr'
-                            '' parameter are 'fb_StrToWstr( (char*)*(char**)&S$0 )'
-                            '' and 'fb_StrToWstr( (char*)Z$0 )'. tiko loaded the
-                            '' DESCRIPTOR'S FIRST EIGHT BYTES and bitcast them to the
-                            '' wide pointer -- so the callee read narrow bytes as
-                            '' UTF-16, and nothing declined.
-                            dim as Tko.TypeId wat = c.info->TypeOf_( argNode )
-                            wantsWPtr = IsWideString_( c, wat )
-                            wantsWPtr = wantsWPtr orelse IsStringType( c, wat )
-                            if wantsWPtr = false then
-                                dim as longint wzn
-                                wantsWPtr = (StrSwapKind_( c, wat, wzn ) = 1) orelse (StrSwapKind_( c, wat, wzn ) = 3)   '' 'string * N' too
-                            end if
-                        end if
-                    end if
-                end if
-            elseif (callee <> Tko.SYMBOL_NONE) orelse (calleeSigT <> Tko.TYPE_NONE) then
-                '' A NARROW STRING IN A VARIADIC TAIL IS ITS DATA POINTER, as for a 'zstring
-                '' ptr' parameter. With no parameter to coerce to it went out as LowerExpr
-                '' made it -- the 24-byte DESCRIPTOR, by value -- so 'printf( !"%s", s )'
-                '' printed nothing or faulted, and 's & "x"' did not lower at all. Measured,
-                '' fbc passes '*(char**)&S$0', a fixed string's own address, and an rvalue's
-                '' temporary: 'fb_StrAssign( &TMP, -1, vr, -1, 0 ); printf( .., *(char**)&TMP )'.
-                dim as Tko.TypeId vat = c.info->TypeOf_( argNode )
-                if vat <> Tko.TYPE_NONE then
-                    wantsZPtr = IsStringType( c, vat ) andalso (IsUStringType( c, vat ) = false)
-                    dim as longint vakn
-                    dim as long vak = StrSwapKind_( c, vat, vakn )
-                    if (vak = 1) orelse (vak = 3) then wantsZPtr = true
-                end if
+            dim as boolean pvar = (ppt = Tko.TYPE_NONE) andalso ((callee <> Tko.SYMBOL_NONE) orelse (calleeSigT <> Tko.TYPE_NONE))
+            dim as long psk = PtrStrArg_( c, argNode, ppt, pvar, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot )
+            if psk < 0 then
+                c.blameNode = cast( ulong, argNode )
+                return CallFailed_( c, v, __LINE__ )
             end if
-            if wantsWPtr then
-                if WideArgOperand_( c, argNode, a, strTemps, strTempTypes ) = false then
-                    '' A NARROW ARGUMENT IS CONVERTED HERE TOO. 'wstring ptr' takes
-                    '' the same wide pointer 'byref as wstring' does, and fbc builds
-                    '' the same narrow temporary for an rvalue source.
-                    NarrowToWideTemp_( c, argNode, a )
-                end if
-                if a.kind = cast( ubyte, MV_NONE ) then
-                    c.blameNode = cast( ulong, argNode )
-                    return CallFailed_( c, v, __LINE__ )
-                end if
-                slotKind[i] = cast( ulong, a.kind )
-                slotId[i] = cast( ulong, a.id )
-                continue for
-            end if
-
-            if wantsZPtr then
-                if (((ppt <> Tko.TYPE_NONE) andalso FixStrZArgTemp_( c, argNode, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot )) = false) andalso (ZstrDataOf_( c, argNode, a ) = false) then   '' 'string * N': terminated + copied back (fbc); a vararg takes the raw bytes
-                    '' AN RVALUE HAS NO DESCRIPTOR TO TAKE THE DATA POINTER OUT OF.
-                    '' Measured: fbc builds one, passes its data pointer, and deletes
-                    '' it after the call --
-                    ''
-                    ''     fb_StrAssign( &TMP$5$0, -1, vr$8, -1, 0 );
-                    ''     TAKEZSTRINGPTR( (char*)*(char**)&TMP$5$0, 0 );
-                    ''     fb_StrDelete( &TMP$5$0 );
-                    ''
-                    '' -- which is the same temporary a byval string parameter gets,
-                    '' read one level further.
-                    dim as MirValue zt
-                    '' A NARROW TEMPORARY, whatever the source was: a WIDE argument
-                    '' is converted into it by fb_WstrAssignToA, and it is the
-                    '' temporary's type -- not the argument's -- that says which
-                    '' deleter releases it.
-                    dim as Tko.TypeId zpt = c.info->TypeOf_( argNode )
-                    if IsStringType( c, zpt ) = false then
-                        zpt = c.types->Builtin( Tko.TY_STRING )
-                    end if
-                    if ByvalStrTemp_( c, argNode, zpt, zt, tempSlot ) = false then
-                        c.blameNode = cast( ulong, argNode )
-                        return CallFailed_( c, v, __LINE__ )
-                    end if
-                    strTemps.Push( cast( ulong, tempSlot ) )
-                    strTempTypes.Push( cast( ulong, zpt ) )
-                    a = LowerExprLoad( c, zt, MT_PTR )
-                    if a.kind = cast( ubyte, MV_NONE ) then return CallFailed_( c, v, __LINE__ )
-                end if
+            if psk > 0 then
                 slotKind[i] = cast( ulong, a.kind )
                 slotId[i] = cast( ulong, a.id )
                 continue for

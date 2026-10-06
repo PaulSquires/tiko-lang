@@ -890,21 +890,14 @@ function LowerCtorInit _
             end if
         end if
 
-        '' A BYVAL 'wstring ptr' PARAMETER GIVEN A STRING TAKES ITS CHARACTERS -- CtorArgValue_. The
-        '' value was COERCED to the pointer: 'H( w )' over a 'wstring * 8' passed nothing,
-        '' '_ZN2H3C1EPw(@z, _)', an emitter ICE, and 'H( !"\uE8A5" )' passed the escape's narrow
-        '' spelling. fbc-modern takes that constructor for both and passes the characters.
+        '' A STRING FOR A 'zstring ptr' OR 'wstring ptr' PARAMETER -- PtrStrArg_, the call path's own
+        '' encoder. The value was COERCED to the pointer: 'H( w )' over a 'wstring ptr' and 'T( s )'
+        '' over a 'zstring ptr' passed nothing -- an operand with no kind, TKO0993.
         scope
-            dim as Tko.TypeId pcu = c.types->Unqualify( pty )
-            dim as Tko.TypeId acu = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, argNode[ai2] ) ) )
-            dim as boolean wptr = (c.types->Kind( pcu ) = Tko.TK_POINTER) andalso (c.types->Kind( acu ) <> Tko.TK_POINTER)
-            if wptr then
-                dim as Tko.TypeId pci = c.types->Unqualify( c.types->Inner( pcu ) )
-                wptr = (c.types->Kind( pci ) = Tko.TK_BUILTIN)
-                if wptr then wptr = (c.types->BuiltinOf( pci ) = Tko.TY_WSTRING)
-            end if
             dim as MirValue cpv
-            if wptr andalso CtorArgValue_( c, cast( Tko.NodeId, argNode[ai2] ), pty, cpv ) then
+            dim as long cpk = PtrStrArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, false, cpv, strTmp, strTmpTy, backN, backS )
+            if cpk < 0 then return false
+            if cpk > 0 then
                 argKind[ai2] = cast( ulong, cpv.kind )
                 argId[ai2] = cast( ulong, cpv.id )
                 argT[ai2] = cast( ulong, pty )

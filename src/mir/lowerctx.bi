@@ -1365,7 +1365,7 @@ declare function EmitRtl _
           byval anyChain as boolean = false ) as boolean
     declare function WideArgOperand_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
-          byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ) ) as boolean
+          byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ) ) as boolean : declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as long
     declare function ParamWantsWideRef_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
           byval idx as long ) as boolean
