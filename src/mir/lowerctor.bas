@@ -1347,19 +1347,18 @@ function LowerBaseFieldInit_ _
     end if
 
     '' THE LEADING FIELDS, one value each, in declaration order.
-    dim as long f0 = c.udts->udts[bui].first
-    dim as long nf = c.udts->udts[bui].count
-    if count > nf then return false
+    dim as FB.Array( of ulong ) lOff, lTy   '' a base subobject is entered -- lowernew.bas BaseLeafSlots_
+    if BaseLeafSlots_( c, bt, first_, count, lOff, lTy ) = false then return false
     dim as long tailOff = bsz
     for i as long = 0 to count - 1
-        dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
-        dim as MirType fmt = LowerType( fld->type_, *c.types )
+        dim as Tko.TypeId fty = cast( Tko.TypeId, lTy[i] ) : dim as long foff = cast( long, lOff[i] )
+        dim as MirType fmt = LowerType( fty, *c.types )
         if fmt = MT_VOID then return false
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
         '' A RECORD-TYPED FIELD takes a value of exactly its type, stored whole with its
         '' size: 'new Line2( type<Point>( 1, 2 ), 9 )' (T32). Anything else is declined.
         if fmt = MT_AGG then
-            if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( fld->type_ ) then return false
+            if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( fty ) then return false
         end if
         dim as MirValue av = LowerExpr( c, a )
         if av.kind = cast( ubyte, MV_NONE ) then return false
@@ -1369,11 +1368,11 @@ function LowerBaseFieldInit_ _
         fa.op = cast( ushort, M_FIELD_ADDR )
         fa.ty = cast( ubyte, MT_PTR )
         fa.a = selfAddr
-        fa.imm = fld->offset
+        fa.imm = foff
         dim as MirValue faddr = Emit( c, fa )
         if faddr.kind = cast( ubyte, MV_NONE ) then return false
         StoreThrough( c, faddr, av )
-        if i = count - 1 then tailOff = fld->offset + SizeOfType( c, fld->type_ )
+        if i = count - 1 then tailOff = foff + SizeOfType( c, fty )
     next
 
     '' ...AND THE REST OF THE SUBOBJECT ZEROED. Measured: fbc emits the memset even

@@ -1,0 +1,11 @@
+'' 'new T3( 3, 4, 5 )' over 'T3 extends T2 extends T1' fills T1.i, T2.j, T3.k -- a base whose
+'' argument is not of its own type is entered (structs/udt-upcast-2.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-base-field-list.bas -o tests/codegen/newbasefieldlist.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/newbasefieldlist.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              2
+'' EXPECT-RUN-OUT:  3             4             5
+'' EXPECT-RUN-OUT:  6             0             0

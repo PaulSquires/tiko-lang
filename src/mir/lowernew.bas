@@ -301,21 +301,58 @@ end function
 '' fills (T32).
 private function ScalarFieldList_ _
     ( byref c as Ctx, byval el as Tko.TypeId, byval n as long, byval first_ as long ) as boolean
-    dim as long ui = c.udts->Find( el )
-    if ui < 0 then return false
-    dim as long f0 = c.udts->udts[ui].first
-    if n > c.udts->udts[ui].count then return false
+    dim as FB.Array( of ulong ) lOff, lTy
+    if BaseLeafSlots_( c, el, first_, n, lOff, lTy ) = false then return false
     for i as long = 0 to n - 1
-        dim as MirType fmt = LowerType( c.udts->fields[f0 + i].type_, *c.types )
+        dim as MirType fmt = LowerType( cast( Tko.TypeId, lTy[i] ), *c.types )
         if fmt = MT_VOID then return false
         '' A record field needs an argument of exactly its type (LowerBaseFieldInit_).
         if fmt = MT_AGG then
             dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
             if c.types->Unqualify( c.info->TypeOf_( a ) ) <> _
-               c.types->Unqualify( c.udts->fields[f0 + i].type_ ) then return false
+               c.types->Unqualify( cast( Tko.TypeId, lTy[i] ) ) then return false
         end if
     next
     return true
+end function
+
+'' THE SLOTS 'n' field-list arguments fill in 't', as (offset, type) pairs: each field in order,
+'' except that a BASE subobject whose argument is not of the base's own type is ENTERED and its
+'' fields filled in turn. 'new T3( i, j, k )' over 'T3 extends T2 extends T1' is measured as i,
+'' j and k into T1.i, T2.j and T3.k (structs/udt-upcast-2.bas); tiko wanted a T2 for the first.
+'' 'object' is never entered -- its one field is the vptr. False when the arguments outnumber
+'' the slots.
+private sub BaseLeafWalk_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval off as long, byval first_ as long, _
+      byval n as long, byref ai as long, byref lOff as FB.Array( of ulong ), _
+      byref lTy as FB.Array( of ulong ) )
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return
+    dim as long f0 = c.udts->udts[ui].first
+    for i as long = 0 to c.udts->udts[ui].count - 1
+        if ai >= n then return
+        dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
+        dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
+        dim as boolean isBase = (c.vts <> 0) andalso (c.types->Kind( ft ) = Tko.TK_UDT)
+        if isBase then isBase = (fld->name = c.vts->baseName) andalso (c.types->NameOf( ft ) <> c.names->GetString( "object" ))
+        if isBase then
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + ai] )
+            if c.types->Unqualify( c.info->TypeOf_( a ) ) <> ft then
+                BaseLeafWalk_( c, ft, off + fld->offset, first_, n, ai, lOff, lTy )
+                continue for
+            end if
+        end if
+        lOff.Push( cast( ulong, off + fld->offset ) ) : lTy.Push( cast( ulong, fld->type_ ) )
+        ai += 1
+    next
+end sub
+
+function BaseLeafSlots_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, _
+      byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
+    dim as long ai = 0
+    BaseLeafWalk_( c, t, 0, first_, n, ai, lOff, lTy )
+    return (ai = n)
 end function
 
 function LowerNew_ _
