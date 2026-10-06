@@ -221,11 +221,36 @@ private function LowerForUdt_ _
         nargs.Push( cast( ulong, stpAddr.kind ) )
         nargs.Push( cast( ulong, stpAddr.id ) )
     end if
+    '' A 'next' RETURNING BYREF hands back the ADDRESS of its answer: 'operator next( .. )
+    '' byref as integer' (functions/return-byref.bas). Read as the i32 it was called for,
+    '' the address was never zero and the loop never ended. The value behind it is tested.
+    dim as boolean nextByref = false
+    dim as Tko.Symbol ptr nxs = c.syms->SymbolAt( nextOp )
+    dim as Tko.NodeId nxn = Tko.NODE_NONE
+    if nxs <> 0 then nxn = cast( Tko.NodeId, nxs->payload )
+    if (nxn <> Tko.NODE_NONE) andalso (c.ast->Kind( nxn ) = Tko.N_PROC) then
+        nextByref = ((StmtOf( c, nxn )->extra and Tko.PF_BYREF_RESULT) <> 0) orelse _
+                    ((c.ast->nodes[cast( long, nxn )].flags and Tko.NF_BYREF) <> 0)   '' lowerproc.bas's own test
+    end if
+    if (nextByref = false) andalso (nxs <> 0) then nextByref = (c.types->Kind( nxs->type_ ) = Tko.TK_REFERENCE)
     dim as MirValue more = _
-        EmitMemberCallArgs_( c, nextOp, addr, MT_I32, @nargs )
+        EmitMemberCallArgs_( c, nextOp, addr, iif( nextByref, MT_PTR, MT_I32 ), @nargs )
     if more.kind = cast( ubyte, MV_NONE ) then
         CloseScope( c )
         return false
+    end if
+    if nextByref then
+        dim as Tko.TypeId nrt = nxs->type_
+        if c.types->Kind( nrt ) = Tko.TK_REFERENCE then nrt = c.types->Inner( nrt )
+        dim as MirType nmt = LowerType( nrt, *c.types )
+        if (nmt = MT_VOID) orelse (nmt = MT_AGG) then nmt = MT_I64
+        dim as MirValue nv = LowerExprLoad( c, more, nmt )
+        dim as MirInst nz
+        nz.op = cast( ushort, M_ICMP_NE )
+        nz.ty = cast( ubyte, MT_I32 )
+        nz.a = nv
+        nz.b = ConstInt( c, 0, nmt )
+        more = Emit( c, nz )
     end if
     Terminate( c, MTERM_CONDBR, bodyB, exitB, more )
 
