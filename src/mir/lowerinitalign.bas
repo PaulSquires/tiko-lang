@@ -142,6 +142,31 @@ function AlignUdt_ _
     return true
 end function
 
+'' ONE DIMENSION'S BRACE LIST at leaf 'base_': the innermost holds elements, every other one
+'' a brace list per index. More entries than the dimension holds is not this.
+private function AlignDim_ _
+    ( byref c as Ctx, byval et as Tko.TypeId, byval d as long, byval rank as long, _
+      byval ext as long ptr, byval strd as long ptr, byval base_ as long, byval lst as Tko.NodeId, _
+      byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ) ) as boolean
+
+    dim as long n = ListCount_( c, lst )
+    if n > ext[d] then return false
+    if d < rank - 1 then
+        for j as long = 0 to n - 1
+            dim as Tko.NodeId sub_ = ListAt_( c, lst, j )
+            if c.ast->Kind( sub_ ) <> Tko.N_INITIALIZER then return false
+            if AlignDim_( c, et, d + 1, rank, ext, strd, base_ + j * strd[d], sub_, vNode, vStart ) = false then return false
+        next
+        return true
+    end if
+    dim as long ci = 0
+    for j as long = 0 to ext[d] - 1
+        if ci >= n then exit for
+        if AlignElem_( c, et, base_ + j * strd[d], lst, ci, vNode, vStart, 1 ) = false then return false
+    next
+    return (ci >= n)
+end function
+
 '' The whole initialiser: true when every value found its field and none was left over.
 function AlignInitValues_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
@@ -149,22 +174,39 @@ function AlignInitValues_ _
 
     if t = Tko.TYPE_NONE then return false
     t = c.types->Unqualify( t )
-    '' ...OR A STATIC ARRAY OF THEM, one element's leaves after another (FoldAggInit_):
-    '' '{ ( 1 ), ( 2 ) }' over a two-field UDT is ( 1, 0 ), ( 2, 0 ), not ( 1, 2 ), ( 0, 0 ).
+    '' ...OR A STATIC ARRAY, one element's leaves after another (FoldAggInit_), and each
+    '' NESTING LEVEL ONE DIMENSION: '{ ( 1 ), ( 2 ) }' over a two-field UDT is ( 1, 0 ),
+    '' ( 2, 0 ), and '{ { { 1, 2, 3 }, { 4, 5, 6 } }, ... }' over 'array( 1 to 3, 1 to 3,
+    '' 1 to 4 )' pads every row to four and every plane to three rows. Pairing flattened
+    '' values by position shifted them (dim/array_init.bas, a 'static' procedure).
     if c.types->Kind( t ) = Tko.TK_ARRAY then
-        if c.types->IsDynArray( t ) orelse (c.types->types[cast( long, t )].dims <> 1) then return false
+        if c.types->IsDynArray( t ) then return false
         if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
+        dim as long rank = c.types->types[cast( long, t )].dims
+        if (rank < 1) orelse (rank > 8) then return false
         dim as Tko.TypeId aet = c.types->Unqualify( c.types->Inner( t ) )
-        if (c.types->Kind( aet ) <> Tko.TK_UDT) orelse IsStringType( c, aet ) then return false
-        dim as FB.Array( of ulong ) po, pty, pft
-        if FlattenUdtFields_( c, aet, 0, po, pty, 0, pft ) = false then return false
-        dim as long ane = c.types->ElemCount( t )
-        dim as long aci = 0
-        for j as long = 0 to ane - 1
-            if aci >= ListCount_( c, init ) then exit for
-            if AlignElem_( c, aet, j * po.Count, init, aci, vNode, vStart, 1 ) = false then return false
+        dim as long pe = 1
+        if (c.types->Kind( aet ) = Tko.TK_UDT) andalso (IsStringType( c, aet ) = false) then
+            dim as FB.Array( of ulong ) po, pty, pft
+            if FlattenUdtFields_( c, aet, 0, po, pty, 0, pft ) = false then return false
+            pe = po.Count
+        elseif LowerType( aet, *c.types ) = MT_AGG then
+            return false   '' fixed strings and the like: FixStrArrayImage_ answers those
+        end if
+        '' THE STRIDE OF EACH DIMENSION, in leaves.
+        dim as long ext( 0 to 7 ), strd( 0 to 7 )
+        for d as long = 0 to rank - 1
+            dim as boolean k1 = false, k2 = false
+            dim as longint lo = c.types->ArrayBound( t, d, false, k1 )
+            dim as longint hi = c.types->ArrayBound( t, d, true, k2 )
+            if (k1 = false) orelse (k2 = false) orelse (hi < lo) then return false
+            ext( d ) = cast( long, hi - lo + 1 )
         next
-        if aci < ListCount_( c, init ) then return false
+        strd( rank - 1 ) = pe
+        for d as long = rank - 2 to 0 step -1
+            strd( d ) = strd( d + 1 ) * ext( d + 1 )
+        next
+        if AlignDim_( c, aet, 0, rank, @ext( 0 ), @strd( 0 ), 0, init, vNode, vStart ) = false then return false
         return (vNode.Count > 0)
     end if
     if c.types->Kind( t ) <> Tko.TK_UDT then return false

@@ -1,0 +1,14 @@
+'' A MULTI-DIMENSIONAL STATIC OR SHARED ARRAY: each brace level is one dimension, and a short
+'' list pads its own row or plane (fbc's dim/array_init.bas). tiko paired flattened values by
+'' position and shifted them. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/init-multidim-align.bas -o tests/codegen/initmultidimalign.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/initmultidimalign.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 2 3 0 4 5 6 0 0 0 0 0
+'' EXPECT-RUN-OUT:  7 8 9 0 10 11 12 0 0 0 0 0
+'' EXPECT-RUN-OUT:  0 0 0 0 0 0 0 0 0 0 0 0
+'' EXPECT-RUN-OUT:  1 0 0 2 3 0
+'' EXPECT-RUN-OUT:  1 0 0 2 3 4 0
