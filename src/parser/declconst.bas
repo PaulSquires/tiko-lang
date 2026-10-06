@@ -83,16 +83,38 @@ end function
 
 '' A CONST WHOSE VALUE IS A STRING LITERAL, told to the preprocessor as its text --
 '' '#if "abc" = S1' over 'const S1 = "abc"' is true to fbc (pp/if.bas), local or not.
-private sub NoteConstStr_( byref p as Tko.ParserState, byval nm as Tko.InternId, byval v as Tko.NodeId )
-    if (v = Tko.NODE_NONE) orelse (p.stream = 0) then return
-    if p.ast->Kind( v ) <> Tko.N_STRING_LIT then return
+'' THE TEXT OF A CONSTANT STRING INITIALISER: a literal, or 'lcase'/'ucase'/'wstr'/'str' over one --
+'' 'const Z = lcase( "XYZ123", 1 )' is "xyz123" to '#if Z <> "xyz123"' (string/case.bas).
+private function ConstStrText_( byref p as Tko.ParserState, byval v as Tko.NodeId, byref tx as string ) as boolean
+    if v = Tko.NODE_NONE then return false
+    if p.ast->Kind( v ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr cl = @p.ast->lists[cast( long, p.ast->nodes[cast( long, v )].data )]
+        if (cl->count < 1) orelse (cl->target = Tko.NODE_NONE) orelse (p.ast->Kind( cl->target ) <> Tko.N_IDENT) then return false
+        dim as string fnm = lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, cl->target )].data )].name ) )
+        if ConstStrText_( p, cast( Tko.NodeId, p.ast->children[cl->first] ), tx ) = false then return false
+        select case fnm
+        case "lcase" : tx = lcase( tx )
+        case "ucase" : tx = ucase( tx )
+        case "wstr", "str"
+        case else : return false
+        end select
+        return true
+    end if
+    if p.ast->Kind( v ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = @p.ast->literals[cast( long, p.ast->nodes[cast( long, v )].data )]
     dim as Tko.SourceFile ptr f = p.src->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if f = 0 then return
-    if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return
-    dim as string tx = space( lp->strLength )
+    if f = 0 then return false
+    if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
+    tx = space( lp->strLength )
     for i as long = 0 to lp->strLength - 1
         tx[i] = f->text[lp->strOffset + i]
     next
+    return true
+end function
+
+private sub NoteConstStr_( byref p as Tko.ParserState, byval nm as Tko.InternId, byval v as Tko.NodeId )
+    if (v = Tko.NODE_NONE) orelse (p.stream = 0) then return
+    dim as string tx
+    if ConstStrText_( p, v, tx ) = false then return
     Tko.PpNoteConstStr( *cast( Tko.PpStream ptr, p.stream ), nm, tx, cbool( p.procDepth <> 0 ) )
 end sub
