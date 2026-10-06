@@ -114,6 +114,8 @@ function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
 end function
 
 '' This type's vtable, built if it does not exist yet.
+declare function ImplicitDtorSlot_( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as boolean
+
 function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
     if t = Tko.TYPE_NONE then return -1
     if IsObjectType_( c, t ) then return -1
@@ -149,6 +151,8 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
         '' override fills the same index.
         if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then
             c.m->PushPtrNull( g )
+        elseif ImplicitDtorSlot_( c, t, sl ) then
+            c.m->PushPtrFunc( g, c.names->GetString( ImplicitDtorName_( c, t ) ) )
         else
             c.m->PushPtrFunc( g, c.names->GetString( Tko.Mangle.ProcName( _
                 *c.ast, sl->decl, *c.syms, *c.names, *c.types, *c.info ) ) )
@@ -156,6 +160,31 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
     next
     return g
 end function
+
+'' A BASE'S VIRTUAL DESTRUCTOR SLOT, IN A TYPE WITH NO DESTRUCTOR OF ITS OWN BUT ONE IMPLIED. B extends
+'' A, A's destructor virtual, B holding a field with a destructor and declaring none: fbc's implicit
+'' B destructor OVERRIDES A's, so 'delete pa' over an 'A ptr' to a B destroys the field too
+'' (virtual/virtual.bas implicitDtorOverrides). The slot named A's and the field leaked.
+function ImplicitDtorSlot_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as boolean
+    if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then return false
+    dim as Tko.Symbol ptr ds = c.syms->SymbolAt( sl->proc_ )
+    if (ds = 0) orelse (c.names->Spelling( ds->name ) <> "__dtor") then return false
+    if StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE then return false
+    return TypeNeedsDtor_( c, t )
+end function
+
+'' ...asked for before the synthesised structors are written, so the slot has a body to name.
+sub WantVirtualImplicitDtors_( byref c as Ctx )
+    if c.vts = 0 then return
+    for i as long = 0 to c.vts->types_.Count - 1
+        dim as Tko.TypeId t = c.vts->types_[i].type_
+        if IsObjectType_( c, t ) then continue for
+        for k as long = 0 to c.vts->types_[i].count - 1
+            if ImplicitDtorSlot_( c, t, @c.vts->slots[c.vts->types_[i].first + k] ) then WantImplicit_( c, t, 0 ) : exit for
+        next
+    next
+end sub
 
 '' Every table the unit needs. Called once, after the procedures are lowered, so a
 '' slot's function has a name to be referred to by.
@@ -352,6 +381,26 @@ function EmitVirtualDtor_ _
     return true
 end function
 
+
+'' A VIRTUAL MEMBER CALLED ON AN OBJECT ONLY KNOWN BY ITS STATIC TYPE -- 'operator let' above all:
+'' '*p = 123' over an 'A ptr' to a C runs C's let, through the vtable, under fbc (virtual/virtual.bas
+'' vtableSlotsReusedOperators). The let path called A's directly. False, emitting nothing, for a
+'' member that is not virtual or has no slot in 'el'.
+function EmitVirtualMember_ _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, _
+      byref selfp as MirValue, byval args as FB.Array( of ulong ) ptr ) as boolean
+
+    if c.vts = 0 then return false
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
+    if ms = 0 then return false
+    dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
+    if (md = Tko.NODE_NONE) orelse (c.ast->Kind( md ) <> Tko.N_PROC) then return false
+    if (StmtOf( c, md )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return false
+    dim as long slot = c.vts->SlotOf( c.types->Unqualify( el ), sym, md )
+    if slot < 0 then return false
+    dim as MirValue r = EmitMemberCallArgs_( c, sym, selfp, MT_VOID, args, slot )
+    return true
+end function
 
 '' 'a IS T' -- fb_IsTypeOf over the object's address and T's RTTI record.
 ''

@@ -600,9 +600,8 @@ function LowerUserLetConv_ _
         return false
     end if
     dim as FB.Array( of ulong ) largs
-    largs.Push( cast( ulong, av.kind ) )
-    largs.Push( cast( ulong, av.id ) )
-    EmitStructorCall( c, pick, -1, @da, @largs )
+    largs.Push( cast( ulong, av.kind ) ) : largs.Push( cast( ulong, av.id ) )
+    if EmitVirtualMember_( c, pick, t, da, @largs ) = false then EmitStructorCall( c, pick, -1, @da, @largs )   '' lowervtab.bas
     return true
 end function
 

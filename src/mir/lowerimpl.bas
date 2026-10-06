@@ -1460,7 +1460,7 @@ end sub
 sub EmitImplicitStructors( byref c as Ctx )
     if (c.vts = 0) orelse (c.udts = 0) then return
 
-    dim as long at = 0
+    WantVirtualImplicitDtors_( c ) : dim as long at = 0   '' lowervtab.bas
     dim as long guard = 0
     while (at < c.implWantedType.Count) andalso (guard < 100000)
         guard += 1

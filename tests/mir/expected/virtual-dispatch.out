@@ -4,7 +4,7 @@ global ptrs _ZTSN1AE [ 0, @$str1, @__fb_ZTS6Object ]
 global ptrs _ZTVN1AE [ 0, @_ZTSN1AE, _ZN1A1FEv, _ZN1AD1Ev ]
 global str $str4 "1B"
 global ptrs _ZTSN1BE [ 0, @$str4, @_ZTSN1AE ]
-global ptrs _ZTVN1BE [ 0, @_ZTSN1BE, _ZN1B1FEv, _ZN1AD1Ev ]
+global ptrs _ZTVN1BE [ 0, @_ZTSN1BE, _ZN1B1FEv, _ZN1BD1Ev ]
 global str $str7 "1C"
 global ptrs _ZTSN1CE [ 0, @$str7, @__fb_ZTS6Object ]
 global ptrs _ZTVN1CE [ 0, @_ZTSN1CE, _ZN1C1GEv ]

@@ -243,7 +243,24 @@ end function
 function EmitMemberCall _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
       byval rt as MirType ) as MirValue
-    return EmitMemberCallArgs_( c, sym, self_, rt, 0 )
+    '' A VIRTUAL ONE THROUGH THE RECEIVER'S VPTR -- 'operator cast' and 'operator @' are reached
+    '' only through here, and '*pa' over an 'A ptr' to a B called A's (virtual/virtual.bas
+    '' virtualOperators). The slot is the declaring type's, which every derived table keeps.
+    return EmitMemberCallArgs_( c, sym, self_, rt, 0, MemberVSlot_( c, sym ) )
+end function
+
+function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long
+    if c.vts = 0 then return -1
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
+    if ms = 0 then return -1
+    dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
+    if (md = Tko.NODE_NONE) orelse (c.ast->Kind( md ) <> Tko.N_PROC) then return -1
+    if (StmtOf( c, md )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return -1
+    dim as Tko.SymScope ptr os = c.syms->ScopeAt( ms->parent )
+    if (os = 0) orelse (os->kind <> cast( ubyte, Tko.SCOPEK_TYPE )) then return -1
+    dim as Tko.Symbol ptr ow = c.syms->SymbolAt( os->owner )
+    if ow = 0 then return -1
+    return c.vts->SlotOf( c.types->Unqualify( ow->type_ ), sym, md )
 end function
 
 '' WHERE A HIDDEN-POINTER RESULT LANDS: the variable a declaration has on offer, or a

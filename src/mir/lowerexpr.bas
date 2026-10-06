@@ -361,6 +361,7 @@ function LowerExpr _
                         dim as FB.Array( of ulong ) aoArgs
                         aoArgs.Push( cast( ulong, aoSelf.kind ) )
                         aoArgs.Push( cast( ulong, aoSelf.id ) )
+                        if MemberVSlot_( c, aoOp ) >= 0 then return EmitMemberCall( c, aoOp, aoSelf, MT_PTR )   '' a VIRTUAL '@' through the vptr (virtual.bas)
                         return EmitDirectCall_( c, aoOp, MT_PTR, aoArgs )
                     end if
                 end if

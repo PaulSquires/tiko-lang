@@ -338,6 +338,14 @@ private function Overrides_ _
     for i as long = 0 to pa.Count - 1
         if pa[i] <> pb[i] then return false
     next
+    '' AN OPERATOR IS ALSO TOLD APART BY ITS RESULT: 'cast( ) as string' and 'cast( ) as integer' take
+    '' the same (no) parameters and are two slots. Read as one, the second took the first's slot and
+    '' a call to the first went direct -- A's string cast through an 'A ptr' to a B (virtual/virtual.bas).
+    dim as StmtPayload ptr sa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
+    dim as StmtPayload ptr sb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+    if (sa->op = cast( ushort, KW_OPERATOR )) andalso (sb->op = cast( ushort, KW_OPERATOR )) then
+        if ReturnTypeOf_( ast, info, a ) <> ReturnTypeOf_( ast, info, b ) then return false
+    end if
     return true
 end function
 
