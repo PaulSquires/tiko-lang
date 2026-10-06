@@ -1,0 +1,11 @@
+'' A static or shared procptr initialised with '@proc' over an overload set takes the overload
+'' its type names, as a local does -- it took the first (overload/addressof.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/static-procptr-overload-pick.bas -o tests/codegen/staticprocptroverloadpick.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/staticprocptroverloadpick.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              3
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  3

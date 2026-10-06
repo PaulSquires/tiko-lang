@@ -650,6 +650,9 @@ function AddrWordOf_ _
     end if
     if c.ast->Kind( opnd ) <> Tko.N_IDENT then return false
     dim as Tko.SymbolId osid = c.info->RefOf( opnd )
+    '' OVER AN OVERLOAD SET, the one the target's type names -- Check's decision, as ProcAddrForWanted_
+    '' reads it. 'static fsng as fnsng = @proc' took the FIRST overload (overload/addressof.bas).
+    if c.info->DecisionOf( opnd ) <> Tko.SYMBOL_NONE then osid = c.info->DecisionOf( opnd )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( osid )
     if sy = 0 then return false
     if sy->kind = cast( ubyte, Tko.SYM_PROC ) then
@@ -771,7 +774,7 @@ private function GlobalRelocProc_ _
 
     if fn = Tko.NODE_NONE then return false
     if c.ast->Kind( fn ) <> Tko.N_IDENT then return false
-    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( fn ) )
+    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( iif( c.info->DecisionOf( fn ) <> Tko.SYMBOL_NONE, c.info->DecisionOf( fn ), c.info->RefOf( fn ) ) )
     if fs = 0 then return false
     if fs->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
@@ -850,6 +853,7 @@ private function GlobalRelocInit_ _
 
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.SymbolId sid = c.info->RefOf( a )
+    if c.info->DecisionOf( a ) <> Tko.SYMBOL_NONE then sid = c.info->DecisionOf( a )   '' the overload the target names (AddrWordOf_)
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
     if sy = 0 then return false
