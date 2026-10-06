@@ -1178,4 +1178,43 @@ function BitMask_( byval n as long ) as longint
     return (cast( longint, 1 ) shl n) - 1
 end function
 
+
+'' A FIELD DECLARED 'redim a( 2 to 6, 3 to 12 ) as T' IS SIZED BY THE CONSTRUCTOR, on top of the
+'' descriptor InitMember_ has just written: measured, fbc's constructor calls
+'' fb_ArrayRedimEx( THIS + off, 8, -1, 0, 2, 2, 6, 3, 12 ) (fbc-int/array.bas). The N_FIELD keeps
+'' its bounds as flat (lo, hi) children; op KW_REDIM is the parser's mark.
+sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol ptr )
+    if (f = 0) orelse (fa.kind = cast( ubyte, MV_NONE )) then return
+    if c.types->IsDynArray( f->type_ ) = false then return
+    dim as Tko.NodeId fn = cast( Tko.NodeId, f->payload )
+    if (fn = Tko.NODE_NONE) orelse (c.ast->Kind( fn ) <> Tko.N_FIELD) then return
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, fn )
+    if (sp->op <> cast( ushort, Tko.KW_REDIM )) orelse (sp->count < 2) then return
+    '' 'redim g( any )' is declared, not sized: nothing to do.
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( an ) = Tko.N_IDENT then
+            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, an )].data )].name ) ) = "any" then return
+        end if
+    next
+    dim as MirType zt = DescIntTy_( c )
+    dim as FB.Array( of ulong ) bk, bi
+    for i as long = 0 to (sp->count \ 2) * 2 - 1
+        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if bn = Tko.NODE_NONE then   '' 'redim f( 3 )': the lower bound is 0
+            dim as MirValue zv = ConstInt( c, 0, zt )
+            bk.Push( cast( ulong, zv.kind ) ) : bi.Push( cast( ulong, zv.id ) )
+            continue for
+        end if
+        dim as MirValue bv = LowerExpr( c, bn )
+        if bv.kind = cast( ubyte, MV_NONE ) then
+            SkipHere( c )
+            return
+        end if
+        bv = CoerceTy( c, bv, zt, c.info->TypeOf_( bn ) )
+        bk.Push( cast( ulong, bv.kind ) ) : bi.Push( cast( ulong, bv.id ) )
+    next
+    if EmitRedimCall_( c, fa, c.types->Inner( f->type_ ), sp->count \ 2, bk, bi, false ) = false then SkipHere( c )
+end sub
+
 end namespace

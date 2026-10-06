@@ -658,6 +658,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function AssignArrayResult_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol ptr )
     declare function EmitArrayBounds _
         ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
           byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean

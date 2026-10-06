@@ -1240,7 +1240,7 @@ sub WalkStmt _
         '' A field declared with bounds is an ARRAY of that type. The bounds are
         '' low/high pairs and the element count is their product -- which the layout
         '' needs, and which was simply lost while the bounds were being skipped.
-        t = ArrayFromBounds( c, t, sp->first, sp->count, here )
+        t = FieldArrayType_( c, t, sp, here )   '' resolvearr.bas: a 'redim' field is dynamic
         '' A FIELD ARRAY HAS THE SAME LIMIT -- 'as byte test(0 to &h7FFFFFFF)' inside a
         '' type is fbc's error 50 exactly as at module level. Four corpus files.
         ArrayTooBig_( c, t, id, sp->name )

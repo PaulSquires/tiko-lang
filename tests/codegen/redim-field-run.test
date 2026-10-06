@@ -1,0 +1,13 @@
+'' 'redim a( 2 to 6, 3 to 12 ) as T' IN A TYPE is a dynamic array FIELD sized by the constructor;
+'' '( any )' leaves it unsized and '( 4 )' starts at 0 (fbc's fbc-int/array.bas). tiko made it a
+'' variable of the type's scope with no storage, and indexing it faulted. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/redim-field.bas -o tests/codegen/redimfield.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/redimfield.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2 6 3 12 3
+'' EXPECT-RUN-OUT:  5z
+'' EXPECT-RUN-OUT:  12
+'' EXPECT-RUN-OUT:  3            -1             0             4

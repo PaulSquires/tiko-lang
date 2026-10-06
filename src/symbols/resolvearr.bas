@@ -26,6 +26,30 @@ end function
 
 
 
+'' A FIELD'S ARRAY TYPE: its bounds' fixed array -- or, for 'redim a( 2 to 6 ) as T', a
+'' DYNAMIC array of that rank, whose bounds the constructor applies (lowerdesc.bas
+'' RedimFieldInit_). Their names are bound here, as a field initialiser's are.
+function FieldArrayType_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval sp as Tko.StmtPayload ptr, _
+      byval here as Tko.ScopeId ) as Tko.TypeId
+    if (sp->op <> cast( ushort, Tko.KW_REDIM )) orelse (sp->count < 2) orelse (t = Tko.TYPE_NONE) then
+        return ArrayFromBounds( c, t, sp->first, sp->count, here )
+    end if
+    '' 'redim g( any )' is a plain dynamic field, unsized: ArrayFromBounds already answers that.
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( bn ) = Tko.N_IDENT then
+            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, bn )].data )].name ) ) = "any" then
+                return ArrayFromBounds( c, t, sp->first, sp->count, here )
+            end if
+        end if
+    next
+    for i as long = 0 to sp->count - 1
+        WalkExpr( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
+    next
+    return c.types->DynArrayOf( t, sp->count \ 2 )
+end function
+
 '' N_FIELD: flat (lo, hi) children.
 function ArrayFromBounds _
     ( byref c as Ctx, byval base_ as Tko.TypeId, byval first as long, _

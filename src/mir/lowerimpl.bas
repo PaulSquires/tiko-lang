@@ -544,6 +544,7 @@ sub EmitCtorPrologue_ _
             end if
         end if
         if needsInit andalso (fiIsCtorCall = false) then InitMember_( c, fa, f->type_ )
+        RedimFieldInit_( c, fa, f )   '' 'redim a( 2 to 6 )' in the type -- lowerdesc.bas
         '' AFTER the default initialisation, not instead of it: a field that needs a
         '' descriptor built still needs it, and the declared value goes on top.
         if fi <> Tko.NODE_NONE then EmitFieldInit_( c, fa, f->type_, fi )

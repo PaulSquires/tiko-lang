@@ -1205,7 +1205,12 @@ private function ParseAggregateBody _
         '' STATIC and CONST declare no field at all -- a type holding only those is
         '' fbc error 256, "cannot be empty". So only DIM is swallowed here; the other two
         '' keep going to the declaration parser, which is where a static member belongs.
-        if k = Tko.KW_DIM then
+        '' ...AND SO DOES 'redim a( 2 to 6 ) as integer' -- a DYNAMIC array field, sized when the
+        '' object is constructed (measured, fbc-int/array.bas). It went to the declaration
+        '' parser and became a VARIABLE of the type's scope: no field, no storage.
+        dim as boolean redimFld = (k = Tko.KW_REDIM)
+        if redimFld andalso HasTok( p, p.pos + 3 ) andalso cbool( cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_LPAREN ) andalso cbool( cast( Tko.TokenKind, p.toks->At( p.pos + 3 ).kind ) = Tko.TK_RPAREN ) then p.diags->Report( Tko.TKO0766, Tko.PointRange( Cur( p ).loc ) )   '' 'redim f( )': fbc's 9
+        if (k = Tko.KW_DIM) orelse redimFld then
             Advance( p )
             k = Peek( p )
         end if
@@ -1235,7 +1240,7 @@ private function ParseAggregateBody _
                     end if
                 end if
                 ParseArrayBounds( p, fp )
-                if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
+                if fp.count > 0 then fp.op = cast( ushort, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )
                 '' A BITFIELD IN THE TYPE-FIRST SPELLING: 'as ulong a : 3'.
                 '' fbc accepts TWO spellings and rejects a third -- measured,
                 '' 'a : 3 as ulong' and 'as ulong a : 3' both compile and
@@ -1324,7 +1329,7 @@ private function ParseAggregateBody _
             '' SCALAR. Measured against fbc: that type is 40 bytes with 'b' at 32, and
             '' tiko-lang made it 24 with 'b' at 16.
             ParseArrayBounds( p, fp )
-            if fp.count > 0 then fp.op = cast( ushort, Tko.KW_DIM )
+            if fp.count > 0 then fp.op = cast( ushort, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )
             '' 'Shared : 1 as ULONG_PTR' -- the bitfield width, as the name-first branch reads it.
             if IsColonHere( p ) then
                 Advance( p )
@@ -1375,7 +1380,7 @@ private function ParseAggregateBody _
                 end if
                 ParseArrayBounds( p, fp )
                 if fp.count > 0 then
-                    fp.op = cast( ushort, Tko.KW_DIM )   '' marks 'has bounds'
+                    fp.op = cast( ushort, iif( redimFld, Tko.KW_REDIM, Tko.KW_DIM ) )   '' marks 'has bounds'
                 end if
 
                 '' A BITFIELD: 'xb0 : 1 as ulong'. The width comes BEFORE the type --
