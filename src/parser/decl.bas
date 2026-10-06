@@ -513,7 +513,7 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.TokenKind k = Peek( p )
         select case k
         case Tko.KW_DIM, Tko.KW_REDIM, Tko.KW_VAR, Tko.KW_COMMON, Tko.KW_EXTERN
-            Advance( p ) : if p.staticLocals andalso cbool( (k = Tko.KW_DIM) orelse (k = Tko.KW_VAR) ) then flags or= Tko.NF_STATIC   '' 'sub f( ) static'
+            Advance( p ) : if p.staticLocals andalso cbool( (k = Tko.KW_DIM) orelse (k = Tko.KW_VAR) orelse (k = Tko.KW_REDIM) ) then flags or= Tko.NF_STATIC   '' 'sub f( ) static'
         case Tko.KW_SHARED
             flags or= Tko.NF_SHARED
             Advance( p )

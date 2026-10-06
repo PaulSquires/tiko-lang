@@ -93,6 +93,59 @@ end function
 '' a type holding a string left the descriptor uninitialised for the life of the
 '' program -- the same crash DIM SHARED had before the module initialiser, and it
 '' counted as lowered.
+'' A RUN-ONCE GUARD over a static's declaration-time work: on return the current block runs on
+'' the FIRST pass only, and StaticOnceEnd_ joins the two. -1 when it cannot be built.
+''
+'' THE GUARD is one per declaration, named after the storage it guards -- fbc gives it a label's
+'' name, unique per declaration for the same reason -- AND AS VISIBLE AS THE STORAGE, which for a
+'' static local is not at all. It went out external, so two modules each with a 'private function
+'' nextId' holding a constructed 'static c' failed the link on 'duplicate symbol: NEXTID$c$init'
+'' -- fbc emits the guard module-local (measured 2026-09-27: nothing external for it).
+function StaticOnceBegin_( byref c as Ctx, byval g as long, byval suffix as string ) as long
+    dim as Tko.InternId gnm = c.names->GetString( c.names->Spelling( c.m->globals[g].name ) & suffix )
+    dim as long gg = c.m->AddVarGlobal( gnm, MT_I64, Tko.TYPE_NONE, 8 )
+    c.m->globals[gg].isInternal = c.m->globals[g].isInternal
+    dim as MirValue gaddr
+    gaddr.kind = cast( ubyte, MV_GLOBAL ) : gaddr.ty = cast( ubyte, MT_PTR ) : gaddr.id = gg
+    dim as MirValue gv = LowerExprLoad( c, gaddr, MT_I64 )
+    if gv.kind = cast( ubyte, MV_NONE ) then return -1
+    dim as MirInst tst
+    tst.op = cast( ushort, M_ICMP_NE ) : tst.ty = cast( ubyte, MT_I32 )
+    tst.a = gv : tst.b = ConstInt( c, 0, MT_I64 )
+    dim as MirValue done_ = Emit( c, tst )
+    if done_.kind = cast( ubyte, MV_NONE ) then return -1
+    dim as long initB = NewBlock( c, "static.init" )
+    dim as long skipB = NewBlock( c, "static.done" )
+    Terminate( c, MTERM_CONDBR, skipB, initB, done_ )
+    c.curBlock = initB
+    StoreThrough( c, gaddr, ConstInt( c, 1, MT_I64 ) )
+    return skipB
+end function
+
+sub StaticOnceEnd_( byref c as Ctx, byval skipB as long )
+    Terminate( c, MTERM_BR, skipB, -1, NoVal( ) )
+    c.curBlock = skipB
+end sub
+
+'' A STATIC DYNAMIC ARRAY WITH WRITTEN BOUNDS is sized ONCE, on the first pass: 'static a( l to u )'
+'' over variables, and 'redim a( 1 to 2 ) as integer' inside a 'sub ... static' (dim/static.bas).
+'' The first was never sized at all; the second re-dimensioned on every call, undoing a later
+'' REDIM. 'emit' is the caller's own sizing, run inside the guard.
+function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if (s = 0) orelse (c.types->IsDynArray( s->type_ ) = false) then return false
+    if (ip->c = Tko.NODE_NONE) orelse (AnyDimCount( c, ip ) <> 0) then return false
+    dim as long g = GlobalFor( c, sid )
+    if g < 0 then return false
+    dim as MirValue ga
+    ga.kind = cast( ubyte, MV_GLOBAL ) : ga.ty = cast( ubyte, MT_PTR ) : ga.id = g
+    dim as long skipB = StaticOnceBegin_( c, g, "$bounds" )
+    if skipB < 0 then return false
+    if EmitArrayBounds( c, ga, s->type_, ip, false ) = false then SkipHere( c )
+    StaticOnceEnd_( c, skipB )
+    return true
+end function
+
 function LowerStaticLocalInit_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId ) as boolean
 
@@ -145,37 +198,8 @@ function LowerStaticLocalInit_ _
     ga.ty = cast( ubyte, MT_PTR )
     ga.id = g
 
-    '' THE GUARD, one per declaration and named after the storage it guards. fbc gives
-    '' it a label's name, which is unique per declaration for the same reason.
-    dim as Tko.InternId gnm = _
-        c.names->GetString( c.names->Spelling( c.m->globals[g].name ) & "$init" )
-    dim as long gg = c.m->AddVarGlobal( gnm, MT_I64, Tko.TYPE_NONE, 8 )
-    '' ...AND AS VISIBLE AS THE STORAGE, which for a static local is not at all. It went
-    '' out external, so two modules each with a 'private function nextId' holding a
-    '' constructed 'static c' failed the link on 'duplicate symbol: NEXTID$c$init' --
-    '' fbc emits the guard module-local (measured 2026-09-27: nothing external for it).
-    c.m->globals[gg].isInternal = c.m->globals[g].isInternal
-    dim as MirValue gaddr
-    gaddr.kind = cast( ubyte, MV_GLOBAL )
-    gaddr.ty = cast( ubyte, MT_PTR )
-    gaddr.id = gg
-
-    dim as MirValue gv = LowerExprLoad( c, gaddr, MT_I64 )
-    if gv.kind = cast( ubyte, MV_NONE ) then return false
-    dim as MirInst tst
-    tst.op = cast( ushort, M_ICMP_NE )
-    tst.ty = cast( ubyte, MT_I32 )
-    tst.a = gv
-    tst.b = ConstInt( c, 0, MT_I64 )
-    dim as MirValue done_ = Emit( c, tst )
-    if done_.kind = cast( ubyte, MV_NONE ) then return false
-
-    dim as long initB = NewBlock( c, "static.init" )
-    dim as long skipB = NewBlock( c, "static.done" )
-    Terminate( c, MTERM_CONDBR, skipB, initB, done_ )
-
-    c.curBlock = initB
-    StoreThrough( c, gaddr, ConstInt( c, 1, MT_I64 ) )
+    dim as long skipB = StaticOnceBegin_( c, g, "$init" )
+    if skipB < 0 then return false
 
     '' THE CONSTRUCTOR. 'static as T a = T( 1 )' selects one by its arguments exactly
     '' as a local does; everything else takes the no-argument one, or the synthesised
@@ -245,8 +269,7 @@ function LowerStaticLocalInit_ _
     ReleaseWstrTemps_( c, wmark )
     ReleaseUdtTemps_( c, umark )
 
-    Terminate( c, MTERM_BR, skipB, -1, NoVal( ) )
-    c.curBlock = skipB
+    StaticOnceEnd_( c, skipB )
     return constructed orelse wantsD
 end function
 

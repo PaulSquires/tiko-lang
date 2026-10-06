@@ -614,7 +614,17 @@ function LowerRedim _
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
-        if RedimOne_( c, id, item, presv ) = false then return false
+        '' A REDIM THAT DECLARES A STATIC LOCAL -- 'redim a( 1 to 2 ) as integer' in a 'sub ... static'
+        '' -- sizes it on the FIRST pass only; re-run on every call it undid a later REDIM
+        '' (dim/static.bas fTestDynamic). See StaticOnceBegin_.
+        dim as long rsk = -1
+        if StmtOf( c, item )->a <> Tko.NODE_NONE then
+            dim as Tko.SymbolId rsid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), StmtOf( c, item )->name, false )
+            if (rsid <> Tko.SYMBOL_NONE) andalso IsStaticLocal( c, rsid ) andalso (GlobalFor( c, rsid ) >= 0) then rsk = StaticOnceBegin_( c, GlobalFor( c, rsid ), "$redim" )
+        end if
+        dim as boolean rok = RedimOne_( c, id, item, presv )
+        if rsk >= 0 then StaticOnceEnd_( c, rsk )
+        if rok = false then return false
     next
     return true
 end function

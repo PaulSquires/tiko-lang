@@ -1,0 +1,13 @@
+'' A static dynamic array with written bounds is sized ONCE: 'static a( l to u )' over variables
+'' was never sized, and 'redim a( 1 to 2 ) as integer' in a 'sub ... static' re-ran on every call,
+'' undoing a later REDIM (dim/static.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/static-dynarray-sized-once.bas -o tests/codegen/staticdynarraysizedonce.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/staticdynarraysizedonce.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  5              6
+'' EXPECT-RUN-OUT:  1             1             2
+'' EXPECT-RUN-OUT:  2             3             4
+'' EXPECT-RUN-OUT:  3             3             4

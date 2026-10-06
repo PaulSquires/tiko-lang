@@ -109,6 +109,7 @@ sub LowerVarItem_ _
             if LowerStaticLocalInit_( c, sid, ip->b ) then return
         end if
         InitSharedGlobal( c, sid, ip->b )
+        if IsStaticLocal( c, sid ) then StaticDynBoundsOnce_( c, sid, ip )   '' 'static a( l to u )', sized once
         return
     end if
 
