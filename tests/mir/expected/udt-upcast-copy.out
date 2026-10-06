@@ -71,8 +71,8 @@ func i32 main(i32 $0, ptr $1) {
   local agg $abi8 size 16
   local agg $abi9 size 16
   entry0:
-    %71 = alloca ptr $abi8
-    %72 = alloca ptr $abi9
+    %72 = alloca ptr $abi8
+    %73 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -123,63 +123,64 @@ func i32 main(i32 $0, ptr $1) {
     store %32, %28
     %33 = field.addr @$tmp4, 24
     store %33, %29
-    %34 = load @$tmp4
-    store @p2, %34
-    %35 = field.addr @p2, 0
-    %36 = load %35
-    call.rtl void fb_PrintLongint(0, %36, 0)
-    %37 = field.addr @p2, 8
-    %38 = load %37
-    call.rtl void fb_PrintLongint(0, %38, 1)
-    %39 = alloca ptr d
-    %40 = call.rtl ptr memset(@d, 0, 32)
-    %41 = field.addr @d, 16
-    %42 = const i64 30
-    store %41, %42
-    %43 = field.addr @d, 24
-    %44 = const i64 40
-    store %43, %44
-    %45 = alloca ptr src
-    %46 = call.rtl ptr memset(@src, 0, 16)
-    %47 = field.addr @src, 0
-    %48 = const i64 11
-    store %47, %48
-    %49 = field.addr @src, 8
-    %50 = const i64 12
-    store %49, %50
-    %51 = load @src
-    store @d, %51
-    %52 = field.addr @d, 0
-    %53 = load %52
-    call.rtl void fb_PrintLongint(0, %53, 0)
-    %54 = field.addr @d, 8
-    %55 = load %54
-    call.rtl void fb_PrintLongint(0, %55, 0)
-    %56 = field.addr @d, 16
-    %57 = load %56
-    call.rtl void fb_PrintLongint(0, %57, 0)
-    %58 = field.addr @d, 24
-    %59 = load %58
-    call.rtl void fb_PrintLongint(0, %59, 1)
-    %60 = alloca ptr made
-    %61 = load @src
-    %62 = const i64 99
-    call void _ZN2C2C1ER2P1u7INTEGER(@made, @src, %62)
-    %63 = field.addr @made, 0
-    %64 = load %63
-    call.rtl void fb_PrintLongint(0, %64, 0)
-    %65 = field.addr @made, 8
-    %66 = load %65
-    call.rtl void fb_PrintLongint(0, %66, 0)
-    %67 = field.addr @made, 16
-    %68 = load %67
-    call.rtl void fb_PrintLongint(0, %68, 1)
-    %69 = const i32 0
-    call.rtl void fb_End(%69)
-    %70 = load @$tmp0
-    ret %70
+    %34 = const i64 16
+    %35 = call.rtl ptr memcpy(@p2, @$tmp4, %34)
+    %36 = field.addr @p2, 0
+    %37 = load %36
+    call.rtl void fb_PrintLongint(0, %37, 0)
+    %38 = field.addr @p2, 8
+    %39 = load %38
+    call.rtl void fb_PrintLongint(0, %39, 1)
+    %40 = alloca ptr d
+    %41 = call.rtl ptr memset(@d, 0, 32)
+    %42 = field.addr @d, 16
+    %43 = const i64 30
+    store %42, %43
+    %44 = field.addr @d, 24
+    %45 = const i64 40
+    store %44, %45
+    %46 = alloca ptr src
+    %47 = call.rtl ptr memset(@src, 0, 16)
+    %48 = field.addr @src, 0
+    %49 = const i64 11
+    store %48, %49
+    %50 = field.addr @src, 8
+    %51 = const i64 12
+    store %50, %51
+    %52 = load @src
+    store @d, %52
+    %53 = field.addr @d, 0
+    %54 = load %53
+    call.rtl void fb_PrintLongint(0, %54, 0)
+    %55 = field.addr @d, 8
+    %56 = load %55
+    call.rtl void fb_PrintLongint(0, %56, 0)
+    %57 = field.addr @d, 16
+    %58 = load %57
+    call.rtl void fb_PrintLongint(0, %58, 0)
+    %59 = field.addr @d, 24
+    %60 = load %59
+    call.rtl void fb_PrintLongint(0, %60, 1)
+    %61 = alloca ptr made
+    %62 = load @src
+    %63 = const i64 99
+    call void _ZN2C2C1ER2P1u7INTEGER(@made, @src, %63)
+    %64 = field.addr @made, 0
+    %65 = load %64
+    call.rtl void fb_PrintLongint(0, %65, 0)
+    %66 = field.addr @made, 8
+    %67 = load %66
+    call.rtl void fb_PrintLongint(0, %67, 0)
+    %68 = field.addr @made, 16
+    %69 = load %68
+    call.rtl void fb_PrintLongint(0, %69, 1)
+    %70 = const i32 0
+    call.rtl void fb_End(%70)
+    %71 = load @$tmp0
+    ret %71
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memcpy(ptr $0, ptr $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
 lowered: 3 functions, 6 blocks, 137 insts, 0 statements not lowered, 0 scope imbalance
