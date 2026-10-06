@@ -135,10 +135,20 @@ private function AmFold_ _
         '' constant -- 'mkp( )' is error 24.
         dim as Tko.ListPayload ptr lp = _
             @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
-        if (lp->target = Tko.NODE_NONE) orelse (lp->count <> 2) then return AM_NONCONST
+        if lp->target = Tko.NODE_NONE then return AM_NONCONST
         if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return AM_NONCONST
         dim as Tko.IdentPayload ptr ip = _
             @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+        '' ...AND THE ONE-ARGUMENT INTEGER CONVERSIONS: 'cbyte( 0 )' is a constant zero too
+        '' (overload/pointers.bas const0).
+        if lp->count = 1 then
+            select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+            case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "clngint", "culngint", "cint", "cuint"
+                return AmFold_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), v, depth + 1 )
+            end select
+            return AM_NONCONST
+        end if
+        if lp->count <> 2 then return AM_NONCONST
         select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
         case "cptr", "cast"
         case else : return AM_NONCONST
@@ -207,6 +217,18 @@ private function ArgShapeCost_ _
     end if
     if (c.types->Kind( au ) = Tko.TK_POINTER) andalso AmNullTarget_( c, pu ) then
         if AmNullPtrConst_( c, a ) then return CONV_PTR_CLASS
+    end if
+    '' ...AND THE OTHER WAY: AN INTEGER CONSTANT ZERO OF ANY WIDTH TO A POINTER. Measured over
+    '' { any ptr, byref string }: '0l', '0ul', 'cbyte( 0 )', 'cushort( 0 )' all take any ptr,
+    '' as '0' and '0ll' do (overload/pointers.bas const0). Only an integer of pointer WIDTH
+    '' scored, so the narrower zeros matched nothing (TKO0632). Not a boolean, and not into
+    '' a byref pointer, which would need storage of the pointer's type.
+    if (c.types->Kind( pu ) = Tko.TK_POINTER) andalso (byref_ = false) then
+        if (c.types->Kind( au ) = Tko.TK_BUILTIN) andalso AmNullTarget_( c, au ) then
+            if c.types->BuiltinOf( au ) <> Tko.TY_BOOLEAN then
+                if AmNullPtrConst_( c, a ) then return CONV_PTR_CLASS
+            end if
+        end if
     end if
     return userCost
 end function

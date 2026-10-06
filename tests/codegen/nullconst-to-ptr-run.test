@@ -1,0 +1,13 @@
+'' AN INTEGER CONSTANT ZERO OF ANY WIDTH -- '0l', 'cbyte( 0 )' -- reaches a pointer parameter, and an exact integer overload still wins (fbc's overload/pointers.bas const0). tiko took only pointer-width zeros (TKO0632). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/nullconst-to-ptr.bas -o tests/codegen/nullconsttoptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/nullconsttoptr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ptr-1
+'' EXPECT-RUN-OUT: ptr-1
+'' EXPECT-RUN-OUT: ptr-1
+'' EXPECT-RUN-OUT: ptr-1
+'' EXPECT-RUN-OUT: ptr-1
+'' EXPECT-RUN-OUT: byte          any ptr       byte
