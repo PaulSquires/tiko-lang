@@ -1,0 +1,9 @@
+'' 'an = dg' where Animal has 'operator let( byref as LivingThing )' and Dog an 'operator cast( ) as
+'' LivingThing' calls the let with the cast's result (structs/obj_cast_ovl2.bas); tiko emitted nothing.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/let-via-source-cast.bas -o tests/codegen/letviasourcecast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/letviasourcecast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1234

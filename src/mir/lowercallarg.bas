@@ -862,3 +862,52 @@ private function ByvalUdtCopyArg_ _
     outa = dst
     return true
 end function
+
+'' 'an = dg' WHERE THE TARGET'S TYPE HAS AN 'operator let' FOR A THIRD TYPE THE SOURCE CASTS TO:
+'' fbc calls 'Animal.let( an, dg.cast( LivingThing ) )' (structs/obj_cast_ovl2.bas), where tiko
+'' emitted NOTHING for the statement. Only into a parameter type UdtCastArgOk_ allows -- the
+'' cast's result is bit-copied into a temporary that is not destroyed. False, emitting nothing,
+'' when no 'let' takes such a type.
+function LetViaCast_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+      byval atl as Tko.TypeId, byval avt as Tko.TypeId ) as boolean
+    if (atl = Tko.TYPE_NONE) orelse (avt = Tko.TYPE_NONE) orelse (atl = avt) then return false
+    if (c.types->Kind( atl ) <> Tko.TK_UDT) orelse (c.types->Kind( avt ) <> Tko.TK_UDT) then return false
+    dim as Tko.SymbolId cur = StructorOf( c, atl, "let" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
+        guard += 1
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
+        if ls = 0 then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
+        dim as Tko.TypeId pt = Tko.TYPE_NONE
+        if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+            for k as long = 0 to pp->count - 1
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+                if c.ast->Kind( prm ) = Tko.N_PARAM then pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) ) : exit for
+            next
+        end if
+        if (pt <> Tko.TYPE_NONE) andalso (c.types->Kind( pt ) = Tko.TK_REFERENCE) then pt = c.types->Unqualify( c.types->Inner( pt ) )
+        if (pt <> Tko.TYPE_NONE) andalso UdtCastArgOk_( c, avt, pt ) then
+            dim as Tko.SymbolId cs = UdtCastToUdt_( c, avt, pt )
+            dim as MirValue self_ = LowerAddr( c, value )
+            if self_.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirValue cv = EmitMemberCall( c, cs, self_, MT_AGG )
+            if cv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, pt ) )
+            if slot < 0 then return false
+            dim as MirValue ta
+            ta.kind = cast( ubyte, MV_LOCAL ) : ta.ty = cast( ubyte, MT_PTR ) : ta.id = slot
+            StoreThrough( c, ta, cv )
+            dim as MirValue da = LowerAddr( c, target )
+            if da.kind = cast( ubyte, MV_NONE ) then return false
+            dim as FB.Array( of ulong ) largs
+            largs.Push( cast( ulong, ta.kind ) ) : largs.Push( cast( ulong, ta.id ) )
+            EmitStructorCall( c, cur, -1, @da, @largs )
+            return true
+        end if
+        cur = ls->nextOverload
+    wend
+    return false
+end function

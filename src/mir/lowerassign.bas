@@ -657,6 +657,7 @@ private sub LowerAssign _
     if atl <> Tko.TYPE_NONE then
         atlUpcast = IsBaseOf_( c, atl, avt )
     end if
+    if (atlUpcast = false) andalso LetViaCast_( c, target, value, atl, avt ) then return   '' 'let( T )' over the source's cast to T
     if (atl <> Tko.TYPE_NONE) andalso _
        ((atl = avt) orelse atlUpcast) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
