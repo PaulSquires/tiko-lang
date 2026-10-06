@@ -50,6 +50,7 @@ private function ConstFoldsToInt_ _
         case Tko.TK_STAR  : outv = lv * rv
         case Tko.TK_BACKSLASH
             if rv = 0 then return false
+            if (rv = -1) andalso (lv = &h8000000000000000ll) then outv = 0 : return true   '' fbc folds MIN \ -1 to 0; dividing traps
             outv = lv \ rv
         case else : return false
         end select

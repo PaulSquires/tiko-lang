@@ -1,0 +1,13 @@
+'' A constant 'MIN \ -1' (and 'MIN mod -1') folds to 0, as fbc folds it: emitted, the divide trapped
+'' at run time (0xC0000095), and in a 'const' it killed the compiler (optimizations/consteval.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/const-min-div-fold.bas -o tests/codegen/constmindivfold.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/constmindivfold.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  0              0
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT: -7             0

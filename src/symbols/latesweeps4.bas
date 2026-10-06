@@ -585,9 +585,11 @@ private function AssertEval_ _
         case TK_STAR  : v = a * b
         case TK_BACKSLASH, TK_SLASH
             if b = 0 then return false
+            if b = -1 then v = iif( a = &h8000000000000000ll, 0ll, -a ) : return true   '' MIN \ -1 traps; fbc folds it to 0
             v = a \ b
         case KW_MOD
             if b = 0 then return false
+            if b = -1 then v = 0 : return true
             v = a mod b
         case TK_EQ : v = iif( a = b, -1, 0 )
         case TK_NE : v = iif( a <> b, -1, 0 )

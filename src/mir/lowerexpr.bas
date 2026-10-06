@@ -1132,6 +1132,15 @@ function LowerExpr _
             op = BinOpFor( tk, opTy, IsUnsignedType( c, ft ) )
             if op = M_NONE then return v
         end if
+        '' A CONSTANT SIGNED '\' OR 'mod' IS FOLDED, as fbc folds it: emitted, 'MIN \ -1' trapped at run
+        '' time (0xC0000095), where fbc prints 0 (optimizations/consteval.bas). ConstOf has fbc's rule.
+        if (op = M_SDIV) orelse (op = M_SREM) then
+            dim as Tko.ScopeId dsc = c.info->ScopeOf( id )
+            if dsc = Tko.SCOPE_NONE then dsc = c.procScope
+            if dsc = Tko.SCOPE_NONE then dsc = c.modScope
+            dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( *c.ast, id, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, dsc )
+            if dcv.known then return ConstInt( c, dcv.value, mt )
+        end if
         dim as MirInst ins
         ins.op = cast( ushort, op )
         ins.ty = cast( ubyte, iif( mt = MT_VOID, opTy, mt ) )

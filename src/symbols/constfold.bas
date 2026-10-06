@@ -1164,11 +1164,15 @@ function ConstOf _
             '' and '-8 \ 3u' is 6148914691236517202 where a signed divide gives -2.
             if b = 0 then return CVNone_( )
             if uw then return CVWU_( cast( longint, ua \ ub ), w, true )
+            '' THE ONE QUOTIENT THAT DOES NOT FIT: 'MIN \ -1' traps the x86 divide -- in THIS
+            '' compiler, folding it -- and fbc folds it to 0 with warning 25 (consteval.bas).
+            if (b = -1) andalso (a = &h8000000000000000ll) then return CVWU_( 0, w, false )
             return CVWU_( a \ b, w, false )
         case Tko.KW_MOD
             '' The same rule: 'big mod 7' is 1, not 18446744073709551615.
             if b = 0 then return CVNone_( )
             if uw then return CVWU_( cast( longint, ua mod ub ), w, true )
+            if b = -1 then return CVWU_( 0, w, false )   '' 'MIN mod -1' traps as the divide does
             return CVWU_( a mod b, w, false )
         case Tko.TK_CARET     : return CVWU_( IPow_( a, b ), w, uw )
         '' SIGNEDNESS KEPT, as the arithmetic operators keep it: '(1ull shl 63) > 0' was
