@@ -1,0 +1,10 @@
+'' TKO0632: 'T( u )' over a 'zstring ptr' constructor stays fbc's error 99 when the set also has a
+'' LONGER constructor whose extra parameter has no default -- it can never take one argument.
+'' The sweep gave up at any longer list (ustr-ctor-zstring-ptr.test). A longer list whose
+'' extras are all defaulted is still left unjudged, and line 12 is accepted by fbc.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ustr-ctor-zstring-ptr-arity.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ustr-ctor-zstring-ptr-arity.bas(11,
+'' EXPECT-OUT: TKO0632
+'' EXPECT-MAX-DIAG: 1
