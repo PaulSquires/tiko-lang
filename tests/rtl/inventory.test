@@ -34,4 +34,6 @@
 '' trim over a ustring (tests/mir/ustring-trim-pattern).
 '' EXPECT-OUT: fb_UStrRTrimEx ptr (ptr, i64, ptr, i64)
 '' TWO MORE, 2026-10-02: fb_InputUStr and fb_FileLineInputUStr, a ustring's readers (T66).
-'' EXPECT-OUT: rtl: 534 entries
+'' ONE MORE, 2026-10-06: fb_UStrSwap, SWAP of two ustrings (tests/codegen/swap-ustring).
+'' EXPECT-OUT: fb_UStrSwap void (ptr, i64, ptr, i64)
+'' EXPECT-OUT: rtl: 535 entries

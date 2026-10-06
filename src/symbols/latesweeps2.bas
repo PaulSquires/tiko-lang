@@ -240,7 +240,9 @@ private sub JudgeConversion_ _
             '' fbc-modern: a numeric cast into 'any ptr' is 24 (181 by assignment), a string or
             '' 'byref as zstring' cast into 'zstring ptr' 24 -- Rescued_ let any cast vouch, and
             '' lowering then found no conversion (TKO0994).
-            if DeclaresAnywhere_( c, udt, "cast" ) then
+            '' The UDT's OWN cast chain: an inferred 'type( @f )' is typed as a placeholder that a
+            '' by-name search (DeclaresAnywhere_) can match to someone else's cast.
+            if Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, udt, "cast" ) <> SYMBOL_NONE then
                 c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
                 return
             end if
