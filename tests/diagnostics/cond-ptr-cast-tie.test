@@ -1,0 +1,8 @@
+'' TKO0660, fbc's 98: a condition over [as zstring ptr, as wstring ptr] -- both reach 'any ptr'
+'' equally, and an exact 'any ptr' cast would have won. tiko took the first declared.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/cond-ptr-cast-tie.bas -o tests/diagnostics/src/cond-ptr-cast-tie.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cond-ptr-cast-tie.bas(11,
+'' EXPECT-OUT: TKO0660
+'' EXPECT-MAX-DIAG: 1

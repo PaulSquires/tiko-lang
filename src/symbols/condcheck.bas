@@ -35,6 +35,21 @@ private function CondBadType_ ( byref c as Ctx, byval e as NodeId ) as TypeId
 end function
 
 private sub CheckCond_ ( byref c as Ctx, byval e as NodeId )
+    '' TWO POINTER CASTS AND NOTHING MORE PRECISE tie against 'any ptr': fbc's 98, measured over
+    '' [as zstring ptr, as wstring ptr] -- an exact 'any ptr' cast would have won (PtrCastFit = 2).
+    dim as TypeId cu = ValueType_( c, c.info->TypeOf_( e ) )
+    if (cu <> TYPE_NONE) andalso (c.types->Kind( cu ) = TK_UDT) then
+        dim as TypeId tieT
+        dim as boolean noNum = (Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, cu, TYPE_NONE ) = SYMBOL_NONE)
+        if noNum then noNum = (Tko.Check.CharRefCastPick( *c.ast, *c.syms, *c.types, *c.names, cu, tieT ) = SYMBOL_NONE)
+        if noNum then
+            dim as TypeId anyp = c.types->Pointer_( c.types->Builtin( TY_ANY ) )
+            if Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, cu, anyp ) = 2 then
+                c.diags->Report( TKO0660, PointRange( c.ast->Loc( e ) ), "operator cast" )
+                return
+            end if
+        end if
+    end if
     dim as TypeId bt = CondBadType_( c, e )
     if bt = TYPE_NONE then return
     c.diags->Report( TKO0966, PointRange( c.ast->Loc( e ) ), c.types->Name( bt ) )
