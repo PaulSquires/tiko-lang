@@ -33,6 +33,12 @@ type PpValue
     '' the wide ones would produce a string neither compiler has, so it is carried
     '' and __FB_EVAL__ refuses it.
     as boolean  wide
+    '' A NAME USED AS A LITERAL -- an undeclared identifier, or a keyword such as 'name' or
+    '' 'string'. fbc reads one as its UPPERCASE spelling: 'undeclaredid = "UNDECLAREDID"' is
+    '' true, two different names are unequal, '#if undeclaredid' alone is false and
+    '' 'undeclaredid = 0' is error 20 (pp/if.bas, measured). Numerically it stays 0, as it
+    '' always was here, so only a comparison with a STRING or another NAME reads 'str_'.
+    as boolean  isName
 end type
 
 type PpExprState
@@ -89,6 +95,13 @@ private function PxD( byref v as PpValue ) as double
     if v.isFlt then return v.fnum
     if v.isUns then return cast( double, cast( ulongint, v.num ) )
     return cdbl( v.num )
+end function
+
+private function PxName_( byref nm as string ) as PpValue
+    dim as PpValue r
+    r.isName = true
+    r.str_ = ucase( nm )
+    return r
 end function
 
 private function PxNumU( byval v as longint, byval uns as boolean ) as PpValue
@@ -231,10 +244,23 @@ private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpV
         if fw > 0 then key = "K" & str( fw ) & rest
         exit for
     next
-    if (left( key, 1 ) = "K") andalso (instr( key, " " ) = 0) then return PxNum( valint( mid( key, 2 ) ) )
+    '' fbc's 'typeof' IS TEXT -- the type's name in capitals: 'LONG', 'LONG PTR', 'T' for a
+    '' UDT. Measured: '#if typeof( l ) = "LONG"' and '= long' are both true, and
+    '' 'typeof( integer ) = typeof( longint )' is false. A builtin was its token kind here,
+    '' so a comparison with a string or a type keyword could never hold (pp/if.bas,
+    '' pp/typeof.bas, namespace/ns-using*.bas).
+    dim as long sp2 = instr( key, " " )
+    dim as string b2 = iif( sp2 > 0, left( key, sp2 - 1 ), key )
+    dim as string tail2 = iif( sp2 > 0, mid( key, sp2 ), "" )
+    dim as string txt
+    if left( b2, 1 ) = "K" then
+        txt = TokenKindText( cast( TokenKind, valint( mid( b2, 2 ) ) ) )
+    else
+        txt = e.names->Spelling( cast( InternId, valint( mid( b2, 2 ) ) ) )
+    end if
     dim as PpValue r
     r.isStr = true
-    r.str_ = "type:" & key
+    r.str_ = ucase( txt & tail2 )
     return r
 end function
 
@@ -482,6 +508,12 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             wend
         end if
         if v < 0 then return PxNum( 0 )
+        if k = KW_TYPEOF then
+            dim as PpValue tv
+            tv.isStr = true
+            tv.str_ = ucase( TokenKindText( cast( TokenKind, v ) ) )
+            return tv
+        end if
         return PxNum( v )
 
     case KW_WSTR
@@ -513,6 +545,35 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         wv.wide = true
         return wv
 
+    case KW_LCASE, KW_UCASE
+        '' 'lcase( s, mode )' AND 'ucase( s, mode )' -- THE TWO-ARGUMENT FORM ONLY, which fbc
+        '' evaluates in '#if'; the one-argument form is its error 11 there (measured,
+        '' string/case.bas). ASCII letters only, whichever mode.
+        PxNext( x )
+        if PxPeek( x ) = TK_LPAREN then
+            PxNext( x )
+            dim as PpValue cv = PxOrElse( x )
+            if PxPeek( x ) <> TK_COMMA then
+                x.bad = true
+                return PxNum( 0 )
+            end if
+            PxNext( x )
+            dim as PpValue mv = PxOrElse( x )
+            if PxPeek( x ) <> TK_RPAREN then
+                x.bad = true
+                return PxNum( 0 )
+            end if
+            PxNext( x )
+            if (cv.isStr = false) orelse mv.isStr then
+                x.bad = true
+                return PxNum( 0 )
+            end if
+            if k = KW_LCASE then cv.str_ = lcase( cv.str_ ) else cv.str_ = ucase( cv.str_ )
+            return cv
+        end if
+        x.bad = true
+        return PxNum( 0 )
+
     case KW_DEFINED, TK_IDENT
         dim as string nm = "defined"
         if k = TK_IDENT then
@@ -526,6 +587,13 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             '' defined X and defined( X ) are both accepted, as in fbc.
             dim as boolean paren = (PxPeek( x ) = TK_LPAREN)
             if paren then PxNext( x )
+            '' 'defined( ..RANDOMIZE )' -- THE GLOBAL NAMESPACE, spelled with a leading '..':
+            '' the same lookup, from the top (fbc-int/math-rnd.bas, measured true for a
+            '' builtin and a shared variable, false for an undeclared name).
+            if PxPeek( x ) = TK_DOT then
+                PxNext( x )
+                if PxPeek( x ) = TK_DOT then PxNext( x )
+            end if
             '' 'defined' queries the SYMBOL TABLE, not just the macro table. Verified
             '' against fbc: defined( constructor ) is true because it is a keyword,
             '' defined( myvar ) is true for a declared variable, and so are a TYPE, a
@@ -597,14 +665,20 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             end select
         end if
 
-        '' An identifier that survived expansion is an undefined macro, which is 0.
-        return PxNum( 0 )
+        '' An identifier that survived expansion is an undefined macro: a NAME, which is 0
+        '' in arithmetic and its capitals in a comparison -- see PpValue.isName.
+        return PxName_( nm )
 
     case else
-        '' A keyword can appear here: NOT is handled above this level, and DEFINED
-        '' is an identifier. Anything else is malformed.
-        x.bad = true
+        '' A KEYWORD NOT CALLED is a name too -- 'string', 'long', 'name': fbc reads it as
+        '' its capitals, so '#if typeof( s ) = string' holds (pp/if.bas). A keyword with an
+        '' argument list is a function this evaluator does not have; anything else is
+        '' malformed.
         PxNext( x )
+        if IsKeywordKind( k ) andalso (PxPeek( x ) <> TK_LPAREN) then
+            return PxName_( TokenKindText( k ) )
+        end if
+        x.bad = true
         return PxNum( 0 )
     end select
 end function
@@ -754,10 +828,13 @@ private function PxRel( byref x as PpExprState ) as PpValue
         dim as PpValue r = PxCat( x )
 
         dim as boolean res = false
-        if l.isStr orelse r.isStr then
+        '' TEXT when either side is a string, or both are NAMES; a name against a number
+        '' stays numeric (0), as it always was here.
+        dim as boolean asText = (l.isStr orelse r.isStr) orelse (l.isName andalso r.isName)
+        if asText then
             dim as string a = l.str_, b = r.str_
-            if l.isStr = false then a = str( l.num )
-            if r.isStr = false then b = str( r.num )
+            if (l.isStr = false) andalso (l.isName = false) then a = str( l.num )
+            if (r.isStr = false) andalso (r.isName = false) then b = str( r.num )
             select case k
             case TK_EQ : res = (a = b)
             case TK_NE : res = (a <> b)

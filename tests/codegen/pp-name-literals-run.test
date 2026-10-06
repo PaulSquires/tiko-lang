@@ -1,0 +1,13 @@
+'' '#if' NAME LITERALS, as fbc reads them (pp/if.bas, pp/typeof.bas, string/case.bas): an
+'' undeclared identifier or a bare keyword is its capitals, 'typeof' is the type's name as text,
+'' 'lcase/ucase( s, mode )' fold, and 'defined( ..X )' looks from the global namespace.
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-name-literals.bas -o tests/codegen/ppnameliterals.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppnameliterals.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: t1 - t3 t4 t5 t6 - t8 
+'' EXPECT-RUN-OUT: n1 - - n4 n5 - - n8 - n10 
+'' EXPECT-RUN-OUT: c1 - - d3 
