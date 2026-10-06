@@ -1413,6 +1413,9 @@ declare function EmitRtl _
     declare sub WantImplicit_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval k as long )
     declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function LowerUdtElemInit_ _
+        ( byref c as Ctx, byref dst as MirValue, byval et as Tko.TypeId, _
+          byval e as Tko.NodeId ) as boolean
     declare function ArrayCtorList_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId ) as boolean
     declare sub EmitArrayCtorList_ _

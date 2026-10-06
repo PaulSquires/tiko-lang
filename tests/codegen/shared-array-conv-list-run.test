@@ -1,0 +1,12 @@
+'' A SHARED FIXED ARRAY OF A CONSTRUCTED TYPE GIVEN VALUES -- 'arr()' for a bydesc constructor, '7'
+'' for a converting one -- constructs each element from its value in the module initialiser
+'' (fbc's structs/ctor_bydesc.bas). tiko declined the first and, silently, stored 7 and 8 RAW for
+'' the second. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/shared-array-conv-list.bas -o tests/codegen/sharedarrayconvlist.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/sharedarrayconvlist.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3 4-1-4
+'' EXPECT-RUN-OUT:  70 80

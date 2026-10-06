@@ -115,9 +115,10 @@ end sub
 '' CONSTRUCTED TYPE, ONE CONSTRUCTOR CALL PER ELEMENT. Measured on fbc-modern: the module
 '' initialiser calls each in order on its element, and the finaliser destroys them in
 '' reverse (structs/obj_shared_array_ini.bas, obj_global_with_temp.bas). A call is not a
-'' byte image, so the aggregate folder declined the declaration. One dimension, and every
-'' element written must be a call constructing the element type; the rest of the array is
-'' default-constructed as before.
+'' byte image, so the aggregate folder declined the declaration. ...AND ANY OTHER VALUE
+'' THE ELEMENT CONSTRUCTS FROM -- 'arr()' for a 'constructor( arr() as double )'
+'' (structs/ctor_bydesc.bas) -- by LowerUdtElemInit_, the local brace list's own rule.
+'' One dimension, no nested field lists; the rest is default-constructed as before.
 function ArrayCtorList_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId ) as boolean
 
@@ -134,8 +135,10 @@ function ArrayCtorList_ _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
     if (lp->count <= 0) orelse (lp->count > c.types->ElemCount( at )) then return false
     for k as long = 0 to lp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + k] )
-        if c.types->Unqualify( TypeCtorTypeOf_( c, e ) ) <> el then return false
+        select case c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        case Tko.N_TUPLE, Tko.N_PAREN, Tko.N_INITIALIZER
+            return false
+        end select
     next
     return true
 end function
@@ -158,7 +161,7 @@ sub EmitArrayCtorList_ _
         '' Each call's temporaries die after it, since no statement end follows.
         dim as long sm = c.strTemps.Count, wm = c.wstrTemps.Count, um = c.udtTemps.Count
         dim as boolean ok = (ea.kind <> cast( ubyte, MV_NONE ))
-        if ok then ok = CtorCallOnAddr_( c, ea, el, cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        if ok then ok = LowerUdtElemInit_( c, ea, el, cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
         ReleaseUdtTemps_( c, um ) : ReleaseWstrTemps_( c, wm ) : ReleaseStrTemps_( c, sm )
         if ok = false then SkipHere( c )
     next
