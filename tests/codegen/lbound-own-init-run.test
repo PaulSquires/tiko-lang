@@ -1,0 +1,12 @@
+'' 'lbound( a )' / 'ubound( a )' of a FIXED array fold as constants, so a shared or static
+'' array may name its own bounds in its initialiser (fbc's quirk/lubound.bas); tiko declined the
+'' image. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/lbound-own-init.bas -o tests/codegen/lboundowninit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/lboundowninit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  11             13            1             11            3
+'' EXPECT-RUN-OUT:  11            3
+'' EXPECT-RUN-OUT:  2             9             4             6

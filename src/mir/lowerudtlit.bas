@@ -1231,9 +1231,11 @@ function FoldAggInit_ _
             '' NAMED CONSTANT in a static or shared initialiser did not fold and the
             '' whole image declined, while the same literal in the same slot did.
             '' fbc writes 'static int64 ARR$[2] = { 42ll, 2ll };'.
+            '' ...AND THE TYPE TABLE, which 'lbound( a )' over the array being initialised
+            '' needs: 'dim shared a(11 to ...) = { 1, lbound( a ), 3 }'.
             dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
                 *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits, _
-                c.syms, fsc )
+                c.syms, fsc, 0, c.types )
             if cv.known = false then return false
             bits = cv.value
         end if

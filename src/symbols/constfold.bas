@@ -645,6 +645,40 @@ private function ConstCall_ _
         if zl >= 0 then return CVW_( cast( longint, zl + 1 ), 32 )
     end if
 
+    '' 'lbound( a [, d] )' AND 'ubound( a [, d] )' OF A FIXED ARRAY ARE ITS DECLARED BOUNDS.
+    '' Measured on fbc-modern: both fold anywhere a constant is wanted -- a 'const', an array
+    '' bound, even '#if' -- and 'dim shared a(11 to ...) = { 1, lbound( a ), 3 }' writes 11
+    '' into the image (quirk/lubound.bas). tiko had no fold, so that shared initialiser
+    '' declined. Only with the type table, over a VARIABLE with a fixed rank, and a
+    '' dimension from 1 to the rank; anything else stays unknown.
+    if ((nm = "lbound") orelse (nm = "ubound")) andalso (types <> 0) andalso (syms <> 0) then
+        if (cp->count < 1) orelse (cp->count > 2) then return CVNone_( )
+        dim as Tko.NodeId ba = cast( Tko.NodeId, ast.children[cp->first] )
+        if ast.Kind( ba ) <> Tko.N_IDENT then return CVNone_( )
+        dim as Tko.Symbol ptr bs = syms->SymbolAt( syms->Lookup( scope_, _
+            ast.idents[cast( long, ast.nodes[cast( long, ba )].data )].name ) )
+        if bs = 0 then return CVNone_( )
+        if bs->kind <> cast( ubyte, Tko.SYM_VARIABLE ) then return CVNone_( )
+        dim as Tko.TypeId bt = types->Unqualify( bs->type_ )
+        if bt = Tko.TYPE_NONE then return CVNone_( )
+        if types->Kind( bt ) <> Tko.TK_ARRAY then return CVNone_( )
+        if types->IsDynArray( bt ) then return CVNone_( )
+        dim as long rank = types->types[cast( long, bt )].dims
+        if rank < 1 then return CVNone_( )
+        dim as longint bd = 1
+        if cp->count = 2 then
+            dim as ConstVal dv = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), _
+                                          src, names, intBits, syms, scope_, depth + 1, types, info )
+            if dv.known = false then return CVNone_( )
+            bd = dv.value
+        end if
+        if (bd < 1) orelse (bd > rank) then return CVNone_( )
+        dim as boolean bk = false
+        dim as longint bv = types->ArrayBound( bt, cast( long, bd - 1 ), (nm = "ubound"), bk )
+        if bk = false then return CVNone_( )
+        return CV_( bv )
+    end if
+
     if (nm = "iif") andalso (cp->count = 3) then
         dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
                                      src, names, intBits, syms, scope_, depth, _
