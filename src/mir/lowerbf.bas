@@ -361,4 +361,41 @@ function BitfieldMemberInit_ _
     return true
 end function
 
+
+'' 'swap a, b' WHERE EITHER IS A BITFIELD, each side's base lowered ONCE: its unit address is taken
+'' for the read and reused for the write. 'swap f2( ).a, f2( ).b' called f2 four times -- the
+'' read and the store each lowered the target -- where fbc calls it twice (swap/sidefx.bas).
+'' Everything is read before anything is written: the two may share a unit. False, emitting
+'' nothing, when neither side is a bitfield.
+function BitfieldSwapOnce_( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    dim as MirValue aAd, bAd, av, bv
+    dim as long aBo, aBw, bBo, bBw
+    dim as MirType aUt, bUt
+    dim as boolean aUu, bUu
+    dim as boolean aBf = BitfieldParts( c, a, aAd, aBo, aBw, aUt, aUu )
+    if aBf then if BitfieldReadParts_( c, a, aAd, aBo, aBw, aUt, aUu, av ) = false then return false
+    dim as boolean bBf = BitfieldParts( c, b, bAd, bBo, bBw, bUt, bUu )
+    if bBf then if BitfieldReadParts_( c, b, bAd, bBo, bBw, bUt, bUu, bv ) = false then return false
+    if (aBf orelse bBf) = false then return false
+    if aBf = false then
+        av = LowerExpr( c, a ) : if av.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+    if bBf = false then
+        bv = LowerExpr( c, b ) : if bv.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+    if aBf then
+        if BitfieldStoreParts_( c, aAd, aBo, aBw, aUt, aUu, Coerce( c, bv, MT_I64, false ) ) = false then return false
+    else
+        dim as MirValue aa = LowerAddr( c, a ) : if aa.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, aa, bv )
+    end if
+    if bBf then
+        if BitfieldStoreParts_( c, bAd, bBo, bBw, bUt, bUu, Coerce( c, av, MT_I64, false ) ) = false then return false
+    else
+        dim as MirValue ba = LowerAddr( c, b ) : if ba.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, ba, av )
+    end if
+    return true
+end function
+
 end namespace

@@ -68,39 +68,7 @@ end function
 '' address-first paths below untouched.
 private function BitfieldSwap_ _
     ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
-
-    dim as MirValue av, bv
-    dim as boolean aBf = LowerBitfieldRead( c, a, av )
-    dim as boolean bBf = LowerBitfieldRead( c, b, bv )
-    if (aBf orelse bBf) = false then return false
-
-    '' EVERYTHING READ BEFORE ANYTHING IS WRITTEN. The two sides may name bits in the
-    '' SAME unit, and writing the first before reading the second would swap a value
-    '' with itself.
-    if aBf = false then
-        av = LowerExpr( c, a )
-        if av.kind = cast( ubyte, MV_NONE ) then return false
-    end if
-    if bBf = false then
-        bv = LowerExpr( c, b )
-        if bv.kind = cast( ubyte, MV_NONE ) then return false
-    end if
-
-    if aBf then
-        if LowerBitfieldStoreValue_( c, a, bv ) = false then return false
-    else
-        dim as MirValue aa = LowerAddr( c, a )
-        if aa.kind = cast( ubyte, MV_NONE ) then return false
-        StoreThrough( c, aa, bv )
-    end if
-    if bBf then
-        if LowerBitfieldStoreValue_( c, b, av ) = false then return false
-    else
-        dim as MirValue ba = LowerAddr( c, b )
-        if ba.kind = cast( ubyte, MV_NONE ) then return false
-        StoreThrough( c, ba, av )
-    end if
-    return true
+    return BitfieldSwapOnce_( c, a, b )   '' lowerbf.bas: each base lowered once
 end function
 
 function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
