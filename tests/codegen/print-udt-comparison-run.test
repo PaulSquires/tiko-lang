@@ -1,0 +1,11 @@
+'' print: a UDT-vs-string comparison is an integer item (virtual/virtual.bas shape)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/print-udt-comparison.bas -o tests/codegen/printudtcomparison.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/printudtcomparison.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: yes
+'' EXPECT-RUN-OUT: -1             0

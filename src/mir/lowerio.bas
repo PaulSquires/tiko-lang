@@ -358,6 +358,11 @@ function PrintOne _
             dim as Tko.TokenKind cbop = cast( Tko.TokenKind, cbp->op )
             if (cbop = Tko.TK_PLUS) orelse (cbop = Tko.TK_AMP) then
                 t = c.info->TypeOf_( cbp->lhs )
+            '' ...AND A COMPARISON IS AN INTEGER whatever it compares: 'print x = "B"' over a UDT with a
+            '' string cast is fbc's -1, and untyped it was not printed at all (TKO0994).
+            elseif (cbop = Tko.TK_EQ) orelse (cbop = Tko.TK_NE) orelse (cbop = Tko.TK_LT) orelse _
+                   (cbop = Tko.TK_GT) orelse (cbop = Tko.TK_LE) orelse (cbop = Tko.TK_GE) then
+                t = c.types->Builtin( Tko.TY_INTEGER )
             end if
         end if
     end if
