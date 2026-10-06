@@ -1,0 +1,10 @@
+'' wstr( true ) into a wstring folds without reading a missing initialiser (wstring/print.bas).
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/wstr-bool-const.bas -o tests/codegen/wstrboolconst.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/wstrboolconst.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  4 5 4
+'' EXPECT-RUN-OUT: -1            -1

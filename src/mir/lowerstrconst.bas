@@ -303,6 +303,7 @@ function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as l
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
         if (cs = 0) orelse (cs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) orelse (cs->payload = 0) then return false
+        if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return false   '' 'true' / 'false': no initialiser node -- 'wstr( true )' read node -1
         dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
         return LitOnlyChain_( c, StmtOf( c, item )->b, depth + 1 )
