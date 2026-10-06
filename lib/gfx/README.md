@@ -304,8 +304,9 @@ every clip edge, both corners, fully-outside, and eight tie cases.
 `raster/line.bi` follows `fb_GfxDrawLine` step for step rather than a textbook
 Bresenham, because the formulations differ by a pixel on ties: `d` starts at
 `(dx >= dy) ? dy*2 - dx : dy - dx*2`, `dx`/`dy` are captured *before* clipping,
-and the loop ends one step *past* the endpoint. Solid style only -- the 16-bit
-style mask is Phase 3.
+and the loop ends one step *past* the endpoint. The 16-bit style mask (2026-10-06)
+rotates per pixel exactly as gfxlib2's does; tests/codegen/gfx-line-style A/Bs it,
+and dropping either the clip's `rot += skip` or the reverse-mask fails every case.
 
 ### The tie cases exist because a negative test lied
 
