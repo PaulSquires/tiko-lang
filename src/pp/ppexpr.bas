@@ -20,6 +20,10 @@ type PpValue
     '' AN UNSIGNED integer -- a decimal literal above the longint range, and what is
     '' computed from one. Compared and divided unsigned; 'num' holds its 64 bits.
     as boolean  isUns
+    '' A SINGLE -- a '!' / 'f' literal, CSNG, or arithmetic over singles and integers. 'fnum'
+    '' holds it rounded to single, and __FB_EVAL__ re-emits it with single precision: fbc
+    '' answers '__FB_EVAL__( 2147483648! )' with 2.147484e+09 (tka-probes/phase4/pb).
+    as boolean  isSgl
     as string   str_
     '' THE VALUE CAME FROM AN ESCAPED LITERAL somewhere -- '!"..."'. The span this
     '' evaluator reads is RAW SOURCE, so a backslash escape has not been decoded and a
@@ -110,6 +114,50 @@ private function PxNumU( byval v as longint, byval uns as boolean ) as PpValue
     return r
 end function
 
+'' A float result, single when every float operand is one -- 'single op integer' stays single.
+private function PxFltOf_( byval d as double, byref l as PpValue, byref r as PpValue ) as PpValue
+    dim as boolean sg = (l.isSgl orelse (l.isFlt = false)) andalso (r.isSgl orelse (r.isFlt = false)) andalso (l.isSgl orelse r.isSgl)
+    dim as PpValue v = PxFlt( iif( sg, cdbl( csng( d ) ), d ) )
+    v.isSgl = sg
+    return v
+end function
+
+private function PxSgl_( byval d as double ) as PpValue
+    dim as PpValue v = PxFlt( cdbl( csng( d ) ) )
+    v.isSgl = true
+    return v
+end function
+
+'' THE LITERAL'S OWN SUFFIX, from the lexer's record -- the same field Check types the literal by.
+private function LitSuffix_( byref e as PpEngine, byref t as Token ) as NumSuffix
+    dim as long li = cast( long, t.literal )
+    if (li < 0) orelse (li >= (*e.lits).Count) then return NSUF_NONE
+    return cast( NumSuffix, (*e.lits)[li].suffix )
+end function
+
+'' AN INTEGER LITERAL AS fbc TYPES IT (tka-probes/phase4/pb, 139 rows x 4 forms): its suffix
+'' first -- '&' / 'l' a LONG and 'ul' a ULONG, both 32 bits, so '2147483648&' is -2147483648
+'' and an operand of either is promoted to INTEGER (signed) the way code promotes it, which
+'' is why '1ul > -1' is true; 'u' and 'ull' unsigned 64; '!' / 'f' a single. Unsuffixed, a
+'' DECIMAL from 2^31 to 2^32-1 or from 2^63 up is unsigned -- Check.DecimalLitUnsigned, so
+'' '3000000000 \ -2' is 0, as fbc answers -- and a hex, octal or binary one never is.
+private function PxIntLit_( byval v as longint, byval sf as NumSuffix, byval dec as boolean ) as PpValue
+    select case sf
+    case NSUF_LONG     : return PxNum( cast( long, v ) )
+    case NSUF_ULONG    : return PxNum( cast( longint, cast( ulong, v ) ) )
+    case NSUF_UINTEGER, NSUF_ULONGINT : return PxNumU( v, true )
+    case NSUF_SINGLE   : return PxSgl_( cast( double, v ) )
+    case NSUF_DOUBLE   : return PxFlt( cast( double, v ) )
+    case NSUF_INTEGER, NSUF_LONGINT : return PxNum( v )
+    end select
+    if dec then
+        dim as ulongint uv = cast( ulongint, v )
+        if uv >= &h8000000000000000ull then return PxNumU( v, true )
+        if (uv >= &h80000000ull) andalso (uv <= &hFFFFFFFFull) then return PxNumU( v, true )
+    end if
+    return PxNum( v )
+end function
+
 private function PxI( byref v as PpValue ) as longint
     return v.num
 end function
@@ -123,6 +171,7 @@ private function PxTruth( byref v as PpValue ) as boolean
 end function
 
 declare function PxOrElse( byref x as PpExprState ) as PpValue
+declare function PxPow_( byref x as PpExprState ) as PpValue
 declare function PxNot( byref x as PpExprState ) as PpValue
 
 '' The size of a BUILTIN type is target data, which the preprocessor legitimately
@@ -525,17 +574,15 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 v = v * radix + d
             next
             '' A 'u' SUFFIX MAKES IT UNSIGNED -- '&hFFFFFFFFFFFFFFFFull > 0' is true to fbc, and
-            '' '&h0u > -1' false (warning 35); unsuffixed, '&hFFFFFFFFFFFFFFFF' is -1.
-            if instr( lcase( digits ), "u" ) > 0 then return PxNumU( v, true )
+            '' '&h0u > -1' false (warning 35); unsuffixed, '&hFFFFFFFFFFFFFFFF' is -1. PxIntLit_.
+            return PxIntLit_( v, LitSuffix_( *x.e, t ), false )
         else
             '' A DECIMAL ABOVE THE LONGINT RANGE IS UNSIGNED in code -- see
             '' Check.DecimalLitUnsigned -- and '#if 18446744073709551615 > 0' is true to
             '' fbc. Read as a longint it was -1. It is carried UNSIGNED, so it still
             '' equals a '&hFFFFFFFFFFFFFFFF' beside it, which a double would not.
             dim as ulongint uv = valulng( digits )
-            if uv > &h7FFFFFFFFFFFFFFFull then return PxNumU( cast( longint, uv ), true )
-            if instr( lcase( digits ), "u" ) > 0 then return PxNumU( cast( longint, uv ), true )   '' '5ull > -1' is false
-            v = cast( longint, uv )
+            return PxIntLit_( cast( longint, uv ), LitSuffix_( *x.e, t ), true )   '' '5ull > -1' is false
         end if
         return PxNum( v )
 
@@ -544,6 +591,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         '' where fbc compares the double and answers the other way round both times.
         dim as string sp = SpellOf( *x.e, t )
         PxNext( x )
+        if LitSuffix_( *x.e, t ) = NSUF_SINGLE then return PxSgl_( val( sp ) )   '' '1.5f'
         return PxFlt( val( sp ) )
 
     case TK_STRING_LIT
@@ -613,10 +661,16 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         end if
         return v
 
+    '' NEGATION IS LOOSER THAN '^': '-2^2' is -4 to fbc, and '2^-1' 0.5 -- see PxPow_. Negating
+    '' an unsigned value gives a SIGNED one, as typeof( -1u ) is INTEGER.
     case TK_MINUS
         PxNext( x )
-        dim as PpValue v = PxPrimary( x )
-        if v.isFlt then return PxFlt( -v.fnum )
+        dim as PpValue v = PxPow_( x )
+        if v.isFlt then
+            dim as PpValue nv = PxFlt( -v.fnum )
+            nv.isSgl = v.isSgl
+            return nv
+        end if
         return PxNum( -v.num )
 
     '' NOT AS AN OPERAND, as in code: 'FOO = TRUE' over '#define TRUE NOT FALSE' is
@@ -696,6 +750,49 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             if a0.num > 0 then return PxNum( 1 )
             if a0.num < 0 then return PxNum( -1 )
             return PxNum( 0 )
+        end select
+
+    '' THE C* CONVERSIONS over a constant, as code folds them: CINT rounds half to even --
+    '' 'cint( 2.5 )' is 2 and 'cint( 3.5 )' 4 to fbc's '#if' -- and each narrows to its type's
+    '' width, so 'clng( 4294967295 )' is -1. They were not operators here (TKO0308).
+    case KW_CINT, KW_CLNG, KW_CLNGINT, KW_CUINT, KW_CULNG, KW_CULNGINT, KW_CSHORT, KW_CUSHORT, _
+         KW_CBYTE, KW_CUBYTE, KW_CSNG, KW_CDBL
+        PxNext( x )
+        if PxPeek( x ) <> TK_LPAREN then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        PxNext( x )
+        dim as PpValue ca = PxOrElse( x )
+        if PxPeek( x ) <> TK_RPAREN then x.bad = true
+        PxNext( x )
+        if x.bad orelse ca.isStr then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        if k = KW_CDBL then return PxFlt( PxD( ca ) )
+        if k = KW_CSNG then return PxSgl_( PxD( ca ) )
+        dim as longint ci
+        if ca.isFlt then
+            ci = clngint( ca.fnum )   '' round half to even, as fbc's CINT
+        else
+            ci = ca.num
+        end if
+        select case k
+        case KW_CINT
+            if x.e->cfg->targetIs64 then return PxNum( ci )
+            return PxNum( cast( long, ci ) )
+        case KW_CLNG      : return PxNum( cast( long, ci ) )
+        case KW_CLNGINT   : return PxNum( ci )
+        case KW_CUINT
+            if x.e->cfg->targetIs64 then return PxNumU( ci, true )
+            return PxNum( cast( longint, cast( ulong, ci ) ) )
+        case KW_CULNG     : return PxNum( cast( longint, cast( ulong, ci ) ) )
+        case KW_CULNGINT  : return PxNumU( ci, true )
+        case KW_CSHORT    : return PxNum( cast( short, ci ) )
+        case KW_CUSHORT   : return PxNum( cast( ushort, ci ) )
+        case KW_CBYTE     : return PxNum( cast( byte, ci ) )
+        case else         : return PxNum( cast( ubyte, ci ) )
         end select
 
     '' IIF picks a branch; BOTH are parsed, because the unchosen one still has to
@@ -966,17 +1063,39 @@ end function
 '' * 2 = 2' each took the other branch from fbc -- silently, as a wrong branch is.
 '' '/' is FLOATING, as it is in code: '#if 7 / 2 = 3.5' is true. '\' and MOD by zero is
 '' fbc's error 100, not 0.
-private function PxMul( byref x as PpExprState ) as PpValue
+'' '^' -- tighter than '*' and than negation, left to right, always a DOUBLE: '2^10' is 1024.0,
+'' '-2^2' -4 and '2^-1' 0.5 (fbc; the exponent may carry its own sign). It was not an operator
+'' here at all, so every '#if' with one was TKO0308.
+function PxPow_( byref x as PpExprState ) as PpValue
     dim as PpValue l = PxPrimary( x )
+    while PxPeek( x ) = TK_CARET
+        PxNext( x )
+        dim as PpValue r = PxPrimary( x )
+        if l.isStr orelse r.isStr then
+            x.bad = true
+            return PxNum( 0 )
+        end if
+        l = PxFlt( PxD( l ) ^ PxD( r ) )
+    wend
+    return l
+end function
+
+private function PxMul( byref x as PpExprState ) as PpValue
+    dim as PpValue l = PxPow_( x )
     do
         dim as TokenKind k = PxPeek( x )
         if (k <> TK_STAR) andalso (k <> TK_SLASH) then exit do
         PxNext( x )
-        dim as PpValue r = PxPrimary( x )
+        dim as PpValue r = PxPow_( x )
         if k = TK_SLASH then
-            l = PxFlt( PxD( l ) / PxD( r ) )
+            '' '/' IS A DOUBLE unless BOTH sides are single: 'typeof( 1f / 3 )' is DOUBLE, '1f / 3f' single.
+            if l.isSgl andalso r.isSgl then
+                l = PxSgl_( PxD( l ) / PxD( r ) )
+            else
+                l = PxFlt( PxD( l ) / PxD( r ) )
+            end if
         elseif l.isFlt orelse r.isFlt then
-            l = PxFlt( PxD( l ) * PxD( r ) )
+            l = PxFltOf_( PxD( l ) * PxD( r ), l, r )
         else
             l = PxNumU( l.num * r.num, l.isUns orelse r.isUns )
         end if
@@ -1052,7 +1171,7 @@ private function PxAdd( byref x as PpExprState ) as PpValue
             x.bad = true
             l = PxNum( 0 )
         elseif l.isFlt orelse r.isFlt then
-            l = PxFlt( iif( k = TK_PLUS, PxD( l ) + PxD( r ), PxD( l ) - PxD( r ) ) )
+            l = PxFltOf_( iif( k = TK_PLUS, PxD( l ) + PxD( r ), PxD( l ) - PxD( r ) ), l, r )
         elseif k = TK_PLUS then
             l = PxNumU( l.num + r.num, l.isUns orelse r.isUns )
         else
@@ -1146,7 +1265,7 @@ function PxNot( byref x as PpExprState ) as PpValue
     if PxPeek( x ) = KW_NOT then
         PxNext( x )
         dim as PpValue v = PxNot( x )
-        return PxNum( not PxI( v ) )
+        return PxNumU( not PxI( v ), v.isUns )   '' 'not 1u' is UINTEGER 18446744073709551614
     end if
     return PxRel( x )
 end function
@@ -1156,7 +1275,7 @@ private function PxAnd( byref x as PpExprState ) as PpValue
     while PxPeek( x ) = KW_AND
         PxNext( x )
         dim as PpValue r = PxNot( x )
-        l = PxNum( PxI( l ) and PxI( r ) )
+        l = PxNumU( PxI( l ) and PxI( r ), l.isUns orelse r.isUns )
     wend
     return l
 end function
@@ -1166,7 +1285,7 @@ private function PxOr( byref x as PpExprState ) as PpValue
     while PxPeek( x ) = KW_OR
         PxNext( x )
         dim as PpValue r = PxAnd( x )
-        l = PxNum( PxI( l ) or PxI( r ) )
+        l = PxNumU( PxI( l ) or PxI( r ), l.isUns orelse r.isUns )
     wend
     return l
 end function
