@@ -1,0 +1,13 @@
+'' A bare 'redim a( ... )' in a method names what 'a' means ABOVE that line -- the field, not a
+'' local 'dim a' further down (structs/dynamic-array-fields.bas scoping).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/redim-name-seen-above.bas -o tests/codegen/redimnameseenabove.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/redimnameseenabove.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  0             -1             1             1
+'' EXPECT-RUN-OUT:  0            -1             2             2
+'' EXPECT-RUN-OUT:  0            -1             2             2
+'' EXPECT-RUN-OUT:  0            -1             4             4
+'' EXPECT-RUN-OUT:  0            -1             4             4

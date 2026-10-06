@@ -1046,7 +1046,7 @@ sub WalkStmt _
                     '' declares nothing, so nothing bound its item to that array -- and
                     '' the post-Check rank test then had no symbol to read the declared
                     '' rank from. Bound here, where the scope is at hand.
-                    dim as Tko.SymbolId rsid = c.syms->Lookup( here, rp->name )
+                    dim as Tko.SymbolId rsid = VisibleToUse_( c, VisibleAbove_( c, c.syms->Lookup( here, rp->name ), item, here, rp->name ), here )   '' as seen ABOVE this line
                     if rsid <> Tko.SYMBOL_NONE then c.info->SetRef( item, rsid )
                 end if
                 if rp->c = Tko.NODE_NONE then continue for

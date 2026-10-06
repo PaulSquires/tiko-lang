@@ -662,7 +662,18 @@ private function RedimOne_ _
     end if
 
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
-    if viaExpr = false then
+    '' RESOLVE'S BINDING FIRST: it sees the name as it is ABOVE this line, so a 'dim a' further down
+    '' does not take 'redim a( 4 to 4 )' from the field it names (dynamic-array-fields.bas scoping).
+    '' A field goes to the ThisFieldSym_ path below.
+    dim as Tko.Symbol ptr rrs = c.syms->SymbolAt( c.info->RefOf( item ) )
+    dim as boolean rrDone = false
+    if (viaExpr = false) andalso (rrs <> 0) then
+        select case cast( Tko.SymbolKind, rrs->kind )
+        case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER : sid = c.info->RefOf( item ) : rrDone = true
+        case Tko.SYM_FIELD : rrDone = true
+        end select
+    end if
+    if (viaExpr = false) andalso (rrDone = false) then
         '' LookupLocalTyped SEARCHES ONE SCOPE. A redim inside an IF, a FOR or a SCOPE
         '' names an array declared OUTSIDE it -- which is how fb/map.bi and fb/set.bi
         '' grow their tables:
