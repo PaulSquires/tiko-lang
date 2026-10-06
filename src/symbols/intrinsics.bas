@@ -311,9 +311,10 @@ private function NotAString_ _
     return Tko.TYPE_NONE
 end function
 
-'' 'any' -- the universal pointee.
+'' 'any' -- the universal pointee -- AT ANY DEPTH: 'B ptr' to 'any ptr ptr' is fine, 'long ptr ptr' is 302.
 private function IsAnyType_ ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
+    while c.types->Kind( t ) = Tko.TK_POINTER : t = c.types->Unqualify( c.types->Inner( t ) ) : wend
     if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
     return c.types->BuiltinOf( t ) = Tko.TY_ANY
 end function
