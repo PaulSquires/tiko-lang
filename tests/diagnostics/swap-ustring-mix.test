@@ -1,0 +1,10 @@
+'' TKO0759, fbc's error 20: SWAP of a ustring (var-length or fixed) with any narrow string.
+'' tiko took fb_StrSwap and copied UTF-8 bytes over a narrow buffer.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/swap-ustring-mix.bas -o tests/diagnostics/src/swap-ustring-mix.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: swap-ustring-mix.bas(4,
+'' EXPECT-OUT: swap-ustring-mix.bas(6,
+'' EXPECT-OUT: swap-ustring-mix.bas(8,
+'' EXPECT-OUT: swap-ustring-mix.bas(10,
+'' EXPECT-MAX-DIAG: 4

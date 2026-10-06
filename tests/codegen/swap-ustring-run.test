@@ -1,0 +1,12 @@
+'' SWAP of two ustrings (var-length and ustring*N, mixed sizes) goes through fb_UStrSwap.
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/swap-ustring.bas -o tests/codegen/swapustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/swapustring.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: beta alpha
+'' EXPECT-RUN-OUT: [fixe] [fixA  ]
+'' EXPECT-RUN-OUT: [123] [abc    ]
+'' EXPECT-RUN-OUT: [f6] [uu   ]

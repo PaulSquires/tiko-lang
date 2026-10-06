@@ -178,6 +178,23 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as longint na, nb_
     dim as long ka = StrSwapKind_( c, t, na )
     dim as long kb = StrSwapKind_( c, SwapOperandType_( c, sp->b ), nb_ )
+    '' TWO USTRINGS -- var-length or 'ustring * N' -- are fb_UStrSwap's, never fb_StrSwap's:
+    '' that one copied a fixed ustring's UTF-8 bytes as a narrow buffer and overran both.
+    '' Measured: 'fb_UStrSwap( &A, -1ll, &B, -1ll )', and for a 'ustring * 8'
+    '' 'fb_UStrSwap( FA, -9223372036854775801ll, ... )' -- StrSwapKind_'s tagged N - 1.
+    '' One ustring against a narrow string is Check's TKO0759 (fbc's error 20).
+    dim as boolean isUA = IsUStringType( c, t )
+    dim as boolean isUB = IsUStringType( c, SwapOperandType_( c, sp->b ) )
+    if isUA orelse isUB then
+        if (isUA = false) orelse (isUB = false) then return false
+        dim as FB.Array( of ulong ) uargs
+        uargs.Push( cast( ulong, la.kind ) ) : uargs.Push( cast( ulong, la.id ) )
+        PushStrLen_( c, uargs, na )
+        uargs.Push( cast( ulong, lb.kind ) ) : uargs.Push( cast( ulong, lb.id ) )
+        PushStrLen_( c, uargs, nb_ )
+        EmitRtl( c, RTL_USTR_SWAP, uargs )
+        return true
+    end if
     if (ka >= 0) andalso (kb >= 0) then
         '' WSTRING has its own entry point and does not mix with the byte forms; fbc
         '' emits something else again for that pairing, so it is declined rather than

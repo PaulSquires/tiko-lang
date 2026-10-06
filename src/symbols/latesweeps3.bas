@@ -190,7 +190,8 @@ private function SwapKindOf_ _
         dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
         if c.types->Kind( el ) = TK_BUILTIN then
             select case c.types->BuiltinOf( el )
-            case TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+            case TY_USTRING, TY_FIXUSTR : return 5
+            case TY_ZSTRING, TY_WSTRING, TY_FIXSTR
                 return 2
             end select
         end if
@@ -203,7 +204,11 @@ private function SwapKindOf_ _
     end if
     if c.types->Kind( u ) <> TK_BUILTIN then return 0
     select case c.types->BuiltinOf( u )
-    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+    '' A USTRING, var-length or fixed, is a FIFTH kind: fbc swaps two of them through
+    '' fb_UStrSwap and refuses one against any narrow string, error 20 (measured: 'swap s, u',
+    '' 'swap u, f' over a string * 4, 'swap z, u', 'swap s, uf' over a ustring * 4).
+    case TY_USTRING, TY_FIXUSTR : return 5
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_FIXSTR
         return 2
     case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
          TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE, _

@@ -131,6 +131,8 @@ namespace Tko.Mir
         '' word per operand.
         RTL( RTL_STR_SWAP,          "fb_StrSwap",          "v",   "pzlpzl" )
         RTL( RTL_WSTR_SWAP,         "fb_WstrSwap",         "v",   "pzpz"  )
+        '' USTRING, var-length or fixed: (ptr, size) per side, size -1 or the tagged N-1.
+        RTL( RTL_USTR_SWAP,         "fb_UStrSwap",         "v",   "pzpz"  )
         '' WIDE STRINGS. A wstring VALUE is always a bare uint16* -- there is no
         '' descriptor type, and no var-length wstring exists at all ('dim as wstring w'
         '' is fbc error 28). So none of this needs a wide analogue of fb_StrInit or of
