@@ -386,6 +386,14 @@ private sub PlaceGroup _
         if closeAt > grpSize then grpSize = closeAt
     end if
 
+    '' AN ANONYMOUS GROUP IS PADDED TO ITS OWN ALIGNMENT, as a named one is: 'union : type : as short a
+    '' : as byte b : end type : end union : as byte c' puts c at 4 where tiko had 3 -- the inner type is
+    '' four bytes, not three (structs/anon-align.bas). The top level pads in its caller.
+    if depth > 0 then
+        dim as long gpa = grpAlign
+        if (pack > 0) andalso (gpa > pack) then gpa = pack
+        grpSize = AlignUp( grpSize, gpa )
+    end if
     outSize = grpSize
     outAlign = grpAlign
 end sub
