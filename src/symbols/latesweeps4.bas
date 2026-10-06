@@ -1010,15 +1010,11 @@ private function CtorsRefuseUStrZptr_ _
             dim as NodeId prm = cast( NodeId, c.ast->children[dp->first + i] )
             if c.ast->Kind( prm ) = N_PARAM then prms.Push( cast( ulong, prm ) )
         next
-        '' A LONGER list may be defaulted -- unsettled, so no report. A shorter one never
-        '' fits, and neither does a longer one whose extra parameters are not ALL defaulted:
-        '' 'T( u )' beside a 'constructor( byval as wstring ptr, byval k as long )' is still
-        '' error 99 (tka-probes/phase4/t_strargs7.bas).
+        '' A LONGER list ALL of whose extras are defaulted is unsettled -- no report; one with an
+        '' undefaulted extra never fits ('T( u )' beside '( wstring ptr, long )' is still 99).
         dim as boolean extraDefaulted = (prms.Count > args.Count)
         for i as long = args.Count to prms.Count - 1
-            dim as StmtPayload ptr xp = _
-                @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cast( NodeId, prms[i] ) )].data )]
-            if xp->b = NODE_NONE then extraDefaulted = false
+            if c.ast->stmts[cast( long, c.ast->nodes[cast( long, cast( NodeId, prms[i] ) )].data )].b = NODE_NONE then extraDefaulted = false
         next
         if extraDefaulted then return false
         if prms.Count = args.Count then
