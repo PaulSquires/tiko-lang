@@ -91,6 +91,9 @@ private function UserConvCost_ _
     if f = t then return CONV_NONE
 
     dim as long best = CONV_NONE
+    '' A UDT INTO 'string': fbc's best cast against STRING must be text (castpick.bas) -- [as zstring ptr, as ustring] is 58.
+    dim as boolean udtToStr = cbool( (c.types->Kind( f ) = Tko.TK_UDT) andalso (c.types->Kind( t ) = Tko.TK_BUILTIN) )
+    if udtToStr andalso cbool( c.types->BuiltinOf( t ) = Tko.TY_STRING ) andalso cbool( Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, f, Tko.Check.CT_STRING ) > 0 ) then return CONV_NONE
 
     '' A CONVERSION CONSTRUCTOR on the destination -- any arity-1 constructor whose
     '' parameter is not the destination type itself, which is the copy constructor.

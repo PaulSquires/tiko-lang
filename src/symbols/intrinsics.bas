@@ -12,42 +12,7 @@
 
 '' ------------------------------------------------- the conversion intrinsics
 
-'' CSIGN / CUNSG. Measured in tests/types/expected/fbc-conv.txt, and not guessable: the
-'' result is the argument's signed or unsigned COUNTERPART, and the argument itself
-'' where there is none -- with a fixed-length string an asymmetric case, since 'cunsg'
-'' of a ZSTRING * n is that same type while 'csign' of it is BYTE.
-'' THE RESULT TYPE OF A UDT'S 'operator cast' THAT YIELDS A STRING, or TYPE_NONE.
-''
-'' 'operator cast' may be declared several times over different targets -- as long, as
-'' string, as zstring -- and they hang off one symbol as a chain, so the first is not
-'' necessarily the one being asked about.
-private function UdtStringCastType_ _
-    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
-
-    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
-    dim as Tko.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.TYPE_NONE
-    '' A NARROW CAST BEFORE A WIDE ONE, whatever the order declared: measured, fbc's 'ucase( x )'
-    '' over casts to wstring and to string calls the STRING one; tiko took the first.
-    dim as Tko.TypeId wide_ = Tko.TYPE_NONE
-    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
-    while cs <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
-        if cse = 0 then exit while
-        if cse->type_ <> Tko.TYPE_NONE then
-            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
-            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
-            if c.types->Kind( ru ) = Tko.TK_BUILTIN then
-                select case c.types->BuiltinOf( ru )
-                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING : return ru
-                case Tko.TY_WSTRING : if wide_ = Tko.TYPE_NONE then wide_ = ru
-                end select
-            end if
-        end if
-        cs = cse->nextOverload
-    wend
-    return wide_
-end function
+#include once "symbols/udtstrtype.bas"   '' UdtStringCastType_
 
 '' DERIVES FROM A WIDE STRING? One that extends wstring IS one, which beats its own
 '' 'operator cast' -- see the table at case "str".

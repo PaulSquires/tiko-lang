@@ -1,0 +1,13 @@
+'' A UDT whose best cast against a string context's target is a pointer, a number or a tie reaches
+'' no string (castpick.bas): fbc's 24 (print), 181 (assignment), 20 ('&'), 58 (argument), 98 (tie).
+'' tiko converted the pointer as text. Lines 33-36 reach a string and compile.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/udt-strcast-noconv.bas -o tests/diagnostics/src/udt-strcast-noconv.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-strcast-noconv.bas(22,7): error TKO0871
+'' EXPECT-OUT: udt-strcast-noconv.bas(23,1): error TKO0738
+'' EXPECT-OUT: udt-strcast-noconv.bas(24,9): error TKO0820
+'' EXPECT-OUT: udt-strcast-noconv.bas(25,10): error TKO0698
+'' EXPECT-OUT: udt-strcast-noconv.bas(26,16): error TKO0660
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 5

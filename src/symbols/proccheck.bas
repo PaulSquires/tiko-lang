@@ -958,6 +958,10 @@ private sub UdtCastOperands_ ( byref c as Ctx, byval id as NodeId, byval bp as B
     if op = TK_AMP then
         if lU andalso (lS = false) then bad = true
         if rU andalso (rS = false) then bad = true
+        '' ...and its BEST cast against STRING must be text: fbc's 20 when a pointer or a number
+        '' outscores the string casts, or two tie (castpick.bas).
+        if lU andalso (Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, lt, Tko.Check.CT_STRING ) > 0) then bad = true
+        if rU andalso (Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, rt, Tko.Check.CT_STRING ) > 0) then bad = true
     else
         select case op
         case TK_PLUS, TK_MINUS, TK_STAR, TK_SLASH, TK_EQ, TK_NE, TK_LT, TK_GT, TK_LE, TK_GE

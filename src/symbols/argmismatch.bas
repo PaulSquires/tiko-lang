@@ -253,6 +253,10 @@ private function AmBadPair_ _
         '' ...AND A 'string' PARAMETER NEEDS A CAST YIELDING TEXT (UdtHasStrCast): numbers only is 58.
         if AmString_( c, pt ) andalso (c.types->BuiltinOf( pt ) = Tko.TY_STRING) then
             if Tko.Check.UdtHasStrCast( *c.syms, *c.types, *c.names, at ) = false then return true
+            '' ...and its BEST cast against STRING must be text (castpick.bas): a pointer or a number
+            '' outscoring the string casts, or a tie, is 58 too -- measured over [as zstring ptr] and
+            '' [as zstring ptr, as ustring], where tiko passed the pointer as the string.
+            if Tko.Check.UdtStrCastFit( *c.ast, *c.syms, *c.types, *c.names, at, Tko.Check.CT_STRING ) > 0 then return true
         end if
         if AmPlainUdt_( c, at, "cast", "" ) = false then return false
         if AmPtrLike_( c, pt ) then return true

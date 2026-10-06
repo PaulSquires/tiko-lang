@@ -158,4 +158,27 @@ function StrCastPick _
     return best
 end function
 
+'' DOES A UDT REACH A STRING CONTEXT asking TARGET? -1 not this question (not a UDT, or no cast
+'' at all -- other diagnostics own those), 0 it does, 1 its best cast converts to no string (a
+'' pointer or a number won, or nothing scored), 2 two casts tie (fbc's error 98). Measured on
+'' fbc-modern, the 1 is error 24 for print and an initialiser, 181 for an assignment, 20 for '&',
+'' 58 for an argument.
+function UdtStrCastFit _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long ) as long
+
+    if udt = Tko.TYPE_NONE then return -1
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return -1
+    if StructorNamed( syms, types, names, u, "cast" ) = Tko.SYMBOL_NONE then return -1
+    dim as long oc, cls
+    StrCastPick( ast, syms, types, names, u, target, oc, cls )
+    select case oc
+    case CP_OK        : return 0
+    case CP_AMBIGUOUS : return 2
+    end select
+    return 1
+end function
+
 end namespace
