@@ -1,0 +1,13 @@
+'' INPUT / LINE INPUT separators: an empty LINE INPUT prompt, and ';' before and after '#n'.
+'' See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/input-separators.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: @a, -1, 0, 0, -1)
+'' EXPECT-OUT: @b, -1, 0, 0, 0)
+'' EXPECT-OUT: @c, -1, 0, -1, 0)
+'' EXPECT-OUT: @d, -1, 0, 0, -1)
+'' EXPECT-OUT: fb_InputString(@e, -1, 0)
+'' EXPECT-OUT: fb_InputString(@f, -1, 0)

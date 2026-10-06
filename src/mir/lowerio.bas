@@ -1035,7 +1035,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as long addNewline = -1
     if (sp->extra and 4) <> 0 then addNewline = 0
     dim as long addQuestion = 0
-    if (sp->c <> Tko.NODE_NONE) andalso ((sp->extra and 8) = 0) then addQuestion = -1
+    if ((sp->c <> Tko.NODE_NONE) orelse ((sp->extra and 16) <> 0)) andalso ((sp->extra and 8) = 0) then addQuestion = -1   '' 16: a bare ';' (IntrInput)
     if wide = false then
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, fillRem ) )
     end if
@@ -1154,7 +1154,7 @@ function LowerInput _
     if isLine then
         if sp->count <> 1 then return false
         '' LINE INPUT's rule, not INPUT's: a "? " only after a prompt ended by ';'.
-        addQuestion = iif( (sp->c <> Tko.NODE_NONE) andalso ((sp->extra and 8) = 0), -1, 0 )
+        addQuestion = iif( ((sp->c <> Tko.NODE_NONE) orelse ((sp->extra and 16) <> 0)) andalso ((sp->extra and 8) = 0), -1, 0 )
         dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first] )
         dim as longint dn
         if InputRtlFor( c, c.info->TypeOf_( dst ), dn ) = RTL_NONE then return false

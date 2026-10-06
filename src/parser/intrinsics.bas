@@ -180,8 +180,13 @@ end sub
 '' The prompt is a string literal followed by ';' or ',', which is the only thing that
 '' distinguishes it from the first variable.
 private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    '' fbc reads the leading ';' BEFORE the '#': 'input ;#1, a' compiles, and so does a ';'
+    '' after the file number, 'input #1; a' (parser-quirk-file.bas, cInputStmt; measured).
+    if Accept( p, Tko.TK_SEMICOLON ) then sp.extra or= 4
     sp.a = IntrFileNum( p )
-    if sp.a <> Tko.NODE_NONE then Accept( p, Tko.TK_COMMA )
+    if sp.a <> Tko.NODE_NONE then
+        if Accept( p, Tko.TK_COMMA ) = false then Accept( p, Tko.TK_SEMICOLON )
+    end if
 
     '' A LEADING ';' -- 'input ; a' -- suppresses the newline the runtime would echo
     '' after the user presses return. It comes before the prompt, so it cannot be folded
@@ -193,8 +198,7 @@ private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     '' variation about 1,200 times each.
     '' BIT 4, not 1. LINE INPUT arrives here with 'extra' already set to 1 to say so,
     '' and overwriting it made a LINE INPUT and a semicolon-suppressed INPUT
-    '' indistinguishable -- the flags are a SET, and each needs its own bit.
-    if Accept( p, Tko.TK_SEMICOLON ) then sp.extra or= 4
+    '' indistinguishable -- the flags are a SET, and each needs its own bit. Read above, before the '#'.
 
     '' LINE INPUT'S PROMPT IS ANY STRING EXPRESSION; INPUT's is a literal. LINE INPUT
     '' has one destination, so whatever is followed by ';' or ',' before it is the
@@ -206,7 +210,15 @@ private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     '' dropped. fbc: 'input "x", a' and 'line input "x", s' add no question mark, and
     '' 'input "x"; a' and 'line input "x"; s' do.
     dim as boolean isLine = ((sp.extra and 1) <> 0) andalso (sp.a = Tko.NODE_NONE)
-    if (Peek( p ) = Tko.TK_STRING_LIT) orelse isLine then
+    '' AN EMPTY LINE INPUT PROMPT -- 'line input , s', 'line input ;; s': the separator alone.
+    '' fbc passes "" with the same flags as a prompt's: ',' no "? ", ';' a "? " -- bit 16, as
+    '' there is no prompt node to say so (syntax/line-input.bas).
+    dim as boolean bareSep = cbool( (Peek( p ) = Tko.TK_COMMA) orelse (Peek( p ) = Tko.TK_SEMICOLON) )
+    bareSep = bareSep andalso isLine
+    if bareSep then
+        sp.extra or= iif( Peek( p ) = Tko.TK_COMMA, 8, 16 )
+        Advance( p )
+    elseif (Peek( p ) = Tko.TK_STRING_LIT) orelse isLine then
         dim as long save = p.pos
         dim as Tko.NodeId prompt = Expression( p, iif( isLine, Tko.PREC_ANDALSO, Tko.PREC_POSTFIX ) )
         dim as boolean isPrompt = (Peek( p ) = Tko.TK_SEMICOLON) orelse _
