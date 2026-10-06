@@ -991,10 +991,27 @@ private function ProcNameCore _
     if sp->rawName <> 0 then written = names.Spelling( sp->rawName )
     if len( written ) = 0 then written = names.Spelling( sp->name )
 
+    '' A METHOD -- its scope, or its declare's, sits inside a TYPE's.
+    dim as Tko.SymScope ptr msc = syms.ScopeAt( info.ScopeOf( proc_ ) )
+    dim as long mup = 0
+    while (msc <> 0) andalso (mup < 4)
+        if msc->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then exit while
+        msc = syms.ScopeAt( msc->parent )
+        mup += 1
+    wend
+    dim as boolean isMethod = false
+    if msc <> 0 then isMethod = (msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+
     '' Rule 3: foreign linkage takes the spelling verbatim and ignores OVERLOAD.
+    '' ...EXCEPT A METHOD, which is mangled like an 'extern "C++"' one with the written case
+    '' kept -- measured, 'A.foo' of a type declared in 'extern "c"' is _ZN2G11A3fooEu7INTEGER,
+    '' and plain 'foo' made every such method in a module one symbol (virtual/virtual.bas,
+    '' clang: invalid redefinition of 'foo').
+    dim as boolean foreignMethod = false
     if (sp->extra and Tko.PF_FOREIGN) <> 0 then
         if aliased then return names.Spelling( aliasNm )
-        return written
+        if isMethod = false then return written
+        foreignMethod = true
     end if
 
     '' Rule 2: an ALIAS replaces the identifier and KEEPS ITS CASE.
@@ -1002,7 +1019,7 @@ private function ProcNameCore _
     '' ...AND SO DOES A PROCEDURE INSIDE 'extern "C++"'. Measured, 'sub g2( byval
     '' n as integer )' there is _Z2g2u7INTEGER and the same line outside it is
     '' plain 'H' -- the C++ block mangles, and mangles what was WRITTEN.
-    dim as boolean isCxx = ((sp->extra and Tko.PF_CXX) <> 0)
+    dim as boolean isCxx = ((sp->extra and Tko.PF_CXX) <> 0) orelse foreignMethod
     '' ...OR ITS DECLARATION'S: 'sub cns.cfun( .. )' defined after the block is the
     '' procedure the block declared, and fbc names both _ZN3cns4cfunEi -- read from the
     '' declaration the way an alias is, above.
@@ -1022,14 +1039,7 @@ private function ProcNameCore _
     '' and every call into a real C++ class was an undefined symbol. Measured, fbc keeps
     '' the written case: _ZN6Widget7doThingEi. The TYPE says it -- it keeps its rawName.
     if isCxx = false then
-        dim as Tko.SymScope ptr msc = syms.ScopeAt( info.ScopeOf( proc_ ) )
-        '' A member's own scope, or a declare's, sits inside the TYPE's.
-        dim as long mup = 0
-        while (msc <> 0) andalso (mup < 4)
-            if msc->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then exit while
-            msc = syms.ScopeAt( msc->parent )
-            mup += 1
-        wend
+        '' A member's own scope, or a declare's, sits inside the TYPE's -- msc, above.
         if msc <> 0 then
             if msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
                 dim as Tko.Symbol ptr mown = syms.SymbolAt( msc->owner )
