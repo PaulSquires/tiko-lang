@@ -1,10 +1,6 @@
 global str $str0 "abc"
 global wstr $wstr1 "abc"
 global str $str2 "x"
-global str $str3 "A"
-global str $str4 "Z"
-global str $str5 "0"
-global str $str6 "9"
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s size 24
@@ -113,45 +109,41 @@ func i32 main(i32 $0, ptr $1) {
     %77 = alloca ptr b
     %78 = load @p
     %79 = load %78
-    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 1)
-    %81 = call.rtl i32 fb_ASC(%80, 1)
-    %82 = zext %79
-    %83 = icmp.uge %82, %81
-    %84 = neg %83
-    %85 = load @p
-    %86 = load %85
-    %87 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 1)
-    %88 = call.rtl i32 fb_ASC(%87, 1)
-    %89 = zext %86
-    %90 = icmp.ule %89, %88
-    %91 = neg %90
-    %92 = and %84, %91
-    %93 = load @p
-    %94 = load %93
-    %95 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 1)
-    %96 = call.rtl i32 fb_ASC(%95, 1)
-    %97 = zext %94
-    %98 = icmp.uge %97, %96
-    %99 = neg %98
-    %100 = load @p
-    %101 = load %100
-    %102 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 1)
-    %103 = call.rtl i32 fb_ASC(%102, 1)
-    %104 = zext %101
-    %105 = icmp.ule %104, %103
-    %106 = neg %105
-    %107 = and %99, %106
-    %108 = or %92, %107
-    %109 = not %108
-    %110 = trunc %109
-    store @b, %110
-    %111 = load @b
-    call.rtl void fb_PrintInt(0, %111, 1)
+    %80 = const i32 65
+    %81 = zext %79
+    %82 = icmp.uge %81, %80
+    %83 = neg %82
+    %84 = load @p
+    %85 = load %84
+    %86 = const i32 90
+    %87 = zext %85
+    %88 = icmp.ule %87, %86
+    %89 = neg %88
+    %90 = and %83, %89
+    %91 = load @p
+    %92 = load %91
+    %93 = const i32 48
+    %94 = zext %92
+    %95 = icmp.uge %94, %93
+    %96 = neg %95
+    %97 = load @p
+    %98 = load %97
+    %99 = const i32 57
+    %100 = zext %98
+    %101 = icmp.ule %100, %99
+    %102 = neg %101
+    %103 = and %96, %102
+    %104 = or %90, %103
+    %105 = not %104
+    %106 = trunc %105
+    store @b, %106
+    %107 = load @b
+    call.rtl void fb_PrintInt(0, %107, 1)
     call.rtl void fb_StrDelete(@s)
-    %112 = const i32 0
-    call.rtl void fb_End(%112)
-    %113 = load @$tmp0
-    ret %113
+    %108 = const i32 0
+    call.rtl void fb_End(%108)
+    %109 = load @$tmp0
+    ret %109
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -161,10 +153,8 @@ declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 declare ptr fb_StrConcat(ptr $0, ptr $1, i64 $2, ptr $3, i64 $4)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
-declare i32 fb_ASC(ptr $0, i64 $1)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 137 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 133 insts, 0 statements not lowered, 0 scope imbalance

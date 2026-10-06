@@ -1,11 +1,10 @@
 global var i32 live
-global str $str1 "0"
-global str $str2 "abc"
-global str $str3 "field: "
-global str $str4 "xyz"
-global str $str5 "local: "
-global str $str6 "numeric: "
-global str $str7 "after:"
+global str $str1 "abc"
+global str $str2 "field: "
+global str $str3 "xyz"
+global str $str4 "local: "
+global str $str5 "numeric: "
+global str $str6 "after:"
 func void _ZN3STRC1Ev(ptr $0) {
   local ptr this
   entry0:
@@ -84,23 +83,20 @@ func void _ZN3STRC1Eu7INTEGER(ptr $0, i64 $1) {
     %12 = load %11
     %13 = const i64 0
     %14 = ptr.add %12, %13
-    %15 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 1)
-    %16 = call.rtl i32 fb_ASC(%15, 1)
-    %17 = load @n
-    %18 = zext %16
-    %19 = add %18, %17
-    %20 = trunc %19
-    store %14, %20
-    %21 = load @@live
-    %22 = sext %21
-    %23 = const i64 1
-    %24 = add %22, %23
-    %25 = trunc %24
-    store @@live, %25
+    %15 = const i32 48
+    %16 = load @n
+    %17 = zext %15
+    %18 = add %17, %16
+    %19 = trunc %18
+    store %14, %19
+    %20 = load @@live
+    %21 = sext %20
+    %22 = const i64 1
+    %23 = add %21, %22
+    %24 = trunc %23
+    store @@live, %24
     ret
 }
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
-declare i32 fb_ASC(ptr $0, i64 $1)
 func void _ZN3STRaSERS_(ptr $0, ptr $1) {
   local ptr this
   local ptr o
@@ -161,10 +157,10 @@ func void PROBE() {
     call void _ZN6HOLDERC1Ev(@a)
     %2 = field.addr @a, 0
     %3 = alloca ptr $tmp1
-    call void _ZN3STRC1ERKc(@$tmp1, @@$str2)
+    call void _ZN3STRC1ERKc(@$tmp1, @@$str1)
     call void _ZN3STRaSERS_(%2, @$tmp1)
     call void _ZN3STRD1Ev(@$tmp1)
-    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 7)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 7)
     call.rtl void fb_PrintString(0, %4, 0)
     %5 = field.addr @a, 0
     %6 = field.addr %5, 0
@@ -176,10 +172,10 @@ func void PROBE() {
     %10 = alloca ptr x
     call void _ZN3STRC1Ev(@x)
     %11 = alloca ptr $tmp3
-    call void _ZN3STRC1ERKc(@$tmp3, @@$str4)
+    call void _ZN3STRC1ERKc(@$tmp3, @@$str3)
     call void _ZN3STRaSERS_(@x, @$tmp3)
     call void _ZN3STRD1Ev(@$tmp3)
-    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 7)
+    %12 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str4, 7)
     call.rtl void fb_PrintString(0, %12, 0)
     %13 = field.addr @x, 0
     %14 = load %13
@@ -192,7 +188,7 @@ func void PROBE() {
     call void _ZN3STRC1Eu7INTEGER(@$tmp4, %18)
     call void _ZN3STRaSERS_(@x, @$tmp4)
     call void _ZN3STRD1Ev(@$tmp4)
-    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 9)
+    %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str5, 9)
     call.rtl void fb_PrintString(0, %19, 0)
     %20 = field.addr @x, 0
     %21 = load %20
@@ -205,6 +201,7 @@ func void PROBE() {
     ret
 }
 declare void _ZN6HOLDERC1Ev(ptr $0)
+declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
@@ -218,7 +215,7 @@ func i32 main(i32 $0, ptr $1) {
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     call void PROBE()
-    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 6)
+    %4 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str6, 6)
     call.rtl void fb_PrintString(0, %4, 0)
     %5 = load @@live
     call.rtl void fb_PrintInt(0, %5, 1)
@@ -242,4 +239,4 @@ func void _ZN6HOLDERD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 9 functions, 9 blocks, 171 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 9 functions, 9 blocks, 170 insts, 0 statements not lowered, 0 scope imbalance

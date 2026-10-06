@@ -1,6 +1,5 @@
 global str $str0 "123"
 global wstr $wstr1 "123"
-global str $str2 "1"
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg z0 size 8
@@ -94,53 +93,49 @@ func i32 main(i32 $0, ptr $1) {
     %63 = mul %61, %62
     %64 = ptr.add %60, %63
     %65 = load %64
-    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    %67 = call.rtl i32 fb_ASC(%66, 1)
-    %68 = zext %65
-    %69 = icmp.eq %68, %67
-    %70 = neg %69
-    %71 = const i64 0
-    %72 = icmp.ne %70, %71
-    store @b1, %72
-    %73 = alloca ptr b2
-    %74 = load @pz
-    %75 = const i64 0
-    %76 = ptr.add %74, %75
-    %77 = load %76
-    %78 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 1)
-    %79 = call.rtl i32 fb_ASC(%78, 1)
-    %80 = zext %77
-    %81 = icmp.eq %80, %79
-    %82 = neg %81
-    %83 = const i64 0
-    %84 = icmp.ne %82, %83
-    store @b2, %84
-    %85 = alloca ptr b3
-    %86 = load @pz
-    %87 = call.rtl i32 fb_StrCompare(%86, 0, @@$str0, 4)
-    %88 = icmp.eq %87, 0
-    %89 = neg %88
-    %90 = const i8 0
-    %91 = icmp.ne %89, %90
-    store @b3, %91
-    %92 = load @b1
-    call.rtl void fb_PrintBool(0, %92, 2)
-    %93 = load @b2
-    call.rtl void fb_PrintBool(0, %93, 2)
-    %94 = load @b3
-    call.rtl void fb_PrintBool(0, %94, 1)
-    %95 = const i32 0
-    call.rtl void fb_End(%95)
-    %96 = load @$tmp0
-    ret %96
+    %66 = const i32 49
+    %67 = zext %65
+    %68 = icmp.eq %67, %66
+    %69 = neg %68
+    %70 = const i64 0
+    %71 = icmp.ne %69, %70
+    store @b1, %71
+    %72 = alloca ptr b2
+    %73 = load @pz
+    %74 = const i64 0
+    %75 = ptr.add %73, %74
+    %76 = load %75
+    %77 = const i32 49
+    %78 = zext %76
+    %79 = icmp.eq %78, %77
+    %80 = neg %79
+    %81 = const i64 0
+    %82 = icmp.ne %80, %81
+    store @b2, %82
+    %83 = alloca ptr b3
+    %84 = load @pz
+    %85 = call.rtl i32 fb_StrCompare(%84, 0, @@$str0, 4)
+    %86 = icmp.eq %85, 0
+    %87 = neg %86
+    %88 = const i8 0
+    %89 = icmp.ne %87, %88
+    store @b3, %89
+    %90 = load @b1
+    call.rtl void fb_PrintBool(0, %90, 2)
+    %91 = load @b2
+    call.rtl void fb_PrintBool(0, %91, 2)
+    %92 = load @b3
+    call.rtl void fb_PrintBool(0, %92, 1)
+    %93 = const i32 0
+    call.rtl void fb_End(%93)
+    %94 = load @$tmp0
+    ret %94
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
-declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
-declare i32 fb_ASC(ptr $0, i64 $1)
 declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
 declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 118 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance
