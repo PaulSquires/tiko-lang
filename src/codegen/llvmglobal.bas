@@ -307,6 +307,10 @@ sub EmitVarGlobal _
         '' not take an integer for a pointer initialiser.
         if (vt = MT_PTR) andalso g.hasInit then
             if g.initInt = 0 then init_ = "null"
+            '' ...AND A NONZERO ADDRESS IS A CONSTANT EXPRESSION, 'inttoptr': 'dim shared pany as any
+            '' ptr = cptr( any ptr, 15 )' -- fbc writes 'static void* PANY$ = (void*)15ull;'
+            '' (dim/global-init.bas). 'ptr 15' went to clang and it refused the module.
+            if g.initInt <> 0 then init_ = "inttoptr (i64 " & str( g.initInt ) & " to ptr)"
         end if
     elseif len( g.initBytes ) > 0 then
         '' AN AGGREGATE'S INITIAL VALUE IS THE BYTE IMAGE OF ITS STORAGE, which is what
