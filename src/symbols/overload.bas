@@ -1092,6 +1092,7 @@ private function ResolveCall_ _
                                     exit for
                                 end if
                             end if
+                            if ArrayConstMismatch_( c, an4, pt ) then viable = false : exit for   '' overloadstr.bas
                         end if
                     end if
 

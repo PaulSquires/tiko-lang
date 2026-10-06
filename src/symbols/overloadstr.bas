@@ -140,3 +140,23 @@ private function ConcatHasWideStr_ _
     if ConcatHasWideStr_( c, bp->lhs ) then return true
     return ConcatHasWideStr_( c, bp->rhs )
 end function
+
+'' A CONST-ELEMENT ARRAY reaches only a const-element array parameter: offered 'a() as integer'
+'' and 'a() as const integer', 'ca()' over 'dim ca( ... ) as const integer' takes the const one
+'' whatever the other arguments say (overload/const.bas). tiko let it bind the non-const one.
+private function ArrayConstMismatch_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    if (e = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_CALL) then return false
+    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->target = Tko.NODE_NONE then return false
+    '' THE CONST MAY SIT ON THE ARRAY OR ON ITS ELEMENT, either side.
+    dim as Tko.TypeId at0 = c.info->TypeOf_( lp->target )
+    dim as Tko.TypeId at = c.types->Unqualify( at0 )
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
+    if (c.types->IsConst( at0 ) = false) andalso (c.types->IsConst( c.types->Inner( at ) ) = false) then return false
+    dim as Tko.TypeId pa0 = pt
+    if c.types->Kind( c.types->Unqualify( pa0 ) ) = Tko.TK_REFERENCE then pa0 = c.types->Inner( c.types->Unqualify( pa0 ) )
+    '' The parameter's type here is its ELEMENT's, an array of it or not.
+    dim as Tko.TypeId pa = c.types->Unqualify( pa0 )
+    if c.types->Kind( pa ) = Tko.TK_ARRAY then return (c.types->IsConst( pa0 ) = false) andalso (c.types->IsConst( c.types->Inner( pa ) ) = false)
+    return (c.types->IsConst( pa0 ) = false)
+end function

@@ -1,0 +1,10 @@
+'' A const-element array argument binds only a const-element array parameter: 'ca()' takes
+'' 'a() as const integer' even where the other argument fits the non-const overload better (overload/const.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/const-array-arg-overload.bas -o tests/codegen/constarrayargoverload.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/constarrayargoverload.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: () const integer, double
+'' EXPECT-RUN-OUT: () const integer, integer
