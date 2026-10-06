@@ -187,10 +187,12 @@ function LowerFileGetPut _
     '' 'string * N' -- not a byte count. Measured: 'fb_FileGetStrLarge( 1, 1ll, Z$0, 4ll )'
     '' over a 'zstring * 4', which reads three characters and terminates them; the byte
     '' path read four and no terminator, and the next read of z ran past it.
+    '' AN UNSIZED ONE TOO -- '*pz' -- with length 0, which the runtime reads as strlen:
+    '' measured, 'fb_FileGetStrLarge( 1, 0ll, PZ$, 0ll )'. The byte path moved ONE byte.
     scope
         dim as longint fzn
         dim as long fsk = StrSwapKind_( c, vt, fzn )
-        if ((fsk = 1) andalso (fzn > 0)) orelse (fsk = 3) then
+        if (fsk = 1) orelse (fsk = 3) then
             dim as MirValue fa = LowerAddr( c, varN )
             if fa.kind = cast( ubyte, MV_NONE ) then return false
             dim as FB.Array( of ulong ) fargs

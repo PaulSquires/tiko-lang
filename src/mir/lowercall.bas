@@ -7,7 +7,7 @@
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
-declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue
+declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue : declare sub UStrBackPush_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
 declare function ClosureInvokeSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
 declare function SigParamIsRef_ _
@@ -460,7 +460,7 @@ function LowerCallParts _
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, wsp ) )
                     '' ...AND COPIED BACK into a 'wstring * N' (CopyBackUStrArgs_; param-string-copyback.bas).
-                    if IsUStringType( c, wsp ) = false then ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) )
+                    if IsUStringType( c, wsp ) = false then ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) ) else UStrBackPush_( c, argNode, tempSlot, ustrBackNode, ustrBackSlot )
                 end if
             end if
             '' A NARROW ARGUMENT AGAINST A USTRING PARAMETER IS ALSO A TEMPORARY.
@@ -485,7 +485,7 @@ function LowerCallParts _
                     dim as Tko.TypeId nsp = c.types->Builtin( Tko.TY_USTRING )
                     if ByvalStrTemp_( c, argNode, nsp, a, tempSlot ) then
                         strTemps.Push( cast( ulong, tempSlot ) )
-                        strTempTypes.Push( cast( ulong, nsp ) )
+                        strTempTypes.Push( cast( ulong, nsp ) ) : UStrBackPush_( c, argNode, tempSlot, ustrBackNode, ustrBackSlot )
                     end if
                 end if
             end if
@@ -507,7 +507,7 @@ function LowerCallParts _
             '' FBUSTRING* belongs -- and the callee read the first eight bytes
             '' of the TEXT as a data pointer. It lowered and it verified.
             if a.kind = cast( ubyte, MV_NONE ) then
-                if FixedUStrArgTemp_( c, argNode, a, tempSlot ) then
+                if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, i + pbase ) ) andalso FixedUStrArgTemp_( c, argNode, a, tempSlot ) then
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, _
                         c.types->Builtin( Tko.TY_USTRING ) ) )
@@ -537,13 +537,13 @@ function LowerCallParts _
                 dim as Tko.TypeId spt = ArgParamType_( c, callee, calleeSigT, i + pbase )
                 if (IsUStringType( c, spt ) = false) andalso _
                    (RuntimeEntryCallee_( c, callee ) = false) then
-                    if StrArgOwnDescriptor_( c, argNode, spt ) = false then
+                    dim as longint ufn_ : dim as boolean ufArg = (StrSwapKind_( c, c.info->TypeOf_( argNode ), ufn_ ) = 4)   '' 'ustring * N': fb_UStrToStr, NO copy-back (fbc)
+                    if ufArg orelse (StrArgOwnDescriptor_( c, argNode, spt ) = false) then
                         dim as Tko.TypeId npt = c.types->Builtin( Tko.TY_STRING )
                         if ByvalStrTemp_( c, argNode, npt, a, tempSlot ) then
                             strTemps.Push( cast( ulong, tempSlot ) )
                             strTempTypes.Push( cast( ulong, npt ) )
-                            ustrBackNode.Push( cast( ulong, argNode ) )
-                            ustrBackSlot.Push( cast( ulong, tempSlot ) )
+                            if ufArg = false then ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) )
                         end if
                     end if
                 end if
@@ -787,7 +787,7 @@ function LowerCallParts _
             end if
 
             if wantsZPtr then
-                if ZstrDataOf_( c, argNode, a ) = false then
+                if (((ppt <> Tko.TYPE_NONE) andalso FixStrZArgTemp_( c, argNode, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot )) = false) andalso (ZstrDataOf_( c, argNode, a ) = false) then   '' 'string * N': terminated + copied back (fbc); a vararg takes the raw bytes
                     '' AN RVALUE HAS NO DESCRIPTOR TO TAKE THE DATA POINTER OUT OF.
                     '' Measured: fbc builds one, passes its data pointer, and deletes
                     '' it after the call --

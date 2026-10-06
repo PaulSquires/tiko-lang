@@ -17,6 +17,8 @@ declare function PokeTypeName_ _
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 declare function WriteRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
+declare function UFixDestTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue, byref outSlot as long ) as boolean
+declare sub UFixDestBack_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long )
 declare function WriteOne_ _
     ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
       byref chan as MirValue ) as boolean
@@ -973,12 +975,21 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as MirValue da = LowerAddr( c, dst )
     if da.kind = cast( ubyte, MV_NONE ) then return false
+    '' A 'ustring * N' READS INTO A USTRING TEMPORARY, copied back -- see UFixDestTemp_.
+    dim as long ufSlot = -1
+    if dk = 4 then
+        if UFixDestTemp_( c, dst, da, ufSlot ) = false then return false
+    end if
     '' A USTRING DESTINATION (T66): the file form has fb_FileLineInputUStr; the console
     '' one reads into a narrow temporary and converts, as fbc does.
-    dim as boolean ustr = IsUStringType( c, dt )
+    dim as boolean ustr = IsUStringType( c, dt ) orelse (dk = 4)
     dim as MirValue ustrDst = da
     if ustr then
-        if sp->a <> Tko.NODE_NONE then return LineInputFileUStr_( c, id, sp->a, da )
+        if sp->a <> Tko.NODE_NONE then
+            dim as boolean lok = LineInputFileUStr_( c, id, sp->a, da )
+            UFixDestBack_( c, dst, ufSlot )
+            return lok
+        end if
         if UStrLineTemp_( c, da ) = false then return false
     end if
 
@@ -1069,6 +1080,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         EmitRtl( c, RTL_LINEINPUT, args )
     end if
     if ustr then UStrFromLineTemp_( c, ustrDst, da )
+    UFixDestBack_( c, dst, ufSlot )
     return true
 end function
 
@@ -1208,6 +1220,11 @@ function LowerInput _
         dim as RtlId r = InputRtlFor( c, c.info->TypeOf_( d ), dn3 )
         dim as MirValue da2 = LowerAddr( c, d )
         if da2.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long ufs = -1
+        dim as longint ufn
+        if (r = RTL_INPUT_USTR) andalso (StrSwapKind_( c, c.info->TypeOf_( d ), ufn ) = 4) then
+            if UFixDestTemp_( c, d, da2, ufs ) = false then return false   '' 'ustring * N' -- see UFixDestTemp_
+        end if
         dim as FB.Array( of ulong ) dargs
         dargs.Push( cast( ulong, da2.kind ) ) : dargs.Push( cast( ulong, da2.id ) )
         if r = RTL_INPUT_STRING then
@@ -1219,6 +1236,7 @@ function LowerInput _
         end if
         dim as MirValue ir = EmitRtl( c, r, dargs )
         if r = RTL_INPUT_USTR then EmitRtlErrorCheck_( c, id, ir )   '' fbc's is throwable
+        UFixDestBack_( c, d, ufs )
     next
     return true
 end function

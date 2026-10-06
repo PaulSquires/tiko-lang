@@ -693,6 +693,31 @@ private function FixedUStrArgTemp_ _
     return true
 end function
 
+'' A 'ustring * N' READ BY INPUT OR LINE INPUT goes through a ustring temporary that is copied
+'' back. Measured, fbc:
+''
+''     fb_UStrAssign( &TMP, -1, UF, <tag>, 0 )
+''     fb_InputUStr( &TMP )                  -- or fb_FileLineInputUStr( 1, &TMP )
+''     fb_UStrAssign( UF, <tag>, &TMP, -1, -1 )
+''     fb_UStrDelete( &TMP )
+''
+'' tiko handed the runtime the raw UTF-16 buffer where an FBUSTRING* belongs, and the
+'' program died inside the read. 'outa' becomes the temporary's address; UFixDestBack_
+'' writes it back and deletes it, and is a no-op for slot -1.
+function UFixDestTemp_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue, _
+      byref outSlot as long ) as boolean
+    return FixedUStrArgTemp_( c, e, outa, outSlot )
+end function
+
+sub UFixDestBack_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long )
+    if slot < 0 then exit sub
+    dim as FB.Array( of ulong ) nodes, slots
+    nodes.Push( cast( ulong, e ) ) : slots.Push( cast( ulong, slot ) )
+    CopyBackUStrArgs_( c, nodes, slots )
+    ReleaseUStrOut_( c, slot )
+end sub
+
 '' A USTRING ITEM FOR AN OUTPUT ENTRY POINT -- fb_WriteUStr, fb_PrintUsingUStr, whose
 '' argument is an FBUSTRING DESCRIPTOR and nothing else. Measured, fbc:
 ''
@@ -771,12 +796,85 @@ end function
 '' is CONST, so it is emitted here the same way rather than reasoned about: a
 '' const parameter makes it a no-op, and guessing which is which would be a
 '' semantic fork over an observable write.
+'' A NARROW OR WIDE LVALUE PASSED THROUGH A USTRING TEMPORARY IS COPIED BACK TOO. Measured,
+'' fbc over 'byref x as ustring':
+''
+''     pru( s )     fb_UStrAssignFromA( &TMP, -1, &S, -1, 0, 0 ) ... fb_UStrAssignToA( &S, -1, &TMP, -1, 0, 0 )
+''     pru( f )     ... fb_UStrAssignToA( F, <tag>, &TMP, -1, -1, 0 )       'string * 8'
+''     pru( z )     ... fb_UStrAssignToA( Z, 8, &TMP, -1, 0, 0 )            'zstring * 8'
+''     pru( w )     ... fb_UStrAssignToW( W, 8, &TMP, -1 )                  'wstring * 8'
+''     pru( *pz )   nothing: no declared length
+''
+'' tiko built the temporary and dropped it, so a callee's write never reached 's'. The slot
+'' is recorded with UBACK_MARK set, which is how CopyBackUStrArgs_ tells a USTRING temporary
+'' from the narrow ones the list otherwise holds. Only storage qualifies: a literal, a
+'' concatenation, a call or a constant has nothing to write back into.
+const UBACK_MARK = &h40000000ul
+sub UStrBackPush_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, _
+      byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
+
+    if (e = Tko.NODE_NONE) orelse (slot < 0) then exit sub
+    dim as Tko.NodeId ue = Unparen_( c, e )
+    select case c.ast->Kind( ue )
+    case Tko.N_IDENT, Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+    case else
+        exit sub
+    end select
+    dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( ue ) )
+    if sy <> 0 then
+        select case sy->kind
+        case cast( ubyte, Tko.SYM_CONSTANT ), cast( ubyte, Tko.SYM_PROC )
+            exit sub
+        end select
+    end if
+    dim as Tko.TypeId at = c.info->TypeOf_( ue )
+    if at = Tko.TYPE_NONE then exit sub
+    if IsUStringType( c, at ) then exit sub
+    dim as longint tag
+    dim as long fk = StrSwapKind_( c, at, tag )
+    dim as boolean ok = false
+    if (fk = 1) orelse (fk = 2) orelse (fk = 3) then ok = (tag <> 0)
+    if ok = false then ok = IsStringType( c, at )
+    if ok = false then exit sub
+    nodes.Push( cast( ulong, ue ) )
+    slots.Push( cast( ulong, slot ) or UBACK_MARK )
+end sub
+
+private sub CopyBackFromUTemp_ _
+    ( byref c as Ctx, byval an as Tko.NodeId, byval slot as long )
+
+    dim as MirValue dst = LowerAddr( c, an )
+    if dst.kind = cast( ubyte, MV_NONE ) then exit sub
+    dim as longint tag = -1
+    dim as long fk = StrSwapKind_( c, c.info->TypeOf_( an ), tag )
+    if (fk <> 1) andalso (fk <> 2) andalso (fk <> 3) then tag = -1
+    dim as FB.Array( of ulong ) args
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    PushStrLen_( c, args, tag )
+    args.Push( cast( ulong, MV_LOCAL ) ) : args.Push( cast( ulong, slot ) )
+    PushStrLen_( c, args, -1 )
+    if fk = 2 then
+        EmitRtl( c, RTL_USTR_TO_W, args )
+        exit sub
+    end if
+    dim as longint fill = 0
+    if fk = 3 then fill = -1
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, cast( ulongint, fill ) ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_USTR_TO_A, args )
+end sub
+
 private sub CopyBackUStrArgs_ _
     ( byref c as Ctx, byref nodes as FB.Array( of ulong ), _
       byref slots as FB.Array( of ulong ) )
 
     for k as long = nodes.Count - 1 to 0 step -1
         dim as Tko.NodeId an = cast( Tko.NodeId, nodes[k] )
+        if (slots[k] and UBACK_MARK) <> 0 then
+            CopyBackFromUTemp_( c, an, cast( long, slots[k] and (not UBACK_MARK) ) )
+            continue for
+        end if
         dim as longint tag
         '' THE FIXED KINDS, all three. fbc copies the temporary back into a
         '' 'ustring * N', a 'zstring * N' and a 'string * N' alike -- the
