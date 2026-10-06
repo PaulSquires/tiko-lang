@@ -408,7 +408,15 @@ namespace Tko
     '' A CONST'S VALUE, for '#if' to read -- see PpEngine.constMark.
     declare sub PpNoteConst _
         ( byref st as PpStream, byval nm as InternId, byval v as longint, _
-          byval at as SourceLoc = LOC_NONE )
+          byval at as SourceLoc = LOC_NONE, byval isLocal as boolean = false )
+    '' A PROCEDURE BODY OPENS AND CLOSES: what was noted 'isLocal' inside it -- a const's
+    '' value, a declared name -- is visible to '#if' until the body ends and then undone,
+    '' as fbc's own scope is (pp/if.bas: 'const N1' and 'dim i' inside a TEST).
+    declare sub PpProcEnter( byref st as PpStream )
+    declare sub PpProcLeave( byref st as PpStream )
+    declare sub PpNoteLocalDeclared( byref st as PpStream, byval nm as InternId, byval kind as long )
+    '' A STRING CONST'S TEXT, for '#if "abc" = S1' (pp/if.bas) -- pplocal.bas.
+    declare sub PpNoteConstStr( byref st as PpStream, byval nm as InternId, byref txt as string, byval isLocal as boolean )
     declare function PpNotedConst _
         ( byref st as PpStream, byval nm as InternId, byref outv as longint ) as boolean
     declare function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean

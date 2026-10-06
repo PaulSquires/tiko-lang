@@ -1,0 +1,11 @@
+'' '#if' INSIDE A PROCEDURE sees its own 'const' and 'dim' until 'end sub', reads a string const,
+'' takes a string as FALSE and a 'u'-suffixed literal as unsigned (fbc's pp/if.bas).
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-if-locals.bas -o tests/codegen/ppiflocals.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppiflocals.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: a b c d e 
+'' EXPECT-RUN-OUT: - - - i j - 

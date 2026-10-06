@@ -115,7 +115,9 @@ private function PxI( byref v as PpValue ) as longint
 end function
 
 private function PxTruth( byref v as PpValue ) as boolean
-    if v.isStr then return (len( v.str_ ) > 0)
+    '' A STRING IS FALSE, whatever it holds: measured, '#if "test"', '"1"', '" 5"' and ""
+    '' all take the #else (pp/if.bas). Non-empty read as true here.
+    if v.isStr then return false
     if v.isFlt then return (v.fnum <> 0)
     return (v.num <> 0)
 end function
@@ -392,6 +394,9 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 if (d < 0) orelse (d >= radix) then exit for
                 v = v * radix + d
             next
+            '' A 'u' SUFFIX MAKES IT UNSIGNED -- '&hFFFFFFFFFFFFFFFFull > 0' is true to fbc, and
+            '' '&h0u > -1' false (warning 35); unsuffixed, '&hFFFFFFFFFFFFFFFF' is -1.
+            if instr( lcase( digits ), "u" ) > 0 then return PxNumU( v, true )
         else
             '' A DECIMAL ABOVE THE LONGINT RANGE IS UNSIGNED in code -- see
             '' Check.DecimalLitUnsigned -- and '#if 18446744073709551615 > 0' is true to
@@ -399,6 +404,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             '' equals a '&hFFFFFFFFFFFFFFFF' beside it, which a double would not.
             dim as ulongint uv = valulng( digits )
             if uv > &h7FFFFFFFFFFFFFFFull then return PxNumU( cast( longint, uv ), true )
+            if instr( lcase( digits ), "u" ) > 0 then return PxNumU( cast( longint, uv ), true )   '' '5ull > -1' is false
             v = cast( longint, uv )
         end if
         return PxNum( v )
@@ -774,6 +780,13 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         if x.e <> 0 then
             dim as longint cv = 0
             if PpConstValue( *x.e, t.literal, cv ) then return PxNum( cv )
+            dim as string csv
+            if PpConstStrValue( *x.e, t.literal, csv ) then   '' 'const S1 = "abc"'
+                dim as PpValue sv
+                sv.isStr = true
+                sv.str_ = csv
+                return sv
+            end if
             '' ...BUT A VARIABLE OR A PROCEDURE IS NOT A CONSTANT: fbc's errors 11 and 17
             '' (parser/declkind.bas has the measurements). A TYPE, an ENUM and the rest
             '' read as 0 below, quietly, as fbc's do. The directive reports TKO0308.

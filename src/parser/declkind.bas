@@ -63,3 +63,18 @@ private function DeclKindHere_( byref p as Tko.ParserState ) as long
     end select
     return 1
 end function
+
+'' THE NOTE ITSELF -- see the rule above parser/decl.bas's include of this file. A LOCAL is
+'' noted too now, through the pp's undo log, so it is visible to '#if defined' until its
+'' procedure ends (PpProcEnter) -- measured, 'dim i' then '#if defined( i )' inside a
+'' procedure is true to fbc, and false again after 'end sub'.
+private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.InternId )
+    if nm = Tko.INTERN_NONE then return
+    if p.stream = 0 then return
+    if p.aggDepth <> 0 then return
+    if p.procDepth <> 0 then
+        Tko.PpNoteLocalDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, DeclKindHere_( p ) )
+        return
+    end if
+    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ), p.nsDepth = 0, p.nsPath )
+end sub

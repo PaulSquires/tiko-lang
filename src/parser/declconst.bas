@@ -79,3 +79,19 @@ function FoldConstIif_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as T
     if ConstFoldsToInt_( p, cast( Tko.NodeId, p.ast->children[lp->first] ), v ) = false then return n
     return cast( Tko.NodeId, p.ast->children[lp->first + iif( v <> 0, 1, 2 )] )
 end function
+
+'' A CONST WHOSE VALUE IS A STRING LITERAL, told to the preprocessor as its text --
+'' '#if "abc" = S1' over 'const S1 = "abc"' is true to fbc (pp/if.bas), local or not.
+private sub NoteConstStr_( byref p as Tko.ParserState, byval nm as Tko.InternId, byval v as Tko.NodeId )
+    if (v = Tko.NODE_NONE) orelse (p.stream = 0) then return
+    if p.ast->Kind( v ) <> Tko.N_STRING_LIT then return
+    dim as Tko.LiteralPayload ptr lp = @p.ast->literals[cast( long, p.ast->nodes[cast( long, v )].data )]
+    dim as Tko.SourceFile ptr f = p.src->FileAt( cast( Tko.FileId, lp->strFile ) )
+    if f = 0 then return
+    if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return
+    dim as string tx = space( lp->strLength )
+    for i as long = 0 to lp->strLength - 1
+        tx[i] = f->text[lp->strOffset + i]
+    next
+    Tko.PpNoteConstStr( *cast( Tko.PpStream ptr, p.stream ), nm, tx, cbool( p.procDepth <> 0 ) )
+end sub

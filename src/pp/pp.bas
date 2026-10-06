@@ -135,6 +135,11 @@ type PpEngine
     '' no value keeps the old answer of 0 rather than guessing.
     as IdVec                  constMark
     as FB.Array( of longint ) constVal
+    '' THE UNDO LOG of local notes -- PpProcEnter: (table, id, old, old2) per entry, and
+    '' where each open procedure body's entries begin.
+    as FB.Array( of longint ) localUndo
+    as StrVec                 constStr, localUndoStr   '' a string const's "=text", and the undo log's old ones
+    as FB.Array( of long )    procMarks
     '' WHAT '#if typeof( name )' READS (T61), filled by the parser on the same terms: by
     '' folded InternId, a variable's declared type and a typedef's target as a KEY --
     '' 'K<token kind>' for a builtin or 'N<InternId>' for a named type, then ' ptr' per
@@ -306,13 +311,18 @@ private function InIfaceFile_( byref e as PpEngine, byval at as SourceLoc ) as b
     return false
 end function
 
+#include once "pp/pplocal.bas"   '' PpProcEnter, PpProcLeave, the local notes
+
 sub PpNoteConst _
     ( byref st as PpStream, byval nm as InternId, byval v as longint, _
-      byval at as SourceLoc )
+      byval at as SourceLoc, byval isLocal as boolean )
     if st.engine = 0 then return
-    if InIfaceFile_( *cast( PpEngine ptr, st.engine ), at ) then return
-    MarkConst_( *cast( PpEngine ptr, st.engine ), nm, v )
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    if InIfaceFile_( *e, at ) then return
+    if isLocal then UndoLogConst_( *e, nm )   '' pplocal.bas
+    MarkConst_( *e, nm, v )
 end sub
+
 
 '' The value a '#if' should read for a name, when the parser has recorded one.
 function PpConstValue _

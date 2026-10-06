@@ -120,13 +120,6 @@ end function
 '' Recording one that fbc would not is the dangerous direction: a later '#ifndef' would
 '' skip a declaration and say nothing.
 #include once "parser/declkind.bas"
-private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.InternId )
-    if nm = Tko.INTERN_NONE then return
-    if p.stream = 0 then return
-    if p.aggDepth <> 0 then return
-    if p.procDepth <> 0 then return
-    Tko.PpNoteDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, Cur( p ).loc, DeclKindHere_( p ), p.nsDepth = 0, p.nsPath )
-end sub
 
 private function DeclName _
     ( byref p as Tko.ParserState, byref outName as Tko.InternId, _
@@ -635,13 +628,15 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
         '' 1, b = a' names the first from the second, and the module-level guard is
         '' the one NoteDeclaredName_ uses -- a field or a local is not something an
         '' '#if' above it can see.
-        if (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> 0) then
+        if (p.aggDepth = 0) andalso (p.stream <> 0) then   '' a local too, undone at 'end sub'
             if p.ast->Kind( item ) = Tko.N_VAR_ITEM then
                 dim as long csi = cast( long, p.ast->nodes[cast( long, item )].data )
                 dim as longint cval = 0
                 if ConstFoldsToInt_( p, p.ast->stmts[csi].b, cval ) then
                     Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), _
-                                     p.ast->stmts[csi].name, cval, p.ast->Loc( item ) )
+                                     p.ast->stmts[csi].name, cval, p.ast->Loc( item ), cbool( p.procDepth <> 0 ) )
+                else
+                    NoteConstStr_( p, p.ast->stmts[csi].name, p.ast->stmts[csi].b )   '' declconst.bas
                 end if
             end if
         end if
@@ -1059,11 +1054,11 @@ private function ParseProc _
     end if
     '' See ParserState.procDepth: nothing declared inside a body is told to the
     '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
-    p.procDepth += 1 : dim as boolean outerSL = p.staticLocals : p.staticLocals = ((sp.extra and Tko.PF_STATIC_LOCALS) <> 0)
+    p.procDepth += 1 : dim as boolean outerSL = p.staticLocals : p.staticLocals = ((sp.extra and Tko.PF_STATIC_LOCALS) <> 0) : if p.stream <> 0 then Tko.PpProcEnter( *cast( Tko.PpStream ptr, p.stream ) )
     if isMember then p.memberDepth += 1
     sp.b = Block( p )
     if isMember then p.memberDepth -= 1
-    p.procDepth -= 1 : p.staticLocals = outerSL
+    p.procDepth -= 1 : p.staticLocals = outerSL : if p.stream <> 0 then Tko.PpProcLeave( *cast( Tko.PpStream ptr, p.stream ) )
     if inGeneric then
         p.genericDepth -= 1
         p.genericParams.Pop( )
