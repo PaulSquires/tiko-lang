@@ -249,6 +249,18 @@ function LowerArrayInit _
         if udtNum then st.b = ev else st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ), el )
         Emit( c, st )
     next
+    '' ...AND A SHORT LIST'S TAIL IS ZEROED: 'dim a( 0 to 9 ) = { 0, 1, 2, 3, 4 }' leaves a( 5 ) to
+    '' a( 9 ) zero under fbc (dim/udt-init.bas padding1); here they held what the frame held.
+    if (sparse = false) andalso (total > leaves.Count) then
+        dim as MirInst tz
+        tz.op = cast( ushort, M_FIELD_ADDR ) : tz.ty = cast( ubyte, MT_PTR ) : tz.a = base_ : tz.imm = leaves.Count * esz
+        dim as MirValue tza = Emit( c, tz )
+        dim as FB.Array( of ulong ) tzz
+        tzz.Push( cast( ulong, tza.kind ) ) : tzz.Push( cast( ulong, tza.id ) )
+        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( 0 )
+        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( cast( ulong, (total - leaves.Count) * esz ) )
+        EmitRtl( c, RTL_MEMSET, tzz )
+    end if
     return true
 end function
 
