@@ -83,29 +83,27 @@ func void F() {
     %73 = and %71, %72
     call.rtl void fb_PrintULongint(0, %73, 1)
     %74 = field.addr @@x, 0
-    %75 = field.addr @@x, 0
-    %76 = load %75
-    %77 = zext %76
-    %78 = const i64 7
-    %79 = and %77, %78
-    %80 = const i64 1
-    %81 = add %79, %80
-    %82 = field.addr @@x, 0
-    %83 = load %82
-    %84 = zext %83
-    %85 = const i64 -8
-    %86 = and %84, %85
-    %87 = const i64 7
-    %88 = and %81, %87
-    %89 = or %86, %88
-    %90 = trunc %89
-    store %82, %90
-    %91 = field.addr @@x, 0
-    %92 = load %91
-    %93 = zext %92
-    %94 = const i64 7
-    %95 = and %93, %94
-    call.rtl void fb_PrintULongint(0, %95, 1)
+    %75 = load %74
+    %76 = zext %75
+    %77 = const i64 7
+    %78 = and %76, %77
+    %79 = const i64 1
+    %80 = add %78, %79
+    %81 = load %74
+    %82 = zext %81
+    %83 = const i64 -8
+    %84 = and %82, %83
+    %85 = const i64 7
+    %86 = and %80, %85
+    %87 = or %84, %86
+    %88 = trunc %87
+    store %74, %88
+    %89 = field.addr @@x, 0
+    %90 = load %89
+    %91 = zext %90
+    %92 = const i64 7
+    %93 = and %91, %92
+    call.rtl void fb_PrintULongint(0, %93, 1)
     ret
 }
 declare void fb_PrintULongint(i32 $0, i64 $1, i32 $2)
@@ -126,4 +124,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 114 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 2 functions, 2 blocks, 112 insts, 0 statements not lowered, 0 scope imbalance

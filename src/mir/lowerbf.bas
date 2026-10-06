@@ -113,6 +113,9 @@ end function
 '' Widen the unit to 64 bits, shift the field down, mask it -- and NO SIGN EXTENSION,
 '' even for a signed declared type: fbc reads a 3-bit 'as long' holding all ones as 7,
 '' not as -1. Measured, not assumed; it is the one part of this a C habit gets wrong.
+declare function BitfieldReadParts_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as long, byval bitWidth as long, _
+      byval unitTy as MirType, byval unitUns as boolean, byref outv as MirValue ) as boolean
 function LowerBitfieldRead _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -123,6 +126,13 @@ function LowerBitfieldRead _
     if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
         return false
     end if
+    return BitfieldReadParts_( c, id, addr, bitOff, bitWidth, unitTy, unitUns, outv )
+end function
+
+'' The read, from parts already lowered -- BitfieldCompound_ reads and writes through ONE address.
+private function BitfieldReadParts_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as long, byval bitWidth as long, _
+      byval unitTy as MirType, byval unitUns as boolean, byref outv as MirValue ) as boolean
 
     dim as MirValue raw = LowerExprLoad( c, addr, unitTy )
     if raw.kind = cast( ubyte, MV_NONE ) then return false
@@ -194,8 +204,10 @@ function BitfieldCompound_ _
 
     '' The READ is the ordinary one, and the arithmetic happens in it: a bitfield is
     '' never wider than its declared type, so the unit's type is the working type.
+    '' THROUGH THE PROBE'S ADDRESS, read and write alike: 'f( ).a += 1' evaluated f( ) three times --
+    '' the probe, the read and the store each lowered the base (expressions/selfbops.bas); fbc once.
     dim as MirValue cur
-    if LowerBitfieldRead( c, target, cur ) = false then return false
+    if BitfieldReadParts_( c, target, probe, bo, bw, ut, uu, cur ) = false then return false
     dim as MirValue rhs = LowerExprN_( c, value )
     if rhs.kind = cast( ubyte, MV_NONE ) then return false
     dim as boolean uns = IsUnsignedType( c, c.info->TypeOf_( target ) )
@@ -216,7 +228,7 @@ function BitfieldCompound_ _
         res = Emit( c, bi )
     end if
     if res.kind = cast( ubyte, MV_NONE ) then return false
-    return LowerBitfieldStoreValue_( c, target, res )
+    return BitfieldStoreParts_( c, probe, bo, bw, ut, uu, res )
 end function
 
 function LowerBitfieldStore _
