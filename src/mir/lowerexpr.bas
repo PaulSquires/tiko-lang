@@ -238,6 +238,7 @@ function LowerExpr _
         dim as MirValue pre = LowerPredeclared( c, id )
         if pre.kind <> cast( ubyte, MV_NONE ) then return pre
         if LowerMainArg_( c, id, pre ) then return pre
+        if BareTypeNameTemp_( c, id, pre ) then return LowerExprLoad( c, pre, MT_AGG )   '' a TYPE NAME as a value: see LowerAddr
 
         '' A BITFIELD HAS NO ADDRESS OF ITS OWN: it is bits inside a unit its
         '' neighbours share, so it is read by masking rather than by loading.

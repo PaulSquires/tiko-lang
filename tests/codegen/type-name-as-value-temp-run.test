@@ -1,0 +1,12 @@
+'' A bare TYPE NAME used as a value -- 'cast( P, C ).proc( )' with C a type -- is a
+'' default-constructed temporary, wherever it appears (structs/inherit-type-child-1.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/type-name-as-value-temp.bas -o tests/codegen/typenameasvaluetemp.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/typenameasvaluetemp.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  1

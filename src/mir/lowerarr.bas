@@ -228,6 +228,10 @@ function LowerAddr _
 
     dim as MirValue v
     if id = Tko.NODE_NONE then return v
+    '' A BARE TYPE NAME AS A VALUE -- 'cast( P, C )', 'f( foo )', '= foo' with C and foo TYPES -- is a
+    '' default-constructed temporary (lowerparam.bas BareTypeNameTemp_). Lowered as a name it became a
+    '' fresh variable called C, never constructed (structs/inherit-type-child-1.bas).
+    if BareTypeNameTemp_( c, id, v ) then return v
     '' '@x.f' OVER A BYREF PROPERTY GETTER is the address it returns -- '@x.f = @x.i' is true
     '' to fbc (functions/return-byref.bas). LowerPropertyGet_ answers it when asked for one.
     '' Only when Check's accessor (RefOf) is itself a BYREF proc: otherwise the receiver
