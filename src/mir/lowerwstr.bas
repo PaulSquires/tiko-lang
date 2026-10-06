@@ -566,6 +566,14 @@ declare function WideIifArm_ _
 '' is four ordinary characters and '$"'+BS+'u41"' is too.
 function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if e = Tko.NODE_NONE then return false
+    '' A NAMED CONSTANT IS ITS INITIALISER: 'const W = !"bcd\u0065"' is 'WSTRING * 5' to fbc, and
+    '' 's = W' stored the characters of the spelling (wstring/len.bas). WideLitUnits_'s rule.
+    if (c.ast->Kind( e ) = Tko.N_IDENT) orelse (c.ast->Kind( e ) = Tko.N_MEMBER) then
+        dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if (ucs = 0) orelse (ucs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) orelse ((ucs->flags and Tko.SYMF_BUILTIN) <> 0) orelse (ucs->payload = 0) then return false
+        if c.ast->Kind( cast( Tko.NodeId, ucs->payload ) ) <> Tko.N_VAR_ITEM then return false
+        return LitHasUnicodeEscape_( c, StmtOf( c, cast( Tko.NodeId, ucs->payload ) )->b )
+    end if
     if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = _
         @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
@@ -953,6 +961,15 @@ function WideLitGlobal_ _
     return c.m->AddWideStringUnits( wtext, wunits, *c.names )
 end function
 
+'' THE CHARACTER COUNT of a literal (or a named constant over one) read as wide, without
+'' emitting a global: 'len( !"bcd\u0065" )' is 4 to fbc. -1 when it is not one.
+function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
+    dim as string wtext
+    dim as FB.Array( of ulong ) wunits
+    if WideLitUnits_( c, id, wtext, wunits ) = false then return -1
+    return cast( long, wunits.Count )
+end function
+
 private function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
       byref outText as string, byref outUnits as FB.Array( of ulong ) ) as boolean
@@ -1116,7 +1133,8 @@ function WideOperand_ _
     '' has a type -- 'WSTRING * 3' -- but no storage and no address, so the branch
     '' below claimed it and then asked for one. Every use of a wide constant declined.
     if (c.ast->Kind( id ) = Tko.N_IDENT) orelse (c.ast->Kind( id ) = Tko.N_MEMBER) then
-        if IsWideString_( c, c.info->TypeOf_( id ) ) then
+        '' ...and a constant over a literal with a unicode escape, which is wide whatever Check typed it.
+        if IsWideString_( c, c.info->TypeOf_( id ) ) orelse LitHasUnicodeEscape_( c, id ) then
             '' THE UNITS FIRST, because ConstStringTextOf_'s carrier is a BYTE
             '' string: 'const TV = wchr( 256, 257, 258 )' has no byte spelling and
             '' declined there, taking the assignment with it. WideLitUnits_ reads

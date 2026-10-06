@@ -1219,6 +1219,15 @@ function LowerLen _
             return (outv.kind <> cast( ubyte, MV_NONE ))
         end if
     end if
+    '' A LITERAL WITH A UNICODE ESCAPE IS WIDE, and its length is its decoded characters --
+    '' 'len( !"bcd\u0065\u0066" )' is 5, not the spelling's 15 (wstring/len.bas).
+    if (isSizeof = false) andalso LitHasUnicodeEscape_( c, a ) then
+        dim as long wlc = WideLitChars_( c, a )
+        if wlc >= 0 then
+            outv = ConstInt( c, wlc, MT_I64 )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
     if narrow then
         '' A LITERAL has no descriptor and folds: fbc knows its length outright.
         if c.ast->Kind( a ) = Tko.N_STRING_LIT then
