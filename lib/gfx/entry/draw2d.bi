@@ -25,11 +25,8 @@ extern "c"
 '' B AND BF ARE A SEPARATE INTEGER, NOT A BITMASK: 0 plain, 1 B, 2 BF. Reading
 '' them as bits makes BF draw an outline.
 ''
-'' THE STYLE MASK IS NOT IMPLEMENTED. `style` is a 16-bit pattern rotated along
-'' the line, defaulting to 65535 (solid). raster/line.bi draws solid only, so a
-'' styled line comes out solid rather than wrong-looking -- recorded here rather
-'' than silently accepted, because it is the one argument this file takes and
-'' discards.
+'' `style` is the 16-bit pattern rotated along the line, defaulting to 65535
+'' (solid); gfxlib2 masks it to 16 bits, and so do the rasterizers.
 sub TkoGfxLine alias "fb_GfxLine" ( _
         byval target as any ptr, _
         byval fx1 as single, byval fy1 as single, _
@@ -41,16 +38,15 @@ sub TkoGfxLine alias "fb_GfxLine" ( _
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
     if c = 0 then exit sub
-    scope : dim as ulong ignored = style : end scope
 
     dim as long x1, y1, x2, y2
     TkoGfx.CoordA( *c, fx1, fy1, fx2, fy2, flags, x1, y1, x2, y2 )
     dim as ulong col = TkoGfx.ResolveColor( *c, colour, flags )
 
     select case boxflag
-    case 1 : TkoGfx.LineBoxAny( c->surf, x1, y1, x2, y2, col, 0 )
-    case 2 : TkoGfx.LineBoxAny( c->surf, x1, y1, x2, y2, col, 1 )
-    case else : TkoGfx.DrawLineAny( c->surf, x1, y1, x2, y2, col )
+    case 1 : TkoGfx.LineBoxAny( c->surf, x1, y1, x2, y2, col, 0, style )
+    case 2 : TkoGfx.LineBoxAny( c->surf, x1, y1, x2, y2, col, 1, style )
+    case else : TkoGfx.DrawLineAny( c->surf, x1, y1, x2, y2, col, style )
     end select
 end sub
 

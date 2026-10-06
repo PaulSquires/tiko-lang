@@ -1,4 +1,4 @@
-'' line.bi -- LINE at 8, 16 and 32 bpp, solid style.
+'' line.bi -- LINE at 8, 16 and 32 bpp, with the 16-bit style mask.
 ''
 '' Derived from: gfx_line.c (fb_GfxDrawLine). LGPL-2.1-or-later with the
 '' static-linking exception.
@@ -14,10 +14,13 @@
 ''   - clipped starts re-enter the line with the `skip` correction, so a clipped
 ''     line draws the same pixels as the unclipped one would have
 ''
-'' WHAT IS NOT DONE YET: the 16-bit line STYLE mask. gfxlib2 rotates a pattern
-'' (RORW1) per pixel and reverses it when it swaps endpoints. Solid lines set
-'' every bit, so the pixel sequence here is already correct for them; styled
-'' lines are Phase 3 and will need the rot/reverse_mask machinery too.
+'' THE 16-BIT STYLE MASK: bit 15 is the first pixel, and the mask rotates right
+'' one bit per pixel step (gfxlib2's RORW1). A clipped start advances the
+'' rotation by the pixels skipped, and a line drawn in reverse -- a vertical or
+'' horizontal one is always drawn top-down / left-to-right -- reverses the mask
+'' and re-bases the rotation, so the pattern stays anchored at (x1, y1). Solid
+'' lines (&hFFFF) set every bit, so they draw what they always did.
+''   (gfx/line.bas: 'line (i, i) - (63, i), c, , &b1000000011110000'.)
 ''
 '' ONE BODY, THREE INSTANCES. The Bresenham arithmetic does not depend on the
 '' pixel width, only the STORE does, so the body is a #macro instantiated for
@@ -48,14 +51,35 @@ private function LineMid( byval lo as long, byval v as long, byval hi as long ) 
     return v
 end function
 
+'' The 16 bits mirrored -- gfx_line.c's reverse_mask.
+private function LineReverseMask( byval mask as long ) as long
+    mask = ((mask shr 1) and &h5555) or ((mask and &h5555) shl 1)
+    mask = ((mask shr 2) and &h3333) or ((mask and &h3333) shl 2)
+    mask = ((mask shr 4) and &h0F0F) or ((mask and &h0F0F) shl 4)
+    mask = ((mask shr 8) and &h00FF) or ((mask and &h00FF) shl 8)
+    return mask
+end function
+
+'' A 16-bit rotate right by 'n' (0..15) -- fb.h's RORW / RORW1 on the low word.
+private function LineRorW( byval v as long, byval n as long ) as long
+    n and= 15
+    if n = 0 then return v and &hFFFF
+    return ((v shr n) or (v shl (16 - n))) and &hFFFF
+end function
+
 #macro TKO_DEFINE_LINE( suffix, elem )
 
-'' Solid line from (x1,y1) to (x2,y2), clipped to the surface's clip box.
+'' A line from (x1,y1) to (x2,y2), clipped to the surface's clip box, in the
+'' 16-bit 'style' pattern.
 private sub DrawLine##suffix( _
         byref s as Surface, _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
-        byval col as ulong )
+        byval col as ulong, _
+        byval style_ as ulong = &hFFFF )
+
+    dim as long style = cast( long, style_ and &hFFFF )
+    dim as long rot = 0, bit_
 
     if SurfaceClipEmpty( s ) then exit sub
 
@@ -79,25 +103,47 @@ private sub DrawLine##suffix( _
 
     if dx = 0 then
         '' ---- vertical ----
-        y1 = LineMid( ymin, y1, ymax )
-        if y1 > y2 then swap y1, y2
+        if y1 < ymin then
+            rot += ymin - y1
+            y1 = ymin
+        elseif y1 > ymax then
+            rot += y1 - ymax
+            y1 = ymax
+        end if
+        if y1 > y2 then
+            style = LineReverseMask( style )
+            rot = (not rot) + y2 - y1
+            swap y1, y2
+        end if
+        bit_ = &h8000 shr (rot and &hF)
         y = y1
         while y <= y2
-            PutPixel##suffix( s, x1, y, col )
+            if (style and bit_) <> 0 then PutPixel##suffix( s, x1, y, col )
+            bit_ = LineRorW( bit_, 1 )
             y += 1
         wend
         DirtyMarkSpan( s, y1, y2 )
 
     elseif dy = 0 then
         '' ---- horizontal ----
-        x1 = LineMid( xmin, x1, xmax )
-        if x1 > x2 then swap x1, x2
-        '' gfxlib2 takes the pixel_set fast path when the style is solid; the
-        '' pixel sequence is identical either way.
+        if x1 < xmin then
+            rot += xmin - x1
+            x1 = xmin
+        elseif x1 > xmax then
+            rot += x1 - xmax
+            x1 = xmax
+        end if
+        if x1 > x2 then
+            style = LineReverseMask( style )
+            rot = (not rot) + x2 - x1
+            swap x1, x2
+        end if
+        bit_ = &h8000 shr (rot and &hF)
         dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y1 ) )
         x = x1
         while x <= x2
-            row[x] = cast( elem, col )
+            if (style and bit_) <> 0 then row[x] = cast( elem, col )
+            bit_ = LineRorW( bit_, 1 )
             x += 1
         wend
         DirtyMark( s, y1, 1 )
@@ -128,6 +174,13 @@ private sub DrawLine##suffix( _
         y = LineMid( ymin, y1, ymax )
         d -= ay * (y - y1) * dx
 
+        '' the pattern starts where the clipped line does
+        if dx >= dy then
+            rot += ax * (x - x1)
+        else
+            rot += ay * (y - y1)
+        end if
+
         '' The loop terminates one step PAST the endpoint.
         x2 += ax
         y2 += ay
@@ -143,12 +196,15 @@ private sub DrawLine##suffix( _
                 skip = ((dy - dx) - d) \ dy + 1
                 x += ax * skip
                 d += skip * dy
+                rot += skip
                 if (x < xmin) orelse (x > xmax) then exit sub
             end if
 
+            bit_ = &h8000 shr (rot and &hF)
             dim as long fromy = y
             while (x <> x2) andalso (y <> y2)
-                PutPixel##suffix( s, x, y, col )
+                if (style and bit_) <> 0 then PutPixel##suffix( s, x, y, col )
+                bit_ = LineRorW( bit_, 1 )
                 if d >= 0 then
                     y += ay
                     d -= dx
@@ -168,12 +224,15 @@ private sub DrawLine##suffix( _
                 skip = (d - (dy - dx)) \ dx + 1
                 y += ay * skip
                 d -= skip * dx
+                rot += skip
                 if (y < ymin) orelse (y > ymax) then exit sub
             end if
 
+            bit_ = &h8000 shr (rot and &hF)
             dim as long fromy = y
             while (x <> x2) andalso (y <> y2)
-                PutPixel##suffix( s, x, y, col )
+                if (style and bit_) <> 0 then PutPixel##suffix( s, x, y, col )
+                bit_ = LineRorW( bit_, 1 )
                 if d <= 0 then
                     x += ax
                     d += dy
@@ -199,11 +258,12 @@ private sub DrawLineAny( _
         byref s as Surface, _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
-        byval col as ulong )
+        byval col as ulong, _
+        byval style as ulong = &hFFFF )
     select case s.bpp
-    case 1 : DrawLine8( s, x1, y1, x2, y2, col )
-    case 2 : DrawLine16( s, x1, y1, x2, y2, col )
-    case else : DrawLine32( s, x1, y1, x2, y2, col )
+    case 1 : DrawLine8( s, x1, y1, x2, y2, col, style )
+    case 2 : DrawLine16( s, x1, y1, x2, y2, col, style )
+    case else : DrawLine32( s, x1, y1, x2, y2, col, style )
     end select
 end sub
 

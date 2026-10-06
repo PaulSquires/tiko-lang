@@ -1,4 +1,4 @@
-'' box.bi -- LINE ... B and BF for 32bpp, solid style.
+'' box.bi -- LINE ... B and BF, with the 16-bit style mask.
 ''
 '' Derived from: gfx_box.c (fb_hGfxBox), gfx_line.c (the B/BF entry).
 '' LGPL-2.1-or-later with the static-linking exception.
@@ -24,16 +24,17 @@
 '' is the statement-level entry that orders first, which is what LINE does via
 '' fb_hFixCoordsOrder.
 ''
-'' Solid style only. The 16-bit style mask threads a rotation through all four
-'' edges in a specific order (bottom, top, right, left, with a rot fixup between
-'' each) -- that is Phase 3, and the order matters there even though it does not
-'' here.
+'' THE 16-BIT STYLE MASK threads ONE rotation through all four edges in gfxlib2's
+'' order -- bottom, top, right, left -- with a fixup between each for the pixels
+'' clipped away, so a dashed box comes out exactly as fb_hGfxBox draws it. A
+'' solid style takes the old row-store path.
 
 #pragma once
 
 #include once "pixel.bi"
 #include once "pixelfmt.bi"   '' PutPixel8 / PutPixel16
 #include once "../core/dirty.bi"
+#include once "line.bi"       '' LineRorW
 
 namespace TkoGfx
 
@@ -55,9 +56,11 @@ private sub DrawBox##suffix( _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
         byval col as ulong, _
-        byval full as long )
+        byval full as long, _
+        byval style_ as ulong = &hFFFF )
 
     if SurfaceClipEmpty( s ) then exit sub
+    dim as long style = cast( long, style_ and &hFFFF )
 
     dim as long vx1 = s.clip_x1, vx2 = s.clip_x2
     dim as long vy1 = s.clip_y1, vy2 = s.clip_y2
@@ -88,6 +91,42 @@ private sub DrawBox##suffix( _
             wend
             y += 1
         wend
+    elseif style <> &hFFFF then
+        '' ---- styled outline: fb_hGfxBox, step for step ----
+        dim as long bit_ = LineRorW( &h8000, cx1 - x1 )
+        if y2 <= vy2 then
+            for x = cx1 to cx2
+                if (style and bit_) <> 0 then PutPixel##suffix( s, x, y2, col )
+                bit_ = LineRorW( bit_, 1 )
+            next
+        else
+            bit_ = LineRorW( bit_, cx2 - cx1 + 1 )
+        end if
+        bit_ = LineRorW( bit_, (x2 - cx2) + (cx1 - x1) )
+        if y1 >= vy1 then
+            for x = cx1 to cx2
+                if (style and bit_) <> 0 then PutPixel##suffix( s, x, y1, col )
+                bit_ = LineRorW( bit_, 1 )
+            next
+        else
+            bit_ = LineRorW( bit_, cx2 - cx1 + 1 )
+        end if
+        bit_ = LineRorW( bit_, (x2 - cx2) + (cy1 - y1) )
+        if x2 <= vx2 then
+            for y = cy1 to cy2
+                if (style and bit_) <> 0 then PutPixel##suffix( s, x2, y, col )
+                bit_ = LineRorW( bit_, 1 )
+            next
+        else
+            bit_ = LineRorW( bit_, cy2 - cy1 + 1 )
+        end if
+        bit_ = LineRorW( bit_, (y2 - cy2) + (cy1 - y1) )
+        if x1 >= vx1 then
+            for y = cy1 to cy2
+                if (style and bit_) <> 0 then PutPixel##suffix( s, x1, y, col )
+                bit_ = LineRorW( bit_, 1 )
+            next
+        end if
     else
         '' bottom edge -- only if y2 itself is in view
         if y2 <= vy2 then
@@ -136,11 +175,12 @@ private sub LineBox##suffix( _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
         byval col as ulong, _
-        byval full as long )
+        byval full as long, _
+        byval style as ulong = &hFFFF )
 
     if x1 > x2 then swap x1, x2
     if y1 > y2 then swap y1, y2
-    DrawBox##suffix( s, x1, y1, x2, y2, col, full )
+    DrawBox##suffix( s, x1, y1, x2, y2, col, full, style )
 end sub
 
 #endmacro
@@ -157,11 +197,12 @@ private sub LineBoxAny( _
         byval x1 as long, byval y1 as long, _
         byval x2 as long, byval y2 as long, _
         byval col as ulong, _
-        byval full as long )
+        byval full as long, _
+        byval style as ulong = &hFFFF )
     select case s.bpp
-    case 1 : LineBox8( s, x1, y1, x2, y2, col, full )
-    case 2 : LineBox16( s, x1, y1, x2, y2, col, full )
-    case else : LineBox32( s, x1, y1, x2, y2, col, full )
+    case 1 : LineBox8( s, x1, y1, x2, y2, col, full, style )
+    case 2 : LineBox16( s, x1, y1, x2, y2, col, full, style )
+    case else : LineBox32( s, x1, y1, x2, y2, col, full, style )
     end select
 end sub
 

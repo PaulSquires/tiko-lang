@@ -1,0 +1,25 @@
+'' gfx: LINE's 16-bit style mask, every direction, clipped and not, plus styled LINE B (gfx/line.bas).
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/gfx-line-style.bas -o tests/codegen/gfxlinestyle.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gfxlinestyle.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  8 0 0 90964133
+'' EXPECT-RUN-OUT:  8 0 1 F33AF286
+'' EXPECT-RUN-OUT:  8 1 0 C7F06E9
+'' EXPECT-RUN-OUT:  8 1 1 6E9C9CB5
+'' EXPECT-RUN-OUT:  8 2 0 FFA5BAB8
+'' EXPECT-RUN-OUT:  8 2 1 3104DB64
+'' EXPECT-RUN-OUT:  8 3 0 29109E31
+'' EXPECT-RUN-OUT:  8 3 1 E9327A5B
+'' EXPECT-RUN-OUT:  32 0 0 27964133
+'' EXPECT-RUN-OUT:  32 0 1 433AF286
+'' EXPECT-RUN-OUT:  32 1 0 C57F06E9
+'' EXPECT-RUN-OUT:  32 1 1 A29C9CB5
+'' EXPECT-RUN-OUT:  32 2 0 9BA5BAB8
+'' EXPECT-RUN-OUT:  32 2 1 C04DB64
+'' EXPECT-RUN-OUT:  32 3 0 E8109E31
+'' EXPECT-RUN-OUT:  32 3 1 97327A5B

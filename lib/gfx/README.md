@@ -44,8 +44,8 @@ driver/mouse.bi           the pointer state behind GETMOUSE and SETMOUSE
 raster/text.bi            console text rendering on a graphics screen
 raster/blit.bi            the 21 device blitters and their dispatch
 raster/pixel.bi           PSET / POINT, 32bpp
-raster/line.bi            LINE, 32bpp, solid style
-raster/box.bi             LINE B / BF, 32bpp, solid style
+raster/line.bi            LINE, 8/16/32bpp, with the 16-bit style mask
+raster/box.bi             LINE B / BF, 8/16/32bpp, with the 16-bit style mask
 raster/circle.bi          CIRCLE, 32bpp: ellipse, aspect, arcs, fill
 raster/paint.bi           PAINT, 32bpp, solid and PATTERN fill
 raster/draw.bi            DRAW, the turtle command language
