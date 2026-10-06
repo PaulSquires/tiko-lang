@@ -56,6 +56,69 @@ sub FlattenInitLeaves_ _
     next
 end sub
 
+'' ONE NESTING LEVEL OF A MULTI-DIMENSIONAL INITIALISER: each child's ELEMENT INDEX, from the
+'' dimension's stride -- a row shorter than its dimension leaves the rest of the row alone.
+private function ArrayLeafWalk_ _
+    ( byref c as Ctx, byval lst as Tko.NodeId, byval d as long, byval rank as long, _
+      byval ext as long ptr, byval strd as long ptr, byval base_ as long, _
+      byref leaves as FB.Array( of ulong ), byref idx as FB.Array( of ulong ) ) as boolean
+    if c.ast->Kind( lst ) <> Tko.N_INITIALIZER then return false
+    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, lst )].data )]
+    if lp->count > ext[d] then return false
+    for j as long = 0 to lp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + j] )
+        if d < rank - 1 then
+            if ArrayLeafWalk_( c, e, d + 1, rank, ext, strd, base_ + j * strd[d], leaves, idx ) = false then return false
+        else
+            leaves.Push( cast( ulong, e ) ) : idx.Push( cast( ulong, base_ + j ) )
+        end if
+    next
+    return true
+end function
+
+'' THE LEAVES OF AN ARRAY INITIALISER WITH THEIR ELEMENT INDEX. Over 'a( 0 to 2, 0 to 2 )',
+'' '{ { 1, 2 }, { 3, 4 } }' puts 3 at element 3 -- row 1 -- where laying the leaves end to end
+'' put it at element 2 and every later value one row early (string/initialization.bas). One
+'' dimension, unknown bounds or a flat list: positional, as before.
+sub ArrayInitLeaves_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
+      byref leaves as FB.Array( of ulong ), byref idx as FB.Array( of ulong ) )
+    dim as long rank = 0
+    if c.types->Kind( t ) = Tko.TK_ARRAY then rank = c.types->types[cast( long, t )].dims
+    dim as long ext( 0 to 7 ), strd( 0 to 7 )
+    dim as boolean ok = (rank > 1) andalso (rank <= 8)
+    if ok then ok = (c.types->IsDynArray( t ) = false)
+    if ok then
+        for d as long = 0 to rank - 1
+            dim as boolean k1 = false, k2 = false
+            dim as longint lo = c.types->ArrayBound( t, d, false, k1 )
+            dim as longint hi = c.types->ArrayBound( t, d, true, k2 )
+            if (k1 = false) orelse (k2 = false) orelse (hi < lo) then ok = false : exit for
+            ext( d ) = cast( long, hi - lo + 1 )
+        next
+    end if
+    if ok then
+        strd( rank - 1 ) = 1
+        for d as long = rank - 2 to 0 step -1
+            strd( d ) = strd( d + 1 ) * ext( d + 1 )
+        next
+        ok = ArrayLeafWalk_( c, init, 0, rank, @ext( 0 ), @strd( 0 ), 0, leaves, idx )
+    end if
+    if ok then return
+    leaves.Clear( ) : idx.Clear( )
+    if rank > 1 then
+        FlattenInitLeaves_( c, init, leaves )
+    else
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+        for i as long = 0 to lp->count - 1
+            leaves.Push( c.ast->children[lp->first + i] )
+        next
+    end if
+    for i as long = 0 to leaves.Count - 1
+        idx.Push( cast( ulong, i ) )
+    next
+end sub
+
 '' The destination is a SLOT or, for storage with no slot, an ADDRESS -- selfv. A
 '' STATIC local and a UDT FIELD are both storage without a frame slot.
 '' HOW MANY ELEMENTS A FLAT BRACE INITIALISER NAMES -- 0 for anything else, nested lists
@@ -136,16 +199,8 @@ function LowerArrayInit _
     '' Only where the array HAS more than one dimension. Over a one-dimensional array
     '' a nested brace list means something else -- the fields of an element -- and
     '' flattening it would spread one element's fields across several elements.
-    dim as FB.Array( of ulong ) leaves
-    if c.types->types[cast( long, t )].dims > 1 then
-        FlattenInitLeaves_( c, init, leaves )
-    else
-        dim as Tko.ListPayload ptr lp0 = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-        for i as long = 0 to lp0->count - 1
-            leaves.Push( c.ast->children[lp0->first + i] )
-        next
-    end if
+    dim as FB.Array( of ulong ) leaves, lidx
+    ArrayInitLeaves_( c, t, init, leaves, lidx )
 
     dim as MirValue base_
     if selfv <> 0 then
@@ -156,8 +211,20 @@ function LowerArrayInit _
         base_.id = slot
     end if
 
+    '' A PADDED ROW LEAVES GAPS, which hold whatever the frame held: zeroed first, as fbc does.
+    dim as boolean sparse = false
     for i as long = 0 to leaves.Count - 1
-        if (total > 0) andalso (i >= total) then exit for
+        if cast( long, lidx[i] ) <> i then sparse = true
+    next
+    if sparse andalso (total > 0) then
+        dim as FB.Array( of ulong ) sz0
+        sz0.Push( cast( ulong, base_.kind ) ) : sz0.Push( cast( ulong, base_.id ) )
+        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( 0 )
+        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( cast( ulong, total * esz ) )
+        EmitRtl( c, RTL_MEMSET, sz0 )
+    end if
+    for i as long = 0 to leaves.Count - 1
+        if (total > 0) andalso (cast( long, lidx[i] ) >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         '' A UDT ELEMENT runs its numeric cast -- '{ m, m }' into a long array is fbc's 3 and 3.
         dim as boolean udtNum = IsUdtValue_( c, e ) andalso (emt <> MT_AGG) andalso (emt <> MT_PTR) andalso (emt <> MT_VOID)
@@ -169,7 +236,7 @@ function LowerArrayInit _
         fa.op = cast( ushort, M_FIELD_ADDR )
         fa.ty = cast( ubyte, MT_PTR )
         fa.a = base_
-        fa.imm = i * esz
+        fa.imm = cast( long, lidx[i] ) * esz
         dim as MirValue ea = Emit( c, fa )
         if ea.kind = cast( ubyte, MV_NONE ) then return false
 
@@ -203,16 +270,8 @@ private function LowerFixStrArrayInit_ _
     '' run in row-major order -- the same rule the scalar path follows. This walked only
     '' the TOP-LEVEL children, so every row arrived as a nested N_INITIALIZER that the
     '' element assignment had nothing to make of, and the whole declaration declined.
-    dim as FB.Array( of ulong ) leaves
-    if c.types->types[cast( long, t )].dims > 1 then
-        FlattenInitLeaves_( c, init, leaves )
-    else
-        dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-        for i as long = 0 to lp->count - 1
-            leaves.Push( c.ast->children[lp->first + i] )
-        next
-    end if
+    dim as FB.Array( of ulong ) leaves, lidx
+    ArrayInitLeaves_( c, t, init, leaves, lidx )   '' a short row pads -- see ArrayInitLeaves_
 
     dim as MirValue base_
     if selfv <> 0 then
@@ -223,15 +282,28 @@ private function LowerFixStrArrayInit_ _
         base_.id = slot
     end if
 
+    '' A PADDED ROW LEAVES GAPS, not just a tail: the whole array is zeroed first, as fbc zeroes
+    '' each row's rest, and no tail is left to clear afterwards.
+    dim as boolean sparse = false
+    for i as long = 0 to cast( long, leaves.Count ) - 1
+        if cast( long, lidx[i] ) <> i then sparse = true
+    next
+    if sparse andalso (total > 0) then
+        dim as FB.Array( of ulong ) sz0
+        sz0.Push( cast( ulong, base_.kind ) ) : sz0.Push( cast( ulong, base_.id ) )
+        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( 0 )
+        sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( cast( ulong, total * esz ) )
+        EmitRtl( c, RTL_MEMSET, sz0 )
+    end if
     dim as long written = 0
     for i as long = 0 to cast( long, leaves.Count ) - 1
-        if (total > 0) andalso (i >= total) then exit for
+        if (total > 0) andalso (cast( long, lidx[i] ) >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, leaves[i] )
         dim as MirInst fa
         fa.op = cast( ushort, M_FIELD_ADDR )
         fa.ty = cast( ubyte, MT_PTR )
         fa.a = base_
-        fa.imm = i * esz
+        fa.imm = cast( long, lidx[i] ) * esz
         dim as MirValue ea = Emit( c, fa )
         if ea.kind = cast( ubyte, MV_NONE ) then return false
         '' A WIDE ELEMENT TAKES THE WIDE ASSIGN. LowerZstrAssignTo is a two-way
@@ -260,6 +332,7 @@ private function LowerFixStrArrayInit_ _
     '' is raw storage, not a descriptor, so an unwritten one holds whatever the frame
     '' held -- and this simply stopped at the last supplied leaf. Measured: fbc emits an
     '' explicit memset over the rest, per row and for the whole tail.
+    if sparse then written = total
     if (total > 0) andalso (written < total) then
         dim as MirInst ta
         ta.op = cast( ushort, M_FIELD_ADDR )

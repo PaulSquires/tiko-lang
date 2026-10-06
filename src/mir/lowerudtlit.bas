@@ -1150,7 +1150,7 @@ end function
 '' Returns false for anything that is not one, which leaves the caller's own path alone.
 private function FixStrArrayImage_ _
     ( byref c as Ctx, byval et as Tko.TypeId, byval init as Tko.NodeId, _
-      byval size_ as long, byref outImg as string ) as boolean
+      byval size_ as long, byref outImg as string, byval at_ as Tko.TypeId = Tko.TYPE_NONE ) as boolean
 
     dim as longint fen
     dim as long fsk = StrSwapKind_( c, et, fen )
@@ -1162,10 +1162,15 @@ private function FixStrArrayImage_ _
     dim as long total = size_ \ esz
     if total <= 0 then return false
 
-    dim as FB.Array( of ulong ) leaves
-    FlattenInitLeaves_( c, init, leaves )
+    dim as FB.Array( of ulong ) leaves, lidx   '' each at its element index -- a short row pads
+    ArrayInitLeaves_( c, at_, init, leaves, lidx )
     if leaves.Count = 0 then return false
-    if cast( long, leaves.Count ) > total then return false
+    dim as FB.Array( of long ) slotOf   '' element -> leaf, or -1
+    for i as long = 0 to total - 1 : slotOf.Push( -1 ) : next
+    for i as long = 0 to leaves.Count - 1
+        if cast( long, lidx[i] ) >= total then return false
+        slotOf[cast( long, lidx[i] )] = i
+    next
 
     dim as boolean wide = (fsk = 2) orelse (fsk = 4)
     dim as ubyte pad = iif( fsk = 3, 32, 0 )
@@ -1175,8 +1180,8 @@ private function FixStrArrayImage_ _
     dim as string img
     for i as long = 0 to total - 1
         dim as string txt
-        if i < cast( long, leaves.Count ) then
-            if ConstStringTextOf_( c, cast( Tko.NodeId, leaves[i] ), txt ) = false then
+        if slotOf[i] >= 0 then
+            if ConstStringTextOf_( c, cast( Tko.NodeId, leaves[slotOf[i]] ), txt ) = false then
                 return false
             end if
         end if
@@ -1228,7 +1233,7 @@ function FoldAggInit_ _
         '' A fixed string lowers to MT_AGG, so the rejection below took every one of
         '' them; the SCALAR half of exactly this fold already lives in LowerGlobalInit,
         '' including the SPACE fill a 'string * N' takes where the others take zeros.
-        if FixStrArrayImage_( c, et, init, size_, outBytes ) then return true
+        if FixStrArrayImage_( c, et, init, size_, outBytes, t ) then return true
 
         dim as MirType emt = LowerType( et, *c.types )
         if emt = MT_VOID then return false

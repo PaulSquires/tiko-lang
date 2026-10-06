@@ -805,6 +805,7 @@ declare function EmitRtl _
     declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
     declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long
+    declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId : declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
     declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -1041,7 +1042,7 @@ declare function EmitRtl _
     declare function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerNew_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
+    declare sub ArrayInitLeaves_( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, byref leaves as FB.Array( of ulong ), byref idx as FB.Array( of ulong ) ) : declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
     declare function CtorOf_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval want as long ) as Tko.SymbolId
     declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
