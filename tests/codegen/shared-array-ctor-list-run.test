@@ -1,0 +1,19 @@
+'' A SHARED FIXED ARRAY GIVEN ONE CONSTRUCTOR CALL PER ELEMENT is built in the module initialiser,
+'' each call on its element in order, the rest default-constructed, and destroyed in reverse at
+'' exit (fbc's structs/obj_shared_array_ini.bas, obj_global_with_temp.bas). tiko declined it.
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/shared-array-ctor-list.bas -o tests/codegen/sharedarrayctorlist.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/sharedarrayctorlist.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor 1
+'' EXPECT-RUN-OUT: ctor 2
+'' EXPECT-RUN-OUT: ctor 3
+'' EXPECT-RUN-OUT:  10 20 30
+'' EXPECT-RUN-OUT: string1
+'' EXPECT-RUN-OUT:  5 6-1-1
+'' EXPECT-RUN-OUT: dtor 30
+'' EXPECT-RUN-OUT: dtor 20
+'' EXPECT-RUN-OUT: dtor 10

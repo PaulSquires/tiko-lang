@@ -934,6 +934,9 @@ sub InitSharedGlobal _
                 end select
                 if convInit then wants = true
             end if
+            '' ...AND A FIXED ARRAY GIVEN ONE CONSTRUCTOR CALL PER ELEMENT -- see ArrayCtorList_.
+            dim as boolean ctorList = ArrayCtorList_( c, gs->type_, init )
+            if ctorList then wants = true
             '' ...BUT NOT A PURE EXTERN: its storage, and constructing and destroying it,
             '' belong to the unit that defines it. A module's variable read in from its
             '' interface is one (ADR 0017): its importers re-initialised it and each
@@ -963,6 +966,7 @@ sub InitSharedGlobal _
                             end if
                         end if
                         if convInit then ctorCall = init
+                        if ctorList then ctorCall = init
                     end if
                     c.modInitCall.Push( cast( ulong, ctorCall ) )
                     dim as Tko.NodeId ciItem = cast( Tko.NodeId, gs->payload )

@@ -1413,6 +1413,10 @@ declare function EmitRtl _
     declare sub WantImplicit_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval k as long )
     declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ArrayCtorList_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId ) as boolean
+    declare sub EmitArrayCtorList_ _
+        ( byref c as Ctx, byref ga as MirValue, byval t as Tko.TypeId, byval init as Tko.NodeId )
     declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare sub EmitArrayElems_ _
         ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean, _

@@ -85,6 +85,14 @@ sub EmitModuleInit_( byref c as Ctx )
                     end if
                 end if
             else
+                '' A LIST OF CONSTRUCTOR CALLS builds its elements first -- ArrayCtorList_.
+                if isCtor andalso (i < c.modInitCall.Count) then
+                    dim as Tko.NodeId lic = cast( Tko.NodeId, c.modInitCall[i] )
+                    if ArrayCtorList_( c, gt, lic ) then
+                        EmitArrayCtorList_( c, ga, gt, lic )
+                        continue for
+                    end if
+                end if
                 '' AN ARRAY OF THEM, element by element -- and the reversal applies
                 '' WITHIN the array too, which is what fbc's own _GLOBAL__D does.
                 dim as boolean wants = false
@@ -101,6 +109,60 @@ sub EmitModuleInit_( byref c as Ctx )
         c.f = savedF
         c.curBlock = savedB
     next
+end sub
+
+'' 'dim shared as bar b( 1 to 3 ) = { bar( 1 ), bar( 2 ), bar( 3 ) }' -- A FIXED ARRAY OF A
+'' CONSTRUCTED TYPE, ONE CONSTRUCTOR CALL PER ELEMENT. Measured on fbc-modern: the module
+'' initialiser calls each in order on its element, and the finaliser destroys them in
+'' reverse (structs/obj_shared_array_ini.bas, obj_global_with_temp.bas). A call is not a
+'' byte image, so the aggregate folder declined the declaration. One dimension, and every
+'' element written must be a call constructing the element type; the rest of the array is
+'' default-constructed as before.
+function ArrayCtorList_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId ) as boolean
+
+    if (t = Tko.TYPE_NONE) orelse (init = Tko.NODE_NONE) then return false
+    if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
+    dim as Tko.TypeId at = c.types->Unqualify( t )
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
+    if c.types->IsDynArray( at ) then return false
+    if c.types->types[cast( long, at )].dims <> 1 then return false
+    dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( at ) )
+    if c.types->Kind( el ) <> Tko.TK_UDT then return false
+    if StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    if (lp->count <= 0) orelse (lp->count > c.types->ElemCount( at )) then return false
+    for k as long = 0 to lp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + k] )
+        if c.types->Unqualify( TypeCtorTypeOf_( c, e ) ) <> el then return false
+    next
+    return true
+end function
+
+sub EmitArrayCtorList_ _
+    ( byref c as Ctx, byref ga as MirValue, byval t as Tko.TypeId, byval init as Tko.NodeId )
+
+    dim as Tko.TypeId at = c.types->Unqualify( t )
+    dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( at ) )
+    dim as long esz = SizeOfType( c, el )
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    for k as long = 0 to lp->count - 1
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = ga
+        fa.imm = k * esz
+        dim as MirValue ea = Emit( c, fa )
+        '' Each call's temporaries die after it, since no statement end follows.
+        dim as long sm = c.strTemps.Count, wm = c.wstrTemps.Count, um = c.udtTemps.Count
+        dim as boolean ok = (ea.kind <> cast( ubyte, MV_NONE ))
+        if ok then ok = CtorCallOnAddr_( c, ea, el, cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        ReleaseUdtTemps_( c, um ) : ReleaseWstrTemps_( c, wm ) : ReleaseStrTemps_( c, sm )
+        if ok = false then SkipHere( c )
+    next
+    EmitArrayElemsAt_( c, ga, at, true, lp->count )
 end sub
 
 '' The priority a module structor WROTE, from the parser's side table, or 0 for none.
