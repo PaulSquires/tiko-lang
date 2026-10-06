@@ -46,6 +46,16 @@ function ConversionCost _
     '' Measured: offered { string, zstring ptr, wstring ptr }, a 'string * 31' argument
     '' takes the STRING overload -- _Z1G8FBSTRING -- and a 'zstring * 31' takes
     '' _Z1GPc. StrFlavourOf_ already knew this mapping and this path did not use it.
+    '' ...EXCEPT THAT A 'ustring * N' IS NO POINTER'S ARGUMENT. Measured, fbc refuses it for a
+    '' 'zstring ptr' and a 'wstring ptr' parameter alike -- error 24 -- where a var-length
+    '' ustring is converted. Mapped to USTRING it was accepted, and 'ppz( uf )' lowered to a
+    '' call with no argument value at all.
+    if types.Kind( types.Unqualify( to_ ) ) = Tko.TK_POINTER then
+        dim as Tko.TypeId fel = FixedStringElem( from_, types )
+        if fel <> Tko.TYPE_NONE then
+            if types.BuiltinOf( fel ) = Tko.TY_FIXUSTR then return CONV_NONE
+        end if
+    end if
     from_ = StrFlavourOf_( types, from_ )
     to_ = StrFlavourOf_( types, to_ )
     if from_ = to_ then return CONV_EXACT

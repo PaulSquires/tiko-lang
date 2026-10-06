@@ -1,0 +1,10 @@
+'' TKO0698: a 'ustring * N' passed to a 'zstring ptr' or 'wstring ptr' parameter -- fbc's error 24.
+'' It was accepted as a var-length ustring and lowered to a call with no argument value. A
+'' var-length ustring still converts (lines 7 and 8).
+'' TEST: cli
+'' ARGS: --check tests/diagnostics/src/ustrfix-ptr-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ustrfix-ptr-arg.bas(4,
+'' EXPECT-OUT: ustrfix-ptr-arg.bas(5,
+'' EXPECT-OUT: TKO0698
+'' EXPECT-MAX-DIAG: 2

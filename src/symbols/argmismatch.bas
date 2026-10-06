@@ -22,6 +22,7 @@
 ''                  binds (numbers/cast-nullptr.bas); to a UDT, 'byref as long',
 ''                  'byref as zstring' -- 58
 ''                  (a UDT parameter only when it has no constructor, no 'let', no base)
+''   a 'ustring * N' to a pointer -- 24
 ''   a NUMERIC or BOOLEAN VARIABLE to a pointer or a procedure pointer -- 24. A
 ''                  LITERAL, a named constant, an enum and even 'i + 1' are fbc's warning
 ''                  1 and bind, so only a named variable or parameter is judged.
@@ -239,6 +240,13 @@ private function AmBadPair_ _
     ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId, _
       byval byref_ as boolean, byval a as Tko.NodeId ) as boolean
 
+    '' A 'ustring * N' FOR A POINTER PARAMETER -- fbc's 24; see ConversionCost.
+    if AmPtrLike_( c, pt ) then
+        dim as Tko.TypeId fel = FixedStringElem( at, *c.types )
+        if fel <> Tko.TYPE_NONE then
+            if c.types->BuiltinOf( fel ) = Tko.TY_FIXUSTR then return true
+        end if
+    end if
     if c.types->Kind( at ) = Tko.TK_UDT then
         '' A POINTER CAST THAT DOES NOT REACH THE POINTER PARAMETER -- 'long ptr' into 'byte ptr' (PtrCastFit).
         if c.types->Kind( pt ) = Tko.TK_POINTER then
