@@ -128,12 +128,40 @@ end sub
 ''
 '' Each element is a packed 6-bit-per-channel value, the same encoding the
 '' two-argument PALETTE takes.
+''
+'' THE COUNTS ARE gfxlib2's, measured (fbc-modern 1.20, gfx/palette.bas):
+''
+''   PALETTE USING       1 shl depth entries, none at all above 8 bits, and a
+''                       NEGATIVE entry is skipped -- that index keeps its colour
+''   PALETTE GET USING   the default table's colours capped at 1 shl depth. A
+''                       SCREENRES opens with the 256-colour table at every depth,
+''                       so depth 4 reads 16, 8 and 16 read 256 -- and 24 and 32
+''                       read ONE: gfxlib2 stores 24 as 32, and C's '1 << 32' is 1
+''                       on x86, the shift count being masked to five bits.
+''
+'' This took the mode table's count for both, which is 0 for every SCREENRES, so
+'' neither statement touched a single entry there.
+private function PaletteUsingCount_( ) as long
+    dim as long dep = TkoGfx.TheScreen.depth
+    if dep > 8 then return 0
+    return 1 shl dep
+end function
+
+private function PaletteGetUsingCount_( ) as long
+    dim as long dep = TkoGfx.TheScreen.depth
+    if dep > 16 then return 1
+    dim as long colours = 256
+    if TkoGfx.TheScreen.mode <> 0 then colours = TkoGfx.ModePaletteColors( TkoGfx.TheScreen.mode )
+    if colours > (1 shl dep) then colours = 1 shl dep
+    return colours
+end function
+
 sub TkoGfxPaletteUsing alias "fb_GfxPaletteUsing" ( byval src as long ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
     if (p = 0) orelse (src = 0) then exit sub
-    dim as long n = TkoGfx.ModePaletteColors( TkoGfx.TheScreen.mode )
+    dim as long n = PaletteUsingCount_( )
     for i as integer = 0 to n - 1
-        TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
+        if src[i] >= 0 then TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
     next
     TkoGfx.PaletteLutRebuild( )
 end sub
@@ -141,9 +169,9 @@ end sub
 sub TkoGfxPaletteUsing64 alias "fb_GfxPaletteUsing64" ( byval src as longint ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
     if (p = 0) orelse (src = 0) then exit sub
-    dim as long n = TkoGfx.ModePaletteColors( TkoGfx.TheScreen.mode )
+    dim as long n = PaletteUsingCount_( )
     for i as integer = 0 to n - 1
-        TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
+        if src[i] >= 0 then TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
     next
     TkoGfx.PaletteLutRebuild( )
 end sub
@@ -152,7 +180,7 @@ end sub
 sub TkoGfxPaletteGetUsing alias "fb_GfxPaletteGetUsing" ( byval dst as long ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
     if (p = 0) orelse (dst = 0) then exit sub
-    dim as long n = TkoGfx.ModePaletteColors( TkoGfx.TheScreen.mode )
+    dim as long n = PaletteGetUsingCount_( )      '' see PaletteUsingCount_
     for i as integer = 0 to n - 1
         dst[i] = TkoGfx.PaletteGetPacked( *p, i )
     next
@@ -161,7 +189,7 @@ end sub
 sub TkoGfxPaletteGetUsing64 alias "fb_GfxPaletteGetUsing64" ( byval dst as longint ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
     if (p = 0) orelse (dst = 0) then exit sub
-    dim as long n = TkoGfx.ModePaletteColors( TkoGfx.TheScreen.mode )
+    dim as long n = PaletteGetUsingCount_( )
     for i as integer = 0 to n - 1
         dst[i] = TkoGfx.PaletteGetPacked( *p, i )
     next

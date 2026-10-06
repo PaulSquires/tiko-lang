@@ -1,4 +1,4 @@
-'' entry/misc.bi -- BSAVE, BLOAD, PMAP, POINTCOORD, SCREENLIST, and PUT ADD.
+'' entry/misc.bi -- BSAVE, BLOAD, PMAP, POINTCOORD, SCREENLIST, PUT ADD, fb_hPixelSetAlpha4.
 ''
 '' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
 '' exception.
@@ -158,5 +158,32 @@ sub TkoPutAdd alias "fb_hPutAdd" ( _
         TkoGfx.PutAdd32( src, dst, w, h, src_pitch, dst_pitch, alpha )
     end if
 end sub
+
+'' fb_hPixelSetAlpha4 -- fill 'size' 32-bit pixels with 'colour' blended by its own alpha:
+'' gfxlib2's pixel_set for GFX_ALPHA_PRIMITIVES, and a public symbol there, which
+'' gfx/blender-alpha4.bas declares and calls directly. Transcribed from gfx_core.c; the
+'' arithmetic is C's unsigned 32-bit, wraparound included -- (srb - drb) goes "negative"
+'' and the mask after the add is what brings it back -- hence the explicit masks over a
+'' 64-bit intermediate. Returns 'dest', as memset does.
+function TkoPixelSetAlpha4 alias "fb_hPixelSetAlpha4" ( _
+        byval dest as any ptr, byval colour as long, byval size as uinteger ) as any ptr
+    dim as ulong ptr d = cptr( ulong ptr, dest )
+    dim as ulongint sc = cast( ulong, colour )
+    dim as ulongint srb = sc and &h00FF00FFull
+    dim as ulongint sg = sc and &h0000FF00ull
+    dim as ulongint sa = sc and &hFF000000ull
+    dim as ulongint a = sc shr 24
+    while size > 0
+        dim as ulongint dc = d[0]
+        dim as ulongint drb = dc and &h00FF00FFull
+        dim as ulongint dg = dc and &h0000FF00ull
+        dim as ulongint irb = ((((srb - drb) and &hFFFFFFFFull) * a) and &hFFFFFFFFull) shr 8
+        dim as ulongint ig = ((((sg - dg) and &hFFFFFFFFull) * a) and &hFFFFFFFFull) shr 8
+        d[0] = cast( ulong, (((drb + irb) and &h00FF00FFull) or ((dg + ig) and &h0000FF00ull) or sa) and &hFFFFFFFFull )
+        d += 1
+        size -= 1
+    wend
+    return dest
+end function
 
 end extern
