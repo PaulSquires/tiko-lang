@@ -1,0 +1,13 @@
+'' A UDT AS A GRAPHICS TARGET converts through its 'operator cast' to any ptr -- that overload
+'' first, then another pointer one, never the integer (fbc's gfx/image-expr.bas castOverload*).
+'' tiko loaded the aggregate and declined. Output identical to fbc-modern's, on a GFX_NULL screen.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/gfx-udt-target.bas -o tests/codegen/gfxudttarget.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gfxudttarget.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1             0             0            FF0000FF
+'' EXPECT-RUN-OUT:  2             0             0            FF00FF00
+'' EXPECT-RUN-OUT:  2             0             1            FF010203

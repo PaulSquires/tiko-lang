@@ -71,7 +71,7 @@ func i32 main(i32 $0, ptr $1) {
     %41 = trunc %40
     %42 = const i32 65535
     call.rtl void fb_GfxLine(%31, %33, %35, %37, %39, %41, 0, %42, 0)
-    %43 = load @im
+    %43 = call ptr _ZN3IMGcvPvEv(@im)
     %44 = const i64 0
     %45 = sitofp %44
     %46 = const i64 0
@@ -83,6 +83,7 @@ func i32 main(i32 $0, ptr $1) {
     %52 = const i64 1
     %53 = trunc %52
     %54 = const i32 65535
+    call.rtl void fb_GfxLine(%43, %45, %47, %49, %51, %53, 0, %54, 0)
     %55 = load @pa
     %56 = const i64 0
     %57 = sitofp %56
@@ -117,45 +118,44 @@ func i32 main(i32 $0, ptr $1) {
     %84 = const i64 1
     %85 = trunc %84
     %86 = const i32 65535
-    %87 = load @pl
-    %88 = const i64 0
-    %89 = sitofp %88
-    %90 = const i64 0
-    %91 = sitofp %90
-    %92 = const i64 1
-    %93 = sitofp %92
-    %94 = const i64 1
-    %95 = sitofp %94
-    %96 = const i64 1
-    %97 = trunc %96
-    %98 = const i32 65535
-    %99 = load @n
-    %100 = bitcast %99
-    %101 = const i64 0
-    %102 = sitofp %101
-    %103 = const i64 0
-    %104 = sitofp %103
-    %105 = const i64 1
-    %106 = trunc %105
-    call.rtl void fb_GfxPset(%100, %102, %104, %106, 4, 0)
-    %107 = load @n
-    %108 = bitcast %107
-    %109 = const i64 0
-    %110 = sitofp %109
-    %111 = const i64 0
-    %112 = sitofp %111
-    %113 = const i64 5
-    %114 = sitofp %113
-    %115 = const i32 0
-    %116 = const f32 0
-    %117 = const f32 6.283185958862305
-    %118 = const f32 0
-    call.rtl void fb_GfxEllipse(%108, %110, %112, %114, %115, %118, %116, %117, 0, -2147483644)
+    %87 = const i64 0
+    %88 = sitofp %87
+    %89 = const i64 0
+    %90 = sitofp %89
+    %91 = const i64 1
+    %92 = sitofp %91
+    %93 = const i64 1
+    %94 = sitofp %93
+    %95 = const i64 1
+    %96 = trunc %95
+    %97 = const i32 65535
+    %98 = load @n
+    %99 = bitcast %98
+    %100 = const i64 0
+    %101 = sitofp %100
+    %102 = const i64 0
+    %103 = sitofp %102
+    %104 = const i64 1
+    %105 = trunc %104
+    call.rtl void fb_GfxPset(%99, %101, %103, %105, 4, 0)
+    %106 = load @n
+    %107 = bitcast %106
+    %108 = const i64 0
+    %109 = sitofp %108
+    %110 = const i64 0
+    %111 = sitofp %110
+    %112 = const i64 5
+    %113 = sitofp %112
+    %114 = const i32 0
+    %115 = const f32 0
+    %116 = const f32 6.283185958862305
+    %117 = const f32 0
+    call.rtl void fb_GfxEllipse(%107, %109, %111, %113, %114, %117, %115, %116, 0, -2147483644)
     call.rtl void fb_StrDelete(@s)
-    %119 = const i32 0
-    call.rtl void fb_End(%119)
-    %120 = load @$tmp0
-    ret %120
+    %118 = const i32 0
+    call.rtl void fb_End(%118)
+    %119 = load @$tmp0
+    ret %119
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -165,9 +165,12 @@ declare void fb_GfxEllipse(ptr $0, f32 $1, f32 $2, f32 $3, i32 $4, f32 $5, f32 $
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 142 insts, 3 statements not lowered, 0 scope imbalance
-  inside N_INTRINSIC 3
-  skip-site src\mir\lowerstr.bas:337 3
+lowered: 2 functions, 2 blocks, 142 insts, 2 statements not lowered, 0 scope imbalance
+  unlowered N_INTRINSIC 1
+  inside N_INTRINSIC 2
+  unlowered intrinsic KW_LINE 1
+  skip-site src\mir\lowerstr.bas:354 1
+  skip-site src\mir\lowerctl.bas:218 1
 tests/diagnostics/src/gfx-target.bas(25,6): error TKO0708: the image target of a graphics statement must be a pointer
      |
   25 | line n, (0,0)-(1,1), 1

@@ -93,6 +93,40 @@ private function GfxTargetVal _
     ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref ok as boolean ) as MirValue
 
     if sp->a = Tko.NODE_NONE then return ConstInt( c, 0, MT_PTR )
+    '' AN ARRAY NAMED BARE IS ITS STORAGE -- 'line array, ...', QB's image-in-an-array, of
+    '' whatever element type. Measured on fbc-modern: a fixed array passes '(void*)ARRAY$0',
+    '' a dynamic one the address of its first element out of the descriptor. LowerExpr has
+    '' no value for a whole array, so every such statement declined (gfx/image-expr.bas).
+    '' The descriptor's second word is the unbiased buffer start, '@a( lbound( a ) )' at
+    '' any element size and rank.
+    dim as Tko.TypeId gtt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+    if (gtt <> Tko.TYPE_NONE) andalso (c.types->Kind( gtt ) = Tko.TK_ARRAY) then
+        dim as MirValue ga = LowerAddr( c, sp->a )
+        if ga.kind = cast( ubyte, MV_NONE ) then
+            ok = false
+            return ga
+        end if
+        if c.types->IsDynArray( gtt ) then
+            dim as MirInst gf
+            gf.op = cast( ushort, M_FIELD_ADDR )
+            gf.ty = cast( ubyte, MT_PTR )
+            gf.a = ga
+            gf.imm = c.types->target.pointerBits \ 8
+            ga = LowerExprLoad( c, Emit( c, gf ), MT_PTR )
+        end if
+        return ga
+    end if
+    '' A UDT TARGET CONVERTS through its 'operator cast' to 'any ptr' -- the exact overload
+    '' first, then any other pointer one, never the integer: measured over the four
+    '' castOverload* namespaces of gfx/image-expr.bas. LowerExpr loaded the aggregate.
+    if (gtt <> Tko.TYPE_NONE) andalso (c.types->Kind( gtt ) = Tko.TK_UDT) then
+        dim as MirValue gu
+        if UserConvToScalar_( c, sp->a, c.types->Pointer_( c.types->Builtin( Tko.TY_VOID ) ), gu ) = false then
+            ok = false
+            return gu
+        end if
+        return Coerce( c, gu, MT_PTR )
+    end if
     dim as MirValue v = LowerExpr( c, sp->a )
     if v.kind = cast( ubyte, MV_NONE ) then
         ok = false
