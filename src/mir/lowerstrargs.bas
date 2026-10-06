@@ -857,8 +857,18 @@ end sub
 '' ...and their release, after the call returns.
 private sub DeleteStrArgTemps_ _
     ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ) )
+      byref types as FB.Array( of ulong ), byval defer as boolean = false )
 
+    '' A BYREF RESULT MAY BE ONE OF THEM: 'function g( byval s as string ) byref as string' returns
+    '' its own byval copy, which the caller owns -- fbc deletes it at the END OF THE STATEMENT, after
+    '' the result is read. Deleted here, 'g( s ) = "magic"' compared freed memory (temp-strings.bas).
+    if defer then
+        for k as long = 0 to slots.Count - 1
+            c.f->locals[cast( long, slots[k] )].frontendType = cast( Tko.TypeId, types[k] )
+            c.strTemps.Push( slots[k] )
+        next
+        return
+    end if
     for k as long = slots.Count - 1 to 0 step -1
         dim as MirValue a
         a.kind = cast( ubyte, MV_LOCAL )

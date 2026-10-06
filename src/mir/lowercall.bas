@@ -24,7 +24,7 @@ declare sub CopyBackUStrArgs_ _
       byref slots as FB.Array( of ulong ) )
 declare sub DeleteStrArgTemps_ _
     ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ) )
+      byref types as FB.Array( of ulong ), byval defer as boolean = false )
 
 
 declare function BareTypeLiteralArg_ _
@@ -1091,6 +1091,7 @@ function LowerCallParts _
     '' read through it -- 'struct INNER* vr$1 = FU( ); fb_PrintInt( 0,
     '' *(int32*)vr$1, 2 )' for 'fu( ).a' -- so field.addr applies to the call's
     '' result directly and loading the object first would copy it.
+    dim as boolean byrefDecl = byrefRet   '' before the aggregate adjustment: DeleteStrArgTemps_ defers on it
     if byrefRet then
         callTy = MT_PTR
         if mt = MT_AGG then byrefRet = false
@@ -1169,7 +1170,7 @@ function LowerCallParts _
                 dim as MirValue vr = Emit( c, vc )
                 CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
-    DeleteStrArgTemps_( c, strTemps, strTempTypes )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes, byrefDecl )
                 c.lastCallOk = true
                 if sretTmp.kind <> cast( ubyte, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
@@ -1218,7 +1219,7 @@ function LowerCallParts _
         dim as MirValue iv = Emit( c, ic )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
         CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
-    DeleteStrArgTemps_( c, strTemps, strTempTypes )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes, byrefDecl )
         c.lastCallOk = true
         '' See the byref comment above: an lvalue wants the reference itself.
     if byrefRet then
@@ -1240,7 +1241,7 @@ function LowerCallParts _
     ins.callee = fidx
     dim as MirValue cv = Emit( c, ins )
     CopyBackUStrArgs_( c, ustrBackNode, ustrBackSlot )
-    DeleteStrArgTemps_( c, strTemps, strTempTypes )
+    DeleteStrArgTemps_( c, strTemps, strTempTypes, byrefDecl )
     c.lastCallOk = true
 
     '' The RESULT is the VALUE in the temporary the callee filled in, not the pointer
