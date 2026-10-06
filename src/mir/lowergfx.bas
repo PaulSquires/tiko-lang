@@ -116,6 +116,16 @@ private function GfxTargetVal _
         end if
         return ga
     end if
+    '' AN ELEMENT OF A NON-POINTER ARRAY IS WHERE THE IMAGE STARTS: 'draw array( 0 ), ...' over a
+    '' ubyte array is fbc's '(void*)ARRAY', the element's ADDRESS. LowerExpr loaded the byte and
+    '' passed it as the image pointer -- an access violation (gfx/image-expr.bas).
+    if (gtt <> Tko.TYPE_NONE) andalso IsArrayIndex( c, sp->a ) andalso (c.types->Kind( gtt ) <> Tko.TK_POINTER) andalso (c.types->Kind( gtt ) <> Tko.TK_UDT) then
+        dim as MirValue gea = LowerAddr( c, sp->a )
+        if gea.kind = cast( ubyte, MV_NONE ) then
+            ok = false
+        end if
+        return gea
+    end if
     '' A UDT TARGET CONVERTS through its 'operator cast' to 'any ptr' -- the exact overload
     '' first, then any other pointer one, never the integer: measured over the four
     '' castOverload* namespaces of gfx/image-expr.bas. LowerExpr loaded the aggregate.
@@ -489,6 +499,17 @@ private function GfxBufferOperand_( byref c as Ctx, byval n as Tko.NodeId ) as M
     else
         v = LowerAddr( c, n )
         if v.kind = cast( ubyte, MV_NONE ) then v = LowerExpr( c, n )
+        '' A DYNAMIC ARRAY NAMED BARE IS ITS DATA, not its descriptor -- GfxTargetVal's rule: fbc
+        '' passes the buffer start out of the descriptor. GET wrote the image over the
+        '' descriptor itself and the frame with it (gfx/image-expr.bas).
+        dim as boolean vDyn = false   '' hoisted: warning 38
+        if (t <> Tko.TYPE_NONE) andalso (v.kind <> cast( ubyte, MV_NONE )) then vDyn = c.types->IsDynArray( t )
+        if vDyn then
+            dim as MirInst df
+            df.op = cast( ushort, M_FIELD_ADDR ) : df.ty = cast( ubyte, MT_PTR ) : df.a = v
+            df.imm = c.types->target.pointerBits \ 8
+            v = LowerExprLoad( c, Emit( c, df ), MT_PTR )
+        end if
     end if
     return v
 end function

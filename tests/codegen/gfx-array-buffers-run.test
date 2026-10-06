@@ -1,0 +1,12 @@
+'' gfx: a dynamic array as GET's buffer, an array element as a DRAW/LINE target (gfx/image-expr.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/gfx-array-buffers.bas -o tests/codegen/gfxarraybuffers.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gfxarraybuffers.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: FF00FF00       1055
+'' EXPECT-RUN-OUT: FF0000FF
+'' EXPECT-RUN-OUT: FFFF0000
+'' EXPECT-RUN-OUT: done
