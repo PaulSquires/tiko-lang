@@ -201,13 +201,18 @@ private function NsKey_( byref ns as string, byval ix as long ) as string
 end function
 
 '' The namespace a 'using' in ns imported that declares ix, or NONE ("?").
-private function TypeThroughUsing_( byref e as PpEngine, byval ix as long, byref ns as string ) as string
+'' ...AND ON THROUGH THE USED NAMESPACE'S OWN USINGS: 'using N2' where N2 holds 'using N1' makes N1's
+'' T a bare 'T' (namespace/ns-using2.bas). 'depth' stops a cycle.
+private function TypeThroughUsing_( byref e as PpEngine, byval ix as long, byref ns as string, byval depth as long = 0 ) as string
+    if depth > 8 then return "?"
     dim as string pre = "|" & ns & ">"
     dim as long at = instr( e.usingIn, pre )
     while at > 0
         dim as long st_ = at + len( pre )
         dim as string tgt = mid( e.usingIn, st_, instr( st_, e.usingIn, "|" ) - st_ )
         if TypeInNs_( e, ix, tgt ) then return tgt
+        dim as string deeper = TypeThroughUsing_( e, ix, tgt, depth + 1 )
+        if deeper <> "?" then return deeper
         at = instr( at + 1, e.usingIn, pre )
     wend
     return "?"

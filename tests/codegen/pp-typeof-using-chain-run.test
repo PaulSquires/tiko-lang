@@ -1,0 +1,10 @@
+'' '#if typeof( T )' after 'using N2', where N2 holds 'using N1', finds N1's T: usings are followed
+'' on through the used namespace's own (namespace/ns-using2.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-typeof-using-chain.bas -o tests/codegen/pptypeofusingchain.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/pptypeofusingchain.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: q-same
+'' EXPECT-RUN-OUT: u-same
