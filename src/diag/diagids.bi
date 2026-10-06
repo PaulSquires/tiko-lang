@@ -803,6 +803,9 @@
     '' fbc's 7 and 24 -- symbols/latesweeps3.bas CheckAggregateInitFields_.
     '' fbc's 24 / 20 / 99 -- symbols/condcheck.bas.
     DIAG( TKO0966, SEV_ERROR,   "a condition needs a number or a pointer, and this is a '%0'" )
+    '' fbc's error 24, "Invalid data types": LINE INPUT reads a LINE, so its destination is a
+    '' string of some kind. tiko accepted a number and wrote a string descriptor over it.
+    DIAG( TKO0967, SEV_ERROR,   "'line input' reads into a string, and this is a '%0'" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

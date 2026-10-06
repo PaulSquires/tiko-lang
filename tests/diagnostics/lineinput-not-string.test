@@ -1,0 +1,9 @@
+'' TKO0967, fbc's 24 ("Invalid data types"): LINE INPUT into a number. tiko accepted it and,
+'' through a fallback lowering, wrote a string descriptor over the number.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/lineinput-not-string.bas -o tests/diagnostics/src/lineinput-not-string.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: lineinput-not-string.bas(5,
+'' EXPECT-OUT: lineinput-not-string.bas(7,
+'' EXPECT-OUT: TKO0967
+'' EXPECT-MAX-DIAG: 2

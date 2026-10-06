@@ -82,6 +82,25 @@ private sub CheckGetElemThroughCall_ ( byref c as Ctx, byval n as NodeId )
     c.diags->Report( TKO0883, PointRange( c.ast->Loc( n ) ) )
 end sub
 
+'' A STRING OF ANY KIND -- var-length, fixed, zstring/wstring (a dereference included) or
+'' ustring; a reference counts as what it refers to. LINE INPUT's destination rule.
+private function LineInputDst_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return true          '' untyped: already reported elsewhere
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    dim as long guard = 0
+    while (c.types->Kind( u ) = TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    wend
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
 private sub ConstOutReport_ ( byref c as Ctx, byval n as NodeId )
     if ConstOut_( c, n ) = false then return
     c.diags->Report( TKO0617, PointRange( c.ast->Loc( n ) ), SpellOf_( c, Unparen3_( c, n ) ) )
@@ -101,6 +120,19 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
             for i as long = 0 to sp->count - 1
                 ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + i] ) )
             next
+            '' THE DESTINATION -- TKO0967 -- by LowerLineInput's own rule: the first child, or
+            '' the second when a console form's prompt was parsed as a child ('line input ps, s').
+            '' A maximum length may follow it ('line input #1, *z, 10').
+            dim as long ldi = 0
+            dim as boolean promptKid = (sp->a = NODE_NONE) andalso (sp->c = NODE_NONE)
+            if promptKid andalso (sp->count >= 2) then ldi = 1
+            if ldi < sp->count then
+                dim as NodeId ld = cast( NodeId, c.ast->children[sp->first + ldi] )
+                dim as TypeId lt = c.info->TypeOf_( ld )
+                if LineInputDst_( c, lt ) = false then
+                    c.diags->Report( TKO0967, PointRange( c.ast->Loc( ld ) ), c.types->Name( lt ) )
+                end if
+            end if
         case KW_GET
             '' The variable read into: the SECOND item of the positional file form -- an
             '' amount and a bytes-read may follow it -- the LAST of the graphics one.

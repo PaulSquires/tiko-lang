@@ -1352,8 +1352,7 @@ function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' LINE INPUT, bit 2 the graphics form, which needs libfbgfx and declines.
     if ip->op = cast( ushort, Tko.KW_LINE ) then
         if (ip->extra and 1) <> 0 then
-            handled = LowerLineInput( c, id )
-            if handled = false then handled = LowerInput( c, id, true )
+            handled = LowerLineInput( c, id )      '' every string kind; Check refuses the rest (TKO0967)
         elseif (ip->extra and 2) <> 0 then
             '' The GRAPHICS line. Bit 1 is what tells the two statements apart.
             handled = LowerGfxStmt( c, id )

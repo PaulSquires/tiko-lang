@@ -1151,50 +1151,10 @@ function LowerInput _
         chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
     end if
 
-    if isLine then
-        if sp->count <> 1 then return false
-        '' LINE INPUT's rule, not INPUT's: a "? " only after a prompt ended by ';'.
-        addQuestion = iif( ((sp->c <> Tko.NODE_NONE) orelse ((sp->extra and 16) <> 0)) andalso ((sp->extra and 8) = 0), -1, 0 )
-        dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first] )
-        dim as longint dn
-        if InputRtlFor( c, c.info->TypeOf_( dst ), dn ) = RTL_NONE then return false
-        dim as MirValue da = LowerAddr( c, dst )
-        if da.kind = cast( ubyte, MV_NONE ) then return false
-        dim as boolean ustr = IsUStringType( c, c.info->TypeOf_( dst ) )   '' T66
-        dim as MirValue ustrDst = da
-        if ustr then
-            if toFile then
-                dim as FB.Array( of ulong ) ua
-                ua.Push( cast( ulong, chan.kind ) ) : ua.Push( cast( ulong, chan.id ) )
-                ua.Push( cast( ulong, da.kind ) ) : ua.Push( cast( ulong, da.id ) )
-                EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_LINEINPUT_U, ua ) )
-                return true
-            end if
-            if UStrLineTemp_( c, da ) = false then return false
-            dn = -1
-        end if
-
-        dim as FB.Array( of ulong ) args
-        if toFile then
-            args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
-            args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
-            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-            EmitRtl( c, RTL_FILE_LINEINPUT, args )
-            return true
-        end if
-        dim as MirValue pr = InputPrompt( c, sp->c )
-        if pr.kind = cast( ubyte, MV_NONE ) then return false
-        args.Push( cast( ulong, pr.kind ) ) : args.Push( cast( ulong, pr.id ) )
-        args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, dn ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, addQuestion ) )
-        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, echoNewline ) )
-        EmitRtl( c, RTL_LINEINPUT, args )
-        if ustr then UStrFromLineTemp_( c, ustrDst, da )
-        return true
-    end if
+    '' LINE INPUT IS LowerLineInput's (lowerio.bas) alone. This was its fallback, reached only for
+    '' a destination that is not a string -- fbc's error 24, now TKO0967 in Check -- where it
+    '' wrote a string descriptor over the number; its string*N and wide arms were dead.
+    if isLine then return false
 
     if sp->count = 0 then return false
 
