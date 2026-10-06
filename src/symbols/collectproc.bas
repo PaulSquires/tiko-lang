@@ -549,6 +549,10 @@ private function RefuseSecondBody_ _
     if hits <> 1 then return false
 
     dim as Tko.Symbol ptr fs = w.syms->SymbolAt( found )
+    '' A BODY OF A 'const' METHOD IS CONST, written so or not: 'declare const sub bar( )' then
+    '' 'sub foo.bar( )' is fbc's _ZNK3FOO3BAREv for both. The body mangled without the K and the
+    '' calls found nothing to link to (structs/const_method.bas, virtual/virtual.bas).
+    sp->extra or= (StmtOf( w, cast( Tko.NodeId, fs->payload ) )->extra and Tko.PF_CONST)
     if (fs->flags and Tko.SYMF_MEMBER_BODY) = 0 then
         fs->flags or= Tko.SYMF_MEMBER_BODY
         return false

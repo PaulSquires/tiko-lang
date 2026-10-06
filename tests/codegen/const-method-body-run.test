@@ -1,0 +1,8 @@
+'' mangling: the body of a 'declare const sub' is _ZNK... (structs/const_method.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/const-method-body.bas -o tests/codegen/constmethodbody.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/constmethodbody.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3
