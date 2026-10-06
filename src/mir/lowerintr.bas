@@ -767,7 +767,7 @@ private function AggIifArm_ _
     end if
 
     '' AN LVALUE ARM, no copy ctor: the temporary is DEFAULT-CONSTRUCTED, then bit-copied (fbc; expressions/iif.bas).
-    if (slot >= 0) andalso (ft <> Tko.TYPE_NONE) andalso cbool( c.types->Unqualify( c.info->TypeOf_( e ) ) = c.types->Unqualify( ft ) ) then
+    if cbool( slot >= 0 ) andalso cbool( ft <> Tko.TYPE_NONE ) andalso cbool( c.types->Unqualify( c.info->TypeOf_( e ) ) = c.types->Unqualify( ft ) ) then
         dim as Tko.SymbolId adc = CtorOf_( c, c.types->Unqualify( ft ), 0 )
         if adc <> Tko.SYMBOL_NONE then EmitStructorCall( c, adc, slot )
     end if
