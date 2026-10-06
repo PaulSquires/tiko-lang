@@ -606,6 +606,7 @@ function LowerUdtParenInit_ _
     dim as FB.Array( of ulong ) vOff
     dim as FB.Array( of ulong ) gOff
     dim as FB.Array( of ulong ) gLen
+    dim as long segStart = -1, wroteEnd = 0
     dim as long cur = 0
     '' A STRING LEAF is recorded by its NODE and written at the store site, because it
     '' takes fb_StrInit rather than a store and there is no value to hold here.
@@ -627,6 +628,15 @@ function LowerUdtParenInit_ _
     dim as FB.Array( of ulong ) lTy
     for i as long = 0 to vCount - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
+        '' THE BYTES WRITTEN SO FAR end at wroteEnd: the previous value's leaves, [segStart, cur).
+        '' A gap or the tail starts no earlier, or an anonymous union's skipped member --
+        '' at the very offset of the one just written -- zeroed it again (dim/union-init.bas).
+        if segStart >= 0 then
+            for k as long = segStart to cur - 1
+                dim as long kEnd = cast( long, fOff[k] ) + SizeOfType( c, cast( Tko.TypeId, fFt[k] ) )
+                if kEnd > wroteEnd then wroteEnd = kEnd
+            next
+        end if
         if aligned then
             if cast( long, vStart[i] ) < cur then return false
             '' A GAP -- the leaves a nested list left to their defaults -- is zeroed, as the
@@ -634,11 +644,16 @@ function LowerUdtParenInit_ _
             if (cast( long, vStart[i] ) > cur) andalso (cast( long, vStart[i] ) <= fCount) then
                 dim as long gEnd = c.udts->udts[ui].size
                 if cast( long, vStart[i] ) < fCount then gEnd = cast( long, fOff[vStart[i]] )
-                gOff.Push( fOff[cur] )
-                gLen.Push( cast( ulong, gEnd - cast( long, fOff[cur] ) ) )
+                dim as long gSt = cast( long, fOff[cur] )
+                if wroteEnd > gSt then gSt = wroteEnd
+                if gEnd > gSt then
+                    gOff.Push( cast( ulong, gSt ) )
+                    gLen.Push( cast( ulong, gEnd - gSt ) )
+                end if
             end if
             cur = cast( long, vStart[i] )
         end if
+        segStart = cur
         if cur >= fCount then return false
         dim as MirType fmt = cast( MirType, fTy[cur] )
         '' ...UNLESS THE VALUE IS THE WHOLE UDT FIELD that leaf opens. 'return (kv.key,
@@ -787,6 +802,24 @@ function LowerUdtParenInit_ _
         cur += span
     next
 
+    '' THE GAPS a nested list left -- see the alignment above -- zeroed BEFORE the stores,
+    '' because an anonymous union's skipped member lies under the one that was written.
+    for i as long = 0 to cast( long, gOff.Count ) - 1
+        if cast( long, gLen[i] ) <= 0 then continue for
+        dim as MirInst gfa
+        gfa.op = cast( ushort, M_FIELD_ADDR )
+        gfa.ty = cast( ubyte, MT_PTR )
+        gfa.a = base_
+        gfa.imm = cast( long, gOff[i] )
+        dim as MirValue gaddr = Emit( c, gfa )
+        if gaddr.kind = cast( ubyte, MV_NONE ) then return false
+        dim as FB.Array( of ulong ) gma
+        gma.Push( cast( ulong, gaddr.kind ) ) : gma.Push( cast( ulong, gaddr.id ) )
+        gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( 0 )
+        gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( gLen[i] )
+        EmitRtl( c, RTL_MEMSET, gma )
+    next
+
     '' OVER THE VALUES ACTUALLY RECORDED, not over the value COUNT: a string leaf is
     '' held aside and records nothing here, so counting the written values instead left
     '' the loop reading one entry past the end and emitting a store with no operand.
@@ -895,44 +928,35 @@ function LowerUdtParenInit_ _
                               cast( Tko.NodeId, lNode[i] ), lps ) = false then return false
     next
 
-    '' THE GAPS a nested list left -- see the alignment above.
-    for i as long = 0 to cast( long, gOff.Count ) - 1
-        if cast( long, gLen[i] ) <= 0 then continue for
-        dim as MirInst gfa
-        gfa.op = cast( ushort, M_FIELD_ADDR )
-        gfa.ty = cast( ubyte, MT_PTR )
-        gfa.a = base_
-        gfa.imm = cast( long, gOff[i] )
-        dim as MirValue gaddr = Emit( c, gfa )
-        if gaddr.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) gma
-        gma.Push( cast( ulong, gaddr.kind ) ) : gma.Push( cast( ulong, gaddr.id ) )
-        gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( 0 )
-        gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( gLen[i] )
-        EmitRtl( c, RTL_MEMSET, gma )
-    next
-
     '' THE TAIL, zeroed AFTER the stores and only as far as it goes -- from the first
-    '' field with no value to the end of the object. A UNION gets none: measured, and
-    '' the one place the two shapes disagree.
+    '' field with no value, or the end of what was written, to the end of the object.
+    '' A UNION too: measured, '( 1 )' over 'union { a; type { b; c } }' memsets c --
+    '' '+8, 8' (dim/union-init.bas toplevel7). It was skipped for unions because the
+    '' tail began at an overlapping member's offset and wiped the value; wroteEnd fixes that.
     if cur < fCount then
-        if IsUnionType_( c, t ) = false then
-            dim as long tailOff = cast( long, fOff[cur] )
-            dim as long tailLen = c.udts->udts[ui].size - tailOff
-            if tailLen > 0 then
-                dim as MirInst ta
-                ta.op = cast( ushort, M_FIELD_ADDR )
-                ta.ty = cast( ubyte, MT_PTR )
-                ta.a = base_
-                ta.imm = tailOff
-                dim as MirValue taddr = Emit( c, ta )
-                if taddr.kind <> cast( ubyte, MV_NONE ) then
-                    dim as FB.Array( of ulong ) ma
-                    ma.Push( cast( ulong, taddr.kind ) ) : ma.Push( cast( ulong, taddr.id ) )
-                    ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( 0 )
-                    ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, tailLen ) )
-                    EmitRtl( c, RTL_MEMSET, ma )
-                end if
+        dim as long tailOff = cast( long, fOff[cur] )
+        '' ...NOT INSIDE WHAT THE LAST VALUE WROTE -- see wroteEnd above.
+        if segStart >= 0 then
+            for k as long = segStart to cur - 1
+                dim as long kEnd = cast( long, fOff[k] ) + SizeOfType( c, cast( Tko.TypeId, fFt[k] ) )
+                if kEnd > wroteEnd then wroteEnd = kEnd
+            next
+        end if
+        if wroteEnd > tailOff then tailOff = wroteEnd
+        dim as long tailLen = c.udts->udts[ui].size - tailOff
+        if tailLen > 0 then
+            dim as MirInst ta
+            ta.op = cast( ushort, M_FIELD_ADDR )
+            ta.ty = cast( ubyte, MT_PTR )
+            ta.a = base_
+            ta.imm = tailOff
+            dim as MirValue taddr = Emit( c, ta )
+            if taddr.kind <> cast( ubyte, MV_NONE ) then
+                dim as FB.Array( of ulong ) ma
+                ma.Push( cast( ulong, taddr.kind ) ) : ma.Push( cast( ulong, taddr.id ) )
+                ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( 0 )
+                ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, tailLen ) )
+                EmitRtl( c, RTL_MEMSET, ma )
             end if
         end if
     end if

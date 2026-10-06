@@ -87,21 +87,61 @@ function AlignUdt_ _
     if FlattenUdtFields_( c, t, 0, lo, lty, 0, lft ) = false then return false
     dim as long n = ListCount_( c, lst )
     dim as long li = 0
-    '' A UNION, or any member overlapping an earlier one, is not modelled.
-    if IsUnionType_( c, t ) then return false
-    dim as long prevEnd = 0
+    '' WHICH FIELDS TAKE A VALUE AT ALL: a UNION -- named, or anonymous inside the type --
+    '' takes ONE, for its FIRST alternative; every later one is skipped. Measured on
+    '' fbc-modern (dim/union-init.bas): '( 1, 2, 3 )' over 'a, union { i, d }, c' is a = 1,
+    '' i = 2, c = 3; over 'union { a, type { b, c } }, d' '( 1, 2 )' is a = 1, d = 2; and a
+    '' field typed as a named union takes one value. The anonymous levels come from each
+    '' field symbol's anonDepth / anonOpen / anonUnionMask, as the layout reads them.
+    dim as Tko.SymbolId usym = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr us = c.syms->SymbolAt( usym )
+    if us = 0 then return false
+    dim as Tko.SymScope ptr usc = c.syms->ScopeAt( us->inner )
+    if usc = 0 then return false
+    dim as Tko.SymbolId fcur = usc->firstSym
+    dim as boolean isU( 0 to 16 )
+    dim as long alt( 0 to 16 )
+    isU( 0 ) = IsUnionType_( c, t )
     for i as long = 0 to c.udts->udts[ui].count - 1
         dim as Tko.UdtField ptr fld = @c.udts->fields[c.udts->udts[ui].first + i]
         dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
         dim as long fsz = SizeOfType( c, ft )
-        if (fsz > 0) andalso (fld->offset < prevEnd) then return false
-        if fld->offset + fsz > prevEnd then prevEnd = fld->offset + fsz
+        '' The i-th FIELD symbol is the i-th laid-out field; a mismatch is not modelled.
+        dim as Tko.Symbol ptr fs = 0
+        while fcur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cand = c.syms->SymbolAt( fcur )
+            fcur = cand->nextInScope
+            if cand->kind = cast( ubyte, Tko.SYM_FIELD ) then
+                fs = cand
+                exit while
+            end if
+        wend
+        if (fs = 0) orelse (fs->name <> fld->name) then return false
+        dim as long fd = fs->anonDepth
+        if fd > 16 then return false
+        dim as long firstNew = fd - fs->anonOpen + 1
+        for lv as long = firstNew to fd
+            if lv >= 1 then
+                isU( lv ) = ((fs->anonUnionMask and cast( ushort, 1 shl (lv - 1) )) <> 0)
+                alt( lv ) = 0
+            end if
+        next
+        dim as boolean skipF = false
+        for lv as long = 0 to fd
+            if isU( lv ) then
+                if (lv = fd) orelse (lv + 1 >= firstNew) then alt( lv ) += 1
+                if alt( lv ) > 1 then skipF = true
+            end if
+        next
         dim as long a = li, b = li
-        if (a < lo.Count) andalso (cast( long, lo[a] ) < fld->offset) then return false
+        if skipF = false then
+            if (a < lo.Count) andalso (cast( long, lo[a] ) < fld->offset) then return false
+        end if
         while (b < lo.Count) andalso (cast( long, lo[b] ) < fld->offset + fsz)
             b += 1
         wend
-        li = b
+        if b > li then li = b
+        if skipF then continue for
         if b = a then continue for
         if ci >= n then return true   '' the rest takes its defaults
         dim as longint fsn

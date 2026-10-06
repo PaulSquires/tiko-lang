@@ -1,0 +1,15 @@
+'' A UNION IN AN INITIALISER takes ONE value, for its first alternative, and the rest of its bytes
+'' are zeroed -- named or anonymous, with an anonymous struct as an alternative (fbc's
+'' dim/union-init.bas, 272 failing asserts before). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/union-init-fields.bas -o tests/codegen/unioninitfields.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/unioninitfields.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 2 3
+'' EXPECT-RUN-OUT:  5 5
+'' EXPECT-RUN-OUT:  1 1 0 2
+'' EXPECT-RUN-OUT:  1 1 0
+'' EXPECT-RUN-OUT:  1 1 2
+'' EXPECT-RUN-OUT:  7 8 9
