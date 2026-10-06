@@ -125,11 +125,16 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as boolean gotB = false
         if gotA then gotB = WideOperand_( c, sp->b, wb )
         if gotB then
+            '' A 'wstring * N' passes its own N -- 'fb_WstrSwap( W1, 10ll, W2, 5ll )', measured; 0 told
+            '' the runtime both were unbounded, and the longer one overran the shorter (swap/strings.bas).
+            dim as longint wla = 0, wlb = 0
+            if (StrSwapKind_( c, c.info->TypeOf_( sp->a ), wla ) <> 2) orelse (wla < 0) then wla = 0
+            if (StrSwapKind_( c, c.info->TypeOf_( sp->b ), wlb ) <> 2) orelse (wlb < 0) then wlb = 0
             dim as FB.Array( of ulong ) wargs
             wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
-            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( 0 )
+            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( cast( ulong, wla ) )
             wargs.Push( cast( ulong, wb.kind ) ) : wargs.Push( cast( ulong, wb.id ) )
-            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( 0 )
+            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( cast( ulong, wlb ) )
             EmitRtl( c, RTL_WSTR_SWAP, wargs )
             return true
         end if
