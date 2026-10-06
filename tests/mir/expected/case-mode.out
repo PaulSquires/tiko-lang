@@ -74,34 +74,35 @@ func i32 main(i32 $0, ptr $1) {
     %47 = call.rtl ptr memset(@one, 32, 4)
     %48 = alloca ptr arr
     %49 = call.rtl ptr memset(@arr, 0, 2)
-    %50 = const i64 0
-    %51 = ptr.add @one, %50
-    %52 = const i64 67
-    %53 = trunc %52
-    store %51, %53
-    %54 = const i64 1
-    %55 = ptr.add @arr, %54
-    %56 = const i64 0
-    %57 = ptr.add %55, %56
-    %58 = const i64 65
-    %59 = trunc %58
-    store %57, %59
-    %60 = const i64 0
-    %61 = ptr.add @one, %60
-    %62 = load %61
-    call.rtl void fb_PrintUByte(0, %62, 2)
-    %63 = const i64 1
-    %64 = ptr.add @arr, %63
-    %65 = const i64 0
-    %66 = ptr.add %64, %65
-    %67 = load %66
-    call.rtl void fb_PrintUByte(0, %67, 1)
+    %50 = call.rtl ptr memset(@arr, 32, 2)
+    %51 = const i64 0
+    %52 = ptr.add @one, %51
+    %53 = const i64 67
+    %54 = trunc %53
+    store %52, %54
+    %55 = const i64 1
+    %56 = ptr.add @arr, %55
+    %57 = const i64 0
+    %58 = ptr.add %56, %57
+    %59 = const i64 65
+    %60 = trunc %59
+    store %58, %60
+    %61 = const i64 0
+    %62 = ptr.add @one, %61
+    %63 = load %62
+    call.rtl void fb_PrintUByte(0, %63, 2)
+    %64 = const i64 1
+    %65 = ptr.add @arr, %64
+    %66 = const i64 0
+    %67 = ptr.add %65, %66
+    %68 = load %67
+    call.rtl void fb_PrintUByte(0, %68, 1)
     call.rtl void fb_StrDelete(@t)
     call.rtl void fb_StrDelete(@s)
-    %68 = const i32 0
-    call.rtl void fb_End(%68)
-    %69 = load @$tmp0
-    ret %69
+    %69 = const i32 0
+    call.rtl void fb_End(%69)
+    %70 = load @$tmp0
+    ret %70
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -119,4 +120,4 @@ declare void fb_PrintUByte(i32 $0, i8 $1, i32 $2)
 declare void fb_StrDelete(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 90 insts, 0 statements not lowered, 0 scope imbalance
