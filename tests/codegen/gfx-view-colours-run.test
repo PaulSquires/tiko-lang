@@ -1,0 +1,37 @@
+'' gfx: VIEW's fill and border colours -- border outside the view under a full-screen clip, fill clears the view and recentres the cursor, both converted and masked for the depth.
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/gfx-view-colours.bas -o tests/codegen/gfxviewcolours.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gfxviewcolours.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  4 both E39B7FC2
+'' EXPECT-RUN-OUT:  4 step ACED8AE
+'' EXPECT-RUN-OUT:  4 border C25D2402
+'' EXPECT-RUN-OUT:  4 fill 96E505A5
+'' EXPECT-RUN-OUT:  4 partial F9CA2C25
+'' EXPECT-RUN-OUT:  4 off 6FD97DC5
+'' EXPECT-RUN-OUT:  4 edge 66AF15C5
+'' EXPECT-RUN-OUT:  8 both E39B7FC2
+'' EXPECT-RUN-OUT:  8 step ACED8AE
+'' EXPECT-RUN-OUT:  8 border A8962B82
+'' EXPECT-RUN-OUT:  8 fill 96E505A5
+'' EXPECT-RUN-OUT:  8 partial F9CA2C25
+'' EXPECT-RUN-OUT:  8 off 6FD97DC5
+'' EXPECT-RUN-OUT:  8 edge 66AF15C5
+'' EXPECT-RUN-OUT:  16 both 75E08132
+'' EXPECT-RUN-OUT:  16 step F927EE9A
+'' EXPECT-RUN-OUT:  16 border 58768982
+'' EXPECT-RUN-OUT:  16 fill D37DC907
+'' EXPECT-RUN-OUT:  16 partial 38F2D5C5
+'' EXPECT-RUN-OUT:  16 off 2B7EDC5
+'' EXPECT-RUN-OUT:  16 edge 2B7EDC5
+'' EXPECT-RUN-OUT:  32 both 4D8FF2EB
+'' EXPECT-RUN-OUT:  32 step 18078BA1
+'' EXPECT-RUN-OUT:  32 border 8807AA
+'' EXPECT-RUN-OUT:  32 fill A759FDA3
+'' EXPECT-RUN-OUT:  32 partial 9EE36D45
+'' EXPECT-RUN-OUT:  32 off 837EDC5
+'' EXPECT-RUN-OUT:  32 edge C25539C5

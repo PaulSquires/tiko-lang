@@ -248,7 +248,6 @@ sub TkoGfxView alias "fb_GfxView" ( _
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( 0 )
     if c = 0 then exit sub
-    scope : dim as ulong ignored = fillcolour or bordercolour : end scope
 
     if (x1 = TkoGfx.VIEW_FULLSCREEN) andalso (y1 = TkoGfx.VIEW_FULLSCREEN) andalso _
        (x2 = TkoGfx.VIEW_FULLSCREEN) andalso (y2 = TkoGfx.VIEW_FULLSCREEN) then
@@ -256,8 +255,40 @@ sub TkoGfxView alias "fb_GfxView" ( _
         exit sub
     end if
 
+    '' THE COLOURS, gfx_view.c step for step -- they were taken and discarded:
+    ''
+    ''   border  (bit 30 clear) a box ONE PIXEL OUTSIDE the view, drawn with the whole
+    ''           screen as the clip, in the converted colour masked to the screen's
+    ''           depth; before the view is clipped to the screen
+    ''   fill    (bit 31 clear) the new view cleared to the converted colour -- CLS 1
+    ''           with that colour as the background -- which also recentres the
+    ''           graphics cursor, as CLS does
+    ''
+    '' A view wholly off the screen does nothing at all, border included.
+    if x1 > x2 then swap x1, x2
+    if y1 > y2 then swap y1, y2
+    if (x1 >= c->surf.w) orelse (y1 >= c->surf.h) orelse (x2 < 0) orelse (y2 < 0) then exit sub
+
+    if (flags and TkoGfx.COORD_BORDER_DEF) = 0 then
+        dim as long dep = TkoGfx.TheScreen.depth
+        dim as ulong cmask = &hFFFFFFFFul
+        if dep <= 8 then
+            cmask = (1 shl dep) - 1
+        elseif dep <= 16 then
+            cmask = &hFFFF
+        end if
+        TkoGfx.SurfaceSetClip( c->surf, 0, 0, c->surf.w - 1, c->surf.h - 1 )
+        TkoGfx.LineBoxAny( c->surf, x1 - 1, y1 - 1, x2 + 1, y2 + 1, _
+                           TkoGfx.FixColor( c->surf.bpp, bordercolour ) and cmask, 0 )
+    end if
+
     TkoGfx.ViewSet( c->vp, c->surf, x1, y1, x2, y2, _
                     iif( (flags and TkoGfx.VIEW_SCREEN) <> 0, 1, 0 ) )
+
+    if (flags and TkoGfx.COORD_COLOR_DEF) = 0 then
+        TkoGfx.ClsAny( c->surf, c->vp, 1, TkoGfx.FixColor( c->surf.bpp, fillcolour ), _
+                       c->draw.last_x, c->draw.last_y )
+    end if
 end sub
 
 '' -------------------------------------------------------------------- WINDOW
