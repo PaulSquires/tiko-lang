@@ -156,11 +156,13 @@ private function PointerCost_ _
             '' string flavours here moved three check-ptr rows the wrong way.
             dim as Tko.BuiltinType sb = types.BuiltinOf( types.Unqualify( si ) )
             dim as Tko.BuiltinType db = types.BuiltinOf( types.Unqualify( di ) )
+            '' ...SIGNEDNESS FIRST, then the counterpart among the other sign: fbc-modern 1.20 takes
+            '' 'integer ptr' over 'ulongint ptr' for a 'longint ptr' and 'ulongint ptr' over 'integer
+            '' ptr' for a 'uinteger ptr' (overload/pointers.bas) -- the counterpart-first order picked the
+            '' opposite. The three rows above still hold under this order.
             if IsInt_( sb ) andalso IsInt_( db ) then
-                if SignedPair_( sb ) = db then return CONV_PTR_NEAR
-                if IsUnsignedInt_( sb ) = IsUnsignedInt_( db ) then
-                    return CONV_PTR_NEAR + 5
-                end if
+                if IsUnsignedInt_( sb ) = IsUnsignedInt_( db ) then return CONV_PTR_NEAR
+                if SignedPair_( sb ) = db then return CONV_PTR_NEAR + 5
                 return CONV_PTR_NEAR + 10
             end if
             return CONV_PTR_NEAR
