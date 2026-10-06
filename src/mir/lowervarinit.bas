@@ -443,16 +443,18 @@ sub LowerVarItem_ _
                 end if
             end if
         end if
-        if constructed = false then
+        if (constructed = false) andalso (IsAnyInit_( c, ip->b ) = false) then
             constructed = LowerCtorInit( c, slot, vs->type_, ip->b )
         end if
         '' ...and 'dim u as U = s', a CONVERTING constructor, which fell
         '' through to the default one and dropped the initialiser entirely.
-        if constructed = false then
+        if (constructed = false) andalso (IsAnyInit_( c, ip->b ) = false) then
             constructed = LowerConvCtorInit_( c, slot, vs->type_, ip->b )
         end if
         dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
-        if constructed = false then
+        '' ...NOT UNDER '= any', which asks for no construction at all: fbc runs no constructor and
+        '' leaves 'x.constructor( )' to the program (dim/udt-init.bas anyinit).
+        if (constructed = false) andalso (IsAnyInit_( c, ip->b ) = false) then
             ctor = StructorWithArity( c, _
                 StructorOf( c, vs->type_, "__ctor" ), 0 )
         end if
@@ -483,7 +485,7 @@ sub LowerVarItem_ _
             '' routing them through here asked for a constructor of a type
             '' called FBSTRING that nothing defines.
             if c.types->Kind( vs->type_ ) = Tko.TK_UDT then
-                if TypeNeedsInit_( c, vs->type_ ) then
+                if TypeNeedsInit_( c, vs->type_ ) andalso cbool( (IsAnyInit_( c, ip->b ) = false) orelse (StructorOf( c, vs->type_, "__ctor" ) = Tko.SYMBOL_NONE) ) then
                     CallImplicitCtor_( c, vs->type_, va )
                 end if
             elseif ArrayElemNeedsInit_( c, vs->type_ ) then

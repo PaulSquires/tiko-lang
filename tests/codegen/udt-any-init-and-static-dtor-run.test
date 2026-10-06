@@ -1,0 +1,11 @@
+'' 'dim as T x = any' runs no constructor (x.constructor( ) is the program's), and a static of a
+'' destructor-only type keeps its '= ( 123 )' image (dim/udt-init.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-any-init-and-static-dtor.bas -o tests/codegen/udtanyinitandstaticdtor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtanyinitandstaticdtor.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  123            123
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  1
