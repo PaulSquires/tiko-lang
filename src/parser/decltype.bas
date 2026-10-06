@@ -69,7 +69,8 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.KW_FIELD then
         if HasTok( p, p.pos + 1 ) then
             fieldClause = _
-                (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ)
+                (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ) orelse _
+                (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_FATARROW)
         end if
     end if
 
@@ -249,7 +250,7 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Advance( p )
             continue do
         end if
-        if Accept( p, Tko.TK_EQ ) then ip.b = Expression( p )
+        if Accept( p, Tko.TK_EQ ) orelse Accept( p, Tko.TK_FATARROW ) then ip.b = Expression( p )   '' 'K => 1' too
         if ip.b <> Tko.NODE_NONE then enumKnown = ConstFoldsToInt_( p, ip.b, enumNext )
         if enumKnown andalso (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> 0) then
             Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), ip.name, enumNext, it.loc )

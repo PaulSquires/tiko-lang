@@ -1,0 +1,10 @@
+'' '=>' is '=' for an enum member's value and a type's 'field' clause, as fbc takes it
+'' (quirk/assignment-token.bas): 'MYNUM2 => 123' read 0 and 'field => 1' was ignored.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/fatarrow-enum-and-field.bas -o tests/codegen/fatarrowenumandfield.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/fatarrowenumandfield.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  123
+'' EXPECT-RUN-OUT:  9

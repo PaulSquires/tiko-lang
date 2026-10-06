@@ -1447,7 +1447,7 @@ end function
 private sub ParseFieldClause( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     if Peek( p ) <> Tko.KW_FIELD then return
     Advance( p )
-    if Accept( p, Tko.TK_EQ ) = false then return
+    if (Accept( p, Tko.TK_EQ ) = false) andalso (Accept( p, Tko.TK_FATARROW ) = false) then return   '' 'field => 1' too (quirk/assignment-token.bas)
     dim as Tko.NodeId nExpr = Expression( p )
     sp.extra = 0
     '' A CONSTANT, not only a literal: 'field = PK', '( 1 )' and '1 + 0' were ignored (sizeof 8; fbc's 5).
