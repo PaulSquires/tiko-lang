@@ -226,6 +226,14 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
     end if
     dim as boolean isExplicit = Accept( p, Tko.KW_EXPLICIT )
 
+    '' EACH MEMBER'S VALUE IS TOLD TO THE PREPROCESSOR, as a const's is (declconst.bas):
+    '' fbc's '#if' reads an enum member like any constant -- measured, 'B = 5' then 'C'
+    '' makes '#if C = 6' true, and 'D = B * 2' '#if D = 10'. They read as 0 here, so
+    '' structs/udt-ops-check.bi's '#if (TX_id = TX_as_integer)' took every branch and
+    '' declared TX five times. Module level only, as for a const; a value that does not
+    '' fold leaves the rest of the enum unknown.
+    dim as longint enumNext = 0
+    dim as boolean enumKnown = true
     dim as Tko.NodeIdVec items
     do
         SkipEols( p )
@@ -242,6 +250,11 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
             continue do
         end if
         if Accept( p, Tko.TK_EQ ) then ip.b = Expression( p )
+        if ip.b <> Tko.NODE_NONE then enumKnown = ConstFoldsToInt_( p, ip.b, enumNext )
+        if enumKnown andalso (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> 0) then
+            Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), ip.name, enumNext, it.loc )
+        end if
+        enumNext += 1
         items.Push( cast( ulong, MakeStmt( p, Tko.N_ENUM_ITEM, it.loc, ip ) ) )
         if Accept( p, Tko.TK_COMMA ) = false then EndOfStatement( p )
     loop

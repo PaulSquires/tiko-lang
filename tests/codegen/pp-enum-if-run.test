@@ -1,0 +1,10 @@
+'' AN ENUM MEMBER IN '#if' IS ITS VALUE, implicit or explicit, as a const's is (fbc's
+'' structs/udt-ops-check.bi). tiko read 0 for every one and took every branch. Expected output is
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-enum-if.bas -o tests/codegen/ppenumif.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppenumif.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: e1 e2 e3 e4 - 
