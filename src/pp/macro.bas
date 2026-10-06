@@ -931,19 +931,29 @@ private sub ExpandedArgList_ _
 
     '' A comma inside PARENTHESES or a STRING LITERAL is not a separator -- the same
     '' rule PpReadArgs follows when it reads the invocation in the first place.
+    '' An ESCAPED string -- '!"...' -- also skips the character after a backslash: in
+    '' '!"BS BS BS Q Q Q 2,3"' the backslash-quote is no end, and the comma is inside
+    '' (pp/macro-arg-extract.bas, nested_comma_direct).
     dim as long depth = 0
-    dim as boolean inQuote = false
+    dim as boolean inQuote = false, inEsc = false
     dim as string cur = ""
-    for i as long = 0 to len( joined ) - 1
+    dim as long i = 0
+    while i < len( joined )
         dim as ubyte ch = joined[i]
+        i += 1
         if inQuote then
             cur += chr( ch )
-            if ch = 34 then inQuote = false
-            continue for
+            if inEsc andalso (ch = 92) andalso (i < len( joined )) then
+                cur += chr( joined[i] ) : i += 1
+            elseif ch = 34 then
+                inQuote = false
+            end if
+            continue while
         end if
         select case ch
         case 34
             inQuote = true
+            inEsc = (i >= 2) andalso (joined[i - 2] = 33)
             cur += chr( ch )
         case 40, 91
             depth += 1
@@ -961,7 +971,7 @@ private sub ExpandedArgList_ _
         case else
             cur += chr( ch )
         end select
-    next
+    wend
     outp.Push( trim( cur ) )
 end sub
 
