@@ -670,6 +670,12 @@ function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
     if t = Tko.TYPE_NONE then return TermIsWide_( c, a )
     if IsStringType( c, c.types->Unqualify( t ) ) then return true
     if IsWideString_( c, t ) then return true
+    '' ...AND A UDT TYPE LITERAL: 'type<C>( type<C>( 5 ) )' built the inner temporary for a
+    '' value nobody passed, then again for the copy constructor -- two constructors where fbc
+    '' has one (structs/udt-upcast-4.bas's shapes over a type with a copy constructor).
+    if (c.ast->Kind( a ) = Tko.N_TUPLE) andalso ((c.ast->nodes[cast( long, a )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
+        return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
+    end if
     if c.ast->Kind( a ) <> Tko.N_CALL then return false
     return (c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT)
 end function

@@ -1,0 +1,12 @@
+'' structs: a type-literal constructor argument is lowered once, for the parameter it binds
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-literal-copyctor-arg.bas -o tests/codegen/udtliteralcopyctorarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtliteralcopyctorarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  1 1 2
+'' EXPECT-RUN-OUT:  1 2 3
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  1 1 2
