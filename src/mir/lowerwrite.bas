@@ -163,9 +163,26 @@ private function WriteOne_ _
             if StrDescriptorOf_( c, it, desc ) = false then desc = LowerAddr( c, it )
         else
             desc = LowerAddr( c, it )
+            '' ...and what has no address -- a concatenation -- is a temporary (StrDescriptorOf_).
+            if desc.kind = cast( ubyte, MV_NONE ) then StrDescriptorOf_( c, it, desc )
         end if
         if desc.kind = cast( ubyte, MV_NONE ) then return false
         args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_STRING, args )
+        return true
+    end if
+
+    '' ANY OTHER NARROW STRING -- 'string * N', 'zstring * N', '*pz' -- through a temporary
+    '' descriptor (StrDescriptorOf_, the narrow encoder PRINT uses). Measured: 'write #1, f' over
+    '' a string * 8 is 'fb_StrAllocTempDescF( F, <tag> )' then fb_WriteString, a zstring one
+    '' fb_StrAllocTempDescZ; tiko declined all three.
+    dim as longint wkn
+    dim as long wk = StrSwapKind_( c, t, wkn )
+    if (wk = 1) orelse (wk = 3) then
+        dim as MirValue wdesc
+        if StrDescriptorOf_( c, it, wdesc ) = false then return false
+        args.Push( cast( ulong, wdesc.kind ) ) : args.Push( cast( ulong, wdesc.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_WRITE_STRING, args )
         return true

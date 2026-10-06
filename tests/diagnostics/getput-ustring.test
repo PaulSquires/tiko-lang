@@ -1,0 +1,10 @@
+'' TKO0992: file GET / PUT of a ustring. fbc passes the UTF-16 descriptor to the narrow entry point
+'' and moves half its bytes -- a defect tiko does not copy; it declined as an unlowered statement.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/getput-ustring.bas -o tests/diagnostics/src/getput-ustring.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: getput-ustring.bas(4,
+'' EXPECT-OUT: getput-ustring.bas(5,
+'' EXPECT-OUT: TKO0992
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 2

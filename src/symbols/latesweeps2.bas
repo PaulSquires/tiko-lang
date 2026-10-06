@@ -205,7 +205,7 @@ private function EitherIsThis_ _
     return false
 end function
 
-declare sub CheckPrintStrCast_ ( byref c as Ctx, byval id as NodeId ) : declare function JudgeStrCast_( byref c as Ctx, byval at as NodeId, byval udt as TypeId, byval dst as TypeId ) as boolean  '' strcastcheck.bas
+declare sub CheckPrintStrCast_ ( byref c as Ctx, byval id as NodeId ) : declare sub CheckGetPutUStr_ ( byref c as Ctx, byval id as NodeId ) : declare function JudgeStrCast_( byref c as Ctx, byval at as NodeId, byval udt as TypeId, byval dst as TypeId ) as boolean  '' strcastcheck.bas
 
 private sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
@@ -1347,7 +1347,7 @@ private sub WalkExtra_ _
     if k = N_INTRINSIC then CheckOnGotoSelector_( c, id )
     if k = N_MEMBER then CheckNamespaceMember_( c, id )
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id )
-    if k = N_INTRINSIC then CheckSwapConst_( c, id ) : CheckUnprintable_( c, id ) : CheckUdtPrintUsing_( c, id ) : CheckPrintStrCast_( c, id )
+    if k = N_INTRINSIC then CheckSwapConst_( c, id ) : CheckUnprintable_( c, id ) : CheckUdtPrintUsing_( c, id ) : CheckPrintStrCast_( c, id ) : CheckGetPutUStr_( c, id )
     if k = N_CALL then CheckUnprintableStr_( c, id ) : CheckBuiltinArity_( c, id ) : CheckSubAsValue_( c, id ) : CheckUdtStrIntrinsic_( c, id )
     if k = N_IDENT then CheckBareBuiltin_( c, id )
     if k = N_INTRINSIC then CheckSwapTypes_( c, id )

@@ -1,0 +1,14 @@
+'' Narrow string items through a temporary descriptor: WRITE / PRINT USING of fixed and zstring items, LSET/RSET of a ustring, PUT of an rvalue.
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/str-items-tempdesc.bas -o tests/codegen/stritemstempdesc.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/stritemstempdesc.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: "fixed   ","zstr","zstr","abx"
+'' EXPECT-RUN-OUT: [fixed   ] [zstr] [zstr]
+'' EXPECT-RUN-OUT: [x     ]
+'' EXPECT-RUN-OUT: [    y]
+'' EXPECT-RUN-OUT: [ab!  ]
+'' EXPECT-RUN-OUT: [resultab-cat]

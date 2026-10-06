@@ -62,3 +62,26 @@ function JudgeStrCast_ _
     end select
     return false
 end function
+
+'' FILE GET / PUT OF A USTRING: fbc hands the UTF-16 descriptor to the narrow entry point and moves
+'' only half its bytes -- a defect, not a format -- so tiko refuses it plainly (TKO0992) instead of
+'' copying it or failing as an unlowered statement. Convert to 'string' (or use 'wstring * N').
+sub CheckGetPutUStr_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    select case cast( TokenKind, sp->op )
+    case KW_GET, KW_PUT
+    case else : return
+    end select
+    if (sp->extra and 1) = 0 then return        '' the graphics form
+    if sp->count < 2 then return
+    dim as NodeId it = cast( NodeId, c.ast->children[sp->first + 1] )
+    dim as TypeId t = ValueType_( c, c.info->TypeOf_( it ) )
+    if t = TYPE_NONE then return
+    dim as TypeId b = t
+    if c.types->Kind( b ) = TK_ARRAY then b = c.types->Unqualify( c.types->Inner( b ) )
+    if c.types->Kind( b ) <> TK_BUILTIN then return
+    select case c.types->BuiltinOf( b )
+    case TY_USTRING, TY_FIXUSTR
+        c.diags->Report( TKO0992, PointRange( c.ast->Loc( it ) ), "file '" & iif( cast( TokenKind, sp->op ) = KW_GET, "get", "put" ) & "' of a ustring (convert it to a string)" )
+    end select
+end sub

@@ -9,6 +9,9 @@ namespace Tko.Mir
 
 using Tko
 
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
 declare function UsingRtlFor _
     ( byref c as Ctx, byval t as Tko.TypeId, byref isWide as boolean ) as RtlId
 declare function UsingOne_ _
@@ -388,7 +391,13 @@ private function UsingOne_ _
 
     if which = RTL_USING_STR then
         dim as MirValue desc
-        if c.ast->Kind( it ) = Tko.N_STRING_LIT then
+        dim as longint ukn
+        dim as long uk = StrSwapKind_( c, c.info->TypeOf_( it ), ukn )
+        if (uk = 1) orelse (uk = 3) then
+            '' A FIXED OR ZSTRING ITEM: its address is no descriptor -- a temporary one
+            '' (StrDescriptorOf_), measured 'fb_StrAllocTempDescF( F, <tag> )' / ...DescZ( Z ).
+            if StrDescriptorOf_( c, it, desc ) = false then return false
+        elseif c.ast->Kind( it ) = Tko.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
             dim as FB.Array( of ulong ) ta
             ta.Push( cast( ulong, MV_GLOBAL ) )
@@ -478,6 +487,11 @@ private function UsingRtlFor _
     '' 'ustring * N', a chain and a call -- see UStrOutOperand_.
     if IsUStringType( c, ut ) then return RTL_USING_USTR
     if IsStringType( c, t ) then return RTL_USING_STR
+    '' ...AND EVERY OTHER NARROW STRING: 'string * N', 'zstring * N', '*pz' -- fbc's
+    '' fb_PrintUsingStr over a temporary descriptor (the item branch). tiko declined them.
+    dim as longint ukn0
+    dim as long uk0 = StrSwapKind_( c, ut, ukn0 )
+    if (uk0 = 1) orelse (uk0 = 3) then return RTL_USING_STR
 
     select case c.types->Kind( t )
     '' A UDT IS ITS NUMERIC CAST'S RESULT -- measured, 'print using "##"; a' over a type casting

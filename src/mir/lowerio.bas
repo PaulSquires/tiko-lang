@@ -263,6 +263,23 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         '' A USTRING SOURCE is not legal for lset at all: fbc rejects every spelling of
         '' it with error 24, "Invalid data types", so there is nothing to model.
         if IsUStringType( c, c.info->TypeOf_( srcE ) ) then return false
+        '' A LITERAL OR CONSTANT SOURCE goes in as a UTF-16 literal with its tagged count, no
+        '' conversion -- measured, 'lset u, "x"' is 'fb_UStrLset( &U, -1, L"x", <tag 1> )' (EmitStrTerm's
+        '' ustring form). It has no address, and asking for one declined the statement.
+        dim as Tko.NodeId usrc = Unparen_( c, srcE )
+        dim as string uct
+        dim as boolean litSrc = (c.ast->Kind( usrc ) = Tko.N_STRING_LIT)
+        if (litSrc = false) andalso IsConstNameRef_( c, usrc ) then litSrc = ConstStringTextOf_( c, usrc, uct )   '' a CONSTANT, not any name
+        if litSrc andalso (IsWideString_( c, c.info->TypeOf_( srcE ) ) = false) then
+            dim as longint ldlen = -1
+            if dk = 4 then ldlen = zn
+            dim as FB.Array( of ulong ) la
+            la.Push( cast( ulong, dst.kind ) ) : la.Push( cast( ulong, dst.id ) )
+            PushStrLen_( c, la, ldlen )
+            if EmitStrTerm( c, la, usrc, true ) = false then return false
+            EmitRtl( c, iif( isRight, RTL_USTR_RSET, RTL_USTR_LSET ), la )
+            return true
+        end if
         dim as MirValue uconv
         if IsWideString_( c, c.info->TypeOf_( srcE ) ) then
             dim as MirValue wp = LowerAddr( c, srcE )
@@ -276,6 +293,11 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
             dim as long sk = StrSwapKind_( c, c.info->TypeOf_( srcE ), nn )
             if sk < 0 then return false
             np = LowerAddr( c, srcE )
+            '' ...AND A NARROW RVALUE -- a concatenation, a call -- converts from its descriptor.
+            if np.kind = cast( ubyte, MV_NONE ) then
+                if StrDescriptorOf_( c, srcE, np ) = false then return false
+                nn = -1
+            end if
             if np.kind = cast( ubyte, MV_NONE ) then return false
             dim as FB.Array( of ulong ) na
             na.Push( cast( ulong, np.kind ) ) : na.Push( cast( ulong, np.id ) )

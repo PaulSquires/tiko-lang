@@ -123,6 +123,10 @@ function LowerFileGetPut _
         '' fill it with bytes.
         if IsUStringType( c, vt ) then return false
         dim as MirValue sa = LowerAddr( c, varN )
+        '' A PUT OF A STRING RVALUE -- 'put #1, , gs( )', 'put #1, , s & "x"' -- writes its
+        '' descriptor (StrDescriptorOf_): measured, fbc passes the call's result or the
+        '' concatenation's temporary to fb_FilePutStrLarge with -1. It has no address.
+        if (sa.kind = cast( ubyte, MV_NONE )) andalso isPut then StrDescriptorOf_( c, varN, sa )
         if sa.kind = cast( ubyte, MV_NONE ) then return false
         dim as FB.Array( of ulong ) sargs
         sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
