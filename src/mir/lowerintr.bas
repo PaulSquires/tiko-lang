@@ -217,8 +217,8 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.TypeId pt = c.info->TypeOf_( sp->a )
     if pt = Tko.TYPE_NONE then return false
-    if c.types->Kind( pt ) <> Tko.TK_POINTER then return false
-    dim as Tko.TypeId el = c.types->Inner( pt )
+    if c.types->Kind( c.types->Unqualify( pt ) ) <> Tko.TK_POINTER then return false
+    dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( c.types->Unqualify( pt ) ) )   '' unqualified: a 'const A ptr' still deletes through the vtable (virtual.bas)
 
     dim as Tko.SymbolId dtor = DtorOf_( c, el )
     '' ...and the destructor fbc writes for you, for the same reason: 'delete p' over a
