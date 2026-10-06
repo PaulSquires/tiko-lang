@@ -198,6 +198,9 @@ function LowerStaticLocalInit_ _
     ga.ty = cast( ubyte, MT_PTR )
     ga.id = g
 
+    '' A TYPE WITH ONLY A DESTRUCTOR keeps its initialiser IMAGE: 'static as DtorUDT x = ( 123 )' is
+    '' emitted as any global's, and only the atexit registration is guarded (dim/udt-init.bas).
+    if isUdt andalso (wantsC = false) andalso (init_ <> Tko.NODE_NONE) then InitSharedGlobal( c, sid, init_ )
     dim as long skipB = StaticOnceBegin_( c, g, "$init" )
     if skipB < 0 then return false
 
