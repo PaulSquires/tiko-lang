@@ -816,6 +816,20 @@ private function ByvalUdtCopyArg_ _
         end if
         '' Not a call LowerCtorInit builds -- the copy path below, as before.
     end if
+    '' ...AND A FIELD LIST OVER A TYPE WITH NO CONSTRUCTOR is built there too: 'f( type( 123 ) )' made
+    '' the literal in a temporary and COPIED it into this one, destroying both -- 2 destructor calls
+    '' where fbc runs 1 (structs/byval-copy.bas).
+    if ctorArg andalso (c.ast->Kind( argNode ) = Tko.N_TUPLE) andalso (StructorOf( c, upt, "__ctor" ) = Tko.SYMBOL_NONE) then
+        dim as long fslot = NewTempLocal( c, MT_AGG, sz )
+        if fslot < 0 then return false
+        outa.kind = cast( ubyte, MV_LOCAL ) : outa.ty = cast( ubyte, MT_PTR ) : outa.id = fslot
+        if TypeNeedsInit_( c, upt ) then CallImplicitCtor_( c, upt, outa )
+        if LowerUdtParenInit_( c, fslot, upt, argNode ) then
+            if TypeNeedsDtor_( c, pt ) then outSlot = fslot : outType = pt
+            return true
+        end if
+        return false
+    end if
 
     if (how = 0) andalso HasDynArrayMember_( c, pt ) then return false
 
