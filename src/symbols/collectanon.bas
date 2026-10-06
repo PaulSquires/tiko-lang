@@ -37,7 +37,13 @@ private sub CollectAnonAggregate_ _
     '' Every anonymous group marks its OWN first field -- union or type alike --
     '' so the layout can tell two adjacent groups apart.
     w.unionFirst = true
+    '' ITS OWN 'field = N', which ParseFieldClause left in 'extra' -- see Symbol.anonPack.
+    dim as long savedPack = w.anonPack, savedPackLevel = w.anonPackLevel
+    if (sp->extra > 0) andalso (sp->extra <= 255) then
+        w.anonPack = sp->extra : w.anonPackLevel = w.anonDepth
+    end if
     WalkChildren( w, sp->first, sp->count, scope_ )
+    w.anonPack = savedPack : w.anonPackLevel = savedPackLevel
     w.inUnion = saved
     '' RESTORED, not left set. Leaving it true marked the field AFTER a nested
     '' group as a group head too, and 'union { type { a; b }; c }' then laid c

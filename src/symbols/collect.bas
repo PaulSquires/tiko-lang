@@ -35,6 +35,7 @@ type Walker
     '' and the kind of each level of the current chain. See Symbol.anonOpen.
     as long                 anonOpen
     as ushort               anonUnionMask
+    as long                 anonPack, anonPackLevel   '' Symbol.anonPack; collectanon.bas
     '' The parameters being walked belong to a PROTOTYPE, not a definition. fbc
     '' allows two parameters to share a name in a 'declare' and REJECTS it in a
     '' body -- measured both ways -- so the allowance is gated on this.
@@ -638,14 +639,17 @@ sub WalkNode _
         w.anonDepth = 0
         dim as long savedO = w.anonOpen
         dim as ushort savedM = w.anonUnionMask
+        dim as long savedP = w.anonPack, savedPL = w.anonPackLevel
         w.anonOpen = 0
         w.anonUnionMask = 0
+        w.anonPack = 0 : w.anonPackLevel = 0
         WalkChildren( w, sp->first, sp->count, inner )
         w.inUnion = savedU
         w.unionFirst = savedUF
         w.anonDepth = savedD
         w.anonOpen = savedO
         w.anonUnionMask = savedM
+        w.anonPack = savedP : w.anonPackLevel = savedPL
 
     case Tko.N_FIELD
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
@@ -669,6 +673,7 @@ sub WalkNode _
             fs->anonDepth = cast( ubyte, w.anonDepth )
             fs->anonOpen = cast( ubyte, w.anonOpen )
             fs->anonUnionMask = w.anonUnionMask
+            fs->anonPack = cast( ubyte, w.anonPack ) : fs->anonPackLevel = cast( ubyte, w.anonPackLevel )
             if w.inUnion then fs->flags or= Tko.SYMF_UNION
             if w.unionFirst then fs->flags or= Tko.SYMF_UNION_FIRST
             '' 'private:' / 'protected:' -- the parser put it on the declaration; the

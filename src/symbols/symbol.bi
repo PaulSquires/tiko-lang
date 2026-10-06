@@ -236,6 +236,12 @@ namespace Tko
         '' 'extern "C"' block is 'MyThing', case preserved and no suffix.
         as InternId  linkName
         as ubyte     callConv
+        '' AN ANONYMOUS GROUP'S OWN 'field = N': 'union field = 1' or 'type field = 1' inside a
+        '' TYPE caps its members, and every group inside it inherits the cap. anonPack is the
+        '' N (0 for none) and anonPackLevel the level that wrote it -- the deepest one, where
+        '' a chain writes two. In the padding after callConv, so the record is no bigger.
+        as ubyte     anonPack
+        as ubyte     anonPackLevel
         '' '#undef' GENERATIONS -- see SymbolTable.UndefSym. Positions are NODE IDS: the
         '' arena is built in source order, so a use lies on one side of an '#undef' or
         '' the other. 'bornAt' is where this symbol becomes visible (0, from the start),

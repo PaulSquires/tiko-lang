@@ -189,7 +189,14 @@ private sub PlaceGroup _
                 nestedIsUnion = ((f->anonUnionMask and _
                                   cast( ushort, 1 shl depth )) <> 0)
             end if
-            PlaceGroup( flds, probe, depth + 1, nestedIsUnion, pack, 0, false, _
+            '' ITS OWN 'field = N' caps its members and its own padding, not where it sits: that
+            '' is still the enclosing level's cap over its NATURAL alignment. Measured, fbc:
+            ''   union C : type field = 1 : byte a, long b, byte c        b at 1, c at 5, size 8
+            ''   type F : union field = 1 : type : short a, byte b : ... : byte c   c at 3, size 4
+            '' (structs/anon-align.bas). Every group below it inherits the cap.
+            dim as long npack = pack
+            if (f->anonPack > 0) andalso (cast( long, f->anonPackLevel ) = depth + 1) then npack = f->anonPack
+            PlaceGroup( flds, probe, depth + 1, nestedIsUnion, npack, 0, false, _
                         syms, types, store, u, gs, ga )
             dim as long ea = ga
             if (pack > 0) andalso (ea > pack) then ea = pack
@@ -216,7 +223,7 @@ private sub PlaceGroup _
                 bitNext = off * 8
             end if
             if ga > grpAlign then grpAlign = ga
-            PlaceGroup( flds, idx, depth + 1, nestedIsUnion, pack, baseOff + at, emit, _
+            PlaceGroup( flds, idx, depth + 1, nestedIsUnion, npack, baseOff + at, emit, _
                         syms, types, store, u, gs, ga )
             first = false
             continue while
