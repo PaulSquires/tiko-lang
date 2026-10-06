@@ -352,6 +352,21 @@ sub WalkNode _
                 if sp->op = cast( ushort, Tko.KW_DIM ) then
                     dim as Tko.SymbolId prevK = _
                         w.syms->LookupLocalTyped( scope_, ip->name, false )
+                    '' ...OR, INSIDE A PROCEDURE, IN ITS OWN NAMESPACE (or the module) and no further: 'dim a( 3 to
+                    '' 3 )' in a sub beside 'common shared a( )' resizes the common, while the same line in a sub of
+                    '' ANOTHER namespace declares a local (namespace/redim-3.bas, dim/redim.bas commonDim).
+                    if prevK = Tko.SYMBOL_NONE then
+                        dim as Tko.ScopeId nsc = scope_
+                        dim as boolean inProc = false
+                        for g as long = 0 to 63
+                            dim as Tko.SymScope ptr ss = w.syms->ScopeAt( nsc )
+                            if ss = 0 then exit for
+                            if (ss->kind <> cast( ubyte, Tko.SCOPEK_PROC )) andalso (ss->kind <> cast( ubyte, Tko.SCOPEK_BLOCK )) then exit for
+                            if ss->kind = cast( ubyte, Tko.SCOPEK_PROC ) then inProc = true
+                            nsc = ss->parent
+                        next
+                        if inProc andalso (nsc <> scope_) then prevK = w.syms->LookupLocalTyped( nsc, ip->name, false )
+                    end if
                     dim as Tko.Symbol ptr pks = w.syms->SymbolAt( prevK )
                     if pks <> 0 then
                         redimLike = ((pks->flags and Tko.SYMF_COMMON) <> 0)
