@@ -87,18 +87,19 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp5 size 24
   local ptr $tmp6
   local agg $tmp7 size 24
-  local ptr $tmp8
-  local agg $tmp9 size 24
+  local agg $tmp8 size 24
+  local ptr $tmp9
   local agg $tmp10 size 24
-  local ptr $tmp11
+  local agg $tmp11 size 24
   local ptr $tmp12
   local ptr $tmp13
-  local agg $tmp14 size 24
-  local ptr $tmp15
+  local ptr $tmp14
+  local agg $tmp15 size 24
   local ptr $tmp16
   local ptr $tmp17
-  local agg $tmp18 size 24
-  local ptr $tmp19
+  local ptr $tmp18
+  local agg $tmp19 size 24
+  local ptr $tmp20
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -121,223 +122,236 @@ func i32 main(i32 $0, ptr $1) {
     store %14, 0
     %15 = call.rtl ptr fb_WstrAssignToA(@$tmp4, -1, @w, 0)
     %16 = call ptr G1(@$tmp4, %10)
+    %17 = call.rtl ptr fb_WstrAssignFromA(@w, 4, @$tmp4, -1)
     call.rtl void fb_StrDelete(@$tmp4)
-    %17 = call.rtl i32 fb_StrCompare(%16, 0, @@$str0, 2)
-    %18 = icmp.eq %17, 0
-    %19 = neg %18
-    %20 = sext %19
-    call.rtl void fb_PrintLongint(0, %20, 1)
-    %21 = const i64 0
-    %22 = alloca ptr $tmp5
-    %23 = field.addr @$tmp5, 0
-    store %23, 0
-    %24 = field.addr @$tmp5, 8
+    %18 = call.rtl i32 fb_StrCompare(%16, 0, @@$str0, 2)
+    %19 = icmp.eq %18, 0
+    %20 = neg %19
+    %21 = sext %20
+    call.rtl void fb_PrintLongint(0, %21, 1)
+    %22 = const i64 0
+    %23 = alloca ptr $tmp5
+    %24 = field.addr @$tmp5, 0
     store %24, 0
-    %25 = field.addr @$tmp5, 16
+    %25 = field.addr @$tmp5, 8
     store %25, 0
-    %26 = const i64 1
-    %27 = call.rtl ptr fb_WstrHex_l(%26)
-    %28 = alloca ptr $tmp6
-    store @$tmp6, %27
-    %29 = load @$tmp6
-    %30 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, %29, 0)
-    %31 = call ptr G1(@$tmp5, %21)
+    %26 = field.addr @$tmp5, 16
+    store %26, 0
+    %27 = const i64 1
+    %28 = call.rtl ptr fb_WstrHex_l(%27)
+    %29 = alloca ptr $tmp6
+    store @$tmp6, %28
+    %30 = load @$tmp6
+    %31 = call.rtl ptr fb_WstrAssignToA(@$tmp5, -1, %30, 0)
+    %32 = call ptr G1(@$tmp5, %22)
     call.rtl void fb_StrDelete(@$tmp5)
-    %32 = call.rtl i32 fb_StrCompare(%31, 0, @@$str2, 2)
-    %33 = icmp.eq %32, 0
-    %34 = neg %33
-    %35 = sext %34
-    call.rtl void fb_PrintLongint(0, %35, 1)
-    %36 = load @$tmp6
-    call.rtl void fb_WstrDelete(%36)
-    %37 = const i64 0
-    %38 = call ptr G2(@w, %37)
-    %39 = call.rtl i32 fb_StrCompare(%38, 0, @@$str0, 2)
-    %40 = icmp.eq %39, 0
-    %41 = neg %40
-    %42 = sext %41
-    call.rtl void fb_PrintLongint(0, %42, 1)
-    %43 = const i64 0
-    %44 = alloca ptr $tmp7
-    %45 = field.addr @$tmp7, 0
-    store %45, 0
-    %46 = field.addr @$tmp7, 8
-    store %46, 0
-    %47 = field.addr @$tmp7, 16
-    store %47, 0
-    %48 = const i64 1
-    %49 = call.rtl ptr fb_WstrHex_l(%48)
-    %50 = alloca ptr $tmp8
-    store @$tmp8, %49
-    %51 = load @$tmp8
-    %52 = call.rtl ptr fb_WstrAssignToA(@$tmp7, -1, %51, 0)
-    %53 = field.addr @$tmp7, 0
-    %54 = load %53
-    %55 = call ptr G2(%54, %43)
+    %33 = call.rtl i32 fb_StrCompare(%32, 0, @@$str2, 2)
+    %34 = icmp.eq %33, 0
+    %35 = neg %34
+    %36 = sext %35
+    call.rtl void fb_PrintLongint(0, %36, 1)
+    %37 = load @$tmp6
+    call.rtl void fb_WstrDelete(%37)
+    %38 = const i64 0
+    %39 = alloca ptr $tmp7
+    %40 = field.addr @$tmp7, 0
+    store %40, 0
+    %41 = field.addr @$tmp7, 8
+    store %41, 0
+    %42 = field.addr @$tmp7, 16
+    store %42, 0
+    %43 = call.rtl ptr fb_WstrAssignToA(@$tmp7, -1, @w, 0)
+    %44 = field.addr @$tmp7, 0
+    %45 = load %44
+    %46 = call ptr G2(%45, %38)
     call.rtl void fb_StrDelete(@$tmp7)
-    %56 = call.rtl i32 fb_StrCompare(%55, 0, @@$str2, 2)
-    %57 = icmp.eq %56, 0
-    %58 = neg %57
-    %59 = sext %58
-    call.rtl void fb_PrintLongint(0, %59, 1)
-    %60 = load @$tmp8
-    call.rtl void fb_WstrDelete(%60)
-    %61 = const i64 0
-    %62 = alloca ptr $tmp9
-    %63 = field.addr @$tmp9, 0
-    store %63, 0
-    %64 = field.addr @$tmp9, 8
-    store %64, 0
-    %65 = field.addr @$tmp9, 16
-    store %65, 0
-    %66 = call.rtl ptr fb_WstrAssignToA(@$tmp9, -1, @w, 0)
-    %67 = load @$tmp9
-    %68 = call ptr G3(%67, %61)
-    call.rtl void fb_StrDelete(@$tmp9)
-    %69 = call.rtl i32 fb_StrCompare(%68, 0, @@$str0, 2)
-    %70 = icmp.eq %69, 0
-    %71 = neg %70
-    %72 = sext %71
-    call.rtl void fb_PrintLongint(0, %72, 1)
-    %73 = const i64 0
-    %74 = alloca ptr $tmp10
-    %75 = field.addr @$tmp10, 0
-    store %75, 0
-    %76 = field.addr @$tmp10, 8
-    store %76, 0
-    %77 = field.addr @$tmp10, 16
-    store %77, 0
-    %78 = const i64 1
-    %79 = call.rtl ptr fb_WstrHex_l(%78)
-    %80 = alloca ptr $tmp11
-    store @$tmp11, %79
-    %81 = load @$tmp11
-    %82 = call.rtl ptr fb_WstrAssignToA(@$tmp10, -1, %81, 0)
-    %83 = load @$tmp10
-    %84 = call ptr G3(%83, %73)
+    %47 = call.rtl i32 fb_StrCompare(%46, 0, @@$str0, 2)
+    %48 = icmp.eq %47, 0
+    %49 = neg %48
+    %50 = sext %49
+    call.rtl void fb_PrintLongint(0, %50, 1)
+    %51 = const i64 0
+    %52 = alloca ptr $tmp8
+    %53 = field.addr @$tmp8, 0
+    store %53, 0
+    %54 = field.addr @$tmp8, 8
+    store %54, 0
+    %55 = field.addr @$tmp8, 16
+    store %55, 0
+    %56 = const i64 1
+    %57 = call.rtl ptr fb_WstrHex_l(%56)
+    %58 = alloca ptr $tmp9
+    store @$tmp9, %57
+    %59 = load @$tmp9
+    %60 = call.rtl ptr fb_WstrAssignToA(@$tmp8, -1, %59, 0)
+    %61 = field.addr @$tmp8, 0
+    %62 = load %61
+    %63 = call ptr G2(%62, %51)
+    call.rtl void fb_StrDelete(@$tmp8)
+    %64 = call.rtl i32 fb_StrCompare(%63, 0, @@$str2, 2)
+    %65 = icmp.eq %64, 0
+    %66 = neg %65
+    %67 = sext %66
+    call.rtl void fb_PrintLongint(0, %67, 1)
+    %68 = load @$tmp9
+    call.rtl void fb_WstrDelete(%68)
+    %69 = const i64 0
+    %70 = alloca ptr $tmp10
+    %71 = field.addr @$tmp10, 0
+    store %71, 0
+    %72 = field.addr @$tmp10, 8
+    store %72, 0
+    %73 = field.addr @$tmp10, 16
+    store %73, 0
+    %74 = call.rtl ptr fb_WstrAssignToA(@$tmp10, -1, @w, 0)
+    %75 = load @$tmp10
+    %76 = call ptr G3(%75, %69)
     call.rtl void fb_StrDelete(@$tmp10)
-    %85 = call.rtl i32 fb_StrCompare(%84, 0, @@$str2, 2)
-    %86 = icmp.eq %85, 0
-    %87 = neg %86
-    %88 = sext %87
-    call.rtl void fb_PrintLongint(0, %88, 1)
-    %89 = load @$tmp11
-    call.rtl void fb_WstrDelete(%89)
-    %90 = const i64 0
-    %91 = load @s
-    %92 = call.rtl ptr fb_StrToWstr(%91)
-    %93 = alloca ptr $tmp12
-    store @$tmp12, %92
-    %94 = load @$tmp12
-    %95 = call ptr F1(%94, %90)
-    %96 = call.rtl i32 fb_WstrCompare(%95, @@$wstr1)
-    %97 = icmp.eq %96, 0
-    %98 = neg %97
-    %99 = sext %98
-    call.rtl void fb_PrintLongint(0, %99, 1)
-    %100 = load @$tmp12
-    call.rtl void fb_WstrDelete(%100)
-    %101 = const i64 0
-    %102 = call.rtl ptr fb_StrToWstr(@z)
-    %103 = alloca ptr $tmp13
-    store @$tmp13, %102
-    %104 = load @$tmp13
-    %105 = call ptr F1(%104, %101)
-    %106 = call.rtl i32 fb_WstrCompare(%105, @@$wstr1)
-    %107 = icmp.eq %106, 0
-    %108 = neg %107
-    %109 = sext %108
-    call.rtl void fb_PrintLongint(0, %109, 1)
-    %110 = load @$tmp13
-    call.rtl void fb_WstrDelete(%110)
-    %111 = const i64 0
-    %112 = const i64 1
-    %113 = call.rtl ptr fb_HEX_l(%112)
-    %114 = alloca ptr $tmp14
-    %115 = field.addr @$tmp14, 0
-    store %115, 0
-    %116 = field.addr @$tmp14, 8
-    store %116, 0
-    %117 = field.addr @$tmp14, 16
-    store %117, 0
-    %118 = call.rtl ptr fb_StrAssign(@$tmp14, -1, %113, -1, 0)
-    %119 = load @$tmp14
-    %120 = call.rtl ptr fb_StrToWstr(%119)
-    %121 = alloca ptr $tmp15
-    store @$tmp15, %120
-    %122 = load @$tmp15
-    %123 = call ptr F1(%122, %111)
-    %124 = call.rtl i32 fb_WstrCompare(%123, @@$wstr3)
-    %125 = icmp.eq %124, 0
-    %126 = neg %125
-    %127 = sext %126
-    call.rtl void fb_PrintLongint(0, %127, 1)
-    call.rtl void fb_StrDelete(@$tmp14)
-    %128 = load @$tmp15
-    call.rtl void fb_WstrDelete(%128)
-    %129 = const i64 0
-    %130 = load @s
-    %131 = call.rtl ptr fb_StrToWstr(%130)
-    %132 = alloca ptr $tmp16
-    store @$tmp16, %131
-    %133 = load @$tmp16
-    %134 = call ptr F2(%133, %129)
-    %135 = call.rtl i32 fb_WstrCompare(%134, @@$wstr1)
-    %136 = icmp.eq %135, 0
-    %137 = neg %136
-    %138 = sext %137
-    call.rtl void fb_PrintLongint(0, %138, 1)
-    %139 = load @$tmp16
-    call.rtl void fb_WstrDelete(%139)
-    %140 = const i64 0
-    %141 = call.rtl ptr fb_StrToWstr(@z)
-    %142 = alloca ptr $tmp17
-    store @$tmp17, %141
-    %143 = load @$tmp17
-    %144 = call ptr F2(%143, %140)
-    %145 = call.rtl i32 fb_WstrCompare(%144, @@$wstr1)
-    %146 = icmp.eq %145, 0
-    %147 = neg %146
-    %148 = sext %147
-    call.rtl void fb_PrintLongint(0, %148, 1)
-    %149 = load @$tmp17
-    call.rtl void fb_WstrDelete(%149)
-    %150 = const i64 0
-    %151 = const i64 1
-    %152 = call.rtl ptr fb_HEX_l(%151)
-    %153 = alloca ptr $tmp18
-    %154 = field.addr @$tmp18, 0
-    store %154, 0
-    %155 = field.addr @$tmp18, 8
-    store %155, 0
-    %156 = field.addr @$tmp18, 16
-    store %156, 0
-    %157 = call.rtl ptr fb_StrAssign(@$tmp18, -1, %152, -1, 0)
-    %158 = load @$tmp18
-    %159 = call.rtl ptr fb_StrToWstr(%158)
-    %160 = alloca ptr $tmp19
-    store @$tmp19, %159
-    %161 = load @$tmp19
-    %162 = call ptr F2(%161, %150)
-    %163 = call.rtl i32 fb_WstrCompare(%162, @@$wstr3)
-    %164 = icmp.eq %163, 0
-    %165 = neg %164
-    %166 = sext %165
-    call.rtl void fb_PrintLongint(0, %166, 1)
-    call.rtl void fb_StrDelete(@$tmp18)
-    %167 = load @$tmp19
-    call.rtl void fb_WstrDelete(%167)
+    %77 = call.rtl i32 fb_StrCompare(%76, 0, @@$str0, 2)
+    %78 = icmp.eq %77, 0
+    %79 = neg %78
+    %80 = sext %79
+    call.rtl void fb_PrintLongint(0, %80, 1)
+    %81 = const i64 0
+    %82 = alloca ptr $tmp11
+    %83 = field.addr @$tmp11, 0
+    store %83, 0
+    %84 = field.addr @$tmp11, 8
+    store %84, 0
+    %85 = field.addr @$tmp11, 16
+    store %85, 0
+    %86 = const i64 1
+    %87 = call.rtl ptr fb_WstrHex_l(%86)
+    %88 = alloca ptr $tmp12
+    store @$tmp12, %87
+    %89 = load @$tmp12
+    %90 = call.rtl ptr fb_WstrAssignToA(@$tmp11, -1, %89, 0)
+    %91 = load @$tmp11
+    %92 = call ptr G3(%91, %81)
+    call.rtl void fb_StrDelete(@$tmp11)
+    %93 = call.rtl i32 fb_StrCompare(%92, 0, @@$str2, 2)
+    %94 = icmp.eq %93, 0
+    %95 = neg %94
+    %96 = sext %95
+    call.rtl void fb_PrintLongint(0, %96, 1)
+    %97 = load @$tmp12
+    call.rtl void fb_WstrDelete(%97)
+    %98 = const i64 0
+    %99 = load @s
+    %100 = call.rtl ptr fb_StrToWstr(%99)
+    %101 = alloca ptr $tmp13
+    store @$tmp13, %100
+    %102 = load @$tmp13
+    %103 = call ptr F1(%102, %98)
+    %104 = call.rtl i32 fb_WstrCompare(%103, @@$wstr1)
+    %105 = icmp.eq %104, 0
+    %106 = neg %105
+    %107 = sext %106
+    call.rtl void fb_PrintLongint(0, %107, 1)
+    %108 = load @$tmp13
+    call.rtl void fb_WstrDelete(%108)
+    %109 = const i64 0
+    %110 = call.rtl ptr fb_StrToWstr(@z)
+    %111 = alloca ptr $tmp14
+    store @$tmp14, %110
+    %112 = load @$tmp14
+    %113 = call ptr F1(%112, %109)
+    %114 = call.rtl i32 fb_WstrCompare(%113, @@$wstr1)
+    %115 = icmp.eq %114, 0
+    %116 = neg %115
+    %117 = sext %116
+    call.rtl void fb_PrintLongint(0, %117, 1)
+    %118 = load @$tmp14
+    call.rtl void fb_WstrDelete(%118)
+    %119 = const i64 0
+    %120 = const i64 1
+    %121 = call.rtl ptr fb_HEX_l(%120)
+    %122 = alloca ptr $tmp15
+    %123 = field.addr @$tmp15, 0
+    store %123, 0
+    %124 = field.addr @$tmp15, 8
+    store %124, 0
+    %125 = field.addr @$tmp15, 16
+    store %125, 0
+    %126 = call.rtl ptr fb_StrAssign(@$tmp15, -1, %121, -1, 0)
+    %127 = load @$tmp15
+    %128 = call.rtl ptr fb_StrToWstr(%127)
+    %129 = alloca ptr $tmp16
+    store @$tmp16, %128
+    %130 = load @$tmp16
+    %131 = call ptr F1(%130, %119)
+    %132 = call.rtl i32 fb_WstrCompare(%131, @@$wstr3)
+    %133 = icmp.eq %132, 0
+    %134 = neg %133
+    %135 = sext %134
+    call.rtl void fb_PrintLongint(0, %135, 1)
+    call.rtl void fb_StrDelete(@$tmp15)
+    %136 = load @$tmp16
+    call.rtl void fb_WstrDelete(%136)
+    %137 = const i64 0
+    %138 = load @s
+    %139 = call.rtl ptr fb_StrToWstr(%138)
+    %140 = alloca ptr $tmp17
+    store @$tmp17, %139
+    %141 = load @$tmp17
+    %142 = call ptr F2(%141, %137)
+    %143 = call.rtl i32 fb_WstrCompare(%142, @@$wstr1)
+    %144 = icmp.eq %143, 0
+    %145 = neg %144
+    %146 = sext %145
+    call.rtl void fb_PrintLongint(0, %146, 1)
+    %147 = load @$tmp17
+    call.rtl void fb_WstrDelete(%147)
+    %148 = const i64 0
+    %149 = call.rtl ptr fb_StrToWstr(@z)
+    %150 = alloca ptr $tmp18
+    store @$tmp18, %149
+    %151 = load @$tmp18
+    %152 = call ptr F2(%151, %148)
+    %153 = call.rtl i32 fb_WstrCompare(%152, @@$wstr1)
+    %154 = icmp.eq %153, 0
+    %155 = neg %154
+    %156 = sext %155
+    call.rtl void fb_PrintLongint(0, %156, 1)
+    %157 = load @$tmp18
+    call.rtl void fb_WstrDelete(%157)
+    %158 = const i64 0
+    %159 = const i64 1
+    %160 = call.rtl ptr fb_HEX_l(%159)
+    %161 = alloca ptr $tmp19
+    %162 = field.addr @$tmp19, 0
+    store %162, 0
+    %163 = field.addr @$tmp19, 8
+    store %163, 0
+    %164 = field.addr @$tmp19, 16
+    store %164, 0
+    %165 = call.rtl ptr fb_StrAssign(@$tmp19, -1, %160, -1, 0)
+    %166 = load @$tmp19
+    %167 = call.rtl ptr fb_StrToWstr(%166)
+    %168 = alloca ptr $tmp20
+    store @$tmp20, %167
+    %169 = load @$tmp20
+    %170 = call ptr F2(%169, %158)
+    %171 = call.rtl i32 fb_WstrCompare(%170, @@$wstr3)
+    %172 = icmp.eq %171, 0
+    %173 = neg %172
+    %174 = sext %173
+    call.rtl void fb_PrintLongint(0, %174, 1)
+    call.rtl void fb_StrDelete(@$tmp19)
+    %175 = load @$tmp20
+    call.rtl void fb_WstrDelete(%175)
     call.rtl void fb_StrDelete(@s)
-    %168 = const i32 0
-    call.rtl void fb_End(%168)
-    %169 = load @$tmp0
-    ret %169
+    %176 = const i32 0
+    call.rtl void fb_End(%176)
+    %177 = load @$tmp0
+    ret %177
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrInit(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_WstrAssign(ptr $0, i64 $1, ptr $2)
 declare ptr fb_WstrAssignToA(ptr $0, i64 $1, ptr $2, i32 $3)
+declare ptr fb_WstrAssignFromA(ptr $0, i64 $1, ptr $2, i64 $3)
 declare void fb_StrDelete(ptr $0)
 declare i32 fb_StrCompare(ptr $0, i64 $1, ptr $2, i64 $3)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
@@ -348,4 +362,4 @@ declare i32 fb_WstrCompare(ptr $0, ptr $1)
 declare ptr fb_HEX_l(i64 $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 272 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 284 insts, 0 statements not lowered, 0 scope imbalance
