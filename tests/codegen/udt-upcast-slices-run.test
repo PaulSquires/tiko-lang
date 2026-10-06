@@ -1,0 +1,9 @@
+'' structs: upcast slices -- placement new and UDT array elements (structs/udt-upcast-3.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/udt-upcast-slices.bas -o tests/codegen/udtupcastslices.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/udtupcastslices.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              2             0             0
+'' EXPECT-RUN-OUT:  1             2             0             0

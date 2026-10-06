@@ -512,6 +512,13 @@ function LowerUdtElemInit_ _
         if LowerUdtParenInit_( c, -1, et, e, @dst ) then return true
     end select
 
+    '' A DERIVED VALUE IS ITS BASE PART: '{ x4 }' into an array of t2 copies sizeof( t2 ) bytes.
+    '' The whole t4 was stored and ran into the next element (structs/udt-upcast-3.bas).
+    dim as MirValue upv
+    if UpcastAggInit_( c, e, et, upv ) then
+        StoreThrough( c, dst, upv )
+        return true
+    end if
     '' ...and a POD element is the plain aggregate copy fbc emits for one.
     dim as MirValue ev = LowerExpr( c, e )
     if ev.kind = cast( ubyte, MV_NONE ) then return false
@@ -559,8 +566,21 @@ function LowerUdtArrayInit_ _
         if ea.kind = cast( ubyte, MV_NONE ) then return false
         '' THE ANSWER IS READ. An element that will not build declines the whole
         '' initialiser rather than leaving a hole in the middle of it.
-    if LowerUdtElemInit_( c, ea, el, e ) = false then return false
+        if LowerUdtElemInit_( c, ea, el, e ) = false then return false
     next
+    '' ...AND A PLAIN-DATA TAIL THE LIST DID NOT NAME IS ZEROED, as the scalar path's is: '{ x4 }'
+    '' over 'u21( 0 to 1 ) as t2' leaves u21( 1 ) zero under fbc (structs/udt-upcast-3.bas). A type
+    '' that needs construction got it from the declaration already.
+    if (total > lp->count) andalso (TypeNeedsInit_( c, el ) = false) andalso (StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE) then
+        dim as MirInst tz
+        tz.op = cast( ushort, M_FIELD_ADDR ) : tz.ty = cast( ubyte, MT_PTR ) : tz.a = base_ : tz.imm = lp->count * esz
+        dim as MirValue tza = Emit( c, tz )
+        dim as FB.Array( of ulong ) tzz
+        tzz.Push( cast( ulong, tza.kind ) ) : tzz.Push( cast( ulong, tza.id ) )
+        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( 0 )
+        tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( cast( ulong, (total - lp->count) * esz ) )
+        EmitRtl( c, RTL_MEMSET, tzz )
+    end if
     return true
 end function
 

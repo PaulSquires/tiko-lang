@@ -551,7 +551,8 @@ function LowerNew_ _
     dim as boolean implCopy = false, upCopy = false
     dim as long upBytes = 0
     dim as MirValue copySrc
-    if cbool( ctor = Tko.SYMBOL_NONE ) andalso cbool( argCount = 1 ) andalso (isPlace = false) andalso _
+    '' ...PLACEMENT TOO: 'new( p ) t2( x4 )' over a t4 x4 is the same slice into p (structs/udt-upcast-3.bas).
+    if cbool( ctor = Tko.SYMBOL_NONE ) andalso cbool( argCount = 1 ) andalso _
        cbool( c.types->Kind( el ) = Tko.TK_UDT ) then
         dim as Tko.NodeId csn = cast( Tko.NodeId, c.ast->children[argFirst] )
         dim as Tko.TypeId cst = c.types->Unqualify( c.info->TypeOf_( csn ) )
