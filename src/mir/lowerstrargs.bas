@@ -947,7 +947,7 @@ sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
     for k as long = 0 to c.strBackSlot.Count - 1
         dim as boolean mine = false
         for j as long = mark to c.strTemps.Count - 1
-            if c.strTemps[j] = c.strBackSlot[k] then mine = true : exit for
+            if c.strTemps[j] = (c.strBackSlot[k] and (not UBACK_MARK)) then mine = true : exit for
         next
         if mine then
             nodes.Push( c.strBackNode[k] ) : slots.Push( c.strBackSlot[k] )
@@ -1092,6 +1092,9 @@ function UStrParamArgTemp_ _
     if slot >= 0 then
         c.f->locals[slot].frontendType = ut
         c.strTemps.Push( cast( ulong, slot ) )
+        '' ...AND A NARROW OR WIDE LVALUE GETS THE CALLEE'S WRITE BACK, as at a call: measured,
+        '' fbc copies back after a constructor and after '+=' alike -- see UStrBackPush_.
+        UStrBackPush_( c, argNode, slot, c.strBackNode, c.strBackSlot )
     end if
     return true
 end function
