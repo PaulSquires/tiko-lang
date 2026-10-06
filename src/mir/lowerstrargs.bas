@@ -784,7 +784,7 @@ private sub CopyBackUStrArgs_ _
         '' The trailing flag is the one fbc emits for each: 0 for the narrow
         '' kinds' own assignment and -1 for the space-padded one.
         dim as long fk = StrSwapKind_( c, c.info->TypeOf_( an ), tag )
-        if (fk <> 4) andalso (fk <> 1) andalso (fk <> 3) then continue for
+        if (fk <> 4) andalso (fk <> 1) andalso (fk <> 3) andalso (fk <> 2) then continue for   '' 2: 'wstring * N', below
         '' A FIXED KIND WITH NO DECLARED LENGTH IS NOT ONE. An UNSIZED zstring --
         '' what a 'zstring ptr' points at, and what '*p' is -- reports kind 1 with a
         '' tag of 0, and copying back through it WROTE INTO WHATEVER THE POINTER
@@ -806,6 +806,16 @@ private sub CopyBackUStrArgs_ _
         src.ty = cast( ubyte, MT_PTR )
         src.id = cast( long, slots[k] )
         dim as FB.Array( of ulong ) args
+        '' A 'wstring * N' TAKES THE NARROW TEMPORARY BACK WIDENED: fbc emits 'fb_WstrAssignFromA( W$0,
+        '' 4ll, &TMP, -1ll )' after the call (functions/param-string-copyback.bas); tiko dropped it.
+        if fk = 2 then
+            args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, tag ) )
+            args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+            PushStrLen_( c, args, -1 )
+            EmitRtl( c, RTL_WSTR_ASSIGN_FROMA, args )
+            continue for
+        end if
         args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
         PushStrLen_( c, args, tag )
         args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )

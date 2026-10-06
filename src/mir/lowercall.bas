@@ -456,6 +456,8 @@ function LowerCallParts _
                 if ByvalStrTemp_( c, argNode, wsp, a, tempSlot ) then
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, wsp ) )
+                    '' ...AND COPIED BACK into a 'wstring * N' (CopyBackUStrArgs_; param-string-copyback.bas).
+                    if IsUStringType( c, wsp ) = false then ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) )
                 end if
             end if
             '' A NARROW ARGUMENT AGAINST A USTRING PARAMETER IS ALSO A TEMPORARY.
