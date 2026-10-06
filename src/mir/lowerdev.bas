@@ -154,7 +154,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
         dim as Tko.TypeId a0t = c.info->TypeOf_( a0 )
         dim as longint a0n
         dim as boolean isStr = (c.ast->Kind( a0 ) = Tko.N_STRING_LIT)
-        if isStr = false then isStr = IsStringType( c, a0t ) orelse IsWideString_( c, a0t ) orelse (StrSwapKind_( c, a0t, a0n ) >= 1) orelse TermIsWide_( c, a0 )
+        if isStr = false then isStr = IsStringType( c, a0t ) orelse IsWideString_( c, a0t ) orelse cbool( StrSwapKind_( c, a0t, a0n ) >= 1 ) orelse TermIsWide_( c, a0 )
         if isStr then
             if sp->count <> 2 then return false
             dim as MirValue dv
