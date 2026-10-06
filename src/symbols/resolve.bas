@@ -14,7 +14,6 @@ end namespace
 
 namespace Tko.Resolve
 
-
 '' The scope '..' names. NOT SCOPE_GLOBAL, which holds only the builtins -- a module's
 '' own declarations live in a SCOPEK_MODULE scope one level inside it, so looking in
 '' the global scope found nothing and '..x' bound to no symbol at all.
@@ -966,6 +965,7 @@ sub WalkStmt _
             end if
             dim as Tko.SymbolId esid = c.syms->LookupLocal( lsc, ip->name )
             dim as Tko.Symbol ptr es = c.syms->SymbolAt( esid )
+            if (es <> 0) andalso (pass_ = 0) then if es->loc <> c.ast->Loc( it ) then es = 0   '' THIS member's: another enum's (an explicit one's) took the bare name's value (enum-decls.bas)
             if es <> 0 then
                 if es->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then
                     '' On a SYM_ENUMCONST 'payload' is THE VALUE ITSELF, not a node id.
