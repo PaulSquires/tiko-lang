@@ -277,7 +277,7 @@ private function DecodeEscape_ _
 end function
 
 function StringLitText_ _
-    ( byref c as Ctx, byval id as Tko.NodeId ) as string
+    ( byref c as Ctx, byval id as Tko.NodeId, byval keepNul as boolean = false ) as string
 
     if c.ast->Kind( id ) <> Tko.N_STRING_LIT then return ""
     dim as Tko.LiteralPayload ptr lp = _
@@ -316,7 +316,10 @@ function StringLitText_ _
             dim as long b = DecodeEscape_( *f, lp->strOffset, lp->strLength, i )
             '' A NUL from a numeric escape ENDS the literal, at compile time: fbc puts
             '' the bytes before it into the target and the rest never exists.
-            if b = 0 then exit while
+            '' ...BUT THE LITERAL ITSELF HAS THEM ALL: 'len( !"A\0B" )' is 3 and a constant
+            '' concatenation carries the NUL through -- keepNul, for ConstStringTextOf_.
+            if (b = 0) andalso (keepNul = false) then exit while
+            if b = 0 then r[n] = 0 : n += 1 : continue while
             if b > 0 then
                 r[n] = cast( ubyte, b )
                 n += 1
@@ -969,7 +972,7 @@ private function LowerStaticMemberLen_ _
     '' A STRING CONSTANT MEASURES ITS TEXT. It has no storage of its own, so the size
     '' its type would give is the size of whatever the initialiser was written as.
     dim as string ct
-    if ConstStringTextOf_( c, a, ct ) then
+    if ConstStringTextOf_( c, a, ct, 1 ) then
         dim as longint n = len( ct )
         if isSizeof then n += 1
         outv = ConstInt( c, n, MT_I64 )
@@ -1088,7 +1091,8 @@ function LowerLen _
     dim as boolean szEsc = false
     if c.ast->Kind( sza ) = Tko.N_STRING_LIT then szEsc = (c.ast->literals[cast( long, c.ast->nodes[cast( long, sza )].data )].strKind = cast( ubyte, Tko.STRK_ESCAPED ))
     dim as string szt
-    if isSizeof andalso (szEsc = false) andalso (TermIsWide_( c, a ) = false) andalso ConstStringTextOf_( c, a, szt ) then outv = ConstInt( c, len( szt ) + 1, MT_I64 ) : return (outv.kind <> cast( ubyte, MV_NONE ))
+    if szEsc then szEsc = LitHasUnicodeEscape_( c, sza )   '' only a '\u' keeps it raw; '!"p\0q"' is 4 bytes
+    if isSizeof andalso (szEsc = false) andalso (TermIsWide_( c, a ) = false) andalso ConstStringTextOf_( c, a, szt, 1 ) then outv = ConstInt( c, len( szt ) + 1, MT_I64 ) : return (outv.kind <> cast( ubyte, MV_NONE ))
 
     '' A NAME THAT IS BOTH A TYPE AND A PROCEDURE is, inside SIZEOF, the TYPE.
     '' An identifier in expression position prefers the VALUE class, so
@@ -1234,9 +1238,15 @@ function LowerLen _
         end if
     end if
     if narrow then
-        '' A LITERAL has no descriptor and folds: fbc knows its length outright.
+        '' A LITERAL has no descriptor and folds: fbc knows its length outright -- NULs and
+        '' all, and so for a constant concatenation: 'len( "A" + !"\0" + "B" )' is 3.
         if c.ast->Kind( a ) = Tko.N_STRING_LIT then
-            outv = ConstInt( c, len( StringLitText_( c, a ) ), MT_I64 )
+            outv = ConstInt( c, len( StringLitText_( c, a, true ) ), MT_I64 )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+        dim as string lct
+        if ConstStringTextOf_( c, a, lct, 1 ) then
+            outv = ConstInt( c, len( lct ), MT_I64 )
             return (outv.kind <> cast( ubyte, MV_NONE ))
         end if
         '' NOT NECESSARILY ADDRESSABLE. 'len( a + b )' has no address to take, and fbc

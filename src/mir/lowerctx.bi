@@ -1472,7 +1472,7 @@ declare function EmitRtl _
 
     '' A string literal's text, with the escapes already resolved.
     declare function StringLitText_ _
-        ( byref c as Ctx, byval id as Tko.NodeId ) as string
+        ( byref c as Ctx, byval id as Tko.NodeId, byval keepNul as boolean = false ) as string
 
     '' A UTF-8 source literal widened by CHARACTER, not by byte -- lowerterm.bas.
     declare sub PushSourceUnit_ _

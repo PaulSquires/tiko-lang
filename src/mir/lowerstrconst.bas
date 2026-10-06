@@ -31,9 +31,21 @@ function ConstStringTextOf_ _
     if id = Tko.NODE_NONE then return false
     if depth > 16 then return false
 
+    '' A CONSTANT'S TEXT KEEPS ITS NULS until it lands somewhere: fbc folds
+    '' '"A" + !"\0" + "B"' to the three bytes -- 'len' of it is 3 -- and only a target
+    '' stops at the first NUL, so 'dim s as string = ...' of it is "A", not "AB"
+    '' (pp/macro-eval-str.bas). Depth 0 is every caller's answer, cut at the NUL; the
+    '' recursion, and a 'len', ask from depth 1 for the whole text.
+    if depth = 0 then
+        if ConstStringTextOf_( c, id, outText, 1, scope_ ) = false then return false
+        dim as long nul = instr( outText, chr( 0 ) )
+        if nul > 0 then outText = left( outText, nul - 1 )
+        return true
+    end if
+
     select case c.ast->Kind( id )
     case Tko.N_STRING_LIT
-        outText = StringLitText_( c, id )
+        outText = StringLitText_( c, id, true )
         return true
 
     case Tko.N_STRCAT

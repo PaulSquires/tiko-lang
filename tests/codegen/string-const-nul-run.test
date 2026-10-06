@@ -1,0 +1,15 @@
+'' strings: a constant chain holding a NUL folds whole -- len counts it, a target stops at it (pp/macro-eval-str.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/string-const-nul.bas -o tests/codegen/stringconstnul.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/stringconstnul.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3              4             3             4             4
+'' EXPECT-RUN-OUT:  1             1
+'' EXPECT-RUN-OUT:  4             1             3
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  3             3             1
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: Ay            yAB           Axy
+'' EXPECT-RUN-OUT: -1             1

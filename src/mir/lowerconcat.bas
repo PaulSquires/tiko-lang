@@ -288,6 +288,30 @@ sub FlattenConcat _
             if strP = false then bop = Tko.TK_EOF
         end if
         if (bop = Tko.TK_PLUS) orelse (bop = Tko.TK_AMP) then
+            '' A CONSTANT CHAIN HOLDING A NUL ENDS AT IT: fbc folds '"A" + !"\0" + "B"' to one
+            '' literal of three bytes, and anything reading it as a string stops at the NUL --
+            '' "A". Joined term by term at run time it was "AB" (pp/macro-eval-str.bas). So the
+            '' terms after the first NUL-holding one go; that one's own text already stops at
+            '' its NUL. Two are kept whatever happens, for the callers that want a chain.
+            dim as string nraw
+            if ConstStringTextOf_( c, id, nraw, 1 ) andalso (instr( nraw, chr( 0 ) ) > 0) then
+                dim as FB.Array( of ulong ) sub_
+                FlattenConcat( c, bp->lhs, sub_ )
+                FlattenConcat( c, bp->rhs, sub_ )
+                dim as long keep = sub_.Count
+                for k as long = 0 to sub_.Count - 1
+                    dim as string kt
+                    if ConstStringTextOf_( c, cast( Tko.NodeId, sub_[k] ), kt, 1 ) andalso (instr( kt, chr( 0 ) ) > 0) then
+                        keep = k + 1
+                        exit for
+                    end if
+                next
+                if keep < 2 then keep = iif( sub_.Count < 2, sub_.Count, 2 )
+                for k as long = 0 to keep - 1
+                    outp.Push( sub_[k] )
+                next
+                return
+            end if
             FlattenConcat( c, bp->lhs, outp )
             FlattenConcat( c, bp->rhs, outp )
             return
