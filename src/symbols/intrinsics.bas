@@ -151,7 +151,7 @@ private function UdtOperandBinaryType_ _
         '' PRINT dropped it.
         dim as Tko.TypeId oth = c.types->Unqualify( iif( side = 0, rt, lt ) )
         dim as Tko.TypeId sc = Tko.TYPE_NONE
-        if (op = Tko.TK_PLUS) andalso (c.types->Kind( oth ) = Tko.TK_BUILTIN) then
+        if ((op = Tko.TK_PLUS) orelse IsComparison_( op )) andalso (c.types->Kind( oth ) = Tko.TK_BUILTIN) then   '' ...and a COMPARISON with one: 'x = "B"' (virtual.bas)
             if IsStringy_( c.types->BuiltinOf( oth ) ) then sc = UdtStringCastType_( c, st )
         end if
         if sc = Tko.TYPE_NONE then sc = UdtCastResultOf_( c, st, false, iif( side = 0, iif( IsUdtOperand_( c, rt ), Tko.TYPE_NONE, rt ), iif( IsUdtOperand_( c, lt ), Tko.TYPE_NONE, lt ) ) )
