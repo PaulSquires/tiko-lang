@@ -32,8 +32,12 @@ end function
 function FieldArrayType_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval sp as Tko.StmtPayload ptr, _
       byval here as Tko.ScopeId ) as Tko.TypeId
-    if (sp->op <> cast( ushort, Tko.KW_REDIM )) orelse (sp->count < 2) orelse (t = Tko.TYPE_NONE) then
-        return ArrayFromBounds( c, t, sp->first, sp->count, here )
+    if (sp->count < 2) orelse (t = Tko.TYPE_NONE) then return ArrayFromBounds( c, t, sp->first, sp->count, here )
+    '' ...AND SO IS 'dim a( i to i )' WITH A BOUND THAT IS NOT CONSTANT: ArrayFromBounds makes it
+    '' dynamic, and the constructor sizes it from the bounds bound here (dynamic-array-fields.bas).
+    if sp->op <> cast( ushort, Tko.KW_REDIM ) then
+        dim as Tko.TypeId fat = ArrayFromBounds( c, t, sp->first, sp->count, here )
+        if c.types->IsDynArray( fat ) = false then return fat
     end if
     '' 'redim g( any )' is a plain dynamic field, unsized: ArrayFromBounds already answers that.
     for i as long = 0 to sp->count - 1

@@ -1192,7 +1192,8 @@ sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol
     dim as Tko.NodeId fn = cast( Tko.NodeId, f->payload )
     if (fn = Tko.NODE_NONE) orelse (c.ast->Kind( fn ) <> Tko.N_FIELD) then return
     dim as Tko.StmtPayload ptr sp = StmtOf( c, fn )
-    if (sp->op <> cast( ushort, Tko.KW_REDIM )) orelse (sp->count < 2) then return
+    '' Any dynamic field with written bounds -- 'redim', or 'dim' over a non-constant bound.
+    if sp->count < 2 then return
     '' 'redim g( any )' is declared, not sized: nothing to do.
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )

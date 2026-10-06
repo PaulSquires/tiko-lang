@@ -1,0 +1,14 @@
+'' A 'dim' field with a NON-CONSTANT bound is a dynamic array sized by the constructor from the
+'' bound's value at construction (structs/dynamic-array-fields.bas) -- it crashed.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/dim-field-nonconst-bounds.bas -o tests/codegen/dimfieldnonconstbounds.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/dimfieldnonconstbounds.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  240
+'' EXPECT-RUN-OUT:  10            10            0
+'' EXPECT-RUN-OUT:  30            20
+'' EXPECT-RUN-OUT:  1             3
+'' EXPECT-RUN-OUT:  4             4             0
+'' EXPECT-RUN-OUT:  2             3
