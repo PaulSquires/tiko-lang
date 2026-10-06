@@ -1,0 +1,12 @@
+'' fbc-int: __FB_QUERY_SYMBOL__ classes KEYWORD and FWDREF (fbc-int/query-symbol.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/qsym-keyword-fwdref.bas -o tests/codegen/qsymkeywordfwdref.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/qsymkeywordfwdref.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  6
+'' EXPECT-RUN-OUT:  14
+'' EXPECT-RUN-OUT:  6
+'' EXPECT-RUN-OUT:  6

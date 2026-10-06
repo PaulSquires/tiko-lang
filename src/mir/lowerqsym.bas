@@ -55,6 +55,8 @@ const QSYMCLASS_ENUM      as long = 9
 const QSYMCLASS_STRUCT    as long = 10
 const QSYMCLASS_FIELD     as long = 12
 const QSYMCLASS_TYPEDEF   as long = 13
+const QSYMCLASS_KEYWORD   as long = 6
+const QSYMCLASS_FWDREF    as long = 14
 const QSYMCLASS_RESERVED  as long = 16
 
 const QSYMDT_VOID     as long = 0
@@ -143,6 +145,28 @@ function LowerQuerySymbol_ _
         for each r as ulong in c.syms->reservedNames
             if r = rn then
                 outv = ConstInt( c, QSYMCLASS_RESERVED, MT_I64 )
+                return true
+            end if
+        next
+    end if
+
+    '' A KEYWORD -- 'integer', 'string', 'print' -- is a class too, and so is a name only ever
+    '' FORWARD-referenced ('type FWDREF as SYM_FWDREF'): fbc answers KEYWORD and FWDREF
+    '' (fbc-int/query-symbol.bas). Both have no symbol here and answered 0.
+    if (sy = 0) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
+        dim as Tko.InternId qn2 = c.ast->idents[cast( long, c.ast->nodes[cast( long, sn )].data )].name
+        dim as string qup = ucase( c.names->Spelling( qn2 ) )
+        for k as long = Tko.TK_KW_FIRST + 1 to Tko.TK_KW_LAST - 1
+            if Tko.TokenKindText( cast( Tko.TokenKind, k ) ) = qup then
+                outv = ConstInt( c, QSYMCLASS_KEYWORD, MT_I64 )
+                return true
+            end if
+        next
+        dim as Tko.InternId qf = c.names->Fold( qn2 )
+        for t as long = 1 to c.types->Count( ) - 1
+            if (c.types->Kind( cast( Tko.TypeId, t ) ) = Tko.TK_FORWARD) andalso _
+               (c.types->NameOf( cast( Tko.TypeId, t ) ) = qf) then
+                outv = ConstInt( c, QSYMCLASS_FWDREF, MT_I64 )
                 return true
             end if
         next
@@ -237,7 +261,10 @@ function QSymClassOf_ _
     case Tko.SYM_ENUM                        : return QSYMCLASS_ENUM
     '' 'type C extends object' is a STRUCT here too -- _CLASS is not what fbc answers
     '' for one, measured.
-    case Tko.SYM_UDT                         : return QSYMCLASS_STRUCT
+    case Tko.SYM_UDT
+        '' ...BUT ONE NEVER DEFINED is the forward reference it still is.
+        if (sy->type_ <> Tko.TYPE_NONE) andalso (c.types->Kind( sy->type_ ) = Tko.TK_FORWARD) then return QSYMCLASS_FWDREF
+        return QSYMCLASS_STRUCT
     case Tko.SYM_TYPEDEF                     : return QSYMCLASS_TYPEDEF
     case Tko.SYM_LABEL                       : return QSYMCLASS_LABEL
     end select
