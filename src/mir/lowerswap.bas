@@ -1334,6 +1334,23 @@ function LowerPropertyGet_ _
         c.sretIntoAtNode = false
         c.sretIntoOn = true
     end if
+    '' A BYREF GETTER returns the ADDRESS of its answer -- 'property f( ) byref as integer':
+    '' the value is read through it (functions/return-byref.bas properties). tiko printed the
+    '' address itself. The getter's NF_BYREF is lowerproc.bas's own test.
+    dim as boolean gByref = false
+    dim as Tko.NodeId gpn = cast( Tko.NodeId, gs->payload )
+    if (gpn <> Tko.NODE_NONE) andalso (c.ast->Kind( gpn ) = Tko.N_PROC) then gByref = ((c.ast->nodes[cast( long, gpn )].flags and Tko.NF_BYREF) <> 0)
+    if gByref andalso (IsStringType( c, gs->type_ ) = false) then
+        dim as MirValue gp = EmitMemberCallArgs_( c, g, self_, MT_PTR, @gargs, PropertyVSlot_( c, node, g ) )
+        if gp.kind = cast( ubyte, MV_NONE ) then return false
+        if c.propAddrWanted then
+            outv = gp
+        else
+            outv = LowerExprLoad( c, gp, gmt )
+        end if
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if c.propAddrWanted then return false   '' an ordinary getter has no address to give
     outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs, PropertyVSlot_( c, node, g ) )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function

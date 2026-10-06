@@ -316,3 +316,14 @@ function UdtCastTie_( byref c as Ctx, byref argT as FB.Array( of ulong ) ) as bo
     next
     return any_
 end function
+
+'' '@x.f' OVER A BYREF PROPERTY GETTER is the address of its answer, typed 'integer ptr' --
+'' measured, fbc prints '@x.f = @x.i' as -1 (functions/return-byref.bas). Not a procptr.
+private function ByrefPropOperand_ _
+    ( byref c as Ctx, byval operand as Tko.NodeId, byval psym as Tko.Symbol ptr ) as boolean
+    if c.ast->Kind( operand ) <> Tko.N_MEMBER then return false
+    dim as Tko.NodeId ppn = cast( Tko.NodeId, psym->payload )
+    if (ppn = Tko.NODE_NONE) orelse (c.ast->Kind( ppn ) <> Tko.N_PROC) then return false
+    if c.ast->stmts[cast( long, c.ast->nodes[cast( long, ppn )].data )].op <> cast( ushort, Tko.KW_PROPERTY ) then return false
+    return ((c.ast->nodes[cast( long, ppn )].flags and Tko.NF_BYREF) <> 0)
+end function

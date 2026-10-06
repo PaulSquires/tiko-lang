@@ -219,6 +219,7 @@ type Ctx
     as Tko.SymbolId         sretIntoSym
     '' ...and for a GETTER, the member node whose own call it is: armed by
     '' LowerPropertyGet_ only once that node's receiver is lowered.
+    as boolean              propAddrWanted   '' LowerAddr asks LowerPropertyGet_ for a byref getter's pointer
     as boolean              sretIntoAtNode
     as Tko.NodeId           sretIntoNode
     as long                 dataHead

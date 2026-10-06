@@ -228,6 +228,22 @@ function LowerAddr _
 
     dim as MirValue v
     if id = Tko.NODE_NONE then return v
+    '' '@x.f' OVER A BYREF PROPERTY GETTER is the address it returns -- '@x.f = @x.i' is true
+    '' to fbc (functions/return-byref.bas). LowerPropertyGet_ answers it when asked for one.
+    '' Only when Check's accessor (RefOf) is itself a BYREF proc: otherwise the receiver
+    '' would be lowered here and again by the field path.
+    dim as Tko.SymbolId bpg = iif( c.ast->Kind( id ) = Tko.N_MEMBER, c.info->RefOf( id ), Tko.SYMBOL_NONE )
+    dim as Tko.Symbol ptr bps = iif( bpg <> Tko.SYMBOL_NONE, c.syms->SymbolAt( bpg ), cast( Tko.Symbol ptr, 0 ) )
+    dim as Tko.NodeId bpn = iif( bps <> 0, cast( Tko.NodeId, bps->payload ), Tko.NODE_NONE )
+    if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso ((c.ast->nodes[cast( long, bpn )].flags and Tko.NF_BYREF) <> 0) then
+        dim as boolean pw0 = c.propAddrWanted
+        c.propAddrWanted = true
+        dim as MirValue ppa
+        dim as boolean gotPa = LowerPropertyGet_( c, id, ppa )
+        c.propAddrWanted = pw0
+        if gotPa then return ppa
+    end if
+
 
     '' THE OPEN 'with' SUBJECT WAS ALREADY EVALUATED. Resolve points every baseless
     '' '.field' at the subject's own node, so the node is reached once per member --

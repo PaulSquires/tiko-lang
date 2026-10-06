@@ -1418,10 +1418,9 @@ private function TypeOfUncached_ _
         '' is the shape -- generics/lambda.bas and six more.
         dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
         dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
-        if psym <> 0 then
-            if psym->kind = cast( ubyte, Tko.SYM_PROC ) then
-                t = ProcTypeOfSymbol_( c, psid )
-            end if
+        '' '@x.f' over a BYREF PROPERTY GETTER is its answer's address, 'integer ptr' (checkbase.bas).
+        if (psym <> 0) andalso (psym->kind = cast( ubyte, Tko.SYM_PROC )) then
+            if ByrefPropOperand_( c, ap->operand, psym ) = false then t = ProcTypeOfSymbol_( c, psid )
         end if
         if t = Tko.TYPE_NONE then
             dim as Tko.TypeId inner = TypeOf_( c, ap->operand )
