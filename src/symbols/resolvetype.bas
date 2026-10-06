@@ -285,6 +285,41 @@ private sub GenericArgsCheck_ _
     end if
 end sub
 
+'' THE TYPE fbc gives a string LITERAL under 'typeof': 'zstring * (len + 1)', and 'wstring * (len + 1)'
+'' over 'wstr( literal )'. False for anything else, and for a literal with a unicode escape.
+private function TypeofLitType_( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId ) as boolean
+    dim as boolean wide = false
+    if c.ast->Kind( e ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr cl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if (cl->count <> 1) orelse (cl->target = Tko.NODE_NONE) orelse (c.ast->Kind( cl->target ) <> Tko.N_IDENT) then return false
+        if lcase( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )].name ) ) <> "wstr" then return false
+        e = cast( Tko.NodeId, c.ast->children[cl->first] )
+        wide = true
+    end if
+    if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
+    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
+    if f = 0 then return false
+    if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
+    dim as string txt
+    dim as long i = 0
+    while i < lp->strLength
+        dim as ubyte ch = f->text[lp->strOffset + i]
+        txt += chr( ch )
+        if (ch = 34) andalso (i + 1 < lp->strLength) then
+            if f->text[lp->strOffset + i + 1] = 34 then i += 1
+        end if
+        i += 1
+    wend
+    if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then
+        dim as boolean wasWide = false
+        txt = Tko.Text.DecodeEscapedBody( txt, wasWide )
+        if wasWide then return false
+    end if
+    outT = c.types->ArrayOf( c.types->Builtin( iif( wide, Tko.TY_WSTRING, Tko.TY_ZSTRING ) ), 1, len( txt ) + 1 )
+    return true
+end function
+
 declare function ResolveTypeRefAt_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -511,6 +546,9 @@ function ResolveTypeRefAt_ _
                 '' The nesting resolves itself: the inner literal's target is a
                 '' TYPEREF, which may itself be a 'typeof', and ResolveTypeRef is
                 '' what is being written here.
+            elseif TypeofLitType_( c, sp->b, base_ ) then
+                '' 'typeof( "test" )' IS 'ZSTRING * 5' and 'typeof( wstr( "test" ) )' 'WSTRING * 5'
+                '' (quirk/typeof.bas) -- a literal's own type, where Check types the expression STRING.
             else
                 WalkExpr( c, sp->b, scope_ )
                 DropNsPrefix_( c, sp->b, scope_ )    '' as LEN's: resolveintr.bas
