@@ -1086,9 +1086,12 @@ private function WideLitUnits_ _
         if (nx = asc( "u" )) orelse (nx = asc( "U" )) then
             '' EXACTLY FOUR HEX DIGITS. Fewer is not this escape, and reading a
             '' greedy run would swallow the text after it.
-            if p2 + 5 > len( body ) then return false
+            '' ...OR EIGHT FOR '\U' -- 'U0001F0A1' -- which above the BMP is a SURROGATE PAIR where
+            '' wchar is two bytes: fbc gives &hD83C &hDCA1 (wstring/unc.bas); tiko read four digits.
+            dim as long nd = iif( nx = asc( "U" ), 8, 4 )
+            if p2 + 1 + nd > len( body ) then return false
             dim as long uv = 0
-            for d as long = 0 to 3
+            for d as long = 0 to nd - 1
                 dim as long hc = asc( mid( body, p2 + 2 + d, 1 ) )
                 dim as long dv = -1
                 if (hc >= 48) andalso (hc <= 57) then dv = hc - 48
@@ -1097,8 +1100,12 @@ private function WideLitUnits_ _
                 if dv < 0 then return false
                 uv = uv * 16 + dv
             next
-            outUnits.Push( cast( ulong, uv ) )
-            p2 += 6
+            if (uv > 65535) andalso (c.types->target.wcharBytes = 2) then
+                outUnits.Push( cast( ulong, &hD800 + ((uv - &h10000) shr 10) ) ) : outUnits.Push( cast( ulong, &hDC00 + ((uv - &h10000) and &h3FF) ) )
+            else
+                outUnits.Push( cast( ulong, uv ) )
+            end if
+            p2 += 2 + nd
             continue while
         end if
         dim as long bi = p2
