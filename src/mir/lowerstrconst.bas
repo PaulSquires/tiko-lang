@@ -38,8 +38,10 @@ function ConstStringTextOf_ _
     '' recursion, and a 'len', ask from depth 1 for the whole text.
     if depth = 0 then
         if ConstStringTextOf_( c, id, outText, 1, scope_ ) = false then return false
+        '' ...ONLY A CHAIN OF LITERALS: a NUL that 'chr( 0 )' made is part of a counted string
+        '' and stays -- '"a" & chr( 0 ) & "b"' is three bytes under fbc (string/fbstr_pad.bas).
         dim as long nul = instr( outText, chr( 0 ) )
-        if nul > 0 then outText = left( outText, nul - 1 )
+        if (nul > 0) andalso LitOnlyChain_( c, id, 0 ) then outText = left( outText, nul - 1 )
         return true
     end if
 
@@ -267,6 +269,43 @@ function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
         if ms = 0 then return false
         return (ms->kind = cast( ubyte, Tko.SYM_CONSTANT ))
+    end select
+    return false
+end function
+
+
+'' IS THIS STRING CONSTANT MADE OF LITERALS ALONE -- concatenated, parenthesised or named through
+'' a constant? fbc folds such a chain into ONE zstring literal, so a NUL in it ends the value;
+'' a chain with a call in it ('chr( 0 )', 'str( n )') is a counted string and keeps its NULs.
+function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as long ) as boolean
+    if (id = Tko.NODE_NONE) orelse (depth > 16) then return false
+    select case c.ast->Kind( id )
+    case Tko.N_STRING_LIT
+        return true
+    case Tko.N_PAREN, Tko.N_STRCAT
+        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if lp->count < 1 then return false
+        for i as long = 0 to lp->count - 1
+            if LitOnlyChain_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth + 1 ) = false then return false
+        next
+        return true
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if LitOnlyChain_( c, bp->lhs, depth + 1 ) = false then return false
+        return LitOnlyChain_( c, bp->rhs, depth + 1 )
+    case Tko.N_CALL
+        '' 'wstr( literal )' is the literal, widened -- fbc folds it the same way.
+        dim as Tko.ListPayload ptr wlp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (wlp->count <> 1) orelse (wlp->target = Tko.NODE_NONE) then return false
+        if c.ast->Kind( wlp->target ) <> Tko.N_IDENT then return false
+        if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, wlp->target )].data )].name ) ) <> "wstr" then return false
+        return LitOnlyChain_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), depth + 1 )
+    case Tko.N_IDENT, Tko.N_MEMBER
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if (cs = 0) orelse (cs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) orelse (cs->payload = 0) then return false
+        dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
+        if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
+        return LitOnlyChain_( c, StmtOf( c, item )->b, depth + 1 )
     end select
     return false
 end function

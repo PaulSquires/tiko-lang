@@ -294,7 +294,10 @@ sub FlattenConcat _
             '' terms after the first NUL-holding one go; that one's own text already stops at
             '' its NUL. Two are kept whatever happens, for the callers that want a chain.
             dim as string nraw
-            if ConstStringTextOf_( c, id, nraw, 1 ) andalso (instr( nraw, chr( 0 ) ) > 0) then
+            dim as boolean nulLit = LitOnlyChain_( c, id, 0 )   '' hoisted: warning 38
+            if nulLit then nulLit = ConstStringTextOf_( c, id, nraw, 1 )
+            if nulLit then nulLit = (instr( nraw, chr( 0 ) ) > 0)
+            if nulLit then
                 dim as FB.Array( of ulong ) sub_
                 FlattenConcat( c, bp->lhs, sub_ )
                 FlattenConcat( c, bp->rhs, sub_ )

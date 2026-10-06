@@ -1,0 +1,9 @@
+'' strings: chr( 0 ) in a constant chain keeps its NUL (string/fbstr_pad.bas, string/instrrev_x.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/string-chr-nul-kept.bas -o tests/codegen/stringchrnulkept.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/stringchrnulkept.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3              3
+'' EXPECT-RUN-OUT:  1

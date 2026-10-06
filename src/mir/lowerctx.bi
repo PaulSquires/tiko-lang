@@ -717,7 +717,7 @@ declare function EmitRtl _
     declare function UdtCastToUdt_ _
         ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
     declare function UdtCastArgOk_ _
-        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean : declare function UdtByrefCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId : declare function UdtPtrCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId, byref isRef as boolean ) as Tko.SymbolId : declare function ByrefCastInit_( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean : declare function UdtByrefCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId : declare function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as long ) as boolean : declare function UdtPtrCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId, byref isRef as boolean ) as Tko.SymbolId : declare function ByrefCastInit_( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
     declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean   '' lowersub.bas
     declare function UserCastToNum_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
