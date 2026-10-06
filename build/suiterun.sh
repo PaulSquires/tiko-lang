@@ -103,7 +103,9 @@ for f in $(grep -rl "END_SUITE" tests/vendor/fbc-tests --include='*.bas' | sort 
         done
         ( cd "$WK/rd/f/$d" && timeout "$RUNTIMEOUT" "$WK/f_$n.exe" </dev/null >"$WK/f_$n.txt" 2>&1 )
         ( cd "$WK/rd/t/$d" && timeout "$RUNTIMEOUT" "$WK/t_$n.exe" </dev/null >"$WK/t_$n.txt" 2>&1 )
-        if cmp -s "$WK/f_$n.txt" "$WK/t_$n.txt" ; then
+        # PATH SEPARATORS ARE NOT A DIFFERENCE: fbc reports a failing assert as 'tests\vendor\...' and
+        # tiko as 'tests/vendor/...', so two suites failing identically counted as DIFF (20 of 83).
+        if cmp -s <(tr '\\' '/' < "$WK/f_$n.txt") <(tr '\\' '/' < "$WK/t_$n.txt") ; then
             nsame=$((nsame+1))
         else
             ndiff=$((ndiff+1))
