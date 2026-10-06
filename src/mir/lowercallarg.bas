@@ -463,8 +463,9 @@ private function UdtConvTemp_ _
     dim as Tko.SymbolId bcast = Tko.SYMBOL_NONE
     dim as boolean bIsRef = false
     if aut <> Tko.TYPE_NONE then bcast = UdtPtrCast_( c, aut, pt, bIsRef )
-    if (bcast <> Tko.SYMBOL_NONE) andalso (preferCast orelse (DirectUdtCtor_( c, pt, aut ) = false)) andalso _
-       (preferCast orelse (UdtCastArgOk_( c, aut, pt ) = false)) then
+    dim as boolean bTake = (preferCast orelse (DirectUdtCtor_( c, pt, aut ) = false)) andalso (preferCast orelse (UdtCastArgOk_( c, aut, pt ) = false))
+    if bcast = Tko.SYMBOL_NONE then bTake = false   '' hoisted: warning 38
+    if bTake then
         dim as MirValue bself = LowerAddr( c, argNode )
         if bself.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue bref = CastResultAddr_( c, bcast, bIsRef, bself, pt )
