@@ -15,6 +15,25 @@
 
 namespace Tko.Check
 
+'' A TYPE (or, 'wantType' false, a NAMESPACE) named by an identifier or a dotted path of them.
+private function QualifiedTypeSym_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval scope_ as Tko.ScopeId, _
+      byval n as Tko.NodeId, byval wantType as boolean, byval depth as long ) as Tko.SymbolId
+    if (n = Tko.NODE_NONE) orelse (depth > 16) then return Tko.SYMBOL_NONE
+    if ast.Kind( n ) = Tko.N_IDENT then
+        dim as Tko.InternId nm = ast.idents[cast( long, ast.nodes[cast( long, n )].data )].name
+        if wantType then return syms.LookupTyped( scope_, nm, true )
+        return syms.Lookup( scope_, nm )
+    end if
+    if ast.Kind( n ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+    dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( long, ast.nodes[cast( long, n )].data )]
+    if ast.Kind( bp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
+    dim as Tko.Symbol ptr ns = syms.SymbolAt( QualifiedTypeSym_( ast, syms, scope_, bp->lhs, false, depth + 1 ) )
+    if (ns = 0) orelse (ns->kind <> cast( ubyte, Tko.SYM_NAMESPACE )) orelse (ns->inner = Tko.SCOPE_NONE) then return Tko.SYMBOL_NONE
+    dim as Tko.InternId rn = ast.idents[cast( long, ast.nodes[cast( long, bp->rhs )].data )].name
+    return syms.LookupInNamespaceTyped( ns->inner, rn, wantType )
+end function
+
 '' THE POW A PROGRAM CALLS. A program tiko builds for Windows links the UCRT, whose pow is SSE
 '' code; this compiler links msvcrt, whose pow is x87 code and runs at whatever precision the
 '' thread's control word says -- 53 bits on the compile thread, where FB's main thread has 64. So
@@ -626,9 +645,12 @@ private function ConstCall_ _
         end if
         '' ...AND A UDT NAMED BARE -- 'sizeof( UDT )'. Only a type KEYWORD makes the operand
         '' a TYPEREF; a UDT's name parses as an identifier, so it is looked up here.
-        if (ast.Kind( ta ) = Tko.N_IDENT) andalso (syms <> 0) then
-            dim as Tko.Symbol ptr us = syms->SymbolAt( syms->LookupTyped( scope_, _
-                ast.idents[cast( long, ast.nodes[cast( long, ta )].data )].name, true ) )
+        '' ...OR QUALIFIED -- 'sizeof( fb.Image )', an N_MEMBER through namespaces. Unfolded, a
+        '' field 'array( 0 to sizeof( fb.Image ) + 1023 ) as ubyte' became a DYNAMIC array: a
+        '' 72-byte UDT where fbc has 1056, and a memcpy into it smashed the stack
+        '' (gfx/image-expr.bas).
+        if ((ast.Kind( ta ) = Tko.N_IDENT) orelse (ast.Kind( ta ) = Tko.N_MEMBER)) andalso (syms <> 0) then
+            dim as Tko.Symbol ptr us = syms->SymbolAt( QualifiedTypeSym_( ast, *syms, scope_, ta, true, 0 ) )
             if us <> 0 then
                 if (us->kind = cast( ubyte, Tko.SYM_UDT )) andalso (us->type_ <> Tko.TYPE_NONE) then
                     dim as Tko.TypeId ut = types->Unqualify( us->type_ )
