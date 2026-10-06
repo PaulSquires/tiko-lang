@@ -235,6 +235,15 @@ private sub JudgeConversion_ _
     if rUdt andalso (ok = TK_POINTER) then
         select case Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, udt, other )
         case 0 : return
+        case -1
+            '' CASTS, BUT NONE TO A POINTER: only a pointer cast reaches a pointer. Measured on
+            '' fbc-modern: a numeric cast into 'any ptr' is 24 (181 by assignment), a string or
+            '' 'byref as zstring' cast into 'zstring ptr' 24 -- Rescued_ let any cast vouch, and
+            '' lowering then found no conversion (TKO0994).
+            if DeclaresAnywhere_( c, udt, "cast" ) then
+                c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
+                return
+            end if
         case 1
             c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
             return

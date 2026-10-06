@@ -1,0 +1,11 @@
+'' TKO0738, fbc's 24 / 181: a UDT whose casts are numeric, string or 'byref as zstring' does not
+'' reach a pointer -- only a pointer cast does. tiko let any cast vouch, then could not lower it.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/udt-nonptr-cast-to-ptr.bas -o tests/diagnostics/src/udt-nonptr-cast-to-ptr.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-nonptr-cast-to-ptr.bas(19,
+'' EXPECT-OUT: udt-nonptr-cast-to-ptr.bas(22,
+'' EXPECT-OUT: udt-nonptr-cast-to-ptr.bas(23,
+'' EXPECT-OUT: udt-nonptr-cast-to-ptr.bas(33,
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 4
