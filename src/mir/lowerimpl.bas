@@ -603,6 +603,8 @@ end sub
 '' erased twice. CopyMember_ deep-copies the array now, so the body is wanted here
 '' exactly as it is for any other member that cannot be copied bitwise.
 function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' 'object' is never bit-copied: its let is empty, its copy the runtime's (virtual/byval-copy.bas).
+    if IsObjectT_( c, c.types->Unqualify( t ) ) then return true
     if NeedsCtorBody_( c, t ) then return true
     return HasDynArrayMember_( c, t )
 end function
