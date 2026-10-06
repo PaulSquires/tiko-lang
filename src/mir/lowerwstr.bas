@@ -135,6 +135,15 @@ function LowerWideAssignTo _
     '' ...AND ONLY WITH A DECLARED CAPACITY: fb_WstrConcatAssign appends NOTHING to a destination
     '' of length 0 (lib/rt strw/core.bas, quirk 1), so a byref wstring or '*p' takes fbc's own
     '' 'fb_WstrConcat' temporary via WideOperand_ below (expressions/iif.bas, a constant iif).
+    '' A LITERAL CHAIN WITH A NUL ENDS AT IT, as the narrow one does (FlattenConcat): fbc assigns one literal.
+    dim as string wnr : dim as boolean wnl = (uchain = false) andalso LitOnlyChain_( c, value, 0 )   '' hoisted: warning 38
+    if wnl andalso (c.ast->Kind( value ) = Tko.N_BINARY) then wnl = ConstStringTextOf_( c, value, wnr, 1 ) else wnl = false
+    if wnl then wnl = (instr( wnr, chr( 0 ) ) > 0)
+    if wnl then
+        wnr = left( wnr, instr( wnr, chr( 0 ) ) - 1 ) : dim as FB.Array( of ulong ) wnu
+        for k as long = 0 to len( wnr ) - 1 : wnu.Push( cast( ulong, wnr[k] ) ) : next
+        args.Push( cast( ulong, MV_GLOBAL ) ) : args.Push( cast( ulong, c.m->AddWideStringUnits( wnr, wnu, *c.names ) ) ) : EmitRtl( c, RTL_WSTR_ASSIGN, args ) : return true
+    end if
     if (c.ast->Kind( value ) = Tko.N_BINARY) andalso (uchain = false) andalso (n > 0) then
         dim as Tko.BinaryPayload ptr vb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
