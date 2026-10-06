@@ -1,0 +1,12 @@
+'' pp: '##' keeps its spaces and the pasted name's case; 'a##_' vs 'a ##_'; a leading '##' (pp/token-pasting.bas, pp/macro_no_parentheses.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-paste-spacing.bas -o tests/codegen/pppastespacing.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/pppastespacing.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: XY|X Y|X  Y|X  Y
+'' EXPECT-RUN-OUT: X_Y|X _Y|X_|_X
+'' EXPECT-RUN-OUT: Abc|Bar
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  8

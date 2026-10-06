@@ -1162,6 +1162,10 @@ private function IsLineJoinAt_ _
     if Tk( m->body[j + 1] ) <> TK_HASH then return false
     if Tk( m->body[j + 2] ) <> TK_IDENT then return false
     if e.names->Spelling( cast( InternId, m->body[j + 2].literal ) ) <> "_" then return false
+    '' ...AND ONLY WITH A SPACE IN FRONT OF THE '##'. Measured on fbc, both at the end of a body:
+    ''     #define J(a) a ##_     a line join -- 'J(X)' then '2 }' is 'X 2 }'
+    ''     #define J(a) a##_      a PASTE -- 'J(X)' is 'X_' (pp/token-pasting.bas, under1)
+    if (j > 0) andalso ((m->body[j].flags and TF_SPACE_BEFORE) = 0) andalso (Tk( m->body[j - 1] ) <> TK_EOL) then return false
 
     '' THE '_' MUST END THE LINE, and leaving that out was caught by an existing test
     '' rather than by a probe: 'private function V##_ overload( ... )' pastes the NAME
@@ -1206,6 +1210,17 @@ private sub PpSubstitute _
             outv.Push( mark )
             i += 3
             continue while
+        end if
+
+        '' A '##' THAT BEGINS A LINE pastes onto NOTHING, and so is simply dropped. Measured on fbc:
+        ''     #macro of ? ( t ) : ##t : #endmacro      __fb_quote__( of( bar ) )  ->  "bar"
+        '' -- tiko read the first '#' as a stringise of the second and gave '#$"bar"'
+        '' (pp/macro_no_parentheses.bas, nested1).
+        if (i + 1 < m->body.Count) andalso (Tk( m->body[i] ) = TK_HASH) andalso (Tk( m->body[i + 1] ) = TK_HASH) then
+            if (i = 0) orelse (Tk( m->body[i - 1] ) = TK_EOL) then
+                i += 2
+                continue while
+            end if
         end if
 
         dim as Token bt = m->body[i]
@@ -1283,8 +1298,13 @@ private sub PpSubstitute _
             if pasteNext andalso IsLineJoinAt_( e, m, i + 1 ) then pasteNext = false
         end if
         if pasteNext then
+            '' THE SPACES AROUND '##' STAY: fbc deletes the two characters and nothing else, so
+            '' 'a ##b' is 'X Y' and 'a ## b' is 'X  Y' -- one space per side, however many
+            '' were written -- and only 'a##b' is 'XY' (pp/token-pasting.bas, plain).
             dim as string acc = PasteSpelling_( e, m, args, bt )
+            if (m->body[i + 1].flags and TF_SPACE_BEFORE) <> 0 then acc += " "
             if i + 3 < m->body.Count then
+                if (m->body[i + 3].flags and TF_SPACE_BEFORE) <> 0 then acc += " "
                 acc += PasteSpelling_( e, m, args, m->body[i + 3] )
             end if
             i += 4
@@ -1299,6 +1319,8 @@ private sub PpSubstitute _
             '' fbc does: it cannot make '.mysuite' one token either, and does not try.
             while (i + 2 < m->body.Count) andalso _
                   (Tk( m->body[i] ) = TK_HASH) andalso (Tk( m->body[i + 1] ) = TK_HASH)
+                if (m->body[i].flags and TF_SPACE_BEFORE) <> 0 then acc += " "
+                if (m->body[i + 2].flags and TF_SPACE_BEFORE) <> 0 then acc += " "
                 acc += PasteSpelling_( e, m, args, m->body[i + 2] )
                 i += 3
             wend

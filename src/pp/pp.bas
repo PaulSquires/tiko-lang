@@ -168,6 +168,7 @@ type PpEngine
     as IdVec                  allIncluded
     as FileId                 rootFile
     as long                   uniqueCounter
+    as FB.Array( of ulong )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap   '' ppspell.bas
     '' '##_' AT THE END OF A MACRO BODY LINE IS A LINE JOIN, and what it joins is the
     '' NEXT END OF LINE -- wherever that comes from. Measured on fbc, three shapes:
     ''
@@ -1065,73 +1066,7 @@ function PpSpell _
     return s
 end function
 
-private function SpellOf( byref e as PpEngine, byref t as Token ) as string
-    return PpSpell( *e.src, *e.names, *e.lits, t )
-end function
-
-'' Rewrite every literal token in a freshly produced vector so its index points into
-'' the ONE merged pool. Done at the point tokens enter -- from a file or from a
-'' re-lex -- so nothing downstream has to know which pool a token came from.
-sub MergeLiterals _
-    ( byref e as PpEngine, byref toks as TokenVec, byref from as LiteralVec )
-
-    for i as long = 0 to toks.Count - 1
-        dim as TokenKind k = cast( TokenKind, toks[i].kind )
-        dim as boolean isLit = (k = TK_INT_LIT) orelse (k = TK_FLOAT_LIT) orelse _
-                               (k = TK_STRING_LIT)
-        if isLit = false then continue for
-        dim as long idx = cast( long, toks[i].literal )
-        if idx >= from.Count then continue for
-        (*e.lits).Push( from[idx] )
-        toks[i].literal = cast( ulong, (*e.lits).Count - 1 )
-    next
-end sub
-
-'' Re-lex a piece of text into tokens. Used by ## pasting and by __FB_UNQUOTE__.
-private sub RelexInto _
-    ( byref e as PpEngine, byval raw as string, byval at as SourceLoc, _
-      byref outv as TokenVec )
-
-    dim as FileId vf = e.src->AddVirtual( "<paste>", raw )
-    dim as Lex.Result r
-    Lex.Run( *e.src, vf, *e.names, *e.kw, *e.diags, r )
-    MergeLiterals( e, r.tokens, r.literals )
-    for i as long = 0 to r.tokens.Count - 1
-        dim as Token t = r.tokens[i]
-        if Tk( t ) = TK_EOF then exit for
-        if Tk( t ) = TK_EOL then continue for
-        '' Everything out of here is SYNTHESISED, whatever loc it ends up carrying.
-        t.flags or= TF_SYNTHESISED
-        '' A NUMERIC literal records no text span -- only strings do, because for a
-        '' file token the token's own loc and length already point at the digits. That
-        '' stops being true here: the loc is about to be repointed at the use site, and
-        '' SpellOf would then read one character of the INVOCATION and call it the
-        '' number. Recording the span into the paste buffer keeps the spelling readable
-        '' -- and it must be the SPELLING, not the value, so '&HFF' does not come back
-        '' as '255' through a stringize.
-        ''
-        '' Silent, and it made '#if __FB_ARG_COUNT__( a, b ) = 2' false: the count was
-        '' produced correctly and then read back as whatever byte sat at the use site.
-        dim as boolean isNum = (Tk( t ) = TK_INT_LIT) orelse (Tk( t ) = TK_FLOAT_LIT)
-        if isNum andalso (t.length > 0) then
-            dim as long li = cast( long, t.literal )
-            if (li >= 0) andalso (li < (*e.lits).Count) then
-                dim as Literal ptr lp = @(*e.lits)[li]
-                if lp->textLength = 0 then
-                    dim as DecodedLoc nd = e.src->Decode( t.loc )
-                    lp->textFile = cast( long, nd.file )
-                    lp->textOffset = nd.offset
-                    lp->textLength = t.length
-                end if
-            end if
-        end if
-        '' Point at the USE site, not into the throwaway <paste> buffer: that is
-        '' where the user can actually see something (docs/plan/03 section 6.5).
-        if at <> LOC_NONE then t.loc = at
-        t.flags or= TF_FROM_MACRO
-        outv.Push( t )
-    next
-end sub
+#include once "pp/ppspell.bas"   '' SpellOf, MergeLiterals, RelexInto
 
 #include once "pp/ppjoin.bas"
 

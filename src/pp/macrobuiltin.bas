@@ -506,6 +506,8 @@ end function
 '' line of source: '#x' over 'a   +   b' is "a   +   b" in fbc (audit F-54). Anything else
 '' -- a token an expansion made, a gap across a line, a comment in it -- is one space.
 function GapText_( byref e as PpEngine, byref a as Token, byref b as Token ) as string
+    dim as long ni = PasteNoteOf_( e, b, true )   '' a paste's own gap -- ppspell.bas
+    if (ni >= 0) andalso (len( e.pasteGap[ni] ) > 0) then return e.pasteGap[ni]
     dim as FileId fileA, fileB
     dim as long oa = e.src->LocOffset( a.loc, fileA )
     dim as long ob = e.src->LocOffset( b.loc, fileB )
