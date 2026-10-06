@@ -141,7 +141,11 @@ function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval 
     ga.kind = cast( ubyte, MV_GLOBAL ) : ga.ty = cast( ubyte, MT_PTR ) : ga.id = g
     dim as long skipB = StaticOnceBegin_( c, g, "$bounds" )
     if skipB < 0 then return false
+    '' THE BOUNDS' OWN TEMPORARIES DIE INSIDE THE GUARD: 'static a( 0 to f( T( 1 ) ) )' destroyed
+    '' T( 1 ) again on every later call, where fbc does it once (structs/temp-var-dtors.bas).
+    dim as long bmark = c.udtTemps.Count
     if EmitArrayBounds( c, ga, s->type_, ip, false ) = false then SkipHere( c )
+    ReleaseUdtTemps_( c, bmark )
     StaticOnceEnd_( c, skipB )
     return true
 end function

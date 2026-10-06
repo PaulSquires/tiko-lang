@@ -1,0 +1,9 @@
+'' statics: the bounds of a static dynamic array -- their temporaries die inside the once-guard (structs/temp-var-dtors.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/static-bounds-temp.bas -o tests/codegen/staticboundstemp.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/staticboundstemp.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: +-[1][1]
+'' EXPECT-RUN-OUT:  1 1
