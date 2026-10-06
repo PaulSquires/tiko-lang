@@ -829,6 +829,8 @@ function NarrowToWideTemp_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
 
     if UStrDataArg_( c, e, outv ) then return true   '' already UTF-16 -- see UStrDataArg_
+    dim as longint fzn
+    if StrSwapKind_( c, c.info->TypeOf_( e ), fzn ) = 3 then return FixStrWideTemp_( c, e, fzn, outv )   '' 'string * N'
     dim as MirValue dp
     if ZstrDataOf_( c, e, dp ) = false then return false
     dim as FB.Array( of ulong ) args

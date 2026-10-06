@@ -739,7 +739,7 @@ function LowerCallParts _
                             wantsWPtr = wantsWPtr orelse IsStringType( c, wat )
                             if wantsWPtr = false then
                                 dim as longint wzn
-                                wantsWPtr = (StrSwapKind_( c, wat, wzn ) = 1)
+                                wantsWPtr = (StrSwapKind_( c, wat, wzn ) = 1) orelse (StrSwapKind_( c, wat, wzn ) = 3)   '' 'string * N' too
                             end if
                         end if
                     end if

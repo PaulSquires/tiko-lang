@@ -1070,8 +1070,8 @@ function ZstrDataOf_ _
         '' 'string * 10' handed to a 'byval as zstring ptr', and for the fb_StrToWstr of a
         '' comparison, fbc copies into a TERMINATED temporary, passes that, copies back and
         '' deletes it. tiko passed the unterminated buffer before this change (the borrow
-        '' wrapped it without copying) and passes it after; only the leak is gone. That
-        '' copy is a separate, pre-existing gap.
+        '' wrapped it without copying) and passes it after; only the leak is gone. The
+        '' fb_StrToWstr half now copies -- NarrowToWideTemp_ takes FixStrWideTemp_.
         ''
         '' tiko took fb_StrAllocTempDescF: a POOL slot wrapping that same buffer, so the
         '' pointer value was identical -- and nothing ever gave the slot back. tracks

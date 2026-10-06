@@ -17,6 +17,53 @@ declare function WideConcatStep_ _
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
+'' A 'string * N' TO A NEW WIDE TEMPORARY: copied into a var-length one first, since it is
+'' space-padded and unterminated, then fb_StrToWstr over that copy -- the 'sk = 3' row of
+'' LowerWstrOf below, and NarrowToWideTemp_'s for a 'wstring ptr' argument. 'zn' is the
+'' length StrSwapKind_ gave, already tagged.
+function FixStrWideTemp_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval zn as longint, byref outv as MirValue ) as boolean
+
+    dim as MirValue fa2 = LowerAddr( c, a )
+    if fa2.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long fslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if fslot < 0 then return false
+    dim as MirValue fd
+    fd.kind = cast( ubyte, MV_LOCAL )
+    fd.ty = cast( ubyte, MT_PTR )
+    fd.id = fslot
+    ZeroStrDescriptor( c, fd )
+    dim as FB.Array( of ulong ) faa
+    faa.Push( cast( ulong, fd.kind ) ) : faa.Push( cast( ulong, fd.id ) )
+    faa.Push( cast( ulong, MV_CONST_INT ) )
+    faa.Push( cast( ulong, cast( ulongint, -1 ) ) )
+    faa.Push( cast( ulong, fa2.kind ) ) : faa.Push( cast( ulong, fa2.id ) )
+    '' ALREADY ENCODED: StrSwapKind_ hands back a FIXSTR's length in the tagged
+    '' form, because that is the only form any runtime call wants it in --
+    '' encoding it a second time here would set the tag bit on a value that
+    '' already has it. And it is a 64-BIT constant, so it goes through
+    '' PushStrLen_: pushing it as a ulong truncates the tag away and the runtime
+    '' reads a plain length of 10.
+    PushStrLen_( c, faa, zn )
+    faa.Push( cast( ulong, MV_CONST_INT ) ) : faa.Push( 0 )
+    EmitRtl( c, RTL_STR_ASSIGN, faa )
+    '' Released at the END OF THE STATEMENT, with the other string temporaries.
+    c.strTemps.Push( cast( ulong, fslot ) )
+
+    dim as MirInst ffa
+    ffa.op = cast( ushort, M_FIELD_ADDR )
+    ffa.ty = cast( ubyte, MT_PTR )
+    ffa.a = fd
+    ffa.imm = 0
+    dim as MirValue fpa = Emit( c, ffa )
+    if fpa.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue fraw = LowerExprLoad( c, fpa, MT_PTR )
+    if fraw.kind = cast( ubyte, MV_NONE ) then return false
+    dim as FB.Array( of ulong ) fargs
+    fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
+    return WideConcatStep_( c, fargs, RTL_STR_TO_WSTR, outv )
+end function
+
 function LowerWstrOf _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -224,44 +271,7 @@ function LowerWstrOf _
         '' Without this row 'wstr( fs )' produced nothing, and it takes the enclosing
         '' statement with it: overload/strings_ptr.bas is twelve calls that each pass
         '' one.
-        dim as MirValue fa2 = LowerAddr( c, a )
-        if fa2.kind = cast( ubyte, MV_NONE ) then return false
-        dim as long fslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
-        if fslot < 0 then return false
-        dim as MirValue fd
-        fd.kind = cast( ubyte, MV_LOCAL )
-        fd.ty = cast( ubyte, MT_PTR )
-        fd.id = fslot
-        ZeroStrDescriptor( c, fd )
-        dim as FB.Array( of ulong ) faa
-        faa.Push( cast( ulong, fd.kind ) ) : faa.Push( cast( ulong, fd.id ) )
-        faa.Push( cast( ulong, MV_CONST_INT ) )
-        faa.Push( cast( ulong, cast( ulongint, -1 ) ) )
-        faa.Push( cast( ulong, fa2.kind ) ) : faa.Push( cast( ulong, fa2.id ) )
-        '' ALREADY ENCODED: StrSwapKind_ hands back a FIXSTR's length in the tagged
-        '' form, because that is the only form any runtime call wants it in --
-        '' encoding it a second time here would set the tag bit on a value that
-        '' already has it. And it is a 64-BIT constant, so it goes through
-        '' PushStrLen_: pushing it as a ulong truncates the tag away and the runtime
-        '' reads a plain length of 10.
-        PushStrLen_( c, faa, zn )
-        faa.Push( cast( ulong, MV_CONST_INT ) ) : faa.Push( 0 )
-        EmitRtl( c, RTL_STR_ASSIGN, faa )
-        '' Released at the END OF THE STATEMENT, with the other string temporaries.
-        c.strTemps.Push( cast( ulong, fslot ) )
-
-        dim as MirInst ffa
-        ffa.op = cast( ushort, M_FIELD_ADDR )
-        ffa.ty = cast( ubyte, MT_PTR )
-        ffa.a = fd
-        ffa.imm = 0
-        dim as MirValue fpa = Emit( c, ffa )
-        if fpa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as MirValue fraw = LowerExprLoad( c, fpa, MT_PTR )
-        if fraw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) fargs
-        fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
-        return WideConcatStep_( c, fargs, RTL_STR_TO_WSTR, outv )
+        return FixStrWideTemp_( c, a, zn, outv )
     end if
 
     '' A UDT WITH 'operator cast'. 'wstr( u )' over one whose cast yields a WSTRING is

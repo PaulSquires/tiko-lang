@@ -793,6 +793,8 @@ declare function EmitRtl _
     '' A number or a boolean rendered WIDE, into a statement-lifetime temporary.
     declare function NumberToWideTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function FixStrWideTemp_ _
+        ( byref c as Ctx, byval a as Tko.NodeId, byval zn as longint, byref outv as MirValue ) as boolean
     declare function NarrowToWideTemp_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LitHasUnicodeEscape_ _
