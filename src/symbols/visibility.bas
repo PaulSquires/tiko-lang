@@ -1201,7 +1201,7 @@ private sub Walk_ _
     if k = N_AMBIGUOUS then CheckPtrAssign_( c, id, innerResult ) : CheckArrayAssign_( c, id, innerResult )
     if k = N_RETURN then CheckPtrReturn_( c, id, innerResult ) : CheckArrayReturn_( c, id, innerResult )  '' ptrwarn.bas, arrresult.bas
     if k = N_AMBIGUOUS then CheckConstUdtField_( c, id )
-    if (k = N_AMBIGUOUS) orelse (k = N_RETURN) then CheckStringNumberAssign_( c, id, innerResult )
+    if (k = N_AMBIGUOUS) orelse (k = N_RETURN) then CheckStringNumberAssign_( c, id, innerResult ) : RetypeBareTypeLit_( c, id, innerResult )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
     if k = N_VAR_ITEM then CheckPtrInit_( c, id ) : CheckArrayInit_( c, id )   '' arrresult.bas
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )

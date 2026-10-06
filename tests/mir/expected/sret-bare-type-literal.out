@@ -49,9 +49,10 @@ func ptr F1(ptr $0) {
     call void _ZN8CLASSUDTC1Ev(%2)
     %3 = alloca ptr $tmp1
     call void _ZN8CLASSUDTC1Ev(@$tmp1)
-    %4 = load @$tmp1
-    %5 = load @$tmp0
-    store %5, %4
+    %4 = load @$tmp0
+    %5 = load @$tmp1
+    store %4, %5
+    call void _ZN8CLASSUDTD1Ev(@$tmp1)
     %6 = load @$tmp0
     ret %6
 }
@@ -103,4 +104,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 65 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 6 blocks, 66 insts, 0 statements not lowered, 0 scope imbalance

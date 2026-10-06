@@ -1,0 +1,16 @@
+'' AN UNTARGETED 'type( ... )' TAKES ITS DESTINATION'S TYPE in 'function =', 'return' and '=': over a
+'' type with a constructor the constructor runs -- into a temporary that is copied and destroyed
+'' for '=' -- where tiko filled the field and never called it (fbc's compound/with.bas,
+'' structs/temp-var-dtors.bas). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/typelit-dest-ctor.bas -o tests/codegen/typelitdestctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/typelitdestctor.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [fc0c1d 5 5d 5]
+'' EXPECT-RUN-OUT: [gc1 6d 6]
+'' EXPECT-RUN-OUT: [dimc1 7]
+'' EXPECT-RUN-OUT: [asgc1d 8 8]
+'' EXPECT-RUN-OUT: [argc1h 9d 9]
+'' EXPECT-RUN-OUT: d 8

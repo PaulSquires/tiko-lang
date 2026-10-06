@@ -588,6 +588,46 @@ declare function StrNumMismatch_ _
     ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, _
       byval ln as NodeId, byval rn as NodeId ) as boolean
 
+'' AN UNTARGETED 'type( ... )' TAKES ITS DESTINATION'S TYPE -- the result, for 'function ='
+'' and 'return', and the target for '=' -- as an argument already takes its parameter's
+'' (overload.bas). Check types it bottom-up as an anonymous TUPLE, so a destination with a
+'' CONSTRUCTOR had its field filled and the constructor never ran. Measured on fbc-modern,
+'' over 'constructor( i as integer )' printing c1: 'function = type( i )' runs c1 into a
+'' temporary, copies it and destroys it; 'return type( i )' runs c1 into the result; and
+'' 'x = type( 8 )' the same as 'function ='. Typed as the destination, the literal lowers
+'' as 'type<T>( ... )' does. Only over a type with a constructor or a destructor -- whose
+'' temporary fbc destroys, measured -- a plain field list is
+'' already right, and is left alone.
+private sub RetypeBareTypeLit_ _
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as NodeId v = sp->b
+    dim as TypeId dt = TYPE_NONE
+    if c.ast->Kind( id ) = N_RETURN then
+        v = sp->a
+        dt = resultType
+    elseif cast( TokenKind, sp->op ) <> TK_EQ then
+        return
+    elseif (sp->a <> NODE_NONE) andalso (sp->b <> NODE_NONE) then
+        if (c.ast->Kind( sp->a ) = N_FUNCRESULT) orelse (c.info->AmbiguousOf( id ) = AMB_RESULT) then
+            dt = resultType
+        else
+            dt = c.info->TypeOf_( sp->a )
+        end if
+    end if
+    if (v = NODE_NONE) orelse (dt = TYPE_NONE) then return
+    if c.ast->Kind( v ) <> N_TUPLE then return
+    if (c.ast->nodes[cast( long, v )].flags and NF_TYPE_LITERAL) = 0 then return
+    if c.ast->lists[cast( long, c.ast->nodes[cast( long, v )].data )].target <> NODE_NONE then return
+    if c.types->Kind( dt ) = TK_REFERENCE then dt = c.types->Inner( dt )
+    dt = c.types->Unqualify( dt )
+    if c.types->Kind( dt ) <> TK_UDT then return
+    if Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, dt, "__ctor" ) = SYMBOL_NONE then
+        if Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, dt, "__dtor" ) = SYMBOL_NONE then return
+    end if
+    c.info->SetType( v, dt )
+end sub
+
 private sub CheckStringNumberAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = _
