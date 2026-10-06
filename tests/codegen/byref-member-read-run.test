@@ -1,0 +1,14 @@
+'' A STATIC BYREF MEMBER ('SomeUDT.ri') and a namespace-qualified byref variable ('ns.rj') read as
+'' their referent's type in an expression (fbc's dim/byref2.bas); tiko left them references --
+'' '+' was TKO0820 and a comparison went to clang as a pointer. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/byref-member-read.bas -o tests/codegen/byrefmemberread.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/byrefmemberread.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1              4478311
+'' EXPECT-RUN-OUT:  4478310
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  42           -1
+'' EXPECT-RUN-OUT:  41

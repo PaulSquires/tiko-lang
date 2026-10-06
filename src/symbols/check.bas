@@ -1107,6 +1107,7 @@ private function TypeOfUncached_ _
                 end if
             end if
         end if
+        if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( t ) = Tko.TK_REFERENCE) then t = c.types->Inner( t )   '' 'SomeUDT.ri', 'ns.ri': transparent, as a bare name is (dim/byref2.bas)
 
     case Tko.N_INTRINSIC
         '' 'threadcall f( a )' IS A THREAD HANDLE -- 'any ptr', which is what
