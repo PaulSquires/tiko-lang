@@ -427,6 +427,27 @@ function LowerNew_ _
     '' call, no result, and a function whose 'ret' carried nothing against a signature
     '' returning a pointer -- 'ret void' in a 'func ptr'. fb/sharedptr.bi's
     '' MakeSharedFrom is exactly 'new T( v )'.
+    '' 'new T( type( 123 ) )' -- AN UNNAMED TYPE LITERAL AS THE ONLY ARGUMENT is T's field
+    '' list: the literal takes T, the type being built (pointers/new-delete.bas). Check typed
+    '' it a one-element tuple, so nothing below matched and the statement declined. Its
+    '' elements stand in for the arguments -- for a type with NO constructor only, where
+    '' that is exactly 'new T( 123 )'; a constructed T would also need the copy.
+    if (argCount = 1) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
+        dim as Tko.NodeId tla = cast( Tko.NodeId, c.ast->children[argFirst] )
+        if c.ast->Kind( tla ) = Tko.N_TUPLE then
+            if (c.ast->nodes[cast( long, tla )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+                dim as Tko.ListPayload ptr tlp = _
+                    @c.ast->lists[cast( long, c.ast->nodes[cast( long, tla )].data )]
+                if (tlp->target = Tko.NODE_NONE) andalso (tlp->count >= 1) then
+                    if StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE then
+                        argFirst = tlp->first
+                        argCount = tlp->count
+                    end if
+                end if
+            end if
+        end if
+    end if
+
     dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
     if (argCount > 0) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
         dim as FB.Array( of ulong ) ctArgT

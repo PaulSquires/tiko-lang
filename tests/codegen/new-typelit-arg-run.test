@@ -1,0 +1,10 @@
+'' 'new T( type( 123 ) )' over a type with no constructor: the unnamed literal is T's field
+'' list (fbc's pointers/new-delete.bas); tiko declined it. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-typelit-arg.bas -o tests/codegen/newtypelitarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/newtypelitarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  123            123           1             0             4             5
+'' EXPECT-RUN-OUT:  0
