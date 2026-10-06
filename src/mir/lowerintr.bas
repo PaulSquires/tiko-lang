@@ -292,7 +292,7 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     else
         dim as FB.Array( of ulong ) fargs
         fargs.Push( cast( ulong, p.kind ) ) : fargs.Push( cast( ulong, p.id ) )
-        EmitRtl( c, RTL_FREE, fargs )
+        EmitAllocCall_( c, RTL_FREE, fargs )   '' a program's own 'deallocate' if it has one
     end if
 
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )

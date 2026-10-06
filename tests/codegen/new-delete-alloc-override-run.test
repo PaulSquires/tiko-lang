@@ -1,0 +1,10 @@
+'' new and delete call the program's own global allocate / callocate / deallocate when it defines
+'' them, as fbc does after fbc-int/memory.bi's #undef (fbc-int/memory.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-delete-alloc-override.bas -o tests/codegen/newdeleteallocoverride.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/newdeleteallocoverride.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              2             3

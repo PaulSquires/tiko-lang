@@ -139,12 +139,12 @@ private function LowerNewArray_ _
         elseif noInit then
             dim as FB.Array( of ulong ) ma
             ma.Push( cast( ulong, bytes_.kind ) ) : ma.Push( cast( ulong, bytes_.id ) )
-            raw = EmitRtl( c, RTL_MALLOC, ma )
+            raw = EmitAllocCall_( c, RTL_MALLOC, ma )
         else
             dim as FB.Array( of ulong ) aa
             aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-            raw = EmitRtl( c, RTL_CALLOC, aa )
+            raw = EmitAllocCall_( c, RTL_CALLOC, aa )
         end if
     end if
     if raw.kind = cast( ubyte, MV_NONE ) then return false
@@ -427,14 +427,14 @@ function LowerNew_ _
             '' 'new T( any )': malloc( bytes ), which zeroes nothing.
             dim as FB.Array( of ulong ) ma
             ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, esz ) )
-            raw = EmitRtl( c, RTL_MALLOC, ma )
+            raw = EmitAllocCall_( c, RTL_MALLOC, ma )
         else
             '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
             '' passes 1, folding the whole size into the first -- not the other way round.
             dim as FB.Array( of ulong ) aa
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
-            raw = EmitRtl( c, RTL_CALLOC, aa )
+            raw = EmitAllocCall_( c, RTL_CALLOC, aa )
         end if
     end if
     if raw.kind = cast( ubyte, MV_NONE ) then return false
@@ -820,9 +820,41 @@ function LowerDeleteArray_ _
     if opDel <> Tko.SYMBOL_NONE then
         EmitDirectCall_( c, opDel, MT_VOID, da )
     else
-        EmitRtl( c, RTL_FREE, da )
+        EmitAllocCall_( c, RTL_FREE, da )
     end if
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
     c.curBlock = joinB
     return true
+end function
+
+'' NEW AND DELETE CALL THE PROGRAM'S OWN GLOBAL 'allocate', 'callocate' AND 'deallocate' when it
+'' defines them: fbc emits 'CALLOCATE( 8ull, 1ull )' and 'DEALLOCATE( p )' over a program that
+'' replaces them (fbc-int/memory.bas -- fbc-int/memory.bi #undef's the runtime spellings so a
+'' program can). The arguments are the runtime call's, unchanged. A declaration from the prelude
+'' or a builtin is not a replacement.
+private function AllocOverride_( byref c as Ctx, byval nm as string ) as Tko.SymbolId
+    dim as Tko.InternId fn = c.names->Fold( c.names->GetString( nm ) )
+    dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
+    if c.modScope <> Tko.SCOPE_NONE then sid = c.syms->LookupLocal( c.modScope, fn )
+    if sid = Tko.SYMBOL_NONE then sid = c.syms->LookupLocal( Tko.SCOPE_GLOBAL, fn )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if (s = 0) orelse (s->kind <> cast( ubyte, Tko.SYM_PROC )) orelse ((s->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.SYMBOL_NONE
+    dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( c.srcMgr->Decode( s->loc ).file )
+    if (sf = 0) orelse sf->isVirtual then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
+    return sid
+end function
+
+function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
+    dim as string nm
+    select case r
+    case RTL_CALLOC : nm = "callocate"
+    case RTL_MALLOC : nm = "allocate"
+    case RTL_FREE   : nm = "deallocate"
+    end select
+    dim as Tko.SymbolId ov = Tko.SYMBOL_NONE
+    if len( nm ) > 0 then ov = AllocOverride_( c, nm )
+    if ov <> Tko.SYMBOL_NONE then return EmitDirectCall_( c, ov, iif( r = RTL_FREE, MT_VOID, MT_PTR ), args )
+    return EmitRtl( c, r, args )
 end function
