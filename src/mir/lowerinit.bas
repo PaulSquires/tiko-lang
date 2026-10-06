@@ -240,12 +240,18 @@ function LowerByrefResult_ _
                     if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) = "wstr" then
                         dim as Tko.NodeId inner_ = _
                             Unparen_( c, cast( Tko.NodeId, c.ast->children[wp->first] ) )
-                        if c.ast->Kind( inner_ ) = Tko.N_STRING_LIT then lv = inner_
+                        '' ...but WIDE: fbc stores L"also good", and the narrow bytes read as a
+                        '' wstring were garbage (functions/return-byref.bas f8).
+                        dim as long wch_ = 0
+                        dim as long wg_ = iif( c.ast->Kind( inner_ ) = Tko.N_STRING_LIT, WideLitGlobal_( c, inner_, wch_ ), -1 )
+                        if wg_ >= 0 then
+                            bav.kind = cast( ubyte, MV_GLOBAL ) : bav.ty = cast( ubyte, MT_PTR ) : bav.id = wg_
+                        end if
                     end if
                 end if
             end if
         end if
-        if c.ast->Kind( lv ) = Tko.N_STRING_LIT then
+        if (bav.kind = cast( ubyte, MV_NONE )) andalso (c.ast->Kind( lv ) = Tko.N_STRING_LIT) then
             bav = LowerStringLitAddr( c, lv )
         end if
     end if
