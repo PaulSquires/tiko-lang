@@ -1085,28 +1085,55 @@ end function
 function UStrParamArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outv as MirValue ) as boolean
+    dim as FB.Array( of ulong ) tt
+    return UStrRefArg_( c, argNode, pt, outv, c.strTemps, tt, c.strBackNode, c.strBackSlot )
+end function
 
-    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
+'' THE ONE 'byref as ustring' ENCODER (audit G3) -- the USTRING twin of NarrowRefStrArg_, for a
+'' call, a constructor, an operator and a self-operator alike. Four shapes need a temporary;
+'' everything else is a ustring that owns its descriptor and passes it. Measured, fbc:
+''
+''   wide           vr = fb_WstrToUStr( W ); fb_UStrAssign( &TMP, -1, vr, -1, 0 ) ...
+''                  fb_UStrAssignToW( W, 8, &TMP, -1 )                  (a sized lvalue)
+''   narrow         fb_UStrAssignFromA( &TMP, -1, &S, -1, 0, 0 ) ...
+''                  fb_UStrAssignToA( &S, -1, &TMP, -1, 0, 0 )          (UStrBackPush_)
+''   'ustring * N'  fb_UStrAssign( &TMP, -1, UF, <tag>, 0 ) ...
+''                  fb_UStrAssign( UF, <tag>, &TMP, -1, -1 )            (FixedUStrArgTemp_)
+''   ustring rvalue a copy, deleted after the call -- any chain (UStrResultArgTemp_)
+''
+'' The call path had all four and the others only two, so a constructor handed a 'ustring * N'
+'' got the raw UTF-16 buffer where an FBUSTRING* belongs and the program died
+'' (tka-probes/phase4/t_strargs6.bas). The ORDER is the call path's, measured one arm at a time:
+'' 'UTake( a & b )' over two ustrings has no type and must reach the rvalue arm, not the narrow
+'' one -- NarrowStrArg_ asks the terms. The caller passes its own lists (see NarrowRefStrArg_).
+function UStrRefArg_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, _
+      byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), _
+      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean
+
+    if (e = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
     if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
     if IsUStringType( c, pu ) = false then return false
     dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
     dim as long slot = -1
-    '' A USTRING RVALUE IS COPIED, as at a call -- UStrResultArgTemp_. Measured,
-    '' 'Val( ucase( u ) )' and 'Val( u & "!" )' over 'constructor( byref t as ustring )'
-    '' printed ' 4 [ROOM]' and ' 5 [room!]' under fbc and ' 0 []' under tiko:
-    '' test_functions' 'DbValue( ucase( cell.AsText( ) ) & "!" )' returned "".
-    if NarrowStrArg_( c, argNode ) = false then
-        if UStrResultArgTemp_( c, argNode, ut, outv, slot ) = false then return false
-    elseif ByvalStrTemp_( c, argNode, ut, outv, slot ) = false then
+    dim as boolean back = true
+    dim as boolean wideSrc = IsWideString_( c, c.info->TypeOf_( e ) ) orelse ConcatHasWideTerm_( c, e ) orelse LitHasUnicodeEscape_( c, e )
+    if wideSrc orelse NarrowStrArg_( c, e ) then
+        if ByvalStrTemp_( c, e, ut, outv, slot ) = false then return false
+    elseif FixedUStrArgTemp_( c, e, outv, slot ) then
+        if slot >= 0 then backN.Push( cast( ulong, e ) ) : backS.Push( cast( ulong, slot ) )
+        back = false
+    elseif UStrResultArgTemp_( c, e, ut, outv, slot, true ) then
+        back = false
+    else
         return false
     end if
     if slot >= 0 then
         c.f->locals[slot].frontendType = ut
-        c.strTemps.Push( cast( ulong, slot ) )
-        '' ...AND A NARROW OR WIDE LVALUE GETS THE CALLEE'S WRITE BACK, as at a call: measured,
-        '' fbc copies back after a constructor and after '+=' alike -- see UStrBackPush_.
-        UStrBackPush_( c, argNode, slot, c.strBackNode, c.strBackSlot )
+        temps.Push( cast( ulong, slot ) )
+        tempTypes.Push( cast( ulong, ut ) )
+        if back then UStrBackPush_( c, e, slot, backN, backS )
     end if
     return true
 end function

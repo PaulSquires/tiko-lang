@@ -495,7 +495,7 @@ declare function EmitRtl _
     '' the ustring temporary fbc builds first. False when neither applies. lowerstrargs.bas.
     declare function UStrParamArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outv as MirValue ) as boolean
+          byref outv as MirValue ) as boolean : declare function UStrRefArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean
     '' ...and its narrow twin, for a 'byref as string' parameter. lowerstrargs.bas.
     declare function NarrowParamArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _

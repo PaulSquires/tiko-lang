@@ -449,81 +449,21 @@ function LowerCallParts _
             '' ...AND SO IS A LITERAL WITH A UNICODE ESCAPE (T90), which is typed narrow
             '' but is wide -- see TermIsWide_. Passed as its own descriptor, the callee got
             '' the escape's SPELLING, '\u00E4b' as seven narrow bytes, read as UTF-16.
-            if IsWideString_( c, c.info->TypeOf_( argNode ) ) orelse _
+            '' A USTRING PARAMETER: UStrRefArg_, the one encoder every path shares -- its wide,
+            '' narrow, 'ustring * N' and rvalue arms, measured one at a time, were these arms.
+            dim as boolean uParam = IsUStringType( c, ArgParamType_( c, callee, calleeSigT, i + pbase ) )
+            if uParam then
+                UStrRefArg_( c, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot )
+            elseif IsWideString_( c, c.info->TypeOf_( argNode ) ) orelse _
                ConcatHasWideTerm_( c, argNode ) orelse LitHasUnicodeEscape_( c, argNode ) then
                 dim as Tko.TypeId wsp = c.types->Builtin( Tko.TY_STRING )
-                if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, _
-                                                    i + pbase ) ) then
-                    wsp = c.types->Builtin( Tko.TY_USTRING )
-                end if
                 if ByvalStrTemp_( c, argNode, wsp, a, tempSlot ) then
                     strTemps.Push( cast( ulong, tempSlot ) )
                     strTempTypes.Push( cast( ulong, wsp ) )
-                    '' ...AND COPIED BACK into a 'wstring * N' (CopyBackUStrArgs_; param-string-copyback.bas).
-                    if IsUStringType( c, wsp ) = false then ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) ) else UStrBackPush_( c, argNode, tempSlot, ustrBackNode, ustrBackSlot )
-                end if
-            end if
-            '' A NARROW ARGUMENT AGAINST A USTRING PARAMETER IS ALSO A TEMPORARY.
-            ''
-            '' The wide arm above owns a wide source and the fixed arm below owns a
-            '' 'ustring * N'; a plain narrow one -- a literal, a 'string' variable, a
-            '' concatenation of them -- owned by neither, fell to StrDescriptorOf_ and
-            '' had its NARROW descriptor's address passed where an FBUSTRING* belongs.
-            '' The two descriptors are the same 24 bytes, so it linked and verified and
-            '' the callee read UTF-16 out of a narrow buffer. Measured against fbc, the
-            '' three narrow rows of the probe answered 'false' where fbc answers 'true'.
-            ''
-            '' ORDER IS THE WHOLE FIX, and the reason the earlier attempts broke
-            '' 'UTake( a & b )': a concatenation of two USTRINGS has no type of its own,
-            '' so a test built on 'the parameter is ustring' alone swallowed it and
-            '' converted it as narrow. NarrowStrArg_ asks the TERMS instead, and that
-            '' case reaches StrDescriptorOf_ below exactly as it did.
-            if a.kind = cast( ubyte, MV_NONE ) then
-                if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, _
-                                                    i + pbase ) ) andalso _
-                   NarrowStrArg_( c, argNode ) then
-                    dim as Tko.TypeId nsp = c.types->Builtin( Tko.TY_USTRING )
-                    if ByvalStrTemp_( c, argNode, nsp, a, tempSlot ) then
-                        strTemps.Push( cast( ulong, tempSlot ) )
-                        strTempTypes.Push( cast( ulong, nsp ) ) : UStrBackPush_( c, argNode, tempSlot, ustrBackNode, ustrBackSlot )
-                    end if
+                    ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) )
                 end if
             end if
             if a.kind = cast( ubyte, MV_NONE ) then RuntimeUStrNarrowArg_( c, callee, argNode, ArgParamType_( c, callee, calleeSigT, i + pbase ), a )
-            '' A FIXED 'ustring * N' AGAINST A BYREF USTRING IS A COPY, not an
-            '' address. There is no ustring temp-descriptor borrow in the
-            '' runtime at all -- libfb has fb_StrAllocTempDescF and no
-            '' fb_UStrAllocTempDescF -- so fbc copies IN, calls, copies BACK
-            '' and deletes. Measured, for 'G( uf )' over a 'byref as const
-            '' ustring':
-            ''
-            ''   memset( &TMP, 0, 24 )
-            ''   fb_UStrAssign( &TMP, -1, UF, <tag>, 0 )
-            ''   G( &TMP )
-            ''   fb_UStrAssign( UF, <tag>, &TMP, -1, -1 )
-            ''   fb_UStrDelete( &TMP )
-            ''
-            '' tiko-lang passed '@uf' -- the raw uint16 buffer where an
-            '' FBUSTRING* belongs -- and the callee read the first eight bytes
-            '' of the TEXT as a data pointer. It lowered and it verified.
-            if a.kind = cast( ubyte, MV_NONE ) then
-                if IsUStringType( c, ArgParamType_( c, callee, calleeSigT, i + pbase ) ) andalso FixedUStrArgTemp_( c, argNode, a, tempSlot ) then
-                    strTemps.Push( cast( ulong, tempSlot ) )
-                    strTempTypes.Push( cast( ulong, _
-                        c.types->Builtin( Tko.TY_USTRING ) ) )
-                    ustrBackNode.Push( cast( ulong, argNode ) )
-                    ustrBackSlot.Push( cast( ulong, tempSlot ) )
-                end if
-            end if
-            '' A USTRING CALL RESULT IS COPIED, CALLED ON AND DELETED -- UStrResultArgTemp_.
-            '' ANY CHAIN, all-UTF-16 too: 'dumpu( left( u, 3 ) & right( u, 2 ) )' handed the
-            '' callee the concatenation's TEMPORARY descriptor, which its first 'len( u )'
-            '' consumed -- fbc prints '5: 5: [ABCFG]', tiko '5: 0: []' -- and leaked it.
-            if (a.kind = cast( ubyte, MV_NONE )) andalso UStrResultArgTemp_( c, argNode, _
-                    ArgParamType_( c, callee, calleeSigT, i + pbase ), a, tempSlot, true ) then
-                strTemps.Push( cast( ulong, tempSlot ) )
-                strTempTypes.Push( cast( ulong, c.types->Builtin( Tko.TY_USTRING ) ) )
-            end if
             '' EVERY OTHER SHAPE IS A TEMPORARY -- see StrArgOwnDescriptor_ for the
             '' probe. Only a var-length string LVALUE passes its own descriptor; a
             '' literal, a fixed-length string, a concatenation, a function result

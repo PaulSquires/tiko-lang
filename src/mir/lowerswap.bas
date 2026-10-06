@@ -914,6 +914,9 @@ function LowerUserBinaryOp_ _
         args.Push( cast( ulong, sretTmp.id ) )
     end if
     dim as long firstArg = 0
+    '' AN OPERAND'S COPY-BACK FOLLOWS THE OPERATOR CALL, not the statement: measured, fbc
+    '' prints 'uf=[A]' for 'print a & uf; uf' over an operator that writes 'byref as ustring'.
+    dim as long cbMark = c.strTemps.Count
     if ptypes.Count = 1 then
         '' The RECEIVER is the left operand, by address.
         dim as MirValue self_ = LowerAddr( c, bp->lhs )
@@ -935,6 +938,7 @@ function LowerUserBinaryOp_ _
     if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )
 
     outv = EmitDirectCall_( c, op, rmt, args, usesSret )
+    FlushStrCopyBacks( c, cbMark )
     '' A CONVERTED OPERAND'S TEMPORARY is a statement temporary -- see ByvalUdtCopyArg_.
     '' fbc's '_ZN2TUD1Ev( &TMP$2$0 )' on the line after the call was an operator at the
     '' top of its statement; 'print ( w1 + 9 ) + cnt( ); cnt( )' prints ' 10[~W9] 1'.
@@ -1043,10 +1047,12 @@ function LowerCompoundUserOp_ _
         args.Push( cast( ulong, lv.kind ) ) : args.Push( cast( ulong, lv.id ) )
     end if
     if ptypes.Count = 2 then firstArg = 1
+    dim as long cbMark = c.strTemps.Count   '' the operand's copy-back follows the call
     if OperandValue_( c, value, cast( Tko.TypeId, ptypes[firstArg] ), _
                       (prefs[firstArg] <> 0), args ) = false then return false
     if usesSret then SretResultSlotAfter_( c, ot, sretTmp.id )
     dim as MirValue res = EmitDirectCall_( c, op, rmt, args, usesSret )
+    FlushStrCopyBacks( c, cbMark )
     if res.kind = cast( ubyte, MV_NONE ) then return false
 
     if udtTarget = false then
@@ -1167,11 +1173,13 @@ function LowerUserUnaryOpSym_ _
             args.Push( cast( ulong, sretTmp.kind ) ) : args.Push( cast( ulong, sretTmp.id ) )
         end if
     end if
+    dim as long cbMark = c.strTemps.Count   '' the operand's copy-back follows the call
     if OperandValue_( c, operand, pt, isRef, args ) = false then
         return false
     end if
     if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )
     outv = EmitDirectCall_( c, op, rmt, args, usesSret )
+    FlushStrCopyBacks( c, cbMark )
     if usesSret then
         '' The RESULT IS THE TEMPORARY'S ADDRESS, exactly as for the binary operator.
         if outv.kind = cast( ubyte, MV_NONE ) then return false
@@ -1221,6 +1229,12 @@ private function OperandValue_ _
         '' re-lowered the left side, and tracks' DateInsertHyphens returned garbage.
         '' NarrowRefStrArg_ owns both, and the copy-back fbc emits after the operator.
         if narrowStr andalso NarrowParamArgTemp_( c, e, snu, v ) then
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+            return true
+        end if
+        '' ...AND THE USTRING TWIN, UStrRefArg_: 'a & uf' over 'operator &( byref as T, byref as
+        '' ustring )' handed the operator the 'ustring * N' buffer as an FBUSTRING* and crashed.
+        if UStrParamArgTemp_( c, e, pt, v ) then
             args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
             return true
         end if

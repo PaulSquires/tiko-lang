@@ -1,0 +1,14 @@
+'' One byref-ustring rule on every path (UStrRefArg_): a ustring*N or wide argument to a constructor,
+'' a += operator and a binary operator is copied in and back, the binary operator's copy-back right
+'' after its call. The constructor and operator paths handed over the raw UTF-16 buffer and crashed.
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/strarg-ustring-ref-paths.bas -o tests/codegen/strargustringrefpaths.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/strargustringrefpaths.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor uf: [uf] uf=[C]
+'' EXPECT-RUN-OUT: op uf: [u2] uf=[O]
+'' EXPECT-RUN-OUT: ctor w: [ww]
+'' EXPECT-RUN-OUT: cat: [u2&A] uf=[A]
