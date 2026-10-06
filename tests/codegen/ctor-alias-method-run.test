@@ -1,0 +1,9 @@
+'' mangling: an aliased constructor/destructor is the method its alias names (structs/ctor_alias.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/ctor-alias-method.bas -o tests/codegen/ctoraliasmethod.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ctoraliasmethod.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              0
+'' EXPECT-RUN-OUT:  1             1

@@ -1062,8 +1062,11 @@ private function ProcNameCore _
     end if
 
     dim as ushort kw = sp->op
-    dim as boolean isCtor = (kw = cast( ushort, Tko.KW_CONSTRUCTOR ))
-    dim as boolean isDtor = (kw = cast( ushort, Tko.KW_DESTRUCTOR ))
+    '' AN ALIASED STRUCTOR IS THE METHOD IT NAMES: 'declare constructor cdecl alias "init"( )' beside
+    '' 'declare sub init cdecl alias "init"( )' is fbc's one _ZN3UDT4initEv, the sub's body serving
+    '' both -- the constructor has none of its own (structs/ctor_alias.bas).
+    dim as boolean isCtor = (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) andalso (aliased = false)
+    dim as boolean isDtor = (kw = cast( ushort, Tko.KW_DESTRUCTOR )) andalso (aliased = false)
     '' ...BUT AN ALIASED PROPERTY TAKES THE ALIAS ALONE. The suffix is what fbc uses
     '' when it has to invent a name; an alias IS the name, and appending to it names
     '' something that does not exist. Measured over structs/obj_property_alias.bas,
