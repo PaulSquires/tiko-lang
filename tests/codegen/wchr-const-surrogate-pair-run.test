@@ -1,0 +1,11 @@
+'' A constant 'wchr' above the BMP folds to a surrogate pair, as fbc folds it: wchr( &h10FFFF ) is
+'' &hDBFF &hDFFF; a variable code still goes to the runtime, which truncates (string/wchr-surrogate.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/wchr-const-surrogate-pair.bas -o tests/codegen/wchrconstsurrogatepair.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/wchrconstsurrogatepair.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2             DBFF          DFFF
+'' EXPECT-RUN-OUT:  2            D83D          DE00
+'' EXPECT-RUN-OUT:  1            FFFF

@@ -1021,10 +1021,17 @@ private function WideLitUnits_ _
         for i as long = 0 to wcp->count - 1
             dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wcp->first + i] )
             dim as Tko.Check.ConstVal wv = Tko.Check.ConstOf( _
-                *c.ast, wa, *c.srcMgr, *c.names, 64, c.syms, Tko.SCOPE_GLOBAL )
+                *c.ast, wa, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, iif( c.info->ScopeOf( id ) <> Tko.SCOPE_NONE, c.info->ScopeOf( id ), Tko.SCOPE_GLOBAL ) )
             if wv.known = false then return false
-            if (wv.value < 0) orelse (wv.value > 65535) then return false
-            outUnits.Push( cast( ulong, wv.value ) )
+            if (wv.value < 0) orelse (wv.value > &h10FFFF) then return false
+            '' ABOVE THE BMP, A SURROGATE PAIR where wchar is two bytes: fbc folds 'wchr( &h10FFFF )' to
+            '' &hDBFF &hDFFF (string/wchr-surrogate.bas); the runtime call truncated it to &hFFFF.
+            if (wv.value > 65535) andalso (c.types->target.wcharBytes = 2) then
+                outUnits.Push( cast( ulong, &hD800 + ((wv.value - &h10000) shr 10) ) )
+                outUnits.Push( cast( ulong, &hDC00 + ((wv.value - &h10000) and &h3FF) ) )
+            else
+                outUnits.Push( cast( ulong, wv.value ) )
+            end if
             '' The MERGE KEY, and it has to separate two literals with different
             '' units -- AddWideStringUnits dedups on this text, not on the units.
             wkey += "\u" & hex( cast( long, wv.value ), 4 )
@@ -1305,31 +1312,11 @@ function LowerWideRvalue _
         '' nothing. Emitting fb_WstrChr instead is a wide temporary the caller owns
         '' and nothing here deletes -- a leak per execution where fbc has a static
         '' global.
-        dim as boolean allConst = true
+        '' THE FOLD IS WideLitUnits_'s, surrogate pairs above the BMP included (string/wchr-surrogate.bas).
         dim as string wtx
         dim as FB.Array( of ulong ) wus
-        for i as long = 0 to cp->count - 1
-            dim as Tko.NodeId kn = cast( Tko.NodeId, c.ast->children[cp->first + i] )
-            dim as Tko.Check.ConstVal kv = Tko.Check.ConstOf( _
-                *c.ast, kn, *c.srcMgr, *c.names, c.types->target.pointerBits, _
-                c.syms, c.info->ScopeOf( value ) )
-            if kv.known = false then
-                allConst = false
-                exit for
-            end if
-            if (kv.value < 0) orelse (kv.value > 65535) then
-                allConst = false
-                exit for
-            end if
-            wus.Push( cast( ulong, kv.value ) )
-            '' The TEXT is the pool's key and only that: two literals with the same
-            '' units must share one global, and the units decide what is emitted.
-            wtx += chr( cast( long, kv.value ) and &hFF )
-            wtx += chr( (cast( long, kv.value ) shr 8) and &hFF )
-        next
-        if allConst then
-            outv.kind = cast( ubyte, MV_GLOBAL )
-            outv.ty = cast( ubyte, MT_PTR )
+        if WideLitUnits_( c, value, wtx, wus ) then
+            outv.kind = cast( ubyte, MV_GLOBAL ) : outv.ty = cast( ubyte, MT_PTR )
             outv.id = c.m->AddWideStringUnits( wtx, wus, *c.names )
             return true
         end if
