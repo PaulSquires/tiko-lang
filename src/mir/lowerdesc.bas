@@ -251,6 +251,8 @@ function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     np += 1
                     only = c.info->TypeOf_( prm )
+                    '' ...OR ITS TYPE REFERENCE: an UNNAMED 'constructor( byref as UDT )' types no N_PARAM (ctor_byval.bas).
+                    if only = Tko.TYPE_NONE then only = c.info->TypeOf_( StmtOf( c, prm )->a )
                 next
                 if np = 1 then
                     dim as Tko.TypeId bare = only
