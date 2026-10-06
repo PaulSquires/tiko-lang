@@ -12,7 +12,7 @@ func void _ZN1T2STEv() {
   entry0:
     ret
 }
-func void _ZN1T2CNEv(ptr $0) {
+func void _ZNK1T2CNEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

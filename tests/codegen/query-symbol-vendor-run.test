@@ -2,9 +2,8 @@
 '' running: TKO0770 on the reserved name it queries; the reserved class answered 0; and,
 '' in this Debug build, an abort in StmtCall_ (latesweeps4.bas), which took a STATEMENT
 '' payload for every node and read past 'stmts' -- out of bounds once the index met the
-'' vector's capacity. 355 of its 357 asserts pass; the two that do not ask for
-'' FB_SYMBCLASS_KEYWORD of 'integer' (line 84) and FB_SYMBCLASS_FWDREF (line 116), which
-'' are not answered yet -- and are why the runner exits 1.
+'' vector's capacity. All 357 asserts pass since FB_SYMBCLASS_KEYWORD (line 84) and
+'' FB_SYMBCLASS_FWDREF (line 116) are answered (afc9d179).
 '' TEST: cli
 '' ARGS: -target win64-msvc -m fbc-tests tests/vendor/fbc-tests/fbc-tests.bas tests/vendor/fbc-tests/fbc-int/query-symbol.bas -o tests/codegen/qsymvendor.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -12,5 +11,5 @@
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0770
 '' RUN: tests/codegen/qsymvendor.exe
-'' EXPECT-RUN-EXIT: 1
-'' EXPECT-RUN-OUT:      357       355         2  fbc_tests.fbc_int.query_symbol                 3
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:      357       357         0  fbc_tests.fbc_int.query_symbol                 3

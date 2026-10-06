@@ -92,55 +92,58 @@ func i32 main(i32 $0, ptr $1) {
     store %70, %65
     %71 = field.addr %60, 12
     store %71, %67
-    %72 = const i64 0
-    %73 = const i64 16
-    %74 = mul %72, %73
-    %75 = ptr.add @ar2, %74
-    %76 = field.addr %75, 0
-    %77 = load %76
-    call.rtl void fb_PrintLongint(0, %77, 2)
-    %78 = const i64 0
-    %79 = const i64 16
-    %80 = mul %78, %79
-    %81 = ptr.add @ar2, %80
-    %82 = field.addr %81, 8
-    %83 = const i64 0
-    %84 = const i64 2
-    %85 = mul %83, %84
-    %86 = ptr.add %82, %85
-    %87 = load %86
-    call.rtl void fb_PrintShort(0, %87, 2)
-    %88 = const i64 0
-    %89 = const i64 16
-    %90 = mul %88, %89
-    %91 = ptr.add @ar2, %90
-    %92 = field.addr %91, 8
-    %93 = const i64 1
-    %94 = const i64 2
-    %95 = mul %93, %94
-    %96 = ptr.add %92, %95
-    %97 = load %96
-    call.rtl void fb_PrintShort(0, %97, 2)
-    %98 = const i64 0
-    %99 = const i64 16
-    %100 = mul %98, %99
-    %101 = ptr.add @ar2, %100
-    %102 = field.addr %101, 8
-    %103 = const i64 2
-    %104 = const i64 2
-    %105 = mul %103, %104
-    %106 = ptr.add %102, %105
-    %107 = load %106
-    call.rtl void fb_PrintShort(0, %107, 1)
-    %108 = const i32 0
-    call.rtl void fb_End(%108)
-    %109 = load @$tmp0
-    ret %109
+    %72 = field.addr @ar2, 16
+    %73 = call.rtl ptr memset(%72, 0, 16)
+    %74 = const i64 0
+    %75 = const i64 16
+    %76 = mul %74, %75
+    %77 = ptr.add @ar2, %76
+    %78 = field.addr %77, 0
+    %79 = load %78
+    call.rtl void fb_PrintLongint(0, %79, 2)
+    %80 = const i64 0
+    %81 = const i64 16
+    %82 = mul %80, %81
+    %83 = ptr.add @ar2, %82
+    %84 = field.addr %83, 8
+    %85 = const i64 0
+    %86 = const i64 2
+    %87 = mul %85, %86
+    %88 = ptr.add %84, %87
+    %89 = load %88
+    call.rtl void fb_PrintShort(0, %89, 2)
+    %90 = const i64 0
+    %91 = const i64 16
+    %92 = mul %90, %91
+    %93 = ptr.add @ar2, %92
+    %94 = field.addr %93, 8
+    %95 = const i64 1
+    %96 = const i64 2
+    %97 = mul %95, %96
+    %98 = ptr.add %94, %97
+    %99 = load %98
+    call.rtl void fb_PrintShort(0, %99, 2)
+    %100 = const i64 0
+    %101 = const i64 16
+    %102 = mul %100, %101
+    %103 = ptr.add @ar2, %102
+    %104 = field.addr %103, 8
+    %105 = const i64 2
+    %106 = const i64 2
+    %107 = mul %105, %106
+    %108 = ptr.add %104, %107
+    %109 = load %108
+    call.rtl void fb_PrintShort(0, %109, 1)
+    %110 = const i32 0
+    call.rtl void fb_End(%110)
+    %111 = load @$tmp0
+    ret %111
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintByte(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintShort(i32 $0, i16 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 132 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 1 functions, 1 blocks, 134 insts, 0 statements not lowered, 0 scope imbalance

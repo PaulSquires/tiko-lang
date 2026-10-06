@@ -16,7 +16,7 @@ func void _ZN1AD1Ev(ptr $0) {
     store @this, $0
     ret
 }
-func void _ZN1BC1Ev(ptr $0) {
+func void _ZN1B6b_initEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -26,7 +26,7 @@ func void _ZN1BC1Ev(ptr $0) {
     %4 = call.rtl ptr memset(%3, 0, 4)
     ret
 }
-func void _ZN1BD1Ev(ptr $0) {
+func void _ZN1B6b_doneEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this
@@ -51,7 +51,7 @@ func void GO() {
     %1 = alloca ptr va
     call void _ZN1AC1Ev(@va)
     %2 = alloca ptr vb
-    call void _ZN1BC1Ev(@vb)
+    call void _ZN1B6b_initEv(@vb)
     %3 = alloca ptr vc
     call void _ZN1CC1Ev(@vc)
     %4 = field.addr @va, 0
@@ -63,7 +63,7 @@ func void GO() {
     %8 = field.addr @vc, 0
     %9 = load %8
     call.rtl void fb_PrintInt(0, %9, 1)
-    call void _ZN1BD1Ev(@vb)
+    call void _ZN1B6b_doneEv(@vb)
     call void _ZN1AD1Ev(@va)
     ret
 }
