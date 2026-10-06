@@ -538,12 +538,12 @@ function LowerCallParts _
                 if (IsUStringType( c, spt ) = false) andalso _
                    (RuntimeEntryCallee_( c, callee ) = false) then
                     dim as longint ufn_ : dim as boolean ufArg = (StrSwapKind_( c, c.info->TypeOf_( argNode ), ufn_ ) = 4)   '' 'ustring * N': fb_UStrToStr, NO copy-back (fbc)
-                    if ufArg orelse (StrArgOwnDescriptor_( c, argNode, spt ) = false) then
+                    if NarrowRefStrArg_( c, argNode, spt, a, strTemps, strTempTypes, ustrBackNode, ustrBackSlot ) then
+                    elseif ufArg then
                         dim as Tko.TypeId npt = c.types->Builtin( Tko.TY_STRING )
                         if ByvalStrTemp_( c, argNode, npt, a, tempSlot ) then
                             strTemps.Push( cast( ulong, tempSlot ) )
                             strTempTypes.Push( cast( ulong, npt ) )
-                            if ufArg = false then ustrBackNode.Push( cast( ulong, argNode ) ) : ustrBackSlot.Push( cast( ulong, tempSlot ) )
                         end if
                     end if
                 end if

@@ -96,21 +96,8 @@ private function CtorArgValue_ _
             '' the module, and 'd = wstr( "xy" )' passed the wide literal's address and printed
             '' nothing. Measured, fbc converts into a temporary and deletes it after the call:
             ''     fb_WstrAssignToA( &TMP$4$0, -1ll, W$0, 0 ); _ZN3DWSaSER8FBSTRING( &D$0, &TMP$4$0 )
-            dim as boolean ownDesc = true
-            if narrowStrParam then
-                ownDesc = StrArgOwnDescriptor_( c, argNode, snu )
-                if ownDesc then ownDesc = (TermIsWide_( c, argNode ) = false)
-            end if
-            if narrowStrParam andalso (ownDesc = false) then
-                dim as long sslot = -1
-                if ByvalStrTemp_( c, argNode, snu, outv, sslot ) then
-                    if sslot >= 0 then
-                        c.f->locals[sslot].frontendType = snu
-                        c.strTemps.Push( cast( ulong, sslot ) )
-                    end if
-                    return true
-                end if
-            end if
+            '' NarrowRefStrArg_ decides, builds and registers the copy-back FlushStrCopyBacks emits.
+            if narrowStrParam andalso NarrowParamArgTemp_( c, argNode, snu, outv ) then return true
         end scope
         if IsStringType( c, u ) then
             if StrDescriptorOf_( c, argNode, outv ) then return true
@@ -428,11 +415,8 @@ function LowerConvCtorInit_ _
     if tookAddr then
     elseif fromArray then
         av = adv
-    elseif CtorArgValue_( c, init_, pt, av ) = false then
+    elseif CtorArgValue_( c, init_, pt, av ) = false then   '' its temporary's copy-back: NarrowRefStrArg_
         return false
-    elseif wideToNarrow andalso (c.types->IsConst( pt ) = false) andalso (c.strTemps.Count > 0) then
-        '' THE TEMPORARY IS WRITTEN BACK, the parameter being byref -- FlushStrCopyBacks.
-        c.strBackNode.Push( cast( ulong, init_ ) ) : c.strBackSlot.Push( c.strTemps[c.strTemps.Count - 1] )
     end if
     dim as FB.Array( of ulong ) cargs
     cargs.Push( cast( ulong, av.kind ) )
@@ -847,22 +831,13 @@ function LowerCtorInit _
                 '' constructor saw an empty string. See CtorArgValue_ for fbc's C.
                 '' ...AND SO IS ONE THAT DOES NOT OWN ITS DESCRIPTOR, as CtorArgValue_ copies it:
                 '' 'U( str( n ) )' handed over the pool temporary, which its first read freed.
-                if (IsUStringType( c, pty ) = false) andalso _
-                   (TermIsWide_( c, cast( Tko.NodeId, argNode[ai2] ) ) orelse _
-                    (StrArgOwnDescriptor_( c, cast( Tko.NodeId, argNode[ai2] ), c.types->Builtin( Tko.TY_STRING ) ) = false)) then
-                    dim as MirValue wsa
-                    dim as long wslot = -1
-                    dim as Tko.TypeId wnt = c.types->Builtin( Tko.TY_STRING )
-                    if ByvalStrTemp_( c, cast( Tko.NodeId, argNode[ai2] ), wnt, wsa, wslot ) then
-                        argKind[ai2] = cast( ulong, wsa.kind )
-                        argId[ai2] = cast( ulong, wsa.id )
-                        argT[ai2] = cast( ulong, pty )
-                        strTmp.Push( cast( ulong, wslot ) )
-                        strTmpTy.Push( cast( ulong, wnt ) )
-                        if c.types->IsConst( pty ) = false then backN.Push( argNode[ai2] ) : backS.Push( cast( ulong, wslot ) )
-                        ai2 += 1
-                        continue for
-                    end if
+                dim as MirValue wsa
+                if NarrowRefStrArg_( c, cast( Tko.NodeId, argNode[ai2] ), pty, wsa, strTmp, strTmpTy, backN, backS ) then
+                    argKind[ai2] = cast( ulong, wsa.kind )
+                    argId[ai2] = cast( ulong, wsa.id )
+                    argT[ai2] = cast( ulong, pty )
+                    ai2 += 1
+                    continue for
                 end if
                 dim as MirValue sd
                 if StrDescriptorOf_( c, cast( Tko.NodeId, argNode[ai2] ), sd ) then

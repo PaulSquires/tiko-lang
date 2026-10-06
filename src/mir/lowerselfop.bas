@@ -228,15 +228,9 @@ function SelfOpMemberCall_ _
         '' -- the arms an ordinary constructor argument takes in lowercallarg.bas.
         dim as Tko.TypeId bpt = ParamTypeAt( c, want, 0 )
         if UStrParamArgTemp_( c, value, bpt, av ) = false then
-            if NarrowParamArgTemp_( c, value, bpt, av ) = false then
-                av = LowerAddr( c, value )
-            elseif (Tko.Check.FixedStringElem( vt, *c.types ) <> Tko.TYPE_NONE) andalso (c.types->IsConst( bpt ) = false) then
-                '' A FIXED STRING'S TEMPORARY IS COPIED BACK, the parameter being byref: measured,
-                '' an operator that writes its 'byref s as string' changes the 'zstring * 8' it was
-                '' given -- fbc prints [MOD], tiko printed [zz]. FlushStrCopyBacks, at the end of
-                '' the statement, as for a constructor's argument (LOW-13).
-                c.strBackNode.Push( cast( ulong, value ) ) : c.strBackSlot.Push( c.strTemps[c.strTemps.Count - 1] )
-            end if
+            '' A FIXED STRING'S TEMPORARY IS COPIED BACK (LOW-13): measured, an operator that writes its
+            '' 'byref s as string' changes the 'zstring * 8' it was given -- NarrowRefStrArg_.
+            if NarrowParamArgTemp_( c, value, bpt, av ) = false then av = LowerAddr( c, value )
         end if
     else
         av = LowerExpr( c, value )

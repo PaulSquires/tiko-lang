@@ -1219,22 +1219,10 @@ private function OperandValue_ _
         '' which binds 'operator &( byref as DWSTRING, byref as STRING )'. Nothing here could
         '' pass a wstring there: the operand declined, the statement was dropped, every retry
         '' re-lowered the left side, and tracks' DateInsertHyphens returned garbage.
-        if narrowStr andalso TermIsWide_( c, e ) then
-            if WideToNarrowTemp_( c, e, v ) then
-                args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
-                return true
-            end if
-        end if
-        if narrowStr andalso (StrArgOwnDescriptor_( c, e, snu ) = false) then
-            dim as long sslot = -1
-            if ByvalStrTemp_( c, e, snu, v, sslot ) then
-                if sslot >= 0 then
-                    c.f->locals[sslot].frontendType = snu
-                    c.strTemps.Push( cast( ulong, sslot ) )
-                end if
-                args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
-                return true
-            end if
+        '' NarrowRefStrArg_ owns both, and the copy-back fbc emits after the operator.
+        if narrowStr andalso NarrowParamArgTemp_( c, e, snu, v ) then
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+            return true
         end if
         '' A PAREN-LESS PROCEDURE IS A CALL, not an address: 'LocalDate.Invalid =
         '' LocalDate.Invalid' compared the procedure's CODE with itself and said true.

@@ -636,7 +636,9 @@ private function UdtConvTemp_ _
             '' _ZN2WSC1ER8FBSTRING( &TMP$33$0, &TMP$32$0 )' -- byval or byref WS alike.
             if WideRefCtorArg_( c, argNode, cpu, av ) = false then
                 dim as boolean narrowStr = IsStringType( c, cpu ) andalso (IsUStringType( c, cpu ) = false)
-                if narrowStr andalso (StrArgOwnDescriptor_( c, argNode, cpu ) = false) then
+                if narrowStr andalso NarrowParamArgTemp_( c, argNode, cpu, av ) then
+                    '' NarrowRefStrArg_: the temporary, and its copy-back
+                elseif narrowStr andalso (StrArgOwnDescriptor_( c, argNode, cpu ) = false) then
                     dim as long sslot = -1
                     if ByvalStrTemp_( c, argNode, cpu, av, sslot ) then
                         if sslot >= 0 then

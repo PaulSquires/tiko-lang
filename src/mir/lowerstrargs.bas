@@ -1111,29 +1111,65 @@ function UStrParamArgTemp_ _
     return true
 end function
 
-'' THE NARROW TWIN, for a 'byref as string' parameter met outside the ordinary call path --
-'' a self-operator: 'dws += "- Missing Ticker Symbol." & vbcrlf' over DWSTRING's
-'' '+=( byref ansiStr as string )'. Measured, fbc copies the rvalue into a temporary:
+'' THE ONE NARROW 'byref as string' ENCODER (audit G3). Every path that hands a 'byref as
+'' string' parameter an argument -- a call, a constructor, an implicit constructor
+'' conversion, an operator, a self-operator -- asks the same two questions and gets the
+'' same two answers from here:
 ''
-''     fb_StrAssign( &TMP, -1, "lit", 4, 0 );  _ZN1TpLER8FBSTRING( &V, &TMP );  fb_StrDelete( &TMP )
+''   does it need a temporary?   NarrowStrCtorParamConverts_: a wide argument, or one that
+''                               does not own its descriptor (StrArgOwnDescriptor_)
+''   is the temporary copied back?  StrBackPushNarrow_: a SIZED fixed or wide lvalue, always --
+''                               measured, fbc copies back even over a 'byref as const
+''                               string' (tka-probes/phase4/t_constback.bas), and never into
+''                               a 'ustring * N' (its temporary is a narrow conversion)
 ''
-'' FALSE, touching nothing, when the parameter is not a narrow var-length string or the
-'' argument already owns a descriptor it can pass -- a variable, a field, an element.
+'' Measured, fbc over 'constructor( byref x as const string )' and 'zstring * 8':
+''
+''     fb_StrAssign( &TMP, -1, Z, 8, 0 );  _ZN1TC1ERK8FBSTRING( &A, &TMP );
+''     fb_StrAssign( Z, 8, &TMP, -1, 0 );  fb_StrDelete( &TMP )
+''
+'' The paths had grown five copies, with three copy-back rules (none, non-const only, always)
+'' and two wide rules. The caller passes its own lists, because the lifetimes differ: a call
+'' deletes after the call, a constructor at the end of the statement. FALSE, touching
+'' nothing, when no temporary is needed -- the caller passes the argument's own descriptor.
+function NarrowRefStrArg_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, _
+      byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), _
+      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean
+
+    if NarrowStrCtorParamConverts_( c, e, pt ) = false then return false
+    dim as Tko.TypeId snt = c.types->Builtin( Tko.TY_STRING )
+    dim as long slot = -1
+    if ByvalStrTemp_( c, e, snt, outv, slot ) = false then return false
+    if slot >= 0 then
+        c.f->locals[slot].frontendType = snt
+        temps.Push( cast( ulong, slot ) )
+        tempTypes.Push( cast( ulong, snt ) )
+        StrBackPushNarrow_( c, e, slot, backN, backS )
+    end if
+    return true
+end function
+
+'' ...THE COPY-BACK half: a 'string * N', a sized 'zstring * N' or 'wstring * N' lvalue gets
+'' the narrow temporary back (CopyBackUStrArgs_ picks the entry). '*pz' has no declared
+'' length and fbc writes nothing back into it; a 'ustring * N' is a conversion, not a copy.
+sub StrBackPushNarrow_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, _
+      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) )
+
+    dim as longint tag
+    dim as long fk = StrSwapKind_( c, c.info->TypeOf_( e ), tag )
+    if (fk <> 1) andalso (fk <> 2) andalso (fk <> 3) then exit sub
+    if tag = 0 then exit sub
+    backN.Push( cast( ulong, e ) ) : backS.Push( cast( ulong, slot ) )
+end sub
+
+'' THE SAME, for a path whose temporaries live for the statement (c.strTemps) and whose
+'' copy-backs FlushStrCopyBacks emits -- a self-operator, an operator operand, a constructor.
 function NarrowParamArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outv as MirValue ) as boolean
-
-    if (argNode = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
-    dim as Tko.TypeId pu = c.types->Unqualify( pt )
-    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
-    if (IsStringType( c, pu ) = false) orelse IsUStringType( c, pu ) then return false
-    if StrArgOwnDescriptor_( c, argNode, pu ) then return false
-    dim as long slot = -1
-    if ByvalStrTemp_( c, argNode, pu, outv, slot ) = false then return false
-    if slot >= 0 then
-        c.f->locals[slot].frontendType = pu
-        c.strTemps.Push( cast( ulong, slot ) )
-    end if
-    return true
+    dim as FB.Array( of ulong ) tt
+    return NarrowRefStrArg_( c, argNode, pt, outv, c.strTemps, tt, c.strBackNode, c.strBackSlot )
 end function
 

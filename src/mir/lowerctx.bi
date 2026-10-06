@@ -499,7 +499,7 @@ declare function EmitRtl _
     '' ...and its narrow twin, for a 'byref as string' parameter. lowerstrargs.bas.
     declare function NarrowParamArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outv as MirValue ) as boolean
+          byref outv as MirValue ) as boolean : declare function NarrowRefStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean : declare sub StrBackPushNarrow_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) )
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
           byval value as Tko.NodeId ) as boolean : declare function LowerStringInit_( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
