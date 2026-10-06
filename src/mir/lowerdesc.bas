@@ -814,6 +814,9 @@ private function EmitRedimCall_ _
     dim as Tko.SymbolId dtor = Tko.SYMBOL_NONE
     if c.types->Kind( et ) = Tko.TK_UDT then
         ctor = StructorOf( c, et, "__ctor" )
+        '' THE DEFAULT CONSTRUCTOR, not the chain's head: with 'constructor( array() as integer )'
+        '' declared first, every element was built by it, handed no array (udt-array-ops-1.bas).
+        if StructorWithArity( c, ctor, 0 ) <> Tko.SYMBOL_NONE then ctor = StructorWithArity( c, ctor, 0 )
         dtor = StructorOf( c, et, "__dtor" )
     end if
     '' ...OR NEEDS THEM WITHOUT DECLARING ANY -- see PushStructorPtr_. Deciding on
