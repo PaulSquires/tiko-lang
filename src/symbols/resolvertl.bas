@@ -99,6 +99,12 @@ end sub
 private function RtlNameAt_ _
     ( byref c as Ctx, byval nm as Tko.InternId, byval isProc as boolean ) as boolean
     if nm = 0 then return false
+    '' AN '#undef' ABOVE FREES THE NAME: fbc-int/memory.bi '#undef's allocate, callocate and
+    '' deallocate and declares its own -- measured, fbc compiles it; tiko said TKO0813.
+    dim as ulong fnm = cast( ulong, c.names->Fold( nm ) )
+    for i as long = 0 to c.rtlUndef.Count - 1
+        if c.rtlUndef[i] = fnm then return false
+    next
     dim as boolean over
     if RtlProcName_( Tko.Text.LowerAscii( c.names->Spelling( nm ) ), over ) = false then return false
     return (isProc = false) orelse (over = false)

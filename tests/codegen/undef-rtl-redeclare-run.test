@@ -1,0 +1,8 @@
+'' '#undef allocate' FREES THE RUNTIME NAME for a declaration of its own (fbc's fbc-int/memory.bi); tiko still reported TKO0813. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/undef-rtl-redeclare.bas -o tests/codegen/undefrtlredeclare.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/undefrtlredeclare.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  42

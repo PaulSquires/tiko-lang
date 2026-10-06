@@ -61,6 +61,7 @@ type Ctx
     as FB.Array( of ulong )  pendingItem
     as FB.Array( of ulong )  pendingScope
     as FB.Array( of ulong )  rtlSeen      '' LOCATIONS reported TKO0813 -- resolvertl.bas
+    as FB.Array( of ulong )  rtlUndef     '' runtime names an '#undef' freed -- resolvertl.bas
     as FB.Array( of ulong )  genArgSeen   '' LOCATIONS reported TKO0815/0816 -- resolvetype.bas
     '' GOTOs, DEFERs and what TKO0827 reported, in walk order -- resolvedefer.bas.
     as FB.Array( of ulong )  xgName, xgNode, xgProc, xgSeq

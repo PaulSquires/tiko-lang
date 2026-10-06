@@ -778,7 +778,7 @@ sub WalkStmt _
         '' '#undef' OF A NAME ONLY A USING REACHES -- fbc's error 123, and the one half of
         '' it Collect cannot see: usings are registered HERE, in source order. 'extra' = 1
         '' is Collect's mark that its own lookup found nothing (UndefKeeps_).
-        dim as Tko.StmtPayload ptr udp = StmtOf( c, id )
+        dim as Tko.StmtPayload ptr udp = StmtOf( c, id ) : c.rtlUndef.Push( cast( ulong, c.names->Fold( udp->name ) ) )   '' + frees a runtime name (RtlNameAt_)
         if udp->extra = 1 then
             dim as Tko.Symbol ptr us = c.syms->SymbolAt( c.syms->LookupThroughUsings( here, udp->name ) )
             if us <> 0 then
