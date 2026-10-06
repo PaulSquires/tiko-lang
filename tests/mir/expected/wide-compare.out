@@ -236,6 +236,7 @@ func void R(ptr $0, ptr $1, ptr $2) {
   local ptr b
   local ptr c
   local ptr $tmp3
+  local ptr $tmp4
   entry0:
     %1 = alloca ptr a
     store @a, $0
@@ -249,6 +250,7 @@ func void R(ptr $0, ptr $1, ptr $2) {
     %7 = load @c
     %8 = load @@ct
     %9 = alloca ptr $tmp3
+    %27 = alloca ptr $tmp4
     condbr %8, wiif.then1, wiif.else2
   wiif.then1:
     %10 = load @a
@@ -273,12 +275,16 @@ func void R(ptr $0, ptr $1, ptr $2) {
     call.rtl void fb_WstrDelete(%22)
     %23 = load @c
     %24 = load @a
-    %25 = call.rtl ptr fb_WstrAssign(%23, 0, %24)
-    %26 = load @b
-    %27 = call.rtl ptr fb_WstrConcatAssign(%23, 0, %26)
+    %25 = load @b
+    %26 = call.rtl ptr fb_WstrConcat(%24, %25)
+    store @$tmp4, %26
+    %28 = load @$tmp4
+    %29 = call.rtl ptr fb_WstrAssign(%23, 0, %28)
+    %30 = load @$tmp4
+    call.rtl void fb_WstrDelete(%30)
     ret
 }
-declare ptr fb_WstrConcatAssign(ptr $0, i64 $1, ptr $2)
+declare ptr fb_WstrConcat(ptr $0, ptr $1)
 func void S() {
   local agg a size 66
   local agg b size 66
@@ -325,7 +331,6 @@ func void S() {
     call.rtl void fb_WstrDelete(%25)
     ret
 }
-declare ptr fb_WstrConcat(ptr $0, ptr $1)
 func void T() {
   local agg a size 100
   local agg b size 100
@@ -397,4 +402,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 37 blocks, 260 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 6 functions, 37 blocks, 265 insts, 0 statements not lowered, 0 scope imbalance

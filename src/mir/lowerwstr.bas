@@ -132,7 +132,10 @@ function LowerWideAssignTo _
     '' 'dv & " " & ustr & " literal " & wsz' printed without its ustr. The ustring
     '' branch below builds the whole chain and hands it over in one fb_UStrAssignToW.
     dim as boolean uchain = IsUStringType( c, c.info->TypeOf_( value ) ) orelse ChainTouchesU_( c, value )
-    if (c.ast->Kind( value ) = Tko.N_BINARY) andalso (uchain = false) then
+    '' ...AND ONLY WITH A DECLARED CAPACITY: fb_WstrConcatAssign appends NOTHING to a destination
+    '' of length 0 (lib/rt strw/core.bas, quirk 1), so a byref wstring or '*p' takes fbc's own
+    '' 'fb_WstrConcat' temporary via WideOperand_ below (expressions/iif.bas, a constant iif).
+    if (c.ast->Kind( value ) = Tko.N_BINARY) andalso (uchain = false) andalso (n > 0) then
         dim as Tko.BinaryPayload ptr vb = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, value )].data )]
         dim as Tko.TokenKind vop = cast( Tko.TokenKind, vb->op )
