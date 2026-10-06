@@ -172,9 +172,11 @@ function LowerMidAssign _
         dim as FB.Array( of ulong ) ta
         ta.Push( cast( ulong, bufp.kind ) ) : ta.Push( cast( ulong, bufp.id ) )
         if dk = 3 then
-            '' A FIXED-LENGTH narrow string carries its TAGGED length.
-            ta.Push( cast( ulong, MV_CONST_INT ) )
-            ta.Push( cast( ulong, FixedStrLenArg_( c, dn ) ) )
+            '' A FIXED-LENGTH narrow string carries its TAGGED length -- already tagged by
+            '' StrSwapKind_, and 64 bits wide on win64, so it goes through PushStrLen_: the inline
+            '' constant kept only the low 32 bits, the tag was lost and MID stopped one short of
+            '' fbc ('mid( f, 7 ) = "1234"' on a string * 8 wrote "1", fbc "12").
+            PushStrLen_( c, ta, dn )
             ddesc = EmitRtl( c, RTL_STR_TEMPF, ta )
         else
             ddesc = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
