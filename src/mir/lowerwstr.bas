@@ -945,7 +945,7 @@ end function
 '' own wide literal for '!"A\n"' is L"A\\x000A".
 declare function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
-      byref outText as string, byref outUnits as FB.Array( of ulong ) ) as boolean
+      byref outText as string, byref outUnits as FB.Array( of ulong ), byval keepNul as boolean = false ) as boolean
 
 '' A SOURCE LITERAL AS A WIDE GLOBAL, with its escapes decoded, and the CHARACTER
 '' COUNT that goes with it. Every site that turns an N_STRING_LIT into a wide
@@ -973,9 +973,18 @@ function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
     return cast( long, wunits.Count )
 end function
 
+'' ONE CODE UNIT of such a literal, 1-based as 'asc' counts, or 0 outside it.
+function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
+    dim as string wtext
+    dim as FB.Array( of ulong ) wunits
+    if WideLitUnits_( c, id, wtext, wunits, true ) = false then return 0
+    if (k < 1) orelse (k > wunits.Count) then return 0
+    return cast( long, wunits[k - 1] )
+end function
+
 private function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
-      byref outText as string, byref outUnits as FB.Array( of ulong ) ) as boolean
+      byref outText as string, byref outUnits as FB.Array( of ulong ), byval keepNul as boolean = false ) as boolean
 
     '' A NAMED CONSTANT IS ITS INITIALISER. 'const TV = wchr( 256, 257 )' then
     '' 'dim as wstring * 32 s = TV' -- only an N_STRING_LIT was read here, so the
@@ -1090,7 +1099,8 @@ private function WideLitUnits_ _
         p2 = bi
         '' A NUL FROM A NUMERIC ESCAPE ENDS THE LITERAL, exactly as it does in the
         '' narrow reader -- measured there by running fbc's own output.
-        if bv = 0 then exit while
+        if (bv = 0) andalso (keepNul = false) then exit while   '' ...except to fold 'asc', which reads past it
+        if (bv = 0) andalso keepNul then outUnits.Push( 0 )
         if bv > 0 then outUnits.Push( cast( ulong, bv ) )
     wend
     return true

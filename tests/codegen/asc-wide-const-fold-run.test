@@ -1,0 +1,11 @@
+'' 'asc( W, n )' over a wide constant folds, reading past an embedded NUL as fbc does:
+'' asc( wstr( !"A\000B" ), 3 ) is 66 (string/asc.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/asc-wide-const-fold.bas -o tests/codegen/ascwideconstfold.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ascwideconstfold.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 0              65            0             66            0
+'' EXPECT-RUN-OUT: 4369          0             8738          4369
+'' EXPECT-RUN-OUT: 121

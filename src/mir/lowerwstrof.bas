@@ -333,35 +333,34 @@ function LowerWstrOf _
 end function
 
 
-'' THE CHARACTER COUNT OF A WIDE CONSTANT -- 'wstr( "hello" )', a literal with a unicode escape,
-'' or a named constant over either -- or -1 when 'e' is not one. A VARIABLE never answers: its
-'' sizeof is its buffer. fbc's sizeof of one is (chars + 1) * 2, 12 for "hello", where tiko
-'' measured the narrow text or the bare element (quirk/len-sizeof-udt-member.bas).
-function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long
+'' THE LITERAL BEHIND A WIDE CONSTANT -- 'wstr( "hello" )', a literal with a unicode escape, or a
+'' named constant over either -- or NODE_NONE. A VARIABLE never answers: its size is its buffer.
+function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId
     e = Unparen_( c, e )
-    if e = Tko.NODE_NONE then return -1
-    if IsWstrCall_( c, e ) andalso (c.ast->Kind( e ) = Tko.N_CALL) then
+    if e = Tko.NODE_NONE then return Tko.NODE_NONE
+    select case c.ast->Kind( e )
+    case Tko.N_CALL
+        if IsWstrCall_( c, e ) = false then return Tko.NODE_NONE
         dim as Tko.ListPayload ptr wl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
-        if wl->count <> 1 then return -1
-        dim as Tko.NodeId wa = Unparen_( c, cast( Tko.NodeId, c.ast->children[wl->first] ) )
-        if c.ast->Kind( wa ) <> Tko.N_STRING_LIT then return -1
-        return WideLitChars_( c, wa )
-    end if
-    if c.ast->Kind( e ) = Tko.N_STRING_LIT then
-        if LitHasUnicodeEscape_( c, e ) = false then return -1
-        return WideLitChars_( c, e )
-    end if
-    if (c.ast->Kind( e ) <> Tko.N_IDENT) andalso (c.ast->Kind( e ) <> Tko.N_MEMBER) then return -1
-    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
-    if (cs = 0) orelse (cs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) then return -1
-    if (IsWideString_( c, c.info->TypeOf_( e ) ) = false) andalso (LitHasUnicodeEscape_( c, e ) = false) then return -1
-    dim as long n = WideLitChars_( c, e )
-    if n >= 0 then return n
-    '' 'const W = wstr( "hello" )': its initialiser is the call, not a literal.
-    if (cs->payload <> 0) andalso (c.ast->Kind( cast( Tko.NodeId, cs->payload ) ) = Tko.N_VAR_ITEM) then
-        return WideConstChars_( c, StmtOf( c, cast( Tko.NodeId, cs->payload ) )->b )
-    end if
-    return -1
+        if wl->count <> 1 then return Tko.NODE_NONE
+        return WideConstLitNode_( c, cast( Tko.NodeId, c.ast->children[wl->first] ), true )
+    case Tko.N_STRING_LIT
+        if viaWstr orelse LitHasUnicodeEscape_( c, e ) then return e
+    case Tko.N_IDENT, Tko.N_MEMBER
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if (cs = 0) orelse (cs->kind <> cast( ubyte, Tko.SYM_CONSTANT )) orelse ((cs->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.NODE_NONE
+        if (cs->payload = 0) orelse (c.ast->Kind( cast( Tko.NodeId, cs->payload ) ) <> Tko.N_VAR_ITEM) then return Tko.NODE_NONE
+        return WideConstLitNode_( c, StmtOf( c, cast( Tko.NodeId, cs->payload ) )->b, viaWstr )
+    end select
+    return Tko.NODE_NONE
+end function
+
+'' ITS CHARACTER COUNT, or -1. fbc's sizeof of one is (chars + 1) * wchar, 12 for "hello", where
+'' tiko measured the narrow text or the bare element (quirk/len-sizeof-udt-member.bas).
+function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long
+    dim as Tko.NodeId wl = WideConstLitNode_( c, e )
+    if wl = Tko.NODE_NONE then return -1
+    return WideLitChars_( c, wl )
 end function
 
 end namespace
