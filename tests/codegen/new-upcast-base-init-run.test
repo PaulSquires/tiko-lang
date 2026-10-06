@@ -1,0 +1,12 @@
+'' 'new T3( x1 )' with x1 a base's base initialises the base part and zeroes the rest; so does
+'' 'new T3( cast( T1, x3 ) )' (structs/udt-upcast-2.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/new-upcast-base-init.bas -o tests/codegen/newupcastbaseinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/newupcastbaseinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1              0             0
+'' EXPECT-RUN-OUT:  2             20
+'' EXPECT-RUN-OUT:  3             0             0
+'' EXPECT-RUN-OUT:  2             20            0

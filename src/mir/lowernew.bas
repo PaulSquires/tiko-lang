@@ -511,7 +511,8 @@ function LowerNew_ _
     '' A DERIVED x SLICES, as it does in 'dim as T y = x': the copy constructor installs
     '' T's own vptr and assigns T's members. The source's address is taken where the
     '' 'new' is written, as every other argument is.
-    dim as boolean implCopy = false
+    dim as boolean implCopy = false, upCopy = false
+    dim as long upBytes = 0
     dim as MirValue copySrc
     if cbool( ctor = Tko.SYMBOL_NONE ) andalso cbool( argCount = 1 ) andalso (isPlace = false) andalso _
        cbool( c.types->Kind( el ) = Tko.TK_UDT ) then
@@ -526,6 +527,13 @@ function LowerNew_ _
         if c.types->BaseDistance( cst, el ) >= 0 then
             copySrc = InitSourceAddr_( c, csn )
             implCopy = (copySrc.kind <> cast( ubyte, MV_NONE ))
+        '' ...AND A BASE (OR A BASE'S BASE) INITIALISES THE BASE PART of plain data, the rest
+        '' zeroed: 'new T3( x1 )' over 'T3 extends T2 extends T1' is measured as
+        '' 'memcpy( (T1*)TMP, &X1, 8 )' into calloc'd storage (structs/udt-upcast-2.bas).
+        elseif (c.types->BaseDistance( el, cst ) > 0) andalso (TypeNeedsInit_( c, el ) = false) then
+            copySrc = InitSourceAddr_( c, csn )
+            upBytes = SizeOfType( c, cst )
+            upCopy = (copySrc.kind <> cast( ubyte, MV_NONE )) andalso (upBytes > 0)
         end if
     end if
 
@@ -538,7 +546,7 @@ function LowerNew_ _
     '' PLAIN DATA ONLY: a type that needs construction -- a string field, say -- takes no
     '' field list from 'new', and fbc refuses one (error 99).
     dim as boolean fiCand = (ctor = Tko.SYMBOL_NONE) andalso (argCount >= 1)
-    fiCand = fiCand andalso (implCopy = false) andalso (scalarInit = false)
+    fiCand = fiCand andalso (implCopy = false) andalso (upCopy = false) andalso (scalarInit = false)
     if fiCand andalso (c.types->Kind( el ) = Tko.TK_UDT) then
         fieldInit = (TypeNeedsInit_( c, el ) = false)
         '' ...AND ONLY A LIST OF SCALAR FIELDS, decided BEFORE the guard is built: the
@@ -572,7 +580,7 @@ function LowerNew_ _
     end if
     dim as boolean needsGuard = (ctor <> Tko.SYMBOL_NONE) orelse implCtor
     if needsGuard = false then needsGuard = scalarInit
-    if needsGuard = false then needsGuard = implCopy
+    if needsGuard = false then needsGuard = implCopy orelse upCopy
     if needsGuard = false then needsGuard = placeZero
     if needsGuard = false then needsGuard = fieldInit
     if needsGuard then
@@ -605,6 +613,19 @@ function LowerNew_ _
             EmitStructorCall( c, ctor, -1, @pv, @cargs )
         elseif implCopy then
             CallImplicitCopy_( c, el, pv, copySrc )
+        elseif upCopy then
+            dim as FB.Array( of ulong ) ua
+            if isPlace then
+                ua.Push( cast( ulong, pv.kind ) ) : ua.Push( cast( ulong, pv.id ) )
+                ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 0 )
+                ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( cast( ulong, SizeOfType( c, el ) ) )
+                EmitRtl( c, RTL_MEMSET, ua )
+                ua.Clear( )
+            end if
+            ua.Push( cast( ulong, pv.kind ) ) : ua.Push( cast( ulong, pv.id ) )
+            ua.Push( cast( ulong, copySrc.kind ) ) : ua.Push( cast( ulong, copySrc.id ) )
+            ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( cast( ulong, upBytes ) )
+            EmitRtl( c, RTL_MEM_COPY, ua )
         elseif scalarInit andalso IsStringType( c, el ) then
             '' calloc zeroed the descriptor, so it is a valid empty string to assign into;
             '' placement storage is zeroed first, as nothing else did it.
