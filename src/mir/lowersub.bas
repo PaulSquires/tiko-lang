@@ -542,8 +542,10 @@ function LowerStrNumCall_ _
         '' the runtime stops at, so 'asc( s, 3 )' read 0 where fbc gives 66 (string/asc.bas).
         dim as Tko.NodeId awl = WideConstLitNode_( c, a0asc )
         dim as Tko.Check.ConstVal apv : apv.known = true : apv.value = 1
-        if (awl <> Tko.NODE_NONE) andalso (cp->count = 2) then apv = Tko.Check.ConstOf( *c.ast, cast( Tko.NodeId, c.ast->children[cp->first + 1] ), *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, c.info->ScopeOf( a0asc ) )
+        dim as Tko.NodeId anl = iif( (awl = Tko.NODE_NONE) andalso (TermIsWide_( c, a0asc ) = false), WideConstLitNode_( c, a0asc, true ), Tko.NODE_NONE ) : dim as boolean anar = (anl <> Tko.NODE_NONE)   '' ...and a NARROW constant, read past an embedded NUL (string/asc.bas)
+        if ((awl <> Tko.NODE_NONE) orelse anar) andalso (cp->count = 2) then apv = Tko.Check.ConstOf( *c.ast, cast( Tko.NodeId, c.ast->children[cp->first + 1] ), *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, c.info->ScopeOf( a0asc ) )
         if (awl <> Tko.NODE_NONE) andalso apv.known then outv = ConstInt( c, WideLitUnitAt_( c, awl, apv.value ), MT_I32 ) : return (outv.kind <> cast( ubyte, MV_NONE ))
+        if anar andalso apv.known then outv = ConstInt( c, WideLitUnitAt_( c, anl, apv.value ), MT_I32 ) : return (outv.kind <> cast( ubyte, MV_NONE ))
         '' A WIDE OPERAND HAS ITS OWN ENTRY POINT, as the val family above does:
         '' 'fb_WstrAsc( (uint16*)W$0, 1ll )'. Asked for a DESCRIPTOR, a wstring had
         '' none and every 'asc( w, n )' declined -- string/asc.bas and
