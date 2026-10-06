@@ -490,8 +490,35 @@ end function
 '' and whatever followed it. Measured, fbc passes 'IMG$0' for the first and '&BUF$0[0]'
 '' for the second. An rvalue with no address -- 'imagecreate( 4, 4 )' -- is a pointer
 '' and takes the first arm.
+'' A UDT OPERAND WITH A POINTER 'operator cast' IS THAT CAST'S RESULT -- fbc's hMaybeUdt2Ptr
+'' (hCheckFbImageExpr, shared by GET, PUT and PALETTE USING) calls the overload that matches
+'' 'any ptr'. 'rt' is its result type, which PALETTE's 32/64 choice reads. tiko passed the
+'' object's own address, so 'palette get using p' over a type wrapping 'pal as long ptr'
+'' wrote 256 entries over the wrapper (gfx/palette.bas, paletteGetUDTPtr). False, emitting
+'' nothing, for any other operand.
+private function GfxUdtPtrOperand_ _
+    ( byref c as Ctx, byval n as Tko.NodeId, byref v as MirValue, byref rt as Tko.TypeId ) as boolean
+
+    dim as Tko.TypeId t = c.info->TypeOf_( n )
+    if t = Tko.TYPE_NONE then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    dim as Tko.TypeId anyp = c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
+    dim as Tko.SymbolId cs = Tko.Check.PtrCastPick( *c.syms, *c.types, *c.names, t, anyp )
+    if cs = Tko.SYMBOL_NONE then return false
+    if CastYieldsPtr_( c, cs ) = false then return false
+    dim as MirValue self_
+    if UdtSelfAddr_( c, n, self_ ) = false then return false
+    v = EmitMemberCall( c, cs, self_, MT_PTR )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    rt = c.syms->SymbolAt( cs )->type_
+    return true
+end function
+
 private function GfxBufferOperand_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
     dim as MirValue v
+    dim as Tko.TypeId crt
+    if GfxUdtPtrOperand_( c, n, v, crt ) then return v
     dim as Tko.TypeId t = c.info->TypeOf_( n )
     if t <> Tko.TYPE_NONE then t = c.types->Unqualify( t )
     if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( t ) = Tko.TK_POINTER) then
@@ -683,6 +710,23 @@ private function PaletteIs64_( byref c as Ctx, byval e as Tko.NodeId ) as boolea
     return (LowerType( t, *c.types ) = MT_I64)
 end function
 
+'' ...BUT 'PALETTE [GET] USING' CHOOSES BY THE POINTEE'S SIZE: 8 is the 64 form, 4 the 32 form,
+'' and any other size INTEGER's width -- fbc's cGfxPalette. Measured on win64: a 'double' or
+'' 'byte' array and an 'any ptr' take fb_GfxPaletteGetUsing64, a 'single' array the 32 form;
+'' asking for MT_I64 sent all three of the first to the 32 form.
+private function PaletteUsingIs64_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    t = c.types->Unqualify( t )
+    select case c.types->Kind( t )
+    case Tko.TK_ARRAY, Tko.TK_POINTER
+        t = c.types->Inner( t )
+    end select
+    dim as long sz = 0
+    if t <> Tko.TYPE_NONE then sz = SizeOfType( c, c.types->Unqualify( t ) )
+    if (sz <> 4) andalso (sz <> 8) then sz = c.types->target.pointerBits \ 8
+    return (sz = 8)
+end function
+
 function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
@@ -696,7 +740,11 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' the address of the pointer VARIABLE would hand the runtime a pointer to a
         '' pointer, which it would then fill with palette entries.
         dim as MirValue av
-        if c.types->Kind( c.info->TypeOf_( an ) ) = Tko.TK_POINTER then
+        dim as Tko.TypeId wt = c.info->TypeOf_( an )
+        dim as Tko.TypeId crt = Tko.TYPE_NONE
+        if GfxUdtPtrOperand_( c, an, av, crt ) then
+            wt = crt                                  '' the cast's pointer decides the width
+        elseif c.types->Kind( c.info->TypeOf_( an ) ) = Tko.TK_POINTER then
             av = LowerExpr( c, an )
         else
             av = LowerAddr( c, an )
@@ -707,7 +755,7 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         PushV( ua, Coerce( c, av, MT_PTR ) )
         '' 'PALETTE GET USING' IS A FOURTH FORM with its own entry point -- reading it
         '' as a GET meant the array was taken for GET's colour index.
-        dim as boolean w64 = PaletteIs64_( c, an )
+        dim as boolean w64 = PaletteUsingIs64_( c, wt )
         if (sp->extra and PGFX_PAL_GET) <> 0 then
             EmitRtl( c, iif( w64, RTL_GFX_PALETTE_GETUSING64, RTL_GFX_PALETTE_GETUSING ), ua )
         else

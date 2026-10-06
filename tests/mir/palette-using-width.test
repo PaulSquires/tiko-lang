@@ -1,0 +1,12 @@
+'' PALETTE [GET] USING: the 32/64-bit entry by the pointee's size, and a UDT's pointer cast.
+'' See the source's header.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/palette-using-width.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_GfxPaletteGetUsing64(@d)
+'' EXPECT-OUT: fb_GfxPaletteGetUsing64(@b)
+'' EXPECT-OUT: fb_GfxPaletteGetUsing(@s)
+'' EXPECT-OUT: fb_GfxPaletteUsing64(@d)
+'' EXPECT-OUT: call ptr _ZN3W64cvPxEv(@w)

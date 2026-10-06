@@ -1,0 +1,26 @@
+'' gfx: PALETTE [GET] USING entry counts, negative entries, a UDT's pointer cast, and the 32/64 choice (gfx/palette.bas).
+'' See the source's header.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/gfx-palette-using.bas -o tests/codegen/gfxpaletteusing.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/gfxpaletteusing.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  4 0 2A0000 3F3F3F 7 untouched 284
+'' EXPECT-RUN-OUT:  8 0 2A0000 3F3F3F 0 untouched 44
+'' EXPECT-RUN-OUT:  16 0 0 0 0 untouched 44
+'' EXPECT-RUN-OUT:  24 0 7 7 7 untouched 299
+'' EXPECT-RUN-OUT:  32 0 7 7 7 untouched 299
+'' EXPECT-RUN-OUT:  1 3F3F15 3F3F3F 7 untouched 296
+'' EXPECT-RUN-OUT:  2 3F3F3F 7 7 untouched 298
+'' EXPECT-RUN-OUT:  7 2A0000 2A2A00 3F3F3F untouched 284
+'' EXPECT-RUN-OUT:  8 2A0000 2A2A00 3F3F3F untouched 284
+'' EXPECT-RUN-OUT:  9 2A0000 2A2A00 3F3F3F untouched 284
+'' EXPECT-RUN-OUT:  11 3F3F3F 7 7 untouched 298
+'' EXPECT-RUN-OUT:  12 2A0000 2A2A00 3F3F3F untouched 284
+'' EXPECT-RUN-OUT:  13 2A0000 2A2A00 3F3F3F untouched 44
+'' EXPECT-RUN-OUT: 2A0000 10203
+'' EXPECT-RUN-OUT: 2A0000        3F3F3F        0
+'' EXPECT-RUN-OUT: 3F1515
+'' EXPECT-RUN-OUT: done
