@@ -187,7 +187,7 @@ type PpEngine
     ''
     '' '##' at end of line WITHOUT the '_' is not this: fbc reports error 9 and the '#'
     '' survives into the output. Only the pair joins.
-    as boolean                eatNextEol
+    as boolean                eatNextEol, apostEat   '' apostEat: see TF_APOST_TEXT in EmitTok
     '' __FB_UNIQUEID__ IS A STACK PER NAME, not a fresh id per use. Measured:
     ''
     ''     __fb_uniqueid_push__( k )   a NEW id becomes k's current one
@@ -918,6 +918,15 @@ private sub EmitTok( byref e as PpEngine, byref t as Token )
     '' THE MARKER ITSELF, which stands where the '##_' stood in the body. It arms the
     '' join and is never output. Checked BEFORE the eat below so that two joins in a
     '' row arm once each rather than the second cancelling the first.
+    '' A "'" SPLICED IN AS ARGUMENT TEXT (TF_APOST_TEXT) IS A COMMENT once it is a statement's, as
+    '' it is to fbc's parser: it and the rest of the line go. Measured, '#macro t( s ) / s /
+    '' #endmacro': 't( input a '' )' compiles as 'input a' (syntax/input.bas).
+    if (t.flags and TF_APOST_TEXT) <> 0 then e.apostEat = true
+    if e.apostEat then
+        dim as boolean lineEnd = (Tk( t ) = TK_EOF) orelse ((Tk( t ) = TK_EOL) andalso ((t.flags and TF_COLON) = 0))
+        if lineEnd = false then return
+        e.apostEat = false
+    end if
     if (t.flags and TF_JOIN_MARK) <> 0 then
         e.eatNextEol = true
         return
@@ -1317,6 +1326,7 @@ sub PpOpen _
         e->ownsLexed = true
     end if
     e->eatNextEol = false
+    e->apostEat = false
     e->stopped = false
 
     st.engine = e

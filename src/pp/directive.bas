@@ -785,6 +785,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         CollectLine( e, rest, true )
         dim as string msg = ""
         for i as long = 0 to rest.Count - 1
+            if (rest[i].flags and TF_APOST_TEXT) <> 0 then exit for     '' a comment here too (fbc)
             if i > 0 then msg += " "
             if Tk( rest[i] ) = TK_EOL then
                 msg += ":"

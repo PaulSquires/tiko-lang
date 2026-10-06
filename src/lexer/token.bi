@@ -162,6 +162,9 @@ namespace Tko
     '' THE '=' LEFT WHEN 'integer<8>=' SPLIT ITS '>=' -- see typeref.bas. The split is made in
     '' the shared token buffer, so a parse that backtracks over it must know the '>' was there.
     const TF_SPLIT_GE      as ushort = &h2000
+    '' THE "'" THAT STARTS A MACRO ARGUMENT'S COMMENT TEXT -- ApostArgText_ (ppspell.bas). Text
+    '' while it is an argument; a comment again once it reaches a statement (EmitTok, pp.bas).
+    const TF_APOST_TEXT    as ushort = &h4000
 
     enum SuffixChar
         SUFC_NONE = 0

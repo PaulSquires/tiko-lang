@@ -173,7 +173,10 @@ private function ApostArgText_( byref e as PpEngine ) as boolean
         t.flags and= not TF_AT_LINE_START
         '' AT ITS PLACE IN THE REAL LINE -- the text is the same, so a span reads the same, and a
         '' diagnostic names the line that was written rather than the buffer.
-        t.loc = e.src->LocFor( ed.file, k + e.src->Decode( t.loc ).offset )
+        dim as long vo = e.src->Decode( t.loc ).offset
+        t.loc = e.src->LocFor( ed.file, k + vo )
+        '' EVERY "'" -- a comment again once it reaches a statement (EmitTok, pp.bas)
+        if (Tk( t ) = TK_INVALID) andalso (raw[vo] = 39) then t.flags or= TF_APOST_TEXT
         if tv->Count = 0 then
             t.flags and= not TF_SPACE_BEFORE
             if k > gapAt then t.flags or= TF_SPACE_BEFORE
