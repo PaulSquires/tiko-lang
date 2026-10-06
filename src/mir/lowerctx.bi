@@ -1176,6 +1176,8 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerBitfieldStoreValue_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref val as MirValue ) as boolean
+    declare function BitfieldFieldStore_ _
+        ( byref c as Ctx, byref base_ as MirValue, byval fi as long, byref val as MirValue ) as boolean
     declare function LowerBitfieldStore _
         ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
     '' 'a andalso b' from its PIECES, so the compound form can reach it too.

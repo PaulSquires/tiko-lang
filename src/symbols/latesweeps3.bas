@@ -1150,31 +1150,12 @@ private sub CheckAggregateInitFields_( byref c as Ctx )
             c.diags->Report( TKO0965, PointRange( c.ast->Loc( item ) ), c.names->Spelling( s->name ) )
             continue for
         end if
-        '' THE BITFIELD HALF IS STATIC-STORAGE ONLY.
-        dim as boolean isStatic = _
-            ((s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or SYMF_COMMON)) <> 0)
-        if isStatic = false then
-            '' MODULE LEVEL IS STATIC STORAGE TOO. ScopeIsStatic_ answers this in
-            '' visibility.bas, but it is defined AFTER this include, so the same walk is
-            '' spelled here: a PROC scope means the variable is on the stack, anything
-            '' else -- module, namespace, type -- means it is not.
-            dim as ScopeId cur = s->parent
-            dim as long guard = 0
-            dim as boolean onStack = false
-            while (cur <> SCOPE_NONE) andalso (guard < 1000)
-                guard += 1
-                dim as SymScope ptr sc = c.syms->ScopeAt( cur )
-                if sc = 0 then exit while
-                if sc->kind = cast( ubyte, SCOPEK_PROC ) then
-                    onStack = true
-                    exit while
-                end if
-                if sc->kind = cast( ubyte, SCOPEK_NAMESPACE ) then exit while
-                if sc->kind = cast( ubyte, SCOPEK_TYPE ) then exit while
-                cur = sc->parent
-            wend
-            if onStack then continue for
-        end if
+        '' THE BITFIELD HALF IS STATIC-STORAGE ONLY -- 'shared', 'static', 'extern', 'common'.
+        '' A plain module-level 'dim' is NOT: measured on fbc-modern, 'dim as T z = ( 1, 6 )'
+        '' and '( 1, k )' over bitfields compile and run at module level, and only 'dim
+        '' shared' / 'static' are error 24. This counted module level as static too and
+        '' refused both (structs/bitfield_init.bas).
+        if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or SYMF_COMMON)) = 0 then continue for
         dim as Symbol ptr bf = UdtHoldsKind_( c, s->type_, false, 0 )
         if bf = 0 then continue for
         c.diags->Report( TKO0758, PointRange( c.ast->Loc( item ) ), _

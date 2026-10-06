@@ -259,6 +259,68 @@ private function LetFieldAt_ _
     return Tko.TYPE_NONE
 end function
 
+'' A FIELD LIST OVER A TYPE WITH BITFIELDS, at run time: the object zeroed, then each value
+'' stored into its field by position -- a bitfield by read-modify-write of its unit.
+'' Measured on fbc-modern: 'dim as T z = ( 1, k )' over 'f1 : 1, f2 : 31' is '1 5', and
+'' 'type<T>( ... )' clears the padding bits (structs/bitfield_init.bas). FlattenUdtFields_
+'' refuses a bitfield -- it has no store of its own -- and a tuple-layout copy took over:
+'' two i64s into a four-byte object, '1 0', and in a procedure no diagnostic at all.
+'' Top-level scalar and bitfield fields only; anything else still declines.
+private function BitfieldParenInit_ _
+    ( byref c as Ctx, byref self_ as MirValue, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    dim as long ui = c.udts->Find( t )
+    if ui < 0 then return false
+    dim as long f0 = c.udts->udts[ui].first
+    dim as long n = c.udts->udts[ui].count
+    dim as boolean anyBits = false
+    for i as long = 0 to n - 1
+        dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
+        if fld->bitWidth <> 0 then
+            anyBits = true
+            continue for
+        end if
+        dim as MirType fmt = LowerType( fld->type_, *c.types )
+        if (fmt = MT_VOID) orelse (fmt = MT_AGG) then return false
+    next
+    if anyBits = false then return false
+    dim as FB.Array( of ulong ) vNode
+    if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
+    if (vNode.Count <= 0) orelse (vNode.Count > n) then return false
+    dim as long sz = c.udts->udts[ui].size
+    if sz <= 0 then return false
+
+    dim as FB.Array( of ulong ) za
+    za.Push( cast( ulong, self_.kind ) ) : za.Push( cast( ulong, self_.id ) )
+    za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+    za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, sz ) )
+    EmitRtl( c, RTL_MEMSET, za )
+
+    for i as long = 0 to vNode.Count - 1
+        dim as Tko.NodeId ve = cast( Tko.NodeId, vNode[i] )
+        dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
+        if fld->bitWidth <> 0 then
+            dim as MirValue bv = LowerNumArg_( c, ve, MT_I64 )
+            if bv.kind = cast( ubyte, MV_NONE ) then return false
+            if BitfieldFieldStore_( c, self_, f0 + i, bv ) = false then return false
+            continue for
+        end if
+        dim as MirType fmt = LowerType( fld->type_, *c.types )
+        dim as MirValue fv = LowerNumArg_( c, ve, fmt )
+        if fv.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = self_
+        fa.imm = fld->offset
+        dim as MirValue faddr = Emit( c, fa )
+        if faddr.kind = cast( ubyte, MV_NONE ) then return false
+        StoreThrough( c, faddr, fv )
+    next
+    return true
+end function
+
 '' The destination is a SLOT or, for an ARRAY ELEMENT, an ADDRESS -- selfv. An element
 '' of a brace initialiser has no slot of its own, and building the object in a
 '' temporary of ITS OWN inferred type instead is how '{ ( 7, 8, 9 ) }' over a
@@ -505,7 +567,10 @@ function LowerUdtParenInit_ _
     '' The FRONTEND type of each leaf, beside its MIR one: a var-length STRING leaf is
     '' written by a runtime call and not by a store, and only this tells one.
     dim as FB.Array( of ulong ) fFt
-    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then return false
+    '' ...A TYPE WITH BITFIELDS DOES NOT FLATTEN, and takes BitfieldParenInit_.
+    if FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then
+        return BitfieldParenInit_( c, self_, t, init )
+    end if
     dim as long fCount = fOff.Count
     if fCount <= 0 then return false
 

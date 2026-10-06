@@ -14,6 +14,50 @@ declare function BitfieldStoreParts_ _
       byval bitWidth as long, byval unitTy as MirType, byval unitUns as boolean, _
       byref val as MirValue ) as boolean
 
+'' FIELD fi's UNIT: its byte offset, the field's bit offset and width inside it, the unit's
+'' MIR type and signedness. Shared by an access through a member expression (BitfieldParts)
+'' and an initialiser that names fields by position (BitfieldFieldStore_).
+private function BitfieldUnit_ _
+    ( byref c as Ctx, byval fi as long, byval ftype as Tko.TypeId, byref off as long, _
+      byref bitOff as long, byref bitWidth as long, byref unitTy as MirType, _
+      byref unitUnsigned as boolean ) as boolean
+
+    off = c.udts->fields[fi].offset
+    bitOff = c.udts->fields[fi].bitOffset
+    bitWidth = c.udts->fields[fi].bitWidth
+    dim as long uOff = c.udts->fields[fi].unitOffset
+    dim as long uLen = c.udts->fields[fi].unitBytes
+    if bitWidth <= 0 then return false
+    unitTy = LowerType( ftype, *c.types )
+    if (unitTy = MT_VOID) orelse (unitTy = MT_AGG) then return false
+    '' THE UNIT IS ADDRESSED AT ITS OWN START, not at the field's byte: reading a
+    '' four-byte unit from byte 1 of a four-byte structure runs one byte past it, and
+    '' writing it rewrites whatever follows. fbc addresses the unit and shifts.
+    '' THE RUN'S OWN UNIT when the layout recorded one: the field's type at its aligned
+    '' byte cannot hold 'b' in 'ulong a:5, ushort b:12', nor 'd' in 'field=1 : ubyte
+    '' a:7, ushort d:10' -- 4095 read back 127 and 1023 read 255.
+    dim as long usz = c.types->Layout( ftype ).size
+    if (uLen = 1) orelse (uLen = 2) orelse (uLen = 4) orelse (uLen = 8) then
+        bitOff += (off - uOff) * 8
+        off = uOff
+        select case uLen
+        case 1 : unitTy = MT_I8
+        case 2 : unitTy = MT_I16
+        case 4 : unitTy = MT_I32
+        case else : unitTy = MT_I64
+        end select
+    elseif usz > 0 then
+        dim as long unitStart = (off \ usz) * usz
+        bitOff += (off - unitStart) * 8
+        off = unitStart
+    end if
+    '' The unit widens to 64 bits by its DECLARED signedness. fbc writes
+    '' '(int64)*(uint32*)&A', which zero-extends; sign-extending a ULONG unit whose
+    '' top bit is set drags ones down into the shift.
+    unitUnsigned = IsUnsignedType( c, ftype )
+    return true
+end function
+
 '' The unit is addressed at the field's byte offset and read at the field's DECLARED
 '' type -- which is what sizes the unit, not what sizes the field.
 function BitfieldParts _
@@ -43,51 +87,16 @@ function BitfieldParts _
 
     dim as long ui = c.udts->Find( bt )
     if ui < 0 then return false
-    dim as long off = 0, uOff = 0, uLen = 0
-    dim as boolean got = false
+    dim as long off = 0
+    dim as long fi = -1
     for i as long = 0 to c.udts->udts[ui].count - 1
-        dim as long fi = c.udts->udts[ui].first + i
-        if c.udts->fields[fi].name = fs->name then
-            off = c.udts->fields[fi].offset
-            bitOff = c.udts->fields[fi].bitOffset
-            bitWidth = c.udts->fields[fi].bitWidth
-            uOff = c.udts->fields[fi].unitOffset
-            uLen = c.udts->fields[fi].unitBytes
-            got = true
+        if c.udts->fields[c.udts->udts[ui].first + i].name = fs->name then
+            fi = c.udts->udts[ui].first + i
             exit for
         end if
     next
-    if (got = false) orelse (bitWidth <= 0) then return false
-
-    unitTy = LowerType( fs->type_, *c.types )
-    if (unitTy = MT_VOID) orelse (unitTy = MT_AGG) then return false
-
-    '' THE UNIT IS ADDRESSED AT ITS OWN START, not at the field's byte: reading a
-    '' four-byte unit from byte 1 of a four-byte structure runs one byte past it, and
-    '' writing it rewrites whatever follows. fbc addresses the unit and shifts.
-    '' THE RUN'S OWN UNIT when the layout recorded one: the field's type at its aligned
-    '' byte cannot hold 'b' in 'ulong a:5, ushort b:12', nor 'd' in 'field=1 : ubyte
-    '' a:7, ushort d:10' -- 4095 read back 127 and 1023 read 255.
-    dim as long usz = c.types->Layout( fs->type_ ).size
-    if (uLen = 1) orelse (uLen = 2) orelse (uLen = 4) orelse (uLen = 8) then
-        bitOff += (off - uOff) * 8
-        off = uOff
-        select case uLen
-        case 1 : unitTy = MT_I8
-        case 2 : unitTy = MT_I16
-        case 4 : unitTy = MT_I32
-        case else : unitTy = MT_I64
-        end select
-    elseif usz > 0 then
-        dim as long unitStart = (off \ usz) * usz
-        bitOff += (off - unitStart) * 8
-        off = unitStart
-    end if
-    '' The unit widens to 64 bits by its DECLARED signedness. fbc writes
-    '' '(int64)*(uint32*)&A', which zero-extends; sign-extending a ULONG unit whose
-    '' top bit is set drags ones down into the shift.
-    unitUnsigned = IsUnsignedType( c, fs->type_ )
-
+    if fi < 0 then return false
+    if BitfieldUnit_( c, fi, fs->type_, off, bitOff, bitWidth, unitTy, unitUnsigned ) = false then return false
     dim as MirInst fa
     fa.op = cast( ushort, M_FIELD_ADDR )
     fa.ty = cast( ubyte, MT_PTR )
@@ -238,6 +247,27 @@ function LowerBitfieldStoreValue_ _
     if BitfieldParts( c, id, addr, bitOff, bitWidth, unitTy, unitUns ) = false then
         return false
     end if
+    return BitfieldStoreParts_( c, addr, bitOff, bitWidth, unitTy, unitUns, val )
+end function
+
+'' FIELD fi OF THE OBJECT AT base_, a bitfield, from a value already lowered to i64 -- what
+'' an initialiser naming fields by position has (lowerudtlit.bas BitfieldParenInit_).
+function BitfieldFieldStore_ _
+    ( byref c as Ctx, byref base_ as MirValue, byval fi as long, byref val as MirValue ) as boolean
+
+    dim as long off, bitOff, bitWidth
+    dim as MirType unitTy
+    dim as boolean unitUns
+    if BitfieldUnit_( c, fi, c.udts->fields[fi].type_, off, bitOff, bitWidth, unitTy, unitUns ) = false then
+        return false
+    end if
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = base_
+    fa.imm = off
+    dim as MirValue addr = Emit( c, fa )
+    if addr.kind = cast( ubyte, MV_NONE ) then return false
     return BitfieldStoreParts_( c, addr, bitOff, bitWidth, unitTy, unitUns, val )
 end function
 

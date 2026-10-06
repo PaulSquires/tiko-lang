@@ -29,27 +29,39 @@ func void _ZN16HASSTRINGANDCTORC1Eu7INTEGER(ptr $0, i64 $1) {
 func void LOCALSCOPE() {
   local agg localstring size 24
   local agg localbits size 8
-  local agg $tmp2 size 16
   entry0:
     %1 = alloca ptr localstring
     call void _ZN9HASSTRINGC1Ev(@localstring)
     %2 = field.addr @localstring, 0
     %3 = call.rtl ptr fb_StrAssign(%2, -1, @@$str0, 4, 0)
     %4 = alloca ptr localbits
-    %5 = alloca ptr $tmp2
+    %5 = call.rtl ptr memset(@localbits, 0, 8)
     %6 = const i64 1
-    %7 = const i64 0
-    %8 = field.addr @$tmp2, 0
-    store %8, %6
-    %9 = field.addr @$tmp2, 8
-    store %9, %7
-    %10 = load @$tmp2
-    store @localbits, %10
+    %7 = field.addr @localbits, 0
+    %8 = load %7
+    %9 = const i64 -2
+    %10 = and %8, %9
+    %11 = const i64 1
+    %12 = and %6, %11
+    %13 = or %10, %12
+    store %7, %13
+    %14 = const i64 0
+    %15 = field.addr @localbits, 0
+    %16 = load %15
+    %17 = const i64 -3
+    %18 = and %16, %17
+    %19 = const i64 1
+    %20 = and %14, %19
+    %21 = const i64 1
+    %22 = shl %20, %21
+    %23 = or %18, %22
+    store %15, %23
     call void _ZN9HASSTRINGD1Ev(@localstring)
     ret
 }
 declare void _ZN9HASSTRINGC1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN9HASSTRINGD1Ev(ptr $0)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -129,7 +141,6 @@ func void _ZN8FBTUPLE2Ii8FBSTRINGEC1Ev(ptr $0) {
     store %6, 0
     ret
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void _ZN8FBTUPLE2Ii8FBSTRINGED1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 8
@@ -143,9 +154,9 @@ func void _ZN16HASSTRINGANDCTORD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 10 functions, 10 blocks, 75 insts, 4 statements not lowered, 0 scope imbalance
+lowered: 10 functions, 10 blocks, 87 insts, 4 statements not lowered, 0 scope imbalance
   inside N_VAR 4
-  skip-site src\mir\lowerstore.bas:1132 4
+  skip-site src\mir\lowerstore.bas:1112 4
 tests/diagnostics/src/aggregate-init-fields.bas(32,12): error TKO0757: 'fromliteral' holds a var-len string, which an initializer list cannot fill
      |
   32 | dim shared fromLiteral as HasString = ( "123" )
