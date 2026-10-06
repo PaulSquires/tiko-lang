@@ -1,0 +1,9 @@
+'' file: 'open pipe( cmd for input as #n )' as an expression keeps its device (file/pipe.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/open-pipe-function-form.bas -o tests/codegen/openpipefunctionform.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/openpipefunctionform.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT: hello

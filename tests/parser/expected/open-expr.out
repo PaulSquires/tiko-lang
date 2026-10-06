@@ -30,8 +30,9 @@ N_MODULE (21) <1:88>
   N_AMBIGUOUS [=] <16:1>
     N_IDENT 'r' <16:1>
     N_INTRINSIC [OPEN] <16:5>
-      N_STRING_LIT len=3 kind=0 <16:16>
+      N_IDENT 'pipe' <16:10>
       N_INT_LIT 5 radix=10 <16:38>
+      N_STRING_LIT len=3 kind=0 <16:16>
   N_INTRINSIC [OPEN] <19:1>
     N_IDENT 'fn' <19:6>
     N_INT_LIT 6 radix=10 <19:24>

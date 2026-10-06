@@ -365,7 +365,15 @@ function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     Advance( p )                                    '' OPEN
     '' 'pipe' is not a keyword -- it arrives as an identifier, the same way the
     '' statement form sees it.
-    if Peek( p ) = Tko.TK_IDENT then Advance( p )
+    '' ...AND IT IS KEPT, in the statement form's shape: the device as 'a', the name as the
+    '' first child. Dropped, 'open pipe( "ls x" for input as #1 )' opened a FILE called
+    '' "ls x" and failed (file/pipe.bas); fbc calls fb_FileOpenPipe.
+    dim as Tko.NodeId devN = Tko.NODE_NONE
+    if Peek( p ) = Tko.TK_IDENT then
+        dim as Tko.Token dt = Cur( p )
+        devN = MakeIdent( p, dt )
+        Advance( p )
+    end if
     if Accept( p, Tko.TK_LPAREN ) = false then
         return ErrorNode( p, Tko.TKO0401, "(" )
     end if
@@ -373,6 +381,16 @@ function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     sp.op = cast( ushort, Tko.KW_OPEN )
     IntrOpen( p, sp, true )
     Expect( p, Tko.TK_RPAREN, ")" )
+    if (devN <> Tko.NODE_NONE) andalso (sp.a <> Tko.NODE_NONE) then
+        dim as long nf = p.ast->children.Count
+        p.ast->children.Push( cast( ulong, sp.a ) )
+        for i as long = 0 to sp.count - 1
+            dim as ulong ch = p.ast->children[sp.first + i]   '' a copy: Push may move the array
+            p.ast->children.Push( ch )
+        next
+        sp.first = nf : sp.count += 1
+        sp.a = devN
+    end if
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
 
