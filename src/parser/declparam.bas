@@ -4,6 +4,9 @@
 '' namespace. Nothing else moved with it: a parameter is the one part of a declaration
 '' that is parsed by a single self-contained function.
 
+'' Defined in pptypenote.bas, which is included later.
+declare sub NoteParamType_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+
 '' One parameter: '[byval|byref] name [( )] [as T] [= default]'.
 private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
@@ -107,6 +110,7 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_PARAM, t.loc, sp )
     p.ast->nodes[cast( long, n )].flags or= flags
+    NoteParamType_( p, n )
     return n
 end function
 

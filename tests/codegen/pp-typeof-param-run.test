@@ -1,0 +1,10 @@
+'' '#if typeof( p )' OVER A PARAMETER reads its declared type (fbc's pp/typeof.bas); tiko knew
+'' only module-level variables and refused it. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-typeof-param.bas -o tests/codegen/pptypeofparam.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/pptypeofparam.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [] 0 0
+'' EXPECT-RUN-OUT: lp sg

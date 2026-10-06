@@ -49,6 +49,20 @@ private function PpTypeKey_( byref p as Tko.ParserState, byval tr as Tko.NodeId 
     return ""
 end function
 
+'' A PARAMETER'S TYPE, for an '#if typeof( t )' in the body -- measured, fbc's
+'' pp/typeof.bas writes '#if typeof( t ) = "STRING"' over 'byref t as __type__' in one
+'' overload per type. Noted as its header is read, ahead of the body, and overwritten by
+'' the next procedure's parameter of the same name, as a variable's is.
+sub NoteParamType_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if (p.stream = 0) orelse (n = Tko.NODE_NONE) then return
+    if p.ast->Kind( n ) <> Tko.N_PARAM then return
+    dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+    if (sp->name = Tko.INTERN_NONE) orelse (sp->a = Tko.NODE_NONE) then return
+    dim as string key = PpTypeKey_( p, sp->a )
+    if len( key ) = 0 then return
+    Tko.PpNoteType( *cast( Tko.PpStream ptr, p.stream ), sp->name, key, Tko.PP_TYPE_VAR, p.ast->Loc( n ) )
+end sub
+
 '' A DECLARATION JUST PARSED: each variable's type, each typedef's target, and each TYPE,
 '' UNION or ENUM name.
 private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
