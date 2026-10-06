@@ -1041,9 +1041,7 @@ declare function EmitRtl _
     declare function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerNew_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    declare function BaseLeafSlots_ _
-        ( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, _
-          byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
+    declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
     declare function CtorOf_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval want as long ) as Tko.SymbolId
     declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean

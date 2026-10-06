@@ -1029,6 +1029,11 @@ function LowerLen _
     end scope
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
+    '' 'sizeof' OF A WIDE CONSTANT is (chars + 1) * wchar -- lowerwstrof.bas WideConstChars_.
+    if isSizeof andalso (WideConstChars_( c, a ) >= 0) then
+        outv = ConstInt( c, (WideConstChars_( c, a ) + 1) * c.types->target.wcharBytes, MT_I64 )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
 
     '' A USER-DEFINED 'operator len' WINS OVER THE INTRINSIC. Measured:
     ''
