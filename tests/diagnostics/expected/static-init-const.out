@@ -429,11 +429,11 @@ func void _ZN2TZaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 23 functions, 31 blocks, 173 insts, 53 statements not lowered, 0 scope imbalance
+lowered: 23 functions, 31 blocks, 173 insts, 54 statements not lowered, 0 scope imbalance
   inside ? 2
-  inside N_VAR 51
+  inside N_VAR 52
   skip-site src\mir\lowerstore.bas:1151 34
-  skip-site src\mir\lowerstore.bas:1131 17
+  skip-site src\mir\lowerstore.bas:1131 18
   skip-site src\mir\lowermodinit.bas:76 2
 tests/diagnostics/src/static-init-const.bas(98,20): error TKO0725: 'e21' has static storage and must be initialised from a constant, not a variable
      |
