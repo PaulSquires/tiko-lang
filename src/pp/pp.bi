@@ -402,6 +402,9 @@ namespace Tko
     const PP_TYPE_VAR = 0
     const PP_TYPE_TYPEDEF = 1
     const PP_TYPE_NAMED = 2
+    '' A TYPE MEMBER's procedure text, 'nm' being the interned 'type.member', lower case: the FIRST
+    '' overload declared, which is what 'procptr( T.m )' with no signature names.
+    const PP_TYPE_MEMBER = 3
     declare sub PpNoteType _
         ( byref st as PpStream, byval nm as InternId, byref key as string, _
           byval what as long, byval at as SourceLoc = LOC_NONE )

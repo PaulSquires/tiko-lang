@@ -1,0 +1,16 @@
+'' pp: typeof( procptr( T.m [, sig] ) ) in '#if'; procptr picks by result and the first declared (pointers/procptr-member.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-typeof-procptr.bas -o tests/codegen/pptypeofprocptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/pptypeofprocptr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor ok
+'' EXPECT-RUN-OUT: ctor(i) ok
+'' EXPECT-RUN-OUT: dtor ok
+'' EXPECT-RUN-OUT: proc(T) ok
+'' EXPECT-RUN-OUT: func ok
+'' EXPECT-RUN-OUT: proc(i) differs ok
+'' EXPECT-RUN-OUT:  1.5           7            s
+'' EXPECT-RUN-OUT: proc()
+'' EXPECT-RUN-OUT: -1

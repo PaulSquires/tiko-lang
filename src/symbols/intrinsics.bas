@@ -866,9 +866,7 @@ private function StructorHead_ _
     return UdtMemberSym_( c, t, which )
 end function
 
-declare function ProcPtrPickOverload_ _
-    ( byref c as Ctx, byval head as Tko.SymbolId, _
-      byval lp as Tko.ListPayload ptr ) as Tko.SymbolId
+declare function ProcPtrPickOverload_( byref c as Ctx, byval head as Tko.SymbolId, byval lp as Tko.ListPayload ptr ) as Tko.SymbolId : declare function BareResult_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId : declare function FirstDeclared_( byref c as Ctx, byval head as Tko.SymbolId ) as Tko.SymbolId
 
 private function MemberProcPtr_ _
     ( byref c as Ctx, byval fnE as Tko.NodeId, byval lp as Tko.ListPayload ptr ) as Tko.SymbolId
@@ -918,8 +916,8 @@ private function MemberProcPtr_ _
     if hs = 0 then return Tko.SYMBOL_NONE
     if hs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
 
-    '' NO SIGNATURE WRITTEN: the first overload, which is what fbc takes.
-    if lp->count < 2 then return head
+    '' NO SIGNATURE WRITTEN: the first overload DECLARED, which is what fbc takes -- not the chain's head (pointers/procptr-member.bas: four 'proc's).
+    if lp->count < 2 then return FirstDeclared_( c, head )
     return ProcPtrPickOverload_( c, head, lp )
 end function
 
@@ -1027,6 +1025,7 @@ function ProcPtrPickOverload_ _
                     end if
                     seen += 1
                 next
+                if same andalso (c.types->Inner( sigT ) <> Tko.TYPE_NONE) andalso (s->type_ <> Tko.TYPE_NONE) then same = (BareResult_( c, c.types->Inner( sigT ) ) = BareResult_( c, s->type_ ))   '' and the RESULT: 'cast( ) as single|string' differ in nothing else
                 if same then return cur
             end if
         end if

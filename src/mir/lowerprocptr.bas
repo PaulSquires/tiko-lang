@@ -188,6 +188,8 @@ function SameParamType_ _
 end function
 
 
+declare function FirstDeclaredOf_( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.SymbolId
+
 function LowerProcPtr _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
@@ -374,8 +376,34 @@ function LowerProcPtr _
             end if
         end if
     end scope
-    outv = FuncAddrOf( c, c.info->RefOf( fnE ) )
+    '' WITH NO SIGNATURE, THE OVERLOAD DECLARED FIRST -- what Check typed it as (MemberProcPtr_); the
+    '' binding's chain head is not in declaration order (pointers/procptr-member.bas).
+    dim as Tko.SymbolId fsid = c.info->RefOf( fnE )
+    if (lp->count = 1) andalso (c.ast->Kind( fnE ) = Tko.N_MEMBER) then fsid = FirstDeclaredOf_( c, fsid )
+    outv = FuncAddrOf( c, fsid )
     return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' The overload in sid's chain whose declaration comes first -- the arena is in source order.
+private function FirstDeclaredOf_( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.SymbolId
+    dim as Tko.Symbol ptr hs = c.syms->SymbolAt( sid )
+    if hs = 0 then return sid
+    '' the chain from its HEAD, wherever the binding landed in it
+    dim as Tko.SymbolId cur = c.syms->LookupLocal( hs->parent, hs->name )
+    if cur = Tko.SYMBOL_NONE then cur = sid
+    dim as Tko.SymbolId best = sid
+    dim as long bestAt = &h7FFFFFFF, guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as long pn = cast( long, s->payload )
+        if (pn > 0) andalso (pn < bestAt) then
+            if c.ast->Kind( cast( Tko.NodeId, pn ) ) = Tko.N_PROC then bestAt = pn : best = cur
+        end if
+        cur = s->nextOverload
+    wend
+    return best
 end function
 
 '' The ADDRESS OF A RUNTIME ENTRY POINT, as an M_FUNC_ADDR over the function table.

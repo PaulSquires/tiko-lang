@@ -126,6 +126,17 @@ end function
 '' ('_Z1Fd' for 'dim p as sub( byval as double ) = @f'). Lowering chose it alone
 '' (lowerprocptr.bas ProcPtrByType_) while Check typed '@f' from the overload Resolve bound;
 '' now the choice is recorded on 'f' and '@f' is typed by it (overload re-pick refactor).
+'' Does this procedure take a 'this' -- a non-static member of a TYPE?
+private function ProcHasReceiver_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
+    if (StmtOf( c, pn )->extra and Tko.PF_STATIC) <> 0 then return false
+    dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
+    return (osc <> 0) andalso (osc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+end function
+
 private sub DecideProcAddr_( byref c as Ctx, byval v as Tko.NodeId, byval wantT as Tko.TypeId )
     if (v = Tko.NODE_NONE) orelse (wantT = Tko.TYPE_NONE) then return
     dim as Tko.NodeId fnE = Tko.NODE_NONE
@@ -156,11 +167,15 @@ private sub DecideProcAddr_( byref c as Ctx, byval v as Tko.NodeId, byval wantT 
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
         if cs = 0 then exit while
         if cs->kind = cast( ubyte, Tko.SYM_PROC ) then
-            dim as boolean ok = (ProcParamCount_( c, cur ) = want)
+            '' AN INSTANCE MEMBER'S TYPE STARTS WITH ITS RECEIVER (ProcTypeOfSymbol_), so the wanted
+            '' signature is one longer than the declared parameters and they compare one place on:
+            '' 'var fp = procptr( T.proc )' wanted 'sub( byref as T )' and matched 'proc( byref as const T )'.
+            dim as long rcv = iif( ProcHasReceiver_( c, cur ), 1, 0 )
+            dim as boolean ok = (ProcParamCount_( c, cur ) + rcv = want)
             if ok then ok = SameResult_( c, cs->type_, wantRet )
-            for i as long = 0 to want - 1
+            for i as long = 0 to want - 1 - rcv
                 if ok = false then exit for
-                dim as Tko.TypeId wp = c.types->ProcParam( st, i )
+                dim as Tko.TypeId wp = c.types->ProcParam( st, i + rcv )
                 if wp = Tko.TYPE_NONE then
                     ok = false
                     exit for

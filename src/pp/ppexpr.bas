@@ -251,7 +251,125 @@ private function NsTypeKey_ _
     return ""
 end function
 
+'' A TOKEN'S TEXT, as the procptr operand below reads its member and signature.
+private function PxText_( byref x as PpExprState, byref t as Token ) as string
+    if Tk( t ) = TK_IDENT then return x.e->names->Spelling( cast( InternId, t.literal ) )
+    return TokenKindText( Tk( t ) )
+end function
+
+'' ONE TYPE IN A WRITTEN SIGNATURE -- '[const] name|builtin [ptr ...]' -- as fbc's text spells it.
+private function PxSigType_( byref x as PpExprState ) as string
+    dim as string cq = ""
+    if PxPeek( x ) = KW_CONST then cq = "CONST " : PxNext( x )
+    dim as TokenKind k = PxPeek( x )
+    if (k <> TK_IDENT) andalso (IsKeywordKind( k ) = false) then return ""
+    dim as string r = cq & ucase( PxText_( x, PxTok( x ) ) )
+    PxNext( x )
+    while (PxPeek( x ) = KW_PTR) orelse (PxPeek( x ) = KW_POINTER)
+        r &= " PTR"
+        PxNext( x )
+    wend
+    return r
+end function
+
+'' 'typeof( procptr( T.member [, sub|function( params ) [as R]] ) )' -- fbc's text for the member's
+'' procedure type, THIS first: 'SUB CDECL(AS T)', 'SUB(AS T, AS CONST T)'. With a signature the text
+'' is built from it; without one it is the FIRST overload declared, which the parser noted
+'' (NoteMembers_, pptypenote.bas). A constructor and a destructor are CDECL to fbc.
+'' (pointers/procptr-member.bas: each compared with a 'type tfp as sub cdecl( byref as T )'.)
+'' The operand and its ')' are consumed; "" leaves the condition unevaluable.
+private function PxProcPtrOperand_( byref x as PpExprState ) as string
+    dim as boolean isPp = (Text.LowerAscii( PxText_( x, PxTok( x ) ) ) = "procptr")
+    if isPp = false then return ""
+    PxNext( x )
+    if PxPeek( x ) <> TK_LPAREN then return ""
+    PxNext( x )
+    if (PxPeek( x ) <> TK_IDENT) andalso (IsKeywordKind( PxPeek( x ) ) = false) then return ""
+    dim as string owner = PxText_( x, PxTok( x ) )
+    PxNext( x )
+    if PxPeek( x ) <> TK_DOT then return ""
+    PxNext( x )
+    dim as string mem = ""
+    while (x.pos < x.toks->Count) andalso (PxPeek( x ) <> TK_COMMA) andalso (PxPeek( x ) <> TK_RPAREN)
+        mem &= Text.LowerAscii( PxText_( x, PxTok( x ) ) )
+        PxNext( x )
+    wend
+    dim as boolean isStructor = (mem = "constructor") orelse (mem = "destructor")
+    dim as string txt = ""
+    dim as InternId mk = x.e->names->GetString( lcase( owner & "." & mem ) )
+    dim as long mix = cast( long, mk )
+    dim as string noted = ""
+    if mix < x.e->memberKey.Count then noted = x.e->memberKey[mix]
+    if PxPeek( x ) = TK_COMMA then
+        PxNext( x )
+        dim as TokenKind sk = PxPeek( x )
+        if (sk <> KW_SUB) andalso (sk <> KW_FUNCTION) then return ""
+        PxNext( x )
+        dim as string cc = ""
+        while IsCallConvKind( PxPeek( x ) )
+            cc = ucase( TokenKindText( PxPeek( x ) ) )
+            PxNext( x )
+        wend
+        '' The member's own convention wins: a constructor is CDECL however it is asked for.
+        if isStructor then
+            cc = "CDECL"
+        elseif len( noted ) > 0 then
+            dim as long op = instr( noted, "(" )
+            dim as long sp1 = instr( noted, " " )
+            if (sp1 > 0) andalso (sp1 < op) then cc = mid( noted, sp1 + 1, op - sp1 - 1 )
+        end if
+        if PxPeek( x ) <> TK_LPAREN then return ""
+        PxNext( x )
+        dim as string ps = "AS " & ucase( owner )
+        while PxPeek( x ) <> TK_RPAREN
+            if x.pos >= x.toks->Count then return ""
+            if (PxPeek( x ) = KW_BYREF) orelse (PxPeek( x ) = KW_BYVAL) then PxNext( x )
+            if PxPeek( x ) = TK_IDENT then
+                '' a parameter NAME, when 'as' follows it
+                if (x.pos + 1 < x.toks->Count) andalso (Tk( (*x.toks)[x.pos + 1] ) = KW_AS) then PxNext( x )
+            end if
+            if PxPeek( x ) <> KW_AS then return ""
+            PxNext( x )
+            dim as string pt = PxSigType_( x )
+            if len( pt ) = 0 then return ""
+            ps &= ", AS " & pt
+            if PxPeek( x ) = TK_COMMA then PxNext( x )
+        wend
+        PxNext( x )
+        txt = iif( sk = KW_FUNCTION, "FUNCTION", "SUB" )
+        if len( cc ) > 0 then txt &= " " & cc
+        txt &= "(" & ps & ")"
+        if sk = KW_FUNCTION then
+            if PxPeek( x ) <> KW_AS then return ""
+            PxNext( x )
+            dim as string rt = PxSigType_( x )
+            if len( rt ) = 0 then return ""
+            txt &= " AS " & rt
+        end if
+    else
+        if len( noted ) > 0 then
+            txt = mid( noted, 2 )
+        elseif mem = "destructor" then
+            txt = "SUB CDECL(AS " & ucase( owner ) & ")"
+        else
+            return ""
+        end if
+    end if
+    if PxPeek( x ) <> TK_RPAREN then return ""      '' procptr's ')'
+    PxNext( x )
+    if PxPeek( x ) <> TK_RPAREN then return ""      '' typeof's ')'
+    PxNext( x )
+    return "P" & txt
+end function
+
 private function PxTypeOperand_( byref x as PpExprState ) as string
+    '' 'procptr( T.m [, sig] )' -- see PxProcPtrOperand_.
+    scope
+        dim as long ppAt = x.pos
+        dim as string ppKey = PxProcPtrOperand_( x )
+        if len( ppKey ) > 0 then return ppKey
+        x.pos = ppAt
+    end scope
     if PxPeek( x ) = KW_CONST then PxNext( x )
     '' A QUALIFIED NAME -- '..T', 'N1.T', 'a.b.T' -- resolved through the namespaces.
     dim as boolean qGlobal = false
@@ -324,6 +442,7 @@ end function
 '' string no number can equal.
 private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpValue
     for guard as long = 0 to 15
+        if left( key, 1 ) = "P" then exit for     '' a procedure type's text -- PxProcPtrOperand_
         dim as long sp = instr( key, " " )
         dim as string base_ = iif( sp > 0, left( key, sp - 1 ), key )
         dim as string rest = iif( sp > 0, mid( key, sp ), "" )
@@ -350,6 +469,12 @@ private function PxTypeValue_( byref e as PpEngine, byval key as string ) as PpV
     '' 'typeof( integer ) = typeof( longint )' is false. A builtin was its token kind here,
     '' so a comparison with a string or a type keyword could never hold (pp/if.bas,
     '' pp/typeof.bas, namespace/ns-using*.bas).
+    if left( key, 1 ) = "P" then
+        dim as PpValue pr
+        pr.isStr = true
+        pr.str_ = mid( key, 2 )
+        return pr
+    end if
     dim as long sp2 = instr( key, " " )
     dim as string b2 = iif( sp2 > 0, left( key, sp2 - 1 ), key )
     dim as string tail2 = iif( sp2 > 0, mid( key, sp2 ), "" )

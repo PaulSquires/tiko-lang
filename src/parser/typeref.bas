@@ -237,6 +237,10 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         if byrefRet then sp.extra or= Tko.PF_BYREF_RESULT
         '' Kept, for the type: a call through the pointer reverses -- see TF_PASCAL.
         if ptConv = Tko.CC_PASCAL then sp.extra or= Tko.PF_PASCAL
+        '' ...and CDECL and STDCALL, which only '#if typeof( )' reads: fbc spells them in the type's
+        '' text, 'SUB CDECL(AS T)' (pptypenote.bas).
+        if ptConv = Tko.CC_CDECL then sp.extra or= Tko.PF_CDECL
+        if ptConv = Tko.CC_STDCALL then sp.extra or= Tko.PF_STDCALL
         dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
         p.ast->nodes[cast( long, pn )].flags or= flags or Tko.NF_PROC_TYPE
         while (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)

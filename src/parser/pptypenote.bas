@@ -49,6 +49,90 @@ private function PpTypeKey_( byref p as Tko.ParserState, byval tr as Tko.NodeId 
     return ""
 end function
 
+'' A TYPE AS fbc's 'typeof' SPELLS IT, upper case: 'INTEGER', 'CONST T', 'T PTR'. "" for a shape
+'' this side does not spell.
+private function PpTypeText_( byref p as Tko.ParserState, byval tr as Tko.NodeId ) as string
+    dim as string suffix
+    for guard as long = 0 to 15
+        if (tr = Tko.NODE_NONE) orelse (p.ast->Kind( tr ) <> Tko.N_TYPEREF) then return ""
+        dim as ushort fl = p.ast->nodes[cast( long, tr )].flags
+        dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, tr )].data )]
+        if (fl and Tko.NF_PTR) <> 0 then
+            suffix = " PTR" & suffix
+            tr = sp->a
+            continue for
+        end if
+        if (fl and Tko.NF_PROC_TYPE) <> 0 then return ""
+        dim as string cq = iif( (fl and Tko.NF_CONST) <> 0, "CONST ", "" )
+        dim as Tko.TokenKind k = cast( Tko.TokenKind, sp->op )
+        if BuiltinTypeKw_( k ) then return cq & ucase( Tko.TokenKindText( k ) ) & suffix
+        if sp->name = Tko.INTERN_NONE then return ""
+        return cq & ucase( p.names->Spelling( sp->name ) ) & suffix
+    next
+    return ""
+end function
+
+'' A PROCEDURE TYPE'S TEXT, fbc's: 'SUB CDECL(AS T, AS CONST T)', 'FUNCTION(AS T) AS INTEGER' -- the
+'' passing modes are not part of it. 'owner' is a method's THIS type, written first; "" for none.
+'' The parameters are the N_PARAM children of 'sp'; "" when one cannot be spelled.
+function PpProcText_ _
+    ( byref p as Tko.ParserState, byval sp as Tko.StmtPayload ptr, byval isFunc as boolean, _
+      byval cc as string, byval owner as string, byval skipFirst as long ) as string
+    dim as string ps = ""
+    if len( owner ) > 0 then ps = "AS " & owner
+    for i as long = skipFirst to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, p.ast->children[sp->first + i] )
+        if p.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as string pt = PpTypeText_( p, p.ast->stmts[cast( long, p.ast->nodes[cast( long, prm )].data )].a )
+        if len( pt ) = 0 then return ""
+        if len( ps ) > 0 then ps &= ", "
+        ps &= "AS " & pt
+    next
+    dim as string r = iif( isFunc, "FUNCTION", "SUB" )
+    if len( cc ) > 0 then r &= " " & cc
+    r &= "(" & ps & ")"
+    if isFunc then
+        dim as string rt = PpTypeText_( p, sp->a )
+        if len( rt ) = 0 then return ""
+        r &= " AS " & rt
+    end if
+    return r
+end function
+
+private function PpCallConvText_( byval extra as ulong ) as string
+    if (extra and Tko.PF_CDECL) <> 0 then return "CDECL"
+    if (extra and Tko.PF_STDCALL) <> 0 then return "STDCALL"
+    if (extra and Tko.PF_PASCAL) <> 0 then return "PASCAL"
+    return ""
+end function
+
+'' EACH MEMBER PROCEDURE OF A TYPE, for 'typeof( procptr( T.m ) )': the first overload's text, THIS
+'' first. A constructor and a destructor are CDECL to fbc whatever was written -- measured,
+'' 'typeof( procptr( T.constructor ) )' is 'SUB CDECL(AS T)' -- and every other member takes what
+'' its declaration wrote.
+private sub NoteMembers_( byref p as Tko.ParserState, byval n as Tko.NodeId, byval tsp as Tko.StmtPayload ptr )
+    if tsp->name = Tko.INTERN_NONE then return
+    dim as string tnm = p.names->Spelling( tsp->name )
+    for i as long = 0 to tsp->count - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[tsp->first + i] )
+        if p.ast->Kind( m ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr msp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+        dim as string mnm
+        dim as string cc = PpCallConvText_( msp->extra )
+        select case cast( Tko.TokenKind, msp->op )
+        case Tko.KW_CONSTRUCTOR : mnm = "constructor" : cc = "CDECL"
+        case Tko.KW_DESTRUCTOR  : mnm = "destructor" : cc = "CDECL"
+        case else
+            if msp->name = Tko.INTERN_NONE then continue for
+            mnm = p.names->Spelling( msp->name )
+        end select
+        dim as string txt = PpProcText_( p, msp, msp->a <> Tko.NODE_NONE, cc, ucase( tnm ), 0 )
+        if len( txt ) = 0 then continue for
+        dim as Tko.InternId key = p.names->GetString( lcase( tnm & "." & mnm ) )
+        Tko.PpNoteType( *cast( Tko.PpStream ptr, p.stream ), key, "P" & txt, Tko.PP_TYPE_MEMBER, p.ast->Loc( m ) )
+    next
+end sub
+
 '' A PARAMETER'S TYPE, for an '#if typeof( t )' in the body -- measured, fbc's
 '' pp/typeof.bas writes '#if typeof( t ) = "STRING"' over 'byref t as __type__' in one
 '' overload per type. Noted as its header is read, ahead of the body, and overwritten by
@@ -81,6 +165,14 @@ private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
         next
     case Tko.N_TYPEDEF
         dim as string key = PpTypeKey_( p, sp->a )
+        '' A PROCEDURE TYPE is keyed by its text -- 'P' then fbc's spelling of it.
+        if (len( key ) = 0) andalso (sp->a <> Tko.NODE_NONE) then
+            if (p.ast->nodes[cast( long, sp->a )].flags and Tko.NF_PROC_TYPE) <> 0 then
+                dim as Tko.StmtPayload ptr psp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, sp->a )].data )]
+                dim as string ptxt = PpProcText_( p, psp, psp->op = cast( ushort, Tko.KW_FUNCTION ), PpCallConvText_( psp->extra ), "", 0 )
+                if len( ptxt ) > 0 then key = "P" & ptxt
+            end if
+        end if
         Tko.PpNoteType( *st, sp->name, key, Tko.PP_TYPE_TYPEDEF, p.ast->Loc( n ) )
         for i as long = 0 to sp->count - 1
             dim as Tko.NodeId more = cast( Tko.NodeId, p.ast->children[sp->first + i] )
@@ -90,6 +182,7 @@ private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
         next
     case Tko.N_TYPE, Tko.N_ENUM
         Tko.PpNoteType( *st, sp->name, "", Tko.PP_TYPE_NAMED, p.ast->Loc( n ) )
+        if p.ast->Kind( n ) = Tko.N_TYPE then NoteMembers_( p, n, sp )
         Tko.PpNoteTypeNs( *st, sp->name, p.nsPath )
     end select
 end sub

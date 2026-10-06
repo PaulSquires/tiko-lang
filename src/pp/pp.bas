@@ -148,6 +148,7 @@ type PpEngine
     '' or a parameter is not, and keeps the old TKO0308 rather than a guess.
     as StrVec                 varTypeKey
     as StrVec                 typedefKey
+    as StrVec                 memberKey     '' PP_TYPE_MEMBER: 'P<text>' per 'type.member'
     as IdVec                  typeNameMark
     '' ...AND WHERE: by folded id, the namespaces declaring a type of that name, "|ns|" each
     '' and "||" for none; every 'using' as "|from>to|"; and the namespace being parsed.
@@ -358,6 +359,12 @@ sub PpNoteType _
             e->typeNameMark.Push( 0 )
         wend
         e->typeNameMark[ix] = 1
+    case PP_TYPE_MEMBER
+        if len( key ) = 0 then return
+        while e->memberKey.Count <= ix
+            e->memberKey.Push( "" )
+        wend
+        if len( e->memberKey[ix] ) = 0 then e->memberKey[ix] = key
     case PP_TYPE_TYPEDEF
         if len( key ) = 0 then return
         while e->typedefKey.Count <= ix

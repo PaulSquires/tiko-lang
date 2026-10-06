@@ -223,3 +223,28 @@ private function IntrinsicCallType_ _
     end if
     return IntrinsicTableType_( c, cp, nm )
 end function
+
+'' A RESULT TYPE AS A SIGNATURE MATCH COMPARES IT: qualifiers and a reference stripped.
+function BareResult_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    return t
+end function
+
+'' THE OVERLOAD DECLARED FIRST in a chain -- its declaration node is the lowest, the arena being built
+'' in source order. The chain itself is not in that order.
+function FirstDeclared_( byref c as Ctx, byval head as Tko.SymbolId ) as Tko.SymbolId
+    dim as Tko.SymbolId best = head, cur = head
+    dim as long bestAt = &h7FFFFFFF, guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        dim as long pn = cast( long, s->payload )
+        if (pn > 0) andalso (pn < bestAt) then
+            if c.ast->Kind( cast( Tko.NodeId, pn ) ) = Tko.N_PROC then bestAt = pn : best = cur
+        end if
+        cur = s->nextOverload
+    wend
+    return best
+end function
