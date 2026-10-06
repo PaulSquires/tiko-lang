@@ -901,6 +901,21 @@ sub InitSharedGlobal _
 
     dim as long g = GlobalFor( c, sid )
 
+    '' A DYNAMIC ARRAY'S DESCRIPTOR IS DATA -- element size, rank, flags -- for a shared, a
+    '' static and a static member alike. Measured: 'dim shared sh( any ) as integer' reads
+    '' element_len 8, dimensions 1, flags 17 before any redim (fbc-int/array.bas); tiko's
+    '' image was all zeros. InitDynArrayDesc writes it as the global's initial bytes.
+    if g >= 0 then
+        dim as Tko.Symbol ptr dgs = c.syms->SymbolAt( sid )
+        if dgs <> 0 then
+            if c.types->IsDynArray( dgs->type_ ) then
+                dim as MirValue dgv
+                dgv.kind = cast( ubyte, MV_GLOBAL ) : dgv.ty = cast( ubyte, MT_PTR ) : dgv.id = g
+                InitDynArrayDesc( c, dgv, dgs->type_ )
+            end if
+        end if
+    end if
+
     '' A MODULE-LIFETIME OBJECT IS STILL CONSTRUCTED. 'dim shared as T g' over a type
     '' holding a string left the descriptor uninitialised for the whole program, and
     '' the first assignment through it freed whatever was in the image at that address.

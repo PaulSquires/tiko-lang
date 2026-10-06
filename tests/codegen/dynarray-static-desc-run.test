@@ -1,0 +1,14 @@
+'' A SHARED, STATIC OR STATIC-MEMBER DYNAMIC ARRAY'S DESCRIPTOR starts with its element size, rank
+'' and flags, as a local's does (fbc's fbc-int/array.bas); tiko's image was all zeros.
+'' Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/dynarray-static-desc.bas -o tests/codegen/dynarraystaticdesc.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/dynarraystaticdesc.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 8117
+'' EXPECT-RUN-OUT: 808
+'' EXPECT-RUN-OUT: 8218
+'' EXPECT-RUN-OUT: 8117
