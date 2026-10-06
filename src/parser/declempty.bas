@@ -69,6 +69,15 @@ private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPa
                 p.diags->Report( Tko.TKO0884, Tko.PointRange( p.ast->Loc( m ) ), iif( isUnion, "UNION", "TYPE" ) )
             end if
         case Tko.N_FIELD
+            '' A 'redim' FIELD IS VAR-LEN TOO: 'redim a( 0 to 1 ) as integer => { 1, 2 }' is fbc's 75.
+            if mp->op = cast( ushort, Tko.KW_REDIM ) then
+                dim as Tko.NodeId rini = mp->c
+                if rini = Tko.NODE_NONE then rini = mp->b
+                if (rini <> Tko.NODE_NONE) andalso (IsAnyWord_( p, rini ) = false) then
+                    p.diags->Report( Tko.TKO0612, Tko.PointRange( p.ast->Loc( m ) ), p.names->Spelling( mp->name ) )
+                end if
+                continue for
+            end if
             if (mp->count < 1) orelse (mp->op <> cast( ushort, Tko.KW_DIM )) then continue for
             dim as boolean dyn = true
             for j as long = mp->first to mp->first + mp->count - 1

@@ -1233,7 +1233,7 @@ private function ParseAggregateBody _
                 '' 'arr() as integer' INSIDE A TYPE -- fbc error 9, "Expected
                 '' expression": a dynamic array FIELD must write its rank, '(any)'.
                 '' Empty parens read as no bounds at all and left a SCALAR field.
-                if (Peek( p ) = Tko.TK_LPAREN) andalso HasTok( p, p.pos + 1 ) then
+                if cbool( Peek( p ) = Tko.TK_LPAREN ) andalso HasTok( p, p.pos + 1 ) andalso (redimFld = false) then   '' a 'redim' had TKO0766
                     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_RPAREN then
                         p.diags->Report( Tko.TKO0721, Tko.PointRange( Cur( p ).loc ), _
                                          p.names->Spelling( fp.name ) )
@@ -1372,7 +1372,7 @@ private function ParseAggregateBody _
                 '' 'arr() as integer' INSIDE A TYPE -- fbc error 9, "Expected
                 '' expression": a dynamic array FIELD must write its rank, '(any)'.
                 '' Empty parens read as no bounds at all and left a SCALAR field.
-                if (Peek( p ) = Tko.TK_LPAREN) andalso HasTok( p, p.pos + 1 ) then
+                if cbool( Peek( p ) = Tko.TK_LPAREN ) andalso HasTok( p, p.pos + 1 ) andalso (redimFld = false) then   '' a 'redim' had TKO0766
                     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_RPAREN then
                         p.diags->Report( Tko.TKO0721, Tko.PointRange( Cur( p ).loc ), _
                                          p.names->Spelling( fp.name ) )
