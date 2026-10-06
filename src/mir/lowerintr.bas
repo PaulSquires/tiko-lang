@@ -749,6 +749,9 @@ private function AggIifArm_ _
     if ft <> Tko.TYPE_NONE then
         if c.types->Unqualify( c.info->TypeOf_( e ) ) = c.types->Unqualify( ft ) then
             dim as Tko.SymbolId acc = CopyCtorOf_( c, ft )
+            '' ...OR ONE WITH DEFAULTED TRAILING PARAMETERS: the copy is an initialisation, so fbc
+            '' resolves it -- 'Bc' with its 'type<A>( 123 )' temporary (structs/temp-var-dtors.bas).
+            if acc = Tko.SYMBOL_NONE then acc = InitCopyCtorOf_( c, ft )
             if (acc <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, ft ) then
                 dim as MirValue asrc = LowerAddr( c, e )
                 if asrc.kind <> cast( ubyte, MV_NONE ) then
