@@ -805,7 +805,7 @@ declare function EmitRtl _
     declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
     declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId ) as boolean : declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean : declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long : declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean : declare function StaticOnceBegin_( byref c as Ctx, byval g as long, byval suffix as string ) as long : declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as long )
-    declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId : declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
+    declare function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean : declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId : declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
     declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean

@@ -301,7 +301,7 @@ function LowerWideConcatAssignTo _
     end select
 
     dim as boolean srcIsWide = IsWideString_( c, c.info->TypeOf_( value ) )
-    if srcIsWide = false then srcIsWide = TermIsWide_( c, value )
+    if srcIsWide = false then srcIsWide = TermIsWide_( c, value ) orelse Utf8WideLit_( c, value )   '' a UTF-8 literal: lowerwstrof.bas
     if srcIsWide = false then
         '' A NARROW STRING SOURCE goes through the MIXED entry point and back:
         ''
@@ -672,7 +672,7 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     dim as FB.Array( of ulong ) vt
     FlattenConcat( c, e, vt )
     for k as long = 0 to vt.Count - 1
-        if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) then return true
+        if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, vt[k] ) ) then return true   '' a UTF-8 literal too
     next
     return false
 end function
@@ -875,7 +875,7 @@ function WideConcatToTemp_ _
     '' wide, which is what makes the wstring PRINT files what they are.
     dim as long wi = -1
     for k as long = 0 to terms.Count - 1
-        if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) then
+        if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, terms[k] ) ) then   '' a UTF-8 literal is wide
             wi = k
             exit for
         end if
@@ -912,7 +912,7 @@ function WideConcatToTemp_ _
         dim as FB.Array( of ulong ) args
         args.Push( cast( ulong, acc.kind ) ) : args.Push( cast( ulong, acc.id ) )
         dim as RtlId which = RTL_WSTR_CONCAT
-        if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) then
+        if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, terms[k] ) ) then
             dim as MirValue r
             if WideOperand_( c, cast( Tko.NodeId, terms[k] ), r ) = false then return false
             args.Push( cast( ulong, r.kind ) ) : args.Push( cast( ulong, r.id ) )

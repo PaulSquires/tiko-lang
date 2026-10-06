@@ -363,4 +363,22 @@ function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long
     return WideLitChars_( c, wl )
 end function
 
+
+'' A LITERAL FROM A UTF-8 SOURCE HOLDING A NON-ASCII CHARACTER: in a wide context its text is its
+'' decoded characters, not its bytes -- '"Καλημέρα " + "κόσμε!"' into a wstring appended the second
+'' term's twelve BYTES as twelve characters (wstring/utf8.bas). An ASCII literal stays the narrow
+'' term fbc passes.
+function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    e = Unparen_( c, e )
+    if (e = Tko.NODE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_STRING_LIT) then return false
+    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
+    if (f = 0) orelse (f->encoding = Tko.Text.ENC_BYTES) then return false
+    if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
+    for i as long = 0 to lp->strLength - 1
+        if f->text[lp->strOffset + i] >= 128 then return true
+    next
+    return false
+end function
+
 end namespace
