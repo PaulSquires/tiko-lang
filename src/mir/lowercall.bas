@@ -1180,6 +1180,9 @@ function LowerCallParts _
                 if sretTmp.kind <> cast( ubyte, MV_NONE ) then
                     return LowerExprLoad( c, sretTmp, MT_AGG )
                 end if
+                '' A BYREF RESULT IS READ THROUGH, as the pointer path does: 'xa.f1( )' over a virtual
+                '' 'byref as const integer' printed the address (virtual/compatible-override.bas).
+                if byrefRet andalso (wantRef = false) then return LowerExprLoad( c, vr, mt )
                 return vr
             end if
         end if
