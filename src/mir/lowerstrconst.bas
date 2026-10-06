@@ -51,6 +51,24 @@ function ConstStringTextOf_ _
         return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), _
                                    outText, depth + 1, scope_ )
 
+    case Tko.N_TUPLE
+        '' 'type<string>( "13" )' IS ITS TEXT: over a narrow string type the literal converts
+        '' to nothing new. fbc's dim/global-init.bas initialises a shared 'zstring * 32' and
+        '' 'wstring * 32' that way, and both declined.
+        if (c.ast->nodes[cast( long, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return false
+        dim as Tko.ListPayload ptr tp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if (tp->count <> 1) orelse (tp->target = Tko.NODE_NONE) then return false
+        dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( id ) )
+        if c.types->Kind( tt ) <> Tko.TK_BUILTIN then return false
+        select case c.types->BuiltinOf( tt )
+        case Tko.TY_STRING, Tko.TY_ZSTRING
+        case else
+            return false
+        end select
+        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[tp->first] ), _
+                                   outText, depth + 1, scope_ )
+
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
