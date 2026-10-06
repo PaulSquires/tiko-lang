@@ -550,7 +550,7 @@ sub LowerVarItem_ _
         '' ...AND SO IS AN ARRAY OF THEM: 'dim as string * 1 s1( 0 to 1 )' is 'memset( S1$1, 32, 2 )'
         '' (string/string-fixed-array.bas); tiko zero-filled it.
         dim as boolean fsArr = (c.types->Kind( vs->type_ ) = Tko.TK_ARRAY) andalso (c.types->IsDynArray( vs->type_ ) = false)
-        if fsArr then fsArr = (StrSwapKind_( c, c.types->Inner( vs->type_ ), fsn3 ) = 3)
+        if fsArr then fsArr = (StrSwapKind_( c, c.types->Inner( vs->type_ ), fsn3 ) = 3) andalso (ip->b = Tko.NODE_NONE)   '' a list: fb_StrInit per element
         if fsArr orelse (StrSwapKind_( c, vs->type_, fsn3 ) = 3) then
             dim as MirValue fsa
             fsa.kind = cast( ubyte, MV_LOCAL )
