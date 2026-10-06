@@ -1,0 +1,9 @@
+'' A union with a constructor is zeroed whole, then its first member initialised: f4, past the first
+'' member, reads 0.0 as fbc's (structs/ctor_union.bas).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/union-ctor-zeroed.bas -o tests/codegen/unionctorzeroed.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/unionctorzeroed.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  0              0             0

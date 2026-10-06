@@ -108,4 +108,23 @@ sub InitMember_ _
     if TypeNeedsInit_( c, ft ) then CallImplicitCtor_( c, ft, addr )
 end sub
 
+
+'' A UNION'S PROLOGUE: the whole union is ZEROED first and only its FIRST member gets its default
+'' initialisation on top. 'union bar : f0 as integer : type : ... f4 as double : end type : ...'
+'' with a constructor reads f4 as 0.0 under fbc (structs/ctor_union.bas) -- initialising the first
+'' member alone left the bytes past it as the frame held them. True for a member to skip.
+function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as long, byref thisPtr as MirValue ) as boolean
+    if IsUnionType_( c, t ) = false then return false
+    if i > 0 then return true
+    dim as long usz = SizeOfType( c, t )
+    if usz > 0 then
+        dim as FB.Array( of ulong ) za
+        za.Push( cast( ulong, thisPtr.kind ) ) : za.Push( cast( ulong, thisPtr.id ) )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, usz ) )
+        EmitRtl( c, RTL_MEMSET, za )
+    end if
+    return false
+end function
+
 end namespace

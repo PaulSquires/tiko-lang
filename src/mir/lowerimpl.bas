@@ -463,7 +463,7 @@ sub EmitCtorPrologue_ _
     FieldsInOrder_( c, t, flds )
     for i as long = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
-        if (f = 0) orelse (cbool( i > 0 ) andalso IsUnionType_( c, t )) then continue for   '' a UNION is its FIRST member's (structs/field-init.bas)
+        if (f = 0) orelse UnionMemberSkip_( c, t, i, thisPtr ) then continue for   '' a UNION: zeroed, then its FIRST member's (lowermember.bas)
         dim as Tko.NodeId fi = FieldInitOf_( c, f )
         '' '= ANY' IS THE WHOLE PROLOGUE SKIPPED FOR THIS FIELD -- no zero fill, no
         '' member constructor, no store, and not even the field.addr: fbc's constructor
