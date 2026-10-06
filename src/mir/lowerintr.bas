@@ -10,7 +10,6 @@
 
 namespace Tko.Mir
 
-
 declare function AggIifArm_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId, _
       byval slot as long = -1, byval ft as Tko.TypeId = Tko.TYPE_NONE ) as boolean
@@ -199,7 +198,6 @@ end function
 '' worse than declining it.
 '' 'new' and its array form, in their own file at the 1500-line cap.
 #include once "mir/lowernew.bas"
-
 
 '' The constructor of a type taking 'want' arguments, or nothing. Structors live in the
 '' type's scope under a synthetic name, because neither has a name of its own in the
@@ -768,6 +766,11 @@ private function AggIifArm_ _
         end if
     end if
 
+    '' AN LVALUE ARM, no copy ctor: the temporary is DEFAULT-CONSTRUCTED, then bit-copied (fbc; expressions/iif.bas).
+    if (slot >= 0) andalso (ft <> Tko.TYPE_NONE) andalso cbool( c.types->Unqualify( c.info->TypeOf_( e ) ) = c.types->Unqualify( ft ) ) then
+        dim as Tko.SymbolId adc = CtorOf_( c, c.types->Unqualify( ft ), 0 )
+        if adc <> Tko.SYMBOL_NONE then EmitStructorCall( c, adc, slot )
+    end if
     dim as MirValue v = LowerExpr( c, e )
     if v.kind = cast( ubyte, MV_NONE ) then
         dim as MirValue a = LowerAddr( c, e )
