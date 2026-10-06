@@ -81,6 +81,7 @@ end function
 
 #include once "symbols/collectdecl.bas"
 
+declare function ModuleLevel_( byref w as Walker, byval scope_ as Tko.ScopeId ) as boolean
 declare sub SpreadOverloadFlag_ _
     ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
       byval id as Tko.NodeId )
@@ -432,6 +433,11 @@ sub WalkNode _
                             ((prs->flags and Tko.SYMF_REDIM) <> 0)
                         if IsDynArrayItem_( w, prevIt ) orelse prevRedim then
                             dim as Tko.StmtPayload ptr pip = StmtOf( w, prevIt )
+                            '' A MODULE-LEVEL REDIM OF AN 'extern a( )' DEFINES IT, as a 'dim' does: fbc writes
+                            '' the descriptor beside the 'extern' (dim/extern-array-1.bas). Inside a procedure it
+                            '' only resizes.
+                            dim as boolean extDefines = ModuleLevel_( w, scope_ ) andalso SameTypeRef_( w, pip->a, ip->a )   '' hoisted: warning 38
+                            if extDefines andalso ((prs->flags and Tko.SYMF_EXTERN) <> 0) then prs->flags = (prs->flags and not Tko.SYMF_EXTERN) or Tko.SYMF_SHARED or Tko.SYMF_EXTERN_DEF
                             if SameTypeRef_( w, pip->a, ip->a ) then continue for
                         end if
                     end if
@@ -1336,6 +1342,14 @@ function One _
     info.Resize( ast.Count( ) )
     WalkNode( w, id, scope_ )
     return w.duplicates
+end function
+
+
+'' A scope whose declarations are module storage -- the module or a namespace in it.
+function ModuleLevel_( byref w as Walker, byval scope_ as Tko.ScopeId ) as boolean
+    dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
+    if sc = 0 then return false
+    return (sc->kind = cast( ubyte, Tko.SCOPEK_MODULE )) orelse (sc->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE ))
 end function
 
 end namespace

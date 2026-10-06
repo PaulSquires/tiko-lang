@@ -1,0 +1,8 @@
+'' arrays: 'extern a( )' then module-level 'redim a( 6 to 6 )' is the definition (dim/extern-array-1.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/extern-redim-defines.bas -o tests/codegen/externredimdefines.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/externredimdefines.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  6              7
