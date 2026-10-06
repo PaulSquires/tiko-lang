@@ -1,0 +1,10 @@
+'' A union's default initialisation is its FIRST member's: a byte array first is zeros, a 'string
+'' * 10' first is spaces (structs/field-init.bas); tiko ran every member's, so the last won.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/union-first-member-init.bas -o tests/codegen/unionfirstmemberinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/unionfirstmemberinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 0              0
+'' EXPECT-RUN-OUT: 32            32
