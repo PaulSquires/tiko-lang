@@ -1034,7 +1034,8 @@ end sub
 sub Run _
     ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
       byref names as Tko.Interner, byref kwmap as Tko.KeywordMap, _
-      byref diags as Tko.DiagnosticEngine, byref outp as Result )
+      byref diags as Tko.DiagnosticEngine, byref outp as Result, _
+      byval apostText as boolean = false )
 
     Tko.InitTokenTables( )
 
@@ -1132,6 +1133,11 @@ sub Run _
 
         '' ---- comments
         if c = 39 then                              '' '
+            if apostText then
+                s.i += 1
+                Emit( s, Tko.TK_INVALID, s.i - 1 )
+                continue while
+            end if
             SkipLineComment( s )
             continue while
         end if

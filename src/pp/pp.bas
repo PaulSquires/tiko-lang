@@ -168,7 +168,7 @@ type PpEngine
     as IdVec                  allIncluded
     as FileId                 rootFile
     as long                   uniqueCounter
-    as FB.Array( of ulong )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap   '' ppspell.bas
+    as FB.Array( of ulong )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap : as SourceLoc apostEolAt   '' ppspell.bas
     '' '##_' AT THE END OF A MACRO BODY LINE IS A LINE JOIN, and what it joins is the
     '' NEXT END OF LINE -- wherever that comes from. Measured on fbc, three shapes:
     ''

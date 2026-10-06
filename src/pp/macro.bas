@@ -447,6 +447,7 @@ private function PpReadArgs _
         end if
 
         dim as TokenKind k = Tk( t )
+        if cbool( k = TK_EOL ) andalso (bare = false) andalso ApostArgText_( e ) then continue do   '' a "'" in an argument is text (ppspell.bas)
         if k = TK_EOF then
             '' Running out of tokens is only an error for the parenthesised form; the
             '' bare form is simply finished.

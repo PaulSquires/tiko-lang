@@ -120,3 +120,71 @@ private sub RelexInto _
         outv.Push( t )
     next
 end sub
+
+'' A "'" INSIDE A MACRO'S ARGUMENTS IS TEXT, NOT A COMMENT. fbc's lexer gives "'" a token of its own
+'' (FB_TK_COMMENT) and only the STATEMENT parser treats it as the start of a comment; the macro-
+'' argument reader takes it, and everything after it, as part of the argument. Measured, with
+'' '#define CHECK(e, msg) if (e) then else print #msg':
+''
+''     CHECK( a + a, shouldn't be 0 for a=10 )     prints "shouldn't be 0 for a=10"
+''     S( don't stop )                             "don't stop"
+''
+'' tiko's lexer drops a comment outright, so the argument list ran into the end of the line
+'' still open: TKO0307 (optimizations/self_compare.bas). Recovered here, at that end of line:
+'' when the source between the last token and the EOL is a "'" comment, its text is lexed again
+'' with "'" as a token and pushed in front of the EOL. Only where an argument list is still
+'' open -- everywhere else "'" stays a comment, as it is to fbc's parser. True when it spliced.
+'' (fbc also drops a blank after a "'s" -- 'it's a 'test'' stringises "it'sa 'test'" -- which this
+'' does not reproduce.)
+private function ApostArgText_( byref e as PpEngine ) as boolean
+    if e.frames.Count = 0 then return false
+    dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
+    if (f->file = FILE_NONE) orelse (f->toks = 0) then return false
+    if (f->pos < 1) orelse (f->pos >= f->toks->Count) then return false
+    dim as Token eol = f->toks->At( f->pos )
+    dim as Token prev = f->toks->At( f->pos - 1 )
+    if (Tk( eol ) <> TK_EOL) orelse ((eol.flags and TF_COLON) <> 0) then return false
+    if eol.loc = e.apostEolAt then return false
+    dim as DecodedLoc pd = e.src->Decode( prev.loc )
+    dim as DecodedLoc ed = e.src->Decode( eol.loc )
+    if (pd.file <> ed.file) orelse (pd.file = FILE_NONE) then return false
+    dim as SourceFile ptr sf = e.src->FileAt( ed.file )
+    if sf = 0 then return false
+    dim as long k = pd.offset + cast( long, prev.length )
+    dim as long gapAt = k
+    while (k < ed.offset) andalso ((sf->text[k] = 32) orelse (sf->text[k] = 9))
+        k += 1
+    wend
+    if (k >= ed.offset) orelse (sf->text[k] <> 39) then return false
+    dim as long n = ed.offset - k
+    if (n > 0) andalso (sf->text[k + n - 1] = 13) then n -= 1
+    if n <= 0 then return false
+    e.apostEolAt = eol.loc
+    dim as string raw = space( n )
+    memcpy( strptr( raw ), @sf->text[k], n )
+    dim as FileId vf = e.src->AddVirtual( "<macro-argument>", raw )
+    dim as Lex.Result r
+    Lex.Run( *e.src, vf, *e.names, *e.kw, *e.diags, r, true )
+    MergeLiterals( e, r.tokens, r.literals )
+    dim as TokenVec ptr tv = new TokenVec
+    for i as long = 0 to r.tokens.Count - 1
+        dim as Token t = r.tokens[i]
+        if (Tk( t ) = TK_EOF) orelse (Tk( t ) = TK_EOL) then continue for
+        t.flags and= not TF_AT_LINE_START
+        '' AT ITS PLACE IN THE REAL LINE -- the text is the same, so a span reads the same, and a
+        '' diagnostic names the line that was written rather than the buffer.
+        t.loc = e.src->LocFor( ed.file, k + e.src->Decode( t.loc ).offset )
+        if tv->Count = 0 then
+            t.flags and= not TF_SPACE_BEFORE
+            if k > gapAt then t.flags or= TF_SPACE_BEFORE
+        end if
+        tv->Push( t )
+    next
+    if tv->Count = 0 then
+        delete tv
+        return false
+    end if
+    PushFrame( e, tv, INTERN_NONE, FILE_NONE, true )
+    return true
+end function
+

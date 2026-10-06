@@ -45,10 +45,13 @@ namespace Tko.Lex
         as Tko.SourceLoc  otherMetaAt
     end type
 
+    '' 'apostText': a "'" is a TOKEN (TK_INVALID, one character) rather than the start of a
+    '' comment -- the way fbc's macro-argument reader sees it. See ApostArgText_ (pp).
     declare sub Run _
         ( byref src as Tko.SourceManager, byval file as Tko.FileId, _
           byref names as Tko.Interner, byref kwmap as Tko.KeywordMap, _
-          byref diags as Tko.DiagnosticEngine, byref outp as Result )
+          byref diags as Tko.DiagnosticEngine, byref outp as Result, _
+          byval apostText as boolean = false )
 
     '' --dump-tokens. Byte-stable for identical input: it is a golden artefact.
     declare function Dump _

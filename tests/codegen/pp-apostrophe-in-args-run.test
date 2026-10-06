@@ -1,0 +1,14 @@
+'' pp: an apostrophe inside macro arguments is argument text (optimizations/self_compare.bas)
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/pp-apostrophe-in-args.bas -o tests/codegen/ppapostropheinargs.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ppapostropheinargs.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: don't stop
+'' EXPECT-RUN-OUT: xcan't
+'' EXPECT-RUN-OUT: [x ' y z]
+'' EXPECT-RUN-OUT: [a'b c'd e]
+'' EXPECT-RUN-OUT: F:shouldn't be 0 for a=10
+'' EXPECT-RUN-OUT: one
+'' EXPECT-RUN-OUT:  1
