@@ -32,8 +32,15 @@
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 #include once "driver/scan.bi"
+#include once "mir/rtl.bi"
 
 namespace Tko.Driver
+
+'' Is this fb_ name a runtime procedure? Check.ReportUndeclared's question, answered from
+'' lowering's table -- a layer Check may not include.
+function IsRtlName( byref nm as string ) as boolean
+    return Tko.Mir.RtlByName( nm ) <> Tko.Mir.RTL_NONE
+end function
 
 '' WHICH SPELLING OF THE SIZED BUILTINS THIS UNIT'S OWN SOURCE WRITES (T34): 'int32',
 '' 'float64' ... -- tiko's, prelude typedefs -- or fbc's 'long', 'double' ...; diagnostics then
@@ -354,7 +361,7 @@ function CompileUnit _
         '' in a unit whose '#lang' was refused: there it may be an implicit one.
         if pr.langRefused = false then
             Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
-                                        info, rst, pr.reservedNames, syms )
+                                        info, rst, pr.reservedNames, syms, @IsRtlName )
         end if
         ctx.timing.Add( Tko.PH_CHECK, tPh )
         tPh = timer
@@ -673,7 +680,7 @@ function CompileUnit _
                        info, cst )
         if pr.langRefused = false then
             Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
-                                        info, rst, pr.reservedNames, syms )
+                                        info, rst, pr.reservedNames, syms, @IsRtlName )
         end if
         if ctx.options.dumpDecisions then
             print Tko.Check.DumpDecisions( ast, ctx.sources, ctx.names, syms, info );
@@ -693,7 +700,7 @@ function CompileUnit _
         Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )
         if pr.langRefused = false then
             Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
-                                        info, rst, pr.reservedNames, syms )
+                                        info, rst, pr.reservedNames, syms, @IsRtlName )
         end if
         if FrontendFailed_( ctx ) = false then
             dim as Tko.StrVec noAliases, noSpaces

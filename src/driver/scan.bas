@@ -651,7 +651,7 @@ sub RunUnit _
     Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info, cst )
     if pr.langRefused = false then
         Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
-                                    info, rst, pr.reservedNames, syms )
+                                    info, rst, pr.reservedNames, syms, @Tko.Driver.IsRtlName )
     end if
     '' A MODULE THE ROOT IMPORTS leaves its interface, so the root's '#import' binds. Even
     '' with errors in it: an editor scans half-written code, and an interface with a gap

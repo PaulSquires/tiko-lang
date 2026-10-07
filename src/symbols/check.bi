@@ -158,12 +158,15 @@ namespace Tko.Check
 
     '' A NAME NOTHING DECLARED -- fbc's error 42. Run after Check, over the names Resolve
     '' could not bind; see undeclared.bas. 'reserved' is '#pragma reserve''s list, whose
-    '' names have an error of their own.
+    '' names have an error of their own. 'isRtl' says whether an fb_ name is a runtime
+    '' procedure -- the table is lowering's, a layer above, so the driver hands it in.
+    type RtlNameFn as function( byref nm as string ) as boolean
     declare sub ReportUndeclared _
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
           byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
           byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-          byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable )
+          byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable, _
+          byval isRtl as RtlNameFn )
 
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
     '' them -- Check to TYPE 'p->v' and lowering to CALL the operator -- so they take

@@ -103,7 +103,8 @@ sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
       byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-      byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable )
+      byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable, _
+      byval isRtl as RtlNameFn )
 
     dim as long total = ast.Count( )
     dim as FB.Array( of ubyte ) skip
@@ -260,7 +261,16 @@ sub ReportUndeclared _
         dim as string nm = IdentSpelled_( ast, names, id )
         if len( nm ) = 0 then continue for
         if IsTypedIntrinsicName( nm ) orelse BuiltinProcName_( nm ) then continue for
-        if left( nm, 3 ) = "fb_" then continue for
+        '' ...BUT ONLY A RUNTIME PROCEDURE THAT EXISTS. Every fb_ name was let through, so
+        '' 'u = fb_StrRemove( u, "_" )' -- the ALIAS of fb/string.bi's FB.Remove, not a
+        '' name anything declares -- bound nothing, and lowering declined the statement
+        '' with an internal compiler error (TKO0994). Measured, fbc says 42 for it, and
+        '' for 'fb_NoSuchThing( 1 )', while 'fb_StrLen' and 'fb_ArrayRedimEx' are
+        '' predeclared. The test is the runtime table lowering calls through.
+        if left( nm, 3 ) = "fb_" then
+            if isRtl = 0 then continue for
+            if isRtl( nm ) then continue for
+        end if
         dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( id ) )
         dim as boolean seen = false
         for k as long = 0 to ppAssert.Count - 2 step 2

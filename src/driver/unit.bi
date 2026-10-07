@@ -48,5 +48,7 @@ declare function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
 declare function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
+'' Is an fb_ name a runtime procedure -- for Check.ReportUndeclared. Defined in unit.bas.
+declare function IsRtlName( byref nm as string ) as boolean
 
 end namespace

@@ -1,0 +1,12 @@
+'' AN fb_ NAME THAT IS NO RUNTIME PROCEDURE IS UNDECLARED. Every fb_ name was exempt from
+'' TKO0743, so 's = fb_StrRemove( s, "_" )' -- fb/string.bi's ALIAS for FB.Remove, which
+'' declares nothing by that name -- bound nothing and stopped the build with an internal
+'' compiler error instead (TKO0994). fbc says 42 for it and for 'fb_NoSuchThing', and
+'' accepts the real runtime's 'fb_ArrayRedimEx'.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fb-name-not-runtime.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 2
+'' EXPECT-OUT: fb-name-not-runtime.bas(5,5): error TKO0743: 'fb_strremove' is not declared
+'' EXPECT-OUT: fb-name-not-runtime.bas(6,5): error TKO0743: 'fb_nosuchthing' is not declared
+'' EXPECT-NOT: TKO0994
