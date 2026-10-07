@@ -22,6 +22,51 @@
 '' separates a re-DECLARATION from a definition and gives 158 for the former even when the
 '' name is there; that distinction is not modelled, and missing it costs an accepted file,
 '' not a wrong one.
+'' THE INDEX the three owner lookups below read (visctx.bi, OwnerIndex). Each answers exactly
+'' what its old scan of the whole table answered: a namespace's hits and LAST inner scope, in
+'' symbol order; a type's, counting only types that have a scope; any of the three kinds for
+'' the head test.
+private sub OwnerIndexBuild_( byref c as Ctx )
+    dim as long n = c.syms->symbols.Count
+    if c.owners.builtAt = n then return
+    '' FOLDED FIRST, then sized: folding can intern a new spelling, so the bound is only known
+    '' after every name has been folded.
+    dim as FB.Array( of long ) fid
+    fid.Reserve( n )
+    for i as long = 0 to n - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        select case s->kind
+        case cast( ubyte, SYM_NAMESPACE ), cast( ubyte, SYM_UDT ), cast( ubyte, SYM_TYPEDEF )
+            fid.Push( c.names->Fold( s->name ) )
+        case else
+            fid.Push( -1 )
+        end select
+    next
+    dim as long ids = c.names->Count( ) + 1
+    c.owners.nsHits.Clear( ) : c.owners.nsInner.Clear( )
+    c.owners.udtHits.Clear( ) : c.owners.udtInner.Clear( ) : c.owners.head.Clear( )
+    c.owners.nsHits.Reserve( ids ) : c.owners.nsInner.Reserve( ids )
+    c.owners.udtHits.Reserve( ids ) : c.owners.udtInner.Reserve( ids ) : c.owners.head.Reserve( ids )
+    for i as long = 0 to ids - 1
+        c.owners.nsHits.Push( 0 ) : c.owners.nsInner.Push( SCOPE_NONE )
+        c.owners.udtHits.Push( 0 ) : c.owners.udtInner.Push( SCOPE_NONE ) : c.owners.head.Push( 0 )
+    next
+    for i as long = 0 to n - 1
+        dim as long f = fid[i]
+        if f < 0 then continue for
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        c.owners.head[f] = 1
+        if s->kind = cast( ubyte, SYM_NAMESPACE ) then
+            c.owners.nsHits[f] += 1
+            c.owners.nsInner[f] = s->inner
+        elseif (s->kind = cast( ubyte, SYM_UDT )) andalso (s->inner <> SCOPE_NONE) then
+            c.owners.udtHits[f] += 1
+            c.owners.udtInner[f] = s->inner
+        end if
+    next
+    c.owners.builtAt = n
+end sub
+
 private function NamespaceScopeOf_ _
     ( byref c as Ctx, byval path as InternId ) as ScopeId
 
@@ -35,16 +80,14 @@ private function NamespaceScopeOf_ _
     dim as long firstDot = instr( qp, "." )
     dim as long firstEnd = firstDot
     if firstEnd = 0 then firstEnd = len( qp ) + 1
-    dim as InternId head = c.names->GetString( left( qp, firstEnd - 1 ) )
+    dim as InternId head = c.names->Fold( c.names->GetString( left( qp, firstEnd - 1 ) ) )
+    OwnerIndexBuild_( c )
     dim as ScopeId sc = SCOPE_NONE
     dim as long hits = 0
-    for i as long = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr ns = @c.syms->symbols[i]
-        if ns->kind <> cast( ubyte, SYM_NAMESPACE ) then continue for
-        if c.names->Fold( ns->name ) <> c.names->Fold( head ) then continue for
-        hits += 1
-        sc = ns->inner
-    next
+    if head < c.owners.nsHits.Count then
+        hits = c.owners.nsHits[head]
+        sc = c.owners.nsInner[head]
+    end if
     if (hits <> 1) orelse (sc = SCOPE_NONE) then return SCOPE_NONE
     if firstDot = 0 then return sc
     dim as long at = firstDot
@@ -78,14 +121,9 @@ private function OwnerHeadExists_ ( byref c as Ctx, byval path as InternId ) as 
     dim as long dot = instr( qp, "." )
     if dot > 0 then qp = left( qp, dot - 1 )
     dim as InternId head = c.names->Fold( c.names->GetString( qp ) )
-    for i as long = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if (s->kind <> cast( ubyte, SYM_NAMESPACE )) andalso _
-           (s->kind <> cast( ubyte, SYM_UDT )) andalso _
-           (s->kind <> cast( ubyte, SYM_TYPEDEF )) then continue for
-        if c.names->Fold( s->name ) = head then return true
-    next
-    return false
+    OwnerIndexBuild_( c )
+    if head >= c.owners.head.Count then return false
+    return (c.owners.head[head] <> 0)
 end function
 
 '' The scope of a TYPE named by a plain (undotted, non-generic) owner path, or SCOPE_NONE.
@@ -94,18 +132,10 @@ private function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as Scop
     dim as string qp = c.names->Spelling( path )
     if (instr( qp, "." ) > 0) orelse (instr( qp, "(" ) > 0) then return SCOPE_NONE
     dim as InternId head = c.names->Fold( c.names->GetString( qp ) )
-    dim as ScopeId found = SCOPE_NONE
-    dim as long hits = 0
-    for i as long = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
-        if c.names->Fold( s->name ) <> head then continue for
-        if s->inner = SCOPE_NONE then continue for
-        hits += 1
-        found = s->inner
-    next
-    if hits <> 1 then return SCOPE_NONE
-    return found
+    OwnerIndexBuild_( c )
+    if head >= c.owners.udtHits.Count then return SCOPE_NONE
+    if c.owners.udtHits[head] <> 1 then return SCOPE_NONE
+    return c.owners.udtInner[head]
 end function
 
 '' A STRUCTOR OR PROPERTY OF A NAMESPACED TYPE IS DEFINED INSIDE THE NAMESPACE -- fbc

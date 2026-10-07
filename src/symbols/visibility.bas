@@ -26,26 +26,7 @@
 
 namespace Tko.Vis
 
-type Ctx
-    as AstArena ptr         ast
-    as SymbolTable ptr      syms
-    as TypeContext ptr      types
-    as Interner ptr         names
-    as DiagnosticEngine ptr diags
-    as SemanticInfo ptr     info
-    as InternId             baseName
-    '' THE FIRST REDIM OF A RANK-0 DYNAMIC ARRAY FIXES ITS RANK. 'dim a( )' then
-    '' 'redim a( 0 to 0 )' makes a one-dimensional array, and 'a( 0, 0 )' or a second
-    '' 'redim a( 0 to 0, 0 to 0 )' after it is fbc error 36 -- five corpus files. Recorded
-    '' in source order before the walk, by symbol; consulted by the two rank tests.
-    as NodeIdVec             redimSym
-    as NodeIdVec             redimRank
-    as NodeIdVec             redimItem
-    '' The overload each CALLEE node's call chose, indexed by node id -- see
-    '' RecordChosenOverloads_. Local to this pass on purpose.
-    as NodeIdVec             chosenFor
-    as NodeId                root
-end type
+#include once "symbols/visctx.bi"
 
 '' The TYPE a symbol was declared in, or TYPE_NONE. A member's scope is the type's own.
 private function OwningType_ _
