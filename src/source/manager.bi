@@ -56,6 +56,10 @@ namespace Tko
         as FileVec    files
         as SourceLoc  nextBase
         as Interner ptr names           '' borrowed; owned by CompilerContext
+        '' REAL FILES BY (folded, on Windows) PATH: FileId per InternId, 0 for none -- Find's
+        '' answer without walking the table, which grows by one virtual file per expansion.
+        as FB.Array( of long ) pathIndex
+        as InternId   builtinName       '' "<builtin>", interned on first use by IsBuiltin
 
         '' Default-constructed, then attached. Members of CompilerContext need a
         '' default constructor, and Attach lets the context wire itself up in

@@ -47,10 +47,17 @@ function SourceManager.FileAt( byval id as FileId ) as SourceFile ptr
     return this.files[idx]
 end function
 
+'' THE FILE ALONE, and its name compared as an interned id: this ran a full Decode -- line,
+'' '#line' marks, display column -- and spelled the path into a string, 828,000 times in
+'' tiko-lang's self-compile, to compare it with one constant.
 function SourceManager.IsBuiltin( byval loc as SourceLoc ) as boolean
     if loc = LOC_NONE then return false
-    dim as DecodedLoc d = this.Decode( loc )
-    return (this.PathOf( d.file ) = "<builtin>")
+    dim as FileId fid = FILE_NONE
+    this.LocOffset( loc, fid )
+    dim as SourceFile ptr f = this.FileAt( fid )
+    if f = 0 then return false
+    if this.builtinName = INTERN_NONE then this.builtinName = this.names->GetString( "<builtin>" )
+    return (f->displayPath = this.builtinName)
 end function
 
 function SourceManager.PathOf( byval id as FileId ) as string
@@ -83,28 +90,19 @@ function SourceManager.Find( byref absPath as ustring ) as FileId
     '' and '#include once' loaded each twice: TKO0600 on every type in it (PsCalendar).
     '' Linux names are case-sensitive, so the fold is Windows-only.
     ''
-    '' THROUGH THE INTERNER'S FOLD, NOT lcase( ). This scan runs once per #include, and
+    '' THROUGH THE INTERNER'S FOLD, NOT lcase( ). Find runs once per #include, and
     '' the old spelling rebuilt and lowercased a string PER ENTRY PER CALL. Fold( ) is
     '' memoised on the interned id, so an entry is folded once in the process's life and
     '' every later comparison is an integer one.
     want = this.names->Fold( want )
     #endif
-    dim as long n = this.files.Count
-    for i as long = 0 to n - 1
-        '' A VIRTUAL FILE IS A MACRO EXPANSION, NOT A PATH, and no #include can name
-        '' one. They are the overwhelming majority of the table -- 300 corpus files in
-        '' one invocation load 144,037 files, nearly all of them expansions -- so
-        '' scanning them WAS the cost: 30.96 s of parse time for those 300 files against
-        '' 2.25 s for the same files one process at a time. It was a latent bug as well:
-        '' an expansion whose shown name happened to equal a path would have been
-        '' returned as that file.
-        if this.files[i]->isVirtual then continue for
-        dim as InternId have = this.files[i]->path
-        #ifdef __FB_WIN32__
-        have = this.names->Fold( have )
-        #endif
-        if have = want then return cast( FileId, i + 1 )
-    next
+    '' BY INDEX (pathIndex, kept by Adopt): the first real file under this path, which is
+    '' what a walk of the whole table found -- a walk that also stepped over every virtual
+    '' file, and ran once per #include.
+    if cast( long, want ) < this.pathIndex.Count then
+        dim as long hitId = this.pathIndex[cast( long, want )]
+        if hitId > 0 then return cast( FileId, hitId )
+    end if
     return FILE_NONE
 end function
 
@@ -168,6 +166,18 @@ function SourceManager.Adopt _
     this.nextBase += cast( SourceLoc, n + 1 )
 
     this.files.Push( f )
+    '' INDEXED BY PATH for Find -- a real file only, and only the first under its path.
+    if isVirt = false then
+        dim as long key = cast( long, f->path )
+        #ifdef __FB_WIN32__
+        key = cast( long, this.names->Fold( f->path ) )
+        #endif
+        while this.pathIndex.Count <= key
+            dim as long zero = 0
+            this.pathIndex.Push( zero )
+        wend
+        if this.pathIndex[key] = 0 then this.pathIndex[key] = this.files.Count
+    end if
     return cast( FileId, this.files.Count )
 end function
 

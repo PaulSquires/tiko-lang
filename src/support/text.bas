@@ -311,8 +311,19 @@ function ColumnOf _
     ( byval p as const ubyte ptr, byval lineStart as long, _
       byval byteOffset as long, byval tabWidth as long ) as long
 
-    dim as long col = 0
+    '' PRINTABLE ASCII FIRST, with no call per byte: each such byte is one column, which is
+    '' what DecodeUtf8 + DisplayWidth give it. Decode asks for a column on every location it
+    '' is handed -- 53 million characters walked in tiko-lang's self-compile -- and nearly
+    '' every line is ASCII. A tab, a NUL or a non-ASCII byte hands over to the full walk
+    '' from where this stopped.
     dim as long i = lineStart
+    while i < byteOffset
+        dim as ubyte b = p[i]
+        if (b = 9) orelse (b = 0) orelse (b >= 128) then exit while
+        i += 1
+    wend
+    if i = byteOffset then return byteOffset - lineStart + 1
+    dim as long col = i - lineStart
     while i < byteOffset
         if p[i] = 9 then                    '' tab advances to the next stop
             col = ((col \ tabWidth) + 1) * tabWidth
