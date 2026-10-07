@@ -49,7 +49,10 @@ type EmitCtx
     '' true and useless on its own: the corpus file it came from has three thousand
     '' instructions and the message pointed at none of them.
     as string                curFn
-    as string                curOp
+    '' The instruction being emitted, spelled into an ICE only when there is one.
+    as long                  curOpCode
+    as ulong                 curRes
+    as boolean               curOpSet     '' false until the first instruction: then "" was printed
     '' '-g': the line tables, when asked for, and the line the next body line is on.
     as DebugInfo ptr         dbg
     as long                  dbgLine
@@ -72,7 +75,11 @@ declare function ByvalAttr _
 private sub Ice( byref e as EmitCtx, byref why as string )
     if len( e.ice ) > 0 then return
     e.ice = why
-    if len( e.curFn ) > 0 then e.ice += " (in " & e.curFn & ", " & e.curOp & ")"
+    if len( e.curFn ) > 0 then
+        dim as string opw = ""
+        if e.curOpSet then opw = OpName( cast( MirOp, e.curOpCode ) ) & " %" & str( e.curRes )
+        e.ice += " (in " & e.curFn & ", " & opw & ")"
+    end if
 end sub
 
 '' ---------------------------------------------------------------- names
@@ -478,7 +485,7 @@ end function
 
 private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
     dim as MirOp op = cast( MirOp, ins.op )
-    e.curOp = OpName( op ) & " %" & str( ins.result )
+    e.curOpCode = op : e.curRes = ins.result : e.curOpSet = true
     '' A SLOT IS NOT ITS 'dim': it is allocated in the entry block, and carrying the dim's
     '' line there put a breakpoint on that line at the procedure's start.
     if ins.dbgLine > 0 then e.dbgLine = iif( op = M_ALLOCA, 0, ins.dbgLine )

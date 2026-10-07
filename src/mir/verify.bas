@@ -21,15 +21,24 @@ end sub
 
 '' A VALUE THAT NAMES A TEMP MUST NAME ONE IN RANGE AND ALREADY PRODUCED. The range half
 '' is new (audit F-45): a temp id past the function's counter indexed past 'defined_'.
+'' WHERE AN INSTRUCTION IS, for a failure's message -- 'fn:block:index op'. Spelled only when
+'' something fails: built for every instruction up front, it was a string concatenation per
+'' instruction of every build (7 million in tiko-lang's self-compile; speed audit).
+'' i < 0 is the block itself -- a terminator's operand -- named as the block alone.
+private function IW_( byref bn as string, byval i as long, byval op as MirOp ) as string
+    if i < 0 then return bn
+    return bn & ":" & str( i ) & " " & OpName( op )
+end function
+
 private sub CheckUse_ _
-    ( byref r as VerifyResult, byref iw as string, byref v as MirValue, _
-      defined_ as FB.Array( of ubyte ) )
+    ( byref r as VerifyResult, byref bn as string, byval i as long, byval op as MirOp, _
+      byref v as MirValue, defined_ as FB.Array( of ubyte ) )
 
     if v.kind <> cast( ubyte, MV_TEMP ) then return
     if cast( long, v.id ) >= defined_.Count then
-        Fail( r, iw, "uses %" & str( v.id ) & " past the function's temp counter" )
+        Fail( r, IW_( bn, i, op ), "uses %" & str( v.id ) & " past the function's temp counter" )
     elseif defined_[cast( long, v.id )] = 0 then
-        Fail( r, iw, "uses %" & str( v.id ) & " before it is defined" )
+        Fail( r, IW_( bn, i, op ), "uses %" & str( v.id ) & " before it is defined" )
     end if
 end sub
 
@@ -105,11 +114,10 @@ function Verify _
             for i as long = 0 to b->insts.Count - 1
                 dim as MirInst ptr ins = @b->insts[i]
                 dim as MirOp op = cast( MirOp, ins->op )
-                dim as string iw = bn & ":" & str( i ) & " " & OpName( op )
 
                 '' Rule 6: alloca appears only in the entry block.
                 if (op = M_ALLOCA) andalso (bi <> 0) then
-                    Fail( r, iw, "alloca outside the entry block" )
+                    Fail( r, IW_( bn, i, op ), "alloca outside the entry block" )
                 end if
 
                 '' Rule 4, in the form available without a full signature table: an
@@ -121,18 +129,18 @@ function Verify _
                 if ins->ty = cast( ubyte, MT_VOID ) then wantsResult = false
                 if wantsResult then
                     if ins->result = 0 then
-                        Fail( r, iw, "result-producing opcode with no result temp" )
+                        Fail( r, IW_( bn, i, op ), "result-producing opcode with no result temp" )
                     elseif cast( long, ins->result ) < defined_.Count then
                         if defined_[cast( long, ins->result )] <> 0 then
-                            Fail( r, iw, "temp %" & str( ins->result ) & " defined twice" )
+                            Fail( r, IW_( bn, i, op ), "temp %" & str( ins->result ) & " defined twice" )
                         end if
                         defined_[cast( long, ins->result )] = 1
                     else
-                        Fail( r, iw, "temp %" & str( ins->result ) & _
+                        Fail( r, IW_( bn, i, op ), "temp %" & str( ins->result ) & _
                               " is past the function's temp counter" )
                     end if
                 elseif ins->result <> 0 then
-                    Fail( r, iw, "opcode with no result carries a result temp" )
+                    Fail( r, IW_( bn, i, op ), "opcode with no result carries a result temp" )
                 end if
 
                 '' Rule 9c: a slot that is USED must have been ALLOCATED. See the
@@ -142,7 +150,7 @@ function Verify _
                     dim as long sl = cast( long, ins->a.id )
                     if (sl >= 0) andalso (sl < allocated_.Count) then
                         if allocated_[sl] = 0 then
-                            Fail( r, iw, "uses slot " & str( sl ) & _
+                            Fail( r, IW_( bn, i, op ), "uses slot " & str( sl ) & _
                                   " which is never allocated" )
                         end if
                     end if
@@ -151,7 +159,7 @@ function Verify _
                     dim as long sl = cast( long, ins->b.id )
                     if (sl >= 0) andalso (sl < allocated_.Count) then
                         if allocated_[sl] = 0 then
-                            Fail( r, iw, "uses slot " & str( sl ) & _
+                            Fail( r, IW_( bn, i, op ), "uses slot " & str( sl ) & _
                                   " which is never allocated" )
                         end if
                     end if
@@ -159,21 +167,21 @@ function Verify _
 
                 '' Operands that name a temp must name one that exists.
                 dim as long n = OpArity( op )
-                if n >= 1 then CheckUse_( r, iw, ins->a, defined_ )
-                if n >= 2 then CheckUse_( r, iw, ins->b, defined_ )
+                if n >= 1 then CheckUse_( r, bn, i, op, ins->a, defined_ )
+                if n >= 2 then CheckUse_( r, bn, i, op, ins->b, defined_ )
 
                 '' A CALL'S ARGUMENTS ARE OPERANDS TOO, held in the module's pool as (kind, id)
                 '' pairs, and nothing checked them (audit F-45).
                 if (op = M_CALL) orelse (op = M_CALL_RTL) orelse (op = M_CALL_IND) then
                     if (ins->count > 0) andalso _
                        ((ins->first < 0) orelse ((ins->first + ins->count) * 2 > m.argPool.Count)) then
-                        Fail( r, iw, "call arguments past the end of the pool" )
+                        Fail( r, IW_( bn, i, op ), "call arguments past the end of the pool" )
                     else
                         for q as long = 0 to ins->count - 1
                             dim as MirValue av
                             av.kind = cast( ubyte, m.argPool[(ins->first + q) * 2] )
                             av.id = m.argPool[(ins->first + q) * 2 + 1]
-                            CheckUse_( r, iw, av, defined_ )
+                            CheckUse_( r, bn, i, op, av, defined_ )
                         next
                     end if
                 end if
@@ -198,7 +206,7 @@ function Verify _
                                 bad = (ins->count <> cf->paramCount)
                             end if
                             if bad then
-                                Fail( r, iw, "calls " & names.Spelling( cf->name ) & _
+                                Fail( r, IW_( bn, i, op ), "calls " & names.Spelling( cf->name ) & _
                                     " with " & str( ins->count ) & " arguments, " & _
                                     "which declares " & str( cf->paramCount ) )
                             end if
@@ -238,7 +246,7 @@ function Verify _
                         (valTy <> cast( long, MT_AGG )) andalso _
                         (valTy <> cast( long, MT_VOID ))
                     if checkable andalso (slotTy <> valTy) then
-                        Fail( r, iw, "stores " & TypeName( cast( MirType, valTy ) ) & _
+                        Fail( r, IW_( bn, i, op ), "stores " & TypeName( cast( MirType, valTy ) ) & _
                                      " into a " & TypeName( cast( MirType, slotTy ) ) & _
                                      " slot" )
                     end if
@@ -248,7 +256,7 @@ function Verify _
                 if OpHasResult( op ) andalso (ins->ty = cast( ubyte, MT_VOID )) then
                     if (op <> M_CALL) andalso (op <> M_CALL_RTL) andalso _
                        (op <> M_CALL_IND) then
-                        Fail( r, iw, "non-call opcode produces void" )
+                        Fail( r, IW_( bn, i, op ), "non-call opcode produces void" )
                     end if
                 end if
             next
@@ -257,10 +265,10 @@ function Verify _
             '' defined theirs (audit F-45): a branch condition or a returned value that
             '' names no temp, and a RET whose value disagrees with the signature -- 'return 5'
             '' in a sub was IR clang refused, and this said ok.
-            if tk = MTERM_CONDBR then CheckUse_( r, bn, b->cond, defined_ )
+            if tk = MTERM_CONDBR then CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->cond, defined_ )
             if tk = MTERM_RET then
-                CheckUse_( r, bn, b->cond, defined_ )
-                CheckUse_( r, bn, b->ret2, defined_ )
+                CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->cond, defined_ )
+                CheckUse_( r, bn, -1, cast( MirOp, 0 ), b->ret2, defined_ )
                 dim as boolean hasVal = (b->cond.kind <> cast( ubyte, MV_NONE ))
                 if (f->retTy = cast( ubyte, MT_VOID )) andalso hasVal then
                     Fail( r, bn, "a function returning void returns a value" )
