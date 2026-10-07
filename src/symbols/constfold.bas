@@ -113,29 +113,6 @@ private function WiderOf_( byref a as ConstVal, byref b as ConstVal ) as long
     return iif( wa > wb, wa, wb )
 end function
 
-'' The width an INTEGER LITERAL has. Its suffix decides when it has one; otherwise it is
-'' INTEGER -- pointer-width -- unless the value does not fit, when fbc promotes it to
-'' LONGINT. Measured: on win32 'typeof( 5000000000 )' is LONGINT while
-'' 'typeof( &hFFFFFFFF )' is INTEGER, and the second folds to -1.
-private function LitBits_ _
-    ( byval suffix as ubyte, byval v as longint, byval intBits as long ) as long
-
-    select case cast( Tko.NumSuffix, suffix )
-    case Tko.NSUF_LONG, Tko.NSUF_ULONG, Tko.NSUF_INTEGER, Tko.NSUF_UINTEGER
-        '' '%' and 'U' are INTEGER and UINTEGER, which are pointer-width; 'L' and 'UL'
-        '' are LONG and ULONG, which are 32 everywhere.
-        select case cast( Tko.NumSuffix, suffix )
-        case Tko.NSUF_LONG, Tko.NSUF_ULONG : return 32
-        end select
-        return intBits
-    case Tko.NSUF_LONGINT, Tko.NSUF_ULONGINT
-        return 64
-    end select
-    if intBits >= 64 then return 64
-    if (v >= -2147483648ll) andalso (v <= 4294967295ll) then return 32
-    return 64
-end function
-
 '' THE SCOPE A DOTTED PREFIX NAMES -- 'a' in 'a.C', 'a.b' in 'a.b.C'. Walked one
 '' segment at a time, because a namespace symbol carries the scope it opens in
 '' 'inner' and nothing else relates the two. SCOPE_NONE for anything that is not a
@@ -189,16 +166,6 @@ private function CVWU_ _
     return r
 end function
 
-'' Is a numeric suffix an UNSIGNED one? 'u', 'ul' and 'ull'. A bare hex literal is NOT
-'' unsigned -- measured, '&hFFFFFFFF' at 32 bits is -1 to fbc.
-private function SuffixUnsigned_( byval suffix as ubyte ) as boolean
-    select case cast( Tko.NumSuffix, suffix )
-    case Tko.NSUF_UINTEGER, Tko.NSUF_ULONG, Tko.NSUF_ULONGINT
-        return true
-    end select
-    return false
-end function
-
 private function CVBool_( byval b as boolean ) as ConstVal
     return CV_( iif( b, cast( longint, -1 ), cast( longint, 0 ) ) )
 end function
@@ -249,7 +216,7 @@ private function LitNum_ _
         '' is 41641895 -- the product of the three single values taken in DOUBLE, then
         '' rounded -- where the exact decimals give 41641893.
         if cast( Tko.NumSuffix, lp->suffix ) = Tko.NSUF_SINGLE then d = cast( single, d )
-    elseif DecimalLitUnsigned( *lp ) orelse SuffixUnsigned_( lp->suffix ) then
+    elseif Tko.LiteralClassUnsigned( Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, true ) ) then   '' the literal model
         '' AN UNSIGNED LITERAL CONVERTS AS ONE: '10000000000000000000 / 3' folded the
         '' bits as a signed -8.4e18 and printed -2.8e18 where fbc prints 3.3e18.
         d = cast( double, lp->intValue )
@@ -1013,9 +980,14 @@ function ConstOf _
         '' ...AND AN UNSUFFIXED DECIMAL OF 2^31 TO 2^32 - 1, OR 2^63 UP, IS UINTEGER, as
         '' Check types it -- 'const BIGC = 18446744073709551615 : print BIGC > 0' folded
         '' as -1 > 0.
-        if DecimalLitUnsigned( *lp ) then return CVWU_( iv, intBits, true )
-        return CVWU_( iv, LitBits_( lp->suffix, iv, intBits ), _
-                      SuffixUnsigned_( lp->suffix ) )
+        '' THE LITERAL MODEL (lexer/littype.bas) gives the width and the signedness together: a LONG
+        '' literal folds in 32 bits, a decimal past 2^32 in 64 on a 32-bit target, and an unsuffixed
+        '' decimal of 2^31 to 2^32 - 1 is unsigned -- 'const BIGC = 18446744073709551615 : print
+        '' BIGC > 0' folded as -1 > 0 before.
+        dim as long ilc = Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, intBits >= 64 )
+        dim as long ibits = Tko.LiteralClassBits( ilc, intBits )
+        if ibits = 0 then ibits = intBits
+        return CVWU_( iv, ibits, Tko.LiteralClassUnsigned( ilc ) )
 
     case Tko.N_MEMBER
         '' A QUALIFIED NAMED CONSTANT -- 'Ns.EA'. The unqualified form has folded

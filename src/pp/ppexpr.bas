@@ -141,20 +141,20 @@ end function
 '' is why '1ul > -1' is true; 'u' and 'ull' unsigned 64; '!' / 'f' a single. Unsuffixed, a
 '' DECIMAL from 2^31 to 2^32-1 or from 2^63 up is unsigned -- Check.DecimalLitUnsigned, so
 '' '3000000000 \ -2' is 0, as fbc answers -- and a hex, octal or binary one never is.
-private function PxIntLit_( byval v as longint, byval sf as NumSuffix, byval dec as boolean ) as PpValue
-    select case sf
-    case NSUF_LONG     : return PxNum( cast( long, v ) )
-    case NSUF_ULONG    : return PxNum( cast( longint, cast( ulong, v ) ) )
-    case NSUF_UINTEGER, NSUF_ULONGINT : return PxNumU( v, true )
-    case NSUF_SINGLE   : return PxSgl_( cast( double, v ) )
-    case NSUF_DOUBLE   : return PxFlt( cast( double, v ) )
-    case NSUF_INTEGER, NSUF_LONGINT : return PxNum( v )
+private function PxIntLit_( byref x as PpExprState, byval v as longint, byval sf as NumSuffix, byval dec as boolean ) as PpValue
+    '' THE LITERAL MODEL (lexer/littype.bas) -- the one Check types the literal by, so '#if' and code
+    '' cannot disagree about a literal's type.
+    dim as boolean is64 = x.e->cfg->targetIs64
+    dim as long lc = LiteralClassOf( sf, iif( dec, 10, 16 ), cast( ulongint, v ), false, is64 )
+    select case lc
+    case LC_LONG     : return PxNum( cast( long, v ) )
+    case LC_ULONG    : return PxNum( cast( longint, cast( ulong, v ) ) )
+    case LC_UINTEGER, LC_ULONGINT : return PxNumU( v, true )
+    case LC_SINGLE   : return PxSgl_( cast( double, v ) )
+    case LC_DOUBLE   : return PxFlt( cast( double, v ) )
     end select
-    if dec then
-        dim as ulongint uv = cast( ulongint, v )
-        if uv >= &h8000000000000000ull then return PxNumU( v, true )
-        if (uv >= &h80000000ull) andalso (uv <= &hFFFFFFFFull) then return PxNumU( v, true )
-    end if
+    '' An INTEGER is the target's: 32 bits on a 32-bit one, where '&hFFFFFFFF' is -1.
+    if (lc = LC_INTEGER) andalso (is64 = false) then return PxNum( cast( long, v ) )
     return PxNum( v )
 end function
 
@@ -575,14 +575,14 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             next
             '' A 'u' SUFFIX MAKES IT UNSIGNED -- '&hFFFFFFFFFFFFFFFFull > 0' is true to fbc, and
             '' '&h0u > -1' false (warning 35); unsuffixed, '&hFFFFFFFFFFFFFFFF' is -1. PxIntLit_.
-            return PxIntLit_( v, LitSuffix_( *x.e, t ), false )
+            return PxIntLit_( x, v, LitSuffix_( *x.e, t ), false )
         else
             '' A DECIMAL ABOVE THE LONGINT RANGE IS UNSIGNED in code -- see
             '' Check.DecimalLitUnsigned -- and '#if 18446744073709551615 > 0' is true to
             '' fbc. Read as a longint it was -1. It is carried UNSIGNED, so it still
             '' equals a '&hFFFFFFFFFFFFFFFF' beside it, which a double would not.
             dim as ulongint uv = valulng( digits )
-            return PxIntLit_( cast( longint, uv ), LitSuffix_( *x.e, t ), true )   '' '5ull > -1' is false
+            return PxIntLit_( x, cast( longint, uv ), LitSuffix_( *x.e, t ), true )   '' '5ull > -1' is false
         end if
         return PxNum( v )
 

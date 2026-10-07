@@ -266,6 +266,13 @@ namespace Tko
     '' "" when the flags carry no suffix; otherwise the one character written.
     declare function SuffixCharText( byval flags as ushort ) as string
 
+    '' THE LITERAL MODEL (littype.bas): fbc's type for a numeric literal, one rule for every reader.
+    enum
+        LC_INTEGER = 1, LC_UINTEGER, LC_LONG, LC_ULONG, LC_LONGINT, LC_ULONGINT, LC_SINGLE, LC_DOUBLE
+    end enum
+    declare function LiteralClassOf( byval suffix as ubyte, byval radix as long, byval value as ulongint, byval isFloat as boolean, byval is64 as boolean ) as long
+    declare function LiteralClassBits( byval lc as long, byval intBits as long ) as long
+    declare function LiteralClassUnsigned( byval lc as long ) as boolean
 end namespace
 
 #endif

@@ -522,15 +522,27 @@ declare function TypeOf_ _
 '' "'%t19' defined with type '[16 x i8]' but expected '[8 x i8]'". Eighteen corpus
 '' files would not build, and every one of them was this.
 ''
-'' THE CONSTANT FOLDER ALREADY KNEW -- LitBits_ and SuffixUnsigned_ beside each other
+'' THE CONSTANT FOLDER ALREADY KNEW -- its literal widths and signedness beside each other
 '' in constfold.bas, with the same measurements written above them. Only the TYPE
 '' question was never asked.
 function DecimalLitUnsigned( byref lp as Tko.LiteralPayload ) as boolean
+    '' THE LITERAL MODEL's answer (lexer/littype.bas) for an UNSUFFIXED literal, either target.
     if cast( Tko.NumSuffix, lp.suffix ) <> Tko.NSUF_NONE then return false
-    if (lp.radix <> 10) andalso (lp.radix <> 0) then return false
-    dim as ulongint v = lp.intValue
-    if v >= &h8000000000000000ull then return true
-    return (v >= &h80000000ull) andalso (v <= &hFFFFFFFFull)
+    return Tko.LiteralClassUnsigned( Tko.LiteralClassOf( lp.suffix, lp.radix, lp.intValue, false, true ) )
+end function
+
+'' A literal class as the builtin it is (lexer/littype.bas).
+function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as long ) as Tko.TypeId
+    select case lc
+    case Tko.LC_UINTEGER : return types.Builtin( Tko.TY_UINTEGER )
+    case Tko.LC_LONG     : return types.Builtin( Tko.TY_LONG )
+    case Tko.LC_ULONG    : return types.Builtin( Tko.TY_ULONG )
+    case Tko.LC_LONGINT  : return types.Builtin( Tko.TY_LONGINT )
+    case Tko.LC_ULONGINT : return types.Builtin( Tko.TY_ULONGINT )
+    case Tko.LC_SINGLE   : return types.Builtin( Tko.TY_SINGLE )
+    case Tko.LC_DOUBLE   : return types.Builtin( Tko.TY_DOUBLE )
+    end select
+    return types.Builtin( Tko.TY_INTEGER )
 end function
 
 private function LiteralType_ _
@@ -540,18 +552,10 @@ private function LiteralType_ _
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
             @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
-        select case cast( Tko.NumSuffix, lp->suffix )
-        case Tko.NSUF_LONG     : return c.types->Builtin( Tko.TY_LONG )
-        case Tko.NSUF_ULONG    : return c.types->Builtin( Tko.TY_ULONG )
-        case Tko.NSUF_LONGINT  : return c.types->Builtin( Tko.TY_LONGINT )
-        case Tko.NSUF_ULONGINT : return c.types->Builtin( Tko.TY_ULONGINT )
-        case Tko.NSUF_UINTEGER : return c.types->Builtin( Tko.TY_UINTEGER )
-        end select
-        '' BY MAGNITUDE, when there is no suffix -- see DecimalLitUnsigned. Typed INTEGER
-        '' always, 's < 3000000000' over 'dim s as integer = -1' was TRUE and '3000000000
-        '' \ -2' negative, where fbc reads the literal unsigned and answers the other way.
-        if DecimalLitUnsigned( *lp ) then return c.types->Builtin( Tko.TY_UINTEGER )
-        return c.types->Builtin( Tko.TY_INTEGER )
+        '' THE LITERAL MODEL (lexer/littype.bas) -- suffix first, then by magnitude and radix, as
+        '' fbc's lexer types it. Typed INTEGER always, 's < 3000000000' over 'dim s as integer =
+        '' -1' was TRUE and '3000000000 \ -2' negative, where fbc reads the literal unsigned.
+        return LitClassBuiltin( *c.types, Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, c.types->target.pointerBits = 64 ) )
     case Tko.N_FLOAT_LIT
         '' THE SUFFIX TYPES IT, exactly as it does for an integer literal one arm
         '' above. '1.0f' and '1.0!' are SINGLE and were read as DOUBLE, so an
@@ -560,10 +564,7 @@ private function LiteralType_ _
         '' three times. The lexer already records NSUF_SINGLE; nothing read it.
         dim as Tko.LiteralPayload ptr fp = _
             @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if cast( Tko.NumSuffix, fp->suffix ) = Tko.NSUF_SINGLE then
-            return c.types->Builtin( Tko.TY_SINGLE )
-        end if
-        return c.types->Builtin( Tko.TY_DOUBLE )
+        return LitClassBuiltin( *c.types, Tko.LiteralClassOf( fp->suffix, fp->radix, 0, true, true ) )
     case Tko.N_STRING_LIT, Tko.N_STRCAT
         return c.types->Builtin( Tko.TY_STRING )
     end select

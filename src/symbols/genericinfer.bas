@@ -448,23 +448,16 @@ private function InferArgType_ _
         '' 'dim o as Optional( of long ) = Some( 2L )' inferred T = INTEGER, so the
         '' call returned a 16-byte Optional( of integer ) into an 8-byte slot and
         '' clang refused the whole module.
+        '' ...BY THE LITERAL MODEL, unsuffixed too: 'Show( 3000000000 )' is Show( of uinteger ).
         dim as Tko.LiteralPayload ptr ilp = _
             @c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )]
-        select case cast( Tko.NumSuffix, ilp->suffix )
-        case Tko.NSUF_LONG     : return c.types->Builtin( Tko.TY_LONG )
-        case Tko.NSUF_ULONG    : return c.types->Builtin( Tko.TY_ULONG )
-        case Tko.NSUF_LONGINT  : return c.types->Builtin( Tko.TY_LONGINT )
-        case Tko.NSUF_ULONGINT : return c.types->Builtin( Tko.TY_ULONGINT )
-        case Tko.NSUF_UINTEGER : return c.types->Builtin( Tko.TY_UINTEGER )
-        end select
-        return c.types->Builtin( Tko.TY_INTEGER )
+        return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( ilp->suffix, ilp->radix, ilp->intValue, false, c.types->target.pointerBits = 64 ) )
     case Tko.N_FLOAT_LIT
         '' ...AND FOR A FLOAT: '1.5f' is SINGLE, as Check's LiteralType_ says. 'Show( 1.5f )'
         '' instantiated Show( of double ) where fbc-modern makes T SINGLE (audit F-55).
         dim as Tko.LiteralPayload ptr flp = _
             @c.ast->literals[cast( long, c.ast->nodes[cast( long, a )].data )]
-        if cast( Tko.NumSuffix, flp->suffix ) = Tko.NSUF_SINGLE then return c.types->Builtin( Tko.TY_SINGLE )
-        return c.types->Builtin( Tko.TY_DOUBLE )
+        return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( flp->suffix, flp->radix, 0, true, true ) )
     case Tko.N_STRING_LIT
         return c.types->Builtin( Tko.TY_STRING )
 

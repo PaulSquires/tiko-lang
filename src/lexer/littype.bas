@@ -1,0 +1,64 @@
+'' littype.bas -- THE LITERAL MODEL (audit G5): what type a numeric literal has, in one place.
+''
+'' Check's literal typing, the constant folder's widths and signedness, generic inference and the
+'' '#if' evaluator all ask this, so a literal cannot be one type to the compiler and another to
+'' the preprocessor. The rules are fbc's lexer (lex.bas hReadNumber / hReadNonDecNumber) and its
+'' fb.bas tables, measured across 180 rows by tka-probes/phase4/pb:
+''
+''   a suffix decides first:  %  INTEGER    & L  LONG    U  UINTEGER    UL  ULONG
+''                            LL LONGINT    ULL ULONGINT    ! F  SINGLE    # D  DOUBLE
+''   an unsuffixed DECIMAL:   below 2^31 INTEGER; to 2^32-1 UINTEGER; to 2^63-1 INTEGER on a
+''                            64-bit target, LONGINT on a 32-bit one; above that UINTEGER /
+''                            ULONGINT -- fbc's int31/int32/int63/int64literaldtype
+''   hex, octal, binary:      never unsigned; INTEGER below 2^32 (a 32-bit target's INTEGER, so
+''                            '&hFFFFFFFF' is -1 there), 64-bit from 2^32 (INTEGER / LONGINT)
+''   a float literal:         SINGLE with ! or F, else DOUBLE
+''
+'' Its own unit (build/sources.txt), namespace Tko, declared in token.bi.
+
+#include once "lexer/token.bi"
+
+namespace Tko
+
+function LiteralClassOf _
+    ( byval suffix as ubyte, byval radix as long, byval value as ulongint, _
+      byval isFloat as boolean, byval is64 as boolean ) as long
+
+    select case cast( NumSuffix, suffix )
+    case NSUF_SINGLE   : return LC_SINGLE
+    case NSUF_DOUBLE   : return LC_DOUBLE
+    end select
+    if isFloat then return LC_DOUBLE
+    select case cast( NumSuffix, suffix )
+    case NSUF_INTEGER  : return LC_INTEGER
+    case NSUF_LONG     : return LC_LONG
+    case NSUF_UINTEGER : return LC_UINTEGER
+    case NSUF_ULONG    : return LC_ULONG
+    case NSUF_LONGINT  : return LC_LONGINT
+    case NSUF_ULONGINT : return LC_ULONGINT
+    end select
+    if (radix <> 10) andalso (radix <> 0) then
+        if value <= &hFFFFFFFFull then return LC_INTEGER
+        return iif( is64, LC_INTEGER, LC_LONGINT )
+    end if
+    if value <= &h7FFFFFFFull then return LC_INTEGER
+    if value <= &hFFFFFFFFull then return LC_UINTEGER
+    if value <= &h7FFFFFFFFFFFFFFFull then return iif( is64, LC_INTEGER, LC_LONGINT )
+    return iif( is64, LC_UINTEGER, LC_ULONGINT )
+end function
+
+'' The class's width in bits, INTEGER being the target's ('intBits'); 0 for a float.
+function LiteralClassBits( byval lc as long, byval intBits as long ) as long
+    select case lc
+    case LC_LONG, LC_ULONG         : return 32
+    case LC_LONGINT, LC_ULONGINT   : return 64
+    case LC_INTEGER, LC_UINTEGER   : return intBits
+    end select
+    return 0
+end function
+
+function LiteralClassUnsigned( byval lc as long ) as boolean
+    return (lc = LC_UINTEGER) orelse (lc = LC_ULONG) orelse (lc = LC_ULONGINT)
+end function
+
+end namespace

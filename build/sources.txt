@@ -11,6 +11,7 @@ src/diag/engine.bas
 src/diag/machine.bas
 src/source/manager.bas
 src/lexer/lexer.bas
+src/lexer/littype.bas
 src/pp/pp.bas
 src/parser/expr.bas
 src/ast/collinit.bas

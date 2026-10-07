@@ -1,0 +1,16 @@
+'' A generic's T inferred from a literal follows the one literal model (lexer/littype.bas) that
+'' Check, constfold and #if use: an unsuffixed 3000000000 is UINTEGER (inference said INTEGER), a
+'' suffix decides first. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/literal-model-infer.bas -o tests/codegen/literalmodelinfer.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/literalmodelinfer.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 8:3000000000
+'' EXPECT-RUN-OUT: 8:0
+'' EXPECT-RUN-OUT: 8:4294967295
+'' EXPECT-RUN-OUT: 4:-2147483648
+'' EXPECT-RUN-OUT: 4:1.5
+'' EXPECT-RUN-OUT: 8:18446744073709551615
+'' EXPECT-RUN-OUT: 8:4294967296

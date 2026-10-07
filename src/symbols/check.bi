@@ -236,6 +236,7 @@ namespace Tko.Check
     declare function UdtStrCastFit _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long ) as long
+    declare function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as long ) as Tko.TypeId   '' check.bas, over lexer/littype.bas
     declare function IntrStrOvlPick _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval withUStr as boolean, _
