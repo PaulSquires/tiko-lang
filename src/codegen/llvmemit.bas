@@ -53,6 +53,9 @@ type EmitCtx
     '' '-g': the line tables, when asked for, and the line the next body line is on.
     as DebugInfo ptr         dbg
     as long                  dbgLine
+    '' WHICH HALF OF AN M_ALLOCA TO WRITE -- see EmitBlock's split: 0 both, 1 the 'alloca'
+    '' line alone (hoisted to the top of the entry block), 2 everything but that line.
+    as long                  allocaPart
 end type
 
 '' Forward, because EmitGlobal dispatches to it and FreeBASIC resolves a private
@@ -564,8 +567,10 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' claims more than the slot has (audit F-74, CG-15).
         dim as long sal = AlignOf( e, st, sz )
         if (st = MT_AGG) andalso (sal < e.tgt->layout.maxAlign) then sal = e.tgt->layout.maxAlign
-        Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & ", align " & str( sal ) )
-        if e.dbg <> 0 then e.outp += DbgDeclare( *e.dbg, e.f->locals[slot].sym, _
+        if e.allocaPart <> 2 then
+            Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & ", align " & str( sal ) )
+        end if
+        if (e.dbg <> 0) andalso (e.allocaPart <> 1) then e.outp += DbgDeclare( *e.dbg, e.f->locals[slot].sym, _
             e.f->locals[slot].frontendType, (st = MT_PTR), SlotName( slot ) )
 
     case M_LOAD
@@ -879,13 +884,45 @@ end sub
 ''
 '' MIR has no implicit fallthrough and every block carries exactly one terminator, so
 '' this is a transcription rather than a control-flow reconstruction.
+'' A LONG BLOCK GOES OUT IN PIECES of SPLIT_INSTS_ MIR instructions, each ending in a 'br' to
+'' the next. Nothing changes but compile time: clang -O0's fast register allocator is
+'' superlinear in a block's length, and a program's top-level code is ONE block -- 4,000
+'' string statements made a 64,000-line 'main' that took clang 1.53 s, of which 1.07 s
+'' was register allocation; in pieces of 1,000 the same module takes 0.48 s. Measured
+'' 2026-10-07 (speed audit): flat from 25 to ~3,000 lines a piece, 0.61 s at 10,000.
+'' Any optimisation level merges the pieces back.
+''
+'' THE ENTRY BLOCK'S ALLOCAS STAY IN THE ENTRY BLOCK: only an alloca there is a static
+'' stack slot, so a split entry block writes every 'alloca' line first and each one's
+'' debug declaration where it always was. A block below the threshold -- every block of
+'' every ordinary procedure -- is written exactly as before.
+const SPLIT_INSTS_ = 1000
+
 private sub EmitBlock _
     ( byref e as EmitCtx, byref b as MirBlock, byval bi as long )
 
     e.outp += BlockName( bi ) & ":" & chr( 10 )
+    dim as boolean split = (b.insts.Count > SPLIT_INSTS_)
+    if split andalso (bi = 0) then
+        e.allocaPart = 1
+        for i as long = 0 to b.insts.Count - 1
+            if cast( MirOp, b.insts[i].op ) = M_ALLOCA then EmitInst( e, b.insts[i] )
+        next
+        e.allocaPart = 2
+    end if
+    dim as long piece = 0, run_ = 0
     for i as long = 0 to b.insts.Count - 1
+        if split andalso (run_ >= SPLIT_INSTS_) then
+            piece += 1
+            dim as string nx = BlockName( bi ) & "." & str( piece )
+            Line( e, "br label %" & nx )
+            e.outp += nx & ":" & chr( 10 )
+            run_ = 0
+        end if
         EmitInst( e, b.insts[i] )
+        run_ += 1
     next
+    e.allocaPart = 0
 
     select case cast( MirTermKind, b.term )
     case MTERM_RET
