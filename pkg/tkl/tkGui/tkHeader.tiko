@@ -123,7 +123,6 @@ PUBLIC FUNCTION tkHeader_GetItemCount (BYVAL hHeader AS HWND) AS LONG
 END FUNCTION
 ' ========================================================================================
 
-#if _WIN32_WINNT >= &h0600
 ' ========================================================================================
 ' Gets the coordinates of the drop-down button for a specfied item in a header control.
 ' The header control must be of type HDF_SPLITBUTTON.
@@ -140,13 +139,19 @@ PUBLIC FUNCTION tkHeader_GetItemDropDownRect OVERLOAD (BYVAL hHeader AS HWND, BY
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkHeader_GetItemDropDownRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS RECT
+'PUBLIC FUNCTION tkHeader_GetItemDropDownRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hHeader, HDM_GETITEMDROPDOWNRECT, iItem, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkHeader_GetItemDropDownRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hHeader, HDM_GETITEMDROPDOWNRECT, iItem, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hHeader, HDM_GETITEMDROPDOWNRECT, iItem, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
-#endif
 
 ' ========================================================================================
 ' Gets the bounding rectangle for a given item in a header control.
@@ -161,10 +166,21 @@ PUBLIC FUNCTION tkHeader_GetItemRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iIte
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkHeader_GetItemRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS RECT
+'PUBLIC FUNCTION tkHeader_GetItemRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hHeader, HDM_GETITEMRECT, iItem, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkHeader_GetItemRect(hHeader, 1)
+' IF GetLastError = 1 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkHeader_GetItemRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hHeader, HDM_GETITEMRECT, iItem, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hHeader, HDM_GETITEMRECT, iItem, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -208,7 +224,7 @@ PUBLIC FUNCTION tkHeader_GetItemText OVERLOAD (BYVAL hHeader AS HWND, BYVAL iIte
    hdi.mask = HDI_TEXT
    hdi.psztext = @wszText
    hdi.cchtextmax = MAX_PATH + 1
-   SendMessageW(hHeader, HDM_GETITEMW, iItem, CAST(LPARAM, CAST(HDITEMW PTR, @hdi)))
+   SetLastError(SendMessageW(hHeader, HDM_GETITEMW, iItem, CAST(LPARAM, CAST(HDITEMW PTR, @hdi))))
    RETURN wszText
 END FUNCTION
 ' ========================================================================================
@@ -232,7 +248,7 @@ PUBLIC FUNCTION tkHeader_GetText OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS
    hdi.mask = HDI_TEXT
    hdi.psztext = @wszText
    hdi.cchtextmax = MAX_PATH + 1
-   SendMessageW(hHeader, HDM_GETITEMW, iItem, CAST(LPARAM, CAST(HDITEMW PTR, @hdi)))
+   SetLastError(SendMessageW(hHeader, HDM_GETITEMW, iItem, CAST(LPARAM, CAST(HDITEMW PTR, @hdi))))
    RETURN wszText
 END FUNCTION
 ' ========================================================================================
@@ -255,7 +271,6 @@ PUBLIC FUNCTION tkHeader_GetOrderArray (BYVAL hHeader AS HWND, BYVAL iCount AS L
 END FUNCTION
 ' ========================================================================================
 
-#if _WIN32_WINNT >= &h0600
 ' ========================================================================================
 ' Gets the coordinates of the drop-down overflow area for a specified header control.
 ' The header control must be of type HDF_SPLITBUTTON.
@@ -272,13 +287,19 @@ PUBLIC FUNCTION tkHeader_GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND, BYREF 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkHeader_GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND) AS RECT
+'PUBLIC FUNCTION tkHeader_GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hHeader, HDM_GETOVERFLOWRECT, 0, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkHeader_GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hHeader, HDM_GETOVERFLOWRECT, 0, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hHeader, HDM_GETOVERFLOWRECT, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
-#endif
 
 ' ========================================================================================
 ' Gets the handle to the image list that has been set for an existing header control state.
@@ -305,7 +326,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_HitTest OVERLOAD (BYVAL hHeader AS HWND) AS HDHITTESTINFO
    DIM hdhti AS HDHITTESTINFO
-   SendMessageW(hHeader, HDM_HITTEST, 0, CAST(LPARAM, @hdhti))
+   SetLastError(SendMessageW(hHeader, HDM_HITTEST, 0, CAST(LPARAM, @hdhti)))
    RETURN hdhti
 END FUNCTION
 ' ========================================================================================
@@ -338,7 +359,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_Layout OVERLOAD (BYVAL hHeader AS HWND) AS HDLAYOUT
    DIM hdl AS HDLAYOUT
-   SendMessageW(hHeader, HDM_LAYOUT, 0, CAST(LPARAM, @hdl))
+   SetLastError(SendMessageW(hHeader, HDM_LAYOUT, 0, CAST(LPARAM, @hdl)))
    RETURN hdl
 END FUNCTION
 ' ========================================================================================

@@ -359,11 +359,19 @@ PUBLIC FUNCTION tkListView_GetGroupRect OVERLOAD (BYVAL hListView AS HWND, BYVAL
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetGroupRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iGroupId AS LONG, BYVAL nType AS LONG) AS RECT
+'PUBLIC FUNCTION tkListView_GetGroupRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iGroupId AS LONG, BYVAL nType AS LONG) AS RECT
+'   DIM rc AS RECT
+'   rc.Top = nType
+'   SendMessageW(hListView, LVM_GETGROUPRECT, iGroupId, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetGroupRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iGroupId AS LONG, BYVAL nType AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    rc.Top = nType
-   SendMessageW(hListView, LVM_GETGROUPRECT, iGroupId, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETGROUPRECT, iGroupId, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -435,7 +443,7 @@ END FUNCTION
 PUBLIC FUNCTION tkListView_GetInsertMark OVERLOAD (BYVAL hListView AS HWND) AS LVINSERTMARK
    DIM vim AS LVINSERTMARK
    vim.cbSize = SIZEOF(LVINSERTMARK)
-   SendMessageW(hListView, LVM_GETINSERTMARK, 0, CAST(LPARAM, @vim))
+   SetLastError(SendMessageW(hListView, LVM_GETINSERTMARK, 0, CAST(LPARAM, @vim)))
    RETURN vim
 END FUNCTION
 ' ========================================================================================
@@ -461,10 +469,17 @@ PUBLIC FUNCTION tkListView_GetInsertMarkRect OVERLOAD (BYVAL hListView AS HWND, 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetInsertMarkRect OVERLOAD (BYVAL hListView AS HWND) AS RECT
+'PUBLIC FUNCTION tkListView_GetInsertMarkRect OVERLOAD (BYVAL hListView AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hListView, LVM_GETINSERTMARKRECT, 0, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetInsertMarkRect OVERLOAD (BYVAL hListView AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hListView, LVM_GETINSERTMARKRECT, 0, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETINSERTMARKRECT, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -483,6 +498,7 @@ PUBLIC FUNCTION tkListView_GetISearchString (BYVAL hListView AS HWND) AS USTRING
    DIM nLen AS LONG = SendMessageW(hListView, LVM_GETISEARCHSTRINGW, 0, BYVAL NULL)
    DIM ustrSearch AS USTRING = WSPACE(nLen + 1)
    nLen = SendMessageW(hListView, LVM_GETISEARCHSTRINGW, 0, BYVAL CAST(LPARAM, STRPTR(ustrSearch)))
+   IF nLen = 0 THEN RETURN ""
    RETURN LEFT(ustrSearch, nLen)
 END FUNCTION
 ' ========================================================================================
@@ -541,10 +557,17 @@ PUBLIC FUNCTION tkListView_GetItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL code AS LONG) AS RECT
+'PUBLIC FUNCTION tkListView_GetItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL code AS LONG) AS RECT
+'   DIM rc AS RECT : rc.Left = code
+'   SendMessageW(hListView, LVM_GETITEMRECT, i, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL code AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT : rc.Left = code
-   SendMessageW(hListView, LVM_GETITEMRECT, i, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETITEMRECT, i, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -582,7 +605,7 @@ PUBLIC SUB tkListView_GetItemText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYV
    lvi.iSubItem = iSubItem
    lvi.cchTextMax = cchTextMax
    lvi.pszText = pwszText
-   SendMessageW hListView, LVM_GETITEMTEXTW, i, CAST(LPARAM, @lvi)
+   SetLastError(SendMessageW(hListView, LVM_GETITEMTEXTW, i, CAST(LPARAM, @lvi)))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
@@ -600,6 +623,7 @@ PUBLIC FUNCTION tkListView_GetText (BYVAL hListView AS HWND, BYVAL item AS LONG,
    lvi.cchTextMax = cchTextMax + 1
    lvi.pszText = STRPTR(ustrText)
    nLen = SendMessageW(hListView, LVM_GETITEMTEXTW, 0, CAST(LPARAM, @lvi))
+   IF nLen = 0 THEN RETURN ""
    RETURN LEFT(ustrText, nLen)
 END FUNCTION
 ' ========================================================================================
@@ -723,12 +747,21 @@ PUBLIC FUNCTION tkListView_GetSubItemRect OVERLOAD (BYVAL hListView AS HWND, BYV
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetSubItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS LONG, BYVAL iSubItem AS LONG, BYVAL nCode AS LONG) AS RECT
+'PUBLIC FUNCTION tkListView_GetSubItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS LONG, BYVAL iSubItem AS LONG, BYVAL nCode AS LONG) AS RECT
+'   DIM rc AS RECT
+'   rc.Top = iSubItem
+'   rc.Left = nCode
+'   SendMessageW(hListView, LVM_GETSUBITEMRECT, iItem, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetSubItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS LONG, BYVAL iSubItem AS LONG, BYVAL nCode AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    rc.Top = iSubItem
    rc.Left = nCode
-   SendMessageW(hListView, LVM_GETSUBITEMRECT, iItem, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETSUBITEMRECT, iItem, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -835,10 +868,17 @@ PUBLIC FUNCTION tkListView_GetViewRect OVERLOAD (BYVAL hListView AS HWND, BYREF 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetViewRect OVERLOAD (BYVAL hListView AS HWND) AS RECT
+'PUBLIC FUNCTION tkListView_GetViewRect OVERLOAD (BYVAL hListView AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hListView, LVM_GETVIEWRECT, 0, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetViewRect OVERLOAD (BYVAL hListView AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hListView, LVM_GETVIEWRECT, 0, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETVIEWRECT, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -855,10 +895,17 @@ PUBLIC SUB tkListView_GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWor
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG) AS RECT
+'PUBLIC FUNCTION tkListView_GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW hListView, LVM_GETWORKAREAS, nWorkAreas, CAST(LPARAM, @rc)
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW hListView, LVM_GETWORKAREAS, nWorkAreas, CAST(LPARAM, @rc)
-   RETURN rc
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -885,7 +932,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_HitTest OVERLOAD (BYVAL hListView AS HWND) AS LVHITTESTINFO
    DIM info AS LVHITTESTINFO
-   SendMessageW(hListView, LVM_HITTEST, 0, CAST(LPARAM, @info))
+   SetLastError(SendMessageW(hListView, LVM_HITTEST, 0, CAST(LPARAM, @info)))
    RETURN info
 END FUNCTION
 ' ========================================================================================
@@ -905,7 +952,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_HitTestEx OVERLOAD (BYVAL hListView AS HWND) AS LVHITTESTINFO
    DIM info AS LVHITTESTINFO
-   SendMessageW(hListView, LVM_HITTEST, -1, CAST(LPARAM, @info))
+   SetLastError(SendMessageW(hListView, LVM_HITTEST, -1, CAST(LPARAM, @info)))
    RETURN info
 END FUNCTION
 ' ========================================================================================
@@ -1429,19 +1476,19 @@ END SUB
 ' ========================================================================================
 ' * Changes the text of a list-view item or subitem.
 ' ========================================================================================
-PUBLIC SUB tkListView_SetItemText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYREF pwszText AS WSTRING PTR)
+PUBLIC FUNCTION tkListView_SetItemText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYREF pwszText AS WSTRING PTR) AS BOOLEAN
    DIM lvi AS LVITEMW
    lvi.iSubItem = iSubItem
    lvi.pszText = pwszText
-   SendMessageW hListView, LVM_SETITEMTEXTW, i, CAST(LPARAM, @lvi)
-END SUB
+   RETURN SendMessageW(hListView, LVM_SETITEMTEXTW, i, CAST(LPARAM, @lvi))
+END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkListView_SetText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYREF wszText AS WSTRING)
+PUBLIC FUNCTION tkListView_SetText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYREF wszText AS WSTRING) AS BOOLEAN
    DIM lvi AS LVITEMW
    lvi.pszText = @wszText
-   SendMessageW hListView, LVM_SETITEMTEXTW, i, CAST(LPARAM, @lvi)
-END SUB
+   RETURN SendMessageW(hListView, LVM_SETITEMTEXTW, i, CAST(LPARAM, @lvi))
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
@@ -1625,47 +1672,47 @@ END FUNCTION
 ' See the following Microsoft article: How To Select a Listview Item Programmatically
 ' http://support.microsoft.com/kb/131284
 ' ========================================================================================
-PUBLIC SUB tkListView_SelectItem (BYVAL hListView AS HWND, BYVAL iIndex AS LONG)
+PUBLIC FUNCTION tkListView_SelectItem (BYVAL hListView AS HWND, BYVAL iIndex AS LONG) AS BOOLEAN
    DIM lvi AS LVITEM
    lvi.stateMask = &h000F
    lvi.state = LVIS_FOCUSED OR LVIS_SELECTED
-   SendMessageW hListView, LVM_SETITEMSTATE, iIndex, CAST(LPARAM, @lvi)
-END SUB
+   RETURN SendMessageW(hListView, LVM_SETITEMSTATE, iIndex, CAST(LPARAM, @lvi))
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Selects all items.
 ' ========================================================================================
-PUBLIC SUB tkListView_SelectAllItems (BYVAL hListView AS HWND)
+PUBLIC FUNCTION tkListView_SelectAllItems (BYVAL hListView AS HWND) AS BOOLEAN
    DIM lvi AS LVITEM
    lvi.mask = LVIF_STATE
    lvi.state = -1
    lvi.stateMask = LVIS_SELECTED
-   SendMessageW hListView, LVM_SETITEMSTATE, -1, CAST(LPARAM, @lvi)
-END SUB
+   RETURN SendMessageW(hListView, LVM_SETITEMSTATE, -1, CAST(LPARAM, @lvi))
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Unselects an item in a ListView.
 ' ========================================================================================
-PUBLIC SUB tkListView_UnselectItem (BYVAL hListView AS HWND, BYVAL iIndex AS LONG)
+PUBLIC FUNCTION tkListView_UnselectItem (BYVAL hListView AS HWND, BYVAL iIndex AS LONG) AS BOOLEAN
    DIM lvi AS LVITEM
    lvi.mask = LVIF_STATE
    lvi.state = 0
    lvi.statemask = LVIS_SELECTED
-   SendMessageW hListView, LVM_SETITEMSTATE, iIndex, CAST(LPARAM, @lvi)
-END SUB
+   RETURN SendMessageW(hListView, LVM_SETITEMSTATE, iIndex, CAST(LPARAM, @lvi))
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Unselects all items.
 ' ========================================================================================
-PUBLIC SUB tkListView_UnselectAllItems (BYVAL hListView AS HWND)
+PUBLIC FUNCTION tkListView_UnselectAllItems (BYVAL hListView AS HWND) AS BOOLEAN
    DIM lvi AS LVITEM
    lvi.stateMask = LVIS_SELECTED OR LVIS_FOCUSED
    lvi.state = 0
-   SendMessageW hListView, LVM_SETITEMSTATE, -1, CAST(LPARAM, @lvi)
-END SUB
+   RETURN SendMessageW(hListView, LVM_SETITEMSTATE, -1, CAST(LPARAM, @lvi))
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
@@ -1755,7 +1802,7 @@ PUBLIC FUNCTION tkListView_GetHeaderText (BYVAL hListView AS HWND, BYVAL iCol AS
    hdi.mask = HDI_TEXT
    hdi.cchTextMax = cchTextMax + 1
    hdi.pszText = STRPTR(ustrText)
-   SendMessageW(hLvHeader, HDM_GETITEMW, iCol, CAST(LPARAM, @hdi))
+   SetLastError(SendMessageW(hLvHeader, HDM_GETITEMW, iCol, CAST(LPARAM, @hdi)))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -1768,7 +1815,7 @@ PUBLIC FUNCTION tkListView_GetColumnOrder (BYVAL hListView AS HWND, BYVAL iCol A
    IF hLvHeader = 0 THEN RETURN 0
    DIM hdi AS HDITEMW
    hdi.mask = HDI_ORDER
-   SendMessageW(hLvHeader, HDM_GETITEM, iCol, CAST(LPARAM, @hdi))
+   SetLastError(SendMessageW(hLvHeader, HDM_GETITEMW, iCol, CAST(LPARAM, @hdi)))
    RETURN hdi.iOrder
 END FUNCTION
 ' ========================================================================================
@@ -1808,7 +1855,6 @@ PUBLIC SUB tkListView_SetTooltipsFont (BYVAL hListView AS HWND, BYVAL hFont AS H
    SendMessageW(hwndTooltips, WM_SETFONT, CAST(WPARAM, hFont), fRedraw)
 END SUB
 ' ========================================================================================
-
 
 ' ========================================================================================
 PUBLIC FUNCTION tkListView_SetHeaderFont ( _
@@ -1924,7 +1970,6 @@ PUBLIC FUNCTION tkListView_ModifyHeaderFont ( _
 END FUNCTION
 ' ========================================================================================
 
-#if _WIN32_WINNT >= &h0600
 ' ========================================================================================
 ' Gets information on the footer of a specified list-view control.
 ' ========================================================================================
@@ -1978,12 +2023,20 @@ PUBLIC FUNCTION tkListView_GetFooterItemRect OVERLOAD (BYVAL hListView AS HWND, 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetFooterItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS UINT) AS RECT
+'PUBLIC FUNCTION tkListView_GetFooterItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS UINT) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hListView, LVM_GETFOOTERITEMRECT, iItem, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetFooterItemRect OVERLOAD (BYVAL hListView AS HWND, BYVAL iItem AS UINT) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hListView, LVM_GETFOOTERITEMRECT, iItem, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETFOOTERITEMRECT, iItem, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
+
 ' ========================================================================================
 ' Gets the bounding rectangle for all or part of a subitem in the current view of a
 ' specified list-view control.
@@ -2000,10 +2053,17 @@ PUBLIC FUNCTION tkListView_GetItemIndexRect OVERLOAD (BYVAL hListView AS HWND, B
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetItemIndexRect OVERLOAD (BYVAL hListView AS HWND, BYREF vii AS LVITEMINDEX, BYVAL iSubItem AS LONG, BYVAL code AS LONG) AS RECT
+'PUBLIC FUNCTION tkListView_GetItemIndexRect OVERLOAD (BYVAL hListView AS HWND, BYREF vii AS LVITEMINDEX, BYVAL iSubItem AS LONG, BYVAL code AS LONG) AS RECT
+'   dim rc AS RECT: rc.Top = iSubItem : rc.Left = Code
+'   SendMessageW(hListView, LVM_GETITEMINDEXRECT, CAST(WPARAM, @vii), CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetItemIndexRect OVERLOAD (BYVAL hListView AS HWND, BYREF vii AS LVITEMINDEX, BYVAL iSubItem AS LONG, BYVAL code AS LONG) AS (LONG, LONG, LONG, LONG)
    dim rc AS RECT: rc.Top = iSubItem : rc.Left = Code
-   SendMessageW(hListView, LVM_GETITEMINDEXRECT, CAST(WPARAM, @vii), CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETITEMINDEXRECT, CAST(WPARAM, @vii), CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -2061,14 +2121,19 @@ PUBLIC FUNCTION tkListView_GetFooterRect OVERLOAD (BYVAL hListView AS HWND, BYRE
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListView_GetFooterRect OVERLOAD (BYVAL hListView AS HWND) AS RECT
+'PUBLIC FUNCTION tkListView_GetFooterRect OVERLOAD (BYVAL hListView AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hListView, LVM_GETFOOTERRECT, 0, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkListView_GetFooterRect OVERLOAD (BYVAL hListView AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hListView, LVM_GETFOOTERRECT, 0, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListView, LVM_GETFOOTERRECT, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
-
-#endif
 
 ' ========================================================================================
 ' Sets the listview dark mode.

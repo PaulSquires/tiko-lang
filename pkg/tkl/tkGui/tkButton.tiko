@@ -185,7 +185,7 @@ END FUNCTION
 PUBLIC FUNCTION tkButton_GetText OVERLOAD (BYVAL hButton AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hButton)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
-   GetWindowTextW(hButton, ustrText, nLen +  1)
+   GetWindowTextW(hButton, ustrText, nLen + 1)
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -283,16 +283,41 @@ END SUB
 
 ' ========================================================================================
 ' * Gets the size of the button that best fits its text and image, if an image list is present.
+' Usage example:
+' DIM sz AS SIZE
+' print tkButton_GetIdealSize(hButton, @sz)
+' print sz.cx, sz.cy
 ' ========================================================================================
 PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND, BYVAL pSize AS SIZE PTR) AS BOOLEAN
    RETURN SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, pSize))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS SIZE
+' Usage example:
+' DIM sz AS SIZE
+' print tkButton_GetIdealSize(hButton, sz)
+' print sz.cx, sz.cy
+' ========================================================================================
+PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND, BYREF sz AS SIZE) AS BOOLEAN
+   RETURN SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz))
+END FUNCTION
+' ========================================================================================
+'' ========================================================================================
+'PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS SIZE
+'   DIM sz AS SIZE
+'   SetLastError(SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz)))
+'   RETURN sz
+'END FUNCTION
+'' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(cx, cy) = tkButton_GetIdealSize(hButton)
+' IF GetLastError = 1 THEN PRINT cx, cy
+' ========================================================================================
+PUBLIC FUNCTION tkButton_GetIdealSize OVERLOAD (BYVAL hButton AS HWND) AS (LONG, LONG)
    DIM sz AS SIZE
-   SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz))
-   RETURN sz
+   SetLastError(SendMessageW(hButton, BCM_GETIDEALSIZE, 0, CAST(LPARAM, @sz)))
+   RETURN (sz.cx, sz.cy)
 END FUNCTION
 ' ========================================================================================
 
@@ -309,12 +334,24 @@ PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYREF ma
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS RECT
+'PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SetLastError(SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, @rc)))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkButton_GetTextMargin(hButton)
+' IF GetLastError = 1 THEN print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkButton_GetTextMargin OVERLOAD (BYVAL hButton AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hButton, BCM_GETTEXTMARGIN, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
+
 ' ========================================================================================
 ' * Sets the margins for drawing text in a button control.
 ' ========================================================================================
@@ -333,8 +370,6 @@ PUBLIC FUNCTION tkButton_SetTextMargin OVERLOAD (BYVAL hButton AS HWND, BYVAL nL
    RETURN SendMessageW(hButton, BCM_SETTEXTMARGIN, 0, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
-
-#if _WIN32_WINNT = &h0602
 
 ' ========================================================================================
 ' Sets a flag on a radio button that controls the generation of BN_CLICKED messages when
@@ -356,17 +391,6 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-PUBLIC FUNCTION tkButton_GetSplitGlyphSize (BYVAL hButton AS HWND) AS SIZE
-   DIM info AS BUTTON_SPLITINFO
-   info.mask = BCSIF_SIZE
-   SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
-   DIM sz AS SIZE
-   sz.cx = info.size.cx
-   sz.cy = info.size.cy
-   RETURN sz
-END FUNCTION
-' ========================================================================================
-' ========================================================================================
 ' Gets information for a specified split button control.
 ' ========================================================================================
 PUBLIC FUNCTION tkButton_GetSplitInfo OVERLOAD (BYVAL hButton AS HWND, BYVAL pinfo AS BUTTON_SPLITINFO PTR) AS BOOLEAN
@@ -383,7 +407,7 @@ PUBLIC FUNCTION tkButton_GetSplitInfo OVERLOAD (BYVAL hButton AS HWND) AS BUTTON
    DIM info AS BUTTON_SPLITINFO
 '   info.mask = BCSIF_GLYPH OR BCSIF_IMAGE OR BCSIF_SIZE OR BCSIF_STYLE
    info.mask = BCSIF_IMAGE OR BCSIF_SIZE OR BCSIF_STYLE
-   SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
+   SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
    RETURN info
 END FUNCTION
 ' ========================================================================================
@@ -391,7 +415,7 @@ END FUNCTION
 PUBLIC FUNCTION tkButton_GetSplitStyle (BYVAL hButton AS HWND) AS UINT
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_STYLE
-   SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
+   SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
    RETURN info.uSplitStyle
 END FUNCTION
 ' ========================================================================================
@@ -399,8 +423,31 @@ END FUNCTION
 PUBLIC FUNCTION tkButton_GetSplitImageList (BYVAL hButton AS HWND) AS HIMAGELIST
    DIM info AS BUTTON_SPLITINFO
    info.mask = BCSIF_IMAGE
-   SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
+   SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
    RETURN info.himlGlyph
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+'PUBLIC FUNCTION tkButton_GetSplitGlyphSize (BYVAL hButton AS HWND) AS SIZE
+'   DIM info AS BUTTON_SPLITINFO
+'   info.mask = BCSIF_SIZE
+'   SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info))
+'   DIM sz AS SIZE
+'   sz.cx = info.size.cx
+'   sz.cy = info.size.cy
+'   RETURN sz
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(cx, cy) = tkButton_GetSplitGlyphSize(hSplitButton)
+' IF GetLastError = 1 THEN PRINT cx, cy
+' ========================================================================================
+PUBLIC FUNCTION tkButton_GetSplitGlyphSize (BYVAL hButton AS HWND) AS (LONG, LONG)
+   DIM info AS BUTTON_SPLITINFO
+   info.mask = BCSIF_SIZE
+   SetLastError(SendMessageW(hButton, BCM_GETSPLITINFO, 0, CAST(LPARAM, @info)))
+   RETURN (info.size.cx, info.size.cy)
 END FUNCTION
 ' ========================================================================================
 
@@ -465,7 +512,7 @@ PUBLIC FUNCTION tkButton_GetNote (BYVAL hButton AS HWND) AS USTRING
    IF nLen < 1 THEN RETURN ""
    nLen += 1
    DIM ustr AS USTRING = WSPACE(nLen)
-   SendMessageW(hButton, BCM_GETNOTE, cast(WPARAM, @nLen), CAST(LPARAM, STRPTR(ustr)))
+   SetLastError(SendMessageW(hButton, BCM_GETNOTE, cast(WPARAM, @nLen), CAST(LPARAM, STRPTR(ustr))))
    IF nLen THEN ustr = LEFT(ustr, nLen - 1)
    RETURN ustr
 END FUNCTION
@@ -491,8 +538,6 @@ PUBLIC FUNCTION tkButton_SetElevationRequiredState (BYVAL hButton AS HWND, BYVAL
    RETURN SendMessageW(hButton, BCM_SETSHIELD, 0, fRequired)
 END FUNCTION
 ' ========================================================================================
-
-#endif
 
 ' ========================================================================================
 ' * Set button dark mode.

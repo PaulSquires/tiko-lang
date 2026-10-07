@@ -236,7 +236,6 @@ PUBLIC SUB tkMonthCal_SetToday OVERLOAD (BYVAL hMonthCal AS HWND, BYREF st AS SY
 END SUB
 ' ========================================================================================
 
-#if _WIN32_WINNT >= &h0600
 ' ========================================================================================
 ' Gets information about a calendar grid.
 ' ========================================================================================
@@ -320,6 +319,13 @@ PUBLIC FUNCTION tkMonthCal_GetMinReqRect OVERLOAD (BYVAL hMonthCal AS HWND, BYRE
    RETURN SendMessageW(hMonthCal, MCM_GETMINREQRECT, 0, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkMonthCal_GetMinReqRect OVERLOAD (BYVAL hMonthCal AS HWND) AS (LONG, LONG, LONG, LONG)
+   DIM rc AS RECT
+   SetLastError(SendMessageW(hMonthCal, MCM_GETMINREQRECT, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
+END FUNCTION
+' ========================================================================================
 
 ' ========================================================================================
 ' Calculates how many calendars will fit in the given rectangle, and then returns the
@@ -334,5 +340,10 @@ PUBLIC FUNCTION tkMonthCal_SizeRectToMin OVERLOAD (BYVAL hMonthCal AS HWND, BYRE
    RETURN SendMessageW(hMonthCal, MCM_SIZERECTTOMIN, 0, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
-
-#endif
+' ========================================================================================
+PUBLIC FUNCTION tkMonthCal_SizeRectToMin OVERLOAD (BYVAL hMonthCal AS HWND) AS (LONG, LONG, LONG, LONG)
+   DIM rc AS RECT
+   SetLastError(SendMessageW(hMonthCal, MCM_SIZERECTTOMIN, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
+END FUNCTION
+' ========================================================================================

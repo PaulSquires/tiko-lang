@@ -113,7 +113,7 @@ END FUNCTION
 PUBLIC FUNCTION tkCombo_GetComboBoxInfo OVERLOAD (BYVAL hCombo AS HWND) AS COMBOBOXINFO
    DIM cbi AS COMBOBOXINFO
    cbi.cbSize = SIZEOF(COMBOBOXINFO)
-   SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi))
+   SetLastError(SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi)))
    RETURN cbi
 END FUNCTION
 ' ========================================================================================
@@ -124,7 +124,7 @@ END FUNCTION
 PUBLIC FUNCTION tkCombo_GetEditBoxHandle (BYVAL hCombo AS HWND) AS HWND
    DIM cbi AS COMBOBOXINFO
    cbi.cbSize = SIZEOF(COMBOBOXINFO)
-   SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi))
+   SetLastError(SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi)))
    RETURN cbi.hwndItem
 END FUNCTION
 ' ========================================================================================
@@ -135,7 +135,7 @@ END FUNCTION
 PUBLIC FUNCTION tkCombo_GetListBoxHandle (BYVAL hCombo AS HWND) AS HWND
    DIM cbi AS COMBOBOXINFO
    cbi.cbSize = SIZEOF(COMBOBOXINFO)
-   SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi))
+   SetLastError(SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi)))
    RETURN cbi.hwndList
 END FUNCTION
 ' ========================================================================================
@@ -158,7 +158,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkCombo_GetCueBannerText OVERLOAD (BYVAL hCombo AS HWND, BYVAL cchText AS DWORD = MAX_PATH) AS USTRING
    DIM ustrText AS USTRING = WSPACE(cchText + 1)
-   SendMessageW(hCombo, CB_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText))
+   SetLastError(SendMessageW(hCombo, CB_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText)))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -193,19 +193,30 @@ END FUNCTION
 ' Retrieves the screen coordinates of a combo box in its dropped-down state
 ' ========================================================================================
 PUBLIC SUB tkCombo_GetDroppedControlRect OVERLOAD (BYVAL hCombo AS HWND, BYVAL prc AS RECT PTR)
-   SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, prc))
+   SetLastError(SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, prc)))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkCombo_GetDroppedControlRect OVERLOAD (BYVAL hCombo AS HWND, BYREF rc AS RECT)
-   SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, @rc))
+   SetLastError(SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, @rc)))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkCombo_GetDroppedControlRect OVERLOAD (BYVAL hCombo AS HWND) AS RECT
+'PUBLIC FUNCTION tkCombo_GetDroppedControlRect OVERLOAD (BYVAL hCombo AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SetLastError(SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, @rc)))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkCombo_GetDroppedControlRect(hComboBox)
+' IF GetLastError = 1 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkCombo_GetDroppedControlRect OVERLOAD (BYVAL hCombo AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hCombo, CB_GETDROPPEDCONTROLRECT,  0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -230,13 +241,13 @@ END FUNCTION
 ' Gets the starting and ending character positions of the current selection in the edit
 ' control of a combo box.
 ' ========================================================================================
-PUBLIC SUB tkCombo_GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYREF dwStart AS DWORD, BYREF dwEnd AS DWORD)
-   SendMessageW hCombo, CB_GETEDITSEL, CAST(WPARAM, @dwStart), CAST(LPARAM, @dwEnd)
+PUBLIC SUB tkCombo_GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYREF dwStart AS DWORD, BYREF dwEnd AS DWORD) AS DWORD
+   RETURN SendMessageW(hCombo, CB_GETEDITSEL, CAST(WPARAM, @dwStart), CAST(LPARAM, @dwEnd))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB tkCombo_GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYVAL pdwStart AS DWORD PTR, BYVAL pdwEnd AS DWORD PTR)
-   SendMessageW hCombo, CB_GETEDITSEL, CAST(WPARAM, pdwStart), CAST(LPARAM, pdwEnd)
+PUBLIC SUB tkCombo_GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYVAL pdwStart AS DWORD PTR, BYVAL pdwEnd AS DWORD PTR) AS DWORD
+   RETURN SendMessageW(hCombo, CB_GETEDITSEL, CAST(WPARAM, pdwStart), CAST(LPARAM, pdwEnd))
 END SUB
 ' ========================================================================================
 
@@ -291,8 +302,9 @@ PUBLIC FUNCTION tkCombo_GetLbText (BYVAL hCombo AS HWND, BYVAL index AS LONG) AS
    DIM nLen AS LONG
    IF index < 0 THEN index = SendMessageW(hCombo, CB_GETCURSEL, 0, 0)
    nLen = SendMessageW(hCombo, CB_GETLBTEXTLEN, index, 0)
+   IF nLen = 0 THEN RETURN ""
    ustrText = WSPACE(nLen + 1)
-   SendMessageW hCombo, CB_GETLBTEXT, index, CAST(LPARAM, STRPTR(ustrText))
+   SetLastError(SendMessageW(hCombo, CB_GETLBTEXT, index, CAST(LPARAM, STRPTR(ustrText))))
    RETURN LEFT(ustrText, nLen)
 END FUNCTION
 ' ========================================================================================
@@ -338,7 +350,7 @@ END FUNCTION
 ' Limits the length of the text the user may type into the edit control of a combo box.
 ' ========================================================================================
 PUBLIC SUB tkCombo_LimitText (BYVAL hCombo AS HWND, BYVAL chLimit AS LONG)
-   SendMessageW hCombo, CB_LIMITTEXT, chLimit, 0
+   SetLastError(SendMessageW(hCombo, CB_LIMITTEXT, chLimit, 0))
 END SUB
 ' ========================================================================================
 
@@ -346,7 +358,7 @@ END SUB
 ' Removes all items from the list box and edit control of a combo box.
 ' ========================================================================================
 PUBLIC SUB tkCombo_ResetContent (BYVAL hCombo AS HWND)
-   SendMessageW hCombo, CB_RESETCONTENT, 0, 0
+   setLastError(SendMessageW(hCombo, CB_RESETCONTENT, 0, 0))
 END SUB
 ' ========================================================================================
 
@@ -416,7 +428,7 @@ END FUNCTION
 ' if the combo box has the CBS_DISABLENOSCROLL style, disabled.
 ' ========================================================================================
 PUBLIC SUB tkCombo_SetHorizontalExtent (BYVAL hCombo AS HWND, BYVAL nWidth AS LONG)
-   SendMessageW hCombo, CB_SETHORIZONTALEXTENT, nWidth, 0
+   SetLastError(SendMessageW(hCombo, CB_SETHORIZONTALEXTENT, nWidth, 0))
 END SUB
 ' ========================================================================================
 
@@ -470,12 +482,12 @@ END FUNCTION
 ' Shows or hides the list box of a combo box that has the CBS_DROPDOWN or CBS_DROPDOWNLIST style.
 ' ========================================================================================
 PUBLIC SUB tkCombo_ShowDropDown (BYVAL hCombo AS HWND)
-   SendMessageW hCombo, CB_SHOWDROPDOWN, CTRUE, 0
+   SetLastError(SendMessageW(hCombo, CB_SHOWDROPDOWN, CTRUE, 0))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkCombo_HideDropDown (BYVAL hCombo AS HWND)
-   SendMessageW hCombo, CB_SHOWDROPDOWN, FALSE, 0
+   SetLastError(SendMessageW(hCombo, CB_SHOWDROPDOWN, FALSE, 0))
 END SUB
 ' ========================================================================================
 
@@ -528,7 +540,7 @@ END FUNCTION
 PUBLIC FUNCTION tkCombo_GetText OVERLOAD (BYVAL hCombo AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hCombo)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
-   GetWindowTextW(hCombo, ustrText, nLen +  1)
+   SetLastError(GetWindowTextW(hCombo, ustrText, nLen +  1))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -540,7 +552,7 @@ END FUNCTION
 PUBLIC FUNCTION tkCombo_GetText OVERLOAD (BYVAL hCombo AS HWND, BYVAL index AS LONG) AS USTRING
    DIM nLen AS LONG = SendMessageW(hCombo, CB_GETLBTEXTLEN, index, 0)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
-   SendMessageW(hCombo, CB_GETLBTEXT, index, CAST(LPARAM, STRPTR(ustrText)))
+   SetLastError(SendMessageW(hCombo, CB_GETLBTEXT, index, CAST(LPARAM, STRPTR(ustrText))))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -645,7 +657,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkCBEx_GetItem OVERLOAD (BYVAL hComboEx AS HWND) AS COMBOBOXEXITEMW
    DIM item AS COMBOBOXEXITEMW
-   SendMessageW(hComboEx, CBEM_GETITEMW, 0, cast(LPARAM, @item))
+   SetLastError(SendMessageW(hComboEx, CBEM_GETITEMW, 0, cast(LPARAM, @item)))
    RETURN item
 END FUNCTION
 ' ========================================================================================

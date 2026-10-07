@@ -23,26 +23,8 @@
 ' DEALINGS IN THE SOFTWARE.'
 ' ########################################################################################
 
-#module "tkGui"
-#include once "tkGui.ti"
-
-#INCLUDE ONCE "windows.bi"
-#INCLUDE ONCE "win/commctrl.bi"
-#INCLUDE ONCE "win/ole2.bi"
-#INCLUDE ONCE "win/psapi.bi"
-#INCLUDE ONCE "win/shlobj.bi"
-#INCLUDE ONCE "win/shlwapi.bi"
-#INCLUDE ONCE "win/KnownFolders.bi"
-#INCLUDE ONCE "win/commdlg.bi"
-#INCLUDE ONCE "win/cderr.bi"
-#INCLUDE ONCE "win/iphlpapi.bi"
-#INCLUDE ONCE "win/secext.bi"
-#INCLUDE ONCE "crt/string.bi"
-#INCLUDE ONCE "crt/wchar.bi"
-#INCLUDE ONCE "win/ShellScalingApi.bi"
-#INCLUDE ONCE "win/windowsx.bi"
-#INCLUDE ONCE "win/DwmApi.bi"
-#INCLUDE ONCE "win/wininet.bi"
+#module "tkCore"
+#include once "tkCore.ti"
 
 ' ========================================================================================
 ' Returns command line parameters used to call the program
@@ -782,10 +764,21 @@ END FUNCTION
 ' Note: To retrieve the height of the desktop window pass the handle returned by the
 ' API function GetDesktopWindow.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetWindowRect (BYVAL hWin AS HWND) AS RECT
+'PUBLIC FUNCTION tkGetWindowRect (BYVAL hWin AS HWND) AS RECT
+'   DIM rc AS RECT
+'   GetWindowRect(hWin, @rc)
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkGetWindowRect(hButton)
+' IF GetLastError = 1 THEN print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkGetWindowRect (BYVAL hWin AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   GetWindowRect(hWin, @rc)
-   RETURN rc
+   SetLastError(GetWindowRect(hWin, @rc))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -824,10 +817,21 @@ END FUNCTION
 ' are not adjusted for DPI. Getting the extended frame bounds can only be done after the
 ' window has been shown at least once.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetWindowBounds (BYVAL hWin AS HWND) AS RECT
+'PUBLIC FUNCTION tkGetWindowBounds (BYVAL hWin AS HWND) AS RECT
+'   DIM rc AS RECT
+'   DwmGetWindowAttribute(hWin, DWMWA_EXTENDED_FRAME_BOUNDS, @rc, SIZEOF(rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkGetWindowBounds(hwnd)
+' IF GetLastError = S_OK THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkGetWindowBounds (BYVAL hWin AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   DwmGetWindowAttribute(hWin, DWMWA_EXTENDED_FRAME_BOUNDS, @rc, SIZEOF(rc))
-   RETURN rc
+   SetLastError(DwmGetWindowAttribute(hWin, DWMWA_EXTENDED_FRAME_BOUNDS, @rc, SIZEOF(rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -839,10 +843,21 @@ END FUNCTION
 ' Note: To retrieve the height of the desktop window pass the handle returned by the
 ' API function GetDesktopWindow.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetWindowClientRect (BYVAL hWin AS HWND) AS RECT
+'PUBLIC FUNCTION tkGetWindowClientRect (BYVAL hWin AS HWND) AS RECT
+'   DIM rc AS RECT
+'   GetClientRect(hWin, @rc)
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkGetWindowClientRect(hWin)
+' IF GetLastError <> 0 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkGetWindowClientRect (BYVAL hWin AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   GetClientRect(hWin, @rc)
-   RETURN rc
+   SetLastError(GetClientRect(hWin, @rc))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -1559,11 +1574,23 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the size of the entire desktop, in pixels.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetDesktopSize () AS RECT
+'PUBLIC FUNCTION tkGetDesktopSize () AS RECT
+'   DIM hwndDesktop AS HWND = GetDesktopWindow
+'   DIM rc AS RECT
+'   GetWindowRect(hwndDesktop, @rc)
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkGetDesktopSize
+' IF GetLastError <> 0 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkGetDesktopSize () AS (LONG, LONG, LONG, LONG)
    DIM hwndDesktop AS HWND = GetDesktopWindow
    DIM rc AS RECT
-   GetWindowRect(hwndDesktop, @rc)
-   RETURN rc
+   SetLastError(GetWindowRect(hwndDesktop, @rc))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -1588,11 +1615,23 @@ END FUNCTION
 ' ========================================================================================
 ' * Retrieves the size of the client area of the desktop, in pixels.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetDesktopClientSize () AS RECT
+'PUBLIC FUNCTION tkGetDesktopClientSize () AS RECT
+'   DIM hwndDesktop AS HWND = GetDesktopWindow
+'   DIM rc AS RECT
+'   GetClientRect(hwndDesktop, @rc)
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkGetDesktopClientSize
+' IF GetLastError <> 0 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkGetDesktopClientSize () AS (LONG, LONG, LONG, LONG)
    DIM hwndDesktop AS HWND = GetDesktopWindow
    DIM rc AS RECT
-   GetClientRect(hwndDesktop, @rc)
-   RETURN rc
+   SetLastError(GetClientRect(hwndDesktop, @rc))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -1698,10 +1737,21 @@ END FUNCTION
 ' the system taskbar or by application desktop toolbars. To get the work area of a monitor
 ' other than the primary display monitor, call the GetMonitorInfo function.
 ' ========================================================================================
-PUBLIC FUNCTION tkGetWorkArea () AS RECT
+'PUBLIC FUNCTION tkGetWorkArea () AS RECT
+'   DIM rcWrk AS RECT
+'   SystemParametersInfo(SPI_GETWORKAREA, 0, @rcWrk, 0)
+'   FUNCTION = rcWrk
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkGetWorkArea
+' IF GetLastError <> 0 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkGetWorkArea () AS (LONG, LONG, LONG, LONG)
    DIM rcWrk AS RECT
-   SystemParametersInfo(SPI_GETWORKAREA, 0, @rcWrk, 0)
-   FUNCTION = rcWrk
+   SetLastError(SystemParametersInfo(SPI_GETWORKAREA, 0, @rcWrk, 0))
+   RETURN (rcWrk.left, rcWrk.top, rcWrk.right, rcWrk.bottom)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -5161,8 +5211,6 @@ END FUNCTION
 ' ########################################################################################
 '                                      LOCALE INFORMATION
 ' ########################################################################################
-' Requires Windows Vista or superior.
-'#if _WIN32_WINNT >= &h0602
 
 ' ========================================================================================
 ' Retrieves the user default locale name.
@@ -5753,5 +5801,3 @@ PUBLIC FUNCTION tkYearMonthFormatString (BYVAL pwszLocale AS WSTRING PTR = LOCAL
    RETURN wszBuf
 END FUNCTION
 ' ========================================================================================
-
-'#endif

@@ -373,6 +373,7 @@ PUBLIC FUNCTION tkTreeView_GetISearchString OVERLOAD (BYVAL hTreeView AS HWND) A
    nLen = SendMessageW(hTreeView, TVM_GETISEARCHSTRINGW, 0, NULL)
    ustrSearch = WSPACE(nLen + 1)
    nLen = SendMessageW(hTreeView, TVM_GETISEARCHSTRINGW, 0, CAST(LPARAM, STRPTR(ustrSearch)))
+   IF nLen = 0 THEN RETURN ""
    RETURN LEFT(ustrSearch, nLen)
 END FUNCTION
 ' ========================================================================================
@@ -822,11 +823,19 @@ PUBLIC FUNCTION tkTreeView_GetItemRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTreeView_GetItemRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL code AS BOOLEAN) AS RECT
+'PUBLIC FUNCTION tkTreeView_GetItemRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL code AS BOOLEAN) AS RECT
+'   DIM rc AS RECT
+'   *CPTR(HTREEITEM PTR, @rc) = hItem
+'   SendMessageW(hTreeView, TVM_GETITEMRECT, code, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkTreeView_GetItemRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL code AS BOOLEAN) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    *CPTR(HTREEITEM PTR, @rc) = hItem
    SendMessageW(hTreeView, TVM_GETITEMRECT, code, CAST(LPARAM, @rc))
-   RETURN rc
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 

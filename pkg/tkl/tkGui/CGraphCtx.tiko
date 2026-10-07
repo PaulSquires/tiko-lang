@@ -118,8 +118,8 @@ PUBLIC TYPE CGraphCtx
               BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
       DECLARE FUNCTION DrawBitmap (BYVAL pBitmap AS GpBitmap PTR, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
               BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
-'      DECLARE FUNCTION DrawBitmap (BYREF pMemBmp AS CMemBmp, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
-'              BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
+      DECLARE FUNCTION DrawBitmap (BYREF pMemBmp AS CMemBmp, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
+              BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
       DECLARE FUNCTION SaveImage (BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING = "image/bmp") AS LONG
       DECLARE FUNCTION SaveImageAsBmp (BYREF wszFileName AS WSTRING) AS LONG
       DECLARE FUNCTION SaveImageAsJpeg (BYREF wszFileName AS WSTRING) AS LONG
@@ -1093,10 +1093,10 @@ FUNCTION CGraphCtx.DrawBitmap (BYVAL pBitmap AS GpBitmap PTR, BYVAL x AS SINGLE 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-'FUNCTION CGraphCtx.DrawBitmap (BYREF pMemBmp AS CMemBmp, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
-'   BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
-'   RETURN this.DrawBitmap(pMemBmp.m_hBmp, x, y, nRight, nBottom)
-'END FUNCTION
+FUNCTION CGraphCtx.DrawBitmap (BYREF pMemBmp AS CMemBmp, BYVAL x AS SINGLE = 0, BYVAL y AS SINGLE = 0, _
+   BYVAL nRight AS SINGLE = 0, BYVAL nBottom AS SINGLE = 0) AS GpStatus
+   RETURN this.DrawBitmap(pMemBmp.m_hBmp, x, y, nRight, nBottom)
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================

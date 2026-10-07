@@ -23,7 +23,7 @@
 ' DEALINGS IN THE SOFTWARE.'
 ' ########################################################################################
 
-#module "tkStrings"
+#module "tkCore"
 
 #include once "windows.bi"
 #include once "win/shlwapi.bi"
@@ -299,19 +299,19 @@ END FUNCTION
 ' This function is case sensitive.
 ' Example: tkStrReplace("Hello World", "World", "Earth")   ' -> "Hello Earth"
 ' ========================================================================================
-'PUBLIC FUNCTION tkStrReplace OVERLOAD (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING, BYREF wszReplaceWith AS CONST WSTRING) AS USTRING
-'   DIM ustrMainStr AS USTRING = wszMainStr
-'   DIM nLenReplaceWith AS LONG = LEN(wszReplaceWith)
-'   DIM nLenMatchStr AS LONG = LEN(wszMatchStr)
-'   DIM nPos AS LONG = 1
-'   DO
-'      nPos = INSTR(nPos, ustrMainStr, wszMatchStr)
-'      IF nPos = 0 THEN EXIT DO
-'      ustrMainStr = MID(ustrMainStr, 1, nPos - 1) + wszReplaceWith + MID(ustrMainStr, nPos + nLenMatchStr)
-'      nPos += nLenReplaceWith
-'   LOOP
-'   RETURN ustrMainStr
-'END FUNCTION
+PUBLIC FUNCTION tkStrReplace OVERLOAD (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING, BYREF wszReplaceWith AS CONST WSTRING) AS USTRING
+   DIM ustrMainStr AS USTRING = wszMainStr
+   DIM nLenReplaceWith AS LONG = LEN(wszReplaceWith)
+   DIM nLenMatchStr AS LONG = LEN(wszMatchStr)
+   DIM nPos AS LONG = 1
+   DO
+      nPos = INSTR(nPos, ustrMainStr, wszMatchStr)
+      IF nPos = 0 THEN EXIT DO
+      ustrMainStr = MID(ustrMainStr, 1, nPos - 1) + wszReplaceWith + MID(ustrMainStr, nPos + nLenMatchStr)
+      nPos += nLenReplaceWith
+   LOOP
+   RETURN ustrMainStr
+END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Case insensitive version of tkStrReplace.
@@ -339,16 +339,16 @@ END FUNCTION
 ' This function is case sensitive.
 ' Example: tkStrRemove("Hello World. Welcome to the Freebasic World", "World")
 ' ========================================================================================
-PUBLIC FUNCTION tkStrRemove (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING) AS USTRING
-   DIM ustrMainStr AS USTRING = wszMainStr
-   DIM nLen AS LONG = LEN(wszMatchStr)
-   DO
-      DIM nPos AS LONG = INSTR(ustrMainStr, wszMatchStr)
-      IF nPos = 0 THEN EXIT DO
-      ustrMainStr = LEFT(ustrMainStr, nPos - 1) + MID(ustrMainStr, nPos + nLen)
-   LOOP
-   RETURN ustrMainStr
-END FUNCTION
+'PUBLIC FUNCTION tkStrRemove (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING) AS USTRING
+'   DIM ustrMainStr AS USTRING = wszMainStr
+'   DIM nLen AS LONG = LEN(wszMatchStr)
+'   DO
+'      DIM nPos AS LONG = INSTR(ustrMainStr, wszMatchStr)
+'      IF nPos = 0 THEN EXIT DO
+'      ustrMainStr = LEFT(ustrMainStr, nPos - 1) + MID(ustrMainStr, nPos + nLen)
+'   LOOP
+'   RETURN ustrMainStr
+'END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
@@ -540,11 +540,6 @@ PUBLIC FUNCTION tkBase64DecodeW (BYREF ustrData AS USTRING) AS USTRING
    FUNCTION = ustrOut
 END FUNCTION
 ' ========================================================================================
-#ifndef UNICODE
-' [pkg/tk] #define tkBase64Decode moved to core.ti
-#else
-' [pkg/tk] #define tkBase64Decode moved to core.ti
-#endif
 
 ' ########################################################################################
 '                                UNICODE - SURROGATES

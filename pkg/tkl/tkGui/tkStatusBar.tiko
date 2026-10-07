@@ -24,17 +24,34 @@
 ' ########################################################################################
 
 #module "tkGui"
+#import "tkl/tkCore"
 #include once "tkGui.ti"
+using tkCore
 
 #include once "windows.bi"
 #include once "win/uxtheme.bi"
 
 ' ========================================================================================
-' Retrieves the current widths of the horizontal, and vertical borders of a status window,
+' * Retrieves the current widths of the horizontal, and vertical borders of a status window,
 ' and the width of the border between rectangles. Returns TRUE if successful, or FALSE otherwise.
+' Usage example:
+' DIM rgBorders(0 TO 3) AS LONG
+' DIM res AS BOOLEAN = tkStatusBar_GetBorders(hStatusBar, @rgBorders(0))
+' IF res THEN PRINT rgBorders(0), rgBorders(1), rgBorders(2)
 ' ========================================================================================
-PUBLIC FUNCTION tkStatusBar_GetBorders (BYVAL hStatusBar AS HWND, BYVAL rgBorders AS LONG PTR) AS LONG
+PUBLIC FUNCTION tkStatusBar_GetBorders OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL rgBorders AS LONG PTR) AS BOOLEAN
    RETURN SendMessageW(hStatusBar, SB_GETBORDERS, 0, cast(LPARAM, rgBorders))
+END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, r, t) = tkStatusBar_GetBorders(hStatusBar)
+' IF GetLastError = 1 THEN PRINT l, r, t
+' ========================================================================================
+PUBLIC FUNCTION tkStatusBar_GetBorders OVERLOAD (BYVAL hStatusBar AS HWND) AS (LONG, LONG, LONG)
+   DIM rgBorders(0 TO 3) AS LONG
+   SetLastError(SendMessageW(hStatusBar, SB_GETBORDERS, 0, cast(LPARAM, @rgBorders(0))))
+   RETURN (rgBorders(0), rgBorders(1), rgBorders(2))
 END FUNCTION
 ' ========================================================================================
 
@@ -89,20 +106,31 @@ END FUNCTION
 ' - lprc: Pointer to a RECT structure that receives the bounding rectangle.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
-PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD, BYVAL lprc AS RECT PTR) AS LONG
+PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD, BYVAL lprc AS RECT PTR) AS BOOLEAN
    RETURN SendMessageW(hStatusBar, SB_GETRECT, cast(WPARAM, nPart), cast(LPARAM, lprc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD, BYREF rc AS RECT) AS LONG
+PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD, BYREF rc AS RECT) AS BOOLEAN
    RETURN SendMessageW(hStatusBar, SB_GETRECT, cast(WPARAM, nPart), cast(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD) AS RECT
+'PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD) AS RECT
+'   DIM rc AS RECT
+'   SetLastError(SendMessageW(hStatusBar, SB_GETRECT, cast(WPARAM, nPart), cast(LPARAM, @rc)))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(nLeft, nTop, nRight, nBottom) = tkStatusBar_GetRect(hStatusbar, 0)
+' print nLeft, nTop, nRight, nBottom
+' ========================================================================================
+PUBLIC FUNCTION tkStatusBar_GetRect OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hStatusBar, SB_GETRECT, cast(WPARAM, nPart), cast(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hStatusBar, SB_GETRECT, cast(WPARAM, nPart), cast(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -127,6 +155,7 @@ END FUNCTION
 PUBLIC FUNCTION tkStatusBar_GetText OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD) AS USTRING
    DIM nLen AS LONG, buffer AS USTRING
    DIM dwResult AS DWORD = SendMessageW(hStatusBar, SB_GETTEXTLENGTH, nPart, 0)
+   IF dwResult = 0 THEN RETURN ""
    nLen = LOWORD(dwResult)
    buffer = WSPACE(nLen + 1)
    SendMessageW hStatusBar, SB_GETTEXTW, nPart, CAST(LPARAM, STRPTR(buffer))
@@ -135,7 +164,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Retrieves the type of operation used to draw the text.
+' * Retrieves the type of operation used to draw the text.
 ' ========================================================================================
 PUBLIC FUNCTION tkStatusBar_GetTextDrawingMode (BYVAL hStatusBar AS HWND, BYVAL nPart AS DWORD) AS LONG
    DIM dwResult AS DWORD = SendMessageW(hStatusBar, SB_GETTEXTLENGTH, cast(WPARAM, nPart), 0)
@@ -236,7 +265,7 @@ END SUB
 '   to the border of the window.
 ' Returns TRUE if successful, or FALSE otherwise.
 ' Usage example:
-'   DIM rgParts(1 TO 3) AS LONG = {pWindow.ScaleX(100), pWindow.ScaleX(220), -1}
+'   DIM rgParts(1 TO 3) AS LONG = {tkScale(100), tkScale(220), -1}
 '   IF tkStatusBar_SetParts(hStatusBar, 3, @rgParts(1)) THEN
 '      tkStatusBar_Simple(hStatusBar, FALSE)
 '   END IF
@@ -246,7 +275,7 @@ PUBLIC FUNCTION tkStatusBar_SetParts OVERLOAD (BYVAL hStatusBar AS HWND, BYVAL d
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-' Sets the number of parts of a status bar.
+' * Sets the number of parts of a status bar.
 ' strSizes = Comma delited string of desired sizes. e.g.:  strSizes = "90,34,42,184"
 ' creates 4 parts of 90, 34, 42 and 184 pixels, and strSizes = "90,34,42,184,-1" creates
 ' 5 parts, the last one extending until the right border of the window.
@@ -306,6 +335,13 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC SUB tkStatusBar_SetTipText (BYVAL hStatusBar AS HWND, BYVAL nPart AS LONG, BYVAL pwszTipText AS WSTRING PTR)
    SendMessageW(hStatusBar, SB_SETTIPTEXTW, cast(WPARAM, nPart), cast(LPARAM, pwszTipText))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' ========================================================================================
+PUBLIC SUB tkStatusBar_SetUnicodeFormat (BYVAL hStatusBar AS HWND, BYVAL fFormat AS BOOLEAN)
+   SendMessageW(hStatusBar, SB_SETTIPTEXTW, cast(WPARAM, fFormat), 0)
 END SUB
 ' ========================================================================================
 

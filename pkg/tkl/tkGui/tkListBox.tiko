@@ -184,10 +184,21 @@ PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL in
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS RECT
+'PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkListBox_GetItemRect(hListBox, 1)
+' IF GetLastError = 1 THEN PRINT l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkListBox_GetItemRect OVERLOAD (BYVAL hListBox AS HWND, BYVAL index AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hListBox, LB_GETITEMRECT, index, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -260,7 +271,7 @@ PUBLIC FUNCTION tkListBox_GetText (BYVAL hListBox AS HWND, BYVAL index AS LONG) 
    IF index < 0 THEN index = SendMessageW(hListBox, IIF((GetWindowLongPtrW(hListBox, GWL_STYLE) AND LBS_MULTIPLESEL), LB_GETCARETINDEX, LB_GETCURSEL), 0, 0)
    nLen = SendMessageW(hListBox, LB_GETTEXTLEN, index, 0)
    buffer = WSPACE(nLen + 1)
-   SendMessageW hListBox, LB_GETTEXT, index, CAST(LPARAM, STRPTR(buffer))
+   SetLastError(SendMessageW(hListBox, LB_GETTEXT, index, CAST(LPARAM, STRPTR(buffer))))
    RETURN LEFT(buffer, nLen)
 END FUNCTION
 ' ========================================================================================

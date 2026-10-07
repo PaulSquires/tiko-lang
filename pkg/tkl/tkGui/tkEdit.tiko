@@ -131,7 +131,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_GetCueBannerText OVERLOAD (BYVAL hEdit AS HWND, BYVAL cchText AS DWORD) AS USTRING
    DIM ustrText AS USTRING = WSPACE(cchText + 1)
-   SendMessageW(hEdit, EM_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText))
+   SetLastError(SendMessageW(hEdit, EM_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText)))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -184,6 +184,7 @@ PUBLIC FUNCTION tkEdit_GetLine (BYVAL hEdit AS HWND, BYVAL which AS DWORD) AS US
    DIM buffer AS USTRING
    buffer = MKI(32765) + WSTRING(32765, 0)
    DIM nLen AS LONG = SendMessageW(hEdit, EM_GETLINE, which, CAST(LPARAM, STRPTR(buffer)))
+   IF nLen = 0 THEN RETURN ""
    RETURN LEFT(buffer, nLen)
 END FUNCTION
 ' ========================================================================================
@@ -252,10 +253,21 @@ PUBLIC SUB tkEdit_GetRect OVERLOAD (BYVAL hEdit AS HWND, BYVAL prc AS RECT PTR)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkEdit_GetRect OVERLOAD (BYVAL hEdit AS HWND) AS RECT
+'PUBLIC FUNCTION tkEdit_GetRect OVERLOAD (BYVAL hEdit AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW hEdit, EM_GETRECT, 0, CAST(LPARAM, @rc)
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkEdit_GetRect(hEdit)
+' IF GetLastError = 1 THEN PRINT l, t, t, b
+' ========================================================================================
+PUBLIC FUNCTION tkEdit_GetRect OVERLOAD (BYVAL hEdit AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW hEdit, EM_GETRECT, 0, CAST(LPARAM, @rc)
-   RETURN rc
+   SetLastError(SendMessageW(hEdit, EM_GETRECT, 0, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -274,7 +286,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_GetSel OVERLOAD (BYVAL hEdit AS HWND) AS ..POINTL
    DIM dwStartPos AS DWORD, dwEndPos AS DWORD, pt AS .POINTL
-   SendMessageW(hEdit, EM_GETSEL, CAST(WPARAM, @dwStartPos), cast(LPARAM, @dwEndPos))
+   SetLastError(SendMessageW(hEdit, EM_GETSEL, CAST(WPARAM, @dwStartPos), cast(LPARAM, @dwEndPos)))
    pt.x = dwStartPos : pt.y = dwEndPos
    RETURN pt
 END FUNCTION
@@ -284,7 +296,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_GetSelStart (BYVAL hEdit AS HWND) AS DWORD
    DIM dwStartPos AS DWORD, dwEndPos AS DWORD
-   SendMessageW(hEdit, EM_GETSEL, CAST(WPARAM, @dwStartPos), cast(LPARAM, @dwEndPos))
+   SetLastError(SendMessageW(hEdit, EM_GETSEL, CAST(WPARAM, @dwStartPos), cast(LPARAM, @dwEndPos)))
    RETURN dwStartPos
 END FUNCTION
 ' ========================================================================================
@@ -293,7 +305,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_GetSelEnd (BYVAL hEdit AS HWND) AS DWORD
    DIM dwStartPos AS DWORD, dwEndPos AS DWORD
-   SendMessageW(hEdit, EM_GETSEL, CAST(WPARAM, @dwStartPos), cast(LPARAM, @dwEndPos))
+   SetLastError(SendMessageW(hEdit, EM_GETSEL, CAST(WPARAM, @dwStartPos), cast(LPARAM, @dwEndPos)))
    RETURN dwEndPos
 END FUNCTION
 ' ========================================================================================
@@ -312,7 +324,7 @@ END FUNCTION
 PUBLIC FUNCTION tkEdit_GetText (BYVAL hEdit AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hEdit)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
-   GetWindowTextW(hEdit, ustrText, nLen +  1)
+   SetLastError(GetWindowTextW(hEdit, ustrText, nLen +  1))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -555,6 +567,12 @@ PUBLIC SUB tkEdit_SetRect OVERLOAD (BYVAL hEdit AS HWND, BYVAL prc AS RECT PTR)
    SendMessageW hEdit, EM_SETRECT, 0, cast(LPARAM, prc)
 END SUB
 ' ========================================================================================
+' ========================================================================================
+PUBLIC SUB tkEdit_SetRect OVERLOAD (BYVAL hEdit AS HWND, BYVAL nLeft AS LONG, BYVAL nTop AS LONG, BYVAL nRight AS LONG, BYVAL nBottom AS LONG)
+   DIM rc AS RECT = (nLeft, nTop, nRight, nBottom)
+   SendMessageW hEdit, EM_SETRECT, 0, cast(LPARAM, @rc)
+END SUB
+' ========================================================================================
 
 ' ========================================================================================
 ' Sets the formatting rectangle of a multiline edit control. The EM_SETRECTNP message is
@@ -570,6 +588,12 @@ END SUB
 ' ========================================================================================
 PUBLIC SUB tkEdit_SetRectNoPaint OVERLOAD (BYVAL hEdit AS HWND, BYVAL prc AS RECT PTR)
    SendMessageW hEdit, EM_SETRECTNP, 0, CAST(LPARAM, prc)
+END SUB
+' ========================================================================================
+' ========================================================================================
+PUBLIC SUB tkEdit_SetRectNoPaint OVERLOAD (BYVAL hEdit AS HWND, BYVAL nLeft AS LONG, BYVAL nTop AS LONG, BYVAL nRight AS LONG, BYVAL nBottom AS LONG)
+   DIM rc AS RECT = (nLeft, nTop, nRight, nBottom)
+   SendMessageW hEdit, EM_SETRECTNP, 0, CAST(LPARAM, @rc)
 END SUB
 ' ========================================================================================
 
@@ -804,7 +828,7 @@ PUBLIC FUNCTION tkEdit_GetFileLine OVERLOAD (BYVAL hEdit AS HWND, BYVAL lineNumb
    DIM cbLen AS LONG = SendMessageW(hEdit, EM_FILELINELENGTH, cast(WPARAM, characterIndex), 0)
    IF cbLen <= 0 THEN RETURN ""
    DIM ustrbufer AS USTRING = WSPACE(cbLen)
-   SendMessageW(hEdit, EM_GETFILELINE, cast(WPARAM, lineNumber), cast(LPARAM, STRPTR(ustrbufer)))
+   SetLastError(SendMessageW(hEdit, EM_GETFILELINE, cast(WPARAM, lineNumber), cast(LPARAM, STRPTR(ustrbufer))))
    RETURN ustrbufer
 END FUNCTION
 ' ========================================================================================

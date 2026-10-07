@@ -156,10 +156,21 @@ PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS D
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS RECT
+'PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkTab_GetItemRect(hTab, 0)
+' print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkTab_GetItemRect OVERLOAD (BYVAL hTab AS HWND, BYVAL iItem AS DWORD) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hTab, TCM_GETITEMRECT, iItem, CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -192,7 +203,7 @@ PUBLIC FUNCTION tkTab_GetText OVERLOAD (BYVAL hTab AS HWND, BYVAL nTabIndex AS D
    ttc_item.mask = TCIF_TEXT
    ttc_item.pszText = @wszText
    ttc_item.cchTextMax = SIZEOF(wszText)\2
-   SendMessageW(hTab, TCM_GETITEMW, cast(WPARAM, nTabIndex), cast(LPARAM, @ttc_item))
+   SetLastError(SendMessageW(hTab, TCM_GETITEMW, cast(WPARAM, nTabIndex), cast(LPARAM, @ttc_item)))
    RETURN wszText
 END FUNCTION
 ' ========================================================================================

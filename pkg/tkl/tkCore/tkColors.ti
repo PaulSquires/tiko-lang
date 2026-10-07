@@ -27,6 +27,8 @@
 ' The following is a list of RGB color equates which can be used with routines that accept RGB color values.
 ' ########################################################################################
 
+#pragma once
+
 ' Red Colors
 
 CONST RGB_INDIANRED = &H5C5CCD

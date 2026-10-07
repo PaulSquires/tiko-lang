@@ -76,10 +76,21 @@ PUBLIC SUB tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS RECT
+'PUBLIC FUNCTION tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hRebar, RB_GETBANDBORDERS, uBand, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkRebar_GetBandBorders(hRebar, 0)
+' print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetBandBorders OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW(hRebar, RB_GETBANDBORDERS, uBand, cast(LPARAM, @rc))
-   RETURN rc
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -249,10 +260,21 @@ PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS D
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS RECT
+'PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+' Usage example:
+' var(l, t, r, b) = tkRebar_GetRect(hRebar, 0)
+' print l, t, r, b
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_GetRect OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hRebar, RB_GETRECT, uBand, cast(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -510,10 +532,17 @@ PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND, BYREF rc AS R
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND) AS RECT
+'PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkRebar_SizeToRect OVERLOAD (BYVAL hRebar AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hRebar, RB_SIZETORECT, 0, cast(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 

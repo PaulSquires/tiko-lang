@@ -36,21 +36,3 @@
 #define CBNMSGPTR(msg, wp, lp) cast(msg PTR, CBNMHDR(wp, lp))
 #define CBNMTYPESET(tp, wp, lp) memcpy @tp, CAST(ANY PTR, lp), SIZEOF(tp)
 #endif
-
-#define tkGetErrorInfo tkGetWinErrMsg
-#define tkComCtlVersion tkGetFileVersion("comctl32.dll")
-#define tkGetScreenColors tkGetDisplayBitsPerPixel
-#define tkGetScreenRefreshRate tkGetDisplayFrequency
-#define tkGetCurDir tkGetCurrentDirectory
-#define tkExePath tkGetExePath
-#define tkExePathName tkGetExePathName
-#define tkExeFileName tkGetExeFileName
-#define tkExeFileNameX tkGetExeFileNameX
-#define tkExeFileExt tkGetExeFileExt
-#define tkExeFullPath tkGetExeFullPath
-#define tkFileName tkGetFileName
-#define tkFileNameX tkGetFileNameX
-#define tkFileExt tkGetFileExt
-#define tkPathName tkGetPathName
-#define tkFolderName tkGetFolderName
-#define tkSetCurDir tkSetCurrentDirectory

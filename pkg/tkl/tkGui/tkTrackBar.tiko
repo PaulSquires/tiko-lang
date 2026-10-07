@@ -76,10 +76,17 @@ PUBLIC SUB tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND, BYREF rc
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
+'PUBLIC FUNCTION tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hTrackbar, TBM_GETCHANNELRECT, 0, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkTrackBar_GetChannelRect OVERLOAD (BYVAL hTrackbar AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW(hTrackbar, TBM_GETCHANNELRECT, 0, cast(LPARAM, @rc))
-   RETURN rc
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -182,10 +189,17 @@ PUBLIC SUB tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND, BYREF rc A
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
+'PUBLIC FUNCTION tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hTrackbar, TBM_GETTHUMBRECT, 0, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkTrackBar_GetThumbRect OVERLOAD (BYVAL hTrackbar AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW(hTrackbar, TBM_GETTHUMBRECT, 0, cast(LPARAM, @rc))
-   RETURN rc
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 

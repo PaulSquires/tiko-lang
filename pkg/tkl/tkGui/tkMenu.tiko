@@ -24,6 +24,8 @@
 ' ########################################################################################
 
 #module "tkGui"
+#import "tkl/tkCore"
+using tkCore
 #include once "tkGui.ti"
 
 #include once "windows.bi"
@@ -629,10 +631,17 @@ PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS RECT
+'PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS RECT
+'   DIM rcItem AS RECT
+'   ..GetMenuItemRect(hwnd, hMenu, uItem, @rcItem)
+'   RETURN rcItem
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkMenu_GetItemRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL uItem AS UINT) AS (LONG, LONG, LONG, LONG)
    DIM rcItem AS RECT
-   ..GetMenuItemRect(hwnd, hMenu, uItem, @rcItem)
-   RETURN rcItem
+   SetLastError(..GetMenuItemRect(hwnd, hMenu, uItem, @rcItem))
+   RETURN (rcItem.left, rcItem.Top, rcItem.right, rcItem.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -670,14 +679,25 @@ PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMEN
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS RECT
+'PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS RECT
+'   DIM i AS LONG, nRes AS LONG, rc AS RECT, rcMenu AS RECT
+'   FOR i = 1 TO ..GetMenuItemCount(hmenu)
+'      nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
+'      IF nRes = -1 THEN nRes = GetLastError : EXIT FOR
+'      ..UnionRect @rcMenu, @rcMenu, @rc
+'   NEXT
+'   RETURN rcMenu
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkMenu_GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS (LONG, LONG, LONG, LONG)
    DIM i AS LONG, nRes AS LONG, rc AS RECT, rcMenu AS RECT
    FOR i = 1 TO ..GetMenuItemCount(hmenu)
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
       IF nRes = -1 THEN nRes = GetLastError : EXIT FOR
       ..UnionRect @rcMenu, @rcMenu, @rc
    NEXT
-   RETURN rcMenu
+   RETURN (rcMenu.left, rcMenu.top, rcMenu.right, rcMenu.bottom)
 END FUNCTION
 ' ========================================================================================
 

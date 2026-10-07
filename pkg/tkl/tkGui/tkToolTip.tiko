@@ -209,10 +209,17 @@ PUBLIC SUB tkToolTip_GetMargin OVERLOAD (BYVAL hTooltip AS HWND, BYREF rc AS REC
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkToolTip_GetMargin OVERLOAD (BYVAL hTooltip AS HWND) AS RECT
+'PUBLIC FUNCTION tkToolTip_GetMargin OVERLOAD (BYVAL hTooltip AS HWND) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hTooltip, TTM_GETMARGIN, 0, cast(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkToolTip_GetMargin OVERLOAD (BYVAL hTooltip AS HWND) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
    SendMessageW(hTooltip, TTM_GETMARGIN, 0, cast(LPARAM, @rc))
-   RETURN rc
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 

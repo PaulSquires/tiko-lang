@@ -1685,6 +1685,7 @@ FUNCTION CWindow.AddControl ( _
          ' Adds a StatusBar control to the window.
          wsClassName = "msctls_statusbar32"
          IF dwStyle = -1 THEN dwStyle = WS_VISIBLE OR WS_CLIPCHILDREN OR WS_CLIPSIBLINGS OR CCS_BOTTOM OR SBARS_SIZEGRIP
+         IF dwStyle = SBARS_TOOLTIPS THEN dwStyle = WS_VISIBLE OR WS_CLIPCHILDREN OR WS_CLIPSIBLINGS OR CCS_BOTTOM OR SBARS_SIZEGRIP OR SBARS_TOOLTIPS
       CASE "SIZEBAR", "SIZEBOX", "SIZEGRIP"
          ' Adds a size box to the window.
          wsClassName = "Scrollbar"

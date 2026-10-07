@@ -457,10 +457,17 @@ PUBLIC FUNCTION tkToolBar_GetItemRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL nB
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkToolBar_GetItemRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL nButton AS LONG) AS RECT
+'PUBLIC FUNCTION tkToolBar_GetItemRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL nButton AS LONG) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hToolbar, TB_GETITEMRECT, cast(WPARAM, nButton), CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkToolBar_GetItemRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL nButton AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hToolbar, TB_GETITEMRECT, cast(WPARAM, nButton), CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hToolbar, TB_GETITEMRECT, cast(WPARAM, nButton), CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
  
@@ -478,10 +485,17 @@ PUBLIC FUNCTION tkToolBar_GetMaxSize OVERLOAD (BYVAL hToolbar AS HWND, BYREF sz 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkToolBar_GetMaxSize OVERLOAD (BYVAL hToolbar AS HWND) AS SIZE
+'PUBLIC FUNCTION tkToolBar_GetMaxSize OVERLOAD (BYVAL hToolbar AS HWND) AS SIZE
+'   DIM sz AS SIZE
+'   SendMessageW(hToolbar, TB_GETMAXSIZE, 0, CAST(LPARAM, @sz))
+'   RETURN sz
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkToolBar_GetMaxSize OVERLOAD (BYVAL hToolbar AS HWND) AS (LONG, LONG)
    DIM sz AS SIZE
-   SendMessageW(hToolbar, TB_GETMAXSIZE, 0, CAST(LPARAM, @sz))
-   RETURN sz
+   SetLastError(SendMessageW(hToolbar, TB_GETMAXSIZE, 0, CAST(LPARAM, @sz)))
+   RETURN (sz.cx, sz.cy)
 END FUNCTION
 ' ========================================================================================
 
@@ -549,10 +563,17 @@ PUBLIC FUNCTION tkToolBar_GetRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL iID AS
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkToolBar_GetRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL iID AS LONG) AS RECT
+'PUBLIC FUNCTION tkToolBar_GetRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL iID AS LONG) AS RECT
+'   DIM rc AS RECT
+'   SendMessageW(hToolbar, TB_GETRECT, cast(WPARAM, iID), CAST(LPARAM, @rc))
+'   RETURN rc
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkToolBar_GetRect OVERLOAD (BYVAL hToolbar AS HWND, BYVAL iID AS LONG) AS (LONG, LONG, LONG, LONG)
    DIM rc AS RECT
-   SendMessageW(hToolbar, TB_GETRECT, cast(WPARAM, iID), CAST(LPARAM, @rc))
-   RETURN rc
+   SetLastError(SendMessageW(hToolbar, TB_GETRECT, cast(WPARAM, iID), CAST(LPARAM, @rc)))
+   RETURN (rc.left, rc.top, rc.right, rc.bottom)
 END FUNCTION
 ' ========================================================================================
 
@@ -1158,7 +1179,7 @@ PUBLIC FUNCTION tkToolBar_GetButtonText OVERLOAD (BYVAL hToolbar AS HWND, BYVAL 
    DIM cbLen AS LONG = SendMessageW(hToolbar, TB_GETBUTTONTEXTW, cast(WPARAM, idButton), 0)
    IF cbLen < 1 THEN RETURN ""
    DIM ustrText AS USTRING = WSPACE(cbLen + 1)
-   SendMessageW(hToolbar, TB_GETBUTTONTEXTW, cast(WPARAM, idButton), CAST(LPARAM, STRPTR(ustrText)))
+   SetLastError(SendMessageW(hToolbar, TB_GETBUTTONTEXTW, cast(WPARAM, idButton), CAST(LPARAM, STRPTR(ustrText))))
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================

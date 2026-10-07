@@ -769,7 +769,7 @@ print len( win.SE_DEBUG_NAME ); sizeof( win.TCHAR ); win.IsWindow( 0 )
     rm -rf "$_tmp"
 }
 
-# TKL, on a Windows target only: tkStrings, gdiplus and tkGui imported from the packaged
+# TKL, on a Windows target only: tkCore, gdiplus and tkGui imported from the packaged
 # pkg/tkl -- the tkGui import builds the largest module, and imports the other two -- and
 # a string helper, a GDI+ colour and a CWindow used.
 verify_tkl( ) {
@@ -777,16 +777,16 @@ verify_tkl( ) {
     case "$_t" in win*) ;; *) return ;; esac
     _tmp="$OUT/.verifytkl.$_t"
     rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf '#import "tkl/tkStrings"
+    printf '#import "tkl/tkCore"
 #import "tkl/gdiplus"
 #import "tkl/tkGui"
 dim as tkGui.CWindow w
-print tkStrings.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
+print tkCore.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
 ' > "$_tmp/tkl.bas"
     ( cd "$OUT" && TKO_MODCACHE=".verifytkl.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t"         ".verifytkl.$_t/tkl.bas" -o ".verifytkl.$_t/tkl$EXT" ) >"$_tmp/log" 2>&1 || true
     if [ -f "$_tmp/tkl$EXT" ] && [ "$( "$_tmp/tkl$EXT" 2>/dev/null | tr -d '' )" = "TIKO FF010203" ]; then
         VERIFY_LINES="$VERIFY_LINES
-  $_t  tkl PASS -- tkStrings, gdiplus and tkGui imported, compiled, linked and ran"
+  $_t  tkl PASS -- tkCore, gdiplus and tkGui imported, compiled, linked and ran"
     else
         _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
         [ -n "$_why" ] || _why="built, but did not print 'TIKO FF010203'"

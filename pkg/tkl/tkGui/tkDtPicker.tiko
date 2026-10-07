@@ -82,8 +82,8 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the display of a date and time picker (DTP) control based on a given format string.
 ' ========================================================================================
-PUBLIC SUB tkDTP_SetFormat (BYVAL hDtp AS HWND, BYVAL pwsz AS WSTRING PTR)
-   SendMessageW(hDtp, DTM_SETFORMATW, 0, cast(LPARAM, pwsz))
+PUBLIC SUB tkDTP_SetFormat (BYVAL hDtp AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
+   RETURN SendMessageW(hDtp, DTM_SETFORMATW, 0, cast(LPARAM, pwsz))
 END SUB
 ' ========================================================================================
 
@@ -130,8 +130,6 @@ PUBLIC SUB tkDTP_SetMonthCalFont (BYVAL hDtp AS HWND, BYVAL hfont AS HFONT, BYVA
    SendMessageW(hDtp, DTM_SETMCFONT, cast(WPARAM, hfont), cast(LPARAM, fRedraw))
 END SUB
 ' ========================================================================================
-
-#if _WIN32_WINNT >= &h0600
 
 ' ========================================================================================
 ' Sets the style for a specified date and time picker (DTP) control.
@@ -195,11 +193,16 @@ PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND, BYREF sz AS SIZ
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS SIZE
+'PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS SIZE
+'   DIM sz AS SIZE
+'   SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, @sz))
+'   RETURN sz
+'END FUNCTION
+' ========================================================================================
+' ========================================================================================
+PUBLIC FUNCTION tkDTP_GetIdealSize OVERLOAD (BYVAL hDtp AS HWND) AS (LONG, LONG)
    DIM sz AS SIZE
-   SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, @sz))
-   RETURN sz
+   SetLastError(SendMessageW(hDtp, DTM_GETIDEALSIZE, 0, cast(LPARAM, @sz)))
+   RETURN (sz.cx, sz.cy)
 END FUNCTION
 ' ========================================================================================
-
-#endif
