@@ -36,7 +36,7 @@ declare function StrSwapKind_ _
 ''
 '' Guessing 'fb_TrimEx' from 'fb_TRIM', or 'fb_Mid' from 'fb_LEFT', would have been
 '' wrong in both directions. check-rtl proves all twelve against fbc.
-function LowerStrRvalue _
+function LowerStrRvalueB_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     '' THE RADIX FAMILY shares this entry point: every caller wanting a descriptor reaches it,
@@ -401,7 +401,7 @@ end function
 ''
 '' The argument ORDER is not consistent between instr and instrrev, and the default
 '' start is 1 for one and -1 for the other. Both were read off fbc, not inferred.
-function LowerStrNumCall_ _
+function LowerStrNumCallB_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false

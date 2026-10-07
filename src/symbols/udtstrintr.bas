@@ -73,6 +73,23 @@ private function UdtHasNumericCast_ ( byref c as Ctx, byval t as TypeId ) as boo
     return false
 end function
 
+'' A cast yielding text itself -- string, ustring, 'byref as zstring|wstring' -- not a pointer.
+private function UdtHasTextClassCast_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_UDT then return false
+    dim as SymbolId cs = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "cast" )
+    for guard as long = 0 to 63
+        if cs = SYMBOL_NONE then exit for
+        select case Tko.Check.CastResultClass( *c.ast, *c.syms, *c.types, cs )
+        case Tko.Check.CR_STRING, Tko.Check.CR_USTRING, Tko.Check.CR_CHAR, Tko.Check.CR_WCHAR
+            return true
+        end select
+        cs = c.syms->SymbolAt( cs )->nextOverload
+    next
+    return false
+end function
+
 private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
     if (lp->count < 1) orelse (lp->target = NODE_NONE) then return
@@ -85,12 +102,23 @@ private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     if at = TYPE_NONE then return
     dim as BuiltinType k = UdtTextCast_( c, at )
     if k = TY_NONE then return
-    dim as boolean bad = false
+    dim as boolean bad = (nm = "wstr")
+    '' LEFT, RIGHT AND THE VAL FAMILY ARE OVERLOAD SETS to fbc -- see Check.IntrStrOvlPick, fitted to
+    '' every measured cell: a tie between overloads is its error 98 ('left( x, 1 )' over a type
+    '' casting to string AND ustring, 'val( x )' over a ustring cast alone), a number winning 58.
+    '' Judged only for a type with a TEXT cast; one with pointer or number casts alone keeps
+    '' TKO0626 from the typing.
     select case nm
-    case "wstr"
-        bad = true
-    case "val", "valint", "vallng", "valuint", "valulng"
-        bad = (k = TY_USTRING)
+    case "val", "valint", "vallng", "valuint", "valulng", "left", "right"
+        if UdtHasTextClassCast_( c, at ) then
+            dim as long ioc, iprm
+            Tko.Check.IntrStrOvlPick( *c.ast, *c.syms, *c.types, *c.names, at, (nm = "left") orelse (nm = "right"), ioc, iprm )
+            if ioc = Tko.Check.CP_AMBIGUOUS then
+                c.diags->Report( TKO0660, PointRange( c.ast->Loc( a ) ), nm )
+                return
+            end if
+            bad = (ioc = Tko.Check.CP_NOCONV)
+        end if
     end select
     if bad then c.diags->Report( TKO0938, PointRange( c.ast->Loc( a ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
 end sub

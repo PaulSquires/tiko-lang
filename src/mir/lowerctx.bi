@@ -27,7 +27,7 @@ type Ctx
     as MirModule ptr        m
     as MirFunction ptr      f
     as LowerStats ptr       st
-    as long                 curBlock, strCastTarget   '' strCastTarget: ScoredStrTerm_ (lowercastpick.bas)
+    as long                 curBlock, strCastTarget, castForce   '' strCastTarget, castForce: ScoredStrTerm_ (lowercastpick.bas)
     '' -e/-ex/-exx. Only level 3 changes emission today: array bounds checks.
     as long                 errFlags     '' Options.errFlags: which runtime checks to emit
     '' The module name those checks report, filled once at entry.

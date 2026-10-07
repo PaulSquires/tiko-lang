@@ -366,6 +366,20 @@ private function ExprIntrinsicType_ _
             '' 'print asc( u )' declined while 'dim k as integer = asc( u )' lowered.
             dim as Tko.TypeId sc = iif( instr( " sin cos tan atn asin acos atan2 exp log sqr abs sgn int fix frac ", " " & nm & " " ), UdtCastResultOf_( c, a0, false ), Tko.TYPE_NONE )
             if sc = Tko.TYPE_NONE then sc = UdtStringCastType_( c, a0 )   '' the maths family takes the NUMERIC cast first, as fbc's 'abs( g )' over long and string casts does (T40); untyped, 'print sqr( f )' vanished
+            '' ...LEFT, RIGHT AND THE VAL FAMILY TAKE fbc's OVERLOAD PICK (Check.IntrStrOvlPick): the
+            '' overload reached decides the flavour -- 'left( x, 1 )' over [byref as wstring, byref as
+            '' zstring] is a WSTRING. A tie keeps the old answer; latesweeps reports it (98).
+            if instr( " left right val valint vallng valuint valulng ", " " & nm & " " ) then
+                dim as long ioc, iprm
+                Tko.Check.IntrStrOvlPick( *c.ast, *c.syms, *c.types, *c.names, a0, (nm = "left") orelse (nm = "right"), ioc, iprm )
+                if ioc = Tko.Check.CP_OK then
+                    select case iprm
+                    case Tko.Check.CT_WSTRING : sc = c.types->Builtin( Tko.TY_WSTRING )
+                    case Tko.Check.CT_USTRING : sc = c.types->Builtin( Tko.TY_USTRING )
+                    case else                 : sc = c.types->Builtin( Tko.TY_STRING )
+                    end select
+                end if
+            end if
             if sc <> Tko.TYPE_NONE then ab = c.types->BuiltinOf( sc )
         end if
     end if

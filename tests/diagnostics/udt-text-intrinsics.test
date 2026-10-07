@@ -9,12 +9,12 @@
 '' ARGS: --dump-ir tests/diagnostics/src/udt-text-intrinsics.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: udt-text-intrinsics.bas(35,13): error TKO0938
-'' EXPECT-OUT: udt-text-intrinsics.bas(36,12): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(36,12): error TKO0660
 '' EXPECT-OUT: udt-text-intrinsics.bas(37,18): error TKO0938
 '' EXPECT-OUT: udt-text-intrinsics.bas(38,13): error TKO0938
 '' EXPECT-OUT: udt-text-intrinsics.bas(40,18): error TKO0938
-'' EXPECT-OUT: udt-text-intrinsics.bas(41,15): error TKO0938
-'' EXPECT-OUT: udt-text-intrinsics.bas(42,15): error TKO0938
+'' EXPECT-OUT: udt-text-intrinsics.bas(41,15): error TKO0660
+'' EXPECT-OUT: udt-text-intrinsics.bas(42,15): error TKO0660
 '' EXPECT-OUT: udt-text-intrinsics.bas(43,13): error TKO0938
 '' EXPECT-OUT: udt-text-intrinsics.bas(46,13): error TKO0871
 '' EXPECT-OUT: udt-text-intrinsics.bas(47,12): error TKO0626

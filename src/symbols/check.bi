@@ -236,6 +236,10 @@ namespace Tko.Check
     declare function UdtStrCastFit _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long ) as long
+    declare function IntrStrOvlPick _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval udt as Tko.TypeId, byval withUStr as boolean, _
+          byref outcome as long, byref outParam as long ) as Tko.SymbolId
     declare function StrCastPick _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval udt as Tko.TypeId, byval target as long, _

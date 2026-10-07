@@ -181,4 +181,159 @@ function UdtStrCastFit _
     return 1
 end function
 
+'' WHICH OVERLOAD OF A BUILT-IN A UDT ARGUMENT REACHES -- 'left', 'right' and the VAL family,
+'' whose runtime declarations are overload SETS: VAL over { byref const string, byref const
+'' wstring }, LEFT and RIGHT over those and 'byref const ustring' (rtl-string.bas). fbc resolves
+'' the call as any overloaded one (symb-proc.bas): per parameter, the cast that best fits its
+'' CONST type (symbFindCastOvlProc / hCheckCastOvl, where a non-const 'as string' is only a type
+'' match for 'const string' and 'byref as zstring' outscores it), then that cast's fit to the
+'' parameter (hCalcTypesDiff), remapped by hCheckCastOvlEx -- anything below an exact half match
+'' collapses to one constant, which is what makes 'val( u )' over a ustring cast error 98.
+'' Fitted to all 162 measured cells of tka-probes/phase4/pc (81 cast sets x left, val), 0 misfit.
+''
+'' OUTCOME: CP_OK (the cast to call, PARAM the overload: CT_STRING / CT_WSTRING / CT_USTRING),
+'' CP_AMBIGUOUS (fbc's 98), CP_NONE (no overload reached, 99) or CP_NOCONV (a number won, 58).
+const OVL_U = 1000
+const OVL_FULL = 5 * OVL_U, OVL_TYPE = 4 * OVL_U, OVL_HALF = 3 * OVL_U
+const OVL_CAST = 2 * OVL_U, OVL_CONV = OVL_U, OVL_STRUCTCONV = 333
+
+private function OvlIsPtr_( byval k as long ) as boolean
+    return (k = CR_CHARPTR) orelse (k = CR_WCHARPTR) orelse (k = CR_OTHERPTR)
+end function
+
+private function OvlClass_( byval k as long ) as long   '' 1 string, 2 float, 0 integer
+    select case k
+    case CR_STRING, CR_USTRING : return 1
+    case CR_FLOAT              : return 2
+    end select
+    return 0
+end function
+
+'' hCalcTypesDiff( param P, arg A ) over cast-result classes, no expression.
+private function OvlDiff_( byval p as long, byval a as long ) as long
+    dim as long cp = OvlClass_( p ), ca = OvlClass_( a )
+    if cp = 0 then
+        if ca = 0 then
+            if p = CR_CHAR then return iif( a = CR_CHAR, OVL_FULL, iif( a = CR_WCHAR, OVL_HALF - 3, 0 ) )
+            if p = CR_WCHAR then return iif( a = CR_CHAR, OVL_HALF - 3, iif( a = CR_WCHAR, OVL_FULL, 0 ) )
+            if (p = CR_CHARPTR) andalso (a = CR_CHAR) then return OVL_FULL - 1
+            if (p = CR_CHARPTR) andalso (a = CR_WCHAR) then return OVL_HALF - 4
+            if (p = CR_WCHARPTR) andalso (a = CR_CHAR) then return OVL_HALF - 4
+            if (p = CR_WCHARPTR) andalso (a = CR_WCHAR) then return OVL_FULL - 1
+            if (a = CR_CHAR) orelse (a = CR_WCHAR) then return 0
+            if OvlIsPtr_( p ) then
+                if OvlIsPtr_( a ) = false then return 0
+                if (p = CR_OTHERPTR) orelse (a = CR_OTHERPTR) then return OVL_HALF
+                return iif( p = a, OVL_FULL, 0 )
+            end if
+            if OvlIsPtr_( a ) then return 0
+            return OVL_HALF - 1
+        end if
+        if ca = 2 then return iif( OvlIsPtr_( p ), 0, OVL_HALF - 20 )
+        if p = CR_CHAR then return OVL_FULL - 1
+        if p = CR_CHARPTR then return iif( a = CR_USTRING, 0, OVL_FULL - 2 )
+        if p = CR_WCHAR then return OVL_HALF - 3
+        if p = CR_WCHARPTR then return iif( a = CR_USTRING, OVL_HALF - 3, OVL_HALF - 4 )
+        return 0
+    end if
+    if cp = 2 then
+        if ca = 0 then return iif( OvlIsPtr_( a ), 0, OVL_HALF - 20 )
+        if ca = 2 then return OVL_FULL
+        return 0
+    end if
+    if ca = 1 then return iif( cbool( p = CR_USTRING ) = cbool( a = CR_USTRING ), OVL_FULL, OVL_HALF - 2 )
+    if a = CR_CHAR then return iif( p = CR_USTRING, OVL_FULL - 3, OVL_FULL - 2 )
+    if a = CR_WCHAR then return iif( p = CR_USTRING, OVL_HALF - 1, OVL_HALF - 2 )
+    return 0
+end function
+
+'' Whether a cast's result is CONST -- 'byref as const wstring' is a FULL match for a const
+'' parameter of its own type, a plain one only a TYPE match.
+private function OvlResConst_( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byval sym as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sym )
+    if s = 0 then return false
+    dim as Tko.TypeId rt = s->type_
+    if types.IsConst( rt ) then return true
+    dim as Tko.TypeId ru = types.Unqualify( rt )
+    if (types.Kind( ru ) = Tko.TK_REFERENCE) orelse (types.Kind( ru ) = Tko.TK_POINTER) then return types.IsConst( types.Inner( ru ) )
+    return false
+end function
+
+function IntrStrOvlPick _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval udt as Tko.TypeId, byval withUStr as boolean, _
+      byref outcome as long, byref outParam as long ) as Tko.SymbolId
+
+    outcome = CP_NONE
+    outParam = 0
+    if udt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = types.Unqualify( udt )
+    if types.Kind( u ) = Tko.TK_REFERENCE then u = types.Unqualify( types.Inner( u ) )
+    if types.Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId head = StructorNamed( syms, types, names, u, "cast" )
+    if head = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    dim as long bestM = -999999, nBestM = 0, bestP = 0, bestCls = CR_NONE
+    dim as Tko.SymbolId bestSym = Tko.SYMBOL_NONE
+    dim as boolean anyP = false
+    for pi as long = 0 to iif( withUStr, 2, 1 )
+        dim as long pcls = CR_STRING, pct = CT_STRING
+        if pi = 1 then pcls = CR_WCHAR : pct = CT_WSTRING
+        if pi = 2 then pcls = CR_USTRING : pct = CT_USTRING
+        '' the cast fbc finds for this parameter
+        dim as Tko.SymbolId cur = head, win = Tko.SYMBOL_NONE
+        dim as long winSc = 0, nWin = 0, winCls = CR_NONE, guard = 0
+        while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+            guard += 1
+            dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+            if cs = 0 then exit while
+            dim as long k = CastResultClass( ast, syms, types, cur )
+            dim as long sc
+            if k = pcls then
+                sc = iif( OvlResConst_( syms, types, cur ), OVL_FULL, OVL_TYPE )
+            else
+                sc = OvlDiff_( k, pcls )
+            end if
+            if sc > winSc then
+                win = cur : winSc = sc : nWin = 1 : winCls = k
+            elseif (sc = winSc) andalso (sc > 0) then
+                nWin += 1
+            end if
+            cur = cs->nextOverload
+        wend
+        if win = Tko.SYMBOL_NONE then continue for
+        if nWin > 1 then
+            outcome = CP_AMBIGUOUS
+            return Tko.SYMBOL_NONE
+        end if
+        anyP = true
+        '' ...and how well it fits the parameter, as hCheckCastOvlEx remaps it
+        dim as long m = OvlDiff_( pcls, winCls )
+        if winCls = pcls then m = OVL_FULL
+        if m >= OVL_TYPE then
+            m = m - OVL_TYPE + OVL_CAST
+        elseif m >= OVL_HALF then
+            m = m - OVL_TYPE + OVL_CONV
+        else
+            m = OVL_STRUCTCONV
+        end if
+        if m > bestM then
+            bestM = m : nBestM = 1 : bestP = pct : bestSym = win : bestCls = winCls
+        elseif m = bestM then
+            nBestM += 1
+        end if
+    next
+    if anyP = false then return Tko.SYMBOL_NONE
+    if nBestM > 1 then
+        outcome = CP_AMBIGUOUS
+        return Tko.SYMBOL_NONE
+    end if
+    outParam = bestP
+    if bestCls = CR_FLOAT then
+        outcome = CP_NOCONV
+        return bestSym
+    end if
+    outcome = CP_OK
+    return bestSym
+end function
+
 end namespace

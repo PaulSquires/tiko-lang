@@ -1286,7 +1286,7 @@ end function
 ''     ucase( w )         fb_WstrUcase2( W, 0 )         trailing arg is the mode
 ''
 '' 'any' reaches here as a unary KW_ANY wrapper around the second argument.
-function LowerWideRvalue _
+function LowerWideRvalueB_ _
     ( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
 
     if c.ast->Kind( value ) <> Tko.N_CALL then return false

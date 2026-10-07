@@ -25,7 +25,7 @@ declare function StrSwapKind_ _
 '' One 'ucase( u )' / 'mid( u, 2, 3 )' / 'instr( u, v )' and the rest, over a USTRING
 '' first argument. Returns false for anything that is not one, so the narrow path keeps
 '' every case it already had.
-function LowerUStrIntrin_ _
+function LowerUStrIntrinB_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
