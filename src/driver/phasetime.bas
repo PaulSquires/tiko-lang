@@ -22,6 +22,7 @@ private function PhaseName_( byval ph as PhaseId ) as string
     case PH_VERIFY  : return "verify"
     case PH_EMIT    : return "emit llvm"
     case PH_WRITEIR : return "write .ll"
+    case PH_SPAWN   : return "start clang"
     case PH_CLANG   : return "clang -c"
     case PH_LINK    : return "link"
     end select

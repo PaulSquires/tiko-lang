@@ -501,7 +501,9 @@ private function QueueObject_ _
         if (r <> Tko.EXIT_OK) andalso (fail = Tko.EXIT_OK) then fail = r
     wend
     dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
+    dim as double tSpawn = timer
     dim as Tko.Spawn.Proc pr = Tko.Codegen.StartCompileIr( tools, td, irPath, objPath )
+    ctx.timing.Add( Tko.PH_SPAWN, tSpawn )
     if pr = 0 then
         '' NOT STARTED: what exec reported for a clang it could not run.
         dim as long r = ObjectChecks_( ctx, -1, irPath, objPath, wantElf, td.triple )

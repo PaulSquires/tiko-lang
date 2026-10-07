@@ -26,6 +26,7 @@ namespace Tko
         PH_VERIFY
         PH_EMIT         '' MIR to LLVM IR text
         PH_WRITEIR      '' the '.ll' to disk
+        PH_SPAWN        '' starting a queued clang -c (process creation, ~5 ms each on Windows)
         PH_CLANG        '' waiting for clang -c (the whole of it when it runs inline)
         PH_LINK
         PH_COUNT
