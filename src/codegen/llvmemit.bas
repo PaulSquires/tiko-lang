@@ -1204,9 +1204,71 @@ private function ModuleDeclares_( byref e as EmitCtx, byref nm as string ) as bo
     return false
 end function
 
+extern "c"
+    declare function MemChr_ alias "memchr" ( byval s as const any ptr, byval c as long, _
+                                              byval n as uinteger ) as any ptr
+end extern
+
+'' WHICH NAMES THE BODY CALLS, as '@name(' or '@"name"(' -- every '@' visited once, each
+'' matched name recorded between NULs in 'found' (a quoted one with its leading '"'). It answers exactly what an
+'' 'instr( body, "@" & name & "(" )' per name answered: a needle starts with '@' and ends
+'' with '(', which no identifier and no quoted name contains, so at any '@' at most one
+'' name can match and it is the longest one there. That was ~34 scans of the whole module
+'' per unit -- 1.43 s of tiko-lang's 18 s self-compile (speed audit, 2026-10-07).
+private function CalledNames_( byref body as string ) as string
+    dim as string found = chr( 0 )
+    dim as long n = len( body )
+    if n = 0 then return found
+    dim as ubyte ptr base_ = cast( ubyte ptr, strptr( body ) )
+    dim as long i = 0
+    while i < n
+        dim as ubyte ptr hit = MemChr_( base_ + i, 64, n - i )
+        if hit = 0 then exit while
+        i = cast( long, hit - base_ )
+        dim as long st = i + 1, en = 0
+        if (st < n) andalso (base_[st] = 34) then
+            '' '@"name"(' -- the name is what lies between the quotes.
+            dim as ubyte ptr q = MemChr_( base_ + st + 1, 34, n - st - 1 )
+            if q <> 0 then
+                en = cast( long, q - base_ )
+                st += 1
+                if (en + 1 < n) andalso (base_[en + 1] = 40) then
+                    '' Recorded WITH its opening quote: '@"x"(' is not '@x(', as no needle
+                    '' matched one for the other.
+                    dim as string nm = chr( 34 ) & mid( body, st + 1, en - st )
+                    if instr( found, chr( 0 ) & nm & chr( 0 ) ) = 0 then found &= nm & chr( 0 )
+                end if
+            end if
+        else
+            '' '@name(' -- an unquoted LLVM identifier, then the parenthesis.
+            en = st
+            while en < n
+                dim as ubyte c = base_[en]
+                dim as boolean ident = ((c >= 48) andalso (c <= 57)) orelse _
+                                       ((c >= 65) andalso (c <= 90)) orelse _
+                                       ((c >= 97) andalso (c <= 122)) orelse _
+                                       (c = 46) orelse (c = 95) orelse (c = 36) orelse (c = 45)
+                if ident = false then exit while
+                en += 1
+            wend
+            if (en > st) andalso (en < n) andalso (base_[en] = 40) then
+                dim as string nm = mid( body, st + 1, en - st )
+                if instr( found, chr( 0 ) & nm & chr( 0 ) ) = 0 then found &= nm & chr( 0 )
+            end if
+        end if
+        i += 1
+    wend
+    return found
+end function
+
+private function Called_( byref found as string, byref nm as string ) as boolean
+    return instr( found, chr( 0 ) & nm & chr( 0 ) ) > 0
+end function
+
 private function IntrinsicDecls _
     ( byref e as EmitCtx, byref body as string ) as string
     dim as string r
+    dim as string called = CalledNames_( body )
     '' The full set this emitter can produce, each declared only if it appears. A
     '' declaration that is never called is harmless but noisy, and noise in emitted IR
     '' is what makes a real difference hard to see in a golden diff.
@@ -1221,7 +1283,7 @@ private function IntrinsicDecls _
         "llvm.nearbyint.float", "llvm.nearbyint.double" }
     for i as long = lbound( names_ ) to ubound( names_ )
         dim as string n = names_( i )
-        if instr( body, "@" & n & "(" ) = 0 then continue for
+        if Called_( called, n ) = false then continue for
         dim as string t = "double"
         if right( n, 6 ) = ".float" then t = "float"
         r += "declare " & t & " @" & n & "(" & t & ") nounwind" & chr( 10 )
@@ -1230,16 +1292,16 @@ private function IntrinsicDecls _
     dim as string ints( ... ) = { "i8", "i16", "i32", "i64" }
     for i as long = lbound( ints ) to ubound( ints )
         dim as string t = ints( i )
-        if instr( body, "@llvm.abs." & t & "(" ) = 0 then continue for
+        if Called_( called, "llvm.abs." & t ) = false then continue for
         r += "declare " & t & " @llvm.abs." & t & "(" & t & ", i1) nounwind" & chr( 10 )
     next
 
     dim as string vas( ... ) = { "va_start", "va_end" }
     for i as long = lbound( vas ) to ubound( vas )
-        if instr( body, "@llvm." & vas( i ) & "(" ) = 0 then continue for
+        if Called_( called, "llvm." & vas( i ) ) = false then continue for
         r += "declare void @llvm." & vas( i ) & "(ptr) nounwind" & chr( 10 )
     next
-    if instr( body, "@llvm.va_copy(" ) > 0 then
+    if Called_( called, "llvm.va_copy" ) then
         r += "declare void @llvm.va_copy(ptr, ptr) nounwind" & chr( 10 )
     end if
 
@@ -1254,13 +1316,14 @@ private function IntrinsicDecls _
         '' ASIN against libm's -- and then there are TWO declarations of one name:
         '' 'invalid redefinition of function asinf'. The module's own is the one
         '' that stays: it is what its call sites were emitted against.
-        if ModuleDeclares_( e, n ) = false then
-            if instr( body, "@""" & n & """(" ) > 0 then
+        '' The call first: ModuleDeclares_ walks every function, and most modules call none.
+        if Called_( called, chr( 34 ) & n ) then
+            if ModuleDeclares_( e, n ) = false then
                 r += "declare double @""" & n & """(double) nounwind" & chr( 10 )
             end if
         end if
-        if ModuleDeclares_( e, n & "f" ) = false then
-            if instr( body, "@""" & n & "f""(" ) > 0 then
+        if Called_( called, chr( 34 ) & n & "f" ) then
+            if ModuleDeclares_( e, n & "f" ) = false then
                 r += "declare float @""" & n & "f""(float) nounwind" & chr( 10 )
             end if
         end if
