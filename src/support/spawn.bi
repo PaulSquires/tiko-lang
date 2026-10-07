@@ -1,0 +1,43 @@
+'' spawn.bi -- start a tool and come back for its exit code later.
+''
+'' FB's 'exec' waits, so every clang -c the driver ran blocked the whole compiler: a 123-unit
+'' build ran 123 clangs one after another while the front end sat idle (speed audit,
+'' 2026-10-07). These start the process and return; the caller waits when it needs the
+'' answer, which lets clang compile one unit while the front end works on the next and lets
+'' several clangs run at once.
+''
+'' NOT THREADS. The Windows compiler links the single-threaded runtime (main.bas starts its
+'' big-stack thread with CreateThread precisely so fbc does not mark it -mt), so the
+'' processes are started with the operating system's own calls: CreateProcessW on Windows,
+'' fork + execvp elsewhere -- nothing between the two but the exec, so the child touches no
+'' runtime state.
+''
+'' THE COMMAND LINE IS ONE STRING in Windows quoting, exactly what Codegen's Q( ) produces and
+'' what fbc's exec took. On Windows it is handed over as it is; elsewhere it is split by the
+'' same rules (CommandLineToArgvW's: backslashes are literal except before a quote, where
+'' they pair up) -- the split fbc's Unix exec made of the same string.
+
+#pragma once
+
+#include once "tko.bi"
+
+namespace Tko.Spawn
+
+    '' A started process; 0 when it could not be started.
+    type Proc as longint
+
+    '' 'exe' and 'args' are UTF-8. 'exe' is quoted here; 'args' must already be.
+    declare function Start( byref exe as string, byref args as string ) as Proc
+
+    '' Waits for it and returns its exit code, or -1 when it could not be waited for (or was
+    '' never started). Each Proc is waited for exactly once.
+    declare function Wait( byval p as Proc ) as long
+
+    '' How many to run at once: TKO_JOBS when set (1 = one at a time, as before), else the
+    '' machine's logical processors.
+    declare function DefaultJobs( ) as long
+
+    '' The split the non-Windows Start makes, exposed for its test.
+    declare sub SplitArgs( byref cmdline as string, byref out_ as Tko.StrVec )
+
+end namespace

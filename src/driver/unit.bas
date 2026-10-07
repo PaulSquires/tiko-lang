@@ -143,6 +143,7 @@ function CompileUnit _
     dim as Tko.StrVec noDefines
     if ctx.modFileCount > 0 then Tko.Modules.ModuleUnitConfig( ctx, cfg, modFiles, noDefines )
     if ctx.importsBuilt then Tko.Modules.InstallImports( ctx, cfg )
+    dim as double tPh = timer
     dim as Tko.PpStream st
     Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
 
@@ -169,6 +170,7 @@ function CompileUnit _
     dim as Tko.MacroInfoVec scanMacros
     if ctx.scan <> 0 then Tko.PpSnapshotMacros( st, scanMacros )
     Tko.PpClose( st )
+    ctx.timing.Add( Tko.PH_FRONT, tPh )
 
     '' '#cmdline' -- WHAT THE SOURCE ASKED TO BE COMPILED WITH. Collected from
     '' every module of this pass before any of it is acted on, because that is
@@ -239,8 +241,10 @@ function CompileUnit _
     dim as Tko.SemanticInfo info
     '' A MODULE UNIT, before Collect: its out-of-line members wait for their types.
     if ctx.modFileCount > 0 then Tko.ModSym.Begin( syms, ctx.modFiles, ctx.modChain )
+    tPh = timer
     Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, _
                      info, @ctx.sources )
+    ctx.timing.Add( Tko.PH_COLLECT, tPh )
     '' MODULE CODE, and what it lets out (ADR 0017): before Resolve, whose generic
     '' instances copy their generic's marks.
     if ctx.modFileCount > 0 then Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
@@ -338,9 +342,12 @@ function CompileUnit _
         '' MIR needs the full frontend in front of it: resolve binds names,
         '' check gives every expression a type, and lowering reads both.
         dim as Tko.Resolve.Stats rst
+        tPh = timer
         Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                          ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
+        ctx.timing.Add( Tko.PH_RESOLVE, tPh )
         dim as Tko.Check.Stats cst
+        tPh = timer
         Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                        info, cst )
         '' A name nothing declared, once Check has had its say -- fbc's 42. Not
@@ -349,6 +356,8 @@ function CompileUnit _
             Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
                                         info, rst, pr.reservedNames, syms )
         end if
+        ctx.timing.Add( Tko.PH_CHECK, tPh )
+        tPh = timer
         '' AFTER Check: a member access needs its symbol, and only Check binds
         '' one -- a field means nothing until its base has a type.
         Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info )
@@ -371,6 +380,7 @@ function CompileUnit _
         dim as boolean publishes = (ctx.modFileCount > 0) andalso ctx.importsBuilt
         if publishes then publishes = (FrontendFailed_( ctx ) = false)
         if publishes then Tko.Modules.PublishInterface( ctx, pr, ast, syms, info )
+        ctx.timing.Add( Tko.PH_SEMA, tPh )
         '' WHICH MODULE OWNS main. Three arms, and all three are fbc's,
         '' measured 2026-09-04:
         ''
@@ -393,9 +403,11 @@ function CompileUnit _
         dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
         if ctx.modFileCount > 0 then modName = ctx.modName
         dim as boolean isMain = IsMainUnit_( ctx, id, i )
+        tPh = timer
         Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
                        ctx.sources, udts, vts, mm, lst, isMain, modName, _
                        ctx.options.errFlags, @ctx.diags, cast( long, id ) )
+        ctx.timing.Add( Tko.PH_LOWER, tPh )
         '' THE THREAD-SAFE RUNTIME IS CHOSEN HERE, not on the command line
         '' alone -- see Tko.Mir.UsesThreadRtl for what fbc does and how it
         '' was measured. tiko-editor links no '-mt' and creates five threads:
@@ -425,7 +437,9 @@ function CompileUnit _
         dim as Tko.Codegen.AbiStats abist
         dim as Tko.Codegen.TargetDescription abitgt = _
             Tko.Codegen.TargetFor( ctx.options.target )
+        tPh = timer
         Tko.Codegen.LowerModule( mm, ctx.names, abitgt, abist )
+        ctx.timing.Add( Tko.PH_ABI, tPh )
 
         '' '--emit-ir' RUNS THE SAME FRONTEND and prints the backend's
         '' output instead of MIR's. It is the escape hatch docs/plan/10 asks
@@ -451,7 +465,9 @@ function CompileUnit _
         '' a count under --dump-ir -- and the exit code was 0 either way, so the program
         '' ran without the statement. Five audits of this compiler found that path on
         '' their own (2026-10-03). The MIR dump and its report are unchanged.
+        tPh = timer
         dim as Tko.Mir.VerifyResult vr = Tko.Mir.Verify( mm, ctx.names )
+        ctx.timing.Add( Tko.PH_VERIFY, tPh )
         if doCodegen then
             if vr.failures > 0 then
                 dim as long vnl = instr( vr.report, chr( 10 ) )
@@ -492,9 +508,11 @@ function CompileUnit _
             dim as Tko.Codegen.DebugFrontend dfe
             dfe.types = @ctx.types : dfe.syms = @syms
             dfe.udts = @udts : dfe.names = @ctx.names
+            tPh = timer
             dim as Tko.Codegen.EmitResult er = _
                 Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
                                       ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe )
+            ctx.timing.Add( Tko.PH_EMIT, tPh )
             if er.ok then
                 '' '--emit-ir' AND '--emit-asm' WRITE THEIR FILE AND STOP --
                 '' EmitStopFile_. Everything else with an output builds.

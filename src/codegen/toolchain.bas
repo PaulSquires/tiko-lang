@@ -195,10 +195,9 @@ function ArchiveLib _
     return Exec_( t, t.arExe, cmd )
 end function
 
-function CompileIr _
+private function CompileIrArgs_ _
     ( byref t as ToolPaths, byref target as TargetDescription, _
-      byref irPath as string, byref objPath as string, _
-      byval keepTemps as boolean ) as long
+      byref irPath as string, byref objPath as string ) as string
 
     '' '-target' IS PASSED EXPLICITLY, always.
     ''
@@ -227,11 +226,31 @@ function CompileIr _
     '' reach the module's own globals directly, and ld refuses that in a shared object.
     '' COFF has no such distinction and gets nothing.
     if t.buildDll andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
-    dim as long rc = Exec_( t, t.clangExe, cmd )
+    return cmd
+end function
+
+function CompileIr _
+    ( byref t as ToolPaths, byref target as TargetDescription, _
+      byref irPath as string, byref objPath as string, _
+      byval keepTemps as boolean ) as long
+
+    dim as long rc = Exec_( t, t.clangExe, CompileIrArgs_( t, target, irPath, objPath ) )
     if keepTemps = false then
         if rc = 0 then kill( irPath )
     end if
     return rc
+end function
+
+'' THE SAME COMMAND, STARTED AND NOT WAITED FOR (support/spawn.bi). The caller waits, deletes
+'' the '.ll' and checks the object -- driver.bas, the object queue. '-v' prints it here, on the
+'' compiler's own thread, as Exec_ does, before it runs.
+function StartCompileIr _
+    ( byref t as ToolPaths, byref target as TargetDescription, _
+      byref irPath as string, byref objPath as string ) as Tko.Spawn.Proc
+
+    dim as string args = CompileIrArgs_( t, target, irPath, objPath )
+    if t.verbose then print Q( t.clangExe ) & " " & args
+    return Tko.Spawn.Start( t.clangExe, args )
 end function
 
 function CompileIrAsm _

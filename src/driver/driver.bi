@@ -18,6 +18,8 @@
 #include once "support/intern.bi"
 #include once "lexer/lexer.bi"
 #include once "types/type.bi"
+#include once "driver/phasetime.bi"
+#include once "driver/objqueue.bi"
 
 namespace Tko
 
@@ -102,6 +104,10 @@ namespace Tko
         '' run is one: every unit then stops after Check and is harvested into it. 0 for
         '' every other run. An 'any ptr' so this header need not include the scan's.
         as any ptr                scan
+        '' WHERE THE TIME WENT, phase by phase (driver/phasetime.bi); printed by '--time-passes'.
+        as PhaseTimes             timing
+        '' THE clang -c RUNS STARTED AND NOT YET WAITED FOR (driver/objqueue.bi).
+        as ObjQueue               objq
 
         declare constructor( )
         declare destructor( )

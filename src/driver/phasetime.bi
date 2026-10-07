@@ -1,0 +1,49 @@
+'' phasetime.bi -- where a build's wall time goes, phase by phase, for '--time-passes'.
+''
+'' ON THE CONTEXT, NOT GLOBAL: CompilerContext is the one place a run's state lives, and the
+'' modules a build imports are compiled through the same context, so their phases add into
+'' the same counters. Every unit's phases add up; nothing is reset between units.
+''
+'' ALWAYS TAKEN, PRINTED ONLY WHEN ASKED. One 'timer' read per phase per unit costs nothing
+'' next to the phase it measures, and a counter that is always live cannot drift out of step
+'' with the code it brackets the way an '#ifdef'-ed one does.
+
+#pragma once
+
+#include once "tko.bi"
+
+namespace Tko
+
+    enum PhaseId
+        PH_LOAD = 0     '' reading the command line's sources
+        PH_FRONT        '' preprocess + lex + parse: one pull, not separable
+        PH_COLLECT
+        PH_RESOLVE
+        PH_CHECK        '' Check.Run and the undeclared-name report
+        PH_SEMA         '' visibility, layouts, vtables, the post-Check rules, interfaces
+        PH_LOWER
+        PH_ABI
+        PH_VERIFY
+        PH_EMIT         '' MIR to LLVM IR text
+        PH_WRITEIR      '' the '.ll' to disk
+        PH_CLANG        '' waiting for clang -c (the whole of it when it runs inline)
+        PH_LINK
+        PH_COUNT
+    end enum
+
+    type PhaseTimes
+        as double secs(0 to PH_COUNT - 1)
+        as long   hits(0 to PH_COUNT - 1)
+        '' THE MODULE BUILD (ADR 0017) as one wall-clock span: its units' phases are ALSO in
+        '' the rows above, so it is reported as 'of which', never added to them.
+        as double importSecs
+        '' clang's own run time summed over every job -- more than PH_CLANG once the jobs
+        '' overlap the front end or each other, and the difference is what overlapping saved.
+        as double clangBusy
+        as long   clangJobs
+        declare sub Add( byval ph as PhaseId, byval t0 as double )
+    end type
+
+    declare sub ReportPhaseTimes( byref pt as PhaseTimes, byval total as double )
+
+end namespace

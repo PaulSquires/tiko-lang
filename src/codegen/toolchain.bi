@@ -13,6 +13,7 @@
 
 #include once "tko.bi"
 #include once "codegen/target.bi"
+#include once "support/spawn.bi"
 
 namespace Tko.Codegen
 
@@ -90,6 +91,11 @@ namespace Tko.Codegen
         ( byref t as ToolPaths, byref target as TargetDescription, _
           byref irPath as string, byref objPath as string, _
           byval keepTemps as boolean ) as long
+    '' CompileIr's command, started and not waited for: the caller waits (Spawn.Wait), then
+    '' deletes the '.ll' and checks the object.
+    declare function StartCompileIr _
+        ( byref t as ToolPaths, byref target as TargetDescription, _
+          byref irPath as string, byref objPath as string ) as Tko.Spawn.Proc
 
     '' '.ll' to '.s' -- '--emit-asm'. The same compile, 'clang -S' in place of '-c'.
     declare function CompileIrAsm _

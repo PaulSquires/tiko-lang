@@ -28,7 +28,7 @@ function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
     return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.modChain & ".o" )
 end function
 
-'' A cached module's contribution to the link, as ModuleCacheStore recorded it.
+'' A cached module's contribution to the link, as ModuleCacheCommit recorded it.
 private sub ReplayLibs_( byref ctx as Tko.CompilerContext, byref libs as string )
     dim as long p = 1
     while p <= len( libs )
@@ -93,6 +93,10 @@ function BuildImports _
     '' type must not create or fill the user's module cache.
     dim as string cacheRoot = ""
     if scanOnly = false then cacheRoot = ModuleCacheRoot( ctx )
+    '' THE CACHE IS FILLED AFTER THE OBJECTS EXIST. A module's clang runs while the next
+    '' module's front end does (driver/objqueue.bi), so what each entry will hold is kept
+    '' here and stored once the queue has drained.
+    dim as Tko.StrVec storeKeys, storeObjs, storeIfaces, storeLibs, storeChains, storeDeps
 
     for each n as ulong in g.order
         ctx.modChain = g.chains[n]
@@ -170,9 +174,24 @@ function BuildImports _
                 libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
             next
             if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
-            ModuleCacheStore( ctx, cacheRoot, key, linkObjs[linkObjs.Count - 1], ctx.ifaceTexts[n], libs )
+            dim as string dl
+            if ModuleCacheDeps( ctx, dl ) then
+                storeKeys.Push( key ) : storeObjs.Push( linkObjs[linkObjs.Count - 1] )
+                storeIfaces.Push( ctx.ifaceTexts[n] ) : storeLibs.Push( libs )
+                storeChains.Push( ctx.modChain ) : storeDeps.Push( dl )
+            end if
         end if
     next
+    if storeKeys.Count > 0 then
+        dim as long drained = Tko.Driver.DrainObjects( ctx )
+        if (drained <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = drained
+        if toolExit = Tko.EXIT_OK then
+            for k as long = 0 to storeKeys.Count - 1
+                ModuleCacheCommit( cacheRoot, storeKeys[k], storeChains[k], storeObjs[k], _
+                                   storeIfaces[k], storeLibs[k], storeDeps[k] )
+            next
+        end if
+    end if
     ctx.modChain = ""
     ctx.modName = ""
     ctx.modFiles.Clear( )

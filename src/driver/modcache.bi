@@ -26,10 +26,15 @@ declare function ModuleCacheLookup _
     ( byref ctx as Tko.CompilerContext, byref root as string, byref key as string, _
       byref objPath as string, byref iface as string, byref libs as string ) as boolean
 
-'' Store what a compile of the module just made. A failure to store is not an error.
-declare sub ModuleCacheStore _
-    ( byref ctx as Tko.CompilerContext, byref root as string, byref key as string, _
-      byref objPath as string, byref iface as string, byref libs as string )
+'' Store what a compile of the module just made, in TWO STEPS: what the unit read is taken
+'' from the context straight after its compile (ModuleCacheDeps; false = a dependency has no
+'' stamp, store nothing), and the entry is written once its object exists -- after the object
+'' queue drains (driver/objqueue.bi), when the context already describes a later module.
+'' A failure to store is not an error.
+declare function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string ) as boolean
+declare sub ModuleCacheCommit _
+    ( byref root as string, byref key as string, byref chain as string, _
+      byref objPath as string, byref iface as string, byref libs as string, byref dl as string )
 
 '' '-v': why a miss missed -- the first line of this key that the chain's last stored key
 '' did not have, or 'new'.

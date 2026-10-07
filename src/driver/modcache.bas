@@ -339,16 +339,9 @@ private function ChainFile_( byref root as string, byref chain as string, byref 
     return JoinPath( JoinPath( root, "chains" ), chain & "." & Tko.DiskCache.Hash( d ) & ".key" )
 end function
 
-sub ModuleCacheStore _
-    ( byref ctx as Tko.CompilerContext, byref root as string, byref key as string, _
-      byref objPath as string, byref iface as string, byref libs as string )
-
-    if len( root ) = 0 then return
-    dim as string d = EntryDir_( root, key )
-    if FB.IsDir( d ) = false then FB.CreateDirAll( d )
-    if FB.IsDir( d ) = false then return
+function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string ) as boolean
     '' What the unit read that is not its own source nor an interface held in memory.
-    dim as string dl = ""
+    dl = ""
     dim as Tko.StrVec done_
     for each f as ulong in ctx.unitFilesRead
         dim as boolean own = false
@@ -367,7 +360,7 @@ sub ModuleCacheStore _
         if dup then continue for
         done_.Push( p )
         dim as string st = Tko.DiskCache.Stamp( p )
-        if len( st ) = 0 then return
+        if len( st ) = 0 then return false
         dl &= st & chr( 9 ) & p & Nl_( )
     next
     for each m_ as string in ctx.unitProbesMissed
@@ -380,6 +373,17 @@ sub ModuleCacheStore _
         done_.Push( "-" & ap_ )
         dl &= "-" & chr( 9 ) & "-" & chr( 9 ) & ap_ & Nl_( )
     next
+    return true
+end function
+
+sub ModuleCacheCommit _
+    ( byref root as string, byref key as string, byref chain as string, _
+      byref objPath as string, byref iface as string, byref libs as string, byref dl as string )
+
+    if len( root ) = 0 then return
+    dim as string d = EntryDir_( root, key )
+    if FB.IsDir( d ) = false then FB.CreateDirAll( d )
+    if FB.IsDir( d ) = false then return
     dim as string obj
     if Tko.DiskCache.ReadAll( objPath, obj ) = false then return
     if Tko.DiskCache.Commit( JoinPath( d, "key.txt" ), key, 1 ) = false then return
@@ -391,7 +395,7 @@ sub ModuleCacheStore _
     if FB.IsDir( cd ) = false then FB.CreateDirAll( cd )
     '' THE ENTRY THIS ONE SUPERSEDES: the same chain from the same directory, built the same
     '' way, from sources or interfaces that have since changed. Nothing can hit it again.
-    dim as string cf = ChainFile_( root, ctx.modChain, key )
+    dim as string cf = ChainFile_( root, chain, key )
     dim as string prev
     if Tko.DiskCache.ReadAll( cf, prev ) then
         if (prev <> key) andalso (Config_( prev ) = Config_( key )) then

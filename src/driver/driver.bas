@@ -51,6 +51,13 @@ end constructor
 '' THE CACHED TOKEN VECTORS OUTLIVE EVERY ENGINE, so they are freed here rather than in
 '' PpClose. One Lex.Result per file that was lexed, whichever unit lexed it first.
 destructor CompilerContext( )
+    '' NO clang OUTLIVES ITS BUILD. A run that returned early -- an error in a later unit, a
+    '' failed module -- never drained the object queue; its jobs are waited for here, quietly,
+    '' so none is still writing an object after tiko has exited.
+    for k as long = this.objq.reaped to this.objq.procs.Count - 1
+        dim as long rc = Tko.Spawn.Wait( this.objq.procs[k] )
+        if (rc = 0) andalso (this.objq.keepTemps = false) then kill( this.objq.irPaths[k] )
+    next
     for each p as any ptr in this.ppLexed
         if p <> 0 then delete cast( Tko.Lex.Result ptr, p )
     next
@@ -439,6 +446,88 @@ function EmitStopFile_ _
     return Tko.EXIT_OK
 end function
 
+private function ObjectChecks_ _
+    ( byref ctx as Tko.CompilerContext, byval rc as long, byref irPath as string, _
+      byref objPath as string, byval wantElf as boolean, byref triple as string ) as long
+
+    if rc <> 0 then
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
+    end if
+    dim as long ofh = freefile
+    dim as long orc2 = open( objPath for binary access read as #ofh )
+    if orc2 <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0962, objPath )
+    close #ofh
+
+    dim as boolean fmtKnown = false
+    dim as boolean isElf = ObjectLooksElf_( objPath, fmtKnown )
+    if fmtKnown then
+        if isElf <> wantElf then
+            '' The object format and the triple are one fact -- the other format is
+            '' implied, so the message names the one found and the triple that disagrees.
+            dim as string got_ = iif( isElf, "ELF", "COFF" )
+            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0114, objPath, got_, triple )
+        end if
+    end if
+    return Tko.EXIT_OK
+end function
+
+'' THE OBJECT QUEUE (driver/objqueue.bi). Job k is waited for once, by Reap_, in start order;
+'' its '.ll' goes when clang succeeded, as CompileIr deletes it, and the object is checked as
+'' an inline compile's is.
+private function Reap_( byref ctx as Tko.CompilerContext, byval k as long ) as long
+    dim as double t0 = timer
+    dim as long rc = Tko.Spawn.Wait( ctx.objq.procs[k] )
+    ctx.objq.procs[k] = 0
+    ctx.timing.Add( Tko.PH_CLANG, t0 )
+    ctx.timing.clangBusy += timer - ctx.objq.starts[k]
+    ctx.timing.clangJobs += 1
+    if (rc = 0) andalso (ctx.objq.keepTemps = false) then kill( ctx.objq.irPaths[k] )
+    return ObjectChecks_( ctx, rc, ctx.objq.irPaths[k], ctx.objq.objPaths[k], _
+                          ctx.objq.wantElf[k] <> 0, ctx.objq.triples[k] )
+end function
+
+'' AT CAPACITY, THE OLDEST JOB IS WAITED FOR before another starts. Returns the first failure
+'' among the jobs it reaped, or this one's own when clang could not even be started; the
+'' object joins the link only on EXIT_OK, and a failure seen here stops the link either way.
+private function QueueObject_ _
+    ( byref ctx as Tko.CompilerContext, byref tools as Tko.Codegen.ToolPaths, _
+      byref td as Tko.Codegen.TargetDescription, byref irPath as string, _
+      byref objPath as string ) as long
+
+    dim as long fail = Tko.EXIT_OK
+    while (ctx.objq.procs.Count - ctx.objq.reaped) >= ctx.objq.maxJobs
+        dim as long r = Reap_( ctx, ctx.objq.reaped )
+        ctx.objq.reaped += 1
+        if (r <> Tko.EXIT_OK) andalso (fail = Tko.EXIT_OK) then fail = r
+    wend
+    dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
+    dim as Tko.Spawn.Proc pr = Tko.Codegen.StartCompileIr( tools, td, irPath, objPath )
+    if pr = 0 then
+        '' NOT STARTED: what exec reported for a clang it could not run.
+        dim as long r = ObjectChecks_( ctx, -1, irPath, objPath, wantElf, td.triple )
+        return iif( fail <> Tko.EXIT_OK, fail, r )
+    end if
+    ctx.objq.keepTemps = ctx.options.keepTemps
+    ctx.objq.procs.Push( pr )
+    ctx.objq.irPaths.Push( irPath )
+    ctx.objq.objPaths.Push( objPath )
+    ctx.objq.triples.Push( td.triple )
+    dim as ubyte elfFlag = iif( wantElf, 1, 0 )
+    ctx.objq.wantElf.Push( elfFlag )
+    ctx.objq.starts.Push( timer )
+    return fail
+end function
+
+function DrainObjects( byref ctx as Tko.CompilerContext ) as long
+    dim as long fail = Tko.EXIT_OK
+    while ctx.objq.reaped < ctx.objq.procs.Count
+        dim as long r = Reap_( ctx, ctx.objq.reaped )
+        ctx.objq.reaped += 1
+        if (r <> Tko.EXIT_OK) andalso (fail = Tko.EXIT_OK) then fail = r
+    wend
+    return fail
+end function
+
 function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
@@ -461,6 +550,7 @@ function BuildFromIr _
     '' made it happen.
     dim as string irPath = objPath & ".ll"
 
+    dim as double tWrite = timer
     dim as long fh = freefile
     '' The function form of OPEN inside an IF condition confuses the parser here --
     '' it is spelled as its own statement instead, which is clearer anyway.
@@ -470,36 +560,26 @@ function BuildFromIr _
     end if
     print #fh, irText;
     close #fh
+    ctx.timing.Add( Tko.PH_WRITEIR, tWrite )
 
     '' A COMPILER THAT EXITS 0 AND WRITES NOTHING IS A FAILURE. With 'TKO_CLANG=where.exe'
     '' the compile "succeeded", the .ll was deleted, and the missing object surfaced only as
     '' a link error -- or, with an object left from an earlier build, not at all (audit F-74,
     '' CG-17). So the old object goes first, and the new one must exist afterwards.
     dim as long okill = kill( objPath )
+    dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
+    '' QUEUED, unless TKO_JOBS=1 asked for one at a time (driver/objqueue.bi).
+    if ctx.objq.maxJobs = 0 then ctx.objq.maxJobs = Tko.Spawn.DefaultJobs( )
+    if ctx.objq.maxJobs > 1 then return QueueObject_( ctx, tools, td, irPath, objPath )
+    dim as double tClang = timer
     dim as long rc = Tko.Codegen.CompileIr( tools, td, irPath, objPath, _
                                             ctx.options.keepTemps )
-    if rc <> 0 then
-        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
-    end if
-    dim as long ofh = freefile
-    dim as long orc2 = open( objPath for binary access read as #ofh )
-    if orc2 <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0962, objPath )
-    close #ofh
-
-    dim as boolean fmtKnown = false
-    dim as boolean isElf = ObjectLooksElf_( objPath, fmtKnown )
-    if fmtKnown then
-        dim as boolean wantElf = (td.objFormat = Tko.Codegen.OBJ_ELF)
-        if isElf <> wantElf then
-            '' The object format and the triple are one fact -- the other format is
-            '' implied, so the message names the one found and the triple that disagrees.
-            dim as string got_ = iif( isElf, "ELF", "COFF" )
-            return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0114, objPath, got_, td.triple )
-        end if
-    end if
-
-    return Tko.EXIT_OK
+    ctx.timing.Add( Tko.PH_CLANG, tClang )
+    ctx.timing.clangBusy += timer - tClang
+    ctx.timing.clangJobs += 1
+    return ObjectChecks_( ctx, rc, irPath, objPath, wantElf, td.triple )
 end function
+
 
 '' '-lib': the objects into an archive, and no link at all.
 private function ArchiveAll _
@@ -621,6 +701,7 @@ function Run _
     ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
       byval scanOut as any ptr = 0 ) as long
 
+    dim as double tRunStart = timer
     dim as Tko.CompilerContext ctx
 
     '' THE EXIT CODE OF A FAILURE THAT IS NOT A DIAGNOSTIC.
@@ -791,6 +872,7 @@ function Run _
     next
 
     dim as double tLoad = timer - tLoadStart
+    ctx.timing.Add( Tko.PH_LOAD, tLoadStart )
 
     '' THE SCAN'S ROOT IS files[0] -- the editor finds its root in the file table by path,
     '' and a root that declares nothing would otherwise never be entered at all.
@@ -953,7 +1035,10 @@ function Run _
             if hpr.cmdlineArgs.Count > 0 then return RestartWith_( args, hpr.cmdlineArgs, restartDepth )
         end if
         if builds then
-            if Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit ) = false then
+            dim as double tImp = timer
+            dim as boolean impOk = Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit )
+            ctx.timing.importSecs += timer - tImp
+            if impOk = false then
                 ctx.diags.Flush( )
                 return Tko.DiagOut.Finish( ctx, iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR ) )
             end if
@@ -975,9 +1060,16 @@ function Run _
             '' A scan never restarts: it harvests the pass it has, '#cmdline' or not.
             if CompileUnit( ctx, i, srcCount, iif( scanning, 1, restartDepth ), wantsOutput, _
                             linkObjs, tempObjs, toolExit, restartArgs ) then
+                '' The restart rebuilds every object, under the same names: none of this
+                '' pass's may still be being written.
+                DrainObjects( ctx )
                 return RestartWith_( args, restartArgs, restartDepth )
             end if
         next
+        '' EVERY OBJECT EXISTS BEFORE ANYTHING READS ONE, and a clang that failed is reported
+        '' now, as the first failure, exactly as it was when it ran inline.
+        dim as long drained = DrainObjects( ctx )
+        if (drained <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = drained
 
         '' THE FRONTEND'S OWN TIME, so the budget in docs/plan/14 section 4 can be read
         '' off a single file rather than wall-clocked with the process start-up
@@ -1023,7 +1115,9 @@ function Run _
                 if ctx.options.outKind = Tko.OUT_STATICLIB then
                     toolExit = ArchiveAll( ctx, linkObjs, tempObjs )
                 else
+                    dim as double tLink = timer
                     toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
+                    ctx.timing.Add( Tko.PH_LINK, tLink )
                 end if
             end if
         end if
@@ -1195,6 +1289,11 @@ function Run _
 
     ctx.diags.Flush( )
     if ctx.options.stats then ReportStats( ctx )
+    '' A BUILD'S PHASES, which the dump modes above report their own way.
+    dim as boolean timedBuild = ctx.options.timePasses andalso (ctx.timing.hits(Tko.PH_FRONT) > 0)
+    if timedBuild andalso (ctx.options.checkOnly = false) then
+        Tko.ReportPhaseTimes( ctx.timing, timer - tRunStart )
+    end if
 
     '' THE PROGRAM FIRST: a program that failed to compile is a user error, and the
     '' toolchain never ran. A toolchain failure is an error in the engine too, now, so

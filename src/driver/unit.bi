@@ -40,6 +40,10 @@ declare function EmitStopFile_ _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byval id as Tko.FileId, _
       byval i as long, byval srcCount as long ) as long
+'' WAITS FOR EVERY QUEUED clang -c (driver/objqueue.bi) and returns the first failure, already
+'' reported, or EXIT_OK. Called before anything reads an object.
+declare function DrainObjects( byref ctx as Tko.CompilerContext ) as long
+
 declare function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
