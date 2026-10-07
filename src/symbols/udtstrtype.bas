@@ -29,24 +29,8 @@ private function UdtStringCastType_ _
         case Tko.Check.CR_WCHAR   : return c.types->Builtin( Tko.TY_WSTRING )
         end select
     end if
-    '' A NARROW CAST BEFORE A WIDE ONE, whatever the order declared: measured, fbc's 'ucase( x )'
-    '' over casts to wstring and to string calls the STRING one; tiko took the first.
-    dim as Tko.TypeId wide_ = Tko.TYPE_NONE
-    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
-    while cs <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
-        if cse = 0 then exit while
-        if cse->type_ <> Tko.TYPE_NONE then
-            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
-            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
-            if c.types->Kind( ru ) = Tko.TK_BUILTIN then
-                select case c.types->BuiltinOf( ru )
-                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING : return ru
-                case Tko.TY_WSTRING : if wide_ = Tko.TYPE_NONE then wide_ = ru
-                end select
-            end if
-        end if
-        cs = cse->nextOverload
-    wend
-    return wide_
+    '' NOTHING SCORED CLEANLY -- no text cast, a tie, or a pointer or number winning -- is no
+    '' string type: the diagnostics own those (strcastcheck.bas). C4: the declaration-order walk
+    '' that answered here instead is gone; it could only disagree with the call.
+    return Tko.TYPE_NONE
 end function
