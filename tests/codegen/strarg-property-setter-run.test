@@ -1,0 +1,20 @@
+'' String values for a property setter's byref string / ustring parameter go through the shared
+'' encoders (NarrowRefStrArg_ / UStrRefArg_): a temporary and fbc's copy-back. A wstring*N value was
+'' handed over as its buffer and clang refused the module. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/strarg-property-setter.bas -o tests/codegen/strargpropertysetter.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/strargpropertysetter.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [s1] s=ps
+'' EXPECT-RUN-OUT: [f1    ] f=ps    
+'' EXPECT-RUN-OUT: [z1] z=ps
+'' EXPECT-RUN-OUT: [w1]
+'' EXPECT-RUN-OUT: [lit]
+'' EXPECT-RUN-OUT: [ps+]
+'' EXPECT-RUN-OUT: [u1] u=u1
+'' EXPECT-RUN-OUT: [ps] s=pu
+'' EXPECT-RUN-OUT: [ps    ] f=pu    
+'' EXPECT-RUN-OUT: [u1] u=pu
+'' EXPECT-RUN-OUT: [lit]

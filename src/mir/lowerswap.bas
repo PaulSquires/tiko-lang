@@ -1417,6 +1417,12 @@ function LowerPropertySet_ _
                 c.f->locals[sslot].frontendType = snu
                 c.strTemps.Push( cast( ulong, sslot ) )
             end if
+        elseif UStrParamArgTemp_( c, value, pt, v ) orelse NarrowParamArgTemp_( c, value, pt, v ) then
+            '' ANY OTHER STRING VALUE takes the shared encoders (UStrRefArg_ / NarrowRefStrArg_): a temporary
+            '' and fbc's copy-back. 'o.PS = w' over 'byref v as string' handed the 'wstring * 6' BUFFER
+            '' where an FBSTRING* belongs and clang refused the module; 'o.PU = s' gave a ustring
+            '' parameter a narrow descriptor (tka-probes/phase4/t_propset.bas).
+            gotV = true
         elseif IsStringType( c, pt ) then
             gotV = StrDescriptorOf_( c, value, v )
         end if
