@@ -1,0 +1,14 @@
+'' A TYPEDEF OF A TYPEDEF NOT WALKED YET is resolved on the spot (ChaseTypedef_). Walked
+'' in source order, 'type BPTR as AREC' met AREC still holding Collect's placeholder, so a
+'' 'byval p as BPTR ptr' parameter was typed only in the backpatch -- after its body had
+'' been walked, where 'p->x = 64' bound no field and lowering declined it (TKO0994). It
+'' stopped every tkToolTip procedure over win/commctrl.bi's TOOLINFOW. Output measured
+'' with fbc-modern 1.20 (2026-10-07).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/mir/src/typedef-alias-chain-run.bas -o tests/mir/typedefaliaschainrun.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/typedefaliaschainrun.exe
+'' RUN: tests/mir/typedefaliaschainrun.exe
+'' EXPECT-RUN-OUT:  72 700 772
+'' EXPECT-RUN-OUT:  64 5 69

@@ -30,6 +30,9 @@ type Ctx
     '' because of one.
     as FB.Array( of ulong )  typedefNode
     as FB.Array( of ulong )  typedefScope
+    '' How deep ResolveTypeRef is in typedefs it chased ahead of the walk -- see
+    '' ChaseTypedef_ in resolvetype.bas. Bounds an alias cycle.
+    as long                  typedefChase
     '' PARAMETERS whose typeref would not resolve on the first pass, revisited after
     '' BackpatchTypedefs -- the same treatment pendingItem gives a variable. Every
     '' mingw binding needs it: win/windef.bi writes 'type WPARAM as UINT_PTR'
@@ -173,6 +176,8 @@ declare function ProcTypeParamType_ _
 declare sub BackpatchTypedefs( byref c as Ctx )
 declare function PreludeTypedefLost _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as boolean
+declare function ChaseTypedef_ _
+    ( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
 declare function IdentNameOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
 declare function InstantiateGenericProc_ _

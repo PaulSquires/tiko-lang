@@ -89,6 +89,47 @@ function PreludeTypedefLost _
     return c.srcMgr->IsBuiltin( owner->loc ) = false
 end function
 
+'' A TYPEDEF OF A TYPEDEF THE WALK HAS NOT REACHED YET -- resolved on the spot.
+''
+''     type TOOLINFOW as TTTOOLINFOW         '' win/commctrl.bi, line 1861
+''     type TTTOOLINFOW as tagTOOLINFOW      '' line 1898
+''
+'' Walked in source order, TOOLINFOW met TTTOOLINFOW still holding Collect's placeholder,
+'' so it stayed unresolved until BackpatchTypedefs -- and every 'byval p as TOOLINFOW ptr'
+'' parameter with it. The parameter is re-bound there, but the BODY was walked in between:
+'' 'p->cbSize = 64' bound no field, and lowering declined the statement (TKO0994), in
+'' every tkToolTip procedure. fbc compiles the header and the store.
+''
+'' Only a BARE NAME target, the shape ForwardTypedefTarget_ takes too. The typedef is put on
+'' typedefNode FIRST: that is how ForwardTypeRef_ knows a name used above its declaration
+'' is a typedef's target, which fbc allows, rather than its error 14. The walk pushes it
+'' again when it gets there; the backpatch skips a typedef that already has its type.
+'' Bounded, so 'type a as b : type b as a' stops.
+function ChaseTypedef_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
+    if s = 0 then return false
+    if s->kind <> cast( ubyte, Tko.SYM_TYPEDEF ) then return false
+    if c.typedefChase >= 16 then return false
+    dim as Tko.NodeId tdn = cast( Tko.NodeId, s->declAt )
+    if tdn = Tko.NODE_NONE then return false
+    if c.ast->Kind( tdn ) <> Tko.N_TYPEDEF then return false
+    dim as Tko.NodeId an = StmtOf( c, tdn )->a
+    if an = Tko.NODE_NONE then return false
+    if c.ast->Kind( an ) <> Tko.N_TYPEREF then return false
+    dim as ushort afl = c.ast->nodes[cast( long, an )].flags
+    if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then return false
+    if StmtOf( c, an )->count <> 0 then return false
+    dim as Tko.ScopeId here = cast( Tko.ScopeId, s->parent )
+    c.typedefNode.Push( cast( ulong, tdn ) )
+    c.typedefScope.Push( cast( ulong, here ) )
+    c.typedefChase += 1
+    dim as Tko.TypeId t = ResolveTypeRef( c, an, here )
+    c.typedefChase -= 1
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) = Tko.TK_TYPEDEF then return false
+    s->type_ = t
+    return true
+end function
+
 sub BackpatchTypedefs( byref c as Ctx )
     for r as long = 1 to c.typedefNode.Count
         dim as boolean progress = false

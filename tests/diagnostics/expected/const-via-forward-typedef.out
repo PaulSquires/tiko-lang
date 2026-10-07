@@ -20,27 +20,25 @@ func i32 main(i32 $0, ptr $1) {
     %10 = const i64 0
     %11 = bitcast %10
     store @p, %11
-    %12 = const i64 0
-    store @i, %12
-    %13 = const i32 0
-    call.rtl void fb_End(%13)
-    %14 = load @$tmp0
-    ret %14
+    %12 = const i32 0
+    call.rtl void fb_End(%12)
+    %13 = load @$tmp0
+    ret %13
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 1 functions, 1 blocks, 21 insts, 1 statements not lowered, 0 scope imbalance
-  inside N_AMBIGUOUS 1
-  amb other 1
-  skip-site src\mir\lower.bas:1025 1
-  amb-other-class 5 1
-tests/diagnostics/src/const-via-forward-typedef.bas(15,1): error TKO0617: cannot modify 'j': it is a constant
-     |
-  15 | j = 0
-     | ^
+lowered: 1 functions, 1 blocks, 19 insts, 2 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 2
+  amb other 2
+  skip-site src\mir\lower.bas:499 2
+  amb-other-class 5 2
 tests/diagnostics/src/const-via-forward-typedef.bas(14,1): error TKO0617: cannot modify 'i': it is a constant
      |
   14 | i = 0
+     | ^
+tests/diagnostics/src/const-via-forward-typedef.bas(15,1): error TKO0617: cannot modify 'j': it is a constant
+     |
+  15 | j = 0
      | ^

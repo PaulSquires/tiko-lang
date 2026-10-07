@@ -784,6 +784,8 @@ function ResolveTypeRefAt_ _
                     end if
                 end if
             end if
+            '' ...AND SO IS A PROGRAM'S, when its target is a bare name -- ChaseTypedef_.
+            if ready = false then ready = ChaseTypedef_( c, s )
             if ready then base_ = s->type_
         elseif (tparam = false) andalso (qualExpr = false) then
             NoteUnboundType_( c, id, scope_ )    '' a type nothing declares -- fbc's 14
