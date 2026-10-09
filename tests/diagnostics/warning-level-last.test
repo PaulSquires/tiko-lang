@@ -1,0 +1,6 @@
+'' The LAST '-w' decides the level, as fbc's does: '-w 3 -w 1' shows every warning here.
+'' TEST: cli
+'' ARGS: -w 3 -w 1 --dump-ir tests/diagnostics/src/warn-level.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: warning TKO0830
+'' EXPECT-OUT: warning TKO0201

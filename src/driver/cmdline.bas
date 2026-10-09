@@ -67,6 +67,8 @@ constructor DriverOptions( )
     this.showVersion = false
     this.verbose = false
     this.warningsAsErrors = false
+    this.fbcWarnMin = 0
+    this.fbcWarnNone = false
     this.maxErrors = DIAG_DEFAULT_MAX_ERRORS
     this.maxInstDepth = 64
     this.colorMode = COLOR_AUTO
@@ -330,6 +332,23 @@ private function MatchJoined _
     return best
 end function
 
+'' THE LEVEL fbc GIVES EACH WARNING tiko shares with it, -1 for one fbc has not got.
+'' fbc prints the level beside the number -- 'warning 4(2)' -- and every row was read off
+'' fbc-modern's own output, not its sources. A tiko-only warning (a cache it could not
+'' write, a statement it left out) has no fbc level to compare and '-w' never hides it;
+'' '-Wno-<id>' still does.
+private function FbcWarnLevel_( byval d as Tko.DiagId ) as long
+    select case d
+    case Tko.TKO0830 : return 2      '' warning 4,  suspicious pointer assignment
+    case Tko.TKO0833 : return 2      '' warning 3,  passing different pointer types
+    case Tko.TKO0205 : return 2      '' warning 8,  literal number too big, truncated
+    case Tko.TKO0206 : return 1      '' warning 44, suffix ignored
+    case Tko.TKO0201 : return 1      '' warning 12, missing closing quote
+    case Tko.TKO0931 : return 1      '' warning 34, '=' parsed as equality in an argument
+    end select
+    return -1
+end function
+
 function Parse _
     ( byref args as Tko.StrVec, byref opts as Tko.DriverOptions, _
       byref diags as Tko.DiagnosticEngine ) as boolean
@@ -516,6 +535,23 @@ function Parse _
                 opts.ignoredDiags.Push( Tko.DiagIdName( d ) )
             end if
 
+        '' fbc's '-w'. The LAST one decides the level, as fbc's does ('-w 2 -w 1' shows a
+        '' level-2 warning); 'error' is a separate switch and survives a later level.
+        '' Measured, fbc-modern: 'all' and 'pedantic' hide nothing, 'none' hides every
+        '' warning, 'error' reports each as 'error warning 4(2)', '-w 3' hides warning
+        '' 4(2), and a word it does not know ('-w bogus') is level 0 -- valint's reading.
+        case Tko.OPT_WLEVEL
+            select case Tko.Text.LowerAscii( value )
+            case "all", "pedantic"
+                opts.fbcWarnMin = 0 : opts.fbcWarnNone = false
+            case "none"
+                opts.fbcWarnNone = true
+            case "error"
+                opts.warningsAsErrors = true
+            case else
+                opts.fbcWarnMin = valint( value ) : opts.fbcWarnNone = false
+            end select
+
         case Tko.OPT_MAXERR
             dim as long m = valint( value )
             if m < 1 then
@@ -632,6 +668,16 @@ function Parse _
         ok = false
     end if
     opts.targetName = Tko.TargetName( opts.target )
+
+    '' '-w' BECOMES '-Wno-' for each warning it hides, so it rides on the one mechanism
+    '' that already reaches every pass -- after the loop, because the last '-w' wins.
+    for d as long = 0 to Tko.DIAG_COUNT - 1
+        dim as long lv = FbcWarnLevel_( cast( Tko.DiagId, d ) )
+        if lv < 0 then continue for
+        if opts.fbcWarnNone orelse (lv < opts.fbcWarnMin) then
+            opts.ignoredDiags.Push( Tko.DiagIdName( cast( Tko.DiagId, d ) ) )
+        end if
+    next
 
     opts.userIncludeCount = opts.includePaths.Count
     AppendDefaultIncludeDir( opts )

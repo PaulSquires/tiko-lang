@@ -1,0 +1,8 @@
+'' '-w 2' hides fbc's level-1 warnings (12, missing quote) and keeps level 2 -- fbc-modern agrees.
+'' TEST: cli
+'' ARGS: -w 2 --dump-ir tests/diagnostics/src/warn-level.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: warning TKO0830
+'' EXPECT-OUT: warning TKO0833
+'' EXPECT-OUT: warning TKO0205
+'' EXPECT-NOT: TKO0201

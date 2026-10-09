@@ -1,0 +1,6 @@
+'' '-w error' is fbc's -Werror: 'error warning 4(2)', exit 1 -- measured, fbc-modern exits 1 too.
+'' TEST: cli
+'' ARGS: -w error --dump-ir tests/diagnostics/src/warn-level.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0830
+'' EXPECT-OUT: error TKO0201

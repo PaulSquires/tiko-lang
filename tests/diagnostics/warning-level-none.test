@@ -1,0 +1,6 @@
+'' '-w none' hides every warning fbc also has.
+'' TEST: cli
+'' ARGS: -w none --dump-ir tests/diagnostics/src/warn-level.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0830
+'' EXPECT-NOT: TKO0201

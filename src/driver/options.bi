@@ -101,6 +101,9 @@ namespace Tko
 
     OPT( OPT_WERROR,    "-Werror",    OPTK_FLAG,  OPTCAT_DIAG,    "",         "treat warnings as errors" )
     OPT( OPT_WNO,       "-Wno-",      OPTK_JOINED,OPTCAT_DIAG,    "id",       "suppress one diagnostic id" )
+    '' fbc's own spelling, which build scripts written for it pass -- tiko-rt's build is
+    '' '-O 2 -w all', and was TKO0100 here. cmdline.bas FbcWarnLevel_ has what it does.
+    OPT( OPT_WLEVEL,    "-w",         OPTK_VALUE, OPTCAT_DIAG,    "level",    "fbc's -w: all, pedantic, none, error, or n -- hide fbc's warnings below level n" )
     OPT( OPT_MAXERR,    "-fmax-errors", OPTK_VALUE, OPTCAT_DIAG,  "n",        "stop after n errors" )
     OPT( OPT_MAXINSTDEPTH, "-maxinstdepth", OPTK_VALUE, OPTCAT_GENERAL, "n",  "how deep one generic instantiation may drive another (default 64)" )
     OPT( OPT_COLOR,     "--color",    OPTK_VALUE, OPTCAT_DIAG,    "when",     "always, never or auto" )
@@ -261,6 +264,8 @@ namespace Tko
         as boolean verbose
 
         as boolean warningsAsErrors
+        as long    fbcWarnMin        '' -w <n>: fbc's warnings below level n are hidden; 0 hides none
+        as boolean fbcWarnNone       '' -w none: every warning fbc also has is hidden
         as long    maxErrors
         as long    maxInstDepth      '' -maxinstdepth, fbc's; 64 by default
         as DiagColorMode     colorMode
