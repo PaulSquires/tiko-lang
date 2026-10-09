@@ -9,7 +9,7 @@
 '' getter beside a plain setter, any type against 'byref as any' (but not a byval one,
 '' line 136). The previous tiko-lang accepted every line.
 '' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/definition-mismatch.bas
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/definition-mismatch.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 25
 '' EXPECT-OUT: definition-mismatch.bas(8,1): error TKO0793: the result of 'r1' does not match its declaration

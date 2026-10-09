@@ -2,7 +2,7 @@
 '' 'refused' lines on its own -- error 1 for a count, 7 for 'g0( 1 )', 58 for a type --
 '' and compiles the 'accepted' half clean; tiko declined every one without a word.
 '' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/direct-call-args.bas
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/direct-call-args.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: direct-call-args.bas(87,11): error TKO0776
 '' EXPECT-OUT: direct-call-args.bas(88,11): error TKO0775

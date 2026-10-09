@@ -5,6 +5,6 @@
 '' bin, val, peek. Matches fbc on lines 74-125; the accepted() lines and the plain
 '' locals are refused by neither.
 '' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/static-init-const.bas
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/static-init-const.bas
 '' EXPECT-EXIT: 1
 '' GOLDEN: expected/static-init-const.out

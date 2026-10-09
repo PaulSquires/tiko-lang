@@ -2,7 +2,7 @@
 '' fbc gives error 58 for each of the twenty-eight 'refused' lines on its own and compiles
 '' the 'accepted' half clean; tiko passed every one of them through unchecked.
 '' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/procptr-argtypes.bas
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/procptr-argtypes.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: procptr-argtypes.bas(57,
 '' EXPECT-OUT: procptr-argtypes.bas(58,

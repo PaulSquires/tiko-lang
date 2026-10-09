@@ -17,7 +17,7 @@
 ''     57     error 58    'this' -- the object -- to a 'T ptr'
 ''     61     error 24    a NULL pointer constant to a DOUBLE -- it binds an integer only
 '' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/arg-mismatch.bas
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/arg-mismatch.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: arg-mismatch.bas(34,17): error TKO0698
 '' EXPECT-OUT: arg-mismatch.bas(35,16): error TKO0698

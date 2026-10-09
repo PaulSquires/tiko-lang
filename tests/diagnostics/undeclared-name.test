@@ -7,7 +7,7 @@
 '' an explicit enum's sibling are not values the program reads. Each of those seven lines
 '' drew TKO0743 before its exclusion.
 '' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/undeclared-name.bas
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/undeclared-name.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 25
 '' EXPECT-OUT: undeclared-name.bas(12,1): error TKO0743: 'zz1' is not declared

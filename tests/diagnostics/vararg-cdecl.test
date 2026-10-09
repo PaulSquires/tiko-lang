@@ -3,7 +3,7 @@
 '' these lines (2026-09-19), two of them inside 'typeof'; vararg-cdecl-linux.test holds
 '' the same source on Linux.
 '' TEST: cli
-'' ARGS: --dump-ir -target win64-msvc tests/diagnostics/src/vararg-cdecl.bas
+'' ARGS: -fmax-errors 100 --dump-ir -target win64-msvc tests/diagnostics/src/vararg-cdecl.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 23
 '' EXPECT-OUT: vararg-cdecl.bas(8,44): error TKO0781: '...' needs a 'cdecl' procedure, and this one is 'stdcall'
