@@ -1,0 +1,7 @@
+'' ...and without '-pic' (or '-dll') an object is clang's default, position-independent
+'' EXECUTABLE code: no -fPIC on the line.
+'' TEST: cli
+'' ARGS: -v -target linux-x86_64 --no-module-cache -c tests/driver/src/pic.bas -o tests/driver/src/pic-default.o
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: -fPIC
+'' EXPECT-FILE: tests/driver/src/pic-default.o

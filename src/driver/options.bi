@@ -92,6 +92,9 @@ namespace Tko
     OPT( OPT_EUNWIND,     "-eunwind",     OPTK_FLAG, OPTCAT_OUTPUT, "", "unwind information (one part of -e; always emitted)" )
     OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3" )
     OPT( OPT_MT,        "-mt",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "link the thread-safe runtime" )
+    '' fbc's '-pic'. '-dll' implies it on Linux; this asks for it without one -- a '-c' or
+    '' '-lib' whose objects go into a shared library later (tiko-rt's libfbpic.a).
+    OPT( OPT_PIC,       "-pic",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "position-independent code, for a Unix shared library (Linux only)" )
     OPT( OPT_MAINMOD,   "-m",         OPTK_VALUE, OPTCAT_OUTPUT,  "name",     "which module owns main; the others become module constructors" )
 
     OPT( OPT_TARGET,    "-target",    OPTK_VALUE, OPTCAT_TARGET,  "name",     "win64-msvc (the Windows default), win64 or linux-x86_64" )
@@ -266,6 +269,7 @@ namespace Tko
         as boolean warningsAsErrors
         as long    fbcWarnMin        '' -w <n>: fbc's warnings below level n are hidden; 0 hides none
         as boolean fbcWarnNone       '' -w none: every warning fbc also has is hidden
+        as boolean pic               '' -pic: clang -fPIC on an ELF target
         as long    maxErrors
         as long    maxInstDepth      '' -maxinstdepth, fbc's; 64 by default
         as DiagColorMode     colorMode

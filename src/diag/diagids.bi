@@ -74,6 +74,9 @@
     DIAG( TKO0120, SEV_ERROR,   "unable to import C header %0" )
     DIAG( TKO0121, SEV_ERROR,   "cannot write the binding '%0'" )
     DIAG( TKO0122, SEV_ERROR,   "the binding generated for %0 does not compile; this is a bug in the C importer" )
+    '' fbc's error 86: '-pic used, but not supported by target system (only works for
+    '' Unixes)' -- measured, fbc-modern refuses '-pic' on its Windows targets.
+    DIAG( TKO0123, SEV_ERROR,   "-pic makes position-independent code for a Unix shared library; target '%0' is not a Unix" )
     '' The build graph of ADR 0017. The rest of the 0140-0151 block lands with its phase.
     DIAG( TKO0140, SEV_ERROR,   "cannot find module '%0' (searched: %1)" )
     DIAG( TKO0141, SEV_ERROR,   "import cycle: %0" )

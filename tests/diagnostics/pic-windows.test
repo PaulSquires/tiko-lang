@@ -1,0 +1,7 @@
+'' '-pic' on a Windows target is refused, TKO0123 -- fbc's error 86, "-pic used, but not
+'' supported by target system (only works for Unixes)", measured on fbc-modern.
+'' TEST: cli
+'' ARGS: -pic -c tests/driver/src/pic.bas -o tests/driver/src/pic-win.o
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0123
+'' EXPECT-MAX-DIAG: 1

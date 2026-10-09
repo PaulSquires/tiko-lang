@@ -1,0 +1,7 @@
+'' fbc's '-pic' compiles ELF objects with clang's -fPIC, as '-dll' already did -- measured,
+'' 'fbc -v -pic' reaches the same flag. It was TKO0100: tiko-rt's libfbpic.a could not ask.
+'' TEST: cli
+'' ARGS: -v -pic -target linux-x86_64 --no-module-cache -c tests/driver/src/pic.bas -o tests/driver/src/pic-linux.o
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: -fPIC
+'' EXPECT-FILE: tests/driver/src/pic-linux.o

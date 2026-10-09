@@ -69,6 +69,7 @@ constructor DriverOptions( )
     this.warningsAsErrors = false
     this.fbcWarnMin = 0
     this.fbcWarnNone = false
+    this.pic = false
     this.maxErrors = DIAG_DEFAULT_MAX_ERRORS
     this.maxInstDepth = 64
     this.colorMode = COLOR_AUTO
@@ -522,6 +523,7 @@ function Parse _
             end select
 
         case Tko.OPT_WERROR   : opts.warningsAsErrors = true
+        case Tko.OPT_PIC      : opts.pic = true
         case Tko.OPT_WNO
             dim as Tko.DiagId d = Tko.DiagIdFromName( value )
             if d = Tko.DIAG_NONE then
@@ -668,6 +670,10 @@ function Parse _
         ok = false
     end if
     opts.targetName = Tko.TargetName( opts.target )
+    if opts.pic andalso Tko.TargetIsWindows( opts.target ) then
+        diags.ReportGlobal( Tko.TKO0123, opts.targetName )
+        ok = false
+    end if
 
     '' '-w' BECOMES '-Wno-' for each warning it hides, so it rides on the one mechanism
     '' that already reaches every pass -- after the loop, because the last '-w' wins.

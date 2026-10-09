@@ -545,6 +545,7 @@ function BuildFromIr _
     '' A SHARED LIBRARY'S MODULES ARE COMPILED AS PIC on ELF -- see CompileIr. The link
     '' sets this again; the compile needs it first.
     tools.buildDll = (ctx.options.outKind = Tko.OUT_DLL)
+    tools.pic = ctx.options.pic
 
     '' THE INTERMEDIATE IS NAMED AFTER THE OBJECT, which is per-module. Naming it
     '' after the OUTPUT was the bug: two inputs producing one output raced for one

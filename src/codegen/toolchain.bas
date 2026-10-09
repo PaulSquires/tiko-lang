@@ -224,8 +224,10 @@ private function CompileIrArgs_ _
     '' -fPIC FOR AN ELF SHARED LIBRARY, as fbc passes it -- measured, 'fbc -gen llvm
     '' -dll' on Linux hands clang '-fPIC'. clang's Linux default is PIE, which may
     '' reach the module's own globals directly, and ld refuses that in a shared object.
-    '' COFF has no such distinction and gets nothing.
-    if t.buildDll andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
+    '' COFF has no such distinction and gets nothing. '-pic' asks for the same without a
+    '' '-dll': objects meant for a shared library later, as fbc's '-pic' -- measured with
+    '' 'fbc -v', it reaches the same clang flag (lib/rt/build/build.sh's pic archives).
+    if (t.buildDll orelse t.pic) andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
     return cmd
 end function
 
@@ -262,7 +264,7 @@ function CompileIrAsm _
         "-target " & target.triple & " -Wno-override-module -S " & _
         Q( irPath ) & " -o " & Q( asmPath )
     if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
-    if t.buildDll andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
+    if (t.buildDll orelse t.pic) andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
     dim as long rc = Exec_( t, t.clangExe, cmd )
     if keepTemps = false then
         if rc = 0 then kill( irPath )

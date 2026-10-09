@@ -220,7 +220,11 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
     k &= "triple " & Tko.Codegen.TargetFor( o->target ).triple & nl
     k &= "options e=" & o->errFlags & " g=" & iif( o->debugInfo, 1, 0 ) & _
          " O=" & o->optLevel & " mt=" & iif( o->threadSafe, 1, 0 ) & _
-         " w=" & iif( o->warningsAsErrors, 1, 0 ) & " maxinstdepth=" & o->maxInstDepth & nl
+         " w=" & iif( o->warningsAsErrors, 1, 0 ) & " maxinstdepth=" & o->maxInstDepth & _
+         " pic=" & iif( o->pic orelse (o->outKind = Tko.OUT_DLL), 1, 0 ) & nl
+    '' ...pic= because clang compiles a module's IR with -fPIC under '-pic' or '-dll' on
+    '' ELF (CompileIr): an object cached by a program build is PIE code, and a shared
+    '' library given it is refused by ld. Keyed on both, so neither reuses the other's.
     '' A module's headers are found through these.
     for each p as string in o->includePaths
         k &= "include " & KeyPath_( p ) & nl
