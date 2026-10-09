@@ -1,0 +1,23 @@
+'' RUN: '@' of a string literal is a 'zstring ptr' to the literal's bytes -- through an
+'' iif, a macro's '@(lit)', parentheses, a string constant and adjacent literals. tiko
+'' typed it 'string ptr' (spurious TKO0833, a crashing 'var', the wrong overload) and
+'' lowered '@("abc")' to a one-character string. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/addr-of-literal.bas -o tests/codegen/addrofliteral.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0833
+'' EXPECT-NOT: TKO0830
+'' EXPECT-FILE: tests/codegen/addrofliteral.exe
+'' RUN: tests/codegen/addrofliteral.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: cz:wb
+'' EXPECT-RUN-OUT: cz:rb
+'' EXPECT-RUN-OUT: z:macro
+'' EXPECT-RUN-OUT: z:konst
+'' EXPECT-RUN-OUT: z:nskonst
+'' EXPECT-RUN-OUT: z:adjacent
+'' EXPECT-RUN-OUT: z:parens
+'' EXPECT-RUN-OUT: v:var len 3
+'' EXPECT-RUN-OUT: ov zstring ptr
+'' EXPECT-RUN-OUT: assign

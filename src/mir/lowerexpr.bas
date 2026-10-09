@@ -370,19 +370,30 @@ function LowerExpr _
         '' '@"lit"' IS THE ADDRESS OF THE BYTES, which is what a 'zstring ptr'
         '' parameter wants. A literal has no lvalue, so LowerAddr answered NOTHING and
         '' every 'printf( @"%d", n )' passed an unresolved value as its format.
-        if c.ast->Kind( ap->operand ) = Tko.N_STRING_LIT then
-            return LowerStringLitAddr( c, ap->operand )
+        ''
+        '' ...THROUGH PARENTHESES TOO, and over ADJACENT LITERALS. '#define CASEEQ( s, lit )
+        '' hCaseEq( s, @(lit), -1 )' -- tiko-rt's io/devcomopen.bas -- makes '@("abc")', and
+        '' LowerAddr's answer for the parenthesised literal pointed at a string reading
+        '' "a": every COM option compared one character. '@"a" "b"' and '@("a" "b")'
+        '' declined (TKO0994). fbc prints all three in full; each is the literal pool.
+        dim as Tko.NodeId litOp = Unparen_( c, ap->operand )
+        if c.ast->Kind( litOp ) = Tko.N_STRING_LIT then
+            return LowerStringLitAddr( c, litOp )
+        end if
+        if c.ast->Kind( litOp ) = Tko.N_STRCAT then
+            dim as string sctx
+            if ConstStringTextOf_( c, litOp, sctx ) then return LowerTextAddr( c, sctx )
         end if
         '' ...AND SO IS '@S' OVER A STRING CONSTANT. 'const s = "abc"' emits no
         '' variable -- it folds -- so LowerAddr had nothing to take and
         '' 'dim as byte ptr p = @s' declined. Measured, fbc hands back the
         '' LITERAL'S OWN STORAGE: 'P$0 = (int8*)"abc"'.
-        if IsConstNameRef_( c, ap->operand ) then
-            dim as Tko.Symbol ptr acs = c.syms->SymbolAt( c.info->RefOf( ap->operand ) )
+        if IsConstNameRef_( c, litOp ) then
+            dim as Tko.Symbol ptr acs = c.syms->SymbolAt( c.info->RefOf( litOp ) )
             if acs <> 0 then
                 if acs->kind = cast( ubyte, Tko.SYM_CONSTANT ) then
                     dim as string actx
-                    if ConstStringTextOf_( c, ap->operand, actx ) then
+                    if ConstStringTextOf_( c, litOp, actx ) then
                         dim as MirValue acv
                         acv.kind = cast( ubyte, MV_GLOBAL )
                         acv.ty = cast( ubyte, MT_PTR )
