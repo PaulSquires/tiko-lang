@@ -1,0 +1,10 @@
+'' THE ERROR CAP STOPS THE COMPILE, and its default is 20. Thirty errors: the first 20 are
+'' shown, the 21st trips TKO0990, and nothing after it is even counted -- the 'end' record
+'' was 30 when the cap only silenced the output and the passes ran on.
+'' TEST: cli
+'' ARGS: --diagnostics-file build/.maxerr-default.tsv -c tests/driver/src/maxerr-flood.bas -o build/.maxerr-default.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: maxerr-flood.bas(22,1): error TKO0702
+'' EXPECT-OUT: error TKO0990: too many errors; stopping
+'' EXPECT-NOT: maxerr-flood.bas(23,1)
+'' EXPECT-FILE-HAS: build/.maxerr-default.tsv :: end\t21\t0\t1\n

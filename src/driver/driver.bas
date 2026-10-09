@@ -745,6 +745,8 @@ function Run _
     dim as boolean scanning = (ctx.scan <> 0)
     dim as boolean scanQuiet = (scanOut <> 0)
     ctx.diags.muted = scanQuiet
+    '' A scan harvests the whole unit, so the error cap never stops one.
+    ctx.diags.stopAtCap = (scanning = false)
 
     if cmdOk = false then
         return Tko.DiagOut.Finish( ctx, Tko.EXIT_CMDLINE )
@@ -1054,6 +1056,8 @@ function Run _
         end if
         dim as double tFrontStart = timer
         for i as long = 1 to srcCount
+            '' PAST THE ERROR CAP no further unit is compiled.
+            if ctx.diags.Stopped( ) then exit for
             '' ONE UNIT, compiled by CompileUnit in unit.bas -- moved there unchanged on
             '' 2026-09-27, so that the module build of ADR 0017 can compile a unit it did
             '' not read from the command line. A '#cmdline' restart comes back here, because

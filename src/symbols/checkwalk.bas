@@ -65,6 +65,7 @@ private sub WalkAll( byref c as Ctx )
     '' bottom-up by the parser, so a child always has a LOWER id than its parent and
     '' one linear pass types the whole tree without recursion into statements.
     for i as long = 1 to c.ast->Count( )
+        if c.diags->Stopped( ) then exit for      '' past the error cap
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         c.syms->usePos = cast( ulong, i )    '' which side of an '#undef': see UndefSym
         select case c.ast->Kind( n )

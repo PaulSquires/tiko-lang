@@ -25,6 +25,7 @@ constructor DiagnosticEngine( )
     this.maxErrors = DIAG_DEFAULT_MAX_ERRORS
     this.warningsAsErrors = false
     this.capReported = false
+    this.stopAtCap = true
     this.colorMode = COLOR_AUTO
     this.outputFormat = DIAGFMT_FBC
     this.machineOn = false
@@ -294,6 +295,10 @@ end function
 
 function DiagnosticEngine.HasErrors( ) as boolean
     return (this.errors > 0)
+end function
+
+function DiagnosticEngine.Stopped( ) as boolean
+    return this.capReported andalso this.stopAtCap
 end function
 
 end namespace

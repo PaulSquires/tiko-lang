@@ -1,5 +1,5 @@
 '' --diagnostics-file: past -fmax-errors the engine stops storing errors and says so once
-'' (TKO0990); the 'end' record still counts every error, stored or not.
+'' (TKO0990); the 'end' record counts the error that tripped the cap, which has no record.
 '' TEST: cli
 '' ARGS: -fmax-errors 2 --diagnostics-file build/.diagfile-maxerr.tsv --parse-only tests/driver/src/diagfile-maxerr.bas
 '' EXPECT-EXIT: 1

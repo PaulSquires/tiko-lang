@@ -1,0 +1,9 @@
+'' PAST THE ERROR CAP THE PARSER SEES THE END OF ITS INPUT. Thirty syntax errors under
+'' -fmax-errors 3: three shown, the fourth stops the parse, and the count is four, not 30.
+'' TEST: cli
+'' ARGS: -fmax-errors 3 --diagnostics-file build/.maxerr-parse.tsv --parse-only tests/driver/src/maxerr-syntax.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: maxerr-syntax.bas(4,7): error TKO0400
+'' EXPECT-OUT: error TKO0990
+'' EXPECT-NOT: maxerr-syntax.bas(5,7)
+'' EXPECT-FILE-HAS: build/.maxerr-parse.tsv :: end\t4\t0\t1\n

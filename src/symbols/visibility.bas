@@ -1098,7 +1098,7 @@ private sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
       byval byrefResult as boolean = false, byval constMethod as boolean = false, _
       byval withThis as boolean = false, byval resultType as TypeId = TYPE_NONE )
-    if id = NODE_NONE then return
+    if (id = NODE_NONE) orelse c.diags->Stopped( ) then return     '' past the error cap too
     dim as NodeKind k = c.ast->Kind( id )
     dim as TypeId inner = here
     dim as boolean innerByref = byrefResult

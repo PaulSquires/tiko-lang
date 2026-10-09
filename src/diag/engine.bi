@@ -12,7 +12,8 @@
 ''   - A Diagnostic reaches output only through Flush( ).
 ''   - AddNote( ) attaches to the most recently reported diagnostic; calling it with
 ''     none outstanding is a no-op, never a crash.
-''   - Once the error cap is reached, further errors are counted but not stored.
+''   - Once the error cap is reached, further errors are counted but not stored, and
+''     Stopped( ) turns true: the compile winds down instead of carrying on in silence.
 
 #ifndef __TKO_DIAG_ENGINE_BI__
 #define __TKO_DIAG_ENGINE_BI__
@@ -23,7 +24,7 @@
 
 namespace Tko
 
-    const DIAG_DEFAULT_MAX_ERRORS as long = 100
+    const DIAG_DEFAULT_MAX_ERRORS as long = 20
 
     type SeverityVec as FB.Array( of long )
 
@@ -36,6 +37,10 @@ namespace Tko
         as long       maxErrors
         as boolean    warningsAsErrors
         as boolean    capReported
+        '' THE CAP STOPS THE COMPILE, not just the output. It only dropped errors, and the
+        '' passes ran to the end with nobody listening. True by default; the editor scan
+        '' clears it, because a scan harvests the WHOLE unit whatever its errors.
+        as boolean    stopAtCap
         '' The last Push was DROPPED -- ignored by -Wno or past the error cap -- so the
         '' notes that follow it belong to nothing and go nowhere (audit F-51): they hung
         '' under TKO0990, or under an unrelated diagnostic reported earlier.
@@ -97,6 +102,9 @@ namespace Tko
                               byval warningsAt as long, byval suppressedAt as long )
         declare function WarningCount( ) as long
         declare function HasErrors( ) as boolean
+        '' PAST THE ERROR CAP: the parser sees the end of its input, the walks give up and
+        '' the driver compiles no further unit. Cleared again by a RollBack under the cap.
+        declare function Stopped( ) as boolean
 
         declare sub Ignore( byval id as DiagId )
         declare sub Promote( byval id as DiagId, byval s as Severity )

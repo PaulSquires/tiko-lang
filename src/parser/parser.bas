@@ -77,7 +77,7 @@ declare function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
 declare sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
 
 function AtEnd( byref p as Tko.ParserState ) as boolean
-    return (Peek( p ) = Tko.TK_EOF)
+    return (Peek( p ) = Tko.TK_EOF) orelse p.diags->Stopped( )     '' the error cap ends it too
 end function
 
 sub SkipEols( byref p as Tko.ParserState )

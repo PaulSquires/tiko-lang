@@ -1243,6 +1243,7 @@ private function PpStep( byref e as PpEngine ) as boolean
 
     do
         if e.stopped then return false
+        if e.diags->Stopped( ) then return false      '' past the error cap: the input ends
 
         dim as Token t
         if PeekTok( e, t ) = false then return false

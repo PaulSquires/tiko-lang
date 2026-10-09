@@ -1,0 +1,29 @@
+'' scancap.tiko -- 25 errors, then a declaration the scan must still reach.
+#error e1
+#error e2
+#error e3
+#error e4
+#error e5
+#error e6
+#error e7
+#error e8
+#error e9
+#error e10
+#error e11
+#error e12
+#error e13
+#error e14
+#error e15
+#error e16
+#error e17
+#error e18
+#error e19
+#error e20
+#error e21
+#error e22
+#error e23
+#error e24
+#error e25
+function Last( ) as long
+    return 1
+end function

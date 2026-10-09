@@ -1,0 +1,6 @@
+'' THE ERROR CAP NEVER STOPS A SCAN: the editor wants the whole unit's declarations, so a
+'' file with more errors than the cap still yields the function after them.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scancap.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: function Last as long  @0:27:10

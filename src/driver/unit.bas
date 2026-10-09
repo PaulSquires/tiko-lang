@@ -203,6 +203,10 @@ function CompileUnit _
         return true
     end if
 
+    '' PAST THE ERROR CAP NOTHING MORE OF THIS UNIT RUNS: its errors would go unheard, and
+    '' nothing is built from a unit that failed. Asked again after each pass below.
+    if ctx.diags.Stopped( ) then return false
+
     '' WHAT THE SOURCE ASKED TO LINK AGAINST. Harvested per module and
     '' accumulated, because the link happens once over all of them: a
     '' '#inclib' in the second file is as binding as one in the first.
@@ -325,6 +329,8 @@ function CompileUnit _
         next
     next
 
+    if ctx.diags.Stopped( ) then return false
+
     if ctx.scan <> 0 then
         '' THE EDITOR SCAN: the front end to Check, harvested -- no layout, no code.
         Tko.Scan.RunUnit( ctx, ast, root, syms, info, p, pr, scanMacros )
@@ -353,10 +359,12 @@ function CompileUnit _
         Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                          ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
         ctx.timing.Add( Tko.PH_RESOLVE, tPh )
+        if ctx.diags.Stopped( ) then return false
         dim as Tko.Check.Stats cst
         tPh = timer
         Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                        info, cst )
+        if ctx.diags.Stopped( ) then return false
         '' A name nothing declared, once Check has had its say -- fbc's 42. Not
         '' in a unit whose '#lang' was refused: there it may be an implicit one.
         if pr.langRefused = false then
@@ -383,6 +391,7 @@ function CompileUnit _
         Tko.CheckAbstractInstances( ast, syms, ctx.types, info, vts, ctx.names, ctx.diags )
         Tko.CheckOverridePromise( ast, vts, ctx.names, ctx.diags )
         Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
+        if ctx.diags.Stopped( ) then return false
         '' A MODULE OF THE BUILD LEAVES ITS INTERFACE for what imports it (modiface.bas).
         dim as boolean publishes = (ctx.modFileCount > 0) andalso ctx.importsBuilt
         if publishes then publishes = (FrontendFailed_( ctx ) = false)
