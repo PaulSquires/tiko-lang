@@ -207,31 +207,6 @@ private function PwOverloadedAddr_ ( byref c as Ctx, byval n as NodeId ) as bool
     return false
 end function
 
-'' '@' of a string literal, a concatenation of them, or a constant naming one.
-private function PwLitAddr_ ( byref c as Ctx, byval n as NodeId ) as boolean
-    for guard as long = 0 to 15
-        if n = NODE_NONE then return false
-        if c.ast->Kind( n ) <> N_PAREN then exit for
-        dim as ListPayload ptr pp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
-        if pp->count <> 1 then return false
-        n = cast( NodeId, c.ast->children[pp->first] )
-    next
-    if n = NODE_NONE then return false
-    if c.ast->Kind( n ) <> N_ADDROF then return false
-    dim as NodeId o = c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )].operand
-    if o = NODE_NONE then return false
-    select case c.ast->Kind( o )
-    case N_STRING_LIT, N_STRCAT
-        return true
-    case N_IDENT, N_MEMBER
-        '' 'NS.K', a constant qualified by its namespace, is the same thing.
-        dim as Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( o ) )
-        if sy = 0 then return false
-        return (sy->kind = cast( ubyte, SYM_CONSTANT ))
-    end select
-    return false
-end function
-
 '' A TYPE WITH AN UNRESOLVED PART -- a generic TEMPLATE's body, where T has no type yet
 '' and a lambda's is only approximate (fb/sort.bi) -- is not judged.
 private function PwHasNone_ ( byref c as Ctx, byval t as TypeId, byval depth as long ) as boolean
@@ -284,9 +259,6 @@ private function PtrSuspicious_ _
         if isInt = false then return false
         return (PwZero_( c, rn, 0 ) = false)
     end if
-    '' '@"lit"' AND '@' OF A STRING CONSTANT are a 'zstring ptr' to fbc -- a literal is a
-    '' zstring -- where tiko types them 'string ptr'.
-    if PwLitAddr_( c, rn ) then ru = c.types->Pointer_( c.types->Builtin( TY_ZSTRING ) )
     if c.types->Kind( c.types->Unqualify( c.types->Inner( ru ) ) ) = TK_PROC then
         if PwAddrOfCall_( c, rn ) then return false
     end if

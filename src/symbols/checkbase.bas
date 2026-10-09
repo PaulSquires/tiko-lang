@@ -63,8 +63,40 @@ end function
 '' @rc )' (TKO0632, where fbc calls the GpRect one), 'cast( CGpImage ptr, @this )' was
 '' refused, and lowering -- which always passed the right address -- was never asked.
 '' AfxNova's CGpBitmap.MakeTransparent is the shape, and PsCalendar reached it.
+''
+'' '@"lit"' IS A 'zstring ptr', not a 'string ptr': a literal is a ZSTRING to fbc, and Check
+'' types it STRING. Measured, fbc-modern: 'typeof( @"abc" )', 'typeof( @(("abc")) )' and
+'' 'typeof( iif( c, @"wb", @"rb" ) )' are all 'ZSTRING * 8 PTR', and only 'dim sp as string
+'' ptr = @"x"' draws its warning 4. As 'string ptr' tiko warned TKO0833 at every
+'' 'iif( .., @"wb", @"rb" )' and macro '@(lit)' handed to a 'zstring ptr' parameter
+'' (tiko-rt's io/devstd, io/devcomopen, dt/intldrv) and was silent on the one fbc warns
+'' about -- ptrwarn.bas patched the type over for the plain shapes only (PwLitAddr_, now
+'' gone). A WIDE literal is not a STRING and keeps the type it has.
 private function AddrOfType_ _
     ( byref c as Ctx, byval operand as Tko.NodeId, byval inner as Tko.TypeId ) as Tko.TypeId
+
+    if c.types->Unqualify( inner ) = c.types->Builtin( Tko.TY_STRING ) then
+        dim as Tko.NodeId lo = operand
+        for guard as long = 0 to 15
+            if lo = Tko.NODE_NONE then exit for
+            if c.ast->Kind( lo ) <> Tko.N_PAREN then exit for
+            dim as Tko.ListPayload ptr pp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, lo )].data )]
+            if pp->count <> 1 then exit for
+            lo = cast( Tko.NodeId, c.ast->children[pp->first] )
+        next
+        if lo <> Tko.NODE_NONE then
+            dim as boolean isLit = false
+            select case c.ast->Kind( lo )
+            case Tko.N_STRING_LIT, Tko.N_STRCAT
+                isLit = true
+            case Tko.N_IDENT, Tko.N_MEMBER
+                dim as Tko.Symbol ptr ks = c.syms->SymbolAt( c.info->RefOf( lo ) )
+                if ks <> 0 then isLit = (ks->kind = cast( ubyte, Tko.SYM_CONSTANT ))
+            end select
+            if isLit then return c.types->Pointer_( c.types->Builtin( Tko.TY_ZSTRING ) )
+        end if
+    end if
 
     if c.ast->Kind( operand ) = Tko.N_IDENT then
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( operand ) )

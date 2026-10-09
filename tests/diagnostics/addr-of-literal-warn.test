@@ -1,0 +1,12 @@
+'' TKO0830 over '@"lit"', which is a 'zstring ptr': fbc-modern -w all warns on line 8 alone,
+'' the 'string ptr' target. tiko typed the address 'string ptr' and was silent there.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/addr-of-literal-warn.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: addr-of-literal-warn.bas(8,
+'' EXPECT-NOT: addr-of-literal-warn.bas(4,
+'' EXPECT-NOT: addr-of-literal-warn.bas(5,
+'' EXPECT-NOT: addr-of-literal-warn.bas(6,
+'' EXPECT-NOT: addr-of-literal-warn.bas(7,
+'' EXPECT-NOT: addr-of-literal-warn.bas(9,
+'' EXPECT-NOT: addr-of-literal-warn.bas(10,
