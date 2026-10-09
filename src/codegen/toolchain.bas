@@ -441,8 +441,9 @@ function LinkExe _
     '' fb_StrAllocTempDescZEx, with fb_hRtInit never reached. Linux survived only
     '' because a zeroed pthread mutex happens to be a valid one.
     ''
-    '' FROM THE LIBRARY SEARCH, first match, like the CRT objects -B finds: it is fbc's
-    '' object and lives in lib/<target>-fb/ beside crt2.o. NOT on win64-msvc, where
+    '' FROM THE LIBRARY SEARCH, first match, like the CRT objects -B finds. It is
+    '' tiko-rt's own since 2026-10-09 (lib/rt/src/c/fbrt0.c), in lib/<target>/ beside
+    '' libfb.a, which the search reaches before lib/<target>-fb/. NOT on win64-msvc, where
     '' tiko-rt's msvcinit.c does the same job, pulled in by /INCLUDE:tkort_msvc_init_ below.
     if target.id <> TARGET_WIN64_MSVC then
         dim as string rt0 = "fbrt0.o"

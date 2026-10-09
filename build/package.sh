@@ -364,6 +364,17 @@ for t in $TARGETS; do
     for _pic in libfbpic.a libfbmtpic.a; do
         [ -f "$ROOT/lib/rt/lib/$t/$_pic" ] && cp -f "$ROOT/lib/rt/lib/$t/$_pic" "$OUT/lib/$t/"
     done
+    # THE STARTUP OBJECT, tiko-rt's own since 2026-10-09 (lib/rt/src/c/fbrt0.c), for a
+    # gnu target. It goes beside the runtime so the driver's first-match search finds
+    # it before lib/<target>-fb/; that copy of fbc's is deleted below all the same.
+    for _rt0 in fbrt0.o fbrt0pic.o; do
+        [ -f "$ROOT/lib/rt/lib/$t/$_rt0" ] && cp -f "$ROOT/lib/rt/lib/$t/$_rt0" "$OUT/lib/$t/"
+    done
+    case $t in
+        *-msvc) ;;
+        *) [ -f "$OUT/lib/$t/fbrt0.o" ] || \
+               die "no fbrt0.o for $t -- lib/rt/build/build.sh builds it beside libfb.a" ;;
+    esac
 
     # THE GRAPHICS LIBRARY GOES BESIDE THE RUNTIME, in lib/<target>/ and not a
     # directory of its own, because that is where the compiler looks: since
@@ -412,7 +423,7 @@ for t in $TARGETS; do
         # replaced each -- and LinkExe names a path's libfb.a only when it exists,
         # so deleting these is the whole of the change. The -pic variants are the
         # same library; the compiler has never named them.
-        for _rt in libfb.a libfbmt.a libfbpic.a libfbmtpic.a; do
+        for _rt in libfb.a libfbmt.a libfbpic.a libfbmtpic.a fbrt0.o fbrt0pic.o; do
             rm -f "$OUT/lib/$t-fb/$_rt"
         done
     elif [ "$t" = "win64-msvc" ]; then

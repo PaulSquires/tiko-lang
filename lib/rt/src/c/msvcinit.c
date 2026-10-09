@@ -32,11 +32,11 @@
 ** any module destructor has been registered -- runs LAST.  fb_hRtExit has to run
 ** after everything it might tear down, which is exactly that position.
 **
-** MSVC ONLY, and the file is empty elsewhere.  On the gnu targets fbc's own
-** fbrt0.o is on the link line and doing this job; adding a second initialiser
-** there would mean two calls into fb_hRtInit's counter and a gated archive that
-** differs from the one measured.  An empty translation unit is a valid object
-** with no symbols, so the MinGW archive gains a member and nothing else.
+** MSVC ONLY, and the file is empty elsewhere.  On the gnu targets fbrt0.c's
+** object is on the link line and doing this job (it was fbc's own fbrt0.o until
+** 2026-10-09); adding a second initialiser there would mean two calls into
+** fb_hRtInit's counter.  An empty translation unit is a valid object with no
+** symbols, so the MinGW archive gains a member and nothing else.
 */
 
 #ifdef TKORT_MSVC

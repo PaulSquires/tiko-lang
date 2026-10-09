@@ -308,6 +308,9 @@ build_one( ) {
     # is a call around a call -- and there is no tiko-rt source to step through in
     # them. -g is still passed so a backtrace names the file.
     for csrc in $(ls "$RT_ROOT"/src/c/*.c 2>/dev/null); do
+        # fbrt0.c IS A LOOSE OBJECT, never a member: nothing refers to it by name, so
+        # an archive search would never pull it in. build_rt0 installs it.
+        case $(basename "$csrc") in fbrt0.c) continue ;; esac
         cobj="$objdir/$(basename "$csrc" .c).o"
         ctgt=$(rt_clang_triple "$target")
         [ -n "$ctgt" ] || ctgt=$(rt_target_triple "$target")
@@ -377,6 +380,32 @@ build_one( ) {
     echo "build: $target/$archive [$CFG] -- $(echo $objs | wc -w) objects, $n text symbols"
 }
 
+# THE STARTUP OBJECT, fbrt0.o, for a gnu target: src/c/fbrt0.c says what it is and
+# why it is a loose file in lib/<target>/ rather than a member. A Linux shared library
+# links fbrt0pic.o, as fbc's does. win64-msvc has msvcinit.c instead and gets none --
+# and any left there by an older build is removed, since the driver would not name
+# it but a reader of the directory might believe it.
+build_rt0( ) {
+    _t=$1
+    _dir="$RT_ROOT/lib/$_t"
+    case $_t in
+        *-msvc) rm -f "$_dir/fbrt0.o" "$_dir/fbrt0pic.o"; return 0 ;;
+    esac
+    _tri=$(rt_clang_triple "$_t")
+    [ -n "$_tri" ] || _tri=$(rt_target_triple "$_t")
+    mkdir -p "$_dir"
+    "$CLANG" --target="$_tri" -O2 -g -std=c99 -Wall -Wextra \
+        -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0.o" \
+        || rt_die "$_t: fbrt0.c failed to compile"
+    case $_t in
+        linux-*)
+            "$CLANG" --target="$_tri" -O2 -g -std=c99 -Wall -Wextra -fPIC \
+                -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0pic.o" \
+                || rt_die "$_t: fbrt0.c (pic) failed to compile" ;;
+    esac
+    echo "build: $_t/fbrt0.o$(case $_t in linux-*) echo ' + fbrt0pic.o' ;; esac)"
+}
+
 echo "build: tiko-rt [$CFG] with $TKORT_FBC ($RT_JOBS jobs)"
 for target in $TARGETS; do
     build_one "$target" st
@@ -385,5 +414,6 @@ for target in $TARGETS; do
         linux-*) build_one "$target" stpic
                  build_one "$target" mtpic ;;
     esac
+    build_rt0 "$target"
 done
 echo "build: ok"
