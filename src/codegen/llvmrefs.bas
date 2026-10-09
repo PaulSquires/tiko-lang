@@ -11,9 +11,10 @@ using Tko.Mir
 '' link tiko does. A reference from a body that is itself dropped still counts.
 ''
 '' WHAT COUNTS AS A REFERENCE: a direct call, which names the function's INDEX; the
-'' address of one (M_FUNC_ADDR, what 'procptr' produces); and a POINTER TABLE slot,
-'' which names it by NAME -- a vtable is how a private virtual method is reached and
-'' nothing else in the module would mention it. A module constructor or destructor is
+'' address of one (M_FUNC_ADDR, what 'procptr' produces); and a POINTER WORD of a
+'' global, which names it by NAME -- a vtable is how a private virtual method is
+'' reached and nothing else in the module would mention it, and 'dim shared h as
+'' HOOKS = ( @f, ... )' is the same for a private 'f'. A module constructor or destructor is
 '' not marked here: the emitter treats both as roots, because the list it writes at the
 '' end of the module is what calls them.
 function ReferencedFunctions _
@@ -40,7 +41,7 @@ function ReferencedFunctions _
     next
     for gi as long = 0 to m.globals.Count - 1
         dim as MirGlobal ptr g = @m.globals[gi]
-        if g->isPtrTable = false then continue for
+        if g->ptrCount <= 0 then continue for
         for i as long = 0 to g->ptrCount - 1
             if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )
@@ -87,13 +88,19 @@ function DeclareUnknownVtableSlots _
     '' accepts the same source -- the slot is a link-time question, not a
     '' compile-time one -- so the object has to be producible.
     ''
+    '' NOT ONLY A VTABLE: any global with pointer words, a ptrTable or a VAR. tiko-rt's
+    '' 'dim shared as FB_FILE_HOOKS hooks_dev_file_encod = ( @tkrt_DevFileEof, ... )'
+    '' names procedures only DECLARED in that module, each through an alias, and this
+    '' looked at tables alone: clang 'use of undefined value @fb_DevFileClose' in four
+    '' runtime modules (io/devfileencod, devstd, devcomopen, devlptopen).
+    ''
     '' void( ) IS ENOUGH. Nothing calls through the declaration: the vtable is
     '' loaded and called indirectly with the call site's own signature, and a
     '' name this module does call has a MirFunction and is skipped here.
     dim as string decls
     for gi as long = 0 to m.globals.Count - 1
         dim as MirGlobal ptr g = @m.globals[gi]
-        if g->isPtrTable = false then continue for
+        if g->ptrCount <= 0 then continue for
         for i as long = 0 to g->ptrCount - 1
             if m.ptrKinds[g->ptrFirst + i] <> 2 then continue for
             dim as Tko.InternId pn = cast( Tko.InternId, m.ptrRefs[g->ptrFirst + i] )

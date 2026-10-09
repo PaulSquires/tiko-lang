@@ -1,0 +1,18 @@
+'' RUN: a 'dim shared' initialiser holding the ADDRESS of a procedure this module only
+'' declares -- through an 'extern "c"' alias, a plain declare, a private procedure named
+'' by nothing else, and an address among data. The variable's pointer words declared
+'' nothing, so clang refused the module ("use of undefined value"), and the private one
+'' was dropped as unreferenced. Four modules of tiko-rt are this shape. Output identical
+'' to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/global-init-proc-addr/main.bas tests/codegen/src/global-init-proc-addr/other.bas -o tests/codegen/globalinitprocaddr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: undefined value
+'' EXPECT-FILE: tests/codegen/globalinitprocaddr.exe
+'' RUN: tests/codegen/globalinitprocaddr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: alias 21
+'' EXPECT-RUN-OUT: plain 300
+'' EXPECT-RUN-OUT: private 9
+'' EXPECT-RUN-OUT: mixed 500
