@@ -1013,6 +1013,29 @@ private function ProcNameCore _
         if isMethod = false then return written
         foreignMethod = true
     end if
+    '' ...OR ITS DECLARATION'S, read the way the alias is above. 'declare sub fwd( )' in
+    '' an 'extern "c"' block and the body written after the block as 'private sub fwd( )'
+    '' are one procedure, and fbc names both by the DECLARATION: measured, 'static void
+    '' fwdCase( int32 )' for a body spelt FWDCASE, and 'void fwdPub( int32 )' when it is
+    '' not private. The body went out as FWD while every call named 'fwd', so the call
+    '' was an undefined symbol -- and under -O2 the private body, now unreferenced, was
+    '' deleted outright (tiko-rt's thread/sched.bas, tkort_hAddWorker). Procedures only:
+    '' a method's foreign spelling comes from its TYPE, below.
+    if (isMethod = false) andalso (aliased = false) then
+        dim as Tko.Symbol ptr fsym = syms.SymbolAt( info.RefOf( proc_ ) )
+        if fsym <> 0 then
+            dim as Tko.NodeId fdecl = cast( Tko.NodeId, fsym->payload )
+            if (fdecl <> Tko.NODE_NONE) andalso (fdecl <> proc_) then
+                if ast.Kind( fdecl ) = Tko.N_PROC then
+                    dim as Tko.StmtPayload ptr fdp = StmtOf( ast, fdecl )
+                    if (fdp->extra and Tko.PF_FOREIGN) <> 0 then
+                        if fdp->rawName <> 0 then return names.Spelling( fdp->rawName )
+                        return names.Spelling( fdp->name )
+                    end if
+                end if
+            end if
+        end if
+    end if
 
     '' Rule 2: an ALIAS replaces the identifier and KEEPS ITS CASE.
     ''

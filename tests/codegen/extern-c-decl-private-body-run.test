@@ -1,0 +1,17 @@
+'' RUN: a procedure declared inside 'extern "c"' and defined after the block, private
+'' and public, the body spelt in a different case. fbc names the body by the
+'' DECLARATION ('static void fwdCase', 'void fwdPub'); tiko named it by its own line,
+'' so every call was an undefined symbol at the link -- tiko-rt's thread/sched.bas.
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/extern-c-decl-private-body.bas -o tests/codegen/externcdeclprivatebody.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: undefined symbol
+'' EXPECT-FILE: tests/codegen/externcdeclprivatebody.exe
+'' RUN: tests/codegen/externcdeclprivatebody.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: case 1
+'' EXPECT-RUN-OUT: case 0
+'' EXPECT-RUN-OUT: pub 1
+'' EXPECT-RUN-OUT: pub 2
