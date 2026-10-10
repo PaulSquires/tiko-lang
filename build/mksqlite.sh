@@ -77,10 +77,10 @@ case "$target" in
     linux-x86_64)
         TFLAGS="-fPIC" ;;
     win64)
-        # Not built here: fbc-modern's MinGW libsqlite3.a in lib/win64-fb already links
-        # and passes, and building one needs MinGW's C headers, which clang lacks here.
-        printf 'mksqlite: win64 not built -- uses the MinGW libsqlite3.a in lib/win64-fb\n'
-        exit 0 ;;
+        # BUILT HERE since 2026-10-10, when lib/win64-fb -- whose MinGW libsqlite3.a this
+        # target used -- left the toolchain. clang's MinGW target finds MinGW's C headers
+        # the way its link finds MinGW's runtime: through the MinGW on PATH.
+        TFLAGS="--target=x86_64-w64-windows-gnu" ;;
     *)  fail "no recipe for this target" ;;
 esac
 

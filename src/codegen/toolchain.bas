@@ -580,7 +580,13 @@ function LinkExe _
             '' SDK ships, and AfxNova's DWM and propsys bindings write the '.dll' 182
             '' times -- PsCalendar's link stopped there.
             dim as string ln = t.libs[i]
-            if target.id = TARGET_WIN64_MSVC then
+            '' ...AND ON THE MinGW TARGET TOO. '-luser32.dll' resolved only through
+            '' 'libuser32.dll.a', which fbc's MinGW tree ships and a stock MinGW-w64 does not
+            '' (it has libuser32.a): win/winuser.bi's 'lib "user32.dll"' failed std/tui's
+            '' link once lib/win64-fb left the toolchain (2026-10-10). '-luser32' finds
+            '' either file -- ld and lld search lib<name>.dll.a before lib<name>.a -- so
+            '' dropping the suffix loses nothing that linked before.
+            if target.objFormat = OBJ_COFF then
                 if (len( ln ) > 4) andalso (lcase( right( ln, 4 ) ) = ".dll") then
                     ln = left( ln, len( ln ) - 4 )
                 end if

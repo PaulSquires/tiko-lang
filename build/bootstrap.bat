@@ -78,7 +78,8 @@ if "%TKO_BOOT_LIBDIRS%"=="" (
 if "%TKO_BOOT_LIBDIRS%"=="" (
     if /i "%TARGET%"=="win64-msvc" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64-msvc"
     rem MinGW needs its CRT objects beside the runtime; see cmdline.bas.
-    if /i "%TARGET%"=="win64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
+    if /i "%TARGET%"=="win64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64"
+    if /i "%TARGET%"=="win64" if exist "%ROOT%\toolchains\tiko-windows\lib\win64-fb\" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
 )
 if "%TKO_BOOT_LIBDIRS%"=="" (
     echo bootstrap: unknown target '%TARGET%' 1>&2

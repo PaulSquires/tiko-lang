@@ -112,7 +112,8 @@ if [ -z "$TKO_BOOT_LIBDIRS" ]; then
     case "$TARGET" in
         win64-msvc)   TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64-msvc" ;;
         # MinGW needs its CRT objects beside the runtime; see cmdline.bas.
-        win64)        TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64 $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
+        win64)        TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64"
+                      [ -d "$ROOT/toolchains/tiko-windows/lib/win64-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
         linux-x86_64) TKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/linux-x86_64" ;;
         *) echo "bootstrap: unknown target '$TARGET'" >&2; exit 2 ;;
     esac

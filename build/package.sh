@@ -28,10 +28,11 @@
 #            decision, so a packaged toolchain depends on an installed one.
 #
 #   MinGW    -target win64 links against a MinGW runtime -- crt2.o, crtbegin.o,
-#            libmingw32, libgcc and the rest -- which tiko does not build. It ships
-#            as lib/win64-fb/, and win64 is a target, ONLY when one is given:
-#            --mingw-lib or TKO_MINGW_LIB, else the copy already in the output
-#            directory is kept (decision Q2, interim 2026-10-10). win64-msvc and
+#            libmingw32, libgcc and the rest -- which tiko does not build. clang's
+#            MinGW driver takes it from the MinGW on PATH; tiko-rt's own lib/win64
+#            supplies the rest. A copy ships, as lib/win64-fb/, only when one is
+#            given: --mingw-lib or TKO_MINGW_LIB (decision Q2; the author's order,
+#            2026-10-10, retired the copy toolchains carried). win64-msvc and
 #            linux-x86_64 need nothing of the kind.
 #
 # Neither is a packaging bug. Both are written into MANIFEST.txt so that a
@@ -127,7 +128,7 @@ esac
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; EXT=".exe"; BINSUB=""
-        TARGETS="win64-msvc"
+        TARGETS="win64-msvc win64"
         # The compiler's own default on this host -- HostTarget( ), src/types/type.bas.
         DEFTARGET=win64-msvc
         CLANG_DEFAULT='C:\Program Files\LLVM\bin\clang.exe'
@@ -156,17 +157,14 @@ gfx_has_target( ) {
 
 [ -n "$OUT" ] || OUT="$ROOT/toolchains/tiko-$HOST"
 
-# -TARGET WIN64 NEEDS A MINGW RUNTIME, and is a target only when there is one: the
-# directory given, else the one a previous package left in the output (not after
-# --clean). crt2.o is the test of the directory: it is what every win64 link starts with.
-MINGW_STATE="not packaged -- no --mingw-lib, and none in the output to keep"
+# -TARGET WIN64'S MINGW RUNTIME: the MinGW on PATH, which clang's MinGW driver finds by
+# itself -- or a copy shipped as lib/win64-fb/, ONLY when one is named. crt2.o is the test
+# of the directory: it is what every win64 link starts with. A copy a previous package left
+# in the output is NOT kept: the stale-directory sweep below removes it.
+MINGW_STATE="not shipped -- -target win64 links with the MinGW on PATH (--mingw-lib ships one)"
 if [ "$HOST" = "windows" ]; then
-    if [ -z "$MINGW_LIB" ] && [ "$DO_CLEAN" = "0" ] && [ -f "$OUT/lib/win64-fb/crt2.o" ]; then
-        MINGW_LIB="$OUT/lib/win64-fb"
-    fi
     if [ -n "$MINGW_LIB" ]; then
         [ -f "$MINGW_LIB/crt2.o" ] || die "no crt2.o in $MINGW_LIB -- not a MinGW runtime directory"
-        TARGETS="$TARGETS win64"
         MINGW_STATE="lib/win64-fb/ from $MINGW_LIB"
     fi
 else
@@ -276,6 +274,15 @@ fi
 mkdir -p "$OUT"
 [ -z "$BINSUB" ] || mkdir -p "$OUT/$BINSUB"
 
+# NO examples/ IN A TOOLCHAIN (the author's order, 2026-10-10). Nothing here ever wrote one:
+# 2,098 fbx examples were placed in toolchains/tiko-windows by hand on 2026-09-29, and since
+# packaging replaces only what it writes, they rode along in every package -- and in its
+# MANIFEST file count -- until a release recipe excluded them. A toolchain no longer has it.
+if [ -e "$OUT/examples" ]; then
+    note "removing examples/ -- a toolchain does not ship one"
+    rm -rf "$OUT/examples"
+fi
+
 note "compiler -> ${BINSUB}tiko$EXT"
 cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
 
@@ -329,10 +336,10 @@ if [ "$DO_INC" = "1" ]; then
     done
     _pat=$( printf '%s\n' $_chk | sed 's/[.]/\\./g' | paste -sd'|' - )
     _dang=$( grep -rIliE "^[[:space:]]*#[[:space:]]*include([[:space:]]+once)?[[:space:]]+\"($_pat)(\"|/)" "$_newinc" 2>/dev/null | head -5 | sed "s#^$_newinc/##" | tr '\n' ' ' )
-    [ -z "$_dang" ] || die "shipped headers include excluded ones (build/inc-exclude.txt): $_dang"
+    [ -z "$_dang" ] || { rm -rf "$_newinc"; die "shipped headers include excluded ones (build/inc-exclude.txt): $_dang"; }
     note "headers -> inc/  $_nex entries left out (build/inc-exclude.txt)"
     INC_STATE="$INC_STATE; $_nex entries left out by build/inc-exclude.txt"
-    [ -n "$( ls -A "$_newinc" 2>/dev/null )" ] || die "packaged inc/ is EMPTY -- the compiler would find no headers at all"
+    [ -n "$( ls -A "$_newinc" 2>/dev/null )" ] || { rm -rf "$_newinc"; die "packaged inc/ is EMPTY -- the compiler would find no headers at all"; }
     # include/ was fbc-modern-linux's header tree, copied whole beside inc/. The compiler
     # never looked in it (<exe-dir>/inc, <exe-dir>/../inc); it goes.
     rm -rf "$OUT/include"
@@ -391,7 +398,7 @@ if [ -d "$OUT/lib" ]; then
         done
         # An -fb directory only for win64: linux-x86_64-fb held fbc's fbrt0.o and
         # libraries the driver never names, and tiko-rt has its own fbrt0 (R8).
-        case ${d##*/} in win64-fb) case " $TARGETS " in *" win64 "*) _keep=1 ;; esac ;; esac
+        case ${d##*/} in win64-fb) [ -n "$MINGW_LIB" ] && _keep=1 ;; esac
         if [ "$_keep" = "0" ]; then
             note "removing stale lib/${d##*/} -- not a target of this toolchain"
             rm -rf "$d"
@@ -458,7 +465,7 @@ for t in $TARGETS; do
 
     # THE MINGW RUNTIME BEHIND OURS, for -target win64 only (decision Q2). Kept in
     # place when the source IS the destination -- a previous package's copy.
-    if [ "$t" = "win64" ]; then
+    if [ "$t" = "win64" ] && [ -n "$MINGW_LIB" ]; then
         _dst="$OUT/lib/win64-fb"
         if [ -d "$_dst" ] && [ "$( cd "$MINGW_LIB" && pwd -P )" = "$( cd "$_dst" && pwd -P )" ]; then
             note "MinGW runtime -> lib/win64-fb/  kept"
@@ -574,8 +581,8 @@ cp -f "$FBCU/readme.txt" "$FBCU/license.txt" "$FBCU/lgpl-2.1.txt" "$OUT/src/fbcu
 # fbc-modern-linux carries neither.
 #
 # THE LIBRARY IS BUILT HERE, per target, from the amalgamation fbsqlite vendors --
-# build/mksqlite.sh has the reasons for each flag. win64 keeps the MinGW runtime's
-# archive in lib/win64-fb, which already links. The headers are copied from the same
+# build/mksqlite.sh has the reasons for each flag -- win64's included, built against the
+# MinGW on PATH since lib/win64-fb left the toolchain. The headers are copied from the same
 # fbsqlite checkout, on both hosts, so they always match the library beside them.
 #
 # The source is TKO_SQLITE, else the fbsqlite repository beside this one. NOT FATAL,
@@ -924,8 +931,9 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     if [ "$HOST" = "windows" ]; then
         say "lib/win64-fb/     the MinGW runtime -target win64 links against --"
         say "                  crt2.o, libmingw32, libgcc and the rest -- which tiko"
-        say "                  does not build. Present only when win64 is listed"
-        say "                  under targets above."
+        say "                  does not build. Present only when a package named"
+        say "                  one; otherwise -target win64 needs a MinGW-w64 on"
+        say "                  PATH, which clang's MinGW driver finds by itself."
         say
         say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
         say "                  DLLs, built from tiko-lang's lib/implib/*.def by"

@@ -1,0 +1,8 @@
+'' A '.dll' LIBRARY NAME ON THE MinGW TARGET links as its stem, as on win64-msvc:
+'' '-luser32', which finds libuser32.dll.a and libuser32.a alike. '-luser32.dll' found
+'' only the first, which fbc's MinGW tree carries and a stock MinGW-w64 does not.
+'' TEST: cli
+'' ARGS: -v -target win64 -p toolchains/tiko-windows/lib/win64 tests/driver/src/dll-libname.bas -o tests/driver/dlllibname.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: "-luser32"
+'' EXPECT-NOT: -luser32.dll
