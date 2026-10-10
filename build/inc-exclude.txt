@@ -9,6 +9,14 @@
 # (vbcompat.bi; AfxNova's DWSTRING.bi and CPowerTime.inc), sqlite3api.bi (fbsqlite.bi),
 # GL (AfxNova's OpenGL classes, examples and templates). Added: libexslt, which includes
 # libxml and libxslt and would not compile without them.
+#
+# A PATH may name a directory below the top (crt/dos). A second word 'unreachable' marks an
+# entry that shipped headers DO include, but only under a platform tiko never defines --
+# crt/stdio.bi's '#elseif defined(__FB_DOS__)' and the like. Measured 2026-10-10: tiko
+# defines __FB_WIN32__ (win64, win64-msvc) or __FB_LINUX__ + __FB_UNIX__ (linux-x86_64),
+# never __FB_DOS__, __FB_ANDROID__ or __FB_FREEBSD__, and every such include sits in one of
+# those branches (or stdio.bi's other-Unix fallback, after __FB_LINUX__). The guard skips
+# these; everything else it still checks.
 AL
 allegro
 allegro.bi
@@ -128,3 +136,10 @@ zip.bi
 zlib.bi
 zmq
 libexslt
+# 2026-10-10, the author's second list: CRT headers for platforms tiko has not got, and two
+# more third-party sets.
+crt/android  unreachable
+crt/dos      unreachable
+crt/freebsd  unreachable
+CUnit
+libart_lgpl

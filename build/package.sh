@@ -318,12 +318,16 @@ if [ "$DO_INC" = "1" ]; then
     # third-party bindings tiko does not carry, by the author's list. A header that IS shipped
     # but includes an excluded one would fail at its first '#include' in a user's build, so
     # that is refused here rather than discovered there.
-    _excl=$( grep -v '^[[:space:]]*#' "$ROOT/build/inc-exclude.txt" | tr -d '\r' | grep -v '^[[:space:]]*$' )
+    # One entry per line, a path below inc/; a second word 'unreachable' exempts it from the
+    # include check below (inc-exclude.txt says when that is true).
+    _exf=$( grep -v '^[[:space:]]*#' "$ROOT/build/inc-exclude.txt" | tr -d '\r' | grep -v '^[[:space:]]*$' )
+    _excl=$( printf '%s\n' "$_exf" | awk '{ print $1 }' )
+    _chk=$( printf '%s\n' "$_exf" | awk '$2 != "unreachable" { print $1 }' )
     _nex=0
     for _e in $_excl; do
         if [ -e "$_newinc/$_e" ]; then rm -rf "$_newinc/$_e"; _nex=$(( _nex + 1 )); fi
     done
-    _pat=$( printf '%s\n' $_excl | sed 's/[.]/\\./g' | paste -sd'|' - )
+    _pat=$( printf '%s\n' $_chk | sed 's/[.]/\\./g' | paste -sd'|' - )
     _dang=$( grep -rIliE "^[[:space:]]*#[[:space:]]*include([[:space:]]+once)?[[:space:]]+\"($_pat)(\"|/)" "$_newinc" 2>/dev/null | head -5 | sed "s#^$_newinc/##" | tr '\n' ' ' )
     [ -z "$_dang" ] || die "shipped headers include excluded ones (build/inc-exclude.txt): $_dang"
     note "headers -> inc/  $_nex entries left out (build/inc-exclude.txt)"
